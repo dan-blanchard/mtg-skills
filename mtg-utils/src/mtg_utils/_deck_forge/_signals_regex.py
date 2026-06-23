@@ -50,6 +50,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEBUFF_SWEEP_REGEX,
     DIG_UNTIL_REGEX,
     DISCARD_OUTLET_REGEX,
+    DRAW_FOR_EACH_REGEX,
     ENCHANTMENTS_MATTER_REGEX,
     EXILE_REMOVAL_REGEX,
     EXTRA_TURNS_REGEX,
@@ -3385,6 +3386,26 @@ def _exile_removal_has_plan(text: str) -> bool:
     return any(_EXILE_REMOVAL_SWEEP_RE.search(cl) for cl in _clauses(text))
 
 
+def _draw_for_each_has_plan(text: str) -> bool:
+    """ADR-0027 per-clause draw raw (SIDECAR v32): the HAS-OTHER-PLAN mirror for the
+    migrated draw_for_each key. The deleted SWEEP producer fired HIGH-confidence (scope
+    'you', NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) and counted toward
+    `has_other_plan`, silencing the spurious commander-damage voltron tell on a
+    scaling-card-advantage ENGINE (a "draw a card for each creature you control" refill
+    is a card-advantage plan, not a vanilla beater). The migrated lane rides the `draw`
+    Effect clause-local scaling-count structural arm UNION a byte-identical per-clause
+    kept mirror, but the IR re-supply is BROADER (+48 ir_only — the counted-SUBJECT
+    scaling draws the regex never matched, e.g. "draw cards equal to the greatest power
+    among creatures"), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-
+    silence those gains (a vanilla beater whose only draw is a structured "equal to the
+    greatest power" should keep its tell here). This byte-identical mirror — matching
+    ONLY the deleted regex's matches — restores its exact silence set. The deleted SWEEP
+    Detector ran PER-CLAUSE over the reminder-STRIPPED oracle (its "draw … for each"
+    arms never cross a clause), so this runs per-clause over `text`. CR 107.3 /
+    903.10a."""
+    return any(_DRAW_FOR_EACH_SWEEP_RE.search(cl) for cl in _clauses(text))
+
+
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated conjure_matters key. The
 # deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a conjure
@@ -4378,6 +4399,17 @@ _TOPDECK_SELECTION_SWEEP_RE = re.compile(TOPDECK_SELECTION_REGEX, re.IGNORECASE)
 # carries no structural form for it). The deleted SWEEP Detector ran PER-CLAUSE over the
 # reminder-STRIPPED oracle, so the mirror MUST too. CR 406.1 / 115.1.
 _EXILE_REMOVAL_SWEEP_RE = re.compile(EXILE_REMOVAL_REGEX, re.IGNORECASE)
+
+# ADR-0027 per-clause draw raw (SIDECAR v32) — the EXACT deleted draw_for_each SWEEP
+# regex, kept for the byte-identical mirror. The structural `draw` Effect scaling-count
+# arm (gated by the draw's PER-CLAUSE clause_raw — the projection's draw-local sub-
+# clause) binds the genuine scaling draws phase structures; this mirror recovers the 12
+# commander-legal cards phase RE-CATEGORIZES off the draw effect or leaves textual
+# (Borrowed Knowledge, Curse of Surveillance, Sea Gate Restoration, Truth or
+# Consequences, …). Its arms ("draw … for each" / "draw cards equal to the number of")
+# never cross a clause boundary, so a per-clause scan over the reminder-STRIPPED oracle
+# == the deleted SWEEP path byte-identically. CR 107.3.
+_DRAW_FOR_EACH_SWEEP_RE = re.compile(DRAW_FOR_EACH_REGEX, re.IGNORECASE)
 
 # play_from_top (ADR-0027 β) — the EXACT deleted SWEEP + _HAND_FLOOR regexes for the
 # ongoing top-of-library play permission, kept as a byte-identical PER-CLAUSE mirror.
@@ -5785,6 +5817,17 @@ def extract_signals(
         # exact silence set. Per-clause over the reminder-STRIPPED `text`. See
         # _exile_removal_has_plan. CR 406.1 / 115.1 / 903.10a.
         or _exile_removal_has_plan(text)
+        # ADR-0027 per-clause draw raw (SIDECAR v32): re-silence the deleted
+        # draw_for_each SWEEP producer (it fired HIGH-confidence scope 'you', feeding
+        # has_other_plan — a scaling-card-advantage engine is a plan, not a vanilla
+        # beater). The migrated lane rides the `draw` Effect clause-local scaling-count
+        # structural arm + a byte-identical per-clause kept mirror that are BROADER (+48
+        # ir_only — the counted-subject scaling draws the regex missed), so this byte-
+        # identical mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS (which over-silences a
+        # beater whose only draw is a structured "equal to the greatest power") —
+        # restores the deleted regex's exact silence set. Per-clause over the reminder-
+        # STRIPPED `text`. See _draw_for_each_has_plan. CR 107.3 / 903.10a.
+        or _draw_for_each_has_plan(text)
         # ADR-0027 β: re-silence the deleted lifegain_matters registry-280 _DETECTORS
         # producer (ARM (A) — it fired HIGH-confidence forced scope 'you', feeding
         # has_other_plan; a lifegain ENGINE is no vanilla beater). ONLY ARM (A): the

@@ -158,6 +158,24 @@ TOPDECK_SELECTION_REGEX = "look at the top (?:two|three|four|five|six|seven|eigh
 # stripped oracle, so the mirror runs per-clause too. CR 406.1 (one-way exile = removal)
 # / 115.1 (single target).
 EXILE_REMOVAL_REGEX = "exile (?:up to (?:one|two|three|\\w+|x) )?(?:other )?target (?:[a-z]+ )*(?:creature|permanent|artifact|enchantment|planeswalker)|exile [^.]*and target (?:permanent|creature)"
+# ADR-0027 per-clause draw raw (SIDECAR v32): draw_for_each migrated to the Card IR.
+# Detection moves to a `draw` EFFECT scaling-count STRUCTURAL arm gated by the draw's
+# PER-CLAUSE raw (project.py carries the draw-local clause on `Effect.clause_raw`; the
+# arm runs _is_scaling_count over clause_raw, so a fixed draw sharing an ability with a
+# for-each cost / damage / life / token rider — Tamiyo's Logbook, Castle Locthwain, the
+# Parley draws — no longer fires) UNION a byte-identical PER-CLAUSE mirror of this regex
+# (_DRAW_FOR_EACH_SWEEP_RE in _signals_regex) for the cards phase RE-CATEGORIZES off the
+# draw effect or leaves textual (Borrowed Knowledge, Curse of Surveillance, Sea Gate
+# Restoration — 12 commander-legal regex-only). The regex survives as a shared constant
+# so signal_specs hand-registers the serve pool reusing it AND the kept mirror reuses
+# it — serve / mirror / (now-deleted) detector never drift. Its arms ("draw … for each"
+# / "draw cards equal to the number of") never cross a clause boundary, so the mirror
+# runs PER-CLAUSE over the reminder-stripped oracle == the deleted SWEEP path byte-
+# identically. The structural arm adds +48 genuine scaling draws the regex missed (a
+# counted SUBJECT — "draw cards equal to the greatest power among creatures"; a "where
+# X is the number of <type>" count) and drops the ~40 fixed-draw + sibling-rider over-
+# fires. CR 107.3.
+DRAW_FOR_EACH_REGEX = "draw a card for each|draw cards equal to the number of|draws? (?:a card |cards )?for each"
 # ADR-0027: tap_down migrated to the Card IR (the tap-down control lane — tap an
 # OPPONENT's permanent / "skips its next untap step" / detain; CR 701.21 detain, CR
 # 502.x untap step). Its SWEEP_DETECTORS row is deleted; detection moves to a
@@ -2436,12 +2454,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "cheat_into_play",
         "regex": "put (?:a|that|those|up to (?:two|one|\\d+))[^.]*(?:permanent|creature|land|nonland)[^.]*cards?[^.]*onto the battlefield|put a permanent card[^.]*onto the battlefield|put [^.]*land cards?[^.]*onto the battlefield|put (?:an? )?artifact,? (?:creature,? )?(?:or land |and/or land )?card[^.]*from (?:your|their) hand onto the battlefield|put an? [^.]*card[^.]*(?:from your (?:hand|library)|from among them) onto the battlefield",
     },
-    {
-        "key": "draw_for_each",
-        "scope": "you",
-        "is_widen_of": "card_draw_engine",
-        "regex": "draw a card for each|draw cards equal to the number of|draws? (?:a card |cards )?for each",
-    },
+    # ADR-0027 per-clause draw raw (SIDECAR v32): draw_for_each migrated to the Card IR.
+    # Its SWEEP_DETECTORS row is deleted; detection moves to a `draw` Effect scaling-
+    # count STRUCTURAL arm gated by the draw's PER-CLAUSE raw (Effect.clause_raw — the
+    # draw-local sub-clause project.py carries) UNION a byte-identical PER-CLAUSE kept
+    # mirror (_DRAW_FOR_EACH_SWEEP_RE in _signals_regex, == DRAW_FOR_EACH_REGEX pinned
+    # above). The clause-local _is_scaling_count drops the ~40 fixed-draw + sibling-rider
+    # over-fires; the structural arm adds +48 genuine scaling draws the regex missed. The
+    # serve is hand-registered in signal_specs.py reusing DRAW_FOR_EACH_REGEX, so serve /
+    # mirror / (now-deleted) detector never drift. SWEEP_LABELS keeps the human label.
+    # CR 107.3.
     # ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters migrated to the
     # Card IR. Detection moves to a STRUCTURAL arm (cat=='clone' → _clone_copy_lanes(
     # e.subject) over the now-populated copied-type subject — supplement._copied_type_

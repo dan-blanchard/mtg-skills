@@ -81,6 +81,17 @@ class Effect:
     scope: str = "any"  # you | opp | each | any
     subject: Filter | None = None
     raw: str = ""
+    # ADR-0027 per-clause draw raw (SIDECAR v32): the draw-local SUB-CLAUSE of ``raw``
+    # — the segment bounded by the draw verb, split off the rest of the ability at
+    # sentence / ", then" / activation-cost ":" boundaries. Set ONLY for ``draw``
+    # effects whose whole-ability ``raw`` spans a SEPARATE for-each clause (a fixed
+    # "Draw a card" sharing an ability with "...costs {1} less for each X" / "...lose
+    # life equal to the number of …"), so a scaling-count detector can ask whether the
+    # "for each" / "equal to the number of" phrase is in the SAME clause as the draw
+    # (it scales the draw) or a different one (it scales a cost / damage / life rider —
+    # the draw_for_each over-fire to drop). Empty ⇒ fall back to ``raw`` (single-clause
+    # draws and all non-draw effects are byte-identical to v31). CR 107.3.
+    clause_raw: str = ""
     counter_kind: str = ""  # for place/remove_counter: p1p1 | m1m1 | charge | oil | …
     # Directional non-battlefield zone references this effect structurally touches,
     # e.g. ("from:graveyard", "to:exile") for "exile target card from a graveyard",
@@ -443,6 +454,8 @@ def _effect_to_dict(e: Effect) -> dict:
         out["sub"] = sub
     if e.raw:
         out["raw"] = e.raw
+    if e.clause_raw:
+        out["craw"] = e.clause_raw
     if e.counter_kind:
         out["ck"] = e.counter_kind
     if e.zones:
@@ -457,6 +470,7 @@ def _effect_from_dict(d: dict) -> Effect:
         scope=d.get("sc", "any"),
         subject=_filter_from_dict(d.get("sub")),
         raw=d.get("raw", ""),
+        clause_raw=d.get("craw", ""),
         counter_kind=d.get("ck", ""),
         zones=tuple(d.get("z", ())),
     )

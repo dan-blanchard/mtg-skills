@@ -3957,6 +3957,35 @@ _FOR_EACH_TYPE_MAP = {
 }
 
 
+# ADR-0027 per-clause draw raw (SIDECAR v32). The draw-local clause splitter: an
+# ability's `raw` (a phase `description`) can span SEVERAL clauses — a fixed "Draw a
+# card" sharing the ability with "...costs {1} less to activate FOR EACH artifact"
+# (Tamiyo's Logbook), "...then you lose life EQUAL TO THE NUMBER OF cards" (Castle
+# Locthwain), or a "FOR EACH nonland card revealed … then each player draws a card"
+# Parley rider. The "for each" / "equal to the number of" phrase in a SIBLING clause
+# scales a cost / damage / life / token rider, NOT the draw — but _FOR_EACH_COUNT /
+# _is_scaling_count scanning the WHOLE raw mis-attribute it to the draw (the ~40-card
+# draw_for_each over-fire). We split the raw at sub-clause boundaries — a sentence end
+# (`.` `;` `\n`), an activation-cost `:` (the cost precedes the colon, the effect
+# follows), or a ", then" connective — and keep only the segment(s) carrying the draw
+# verb. The for-each scan then sees the draw's OWN clause, so a same-clause scaler
+# (genuine draw_for_each: "draw an additional card for each quest counter", "For each
+# opponent who can't, you draw a card") still lifts while a sibling-clause scaler
+# drops. CR 107.3.
+_DRAW_CLAUSE_SPLIT = re.compile(r"(?<=[.;:\n])\s+|,?\s+then\s+", re.IGNORECASE)
+_DRAW_VERB = re.compile(r"\bdraws?\b", re.IGNORECASE)
+
+
+def _draw_local_raw(raw: str) -> str:
+    """The draw-bearing sub-clause(s) of an effect ``raw`` (ADR-0027 per-clause draw).
+    Splits ``raw`` at sentence / cost-colon / ", then" boundaries and joins the
+    segments containing a draw verb; falls back to the whole ``raw`` when no segment
+    isolates a draw verb (a single-clause draw, where local == whole)."""
+    segs = [s for s in _DRAW_CLAUSE_SPLIT.split(raw) if s.strip()]
+    draw_segs = [s for s in segs if _DRAW_VERB.search(s)]
+    return " ".join(draw_segs) if draw_segs else raw
+
+
 def _recover_count_operand(ability: Ability) -> Ability:
     """Lift a DROPPED "for each X" scaling operand on a draw / pump effect back to
     op='count' (ADR-0027 count-operand cluster). phase leaves the amount as
@@ -3965,32 +3994,48 @@ def _recover_count_operand(ability: Ability) -> Ability:
     draw_for_each fire. A counted permanent CLASS named in the raw becomes the count
     subject; an uncapturable count (opponents, same-name) stays subject=None. Append-
     only: an effect already carrying a count/counters/domain/devotion/party operand
-    is untouched (the structured count is preferred). CR 107.3."""
+    is untouched (the structured count is preferred). CR 107.3.
+
+    ADR-0027 per-clause draw (SIDECAR v32): a DRAW effect scans its draw-LOCAL clause
+    (``_draw_local_raw``), not the whole ability raw, so the "for each" on a sibling
+    cost / damage / life rider doesn't mis-lift a fixed draw (Tamiyo's Logbook, Castle
+    Locthwain, the Parley draws). The draw-local clause is stamped onto ``clause_raw``
+    (only when it is a STRICT sub-clause of ``raw``) so the signals scaling-count arm
+    can replay the same locality. A PUMP effect keeps the whole-raw scan (its
+    scaling_pump lane is migrated at v31 breadth — behavior-neutral)."""
     new_effects: list[Effect] = []
     changed = False
     for e in ability.effects:
         amt = e.amount
+        is_draw = e.category == "draw"
+        scan_raw = _draw_local_raw(e.raw or "") if is_draw else (e.raw or "")
+        # Carry the draw-local clause on the draw effect (only when it is a proper
+        # sub-clause — a multi-clause ability; single-clause draws stay clause_raw=""
+        # and fall back to raw, byte-identical to v31).
+        new_e = e
+        if is_draw and scan_raw and scan_raw != (e.raw or ""):
+            new_e = replace(e, clause_raw=scan_raw)
+            changed = True
         if (
             e.category in ("draw", "pump")
             and amt is not None
             and amt.op == "fixed"
             and amt.subject is None
-            and _FOR_EACH_COUNT.search(e.raw or "")
+            and _FOR_EACH_COUNT.search(scan_raw)
         ):
             # The recovered count multiplies by the same per-unit factor phase kept
             # (Anya's +3/+3 for each, Nyxathid's -1/-1 for each), so preserve it.
             subj = None
-            sm = _FOR_EACH_SUBJECT.search(e.raw or "")
+            sm = _FOR_EACH_SUBJECT.search(scan_raw)
             if sm is not None:
                 ct = _FOR_EACH_TYPE_MAP.get(sm.group(1).lower())
                 if ct is not None:
                     subj = Filter(card_types=(ct,))
-            new_effects.append(
-                replace(e, amount=Quantity(op="count", factor=amt.factor, subject=subj))
+            new_e = replace(
+                new_e, amount=Quantity(op="count", factor=amt.factor, subject=subj)
             )
             changed = True
-        else:
-            new_effects.append(e)
+        new_effects.append(new_e)
     if not changed:
         return ability
     return replace(ability, effects=tuple(new_effects))

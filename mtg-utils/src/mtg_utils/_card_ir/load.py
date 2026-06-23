@@ -332,7 +332,24 @@ from mtg_utils.card_ir import Card
 #   base_pt_set before the grant fallback. Carves ONLY the fixed base-P/T-set mechanic
 #   (CR 613.4b layer 7b) out of the 4-mechanic regex umbrella — switch (613.4d layer 7d)
 #   and pure type-conferral (205.1b) stay distinct, NOT re-absorbed. The lane reads it.
-SIDECAR_VERSION = 32
+# v33 (ADR-0027 Cluster C — per-clause draw raw, project.py `_recover_count_operand`
+#   + `Effect.clause_raw`): a draw effect's whole-ability `raw` can span a SEPARATE
+#   "for each" / "equal to the number of" clause that scales a sibling cost / damage /
+#   life / token rider, NOT the draw — a fixed "Draw a card" sharing the ability with
+#   "...costs {1} less to activate for each artifact" (Tamiyo's Logbook), "...then you
+#   lose life equal to the number of cards" (Castle Locthwain), or a "For each nonland
+#   card revealed … then each player draws a card" Parley rider. The count-operand
+#   recovery now scans the draw's OWN sub-clause (`_draw_local_raw` — split at
+#   sentence / activation-cost ":" / ", then" boundaries, keep the draw-verb segment)
+#   instead of the whole raw, so a sibling-clause scaler no longer mis-lifts the fixed
+#   draw to op='count' (the ~40-card draw_for_each over-fire). The draw-local clause is
+#   stamped on `Effect.clause_raw` (only when a STRICT sub-clause of `raw`; empty ⇒
+#   single-clause draw, byte-identical to v31) so the signals draw_for_each arm replays
+#   the same locality (_is_scaling_count over clause_raw, not raw). PUMP keeps the
+#   whole-raw scan (scaling_pump migrated at v31 breadth — behavior-neutral). The
+#   genuine same-clause scalers ("draw an additional card for each quest counter", "For
+#   each opponent who can't, you draw a card") still lift. CR 107.3.
+SIDECAR_VERSION = 33
 
 
 def card_ir_dir() -> Path:

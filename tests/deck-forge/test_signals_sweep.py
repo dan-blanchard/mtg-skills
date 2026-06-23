@@ -142,8 +142,16 @@ def test_sweep_detectors_loaded():
     # 7b) migrates to a cat=="base_pt_set" structural arm reading the v32 SelfBasePt self-
     # transform projection + the supplement static-parser-failed recovery, UNION a carved
     # BASE_PT_SET_REGEX kept word mirror; switch P/T (613.4d) and pure type-conferral
-    # (205.1b) are NOT re-absorbed).
-    assert len(SWEEP_DETECTORS) >= 12
+    # (205.1b) are NOT re-absorbed),
+    # then 12→11 as draw_for_each's row was deleted (ADR-0027 SIDECAR v33 per-clause draw
+    # raw — migrated to a `draw` Effect scaling-count structural arm gated by the draw's
+    # clause-local raw (Effect.clause_raw — project.py carries the draw-local sub-clause,
+    # so a fixed draw sharing an ability with a for-each cost / damage / life rider no
+    # longer fires) UNION a byte-identical DRAW_FOR_EACH_REGEX per-clause kept mirror
+    # (_DRAW_FOR_EACH_SWEEP_RE in _signals_regex); the structural arm adds the counted-
+    # subject scaling draws the regex missed and drops the ~40 sibling-rider over-fires;
+    # CR 107.3).
+    assert len(SWEEP_DETECTORS) >= 11
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

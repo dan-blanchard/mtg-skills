@@ -25,6 +25,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _DIG_UNTIL_SWEEP_RE,
     _DIRECT_KEYWORD_SIGNALS,
     _DISCARD_OUTLET_SWEEP_RE,
+    _DRAW_FOR_EACH_SWEEP_RE,
     _EVASION_SELF_REGEX,
     _EVERGREEN_CK,
     _EVERGREEN_KW_RE,
@@ -5349,6 +5350,86 @@ def _is_scaling_count(amount: Quantity | None, raw: str) -> bool:
     return amount.subject is not None or bool(_FOR_EACH_RAW.search(raw or ""))
 
 
+# ADR-0027 per-clause draw raw (SIDECAR v32) — typed-matters DECOUPLE. The v32
+# projection (`project._recover_count_operand`) now scans a draw effect's DRAW-LOCAL
+# clause for the "for each <type>" count operand, so a fixed draw sharing an ability
+# with a SIBLING "for each LAND card …" / "for each artifact you control …" clause no
+# longer gets that sibling type as its `amount.subject`. lands_matter / artifacts_
+# matter / enchantments_matter are ALREADY migrated and cross-read the draw effect's
+# `amount.subject` (the typed-matters arms below). To keep the draw_for_each migration
+# commit byte-neutral on those siblings, this re-derives the v31 WHOLE-RAW count
+# subject for a draw whose projection narrowed it (clause_raw set) — the EXACT
+# `_FOR_EACH_SUBJECT` over `raw` the v31 recover used — so the typed-matters cross-read
+# fires on the v31 set. (A future lands_matter pass can adopt the clause-local subject;
+# this step only holds its breadth.) Pinned byte-copies of the project regexes (no
+# back-edge import). CR 107.3.
+_V31_FOR_EACH_COUNT = re.compile(
+    r"\bfor each\b|\bequal to the number of\b|\bcards equal to the number\b",
+    re.IGNORECASE,
+)
+_V31_FOR_EACH_SUBJECT = re.compile(
+    r"(?:for each|number of)\s+(?:other\s+)?(?:tapped\s+|attacking\s+)?"
+    r"(creature|artifact|enchantment|land|permanent|aura|card|counter)s?\b",
+    re.IGNORECASE,
+)
+_V31_FOR_EACH_TYPE_MAP = {
+    "creature": "Creature",
+    "artifact": "Artifact",
+    "enchantment": "Enchantment",
+    "land": "Land",
+    "permanent": "Permanent",
+    "aura": "Aura",
+}
+
+
+def _v31_typed(raw: str) -> Filter | None:
+    """The typed count subject the v31 ``_FOR_EACH_SUBJECT`` (whole-raw) would extract
+    — a permanent CLASS named right after "for each" / "number of". None when the raw
+    names no such class (an opponent / same-name / "card" count)."""
+    if not _V31_FOR_EACH_COUNT.search(raw or ""):
+        return None
+    sm = _V31_FOR_EACH_SUBJECT.search(raw or "")
+    if sm is None:
+        return None
+    ct = _V31_FOR_EACH_TYPE_MAP.get(sm.group(1).lower())
+    return Filter(card_types=(ct,)) if ct is not None else None
+
+
+def _typed_count_subject_v31(e: Effect) -> Filter | None:
+    """The amount-count SUBJECT a typed-matters lane cross-reads off effect ``e``,
+    re-derived at v31 (whole-raw) breadth for the draw effects the v32 per-clause
+    projection narrowed (SIDECAR v32 decouple). Holds lands_matter / artifacts_matter
+    / enchantments_matter at their v31 firing set so this migration commit is byte-
+    neutral on those already-migrated siblings (a later pass can adopt the clause-local
+    subject).
+
+    v31's ``_recover_count_operand`` lifted ONLY a NATIVE op='fixed' draw, reading the
+    typed subject off the WHOLE raw. We reproduce that set without the native op by its
+    two post-projection signatures, both requiring ``clause_raw`` (a multi-clause draw):
+      • the for-each was DE-ATTRIBUTED entirely → v32 amount is op='fixed' (Phabine,
+        Anticausal — recover only lifts to 'count', so a fixed amount ⇒ native fixed);
+      • the for-each was RE-ATTRIBUTED to a different operand → v32 amount is op='count'
+        but the DRAW-LOCAL clause's typed subject differs from the WHOLE raw's
+        (Culmination: draw-local "for each blue card" → no class, whole "for each land
+        card" → Land ⇒ native fixed, v31 mis-read Land).
+    A NATIVE op='count' draw whose for-each IS in the draw clause (Eumidian / Patient
+    Rebuilding — "draw a card for each land card milled") has equal draw-local and whole
+    typed subjects, so it is NOT in the v31-lift set and keeps its own subject (v31
+    never fired lands_matter on it). Every non-draw effect and any draw with a surviving
+    subject returns ``e.amount.subject`` unchanged."""
+    amt = e.amount
+    subj = amt.subject if amt is not None else None
+    if e.category != "draw" or not e.clause_raw or subj is not None:
+        return subj
+    whole = _v31_typed(e.raw or "")
+    if whole is None:
+        return subj
+    native_fixed = (amt is not None and amt.op == "fixed") or (
+        _v31_typed(e.clause_raw) != whole
+    )
+    return whole if native_fixed else subj
+
+
 # typed_anthem_multi (ADR-0027): phase drops the typed subject entirely on some pump
 # anthems (subject=None), so neither the AnyOf nor the 2+-subtypes structural guard
 # can see the disjunction. Recover from the pump effect's raw: "that's a X[, a Y]…,?
@@ -6222,6 +6303,14 @@ def extract_signals_ir(
             # set). NOT a single reanimate/destroy TARGET that happens to be a
             # creature you control — gate the affected-set case on the pump shape.
             amount_subject = e.amount.subject if e.amount is not None else None
+            # ADR-0027 per-clause draw (SIDECAR v32) — the typed-matters lanes
+            # (lands_matter / artifacts_matter / enchantments_matter) cross-read the
+            # amount-count subject; for a draw narrowed by the v32 per-clause projection
+            # they re-derive it at v31 whole-raw breadth so this migration commit stays
+            # byte-neutral on those already-migrated siblings (see
+            # _typed_count_subject_v31). Identical to amount_subject for every other
+            # effect; only a clause_raw-narrowed draw differs.
+            typed_subject = _typed_count_subject_v31(e)
             # Batch 8 — an effect scaling with a named deck-wide count.
             if e.amount is not None:
                 if e.amount.op == "devotion":
@@ -6317,7 +6406,7 @@ def extract_signals_ir(
             # that permanent type's population (CR 604.3), so the deck cares about it.
             # A COMPOSITE count ("for each artifact and/or enchantment you control" —
             # Nettlecyst, Shambling Suit) fires BOTH lanes (each population is a care).
-            for typed_lane in _typed_matters_lanes(amount_subject):
+            for typed_lane in _typed_matters_lanes(typed_subject):
                 add(typed_lane, "you", "", e.raw)
             # artifacts_matter / enchantments_matter TUTOR/DIG DOER (CR 701.23): a
             # search/dig whose target filter IS the card type — "search your library for
@@ -7163,10 +7252,21 @@ def extract_signals_ir(
             ):
                 add("topdeck_stack", "you", "", e.raw)
             if cat == "draw":
-                # draw_for_each = a draw that SCALES with a board count, NOT a bare
-                # "draw X cards" X-spell (Braingeyser). The scaling-count gate keeps
-                # the X-spells (op='count', no subject, no "for each") out.
-                if _is_scaling_count(e.amount, e.raw or ""):
+                # ADR-0027 per-clause draw raw (SIDECAR v32) — draw_for_each migrated
+                # to the IR. STRUCTURAL ARM: a draw that SCALES with a board count,
+                # NOT a bare "draw X cards" X-spell (Braingeyser). The scaling-count
+                # gate reads the draw's PER-CLAUSE raw (e.clause_raw — the draw-local
+                # sub-clause the v32 projection carries; falls back to e.raw for a
+                # single-clause draw), so a fixed "Draw a card" sharing an ability with
+                # a for-each cost / damage / life / token rider (Tamiyo's Logbook,
+                # Castle Locthwain, the Parley "…for each nonland card revealed … then
+                # each player draws a card") doesn't fire — the for-each is in a SIBLING
+                # clause, not the draw's. A counted SUBJECT (phase-structured —
+                # Garruk's "greatest power") or a same-clause "for each" / "equal to the
+                # number of" (Aclazotz, ED-E) still fires. UNION the byte-identical
+                # _DRAW_FOR_EACH_SWEEP_RE kept mirror below for the 12 cards phase
+                # re-categorizes off the draw effect. CR 107.3.
+                if _is_scaling_count(e.amount, e.clause_raw or e.raw or ""):
                     add("draw_for_each", "you", "", e.raw)
                 if e.scope == "each":
                     add("group_hug_draw", "each", "", e.raw)
@@ -7786,7 +7886,7 @@ def extract_signals_ir(
                 and _TYPED_ANTHEM_MULTI_RAW.search(e.raw or "")
             ):
                 add("typed_anthem_multi", "you", "", e.raw)
-            if amount_subject is not None and "Land" in _ftypes(amount_subject):
+            if typed_subject is not None and "Land" in _ftypes(typed_subject):
                 add("lands_matter", "you", "", e.raw)
             # Token-subtype synergy (clue/food/treasure/blood). The maker opens the
             # lane via a make_token subject carrying the token subtype; the SACRIFICE
@@ -9110,6 +9210,23 @@ def extract_signals_ir(
     # every v29 card + the structural recall the regex missed. CR 406.1 / 115.1.
     if any(_EXILE_REMOVAL_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
         add("exile_removal", "you", "", "")
+    # ADR-0027 per-clause draw raw (SIDECAR v32) — draw_for_each kept mirror. The
+    # structural `draw` Effect scaling-count arm (gated by the draw's PER-CLAUSE
+    # clause_raw) binds the genuine scaling draws phase structures; but phase RE-
+    # CATEGORIZES the draw off the effect or leaves it textual on 12 commander-legal
+    # cards — a DFC half (Sea Gate Restoration, Mouth // Feed, Jin-Gitaxias), a modal /
+    # quoted-ability draw (Mishra's Command, Season of Loss, Borrowed Knowledge, Truth
+    # or Consequences), a trigger phase under-structures (Curse of Surveillance, Nexus
+    # Mentality, Mr. Foxglove, Prophet of the Scarab, The Horus Heresy). This is the
+    # EXACT deleted SWEEP regex (_DRAW_FOR_EACH_SWEEP_RE) run PER-CLAUSE over the
+    # reminder-STRIPPED kept_oracle (matching the deleted SWEEP path byte-identically:
+    # its "draw … for each" / "draw cards equal to the number of" arms never cross a
+    # clause boundary). add() dedups vs the structural arm. Scope 'you' (deleted scope).
+    # The union (structural OR mirror) == the deleted regex firing on every card + the
+    # structural recall the regex missed, minus the ~40 sibling-rider over-fires the
+    # clause-local arm drops (none of which the regex matched either). CR 107.3.
+    if any(_DRAW_FOR_EACH_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
+        add("draw_for_each", "you", "", "")
     # ADR-0027 β — play_from_top kept mirror. The structural STATIC cast_from_zone+
     # from:library arm above is the clean 45-card spine, but phase does NOT model as a
     # cast-permission static the REVEAL-only ("Play with the top card revealed" — Goblin

@@ -5727,6 +5727,37 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS. voltron_matters 3010 by set
         # equality. CR 613.4b.
         "base_pt_set",
+        # ADR-0027 Cluster C — per-clause draw raw (SIDECAR v33): draw_for_each
+        # migrated to the Card IR. The over-fire — _is_scaling_count scanning the WHOLE
+        # ability raw mis-attributes a "for each" / "equal to the number of" phrase on a
+        # SIBLING cost / damage / life / token rider to a FIXED draw sharing the ability
+        # (~40 cards: Tamiyo's Logbook "draw a card … costs {1} less for each artifact",
+        # Castle Locthwain "draw a card, then lose life equal to the number of cards",
+        # the Parley "for each nonland card revealed … then each player draws a card").
+        # FIX (projection, behavior-neutral pre-wire drift 0): project.py
+        # `_recover_count_operand` scans a draw effect's DRAW-LOCAL sub-clause (split at
+        # sentence / activation-cost ":" / ", then" boundaries, keep the draw-verb
+        # segment) for the count operand instead of the whole raw, and carries that
+        # sub-clause on the new `Effect.clause_raw` so the signals arm replays the same
+        # locality. The sole cross-open decoupled: the typed-matters lanes (lands_matter
+        # / artifacts_matter / enchantments_matter) cross-read the draw effect's
+        # amount.subject; for a draw the v32 projection narrowed they re-derive the v31
+        # whole-raw count subject (_typed_count_subject_v31) so those already-migrated
+        # siblings hold their v31 firing set (lands_matter -2 → 0). WIRE (signals-only):
+        # the structural `cat=="draw"` arm runs _is_scaling_count over `clause_raw or
+        # raw` (drops the ~40 sibling-rider over-fires; keeps a counted SUBJECT —
+        # Garruk's "greatest power" — and a same-clause for-each — Aclazotz, ED-E) UNION
+        # a byte-identical PER-CLAUSE kept mirror of DRAW_FOR_EACH_REGEX
+        # (_DRAW_FOR_EACH_SWEEP_RE) re-supplying the 12 cards phase re-categorizes off
+        # the draw effect (DFC halves, modal / quoted-ability draws, under-structured
+        # triggers). The SWEEP row is deleted (floor 13→12). Commander-legal, by
+        # oracle_id: both=146, regex_only=12 (all byte-mirror recovered), ir_only=48
+        # (all genuine scaling draws the regex missed; 0 over-fire). VOLTRON: the
+        # deleted SWEEP fired HIGH-confidence scope 'you' and fed has_other_plan (card
+        # advantage is a real plan); the IR re-supply is BROADER, so a byte-identical
+        # _draw_for_each_has_plan mirror is OR'd into has_other_plan — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS. voltron_matters 3010 by set equality. CR 107.3.
+        "draw_for_each",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

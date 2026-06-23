@@ -1691,6 +1691,43 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # draw_for_each ← a `draw` EFFECT whose amount SCALES with a counted subject
+    # (Garruk's "draw cards equal to the greatest power among creatures you control" —
+    # phase structures the ObjectCount, so amount.op=='count' subject=Creature). The v32
+    # structural arm fires draw_for_each scope 'you' via _is_scaling_count over the
+    # draw's clause-local raw; this oracle has NO "draw … for each" / "equal to the
+    # number of" phrase, so the deleted regex (and its byte mirror) does NOT match — it
+    # is a genuine ir_only structural recall the regex missed (NOT the byte-mirror path).
+    # ADR-0027 (SIDECAR v33). CR 107.3.
+    "draw_for_each": (
+        {
+            "name": "Garruk, Primal Hunter",
+            "type_line": "Legendary Planeswalker — Garruk",
+            "oracle_text": (
+                "+1: Create a 3/3 green Beast creature token.\n"
+                "−3: Draw cards equal to the greatest power among creatures you "
+                "control.\n−6: Create a 6/6 green Wurm creature token for each "
+                "land you control."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(
+                    Effect(
+                        category="draw",
+                        scope="you",
+                        amount=Quantity(
+                            op="count",
+                            subject=Filter(card_types=("Creature",), controller="you"),
+                        ),
+                        raw="Draw cards equal to the greatest power among "
+                        "creatures you control.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

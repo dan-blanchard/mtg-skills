@@ -21,6 +21,7 @@ from mtg_utils._card_ir.project import (
     _copied_type_from_text,
     _dig_player_scope,
     _discard_player_scope,
+    _draw_local_raw,
     _dropped_static_markers,
     _effect_scope,
     _filter,
@@ -4581,3 +4582,149 @@ def test_becomes_a_copy_is_not_a_becomes_type_grant():
     )
     card = project_card([rec])
     assert not any(e.category == "becomes_type" for e in _effects(card))
+
+
+# ── ADR-0027 per-clause draw raw (SIDECAR v32) ────────────────────────────────
+# A draw effect's whole-ability raw can span a SEPARATE "for each" / "equal to the
+# number of" clause that scales a sibling cost / damage / life rider, NOT the draw.
+# project._recover_count_operand scans the draw's OWN sub-clause (via _draw_local_raw)
+# so a fixed draw sharing the ability with such a rider stays op='fixed' (no spurious
+# count subject), and the draw-local clause is stamped on Effect.clause_raw for the
+# signals draw_for_each arm. These pin the splitter + the recover gate.
+
+
+def test_draw_local_raw_splits_at_sentence_then_and_cost_colon():
+    """The draw-local splitter keeps only the draw-verb sub-clause, splitting at a
+    sentence end, a ", then" connective, and an activation-cost colon."""
+    # ", then" boundary: the for-each rider is a SEPARATE sub-clause.
+    assert (
+        _draw_local_raw("Draw a card, then you lose 1 life for each blood counter.")
+        == "Draw a card"
+    )
+    # cost-colon boundary: the for-each in the COST (before ":") is dropped.
+    assert (
+        _draw_local_raw(
+            "Pay life equal to the number of colors in your commanders' "
+            "color identity: Draw a card."
+        )
+        == "Draw a card."
+    )
+    # same-clause for-each rides WITH the draw (no sub-clause boundary between them).
+    assert (
+        _draw_local_raw("For each opponent who can't, you draw a card.")
+        == "For each opponent who can't, you draw a card."
+    )
+    # a single-clause draw falls back to the whole raw unchanged.
+    assert _draw_local_raw("Draw a card.") == "Draw a card."
+
+
+def _draw_eff(card: Card) -> Effect:
+    return _effect_with(card, "draw")
+
+
+def test_fixed_draw_with_sibling_cost_for_each_stays_fixed():
+    """Tamiyo's Logbook: a FIXED "Draw a card" whose ability also has a "...costs {1}
+    less to activate for each artifact" cost-reducer. The count belongs to the cost,
+    not the draw — the draw stays op='fixed' (no spurious Artifact count subject), and
+    its draw-local clause is carried on clause_raw."""
+    rec = {
+        "name": "Tamiyo's Logbook",
+        "scryfall_oracle_id": "id-tamiyo-logbook",
+        "card_type": {"core_types": ["Artifact"]},
+        "oracle_text": "{5}{U}, {T}: Draw a card. This ability costs {1} less to "
+        "activate for each other artifact you control.",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {
+                    "type": "Draw",
+                    "count": {"type": "Fixed", "value": 1},
+                    "target": {"type": "Controller"},
+                },
+                "description": "{5}{U}, {T}: Draw a card. This ability costs {1} less "
+                "to activate for each other artifact you control.",
+            }
+        ],
+    }
+    draw = _draw_eff(project_card([rec]))
+    assert draw.amount is not None
+    assert draw.amount.op == "fixed"
+    assert draw.amount.subject is None
+    # the draw-local clause is carried (a strict sub-clause of the whole raw).
+    assert "for each" not in draw.clause_raw.lower()
+    assert draw.clause_raw == "Draw a card."
+
+
+def test_fixed_draw_with_sibling_lose_life_equal_to_stays_fixed():
+    """Castle Locthwain: "Draw a card, then you lose life equal to the number of cards
+    in your hand." The equal-to scales the LOSE-LIFE rider, a different sub-clause —
+    the draw stays fixed."""
+    rec = _spell(
+        {
+            "type": "Draw",
+            "count": {"type": "Fixed", "value": 1},
+            "target": {"type": "Controller"},
+        },
+        "Draw a card, then you lose life equal to the number of cards in your hand.",
+    )
+    draw = _draw_eff(project_card([rec]))
+    assert draw.amount is not None
+    assert draw.amount.op == "fixed"
+    assert draw.amount.subject is None
+    assert "equal to the number of" not in draw.clause_raw.lower()
+
+
+def test_same_clause_for_each_draw_lifts_to_count():
+    """A genuine scaling draw whose for-each is in the SAME clause as the draw verb
+    still lifts to op='count' (the per-clause gate does not break the lift)."""
+    rec = _spell(
+        {
+            "type": "Draw",
+            "count": {"type": "Fixed", "value": 1},
+            "target": {"type": "Controller"},
+        },
+        "Draw a card for each creature you control.",
+    )
+    draw = _draw_eff(project_card([rec]))
+    assert draw.amount is not None
+    assert draw.amount.op == "count"
+    assert draw.amount.subject == Filter(card_types=("Creature",))
+
+
+def test_phase_structured_count_draw_subject_is_untouched():
+    """A draw phase ALREADY structures with a counted subject (op='count') is not a
+    fixed-lift candidate, so the per-clause recover leaves it exactly as projected."""
+    rec = {
+        "name": "Champion of Dusk",
+        "scryfall_oracle_id": "id-champion-dusk",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "When this creature enters, you draw X cards and you lose X "
+        "life, where X is the number of Vampires you control.",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Draw",
+                    "count": {
+                        "type": "Ref",
+                        "qty": {
+                            "type": "ObjectCount",
+                            "filter": {
+                                "type": "Typed",
+                                "type_filters": [{"Subtype": "Vampire"}],
+                                "controller": "You",
+                                "properties": [],
+                            },
+                        },
+                    },
+                    "target": {"type": "Controller"},
+                },
+                "description": "When this creature enters, you draw X cards and you "
+                "lose X life, where X is the number of Vampires you control.",
+            }
+        ],
+    }
+    draw = _draw_eff(project_card([rec]))
+    assert draw.amount is not None
+    assert draw.amount.op == "count"
+    assert draw.amount.subject == Filter(subtypes=("Vampire",), controller="you")
