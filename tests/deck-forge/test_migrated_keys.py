@@ -6774,21 +6774,31 @@ _CASES: dict[str, tuple[dict, Card]] = {
     ),
     # extra_turns ← the STRUCTURAL `extra_turn` effect-category arm
     # (_DOER_EFFECT_KEYS["extra_turn"] → add("extra_turns","you"), scope "you", HIGH
-    # conf; CR 500.7) is the primary IR producer; the 6 cards where phase folds "take
-    # an extra turn" into a sibling category ride the byte-identical EXTRA_TURNS_REGEX
-    # _IR_KEPT_DETECTORS mirror. Temporal Manipulation is the canonical time-walk
-    # payoff ("Take an extra turn after this one.") — the imperative form the bare
-    # mirror reads off the record's oracle_text (a bare non-None IR routes the hybrid
-    # to the IR path; the structural arm needs a phase-parsed extra_turn effect, so the
-    # mirror is what fires for this bare _ir()). The regex path no longer emits the key
-    # (the `extra-turns` theme preset is deleted). scope "you". ADR-0027.
+    # conf; CR 500.7) is the primary IR producer; the 5 cards where phase folds "take
+    # an extra turn" into a sibling category but keeps the clause in the effect's raw
+    # are recovered by the `_EXTRA_TURN_RAW` per-effect arm (NO kept mirror). Temporal
+    # Manipulation is the canonical time-walk payoff ("Take an extra turn after this
+    # one.") — phase structures it cleanly as a spell-effect `extra_turn` category, so
+    # the doer arm fires. The regex path no longer emits the key (the `extra-turns`
+    # theme preset is deleted). scope "you". ADR-0027.
     "extra_turns": (
         {
             "name": "Temporal Manipulation",
             "type_line": "Sorcery",
             "oracle_text": "Take an extra turn after this one.",
         },
-        _ir(),
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="extra_turn",
+                        scope="you",
+                        raw="Take an extra turn after this one.",
+                    ),
+                ),
+            )
+        ),
     ),
     # daynight_matters ← TWO structural arms (CR 726, Day/Night): the daybound /
     # nightbound Scryfall KEYWORD via _IR_KEYWORD_MAP (read off the record dict's

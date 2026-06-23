@@ -109,7 +109,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ENCHANTMENTS_MATTER_REGEX,
     ENTERED_ATTACKER_REGEX,
     EXILE_MATTERS_REGEX,
-    EXTRA_TURNS_REGEX,
     FLASH_GRANT_REGEX,
     FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
@@ -255,12 +254,13 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # Batch 0 — v0.1.60 effect types newly projected (see project.py _EFFECT_CATEGORY).
     "coin_flip": ("coin_flip", "you"),
     "end_the_turn": ("end_the_turn", "you"),
-    # ADR-0027: extra_turns migrated to the Card IR — THIS structural `extra_turn`
+    # ADR-0027: extra_turns reads the Card IR — THIS structural `extra_turn`
     # effect-category arm (scope 'you', HIGH) is its PRIMARY producer; it is broader
     # than the deleted `extra-turns` theme preset (catches the 3rd-person "takes an
-    # extra turn" + "take TWO extra turns" the buggy preset missed). The 6 cards where
-    # phase folds "take an extra turn" into a sibling category ride the byte-identical
-    # EXTRA_TURNS_REGEX _IR_KEPT_DETECTORS mirror. CR 500.7.
+    # extra turn" + "take TWO extra turns" the buggy preset missed). The 5 cards where
+    # phase folds "take an extra turn" into a sibling category but keeps the clause in
+    # that effect's raw are recovered by the `_EXTRA_TURN_RAW` per-effect arm in
+    # extract_signals_ir (no kept mirror). CR 500.7.
     "extra_turn": ("extra_turns", "you"),
     "set_life": ("life_total_set", "any"),  # scope-agnostic build-around marker
     # reveal_hand → hand_disruption is scope-GATED below (only an opponent-reveal is
@@ -1427,35 +1427,18 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # both in extract_signals_ir. The deleted producer fed has_other_plan (HIGH,
     # scope 'you', not generic/voltron-compat); the hybrid re-silences voltron via
     # _VOLTRON_SILENCING_PLAN_KEYS off that IR re-supply. CR 505.1a / 903.10a.
-    # ADR-0027 — extra_turns BYTE-IDENTICAL kept WORD MIRROR for the UNDER-STRUCTURED
-    # tail (the time-walk axis: take-another-turn payoffs/enablers — Time Warp, Nexus of
-    # Fate, Magosi, Obeka; CR 500.7). The STRUCTURAL arm
-    # (_DOER_EFFECT_KEYS["extra_turn"]
-    # → add("extra_turns","you") on phase's `extra_turn` effect category) is the primary
-    # producer and is BROADER than the deleted `extra-turns` theme PRESET (+8 ir_only:
-    # the buggy preset matched only the IMPERATIVE "Take an extra turn" and missed the
-    # 3rd-person "takes an extra turn" — Time Warp, Walk the Aeons, Beacon of Tomorrows,
-    # Karn's Temporal Sundering — and "take TWO extra turns" — Time Stretch, Teferi).
-    # But
-    # phase FOLDS "take an extra turn" into a SIBLING category (emitting no `extra_turn`
-    # effect) for 6 cards: Chance for Glory (grant_keyword carrier), Expropriate (vote),
-    # Ichormoon Gauntlet (a CONFERRED planeswalker ability), Ral Zarek / Stitch in Time
-    # (coin_flip), Ugin's Nexus (an exile replacement). This EXTRA_TURNS_REGEX (the
-    # EXACT
-    # deleted preset pattern) run FLAT over the reminder-stripped kept_oracle recovers
-    # those 6 BYTE-IDENTICALLY — the pattern has no `[^.]*`, so flat==per-clause, and
-    # reminder-stripping matches the producer (Perch Protection, whose "take an extra
-    # turn" lives ONLY in Gift reminder text, is correctly EXCLUDED). add() dedups vs
-    # the
-    # structural arm; the hybrid serves the UNION (50). scope 'you', HIGH conf. The
-    # deleted preset fed has_other_plan; the regex path keeps a byte-identical
-    # _EXTRA_TURNS_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS — the structural arm is
-    # broader, so the keys route would over-silence the recall-gain bodies). CR 500.7.
-    (
-        "extra_turns",
-        re.compile(EXTRA_TURNS_REGEX, re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 — extra_turns: NO kept mirror. The under-structured tail (the 5 cards
+    # where phase folds "take an extra turn after this one" into a sibling category —
+    # Expropriate/vote, Stitch in Time + Ral Zarek/coin_flip, Chance for Glory/
+    # grant_keyword, Ugin's Nexus/exile) now reads STRUCTURE: the `_EXTRA_TURN_RAW` arm
+    # in extract_signals_ir fires the lane off ANY effect whose raw carries the clause,
+    # joining the _DOER_EFFECT_KEYS["extra_turn"] primary producer. The deleted blind
+    # full-oracle EXTRA_TURNS_REGEX mirror also caught Ichormoon Gauntlet, whose clause
+    # lives only in a CONFERRED quoted ability phase drops in projection (the conferred-
+    # ability gap) — a justified drop (50→49), not structurally recoverable without a
+    # projection/supplement change. The regex path keeps its own byte-identical
+    # _EXTRA_TURNS_PLAN_MIRROR for voltron silencing (independent of this lane arm).
+    # CR 500.7.
     # ADR-0027 β — draw_matters (the YOU-draw payoff: "whenever you draw" engines +
     # the past-tense draw-COUNT payoff "for each card you've drawn this turn"). The
     # structural arm (a `drawn` trigger, scope != "opp") covers the "whenever you
@@ -4863,6 +4846,30 @@ _CREATURE_SPELL_RAW = re.compile(
 # at BOTH v24 and v25 and never opened creatures_matter. CR 111.2.
 _OPP_GIFT_TOKEN_RAW = re.compile(r"opponent creates", re.IGNORECASE)
 
+# ADR-0027 — extra_turns STRUCTURAL widen (the time-walk axis; CR 500.7). The
+# _DOER_EFFECT_KEYS["extra_turn"] doer arm already fires the lane for every effect
+# phase categorizes as `extra_turn` (Time Warp, Nexus of Fate, Magosi, Obeka — the 44
+# primary producers). But for 5 cards phase FOLDS the "take an extra turn after this
+# one" clause into a SIBLING effect category while STILL emitting the clause in that
+# effect's `raw`: Expropriate (a `vote` effect), Stitch in Time / Ral Zarek (a
+# `coin_flip` effect), Chance for Glory (a `grant_keyword` effect), Ugin's Nexus (an
+# `exile` replacement effect). That is an arm_gap — phase emits the structure (the
+# categorized effect's raw carries the time-walk clause), the doer arm just didn't read
+# it. So fire the lane off ANY effect whose raw carries the clause, reading phase's
+# per-effect decomposition (NOT the blind full-oracle mirror this replaces). scope
+# 'you' (the actor of a time-walk is always its controller). This RAW arm replaces the
+# deleted EXTRA_TURNS_REGEX _IR_KEPT_DETECTORS mirror: over the commander-legal corpus
+# the union (the doer-category arm plus this raw arm) == 49, a strict subset of the
+# old 50. The ONE
+# drop is Ichormoon Gauntlet ("Planeswalkers you control have a granted '[minus]12:
+# Take an extra turn after this one' loyalty ability"): there the clause lives ONLY in
+# a CONFERRED quoted planeswalker ability that phase drops in projection (the
+# conferred-ability gap) — its
+# IR carries ZERO trace of the clause in any effect raw or category, so it is NOT
+# structurally recoverable without a projection/supplement change (a SIDECAR bump, out
+# of scope for a signals-only arm). CR 500.7.
+_EXTRA_TURN_RAW = re.compile(r"take an (?:extra|additional) turn", re.IGNORECASE)
+
 # ADR-0027 β — combat_damage_to_opp LOW-confidence double-strike-grant mirror
 # (Raphael, Blade Historian, Berserkers' Onslaught). Fired separately from the
 # _IR_KEPT_DETECTORS loop because that loop emits HIGH confidence; the deleted regex
@@ -7163,6 +7170,15 @@ def extract_signals_ir(
                 e.raw or ""
             ):
                 add("extra_combats", "you", "", e.raw)
+            # ADR-0027 — extra_turns arm_gap widen (see _EXTRA_TURN_RAW). The doer arm
+            # above fires the lane for the `extra_turn` effect category; this recovers
+            # the 5 cards where phase FOLDS "take an extra turn after this one" into a
+            # sibling category (vote / coin_flip / grant_keyword / exile) while still
+            # emitting the clause in that effect's raw — reading phase's per-effect
+            # decomposition rather than the deleted blind full-oracle mirror. add()
+            # dedups vs the doer arm. scope 'you'. CR 500.7.
+            if e.category != "extra_turn" and _EXTRA_TURN_RAW.search(e.raw or ""):
+                add("extra_turns", "you", "", e.raw)
             # direct_damage (ADR-0027) — a source that CAN deal damage to a PLAYER
             # (a burn-them-out deck; CR 120.1 / 115.4). Gate the v22 damage Effect on
             # the recipient scope so creature-only bite stays REMOVAL, not direct:
