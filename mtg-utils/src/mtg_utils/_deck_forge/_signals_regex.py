@@ -76,6 +76,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     STAX_TAXES_REGEX,
     SUPERFRIENDS_MATTERS_REGEX,
     SWEEP_DETECTORS,
+    TAP_DOWN_REGEX,
     TARGET_PLAYER_DRAWS_REGEX,
     THEFT_MATTERS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
@@ -3067,6 +3068,21 @@ _CREATURE_RECURSION_PLAN_MIRROR = re.compile(
     CREATURE_RECURSION_REGEX,
     re.IGNORECASE,
 )
+# ADR-0027 #24: the HAS-OTHER-PLAN mirror for tap_down. Its deleted SWEEP producer
+# (TAP_DOWN_REGEX, scope 'opponents', HIGH) counted toward `has_other_plan` — a tap-down
+# control creature IS a plan, not a vanilla commander-damage beater (Githzerai Monk's
+# ETB tap-all-enemies is tempo control). tap_down's structural arm (`cat=='tap'` +
+# `subject.controller=='opp'` + `cat=='detain'`) is now BROADER than the deleted regex
+# (101 -> 134), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-SILENCE the
+# +33 structural recall-gain bodies' voltron tell (Githzerai Monk, Subjugator Angel —
+# the "tap all creatures your opponents control" forms the brittle "tap target … an
+# opponent controls" regex missed). So tap_down LEAVES that key set and re-silences
+# here: this BYTE-IDENTICAL mirror (the same TAP_DOWN_REGEX, the serve spec's pattern)
+# feeds ONLY the gate (no signal — the lane is served from the IR) and restores the OLD
+# regex's exact silence set for ALL cards (commander-legal voltron delta 0). Matched
+# against reminder-STRIPPED `text` (the deleted producer was a SWEEP row over stripped
+# clauses). CR 701.21 / 502 / 903.10a.
+_TAP_DOWN_PLAN_MIRROR = re.compile(TAP_DOWN_REGEX, re.IGNORECASE)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated global_ability_grant key. Its
 # deleted SWEEP producer (GLOBAL_ABILITY_GRANT_REGEX) fired HIGH-confidence scope 'any'
 # and counted toward `has_other_plan`, silencing the spurious commander-damage voltron
@@ -5937,6 +5953,15 @@ def extract_signals(
         # voltron delta 0. Matched against the reminder-STRIPPED `text` (the deleted
         # producer was a _DETECTORS row over stripped clauses). CR 700.4 / 903.10a.
         or _CREATURE_RECURSION_PLAN_MIRROR.search(text)
+        # ADR-0027 #24: re-silence the deleted tap_down SWEEP producer (TAP_DOWN_REGEX,
+        # HIGH-confidence scope 'opponents', feeding has_other_plan — a tap-down control
+        # creature IS a plan, not a vanilla beater). tap_down's structural arm is now
+        # BROADER (101 -> 134), so _VOLTRON_SILENCING_PLAN_KEYS would over-silence the
+        # +33 recall-gain bodies (Githzerai Monk, Subjugator Angel); this BYTE-IDENTICAL
+        # mirror restores the OLD regex's exact silence set, so the file-swap shows
+        # voltron delta 0. Matched against reminder-STRIPPED `text` (the deleted
+        # producer was a SWEEP row over stripped clauses). CR 701.21 / 903.10a.
+        or _TAP_DOWN_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted global_ability_grant SWEEP producer (it
         # fired high-confidence scope 'any', feeding has_other_plan). The migrated IR
         # arm is narrower (it drops the 6 bands/Ward keyword over-fires), so this byte-

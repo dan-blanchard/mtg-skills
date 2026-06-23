@@ -132,7 +132,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     STICKERS_MATTER_REGEX,
     SUPERFRIENDS_MATTERS_REGEX,
     SYMMETRIC_STAX_REGEX,
-    TAP_DOWN_REGEX,
     THEFT_MATTERS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
     TOKENS_MATTER_REGEX,
@@ -244,12 +243,10 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "venture": ("venture_matters", "you"),
     "connive": ("connive_matters", "you"),
     "damage_prevention": ("damage_prevention", "you"),
-    # ADR-0027: the `detain` → tap_down keyword entry is DELETED — tap_down migrated to
-    # a BYTE-IDENTICAL kept word mirror (TAP_DOWN_REGEX in _IR_KEPT_DETECTORS, scope
-    # 'opponents'), whose `\bdetain\b` arm already opens the lane for every detain card
-    # (the keyword action is spelled out in the oracle text). Keeping this entry would
-    # have been redundant with the mirror; removing it keeps the IR re-supply == the
-    # deleted SWEEP regex EXACTLY. CR 701.21.
+    # ADR-0027: the `detain` → tap_down keyword entry is DELETED — tap_down now reads
+    # the STRUCTURAL `cat=='detain'` Effect arm in extract_signals_ir (ADR-0027 #24;
+    # detain is a tempo-denial like tapping, CR 701.35), scope 'opponents'. Keeping this
+    # keyword-array entry would be redundant with that arm. CR 701.21 / 701.35.
     "seek": ("seek_matters", "you"),  # Alchemy Seek (DD3) — phase parses it
     # Batch 0 — v0.1.60 effect types newly projected (see project.py _EFFECT_CATEGORY).
     "coin_flip": ("coin_flip", "you"),
@@ -884,6 +881,28 @@ def _has_self_base_pt(subject: object) -> bool:
     return isinstance(subject, Filter) and "SelfBasePt" in subject.predicates
 
 
+# tap_down NARROW residue mirror (ADR-0027 #24). The structural arm in
+# extract_signals_ir (`cat=='tap'` + `subject.controller=='opp'`, plus `cat=='detain'`)
+# now carries the lane and adds +33 recall the brittle regex missed. This residue is
+# TAP_DOWN_REGEX MINUS the detain arm (detain is structural now) — it re-supplies ONLY
+# the 12 cards phase can't surface a structural opp-controller for: the anaphoric "tap
+# target <perm> THAT PLAYER controls" (Somnophore, Delirium, Karazikar, Mana Skimmer,
+# Sentinel, Citadel Siege, Yosei — phase leaves subject.controller you/any because it
+# can't resolve "that player" to an opponent), the subject-DROPPED "an opponent
+# controls" taps (Snaremaster Sprite, Mind Spiral — phase dropped subject to None),
+# Dovin's "tap all permanents target opponent controls", and the player-targeted "skips
+# their next untap step" tempo-skip (Yosei, Shisato — no controller-bearing effect). All
+# 12 are genuine tap-down. A byte-subset of the serve spec's TAP_DOWN_REGEX (unchanged),
+# so the serve pool never drifts; add() dedups the heavy overlap with the structural
+# arm. scope 'opponents'. CR 701.21 / 502.
+_TAP_DOWN_RESIDUE = re.compile(
+    r"(?<!un)tap target (?:permanent|creature|land|nonland permanent)"
+    r"[^.]*(?:an opponent|that player) controls"
+    r"|skips? (?:their|his or her|its) next untap step"
+    r"|tap (?:up to )?\w+ target permanents? (?:an opponent|that player) controls",
+    re.IGNORECASE,
+)
+
 # Kept narrow mechanic-word detectors: REAL mechanics (rules-lawyer-verified —
 # voting CR 701.38, firebending CR 702.189, …) that phase v0.1.19 doesn't yet
 # STRUCTURE (too recent/niche → Unimplemented). These are narrow keyword-WORD
@@ -1068,24 +1087,17 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(BLOCKED_MATTERS_REGEX, re.IGNORECASE),
         "you",
     ),
-    # ADR-0027 — tap_down BYTE-IDENTICAL kept WORD MIRROR (the tap-down control lane:
-    # tap an OPPONENT's permanent / "skips its next untap step" / detain — CR 701.21
-    # detain, CR 502 untap step; pinned as TAP_DOWN_REGEX in _sweep_detectors). phase
-    # carries a structural `tap` Effect, but its scope is inferred from the COST CONTEXT
-    # not the tap TARGET, so the deleted structural `cat=='tap' and e.scope=='opp'` arm
-    # OVER-fired on a bare "Tap target creature" whose cost names an opponent (Cryptic
-    # Cruiser) while MISSING the 89 "tap target … an opponent controls" cards whose
-    # phase parse drops the controller predicate (Frost Lynx, Icefall Regent, Dungeon
-    # Geists, Time of Ice, Kor Hookmaster, Citadel Siege …) — so that structural arm AND
-    # the _IR_KEYWORD_MAP['detain'] entry were both REMOVED and the lane MOVED here.
-    # The four arms' `[^.]*` span never crosses a clause boundary (the splitter cuts on
-    # [.;\n]; `[^.]*` excludes `.`, and no `;`/`\n` lands inside a span on the corpus),
-    # so flat over the reminder-stripped kept_oracle == the deleted per-clause SWEEP
-    # firing EXACTLY (commander-legal, by oracle_id: both==101, ir_only==0,
-    # regex_only==0; scope 'opponents', HIGH; 0 flat/per-clause mismatch). The broad
-    # any-controller target tap stays on the SEPARATE tapper_engine lane (scope 'any'),
-    # untouched. CR 701.21 / 502.
-    ("tap_down", re.compile(TAP_DOWN_REGEX, re.IGNORECASE), "opponents"),
+    # ADR-0027 #24 — tap_down NARROW residue mirror. The structural `cat=='tap'` +
+    # `subject.controller=='opp'` arm (+ `cat=='detain'`) in extract_signals_ir now
+    # carries the lane (the inventory's "controller dropped" note was STALE — phase
+    # keeps the tap-target controller on the SUBJECT FILTER; only the OLD arm read wrong
+    # field, the cost-inferred EFFECT scope). _TAP_DOWN_RESIDUE re-supplies ONLY the 12
+    # cards phase can't surface a structural opp-controller for (the anaphoric "that
+    # player controls", the subject-dropped "an opponent controls" taps, and the
+    # player-targeted skip-untap — see _TAP_DOWN_RESIDUE docstring). add() dedups its
+    # overlap with the structural arm. The broad any-controller target tap stays on the
+    # SEPARATE tapper_engine lane (scope 'any'), untouched. CR 701.21 / 502.
+    ("tap_down", _TAP_DOWN_RESIDUE, "opponents"),
     # ADR-0027 — island_matters BYTE-IDENTICAL kept WORD MIRROR (the islandwalk /
     # island-attack-restriction lane; pinned as ISLAND_MATTERS_REGEX in
     # _sweep_detectors). The deleted _HAND_FLOOR producer rides here, NOT the Scryfall
@@ -2575,7 +2587,14 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # form: a "divinity/indestructible counter" enters-replacement and a
     # "charge/experience counter" reference are both dropped to a blank-kind /
     # raw-only place_counter the structural counters edge routes to counters_
-    # matter, not proliferate_matters).
+    # matter, not proliferate_matters). ADR-0027 #24 re-confirmed these are
+    # genuinely un-structurable in v40: phase tags counter_kind='indestructible'
+    # on the indestructible KEYWORD too (347 "gains indestructible" grants),
+    # conflating it with the indestructible COUNTER, and a "remove a charge
+    # counter" cost is the kind-blind `removecounter` cost token (Sphere of the
+    # Suns, the Vivid lands) — so no v40 field cleanly keys the lane. The
+    # mirrors ARE the narrow residue (this is the "_matters = cares-about
+    # payoff/reference" lane, not a doer the cat=proliferate arm covers).
     #   (1) Divinity / indestructible counter (Myojin cycle, Arwen): permanents
     #   that enter with exactly ONE beneficial counter gating indestructibility /
     #   fueling a "Remove a counter: [big effect]" ability — proliferate
@@ -5404,23 +5423,29 @@ _ENCHANTMENTS_MATTER_MIRROR = re.compile(
     ENCHANTMENTS_MATTER_REGEX,
     re.IGNORECASE,
 )
-# creature_recursion BYTE-IDENTICAL kept mirror (ADR-0027): the structural arm
-# (`cat=='reanimate' and 'Creature' in ftypes` in extract_signals_ir) catches phase's
-# GY->battlefield creature reanimation (+160 ir_only recall — the "from A graveyard" /
-# "that player's graveyard" reanimation spells Reanimate / Beacon of Unrest / Exhume /
-# Sepulchral Primordial / Living Death / Twilight's Call the brittle "your graveyard"
-# regex missed, plus the empty-top-level split/DFC reanimation halves Push // Pull,
-# Crime // Punishment, Breaking // Entering), but phase carries NO clean structural
-# shape for GY->HAND / GY->LIBRARY creature recursion (graveyard_recursion /
-# topdeck_stack, NOT reanimate), so a structural-only migration would LOSE 132 genuine
-# cards (Raise Dead, Gravedigger, Disentomb, Hua Tuo's GY->library, Meren, Kolaghan's
-# Command's GY->hand mode, Liliana the Last Hope's -2). Recover them with the EXACT
-# deleted `_DETECTORS` producer run PER-CLAUSE over the reminder-stripped kept_oracle
-# (CREATURE_RECURSION_REGEX). The lone `[^.]*?` never crosses a clause, so
-# flat==per-clause; commander-legal (floor-disabled by oracle_id): mirror==regex==304,
-# 0 miss, 0 extra. scope 'you' (the deleted producer's forced scope, the structural
-# arm's scope, and the serve spec's). add() dedups vs the structural arm. DISTINCT from
-# reanimator (GY->BATTLEFIELD only) and graveyard_matters (any self-GY care). CR 700.4.
+# creature_recursion NARROW residue mirror (ADR-0027 #24). The two structural arms in
+# extract_signals_ir now carry the lane: arm A (`cat=='reanimate' and 'Creature' in
+# ftypes`) catches phase's typed GY->battlefield reanimation; arm B (`cat in (bounce,
+# topdeck_stack)` + a CREATURE subject filtered to a graveyard zone, controller!='opp')
+# catches the GY->HAND / GY->LIBRARY recall the STALE inventory note claimed phase had
+# no shape for — it does (bounce==hand, topdeck_stack==library; the destination is the
+# category), and the structured read is +108 over the brittle regex (the plural / "up
+# to N" / "X target" / modal "return up to two creature cards from your graveyard" forms
+# its single-clause arm missed). The ONLY firings this precise regex (`creature card …
+# (in|from) your graveyard`) UNIQUELY supplies post-arms are 13 GY->BATTLEFIELD
+# reanimation cards phase MIS-structures: 8 forks where the Creature subject lands on a
+# `choose`/`target_only` selection effect and the destination on a SIBLING to:
+# battlefield effect (Bortuk, Cauldron's Gift, Dawnbreak Reclaimer, Gruesome Menagerie,
+# Meren, Othelm, Rescue from the Underworld, Mausoleum Turnkey's GY->hand fork), 2
+# `reanimate` effects whose subject phase dropped to None (Isareth's pay-X, Scavenger's
+# Talent), and 3 whose reanimate clause phase emitted NO typed effect at all (Can't Stay
+# Away, Out of the Tombs, Vigor Mortis). All 13 are genuine creature reanimation
+# (return/put a creature card from a graveyard onto the battlefield — CR 404 / 700.4),
+# so they belong in the lane; phase can't surface them. The regex stays narrow
+# (creature-card-from-YOUR-graveyard, not a broad reanimation matcher) and per-clause;
+# add() dedups its 291 overlap with the arms. scope 'you' (the deleted producer's forced
+# scope, the arms' scope, the serve spec's). DISTINCT from reanimator / graveyard_
+# matters. CR 404 / 700.4.
 _CREATURE_RECURSION_MIRROR = re.compile(CREATURE_RECURSION_REGEX, re.IGNORECASE)
 # stax_taxes + symmetric_stax BYTE-IDENTICAL kept mirrors (ADR-0027). The structural
 # `restriction` Effect arm (extract_signals_ir, scope-discriminated by the v22
@@ -5627,15 +5652,22 @@ _SELF_COUNTER_GROW_MIRROR = re.compile(
 )
 
 
-# counter_distribute NARROWED kept mirror (ADR-0027 β). The structural arm fires on a
-# place_counter carrying the MassEach marker (phase's PutCounterAll "on each … you
-# control", project @ SIDECAR v18). But two board-wide forms have NO PutCounterAll: the
-# DISTRIBUTE-AMONG and "each of [up to N] target creatures" form (Verdurous Gearhulk,
-# Thrive, Ajani Mentor, the support keyword — phase types these as a single-target
-# PutCounter, indistinguishable from "on target creature you control" by structure
-# alone), and the ENTERS-WITH-ADDITIONAL group buff ("each other X you control enters
-# with an additional +1/+1 counter" — Bramblewood Paragon, Giada, Oona's Blackguard —
-# phase drops the replacement subject to None). Recover them with a NARROWED version of
+# counter_distribute NARROWED kept mirror (ADR-0027 β; #24-VERIFIED). The structural arm
+# fires on a place_counter carrying the MassEach marker (phase's PutCounterAll "on each
+# … you control", project @ SIDECAR v18). But two board-wide forms have NO
+# PutCounterAll: the DISTRIBUTE-AMONG and "each of [up to N] target creatures" form
+# (Verdurous Gearhulk, Thrive, Ajani Mentor, support — phase types these as single-
+# target PutCounter, indistinguishable from "on target creature you control" by
+# structure alone), and the ENTERS-WITH-ADDITIONAL group buff ("each other X you control
+# enters with an additional +1/+1 counter" — Bramblewood Paragon, Giada, Oona's
+# Blackguard —
+# phase drops the replacement subject to None). ADR-0027 #24 re-confirmed against v40 IR
+# that this residue is genuinely un-structurable: Verdurous Gearhulk (distribute four ==
+# board-wide) and Snakeskin Veil / New Horizons (single-target) carry the IDENTICAL
+# place_counter(p1p1, Creature/you) shape, separated ONLY by the "distribute"/"support"/
+# "each of" word, and the enters-with-additional replacement subject stays None — no v40
+# field marks them, so the mirror IS the narrow residue. Recover them with a NARROWED
+# version of
 # the deleted SWEEP regex: its mass/distribute/each-of arms PLUS an enters-with-
 # ADDITIONAL arm, but MINUS the loose plain "enters with N +1/+1 counters on it" arm —
 # that arm 100%-over-fired onto SELF-enters-with creatures (Triskelion / Endless One /
@@ -8353,16 +8385,34 @@ def extract_signals_ir(
                 e.subject
             ):
                 add("color_hoser", "you", "", e.raw)
-            # ADR-0027: the structural `cat=='tap' and e.scope=='opp'` → tap_down arm
-            # is DELETED. phase's tap-Effect scope is inferred from the COST CONTEXT,
-            # not the tap TARGET, so it OVER-fired on a bare "Tap target creature" whose
-            # cost names an opponent (Cryptic Cruiser — controller='any' subject, scope
-            # 'opp') while UNDER-firing on the 89 "tap target … an opponent controls"
-            # cards whose phase parse drops the controller predicate. tap_down now rides
-            # the BYTE-IDENTICAL TAP_DOWN_REGEX kept mirror (_IR_KEPT_DETECTORS, scope
-            # 'opponents') == the deleted SWEEP producer (both 101, ir_only 0,
-            # regex_only 0). The broad any-controller target tap stays on tapper_engine
-            # below (scope 'any').
+            # ADR-0027 #24 — tap_down STRUCTURAL arm. The inventory note ("phase infers
+            # tap scope from the COST context, dropping the controller predicate") was
+            # STALE about the wrong field: the OLD deleted arm read the cost-inferred
+            # EFFECT scope (`e.scope=='opp'`), which over/under-fired — but phase keeps
+            # the TAP TARGET's controller on the SUBJECT FILTER. `cat=='tap'` with
+            # `subject.controller=='opp'` IS "tap a permanent an opponent controls" (the
+            # tap-down control lane): Subjugator Angel / Bond of Discipline "tap all
+            # creatures your opponents control", Blustersquall / Forensic Researcher
+            # "tap target creature you don't control", Donatello "tap up to three target
+            # creatures your opponents control". +33 recall over the brittle regex
+            # (whose "tap target <perm>" arm missed "tap ALL / up to N / one or two" and
+            # the "you don't control" phrasing). detain (CR 701.35 — can't attack/block/
+            # activate, a tempo-denial like tapping) rides `cat=='detain'`. Three forms
+            # stay un-structurable and ride the NARROWED TAP_DOWN_REGEX residue mirror:
+            # the anaphoric "tap target creature THAT PLAYER controls" (Somnophore,
+            # Delirium, Sentinel — phase can't resolve "that player" to an opponent, so
+            # subject.controller stays you/any); the player-targeted "skips their next
+            # untap step" tempo-skip (Yosei, Shisato — phase emits no controller-bearing
+            # effect); and the morph/aura untap LOCK ("doesn't untap during … untap
+            # step" — phase never marks the locked permanent's controller, so it's
+            # indistinguishable from a self-lock like Basalt Monolith). scope
+            # 'opponents' (the lane's, the serve spec's). add() dedups. The broad any-
+            # controller target tap stays on tapper_engine below (scope 'any'). CR
+            # 701.21 / 701.35 / 502.
+            if cat == "tap" and e.subject is not None and e.subject.controller == "opp":
+                add("tap_down", "opponents", "", e.raw)
+            if cat == "detain":
+                add("tap_down", "opponents", "", e.raw)
             # ADR-0027 — tapper_engine: a repeatable TAPPER (Icy Manipulator,
             # Opposition, Master Decoy) — a tap Effect with a real TARGET/all/each
             # subject (a Filter). Every tap effect carrying a subject is a target tap;
@@ -8571,18 +8621,42 @@ def extract_signals_ir(
                 add("devour_matters", "you", "", e.raw)
                 add("sacrifice_matters", "you", "", e.raw)
                 add("plus_one_matters", "any", "", e.raw)
-            # ADR-0027 — creature_recursion STRUCTURAL ARM (the recall-GAINING half of
-            # the migration). A `reanimate` Effect whose subject is Creature-typed is a
-            # GY->battlefield creature reanimator (Reanimate, Beacon of Unrest, Exhume,
-            # Living Death, Marshal's Anthem, the empty-top-level split/DFC halves) — it
-            # opens the "loop a creature" build-around, scope 'you' (yours even when
-            # reanimating an opponent's graveyard: you control the returned creature).
-            # +160 ir_only vs the deleted regex. The GY->hand / GY->library tail (Raise
-            # Dead, Gravedigger, Hua Tuo, Meren) phase doesn't structure as `reanimate`,
-            # so it rides _CREATURE_RECURSION_MIRROR (the byte-identical kept regex).
-            # add() dedups. DISTINCT from reanimator (also GY->battlefield, a separate
-            # lane) and graveyard_matters (self-GY care). CR 700.4.
+            # ADR-0027 — creature_recursion STRUCTURAL ARM A (the GY->battlefield half).
+            # A `reanimate` Effect whose subject is Creature-typed is a GY->battlefield
+            # creature reanimator (Reanimate, Beacon of Unrest, Exhume, Living Death,
+            # Marshal's Anthem, the empty-top-level split/DFC halves) — it opens the
+            # "loop a creature" build-around, scope 'you' (yours even when reanimating
+            # an opponent's graveyard: you control the returned creature). DISTINCT from
+            # reanimator (also GY->battlefield, a separate lane) and graveyard_matters
+            # (self-GY care). CR 700.4.
             if cat == "reanimate" and "Creature" in ftypes:
+                add("creature_recursion", "you", "", e.raw)
+            # ADR-0027 #24 — creature_recursion STRUCTURAL ARM B (the GY->HAND / GY->
+            # LIBRARY recall half — the inventory note "phase has NO clean shape … needs
+            # a recursion-destination field" is STALE). phase DOES carry the shape: a
+            # `bounce` Effect (-> hand) or a `topdeck_stack` Effect (-> library) whose
+            # subject is a CREATURE-typed card filtered to a graveyard (the
+            # ('in:graveyard',) / ('from:graveyard',…) zone) IS "return/put a creature
+            # card from a graveyard" — the destination is encoded by the category itself
+            # (bounce==hand, topdeck_stack==library). The Creature subject + the GY-
+            # origin zone are the two structural anchors. Gate out
+            # subject.controller=='opp' (an opponent's-graveyard-ONLY pull — graveyard
+            # hate, not your loop). +108 recall over the brittle deleted regex, whose
+            # single-clause `creature card … your graveyard` arm missed the plural / "up
+            # to N" / "X target" / modal forms (Back for Seconds, Death Denied, Soul
+            # Salvage, Footbottom Feast). The GY->battlefield reanimation phase MIS-
+            # structures as choose/target_only + a sibling to:battlefield (or drops the
+            # clause) rides _CREATURE_RECURSION_MIRROR (the NARROW residue below). add()
+            # dedups vs arm A. scope 'you' (the deleted producer's forced scope, the
+            # serve spec's). DISTINCT from reanimator / graveyard_matters. CR 404 /
+            # 700.4.
+            if (
+                cat in ("bounce", "topdeck_stack")
+                and e.subject is not None
+                and "Creature" in e.subject.card_types
+                and e.subject.controller != "opp"
+                and {"from:graveyard", "in:graveyard"} & set(e.zones)
+            ):
                 add("creature_recursion", "you", "", e.raw)
             # ADR-0027 β — animate_artifact migrated to the Card IR via a
             # byte-identical kept-mirror (_ANIMATE_ARTIFACT_MIRROR, in the kept-detector
@@ -9880,16 +9954,15 @@ def extract_signals_ir(
         _COMBAT_BUFF_ENGINE_SWEEP_RE.search(clause) for clause in _clauses(kept_oracle)
     ):
         add("combat_buff_engine", "you", "", "")
-    # ADR-0027 — creature_recursion BYTE-IDENTICAL kept mirror. The structural
-    # `cat=='reanimate' and 'Creature' in ftypes` arm above GAINS +160 GY→battlefield
-    # reanimators the brittle "your graveyard" regex missed, but phase carries NO clean
-    # shape for GY→HAND / GY→LIBRARY creature recursion — recover the 132-card tail
-    # (Raise Dead, Gravedigger, Hua Tuo's GY→library, Meren, Kolaghan's Command's
-    # GY→hand mode) with CREATURE_RECURSION_REGEX run PER-CLAUSE over the reminder-
-    # stripped kept_oracle (the `[^.]*?` never crosses a clause, so flat==per-clause==
-    # 304). scope 'you' (the deleted producer's forced scope). add() dedups vs the
-    # structural arm. DISTINCT from reanimator (GY→battlefield) / graveyard_matters
-    # (self-GY care). CR 700.4.
+    # ADR-0027 #24 — creature_recursion NARROW residue mirror. The two structural arms
+    # above (arm A `cat=='reanimate'`+Creature → GY→battlefield; arm B `cat in (bounce,
+    # topdeck_stack)`+Creature-subject+GY-zone → GY→hand/library) now carry the lane and
+    # add +108 recall the brittle regex missed. This precise per-clause regex UNIQUELY
+    # supplies only the 13 GY→battlefield reanimation cards phase mis-structures (the
+    # choose/target_only+sibling-battlefield forks, the subject-None reanimates, and the
+    # clause-dropped reanimation spells — see _CREATURE_RECURSION_MIRROR docstring). All
+    # 13 are genuine creature reanimation. add() dedups the 291 overlap with the arms.
+    # scope 'you'. CR 404 / 700.4.
     if any(_CREATURE_RECURSION_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
         add("creature_recursion", "you", "", "")
     # ADR-0027 — stax_taxes + symmetric_stax kept mirrors (byte-identical to the deleted

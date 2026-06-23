@@ -897,18 +897,17 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # equality (verified sym-diff == 0 over the commander-legal corpus). A
         # NO-FLOOD voltron entry. CR 109.3 / 601.2 / 603.2 / 903.10a.
         "typed_spellcast",
-        # ADR-0027: tap_down fired high-confidence (forced scope 'opponents') in the
-        # regex path via the SWEEP producer and so counted toward has_other_plan (it is
-        # NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious
-        # commander-damage voltron tell on a tap-down control creature commander that is
-        # NOT a vanilla beater (its plan is locking the opponent's board down). Its
-        # regex producer is deleted, so the hybrid re-silences from the IR re-supply — a
-        # kept WORD MIRROR (TAP_DOWN_REGEX) reading the SAME reminder-stripped joined
-        # oracle as the deleted regex, so it is BYTE-IDENTICAL (commander-legal: IR ==
-        # regex == 101, 0 broadening, 0 ir_only), matching the station_matters /
-        # void_warp_matters kept-mirror precedent. A NO-FLOOD voltron entry. CR 701.21 /
-        # 502 / 903.10a.
-        "tap_down",
+        # ADR-0027 #24: tap_down is NOT here. It fired high-confidence (scope
+        # 'opponents') in the regex path and silenced the spurious commander-damage
+        # voltron tell on a tap-down control creature (its plan is locking the
+        # opponent's board, not commander damage). But its structural arm (`cat=='tap'`
+        # + `subject.controller=='opp'` + `cat=='detain'`) is now BROADER than the
+        # deleted regex (101 -> 134), so an IR-supply silence would OVER-SILENCE the +33
+        # recall-gain bodies (Githzerai Monk, Subjugator Angel). Instead it re-silences
+        # via the regex-path _TAP_DOWN_PLAN_MIRROR (fed into has_other_plan), which
+        # reproduces the OLD regex's exact silence set for ALL cards — voltron delta 0.
+        # Matches the creature_recursion / tranche2-C broadened-arm precedent. CR 701.21
+        # / 502 / 903.10a.
         # ADR-0027: card_draw_engine fired high-confidence (scope 'you'/'each') in the
         # regex path via the _detect_card_draw producer and so counted toward
         # has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing
