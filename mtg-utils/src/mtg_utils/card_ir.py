@@ -93,6 +93,18 @@ class Effect:
     # draws and all non-draw effects are byte-identical to v31). CR 107.3.
     clause_raw: str = ""
     counter_kind: str = ""  # for place/remove_counter: p1p1 | m1m1 | charge | oil | …
+    # ADR-0027 returns_to dimension (SIDECAR v34): the destination zone a single-target
+    # exile-and-RETURN folds an exiled object back to, "battlefield" when the SAME
+    # ability also returns the exiled object to the battlefield (a blink / flicker —
+    # Cloudshift, Flickerwisp, Roon, Yorion; CR 603.6e / 400.7 the object comes back a
+    # NEW object). phase folds "Exile target X, return it" into ONE ``cat='exile'`` /
+    # ``cat='blink'`` Effect structurally == an O-Ring permanent-exile, so this field is
+    # the blink-vs-exile-removal discriminator: set on the EXILE half (the ``to:exile``
+    # effect) when a SIBLING effect in the same ability lands the object back on the
+    # battlefield. An exile-as-RESOURCE with no return (Chrome Mox, Helvault, Bottled
+    # Cloister — return to hand / a separate death trigger / another ability) keeps it
+    # empty. Empty ⇒ byte-identical to v33 (set only on the genuine same-ability blink).
+    returns_to: str = ""  # "" | battlefield (the exile-and-return destination)
     # Directional non-battlefield zone references this effect structurally touches,
     # e.g. ("from:graveyard", "to:exile") for "exile target card from a graveyard",
     # ("in:graveyard",) for a target/count filtered to the graveyard. Lane-agnostic
@@ -458,6 +470,8 @@ def _effect_to_dict(e: Effect) -> dict:
         out["craw"] = e.clause_raw
     if e.counter_kind:
         out["ck"] = e.counter_kind
+    if e.returns_to:
+        out["rt"] = e.returns_to
     if e.zones:
         out["z"] = list(e.zones)
     return out
@@ -472,6 +486,7 @@ def _effect_from_dict(d: dict) -> Effect:
         raw=d.get("raw", ""),
         clause_raw=d.get("craw", ""),
         counter_kind=d.get("ck", ""),
+        returns_to=d.get("rt", ""),
         zones=tuple(d.get("z", ())),
     )
 

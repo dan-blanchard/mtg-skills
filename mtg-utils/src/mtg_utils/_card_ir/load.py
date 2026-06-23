@@ -349,7 +349,23 @@ from mtg_utils.card_ir import Card
 #   whole-raw scan (scaling_pump migrated at v31 breadth — behavior-neutral). The
 #   genuine same-clause scalers ("draw an additional card for each quest counter", "For
 #   each opponent who can't, you draw a card") still lift. CR 107.3.
-SIDECAR_VERSION = 33
+# v34 (ADR-0027 Cluster C — returns_to=battlefield dimension on the exile Effect,
+#   project.py `_recover_blink_returns_to` + `Effect.returns_to`): phase folds a
+#   single-target "exile target X, return it" into TWO effects in one ability — an
+#   exile half (`cat='exile'` controller=any, or `cat='blink'` controller=you, carrying
+#   `to:exile`) and a sibling return half carrying `to:battlefield`. The exile half is
+#   structurally == an O-Ring permanent-exile, so the blink_flicker lane's old
+#   `cat=='blink'` arm OVER-FIRED on exile-as-resource cards (Chrome Mox / Bottled
+#   Cloister / Helvault — exile with NO same-ability battlefield return) and MISSED
+#   genuine blinks phase types `cat='exile'` because the exiled object isn't "you"-
+#   controlled (Flickerwisp / Mistmeadow Witch / Roon / Eldrazi Displacer). The new
+#   pass stamps `returns_to="battlefield"` on the exile half iff a SIBLING effect in the
+#   same ability lands the object back on the battlefield; the blink_flicker arm now
+#   REQUIRES it. Empty ⇒ byte-identical to v33 (set only on the genuine same-ability
+#   blink). A delayed-return O-Ring whose return is a SEPARATE leaves-the-battlefield
+#   ability (Fiend Hunter, Journey to Nowhere) keeps it empty — correctly exile_removal,
+#   not a blink. CR 603.6e / 400.7 (a returned object is a NEW object).
+SIDECAR_VERSION = 34
 
 
 def card_ir_dir() -> Path:

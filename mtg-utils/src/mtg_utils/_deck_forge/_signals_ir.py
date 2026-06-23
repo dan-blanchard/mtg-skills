@@ -46,6 +46,7 @@ from mtg_utils._deck_forge._signals_regex import (
     Signal,
     _clauses,
     _creature_etb_clauses,
+    _detect_blink_flicker_kept,
     _detect_card_draw,
     _detect_direct_keywords,
     _detect_keyword_presets,
@@ -7015,7 +7016,22 @@ def extract_signals_ir(
                 cat in ("ramp", "double") and _MANA_AMPLIFY_RAW.search(e.raw or "")
             ):
                 add("mana_amplifier", "you", "", e.raw)
-            if cat == "blink":
+            # blink_flicker (ADR-0027, MIGRATED SIDECAR v34) = a genuine exile-and-
+            # RETURN-to-battlefield flicker (CR 603.6e / 400.7 — the object comes back a
+            # NEW object). STRUCTURAL ARM: a `blink`/`exile` Effect carrying the v34
+            # `returns_to=="battlefield"` projection (the exile half of an exile-and-
+            # return whose SAME ability lands the object back on the battlefield —
+            # `_recover_blink_returns_to`). This RECOVERS the genuine blinks phase types
+            # `cat='exile'` because the exiled object isn't "you"-controlled
+            # (Flickerwisp, Mistmeadow Witch, Roon, Eldrazi Displacer, +58
+            # commander-legal ir_only, all with a blink hook), and DROPS the exile-as-
+            # resource over-fires the old `cat=='blink'` arm caught (Chrome Mox /
+            # Bottled Cloister / Helvault — exile
+            # with NO same-ability battlefield return). The byte-identical
+            # BLINK_FLICKER_REGEX kept mirror (below) re-supplies the 41 regex_only
+            # DFC-flip / cross-sentence / GY-recursion-with-return bodies phase does not
+            # fold into the exile+sibling-return structure. CR 603.6e / 400.7.
+            if cat in ("blink", "exile") and e.returns_to == "battlefield":
                 add("blink_flicker", "you", "", e.raw)
             # clone_matters (creatures) + per-permanent-type copy lanes. The copied type
             # (from BecomeCopy's target, incl. an Or-composite like Spark Double's
@@ -9227,6 +9243,25 @@ def extract_signals_ir(
     # clause-local arm drops (none of which the regex matched either). CR 107.3.
     if any(_DRAW_FOR_EACH_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
         add("draw_for_each", "you", "", "")
+    # ADR-0027 returns_to dimension (SIDECAR v34) — blink_flicker kept mirror. The
+    # structural `(cat in blink/exile) and returns_to=="battlefield"` arm binds the
+    # genuine exile-and-return flickers phase folds into an exile half + a sibling
+    # battlefield return; but phase does NOT fold a slice of them into that structure —
+    # the DFC transform-via-exile flips ("exile ~, then return it … transformed" on a
+    # back-face / front-face the structural arm catches but a few modal / quoted forms
+    # phase under-structures), the cross-sentence "Exile target creature. Return that
+    # card to the battlefield" (Roon-style split across a period), and the
+    # GY-recursion-with-return bodies. This is the BYTE-IDENTICAL mirror of the two
+    # deleted HIGH-conf producers (`_detect_blink_flicker_kept` = the `blink` preset
+    # per-clause `exile…return…battlefield` + the cross-sentence
+    # `_detect_blink_fulltext`) run over the reminder-STRIPPED kept_oracle, matching the
+    # deleted producers' own per-clause / full-text scan. add() dedups vs the structural
+    # arm. Scope 'you'
+    # (deleted scope). The union (structural OR mirror) == the deleted regex firing on
+    # every card + the structural recall the regex missed (the +58 ir_only genuine
+    # blinks), with regex_only == 0. CR 603.6e / 400.7.
+    if _detect_blink_flicker_kept(kept_oracle):
+        add("blink_flicker", "you", "", "")
     # ADR-0027 β — play_from_top kept mirror. The structural STATIC cast_from_zone+
     # from:library arm above is the clean 45-card spine, but phase does NOT model as a
     # cast-permission static the REVEAL-only ("Play with the top card revealed" — Goblin
@@ -9829,6 +9864,17 @@ def extract_signals_ir(
             )
             if clone_clause is not None:
                 add("clone_matters", "you", "", clone_clause, "low")
+        # ADR-0027 returns_to dimension (SIDECAR v34): blink_flicker migrated. Reproduce
+        # the deleted self-ETB-value membership cross-open — a commander with a strong
+        # own ETB value (Ephemerate/Cloudshift/Conjurer's Closet fodder) opens the
+        # flicker/blink support avenue to RE-USE its own ETB (CR 603.6). Reuses the SAME
+        # `_self_etb_value` helper over kept_oracle (the deleted producer's reminder-
+        # stripped `text`, byte-identical), LOW conf, scope 'you' — a flicker package is
+        # a suggestion, not a detected on-board synergy. It fired LOW and never fed
+        # has_other_plan, so it needs no voltron mirror.
+        etb_clause = _self_etb_value(kept_oracle, name)
+        if etb_clause is not None:
+            add("blink_flicker", "you", "", etb_clause, "low")
         # Own-subtype tribal membership (a creature's own race) + named-token
         # tribes — a clean type_line / all_parts field-lookup. Class tribes
         # (Soldier/Cleric) open only behind a go-wide signal; race tribes open

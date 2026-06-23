@@ -2312,7 +2312,30 @@ _PRESET_KEYWORD_SIGNALS = {
 # The hand-registered serve spec (signal_specs) is independent and survives. CR
 # 505.1a / 903.10a.
 _PRESET_REGEX_SIGNALS = {
-    "blink": ("blink_flicker", "you"),
+    # ADR-0027 returns_to dimension (SIDECAR v34): the `blink` preset entry is DELETED —
+    # blink_flicker migrated to the Card IR. phase folds a single-target "exile target
+    # X, return it" into an exile half + a sibling return half; the v34 projection
+    # (`Effect.returns_to`) stamps `returns_to="battlefield"` on the exile half iff the
+    # SAME ability returns the object to the battlefield. The lane fires from the
+    # STRUCTURAL `(cat in blink/exile) and returns_to=="battlefield"` arm in
+    # extract_signals_ir (broader than the preset — it RECOVERS the genuine blinks phase
+    # types `cat='exile'` because the exiled object isn't "you"-controlled: Flickerwisp,
+    # Mistmeadow Witch, Roon, Eldrazi Displacer, +58 commander-legal ir_only, all with a
+    # blink hook) UNION a BYTE-IDENTICAL kept mirror (BLINK_FLICKER_REGEX = the EXACT
+    # deleted `blink` preset pattern + `_detect_blink_fulltext`, flat over the reminder-
+    # stripped kept_oracle) that re-supplies the 41 regex_only DFC-flip / cross-sentence
+    # / GY-recursion-with-return bodies the structural arm misses. It DROPS the
+    # exile-as-resource over-fires the old preset never reached anyway (Chrome Mox /
+    # Bottled Cloister / Helvault — exile with NO same-ability battlefield return). The
+    # `blink`
+    # PRESET itself survives in theme_presets (deck-wizard / cube-wizard archetype
+    # detection); only this _PRESET_REGEX_SIGNALS producer entry is removed. The deleted
+    # producer fed has_other_plan (HIGH, scope 'you', not generic/voltron-compat); the
+    # voltron silence is re-supplied by the byte-identical `_blink_flicker_has_plan`
+    # mirror OR'd into has_other_plan in signals.py (NOT _VOLTRON_SILENCING_PLAN_KEYS —
+    # the IR structural re-supply is BROADER than the deleted regex, which would
+    # over-silence the +58 ir_only recall-gain bodies). The hand-registered serve spec
+    # (signal_specs) is independent and survives. CR 603.6e / 400.7.
     # ADR-0027: the `extra-turns` AND `extra-combats` presets are both DELETED — both
     # migrated to the Card IR (the STRUCTURAL `extra_turn` / `extra_combat` effect-
     # category arms in extract_signals_ir, scope 'you', HIGH, broader than the presets;
@@ -3406,6 +3429,23 @@ def _draw_for_each_has_plan(text: str) -> bool:
     return any(_DRAW_FOR_EACH_SWEEP_RE.search(cl) for cl in _clauses(text))
 
 
+def _blink_flicker_has_plan(text: str) -> bool:
+    """ADR-0027 returns_to dimension (SIDECAR v34): the HAS-OTHER-PLAN mirror for the
+    migrated blink_flicker key. The deleted producers (the `blink` preset per-clause +
+    the cross-sentence `_detect_blink_fulltext`) fired HIGH-confidence (scope 'you', NOT
+    in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) and counted toward `has_other_plan` — a
+    flicker/blink ENGINE is a value plan, not a vanilla commander-damage beater. The
+    migrated lane rides the `(cat in blink/exile) and returns_to=="battlefield"`
+    structural arm UNION the byte-identical kept mirror, but the structural re-supply is
+    BROADER (+58 ir_only — the genuine blinks phase types `cat='exile'`), so
+    _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those gains. This byte-identical
+    mirror (`_detect_blink_flicker_kept` over the reminder-STRIPPED `text` — the deleted
+    producers' own input) restores ONLY the deleted regex's silence set; the LOW-conf
+    self-ETB membership avenue opener never fed has_other_plan and is excluded. CR
+    603.6e / 400.7 / 903.10a."""
+    return _detect_blink_flicker_kept(text)
+
+
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated conjure_matters key. The
 # deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a conjure
@@ -4275,6 +4315,27 @@ def _detect_blink_fulltext(text: str) -> str | None:
         if _BLINK_RETURN_RE.search(clause):
             return clause.strip()
     return text[:160]
+
+
+# ADR-0027 returns_to dimension (SIDECAR v34) — the EXACT deleted blink_flicker preset
+# pattern, pinned for the byte-identical kept mirror. The `blink` theme preset
+# (theme_presets.PRESETS["blink"].patterns) IS this single pattern; it is pinned here so
+# the IR mirror is byte-stable independent of the preset registry. The deleted
+# _PRESET_REGEX_SIGNALS producer ran it PER-CLAUSE over the reminder-stripped oracle.
+BLINK_FLICKER_REGEX = r"exile[^.]*?return[^.]*?battlefield"
+_BLINK_FLICKER_KEPT_RE = re.compile(BLINK_FLICKER_REGEX, re.IGNORECASE)
+
+
+def _detect_blink_flicker_kept(kept_oracle: str) -> bool:
+    """Byte-identical mirror of the two deleted blink_flicker HIGH-conf producers — the
+    `blink` preset (per-clause `exile…return…battlefield`) and the cross-sentence
+    `_detect_blink_fulltext` — over the reminder-stripped ``kept_oracle``. Recovers the
+    DFC-flip / cross-sentence / GY-recursion-with-return bodies the structural
+    returns_to arm misses (the residual regex_only). Mirrors the deleted producers' own
+    per-clause / full-text scan exactly. CR 603.6e / 400.7."""
+    if any(_BLINK_FLICKER_KEPT_RE.search(cl) for cl in _clauses(kept_oracle)):
+        return True
+    return _detect_blink_fulltext(kept_oracle) is not None
 
 
 # Self-blink (full text): a card that exiles ITSELF and returns it (Norin), split
@@ -5304,11 +5365,11 @@ def extract_signals(
     # conf, scope 'you'). This regex emission is deleted so the regex path no longer
     # produces the migrated key. The helpers STAY (imported by the IR path). CR 707.1.
 
-    # Full-text detectors: trigger→payoff patterns that span a sentence boundary, so
-    # the per-clause loop above can't see both halves (Roon, Norin, Aurelia, Alpharael).
-    blink_clause = _detect_blink_fulltext(text)
-    if blink_clause is not None:
-        add("blink_flicker", "you", "", blink_clause)
+    # ADR-0027 returns_to dimension (SIDECAR v34): blink_flicker migrated to the Card
+    # IR. The cross-sentence `_detect_blink_fulltext` add() (Roon, Norin, Aurelia,
+    # Alpharael — trigger→payoff spanning a sentence boundary) is DELETED here; the IR
+    # path reproduces it byte-identically as part of the BLINK_FLICKER_REGEX kept mirror
+    # over kept_oracle. `_detect_blink_fulltext` STAYS (reused by the IR mirror).
     # ADR-0027 t2b4-C: self_blink migrated to the Card IR (kept_detector). The regex
     # path's emission (the name-aware fulltext detector + the SWEEP per-clause regex) is
     # deleted here; extract_signals_ir reproduces BOTH byte-identically. The
@@ -5390,23 +5451,17 @@ def extract_signals(
     # arms, so extract_signals no longer emits the key (the migration invariant) while
     # the cross-open survives in the IR path. CR 122.1 / 614.12.
 
-    # Self-ETB value commander → open the (existing, precise) blink/flicker avenue so
-    # Ephemerate/Cloudshift/Conjurer's Closet get surfaced to re-use the commander's
-    # own ETB (CR 603.6). Commander-only — a flicker package is a suggestion.
-    if include_membership:
-        etb_clause = _self_etb_value(text, name)
-        if etb_clause is not None:
-            add("blink_flicker", "you", "", etb_clause, "low")
-        # ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters migrated to
-        # the Card IR. The high-CMC ETB/dies clone-TARGET cross-open (a mana value >= 5
-        # commander with a strong ETB or DEATH trigger is worth COPYING — a clone
-        # re-fires the expensive ETB on a cheap body, Gyruda, or the death trigger when
-        # the copy dies, Keiga / Kokusho sac-loop) is RE-HOMED to extract_signals_ir's
-        # include_membership block, reusing the SAME _self_etb_value / _self_dies_value
-        # helpers byte-identically (LOW conf, scope 'you'). This regex emission is
-        # deleted so the regex path no longer produces the migrated key; the
-        # blink_flicker emission above (NOT migrated) stays and keeps computing
-        # etb_clause. CR 707.1.
+    # ADR-0027 returns_to dimension (SIDECAR v34): blink_flicker migrated to the Card
+    # IR. The self-ETB-value commander cross-open (a commander with a strong own ETB
+    # value wants a flicker package to re-use it — Ephemerate / Cloudshift / Conjurer's
+    # Closet, CR 603.6) is RE-HOMED to extract_signals_ir's include_membership block,
+    # reusing the SAME `_self_etb_value` helper byte-identically (LOW conf, scope
+    # 'you'). This regex emission is deleted so the regex path no longer produces the
+    # migrated key; `_self_etb_value` STAYS (reused by the IR membership re-home). A
+    # flicker package is a suggestion — Commander-only. (The high-CMC ETB/dies
+    # clone-TARGET cross-open that previously shared this block was RE-HOMED to
+    # extract_signals_ir with clone_matters at SIDECAR v30, reusing _self_etb_value /
+    # _self_dies_value.)
 
     # Voltron fallback (membership; commander damage, CR 903.10a): only when nothing
     # else gave a strong direction and the creature is a real commander-damage threat
@@ -5828,6 +5883,15 @@ def extract_signals(
         # restores the deleted regex's exact silence set. Per-clause over the reminder-
         # STRIPPED `text`. See _draw_for_each_has_plan. CR 107.3 / 903.10a.
         or _draw_for_each_has_plan(text)
+        # ADR-0027 returns_to dimension (SIDECAR v34): re-silence the deleted
+        # blink_flicker producers (the `blink` preset + cross-sentence
+        # _detect_blink_fulltext, both HIGH-confidence scope 'you', feeding
+        # has_other_plan — a flicker ENGINE is a value plan, not a vanilla beater). The
+        # migrated lane rides the returns_to structural arm + kept mirror, BROADER (+58
+        # ir_only), so this byte-identical mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS —
+        # restores the deleted regex's exact silence set. See _blink_flicker_has_plan.
+        # CR 603.6e / 400.7 / 903.10a.
+        or _blink_flicker_has_plan(text)
         # ADR-0027 β: re-silence the deleted lifegain_matters registry-280 _DETECTORS
         # producer (ARM (A) — it fired HIGH-confidence forced scope 'you', feeding
         # has_other_plan; a lifegain ENGINE is no vanilla beater). ONLY ARM (A): the

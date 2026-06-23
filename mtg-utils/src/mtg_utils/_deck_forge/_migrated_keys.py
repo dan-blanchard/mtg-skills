@@ -5758,6 +5758,42 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _draw_for_each_has_plan mirror is OR'd into has_other_plan — NOT
         # _VOLTRON_SILENCING_PLAN_KEYS. voltron_matters 3010 by set equality. CR 107.3.
         "draw_for_each",
+        # ADR-0027 Cluster C — returns_to dimension (SIDECAR v34): blink_flicker
+        # migrated to the Card IR. phase folds a single-target "exile target X, return
+        # it" into an exile half (cat='exile' controller=any, or cat='blink'
+        # controller=you, to:exile) + a sibling return half (to:battlefield), so the old
+        # `cat=='blink'` arm OVER-FIRED on exile-as-resource cards with NO same-ability
+        # battlefield return (Chrome Mox / Bottled Cloister / Helvault) and MISSED the
+        # genuine blinks phase types cat='exile' because the exiled object isn't "you"-
+        # controlled (Flickerwisp / Mistmeadow Witch / Roon / Eldrazi Displacer). FIX
+        # (projection, behavior-neutral pre-wire drift 0): project.py
+        # `_recover_blink_returns_to` stamps `Effect.returns_to="battlefield"` on the
+        # exile half iff a SIBLING effect returns the SAME object to the battlefield
+        # (_is_blink_return — an exile/blink/discard to:battlefield that did NOT come
+        # from graveyard / library / hand / top), with two precision gates: the exile
+        # half must exile a BATTLEFIELD permanent (not a GY / library / hand card —
+        # drops Living Death, Auspicious Starrix, Rona) and a self-death `dies`-trigger
+        # (subject=None) is vetoed as recursion not flicker (drops Bogardan Phoenix,
+        # Lamplight Phoenix, Lucius the Eternal; the other-Cat-death Ajani is KEPT). NO
+        # decoupling needed — the field changes no scope / subject / zone / category,
+        # and the migrated exile_removal arm's own `sib_returns` to:battlefield scan
+        # reads ab.effects zones (unchanged), so exile_removal did NOT drift. WIRE
+        # (signals-only): the structural `(cat in blink/exile) and
+        # returns_to=="battlefield"` arm (recovers the +58 ir_only genuine blinks; drops
+        # the exile-as-resource over-fires) UNION a byte-identical kept mirror
+        # (_detect_blink_flicker_kept = the EXACT deleted `blink` preset per-clause +
+        # cross-sentence _detect_blink_fulltext over kept_oracle) re-supplying the 41
+        # regex_only DFC-flip / cross-sentence / GY-recursion-with-return bodies, plus
+        # the re-homed self-ETB-value membership cross-open (LOW, the flicker avenue
+        # opener). The `blink` preset entry in _PRESET_REGEX_SIGNALS is deleted (the
+        # theme_presets PRESET survives for archetype detection). Commander-legal, by
+        # oracle_id: both=125, regex_only=0 (byte-mirror full recall), ir_only=58 (all
+        # genuine blinks / transform-via-exile flips, with a hook). VOLTRON: the deleted
+        # producer fired HIGH-confidence scope 'you' and fed has_other_plan; the IR
+        # structural re-supply is BROADER, so a byte-identical _blink_flicker_has_plan
+        # mirror is OR'd into has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS.
+        # voltron_matters 3010 by set equality. CR 603.6e / 400.7.
+        "blink_flicker",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

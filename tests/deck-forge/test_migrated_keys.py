@@ -1728,6 +1728,52 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 Cluster C — blink_flicker ← an exile-and-RETURN-to-battlefield (a blink /
+    # flicker). phase folds "exile target X, return it" into an exile half + a sibling
+    # return half; the v34 projection stamps Effect.returns_to="battlefield" on the exile
+    # half when the SAME ability returns the object to the battlefield. The structural arm
+    # fires blink_flicker for `(cat in blink/exile) and returns_to=="battlefield"`. This
+    # Flickerwisp case (controller=None, so phase types it cat='exile') is the +recall the
+    # old narrow cat=='blink' arm missed. SIDECAR v34. CR 603.6e / 400.7.
+    "blink_flicker": (
+        {
+            "name": "Flickerwisp",
+            "type_line": "Creature — Elemental",
+            "oracle_text": (
+                "Flying\nWhen this creature enters, exile another target permanent. "
+                "Return that card to the battlefield under its owner's control at the "
+                "beginning of the next end step."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="etb", scope="you", zones=("to:battlefield",)),
+                effects=(
+                    Effect(
+                        category="exile",
+                        scope="any",
+                        subject=Filter(
+                            card_types=("Permanent",), predicates=("Another",)
+                        ),
+                        returns_to="battlefield",
+                        zones=("to:exile",),
+                        raw="When ~ enters, exile another target permanent. Return "
+                        "that card to the battlefield under its owner's control at the "
+                        "beginning of the next end step.",
+                    ),
+                    Effect(
+                        category="exile",
+                        scope="any",
+                        zones=("from:exile", "to:battlefield"),
+                        raw="When ~ enters, exile another target permanent. Return "
+                        "that card to the battlefield under its owner's control at the "
+                        "beginning of the next end step.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

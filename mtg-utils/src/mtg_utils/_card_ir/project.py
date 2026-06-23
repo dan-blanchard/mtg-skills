@@ -558,6 +558,21 @@ def project_card(records: list[dict]) -> Card:
             for face in card.faces
         ),
     )
+    # ADR-0027 returns_to dimension (SIDECAR v34): stamp returns_to="battlefield" on the
+    # exile half of an exile-and-return blink. Runs POST-supplement so the return half's
+    # category / zones are final (the supplement re-derives a reanimate / bounce return
+    # from an `other` clause on some cards) and the sibling scan sees them. Append-only
+    # / idempotent; mirrors the post-supplement _recover_graveyard_origin re-run.
+    card = replace(
+        card,
+        faces=tuple(
+            replace(
+                face,
+                abilities=tuple(_recover_blink_returns_to(a) for a in face.abilities),
+            )
+            for face in card.faces
+        ),
+    )
     return replace(card, parse_confidence=_confidence(card))
 
 
@@ -5175,6 +5190,120 @@ def _recover_graveyard_origin(ability: Ability) -> Ability:
         if zones != before:
             changed = True
             new_effects.append(replace(e, zones=tuple(sorted(zones))))
+        else:
+            new_effects.append(e)
+    if not changed:
+        return ability
+    return replace(ability, effects=tuple(new_effects))
+
+
+# Zones that, on a RETURN-to-battlefield sibling, prove the returned object came from
+# a DIFFERENT zone (a graveyard reanimate, a library / hand / top put-into-play, a
+# graveyard-card pile) — NOT the exile the blink just made. A genuine flicker returns
+# the object FROM EXILE (or bare, no `from:` tag), so these veto the return half.
+_BLINK_RETURN_VETO_ZONES = frozenset(
+    {"from:graveyard", "from:library", "from:hand", "from:top", "in:graveyard"}
+)
+# Zones that, on the EXILE half, prove it exiles a card from a NON-battlefield zone (a
+# graveyard self-exile, a library / top impulse, a hand exile) — NOT a battlefield
+# permanent being flickered. A genuine blink exiles a permanent on the battlefield (no
+# `from:` tag, or `from:battlefield`), so these veto the exile half: mass GY reanimation
+# (Living Death / Scrap Mastery), the library-dig mutate put (Auspicious Starrix), and
+# the hand-exile-then-play (Rona, Herald of Invasion).
+_BLINK_EXILE_SOURCE_VETO_ZONES = frozenset(
+    {
+        "from:graveyard",
+        "in:graveyard",
+        "from:library",
+        "from:hand",
+        "in:hand",
+        "from:top",
+    }
+)
+# Categories phase gives a genuine exile-and-return's RETURN half — the exiled object
+# coming back (`exile`/`blink`, the ChangeZone exile→battlefield; `discard` is phase's
+# mis-cat for a few self-blinks — Anurid Brushhopper / Fleeting Spirit). A return typed
+# `reanimate` (GY recursion), `cheat_play` / `tutor` / `topdeck_select` / `reveal` /
+# `choose` (put a DIFFERENT card into play from library / GY / hand) is NOT a blink.
+_BLINK_RETURN_CATEGORIES = frozenset({"exile", "blink", "discard"})
+
+
+def _is_blink_return(e: Effect) -> bool:
+    """An effect that lands the just-exiled object back on the battlefield AS THE SAME
+    object (the flicker return), not a reanimate / library-put of a different card."""
+    return (
+        e.category in _BLINK_RETURN_CATEGORIES
+        and "to:battlefield" in e.zones
+        and not any(z in _BLINK_RETURN_VETO_ZONES for z in e.zones)
+    )
+
+
+def _recover_blink_returns_to(ability: Ability) -> Ability:
+    """ADR-0027 returns_to dimension (SIDECAR v34): stamp ``returns_to="battlefield"``
+    on the EXILE half of a single-target exile-and-RETURN-to-battlefield (a blink /
+    flicker — CR 603.6e / 400.7 the object comes back a NEW object).
+
+    phase folds "Exile target X, return it" into TWO effects in ONE ability: the exile
+    half (``cat='exile'`` controller=any, or ``cat='blink'`` controller=you, carrying
+    ``to:exile``) and a SIBLING return half carrying ``to:battlefield``. The exile half
+    is structurally == an O-Ring permanent-exile (exile_removal / a delayed-return
+    O-Ring like Fiend Hunter, whose return is in a SEPARATE leaves-the-battlefield
+    ability), so the blink_flicker lane needs a discriminator. This pass sets the field
+    on the exile half iff a sibling effect IN THE SAME ABILITY returns the SAME object
+    to the battlefield (``_is_blink_return``) — the "return that card to the
+    battlefield" idiom (Cloudshift, Flickerwisp, Mistmeadow Witch, Roon, Eldrazi
+    Displacer, Yorion, Restoration Angel, Tawnos's Coffin).
+
+    Two precision gates keep it off look-alikes whose exiled object does NOT flicker
+    back:
+      • the EXILE half must not itself exile FROM a graveyard (no ``from:graveyard`` /
+        ``in:graveyard``) — drops mass GY reanimation that exiles GY cards then puts
+        them onto the battlefield (Living Death / Living End / Scrap Mastery) and the
+        GY-self-exile escape (Dragon's Approach);
+      • the RETURN sibling must be a genuine same-object return (``_is_blink_return`` —
+        an ``exile``/``blink``/``discard`` to:battlefield that did NOT come from
+        graveyard / library / hand / top) — drops reanimate returns (Anathemancer,
+        Combat Courier, the unearth cleanup), library / hand / GY put-into-play of a
+        DIFFERENT card (Academy Rector, Divine Gambit, Gamekeeper, Genesis Ultimatum,
+        Eldritch Evolution, Boneyard Parley), and the reveal / tutor / choose / restrict
+        false pairings (Clear the Land, Ecological Appreciation, Rescue from the
+        Underworld, Long River Lurker).
+
+    An exile-as-RESOURCE with no same-ability return keeps it empty: Chrome Mox /
+    Bottled Cloister (return to HAND, a different ability) and Helvault / Fiend Hunter /
+    Journey to Nowhere (the return is a SEPARATE death / leaves-the-battlefield
+    ability) — all correctly NOT blinks. A SELF-DEATH recursion ("When ~ dies, exile it
+    … return it" — Bogardan Phoenix, Lamplight Phoenix, Lucius the Eternal) is also
+    vetoed: it is a graveyard/recursion mechanic, not a flicker (CR 603.6e — the dying
+    creature isn't flickered, it returns from a death event). The tell is a ``dies``
+    trigger whose SUBJECT is None (the source's own death); an OTHER-creature-death
+    flicker (Ajani, Nacatl Pariah — "whenever other Cats die, exile Ajani, return him")
+    carries a non-None ``Another`` subject and is KEPT. Append-only / idempotent.
+    Behavior-neutral until a lane reads ``returns_to``: this field changes no scope /
+    subject / zone / category, and the exile_removal arm's own ``sib_returns``
+    ``to:battlefield`` scan is unchanged."""
+    trg = ability.trigger
+    if trg is not None and trg.event == "dies" and trg.subject is None:
+        return ability  # self-death recursion (Phoenix-style), not a flicker
+    if not any(_is_blink_return(e) for e in ability.effects):
+        return ability
+    new_effects: list[Effect] = []
+    changed = False
+    for e in ability.effects:
+        # The exile HALF: an exile/blink effect that puts the object INTO exile
+        # (to:exile) but is NOT itself the return half (no to:battlefield of its own —
+        # Flickerwisp's return half carries both from:exile and to:battlefield) and
+        # exiles a BATTLEFIELD permanent (not a card from graveyard / library / hand /
+        # top — _BLINK_EXILE_SOURCE_VETO_ZONES).
+        if (
+            e.category in ("exile", "blink")
+            and "to:exile" in e.zones
+            and "to:battlefield" not in e.zones
+            and not any(z in _BLINK_EXILE_SOURCE_VETO_ZONES for z in e.zones)
+            and not e.returns_to
+        ):
+            new_effects.append(replace(e, returns_to="battlefield"))
+            changed = True
         else:
             new_effects.append(e)
     if not changed:

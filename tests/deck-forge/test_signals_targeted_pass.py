@@ -25,6 +25,21 @@ def _keys(oracle, **kw):
     return {s.key for s in _sigs(oracle, **kw)}
 
 
+def _bare_ir() -> Card:
+    """A minimal non-None Card IR — routes extract_signals_hybrid through the IR path
+    so a kept-mirror-served migrated key (which scans the oracle directly) fires."""
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+
+
+def _keys_hybrid(oracle, name="X", **extra):
+    """ADR-0027 v34: blink_flicker migrated — the regex path no longer emits it; the
+    hybrid IR path serves it via the byte-identical kept mirror (which scans the oracle
+    directly, so any non-None IR routes to it)."""
+    card = {"name": name, "oracle_text": oracle, "type_line": "Legendary Creature"}
+    card.update(extra)
+    return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
+
+
 # ── 1. Blink / flicker: cross-sentence "Exile … . Return that card to the battlefield" ──
 ROON = (
     "Vigilance, trample\n"
@@ -34,22 +49,24 @@ ROON = (
 
 
 def test_roon_cross_sentence_flicker_fires():
-    assert "blink_flicker" in _keys(ROON, name="Roon of the Hidden Realm")
+    assert "blink_flicker" in _keys_hybrid(ROON, name="Roon of the Hidden Realm")
 
 
 def test_inline_flicker_still_fires():
-    assert "blink_flicker" in _keys(
+    assert "blink_flicker" in _keys_hybrid(
         "Exile target creature, then return it to the battlefield."
     )
 
 
 def test_pure_exile_removal_is_not_flicker():
-    assert "blink_flicker" not in _keys("Exile target creature.")
+    # ADR-0027 v34: assert via the hybrid path (the migrated IR + kept mirror must drop
+    # it, not just the now-silent regex path).
+    assert "blink_flicker" not in _keys_hybrid("Exile target creature.")
 
 
 def test_reanimation_is_not_flicker():
     # the returned object is a graveyard card, not the exiled one — not a flicker.
-    assert "blink_flicker" not in _keys(
+    assert "blink_flicker" not in _keys_hybrid(
         "Exile target creature. Return target creature card "
         "from your graveyard to the battlefield."
     )
@@ -58,7 +75,7 @@ def test_reanimation_is_not_flicker():
 def test_oring_removal_is_not_flicker():
     # Fiend Hunter / Journey to Nowhere: exile + leaves-delayed "return the exiled
     # card" is removal, not a flicker engine.
-    assert "blink_flicker" not in _keys(
+    assert "blink_flicker" not in _keys_hybrid(
         "When this creature enters, you may exile another target creature. "
         "When this creature leaves the battlefield, return the exiled card "
         "to the battlefield."

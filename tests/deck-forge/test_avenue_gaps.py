@@ -189,7 +189,13 @@ class TestBlinkForSelfEtbCommander:
             "type_line": "Legendary Creature — Homunculus",
             "oracle_text": "When Fblthp enters, draw a card. If it entered from your library or was cast from your library, draw two cards instead.\nWhen Fblthp becomes the target of a spell, shuffle Fblthp into its owner's library.",
         }
-        keys = {s.key for s in extract_signals(fblthp)}
+        # ADR-0027 v34: blink_flicker migrated to the Card IR — the self-ETB-value
+        # avenue opener was re-homed to the IR membership block; use the hybrid path
+        # with include_membership.
+        keys = {
+            s.key
+            for s in extract_signals_hybrid(fblthp, _bare_ir(), include_membership=True)
+        }
         assert "blink_flicker" in keys
 
     def test_vanilla_etb_does_not_emit_blink(self):

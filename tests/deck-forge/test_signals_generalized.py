@@ -2274,11 +2274,15 @@ def test_stax_self_restriction_does_not_fire():
 
 
 def test_blink_flicker_via_preset_regex():
+    # ADR-0027 v34: blink_flicker migrated to the Card IR — use the hybrid path. The
+    # single-clause "exile … return … battlefield" rides the byte-identical kept mirror
+    # (_detect_blink_flicker_kept = the EXACT deleted `blink` preset), which scans the
+    # oracle directly, so a non-None _bare_ir routes the hybrid to the IR path.
     c = {
         "name": "Brago-like",
         "oracle_text": "Exile target creature you control, then return it to the battlefield under your control.",
     }
-    assert ("blink_flicker", "you") in _ks(c)
+    assert ("blink_flicker", "you") in _ks_hybrid(c)
 
 
 def test_blink_flicker_exile_other_target_then_return():
@@ -2318,9 +2322,12 @@ def test_blink_flicker_exile_other_target_then_return():
             "control, put a +1/+1 counter on Phelia."
         ),
     }
-    assert "blink_flicker" in _keys(ennis)
-    assert "blink_flicker" in _keys(koya)
-    assert "blink_flicker" in _keys(phelia)
+    # ADR-0027 v34: blink_flicker migrated — use the hybrid path. These cross-sentence
+    # "exile … Return that card to the battlefield" engines ride the byte-identical kept
+    # mirror (_detect_blink_fulltext), which scans the oracle directly.
+    assert "blink_flicker" in _keys_hybrid(ennis)
+    assert "blink_flicker" in _keys_hybrid(koya)
+    assert "blink_flicker" in _keys_hybrid(phelia)
 
 
 def test_self_etb_variable_damage_opens_flicker_and_clone():
@@ -2379,7 +2386,10 @@ def test_self_etb_modal_choose_requires_enters_not_dies():
             "those cards.\n• Create three Treasure tokens."
         ),
     }
-    assert "blink_flicker" not in _keys(atsushi)
+    # ADR-0027 v34: blink_flicker migrated — use the hybrid path. Atsushi's death modal
+    # exiles the top of the library to PLAY (no "return … to the battlefield"), so neither
+    # the kept mirror nor the self-ETB avenue opener fires.
+    assert "blink_flicker" not in _keys_hybrid(atsushi)
     # A genuine ETB modal ("When ~ enters, choose one —") still opens Blink: flicker
     # re-fires the enter trigger (CR 603.6). Real oracle.
     charming_prince = {
@@ -2391,7 +2401,8 @@ def test_self_etb_modal_choose_requires_enters_not_dies():
             "under your control at the beginning of the next end step."
         ),
     }
-    assert "blink_flicker" in _keys(charming_prince)
+    # The cross-sentence "Exile … Return it to the battlefield" rides the kept mirror.
+    assert "blink_flicker" in _keys_hybrid(charming_prince)
 
 
 def test_xspell_matters_detects_x_cost_payoffs_not_hoser():
@@ -2894,7 +2905,10 @@ def test_reminder_text_does_not_produce_signals():
             "This land enters tapped unless you control a basic land.\n{T}: Add {G}.\n{2}{G}, {T}: Earthbend 2. Activate only as a sorcery. (Target land you control becomes a 0/0 creature with haste that's still a land. Put two +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.)"
         ),
     }
-    assert "blink_flicker" not in _keys(c)
+    # ADR-0027 v34: assert via the hybrid path — the kept mirror runs over the reminder-
+    # STRIPPED kept_oracle, so the parenthetical earthbend "exile … return it" never
+    # fires the migrated lane.
+    assert "blink_flicker" not in _keys_hybrid(c)
 
 
 def test_instant_sorcery_recaster_opens_spellcast():
@@ -4927,7 +4941,12 @@ def test_self_etb_value_matches_whenever_and_plural_enter():
             "that artifact token produced."
         ),
     }
-    assert "blink_flicker" in _keys(roxanne)
+    # ADR-0027 v34: blink_flicker migrated — the self-ETB-value avenue opener was
+    # re-homed to the IR membership block; use the hybrid path with include_membership.
+    assert "blink_flicker" in {
+        s.key
+        for s in extract_signals_hybrid(roxanne, _bare_ir(), include_membership=True)
+    }
 
 
 def test_self_etb_value_resolves_short_name_not_just_first_token():
@@ -4964,9 +4983,18 @@ def test_self_etb_value_resolves_short_name_not_just_first_token():
             "their library in a random order."
         ),
     }
-    assert "blink_flicker" in _keys(spider_byte)
-    assert "blink_flicker" in _keys(donnie_april)
-    assert "blink_flicker" in _keys(black_cat)
+
+    # ADR-0027 v34: blink_flicker migrated — the self-ETB-value avenue opener was
+    # re-homed to the IR membership block; use the hybrid path with include_membership.
+    def _mem(c):
+        return {
+            s.key
+            for s in extract_signals_hybrid(c, _bare_ir(), include_membership=True)
+        }
+
+    assert "blink_flicker" in _mem(spider_byte)
+    assert "blink_flicker" in _mem(donnie_april)
+    assert "blink_flicker" in _mem(black_cat)
 
 
 def test_self_dies_value_resolves_short_name_for_clone():

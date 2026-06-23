@@ -4728,3 +4728,199 @@ def test_phase_structured_count_draw_subject_is_untouched():
     assert draw.amount is not None
     assert draw.amount.op == "count"
     assert draw.amount.subject == Filter(subtypes=("Vampire",), controller="you")
+
+
+# ── ADR-0027 returns_to dimension (SIDECAR v34) — blink_flicker discriminator ──
+# phase folds a single-target "exile target X, return it" into TWO ChangeZone effects in
+# one ability: an exile half (destination=Exile) + a sibling return half (the sub_ability
+# ChangeZone destination=Battlefield, target=ParentTarget). The records below mirror
+# phase's REAL spell shape (Cloudshift / Flickerwisp / Roon), so _recover_blink_returns_to
+# stamps returns_to="battlefield" on the exile half exactly as it does for the live cards.
+
+
+def _exile_return_spell(oracle, controller, *, return_target=None, exile_props=None):
+    """A phase spell record: exile target X (destination=Exile) then a sub_ability
+    ChangeZone return to the battlefield (target=ParentTarget) — the folded blink shape."""
+    return {
+        "name": "T",
+        "scryfall_oracle_id": "rt",
+        "card_type": {"core_types": ["Instant"]},
+        "oracle_text": oracle,
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "ChangeZone",
+                    "origin": None,
+                    "destination": "Exile",
+                    "target": {
+                        "type": "Typed",
+                        "type_filters": ["Creature"],
+                        "controller": controller,
+                        "properties": exile_props or [],
+                    },
+                },
+                "sub_ability": {
+                    "kind": "Spell",
+                    "effect": {
+                        "type": "ChangeZone",
+                        "origin": None,
+                        "destination": "Battlefield",
+                        "target": return_target or {"type": "ParentTarget"},
+                    },
+                    "sub_ability": None,
+                    "description": None,
+                },
+                "description": oracle,
+            }
+        ],
+    }
+
+
+def _blink_exile_half(card: Card) -> Effect:
+    """The exile half of a blink — the exile/blink effect that puts the object to:exile."""
+    return next(
+        e
+        for e in _effects(card)
+        if e.category in ("exile", "blink") and "to:exile" in e.zones
+    )
+
+
+def test_blink_you_control_exile_carries_returns_to_battlefield():
+    """ADR-0027 v34: Cloudshift — exile a creature YOU control, then return it. The
+    exile half (phase cat='blink' for controller=You) carries returns_to='battlefield'."""
+    card = project_card(
+        [
+            _exile_return_spell(
+                "Exile target creature you control, then return that card to the "
+                "battlefield under your control.",
+                "You",
+            )
+        ]
+    )
+    assert _blink_exile_half(card).returns_to == "battlefield"
+
+
+def test_blink_other_controller_exile_carries_returns_to_battlefield():
+    """ADR-0027 v34: Flickerwisp / Roon — exile a creature whose controller isn't "you"
+    (phase types it cat='exile'), then return it. The exile half STILL carries
+    returns_to='battlefield' — the +recall the narrow cat=='blink' arm missed."""
+    card = project_card(
+        [
+            _exile_return_spell(
+                "Exile target creature. Return that card to the battlefield under "
+                "its owner's control.",
+                None,
+            )
+        ]
+    )
+    half = _blink_exile_half(card)
+    assert half.category == "exile"
+    assert half.returns_to == "battlefield"
+
+
+def test_exile_with_no_same_ability_return_has_no_returns_to():
+    """ADR-0027 v34: a one-way exile (no return at all — Chrome Mox / Helvault's exile,
+    a permanent-removal) gets NO returns_to: the blink_flicker lane drops the exile-as-
+    resource over-fire the old cat=='blink' arm caught."""
+    rec = {
+        "name": "T",
+        "scryfall_oracle_id": "rt",
+        "card_type": {"core_types": ["Instant"]},
+        "oracle_text": "Exile target creature.",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "ChangeZone",
+                    "origin": None,
+                    "destination": "Exile",
+                    "target": {
+                        "type": "Typed",
+                        "type_filters": ["Creature"],
+                        "controller": None,
+                        "properties": [],
+                    },
+                },
+                "description": "Exile target creature.",
+            }
+        ],
+    }
+    assert all(e.returns_to == "" for e in _effects(project_card([rec])))
+
+
+def test_exile_from_graveyard_with_return_has_no_returns_to():
+    """ADR-0027 v34: mass GY reanimation that exiles a card FROM a graveyard then puts
+    it onto the battlefield (Living Death shape) is NOT a flicker — the exile half exiles
+    a graveyard card, not a battlefield permanent, so the exile-source veto holds it off
+    returns_to."""
+    card = project_card(
+        [
+            _exile_return_spell(
+                "Exile a creature card from your graveyard, then return it to the "
+                "battlefield.",
+                None,
+                exile_props=[{"type": "InZone", "zone": "Graveyard"}],
+            )
+        ]
+    )
+    assert all(e.returns_to == "" for e in _effects(card))
+
+
+def test_self_death_recursion_dies_trigger_has_no_returns_to():
+    """ADR-0027 v34: a self-death recursion ("When ~ dies, exile it, then return it" —
+    Bogardan / Lamplight Phoenix) is graveyard/recursion, not a flicker. A `dies`
+    trigger with subject=None (the source's own death) vetoes returns_to."""
+    rec = {
+        "name": "SD",
+        "scryfall_oracle_id": "sd",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "When this creature dies, exile it, then return it to the battlefield.",
+        "abilities": [],
+        "triggers": [
+            {
+                "mode": {"type": "Dies"},
+                "effect": {
+                    "type": "ChangeZone",
+                    "origin": None,
+                    "destination": "Exile",
+                    "target": {"type": "SelfRef"},
+                },
+                "sub_ability": {
+                    "effect": {
+                        "type": "ChangeZone",
+                        "origin": None,
+                        "destination": "Battlefield",
+                        "target": {"type": "ParentTarget"},
+                    },
+                    "sub_ability": None,
+                    "description": None,
+                },
+                "description": "When this creature dies, exile it, then return it to "
+                "the battlefield.",
+            }
+        ],
+    }
+    assert all(e.returns_to == "" for e in _effects(project_card([rec])))
+
+
+def test_returns_to_round_trips_through_serialization():
+    """ADR-0027 v34: the returns_to field survives to_dict / from_dict (serialized as
+    'rt' only when non-empty — empty is byte-identical to v33)."""
+    from mtg_utils.card_ir import _effect_from_dict, _effect_to_dict
+
+    card = project_card(
+        [
+            _exile_return_spell(
+                "Exile target creature you control, then return that card to the "
+                "battlefield.",
+                "You",
+            )
+        ]
+    )
+    half = _blink_exile_half(card)
+    round_tripped = _effect_from_dict(_effect_to_dict(half))
+    assert round_tripped.returns_to == "battlefield"
+    # An empty returns_to is omitted from the dict (byte-identical to v33).
+    plain = _effect_to_dict(_effect_from_dict({"cat": "exile"}))
+    assert "rt" not in plain
