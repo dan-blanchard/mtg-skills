@@ -3501,6 +3501,11 @@ def test_discard_outlet_cross_opens_graveyard():
     # flashback / recur the discarded cards): cross-open graveyard_matters. Mishra loots
     # and discards artifacts; its GY misses (Trash for Treasure, Goblin Welder) were
     # unserved.
+    # ADR-0027 (SIDECAR v26): discard_outlet migrated to the IR — it no longer rides the
+    # pure-regex `extract_signals` path, so this test drives the HYBRID path (the IR cost
+    # arm fires discard_outlet from Mishra's "Discard a card: …" ability) and the
+    # graveyard_matters cross-open was re-keyed off the byte-identical _DISCARD_OUTLET_
+    # SWEEP_RE per-clause, so it still fires.
     mishra = {
         "name": "Mishra, Excavation Prodigy",
         "type_line": "Legendary Creature — Human Artificer",
@@ -3509,8 +3514,24 @@ def test_discard_outlet_cross_opens_graveyard():
             "more artifact cards, add {R}{R}. This ability triggers only once each turn."
         ),
     }
-    keys = {s.key for s in extract_signals(mishra, include_membership=True)}
-    assert "discard_outlet" in keys  # precondition
+    mishra_ir = Card(
+        oracle_id="x",
+        name="Mishra, Excavation Prodigy",
+        faces=(
+            Face(
+                name="Mishra, Excavation Prodigy",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        cost="discard,tap,mana",
+                        effects=(Effect(category="draw"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    keys = {s.key for s in extract_signals_hybrid(mishra, mishra_ir)}
+    assert "discard_outlet" in keys  # precondition (IR cost arm)
     assert "graveyard_matters" in keys  # cross-opened
 
 

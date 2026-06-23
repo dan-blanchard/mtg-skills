@@ -110,16 +110,22 @@ _MASS_COUNTER_MARKER_PRED = "MassEach"
 _MASS_PLACE_TYPES = frozenset({"putcounterall"})
 
 
+def _add_predicate(subject: Filter | None, pred: str) -> Filter:
+    """Return ``subject`` with ``pred`` appended to its predicates (a fresh ``Filter``
+    when phase carried no simple subject — ``_effect_subject`` drops some shapes to
+    None). Idempotent: an already-present ``pred`` returns ``subject`` unchanged."""
+    if subject is None:
+        return Filter(predicates=(pred,))
+    if pred in subject.predicates:
+        return subject
+    return replace(subject, predicates=(*subject.predicates, pred))
+
+
 def _with_mass_marker(subject: Filter | None) -> Filter:
     """Return ``subject`` with the ``MassEach`` mass-place predicate appended (a fresh
     ``Filter`` when phase carried no simple subject — an ``Or`` multi-tribe / a
     ``TrackedSet`` board, which ``_effect_subject`` drops to None)."""
-    if subject is None:
-        return Filter(predicates=(_MASS_COUNTER_MARKER_PRED,))
-    if _MASS_COUNTER_MARKER_PRED in subject.predicates:
-        return subject
-    preds = (*subject.predicates, _MASS_COUNTER_MARKER_PRED)
-    return replace(subject, predicates=preds)
+    return _add_predicate(subject, _MASS_COUNTER_MARKER_PRED)
 
 
 # ADR-0027 β — the recipient marker for a NON-COMBAT "deals damage to a PLAYER /
@@ -136,6 +142,19 @@ def _with_mass_marker(subject: Filter | None) -> Filter:
 # the recipient TYPE, not the (lossy) scope. combat-ONLY recipients are EXCLUDED — those
 # are combat_damage_to_opp, already migrated (42f6d81). CR 119.3.
 _DAMAGE_TO_PLAYER_MARKER = Filter(predicates=("DamageToPlayer",))
+
+# ADR-0027 discard-discarder scope (SIDECAR v26). A Discard effect whose discarder is a
+# bare ``Player`` target ("target player discards" / "that player discards") carries the
+# ``ForcedDiscard`` predicate on its subject. _discard_player_scope promotes that shape
+# from the lossy 'any' to 'opp' (the discard is forced on ANOTHER player), but the
+# already-migrated opponent_discard lane held its v25 breadth by EXCLUDING this marker
+# from its structural arm (its kept word mirror still recovers the mirror-matched subset
+# — Mind Rot / Hymn — so excluding the marker only drops the 9 mirror-MISS bare-Player
+# forcers the lane never counted at v25). So the projection is behavior-neutral, and a
+# future opponent_discard breadth gain can opt these 9 in by reading the marker. The
+# discard_outlet structural arm reads scope in ('you','each'), so 'opp' (marked or not)
+# is correctly excluded as non-fuel. CR 701.8a (discard, defined on the discarder).
+_FORCED_DISCARD_PRED = "ForcedDiscard"
 
 
 def _damage_recipient_is_player(tr: dict) -> bool:
@@ -2067,15 +2086,18 @@ def _static_effect(
 
 
 # Effect types whose ability-level `player_scope: All` names a SYMMETRIC each-player
-# DRAW (group_hug_draw, ADR-0027 scope='each' pass). Restricted to Draw: phase files
+# effect (group_hug_draw / discard_outlet, ADR-0027 scope='each' pass). phase files
 # `player_scope: All` as a SIBLING of `effect` (not inside it) for "each player draws
-# X" (Prosperity, Temple Bell, Folio of Fancies), while the effect's target stays
-# Controller (each player draws to their OWN hand) — so `_effect_scope`, which only
-# sees the effect dict, would short-circuit to 'you'. Threading it down ONLY for Draw
-# keeps migrated lanes (sacrifice_matters, lifeloss_matters, opponent_discard) — which
-# read the SAME sibling on Sacrifice/LoseLife/Discard effects from their own fields —
-# untouched.
-_PLAYER_SCOPE_EFFECT_TYPES = frozenset({"draw"})
+# X" (Prosperity, Temple Bell, Folio of Fancies) and "each player discards their hand"
+# (Windfall, Wheel of Fortune, Burning Inquiry, Smallpox, Liliana of the Veil), while
+# the effect's target stays Controller (each acts on their OWN hand/library) — so
+# `_effect_scope`, which only sees the effect dict, would short-circuit to 'you'.
+# Threading it down for Draw AND Discard makes `_effect_scope` read the symmetric
+# 'each'. ADR-0027 discard-discarder scope (SIDECAR v26): the migrated discard siblings
+# (discard_matters reads the `discarded` TRIGGER scope, not this effect scope;
+# opponent_discard reads the `discard` EFFECT scope=='opp' which 'each' does NOT
+# produce, and keeps its kept word mirror) are held drift-0 — see _discard_player_scope.
+_PLAYER_SCOPE_EFFECT_TYPES = frozenset({"draw", "discard"})
 # Only the symmetric `All` is a recipient scope. `Opponent` on a draw is a
 # DECISION-MAKER scope, not a recipient — "target opponent may have YOU draw N"
 # (Combustible Gearhulk, Bane, Palantír of Orthanc) draws to OriginalController (you),
@@ -2087,11 +2109,11 @@ _PLAYER_SCOPE_EACH_TYPES = frozenset({"all", "allplayers"})
 
 def _merge_ability_player_scope(node: dict, eff: dict) -> dict:
     """Surface an ability-level ``player_scope: All`` (a SIBLING of ``effect``) onto a
-    DRAW effect so ``_effect_scope`` reads the symmetric 'each' (group_hug_draw,
-    ADR-0027). Only for Draw, only for the All scope, and only when the effect carries
-    no ``player_scope`` of its own; returns a shallow copy with the field merged, else
-    the effect unchanged. CR 120.2 (each player draws is a player action against their
-    own library)."""
+    DRAW or DISCARD effect so ``_effect_scope`` reads the symmetric 'each'
+    (group_hug_draw / discard_outlet, ADR-0027). Only for those types, only for the All
+    scope, and only when the effect carries no ``player_scope`` of its own; returns a
+    shallow copy with the field merged, else the effect unchanged. CR 120.2 / 701.8a
+    (each player draws/discards is a player action against their own hand/library)."""
     ps = node.get("player_scope")
     if not isinstance(ps, dict):
         return eff
@@ -2349,7 +2371,20 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     # present) is distinguishable as scope!='you'. See _search_self_library_scope.
     if etype == "searchlibrary":
         scope = _search_self_library_scope(eff, scope)
+    # ADR-0027 discard-discarder scope (SIDECAR v26): a Discard effect's "who discards"
+    # is the effect's `target` player. _effect_scope already reads the symmetric 'each'
+    # (the ability-level player_scope threaded onto the effect — Windfall, Wheel,
+    # Liliana) and an explicit Opponent target ('opp'), but a bare `Player` ("target
+    # player discards" — Mind Rot, Mind Twist) collapsed to 'any'. Promote it to 'opp'
+    # so the forced opponent-discard is read on the effect; mark the subject
+    # `ForcedDiscard` so the migrated opponent_discard lane can hold its v25 breadth by
+    # EXCLUDING this bare-Player promotion (see _discard_player_scope). CR 701.8a.
+    forced_discard = False
+    if category == "discard":
+        scope, forced_discard = _discard_player_scope(eff, scope)
     subject = _effect_subject(eff)
+    if forced_discard:
+        subject = _add_predicate(subject, _FORCED_DISCARD_PRED)
     # ADR-0027 β — a +1/+1 counter PLACEMENT that targets the SOURCE itself ("put a
     # +1/+1 counter on ~ / this creature / it") is the self_counter_grow self-anchor.
     # phase carries it as target=={type:SelfRef}, which _effect_subject DROPS (a bare
@@ -6198,6 +6233,48 @@ def _search_self_library_scope(eff: dict, fallback: str) -> str:
     if eff.get("target_player") is None:
         return "you"
     return fallback
+
+
+# Discard-effect `target.type` values that name a DIFFERENT player as the discarder
+# (a forced opponent/target-player discard, NOT a self-loot). phase parses "target
+# player discards" (Mind Rot, Mind Twist) and "target opponent discards" as a Discard
+# effect whose `target` is a bare ``Player`` / an ``Opponent`` recipient — the affected
+# player carries no controller, so ``_effect_scope`` landed it on 'any' (Player) or
+# already returned 'opp' (an explicit Opponent target). Promote ``Player`` to 'opp' so
+# the discarder is read on the effect, mirroring _sacrifice_player_scope's edict read.
+_DISCARD_OTHER_PLAYER_TARGETS = frozenset({"player", "targetplayer", "scopedplayer"})
+
+
+def _discard_player_scope(eff: dict, fallback: str) -> tuple[str, bool]:
+    """Scope for a Discard effect, read from WHO discards (the effect's ``target``
+    player). Returns ``(scope, forced)`` — ``forced`` True iff the scope was promoted
+    from a bare ``Player`` target (so the caller marks the subject ``ForcedDiscard``).
+
+    ADR-0027 discard-discarder scope (SIDECAR v26). phase carries the discarder on the
+    Discard effect's ``target``: a ``Controller`` self-loot ("draw N, then discard";
+    "discard your hand" — Faithless Looting) stays at the ``fallback`` ('you'); a bare
+    ``Player`` / ``TargetPlayer`` / ``ScopedPlayer`` ("target player discards" — Mind
+    Rot, Mind Twist) is a forced OTHER-player discard → ('opp', True); an explicit
+    ``Opponent`` target already returns 'opp' via ``_effect_scope`` (not re-promoted
+    here, so ``forced`` stays False). The symmetric "each player discards" (Windfall,
+    Wheel, Liliana — phase keeps ``target: Controller`` but rides the ability-level
+    ``player_scope: All`` threaded by ``_merge_ability_player_scope``) reads 'each' from
+    ``_effect_scope`` BEFORE this helper, so it is left untouched here.
+
+    Behavior-neutral for the migrated discard siblings: discard_matters reads the
+    ``discarded`` TRIGGER scope (not this effect scope); opponent_discard reads the
+    ``discard`` EFFECT scope=='opp' but EXCLUDES the ``ForcedDiscard`` marker from its
+    structural arm and recovers the mirror-matched bare-Player forcers (Mind Rot, Hymn)
+    from its kept word mirror — so the marker drops only the 9 mirror-MISS bare-Player
+    forcers the lane never counted at v25, holding it at v25 breadth (drift 0). CR
+    701.8a (discard, on the discarder)."""
+    tgt = eff.get("target")
+    if not isinstance(tgt, dict):
+        return fallback, False
+    tt = _norm(tgt.get("type"))
+    if tt in _DISCARD_OTHER_PLAYER_TARGETS:
+        return "opp", True
+    return fallback, False
 
 
 def _trigger_event(tr: dict) -> str:

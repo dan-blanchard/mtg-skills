@@ -1464,6 +1464,36 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # discard_outlet ← a `discard` EFFECT scope in ('you','each') — a self-loot/rummage
+    # outlet that fuels YOUR discard + graveyard payoffs (Faithless Looting's "draw two
+    # cards, then discard two cards"). DISJOINT from opponent_discard (which reads the
+    # forced `discard` EFFECT scope 'opp'): the v26 discard-discarder projection scopes a
+    # self-loot 'you'. The discard-as-COST outlets ("Discard a card: …") ride the cost
+    # arm; the granted/grandeur/cross-clause tail rides the byte-identical
+    # _DISCARD_OUTLET_SWEEP_RE per-clause mirror. ADR-0027 (SIDECAR v26).
+    "discard_outlet": (
+        {
+            "name": "Faithless Looting",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Draw two cards, then discard two cards.\n"
+                "Flashback {2}{R} (You may cast this card from your graveyard for "
+                "its flashback cost. Then exile it.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="discard",
+                        scope="you",
+                        raw="draw two cards, then discard two cards",
+                    ),
+                ),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

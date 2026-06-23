@@ -46,6 +46,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEATH_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
+    DISCARD_OUTLET_REGEX,
     ENCHANTMENTS_MATTER_REGEX,
     EXTRA_TURNS_REGEX,
     FREE_CAST_REGEX,
@@ -3208,6 +3209,22 @@ def _creature_etb_has_plan(text: str) -> bool:
     return bool(_creature_etb_clauses(text))
 
 
+def _discard_outlet_has_plan(text: str) -> bool:
+    """ADR-0027 discard-discarder scope (SIDECAR v26): the HAS-OTHER-PLAN mirror for the
+    migrated discard_outlet key. The deleted SWEEP producer fired HIGH-confidence (scope
+    'you', NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) and counted toward
+    `has_other_plan`, silencing the spurious commander-damage voltron tell on a loot /
+    rummage / discard-to-pay ENGINE (a graveyard-filling plan, not a vanilla beater).
+    The migrated lane rides the cost arm + a scope-('you','each') structural arm + a
+    byte-identical kept mirror that are BROADER (+257 ir_only), so re-supplying via
+    _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those broader bodies; this byte-
+    identical mirror (the EXACT deleted _DISCARD_OUTLET_SWEEP_RE) restores ONLY the old
+    regex's silence set. Its `draw [^.]*cards?[^.]*\\.?\\s*then discard` arm spans a
+    sentence, so it runs PER-CLAUSE over the reminder-STRIPPED `text` (matching the
+    deleted SWEEP Detector's per-clause path byte-identically). CR 701.8a / 903.10a."""
+    return any(_DISCARD_OUTLET_SWEEP_RE.search(cl) for cl in _clauses(text))
+
+
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated conjure_matters key. The
 # deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a conjure
@@ -4152,6 +4169,20 @@ _IMPULSE_TOP_PLAY_SWEEP_RE = re.compile(
     re.IGNORECASE,
 )
 
+# discard_outlet (ADR-0027 discard-discarder scope, SIDECAR v26) — the EXACT deleted
+# SWEEP_DETECTORS["discard_outlet"] regex (DISCARD_OUTLET_REGEX, byte-identical), kept
+# as a PER-CLAUSE mirror in _signals_ir. The structural IR arm (a `discard` Effect scope
+# in ('you','each')) + the cost arm ("discard" in cost_parts) catch the self-loot
+# triggers and discard-as-cost outlets the literal regex missed (Murder of Crows,
+# Burning-Tree Vandal — legitimate breadth), but phase under-parses a tail (granted
+# "Discard a card:" abilities on enchanted/affected permanents, grandeur discard-a-copy
+# costs, additional-cast-cost discards, cross-clause loot) the regex caught textually —
+# this mirror recovers it. Its `draw [^.]*cards?[^.]*\.?\s*then discard` arm spans WHOLE
+# oracle (over-fires flat), so — like self_blink / impulse_top_play — it MUST run
+# PER-CLAUSE via _clauses (matching the deleted SWEEP path), NOT as a flat
+# _IR_KEPT_DETECTORS full-text row. CR 701.8a.
+_DISCARD_OUTLET_SWEEP_RE = re.compile(DISCARD_OUTLET_REGEX, re.IGNORECASE)
+
 # play_from_top (ADR-0027 β) — the EXACT deleted SWEEP + _HAND_FLOOR regexes for the
 # ongoing top-of-library play permission, kept as a byte-identical PER-CLAUSE mirror.
 # The structural IR arm (a STATIC cast_from_zone+from:library Effect — project.
@@ -4857,7 +4888,14 @@ def extract_signals(
         # graveyard, so the discarded cards become GY fuel: it wants reanimation /
         # flashback / GY recursion. Cross-open graveyard_matters (Niambi reanimates,
         # Mishra recurs artifacts, Malfegor recurs the discarded hand). Low confidence.
-        if "discard_outlet" in keys_now and "graveyard_matters" not in keys_now:
+        # ADR-0027 discard-discarder scope (SIDECAR v26): discard_outlet is migrated to
+        # the IR, so it no longer rides this regex path's keys_now; key the cross-open
+        # off the byte-identical _DISCARD_OUTLET_SWEEP_RE (the EXACT deleted SWEEP
+        # producer, run PER-CLAUSE) so the graveyard_matters cross-open stays byte-
+        # identical to base (graveyard_matters drift 0). CR 701.8a.
+        if "graveyard_matters" not in keys_now and any(
+            _DISCARD_OUTLET_SWEEP_RE.search(cl) for cl in _clauses(text)
+        ):
             add("graveyard_matters", "you", "", text[:160], "low")
         # A commander that MAKES tribe-X creature tokens (token_maker captured subtype)
         # wants tribe-X lords/support: its token board IS that kindred. Cross-open
@@ -5481,6 +5519,17 @@ def extract_signals(
         # STRIPPED `text` (the deleted producer ran over `re.sub(r"\([^)]*\)", " ",
         # …)`-stripped text). CR 701.8a / 903.10a.
         or _OPPONENT_DISCARD_PLAN_MIRROR.search(text)
+        # ADR-0027 discard-discarder scope (SIDECAR v26): re-silence the deleted
+        # discard_outlet SWEEP producer (it fired HIGH-confidence scope 'you', feeding
+        # has_other_plan — a loot / rummage / discard-to-pay ENGINE is a graveyard-
+        # filling plan, not a vanilla beater: Anje, Containment Construct, Bag of
+        # Holding). The migrated lane rides the cost arm + a scope-gated structural arm
+        # + a byte-identical kept mirror that are BROADER (+257 ir_only), so this byte-
+        # identical gate mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS — restores the old
+        # regex's exact silence set without over-silencing the ir_only gains. Per-clause
+        # over the reminder-STRIPPED `text` (the SWEEP's `draw [^.]*\.?\s* then discard`
+        # arm spans a sentence). See _discard_outlet_has_plan. CR 701.8a / 903.10a.
+        or _discard_outlet_has_plan(text)
         # ADR-0027 β: re-silence the deleted lifegain_matters registry-280 _DETECTORS
         # producer (ARM (A) — it fired HIGH-confidence forced scope 'you', feeding
         # has_other_plan; a lifegain ENGINE is no vanilla beater). ONLY ARM (A): the

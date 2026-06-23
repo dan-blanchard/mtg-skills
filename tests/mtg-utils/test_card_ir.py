@@ -19,6 +19,7 @@ from __future__ import annotations
 from mtg_utils._card_ir.project import (
     _collect_effects,
     _copied_type_from_text,
+    _discard_player_scope,
     _dropped_static_markers,
     _effect_scope,
     _filter,
@@ -3071,6 +3072,113 @@ def test_predatory_nightstalker_edict_scope():
     ]
     assert sacs
     assert all(e.scope == "opp" for e in sacs)
+
+
+# ── ADR-0027 discard-discarder scope (SIDECAR v26) ────────────────────────────
+
+
+def test_discard_player_scope_self_opp_each():
+    """A Discard effect's scope reads WHO discards (the effect's ``target`` player). A
+    Controller self-loot keeps the fallback ('you'); a bare ``Player`` / ``TargetPlayer``
+    / ``ScopedPlayer`` ("target player discards" — Mind Rot) is a forced OTHER-player
+    discard → ('opp', True) so the caller marks ``ForcedDiscard``; anything else keeps
+    the fallback. The symmetric "each player discards" reads 'each' from _effect_scope
+    BEFORE this helper, so it is not this helper's concern. CR 701.8a."""
+    controller = {"target": {"type": "Controller"}}
+    player = {"target": {"type": "Player"}}
+    targetplayer = {"target": {"type": "TargetPlayer"}}
+    scopedplayer = {"target": {"type": "ScopedPlayer"}}
+    none_target = {}
+    assert _discard_player_scope(controller, "you") == ("you", False)
+    assert _discard_player_scope(player, "any") == ("opp", True)
+    assert _discard_player_scope(targetplayer, "any") == ("opp", True)
+    assert _discard_player_scope(scopedplayer, "any") == ("opp", True)
+    assert _discard_player_scope(none_target, "you") == ("you", False)
+
+
+def test_faithless_looting_self_discard_scope_you():
+    """A self-loot ("draw two cards, then discard two cards"; target Controller, no
+    ability player_scope) projects the Discard effect at scope 'you' — genuine fuel."""
+    rec = {
+        "name": "Faithless Looting",
+        "oracle_text": "Draw two cards, then discard two cards.",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {"type": "Draw", "target": {"type": "Controller"}},
+                "sub_ability": {
+                    "kind": "Spell",
+                    "effect": {
+                        "type": "Discard",
+                        "count": {"type": "Fixed", "value": 2},
+                        "target": {"type": "Controller"},
+                    },
+                },
+            }
+        ],
+    }
+    discs = [e for e in _effects(project_card([rec])) if e.category == "discard"]
+    assert discs
+    assert all(e.scope == "you" for e in discs)
+
+
+def test_mind_rot_target_player_discard_scope_opp_marked():
+    """A "target player discards" forcer (target Player) projects the Discard effect at
+    scope 'opp' with a ForcedDiscard subject marker — so opponent_discard can hold v25
+    breadth and discard_outlet excludes it as non-fuel. CR 701.8a."""
+    rec = {
+        "name": "Mind Rot",
+        "oracle_text": "Target player discards two cards.",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Discard",
+                    "count": {"type": "Fixed", "value": 2},
+                    "target": {"type": "Player"},
+                },
+            }
+        ],
+    }
+    discs = [e for e in _effects(project_card([rec])) if e.category == "discard"]
+    assert discs
+    assert all(e.scope == "opp" for e in discs)
+    assert all(
+        isinstance(e.subject, Filter) and "ForcedDiscard" in e.subject.predicates
+        for e in discs
+    )
+
+
+def test_windfall_each_player_discard_scope_each():
+    """A symmetric wheel ("each player discards their hand, then draws"; target
+    Controller but the ability rides ``player_scope: All``) projects the Discard effect
+    at scope 'each' — the All sibling is threaded onto the effect by
+    _merge_ability_player_scope, and 'each' carries NO ForcedDiscard marker. CR 701.8a."""
+    rec = {
+        "name": "Windfall",
+        "oracle_text": (
+            "Each player discards their hand, then draws cards equal to the greatest "
+            "number of cards a player discarded this way."
+        ),
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Discard",
+                    "count": {"type": "Ref", "qty": {"type": "HandSize"}},
+                    "target": {"type": "Controller"},
+                },
+                "player_scope": {"type": "All"},
+            }
+        ],
+    }
+    discs = [e for e in _effects(project_card([rec])) if e.category == "discard"]
+    assert discs
+    assert all(e.scope == "each" for e in discs)
+    assert all(
+        not (isinstance(e.subject, Filter) and "ForcedDiscard" in e.subject.predicates)
+        for e in discs
+    )
 
 
 def test_sacrifice_cost_marker_from_additional_cost():

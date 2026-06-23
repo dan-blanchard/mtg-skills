@@ -220,7 +220,24 @@ from mtg_utils.card_ir import Card
 #   (CR 111.2 — the token's creator is its owner). Behavior-neutral for every other
 #   migrated key (drift 0): no other lane reads make_token scope at the 'any'/'opp'
 #   boundary. CR 111.2 / 707.
-SIDECAR_VERSION = 25
+# v25→v26: ADR-0027 discard-discarder scope — a Discard effect now carries WHO discards.
+#   _merge_ability_player_scope threads the ability-level `player_scope: All` onto the
+#   Discard effect (alongside Draw) so a symmetric "each player discards their hand"
+#   (Windfall, Wheel of Fortune, Burning Inquiry, Smallpox, Liliana of the Veil — phase
+#   keeps `target: Controller` but rides the All sibling) reads scope='each' instead of
+#   the short-circuit 'you'; _discard_player_scope promotes a bare `Player` target
+#   ("target player discards" — Mind Rot, Mind Twist) from 'any' to 'opp' (the forced
+#   opponent-discard, on the discarder). The self-loot Discard ("draw N, then discard" —
+#   Faithless Looting; `target: Controller`, no player_scope) stays 'you'. Behavior-
+#   neutral for the migrated discard siblings (drift 0): discard_matters reads the
+#   `discarded` TRIGGER scope (not this effect scope); opponent_discard reads the
+#   `discard` EFFECT scope=='opp' but recovers the forced-opp set from its kept word
+#   mirror (the structural-arm match the new 'opp' adds was already counted by the
+#   mirror); 'each' is read by NO migrated key. Payoff: the discard_outlet migration
+#   wires a structural arm on a `discard` effect with scope in ('you','each') (self-loot
+#   + symmetric wheels = genuine fuel), with scope=='opp' routed to opponent_discard /
+#   hand_disruption, NOT discard_outlet. CR 701.8a (discard, defined on the discarder).
+SIDECAR_VERSION = 26
 
 
 def card_ir_dir() -> Path:

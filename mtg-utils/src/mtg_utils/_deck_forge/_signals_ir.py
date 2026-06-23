@@ -23,6 +23,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _CHEAT_TOP_REVEAL_RE,
     _COLOR_HOSER_RE,
     _DIRECT_KEYWORD_SIGNALS,
+    _DISCARD_OUTLET_SWEEP_RE,
     _EVASION_SELF_REGEX,
     _EVERGREEN_CK,
     _EVERGREEN_KW_RE,
@@ -3579,6 +3580,67 @@ _GY_OPP = re.compile(
     re.IGNORECASE,
 )
 
+# ADR-0027 discard-discarder scope (SIDECAR v26) — the discard_outlet structural arm
+# fires on a `discard` EFFECT scope in ('you','each'). But phase EMPTIES / mis-scopes
+# many forced-OPPONENT discards: an "each opponent discards" ETB (Nezumi Informant,
+# Burglar Rat — abilities=[], supplement rebuilds at default scope 'you') and a MODAL /
+# SAGA "each opponent discards" body (The Eldest Reborn, Doomsday Confluence, Let's Play
+# a Game — phase parses target=Controller, player_scope=null, dropping the "each
+# opponent" scope). A forced-opponent / other-player discard is hand attack
+# (opponent_discard / hand_disruption), NOT loot fuel, and the deleted regex never
+# caught it (it keyed "discard your hand" / "discard ... at random" / "discard X:"
+# cost). So the structural arm EXCLUDES a firing whose EFFECT raw names an opponent-
+# directed discard (_DISCARD_OUTLET_OPP_RAW), OR — when the effect raw is uninformative
+# (a modal/saga body carries an empty / "Chapter N" raw) — whose CARD oracle is
+# EXCLUSIVELY a one-sided opponent discard (_card_discard_is_onesided_opp). The byte-
+# identical _DISCARD_OUTLET_SWEEP_RE kept mirror recovers the genuine symmetric wheels
+# the regex caught ("discards ... at random" — Burning Inquiry); the "each player
+# discards their hand, then draws" symmetric wheels (Incendiary Command, Will of the
+# Jeskai — "their hand", which the regex missed and whose discard body IS self-affecting
+# fuel) keep firing the structural arm because the card oracle is NOT one-sided-opp.
+_DISCARD_OUTLET_OPP_RAW = re.compile(
+    r"(?:each|target|an|that|those|the) (?:other )?(?:players?|opponents?)"
+    r"(?:[^.]{0,40})? discards?",
+    re.IGNORECASE,
+)
+# A ONE-SIDED forced-OPPONENT discard on the CARD oracle ("each/target/an opponent
+# discards", "those players each discard" after each-opponent damage) — the discarder
+# is an OPPONENT, never the controller, so it is hand attack, not loot fuel.
+_DISCARD_ONESIDED_OPP_ORACLE = re.compile(
+    r"\b(?:each|target|an|that|those|the) (?:other )?opponents?"
+    r"(?:[^.]{0,40})? discards?"
+    r"|\bthose players each discard",
+    re.IGNORECASE,
+)
+# A GENUINE self / symmetric discard outlet on the CARD oracle (the controller discards,
+# or every player including the controller does — fuel for YOUR graveyard): a self-loot
+# ("you (may) discard", "if you do, discard", "draw … then discard"), a discard-as-cost
+# ("discard a/two/… : …"), a "discard your hand", a random-discard wheel, or an "each
+# player discards" symmetric. Used only as the keep-side of the one-sided veto below.
+_DISCARD_SELF_OR_SYMMETRIC_ORACLE = re.compile(
+    r"\beach player(?:[^.]{0,40})? discards?"
+    r"|\byou (?:may )?discard|if you do,? discard|,? then (?:you )?(?:may )?discard"
+    r"|discard (?:a|an|another|two|three|your hand|x|\d+) [^:.]{0,40}?:"
+    r"|, discard|discard your hand|discard all the cards in your hand"
+    r"|discards? [^.]*at random",
+    re.IGNORECASE,
+)
+
+
+def _card_discard_is_onesided_opp(record: dict) -> bool:
+    """True when a card's ONLY discard is a one-sided forced-OPPONENT discard (hand
+    attack), with NO self / symmetric / cost discard outlet. Used to veto the
+    discard_outlet structural arm on a modal/saga "each opponent discards" body whose
+    EFFECT raw is uninformative (empty / "Chapter N"), so phase's dropped "each
+    opponent" scope doesn't leak the over-fire. A card with BOTH (Chandra Ablaze — a +1
+    self-loot AND a -2 each-player wheel) is NOT one-sided, so it keeps firing. Reads
+    the Scryfall record's reminder-stripped joined oracle (same input the mirror scans).
+    CR 701.8a."""
+    oracle = re.sub(r"\([^)]*\)", " ", get_oracle_text(record) or "")
+    return bool(_DISCARD_ONESIDED_OPP_ORACLE.search(oracle)) and not bool(
+        _DISCARD_SELF_OR_SYMMETRIC_ORACLE.search(oracle)
+    )
+
 
 def _gy_scope(e: Effect) -> str:
     """Resolve which player's graveyard an effect cares about (graveyard scope
@@ -6920,8 +6982,50 @@ def extract_signals_ir(
             # — those ride the _OPPONENT_DISCARD_MIRROR _IR_KEPT_DETECTORS row. DISJOINT
             # from discard_matters (the SELF-discard lane reads the `discarded` trigger
             # scope != 'opp', not this `discard` effect scope 'opp'). CR 701.8a.
-            if cat == "discard" and e.scope == "opp":
+            #
+            # ADR-0027 discard-discarder scope (SIDECAR v26) DECOUPLING: the v26
+            # projection promotes a bare `Player` discard target ("target player
+            # discards") from the lossy 'any' to 'opp' AND marks the subject
+            # `ForcedDiscard`. To hold this already-migrated lane at v25 breadth (so the
+            # discard-discarder projection is provably behavior-neutral), EXCLUDE the
+            # marker here: the mirror still recovers the mirror-matched bare-Player
+            # forcers (Mind Rot, Hymn — "target player discards"), so excluding the
+            # marker only skips the 9 mirror-MISS forcers the lane never counted at v25
+            # (drift 0). A future opponent_discard gain reads the marker to opt in.
+            if (
+                cat == "discard"
+                and e.scope == "opp"
+                and not _has_predicate(e.subject, "ForcedDiscard")
+            ):
                 add("opponent_discard", "opponents", "", e.raw)
+            # ADR-0027 — discard_outlet STRUCTURAL ARM (SIDECAR v26 discard-discarder
+            # scope). A `discard` EFFECT scope in ('you','each') is a SELF-loot/rummage
+            # outlet ("draw N, then discard" — Faithless Looting; "you may discard a
+            # card. If you do, draw" — Burning-Tree Vandal): genuine fuel for YOUR
+            # discard + graveyard payoffs. scope=='opp' (a forced opponent-hand attack —
+            # Mind Rot, plus the ForcedDiscard-marked promotions) is EXCLUDED — hand
+            # disruption, not loot fuel (→ opponent_discard / hand_disruption). TWO
+            # opponent-discard vetoes keep the lane genuine: (1) the EFFECT raw names an
+            # opponent-directed discard (the supplement-mis-scoped "each opponent
+            # discards" ETB phase EMPTIES — Nezumi Informant, Burglar Rat — rebuilt at
+            # default scope 'you'); (2) when the effect raw is uninformative (a MODAL /
+            # SAGA body — empty / "Chapter N" raw — where phase drops the "each opp"
+            # scope to Controller), the CARD oracle is EXCLUSIVELY a one-sided opponent
+            # discard (The Eldest Reborn, Doomsday Confluence, Let's Play a Game). The
+            # deleted regex never caught these, so adding them would be an over-fire vs
+            # the regex baseline. The byte-identical _DISCARD_OUTLET_SWEEP_RE kept
+            # mirror still recovers the genuine wheels the regex caught; the symmetric
+            # "each player discards their hand" wheels the regex missed (Incendiary
+            # Command, Will of the Jeskai) keep firing — card oracle is NOT one-sided.
+            # Scope "you" (the lane convention — it fuels the controller's engine). CR
+            # 701.8a.
+            if (
+                cat == "discard"
+                and e.scope in ("you", "each")
+                and not _DISCARD_OUTLET_OPP_RAW.search(e.raw or "")
+                and not _card_discard_is_onesided_opp(card)
+            ):
+                add("discard_outlet", "you", "", e.raw)
             # ADR-0027 lifeloss_matters — a structured life-LOSS effect. phase emits a
             # `lose_life` category distinct from gain_life / set_life, so the lane reads
             # it directly. scope splits the half: a drain ("each opponent / target
@@ -8638,6 +8742,25 @@ def extract_signals_ir(
     # lower(), so A-B==0). The add() dedup unions this with the structural arm.
     if any(_IMPULSE_TOP_PLAY_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
         add("impulse_top_play", "you", "", "")
+    # ADR-0027 discard-discarder scope (SIDECAR v26) — discard_outlet kept mirror. The
+    # structural arm (a `discard` Effect scope in ('you','each'), opp-raw-gated) + the
+    # cost arm ("discard" in cost_parts) GAIN the self-loot triggers / discard-as-cost
+    # outlets the literal regex missed (Murder of Crows, Burning-Tree Vandal, Giott —
+    # "you may discard a card. If you do, draw"), but phase under-parses a tail the
+    # deleted regex caught textually: GRANTED "Discard a card:" abilities on enchanted/
+    # affected permanents (Tin Street Market, Prophetic Ravings — the cost is on a
+    # DIFFERENT object, invisible to the grantor's cost_parts), grandeur discard-a-copy
+    # costs (Tarox, Oriss), additional-cast-cost discards (Devastating Dreams,
+    # Kaervek's Spite), and the cross-clause "Draw N. Then discard" loot. This is the
+    # EXACT deleted SWEEP regex (_DISCARD_OUTLET_SWEEP_RE) run PER-CLAUSE — its
+    # `draw cards … then discard` arm spans a sentence over the whole oracle (over-fires
+    # flat), so it scans _clauses (matching the deleted SWEEP path byte-identically:
+    # un-lowered clauses + IGNORECASE == clause.lower()). The regex never matched "each
+    # opponent discards" (no such arm), so the opp-hand-attack cards stay out of BOTH
+    # arms (the structural opp-raw gate + the mirror's own word list agree). add()
+    # dedups vs the structural arm. Subjectless, scope 'you' (deleted scope). CR 701.8a.
+    if any(_DISCARD_OUTLET_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
+        add("discard_outlet", "you", "", "")
     # ADR-0027 β — play_from_top kept mirror. The structural STATIC cast_from_zone+
     # from:library arm above is the clean 45-card spine, but phase does NOT model as a
     # cast-permission static the REVEAL-only ("Play with the top card revealed" — Goblin

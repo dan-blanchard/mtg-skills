@@ -102,8 +102,13 @@ def test_sweep_detectors_loaded():
     # (ADR-0027 — migrated to the structural _is_scaling_count `pump` arm UNION a byte-
     # identical SCALING_PUMP_SWEEP_REGEX kept word mirror in signals._IR_KEPT_DETECTORS
     # for the token-/equipment-granted + pump_target-amount-dropped scaling pumps phase
-    # can't structure; CR 613 / 107.3).
-    assert len(SWEEP_DETECTORS) >= 18
+    # can't structure; CR 613 / 107.3), then 18→17 as discard_outlet's row was deleted (ADR-0027 SIDECAR
+    # v26 discard-discarder scope — migrated to the IR cost arm + a scope-('you','each')
+    # structural arm + a byte-identical DISCARD_OUTLET_REGEX per-clause kept mirror
+    # (_DISCARD_OUTLET_SWEEP_RE in _signals_regex); the v26 projection makes the `discard`
+    # Effect carry WHO discards so a self-loot 'you' / symmetric wheel 'each' is fuel and a
+    # forced-opponent 'opp' is excluded as hand attack; CR 701.8a).
+    assert len(SWEEP_DETECTORS) >= 17
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

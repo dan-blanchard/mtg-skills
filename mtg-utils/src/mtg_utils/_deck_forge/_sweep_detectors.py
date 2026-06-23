@@ -112,6 +112,14 @@ STICKERS_MATTER_REGEX = "\\{tk\\}|\\bstickers?\\b"
 # never drift. SWEEP_LABELS still carries the human label. CR DD9 (heist) / 613.1b
 # (control-changing effects).
 THEFT_MATTERS_REGEX = "conjure a duplicate of[^.]*from an opponent's library|you may (?:play|cast)[^.]*from that player's hand|cast (?:spells )?from (?:that|target) (?:player|opponent)'s hand|play (?:with )?(?:lands and )?(?:spells )?from (?:that|target) (?:player|opponent)'s hand|(?:each player|each opponent|target opponent|that player)[^.]*exiles? cards from the top of their library|search (?:that player|target opponent|an opponent|each opponent)'?s? graveyard, hand,? and library|\\bheist\\b"
+# ADR-0027 discard-discarder scope (SIDECAR v26): discard_outlet migrated to the Card IR
+# (cost arm + scope in ('you','each') structural arm + a byte-identical PER-CLAUSE
+# mirror of this regex). The regex survives as a shared constant so signal_specs
+# hand-registers the serve pool reusing it AND the kept mirror (_DISCARD_OUTLET_SWEEP_RE
+# in _signals_regex) reuses it — serve / mirror / (now-deleted) detector never drift.
+# Its `[^.]*\.?\s*` arms span a sentence over the WHOLE oracle, so the mirror MUST run
+# per-clause (matching the deleted SWEEP path), NOT flat. CR 701.8a.
+DISCARD_OUTLET_REGEX = "discard (?:a|an|another|two|three|your hand|x|\\d+) [^:.]{0,40}?:|, discard (?:a|an|another|two|three|x|\\d+) cards?:|discard (?:two|three|four|five|x|\\d+) cards? at random|discard all the cards in your hand|discard your hand|discard three cards at random|draw (?:two|three|\\w+|\\d+) cards?[^.]*\\.?\\s*then discard|draw [^.]*cards?,? then discard"
 # ADR-0027: tap_down migrated to the Card IR (the tap-down control lane — tap an
 # OPPONENT's permanent / "skips its next untap step" / detain; CR 701.21 detain, CR
 # 502.x untap step). Its SWEEP_DETECTORS row is deleted; detection moves to a
@@ -2131,12 +2139,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "(?:permanent|creature|another permanent) named [A-Z]|a permanent you control named|control a (?:permanent|creature)[^.]*named",
     },
-    {
-        "key": "discard_outlet",
-        "scope": "you",
-        "is_widen_of": "discard_matters",
-        "regex": "discard (?:a|an|another|two|three|your hand|x|\\d+) [^:.]{0,40}?:|, discard (?:a|an|another|two|three|x|\\d+) cards?:|discard (?:two|three|four|five|x|\\d+) cards? at random|discard all the cards in your hand|discard your hand|discard three cards at random|draw (?:two|three|\\w+|\\d+) cards?[^.]*\\.?\\s*then discard|draw [^.]*cards?,? then discard",
-    },
+    # ADR-0027 discard-discarder scope (SIDECAR v26): discard_outlet migrated to the Card
+    # IR (cost arm + scope in ('you','each') structural arm + a byte-identical PER-CLAUSE
+    # mirror of THIS regex, pinned as _DISCARD_OUTLET_SWEEP_RE in _signals_regex). This
+    # SWEEP_DETECTORS row is DELETED so the regex `extract_signals` path no longer emits
+    # the migrated key. The serve spec (signal_specs) stays hand-registered.
     # ADR-0027 — dies_recursion migrated to the Card IR. Its SWEEP_DETECTORS row is
     # deleted; detection moves to a BYTE-IDENTICAL kept WORD MIRROR (this exact regex
     # in signals._IR_KEPT_DETECTORS, scope 'you'). dies_recursion is the BROAD

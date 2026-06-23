@@ -28,6 +28,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DAMAGE_PREVENTION_REGEX,
     DEBUFF_SWEEP_REGEX,
     DIES_RECURSION_REGEX,
+    DISCARD_OUTLET_REGEX,
     FLASH_GRANT_REGEX,
     FORCED_ATTACK_SWEEP_REGEX,
     FREE_CAST_REGEX,
@@ -1448,9 +1449,11 @@ _IMPULSE_SWEEP_REGEX = (
 # constant (the EXACT deleted detector regex) — serve and the kept-mirror detector
 # never drift.
 _THEFT_SWEEP_REGEX = THEFT_MATTERS_REGEX
-_DISCARD_OUTLET_SWEEP_REGEX = next(
-    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "discard_outlet"
-)
+# ADR-0027 discard-discarder scope (SIDECAR v26): discard_outlet migrated to the Card IR
+# (its SWEEP_DETECTORS row deleted). The serve pool stays oracle-defined, so it reuses
+# the shared DISCARD_OUTLET_REGEX constant (the EXACT deleted detector regex) — serve
+# and the kept-mirror detector never drift.
+_DISCARD_OUTLET_SWEEP_REGEX = DISCARD_OUTLET_REGEX
 # ADR-0027 (tranche2-C): the SWEEP_DETECTORS rows for self_pump / tapper_engine /
 # count_anthem are deleted (detection moved to the Card IR). Their SERVE pools stay
 # oracle-defined, so the regexes are pinned here verbatim and the specs below reuse

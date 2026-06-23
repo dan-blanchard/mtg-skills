@@ -5452,6 +5452,56 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # count (92 -> 92, byte-identical); all siblings drift 0; voltron 3010 -> 3010
         # identical set. CR 120.1 / 510 / 702.19a / 903.10a.
         "noncombat_damage_payoff",
+        # ADR-0027 discard-discarder scope (SIDECAR v26) — discard_outlet (loot/rummage/
+        # wheel outlets that fuel YOUR discard + graveyard payoffs; NOT opponent-hand
+        # attack, which is opponent_discard / hand_disruption / discard_matters).
+        # Migrated on the v26 projection that makes the `discard` Effect carry WHO
+        # discards (self-loot 'you' / symmetric wheel 'each' / forced-opponent 'opp').
+        #
+        # THREE IR SOURCES (union):
+        #   (a) COST ARM — "discard" in cost_parts (discard-as-activated/equip/
+        #       eternalize cost: "Discard a card: …"). UNCHANGED from the pre-migration
+        #       IR path.
+        #   (b) STRUCTURAL ARM — a `discard` Effect scope in ('you','each') (self-loot +
+        #       symmetric wheels = genuine fuel), with TWO opponent-discard vetoes: the
+        #       effect raw names an opponent-directed discard (_DISCARD_OUTLET_OPP_RAW —
+        #       the supplement-mis-scoped "each opponent discards" ETB phase EMPTIES),
+        #       OR — when the effect raw is uninformative (a modal/saga body, empty/
+        #       "Chapter N") — the card oracle is EXCLUSIVELY one-sided opponent
+        #       (_card_discard_is_onesided_opp: The Eldest Reborn, Doomsday Confluence,
+        #       Let's Play a Game). scope=='opp' (Mind Rot + the ForcedDiscard
+        #       promotions) is excluded as hand attack (→ opponent_discard).
+        #   (c) KEPT MIRROR — the byte-identical _DISCARD_OUTLET_SWEEP_RE (the EXACT
+        #       deleted SWEEP regex, DISCARD_OUTLET_REGEX) run PER-CLAUSE (its `draw
+        #       [^.]*\.?\s* then discard` arm spans a sentence). Recovers the cross-
+        #       clause loot + the GRANTED "Discard a card:" abilities / grandeur
+        #       discard-a-copy / added-cast-cost discards the cost+struct arms miss.
+        #
+        # RESIDUAL (commander-legal, floor-disabled, by (key,scope,subject) per
+        # oracle_id, v26-HYBRID vs the deleted SWEEP regex run per-clause): both==582,
+        # regex_only==0 (the mirror IS the regex — full v25 recall preserved),
+        # ir_only==257 (genuine: the self-loot triggers "you may discard a card. If you
+        # do, draw" / discard-as-cost outlets / symmetric "each player discards their
+        # hand" wheels the literal regex missed — Murder of Crows, Burning-Tree Vandal,
+        # Giott, Incendiary Command, Will of the Jeskai; every ir_only card carries a
+        # discard verb; 0 one-sided-opp over-fire). SCOPE PARITY: all 'you'.
+        #
+        # SIBLING DECOUPLINGS (so discard_outlet is the only mover, drift 0 elsewhere):
+        #   • graveyard_matters cross-open (discard_outlet → graveyard_matters, regex
+        #     path) re-keyed off the byte-identical _DISCARD_OUTLET_SWEEP_RE per-clause.
+        #   • opponent_discard held at v25 breadth by the ForcedDiscard marker (the v26
+        #     bare-Player promotion excluded from its structural arm; mirror unchanged).
+        #
+        # VOLTRON. The deleted SWEEP producer fired HIGH-confidence scope 'you' (NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) and fed has_other_plan (a loot/rummage/
+        # discard-to-pay ENGINE is a graveyard-filling plan, not a vanilla beater). The
+        # IR re-supply is BROADER (+257 ir_only), so a byte-identical
+        # _discard_outlet_has_plan mirror (the EXACT deleted regex, per-clause) is OR'd
+        # into has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS, which over-silences
+        # the 257 broader bodies. voltron_matters 3010 -> 3010 IDENTICAL by set eq.
+        # The serve spec (signal_specs, reusing DISCARD_OUTLET_REGEX) is independent of
+        # the deleted regex and survives. CR 701.8a / 903.10a.
+        "discard_outlet",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
