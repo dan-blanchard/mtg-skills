@@ -5329,6 +5329,37 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # dash_matters changes count (22 -> 22, byte-identical); all siblings drift 0;
         # voltron 3010 -> 3010 identical set. CR 702.109a (Dash) / 903.10a.
         "dash_matters",
+        # ADR-0027 card_draw_engine — migrated to the Card IR. The lane is a
+        # recurring/BULK card-advantage engine, NOT a cantrip: a recurring "at the
+        # beginning of [...] draw N card" anchor (single draw OK because it repeats),
+        # "draw 2+ cards", "draw cards equal to", "draw an additional card", or a
+        # replacement "if you would draw a card, instead draw N" — and a one-shot ETB
+        # single draw is skipped. phase's IR `draw` Effect carries an `amount` Quantity
+        # but NOT the recurring-trigger anchor (which lives on the Ability trigger
+        # event, divorced from the draw Effect) nor the additional / equal-to /
+        # replacement idioms, so a structural arm would diverge from the engine-vs-
+        # cantrip gate AND still
+        # need a _PLAN_MIRROR for voltron. So this is a BYTE-IDENTICAL KEPT MIRROR: the
+        # EXACT deleted producer (_detect_card_draw, pinned in _signals_regex) re-run
+        # PER-CLAUSE over the reminder-stripped kept_oracle in extract_signals_ir (the
+        # producer carries a `[^.]*` arm that can cross a ';'/newline boundary, so it
+        # MUST run per-clause to match the deleted path; subjectless, scope 'you'|'each'
+        # — the keyword_tribe / typed_spellcast subjectless per-clause precedent).
+        # Commander-legal residual, floor-disabled, joined by (key, scope, subject) per
+        # oracle_id: both == 870, ir_only == 0, regex_only == 0, 0 scope/pair mismatch
+        # (every firing card has an IR sidecar entry, so the re-run reproduces the
+        # deleted producer exactly). VOLTRON: the deleted producer fired HIGH-confidence
+        # (scope 'you'/'each') and fed has_other_plan (card_draw_engine is NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS — a recurring draw engine is a value
+        # plan, no vanilla beater); because the IR re-supply is the SAME breadth
+        # (residual 0/0/0), card_draw_engine is added to
+        # signals._VOLTRON_SILENCING_PLAN_KEYS so
+        # the hybrid re-silences byte-identically (FILE-SWAP voltron 3010 -> 3010
+        # identical set). The serve specs (signal_specs "you" / "each" branches) are
+        # independent of the deleted regex and survive. NO-FLOOD: ONLY card_draw_engine
+        # changes count (870 -> 870, byte-identical); all siblings drift 0. CR 120.2 /
+        # 903.10a.
+        "card_draw_engine",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

@@ -608,6 +608,10 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
 # card_draw_engine: a recurring/bulk card-advantage engine, NOT a cantrip. The bare
 # "draw a card" must never fire — the single-card branch is gated behind a recurring
 # "at the beginning of" anchor, and a one-shot ETB draw is skipped.
+# ADR-0027: card_draw_engine is MIGRATED to the Card IR — extract_signals no longer
+# invokes _detect_card_draw, but _signals_ir.extract_signals_ir imports it for a
+# byte-identical KEPT MIRROR (per-clause re-run over the reminder-stripped kept_oracle).
+# So _CARD_DRAW_RE + _detect_card_draw STAY PINNED here. Do not inline/delete them.
 _CARD_DRAW_RE = re.compile(
     r"at the beginning of [^.]*\bdraws? "
     r"(?:a|an|two|three|four|five|six|seven|eight|nine|ten|x|\d+)\b[^.]*\bcard"
@@ -4724,9 +4728,16 @@ def extract_signals(
             add(key, scope, subject, stripped)
         for key, subject in _detect_keyword_implied_tribe(clause):
             add(key, "you", subject, stripped)
-        draw = _detect_card_draw(clause)
-        if draw is not None:
-            add(draw[0], draw[1], "", stripped)
+        # ADR-0027: card_draw_engine migrated to the Card IR. Its producer
+        # (_detect_card_draw) is no longer invoked here — the regex path must not emit
+        # the migrated key. The producer + its _CARD_DRAW_RE stay pinned (the IR path
+        # imports _detect_card_draw for a byte-identical KEPT MIRROR re-run PER-CLAUSE
+        # over the reminder-stripped kept_oracle, preserving the engine-vs-cantrip gate
+        # and the 'you'/'each' scope the deleted producer emitted). The deleted producer
+        # fired HIGH-confidence and fed has_other_plan, so its voltron silence is
+        # restored by adding card_draw_engine to signals._VOLTRON_SILENCING_PLAN_KEYS
+        # (the IR re-supply is the SAME breadth — residual 0/0/0). Mirrors the
+        # keyword_tribe / typed_spellcast subjectless per-clause precedent. CR 120.2.
         # Tier 3 — structural floor detectors + regex-preset reuse
         for det in _FLOOR_DETECTORS:
             if det.pattern.search(clause):

@@ -251,16 +251,18 @@ def test_lands_matter_count_payoff():
 
 
 def test_card_draw_engine_bulk_draw():
+    # ADR-0027: card_draw_engine migrated to the Card IR (byte-identical kept-mirror
+    # re-run of _detect_card_draw), so it serves from the hybrid path, not pure regex.
     c = {
         "name": "Jin-Gitaxias, Core Augur",
         "oracle_text": "Flash\nAt the beginning of your end step, draw seven cards.\nEach opponent's maximum hand size is reduced by seven.",
     }
-    assert ("card_draw_engine", "you") in _ks(c)
+    assert ("card_draw_engine", "you") in _ks_hybrid(c)
 
 
 def test_card_draw_engine_skips_cantrip():
     c = {"name": "Opt-like", "oracle_text": "Scry 1, then draw a card."}
-    assert "card_draw_engine" not in _keys(c)
+    assert "card_draw_engine" not in _keys_hybrid(c)
 
 
 def test_card_draw_engine_skips_etb_oneshot():
@@ -268,7 +270,7 @@ def test_card_draw_engine_skips_etb_oneshot():
         "name": "ETB Draw",
         "oracle_text": "When this creature enters, draw two cards.",
     }
-    assert "card_draw_engine" not in _keys(c)
+    assert "card_draw_engine" not in _keys_hybrid(c)
 
 
 def test_card_draw_engine_each_player_wheel_scoped_each():
@@ -276,7 +278,9 @@ def test_card_draw_engine_each_player_wheel_scoped_each():
         "name": "Nekusar-like",
         "oracle_text": "At the beginning of each player's draw step, that player draws an additional card.",
     }
-    assert any(s.key == "card_draw_engine" for s in extract_signals(c))
+    assert any(
+        s.key == "card_draw_engine" for s in extract_signals_hybrid(c, _bare_ir())
+    )
 
 
 def test_direct_damage_pinger():

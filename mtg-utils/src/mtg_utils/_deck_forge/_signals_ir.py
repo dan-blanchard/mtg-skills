@@ -38,6 +38,7 @@ from mtg_utils._deck_forge._signals_regex import (
     Signal,
     _clauses,
     _creature_etb_clauses,
+    _detect_card_draw,
     _detect_direct_keywords,
     _detect_keyword_presets,
     _detect_keyword_tribe,
@@ -8407,6 +8408,38 @@ def extract_signals_ir(
     for clause in _clauses(kept_oracle):
         for key, subject in _detect_typed_spellcast(clause, vocab):
             add(key, "you", subject, clause)
+    # ADR-0027 — card_draw_engine BYTE-IDENTICAL kept mirror. The lane is a
+    # recurring / BULK card-advantage engine (NOT a cantrip): the single-card branch
+    # is gated behind a recurring "at the beginning of" anchor, the bulk branch needs
+    # "draw 2+ cards" / "draw cards equal to" / "draw an additional card" / a
+    # replacement "if you would draw a card, instead draw N", and a one-shot ETB single
+    # draw is skipped. phase carries NO clean structural shape for this engine-vs-
+    # cantrip boundary: the IR `draw` Effect's `amount` Quantity does not encode the
+    # recurring-trigger anchor (which lives on the Ability's trigger event, divorced
+    # from the draw Effect), nor the "additional"/"equal to"/replacement-draw idioms —
+    # so any structural arm would diverge AND still need a _PLAN_MIRROR for voltron. So
+    # the clean shape is the BYTE-IDENTICAL re-run of the EXACT deleted producer
+    # (_detect_card_draw, pinned in _signals_regex) PER-CLAUSE over the reminder-
+    # stripped kept_oracle — the deleted producer ran the SAME per-clause loop over the
+    # same reminder-stripped joined-face `text`, so its (key, scope) firing set is byte-
+    # identical by construction. The producer carries a `[^.]*` arm ("at the beginning
+    # of [^.]* draws? N card") that CAN cross a ';'/newline clause boundary, so it MUST
+    # run per-clause (not flat) to match the deleted path exactly. Subjectless, scope
+    # 'you'|'each' (the producer's own scope). add() dedups the overlap. Commander-legal
+    # residual, floor-disabled, joined by (key, scope, subject) per oracle_id:
+    # both==870, ir_only==0, regex_only==0, 0 scope/pair mismatch (every firing card has
+    # an IR sidecar entry, so the kept mirror reproduces the deleted producer exactly).
+    # The deleted producer fired HIGH-confidence (scope 'you'/'each') and fed
+    # has_other_plan (card_draw_engine is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS),
+    # so it is added to signals._VOLTRON_SILENCING_PLAN_KEYS; the IR re-supply is the
+    # SAME breadth (residual 0/0/0), so it re-silences byte-identically (voltron_matters
+    # 3010 -> 3010 IDENTICAL by set equality). The serve specs (signal_specs ("you" /
+    # "each") branches) are independent of the deleted regex and survive. Mirrors the
+    # keyword_tribe / typed_spellcast per-clause re-run precedent. CR 120.2 / 903.10a.
+    for clause in _clauses(kept_oracle):
+        draw = _detect_card_draw(clause)
+        if draw is not None:
+            add(draw[0], draw[1], "", clause)
     # ADR-0027 — creature_recursion BYTE-IDENTICAL kept mirror. The structural
     # `cat=='reanimate' and 'Creature' in ftypes` arm above GAINS +160 GY→battlefield
     # reanimators the brittle "your graveyard" regex missed, but phase carries NO clean

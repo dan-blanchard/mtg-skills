@@ -146,6 +146,26 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # card_draw_engine ← a byte-identical kept mirror of the deleted producer
+    # (_detect_card_draw) re-run PER-CLAUSE over the card's oracle_text. The lane is a
+    # recurring/BULK card-advantage engine, NOT a cantrip: Phyrexian Arena's "At the
+    # beginning of your upkeep, you draw a card …" is the recurring-single-draw branch
+    # (the engine-vs-cantrip gate — a single draw counts only because the "at the
+    # beginning of" anchor makes it repeat), scope 'you'. phase carries no structural
+    # shape for the recurring-anchor / additional / equal-to / replacement idioms, so
+    # the lane fires from the kept mirror over the record's oracle_text; the paired IR
+    # is vanilla (the mirror reads the record, not the IR structure). ADR-0027 / CR
+    # 120.2.
+    "card_draw_engine": (
+        {
+            "name": "Phyrexian Arena",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "At the beginning of your upkeep, you draw a card and you lose 1 life."
+            ),
+        },
+        _ir(),
+    ),
     # typed_spellcast ← a SUBJECT-CARRYING UNION: the STATIC "<Subtype> spells you cast"
     # form rides a byte-identical kept mirror of the deleted producer
     # (_detect_typed_spellcast) run PER-CLAUSE over the card's oracle_text, emitting the

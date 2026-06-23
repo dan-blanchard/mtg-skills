@@ -832,6 +832,20 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # void_warp_matters kept-mirror precedent. A NO-FLOOD voltron entry. CR 701.21 /
         # 502 / 903.10a.
         "tap_down",
+        # ADR-0027: card_draw_engine fired high-confidence (scope 'you'/'each') in the
+        # regex path via the _detect_card_draw producer and so counted toward
+        # has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing
+        # the spurious commander-damage voltron tell on a recurring/bulk card-advantage
+        # ENGINE that is NOT a vanilla beater (its plan is the card flow — a "draw step"
+        # / wheel / "draw N cards" payoff body). Its regex producer is no longer
+        # invoked, so the hybrid re-silences from the IR re-supply — a BYTE-IDENTICAL
+        # kept mirror re-running the SAME _detect_card_draw PER-CLAUSE over the
+        # reminder-stripped kept_oracle (commander-legal: IR == regex == 870, 0
+        # broadening, 0 ir_only), the keyword_tribe / typed_spellcast subjectless
+        # per-clause
+        # precedent. A NO-FLOOD voltron entry (3010 -> 3010 identical set). CR 120.2 /
+        # 903.10a.
+        "card_draw_engine",
     }
 )
 
