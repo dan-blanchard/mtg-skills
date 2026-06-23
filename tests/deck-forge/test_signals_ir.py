@@ -284,6 +284,7 @@ def test_token_maker_with_kindred_subject():
             effects=(
                 Effect(
                     category="make_token",
+                    scope="you",
                     subject=Filter(card_types=("Creature",), subtypes=("Goblin",)),
                 ),
             ),
@@ -304,6 +305,7 @@ def test_token_maker_picks_last_creature_subtype():
             effects=(
                 Effect(
                     category="make_token",
+                    scope="you",
                     subject=Filter(
                         card_types=("Creature",), subtypes=("Human", "Soldier")
                     ),
@@ -323,7 +325,11 @@ def test_token_maker_creature_token_no_subtype():
         Ability(
             kind="spell",
             effects=(
-                Effect(category="make_token", subject=Filter(card_types=("Creature",))),
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(card_types=("Creature",)),
+                ),
             ),
         )
     )
@@ -850,6 +856,7 @@ def test_type_matters_from_tribal_count():
             effects=(
                 Effect(
                     category="make_token",
+                    scope="you",
                     subject=Filter(card_types=("Creature",), subtypes=("Goblin",)),
                     amount=Quantity(
                         op="count",

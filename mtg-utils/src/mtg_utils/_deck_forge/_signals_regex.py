@@ -856,6 +856,18 @@ _TWO_TRIBE_TUTOR_RE = re.compile(
 # ("Thopter artifact creature token" → Thopter).
 _TOKEN_MAKER_PATTERN = re.compile(r"create [^.]*?\bcreature tokens?\b", re.IGNORECASE)
 _TOKEN_SUBJECT_WORDS = re.compile(r"\b([A-Z][a-z]+)\b")
+# ADR-0027 token_maker voltron PLAN MIRROR — the EXACT deleted _TOKEN_MAKER_PATTERN,
+# kept as a named alias for has_other_plan parity with its migrated siblings. The
+# deleted producer fired HIGH-confidence scope 'you' (token_maker ∉ _GENERIC_KEYS /
+# _VOLTRON_COMPAT_KEYS), so it counted toward has_other_plan and silenced the spurious
+# commander-damage voltron tell on a go-wide token engine (a real plan, not a vanilla
+# beater). The migrated IR re-supply is BROADER (+147 your-token makers the regex's
+# "create " space-gap missed), so re-silencing via _VOLTRON_SILENCING_PLAN_KEYS would
+# OVER-silence those 147 — this byte-identical mirror restores ONLY the deleted regex's
+# silence set (voltron_matters stays 3010 by set equality). Run PER-CLAUSE over the
+# reminder-stripped text (the `[^.]*?` arm can cross a `;`/newline that _clauses splits
+# on, so flat != per-clause). CR 111.2 / 701.6.
+_TOKEN_MAKER_PLAN_MIRROR = _TOKEN_MAKER_PATTERN
 
 
 def _detect_type_matters(clause: str, vocab: frozenset[str]) -> list[tuple[str, str]]:
@@ -4730,8 +4742,16 @@ def extract_signals(
         # MIRROR run per-clause over the reminder-stripped kept_oracle, preserving the
         # creature-subtype subject the per-subject serve spec interpolates). Mirrors the
         # keyword_tribe SUBJECT-CARRYING migration precedent above.
-        for key, subject in _detect_token_maker(clause, vocab):
-            add(key, "you", subject, stripped)
+        # ADR-0027: token_maker migrated to the Card IR. Its producer
+        # (_detect_token_maker) is no longer invoked here — the regex path must not emit
+        # the migrated key. The producer + its _TOKEN_MAKER_PATTERN stay pinned (the IR
+        # path imports _detect_token_maker for a byte-identical KEPT MIRROR re-run
+        # PER-CLAUSE over the reminder-stripped kept_oracle, preserving the creature-
+        # subtype subject the per-subject serve spec interpolates and the forced 'you'
+        # scope). The two token_maker-driven regex cross-opens below (creatures_matter,
+        # type_matters) re-key off the byte-identical _TOKEN_MAKER_PATTERN mirror so the
+        # sibling membership stays byte-identical to base. Mirrors the keyword_tribe /
+        # typed_spellcast SUBJECT-CARRYING precedent. CR 111.2.
         for key, scope, subject in _detect_typed_gy_recursion(clause, vocab):
             # ADR-0027: vehicles_matter migrated to the Card IR — the regex path must
             # not emit it (the migration invariant). Its typed-gy Vehicle row
@@ -4805,6 +4825,17 @@ def extract_signals(
         ):
             add("topdeck_selection", "you", "", text[:160], "low")
             add("topdeck_stack", "you", "", text[:160], "low")
+        # ADR-0027: token_maker migrated, so the deleted producer no longer populates
+        # `out` — re-derive the captured creature subtypes from the byte-identical
+        # _detect_token_maker (kept pinned) PER-CLAUSE over the same reminder-stripped
+        # `text` so both token_maker-driven cross-opens (creatures_matter, type_matters)
+        # stay byte-identical to base.
+        _token_maker_subjects = {
+            subj
+            for clause in _clauses(text)
+            for _, subj in _detect_token_maker(clause, vocab)
+            if subj
+        }
         # A token_maker that makes CREATURE tokens (a captured subject: Darien makes
         # Soldiers, Jinnie Fay Cats/Dogs) is a go-wide creatures deck, so cross-open
         # creatures_matter: it wants anthems, per-creature-ETB payoffs (Soul Warden,
@@ -4812,9 +4843,10 @@ def extract_signals(
         # serves. Low confidence. Non-creature token makers (Treasure / Clue) never set
         # a token_maker subject, so they stay out. Scoped to token MAKERS (not the
         # broader tokens_matter payoff) so discovery's lane-weighted sort stays clean.
-        if "creatures_matter" not in keys_now and any(
-            s.key == "token_maker" and s.subject for s in out
-        ):
+        # (creatures_matter is migrated — this regex cross-open is dropped in the hybrid
+        # and the IR side re-supplies it; kept here for the pure-regex `extract_signals`
+        # path, ir is None.)
+        if "creatures_matter" not in keys_now and _token_maker_subjects:
             add("creatures_matter", "you", "", text[:160], "low")
         # A spell-copy commander (Veyran, Zevlor, Rassilon) copies the instants/
         # sorceries you cast, so it's a spellslinger wanting a dense spell base: cross-
@@ -4831,7 +4863,10 @@ def extract_signals(
         # wants tribe-X lords/support: its token board IS that kindred. Cross-open
         # type_matters=X. Most tribe-MEMBER token-makers already open it via membership;
         # this catches non-members (Grist, a Planeswalker that makes Insects). Low conf.
-        for _sub in {s.subject for s in out if s.key == "token_maker" and s.subject}:
+        # ADR-0027: type_matters is NOT migrated, so this regex cross-open SURVIVES the
+        # hybrid — re-key it off the re-derived _token_maker_subjects (the byte-
+        # identical _detect_token_maker re-run above) so type_matters drifts 0.
+        for _sub in _token_maker_subjects:
             add(signal_keys.TYPE_MATTERS, "you", _sub, text[:160], "low")
         # Lure (force blocks) and blocked_matters (punish the blocker) are one
         # archetype: a commander that lures / must-be-blocked (Madame Vastra, Gorm)
@@ -5870,6 +5905,17 @@ def extract_signals(
         # SWEEP Detector ran per-clause over stripped clauses; the two arms are
         # clause-local, so full-text == per-clause). CR 401.4 / 903.10a.
         or _TOPDECK_STACK_PLAN_MIRROR.search(text)
+        # ADR-0027 token-recipient scope: re-silence the deleted token_maker producer
+        # (it fired HIGH-confidence scope 'you', feeding has_other_plan — a go-wide
+        # token engine is a real plan, not a vanilla commander-damage beater). The
+        # migrated IR arm is BROADER (+147 your-token makers the regex "create " space-
+        # gap missed), so _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those bodies;
+        # this byte-identical mirror (the EXACT deleted _TOKEN_MAKER_PATTERN) restores
+        # ONLY the old regex's silence set (voltron_matters stays 3010 by set equality).
+        # Run PER-CLAUSE over the reminder-STRIPPED `text` (the `[^.]*?` arm can cross a
+        # `;`/newline that _clauses splits on, so flat != per-clause; the deleted
+        # producer ran per-clause over the same stripped text). CR 111.2 / 701.6.
+        or any(_TOKEN_MAKER_PLAN_MIRROR.search(cl) for cl in _clauses(text))
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)

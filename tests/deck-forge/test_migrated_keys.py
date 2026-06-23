@@ -189,6 +189,42 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # token_maker ← a SUBJECT-CARRYING UNION (ADR-0027 token-recipient scope): the
+    # STRUCTURAL make_token arm in extract_signals_ir fires on a `make_token` Effect of
+    # scope 'you'/'each' whose creature subject carries the captured kindred subtype
+    # (Krenko's "Create X 1/1 red Goblin creature tokens" → subject Goblin), emitting it
+    # as the LOAD-BEARING Signal SUBJECT the per-subject serve spec interpolates; the
+    # opponent-token gifts (scope 'opp') and the phase-parse "each opponent creates"
+    # subset are excluded. This case exercises the STRUCTURAL arm — the paired IR carries
+    # the make_token Effect (scope you, subject Goblin). The byte-identical kept mirror
+    # (the deleted _detect_token_maker re-run per-clause) separately reproduces the v24
+    # recall over the record's oracle_text. ADR-0027 / CR 111.2 / 701.6.
+    "token_maker": (
+        {
+            "name": "Krenko, Mob Boss",
+            "type_line": "Legendary Creature — Goblin Warrior",
+            "oracle_text": (
+                "{T}: Create X 1/1 red Goblin creature tokens, where X is the "
+                "number of Goblins you control."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(
+                    Effect(
+                        category="make_token",
+                        scope="you",
+                        subject=Filter(card_types=("Creature",), subtypes=("Goblin",)),
+                        raw=(
+                            "Create X 1/1 red Goblin creature tokens, where X is "
+                            "the number of Goblins you control."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
     # scaling_pump ← a STRUCTURAL `pump` Effect whose amount SCALES with a board count.
     # Sliver Legion's "All Sliver creatures get +1/+1 for each other Sliver on the
     # battlefield" projects a static pump, amount=Quantity(op="count", factor=1), with the

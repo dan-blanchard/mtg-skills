@@ -20,6 +20,7 @@ from mtg_utils._card_ir.project import (
     _collect_effects,
     _copied_type_from_text,
     _dropped_static_markers,
+    _effect_scope,
     _filter,
     _graveyard_cast_grant_markers,
     _graveyard_count_markers,
@@ -2941,6 +2942,72 @@ def test_graveyard_wide_cast_grant_gated_to_no_in_graveyard():
 
 
 # ── ADR-0027 sacrifice_matters: edict scope split + additional-cost marker ─────
+
+
+def test_token_owner_recipient_scope():
+    """A Token effect's scope reads its ``owner`` recipient (ADR-0027 token-recipient
+    scope, v25): a Controller owner → you; a ``Typed`` owner.controller of Opponent →
+    opp (the token is a gift to a named opponent — Hunted Dragon, Phelddagrif), of You →
+    you; a non-you/opp Typed controller (a ChosenPlayer / null — Gluntch, Mana Max) and
+    a bare unowned token fall through to 'any'. The ``ParentTarget*`` owners (its
+    controller / its owner — removal-consolation tokens) stay 'opp' via the pre-existing
+    'target'-substring branch. CR 111.2."""
+    controller = {"owner": {"type": "Controller"}}
+    opp = {"owner": {"type": "Typed", "type_filters": [], "controller": "Opponent"}}
+    you = {"owner": {"type": "Typed", "type_filters": [], "controller": "You"}}
+    chosen = {"owner": {"type": "Typed", "controller": {"ChosenPlayer": {"index": 2}}}}
+    null = {"owner": {"type": "Typed", "controller": None}}
+    unowned = {"owner": None}
+    ptc = {"owner": {"type": "ParentTargetController"}}
+    assert _effect_scope(controller) == "you"
+    assert _effect_scope(opp) == "opp"
+    assert _effect_scope(you) == "you"
+    assert _effect_scope(chosen) == "any"
+    assert _effect_scope(null) == "any"
+    assert _effect_scope(unowned) == "any"
+    assert _effect_scope(ptc) == "opp"
+
+
+def test_token_owner_opponent_make_token_projects_opp_scope():
+    """A "target opponent creates …" maker (Hunted Dragon) projects its make_token
+    Effect at scope 'opp' — the structural discriminator that keeps the opponent-token
+    GIFT out of the you-scoped token_maker lane (CR 111.2)."""
+    rec = {
+        "name": "Hunted Dragon",
+        "scryfall_oracle_id": "oid-hunted-dragon",
+        "oracle_text": (
+            "Flying, haste\nWhen this creature enters, target opponent creates "
+            "three 2/2 white Knight creature tokens with first strike."
+        ),
+        "triggers": [
+            {
+                "mode": "EntersBattlefield",
+                "execute": {
+                    "effect": {
+                        "type": "Token",
+                        "owner": {
+                            "type": "Typed",
+                            "type_filters": [],
+                            "controller": "Opponent",
+                        },
+                        "value": {
+                            "card_type": "Creature",
+                            "subtypes": ["Knight"],
+                        },
+                    }
+                },
+            }
+        ],
+    }
+    card = project_card([rec])
+    tok = [
+        e
+        for ab in card.all_abilities()
+        for e in ab.effects
+        if e.category == "make_token"
+    ]
+    assert tok, "expected a make_token effect"
+    assert all(e.scope == "opp" for e in tok)
 
 
 def test_sacrifice_player_scope_edict_vs_you():

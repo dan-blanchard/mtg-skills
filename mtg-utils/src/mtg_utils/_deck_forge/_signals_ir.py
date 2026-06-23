@@ -45,6 +45,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_self_blink_fulltext,
     _detect_self_damage_prevention,
     _detect_self_death_payoff,
+    _detect_token_maker,
     _detect_typed_gy_recursion,
     _detect_typed_spellcast,
     _detect_voltron_payoff_ir,
@@ -4378,6 +4379,21 @@ _CREATURE_SPELL_RAW = re.compile(
     re.IGNORECASE,
 )
 
+# ADR-0027 token-recipient scope — the v25 projection scopes a "(target|each|an)
+# opponent creates …" make_token to 'opp' (the recipient is a named OPPONENT, not the
+# controller — Hunted Dragon, Phelddagrif, Clackbridge Troll, Forbidden Orchard). At
+# v24 those landed on scope 'any' (phase's Typed-opponent owner was unread), so the IR
+# creatures_matter cross-open opened on them. The v24 token_maker REGEX producer never
+# fired on this third-person "creates" (its pattern needs "create " + space, not the
+# inflected "creates"), so the cross-open was the only path — and a board the opponent
+# gets still gives the rest of the table creatures to interact with. Read this gift
+# pattern so the creatures_matter cross-open keeps the v24 firing set BYTE-IDENTICALLY
+# while the migrated token_maker lane (scope-gated to you/each) correctly drops these
+# opponent gifts. EXCLUDES the "its/their/that player/owner creates" removal-
+# consolation (ParentTargetController — Afterlife, Beast Within), which was scope 'opp'
+# at BOTH v24 and v25 and never opened creatures_matter. CR 111.2.
+_OPP_GIFT_TOKEN_RAW = re.compile(r"opponent creates", re.IGNORECASE)
+
 # ADR-0027 β — combat_damage_to_opp LOW-confidence double-strike-grant mirror
 # (Raphael, Blade Historian, Berserkers' Onslaught). Fired separately from the
 # _IR_KEPT_DETECTORS loop because that loop emits HIGH confidence; the deleted regex
@@ -6277,9 +6293,25 @@ def extract_signals_ir(
             # lane boundary). CR 402.2.
             if e.category == "no_max_handsize" and _ir_scope(e.scope) == "you":
                 add("big_hand_matters", "you", "", e.raw)
-            # token_maker only when the token goes to YOU — "destroy target
-            # creature, its controller makes a Beast" (scope opp) is removal.
-            if e.category == "make_token" and e.scope in ("you", "any"):
+            # token_maker (ADR-0027 MIGRATED) — the token goes to YOU. STRUCTURAL ARM:
+            # a make_token of scope 'you'/'each' ("Create N Goblin tokens"; "each
+            # player creates" gives you a board too). The v25 projection scopes
+            # "(target|each|an) opponent creates …" to 'opp' (Hunted Dragon,
+            # Phelddagrif, Forbidden Orchard — the token is a GIFT to an opponent, not
+            # your engine), so 'opp' is excluded here (the +30 opponent-token over-fires
+            # the v24 'any' gate let through). ORACLE VETO: phase MIS-PARSES "each
+            # opponent creates" on a handful (Akroan Horse, Captive Audience, Pursued
+            # Whale, Slaughter Specialist) to owner={type:Controller} → scope 'you' —
+            # not fixable in projection, so drop a firing whose clause names an
+            # opponent/other-player recipient (CR 111.2: the token's creator is its
+            # owner). The kept regex mirror below re-supplies the byte-identical v24
+            # recall; this arm adds the +147 your-token cards the deleted regex MISSED
+            # (its pattern needs "create " + space, never the inflected "creates").
+            if (
+                e.category == "make_token"
+                and e.scope in ("you", "each")
+                and not _OPP_GIFT_TOKEN_RAW.search(e.raw or "")
+            ):
                 subject = _token_kindred_subject(e.subject, vocab)
                 if subject is not None:
                     add(signal_keys.TOKEN_MAKER, "you", subject, e.raw)
@@ -8266,7 +8298,11 @@ def extract_signals_ir(
     # makers (Treasure/Clue) never set a token_maker subject, so they stay out. Low
     # confidence. (Done here, after the per-effect loop has collected token_maker.)
     if not any(s.key == "creatures_matter" for s in out) and any(
-        s.key == signal_keys.TOKEN_MAKER and s.subject for s in out
+        e.category == "make_token"
+        and _token_kindred_subject(e.subject, vocab)
+        and (e.scope in ("you", "any") or _OPP_GIFT_TOKEN_RAW.search(e.raw or ""))
+        for ab in ir.all_abilities()
+        for e in ab.effects
     ):
         add("creatures_matter", "you", "", "", "low")
 
@@ -8474,6 +8510,41 @@ def extract_signals_ir(
     # SUBJECT-CARRYING precedent above. CR 109.3 / 601.2 / 603.2 / 903.10a.
     for clause in _clauses(kept_oracle):
         for key, subject in _detect_typed_spellcast(clause, vocab):
+            add(key, "you", subject, clause)
+    # ADR-0027 — token_maker SUBJECT-CARRYING byte-identical kept mirror. The lane is a
+    # MAKER of creature tokens, emitting the captured creature-SUBTYPE noun (Goblin /
+    # Soldier / Cat — the LAST subtype before "creature token", validated vs vocab)
+    # as the Signal SUBJECT, which the per-subject serve spec interpolates (it searches
+    # for that tribe's payoffs) — the subject is LOAD-BEARING. A UNION migration:
+    #   (a) the STRUCTURAL make_token arm above (scope 'you'/'each', the v25-projected
+    #       'opp' gifts excluded + the "each opponent creates" phase-parse veto) gives
+    #       the +147 your-token cards the deleted regex MISSED — its `create ` pattern
+    #       needs a trailing SPACE, so it never matched the inflected third-person
+    #       "creates" ("each player creates", "when ~ enters, create … OR investigate");
+    #   (b) this byte-identical kept mirror — the EXACT deleted producer
+    #       (_detect_token_maker, kept pinned in _signals_regex) re-run PER-CLAUSE over
+    #       the reminder-stripped kept_oracle, forced scope 'you' — reproduces the
+    #       deleted producer's firing set EXACTLY (the deleted path ran the same
+    #       per-clause loop over the same reminder-stripped joined-face text; the
+    #       pattern `create [^.]*?\bcreature tokens?\b` has a `[^.]*?` arm bounded
+    #       INSIDE a clause — `_clauses` splits on `.;\n` — so per-clause == the deleted
+    #       path, 0 divergences on the corpus). add() dedups the maker/mirror overlap by
+    #       (key, scope, subject). Commander-legal residual, floor-disabled, joined by
+    #       (key, scope, subject) per oracle_id: regex_only==0 (the mirror fully
+    #       reproduces the deleted producer); ir_only==+147 your-token cards (every one
+    #       a verified "you/each create … creature token" maker the regex space-gap
+    #       missed — genuine BREADTH, 0 over-fire) MINUS the ~30 opponent-token
+    #       over-fires the v24 'any' gate let through (now dropped by the 'opp' scope
+    #       gate). The deleted producer fired HIGH-confidence (scope 'you') and fed
+    #       has_other_plan (token_maker ∉ _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS); the IR
+    #       re-supply is BROADER (+147), so signals re-silences voltron via a byte-
+    #       identical _TOKEN_MAKER_PLAN_MIRROR (the EXACT deleted _TOKEN_MAKER_PATTERN,
+    #       per-clause) OR'd into has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS,
+    #       which would over-silence the +147 (voltron_matters stays 3010 by set
+    #       equality). Mirrors the keyword_tribe / typed_spellcast SUBJECT-CARRYING
+    #       precedent. CR 111.2 / 701.6.
+    for clause in _clauses(kept_oracle):
+        for key, subject in _detect_token_maker(clause, vocab):
             add(key, "you", subject, clause)
     # ADR-0027 — card_draw_engine BYTE-IDENTICAL kept mirror. The lane is a
     # recurring / BULK card-advantage engine (NOT a cantrip): the single-card branch

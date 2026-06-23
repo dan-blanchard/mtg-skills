@@ -211,7 +211,16 @@ from mtg_utils.card_ir import Card
 #     guard); the pass runs after _recover_graveyard_zones so a rest-into-graveyard dig
 #     keeps its to:graveyard zone. cheat_into_play reads cheat_play+Creature but is not
 #     yet wired, so drift 0. CR 701.23 / 601.3b.
-SIDECAR_VERSION = 24
+# v24→v25: ADR-0027 token-recipient scope — _effect_scope now reads a Token effect's
+#   ``Typed`` owner.controller (Opponent → 'opp', You → 'you') so "target opponent
+#   creates …" (Hunted Dragon, Phelddagrif, Clackbridge Troll, Forbidden Orchard,
+#   Generous Plunderer — 22 commander-legal Typed-opponent makers) is scoped 'opp'
+#   instead of the lossy 'any'. The migrated token_maker lane gates its structural
+#   make_token arm to scope in ('you','each'), excluding these opponent-token gifts
+#   (CR 111.2 — the token's creator is its owner). Behavior-neutral for every other
+#   migrated key (drift 0): no other lane reads make_token scope at the 'any'/'opp'
+#   boundary. CR 111.2 / 707.
+SIDECAR_VERSION = 25
 
 
 def card_ir_dir() -> Path:

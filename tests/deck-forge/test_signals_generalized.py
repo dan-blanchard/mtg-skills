@@ -89,6 +89,10 @@ def test_type_matters_captures_kindred_subject():
 
 
 def test_type_matters_from_count_clause_and_token_maker_together():
+    # ADR-0027: token_maker migrated to the Card IR (a SUBJECT-CARRYING UNION — a
+    # structural make_token arm + a byte-identical kept mirror of the deleted
+    # _detect_token_maker), so assert against the HYBRID path. type_matters (the
+    # "for each Goblin you control" count operand) is NOT migrated and rides regex.
     c = {
         "name": "Krenko, Mob Boss",
         "oracle_text": (
@@ -96,7 +100,7 @@ def test_type_matters_from_count_clause_and_token_maker_together():
             "of Goblins you control."
         ),
     }
-    s = _ksub(c)
+    s = _ksub_hybrid(c, _bare_ir())
     assert ("type_matters", "you", "Goblin") in s
     assert ("token_maker", "you", "Goblin") in s
 
@@ -1429,11 +1433,15 @@ def test_clone_engine_fires_for_legendary_with_intervening_card_type():
 
 
 def test_token_maker_prefers_creature_subtype_over_artifact_word():
+    # ADR-0027: token_maker migrated to the Card IR — assert against the HYBRID path.
+    # The byte-identical kept mirror (the deleted _detect_token_maker re-run per-clause
+    # over the reminder-stripped oracle) still prefers the real subtype "Construct" over
+    # the card-type word "artifact" in "Construct artifact creature token".
     c = {
         "name": "Urza, Lord High Artificer",
         "oracle_text": 'When Urza enters, create a 0/0 colorless Construct artifact creature token with "This token gets +1/+1 for each artifact you control."\nTap an untapped artifact you control: Add {U}.\n{5}: Shuffle your library, then exile the top card. Until end of turn, you may play that card without paying its mana cost.',
     }
-    assert ("token_maker", "you", "Construct") in _ksub(c)
+    assert ("token_maker", "you", "Construct") in _ksub_hybrid(c, _bare_ir())
 
 
 def test_typed_spellcast_captures_tribe():
@@ -5679,9 +5687,11 @@ def test_token_maker_serves_token_aristocrats_drain():
             "Breeder."
         ),
     }
+    # ADR-0027: token_maker migrated to the Card IR — read it from the HYBRID path (the
+    # byte-identical kept mirror captures Endrek's "create X … Thrull creature tokens").
     tm_sig = next(
         s
-        for s in extract_signals(endrek, include_membership=True)
+        for s in extract_signals_hybrid(endrek, _bare_ir(), include_membership=True)
         if s.key == "token_maker"
     )
     sp = spec_for(tm_sig)

@@ -3987,6 +3987,43 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # keyword_tribe SUBJECT-CARRYING precedent above. CR 109.3 / 601.2 / 603.2 /
         # 903.10a.
         "typed_spellcast",
+        # ADR-0027 token-recipient scope — token_maker (the MAKER of creature tokens,
+        # emitting the captured creature-SUBTYPE as the LOAD-BEARING Signal SUBJECT).
+        # The FIRST projection-step migration of the cutover: a paired project.py +
+        # signals change. PROJECTION (v25): _effect_scope reads a Token effect's `Typed`
+        # owner.controller (Opponent → 'opp', You → 'you') so "(target|each|an) opponent
+        # creates …" (Hunted Dragon, Phelddagrif, Clackbridge Troll, Forbidden Orchard —
+        # 22 commander-legal Typed-opponent makers) is scoped 'opp' instead of the lossy
+        # 'any' (the analogue of the sacrifice-edict _sacrifice_player_scope and the
+        # damage-recipient _damage_recipient_is_player precedents). CR 111.2 — the
+        # token's creator is its owner.
+        # UNION migration: (a) the STRUCTURAL make_token arm in extract_signals_ir, now
+        # gated to scope in ('you','each') so the new owner.controller='opp' token gifts
+        # are excluded (the +30 v24 'any'-gate over-fires dropped), with a narrow oracle
+        # veto (_OPP_GIFT_TOKEN_RAW "opponent creates") for the phase-PARSE-ERROR subset
+        # (Akroan Horse, Captive Audience, Pursued Whale, Slaughter Specialist — phase
+        # mis-parses "each opponent creates" to owner={type:Controller} → scope 'you',
+        # not fixable in projection); and (b) a BYTE-IDENTICAL kept mirror — the EXACT
+        # deleted producer (_detect_token_maker, pinned in _signals_regex) re-run
+        # PER-CLAUSE over the reminder-stripped kept_oracle, forced scope 'you'. The
+        # mirror reproduces the deleted producer EXACTLY; the structural arm adds the
+        # +147 your-token makers the regex MISSED (its `create ` pattern needs a
+        # trailing SPACE, never the inflected "creates"). Commander-legal residual,
+        # floor-disabled, joined by (key, scope, subject) per oracle_id: regex_only==0,
+        # ir_only==+147 (all genuine "you/each create … creature token" makers).
+        # NO-FLOOD: only token_maker's hybrid count changed, all siblings drift 0 (the
+        # two token_maker-driven regex cross-opens — creatures_matter, type_matters —
+        # re-key off the byte-identical _detect_token_maker re-run; the IR
+        # creatures_matter cross-open reads make_token scope ('you','any') + the
+        # _OPP_GIFT_TOKEN_RAW re-include so it reproduces the v24 'any' breadth).
+        # VOLTRON: the deleted producer fired HIGH-confidence (scope 'you') and fed
+        # has_other_plan (token_maker ∉ _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS). The
+        # IR re-supply is BROADER (+147), so a byte-identical _TOKEN_MAKER_PLAN_MIRROR
+        # (the EXACT deleted _TOKEN_MAKER_PATTERN, per-clause) is OR'd into
+        # has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS (would over-silence 147).
+        # voltron_matters stays 3010 by set equality. Mirrors keyword_tribe /
+        # typed_spellcast SUBJECT-CARRYING precedent. CR 111.2 / 701.6 / 903.10a.
+        "token_maker",
         # ADR-0027 — landfall (the LAND-ETB payoff axis: a card that CARES when a land
         # enters — the "Landfall —" ability word (CR 207.2c), the keyword-LESS
         # "whenever a land you control enters" trigger, the extra-land STATIC ("play N

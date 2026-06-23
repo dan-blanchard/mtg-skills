@@ -6083,6 +6083,23 @@ def _effect_scope(eff: dict) -> str:
             return "you"
         if "opponent" in on or "target" in on:
             return "opp"
+        # ADR-0027 token-recipient scope. A ``Typed`` owner carries the recipient
+        # player on its ``controller`` field — phase emits
+        # ``owner={type:Typed, controller:Opponent}`` for "target opponent creates
+        # …" (Hunted Dragon, Phelddagrif, Clackbridge Troll, Forbidden Orchard,
+        # Generous Plunderer): the token goes to an OPPONENT, so it is removal /
+        # gift, NOT a token engine for you. ``controller:You`` → you. A non-
+        # you/opp controller (a ChosenPlayer / null — Gluntch, Mana Max) stays
+        # 'any' (CR 111.2: the token's creator is its owner). This is the
+        # _sacrifice_player_scope / _damage_recipient_is_player precedent for the
+        # ``make_token`` recipient. The phase-PARSE-ERROR subset (Akroan Horse,
+        # Captive Audience, Pursued Whale, Slaughter Specialist — "each opponent
+        # creates" mis-parsed by phase to owner={type:Controller}) is NOT fixable
+        # here; a narrow signals-side oracle veto drops those.
+        if on == "typed":
+            recipient = _controller(owner.get("controller"))
+            if recipient != "any":
+                return recipient
     # ADR-0027 scope='each' symmetric pass. A player_filter (DamageEachPlayer /
     # DamageAll — "deals N to each player / each opponent") or player_scope (Draw —
     # "each player draws") of All / Opponent names WHOM a symmetric effect
