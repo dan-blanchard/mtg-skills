@@ -1948,7 +1948,7 @@ def test_reclaim_owned_commander_opens_control_exchange():
                                     subject=Filter(
                                         card_types=("Creature",),
                                         controller="any",
-                                        predicates=("Owned",),
+                                        predicates=("Owned:you",),
                                     ),
                                     raw="exile up to one target creature you own",
                                 ),

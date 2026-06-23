@@ -1828,6 +1828,22 @@ _COST_TYPES = frozenset(
 )
 
 
+def _any_inzone_graveyard(node: object) -> bool:
+    """Whether ``node`` contains an ``{type:InZone, zone:Graveyard}`` property
+    anywhere in its subtree (a Craft ``ExileMaterials.materials`` Or filter whose
+    graveyard arm spends GY cards as fuel). A generic deep walk — the materials
+    filter nests filters within filters (Ore-Rich Stalactite: an Or of Ors)."""
+    if isinstance(node, dict):
+        if _norm(node.get("type")) == "inzone" and _norm(node.get("zone")) == (
+            "graveyard"
+        ):
+            return True
+        return any(_any_inzone_graveyard(v) for v in node.values())
+    if isinstance(node, list):
+        return any(_any_inzone_graveyard(x) for x in node)
+    return False
+
+
 def _cost_string(cost: object) -> str | None:
     """Normalized, comma-joined activation cost types (e.g. "sacrifice", "tap")."""
     seen: set[str] = set()
@@ -1868,6 +1884,22 @@ def _cost_string(cost: object) -> str | None:
                 if isinstance(inner, dict) and _norm(inner.get("origin")) == (
                     "graveyard"
                 ):
+                    seen.add("exilegrave")
+            elif t == "exilematerials":
+                # ADR-0027 (SIDECAR v39, MISS#5 / #23 Craft gap) — the CRAFT cost.
+                # phase models "Craft with <materials>" as an ``ExileMaterials`` cost
+                # whose ``materials`` is an ``Or`` filter, one arm of which is a
+                # graveyard card (``InZone:Graveyard`` — exile an Artifact card FROM
+                # your graveyard as the crafting material: Braided Net, Dire Flail,
+                # Ore-Rich Stalactite, …). That arm spends graveyard cards as fuel — a
+                # genuine graveyard-as-synergy payoff — so surface ``exilegrave`` (the
+                # same GY-fuel token the escape/Renew exile cost emits), routing the
+                # ~14 graveyard-Craft cards to graveyard_matters. A Craft whose
+                # materials are battlefield-only (no graveyard arm) stays unflagged.
+                # CR 702.171 (craft) / 406. The ``materials`` Or filter is NOT in the
+                # generic walk's cost-type table, so this branch is the only surface.
+                mats = node.get("materials")
+                if _any_inzone_graveyard(mats):
                     seen.add("exilegrave")
             elif t == "mana":
                 # Mana activation cost (CR 602.1a). Surface the bare `mana` token
@@ -3196,7 +3228,12 @@ def _zone_tags(eff: dict) -> tuple[str, ...]:
     # graveyard/hand zone-matters firing. ADR-0027 cheat_into_play.
     if _norm(eff.get("kept_destination")) == "battlefield":
         tags.append("to:battlefield")
-    for key in ("target", "filter", "affected", "target_filter"):
+    # ADR-0027 (SIDECAR v39, MISS#5) — `valid_card` joins the InZone-bearing keys: a
+    # TRIGGER subject Filter restricted to a zone ("whenever a card IN your graveyard
+    # is put into your hand" — Veteran Ghoulcaller). `_zone_tags` is called on the
+    # trigger dict too (an effect dict has no `valid_card`), so adding it here surfaces
+    # the trigger-subject zone the same way as an effect target/filter.
+    for key in ("target", "filter", "affected", "target_filter", "valid_card"):
         node = eff.get(key)
         if isinstance(node, dict):
             for prop in node.get("properties") or []:
@@ -6787,6 +6824,25 @@ def _counter_kind_token(raw: object) -> str:
     return norm or "Generic"
 
 
+def _owned_who(controller: object) -> str:
+    """Canonicalize a phase ``Owned.controller`` into the OWNERSHIP discriminant
+    the control_exchange / exile_removal lanes need: ``you`` vs ``opp``.
+
+    CR 108.3 (owner — the player who started the game with the card) is distinct
+    from CR 110.2/110.2a (controller — the player a permanent is put onto the
+    battlefield under). ``You`` is the only "I own it" half a self-exchange /
+    blink-your-own needs; every OTHER player tag (``Opponent`` and the
+    relative-player tags ``ScopedPlayer`` / ``TargetPlayer`` / ``ChosenPlayer``
+    — "their graveyard", "that player's", "the targeted opponent's") is "another
+    player owns it", which is theft / mass reanimation / a cast-from-exile cage,
+    NOT a self control-exchange. So everything not ``You`` canonicalizes to
+    ``opp`` (the single bit the consuming lanes read: own-yours vs own-theirs).
+    Oblivion Sower (``TargetPlayer`` — puts the TARGETED player's exiled lands
+    under YOUR control = theft/ramp) thus reads ``Owned:opp`` and stops firing
+    control_exchange."""
+    return "you" if _norm(controller) == "you" else "opp"
+
+
 def _predicate(p: object) -> str:
     if not isinstance(p, dict):
         return ""
@@ -6844,6 +6900,64 @@ def _predicate(p: object) -> str:
         if isinstance(kinds, list) and kinds:
             return "HasAnyAttachmentOf:" + "|".join(sorted(str(k) for k in kinds))
         return "HasAnyAttachmentOf"
+    # ADR-0027 (SIDECAR v39) — the OWNED arm (R2). phase's filter property is
+    # ``{type:Owned, controller:You|Opponent|ScopedPlayer|TargetPlayer|...}``;
+    # before this the controller was DROPPED (every Owned predicate collapsed to a
+    # bare "Owned"), so control_exchange ("exile a permanent YOU OWN, reclaim YOUR
+    # own") over-fired on theft / mass reanimation that exile cards ANOTHER player
+    # owns (Oblivion Sower's TargetPlayer lands, Living End / Scrap Mastery's
+    # ScopedPlayer "each player's graveyard", Rona's ScopedPlayer hand-exile cage).
+    # Emit ``Owned:you`` / ``Owned:opp`` (CR 108.3 owner ≠ CR 110.2 controller) so
+    # the lane reads only the half it needs. CR 108.3 / 110.2 / 110.2a.
+    if ptype == "Owned":
+        return f"Owned:{_owned_who(p.get('controller'))}"
+    # ADR-0027 (SIDECAR v39) — the CMC arm (P1). phase's filter property is
+    # ``{type:Cmc, comparator:LE|GE|EQ|LT|GT, value:{type:Fixed,value:N} | dynamic}``;
+    # before this the comparator collapsed to a bare "Cmc:N" (or "Cmc" when the
+    # value was dynamic), dropping the threshold DIRECTION. Emit
+    # ``Cmc:<CMP>:<N>`` (dynamic value → "*") so a future low_cmc / high_cmc lane
+    # reads its own direction (LE/LT = cheap payoff, GE/GT = expensive). No lane
+    # reads Cmc today — pure preservation, zero firing change. CR 202.3.
+    if ptype == "Cmc":
+        n = _scalar_value(p.get("value"))
+        return f"Cmc:{p.get('comparator')}:{n if n is not None else '*'}"
+    # ADR-0027 (SIDECAR v39) — the SHARESQUALITY arm (MISS#2). phase's filter
+    # property is ``{type:SharesQuality, quality:CreatureType|CardType|Color|
+    # LandType|Name, reference, relation}``; before this the quality was DROPPED
+    # (every SharesQuality collapsed to a bare "SharesQuality"), so a CreatureType
+    # tribal payoff (Coat of Arms, Call to the Kindred — "shares a creature type")
+    # was indistinguishable from a Color / Name / CardType match. Emit
+    # ``SharesQuality:<quality>`` so a tribal read can require ``CreatureType``.
+    # No lane reads it today — pure preservation. CR 700.10.
+    if ptype == "SharesQuality":
+        q = p.get("quality")
+        return f"SharesQuality:{q}" if q is not None else "SharesQuality"
+    # ADR-0027 (SIDECAR v39) — property-level AnyOf / Not (MISS#4). A disjunction /
+    # negation can appear as a PROPERTY (phase ``{type:AnyOf, props:[...]}`` for a
+    # color/type disjunction — Aether Gust's "red or green", a multi-color hoser —
+    # and ``{type:Not, filter:{...}}`` for a property-level negation). The
+    # type_filter-level recovery (_composite_predicates) never sees these (they ride
+    # `properties`, not `type_filters`), so they collapsed to a bare "AnyOf" / "Not".
+    # Recover the nested members so a color / type-disjunction subject read sees the
+    # arms: emit ``AnyOf:<m1>|<m2>`` from the member predicates and ``Not:<member>``
+    # from the negated inner filter's first predicate / type. CR 700.10.
+    if ptype == "AnyOf":
+        members = sorted(
+            m for m in (_predicate(x) for x in _as_list(p.get("props"))) if m
+        )
+        return "AnyOf:" + "|".join(members) if members else "AnyOf"
+    if ptype == "Not":
+        inner = p.get("filter")
+        if isinstance(inner, dict):
+            sub = _filter(inner)
+            if sub is not None:
+                member = (
+                    sub.predicates[0]
+                    if sub.predicates
+                    else (sub.card_types or sub.subtypes or ("?",))[0]
+                )
+                return f"Not:{member}"
+        return "Not"
     val = p.get("value")
     if isinstance(val, dict):
         val = val.get("value")

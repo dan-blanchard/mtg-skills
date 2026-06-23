@@ -19,6 +19,7 @@ from __future__ import annotations
 from mtg_utils._card_ir.project import (
     _collect_effects,
     _copied_type_from_text,
+    _cost_string,
     _counter_kind_token,
     _dig_player_scope,
     _discard_player_scope,
@@ -37,6 +38,7 @@ from mtg_utils._card_ir.project import (
     _narrow_token_subtype_makers,
     _narrow_trigger_other_refs,
     _norm_counter_kind,
+    _owned_who,
     _predicate,
     _project_effect,
     _project_replacement,
@@ -49,6 +51,7 @@ from mtg_utils._card_ir.project import (
     _sacrifice_grant_markers,
     _sacrifice_player_scope,
     _trigger_event,
+    _zone_tags,
     project_card,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity, Trigger
@@ -525,6 +528,210 @@ def test_filter_counters_predicate_round_trips_through_filter():
     )
     assert f is not None
     assert "Counters:P1P1:GE:1" in f.predicates
+
+
+# ── ADR-0027 v39: predicate-discriminant preservation arms ────────────────────
+
+
+def test_predicate_owned_arm_canonicalizes_controller():
+    """Owned carries its OWNER discriminant on `controller` (dropped pre-v39 to a
+    bare 'Owned'). You → Owned:you (a self-exchange); every other-player tag
+    (Opponent / ScopedPlayer / TargetPlayer / ChosenPlayer) → Owned:opp — theft /
+    mass reanimation / cast-from-exile cage, NOT own-yours. CR 108.3."""
+    assert _predicate({"type": "Owned", "controller": "You"}) == "Owned:you"
+    assert _predicate({"type": "Owned", "controller": "Opponent"}) == "Owned:opp"
+    # Oblivion Sower's TargetPlayer (the targeted opponent's exiled lands) and the
+    # each-player reanimators' ScopedPlayer both canonicalize away from 'you'.
+    assert _predicate({"type": "Owned", "controller": "TargetPlayer"}) == "Owned:opp"
+    assert _predicate({"type": "Owned", "controller": "ScopedPlayer"}) == "Owned:opp"
+    assert _predicate({"type": "Owned", "controller": "ChosenPlayer"}) == "Owned:opp"
+
+
+def test_owned_who_helper():
+    assert _owned_who("You") == "you"
+    assert _owned_who("Opponent") == "opp"
+    assert _owned_who("TargetPlayer") == "opp"
+    assert _owned_who(None) == "opp"
+
+
+def test_predicate_cmc_arm_keeps_comparator_and_threshold():
+    """Cmc carries comparator + threshold; pre-v39 it collapsed to 'Cmc:N' (or a
+    bare 'Cmc' when dynamic), dropping the DIRECTION. A dynamic value → '*'. No lane
+    reads Cmc yet — pure preservation. CR 202.3."""
+    assert (
+        _predicate(
+            {"type": "Cmc", "comparator": "LE", "value": {"type": "Fixed", "value": 6}}
+        )
+        == "Cmc:LE:6"
+    )
+    assert (
+        _predicate(
+            {"type": "Cmc", "comparator": "GE", "value": {"type": "Fixed", "value": 3}}
+        )
+        == "Cmc:GE:3"
+    )
+    # A dynamic (Ref) value — "cmc <= a counter count" — must read '*', never a fixed
+    # threshold (mirrors the dynamic-counter '*' policy).
+    assert (
+        _predicate(
+            {
+                "type": "Cmc",
+                "comparator": "EQ",
+                "value": {"type": "Ref", "qty": {"type": "CountersOn"}},
+            }
+        )
+        == "Cmc:EQ:*"
+    )
+
+
+def test_predicate_sharesquality_arm_keeps_quality():
+    """SharesQuality carries its quality (CreatureType / Color / Name / …) — pre-v39
+    collapsed to a bare 'SharesQuality', so a CreatureType tribal payoff (Coat of
+    Arms) was indistinguishable from a Color/Name match. CR 700.10."""
+    assert (
+        _predicate({"type": "SharesQuality", "quality": "CreatureType"})
+        == "SharesQuality:CreatureType"
+    )
+    assert (
+        _predicate({"type": "SharesQuality", "quality": "Color"})
+        == "SharesQuality:Color"
+    )
+    # A quality-less SharesQuality stays the bare token.
+    assert _predicate({"type": "SharesQuality"}) == "SharesQuality"
+
+
+def test_predicate_property_level_anyof_recovers_members():
+    """A property-level {AnyOf: props:[...]} (Aether Gust's "red or green") was
+    invisible to _composite_predicates (type_filter-only) and collapsed to a bare
+    'AnyOf'. Recover the member predicates as a sorted AnyOf:<m1>|<m2>. CR 700.10."""
+    assert (
+        _predicate(
+            {
+                "type": "AnyOf",
+                "props": [
+                    {"type": "HasColor", "color": "Red"},
+                    {"type": "HasColor", "color": "Green"},
+                ],
+            }
+        )
+        == "AnyOf:HasColor:Green|HasColor:Red"
+    )
+    assert _predicate({"type": "AnyOf", "props": []}) == "AnyOf"
+    # The recovered AnyOf lands on a real Filter's predicates (the read side).
+    f = _filter(
+        {
+            "type": "Typed",
+            "type_filters": ["Creature"],
+            "properties": [
+                {
+                    "type": "AnyOf",
+                    "props": [
+                        {"type": "HasColor", "color": "Red"},
+                        {"type": "HasColor", "color": "Green"},
+                    ],
+                }
+            ],
+        }
+    )
+    assert f is not None
+    assert "AnyOf:HasColor:Green|HasColor:Red" in f.predicates
+
+
+def test_predicate_property_level_not_recovers_member():
+    """A property-level {Not: filter:{...}} negation (pre-v39 a bare 'Not') recovers
+    the negated inner filter's discriminant as Not:<member>."""
+    assert (
+        _predicate(
+            {
+                "type": "Not",
+                "filter": {"type": "Typed", "type_filters": ["Creature"]},
+            }
+        )
+        == "Not:Creature"
+    )
+    # A Not over a property-bearing filter recovers that property as the member.
+    assert (
+        _predicate(
+            {
+                "type": "Not",
+                "filter": {
+                    "type": "Typed",
+                    "type_filters": [],
+                    "properties": [{"type": "HasColor", "color": "Blue"}],
+                },
+            }
+        )
+        == "Not:HasColor:Blue"
+    )
+
+
+# ── ADR-0027 v39: _zone_tags trigger-subject InZone scan (MISS#5) ─────────────
+
+
+def test_zone_tags_scans_trigger_valid_card_inzone():
+    """A trigger SUBJECT restricted IN a zone (Veteran Ghoulcaller — "whenever a card
+    in your graveyard is put into your hand") rides `valid_card`, which pre-v39
+    _zone_tags never scanned (only target/filter/affected/target_filter). It now
+    surfaces in:<zone>. MISS#5."""
+    trig = {
+        "valid_card": {
+            "type": "Typed",
+            "type_filters": ["Card"],
+            "properties": [{"type": "InZone", "zone": "Graveyard"}],
+        }
+    }
+    assert "in:graveyard" in _zone_tags(trig)
+    # An effect target's InZone still surfaces (the pre-existing keys are intact).
+    eff = {
+        "target": {
+            "type": "Typed",
+            "properties": [{"type": "InZone", "zone": "Exile"}],
+        }
+    }
+    assert "in:exile" in _zone_tags(eff)
+
+
+# ── ADR-0027 v39: Craft ExileMaterials graveyard cost → exilegrave (#23) ──────
+
+
+def _craft_cost(material_zones):
+    """A phase ExileMaterials cost whose materials Or-filter arms ride the given
+    InZone zones (mirrors Braided Net's "battlefield OR graveyard artifact")."""
+    return {
+        "type": "Composite",
+        "costs": [
+            {"type": "Mana", "cost": {"shards": ["Blue"], "generic": 1}},
+            {
+                "type": "ExileMaterials",
+                "materials": {
+                    "type": "Or",
+                    "filters": [
+                        {
+                            "type": "Typed",
+                            "type_filters": ["Card", "Artifact"],
+                            "properties": [{"type": "InZone", "zone": z}],
+                        }
+                        for z in material_zones
+                    ],
+                },
+            },
+        ],
+    }
+
+
+def test_cost_string_craft_graveyard_materials_emits_exilegrave():
+    """A Craft cost whose materials include a graveyard arm (exile an Artifact card
+    FROM your graveyard as fuel — Braided Net) emits `exilegrave`, routing the card
+    to graveyard_matters via the existing exilegrave consumer. CR 702.171 / 406."""
+    parts = (_cost_string(_craft_cost(["Battlefield", "Graveyard"])) or "").split(",")
+    assert "exilegrave" in parts
+
+
+def test_cost_string_craft_battlefield_only_materials_no_exilegrave():
+    """A Craft cost with battlefield-only materials (no graveyard arm — Eye of Ojer
+    Taq) stays unflagged: no graveyard fuel, no exilegrave."""
+    parts = (_cost_string(_craft_cost(["Battlefield"])) or "").split(",")
+    assert "exilegrave" not in parts
 
 
 # ── composite filters: negation / disjunction become predicates, not types ────

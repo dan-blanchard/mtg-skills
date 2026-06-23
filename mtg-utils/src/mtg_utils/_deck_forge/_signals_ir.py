@@ -5917,13 +5917,6 @@ def _ir_damage_reaches_player(e: Effect) -> bool:
 # OPPOSITE and must NOT fire. (CR 205.4a.)
 _LEGENDARY_DESTROY_PRED = "HasSupertype:Legendary"
 
-# ADR-0027 mass_bounce — the predicates a board-wide bounce subject may carry while
-# still being a full board sweep (vs a single-target rider): "all OTHER permanents",
-# "all NONLAND permanents". A graveyard-recursion subject ("return all creature
-# cards from graveyards" — Garna, Empty the Catacombs) carries InZone/Owned and is
-# EXCLUDED — that is recursion, not a board bounce.
-_MASS_BOUNCE_ZONE_PREDS = frozenset({"InZone", "Owned"})
-
 
 def _is_mass_bounce_subject(f: object) -> bool:
     """The board-wide bounce subject (ADR-0027 mass_bounce): a generic Creature /
@@ -5934,7 +5927,7 @@ def _is_mass_bounce_subject(f: object) -> bool:
     bounce. The mass discriminator (counter_kind=='all') is applied by the caller."""
     if not isinstance(f, Filter):
         return False
-    if _MASS_BOUNCE_ZONE_PREDS & set(f.predicates):
+    if "InZone" in f.predicates or _has_owned(f):
         return False
     return "Creature" in f.card_types or "Permanent" in f.card_types
 
@@ -5953,6 +5946,21 @@ def _fsubs_lower(f: object) -> frozenset[str]:
 
 def _has_predicate(f: object, pred: str) -> bool:
     return isinstance(f, Filter) and pred in f.predicates
+
+
+def _has_owned(f: object, who: str | None = None) -> bool:
+    """Whether ``f`` carries an ``Owned:<who>`` predicate (ADR-0027 v39, R2). With
+    ``who`` None, ANY ownership tag (``Owned:you`` / ``Owned:opp``) matches — the
+    "this subject is restricted by who OWNS it" tell (graveyard recursion, a
+    control-reset). With ``who`` set, only that ownership half matches:
+    ``who='you'`` is the self-exchange / blink-your-own discriminant (CR 108.3 owner
+    ≠ CR 110.2 controller). The pre-v39 bare ``Owned`` token is gone — readers must
+    go through this so a qualified ``Owned:opp`` (Oblivion Sower's theft, Living
+    End's each-player reanimation) no longer reads as own-yours."""
+    if not isinstance(f, Filter):
+        return False
+    want = f"Owned:{who}" if who else None
+    return any(p == want if want else p.startswith("Owned:") for p in f.predicates)
 
 
 def _hoses_a_color(f: object) -> bool:
@@ -7980,9 +7988,10 @@ def extract_signals_ir(
                 # which the Owned-subject tell marks. The old blanket _DOER_EFFECT_KEYS
                 # entry fired gain_control on those give-away/reset directions; this
                 # gated arm replaces it.
-                returns_own = (
-                    isinstance(e.subject, Filter) and "Owned" in e.subject.predicates
-                )
+                # A control-RESET subject ("each player gains control of permanents
+                # they OWN" — Brooding Saurian, ScopedPlayer) — ANY ownership tag is
+                # the reset tell (v39: Owned:you / Owned:opp), not theft. CR 110.2a.
+                returns_own = _has_owned(e.subject)
                 gives_away = bool(_GIVE_CONTROL_AWAY.search(e.raw or ""))
                 if not is_donate and not returns_own and not gives_away:
                     add("gain_control", "you", "", e.raw)
@@ -8107,10 +8116,15 @@ def extract_signals_ir(
             # SAME ability keeps a bare exile-you-own from leaking. Distinct from a
             # plain blink (which says "you control" → no Owned predicate) and from
             # gain_control theft (a sibling lane).
+            # v39 (R2): require Owned:YOU — exiling a permanent ANOTHER player owns
+            # and returning it is NOT a self-exchange. Oblivion Sower (Owned:opp /
+            # TargetPlayer — the targeted opponent's exiled lands onto the battlefield
+            # under YOUR control = theft/ramp) and the each-player mass reanimators
+            # (Living End / Living Death / Scrap Mastery — Owned:opp / ScopedPlayer)
+            # and Rona's hand-exile cage (Owned:opp / ScopedPlayer) drop out. CR 108.3.
             if (
                 cat == "exile"
-                and isinstance(e.subject, Filter)
-                and "Owned" in e.subject.predicates
+                and _has_owned(e.subject, "you")
                 and any("to:battlefield" in z for sib in ab.effects for z in sib.zones)
             ):
                 add("control_exchange", "you", "", e.raw)
@@ -8162,11 +8176,13 @@ def extract_signals_ir(
                 cat == "exile"
                 and ftypes & _PERMANENT_TYPES
                 and e.counter_kind != "all"
+                # v39 (R2): the blink tell is exiling YOUR OWN (Owned:you) or a
+                # you-controller subject — Cloudshift, Kaya's -2. An Owned:opp exile
+                # (theft / Oblivion Sower's TargetPlayer lands) is NOT blink-your-own,
+                # so it stays eligible for single-target exile removal. CR 108.3.
                 and not (
-                    isinstance(e.subject, Filter)
-                    and (
-                        "Owned" in e.subject.predicates or e.subject.controller == "you"
-                    )
+                    _has_owned(e.subject, "you")
+                    or (isinstance(e.subject, Filter) and e.subject.controller == "you")
                 )
                 and not any("graveyard" in z or "hand" in z for z in e.zones)
                 and not sib_returns
@@ -8685,10 +8701,15 @@ def extract_signals_ir(
         # from a self-graveyard "put into YOUR graveyard" engine (trg.scope=='you'/'any'
         # → the self-graveyard default). _gy_trigger_scope mirrors _gy_scope on the
         # Trigger. CR 400.7 / 701.17a.
+        # v39 (MISS#5): also fire on a trigger SUBJECT restricted IN a graveyard
+        # ('in:graveyard' from the valid_card InZone scan — "whenever a card in your
+        # graveyard is …", Veteran Ghoulcaller). A subject-in-GY trigger is a
+        # self-graveyard payoff exactly like a from:/to:graveyard movement.
         trg = ab.trigger
         if trg is not None and (
             "from:graveyard" in trg.zones
             or ("to:graveyard" in trg.zones and "from:battlefield" not in trg.zones)
+            or "in:graveyard" in trg.zones
         ):
             add("graveyard_matters", _gy_trigger_scope(trg), "", "")
         # Cost-based lanes (Ability.cost — a sacrifice OUTLET vs a sac effect).

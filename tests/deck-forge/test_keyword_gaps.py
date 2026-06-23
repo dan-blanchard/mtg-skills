@@ -277,7 +277,7 @@ class TestForetellMatters:
                             factor=1,
                             subject=Filter(
                                 card_types=("Card",),
-                                predicates=("Foretold", "Owned", "InZone"),
+                                predicates=("Foretold", "Owned:you", "InZone"),
                             ),
                         ),
                         raw="+1/+1 for each foretold card you own in exile",

@@ -2568,7 +2568,7 @@ _CASES: dict[str, tuple[dict, Card]] = {
                             factor=2,
                             subject=Filter(
                                 card_types=("Card",),
-                                predicates=("Foretold", "Owned", "InZone"),
+                                predicates=("Foretold", "Owned:you", "InZone"),
                             ),
                         ),
                         raw="gain 2 life for each foretold card you own in exile",
@@ -4594,7 +4594,7 @@ _CASES: dict[str, tuple[dict, Card]] = {
                         subject=Filter(
                             card_types=("Creature",),
                             controller="any",
-                            predicates=("Owned",),
+                            predicates=("Owned:you",),
                         ),
                         raw="exile up to one target creature you own",
                     ),

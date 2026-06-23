@@ -424,7 +424,36 @@ from mtg_utils.card_ir import Card
 #   phase's direct `Modified` predicate (phase DERIVES the union itself). CR 122.1 /
 #   122.1a / 122.3 (counters individuated, +1/+1 vs -1/-1 distinct and opposed) / 700.9
 #   (modified) / 301.5 / 303.4 / 701.34a (proliferate — kind-agnostic).
-SIDECAR_VERSION = 38
+# v39 (ADR-0027 predicate-discriminant preservation — project.py `_predicate`
+#   Owned/Cmc/SharesQuality/AnyOf/Not arms + `_zone_tags` trigger-subject scan +
+#   `_cost_string` Craft-materials GY tag): every structured property carrying its
+#   discriminant on a field OTHER than `value` fell through to a bare `str(ptype)`,
+#   DROPPING the discriminant. New arms:
+#     - OWNED (R2): `{type:Owned, controller:You|Opponent|ScopedPlayer|TargetPlayer}`
+#       → `Owned:you` / `Owned:opp` (CR 108.3 owner ≠ CR 110.2 controller). The
+#       consuming lanes now read the qualified token: control_exchange requires
+#       `Owned:you` (a self-exchange), exile_removal's blink-exclusion excludes only
+#       `Owned:you`. Oblivion Sower (TargetPlayer → Owned:opp = theft/ramp), the
+#       each-player mass reanimators (Living End/Death, Scrap Mastery — ScopedPlayer)
+#       and Rona's hand-cage (ScopedPlayer) STOP firing control_exchange.
+#     - CMC (P1): `{type:Cmc, comparator, value}` → `Cmc:<CMP>:<N>` (dynamic → "*").
+#       NO lane reads Cmc — pure preservation, zero firing change.
+#     - SHARESQUALITY (MISS#2): `{type:SharesQuality, quality}` → `SharesQuality:
+#       <quality>` (CreatureType/CardType/Color/LandType/Name) so a tribal read can
+#       require CreatureType. No lane reads it — preservation.
+#     - property-level ANYOF / NOT (MISS#4): a `properties`-level `{type:AnyOf,
+#       props:[...]}` / `{type:Not, filter:{...}}` (Aether Gust's "red or green")
+#       was invisible to `_composite_predicates` (type_filter-only). Now recovered as
+#       `AnyOf:<m1>|<m2>` / `Not:<member>`.
+#   `_zone_tags` adds `valid_card` to the InZone-bearing keys → a trigger subject
+#   restricted IN a graveyard ("a card in your graveyard is …" — Veteran
+#   Ghoulcaller) surfaces `in:graveyard`, read by the trigger-zone gy_matters arm.
+#   `_cost_string` surfaces `exilegrave` for a Craft `ExileMaterials` cost whose
+#   materials Or-filter has an `InZone:Graveyard` arm (Braided Net/Dire Flail —
+#   exile a GY card as crafting fuel), routing the ~14 graveyard-Craft cards to
+#   graveyard_matters via the existing exilegrave consumer. CR 108.3 / 110.2 /
+#   110.2a / 202.3 / 700.10 / 702.171 (craft) / 406.
+SIDECAR_VERSION = 39
 
 
 def card_ir_dir() -> Path:
