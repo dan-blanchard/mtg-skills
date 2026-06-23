@@ -2537,22 +2537,15 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "any",
     ),
-    # ADR-0027 β — creature_ping + damage_equal_power kept mirrors. The structural
-    # recipient/doer arm in extract_signals_ir (the op="power" damage anchor) is the
-    # broader-and-correct producer; these byte-identical mirrors of the EXACT deleted
-    # SWEEP regexes recover the projection-gap tail phase can't reach (emblem-quoted
-    # grants, dungeon-room rows, "Chapter 3" / empty-raw effects, cards with no
-    # op="power" projected). Verified byte-identical over the commander-legal corpus:
-    # the mirror (full-text over kept_oracle) reproduces the regex path's firing set
-    # exactly (creature_ping 120==120, damage_equal_power 173==173, full-only==0,
-    # regex-only==0; per-clause is also exact, the regexes' `[^.]*` arms never cross a
-    # sentence). scope "you" matches the deleted SWEEP rows so the firing identity is
-    # byte-identical. add() dedups the overlap with the structural arm. CR 119.3.
-    (
-        "creature_ping",
-        re.compile(CREATURE_PING_REGEX, re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 — damage_equal_power kept mirror. The creature_ping mirror is DELETED:
+    # the structural arm in extract_signals_ir reads the whole op=="power"/"multiply"
+    # damage structure phase emits (with an oracle recipient fallback for the recipient
+    # phase drops on empty / "Chapter N" raw), so creature_ping no longer needs a
+    # regex word-mirror. damage_equal_power keeps its mirror here (out of scope for
+    # this change) — a byte-identical mirror of the EXACT deleted SWEEP regex,
+    # recovering the projection-gap tail phase can't reach. scope "you" matches the
+    # deleted SWEEP row so the firing identity is byte-identical; add() dedups the
+    # overlap with the structural arm. CR 119.3.
     (
         "damage_equal_power",
         re.compile(DAMAGE_EQUAL_POWER_REGEX, re.IGNORECASE),
@@ -4704,6 +4697,39 @@ _POWER_SELF_RECIP = re.compile(r"to itself|deals damage to itself", re.IGNORECAS
 # power") naming a DIFFERENT object never matches — those are damage_equal_power, where
 # the spell / sacrificed creature is the source, not a controlled-creature ping.
 _POWER_ITS_OWN_DOER = re.compile(r"deals damage equal to its power", re.IGNORECASE)
+# _POWER_MULT_DOER — a creature dealing a MULTIPLE of ITS OWN power ("deals damage
+# equal to TWICE its power" — Animist's Might, Polliwallop, Duggan; "to itself equal
+# to its power … twice that much" — Cut Propulsion). phase folds the doubling into a
+# damage Effect with amount.op=="multiply" (dropping the "power" op), so the
+# op=="multiply" anchor needs this power-confirm to admit only genuine power-scaling
+# pings and exclude the "twice the NUMBER of <X>" multiply burns (Price of Progress,
+# Wing Storm — a different scaling quantity, not the creature's own power). CR 120.1.
+_POWER_MULT_DOER = re.compile(
+    r"(?:deals damage (?:to itself )?equal to (?:twice |\w+ times )?its power"
+    r"|to itself equal to its power)",
+    re.IGNORECASE,
+)
+# Oracle-text fallbacks for the recipient phase DROPS on some power-as-damage cards
+# (op=="power" with subject=None + empty raw — Judgment of Alexander; a "Chapter N"
+# placeholder raw — The Akroan War). The per-effect raw carries no recipient, so the
+# arm reads these CLAUSE-BOUNDED discriminators (the EXACT deleted-mirror patterns)
+# over the reminder-stripped face oracle — gated behind the IR power-damage anchor, so
+# they only run for the structurally-confirmed card, never as a free oracle scan. They
+# are clause-local (a creature-recipient / player-recipient phrase right after the
+# "equal to its power" clause), so a sibling "to you" prevention rider doesn't leak.
+_CREATURE_PING_ORACLE = re.compile(CREATURE_PING_REGEX, re.IGNORECASE)
+_DAMAGE_EQUAL_POWER_ORACLE = re.compile(DAMAGE_EQUAL_POWER_REGEX, re.IGNORECASE)
+# A "Chapter N" placeholder raw (a Saga chapter row phase stamps with no recipient
+# text) is NOT a meaningful per-effect raw — route it to the oracle fallback.
+_POWER_CHAPTER_RAW = re.compile(r"^Chapter \d+$")
+
+
+def _power_oracle(card: dict) -> str:
+    """The card's reminder-stripped joined-face oracle — the recipient-text source for
+    a power-as-damage Effect whose per-effect raw phase dropped (op=="power"/"multiply"
+    with empty / "Chapter N" raw). Same reminder strip the kept-detector pass uses."""
+    return re.sub(r"\([^)]*\)", " ", get_oracle_text(card) or "")
+
 
 # ADR-0027 — direct_damage / symmetric_damage_each share the v22 damage Effect.
 # direct_damage = a source that CAN deal damage to a PLAYER (CR 120.1 / 115.4 — "any
@@ -6656,9 +6682,29 @@ def extract_signals_ir(
         #     is a Player Filter, OR raw player-reach — "to any target", "to (target)
         #     player", "to each opponent", "to its controller", "to you", "any other
         #     target", "player or planeswalker"). Fling-style sac-to-power fires this,
-        #     not creature_ping. The byte-identical _IR_KEPT_DETECTORS mirror recovers
-        #     the projection-gap tail (emblems, dungeon rooms, empty raw, no-op cards).
-        # CR 119.3 (damage) / 120.6 (life loss) / 701.12 (fight).
+        #     not creature_ping.
+        # ADR-0027 — the structural arm reads the WHOLE structure phase emits (the
+        # kept regex mirror is DELETED). Two widenings close the arm_gap it covered:
+        #   (1) op=="multiply" anchor — the power-DOUBLING form ("equal to TWICE its
+        #       power"; a "deals twice that much" doubler folds op→multiply, dropping
+        #       the "power" op): Animist's Might, Polliwallop, Duggan, Cut Propulsion.
+        #       Same lane (a creature dealing a multiple of ITS OWN power), gated by
+        #       _POWER_MULT_DOER so the "twice the NUMBER of <X>" multiply burns never
+        #       enter. (+3 genuine creature_ping the narrow "equal to its power" mirror
+        #       UNDER-fired — recall gain, not over-fire.)
+        #   (2) oracle recipient fallback — phase drops the recipient subject to
+        #       None + the raw to empty (Judgment of Alexander) / a "Chapter N"
+        #       placeholder (The Akroan War), so the per-effect raw carries no
+        #       recipient. There the arm reads the CLAUSE-BOUNDED creature/player
+        #       recipient discriminators (the deleted mirror's exact patterns) over
+        #       the reminder-stripped face oracle — gated behind the IR power-damage
+        #       anchor, never a free scan.
+        # One mirror card stays UNrecovered: Throw from the Saddle — phase folds its
+        # "Then it deals damage equal to its power" clause into a pump_target Effect and
+        # emits NO power-damage Effect at all (a projection gap, not an arm_gap), so
+        # there is no structural anchor to read; recovering it needs a phase/supplement
+        # projection fix, out of scope for this signals-only change. CR 119.3 (damage) /
+        # 120.6 (life loss) / 701.14 (fight).
         _has_creature_doer_sibling = any(
             e2.category in ("target_only", "fight")
             and isinstance(e2.subject, Filter)
@@ -6669,7 +6715,7 @@ def extract_signals_ir(
             if not (
                 e.category == "damage"
                 and e.amount is not None
-                and e.amount.op == "power"
+                and e.amount.op in ("power", "multiply")
             ):
                 continue
             raw = e.raw or ""
@@ -6678,15 +6724,35 @@ def extract_signals_ir(
                 isinstance(recip, Filter) and "Creature" in recip.card_types
             )
             recip_player = isinstance(recip, Filter) and "Player" in recip.card_types
-            if (
-                recip_creature
-                or _POWER_SELF_RECIP.search(raw)
-                or _has_creature_doer_sibling
-                or _POWER_ITS_OWN_DOER.search(raw)
-            ):
-                add("creature_ping", "you", "", raw)
-            if recip_player or _POWER_PLAYER_RECIP.search(raw):
-                add("damage_equal_power", "you", "", raw)
+            # The per-effect raw carries the recipient/doer text in the common case; it
+            # is non-meaningful only when phase left it empty or a "Chapter N" Saga
+            # placeholder, where the arm falls back to the reminder-stripped oracle.
+            raw_meaningful = bool(raw.strip()) and _POWER_CHAPTER_RAW.match(raw) is None
+            recip_src = raw if raw_meaningful else _power_oracle(card)
+            # op=="multiply" is the power-DOUBLING form: admit only when the source
+            # confirms the doubled quantity is the doer's OWN power (not "twice the
+            # number of <X>").
+            if e.amount.op == "multiply" and not _POWER_MULT_DOER.search(recip_src):
+                continue
+            if raw_meaningful:
+                if (
+                    recip_creature
+                    or _POWER_SELF_RECIP.search(raw)
+                    or _has_creature_doer_sibling
+                    or _POWER_ITS_OWN_DOER.search(raw)
+                ):
+                    add("creature_ping", "you", "", raw)
+                if recip_player or _POWER_PLAYER_RECIP.search(raw):
+                    add("damage_equal_power", "you", "", raw)
+            else:
+                if (
+                    recip_creature
+                    or _has_creature_doer_sibling
+                    or _CREATURE_PING_ORACLE.search(recip_src)
+                ):
+                    add("creature_ping", "you", "", recip_src)
+                if recip_player or _DAMAGE_EQUAL_POWER_ORACLE.search(recip_src):
+                    add("damage_equal_power", "you", "", recip_src)
         for e in ab.effects:
             # creatures_matter = a go-wide/scaling lane: a count operand over your
             # creatures (any effect), OR an anthem buffing them (a pump's affected
