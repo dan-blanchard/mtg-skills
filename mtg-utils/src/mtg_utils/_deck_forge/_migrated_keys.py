@@ -5632,6 +5632,43 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # bare "exile target card from a graveyard" rider). voltron_matters 3010 by set
         # equality. CR 400.7 / 701.17a.
         "graveyard_matters",
+        # ADR-0027 clone copied-type subject (SIDECAR v30, Cluster B — subject
+        # retention) — clone_matters (a permanent that itself becomes / enters as a copy
+        # of another creature; CR 707.1). PROJECTION (behavior-neutral, drift 0): the
+        # supplement's _CLONE_STATIC / _BECOMES re-tag now populates
+        # subject=_copied_type_from_text(raw) on a clone effect it recovers from an
+        # `other` clause (Clone, Body Double, Phyrexian Metamorph — the project-side
+        # _recover_clone_subjects ran pre-supplement and never saw these, dropping the
+        # copied type on ~49 creature-copies). WIRE (signals-only). The lane unions a
+        # STRUCTURAL arm (cat=='clone' → _clone_copy_lanes over the now-populated
+        # copied-type subject — fires the broad "becomes a copy of target creature"
+        # family of triggered / activated / sorcery clones the narrow ETB-only regex
+        # missed: Cytoshape, Oko, Lazav, Sunfrill Imitator's Dinosaur subtype) UNION a
+        # byte-identical kept WORD MIRROR (the COMBINED deleted regex — the _DETECTORS
+        # "becomes a copy" entry plus the SWEEP "enter as a copy" widen, pinned as
+        # CLONE_MATTERS_REGEX, flat over the reminder- stripped kept_oracle) recovering
+        # the 54 cards phase under-structures (no clone effect — Spark Double, Stunt
+        # Double, Mockingbird; or a rider-swallowed category) or that copy a
+        # NON-creature (Copy Artifact / Copy Enchantment / Copy Land — the regex fired
+        # clone_matters regardless of copied type). A TOKEN-copy clone (Mirror Match —
+        # "create a token that's a copy") is VETOED in the structural arm: it's the
+        # separate token_copy_matters lane (Dan's clone-vs-token-copy boundary).
+        # Residual (commander-legal, floor-disabled, by oracle_id): both 83, ir_only 2
+        # (Metamorphic Alteration Aura clone + Mirror Match — vetoed, dropped to 1
+        # genuine), regex_only 54 (all recovered byte-identically). The TWO membership
+        # clone-TARGET cross-opens (the legendary recurring-value engine + the high-CMC
+        # ETB/dies tell — copying the COMMANDER forks its engine / re-fires its trigger)
+        # are reproduced in extract_signals_ir's include_membership block (LOW conf,
+        # byte-identical, reusing _PER_TURN_ENGINE_RE / _TAP_ABILITY_RE / _MANA_TAP_RE /
+        # _self_etb_value / _self_dies_value). VOLTRON. The deleted _DETECTORS producer
+        # fired HIGH-confidence scope 'you' and fed has_other_plan (a clone commander —
+        # Lazav, Vesuvan Doppelganger — is no vanilla beater); the IR re-supply is
+        # BROADER (+1 Metamorphic Alteration), so a byte-identical
+        # _CLONE_MATTERS_PLAN_MIRROR (the EXACT COMBINED deleted regex) is OR'd into
+        # has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS. The membership cross-opens
+        # fired LOW and never fed has_other_plan. voltron_matters 3010 by set equality.
+        # CR 707.1 / 707.2.
+        "clone_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

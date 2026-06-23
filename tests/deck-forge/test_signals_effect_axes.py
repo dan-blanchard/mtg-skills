@@ -42,11 +42,10 @@ CASES = [
     # of the deleted _HAND_FLOOR producer + the _IR_KEYWORD_MAP['shadow'] recall arm), so
     # it no longer fires on the regex path tested here — its IR path is proven in
     # test_migrated_keys and test_cant_be_blocked_is_evasion (hybrid).
-    (
-        "clone_matters",
-        "you",
-        "This creature enters the battlefield as a copy of target creature.",
-    ),
+    # ADR-0027 v30: clone_matters migrated to the Card IR (a cat=='clone' structural arm
+    # on the supplement-populated copied-type subject + a byte-identical CLONE_MATTERS_
+    # REGEX kept WORD MIRROR), so it no longer fires on the regex path tested here — its
+    # IR path is proven in test_migrated_keys and test_clone_still_fires (hybrid).
     (
         "cheat_into_play",
         "you",

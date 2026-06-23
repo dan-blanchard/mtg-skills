@@ -1591,6 +1591,37 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # clone_matters ← a `clone` EFFECT whose copied-type subject is a Creature (Cytoshape
+    # projects BecomeCopy → clone with subject=Filter(card_types=('Creature',)) once the
+    # supplement / project populates the copied type). The structural arm fires
+    # clone_matters at _clone_copy_lanes(e.subject) scope "you". The deleted DETECTOR +
+    # SWEEP regex no longer emit it; the broad "becomes a copy" recall the regex caught
+    # rides the byte-identical _CLONE_MATTERS_MIRROR kept detector. ADR-0027 (SIDECAR v30,
+    # Cluster B — subject retention). CR 707.1 / 707.2.
+    "clone_matters": (
+        {
+            "name": "Cytoshape",
+            "type_line": "Instant",
+            "oracle_text": (
+                "Choose a nonlegendary creature on the battlefield. Target creature "
+                "becomes a copy of that creature until end of turn."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="clone",
+                        scope="you",
+                        subject=Filter(card_types=("Creature",)),
+                        raw="Target creature becomes a copy of that creature until "
+                        "end of turn.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

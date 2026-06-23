@@ -440,6 +440,20 @@ SYMMETRIC_STAX_REGEX = (
 # (Embalm/Eternalize/Offspring/Double-team) the reminder-stripped regex excludes.
 # CR 702.95 / 707.
 TOKEN_COPY_MATTERS_REGEX = "tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of|create a token that's a copy|\\bpopulate\\b|twice that many[^.]*tokens?"
+# ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters migrated to the Card
+# IR. This is the COMBINED deleted regex — the _DETECTORS "becomes a copy" entry UNION
+# the deleted SWEEP widen above — pinned byte-identically so the serve spec, the
+# _CLONE_MATTERS_MIRROR kept detector (_signals_ir), and the _CLONE_MATTERS_PLAN_MIRROR
+# voltron gate (_signals_regex) all share ONE source. Matched reminder-STRIPPED: a
+# permanent that itself becomes / enters as a copy (CR 707.1) — the structural arm
+# (cat=='clone') supplies the broad "becomes a copy of target creature" recall on top,
+# this mirror recovers the 54 cards phase under-structures / mis-categorizes / copies a
+# non-creature. The two `[^.]*` arms never cross a clause on the commander-legal corpus,
+# so flat-over-kept_oracle == the deleted per-clause firing EXACTLY (137 → 137, 0 miss /
+# 0 extra). The token-copy phrase ("create a token that's a copy") is deliberately
+# EXCLUDED — that's the separate token_copy_matters lane (Dan's clone-vs-token-copy
+# boundary). CR 707.1 / 707.2.
+CLONE_MATTERS_REGEX = "becomes? a copy of|enters [^.]*as a copy of|enter (?:the battlefield )?as a copy of|may have [^.]*enter as a copy|create a copy of the card|is a copy of (?:that|the chosen) card"
 
 # ADR-0027: tokens_matter migrated to the Card IR via a kept-mirror — the UNION of the
 # two deleted _HAND_FLOOR producers is pinned here byte-identically so the
@@ -2391,12 +2405,25 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "card_draw_engine",
         "regex": "draw a card for each|draw cards equal to the number of|draws? (?:a card |cards )?for each",
     },
-    {
-        "key": "clone_matters",
-        "scope": "you",
-        "is_widen_of": "clone_matters",
-        "regex": "enter (?:the battlefield )?as a copy of|may have [^.]*enter as a copy|create a copy of the card|is a copy of (?:that|the chosen) card",
-    },
+    # ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters migrated to the
+    # Card IR. Detection moves to a STRUCTURAL arm (cat=='clone' → _clone_copy_lanes(
+    # e.subject) over the now-populated copied-type subject — supplement._copied_type_
+    # from_text on the _CLONE_STATIC / _BECOMES re-tag) UNION a byte-identical kept WORD
+    # MIRROR of the COMBINED deleted regex (the _DETECTORS "becomes a copy" entry + this
+    # SWEEP widen, pinned below as CLONE_MATTERS_REGEX). The structural arm fires the
+    # broad "becomes a copy of target creature" family the narrow ETB-only regex missed
+    # (triggered/activated/sorcery clones — Cytoshape, Oko, Lazav, Sunfrill Imitator's
+    # Dinosaur); the mirror recovers the 54 cards phase under-structures (mis-categorizes
+    # the "enter as a copy" clause to state/grant_keyword off a rider, or emits nothing —
+    # Spark Double, Stunt Double, Mockingbird) or copies a non-creature (Copy Artifact —
+    # the regex fires clone_matters regardless of copied type). The regex survives as a
+    # shared constant so signal_specs hand-registers the serve pool reusing it AND the
+    # kept mirror (_CLONE_MATTERS_MIRROR in _signals_ir) reuses it — serve / mirror /
+    # (now-deleted) detector never drift. This SWEEP row is deleted (SWEEP floor 18→17).
+    # The two membership cross-opens (legendary recurring-value engine + high-CMC ETB/
+    # dies — both clone-TARGET tells) are reproduced in extract_signals_ir's
+    # include_membership block (LOW conf, byte-identical, reusing the same helpers). CR
+    # 707.1 / 707.2 (a copy takes the copiable values incl. card type).
     # ADR-0027 β: cost_reduction migrated to the Card IR — the structural arm in
     # _signals_ir.extract_signals_ir (the projection's static ModifyCost{Reduce} +
     # screened named `reducenextspellcost` Effects) plus a NARROWED _COST_REDUCER_MIRROR

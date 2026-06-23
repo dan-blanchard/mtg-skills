@@ -109,10 +109,11 @@ def test_exile_removal_separate_from_destroy():
 def test_token_copy_does_not_fire_clone():
     c = {"name": "X", "oracle_text": "Create a token that's a copy of target creature."}
     # ADR-0027 β: token_copy_matters is IR-served (a byte-identical kept-mirror), so it
-    # comes through the hybrid path; clone_matters stays regex-served and must NOT fire
-    # on token-copy phrasing.
+    # comes through the hybrid path. ADR-0027 v30: clone_matters is now ALSO IR-served
+    # (the kept mirror over kept_oracle excludes the token-copy phrase), so it must NOT
+    # fire on token-copy phrasing in the hybrid path either.
     assert "token_copy_matters" in _keys_hybrid(c)
-    assert "clone_matters" not in _keys(c)
+    assert "clone_matters" not in _keys_hybrid(c)
 
 
 def test_clone_still_fires():
@@ -120,7 +121,9 @@ def test_clone_still_fires():
         "name": "X",
         "oracle_text": "You may have this creature enter as a copy of any creature.",
     }
-    assert "clone_matters" in _keys(c)
+    # ADR-0027 v30: clone_matters migrated to the Card IR — it now fires from the hybrid
+    # path (the byte-identical _CLONE_MATTERS_MIRROR over kept_oracle), not pure regex.
+    assert "clone_matters" in _keys_hybrid(c)
 
 
 # #6 "attacks each combat if able" is a forced-attack requirement, not evasion.

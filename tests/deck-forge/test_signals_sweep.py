@@ -120,8 +120,16 @@ def test_sweep_detectors_loaded():
     # supplement-recovered topdeck_select Effect carry WHOSE library/hand it examines so
     # the controller's own scry/surveil/look-at-top selection 'you' is the lane, while an
     # opponent-library / target-player-library / opponent-hand peek 'opp' and the Morph
-    # face-down reveal (re-categorized to `reveal`) are excluded; CR 116 / 701.18 / 701.42).
-    assert len(SWEEP_DETECTORS) >= 15
+    # face-down reveal (re-categorized to `reveal`) are excluded; CR 116 / 701.18 / 701.42),
+    # then 15→14 as clone_matters' row was deleted (ADR-0027 SIDECAR v30 clone copied-type
+    # subject — migrated to a cat=='clone' structural arm reading the supplement-populated
+    # copied-type subject UNION a byte-identical CLONE_MATTERS_REGEX kept word mirror (the
+    # COMBINED deleted _DETECTORS + SWEEP regex) in signals._IR_KEPT_DETECTORS; the v30
+    # projection makes the supplement's _CLONE_STATIC / _BECOMES re-tag populate the copied
+    # permanent type so the structural arm fires the broad "becomes a copy of target
+    # creature" family, while a token-copy clone is vetoed to the separate
+    # token_copy_matters lane; CR 707.1 / 707.2).
+    assert len(SWEEP_DETECTORS) >= 14
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

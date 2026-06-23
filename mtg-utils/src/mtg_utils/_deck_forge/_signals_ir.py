@@ -31,10 +31,13 @@ from mtg_utils._deck_forge._signals_regex import (
     _FLOOR_DETECTORS,
     _IMPULSE_TOP_PLAY_SWEEP_RE,
     _KEYWORD_SOUP_CONTEXT_RE,
+    _MANA_TAP_RE,
+    _PER_TURN_ENGINE_RE,
     _PLAY_FROM_TOP_FLOOR_MIRROR,
     _PLAY_FROM_TOP_MIRROR,
     _PRESET_KEYWORD_SIGNALS,
     _SELF_BLINK_SWEEP_RE,
+    _TAP_ABILITY_RE,
     _TOPDECK_SELECTION_SWEEP_RE,
     _XSPELL_HOOK_RE,
     _XSPELL_VETO_RE,
@@ -54,6 +57,8 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_voltron_payoff_ir,
     _graveyard_matters_clauses,
     _resolve_subject,
+    _self_dies_value,
+    _self_etb_value,
     _type_hoser_clause,
     self_power_scale_match,
 )
@@ -68,6 +73,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ARTIFACTS_MATTER_REGEX,
     ATTACK_MATTERS_REGEX,
     CAST_FROM_EXILE_REGEX,
+    CLONE_MATTERS_REGEX,
     CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
@@ -2557,6 +2563,28 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "scaling_pump",
         re.compile(SCALING_PUMP_SWEEP_REGEX, re.IGNORECASE),
+        "you",
+    ),
+    # ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters BYTE-IDENTICAL
+    # kept WORD MIRROR — the COMBINED deleted regex (the _DETECTORS "becomes a copy"
+    # entry plus the SWEEP "enter as a copy" widen, pinned as CLONE_MATTERS_REGEX),
+    # scope 'you'. The structural cat=='clone' arm (above, reading the
+    # supplement-populated copied-type subject) supplies the broad "becomes a copy of
+    # target creature" recall (Cytoshape, Oko, Lazav, Sunfrill Imitator's Dinosaur — +2
+    # ir_only the regex missed); this mirror recovers the 54 cards phase
+    # under-structures (no clone effect — Spark Double, Stunt Double, Mockingbird; a
+    # rider-swallowed category — Dack's Duplicate) or that copy a NON-creature (Copy
+    # Artifact / Copy Enchantment / Copy Land — the regex fired clone_matters regardless
+    # of copied type). The two `[^.]*` arms never cross a clause on the corpus, so
+    # flat-over-kept_oracle == the deleted per-clause firing EXACTLY (commander-legal:
+    # both 83, ir_only 2, regex_only 54 — all recovered byte-identically by this mirror;
+    # union(struct | mirror) == 139 == the deleted producer 137 plus the 2 genuine
+    # ir_only). The token-copy clone (Mirror Match) is vetoed in the structural arm, NOT
+    # here — the mirror's CLONE_MATTERS_REGEX already excludes "create a token that's a
+    # copy". CR 707.1 / 707.2.
+    (
+        "clone_matters",
+        re.compile(CLONE_MATTERS_REGEX, re.IGNORECASE),
         "you",
     ),
 )
@@ -5444,6 +5472,13 @@ _COPY_TYPE_LANES: dict[str, str] = {
     "Land": "copy_land",
     "Planeswalker": "copy_planeswalker",
 }
+# ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters migrated to the Card
+# IR. A TOKEN-copy clone ("create a token that's a copy" — Mirror Match, CR 707.1) is
+# the separate token_copy_matters lane (Dan's clone-vs-token-copy boundary, the deleted
+# DETECTOR's own comment), so the structural cat=='clone' arm vetoes it. The byte-
+# identical kept WORD MIRROR of the COMBINED deleted regex (CLONE_MATTERS_REGEX) lives
+# in _IR_KEPT_DETECTORS above (compiled inline there — it predates this module section).
+_CLONE_TOKEN_COPY_VETO = re.compile(r"create[sd]? [^.]*token[^.]*cop", re.IGNORECASE)
 
 
 def _clone_copy_lanes(f: object, vocab: frozenset[str]) -> tuple[str, ...]:
@@ -6838,11 +6873,20 @@ def extract_signals_ir(
                 add("mana_amplifier", "you", "", e.raw)
             if cat == "blink":
                 add("blink_flicker", "you", "", e.raw)
-            # clone_matters (creatures) + per-permanent-type copy lanes. The copied
-            # type (from BecomeCopy's target, incl. an Or-composite like Spark Double's
+            # clone_matters (creatures) + per-permanent-type copy lanes. The copied type
+            # (from BecomeCopy's target, incl. an Or-composite like Spark Double's
             # Creature-or-Planeswalker) drives the hierarchy: a generic Permanent copy
             # feeds copy_permanent + every type lane. Spell-copy is a separate lane.
-            if cat == "clone":
+            # ADR-0027 v30 (clone_matters MIGRATED): the copied-type subject is now
+            # populated by the supplement (_copied_type_from_text on the _CLONE_STATIC /
+            # _BECOMES re-tag), so this structural arm fires clone_matters for the broad
+            # "becomes a copy of target creature" family (triggered / activated /
+            # sorcery clones — Cytoshape, Oko, Lazav, Sunfrill Imitator's Dinosaur) the
+            # narrow ETB-only regex missed. A clone effect whose raw is a TOKEN-copy
+            # ("create a token that's a copy" — Mirror Match, CR 707.1) belongs to the
+            # separate token_copy_matters lane (Dan's deliberate clone vs token-copy
+            # boundary, the deleted DETECTOR's own comment), so it is vetoed here.
+            if cat == "clone" and not _CLONE_TOKEN_COPY_VETO.search(e.raw or ""):
                 for key in _clone_copy_lanes(e.subject, vocab):
                     add(key, "you", "", e.raw)
             # spell-copy (Twincast, Fork — "copy target spell") is a SEPARATE lane
@@ -9516,6 +9560,39 @@ def extract_signals_ir(
             and sum(1 for rx in _EVERGREEN_KW_RE if rx.search(kept_oracle)) >= 5
         ):
             add("keyword_soup_matters", "you", "", kept_oracle[:160], "low")
+        # ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters migrated to
+        # the Card IR. Reproduce the two clone-TARGET membership cross-opens the deleted
+        # regex path emitted (both LOW conf, scope 'you', byte-identical, reusing the
+        # SAME helpers). They open the clone support package when the COMMANDER is
+        # itself a worth-copying target — a property of the commander, not every
+        # creature in the 99 (so include_membership-gated; the deck-aggregate path
+        # passes False). (1) A LEGENDARY creature whose value is a REPEATABLE engine (a
+        # per-turn triggered ability or a non-mana tap-activated ability) is a clone
+        # target — copying it forks the engine and the copy dodges the legend rule
+        # (Obeka, Koma, Linessa). "legendary" + "creature" (not contiguous) so a
+        # Legendary ENCHANTMENT/ARTIFACT/SNOW Creature (Go-Shintai, the gods) qualifies.
+        # Matched against `kept_oracle` (the regex path's reminder-stripped `text`,
+        # byte-identical). CR 704.5j / 707.1.
+        if "legendary" in type_line and "creature" in type_line:
+            is_engine = bool(_PER_TURN_ENGINE_RE.search(kept_oracle)) or (
+                bool(_TAP_ABILITY_RE.search(kept_oracle))
+                and not (
+                    _MANA_TAP_RE.search(kept_oracle) and kept_oracle.count("{T}") == 1
+                )
+            )
+            if is_engine:
+                add("clone_matters", "you", "", kept_oracle[:160], "low")
+        # (2) A HIGH-CMC commander (mana value >= 5) with a strong ETB or DEATH trigger
+        # is worth COPYING — a clone re-fires the expensive ETB on a cheap body (Gyruda)
+        # or the death trigger when the copy dies (Keiga, Kokusho — sac-loop). Reuse the
+        # self-ETB / self-dies clauses (the SHORT name Scryfall prints). CR 603.6 /
+        # 707.1.
+        if (card.get("cmc") or 0) >= 5:
+            clone_clause = _self_etb_value(kept_oracle, name) or _self_dies_value(
+                kept_oracle, name
+            )
+            if clone_clause is not None:
+                add("clone_matters", "you", "", clone_clause, "low")
         # Own-subtype tribal membership (a creature's own race) + named-token
         # tribes — a clean type_line / all_parts field-lookup. Class tribes
         # (Soldier/Cleric) open only behind a go-wide signal; race tribes open

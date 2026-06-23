@@ -18,7 +18,11 @@ from __future__ import annotations
 import re
 from dataclasses import replace
 
-from mtg_utils._card_ir.supplement import recover_effect_from_text, supplement_card
+from mtg_utils._card_ir.supplement import (
+    _copied_type_from_text,
+    recover_effect_from_text,
+    supplement_card,
+)
 from mtg_utils.card_ir import (
     Ability,
     Card,
@@ -1844,29 +1848,11 @@ def _cost_string(cost: object) -> str | None:
     return ",".join(sorted(seen)) or None
 
 
-# Copied-type words, in priority order (Permanent last so a specific type wins).
-_COPY_TYPE_WORDS: tuple[tuple[str, str], ...] = (
-    ("creature", "Creature"),
-    ("artifact", "Artifact"),
-    ("enchantment", "Enchantment"),
-    ("planeswalker", "Planeswalker"),
-    ("land", "Land"),
-    ("permanent", "Permanent"),
-)
-
-
-def _copied_type_from_text(raw: str) -> Filter | None:
-    """The copied permanent type from a clone clause — the word right after "copy of"
-    ("becomes a copy of target CREATURE" → Creature; "of any creature or planeswalker"
-    → both). None when "copy of" is followed by a typeless referent ("copy of that
-    card") — those fall back to the ability's sibling/trigger target."""
-    low = raw.lower()
-    i = low.find("copy of")
-    if i < 0:
-        return None
-    seg = low[i : i + 60]
-    types = tuple(title for word, title in _COPY_TYPE_WORDS if word in seg)
-    return Filter(card_types=types) if types else None
+# _copied_type_from_text / _COPY_TYPE_WORDS moved to supplement.py (ADR-0027 v30) so the
+# supplement's _CLONE_STATIC / _BECOMES re-tag can populate the copied-type subject on a
+# clone effect it recovers from an `other` clause (supplement.py can't import project.py
+# — that back-edge is a cycle). Re-imported here for the pre-supplement clone recovery
+# below and the existing test consumer.
 
 
 def _recover_clone_subjects(ability: Ability) -> Ability:

@@ -30,6 +30,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ANIMATE_ARTIFACT_REGEX,
     ARTIFACTS_MATTER_REGEX,
     ATTACK_MATTERS_REGEX,
+    CLONE_MATTERS_REGEX,
     CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
@@ -1973,8 +1974,8 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # ADR-0027 β: untap_engine migrated to the Card IR — this _HAND_FLOOR producer
-    # (the "untap target/all/each/two/up to" engine anchor) and the creatures-are-lands
+    # ADR-0027 β: untap_engine migrated to the Card IR — this _HAND_FLOOR producer (the
+    # "untap target/all/each/two/up to" engine anchor) and the creatures-are-lands
     # producer below are deleted. The lane fires from a refined structural arm in
     # extract_signals_ir (mass untap counter_kind=='all' + raw "untap target/.." + a
     # multi/X-target untap of a permanent type you can control, all gated against the
@@ -1986,35 +1987,33 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # reminder-stripped joined-face `text`) re-supplies that voltron silence — NOT
     # _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm is BROADER (+12 ir_only) and would
     # over-silence those recall-gain bodies. The serve spec (signal_specs.py, a
-    # standalone _spec on untap effects) survives. CR 701.16 / 903.10a.
-    # ADR-0027 β: gain_control migrated to the Card IR — this _DETECTORS producer (the
-    # bare `gain control of` literal, pinned now as GAIN_CONTROL_REGEX in
-    # _sweep_detectors) is deleted. The lane fires from a GATED structural arm in
-    # extract_signals_ir (cat=='gain_control' excl donate / Owned-return / give-away — a
-    # +85 recall-gaining superset that catches the "you control enchanted creature" /
-    # "control target player" / "exchange control" theft the bare regex MISSED and drops
-    # the you-own-reset / can't-gain-protection / own-recovery over-fires it caught)
-    # PLUS
-    # a NARROWED _GAIN_CONTROL_MIRROR (the 9 genuine theft phase emits no category for,
-    # vetoed per-clause). The deleted producer fired HIGH-confidence (scope 'you')
-    # and counted toward has_other_plan, so a _GAIN_CONTROL_PLAN_MIRROR (below) re-
-    # supplies the voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm
-    # is BROADER (+85) and the silencing-keys path would over-silence those recall-gain
+    # standalone _spec on untap effects) survives. CR 701.16 / 903.10a. ADR-0027 β:
+    # gain_control migrated to the Card IR — this _DETECTORS producer (the bare `gain
+    # control of` literal, pinned now as GAIN_CONTROL_REGEX in _sweep_detectors) is
+    # deleted. The lane fires from a GATED structural arm in extract_signals_ir
+    # (cat=='gain_control' excl donate / Owned-return / give-away — a +85 recall-gaining
+    # superset that catches the "you control enchanted creature" / "control target
+    # player" / "exchange control" theft the bare regex MISSED and drops the
+    # you-own-reset / can't-gain-protection / own-recovery over-fires it caught) PLUS a
+    # NARROWED _GAIN_CONTROL_MIRROR (the 9 genuine theft phase emits no category for,
+    # vetoed per-clause). The deleted producer fired HIGH-confidence (scope 'you') and
+    # counted toward has_other_plan, so a _GAIN_CONTROL_PLAN_MIRROR (below) re- supplies
+    # the voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm is
+    # BROADER (+85) and the silencing-keys path would over-silence those recall-gain
     # bodies. The LOW-conf `dont_own` cross-open below + the theft_matters sibling are
     # reconciled in signals.py against the MERGED key set. The serve spec (signal_specs)
-    # survives. CR 800.4a / 720.1 / 903.10a.
-    # ADR-0027: opponent_discard migrated to the Card IR — this _HAND_FLOOR producer
-    # (the "(each|target|that) player/opponent discards" hand-attack forcer OR the
-    # "opponent discarded a card this turn" / "whenever an opponent discards" payoff)
-    # is DELETED. It fires from a structural arm (a `discard` EFFECT scope == "opp",
-    # +7 genuine recall) PLUS a byte-identical _OPPONENT_DISCARD_MIRROR kept-mirror in
-    # signals._IR_KEPT_DETECTORS (the EXACT deleted regex) for the directed/symmetric
-    # forcers phase scopes 'any'/'you' and the "whenever an opponent discards" payoffs
-    # phase emits a `discarded` TRIGGER for. The serve spec stays hand-registered in
-    # signal_specs.py; the deleted producer fed has_other_plan (HIGH-confidence, scope
-    # 'opponents'), so its voltron silence is restored by _OPPONENT_DISCARD_PLAN_MIRROR
-    # below. DISJOINT from discard_matters (the SELF-discard `discarded`-TRIGGER scope
-    # != 'opp' lane). CR 701.8a / 903.10a.
+    # survives. CR 800.4a / 720.1 / 903.10a. ADR-0027: opponent_discard migrated to the
+    # Card IR — this _HAND_FLOOR producer (the "(each|target|that) player/opponent
+    # discards" hand-attack forcer OR the "opponent discarded a card this turn" /
+    # "whenever an opponent discards" payoff) is DELETED. It fires from a structural arm
+    # (a `discard` EFFECT scope == "opp", +7 genuine recall) PLUS a byte-identical
+    # _OPPONENT_DISCARD_MIRROR kept-mirror in signals._IR_KEPT_DETECTORS (the EXACT
+    # deleted regex) for the directed/symmetric forcers phase scopes 'any'/'you' and the
+    # "whenever an opponent discards" payoffs phase emits a `discarded` TRIGGER for. The
+    # serve spec stays hand-registered in signal_specs.py; the deleted producer fed
+    # has_other_plan (HIGH-confidence, scope 'opponents'), so its voltron silence is
+    # restored by _OPPONENT_DISCARD_PLAN_MIRROR below. DISJOINT from discard_matters
+    # (the SELF-discard `discarded`-TRIGGER scope != 'opp' lane). CR 701.8a / 903.10a.
     # ADR-0027 β: damage_to_opp_matters migrated to the Card IR. This HAND_FLOOR
     # producer (a "whenever ~ deals (noncombat) damage to a PLAYER / opponent"
     # connect-payoff — ANY damage, not the literal "combat damage" the combat_* keys
@@ -2031,49 +2030,57 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # bodies). The exact regex is pinned as DAMAGE_TO_OPP_MATTERS_REGEX
     # (_sweep_detectors), shared by the mirror, the plan-mirror, and the hand-registered
     # serve. Distinct from combat_damage_to_opp (already migrated 42f6d81 — the literal
-    # "combat damage to a player" recipient). CR 119.3.
-    # ADR-0027: permanent_etb migrated to the Card IR — an `etb` Trigger whose subject
-    # Filter carries the 'Permanent' card_type and controller=='you' (Amareth, the
-    # canonical card). The structural IR is BROADER-and-correct: it catches the
-    # "a/another permanent you control enters" variants the narrow word-order regex
-    # missed (Cloudstone Curio, Kodama, Yoshimaru, Builder's Talent). NOT in
-    # _IR_FLOOR_LANES; this _HAND_FLOOR producer is deleted; the serve spec stays.
-    # ADR-0027: evasion_self migrated to the Card IR. Evasion is a blocking RESTRICTION
-    # (CR 509.1b); landwalk (CR 702.14) is conditional unblockable-by-that-land-type
-    # evasion, and the keyword-only evasion words (horsemanship 702.31, menace 702.111,
-    # fear 702.36, intimidate 702.13, skulk 702.118) carry their "can't be blocked …"
-    # only in reminder text (stripped here), so the bare keyword survived (Guan Yu's
-    # horsemanship). phase v0.1.19 structures "This creature can't be blocked" only as a
-    # GENERIC `restriction` Effect (Slither Blade — shared with stax/"can't block"/tax,
-    # too broad to key the lane off), and a true mass CantBeBlockedBy grant becomes a
-    # `grant_keyword`(counter_kind "unblockable") — neither is a clean SELF-evasion arm.
-    # So the lane rides a BYTE-IDENTICAL kept WORD MIRROR of this EXACT deleted producer
+    # "combat damage to a player" recipient). CR 119.3. ADR-0027: permanent_etb migrated
+    # to the Card IR — an `etb` Trigger whose subject Filter carries the 'Permanent'
+    # card_type and controller=='you' (Amareth, the canonical card). The structural IR
+    # is BROADER-and-correct: it catches the "a/another permanent you control enters"
+    # variants the narrow word-order regex missed (Cloudstone Curio, Kodama, Yoshimaru,
+    # Builder's Talent). NOT in _IR_FLOOR_LANES; this _HAND_FLOOR producer is deleted;
+    # the serve spec stays. ADR-0027: evasion_self migrated to the Card IR. Evasion is a
+    # blocking RESTRICTION (CR 509.1b); landwalk (CR 702.14) is conditional
+    # unblockable-by-that-land-type evasion, and the keyword-only evasion words
+    # (horsemanship 702.31, menace 702.111, fear 702.36, intimidate 702.13, skulk
+    # 702.118) carry their "can't be blocked …" only in reminder text (stripped here),
+    # so the bare keyword survived (Guan Yu's horsemanship). phase v0.1.19 structures
+    # "This creature can't be blocked" only as a GENERIC `restriction` Effect (Slither
+    # Blade — shared with stax/"can't block"/tax, too broad to key the lane off), and a
+    # true mass CantBeBlockedBy grant becomes a `grant_keyword`(counter_kind
+    # "unblockable") — neither is a clean SELF-evasion arm. So the lane rides a
+    # BYTE-IDENTICAL kept WORD MIRROR of this EXACT deleted producer
     # (_EVASION_SELF_REGEX, pinned below) run FLAT over the reminder-stripped
     # kept_oracle in _signals_ir._IR_KEPT_DETECTORS — no `[^.]*` arm, so flat ==
-    # per-clause. The IR
-    # re-supply is BROADER (+36): _IR_KEYWORD_MAP['shadow'] (CR 702.28) credits the
-    # Shadow tribes (Dauthi/Soltari/Thalakos) via the precise Scryfall keyword[] array,
-    # which the regex deliberately EXCLUDED (shadow collides with card-name self-refs:
-    # "Whenever Shadow the Hedgehog…"). Shadow is genuine hard evasion — recall, not
-    # over-fire. Commander-legal, floor-disabled, by oracle_id: both==1426, ir_only==36
-    # (all genuine Shadow keyword carriers), regex_only==0. Because the deleted producer
-    # fired HIGH-confidence scope 'you' and fed has_other_plan, and the IR re-supply is
-    # BROADER, a byte-identical _EVASION_SELF_PLAN_MIRROR (the EXACT deleted regex)
-    # restores the voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS, which would
-    # over-silence the 36 Shadow bodies. The hand-written serve spec (signal_specs.py)
-    # survives. CR 509.1b / 702.14 / 702.28.
-    (
-        # Clone = a permanent that itself becomes/enters as a copy (CR 707). Drop the
-        # bare "copy of target creature" branch — it bleeds into the token-copy phrase
-        # "create a token that's a copy of target creature" (that's token_copy_matters).
-        # "becomes?" catches the bare infinitive ("have Gogo become a copy of …").
-        "clone_matters",
-        re.compile(
-            r"becomes? a copy of|enters [^.]*as a copy of",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # per-clause. The IR re-supply is BROADER (+36): _IR_KEYWORD_MAP['shadow'] (CR
+    # 702.28) credits the Shadow tribes (Dauthi/Soltari/Thalakos) via the precise
+    # Scryfall keyword[] array, which the regex deliberately EXCLUDED (shadow collides
+    # with card-name self-refs: "Whenever Shadow the Hedgehog…"). Shadow is genuine hard
+    # evasion — recall, not over-fire. Commander-legal, floor-disabled, by oracle_id:
+    # both==1426, ir_only==36 (all genuine Shadow keyword carriers), regex_only==0.
+    # Because the deleted producer fired HIGH-confidence scope 'you' and fed
+    # has_other_plan, and the IR re-supply is BROADER, a byte-identical
+    # _EVASION_SELF_PLAN_MIRROR (the EXACT deleted regex) restores the voltron silence —
+    # NOT _VOLTRON_SILENCING_PLAN_KEYS, which would over-silence the 36 Shadow bodies.
+    # The hand-written serve spec (signal_specs.py) survives. CR 509.1b / 702.14 /
+    # 702.28. ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters migrated
+    # to the Card IR. The supplement now populates the copied-type subject
+    # (_copied_type_from_ text on the _CLONE_STATIC / _BECOMES re-tag), so a
+    # cat=='clone' STRUCTURAL arm in extract_signals_ir fires clone_matters for the
+    # broad "becomes a copy of target creature" family (triggered/activated/sorcery
+    # clones — Cytoshape, Oko, Lazav, Sunfrill Imitator's Dinosaur) the narrow ETB-only
+    # patterns missed, UNION a byte- identical _CLONE_MATTERS_MIRROR (the COMBINED
+    # deleted regex — this _DETECTORS entry plus the SWEEP widen, pinned as
+    # CLONE_MATTERS_REGEX) over the reminder-stripped kept_oracle for the 54 cards phase
+    # under-structures (Spark Double / Stunt Double / Mockingbird — no clone effect) or
+    # that copy a non-creature (Copy Artifact — the regex fired clone_matters regardless
+    # of copied type). A token-copy clone ("create a token that's a copy" — Mirror
+    # Match) is vetoed in the structural arm (the separate token_copy_matters lane). The
+    # two membership cross-opens (the legendary recurring- value engine + the high-CMC
+    # ETB/dies clone-TARGET tells) are reproduced in extract_signals_ir's
+    # include_membership block (LOW conf, byte-identical). This _DETECTORS entry is
+    # deleted; the deleted producer fired HIGH-confidence scope 'you' and fed
+    # has_other_plan, so a byte-identical _CLONE_MATTERS_PLAN_MIRROR (below) — NOT
+    # _VOLTRON_SILENCING_PLAN_KEYS — restores the voltron silence (the IR re-supply is
+    # BROADER: +1 Metamorphic Alteration the regex's "card"/"becomes" arms missed). CR
+    # 707.1 / 707.2.
     (
         "cheat_into_play",
         re.compile(
@@ -3215,6 +3222,20 @@ _VARIABLE_PT_PLAN_MIRROR = re.compile(VARIABLE_PT_SWEEP_REGEX, re.IGNORECASE)
 # "twice that many … tokens" arm never crosses a sentence, so full-text == per-clause.
 # FILE-SWAP NO-FLOOD: voltron byte-identical (0 gained / 0 lost). CR 903.10a / 702.95.
 _TOKEN_COPY_MATTERS_PLAN_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
+# ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters' voltron silence is
+# re-supplied via this byte-identical PLAN mirror (the EXACT COMBINED deleted regex,
+# CLONE_MATTERS_REGEX), NOT _VOLTRON_SILENCING_PLAN_KEYS. The deleted HIGH-confidence
+# _DETECTORS producer (scope 'you') fed has_other_plan (a clone commander — Lazav,
+# Vesuvan Doppelganger — is no vanilla voltron beater), and the migrated IR re-supply is
+# BROADER (the structural arm adds +1 Metamorphic Alteration the regex's
+# "card"/"becomes" arms missed), so _VOLTRON_SILENCING_PLAN_KEYS would over-silence that
+# new body. Matched against the reminder-STRIPPED `text`: the deleted producer ran
+# per-clause over reminder- stripped clauses, and the two `[^.]*` arms never cross a
+# sentence on the corpus, so flat over `text` == per-clause == the deleted producer's
+# 137-card silence set EXACTLY. The membership cross-opens fired LOW (never fed
+# has_other_plan), so no re-supply for those. FILE-SWAP NO-FLOOD: voltron byte-identical
+# (0 gained / 0 lost). CR 903.10a / 707.1.
+_CLONE_MATTERS_PLAN_MIRROR = re.compile(CLONE_MATTERS_REGEX, re.IGNORECASE)
 # ADR-0027: tokens_matter's voltron silence is re-supplied via
 # _VOLTRON_SILENCING_PLAN_KEYS (signals.py), NOT a byte-identical PLAN mirror here. A
 # pure oracle mirror would go BLIND on the 3 vanilla mobilize-KEYWORD bodies (Dragonback
@@ -5194,25 +5215,16 @@ def extract_signals(
     # scope 'you', LOW conf — it fired LOW and never fed has_other_plan, so NO voltron
     # silencing entry is needed (the silence gate is confidence=='high'), matching the
     # land_destruction precedent. The serve spec stays hand-registered in
-    # signal_specs.py. CR 106.4.
-    # A LEGENDARY creature whose value is a REPEATABLE engine (a per-turn triggered
-    # ability, or a non-mana tap-activated ability) is itself a clone target: copying it
-    # forks the engine and the copy dodges the legend rule. "Clone your engine" is
-    # standard for recurring-value legendaries (Obeka, Koma, Linessa) — Dan's call.
-    # Membership-only, low confidence: a commander-level suggestion, never a property of
-    # every creature in the 99 (so the deck-aggregate path with include_membership=False
-    # doesn't flood every engine creature's clone avenue).
-    # "legendary" + "creature" (not the contiguous "legendary creature") so a Legendary
-    # ENCHANTMENT/ARTIFACT/SNOW Creature (Go-Shintai, Thassa, the gods) — still a
-    # legendary creature, just with an intervening card type — is eligible too.
-    _tl = type_line.lower()
-    if include_membership and "legendary" in _tl and "creature" in _tl:
-        is_engine = bool(_PER_TURN_ENGINE_RE.search(text)) or (
-            bool(_TAP_ABILITY_RE.search(text))
-            and not (_MANA_TAP_RE.search(text) and text.count("{T}") == 1)
-        )
-        if is_engine:
-            add("clone_matters", "you", "", text[:160], "low")
+    # signal_specs.py. CR 106.4. ADR-0027 clone copied-type subject (SIDECAR v30):
+    # clone_matters migrated to the Card IR. The legendary-recurring-value-engine
+    # clone-TARGET cross-open (a LEGENDARY creature whose value is a REPEATABLE engine —
+    # a per-turn triggered ability or a non-mana tap-activated ability — is itself a
+    # clone target: copying it forks the engine and the copy dodges the legend rule;
+    # "Clone your engine" for Obeka / Koma / Linessa, Dan's call) is RE-HOMED to
+    # extract_signals_ir's include_membership block, reusing the SAME
+    # _PER_TURN_ENGINE_RE / _TAP_ABILITY_RE / _MANA_TAP_RE helpers byte-identically (LOW
+    # conf, scope 'you'). This regex emission is deleted so the regex path no longer
+    # produces the migrated key. The helpers STAY (imported by the IR path). CR 707.1.
 
     # Full-text detectors: trigger→payoff patterns that span a sentence boundary, so
     # the per-clause loop above can't see both halves (Roon, Norin, Aurelia, Alpharael).
@@ -5307,15 +5319,16 @@ def extract_signals(
         etb_clause = _self_etb_value(text, name)
         if etb_clause is not None:
             add("blink_flicker", "you", "", etb_clause, "low")
-        # A HIGH-CMC commander with a strong ETB or DEATH trigger is worth COPYING — a
-        # clone/token copy re-fires the expensive ETB on a cheap body (Gyruda) or the
-        # death trigger when the copy dies (Keiga, Kokusho — sac-loop staple). Gate on
-        # mana value >= 5 (copying a cheap trigger isn't worth a clone). Reuse the
-        # self-ETB/dies clauses so the SHORT name Scryfall prints matches.
-        if (card.get("cmc") or 0) >= 5:
-            clone_clause = etb_clause or _self_dies_value(text, name)
-            if clone_clause is not None:
-                add("clone_matters", "you", "", clone_clause, "low")
+        # ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters migrated to
+        # the Card IR. The high-CMC ETB/dies clone-TARGET cross-open (a mana value >= 5
+        # commander with a strong ETB or DEATH trigger is worth COPYING — a clone
+        # re-fires the expensive ETB on a cheap body, Gyruda, or the death trigger when
+        # the copy dies, Keiga / Kokusho sac-loop) is RE-HOMED to extract_signals_ir's
+        # include_membership block, reusing the SAME _self_etb_value / _self_dies_value
+        # helpers byte-identically (LOW conf, scope 'you'). This regex emission is
+        # deleted so the regex path no longer produces the migrated key; the
+        # blink_flicker emission above (NOT migrated) stays and keeps computing
+        # etb_clause. CR 707.1.
 
     # Voltron fallback (membership; commander damage, CR 903.10a): only when nothing
     # else gave a strong direction and the creature is a real commander-damage threat
@@ -6139,6 +6152,18 @@ def extract_signals(
         # `;`/newline that _clauses splits on, so flat != per-clause; the deleted
         # producer ran per-clause over the same stripped text). CR 111.2 / 701.6.
         or any(_TOKEN_MAKER_PLAN_MIRROR.search(cl) for cl in _clauses(text))
+        # ADR-0027 clone copied-type subject (SIDECAR v30): re-silence the deleted
+        # clone_matters _DETECTORS producer (it fired HIGH-confidence scope 'you',
+        # feeding has_other_plan — a clone commander, Lazav / Vesuvan Doppelganger, is
+        # no vanilla commander-damage beater). The migrated IR re-supply is BROADER (the
+        # structural arm adds +1 Metamorphic Alteration the regex missed), so
+        # _VOLTRON_SILENCING_ PLAN_KEYS would over-silence it; this byte-identical
+        # mirror (the EXACT COMBINED deleted regex) restores ONLY the old regex's
+        # 137-card silence set (voltron stays 3010 by set equality). Flat over the
+        # reminder-STRIPPED `text` == per-clause (the two `[^.]*` arms never cross a
+        # sentence on the corpus). The membership cross- opens fired LOW and never fed
+        # has_other_plan, so no re-supply for those. CR 903.10a / 707.1.
+        or _CLONE_MATTERS_PLAN_MIRROR.search(text)
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)

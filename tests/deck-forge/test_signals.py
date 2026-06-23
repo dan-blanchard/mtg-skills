@@ -1233,7 +1233,9 @@ def test_high_cmc_etb_commander_opens_clone():
         "cmc": 6.0,
         "oracle_text": "Companion — Your starting deck contains only cards with even mana values. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)\nWhen Gyruda enters, each player mills four cards. Put a creature card with an even mana value from among the milled cards onto the battlefield under your control.",
     }
-    assert ("clone_matters", "you") in _keys(gyruda)
+    # ADR-0027 v30: clone_matters migrated — the high-CMC ETB clone-TARGET membership
+    # cross-open is reproduced in the IR path, so assert via the hybrid path.
+    assert ("clone_matters", "you") in _keys_hybrid(gyruda)
 
 
 def test_cheap_etb_or_expensive_vanilla_does_not_open_clone():
@@ -1251,8 +1253,10 @@ def test_cheap_etb_or_expensive_vanilla_does_not_open_clone():
         "cmc": 8.0,
         "oracle_text": "Trample",
     }
-    assert ("clone_matters", "you") not in _keys(cheap)
-    assert ("clone_matters", "you") not in _keys(vanilla)
+    # ADR-0027 v30: clone_matters migrated — assert via the hybrid path (the membership
+    # gate now lives in extract_signals_ir).
+    assert ("clone_matters", "you") not in _keys_hybrid(cheap)
+    assert ("clone_matters", "you") not in _keys_hybrid(vanilla)
 
 
 def test_high_cmc_dies_trigger_commander_opens_clone():
@@ -1272,8 +1276,10 @@ def test_high_cmc_dies_trigger_commander_opens_clone():
         "oracle_text": "Flying\nWhen Kokusho dies, each opponent loses 5 life. You "
         "gain life equal to the life lost this way.",
     }
-    assert ("clone_matters", "you") in _keys(keiga)
-    assert ("clone_matters", "you") in _keys(kokusho)
+    # ADR-0027 v30: clone_matters migrated — the high-CMC dies clone-TARGET membership
+    # cross-open is reproduced in the IR path, so assert via the hybrid path.
+    assert ("clone_matters", "you") in _keys_hybrid(keiga)
+    assert ("clone_matters", "you") in _keys_hybrid(kokusho)
 
 
 def test_cheap_dies_trigger_does_not_open_clone():
@@ -1284,7 +1290,8 @@ def test_cheap_dies_trigger_does_not_open_clone():
         "cmc": 2.0,
         "oracle_text": "When this creature dies, create a 2/2 black Zombie creature token.",
     }
-    assert ("clone_matters", "you") not in _keys(cheap)
+    # ADR-0027 v30: clone_matters migrated — assert via the hybrid path.
+    assert ("clone_matters", "you") not in _keys_hybrid(cheap)
 
 
 def test_land_enter_punisher_opens_burn_lane():

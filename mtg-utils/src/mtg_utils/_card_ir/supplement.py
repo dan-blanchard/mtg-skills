@@ -931,6 +931,31 @@ _CLONE_STATIC = re.compile(
     r"\b(?:is|are|enters?|enter) (?:as )?(?:a )?copy of\b|\bas a copy of\b",
     re.IGNORECASE,
 )
+# Copied-type words, in priority order (Permanent last so a specific type wins).
+_COPY_TYPE_WORDS: tuple[tuple[str, str], ...] = (
+    ("creature", "Creature"),
+    ("artifact", "Artifact"),
+    ("enchantment", "Enchantment"),
+    ("planeswalker", "Planeswalker"),
+    ("land", "Land"),
+    ("permanent", "Permanent"),
+)
+
+
+def _copied_type_from_text(raw: str) -> Filter | None:
+    """The copied permanent type from a clone clause — the word right after "copy of"
+    ("becomes a copy of target CREATURE" → Creature; "of any creature or planeswalker"
+    → both). None when "copy of" is followed by a typeless referent ("copy of that
+    card") — those fall back to the ability's sibling/trigger target."""
+    low = raw.lower()
+    i = low.find("copy of")
+    if i < 0:
+        return None
+    seg = low[i : i + 60]
+    types = tuple(title for word, title in _COPY_TYPE_WORDS if word in seg)
+    return Filter(card_types=types) if types else None
+
+
 # Forced combat: "… attacks … if able", "all creatures … attack if able". And a forced
 # block: "all … able to block ~ do so" (a lure).
 _FORCE_ATTACK = re.compile(r"\battacks?\b[^.]*\bif able\b", re.IGNORECASE)
@@ -1472,5 +1497,21 @@ def _supplement_effect(e: Effect) -> Effect:
     # category (it adds the "target player's library" peeks _BROAD_THIRD_PARTY omits).
     if out.category == "topdeck_select":
         out = _topdeck_select_owner_scope(out)
+
+    # 4. ADR-0027 clone copied-type subject (SIDECAR v30): the _CLONE_STATIC / _BECOMES
+    # re-tags above turn an `other` "enter/is a copy of <type>" clause into category
+    # "clone" but leave subject=None — the project-side _recover_clone_subjects already
+    # ran (pre-supplement) and never saw this newly-recovered clone effect, so
+    # _clone_copy_lanes(None) drops the copied type (~49 creature-copies — Clone, Body
+    # Double, Phyrexian Metamorph). Re-derive the copied permanent type from the clone
+    # clause's own "copy of <type>" text (the same _COPY_TYPE_WORDS read the
+    # project-side recovery uses). Append-only — a clone effect that already carries a
+    # structured subject (a phase-parsed BecomeCopy that reached
+    # _recover_clone_subjects) is untouched. None stays None for a typeless referent
+    # ("copy of that card / ~", Essence of the Wild, Valki) — those have no in-clause
+    # type and no sibling here. CR 707.2 (a copy takes the copiable values, incl. card
+    # type).
+    if out.category == "clone" and out.subject is None:
+        out = replace(out, subject=_copied_type_from_text(out.raw))
 
     return out

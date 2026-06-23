@@ -755,6 +755,78 @@ def test_parent_target_clone_recovers_type_from_sibling():
     assert "Creature" in clone[0].subject.card_types
 
 
+def test_supplement_clone_static_populates_copied_type_subject():
+    """ADR-0027 v30: an 'enter as a copy of any creature' clause phase leaves
+    unstructured is re-tagged `clone` by the supplement (_CLONE_STATIC) AND now carries
+    the copied-type subject (_copied_type_from_text), so _clone_copy_lanes reads it.
+    Reproduces the Clone / Body Double / Phyrexian Metamorph recall the project-side
+    _recover_clone_subjects (run pre-supplement) never reached."""
+    clone = [
+        e
+        for e in _effects(
+            project_card(
+                [
+                    _spell(
+                        {"type": "Unimplemented"},
+                        "You may have this creature enter as a copy of any creature "
+                        "on the battlefield.",
+                    )
+                ]
+            )
+        )
+        if e.category == "clone"
+    ]
+    assert clone
+    assert clone[0].subject is not None
+    assert clone[0].subject.card_types == ("Creature",)
+
+
+def test_supplement_clone_static_non_creature_copied_type():
+    """A 'copy of any artifact' static recovers the Artifact type (Copy Artifact /
+    Sculpting Steel) — the copy lanes split by the copied permanent type."""
+    clone = [
+        e
+        for e in _effects(
+            project_card(
+                [
+                    _spell(
+                        {"type": "Unimplemented"},
+                        "You may have this enchantment enter as a copy of any "
+                        "artifact on the battlefield.",
+                    )
+                ]
+            )
+        )
+        if e.category == "clone"
+    ]
+    assert clone
+    assert clone[0].subject is not None
+    assert clone[0].subject.card_types == ("Artifact",)
+
+
+def test_supplement_clone_static_typeless_referent_stays_none():
+    """A typeless referent ('becomes a copy of that card' — Valki / Volatile Chimera
+    exile-then-copy) has no in-clause permanent type and no sibling here, so the copied-
+    type subject stays None (the lane falls back to the kept mirror, not the structural
+    arm)."""
+    clone = [
+        e
+        for e in _effects(
+            project_card(
+                [
+                    _spell(
+                        {"type": "Unimplemented"},
+                        "This creature becomes a copy of that card.",
+                    )
+                ]
+            )
+        )
+        if e.category == "clone"
+    ]
+    assert clone
+    assert clone[0].subject is None
+
+
 def test_or_composite_filter_unions_member_types():
     """Spark Double copies a Creature OR a Planeswalker — _filter unions the Or
     members so the copy hierarchy sees both types."""

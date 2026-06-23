@@ -1386,13 +1386,16 @@ def test_clone_matters_opens_for_recurring_value_legendary():
             "additional upkeep steps after this phase."
         ),
     }
-    assert "clone_matters" in _keys(obeka)  # {T} engine
-    assert "clone_matters" in _keys(koma)  # per-upkeep engine
-    assert "clone_matters" in _keys(obeka_splitter)  # extra-upkeep engine
-    assert "clone_matters" not in _keys(isamaru)  # vanilla legendary
+    # ADR-0027 v30: clone_matters migrated — the legendary-recurring-value-engine clone-
+    # TARGET membership cross-open is reproduced in the IR path, so assert via the hybrid.
+    assert "clone_matters" in _keys_hybrid(obeka)  # {T} engine
+    assert "clone_matters" in _keys_hybrid(koma)  # per-upkeep engine
+    assert "clone_matters" in _keys_hybrid(obeka_splitter)  # extra-upkeep engine
+    assert "clone_matters" not in _keys_hybrid(isamaru)  # vanilla legendary
     # Commander-level: must NOT fire when aggregating the 99 (include_membership=False).
     assert "clone_matters" not in {
-        s.key for s in extract_signals(obeka, include_membership=False)
+        s.key
+        for s in extract_signals_hybrid(obeka, _bare_ir(), include_membership=False)
     }
 
 
@@ -1415,7 +1418,9 @@ def test_clone_engine_fires_for_legendary_with_intervening_card_type():
             "graveyard.)"
         ),
     }
-    assert ("clone_matters", "you", "") in _ksub(go_shintai)
+    # ADR-0027 v30: clone_matters migrated — assert via the hybrid path (a bare IR routes
+    # to the IR-side membership block where the cross-open is reproduced byte-identically).
+    assert ("clone_matters", "you", "") in _ksub_hybrid(go_shintai, _bare_ir())
     # Precision: broadening the type gate must not bypass the ENGINE gate. A legendary
     # enchantment creature with only static abilities and a non-tap activated ability
     # (Heliod, Sun-Crowned — no per-turn trigger, no {T} ability) is not a clone-your-
@@ -1433,7 +1438,7 @@ def test_clone_engine_fires_for_legendary_with_intervening_card_type():
             "lifelink until end of turn."
         ),
     }
-    assert ("clone_matters", "you", "") not in _ksub(heliod)
+    assert ("clone_matters", "you", "") not in _ksub_hybrid(heliod, _bare_ir())
 
 
 def test_token_maker_prefers_creature_subtype_over_artifact_word():
@@ -2334,7 +2339,12 @@ def test_self_etb_variable_damage_opens_flicker_and_clone():
             "damage equal to its power to that player."
         ),
     }
-    keys = {s.key for s in extract_signals(dong_zhou, include_membership=True)}
+    # ADR-0027 v30: clone_matters migrated — use the hybrid path (blink_flicker is not
+    # migrated, so its regex firing still passes through the hybrid).
+    keys = {
+        s.key
+        for s in extract_signals_hybrid(dong_zhou, _bare_ir(), include_membership=True)
+    }
     assert "blink_flicker" in keys
     assert "clone_matters" in keys  # cmc 5 >= 5 -> worth copying
     # Over-fire guard: an exile-removal ETB (Banisher Priest) is NOT a flicker payoff —
@@ -4989,8 +4999,10 @@ def test_self_dies_value_resolves_short_name_for_clone():
             "at the beginning of the next end step."
         ),
     }
-    assert "clone_matters" in _keys(scarab)
-    assert "clone_matters" in _keys(locust)
+    # ADR-0027 v30: clone_matters migrated — the high-CMC self-dies clone-TARGET
+    # membership cross-open is reproduced in the IR path, so assert via the hybrid.
+    assert "clone_matters" in _keys_hybrid(scarab)
+    assert "clone_matters" in _keys_hybrid(locust)
 
 
 def test_self_counter_accumulator_opens_counters_matter():
