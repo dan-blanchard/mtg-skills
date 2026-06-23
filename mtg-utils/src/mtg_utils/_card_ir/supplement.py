@@ -1283,6 +1283,16 @@ _CDA_PT = re.compile(
     re.IGNORECASE,
 )
 _HAVE_GAIN = re.compile(r"\b(?:have|has|gains?)\b", re.IGNORECASE)
+# ADR-0027 (SIDECAR v32, Cluster C): a FIXED base-P/T set static phase's static parser
+# FAILED on (Curse of Conformity "Nonlegendary creatures … have base power and toughness
+# 3/3", Overwhelming Splendor "… have base power and toughness 1/1"). Without this it
+# falls to the _HAVE_GAIN grant fallback below (→ grant_keyword), dropping the base-P/T
+# set. Requires a LITERAL fixed value ("base power and toughness N" / "base power N" /
+# "base toughness N"); the dynamic "base power … equal to X" form (CDA) is NOT a fixed
+# set and is excluded so variable_pt keeps it. CR 613.4b vs 613.4a.
+_HAS_BASE_PT = re.compile(
+    r"\bbase power(?: and toughness)? \d|\bbase toughness \d", re.IGNORECASE
+)
 # A keyword grant whose subject is a TRIBE/type we don't anchor ("Warriors your team
 # control have haste", "Knights … have flying") — anchored on the GRANTED keyword
 # instead (a closed CR keyword-ability set), so it fires without a noun anchor.
@@ -1355,6 +1365,12 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="shuffle")
     if _CDA_PT.search(s):
         return replace(e, category="characteristic_pt")
+    # ADR-0027 (SIDECAR v32): a fixed base-P/T set the static parser failed (Curse of
+    # Conformity / Overwhelming Splendor) → base_pt_set, BEFORE the _HAVE_GAIN grant
+    # fallback claims it as grant_keyword. After _CDA_PT so a dynamic */* keeps its
+    # lane.
+    if _HAS_BASE_PT.search(s):
+        return replace(e, category="base_pt_set")
     if _STATE.search(s):
         return replace(e, category="state")
     if _FLASH_GRANT.search(s) or _PLAYER_KW_GRANT.search(s) or _BARE_KEYWORD.match(s):

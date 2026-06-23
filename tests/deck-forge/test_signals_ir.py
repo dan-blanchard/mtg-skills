@@ -1256,7 +1256,46 @@ def test_evasion_denial_from_ignore_landwalk():
 
 
 def test_base_pt_set_fires():
-    assert ("base_pt_set", "any", "") in _sigs(_static_effect("base_pt_set"))
+    # ADR-0027 Cluster C: the base_pt_set arm fires only when the effect's raw NAMES a
+    # base P/T (the fixed-set toolbox) or carries the v32 SelfBasePt marker — so a bare
+    # land/artifact mass-animate ("is a N/N creature") stays out of the lane. Lignify's
+    # raw names "base power and toughness 0/4".
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="base_pt_set",
+                    scope="any",
+                    subject=Filter(card_types=("Creature",)),
+                    raw="Enchanted creature is a Treefolk with base power and "
+                    "toughness 0/4 and loses all abilities.",
+                ),
+            ),
+        )
+    )
+    assert ("base_pt_set", "any", "") in _sigs(ir)
+
+
+def test_base_pt_set_land_animator_not_in_lane():
+    # ADR-0027 Cluster C: a land mass-animator ("All lands are 1/1 creatures" — Living
+    # Plane) emits cat=="base_pt_set" but its raw NAMES no base P/T, so it stays out of
+    # base_pt_set (it fires land_creatures_matter via its own arm — a land-creatures
+    # theme, not a base-P/T-set build-around). CR 613.4b / 305.
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="base_pt_set",
+                    scope="any",
+                    subject=Filter(card_types=("Land",), controller="any"),
+                    raw="All lands are 1/1 creatures that are still lands.",
+                ),
+            ),
+        )
+    )
+    assert "base_pt_set" not in {k for (k, _s, _u) in _sigs(ir)}
 
 
 def _clone(*card_types, subtypes=()):

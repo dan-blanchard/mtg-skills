@@ -318,7 +318,21 @@ from mtg_utils.card_ir import Card
 #   color/controller predicate, so color_hoser/mass_removal/exile_matters don't trip;
 #   the only cross-read decoupled is opp_top_exile (re-keyed off the byte-identical
 #   re-derived value). CR 406.1 (one-way exile = removal) / 115.1 (single target).
-SIDECAR_VERSION = 31
+# v32 (ADR-0027 Cluster C — fixed base-P/T set, the clause phase v0.1.60 DROPS): a
+#   static that SETS the SOURCE's OWN base power and toughness to a FIXED value carries
+#   a `base_pt_set` Effect with the SelfBasePt marker subject. phase keeps the SetPower
+#   / SetToughness modifications over SelfRef but the prior arm excluded the self case
+#   (manland animate); the new self-ref arm re-emits base_pt_set GATED on the raw naming
+#   a fixed base P/T (Bogardan Dragonheart "base power and toughness 4/4", Answered
+#   Prayers "becomes a 3/3 Angel … in addition to its other types"), so a manland self-
+#   animate (Treetop Village "becomes a 3/3 Ape creature" — no base-P/T phrase) stays
+#   EXCLUDED and a dynamic "base power … equal to X" (variable_pt CDA) is NOT claimed.
+#   Plus a supplement `_recover_static_pattern` arm: a static the parser FAILED (Curse
+#   of Conformity / Overwhelming Splendor "have base power and toughness N/N") →
+#   base_pt_set before the grant fallback. Carves ONLY the fixed base-P/T-set mechanic
+#   (CR 613.4b layer 7b) out of the 4-mechanic regex umbrella — switch (613.4d layer 7d)
+#   and pure type-conferral (205.1b) stay distinct, NOT re-absorbed. The lane reads it.
+SIDECAR_VERSION = 32
 
 
 def card_ir_dir() -> Path:

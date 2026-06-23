@@ -5701,6 +5701,32 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # NOT _VOLTRON_SILENCING_PLAN_KEYS. voltron_matters 3010 by set equality. CR
         # 406.1 / 115.1.
         "exile_removal",
+        # ADR-0027 Cluster C (SIDECAR v32) — base_pt_set: the FIXED base-power/toughness
+        # SET mechanic (CR 613.4b layer 7b), carved out of the deleted
+        # 4-mechanic-umbrella SWEEP regex. PROJECTION: phase v0.1.60 DROPS the base-P/T
+        # clause on a SELF- transform ("becomes a Dragon with base power and toughness
+        # 4/4" — Bogardan Dragonheart; "becomes a 3/3 Angel … in addition to its other
+        # types" — Answered Prayers) — it keeps the SetPower/SetToughness modifications
+        # over SelfRef but the toolbox arm excluded the self case (manland animate). v32
+        # re-emits a cat=="base_pt_set" Effect with a SelfBasePt marker, GATED on the
+        # raw naming a fixed base P/T so a manland self-animate (Treetop Village, no
+        # base-P/T phrase) stays excluded; PLUS a supplement static-parser-failed
+        # recovery (Curse of Conformity / Overwhelming Splendor "have base power and
+        # toughness N/N"). WIRE (signals-only): the structural cat=="base_pt_set" arm
+        # (the v32 self- transform + the OTHER-permanent toolbox + the static recovery)
+        # UNION a CARVED byte-identical kept mirror (_BASE_PT_SET_MIRROR =
+        # BASE_PT_SET_REGEX, the base-P/T- set-only arms) for the dynamic "base power …
+        # equal to X" tail (Trench Gorger / Fractalize) variable_pt leaves unclaimed +
+        # the sticker-`{TK}` animates. The carve DROPS the 46 switch (613.4d) +
+        # pure-type-conferral (205.1b) umbrella over-fires — distinct mechanics, NOT
+        # re-absorbed. The SWEEP row is deleted (floor 13→12). VOLTRON: the deleted
+        # SWEEP fired HIGH-confidence scope 'any' and fed has_other_plan (a set-P/T
+        # toolbox is a plan); the migrated lane is BOTH broader (self-transforms) and
+        # narrower (drops the over-fires), so a byte-identical _base_pt_set_has_plan
+        # mirror of the FULL deleted umbrella (BASE_PT_SET_FULL_REGEX) is OR'd into
+        # has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS. voltron_matters 3010 by set
+        # equality. CR 613.4b.
+        "base_pt_set",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

@@ -136,8 +136,14 @@ def test_sweep_detectors_loaded():
     # cat=exile + a permanent-type subject on the rider-swallow / dropped-subject cases —
     # Soul Partition (restriction-swallow), "Exile" (lifegain-swallow), Unexplained Absence
     # (subject=None) — so the arm reads single-target exile removal structurally, excluding
-    # blink-return / mass / GY-hate / haunt / clone-from-mill; CR 406.1 / 115.1).
-    assert len(SWEEP_DETECTORS) >= 13
+    # blink-return / mass / GY-hate / haunt / clone-from-mill; CR 406.1 / 115.1),
+    # then 13→12 as base_pt_set's row was deleted (ADR-0027 SIDECAR v32, Cluster C — the
+    # 4-mechanic-umbrella regex split: only the FIXED base-P/T-set mechanic (CR 613.4b layer
+    # 7b) migrates to a cat=="base_pt_set" structural arm reading the v32 SelfBasePt self-
+    # transform projection + the supplement static-parser-failed recovery, UNION a carved
+    # BASE_PT_SET_REGEX kept word mirror; switch P/T (613.4d) and pure type-conferral
+    # (205.1b) are NOT re-absorbed).
+    assert len(SWEEP_DETECTORS) >= 12
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

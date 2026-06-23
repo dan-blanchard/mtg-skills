@@ -30,6 +30,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ANIMATE_ARTIFACT_REGEX,
     ARTIFACTS_MATTER_REGEX,
     ATTACK_MATTERS_REGEX,
+    BASE_PT_SET_FULL_REGEX,
     CLONE_MATTERS_REGEX,
     CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
@@ -2866,6 +2867,21 @@ _COUNTER_DOUBLING_PLAN_MIRROR = re.compile(COUNTER_DOUBLING_REGEX, re.IGNORECASE
 # deleted producer was a floor Detector over reminder-stripped clauses); no `[^.]*`
 # span, so flat == per-clause == 223. CR 613 / 903.10a.
 _SCALING_PUMP_PLAN_MIRROR = re.compile(SCALING_PUMP_SWEEP_REGEX, re.IGNORECASE)
+# ADR-0027 Cluster C: the HAS-OTHER-PLAN mirror for the migrated base_pt_set key. The
+# deleted SWEEP producer (the 4-mechanic umbrella) fired HIGH-confidence scope 'any' and
+# fed has_other_plan — a card that SETS base P/T (Lignify, Ovinize, Sudden Spoiling) or
+# SWITCHES it or confers a type is doing SOMETHING, not a vanilla commander-damage
+# beater. The migrated lane is BOTH broader (the v32 self-transforms phase dropped —
+# Bogardan, Answered Prayers) AND narrower (the carve drops 46 switch +
+# pure-type-conferral umbrella over-fires), so _VOLTRON_SILENCING_PLAN_KEYS (which
+# silences off the NEW IR firings) would BOTH over-silence the new self-transforms and
+# under-silence the dropped switch/ type-conferral bodies whose only plan was the
+# umbrella. This BYTE-IDENTICAL mirror (== BASE_PT_SET_FULL_REGEX, the FULL deleted
+# umbrella) restores ONLY the old regex's exact silence set, so the file-swap shows
+# voltron delta 0. Matched against the reminder- STRIPPED `text` (the deleted producer
+# was a floor Detector over reminder-stripped clauses); the `[^.]*` spans never cross a
+# clause, so flat == per-clause. CR 613.4b / 903.10a.
+_BASE_PT_SET_PLAN_MIRROR = re.compile(BASE_PT_SET_FULL_REGEX, re.IGNORECASE)
 # ADR-0027: the HAS-OTHER-PLAN mirror for the migrated artifacts_matter key. Its two
 # deleted HIGH-confidence producers — the _HAND_FLOOR oracle regex (scope 'you') and the
 # kept "if you control an artifact" SWEEP row (scope 'you') — counted toward
@@ -5471,6 +5487,17 @@ def extract_signals(
         # delta 0. Matched against the reminder-STRIPPED `text` (no `[^.]*` span,
         # flat == per-clause == 223). CR 613 / 903.10a.
         or _SCALING_PUMP_PLAN_MIRROR.search(text)
+        # ADR-0027 Cluster C: re-silence the deleted base_pt_set SWEEP producer (HIGH-
+        # confidence scope 'any', feeding has_other_plan — a base-P/T toolbox / switch /
+        # type-conferral is a plan, not a vanilla beater: Lignify, Ovinize, Sudden
+        # Spoiling, Bogardan Dragonheart). The migrated lane is BOTH broader (the v32
+        # self- transforms) and narrower (drops 46 switch/type-conferral over-fires), so
+        # _VOLTRON_SILENCING_PLAN_KEYS would mis-silence; this BYTE-IDENTICAL mirror (==
+        # BASE_PT_SET_FULL_REGEX, the FULL deleted umbrella) restores ONLY the old
+        # regex's exact silence set. Matched against the reminder-STRIPPED `text`; the
+        # `[^.]*` spans never cross a clause, so flat == per-clause. CR 613.4b /
+        # 903.10a.
+        or _BASE_PT_SET_PLAN_MIRROR.search(text)
         # ADR-0027: re-silence the deleted artifacts_matter producers (the _HAND_FLOOR
         # oracle regex + the kept "if you control an artifact" SWEEP row, both HIGH-
         # confidence scope 'you', feeding has_other_plan — an artifact engine IS a plan,

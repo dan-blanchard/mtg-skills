@@ -20,6 +20,7 @@ from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import (
     ABILITY_COPY_REGEX,
     ANIMATE_ARTIFACT_REGEX,
+    BASE_PT_SET_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
     COUNTER_DISTRIBUTE_SERVE_REGEX,
@@ -2791,6 +2792,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["scaling_pump"],
         {"oracle": SCALING_PUMP_SWEEP_REGEX},
         SCALING_PUMP_SWEEP_REGEX,
+    ),
+    # ADR-0027 Cluster C: base_pt_set migrated to the Card IR — its SWEEP_DETECTORS row
+    # is deleted (detection moved to the structural cat=="base_pt_set" arm UNION the
+    # carved BASE_PT_SET_REGEX kept word mirror), so the auto-register loop no longer
+    # builds this spec. Hand-register the spec the sweep loop used to build, reusing the
+    # CARVED regex (base-P/T-set-only, not the 4-mechanic umbrella) as both search and
+    # serve — the serve pool is set-P/T effects + the creatures that exploit a set base
+    # P/T. Scope 'any' (the deleted SWEEP row's scope).
+    ("base_pt_set", "any"): _spec(
+        *SWEEP_LABELS["base_pt_set"],
+        {"oracle": BASE_PT_SET_REGEX},
+        BASE_PT_SET_REGEX,
     ),
     # ADR-0027: tribal_etb_multi migrated to the Card IR — its SWEEP_DETECTORS row is
     # deleted (detection moved to an etb trigger with a creature-subtype subject), so

@@ -1662,6 +1662,35 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 Cluster C — base_pt_set: a static that SETS a creature's base power and
+    # toughness (Lignify 0/4). phase structures the OTHER-permanent set as cat=="base_pt_set"
+    # (the toolbox); the structural arm fires it when the raw NAMES a base P/T (so land/
+    # artifact mass-animators stay out) or the v32 SelfBasePt self-transform marker is
+    # present. CR 613.4b.
+    "base_pt_set": (
+        {
+            "name": "Lignify",
+            "type_line": "Kindred Enchantment — Treefolk Aura",
+            "oracle_text": (
+                "Enchant creature\nEnchanted creature is a Treefolk with base "
+                "power and toughness 0/4 and loses all abilities."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="base_pt_set",
+                        scope="any",
+                        subject=Filter(card_types=("Creature",)),
+                        raw="Enchanted creature is a Treefolk with base power and "
+                        "toughness 0/4 and loses all abilities.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

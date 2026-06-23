@@ -73,6 +73,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ANIMATE_ARTIFACT_REGEX,
     ARTIFACTS_MATTER_REGEX,
     ATTACK_MATTERS_REGEX,
+    BASE_PT_SET_REGEX,
     CAST_FROM_EXILE_REGEX,
     CLONE_MATTERS_REGEX,
     CLUE_MATTERS_REGEX,
@@ -815,6 +816,22 @@ _COST_REDUCER_MIRROR = re.compile(
 # kept_oracle is trivially == the deleted per-clause SWEEP firing. CR 122.1c.
 _SHIELD_COUNTER_MATTERS_MIRROR = re.compile(r"\bshield counters?\b", re.IGNORECASE)
 
+# ADR-0027 Cluster C — the base-P/T-SET raw discriminator for the cat=="base_pt_set"
+# emission arm: the effect's raw must NAME a base power/toughness (the fixed-set toolbox
+# — Lignify, Ovinize, Curse of Conformity — and the dynamic "base power equal to X"
+# tail) so the land/artifact mass-animators ("is a N/N creature", which set P/T but are
+# a LAND-/ ARTIFACT-creatures theme — own lanes) stay out. The v32 SelfBasePt
+# self-transforms ride the marker check instead (their raw may say only "becomes a N/N
+# …"). CR 613.4b.
+_BASE_PT_RAW_HOOK = re.compile(r"base power|base toughness", re.IGNORECASE)
+
+
+def _has_self_base_pt(subject: object) -> bool:
+    """The v32 SelfBasePt marker (a self-transform fixed base-P/T set — Bogardan
+    Dragonheart, Answered Prayers — project.py ``_SELF_BASE_PT_MARKER``)."""
+    return isinstance(subject, Filter) and "SelfBasePt" in subject.predicates
+
+
 # Kept narrow mechanic-word detectors: REAL mechanics (rules-lawyer-verified —
 # voting CR 701.38, firebending CR 702.189, …) that phase v0.1.19 doesn't yet
 # STRUCTURE (too recent/niche → Unimplemented). These are narrow keyword-WORD
@@ -822,6 +839,27 @@ _SHIELD_COUNTER_MATTERS_MIRROR = re.compile(r"\bshield counters?\b", re.IGNORECA
 # KEEPS them — they survive A4 like the keyword-array / type_line lookups. Grow
 # this as more mis-skipped mechanics are rules-lawyer-verified.
 _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
+    # ADR-0027 Cluster C — base_pt_set CARVED kept WORD MIRROR (SIDECAR v32). The
+    # structural cat=="base_pt_set" arm (the v32 SelfBasePt self-transform + the OTHER-
+    # permanent toolbox + the supplement static-parser-failed recovery) supplies the
+    # cards phase structures or DROPS the clause for; this mirror recovers the tail
+    # phase routes to other categories WITHOUT a base_pt_set Effect — chiefly the
+    # dynamic "base power … equal to X" forms (Trench Gorger, Fractalize) that
+    # variable_pt leaves UNCLAIMED, plus the sticker-`{TK}`/Unimplemented animates (Cool
+    # Fluffy Loxodon). BASE_PT_SET_REGEX is the CARVED base-P/T-set-only subset (drops
+    # the two switch arms — CR 613.4d layer 7d — and narrows the type-conferral arm to
+    # require a literal N/N — CR 205.1b), so switch_pt / pure type-conferral are NOT
+    # swept into base_pt_set. Scope 'any' (the deleted SWEEP row's scope — a set-P/T
+    # effect spans neutralize-removal / self / mass). The carved arms' `[^.]*` spans
+    # never cross a clause boundary (`.`-excluded), so a flat .search over the
+    # reminder-stripped joined-face kept_oracle == the deleted per-clause SWEEP firing
+    # (verified 0 flat-only / 0 clause-only over the commander-legal corpus). CR 613.4b
+    # layer 7b.
+    (
+        "base_pt_set",
+        re.compile(BASE_PT_SET_REGEX, re.IGNORECASE),
+        "any",
+    ),
     # Voting (CR 701.38). The supplement structures the vote clause into an
     # accurate Effect(category="vote") node where phase emits one, but the LANE
     # stays a kept oracle-scan detector for full coverage: phase leaves some
@@ -6923,10 +6961,21 @@ def extract_signals_ir(
             # co-occurrence below (damage_received event + a damage effect).
             if cat == "damage_reflect":
                 add("damage_reflect", "you", "", e.raw)
-            # base_pt_set: a static that SETS base P/T (Lignify, Ovinize, Kenrith's
-            # Transformation, animate-to-X/X). scope "any" (matches the regex —
-            # spans neutralize-removal, self/land animate, switch).
-            if cat == "base_pt_set":
+            # base_pt_set (ADR-0027 Cluster C): the FIXED base-P/T SET toolbox (Lignify,
+            # Ovinize, Sudden Spoiling, Curse of Conformity) + the v32 SELF-transform
+            # phase dropped (Bogardan Dragonheart, Answered Prayers — SelfBasePt
+            # marker). Gated: the effect's raw must NAME a base P/T ("base power"/"base
+            # toughness") OR carry the v32 SelfBasePt marker. This EXCLUDES the
+            # cat=="base_pt_set" land/artifact MASS-ANIMATORS (Living Plane "All lands
+            # are 1/1 creatures", March of the Machines, the Zendikons) — "is a N/N
+            # creature" sets P/T but is a LAND-/ ARTIFACT-creatures theme (it fires
+            # land_creatures_matter / animate_artifact via its own arms above, CR
+            # 305/110.1), NOT a base-P/T-set build-around. The dynamic "base power …
+            # equal to X" tail (Trench Gorger) rides the carved _BASE_PT_SET_MIRROR.
+            # scope "any" (the deleted SWEEP row's scope). CR 613.4b.
+            if cat == "base_pt_set" and (
+                _BASE_PT_RAW_HOOK.search(e.raw or "") or _has_self_base_pt(e.subject)
+            ):
                 add("base_pt_set", "any", "", e.raw)
             # Batch 6 — grant_keyword lanes (the AddKeyword category, +3.8% parse).
             # Gated to avoid the naive +2197 flood: team lanes fire ONLY on a generic

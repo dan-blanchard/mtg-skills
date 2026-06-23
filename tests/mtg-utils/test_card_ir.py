@@ -491,7 +491,7 @@ def test_self_must_be_blocked_is_lure():
     assert "lure" in cats
 
 
-def _pt_static(affected, mods, *, cda=False):
+def _pt_static(affected, mods, *, cda=False, description=""):
     return {
         "name": "T",
         "scryfall_oracle_id": "pt",
@@ -503,6 +503,7 @@ def _pt_static(affected, mods, *, cda=False):
                 "affected": affected,
                 "modifications": mods,
                 "characteristic_defining": cda,
+                "description": description,
             }
         ],
     }
@@ -869,11 +870,86 @@ def test_self_defining_star_pt_is_not_base_pt_set():
 
 
 def test_self_animate_manland_is_not_base_pt_set():
-    """A manland animating ITSELF (SelfRef) sets the source's P/T, not a toolbox."""
+    """A manland animating ITSELF (SelfRef) sets the source's P/T, not a toolbox.
+
+    The raw names no base power/toughness ("becomes a 3/3 Ape creature"), so the v32
+    self-ref arm is gated out — it's a creature-LAND, not a base-P/T payoff.
+    """
     rec = _pt_static(
-        {"type": "SelfRef"}, [{"type": "SetPower"}, {"type": "SetToughness"}]
+        {"type": "SelfRef"},
+        [{"type": "SetPower"}, {"type": "SetToughness"}],
+        description="becomes a 3/3 Ape creature with trample until end of turn",
     )
     assert "base_pt_set" not in {e.category for e in _effects(project_card([rec]))}
+
+
+def test_self_transform_fixed_base_pt_is_base_pt_set():
+    """ADR-0027 v32: Bogardan Dragonheart — a SELF SetPower/SetToughness over SelfRef
+    whose raw NAMES a fixed base P/T ("base power and toughness 4/4") IS base_pt_set,
+    carried with the SelfBasePt marker subject (the payoff-ref tell)."""
+    rec = _pt_static(
+        {"type": "SelfRef"},
+        [{"type": "SetPower", "value": 4}, {"type": "SetToughness", "value": 4}],
+        description="become a Dragon with base power and toughness 4/4, flying, and haste",
+    )
+    effs = [e for e in _effects(project_card([rec])) if e.category == "base_pt_set"]
+    assert effs, "self-transform with a fixed base P/T must emit base_pt_set"
+    assert effs[0].subject is not None
+    assert "SelfBasePt" in effs[0].subject.predicates
+
+
+def test_self_transform_in_addition_to_types_is_base_pt_set():
+    """ADR-0027 v32: Answered Prayers — "becomes a 3/3 Angel … in addition to its other
+    types" (a fixed N/N in the type-conferral form, CR 613.4b + 205.1b) IS base_pt_set."""
+    rec = _pt_static(
+        {"type": "SelfRef"},
+        [{"type": "SetPower", "value": 3}, {"type": "SetToughness", "value": 3}],
+        description="become a 3/3 Angel creature with flying in addition to its other types",
+    )
+    assert "base_pt_set" in {e.category for e in _effects(project_card([rec]))}
+
+
+def test_self_transform_dynamic_base_pt_is_not_base_pt_set():
+    """ADR-0027 v32: a DYNAMIC self base-P/T ("base power and toughness each equal to X")
+    is variable_pt territory (CR 613.4a), NOT a fixed base-P/T set — the self-ref arm
+    excludes the dynamic form."""
+    rec = _pt_static(
+        {"type": "SelfRef"},
+        [{"type": "SetDynamicPower"}, {"type": "SetDynamicToughness"}],
+        description="has base power and toughness each equal to the number of cards in hand",
+    )
+    assert "base_pt_set" not in {e.category for e in _effects(project_card([rec]))}
+
+
+def test_static_parser_failed_have_base_pt_recovers_base_pt_set():
+    """ADR-0027 v32: a static the parser FAILED ("creatures … have base power and
+    toughness N/N" — Curse of Conformity) is recovered to base_pt_set, not the grant
+    fallback (supplement._recover_static_pattern)."""
+    rec = {
+        "name": "T",
+        "scryfall_oracle_id": "cc",
+        "card_type": {"core_types": ["Enchantment"]},
+        "oracle_text": "",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Unimplemented",
+                    "name": "static_structure",
+                    "description": (
+                        "Static pattern matched but line failed static parser: "
+                        "Nonlegendary creatures enchanted player controls have base "
+                        "power and toughness 3/3 and lose all creature types."
+                    ),
+                },
+                "description": (
+                    "Nonlegendary creatures enchanted player controls have base "
+                    "power and toughness 3/3 and lose all creature types."
+                ),
+            }
+        ],
+    }
+    assert "base_pt_set" in {e.category for e in _effects(project_card([rec]))}
 
 
 def test_ignore_landwalk_is_evasion_denial():

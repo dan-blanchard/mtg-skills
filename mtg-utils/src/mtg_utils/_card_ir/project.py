@@ -147,6 +147,38 @@ def _with_mass_marker(subject: Filter | None) -> Filter:
 # are combat_damage_to_opp, already migrated (42f6d81). CR 119.3.
 _DAMAGE_TO_PLAYER_MARKER = Filter(predicates=("DamageToPlayer",))
 
+# ADR-0027 fixed base-P/T set (SIDECAR v32, Cluster C). A static that SETS the SOURCE's
+# OWN base power and toughness to a FIXED value (Bogardan Dragonheart "becomes a Dragon
+# with base power and toughness 4/4", Answered Prayers "becomes a 3/3 Angel … in
+# addition to its other types") carries the SelfBasePt predicate so the base_pt_set lane
+# reads it (a payoff-ref / build-around tell — a creature that exploits a set base P/T).
+# Distinct from the OTHER-permanent toolbox (Lignify, which sets a TARGET's P/T) and
+# from a manland self-animate (Treetop Village "becomes a 3/3 Ape creature", which has
+# NO base-P/T-set phrasing — a creature-land, not a payoff). The self-ref arm is gated
+# on the raw text actually naming a fixed base P/T so the manland exclusion holds (CR
+# 613.4b layer 7b vs the 7d switch / 7a CDA siblings — distinct mechanics, NOT swept
+# in).
+_SELF_BASE_PT_MARKER = Filter(predicates=("SelfBasePt",))
+
+# The fixed base-P/T-set phrasings the self-ref arm gates on: "base power and toughness
+# N", "base power N" / "base toughness N", or a "becomes a N/N … in addition to its
+# other types" animation that names a literal P/T. EXCLUDES the dynamic "base power …
+# equal to X" forms (variable_pt owns those CDAs) and the bare manland "becomes a N/N X
+# creature with …" (no base-P/T phrase, no in-addition clause). CR 613.4b.
+_FIXED_BASE_PT_RE = re.compile(
+    r"base power(?: and toughness)? \d"
+    r"|base toughness \d"
+    # ``becomes?`` — phase's static ``description`` normalizes "becomes"→"become".
+    r"|becomes? a [^.]*?\b\d+/\d+\b[^.]* in addition to its other types",
+    re.IGNORECASE,
+)
+# A dynamic "base power … equal to X" CDA (Trench Gorger, Fractalize) is NOT a fixed set
+# — variable_pt territory; the self-ref arm must not claim it (the kept byte mirror, not
+# the structural marker, carries the regex's dynamic-base-P/T tail). CR 613.4a / 604.3.
+_DYNAMIC_BASE_PT_RE = re.compile(
+    r"base \w+[^.]{0,40}equal to|each equal to", re.IGNORECASE
+)
+
 # ADR-0027 discard-discarder scope (SIDECAR v26). A Discard effect whose discarder is a
 # bare ``Player`` target ("target player discards" / "that player discards") carries the
 # ``ForcedDiscard`` predicate on its subject. _discard_player_scope promotes that shape
@@ -2760,6 +2792,35 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
                 category="base_pt_set",
                 scope=_controller_scope(affected),
                 subject=affected,
+                raw=desc,
+            )
+        )
+    # ADR-0027 (SIDECAR v32, Cluster C): the SELF-transform fixed base-P/T set phase
+    # DROPS. Bogardan Dragonheart ("becomes a Dragon with base power and toughness
+    # 4/4"), Answered Prayers ("becomes a 3/3 Angel … in addition to its other types"),
+    # Figure of Destiny / Warden of the First Tree (level-up animates) all carry
+    # SetPower + SetToughness over SelfRef — but the base-P/T clause was dropped (only
+    # the grant_keyword Flying/Haste survived). The exclusion above keeps a manland
+    # self- animate (Treetop Village) out, so re-emit base_pt_set HERE for the self-ref
+    # case, gated on the raw naming a FIXED base P/T (the manland's "becomes a 3/3 Ape
+    # creature" names none → still excluded; a dynamic "base power … equal to X" is
+    # variable_pt, not a fixed set → also excluded). The SelfBasePt marker subject
+    # distinguishes this payoff-ref tell from the OTHER-permanent toolbox (and keeps the
+    # Land-subject animator lanes — which read subject card_types=Land — from firing).
+    # CR 613.4b.
+    if (
+        set_power
+        and set_toughness
+        and not st.get("characteristic_defining")
+        and _self_pt
+        and _FIXED_BASE_PT_RE.search(desc)
+        and not _DYNAMIC_BASE_PT_RE.search(desc)
+    ):
+        out.append(
+            Effect(
+                category="base_pt_set",
+                scope="any",
+                subject=_SELF_BASE_PT_MARKER,
                 raw=desc,
             )
         )

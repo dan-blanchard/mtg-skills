@@ -359,6 +359,29 @@ PUMP_MATTERS_REGEX = "target (?:[a-z]+ )*creature(?: you control)? gets \\+[0-9x
 # with). CR 604.3.
 VARIABLE_PT_SWEEP_REGEX = "power and toughness are each equal to(?: the (?:total )?number of)?|power(?: and toughness)? (?:is|are)(?: each)? equal to (?:twice )?the (?:total )?number of|equal to (?:twice )?the (?:total )?number of cards in (?:your|their|the|all) [^.]*hand|change [^.]*base power and toughness"
 
+# ADR-0027 Cluster C — base_pt_set migrated to the Card IR. The deleted SWEEP_DETECTORS
+# regex was a 4-MECHANIC UMBRELLA: fixed base-P/T set (base_pt_set, CR 613.4b layer 7b) +
+# switch P/T (CR 613.4d layer 7d) + "in addition to its types" type-conferral (CR 205.1b)
+# + dynamic "equal to X" (variable_pt's CDA territory, CR 613.4a). The migration carves
+# out ONLY the fixed base-P/T-set mechanic. Two pins:
+#   • BASE_PT_SET_FULL_REGEX — the EXACT deleted umbrella, kept ONLY for the voltron
+#     has_other_plan re-supply (the deleted SWEEP detector fired HIGH on all four arms, so
+#     a faithful voltron silence must reproduce its full firing set — _base_pt_set_has_plan
+#     in _signals_regex; voltron stays 3010 by set equality).
+#   • BASE_PT_SET_REGEX — the CARVED base-P/T-set-ONLY arms (drop the two switch arms and
+#     narrow the type-conferral arm to require a literal N/N): the SIGNALS kept WORD MIRROR
+#     (_BASE_PT_SET_MIRROR in signals._IR_KEPT_DETECTORS, scope 'any') so switch_pt / pure
+#     type-conferral are NOT swept into base_pt_set, and the hand-registered serve. The
+#     structural arm (the SIDECAR v32 SelfBasePt self-transform + the supplement static-
+#     parser-failed recovery) supplies the cards phase DROPS the clause for (Bogardan
+#     Dragonheart, Answered Prayers, Curse of Conformity); this mirror recovers the dynamic
+#     "base power … equal to X" tail phase routes elsewhere (Trench Gorger, Fractalize —
+#     variable_pt stays silent on them, so the mirror prevents a recall loss). The carved
+#     arms span an `[^.]*` (the type-conferral arm), so the mirror runs PER-CLAUSE over the
+#     reminder-stripped kept_oracle == the deleted per-clause SWEEP firing. CR 613.4b.
+BASE_PT_SET_FULL_REGEX = "base power (?:and toughness )?\\d|has base power|base toughness \\d|becomes a [^.]*with base power and toughness|becomes a [^.]* in addition to its other types|switch (?:each |target )?creature'?s'? power and toughness|switch [^.]{0,40}power and toughness|base power and toughness of each [^.]*become"
+BASE_PT_SET_REGEX = "base power (?:and toughness )?\\d|has base power|base toughness \\d|becomes a [^.]*with base power and toughness|becomes a [^.]*?\\b\\d+/\\d+\\b[^.]* in addition to its other types|base power and toughness of each [^.]*become"
+
 # ADR-0027 — scaling_pump migrated to the Card IR. The EXACT deleted SWEEP_DETECTORS
 # regex, pinned as a shared constant so the byte-identical kept WORD MIRROR
 # (_SCALING_PUMP_SWEEP_MIRROR in signals._IR_KEPT_DETECTORS, scope 'you'), the voltron
@@ -2047,12 +2070,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # (Walking Ballista, Crystalline Crawler). Its SWEEP_DETECTORS row is deleted; the
     # existing _sweep_spec_with_extras("self_pump", …) serve spec in signal_specs.py
     # is repointed to this deleted regex via the `regex=` arg.
-    {
-        "key": "base_pt_set",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "base power (?:and toughness )?\\d|has base power|base toughness \\d|becomes a [^.]*with base power and toughness|becomes a [^.]* in addition to its other types|switch (?:each |target )?creature'?s'? power and toughness|switch [^.]{0,40}power and toughness|base power and toughness of each [^.]*become",
-    },
+    # ADR-0027 Cluster C: base_pt_set migrated to the Card IR — its SWEEP_DETECTORS row is
+    # deleted. The deleted 4-mechanic-umbrella regex is pinned (BASE_PT_SET_FULL_REGEX for
+    # the voltron re-supply; BASE_PT_SET_REGEX for the carved base-P/T-set-only signals
+    # mirror), detection moves to a STRUCTURAL arm (cat=="base_pt_set" — the SIDECAR v32
+    # SelfBasePt self-transform + the supplement static-parser-failed recovery) UNION the
+    # carved _BASE_PT_SET_MIRROR, and the serve spec is hand-registered in signal_specs.py
+    # reusing BASE_PT_SET_REGEX (the auto-register loop no longer reaches it). SWEEP_LABELS
+    # still carries the human label. CR 613.4b.
     {
         "key": "playtest_matters",
         "scope": "you",
