@@ -846,6 +846,21 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # precedent. A NO-FLOOD voltron entry (3010 -> 3010 identical set). CR 120.2 /
         # 903.10a.
         "card_draw_engine",
+        # ADR-0027: noncombat_damage_payoff fired high-confidence (forced scope 'you')
+        # in the regex path via the SWEEP_DETECTORS producer (reused as an
+        # _IR_FLOOR_LANES floor lane) and so counted toward has_other_plan (it is NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious commander-damage
+        # voltron tell on the 28 burn-engine creatures whose ONLY high-conf plan is
+        # noncombat damage (Boros Reckoner, Spitemare, Hidetsugu, Kaervek, Ojer Axonil,
+        # Tajic, Wildfire Elemental — payoff bodies, no vanilla beaters). Its regex
+        # producer is deleted, so the hybrid re-silences from the IR re-supply — a kept
+        # WORD MIRROR (NONCOMBAT_DAMAGE_PAYOFF_REGEX) reading the SAME reminder-stripped
+        # joined oracle as the deleted floor producer, so it is BYTE-IDENTICAL
+        # (commander-legal, floor-disabled, by oracle_id: both == 92, regex_only == 0,
+        # ir_only == 0), matching the tap_down / combat_damage_matters kept-mirror
+        # precedent. A NO-FLOOD voltron entry (3010 -> 3010 identical set). CR 120.1 /
+        # 510 / 702.19a / 903.10a.
+        "noncombat_damage_payoff",
     }
 )
 

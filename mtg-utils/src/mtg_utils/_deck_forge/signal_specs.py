@@ -36,6 +36,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
     LURE_MATTERS_REGEX,
+    NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     OPPONENT_COUNTER_GRANT_REGEX,
     PUMP_MATTERS_REGEX,
@@ -2928,8 +2929,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Deathtouch gear (Basilisk Collar) makes any ping / power-as-damage lethal — credit
     # it on the noncombat-damage and power-fling lanes too, not only the Burn lane.
+    # ADR-0027: noncombat_damage_payoff migrated to the Card IR (SWEEP row deleted); the
+    # serve keeps the deleted regex via the pinned NONCOMBAT_DAMAGE_PAYOFF_REGEX
+    # constant.
     ("noncombat_damage_payoff", "you"): _sweep_spec_with_extras(
-        "noncombat_damage_payoff", (_DEATHTOUCH_GEAR_EXTRA, _NONCOMBAT_BURN_EXTRA)
+        "noncombat_damage_payoff",
+        (_DEATHTOUCH_GEAR_EXTRA, _NONCOMBAT_BURN_EXTRA),
+        regex=NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     ),
     # Power-as-damage / fling commander (Brion Stoutarm) wants big bodies as fling
     # fodder (power_min) plus the power-fling payoffs and deathtouch gear.

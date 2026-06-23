@@ -2356,6 +2356,9 @@ def test_enchanted_or_equipped_opens_voltron():
 def test_mv_scaling_burn_opens_noncombat_damage():
     # Kaervek scales noncombat damage off opponents' spells — a burn-engine payoff
     # commander; the lane keyed only on doublers / "deals that much damage".
+    # ADR-0027: noncombat_damage_payoff is migrated to the Card IR (a byte-identical
+    # NONCOMBAT_DAMAGE_PAYOFF_REGEX kept word mirror), so it surfaces only on the hybrid
+    # path — the regex producer is deleted.
     card = {
         "name": "Kaervek the Merciless",
         "type_line": "Legendary Creature — Human Shaman",
@@ -2364,7 +2367,7 @@ def test_mv_scaling_burn_opens_noncombat_damage():
             "that spell's mana value to any target."
         ),
     }
-    assert ("noncombat_damage_payoff", "you") in _keys(card)
+    assert ("noncombat_damage_payoff", "you") in _keys_hybrid(card)
 
 
 def test_opponent_lost_life_this_turn_opens_drain():

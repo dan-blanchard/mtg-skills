@@ -5360,6 +5360,39 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # changes count (870 -> 870, byte-identical); all siblings drift 0. CR 120.2 /
         # 903.10a.
         "card_draw_engine",
+        # ADR-0027 noncombat_damage_payoff — migrated to the Card IR. BYTE-IDENTICAL
+        # KEPT MIRROR (NOT a structural arm). The "burn outside combat" payoff lane:
+        # MV/card-value-SCALING burn engines ("deals damage equal to that spell's / the
+        # exiled card's / that card's mana value" — Kaervek, Vial Smasher, Hidetsugu,
+        # Rage Extractor), the "noncombat damage" doublers / preventers / payoffs
+        # (Solphim, Purity, Mark of Asylum, Soul-Scar Mage, Wildfire Elemental), the
+        # "deals that much damage to any target/that creature" reflectors (Boros
+        # Reckoner, Spitemare, Wrathful Raptors, Justice), and the "deals exactly N" /
+        # "whenever a source you control deals damage" ping-amplifiers (Ghyrson Starn).
+        # It had EXACTLY ONE regex producer: a SWEEP_DETECTORS row reused as an
+        # _IR_FLOOR_LANES floor lane. phase v0.1.19 carries NO structural form — no
+        # single damage category flags the CR-702.19a noncombat/combat distinction, and
+        # the MV-scaling burn arms fold their amount into the effect raw — so the lane
+        # FLOOR→KEPT: it rides a byte-identical NONCOMBAT_DAMAGE_PAYOFF_REGEX kept word
+        # mirror (_IR_KEPT_DETECTORS, scope 'you', HIGH) and is removed from
+        # _IR_FLOOR_LANES (floor-mirror-dep -> 0). The lone `[^.]*` arm ("whenever a
+        # source you control deals [^.]* damage") never crosses a period, so flat over
+        # the reminder-stripped kept_oracle == the deleted floor Detector's per-clause
+        # scan EXACTLY. Floor-disabled residual (commander-legal,
+        # _IR_FLOOR_LANES=frozenset(), the byte-mirror vs the deleted regex producer, by
+        # oracle_id): both==92, regex_only==0, ir_only==0 — a perfectly clean
+        # byte-mirror; all 92 verified genuine noncombat-damage payoffs (BREADTH, not
+        # over-fire). The deleted SWEEP producer fired HIGH-confidence (forced scope
+        # 'you') and counted toward has_other_plan (NOT in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS), so it is added to
+        # signals._VOLTRON_SILENCING_PLAN_KEYS — the byte-identical IR re-supply
+        # re-silences the spurious commander-damage
+        # voltron tell on the 28 creatures whose ONLY high-conf plan is noncombat damage
+        # (Boros Reckoner, Spitemare, Hidetsugu, Kaervek, Ojer Axonil, Tajic — burn
+        # engines, no vanilla beaters). NO-FLOOD: ONLY noncombat_damage_payoff changes
+        # count (92 -> 92, byte-identical); all siblings drift 0; voltron 3010 -> 3010
+        # identical set. CR 120.1 / 510 / 702.19a / 903.10a.
+        "noncombat_damage_payoff",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

@@ -97,6 +97,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     LIFEGAIN_MATTERS_REGEX,
     LTB_MATTERS_SWEEP_REGEX,
     LURE_MATTERS_REGEX,
+    NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
     STATION_MATTERS_REGEX,
@@ -2368,6 +2369,28 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(DAMAGE_EQUAL_POWER_REGEX, re.IGNORECASE),
         "you",
     ),
+    # ADR-0027 — noncombat_damage_payoff BYTE-IDENTICAL kept WORD MIRROR (the "burn
+    # outside combat" payoff lane: MV/card-value-SCALING burn engines — Kaervek, Vial
+    # Smasher, Hidetsugu, Rage Extractor — plus the "noncombat damage" doublers /
+    # preventers / payoffs — Solphim, Purity, Mark of Asylum, Wildfire Elemental — and
+    # the "deals that much damage to any target" reflectors — Boros Reckoner, Spitemare,
+    # Wrathful Raptors; CR 120.1 / 702.19a). This was an _IR_FLOOR_LANES floor reuse:
+    # phase v0.1.19 carries NO single category for noncombat damage (its `damage`
+    # Effects don't flag the CR-702.19a noncombat/combat distinction, and the MV-scaling
+    # arms fold their amount into raw), so the lane stays a word mirror, NOT a
+    # structural arm. The lone `[^.]*` arm ("whenever a source you control deals [^.]*
+    # damage") never crosses a period, so flat over the reminder-stripped kept_oracle ==
+    # the deleted floor Detector's per-clause scan EXACTLY (commander-legal,
+    # floor-disabled, by oracle_id: both==92, regex_only==0, ir_only==0). scope "you"
+    # matches the deleted SWEEP row so the firing identity is byte-identical.
+    # FLOOR→KEPT: removed from _IR_FLOOR_LANES (floor-mirror-dep -> 0); voltron
+    # re-silenced via the byte-identical IR re-supply (_VOLTRON_SILENCING_PLAN_KEYS).
+    # CR 120.1 / 510 / 702.19a.
+    (
+        "noncombat_damage_payoff",
+        re.compile(NONCOMBAT_DAMAGE_PAYOFF_REGEX, re.IGNORECASE),
+        "you",
+    ),
     # ADR-0027 β — cost_reduction NARROWED kept-mirror (see _COST_REDUCER_MIRROR above).
     # The structural arm fires from the projection's cost_reduction Effects; this mirror
     # recovers the genuine build-around reducers project.py drops (ability-cost
@@ -2801,7 +2824,17 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # mass_death_payoff removed — ADR-0027 migrated it to the Card IR (a
         # `_MASS_DEATH_REF` "creatures that died this turn" count-operand marker). Its
         # _HAND_FLOOR detector is deleted.
-        "noncombat_damage_payoff",
+        # noncombat_damage_payoff removed — ADR-0027 migrated it to the Card IR via a
+        # BYTE-IDENTICAL kept WORD MIRROR (the NONCOMBAT_DAMAGE_PAYOFF_REGEX row in
+        # _IR_KEPT_DETECTORS, scope 'you', HIGH conf). phase v0.1.19 carries NO
+        # structural form (no single category flags the CR-702.19a noncombat/combat
+        # damage distinction, and the MV-scaling burn arms fold their amount into raw),
+        # so the lane fires SOLELY from the kept mirror — it no longer needs the regex
+        # floor. FLOOR→KEPT (floor-mirror-dep -> 0): both==92, regex_only==0,
+        # ir_only==0. Its SWEEP_DETECTORS row is deleted (floor 20→19); voltron
+        # re-silenced via
+        # _VOLTRON_SILENCING_PLAN_KEYS (byte-identical IR re-supply). CR 120.1 / 510 /
+        # 702.19a.
         # land_sacrifice_matters removed — ADR-0027 migrated it to the Card IR via a
         # BYTE-IDENTICAL kept WORD MIRROR (the LAND_SACRIFICE_REGEX row in
         # _IR_KEPT_DETECTORS, scope 'you', HIGH conf). phase carries NO structural form

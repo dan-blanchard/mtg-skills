@@ -94,8 +94,12 @@ def test_sweep_detectors_loaded():
     # in signals._IR_KEPT_DETECTORS for the tap-an-opponent's-permanent / "skips next untap
     # step" / detain lane; the structural `tap`/opp arm + _IR_KEYWORD_MAP['detain'] entry
     # were removed because phase infers the tap scope from the cost context, not the
-    # target; CR 701.21 / 502).
-    assert len(SWEEP_DETECTORS) >= 20
+    # target; CR 701.21 / 502), then 20→19 as noncombat_damage_payoff's row was deleted
+    # (ADR-0027 — migrated to a byte-identical NONCOMBAT_DAMAGE_PAYOFF_REGEX kept word
+    # mirror in signals._IR_KEPT_DETECTORS; it was an _IR_FLOOR_LANES floor reuse with no
+    # structural arm because phase carries no CR-702.19a noncombat/combat damage
+    # distinction; CR 120.1 / 510 / 702.19a).
+    assert len(SWEEP_DETECTORS) >= 19
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

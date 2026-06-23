@@ -217,6 +217,20 @@ COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX = (
 # carries the human label rows.
 CREATURE_PING_REGEX = "(?:target |another target )?[A-Z][a-z]+ you control deals damage equal to its power to|deals damage equal to its power to (?:another )?target|deals damage to itself equal to its power|target creature deals damage [^.]*equal to its power"
 DAMAGE_EQUAL_POWER_REGEX = "deals? damage[^.]*equal to (?:its|that creature.s|[^.]*) power[^.]*to (?:any target|target|each opponent|that player|target player)"
+# ADR-0027 — noncombat_damage_payoff migrated to the Card IR via a BYTE-IDENTICAL kept
+# WORD MIRROR (the _IR_KEPT_DETECTORS row, scope 'you', HIGH conf). The lane was an
+# _IR_FLOOR_LANES floor reuse (phase v0.1.19 carries no single category for "burn
+# outside combat" — its damage Effects don't flag the CR-702.19a noncombat/combat
+# distinction, and the MV-scaling burn arms fold their amount into raw), so the lane
+# rides this mirror, NOT a structural arm. The lone `[^.]*` arm ("whenever a source
+# you control deals [^.]* damage") never crosses a period, so flat over the reminder-
+# stripped kept_oracle == the deleted floor Detector's per-clause scan EXACTLY
+# (commander-legal, floor-disabled, by oracle_id: both==92, regex_only==0, ir_only==0).
+# This mined regex survives as a shared constant so signal_specs hand-registers the
+# serve pool reusing it AND the kept mirror reuses it — serve / mirror / (now-deleted)
+# detector never drift. SWEEP_LABELS still carries the human label. CR 120.1 / 510 /
+# 702.19a.
+NONCOMBAT_DAMAGE_PAYOFF_REGEX = "noncombat damage|deals that much damage to (?:each opponent|any target|that creature)|deals exactly \\d+ damage|whenever (?:a|another) source you control deals [^.]*damage|deals damage equal to (?:that spell's|the exiled card's|that card's|that creature's) mana value"
 # ADR-0027 β — cost_reduction migrated to the Card IR; its SWEEP_DETECTORS row is
 # deleted but the EXACT mined regex survives here so signal_specs hand-registers the
 # serve pool reusing it (SWEEP_LABELS keeps the human label). The serve only needs a
@@ -1398,19 +1412,24 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # Its SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the human label, and the
     # serve spec is hand-registered in signal_specs.py reusing FLASH_GRANT_REGEX. CR
     # 702.8.
-    {
-        "key": "noncombat_damage_payoff",
-        "scope": "you",
-        # MV/card-value-SCALING burn engines ("deals damage equal to that spell's /
-        # the exiled card's / that card's mana value" — Kaervek, Vial Smasher,
-        # Hidetsugu) are the genuine noncombat payoffs here. The "deals double/triple
-        # that damage" branch was removed: those are ALL-damage replacement effects
-        # (Furnace of Rath, Fiery Emancipation) — combat damage too (CR 510 vs the
-        # noncombat damage of 702.19a) — so they belong on damage_doubling, not a
-        # "burn outside combat" lane.
-        "is_widen_of": "",
-        "regex": "noncombat damage|deals that much damage to (?:each opponent|any target|that creature)|deals exactly \\d+ damage|whenever (?:a|another) source you control deals [^.]*damage|deals damage equal to (?:that spell's|the exiled card's|that card's|that creature's) mana value",
-    },
+    # ADR-0027: noncombat_damage_payoff migrated to the Card IR. MV/card-value-SCALING
+    # burn engines ("deals damage equal to that spell's / the exiled card's / that
+    # card's mana value" — Kaervek, Vial Smasher, Hidetsugu) plus the "noncombat
+    # damage" doublers/preventers/payoffs (Solphim, Purity, Mark of Asylum) and the
+    # "deals that much damage to any target" reflectors (Boros Reckoner, Spitemare) are
+    # the genuine noncombat payoffs. The lane was an _IR_FLOOR_LANES floor reuse — phase
+    # v0.1.19 carries no single "burn outside combat" category (its damage Effects don't
+    # flag the CR-702.19a noncombat/combat distinction, and the MV-scaling arms fold
+    # their amount into raw) — so it MOVES floor->kept: a BYTE-IDENTICAL kept WORD MIRROR
+    # (NONCOMBAT_DAMAGE_PAYOFF_REGEX, pinned above, in _IR_KEPT_DETECTORS, scope 'you',
+    # HIGH). The lone `[^.]*` arm never crosses a period, so flat over the reminder-
+    # stripped kept_oracle == the deleted floor Detector's per-clause scan EXACTLY
+    # (commander-legal, floor-disabled, by oracle_id: both==92, regex_only==0,
+    # ir_only==0). Its SWEEP_DETECTORS row is deleted (floor 20->19); SWEEP_LABELS keeps
+    # the human label, and the serve spec stays hand-registered in signal_specs.py
+    # reusing the pinned NONCOMBAT_DAMAGE_PAYOFF_REGEX. voltron re-silenced via
+    # _VOLTRON_SILENCING_PLAN_KEYS (byte-identical IR re-supply). CR 120.1 / 510 /
+    # 702.19a.
     # ADR-0027: mass_removal migrated to the Card IR — a BOARD WIPE (CR 115.10) is the
     # counter_kind=='all' "each/all" discriminator on a destroy/exile/damage of a
     # battlefield permanent type, or the negative all-creatures pump (Languish/Toxic

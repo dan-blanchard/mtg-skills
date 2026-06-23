@@ -5746,6 +5746,23 @@ _CASES: dict[str, tuple[dict, Card]] = {
             ),
         ),
     ),
+    # ADR-0027 — noncombat_damage_payoff: the "burn outside combat" payoff lane (CR
+    # 120.1 / 702.19a). BYTE-IDENTICAL KEPT MIRROR (NONCOMBAT_DAMAGE_PAYOFF_REGEX), NOT
+    # a structural arm — phase v0.1.19 carries no category flagging the noncombat/combat
+    # distinction. Spitemare's "deals that much damage to any target" reflector hits the
+    # mirror's `deals that much damage to (?:...|any target|...)` arm; the empty IR is
+    # enough because the mirror reads the card oracle, not the IR structure.
+    "noncombat_damage_payoff": (
+        {
+            "name": "Spitemare",
+            "type_line": "Creature — Elemental",
+            "oracle_text": (
+                "Whenever this creature is dealt damage, it deals that much "
+                "damage to any target."
+            ),
+        },
+        _ir(),
+    ),
     # global_ability_grant ← a board_grant Effect carrying counter_kind="grant_ability"
     # (project._global_ability_grant_markers), the v9 marker the extract_signals_ir arm
     # reads. Cryptolith Rite grants a QUOTED activated ability ("{T}: Add one mana of any

@@ -327,6 +327,9 @@ def test_triple_damage_is_damage_doubling():
 
 
 # MV-scaling burn (Kaervek) is the genuine noncombat payoff and must still open it.
+# ADR-0027: noncombat_damage_payoff is migrated to the Card IR (a byte-identical
+# NONCOMBAT_DAMAGE_PAYOFF_REGEX kept word mirror), so it surfaces only on the hybrid
+# path — the regex producer is deleted.
 def test_mv_scaling_burn_still_opens_noncombat():
     c = {
         "name": "Kaervek the Merciless",
@@ -336,7 +339,7 @@ def test_mv_scaling_burn_still_opens_noncombat():
             "that spell's mana value to any target."
         ),
     }
-    assert "noncombat_damage_payoff" in _keys(c)
+    assert "noncombat_damage_payoff" in _keys_hybrid(c)
 
 
 # #15 Named counters are NOT interchangeable (CR 122.1): each gets its own lane, so a
