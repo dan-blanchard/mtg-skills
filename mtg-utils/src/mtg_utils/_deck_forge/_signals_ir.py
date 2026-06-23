@@ -2479,23 +2479,6 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # cmdzone_ability (ADR-0027) — the STATIC-Eminence half phase drops the
-    # condition for (The Ur-Dragon: "As long as ~ is in the command zone … cost {1}
-    # less"). The triggered/activated halves fire structurally in extract_signals_ir
-    # (the 'command' ability-zone / condition-zone arm); this mirror reproduces the
-    # exact deleted SWEEP regex over the joined face so the static cost-reducer/
-    # anthem still opens the lane. The struct arm plus this mirror is byte-identical
-    # to the deleted regex on the commander-legal corpus (0 gap, 0 over-fire).
-    # CR 702.107.
-    (
-        "cmdzone_ability",
-        re.compile(
-            r"is (?:on the battlefield or )?in the command zone"
-            r"|activate this ability only if[^.]*command zone",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
     # ADR-0027 β — edict_matters. The structural opp/each `sacrifice` arm in
     # extract_signals_ir is broader-and-correct (it reads Annihilator's reminder-only
     # "defending player sacrifices" and the modal "those players sacrifice", +28 over
@@ -3497,11 +3480,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             "theft_protection",
             "villainous_choice",
             "named_counter_misc",
-            # ADR-0027 cmdzone — an Eminence / command-zone-gated ability. The
-            # triggered/activated halves fire from the structural 'command'
-            # ability-zone / condition-zone arm; the static cost-reducer half (The
-            # Ur-Dragon) rides the byte-identical _IR_KEPT_DETECTORS word mirror.
-            # struct plus mirror == the deleted SWEEP regex (0 residual). CR 702.107.
+            # ADR-0027 cmdzone — an Eminence / command-zone-gated ability, fully
+            # structural: every firing (triggered, activated, AND the static
+            # cost-reducer — The Ur-Dragon) comes from the 'command' ability-zone /
+            # condition-zone arm in extract_signals_ir. phase v40's IR carries the
+            # 'command' zone in the static ability's condition tree too, so the old
+            # byte-identical word mirror was 0-unique vs the struct arm and is
+            # deleted (commander-legal firing set unchanged at 6). CR 113.6k / 903.6.
             "cmdzone_ability",
             # ADR-0027 q2-D2 — opp_top_exile: the structural arm (exile scope=='opp' +
             # cast_from_zone scope=='opp', OR exile scope=='opp' + 'in:library') adds 50
@@ -6318,15 +6303,15 @@ def extract_signals_ir(
         # zone (Eminence) or gates on the source being there: phase exposes the
         # command-zone permission either as a zone the ability operates in
         # (``ab.zones`` carries 'command' for an activate-from-CZ ability) or as a
-        # Condition whose recursive zone set contains 'command' (the triggered-
-        # Eminence build-arounds — Oloro's sourceinzone('command'); Edgar/Arahbo's
-        # 'or'-wrapped sourceinzone('command') + sourceinzone('battlefield')). The
+        # Condition whose recursive zone set contains 'command'. This is the FULL
+        # lane — triggered (Oloro's sourceinzone('command'); Edgar/Arahbo's
+        # 'or'-wrapped sourceinzone('command') + sourceinzone('battlefield')) AND
+        # the static cost-reducer (The Ur-Dragon: phase v40 carries the 'command'
+        # zone in the static ability's condition tree, ab.kind=='static'). The
         # 'command' zone in the condition tree is the unambiguous discriminator —
         # command-zone references are rare and always intentional build-arounds, so
-        # there is no over-fire (commander-legal IR-vs-regex over-fire == 0). The
-        # STATIC-Eminence half (The Ur-Dragon's cost-reducer) drops the condition in
-        # phase's parse, so it rides the byte-identical _IR_KEPT_DETECTORS word
-        # mirror (the exact deleted SWEEP regex) instead. CR 702.107 / 903.6.
+        # there is no over-fire (commander-legal IR-vs-regex over-fire == 0; the old
+        # byte-identical word mirror was 0-unique and is deleted). CR 113.6k / 903.6.
         if "command" in ab.zones or _condition_has_zone(ab.condition, "command"):
             add("cmdzone_ability", "you", "", "")
         # curse_matters cares-about half (ADR-0027 t2b4a-B) — a card that REFERENCES
