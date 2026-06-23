@@ -80,6 +80,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ARTIFACTS_MATTER_REGEX,
     ATTACK_MATTERS_REGEX,
     BASE_PT_SET_REGEX,
+    BLOCKED_MATTERS_REGEX,
     CAST_FROM_EXILE_REGEX,
     CLONE_MATTERS_REGEX,
     CLUE_MATTERS_REGEX,
@@ -390,6 +391,16 @@ _PAYOFF_TRIGGER_KEYS: dict[str, tuple[str, str | None]] = {
     # fires from the unconditional `ev in ("combat_damage","deals_damage")` arm.
     "attacks": ("attack_matters", "you"),
     "counter_added": ("counters_matter", "you"),
+    # ADR-0027 Cluster D (SIDECAR v36) — the ATTACKER-side becomes-blocked payoff
+    # (CR 509.3c / 509.1h). phase's `BecomesBlocked` / `AttackerBlocked` modes (now
+    # projected to event=='becomes_blocked', split out of the blocker-side `blocks`
+    # event) carry the Rampage / Bushido / Flanking / Afflict / Infect keyword
+    # triggers whose "becomes blocked" text lives in stripped reminder (the deleted
+    # regex missed them), PLUS the textual "whenever this creature becomes blocked"
+    # payoffs (Vedalken Ghoul, Razorclaw Bear). The byte mirror (BLOCKED_MATTERS_REGEX
+    # in _IR_KEPT_DETECTORS) recovers the blocker-side "whenever X blocks" half the
+    # arm intentionally does NOT fold in. CR 702.45a / 702.25a / 702.131.
+    "becomes_blocked": ("blocked_matters", "you"),
     # Batch 1 — payoff trigger events newly projected in _trigger_event.
     "commit_crime": ("crimes_matter", "you"),
     "scried": ("scry_surveil_matters", "you"),
@@ -948,6 +959,24 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "protection_grant",
         re.compile(PROTECTION_GRANT_REGEX, re.IGNORECASE),
+        "you",
+    ),
+    # ADR-0027 Cluster D — blocked_matters BYTE-IDENTICAL kept WORD MIRROR (the
+    # declare-blockers combat-trigger lane; pinned as BLOCKED_MATTERS_REGEX in
+    # _sweep_detectors). The STRUCTURAL becomes_blocked arm (_PAYOFF_TRIGGER_KEYS in
+    # extract_signals_ir — phase's BecomesBlocked / AttackerBlocked modes) covers the
+    # ATTACKER-side payoff (CR 509.3c) and adds the Rampage/Bushido/Flanking/Afflict/
+    # Infect keyword reminder triggers this regex missed; this mirror recovers the
+    # BLOCKER-side "whenever <creature> blocks" half (CR 509.3a — arm 2 of the regex)
+    # the structural arm deliberately does NOT fold in, PLUS the textual "whenever this
+    # creature becomes blocked" payoffs (arm 1) the arm ALSO covers (add() dedups). The
+    # two `[^.]*` arms never cross a sentence boundary, so a FLAT search over the
+    # reminder-stripped kept_oracle == the deleted per-clause SWEEP firing byte-
+    # identically (verified 0 flat-only / 0 clause-only over the commander-legal
+    # corpus). scope 'you' (the deleted SWEEP row's scope). CR 509.3a/c.
+    (
+        "blocked_matters",
+        re.compile(BLOCKED_MATTERS_REGEX, re.IGNORECASE),
         "you",
     ),
     # ADR-0027 — tap_down BYTE-IDENTICAL kept WORD MIRROR (the tap-down control lane:
@@ -8647,7 +8676,12 @@ def extract_signals_ir(
             # producer + SWEEP regex are mirrored byte-identically below for the cases
             # phase folds into a quoted granted ability / "attacks or blocks" event=
             # 'other' / planeswalker emblem (regex_only -> 0). CR 508 / 702.91/121.
-            if ev in ("attacks", "blocks", "begin_combat") and any(
+            # `becomes_blocked` is included because the v36 blocked_matters projection
+            # split it out of `blocks` (project.py _trigger_event) — Bushido ("blocks
+            # OR becomes blocked") + Rampage self-pumps now carry event=='becomes_
+            # blocked', and their reminder-stripped text can't ride the byte mirror, so
+            # the structural arm must read both halves to hold this lane's v35 breadth.
+            if ev in ("attacks", "blocks", "becomes_blocked", "begin_combat") and any(
                 e.category in ("pump", "pump_target", "place_counter")
                 for e in ab.effects
             ):

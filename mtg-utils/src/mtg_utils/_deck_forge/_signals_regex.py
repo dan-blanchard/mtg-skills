@@ -31,6 +31,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ARTIFACTS_MATTER_REGEX,
     ATTACK_MATTERS_REGEX,
     BASE_PT_SET_FULL_REGEX,
+    BLOCKED_MATTERS_REGEX,
     CLONE_MATTERS_REGEX,
     CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
@@ -2479,10 +2480,16 @@ _DIRECT_KEYWORD_SIGNALS = {
     # Archetype-defining keyword abilities (CR §702): the mechanic is reminder text
     # (stripped), so a commander WITH the keyword reads as that archetype via keyword.
     "prowess": ("spellcast_matters", "you"),  # cast a noncreature spell → +1/+1
-    # Rampage (702.23): "whenever this becomes BLOCKED, +X/+X per extra blocker" — the
-    # block trigger is reminder text, so a Rampage commander (Marhault) reads as
-    # blocked-matters via the keyword (wants rampage payoffs / lure to force blocks).
-    "rampage": ("blocked_matters", "you"),
+    # ADR-0027 Cluster D: the `rampage` keyword (CR 702.23 — "whenever this becomes
+    # BLOCKED, +X/+X per extra blocker") moved to the IR-only path with the
+    # blocked_matters migration. phase parses rampage's reminder trigger as a
+    # `BecomesBlocked` mode (projected to event=='becomes_blocked'), so the structural
+    # becomes_blocked arm (_PAYOFF_TRIGGER_KEYS in extract_signals_ir) opens
+    # blocked_matters for every rampage face (verified 14/14 carry the mode). Keeping
+    # this entry here would let the regex `extract_signals` path keep emitting a now-
+    # migrated key. (The deleted producer fired HIGH scope 'you'; the IR re-supply is
+    # the SAME scope/confidence, and its voltron silence rides _BLOCKED_MATTERS_PLAN_
+    # MIRROR — the rampage card's "becomes blocked" trigger IS a real plan.)
     # ADR-0027 β: lifelink (→ lifegain_matters) MOVED to _IR_KEYWORD_MAP (the IR-only
     # keyword path) for the lifegain_matters migration — keeping it here would let the
     # regex `extract_signals` keep emitting a migrated key. A vanilla-lifelink creature
@@ -3475,6 +3482,28 @@ def _protection_grant_has_plan(text: str) -> bool:
     the commander-legal corpus), so this runs per-clause over `text`.
     CR 702.11/16/12/18/21 / 903.10a."""
     return any(_PROTECTION_GRANT_SWEEP_RE.search(cl) for cl in _clauses(text))
+
+
+_BLOCKED_MATTERS_SWEEP_RE = re.compile(BLOCKED_MATTERS_REGEX, re.IGNORECASE)
+
+
+def _blocked_matters_has_plan(text: str) -> bool:
+    """ADR-0027 Cluster D: the HAS-OTHER-PLAN mirror for the migrated blocked_matters
+    key. The deleted SWEEP producer fired HIGH-confidence (scope 'you', NOT in
+    _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) and counted toward `has_other_plan`, silencing
+    the spurious commander-damage voltron tell on a card with a becomes-blocked /
+    blocks combat-trigger plan (a "becomes blocked → punish the blocker" creature plays
+    its combat plan, not a vanilla beater). The migrated lane rides the structural
+    becomes_blocked arm UNION a byte-identical kept mirror, but the structural re-supply
+    is BROADER (+81 ir_only — the Rampage/Bushido/Flanking/Afflict/Infect keyword
+    reminder triggers + plural "creatures … become blocked" the regex missed), so
+    _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those gains. This byte-identical
+    mirror (the EXACT deleted SWEEP regex) restores ONLY the deleted regex's silence
+    set. The deleted SWEEP Detector ran PER-CLAUSE over the reminder-STRIPPED oracle
+    (its two `[^.]*` arms never cross a sentence — verified 0 flat-only / 0 clause-only
+    over the commander-legal corpus), so this runs per-clause over `text`. CR 509.3a/c /
+    903.10a."""
+    return any(_BLOCKED_MATTERS_SWEEP_RE.search(cl) for cl in _clauses(text))
 
 
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated conjure_matters key. The
@@ -5970,6 +5999,24 @@ def extract_signals(
         # restores the deleted regex's exact silence set. See _blink_flicker_has_plan.
         # CR 603.6e / 400.7 / 903.10a.
         or _blink_flicker_has_plan(text)
+        # ADR-0027 Cluster D (SIDECAR v36): re-silence the deleted blocked_matters SWEEP
+        # producer (HIGH-confidence scope 'you', feeding has_other_plan — a becomes-
+        # blocked / blocks combat-trigger card plays its plan, no vanilla beater). The
+        # migrated lane rides the structural becomes_blocked arm + kept mirror, BROADER
+        # (+81 ir_only), so this byte-identical mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the deleted regex's exact silence set.
+        # See _blocked_matters_has_plan. CR 509.3a/c / 903.10a.
+        or _blocked_matters_has_plan(text)
+        # ADR-0027 Cluster D: re-silence the deleted rampage→blocked_matters
+        # _DIRECT_KEYWORD_SIGNALS entry. It was moved to the IR-only becomes_blocked
+        # arm, but in the regex path it fired HIGH-confidence (the default `add()`
+        # confidence, scope 'you') and counted toward has_other_plan, silencing the
+        # spurious commander-damage voltron tell on a vanilla-rampage BEATER (rampage's
+        # "becomes blocked" trigger lives only in its keyword reminder, stripped from
+        # `text`, so the PLAN-mirror above can't see it). Reproduce that silence on the
+        # `Rampage` KEYWORD itself — byte-identical to the deleted keyword map (any
+        # rampage card was silenced). CR 702.23 / 903.10a.
+        or "rampage" in {k.lower() for k in (card.get("keywords") or [])}
         # ADR-0027 β: re-silence the deleted lifegain_matters registry-280 _DETECTORS
         # producer (ARM (A) — it fired HIGH-confidence forced scope 'you', feeding
         # has_other_plan; a lifegain ENGINE is no vanilla beater). ONLY ARM (A): the

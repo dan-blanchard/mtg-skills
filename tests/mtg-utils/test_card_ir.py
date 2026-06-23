@@ -46,6 +46,7 @@ from mtg_utils._card_ir.project import (
     _sacrifice_cost_markers,
     _sacrifice_grant_markers,
     _sacrifice_player_scope,
+    _trigger_event,
     project_card,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity, Trigger
@@ -5040,3 +5041,69 @@ def test_returns_to_round_trips_through_serialization():
     # An empty returns_to is omitted from the dict (byte-identical to v33).
     plain = _effect_to_dict(_effect_from_dict({"cat": "exile"}))
     assert "rt" not in plain
+
+
+# ── becomes_blocked: the attacker-side combat trigger (ADR-0027 v36) ──────────
+
+
+def test_becomes_blocked_mode_projects_to_becomes_blocked_event():
+    """ADR-0027 Cluster D (v36): the attacker-side BECOMES-BLOCKED event (CR 509.3c —
+    the attacker that got blocked) is a DISTINCT trigger event from the blocker-side
+    BLOCKS event (CR 509.3a). phase's BecomesBlocked / AttackerBlocked modes (Vedalken
+    Ghoul's textual trigger + Afflict, CR 702.131) project to `becomes_blocked`, NOT the
+    generic `blocks` they used to fold into."""
+    assert _trigger_event({"mode": "BecomesBlocked"}) == "becomes_blocked"
+    assert _trigger_event({"mode": "AttackerBlocked"}) == "becomes_blocked"
+
+
+def test_blocks_mode_stays_blocks_event():
+    """The blocker-side BLOCKS event (CR 509.3a — the creature doing the blocking) is
+    kept distinct from becomes_blocked; phase's Blocks / BlockersDeclared modes stay
+    `blocks` (not merged into the attacker payoff)."""
+    assert _trigger_event({"mode": "Blocks"}) == "blocks"
+    assert _trigger_event({"mode": "BlockersDeclared"}) == "blocks"
+
+
+# Vedalken Ghoul — a real phase record: "Whenever this creature becomes blocked,
+# defending player loses 4 life." phase parses the trigger as mode=BecomesBlocked.
+VEDALKEN_GHOUL = {
+    "name": "Vedalken Ghoul",
+    "scryfall_oracle_id": "vedalken-ghoul",
+    "card_type": {
+        "supertypes": [],
+        "core_types": ["Creature"],
+        "subtypes": ["Vedalken", "Zombie"],
+    },
+    "oracle_text": (
+        "Whenever this creature becomes blocked, defending player loses 4 life."
+    ),
+    "keywords": [],
+    "triggers": [
+        {
+            "mode": "BecomesBlocked",
+            "execute": {
+                "kind": "Spell",
+                "effect": {
+                    "type": "LoseLife",
+                    "amount": {"type": "Fixed", "value": 4},
+                    "target": {"type": "DefendingPlayer"},
+                },
+            },
+            "valid_card": {"type": "SelfRef"},
+            "trigger_zones": ["Battlefield"],
+            "description": (
+                "Whenever ~ becomes blocked, defending player loses 4 life."
+            ),
+        }
+    ],
+}
+
+
+def test_vedalken_ghoul_carries_becomes_blocked_trigger():
+    """End-to-end: the real BecomesBlocked record projects to a triggered ability
+    whose event is `becomes_blocked`, the attacker-side blocked_matters payoff."""
+    card = project_card([VEDALKEN_GHOUL])
+    triggered = [a for a in card.all_abilities() if a.kind == "triggered"]
+    assert triggered
+    assert triggered[0].trigger is not None
+    assert triggered[0].trigger.event == "becomes_blocked"

@@ -169,8 +169,18 @@ def test_sweep_detectors_loaded():
     # structural arm adds +588 keyword combat-pumps Battle cry/Mentor/Exalted/Bushido/
     # Rampage/Melee + "attacks → +1/+1 counter" engines the literal "gets +" regex
     # missed; combat_damage is excluded so Renown self-growth — the self_counter_grow
-    # lane — doesn't over-fire; CR 508 / 702.91/121).
-    assert len(SWEEP_DETECTORS) >= 9
+    # lane — doesn't over-fire; CR 508 / 702.91/121),
+    # then 9→8 as blocked_matters's row was deleted (ADR-0027 SIDECAR v36 Cluster D —
+    # the attacker-side `becomes_blocked` trigger event, project.py _trigger_event split
+    # the BecomesBlocked / AttackerBlocked modes out of the blocker-side `blocks` event;
+    # migrated to a STRUCTURAL becomes_blocked arm (_PAYOFF_TRIGGER_KEYS, scope 'you' —
+    # the attacker payoff, adding the Rampage/Bushido/Flanking/Afflict/Infect keyword
+    # reminder triggers the reminder-stripped regex missed) UNION a byte-identical
+    # BLOCKED_MATTERS_REGEX kept word mirror (_IR_KEPT_DETECTORS over the reminder-
+    # stripped kept_oracle) recovering the blocker-side "whenever <creature> blocks" half;
+    # the deleted `rampage` keyword entry rides the structural arm; CR 509.3a/c/d /
+    # 702.45a / 702.25a / 702.131 / 702.23).
+    assert len(SWEEP_DETECTORS) >= 8
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

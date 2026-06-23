@@ -55,6 +55,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _DISCARD_OUTLET_SWEEP_RE,
     _GENERIC_KEYS,
     _HAND_FLOOR,
+    _LURE_MATTERS_PLAN_MIRROR,
     _PLAY_FROM_TOP_FLOOR_MIRROR,
     _PLAY_FROM_TOP_MIRROR,
     _PRESET_KEYWORD_SIGNALS,
@@ -297,6 +298,36 @@ def extract_signals_hybrid(
                         "low",
                     )
                 )
+        # ADR-0027 Cluster D blocked_matters cross-open reconciliation. The regex
+        # include_membership path cross-opens blocked_matters from a LURE body (a
+        # lure / must-be-blocked commander wants the punish-when-blocked payoffs —
+        # Engulfing Slagwurm, Tolarian Entrancer), gated on lure_matters OR the
+        # byte-identical _LURE_MATTERS_PLAN_MIRROR. BOTH lure_matters AND
+        # blocked_matters now migrate (v36), so the hybrid DROPS the regex LOW
+        # cross-open. lure_matters rides the IR (so it's in `out`), but the
+        # cross-open's blocked_matters is filtered out as a migrated key — and a lure
+        # commander that doesn't ITSELF carry a becomes-blocked trigger has no IR
+        # blocked_matters. Re-run the EXACT gate (lure present in the merged set OR the
+        # lure mirror) against the merged set and re-add the LOW key when the merged
+        # lacks it — mirroring the regex producer at
+        # _signals_regex.py. The cross-open was LOW so it never fed has_other_plan.
+        # CR 509.1c.
+        if "blocked_matters" not in out_now and (
+            "lure_matters" in out_now
+            or _LURE_MATTERS_PLAN_MIRROR.search(
+                re.sub(r"\([^)]*\)", " ", get_oracle_text(record) or "")
+            )
+        ):
+            out.append(
+                Signal(
+                    "blocked_matters",
+                    "you",
+                    "",
+                    "",
+                    record.get("name", ""),
+                    "low",
+                )
+            )
     # ADR-0027 voltron reconciliation: the regex path computes the commander-damage
     # voltron MEMBERSHIP fallback against its OWN signal set (gated on
     # ``not has_other_plan``), which no longer carries a migrated PLAN key — when a key

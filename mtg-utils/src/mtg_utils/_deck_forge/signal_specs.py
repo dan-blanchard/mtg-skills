@@ -21,6 +21,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ABILITY_COPY_REGEX,
     ANIMATE_ARTIFACT_REGEX,
     BASE_PT_SET_REGEX,
+    BLOCKED_MATTERS_REGEX,
     COMBAT_BUFF_ENGINE_SWEEP_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
@@ -2700,9 +2701,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # A "becomes blocked" payoff (General Marhault: +3/+3 for each creature blocking it)
     # wants Lure effects — forcing every able creature to block maxes the per-blocker
-    # bonus.
+    # bonus. ADR-0027 Cluster D: the SWEEP_DETECTORS row is deleted (detection moved to
+    # the Card IR — the structural becomes_blocked arm UNION a byte-identical
+    # BLOCKED_MATTERS_REGEX kept mirror), so pass the pinned regex explicitly (the
+    # auto-register loop no longer reaches the deleted row); the serve pool is the same.
     ("blocked_matters", "you"): _sweep_spec_with_extras(
-        "blocked_matters", (_LURE_EXTRA,)
+        "blocked_matters", (_LURE_EXTRA,), regex=BLOCKED_MATTERS_REGEX
     ),
     # Heroic / target-matters: the payoff fires when YOU target your own creature, so
     # surface the single-target pumps/protection that do it (Gods Willing, Brute Force).

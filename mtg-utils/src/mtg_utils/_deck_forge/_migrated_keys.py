@@ -5893,6 +5893,37 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # is OR'd into has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS. voltron 3010
         # by set equality. CR 508 / 702.91/121 / 903.10a.
         "combat_buff_engine",
+        # ADR-0027 Cluster D — blocked_matters (the declare-blockers combat-trigger
+        # lane: the attacker that GETS blocked, CR 509.3c / 509.1h). phase carries the
+        # BECOMES-BLOCKED event as distinct trigger modes — `BecomesBlocked` (the
+        # textual "whenever this creature becomes blocked" payoffs + the Rampage /
+        # Bushido / Flanking / Infect keyword reminder triggers) and `AttackerBlocked`
+        # (Afflict, CR 702.131) — but `_trigger_event` FOLDED both into the generic
+        # `blocks` event, merging them with the BLOCKER-side `Blocks` trigger (CR
+        # 509.3a — the creature DOING the blocking). FIX (projection, SIDECAR v36,
+        # behavior-neutral pre-wire drift 0 / voltron 3010 — NO migrated key reads the
+        # `blocks` event, so the split touches only this lane): project.py
+        # `_trigger_event` returns a distinct `becomes_blocked` event for the attacker-
+        # side modes. WIRE: a STRUCTURAL becomes_blocked arm (_PAYOFF_TRIGGER_KEYS,
+        # scope 'you' HIGH) covering the attacker payoff (and adding the keyword-
+        # reminder triggers the regex's reminder-stripped scan missed —
+        # rules-lawyer-confirmed Bushido 702.45a "blocks OR becomes blocked" and
+        # Flanking 702.25a "becomes blocked by a creature without flanking" both fire on
+        # the becomes-blocked event) UNION a byte-identical BLOCKED_MATTERS_REGEX kept
+        # word mirror (_IR_KEPT_DETECTORS over the reminder-stripped kept_oracle, scope
+        # 'you') recovering the BLOCKER-side "whenever <creature> blocks" half (CR
+        # 509.3a — arm 2) the structural arm deliberately does NOT fold in. The deleted
+        # `rampage` _DIRECT_KEYWORD_SIGNALS entry rides the structural arm (14/14 faces
+        # carry the BecomesBlocked mode). Commander-legal, by (key,scope,subject):
+        # both=286, regex_only=0 (byte mirror full recall), ir_only=81 (all genuine
+        # keyword/textual becomes-blocked payoffs the reminder-stripped regex missed:
+        # Bushido / Flanking / Afflict / Rampage / Infect / plural "creatures … become
+        # blocked"). VOLTRON: the deleted SWEEP + rampage producers fired scope 'you'
+        # and fed has_other_plan; the IR re-supply is BROADER, so a byte-identical
+        # _BLOCKED_MATTERS_PLAN_MIRROR is OR'd into has_other_plan — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS. voltron 3010 by set equality. CR 509.3a/c/d /
+        # 702.45a / 702.25a / 702.131 / 702.23.
+        "blocked_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

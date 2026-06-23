@@ -2630,9 +2630,13 @@ def test_creatures_are_lands_opens_untap_engine():
 
 def test_rampage_keyword_opens_blocked_matters():
     # Rampage's "whenever this creature becomes blocked" trigger lives in stripped
-    # reminder text, so blocked_matters (which keys on "becomes blocked") missed it. A
-    # Rampage commander (Marhault) wants the blocked-matters payoffs (Varchild's
-    # War-Riders, Craw Giant, Retaliation). Map the keyword. Real oracle.
+    # reminder text, so the deleted blocked_matters regex (reminder-stripped) missed it.
+    # A Rampage commander (Marhault) wants the blocked-matters payoffs (Varchild's
+    # War-Riders, Craw Giant, Retaliation). ADR-0027 Cluster D (SIDECAR v36):
+    # blocked_matters migrated to the Card IR — phase parses rampage's reminder trigger
+    # as a BecomesBlocked mode (projected to event=='becomes_blocked'), so the structural
+    # becomes_blocked arm opens blocked_matters from the IR; the regex path must NOT emit
+    # the migrated key. Real oracle.
     marhault = {
         "name": "Marhault Elsdragon",
         "type_line": "Legendary Creature — Elf Warrior",
@@ -2642,7 +2646,26 @@ def test_rampage_keyword_opens_blocked_matters():
             "end of turn for each creature blocking it beyond the first.)"
         ),
     }
-    assert "blocked_matters" in _keys(marhault)
+    marhault_ir = Card(
+        oracle_id="x",
+        name="Marhault Elsdragon",
+        faces=(
+            Face(
+                name="Marhault Elsdragon",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="becomes_blocked", scope="you"),
+                        effects=(Effect(category="pump", scope="you"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    # The reminder-stripped regex path never emitted it (the deleted producer scanned
+    # stripped oracle); the IR structural arm now does.
+    assert "blocked_matters" not in _keys(marhault)
+    assert "blocked_matters" in _keys_hybrid_ir(marhault, marhault_ir)
 
 
 def test_permanents_with_counters_opens_counters():

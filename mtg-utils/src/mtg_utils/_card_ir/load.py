@@ -377,7 +377,19 @@ from mtg_utils.card_ir import Card
 #   first keyword. keyword_grant_target reads category (not counter_kind), so it is
 #   unchanged; only the new protection_grant single-target arm reads the field. Empty
 #   ⇒ byte-identical to v34 for non-grant effects. CR 700.2 / 702.11/16/12/18/21.
-SIDECAR_VERSION = 35
+# v36 (ADR-0027 Cluster D — the attacker-side `becomes_blocked` trigger event,
+#   project.py `_trigger_event`): phase carries the BECOMES-BLOCKED event (the
+#   ATTACKER that got blocked, CR 509.3c / 509.1h) as distinct modes —
+#   `BecomesBlocked` (the textual trigger + Rampage/Bushido/Flanking/Infect reminder
+#   triggers) and `AttackerBlocked` (Afflict, CR 702.131) — but `_trigger_event`
+#   FOLDED both into the generic `blocks` event, merging them with the BLOCKER-side
+#   `Blocks` trigger (CR 509.3a — the creature doing the blocking). They are distinct
+#   events (same declare-blockers step, opposite roles), so this splits them:
+#   `becomes_blocked` (attacker payoff → blocked_matters) vs `blocks` (blocker side).
+#   No migrated key read the `blocks` event, so the split is behavior-neutral for the
+#   297 siblings; only blocked_matters reads the new event. CR 509.3c/d, 702.45a
+#   (Bushido), 702.25a (Flanking), 702.131 (Afflict).
+SIDECAR_VERSION = 36
 
 
 def card_ir_dir() -> Path:

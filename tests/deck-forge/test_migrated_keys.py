@@ -1774,6 +1774,31 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 Cluster D — blocked_matters: the attacker-side becomes-blocked combat
+    # trigger (CR 509.3c). Razorclaw Bear's "becomes blocked" trigger is keyword-FREE
+    # textual, but a Bushido / Rampage card carries it ONLY in stripped reminder text —
+    # so the reminder-stripped regex path doesn't fire, while phase parses the keyword
+    # reminder as a BecomesBlocked mode (projected to event=='becomes_blocked'). The
+    # structural becomes_blocked arm (_PAYOFF_TRIGGER_KEYS) reads the trigger event. The
+    # regex path no longer emits blocked_matters (its SWEEP row is deleted). ADR-0027.
+    "blocked_matters": (
+        {
+            "name": "Kitsune Blademaster",
+            "type_line": "Creature — Fox Samurai",
+            "oracle_text": (
+                "Bushido 2 (Whenever this creature blocks or becomes blocked, it "
+                "gets +2/+2 until end of turn.)"
+            ),
+            "keywords": ["Bushido"],
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="becomes_blocked", scope="you"),
+                effects=(Effect(category="pump", scope="you"),),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

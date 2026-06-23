@@ -435,6 +435,23 @@ COMBAT_BUFF_ENGINE_SWEEP_REGEX = (
     r"|whenever [\w ]+ blocks(?: or becomes blocked)?[^.]*gets [+\-]"
     r"|whenever [\w ]+ attacks[^.]*,? (?:it|[\w ]+?) gets [+\-]"
 )
+# ADR-0027 Cluster D (SIDECAR v36) — blocked_matters migrated to the Card IR. The
+# EXACT deleted SWEEP_DETECTORS regex, pinned as a shared constant so the byte-
+# identical kept WORD MIRROR (signals._IR_KEPT_DETECTORS, scope 'you') and the
+# hand-registered serve spec (signal_specs.py) reuse ONE source. Two arms: the
+# ATTACKER-side textual "whenever … becomes blocked" (CR 509.3c) and the BLOCKER-side
+# "whenever <creature> blocks" (CR 509.3a) — the lane historically covered both halves
+# of the declare-blockers combat-trigger archetype. The STRUCTURAL becomes_blocked arm
+# (_PAYOFF_TRIGGER_KEYS, extract_signals_ir) covers ONLY the attacker payoff (and adds
+# the Rampage/Bushido/Flanking/Afflict/Infect keyword reminder triggers this regex
+# missed); this mirror recovers the blocker-side "whenever X blocks" half the arm
+# deliberately doesn't fold in. The two `[^.]*` arms never cross a sentence boundary,
+# so a FLAT search over the reminder-stripped joined-face kept_oracle == the per-clause
+# SWEEP firing byte-identically (verified 0 flat-only / 0 clause-only over the
+# commander-legal corpus). The structural arm is BROADER (the keyword tail), so the
+# mirror is NOT _VOLTRON_SILENCING_PLAN_KEYS; a byte _BLOCKED_MATTERS_PLAN_MIRROR
+# re-supplies the voltron silence. CR 509.3c/d / 702.45a / 702.25a / 702.131.
+BLOCKED_MATTERS_REGEX = "whenever [^.]*becomes blocked|\\bwhenever \\w[^.]*\\bblocks\\b"
 
 # ADR-0027 — scaling_pump migrated to the Card IR. The EXACT deleted SWEEP_DETECTORS
 # regex, pinned as a shared constant so the byte-identical kept WORD MIRROR
@@ -1955,12 +1972,17 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # tail. This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the human label, and
     # the serve spec is hand-registered in signal_specs.py reusing the deleted regex
     # (the auto-register loop no longer reaches it).
-    {
-        "key": "blocked_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "whenever [^.]*becomes blocked|\\bwhenever \\w[^.]*\\bblocks\\b",
-    },
+    # ADR-0027 Cluster D: blocked_matters migrated to the Card IR (SIDECAR v36 — the
+    # attacker-side `becomes_blocked` trigger event, project.py `_trigger_event`). The
+    # lane fires from the STRUCTURAL becomes_blocked arm (_PAYOFF_TRIGGER_KEYS in
+    # _signals_ir — phase's BecomesBlocked / AttackerBlocked modes, the attacker payoff
+    # CR 509.3c, adding the Rampage/Bushido/Flanking/Afflict/Infect keyword reminder
+    # triggers the regex missed) UNION a byte-identical BLOCKED_MATTERS_REGEX kept word
+    # mirror (signals._IR_KEPT_DETECTORS) recovering the blocker-side "whenever X blocks"
+    # half (CR 509.3a). This SWEEP_DETECTORS row is deleted; the EXACT regex is pinned as
+    # BLOCKED_MATTERS_REGEX above (reused by the IR mirror AND the
+    # _BLOCKED_MATTERS_PLAN_MIRROR has_other_plan gate), SWEEP_LABELS keeps the human
+    # label, and the serve stays hand-registered in signal_specs.py. CR 509.
     # ADR-0027 tranche2-B: exile_until_leaves migrated to the Card IR — detected from
     # signals._is_exile_until_leaves (inline raw phrase OR the two-ability linked-
     # return O-Ring shape) + a kept Saga-chapter word mirror. SWEEP_LABELS keeps the

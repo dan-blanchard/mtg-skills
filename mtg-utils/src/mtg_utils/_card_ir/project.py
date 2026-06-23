@@ -6846,7 +6846,24 @@ def _trigger_event(tr: dict) -> str:
         "youattackunblocked",
     ):
         return "attacks"
-    if mode in ("blocks", "blockersdeclared", "becomesblocked"):
+    # ADR-0027 Cluster D — the ATTACKER-side "becomes blocked" payoff (CR 509.3c /
+    # 509.1h: an attacking creature with one or more blockers declared becomes a
+    # blocked creature) is a DISTINCT triggered-ability event from the BLOCKER-side
+    # "blocks" event (CR 509.3a — the creature that does the blocking). phase carries
+    # them as separate modes — `BecomesBlocked` (Vedalken Ghoul, Razorclaw Bear,
+    # Rampage/Bushido/Flanking reminder triggers), `AttackerBlocked` (Afflict, CR
+    # 702.131 "whenever this creature becomes blocked"), and the per-blocker
+    # `becomesblockedbyacreature` (CR 509.3d) — but `_trigger_event` folded all of
+    # them into the generic `blocks`, merging the attacker payoff with the blocker
+    # trigger. Split them: `becomes_blocked` (attacker-side, the blocked_matters
+    # payoff) vs `blocks` (blocker-side). rules-lawyer-confirmed Bushido (702.45a
+    # "blocks OR becomes blocked") and Flanking (702.25a "becomes blocked by a
+    # creature without flanking") both fire on the becomes-blocked event. The
+    # per-blocker CR 509.3d "becomes blocked by a creature" form folds into phase's
+    # BecomesBlocked mode (no distinct mode in the v0.1.19 corpus).
+    if mode in ("becomesblocked", "attackerblocked"):
+        return "becomes_blocked"
+    if mode in ("blocks", "blockersdeclared"):
         return "blocks"
     if mode == "phase":
         ph = _norm(tr.get("phase"))
@@ -6891,8 +6908,6 @@ def _trigger_event(tr: dict) -> str:
         return "drawn"
     if mode in ("milled", "milledonce", "milledall"):
         return "milled"
-    if mode in ("blocks", "blockersdeclared", "becomesblocked", "attackerblocked"):
-        return "blocks"
     # Batch 1 — payoff trigger modes previously falling to "other". The Scry/Surveil
     # TRIGGER modes ("whenever you scry/surveil") are distinct from the Scry/Surveil
     # EFFECT types (the doer → topdeck_select in _EFFECT_CATEGORY).
