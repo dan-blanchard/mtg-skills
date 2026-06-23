@@ -533,7 +533,7 @@ def test_variable_x_counters_opens_counters_lane():
             "First strike (This creature deals combat damage before creatures without first strike.)\nReach (This creature can block creatures with flying.)\nAt the beginning of combat on your turn, put X +1/+1 counters on another target creature you control, where X is Halana and Alena's power. That creature gains haste until end of turn."
         ),
     }
-    # ADR-0027: counters_matter migrated to the IR — the +1/+1 placement projects a
+    # ADR-0027: plus_one_matters migrated to the IR — the +1/+1 placement projects a
     # place_counter(p1p1); assert via the hybrid (production) path.
     ir = _ir_with(
         Ability(
@@ -544,7 +544,7 @@ def test_variable_x_counters_opens_counters_lane():
         )
     )
     keys = {(s.key, s.scope) for s in extract_signals_hybrid(halana, ir)}
-    assert any(k == "counters_matter" for k, _ in keys)
+    assert any(k == "plus_one_matters" for k, _ in keys)
 
 
 def test_cheap_vanilla_legend_opens_voltron_fallback():
@@ -1043,7 +1043,7 @@ def test_multi_counter_placement_opens_counters_lane():
         "type_line": "Legendary Planeswalker — Minsc",
         "oracle_text": "When Minsc & Boo enters and at the beginning of your upkeep, you may create Boo, a legendary 1/1 red Hamster creature token with trample and haste.\n+1: Put three +1/+1 counters on up to one target creature with trample or haste.\n−2: Sacrifice a creature. When you do, Minsc & Boo deals X damage to any target, where X is that creature's power. If the sacrificed creature was a Hamster, draw X cards.\nMinsc & Boo, Timeless Heroes can be your commander.",
     }
-    # ADR-0027: counters_matter migrated to the IR — assert via the hybrid path.
+    # ADR-0027: plus_one_matters migrated to the IR — assert via the hybrid path.
     ir = _ir_with(
         Ability(
             kind="activated",
@@ -1053,11 +1053,11 @@ def test_multi_counter_placement_opens_counters_lane():
         )
     )
     keys = {(s.key, s.scope) for s in extract_signals_hybrid(minsc, ir)}
-    assert any(k == "counters_matter" for k, _ in keys)
+    assert any(k == "plus_one_matters" for k, _ in keys)
 
 
 def test_self_counter_now_opens_counters_in_production():
-    # ADR-0027: counters_matter migrated to the IR and now fires on ANY +1/+1
+    # ADR-0027: plus_one_matters migrated to the IR and now fires on ANY +1/+1
     # PLACEMENT regardless of recipient (CR 122.1 / 122.6) — bare self-growth is a
     # source too. The legacy regex EXCLUDED it; the regex path no longer emits the
     # migrated key at all, and the production hybrid path opens the lane.
@@ -1065,7 +1065,7 @@ def test_self_counter_now_opens_counters_in_production():
         "name": "Lonely Grower",
         "oracle_text": "Whenever this creature attacks, put a +1/+1 counter on it.",
     }
-    assert not any(k == "counters_matter" for k, _ in _keys(card))  # regex: migrated
+    assert not any(k == "plus_one_matters" for k, _ in _keys(card))  # regex: migrated
     ir = _ir_with(
         Ability(
             kind="triggered",
@@ -1075,7 +1075,7 @@ def test_self_counter_now_opens_counters_in_production():
         )
     )
     keys = {(s.key, s.scope) for s in extract_signals_hybrid(card, ir)}
-    assert any(k == "counters_matter" for k, _ in keys)
+    assert any(k == "plus_one_matters" for k, _ in keys)
 
 
 def test_opponent_library_exile_opens_opponents_mill():
@@ -1427,7 +1427,7 @@ def test_counter_on_another_opens_counters():
         "type_line": "Legendary Creature — Human Soldier",
         "oracle_text": "Whenever Anafenza attacks, put a +1/+1 counter on another target tapped creature you control.\nIf a nontoken creature an opponent owns would die or a creature card not on the battlefield would be put into an opponent's graveyard, exile that card instead.",
     }
-    # ADR-0027: counters_matter migrated to the IR — assert via the hybrid path.
+    # ADR-0027: plus_one_matters migrated to the IR — assert via the hybrid path.
     ir = _ir_with(
         Ability(
             kind="triggered",
@@ -1437,7 +1437,7 @@ def test_counter_on_another_opens_counters():
         )
     )
     keys = {(s.key, s.scope) for s in extract_signals_hybrid(anafenza, ir)}
-    assert any(k == "counters_matter" for k, _ in keys)
+    assert any(k == "plus_one_matters" for k, _ in keys)
 
 
 def test_variable_lifegain_opens_lifegain():
@@ -1698,7 +1698,7 @@ def test_ability_words_open_their_lane():
 
 def test_triggered_counter_placement_opens_counters():
     # Leinore (Coven) / Shelinda: a recurring trigger that places a +1/+1 counter on a
-    # CHOSEN creature is a counters engine. ADR-0027: counters_matter migrated to the
+    # CHOSEN creature is a counters engine. ADR-0027: plus_one_matters migrated to the
     # IR and now fires on ANY +1/+1 PLACEMENT regardless of recipient (self / on-
     # others / on-attacking — all are sources, CR 122.1 / 122.6), so even bare self-
     # growth ("put a +1/+1 counter on it") opens the lane. Assert via the hybrid path.
@@ -1724,7 +1724,7 @@ def test_triggered_counter_placement_opens_counters():
             "oracle_text": oracle,
         }
         keys = {s.key for s in extract_signals_hybrid(card, ir)}
-        assert "counters_matter" in keys, oracle
+        assert "plus_one_matters" in keys, oracle
 
 
 def test_fliers_matter_commander_opens_flying_keyword_tribe():
@@ -1782,8 +1782,8 @@ def test_lifelink_commander_opens_lifegain():
 
 def test_counter_keyword_commander_opens_counters():
     # A commander whose own keyword is a +1/+1-counter mechanic (Exava=Unleash,
-    # Cayth, Indoraptor=Bloodthirst) is a counters deck — open counters_matter.
-    # ADR-0027: counters_matter migrated to the IR — these keywords project a
+    # Cayth, Indoraptor=Bloodthirst) is a counters deck — open plus_one_matters.
+    # ADR-0027: plus_one_matters migrated to the IR — these keywords project a
     # place_counter(p1p1) STRUCTURALLY (not via the keyword array), so assert via the
     # hybrid path with the structural IR phase produces for them.
     ir = _ir_with(
@@ -1802,7 +1802,7 @@ def test_counter_keyword_commander_opens_counters():
             "oracle_text": "Some ability.",
         }
         keys = {s.key for s in extract_signals_hybrid(card, ir)}
-        assert "counters_matter" in keys, kw
+        assert "plus_one_matters" in keys, kw
 
 
 def test_archetype_keywords_open_their_lane():

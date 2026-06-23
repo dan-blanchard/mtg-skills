@@ -110,7 +110,7 @@ from mtg_utils.card_ir import Card
 # project._with_mass_marker re-surfaces it so the counter_distribute lane can split
 # board-wide spread from a single-target placement (New Horizons, Snakeskin Veil — also
 # a Creature/you subject). counter_kind stays p1p1 (additive — nothing else reads
-# MassEach), so counters_matter / self_counter_grow / debuff_matters / type_matters are
+# MassEach), so plus_one_matters / self_counter_grow / debuff_matters / type_matters are
 # byte-identical. ADR-0027 β. CR 122.1 / 122.6. - v18→v19: opponent_search_matters — the
 # OPPONENT-library-manipulation trigger ("whenever an opponent searches/shuffles their
 # library / scries / surveils" — Ob Nixilis Unshackled, Psychic Surgery, River Song, Wan
@@ -405,7 +405,26 @@ from mtg_utils.card_ir import Card
 #   a Land-only put is gated out → never opens extra_land_drop). The graveyard-ONLY put
 #   stays `reanimate` (reanimation, CR 110.2a/400.7 distinct ORIGIN), routed to the
 #   reanimator lane, NOT cheat_into_play. CR 110.2a / 400.7 / 701.23.
-SIDECAR_VERSION = 37
+# v38 (ADR-0027 counter/modified lane taxonomy — project.py `_predicate` COUNTERS +
+#   HASATTACHMENT arms): `_predicate` had arms for HasColor/NotColor/ColorCount/
+#   PtComparison but NONE for `Counters`, so phase's
+#   `{type:Counters, counters:{type:OfType,data:KIND}|{type:Any}, comparator, count}`
+#   collapsed to a bare "Counters" (KIND + comparator dropped). The +1/+1 lane read
+#   that kind-less token as +1/+1, so the +1/+1 lane OVER-FIRED on ~53 non-+1/+1
+#   commander-legal cards (M1M1 x9, time/bounty/fate/oil, ice/blaze/corruption/...) AND
+#   on 3 EQ:0 "creature with NO counter" anti-synergy gates (Heartless Act, Damning
+#   Verdict, Hazardous Conditions). The COUNTERS arm now emits `Counters:<KIND>:<CMP>:
+#   <N>` (KIND in P1P1/M1M1/Any/oil/stun/time/bounty/...), so the reads route by
+#   kind+comparator: P1P1:GE -> plus_one_matters (counters_matter RENAMED — it stays
+#   the +1/+1 lane), M1M1:GE -> minus_counters_matter, oil/shield/rad/ki -> their
+#   lanes, the named singletons -> named_counter_misc, Any:GE -> the NEW
+#   any_counter_matters (kind-agnostic), EQ:0 -> no +1/+1 fire (the inverse). The
+#   HASATTACHMENT arm emits `HasAttachment:<kind>` / `HasAnyAttachmentOf:<k1>|<k2>` for
+#   the equipped/enchanted half of the CR-700.9 modified union; modified_matters reads
+#   phase's direct `Modified` predicate (phase DERIVES the union itself). CR 122.1 /
+#   122.1a / 122.3 (counters individuated, +1/+1 vs -1/-1 distinct and opposed) / 700.9
+#   (modified) / 301.5 / 303.4 / 701.34a (proliferate — kind-agnostic).
+SIDECAR_VERSION = 38
 
 
 def card_ir_dir() -> Path:

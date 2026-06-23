@@ -183,7 +183,7 @@ _BURN_SIGNALS = [
     _sig("direct_damage", "you"),
     _sig("attack_matters", "you"),
     _sig("attack_matters", "any"),
-    _sig("counters_matter", "you"),
+    _sig("plus_one_matters", "you"),
 ]
 _BURN_FOCUS = {
     "viable": {"Burn / pingers", "Combat"},

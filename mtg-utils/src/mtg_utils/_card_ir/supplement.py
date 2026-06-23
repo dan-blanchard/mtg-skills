@@ -792,7 +792,7 @@ _SIMPLE_VERB = comb.alt(
     # to the mechanic each one IS (generalizes to any card with the keyword).
     # Devour (CR 702.82): sacrifice creatures as it enters, ENTER WITH +1/+1
     # counters. Own category fans to sacrifice_matters (the fodder) AND
-    # counters_matter (the payoff) + the dedicated devour_matters lane.
+    # plus_one_matters (the payoff) + the dedicated devour_matters lane.
     comb.value("devour", comb.keyword({"devour", "devours"})),
     comb.value("vanishing", comb.keyword({"vanishing"})),  # CR 702.62 time counters
     # Soulshift returns a card from GY to HAND (CR 702.46) — graveyard recursion,
@@ -902,7 +902,7 @@ _VERB = comb.alt(
     # gate keeps "cast a copy" out). cast_from_zone.
     comb.value("cast_from_zone", comb.seq2(comb.tag("cast"), comb.take_until("from"))),
     # "remove a/the … counter (from …)" — counter manipulation → place_counter
-    # (counters_matter); the take_until("counter") gate keeps "remove from combat" out.
+    # (plus_one_matters); the take_until("counter") gate keeps "remove from combat" out.
     comb.value(
         "place_counter", comb.seq2(comb.tag("remove"), comb.take_until("counter"))
     ),

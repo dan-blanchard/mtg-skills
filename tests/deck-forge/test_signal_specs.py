@@ -1925,7 +1925,7 @@ HARDENED_SCALES = {
     ),
 }
 COUNTER_LANES = [
-    ("counters_matter", "any"),
+    ("plus_one_matters", "any"),
     ("proliferate_matters", "you"),
     ("self_counter_grow", "you"),
     ("counter_manipulation", "you"),
@@ -6043,7 +6043,7 @@ def test_counters_lane_serves_counter_keyword_creatures():
     """A +1/+1-counter deck wants the counter-KEYWORD creatures (Undying, Graft, Riot,
     Bloodthirst, Fabricate) whose mechanic is reminder text the oracle serves miss.
     Credit them by the keyword (CR 702.x)."""
-    sig = _sig("counters_matter", "you")
+    sig = _sig("plus_one_matters", "you")
     cases = [
         ("Young Wolf", ["Undying"]),
         ("Cytoplast Root-Kin", ["Graft"]),

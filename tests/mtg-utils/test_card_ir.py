@@ -19,6 +19,7 @@ from __future__ import annotations
 from mtg_utils._card_ir.project import (
     _collect_effects,
     _copied_type_from_text,
+    _counter_kind_token,
     _dig_player_scope,
     _discard_player_scope,
     _draw_local_raw,
@@ -425,6 +426,105 @@ def test_predicate_keeps_color_count_and_power_threshold():
         == "HasSupertype:Legendary"
     )
     assert _predicate({"type": "Historic"}) == "Historic"
+
+
+# ── ADR-0027 counter/modified taxonomy: the Counters + HasAttachment arms ──────
+
+
+def _counters_pred(kind_obj: dict, comparator: str, count: int) -> dict:
+    return {
+        "type": "Counters",
+        "counters": kind_obj,
+        "comparator": comparator,
+        "count": {"type": "Fixed", "value": count},
+    }
+
+
+def test_predicate_counters_arm_keeps_kind_and_comparator():
+    """The +1/+1 / -1/-1 / named / Any kinds each render distinctly (before this they
+    all collapsed to a bare 'Counters', over-firing the +1/+1 lane). CR 122.1."""
+    assert (
+        _predicate(_counters_pred({"type": "OfType", "data": "P1P1"}, "GE", 1))
+        == "Counters:P1P1:GE:1"
+    )
+    assert (
+        _predicate(_counters_pred({"type": "OfType", "data": "M1M1"}, "GE", 1))
+        == "Counters:M1M1:GE:1"
+    )
+    # A named non-stat counter keeps its lowercased kind (routes to its own lane).
+    assert (
+        _predicate(_counters_pred({"type": "OfType", "data": "oil"}, "GE", 1))
+        == "Counters:oil:GE:1"
+    )
+    # The kind-agnostic Any form (the "creature with any counter" payoff).
+    assert _predicate(_counters_pred({"type": "Any"}, "GE", 1)) == "Counters:Any:GE:1"
+    # The EQ:0 "creature with NO counter" anti-synergy gate (Heartless Act) — the
+    # INVERSE; it keeps its comparator so the read can route it away from plus_one.
+    assert _predicate(_counters_pred({"type": "Any"}, "EQ", 0)) == "Counters:Any:EQ:0"
+
+
+def test_predicate_counters_normalizes_leaked_comparator_text():
+    """phase sometimes leaks the comparator clause into the kind ("or more charge",
+    "fewer than x +1/+1"); the kind token strips it to the bare kind / +1/+1."""
+    assert _counter_kind_token("or more charge") == "charge"
+    assert _counter_kind_token("or more loyalty") == "loyalty"
+    assert _counter_kind_token("fewer than x +1/+1") == "P1P1"
+    assert (
+        _counter_kind_token("the chosen name enters with an additional +1/+1") == "P1P1"
+    )
+    # A clean "P1P1"/"M1M1" canonicalizes to the same signature token.
+    assert _counter_kind_token("P1P1") == "P1P1"
+    assert _counter_kind_token("M1M1") == "M1M1"
+    # A pure-comparator residue (no nameable kind) becomes Generic.
+    assert _counter_kind_token("or more") == "Generic"
+
+
+def test_predicate_counters_dynamic_count_is_star():
+    """A non-Fixed (relative) count collapses to '*' so a dynamic threshold never
+    reads as a fixed count (mirrors the PtComparison/ColorCount convention)."""
+    assert (
+        _predicate(
+            {
+                "type": "Counters",
+                "counters": {"type": "OfType", "data": "P1P1"},
+                "comparator": "GE",
+                "count": {"type": "Ref", "qty": {}},
+            }
+        )
+        == "Counters:P1P1:GE:*"
+    )
+
+
+def test_predicate_hasattachment_arm_keeps_kind():
+    """HasAttachment carries the Aura/Equipment kind (the modified union's
+    equipped/enchanted half); it was dropped to a bare 'HasAttachment'. CR 700.9."""
+    assert _predicate({"type": "HasAttachment", "kind": "Aura"}) == "HasAttachment:Aura"
+    assert (
+        _predicate({"type": "HasAttachment", "kind": "Equipment"})
+        == "HasAttachment:Equipment"
+    )
+    # A kindless HasAttachment stays the bare token (no kind to keep).
+    assert _predicate({"type": "HasAttachment"}) == "HasAttachment"
+    # HasAnyAttachmentOf carries a sorted kinds list ("enchanted or equipped").
+    assert (
+        _predicate({"type": "HasAnyAttachmentOf", "kinds": ["Equipment", "Aura"]})
+        == "HasAnyAttachmentOf:Aura|Equipment"
+    )
+
+
+def test_filter_counters_predicate_round_trips_through_filter():
+    """The Counters predicate lands on a real Filter's predicates (the read side
+    keys on Filter.predicates, not the raw _predicate string)."""
+    f = _filter(
+        {
+            "type": "Typed",
+            "type_filters": ["Creature"],
+            "controller": "You",
+            "properties": [_counters_pred({"type": "OfType", "data": "P1P1"}, "GE", 1)],
+        }
+    )
+    assert f is not None
+    assert "Counters:P1P1:GE:1" in f.predicates
 
 
 # ── composite filters: negation / disjunction become predicates, not types ────
@@ -4360,14 +4460,14 @@ def test_modal_split_text_recovers_unstructured_mode():
     assert [e.category for e in effs] == ["gain_life"]
 
 
-# ── enters-with self-counter replacement (ADR-0027 counters_matter shape 2a) ───
+# ── enters-with self-counter replacement (ADR-0027 plus_one_matters shape 2a) ───
 
 
 def test_enters_with_p1p1_replacement_projects_place_counter():
     """ "~ enters with N +1/+1 counters on it" parses as a Moved→Battlefield
     replacement whose execute is a PutCounter(P1P1). phase emits nothing structural
     for enters-with; the projection recovers a place_counter (kind p1p1, scope you)
-    so the +1/+1 counters_matter lane fires (Faithful Watchdog, Mistcutter Hydra)."""
+    so the +1/+1 plus_one_matters lane fires (Faithful Watchdog, Mistcutter Hydra)."""
     rep = {
         "event": "Moved",
         "destination_zone": "Battlefield",
@@ -4392,7 +4492,7 @@ def test_enters_with_p1p1_replacement_projects_place_counter():
 
 def test_enters_with_oil_replacement_routes_to_oil_kind():
     """A non-p1p1 enters-with kind (Oil) keeps its counter_kind so it routes to the
-    oil_counter lane, NOT +1/+1 counters_matter (CR 122.1 — kinds are distinct)."""
+    oil_counter lane, NOT +1/+1 plus_one_matters (CR 122.1 — kinds are distinct)."""
     rep = {
         "event": "Moved",
         "destination_zone": "Battlefield",
@@ -4427,7 +4527,7 @@ def test_moved_replacement_without_putcounter_is_ignored():
     assert _project_replacement(rep) is None
 
 
-# ── enters-with-OTHER static grant (ADR-0027 counters_matter close, bucket D) ──
+# ── enters-with-OTHER static grant (ADR-0027 plus_one_matters close, bucket D) ──
 
 
 def test_changezone_replacement_with_putcounter_projects_place_counter():
@@ -4435,7 +4535,7 @@ def test_changezone_replacement_with_putcounter_projects_place_counter():
     (Giada, Coin of Mastery, Oona's Blackguard) parses as a ChangeZone→Battlefield
     replacement whose execute is PutCounter(P1P1) — the SAME execute shape as the
     Moved self form, just a different event. The projection recovers a place_counter
-    (kind p1p1, scope you) so the static +1/+1 grant opens counters_matter."""
+    (kind p1p1, scope you) so the static +1/+1 grant opens plus_one_matters."""
     rep = {
         "event": "ChangeZone",
         "destination_zone": "Battlefield",
@@ -4472,7 +4572,7 @@ def test_token_enter_with_counters_projects_place_counter():
     the Fractal cycle, Slime Against Humanity) parses the placement as
     token.enter_with_counters — a property of the made token spec the structured
     projection (make_token) otherwise drops. _project_effect appends a place_counter
-    (kind p1p1, scope you) so the token's +1/+1 counters open counters_matter."""
+    (kind p1p1, scope you) so the token's +1/+1 counters open plus_one_matters."""
     eff = {
         "type": "Token",
         "name": "Fractal",
@@ -4512,7 +4612,7 @@ def test_changezone_enter_with_counters_projects_place_counter():
     additional +1/+1 counters on it" (Evil Reawakened, the Transmogrant cycle,
     Phoenix Chick) parses the rider as changezone.enter_with_counters. _project_effect
     appends a place_counter (kind p1p1) alongside the reanimate so the returned
-    creature's entering counters open counters_matter (CR 614.13)."""
+    creature's entering counters open plus_one_matters (CR 614.13)."""
     eff = {
         "type": "ChangeZone",
         "destination": "Battlefield",
@@ -4550,14 +4650,14 @@ def test_norm_counter_kind_recovers_garbled_plus_one():
     assert _norm_counter_kind("study") == "study"
 
 
-# ── +1/+1-counter ref recovery (ADR-0027 counters_matter pass 2) ──────────────
+# ── +1/+1-counter ref recovery (ADR-0027 plus_one_matters pass 2) ──────────────
 
 
 def test_counter_ref_marker_from_coin_flip_parent():
     """A +1/+1 placement phase collapses into a coin_flip parent ("Put a +1/+1
     counter on ~ for each flip you won" — Crazed Firecat) survives only in the
     parent's raw. _narrow_counter_refs appends a place_counter(p1p1) marker so the
-    placement opens counters_matter (CR 122.1)."""
+    placement opens plus_one_matters (CR 122.1)."""
     rec = {
         "name": "Crazed Firecat",
         "scryfall_oracle_id": "sc-firecat",
@@ -4626,7 +4726,7 @@ def test_counter_ref_marker_from_distribute_among():
 def test_counter_have_ref_marker_for_payoff_reference():
     """A "if that creature has a +1/+1 counter on it" PAYOFF reference phase drops to
     a damage carrier (Bring Low) is recovered as a counters_have_ref marker so
-    counters_matter fires off the cares-about reference (CR 122.6)."""
+    plus_one_matters fires off the cares-about reference (CR 122.6)."""
     rec = {
         "name": "Bring Low",
         "scryfall_oracle_id": "sc-bringlow",

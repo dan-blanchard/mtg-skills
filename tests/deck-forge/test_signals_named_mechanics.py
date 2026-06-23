@@ -722,9 +722,9 @@ def test_voltron_does_not_fire_on_equipment_payload():
     assert "voltron_matters" not in _keys(c)
 
 
-def test_counters_matter_widened_for_distributors():
+def test_plus_one_matters_widened_for_distributors():
     # A distributor like "+1/+1 counter on each creature you control" (Mikaeus) is a
-    # counters engine. ADR-0027: counters_matter migrated to the IR — the placement
+    # counters engine. ADR-0027: plus_one_matters migrated to the IR — the placement
     # projects a place_counter(p1p1); assert via the hybrid (production) path.
     c = {
         "name": "Mikaeus-like",
@@ -751,7 +751,7 @@ def test_counters_matter_widened_for_distributors():
             ),
         ),
     )
-    assert any(s.key == "counters_matter" for s in extract_signals_hybrid(c, ir))
+    assert any(s.key == "plus_one_matters" for s in extract_signals_hybrid(c, ir))
 
 
 def test_poison_scoped_to_opponents():

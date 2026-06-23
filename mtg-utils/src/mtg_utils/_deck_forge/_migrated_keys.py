@@ -495,7 +495,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #   oil_counter_matters ← phase's place_counter(counter_kind='oil') placer +
         #                an `_OIL_REF` ("oil counter(s)") payoff marker (Urabrask's
         #                Anointer, Kuldotha Cackler — the count-operand/condition phase
-        #                drops). The 'oil' kind never leaks into counters_matter (p1p1).
+        #                drops). The 'oil' kind never leaks into plus_one (p1p1 only).
         #   mass_death_payoff ← a `_MASS_DEATH_REF` ("creatures that died this turn")
         #                count-operand marker (Khabál Ghoul, Gadrak, Spymaster's Vault).
         #   starting_life_matters ← a `_STARTING_LIFE_REF` ("starting life total")
@@ -875,7 +875,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # producers (the _HAND_FLOOR + the SWEEP row) are deleted; the serve spec is
         # hand-registered. See ADR-0027.
         "spell_copy_matters",
-        # Group "counters" (ADR-0027 counters_matter pass 2) — counters_matter fires
+        # Group "counters" (ADR-0027 plus_one_matters pass 2) — plus_one_matters fires
         # from the STRUCTURAL IR alone (NOT in _IR_FLOOR_LANES; floor-mirror-dep == 0,
         # floor-ON == floor-OFF). It fires on ANY +1/+1 counter PLACEMENT regardless
         # of recipient (self / on-others / on-attacking / distribute-among — all are
@@ -891,7 +891,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # fabricate/sunburst/tribute/unleash/ravenous/reinforce/scavenge/undying/
         # dethrone/devour — every one verified to project a place_counter / carry its
         # keyword, 0-miss). LOSE == 0 in production config (floor lanes ON): the IR
-        # fires counters_matter on ALL 1895 cards the regex did, plus 1243 the narrow
+        # fires plus_one_matters on ALL 1895 cards the regex did, plus 1243 the narrow
         # regex missed (genuine recall; IR 3138 vs regex 1895). All regex producers
         # (the count/board-wide _DETECTORS row, the two _HAND_FLOOR rows — "power
         # greater than its base power" twin + the any-counter HAVE form — the +1/+1
@@ -899,7 +899,22 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # add() calls) are deleted; the serve spec stays hand-registered. The
         # counter_place_trigger / counter_distribute / self_counter_grow SWEEP rows
         # (their own widen lanes) are independent and stay regex. See ADR-0027.
-        "counters_matter",
+        # RENAMED from counters_matter at the ADR-0027 counter/modified taxonomy
+        # (SIDECAR v38): it stays the +1/+1 lane (its reads now require the v38
+        # Counters:P1P1:GE / counter_kind=='p1p1' form), while the non-+1/+1 "WITH an X
+        # counter" payoffs route OFF it to minus_counters_matter / oil / named_counter_
+        # misc / any_counter_matters, and the EQ:0 "with NO counter" anti-synergy gates
+        # (Heartless Act, Damning Verdict) no longer fire it (the inverse). CR 122.1.
+        "plus_one_matters",
+        # ADR-0027 counter/modified taxonomy (SIDECAR v38) — any_counter_matters: the
+        # KIND-AGNOSTIC counter lane. IR-NATIVE FROM BIRTH (no deleted regex):
+        # proliferate (CR 701.34a — "one counter of each kind already there"), a counter
+        # MOVE / kind-agnostic remove, a "for each counter on" scale, and a subject
+        # carrying an `Any`-type Counters predicate ("creature with any counter on it" —
+        # Bulwark Ox, Innkeeper's Talent, Iroh, Cleopatra, The Swarmlord). Distinct from
+        # plus_one_matters (+1/+1 specific) and the per-kind oil/rad/named lanes. The
+        # serve spec is hand-registered in signal_specs.py. CR 122.1 / 701.34a.
+        "any_counter_matters",
         # Group "tranche2-B" (ADR-0027) — 5 keys phase v0.1.19 NOW structures, each
         # fires from the STRUCTURAL IR alone (NONE in _IR_FLOOR_LANES; floor-mirror-dep
         # == 0 by construction — no key reads a floor detector). Each key's oracle-regex
@@ -1108,7 +1123,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                trigger as the SAME counter_added(scope='you',subj=None) a
         #                +1/+1 payoff carries — 202 Sagas would flood otherwise; the
         #                Saga supertype / lore-counter reminder is the only
-        #                discriminator). is_widen_of counters_matter (co-fires).
+        #                discriminator). is_widen_of plus_one_matters (co-fires).
         #   counter_replace_bonus ← the counter_doubling replacement category (same
         #                population as counter_doubling, is_widen_of it) + a
         #                place_counter(kind='plus') tail for the temporary activated
@@ -3328,7 +3343,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # NEUTRAL until the lane is wired — self_pump treats the marker as the self
         # shape
         # it already fired on, and adapt/monstrosity keep counter_kind='' so they don't
-        # newly open counters_matter (two-sidecar global no-flood v11 vs v12: drift==0).
+        # newly open plus_one_matters (two-sidecar global no-flood v11/v12: drift==0).
         # parse_confidence unchanged (98.7% full both sides).
         #
         # STRUCTURAL ARM (recall-GAINING). A place_counter carrying the SelfRef marker
@@ -3422,7 +3437,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # counter on TARGET creature you control" (New Horizons, Snakeskin Veil —
         # single-target, NOT board-wide; phase emits the SAME subject for both).
         # counter_kind stays p1p1 (additive — nothing else reads MassEach), so
-        # counters_matter / self_counter_grow / debuff_matters / type_matters are byte-
+        # plus_one_matters / self_counter_grow / debuff_matters / type_matters are byte-
         # identical. Two-sidecar behavior-neutral no-flood (v17 vs v18, SAME unwired
         # signals.py, 30969 commander-legal): drift_cards == 0. parse_confidence
         # unchanged (34118 full / 444 partial both sides).
@@ -3432,9 +3447,9 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # catches every TRIBAL/restricted mass — "put a +1/+1 counter on each Vampire /
         # Cleric / legendary creature / attacking creature you control" (Krenko Baron of
         # Tin Street, Cordial Vampire, Minwu, Ardbert, Fangren Firstborn) — the deleted
-        # regex's literal "each creature you control" arm missed. counters_matter still
+        # regex's literal "each creature you control" arm missed. plus_one_matters still
         # co-fires on the p1p1 placement (counter_distribute is the NARROWER go-wide
-        # build-around — is_widen_of counters_matter).
+        # build-around — is_widen_of plus_one_matters).
         #
         # NARROWED KEPT-MIRROR (_COUNTER_DISTRIBUTE_MIRROR in _signals_ir). Two board-
         # wide forms have NO PutCounterAll: the DISTRIBUTE-AMONG / "each of [up to N]
@@ -3465,7 +3480,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # enters-with / keyword-self-grow placements (100% over-fire vs the board-wide
         # intent: the source grows itself, not the board; routed to self_counter_grow).
         # FILE-SWAP no-flood (base a96a28a + v17 vs edits + v18, commander-legal): drift
-        # == 409, ONLY counter_distribute moves (gain 151 / lose 258); counters_matter /
+        # == 409, ONLY counter_distribute moves (gain 151 / lose 258); plus_one /
         # self_counter_grow / debuff_matters / type_matters / creatures_matter drift 0,
         # voltron gain 0. The deleted SWEEP producer fired HIGH-confidence (scope 'you')
         # and counted toward has_other_plan, so a byte-identical
@@ -3718,7 +3733,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     _HAND_FLOOR producers → HIGH-confidence _IR_KEPT_DETECTORS mirrors
         #     (phase carries no structural form: an enters-replacement /
         #     charge-counter reference projects with a blank counter_kind the
-        #     structural edge routes to counters_matter, not proliferate_matters).
+        #     structural edge routes to plus_one_matters, not proliferate_matters).
         #   • the "remove a counter from X:" inline producer (fired LOW) →
         #     _PROLIFERATE_REMOVE_COST_RE LOW-confidence mirror arm in
         #     extract_signals_ir (kept LOW so the 55 commander-legal
@@ -3743,7 +3758,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # that would over-silence the two recall-gain bodies. The LOW remove-cost
         # producer never fed has_other_plan, so its term is intentionally absent.
         # FILE-SWAP no-flood (base ee50c00 vs edits, commander-legal hybrid): ONLY
-        # proliferate_matters moves (404 → 406, +2 recall gain), counters_matter /
+        # proliferate_matters moves (404 → 406, +2 recall gain), plus_one_matters /
         # counter_distribute / counter_manipulation / minus_counters_matter drift 0,
         # voltron_matters delta 0 (gained 0 / lost 0). CR 701.27 / 702.184 / 903.10a.
         "proliferate_matters",

@@ -507,8 +507,8 @@ CROSSWALK: dict[str, frozenset[str]] = {
     "blocked_matters": frozenset(
         {"trigger:attackerblocked", "trigger:becomesblocked", "trigger:blocks"}
     ),
-    # counters_matter is mixed: deck-forge fires it for both placing and caring.
-    "counters_matter": frozenset(
+    # plus_one_matters is mixed: deck-forge fires it for both placing and caring.
+    "plus_one_matters": frozenset(
         {
             "effect:addcounter",
             "effect:putcounter",

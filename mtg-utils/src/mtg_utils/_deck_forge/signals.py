@@ -466,12 +466,12 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         "lands_matter",
         "poison_matters",
         "suspend_matters",
-        # ADR-0027 counters_matter pass 2: the +1/+1-counter regex producers (detector
+        # ADR-0027 plus_one_matters pass 2: the +1/+1-counter regex producers (detector
         # / floor / keyword block / self-counter adds) fired high-confidence non-
         # generic, counting toward has_other_plan. Now migrated, so the hybrid must re-
         # silence the spurious voltron tell from the IR re-supply (a +1/+1-counter
         # engine — Hardened Scales, Forgotten Ancient — is not a vanilla beater).
-        "counters_matter",
+        "plus_one_matters",
         # ADR-0027 tranche2-B: mass_bounce / permanent_etb / power_double each fired
         # high-confidence in the regex path and counted toward has_other_plan, silencing
         # the spurious commander-damage voltron tell on a non-vanilla-beater (a
@@ -591,7 +591,7 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # Packbeasts, Nightblade Brigade), which a regex-path oracle PLAN mirror cannot
         # see (a byte-identical mirror would leak those 3 — verified). File-swap: 3
         # voltron leaked without this, 0 with it; A-B == 0. Matches the keyword-bearing
-        # counters_matter / suspend_matters / poison_matters precedent. CR 903.10a /
+        # plus_one_matters / suspend_matters / poison_matters precedent. CR 903.10a /
         # 111.1.
         "tokens_matter",
         # ADR-0027: island_matters fired high-confidence (forced scope 'you') in the
@@ -633,7 +633,7 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # re-silences from the IR re-supply. The IR firing is BYTE-IDENTICAL to the
         # deleted floor regex (commander-legal: regex == hybrid == 92, 0 broadening,
         # 0 ir_only), so this set entry re-silences exactly without over-silence —
-        # matching the byte-identical kept-mirror precedent (counters_matter /
+        # matching the byte-identical kept-mirror precedent (plus_one_matters /
         # tokens_matter). CR 601 / 903.10a.
         "second_spell_matters",
         # ADR-0027: kicked_spell_matters fired high-confidence (forced scope 'you') in

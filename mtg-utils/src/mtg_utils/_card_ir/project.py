@@ -104,7 +104,7 @@ def _is_selfref(node: object) -> bool:
 # re-surface the mass distinction as the ``MassEach`` predicate on the placement's
 # subject so the counter_distribute lane can split board-wide spread from a single
 # target. One closed predicate string, additive (nothing else reads ``MassEach``), so
-# counters_matter / self_counter_grow / debuff_matters / type_matters are byte-
+# plus_one_matters / self_counter_grow / debuff_matters / type_matters are byte-
 # identical. CR 122.1 / 122.6.
 _MASS_COUNTER_MARKER_PRED = "MassEach"
 
@@ -232,7 +232,7 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "incubate": "make_token",
     # Amass (CR 701.47) primarily GROWS an Army with +1/+1 counters, making an Army
     # token only if you have none — modal, so it gets its own category and fans to
-    # both tokens_matter and counters_matter rather than masquerading as a pure token.
+    # both tokens_matter and plus_one_matters rather than masquerading as a pure token.
     "amass": "amass",
     "conjure": "make_token",
     # Manifest puts a CARD onto the battlefield face down as a 2/2 (CR 701.40 + 708)
@@ -241,7 +241,7 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "manifest": "manifest",
     "manifestdread": "manifest",
     # Fabricate (CR 702.123) is MODAL: create Servo tokens OR put +1/+1 counters.
-    # Own category fans to both tokens_matter and counters_matter (make_token alone
+    # Own category fans to both tokens_matter and plus_one_matters (make_token alone
     # dropped the counter mode).
     "fabricate": "fabricate",
     "addcounter": "place_counter",
@@ -1337,8 +1337,8 @@ def _narrow_payoff_condition_refs(ability: Ability) -> Ability:
     return replace(ability, effects=ability.effects + tuple(markers))
 
 
-# ── +1/+1-counter ref recovery (ADR-0027 counters_matter pass 2) ───────────────
-# counters_matter fires on ANY +1/+1 counter PLACEMENT regardless of recipient
+# ── +1/+1-counter ref recovery (ADR-0027 plus_one_matters pass 2) ───────────────
+# plus_one_matters fires on ANY +1/+1 counter PLACEMENT regardless of recipient
 # (self / on-others / on-attacking / distribute-among — all are sources, CR 122.1 /
 # 122.6) and on a "has/with a +1/+1 counter" PAYOFF reference. phase structures the
 # clean cases as a place_counter(p1p1) (the existing IR edge), but DROPS the +1/+1
@@ -1363,7 +1363,7 @@ def _narrow_payoff_condition_refs(ability: Ability) -> Ability:
 # counters_have_ref marker for a PAYOFF reference, gated so neither fires on an
 # ability that already carries a structured place_counter (phase kept it). Append-
 # only; the carrier effect is untouched. The placement marker feeds the existing
-# place_counter(p1p1)→counters_matter edge; counters_have_ref is read by the lane in
+# place_counter(p1p1)→plus_one_matters edge; counters_have_ref is read by the lane in
 # signals.py. NO opponent gate: a +1/+1 placement is a source whoever receives it.
 _P1P1_PLACE_REF = re.compile(
     r"\bput(?:s)?\b[^.]*?\+1/\+1 counter"
@@ -1389,7 +1389,7 @@ def _narrow_counter_refs(ability: Ability) -> Ability:
     """Append +1/+1 markers phase left only in a carrier effect's raw: a
     place_counter(p1p1) for a PLACEMENT nested in a branch/cost/distribute parent,
     and a counters_have_ref for a "has/with a +1/+1 counter" PAYOFF reference
-    (counters_matter pass 2, ADR-0027). Append-only; both gated on the ability
+    (plus_one_matters pass 2, ADR-0027). Append-only; both gated on the ability
     having NO structured place_counter (so a clean placement phase already kept is
     never re-tagged), and the placement marker is preferred — when a raw both places
     AND references, the place_counter marker carries it (a placement IS a source)."""
@@ -1566,7 +1566,7 @@ def _project_face(record: dict) -> Face:
     # "if it has <madness/mutate>" / "to foretell" clauses phase left in a non-grant
     # carrier raw (Anje's untap, Pollywog's draw, Karfell's ramp).
     abilities = [_narrow_payoff_condition_refs(a) for a in abilities]
-    # +1/+1-counter ref recovery (ADR-0027 counters_matter pass 2): append a
+    # +1/+1-counter ref recovery (ADR-0027 plus_one_matters pass 2): append a
     # place_counter(p1p1) for a +1/+1 placement phase nested in a branch/cost/
     # distribute parent, or a counters_have_ref for a "has/with a +1/+1 counter"
     # payoff reference, when phase kept no structured place_counter on the ability.
@@ -1734,7 +1734,7 @@ def _project_face(record: dict) -> Face:
     stkg_markers = _single_target_keyword_grant_markers(record)
     if stkg_markers:
         abilities.append(Ability(kind="static", effects=tuple(stkg_markers)))
-    # Face-level +1/+1 fallback (ADR-0027 counters_matter pass 2): a +1/+1 placement
+    # Face-level +1/+1 fallback (ADR-0027 plus_one_matters pass 2): a +1/+1 placement
     # or "has/with a +1/+1 counter" reference phase dropped ENTIRELY (a trimmed grant
     # clause, a devour/enters-with-copy/cast-from-GY placement, a dropped damage-
     # prevention replacement), surviving only on the face oracle text. Gated on no
@@ -2380,7 +2380,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
         # CR 122.1 — "a counter is not a token, and a token is not a counter"; counter
         # KINDS are likewise non-interchangeable. A player poison/energy/experience
         # counter is NOT a +1/+1 creature counter, so route by `counter_kind` instead
-        # of folding into place_counter (the +1/+1 / counters_matter lane). Energy
+        # of folding into place_counter (the +1/+1 / plus_one_matters lane). Energy
         # reuses the gainenergy category for consistency.
         kind = _norm(eff.get("counter_kind"))
         cat = _PLAYER_COUNTER_CATEGORY.get(kind, "player_counter")
@@ -2407,7 +2407,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     # self-anchor marker so the self_counter_grow lane reads them. counter_kind stays ''
     # (phase carries no counter_type for the keyword node, and its raw — "Adapt 3." —
     # names no "+1/+1 counter"): the self_counter_grow lane keys on the MARKER, not the
-    # kind, and leaving the kind '' keeps counters_matter / self_pump exactly as they
+    # kind, and leaving the kind '' keeps plus_one_matters / self_pump exactly as they
     # were at the regex base (those gate on counter_kind=='p1p1'), so the projection is
     # behavior-neutral until self_counter_grow is wired. CR 701.43 / 701.13 / 702.111.
     if etype in _SELF_GROW_KEYWORD_TYPES:
@@ -2492,7 +2492,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     # … you control") carries the MassEach marker so the counter_distribute lane can
     # split it from a single-target PutCounter. Gated to p1p1 (a mass placement of a
     # named/loyalty counter — "put a loyalty counter on each …" — is not a +1/+1
-    # board-spread); the place_counter/counters_matter edge is untouched (counter_kind
+    # board-spread); the place_counter/plus_one_matters edge is untouched (counter_kind
     # stays p1p1). CR 122.1 / 122.6.
     if (
         etype in _MASS_PLACE_TYPES
@@ -4082,7 +4082,7 @@ def _mass_untap_marker(record: dict) -> Effect | None:
     )
 
 
-# Record-level +1/+1 fallback (ADR-0027 counters_matter pass 2): a face whose +1/+1
+# Record-level +1/+1 fallback (ADR-0027 plus_one_matters pass 2): a face whose +1/+1
 # PLACEMENT or "has/with a +1/+1 counter" PAYOFF reference phase dropped ENTIRELY —
 # not folded into a carrier raw (so _narrow_counter_refs can't see it), but absent
 # from the structured parse, surviving only on the FACE oracle text. phase trims a
@@ -4124,7 +4124,7 @@ def _counter_face_marker(record: dict, abilities: list[Ability]) -> Effect | Non
     parse — a place_counter(p1p1) for a placement, else a counters_have_ref for a
     payoff reference. None when a place_counter / counters_have_ref already exists on
     the face (the per-ability marker / structural parse covered it) or no phrase
-    matches (counters_matter pass 2, CR 122.1 / 122.6). Reminder text is stripped so
+    matches (plus_one_matters pass 2, CR 122.1 / 122.6). Reminder text is stripped so
     a keyword's own reminder ("(… put X +1/+1 counters …)") never false-fires. The
     gate blocks only a p1p1 place_counter or a counters_have_ref already present — a
     NON-p1p1 named-counter placement (voyage/oil/charge) does NOT cover a separate
@@ -6421,7 +6421,7 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
     # counter_kind='oil' (the same discriminator phase stamps on a real oil placement),
     # so the existing _COUNTER_KIND_KEYS['oil'] read fires oil_counter_matters. Gated to
     # faces with no structural oil placement/marker already present. The counter_kind
-    # 'oil' is NOT 'p1p1', so this never leaks into counters_matter.
+    # 'oil' is NOT 'p1p1', so this never leaks into plus_one_matters.
     has_oil = any(
         e.category == "place_counter" and e.counter_kind == "oil"
         for a in abilities
@@ -6744,6 +6744,49 @@ def _scalar_value(v: object) -> int | None:
     return None
 
 
+# ADR-0027 counter/modified taxonomy — strip a leaked comparator phrase off a
+# phase counter-KIND string. phase's filter-property ``counters.data`` is usually a
+# clean kind ("oil", "time", "bounty") but sometimes carries the comparator clause
+# the parser failed to split off ("or more charge" → the kind is "charge"; "or more
+# loyalty" → "loyalty"; "fewer than x +1/+1" → the +1/+1 signature). CR 122.1.
+_COUNTER_KIND_LEAK = re.compile(
+    r"^(?:x\s+)?(?:or\s+more|or\s+fewer|fewer\s+than(?:\s+x)?|more|fewer)\s+",
+    re.IGNORECASE,
+)
+
+
+def _counter_kind_token(raw: object) -> str:
+    """Normalize a phase filter-property ``counters.data`` into a kind token.
+
+    ``+1/+1`` → ``P1P1`` and ``-1/-1`` → ``M1M1`` (the canonical signatures the
+    plus_one_matters / minus_counters_matter lanes read), else the leaked-comparator-
+    stripped ``_norm`` of the kind (oil / stun / time / bounty / divinity / …). An
+    empty / pure-comparator residue becomes ``Generic`` (a counter with no nameable
+    kind). CR 122.1 (counters are individuated by name)."""
+    if not isinstance(raw, str):
+        return "Generic"
+    if "+1/+1" in raw:
+        return "P1P1"
+    if "-1/-1" in raw:
+        return "M1M1"
+    s = raw
+    prev = None
+    while prev != s:
+        prev = s
+        s = _COUNTER_KIND_LEAK.sub("", s).strip()
+    if s.lower() in ("or more", "or fewer", "or", ""):
+        return "Generic"
+    norm = _norm(s)
+    # Phase emits a clean "P1P1"/"M1M1" for the bulk of +1/+1 / -1/-1 references;
+    # canonicalize them to the same signature token the leaked-text branch returns
+    # (else a clean "P1P1" → _norm "p1p1" wouldn't match the lane's P1P1 read).
+    if norm == "p1p1":
+        return "P1P1"
+    if norm == "m1m1":
+        return "M1M1"
+    return norm or "Generic"
+
+
 def _predicate(p: object) -> str:
     if not isinstance(p, dict):
         return ""
@@ -6767,6 +6810,40 @@ def _predicate(p: object) -> str:
             f"PtComparison:{p.get('stat')}:{p.get('comparator')}:"
             f"{n if n is not None else '*'}"
         )
+    # ADR-0027 (SIDECAR v38) — the COUNTERS arm. phase's filter property is
+    # ``{type:Counters, counters:{type:OfType, data:KIND} | {type:Any}, comparator,
+    # count}``; before this the KIND + comparator were DROPPED (every Counters
+    # predicate collapsed to a bare "Counters"), so the +1/+1 lane over-fired on
+    # M1M1 / oil / time / bounty / ice "creature WITH an X counter" payoffs and on
+    # the EQ:0 "creature with NO counter" anti-synergy gates. Emit
+    # ``Counters:<KIND>:<CMP>:<N>`` (KIND in P1P1 / M1M1 / Any / oil / stun) so the
+    # plus_one / minus_counters / any_counter / named_counter_misc lanes can each
+    # read only their own kind+comparator. CR 122.1 / 122.1a / 122.3.
+    if ptype == "Counters":
+        c = p.get("counters")
+        if isinstance(c, dict):
+            ct = c.get("type")
+            kind = "Any" if ct == "Any" else _counter_kind_token(c.get("data"))
+        else:
+            kind = "Generic"
+        n = _scalar_value(p.get("count"))
+        cmp = p.get("comparator")
+        return f"Counters:{kind}:{cmp}:{n if n is not None else '*'}"
+    # ADR-0027 (SIDECAR v38) — the ATTACHMENT arm (modified_matters, CR 700.9: a
+    # permanent is "modified" if it has a counter, is equipped, or is enchanted by an
+    # Aura its controller controls). phase's ``HasAttachment`` carries the attachment
+    # ``kind`` (Aura / Equipment / Fortification) and ``HasAnyAttachmentOf`` a sorted
+    # ``kinds`` list; before this the kind was DROPPED (bare "HasAttachment"). Emit
+    # ``HasAttachment:<kind>`` / ``HasAnyAttachmentOf:<k1>|<k2>`` so modified_matters
+    # can read the equipped/enchanted half of the union. CR 301.5 / 303.4.
+    if ptype == "HasAttachment":
+        kind = p.get("kind")
+        return f"HasAttachment:{kind}" if kind is not None else "HasAttachment"
+    if ptype == "HasAnyAttachmentOf":
+        kinds = p.get("kinds")
+        if isinstance(kinds, list) and kinds:
+            return "HasAnyAttachmentOf:" + "|".join(sorted(str(k) for k in kinds))
+        return "HasAnyAttachmentOf"
     val = p.get("value")
     if isinstance(val, dict):
         val = val.get("value")

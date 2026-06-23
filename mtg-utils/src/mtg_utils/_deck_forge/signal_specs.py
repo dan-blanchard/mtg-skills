@@ -1009,7 +1009,7 @@ _PROLIFERATE_EXTRA = SubAvenue(
 # Counter DOUBLERS / amplifiers (CR 122.3 + 614 replacement): the universal payoff for
 # ANY counters commander — Doubling Season, Hardened Scales, Corpsejack, Branching
 # Evolution, Vorinclex. Note Doubling Season says "counters" generically (not "+1/+1
-# counter"), so the bare counters_matter serve missed it. Shared across every counter
+# counter"), so the bare plus_one_matters serve missed it. Shared across every counter
 # lane below, since a counters commander can open any of them. 94 genuine bulk hits.
 _COUNTER_DOUBLER_ORACLE = (
     r"twice that many [^.]*counters?|that many plus (?:one|\d+) [^.]*counters?"
@@ -1874,7 +1874,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"[^.]*\blifelink\b|(?:gain|gains|have|has) lifelink",
         serve_keywords=("lifelink",),
     ),
-    ("counters_matter", "any"): _spec(
+    ("plus_one_matters", "any"): _spec(
         "+1/+1 counters",
         "counter generators, doublers, and proliferate",
         {"oracle": r"\+1/\+1 counter"},
@@ -1887,6 +1887,23 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _COUNTER_KEYWORD_EXTRA,
             _PROLIFERATE_EXTRA,
             _COUNTER_RESILIENCE_EXTRA,
+        ),
+    ),
+    # ADR-0027 — any_counter_matters: the KIND-AGNOSTIC counter lane (CR 701.34a —
+    # proliferate adds "one counter of each kind already there", so it cares about
+    # counters generically). The "has any counter" / "for each counter on" / move-
+    # double-remove-a-counter payoffs (Bulwark Ox, Innkeeper's Talent, Iroh, Cleopatra,
+    # The Swarmlord) want proliferate, counter-doublers, and any-kind counter sources,
+    # NOT only +1/+1. Distinct from plus_one_matters (the +1/+1-specific lane) and the
+    # per-kind oil/rad/named lanes. CR 122.1 / 701.34a.
+    ("any_counter_matters", "you"): _spec(
+        "Any counters",
+        "proliferate, counter doublers, and any-counter sources",
+        {"oracle": r"proliferate|for each counter|move .* counter|\bcounter on\b"},
+        r"proliferate|for each counter on|" + _COUNTER_DOUBLER_ORACLE,
+        extras=(
+            _COUNTER_DOUBLER_EXTRA,
+            _PROLIFERATE_EXTRA,
         ),
     ),
     # Hand spec (overrides the mined sweep detector) so the avenue can fan out a

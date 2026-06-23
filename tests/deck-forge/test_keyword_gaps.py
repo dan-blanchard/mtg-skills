@@ -333,7 +333,7 @@ class TestUndyingPersistMatters:
 
 # ── Batch C: counter / payoff-regex avenues ──────────────────────────────────
 class TestMinusCountersMatter:
-    """counters_matter is hard-pinned to +1/+1, so the symmetric -1/-1 axis
+    """plus_one_matters is hard-pinned to +1/+1, so the symmetric -1/-1 axis
     (Wither/Infect/aristocrats — Hapatra, Necroskitter) had no home (CR 122/702.80/702.90)."""
 
     HAPATRA = {
@@ -794,7 +794,7 @@ class TestCasualtyRouting:
 
 class TestStationDetection:
     """Station (CR 702.184) uses charge counters; station commanders fire neither
-    counters_matter (+1/+1-gated) nor proliferate_matters — route them to proliferate."""
+    plus_one_matters (+1/+1-gated) nor proliferate_matters — route them to proliferate."""
 
     def test_station_keyword_emits_proliferate(self):
         # ADR-0027: proliferate_matters migrated to the Card IR; the station

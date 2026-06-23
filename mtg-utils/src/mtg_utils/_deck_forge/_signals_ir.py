@@ -394,7 +394,7 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # effect now carries the WHERE (top/bottom/nth) in counter_kind, and the lane
     # fires only on a top-ish position with YOUR moved cards (excludes Bottom puts +
     # bounce-to-top removal). Resolves the deferred +421 flood.
-    # NB: place_counter -> counters_matter is deferred until the projection
+    # NB: place_counter -> plus_one_matters is deferred until the projection
     # captures counter KIND (+1/+1 vs loyalty/charge/oil) — firing on every
     # counter placement floods the lane (planeswalkers, one-off charge counters).
     # direct_damage is special-cased below (doer scope "you", offensive only).
@@ -416,7 +416,7 @@ _PAYOFF_TRIGGER_KEYS: dict[str, tuple[str, str | None]] = {
     # discriminate. combat_damage_matters (the base lane, NOT migrated) still
     # fires from the unconditional `ev in ("combat_damage","deals_damage")` arm.
     "attacks": ("attack_matters", "you"),
-    "counter_added": ("counters_matter", "you"),
+    "counter_added": ("plus_one_matters", "you"),
     # ADR-0027 Cluster D (SIDECAR v36) — the ATTACKER-side becomes-blocked payoff
     # (CR 509.3c / 509.1h). phase's `BecomesBlocked` / `AttackerBlocked` modes (now
     # projected to event=='becomes_blocked', split out of the blocker-side `blocks`
@@ -492,10 +492,10 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "connive": (("connive_matters", "you"),),
     "convoke": (("convoke_matters", "you"),),
     # Devour (CR 702.82) enters with +1/+1 counters per sacrificed creature — a
-    # definitional +1/+1 source, so the printed keyword opens counters_matter too
+    # definitional +1/+1 source, so the printed keyword opens plus_one_matters too
     # (mirrors the `devour` EFFECT-category fan-out; covers Preyseizer Dragon, whose
     # devour rides the keyword + a board_count, not a `devour` effect). CR 122.1.
-    "devour": (("devour_matters", "you"), ("counters_matter", "any")),
+    "devour": (("devour_matters", "you"), ("plus_one_matters", "any")),
     "discover": (("discover_matters", "you"),),
     # Explore (CR 701.44) as the printed KEYWORD — the Scryfall-authoritative path
     # covers explore cards whose explore lives in a granted ability / replacement
@@ -506,36 +506,36 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "explore": (("explore_matters", "you"),),
     "foretell": (("foretell_matters", "you"),),
     "madness": (("madness_matters", "you"),),
-    # ADR-0027 counters_matter migration: the +1/+1-counter keyword block MOVED here
-    # from _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). counters_matter
+    # ADR-0027 plus_one_matters migration: the +1/+1-counter keyword block MOVED here
+    # from _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). plus_one_matters
     # is migrated, so it must leave the regex-readable _DIRECT_KEYWORD_SIGNALS; but the
     # IR path STILL needs the keyword for cards whose place_counter phase emits with a
     # blank counter_kind + a reminder-stripped raw (no "+1/+1" in the structural text —
     # Anafenza Kin-Tree's bolster, Goblin Glory Chaser's renown, Pteramander's adapt),
-    # which the structural place_counter→counters_matter edge misses. _IR_KEYWORD_MAP
+    # which the structural place_counter→plus_one_matters edge misses. _IR_KEYWORD_MAP
     # is IR-only (extract_signals doesn't read it), so this is the saddle-style move.
     # Each is definitionally a +1/+1-counter mechanic (CR 702.x). devour is mapped
     # above (it also sacs).
-    # (scavenge and undying are mapped lower in this dict — counters_matter is merged
+    # (scavenge and undying are mapped lower in this dict — plus_one_matters is merged
     # into their existing entries there to avoid a duplicate key.)
-    "mentor": (("counters_matter", "any"),),
-    "training": (("counters_matter", "any"),),
-    "modular": (("counters_matter", "any"),),
-    "bolster": (("counters_matter", "any"),),
-    "evolve": (("counters_matter", "any"),),
-    "outlast": (("counters_matter", "any"),),
-    "renown": (("counters_matter", "any"),),
-    "adapt": (("counters_matter", "any"),),
-    "dethrone": (("counters_matter", "any"),),
-    "graft": (("counters_matter", "any"),),
-    "riot": (("counters_matter", "any"),),
-    "bloodthirst": (("counters_matter", "any"),),
-    "fabricate": (("counters_matter", "any"),),
-    "sunburst": (("counters_matter", "any"),),
-    "tribute": (("counters_matter", "any"),),
-    "unleash": (("counters_matter", "any"),),
-    "ravenous": (("counters_matter", "any"),),
-    "reinforce": (("counters_matter", "any"),),
+    "mentor": (("plus_one_matters", "any"),),
+    "training": (("plus_one_matters", "any"),),
+    "modular": (("plus_one_matters", "any"),),
+    "bolster": (("plus_one_matters", "any"),),
+    "evolve": (("plus_one_matters", "any"),),
+    "outlast": (("plus_one_matters", "any"),),
+    "renown": (("plus_one_matters", "any"),),
+    "adapt": (("plus_one_matters", "any"),),
+    "dethrone": (("plus_one_matters", "any"),),
+    "graft": (("plus_one_matters", "any"),),
+    "riot": (("plus_one_matters", "any"),),
+    "bloodthirst": (("plus_one_matters", "any"),),
+    "fabricate": (("plus_one_matters", "any"),),
+    "sunburst": (("plus_one_matters", "any"),),
+    "tribute": (("plus_one_matters", "any"),),
+    "unleash": (("plus_one_matters", "any"),),
+    "ravenous": (("plus_one_matters", "any"),),
+    "reinforce": (("plus_one_matters", "any"),),
     # ADR-0027 proliferate_matters migration: proliferate (CR 701.27 — "add
     # another counter of each kind already there") and station (CR 702.184 —
     # accrues CHARGE counters the deck wants to proliferate) MOVED here from the
@@ -681,11 +681,11 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # keyword-less "becomes saddled" granters.
     "saddle": (("saddle_matters", "you"),),
     # scavenge (CR 702.91) exiles a card from your GY to put that many +1/+1 counters
-    # — a +1/+1 source, so it ALSO opens counters_matter (ADR-0027 migration merge).
+    # — a +1/+1 source, so it ALSO opens plus_one_matters (ADR-0027 migration merge).
     "scavenge": (
         ("scavenge_fuel", "you"),
         ("graveyard_matters", "you"),
-        ("counters_matter", "any"),
+        ("plus_one_matters", "any"),
     ),
     # Spectacle (CR 702.111) — "cast cheaper if an opponent lost life this turn" is a
     # life-loss PAYOFF (it cares about opponents having lost life), but the condition
@@ -707,12 +707,12 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "specialize": (("specialize_matters", "you"),),
     "suspend": (("suspend_matters", "you"),),
     # undying (CR 702.92) returns with a +1/+1 counter — a +1/+1 source, so it ALSO
-    # opens counters_matter (ADR-0027 migration merge). persist returns with a -1/-1
-    # counter (its own minus lane), so it is NOT given counters_matter.
+    # opens plus_one_matters (ADR-0027 migration merge). persist returns with a -1/-1
+    # counter (its own minus lane), so it is NOT given plus_one_matters.
     "undying": (
         ("undying_persist_matters", "you"),
         ("dies_recursion", "you"),
-        ("counters_matter", "any"),
+        ("plus_one_matters", "any"),
     ),
     "persist": (("undying_persist_matters", "you"), ("dies_recursion", "you")),
     "affinity": (("affinity_type", "you"),),
@@ -2796,7 +2796,7 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # makers + the sacrifice-Effect/Trigger subject widening + the choose-list /
         # granted-ability maker recovery), so it fires from the STRUCTURAL IR alone
         # and no longer needs the floor mirror. Its _HAND_FLOOR detector is deleted.
-        # counter-type synergy (distinct from the +1/+1 counters_matter doer lane)
+        # counter-type synergy (distinct from the +1/+1 plus_one_matters doer lane)
         # poison_matters removed — ADR-0027 migrated it to the Card IR (the
         # infect/toxic/poisonous Scryfall keywords + a kept word mirror for the
         # GRANTERS / "poison counter" / "has toxic" refs phase folds into a grant
@@ -3136,7 +3136,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             "artifacts_matter",
             "enchantments_matter",
             # Batch E (effect-category lanes):
-            "counters_matter",
+            "plus_one_matters",
             "minus_counters_matter",
             "oil_counter_matters",
             "shield_counter_matters",
@@ -4357,8 +4357,8 @@ _PROTECTION_GRANT_RAW: re.Pattern[str] = re.compile(
 
 
 # Batch E — counter KIND → (signal key, scope). NB: p1p1 is deliberately ABSENT
-# — +1/+1 counters are ubiquitous, so place_counter→counters_matter floods the
-# lane (1552 IR_ONLY); counters_matter derives from the counter_added trigger +
+# — +1/+1 counters are ubiquitous, so place_counter→plus_one_matters floods the
+# lane (1552 IR_ONLY); plus_one_matters derives from the counter_added trigger +
 # the +1/+1-keyword set instead. The off-+1/+1 kinds are precise.
 _COUNTER_KIND_KEYS: dict[str, tuple[str, str]] = {
     "m1m1": ("minus_counters_matter", "you"),
@@ -4372,6 +4372,92 @@ _COUNTER_KIND_KEYS: dict[str, tuple[str, str]] = {
     # advancement is not a build-around tell — the reminder is stripped, matching the
     # regex).
 }
+
+# ADR-0027 counter/modified taxonomy — the Filter-PREDICATE counter routing (the
+# read side of project._predicate's SIDECAR-v38 ``Counters:<KIND>:<CMP>:<N>``
+# emission). A "creature WITH an X counter" payoff rides a Counters predicate on a
+# subject Filter (effect / amount / trigger / condition); each kind routes to its own
+# lane (CR 122.1 — counters individuated by name). The COUNTERS arm split the bare
+# "Counters" token (which over-fired the +1/+1 lane) into per-kind predicates.
+
+
+def _counter_pred_kinds(subject: object) -> set[str]:
+    """The set of NON-EQ:0 counter KINDS a subject's Counters predicates reference
+    (the "WITH an X counter" / "has X or more" payoffs). An EQ:0 "with NO counter"
+    gate is the INVERSE (anti-synergy) and is excluded — it is NOT a counters payoff
+    (CR 122.3 / 700.9). Returns ``P1P1`` / ``M1M1`` / ``Any`` / ``oil`` / ``stun`` /
+    … (the project._predicate kind tokens)."""
+    if not isinstance(subject, Filter):
+        return set()
+    kinds: set[str] = set()
+    for p in subject.predicates:
+        if not p.startswith("Counters:"):
+            continue
+        parts = p.split(":")
+        if len(parts) < 4:
+            continue
+        kind, cmp = parts[1], parts[2]
+        if cmp == "EQ" and parts[3] == "0":
+            continue  # "with NO counter" — the inverse, route elsewhere
+        kinds.add(kind)
+    return kinds
+
+
+def _counter_pred_eq0_kinds(subject: object) -> set[str]:
+    """The set of counter KINDS a subject's EQ:0 Counters predicates reference (the
+    "creature with NO X counter" anti-synergy / removal gates — Heartless Act,
+    Damning Verdict, Arcus Acolyte). The INVERSE of a counters payoff (CR 122.3)."""
+    if not isinstance(subject, Filter):
+        return set()
+    kinds: set[str] = set()
+    for p in subject.predicates:
+        if not p.startswith("Counters:"):
+            continue
+        parts = p.split(":")
+        if len(parts) >= 4 and parts[2] == "EQ" and parts[3] == "0":
+            kinds.add(parts[1])
+    return kinds
+
+
+def _is_modified_subject(subject: object) -> bool:
+    """True for a subject phase tagged with the direct ``Modified`` predicate — the
+    Kamigawa-NEO "modified creature" payoff (CR 700.9: a permanent is modified if it
+    has a counter, is equipped, OR is enchanted by an Aura its controller controls).
+
+    phase DERIVES the CR-700.9 union itself (a single ``Modified`` predicate), so the
+    lane reads that — NOT the raw union of (any Counters) + HasAttachment:Equipment +
+    HasAttachment:Aura. The raw union would balloon to ~1382 cmdr-legal cards: EVERY
+    Aura ("enchanted creature gets …") and Equipment ("equipped creature gets …")
+    carries an EnchantedBy/EquippedBy subject without being a "modified" PAYOFF, and
+    every +1/+1-counter payoff already owns plus_one_matters. The direct ``Modified``
+    tag is the precise structural signal for the build-around (Chishiro, Kodama of the
+    West Tree, Thundering Raiju, Silver Sable); the broader word references ride the
+    byte-identical _IR_KEPT_DETECTORS mirror (the \\bmodified\\b idiom). CR 700.9 /
+    122 / 301.5 / 303.4."""
+    return isinstance(subject, Filter) and "Modified" in subject.predicates
+
+
+def _counter_pred_lanes(subject: object) -> list[tuple[str, str]]:
+    """Route a subject's "WITH an X counter" payoff (its non-EQ:0 Counters predicates)
+    to ``(lane_key, scope)`` pairs (ADR-0027 counter taxonomy). P1P1 → plus_one_matters
+    (the +1/+1 lane, RENAMED from counters_matter); M1M1/oil/shield/rad/ki → their
+    dedicated lanes (_COUNTER_KIND_KEYS, lowercased); Any → any_counter_matters (the
+    kind-agnostic "has any counter" payoff); every OTHER named kind (time/bounty/fate/
+    divinity/stun/slime/…) → named_counter_misc (the catch-all — niche≠skip). CR
+    122.1. A subject carrying a counter predicate is ALSO modified (CR 700.9); that
+    union is read separately via _is_modified_subject."""
+    lanes: list[tuple[str, str]] = []
+    for kind in _counter_pred_kinds(subject):
+        if kind == "P1P1":
+            lanes.append(("plus_one_matters", "you"))
+        elif kind == "Any":
+            lanes.append(("any_counter_matters", "you"))
+        elif kind.lower() in _COUNTER_KIND_KEYS:
+            lanes.append(_COUNTER_KIND_KEYS[kind.lower()])
+        else:
+            lanes.append(("named_counter_misc", "you"))
+    return lanes
+
 
 # keyword_counter (ADR-0027 tranche2-C) — the CLOSED CR-122.1b keyword-counter set:
 # a counter that grants a keyword ability via layer 6 (CR 613.1f). phase tags the
@@ -6630,7 +6716,7 @@ def extract_signals_ir(
                 # category, "equal to its power" stays ubiquitous one-off scaling, not a
                 # power build-around, so it is intentionally NOT a lane here.)
                 elif e.amount.op == "counters":
-                    add("counters_matter", "you", "", e.raw)
+                    add("plus_one_matters", "you", "", e.raw)
                 # ADR-0027 — "for each experience counter you have" → experience
                 # payoff SCALER (Atreus's draw-X, Azula's pump-X). The experience
                 # GAINERS ride the GivePlayerCounter -> experience_counter category
@@ -7061,21 +7147,30 @@ def extract_signals_ir(
                         add("tapped_matters", "you", "", e.raw)
                     if "Attacking" in esub.predicates:
                         add("attack_matters", "you", "", e.raw)
-                # "a creature with a +1/+1 counter" payoff isn't controller-bound.
-                if esub.controller != "opp" and "Counters" in esub.predicates:
-                    add("counters_matter", "you", "", e.raw)
-            # counters_matter (ADR-0027) — the COUNT-FORM counter-HAVE payoff: an
-            # effect whose VALUE counts "creatures you control WITH a +1/+1 counter"
-            # ("draw a card for each creature you control with a +1/+1 counter on it" —
-            # Inspiring Call, Armorcraft Judge, Hamza's cost reduction). The Counters
-            # predicate rides amount.subject (the counted set), not e.subject, so the
-            # e.subject read above misses it — a counters PAYOFF the lane wants.
-            if (
-                amount_subject is not None
-                and amount_subject.controller != "opp"
-                and "Counters" in amount_subject.predicates
-            ):
-                add("counters_matter", "you", "", e.raw)
+                # "a creature WITH an X counter" payoff isn't controller-bound. ADR-0027
+                # counter taxonomy: route by KIND (the v38 Counters:<KIND>:<CMP>:<N>
+                # predicate) — P1P1→plus_one_matters, Any→any_counter_matters, M1M1/oil/
+                # …→their lanes, named singletons→named_counter_misc. An EQ:0 "with NO
+                # counter" gate is the INVERSE (anti-synergy) and routes nowhere here.
+                if esub.controller != "opp":
+                    for ck, cs in _counter_pred_lanes(esub):
+                        add(ck, cs, "", e.raw)
+                # modified_matters (CR 700.9): a payoff restricted to a MODIFIED
+                # permanent (counter / equipped / enchanted / phase's `Modified`).
+                if _is_modified_subject(esub) and esub.controller != "opp":
+                    add("modified_matters", "you", "", e.raw)
+            # ADR-0027 — the COUNT-FORM counter-HAVE payoff: an effect whose VALUE
+            # counts "creatures you control WITH an X counter" ("draw a card for each
+            # creature you control with a +1/+1 counter on it" — Inspiring Call,
+            # Armorcraft Judge; "for each creature with a counter" — the Any form).
+            # The Counters predicate rides amount.subject (the counted set), not
+            # e.subject, so the e.subject read above misses it — a counters PAYOFF the
+            # lane wants. Routes by kind via the same taxonomy.
+            if amount_subject is not None and amount_subject.controller != "opp":
+                for ck, cs in _counter_pred_lanes(amount_subject):
+                    add(ck, cs, "", e.raw)
+                if _is_modified_subject(amount_subject):
+                    add("modified_matters", "you", "", e.raw)
             # ADR-0027 — the COUNT-FORM tapped payoff: an effect whose VALUE counts
             # your tapped creatures ("each opponent loses life equal to the number of
             # tapped creatures you control" — Throne of the God-Pharaoh; Crash the
@@ -7176,7 +7271,7 @@ def extract_signals_ir(
                 and e.counter_kind in _KEYWORD_COUNTER_KINDS
             ):
                 add("keyword_counter", "any", "", e.raw)
-            # counters_matter (ADR-0027 shape 1+2a) — a +1/+1 counter PLACEMENT is the
+            # plus_one_matters (ADR-0027 shape 1+2a) — a +1/+1 counter PLACEMENT is the
             # lane's core engine (Forgotten Ancient, Hardened Scales, every etb /
             # upkeep / combat / activated / spell +1/+1 source). place_counter with
             # counter_kind=='p1p1' is the discriminator phase already isolates from
@@ -7192,7 +7287,7 @@ def extract_signals_ir(
                 e.counter_kind == "p1p1"
                 or (not e.counter_kind and "+1/+1 counter" in (e.raw or ""))
             ):
-                add("counters_matter", "you", "", e.raw)
+                add("plus_one_matters", "you", "", e.raw)
             # ADR-0027 β — self_counter_grow STRUCTURAL arm. A +1/+1 counter PLACEMENT a
             # creature puts on ITSELF to GROW (adapt CR 701.43 / monstrosity 701.13 /
             # renown 702.111 / Saga chapter "put N +1/+1 on ~" / "enters with / put a
@@ -7213,9 +7308,9 @@ def extract_signals_ir(
             # '' for the adapt/monstrosity/renown keyword nodes (their +1/+1 lives in
             # the
             # mechanic, not a counter_type), so the marker — not the kind — gates here.
-            # NB: counters_matter (the broad lane above) still co-fires on the p1p1
+            # NB: plus_one_matters (the broad lane above) still co-fires on the p1p1
             # placements; self_counter_grow is the NARROWER self-grow build-around
-            # (is_widen_of counters_matter). A NARROWED _SELF_COUNTER_GROW_MIRROR below
+            # (is_widen_of plus_one_matters). A NARROWED _SELF_COUNTER_GROW_MIRROR below
             # recovers the TriggeringSource heroic self-grow (Sage of Hours / Fabled
             # Hero
             # — phase's "put a +1/+1 on it" with target=TriggeringSource, ambiguous at
@@ -7238,15 +7333,15 @@ def extract_signals_ir(
             # the exact ambiguity that DEFERRED the clean split — phase emits the
             # same subject for both). +84 recall over a mirror-only path (every tribal/
             # restricted mass ("each Merfolk/Cleric/legendary you control") the deleted
-            # regex's literal "each creature you control" arm missed). counters_matter
+            # regex's literal "each creature you control" arm missed). plus_one_matters
             # (the broad lane above) co-fires on the p1p1 placement; counter_distribute
-            # is the NARROWER go-wide build-around (is_widen_of counters_matter). A
+            # is the NARROWER go-wide build-around (is_widen_of plus_one_matters). A
             # _COUNTER_DISTRIBUTE_MIRROR below recovers the distribute-among / each-of /
             # enters-with-additional forms phase types as a single-target PutCounter or
             # drops to None. scope 'you'. CR 122.1 / 122.6.
             if cat == "place_counter" and _is_mass_counter_marker(e.subject):
                 add("counter_distribute", "you", "", e.raw)
-            # counters_matter (ADR-0027 pass 2) — a "has/with a +1/+1 counter"
+            # plus_one_matters (ADR-0027 pass 2) — a "has/with a +1/+1 counter"
             # PAYOFF reference phase dropped to a restriction / draw / damage /
             # cost_reduction carrier, recovered as a counters_have_ref marker
             # (project._narrow_counter_refs): "creatures you control with a +1/+1
@@ -7257,20 +7352,34 @@ def extract_signals_ir(
             # boundary phase kept only in raw; a deck running these cares about the
             # counter (the "_matters = cares-about" rule). CR 122.1 / 122.6.
             if cat == "counters_have_ref":
-                add("counters_matter", "you", "", e.raw)
-            # counters_matter (ADR-0027 shape 4) — proliferate is definitionally a
-            # counters mechanic (CR 701.27: add another counter of each kind already
-            # there). A direct category→lane edge, zero discriminator needed.
+                add("plus_one_matters", "you", "", e.raw)
+            # any_counter_matters (ADR-0027 — the kind-AGNOSTIC lane). proliferate adds
+            # "one counter of EACH KIND already there" (CR 701.34a), so it cares about
+            # counters GENERICALLY, not +1/+1 specifically — it routes to the kind-
+            # agnostic lane, NOT plus_one_matters (the dedicated proliferate_matters
+            # lane already fires via _DOER_EFFECT_KEYS). CR 701.34a.
             if cat == "proliferate":
-                add("counters_matter", "you", "", e.raw)
-            # counters_matter (ADR-0027) — a +1/+1 counter MOVE ("move +1/+1 counters
+                add("any_counter_matters", "you", "", e.raw)
+            # plus_one_matters (ADR-0027) — a +1/+1 counter MOVE ("move +1/+1 counters
             # from … onto …" — Bioshift, Aetherborn Marauder, Nesting Grounds): the
             # counter_move category already opens the dedicated counter_move lane; a
             # p1p1 move is also a +1/+1 counters payoff (it relocates the engine's
-            # counters), so it opens counters_matter too. The kind gate keeps a
+            # counters), so it opens plus_one_matters too. The kind gate keeps a
             # non-+1/+1 move out (CR 122.1; minus_counters stays its own lane).
             if cat == "counter_move" and e.counter_kind == "p1p1":
-                add("counters_matter", "you", "", e.raw)
+                add("plus_one_matters", "you", "", e.raw)
+            # any_counter_matters (ADR-0027) — kind-AGNOSTIC counter manipulation: a
+            # counter MOVE (relocating counters between permanents — Power Conduit, The
+            # Ozolith, Bioshift), OR a remove with NO specified kind ("remove all
+            # counters" / "remove a counter of any kind" — Aether Snap, Hex Parasite,
+            # Vampire Hexmage, Suncleanser). A KIND-SPECIFIC remove (time/fade/oil) is
+            # a card spending its OWN niche counter (Tangle Wire's fade, Waning
+            # Wurm's time), NOT a kind-agnostic counter engine — it routes to its own
+            # kind lane (or none), so it's EXCLUDED here. CR 122.1 / 701.34a.
+            if cat == "counter_move" or (
+                cat == "remove_counter" and not e.counter_kind
+            ):
+                add("any_counter_matters", "you", "", e.raw)
             # counter_manipulation (ADR-0027) — +1/+1 or -1/-1 counter MOVE or
             # remove-as-EFFECT (The Ozolith, Power Conduit, Nesting Grounds move;
             # Carnifex Demon, Retribution of the Ancients, Festercreep remove). The
@@ -7482,14 +7591,19 @@ def extract_signals_ir(
                     add("aura_equip_kw_grant", "you", "", e.raw)
                 # ADR-0027 — counter_grants_kw: a keyword granted to YOUR creatures that
                 # HAVE A COUNTER ("creatures you control with a +1/+1 counter have
-                # trample" — Bramblewood Paragon). The `Counters` predicate on the grant
-                # subject (phase collapses counters={type:P1P1} to bare 'Counters'; in
-                # practice every counter-conditioned keyword grant is the +1/+1 case) is
-                # the discriminator vs an ordinary team keyword grant; controller=='you'
-                # excludes opponent-creature grants. Broader than the closed-kw regex.
+                # trample" — Bramblewood Paragon; "creatures you control with counters
+                # on them gain double strike" — Chocobo Knights, the kind-AGNOSTIC Any
+                # form). The v38 taxonomy makes the requirement explicit (the bare
+                # 'Counters' token is gone): require a +1/+1 (P1P1) OR any-kind (Any)
+                # Counters predicate on the grant subject — both are counter-conditioned
+                # keyword grants (the "with a counter on it" idiom; the corpus proved
+                # the Any form is ~24% of these). controller=='you' excludes opponent
+                # creatures. An off-+1/+1 SPECIFIC-kind grant (oil/stun) is excluded —
+                # that is a keyword_counter mechanic, not a counter-conditioned buff.
+                grant_kinds = _counter_pred_kinds(e.subject)
                 if (
-                    isinstance(e.subject, Filter)
-                    and "Counters" in e.subject.predicates
+                    ("P1P1" in grant_kinds or "Any" in grant_kinds)
+                    and isinstance(e.subject, Filter)
                     and e.subject.controller == "you"
                 ):
                     add("counter_grants_kw", "you", "", e.raw)
@@ -8224,17 +8338,22 @@ def extract_signals_ir(
                 # devotion/party) phase routes off the generic `count`.
                 if _is_scaling_count(e.amount, e.raw or ""):
                     add("scaling_pump", "you", "", e.raw)
-                # counters_matter (ADR-0027 shape 6) — the counter-COUNT payoff reaches
-                # the IR as a PUMP whose value counts counters on a permanent ("Humans
-                # you control get +1/+1 for each counter on ~" — Kyler; High Sentinels).
-                # Gated to the count-bearing ops + a "counter" raw (op alone is too
-                # broad — a count counts anything; a fixed pump mentioning "counter" in
-                # an unrelated clause must not leak).
+                # The counter-COUNT payoff reaches the IR as a PUMP whose value counts
+                # counters on a permanent ("Humans you control get +1/+1 for each
+                # counter on ~" — Kyler; High Sentinels). Gated to the count-bearing ops
+                # + a "counter" raw (op alone is too broad — a count counts anything; a
+                # fixed pump mentioning "counter" in an unrelated clause must not leak).
+                # ADR-0027 taxonomy: a "+1/+1 counter" scale is plus_one_matters; a bare
+                # "for each counter on" scale is kind-agnostic → any_counter_matters
+                # (CR 122.1 — a card that scales off ANY counter cares generically).
                 if (
                     e.amount.op in ("count", "multiply", "counters")
                     and "counter" in (e.raw or "").lower()
                 ):
-                    add("counters_matter", "you", "", e.raw)
+                    if "+1/+1 counter" in (e.raw or "").lower():
+                        add("plus_one_matters", "you", "", e.raw)
+                    else:
+                        add("any_counter_matters", "you", "", e.raw)
                 # ADR-0027 — count_anthem: a TEAM anthem whose +N/+N SCALES with a
                 # board count ("Creatures you control get +0/+1 for each Gate you
                 # control" — Hold the Gates; Commander's Insignia; Boon of the Spirit
@@ -8325,18 +8444,18 @@ def extract_signals_ir(
             # Modal keyword mechanics — own CR-accurate category fanning to EVERY mode
             # it touches, instead of being flattened into a single facet. The keyword
             # maps already fire the primary lane (amass→tokens_matter,
-            # fabricate→counters_matter, devour→sacrifice_matters); these add the IR
+            # fabricate→plus_one_matters, devour→sacrifice_matters); these add the IR
             # side (→ BOTH) plus the previously-dropped mode.
             if cat == "amass":  # CR 701.47 — grow an Army (+1/+1) or make an Army token
                 add("tokens_matter", "you", "", e.raw)
-                add("counters_matter", "any", "", e.raw)
+                add("plus_one_matters", "any", "", e.raw)
             if cat == "fabricate":  # CR 702.123 — Servo tokens OR +1/+1 counters
                 add("tokens_matter", "you", "", e.raw)
-                add("counters_matter", "any", "", e.raw)
+                add("plus_one_matters", "any", "", e.raw)
             if cat == "devour":  # CR 702.82 — sacrifice creatures, enter with counters
                 add("devour_matters", "you", "", e.raw)
                 add("sacrifice_matters", "you", "", e.raw)
-                add("counters_matter", "any", "", e.raw)
+                add("plus_one_matters", "any", "", e.raw)
             # ADR-0027 — creature_recursion STRUCTURAL ARM (the recall-GAINING half of
             # the migration). A `reanimate` Effect whose subject is Creature-typed is a
             # GY->battlefield creature reanimator (Reanimate, Beacon of Unrest, Exhume,
@@ -8535,7 +8654,7 @@ def extract_signals_ir(
             # the counter lane (mirrors the place_counter counter_kind dispatch).
             if cond.kind == "hascounters":
                 if cond.counter_kind == "p1p1":
-                    add("counters_matter", "you", "", "")
+                    add("plus_one_matters", "you", "", "")
                 elif cond.counter_kind in _COUNTER_KIND_KEYS:
                     ck_key, ck_scope = _COUNTER_KIND_KEYS[cond.counter_kind]
                     add(ck_key, ck_scope, "", "")
@@ -8618,7 +8737,7 @@ def extract_signals_ir(
             # on a non-graveyard exile cost.
             if "exilegrave" in cost_parts:
                 add("graveyard_matters", "you", "", "")
-            # counters_matter (ADR-0027 shape 5) — a recurring ability whose COST
+            # plus_one_matters (ADR-0027 shape 5) — a recurring ability whose COST
             # spends counters ("Remove a +1/+1 counter from ~: …" — Triskelion pings,
             # Crystalline Crawler, Ulasht) is a +1/+1 counter sink/outlet, the engine
             # the lane wants. The cost field is a generic 'removecounter' with NO kind,
@@ -8629,7 +8748,7 @@ def extract_signals_ir(
             if "removecounter" in cost_parts and "+1/+1 counter" in (
                 card.get("oracle_text") or ""
             ):
-                add("counters_matter", "you", "", "")
+                add("plus_one_matters", "you", "", "")
             # ADR-0027 β — activated_ability (formerly a bare-cost _DETECTORS regex):
             # a card whose engine is a MEANINGFUL activated ability — the {T}:/{Q}:
             # or generic-mana-cost ability ({2}{U}{B}: …, {8}:, {X}: …) a tap-engine
@@ -8707,18 +8826,19 @@ def extract_signals_ir(
                     add("aoe_ping", "you", "", e.raw)
         trig = ab.trigger
         if trig is not None:
-            # counters_matter (ADR-0027) — a counter-HAVE TRIGGER: "whenever a creature
-            # you control WITH a +1/+1 counter on it dies / deals combat damage …"
-            # (Laid to Rest, Bred for the Hunt, Meltstrider Eulogist). The Counters
-            # predicate rides the trigger's subject Filter (the effect-subject read
-            # above only sees effect subjects, not the trigger condition's subject).
+            # ADR-0027 — a counter-HAVE TRIGGER: "whenever a creature you control WITH
+            # an X counter on it dies / deals combat damage" (Laid to Rest, Bred for the
+            # Hunt, Meltstrider Eulogist). The Counters predicate rides the trigger's
+            # subject Filter (the effect-subject read above only sees effect subjects,
+            # not the trigger condition's subject). Routes by kind via the v38 taxonomy
+            # (P1P1 -> plus_one, Any -> any_counter), and a modified subject also opens
+            # modified_matters (CR 700.9).
             tsub = trig.subject
-            if (
-                isinstance(tsub, Filter)
-                and tsub.controller != "opp"
-                and "Counters" in tsub.predicates
-            ):
-                add("counters_matter", "you", "", "")
+            if isinstance(tsub, Filter) and tsub.controller != "opp":
+                for ck, cs in _counter_pred_lanes(tsub):
+                    add(ck, cs, "", "")
+                if _is_modified_subject(tsub):
+                    add("modified_matters", "you", "", "")
             # death_matters is the ARISTOCRATS payoff — OTHER creatures dying. A
             # "when this dies" self-death trigger (SelfRef → no subject filter) is
             # self_death_payoff, a different lane, so gate on a real subject.
@@ -8799,11 +8919,11 @@ def extract_signals_ir(
             if payoff is not None:
                 key, fixed_scope = payoff
                 add(key, fixed_scope or _ir_scope(trig.scope), "", "")
-            # counter_place_trigger (ADR-0027) — is_widen_of counters_matter, but a
+            # counter_place_trigger (ADR-0027) — is_widen_of plus_one_matters, but a
             # DISTINCT lane: a "whenever one or more counters are put on …" TRIGGER
             # (Shalai and Hallar, Generous Pup, Scurry Oak, Flourishing Defenses,
             # Nest of Scarabs). phase types these as event=='counter_added'. The
-            # _PAYOFF_TRIGGER_KEYS row above co-opens counters_matter; this opens the
+            # _PAYOFF_TRIGGER_KEYS row above co-opens plus_one_matters; this opens the
             # place-trigger lane too (both correct). Gate scope!='opp' so an opponent-
             # side punisher ("counters on a creature you DON'T control" — Kros,
             # Generous Patron, scope='opp') does not open a YOUR-counters build-around.

@@ -604,7 +604,7 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # the serve spec stays hand-registered. The deleted producer fired HIGH (forced
     # scope 'you' → always HIGH), so it fed has_other_plan, and a byte-identical
     # _LANDFALL_PLAN_MIRROR restores the voltron silence below. (CR 207.2c / 305.)
-    # ADR-0027: counters_matter migrated to the Card IR — it fires on ANY +1/+1
+    # ADR-0027: plus_one_matters migrated to the Card IR — it fires on ANY +1/+1
     # counter PLACEMENT regardless of recipient (self / on-others / on-attacking /
     # distribute-among — all are sources, CR 122.1 / 122.6) and on a "has/with a
     # +1/+1 counter" PAYOFF reference. Sources: phase's place_counter(p1p1) +
@@ -1111,7 +1111,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # re-supply the pre-migration commander-damage voltron silence (file-swap voltron
     # delta 0). The SECOND producer (the `\bmodified\b` word) is deleted below. The
     # hand-written serve spec (signal_specs.py) survives. CR 700.9 / 301.5 / 303.4.
-    # (counters_matter — formerly the "power greater than its base power" twin of this
+    # (plus_one_matters — formerly the "power greater than its base power" twin of this
     # producer — is independently migrated to the Card IR via project._P1P1_HAVE_FACE /
     # signals._P1P1_HAVE_REF → counters_have_ref; that producer is deleted too.)
     # ADR-0027: low_power_matters migrated to the Card IR — a non-dynamic
@@ -1189,7 +1189,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # survives byte-identically as a HIGH-confidence _IR_KEPT_DETECTORS mirror in
     # _signals_ir (phase carries no structural form — the enters-replacement
     # place_counter projects with a blank kind the structural edge routes to
-    # counters_matter, not proliferate_matters). The keyword/charge/remove-cost
+    # plus_one_matters, not proliferate_matters). The keyword/charge/remove-cost
     # producers are likewise re-homed; the serve spec stays hand-registered.
     # ADR-0027: tapped_matters migrated to the Card IR — the Tapped(controller='you')
     # Filter predicate read in three slots: the effect subject (Saryth's grant), the
@@ -2169,7 +2169,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the cares-about payoffs phase leaves textual, served from a "-1/-1 counter"
     # _IR_KEPT_DETECTORS word mirror (CR 122 / 702.80 Wither / 702.90 Infect). This
     # _HAND_FLOOR producer is deleted; the serve spec stays hand-registered.
-    # ADR-0027: the any-counter HAVE form of counters_matter ("permanents/creatures
+    # ADR-0027: the any-counter HAVE form of plus_one_matters ("permanents/creatures
     # you control with a counter on it" — Xolatoyac, Hidden Hideout, Michelangelo —
     # and "for each <permanent/creature> you control with a counter") migrated to the
     # Card IR: the counters_have_ref marker (project._narrow_counter_refs /
@@ -2451,8 +2451,8 @@ _DIRECT_KEYWORD_SIGNALS = {
     # ADR-0027: the +1/+1-counter keyword block (mentor/training/modular/bolster/
     # evolve/outlast/renown/adapt — and dethrone/undying/graft/riot/bloodthirst/
     # fabricate/sunburst/tribute/unleash/ravenous/reinforce/scavenge below) removed
-    # from the regex keyword path with the counters_matter migration — every one of
-    # their keyword cards already fires counters_matter STRUCTURALLY from the IR (each
+    # from the regex keyword path with the plus_one_matters migration — every one of
+    # their keyword cards already fires plus_one_matters STRUCTURALLY from the IR (each
     # keyword projects a place_counter via phase's effect mapping), verified 0-miss
     # over the commander-legal corpus. The regex `extract_signals` must no longer emit
     # the migrated key.
@@ -2514,10 +2514,10 @@ _DIRECT_KEYWORD_SIGNALS = {
     # see the note at the top of this map; the IR covers their keyword cards. The
     # +1/+1-counter keyword block (dethrone/undying/graft/riot/bloodthirst/fabricate/
     # sunburst/tribute/unleash/ravenous/reinforce/scavenge) is likewise removed for
-    # the counters_matter migration — the IR fires counters_matter on all of them
+    # the plus_one_matters migration — the IR fires plus_one_matters on all of them
     # structurally (see the note at the top of this map).
     # Persist returns with a -1/-1 counter (CR 702.79a), so it wants the -1/-1 serve
-    # set, not the +1/+1-centric counters_matter — it stays (minus_counters_matter is
+    # set, not the +1/+1-centric plus_one_matters — it stays (minus_counters_matter is
     # NOT migrated via this keyword path).
     "persist": ("minus_counters_matter", "you"),
 }
@@ -3316,7 +3316,7 @@ _CLONE_MATTERS_PLAN_MIRROR = re.compile(CLONE_MATTERS_REGEX, re.IGNORECASE)
 # re-supply is byte-identical to the deleted regex firing (commander-legal: regex ==
 # hybrid == 230, 0 broadening), _VOLTRON_SILENCING_PLAN_KEYS re-silences the spurious
 # commander-damage tell for ALL 230 — oracle-payoff AND keyword-only — without
-# over-silencing, matching the keyword-bearing counters_matter / suspend_matters /
+# over-silencing, matching the keyword-bearing plus_one_matters / suspend_matters /
 # poison_matters precedent. CR 903.10a / 111.1.
 
 
@@ -5650,7 +5650,7 @@ def extract_signals(
     # deleted here; the IR path re-emits it as a byte-identical subject-bearing kept
     # mirror over the same RAW joined oracle (the back-piece "(Melds with X.)" lives in
     # reminder text). CR 701.42.
-    # ADR-0027: counters_matter migrated to the Card IR — the self-counter-payoff and
+    # ADR-0027: plus_one_matters migrated to the Card IR — the self-counter-payoff and
     # counter-HAVE-payoff add() producers are deleted (the +1/+1 placement / "has a
     # +1/+1 counter" reference fires from place_counter(p1p1) + the counters_have_ref
     # marker via the IR path). Their orphaned regex helpers were removed with this

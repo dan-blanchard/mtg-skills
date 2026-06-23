@@ -2688,7 +2688,7 @@ def test_permanents_with_counters_opens_counters():
             "permanent you control with a counter on it."
         ),
     }
-    # ADR-0027: counters_matter migrated to the IR — the "you control with a counter
+    # ADR-0027: plus_one_matters migrated to the IR — the "you control with a counter
     # on it" payoff recovers a counters_have_ref marker (project._narrow_counter_refs
     # / _counter_face_marker). Assert via the hybrid (production) path.
     ir = Card(
@@ -2712,7 +2712,7 @@ def test_permanents_with_counters_opens_counters():
             ),
         ),
     )
-    assert "counters_matter" in _keys_hybrid_ir(xolatoyac, ir)
+    assert "plus_one_matters" in _keys_hybrid_ir(xolatoyac, ir)
 
 
 def test_planeswalker_type_opens_superfriends():
@@ -3069,7 +3069,7 @@ def test_double_damage_of_counter_creatures_opens_counters():
     # (Raphael, Tidus) is a +1/+1-counters DAMAGE payoff — the damage-doubling context
     # implies POSITIVE counters (you wouldn't double the damage of -1/-1 creatures), so
     # no literal "+1/+1" is needed. Real oracle.
-    # ADR-0027: counters_matter migrated to the IR — "creatures you control with
+    # ADR-0027: plus_one_matters migrated to the IR — "creatures you control with
     # counters on them" recovers a counters_have_ref marker; assert via the hybrid
     # (production) path.
     raphael = {
@@ -3101,7 +3101,7 @@ def test_double_damage_of_counter_creatures_opens_counters():
             ),
         ),
     )
-    assert "counters_matter" in _keys_hybrid_ir(raphael, raphael_ir)
+    assert "plus_one_matters" in _keys_hybrid_ir(raphael, raphael_ir)
 
 
 def test_two_tribe_tutor():
@@ -4257,7 +4257,7 @@ def test_counter_payoff_with_a_counter_on_it_opens_counters():
         "type_line": "Legendary Creature — Rabbit Soldier",
         "oracle_text": "Pipsqueak can't attack alone unless he has a +1/+1 counter on him.",
     }
-    # ADR-0027: counters_matter migrated to the IR. Rishkar/Baxter project a
+    # ADR-0027: plus_one_matters migrated to the IR. Rishkar/Baxter project a
     # place_counter(p1p1); Pipsqueak (a pure "has a +1/+1 counter" payoff) recovers a
     # counters_have_ref marker. Assert via the hybrid (production) path.
     place_ir = Card(
@@ -4302,9 +4302,9 @@ def test_counter_payoff_with_a_counter_on_it_opens_counters():
             ),
         ),
     )
-    assert "counters_matter" in _keys_hybrid_ir(rishkar, place_ir)
-    assert "counters_matter" in _keys_hybrid_ir(baxter, place_ir)
-    assert "counters_matter" in _keys_hybrid_ir(pipsqueak, have_ir)
+    assert "plus_one_matters" in _keys_hybrid_ir(rishkar, place_ir)
+    assert "plus_one_matters" in _keys_hybrid_ir(baxter, place_ir)
+    assert "plus_one_matters" in _keys_hybrid_ir(pipsqueak, have_ir)
 
 
 def test_artifact_dig_and_improvise_open_artifacts():
@@ -4347,7 +4347,7 @@ def test_artifact_dig_and_improvise_open_artifacts():
 def test_power_greater_than_base_power_opens_counters():
     # A commander that rewards creatures whose "power [is] greater than its base power"
     # (Kutzil, Baird) is a pump / +1/+1-counters payoff — those creatures got there via
-    # counters or pumps. It should open counters_matter so +1/+1 counter sources
+    # counters or pumps. It should open plus_one_matters so +1/+1 counter sources
     # (Forgotten Ancient, Hardened Scales) surface. Niche but precise — only two
     # commander-legal cards carry the phrase. Real oracle.
     kutzil = {
@@ -4367,7 +4367,7 @@ def test_power_greater_than_base_power_opens_counters():
             "greater than its base power, create a 1/1 white Soldier creature token."
         ),
     }
-    # ADR-0027: counters_matter migrated to the IR — "power greater than its base
+    # ADR-0027: plus_one_matters migrated to the IR — "power greater than its base
     # power" recovers a counters_have_ref marker; assert via the hybrid path.
     have_ir = Card(
         oracle_id="x",
@@ -4390,8 +4390,8 @@ def test_power_greater_than_base_power_opens_counters():
             ),
         ),
     )
-    assert "counters_matter" in _keys_hybrid_ir(kutzil, have_ir)
-    assert "counters_matter" in _keys_hybrid_ir(baird, have_ir)
+    assert "plus_one_matters" in _keys_hybrid_ir(kutzil, have_ir)
+    assert "plus_one_matters" in _keys_hybrid_ir(baird, have_ir)
 
 
 def test_forced_combat_and_any_player_attack_open_goad():
@@ -5127,10 +5127,10 @@ def test_self_dies_value_resolves_short_name_for_clone():
     assert "clone_matters" in _keys_hybrid(locust)
 
 
-def test_self_counter_accumulator_opens_counters_matter():
+def test_self_counter_accumulator_opens_plus_one_matters():
     # A commander that puts +1/+1 counters on ITSELF and cares about its COUNT
     # (Sab-Sunen — "number of counters on it") is a +1/+1-counters commander; it should
-    # open counters_matter (counter sources/proliferate). The 2-condition check
+    # open plus_one_matters (counter sources/proliferate). The 2-condition check
     # (accumulates AND cares about count) excludes incidental self-counter creatures
     # (Thraximundar gets a counter but doesn't care about the count).
     sab_sunen = {
@@ -5144,7 +5144,7 @@ def test_self_counter_accumulator_opens_counters_matter():
             "Sab-Sunen. Then if it has an odd number of counters on it, draw two cards."
         ),
     }
-    # ADR-0027: counters_matter migrated to the IR and now fires on ANY +1/+1
+    # ADR-0027: plus_one_matters migrated to the IR and now fires on ANY +1/+1
     # PLACEMENT (CR 122.1 / 122.6) — even a bare self-accumulator is a source. Assert
     # via the hybrid path; the old "must also care about the count" precision guard is
     # superseded by the broadened lane (the IR fires on the place_counter alone).
@@ -5169,10 +5169,10 @@ def test_self_counter_accumulator_opens_counters_matter():
             ),
         ),
     )
-    assert "counters_matter" in _keys_hybrid_ir(sab_sunen, place_ir)
+    assert "plus_one_matters" in _keys_hybrid_ir(sab_sunen, place_ir)
 
 
-def test_board_wide_counter_placement_opens_counters_matter():
+def test_board_wide_counter_placement_opens_plus_one_matters():
     # Board-wide "+1/+1 counter on each <group>" placement is a counters ENGINE —
     # the commander repeatedly spreads counters across a board, so it wants counter
     # payoffs (proliferate, doublers, counter-matters creatures). The detector keyed
@@ -5180,7 +5180,7 @@ def test_board_wide_counter_placement_opens_counters_matter():
     # group: "on each attacking creature", "on each <tribe> you control", "on each
     # of up to N target creatures", "on each other/legendary/artifact creature".
     # Generalize to the placement clause itself: "+1/+1 counter on each".
-    # ADR-0027: counters_matter migrated to the IR — every board-wide +1/+1 placement
+    # ADR-0027: plus_one_matters migrated to the IR — every board-wide +1/+1 placement
     # projects a place_counter(p1p1). Assert via the hybrid path. (The broadened lane
     # also opens on a bare self-growth placement — a placement is a source whoever
     # receives it — so the old "self-grower stays out" precision guard is dropped.)
@@ -5214,14 +5214,14 @@ def test_board_wide_counter_placement_opens_counters_matter():
             "each attacking creature you control."
         ),
     }
-    assert "counters_matter" in _keys_hybrid_ir(drana, place_ir)
+    assert "plus_one_matters" in _keys_hybrid_ir(drana, place_ir)
     # Activated board-wide placer (Steel Overseer-style) — same lane.
     overseer = {
         "name": "Steel Overseer",
         "type_line": "Artifact Creature — Construct",
         "oracle_text": "{T}: Put a +1/+1 counter on each artifact creature you control.",
     }
-    assert "counters_matter" in _keys_hybrid_ir(overseer, place_ir)
+    assert "plus_one_matters" in _keys_hybrid_ir(overseer, place_ir)
 
 
 def test_voltron_override_opens_for_likely_voltron_commanders():

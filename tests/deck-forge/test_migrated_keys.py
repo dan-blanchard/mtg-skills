@@ -795,7 +795,7 @@ _CASES: dict[str, tuple[dict, Card]] = {
     # by _effect_subject, re-surfaced as Filter(predicates=("SelfRef",))). Adaptive
     # Snapjaw's adapt trigger "put a +1/+1 counter on this creature" is a self-grow: the
     # marker makes the structural arm in extract_signals_ir fire self_counter_grow scope
-    # "you" (and counters_matter co-fires on the p1p1 placement). The marker is the
+    # "you" (and plus_one_matters co-fires on the p1p1 placement). The marker is the
     # discriminator vs a "+1/+1 counter on TARGET / another creature" doer (subject=None
     # there). ADR-0027 β. CR 122.1 / 614.12 / 701.43 (adapt).
     "self_counter_grow": (
@@ -828,7 +828,7 @@ _CASES: dict[str, tuple[dict, Card]] = {
     # by _EFFECT_CATEGORY to place_counter, re-surfaced as the MassEach subject predicate).
     # Cathars' Crusade's ETB trigger "put a +1/+1 counter on each creature you control" is a
     # board-wide spread: the marker makes the structural arm in extract_signals_ir fire
-    # counter_distribute scope "you" (and counters_matter co-fires on the p1p1 placement).
+    # counter_distribute scope "you" (and plus_one_matters co-fires on the p1p1 placement).
     # The marker is the discriminator vs a single-target "on target creature you control"
     # placement (no MassEach there — New Horizons). ADR-0027 β. CR 122.1 / 122.6.
     "counter_distribute": (
@@ -1266,7 +1266,7 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
-    "counters_matter": (
+    "plus_one_matters": (
         {
             "name": "Steady Aim",
             "type_line": "Instant",
@@ -1285,6 +1285,30 @@ _CASES: dict[str, tuple[dict, Card]] = {
                         counter_kind="p1p1",
                         raw="Put two +1/+1 counters on target creature.",
                     ),
+                ),
+            )
+        ),
+    ),
+    # any_counter_matters ← the KIND-AGNOSTIC counter lane (ADR-0027). A `proliferate`
+    # Effect cares about counters GENERICALLY (CR 701.34a — one counter of each kind
+    # already there), so the structural arm fires any_counter_matters (NOT
+    # plus_one_matters, the +1/+1-specific lane).
+    "any_counter_matters": (
+        {
+            "name": "Karn's Bastion",
+            "type_line": "Land",
+            "oracle_text": (
+                "{T}: Add {C}.\n{4}, {T}: Proliferate. (Choose any number of "
+                "permanents and/or players, then give each another counter of each "
+                "kind already there.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="mana,tap",
+                effects=(
+                    Effect(category="proliferate", scope="you", raw="Proliferate."),
                 ),
             )
         ),
@@ -4501,7 +4525,7 @@ _CASES: dict[str, tuple[dict, Card]] = {
                         subject=Filter(
                             card_types=("Creature",),
                             controller="you",
-                            predicates=("Counters",),
+                            predicates=("Counters:P1P1:GE:1",),
                         ),
                         raw=(
                             "Each creature you control with a +1/+1 counter on it "

@@ -318,7 +318,7 @@ class TestProliferateForCounters:
     """A +1/+1 / charge / loyalty counter commander wants proliferate (CR 701.27)."""
 
     def test_counters_offer_proliferate(self):
-        extra = _extra(spec_for(_sig("counters_matter", "any")), "Proliferate")
+        extra = _extra(spec_for(_sig("plus_one_matters", "any")), "Proliferate")
         assert extra is not None
         assert extra.serve.matches(
             {

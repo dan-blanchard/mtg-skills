@@ -46,7 +46,7 @@ def _hybrid_subjects(key, name="X", oracle="", type_line="Enchantment", **kw):
 # ── 1. build-around keyword → signal ──
 def _counter_keyword_ir(name: str):
     """The IR phase projects for a +1/+1-counter keyword (mentor/training/evolve …):
-    a place_counter(p1p1) effect. ADR-0027 migrated counters_matter to the IR, so the
+    a place_counter(p1p1) effect. ADR-0027 migrated plus_one_matters to the IR, so the
     keyword opens the lane STRUCTURALLY, not via the regex keyword path."""
     from mtg_utils._card_ir.project import project_card
 
@@ -80,7 +80,7 @@ def test_mentor_is_counters():
     keys = {
         s.key for s in extract_signals_hybrid(card, _counter_keyword_ir("Mentor Lord"))
     }
-    assert "counters_matter" in keys
+    assert "plus_one_matters" in keys
 
 
 def test_training_and_evolve_are_counters():
@@ -92,7 +92,7 @@ def test_training_and_evolve_are_counters():
             s.key
             for s in extract_signals_hybrid(card, _counter_keyword_ir(f"{kw} Lord"))
         }
-        assert "counters_matter" in keys, kw
+        assert "plus_one_matters" in keys, kw
 
 
 def test_battle_cry_is_go_wide_attack():
@@ -182,7 +182,7 @@ def test_plain_flying_keyword_is_not_a_buildaround_signal():
         power="2",
         toughness="2",
     )
-    assert "counters_matter" not in k
+    assert "plus_one_matters" not in k
     assert "attack_matters" not in k
 
 

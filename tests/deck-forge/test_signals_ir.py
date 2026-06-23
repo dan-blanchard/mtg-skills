@@ -494,21 +494,21 @@ def test_direct_damage_not_for_self_damage():
     assert "direct_damage" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
-def test_place_counter_effect_does_not_flood_counters_matter():
+def test_place_counter_effect_does_not_flood_plus_one_matters():
     """A KINDLESS place_counter with no '+1/+1 counter' raw does not fire
-    counters_matter (ADR-0027): a bare loyalty/charge/named-counter placement phase
+    plus_one_matters (ADR-0027): a bare loyalty/charge/named-counter placement phase
     didn't tag p1p1 stays out of the +1/+1 lane (avoids loyalty/charge floods). The
     p1p1-kind and the '+1/+1 counter'-raw forms DO fire (tests below)."""
     ir = _ir(Ability(kind="triggered", effects=(Effect(category="place_counter"),)))
-    assert "counters_matter" not in {s.key for s in extract_signals_ir(CARD, ir)}
+    assert "plus_one_matters" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
-# ── counters_matter shapes (ADR-0027) ─────────────────────────────────────────
+# ── plus_one_matters shapes (ADR-0027) ─────────────────────────────────────────
 
 
-def test_place_counter_p1p1_fires_counters_matter():
+def test_place_counter_p1p1_fires_plus_one_matters():
     """A +1/+1 counter PLACEMENT (the lane's core engine — Forgotten Ancient,
-    Hardened Scales) fires counters_matter; the p1p1 kind discriminates it from
+    Hardened Scales) fires plus_one_matters; the p1p1 kind discriminates it from
     loyalty/oil/shield placements."""
     ir = _ir(
         Ability(
@@ -522,7 +522,7 @@ def test_place_counter_p1p1_fires_counters_matter():
             ),
         )
     )
-    assert ("counters_matter", "you", "") in _sigs(ir)
+    assert ("plus_one_matters", "you", "") in _sigs(ir)
 
 
 def test_place_counter_blank_kind_with_p1p1_raw_fires():
@@ -540,7 +540,7 @@ def test_place_counter_blank_kind_with_p1p1_raw_fires():
             ),
         )
     )
-    assert ("counters_matter", "you", "") in _sigs(ir)
+    assert ("plus_one_matters", "you", "") in _sigs(ir)
 
 
 def test_place_counter_blank_kind_without_p1p1_raw_excluded():
@@ -558,19 +558,22 @@ def test_place_counter_blank_kind_without_p1p1_raw_excluded():
             ),
         )
     )
-    assert "counters_matter" not in {s.key for s in extract_signals_ir(CARD, ir)}
+    assert "plus_one_matters" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
-def test_proliferate_fires_counters_matter():
-    """Proliferate is definitionally a counters mechanic (CR 701.27) — a direct
-    category→lane edge."""
+def test_proliferate_fires_any_counter_matters():
+    """Proliferate adds 'one counter of EACH KIND already there' (CR 701.34a) — it
+    cares about counters GENERICALLY, so it opens the kind-agnostic any_counter_matters
+    lane, NOT the +1/+1-specific plus_one_matters (ADR-0027 taxonomy)."""
     ir = _ir(Ability(kind="spell", effects=(Effect(category="proliferate"),)))
-    assert ("counters_matter", "you", "") in _sigs(ir)
+    keys = _sigs(ir)
+    assert ("any_counter_matters", "you", "") in keys
+    assert ("plus_one_matters", "you", "") not in keys
 
 
 def test_removecounter_cost_with_p1p1_oracle_fires():
     """An ability whose COST removes +1/+1 counters (Triskelion ping) fires
-    counters_matter when the oracle names '+1/+1 counter'."""
+    plus_one_matters when the oracle names '+1/+1 counter'."""
     card = {
         "name": "Triskelion",
         "oracle_text": (
@@ -586,7 +589,7 @@ def test_removecounter_cost_with_p1p1_oracle_fires():
             effects=(Effect(category="damage", raw="deals 1 damage to any target"),),
         )
     )
-    assert "counters_matter" in {s.key for s in extract_signals_ir(card, ir)}
+    assert "plus_one_matters" in {s.key for s in extract_signals_ir(card, ir)}
 
 
 def test_removecounter_cost_without_p1p1_oracle_excluded():
@@ -606,7 +609,7 @@ def test_removecounter_cost_without_p1p1_oracle_excluded():
             effects=(Effect(category="ramp", raw="add one mana"),),
         )
     )
-    assert "counters_matter" not in {s.key for s in extract_signals_ir(card, ir)}
+    assert "plus_one_matters" not in {s.key for s in extract_signals_ir(card, ir)}
 
 
 def test_counter_have_payoff_on_amount_subject_fires():
@@ -614,7 +617,9 @@ def test_counter_have_payoff_on_amount_subject_fires():
     WITH a +1/+1 counter' — Inspiring Call): the Counters predicate rides
     amount.subject, not e.subject."""
     counted = Filter(
-        card_types=("Creature",), controller="you", predicates=("Counters",)
+        card_types=("Creature",),
+        controller="you",
+        predicates=("Counters:P1P1:GE:1",),
     )
     ir = _ir(
         Ability(
@@ -630,13 +635,21 @@ def test_counter_have_payoff_on_amount_subject_fires():
             ),
         )
     )
-    assert ("counters_matter", "you", "") in _sigs(ir)
+    keys = _sigs(ir)
+    # The P1P1 kind routes to plus_one_matters (NOT modified_matters — that lane reads
+    # phase's direct `Modified` predicate, not every +1/+1 subject).
+    assert ("plus_one_matters", "you", "") in keys
+    assert ("modified_matters", "you", "") not in keys
 
 
 def test_counter_have_payoff_on_trigger_subject_fires():
     """A counter-HAVE TRIGGER ('whenever a creature you control WITH a +1/+1 counter
     dies' — Laid to Rest): the Counters predicate rides the trigger subject."""
-    tsub = Filter(card_types=("Creature",), controller="you", predicates=("Counters",))
+    tsub = Filter(
+        card_types=("Creature",),
+        controller="you",
+        predicates=("Counters:P1P1:GE:1",),
+    )
     ir = _ir(
         Ability(
             kind="triggered",
@@ -644,11 +657,91 @@ def test_counter_have_payoff_on_trigger_subject_fires():
             effects=(Effect(category="gain_life", raw="you gain 2 life"),),
         )
     )
-    assert ("counters_matter", "you", "") in _sigs(ir)
+    assert ("plus_one_matters", "you", "") in _sigs(ir)
 
 
-def test_counter_move_p1p1_fires_counters_matter():
-    """A +1/+1 counter MOVE (Bioshift) opens counters_matter alongside the dedicated
+def test_counter_pred_routes_by_kind_off_plus_one():
+    """ADR-0027 taxonomy: a 'creature WITH an M1M1 / oil / time counter' payoff routes
+    to its OWN lane, NOT plus_one_matters (the +1/+1 lane). CR 122.1."""
+
+    def _have(kind: str) -> set:
+        sub = Filter(
+            card_types=("Creature",),
+            controller="you",
+            predicates=(f"Counters:{kind}:GE:1",),
+        )
+        ir = _ir(
+            Ability(
+                kind="static",
+                effects=(Effect(category="pump", subject=sub, raw="x get trample"),),
+            )
+        )
+        return _sigs(ir)
+
+    assert ("minus_counters_matter", "you", "") in _have("M1M1")
+    assert ("oil_counter_matters", "you", "") in _have("oil")
+    # A singleton named kind (time/bounty/fate/…) falls to the named catch-all.
+    assert ("named_counter_misc", "you", "") in _have("time")
+    # None of them open the +1/+1 lane.
+    for kind in ("M1M1", "oil", "time"):
+        assert ("plus_one_matters", "you", "") not in _have(kind)
+
+
+def test_any_counter_pred_fires_any_counter_matters():
+    """The kind-agnostic 'creature with ANY counter on it' payoff (Bulwark Ox,
+    Innkeeper's Talent) opens any_counter_matters, not plus_one_matters."""
+    sub = Filter(
+        card_types=("Creature",),
+        controller="you",
+        predicates=("Counters:Any:GE:1",),
+    )
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(Effect(category="pump", subject=sub, raw="x get +1/+0"),),
+        )
+    )
+    keys = _sigs(ir)
+    assert ("any_counter_matters", "you", "") in keys
+    assert ("plus_one_matters", "you", "") not in keys
+
+
+def test_eq0_no_counter_gate_does_not_open_plus_one():
+    """An EQ:0 'creature with NO counter' anti-synergy gate (Heartless Act, Damning
+    Verdict) is the INVERSE of a counters payoff — it opens NO counter lane (CR 122.3
+    / 700.9)."""
+    sub = Filter(card_types=("Creature",), predicates=("Counters:Any:EQ:0",))
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(category="destroy", subject=sub, raw="destroy target creature"),
+            ),
+        )
+    )
+    keys = {k for (k, _s, _sub) in _sigs(ir)}
+    assert "plus_one_matters" not in keys
+    assert "any_counter_matters" not in keys
+    assert "named_counter_misc" not in keys
+    assert "modified_matters" not in keys
+
+
+def test_modified_predicate_fires_modified_matters():
+    """phase's direct `Modified` predicate (CR 700.9 — the Kamigawa-NEO 'modified
+    creature' payoff: Chishiro, Thundering Raiju) opens modified_matters."""
+    sub = Filter(card_types=("Creature",), controller="you", predicates=("Modified",))
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="attacks", subject=sub, scope="you"),
+            effects=(Effect(category="draw", raw="draw a card"),),
+        )
+    )
+    assert ("modified_matters", "you", "") in _sigs(ir)
+
+
+def test_counter_move_p1p1_fires_plus_one_matters():
+    """A +1/+1 counter MOVE (Bioshift) opens plus_one_matters alongside the dedicated
     counter_move lane; a non-p1p1 move stays out."""
     ir = _ir(
         Ability(
@@ -663,13 +756,14 @@ def test_counter_move_p1p1_fires_counters_matter():
         )
     )
     keys = {s.key for s in extract_signals_ir(CARD, ir)}
-    assert "counters_matter" in keys
+    assert "plus_one_matters" in keys
     assert "counter_move" in keys
 
 
 def test_pump_count_counter_payoff_fires():
-    """A pump scaling with a counter count ('Humans get +1/+1 for each counter on ~'
-    — Kyler) fires counters_matter (the raw confirms the counted thing is counters)."""
+    """A pump scaling with a BARE 'for each counter on' count (Kyler) is kind-agnostic
+    → any_counter_matters; a '+1/+1 counter' scale routes to plus_one_matters
+    (ADR-0027 taxonomy: the raw discriminates the counted kind)."""
     ir = _ir(
         Ability(
             kind="static",
@@ -687,7 +781,26 @@ def test_pump_count_counter_payoff_fires():
             ),
         )
     )
-    assert ("counters_matter", "you", "") in _sigs(ir)
+    assert ("any_counter_matters", "you", "") in _sigs(ir)
+    # The "+1/+1 counter" form routes to the +1/+1-specific lane.
+    ir2 = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    subject=Filter(
+                        card_types=("Creature",),
+                        subtypes=("Human",),
+                        controller="you",
+                    ),
+                    amount=Quantity(op="count"),
+                    raw="Humans you control get +1/+1 for each +1/+1 counter on ~",
+                ),
+            ),
+        )
+    )
+    assert ("plus_one_matters", "you", "") in _sigs(ir2)
 
 
 # ── removal_matters shapes (ADR-0027) ─────────────────────────────────────────
@@ -2031,15 +2144,15 @@ def test_ir_membership_flag_does_not_touch_payoff_signals():
     assert "voltron_matters" in off
 
 
-def test_devour_keyword_opens_counters_matter():
+def test_devour_keyword_opens_plus_one_matters():
     """Devour (CR 702.82) enters with +1/+1 counters per sacrificed creature — a
-    definitional +1/+1 source, so the printed keyword opens counters_matter as well
+    definitional +1/+1 source, so the printed keyword opens plus_one_matters as well
     as devour_matters (Preyseizer Dragon, whose devour rides the keyword + a
     board_count, not a structured `devour` effect)."""
     card = {"name": "Preyseizer Dragon", "keywords": ["Flying", "Devour"]}
     keys = {s.key for s in extract_signals_ir(card, _ir())}
     assert "devour_matters" in keys
-    assert "counters_matter" in keys
+    assert "plus_one_matters" in keys
 
 
 # ── opp_top_exile (ADR-0027 q2-D2 — name-lock / impulse-cast steal) ────────────
