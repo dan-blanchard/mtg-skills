@@ -109,7 +109,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ENCHANTMENTS_MATTER_REGEX,
     ENTERED_ATTACKER_REGEX,
     EXILE_MATTERS_REGEX,
-    EXTRA_COMBATS_REGEX,
     EXTRA_TURNS_REGEX,
     FLASH_GRANT_REGEX,
     FREE_CAST_REGEX,
@@ -374,8 +373,9 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # `extra_combat` effect category — Aggravated Assault, Aurelia, Moraug, Najeela) IS
     # the accurate IR-native producer for 42 of the 43 commander-legal cards (ZERO over-
     # fire). The ONE under-structured gap (Illusionist's Gambit — phase folds it into a
-    # lone `restriction` effect) is recovered by the byte-identical EXTRA_COMBATS_REGEX
-    # word mirror in _IR_KEPT_DETECTORS; the union == 43 == the deleted regex producer.
+    # lone `restriction` effect) is now read STRUCTURALLY too: the restriction-fold arm
+    # in extract_signals_ir (_EXTRA_COMBAT_RESTRICTION_RAW over that Effect's raw) fires
+    # the 43rd. The union == 43 == the deleted regex producer; NO kept mirror remains.
     # The regex producer (the `extra-combats` entry in _PRESET_REGEX_SIGNALS) is
     # deleted; the hand-registered serve spec (signal_specs) survives. CR 505.1a / 720.
     "extra_combat": ("extra_combats", "you"),
@@ -1420,33 +1420,13 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(SUPERFRIENDS_MATTERS_REGEX, re.IGNORECASE),
         "you",
     ),
-    # ADR-0027 — extra_combats SUPPLEMENT kept WORD MIRROR (the ADDITIONAL-COMBAT-PHASE
-    # archetype: a card granting "after this [main] phase, there is an additional combat
-    # phase" — Aggravated Assault, Combat Celebrant, Seize the Day, Moraug, Aurelia,
-    # Scourge of the Throne, World at War, Najeela, Illusionist's Gambit; CR 505.1a /
-    # 720). phase DOES carry an accurate structural form — the `extra_combat` effect
-    # category fires this lane through the _DOER_EFFECT_KEYS doer loop (scope 'you',
-    # HIGH conf), covering 42 of the 43 commander-legal regex fires with ZERO over-fire
-    # (floor-disabled residual by oracle_id: both==42, ir_only==0). The ONE under-
-    # structured gap is Illusionist's Gambit ("After this phase, there is an additional
-    # combat phase"), which phase folds into a single `restriction` effect and never
-    # emits the `extra_combat` category. This EXTRA_COMBATS_REGEX (the EXACT deleted
-    # `extra-combats` theme PRESET pattern, `additional combat phase`) run FLAT over the
-    # reminder-stripped kept_oracle recovers that gap byte-identically — the substring
-    # carries no parens and crosses no clause boundary, so flat==per-clause. The
-    # structural arm union this mirror == 43 == the deleted regex producer EXACTLY (the
-    # mirror's 43 is a strict SUPERSET of the structural 42). Distinct from extra_turns
-    # (CR 716) and extra_upkeep / extra_draw_step (CR 501.1 "additional beginning phase"
-    # — Shadow/Sphinx of the Second Sun say "beginning phase", NOT "combat phase", so
-    # this substring correctly skips them). The deleted producer fed has_other_plan
-    # (HIGH, scope 'you', not generic/voltron-compat), so the hybrid re-silences voltron
-    # via _VOLTRON_SILENCING_PLAN_KEYS — byte-identical re-supply (IR==regex==43), no
-    # over-silence (signals.py). CR 505.1a / 903.10a.
-    (
-        "extra_combats",
-        re.compile(EXTRA_COMBATS_REGEX, re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 — extra_combats has NO kept mirror: it is fully IR-native. The
+    # `extra_combat` doer arm (42 cards) UNION the restriction-fold structural read
+    # (_EXTRA_COMBAT_RESTRICTION_RAW — Illusionist's Gambit, the 1 card phase folds
+    # into a lone `restriction` Effect) == 43 == the deleted regex producer EXACTLY,
+    # both in extract_signals_ir. The deleted producer fed has_other_plan (HIGH,
+    # scope 'you', not generic/voltron-compat); the hybrid re-silences voltron via
+    # _VOLTRON_SILENCING_PLAN_KEYS off that IR re-supply. CR 505.1a / 903.10a.
     # ADR-0027 — extra_turns BYTE-IDENTICAL kept WORD MIRROR for the UNDER-STRUCTURED
     # tail (the time-walk axis: take-another-turn payoffs/enablers — Time Warp, Nexus of
     # Fate, Magosi, Obeka; CR 500.7). The STRUCTURAL arm
@@ -5569,6 +5549,25 @@ _KILL_ENGINE_ONESHOT_EVENTS = frozenset(
 # via the transformed / turn_face_up events above (SIDECAR v40).
 _KILL_ENGINE_ONESHOT_RAW = re.compile(r"becomes? monstrous", re.IGNORECASE)
 
+# ADR-0027 — extra_combats restriction-fold discriminator (the arm_gap recovery).
+# The primary producer is phase's `extra_combat` effect category (read via
+# _DOER_EFFECT_KEYS), which structures 42 of the 43 commander-legal extra-combat
+# cards (Aggravated Assault, Aurelia, Moraug, Najeela …). The ONE under-structured
+# card is Illusionist's Gambit: phase folds its whole body into a single
+# `restriction` Effect and never emits the `extra_combat` category, so the
+# additional-combat-phase clause ("After this phase, there is an additional combat
+# phase") survives only in THAT Effect's raw. The structural arm reads it there —
+# gated on phase's restriction category, scoped to the one Effect phase parsed — so
+# the lane is now fully IR-native (struct arm == 43) without a flat whole-card
+# regex mirror. CR 505.1a (an effect that causes an additional combat phase).
+# DISTINCT from CR 501.1 "additional beginning phase" (extra_upkeep /
+# extra_draw_step — Shadow / Sphinx of the Second Sun say "beginning phase", which
+# this substring correctly skips) and CR 500.7 take-another-turn (extra_turns). On
+# the commander-legal corpus this fires on exactly 1 card (Illusionist's Gambit),
+# zero over-fire — the dedup-safe union with the doer arm == 43 == the deleted
+# regex producer EXACTLY.
+_EXTRA_COMBAT_RESTRICTION_RAW = re.compile(r"additional combat phase", re.IGNORECASE)
+
 
 def _is_kill_engine_ir(ir: Card) -> bool:
     """True when ``ir`` has a REPEATABLE-FRAME single-target creature-destroy ability —
@@ -7153,6 +7152,17 @@ def extract_signals_ir(
             if doer is not None:
                 key, fixed_scope = doer
                 add(key, fixed_scope or _ir_scope(e.scope), "", e.raw)
+            # ADR-0027 — extra_combats arm_gap recovery. The `extra_combat` doer above
+            # is the primary producer (42 of 43); the ONE card phase folds into a lone
+            # `restriction` Effect (Illusionist's Gambit — "After this phase, there is
+            # an additional combat phase") has no `extra_combat` category, so read the
+            # additional-combat-phase clause out of the restriction Effect's raw phase
+            # DID parse. Scope 'you' matches the doer mapping; add() dedups against it.
+            # CR 505.1a. Replaces the deleted EXTRA_COMBATS_REGEX whole-card mirror.
+            if e.category == "restriction" and _EXTRA_COMBAT_RESTRICTION_RAW.search(
+                e.raw or ""
+            ):
+                add("extra_combats", "you", "", e.raw)
             # direct_damage (ADR-0027) — a source that CAN deal damage to a PLAYER
             # (a burn-them-out deck; CR 120.1 / 115.4). Gate the v22 damage Effect on
             # the recipient scope so creature-only bite stays REMOVAL, not direct:

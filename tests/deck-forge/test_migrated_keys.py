@@ -6744,10 +6744,11 @@ _CASES: dict[str, tuple[dict, Card]] = {
     # ENABLER — "After this main phase, there is an additional combat phase". The IR
     # carries an Effect(category="extra_combat"), so the structural arm serves it; the
     # regex path no longer emits the key (the `extra-combats` _PRESET_REGEX_SIGNALS
-    # producer is deleted). The under-structured tail (Illusionist's Gambit, which phase
-    # folds into a lone `restriction` effect) rides the byte-identical EXTRA_COMBATS_REGEX
-    # word mirror in _IR_KEPT_DETECTORS; structural union mirror == the deleted regex's 43.
-    # scope "you". ADR-0027.
+    # producer is deleted). The under-structured card (Illusionist's Gambit, which phase
+    # folds into a lone `restriction` Effect) is now ALSO read structurally — the
+    # restriction-fold arm (_EXTRA_COMBAT_RESTRICTION_RAW over that Effect's raw) fires
+    # the 43rd; NO kept mirror remains. Doer arm union restriction arm == the deleted
+    # regex's 43. scope "you". ADR-0027.
     "extra_combats": (
         {
             "name": "Aggravated Assault",
@@ -7385,6 +7386,45 @@ def test_migrated_key_left_regex_and_is_ir_served(key):
     hybrid_keys = {s.key for s in extract_signals_hybrid(card, ir)}
     assert key not in regex_keys, f"{key} still emitted by the legacy regex path"
     assert key in hybrid_keys, f"{key} not served by the hybrid IR path"
+
+
+def test_extra_combats_restriction_fold_fires_via_ir():
+    """The arm_gap card (ADR-0027): phase folds Illusionist's Gambit's whole body
+    into a single `restriction` Effect and never emits the `extra_combat` category,
+    so the additional-combat-phase clause survives only in that Effect's raw. The
+    restriction-fold structural arm reads it there — replacing the deleted
+    EXTRA_COMBATS_REGEX whole-card mirror. CR 505.1a."""
+    card = {
+        "name": "Illusionist's Gambit",
+        "type_line": "Instant",
+        "oracle_text": (
+            "Cast this spell only during the declare blockers step on an "
+            "opponent's turn.\nRemove all attacking creatures from combat and "
+            "untap them. After this phase, there is an additional combat phase. "
+            "Each of those creatures attacks that combat if able. They can't "
+            "attack you or planeswalkers you control that combat."
+        ),
+    }
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="restriction",
+                    scope="any",
+                    raw=(
+                        "Remove all attacking creatures from combat and untap "
+                        "them. After this phase, there is an additional combat "
+                        "phase. Each of those creatures attacks that combat if "
+                        "able. They can't attack you or planeswalkers you "
+                        "control that combat."
+                    ),
+                ),
+            ),
+        )
+    )
+    assert "extra_combats" not in {s.key for s in extract_signals(card)}
+    assert "extra_combats" in {s.key for s in extract_signals_hybrid(card, ir)}
 
 
 def test_creatures_matter_mass_grant_fires_via_ir():

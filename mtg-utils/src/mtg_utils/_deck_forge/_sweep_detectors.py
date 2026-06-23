@@ -1382,36 +1382,13 @@ SUPERFRIENDS_MATTERS_REGEX = (
     r"|planeswalker type"
     r"|abilit(?:y|ies) of (?:a |target |another |each )?planeswalker"
 )
-# ADR-0027 — extra_combats (the ADDITIONAL-COMBAT-PHASE archetype axis: a card that
-# grants "after this [main] phase, there is an additional combat phase" — Aggravated
-# Assault, Combat Celebrant, Seize the Day, Moraug, Aurelia, Scourge of the Throne,
-# World at War, Najeela, Illusionist's Gambit; CR 505.1a / 720) migrated to the Card
-# IR. phase DOES carry an accurate STRUCTURAL form: the `extra_combat` effect category
-# fires extra_combats through the _DOER_EFFECT_KEYS doer loop (scope 'you', HIGH conf),
-# covering 42 of the 43 commander-legal regex fires with ZERO over-fire (floor-disabled
-# residual by oracle_id: both==42, regex_only==1, ir_only==0, 0 scope/conf mismatch).
-# The single under-structured gap is Illusionist's Gambit ("After this phase, there is
-# an additional combat phase") — phase folds the whole card into one `restriction`
-# effect and never emits the `extra_combat` category, so the structural arm misses it.
-# This EXTRA_COMBATS_REGEX (the EXACT deleted `extra-combats` theme PRESET pattern,
-# `additional combat phase`) run FLAT over the reminder-stripped kept_oracle in
-# extract_signals_ir's _IR_KEPT_DETECTORS loop (scope 'you', HIGH conf) recovers that
-# gap byte-identically: the substring carries no parens and crosses no clause boundary,
-# so flat==per-clause (commander-legal: flat-mirror==per-clause-regex==43, 0 gain/loss).
-# The structural arm union the word mirror == 43 == the deleted regex producer EXACTLY.
-# Distinct from extra_turns (CR 716 — take another turn), extra_upkeep / extra_draw_step
-# (CR 501.1 — an additional BEGINNING phase; Shadow/Sphinx of the Second Sun say
-# "additional beginning phase", NOT "combat phase", so the substring correctly skips
-# them). extra_combats was NEVER a SWEEP key, so no SWEEP row is touched (len stays 36);
-# only this CONSTANT is pinned here. NO sidecar bump. The deleted producer fired HIGH
-# conf scope 'you' and so counted toward has_other_plan (it is NOT in _GENERIC_KEYS /
-# _VOLTRON_COMPAT_KEYS), silencing the spurious commander-damage voltron tell on an
-# extra-combat creature commander that is NOT a vanilla beater (Aurelia, Moraug,
-# Najeela, Anzrag, Karlach). Because the IR re-supply IS this byte-identical union
-# (IR==regex==43), the hybrid re-silences via _VOLTRON_SILENCING_PLAN_KEYS (signals.py)
-# — no broadening, no over-silence — matching the land_sacrifice / draw_matters kept-
-# mirror precedent; NO _EXTRA_COMBATS_PLAN_MIRROR is needed. CR 505.1a / 903.10a.
-EXTRA_COMBATS_REGEX = r"additional combat phase"
+# ADR-0027 — extra_combats (the ADDITIONAL-COMBAT-PHASE archetype axis; CR 505.1a /
+# 720) is now FULLY IR-NATIVE: no kept regex mirror remains. phase's `extra_combat`
+# effect category fires the lane through the _DOER_EFFECT_KEYS doer loop (42 cards),
+# and the ONE card phase folds into a lone `restriction` Effect (Illusionist's Gambit)
+# is read STRUCTURALLY off that Effect's raw by _EXTRA_COMBAT_RESTRICTION_RAW in
+# extract_signals_ir — so the EXTRA_COMBATS_REGEX constant that backed the old word
+# mirror is DELETED (the union is 43 == the deleted regex producer). CR 505.1a / 720.
 # ADR-0027 — extra_turns (the TIME-WALK build-around axis: take-another-turn payoffs
 # and enablers — Time Warp, Temporal Manipulation, Nexus of Fate, Magosi, Obeka, plus
 # the per-extra-turn payoffs Wanderwine Prophets / Sage of Hours / Medomai; CR 500.7)
