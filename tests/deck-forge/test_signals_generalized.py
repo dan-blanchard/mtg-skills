@@ -5280,8 +5280,9 @@ def test_voltron_override_opens_for_likely_voltron_commanders():
 
     # (D) Mirri grows herself on combat damage — opens voltron despite also opening
     # combat_damage_to_creature (the named bug: the old fallback was suppressed).
-    # ADR-0027 β: combat_damage_to_creature migrated to the Card IR, so it is served
-    # from the hybrid (IR) path; the voltron self-pump override still opens voltron.
+    # ADR-0027 (SIDECAR v41): combat_damage_to_creature reads the STRUCTURED recipient
+    # (creature) on the IR's combat_damage trigger; the voltron self-pump override still
+    # opens voltron.
     mirri = {
         "name": "Mirri the Cursed",
         "type_line": "Legendary Creature — Vampire Cat",
@@ -5292,7 +5293,14 @@ def test_voltron_override_opens_for_likely_voltron_commanders():
             "Mirri."
         ),
     }
-    mk = {s.key for s in extract_signals_hybrid(mirri, _bare_ir())}
+    mirri_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="combat_damage", recipient=("creature",)),
+            effects=(Effect(category="place_counter", counter_kind="p1p1", raw=""),),
+        )
+    )
+    mk = {s.key for s in extract_signals_hybrid(mirri, mirri_ir)}
     assert "voltron_matters" in mk
     assert "combat_damage_to_creature" in mk  # both — the override no longer suppresses
     # (C) Sram rewards casting Auras & Equipment (comma-list phrasing).

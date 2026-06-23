@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 
+from mtg_utils._card_ir.supplement import combat_damage_recipients_from_text
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_regex import (
     _CHEAT_INTO_PLAY_RESIDUE_RE,
@@ -92,9 +93,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     CLONE_MATTERS_REGEX,
     CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
-    COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
-    COMBAT_DAMAGE_TO_OPP_REGEX,
     COUNTER_DOUBLING_REGEX,
     CREATURE_PING_REGEX,
     CREATURE_RECURSION_REGEX,
@@ -1678,33 +1677,14 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(NONCREATURE_CAST_PUNISH_REGEX, re.IGNORECASE),
         "any",
     ),
-    # ADR-0027 — combat_damage_matters (the BASE CR-510 lane the combat_* siblings
-    # below are is_widen_of): a payoff for dealing COMBAT damage TO A PLAYER/OPPONENT
-    # ("whenever ~ deals combat damage to a player/an opponent/each opponent" — Edric,
-    # Dragonlord Ojutai, Wrexial; or the passive "player who was dealt combat damage by
-    # ~" — Hope of Ghirapur). BYTE-IDENTICAL KEPT MIRROR of the EXACT deleted _DETECTORS
-    # regex, NOT the structural arm: phase structures the combat_damage event but DROPS
-    # the recipient TYPE onto a lossy scope (same loss documented on the siblings
-    # below), so the unconditional structural arm fired on every combat_damage AND
-    # deals_damage trigger — over-firing 3 ways the narrow regex never did (NON-combat
-    # deals_damage = damage_to_opp_matters; combat-damage-to-a-CREATURE =
-    # combat_damage_to_creature; "deals combat damage TO YOU" defensive punishers). The
-    # deleted regex only matched single clauses (the `[^.]*?` connect phrase never
-    # crosses `.`/`;`/`\n`), so this flat .search over the reminder-stripped joined-face
-    # kept_oracle reproduces the per-clause regex firing set EXACTLY (commander-legal,
-    # floor-disabled, by oracle_id: both==763, regex_only==0, ir_only==0). Forced scope
-    # 'opponents' (the deleted producer's scope). CR 510.
-    (
-        "combat_damage_matters",
-        re.compile(
-            r"\bwhen(?:ever)?\b[^.]*?\bdeals? combat damage to "
-            r"(?:a player|an opponent|one of your opponents|each opponent"
-            r"|a player or planeswalker|a player or battle)\b"
-            r"|(?:was|were) dealt combat damage by",
-            re.IGNORECASE,
-        ),
-        "opponents",
-    ),
+    # ADR-0027 (SIDECAR v41) — combat_damage_matters / combat_damage_to_creature /
+    # combat_damage_to_opp: their three recipient-word KEPT MIRRORS were DELETED. phase
+    # carries the damage RECIPIENT on the combat_damage trigger's valid_target, which
+    # project now preserves as `trig.recipient`, so the lanes read STRUCTURE in
+    # extract_signals_ir (player/planeswalker → matters, creature → to_creature,
+    # player → to_opp) and the residue phase leaves unstructured rides a synthetic
+    # combat_damage trigger from supplement._recover_combat_damage_recipients — NOT a
+    # mirror here. CR 510.1b / 510.1c / 120.3.
     # ADR-0027 β — tribe_damage_trigger: phase leaves the combat_damage trigger subject
     # = None (no structure to read — the `tsub_kinds` arm in extract_signals_ir was DEAD
     # CODE, never firing on a combat-damage trigger), so this is a byte-identical KEPT
@@ -1718,39 +1698,13 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(TRIBE_DAMAGE_TRIGGER_REGEX, re.IGNORECASE),
         "you",
     ),
-    # ADR-0027 β — combat_damage_to_creature + combat_damage_to_opp (both
-    # is_widen_of combat_damage_matters). phase DOES structure the combat_damage
-    # trigger event but NOT the RECIPIENT TYPE: Ohran Viper's two DamageDone
-    # triggers differ in raw card-data (valid_target Typed[Creature] vs Player),
-    # yet project.py uses valid_target only for its `controller` (scope), dropping
-    # its TYPE — so both project to scope='any', subject=None, byte-identical. The
-    # recipient discriminator survives in the joined-face oracle ("to a creature"
-    # vs "to a player/an opponent/each opponent"), which is exactly what these
-    # byte-identical KEPT MIRRORS of the deleted SWEEP regexes anchor on — so they
-    # DO split the two lanes the structural payoff arm cannot. The deleted regexes
-    # only ever matched single clauses (the connect phrase never holds `.`/`;`/
-    # `\n`), so the flat-text mirror reproduces the per-clause regex firing set
-    # exactly (commander-legal corpus: regex==mirror, 0 lost, 0 over-fire;
-    # creature=33 / opp=757 + 3 double-strike-grant; the 2 cards with BOTH a
-    # creature- and a player-recipient trigger — Ohran Viper, Phage the
-    # Untouchable — fire BOTH lanes). CR 510.1c / 510.2.
-    (
-        "combat_damage_to_creature",
-        re.compile(COMBAT_DAMAGE_TO_CREATURE_REGEX, re.IGNORECASE),
-        "any",
-    ),
-    (
-        "combat_damage_to_opp",
-        re.compile(COMBAT_DAMAGE_TO_OPP_REGEX, re.IGNORECASE),
-        "opponents",
-    ),
     # NB: the LOW-confidence double-strike-grant producer of combat_damage_to_opp
-    # is handled as a dedicated inline mirror in extract_signals_ir (NOT a row
-    # here): the kept-detector loop emits HIGH confidence, but the deleted producer
-    # fired LOW and so never fed has_other_plan — firing its 3 cards (Raphael,
-    # Blade Historian, Berserkers' Onslaught — power-2 voltron-eligible bodies) at
-    # HIGH would spuriously SILENCE their commander-damage voltron tell. The inline
-    # mirror preserves the LOW confidence.
+    # (Raphael, Blade Historian, Berserkers' Onslaught) is NOT a recipient-type fact —
+    # it's an INFERENCE ("attacking creatures you control have double strike" → they
+    # connect with players twice), so it does not migrate to trig.recipient. It stays a
+    # dedicated LOW inline mirror in extract_signals_ir (firing it at the structural
+    # arm's HIGH confidence would feed has_other_plan and spuriously SILENCE those
+    # power-2 voltron-eligible bodies' commander-damage tell).
     # ADR-0027 β — damage_to_opp_matters (is_widen_of combat_damage_matters): the
     # GENERAL (any-source, ANY damage — not the literal "combat damage") "deals damage
     # to a PLAYER / opponent" connect-payoff (Hypnotic Specter, Curiosity, Goblin
@@ -9406,20 +9360,34 @@ def extract_signals_ir(
             if ev == "other" and trig.scope != "opp":
                 for abil_lane in _typed_matters_lanes(trig.subject):
                     add(abil_lane, "you", "", "")
-            # ADR-0027 — combat_damage_matters (the BASE CR-510 lane) is NOT fired
-            # from this combat_damage/deals_damage trigger arm. The unconditional
-            # `add("combat_damage_matters", "opponents")` was DELETED: phase drops the
-            # damage RECIPIENT TYPE onto a lossy scope (project.py reads valid_target
-            # only for its controller), so firing on every combat_damage AND
-            # deals_damage trigger over-fired 3 ways the narrow "deals combat damage to
-            # a player/an opponent" regex never did — 131 NON-combat deals_damage bodies
-            # (Hypnotic Specter, Chandra's Incinerator — really damage_to_opp_matters /
-            # noncombat), 29 combat-damage-to-a-CREATURE bodies (Serpentine Basilisk —
-            # combat_damage_to_creature, already migrated), and the "deals combat damage
-            # TO YOU" defensive punishers (Witch-king, Norn's Decree). The base lane now
-            # rides the byte-identical _IR_KEPT_DETECTORS mirror (anchored on the
-            # player/opponent recipient the regex required). The damage_to_opp_matters
-            # add on this SAME trigger event is unaffected (collapsed into one `if`).
+            # ADR-0027 (SIDECAR v41) — the three combat-damage lanes read the
+            # STRUCTURED recipient TYPE phase carries on the combat_damage trigger's
+            # valid_target (project._recipient_of_target → trig.recipient), which
+            # project used to drop onto a lossy scope. REPLACES the three deleted
+            # recipient-word _IR_KEPT_DETECTORS mirrors:
+            #   • combat_damage_matters — BASE CR-510.1b: a PLAYER or PLANESWALKER
+            #     recipient (Edric, Ojutai, Zagras's planeswalker destroyer). A
+            #     creature-recipient or a "to YOU" defensive punisher (Controller →
+            #     'you') is NOT this lane.
+            #   • combat_damage_to_creature — CR 510.1c: a CREATURE recipient
+            #     (Serpentine Basilisk, Ohran Viper's first trigger).
+            #   • combat_damage_to_opp — a PLAYER recipient (a Player target or an
+            #     opponent-controlled "an opponent"). An Or[Player, Planeswalker]
+            #     fires both matters AND to_opp via its player branch.
+            # Structure FIXES regex misses (+matters/+to_opp — Renown, Ingest, "one
+            # of your opponents", a planeswalker recipient). The residue phase leaves
+            # wholly unstructured (a trigger quoted in an activated ability / one-shot
+            # grant, a "would deal combat damage" replacement) is recovered as a
+            # synthetic combat_damage trigger in supplement — NOT a retained signals
+            # mirror. CR 510.1b / 510.1c / 120.3.
+            if ev == "combat_damage":
+                rcp = set(trig.recipient)
+                if rcp & {"player", "planeswalker"}:
+                    add("combat_damage_matters", "opponents", "", "")
+                if "creature" in rcp:
+                    add("combat_damage_to_creature", "any", "", "")
+                if "player" in rcp:
+                    add("combat_damage_to_opp", "opponents", "", "")
             # ADR-0027 β damage_to_opp_matters — a NON-COMBAT "deals damage to a
             # PLAYER / opponent" connect-payoff (Hypnotic Specter, Curiosity,
             # Goblin Lackey, Fungal Shambler). project._project_trigger stamps the
@@ -9625,6 +9593,27 @@ def extract_signals_ir(
     for key, pat, scope in _IR_KEPT_DETECTORS:
         if pat.search(kept_oracle):
             add(key, scope, "", "")
+    # ADR-0027 (SIDECAR v41) — combat-damage recipient FOLD recovery. The three
+    # combat-damage lanes read trig.recipient off the pre-built sidecar IR above, but a
+    # commander's combat-damage payoff can live on a RUNTIME-folded object (ADR-0025 —
+    # the Ring-bearer's "deals combat damage to a player" level) whose text is in the
+    # folded `card` oracle but NOT in the commander's IR. Recover that residue from the
+    # oracle via the SAME supplement parser the build uses (not a signals mirror), gated
+    # to recipients the IR lacks — so a non-folded card (IR ⊇ its oracle) fires nothing
+    # here and the lanes stay structure-driven. CR 510.1b / 510.1c.
+    _ir_recipients = {
+        r
+        for ab in ir.all_abilities()
+        if ab.trigger is not None and ab.trigger.event == "combat_damage"
+        for r in ab.trigger.recipient
+    }
+    _fold_recipients = combat_damage_recipients_from_text(get_oracle_text(card) or "")
+    for r in _fold_recipients - _ir_recipients:
+        if r == "creature":
+            add("combat_damage_to_creature", "any", "", "")
+        else:  # player
+            add("combat_damage_matters", "opponents", "", "")
+            add("combat_damage_to_opp", "opponents", "", "")
     # ADR-0027 — direct_damage byte-identical mirror (the OR of the two deleted
     # _HAND_FLOOR producers, scope 'you'). Recovers the player-reaching tail the v22
     # scope arm can't read structurally: damage DOUBLERS (replacement effects, not a

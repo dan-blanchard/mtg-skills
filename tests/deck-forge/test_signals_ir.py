@@ -933,12 +933,12 @@ def test_bare_combat_damage_trigger_opens_no_combat_lane():
     assert ("combat_damage_to_creature", "any", "") not in sigs
 
 
-def test_combat_damage_matters_fires_from_kept_mirror_on_oracle():
-    """ADR-0027: the base CR-510 combat_damage_matters lane rides the byte-identical
-    _IR_KEPT_DETECTORS mirror — anchored on the player/opponent recipient in the oracle
-    ("deals combat damage to a player/an opponent"), which the structural arm could not
-    discriminate. So with a real oracle the mirror fires the base lane (scope opponents),
-    while a non-combat or creature-recipient oracle does not."""
+def test_combat_damage_matters_fires_from_recipient_structure():
+    """ADR-0027 (SIDECAR v41): the base CR-510.1b combat_damage_matters lane reads the
+    STRUCTURED recipient TYPE phase carries on the combat_damage trigger's valid_target
+    (project → trig.recipient). A player/planeswalker recipient ("to one of your
+    opponents" → Typed{controller:Opponent} → recipient=("player",)) fires the base lane
+    (scope opponents); the three recipient-word mirrors are deleted."""
     card = {
         "name": "Edric",
         "oracle_text": (
@@ -947,7 +947,10 @@ def test_combat_damage_matters_fires_from_kept_mirror_on_oracle():
         ),
     }
     ir = _ir(
-        Ability(kind="triggered", trigger=Trigger(event="combat_damage", scope="opp"))
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="combat_damage", scope="opp", recipient=("player",)),
+        )
     )
     sigs = sorted((s.key, s.scope, s.subject) for s in extract_signals_ir(card, ir))
     assert ("combat_damage_matters", "opponents", "") in sigs

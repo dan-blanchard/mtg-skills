@@ -130,6 +130,20 @@ class Trigger:
     # zone-matters lanes (a dies trigger is from:battlefield+to:graveyard, so signals
     # can tell graveyard-FILL from death).
     zones: tuple[str, ...] = ()
+    # ADR-0027 combat-damage RECIPIENT TYPE (SIDECAR v41): for a `combat_damage`
+    # trigger, the kind(s) of object the damage is dealt TO — the sorted, deduped set
+    # of {creature | player | planeswalker | you} read from phase's `valid_target`
+    # Typed/Player/Or filter. The `event` collapses to `combat_damage` but DROPS this
+    # type (project reads valid_target only for the `controller`/scope), so a CR-510.1b
+    # "to a player/planeswalker/battle" recipient (combat_damage_to_opp / matters) was
+    # indistinguishable from a CR-510.1c "to a creature" recipient (combat_damage_to_
+    # creature) and from a CR-510.1's "to YOU" defensive punisher (Controller →
+    # `you`). This field re-surfaces it so the three combat-damage lanes read STRUCTURE
+    # instead of a recipient-word regex. `player` covers a Player target and an
+    # opponent-controlled Typed ("an opponent"). An empty tuple = recipient unknown
+    # (an Or with no player/creature branch, a bare Typed with no card type, or a
+    # node phase didn't carry) — no recipient lane fires. CR 510.1b / 510.1c / 120.3.
+    recipient: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -509,6 +523,8 @@ def _trigger_to_dict(t: Trigger | None) -> dict | None:
         out["sc"] = t.scope
     if t.zones:
         out["z"] = list(t.zones)
+    if t.recipient:
+        out["rc"] = list(t.recipient)
     return out
 
 
@@ -520,6 +536,7 @@ def _trigger_from_dict(d: dict | None) -> Trigger | None:
         subject=_filter_from_dict(d.get("sub")),
         scope=d.get("sc", "any"),
         zones=tuple(d.get("z", ())),
+        recipient=tuple(d.get("rc", ())),
     )
 
 

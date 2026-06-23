@@ -483,7 +483,26 @@ from mtg_utils.card_ir import Card
 #       exploiters with the trigger). The Scryfall `exploit` keyword also maps to
 #       sacrifice_matters in _IR_KEYWORD_MAP (covers Silumgar Scavenger, keyword-
 #       only). CR 702.21a / 702.83 / 712 / 702.36 / 701.3 / 702.139 / 108.3.
-SIDECAR_VERSION = 40
+# v41 (ADR-0027 combat-damage RECIPIENT TYPE — Trigger.recipient; project.py
+#   `_project_trigger` + `_combat_damage_recipient`, supplement.py
+#   `_recover_combat_damage_recipients`): phase structures the `combat_damage`
+#   trigger event AND carries the damage RECIPIENT on the trigger's `valid_target`
+#   (a Typed[Creature] vs a Player vs an Or[Player, Planeswalker] vs a Controller
+#   "to you"), but project read valid_target only for its controller (scope),
+#   DROPPING the type — so all three combat-damage lanes fell back to recipient-word
+#   regex mirrors (combat_damage_matters 763, combat_damage_to_creature 33,
+#   combat_damage_to_opp 760). The new `Trigger.recipient` field re-surfaces the
+#   type: project reads valid_target (recursing Or) for native DamageDone /
+#   DamageDoneOnceByController combat triggers and for the DamageDone trigger QUOTED
+#   inside an Aura/Equipment `GrantTrigger` static; supplement synthesizes a
+#   combat_damage trigger (with the recipient) from the raw for the residue phase
+#   leaves unstructured (granted abilities inside ACTIVATED abilities, one-shot
+#   "would deal combat damage" replacements, DFC back faces, emblem/token grants).
+#   The three signals lanes now read `trig.recipient` and the three regex mirrors are
+#   DELETED. Structure FIXES the regex misses: +30 matters / +34 to_opp (Renown,
+#   Ingest, "one of your opponents", a planeswalker recipient — Zagras), 0 lost.
+#   CR 510.1b / 510.1c / 120.3.
+SIDECAR_VERSION = 41
 
 
 def card_ir_dir() -> Path:

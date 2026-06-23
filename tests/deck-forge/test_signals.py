@@ -11,11 +11,23 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 
 
 def _keys(card):
     return {(s.key, s.scope) for s in extract_signals(card)}
+
+
+def _cdmg_ir(*recipients: str, raw: str = "") -> Card:
+    """A Card IR carrying one combat_damage trigger with the given recipient type(s)
+    — the structural marker the three combat-damage lanes read (SIDECAR v41)."""
+    return _ir_with(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="combat_damage", recipient=tuple(recipients)),
+            effects=(Effect(category="other", raw=raw),),
+        )
+    )
 
 
 def _ir_with(*abilities: Ability) -> Card:
@@ -1029,9 +1041,11 @@ def test_passive_combat_damage_opens_combat_lane():
         "target player who was dealt combat damage by Hope of Ghirapur this turn can't "
         "cast noncreature spells.",
     }
-    # ADR-0027: combat_damage_matters migrated to the Card IR (byte-identical kept-mirror
-    # over the reminder-stripped oracle), so it serves from the hybrid path, not pure regex.
-    assert any(k == "combat_damage_matters" for k, _ in _keys_hybrid(hope))
+    # ADR-0027 (SIDECAR v41): the three combat-damage lanes read the STRUCTURED recipient
+    # type. The passive "player who was dealt combat damage by ~" form is recovered as a
+    # synthetic player-recipient combat_damage trigger in supplement, so matters fires.
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(hope, _cdmg_ir("player"))}
+    assert any(k == "combat_damage_matters" for k, _ in keys)
 
 
 def test_multi_counter_placement_opens_counters_lane():
@@ -1974,9 +1988,11 @@ def test_plural_combat_damage_opens_combat_damage_matters():
         "type_line": "Creature — Sphinx Detective",
         "oracle_text": "Flying\nWhenever one or more creatures you control deal combat damage to a player, investigate.\n{1}, Sacrifice a Clue: Seek an instant or sorcery card.",
     }
-    # ADR-0027: combat_damage_matters migrated to the Card IR (byte-identical kept-mirror),
-    # so the plural-verb form serves from the hybrid path, not pure regex.
-    assert ("combat_damage_matters", "opponents") in _keys_hybrid(card)
+    # ADR-0027 (SIDECAR v41): the plural-verb "one or more creatures … deal combat damage
+    # to a player" is the DamageDoneOnceByController trigger phase carries with a Player
+    # recipient → trig.recipient=("player",); matters reads the structure.
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(card, _cdmg_ir("player"))}
+    assert ("combat_damage_matters", "opponents") in keys
 
 
 def test_keyword_grant_lord_gain_opens_type_matters():

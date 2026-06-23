@@ -43,6 +43,7 @@ from mtg_utils._card_ir.project import (
     _project_effect,
     _project_replacement,
     _quantity,
+    _recipient_of_target,
     _recover_cheat_into_play_source,
     _recover_count_operand,
     _recover_graveyard_origin,
@@ -5886,3 +5887,228 @@ def test_exploited_mode_projects_to_exploited_event():
     trig = next(a.trigger for a in card.all_abilities() if a.kind == "triggered")
     assert trig is not None
     assert trig.event == "exploited"
+
+
+# ── ADR-0027 combat-damage RECIPIENT TYPE (SIDECAR v41) ───────────────────────
+# phase carries the damage recipient on the combat_damage trigger's valid_target;
+# project preserves it as Trigger.recipient so the three combat-damage lanes read
+# STRUCTURE instead of a recipient-word regex. CR 510.1b / 510.1c / 120.3.
+
+
+def _cdmg_record(valid_target, *, mode="DamageDone", desc="x"):
+    """A minimal phase combat_damage (CombatOnly) trigger record with the given
+    valid_target recipient node."""
+    return {
+        "name": "X",
+        "scryfall_oracle_id": "rcpt-test-oid",
+        "oracle_text": desc,
+        "triggers": [
+            {
+                "mode": mode,
+                "execute": {
+                    "kind": "Spell",
+                    "effect": {
+                        "type": "Draw",
+                        "count": {"type": "Fixed", "value": 1},
+                        "target": {"type": "Controller"},
+                    },
+                },
+                "valid_card": None,
+                "damage_kind": "CombatOnly",
+                "valid_target": valid_target,
+                "description": desc,
+            }
+        ],
+    }
+
+
+def _cdmg_trigger(card):
+    return next(
+        a.trigger
+        for a in card.all_abilities()
+        if a.trigger is not None and a.trigger.event == "combat_damage"
+    )
+
+
+def test_recipient_player_target():
+    """A {type:Player} recipient → recipient=('player',) (CR 510.1b)."""
+    card = project_card([_cdmg_record({"type": "Player"})])
+    assert _cdmg_trigger(card).recipient == ("player",)
+
+
+def test_recipient_typed_creature():
+    """A {type:Typed, type_filters:[Creature]} recipient → ('creature',) (CR 510.1c)."""
+    rec = _cdmg_record(
+        {"type": "Typed", "type_filters": ["Creature"], "controller": None}
+    )
+    card = project_card([rec])
+    assert _cdmg_trigger(card).recipient == ("creature",)
+
+
+def test_recipient_typed_planeswalker():
+    """A {type:Typed, type_filters:[Planeswalker]} recipient → ('planeswalker',)."""
+    rec = _cdmg_record(
+        {"type": "Typed", "type_filters": ["Planeswalker"], "controller": None}
+    )
+    card = project_card([rec])
+    assert _cdmg_trigger(card).recipient == ("planeswalker",)
+
+
+def test_recipient_opponent_controlled_typed_is_player():
+    """An opponent-controlled typeless Typed ('an opponent') → ('player',)."""
+    rec = _cdmg_record({"type": "Typed", "type_filters": [], "controller": "Opponent"})
+    card = project_card([rec])
+    assert _cdmg_trigger(card).recipient == ("player",)
+
+
+def test_recipient_or_decomposes_to_branches():
+    """An Or[Player, Typed[Planeswalker]] ('a player or planeswalker') → both
+    branches, sorted ('planeswalker', 'player') — fires matters AND to_opp."""
+    rec = _cdmg_record(
+        {
+            "type": "Or",
+            "filters": [
+                {"type": "Player"},
+                {
+                    "type": "Typed",
+                    "type_filters": ["Planeswalker"],
+                    "controller": None,
+                },
+            ],
+        }
+    )
+    card = project_card([rec])
+    assert _cdmg_trigger(card).recipient == ("planeswalker", "player")
+
+
+def test_recipient_controller_is_you():
+    """A {type:Controller} recipient is the DEFENDING controller being hit ('deals
+    combat damage to you') → ('you',) — a defensive punisher, NOT to_opp."""
+    card = project_card([_cdmg_record({"type": "Controller"})])
+    assert _cdmg_trigger(card).recipient == ("you",)
+
+
+def test_recipient_unknown_target_is_empty():
+    """An unrecognized / typeless recipient yields an empty recipient (no lane)."""
+    card = project_card([_cdmg_record({"type": "Typed", "type_filters": []})])
+    assert _cdmg_trigger(card).recipient == ()
+
+
+def test_damagedoneoncebycontroller_is_combat_damage():
+    """The batched per-controller mode ('one or more creatures you control deal
+    combat damage to a player') projects to the combat_damage event with its
+    player recipient (CR 510.1b)."""
+    rec = _cdmg_record({"type": "Player"}, mode="DamageDoneOnceByController")
+    card = project_card([rec])
+    trig = _cdmg_trigger(card)
+    assert trig.event == "combat_damage"
+    assert trig.recipient == ("player",)
+
+
+def test_recipient_only_on_combat_damage_event():
+    """A non-combat (deals_damage) trigger carries no recipient — the field is
+    scoped to the combat_damage event (its sole consumers)."""
+    rec = _cdmg_record({"type": "Player"})
+    rec["triggers"][0]["damage_kind"] = "Any"  # → deals_damage, not combat_damage
+    card = project_card([rec])
+    trig = next(
+        a.trigger
+        for a in card.all_abilities()
+        if a.trigger is not None and a.trigger.event == "deals_damage"
+    )
+    assert trig.recipient == ()
+
+
+def test_recipient_of_target_helper():
+    """The recipient-set helper maps each valid_target shape, recursing Or."""
+    assert _recipient_of_target({"type": "Player"}) == {"player"}
+    assert _recipient_of_target({"type": "Controller"}) == {"you"}
+    assert _recipient_of_target({"type": "Typed", "type_filters": ["Creature"]}) == {
+        "creature"
+    }
+    assert _recipient_of_target(
+        {"type": "Typed", "type_filters": [], "controller": "Opponent"}
+    ) == {"player"}
+    assert _recipient_of_target(
+        {"type": "Or", "filters": [{"type": "Player"}, {"type": "Controller"}]}
+    ) == {"player", "you"}
+    assert _recipient_of_target(None) == set()
+
+
+def test_recipient_round_trips_through_serialization():
+    """Trigger.recipient survives the compact sidecar round-trip (key 'rc')."""
+    card = project_card(
+        [
+            _cdmg_record(
+                {
+                    "type": "Or",
+                    "filters": [
+                        {"type": "Player"},
+                        {
+                            "type": "Typed",
+                            "type_filters": ["Creature"],
+                            "controller": None,
+                        },
+                    ],
+                }
+            )
+        ]
+    )
+    restored = Card.from_dict(card.to_dict())
+    assert _cdmg_trigger(restored).recipient == ("creature", "player")
+
+
+def test_supplement_recovers_player_recipient_from_granted_ability():
+    """Phase leaves a combat-damage trigger QUOTED inside a granted ability (an
+    Aura/Equipment grant) unstructured; supplement synthesizes a player-recipient
+    combat_damage trigger from the raw oracle so the lanes still read structure."""
+    rec = {
+        "name": "Staggering Insight",
+        "scryfall_oracle_id": "supp-rcpt-oid",
+        "oracle_text": (
+            "Enchant creature\nEnchanted creature gets +1/+1 and has lifelink and "
+            '"Whenever this creature deals combat damage to a player, draw a card."'
+        ),
+    }
+    card = project_card([rec])
+    trig = _cdmg_trigger(card)
+    assert trig.recipient == ("player",)
+
+
+def test_supplement_recovers_creature_recipient_from_equipment_grant():
+    """The creature-recipient half: Kaldra Compleat grants 'deals combat damage to
+    a creature, exile that creature' — recovered as recipient=('creature',)."""
+    rec = {
+        "name": "Kaldra Compleat",
+        "scryfall_oracle_id": "supp-rcpt-cre",
+        "oracle_text": (
+            "Living weapon\nIndestructible\nEquipped creature gets +5/+5 and has "
+            'first strike, trample, indestructible, haste, and "Whenever this '
+            'creature deals combat damage to a creature, exile that creature."'
+        ),
+    }
+    card = project_card([rec])
+    recs = {
+        r
+        for t in (a.trigger for a in card.all_abilities() if a.trigger)
+        if t.event == "combat_damage"
+        for r in t.recipient
+    }
+    assert "creature" in recs
+
+
+def test_supplement_recovers_would_deal_replacement():
+    """A 'would deal combat damage to a player' REPLACEMENT (CR 615 — Charging
+    Tuskodon) carries no DamageDone trigger; supplement recovers the player
+    recipient from the raw."""
+    rec = {
+        "name": "Charging Tuskodon",
+        "scryfall_oracle_id": "supp-rcpt-would",
+        "oracle_text": (
+            "Trample\nIf this creature would deal combat damage to a player, it "
+            "deals double that damage to that player instead."
+        ),
+    }
+    card = project_card([rec])
+    trig = _cdmg_trigger(card)
+    assert trig.recipient == ("player",)

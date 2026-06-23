@@ -32,7 +32,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 from mtg_utils._card_ir import _combinators as comb
-from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity
+from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity, Trigger
 
 # ── scope recovery (phase structures scope on only a sliver of abilities) ──────
 # Narrow Tinybones rule: combat-damage-to-a-player + that-player's-zone → opp.
@@ -1590,6 +1590,90 @@ def recover_effect_from_text(raw: str) -> Effect:
     sole-empty ability from its card's oracle (an effect phase structured but left
     textless), reusing the exact same grammar the in-IR `other`s go through."""
     return _supplement_effect(Effect(category="other", scope="any", raw=raw))
+
+
+# ── ADR-0027 combat-damage RECIPIENT residue (SIDECAR v41) ────────────────────
+# project.py stamps a structured `recipient` on every NATIVE combat_damage trigger
+# (the DamageDone / DamageDoneOnceByController modes), but phase leaves combat-damage
+# payoffs UNSTRUCTURED when the trigger is QUOTED inside a granted ability that lives
+# in an ACTIVATED ability or a one-shot spell/Saga/emblem grant, or is a "would deal
+# combat damage" REPLACEMENT — phase keeps no DamageDone trigger and sometimes drops
+# the clause from the effect raw entirely. For those, the recipient discriminator
+# survives only in the card's RAW oracle, so we synthesize a combat_damage trigger
+# (with the recipient) from the raw — the sanctioned residue path (NOT a retained
+# regex MIRROR in signals; the lanes still read `trig.recipient` STRUCTURALLY).
+# Patterns are the EXACT recipient phrasings the three deleted SWEEP/HAND_FLOOR
+# regexes anchored on, so the recovered set is byte-identical to the deleted mirrors.
+# CR 510.1b (player / planeswalker) / 510.1c (creature) / 120.3.
+# A PLAYER / planeswalker recipient survives in the raw three ways the deleted regexes
+# matched: a "whenever ~ deals combat damage to a player/opponent" trigger, a "would
+# deal combat damage to a player/opponent" REPLACEMENT (CR 615 — Charging Tuskodon,
+# Szadek, Undead Alchemist), and the passive "player who was dealt combat damage by ~"
+# reference (CR 510.2 — Steel Hellkite, Hope of Ghirapur, Admiral Beckett Brass). All
+# three are combat-damage-to-a-player payoffs (the structural recipient is a player), so
+# all three fire BOTH the base matters lane and to_opp — a player recipient is a player
+# recipient regardless of the verb. CR 510.1b / 615.
+_CDMG_RECIPIENT_PLAYER = re.compile(
+    r"(?:when(?:ever)?|would)\b[^.]*?\bdeals? combat damage to "
+    r"(?:a player|an opponent|one of your opponents|each opponent"
+    r"|a player or planeswalker|a player or battle|that player)\b"
+    r"|(?:was|were) dealt combat damage by",
+    re.IGNORECASE,
+)
+_CDMG_RECIPIENT_CREATURE = re.compile(
+    r"deals combat damage to (?:a|another|one or more) creatures?\b"
+    r"|whenever [^.]*deals combat damage to (?:a|another) creature",
+    re.IGNORECASE,
+)
+
+
+def combat_damage_recipients_from_text(text: str) -> frozenset[str]:
+    """The combat-damage RECIPIENT type(s) a raw oracle names — {player, creature}
+    (planeswalker folds into the player-or-planeswalker phrasing). The reminder-strip
+    happens here, so callers pass raw oracle. Public because the deck-forge hybrid path
+    reuses it to recover the recipient of a runtime-FOLDED object (the Ring-bearer's
+    "deals combat damage to a player" level) whose text is not in the commander's
+    pre-built sidecar IR. CR 510.1b / 510.1c / 510.2 / 615."""
+    stripped = re.sub(r"\([^)]*\)", " ", text or "")
+    out: set[str] = set()
+    if _CDMG_RECIPIENT_PLAYER.search(stripped):
+        out.add("player")
+    if _CDMG_RECIPIENT_CREATURE.search(stripped):
+        out.add("creature")
+    return frozenset(out)
+
+
+def _recover_combat_damage_recipients(card: Card, oracle: str) -> Card:
+    """Append synthetic ``combat_damage`` Trigger abilities for recipient types that
+    phase left wholly unstructured but the raw *oracle* still names (granted-in-an-
+    activated-ability / one-shot grants / "would deal combat damage" replacements).
+    Append-only and recipient-deduped: a recipient already carried by a NATIVE
+    combat_damage trigger is not re-synthesized, so a fully-structured card is
+    untouched. The synthetic ability lands on the first face (the IR rollup is
+    face-agnostic for these lanes)."""
+    wanted = set(combat_damage_recipients_from_text(oracle))
+    if not wanted or not card.faces:
+        return card
+    native = {
+        r
+        for ab in card.all_abilities()
+        if ab.trigger is not None and ab.trigger.event == "combat_damage"
+        for r in ab.trigger.recipient
+    }
+    missing = tuple(sorted(wanted - native))
+    if not missing:
+        return card
+    raw = re.sub(r"\([^)]*\)", " ", oracle).strip()
+    synth = Ability(
+        kind="triggered",
+        trigger=Trigger(event="combat_damage", recipient=missing),
+        effects=(Effect(category="other", raw=raw),),
+    )
+    head, *rest = card.faces
+    return replace(
+        card,
+        faces=(replace(head, abilities=(*head.abilities, synth)), *rest),
+    )
 
 
 def _supplement_effect(e: Effect) -> Effect:

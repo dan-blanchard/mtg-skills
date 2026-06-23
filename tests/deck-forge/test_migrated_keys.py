@@ -6071,14 +6071,12 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
-    # ADR-0027 β kept-mirror — combat_damage_to_creature: the RECIPIENT-TYPE split phase
-    # can't make structurally (it drops valid_target's TYPE onto the combat_damage
-    # trigger, so a creature- and a player-recipient trigger project byte-identically).
-    # The discriminator survives in the joined-face oracle ("to a creature"), so this is a
-    # byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP regex. Voracious Cobra
-    # is a CLEAN creature-recipient ("deals combat damage to a creature, destroy that
-    # creature") — its oracle never says "to a player", so the sibling combat_damage_to_opp
-    # lane stays silent. Bare IR (the mirror scans the record's oracle_text).
+    # ADR-0027 (SIDECAR v41) — combat_damage_to_creature: the RECIPIENT-TYPE split is now
+    # STRUCTURAL. phase carries the recipient on the combat_damage trigger's valid_target
+    # (Typed[Creature]), which project preserves as trig.recipient=("creature",), and the
+    # IR arm fires combat_damage_to_creature on it. Voracious Cobra is a CLEAN creature-
+    # recipient ("deals combat damage to a creature, destroy that creature") — recipient
+    # has no "player", so the sibling combat_damage_to_opp lane stays silent.
     "combat_damage_to_creature": (
         {
             "name": "Voracious Cobra",
@@ -6088,12 +6086,27 @@ _CASES: dict[str, tuple[dict, Card]] = {
                 "creature, destroy that creature."
             ),
         },
-        _ir(),
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="combat_damage", recipient=("creature",)),
+                effects=(
+                    Effect(
+                        category="destroy",
+                        raw=(
+                            "Whenever this creature deals combat damage to a "
+                            "creature, destroy that creature."
+                        ),
+                    ),
+                ),
+            )
+        ),
     ),
-    # ADR-0027 β kept-mirror — combat_damage_to_opp: the player-recipient half of the
-    # same split. Cold-Eyed Selkie is a CLEAN player-recipient ("deals combat damage to a
-    # player"); its oracle never says "to a creature", so the sibling
-    # combat_damage_to_creature lane stays silent. Bare IR.
+    # ADR-0027 (SIDECAR v41) — combat_damage_to_opp: the player-recipient half. phase
+    # carries valid_target=Player, project preserves trig.recipient=("player",), and the
+    # IR arm fires combat_damage_to_opp (and the base matters lane). Cold-Eyed Selkie is a
+    # CLEAN player-recipient; recipient has no "creature", so combat_damage_to_creature
+    # stays silent.
     "combat_damage_to_opp": (
         {
             "name": "Cold-Eyed Selkie",
@@ -6104,7 +6117,21 @@ _CASES: dict[str, tuple[dict, Card]] = {
                 "deals combat damage to a player, you may draw that many cards."
             ),
         },
-        _ir(),
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="combat_damage", recipient=("player",)),
+                effects=(
+                    Effect(
+                        category="draw",
+                        raw=(
+                            "Whenever this creature deals combat damage to a "
+                            "player, you may draw that many cards."
+                        ),
+                    ),
+                ),
+            )
+        ),
     ),
     # ADR-0027 β projection — damage_to_opp_matters: the GENERAL (any-source, ANY
     # damage) "deals damage to a PLAYER / opponent" connect-payoff. Deus of Calamity is
@@ -6144,14 +6171,13 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
-    # ADR-0027 kept-mirror — combat_damage_matters: the BASE CR-510 combat-damage payoff
-    # (parent of the combat_* siblings above). The unconditional structural arm over-fired
-    # the recipient (every combat_damage AND deals_damage trigger regardless of recipient),
-    # so the lane rides a byte-identical _IR_KEPT_DETECTORS mirror of the deleted _DETECTORS
-    # regex, anchored on the player/opponent recipient. Edric is a CLEAN player-recipient
-    # ("deals combat damage to one of your opponents"); its oracle never says "to a
-    # creature", so the structural arm's would-be creature/noncombat over-fire is absent.
-    # Bare IR (the mirror scans the record's oracle_text directly).
+    # ADR-0027 (SIDECAR v41) — combat_damage_matters: the BASE CR-510.1b combat-damage
+    # payoff (a player/planeswalker recipient). Now STRUCTURAL: phase carries the
+    # opponent-controlled recipient ("one of your opponents") on valid_target
+    # (Typed{controller:Opponent}), which project preserves as trig.recipient=("player",),
+    # and the IR arm fires combat_damage_matters (a player recipient is also to_opp).
+    # Edric is a CLEAN player-recipient; recipient has no "creature", so the would-be
+    # creature/noncombat over-fire the old unconditional arm had is structurally absent.
     "combat_damage_matters": (
         {
             "name": "Edric, Spymaster of Trest",
@@ -6161,7 +6187,21 @@ _CASES: dict[str, tuple[dict, Card]] = {
                 "opponents, its controller may draw a card."
             ),
         },
-        _ir(),
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="combat_damage", recipient=("player",)),
+                effects=(
+                    Effect(
+                        category="draw",
+                        raw=(
+                            "Whenever a creature deals combat damage to one of "
+                            "your opponents, its controller may draw a card."
+                        ),
+                    ),
+                ),
+            )
+        ),
     ),
     # ADR-0027 β kept-mirror: phase's legend_exempt drops the BOUNDED variant
     # ("doesn't apply to permanents you control"), so Mirror Box has no structural

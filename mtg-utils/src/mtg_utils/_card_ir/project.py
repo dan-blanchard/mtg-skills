@@ -20,6 +20,7 @@ from dataclasses import replace
 
 from mtg_utils._card_ir.supplement import (
     _copied_type_from_text,
+    _recover_combat_damage_recipients,
     recover_effect_from_text,
     supplement_card,
 )
@@ -206,6 +207,40 @@ def _damage_recipient_is_player(tr: dict) -> bool:
     if _norm(vt.get("type")) == "player":
         return True
     return _controller(vt.get("controller")) == "opp"
+
+
+def _recipient_of_target(vt: object) -> set[str]:
+    """The combat-damage RECIPIENT type(s) carried by a ``valid_target`` node.
+
+    Maps phase's recipient filter to the closed {creature | player | planeswalker |
+    you} vocabulary (SIDECAR v41), recursing an ``Or`` into the union of its branches
+    so "to a player or planeswalker" yields both. A ``Player`` target or an
+    opponent-controlled ``Typed`` ("an opponent") is ``player``; a ``Controller``
+    target is the DEFENDING controller being hit ("deals combat damage to you") →
+    ``you``. An unrecognized / typeless node yields the empty set (recipient unknown
+    — no recipient lane fires). CR 510.1b (player/planeswalker) / 510.1c (creature) /
+    120.3 (player-or-permanent recipient)."""
+    if not isinstance(vt, dict):
+        return set()
+    kind = _norm(vt.get("type"))
+    if kind == "or":
+        out: set[str] = set()
+        for branch in _as_list(vt.get("filters")):
+            out |= _recipient_of_target(branch)
+        return out
+    if kind == "player":
+        return {"player"}
+    if kind == "controller":
+        return {"you"}
+    if kind == "typed":
+        types = {_norm(x) for x in _str_tuple(vt.get("type_filters"))}
+        if "creature" in types:
+            return {"creature"}
+        if "planeswalker" in types:
+            return {"planeswalker"}
+        if _controller(vt.get("controller")) == "opp":
+            return {"player"}  # "an opponent" — a typeless opponent-controlled target
+    return set()
 
 
 def _str_tuple(value: object) -> tuple[str, ...]:
@@ -512,6 +547,15 @@ def project_card(records: list[dict]) -> Card:
         many_copies=_allows_many_copies(records[0]),
     )
     card = supplement_card(card)
+    # ADR-0027 (SIDECAR v41) — combat-damage recipient residue: synthesize a
+    # combat_damage trigger (with its recipient) from the raw oracle for payoffs phase
+    # left wholly unstructured (a trigger quoted inside an activated ability / one-shot
+    # spell-Saga-emblem grant, or a "would deal combat damage" replacement). Runs here,
+    # not in supplement_card, because the joined oracle (the recipient discriminator)
+    # lives on the phase records, not the Card. CR 510.1b / 510.1c.
+    card = _recover_combat_damage_recipients(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
     # Post-supplement removal target-subject recovery (ADR-0027 removal_matters
     # shape 3): the supplement re-derives a `damage` / `destroy` CATEGORY from a
     # GenericEffect / Unimplemented body the projection left as `other` (Combo
@@ -2025,11 +2069,20 @@ def _project_trigger(tr: dict) -> Ability:
     # string-tuple shape zones already use for from:/to: refs). CR 702.21a / 108.3.
     if event == "becomes_target":
         zones = zones + _becomes_target_src_zones(tr)
+    # ADR-0027 (SIDECAR v41) — preserve the combat-damage RECIPIENT TYPE phase carries
+    # on `valid_target` but the scope/subject otherwise drop. Read only for the
+    # combat_damage event (the three combat_damage_* lanes are its sole consumers);
+    # the player-recipient marker on `deals_damage` (damage_to_opp_matters) is left to
+    # the existing DamageToPlayer subject predicate above. CR 510.1b / 510.1c.
+    recipient: tuple[str, ...] = ()
+    if event == "combat_damage":
+        recipient = tuple(sorted(_recipient_of_target(tr.get("valid_target"))))
     trigger = Trigger(
         event=event,
         subject=subject,
         scope=_trigger_scope(tr),
         zones=zones,
+        recipient=recipient,
     )
     effects = _collect_effects(tr.get("execute"), tr.get("description") or "")
     return _recover_clone_subjects(
@@ -7235,7 +7288,17 @@ def _trigger_event(tr: dict) -> str:
         if origin == "battlefield" and dest == "graveyard":
             return "dies"
         return "leaves"
-    if mode in ("damagedone", "damagedoneonce", "damagedealtonce"):
+    # `damagedoneoncebycontroller` is the batched per-controller form (CR 510.1b —
+    # "whenever one or more creatures you control deal combat damage to a player":
+    # Quartzwood Crasher, Alela, Thopter Spy Network). It is a combat-damage trigger
+    # like the others (all 77 are combatonly + Player-recipient); folding it in keeps
+    # the combat_damage_* lanes from missing it. SIDECAR v41.
+    if mode in (
+        "damagedone",
+        "damagedoneonce",
+        "damagedealtonce",
+        "damagedoneoncebycontroller",
+    ):
         return (
             "combat_damage"
             if _norm(tr.get("damage_kind")) == "combatonly"

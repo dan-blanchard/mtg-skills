@@ -30,8 +30,9 @@ def _keys_hybrid(card):
 
 
 def test_combat_damage_matters_scoped_opponents():
-    # ADR-0027: combat_damage_matters migrated to the Card IR (byte-identical kept-mirror),
-    # so it serves from the hybrid path, not pure regex.
+    # ADR-0027 (SIDECAR v41): combat_damage_matters reads the structured recipient; the
+    # bare IR carries no combat trigger, so the player recipient ("to one of your
+    # opponents") is recovered from the oracle via the supplement parser. scope opponents.
     c = {
         "name": "Edric, Spymaster of Trest",
         "oracle_text": "Whenever a creature deals combat damage to one of your opponents, its controller may draw a card.",
