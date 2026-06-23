@@ -150,8 +150,18 @@ def test_sweep_detectors_loaded():
     # longer fires) UNION a byte-identical DRAW_FOR_EACH_REGEX per-clause kept mirror
     # (_DRAW_FOR_EACH_SWEEP_RE in _signals_regex); the structural arm adds the counted-
     # subject scaling draws the regex missed and drops the ~40 sibling-rider over-fires;
-    # CR 107.3).
-    assert len(SWEEP_DETECTORS) >= 11
+    # CR 107.3),
+    # then 11→10 as protection_grant's row was deleted (ADR-0027 SIDECAR v35 Cluster D —
+    # the granted keyword carried on the single_target_grant marker's counter_kind;
+    # migrated to a STRUCTURAL grant arm conferring a PROTECTIVE keyword to a your-side
+    # creature/permanent — team-creature / your-permanents / suit-up Aura-Equipment /
+    # parameterized protection-from-color mass_grant / single-target grant — UNION a
+    # byte-identical PROTECTION_GRANT_REGEX kept word mirror (_IR_KEPT_DETECTORS over the
+    # reminder-stripped kept_oracle); the structural arm adds the single-target
+    # indestructible/ward grants + suit-up auras the word-order regex missed and the
+    # mirror preserves the cost-folded self-grants + intrinsic-hexproof reminder matches;
+    # CR 702.11/16/12/18/21 / 700.2).
+    assert len(SWEEP_DETECTORS) >= 10
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 
@@ -168,16 +178,19 @@ def test_representative_sweep_keys_fire_from_oracle():
     cases = [
         # ADR-0027: coin_flip / commander_matters / hand_disruption / mass_removal
         # (tranche2-A) / debuff_matters / variable_pt / free_cast (β) / scaling_pump /
-        # dig_until / topdeck_selection (SIDECAR v28 topdeck library-owner scope)
+        # dig_until / topdeck_selection (SIDECAR v28 topdeck library-owner scope) /
+        # protection_grant (SIDECAR v35 Cluster D — single_target_grant counter_kind)
         # migrated to the IR (their SWEEP_DETECTORS rows are deleted), so they no longer
         # fire from the regex path — swapped for still-regex sweep keys to keep this check.
         # ("All creatures get -1/-1 until end of turn." now routes through the IR
         # debuff_matters arm; a "*/* power and toughness are each equal to …" CDA routes
         # through the IR variable_pt arm; a "gets +X/+X for each …" scaling pump routes
-        # through the IR scaling_pump arm — all asserted in test_migrated_keys.)
+        # through the IR scaling_pump arm; "Target creature gains protection from red"
+        # routes through the IR single_target_grant protection arm — all asserted in
+        # test_migrated_keys.)
         (
-            "protection_grant",
-            "Target creature gains protection from red until end of turn.",
+            "stax_taxes",
+            "Each player can't draw more than one card each turn.",
         ),
         (
             "voltron_matters",

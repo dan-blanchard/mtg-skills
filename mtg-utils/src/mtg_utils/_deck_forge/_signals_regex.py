@@ -64,6 +64,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     LTB_MATTERS_SWEEP_REGEX,
     LURE_MATTERS_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
+    PROTECTION_GRANT_REGEX,
     PUMP_MATTERS_REGEX,
     SCALING_PUMP_SWEEP_REGEX,
     SELF_COUNTER_GROW_SWEEP_REGEX,
@@ -3453,6 +3454,28 @@ def _blink_flicker_has_plan(text: str) -> bool:
     return _detect_blink_flicker_kept(text)
 
 
+_PROTECTION_GRANT_SWEEP_RE = re.compile(PROTECTION_GRANT_REGEX, re.IGNORECASE)
+
+
+def _protection_grant_has_plan(text: str) -> bool:
+    """ADR-0027 Cluster D: the HAS-OTHER-PLAN mirror for the migrated protection_grant
+    key. The deleted SWEEP producer fired HIGH-confidence (scope 'you', NOT in
+    _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) and counted toward `has_other_plan`, silencing
+    the spurious commander-damage voltron tell on a card that GRANTS protection (a
+    Heroic-Intervention / Akroma's-Blessing protection enabler is a defensive plan, not
+    a vanilla beater). The migrated lane rides the structural protective-keyword grant
+    arm UNION a byte-identical kept mirror, but the structural re-supply is BROADER
+    (+189 ir_only — the single-target indestructible/ward grants, suit-up auras, and
+    protection-from-color team grants the word-order regex missed), so
+    _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those gains. This byte-identical
+    mirror (the EXACT deleted SWEEP regex) restores ONLY the deleted regex's silence
+    set. The deleted SWEEP Detector ran PER-CLAUSE over the reminder-STRIPPED oracle
+    (its `[^.]*` arms never cross a sentence — verified 0 flat-only / 0 clause-only over
+    the commander-legal corpus), so this runs per-clause over `text`.
+    CR 702.11/16/12/18/21 / 903.10a."""
+    return any(_PROTECTION_GRANT_SWEEP_RE.search(cl) for cl in _clauses(text))
+
+
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated conjure_matters key. The
 # deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a conjure
@@ -6352,6 +6375,17 @@ def extract_signals(
         # sentence on the corpus). The membership cross- opens fired LOW and never fed
         # has_other_plan, so no re-supply for those. CR 903.10a / 707.1.
         or _CLONE_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027 Cluster D (SIDECAR v35): re-silence the deleted protection_grant
+        # SWEEP producer (it fired HIGH-confidence scope 'you', feeding has_other_plan —
+        # a protection ENGINE that shields your creatures with hexproof/indestructible
+        # is a defensive plan, not a vanilla beater). The migrated lane rides the
+        # structural protective-keyword grant arm + a byte-identical kept mirror that
+        # are BROADER (+189 ir_only — single-target indestructible/ward grants, suit-up
+        # auras, protection-from-color team grants), so _VOLTRON_SILENCING_PLAN_KEYS
+        # would OVER-silence those gains; this byte mirror restores ONLY the deleted
+        # regex's silence set. Per-clause over the reminder-STRIPPED `text`. See
+        # _protection_grant_has_plan. CR 702.11/16/12/18/21 / 903.10a.
+        or _protection_grant_has_plan(text)
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)

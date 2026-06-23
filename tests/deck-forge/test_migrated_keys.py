@@ -6209,6 +6209,41 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 Cluster D — protection_grant: a card that GRANTS a protective keyword
+    # (hexproof / shroud / indestructible / ward / protection) to your creatures.
+    # Benevolent Bodyguard is the single-target case: the SIDECAR-v35 projection carries
+    # the granted keyword on the single_target_grant marker's counter_kind ('protection'),
+    # which the protection_grant IR arm reads (the deleted word-order regex's
+    # protection-from-color core). The regex path no longer emits protection_grant (its
+    # SWEEP row is deleted). ADR-0027.
+    "protection_grant": (
+        {
+            "name": "Benevolent Bodyguard",
+            "type_line": "Creature — Human Soldier",
+            "oracle_text": (
+                "Sacrifice this creature: Target creature you control gains "
+                "protection from the color of your choice until end of turn."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="single_target_grant",
+                        scope="you",
+                        subject=Filter(
+                            card_types=("Creature",),
+                            controller="you",
+                            predicates=("SingleTarget",),
+                        ),
+                        raw="gain protection from the color of your choice",
+                        counter_kind="protection",
+                    ),
+                ),
+            )
+        ),
+    ),
     # ADR-0027 β — activated_ability: a card whose ENGINE is a MEANINGFUL activated
     # ability. The Scarab God is the load-bearing case for BOTH discriminators that kill
     # the deleted regex's land/mana flood: its {2}{U}{B} cost projects to

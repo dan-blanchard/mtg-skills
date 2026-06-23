@@ -43,6 +43,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     OPPONENT_COUNTER_GRANT_REGEX,
+    PROTECTION_GRANT_REGEX,
     PUMP_MATTERS_REGEX,
     SCALING_PUMP_SWEEP_REGEX,
     SELF_COUNTER_GROW_SWEEP_REGEX,
@@ -2532,6 +2533,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["keyword_grant_target"],
         {"oracle": KEYWORD_GRANT_TARGET_REGEX},
         KEYWORD_GRANT_TARGET_REGEX,
+    ),
+    # ADR-0027 Cluster D: protection_grant's SWEEP_DETECTORS row is deleted (detection
+    # moved to the Card IR — the structural protective-keyword grant arm in
+    # extract_signals_ir UNION a byte-identical PROTECTION_GRANT_REGEX kept mirror). The
+    # SERVE pool stays oracle-defined (the creatures worth protecting with
+    # hexproof/protection), so hand-register the spec the sweep auto-register loop used
+    # to build (scope "you", the deleted SWEEP row's scope), reusing the EXACT deleted
+    # regex (pinned as PROTECTION_GRANT_REGEX) so the serve never drifts. SWEEP_LABELS
+    # keeps the human label.
+    ("protection_grant", "you"): _spec(
+        *SWEEP_LABELS["protection_grant"],
+        {"oracle": PROTECTION_GRANT_REGEX},
+        PROTECTION_GRANT_REGEX,
     ),
     # ADR-0027 β: debuff_matters's SWEEP_DETECTORS row is deleted (detection moved to
     # the Card IR — the negative-pump (factor<0) / non-self m1m1 structural arm + a

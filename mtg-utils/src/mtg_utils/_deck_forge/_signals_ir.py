@@ -115,6 +115,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     LURE_MATTERS_REGEX,
     NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
+    PROTECTION_GRANT_REGEX,
     PUMP_MATTERS_REGEX,
     SCALING_PUMP_SWEEP_REGEX,
     STATION_MATTERS_REGEX,
@@ -923,6 +924,29 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # text — the exact artifact the deleted producer carried, mirrored unchanged for
     # no-flood parity. CR 700.4 / 603.6c.
     ("dies_recursion", re.compile(DIES_RECURSION_REGEX, re.IGNORECASE), "you"),
+    # ADR-0027 Cluster D — protection_grant BYTE-IDENTICAL kept WORD MIRROR (the
+    # creatures-worth-protecting lane: a card that GRANTS a protective keyword —
+    # hexproof / shroud / indestructible / ward / protection; pinned as
+    # PROTECTION_GRANT_REGEX in _sweep_detectors). The STRUCTURAL grant arm (in
+    # extract_signals_ir — team-creature / your-permanents / suit-up Aura-Equipment /
+    # parameterized protection-from-color mass_grant / single-target protective grant)
+    # supplies the cards phase structures as a grant_keyword / single_target_grant
+    # Effect; this mirror recovers the tail phase folds elsewhere — the self-grants
+    # swallowed into an activation COST ("Sacrifice ~: ~ gains protection from the
+    # chosen color" — Cartel Aristocrat; "{U}: This creature gains shroud" — Advanced
+    # Hoverguard), the "you have hexproof" player statics (Aegis of the Gods), and the
+    # intrinsic-hexproof creatures whose REMINDER text the regex matched (Invisible
+    # Stalker, Ascended Lawmage — a PRESERVED over-fire, byte-identical to the deleted
+    # producer, NOT introduced). The two `[^.]*` arms never cross a sentence boundary,
+    # so a FLAT search over the reminder-stripped kept_oracle == the deleted per-clause
+    # SWEEP firing (verified 0 flat-only / 0 clause-only over the commander-legal
+    # corpus). add() dedups the cards the structural arm already supplies. scope 'you'
+    # (the deleted SWEEP row's scope). CR 702.11/16/12/18/21.
+    (
+        "protection_grant",
+        re.compile(PROTECTION_GRANT_REGEX, re.IGNORECASE),
+        "you",
+    ),
     # ADR-0027 — tap_down BYTE-IDENTICAL kept WORD MIRROR (the tap-down control lane:
     # tap an OPPONENT's permanent / "skips its next untap step" / detain — CR 701.21
     # detain, CR 502 untap step; pinned as TAP_DOWN_REGEX in _sweep_detectors). phase
@@ -4172,6 +4196,49 @@ _SELF_PROTECTION_GRANT_KW: frozenset[str] = frozenset(
 )
 
 
+# ADR-0027 Cluster D (protection_grant) — the "Permanents you control gain <protective
+# kw>" anthem shape (Heroic Intervention, Boros Charm's holy mode, Surge of Salvation).
+# A generic YOUR-permanent grant (no subtypes, no narrowing predicate); granting
+# hexproof/indestructible to your whole board protects your creatures, so it opens the
+# protection_grant lane. Distinct from _is_team_creature_grant (Creature card_type) —
+# phase types the permanent-wide grant with card_types=('Permanent',).
+def _is_your_permanents_grant(f: object) -> bool:
+    return (
+        isinstance(f, Filter)
+        and "Permanent" in f.card_types
+        and f.controller == "you"
+        and not f.subtypes
+        and not f.predicates
+    )
+
+
+# ADR-0027 Cluster D (protection_grant) — the SUIT-UP Aura/Equipment shape: an Aura or
+# Equipment that grants a protective keyword to the creature (or generic permanent) it
+# is attached to (Diplomatic Immunity, Lightning Greaves, Darksteel Plate, Mask of
+# Avacyn, Indestructibility). EnchantedBy/EquippedBy is phase's attach tell; the
+# granted-to subject must be a Creature or generic Permanent — a Land-only enchant
+# (Consecrate Land, Trace of Abundance) protects a land, NOT a creature, so it stays out
+# of the creatures-worth-protecting lane. CR 303 / 301 (Auras / Equipment).
+def _is_aura_equip_protection_subject(f: object) -> bool:
+    return (
+        isinstance(f, Filter)
+        and any(p in ("EnchantedBy", "EquippedBy") for p in f.predicates)
+        and ("Creature" in f.card_types or "Permanent" in f.card_types)
+    )
+
+
+# ADR-0027 Cluster D (protection_grant) — phase summarizes a parameterized grant
+# ("creatures you control gain protection from the chosen color" — Akroma's Blessing,
+# Brave the Elements; "creatures you control have protection from black" — Righteous
+# War) with counter_kind='mass_grant' (the X/color parameter has no bare keyword name),
+# so the per-keyword team arm misses it. The mass_grant team arm reads the protective
+# WORD off the effect raw instead — a generic your-creature mass_grant carrying a
+# protective keyword word IS a team protection grant. CR 702.16.
+_PROTECTION_GRANT_RAW: re.Pattern[str] = re.compile(
+    r"\b(?:hexproof|shroud|indestructible|ward|protection)\b", re.IGNORECASE
+)
+
+
 # Batch E — counter KIND → (signal key, scope). NB: p1p1 is deliberately ABSENT
 # — +1/+1 counters are ubiquitous, so place_counter→counters_matter floods the
 # lane (1552 IR_ONLY); counters_matter derives from the counter_added trigger +
@@ -7163,10 +7230,39 @@ def extract_signals_ir(
                 if _is_team_creature_grant(e.subject):
                     if e.counter_kind in _EVASION_GRANT_KW:
                         add("team_evasion_grant", "you", "", e.raw)
-                    if e.counter_kind in _PROTECTION_GRANT_KW:
-                        add("protection_grant", "you", "", e.raw)
                 elif _is_all_creatures_grant(e.subject):
                     add("all_creatures_kw_grant", "any", "", e.raw)
+                # ADR-0027 Cluster D — protection_grant (MIGRATED): a grant Effect
+                # conferring a PROTECTIVE keyword (hexproof / shroud / indestructible /
+                # ward / protection — _PROTECTION_GRANT_KW) to a YOUR-side creature or
+                # permanent opens the "creatures worth protecting" lane. THREE grant
+                # shapes from the AddKeyword category: the team-creature anthem
+                # (_is_team_creature_grant — "creatures you control gain hexproof",
+                # Asceticism), the your-permanents anthem (_is_your_permanents_grant —
+                # "permanents you control gain indestructible", Heroic Intervention),
+                # and the suit-up Aura/Equipment (_is_aura_equip_protection_subject —
+                # "enchanted/equipped creature has shroud", Diplomatic Immunity,
+                # Darksteel Plate). The single-target grant fires from its own cat
+                # below; the cost-folded self-grants + intrinsic-hexproof reminder text
+                # ride the byte mirror. CR 702.11/16/12/18/21.
+                if e.counter_kind in _PROTECTION_GRANT_KW and (
+                    _is_team_creature_grant(e.subject)
+                    or _is_your_permanents_grant(e.subject)
+                    or _is_aura_equip_protection_subject(e.subject)
+                ):
+                    add("protection_grant", "you", "", e.raw)
+                # The parameterized "creatures you control gain protection from <chosen
+                # color>" grant phase summarizes as counter_kind='mass_grant' (no bare
+                # keyword name) — read the protective WORD off the raw (Akroma's
+                # Blessing, Brave the Elements, Righteous War). Team-creature subject
+                # only, so a non-protective mass_grant ("creatures you control gain
+                # flying") and a narrowed/opponent grant stay out. CR 702.16.
+                if (
+                    e.counter_kind == "mass_grant"
+                    and _is_team_creature_grant(e.subject)
+                    and _PROTECTION_GRANT_RAW.search(e.raw or "")
+                ):
+                    add("protection_grant", "you", "", e.raw)
                 # team_buff (ADR-0027): the BROAD union anthem — a generic
                 # "creatures you control have/gain <evergreen keyword>" grant
                 # (Akroma's Memorial, Brave the Sands, Always Watching). phase emits
@@ -7270,6 +7366,18 @@ def extract_signals_ir(
             # (Benevolent Bodyguard, Eldritch Immunity) the regex missed. CR 700.2.
             if cat == "single_target_grant":
                 add("keyword_grant_target", "you", "", e.raw)
+                # ADR-0027 Cluster D — protection_grant (MIGRATED): the single-target
+                # grant whose granted keyword (the SIDECAR v35 counter_kind projection)
+                # is PROTECTIVE — "target creature gains protection from red / hexproof
+                # / indestructible" (Benevolent Bodyguard, Blessed Breath, Adamant Will,
+                # Snakeskin Veil). The v35 projection carries the FIRST protective
+                # keyword in counter_kind, so a multi-keyword grant ("gains vigilance,
+                # trample, indestructible") still surfaces. BROADER than the deleted
+                # word-order regex — it adds the single-target indestructible/ward
+                # grants and the "It gains X" idiom the regex missed.
+                # CR 700.2 / 702.11/16/12/18/21.
+                if e.counter_kind in _PROTECTION_GRANT_KW:
+                    add("protection_grant", "you", "", e.raw)
             # Batch 9 — cheat a CREATURE into play (a land into play is ramp).
             if cat == "cheat_play" and "Creature" in ftypes:
                 add("cheat_into_play", "you", "", e.raw)

@@ -1215,6 +1215,122 @@ def test_single_target_untap_is_not_marked_all():
     assert all(e.counter_kind != "all" for e in untaps)
 
 
+def _single_target_grant_card(name, keyword, desc):
+    """A spell that grants ``keyword`` to a single target creature — phase's
+    ParentTarget AddKeyword static over the GenericEffect's own Typed creature target
+    (Benevolent Bodyguard / Snakeskin Veil shape). ``keyword`` is the phase value
+    (a bare string "Hexproof" or a parameterized dict {"Protection": {...}})."""
+    return {
+        "name": name,
+        "scryfall_oracle_id": f"id-{name.lower()}",
+        "card_type": {"core_types": ["Instant"]},
+        "oracle_text": desc,
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "GenericEffect",
+                    "static_abilities": [
+                        {
+                            "mode": "Continuous",
+                            "affected": {"type": "ParentTarget"},
+                            "modifications": [
+                                {"type": "AddKeyword", "keyword": keyword}
+                            ],
+                            "description": desc,
+                        }
+                    ],
+                    "target": {
+                        "type": "Typed",
+                        "type_filters": ["Creature"],
+                        "controller": "You",
+                    },
+                },
+                "cost": None,
+                "description": desc,
+            }
+        ],
+    }
+
+
+def test_single_target_grant_carries_protective_keyword_kind():
+    """ADR-0027 Cluster D (SIDECAR v35): a single-target PROTECTION-from-color grant
+    (phase's parameterized {"Protection": {...}} dict, no bare keyword name) lands a
+    single_target_grant marker carrying counter_kind='protection' — the field the
+    protection_grant lane reads to tell it from a bare combat-keyword grant."""
+    rec = _single_target_grant_card(
+        "Benevolent Bodyguard",
+        {"Protection": {"CardType": "the color of your choice"}},
+        "Target creature you control gains protection from the color of your choice.",
+    )
+    e = _effect_with(project_card([rec]), "single_target_grant")
+    assert e.counter_kind == "protection"
+    assert e.subject is not None
+    assert "SingleTarget" in e.subject.predicates
+
+
+def test_single_target_grant_bare_keyword_kind():
+    """A bare-string protective keyword (Hexproof) lands on counter_kind too."""
+    rec = _single_target_grant_card(
+        "Snakeskin Veil",
+        "Hexproof",
+        "Target creature you control gains hexproof until end of turn.",
+    )
+    e = _effect_with(project_card([rec]), "single_target_grant")
+    assert e.counter_kind == "hexproof"
+
+
+def test_single_target_grant_prefers_protective_over_combat_keyword():
+    """A multi-keyword single-target grant carrying BOTH a combat keyword and a
+    protective one stamps the PROTECTIVE one (so protection_grant still fires)."""
+    rec = {
+        "name": "Angelfire Ignition",
+        "scryfall_oracle_id": "id-angelfire",
+        "card_type": {"core_types": ["Instant"]},
+        "oracle_text": "It gains vigilance, trample, lifelink, indestructible, haste.",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "GenericEffect",
+                    "static_abilities": [
+                        {
+                            "mode": "Continuous",
+                            "affected": {"type": "ParentTarget"},
+                            "modifications": [
+                                {"type": "AddKeyword", "keyword": "Vigilance"},
+                                {"type": "AddKeyword", "keyword": "Trample"},
+                                {"type": "AddKeyword", "keyword": "Indestructible"},
+                            ],
+                            "description": "gains vigilance, trample, indestructible",
+                        }
+                    ],
+                    "target": {
+                        "type": "Typed",
+                        "type_filters": ["Creature"],
+                        "controller": "You",
+                    },
+                },
+                "cost": None,
+            }
+        ],
+    }
+    e = _effect_with(project_card([rec]), "single_target_grant")
+    assert e.counter_kind == "indestructible"
+
+
+def test_single_target_grant_non_protective_keeps_first_keyword():
+    """A non-protective single-target grant (reach) still records the keyword (so
+    keyword_grant_target is unchanged) but does NOT register as protective."""
+    rec = _single_target_grant_card(
+        "Aim High",
+        "Reach",
+        "Untap target creature. It gains reach until end of turn.",
+    )
+    e = _effect_with(project_card([rec]), "single_target_grant")
+    assert e.counter_kind == "reach"
+
+
 def test_oracle_mass_grant_marker_recovers_chosen_ability_grant():
     """Linvala: "Creatures you control gain that ability" — phase folds it to a
     choose; the oracle mass-grant marker recovers a generic creature grant_keyword."""

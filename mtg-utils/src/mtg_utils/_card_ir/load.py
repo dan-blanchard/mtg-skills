@@ -365,7 +365,19 @@ from mtg_utils.card_ir import Card
 #   blink). A delayed-return O-Ring whose return is a SEPARATE leaves-the-battlefield
 #   ability (Fiend Hunter, Journey to Nowhere) keeps it empty — correctly exile_removal,
 #   not a blink. CR 603.6e / 400.7 (a returned object is a NEW object).
-SIDECAR_VERSION = 34
+# v35 (ADR-0027 Cluster D — granted keyword on the single_target_grant marker,
+#   project.py `_single_target_grant_counter_kind`): a "target creature gains <kw>"
+#   spell/ability already re-surfaces as a `single_target_grant` Effect (the v14
+#   keyword_grant_target projection), but its `counter_kind` was EMPTY — so the
+#   protection_grant lane could not tell "target creature gains protection from red"
+#   (Benevolent Bodyguard, Blessed Breath) from "target creature gains menace". The
+#   marker now carries the FIRST PROTECTIVE granted keyword (hexproof / shroud /
+#   indestructible / ward / protection — normalized from phase's AddKeyword `keyword`,
+#   which is a bare string OR a parameterized dict {"Protection": {...}}), else the
+#   first keyword. keyword_grant_target reads category (not counter_kind), so it is
+#   unchanged; only the new protection_grant single-target arm reads the field. Empty
+#   ⇒ byte-identical to v34 for non-grant effects. CR 700.2 / 702.11/16/12/18/21.
+SIDECAR_VERSION = 35
 
 
 def card_ir_dir() -> Path:

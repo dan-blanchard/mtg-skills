@@ -4278,6 +4278,55 @@ def _is_parent_target(node: object) -> bool:
     return isinstance(node, dict) and _norm(node.get("type")) == "parenttarget"
 
 
+# ADR-0027 (protection_grant) — the PROTECTIVE keywords whose single-target grant the
+# protection_grant lane cares about. A grant's keyword rides phase's AddKeyword
+# ``keyword`` field as EITHER a bare string ("Hexproof"/"Shroud"/"Indestructible") OR a
+# PARAMETERIZED dict ({"Protection": {"CardType": "the color of your choice"}}, {"Ward":
+# {...}} — protection-from-X / ward N); ``_grant_keyword_name`` normalizes both into a
+# bare lowercase token. This set is the protection_grant subset of those tokens (CR
+# 702.11 hexproof / 702.18 shroud / 702.12 indestructible / 702.21 ward / 702.16
+# protection). Kept in project.py (not imported from signals — the back-edge cycle) so
+# the single_target_grant marker can carry the FIRST protective keyword in counter_kind.
+_GRANT_PROTECTIVE_KW = frozenset(
+    {"hexproof", "shroud", "indestructible", "ward", "protection"}
+)
+
+
+def _grant_keyword_name(kw: object) -> str:
+    """Normalize one AddKeyword ``keyword`` value into a bare lowercase token.
+
+    A bare string ("Hexproof", "Menace") → its normalized form. A parameterized dict
+    ({"Protection": {...}}, {"Ward": {...}}) → its single key normalized ("protection"
+    / "ward") — the keyword the lanes split by, with the X/color parameter dropped.
+    Anything else → "" (no name to key on)."""
+    if isinstance(kw, str):
+        return _norm(kw)
+    if isinstance(kw, dict) and kw:
+        return _norm(next(iter(kw)))
+    return ""
+
+
+def _single_target_grant_counter_kind(mods: object) -> str:
+    """The keyword to stamp on a ``single_target_grant`` marker's ``counter_kind`` —
+    the FIRST PROTECTIVE keyword among the ability's AddKeyword modifications, else the
+    first keyword name (so a non-protective single-target grant still records what it
+    granted). A multi-keyword grant ("gains vigilance, trample, lifelink, AND protection
+    from red" — Angelfire Ignition) thus surfaces its protective member for the
+    protection_grant lane rather than a leading combat keyword. (ADR-0027.)"""
+    first = ""
+    for m in mods if isinstance(mods, list) else []:
+        if not isinstance(m, dict) or _norm(m.get("type")) != "addkeyword":
+            continue
+        name = _grant_keyword_name(m.get("keyword"))
+        if not name:
+            continue
+        if name in _GRANT_PROTECTIVE_KW:
+            return name
+        if not first:
+            first = name
+    return first
+
+
 def _single_target_keyword_grant_markers(record: dict) -> list[Effect]:
     """`single_target_grant` markers for a SPELL/ability that grants a keyword to a
     SINGLE TARGET creature (ADR-0027 β — keyword_grant_target). phase parses "target
@@ -4348,12 +4397,18 @@ def _single_target_keyword_grant_markers(record: dict) -> list[Effect]:
                     predicates=(*resolved.predicates, _SINGLE_TARGET_GRANT_PRED),
                 )
                 desc = st.get("description") or eff.get("description")
+                # ADR-0027 (protection_grant): carry the granted keyword in
+                # counter_kind (the FIRST protective one, else the first keyword)
+                # so the protection_grant lane can fire only for a PROTECTIVE
+                # single-target grant. keyword_grant_target (the broad lane) reads
+                # category, not counter_kind, so this is inert for it.
                 out.append(
                     Effect(
                         category="single_target_grant",
                         scope=resolved.controller,
                         subject=subject,
                         raw=desc if isinstance(desc, str) else "",
+                        counter_kind=_single_target_grant_counter_kind(mods),
                     )
                 )
                 break  # one marker per ability (a multi-keyword grant fires once)

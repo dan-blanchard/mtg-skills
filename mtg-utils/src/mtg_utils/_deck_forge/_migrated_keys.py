@@ -5832,6 +5832,41 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # mirror is OR'd into has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS.
         # voltron_matters 3010 by set equality. CR 603.6e / 400.7.
         "blink_flicker",
+        # ADR-0027 Cluster D — protection_grant migrated to the Card IR. The lane fires
+        # for a card that GRANTS a protective keyword (hexproof / shroud /
+        # indestructible / ward / protection — CR 702.11/18/12/21/16) to your creatures.
+        # phase's
+        # keyword[] array is HAS-only (it records a card that HAS hexproof, not one that
+        # CONFERS it), but phase DOES carry the grant structurally as a grant_keyword /
+        # single_target_grant Effect — except the granted keyword was DROPPED on the
+        # single_target_grant marker (and the parameterized protection-from-X is a dict
+        # with no bare keyword name). FIX (projection, SIDECAR v35, behavior-neutral
+        # pre-wire drift 0 / voltron 3010 — no migrated key cross-reads the field):
+        # project.py `_single_target_grant_counter_kind` stamps the FIRST protective
+        # granted keyword on the single_target_grant marker's counter_kind. WIRE: a
+        # STRUCTURAL grant arm conferring a protective keyword to a YOUR-side creature/
+        # permanent — the team-creature anthem (_is_team_creature_grant), the
+        # your-permanents anthem (_is_your_permanents_grant — Heroic Intervention), the
+        # suit-up Aura/Equipment (_is_aura_equip_protection_subject — Diplomatic
+        # Immunity, Darksteel Plate), the parameterized "protection from chosen color"
+        # mass_grant (_PROTECTION_GRANT_RAW off the raw — Akroma's Blessing, Brave the
+        # Elements), and the single-target protective grant (the v35 counter_kind —
+        # Benevolent Bodyguard, Adamant Will) — UNION a byte-identical
+        # PROTECTION_GRANT_REGEX kept word mirror (_IR_KEPT_DETECTORS over the
+        # reminder-stripped kept_oracle, scope 'you') for the cost-folded self-grants
+        # (Cartel Aristocrat), the "you have hexproof" statics (Aegis of the Gods), and
+        # the intrinsic-hexproof reminder-text matches (Invisible Stalker — a PRESERVED
+        # over-fire, byte-identical to the deleted producer). The structural arm is
+        # BROADER — single-target indestructible/ward grants + suit-up auras +
+        # protection-from-color team grants the word-order regex missed.
+        # Commander-legal, by (key,scope,subject): both=198, regex_only=0 (byte mirror
+        # full recall),
+        # ir_only=189 (all genuine protective-keyword grants, each with a hook).
+        # VOLTRON: the deleted producer fired scope 'you' and fed has_other_plan; the IR
+        # re-supply is BROADER, so a byte-identical _protection_grant_has_plan mirror is
+        # OR'd into has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS. voltron 3010 by
+        # set equality. CR 702.11/16/12/18/21 / 700.2.
+        "protection_grant",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

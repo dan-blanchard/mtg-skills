@@ -400,6 +400,20 @@ VARIABLE_PT_SWEEP_REGEX = "power and toughness are each equal to(?: the (?:total
 BASE_PT_SET_FULL_REGEX = "base power (?:and toughness )?\\d|has base power|base toughness \\d|becomes a [^.]*with base power and toughness|becomes a [^.]* in addition to its other types|switch (?:each |target )?creature'?s'? power and toughness|switch [^.]{0,40}power and toughness|base power and toughness of each [^.]*become"
 BASE_PT_SET_REGEX = "base power (?:and toughness )?\\d|has base power|base toughness \\d|becomes a [^.]*with base power and toughness|becomes a [^.]*?\\b\\d+/\\d+\\b[^.]* in addition to its other types|base power and toughness of each [^.]*become"
 
+# ADR-0027 Cluster D — protection_grant migrated to the Card IR. The EXACT deleted
+# SWEEP_DETECTORS regex, pinned so the byte-identical kept WORD MIRROR
+# (PROTECTION_GRANT_REGEX in signals._IR_KEPT_DETECTORS, scope 'you') and the
+# hand-registered serve spec (signal_specs.py) reuse it. The deleted SWEEP ran
+# PER-CLAUSE over the reminder-stripped oracle; the two `[^.]*` arms never cross a
+# sentence boundary, so a FLAT search over the reminder-stripped joined-face
+# kept_oracle == the per-clause SWEEP firing byte-identically (verified 0 flat-only
+# / 0 clause-only over the commander-legal corpus). The structural arm is BROADER —
+# it adds the single-target indestructible/ward grants, the suit-up auras, and the
+# parameterized protection-from-color team grants the word-order regex missed — so the
+# mirror is NOT _VOLTRON_SILENCING_PLAN_KEYS; a byte _PROTECTION_GRANT_PLAN_MIRROR
+# re-supplies the voltron silence (see signals). CR 702.11/16/12/18/21.
+PROTECTION_GRANT_REGEX = "gains? protection from|gains? (?:hexproof|shroud)\\b|target [^.]*gains? protection|can't be the target of (?:spells?|abilities)[^.]*your opponents control"
+
 # ADR-0027 — scaling_pump migrated to the Card IR. The EXACT deleted SWEEP_DETECTORS
 # regex, pinned as a shared constant so the byte-identical kept WORD MIRROR
 # (_SCALING_PUMP_SWEEP_MIRROR in signals._IR_KEPT_DETECTORS, scope 'you'), the voltron
@@ -1751,12 +1765,24 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # flattens the becomes-target trigger to event='other'). Its oracle-regex sweep row
     # is deleted; SWEEP_LABELS keeps the label, and the serve spec is hand-registered in
     # signal_specs.py.
-    {
-        "key": "protection_grant",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "gains? protection from|gains? (?:hexproof|shroud)\\b|target [^.]*gains? protection|can't be the target of (?:spells?|abilities)[^.]*your opponents control",
-    },
+    # ADR-0027 Cluster D: protection_grant migrated to the Card IR. Detection moves to
+    # a STRUCTURAL grant arm in extract_signals_ir — a grant Effect conferring a
+    # PROTECTIVE keyword (hexproof / shroud / indestructible / ward / protection) to a
+    # your-side creature/permanent: the team-creature grant (_is_team_creature_grant),
+    # the your-permanents grant ("Permanents you control gain hexproof" — Heroic
+    # Intervention), the suit-up Aura/Equipment grant (EnchantedBy/EquippedBy on a
+    # creature/permanent — Diplomatic Immunity, Darksteel Plate), the parameterized
+    # "creatures you control gain protection from <chosen color>" mass_grant (Akroma's
+    # Blessing, Brave the Elements), and the SINGLE-TARGET grant (the SIDECAR v35
+    # single_target_grant counter_kind projection — Benevolent Bodyguard, Blessed
+    # Breath, Adamant Will). UNION a BYTE-IDENTICAL kept WORD MIRROR (_IR_KEPT_DETECTORS
+    # PROTECTION_GRANT_REGEX over the reminder-stripped kept_oracle, scope 'you') for the
+    # cost-folded self-grants (Cartel Aristocrat, Advanced Hoverguard), the "you have
+    # hexproof" statics (Aegis of the Gods), and the intrinsic-hexproof reminder-text
+    # matches the regex preserved (Invisible Stalker, Ascended Lawmage). Its
+    # SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the human label, and the serve
+    # spec is hand-registered in signal_specs.py reusing PROTECTION_GRANT_REGEX (the
+    # sweep auto-register loop no longer reaches it). CR 702.11/16/12/18/21 / 700.2.
     # ADR-0027 (t2b2-A): conditional_self_protection migrated to the Card IR — a STATIC
     # Ability with a condition granting a protective keyword to ITSELF (grant_keyword,
     # subject None, counter_kind in _SELF_PROTECTION_GRANT_KW). Its SWEEP row is deleted;
