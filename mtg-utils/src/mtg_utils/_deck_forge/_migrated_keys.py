@@ -2324,29 +2324,30 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (signal_specs), independent of this regex (like gain_control).
         # CR 602.1a / 605.1a / 903.10a (voltron).
         "activated_ability",
-        # ADR-0027 β — debuff_matters (a -1/-1 / toughness-shrink removal-and-payoff
-        # lane). The v9 projection carries the debuff structure directly: a -N/-N giver
-        # is a `pump` Effect with amount.factor < 0 (Dead Weight / Weakness → factor=-2;
-        # the NEGATIVE factor IS the signal), and a -1/-1-counter giver is a
-        # `place_counter` Effect with counter_kind=="m1m1". The structural arm in
-        # extract_signals_ir fires scope "any" on a pump factor<0 OR a non-self m1m1
-        # placement — gating OUT the 62-card self-enter-with drawback tail (persist/
-        # undying riders + "~ enters with N -1/-1 counters", which project scope=="you")
-        # and a mixed-sign combat trick (Nameless Inversion's +3/-3 projects factor=+3,
-        # the POWER side, so factor<0 leaves it out — it's a trick, not a pure debuff).
+        # ADR-0027 β / #24 — debuff_matters (a -1/-1 / toughness-shrink removal-and-
+        # payoff lane). The projection carries the debuff structure directly: a -N/-N
+        # giver is a `pump` OR `pump_target` Effect with a FIXED amount.factor < 0 (the
+        # NEGATIVE factor IS the signal), and a -1/-1-counter giver is a `place_counter`
+        # Effect with counter_kind=="m1m1". The static -N/-N folds onto a `pump` (Dead
+        # Weight / Weakness factor=-2); the SINGLE-TARGET / spell -N/-N folds onto a
+        # `pump_target` once the pump-MAGNITUDE field (SIDECAR v42) reads the signed
+        # power (Tragic Slip "target creature gets -1/-1" → factor=-1; flanking's "the
+        # blocking creature gets -1/-1" → CR 702.25a). The structural arm fires scope
+        # "any" on a FIXED-factor<0 pump/pump_target OR a non-self m1m1 placement —
+        # gating OUT the self-enter-with drawback tail (persist/undying riders, scope
+        # "you") and a TRUE opposite-sign trick (Nameless Inversion +3/-3 → factor=+3;
+        # Alpha Kavu -1/+1 → amount None — power down BUT toughness UP is a defensive
+        # trick, not a shrink-toward-death, so `_pump_amount` drops a mixed-sign pump).
         #
-        # The structural arm is recall GAIN (+94 ir_only, all Scryfall-verified: static
-        # auras "Enchanted creature gets -2/-2", self-shrinkers "This creature gets
-        # -1/-1 for each card in your hand", and put-N-counters-on-target the narrow
-        # regex missed), but the big "gets -N/-N until end of turn" / "-X/-X" tail
-        # projects as a pump / pump_target Effect with amount==None (the value lives
-        # only in the raw), so there is NO structural number to read. That tail is
-        # recovered by a byte-identical _IR_KEPT_DETECTORS mirror of BOTH deleted
-        # regexes (the SWEEP scope-"any" pattern + the Maha opponent-shrink scope-"you"
-        # _DETECTORS row): as a full-text .search over the reminder-stripped joined-face
-        # oracle the mirror fires on the IDENTICAL 613-card commander-legal set the
-        # deleted per-clause regex path did (0 drift both directions → regex_only == 0
-        # after the mirror).
+        # The structural arm is recall GAIN (+27 over the v41 hybrid — the Tragic Slip /
+        # flanking single-target -N/-N class the regex missed), but the X-VARIABLE
+        # "-X/-X" (The Meathook Massacre, Mutilate) and the "for each" scaler (Curse of
+        # Death's Hold) project amount==None (phase drops the dynamic magnitude), so
+        # there is NO structural number to read. That tail is recovered by a kept
+        # _IR_KEPT_DETECTORS mirror of BOTH deleted regexes (the SWEEP scope-"any"
+        # pattern + the Maha opponent-shrink scope-"you" _DETECTORS row): a full-text
+        # .search over the reminder-stripped joined-face oracle; add() dedups the
+        # overlap with the structural arm (net == the +27 recall, 0 regex-only lost).
         #
         # Both deleted producers fired high-confidence and counted toward has_other_plan
         # (a -1/-1 / shrink body is NOT a vanilla voltron beater), so a byte-identical
@@ -3069,31 +3070,26 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (_sweep_spec_with_extras over the pinned regex), independent of the deleted
         # producer. CR 706.10 (copying an ability) / 113.2 (granted abilities) / 706.2.
         "ability_copy",
-        # ADR-0027 β — pump_matters (a POSITIVE single-target combat-trick buff:
-        # "target creature gets +N/+N", the instant-speed pump that wins combat). Unlike
-        # its sign-discriminated sibling debuff_matters (a `pump` Effect with
-        # amount.factor < 0), pump_matters is genuinely UNSTRUCTURABLE as a positive
-        # discriminator: the v9 projection drops the value of EVERY target-creature pump
-        # to amount==None (the +N/+N lives only in the raw — Giant Growth, Titanic
-        # Growth, Brute Force all project pump_target / subj=Creature / amt=None) and
-        # carries no temporal marker, so a +3/+3 combat trick is structurally
-        # indistinguishable from Festering Goblin's -1/-1 (identical shape) and from a
-        # permanent buff. The ONLY clean positive-single-target structural form phase
-        # DOES carry — a positive-factor `pump` on an EnchantedBy/EquippedBy subject
-        # (auras/equipment, factor>0: Serra's Embrace, Rancor, Vulshok Gauntlets) — is
-        # the SEPARATE voltron/suit-up lane (signal_specs' "equipment/auras … suit
-        # up and buff your attackers" avenue), so a structural arm firing on those
-        # 409+ aura/equipment bodies would be SCOPE CREEP, not pump_matters recall.
+        # ADR-0027 β / #24 — pump_matters (a POSITIVE single-target combat-trick buff:
+        # "target creature gets +N/+N", the instant-speed pump that wins combat). The
+        # pump-MAGNITUDE field (SIDECAR v42) gives it a STRUCTURAL arm: a FIXED positive
+        # `pump_target` Effect over a real target-Creature subject (Giant Growth +3/+3;
+        # "two target creatures each get +N/+N" — Dauntless Onslaught). The arm is
+        # DISJOINT from the self_pump firebreather (subject None/SelfRef) and from the
+        # aura/equipment voltron lane (a positive `pump` on an EnchantedBy/EquippedBy
+        # subject — Rancor — is NOT a `pump_target`, so it never reaches here).
         #
-        # So the migration is a byte-identical _IR_KEPT_DETECTORS mirror of the EXACT
-        # deleted regex (pinned as PUMP_MATTERS_REGEX): the regex itself IS the
-        # positive-single-target discriminator. As a full-text .search over the
-        # reminder-stripped joined-face `text` the mirror fires on the IDENTICAL
-        # commander-legal set the deleted per-clause SWEEP path did (the regex arms are
-        # all clause-local, so full-text == per-clause; 0 drift both directions →
-        # ir_only == 0, regex_only == 0). No structural arm is added (it would be 100%
-        # over-fire on the aura/equipment superset). floor-mirror-dep == 0 (pump_matters
-        # was a SWEEP key, never an _IR_FLOOR_LANE).
+        # Two large classes stay un-structurable and ride the RETAINED tail-mirror (the
+        # EXACT deleted regex, pinned as PUMP_MATTERS_REGEX): the X-VARIABLE pump ("gets
+        # +X/+X" → amount==None, phase drops the dynamic magnitude) and the "+N/+N AND
+        # gains <kw>" combat trick (phase folds the keyword grant + pump into a `pump`
+        # category with subject==None — Bull's Strength — indistinguishable from a
+        # firebreather without phase's per-ability `duration`, a fast-follow projection
+        # field). As a full-text .search over the reminder-stripped joined-face `text`
+        # the mirror recovers the deleted SWEEP set (the regex arms are clause-local, so
+        # full-text == per-clause); add() dedups the overlap with the structural arm.
+        # Net is the +36 structural recall gain (0 regex-only lost). floor-mirror-dep 0
+        # (pump_matters was a SWEEP key, never an _IR_FLOOR_LANE).
         #
         # The deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted
         # toward has_other_plan (a combat-trick body is NOT a vanilla beater), so a

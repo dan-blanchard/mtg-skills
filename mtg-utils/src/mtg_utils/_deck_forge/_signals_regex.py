@@ -3772,16 +3772,18 @@ _ABILITY_COPY_PLAN_MIRROR = re.compile(ABILITY_COPY_REGEX, re.IGNORECASE)
 # plan is a positive combat-trick buff ("target creature gets +N/+N" — Giant
 # Growth-style; a card carrying a pump payoff is NOT a vanilla beater). The migrated
 # lane
-# rides a BYTE-IDENTICAL kept mirror of the EXACT deleted regex (no structural arm — the
-# lane is unstructurable, see _IR_KEPT_DETECTORS), so this byte-identical gate mirror —
-# NOT _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence for ALL cards (matching
-# the color_change / token_copy_matters / variable_pt / toughness_combat
-# byte-identical-mirror pattern; the silencing-keys set would equal it here since the IR
-# set == the regex set exactly, but the gate mirror also covers the ir-is-None
-# regex-path computation). Matched against reminder-STRIPPED joined-face `text`,
-# byte-identical to the deleted SWEEP producer's per-clause reminder-stripped input; the
-# regex arms are all clause-local, so full-text == per-clause. FILE-SWAP NO-FLOOD:
-# voltron delta 0. CR 903.10a / 122.1b.
+# has a structural arm (a FIXED positive `pump_target`, SIDECAR v42) PLUS a retained
+# tail-mirror for the X-variable / "+N/+N and gains <kw>" forms phase can't structure
+# (see _IR_KEPT_DETECTORS). This byte-identical gate mirror — NOT
+# _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence for ALL cards over the
+# reminder-stripped `text`: the structural arm's +36 recall gain is combat tricks the
+# deleted SWEEP regex already counts toward `has_other_plan` via this same text mirror,
+# so a structural-only pump_matters card carries no NEW voltron silence (its body was
+# already silenced or never a voltron candidate — the gate proved voltron delta 0). The
+# silencing-keys set would instead OVER-silence the ir-only bodies. Matched against
+# reminder-STRIPPED joined-face `text`, byte-identical to the deleted SWEEP producer's
+# per-clause reminder-stripped input; the regex arms are all clause-local, so full-text
+# == per-clause. FILE-SWAP NO-FLOOD: voltron delta 0. CR 903.10a / 122.1b.
 _PUMP_MATTERS_PLAN_MIRROR = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated unspent_mana key. The deleted
 # SWEEP producer fired HIGH-confidence (scope 'you') and counted toward

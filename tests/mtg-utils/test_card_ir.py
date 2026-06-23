@@ -842,6 +842,122 @@ def test_set_tap_state_projects_to_tap_or_untap():
     assert any(e.category == "tap" for e in tap)
 
 
+# ── pump-MAGNITUDE field (ADR-0027 #24, SIDECAR v42) ──────────────────────────
+
+
+def _pump(power, toughness, *, target=None, etype="Pump", description=""):
+    """A spell Pump effect with `power`/`toughness` as Fixed nodes (None → omitted)."""
+    eff: dict = {"type": etype}
+    if power is not None:
+        eff["power"] = {"type": "Fixed", "value": power}
+    if toughness is not None:
+        eff["toughness"] = {"type": "Fixed", "value": toughness}
+    if target is not None:
+        eff["target"] = target
+    return _spell(eff, description)
+
+
+_CREATURE_TARGET = {"type": "Typed", "type_filters": ["Creature"], "controller": None}
+
+
+def test_pump_target_reads_negative_magnitude_as_debuff():
+    """Tragic Slip's "target creature gets -1/-1" → pump_target factor -1 (a debuff);
+    phase carries the magnitude under power/toughness, NOT the count/amount keys."""
+    card = project_card([_pump(-1, -1, target=_CREATURE_TARGET)])
+    pump = _effect_with(card, "pump_target")
+    assert pump.amount == Quantity(op="fixed", factor=-1)
+
+
+def test_pump_target_reads_positive_magnitude_as_buff():
+    """Giant Growth's "target creature gets +3/+3" → pump_target factor +3 (a buff)."""
+    card = project_card([_pump(3, 3, target=_CREATURE_TARGET)])
+    pump = _effect_with(card, "pump_target")
+    assert pump.amount == Quantity(op="fixed", factor=3)
+
+
+def test_pump_all_reads_signed_magnitude():
+    """A mass PumpAll carries the same signed power magnitude (A-Urza's Command's
+    -3/0 mass shrink → factor -3; not None)."""
+    card = project_card([_pump(-3, 0, target=_CREATURE_TARGET, etype="PumpAll")])
+    pump = _effect_with(card, "pump")
+    assert pump.amount == Quantity(op="fixed", factor=-3)
+
+
+def test_pump_mixed_sign_trick_is_none():
+    """A TRUE opposite-sign trick (-1/+1 — power down, toughness UP; +3/-3) is neither
+    a clean debuff nor a buff, so the magnitude is dropped (None) — keeping it out of
+    BOTH the factor<0 debuff arm and the factor>0 buff arm."""
+    assert (
+        _effect_with(
+            project_card([_pump(-1, 1, target=_CREATURE_TARGET)]), "pump_target"
+        ).amount
+        is None
+    )
+    assert (
+        _effect_with(
+            project_card([_pump(3, -3, target=_CREATURE_TARGET)]), "pump_target"
+        ).amount
+        is None
+    )
+
+
+def test_pump_one_sided_keeps_the_signed_side():
+    """A one-sided pump (one stat zero) is NOT a trick — surface the meaningful sign:
+    +0/+3 → factor +3 (the toughness buff), -2/-0 → factor -2 (the power shrink)."""
+    assert _effect_with(
+        project_card([_pump(0, 3, target=_CREATURE_TARGET)]), "pump_target"
+    ).amount == Quantity(op="fixed", factor=3)
+    assert _effect_with(
+        project_card([_pump(-2, 0, target=_CREATURE_TARGET)]), "pump_target"
+    ).amount == Quantity(op="fixed", factor=-2)
+
+
+def test_pump_dynamic_magnitude_decouples_count_lanes():
+    """A DYNAMIC +X/+X (power is a Ref/ObjectCount, not Fixed) is left at amount=None
+    — surfacing its count subject would leak into the category-agnostic scaling lanes
+    (scaling_pump / lands_matter cross-read amount regardless of category)."""
+    dyn = {
+        "type": "Ref",
+        "qty": {
+            "type": "ObjectCount",
+            "filter": {"type": "Typed", "type_filters": ["Creature"]},
+        },
+    }
+    card = project_card(
+        [
+            _spell(
+                {
+                    "type": "Pump",
+                    "power": dyn,
+                    "toughness": dyn,
+                    "target": _CREATURE_TARGET,
+                }
+            )
+        ]
+    )
+    assert _effect_with(card, "pump_target").amount is None
+
+
+def test_pump_for_each_scaler_left_none_for_recover_count_decouple():
+    """A FIXED per-unit pump whose RAW carries a "for each" scaler (Captain Vargus's
+    "+1/+1 for each Pirate") is left at amount=None so `_recover_count_operand` keeps
+    its v41 behavior (it lifts a fixed pump + a "for each" raw to op=count; at v41 the
+    pump was amount=None and was NOT lifted) — scaling_pump / count_anthem stay
+    drift-0."""
+    card = project_card(
+        [
+            _pump(
+                1,
+                1,
+                target=_CREATURE_TARGET,
+                etype="PumpAll",
+                description="creatures you control get +1/+1 for each Pirate.",
+            )
+        ]
+    )
+    assert _effect_with(card, "pump").amount is None
+
+
 def test_create_delayed_trigger_recurses_into_stored_effect():
     """A delayed trigger's stored effect is parsed, not left 'other'."""
     rec = _spell(

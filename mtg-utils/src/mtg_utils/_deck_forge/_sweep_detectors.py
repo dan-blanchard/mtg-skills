@@ -369,23 +369,20 @@ DEBUFF_SWEEP_REGEX = "(?:other [a-z]+ creatures|nonblack creatures|all creatures
 DEBUFF_MAHA_REGEX = (
     "creatures your opponents control (?:have base (?:power|toughness)|get -)"
 )
-# ADR-0027 β — pump_matters migrated to the Card IR; its SWEEP_DETECTORS row is
-# deleted but the EXACT mined regex survives here as a shared constant. This is a
-# DISCRIMINATOR lane (a POSITIVE single-target combat-trick buff: "target creature
-# gets +N/+N"), but the v9 projection cannot structure it: phase drops the value of
-# every target-creature pump to amount==None (the +N/+N lives only in the raw), and
-# it carries no temporal marker, so a combat trick (Giant Growth's "+3/+3 until end
-# of turn") is structurally indistinguishable from a -1/-1 debuff (Festering Goblin,
-# same pump_target/subj=Creature/amt=None shape) and from a permanent buff. The only
-# clean positive-single-target structural form phase DOES carry — a positive-factor
-# pump on an EnchantedBy/EquippedBy subject (auras/equipment, factor>0) — is the
-# SEPARATE voltron/suit-up lane (signal_specs' "equipment/auras … suit up and buff
-# your attackers" avenue), so firing it here would be scope creep, not recall. So
-# this lane is genuinely UNSTRUCTURABLE as a positive discriminator: the regex itself
-# IS the discriminator, and the lane rides a byte-identical _IR_KEPT_DETECTORS mirror
-# of this exact regex (the mirror, the voltron PLAN mirror, and the hand-registered
-# serve / _PUMP_EXTRA SubAvenue in signal_specs all reuse it — so serve / detector /
-# silence never drift). SWEEP_LABELS keeps the human label. CR 122.1b / 903.10a.
+# ADR-0027 β / #24 — pump_matters migrated to the Card IR; its SWEEP_DETECTORS row is
+# deleted but the EXACT mined regex survives here as a shared constant. The lane (a
+# POSITIVE single-target combat-trick buff: "target creature gets +N/+N") now has a
+# STRUCTURAL arm — a FIXED positive `pump_target` over a real target-Creature subject
+# (the pump-MAGNITUDE field, SIDECAR v42), disjoint from the self_pump firebreather
+# (subject None/SelfRef) and the aura/equipment voltron lane (a positive `pump` on an
+# EnchantedBy/EquippedBy subject is NOT a `pump_target`). But two classes stay
+# un-structurable and ride the RETAINED tail-mirror of this regex: the X-VARIABLE
+# "gets +X/+X" (phase drops the dynamic magnitude → amount==None) and the "+N/+N and
+# gains <kw>" trick (phase folds it into a subject-None `pump` — indistinguishable
+# from a firebreather without phase's per-ability `duration`, a fast-follow). The
+# regex (the mirror, the voltron PLAN mirror, and the hand-registered serve / _PUMP_
+# EXTRA SubAvenue in signal_specs all reuse it) is the tail discriminator; add() dedups
+# its overlap with the structural arm. SWEEP_LABELS keeps the label. CR 122.1b/613.4c.
 PUMP_MATTERS_REGEX = "target (?:[a-z]+ )*creature(?: you control)? gets \\+[0-9x]/\\+[0-9x]|target [A-Z][a-z]+ you control gets \\+|target creature(?: you control)? gets \\+[\\dxX]"
 # ADR-0027 β — variable_pt migrated to the Card IR; its SWEEP_DETECTORS row is deleted
 # but the EXACT mined regex survives here so signal_specs hand-registers the serve pool

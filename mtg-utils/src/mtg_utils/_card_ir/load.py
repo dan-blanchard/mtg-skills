@@ -502,7 +502,25 @@ from mtg_utils.card_ir import Card
 #   DELETED. Structure FIXES the regex misses: +30 matters / +34 to_opp (Renown,
 #   Ingest, "one of your opponents", a planeswalker recipient — Zagras), 0 lost.
 #   CR 510.1b / 510.1c / 120.3.
-SIDECAR_VERSION = 41
+# v42 (ADR-0027 #24 pump-MAGNITUDE — project.py `_pump_amount`): phase's `Pump`
+#   effect carries its +N/+N magnitude under the separate `power`/`toughness` keys
+#   ({type:Fixed,value:±N}), NOT the `count/amount/value/number` keys `_amount` scans,
+#   so every TARGETED / activated / mass spell pump (`pump_target` / `pump` from the
+#   EFFECT path) collapsed to amount=None — Tragic Slip's "-1/-1" was indistinguishable
+#   from Giant Growth's "+3/+3", and both from a permanent buff. `_pump_amount` reads
+#   the SIGN-COHERENT fixed magnitude (the signed power, the toughness as a fallback;
+#   None for a true opposite-sign trick like -1/+1 / +3/-3, and None for a DYNAMIC
+#   `+X/+X` operand or a "for each" scaler — decoupling scaling_pump / count_anthem /
+#   lands_matter, which cross-read amount regardless of category). debuff_matters now
+#   reads a NEGATIVE-factor `pump`/`pump_target` (Tragic Slip, flanking's -1/-1 — CR
+#   702.25a; +27 recall) and pump_matters a POSITIVE-factor `pump_target` over a real
+#   target-Creature subject (the single-target combat trick the regex's "target
+#   creature gets +" missed — "two target creatures each get +N/+N"; +36 recall). The
+#   X-variable / for-each / "+N and gains <kw>" tail phase emits as amount=None still
+#   rides the kept regex mirror (the trick-vs-permanent split wants phase's per-ability
+#   `duration` — a fast-follow). Static-anthem `pump` is unchanged. Other keys + voltron
+#   drift 0. CR 613.4c (layer 7c) / 702.25a.
+SIDECAR_VERSION = 42
 
 
 def card_ir_dir() -> Path:

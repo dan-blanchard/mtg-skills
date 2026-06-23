@@ -2598,7 +2598,22 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     # producer collapsed to amount=None. `_mana_amount` recovers the magnitude (Sol
     # Ring factor 2, Selvala's greatest-power scaler) so a big-mana producer is
     # distinguishable from a 1-mana dork. CR 106.4.
-    amount = _mana_amount(eff) if etype == "mana" else _amount(eff)
+    #
+    # ADR-0027 #24 pump-MAGNITUDE (SIDECAR v42) — a single-target / activated / mass
+    # `Pump` effect (category `pump_target` / `pump`) carries its +N/+N magnitude under
+    # the separate `power`/`toughness` keys, NOT the `count/amount/value/number` keys
+    # `_amount` scans, so every targeted/spell pump collapsed to amount=None (the +N/+N
+    # lived only in the raw — Giant Growth, Tragic Slip). `_pump_amount` reads the
+    # SIGNED power magnitude so a NEGATIVE pump is a debuff and a POSITIVE one a buff
+    # (the two lanes read the sign). The static-anthem `pump` (from
+    # `_project_static_mods`) is unaffected — it already carries its magnitude from the
+    # AddPower modification value. CR 613.4c.
+    if category in ("pump", "pump_target"):
+        amount = _pump_amount(eff, raw)
+    elif etype == "mana":
+        amount = _mana_amount(eff)
+    else:
+        amount = _amount(eff)
     return [
         Effect(
             category=category,
@@ -3118,6 +3133,68 @@ def _amount(eff: dict) -> Quantity | None:
             if q is not None:
                 return q
     return None
+
+
+def _pump_amount(eff: dict, raw: str) -> Quantity | None:
+    """The SIGN-COHERENT fixed magnitude of a single-target / activated / mass ``Pump``
+    effect (ADR-0027 #24, SIDECAR v42 — the pump-MAGNITUDE field). phase's ``Pump``
+    effect carries its +N/+N (or -N/-N) magnitude under separate ``power`` and
+    ``toughness`` keys (``{type:Fixed,value:±N}`` — Giant Growth +3/+3, Tragic Slip
+    -1/-1, Dead Weight's static -2/-2), NOT the ``count/amount/value/number`` keys
+    ``_amount`` scans — so a targeted pump_target / spell-pump collapsed to
+    ``amount=None`` and the +N/+N lived only in the raw. This reads the SIGNED POWER
+    magnitude (``{value:-1}`` → factor -1) so a NEGATIVE pump is a debuff (gets -N/-N —
+    CR 613.4c, P/T layer 7c) and a POSITIVE one a buff (CR 613.4c).
+
+    SIGN-COHERENT (the precision gate). A genuine debuff/buff moves BOTH stats the same
+    way (or one and leaves the other); a MIXED-sign pump (power up, toughness down or
+    vice versa) is a combat TRICK, neither — it does not shrink-toward-death (a -1/+1
+    makes a creature HARDER to kill — Alpha Kavu, flanking-style defensive tricks) nor
+    cleanly buff (a +3/-3 — Nameless Inversion). So when power and toughness disagree in
+    sign (both fixed, opposite signs), return None — leaving the trick OUT of both the
+    factor<0 debuff arm and the factor>0 buff arm, matching the regex's ``-N/-N`` /
+    ``+N/+N`` (same-sign) semantics. When only one side is fixed, that side's sign
+    stands (the other being absent/dynamic). POWER is preferred when both agree.
+
+    FIXED-ONLY, and NON-"for each" (the decouple). Two cases are DELIBERATELY left at
+    ``amount=None`` so the category-agnostic count/scaling arms (scaling_pump /
+    count_anthem / any_counter_matters / lands_matter / creatures_matter all cross-read
+    ``amount`` / ``amount.subject`` REGARDLESS of effect category) do not drift off a
+    pump-magnitude unlock:
+
+      • a DYNAMIC power/toughness operand (``+X/+X`` where X is a Ref/ObjectCount —
+        Craterhoof) is op != fixed: surfacing its count SUBJECT would fire those lanes;
+      • a FIXED per-unit factor whose raw carries a "for each" / "equal to the number
+        of" SCALER (``Pirates get +1/+1 for each Pirate that attacked`` — Captain
+        Vargus): phase keeps the per-unit ``power:{Fixed:1}`` and drops the count, and
+        ``_recover_count_operand`` (run after this) LIFTS a fixed pump amount + a "for
+        each" raw to ``op=count`` — which at v41 saw ``amount=None`` here and did NOT
+        lift. Returning None for the "for each" case keeps that v41 behavior, so those
+        scaling pumps stay drift-0 on scaling_pump / count_anthem.
+
+    The two pump-magnitude lanes (debuff_matters / pump_matters) key on a FIXED factor's
+    SIGN only; the X-variable / for-each target-pump tail (``gets +X/+X`` / ``gets
+    -X/-X``) is recovered by the kept regex word-mirror's ``+[0-9xX]`` / ``-[0-9x]``
+    arms, so dropping it here loses no lane recall. CR 613.4c."""
+    if _FOR_EACH_COUNT.search(raw or ""):
+        return None
+    p = _quantity(eff.get("power")) if eff.get("power") is not None else None
+    t = _quantity(eff.get("toughness")) if eff.get("toughness") is not None else None
+    p = p if (p is not None and p.op == "fixed") else None
+    t = t if (t is not None and t.op == "fixed") else None
+    if p is None:
+        return t
+    if t is None:
+        return p
+    # Both fixed. A TRUE opposite-sign trick (both non-zero, signs disagree — -1/+1,
+    # +3/-3) is neither a clean debuff nor buff → None. Otherwise return the side that
+    # carries the SIGN (the non-zero one; power when both are non-zero same-sign), so a
+    # one-sided +0/+3 / -2/-0 surfaces the meaningful +3 / -2 magnitude.
+    if p.factor != 0 and t.factor != 0 and (p.factor > 0) != (t.factor > 0):
+        return None
+    if p.factor == 0:
+        return t
+    return p
 
 
 def _mana_amount(eff: dict) -> Quantity | None:

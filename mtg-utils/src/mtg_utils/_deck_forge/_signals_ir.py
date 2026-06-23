@@ -2519,18 +2519,21 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(DEBUFF_MAHA_REGEX, re.IGNORECASE),
         "you",
     ),
-    # ADR-0027 β — pump_matters byte-identical kept-mirror. Unlike debuff_matters (a
-    # sign-discriminated `pump` factor<0 structural arm + a tail mirror), pump_matters
-    # has NO structural arm: the v9 projection drops the value of every target-creature
-    # pump to amount==None (the +N/+N lives only in the raw) and carries no temporal
-    # marker, so a +N/+N combat trick is structurally indistinguishable from a -1/-1
-    # debuff and a permanent buff. The only clean positive-single-target structural form
-    # phase carries (a positive-factor pump on an EnchantedBy/EquippedBy subject) is the
-    # SEPARATE voltron/suit-up lane, so a structural arm would be 100% scope-creep. So
-    # this single mirror IS the lane: a full-text .search over the reminder-stripped
-    # joined-face oracle reproduces the deleted per-clause SWEEP path EXACTLY (the regex
-    # arms are all clause-local, so full-text == per-clause; 0 drift both directions →
-    # ir_only == 0, regex_only == 0). scope "you" matches the deleted SWEEP row.
+    # ADR-0027 β / #24 — pump_matters RETAINED tail-mirror (paired with the structural
+    # arm in extract_signals_ir). The pump-MAGNITUDE field (SIDECAR v42) gave the lane a
+    # structural arm — a FIXED positive `pump_target` over a real target-Creature
+    # subject (the single-target combat trick — Dauntless Onslaught, "two target
+    # creatures each get +N/+N"; +36 recall the regex's "target creature gets +"
+    # missed). But two large classes stay un-structurable and ride this mirror: the
+    # X-VARIABLE pump ("gets +X/+X" → amount==None, phase drops the dynamic magnitude)
+    # and the "+N/+N AND gains <kw>" combat trick (phase folds the keyword grant + pump
+    # into a `pump` category with subject==None — Giant Growth-with-trample, Bull's
+    # Strength — indistinguishable from a firebreather without phase's per-ability
+    # `duration`, a fast-follow projection field). So this mirror still recovers the
+    # deleted SWEEP path's matches (full-text over the reminder-stripped joined-face
+    # oracle; the regex arms are clause-local, so full-text == per-clause); add() dedups
+    # the overlap with the structural arm (net is the +36 recall, 0 regex-only lost).
+    # scope "you" matches the deleted SWEEP row.
     (
         "pump_matters",
         re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE),
@@ -3308,12 +3311,12 @@ IR_SLICE_KEYS: frozenset[str] = (
             #   power_tap_engine       ← an ACTIVATED ability cost~'tap' + a power-
             #                            scaling effect raw (Marwyn, Selvala, Staff of
             #                            Domination).
-            # pump_matters migrated as a byte-identical kept-mirror (UNSTRUCTURABLE: the
-            # IR pump/pump_target categories drop the +N/+N value to amount==None and
-            # carry no temporal marker, so a positive combat trick can't be told apart
-            # from a -1/-1 debuff or a permanent buff structurally; the one clean
-            # positive form — EnchantedBy/EquippedBy auras/equipment — is the separate
-            # voltron/suit-up lane). See _IR_KEPT_DETECTORS pump_matters row.
+            # pump_matters has a structural arm (a FIXED positive `pump_target` over a
+            # real target-Creature subject — the pump-MAGNITUDE field, SIDECAR v42) PLUS
+            # a retained tail-mirror for the X-variable "gets +X/+X" + "+N/+N and gains
+            # <kw>" forms phase emits as amount==None (the trick-vs-permanent split
+            # wants phase's per-ability `duration`, a fast-follow). See
+            # _IR_KEPT_DETECTORS.
             "lose_unless_hand",
             "opponent_cast_matters",
             "opponent_counter_grant",
@@ -6624,16 +6627,20 @@ def extract_signals_ir(
             if _COST_INCREASE.search(raw):
                 continue
             add("cost_reduction", "you", "", raw)
-        # ADR-0027 β — debuff_matters structural arm (a -1/-1 / toughness-shrink
+        # ADR-0027 β / #24 — debuff_matters structural arm (a -1/-1 / toughness-shrink
         # removal-and-payoff lane). Two projected Effect forms anchor it:
-        #   • a `pump` Effect with amount.factor < 0 — the NEGATIVE factor IS the
-        #     debuff signal. phase folds a static -N/-N onto an extracted Quantity
-        #     (Dead Weight → pump, factor=-2; Weakness → factor=-2), so a self-
-        #     shrinking creature ("This creature gets -1/-1 for each card in your
-        #     hand" — Dread Slag) and an aura ("Enchanted creature gets -2/-2") both
-        #     read structurally. A mixed-sign combat trick (Nameless Inversion's
-        #     +3/-3) projects factor=+3 (the POWER side), so factor<0 correctly leaves
-        #     it OUT — it's a trick, not a pure debuff.
+        #   • a `pump` OR `pump_target` Effect with a FIXED amount.factor < 0 — the
+        #     NEGATIVE factor IS the debuff signal. The static -N/-N folds onto a `pump`
+        #     (Dead Weight factor=-2; Weakness factor=-2 — an aura "Enchanted creature
+        #     gets -2/-2"); the SINGLE-TARGET / spell -N/-N folds onto a `pump_target`
+        #     once the pump-MAGNITUDE field reads the signed power/toughness (SIDECAR
+        #     v42 — Tragic Slip's "target creature gets -1/-1" factor=-1; Crippling
+        #     Blight, Debilitating Injury). A mixed-sign combat trick (Nameless
+        #     Inversion's +3/-3) projects factor=+3 (the POWER side), so factor<0
+        #     correctly leaves it OUT — it's a trick, not a pure debuff. The X-variable
+        #     "-X/-X" tail (The Meathook Massacre, Mutilate) and the "for each" scaler
+        #     (Curse of Death's Hold) project amount==None (phase drops the dynamic
+        #     magnitude), so they ride the kept regex mirror — add() dedups. CR 613.4c.
         #   • a `place_counter` Effect with counter_kind=="m1m1" that is NOT a self-
         #     enter-with drawback. A real debuff puts -1/-1 counters on OTHER/target
         #     creatures (Skinrender, Blight Rot, the scope=="any"/"opp" placements);
@@ -6643,8 +6650,9 @@ def extract_signals_ir(
         for e in ab.effects:
             amt = e.amount
             is_neg_pump = (
-                e.category == "pump"
+                e.category in ("pump", "pump_target")
                 and amt is not None
+                and amt.op == "fixed"
                 and isinstance(getattr(amt, "factor", None), int | float)
                 and amt.factor < 0
             )
@@ -7330,22 +7338,32 @@ def extract_signals_ir(
                 )
             ):
                 add("self_pump", "you", "", e.raw)
-            # ADR-0027 β: pump_matters has NO structural arm here. Its lane is "positive
-            # single-target combat-trick BUFF of another creature" ("target creature
-            # gets +N/+N"), but the projection cannot express it: a target-creature
-            # pump_target drops its value to amount==None (the +N/+N lives only in the
-            # raw) and carries no temporal marker, so a +3/+3 combat trick (Giant
-            # Growth) is the SAME pump_target/subj=Creature/amt=None shape as a -1/-1
-            # DEBUFF (Festering Goblin) and a permanent buff — there is no sign or
-            # single-target signal to read (debuff_matters reads factor<0 only on the
-            # static-fold auras/anthems, NOT these amt=None target pumps). The one clean
-            # positive-single-target structural form — a positive-factor pump on an
-            # EnchantedBy/EquippedBy subject (auras/equipment) — is the SEPARATE
-            # voltron/suit-up lane, so firing it here would be 100% scope-creep. So
-            # pump_matters rides a byte-identical _IR_KEPT_DETECTORS mirror of the exact
-            # deleted regex
-            # (PUMP_MATTERS_REGEX); the regex IS the discriminator. See
-            # _IR_KEPT_DETECTORS. CR 122.1b / 903.10a.
+            # ADR-0027 #24 — pump_matters structural arm (SIDECAR v42). The lane is a
+            # POSITIVE single-target combat-trick BUFF of ANOTHER creature ("target
+            # creature gets +N/+N"). The pump-MAGNITUDE field now reads the signed
+            # power onto the targeted pump, so the clean structural form is a
+            # `pump_target` Effect with a FIXED amount.factor > 0 over a real targeted
+            # CREATURE subject (the chosen target). This is DISJOINT from the self_pump
+            # firebreather arm above (which fires on subject None / SelfRef — a self-
+            # pump like Shivan Dragon's "{R}: ~ gets +1/+0" drops its subject to None,
+            # so it never reaches here). The "+N/+N AND gains <kw>" combat-trick form
+            # (phase folds the keyword grant + pump into a `pump` category with
+            # subject=None — Giant Growth-with-trample, Bull's Strength) and every
+            # X-VARIABLE pump ("gets +X/+X" → amount==None) carry no fixed
+            # positive-target shape here, so they ride the kept regex mirror
+            # (PUMP_MATTERS_REGEX) — the lane's combat-trick / firebreather /
+            # permanent-buff split otherwise needs phase's per-ability `duration` (a
+            # fast-follow projection field, not yet in the IR). add() dedups the overlap
+            # with the mirror. CR 122.1b / 613.4c.
+            if (
+                cat == "pump_target"
+                and e.amount is not None
+                and e.amount.op == "fixed"
+                and e.amount.factor > 0
+                and isinstance(e.subject, Filter)
+                and "Creature" in e.subject.card_types
+            ):
+                add("pump_matters", "you", "", e.raw)
             if cat == "place_counter" and e.counter_kind in _COUNTER_KIND_KEYS:
                 ck_key, ck_scope = _COUNTER_KIND_KEYS[e.counter_kind]
                 add(ck_key, ck_scope, "", e.raw)
