@@ -132,6 +132,20 @@ DISCARD_OUTLET_REGEX = "discard (?:a|an|another|two|three|your hand|x|\\d+) [^:.
 # ("your library" / "you exile"), so it never matched the opponent-library mills the
 # structural arm also excludes (scope!='you'). CR 701.23 (search/dig) / 401.
 DIG_UNTIL_REGEX = "exile cards? from the top of your library until|exile (?:the )?top[^.]*until you exile|reveal cards from the top of your library until"
+# ADR-0027 topdeck library-owner scope (SIDECAR v28): topdeck_selection migrated to the
+# Card IR. Detection moves to a `topdeck_select` EFFECT scope=='you' STRUCTURAL arm
+# (supplement._topdeck_select_owner_scope scopes the look/reveal + scry/surveil selection
+# from the library OWNER — own-library → 'you', opponent peek → 'opp', Morph reveal →
+# re-categorized out) UNION a byte-identical PER-CLAUSE mirror of this regex for the 148
+# your-library reveals phase re-categorizes to reveal / cast_play (Fact or Fiction, the
+# pile cards, cascade/dig bodies). The regex survives as a shared constant so signal_specs
+# hand-registers the serve pool reusing it AND the kept mirror (_TOPDECK_SELECTION_SWEEP_RE
+# in _signals_regex) reuses it — serve / mirror / (now-deleted) detector never drift. The
+# deleted SWEEP ran PER-CLAUSE over the reminder-stripped oracle, so the mirror runs
+# per-clause too. The regex is YOUR-library-anchored ("of your library", "from the top of
+# your library", "from among them"), so it never matched the opponent-library / opponent-
+# hand peeks the structural arm also excludes (scope!='you'). CR 116 / 701.18 / 701.42.
+TOPDECK_SELECTION_REGEX = "look at the top (?:two|three|four|five|six|seven|eight|nine|ten|\\w+|x|\\d+) cards? of your library|reveal the top (?:two|three|four|five|six|seven|eight|nine|ten|\\w+|x|\\d+) cards? of your library|reveal cards from the top of your library until|put [^.]*from among them onto the battlefield"
 # ADR-0027: tap_down migrated to the Card IR (the tap-down control lane — tap an
 # OPPONENT's permanent / "skips its next untap step" / detain; CR 701.21 detain, CR
 # 502.x untap step). Its SWEEP_DETECTORS row is deleted; detection moves to a
@@ -1501,12 +1515,15 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # coin_flip marker effect (project._narrow_trigger_other_refs). Its oracle-regex
     # SWEEP_DETECTORS row is deleted; the serve spec stays hand-registered in
     # signal_specs.py (SWEEP_LABELS still carries the human label).
-    {
-        "key": "topdeck_selection",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "look at the top (?:two|three|four|five|six|seven|eight|nine|ten|\\w+|x|\\d+) cards? of your library|reveal the top (?:two|three|four|five|six|seven|eight|nine|ten|\\w+|x|\\d+) cards? of your library|reveal cards from the top of your library until|put [^.]*from among them onto the battlefield",
-    },
+    # ADR-0027 topdeck library-owner scope (SIDECAR v28): topdeck_selection migrated to
+    # the Card IR. Its SWEEP_DETECTORS row is deleted; detection moves to a
+    # `topdeck_select` EFFECT scope=='you' STRUCTURAL arm (supplement scopes the look/
+    # reveal + scry/surveil selection from the library OWNER) UNION a byte-identical
+    # PER-CLAUSE kept mirror (_TOPDECK_SELECTION_SWEEP_RE in _signals_regex, ==
+    # TOPDECK_SELECTION_REGEX above) recovering the 148 your-library reveals phase
+    # re-categorizes to reveal / cast_play. The serve pool stays oracle-defined, so it
+    # reuses the shared TOPDECK_SELECTION_REGEX constant (serve + mirror reuse).
+    # SWEEP_LABELS still carries the human label. CR 116 / 701.18 / 701.42.
     # ADR-0027 β: play_from_top migrated to the Card IR — the structural arm (a STATIC
     # cast_from_zone+from:library Effect, project._top_play_permission_marker over phase's
     # TopOfLibraryCastPermission static mode, gated `"exile" not in raw` to split granted

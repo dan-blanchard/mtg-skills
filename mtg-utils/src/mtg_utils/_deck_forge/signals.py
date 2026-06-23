@@ -228,29 +228,46 @@ def extract_signals_hybrid(
             out.append(
                 Signal("gain_control", "you", "", "", record.get("name", ""), "low")
             )
-        # ADR-0027 topdeck_stack cross-open reconciliation. The regex include_membership
-        # path cross-opens the sibling top-of-library lanes from a play-from-top body
-        # (Gwenom, Glarb, Reality Chip curate their top to set up what they play),
-        # gated on the byte-identical _PLAY_FROM_TOP_MIRROR / _FLOOR_MIRROR — it adds a
-        # LOW topdeck_selection AND a LOW topdeck_stack. topdeck_stack now migrates, so
-        # the hybrid DROPS the regex LOW topdeck_stack cross-open (topdeck_selection is
-        # not migrated, so its cross-open survives the merge). Re-run the EXACT gate
-        # against the reminder-stripped oracle and re-add the LOW topdeck_stack when the
-        # merged set lacks it — mirroring the regex producer at _signals_regex.py
-        # (`if play_from_top mirror: add topdeck_selection LOW; add topdeck_stack LOW`).
-        # The cross-open was LOW so it never fed has_other_plan. CR 116.
-        if "topdeck_stack" not in {s.key for s in out}:
+        # ADR-0027 topdeck_stack / topdeck_selection cross-open reconciliation. The
+        # regex include_membership path cross-opens the sibling top-of-library lanes
+        # from a play-from-top body (Gwenom, Glarb, Reality Chip curate their top to set
+        # up what they play), gated on the byte-identical _PLAY_FROM_TOP_MIRROR /
+        # _FLOOR_MIRROR — it adds a LOW topdeck_selection AND a LOW topdeck_stack. BOTH
+        # now migrate (v28), so the hybrid DROPS both regex LOW cross-opens. Re-run the
+        # EXACT gate against the reminder-stripped oracle and re-add each LOW key the
+        # merged set lacks — mirroring the regex producer at _signals_regex.py (`if
+        # play_from_top mirror: add topdeck_selection LOW; add topdeck_stack LOW`). Both
+        # cross-opens were LOW so neither fed has_other_plan. CR 116.
+        out_now = {s.key for s in out}
+        if "topdeck_stack" not in out_now or "topdeck_selection" not in out_now:
             _pft_text = re.sub(r"\([^)]*\)", " ", get_oracle_text(record) or "")
             if any(
                 _PLAY_FROM_TOP_MIRROR.search(cl)
                 or _PLAY_FROM_TOP_FLOOR_MIRROR.search(cl)
                 for cl in _clauses(_pft_text)
             ):
-                out.append(
-                    Signal(
-                        "topdeck_stack", "you", "", "", record.get("name", ""), "low"
+                if "topdeck_stack" not in out_now:
+                    out.append(
+                        Signal(
+                            "topdeck_stack",
+                            "you",
+                            "",
+                            "",
+                            record.get("name", ""),
+                            "low",
+                        )
                     )
-                )
+                if "topdeck_selection" not in out_now:
+                    out.append(
+                        Signal(
+                            "topdeck_selection",
+                            "you",
+                            "",
+                            "",
+                            record.get("name", ""),
+                            "low",
+                        )
+                    )
     # ADR-0027 voltron reconciliation: the regex path computes the commander-damage
     # voltron MEMBERSHIP fallback against its OWN signal set (gated on
     # ``not has_other_plan``), which no longer carries a migrated PLAN key — when a key

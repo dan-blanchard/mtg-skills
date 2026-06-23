@@ -1527,6 +1527,38 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # topdeck_selection ← a `topdeck_select` EFFECT scope=='you' — the controller's own
+    # top-of-deck selection ("Look at the top three cards of your library", Sensei's
+    # Divining Top; scry/surveil doers). The v28 topdeck library-owner projection scopes a
+    # supplement-recovered topdeck_select from the library OWNER (read off the raw): an
+    # own-library look/reveal + scry/surveil is 'you' (the controller's card selection); an
+    # opponent-library / target-player-library / opponent-hand peek is 'opp' and EXCLUDED;
+    # a pure Morph face-down reveal is re-categorized to `reveal` and dropped. The
+    # your-library reveals phase re-categorizes to reveal/cast_play ride the byte-identical
+    # _TOPDECK_SELECTION_SWEEP_RE per-clause kept mirror. ADR-0027 (SIDECAR v28).
+    "topdeck_selection": (
+        {
+            "name": "Sensei's Divining Top",
+            "type_line": "Artifact",
+            "oracle_text": (
+                "{1}: Look at the top three cards of your library, then put "
+                "them back in any order.\n{T}: Draw a card, then put this "
+                "artifact on top of its owner's library."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(
+                    Effect(
+                        category="topdeck_select",
+                        scope="you",
+                        raw="look at the top three cards of your library",
+                    ),
+                ),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

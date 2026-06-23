@@ -52,6 +52,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TAP_DOWN_REGEX,
     TARGET_PLAYER_DRAWS_REGEX,
     THEFT_MATTERS_REGEX,
+    TOPDECK_SELECTION_REGEX,
     TOPDECK_STACK_SWEEP_REGEX,
     TOUGHNESS_COMBAT_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
@@ -1460,6 +1461,12 @@ _DISCARD_OUTLET_SWEEP_REGEX = DISCARD_OUTLET_REGEX
 # The serve pool stays oracle-defined, so it reuses the shared DIG_UNTIL_REGEX constant
 # (the EXACT deleted detector regex) — serve and the kept-mirror detector never drift.
 _DIG_UNTIL_SWEEP_REGEX = DIG_UNTIL_REGEX
+# ADR-0027 topdeck library-owner scope (SIDECAR v28): topdeck_selection migrated to the
+# Card IR (its SWEEP_DETECTORS row deleted, so the auto-register loop no longer builds
+# the serve). The serve pool stays oracle-defined, so it reuses the shared
+# TOPDECK_SELECTION_REGEX constant (the EXACT deleted detector regex) — serve and the
+# kept-mirror detector never drift.
+_TOPDECK_SELECTION_SWEEP_REGEX = TOPDECK_SELECTION_REGEX
 # ADR-0027 (tranche2-C): the SWEEP_DETECTORS rows for self_pump / tapper_engine /
 # count_anthem are deleted (detection moved to the Card IR). Their SERVE pools stay
 # oracle-defined, so the regexes are pinned here verbatim and the specs below reuse
@@ -3209,6 +3216,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["dig_until"],
         {"oracle": _DIG_UNTIL_SWEEP_REGEX},
         _DIG_UNTIL_SWEEP_REGEX,
+    ),
+    # ADR-0027 topdeck library-owner scope (SIDECAR v28): topdeck_selection migrated to
+    # the Card IR (its SWEEP_DETECTORS row deleted, so the auto-register loop no longer
+    # builds this serve). Hand-register the spec the sweep loop used to build — same
+    # label / avenue / oracle, reusing the shared TOPDECK_SELECTION_REGEX constant so
+    # serve and the kept-mirror detector never drift.
+    ("topdeck_selection", "you"): _spec(
+        *SWEEP_LABELS["topdeck_selection"],
+        {"oracle": _TOPDECK_SELECTION_SWEEP_REGEX},
+        _TOPDECK_SELECTION_SWEEP_REGEX,
     ),
     # Drain. The serve required "opponent" adjacent to "loses", so it MISSED the
     # keystone aristocrats drains worded "target/that player loses N life" (Blood

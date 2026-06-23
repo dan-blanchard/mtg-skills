@@ -3301,6 +3301,77 @@ def test_tasha_each_opponent_dig_scope_opp_via_supplement():
     assert all(e.scope == "opp" for e in digs)
 
 
+def _topdeck_cats_scopes(desc: str) -> list[tuple[str, str]]:
+    """Project a phase-Unimplemented 'look at …' clause through the supplement and return
+    the (category, scope) of every recovered topdeck_select/reveal effect."""
+    out = []
+    for e in _effects(project_card([_spell({"type": "Unimplemented"}, desc)])):
+        if e.category in ("topdeck_select", "reveal"):
+            out.append((e.category, e.scope))
+    return out
+
+
+def test_topdeck_select_owner_scope_your_library_scope_you():
+    """ADR-0027 v28 — an OWN-library look/reveal ("the top N cards of your library" —
+    Sensei's Divining Top, Augur of Autumn) is the controller's own selection → scope
+    'you' (joining the structured scry/surveil doers)."""
+    assert ("topdeck_select", "you") in _topdeck_cats_scopes(
+        "Look at the top three cards of your library, then put them back in any order."
+    )
+    # "Look at the top card of your library any time" (Augur of Autumn) — the look
+    # combinator → topdeck_select, owner-scoped 'you'. ("Reveal the top N of your
+    # library" routes through phase's `reveal` verb grammar, not the look combinator —
+    # it is recovered downstream by the byte-identical kept SWEEP mirror, not this arm.)
+    assert ("topdeck_select", "you") in _topdeck_cats_scopes(
+        "Look at the top card of your library any time."
+    )
+
+
+def test_topdeck_select_owner_scope_opponent_library_scope_opp():
+    """An OPPONENT-library / target-player-library / opponent-hand PEEK ("look at the top
+    N of target player's library" — Orcish Spy, Mishra's Bauble; "look at an opponent's
+    hand" — Anointed Peacekeeper) is NOT the controller's own selection → scope 'opp'
+    (routed OUT of the topdeck_selection lane). "target player's library" is the recall
+    the _BROAD_THIRD_PARTY guess omitted."""
+    assert ("topdeck_select", "opp") in _topdeck_cats_scopes(
+        "Look at the top three cards of target player's library, then put them "
+        "back in any order."
+    )
+    assert ("topdeck_select", "opp") in _topdeck_cats_scopes(
+        "Look at the top five cards of target opponent's library. Put one of "
+        "those cards into that player's graveyard."
+    )
+    assert ("topdeck_select", "opp") in _topdeck_cats_scopes(
+        "Look at an opponent's hand, then choose any card name."
+    )
+
+
+def test_topdeck_select_owner_scope_morph_recategorized_out():
+    """A pure Morph face-down REVEAL ("look at target face-down creature" — Aven
+    Soulgazer, Smoke Teller; no "library") is a battlefield hidden-info peek, NOT
+    top-of-library selection → re-categorized to `reveal` (dropped from the topdeck
+    doer/structural arm). A your-library dig that EXILES a card face down (Clone Shell)
+    keeps "library" so it stays topdeck_select 'you'."""
+    morph = _topdeck_cats_scopes("Look at target face-down creature.")
+    assert ("reveal", "any") in morph
+    assert all(cat != "topdeck_select" for cat, _ in morph)
+    # the your-library dig that exiles face-down keeps topdeck_select 'you'
+    clone = _topdeck_cats_scopes(
+        "Look at the top four cards of your library, exile one face down, then "
+        "put the rest on the bottom of your library."
+    )
+    assert ("topdeck_select", "you") in clone
+
+
+def test_topdeck_select_owner_scope_neither_zone_unchanged():
+    """A clause naming NEITHER your- nor opponent-library ("Look at the top five cards." —
+    no zone owner) keeps its scope; a "put X on top of their owners' libraries" tuck the
+    _LIBRARY_POS arm catches (Plow Under) stays out of the 'you' selection lane."""
+    bare = _topdeck_cats_scopes("Look at the top five cards.")
+    assert any(cat == "topdeck_select" for cat, _ in bare)
+    assert all(sc != "you" for _, sc in bare)  # no your-library → not promoted to 'you'
+
+
 def test_sacrifice_cost_marker_from_additional_cost():
     """Altar's Reap keeps its "sacrifice a creature" additional cost in the record's
     additional_cost field but drops it off the projected spell — recovered as a

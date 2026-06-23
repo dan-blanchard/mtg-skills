@@ -3702,9 +3702,11 @@ def test_play_from_top_cross_opens_topdeck_selection():
     # opens play_from_top and the sibling topdeck_selection/stack lanes. Real oracle.
     # ADR-0027 β: play_from_top migrated to the Card IR, so the hybrid serves it (here
     # via the per-clause kept mirror — Gwenom's permission is a TRIGGERED/temporary form
-    # phase doesn't model as a cast-permission static). The topdeck_selection cross-open
-    # now keys off the byte-identical _PLAY_FROM_TOP_MIRROR in the regex path, so it
-    # fires on both the regex and hybrid paths.
+    # phase doesn't model as a cast-permission static). ADR-0027 v28: topdeck_selection
+    # ALSO migrated (topdeck library-owner scope), so the regex LOW cross-open is dropped
+    # by the hybrid filter and re-added by the signals.py reconciliation (and Gwenom's
+    # "look at the top card of your library" fires the IR structural arm directly too), so
+    # it still fires on the hybrid path.
     gwenom = {
         "name": "Gwenom, Remorseless",
         "type_line": "Legendary Creature — Symbiote Villain",

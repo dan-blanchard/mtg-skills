@@ -113,8 +113,15 @@ def test_sweep_detectors_loaded():
     # DIG_UNTIL_REGEX per-clause kept mirror (_DIG_UNTIL_SWEEP_RE in _signals_regex); the
     # v27 projection makes the dig Effect carry WHOSE library is dug so an own-library dig
     # 'you' is the controller's engine and an opponent-library mill 'opp' is excluded; CR
-    # 701.23 / 401).
-    assert len(SWEEP_DETECTORS) >= 16
+    # 701.23 / 401), then 16→15 as topdeck_selection's row was deleted (ADR-0027 SIDECAR
+    # v28 topdeck library-owner scope — migrated to a `topdeck_select` Effect scope=='you'
+    # structural arm UNION a byte-identical TOPDECK_SELECTION_REGEX per-clause kept mirror
+    # (_TOPDECK_SELECTION_SWEEP_RE in _signals_regex); the v28 projection makes a
+    # supplement-recovered topdeck_select Effect carry WHOSE library/hand it examines so
+    # the controller's own scry/surveil/look-at-top selection 'you' is the lane, while an
+    # opponent-library / target-player-library / opponent-hand peek 'opp' and the Morph
+    # face-down reveal (re-categorized to `reveal`) are excluded; CR 116 / 701.18 / 701.42).
+    assert len(SWEEP_DETECTORS) >= 15
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 
@@ -129,9 +136,9 @@ def test_every_sweep_key_is_actionable():
 
 def test_representative_sweep_keys_fire_from_oracle():
     cases = [
-        ("topdeck_selection", "Look at the top three cards of your library."),
         # ADR-0027: coin_flip / commander_matters / hand_disruption / mass_removal
-        # (tranche2-A) / debuff_matters / variable_pt / free_cast (β) / scaling_pump
+        # (tranche2-A) / debuff_matters / variable_pt / free_cast (β) / scaling_pump /
+        # dig_until / topdeck_selection (SIDECAR v28 topdeck library-owner scope)
         # migrated to the IR (their SWEEP_DETECTORS rows are deleted), so they no longer
         # fire from the regex path — swapped for still-regex sweep keys to keep this check.
         # ("All creatures get -1/-1 until end of turn." now routes through the IR

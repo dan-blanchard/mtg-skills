@@ -255,7 +255,33 @@ from mtg_utils.card_ir import Card
 # reads scope=='you' for own-library digs and excludes the opp/each opponent-library
 # mills. The _search_self_library_scope tutor precedent extended to the dig surface. CR
 # 701.23 (search/dig) / 401 (library zone).
-SIDECAR_VERSION = 27
+# v27→v28: topdeck LIBRARY-OWNER scope — a supplement-recovered `topdeck_select`
+#   Effect (the "look"/"looks" combinator + the _LIBRARY_POS arm) now carries WHOSE
+#   library/hand it examines, read from the RAW (the recovery has no structured
+#   `player`). _topdeck_select_owner_scope splits the FIXED-scope conflation FOUR ways
+#   by library owner: an OWN-library look/reveal ("the top N cards of your library" —
+#   Sensei's Divining Top, Augur of Autumn) → 'you' (joining the structured scry/
+#   surveil doers, already 'you'); an OPPONENT-library / target-player-library /
+#   opponent-HAND PEEK ("look at the top N of target player's library" — Orcish Spy,
+#   Mishra's Bauble, Dewdrop Spy; "look at an opponent's hand" — Anointed Peacekeeper;
+#   "target opponent's library" — Cruel Fate) → 'opp' (route OUT of the controller's
+#   own-selection lane; "target player's library" is the recall _BROAD_THIRD_PARTY
+#   omits); a pure Morph face-down REVEAL ("look at target face-down creature", no
+#   "library" — Aven Soulgazer, Smoke Teller, Keeper of the Lens) → re-categorized to
+#   `reveal` (a non-topdeck category the topdeck doer/structural arm both drop); a "put
+#   X on top of their owners' libraries" TUCK (the _LIBRARY_POS arm also catches — Plow
+#   Under, Hallowed Burial) keeps its scope (topdeck_STACK/removal, not selection;
+#   scope!='you' keeps it out of the topdeck_selection structural arm). Behavior-neutral
+#   with topdeck_selection not yet wired (drift 0): the two migrated keys that read the
+#   topdeck_select CATEGORY structurally (artifacts/enchantments_matter via
+#   _typed_matters_lanes; extra_land_drop via a Land-subject + to:battlefield gate) read
+#   the SUBJECT, never the scope, and the 6 dropped Morph reveals carry no Land/typed
+#   subject; topdeck_stack reads library_position/counter_kind, not topdeck_select.
+#   Payoff: the topdeck_selection migration reads scope=='you' (own-library selection
+#   incl scry/surveil) and excludes the opponent/morph over-fires. The dig library-owner
+#   scope (v27) precedent extended one zone up to the look/reveal surface. CR 701.18
+#   (scry) / 701.42 (surveil) / 116 (top of library).
+SIDECAR_VERSION = 28
 
 
 def card_ir_dir() -> Path:

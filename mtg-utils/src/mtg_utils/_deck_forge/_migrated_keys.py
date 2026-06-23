@@ -5539,6 +5539,57 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # reusing DIG_UNTIL_REGEX) is independent of the deleted regex and survives. CR
         # 701.23 (search/dig) / 401 (library zone).
         "dig_until",
+        # ADR-0027 topdeck library-owner scope (SIDECAR v28) —
+        # topdeck_selection (the controller's own top-of-deck CURATION:
+        # scry/surveil, look-at-the-top-N selection, reveal-the-top-N pile
+        # cards — Sensei's Divining Top, Augur of Autumn, Fact or Fiction, the
+        # cascade/dig reveal bodies). The PROJECTION makes a
+        # supplement-recovered `topdeck_select` EFFECT carry WHOSE library/hand
+        # it examines, read from the RAW
+        # (supplement._topdeck_select_owner_scope): an OWN-library look/reveal
+        # + scry/surveil → scope 'you'; an opponent-library /
+        # target-player-library / opponent-HAND PEEK ("look at the top N of
+        # target player's library" — Orcish Spy, Mishra's Bauble; "target
+        # opponent's library" — Cruel Fate; "look at an opponent's hand" —
+        # Anointed Peacekeeper) → 'opp'; a pure Morph face-down REVEAL ("look
+        # at target face-down creature" — Aven Soulgazer, Smoke Teller) →
+        # re-categorized to `reveal` (dropped). phase's FIXED-scope 'you' doer
+        # used to fire on ALL 1310 topdeck_select effects — 69 of them opponent
+        # peeks + 6 morph reveals (over-fire) — so the owner split is the
+        # prerequisite for a clean migration. WIRE (signals-only). The lane
+        # unions TWO IR sources: (1) a `topdeck_select` EFFECT scope=='you'
+        # STRUCTURAL arm (the scry/surveil doers + the supplement-promoted
+        # your-library look/reveal), and (2) a byte-identical PER-CLAUSE kept
+        # mirror of the deleted SWEEP regex (_TOPDECK_SELECTION_SWEEP_RE == the
+        # shared TOPDECK_SELECTION_REGEX) recovering the 148 your-library
+        # reveals phase RE-CATEGORIZES to `reveal` / cast_play (Fact or Fiction
+        # + the "an opponent separates these into two piles" cards, the
+        # cascade/dig reveal bodies — Ajani Unyielding, Atraxa Grand Unifier).
+        # The SWEEP_DETECTORS row is deleted; the regex survives as
+        # TOPDECK_SELECTION_REGEX (serve + mirror reuse); the fixed-scope doer
+        # row in _DOER_EFFECT_KEYS is removed. RESIDUAL (commander-legal,
+        # v28-HYBRID non-LOW joined by (key,scope,subject) vs the deleted regex
+        # per-clause): both==539, regex_only==0 (the mirror IS the deleted
+        # regex — full recall), ir_only==683 (the scry/surveil recall the
+        # deleted regex never matched + the supplement-promoted your-library
+        # look — genuine OWN-selection BREADTH; every ir_only card carries a
+        # scry/surveil or "your library" look/reveal hook, 0 without — NO
+        # dismissal without the hook), and the 69 opponent peeks + 6 morph
+        # reveals are correctly DROPPED (the owner split's payoff). Scope
+        # parity: all 'you'. (The gate's 1278 total adds the 56 LOW
+        # play-from-top cross-opens, reconciled in signals.py.) VOLTRON. The
+        # deleted SWEEP producer fired HIGH-confidence 'you' (NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) and fed has_other_plan (a
+        # top-deck-curation ENGINE is a card-advantage plan, not a vanilla
+        # beater). The IR re-supply is BROADER (+595 scry), so a byte-identical
+        # _topdeck_selection_has_plan mirror (the EXACT deleted regex,
+        # per-clause over reminder-stripped text) is OR'd into has_other_plan —
+        # NOT _VOLTRON_SILENCING_PLAN_KEYS, which would over-silence a vanilla
+        # beater carrying only a bare "scry 1" rider. voltron_matters 3010 by
+        # set equality. The serve spec (signal_specs, reusing
+        # TOPDECK_SELECTION_REGEX) is independent of the deleted regex and
+        # survives. CR 116 / 701.18 (scry) / 701.42 (surveil).
+        "topdeck_selection",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

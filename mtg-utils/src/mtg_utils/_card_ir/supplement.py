@@ -52,6 +52,80 @@ _BROAD_THIRD_PARTY = re.compile(
     re.IGNORECASE,
 )
 
+# ── ADR-0027 topdeck library-owner scope (SIDECAR v28) ────────────────────────
+# A `topdeck_select` clause (the "look at / reveal the top N …" + scry/surveil
+# selection family) is split by WHOSE LIBRARY (or hand) is examined, so a
+# downstream topdeck_selection lane keeps the controller's OWN-library card
+# selection (scry/surveil/look-at-your-top) apart from an opponent-library /
+# opponent-hand PEEK and the Morph face-down REVEAL — which are not the
+# controller's own top-of-deck curation. Mirrors the dig library-owner scope split
+# (project._dig_player_scope) one zone up: the supplement-recovered topdeck_select
+# (the "look"/"looks" combinator + the _LIBRARY_POS arm) carries no structured
+# `player`, so the owner is read from the RAW. CR 701.18 (scry) / 701.42 (surveil)
+# / 116 (top of library). The structured scry/surveil DOERS (project._EFFECT_CATEGORY
+# scry/surveil → topdeck_select) already carry scope 'you' and never reach the
+# supplement, so they keep their own-selection scope.
+# YOUR library: "the top N cards of your library", "from the top of your library",
+# "top of your library" — the controller's own deck.
+_TOPDECK_YOUR_LIBRARY = re.compile(
+    r"\bof your library\b|\bfrom the top of your library\b|\btop of your library\b",
+    re.IGNORECASE,
+)
+# An OPPONENT-library / target-player-library PEEK or an opponent-HAND peek — a
+# look at a DIFFERENT player's hidden zone, not the controller's own selection.
+# "target player's library" is INCLUDED here (the _BROAD_THIRD_PARTY guess omits
+# it — it names only opponent/their/each-opponent), so an Orcish-Spy / Mishra's-
+# Bauble "look at the top N of target player's library" routes to 'opp' too.
+_TOPDECK_OTHER_ZONE = re.compile(
+    r"(?:target opponent'?s?|that player'?s?|defending player'?s?"
+    r"|target player'?s?|an opponent'?s?|each opponent'?s?|their) (?:library|hand)"
+    r"|(?:look at|reveal)[^.]*opponent'?s? hand",
+    re.IGNORECASE,
+)
+# The Morph / face-down REVEAL ("look at target face-down creature" — Aven
+# Soulgazer, Smoke Teller; "look at face-down creatures you don't control" — Keeper
+# of the Lens) is a hidden-information peek at a BATTLEFIELD object, NOT a
+# top-of-library selection — gated to NO "library" so a your-library dig that
+# exiles a card face down (Clone Shell, Curator of Destinies, Hideaway) is NOT
+# dropped. CR 702.37.
+_TOPDECK_MORPH = re.compile(r"\bface[- ]down\b", re.IGNORECASE)
+_TOPDECK_LIBRARY = re.compile(r"\blibrar", re.IGNORECASE)
+
+
+def _topdeck_select_owner_scope(out: Effect) -> Effect:
+    """Re-scope (or re-categorize) a supplement-recovered ``topdeck_select`` Effect by
+    WHOSE library/hand it examines (read from ``raw`` — the recovery carries no
+    structured player).
+
+    - A pure Morph REVEAL ("look at target face-down creature", no "library") is NOT
+      top-of-library selection → re-categorized to ``reveal`` (a non-topdeck category
+      the topdeck_selection doer/structural arm both drop). The face-down dig that
+      EXILES from YOUR library (Clone Shell, Curator) keeps "library" in its raw, so
+      it stays ``topdeck_select``.
+    - An OPPONENT-library / target-player-library / opponent-hand PEEK (Orcish Spy,
+      Mishra's Bauble, Cruel Fate, Anointed Peacekeeper) → scope 'opp' (route OUT of
+      the controller's own-selection lane), UNLESS the clause ALSO names your library
+      (a dual "look at the top of YOUR library, opponent separates" — Atris, Fortune's
+      Favor — is still YOUR selection).
+    - An OWN-library look/reveal ("the top N cards of your library") → scope 'you' (the
+      controller's own card selection, joining the structured scry/surveil 'you').
+
+    A clause that names neither zone (a "put X on top of their owners' libraries" tuck
+    the _LIBRARY_POS arm also catches — Plow Under, Hallowed Burial) keeps its current
+    scope; it is topdeck_STACK/removal, not selection, and the scope!='you' keeps it
+    out of the migrated topdeck_selection structural arm. CR 116 / 401.4."""
+    raw = out.raw or ""
+    has_library = bool(_TOPDECK_LIBRARY.search(raw))
+    if _TOPDECK_MORPH.search(raw) and not has_library:
+        return replace(out, category="reveal")
+    your = bool(_TOPDECK_YOUR_LIBRARY.search(raw))
+    if _TOPDECK_OTHER_ZONE.search(raw) and not your:
+        return replace(out, scope="opp")
+    if your:
+        return replace(out, scope="you")
+    return out
+
+
 # ── clause detectors. Detection is a cheap keyword DISPATCH (what phase's
 # imperative.rs does: a tag check decides which parser to run); only the token
 # descriptor — the part with real structure (type/subtype/count) — is parsed, by
@@ -1390,5 +1464,13 @@ def _supplement_effect(e: Effect) -> Effect:
     )
     if tinybones or (out.scope == "any" and _BROAD_THIRD_PARTY.search(out.raw)):
         out = replace(out, scope="opp")
+
+    # 3. ADR-0027 topdeck library-owner scope (SIDECAR v28): split a recovered
+    # topdeck_select by whose library/hand it examines (own-selection 'you',
+    # opponent peek 'opp', Morph face-down reveal → re-categorized out). Runs AFTER
+    # the broad-third-party guess so the owner rule has the final word for this
+    # category (it adds the "target player's library" peeks _BROAD_THIRD_PARTY omits).
+    if out.category == "topdeck_select":
+        out = _topdeck_select_owner_scope(out)
 
     return out

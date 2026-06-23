@@ -70,6 +70,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TARGET_PLAYER_DRAWS_REGEX,
     THEFT_MATTERS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
+    TOPDECK_SELECTION_REGEX,
     TOPDECK_STACK_SWEEP_REGEX,
     TOUGHNESS_COMBAT_REGEX,
     UNSPENT_MANA_REGEX,
@@ -3245,6 +3246,24 @@ def _dig_until_has_plan(text: str) -> bool:
     return any(_DIG_UNTIL_SWEEP_RE.search(cl) for cl in _clauses(text))
 
 
+def _topdeck_selection_has_plan(text: str) -> bool:
+    """ADR-0027 topdeck library-owner scope (SIDECAR v28): the HAS-OTHER-PLAN mirror for
+    the migrated topdeck_selection key. The deleted SWEEP producer fired HIGH-confidence
+    (scope 'you', NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) and counted toward
+    `has_other_plan`, silencing the spurious commander-damage voltron tell on a
+    top-of-deck-curation ENGINE (a scry/surveil/look-at-top selection deck is a
+    card-advantage plan, not a vanilla beater). The migrated lane rides the
+    `topdeck_select` EFFECT scope=='you' structural arm UNION a byte-identical
+    per-clause kept mirror, but the IR re-supply is BROADER (+595 scry/surveil the
+    deleted regex never matched). Re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would
+    OVER-silence those ir_only scry/surveil gains (a vanilla beater with a bare "scry 1"
+    rider is not running a top-deck plan), so this byte-identical mirror — matching ONLY
+    the deleted regex's matches — restores its exact silence set. The deleted SWEEP
+    Detector ran PER-CLAUSE over the reminder-STRIPPED oracle, so this runs per-clause
+    over `text`. CR 116 / 701.18 / 903.10a."""
+    return any(_TOPDECK_SELECTION_SWEEP_RE.search(cl) for cl in _clauses(text))
+
+
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated conjure_matters key. The
 # deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a conjure
@@ -4213,6 +4232,20 @@ _DISCARD_OUTLET_SWEEP_RE = re.compile(DISCARD_OUTLET_REGEX, re.IGNORECASE)
 # PARENTHETICAL reminder text — stripped — so they never matched and still don't: union
 # == 93 == the deleted producer, 0 over-fire). CR 701.23 / 401.
 _DIG_UNTIL_SWEEP_RE = re.compile(DIG_UNTIL_REGEX, re.IGNORECASE)
+
+# ADR-0027 topdeck library-owner scope (SIDECAR v28) — the EXACT deleted
+# topdeck_selection SWEEP regex, kept for the byte-identical mirror. The
+# structural `topdeck_select` EFFECT scope=='you' arm covers the scry/surveil
+# doers + the supplement-promoted your-library look/reveal; this mirror
+# recovers the 148 your-library reveals phase re-categorizes to `reveal` /
+# cast_play (Fact or Fiction + the "an opponent separates these into two piles"
+# cards, the cascade/dig reveal bodies — Ajani Unyielding, Atraxa Grand
+# Unifier). The deleted SWEEP Detector ran PER-CLAUSE over the
+# reminder-STRIPPED oracle, so the mirror MUST too. The regex is
+# YOUR-library-anchored, so it never matched the opponent-library /
+# opponent-hand peeks the structural arm also excludes. CR 116 / 701.18 /
+# 701.42.
+_TOPDECK_SELECTION_SWEEP_RE = re.compile(TOPDECK_SELECTION_REGEX, re.IGNORECASE)
 
 # play_from_top (ADR-0027 β) — the EXACT deleted SWEEP + _HAND_FLOOR regexes for the
 # ongoing top-of-library play permission, kept as a byte-identical PER-CLAUSE mirror.
@@ -5575,6 +5608,19 @@ def extract_signals(
         # reminder — stripped — so they never silenced). See _dig_until_has_plan. CR
         # 701.23 / 903.10a.
         or _dig_until_has_plan(text)
+        # ADR-0027 topdeck library-owner scope (SIDECAR v28): re-silence the
+        # deleted topdeck_selection SWEEP producer (it fired HIGH-confidence
+        # scope 'you', feeding has_other_plan — a scry/surveil/look-at-top
+        # CURATION engine is a card-advantage plan, not a vanilla beater). The
+        # migrated lane rides the `topdeck_select` EFFECT scope=='you'
+        # structural arm + a byte-identical per-clause kept mirror that are
+        # BROADER (+595 scry/surveil recall the deleted regex never matched),
+        # so this byte-identical mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS,
+        # which would over-silence a vanilla beater carrying only a bare "scry
+        # 1" rider — restores the deleted regex's exact silence set. Per-clause
+        # over the reminder-STRIPPED `text`. See _topdeck_selection_has_plan.
+        # CR 116 / 701.18 / 903.10a.
+        or _topdeck_selection_has_plan(text)
         # ADR-0027 β: re-silence the deleted lifegain_matters registry-280 _DETECTORS
         # producer (ARM (A) — it fired HIGH-confidence forced scope 'you', feeding
         # has_other_plan; a lifegain ENGINE is no vanilla beater). ONLY ARM (A): the

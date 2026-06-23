@@ -35,6 +35,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _PLAY_FROM_TOP_MIRROR,
     _PRESET_KEYWORD_SIGNALS,
     _SELF_BLINK_SWEEP_RE,
+    _TOPDECK_SELECTION_SWEEP_RE,
     _XSPELL_HOOK_RE,
     _XSPELL_VETO_RE,
     Signal,
@@ -141,7 +142,18 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # Muse, Kiora), so it now fires from a GATED arm (cat=="untap" + _UNTAP_ENGINE_RAW
     # or a mass untap) instead of this entry. See extract_signals_ir.
     "proliferate": ("proliferate_matters", "you"),
-    "topdeck_select": ("topdeck_selection", "you"),
+    # ADR-0027 topdeck library-owner scope (SIDECAR v28): topdeck_select is NOT a
+    # fixed-scope doer here — the `topdeck_select` EFFECT category now carries WHOSE
+    # library/hand it examines as its scope (supplement._topdeck_select_owner_scope:
+    # own-library look/reveal + scry/surveil → 'you', opponent-library / target-player-
+    # library / opponent-hand peek → 'opp', Morph face-down reveal → re-categorized to
+    # `reveal`). A fixed-scope 'you' doer row would fire on the 69 opponent peeks
+    # (Orcish Spy, Mishra's Bauble, Cruel Fate, Anointed Peacekeeper) too. So
+    # topdeck_selection is wired by a dedicated scope=='you' STRUCTURAL ARM in
+    # extract_signals_ir (+ a byte-identical kept mirror for the 148 your-library
+    # reveals phase re-categorizes to reveal / cast_play — Fact or Fiction, Ajani
+    # Unyielding, Atraxa Grand Unifier), excluding the opponent/morph over-fires. CR
+    # 701.18 (scry) / 701.42 (surveil) / 116.
     # ADR-0027: gain_control is NOT a blanket doer — the blanket fire mislabeled DONATE
     # (you give your own permanent away — Donate, Bazaar Trader) and RETURN-CONTROL
     # resets (Brooding Saurian) as theft. gain_control now fires from a GATED arm
@@ -7048,6 +7060,25 @@ def extract_signals_ir(
             # lane convention). CR 701.23 / 401.
             if cat == "dig_until" and e.scope == "you":
                 add("dig_until", "you", "", e.raw)
+            # ADR-0027 topdeck library-owner scope (SIDECAR v28) — topdeck_selection
+            # STRUCTURAL ARM. A `topdeck_select` EFFECT scope=='you' is the controller's
+            # OWN-library card selection: the structured scry/surveil DOERS ("scry 2",
+            # "surveil 4" — Aether Theorist, Aminatou, the +595 recall the deleted
+            # SWEEP regex never matched) PLUS the own-library look/reveal the supplement
+            # promotes ("look at the top N cards of your library" — Sensei's Divining
+            # Top, Augur of Autumn, Dubious Challenge).
+            # supplement._topdeck_select_owner_scope routes the opponent-library /
+            # target-player-library / opponent-hand PEEK (Orcish Spy, Mishra's Bauble,
+            # Cruel Fate, Anointed Peacekeeper) to scope=='opp' and re-categorizes the
+            # pure Morph face-down reveal (Aven Soulgazer, Smoke Teller) out, so both
+            # are EXCLUDED here (not the controller's own top-of-deck curation). The
+            # byte-identical _TOPDECK_SELECTION_SWEEP_RE kept mirror recovers the 148
+            # your-library reveals phase re-categorizes to `reveal` / cast_play (Fact or
+            # Fiction, the reveal-the-top-N-and-an-opponent-separates pile cards,
+            # cascade/dig bodies). Scope "you" (the lane convention). CR 701.18 / 701.42
+            # / 116.
+            if cat == "topdeck_select" and e.scope == "you":
+                add("topdeck_selection", "you", "", e.raw)
             # ADR-0027 lifeloss_matters — a structured life-LOSS effect. phase emits a
             # `lose_life` category distinct from gain_life / set_life, so the lane reads
             # it directly. scope splits the half: a drain ("each opponent / target
@@ -8798,6 +8829,22 @@ def extract_signals_ir(
     # (deleted scope). CR 701.23 / 401.
     if any(_DIG_UNTIL_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
         add("dig_until", "you", "", "")
+    # ADR-0027 topdeck library-owner scope (SIDECAR v28) — topdeck_selection kept
+    # mirror. The structural `topdeck_select` EFFECT scope=='you' arm covers the
+    # scry/surveil doers + the supplement-promoted your-library look/reveal; but phase
+    # RE-CATEGORIZES 148 your-library reveals to `reveal` / cast_play (the "reveal the
+    # top N cards of your library, an opponent separates …" Fact-or-Fiction pile cards —
+    # Fact or Fiction, Allure of the Unknown, Sphinx of Uthuun; the cascade/dig reveal
+    # bodies — Ajani Unyielding, Atraxa Grand Unifier, Borborygmos Enraged), so their
+    # `topdeck_select` effect is gone. This is the EXACT deleted SWEEP regex
+    # (_TOPDECK_SELECTION_SWEEP_RE) run PER-CLAUSE over the reminder-STRIPPED
+    # kept_oracle (matching the deleted SWEEP path byte-identically). The regex is
+    # YOUR-library-anchored ("the top N cards of your library", "reveal cards from the
+    # top of your library until", "put … from among them onto the battlefield"), so it
+    # never matches the opponent-library peeks the structural arm also drops. add()
+    # dedups vs the structural arm. Scope 'you' (deleted scope). CR 116 / 701.18.
+    if any(_TOPDECK_SELECTION_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
+        add("topdeck_selection", "you", "", "")
     # ADR-0027 β — play_from_top kept mirror. The structural STATIC cast_from_zone+
     # from:library arm above is the clean 45-card spine, but phase does NOT model as a
     # cast-permission static the REVEAL-only ("Play with the top card revealed" — Goblin
