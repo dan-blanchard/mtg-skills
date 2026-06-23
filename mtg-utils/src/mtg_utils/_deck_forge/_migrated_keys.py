@@ -5669,6 +5669,38 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # fired LOW and never fed has_other_plan. voltron_matters 3010 by set equality.
         # CR 707.1 / 707.2.
         "clone_matters",
+        # ADR-0027 exile_removal (SIDECAR v31, Cluster B — subject/category retention)
+        # — a genuine SINGLE-TARGET exile of a permanent as removal (CR 406.1 one-way
+        # exile / 115.1 target), distinct from mass_removal (CR 115.10 board wipe) and
+        # blink (CR 603.6e/400.7 exile-and-return value). PROJECTION (supplement
+        # _recover_exile_removal, behavior-neutral pre-wire drift 0): phase swallows the
+        # exile into a sibling RIDER — a restriction/tax static (Soul Partition →
+        # cat="restriction"), a lifegain rider where the exile verb survives only as the
+        # Unimplemented "~" marker ("Exile" the card → cat="gain_life") — or leaves the
+        # exile structured but DROPS the permanent-type subject (Unexplained Absence →
+        # cat="exile" subject=None). The recovery RE-TAGS the swallow effect to
+        # cat="exile" + a head-noun permanent subject and FILLS the dropped subject,
+        # reading the deleted SWEEP regex's single-target permanent core off the raw,
+        # excluding blink-return / suspend / GY-hate / hand-exile / self-exile. Two
+        # cross-opens decoupled off the byte-identical re-derived value: the lifegain
+        # rider retag is gated to the "~" verb so the 23 "Exile target X. Its controller
+        # gains life" cards (Swords to Plowshares) keep their separate gain_life effect
+        # AND the migrated lifegain_matters reading; the restriction-swallow retag
+        # re-supplies the migrated symmetric_stax/stax_taxes via _EXILE_RESTRICTION_
+        # SWALLOW (Soul Partition's opponent-tax). WIRE (signals-only): the structural
+        # `cat=="exile"` arm (single-target, permanent-type subject, NOT Owned/you, NOT
+        # graveyard/hand zone, NOT counter_kind=='all' mass, NOT a sibling
+        # to:battlefield blink-return, NOT a 702.55a haunt body) UNION a byte-identical
+        # PER-CLAUSE kept mirror of EXILE_REMOVAL_REGEX (_EXILE_REMOVAL_SWEEP_RE) — the
+        # mirror re-supplies the v29 blink/GY over-fires the regex matched + the
+        # Drach'Nyen ETB-exile-DROPPED tail (phase emits no exile effect). The SWEEP row
+        # is deleted (floor 14→13). VOLTRON: the deleted SWEEP fired HIGH-confidence
+        # scope 'you' and fed has_other_plan (spot removal is a real plan); the IR
+        # re-supply is BROADER (the structural recall the regex missed), so a
+        # byte-identical _exile_removal_has_plan mirror is OR'd into has_other_plan —
+        # NOT _VOLTRON_SILENCING_PLAN_KEYS. voltron_matters 3010 by set equality. CR
+        # 406.1 / 115.1.
+        "exile_removal",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

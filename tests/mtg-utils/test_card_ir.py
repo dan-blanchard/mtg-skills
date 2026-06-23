@@ -3446,6 +3446,149 @@ def test_topdeck_select_owner_scope_neither_zone_unchanged():
     assert all(sc != "you" for _, sc in bare)  # no your-library → not promoted to 'you'
 
 
+# ── ADR-0027 exile_removal category+subject retention (SIDECAR v30) ───────────
+
+
+def _exile_effects(card: Card) -> list[Effect]:
+    """The (category, subject card_types, scope) of every exile effect in *card* —
+    the seam the migrated exile_removal structural arm reads."""
+    return [
+        e
+        for f in card.faces
+        for ab in f.abilities
+        for e in ab.effects
+        if e.category == "exile"
+    ]
+
+
+def test_exile_removal_restriction_swallow_retains_exile_and_subject():
+    """ADR-0027 v30 — Soul Partition: phase swallows the exile into the play-permission
+    + opponent-tax RIDER, typing the WHOLE clause as a `restriction` static. The
+    supplement retains cat=exile + a Permanent subject so the migrated exile_removal arm
+    reads it (CR 406.1 / 115.1). The restriction-swallow signature is preserved in the
+    raw so the migrated symmetric_stax/stax_taxes reading stays byte-neutral."""
+    rec = {
+        "name": "Soul Partition",
+        "scryfall_oracle_id": "sp",
+        "card_type": {"core_types": ["Instant"]},
+        "oracle_text": (
+            "Exile target nonland permanent. For as long as that card remains "
+            "exiled, its owner may play it. A spell cast by an opponent this "
+            "way costs {2} more to cast."
+        ),
+        "static_abilities": [
+            {
+                "mode": {
+                    "ModifyCost": {
+                        "mode": "Raise",
+                        "amount": {"type": "Cost", "shards": [], "generic": 2},
+                        "spell_filter": None,
+                    }
+                },
+                "affected": {"type": "Typed", "type_filters": ["Card"]},
+                "description": (
+                    "Exile target nonland permanent. For as long as that card "
+                    "remains exiled, its owner may play it. A spell cast by an "
+                    "opponent this way costs {2} more to cast."
+                ),
+            }
+        ],
+    }
+    exiles = _exile_effects(project_card([rec]))
+    assert exiles, "restriction-swallow not retained as an exile effect"
+    assert any(e.subject and e.subject.card_types == ("Permanent",) for e in exiles)
+
+
+def test_exile_removal_lifegain_swallow_retains_exile_and_subject():
+    """ADR-0027 v30 — "Exile" the card: phase replaces the swallowed exile verb with its
+    Unimplemented "~" marker and types the clause as `gain_life`. The supplement (gated
+    to the "~" verb, so the 23 "Exile target X. Its controller gains life" cards keep
+    their separate gain_life rider) retains cat=exile + a Creature subject."""
+    rec = {
+        "name": "Exile",
+        "scryfall_oracle_id": "ex",
+        "card_type": {"core_types": ["Instant"]},
+        "oracle_text": (
+            "Exile target nonwhite attacking creature. You gain life equal to "
+            "its toughness."
+        ),
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Unimplemented",
+                    "name": "~",
+                    "description": "~ target nonwhite attacking creature",
+                },
+                "description": (
+                    "~ target nonwhite attacking creature. You gain life equal "
+                    "to its toughness."
+                ),
+            }
+        ],
+    }
+    exiles = _exile_effects(project_card([rec]))
+    assert exiles, "lifegain-swallow not retained as an exile effect"
+    assert any(e.subject and e.subject.card_types == ("Creature",) for e in exiles)
+
+
+def test_exile_removal_dropped_subject_recovered():
+    """ADR-0027 v30 — Unexplained Absence: phase keeps the exile structured (cat=exile,
+    scope opp) but DROPS the permanent-type subject (an Unimplemented "for each player"
+    wrapper). The supplement fills the dropped subject from the raw."""
+    rec = {
+        "name": "Unexplained Absence",
+        "scryfall_oracle_id": "ua",
+        "card_type": {"core_types": ["Sorcery"]},
+        "oracle_text": (
+            "For each player, exile up to one target nonland permanent that "
+            "player controls."
+        ),
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Unimplemented",
+                    "name": "for",
+                    "description": (
+                        "For each player, exile up to one target nonland "
+                        "permanent that player controls"
+                    ),
+                },
+                "description": (
+                    "For each player, exile up to one target nonland permanent "
+                    "that player controls."
+                ),
+            }
+        ],
+    }
+    exiles = _exile_effects(project_card([rec]))
+    assert any(e.subject and e.subject.card_types == ("Permanent",) for e in exiles)
+
+
+def test_exile_removal_does_not_retag_blink_or_self_exile():
+    """ADR-0027 v30 — the recovery is gated OFF blink-and-return (CR 603.6e/400.7 — the
+    object comes back a new object, not removal) and self-exile ("target … you own"). A
+    gain_life rider whose exile RETURNS the creature, or exiles YOUR OWN, is NOT retagged
+    (it keeps its gain_life category)."""
+    blink = {
+        "name": "B",
+        "scryfall_oracle_id": "b",
+        "card_type": {"core_types": ["Instant"]},
+        "oracle_text": "Exile target creature, then return it. You gain 1 life.",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {"type": "GainLife", "amount": {"type": "Fixed", "value": 1}},
+                "description": ("~ target creature, then return it. You gain 1 life."),
+            }
+        ],
+    }
+    # The recovery requires the "~"/exile verb + a target permanent; this gain_life
+    # rider says "return it" so it is excluded — no exile effect is synthesized.
+    assert not _exile_effects(project_card([blink]))
+
+
 # ── ADR-0027 graveyard scope/origin/zone (SIDECAR v29) ────────────────────────
 
 

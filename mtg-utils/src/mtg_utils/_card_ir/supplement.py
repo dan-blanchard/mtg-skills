@@ -92,6 +92,110 @@ _TOPDECK_MORPH = re.compile(r"\bface[- ]down\b", re.IGNORECASE)
 _TOPDECK_LIBRARY = re.compile(r"\blibrar", re.IGNORECASE)
 
 
+# ── ADR-0027 exile_removal category+subject retention (SIDECAR v30, Cluster B) ──
+# phase swallows a genuine single-target exile REMOVAL into a sibling RIDER clause
+# (a restriction/tax static — Soul Partition; a lifegain rider — Swords to
+# Plowshares, "Exile") or leaves the exile structured but DROPS the permanent-type
+# subject (Unexplained Absence — an Unimplemented "for each player" wrapper). The
+# exile-removal lane then can't read it. This recovery RE-TAGS the swallow effect to
+# category="exile" + a permanent-type subject, and FILLS the dropped subject on a
+# bare cat=="exile" effect, READING the discriminator off the raw (the structured
+# subject is the thing that's missing). It mirrors the deleted exile_removal SWEEP
+# regex's permanent-target core, so the recovered effect is exactly what that regex
+# matched. CR 406.1 (exile is a holding area — one-way exile is removal), 115.1
+# (single TARGET, vs the 115.10 mass board wipe which carries no "target").
+#
+# Verb "exile" OR "~": phase replaces the swallowed exile verb with its Unimplemented
+# name marker "~" ("Exile" the card → "~ target nonwhite attacking creature"), so the
+# literal verb is gone from that effect's raw — match both. The captured HEAD noun
+# (creature/permanent/artifact/enchantment/planeswalker) becomes the card_types
+# subject the structural arm gates on.
+_EXILE_REMOVAL_RAW = re.compile(
+    r"(exile|~) (?:up to (?:one|two|three|\w+|x) )?(?:other |another )?"
+    r"target (?:[a-z]+ )*(creature|permanent|artifact|enchantment|planeswalker)",
+    re.IGNORECASE,
+)
+# Exclusions read from raw, mirroring the structural arm's predicate/zone/sibling
+# gates (which can't fire when the subject/zone is the thing phase dropped):
+#  - RETURN → blink/flicker (CR 603.6e / 400.7 — the object returns as a NEW object,
+#    not permanent removal — Eldrazi Displacer "exile … then return it");
+#  - TIME COUNTER / SUSPEND → impulse/suspend temporary exile (CR 702.62), returns;
+#  - from GRAVEYARD / HAND → GY-hate / hand-exile setup, not battlefield removal;
+#  - "you own"/"you control" on the TARGET → self-exile / blink-of-own (value, not
+#    removal — Cloudshift, Kaya's -2).
+_EXILE_REMOVAL_RETURN = re.compile(
+    r"\breturn (?:it|that card|those cards|them|the exiled|each)", re.IGNORECASE
+)
+_EXILE_REMOVAL_SUSPEND = re.compile(r"time counter|\bsuspend\b", re.IGNORECASE)
+_EXILE_REMOVAL_FROM_ZONE = re.compile(
+    r"from (?:a|your|their|its owner's|each|all)?\s*(?:graveyard|hand)", re.IGNORECASE
+)
+_EXILE_REMOVAL_SELF_TARGET = re.compile(
+    r"target (?:[a-z]+ )*(?:creature|permanent|artifact|enchantment|planeswalker)"
+    r" you (?:own|control)",
+    re.IGNORECASE,
+)
+# The swallow categories phase mis-routed a target exile into (the literal "exile"
+# verb survives in the static's description; the lifegain rider's effect carries the
+# whole clause). A bare cat=="exile" with NO subject is the dropped-subject case.
+_EXILE_SWALLOW_CATEGORIES = frozenset({"restriction", "gain_life"})
+_EXILE_HEAD_TO_TYPE = {
+    "creature": "Creature",
+    "permanent": "Permanent",
+    "artifact": "Artifact",
+    "enchantment": "Enchantment",
+    "planeswalker": "Planeswalker",
+}
+
+
+def _recover_exile_removal(out: Effect) -> Effect:
+    """Retain cat="exile" + a permanent-type subject on a genuine single-target exile
+    REMOVAL phase swallowed into a rider clause or left subjectless.
+
+    Fires only when (a) the effect is a swallow category (restriction/gain_life) OR a
+    bare cat=="exile" with no subject, AND (b) the raw matches the single-target
+    permanent-exile core, AND (c) none of the blink/suspend/zone-shuffle/self-exile
+    exclusions hit. Re-tags category to "exile" and sets the captured head-noun
+    subject; leaves scope/zones/amount untouched (the structural arm reads the
+    category + subject, and the recovered subject carries no controller predicate, so
+    the existing Owned/you gates still hold for cards that already had a subject)."""
+    cat = out.category
+    bare_exile = cat == "exile" and out.subject is None
+    if cat not in _EXILE_SWALLOW_CATEGORIES and not bare_exile:
+        return out
+    # The MASS half of a "exile target X and all <other> X" effect (counter_kind=="all",
+    # the board-wipe sibling phase splits out — Declaration in Stone, Soul Nova) is
+    # mass_removal's domain (CR 115.10), not the single-target lane; never fill its
+    # dropped subject (it would flip mass_removal on, breaking pre-wire neutrality).
+    if out.counter_kind == "all":
+        return out
+    raw = out.raw or ""
+    m = _EXILE_REMOVAL_RAW.search(raw)
+    if m is None:
+        return out
+    if (
+        _EXILE_REMOVAL_RETURN.search(raw)
+        or _EXILE_REMOVAL_SUSPEND.search(raw)
+        or _EXILE_REMOVAL_FROM_ZONE.search(raw)
+        or _EXILE_REMOVAL_SELF_TARGET.search(raw)
+    ):
+        return out
+    # A gain_life effect whose exile verb survived as the LITERAL "Exile" means phase
+    # ALSO emitted a separate, properly-subjected exile effect (the lifegain is a true
+    # rider payoff — Swords to Plowshares "Exile target creature. Its controller gains
+    # life …" — 23 such cards). Retagging it would be redundant for recall AND would
+    # silence the migrated lifegain_matters reading of that rider. Only the GENUINE
+    # lifegain-SWALLOW — where phase replaced the exile verb with its Unimplemented "~"
+    # marker because the exile is the only carrier ("Exile" the card → "~ target
+    # nonwhite attacking creature. You gain life …") — has no sibling exile, so the
+    # gain_life recovery is gated to the "~" verb (lifegain_matters stays neutral).
+    verb = m.group(1)
+    if out.category == "gain_life" and verb != "~":
+        return out
+    subject = Filter(card_types=(_EXILE_HEAD_TO_TYPE[m.group(2).lower()],))
+    return replace(out, category="exile", subject=subject)
+
+
 def _topdeck_select_owner_scope(out: Effect) -> Effect:
     """Re-scope (or re-categorize) a supplement-recovered ``topdeck_select`` Effect by
     WHOSE library/hand it examines (read from ``raw`` — the recovery carries no
@@ -1514,4 +1618,9 @@ def _supplement_effect(e: Effect) -> Effect:
     if out.category == "clone" and out.subject is None:
         out = replace(out, subject=_copied_type_from_text(out.raw))
 
-    return out
+    # 5. ADR-0027 exile_removal retention (SIDECAR v31): retain cat="exile" + a
+    # permanent-type subject on a genuine single-target exile REMOVAL phase swallowed
+    # into a rider clause (restriction/lifegain) or left subjectless, so the migrated
+    # exile_removal structural arm can read it. Runs after the scope passes so a
+    # recovered exile keeps any opp/each scope it already had (Unexplained Absence).
+    return _recover_exile_removal(out)

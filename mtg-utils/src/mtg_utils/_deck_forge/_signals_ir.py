@@ -28,6 +28,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _EVASION_SELF_REGEX,
     _EVERGREEN_CK,
     _EVERGREEN_KW_RE,
+    _EXILE_REMOVAL_SWEEP_RE,
     _FLOOR_DETECTORS,
     _IMPULSE_TOP_PLAY_SWEEP_RE,
     _KEYWORD_SOUP_CONTEXT_RE,
@@ -5619,6 +5620,22 @@ def _token_kindred_subject(f: object, vocab: frozenset[str]) -> str | None:
 _EXILE_UNTIL_LEAVES_RAW = re.compile(
     r"until [^.]*leaves the battlefield", re.IGNORECASE
 )
+# ADR-0027 exile_removal (SIDECAR v30) — the restriction-SWALLOW signature: a genuine
+# exile-removal whose play-permission + opponent-tax RIDER phase kept (mis-typing the
+# whole clause as a `restriction` static) while dropping the exile. The supplement
+# retags it `restriction`→`exile`; this re-derives the restriction reading that retag
+# silenced so the migrated stax arm stays byte-neutral (Soul Partition — "its owner
+# may play it. A spell cast by an opponent this way costs {2} more to cast").
+_EXILE_RESTRICTION_SWALLOW = re.compile(
+    r"its owner may play it\b[^.]*\. a spell cast by an opponent this way costs",
+    re.IGNORECASE,
+)
+# ADR-0027 exile_removal (SIDECAR v30) — HAUNT exclusion: "Exile it haunting target
+# creature" (CR 702.55a) exiles the HAUNT CARD itself onto a creature host, not the
+# targeted creature; that is not removal (Blind Hunter, Orzhov Pontiff, Benediction of
+# Moons). phase types it `cat=exile` with the host Creature as subject, so the
+# structural arm must veto the haunt body off its raw.
+_EXILE_REMOVAL_HAUNT = re.compile(r"\bhaunt", re.IGNORECASE)
 
 
 # ADR-0027 β — activated_ability arm tuning constants (see extract_signals_ir).
@@ -7442,24 +7459,50 @@ def extract_signals_ir(
                 and any("to:battlefield" in z for sib in ab.effects for z in sib.zones)
             ):
                 add("control_exchange", "you", "", e.raw)
-            # exile_removal = genuine targeted EXILE of a permanent (CR 406). EXCLUDE
-            # (ADR-0027): (1) BLINK — exiling YOUR OWN permanent to flicker it ("Exile
-            # another target creature you own. Return it" — Charming Prince, Aminatou,
-            # Angel of Condemnation's first mode); the `Owned` predicate / controller-
-            # you subject is the tell, and the return makes it ETB-value, not removal.
-            # (2) GY-HATE — exiling a card FROM a graveyard (zones in:/from: graveyard),
-            # which is opponent_exile_matters, not permanent removal. Keep the genuine
-            # opponent/any-target permanent exile.
+            # exile_removal (ADR-0027, MIGRATED SIDECAR v30) = a genuine SINGLE-TARGET
+            # EXILE of a permanent as removal (CR 406.1 "exile … without any way to
+            # return" = one-way removal; CR 115.1 single TARGET). STRUCTURAL ARM, with
+            # the v30 supplement RETAINING cat=exile + a permanent-type subject on the
+            # rider-swallow / dropped-subject cases (Soul Partition, "Exile",
+            # Unexplained Absence). EXCLUDE:
+            #  (1) BLINK / flicker — exile-and-RETURN (CR 603.6e / 400.7 — the object
+            #      comes back a NEW object, not permanent removal). Two tells: the
+            #      `Owned` predicate / controller-you subject (exiling YOUR OWN —
+            #      Cloudshift, Kaya's -2) AND a sibling `to:battlefield` RETURN in the
+            #      same ability (Eldrazi Displacer, Roon, Glimmerpoint Stag — exile an
+            #      opponent's, then return it).
+            #  (2) GY-HATE / hand-exile — a graveyard/hand zone tag (exile FROM a
+            #      graveyard = GY-hate; FROM hand = a cage-counter setup — Mairsil), not
+            #      battlefield removal.
+            #  (3) MASS — counter_kind=='all' (the "exile all/each" board-wipe sibling)
+            #      is mass_removal (CR 115.10), not the single-target lane.
+            #  (4) HAUNT — "Exile it haunting target creature" (CR 702.55a) exiles the
+            #      HAUNT CARD onto a creature, not the targeted creature; not removal.
+            # The byte-identical EXILE_REMOVAL kept mirror (below) re-supplies the
+            # blink/GY over-fires the deleted regex matched, preserving v29 behavior.
+            sib_returns = any(
+                "to:battlefield" in z for sib in ab.effects for z in sib.zones
+            )
+            # (5) CLONE-from-mill — a sibling `clone` effect in the same ability means
+            # the exile SELECTS a card to copy ("exile a creature card from among the
+            # cards milled … this creature becomes a copy of that card" — Shadow Kin):
+            # the exiled object is a CARD in the mill, not a battlefield permanent (CR
+            # 707 copy), so this is a clone setup, not removal. Excluded.
+            sib_clones = any(sib.category == "clone" for sib in ab.effects)
             if (
                 cat == "exile"
                 and ftypes & _PERMANENT_TYPES
+                and e.counter_kind != "all"
                 and not (
                     isinstance(e.subject, Filter)
                     and (
                         "Owned" in e.subject.predicates or e.subject.controller == "you"
                     )
                 )
-                and not any("graveyard" in z for z in e.zones)
+                and not any("graveyard" in z or "hand" in z for z in e.zones)
+                and not sib_returns
+                and not sib_clones
+                and not _EXILE_REMOVAL_HAUNT.search(e.raw or "")
             ):
                 add("exile_removal", "you", "", e.raw)
             # mass_removal (ADR-0027): a BOARD WIPE (CR 115.10) — three arms, all
@@ -7762,8 +7805,19 @@ def extract_signals_ir(
             # the precise deleted regex byte-identically (67/67 genuine, 0 over-fire).
             # CR 110.1 / 305.7 / 613.
             # Stax: a static restriction hobbling OPPONENTS (stax_taxes) or
-            # everyone symmetrically (symmetric_stax).
-            if cat == "restriction":
+            # everyone symmetrically (symmetric_stax). ADR-0027 exile_removal (SIDECAR
+            # v30): the supplement RETAGS a restriction-SWALLOW (phase mis-typed a
+            # genuine exile-removal whose play-permission/tax rider it kept while
+            # dropping the exile — Soul Partition) from `restriction` to `exile`, which
+            # would silence this migrated arm's reading of that rider. Re-key it off the
+            # byte-identical RE-DERIVED value: the retagged exile still carries the
+            # restriction-swallow signature (_EXILE_RESTRICTION_SWALLOW) in its raw, so
+            # fire the SAME scope-split symmetric_stax/stax_taxes the restriction arm
+            # did (v29 'each' -> symmetric_stax 'each'). v29 breadth held (0 drift).
+            is_exile_restr = cat == "exile" and _EXILE_RESTRICTION_SWALLOW.search(
+                e.raw or ""
+            )
+            if cat == "restriction" or is_exile_restr:
                 if e.scope == "opp":
                     add("stax_taxes", "opponents", "", e.raw)
                 elif e.scope == "each":
@@ -8991,6 +9045,22 @@ def extract_signals_ir(
     # dedups vs the structural arm. Scope 'you' (deleted scope). CR 116 / 701.18.
     if any(_TOPDECK_SELECTION_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
         add("topdeck_selection", "you", "", "")
+    # ADR-0027 exile_removal (SIDECAR v30) — kept mirror. The structural `cat=="exile"`
+    # single-target arm binds the genuine permanent removal (with the v30 supplement
+    # retaining cat=exile + a permanent subject on the rider-swallow / dropped-subject
+    # cases). This is the EXACT deleted SWEEP regex (_EXILE_REMOVAL_SWEEP_RE) run
+    # PER-CLAUSE over the reminder-STRIPPED kept_oracle (matching the deleted SWEEP path
+    # byte-identically), so it re-supplies the SAME v29 firings the structural arm
+    # deliberately drops as over-fires — the blink/flicker bodies the regex matched
+    # ("exile target creature … return it" — Cloudshift, Ephemerate, Acrobatic
+    # Maneuver), the GY-hate bodies (Angel of Serenity, Cemetery Reaper), and the
+    # Drach'Nyen ETB-exile-DROPPED tail (phase emits no exile effect at all — its "Echo
+    # of the First Murder — When Drach'Nyen enters, exile up to one target creature"
+    # trigger is lost in the parse). add() dedups vs the structural arm. Scope 'you'
+    # (deleted scope). The union (structural OR mirror) == the deleted regex firing on
+    # every v29 card + the structural recall the regex missed. CR 406.1 / 115.1.
+    if any(_EXILE_REMOVAL_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
+        add("exile_removal", "you", "", "")
     # ADR-0027 β — play_from_top kept mirror. The structural STATIC cast_from_zone+
     # from:library arm above is the clean 45-card spine, but phase does NOT model as a
     # cast-permission static the REVEAL-only ("Play with the top card revealed" — Goblin

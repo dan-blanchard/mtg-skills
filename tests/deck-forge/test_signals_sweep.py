@@ -128,8 +128,16 @@ def test_sweep_detectors_loaded():
     # projection makes the supplement's _CLONE_STATIC / _BECOMES re-tag populate the copied
     # permanent type so the structural arm fires the broad "becomes a copy of target
     # creature" family, while a token-copy clone is vetoed to the separate
-    # token_copy_matters lane; CR 707.1 / 707.2).
-    assert len(SWEEP_DETECTORS) >= 14
+    # token_copy_matters lane; CR 707.1 / 707.2),
+    # then 14→13 as exile_removal's row was deleted (ADR-0027 SIDECAR v31 exile_removal
+    # category+subject retention — migrated to a `cat=="exile"` single-target permanent
+    # removal structural arm UNION a byte-identical EXILE_REMOVAL_REGEX per-clause kept
+    # mirror (_EXILE_REMOVAL_SWEEP_RE in _signals_regex); the v31 supplement retains
+    # cat=exile + a permanent-type subject on the rider-swallow / dropped-subject cases —
+    # Soul Partition (restriction-swallow), "Exile" (lifegain-swallow), Unexplained Absence
+    # (subject=None) — so the arm reads single-target exile removal structurally, excluding
+    # blink-return / mass / GY-hate / haunt / clone-from-mill; CR 406.1 / 115.1).
+    assert len(SWEEP_DETECTORS) >= 13
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

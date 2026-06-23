@@ -50,6 +50,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DIG_UNTIL_REGEX,
     DISCARD_OUTLET_REGEX,
     ENCHANTMENTS_MATTER_REGEX,
+    EXILE_REMOVAL_REGEX,
     EXTRA_TURNS_REGEX,
     FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
@@ -1942,16 +1943,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the regex over-fired by folding board wipes / land destruction into removal. NOT
     # in _IR_FLOOR_LANES (floor-mirror-dep == 0); this _HAND_FLOOR producer is deleted
     # and the SWEEP_DETECTORS removal_matters row with it; serve stays hand-registered.
-    (
-        # Exile removal — bypasses indestructible/regeneration and stops death/LTB
-        # recursion (CR 406, 701.10). Distinct build axis from destroy/damage.
-        "exile_removal",
-        re.compile(
-            r"exile target (?:creature|permanent|artifact|enchantment|nonland)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 exile_removal (SIDECAR v30) migrated to the Card IR — phase's `exile`
+    # effect category with a single-target permanent SUBJECT (CR 406.1 one-way exile /
+    # 115.1 target), the v30 supplement RETAINING cat=exile + a permanent subject on the
+    # rider-swallow / dropped-subject cases (Soul Partition, "Exile", Unexplained
+    # Absence). This _HAND_FLOOR producer is deleted (its `exile target … nonland` arm
+    # over-fired on GY-hate / recursion — "exile target nonland CARD from a graveyard",
+    # Moratorium Stone / Secret Salvage / Shiko — which is NOT battlefield removal; the
+    # structural arm excludes a graveyard zone, correctly dropping them). The SWEEP
+    # row's broader regex survives as EXILE_REMOVAL_REGEX (the byte-identical kept
+    # mirror); the serve spec stays hand-registered. CR 406.1 / 115.1.
     # ADR-0027: counter_control migrated to the Card IR — phase's `counter_spell`
     # effect category plus a `counter_spell` dropped-static face marker for the
     # "counter target … spell/ability" phase loses in a modal mode body (Fangkeeper's
@@ -3350,6 +3351,24 @@ def _graveyard_matters_has_plan(text: str, name: str = "") -> bool:
     return False
 
 
+def _exile_removal_has_plan(text: str) -> bool:
+    """ADR-0027 exile_removal (SIDECAR v30): the HAS-OTHER-PLAN mirror for the migrated
+    exile_removal key. The deleted SWEEP producer fired HIGH-confidence (forced scope
+    'you', NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) and counted toward
+    `has_other_plan` — single-target exile spot removal is a real interaction plan,
+    silencing the spurious commander-damage voltron tell on a removal piece, not a
+    vanilla beater. The migrated lane rides the `cat=="exile"` single-target structural
+    arm UNION a byte-identical per-clause kept mirror, but the IR re-supply is BROADER
+    (the v30 supplement-retained rider-swallow cases + the structural recall the regex
+    missed — Skyclave Apparition, Fiend Hunter, the removal Auras), so re-supplying via
+    _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those ir_only gains (a vanilla
+    beater carrying only a bare exile rider should keep its tell). This byte-identical
+    mirror — matching ONLY the deleted regex's matches — restores its exact silence set.
+    The deleted SWEEP Detector ran PER-CLAUSE over the reminder-STRIPPED oracle, so this
+    runs per-clause over `text`. CR 406.1 / 115.1 / 903.10a."""
+    return any(_EXILE_REMOVAL_SWEEP_RE.search(cl) for cl in _clauses(text))
+
+
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated conjure_matters key. The
 # deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a conjure
@@ -4332,6 +4351,17 @@ _DIG_UNTIL_SWEEP_RE = re.compile(DIG_UNTIL_REGEX, re.IGNORECASE)
 # opponent-hand peeks the structural arm also excludes. CR 116 / 701.18 /
 # 701.42.
 _TOPDECK_SELECTION_SWEEP_RE = re.compile(TOPDECK_SELECTION_REGEX, re.IGNORECASE)
+
+# ADR-0027 exile_removal (SIDECAR v30) — the EXACT deleted exile_removal SWEEP regex,
+# kept for the byte-identical mirror. The structural `cat=="exile"` single-target arm
+# binds the genuine permanent removal (the v30 supplement retains cat=exile + a
+# permanent subject on the rider-swallow / dropped-subject cases — Soul Partition,
+# "Exile", Unexplained Absence); this mirror reproduces the blink/GY-hate over-fires
+# the regex matched (Cloudshift, Ephemerate, Angel of Serenity — the v29 behavior the
+# structural arm correctly EXCLUDES) PLUS the Drach'Nyen ETB-exile-dropped tail (phase
+# carries no structural form for it). The deleted SWEEP Detector ran PER-CLAUSE over the
+# reminder-STRIPPED oracle, so the mirror MUST too. CR 406.1 / 115.1.
+_EXILE_REMOVAL_SWEEP_RE = re.compile(EXILE_REMOVAL_REGEX, re.IGNORECASE)
 
 # play_from_top (ADR-0027 β) — the EXACT deleted SWEEP + _HAND_FLOOR regexes for the
 # ongoing top-of-library play permission, kept as a byte-identical PER-CLAUSE mirror.
@@ -5717,6 +5747,17 @@ def extract_signals(
         # set. Per-clause over the reminder-STRIPPED `text`. See
         # _graveyard_matters_has_plan. CR 400.7 / 701.17a / 903.10a.
         or _graveyard_matters_has_plan(text, name)
+        # ADR-0027 exile_removal (SIDECAR v30): re-silence the deleted exile_removal
+        # SWEEP producer (it fired HIGH-confidence scope 'you', feeding has_other_plan —
+        # single-target exile spot removal is an interaction plan, not a vanilla
+        # beater). The migrated lane rides the `cat=="exile"` single-target structural
+        # arm + a byte-identical per-clause kept mirror that are BROADER (the v30
+        # rider-swallow recall + the structural exile-removal the regex missed), so this
+        # byte-identical mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS (which over-silences
+        # a beater carrying only a bare exile rider) — restores the deleted regex's
+        # exact silence set. Per-clause over the reminder-STRIPPED `text`. See
+        # _exile_removal_has_plan. CR 406.1 / 115.1 / 903.10a.
+        or _exile_removal_has_plan(text)
         # ADR-0027 β: re-silence the deleted lifegain_matters registry-280 _DETECTORS
         # producer (ARM (A) — it fired HIGH-confidence forced scope 'you', feeding
         # has_other_plan; a lifegain ENGINE is no vanilla beater). ONLY ARM (A): the

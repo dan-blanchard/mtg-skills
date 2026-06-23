@@ -69,15 +69,42 @@ def test_flying_counter_is_keyword_counter():
 
 
 # #4 exile removal (bypasses indestructible/recursion) is its own slice vs destroy/
-# damage. exile_removal is still regex-served; removal_matters migrated to the Card IR
-# (ADR-0027), so the regex no longer fires it — it is served via the hybrid IR path
-# from a single-target destroy Effect.
+# damage. Both exile_removal (ADR-0027 SIDECAR v30) and removal_matters migrated to the
+# Card IR, so the regex no longer fires either — exile_removal is served via the hybrid
+# IR path from a single-target `exile` Effect with a permanent subject (the destroy slice
+# from a `destroy` Effect). CR 406.1 (one-way exile) vs 701.7 (destroy).
 def test_exile_removal_separate_from_destroy():
     ex = {"name": "X", "oracle_text": "Exile target creature."}
     de = {"name": "Y", "oracle_text": "Destroy target creature."}
-    assert "exile_removal" in _keys(ex)
-    assert "removal_matters" not in _keys(ex)
-    # Regex no longer fires removal_matters (it is IR-served now).
+    # exile_removal is IR-served now (regex producer deleted); supply the exile IR.
+    exile_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="spell",
+                        effects=(
+                            Effect(
+                                category="exile",
+                                scope="any",
+                                subject=Filter(card_types=("Creature",)),
+                                zones=("to:exile",),
+                                raw="Exile target creature.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    ex_keys = {s.key for s in extract_signals_hybrid(ex, exile_ir)}
+    assert "exile_removal" in ex_keys
+    assert "removal_matters" not in ex_keys
+    # Regex no longer fires exile_removal / removal_matters (both IR-served now).
+    assert "exile_removal" not in _keys(ex)
     assert "removal_matters" not in _keys(de)
     assert "exile_removal" not in _keys(de)
     destroy_ir = Card(

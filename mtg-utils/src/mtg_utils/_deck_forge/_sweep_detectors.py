@@ -146,6 +146,18 @@ DIG_UNTIL_REGEX = "exile cards? from the top of your library until|exile (?:the 
 # your library", "from among them"), so it never matched the opponent-library / opponent-
 # hand peeks the structural arm also excludes (scope!='you'). CR 116 / 701.18 / 701.42.
 TOPDECK_SELECTION_REGEX = "look at the top (?:two|three|four|five|six|seven|eight|nine|ten|\\w+|x|\\d+) cards? of your library|reveal the top (?:two|three|four|five|six|seven|eight|nine|ten|\\w+|x|\\d+) cards? of your library|reveal cards from the top of your library until|put [^.]*from among them onto the battlefield"
+# ADR-0027 exile_removal (SIDECAR v30): migrated to the Card IR. Detection moves to a
+# `cat=="exile"` single-target permanent-removal STRUCTURAL arm (the v30 supplement
+# retains cat=exile + a permanent subject on the rider-swallow / dropped-subject cases)
+# UNION a byte-identical PER-CLAUSE mirror of this regex (_EXILE_REMOVAL_SWEEP_RE in
+# _signals_regex) for the blink/GY-hate over-fires the regex matched + the Drach'Nyen
+# ETB-exile-dropped tail (phase carries no structural form — its ETB exile trigger is
+# lost entirely). The regex survives as a shared constant so signal_specs hand-registers
+# the serve pool reusing it AND the kept mirror reuses it — serve / mirror / (now-
+# deleted) detector never drift. The deleted SWEEP ran PER-CLAUSE over the reminder-
+# stripped oracle, so the mirror runs per-clause too. CR 406.1 (one-way exile = removal)
+# / 115.1 (single target).
+EXILE_REMOVAL_REGEX = "exile (?:up to (?:one|two|three|\\w+|x) )?(?:other )?target (?:[a-z]+ )*(?:creature|permanent|artifact|enchantment|planeswalker)|exile [^.]*and target (?:permanent|creature)"
 # ADR-0027: tap_down migrated to the Card IR (the tap-down control lane — tap an
 # OPPONENT's permanent / "skips its next untap step" / detain; CR 701.21 detain, CR
 # 502.x untap step). Its SWEEP_DETECTORS row is deleted; detection moves to a
@@ -2476,12 +2488,21 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # destruction into removal — the IR excludes those (mass_removal / land_destruction
     # carry them). destroy_legendary (also ADR-0027-migrated, the HasSupertype:Legendary
     # destroy subject) is a DIFFERENT key.
-    {
-        "key": "exile_removal",
-        "scope": "you",
-        "is_widen_of": "exile_removal",
-        "regex": "exile (?:up to (?:one|two|three|\\w+|x) )?(?:other )?target (?:[a-z]+ )*(?:creature|permanent|artifact|enchantment|planeswalker)|exile [^.]*and target (?:permanent|creature)",
-    },
+    # ADR-0027 exile_removal (SIDECAR v30) migrated to the Card IR. Detection moves to a
+    # `cat=="exile"` STRUCTURAL arm gated to a SINGLE-TARGET permanent removal (CR 406.1
+    # one-way exile / 115.1 target) — the v30 supplement RETAINS cat=exile + a
+    # permanent-type subject on the rider-swallow / dropped-subject cases (Soul
+    # Partition restriction-swallow, "Exile" lifegain-swallow, Unexplained Absence
+    # subject=None) — UNION a byte-identical PER-CLAUSE mirror of EXILE_REMOVAL_REGEX
+    # (_EXILE_REMOVAL_SWEEP_RE in _signals_regex) for the blink/GY-hate over-fires the
+    # regex matched + the Drach'Nyen ETB-dropped tail phase carries no structural form
+    # for. The structural arm EXCLUDES blink-and-return (CR 603.6e/400.7), mass
+    # (counter_kind=='all' → mass_removal CR 115.10), GY/hand-zone, and haunt
+    # (702.55a); the mirror reproduces those exactly, so the migration is behavior-
+    # neutral. This SWEEP_DETECTORS row is deleted; the regex survives as the shared
+    # EXILE_REMOVAL_REGEX constant so signal_specs hand-registers the serve pool reusing
+    # it AND the kept mirror reuses it — serve / mirror / (now-deleted) detector never
+    # drift. SWEEP floor 15→14.
     # ADR-0027: team_buff migrated to the Card IR — the grant_keyword Effect on a
     # generic "creatures you control" subject (_is_team_buff_grant + _TEAM_BUFF_GRANT_KW).
     # This SWEEP_DETECTORS row + the _HAND_FLOOR team_buff row are deleted; the hand-spec

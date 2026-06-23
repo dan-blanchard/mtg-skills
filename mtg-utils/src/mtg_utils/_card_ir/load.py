@@ -302,7 +302,23 @@ from mtg_utils.card_ir import Card
 # (Clone, Body Double, Phyrexian Metamorph). The clone_matters migration reads the
 # now-populated subject structurally; a typeless referent ("copy of that card / ~")
 # stays subject=None. CR 707.2 (a copy takes the copiable values, incl. card type).
-SIDECAR_VERSION = 30
+# v31 (ADR-0027 Cluster B — exile_removal subject/category retention, supplement.py
+#   `_recover_exile_removal`): phase swallows a genuine single-target exile REMOVAL
+#   into a sibling RIDER clause — a restriction/tax static (Soul Partition →
+#   cat="restriction"), a lifegain rider (Swords to Plowshares / "Exile" → cat=
+#   "gain_life") — or leaves the exile structured but DROPS the permanent-type
+#   subject (Unexplained Absence → cat="exile" subject=None). The recovery re-tags
+#   the swallow effect to cat="exile" + a head-noun permanent subject, and fills the
+#   dropped subject on a bare cat=="exile", reading the deleted exile_removal SWEEP
+#   regex's single-target permanent core off the raw (verb "exile" OR the
+#   Unimplemented "~" swallow marker). Excludes blink/flicker (returns — CR 603.6e /
+#   400.7), suspend/impulse (time counter — CR 702.62), GY-hate / hand-exile (from a
+#   graveyard/hand), and self-exile ("target … you own/control"). Behavior-neutral
+#   pre-wire (drift 0 across 298 keys, voltron 3010): a recovered subject carries no
+#   color/controller predicate, so color_hoser/mass_removal/exile_matters don't trip;
+#   the only cross-read decoupled is opp_top_exile (re-keyed off the byte-identical
+#   re-derived value). CR 406.1 (one-way exile = removal) / 115.1 (single target).
+SIDECAR_VERSION = 31
 
 
 def card_ir_dir() -> Path:

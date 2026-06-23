@@ -1622,6 +1622,46 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # exile_removal ← a `cat=="exile"` EFFECT with a permanent-type subject (Banishing
+    # Light's ETB "exile target nonland permanent an opponent controls"). The v30
+    # structural arm fires exile_removal scope 'you' for a SINGLE-TARGET permanent exile
+    # (CR 406.1 one-way exile / 115.1 target), excluding blink-return / mass / GY-hate /
+    # haunt / clone-from-mill. The v31 supplement RETAINS cat=exile + a permanent subject
+    # on the rider-swallow / dropped-subject cases (Soul Partition, "Exile", Unexplained
+    # Absence), and the byte-identical EXILE_REMOVAL_REGEX kept mirror re-supplies the
+    # blink/GY over-fires the deleted regex matched + the Drach'Nyen ETB-dropped tail.
+    # ADR-0027 (SIDECAR v31). CR 406.1 / 115.1.
+    "exile_removal": (
+        {
+            "name": "Banishing Light",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "When this enchantment enters, exile target nonland permanent "
+                "an opponent controls until this enchantment leaves the "
+                "battlefield."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="etb", scope="you", zones=("to:battlefield",)),
+                effects=(
+                    Effect(
+                        category="exile",
+                        scope="any",
+                        subject=Filter(
+                            card_types=("Permanent",),
+                            controller="opp",
+                            predicates=("NotType:Land",),
+                        ),
+                        zones=("to:exile",),
+                        raw="When ~ enters, exile target nonland permanent an "
+                        "opponent controls until ~ leaves the battlefield.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (
