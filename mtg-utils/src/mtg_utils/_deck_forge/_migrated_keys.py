@@ -5590,6 +5590,48 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # TOPDECK_SELECTION_REGEX) is independent of the deleted regex and
         # survives. CR 116 / 701.18 (scry) / 701.42 (surveil).
         "topdeck_selection",
+        # ADR-0027 graveyard scope/origin/zone (SIDECAR v29) — graveyard_matters
+        # (the broadest Cluster A key: any self-graveyard / opponent-graveyard
+        # build-around — self-mill, reanimation, recursion, flashback/escape, GY
+        # count payoffs, GY hate). PROJECTION (3 moves, behavior-neutral, drift 0):
+        # (#2) EXILE-FROM-GRAVEYARD origin — an exile / blink naming "exile … (from|in)
+        # … graveyards" (Angel of Serenity, Decree of Annihilation, Dire Fleet
+        # Daredevil) → in:graveyard (board-wipe halves excluded by subject); (#4)
+        # PLAY-FROM-GRAVEYARD permission — a cast_from_zone / reanimate naming
+        # "play/cast … from … graveyard" (Crucible of Worlds, Bösium Strip, Anrakyr) →
+        # from:graveyard; (#3) ALL-GRAVEYARDS count-operand zone — a "number of cards …
+        # in all graveyards" count phase left in a Named name-string / description /
+        # P-T key (Accumulated Knowledge, Mind Burst, Muscle Burst) → an in:graveyard
+        # board_count marker. The zone recovery also re-runs POST-supplement so a
+        # supplement-recovered GY effect keeps its tag. (#1, signals-side) the
+        # trigger-zone arm reads _gy_trigger_scope (Compost / Bloodchief — a "put into
+        # an opponent's graveyard" payoff is scope 'opponents', not a hardcoded 'you').
+        # WIRE (signals-only). The lane unions the rich structural zone arms in
+        # extract_signals_ir (mill / reanimate / graveyard_recursion / cast_from_zone /
+        # exile-from-GY / play-from-GY / in:graveyard count / trigger-zone — each scoped
+        # by _gy_scope) UNION a byte-identical per-clause kept mirror of the THREE
+        # deleted _DETECTORS producers (_graveyard_matters_clauses == _GY_YOUR_RE 'you'
+        # + bare-graveyard clause-resolved + _GY_EXILE_MILL_OPP_RE 'opponents'). The
+        # CRITICAL scope move: _gy_scope maps a structurally-'any' GY effect (a
+        # recursion TARGET whose affected object carries no controller, a "target
+        # player mills" whose milled player is chosen at resolution — CR 701.17a) to the
+        # SELF-graveyard DEFAULT 'you', so the lane NEVER emits
+        # ('graveyard_matters','any') — the scope-discrimination contract (signals.py
+        # docstring; signal_specs registers only 'you' / 'opponents' serves). The 3
+        # _DETECTORS rows are deleted; the regex patterns survive as _GY_YOUR_RE /
+        # _GY_EXILE_MILL_OPP_RE (mirror reuse); the serve specs (signal_specs, 'you' /
+        # 'opponents') are hand-registered and independent. The discard_outlet →
+        # graveyard_matters LOW regex cross-open is reconciled in signals.py (the
+        # merged-set re-run). VOLTRON. The deleted producers fired HIGH-confidence and
+        # fed has_other_plan (a graveyard ENGINE is a card-advantage plan, not a vanilla
+        # beater); the IR re-supply is BROADER (the
+        # self-graveyard-default scope + the deep zone recall), so a byte-identical
+        # _graveyard_matters_has_plan mirror (the EXACT deleted producers, per-clause
+        # over reminder-stripped text) is OR'd into has_other_plan — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS (which would over-silence a vanilla beater with a
+        # bare "exile target card from a graveyard" rider). voltron_matters 3010 by set
+        # equality. CR 400.7 / 701.17a.
+        "graveyard_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

@@ -52,6 +52,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_typed_gy_recursion,
     _detect_typed_spellcast,
     _detect_voltron_payoff_ir,
+    _graveyard_matters_clauses,
     _resolve_subject,
     _type_hoser_clause,
     self_power_scale_match,
@@ -122,7 +123,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     VOID_WARP_MATTERS_REGEX,
 )
 from mtg_utils.card_classify import card_pt_int, get_oracle_text, is_creature
-from mtg_utils.card_ir import Card, Condition, Effect, Filter, Quantity
+from mtg_utils.card_ir import Card, Condition, Effect, Filter, Quantity, Trigger
 
 # ── IR-backed signal extraction (Milestone A2 — 5-key vertical slice) ──────────
 # extract_signals_ir derives the same Signal(key, scope, subject, …) from the
@@ -3592,6 +3593,36 @@ def _ir_scope(scope: str) -> str:
 # (signals.py "your graveyard"→you, opponent-library-mill→opponents) by reading the
 # effect raw FIRST, falling back to the structural scope (ADR-0027 graveyard scope
 # fidelity). CR 400.7 — a graveyard is a player's zone.
+# A bare "graveyard" word — the raw discriminator for a zoneless cast_from_zone (a
+# graveyard-cast grant phase left zone-less must NAME a graveyard; a suspend / impulse /
+# search-and-cast does not — ADR-0027 graveyard scope/origin/zone, SIDECAR v29).
+_GY_WORD_RE = re.compile(r"\bgraveyard", re.IGNORECASE)
+# An EXILE-RETURN reanimate — an O-Ring / Champion / Banisher Priest "exile … return
+# the exiled card" returns the card from EXILE (CR 603.6e / 702.71), NOT a graveyard,
+# even though phase types the return `reanimate`. The "(the/that/those/all cards)
+# exiled (card/with)" raw is the tell that keeps it out of the reanimate arm.
+_EXILE_RETURN_RE = re.compile(
+    r"\bexiled (?:card|cards)\b|\breturn (?:the|that|those|all (?:cards|the cards)?) "
+    r"exiled\b|\bcards? exiled with\b|\breturn the exiled\b",
+    re.IGNORECASE,
+)
+# A reanimate (phase's "put … onto the battlefield" category) whose SOURCE is explicitly
+# a NON-graveyard zone — from your/their HAND (Shifty Doppelganger, Budoka Gardener),
+# from EXILE (Torrent Elemental), from the COMMAND ZONE (Hellkite Courser, Derevi), from
+# a LIBRARY (Urza Assembles the Titans). CR 700.4 a graveyard is the dead/discard zone;
+# these put a card from a LIVE zone, so they are NOT graveyard recursion. Excludes them
+# from the reanimate→graveyard_matters arm unless the card ALSO names a graveyard (a
+# hand-OR-graveyard cast keeps its from:graveyard tag via the #4 projection and fires
+# the dedicated arm). A death/sacrifice GY-return (It That Betrays, Dread Slaver,
+# Adarkar Valkyrie, Biolume Egg) names no source zone — it still fires.
+_REANIMATE_NONGY_SOURCE_RE = re.compile(
+    r"\bfrom (?:your |their |his or her |the |an? )?"
+    r"(?:hand|exile|librar(?:y|ies)|command zone)\b"
+    # "if this card is exiled, put it onto the battlefield" — a self-exile recursion
+    # (Senu, Keen-Eyed Protector): the card returns from EXILE, not a graveyard.
+    r"|\bif this card is exiled\b",
+    re.IGNORECASE,
+)
 _GY_YOUR = re.compile(r"\byour graveyard\b", re.IGNORECASE)
 _GY_OPP = re.compile(
     r"\b(?:opponent'?s?|their|each (?:player|opponent)'?s?|that player'?s?"
@@ -3665,15 +3696,41 @@ def _gy_scope(e: Effect) -> str:
     """Resolve which player's graveyard an effect cares about (graveyard scope
     fidelity, ADR-0027). 'you' for a "your graveyard" reference (or an already-you
     structural scope); 'opponents' for an opponent's / their / each player's graveyard
-    (or a structural opp scope); else the structural scope. A "your graveyard" tell
-    wins over a co-mentioned opponent (Araumi's encore tokens "attack that opponent" is
-    still a self-graveyard engine), matching the regex's self-first rule."""
+    (or a structural opp scope); else 'you' — the SELF-graveyard DEFAULT.
+
+    A "your graveyard" tell wins over a co-mentioned opponent (Araumi's encore tokens
+    "attack that opponent" is still a self-graveyard engine), matching the regex's
+    self-first rule. The else branch maps a STRUCTURALLY-'any' effect (a recursion-
+    TARGET whose affected object carries no controller — phase scopes it 'any' even when
+    the raw says "your graveyard"; a "target player mills" whose milled player is chosen
+    at resolution — CR 701.17a) to 'you': the graveyard_matters lane is a SELF-graveyard
+    build-around (signal_specs registers only ('graveyard_matters','you') and
+    (…,'opponents') serves — there is NO ('graveyard_matters','any') avenue, by the
+    scope-discrimination contract), and a flexible "target player mills" enables YOUR
+    self-mill (you target yourself to fill your graveyard). An explicit opponent's-GY
+    tell is already routed to 'opponents' above (graveyard hate / opponent mill). CR
+    400.7 (a graveyard is a player's zone) / 701.17a (mill fills the milled player's
+    graveyard)."""
     raw = e.raw or ""
-    if e.scope == "you" or _GY_YOUR.search(raw):
-        return "you"
-    if e.scope == "opp" or _GY_OPP.search(raw):
+    # opp / each → opponents: an explicit opponent's-GY tell, OR a structural opp/each
+    # scope. 'each' is SYMMETRIC (a "each player mills" fills opponents' graveyards
+    # too — the ('graveyard_matters','opponents') serve treats symmetric mill as
+    # opponent-relevant), so it routes to 'opponents', not the self-graveyard default.
+    if e.scope in ("opp", "each") or _GY_OPP.search(raw):
         return "opponents"
-    return _ir_scope(e.scope)
+    return "you"
+
+
+def _gy_trigger_scope(trg: Trigger) -> str:
+    """Which player's graveyard a graveyard-zone TRIGGER cares about (ADR-0027
+    sub-change #1, the trigger-dimension analogue of _gy_scope). 'opponents' for a
+    structural opp / each scope (a "whenever a card is put into AN OPPONENT'S graveyard"
+    payoff is graveyard hate — Compost, Bloodchief Ascension; "each player" is symmetric
+    and fills opponents' graveyards too); else 'you' — the self-graveyard default (a
+    "put into YOUR graveyard from anywhere" / leaves-your-graveyard engine — Syr Konrad,
+    Quest for Ancient Secrets). The Trigger carries no `raw`, so the scope read is
+    structural-only (phase projects the trigger's player scope). CR 400.7 / 701.17a."""
+    return "opponents" if trg.scope in ("opp", "each") else "you"
 
 
 def _is_generic_creature_filter(f: object) -> bool:
@@ -6267,7 +6324,33 @@ def extract_signals_ir(
             # graveyard_recursion (soulshift, GY→hand per CR 702.46) is a graveyard
             # payoff but NOT reanimation — it feeds graveyard_matters without the
             # reanimator / creature_recursion lanes (those are GY→battlefield).
-            if e.category in ("reanimate", "mill", "graveyard_recursion"):
+            # ADR-0027 graveyard scope/origin/zone (SIDECAR v29): EXCLUDE an
+            # EXILE-RETURN reanimate — an O-Ring / Champion / Banisher Priest "exile
+            # target X … return the exiled card" returns the card from EXILE (CR
+            # 603.6e / 702.71), NOT a graveyard, but phase types the return `reanimate`
+            # with no source zone. The "exiled card" / "return the exiled" / "cards
+            # exiled with" raw is the tell (Faceless Butcher, Oblivion Ring, Detention
+            # Sphere, Parallax Wave, Changeling Hero, Gisa) — 124 commander-legal
+            # exile-return over-fires with NO graveyard hook. A genuine GY reanimate
+            # (Reanimate, It That Betrays / Dread Slaver reanimating a sacrificed/killed
+            # permanent from the GY, a dies-return — Adarkar Valkyrie / Athreos —
+            # returning a card that DIED, CR 700.4) does not say "exiled card", so it
+            # still fires. CR 406 / 603.6e.
+            # A reanimate that names a NON-graveyard source (from hand / exile / library
+            # / command zone — Shifty Doppelganger, Torrent Elemental, Hellkite Courser,
+            # Urza Assembles the Titans) is likewise NOT graveyard recursion (10 more
+            # over-fires); excluded unless its raw also names a graveyard (a hand-or-GY
+            # cast keeps its own from:graveyard arm). The exclusions are mill-safe (a
+            # mill raw says neither "exiled card" nor "from hand/exile/library").
+            if (
+                e.category in ("reanimate", "mill", "graveyard_recursion")
+                and not _EXILE_RETURN_RE.search(e.raw or "")
+                and not (
+                    e.category == "reanimate"
+                    and _REANIMATE_NONGY_SOURCE_RE.search(e.raw or "")
+                    and not _GY_WORD_RE.search(e.raw or "")
+                )
+            ):
                 add("graveyard_matters", _gy_scope(e), "", e.raw)
             # GY-recursion at the TARGET's scope (ADR-0027 scope-gate fix): a bounce /
             # cast-from-zone / reanimate / blink whose target is restricted IN the
@@ -6299,11 +6382,23 @@ def extract_signals_ir(
                 add("graveyard_matters", _gy_scope(e), "", e.raw)
             # Graveyard-cast payoff (ADR-0027): an effect that LETS YOU cast cards from
             # a graveyard (Finale of Promise's CastFromZone, Laelia, Jaya's emblem
-            # marker) — the recovered 'from:graveyard' zone or a bare cast_from_zone
-            # category. The keyworded self-cast (flashback/escape) rides castable_zones
-            # above; this is the effect that grants the casting.
+            # marker) — the recovered 'from:graveyard' zone OR a zoneless cast_from_zone
+            # whose raw NAMES a graveyard. The keyworded self-cast (flashback/escape)
+            # rides castable_zones above; this is the effect that grants the casting.
+            # ADR-0027 graveyard scope/origin/zone (SIDECAR v29): the old blanket
+            # `not e.zones` fired on EVERY zoneless cast_from_zone — but a zoneless
+            # cast_from_zone is AMBIGUOUS (suspend / foretell / plot / impulse cast from
+            # EXILE — Ancestral Vision, Aeon Chronicler; "search your library … cast it"
+            # — Beseech the Mirror, Aether Searcher; "exile target permanent, cast it" —
+            # Abstruse Appropriation), 317 commander-legal cards with NO graveyard hook
+            # (an over-fire to DROP, not breadth). Gate the zoneless fallback on the
+            # effect raw naming a graveyard so only a genuine graveyard-cast grant phase
+            # left zone-less (Finale of Promise, Laelia) fires; the #4 play-from-GY
+            # projection tags the structured ones with from:graveyard. CR 601.3 /
+            # 702.62a.
             if e.category == "cast_from_zone" and (
-                not e.zones or "from:graveyard" in e.zones
+                "from:graveyard" in e.zones
+                or (not e.zones and _GY_WORD_RE.search(e.raw or ""))
             ):
                 add("graveyard_matters", _gy_scope(e), "", e.raw)
             # GY-recursion / GY-search at the 'from:graveyard' ORIGIN (ADR-0027 pass 2):
@@ -7805,18 +7900,25 @@ def extract_signals_ir(
             # condition gate is the structural anchor (CR 701.46 / 720).
             if cond.kind in ("completedadungeon", "isinitiative"):
                 add("venture_matters", "you", "", "")
-        # Trigger-gated graveyard_matters (the trigger-dimension projection): a
-        # trigger on cards ENTERING the graveyard from a non-battlefield zone
-        # (mill / "put into your graveyard from anywhere" — Syr Konrad) or LEAVING
-        # the graveyard cares about graveyards. The battlefield→graveyard case is
-        # `dies` (death_matters, not graveyard synergy), so it's gated out — exactly
-        # the Effect.zones policy, now on the trigger's zone movement.
+        # Trigger-gated graveyard_matters (the trigger-dimension projection,
+        # ADR-0027 sub-change #1): a trigger on cards ENTERING the graveyard from a
+        # non-battlefield zone (mill / "put into your graveyard from anywhere" — Syr
+        # Konrad) or LEAVING the graveyard cares about graveyards. The
+        # battlefield→graveyard case is `dies` (death_matters, not graveyard synergy),
+        # so it's gated out — exactly the Effect.zones policy, on the trigger's zone
+        # movement. SCOPE on the TRIGGER (not a hardcoded 'you'): phase projects the
+        # trigger's player scope — a "whenever a card is put into AN OPPONENT'S
+        # graveyard" payoff (Compost, Bloodchief Ascension — trg.scope=='opp') is
+        # graveyard HATE / opponent-graveyard interaction (scope 'opponents'), distinct
+        # from a self-graveyard "put into YOUR graveyard" engine (trg.scope=='you'/'any'
+        # → the self-graveyard default). _gy_trigger_scope mirrors _gy_scope on the
+        # Trigger. CR 400.7 / 701.17a.
         trg = ab.trigger
         if trg is not None and (
             "from:graveyard" in trg.zones
             or ("to:graveyard" in trg.zones and "from:battlefield" not in trg.zones)
         ):
-            add("graveyard_matters", "you", "", "")
+            add("graveyard_matters", _gy_trigger_scope(trg), "", "")
         # Cost-based lanes (Ability.cost — a sacrifice OUTLET vs a sac effect).
         if ab.cost:
             cost_parts = set(ab.cost.split(","))
@@ -9119,6 +9221,22 @@ def extract_signals_ir(
     # add() dedups. CR 603.6.
     for _etb_key, _etb_scope in _creature_etb_clauses(kept_oracle):
         add(_etb_key, _etb_scope, "", "")
+    # ADR-0027 graveyard scope/origin/zone (SIDECAR v29) — graveyard_matters
+    # BYTE-IDENTICAL per-clause kept mirror. The structural zone arms above (mill /
+    # reanimate / graveyard_recursion / cast_from_zone / exile-from-GY / play-from-GY /
+    # in:graveyard count / the trigger-zone arm — each scoped by _gy_scope's
+    # self-graveyard default) gain the deep recall phase structures, but phase has no
+    # form for the BROAD "graveyard"-mention payoff the deleted producers caught (a
+    # "cards in your graveyard" / "a graveyard" reference with no structured
+    # recursion/count). Recover them with the EXACT deleted producers
+    # (_graveyard_matters_clauses — the per-clause two-/three-scope regex: "your
+    # graveyard"→you, bare-graveyard→clause-resolved, exile-mill-opp→opponents) over the
+    # reminder-stripped kept_oracle. add() dedups vs the structural arms; the structural
+    # 'you'-default and the mirror's clause-resolved scope can BOTH fire for one card
+    # (e.g. a structurally-'any' recursion → 'you' plus a co-mentioned opponent's GY →
+    # 'opponents'), which is correct multi-scope graveyard care. CR 400.7 / 701.17a.
+    for _gy_key, _gy_scope_v in _graveyard_matters_clauses(kept_oracle, name):
+        add(_gy_key, _gy_scope_v, "", "")
     # ADR-0027 β — lifegain_matters BYTE-IDENTICAL kept mirror. The structural arms
     # above (a `gain_life` Effect scope you/any + a `life_gained` trigger + the shared
     # lifelink keyword map) gain +77 commander-legal cards over the deleted regex, but

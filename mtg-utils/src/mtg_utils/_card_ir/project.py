@@ -485,6 +485,31 @@ def project_card(records: list[dict]) -> Card:
     # over the supplemented faces so the single-target creature/permanent subject is
     # rebuilt and removal_matters fires. Append-only on subject (a structured subject
     # is never overwritten); idempotent (an already-subject'd effect is untouched).
+    # ADR-0027 graveyard scope/origin/zone (SIDECAR v29): re-run the exile-from-GY (#2)
+    # + play-from-GY (#4) ORIGIN recovery AFTER the supplement. The pre-supplement pass
+    # (above) ran before the supplement re-derived an exile / cast_from_zone / reanimate
+    # CATEGORY from an `other` clause (Angel of Serenity's "exile … creature cards from
+    # graveyards", Anrakyr's "cast … from your hand or graveyard", Bösium Strip's
+    # "cast … from the top of your graveyard"), so those supplement-recovered GY effects
+    # never reached the origin recovery and lost their from:/in:graveyard tag. ONLY
+    # _recover_graveyard_origin is re-run — NOT _recover_graveyard_zones (its bounce /
+    # recursion / tutor / deposit arms tag a graveyard zone the migrated bounce_tempo
+    # lane reads, so re-running them post-supplement would move the supplement-created
+    # GY-recursion bounces — All Suns' Dawn, Mausoleum Turnkey — out of bounce_tempo;
+    # those ride the graveyard_matters byte mirror instead, holding bounce_tempo at v28)
+    # and NOT _recover_library_zones (the impulse_top_play / play_from_top lanes gate on
+    # the pre-supplement-only library recovery by construction). Append-only /
+    # idempotent. Mirrors the post-supplement _recover_removal_target_subject re-run.
+    card = replace(
+        card,
+        faces=tuple(
+            replace(
+                face,
+                abilities=tuple(_recover_graveyard_origin(a) for a in face.abilities),
+            )
+            for face in card.faces
+        ),
+    )
     card = replace(
         card,
         faces=tuple(
@@ -1500,6 +1525,10 @@ def _project_face(record: dict) -> Face:
     # dropped (World Breaker's SelfRef return, Dakkon's hand-or-graveyard cheat,
     # Atris/Marchesa's "the other into your graveyard" self-mill).
     abilities = [_recover_graveyard_zones(a) for a in abilities]
+    # ADR-0027 graveyard scope/origin/zone (SIDECAR v29): recover the exile-from-GY
+    # origin (#2) + play/cast-from-GY permission (#4). Runs both here (phase-structured
+    # exiles / cast-grants) and again post-supplement (supplement-recovered ones).
+    abilities = [_recover_graveyard_origin(a) for a in abilities]
     # Library-source recovery (ADR-0027 impulse_top_play / play_from_top): append
     # from:library to a cast_from_zone effect that plays from the top of a library but
     # lost the origin zone (Light Up the Stage, Ragavan, Future Sight, Bolas's Citadel).
@@ -4710,6 +4739,24 @@ def _graveyard_count_player(node: object) -> str:
     return "you"
 
 
+# ADR-0027 all-graveyards count-operand zone (SIDECAR v29, sub-change #3): the oracle
+# fallback for a graveyard COUNT phase left in raw/description (the InZone merged into a
+# Named name-string — Accumulated Knowledge; a description-only count — Mind Burst; a
+# Pump P/T whose InZone count rides power/toughness keys — Muscle Burst). Anchored on
+# "number of … cards … in (all/your/their/etc) graveyard(s)" — the COUNT idiom (CR
+# 400.1, the value scales with the GY population), NOT a recursion ("return a card from
+# your graveyard" has no "number of"). The leading "number of" can be preceded by
+# "equal to the" / "plus the" / "one plus the"; an intervening "named X" / type clause
+# (creature cards, cards named Y) is allowed before "in … graveyard".
+_GY_COUNT_PHRASE = re.compile(
+    r"\bnumber of\b[^.]*?\bcards?\b[^.]*?\bin (?:all|your|their|its owner's|each "
+    r"player'?s?|a|the)? ?graveyards?\b"
+    r"|\b(?:ten|two|three|four|five|six|seven|eight|nine|\d+) or more [^.]*?cards?"
+    r"[^.]*?\bin (?:all|your|their|each player'?s?|a|the)? ?graveyards?\b",
+    re.IGNORECASE,
+)
+
+
 def _graveyard_count_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
     """One in:graveyard count-operand marker when the record scales a value with /
     gates on the number of cards in a graveyard (graveyard count-operand, ADR-0027).
@@ -4740,6 +4787,27 @@ def _graveyard_count_markers(record: dict, abilities: list[Ability]) -> list[Eff
         record.get("replacements"),
     ]
     if not any(_has_graveyard_count(s) for s in sources):
+        # ADR-0027 all-graveyards count-operand zone (SIDECAR v29, sub-change #3): the
+        # structured deep-scan above misses three phase quirks where a "number of cards
+        # … in (all) graveyards" COUNT survives only in raw/description: (a) the InZone
+        # MERGED into the Named name-string ("number of cards named X in all graveyards"
+        # → Named:"X in all graveyards", no separate InZone — Accumulated Knowledge);
+        # (b) a description-only count phase left unstructured ("X is … the number of
+        # cards named X in all graveyards" — Mind Burst); (c) a Pump P/T whose InZone
+        # count rides `power`/`toughness` keys the _zone_tags scan ("count"/"amount"/
+        # "value"/"number") doesn't reach (Muscle Burst). Fall back to the ORACLE: a
+        # "number of … cards … in (all/your/their) graveyards" count phrase. Anchored on
+        # the COUNT idiom (CR 400.1 — the value scales with the GY population), so a
+        # "return a card from your graveyard" recursion (no "number of") can't match.
+        if _GY_COUNT_PHRASE.search(record.get("oracle_text") or ""):
+            return [
+                Effect(
+                    category="board_count",
+                    scope="you",
+                    raw="count of cards in a graveyard",
+                    zones=("in:graveyard",),
+                )
+            ]
         return []
     # Whose graveyard the count is over decides the marker's scope (Anticognition's
     # "their graveyard" → opp = graveyard interaction; a Controller count → you).
@@ -4793,6 +4861,34 @@ _GY_CARD_REFERENCE = re.compile(
     r"\bcards?\b[^.]*?\b(?:in|from)\b[^.]*?\bgraveyard\b", re.IGNORECASE
 )
 _GY_FROM_BATTLEFIELD = re.compile(r"\bfrom the battlefield\b", re.IGNORECASE)
+# ADR-0027 graveyard scope/origin/zone (SIDECAR v29). An EXILE / blink that exiles a
+# card FROM or IN a graveyard ("exile … creature cards from graveyards" — Angel of
+# Serenity; "exile all cards from all graveyards" — Decree of Annihilation; "exile
+# target card from a graveyard" — Dire Fleet Daredevil; "Living weapon … exiled with"
+# graveyard riders). phase frequently keeps only the to:exile destination (Angel of
+# Serenity also carries in:battlefield for the battlefield half) and DROPS the
+# graveyard origin, so the exile-from-graveyard hook is lost. Anchored on the explicit
+# "exile … (from|in) … graveyard(s)" phrase so a battlefield/hand exile can't match;
+# the battlefield half of a dual-zone exile (Angel of Serenity) is fine — the GY half
+# still names "from graveyards". CR 406 / 701.17a.
+_EXILE_FROM_GY = re.compile(
+    r"\bexile\b[^.]*?\b(?:from|in)\b[^.]*?\bgraveyards?\b", re.IGNORECASE
+)
+# ADR-0027 play-from-graveyard static permission (SIDECAR v29). A cast_from_zone /
+# reanimate effect that GRANTS casting/playing a card FROM A GRAVEYARD ("you may play
+# lands from your graveyard" — Ancient Greenwarden, Crucible of Worlds; "you may cast
+# … from the top of your graveyard" — Bösium Strip; "you may cast an artifact spell
+# from your hand or graveyard" — Anrakyr) but whose from:graveyard origin phase dropped
+# (the _HAND_OR_GY_PHRASE only catches the hand-OR-graveyard onto-battlefield form). A
+# "play lands from your graveyard" carries no battlefield destination, so the existing
+# arms miss it. Anchored on a play/cast verb + "from … (your/a/their/the top of …)
+# graveyard" so a "return … from your graveyard to your hand" recursion (in:graveyard,
+# a different tag) can't match. CR 116 / 601.3 / 701.17a.
+_PLAY_FROM_GY = re.compile(
+    r"\b(?:play|cast)\b[^.]*?\bfrom (?:your |a |an |their |the top of (?:your|their) )?"
+    r"graveyards?\b",
+    re.IGNORECASE,
+)
 # A TUTOR whose search zone INCLUDES a graveyard — "Search your graveyard, hand,
 # and/or library for …" (Boonweaver Giant, Dark Supplicant), "Search target
 # opponent's graveyard, hand, and library …" (Dispossess — GY hate). phase types the
@@ -4818,6 +4914,28 @@ _SEARCH_OPP_GY = re.compile(
 # jump-start" (Niv-Mizzet, Supreme). phase types these grant_keyword (or drops the
 # static entirely), keeping the GY reference only in the raw — a graveyard-cast
 # payoff. Anchored on the same _GY_CARD_REFERENCE so a non-GY grant can't match.
+
+
+# Battlefield-permanent types — the board-wipe subject classes (CR 110.4 / 115.10).
+# A subject restricted to these (with NO graveyard InZone predicate) is a battlefield
+# object, so an exile over it is a board wipe, NOT a graveyard exile.
+_BOARD_WIPE_TYPES = frozenset(
+    {"Permanent", "Artifact", "Creature", "Land", "Enchantment", "Planeswalker"}
+)
+
+
+def _is_board_wipe_subject(subj: object) -> bool:
+    """A subject that is a BATTLEFIELD-permanent board-wipe filter (Permanent /
+    Artifact / Creature / Land / … types) with no graveyard InZone predicate — the
+    "exile all permanents" half of a multi-sentence wipe whose shared raw also names a
+    sibling graveyard exile. Used to keep the exile-from-graveyard origin recovery off
+    the battlefield-wipe effect (Worldfire, Decree of Annihilation, Gerrard)."""
+    if not isinstance(subj, Filter):
+        return False
+    if "InZone" in subj.predicates:
+        return False
+    cts = set(subj.card_types)
+    return bool(cts) and cts <= _BOARD_WIPE_TYPES
 
 
 def _recover_graveyard_zones(ability: Ability) -> Ability:
@@ -4903,6 +5021,68 @@ def _recover_graveyard_zones(ability: Ability) -> Ability:
         if zones != before or scope != before_scope:
             changed = True
             new_effects.append(replace(e, zones=tuple(sorted(zones)), scope=scope))
+        else:
+            new_effects.append(e)
+    if not changed:
+        return ability
+    return replace(ability, effects=tuple(new_effects))
+
+
+def _recover_graveyard_origin(ability: Ability) -> Ability:
+    """ADR-0027 graveyard scope/origin/zone (SIDECAR v29): recover the EXILE-from-
+    graveyard origin (#2) and PLAY/CAST-from-graveyard permission (#4) phase drops.
+    Split from ``_recover_graveyard_zones`` so it can run BOTH pre-supplement AND
+    post-supplement (the supplement re-derives an exile / cast_from_zone / reanimate
+    CATEGORY from an `other` clause — Angel of Serenity, Anrakyr, Bösium Strip — so its
+    GY origin would otherwise be lost), WITHOUT re-running the recursion / bounce /
+    tutor / deposit arms post-supplement (those tag a graveyard zone the migrated
+    bounce_tempo lane reads, and the supplement-created GY-recursion bounces — All Suns'
+    Dawn, Mausoleum Turnkey — ride the graveyard_matters byte mirror instead, holding
+    bounce_tempo's v28 breadth). Append-only / idempotent. CR 406 / 116 / 601.3 /
+    701.17a."""
+    new_effects: list[Effect] = []
+    changed = False
+    for e in ability.effects:
+        raw = e.raw or ""
+        zones = set(e.zones)
+        before = set(zones)
+        # exile-from-graveyard origin (#2): an exile / blink that exiles a card FROM or
+        # IN a graveyard but kept only to:exile (and, for a dual-zone exile like Angel
+        # of Serenity, in:battlefield) → in:graveyard. NOT gated on
+        # _GY_FROM_BATTLEFIELD: an "exile … from the battlefield AND/OR creature cards
+        # from graveyards" exiles from BOTH zones, so the battlefield mention must not
+        # suppress the graveyard origin. EXCLUDE a battlefield-permanent BOARD-WIPE half
+        # (_is_board_wipe_subject): a multi-sentence wipe (Worldfire "Exile all
+        # permanents. Exile all cards from all … graveyards", Decree of Annihilation,
+        # Gerrard) puts EVERY sentence in EVERY effect's shared raw, so _EXILE_FROM_GY
+        # matches the permanent-wipe effect off the SIBLING graveyard sentence — the
+        # permanent-typed subject is the tell that THIS effect is the battlefield wipe
+        # (holds mass_removal at v28; the graveyard half is a separate
+        # Card/InZone-subject effect this arm DOES tag). CR 406 / 115.10.
+        if (
+            e.category in ("exile", "blink")
+            and "in:graveyard" not in zones
+            and "from:graveyard" not in zones
+            and not _is_board_wipe_subject(e.subject)
+            and _EXILE_FROM_GY.search(raw)
+        ):
+            zones.add("in:graveyard")
+        # play-from-graveyard permission (#4): a cast_from_zone / reanimate that lets
+        # you PLAY/CAST a card from a graveyard ("play lands from your graveyard" —
+        # Crucible of Worlds; "cast … from the top of your graveyard" — Bösium Strip;
+        # "cast … from your hand or graveyard" — Anrakyr) but lost its from:graveyard →
+        # from:graveyard. The _HAND_OR_GY_PHRASE arm caught only the onto-battlefield
+        # disjunct; a play-lands / top-of-graveyard permission has no battlefield dest.
+        if (
+            e.category in ("cast_from_zone", "reanimate")
+            and "from:graveyard" not in zones
+            and not _GY_FROM_BATTLEFIELD.search(raw)
+            and _PLAY_FROM_GY.search(raw)
+        ):
+            zones.add("from:graveyard")
+        if zones != before:
+            changed = True
+            new_effects.append(replace(e, zones=tuple(sorted(zones))))
         else:
             new_effects.append(e)
     if not changed:

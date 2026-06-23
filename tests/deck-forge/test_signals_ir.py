@@ -253,10 +253,14 @@ def test_graveyard_count_marker_opp_scope_fires_opponents():
     assert _sigs(ir) == [("graveyard_matters", "opponents", "")]
 
 
-def test_graveyard_bare_a_graveyard_recursion_stays_any():
-    """A recursion target with NO "your"/"opponent" tell ("Return target creature
-    card from a graveyard" — a bare graveyard) stays scope any (the scope-split serves
-    it as its own avenue); _gy_scope only forces you/opp on an explicit tell."""
+def test_graveyard_bare_a_graveyard_recursion_defaults_you():
+    """ADR-0027 v29: a recursion target with NO "opponent" tell ("Return target creature
+    card from a graveyard" — a bare graveyard, structurally scope 'any' because the
+    recursion target carries no controller) defaults to the SELF-graveyard 'you' (the
+    graveyard_matters scope-discrimination contract forbids a ('graveyard_matters','any')
+    avenue — signal_specs registers only 'you' / 'opponents'). A flexible "a graveyard"
+    recursion is YOUR graveyard build-around; an explicit opponent's-GY tell still routes
+    to 'opponents'. CR 400.7 / 701.17a."""
     ir = _ir(
         Ability(
             kind="spell",
@@ -271,7 +275,7 @@ def test_graveyard_bare_a_graveyard_recursion_stays_any():
             ),
         )
     )
-    assert _sigs(ir) == [("graveyard_matters", "any", "")]
+    assert _sigs(ir) == [("graveyard_matters", "you", "")]
 
 
 # ── token_maker (subject-bearing) ─────────────────────────────────────────────

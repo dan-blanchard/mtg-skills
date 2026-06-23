@@ -59,6 +59,11 @@ def test_creature_etb_scoped_to_opponents():
 
 def test_graveyard_signal_scoped_to_opponents_not_generic():
     # The Tinybones case: benefits from OPPONENTS' graveyards filling.
+    # ADR-0027 v29: graveyard_matters migrated to the Card IR — assert via the hybrid
+    # path (the byte-identical _graveyard_matters_clauses mirror recovers the
+    # "that player's graveyard" → 'opponents' Tinybones cast via the narrow Tinybones
+    # rescope; the regex producers are deleted, so pure extract_signals no longer emits
+    # it).
     card = {
         "name": "Tinybones, the Pickpocket",
         "type_line": "Legendary Creature — Skeleton Rogue",
@@ -68,20 +73,23 @@ def test_graveyard_signal_scoped_to_opponents_not_generic():
             "and mana of any type can be spent to cast that spell."
         ),
     }
-    sigs = extract_signals(card)
+    sigs = extract_signals_hybrid(card, _bare_ir())
     gy = [s for s in sigs if s.key == "graveyard_matters"]
     assert gy, "expected a graveyard signal"
     assert all(s.scope == "opponents" for s in gy)
     # It must NOT be scoped to 'you' — that would justify self-mill.
-    assert ("graveyard_matters", "you") not in _keys(card)
+    assert ("graveyard_matters", "you") not in _keys_hybrid(card)
 
 
 def test_graveyard_signal_scoped_to_you_for_reanimator():
+    # ADR-0027 v29: graveyard_matters migrated to the Card IR. The "your graveyard"
+    # reference rides the byte-identical mirror (scope 'you'); pure extract_signals no
+    # longer emits it (the regex producers are deleted).
     card = {
         "name": "Reanimator",
         "oracle_text": "Return target creature card from your graveyard to the battlefield.",
     }
-    assert ("graveyard_matters", "you") in _keys(card)
+    assert ("graveyard_matters", "you") in _keys_hybrid(card)
 
 
 def test_lifegain_matters():
@@ -223,30 +231,36 @@ def test_signal_carries_source_and_quote():
         if s.key == "creature_etb"
     )
     assert etb.source == "ETB Boss"
-    gy_card = {
-        "name": "Yard Boss",
-        "oracle_text": "Return a creature card from your graveyard to your hand.",
+    # A still-regex-served lane (spellcast_matters) proves the source+quote contract holds
+    # end-to-end on the legacy path. (ADR-0027 v29: graveyard_matters migrated to the IR,
+    # whose structural/mirror add() emits no clause quote, so it can no longer demonstrate
+    # the legacy quote contract.)
+    spell_card = {
+        "name": "Spell Boss",
+        "oracle_text": "Whenever you cast an instant spell, draw a card.",
     }
-    quoting = next(s for s in extract_signals(gy_card) if s.key == "graveyard_matters")
-    assert quoting.source == "Yard Boss"
-    assert "your graveyard" in quoting.text.lower()
+    quoting = next(
+        s for s in extract_signals(spell_card) if s.key == "spellcast_matters"
+    )
+    assert quoting.source == "Spell Boss"
+    assert "cast an instant spell" in quoting.text.lower()
 
 
 def test_aggregate_dedupes_across_records():
-    # ADR-0027 β: aggregate_signals walks the legacy regex path (extract_signals), so
-    # the example uses a still-regex-served lane (graveyard_matters "your graveyard");
-    # creature_etb has migrated to the IR and no longer rides the regex path.
+    # ADR-0027 v29: aggregate_signals walks the legacy regex path (extract_signals), so
+    # the example uses a still-regex-served lane (spellcast_matters); graveyard_matters
+    # has migrated to the IR and no longer rides the regex path.
     a = {
         "name": "A",
-        "oracle_text": "Return a creature card from your graveyard to your hand.",
+        "oracle_text": "Whenever you cast an instant spell, draw a card.",
     }
     b = {
         "name": "B",
-        "oracle_text": "Exile a creature card from your graveyard, then gain 1 life.",
+        "oracle_text": "Whenever you cast an instant spell, scry 1.",
     }
     agg = aggregate_signals([a, b])
-    gy = [s for s in agg if s.key == "graveyard_matters" and s.scope == "you"]
-    assert len(gy) == 1  # deduped by (key, scope, subject)
+    sc = [s for s in agg if s.key == "spellcast_matters" and s.scope == "you"]
+    assert len(sc) == 1  # deduped by (key, scope, subject)
 
 
 def test_signal_is_hashable_frozen():
@@ -1060,22 +1074,26 @@ def test_self_counter_now_opens_counters_in_production():
 
 def test_opponent_library_exile_opens_opponents_mill():
     # Circu: "exile the top card of target player's library" — exile-mill of opponents,
-    # a mill variant the graveyard detector (keyed on "graveyard") missed.
+    # a mill variant the graveyard detector (keyed on "graveyard") missed. ADR-0027 v29:
+    # graveyard_matters migrated to the IR — the _GY_EXILE_MILL_OPP_RE producer rides the
+    # byte-identical _graveyard_matters_clauses mirror (scope 'opponents'), so assert via
+    # the hybrid path.
     circu = {
         "name": "Circu, Dimir Lobotomist",
         "type_line": "Legendary Creature — Human Wizard",
         "oracle_text": "Whenever you cast a blue spell, exile the top card of target player's library.\nWhenever you cast a black spell, exile the top card of target player's library.\nYour opponents can't cast spells with the same name as a card exiled with Circu.",
     }
-    assert ("graveyard_matters", "opponents") in _keys(circu)
+    assert ("graveyard_matters", "opponents") in _keys_hybrid(circu)
 
 
 def test_self_library_exile_does_not_open_opponents_mill():
-    # Precision: impulse-drawing off YOUR OWN library is not opponent mill.
+    # Precision: impulse-drawing off YOUR OWN library is not opponent mill (hybrid path —
+    # graveyard_matters is IR-served, ADR-0027 v29).
     card = {
         "name": "Light Up the Stage",
         "oracle_text": "Spectacle {R} (You may cast this spell for its spectacle cost rather than its mana cost if an opponent lost life this turn.)\nExile the top two cards of your library. Until the end of your next turn, you may play those cards.",
     }
-    assert ("graveyard_matters", "opponents") not in _keys(card)
+    assert ("graveyard_matters", "opponents") not in _keys_hybrid(card)
 
 
 # ── "a <Type> you control <verb>" and "attacking <Type>" tribal triggers ─────────

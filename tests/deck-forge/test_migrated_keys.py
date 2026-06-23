@@ -1559,6 +1559,38 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # graveyard_matters ← a `reanimate` EFFECT touching a graveyard (Reanimate's "Put
+    # target creature card from your graveyard onto the battlefield" projects a reanimate
+    # with from:graveyard / in:graveyard). The v29 structural arm fires graveyard_matters
+    # at _gy_scope(e), which maps a structurally-'any' GY effect to the SELF-graveyard
+    # default 'you' (no forbidden ('graveyard_matters','any') avenue). The broad
+    # "graveyard"-mention recall the deleted regex producers caught rides the
+    # byte-identical _graveyard_matters_clauses per-clause kept mirror. ADR-0027 (SIDECAR
+    # v29). CR 400.7 / 701.17a.
+    "graveyard_matters": (
+        {
+            "name": "Reanimate",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Put target creature card from your graveyard onto the "
+                "battlefield. You lose life equal to its mana value."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="reanimate",
+                        scope="any",
+                        zones=("from:graveyard", "in:graveyard", "to:battlefield"),
+                        raw="Put target creature card from your graveyard onto the "
+                        "battlefield.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

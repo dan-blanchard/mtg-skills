@@ -216,6 +216,49 @@ def _creature_etb_clauses(text: str) -> set[tuple[str, str]]:
     return out
 
 
+# ADR-0027 graveyard scope/origin/zone (SIDECAR v29): the THREE deleted
+# graveyard_matters _DETECTORS producers, pinned for the byte-identical per-clause kept
+# mirror. The lane migrated to the Card IR (structural zone arms + _gy_scope
+# self-graveyard default); this mirror recovers the broad "graveyard"-mention recall
+# phase has no structural form for. (1) "your graveyard" → forced scope 'you'. (2) a
+# bare "graveyard" mention (NOT "your graveyard") → the CLAUSE-RESOLVED scope (the
+# None-forced-scope producer). (3) an exile-mill of an opponent's library ("exile the
+# top … of target player's library" — Circu) → forced 'opponents'. The deleted producers
+# ran PER-CLAUSE inside extract_signals's detector loop, applying the narrow Tinybones
+# rescope (high) over the forced/resolved scope; this mirror reproduces that exactly. CR
+# 400.7 / 701.17a.
+_GY_YOUR_RE = re.compile(r"your graveyard")
+_GY_EXILE_MILL_OPP_RE = re.compile(
+    r"exile (?:the top|\w+ cards?|cards?)[^.]*"
+    r"(?:target player'?s?|an opponent'?s?|each (?:player|opponent)'?s?"
+    r"|that player'?s?) librar"
+)
+
+
+def _graveyard_matters_clauses(text: str, name: str) -> set[tuple[str, str]]:
+    """All (``"graveyard_matters"``, scope) pairs the THREE deleted producers would emit
+    over the reminder-stripped joined oracle, applied PER-CLAUSE with the exact scope
+    logic of extract_signals's detector loop (Tinybones rescope wins; else the
+    producer's forced scope; else the clause-resolved scope). Byte-identical to the
+    deleted regex path so regex_only == 0."""
+    out: set[tuple[str, str]] = set()
+    for clause in _clauses(text):
+        cl = clause.lower()
+        rescope = _tinybones_scope(clause)
+        clause_scope = _scope(cl)
+        resolved_scope, _ = _resolve_scope(clause, cl, clause_scope, name)
+        # (1) "your graveyard" — forced 'you' (rescope wins).
+        if _GY_YOUR_RE.search(cl):
+            out.add(("graveyard_matters", rescope or "you"))
+        # (2) a bare "graveyard" mention (not "your graveyard") — clause-resolved scope.
+        if "graveyard" in cl and "your graveyard" not in cl:
+            out.add(("graveyard_matters", rescope or resolved_scope))
+        # (3) exile-mill of an opponent's library — forced 'opponents'.
+        if _GY_EXILE_MILL_OPP_RE.search(cl):
+            out.add(("graveyard_matters", rescope or "opponents"))
+    return out
+
+
 # color_hoser: a commander whose payoff is keyed on a specific COLOR it punishes,
 # restricts, or bounces (Llawan "opponents can't cast blue creature spells" / "return
 # all blue creatures", Dromar "choose a color, then return all of it", Jaya "destroy
@@ -366,31 +409,23 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # token_copy_matters / conjure_matters byte-identical-mirror pattern. The serve spec
     # (signal_specs) survives — it was always hand-registered and independent of this
     # regex. CR 119 / 118 / 903.10a.
-    # Whose graveyard a card cares about decides the scope. A self-graveyard engine
-    # that merely MENTIONS opponents elsewhere (Araumi's encore tokens "attack that
-    # opponent"; Tasigur, Toshiro, Syr Konrad, Glissa) was mis-scoped opponents by the
-    # generic "opponent"-anywhere rule, so self-mill enablers (scoped you) never
-    # served. Force "you" on any "your graveyard" reference; let the residual graveyard
-    # mentions ("a graveyard", an opponent's) auto-scope, but exclude the self cards so
-    # they don't ALSO raise a spurious opponents'-graveyard avenue.
-    ("graveyard_matters", _re(r"your graveyard"), "you"),
-    (
-        "graveyard_matters",
-        lambda c: "graveyard" in c and "your graveyard" not in c,
-        None,
-    ),
-    # Exile-mill of OPPONENTS (Circu): "exile the top card of target player's library"
-    # is a mill variant the graveyard ("graveyard"-keyed) detector misses. Scoped
-    # opponents — exiling YOUR OWN library (impulse draw) never matches.
-    (
-        "graveyard_matters",
-        _re(
-            r"exile (?:the top|\w+ cards?|cards?)[^.]*"
-            r"(?:target player'?s?|an opponent'?s?|each (?:player|opponent)'?s?"
-            r"|that player'?s?) librar"
-        ),
-        "opponents",
-    ),
+    # ADR-0027 graveyard scope/origin/zone (SIDECAR v29): graveyard_matters migrated to
+    # the Card IR. The THREE _DETECTORS producers (the "your graveyard"→'you' row, the
+    # bare-"graveyard" clause-resolved row, the exile-mill-of-opponents→'opponents' row)
+    # are DELETED here; their patterns are pinned as _GY_YOUR_RE / _GY_EXILE_MILL_OPP_RE
+    # and the byte-identical PER-CLAUSE mirror _graveyard_matters_clauses (above). The
+    # lane now fires from the rich structural zone arms in extract_signals_ir (mill /
+    # reanimate / graveyard_recursion / cast_from_zone / exile-from-GY / play-from-GY /
+    # in:graveyard count / the trigger-zone arm — each scoped by _gy_scope, which maps
+    # a structurally-'any' GY effect to the SELF-graveyard default 'you', so no
+    # forbidden ('graveyard_matters','any') avenue opens) UNION the byte-identical
+    # mirror over the reminder-stripped kept_oracle (the broad "graveyard"-mention
+    # recall phase has no structural form for). The deleted producers fired
+    # HIGH-confidence and fed has_other_plan, so _graveyard_matters_has_plan re-supplies
+    # the voltron silence (the IR re-supply is BROADER, so NOT
+    # _VOLTRON_SILENCING_PLAN_KEYS). The serve specs
+    # (signal_specs, ('graveyard_matters',{'you','opponents'})) are hand-registered and
+    # independent of these regexes — they survive. CR 400.7 / 701.17a / 903.10a.
     # ADR-0027: vanilla_matters migrated to the Card IR — the HasNoAbilities
     # subject-Filter predicate (read in _predicate_build_around_lanes). The predicate
     # is its own discriminator (a card merely BEING vanilla never carries it), so the
@@ -3264,6 +3299,36 @@ def _topdeck_selection_has_plan(text: str) -> bool:
     return any(_TOPDECK_SELECTION_SWEEP_RE.search(cl) for cl in _clauses(text))
 
 
+def _graveyard_matters_has_plan(text: str, name: str = "") -> bool:
+    """ADR-0027 graveyard scope/origin/zone (SIDECAR v29): the HAS-OTHER-PLAN mirror for
+    the migrated graveyard_matters key. Only the HIGH-confidence firings of the three
+    deleted _DETECTORS producers fed `has_other_plan` (a self-mill / reanimation /
+    recursion ENGINE is a card-advantage plan, silencing the spurious commander-damage
+    voltron tell, not a vanilla beater). The migrated lane rides the structural zone
+    arms UNION a byte-identical per-clause kept mirror, but the IR re-supply is BROADER
+    (the self-graveyard-default scope + the deep zone recall), so re-supplying via
+    _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those gains. This byte-identical
+    mirror restores ONLY the deleted producers' HIGH-confidence silence set:
+    - producer #1 ("your graveyard", FORCED scope → HIGH) and #3
+      (exile-mill-of-opponents, FORCED scope → HIGH) always feed it;
+    - producer #2 (bare "graveyard", scope=None → the CLAUSE-RESOLVED (scope,
+      confidence)) feeds it ONLY when _resolve_scope returns HIGH (a granted ability /
+      broad third-party guess returns LOW and did NOT feed has_other_plan at v28).
+    A Tinybones rescope is always HIGH. Per-clause over the reminder-STRIPPED `text`.
+    CR 400.7 / 701.17a / 903.10a."""
+    for clause in _clauses(text):
+        cl = clause.lower()
+        if _GY_YOUR_RE.search(cl) or _GY_EXILE_MILL_OPP_RE.search(cl):
+            return True
+        if "graveyard" in cl and "your graveyard" not in cl:
+            if _tinybones_scope(clause):
+                return True
+            _, conf = _resolve_scope(clause, cl, _scope(cl), name)
+            if conf == "high":
+                return True
+    return False
+
+
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated conjure_matters key. The
 # deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a conjure
@@ -4956,7 +5021,13 @@ def extract_signals(
         # the IR, so it no longer rides this regex path's keys_now; key the cross-open
         # off the byte-identical _DISCARD_OUTLET_SWEEP_RE (the EXACT deleted SWEEP
         # producer, run PER-CLAUSE) so the graveyard_matters cross-open stays byte-
-        # identical to base (graveyard_matters drift 0). CR 701.8a.
+        # identical to base. CR 701.8a.
+        # ADR-0027 graveyard scope/origin/zone (SIDECAR v29): graveyard_matters is NOW
+        # migrated, so the hybrid DROPS this regex LOW cross-open along with every other
+        # regex graveyard_matters. The hybrid re-runs the EXACT condition against the
+        # MERGED key set and re-adds the LOW graveyard_matters when the merged set lacks
+        # it (signals._reconcile_graveyard_matters_crossopen) — this producer stays for
+        # the pure-regex (ir is None) degradation path.
         if "graveyard_matters" not in keys_now and any(
             _DISCARD_OUTLET_SWEEP_RE.search(cl) for cl in _clauses(text)
         ):
@@ -5621,6 +5692,18 @@ def extract_signals(
         # over the reminder-STRIPPED `text`. See _topdeck_selection_has_plan.
         # CR 116 / 701.18 / 903.10a.
         or _topdeck_selection_has_plan(text)
+        # ADR-0027 graveyard scope/origin/zone (SIDECAR v29): re-silence the THREE
+        # deleted graveyard_matters _DETECTORS producers (they fired HIGH-confidence and
+        # fed has_other_plan — a self-mill / reanimation / recursion ENGINE is a card-
+        # advantage plan, not a vanilla beater). The migrated lane rides the structural
+        # zone arms + a byte-identical per-clause mirror that are BROADER (the
+        # self-graveyard-default scope + deep zone recall the deleted producers never
+        # matched), so this byte-identical mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS,
+        # which would over-silence a vanilla beater carrying only a bare "exile target
+        # card from a graveyard" rider — restores the deleted producers' exact silence
+        # set. Per-clause over the reminder-STRIPPED `text`. See
+        # _graveyard_matters_has_plan. CR 400.7 / 701.17a / 903.10a.
+        or _graveyard_matters_has_plan(text, name)
         # ADR-0027 β: re-silence the deleted lifegain_matters registry-280 _DETECTORS
         # producer (ARM (A) — it fired HIGH-confidence forced scope 'you', feeding
         # has_other_plan; a lifegain ENGINE is no vanilla beater). ONLY ARM (A): the

@@ -28,6 +28,7 @@ from mtg_utils._card_ir.project import (
     _graveyard_count_markers,
     _graveyard_count_player,
     _has_graveyard_count,
+    _is_board_wipe_subject,
     _lifeloss_markers,
     _modal_split_effects,
     _narrow_payoff_condition_refs,
@@ -39,6 +40,7 @@ from mtg_utils._card_ir.project import (
     _project_replacement,
     _quantity,
     _recover_count_operand,
+    _recover_graveyard_origin,
     _recover_graveyard_zones,
     _sacrifice_cost_markers,
     _sacrifice_grant_markers,
@@ -3370,6 +3372,108 @@ def test_topdeck_select_owner_scope_neither_zone_unchanged():
     bare = _topdeck_cats_scopes("Look at the top five cards.")
     assert any(cat == "topdeck_select" for cat, _ in bare)
     assert all(sc != "you" for _, sc in bare)  # no your-library → not promoted to 'you'
+
+
+# ── ADR-0027 graveyard scope/origin/zone (SIDECAR v29) ────────────────────────
+
+
+def _gy_zones_for(desc: str) -> list[tuple[str, tuple[str, ...]]]:
+    """Project a phase-Unimplemented clause through the supplement + graveyard origin
+    recovery and return the (category, zones) of every recovered effect — the seam the
+    graveyard_matters structural arms read."""
+    rec = {
+        "name": "T",
+        "scryfall_oracle_id": "pc",
+        "card_type": {"core_types": ["Sorcery"]},
+        "oracle_text": desc,
+        "abilities": [
+            {"kind": "Spell", "effect": {"type": "Unimplemented"}, "description": desc}
+        ],
+    }
+    card = project_card([rec])
+    return [(e.category, e.zones) for ab in card.all_abilities() for e in ab.effects]
+
+
+def test_exile_from_graveyard_origin_recovered():
+    """ADR-0027 v29 sub-change #2 — an exile naming "exile … (from|in) … graveyards"
+    (Angel of Serenity, Dire Fleet Daredevil) recovers the in:graveyard origin phase
+    dropped (it kept only to:exile). Runs post-supplement so a supplement-recovered exile
+    category reaches the recovery."""
+    cats = _gy_zones_for("Exile up to three target creature cards from graveyards.")
+    assert any(cat == "exile" and "in:graveyard" in zones for cat, zones in cats), cats
+    # a dual-zone exile ("from the battlefield AND/OR from graveyards") still recovers
+    # the graveyard origin (the battlefield mention does not suppress it).
+    dual = _gy_zones_for(
+        "Exile target creature from the battlefield and creature cards from graveyards."
+    )
+    assert any(cat == "exile" and "in:graveyard" in zones for cat, zones in dual), dual
+
+
+def test_board_wipe_subject_keeps_exile_off_graveyard_origin():
+    """The exile-from-graveyard recovery EXCLUDES a battlefield-permanent BOARD-WIPE
+    subject (the "Exile all permanents" half of a multi-sentence wipe — Worldfire, Decree
+    of Annihilation — whose shared raw also names a sibling graveyard exile). The
+    permanent-typed subject is the tell; an InZone-predicate / Card subject is not a
+    board wipe."""
+    assert _is_board_wipe_subject(Filter(card_types=("Permanent",)))
+    assert _is_board_wipe_subject(Filter(card_types=("Artifact", "Creature", "Land")))
+    # a graveyard Card subject (the genuine GY-exile half) is NOT a board wipe
+    assert not _is_board_wipe_subject(
+        Filter(card_types=("Card",), predicates=("InZone",))
+    )
+    assert not _is_board_wipe_subject(Filter(card_types=("Card",)))
+    assert not _is_board_wipe_subject(None)
+    # the recovery skips a board-wipe-subject exile whose shared raw names a sibling GY
+    wipe = Ability(
+        kind="spell",
+        effects=(
+            Effect(
+                category="exile",
+                subject=Filter(card_types=("Permanent",)),
+                zones=("to:exile",),
+                raw="Exile all permanents. Exile all cards from all graveyards.",
+            ),
+        ),
+    )
+    out = _recover_graveyard_origin(wipe)
+    assert "in:graveyard" not in out.effects[0].zones
+
+
+def test_play_from_graveyard_permission_recovered():
+    """ADR-0027 v29 sub-change #4 — a cast_from_zone / reanimate naming "play/cast … from
+    … graveyard" (Crucible of Worlds, Bösium Strip, Anrakyr) recovers the from:graveyard
+    origin phase dropped. Distinct from the _HAND_OR_GY_PHRASE onto-battlefield arm: a
+    play-lands permission has no battlefield destination."""
+    play = _gy_zones_for("You may play lands from your graveyard.")
+    assert any("from:graveyard" in zones for _, zones in play), play
+    top = _gy_zones_for(
+        "You may cast instant and sorcery cards from the top of your graveyard."
+    )
+    assert any("from:graveyard" in zones for _, zones in top), top
+
+
+def test_all_graveyards_count_operand_zone_recovered():
+    """ADR-0027 v29 sub-change #3 — a "number of cards … in all graveyards" COUNT phase
+    left in a Named name-string / description (Accumulated Knowledge, Mind Burst) recovers
+    an in:graveyard board_count marker the structured deep-scan missed."""
+    named = _gy_zones_for(
+        "Draw a card, then draw cards equal to the number of cards named X in all "
+        "graveyards."
+    )
+    assert any(
+        cat == "board_count" and "in:graveyard" in zones for cat, zones in named
+    ), named
+    threshold = _gy_zones_for(
+        "If there are ten or more creature cards in all graveyards, this costs {6} less."
+    )
+    assert any(
+        cat == "board_count" and "in:graveyard" in zones for cat, zones in threshold
+    ), threshold
+    # a graveyard RECURSION (no "number of") must NOT get a count marker
+    recursion = _gy_zones_for(
+        "Return target creature card from your graveyard to your hand."
+    )
+    assert not any(cat == "board_count" for cat, _ in recursion), recursion
 
 
 def test_sacrifice_cost_marker_from_additional_cost():

@@ -281,7 +281,42 @@ from mtg_utils.card_ir import Card
 #   incl scry/surveil) and excludes the opponent/morph over-fires. The dig library-owner
 #   scope (v27) precedent extended one zone up to the look/reveal surface. CR 701.18
 #   (scry) / 701.42 (surveil) / 116 (top of library).
-SIDECAR_VERSION = 28
+# v28→v29: graveyard SCOPE / ORIGIN / ZONE — the broadest Cluster A key
+#   (graveyard_matters). Three projection moves recover the graveyard hook phase
+#   drops, plus the zone recovery now runs POST-supplement so a supplement-recovered
+#   GY effect keeps its zone tag:
+#   (a) EXILE-FROM-GRAVEYARD origin (_recover_graveyard_zones, _EXILE_FROM_GY): an
+#       exile / blink that exiles a card FROM or IN a graveyard ("exile … creature
+#       cards from graveyards" — Angel of Serenity; "exile all cards from all
+#       graveyards" — Decree of Annihilation; "exile target card from a graveyard" —
+#       Dire Fleet Daredevil) kept only to:exile (+ in:battlefield for a dual-zone
+#       exile) → in:graveyard. NOT suppressed by a co-mentioned "from the battlefield"
+#       (a dual-zone exile hits BOTH). CR 406 / 701.17a.
+#   (b) PLAY-FROM-GRAVEYARD permission (_recover_graveyard_zones, _PLAY_FROM_GY): a
+#       cast_from_zone / reanimate that grants playing/casting a card from a graveyard
+#       ("play lands from your graveyard" — Ancient Greenwarden, Crucible of Worlds;
+#       "cast … from the top of your graveyard" — Bösium Strip; "cast … from your hand
+#       or graveyard" — Anrakyr) → from:graveyard (the _HAND_OR_GY_PHRASE arm caught
+#       only the onto-battlefield disjunct; a play-lands permission has no battlefield
+#       destination). CR 116 / 601.3 / 701.17a.
+#   (c) ALL-GRAVEYARDS count-operand zone (_graveyard_count_markers): a count / cost
+#       gate over "cards … in all graveyards" whose InZone:Graveyard phase MERGED into
+#       the Named name-string (Accumulated Knowledge) or left only in a ModifyCost
+#       description (Avatar of Woe) → an in:graveyard board_count marker. CR 400.1.
+#   POST-SUPPLEMENT RE-RUN: project_card now re-runs _recover_graveyard_zones +
+#   _recover_library_zones after supplement_card, so a bounce / reanimate /
+#   cast_from_zone / exile the supplement re-derived from an `other` clause (All Suns'
+#   Dawn, Anrakyr, Angel of Serenity) reaches the zone recovery (the pre-supplement
+#   pass ran before the category existed). Behavior-neutral with graveyard_matters not
+#   yet wired (drift 0 across 298 keys, voltron 3010): the only migrated keys that
+#   cross-read a graveyard effect zone are artifacts/enchantments_matter (via
+#   _type_recursion_lanes — a graveyard-sourced TYPED recursion); their cross-open is
+#   re-keyed off the byte-identical re-derived value so the v28 breadth holds. Payoff:
+#   the graveyard_matters migration reads the recovered zones structurally + a
+#   _gy_scope any→you self-graveyard default (no forbidden ('graveyard_matters','any')
+#   avenue). The dig (v27) / topdeck (v28) library-owner-scope precedent extended to
+#   the graveyard surface. CR 400.7 (a graveyard is a player's zone) / 701.17a (mill).
+SIDECAR_VERSION = 29
 
 
 def card_ir_dir() -> Path:

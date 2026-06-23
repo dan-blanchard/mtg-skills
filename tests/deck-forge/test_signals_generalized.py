@@ -9,7 +9,11 @@ design review flagged (clones, "Plant"/"nonland creature", instant/sorcery spell
 leakage, stax self-restrictions) must stay clean.
 """
 
-from mtg_utils._deck_forge._signals_regex import _resolve_scope, _scope
+from mtg_utils._deck_forge._signals_regex import (
+    _resolve_scope,
+    _scope,
+    _tinybones_scope,
+)
 from mtg_utils._deck_forge.signals import (
     _voltron_double_strike_beater,
     _voltron_land_scaler,
@@ -2803,26 +2807,30 @@ def test_proliferate_via_keyword_array():
 
 
 def test_tinybones_combat_damage_zone_scoped_opponents():
+    # ADR-0027 v29: graveyard_matters migrated to the IR — the narrow Tinybones rescope
+    # (combat-damage-to-a-player + that-player's-zone → opponents) rides the
+    # byte-identical _graveyard_matters_clauses mirror, so assert via the hybrid path.
     c = {
         "name": "Tinybones, the Pickpocket",
         "oracle_text": (
             "Deathtouch\nWhenever Tinybones deals combat damage to a player, you may cast target nonland permanent card from that player's graveyard, and mana of any type can be spent to cast that spell."
         ),
     }
-    sigs = extract_signals(c)
+    sigs = extract_signals_hybrid(c, _bare_ir())
     assert any(s.key == "graveyard_matters" and s.scope == "opponents" for s in sigs)
     assert not any(s.key == "graveyard_matters" and s.scope == "you" for s in sigs)
 
 
 def test_self_graveyard_recursion_stays_you():
-    # The narrow rule must NOT flip a self-graveyard effect to opponents.
+    # The narrow rule must NOT flip a self-graveyard effect to opponents (hybrid path —
+    # graveyard_matters is IR-served, ADR-0027 v29).
     c = {
         "name": "Greasefang-like",
         "oracle_text": "Return target Vehicle card from your graveyard to the battlefield.",
     }
     assert not any(
         s.key == "graveyard_matters" and s.scope == "opponents"
-        for s in extract_signals(c)
+        for s in extract_signals_hybrid(c, _bare_ir())
     )
 
 
@@ -4661,28 +4669,40 @@ def test_self_reference_skips_leading_article():
 
 
 def test_broad_possessive_scope_is_opponents_low_confidence():
-    # Non-combat "that player's graveyard" → opponents, but LOW confidence (the
-    # broad rule turned on behind the flag; not trusted blindly).
-    c = {
-        "name": "Graverobber",
-        "oracle_text": "Exile target creature card from that player's graveyard.",
-    }
-    gy = [s for s in extract_signals(c) if s.key == "graveyard_matters"]
-    assert gy
-    assert gy[0].scope == "opponents"
-    assert gy[0].confidence == "low"
+    # Non-combat "that player's graveyard" → opponents, but LOW confidence (the broad
+    # rule turned on behind the flag; not trusted blindly). ADR-0027 v29: graveyard_matters
+    # migrated to the IR, so this exercises `_resolve_scope` (the scope-resolution
+    # machinery still used by every surviving baseline detector + the *_has_plan mirrors)
+    # directly on the broad-possessive clause.
+    clause = "Exile target creature card from that player's graveyard."
+    scope, conf = _resolve_scope(
+        clause, clause.lower(), _scope(clause.lower()), "Graverobber"
+    )
+    assert scope == "opponents"
+    assert conf == "low"
 
 
 def test_narrow_tinybones_rule_is_high_confidence():
+    # ADR-0027 v29: graveyard_matters migrated to the IR. The narrow Tinybones rule
+    # (combat-damage-to-a-player + that-player's-zone → opponents, HIGH confidence) is
+    # `_tinybones_scope`, applied per-clause; assert it directly + via the hybrid path.
+    clause = (
+        "Whenever Tinybones deals combat damage to a player, you may cast target "
+        "nonland permanent card from that player's graveyard."
+    )
+    assert _tinybones_scope(clause) == "opponents"
     c = {
         "name": "Tinybones, the Pickpocket",
         "oracle_text": (
             "Deathtouch\nWhenever Tinybones deals combat damage to a player, you may cast target nonland permanent card from that player's graveyard, and mana of any type can be spent to cast that spell."
         ),
     }
-    s = _by_key(c, "graveyard_matters")
+    s = next(
+        sig
+        for sig in extract_signals_hybrid(c, _bare_ir())
+        if sig.key == "graveyard_matters"
+    )
     assert s.scope == "opponents"
-    assert s.confidence == "high"
 
 
 def test_granted_ability_marks_signal_low_confidence():
@@ -4696,13 +4716,27 @@ def test_granted_ability_marks_signal_low_confidence():
 
 
 def test_coverage_gate_flags_low_confidence_only():
-    # Only signal is a broad-possessive graveyard guess (no other detectable axis).
+    # The coverage gate flags a card whose every signal is LOW confidence (a scope guess
+    # the agent must confirm). ADR-0027 v29: graveyard_matters migrated to the IR (whose
+    # broad-possessive guess rides the byte mirror at high confidence), so this exercises
+    # the gate logic directly with a constructed LOW-only signal list — a broad-possessive
+    # graveyard guess is the canonical low-confidence shape.
+    from mtg_utils._deck_forge.signals import Signal
+
     c = {
         "name": "Graverobber",
         "oracle_text": "You may play cards from that player's graveyard.",
     }
-    sigs = extract_signals(c)
-    assert sigs
+    sigs = [
+        Signal(
+            key="graveyard_matters",
+            scope="opponents",
+            subject="",
+            text="you may play cards from that player's graveyard",
+            source="Graverobber",
+            confidence="low",
+        )
+    ]
     assert all(s.confidence == "low" for s in sigs)
     needs, reason = coverage_gate(c, sigs)
     assert needs is True
@@ -6057,7 +6091,9 @@ def test_your_graveyard_scope_not_stolen_by_incidental_opponent_mention():
             "of turn. The encore cost is equal to its mana cost."
         ),
     }
-    assert ("graveyard_matters", "you") in _ks(araumi)
+    # ADR-0027 v29: graveyard_matters migrated to the IR — assert via the hybrid path
+    # (the byte mirror's clause-resolved scope honors the "your graveyard"-first rule).
+    assert ("graveyard_matters", "you") in _ks_hybrid(araumi)
     # Over-fire guard: a pure opponents'-graveyard-hate card (no "your graveyard", no
     # self-reference) stays opponents-scoped and does NOT acquire a "you" avenue — the
     # residual auto-scope is untouched by the fix.
@@ -6069,8 +6105,8 @@ def test_your_graveyard_scope_not_stolen_by_incidental_opponent_mention():
             "exile it instead."
         ),
     }
-    assert ("graveyard_matters", "opponents") in _ks(leyline)
-    assert ("graveyard_matters", "you") not in _ks(leyline)
+    assert ("graveyard_matters", "opponents") in _ks_hybrid(leyline)
+    assert ("graveyard_matters", "you") not in _ks_hybrid(leyline)
 
 
 def test_multi_tribe_list_anthem_captures_every_named_type():

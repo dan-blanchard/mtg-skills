@@ -52,6 +52,7 @@ from mtg_utils._deck_forge._signals_ir import (
 from mtg_utils._deck_forge._signals_regex import (
     _DETECTORS,
     _DIRECT_KEYWORD_SIGNALS,
+    _DISCARD_OUTLET_SWEEP_RE,
     _GENERIC_KEYS,
     _HAND_FLOOR,
     _PLAY_FROM_TOP_FLOOR_MIRROR,
@@ -268,6 +269,34 @@ def extract_signals_hybrid(
                             "low",
                         )
                     )
+        # ADR-0027 graveyard scope/origin/zone (SIDECAR v29) — discard_outlet →
+        # graveyard_matters cross-open reconciliation. The regex include_membership path
+        # cross-opens graveyard_matters from a discard-OUTLET body (a loot / rummage /
+        # discard-to-pay engine fills the graveyard, so the discarded cards become GY
+        # fuel — Niambi reanimates, Mishra recurs artifacts), gated on the
+        # byte-identical _DISCARD_OUTLET_SWEEP_RE (the EXACT deleted SWEEP producer,
+        # per-clause). BOTH discard_outlet (v26) AND graveyard_matters (v29) now
+        # migrate, so the hybrid DROPS every regex graveyard_matters — incl. this LOW
+        # cross-open. The IR path re-supplies the genuine per-card graveyard hooks, but
+        # a discard-outlet body that fills the GY without a structured recursion (a bare
+        # loot, no "graveyard" word) carries no IR graveyard_matters, so re-run the
+        # EXACT gate against the merged set and re-add the LOW key when the merged lacks
+        # it — mirroring the regex producer at _signals_regex.py. The cross-open was LOW
+        # so it never fed has_other_plan. CR 701.8a.
+        out_now = {s.key for s in out}
+        if "graveyard_matters" not in out_now:
+            _gy_text = re.sub(r"\([^)]*\)", " ", get_oracle_text(record) or "")
+            if any(_DISCARD_OUTLET_SWEEP_RE.search(cl) for cl in _clauses(_gy_text)):
+                out.append(
+                    Signal(
+                        "graveyard_matters",
+                        "you",
+                        "",
+                        "",
+                        record.get("name", ""),
+                        "low",
+                    )
+                )
     # ADR-0027 voltron reconciliation: the regex path computes the commander-damage
     # voltron MEMBERSHIP fallback against its OWN signal set (gated on
     # ``not has_other_plan``), which no longer carries a migrated PLAN key — when a key
