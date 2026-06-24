@@ -2289,6 +2289,20 @@ def _merge_ability_player_scope(node: dict, eff: dict) -> dict:
     return {**eff, "player_scope": ps}
 
 
+def _merge_ability_duration(node: dict, eff: dict) -> dict:
+    """Surface an ability-level ``duration`` onto the effect so ``_project_effect``
+    can capture it (ADR-0027 Duration fast-follow). Used by pump_matters and
+    debuff_matters to distinguish temporary combat tricks from permanent anthems.
+    Returns a shallow copy with the field merged if present, else the effect
+    unchanged."""
+    dur = node.get("duration")
+    if not isinstance(dur, str) or not dur:
+        return eff
+    if "duration" in eff:
+        return eff
+    return {**eff, "duration": dur}
+
+
 def _collect_effects(node: dict | None, default_raw: str) -> list[Effect]:
     """Walk an ability node's effect + sub_ability chain into a flat effect list."""
     if not isinstance(node, dict):
@@ -2320,6 +2334,7 @@ def _collect_effects(node: dict | None, default_raw: str) -> list[Effect]:
         eff = node.get("effect")
         if isinstance(eff, dict):
             eff = _merge_ability_player_scope(node, eff)
+            eff = _merge_ability_duration(node, eff)
             out.extend(_project_effect(eff, raw))
     sub = node.get("sub_ability")
     if isinstance(sub, dict):
@@ -2615,6 +2630,8 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     # ramp_matters fires on a land whose ramp is acceleration (amount) OR fixing, and
     # DROPS a basic-equivalent single-color tap. CR 106.4 / 605.
     mana_kind = ""
+    dur_val = eff.get("duration")
+    duration: str = dur_val if isinstance(dur_val, str) else ""
     if category in ("pump", "pump_target"):
         amount = _pump_amount(eff, raw)
     elif etype == "mana":
@@ -2631,6 +2648,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
             raw=raw,
             counter_kind=counter_kind,
             mana_kind=mana_kind,
+            duration=duration,
             zones=_zone_tags(eff),
         ),
         *_enter_with_counter_effects(eff, raw),

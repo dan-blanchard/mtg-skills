@@ -119,6 +119,11 @@ class Effect:
     # whose ramp is acceleration OR fixing, and DROPS a basic-equivalent single-color
     # tap. CR 106.4 / 605.
     mana_kind: str = ""  # "" | basic | fixing
+    # ADR-0027 Duration fast-follow (SIDECAR v44): the duration of an effect (e.g.
+    # "UntilEndOfTurn"). Used by pump_matters / debuff_matters to distinguish a
+    # temporary combat trick (Giant Growth) from a permanent anthem/static modifier,
+    # retiring the dynamic -X/-X regex mirror. CR 611.2a.
+    duration: str = ""
     # Directional non-battlefield zone references this effect structurally touches,
     # e.g. ("from:graveyard", "to:exile") for "exile target card from a graveyard",
     # ("in:graveyard",) for a target/count filtered to the graveyard. Lane-agnostic
@@ -509,6 +514,8 @@ def _effect_to_dict(e: Effect) -> dict:
         out["rt"] = e.returns_to
     if e.mana_kind:
         out["mk"] = e.mana_kind
+    if e.duration:
+        out["dur"] = e.duration
     if e.zones:
         out["z"] = list(e.zones)
     return out
@@ -525,6 +532,7 @@ def _effect_from_dict(d: dict) -> Effect:
         counter_kind=d.get("ck", ""),
         returns_to=d.get("rt", ""),
         mana_kind=d.get("mk", ""),
+        duration=d.get("dur", ""),
         zones=tuple(d.get("z", ())),
     )
 

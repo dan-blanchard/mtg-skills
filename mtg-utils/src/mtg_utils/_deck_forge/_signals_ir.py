@@ -102,8 +102,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DAMAGE_REDIRECT_REGEX,
     DAMAGE_TO_OPP_MATTERS_REGEX,
     DEATH_MATTERS_REGEX,
-    DEBUFF_MAHA_REGEX,
-    DEBUFF_SWEEP_REGEX,
     DIES_RECURSION_REGEX,
     ENCHANTMENTS_MATTER_REGEX,
     ENTERED_ATTACKER_REGEX,
@@ -2500,34 +2498,6 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         _COST_REDUCER_MIRROR,
         "you",
     ),
-    # ADR-0027 β — debuff_matters byte-identical kept-mirror (two rows, one per deleted
-    # producer). The structural arm fires from the projection's negative-pump / m1m1
-    # Effects (recall GAIN), but the big "gets -N/-N until end of turn" / "-X/-X" tail
-    # projects as a pump / pump_target Effect with amount==None (the value only in raw),
-    # so there is no structural number to read. These two mirrors reproduce the deleted
-    # regex path EXACTLY: as a full-text .search over the reminder-stripped joined-face
-    # oracle they fire on the identical 613-card commander-legal set the per-clause
-    # regex path did (0 drift both directions). scope matches each deleted producer
-    # (SWEEP "any", Maha "you"); add() dedups the overlap with the structural arm.
-    (
-        "debuff_matters",
-        re.compile(DEBUFF_SWEEP_REGEX, re.IGNORECASE),
-        "any",
-    ),
-    (
-        "debuff_matters",
-        re.compile(DEBUFF_MAHA_REGEX, re.IGNORECASE),
-        "you",
-    ),
-    # ADR-0027 β / #24 — pump_matters RETAINED tail-mirror (paired with the structural
-    # arm in extract_signals_ir). The pump-MAGNITUDE field (SIDECAR v42) gave the lane a
-    # structural arm — a FIXED positive `pump_target` over a real target-Creature
-    # subject (the single-target combat trick — Dauntless Onslaught, "two target
-    # creatures each get +N/+N"; +36 recall the regex's "target creature gets +"
-    # missed). But two large classes stay un-structurable and ride this mirror: the
-    # X-VARIABLE pump ("gets +X/+X" → amount==None, phase drops the dynamic magnitude)
-    # and the "+N/+N AND gains <kw>" combat trick (phase folds the keyword grant + pump
-    # into a `pump` category with subject==None — Giant Growth-with-trample, Bull's
     # Strength — indistinguishable from a firebreather without phase's per-ability
     # `duration`, a fast-follow projection field). So this mirror still recovers the
     # deleted SWEEP path's matches (full-text over the reminder-stripped joined-face
@@ -6627,34 +6597,23 @@ def extract_signals_ir(
             if _COST_INCREASE.search(raw):
                 continue
             add("cost_reduction", "you", "", raw)
-        # ADR-0027 β / #24 — debuff_matters structural arm (a -1/-1 / toughness-shrink
-        # removal-and-payoff lane). Two projected Effect forms anchor it:
-        #   • a `pump` OR `pump_target` Effect with a FIXED amount.factor < 0 — the
-        #     NEGATIVE factor IS the debuff signal. The static -N/-N folds onto a `pump`
-        #     (Dead Weight factor=-2; Weakness factor=-2 — an aura "Enchanted creature
-        #     gets -2/-2"); the SINGLE-TARGET / spell -N/-N folds onto a `pump_target`
-        #     once the pump-MAGNITUDE field reads the signed power/toughness (SIDECAR
-        #     v42 — Tragic Slip's "target creature gets -1/-1" factor=-1; Crippling
-        #     Blight, Debilitating Injury). A mixed-sign combat trick (Nameless
-        #     Inversion's +3/-3) projects factor=+3 (the POWER side), so factor<0
-        #     correctly leaves it OUT — it's a trick, not a pure debuff. The X-variable
-        #     "-X/-X" tail (The Meathook Massacre, Mutilate) and the "for each" scaler
-        #     (Curse of Death's Hold) project amount==None (phase drops the dynamic
-        #     magnitude), so they ride the kept regex mirror — add() dedups. CR 613.4c.
+        # ADR-0027 #24 Duration fast-follow — debuff_matters structural arm.
+        # Two projected Effect forms anchor it:
+        #   • a `pump` OR `pump_target` Effect with duration!="" AND a NEGATIVE amount
+        #     (or "-" in raw for the variable/dropped amount tail). Retires the
+        #     dynamic -X/-X regex mirror.
         #   • a `place_counter` Effect with counter_kind=="m1m1" that is NOT a self-
-        #     enter-with drawback. A real debuff puts -1/-1 counters on OTHER/target
-        #     creatures (Skinrender, Blight Rot, the scope=="any"/"opp" placements);
-        #     the 62-card self-drawback tail (persist/undying riders + "~ enters with
-        #     N -1/-1 counters" — Kitchen Finks, Carnifex Demon) projects scope=="you"
-        #     and is gated out. CR 122.1b / CR 613.
+        #     enter-with drawback (Kitchen Finks). CR 122.1b / CR 613.
         for e in ab.effects:
             amt = e.amount
-            is_neg_pump = (
-                e.category in ("pump", "pump_target")
-                and amt is not None
-                and amt.op == "fixed"
-                and isinstance(getattr(amt, "factor", None), int | float)
-                and amt.factor < 0
+            is_neg_pump = e.category in ("pump", "pump_target") and (
+                (
+                    amt is not None
+                    and amt.op == "fixed"
+                    and isinstance(getattr(amt, "factor", None), int | float)
+                    and amt.factor < 0
+                )
+                or (amt is None and e.duration and "-" in (e.raw or ""))
             )
             is_other_m1m1 = (
                 e.category == "place_counter"
@@ -7338,30 +7297,26 @@ def extract_signals_ir(
                 )
             ):
                 add("self_pump", "you", "", e.raw)
-            # ADR-0027 #24 — pump_matters structural arm (SIDECAR v42). The lane is a
-            # POSITIVE single-target combat-trick BUFF of ANOTHER creature ("target
-            # creature gets +N/+N"). The pump-MAGNITUDE field now reads the signed
-            # power onto the targeted pump, so the clean structural form is a
-            # `pump_target` Effect with a FIXED amount.factor > 0 over a real targeted
-            # CREATURE subject (the chosen target). This is DISJOINT from the self_pump
-            # firebreather arm above (which fires on subject None / SelfRef — a self-
-            # pump like Shivan Dragon's "{R}: ~ gets +1/+0" drops its subject to None,
-            # so it never reaches here). The "+N/+N AND gains <kw>" combat-trick form
-            # (phase folds the keyword grant + pump into a `pump` category with
-            # subject=None — Giant Growth-with-trample, Bull's Strength) and every
-            # X-VARIABLE pump ("gets +X/+X" → amount==None) carry no fixed
-            # positive-target shape here, so they ride the kept regex mirror
-            # (PUMP_MATTERS_REGEX) — the lane's combat-trick / firebreather /
-            # permanent-buff split otherwise needs phase's per-ability `duration` (a
-            # fast-follow projection field, not yet in the IR). add() dedups the overlap
-            # with the mirror. CR 122.1b / 613.4c.
+            # ADR-0027 Duration fast-follow (SIDECAR v44) — pump_matters structural arm.
+            # The lane is a POSITIVE combat-trick BUFF of ANOTHER creature ("target
+            # creature gets +N/+N"). `duration` identifies temporary buffs, retiring
+            # the mirror that kept the dynamic +X/+X and "AND gains <kw>" tricks alive.
+            # Disjoint from the self_pump firebreather arm above.
             if (
-                cat == "pump_target"
-                and e.amount is not None
-                and e.amount.op == "fixed"
-                and e.amount.factor > 0
-                and isinstance(e.subject, Filter)
-                and "Creature" in e.subject.card_types
+                e.category in ("pump", "pump_target")
+                and e.duration
+                and not (
+                    ab.kind == "activated"
+                    and (e.subject is None or _is_self_counter_marker(e.subject))
+                )
+                and (
+                    (
+                        e.amount is not None
+                        and e.amount.op == "fixed"
+                        and e.amount.factor > 0
+                    )
+                    or (e.amount is None and "+" in (e.raw or ""))
+                )
             ):
                 add("pump_matters", "you", "", e.raw)
             if cat == "place_counter" and e.counter_kind in _COUNTER_KIND_KEYS:

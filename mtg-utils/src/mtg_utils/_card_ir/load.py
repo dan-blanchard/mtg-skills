@@ -540,7 +540,11 @@ from mtg_utils.card_ir import Card
 #   the 42 commander-legal token-embedded makers + dork-support cards phase has no
 #   `ramp` effect for. ramp_matters 2099→1628 (-471 basic taplands); all other keys +
 #   voltron (3007) drift 0. CR 106.4 / 605 / 305.
-SIDECAR_VERSION = 43
+# v44 (ADR-0027 Duration fast-follow):
+#   Adds `Effect.duration` projected from `ability.duration` to distinguish temporary
+#   effects from permanent ones, fully retiring the pump_matters / debuff_matters
+#   dynamic -X/-X regex mirrors.
+SIDECAR_VERSION = 44
 
 
 def card_ir_dir() -> Path:
