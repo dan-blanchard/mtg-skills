@@ -7508,16 +7508,28 @@ def extract_signals_ir(
             if cat == "fight":
                 add("fight_matters", "you", "", e.raw)
             if cat == "ramp":
-                # ADR-0027 — ramp_matters (the recall-GAINING structural arm). Gated
-                # `not card_is_land`: a basic / dual / shock / triome's own tap-for-mana
-                # is the deck's MANA BASE, not ramp, and the deleted regex
-                # excluded it (reminder text, stripped pre-match). So
-                # the IR fires ramp_matters only for NON-LAND doers (rocks / dorks /
-                # rituals / land-auras / "tap-a-land-add-more" engines); the byte-
-                # identical _RAMP_MATTERS_REGEX kept mirror below re-adds the 1005
-                # nonbasic lands the regex DID fire on (non-reminder "{T}: Add" — Orzhov
-                # Guildgate, Eldrazi Temple) so no land recall is lost. CR 106.4 / 605.
-                if not card_is_land:
+                # ADR-0027 #24 — ramp_matters reads the `ramp` Mana effect STRUCTURE,
+                # on the LAND/TOKEN too (SIDECAR v43 — was the single biggest regex
+                # mirror, ~1,047 cards). A NONLAND ramp doer (rock / dork / ritual /
+                # land-aura / "tap-a-land-add-more" engine) is always acceleration —
+                # fire. A LAND's own tap-for-mana splits: a basic-equivalent SINGLE-
+                # color / single-{C} tap (a basic Forest, a mono man-land, a {C}
+                # utility land) is the deck's MANA BASE, NOT ramp — DON'T fire; a land
+                # whose ramp is ACCELERATION (`amount` factor>1 / op=="variable" — Sol
+                # Ring-land, Eldrazi Temple, Cabal Coffers, the karoo/filter lands) OR
+                # FIXING (`mana_kind=="fixing"` — a dual/triome's "Add {W} or {B}",
+                # City of Brass's any-color, Command Tower's commander-identity,
+                # Reflecting Pool's any-type) IS real ramp — fire. Replaces the byte-
+                # identical _RAMP_MATTERS_REGEX mirror over the 1,005 nonbasic lands; it
+                # now keeps ~202 real ramp lands and drops ~471 basic-equivalent
+                # taplands the old mirror over-supplied. The narrow nonland residue
+                # mirror below re-supplies only the token-embedded makers + dork-support
+                # cards phase has no `ramp` effect for. CR 106.4 / 605 / 305.
+                amt = e.amount
+                accel = amt is not None and (
+                    amt.op == "variable" or (amt.op == "fixed" and amt.factor > 1)
+                )
+                if not card_is_land or accel or e.mana_kind == "fixing":
                     add("ramp_matters", "you", "", e.raw)
                 # ADR-0027 — group_mana: a non-controller mana RECIPIENT in the ramp
                 # raw (phase emits scope='each' for ZERO ramp effects; the recipient
@@ -9683,18 +9695,23 @@ def extract_signals_ir(
     # add() dedups vs the structural doubler arm. CR 605.1a.
     if _MANA_DORK_SUPPORT_MIRROR.search(kept_oracle):
         add("mana_amplifier", "you", "", "")
-    # ADR-0027 — ramp_matters kept mirror (byte-identical to the deleted _HAND_FLOOR
-    # producer). Re-supplies the regex's exact firings the structural `not card_is_land`
-    # arm intentionally excludes: the 1005 nonbasic lands (their `ramp`
-    # effect is on the LAND, gated out) and the token-embedded "{T}: Add" makers (phase
-    # attributes the mana ability to the TOKEN). The dork-support arm ("creatures with a
-    # mana ability" — Raggadragga, Tazri, Katilda) rides _MANA_DORK_SUPPORT_MIRROR (the
-    # EXACT deleted 1368 producer). add() dedups vs the structural arm; high-confidence
-    # scope "you" — the deleted regex's firing identity. The reminder-stripped flat
-    # kept_oracle is equivalent to the deleted floor Detector's per-clause scan (the
-    # anchors use `[^.]*`, which never crosses a clause). CR 106.4 / 605.
-    if _RAMP_MATTERS_REGEX.search(kept_oracle) or _MANA_DORK_SUPPORT_MIRROR.search(
-        kept_oracle
+    # ADR-0027 #24 — ramp_matters NARROW residue mirror (gated `not card_is_land`).
+    # The structural arm above reads every LAND's ramp directly (accel / fixing fire,
+    # basic-equivalent taps drop — SIDECAR v43 mana_kind), so the 1,005-nonbasic-land
+    # re-supply this mirror used to carry is GONE. What phase has NO `ramp` effect for
+    # is the residue this still covers (42 commander-legal): the token-embedded "{T}:
+    # Add" makers — the mana ability is attributed to the CREATED token, not the maker
+    # (Eldrazi-Spawn/Scion makers, Liliana's Swamp, Freyalise's mana-Elf, Kibo's
+    # Banana, Old-Growth Troll's Forest aura) — plus cast-trigger / cumulative-upkeep
+    # rituals phase types off the ramp lane (Braid of Fire, Plasm Capture, Tundra
+    # Fumarole, Eldrazi Confluence's "add X mana in any combination"). The dork-support
+    # arm ("creatures with a mana ability" — Raggadragga, Tazri, Katilda) rides
+    # _MANA_DORK_SUPPORT_MIRROR. Gated to nonland so a basic-equivalent LAND can never
+    # re-enter through the regex (the structural arm is now authoritative for lands).
+    # add() dedups vs the structural arm; high-confidence scope "you". CR 106.4 / 605.
+    if not card_is_land and (
+        _RAMP_MATTERS_REGEX.search(kept_oracle)
+        or _MANA_DORK_SUPPORT_MIRROR.search(kept_oracle)
     ):
         add("ramp_matters", "you", "", "")
     # ADR-0027 — artifacts_matter NARROWED kept mirror. The structural arms above (the

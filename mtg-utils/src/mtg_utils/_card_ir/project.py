@@ -2608,10 +2608,18 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     # (the two lanes read the sign). The static-anthem `pump` (from
     # `_project_static_mods`) is unaffected — it already carries its magnitude from the
     # AddPower modification value. CR 613.4c.
+    # ADR-0027 #24 mana-source KIND (SIDECAR v43) — a Mana effect's produced mana is
+    # classified "fixing" (multi-color/any-color choice) vs "basic" (single-color tap)
+    # off phase's `produced.type`, the ramp-vs-mana-base axis the factor-only `amount`
+    # can't see (a dual's "Add {W} or {B}" and a basic's "Add {G}" are both factor 1).
+    # ramp_matters fires on a land whose ramp is acceleration (amount) OR fixing, and
+    # DROPS a basic-equivalent single-color tap. CR 106.4 / 605.
+    mana_kind = ""
     if category in ("pump", "pump_target"):
         amount = _pump_amount(eff, raw)
     elif etype == "mana":
         amount = _mana_amount(eff)
+        mana_kind = _mana_kind(eff)
     else:
         amount = _amount(eff)
     return [
@@ -2622,6 +2630,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
             subject=subject,
             raw=raw,
             counter_kind=counter_kind,
+            mana_kind=mana_kind,
             zones=_zone_tags(eff),
         ),
         *_enter_with_counter_effects(eff, raw),
@@ -3240,6 +3249,65 @@ def _mana_amount(eff: dict) -> Quantity | None:
     if isinstance(colors, list) and colors:
         return Quantity(op="fixed", factor=len(colors))
     return None
+
+
+# phase ``produced.type`` values that are intrinsically a CHOICE of color / any-color /
+# any-type — a producer that FIXES (Command Tower's commander-identity, City of Brass's
+# any-color, Reflecting Pool's any-type, a filter land's WW/WU/UU choice, a "color of a
+# permanent you control" / opponent-land / chosen-color tap). Off-color fixing the
+# factor-only ``amount`` can't see, so the ramp_matters lane reads it. ADR-0027 #24
+# (SIDECAR v43). CR 106.4 / 605.
+_FIXING_PRODUCED_TYPES: frozenset[str] = frozenset(
+    {
+        "AnyInCommandersColorIdentity",
+        "AnyTypeProduceableBy",
+        "ChoiceAmongCombinations",
+        "ChosenColor",
+        "OpponentLandColors",
+        "DistinctColorsAmongPermanents",
+        "AnyOneColorAmongPermanents",
+        "ChoiceAmongExiledColors",
+    }
+)
+
+
+def _mana_kind(eff: dict) -> str:
+    """Classify a ``Mana`` effect's produced mana as ``"fixing"`` vs ``"basic"`` from
+    phase's ``produced.type`` (ADR-0027 #24, SIDECAR v43). The ramp-vs-mana-base axis
+    the factor-only ``amount`` can't see — a dual/triome's "Add {W} or {B}" and a basic
+    Forest's "Add {G}" are both ``amount`` factor 1, but the dual is off-color FIXING
+    and the basic is the deck's MANA BASE. ``signals.ramp_matters`` fires on a land
+    whose ramp is acceleration (read off ``amount``) OR ``"fixing"``, and DROPS a
+    basic-equivalent single-color tap.
+
+      • ``"fixing"`` — a CHOICE of two or more distinct colors / any-color / any-type:
+        ``AnyOneColor`` / ``AnyCombination`` with ≥2 color options; ``Fixed`` /
+        ``Mixed`` with ≥2 distinct colors (a dual that makes BOTH — Boros Garrison's
+        {R}{W}); and the intrinsically-fixing ``produced.type`` family
+        (``_FIXING_PRODUCED_TYPES`` — commander-identity, any-type, chosen-color,
+        opponent-land, …).
+      • ``"basic"`` — a single-color or single-colorless tap: ``Fixed`` / ``Mixed`` with
+        one distinct color, ``AnyOneColor`` / ``AnyCombination`` with one option,
+        ``Colorless``, ``TriggerEventManaType`` (a one-color replacement).
+      • ``""`` — no ``produced`` shape (degrade, never fail).
+
+    Magnitude (factor / variable) is NOT consulted: a Dark Ritual ({B}{B}{B}) is "basic"
+    here (one distinct color) yet still fires ramp_matters via its factor-3 ``amount``.
+    CR 106.4 / 605."""
+    produced = eff.get("produced")
+    if not isinstance(produced, dict):
+        return ""
+    ptype = produced.get("type")
+    if ptype in _FIXING_PRODUCED_TYPES:
+        return "fixing"
+    opts = produced.get("color_options")
+    if isinstance(opts, list):
+        return "fixing" if len(set(opts)) >= 2 else "basic"
+    colors = produced.get("colors")
+    if isinstance(colors, list):
+        return "fixing" if len(set(colors)) >= 2 else "basic"
+    # Colorless / Mixed-one-color / TriggerEventManaType / single-color → mana base.
+    return "basic"
 
 
 def _library_position_effect(eff: dict, raw: str) -> Effect:

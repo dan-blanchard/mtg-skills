@@ -520,7 +520,27 @@ from mtg_utils.card_ir import Card
 #   rides the kept regex mirror (the trick-vs-permanent split wants phase's per-ability
 #   `duration` — a fast-follow). Static-anthem `pump` is unchanged. Other keys + voltron
 #   drift 0. CR 613.4c (layer 7c) / 702.25a.
-SIDECAR_VERSION = 42
+# v43 (ADR-0027 #24 mana-source KIND — Effect.mana_kind; project.py `_mana_kind`):
+#   `ramp_matters` was the single biggest regex MIRROR (~1,047 cards). The `ramp`
+#   effect IS structured, but the signals arm gated OUT `card_is_land`, dropping the
+#   1,005 nonbasic ramp lands (their ramp is ON the land) + token-embedded "{T}: Add"
+#   makers; a byte-identical _RAMP_MATTERS_REGEX mirror re-supplied all of them. phase
+#   carries the produced mana's COLORING under `produced.type` (Fixed/Colorless single
+#   vs AnyOneColor[≥2] / AnyInCommandersColorIdentity / AnyTypeProduceableBy /
+#   ChoiceAmongCombinations / …), but project read only the COUNT (`_mana_amount`'s
+#   factor), so a basic Forest's single-color tap was indistinguishable from a dual's
+#   off-color fixing — both factor 1. `_mana_kind` projects the new `Effect.mana_kind`
+#   ("fixing" = a multi-color/any-color/any-type producer; "basic" = a single-color/
+#   colorless mana-base tap). signals now fires ramp_matters on a LAND whose ramp is
+#   ACCELERATION (amount.factor>1 / op=="variable" — already projected) OR "fixing",
+#   and DROPS the basic-equivalent single-color taplands the old mirror over-supplied
+#   (CR 305.6: a basic land's intrinsic ability is exactly one single-color tap). The
+#   1,005 nonbasic lands shrink to ~534 real ramp lands read structurally; the
+#   _RAMP_MATTERS_REGEX/_MANA_DORK_SUPPORT mirror is GATED to nonland, re-supplying only
+#   the 42 commander-legal token-embedded makers + dork-support cards phase has no
+#   `ramp` effect for. ramp_matters 2099→1628 (-471 basic taplands); all other keys +
+#   voltron (3007) drift 0. CR 106.4 / 605 / 305.
+SIDECAR_VERSION = 43
 
 
 def card_ir_dir() -> Path:

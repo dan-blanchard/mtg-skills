@@ -105,6 +105,20 @@ class Effect:
     # Cloister — return to hand / a separate death trigger / another ability) keeps it
     # empty. Empty ⇒ byte-identical to v33 (set only on the genuine same-ability blink).
     returns_to: str = ""  # "" | battlefield (the exile-and-return destination)
+    # ADR-0027 #24 mana-source kind (SIDECAR v43): for a ``ramp`` (Mana) effect, how
+    # the produced mana is COLORED — phase's ``produced.type`` discriminator projected
+    # to the ramp-vs-mana-base axis. "fixing" = a multi-color / any-color / any-type
+    # producer (a dual/triome's "Add {W} or {B}", City of Brass's any-color, Command
+    # Tower's commander-identity, Reflecting Pool's any-type, a filter land's
+    # WW/WU/UU) — off-color fixing the ``amount`` (factor==1) can't see. "basic" = a
+    # single-color or single-colorless tap (a basic Forest, a mono-color man-land, a
+    # {C} utility land) — the deck's MANA BASE, NOT acceleration. Empty ⇒ not a mana
+    # producer (or a producer phase carried no ``produced`` shape). ACCELERATION (>1
+    # mana — Sol Ring, Eldrazi Temple, a variable scaler) is orthogonal and read off
+    # ``amount`` (factor>1 / op=="variable"), so the ramp_matters lane fires on a land
+    # whose ramp is acceleration OR fixing, and DROPS a basic-equivalent single-color
+    # tap. CR 106.4 / 605.
+    mana_kind: str = ""  # "" | basic | fixing
     # Directional non-battlefield zone references this effect structurally touches,
     # e.g. ("from:graveyard", "to:exile") for "exile target card from a graveyard",
     # ("in:graveyard",) for a target/count filtered to the graveyard. Lane-agnostic
@@ -493,6 +507,8 @@ def _effect_to_dict(e: Effect) -> dict:
         out["ck"] = e.counter_kind
     if e.returns_to:
         out["rt"] = e.returns_to
+    if e.mana_kind:
+        out["mk"] = e.mana_kind
     if e.zones:
         out["z"] = list(e.zones)
     return out
@@ -508,6 +524,7 @@ def _effect_from_dict(d: dict) -> Effect:
         clause_raw=d.get("craw", ""),
         counter_kind=d.get("ck", ""),
         returns_to=d.get("rt", ""),
+        mana_kind=d.get("mk", ""),
         zones=tuple(d.get("z", ())),
     )
 
