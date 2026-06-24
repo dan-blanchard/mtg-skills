@@ -36,7 +36,7 @@ from mtg_utils.scryfall_lookup import (
     lookup_single,
 )
 
-SCRYFALL_RULINGS_URL = "https://api.scryfall.com/cards/{oracle_id}/rulings"
+SCRYFALL_RULINGS_URL = "https://api.scryfall.com/cards/{card_id}/rulings"
 
 # 30 days — rulings are stable; the occasional errata-driven update is
 # rare enough that a monthly re-fetch is more than sufficient.
@@ -59,12 +59,12 @@ def _cache_is_fresh(path: Path) -> bool:
 
 
 def _fetch_rulings(
-    oracle_id: str,
+    card_id: str,
     session: requests.Session,
 ) -> list[dict]:
     """Hit Scryfall ``/cards/:id/rulings`` and return its ``data`` list."""
     time.sleep(RATE_LIMIT_DELAY)
-    url = SCRYFALL_RULINGS_URL.format(oracle_id=oracle_id)
+    url = SCRYFALL_RULINGS_URL.format(card_id=card_id)
     resp = session.get(url, timeout=15)
     resp.raise_for_status()
     body = resp.json()
@@ -107,6 +107,7 @@ def lookup_rulings(
         # Some Scryfall responses (e.g., tokens) lack oracle_id; skip
         # them rather than erroring so batch callers keep progressing.
         return {"name": name, "oracle_id": None, "rulings": []}
+    card_id = card.get("id")
 
     cache_path = _cache_path(oracle_id)
     if not refresh and _cache_is_fresh(cache_path):
@@ -117,8 +118,11 @@ def lookup_rulings(
         except (OSError, json.JSONDecodeError):
             pass  # fall through to refetch
 
+    if not card_id:
+        return {"name": name, "oracle_id": oracle_id, "rulings": []}
+
     session = session or _new_session()
-    rulings = _fetch_rulings(oracle_id, session)
+    rulings = _fetch_rulings(card_id, session)
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     atomic_write_json(cache_path, rulings)
     return {"name": name, "oracle_id": oracle_id, "rulings": rulings}
