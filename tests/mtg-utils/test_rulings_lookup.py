@@ -15,7 +15,12 @@ from mtg_utils.rulings_lookup import (
     main,
 )
 
-_FAKE_CARD = {"name": "Sol Ring", "oracle_id": "oid-solring", "legalities": {}}
+_FAKE_CARD = {
+    "id": "card-solring",
+    "name": "Sol Ring",
+    "oracle_id": "oid-solring",
+    "legalities": {},
+}
 _FAKE_RULINGS = [
     {"published_at": "2020-01-01", "comment": "Taps for 2."},
     {"published_at": "2022-06-01", "comment": "Still legal."},
@@ -42,15 +47,41 @@ def _mock_session() -> MagicMock:
 
 class TestLookupRulings:
     def test_returns_card_rulings(self, tmp_path):
+        session = _mock_session()
         with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
             result = lookup_rulings(
                 "Sol Ring",
-                session=_mock_session(),
+                session=session,
                 refresh=True,
             )
         assert result["name"] == "Sol Ring"
         assert result["oracle_id"] == "oid-solring"
         assert len(result["rulings"]) == 2
+        session.get.assert_called_once_with(
+            "https://api.scryfall.com/cards/card-solring/rulings",
+            timeout=15,
+        )
+
+    def test_rulings_lookup_uses_card_id_not_oracle_id(self, tmp_path):
+        card = {
+            "id": "card-uuid",
+            "oracle_id": "oracle-uuid",
+            "name": "Karn, the Great Creator",
+        }
+        session = _mock_session()
+
+        with patch("mtg_utils.rulings_lookup.lookup_single", return_value=card):
+            lookup_rulings(
+                "Karn, the Great Creator",
+                session=session,
+                refresh=True,
+            )
+
+        session.get.assert_called_once_with(
+            "https://api.scryfall.com/cards/card-uuid/rulings",
+            timeout=15,
+        )
+        assert (_cache_dir() / "oracle-uuid.json").exists()
 
     def test_cached_result_reused(self, tmp_path):
         with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):

@@ -48,6 +48,7 @@ class TestLookupSingle:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
+            "id": "newly-printed-card-id",
             "name": "Newly Printed Card",
             "oracle_text": "Does something new.",
             "mana_cost": "{2}{W}",
@@ -70,6 +71,7 @@ class TestLookupSingle:
             result = lookup_single("Newly Printed Card", bulk_path=sample_bulk_data)
 
         assert result is not None
+        assert result["id"] == "newly-printed-card-id"
         assert result["name"] == "Newly Printed Card"
 
     def test_returns_none_when_not_found(self, sample_bulk_data):
@@ -256,6 +258,10 @@ class TestLookupBatchDeckJSON:
 
 
 class TestRarityField:
+    def test_lookup_includes_scryfall_card_id(self, sample_bulk_data):
+        result = lookup_single("Sol Ring", bulk_path=sample_bulk_data)
+        assert result["id"] == "ddd-sol-ring"
+
     def test_lookup_includes_rarity(self, sample_bulk_data):
         result = lookup_single("Sol Ring", bulk_path=sample_bulk_data)
         assert "rarity" in result
