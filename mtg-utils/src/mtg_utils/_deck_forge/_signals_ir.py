@@ -1479,28 +1479,34 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # ADR-0027 — discard_matters (the loot/rummage discard-as-enabler outlet). The
-    # structural arm (a `discarded` trigger, scope != "opp") covers the Madness /
-    # "whenever you discard" / "opp causes you to discard this card" PAYOFFS, but the
-    # loot/rummage OUTLET ("draw N cards[.,] then/you/may discard" — Careful Study,
-    # Merfolk Looter, Faithless Looting, Alpharael) is a draw-Effect-then-discard-
-    # Effect co-occurrence phase carries NO `discarded` trigger for. So this byte-
-    # identical mirror of the deleted _LOOT_FULLTEXT_RE producer recovers the loot
-    # outlets the structural arm alone misses. Run as a flat .search over the reminder-
-    # STRIPPED kept_oracle — byte-identical to the deleted producer's
-    # `re.sub(r"\([^)]*\)", " ", …)`-stripped input (and joining DFC faces via
-    # get_oracle_text, so a back-face loot — Careful Study on Spellbook Seeker's back —
-    # still fires). Combined (struct + loot mirror) reproduces the deleted regex with
-    # regex_only==0 + 74 genuine you/any-scoped self-discard recall gains and 0 opp
-    # over-fire (the loot regex never matches an opp-discard punisher). The
-    # _LOOT_FULLTEXT_RE adjacency (the discard ADJACENT to the draw, one period/comma)
-    # keeps an unrelated later "discard" out, exactly as the deleted producer did.
-    # CR 702.35 / 120.1.
+    # ADR-0027 (C11_loot) — discard_matters loot/rummage/connive OUTLET: the BULK now
+    # rides the structural draw-co-occurrence arm in extract_signals_ir (search
+    # "C11_loot, SIGNALS-ONLY") — an ability with BOTH a `draw` Effect and a `discard`
+    # Effect scope in ('you','each'). That arm GAINS the reverse-order / connive /
+    # cross-sentence / differently-phrased looters the old `draw N, then discard`
+    # adjacency regex never matched (+252) and DROPS its cross-ability `\s*` false-
+    # fires — the activated-ability "Discard N:" COSTS in a SEPARATE ability that the
+    # old regex bridged (Psychic Frog, Ghostly Pilferer, Nezahal, Dream Trawler: a
+    # draw trigger then a colon-cost discard, never a loot).
+    #
+    # This NARROWED keep-mirror is the DEFERRED partial-parse projection tail: ~6 cards
+    # are genuine "draw N, then discard" looters phase under-structures (it emits the
+    # draw Effect but DROPS the conditional/branchy discard — Steamcore Scholar "draw
+    # two. Then discard two unless …", Fearless Swashbuckler, Pollywog Symbiote,
+    # Katara, The Destined Thief, the Market aftermath face). The proper fix is a
+    # supplement "draw-raw says 'then discard' but no discard Effect → synthesize the
+    # discard" recovery (a SIDECAR bump — DEFERRED to a projection pass, Batch A stays
+    # bump-free). Until then this mirror requires the loot CONNECTIVE "then" between
+    # draw and discard (NOT a bare sentence-break + "Discard …:" cost), so it recovers
+    # exactly those partial-parse looters and provably excludes the 4 colon-cost false-
+    # fires (verified over the commander-legal corpus: 0 of the false-4, 6 of 6
+    # genuine). UNIONed with the structural arm it is purely additive. CR 701.50
+    # (connive = "draws a card, then discards a card") / 701.9a (discard).
     (
         "discard_matters",
         re.compile(
-            r"\bdraw (?:a|an|two|three|four|five|x|\d+) cards?[.,]?\s*"
-            r"(?:then )?(?:you )?(?:may )?discard",
+            r"\bdraw (?:a|an|two|three|four|five|x|\d+) cards?[.,]?\s+then "
+            r"(?:you )?(?:may )?discard",
             re.IGNORECASE,
         ),
         "you",
@@ -6771,6 +6777,35 @@ def extract_signals_ir(
                     add("creature_ping", "you", "", recip_src)
                 if recip_player or _DAMAGE_EQUAL_POWER_ORACLE.search(recip_src):
                     add("damage_equal_power", "you", "", recip_src)
+        # ADR-0027 (C11_loot, SIGNALS-ONLY) — discard_matters loot/rummage/connive
+        # OUTLET structural arm. An Ability carrying BOTH a `draw` Effect AND a
+        # `discard` Effect scope in ('you','each') is a self-loot/rummage/connive
+        # outlet — phase structures the discard as a SIBLING Effect in the SAME
+        # ability (Faithless Looting: draw(you,2)+discard(you,2); Merfolk Looter:
+        # activated draw(you)+discard(you); Windfall: draw(each)+discard(each)). The
+        # draw-co-occurrence gate is the loot-family discriminator (CR 701.50 connive
+        # = "draws a card, then discards a card"; 701.48 learn; loot / rummage are all
+        # draw+discard SELF outlets), keeping pure-discard outlets (Wild Mongrel) in
+        # discard_outlet only — matching this lane's "loot/connive" intent. This
+        # REPLACES the deleted `draw N, then discard` byte-mirror, which both MISSED
+        # reverse-order / connive / cross-sentence / differently-phrased looters
+        # (Battlewing Mystic, Murder of Crows, Riddlesmith, Careful Consideration,
+        # Syphon Mind) AND false-fired on cross-ability `\s*` bridges (Psychic Frog,
+        # Nezahal — a combat-damage draw trigger + a SEPARATE "Discard a card:" cost
+        # in DIFFERENT abilities, no per-ability co-occurrence). The `discarded`
+        # TRIGGER scope!=opp self-discard PAYOFF arm (below) is untouched. CR 701.9a
+        # (discard) / 701.50 (connive).
+        if any(e.category == "draw" for e in ab.effects):
+            _loot_disc = next(
+                (
+                    e
+                    for e in ab.effects
+                    if e.category == "discard" and e.scope in ("you", "each")
+                ),
+                None,
+            )
+            if _loot_disc is not None:
+                add("discard_matters", "you", "", _loot_disc.raw or "")
         for e in ab.effects:
             # creatures_matter = a go-wide/scaling lane: a count operand over your
             # creatures (any effect), OR an anthem buffing them (a pump's affected

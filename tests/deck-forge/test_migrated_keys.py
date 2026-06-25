@@ -1476,9 +1476,11 @@ _CASES: dict[str, tuple[dict, Card]] = {
     # Madness — phase parses "If you discard this card, …" as a `discarded` trigger
     # scope 'you', which the scope-gated structural arm keeps; an OPP-scoped discarded
     # trigger is the separate opponent_discard punisher lane, excluded). The loot/
-    # rummage OUTLET ("draw N cards, then discard") has no `discarded` trigger and
-    # rides the byte-identical _LOOT_FULLTEXT_RE _IR_KEPT_DETECTORS mirror instead.
-    # ADR-0027.
+    # rummage OUTLET ("draw N cards, then discard") has no `discarded` trigger; it now
+    # rides the STRUCTURAL draw-co-occurrence arm (an ability with BOTH a `draw` Effect
+    # and a `discard` Effect scope in ('you','each')), with a NARROWED "then discard"
+    # _IR_KEPT_DETECTORS mirror only for the partial-parse tail phase drops the discard
+    # from (Steamcore Scholar). ADR-0027 (C11_loot).
     "discard_matters": (
         {
             "name": "Basking Rootwalla",
