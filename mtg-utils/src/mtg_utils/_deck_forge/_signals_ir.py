@@ -417,10 +417,26 @@ _PAYOFF_TRIGGER_KEYS: dict[str, tuple[str, str | None]] = {
     # event) carry the Rampage / Bushido / Flanking / Afflict / Infect keyword
     # triggers whose "becomes blocked" text lives in stripped reminder (the deleted
     # regex missed them), PLUS the textual "whenever this creature becomes blocked"
-    # payoffs (Vedalken Ghoul, Razorclaw Bear). The byte mirror (BLOCKED_MATTERS_REGEX
-    # in _IR_KEPT_DETECTORS) recovers the blocker-side "whenever X blocks" half the
-    # arm intentionally does NOT fold in. CR 702.45a / 702.25a / 702.131.
+    # payoffs (Vedalken Ghoul, Razorclaw Bear). CR 702.45a / 702.25a / 702.131.
     "becomes_blocked": ("blocked_matters", "you"),
+    # ADR-0027 Cluster C12 (SIGNALS-ONLY — `blocks` already in SIDECAR 45) — the
+    # BLOCKER-side payoff (CR 509.3a "Whenever ~ blocks" / 509.3b "blocks a creature").
+    # phase emits a structural `blocks` event distinct from the attacker-side
+    # `becomes_blocked` (project.py _trigger_event splits them along CR 509.1g/h). This
+    # arm RE-KEYS the "whenever ~ blocks" cards the byte mirror caught AND gains +10 NET
+    # one-shot "When ~ blocks" deterrent blockers the whenever-anchored regex always
+    # MISSED (Loyal Sentry, Wall of Junk, Defiant Vanguard, Cinder Wall, Alaborn Zealot,
+    # Ageless Sentinels, Elder Land Wurm, Stoic Ephemera, Zephyr Spirit, Dwindle; the
+    # 11th candidate Kessig Forgemaster // Flameheart Werewolf already fired via the
+    # regex on its werewolf back face, so net +10 not +11). Bushido
+    # Samurai carry BOTH `blocks` and `becomes_blocked` (CR 702.45a) — add() dedups, net
+    # 0. fixed_scope='you' is safe: 0 opponent-side `blocks` trigger exists to over-fire
+    # (symmetric scope='any' forms like Carnage Gladiator correctly open a 'you' build-
+    # around). Precedent: combat_buff_engine already reads the `blocks` event. The
+    # narrowed inline BLOCKED_MATTERS_REGEX mirror (extract_signals_ir, structurally
+    # gated) now recovers ONLY the disjunctive "attacks or blocks" fold (phase →
+    # event=='other') + the genuinely-trigger-less tail. CR 509.3a/b.
+    "blocks": ("blocked_matters", "you"),
     # Batch 1 — payoff trigger events newly projected in _trigger_event.
     "commit_crime": ("crimes_matter", "you"),
     "scried": ("scry_surveil_matters", "you"),
@@ -1066,24 +1082,14 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(PROTECTION_GRANT_REGEX, re.IGNORECASE),
         "you",
     ),
-    # ADR-0027 Cluster D — blocked_matters BYTE-IDENTICAL kept WORD MIRROR (the
-    # declare-blockers combat-trigger lane; pinned as BLOCKED_MATTERS_REGEX in
-    # _sweep_detectors). The STRUCTURAL becomes_blocked arm (_PAYOFF_TRIGGER_KEYS in
-    # extract_signals_ir — phase's BecomesBlocked / AttackerBlocked modes) covers the
-    # ATTACKER-side payoff (CR 509.3c) and adds the Rampage/Bushido/Flanking/Afflict/
-    # Infect keyword reminder triggers this regex missed; this mirror recovers the
-    # BLOCKER-side "whenever <creature> blocks" half (CR 509.3a — arm 2 of the regex)
-    # the structural arm deliberately does NOT fold in, PLUS the textual "whenever this
-    # creature becomes blocked" payoffs (arm 1) the arm ALSO covers (add() dedups). The
-    # two `[^.]*` arms never cross a sentence boundary, so a FLAT search over the
-    # reminder-stripped kept_oracle == the deleted per-clause SWEEP firing byte-
-    # identically (verified 0 flat-only / 0 clause-only over the commander-legal
-    # corpus). scope 'you' (the deleted SWEEP row's scope). CR 509.3a/c.
-    (
-        "blocked_matters",
-        re.compile(BLOCKED_MATTERS_REGEX, re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 Cluster C12 — blocked_matters mirror MOVED to a structurally-gated
+    # inline mirror in extract_signals_ir (search _BLOCKED_MATTERS_MIRROR). Both the
+    # attacker-side `becomes_blocked` and the blocker-side `blocks` payoffs are now
+    # STRUCTURAL (_PAYOFF_TRIGGER_KEYS), so the flat byte mirror would only shadow
+    # already-structured cards. The inline gated mirror recovers ONLY the residue with
+    # NO structural blocked_matters: the disjunctive "Whenever ~ attacks or blocks"
+    # cards phase folds to event=='other' + the genuinely-trigger-less tail (quoted-
+    # token / floating-delayed / equip-grant). CR 509.3a/b.
     # ADR-0027 #24 — tap_down NARROW residue mirror. The structural `cat=='tap'` +
     # `subject.controller=='opp'` arm (+ `cat=='detain'`) in extract_signals_ir now
     # carries the lane (the inventory's "controller dropped" note was STALE — phase
@@ -5232,6 +5238,20 @@ _ABILITY_COPY_MIRROR = re.compile(ABILITY_COPY_REGEX, re.IGNORECASE)
 # period), so this full-text scan == the deleted per-clause SWEEP firing (commander-
 # legal: 69==69, no divergence). add() dedups vs the structural arm. CR 509.1c.
 _LURE_MATTERS_MIRROR = re.compile(LURE_MATTERS_REGEX, re.IGNORECASE)
+# ADR-0027 Cluster C12 — blocked_matters NARROWED inline mirror (the EXACT pinned
+# BLOCKED_MATTERS_REGEX, gated to faces with NO structural blocked_matters). The
+# attacker-side `becomes_blocked` and blocker-side `blocks` triggers are both
+# structural (_PAYOFF_TRIGGER_KEYS); this mirror recovers ONLY the residue phase emits
+# no blocks/becomes_blocked trigger for: the disjunctive "Whenever ~ attacks or blocks"
+# cards phase folds to event=='other' (the first effect's `raw` still begins that way,
+# but the trigger event string can't hold a disjunction) and the genuinely-trigger-less
+# tail (quoted-token abilities, floating delayed triggers on spells, equip/augment
+# grants). Both regex arms are `[^.]`-bounded inside a clause, so a flat scan over the
+# reminder-stripped kept_oracle == the deleted per-clause SWEEP firing. add() dedups vs
+# the structural arms; the gate short-circuits the already-structured majority. The
+# CONSTANT BLOCKED_MATTERS_REGEX is also reused by the serve spec (signal_specs.py) —
+# do NOT delete it. CR 509.3a/b.
+_BLOCKED_MATTERS_MIRROR = re.compile(BLOCKED_MATTERS_REGEX, re.IGNORECASE)
 # gain_control NARROWED kept mirror (ADR-0027 β): the structural arm below
 # (cat=='gain_control', excl donate / Owned-return / give-away) is broad and correct,
 # but phase emits NO gain_control category for 9 genuine theft cards — Seize the
@@ -10584,6 +10604,19 @@ def extract_signals_ir(
         kept_oracle
     ):
         add("lure_matters", "you", "", "")
+
+    # ADR-0027 Cluster C12 blocked_matters NARROWED inline mirror (structurally gated):
+    # the attacker-side `becomes_blocked` + blocker-side `blocks` payoffs fire
+    # structurally above (_PAYOFF_TRIGGER_KEYS). This recovers ONLY the residue with no
+    # structural blocked_matters — the disjunctive "Whenever ~ attacks or blocks" cards
+    # phase folds to event=='other' + the genuinely-trigger-less tail (quoted-token /
+    # floating-delayed / equip-grant). Flat over kept_oracle == the deleted per-clause
+    # SWEEP firing; add() would dedup, the gate short-circuits the structured majority.
+    # scope 'you' (the deleted SWEEP row's scope). CR 509.3a/b.
+    if not any(
+        s.key == "blocked_matters" for s in out
+    ) and _BLOCKED_MATTERS_MIRROR.search(kept_oracle):
+        add("blocked_matters", "you", "", "")
 
     # ADR-0027 token-subtype (face-level fallback): an Aftermath DFC whose "<Subtype>
     # token" back face phase never projects into the IR (Indulge // Excess) keeps the
