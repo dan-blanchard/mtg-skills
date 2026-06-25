@@ -20,6 +20,7 @@ from dataclasses import replace
 
 from mtg_utils._card_ir.supplement import (
     _copied_type_from_text,
+    _recover_base_pt_set,
     _recover_combat_damage_recipients,
     recover_effect_from_text,
     supplement_card,
@@ -179,6 +180,46 @@ _FIXED_BASE_PT_RE = re.compile(
 _DYNAMIC_BASE_PT_RE = re.compile(
     r"base \w+[^.]{0,40}equal to|each equal to", re.IGNORECASE
 )
+
+# ADR-0027 base-P/T SET debuff magnitude + scope (SIDECAR v45). The TOUGHNESS is the
+# death-relevant stat — a 7b set to ≤2 plus a 7c -1/-1 (CR 613.4c) leaves toughness
+# 0 → dies (CR 704.5g) — so debuff_matters reads ``amount.factor``. A power-only /
+# dynamic "X/X" set names no fixed toughness → op="variable" (no shrink magnitude).
+_BASE_PT_SET_TOUGH = re.compile(
+    r"base power and toughness \d+/(\d+)|base toughness (\d+)", re.IGNORECASE
+)
+# A single-creature ATTACHMENT (an Aura / Equipment whose affected set is the lone
+# enchanted/equipped creature) — NOT a mass anthem, so it must stay scope "any" (a
+# neutralize is removal, not a -1/-1 payoff). The mass "all/other/non-X creatures"
+# symmetric set has none of these.
+_SINGLE_ATTACH_PREDS = frozenset({"EnchantedBy", "Equipped"})
+
+
+def _base_pt_set_amount(desc: str) -> Quantity:
+    """The toughness a fixed base-P/T set sets (the debuff-relevant stat), or
+    op="variable" for a power-only / dynamic X/X set that names no fixed toughness."""
+    m = _BASE_PT_SET_TOUGH.search(desc or "")
+    if m is None:
+        return Quantity(op="variable")
+    return Quantity(op="fixed", factor=int(m.group(1) or m.group(2)))
+
+
+def _base_pt_set_scope(affected: Filter | None) -> str:
+    """The scope of a base-P/T set: the affected set's controller (you / opp), with a
+    MASS-symmetric "all/other/non-X creatures" set (controller any, NOT a single-
+    creature Aura/Equipment) promoted to "each" so debuff_matters can tell a
+    table-wide shrink (Humility, Godhead of Awe) from a single-target neutralize
+    (subject None / EnchantedBy → "any", removal). CR 613.4b."""
+    base = _controller_scope(affected)
+    if (
+        base == "any"
+        and isinstance(affected, Filter)
+        and "Creature" in affected.card_types
+        and not (_SINGLE_ATTACH_PREDS & set(affected.predicates))
+    ):
+        return "each"
+    return base
+
 
 # ADR-0027 discard-discarder scope (SIDECAR v26). A Discard effect whose discarder is a
 # bare ``Player`` target ("target player discards" / "that player discards") carries the
@@ -554,6 +595,14 @@ def project_card(records: list[dict]) -> Card:
     # not in supplement_card, because the joined oracle (the recipient discriminator)
     # lives on the phase records, not the Card. CR 510.1b / 510.1c.
     card = _recover_combat_damage_recipients(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
+    # ADR-0027 (SIDECAR v45) — base-P/T SET residue: synthesize a base_pt_set static
+    # from the raw oracle for the layer-7b set-P/T statics phase drops wholly (empty
+    # IR for all 222 "base power/toughness N" cards — Maha, Humility, Godhead of Awe),
+    # so the MIGRATED debuff_matters lane reads a mass opponent/symmetric shrink
+    # structurally. Same joined-oracle seam as combat-damage above. CR 613.4b.
+    card = _recover_base_pt_set(
         card, "\n".join(r.get("oracle_text") or "" for r in records)
     )
     # Post-supplement removal target-subject recovery (ADR-0027 removal_matters
@@ -2948,8 +2997,9 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
         out.append(
             Effect(
                 category="base_pt_set",
-                scope=_controller_scope(affected),
+                scope=_base_pt_set_scope(affected),
                 subject=affected,
+                amount=_base_pt_set_amount(desc),
                 raw=desc,
             )
         )

@@ -4041,9 +4041,16 @@ def test_self_dies_recursion_opens_self_death_payoff():
 
 def test_opponent_shrink_opens_debuff():
     # Maha shrinks opponents' creatures ("Creatures your opponents control have base
-    # toughness 1") — it combos with -1/-1 effects (toughness 1 + any -1/-1 = dead), so
-    # it's a debuff commander wanting -1/-1 anthems/wipes (Kaervek the Spiteful, Black
-    # Sun's Zenith). It opened base_pt_set/stax but not debuff_matters. Real oracle.
+    # toughness 1") — a -1/-1 ENABLER: CR 613.4b sets base toughness 1 (layer 7b), a
+    # 613.4c -1/-1 (layer 7c) then drops it to 0 → dies (CR 704.5g). So it's a debuff
+    # commander wanting -1/-1 anthems/wipes (Kaervek the Spiteful, Black Sun's Zenith).
+    # ADR-0027 v45: phase has a TOTAL blind spot for the layer-7b base-P/T set — Maha
+    # parses to ZERO abilities. We project the REAL Maha dict through the pipeline so
+    # `_recover_base_pt_set` synthesizes the dropped base_pt_set static (scope opp,
+    # toughness 1) and the debuff_matters arm reads it STRUCTURALLY (the deleted
+    # DEBUFF_MAHA_REGEX mirror is gone — structure, not a byte-mirror). Real oracle.
+    from mtg_utils._card_ir.project import project_card
+
     maha = {
         "name": "Maha, Its Feathers Night",
         "type_line": "Legendary Creature — Elemental Bird",
@@ -4052,19 +4059,20 @@ def test_opponent_shrink_opens_debuff():
             "Creatures your opponents control have base toughness 1."
         ),
     }
-    # ADR-0027 β: debuff_matters is IR-served. The Maha opponent-shrink fires via the
-    # DEBUFF_MAHA_REGEX kept-mirror (scope "you"), which scans the oracle directly, so a
-    # bare non-None IR routes the hybrid to the IR path. The legacy regex path no longer
-    # emits it.
+    maha_ir = project_card([{**maha, "scryfall_oracle_id": "maha"}])
+    # The legacy regex path no longer emits it (the mirror is deleted).
     assert ("debuff_matters", "you") not in _ks(maha)
-    assert ("debuff_matters", "you") in _ks_hybrid(maha)
-    # Over-fire guard: a commander that buffs YOUR creatures is not a debuff commander.
+    assert ("debuff_matters", "you") in _ks_hybrid_ir(maha, maha_ir)
+    # Over-fire guard: a commander that BUFFS your creatures with a scope-"you" base-P/T
+    # set (Biomass Mutation shape) is not a debuff commander — the arm fires only on an
+    # opp / symmetric shrink to low toughness, never a "you" set.
     buffer_cmd = {
         "name": "Team Buffer",
         "type_line": "Legendary Creature — Soldier",
-        "oracle_text": "Creatures you control get +1/+1.",
+        "oracle_text": "Creatures you control have base power and toughness 6/6.",
     }
-    assert ("debuff_matters", "you") not in _ks_hybrid(buffer_cmd)
+    buffer_ir = project_card([{**buffer_cmd, "scryfall_oracle_id": "buff"}])
+    assert ("debuff_matters", "you") not in _ks_hybrid_ir(buffer_cmd, buffer_ir)
 
 
 def test_treasure_care_opens_treasure_matters():

@@ -1368,9 +1368,12 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
     # ADR-0027 (SIDECAR v32): a fixed base-P/T set the static parser failed (Curse of
     # Conformity / Overwhelming Splendor) → base_pt_set, BEFORE the _HAVE_GAIN grant
     # fallback claims it as grant_keyword. After _CDA_PT so a dynamic */* keeps its
-    # lane.
+    # lane. v45: carry the discriminated scope + Creature subject + toughness amount
+    # (the same fields the card-level recovery synthesizes) so debuff_matters reads a
+    # mass opp/symmetric shrink structurally. CR 613.4b.
     if _HAS_BASE_PT.search(s):
-        return replace(e, category="base_pt_set")
+        sc, subj, amt = _base_pt_set_fields(s)
+        return replace(e, category="base_pt_set", scope=sc, subject=subj, amount=amt)
     if _STATE.search(s):
         return replace(e, category="state")
     if _FLASH_GRANT.search(s) or _PLAYER_KW_GRANT.search(s) or _BARE_KEYWORD.match(s):
@@ -1673,6 +1676,152 @@ def _recover_combat_damage_recipients(card: Card, oracle: str) -> Card:
     return replace(
         card,
         faces=(replace(head, abilities=(*head.abilities, synth)), *rest),
+    )
+
+
+# ── ADR-0027 base-P/T SET static residue (SIDECAR v45) ────────────────────────
+# phase v0.1.60 has a TOTAL blind spot for the layer-7b "set base power and/or
+# toughness to a specific value" static (CR 613.4b): ALL 222 commander-legal cards
+# whose oracle carries "base power and toughness N/M" / "base power N" / "base
+# toughness N" parse to ZERO abilities — Maha, Lignify, Humility, Curse of
+# Conformity, Biomass Mutation, Godhead of Awe, Flatline. base_pt_set already fires
+# for them off the carved kept word mirror (it scans the raw oracle), but the
+# MIGRATED debuff_matters lane reads IR and saw nothing for an opponent / symmetric
+# MASS shrink — Maha "Creatures your opponents control have base toughness 1" is a
+# -1/-1 enabler (7b sets toughness 1, a 7c -1/-1 then drops it to 0 → dies, CR
+# 613.4c / 704.5g). This card-level recovery (the _recover_combat_damage_recipients
+# precedent — phase dropped the WHOLE ability, so synthesize from the raw oracle)
+# emits the base_pt_set static so the lane reads STRUCTURE, not a regex mirror.
+#
+# Fires ONLY on a FIXED LITERAL value: the dynamic "change base power to <the
+# greatest power among …>" / "base power and toughness X/X" forms (Halfdane, Brine
+# Hag, Candlekeep Inspiration) carry no digit after the phrase, so the value regex
+# skips them — matching the carved word mirror's fixed-only firing set, so
+# base_pt_set stays drift-0. CR 613.4b layer 7b.
+_BASE_PT_SET_VALUE = re.compile(
+    r"base power and toughness (\d+)/(\d+)|base toughness (\d+)|base power (\d+)",
+    re.IGNORECASE,
+)
+# The SET-EFFECT signature: the value is set by a "have/has/are/is base power…"
+# verb. This is the precision gate that keeps a REFERENCE / FILTER out — "creatures
+# you control WITH base power and toughness 1/1" (Bess, Zinnia — a tribal count
+# condition), "different from ITS base power" (Jason Bright), "with base power OR
+# toughness 1" (Sword of the Squeak) all use "with"/"its base", NOT a setting verb,
+# so they are not a layer-7b set and must not synthesize one. CR 613.4b vs a mere
+# characteristic reference.
+_BASE_PT_SET_VERB = re.compile(
+    r"\b(?:have|has|are|is) base (?:power|toughness)", re.IGNORECASE
+)
+# The MASS-anthem affected set is a plural "creatures" the clause sets P/T on with
+# a "have/has base" verb. A SINGLE-target / aura / equipment / self set ("target
+# creature", "enchanted/equipped creature", "this creature") is a neutralize —
+# removal, NOT a -1/-1 anthem — so it must NOT be scoped opp/each (the lane
+# discriminator wants MASS+low). A "<perms> become … creatures with base …"
+# animation (The Antiquities War, Tezzeret — artifacts becoming creatures) is its
+# OWN type-animator theme, not a creature anthem, so the "become" verb is excluded
+# from the mass arm too.
+_BASE_PT_SINGLE = re.compile(
+    r"\btarget creature|\benchanted creature|\bequipped creature|\bthis creature"
+    r"|\btarget artifact|\benchanted artifact",
+    re.IGNORECASE,
+)
+_BASE_PT_BECOME = re.compile(
+    r"\bbecomes?\b[^.]*\bbase (?:power|toughness)", re.IGNORECASE
+)
+# Whose creatures the set affects (read from the value-bearing clause): a PLAIN
+# go-wide "creatures you control/own" (controller you — the creatures_matter anthem
+# shape the legacy path already fires) vs an opponent set ("your opponents control"
+# / an enchanted-player curse / "that player controls" → opp) vs a symmetric
+# "all/other/each/non-X creatures" or "creatures target player controls" → each.
+# The PLAIN you tell is anchored at the clause START ("[Other/All] creatures you
+# control/own …") so a QUALIFIED you set ("Commander creatures you own" — Raised by
+# Giants, a narrow commander buff, NOT a go-wide anthem) does NOT read as a generic
+# controller-you creatures_matter subject (it falls to the symmetric controller-any
+# arm, which fires no lane for a >2 toughness).
+_BASE_PT_YOU_PLAIN = re.compile(
+    r"^(?:other |all )?creatures you (?:control|own)\b", re.IGNORECASE
+)
+_BASE_PT_OPP = re.compile(
+    r"opponents? control|enchanted player controls?|that player controls",
+    re.IGNORECASE,
+)
+
+
+def _base_pt_set_fields(clause: str) -> tuple[str, Filter | None, Quantity]:
+    """The (scope, subject, amount) of a layer-7b base-P/T set from its raw clause.
+    A MASS "creatures … have base …" anthem → a Creature subject (controller you/opp/
+    any) + a discriminated scope, so the debuff_matters arm reads the shrink SCOPE
+    and the land-animator arms — which key on a LAND subject — stay out; a single-
+    target / self / "become" set → subject None + scope "any" (a neutralize is
+    removal, not a -1/-1 anthem). The toughness is carried in ``amount.factor`` (the
+    death-relevant stat); a power-only set → amount op="variable" (no toughness
+    shrink). CR 613.4b. Shared by the per-clause supplement (``_recover_static_
+    pattern``) and the card-level empty-IR recovery (``_recover_base_pt_set``)."""
+    m = _BASE_PT_SET_VALUE.search(clause)
+    tough = (m.group(2) or m.group(3)) if m is not None else None
+    amount = (
+        Quantity(op="fixed", factor=int(tough))
+        if tough is not None
+        else Quantity(op="variable")  # power-only / dynamic — no toughness shrink
+    )
+    cl = clause.strip()
+    is_mass = (
+        re.search(r"\bcreatures\b", cl, re.IGNORECASE) is not None
+        and _BASE_PT_SINGLE.search(cl) is None
+        and _BASE_PT_BECOME.search(cl) is None
+    )
+    if not is_mass:
+        return "any", None, amount
+    if _BASE_PT_OPP.search(cl):
+        scope, ctrl = "opp", "opp"
+    elif _BASE_PT_YOU_PLAIN.search(cl):
+        scope, ctrl = "you", "you"
+    else:
+        scope, ctrl = "each", "any"
+    return scope, Filter(card_types=("Creature",), controller=ctrl), amount
+
+
+def _recover_base_pt_set(card: Card, oracle: str) -> Card:
+    """Append a synthetic ``base_pt_set`` static Effect for the layer-7b set-P/T
+    statics phase left wholly unstructured (it drops the whole ability — empty IR).
+    Append-only: a face already carrying a base_pt_set Effect is left alone (the
+    per-clause supplement or native projection already structured it). One Effect per
+    value-bearing clause, fields from ``_base_pt_set_fields``. CR 613.4b."""
+    if not card.faces:
+        return card
+    if any(
+        e.category == "base_pt_set" for ab in card.all_abilities() for e in ab.effects
+    ):
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    synth: list[Ability] = []
+    for clause in re.split(r"[.\n]", text):
+        if (
+            _BASE_PT_SET_VALUE.search(clause) is None
+            or _BASE_PT_SET_VERB.search(clause) is None
+        ):
+            continue
+        scope, subject, amount = _base_pt_set_fields(clause)
+        synth.append(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="base_pt_set",
+                        scope=scope,
+                        subject=subject,
+                        amount=amount,
+                        raw=clause.strip(),
+                    ),
+                ),
+            )
+        )
+    if not synth:
+        return card
+    head, *rest = card.faces
+    return replace(
+        card,
+        faces=(replace(head, abilities=(*head.abilities, *synth)), *rest),
     )
 
 

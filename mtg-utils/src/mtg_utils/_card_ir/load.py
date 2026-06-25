@@ -544,7 +544,22 @@ from mtg_utils.card_ir import Card
 #   Adds `Effect.duration` projected from `ability.duration` to distinguish temporary
 #   effects from permanent ones, fully retiring the pump_matters / debuff_matters
 #   dynamic -X/-X regex mirrors.
-SIDECAR_VERSION = 44
+# v45 (ADR-0027 base-P/T SET static recovery — supplement `_recover_base_pt_set`):
+#   phase v0.1.60 has a TOTAL blind spot for the layer-7b "set base power and/or
+#   toughness to a specific value" static (CR 613.4b) — ALL 222 commander-legal cards
+#   whose oracle carries "base power and toughness N/M" / "base power N" / "base
+#   toughness N" parse to ZERO abilities (Maha, Lignify, Humility, Curse of Conformity,
+#   Godhead of Awe, Flatline). base_pt_set already fired off the carved kept word
+#   mirror, but the MIGRATED debuff_matters lane read IR and saw nothing for an
+#   opponent / symmetric MASS shrink — Maha "Creatures your opponents control have base
+#   toughness 1" is a -1/-1 enabler (7b sets toughness 1, a 7c -1/-1 drops it to 0 →
+#   dies, CR 613.4c / 704.5g). The card-level recovery synthesizes the dropped
+#   base_pt_set static (scope you/opp/each + a Creature subject + the toughness in
+#   amount.factor) from the raw oracle, so debuff_matters reads STRUCTURE. Fires only on
+#   a FIXED literal value (the dynamic "change base power to <…>" / "X/X" forms carry no
+#   digit → skipped, matching the mirror). debuff_matters is the only lane that moves;
+#   base_pt_set stays 219 (the mirror already supplied these), voltron 3007. CR 613.4b.
+SIDECAR_VERSION = 45
 
 
 def card_ir_dir() -> Path:

@@ -6228,3 +6228,93 @@ def test_supplement_recovers_would_deal_replacement():
     card = project_card([rec])
     trig = _cdmg_trigger(card)
     assert trig.recipient == ("player",)
+
+
+# ── ADR-0027 v45: base-P/T SET static recovery (CR 613.4b) ────────────────────
+# phase has a TOTAL blind spot for the layer-7b "set base power/toughness to a
+# specific value" static; the supplement recovers it from the raw oracle with a
+# discriminated scope + Creature subject + the toughness in amount.factor (the
+# death-relevant stat debuff_matters reads). Real oracle text.
+
+
+def test_base_pt_set_opponent_mass_shrink_is_scoped_opp_with_toughness():
+    """Maha sets opponents' creatures to base toughness 1 — a layer-7b set (CR
+    613.4b) phase drops wholly. The recovery scopes it opp and carries the toughness
+    in amount.factor (the -1/-1 enabler: 7b toughness 1 + a 7c -1/-1 = 0 → dies)."""
+    rec = {
+        "name": "Maha, Its Feathers Night",
+        "scryfall_oracle_id": "bps-maha",
+        "oracle_text": (
+            "Flying, trample\nWard—Discard a card.\n"
+            "Creatures your opponents control have base toughness 1."
+        ),
+    }
+    e = _effect_with(project_card([rec]), "base_pt_set")
+    assert e.scope == "opp"
+    assert e.amount == Quantity(op="fixed", factor=1)
+    assert e.subject == Filter(card_types=("Creature",), controller="opp")
+
+
+def test_base_pt_set_opponent_curse_keeps_high_toughness_magnitude():
+    """Curse of Conformity sets an enchanted player's creatures to 3/3 — opp-scoped
+    but toughness 3, so amount.factor=3 keeps it OFF debuff_matters' factor<=2 gate
+    (3/3 is no shrink-to-death). It is still a base_pt_set."""
+    rec = {
+        "name": "Curse of Conformity",
+        "scryfall_oracle_id": "bps-curse",
+        "oracle_text": (
+            "Enchant player\nNonlegendary creatures enchanted player controls have "
+            "base power and toughness 3/3 and lose all creature types."
+        ),
+    }
+    e = _effect_with(project_card([rec]), "base_pt_set")
+    assert e.scope == "opp"
+    assert e.amount == Quantity(op="fixed", factor=3)
+
+
+def test_base_pt_set_your_creatures_is_a_scope_you_buff():
+    """March of the World Ooze sets YOUR creatures to 6/6 — a scope-you anthem/buff;
+    debuff_matters never fires on a 'you' set."""
+    rec = {
+        "name": "March of the World Ooze",
+        "scryfall_oracle_id": "bps-march",
+        "oracle_text": (
+            "Creatures you control have base power and toughness 6/6 and are Oozes "
+            "in addition to their other types.\nWhenever an opponent casts a spell, "
+            "if it's not their turn, you create a 3/3 green Elephant creature token."
+        ),
+    }
+    e = _effect_with(project_card([rec]), "base_pt_set")
+    assert e.scope == "you"
+    assert e.subject == Filter(card_types=("Creature",), controller="you")
+
+
+def test_base_pt_set_single_target_neutralize_is_scope_any_subject_none():
+    """Humble sets a single TARGET creature to 0/1 — a neutralize is removal, scope
+    'any' + subject None, NOT a mass -1/-1 anthem (so it never opens debuff)."""
+    rec = {
+        "name": "Humble",
+        "scryfall_oracle_id": "bps-humble",
+        "oracle_text": (
+            "Until end of turn, target creature loses all abilities and has base "
+            "power and toughness 0/1."
+        ),
+    }
+    e = _effect_with(project_card([rec]), "base_pt_set")
+    assert e.scope == "any"
+    assert e.subject is None
+
+
+def test_base_pt_set_dynamic_xx_synthesizes_no_fixed_set():
+    """Biomass Mutation's "base power and toughness X/X" is a DYNAMIC characteristic,
+    not a fixed layer-7b set — it carries no digit, so the recovery synthesizes no
+    base_pt_set (the dynamic tail rides the kept word mirror, never the debuff arm)."""
+    rec = {
+        "name": "Biomass Mutation",
+        "scryfall_oracle_id": "bps-biomass",
+        "oracle_text": (
+            "Creatures you control have base power and toughness X/X until end of turn."
+        ),
+    }
+    cats = {e.category for e in _effects(project_card([rec]))}
+    assert "base_pt_set" not in cats

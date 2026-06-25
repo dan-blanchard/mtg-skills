@@ -6622,6 +6622,30 @@ def extract_signals_ir(
             )
             if is_neg_pump or is_other_m1m1:
                 add("debuff_matters", "any", "", e.raw or "")
+        # ADR-0027 base-P/T SET shrink — debuff_matters THIRD anchor (SIDECAR v45).
+        # A layer-7b set-P/T static (the _recover_base_pt_set residue, CR 613.4b) that
+        # is a MASS shrink of OPPONENTS' (scope "opp" — Maha, Flatline, Overwhelming
+        # Splendor) or SYMMETRIC (scope "each" — Humility, Godhead of Awe, Sudden
+        # Spoiling) creatures to a LOW base toughness is a -1/-1 ENABLER: 7b sets
+        # toughness ≤2, a 7c -1/-1 / -X/-X (CR 613.4c) then drops it to 0 → dies (CR
+        # 704.5g). So the commander wants -1/-1 anthems/wipes (Black Sun's Zenith,
+        # Kaervek). Fire scope "you" (YOU benefit from shrinking the table), matching
+        # the deleted DEBUFF_MAHA_REGEX mirror's firing identity. Gated TIGHT: a
+        # scope-"you" set is a BUFF (Biomass Mutation), not a debuff; a single-target
+        # neutralize is scope "any" (Lignify/Humble/Kenrith — removal, not a -1/-1
+        # payoff); a toughness >2 is no shrink-to-death (Curse of Conformity 3/3,
+        # Harmonious Archon 3/3). CR 613.4b / 613.4c / 704.5g.
+        for e in ab.effects:
+            amt = e.amount
+            if (
+                e.category == "base_pt_set"
+                and e.scope in ("opp", "each")
+                and amt is not None
+                and amt.op == "fixed"
+                and isinstance(getattr(amt, "factor", None), int)
+                and amt.factor <= 2
+            ):
+                add("debuff_matters", "you", "", e.raw or "")
         # ADR-0027 β — global_ability_grant (a card that grants a QUOTED activated /
         # triggered / static ability to your whole CREATURE board or to an
         # ALL-permanents set — "Creatures you control have '{T}: …'", "All artifacts
