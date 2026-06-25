@@ -64,6 +64,45 @@ def test_pure_exile_removal_is_not_flicker():
     assert "blink_flicker" not in _keys_hybrid("Exile target creature.")
 
 
+def test_c13_narrowed_exile_mirror_drops_overfires():
+    # ADR-0027 C13: the kept exile_removal mirror was narrowed from the broad SWEEP regex
+    # to the E-bucket phase-parse-miss tail only. Over the bare-IR hybrid path (no
+    # structured exile effect), the mirror must drop the over-fires it used to re-supply,
+    # each re-homed to its correct lane. Real-card oracle text.
+    # Genuine single-target battlefield exile → STILL fires (Banishing Light, Drach'Nyen).
+    assert "exile_removal" in _keys_hybrid(
+        "When this enchantment enters, exile target nonland permanent an "
+        "opponent controls until this enchantment leaves the battlefield.",
+        name="Banishing Light",
+    )
+    assert "exile_removal" in _keys_hybrid(
+        "When Drach'Nyen enters, exile up to one target creature.",
+        name="Drach'Nyen",
+    )
+    # BLINK self-own (CR 603.6e the object returns) → graveyard_matters/blink lanes, NOT
+    # removal: held out by the RETURN + SELF_TARGET exclusions.
+    assert "exile_removal" not in _keys_hybrid(
+        "Exile target creature you control, then return that card to the "
+        "battlefield under its owner's control.",
+        name="Cloudshift-like",
+    )
+    # GY-source exile (CR 406.2 never touches the battlefield) → graveyard_matters: held
+    # out by the from-zone exclusion AND the direct graveyard guard.
+    assert "exile_removal" not in _keys_hybrid(
+        "Exile target creature card from a graveyard.", name="Cemetery-Reaper-like"
+    )
+    assert "exile_removal" not in _keys_hybrid(
+        "Exile target enchantment, instant, or sorcery card with equal or lesser "
+        "mana value from an opponent's graveyard. Copy the exiled card.",
+        name="Saruman-like",
+    )
+    # SUSPEND (CR 702.62a temporary) → suspend_matters: held out by the suspend exclusion.
+    assert "exile_removal" not in _keys_hybrid(
+        "Exile target creature with three time counters on it. Suspend.",
+        name="Suspend-like",
+    )
+
+
 def test_reanimation_is_not_flicker():
     # the returned object is a graveyard card, not the exiled one — not a flicker.
     assert "blink_flicker" not in _keys_hybrid(

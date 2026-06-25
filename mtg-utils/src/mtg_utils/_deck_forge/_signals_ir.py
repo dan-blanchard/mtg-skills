@@ -17,7 +17,13 @@ from __future__ import annotations
 
 import re
 
-from mtg_utils._card_ir.supplement import combat_damage_recipients_from_text
+from mtg_utils._card_ir.supplement import (
+    _EXILE_REMOVAL_FROM_ZONE,
+    _EXILE_REMOVAL_RETURN,
+    _EXILE_REMOVAL_SELF_TARGET,
+    _EXILE_REMOVAL_SUSPEND,
+    combat_damage_recipients_from_text,
+)
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_regex import (
     _CHEAT_INTO_PLAY_RESIDUE_RE,
@@ -8369,8 +8375,14 @@ def extract_signals_ir(
             #      is mass_removal (CR 115.10), not the single-target lane.
             #  (4) HAUNT — "Exile it haunting target creature" (CR 702.55a) exiles the
             #      HAUNT CARD onto a creature, not the targeted creature; not removal.
-            # The byte-identical EXILE_REMOVAL kept mirror (below) re-supplies the
-            # blink/GY over-fires the deleted regex matched, preserving v29 behavior.
+            # ADR-0027 C13: this structural arm (with the PURE-GY fix above
+            # recovering hybrid battlefield+graveyard exiles) is now the SOLE
+            # producer of the genuine removal set; the old broad kept mirror's 142
+            # blink/GY/self/suspend over-fires are DROPPED and re-homed (blink_flicker
+            # / graveyard_matters / suspend_matters). Only the E-bucket phase-PARSE-
+            # MISS tail (~3 cards with NO exile/blink effect — Drach'Nyen, Stalking
+            # Leonin, Teferi-Hero) is re-supplied by the narrowed mirror below,
+            # pending a supplement effect-add projection.
             # A blink RETURN is the EXILED object coming back to the battlefield (CR
             # 603.6e) — the exile-and-return blink tell. A sibling `cheat_play`
             # to:battlefield lands a DIFFERENT card (the cheated/polymorphed body —
@@ -8406,7 +8418,19 @@ def extract_signals_ir(
                     _has_owned(e.subject, "you")
                     or (isinstance(e.subject, Filter) and e.subject.controller == "you")
                 )
-                and not any("graveyard" in z or "hand" in z for z in e.zones)
+                # PURE-GY exclusion (ADR-0027 C13): exile FROM a graveyard/hand is
+                # GY-hate / cage setup, not battlefield removal (CR 406.2 — to exile
+                # is to move from the current zone; a graveyard card never touches the
+                # battlefield). But a HYBRID exile that names BOTH in:battlefield AND
+                # a graveyard zone (Angel of Serenity / Aurelia's Vindicator — "exile
+                # … creatures from the battlefield and/or creature cards from
+                # graveyards") IS battlefield removal of the on-board portion (CR
+                # 406.1). Exclude only when a graveyard/hand zone is present AND no
+                # in:battlefield zone is.
+                and not (
+                    any("graveyard" in z or "hand" in z for z in e.zones)
+                    and not any("in:battlefield" in z for z in e.zones)
+                )
                 and not sib_returns
                 and not sib_clones
                 and not _EXILE_REMOVAL_HAUNT.search(e.raw or "")
@@ -10194,21 +10218,48 @@ def extract_signals_ir(
     # dedups vs the structural arm. Scope 'you' (deleted scope). CR 116 / 701.18.
     if any(_TOPDECK_SELECTION_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
         add("topdeck_selection", "you", "", "")
-    # ADR-0027 exile_removal (SIDECAR v30) — kept mirror. The structural `cat=="exile"`
-    # single-target arm binds the genuine permanent removal (with the v30 supplement
-    # retaining cat=exile + a permanent subject on the rider-swallow / dropped-subject
-    # cases). This is the EXACT deleted SWEEP regex (_EXILE_REMOVAL_SWEEP_RE) run
-    # PER-CLAUSE over the reminder-STRIPPED kept_oracle (matching the deleted SWEEP path
-    # byte-identically), so it re-supplies the SAME v29 firings the structural arm
-    # deliberately drops as over-fires — the blink/flicker bodies the regex matched
-    # ("exile target creature … return it" — Cloudshift, Ephemerate, Acrobatic
-    # Maneuver), the GY-hate bodies (Angel of Serenity, Cemetery Reaper), and the
-    # Drach'Nyen ETB-exile-DROPPED tail (phase emits no exile effect at all — its "Echo
-    # of the First Murder — When Drach'Nyen enters, exile up to one target creature"
-    # trigger is lost in the parse). add() dedups vs the structural arm. Scope 'you'
-    # (deleted scope). The union (structural OR mirror) == the deleted regex firing on
-    # every v29 card + the structural recall the regex missed. CR 406.1 / 115.1.
-    if any(_EXILE_REMOVAL_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
+    # ADR-0027 exile_removal (C13) — NARROWED keep-mirror, E-bucket only. The
+    # structural `cat=="exile"` single-target arm (above, with the v30 supplement
+    # retaining cat=exile + a permanent subject on the rider-swallow / dropped-
+    # subject cases, AND the C13 PURE-GY fix recovering hybrid battlefield+graveyard
+    # exiles — Angel of Serenity, Aurelia's Vindicator) is now the SOLE structural
+    # producer. The old broad mirror re-supplied 142 OVER-FIRES the structural arm
+    # correctly drops — blink/flicker (Cloudshift → blink_flicker, CR 603.6e the
+    # object returns a NEW object), GY-hate (Cemetery Reaper → graveyard_matters, CR
+    # 406.2 a graveyard card never touches the battlefield), self-own blink (→
+    # blink_flicker / exile_until_leaves), suspend (Sinister Concierge →
+    # suspend_matters, CR 702.62a). Those are re-homed and dropped. What REMAINS is
+    # the E-bucket: ~3 cards where phase emits NO exile/blink effect at all
+    # (Drach'Nyen's "Echo of the First Murder — When ~ enters, exile up to one target
+    # creature" trigger, Stalking Leonin's "Exile target creature that's attacking
+    # you", Teferi Hero of Dominaria's emblem exile) — a phase PARSE MISS, not over-
+    # fire. The proper fix is a supplement effect-ADD (synthesize the dropped exile
+    # Effect, a SIDECAR bump — DEFERRED to a projection pass). Until then this mirror
+    # fires ONLY when (a) the IR carries NO exile/blink effect (so it never overlaps
+    # the structural arm's domain — A/B/C/D all carry one and are excluded here), (b)
+    # the raw matches the single-target permanent-exile core, and (c) none of the
+    # return/suspend/from-zone/self-exile exclusions hit (the same battery
+    # `_recover_exile_removal` uses — keeps F suspend and any temporary/own-exile
+    # phase-dropped card out). add() dedups vs the structural arm. Scope 'you'. CR
+    # 406.1 / 115.1.
+    _ir_has_exile_effect = ir is not None and any(
+        e.category in ("exile", "blink")
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    )
+    if not _ir_has_exile_effect and any(
+        _EXILE_REMOVAL_SWEEP_RE.search(cl)
+        and not _EXILE_REMOVAL_RETURN.search(cl)
+        and not _EXILE_REMOVAL_SUSPEND.search(cl)
+        and not _EXILE_REMOVAL_FROM_ZONE.search(cl)
+        # _EXILE_REMOVAL_FROM_ZONE's alternation misses "from an opponent's
+        # graveyard" (Saruman of Many Colors — exile + copy from a GY = GY-value,
+        # graveyard_matters covers it, CR 406.2). A direct word guard drops any
+        # graveyard-source exile the E-recovery should never touch.
+        and "graveyard" not in cl.lower()
+        and not _EXILE_REMOVAL_SELF_TARGET.search(cl)
+        for cl in _clauses(kept_oracle)
+    ):
         add("exile_removal", "you", "", "")
     # ADR-0027 per-clause draw raw (SIDECAR v32) — draw_for_each kept mirror. The
     # structural `draw` Effect scaling-count arm (gated by the draw's PER-CLAUSE

@@ -1689,9 +1689,10 @@ _CASES: dict[str, tuple[dict, Card]] = {
     # (CR 406.1 one-way exile / 115.1 target), excluding blink-return / mass / GY-hate /
     # haunt / clone-from-mill. The v31 supplement RETAINS cat=exile + a permanent subject
     # on the rider-swallow / dropped-subject cases (Soul Partition, "Exile", Unexplained
-    # Absence), and the byte-identical EXILE_REMOVAL_REGEX kept mirror re-supplies the
-    # blink/GY over-fires the deleted regex matched + the Drach'Nyen ETB-dropped tail.
-    # ADR-0027 (SIDECAR v31). CR 406.1 / 115.1.
+    # Absence). ADR-0027 C13 narrowed the kept mirror to the E-bucket phase-parse-miss
+    # tail only (Drach'Nyen et al., ~3 cards with no exile/blink IR effect); the old broad
+    # mirror's blink/GY/self/suspend over-fires are now DROPPED and re-homed to
+    # blink_flicker / graveyard_matters / suspend_matters. ADR-0027 (SIDECAR v31). CR 406.1 / 115.1.
     "exile_removal": (
         {
             "name": "Banishing Light",
