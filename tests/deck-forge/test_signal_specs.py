@@ -19,17 +19,11 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Card, Face
+from mtg_utils.testkit import test_card_ir
 
 
 def _sig(key, scope="you"):
     return Signal(key=key, scope=scope, subject="", text="", source="cmd")
-
-
-def _bare_ir() -> Card:
-    """A minimal non-None Card IR — routes extract_signals_hybrid through the IR path
-    so a migrated key whose IR source scans the record (a kept word mirror) fires."""
-    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
 def test_serve_all_of_requires_every_subserve():
@@ -1981,7 +1975,6 @@ def test_aristocrats_credits_plural_creatures_die():
     # the Card IR; the plural "creatures die" branch rides the byte-identical
     # _DEATH_MATTERS_MIRROR (scope "any") on the IR path.
     from mtg_utils._deck_forge.signals import extract_signals_hybrid
-    from mtg_utils.card_ir import Card, Face
 
     morbid = {
         "name": "Morbid Opportunist",
@@ -1989,8 +1982,9 @@ def test_aristocrats_credits_plural_creatures_die():
         "oracle_text": "Whenever one or more other creatures die, draw a card. This "
         "ability triggers only once each turn.",
     }
-    bare_ir = Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
-    keys = {(s.key, s.scope) for s in extract_signals_hybrid(morbid, bare_ir)}
+    # Real projected IR (the plural "creatures die" branch rides the kept mirror).
+    real_ir = test_card_ir("Morbid Opportunist")
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(morbid, real_ir)}
     assert any(k == "death_matters" for k, _ in keys)
     assert serves(morbid, _sig("death_matters", "any")) is True
 
@@ -2011,7 +2005,10 @@ def test_vehicles_lane_opens_for_granter_and_credits_support():
     # byte-identical VEHICLES_MATTER_MIRROR kept word mirror), not the pure regex path.
     assert any(
         k == "vehicles_matter"
-        for k, _ in {(s.key, s.scope) for s in extract_signals_hybrid(rex, _bare_ir())}
+        for k, _ in {
+            (s.key, s.scope)
+            for s in extract_signals_hybrid(rex, test_card_ir("Captain Rex Nebula"))
+        }
     )
     oviya = {
         "name": "Oviya, Automech Artisan",
@@ -4054,34 +4051,15 @@ class TestStructuredServeExtension:
             extract_signals,
             extract_signals_hybrid,
         )
-        from mtg_utils.card_ir import Ability, Card, Effect, Face
 
         essence_scatter = {
             "name": "Essence Scatter",
             "type_line": "Instant",
             "oracle_text": "Counter target creature spell.",
         }
-        ir = Card(
-            oracle_id="x",
-            name="Essence Scatter",
-            faces=(
-                Face(
-                    name="Essence Scatter",
-                    abilities=(
-                        Ability(
-                            kind="spell",
-                            effects=(
-                                Effect(
-                                    category="counter_spell",
-                                    scope="any",
-                                    raw="Counter target creature spell.",
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        )
+        # Real projected IR: phase's `counter_spell` effect category serves the
+        # adjective-gap "Counter target creature spell".
+        ir = test_card_ir("Essence Scatter")
         hybrid = {s.key for s in extract_signals_hybrid(essence_scatter, ir)}
         assert "counter_control" in hybrid
         assert "counter_control" not in {
@@ -4749,39 +4727,14 @@ class TestMediumBatch8:
             extract_signals,
             extract_signals_hybrid,
         )
-        from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 
         beast_whisperer = {
             "name": "Beast Whisperer",
             "type_line": "Creature — Elf Druid",
             "oracle_text": "Whenever you cast a creature spell, draw a card.",
         }
-        ir = Card(
-            oracle_id="x",
-            name="Beast Whisperer",
-            faces=(
-                Face(
-                    name="Beast Whisperer",
-                    abilities=(
-                        Ability(
-                            kind="triggered",
-                            trigger=Trigger(
-                                event="cast_spell",
-                                scope="you",
-                                subject=Filter(card_types=("Creature",)),
-                            ),
-                            effects=(
-                                Effect(
-                                    category="draw",
-                                    scope="you",
-                                    raw="draw a card",
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        )
+        # Real projected IR: a cast_spell trigger with a Creature subject opens the lane.
+        ir = test_card_ir("Beast Whisperer")
         keys = {s.key for s in extract_signals_hybrid(beast_whisperer, ir)}
         assert "creature_cast_trigger" in keys
         assert "creature_cast_trigger" not in {
@@ -4796,34 +4749,15 @@ class TestMediumBatch8:
             extract_signals,
             extract_signals_hybrid,
         )
-        from mtg_utils.card_ir import Ability, Card, Effect, Face
 
         felidar = {
             "name": "Felidar Sovereign",
             "type_line": "Creature — Cat Beast",
             "oracle_text": "Vigilance (Attacking doesn't cause this creature to tap.)\nLifelink (Damage dealt by this creature also causes you to gain that much life.)\nAt the beginning of your upkeep, if you have 40 or more life, you win the game.",
         }
-        felidar_ir = Card(
-            oracle_id="x",
-            name="X",
-            faces=(
-                Face(
-                    name="X",
-                    abilities=(
-                        Ability(
-                            kind="triggered",
-                            effects=(
-                                Effect(
-                                    category="win_game",
-                                    scope="you",
-                                    raw="you win the game",
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        )
+        # Real projected IR: the upkeep win_game Effect (scope 'you') — never
+        # 'opponents', so a self-wincon is not mislabeled.
+        felidar_ir = test_card_ir("Felidar Sovereign")
         sigs = [
             s
             for s in extract_signals_hybrid(felidar, felidar_ir)
@@ -4856,9 +4790,7 @@ class TestMediumBatch9:
             extract_signals_hybrid,
             signal_keys,
         )
-        from mtg_utils.card_ir import Card, Face
 
-        bare_ir = Card(oracle_id="x", name="X", faces=(Face(name="X"),))
         praetors = {
             "name": "Hand of the Praetors",
             "type_line": "Creature — Phyrexian Zombie",
@@ -4869,14 +4801,19 @@ class TestMediumBatch9:
             "type_line": "Creature — Lizard Hydra",
             "oracle_text": "Reach\nWhen this creature enters, destroy all creatures with flying. Put a +1/+1 counter on this creature for each creature destroyed this way.",
         }
+        # Real projected IR for each (the subject-carrying kept mirror over oracle_text).
         praetor_kw = {
             s.subject
-            for s in extract_signals_hybrid(praetors, bare_ir)
+            for s in extract_signals_hybrid(
+                praetors, test_card_ir("Hand of the Praetors")
+            )
             if s.key == signal_keys.KEYWORD_TRIBE
         }
         whip_kw = {
             s.subject
-            for s in extract_signals_hybrid(whiptongue, bare_ir)
+            for s in extract_signals_hybrid(
+                whiptongue, test_card_ir("Whiptongue Hydra")
+            )
             if s.key == signal_keys.KEYWORD_TRIBE
         }
         assert "Infect" in praetor_kw  # a real keyword-tribe anthem
@@ -6997,7 +6934,6 @@ def test_curse_matters_is_a_named_archetype_lane():
     # trigger/effect subject Filter subtypes=='Curse' (the cares-about half) + a kept
     # word mirror; the regex path no longer fires it. Real oracle.
     from mtg_utils._deck_forge.signals import extract_signals_hybrid
-    from mtg_utils.card_ir import Ability, Card, Face, Filter, Trigger
 
     lynde = {
         "name": "Lynde, Cheerful Tormentor",
@@ -7010,25 +6946,8 @@ def test_curse_matters_is_a_named_archetype_lane():
             "two cards."
         ),
     }
-    lynde_ir = Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="triggered",
-                        trigger=Trigger(
-                            event="dies",
-                            scope="you",
-                            subject=Filter(subtypes=("Curse",), controller="you"),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
+    # Real projected IR: a trigger/effect subject Filter with subtypes=='Curse'.
+    lynde_ir = test_card_ir("Lynde, Cheerful Tormentor")
     assert "curse_matters" in {s.key for s in extract_signals_hybrid(lynde, lynde_ir)}
     assert "curse_matters" not in {s.key for s in extract_signals(lynde)}
     sig = _sig("curse_matters", "you")
@@ -7102,11 +7021,11 @@ def test_villainous_choice_is_a_named_mechanic_lane():
     # ADR-0027 t2b5-C: villainous_choice migrated to the Card IR (the kept word mirror),
     # so the regex path no longer emits it — assert via the hybrid (IR) path.
     from mtg_utils._deck_forge.signals import extract_signals_hybrid
-    from mtg_utils.card_ir import Card, Face
 
-    _bare = Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+    # Real projected IR (the villainous_choice kept mirror over oracle_text).
+    real_ir = test_card_ir("The Valeyard")
     assert "villainous_choice" in {
-        s.key for s in extract_signals_hybrid(valeyard, _bare)
+        s.key for s in extract_signals_hybrid(valeyard, real_ir)
     }
     sig = _sig("villainous_choice", "you")
     this_is_how_it_ends = {
@@ -7247,16 +7166,13 @@ def test_dies_recursion_is_superset_of_undying_persist():
     # array, and dies_recursion fires from _IR_KEYWORD_MAP['undying'] PLUS the
     # DIES_RECURSION_REGEX kept word mirror.
     from mtg_utils._deck_forge.signals import extract_signals_hybrid
-    from mtg_utils.card_ir import Card, Face
 
     gk = {s.key for s in extract_signals(geralfs)}
     assert "dies_recursion" not in gk
     assert "undying_persist_matters" not in gk
-    geralfs_ir = Card(
-        oracle_id="x",
-        name="Geralf's Messenger",
-        faces=(Face(name="Geralf's Messenger", keywords=("Undying",)),),
-    )
+    # Real projected IR: the intrinsic Undying keyword bearer (Scryfall keyword array +
+    # _IR_KEYWORD_MAP['undying']) re-supplies both lanes the pure regex path drops.
+    geralfs_ir = test_card_ir("Geralf's Messenger")
     hybrid_keys = {s.key for s in extract_signals_hybrid(geralfs, geralfs_ir)}
     assert "dies_recursion" in hybrid_keys
     assert "undying_persist_matters" in hybrid_keys

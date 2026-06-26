@@ -15,7 +15,8 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
+from mtg_utils.card_ir import Card, Face
+from mtg_utils.testkit import test_signals
 
 
 def _sigs(name="X", oracle="", type_line="Legendary Creature — Test", **kw):
@@ -292,53 +293,15 @@ def test_voltron_fallback_routes_low_confidence():
 # triad (+ Background / Partner); an engine commander with another plan does NOT fire.
 def test_tell_self_combat_damage_growth_fires_voltron():
     # (1) self combat-damage growth loop — Mirri grows herself on combat damage.
-    mirri = {
-        "name": "Mirri the Cursed",
-        "type_line": "Legendary Creature — Vampire Cat",
-        "power": "3",
-        "toughness": "1",
-        "oracle_text": (
-            "Flying, first strike, haste\nWhenever Mirri the Cursed deals combat "
-            "damage to a creature, put a +1/+1 counter on Mirri the Cursed."
-        ),
-    }
-    assert "voltron_matters" in _hybrid_keys(**mirri)
+    # Real card over real projected IR (ADR-0027 / task #25).
+    assert "voltron_matters" in {s.key for s in test_signals("Mirri the Cursed")}
 
 
 def test_tell_equipment_aura_payoff_fires_voltron():
     # (2) Equipment/Aura PAYOFF — the structural _detect_voltron_payoff_ir arm.
-    sram = {
-        "name": "Sram, Senior Edificer",
-        "type_line": "Legendary Creature — Dwarf Advisor",
-        "oracle_text": (
-            "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card."
-        ),
-        "power": "2",
-        "toughness": "2",
-    }
-    ir = Card(
-        oracle_id="x",
-        name="Sram, Senior Edificer",
-        faces=(
-            Face(
-                name="Sram, Senior Edificer",
-                abilities=(
-                    Ability(
-                        kind="triggered",
-                        trigger=Trigger(
-                            event="cast_spell",
-                            subject=Filter(
-                                subtypes=("Aura", "Equipment"), controller="you"
-                            ),
-                            scope="you",
-                        ),
-                        effects=(Effect(category="draw", scope="you"),),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "voltron_matters" in {s.key for s in extract_signals_hybrid(sram, ir)}
+    # Sram's "cast an Aura, Equipment, or Vehicle → draw" is the canonical payoff;
+    # real IR carries the structural cast_spell trigger the arm reads.
+    assert "voltron_matters" in {s.key for s in test_signals("Sram, Senior Edificer")}
 
 
 def test_tell_evasion_self_fires_voltron():
@@ -354,51 +317,23 @@ def test_tell_evasion_self_fires_voltron():
 
 def test_tell_self_protection_fires_voltron():
     # (4) protection on self — an unkillable body is the ideal Equipment/Aura carrier.
-    cho = {
-        "name": "Cho-Manno, Revolutionary",
-        "type_line": "Legendary Creature — Human Rebel",
-        "oracle_text": "Prevent all damage that would be dealt to Cho-Manno, Revolutionary.",
-        "power": "2",
-        "toughness": "4",
+    # Cho-Manno's "prevent all damage to Cho-Manno" is the self-protection tell; real IR.
+    assert "voltron_matters" in {
+        s.key for s in test_signals("Cho-Manno, Revolutionary")
     }
-    assert "voltron_matters" in _hybrid_keys(**cho)
 
 
 def test_tell_background_fires_voltron():
     # (5) Background — a "Choose a Background" beater is a vanilla voltron body (the
     # Background grants the suit-up package). partner_background is voltron-compat.
-    wilson = {
-        "name": "Wilson, Refined Grizzly",
-        "type_line": "Legendary Creature — Bear Warrior",
-        "oracle_text": (
-            "Vigilance, reach, trample\nChoose a Background (You can have a Background "
-            "as a second commander.)"
-        ),
-        "power": "4",
-        "toughness": "4",
-        "keywords": ["Choose a Background"],
-    }
-    assert "voltron_matters" in _hybrid_keys(**wilson)
+    assert "voltron_matters" in {s.key for s in test_signals("Wilson, Refined Grizzly")}
 
 
 def test_tell_partner_fires_voltron():
     # (6) Partner — a Partner commander pairs with a second commander; the keyword maps
     # to partner_background, which is voltron-COMPAT (it does not suppress the fallback).
     # Ardenn is the real overlap: a Partner that ALSO suits up (attach Auras/Equipment).
-    ardenn = {
-        "name": "Ardenn, Intrepid Archaeologist",
-        "type_line": "Legendary Creature — Human Soldier",
-        "oracle_text": (
-            "Partner (You can have two commanders if both have partner.)\n"
-            "At the beginning of combat on your turn, you may attach any number of "
-            "target Auras and/or Equipment you control to any number of target "
-            "creatures and/or players."
-        ),
-        "power": "2",
-        "toughness": "3",
-        "keywords": ["Partner"],
-    }
-    keys = _hybrid_keys(**ardenn)
+    keys = {s.key for s in test_signals("Ardenn, Intrepid Archaeologist")}
     assert "partner_background" in keys  # the compat tell (does not suppress)
     assert "voltron_matters" in keys
 
@@ -406,40 +341,7 @@ def test_tell_partner_fires_voltron():
 def test_engine_commander_with_other_plan_does_not_fire_voltron():
     # An engine commander whose primary identity is a NON-COMBAT resource engine (here a
     # token engine — Krenko) has another plan, so the IR-derived has_other_plan silences
-    # the commander-damage tell. CR 903.10a.
-    krenko = {
-        "name": "Krenko, Mob Boss",
-        "type_line": "Legendary Creature — Goblin Warrior",
-        "oracle_text": (
-            "{T}: Create a number of 1/1 red Goblin creature tokens equal to the number "
-            "of Goblins you control."
-        ),
-        "power": "3",
-        "toughness": "3",
-    }
-    ir = Card(
-        oracle_id="x",
-        name="Krenko, Mob Boss",
-        faces=(
-            Face(
-                name="Krenko, Mob Boss",
-                abilities=(
-                    Ability(
-                        kind="activated",
-                        effects=(
-                            Effect(
-                                category="make_token",
-                                scope="you",
-                                subject=Filter(
-                                    card_types=("Creature",), subtypes=("Goblin",)
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    keys = {s.key for s in extract_signals_hybrid(krenko, ir)}
+    # the commander-damage tell. CR 903.10a. Real card over real projected IR.
+    keys = {s.key for s in test_signals("Krenko, Mob Boss")}
     assert "token_maker" in keys  # the engine the IR detects
     assert "voltron_matters" not in keys

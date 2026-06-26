@@ -4010,6 +4010,84 @@
     "type_line": "Legendary Creature — Human Artificer"
    }
   },
+  "Ardenn, Intrepid Archaeologist": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "attach",
+          "raw": "At the beginning of combat on your turn, you may attach any number of Auras and Equipment you control to target permanent or player.",
+          "sub": {
+           "t": [
+            "Permanent"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "begin_combat"
+        }
+       }
+      ],
+      "kw": [
+       "Partner"
+      ],
+      "n": "Ardenn, Intrepid Archaeologist",
+      "tl": "Legendary Creature — Kor Scout"
+     }
+    ],
+    "n": "Ardenn, Intrepid Archaeologist",
+    "oid": "7c521612-21c6-4c4b-b10e-66e70928609b"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Partner"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Ardenn, Intrepid Archaeologist",
+    "oracle_id": "7c521612-21c6-4c4b-b10e-66e70928609b",
+    "oracle_text": "At the beginning of combat on your turn, you may attach any number of Auras and Equipment you control to target permanent or player.\nPartner (You can have two commanders if both have partner.)",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Kor Scout"
+   }
+  },
   "Argivian Find": {
    "ir": {
     "faces": [
@@ -5573,6 +5651,116 @@
     "type_line": "Legendary Creature — Angel"
    }
   },
+  "Avatar Roku, Firebender": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "mana",
+        "e": [
+         {
+          "amt": {
+           "f": 3,
+           "op": "fixed"
+          },
+          "cat": "pump_target",
+          "dur": "UntilEndOfTurn",
+          "raw": "{R}{R}{R}: Target creature gets +3/+0 until end of turn.",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 6,
+           "op": "fixed"
+          },
+          "cat": "ramp",
+          "mk": "basic",
+          "raw": "Whenever a player attacks, add six {R}. Until end of combat, you don't lose this mana as steps end."
+         },
+         {
+          "cat": "ramp",
+          "raw": "Whenever a player attacks, add six {R}. Until end of combat, you don't lose this mana as steps end."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "attacks"
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "goad_all",
+          "raw": "Whenever a player attacks",
+          "sc": "opp"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Avatar Roku, Firebender",
+      "tl": "Legendary Creature — Human Avatar"
+     }
+    ],
+    "n": "Avatar Roku, Firebender",
+    "oid": "9eb9e4c1-fabf-45ff-a584-fbe4b94fb41c"
+   },
+   "scryfall": {
+    "cmc": 6.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{R}{R}",
+    "name": "Avatar Roku, Firebender",
+    "oracle_id": "9eb9e4c1-fabf-45ff-a584-fbe4b94fb41c",
+    "oracle_text": "Whenever a player attacks, add six {R}. Until end of combat, you don't lose this mana as steps end.\n{R}{R}{R}: Target creature gets +3/+0 until end of turn.",
+    "power": "6",
+    "produced_mana": [
+     "R"
+    ],
+    "toughness": "6",
+    "type_line": "Legendary Creature — Human Avatar"
+   }
+  },
   "Avenger of Zendikar": {
    "ir": {
     "faces": [
@@ -6872,6 +7060,140 @@
     "type_line": "Creature — Lizard"
    }
   },
+  "Bastion of Remembrance": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "raw": "When ~ enters, create a 1/1 white Human Soldier creature token.",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Human",
+            "Soldier"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "lose_life",
+          "raw": "Whenever a creature you control dies, each opponent loses 1 life and you gain 1 life."
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "gain_life",
+          "raw": "Whenever a creature you control dies, each opponent loses 1 life and you gain 1 life."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "dies",
+         "sc": "you",
+         "sub": {
+          "c": "you",
+          "t": [
+           "Creature"
+          ]
+         },
+         "z": [
+          "from:battlefield",
+          "to:graveyard"
+         ]
+        }
+       }
+      ],
+      "n": "Bastion of Remembrance",
+      "tl": "Enchantment"
+     }
+    ],
+    "n": "Bastion of Remembrance",
+    "oid": "c7f33cea-2ec8-4081-9208-a5b1d86721b3"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "631c2c16-132d-4607-ab7e-207a6af188e5",
+      "name": "Human Soldier",
+      "object": "related_card",
+      "type_line": "Token Creature — Human Soldier",
+      "uri": "https://api.scryfall.com/cards/631c2c16-132d-4607-ab7e-207a6af188e5"
+     },
+     {
+      "component": "combo_piece",
+      "id": "0c9a8ae0-af8b-41e5-b841-314106e40eaf",
+      "name": "Bastion of Remembrance",
+      "object": "related_card",
+      "type_line": "Enchantment",
+      "uri": "https://api.scryfall.com/cards/0c9a8ae0-af8b-41e5-b841-314106e40eaf"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Bastion of Remembrance",
+    "oracle_id": "c7f33cea-2ec8-4081-9208-a5b1d86721b3",
+    "oracle_text": "When this enchantment enters, create a 1/1 white Human Soldier creature token.\nWhenever a creature you control dies, each opponent loses 1 life and you gain 1 life.",
+    "type_line": "Enchantment"
+   }
+  },
   "Baxter, Fly in the Ointment": {
    "ir": {
     "faces": [
@@ -7194,6 +7516,92 @@
     "oracle_id": "bfcdf563-c6e5-4a54-bb63-4aba219b94e2",
     "oracle_text": "Double target player's life total. Shuffle Beacon of Immortality into its owner's library.",
     "type_line": "Instant"
+   }
+  },
+  "Beast Whisperer": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "raw": "Whenever you cast a creature spell, draw a card.",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "cast_spell",
+         "sub": {
+          "t": [
+           "Creature"
+          ]
+         }
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "creature_cast",
+          "raw": "Whenever you cast a creature spell"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Beast Whisperer",
+      "tl": "Creature — Elf Druid"
+     }
+    ],
+    "n": "Beast Whisperer",
+    "oid": "5da7eea8-bb9e-47ce-a554-8a1ee058bd7a"
+   },
+   "scryfall": {
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}{G}",
+    "name": "Beast Whisperer",
+    "oracle_id": "5da7eea8-bb9e-47ce-a554-8a1ee058bd7a",
+    "oracle_text": "Whenever you cast a creature spell, draw a card.",
+    "power": "2",
+    "toughness": "3",
+    "type_line": "Creature — Elf Druid"
    }
   },
   "Benalish Faithbonder": {
@@ -10750,6 +11158,122 @@
     "oracle_id": "c2902f4f-b40e-49f7-8ab0-5b6a70021482",
     "oracle_text": "Council's dilemma — Starting with you, each player votes for death or taxes. Each opponent sacrifices a creature of their choice for each death vote and discards a card for each taxes vote.",
     "type_line": "Sorcery"
+   }
+  },
+  "Captain Rex Nebula": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "target_only",
+          "raw": "At the beginning of combat on your turn, choose target nonland permanent you control. Until end of turn, it becomes a Vehicle artifact with base power and toughness each equal to its mana value, and it gains crew 2 and \"Crash Land — Whenever ~ deals damage, roll a six-sided die. If the result is equal to ~'s mana value, sacrifice ~, then it deals that much damage to any target.\"",
+          "sub": {
+           "c": "you",
+           "p": [
+            "NotType:Land"
+           ],
+           "t": [
+            "Permanent"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "op": "variable"
+          },
+          "cat": "base_pt_set",
+          "raw": "become a Vehicle artifact with base power and toughness each equal to its mana value, and it gains crew 2 and \"Crash Land — Whenever ~ deals damage, roll a six-sided die. If the result is equal to ~'s mana value, sacrifice ~, then it deals that much damage to any target.\""
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "roll_die",
+          "raw": "Crash Land — Whenever ~ deals damage, roll a six-sided die. If the result is equal to ~'s mana value, sacrifice ~, then it deals that much damage to any target."
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "sacrifice",
+          "raw": "Crash Land — Whenever ~ deals damage, roll a six-sided die. If the result is equal to ~'s mana value, sacrifice ~, then it deals that much damage to any target."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "begin_combat"
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "becomes_type",
+          "raw": "grant: becomes a artifact",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Artifact"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Captain Rex Nebula",
+      "tl": "Legendary Creature — Human Pilot Employee"
+     }
+    ],
+    "n": "Captain Rex Nebula",
+    "oid": "984adc49-421b-488f-b316-ed7323c5735b"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "R",
+     "W"
+    ],
+    "colors": [
+     "R",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}{W}",
+    "name": "Captain Rex Nebula",
+    "oracle_id": "984adc49-421b-488f-b316-ed7323c5735b",
+    "oracle_text": "At the beginning of combat on your turn, choose target nonland permanent you control. Until end of turn, it becomes a Vehicle artifact with base power and toughness each equal to its mana value, and it gains crew 2 and \"Crash Land — Whenever this Vehicle deals damage, roll a six-sided die. If the result is equal to this Vehicle's mana value, sacrifice this Vehicle, then it deals that much damage to any target.\"",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Human Pilot Employee"
    }
   },
   "Captain Sisay": {
@@ -15021,6 +15545,74 @@
     "type_line": "Creature — Human Warlock"
    }
   },
+  "Divination": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "raw": "Draw two cards.",
+          "sc": "you"
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Divination",
+      "tl": "Sorcery"
+     }
+    ],
+    "n": "Divination",
+    "oid": "273b339c-964b-4a18-8eb5-ceb8abcdfd9e"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Divination",
+    "oracle_id": "273b339c-964b-4a18-8eb5-ceb8abcdfd9e",
+    "oracle_text": "Draw two cards.",
+    "type_line": "Sorcery"
+   }
+  },
   "Dockside Extortionist": {
    "ir": {
     "faces": [
@@ -16363,6 +16955,174 @@
     "type_line": "Legendary Creature — Phyrexian Praetor"
    }
   },
+  "Elven Bow": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "genericmana,mana",
+        "e": [
+         {
+          "cat": "attach",
+          "raw": "Equip {3}",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "pay_cost",
+          "raw": "When ~ enters, you may pay {2}. If you do, create a 1/1 green Elf Warrior creature token, then attach ~ to it."
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "raw": "When ~ enters, you may pay {2}. If you do, create a 1/1 green Elf Warrior creature token, then attach ~ to it.",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Elf",
+            "Warrior"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         },
+         {
+          "cat": "attach",
+          "raw": "When ~ enters, you may pay {2}. If you do, create a 1/1 green Elf Warrior creature token, then attach ~ to it."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "grant_keyword",
+          "ck": "reach",
+          "raw": "Equipped creature gets +1/+2 and has reach.",
+          "sub": {
+           "p": [
+            "EquippedBy"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "pump",
+          "raw": "Equipped creature gets +1/+2 and has reach.",
+          "sub": {
+           "p": [
+            "EquippedBy"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Elven Bow",
+      "tl": "Artifact — Equipment"
+     }
+    ],
+    "n": "Elven Bow",
+    "oid": "43daed96-2216-4f17-82ce-3eccd5d69936"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "combo_piece",
+      "id": "34c599c7-bcc1-4005-b830-1fa4811af66e",
+      "name": "Elven Bow",
+      "object": "related_card",
+      "type_line": "Artifact — Equipment",
+      "uri": "https://api.scryfall.com/cards/34c599c7-bcc1-4005-b830-1fa4811af66e"
+     },
+     {
+      "component": "combo_piece",
+      "id": "6310bf62-6016-4987-83ed-671283a7ff61",
+      "name": "A-Elven Bow",
+      "object": "related_card",
+      "type_line": "Artifact — Equipment",
+      "uri": "https://api.scryfall.com/cards/6310bf62-6016-4987-83ed-671283a7ff61"
+     },
+     {
+      "component": "token",
+      "id": "118d0655-5719-4512-8bc1-fe759669811b",
+      "name": "Elf Warrior",
+      "object": "related_card",
+      "type_line": "Token Creature — Elf Warrior",
+      "uri": "https://api.scryfall.com/cards/118d0655-5719-4512-8bc1-fe759669811b"
+     }
+    ],
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Elven Bow",
+    "oracle_id": "43daed96-2216-4f17-82ce-3eccd5d69936",
+    "oracle_text": "When this Equipment enters, you may pay {2}. If you do, create a 1/1 green Elf Warrior creature token, then attach this Equipment to it.\nEquipped creature gets +1/+2 and has reach.\nEquip {3}",
+    "type_line": "Artifact — Equipment"
+   }
+  },
   "Emrakul, the Aeons Torn": {
    "ir": {
     "faces": [
@@ -17314,6 +18074,69 @@
     "power": "3",
     "toughness": "2",
     "type_line": "Legendary Creature — Phyrexian Human Wizard"
+   }
+  },
+  "Essence Scatter": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "counter_spell",
+          "raw": "Counter target creature spell."
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Essence Scatter",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Essence Scatter",
+    "oid": "46665089-aa3d-44c3-964d-6638dfbb5782"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Essence Scatter",
+    "oracle_id": "46665089-aa3d-44c3-964d-6638dfbb5782",
+    "oracle_text": "Counter target creature spell.",
+    "type_line": "Instant"
    }
   },
   "Etrata, Deadly Fugitive": {
@@ -19059,6 +19882,86 @@
     "power": "4",
     "toughness": "3",
     "type_line": "Legendary Creature — Angel"
+   }
+  },
+  "Felidar Sovereign": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cond": {
+         "cmp": "ge",
+         "kind": "quantitycomparison"
+        },
+        "e": [
+         {
+          "cat": "win_game",
+          "raw": "At the beginning of your upkeep, if you have 40 or more life, you win the game.",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "upkeep"
+        }
+       }
+      ],
+      "kw": [
+       "Lifelink",
+       "Vigilance"
+      ],
+      "n": "Felidar Sovereign",
+      "tl": "Creature — Cat Beast"
+     }
+    ],
+    "n": "Felidar Sovereign",
+    "oid": "5ae3cbb9-9f0c-4077-ae7c-fba660d7fb4b"
+   },
+   "scryfall": {
+    "cmc": 6.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Lifelink",
+     "Vigilance"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{W}{W}",
+    "name": "Felidar Sovereign",
+    "oracle_id": "5ae3cbb9-9f0c-4077-ae7c-fba660d7fb4b",
+    "oracle_text": "Vigilance (Attacking doesn't cause this creature to tap.)\nLifelink (Damage dealt by this creature also causes you to gain that much life.)\nAt the beginning of your upkeep, if you have 40 or more life, you win the game.",
+    "power": "4",
+    "toughness": "6",
+    "type_line": "Creature — Cat Beast"
    }
   },
   "Fervor": {
@@ -21323,6 +22226,127 @@
     "power": "3",
     "toughness": "2",
     "type_line": "Creature — Human Artificer"
+   }
+  },
+  "Geralf's Messenger": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "lose_life",
+          "raw": "When ~ enters, target opponent loses 2 life.",
+          "sub": {
+           "c": "opp"
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "not",
+         "nest": [
+          {
+           "cmp": "none",
+           "kind": "hadcounters"
+          }
+         ]
+        },
+        "e": [
+         {
+          "cat": "reanimate",
+          "raw": "Return it to the battlefield with a +1/+1 counter on it",
+          "z": [
+           "from:graveyard",
+           "to:battlefield"
+          ]
+         },
+         {
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "Return it to the battlefield with a +1/+1 counter on it",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "dies",
+         "sc": "you",
+         "z": [
+          "from:battlefield",
+          "to:graveyard"
+         ]
+        }
+       }
+      ],
+      "kw": [
+       "Undying"
+      ],
+      "n": "Geralf's Messenger",
+      "tl": "Creature — Zombie"
+     }
+    ],
+    "n": "Geralf's Messenger",
+    "oid": "740f9740-aaa7-4061-86f5-85be79742541"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Undying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}{B}{B}",
+    "name": "Geralf's Messenger",
+    "oracle_id": "740f9740-aaa7-4061-86f5-85be79742541",
+    "oracle_text": "This creature enters tapped.\nWhen this creature enters, target opponent loses 2 life.\nUndying (When this creature dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it.)",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Zombie"
    }
   },
   "Geralf, Visionary Stitcher": {
@@ -24645,6 +25669,141 @@
     "type_line": "Legendary Creature — Human Ranger"
    }
   },
+  "Hand of the Praetors": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "poison",
+          "ck": "poison",
+          "raw": "Whenever you cast a creature spell with infect, target player gets a poison counter."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "cast_spell",
+         "sub": {
+          "p": [
+           "WithKeyword:Infect"
+          ],
+          "t": [
+           "Creature"
+          ]
+         }
+        }
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "pump",
+          "raw": "Other creatures you control with infect get +1/+1.",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "p": [
+            "WithKeyword:Infect",
+            "Another"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "creature_cast",
+          "raw": "Whenever you cast a creature spell"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "Infect"
+      ],
+      "n": "Hand of the Praetors",
+      "tl": "Creature — Phyrexian Zombie"
+     }
+    ],
+    "n": "Hand of the Praetors",
+    "oid": "f595c7f6-783f-4825-9c1a-e7f8edd380fd"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "combo_piece",
+      "id": "470618f6-f67f-44c6-a086-285632508915",
+      "name": "Poison Counter",
+      "object": "related_card",
+      "type_line": "Card",
+      "uri": "https://api.scryfall.com/cards/470618f6-f67f-44c6-a086-285632508915"
+     },
+     {
+      "component": "combo_piece",
+      "id": "94ca493e-f09b-4b11-bb47-0562dfc203ca",
+      "name": "Hand of the Praetors",
+      "object": "related_card",
+      "type_line": "Creature — Phyrexian Zombie",
+      "uri": "https://api.scryfall.com/cards/94ca493e-f09b-4b11-bb47-0562dfc203ca"
+     }
+    ],
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Infect"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}",
+    "name": "Hand of the Praetors",
+    "oracle_id": "f595c7f6-783f-4825-9c1a-e7f8edd380fd",
+    "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nOther creatures you control with infect get +1/+1.\nWhenever you cast a creature spell with infect, target player gets a poison counter.",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Phyrexian Zombie"
+   }
+  },
   "Hans Eriksson": {
    "ir": {
     "faces": [
@@ -26601,6 +27760,81 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Legendary Artifact Creature — Thopter"
+   }
+  },
+  "Howling Mine": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "not",
+         "nest": [
+          {
+           "cmp": "none",
+           "kind": "sourceistapped"
+          }
+         ]
+        },
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "raw": "At the beginning of each player's draw step, if ~ is untapped, that player draws an additional card."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "draw_step"
+        }
+       }
+      ],
+      "n": "Howling Mine",
+      "tl": "Artifact"
+     }
+    ],
+    "n": "Howling Mine",
+    "oid": "d26b27db-a567-4631-b4b6-7294222fbdd1"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Howling Mine",
+    "oracle_id": "d26b27db-a567-4631-b4b6-7294222fbdd1",
+    "oracle_text": "At the beginning of each player's draw step, if this artifact is untapped, that player draws an additional card.",
+    "type_line": "Artifact"
    }
   },
   "Howlpack Resurgence": {
@@ -31528,6 +32762,83 @@
     "type_line": "Legendary Creature — Human Soldier"
    }
   },
+  "Ledger Shredder": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "connive",
+          "raw": "Whenever a player casts their second spell each turn, ~ connives."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "cast_spell"
+        }
+       }
+      ],
+      "kw": [
+       "Flying"
+      ],
+      "n": "Ledger Shredder",
+      "tl": "Creature — Bird Advisor"
+     }
+    ],
+    "n": "Ledger Shredder",
+    "oid": "e9117015-1050-44dd-a46b-e7ffe2085fae"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Flying",
+     "Connive"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Ledger Shredder",
+    "oracle_id": "e9117015-1050-44dd-a46b-e7ffe2085fae",
+    "oracle_text": "Flying\nWhenever a player casts their second spell each turn, this creature connives. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on this creature.)",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Creature — Bird Advisor"
+   }
+  },
   "Legion Loyalty": {
    "ir": {
     "faces": [
@@ -32109,6 +33420,107 @@
     "oracle_id": "8d286376-f386-43ab-a9bd-8478fb9e2497",
     "oracle_text": "Spectacle {R} (You may cast this spell for its spectacle cost rather than its mana cost if an opponent lost life this turn.)\nExile the top two cards of your library. Until the end of your next turn, you may play those cards.",
     "type_line": "Sorcery"
+   }
+  },
+  "Lightning Bolt": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 3,
+           "op": "fixed"
+          },
+          "cat": "damage",
+          "raw": "~ deals 3 damage to any target."
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Lightning Bolt",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Lightning Bolt",
+    "oid": "4457ed35-7c10-48c8-9776-456485fdf070"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "combo_piece",
+      "id": "bde26955-6de3-4212-9e1a-5e11f73ebf44",
+      "name": "Lightning Bolt",
+      "object": "related_card",
+      "type_line": "Instant",
+      "uri": "https://api.scryfall.com/cards/bde26955-6de3-4212-9e1a-5e11f73ebf44"
+     },
+     {
+      "component": "combo_piece",
+      "id": "4f095067-cf24-4061-8626-dc68a66a0b36",
+      "name": "Toralf's Disciple",
+      "object": "related_card",
+      "type_line": "Creature — Human Warrior",
+      "uri": "https://api.scryfall.com/cards/4f095067-cf24-4061-8626-dc68a66a0b36"
+     },
+     {
+      "component": "combo_piece",
+      "id": "69b51576-532b-450e-a8bf-0482cac04618",
+      "name": "Thayan Evokers",
+      "object": "related_card",
+      "type_line": "Creature — Human Wizard",
+      "uri": "https://api.scryfall.com/cards/69b51576-532b-450e-a8bf-0482cac04618"
+     },
+     {
+      "component": "combo_piece",
+      "id": "618806ea-7ea8-4cfb-a8c1-c3defa34e7dd",
+      "name": "Indris, the Hydrostatic Surge",
+      "object": "related_card",
+      "type_line": "Legendary Creature — Otter Incarnation",
+      "uri": "https://api.scryfall.com/cards/618806ea-7ea8-4cfb-a8c1-c3defa34e7dd"
+     }
+    ],
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "banned",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Lightning Bolt",
+    "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+    "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+    "type_line": "Instant"
    }
   },
   "Lignify": {
@@ -33308,6 +34720,89 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Creature — Human Advisor"
+   }
+  },
+  "Lu Xun, Scholar General": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "raw": "Whenever ~ deals damage to an opponent, you may draw a card.",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "deals_damage",
+         "sc": "opp",
+         "sub": {
+          "p": [
+           "DamageToPlayer"
+          ]
+         }
+        }
+       }
+      ],
+      "kw": [
+       "Horsemanship"
+      ],
+      "n": "Lu Xun, Scholar General",
+      "tl": "Legendary Creature — Human Soldier"
+     }
+    ],
+    "n": "Lu Xun, Scholar General",
+    "oid": "ea658352-abef-4201-b20c-f5c5809d1d3e"
+   },
+   "scryfall": {
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Horsemanship"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}{U}",
+    "name": "Lu Xun, Scholar General",
+    "oracle_id": "ea658352-abef-4201-b20c-f5c5809d1d3e",
+    "oracle_text": "Horsemanship (This creature can't be blocked except by creatures with horsemanship.)\nWhenever Lu Xun deals damage to an opponent, you may draw a card.",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Soldier"
    }
   },
   "Lucius the Eternal": {
@@ -35054,6 +36549,91 @@
     ],
     "toughness": "1",
     "type_line": "Legendary Creature — Elf Druid"
+   }
+  },
+  "Mary Jane Watson": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "craw": "Whenever a Spider you control enters, draw a card.",
+          "raw": "Whenever a Spider you control enters, draw a card. This ability triggers only once each turn.",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "sub": {
+          "c": "you",
+          "s": [
+           "Spider"
+          ]
+         },
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       }
+      ],
+      "n": "Mary Jane Watson",
+      "tl": "Legendary Creature — Human Performer"
+     }
+    ],
+    "n": "Mary Jane Watson",
+    "oid": "6d44c87b-8945-4c39-b034-7690cf483992"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "G",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G/W}",
+    "name": "Mary Jane Watson",
+    "oracle_id": "6d44c87b-8945-4c39-b034-7690cf483992",
+    "oracle_text": "Whenever a Spider you control enters, draw a card. This ability triggers only once each turn.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Human Performer"
    }
   },
   "Maskwood Nexus": {
@@ -37186,6 +38766,91 @@
     "type_line": "Legendary Creature — Human Monk"
    }
   },
+  "Morbid Opportunist": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "craw": "Whenever one or more other creatures die, draw a card.",
+          "raw": "Whenever one or more other creatures die, draw a card. This ability triggers only once each turn.",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "dies",
+         "sub": {
+          "p": [
+           "Another"
+          ],
+          "t": [
+           "Creature"
+          ]
+         },
+         "z": [
+          "from:battlefield",
+          "to:graveyard"
+         ]
+        }
+       }
+      ],
+      "n": "Morbid Opportunist",
+      "tl": "Creature — Human Rogue"
+     }
+    ],
+    "n": "Morbid Opportunist",
+    "oid": "322f44f0-e6da-4ee0-b474-e7d5e9a461c5"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Morbid Opportunist",
+    "oracle_id": "322f44f0-e6da-4ee0-b474-e7d5e9a461c5",
+    "oracle_text": "Whenever one or more other creatures die, draw a card. This ability triggers only once each turn.",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Creature — Human Rogue"
+   }
+  },
   "Muraganda Petroglyphs": {
    "ir": {
     "faces": [
@@ -37642,6 +39307,88 @@
     "oracle_text": "If a Wizard you control entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
     "power": "2",
     "toughness": "1",
+    "type_line": "Legendary Creature — Human Wizard"
+   }
+  },
+  "Nebuchadnezzar": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "genericmana,mana,tap",
+        "e": [
+         {
+          "cat": "choose",
+          "raw": "{X}, {T}: Choose a card name. Target opponent reveals X cards at random from their hand. Then that player discards all cards with that name revealed this way. Activate only during your turn.",
+          "sc": "opp"
+         },
+         {
+          "cat": "reveal_hand",
+          "raw": "{X}, {T}: Choose a card name. Target opponent reveals X cards at random from their hand. Then that player discards all cards with that name revealed this way. Activate only during your turn.",
+          "sc": "opp",
+          "sub": {
+           "c": "opp"
+          }
+         },
+         {
+          "cat": "choose",
+          "raw": "{X}, {T}: Choose a card name. Target opponent reveals X cards at random from their hand. Then that player discards all cards with that name revealed this way. Activate only during your turn.",
+          "sc": "opp"
+         }
+        ],
+        "k": "activated"
+       }
+      ],
+      "n": "Nebuchadnezzar",
+      "tl": "Legendary Creature — Human Wizard"
+     }
+    ],
+    "n": "Nebuchadnezzar",
+    "oid": "7c48448e-4e13-4cda-999e-e06ae0f7dcea"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}{B}",
+    "name": "Nebuchadnezzar",
+    "oracle_id": "7c48448e-4e13-4cda-999e-e06ae0f7dcea",
+    "oracle_text": "{X}, {T}: Choose a card name. Target opponent reveals X cards at random from their hand. Then that player discards all cards with that name revealed this way. Activate only during your turn.",
+    "power": "3",
+    "toughness": "3",
     "type_line": "Legendary Creature — Human Wizard"
    }
   },
@@ -38924,6 +40671,111 @@
     "power": "6",
     "toughness": "6",
     "type_line": "Legendary Creature — Dragon"
+   }
+  },
+  "Ob Nixilis, Captive Kingpin": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "Whenever one or more opponents each lose exactly 1 life, put a +1/+1 counter on ~. Exile the top card of your library. Until your next end step, you may play that card.",
+          "sub": {
+           "p": [
+            "SelfRef"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "exile",
+          "raw": "Whenever one or more opponents each lose exactly 1 life, put a +1/+1 counter on ~. Exile the top card of your library. Until your next end step, you may play that card.",
+          "z": [
+           "from:top",
+           "top:you"
+          ]
+         },
+         {
+          "cat": "cast_from_zone",
+          "raw": "Whenever one or more opponents each lose exactly 1 life, put a +1/+1 counter on ~. Exile the top card of your library. Until your next end step, you may play that card.",
+          "z": [
+           "from:library"
+          ]
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "life_lost",
+         "sc": "opp"
+        }
+       }
+      ],
+      "kw": [
+       "Flying",
+       "Trample"
+      ],
+      "n": "Ob Nixilis, Captive Kingpin",
+      "tl": "Legendary Creature — Demon"
+     }
+    ],
+    "n": "Ob Nixilis, Captive Kingpin",
+    "oid": "55b6434b-1542-40fd-b12a-697d40976582"
+   },
+   "scryfall": {
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "R"
+    ],
+    "colors": [
+     "B",
+     "R"
+    ],
+    "keywords": [
+     "Flying",
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{R}",
+    "name": "Ob Nixilis, Captive Kingpin",
+    "oracle_id": "55b6434b-1542-40fd-b12a-697d40976582",
+    "oracle_text": "Flying, trample\nWhenever one or more opponents each lose exactly 1 life, put a +1/+1 counter on Ob Nixilis. Exile the top card of your library. Until your next end step, you may play that card.",
+    "power": "4",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Demon"
    }
   },
   "Ob Nixilis, Unshackled": {
@@ -45023,6 +46875,103 @@
     "type_line": "Creature — Kavu"
    }
   },
+  "Roon of the Hidden Realm": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "genericmana,mana,tap",
+        "e": [
+         {
+          "cat": "exile",
+          "raw": "{2}, {T}: Exile another target creature. Return that card to the battlefield under its owner's control at the beginning of the next end step.",
+          "rt": "battlefield",
+          "sub": {
+           "p": [
+            "Another"
+           ],
+           "t": [
+            "Creature"
+           ]
+          },
+          "z": [
+           "to:exile"
+          ]
+         },
+         {
+          "cat": "exile",
+          "raw": "{2}, {T}: Exile another target creature. Return that card to the battlefield under its owner's control at the beginning of the next end step.",
+          "z": [
+           "from:exile",
+           "to:battlefield"
+          ]
+         }
+        ],
+        "k": "activated"
+       }
+      ],
+      "kw": [
+       "Trample",
+       "Vigilance"
+      ],
+      "n": "Roon of the Hidden Realm",
+      "tl": "Legendary Creature — Rhino Soldier"
+     }
+    ],
+    "n": "Roon of the Hidden Realm",
+    "oid": "fd336830-4a11-42b8-9fc7-d7526f569124"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "G",
+     "U",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "Vigilance",
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}{W}{U}",
+    "name": "Roon of the Hidden Realm",
+    "oracle_id": "fd336830-4a11-42b8-9fc7-d7526f569124",
+    "oracle_text": "Vigilance, trample\n{2}, {T}: Exile another target creature. Return that card to the battlefield under its owner's control at the beginning of the next end step.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Rhino Soldier"
+   }
+  },
   "Rosheen Meanderer": {
    "ir": {
     "faces": [
@@ -46119,6 +48068,91 @@
     "power": "2",
     "toughness": "3",
     "type_line": "Legendary Creature — Human Ninja Rogue"
+   }
+  },
+  "Savage Ventmaw": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 6,
+           "op": "fixed"
+          },
+          "cat": "ramp",
+          "mk": "fixing",
+          "raw": "Whenever ~ attacks, add {R}{R}{R}{G}{G}{G}. Until end of turn, you don't lose this mana as steps and phases end."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "attacks",
+         "sc": "you"
+        }
+       }
+      ],
+      "kw": [
+       "Flying"
+      ],
+      "n": "Savage Ventmaw",
+      "tl": "Creature — Dragon"
+     }
+    ],
+    "n": "Savage Ventmaw",
+    "oid": "f743d85f-754e-4e70-9907-af54acb9e8d4"
+   },
+   "scryfall": {
+    "cmc": 6.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "colors": [
+     "G",
+     "R"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{R}{G}",
+    "name": "Savage Ventmaw",
+    "oracle_id": "f743d85f-754e-4e70-9907-af54acb9e8d4",
+    "oracle_text": "Flying\nWhenever this creature attacks, add {R}{R}{R}{G}{G}{G}. Until end of turn, you don't lose this mana as steps and phases end.",
+    "power": "4",
+    "produced_mana": [
+     "G",
+     "R"
+    ],
+    "toughness": "4",
+    "type_line": "Creature — Dragon"
    }
   },
   "Scriv, the Obligator": {
@@ -51797,6 +53831,70 @@
     "power": "3",
     "toughness": "4",
     "type_line": "Legendary Creature — Human Wizard"
+   }
+  },
+  "Telepathy": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "reveal_hands",
+          "raw": "Your opponents play with their hands revealed",
+          "sc": "opp"
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Telepathy",
+      "tl": "Enchantment"
+     }
+    ],
+    "n": "Telepathy",
+    "oid": "d2e647ac-717f-46e6-baa8-6a793e7bdc32"
+   },
+   "scryfall": {
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}",
+    "name": "Telepathy",
+    "oracle_id": "d2e647ac-717f-46e6-baa8-6a793e7bdc32",
+    "oracle_text": "Your opponents play with their hands revealed.",
+    "type_line": "Enchantment"
    }
   },
   "Temporal Manipulation": {
@@ -59256,6 +61354,172 @@
     "type_line": "Sorcery"
    }
   },
+  "Whiptongue Hydra": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "destroy",
+          "ck": "all",
+          "raw": "When ~ enters, destroy all creatures with flying. Put a +1/+1 counter on ~ for each creature destroyed this way.",
+          "sub": {
+           "p": [
+            "WithKeyword:Flying"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "When ~ enters, destroy all creatures with flying. Put a +1/+1 counter on ~ for each creature destroyed this way.",
+          "sub": {
+           "p": [
+            "SelfRef"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       }
+      ],
+      "kw": [
+       "Reach"
+      ],
+      "n": "Whiptongue Hydra",
+      "tl": "Creature — Lizard Hydra"
+     }
+    ],
+    "n": "Whiptongue Hydra",
+    "oid": "53d5d961-d6a3-49b1-b335-2c2b49972008"
+   },
+   "scryfall": {
+    "cmc": 6.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Reach"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{G}",
+    "name": "Whiptongue Hydra",
+    "oracle_id": "53d5d961-d6a3-49b1-b335-2c2b49972008",
+    "oracle_text": "Reach\nWhen this creature enters, destroy all creatures with flying. Put a +1/+1 counter on this creature for each creature destroyed this way.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Lizard Hydra"
+   }
+  },
+  "Wilson, Refined Grizzly": {
+   "ir": {
+    "faces": [
+     {
+      "kw": [
+       "Partner",
+       "Reach",
+       "Trample",
+       "Vigilance",
+       "Ward"
+      ],
+      "n": "Wilson, Refined Grizzly",
+      "tl": "Legendary Creature — Bear Warrior"
+     }
+    ],
+    "n": "Wilson, Refined Grizzly",
+    "oid": "d2766fd7-5cf9-4037-9f34-9ae3982c613a"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Reach",
+     "Vigilance",
+     "Choose a background",
+     "Trample",
+     "Ward"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Wilson, Refined Grizzly",
+    "oracle_id": "d2766fd7-5cf9-4037-9f34-9ae3982c613a",
+    "oracle_text": "This spell can't be countered.\nVigilance, reach, trample\nWard {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nChoose a Background (You can have a Background as a second commander.)",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Bear Warrior"
+   }
+  },
   "Winota, Joiner of Forces": {
    "ir": {
     "faces": [
@@ -60701,6 +62965,83 @@
     "power": "3",
     "toughness": "4",
     "type_line": "Legendary Creature — Griffin"
+   }
+  },
+  "Zhang Liao, Hero of Hefei": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "discard",
+          "raw": "Whenever ~ deals damage to an opponent, that opponent discards a card."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "deals_damage",
+         "sc": "opp",
+         "sub": {
+          "p": [
+           "DamageToPlayer"
+          ]
+         }
+        }
+       }
+      ],
+      "n": "Zhang Liao, Hero of Hefei",
+      "tl": "Legendary Creature — Human Soldier"
+     }
+    ],
+    "n": "Zhang Liao, Hero of Hefei",
+    "oid": "244541f6-cbfc-4e89-9156-64e412f745a7"
+   },
+   "scryfall": {
+    "cmc": 6.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{B}{B}",
+    "name": "Zhang Liao, Hero of Hefei",
+    "oracle_id": "244541f6-cbfc-4e89-9156-64e412f745a7",
+    "oracle_text": "Whenever Zhang Liao deals damage to an opponent, that opponent discards a card.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Soldier"
    }
   },
   "Zhou Yu, Chief Commander": {

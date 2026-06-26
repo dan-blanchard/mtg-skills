@@ -1,7 +1,8 @@
 """Tests for slot budgets vs the (soft) Command Zone template (band model, ADR-0024)."""
 
 from mtg_utils._deck_forge.budgets import _ir_draws, protects, role_of, slot_budgets
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Trigger
+from mtg_utils.card_ir import Ability, Card, Effect, Face
+from mtg_utils.testkit import test_card_ir
 
 FOREST = {
     "name": "Forest",
@@ -216,47 +217,24 @@ def _ir(*abilities: Ability) -> Card:
 
 
 def test_ir_draw_for_you_fills_card_draw():
-    # "Draw two cards" (Divination) and an upkeep draw (Phyrexian Arena) both fill it.
-    divination = _ir(
-        Ability(kind="spell", effects=(Effect(category="draw", scope="you"),))
-    )
-    arena = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="upkeep"),
-            effects=(
-                Effect(category="draw", scope="you"),
-                Effect(category="lose_life", scope="you"),
-            ),
-        )
-    )
-    # Symmetric "each player draws" (Howling Mine, scope 'any') still fills your slot.
-    howling_mine = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="draw_step"),
-            effects=(Effect(category="draw", scope="any"),),
-        )
-    )
-    # Connive (Ledger Shredder) is card advantage too — its own IR category.
-    connive = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="cast_spell"),
-            effects=(Effect(category="connive", scope="any"),),
-        )
-    )
-    assert _ir_draws(divination) is True
-    assert _ir_draws(arena) is True
-    assert _ir_draws(howling_mine) is True
-    assert _ir_draws(connive) is True
+    # Real projected IR: "Draw two cards" (Divination → draw/you) and an upkeep draw
+    # (Phyrexian Arena → draw/you + lose_life/you) both fill it.
+    assert _ir_draws(test_card_ir("Divination")) is True
+    assert _ir_draws(test_card_ir("Phyrexian Arena")) is True
+    # Symmetric "each player draws" (Howling Mine → draw/any) still fills your slot.
+    assert _ir_draws(test_card_ir("Howling Mine")) is True
+    # Connive (Ledger Shredder → connive) is card advantage too — its own IR category.
+    assert _ir_draws(test_card_ir("Ledger Shredder")) is True
 
 
 def test_ir_non_draw_and_opponent_draw_do_not_fill_card_draw():
-    bolt = _ir(Ability(kind="spell", effects=(Effect(category="damage", scope="any"),)))
-    # A pure opponent-only draw (a giveaway) doesn't fill YOUR card_draw slot.
+    # Real projected IR: a damage spell (Lightning Bolt → damage/any) is not draw.
+    assert _ir_draws(test_card_ir("Lightning Bolt")) is False
+    # Logic probe (kept synthetic): a pure opponent-only draw (a giveaway, scope 'opp')
+    # doesn't fill YOUR card_draw slot. No real card projects to a draw/opp effect —
+    # phase attributes "target opponent draws" to scope 'you' (e.g. Master of the Feast),
+    # so this pins the scope=='opp' branch of _ir_draws that real IR can't reach today.
     giveaway = _ir(
         Ability(kind="spell", effects=(Effect(category="draw", scope="opp"),))
     )
-    assert _ir_draws(bolt) is False
     assert _ir_draws(giveaway) is False

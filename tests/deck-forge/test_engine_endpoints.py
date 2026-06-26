@@ -6,6 +6,7 @@ from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
+from mtg_utils.testkit import test_card_ir
 
 
 def _wire_ir(monkeypatch, mapping: dict):
@@ -161,67 +162,31 @@ def test_agent_avenue_can_be_removed():
     assert all(a["id"] != rid for a in after["avenues"])
 
 
+# ADR-0027 / #25: land_creatures_matter is IR-served. Jyoti is a REAL card whose
+# real projected IR makes a Land+Creature token and anthems land creatures, so the
+# engine reads the real Card IR (joined by the real oracle_id) — no hand-built mirror.
+# A rich Scryfall record (color_identity/cmc/prices the minimal snapshot drops) is
+# layered over the real oracle_id so the engine sees both halves the way production does.
 JYOTI = {
     "name": "Jyoti, Moag Ancient",
     "type_line": "Legendary Creature — Elemental",
     "cmc": 4.0,
     "color_identity": ["G", "U"],
-    "oracle_id": "jyoti-oid",
     "oracle_text": (
         "When Jyoti enters, create a 1/1 green Forest Dryad land creature token for each time you've cast your commander from the command zone this game. (They're affected by summoning sickness.)\nAt the beginning of each combat, land creatures you control get +X/+X until end of turn, where X is Jyoti's power."
     ),
     "prices": {"usd": "0.21"},
 }
 
-# ADR-0027: land_creatures_matter is IR-served — Jyoti makes a Land+Creature token
-# and anthems land creatures, so wire a structural IR carrying both for the engine.
-JYOTI_IR = Card(
-    oracle_id="jyoti-oid",
-    name="Jyoti, Moag Ancient",
-    faces=(
-        Face(
-            name="Jyoti, Moag Ancient",
-            abilities=(
-                Ability(
-                    kind="triggered",
-                    effects=(
-                        Effect(
-                            category="make_token",
-                            scope="you",
-                            subject=Filter(
-                                card_types=("Creature", "Land"),
-                                subtypes=("Dryad",),
-                                controller="you",
-                            ),
-                            raw="create a 1/1 green Forest Dryad land creature token",
-                        ),
-                    ),
-                ),
-                Ability(
-                    kind="triggered",
-                    effects=(
-                        Effect(
-                            category="pump",
-                            scope="you",
-                            subject=Filter(
-                                card_types=("Creature", "Land"), controller="you"
-                            ),
-                            raw="land creatures you control get +X/+X",
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    ),
-)
-
 
 def _jyoti_client(monkeypatch):
-    _wire_ir(monkeypatch, {"jyoti-oid": JYOTI_IR})
+    jyoti_ir = test_card_ir("Jyoti, Moag Ancient")
+    _wire_ir(monkeypatch, {jyoti_ir.oracle_id: jyoti_ir})
+    record = dict(JYOTI, oracle_id=jyoti_ir.oracle_id)
     session = DeckSession("commander")
     session.add("Jyoti, Moag Ancient", zone="commanders")
     state = ForgeState(
-        by_name={"Jyoti, Moag Ancient": JYOTI},
+        by_name={"Jyoti, Moag Ancient": record},
         search_fn=lambda **_: [],
         session=session,
         bulk_available=True,

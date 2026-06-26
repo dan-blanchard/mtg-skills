@@ -9,6 +9,7 @@ from mtg_utils._deck_forge.ranking import (
 )
 from mtg_utils._deck_forge.signals import Signal
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
+from mtg_utils.testkit import test_card_ir
 
 
 # ── Depth-over-breadth synergy (synergy_score) ───────────────────────────────
@@ -538,75 +539,21 @@ def test_ir_clause_role_credits_tribal_anthem_the_regex_misses():
 
 def test_ir_path_does_not_scramble_ranked_order():
     # The injected IR path must keep the aristocrats order the regex path produces
-    # (payoffs above box-tickers) — equivalent-or-better, never scrambled.
-    bastion_ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="etb"),
-            effects=(
-                Effect(
-                    category="make_token",
-                    subject=Filter(card_types=("Creature",), subtypes=("Soldier",)),
-                    raw="When this enchantment enters, create a 1/1 white Human "
-                    "Soldier creature token.",
-                ),
-            ),
-        ),
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="dies"),
-            effects=(
-                Effect(
-                    category="lose_life",
-                    scope="any",
-                    raw="Whenever a creature you control dies, each opponent loses "
-                    "1 life and you gain 1 life.",
-                ),
-                Effect(
-                    category="gain_life",
-                    scope="any",
-                    raw="Whenever a creature you control dies, each opponent loses "
-                    "1 life and you gain 1 life.",
-                ),
-            ),
-        ),
-    )
-    elven_bow_ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="etb"),
-            effects=(
-                Effect(
-                    category="make_token",
-                    subject=Filter(card_types=("Creature",), subtypes=("Elf",)),
-                    raw="When this Equipment enters, you may pay {2}. If you do, "
-                    "create a 1/1 green Elf Warrior creature token, then attach "
-                    "this Equipment to it.",
-                ),
-            ),
-        ),
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="pump",
-                    subject=Filter(card_types=("Creature",), controller="any"),
-                    raw="Equipped creature gets +1/+2 and has reach.",
-                ),
-            ),
-        ),
-    )
+    # (payoffs above box-tickers) — equivalent-or-better, never scrambled. Both IRs
+    # are the REAL projected Card IR (Bastion: etb make_token + dies drain payoff;
+    # Elven Bow: etb make_token + equip pump enabler), injected via _ir_resolved
+    # exactly as rank_candidates joins by oracle_id at runtime.
     bastion = score_candidate(
         _BASTION,
         active_signals=_ARI_SIGNALS,
         focus_sets=_ARI_FOCUS,
-        _ir_resolved=(bastion_ir,),
+        _ir_resolved=(test_card_ir("Bastion of Remembrance"),),
     )["synergy_score"]
     elven_bow = score_candidate(
         _ELVEN_BOW,
         active_signals=_ARI_SIGNALS,
         focus_sets=_ARI_FOCUS,
-        _ir_resolved=(elven_bow_ir,),
+        _ir_resolved=(test_card_ir("Elven Bow"),),
     )["synergy_score"]
     # The real death-payoff outscores the incidental token-equipment (the crux),
     # exactly as the regex path does — the IR clusters by structured ability.
