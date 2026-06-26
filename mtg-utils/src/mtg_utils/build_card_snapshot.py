@@ -67,8 +67,18 @@ _FACE_FIELDS = (
     "colors",
 )
 
-# Direct literal calls: ``test_card("Sol Ring")`` / ``test_card_ir(...)`` / test_signals
-_USAGE_RE = re.compile(r"""\btest_(?:card|card_ir|signals)\(\s*["']([^"']+)["']""")
+# Direct literal calls: ``test_card("Sol Ring")`` / ``test_card_ir(...)`` /
+# ``test_signals(...)`` plus the per-suite real-card wrapper family that forwards a
+# name into those helpers (``_ks_real("Atraxa, …")``, ``_keys_real_regex(…)``,
+# ``_by_key_real(…)`` — the name literal sits on the wrapper, not on ``test_signals``).
+# Two string alternates so a name's internal apostrophe (``Atraxa, Praetors' Voice``,
+# ``Be'lakor``) inside a double-quoted literal isn't truncated at that apostrophe.
+_USAGE_RE = re.compile(
+    r"""\b(?:test_(?:card|card_ir|signals)"""
+    r"""|_(?:keys|ks|ksub|by_key)_real(?:_regex)?"""
+    r"""|_real_full|_real)"""  # test_signals.py wrappers (longer alt first)
+    r"""\(\s*(?:"([^"]+)"|'([^']+)')"""
+)
 # The parametrized convention: a ``_REAL_CASES: dict[str, str] = { "key": "Name", … }``
 # name table (mapping migrated key → representative card NAME). Capture each value.
 _REAL_CASES_BLOCK_RE = re.compile(r"_REAL_CASES\b[^=]*=\s*\{(.*?)\n\}", re.DOTALL)
@@ -94,7 +104,8 @@ def _scan_names(test_dirs: list[Path]) -> set[str]:
             continue
         for py in d.rglob("test_*.py"):
             text = py.read_text(encoding="utf-8")
-            names.update(_USAGE_RE.findall(text))
+            # Each match is a (double-quoted, single-quoted) group pair; one is empty.
+            names.update(g for m in _USAGE_RE.findall(text) for g in m if g)
             for block in _REAL_CASES_BLOCK_RE.findall(text):
                 names.update(_NAME_TABLE_VALUE_RE.findall(block))
     return names

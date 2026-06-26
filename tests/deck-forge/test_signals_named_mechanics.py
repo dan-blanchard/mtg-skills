@@ -7,10 +7,16 @@ stay clean. Each is a real archetype getting its own avenue.
 
 from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
+from mtg_utils.testkit import test_card, test_signals
 
 
 def _ks(card):
     return {(s.key, s.scope) for s in extract_signals(card)}
+
+
+def _real(name):
+    """(key, scope) set over the REAL Scryfall record + REAL projected IR (snapshot)."""
+    return {(s.key, s.scope) for s in test_signals(name)}
 
 
 # A minimal non-None IR: keyword-array lanes (e.g. specialize) read card["keywords"]
@@ -142,17 +148,10 @@ def test_vehicles_matter_greasefang_arm_is_ir_served():
     # ADR-0027: the typed-graveyard-recursion Vehicle arm (Greasefang) — which the broad
     # kept mirror never anchored — is re-supplied PER-CLAUSE in extract_signals_ir, so it
     # too comes through the hybrid path, not pure regex.
-    c = {
-        "name": "Greasefang, Okiba Boss",
-        "type_line": "Legendary Creature — Rat Pilot",
-        "oracle_text": (
-            "At the beginning of combat on your turn, return target Vehicle card "
-            "from your graveyard to the battlefield. It gains haste. Return it to "
-            "its owner's hand at the beginning of your next end step."
-        ),
-    }
-    assert ("vehicles_matter", "you") in _ks_hybrid(c)
-    assert ("vehicles_matter", "you") not in _ks(c)
+    # Real Greasefang, Okiba Boss (snapshot): the typed-graveyard-recursion Vehicle arm
+    # is re-supplied per-clause, so it comes through the IR path, not pure regex.
+    assert ("vehicles_matter", "you") in _real("Greasefang, Okiba Boss")
+    assert ("vehicles_matter", "you") not in _ks(test_card("Greasefang, Okiba Boss"))
 
 
 def test_superfriends_matters_is_ir_served():
@@ -331,16 +330,10 @@ def test_big_hand_matters_is_ir_served():
     # P/T-scaling payoff (Maro) rides the byte-identical _BIG_HAND_MATTERS_MIRROR kept
     # word mirror (phase encodes it as a `characteristic_pt` Effect with NO in:hand
     # zone), so it is IR-served, not regex-served — proven over a bare IR.
-    maro = {
-        "name": "Maro",
-        "type_line": "Creature — Spirit",
-        "oracle_text": (
-            "Maro's power and toughness are each equal to the number of cards "
-            "in your hand."
-        ),
-    }
-    assert ("big_hand_matters", "you") in _ks_hybrid(maro)
-    assert ("big_hand_matters", "you") not in _ks(maro)
+    # Real Maro (snapshot): the "X = cards in your hand" P/T-scaling payoff opens the
+    # lane on the IR path, not pure regex.
+    assert ("big_hand_matters", "you") in _real("Maro")
+    assert ("big_hand_matters", "you") not in _ks(test_card("Maro"))
     # The "no maximum hand size" ENABLER fires from the v23 `no_max_handsize` Effect
     # STRUCTURAL arm — proven on an IR carrying that Effect (Spellbook's whole text is
     # the cap-remover, but here we isolate the structural arm with a bare-text card so
@@ -451,9 +444,8 @@ def test_blood_matters_is_ir_served():
 def test_monarch_matters_is_ir_served():
     # ADR-0027: monarch_matters is IR-served — from phase's `monarch` effect
     # category (a "you become the monarch" grant narrowed into the `monarch` marker)
-    # AND the Condition(ismonarch) gate. Two structural shapes, both via the hybrid.
-    from mtg_utils.card_ir import Condition
-
+    # AND the Condition(ismonarch) gate. The grant shape is a SYNTHETIC logic probe (no
+    # real card needed); the gated shape is proven on real Throne Warden below.
     grant = {"name": "X", "oracle_text": "When this enters, you become the monarch."}
     grant_ir = Card(
         oracle_id="x",
@@ -480,197 +472,61 @@ def test_monarch_matters_is_ir_served():
     assert ("monarch_matters", "you") in hybrid
     assert ("monarch_matters", "you") not in _ks(grant)
 
-    # The condition-gated payoff (Throne Warden: "if you're the monarch, …").
-    gated = {
-        "name": "Throne Warden",
-        "type_line": "Creature — Human Soldier",
-        "oracle_text": (
-            "At the beginning of your end step, if you're the monarch, put a "
-            "+1/+1 counter on this creature."
-        ),
-    }
-    gated_ir = Card(
-        oracle_id="y",
-        name="Throne Warden",
-        faces=(
-            Face(
-                name="Throne Warden",
-                abilities=(
-                    Ability(
-                        kind="triggered",
-                        condition=Condition(kind="ismonarch"),
-                        effects=(
-                            Effect(
-                                category="place_counter",
-                                counter_kind="p1p1",
-                                raw="put a +1/+1 counter on ~",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    gated_hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(gated, gated_ir)}
-    assert ("monarch_matters", "you") in gated_hybrid
-    assert ("monarch_matters", "you") not in _ks(gated)
+    # Real Throne Warden (snapshot): the condition-gated payoff ("if you're the monarch,
+    # …") opens monarch via the Condition(ismonarch) gate on the IR path, not regex.
+    assert ("monarch_matters", "you") in _real("Throne Warden")
+    assert ("monarch_matters", "you") not in _ks(test_card("Throne Warden"))
 
 
 def test_saddle_matters_is_ir_served():
     # ADR-0027: saddle_matters is IR-served — from phase's `saddle` effect category
     # (a "becomes saddled" grant narrowed into the `saddle` marker), via the hybrid.
-    c = {
-        "name": "Guidelight Matrix",
-        "type_line": "Artifact",
-        "oracle_text": (
-            "When this artifact enters, draw a card.\n{2}, {T}: Target Mount you "
-            "control becomes saddled until end of turn. Activate only as a sorcery."
-        ),
-    }
-    ir = Card(
-        oracle_id="x",
-        name="Guidelight Matrix",
-        faces=(
-            Face(
-                name="Guidelight Matrix",
-                abilities=(
-                    Ability(
-                        kind="activated",
-                        cost="mana,tap",
-                        effects=(
-                            Effect(
-                                category="saddle",
-                                scope="you",
-                                raw="Target Mount you control becomes saddled",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
-    assert ("saddle_matters", "you") in hybrid
-    assert ("saddle_matters", "you") not in _ks(c)
+    # Real Guidelight Matrix (snapshot): the "becomes saddled" grant opens the lane via
+    # phase's `saddle` effect category on the IR path, not regex.
+    assert ("saddle_matters", "you") in _real("Guidelight Matrix")
+    assert ("saddle_matters", "you") not in _ks(test_card("Guidelight Matrix"))
 
 
 def test_soulbond_matters_is_ir_served():
     # ADR-0027: soulbond_matters is IR-served — from the Scryfall `soulbond` keyword
     # AND a `soulbond` effect marker for non-keyword references ("paired with a
     # creature with soulbond" — Flowering Lumberknot), via the hybrid.
-    c = {
-        "name": "Flowering Lumberknot",
-        "type_line": "Creature — Plant",
-        "oracle_text": (
-            "This creature can't attack or block unless it's paired with a "
-            "creature with soulbond."
-        ),
-    }
-    ir = Card(
-        oracle_id="x",
-        name="Flowering Lumberknot",
-        faces=(
-            Face(
-                name="Flowering Lumberknot",
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="soulbond",
-                                scope="you",
-                                raw="paired with a creature with soulbond",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
-    assert ("soulbond_matters", "you") in hybrid
-    assert ("soulbond_matters", "you") not in _ks(c)
-
-
-def _triggered_other(category: str, raw: str) -> Card:
-    # The shape project._narrow_trigger_other_refs produces: a triggered ability
-    # phase flattened to event="other", with the precise marker effect appended.
-    return Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="triggered",
-                        trigger=Trigger(event="other"),
-                        effects=(Effect(category=category, scope="you", raw=raw),),
-                    ),
-                ),
-            ),
-        ),
-    )
+    # Real Flowering Lumberknot (snapshot): the non-keyword "paired with a creature with
+    # soulbond" reference opens the lane via the `soulbond` effect marker, not regex.
+    assert ("soulbond_matters", "you") in _real("Flowering Lumberknot")
+    assert ("soulbond_matters", "you") not in _ks(test_card("Flowering Lumberknot"))
 
 
 def test_coin_flip_is_ir_served():
     # ADR-0027: coin_flip is IR-served — the "Whenever you win/lose a coin flip"
     # PAYOFF trigger phase flattened to event="other" is appended as a coin_flip
     # marker effect (read via _DOER_EFFECT_KEYS), via the hybrid.
-    c = {
-        "name": "Chance Encounter",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "Whenever you win a coin flip, put a luck counter on this enchantment."
-        ),
-    }
-    ir = _triggered_other(
-        "coin_flip", "Whenever you win a coin flip, put a luck counter on ~."
-    )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
-    assert ("coin_flip", "you") in hybrid
-    assert ("coin_flip", "you") not in _ks(c)
+    # Real Chance Encounter (snapshot): the "Whenever you win a coin flip" payoff opens
+    # the lane via the coin_flip marker on the IR path, not regex.
+    assert ("coin_flip", "you") in _real("Chance Encounter")
+    assert ("coin_flip", "you") not in _ks(test_card("Chance Encounter"))
 
 
 def test_discover_matters_is_ir_served():
     # ADR-0027: discover_matters is IR-served — the keyword-less re-trigger payoff
     # ("Whenever you discover, discover again" — Curator) is a trigger phase
     # flattened to event="other", appended as a discover marker effect, via hybrid.
-    c = {
-        "name": "Curator of Sun's Creation",
-        "type_line": "Creature — Human Artificer",
-        "oracle_text": (
-            "Whenever you discover, discover again for the same value. This ability "
-            "triggers only once each turn."
-        ),
-    }
-    ir = _triggered_other(
-        "discover", "Whenever you discover, discover again for the same value."
+    # Real Curator of Sun's Creation (snapshot): the keyword-less "Whenever you discover"
+    # re-trigger payoff opens the lane via the discover marker on the IR path, not regex.
+    assert ("discover_matters", "you") in _real("Curator of Sun's Creation")
+    assert ("discover_matters", "you") not in _ks(
+        test_card("Curator of Sun's Creation")
     )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
-    assert ("discover_matters", "you") in hybrid
-    assert ("discover_matters", "you") not in _ks(c)
 
 
 def test_ninjutsu_matters_is_ir_served():
     # ADR-0027: ninjutsu_matters is IR-served — the keyword-less payoff commander
     # (Satoru: "Whenever you activate a ninjutsu ability") is a trigger phase
     # flattened to event="other", appended as a ninjutsu marker effect, via hybrid.
-    c = {
-        "name": "Satoru Umezawa",
-        "type_line": "Legendary Creature — Human Ninja",
-        "oracle_text": (
-            "Whenever you activate a ninjutsu ability, look at the top three cards "
-            "of your library."
-        ),
-    }
-    ir = _triggered_other(
-        "ninjutsu",
-        "Whenever you activate a ninjutsu ability, look at the top three cards.",
-    )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
-    assert ("ninjutsu_matters", "you") in hybrid
-    assert ("ninjutsu_matters", "you") not in _ks(c)
+    # Real Satoru Umezawa (snapshot): the keyword-less "Whenever you activate a ninjutsu
+    # ability" payoff opens the lane via the ninjutsu marker on the IR path, not regex.
+    assert ("ninjutsu_matters", "you") in _real("Satoru Umezawa")
+    assert ("ninjutsu_matters", "you") not in _ks(test_card("Satoru Umezawa"))
 
 
 def test_ring_matters_is_ir_served():
@@ -678,23 +534,10 @@ def test_ring_matters_is_ir_served():
     # phase flattened to event="other" AND a "Ring-bearer" reference buried in any
     # effect raw (Sauron, no tempt trigger) are appended as ring_tempt marker
     # effects (read via _DOER_EFFECT_KEYS). Both structural shapes, via the hybrid.
-    c = {
-        "name": "Faramir, Field Commander",
-        "type_line": "Legendary Creature — Human Soldier",
-        "oracle_text": (
-            "Whenever the Ring tempts you, if you chose a creature other than "
-            "Faramir, Field Commander as your Ring-bearer, create a 1/1 white Human "
-            "Soldier creature token."
-        ),
-    }
-    ir = _triggered_other(
-        "ring_tempt",
-        "Whenever the Ring tempts you, if you chose a creature other than ~ as your "
-        "Ring-bearer, create a token.",
-    )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
-    assert ("ring_matters", "you") in hybrid
-    assert ("ring_matters", "you") not in _ks(c)
+    # Real Faramir, Field Commander (snapshot): the "Whenever the Ring tempts you"
+    # trigger opens the lane via the ring_tempt marker on the IR path, not regex.
+    assert ("ring_matters", "you") in _real("Faramir, Field Commander")
+    assert ("ring_matters", "you") not in _ks(test_card("Faramir, Field Commander"))
 
 
 def test_vehicles_does_not_fire_on_incidental_or_vehicle_target():
@@ -1060,20 +903,11 @@ def test_spell_copy():
 
 
 def test_kitsa_gets_three_avenues():
-    c = {
-        "name": "Kitsa, Otterball Elite",
-        "oracle_text": (
-            "Vigilance\nProwess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\n{T}: Draw a card, then discard a card.\n{2}, {T}: Copy target instant or sorcery spell you control. You may choose new targets for the copy. Activate only if Kitsa's power is 3 or greater."
-        ),
-        "keywords": ["Prowess", "Vigilance"],
-    }
-    # spellcast (prowess) comes from the regex path; discard (loot) and spell_copy are
-    # both migrated to the IR (ADR-0027 — discard_matters rides the loot kept-mirror,
-    # which scans the record oracle; spell_copy from phase's spell_copy effect), so
-    # check the hybrid for all three.
-    keys = {s.key for s in extract_signals_hybrid(c, _spell_copy_ir())}
+    # Real Kitsa, Otterball Elite (snapshot): prowess → spellslinger, the loot outlet →
+    # discard, and "Copy target instant or sorcery" → spell_copy, all three over real IR.
+    keys = {s.key for s in test_signals("Kitsa, Otterball Elite")}
     assert "spellcast_matters" in keys  # prowess → spellslinger
-    assert "discard_matters" in keys  # loot outlet (IR loot kept-mirror)
+    assert "discard_matters" in keys  # loot outlet
     assert "spell_copy_matters" in keys  # copy spells
 
 

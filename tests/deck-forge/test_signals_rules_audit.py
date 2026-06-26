@@ -1,5 +1,12 @@
 """Fixes from the rules-lawyer category audit — each pins a CR-cited distinction
 the detectors must respect (so we don't group mechanics the rules treat differently).
+
+Tests that pin a specific real card run the REAL projected Card IR via
+``mtg_utils.testkit`` (``test_signals`` = production hybrid over the real Scryfall
+record + real sidecar IR; ``test_card`` = the real minimal record). Tests that pin a
+projection ARM or a CR boundary on a controlled, made-up shape ("X"/"Y", a synthetic
+exile/Food/oil-counter IR, a constructed meld pair) keep a thin synthetic builder — the
+shape is the point, not a particular printing.
 """
 
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
@@ -9,6 +16,25 @@ from mtg_utils._deck_forge.signals import (
     extract_signals_hybrid,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
+from mtg_utils.testkit import test_card, test_signals
+
+# Card names referenced through the real-card helpers above. This table feeds the
+# `build-card-snapshot` usage scanner (it parses `_REAL_CASES` dict VALUES, which
+# also handles apostrophes — unlike the bare `test_card("…")` literal scan). Keep it
+# in sync with the names used below; a missing entry fails loud (KeyError) at test
+# time, never silently.
+_REAL_CASES: dict[str, str] = {
+    "Diamond City": "Diamond City",
+    "Fiery Emancipation": "Fiery Emancipation",
+    "Furnace of Rath": "Furnace of Rath",
+    "Kaervek the Merciless": "Kaervek the Merciless",
+    "Lurrus of the Dream-Den": "Lurrus of the Dream-Den",
+    "Obeka, Brute Chronologist": "Obeka, Brute Chronologist",
+    "Sleep-Cursed Faerie": "Sleep-Cursed Faerie",
+    "Teferi, Mage of Zhalfir": "Teferi, Mage of Zhalfir",
+    "Tymna the Weaver": "Tymna the Weaver",
+    "Zedruu the Greathearted": "Zedruu the Greathearted",
+}
 
 
 def _keys(card):
@@ -25,41 +51,36 @@ def _keys_hybrid(card):
     return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
 
 
-def _signals(card):
-    return list(extract_signals(card))
-
-
 def _signals_hybrid(card):
     # Full Signal objects via the hybrid (IR) path. A bare non-None IR routes a card
     # whose lane is a kept word mirror (meld_pair) through the IR re-emission.
     return list(extract_signals_hybrid(card, _bare_ir()))
 
 
+# Real-card signal keysets (production hybrid path) / regex-only path, by card name.
+def _hyb(name):
+    return {s.key for s in test_signals(name)}
+
+
+def _reg(name):
+    return {s.key for s in extract_signals(test_card(name))}
+
+
 # #1 Companion (CR 702.139) is a separate deck-construction rule from Partner (702.124).
 def test_companion_is_its_own_key_not_partner():
-    # ADR-0027: companion_keyword is IR-served from the Scryfall `companion`
-    # keyword array, so it comes through the hybrid path, not pure regex.
-    c = {
-        "name": "Lurrus-like",
-        "oracle_text": "Companion — Each permanent card in your starting deck has mana value 2 or less.",
-        "keywords": ["Companion"],
-    }
-    k = _keys_hybrid(c)
+    # Lurrus of the Dream-Den carries the Scryfall companion keyword → the real IR opens
+    # companion_keyword (not partner_background), not the deleted regex path.
+    k = _hyb("Lurrus of the Dream-Den")
     assert "companion_keyword" in k
     assert "partner_background" not in k
-    assert "companion_keyword" not in _keys(c)
+    assert "companion_keyword" not in _reg("Lurrus of the Dream-Den")
 
 
 def test_partner_still_fires():
-    # ADR-0027 t2b4a-B: partner_background is IR-served from the Scryfall partner-family
-    # keyword array, so it comes through the hybrid path, not pure regex.
-    c = {
-        "name": "Tymna-like",
-        "oracle_text": "Partner with Thrasios, Triton Hero",
-        "keywords": ["Partner with"],
-    }
-    assert "partner_background" in _keys_hybrid(c)
-    assert "partner_background" not in _keys(c)
+    # Tymna the Weaver carries the Scryfall Partner keyword → the real IR opens
+    # partner_background, not the deleted regex path.
+    assert "partner_background" in _hyb("Tymna the Weaver")
+    assert "partner_background" not in _reg("Tymna the Weaver")
 
 
 # #2 keyword_counter is the CR 122.1b closed set — ward/training are not counters.
@@ -292,32 +313,14 @@ def test_food_token_fires():
 # that grant NO keyword ability; "aegis" is not a CR counter at all. None belong on
 # keyword_counter, whose premise is the CR 122.1b closed keyword-counter list.
 def test_stun_counter_is_not_keyword_counter():
-    c = {
-        "name": "Sleep-Cursed Faerie",
-        "type_line": "Creature — Faerie Wizard",
-        "oracle_text": (
-            "Flying, ward {2}\n"
-            "This creature enters tapped with three stun counters on it. "
-            "(If it would become untapped, remove a stun counter from it instead.)\n"
-            "{1}{U}: Untap this creature."
-        ),
-    }
-    assert "keyword_counter" not in _keys_hybrid(c)
+    # Sleep-Cursed Faerie (flying, ward, three stun counters) — the real IR must NOT open
+    # keyword_counter (ward/stun are not CR-122.1b keyword counters).
+    assert "keyword_counter" not in _hyb("Sleep-Cursed Faerie")
 
 
 def test_shield_counter_is_not_keyword_counter():
-    c = {
-        "name": "Diamond City",
-        "type_line": "Land",
-        "oracle_text": (
-            "This land enters with a shield counter on it. (If it would be dealt "
-            "damage or destroyed, remove a shield counter from it instead.)\n"
-            "{T}: Add {C}.\n{T}: Move a shield counter from this land onto target "
-            "creature. Activate only if two or more creatures entered the "
-            "battlefield under your control this turn."
-        ),
-    }
-    assert "keyword_counter" not in _keys_hybrid(c)
+    # Diamond City (a shield-counter land) — the real IR must NOT open keyword_counter.
+    assert "keyword_counter" not in _hyb("Diamond City")
 
 
 def test_keyword_counter_still_fires_on_real_keyword():
@@ -330,60 +333,22 @@ def test_keyword_counter_still_fires_on_real_keyword():
 # #14 all-damage doublers/triplers (Furnace of Rath, Fiery Emancipation) are
 # replacement effects that fire on COMBAT damage too — they belong on damage_doubling,
 # not the "noncombat damage" lane (CR 510 combat vs 702.19a noncombat).
-def _damage_doubling_ir(raw: str) -> Card:
-    return Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(category="damage_doubling", scope="you", raw=raw),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-
-
 def test_all_damage_doubler_is_damage_doubling_not_noncombat():
-    # ADR-0027: damage_doubling migrated to the Card IR — the regex path no longer
-    # emits it (and no longer over-fires noncombat_damage_payoff); the hybrid path
-    # serves it from phase's damage_doubling replacement category.
-    c = {
-        "name": "Furnace of Rath",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "If a source would deal damage to a permanent or player, it deals "
-            "double that damage to that permanent or player instead."
-        ),
-    }
-    assert "damage_doubling" not in _keys(c)
-    assert "noncombat_damage_payoff" not in _keys(c)
-    ir = _damage_doubling_ir("it deals double that damage instead")
-    k = {s.key for s in extract_signals_hybrid(c, ir)}
+    # Furnace of Rath — the real IR serves damage_doubling from phase's damage_doubling
+    # replacement category and does NOT open the noncombat lane; the regex path emits
+    # neither.
+    assert "damage_doubling" not in _reg("Furnace of Rath")
+    assert "noncombat_damage_payoff" not in _reg("Furnace of Rath")
+    k = _hyb("Furnace of Rath")
     assert "damage_doubling" in k
     assert "noncombat_damage_payoff" not in k
 
 
 def test_triple_damage_is_damage_doubling():
-    # The Triple multiplier (Fiery Emancipation, City on Fire) is structured by the
-    # deepened replacement projection — fires from the IR, not the regex.
-    c = {
-        "name": "Fiery Emancipation",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "If a source you control would deal damage to a permanent or player, "
-            "it deals triple that damage to that permanent or player instead."
-        ),
-    }
-    assert "damage_doubling" not in _keys(c)
-    ir = _damage_doubling_ir("it deals triple that damage instead")
-    assert "damage_doubling" in {s.key for s in extract_signals_hybrid(c, ir)}
+    # Fiery Emancipation's Triple multiplier is structured by the deepened replacement
+    # projection — fires damage_doubling from the real IR, not the regex.
+    assert "damage_doubling" not in _reg("Fiery Emancipation")
+    assert "damage_doubling" in _hyb("Fiery Emancipation")
 
 
 # MV-scaling burn (Kaervek) is the genuine noncombat payoff and must still open it.
@@ -391,15 +356,9 @@ def test_triple_damage_is_damage_doubling():
 # NONCOMBAT_DAMAGE_PAYOFF_REGEX kept word mirror), so it surfaces only on the hybrid
 # path — the regex producer is deleted.
 def test_mv_scaling_burn_still_opens_noncombat():
-    c = {
-        "name": "Kaervek the Merciless",
-        "type_line": "Legendary Creature — Human Shaman",
-        "oracle_text": (
-            "Whenever an opponent casts a spell, Kaervek deals damage equal to "
-            "that spell's mana value to any target."
-        ),
-    }
-    assert "noncombat_damage_payoff" in _keys_hybrid(c)
+    # Kaervek the Merciless deals damage equal to a spell's mana value — the genuine
+    # MV-scaling noncombat payoff opens noncombat_damage_payoff on the real IR.
+    assert "noncombat_damage_payoff" in _hyb("Kaervek the Merciless")
 
 
 # #15 Named counters are NOT interchangeable (CR 122.1): each gets its own lane, so a
@@ -506,88 +465,30 @@ def test_named_counters_are_separate_lanes():
 # #16 End-the-turn (CR 724, your-turn engine) is its own you-scoped lane, split from
 # the opponents/any-scoped timing-restriction lane.
 def test_end_the_turn_split_from_timing_restriction():
-    # ADR-0027: end_the_turn migrated to the Card IR — phase's `end_the_turn` effect
-    # category opens it via the hybrid (Obeka). ADR-0027 β: timing_control ALSO migrated
-    # (a byte-identical _IR_KEPT_DETECTORS mirror — phase emits nothing structural for
-    # the cast-timing static), so it now rides the hybrid path too. The split
-    # (end_the_turn ≠ the opponents/any-scoped timing restriction) still holds.
-    obeka = {
-        "name": "X",
-        "oracle_text": "{T}: The player whose turn it is may end the turn.",
-    }
-    obeka_ir = Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="activated",
-                        cost="tap",
-                        effects=(
-                            Effect(
-                                category="end_the_turn",
-                                scope="any",
-                                raw="may end the turn",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    obeka_hybrid = {s.key for s in extract_signals_hybrid(obeka, obeka_ir)}
-    assert "end_the_turn" in obeka_hybrid
-    assert "timing_control" not in obeka_hybrid
+    # Obeka, Brute Chronologist — "may end the turn" opens end_the_turn (not
+    # timing_control) on the real IR. Teferi, Mage of Zhalfir — "only … as a sorcery"
+    # opens timing_control (not end_the_turn). The split holds on real cards.
+    obeka = _hyb("Obeka, Brute Chronologist")
+    assert "end_the_turn" in obeka
+    assert "timing_control" not in obeka
 
-    teferi = {
-        "name": "Y",
-        "oracle_text": "Each opponent can cast spells only any time they could cast a sorcery.",
-    }
-    assert "timing_control" not in _keys(teferi)  # ADR-0027 β: regex path drops it
-    assert "timing_control" in _keys_hybrid(teferi)  # the IR kept-mirror serves it
-    assert "end_the_turn" not in _keys_hybrid(teferi)
+    teferi = "Teferi, Mage of Zhalfir"
+    assert "timing_control" not in _reg(teferi)  # ADR-0027 β: regex path drops it
+    teferi_hyb = _hyb(teferi)
+    assert "timing_control" in teferi_hyb  # the IR kept-mirror serves it
+    assert "end_the_turn" not in teferi_hyb
 
 
 # #17 Donate = a control change (CR 701.12). A group-hug "target opponent draws/creates"
 # card must NOT open the donate lane. ADR-0027: donate migrated to the IR — a
 # gain_control effect whose raw names an another-player RECIPIENT.
 def test_donate_is_control_change_only():
-    zedruu = {
-        "name": "X",
-        "oracle_text": "Target player gains control of target permanent you control.",
-    }
-    zedruu_ir = Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="activated",
-                        effects=(
-                            Effect(
-                                category="gain_control",
-                                scope="any",
-                                subject=Filter(
-                                    card_types=("Permanent",), controller="you"
-                                ),
-                                raw="Target player gains control of target permanent you control.",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "donate_matters" in {
-        s.key for s in extract_signals_hybrid(zedruu, zedruu_ir)
-    }
+    # Zedruu the Greathearted donates a permanent to another player → donate_matters on
+    # the real IR.
+    assert "donate_matters" in _hyb("Zedruu the Greathearted")
 
     # A group-hug "target opponent draws" is NOT a control change — its IR carries a
-    # draw effect, not gain_control, so the lane stays closed.
+    # draw effect, not gain_control, so the lane stays closed (controlled negative).
     grouphug = {"name": "Y", "oracle_text": "Target opponent draws two cards."}
     grouphug_ir = Card(
         oracle_id="x",
@@ -619,7 +520,8 @@ def test_donate_is_control_change_only():
 # partner (which references this card by name), never every meld half.
 # ADR-0027 Cluster D: meld_pair migrated to the Card IR — it now fires from the hybrid
 # (IR) path via a byte-identical subject-bearing kept word mirror, NOT the deleted regex
-# producer. The subject is still THIS card's name; the serve spec is unchanged.
+# producer. The subject is still THIS card's name; the serve spec is unchanged. A
+# constructed pair pins the "serves only its partner" logic.
 def test_meld_pair_serves_only_its_partner():
     front = {
         "name": "Commander A",

@@ -1,14 +1,36 @@
 """Tests for the rules mined from the zero-signal commander tail (the families the
 workflow surfaced as clean, measured wins). Each recovers a real archetype the
 12-detector baseline missed, with a structural anchor that keeps it precise.
+
+Real-card pins run the REAL projected Card IR via ``mtg_utils.testkit``
+(``test_signals`` = production hybrid over the real Scryfall record + real sidecar IR;
+``test_card`` = the real minimal record). Pins on a controlled, made-up shape
+("Attacker"/"Drainer"/"Team Buff", or a synthetic generic) keep a thin synthetic
+builder — the shape is the point, not a particular printing.
 """
 
 from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
+from mtg_utils.testkit import test_card, test_signals
 
-
-def _ks(card):
-    return {(s.key, s.scope) for s in extract_signals(card)}
+# Card names referenced through the real-card helpers above. This table feeds the
+# `build-card-snapshot` usage scanner (it parses `_REAL_CASES` dict VALUES, which
+# also handles apostrophes — unlike the bare `test_card("…")` literal scan). Keep it
+# in sync with the names used below; a missing entry fails loud (KeyError) at test
+# time, never silently.
+_REAL_CASES: dict[str, str] = {
+    "Danitha Capashen, Paragon": "Danitha Capashen, Paragon",
+    "Edric, Spymaster of Trest": "Edric, Spymaster of Trest",
+    "Glarb, Calamity's Augur": "Glarb, Calamity's Augur",
+    "Hashaton, Scarab's Fist": "Hashaton, Scarab's Fist",
+    "Jin-Gitaxias, Core Augur": "Jin-Gitaxias, Core Augur",
+    "Kamahl, Pit Fighter": "Kamahl, Pit Fighter",
+    "Nekusar, the Mindrazer": "Nekusar, the Mindrazer",
+    "Prosper, Tome-Bound": "Prosper, Tome-Bound",
+    "Vilis, Broker of Blood": "Vilis, Broker of Blood",
+    "Vorinclex, Voice of Hunger": "Vorinclex, Voice of Hunger",
+    "Walker of the Wastes": "Walker of the Wastes",
+}
 
 
 def _keys(card):
@@ -21,23 +43,33 @@ def _bare_ir() -> Card:
     return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
-def _ks_hybrid(card):
-    return {(s.key, s.scope) for s in extract_signals_hybrid(card, _bare_ir())}
-
-
 def _keys_hybrid(card):
     return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
 
 
+# Real-card signal sets — production hybrid path / regex-only path, by name.
+def _hyb_ks(name):
+    return {(s.key, s.scope) for s in test_signals(name)}
+
+
+def _reg_ks(name):
+    return {(s.key, s.scope) for s in extract_signals(test_card(name))}
+
+
+def _hyb_keys(name):
+    return {s.key for s in test_signals(name)}
+
+
+def _reg_keys(name):
+    return {s.key for s in extract_signals(test_card(name))}
+
+
 def test_combat_damage_matters_scoped_opponents():
-    # ADR-0027 (SIDECAR v41): combat_damage_matters reads the structured recipient; the
-    # bare IR carries no combat trigger, so the player recipient ("to one of your
-    # opponents") is recovered from the oracle via the supplement parser. scope opponents.
-    c = {
-        "name": "Edric, Spymaster of Trest",
-        "oracle_text": "Whenever a creature deals combat damage to one of your opponents, its controller may draw a card.",
-    }
-    assert ("combat_damage_matters", "opponents") in _ks_hybrid(c)
+    # Edric, Spymaster of Trest — "deals combat damage to one of your opponents" reads the
+    # structured recipient; the real IR opens combat_damage_matters scoped opponents.
+    assert ("combat_damage_matters", "opponents") in _hyb_ks(
+        "Edric, Spymaster of Trest"
+    )
 
 
 def test_combat_damage_does_not_fire_on_plain_attack():
@@ -49,140 +81,42 @@ def test_combat_damage_does_not_fire_on_plain_attack():
 
 
 def test_cost_reduction():
-    # ADR-0027 β: cost_reduction is IR-served — a static ModifyCost{Reduce} Effect whose
-    # subject is the spell_filter (here Aura/Equipment). The structural arm fires on the
-    # non-None subject; the legacy regex path no longer emits it.
-    c = {
-        "name": "Danitha Capashen, Paragon",
-        "type_line": "Legendary Creature — Human Knight",
-        "oracle_text": (
-            "First strike, vigilance, lifelink\n"
-            "Aura and Equipment spells you cast cost {1} less to cast."
-        ),
-    }
-    ir = Card(
-        oracle_id="x",
-        name="Danitha Capashen, Paragon",
-        faces=(
-            Face(
-                name="Danitha Capashen, Paragon",
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="cost_reduction",
-                                scope="you",
-                                subject=Filter(subtypes=("Aura", "Equipment")),
-                                raw=(
-                                    "Aura and Equipment spells you cast cost "
-                                    "{1} less to cast."
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "cost_reduction" not in _keys(c)
-    assert ("cost_reduction", "you") in {
-        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
-    }
+    # Danitha Capashen, Paragon — "Aura and Equipment spells you cast cost {1} less" is a
+    # static ModifyCost{Reduce} on the spell_filter; the real IR opens cost_reduction, the
+    # legacy regex path does not.
+    assert "cost_reduction" not in _reg_keys("Danitha Capashen, Paragon")
+    assert ("cost_reduction", "you") in _hyb_ks("Danitha Capashen, Paragon")
 
 
 def test_play_from_top_of_library_is_its_own_signal():
-    # Playing off the top of the LIBRARY (Future Sight / Glarb) is play_from_top — a
-    # different zone than exile, so it is NOT cast_from_exile. ADR-0027 β: play_from_top
-    # migrated to the Card IR, so it is served from the hybrid — here via the structural
-    # STATIC cast_from_zone+from:library arm (project._top_play_permission_marker over
-    # phase's TopOfLibraryCastPermission mode). cast_from_exile stays out on both paths.
-    c = {
-        "name": "Glarb, Calamity's Augur",
-        "oracle_text": "Deathtouch\nYou may look at the top card of your library any time.\nYou may play lands and cast spells with mana value 4 or greater from the top of your library.\n{T}: Surveil 2.",
-    }
-    ir = Card(
-        oracle_id="x",
-        name="Glarb, Calamity's Augur",
-        faces=(
-            Face(
-                name="Glarb, Calamity's Augur",
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="cast_from_zone",
-                                scope="you",
-                                zones=("from:library",),
-                                raw=(
-                                    "You may play lands and cast spells with mana "
-                                    "value 4 or greater from the top of your library."
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    keys = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    # Playing off the top of the LIBRARY (Glarb, Calamity's Augur) is play_from_top — a
+    # different zone than exile, so it is NOT cast_from_exile. The real IR opens
+    # play_from_top (the structural cast_from_zone+from:library arm) and keeps
+    # cast_from_exile out.
+    keys = _hyb_ks("Glarb, Calamity's Augur")
     assert ("play_from_top", "you") in keys
     assert ("cast_from_exile", "you") not in keys
 
 
 def test_cast_from_exile_play_from_exile_trigger():
-    # ADR-0027: cast_from_exile migrated to the Card IR via a byte-identical kept WORD
-    # MIRROR (the CAST_FROM_EXILE_REGEX row in _IR_KEPT_DETECTORS, scope "you"); phase
-    # carries no usable structural form, so the lane fires SOLELY from the mirror over
-    # the record's reminder-stripped oracle. The regex path no longer emits it — assert
-    # via the hybrid path (a bare non-None IR routes to the IR/mirror path). Prosper's
-    # "Whenever you play a card from exile, create a Treasure token" Pact Boon is the
-    # canonical exile-cast PAYOFF.
-    c = {
-        "name": "Prosper, Tome-Bound",
-        "oracle_text": (
-            "Deathtouch\nMystic Arcanum — At the beginning of your end step, exile the top card of your library. Until the end of your next turn, you may play that card.\nPact Boon — Whenever you play a card from exile, create a Treasure token."
-        ),
-    }
-    ir = Card(oracle_id="x", name="Prosper, Tome-Bound")
-    keys = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
-    assert ("cast_from_exile", "you") in keys
-    assert ("cast_from_exile", "you") not in _ks(c)
+    # Prosper, Tome-Bound — "Whenever you play a card from exile, create a Treasure" is the
+    # canonical exile-cast PAYOFF. The real IR opens cast_from_exile (the kept word mirror
+    # over the reminder-stripped oracle); the regex path no longer emits it.
+    assert ("cast_from_exile", "you") in _hyb_ks("Prosper, Tome-Bound")
+    assert ("cast_from_exile", "you") not in _reg_ks("Prosper, Tome-Bound")
 
 
 def test_discard_matters():
-    # ADR-0027: discard_matters migrated to the Card IR — Hashaton's "whenever you
-    # discard a creature card" payoff fires from the scope-gated `discarded`-trigger
-    # structural arm (scope != "opp"), NOT the deleted regex producer. Check the
-    # hybrid path with a real `discarded`-trigger IR.
-    c = {
-        "name": "Hashaton, Scarab's Fist",
-        "oracle_text": "Whenever you discard a creature card, you may pay {2}{U}. If you do, create a tapped token that's a copy of that card, except it's a 4/4 black Zombie.",
-    }
-    ir = Card(
-        oracle_id="x",
-        name="Hashaton, Scarab's Fist",
-        faces=(
-            Face(
-                name="Hashaton, Scarab's Fist",
-                abilities=(
-                    Ability(
-                        kind="triggered",
-                        trigger=Trigger(event="discarded", scope="you"),
-                    ),
-                ),
-            ),
-        ),
-    )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
-    assert ("discard_matters", "you") in hybrid
-    assert ("discard_matters", "you") not in _ks(c)
+    # Hashaton, Scarab's Fist — "Whenever you discard a creature card …" payoff fires from
+    # the scope-gated `discarded`-trigger structural arm (scope != "opp") on the real IR,
+    # NOT the deleted regex producer.
+    assert ("discard_matters", "you") in _hyb_ks("Hashaton, Scarab's Fist")
+    assert ("discard_matters", "you") not in _reg_ks("Hashaton, Scarab's Fist")
 
 
 def test_lifeloss_drain_scoped_opponents():
     # ADR-0027: lifeloss_matters is IR-served — a `lose_life` drain (scope any/opp →
-    # opponents).
+    # opponents). A synthetic dies-drain shape pins the scope fold generically.
     c = {
         "name": "Drainer",
         "oracle_text": "Whenever a creature you control dies, each opponent loses 1 life.",
@@ -208,57 +142,22 @@ def test_lifeloss_drain_scoped_opponents():
 
 
 def test_lifeloss_self_scoped_you():
-    # ADR-0027: lifeloss_matters is IR-served — "whenever you lose life" is a
-    # `life_lost` trigger payoff (scope you → you).
-    from mtg_utils.card_ir import Trigger
-
-    c = {
-        "name": "Vilis-like",
-        "oracle_text": "Whenever you lose life, draw that many cards.",
-    }
-    ir = Card(
-        oracle_id="x",
-        name="Vilis-like",
-        faces=(
-            Face(
-                name="Vilis-like",
-                abilities=(
-                    Ability(
-                        kind="triggered",
-                        trigger=Trigger(event="life_lost", scope="you"),
-                        effects=(Effect(category="draw", scope="you"),),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert ("lifeloss_matters", "you") in {
-        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
-    }
+    # Vilis, Broker of Blood — "Whenever you lose life, draw that many cards" is a
+    # life_lost trigger payoff (scope you). The real IR opens lifeloss_matters/you.
+    assert ("lifeloss_matters", "you") in _hyb_ks("Vilis, Broker of Blood")
 
 
 def test_lands_matter_count_payoff():
-    # ADR-0027: lands_matter migrated to the Card IR (the amount.subject=Land count
-    # operand + a kept word mirror for the "for each land you control" forms phase
-    # flattens to a bare effect), so it is served via the hybrid path, not pure regex.
-    c = {
-        "name": "Radha-like",
-        "oracle_text": "This creature gets +1/+1 for each land you control.",
-    }
-    bare = Card(oracle_id="x", name="Radha-like", faces=(Face(name="Radha-like"),))
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, bare)}
-    assert ("lands_matter", "you") in hybrid
-    assert ("lands_matter", "you") not in _ks(c)
+    # Walker of the Wastes — "This creature gets +1/+1 for each land you control" (the
+    # Land count operand). The real IR opens lands_matter; the regex path does not.
+    assert ("lands_matter", "you") in _hyb_ks("Walker of the Wastes")
+    assert ("lands_matter", "you") not in _reg_ks("Walker of the Wastes")
 
 
 def test_card_draw_engine_bulk_draw():
-    # ADR-0027: card_draw_engine migrated to the Card IR (byte-identical kept-mirror
-    # re-run of _detect_card_draw), so it serves from the hybrid path, not pure regex.
-    c = {
-        "name": "Jin-Gitaxias, Core Augur",
-        "oracle_text": "Flash\nAt the beginning of your end step, draw seven cards.\nEach opponent's maximum hand size is reduced by seven.",
-    }
-    assert ("card_draw_engine", "you") in _ks_hybrid(c)
+    # Jin-Gitaxias, Core Augur — "draw seven cards" each end step opens card_draw_engine
+    # on the real IR.
+    assert ("card_draw_engine", "you") in _hyb_ks("Jin-Gitaxias, Core Augur")
 
 
 def test_card_draw_engine_skips_cantrip():
@@ -275,72 +174,24 @@ def test_card_draw_engine_skips_etb_oneshot():
 
 
 def test_card_draw_engine_each_player_wheel_scoped_each():
-    c = {
-        "name": "Nekusar-like",
-        "oracle_text": "At the beginning of each player's draw step, that player draws an additional card.",
-    }
-    assert any(
-        s.key == "card_draw_engine" for s in extract_signals_hybrid(c, _bare_ir())
-    )
+    # Nekusar, the Mindrazer — "each player draws an additional card" (a symmetric wheel)
+    # opens card_draw_engine on the real IR.
+    assert "card_draw_engine" in _hyb_keys("Nekusar, the Mindrazer")
 
 
 def test_direct_damage_pinger():
-    # ADR-0027: direct_damage migrated to the Card IR. "{T}: deals 3 damage to any
-    # target" is repeatable player-reach burn (CR 115.4 — any target can be a player);
-    # served from the bare-IR hybrid path via the byte-identical _DIRECT_DAMAGE_MIRROR
-    # over the oracle, not the deleted regex.
-    c = {
-        "name": "Kamahl, Pit Fighter",
-        "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\n{T}: Kamahl deals 3 damage to any target.",
-    }
-    bare = Card(oracle_id="x", name="Kamahl", faces=(Face(name="Kamahl"),))
-    assert ("direct_damage", "you") in {
-        (s.key, s.scope) for s in extract_signals_hybrid(c, bare)
-    }
+    # Kamahl, Pit Fighter — "{T}: deals 3 damage to any target" is repeatable player-reach
+    # burn (CR 115.4 — any target can be a player). The real IR opens direct_damage.
+    assert ("direct_damage", "you") in _hyb_ks("Kamahl, Pit Fighter")
 
 
 def test_mana_amplifier():
-    # ADR-0027 β: mana_amplifier migrated regex→IR. The doubler arm fires from a
-    # triggered `ramp` Mana effect whose raw matches the AMOUNT-INCREASE
-    # discriminator ("add one mana of any type" after a "tap a land for mana"),
-    # read additively (Vorinclex also keeps firing ramp_matters).
-    c = {
-        "name": "Vorinclex, Voice of Hunger",
-        "type_line": "Legendary Creature — Phyrexian Praetor",
-        "oracle_text": (
-            "Trample\n"
-            "Whenever you tap a land for mana, add one mana of any type that "
-            "land produced.\n"
-            "Whenever an opponent taps a land for mana, that land doesn't untap "
-            "during its controller's next untap step."
-        ),
-    }
-    ir = Card(
-        oracle_id="x",
-        name="Vorinclex, Voice of Hunger",
-        faces=(
-            Face(
-                name="Vorinclex, Voice of Hunger",
-                abilities=(
-                    Ability(
-                        kind="triggered",
-                        effects=(
-                            Effect(
-                                category="ramp",
-                                scope="any",
-                                raw=(
-                                    "Whenever you tap a land for mana, add one "
-                                    "mana of any type that land produced."
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "mana_amplifier" not in _keys(c)
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    # Vorinclex, Voice of Hunger — "Whenever you tap a land for mana, add one mana …" is
+    # the doubler arm (a triggered ramp Mana effect matching the amount-increase
+    # discriminator). The real IR opens mana_amplifier additively (ramp_matters also
+    # keeps firing); the regex path emits neither.
+    assert "mana_amplifier" not in _reg_keys("Vorinclex, Voice of Hunger")
+    hybrid = _hyb_ks("Vorinclex, Voice of Hunger")
     assert ("mana_amplifier", "you") in hybrid
     # read additively — the doubler stays in the generic ramp lane too.
     assert ("ramp_matters", "you") in hybrid
@@ -348,9 +199,9 @@ def test_mana_amplifier():
 
 def test_keyword_granting_team_is_not_a_separate_signal():
     # Deliberately NOT added — team keyword grants are already covered by
-    # creatures_matter (the workflow flagged this family do-not-add). creatures_matter
-    # MIGRATED to the Card IR (ADR-0027), so the team grant fires it via the grant_
-    # keyword arm on the hybrid path.
+    # creatures_matter (the workflow flagged this family do-not-add). A synthetic team
+    # grant pins the do-not-add: team_keyword_grant must not exist; creatures_matter fires
+    # via the grant_keyword arm on the hybrid path.
     c = {
         "name": "Team Buff",
         "oracle_text": "Other creatures you control have flying.",

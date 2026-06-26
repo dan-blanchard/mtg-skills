@@ -23,6 +23,7 @@ from mtg_utils.card_ir import (
     Quantity,
     Trigger,
 )
+from mtg_utils.testkit import test_signals
 
 CARD = {"name": "Test"}
 
@@ -38,6 +39,29 @@ def _ir(*abilities: Ability, castable: tuple[str, ...] = ()) -> Card:
 
 def _sigs(ir: Card) -> list[tuple[str, str, str]]:
     return sorted((s.key, s.scope, s.subject) for s in extract_signals_ir(CARD, ir))
+
+
+# ── Real-card path (task #25): a card looked up by NAME from the committed snapshot
+# (``mtg_utils.testkit``), run through production ``extract_signals_hybrid`` over its
+# REAL projected IR — no hand-built ``_ir(Ability(...))`` shape that can drift from
+# ``project_card``. Used wherever a synthetic IR was mirroring a real card; the thin
+# ``_ir`` builder above is kept only for genuine logic probes (parameterized shape
+# coverage, hypothetical over-fire guards, placeholder/future-proof types). ──────────
+
+
+# Each call site passes the card name as a literal arg to ``test_signals`` inline (not
+# behind a wrapper) so the usage scanner in ``build-card-snapshot`` discovers the name
+# and snapshots the card. (Names containing an apostrophe can't ride this scanner — its
+# delimiter regex stops at the quote — so those stay as synthetic oracle-mirror probes.)
+
+
+def _striples(sigs: list) -> list[tuple[str, str, str]]:
+    """Sorted (key, scope, subject) triples production emits for a real card."""
+    return sorted((s.key, s.scope, s.subject) for s in sigs)
+
+
+def _skeys(sigs: list) -> set[str]:
+    return {s.key for s in sigs}
 
 
 # ── creatures_matter (generic creatures, not tribal) ──────────────────────────
@@ -130,22 +154,7 @@ def test_opponent_gain_life_is_not_lifegain_payoff():
 def test_lifegain_from_grant_lifelink_source():
     # Talus Paladin "Allies you control gain lifelink": granting lifelink makes them a
     # lifegain SOURCE (CR 702.15b), same lane as the card's own lifelink keyword.
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="etb"),
-            effects=(
-                Effect(
-                    category="grant_keyword",
-                    scope="you",
-                    counter_kind="lifelink",
-                    subject=Filter(subtypes=("Ally",), controller="you"),
-                    raw="gain lifelink",
-                ),
-            ),
-        )
-    )
-    assert ("lifegain_matters", "you", "") in _sigs(ir)
+    assert ("lifegain_matters", "you", "") in _striples(test_signals("Talus Paladin"))
 
 
 def test_grant_lifelink_to_opponent_creatures_not_lifegain():
@@ -171,41 +180,13 @@ def test_grant_lifelink_to_opponent_creatures_not_lifegain():
 def test_lifegain_from_scaling_self_loss():
     # Dark Confidant "You lose life equal to its mana value" — a scaling self-bleed
     # (op=count) that wants lifegain to sustain it (CR 119.3).
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="upkeep"),
-            effects=(
-                Effect(
-                    category="lose_life",
-                    scope="you",
-                    amount=Quantity(op="count", factor=1),
-                    raw="You lose life equal to its mana value.",
-                ),
-            ),
-        )
-    )
-    assert ("lifegain_matters", "you", "") in _sigs(ir)
+    assert ("lifegain_matters", "you", "") in _striples(test_signals("Dark Confidant"))
 
 
 def test_lifegain_from_recurring_upkeep_bleed():
     # Benthic Djinn "At the beginning of your upkeep, you lose 2 life" — a recurring
     # fixed >=2 upkeep bleed.
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="upkeep"),
-            effects=(
-                Effect(
-                    category="lose_life",
-                    scope="you",
-                    amount=Quantity(op="fixed", factor=2),
-                    raw="At the beginning of your upkeep, you lose 2 life.",
-                ),
-            ),
-        )
-    )
-    assert ("lifegain_matters", "you", "") in _sigs(ir)
+    assert ("lifegain_matters", "you", "") in _striples(test_signals("Benthic Djinn"))
 
 
 def test_one_shot_fixed_self_loss_not_lifegain():
@@ -248,25 +229,12 @@ def test_opponent_loses_life_is_not_self_sustain():
 
 
 def test_lifegain_from_draw_bleed_engine():
-    # Taborax / Disciple of Perdition: a death-triggered ability that BOTH draws and
-    # makes you lose life is a Necropotence-style draw-bleed engine — recurrence is
-    # the significance, so the fixed-factor-1 floor does not apply.
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="dies"),
-            effects=(
-                Effect(category="draw", scope="you"),
-                Effect(
-                    category="lose_life",
-                    scope="you",
-                    amount=Quantity(op="fixed", factor=1),
-                    raw="you draw a card and you lose 1 life",
-                ),
-            ),
-        )
+    # Disciple of Perdition: a death-triggered ability that BOTH draws and makes you
+    # lose life is a Necropotence-style draw-bleed engine — recurrence is the
+    # significance, so the fixed-factor-1 floor does not apply.
+    assert ("lifegain_matters", "you", "") in _striples(
+        test_signals("Disciple of Perdition")
     )
-    assert ("lifegain_matters", "you", "") in _sigs(ir)
 
 
 # ── graveyard_matters (scoped) ────────────────────────────────────────────────
@@ -303,21 +271,9 @@ def test_graveyard_bounce_from_graveyard_scoped_you():
     """A bounce returning cards FROM your graveyard to hand (Metallurgic Summonings,
     from:graveyard) fires graveyard_matters at you — _gy_scope reads "your graveyard"
     in the raw, overriding phase's recursion-target 'any' scope."""
-    ir = _ir(
-        Ability(
-            kind="activated",
-            effects=(
-                Effect(
-                    category="bounce",
-                    scope="any",
-                    zones=("from:graveyard", "to:hand"),
-                    raw="Return all instant and sorcery cards from your graveyard to "
-                    "your hand.",
-                ),
-            ),
-        )
+    assert ("graveyard_matters", "you", "") in _striples(
+        test_signals("Metallurgic Summonings")
     )
-    assert _sigs(ir) == [("graveyard_matters", "you", "")]
 
 
 def test_graveyard_tutor_from_graveyard_scoped_you():
@@ -719,42 +675,13 @@ def test_proliferate_fires_any_counter_matters():
 def test_removecounter_cost_with_p1p1_oracle_fires():
     """An ability whose COST removes +1/+1 counters (Triskelion ping) fires
     plus_one_matters when the oracle names '+1/+1 counter'."""
-    card = {
-        "name": "Triskelion",
-        "oracle_text": (
-            "This creature enters with three +1/+1 counters on it.\n"
-            "Remove a +1/+1 counter from this creature: It deals 1 damage to "
-            "any target."
-        ),
-    }
-    ir = _ir(
-        Ability(
-            kind="activated",
-            cost="removecounter",
-            effects=(Effect(category="damage", raw="deals 1 damage to any target"),),
-        )
-    )
-    assert "plus_one_matters" in {s.key for s in extract_signals_ir(card, ir)}
+    assert "plus_one_matters" in _skeys(test_signals("Triskelion"))
 
 
 def test_removecounter_cost_without_p1p1_oracle_excluded():
-    """A removecounter cost on a NON-+1/+1 counter card (a ki/depletion/charge sink)
-    stays out of the +1/+1 lane (CR 122.1)."""
-    card = {
-        "name": "Gemstone Mine",
-        "oracle_text": (
-            "This land enters with three mining counters on it.\n"
-            "{T}, Remove a mining counter: Add one mana of any color."
-        ),
-    }
-    ir = _ir(
-        Ability(
-            kind="activated",
-            cost="removecounter,tap",
-            effects=(Effect(category="ramp", raw="add one mana"),),
-        )
-    )
-    assert "plus_one_matters" not in {s.key for s in extract_signals_ir(card, ir)}
+    """A removecounter cost on a NON-+1/+1 counter card (Gemstone Mine — a mining /
+    depletion sink) stays out of the +1/+1 lane (CR 122.1)."""
+    assert "plus_one_matters" not in _skeys(test_signals("Gemstone Mine"))
 
 
 def test_counter_have_payoff_on_amount_subject_fires():
@@ -954,20 +881,7 @@ def test_pump_count_counter_payoff_fires():
 def test_damage_to_creature_fires_removal_matters():
     """A damage effect to a target creature (Flame Slash) fires removal_matters — the
     regex routed this only to direct_damage; the lane was never wired to damage."""
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="damage",
-                    subject=Filter(card_types=("Creature",)),
-                    amount=Quantity(op="fixed", factor=4),
-                    raw="deals 4 damage to target creature",
-                ),
-            ),
-        )
-    )
-    assert ("removal_matters", "you", "") in _sigs(ir)
+    assert ("removal_matters", "you", "") in _striples(test_signals("Flame Slash"))
 
 
 def test_damage_to_any_target_not_removal():
@@ -1052,25 +966,9 @@ def test_cast_spell_trigger_fires_spellcast_matters():
     # scope='any' over a typed-noncreature subject (Instant/Sorcery) when the card
     # oracle says "you cast" — the Talrand you-cast PAYOFF. phase scopes "you cast" and
     # the symmetric "a player casts" both 'any', so the oracle "you cast" is the gate.
-    card = {
-        "name": "Talrand",
-        "oracle_text": (
-            "Whenever you cast an instant or sorcery spell, create a 2/2 blue "
-            "Drake creature token with flying."
-        ),
+    assert ("spellcast_matters", "you") in {
+        (k, s) for (k, s, _u) in _striples(test_signals("Talrand, Sky Summoner"))
     }
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(
-                event="cast_spell",
-                subject=Filter(card_types=("Instant", "Sorcery"), controller="any"),
-                scope="any",
-            ),
-        )
-    )
-    keys = {(s.key, s.scope) for s in extract_signals_ir(card, ir)}
-    assert ("spellcast_matters", "you") in keys
 
 
 def test_bare_cast_spell_trigger_does_not_fire_spellcast_matters():
@@ -1114,21 +1012,9 @@ def test_combat_damage_matters_fires_from_recipient_structure():
     (project → trig.recipient). A player/planeswalker recipient ("to one of your
     opponents" → Typed{controller:Opponent} → recipient=("player",)) fires the base lane
     (scope opponents); the three recipient-word mirrors are deleted."""
-    card = {
-        "name": "Edric",
-        "oracle_text": (
-            "Whenever a creature deals combat damage to one of your opponents, "
-            "its controller may draw a card."
-        ),
-    }
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="combat_damage", scope="opp", recipient=("player",)),
-        )
+    assert ("combat_damage_matters", "opponents", "") in _striples(
+        test_signals("Edric, Spymaster of Trest")
     )
-    sigs = sorted((s.key, s.scope, s.subject) for s in extract_signals_ir(card, ir))
-    assert ("combat_damage_matters", "opponents", "") in sigs
 
 
 # ── Batch 3: tribal type_matters from Filter subtypes ─────────────────────────
@@ -1494,20 +1380,9 @@ def test_colorless_removal_is_not_color_hoser():
 def test_nonhuman_attackers_from_attack_trigger():
     """Winota: 'whenever a non-Human creature you control attacks' — NotSubtype:Human
     on the attacking subject, controller you."""
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(
-                event="attacks",
-                subject=Filter(
-                    card_types=("Creature",),
-                    controller="you",
-                    predicates=("NotSubtype:Human",),
-                ),
-            ),
-        )
+    assert ("nonhuman_attackers", "you", "") in _striples(
+        test_signals("Winota, Joiner of Forces")
     )
-    assert ("nonhuman_attackers", "you", "") in _sigs(ir)
 
 
 def test_typed_anthem_multi_from_anyof_pump():
@@ -1563,21 +1438,7 @@ def test_base_pt_set_fires():
     # base P/T (the fixed-set toolbox) or carries the v32 SelfBasePt marker — so a bare
     # land/artifact mass-animate ("is a N/N creature") stays out of the lane. Lignify's
     # raw names "base power and toughness 0/4".
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="base_pt_set",
-                    scope="any",
-                    subject=Filter(card_types=("Creature",)),
-                    raw="Enchanted creature is a Treefolk with base power and "
-                    "toughness 0/4 and loses all abilities.",
-                ),
-            ),
-        )
-    )
-    assert ("base_pt_set", "any", "") in _sigs(ir)
+    assert ("base_pt_set", "any", "") in _striples(test_signals("Lignify"))
 
 
 def test_base_pt_set_land_animator_not_in_lane():
@@ -1711,101 +1572,39 @@ def _stax_keys(ir: Card, oracle: str = "") -> set[str]:
 def test_silence_addrestriction_opp_is_stax_taxes():
     """Silence: AddRestriction whose restriction.affected_players is
     OpponentsOfSourceController projects to a restriction scope='opp' (CR 604.1)."""
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="restriction",
-                    scope="opp",
-                    raw="Your opponents can't cast spells this turn.",
-                ),
-            ),
-        )
-    )
-    assert "stax_taxes" in _stax_keys(ir, "Your opponents can't cast spells this turn.")
+    assert "stax_taxes" in _skeys(test_signals("Silence"))
 
 
 def test_enters_tapped_opponents_is_stax_taxes():
     """Imposing Sovereign / Kinjalli's Sunwing: the enters-tapped ChangeZone
     replacement projects to enters_tapped scope='opp' (valid_card.controller). CR
     614.1c."""
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="enters_tapped",
-                    scope="opp",
-                    subject=Filter(card_types=("Creature",), controller="opp"),
-                    raw="Creatures your opponents control enter tapped.",
-                ),
-            ),
-        )
-    )
-    assert _stax_keys(ir) == {"stax_taxes"}
+    keys = _skeys(test_signals("Imposing Sovereign"))
+    assert "stax_taxes" in keys
+    assert "symmetric_stax" not in keys
 
 
 def test_enters_tapped_symmetric_is_symmetric_stax():
     """Orb of Dreams: 'Permanents enter tapped' (valid_card.controller null) is
     symmetric — scope='each' (CR 604.1)."""
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="enters_tapped",
-                    scope="each",
-                    subject=Filter(card_types=("Permanent",), controller="any"),
-                    raw="Permanents enter tapped.",
-                ),
-            ),
-        )
-    )
-    assert _stax_keys(ir) == {"symmetric_stax"}
+    keys = _skeys(test_signals("Orb of Dreams"))
+    assert "symmetric_stax" in keys
+    assert "stax_taxes" not in keys
 
 
 def test_symmetric_cost_tax_cofires_stax_taxes():
     """Sphere of Resistance / Thalia: a symmetric cost-tax (ModifyCost-Raise,
     counter_kind='stax_tax') is symmetric_stax AND co-fires stax_taxes — a symmetric
     tax still hobbles opponents (CR 601.2f)."""
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="restriction",
-                    scope="each",
-                    counter_kind="stax_tax",
-                    subject=Filter(card_types=("Card",), controller="any"),
-                    raw="Spells cost {1} more to cast.",
-                ),
-            ),
-        )
-    )
-    assert _stax_keys(ir) == {"stax_taxes", "symmetric_stax"}
+    keys = _skeys(test_signals("Sphere of Resistance"))
+    assert "stax_taxes" in keys
+    assert "symmetric_stax" in keys
 
 
 def test_symmetric_untap_lock_is_symmetric_only():
     """Back to Basics: a symmetric UNTAP lock (no stax_tax marker) is symmetric_stax
     only — it is not a cost/cast tax, so it does not co-fire stax_taxes."""
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="restriction",
-                    scope="each",
-                    subject=Filter(
-                        card_types=("Land",), predicates=("NotSupertype:Basic",)
-                    ),
-                    raw="Nonbasic lands don't untap during their controllers' "
-                    "untap steps.",
-                ),
-            ),
-        )
-    )
-    keys = _stax_keys(ir)
+    keys = _skeys(test_signals("Back to Basics"))
     assert "symmetric_stax" in keys
     assert "stax_taxes" not in keys
 
@@ -1814,21 +1613,7 @@ def test_debuff_anthem_on_opponents_is_not_stax():
     """Elesh Norn / Cower in Fear: 'Creatures your opponents control get -2/-2' is a
     pump (debuff), NOT a restriction — the deleted byte-mirror's over-fire. The
     structural arm correctly keeps it OUT of stax (it rides debuff_matters)."""
-    oracle = "Creatures your opponents control get -2/-2."
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="pump",
-                    scope="opp",
-                    subject=Filter(card_types=("Creature",), controller="opp"),
-                    raw=oracle,
-                ),
-            ),
-        )
-    )
-    keys = _stax_keys(ir, oracle)
+    keys = _skeys(test_signals("Elesh Norn, Grand Cenobite"))
     assert "stax_taxes" not in keys
     assert "symmetric_stax" not in keys
 
@@ -1838,129 +1623,23 @@ def test_single_target_aura_untap_lock_is_not_symmetric_stax():
     (CR 303.4) — restriction scope='any' pred=EnchantedBy — NOT a symmetric lock. The
     deleted byte-mirror wrongly fired symmetric_stax on it; the residue mirror drops
     the `doesn't untap during` branch, so it stays out."""
-    oracle = "Enchanted creature doesn't untap during its controller's untap step."
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="restriction",
-                    scope="any",
-                    subject=Filter(
-                        card_types=("Creature",), predicates=("EnchantedBy",)
-                    ),
-                    raw=oracle,
-                ),
-            ),
-        )
-    )
-    assert "symmetric_stax" not in _stax_keys(ir, oracle)
+    assert "symmetric_stax" not in _skeys(test_signals("Dehydration"))
 
 
 def test_residue_mirror_recovers_wholly_dropped_opponent_cast_lock():
     """Dragonlord Dromoka: phase drops 'Your opponents can't cast spells during your
     turn' entirely (zero restriction Effect). The narrow residue keep-mirror recovers
     it as stax_taxes off the reminder-stripped oracle."""
-    ir = _ir()  # no restriction Effect — phase emits nothing for this clause
-    oracle = "Flying, lifelink\nYour opponents can't cast spells during your turn."
-    assert "stax_taxes" in _stax_keys(ir, oracle)
+    # STRUCTURAL GAP (task #24): phase emits ZERO restriction Effect for Dromoka's
+    # "Your opponents can't cast spells during your turn" — the narrow residue
+    # keep-mirror recovers it as stax_taxes off the reminder-stripped oracle.
+    assert "stax_taxes" in _skeys(test_signals("Dragonlord Dromoka"))
 
 
 # ── ADR-0027 C6 over-fire fix — single-attached pacify Aura is NOT stax ────────
-# Real phase records (focused to the fields project_card reads), projected END-TO-END
-# through project_card so this exercises _is_single_attached_restriction +
-# _restriction_scope + the stax_tax marker gate, not a hand-built Effect.
-
-_ARREST_REAL = {
-    "name": "Arrest",
-    "scryfall_oracle_id": "81728b98-8cf9-4734-a318-69184bb4d15c",
-    "card_type": {
-        "supertypes": [],
-        "core_types": ["Enchantment"],
-        "subtypes": ["Aura"],
-    },
-    "oracle_text": (
-        "Enchant creature\nEnchanted creature can't attack or block, and its "
-        "activated abilities can't be activated."
-    ),
-    "keywords": [],  # string-list (Scryfall) shape — Enchant kw not load-bearing here
-    "abilities": [],
-    "triggers": [],
-    "static_abilities": [
-        {"mode": "CantAttackOrBlock", "affected": {"type": "SelfRef"}},
-        {
-            "mode": {
-                "CantBeActivated": {
-                    "who": "AllPlayers",
-                    "source_filter": {"type": "SelfRef"},
-                    "exemption": "None",
-                }
-            },
-            "affected": {"type": "SelfRef"},
-        },
-    ],
-    "replacements": [],
-}
-
-_STATIC_ORB_REAL = {
-    "name": "Static Orb",
-    "scryfall_oracle_id": "0004ebd0-dfd6-4276-b4a6-de0003e94237",
-    "card_type": {"supertypes": [], "core_types": ["Artifact"], "subtypes": []},
-    "oracle_text": (
-        "As long as this artifact is untapped, players can't untap more than two "
-        "permanents during their untap steps."
-    ),
-    "keywords": [],
-    "abilities": [],
-    "triggers": [],
-    "static_abilities": [
-        {
-            "mode": "Continuous",
-            "affected": {"type": "SelfRef"},
-            "condition": {"type": "Not", "condition": {"type": "SourceIsTapped"}},
-            "description": (
-                "As long as ~ is untapped, players can't untap more than two "
-                "permanents during their untap steps."
-            ),
-        }
-    ],
-    "replacements": [],
-}
-
-_NULL_ROD_REAL = {
-    "name": "Null Rod",
-    "scryfall_oracle_id": "2f83ca86-e23d-40f7-8085-6928d8cfef9b",
-    "card_type": {"supertypes": [], "core_types": ["Artifact"], "subtypes": []},
-    "oracle_text": "Activated abilities of artifacts can't be activated.",
-    "keywords": [],
-    "abilities": [],
-    "triggers": [],
-    "static_abilities": [
-        {
-            "mode": {
-                "CantBeActivated": {
-                    "who": "AllPlayers",
-                    "source_filter": {
-                        "type": "Typed",
-                        "type_filters": ["Artifact"],
-                        "controller": None,
-                        "properties": [],
-                    },
-                    "exemption": "None",
-                }
-            },
-            "affected": None,
-        }
-    ],
-    "replacements": [],
-}
-
-
-def _real_stax_keys(record: dict) -> set[str]:
-    from mtg_utils._card_ir.project import project_card
-
-    ir = project_card([record])
-    return {s.key for s in extract_signals_ir(record, ir)}
+# Real cards from the snapshot, so the full hybrid path exercises
+# _is_single_attached_restriction + _restriction_scope + the stax_tax marker gate over
+# the EXACT projected IR (the snapshot's `ir` is itself project_card's output).
 
 
 def test_pacify_aura_arrest_is_not_stax():
@@ -1968,7 +1647,7 @@ def test_pacify_aura_arrest_is_not_stax():
     who=AllPlayers) on a SelfRef Aura host is single-target pacify (CR 303.4), NOT a
     board-wide tax. The over-fire fix gates it out of BOTH stax lanes despite the
     AllPlayers ``who`` (which only says no player may act on that one creature)."""
-    keys = _real_stax_keys(_ARREST_REAL)
+    keys = _skeys(test_signals("Arrest"))
     assert "stax_taxes" not in keys
     assert "symmetric_stax" not in keys
 
@@ -1977,7 +1656,7 @@ def test_symmetric_static_orb_still_symmetric_stax():
     """Static Orb: a symmetric 'players can't untap …' lock STILL fires symmetric_stax
     (untap-lock — no stax_tax co-fire), proving the fix does not over-suppress genuine
     board-wide stax."""
-    keys = _real_stax_keys(_STATIC_ORB_REAL)
+    keys = _skeys(test_signals("Static Orb"))
     assert "symmetric_stax" in keys
     assert "stax_taxes" not in keys
 
@@ -1986,7 +1665,7 @@ def test_prison_piece_null_rod_still_fires_both():
     """Null Rod: 'Activated abilities of artifacts can't be activated' — a real
     card-CLASS source_filter (Typed Artifact, no attach predicate) is genuine symmetric
     stax. It keeps firing symmetric_stax AND co-fires stax_taxes (stax_tax marker)."""
-    keys = _real_stax_keys(_NULL_ROD_REAL)
+    keys = _skeys(test_signals("Null Rod"))
     assert "symmetric_stax" in keys
     assert "stax_taxes" in keys
 
@@ -2001,71 +1680,6 @@ def test_prison_piece_null_rod_still_fires_both():
 # subject=None). A SINGLE creature → drop both lanes; a PLAYER / BOARD → keep. CR 303.4
 # / 301.5 / 608.2.
 
-_LOST_IN_THOUGHT_REAL = {
-    "name": "Lost in Thought",
-    "scryfall_oracle_id": "lost-in-thought-oid",
-    "card_type": {
-        "supertypes": [],
-        "core_types": ["Enchantment"],
-        "subtypes": ["Aura"],
-    },
-    "oracle_text": (
-        "Enchant creature\nEnchanted creature can't attack or block, and its "
-        "activated abilities can't be activated. Its controller may exile three "
-        "cards from their graveyard for that player to ignore this effect until "
-        "end of turn."
-    ),
-    # Scryfall string-list shape; the Aura subtype (not the Enchant kw) is the gate.
-    "keywords": [],
-    "abilities": [],
-    "triggers": [],
-    "static_abilities": [
-        {"mode": "CantAttackOrBlock", "affected": {"type": "SelfRef"}},
-        {
-            "mode": {
-                "CantBeActivated": {
-                    "who": "AllPlayers",
-                    "source_filter": {"type": "SelfRef"},
-                    "exemption": "None",
-                }
-            },
-            "affected": {"type": "SelfRef"},
-        },
-    ],
-    "replacements": [],
-}
-
-_TRAPPED_IN_THE_TOWER_REAL = {
-    "name": "Trapped in the Tower",
-    "scryfall_oracle_id": "trapped-in-the-tower-oid",
-    "card_type": {
-        "supertypes": [],
-        "core_types": ["Enchantment"],
-        "subtypes": ["Aura"],
-    },
-    "oracle_text": (
-        "Enchant creature without flying\nEnchanted creature can't attack or "
-        "block, and its activated abilities can't be activated."
-    ),
-    "keywords": [],
-    "abilities": [],
-    "triggers": [],
-    "static_abilities": [
-        {"mode": "CantAttackOrBlock", "affected": {"type": "SelfRef"}},
-        {
-            "mode": {
-                "CantBeActivated": {
-                    "who": "AllPlayers",
-                    "source_filter": {"type": "SelfRef"},
-                    "exemption": "None",
-                }
-            },
-            "affected": {"type": "SelfRef"},
-        },
-    ],
-    "replacements": [],
-}
-
 
 def test_pacify_aura_lost_in_thought_is_not_stax():
     """Lost in Thought: the trailing '...for that player to ignore this effect'
@@ -2073,7 +1687,7 @@ def test_pacify_aura_lost_in_thought_is_not_stax():
     cleanly-structured `_is_single_attached_restriction` gate alone could not catch).
     The raw affected-entity supplement reads 'Enchanted creature' (a SINGLE creature)
     off the mangled (subject=None) restriction and excludes it from BOTH stax lanes."""
-    keys = _real_stax_keys(_LOST_IN_THOUGHT_REAL)
+    keys = _skeys(test_signals("Lost in Thought"))
     assert "stax_taxes" not in keys
     assert "symmetric_stax" not in keys
 
@@ -2084,7 +1698,7 @@ def test_pacify_aura_trapped_in_the_tower_is_not_stax():
     newline (and matched `with` inside 'without'). The tightened regex AND the
     affected-entity ('Enchanted creature' = single) residue guard both keep it out of
     BOTH stax lanes."""
-    keys = _real_stax_keys(_TRAPPED_IN_THE_TOWER_REAL)
+    keys = _skeys(test_signals("Trapped in the Tower"))
     assert "stax_taxes" not in keys
     assert "symmetric_stax" not in keys
 
@@ -2093,7 +1707,9 @@ def test_equipment_player_tax_conquerors_flail_fires_stax_taxes():
     """Conqueror's Flail (Equipment): 'your opponents can't cast spells during your
     turn' is a genuine PLAYER tax — the affected entity is opponents, not the equipped
     creature (CR 303.4: card type is NOT the discriminator). The over-broad card-type
-    gate wrongly dropped it; the affected-entity discriminator KEEPS it in stax_taxes."""
+    gate wrongly dropped it; the affected-entity discriminator KEEPS it in stax_taxes.
+    Kept synthetic (oracle-mirror residue probe; the card name's apostrophe can't ride
+    the snapshot usage scanner)."""
     oracle = (
         "Equipped creature gets +1/+1 for each color among permanents you control.\n"
         "As long as this Equipment is attached to a creature, your opponents can't "
@@ -2107,10 +1723,7 @@ def test_aura_player_tax_curse_of_exhaustion_fires_stax():
     than one spell each turn' is a genuine PLAYER tax (Rule-of-Law on one opponent),
     NOT single-target creature pacify. The affected-entity discriminator KEEPS it —
     the card-type gate wrongly dropped every Aura-hosted player tax."""
-    oracle = (
-        "Enchant player\nEnchanted player can't cast more than one spell each turn."
-    )
-    assert "stax_taxes" in _stax_keys(_ir(), oracle)
+    assert "stax_taxes" in _skeys(test_signals("Curse of Exhaustion"))
 
 
 def test_vow_single_target_cant_attack_you_is_not_stax():
@@ -2119,12 +1732,9 @@ def test_vow_single_target_cant_attack_you_is_not_stax():
     creature — single-target pacify, NOT a board pillowfort. The `can't attack you`
     residue branch is ambiguous; the affected-entity guard ('Enchanted creature' =
     single, no player/board tell) keeps it out of BOTH lanes."""
-    oracle = (
-        "Enchant creature\nEnchanted creature gets +2/+2, has vigilance, and can't "
-        "attack you or planeswalkers you control."
-    )
-    assert "stax_taxes" not in _stax_keys(_ir(), oracle)
-    assert "symmetric_stax" not in _stax_keys(_ir(), oracle)
+    keys = _skeys(test_signals("Vow of Duty"))
+    assert "stax_taxes" not in keys
+    assert "symmetric_stax" not in keys
 
 
 def test_board_counter_tax_with_that_creature_rider_still_fires():
@@ -2133,18 +1743,14 @@ def test_board_counter_tax_with_that_creature_rider_still_fires():
     the trailing 'that creature' names the per-creature count, NOT the affected entity.
     'Each creature' is a board tell, so the discriminator keeps it firing (regression:
     a naive single-creature regex would match 'that creature' and wrongly drop it)."""
-    oracle = (
-        "Each creature with one or more counters on it can't attack you or "
-        "planeswalkers you control unless its controller pays {X}, where X is the "
-        "number of counters on that creature."
-    )
-    assert "stax_taxes" in _stax_keys(_ir(), oracle)
+    assert "stax_taxes" in _skeys(test_signals("Nils, Discipline Enforcer"))
 
 
 def test_single_target_etb_pacify_is_not_stax_taxes():
     """Spara's Adjudicators: 'target creature an opponent controls can't attack or
     block' is a single-target ETB pacify (CR 303.4-class single-object lock), not a
-    board tax. The `(?<!target )` residue guard keeps it out of stax_taxes."""
+    board tax. The `(?<!target )` residue guard keeps it out of stax_taxes. Kept
+    synthetic (oracle-mirror residue probe; apostrophe name can't ride the scanner)."""
     oracle = (
         "When this creature enters, target creature an opponent controls can't "
         "attack or block until your next turn."
@@ -2174,17 +1780,8 @@ def test_board_pillowfort_attack_lock_still_fires_stax_taxes():
 
 def test_named_card_synergy_fires_named_synergy_from_kept_mirror():
     """A card naming a specific partner (CR 201.4) fires the named_synergy mirror —
-    NOT copy_limit (no deck-relaxation field)."""
-    card = {
-        "name": "Festering Newt",
-        "oracle_text": (
-            "When this creature dies, target creature an opponent controls gets "
-            "-1/-1 until end of turn. That creature gets -4/-4 instead if you "
-            "control a creature named Bogbrew Witch."
-        ),
-    }
-    ir = _ir(Ability(kind="triggered", trigger=Trigger(event="dies", scope="you")))
-    keys = {s.key for s in extract_signals_ir(card, ir)}
+    NOT copy_limit (no deck-relaxation field). Festering Newt names Bogbrew Witch."""
+    keys = _skeys(test_signals("Festering Newt"))
     assert "named_synergy" in keys
     assert "copy_limit" not in keys
 
@@ -2195,16 +1792,7 @@ def test_copy_limit_field_fires_copy_limit_not_named_synergy():
     battlefield named …") does NOT match the named_synergy mirror (which anchors on
     "control a creature named" / "permanent named"), so it fires copy_limit ALONE —
     confirming the two lanes are genuinely distinct populations."""
-    bare = {
-        "name": "Relentless Rats",
-        "oracle_text": (
-            "Relentless Rats gets +1/+1 for each other creature on the battlefield "
-            "named Relentless Rats.\n"
-            "A deck can have any number of cards named Relentless Rats."
-        ),
-    }
-    ir = Card(oracle_id="x", name="Relentless Rats", many_copies=True)
-    keys = {s.key for s in extract_signals_ir(bare, ir)}
+    keys = _skeys(test_signals("Relentless Rats"))
     assert "copy_limit" in keys
     assert "named_synergy" not in keys
 
@@ -2212,12 +1800,7 @@ def test_copy_limit_field_fires_copy_limit_not_named_synergy():
 def test_pure_copy_limit_does_not_fire_named_synergy():
     """A bare copy-limit card (only "A deck can have any number of cards named X", no
     "creature/permanent named X" synergy clause) fires copy_limit ALONE."""
-    bare = {
-        "name": "Shadowborn Apostle",
-        "oracle_text": "A deck can have any number of cards named Shadowborn Apostle.",
-    }
-    ir = Card(oracle_id="x", name="Shadowborn Apostle", many_copies=True)
-    keys = {s.key for s in extract_signals_ir(bare, ir)}
+    keys = _skeys(test_signals("Shadowborn Apostle"))
     assert "copy_limit" in keys
     assert "named_synergy" not in keys
 
@@ -2226,16 +1809,7 @@ def test_seven_dwarves_fires_both_lanes():
     """Seven Dwarves is many_copies True AND names itself ("creature named Seven
     Dwarves") — the lone overlap card, it fires BOTH copy_limit (the field) and
     named_synergy (the mirror clause)."""
-    card = {
-        "name": "Seven Dwarves",
-        "oracle_text": (
-            "This creature gets +1/+1 for each other creature named Seven Dwarves "
-            "you control.\n"
-            "A deck can have up to seven cards named Seven Dwarves."
-        ),
-    }
-    ir = Card(oracle_id="x", name="Seven Dwarves", many_copies=True)
-    keys = {s.key for s in extract_signals_ir(card, ir)}
+    keys = _skeys(test_signals("Seven Dwarves"))
     assert "named_synergy" in keys
     assert "copy_limit" in keys
 
@@ -2276,77 +1850,28 @@ def _voltron(ir: Card) -> bool:
 
 def test_voltron_payoff_attach_other_object():
     # Kor Outfitter — attaches ANOTHER Equipment onto a creature (build-around).
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="etb", scope="you"),
-            effects=(
-                Effect(
-                    category="attach",
-                    scope="any",
-                    raw=(
-                        "When ~ enters, you may attach target Equipment you "
-                        "control to target creature you control."
-                    ),
-                ),
-            ),
-        )
-    )
-    assert _voltron(ir)
+    assert ("voltron_matters", "you", "") in _striples(test_signals("Kor Outfitter"))
 
 
 def test_voltron_payoff_cast_aura_equipment_trigger():
-    # Sram / Kor Spiritdancer — a cast-an-Aura/Equipment-spell trigger.
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(
-                event="cast_spell",
-                scope="any",
-                subject=Filter(subtypes=("Aura",), controller="any"),
-            ),
-            effects=(Effect(category="draw", scope="you"),),
-        )
+    # Sram, Senior Edificer — a cast-an-Aura/Equipment/Vehicle-spell trigger.
+    assert ("voltron_matters", "you", "") in _striples(
+        test_signals("Sram, Senior Edificer")
     )
-    assert _voltron(ir)
 
 
 def test_voltron_payoff_tutor_for_equipment_card():
-    # Godo — search your library for an Equipment card.
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="etb", scope="you"),
-            effects=(
-                Effect(
-                    category="tutor",
-                    subject=Filter(card_types=("Artifact",), subtypes=("Equipment",)),
-                ),
-            ),
-        )
+    # Godo, Bandit Warlord — search your library for an Equipment card.
+    assert ("voltron_matters", "you", "") in _striples(
+        test_signals("Godo, Bandit Warlord")
     )
-    assert _voltron(ir)
 
 
 def test_voltron_payoff_attachment_state_predicate():
-    # Koll / Reyav — cares about "enchanted or equipped" creatures.
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="pump",
-                    scope="you",
-                    subject=Filter(
-                        card_types=("Creature",),
-                        controller="you",
-                        predicates=("HasAnyAttachmentOf",),
-                    ),
-                ),
-            ),
-        )
+    # Koll, the Forgemaster — cares about "enchanted or equipped" creatures.
+    assert ("voltron_matters", "you", "") in _striples(
+        test_signals("Koll, the Forgemaster")
     )
-    assert _voltron(ir)
 
 
 def test_voltron_payoff_excludes_equip_cost_self_attach():
@@ -2363,34 +1888,15 @@ def test_voltron_payoff_excludes_equip_cost_self_attach():
 
 
 def test_voltron_payoff_excludes_etb_self_attach():
-    # "When this Equipment enters, attach it to target creature" (Mithril Coat) is
+    # "When Mithril Coat enters, attach it to target legendary creature you control" is
     # still self-attach (the gear), not a build-around.
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="etb", scope="any"),
-            effects=(
-                Effect(
-                    category="attach",
-                    scope="any",
-                    raw="When ~ enters, attach it to target creature you control.",
-                ),
-            ),
-        )
-    )
-    assert not _voltron(ir)
+    assert ("voltron_matters", "you", "") not in _striples(test_signals("Mithril Coat"))
 
 
 def test_voltron_payoff_excludes_removal_aura():
     # Pacifism — a static "enchant creature" removal Aura carries no Attach EFFECT,
     # so it never opens the voltron lane (parity with the regex floor).
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(Effect(category="restriction", scope="opp"),),
-        )
-    )
-    assert not _voltron(ir)
+    assert ("voltron_matters", "you", "") not in _striples(test_signals("Pacifism"))
 
 
 def test_voltron_payoff_attachment_predicate_in_condition():
@@ -2424,162 +1930,58 @@ def _matter_keys(ir: Card) -> set[tuple[str, str]]:
     }
 
 
+def _smatters(sigs: list) -> set[tuple[str, str]]:
+    return {
+        (s.key, s.subject)
+        for s in sigs
+        if s.key in ("artifacts_matter", "enchantments_matter")
+    }
+
+
 def test_type_tutor_fires_matters_lane():
     # Idyllic Tutor — "search your library for an enchantment card" (subtypes empty).
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="tutor",
-                    subject=Filter(card_types=("Enchantment",), controller="any"),
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(ir) == {("enchantments_matter", "")}
+    assert _smatters(test_signals("Idyllic Tutor")) == {("enchantments_matter", "")}
 
 
 def test_type_dig_fires_matters_lane():
     # Glint-Nest Crane — "look at the top four cards, put an artifact into your hand".
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="etb", scope="you"),
-            effects=(
-                Effect(
-                    category="topdeck_select",
-                    subject=Filter(card_types=("Artifact",), controller="any"),
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(ir) == {("artifacts_matter", "")}
+    assert _smatters(test_signals("Glint-Nest Crane")) == {("artifacts_matter", "")}
 
 
 def test_composite_tutor_fires_both_lanes():
     # Enlightened Tutor — "an artifact or enchantment card" fires BOTH lanes.
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="tutor",
-                    subject=Filter(
-                        card_types=("Artifact", "Enchantment"), controller="any"
-                    ),
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(ir) == {
+    assert _smatters(test_signals("Enlightened Tutor")) == {
         ("artifacts_matter", ""),
         ("enchantments_matter", ""),
     }
 
 
 def test_subtype_tutor_does_not_fire_matters_lane():
-    # Steelshaper's Gift — "search for an Equipment card" is the narrower voltron care,
-    # NOT artifacts_matter (the subtypes==() gate excludes it).
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="tutor",
-                    subject=Filter(
-                        card_types=("Artifact",),
-                        subtypes=("Equipment",),
-                        controller="any",
-                    ),
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(ir) == set()
+    # Open the Armory — "search for an Aura or Equipment card" is the narrower
+    # voltron care, NOT artifacts_matter (the subtypes==() gate excludes it).
+    assert _smatters(test_signals("Open the Armory")) == set()
 
 
 def test_generic_permanent_tutor_does_not_fire_matters_lane():
     # Wargate — "a permanent card" is neither Artifact nor Enchantment.
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="tutor",
-                    subject=Filter(card_types=("Permanent",), controller="any"),
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(ir) == set()
+    assert _smatters(test_signals("Wargate")) == set()
 
 
 def test_mass_recursion_fires_matters_lane():
-    # Crystal Chimes — "return ALL enchantment cards from your graveyard" (mass tell
-    # counter_kind='all', graveyard-sourced, controller you).
-    ir = _ir(
-        Ability(
-            kind="activated",
-            cost="mana,sacself,tap",
-            effects=(
-                Effect(
-                    category="bounce",
-                    counter_kind="all",
-                    subject=Filter(
-                        card_types=("Enchantment",),
-                        controller="you",
-                        predicates=("InZone",),
-                    ),
-                    zones=("from:graveyard", "to:hand", "in:graveyard"),
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(ir) == {("enchantments_matter", "")}
+    # Replenish — "Return ALL enchantment cards from your graveyard to the battlefield"
+    # (mass tell, graveyard-sourced, controller you). A non-artifact host so the only
+    # _smatters member is the recursion payoff, not own-type membership.
+    assert _smatters(test_signals("Replenish")) == {("enchantments_matter", "")}
 
 
 def test_single_target_recursion_fires_matters_lane():
     # SETTLED RULE (ADR-0027): a single-target TYPE-RESTRICTED recursion fires the lane
     # — the discriminator is the target FILTER's card-type, not mass-vs-single (CR
-    # 115.1/115.10), since type-gating = only useful in that type's deck. Skull of Orm
-    # ("return TARGET enchantment card") fires enchantments_matter; Argivian Find
-    # (single-target COMPOSITE "artifact OR enchantment card") fires BOTH.
-    skull = _ir(
-        Ability(
-            kind="activated",
-            cost="mana,tap",
-            effects=(
-                Effect(
-                    category="bounce",
-                    subject=Filter(
-                        card_types=("Enchantment",),
-                        controller="you",
-                        predicates=("InZone",),
-                    ),
-                    zones=("in:graveyard",),
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(skull) == {("enchantments_matter", "")}
-    argivian = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="bounce",
-                    subject=Filter(
-                        card_types=("Artifact", "Enchantment"),
-                        controller="you",
-                        predicates=("InZone",),
-                    ),
-                    zones=("in:graveyard",),
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(argivian) == {
+    # 115.1/115.10), since type-gating = only useful in that type's deck. Auramancer
+    # ("return TARGET enchantment card", a non-artifact host) fires enchantments_matter;
+    # Argivian Find (single-target COMPOSITE "artifact OR enchantment card") fires BOTH.
+    assert _smatters(test_signals("Auramancer")) == {("enchantments_matter", "")}
+    assert _smatters(test_signals("Argivian Find")) == {
         ("artifacts_matter", ""),
         ("enchantments_matter", ""),
     }
@@ -2587,49 +1989,25 @@ def test_single_target_recursion_fires_matters_lane():
 
 def test_generic_target_recursion_does_not_fire_matters_lane():
     # The over-fire boundary: a GENERIC-target recursion ("return target card" —
-    # Regrowth; "return target permanent card") is NOT type-gated, so it fires nothing.
-    regrowth = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="bounce",
-                    subject=Filter(controller="you", predicates=("InZone",)),
-                    zones=("in:graveyard",),
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(regrowth) == set()
+    # Regrowth) is NOT type-gated, so it fires nothing.
+    assert _smatters(test_signals("Regrowth")) == set()
 
 
 def test_composite_mass_recursion_fires_both_lanes_any_controller():
     # Open the Vaults — "return all artifact and enchantment cards from all graveyards"
     # (composite, controller any) fires both lanes.
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="reanimate",
-                    counter_kind="all",
-                    subject=Filter(
-                        card_types=("Artifact", "Enchantment"), controller="any"
-                    ),
-                    zones=("from:graveyard", "to:battlefield"),
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(ir) == {
+    assert _smatters(test_signals("Open the Vaults")) == {
         ("artifacts_matter", ""),
         ("enchantments_matter", ""),
     }
 
 
 def test_aura_subtype_recursion_routes_to_enchantments():
-    # Dowsing Shaman — "return target Aura" (CR 205.3 — Auras are enchantments) routes
-    # to a loose enchantments_matter member (no dedicated Aura lane).
+    # LOGIC PROBE (kept synthetic): a recursion whose subject is the bare Aura SUBTYPE
+    # (subtypes=("Aura",), no card_types) — CR 205.3, Auras are enchantments — routes to
+    # a loose enchantments_matter member (no dedicated Aura lane). No clean real-card
+    # representative parses to a bare-Aura-subtype graveyard recursion (the closest,
+    # Dowsing Shaman, returns enchantment CARDS by card_type, not the Aura subtype).
     ir = _ir(
         Ability(
             kind="spell",
@@ -2651,98 +2029,49 @@ def test_aura_subtype_recursion_routes_to_enchantments():
 
 
 def test_artifact_token_maker_fires_artifacts_lane():
-    # Beza / Emissary Green — a Treasure-token maker phase carries by SUBTYPE with an
-    # empty card_types tuple (CR 205.3g) still fires artifacts_matter.
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="etb", scope="you"),
-            effects=(
-                Effect(
-                    category="make_token",
-                    scope="you",
-                    subject=Filter(subtypes=("Treasure",), predicates=("Token",)),
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(ir) == {("artifacts_matter", "")}
+    # Beza, the Bounding Spring — a Treasure-token maker phase carries by SUBTYPE with
+    # an empty card_types tuple (CR 205.3g) still fires artifacts_matter.
+    assert _smatters(test_signals("Beza, the Bounding Spring")) == {
+        ("artifacts_matter", "")
+    }
 
 
 def test_sac_artifact_effect_fires_artifacts_lane():
     # Giant Opportunity — "sacrifice two Foods" (artifact-token sac payoff) fires
     # artifacts_matter (Food is an artifact token).
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="sacrifice",
-                    scope="you",
-                    subject=Filter(subtypes=("Food",), controller="you"),
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(ir) == {("artifacts_matter", "")}
+    assert _smatters(test_signals("Giant Opportunity")) == {("artifacts_matter", "")}
 
 
 def test_sac_an_artifact_cost_fires_artifacts_lane():
     # Atog — "Sacrifice an artifact: …" (cost-payer); project surfaces the typed
     # sacrifice marker so artifacts_matter fires.
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="sacrifice",
-                    scope="you",
-                    subject=Filter(card_types=("Artifact",), controller="you"),
-                    raw="cost: sacrifice artifact",
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(ir) == {("artifacts_matter", "")}
+    assert _smatters(test_signals("Atog")) == {("artifacts_matter", "")}
 
 
 def test_becomes_artifact_grant_fires_artifacts_lane():
-    # Sydri / Karn's Touch — a becomes_type marker (granted Artifact card-type).
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="becomes_type",
-                    scope="you",
-                    subject=Filter(card_types=("Artifact",), controller="you"),
-                    raw="grant: becomes a artifact",
-                ),
-            ),
-        )
-    )
-    assert _matter_keys(ir) == {("artifacts_matter", "")}
+    # Sydri, Galvanic Genius — a noncreature artifact "becomes an artifact creature"
+    # animate (the becomes/animate-artifact marker) fires artifacts_matter.
+    assert _smatters(test_signals("Sydri, Galvanic Genius")) == {
+        ("artifacts_matter", "")
+    }
 
 
 def test_ability_of_artifact_trigger_fires_artifacts_lane():
-    # Kurkesh — "whenever you activate an ability of an artifact" (event='other',
-    # typed subject, scope != opp).
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(
-                event="other",
-                scope="any",
-                subject=Filter(card_types=("Artifact",), predicates=("InZone",)),
-            ),
-        )
-    )
-    assert _matter_keys(ir) == {("artifacts_matter", "")}
+    # Kurkesh, Onakke Ancient — "whenever you activate an ability of an artifact"
+    # (event='other', typed subject, scope != opp).
+    assert _smatters(test_signals("Kurkesh, Onakke Ancient")) == {
+        ("artifacts_matter", "")
+    }
 
 
 def test_opponent_ability_punisher_does_not_fire_artifacts_lane():
-    # Harsh Mentor — "whenever an OPPONENT activates an ability …" is a punisher; phase
-    # collapses the multi-type subject to None, so it never fires the own-payoff lane.
+    # LOGIC PROBE (kept synthetic — pins the IR-only structural arm): an `other` trigger
+    # scope='opp' with subject=None must NOT open the own-payoff artifacts_matter lane.
+    # phase DOES collapse Harsh Mentor's multi-type ("artifact, creature, or land")
+    # subject to None (verified against the real IR), so the structural arm correctly
+    # stays off here. (NB: the real Harsh Mentor still fires artifacts_matter in the
+    # full HYBRID path via the oracle "ability of an artifact" mirror — so this can't
+    # migrate to test_signals("Harsh Mentor"); it isolates the structural-arm gate.)
     ir = _ir(
         Ability(
             kind="triggered",
@@ -2753,15 +2082,9 @@ def test_opponent_ability_punisher_does_not_fire_artifacts_lane():
 
 
 def test_investigate_keyword_fires_artifacts_lane():
-    # Deduce / Bygone Bishop — Investigate (CR 701.27) makes a Clue (a colorless
-    # ARTIFACT); the Scryfall keyword is the anchor (phase drops the Clue subtype).
-    ir = _ir(Ability(kind="spell", effects=(Effect(category="draw"),)))
-    keys = {
-        (s.key, s.subject)
-        for s in extract_signals_ir({"name": "T", "keywords": ["Investigate"]}, ir)
-        if s.key == "artifacts_matter"
-    }
-    assert keys == {("artifacts_matter", "")}
+    # Deduce — Investigate (CR 701.27) makes a Clue (a colorless ARTIFACT); the Scryfall
+    # keyword is the anchor (phase drops the Clue subtype).
+    assert _smatters(test_signals("Deduce")) == {("artifacts_matter", "")}
 
 
 # ── include_membership threading (ADR-0027 membership-reuse pattern) ───────────
@@ -2818,8 +2141,7 @@ def test_devour_keyword_opens_plus_one_matters():
     definitional +1/+1 source, so the printed keyword opens plus_one_matters as well
     as devour_matters (Preyseizer Dragon, whose devour rides the keyword + a
     board_count, not a structured `devour` effect)."""
-    card = {"name": "Preyseizer Dragon", "keywords": ["Flying", "Devour"]}
-    keys = {s.key for s in extract_signals_ir(card, _ir())}
+    keys = _skeys(test_signals("Preyseizer Dragon"))
     assert "devour_matters" in keys
     assert "plus_one_matters" in keys
 
@@ -2830,66 +2152,24 @@ def test_devour_keyword_opens_plus_one_matters():
 def test_opp_top_exile_from_impulse_cast_co_occurrence():
     # Sub-shape A: an exile Effect scope='opp' co-occurring (same ability) with a
     # cast_from_zone Effect scope='opp' — the "you may cast them" follow-through
-    # (Villainous Wealth, Ragavan, Wrexial). Scope is the engine controller 'you'.
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="exile",
-                    scope="opp",
-                    raw="Target opponent exiles the top X cards of their library.",
-                ),
-                Effect(
-                    category="cast_from_zone",
-                    scope="opp",
-                    raw="You may cast any number of spells from among them.",
-                ),
-            ),
-        )
-    )
-    assert ("opp_top_exile", "you", "") in _sigs(ir)
+    # (Villainous Wealth). Scope is the engine controller 'you'.
+    assert ("opp_top_exile", "you", "") in _striples(test_signals("Villainous Wealth"))
 
 
 def test_opp_top_exile_from_library_tag():
     # Sub-shape B: an exile Effect scope='opp' carrying an 'in:library' zone tag
-    # (Brainstealer Dragon, Ulamog the Defiler) — phase tagged the library origin
-    # directly, so no cast_from_zone co-occurrence is required.
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(event="end_step", scope="any"),
-            effects=(
-                Effect(
-                    category="exile",
-                    scope="opp",
-                    zones=("to:exile", "in:library"),
-                    raw="exile the top card of each opponent's library",
-                ),
-            ),
-        )
+    # (Brainstealer Dragon) — phase tagged the library origin directly, so no
+    # cast_from_zone co-occurrence is required.
+    assert ("opp_top_exile", "you", "") in _striples(
+        test_signals("Brainstealer Dragon")
     )
-    assert ("opp_top_exile", "you", "") in _sigs(ir)
 
 
 def test_opp_top_exile_does_not_fire_on_bare_opponent_exile_removal():
-    # Precision: opponent-targeted exile-as-REMOVAL (Path to Exile, Agonizing
-    # Remorse) is exile scope='opp' with NO cast_from_zone and NO 'in:library' — it
-    # must never open the steal lane (CR 406 — exile is public, but only the play-it
-    # follow-through is this lane).
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="exile",
-                    scope="opp",
-                    raw="Exile target creature an opponent controls.",
-                ),
-            ),
-        )
-    )
-    assert not any(k == "opp_top_exile" for k, _, _ in _sigs(ir))
+    # Precision: opponent-targeted exile-as-REMOVAL (Path to Exile) is exile scope='opp'
+    # with NO cast_from_zone and NO 'in:library' — it must never open the steal lane
+    # (CR 406 — exile is public, but only the play-it follow-through is this lane).
+    assert "opp_top_exile" not in _skeys(test_signals("Path to Exile"))
 
 
 # ── direct_damage from a player-reaching damage doubler (ADR-0027 C7) ──────────
@@ -2897,22 +2177,9 @@ def test_opp_top_exile_does_not_fire_on_bare_opponent_exile_removal():
 
 def test_player_reaching_doubler_emits_direct_damage():
     # A damage_doubling Effect with subject=None (absent / {Player} target_filter —
-    # Furnace of Rath, Fiery Emancipation) reaches a player (CR 115.4): it feeds
-    # direct_damage AND damage_doubling.
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="damage_doubling",
-                    scope="you",
-                    raw="If a source would deal damage to a permanent or player, it "
-                    "deals double that damage instead.",
-                ),
-            ),
-        )
-    )
-    keys = {k for k, _, _ in _sigs(ir)}
+    # Furnace of Rath) reaches a player (CR 115.4): it feeds direct_damage AND
+    # damage_doubling.
+    keys = _skeys(test_signals("Furnace of Rath"))
     assert "damage_doubling" in keys
     assert "direct_damage" in keys
 
@@ -2921,21 +2188,7 @@ def test_creature_only_doubler_is_not_direct_damage():
     # A CreatureOnly doubler carries a Creature subject from the projection (Blind
     # Fury): players excluded (CR 120.1), so it stays out of direct_damage but still
     # opens damage_doubling.
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="damage_doubling",
-                    scope="you",
-                    subject=Filter(card_types=("Creature",)),
-                    raw="If a creature would deal combat damage to a creature this "
-                    "turn, it deals double that damage to that creature instead.",
-                ),
-            ),
-        )
-    )
-    keys = {k for k, _, _ in _sigs(ir)}
+    keys = _skeys(test_signals("Blind Fury"))
     assert "damage_doubling" in keys
     assert "direct_damage" not in keys
 
@@ -2982,92 +2235,34 @@ def test_facedown_from_turn_face_up_trigger_event():
     # deals 1 damage to any target." phase emits a turn_face_up TRIGGER event
     # (Permanent/any subject) — the generic phrasing the byte mirror's narrow
     # "turn it/that face up" pattern misses. Arm B.
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(
-                event="turn_face_up",
-                subject=Filter(card_types=("Permanent",), controller="any"),
-                scope="any",
-            ),
-            effects=(
-                Effect(
-                    category="damage",
-                    raw="this creature deals 1 damage to any target.",
-                ),
-            ),
-        )
-    )
-    assert "facedown_matters" in {k for k, _, _ in _sigs(ir)}
+    assert "facedown_matters" in _skeys(test_signals("Bonethorn Valesk"))
 
 
 def test_facedown_from_subtype_marker_subject():
     # Ixidor, Reality Sculptor: "Face-down creatures get +1/+1." phase narrows the
     # static pump subject to subtype "Face-down". Arm C (exact subtype token).
-    ir = _ir(
-        Ability(
-            kind="static",
-            effects=(
-                Effect(
-                    category="pump",
-                    subject=Filter(card_types=("Creature",), subtypes=("Face-down",)),
-                    raw="Face-down creatures get +1/+1.",
-                ),
-            ),
-        )
-    )
-    assert "facedown_matters" in {k for k, _, _ in _sigs(ir)}
+    assert "facedown_matters" in _skeys(test_signals("Ixidor, Reality Sculptor"))
 
 
 def test_facedown_from_predicate_marker_subject():
     # Sumala Sentry: "Whenever a face-down permanent you control is turned face up,
     # put a +1/+1 counter on it and on this creature." phase marks the trigger
     # subject with the FaceDown predicate. Arm C (exact predicate token) + arm B.
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            trigger=Trigger(
-                event="turn_face_up",
-                subject=Filter(
-                    card_types=("Permanent",),
-                    controller="you",
-                    predicates=("FaceDown",),
-                ),
-                scope="you",
-            ),
-            effects=(
-                Effect(
-                    category="place_counter",
-                    counter_kind="p1p1",
-                    raw="put a +1/+1 counter on it and on this creature.",
-                ),
-            ),
-        )
-    )
-    assert "facedown_matters" in {k for k, _, _ in _sigs(ir)}
+    assert "facedown_matters" in _skeys(test_signals("Sumala Sentry"))
 
 
 def test_facedown_from_cloak_keyword():
     # Unexplained Absence: keyword Cloak (CR 701.58) — a face-down 2/2 maker that
     # phase does NOT carry in IR kw (cloak rides an effect category). The Scryfall
     # keyword array is the uniform anchor. Arm A.
-    card = {"name": "Unexplained Absence", "keywords": ["Cloak"]}
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(Effect(category="other", raw="...cloaks the top card..."),),
-        )
-    )
-    keys = {s.key for s in extract_signals_ir(card, ir)}
-    assert "facedown_matters" in keys
+    assert "facedown_matters" in _skeys(test_signals("Unexplained Absence"))
 
 
 def test_facedown_from_morph_keyword():
-    # A vanilla Morph body (CR 702.37) with no structural face-down anchor —
-    # keyword-array re-key. Arm A. Confirms morph/megamorph/disguise re-key.
-    card = {"name": "Lumbering Laundry", "keywords": ["Disguise"]}
-    ir = _ir(Ability(kind="spell", effects=(Effect(category="other", raw="..."),)))
-    assert "facedown_matters" in {s.key for s in extract_signals_ir(card, ir)}
+    # Lumbering Laundry — a Disguise body (CR 702.166 / 702.37 morph family) with no
+    # structural face-down anchor — keyword-array re-key. Arm A. Confirms
+    # morph/megamorph/disguise re-key.
+    assert "facedown_matters" in _skeys(test_signals("Lumbering Laundry"))
 
 
 def test_dfc_subject_does_not_leak_facedown():
@@ -3112,90 +2307,28 @@ def test_transform_trigger_does_not_fire_facedown():
 # (often-'any') scope. CR 401.1 / 701.18 / 701.23.
 
 
-def _keys(ir: Card) -> set[str]:
-    return {s.key for s in extract_signals_ir(CARD, ir)}
-
-
 def test_topdeck_selection_from_top_you_reveal():
     # Fact or Fiction — a reveal scope='any' (an opponent separates) whose library is
     # YOURS via the top:you tag. The owner-resolved arm fires topdeck_selection.
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="reveal",
-                    scope="any",
-                    raw="Reveal the top five cards of your library.",
-                    zones=("from:top", "to:graveyard", "top:you"),
-                ),
-            ),
-        )
-    )
-    assert "topdeck_selection" in _keys(ir)
+    assert "topdeck_selection" in _skeys(test_signals("Fact or Fiction"))
 
 
 def test_topdeck_selection_excludes_opponent_library():
-    # Gonti — a top:opp peek at an opponent's library is theft (CR 401.1), NOT the
-    # controller's own top-of-deck curation. The owner gate keeps it OUT.
-    ir = _ir(
-        Ability(
-            kind="triggered",
-            effects=(
-                Effect(
-                    category="topdeck_select",
-                    scope="opp",
-                    raw="Look at the top four cards of target opponent's library.",
-                    zones=("from:top", "to:exile", "top:opp"),
-                ),
-            ),
-        )
-    )
-    assert "topdeck_selection" not in _keys(ir)
+    # Gonti, Lord of Luxury — a top:opp peek at an opponent's library is theft (CR
+    # 401.1), NOT the controller's own top-of-deck curation. The owner gate keeps it OUT.
+    assert "topdeck_selection" not in _skeys(test_signals("Gonti, Lord of Luxury"))
 
 
 def test_dig_until_from_cheat_play_top_you_until():
     # Mass Polymorph — a reveal-UNTIL re-categorized to cheat_play, owner top:you, with
     # an "until you reveal" body → the owner-resolved dig_until arm fires.
-    ir = _ir(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="cheat_play",
-                    scope="you",
-                    raw=(
-                        "Reveal cards from the top of your library until you reveal "
-                        "that many creature cards."
-                    ),
-                    zones=("from:top", "to:battlefield", "top:you"),
-                ),
-            ),
-        )
-    )
-    assert "dig_until" in _keys(ir)
+    assert "dig_until" in _skeys(test_signals("Mass Polymorph"))
 
 
 def test_dig_until_not_fired_by_until_end_of_turn_duration():
     # A reveal-the-top-card with an "until end of turn" DURATION rider (Stormchaser
-    # Chimera, the Deceiver cycle) is NOT a dig-until-a-condition — the `until you`
-    # discriminator keeps it out of dig_until (it is topdeck_selection only).
-    ir = _ir(
-        Ability(
-            kind="activated",
-            effects=(
-                Effect(
-                    category="reveal",
-                    scope="any",
-                    raw=(
-                        "Reveal the top card of your library. This creature gets "
-                        "+X/+0 until end of turn."
-                    ),
-                    zones=("from:top", "top:you"),
-                ),
-            ),
-        )
-    )
-    keys = _keys(ir)
+    # Chimera) is NOT a dig-until-a-condition — the `until you` discriminator keeps it
+    # out of dig_until (it is topdeck_selection only).
+    keys = _skeys(test_signals("Stormchaser Chimera"))
     assert "dig_until" not in keys
     assert "topdeck_selection" in keys
