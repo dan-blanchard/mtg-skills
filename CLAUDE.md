@@ -12,6 +12,7 @@ uv sync                              # Install dependencies
 uv run pytest ../tests/mtg-utils/ -v  # Run tests
 uv run ruff check src/ ../tests/mtg-utils/  # Lint
 uv run ruff format src/ ../tests/mtg-utils/  # Format
+uv run build-card-snapshot           # Regen the committed test card snapshot (gated; needs local bulk + a built sidecar, NEVER CI)
 ```
 
 ### deck-wizard
@@ -275,3 +276,5 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. A **collaborative, visual** d
 ## Testing
 
 Tests live in `tests/mtg-utils/` (package tests), `tests/deck-wizard/` (deck skill smoke tests), `tests/cube-wizard/` (cube skill smoke tests), `tests/rules-lawyer/` (rules-lawyer skill smoke tests), and `tests/deck-strat/` (deck-strat skill smoke tests), outside the skill directories so they aren't installed. Use `unittest.mock` for HTTP calls. No real network calls in tests.
+
+**Real-card test fixtures (ADR-0027 / task #25).** Signal tests evaluate the SAME Card IR real cards parse into — not a hand-built `_ir(Ability(...))` shape that drifts from `project_card`. `mtg_utils.testkit` serves `test_card(name)` (minimal Scryfall record), `test_card_ir(name)` (real projected IR), and `test_signals(name)` (the production `extract_signals_hybrid` over both) from a committed snapshot at `tests/fixtures/card_snapshot.json` — so real-card IR runs in CI with **no** sidecar/bulk/phase/network. The snapshot is usage-derived: `build-card-snapshot` scans the tests for `test_card`/`test_card_ir` usages (and `_REAL_CASES` name-table values), resolves each name to its gameplay printing, slices the production sidecar's IR, and self-validates that the minimal record loses no signal vs the full bulk record. It carries the `sidecar_version` it was projected at; loading asserts a match, so a projection bump fails loudly until the snapshot is regenerated. The future MTGJSON swap changes only `build-card-snapshot`'s source, not the committed fixtures or tests. The flagship consumer is `tests/deck-forge/test_migrated_keys.py` (every migrated key proven against real IR via `_REAL_CASES`; a few `_SYNTHETIC_CASES` stay hand-built for placeholder mechanics / known recovery gaps).

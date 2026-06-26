@@ -41,6 +41,11 @@ mtg-utils/src/mtg_utils/data/card_art/*.jpeg
 !deck-forge/frontend/dist/
 !deck-forge/frontend/dist/**
 
+# Committed test fixture: the real-card Scryfall + Card-IR snapshot (ADR-0027 /
+# task #25). Lets the signal tests run real-card IR in CI with no sidecar/bulk/
+# network. Refresh with `build-card-snapshot`. Overrides the global *.json ignore.
+!tests/fixtures/card_snapshot.json
+
 # Local scratch / session dirs (skill working output + Claude Code session state)
 .deck-wizard-work/
 .claude/
