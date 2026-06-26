@@ -2305,3 +2305,136 @@ def test_bare_fragment_doubler_marker_with_multiply_sibling_is_not_direct_damage
     keys = {k for k, _, _ in _sigs(ir)}
     assert "damage_doubling" in keys
     assert "direct_damage" not in keys
+
+
+# ── facedown_matters (ADR-0027 C9 — CR 708 Face-Down Spells and Permanents) ───
+# Real-card IR shapes verified against the v49 sidecar (see commit body).
+
+
+def test_facedown_from_turn_face_up_trigger_event():
+    # Bonethorn Valesk: "Whenever a permanent is turned face up, this creature
+    # deals 1 damage to any target." phase emits a turn_face_up TRIGGER event
+    # (Permanent/any subject) — the generic phrasing the byte mirror's narrow
+    # "turn it/that face up" pattern misses. Arm B.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="turn_face_up",
+                subject=Filter(card_types=("Permanent",), controller="any"),
+                scope="any",
+            ),
+            effects=(
+                Effect(
+                    category="damage",
+                    raw="this creature deals 1 damage to any target.",
+                ),
+            ),
+        )
+    )
+    assert "facedown_matters" in {k for k, _, _ in _sigs(ir)}
+
+
+def test_facedown_from_subtype_marker_subject():
+    # Ixidor, Reality Sculptor: "Face-down creatures get +1/+1." phase narrows the
+    # static pump subject to subtype "Face-down". Arm C (exact subtype token).
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    subject=Filter(card_types=("Creature",), subtypes=("Face-down",)),
+                    raw="Face-down creatures get +1/+1.",
+                ),
+            ),
+        )
+    )
+    assert "facedown_matters" in {k for k, _, _ in _sigs(ir)}
+
+
+def test_facedown_from_predicate_marker_subject():
+    # Sumala Sentry: "Whenever a face-down permanent you control is turned face up,
+    # put a +1/+1 counter on it and on this creature." phase marks the trigger
+    # subject with the FaceDown predicate. Arm C (exact predicate token) + arm B.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="turn_face_up",
+                subject=Filter(
+                    card_types=("Permanent",),
+                    controller="you",
+                    predicates=("FaceDown",),
+                ),
+                scope="you",
+            ),
+            effects=(
+                Effect(
+                    category="place_counter",
+                    counter_kind="p1p1",
+                    raw="put a +1/+1 counter on it and on this creature.",
+                ),
+            ),
+        )
+    )
+    assert "facedown_matters" in {k for k, _, _ in _sigs(ir)}
+
+
+def test_facedown_from_cloak_keyword():
+    # Unexplained Absence: keyword Cloak (CR 701.58) — a face-down 2/2 maker that
+    # phase does NOT carry in IR kw (cloak rides an effect category). The Scryfall
+    # keyword array is the uniform anchor. Arm A.
+    card = {"name": "Unexplained Absence", "keywords": ["Cloak"]}
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(Effect(category="other", raw="...cloaks the top card..."),),
+        )
+    )
+    keys = {s.key for s in extract_signals_ir(card, ir)}
+    assert "facedown_matters" in keys
+
+
+def test_facedown_from_morph_keyword():
+    # A vanilla Morph body (CR 702.37) with no structural face-down anchor —
+    # keyword-array re-key. Arm A. Confirms morph/megamorph/disguise re-key.
+    card = {"name": "Lumbering Laundry", "keywords": ["Disguise"]}
+    ir = _ir(Ability(kind="spell", effects=(Effect(category="other", raw="..."),)))
+    assert "facedown_matters" in {s.key for s in extract_signals_ir(card, ir)}
+
+
+def test_dfc_subject_does_not_leak_facedown():
+    # Exact-token guard: a "Double-faced Artifact" subtype subject (a DFC, the only
+    # other face* subtype in the corpus) must NOT open facedown_matters — substring
+    # "face" would leak it. CR 712 (DFC) ≠ CR 708 (face-down).
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    subject=Filter(subtypes=("Double-faced Artifact",)),
+                    raw="Double-faced artifacts you control get +1/+1.",
+                ),
+            ),
+        )
+    )
+    assert "facedown_matters" not in {k for k, _, _ in _sigs(ir)}
+
+
+def test_transform_trigger_does_not_fire_facedown():
+    # A CR-712 DFC transform trigger is a SEPARATE event from turn_face_up; arm B
+    # reads only turn_face_up, so a transform payoff must NOT open facedown_matters.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="transform",
+                subject=Filter(card_types=("Permanent",), controller="you"),
+                scope="you",
+            ),
+            effects=(Effect(category="draw", raw="draw a card."),),
+        )
+    )
+    assert "facedown_matters" not in {k for k, _, _ in _sigs(ir)}

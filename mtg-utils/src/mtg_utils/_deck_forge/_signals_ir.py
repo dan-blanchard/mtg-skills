@@ -529,6 +529,25 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "explore": (("explore_matters", "you"),),
     "foretell": (("foretell_matters", "you"),),
     "madness": (("madness_matters", "you"),),
+    # ADR-0027 C9 facedown_matters — the five face-down 2/2 MAKERS as printed
+    # Scryfall KEYWORDS (CR 708 "Face-Down Spells and Permanents"): morph /
+    # megamorph (702.37), disguise (702.168), manifest (701.40), cloak (701.58),
+    # plus manifest dread (701.55). All five converge on CR 708 — every maker puts
+    # a face-down permanent on the battlefield — so they feed ONE cares-about lane.
+    # phase carries morph/megamorph/disguise as IR kw but DROPS manifest/cloak/
+    # manifest-dread from IR kw (those ride EFFECT categories), so the Scryfall
+    # keyword array (this map) is the uniform anchor over all six — it covers the
+    # keyword-only granters with no manifest/cloak Effect node (Lumbering Laundry's
+    # bare Disguise body, the manifest-granters Lurker in the Deep / Kozilek). The
+    # manifest/cloak EFFECT categories in _DOER_EFFECT_KEYS stay (add() dedups the
+    # overlap). Exact-key match, so "Ceremorphosis"/"Polymorphine" (morph substring)
+    # do NOT leak. manifest is NOT a token maker (CR 122.1) — facedown-only fan-out.
+    "morph": (("facedown_matters", "you"),),
+    "megamorph": (("facedown_matters", "you"),),
+    "disguise": (("facedown_matters", "you"),),
+    "manifest": (("facedown_matters", "you"),),
+    "cloak": (("facedown_matters", "you"),),
+    "manifest dread": (("facedown_matters", "you"),),
     # ADR-0027 plus_one_matters migration: the +1/+1-counter keyword block MOVED here
     # from _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). plus_one_matters
     # is migrated, so it must leave the regex-readable _DIRECT_KEYWORD_SIGNALS; but the
@@ -6311,6 +6330,21 @@ def _condition_has_zone(cond: object, zone: str) -> bool:
     return any(_condition_has_zone(n, zone) for n in cond.nested)
 
 
+def _is_facedown_subject(f: object) -> bool:
+    """True iff a subject Filter is narrowed to face-down permanents (CR 708.2).
+
+    phase emits the face-down marker as the EXACT subtype token ``"Face-down"``
+    (Ixidor's static pump sub.s=["Face-down"]) or the EXACT predicate token
+    ``"FaceDown"`` (Trail of Mystery's etb trigger sub.p=["FaceDown"], Secret
+    Plans). An exact-token membership test — NOT a substring "face" — keeps a
+    "Double-faced Artifact" subject (the only other face* subtype in the corpus,
+    a DFC) from leaking into the lane. "Face-down" is NOT in CREATURE_SUBTYPES,
+    so the marker can never cross into a tribal/keyword_tribe lane. (ADR-0027 C9.)"""
+    if not isinstance(f, Filter):
+        return False
+    return "Face-down" in f.subtypes or "FaceDown" in f.predicates
+
+
 # keyword_soup absorb-idiom anchor (ADR-0027). phase under-parses the
 # "<card> has flying as long as … has flying. The same is true for first strike,
 # double strike, …" keyword-COPY idiom: it emits a SINGLE grant_keyword (or, on
@@ -6432,6 +6466,29 @@ def extract_signals_ir(
         for e in ab.effects:
             if e.subject is not None and "Curse" in getattr(e.subject, "subtypes", ()):
                 add("curse_matters", "you", "", e.raw or "")
+        # facedown_matters (ADR-0027 C9 — CR 708 "Face-Down Spells and Permanents").
+        # TRIGGER-event arm (B): the ``turn_face_up`` event arises ONLY from a
+        # face-down permanent being turned up (CR 708.3 — morph/megamorph/disguise/
+        # manifest/cloak), so it cannot fire from any non-708 mechanic (unlike the
+        # broad ``transform`` event of a CR-712 DFC, which is deliberately NOT mapped
+        # here). phase emits it as Trigger.event=="turn_face_up" (Willbender, Secret
+        # Plans, Trail of Mystery, plus the generic "a permanent is turned face up"
+        # triggers — Bonethorn Valesk, Aven Farseer — the narrow byte mirror misses).
+        # The ``turn_face_up`` EFFECT category already opens the lane via
+        # _DOER_EFFECT_KEYS; this reads the unread TRIGGER event the makers/payoffs
+        # carry. The event is also a _SELF_STATE_CHANGE event for other lanes — this
+        # only ADDS a facedown_matters read of the same event (multi-lane, additive).
+        if ab.trigger is not None and ab.trigger.event == "turn_face_up":
+            add("facedown_matters", "you", "", "")
+        # SUBJECT-marker arm (C): a face-down PAYOFF narrows its subject to face-down
+        # permanents — phase emits the marker as subtype "Face-down" or predicate
+        # "FaceDown" (Ixidor, Secret Plans, Trail of Mystery, Kadena). Exact-token
+        # match (see _is_facedown_subject) so a DFC subject can't leak. CR 708.2.
+        if ab.trigger is not None and _is_facedown_subject(ab.trigger.subject):
+            add("facedown_matters", "you", "", "")
+        for e in ab.effects:
+            if _is_facedown_subject(e.subject):
+                add("facedown_matters", "you", "", e.raw or "")
         # xspell_matters (ADR-0027 t2b4a-B) — the {X}-spells payoff lane. PRIMARY:
         # phase encodes printed-{X}-in-cost (CR 202.1) as the `HasXInManaCost`
         # predicate on a `cast_spell` trigger's subject Filter (Zaxara, Nev, Zimone,
