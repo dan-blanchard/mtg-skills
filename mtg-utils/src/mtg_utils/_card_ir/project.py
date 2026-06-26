@@ -24,7 +24,9 @@ from mtg_utils._card_ir.supplement import (
     _copied_type_from_text,
     _recover_base_pt_set,
     _recover_combat_damage_recipients,
+    _recover_damage_reflect,
     _recover_dropped_gain_life,
+    _recover_opponent_cast_lock,
     recover_effect_from_text,
     supplement_card,
 )
@@ -705,6 +707,24 @@ def project_card(records: list[dict]) -> Card:
     # deleted regex's gain-act arm leaves the kept mirror. Same joined-oracle seam.
     # CR 119.3.
     card = _recover_dropped_gain_life(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
+    # ADR-0027 #24 (SIDECAR v52) — GRANTED damage-reflection residue: synthesize a
+    # damage_reflect Effect from the raw oracle for the granted/quoted reflection
+    # abilities phase leaves wholly unstructured (Spiteful Sliver's tribal grant →
+    # a board_grant raw; Arcbond's targeted grant; Donna Noble's paired-subject
+    # trigger), so the damage_reflect lane reads STRUCTURE. Same joined-oracle seam.
+    # CR 120.3.
+    card = _recover_damage_reflect(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
+    # ADR-0027 #24 (SIDECAR v52) — OPPONENT cast-lock residue: synthesize a
+    # restriction Effect (scope opp) from the raw oracle for the "your opponents
+    # can't cast spells" player-lock phase drops wholly (Dragonlord Dromoka parses
+    # to ZERO abilities; Tidal Barracuda, Marisi, Myrel, Conqueror's Flail …), so
+    # the migrated stax arm reads STRUCTURE and the residue mirror's opponent-cast
+    # branch defers to it. Same joined-oracle seam. CR 601.3 / 604.1.
+    card = _recover_opponent_cast_lock(
         card, "\n".join(r.get("oracle_text") or "" for r in records)
     )
     # Post-supplement removal target-subject recovery (ADR-0027 removal_matters

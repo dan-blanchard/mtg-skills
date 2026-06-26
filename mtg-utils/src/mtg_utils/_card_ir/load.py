@@ -637,7 +637,31 @@ from mtg_utils.card_ir import Card
 # "play with their hands revealed" reveal_hands re-categorization (Telepathy) stamps
 # scope='opp'. hand_disruption reads both structurally; the broad regex mirror is
 # narrowed to the no-reveal-cat residue. CR 402.3.
-SIDECAR_VERSION = 51
+# v52 (ADR-0027 #24 — supplement structural recovery for TWO phase blind spots):
+#   (1) GRANTED damage-reflection (supplement `_recover_damage_reflect`): phase has
+#   no first-class node for a reflection ability granted/quoted onto a CLASS of
+#   creatures — Spiteful Sliver ('Slivers you control have "Whenever ~ is dealt
+#   damage, it deals that much damage …"') parses to a `board_grant` raw + a
+#   split-off `damage` static, NOT a damage_reflect Effect; Arcbond's targeted
+#   grant and Donna Noble's paired-subject trigger are dropped too. The card-level
+#   recovery synthesizes a damage_reflect Effect from the raw (the reflection
+#   signature: a "whenever ~ is dealt damage" trigger + "deals that much damage"),
+#   so the previously-dead `cat=='damage_reflect'` IR read becomes load-bearing.
+#   damage_reflect 25→28 (+3 genuine granted reflectors — hook-justified gain). No
+#   detection byte-mirror existed (the SWEEP row was already deleted). CR 120.3.
+#   (2) OPPONENT cast-lock (supplement `_recover_opponent_cast_lock`): phase drops
+#   the "your opponents can't cast spells [during your turn/combat]" player-lock
+#   static wholly (Dragonlord Dromoka parses to ZERO abilities; Tidal Barracuda,
+#   Voice of Victory, Kutzil, Marisi, Myrel, Conqueror's Flail, Narset
+#   Transcendent's emblem). The card-level recovery synthesizes a restriction
+#   Effect (scope opp) from the raw, so the migrated stax arm reads STRUCTURE; the
+#   `_STAX_TAXES_RESIDUE_RE` opponent-can't branch is narrowed `(?! cast)` to defer
+#   to it (the mirror keeps the non-cast opponent locks + the genuinely-
+#   unstructurable named-cast tail on a split/aftermath face phase drops —
+#   Failure // Comply). stax_taxes drift 0 (behavior-neutral — the 8 mirror-only
+#   cast-locks now fire structurally). voltron_matters 2396 drift 0. CR 601.3 /
+#   604.1.
+SIDECAR_VERSION = 52
 
 
 def card_ir_dir() -> Path:

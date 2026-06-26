@@ -23,7 +23,7 @@ from mtg_utils.card_ir import (
     Quantity,
     Trigger,
 )
-from mtg_utils.testkit import test_signals
+from mtg_utils.testkit import test_card_ir, test_signals
 
 CARD = {"name": "Test"}
 
@@ -1551,6 +1551,43 @@ def test_damage_received_without_damage_is_not_reflect():
     assert "damage_reflect" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
+# ── ADR-0027 #24 — GRANTED damage-reflection structural recovery (REAL oracle) ──
+# phase has no first-class node for a reflection ability granted/quoted onto a CLASS
+# of creatures (Spiteful Sliver → a `board_grant` raw + a split `damage` static), a
+# targeted grant (Arcbond), or a paired-subject trigger phase couldn't model (Donna
+# Noble). The supplement `_recover_damage_reflect` synthesizes a damage_reflect
+# Effect from the raw oracle, so the previously-dead `cat=='damage_reflect'` IR read
+# becomes load-bearing. CR 120.3.
+
+
+def test_spiteful_sliver_granted_reflection_recovers_damage_reflect():
+    """Spiteful Sliver grants every Sliver 'Whenever this creature is dealt damage,
+    it deals that much damage to target player or planeswalker' — phase folds the
+    quoted reflection into a board_grant. The recovery synthesizes a damage_reflect
+    Effect so the lane reads STRUCTURE."""
+    card = test_card_ir("Spiteful Sliver")
+    assert any(
+        e.category == "damage_reflect"
+        for ab in card.all_abilities()
+        for e in ab.effects
+    )
+    assert "damage_reflect" in _skeys(test_signals("Spiteful Sliver"))
+
+
+def test_arcbond_targeted_reflection_grant_fires_damage_reflect():
+    """Arcbond: 'Whenever that creature is dealt damage this turn, it deals that much
+    damage to each other creature and each player' — a targeted reflection grant phase
+    leaves unstructured. Recovered structurally."""
+    assert "damage_reflect" in _skeys(test_signals("Arcbond"))
+
+
+def test_donna_noble_paired_reflection_fires_damage_reflect():
+    """Donna Noble: 'Whenever Donna Noble or a creature it's paired with is dealt
+    damage, Donna Noble deals that much damage to target opponent' — a compound-
+    subject trigger phase couldn't model. Recovered structurally."""
+    assert "damage_reflect" in _skeys(test_signals("Donna Noble"))
+
+
 def test_combat_force_on_opponents_still_feeds_stax():
     """The split must not regress stax: a force/can't-block static hobbling opponents
     is still a pillowfort tax."""
@@ -1599,6 +1636,42 @@ def test_symmetric_cost_tax_cofires_stax_taxes():
     keys = _skeys(test_signals("Sphere of Resistance"))
     assert "stax_taxes" in keys
     assert "symmetric_stax" in keys
+
+
+# ── ADR-0027 #24 — OPPONENT cast-lock structural recovery (REAL oracle) ────────
+# phase drops the "your opponents can't cast spells [during your turn/combat]"
+# player-lock static WHOLLY (Dragonlord Dromoka parses to ZERO abilities). The
+# supplement `_recover_opponent_cast_lock` synthesizes a restriction Effect (scope
+# opp) from the raw, so the migrated stax arm reads STRUCTURE and the residue mirror
+# defers to it via `(?! cast)`. CR 601.3 / 604.1.
+
+
+def test_dragonlord_dromoka_opponent_cast_lock_recovers_restriction():
+    """Dragonlord Dromoka: 'Your opponents can't cast spells during your turn' — phase
+    emits ZERO abilities. The recovery synthesizes a restriction Effect scope='opp' so
+    stax_taxes reads STRUCTURE, not the byte-mirror."""
+    card = test_card_ir("Dragonlord Dromoka")
+    assert any(
+        e.category == "restriction" and e.scope == "opp"
+        for ab in card.all_abilities()
+        for e in ab.effects
+    )
+    assert "stax_taxes" in _skeys(test_signals("Dragonlord Dromoka"))
+
+
+def test_myrel_opponent_cast_lock_recovers_restriction():
+    """Myrel, Shield of Argive: 'During your turn, your opponents can't cast spells or
+    activate abilities …' — phase drops the lock (keeps only the token ETB). Recovered
+    structurally as a restriction scope='opp'."""
+    assert "stax_taxes" in _skeys(test_signals("Myrel, Shield of Argive"))
+
+
+def test_failure_comply_split_face_castlock_stays_mirror_residue():
+    """Failure // Comply: the Comply aftermath face ('your opponents can't cast spells
+    with the chosen name') is a split face phase emits NO record for, so the build-time
+    supplement can't see it. It stays covered by the narrow residue mirror — the
+    genuinely-unstructurable tail the `(?! cast)` narrowing deliberately keeps."""
+    assert "stax_taxes" in _skeys(test_signals("Failure // Comply"))
 
 
 def test_symmetric_untap_lock_is_symmetric_only():
@@ -1706,16 +1779,27 @@ def test_pacify_aura_trapped_in_the_tower_is_not_stax():
 def test_equipment_player_tax_conquerors_flail_fires_stax_taxes():
     """Conqueror's Flail (Equipment): 'your opponents can't cast spells during your
     turn' is a genuine PLAYER tax — the affected entity is opponents, not the equipped
-    creature (CR 303.4: card type is NOT the discriminator). The over-broad card-type
-    gate wrongly dropped it; the affected-entity discriminator KEEPS it in stax_taxes.
-    Kept synthetic (oracle-mirror residue probe; the card name's apostrophe can't ride
-    the snapshot usage scanner)."""
+    creature (CR 303.4: card type is NOT the discriminator). ADR-0027 #24 (SIDECAR
+    v52): phase drops the lock, so the supplement `_recover_opponent_cast_lock` now
+    recovers it STRUCTURALLY (a restriction scope='opp' Effect) and the residue mirror
+    defers via `(?! cast)`. The card name's apostrophe can't ride the snapshot scanner,
+    so the recovery is exercised over the real oracle inline. CR 601.3 / 604.1."""
+    from mtg_utils._card_ir.supplement import _recover_opponent_cast_lock
+
     oracle = (
         "Equipped creature gets +1/+1 for each color among permanents you control.\n"
         "As long as this Equipment is attached to a creature, your opponents can't "
         "cast spells during your turn.\nEquip {2}"
     )
-    assert "stax_taxes" in _stax_keys(_ir(), oracle)
+    card = _recover_opponent_cast_lock(
+        Card(oracle_id="x", name="Conqueror's Flail", faces=(Face(name="x"),)), oracle
+    )
+    assert any(
+        e.category == "restriction" and e.scope == "opp"
+        for ab in card.all_abilities()
+        for e in ab.effects
+    )
+    assert "stax_taxes" in {s.key for s in extract_signals_ir(CARD, card)}
 
 
 def test_aura_player_tax_curse_of_exhaustion_fires_stax():

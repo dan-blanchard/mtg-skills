@@ -1997,6 +1997,133 @@ def _recover_dropped_gain_life(card: Card, oracle: str) -> Card:
     )
 
 
+# ── ADR-0027 #24 — GRANTED damage-reflection residue (SIDECAR v52) ─────────────
+# phase has no first-class node for a damage-REFLECTION ability granted to (or
+# quoted onto) a CLASS of creatures: 'Sliver creatures you control have "Whenever
+# this creature is dealt damage, it deals that much damage to target player or
+# planeswalker."' (Spiteful Sliver) parses to a `board_grant` carrying the whole
+# quoted reflection in its raw, plus a split-off `damage` static — NOT a
+# damage_reflect Effect. The damage_reflect signals arm reads a `damage_reflect`
+# CATEGORY marker (the conferred-keyword read) and an on-card damage_received
+# trigger; neither fires for the GRANTED form (board_grant is not a grant carrier
+# and there is no card-level trigger), so the lane saw nothing — the previously
+# dead `cat=='damage_reflect'` IR read becomes load-bearing here. This card-level
+# pass — the _recover_base_pt_set / _recover_combat_damage_recipients precedent
+# (phase dropped the structure, so synthesize it from the joined oracle) — emits a
+# damage_reflect Effect so the lane reads STRUCTURE. CR 120.3 / 119.3.
+#
+# Anchored TIGHTLY on the reflection signature (the same two anchors the project-
+# side _narrow_conferred_keyword_refs grant-carrier marker uses): a "whenever ~ is
+# dealt damage" TRIGGER + a "deals that much damage" CONSEQUENCE (the reflection
+# mirrors the received amount — not "deals N damage to it", a source dealing its
+# own damage). Both required so a mere "if dealt damage this way" side-effect
+# (Marauding Raptor) never fires.
+#
+# Append-only and gated to the GRANTED form: skip a card already carrying a
+# damage_reflect Effect, and skip an ON-CARD reflector (a damage_received trigger
+# with a damage effect — Boros Reckoner, Stuffy Doll), which the signals arm reads
+# off the trigger. The granted/quoted reflectors phase leaves wholly unstructured
+# (Spiteful Sliver's tribal grant, Arcbond's targeted grant, Donna Noble's
+# paired-subject trigger phase couldn't model) carry neither, so they recover here.
+_DAMAGE_REFLECT_TRIG_RE = re.compile(
+    r"\bwhenever\b[^.\"“”]*?\bis dealt damage\b", re.IGNORECASE
+)
+_DAMAGE_REFLECT_DEALS_RE = re.compile(r"\bdeals that much damage\b", re.IGNORECASE)
+
+
+def _recover_damage_reflect(card: Card, oracle: str) -> Card:
+    """Append a synthetic ``damage_reflect`` static Effect for the GRANTED/quoted
+    damage-reflection abilities phase leaves wholly unstructured (a `board_grant`
+    raw, a targeted grant, or a compound-subject trigger phase couldn't model).
+    Append-only: a card already carrying a damage_reflect Effect, or an on-card
+    reflector (a damage_received trigger + a damage effect the signals arm reads
+    directly), is left alone. CR 120.3."""
+    if not card.faces:
+        return card
+    if any(
+        e.category == "damage_reflect"
+        for ab in card.all_abilities()
+        for e in ab.effects
+    ):
+        return card
+    if any(
+        ab.trigger is not None
+        and ab.trigger.event == "damage_received"
+        and any(e.category == "damage" for e in ab.effects)
+        for ab in card.all_abilities()
+    ):
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    if not (
+        _DAMAGE_REFLECT_TRIG_RE.search(text) and _DAMAGE_REFLECT_DEALS_RE.search(text)
+    ):
+        return card
+    synth = Ability(
+        kind="static",
+        effects=(Effect(category="damage_reflect", scope="you", raw=text.strip()),),
+    )
+    head, *rest = card.faces
+    return replace(
+        card,
+        faces=(replace(head, abilities=(*head.abilities, synth)), *rest),
+    )
+
+
+# ── ADR-0027 #24 — OPPONENT cast-lock restriction residue (SIDECAR v52) ────────
+# phase drops the "your opponents can't cast spells [during your turn/combat]"
+# player-restriction static WHOLLY for a body that has no other modelled ability
+# (Dragonlord Dromoka parses to ZERO abilities; Tidal Barracuda, Voice of Victory,
+# Kutzil, Marisi, Myrel, Conqueror's Flail, Narset Transcendent's emblem all drop
+# it too). The migrated stax arm reads a `restriction` Effect scope='opp' →
+# stax_taxes (CR 601.3: an effect prohibits opponents from casting — a hard lock,
+# CR 604.1 static). With no Effect the arm saw nothing, so the lane fired only off
+# the broad `\bopponents? can't\b` residue byte-mirror. This card-level pass — the
+# _recover_base_pt_set precedent (phase dropped the WHOLE ability, so synthesize it
+# from the joined oracle) — emits the restriction Effect so the stax arm reads
+# STRUCTURE, and the residue mirror's opponent-cast branch is narrowed to defer to
+# it (see _STAX_TAXES_RESIDUE_RE's `(?! cast)` guard). CR 601.3 / 604.1.
+#
+# Scope is unambiguously 'opp' (the OPPONENTS form only — "your/each opponent(s)
+# can't cast"). The SYMMETRIC "players can't cast" locks (Grafdigger's Cage,
+# Basandra) and the messier "that/defending player can't cast" forms are left to
+# the residue mirror: their scope is 'each' (symmetric_stax) or situational, and
+# folding them here would risk the symmetric/opp split. Append-only and gated to a
+# body phase left WITHOUT any restriction Effect (the 21 cleanly-structured
+# opponent cast-locks — Grand Abolisher, Drannith Magistrate, Azor — already fire
+# the structural arm and are untouched).
+_OPP_CAST_LOCK_RE = re.compile(r"\bopponents? can't cast\b", re.IGNORECASE)
+
+
+def _recover_opponent_cast_lock(card: Card, oracle: str) -> Card:
+    """Append a synthetic ``restriction`` static Effect (scope opp) for the
+    "your opponents can't cast spells" player-lock phase drops wholly. Append-only
+    and gated: a card already carrying ANY restriction Effect (phase structured the
+    lock, or a sibling restriction) is left alone. One Effect for the card. CR
+    601.3 / 604.1."""
+    if not card.faces:
+        return card
+    if any(
+        e.category == "restriction" for ab in card.all_abilities() for e in ab.effects
+    ):
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    clause = next(
+        (cl.strip() for cl in re.split(r"[.\n]", text) if _OPP_CAST_LOCK_RE.search(cl)),
+        None,
+    )
+    if clause is None:
+        return card
+    synth = Ability(
+        kind="static",
+        effects=(Effect(category="restriction", scope="opp", raw=clause),),
+    )
+    head, *rest = card.faces
+    return replace(
+        card,
+        faces=(replace(head, abilities=(*head.abilities, synth)), *rest),
+    )
+
+
 def _supplement_effect(e: Effect) -> Effect:
     out = e
     # 1. recover a buried effect from its clause (the first matching rule wins).

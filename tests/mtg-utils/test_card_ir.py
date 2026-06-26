@@ -57,7 +57,7 @@ from mtg_utils._card_ir.project import (
     _zone_tags,
     project_card,
 )
-from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity, Trigger
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity, Trigger
 
 # ── real phase records (focused to the fields project() reads) ────────────────
 
@@ -6987,3 +6987,122 @@ def test_recover_top_does_not_touch_cheat_play_from_top_normalization():
     z = out.effects[0].zones
     assert "from:top" not in z
     assert "top:you" not in z
+
+
+# ── ADR-0027 #24 — card-level supplement recovery for two phase blind spots ────
+
+
+def _bare_card(name: str) -> Card:
+    """A single-face Card with no abilities — the empty-IR shape phase leaves for a
+    body whose only static it drops wholly (Dragonlord Dromoka), to exercise the
+    card-level recovery from the raw oracle alone."""
+    return Card(oracle_id="x", name=name, faces=(Face(name=name),))
+
+
+def test_recover_damage_reflect_synthesizes_marker_from_granted_reflection():
+    """Spiteful Sliver's real oracle: phase folds the granted reflection into a
+    board_grant, so the card-level recovery synthesizes a damage_reflect Effect (scope
+    you) from the raw. CR 120.3."""
+    from mtg_utils._card_ir.supplement import _recover_damage_reflect
+
+    oracle = (
+        'Sliver creatures you control have "Whenever this creature is dealt '
+        'damage, it deals that much damage to target player or planeswalker."'
+    )
+    out = _recover_damage_reflect(_bare_card("Spiteful Sliver"), oracle)
+    refl = [e for a in out.all_abilities() for e in a.effects]
+    assert [(e.category, e.scope) for e in refl] == [("damage_reflect", "you")]
+
+
+def test_recover_damage_reflect_skips_on_card_reflector():
+    """An on-card reflector (a damage_received trigger + a damage effect — Boros
+    Reckoner) is read off the trigger by the signals arm, so the recovery does NOT
+    add a redundant marker."""
+    from mtg_utils._card_ir.supplement import _recover_damage_reflect
+
+    card = Card(
+        oracle_id="x",
+        name="Boros Reckoner",
+        faces=(
+            Face(
+                name="Boros Reckoner",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="damage_received"),
+                        effects=(Effect(category="damage", raw="deals that much"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    oracle = (
+        "Whenever Boros Reckoner is dealt damage, it deals that much damage to "
+        "any target."
+    )
+    out = _recover_damage_reflect(card, oracle)
+    assert not any(
+        e.category == "damage_reflect" for a in out.all_abilities() for e in a.effects
+    )
+
+
+def test_recover_damage_reflect_skips_non_reflection_dealt_damage():
+    """A 'when dealt damage, do X' that does NOT deal that much damage back is not a
+    reflector — both anchors are required, so no marker is synthesized."""
+    from mtg_utils._card_ir.supplement import _recover_damage_reflect
+
+    oracle = "Whenever this creature is dealt damage, you draw a card."
+    out = _recover_damage_reflect(_bare_card("Not A Reflector"), oracle)
+    assert not any(
+        e.category == "damage_reflect" for a in out.all_abilities() for e in a.effects
+    )
+
+
+def test_recover_opponent_cast_lock_synthesizes_opp_restriction():
+    """Dragonlord Dromoka's real oracle: phase emits ZERO abilities; the recovery
+    synthesizes a restriction Effect (scope opp), raw trimmed to the cast-lock clause.
+    CR 601.3 / 604.1."""
+    from mtg_utils._card_ir.supplement import _recover_opponent_cast_lock
+
+    oracle = (
+        "This spell can't be countered.\nFlying, lifelink\n"
+        "Your opponents can't cast spells during your turn."
+    )
+    out = _recover_opponent_cast_lock(_bare_card("Dragonlord Dromoka"), oracle)
+    restr = [e for a in out.all_abilities() for e in a.effects]
+    assert [(e.category, e.scope) for e in restr] == [("restriction", "opp")]
+    assert restr[0].raw == "Your opponents can't cast spells during your turn"
+
+
+def test_recover_opponent_cast_lock_skips_when_restriction_present():
+    """Append-only: a card phase already structured a restriction for (Grand
+    Abolisher) is left alone — it already fires the structural stax arm."""
+    from mtg_utils._card_ir.supplement import _recover_opponent_cast_lock
+
+    card = Card(
+        oracle_id="x",
+        name="Grand Abolisher",
+        faces=(
+            Face(
+                name="Grand Abolisher",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="restriction",
+                                scope="opp",
+                                raw="opponents can't cast spells",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    oracle = (
+        "During your turn, your opponents can't cast spells and can't activate "
+        "abilities of artifacts, creatures, or enchantments."
+    )
+    out = _recover_opponent_cast_lock(card, oracle)
+    assert len(out.all_abilities()) == 1  # no synthetic ability appended

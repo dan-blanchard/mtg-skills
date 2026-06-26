@@ -3526,6 +3526,101 @@
     "type_line": "Legendary Creature — Merfolk Wizard"
    }
   },
+  "Arcbond": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "target_only",
+          "raw": "Choose target creature. Whenever that creature is dealt damage this turn, it deals that much damage to each other creature and each player.",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "damage",
+          "ck": "all",
+          "raw": "Choose target creature. Whenever that creature is dealt damage this turn, it deals that much damage to each other creature and each player.",
+          "sc": "each",
+          "sub": {
+           "p": [
+            "Another"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "damage_reflect",
+          "raw": "Choose target creature. Whenever that creature is dealt damage this turn, it deals that much damage to each other creature and each player.",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Arcbond",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Arcbond",
+    "oid": "01790829-cc03-430f-a899-2f274b7dbf62"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Arcbond",
+    "oracle_id": "01790829-cc03-430f-a899-2f274b7dbf62",
+    "oracle_text": "Choose target creature. Whenever that creature is dealt damage this turn, it deals that much damage to each other creature and each player.",
+    "type_line": "Instant"
+   }
+  },
   "Arch of Orazca": {
    "ir": {
     "faces": [
@@ -15802,6 +15897,259 @@
     "type_line": "Creature — Goblin Pirate"
    }
   },
+  "Donna Noble": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "damage",
+          "raw": "Whenever ~, ~ deals that much damage to target opponent.",
+          "sub": {
+           "c": "opp"
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "other"
+        }
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "damage",
+          "raw": "Whenever a creature it's paired with is dealt damage, ~ deals that much damage to target opponent.",
+          "sub": {
+           "c": "opp"
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "other"
+        }
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "and",
+         "nest": [
+          {
+           "cmp": "none",
+           "kind": "sourcematchesfilter",
+           "sub": {
+            "c": "you",
+            "p": [
+             "InZone",
+             "Unpaired"
+            ],
+            "t": [
+             "Creature"
+            ]
+           },
+           "zn": [
+            "battlefield"
+           ]
+          },
+          {
+           "cmp": "none",
+           "kind": "controlstype",
+           "sub": {
+            "c": "you",
+            "p": [
+             "Another",
+             "InZone",
+             "Unpaired"
+            ],
+            "t": [
+             "Creature"
+            ]
+           },
+           "zn": [
+            "battlefield"
+           ]
+          }
+         ],
+         "zn": [
+          "battlefield"
+         ]
+        },
+        "e": [
+         {
+          "cat": "soulbond",
+          "raw": "CR 702.95a: When this creature enters, you may pair it with another unpaired creature you control.",
+          "sub": {
+           "c": "you",
+           "p": [
+            "Another",
+            "InZone",
+            "Unpaired"
+           ],
+           "t": [
+            "Creature"
+           ]
+          },
+          "z": [
+           "in:battlefield"
+          ]
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "and",
+         "nest": [
+          {
+           "cmp": "none",
+           "kind": "sourcematchesfilter",
+           "sub": {
+            "c": "you",
+            "p": [
+             "InZone",
+             "Unpaired"
+            ],
+            "t": [
+             "Creature"
+            ]
+           },
+           "zn": [
+            "battlefield"
+           ]
+          },
+          {
+           "cmp": "none",
+           "kind": "zonechangeobjectmatchesfilter",
+           "sub": {
+            "c": "you",
+            "p": [
+             "Another",
+             "InZone",
+             "Unpaired"
+            ],
+            "t": [
+             "Creature"
+            ]
+           },
+           "zn": [
+            "battlefield"
+           ]
+          }
+         ],
+         "zn": [
+          "battlefield"
+         ]
+        },
+        "e": [
+         {
+          "cat": "soulbond",
+          "raw": "CR 702.95a: Whenever another unpaired creature you control enters, you may pair it with this creature."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "sub": {
+          "c": "you",
+          "p": [
+           "Another",
+           "Unpaired"
+          ],
+          "t": [
+           "Creature"
+          ]
+         },
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "damage_reflect",
+          "raw": "Soulbond  \nWhenever Donna Noble or a creature it's paired with is dealt damage, Donna Noble deals that much damage to target opponent.\nDoctor's companion",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "Partner",
+       "Soulbond"
+      ],
+      "n": "Donna Noble",
+      "tl": "Legendary Creature — Human"
+     }
+    ],
+    "n": "Donna Noble",
+    "oid": "0d6e76aa-2966-48b7-be4e-2d3e2cc94fc1"
+   },
+   "scryfall": {
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Soulbond",
+     "Doctor's companion"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}",
+    "name": "Donna Noble",
+    "oracle_id": "0d6e76aa-2966-48b7-be4e-2d3e2cc94fc1",
+    "oracle_text": "Soulbond (You may pair this creature with another unpaired creature when either enters. They remain paired for as long as you control both of them.)\nWhenever Donna Noble or a creature it's paired with is dealt damage, Donna Noble deals that much damage to target opponent.\nDoctor's companion (You can have two commanders if the other is the Doctor.)",
+    "power": "2",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Human"
+   }
+  },
   "Doomed Dissenter": {
    "ir": {
     "faces": [
@@ -16004,6 +16352,18 @@
    "ir": {
     "faces": [
      {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "restriction",
+          "raw": "Your opponents can't cast spells during your turn",
+          "sc": "opp"
+         }
+        ],
+        "k": "static"
+       }
+      ],
       "kw": [
        "Flying",
        "Lifelink"
@@ -19112,6 +19472,86 @@
     "oracle_id": "437b2dab-15e0-4b9a-a204-58622d37a3b3",
     "oracle_text": "Reveal the top five cards of your library. An opponent separates those cards into two piles. Put one pile into your hand and the other into your graveyard.",
     "type_line": "Instant"
+   }
+  },
+  "Failure // Comply": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "bounce",
+          "raw": "Return target spell to its owner's hand."
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Failure",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Failure",
+    "oid": "ed8184f8-f6a7-4f97-9f4e-bf72077af754"
+   },
+   "scryfall": {
+    "card_faces": [
+     {
+      "mana_cost": "{1}{U}",
+      "name": "Failure",
+      "oracle_text": "Return target spell to its owner's hand.",
+      "type_line": "Instant"
+     },
+     {
+      "mana_cost": "{W}",
+      "name": "Comply",
+      "oracle_text": "Aftermath (Cast this spell only from your graveyard. Then exile it.)\nChoose a card name. Until your next turn, your opponents can't cast spells with the chosen name.",
+      "type_line": "Sorcery"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [
+     "U",
+     "W"
+    ],
+    "colors": [
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "Aftermath"
+    ],
+    "layout": "split",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U} // {W}",
+    "name": "Failure // Comply",
+    "oracle_id": "ed8184f8-f6a7-4f97-9f4e-bf72077af754",
+    "type_line": "Instant // Sorcery"
    }
   },
   "Faith of the Devoted": {
@@ -32510,6 +32950,16 @@
           "player"
          ]
         }
+       },
+       {
+        "e": [
+         {
+          "cat": "restriction",
+          "raw": "Your opponents can't cast spells during your turn",
+          "sc": "opp"
+         }
+        ],
+        "k": "static"
        }
       ],
       "n": "Kutzil, Malamet Exemplar",
@@ -39313,6 +39763,122 @@
     "power": "4",
     "toughness": "6",
     "type_line": "Legendary Creature — Spirit"
+   }
+  },
+  "Myrel, Shield of Argive": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "count",
+           "sub": {
+            "c": "you",
+            "s": [
+             "Soldier"
+            ]
+           }
+          },
+          "cat": "make_token",
+          "raw": "Whenever ~ attacks, create X 1/1 colorless Soldier artifact creature tokens, where X is the number of Soldiers you control.",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Soldier"
+           ],
+           "t": [
+            "Artifact",
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "attacks",
+         "sc": "you"
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "restriction",
+          "raw": "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments",
+          "sc": "opp"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Myrel, Shield of Argive",
+      "tl": "Legendary Creature — Human Soldier"
+     }
+    ],
+    "n": "Myrel, Shield of Argive",
+    "oid": "503094aa-6f8f-42c1-ad5a-9305934e5f0c"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "a35d32fd-8dd5-41eb-a75f-3c9bc45b23bb",
+      "name": "Soldier",
+      "object": "related_card",
+      "type_line": "Token Artifact Creature — Soldier",
+      "uri": "https://api.scryfall.com/cards/a35d32fd-8dd5-41eb-a75f-3c9bc45b23bb"
+     },
+     {
+      "component": "combo_piece",
+      "id": "a3ed5007-a574-45cd-bd33-444f7b84fdfb",
+      "name": "Myrel, Shield of Argive",
+      "object": "related_card",
+      "type_line": "Legendary Creature — Human Soldier",
+      "uri": "https://api.scryfall.com/cards/a3ed5007-a574-45cd-bd33-444f7b84fdfb"
+     }
+    ],
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{W}",
+    "name": "Myrel, Shield of Argive",
+    "oracle_id": "503094aa-6f8f-42c1-ad5a-9305934e5f0c",
+    "oracle_text": "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.\nWhenever Myrel attacks, create X 1/1 colorless Soldier artifact creature tokens, where X is the number of Soldiers you control.",
+    "power": "3",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Human Soldier"
    }
   },
   "Naban, Dean of Iteration": {
@@ -51141,6 +51707,126 @@
     "oracle_id": "68979160-b5ce-4787-8a1e-1f40e614c3b0",
     "oracle_text": "As an additional cost to cast this spell, you may waterbend {6}. (While paying a waterbend cost, you can tap your artifacts and creatures to help. Each one pays for {1}.)\nDraw two cards. If this spell's additional cost was paid, instead shuffle your graveyard into your library, draw seven cards, and you have no maximum hand size for the rest of the game.\nExile Spirit Water Revival.",
     "type_line": "Sorcery"
+   }
+  },
+  "Spiteful Sliver": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "damage",
+          "raw": "Whenever ~ is dealt damage, it deals that much damage to target player or planeswalker.",
+          "sub": {
+           "t": [
+            "Planeswalker"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "grant_keyword",
+          "ck": "mass_grant",
+          "raw": "creatures you control have \"",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "board_grant",
+          "ck": "grant_ability",
+          "raw": "Sliver creatures you control have \"Whenever ~ is dealt damage, it deals that much damage to target player or planeswalker.\"",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "s": [
+            "Sliver"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "damage_reflect",
+          "raw": "Sliver creatures you control have \"Whenever this creature is dealt damage, it deals that much damage to target player or planeswalker.\"",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Spiteful Sliver",
+      "tl": "Creature — Sliver"
+     }
+    ],
+    "n": "Spiteful Sliver",
+    "oid": "c4d2c804-1448-4639-b41b-0a86bac083b9"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Spiteful Sliver",
+    "oracle_id": "c4d2c804-1448-4639-b41b-0a86bac083b9",
+    "oracle_text": "Sliver creatures you control have \"Whenever this creature is dealt damage, it deals that much damage to target player or planeswalker.\"",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Sliver"
    }
   },
   "Spitemare": {
@@ -63562,5 +64248,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 51
+ "sidecar_version": 52
 }

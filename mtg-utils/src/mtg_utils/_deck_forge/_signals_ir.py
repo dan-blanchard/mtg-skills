@@ -5600,7 +5600,20 @@ _STAX_TAXES_RESIDUE_RE = re.compile(
     r"(?<!target )creatures? "
     r"(?:\bwith\b|you don't control|an opponent controls)[^.\n]*can't attack"
     r"|can't attack you\b"
-    r"|\bopponents? can't\b|spells your opponents cast cost"
+    # ADR-0027 #24 (SIDECAR v52): the "your opponents can't cast" cast-lock is now
+    # recovered structurally (supplement `_recover_opponent_cast_lock` → a
+    # restriction Effect scope='opp' the structural stax arm reads), so the
+    # opponent-can't branch DEFERS to it via `(?! cast)` — it still covers the
+    # non-cast opponent locks phase drops ("opponents can't gain life / win the
+    # game / search / block …", Archfiend of Despair, Platinum Angel, Stranglehold)
+    # but no longer the structurally-load-bearing cast sub-case (Dromoka, Marisi,
+    # Myrel, Tidal Barracuda, Conqueror's Flail, Narset Transcendent's emblem).
+    # The one residue kept is the genuinely-UNSTRUCTURABLE tail: a named cast-lock on
+    # a split/aftermath face phase emits NO record for (Failure // Comply — "your
+    # opponents can't cast spells with the chosen name"), where the build-time
+    # joined-oracle supplement can't see the dropped face.
+    r"|\bopponents? can't\b(?! cast)|opponents? can't cast spells with\b"
+    r"|spells your opponents cast cost"
     # OVER-FIRE branch `creatures your opponents control` DROPPED here.
     r"|(?:target player|that player|each player|a player|that opponent"
     # one-sided controller tax — "enchanted creature's controller can't cast"
