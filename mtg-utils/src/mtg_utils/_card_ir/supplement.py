@@ -1507,6 +1507,13 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="gain_control")
     for pat, cat in _NAMED_MECHANICS:
         if pat.search(s):
+            # ADR-0027 C11_loot (SIDECAR v51) — "your opponents play with their hands
+            # revealed" (Telepathy) is inherently an opponent-directed reveal, so stamp
+            # scope='opp' here (phase emits no scope on the re-categorized form). The
+            # hand_disruption signal arm reads `reveal_hands` regardless of scope, but
+            # the 'opp' is carried for honesty and any downstream scope reader.
+            if cat == "reveal_hands":
+                return replace(e, category=cat, scope="opp")
             return replace(e, category=cat)
     if _CLONE_STATIC.search(s):
         return replace(e, category="clone")

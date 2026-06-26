@@ -630,7 +630,14 @@ from mtg_utils.card_ir import Card
 # (CR 601.2f). stax_taxes / symmetric_stax read this structure; the BROAD IR
 # over-firing byte-mirror is dropped (only a narrow residue keep-mirror for the
 # wholly-dropped tail survives). CR 604.1 / 614.1c / 601.2f.
-SIDECAR_VERSION = 50
+# v51 (ADR-0027 C11_loot hand-disruption tail) — RevealHand effect-target scope: a
+# bare Player / TargetPlayer / ScopedPlayer "look at target player's hand" peek
+# (Peek, Glasses of Urza) scopes to 'opp' via _reveal_hand_player_scope (CR 402.3 —
+# own-hand peeking is free, so it is opponent-directed); the supplement's
+# "play with their hands revealed" reveal_hands re-categorization (Telepathy) stamps
+# scope='opp'. hand_disruption reads both structurally; the broad regex mirror is
+# narrowed to the no-reveal-cat residue. CR 402.3.
+SIDECAR_VERSION = 51
 
 
 def card_ir_dir() -> Path:

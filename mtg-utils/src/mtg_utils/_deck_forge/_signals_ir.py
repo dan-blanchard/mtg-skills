@@ -1932,8 +1932,14 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     #   • commander_matters ← the IsCommander subject-Filter predicate is structured;
     #     Background grants ("Commander creatures you own have …") + "commander damage"
     #     / "your commander costs less" are textual (CR 903).
-    #   • hand_disruption ← the opp-reveal trigger is structured; "look at … hand" /
-    #     "play with hands revealed" / modal reveal-and-discard are textual.
+    #   • hand_disruption ← the opp-reveal effect is structured (SIDECAR v51:
+    #     bare-Player / DefendingPlayer RevealHand → scope 'opp', and the supplement's
+    #     "play with hands revealed" reveal_hands → 'opp'; CR 402.3 / 506.2), so the
+    #     peek + plays-revealed bulk now reads structurally. This mirror is residue:
+    #     MODAL reveal-and-discard ("Choose one — • Target opponent reveals their hand"
+    #     — Collective Brutality, Doomfall) that phase leaves unstructured, look-at-hand
+    #     mis-categorized to topdeck_select (Anointed Peacekeeper), and the contaminated
+    #     ParentTargetController peek (Lay Bare) the projection can't cleanly promote.
     #   • team_evasion_grant ← phase structures the generic creatures-you-control
     #     keyword grant; the subtype/color-scoped grants ("Sliver creatures you control
     #     have flying", "Blue creatures you control can't be blocked") are the broader
@@ -9319,8 +9325,16 @@ def extract_signals_ir(
                 if _ir_doubler_reaches_player(e) and not _doubler_has_mult_sibling:
                     add("direct_damage", "you", "", e.raw)
             # hand_disruption only when an OPPONENT reveals (a self-reveal — "reveal
-            # cards in your hand" — is scope "any" and not disruption).
+            # cards in your hand" — is scope "any" and not disruption). The bare-Player
+            # "look at target player's hand" peeks (Peek, Glasses of Urza) now scope to
+            # 'opp' via project._reveal_hand_player_scope (CR 402.3) and land here.
             if cat == "reveal_hand" and e.scope == "opp":
+                add("hand_disruption", "opponents", "", e.raw)
+            # ADR-0027 C11_loot (SIDECAR v51) — the supplement re-categorizes "your
+            # opponents play with their hands revealed" (Telepathy) to a `reveal_hands`
+            # (PLURAL) effect, inherently opponent-directed. Read it as hand disruption
+            # regardless of scope (the supplement stamps scope='opp'). CR 402.3.
+            if cat == "reveal_hands":
                 add("hand_disruption", "opponents", "", e.raw)
         # ── Condition-gated lanes (the conditions projection) ──
         cond = ab.condition

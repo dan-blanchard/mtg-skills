@@ -2929,6 +2929,19 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     # _search_self_library_scope tutor precedent. CR 701.23 / 401.
     if category == "dig_until":
         scope = _dig_player_scope(eff, raw, scope)
+    # ADR-0027 C11_loot hand-disruption scope (SIDECAR v51): a RevealHand effect's
+    # "whose hand is revealed/looked at" is the effect's `target` player. phase keeps a
+    # bare `Player` / `TargetPlayer` / `ScopedPlayer` target ("look at target player's
+    # hand" — Peek, Glasses of Urza; "target player reveals their hand") which
+    # `_effect_scope` collapses to 'any', indistinguishable from a self-reveal. An
+    # explicit Opponent target ("target opponent reveals their hand" — Thoughtseize,
+    # Duress) already returns 'opp' via `_effect_scope`. Promote the bare-Player reveal
+    # to 'opp': CR 402.3 — a player can look at their OWN hand any time and CAN'T look
+    # at another player's, so a printed "look at target player's hand" is meaningful
+    # only against an opponent (hand disruption), never a self-peek. See
+    # _reveal_hand_player_scope; mirrors the discard-discarder scope precedent.
+    if category == "reveal_hand":
+        scope = _reveal_hand_player_scope(eff, scope)
     subject = _effect_subject(eff)
     if forced_discard:
         subject = _add_predicate(subject, _FORCED_DISCARD_PRED)
@@ -7971,6 +7984,43 @@ def _discard_player_scope(eff: dict, fallback: str) -> tuple[str, bool]:
     if tt in _DISCARD_OTHER_PLAYER_TARGETS:
         return "opp", True
     return fallback, False
+
+
+# ADR-0027 C11_loot hand-disruption scope (SIDECAR v51). A RevealHand effect's "whose
+# hand is revealed / looked at" is the effect's ``target`` player. A bare ``Player`` /
+# ``TargetPlayer`` / ``ScopedPlayer`` target ("look at target player's hand" — Peek,
+# Glasses of Urza, Urza's Bauble; "target player reveals their hand") AND a
+# ``DefendingPlayer`` target (a combat-triggered "look at defending player's hand" —
+# Port Inspector, Zara) is an OPPONENT-directed hand attack → 'opp'. CR 402.3: a player
+# can look at their own hand any time and can't look at another player's, so a printed
+# look-at-a-player's-hand is never a self-peek. CR 506.2: the defending player is the
+# nonactive player, so a DefendingPlayer reveal is always an opponent's hand. An
+# explicit ``Opponent`` target already returns 'opp' via ``_effect_scope`` and a
+# ``Controller`` self-reveal ("reveal cards in your hand") stays at the ``fallback``.
+# ``ParentTargetController`` is deliberately EXCLUDED — it is contaminated by a
+# self-reveal (Rakdos Augermage "reveal YOUR hand and discard a card of target
+# opponent's choice", whose ParentTargetController names the DISCARD chooser, not the
+# revealer), so it can't be cleanly promoted; its one genuine peek (Lay Bare) stays
+# mirror residue. Mirrors _discard_player_scope's discarder-scope read.
+_REVEAL_HAND_OTHER_PLAYER_TARGETS = frozenset(
+    {"player", "targetplayer", "scopedplayer", "defendingplayer"}
+)
+
+
+def _reveal_hand_player_scope(eff: dict, fallback: str) -> str:
+    """Scope for a RevealHand effect, read from WHOSE hand is revealed (the effect's
+    ``target`` player). A bare ``Player`` / ``TargetPlayer`` / ``ScopedPlayer`` (CR
+    402.3 — own-hand peeking is free, so a printed look-at-a-player's-hand is an
+    opponent attack) or a ``DefendingPlayer`` (CR 506.2 — always the nonactive player)
+    target → 'opp'. Anything else (a ``Controller`` self-reveal, an already-'opp'
+    Opponent target read by ``_effect_scope``, a contaminated ParentTargetController)
+    keeps the ``fallback``."""
+    tgt = eff.get("target")
+    if not isinstance(tgt, dict):
+        return fallback
+    if _norm(tgt.get("type")) in _REVEAL_HAND_OTHER_PLAYER_TARGETS:
+        return "opp"
+    return fallback
 
 
 # ADR-0027 dig library-owner scope (SIDECAR v27). A top-of-library DIG effect
