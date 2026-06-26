@@ -5633,6 +5633,14 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # named_counter_misc ← a place_counter Effect carrying a NAMED singleton
+    # counter_kind in the closed _NAMED_COUNTER_KINDS set (Tetzimoc's "{B}, Reveal
+    # this card: Put a prey counter on target creature" projects
+    # Effect(place_counter, counter_kind="prey")). The structural arm in
+    # extract_signals_ir routes the closed named set → named_counter_misc, scope
+    # "you" (ADR-0027 C19_C20, CR 122.1 — the kind is the discriminant). The 2-card
+    # cost/replacement fold tail (Mazemind page, Pursuit study) rides the narrowed
+    # kept word mirror.
     "named_counter_misc": (
         {
             "name": "Tetzimoc, Primal Death",
@@ -5645,7 +5653,20 @@ _CASES: dict[str, tuple[dict, Card]] = {
             ),
             "keywords": ["Deathtouch"],
         },
-        _ir(),
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(
+                    Effect(
+                        category="place_counter",
+                        scope="any",
+                        counter_kind="prey",
+                        subject=Filter(card_types=("Creature",)),
+                        raw="Put a prey counter on target creature.",
+                    ),
+                ),
+            )
+        ),
     ),
     # powerup_matters is read off the Scryfall "Power-up" keyword array
     # (_IR_KEYWORD_MAP['power-up']) → bare non-None IR.

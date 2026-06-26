@@ -999,18 +999,21 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         _NAMED_PERMANENT_SWEEP_RE,
         "you",
     ),
-    # Voting (CR 701.38). The supplement structures the vote clause into an
-    # accurate Effect(category="vote") node where phase emits one, but the LANE
-    # stays a kept oracle-scan detector for full coverage: phase leaves some
-    # voting cards entirely unparsed (Ballot Broker, The Valeyard) or carries the
-    # vote only in a trigger condition (Grudge Keeper), which an IR-only pass
-    # can't reach. `\bvotes?\b` (vs the old `\bvote\b`) also catches the plural —
-    # e.g. "each player secretly votes" (Trap the Trespassers), which the regex
-    # _DETECTORS path still misses.
+    # Voting (CR 701.38) — NARROWED residue mirror (ADR-0027 C19_C20). The STRUCTURAL
+    # arm (cat=='vote' + _VOTE_EFFECT_GUARD in extract_signals_ir) now reads the
+    # supplement-recovered + phase-native genuine vote Effects (37 of the 39 cmdr-legal
+    # cards, including Expropriate / Tivit / Emissary Green, with ZERO friend-or-foe
+    # over-fire). This residue recovers ONLY the 2 cards phase emits NO vote Effect for:
+    # the Saga-CHAPTER vote (Vault 11: Voter's Dilemma — "each player secretly votes",
+    # a chapter ability phase drops the vote from) and the trigger-CONDITION vote
+    # (Grudge Keeper — "whenever players finish voting"). Both forms live only in the
+    # oracle, not a structured effect, so a kept word-scan is the only path. `each
+    # player[^.]*votes?` also matches the structurally-covered "each player votes"
+    # cards (harmless — add() dedups). CR 701.38.
     (
         "voting_matters",
         re.compile(
-            r"will of the council|council's dilemma|each player[^.]*votes?|\bvotes?\b",
+            r"each player[^.]*votes?|\bfinish(?:ed)? voting\b",
             re.IGNORECASE,
         ),
         "each",
@@ -2366,15 +2369,19 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     #     is the only clean discriminator. The Valeyard DOUBLES them; Davros/Missy
     #     present them. Scanning oracle text (not just effect.raw) covers the dropped-
     #     parse tail (Genesis of the Daleks). CR 701.x.
-    #   • named_counter_misc ← the closed named-counter set (egg/divinity/prey/bounty/
-    #     bribery/page/study/knowledge/silver/gold/fate/incubation). phase's structured
-    #     counter_kind field covers 32 of 34 cards, but a place/remove-as-COST or
-    #     replacement form (Mazemind Tome's "Put a page counter" cost, Pursuit of
-    #     Knowledge's "Remove three study counters" cost / "may put a study counter
-    #     instead" replacement) folds the counter into the consuming ability and DROPS
-    #     counter_kind — a genuine 2-card recall gap. So mirror the exact deleted regex
-    #     (byte-identical, no recall gap) rather than ride the partial structural field.
-    #     CR 122.1 (same-NAME counters interchange — the kind IS the discriminant).
+    #   • named_counter_misc ← NARROWED to the 2-card cost/replacement FOLD tail
+    #     (ADR-0027 C19_C20). The STRUCTURAL arm (place_counter / remove_counter with
+    #     counter_kind in the closed _NAMED_COUNTER_KINDS, in extract_signals_ir) now
+    #     reads phase's structured kind for the 32/34 placement cards; the
+    #     predicate-side (_counter_pred_lanes else-branch) covers the "WITH an X
+    #     counter" payoffs. This residue recovers ONLY the 2 cards that FOLD the
+    #     counter into a consuming ability so phase drops counter_kind: Mazemind Tome
+    #     ("Put a page counter" in the {T} activated cost) and Pursuit of Knowledge
+    #     ("Remove three study counters"
+    #     cost + a dropped "may put a study counter instead" replacement). page/study
+    #     ALSO appear as structured placements on other cards (caught by the arm); the
+    #     residue regex double-matching those is harmless (add() dedups). CR 122.1
+    #     (same-NAME counters interchange — the kind IS the discriminant).
     (
         "targeting_matters",
         re.compile(
@@ -2394,11 +2401,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ("villainous_choice", re.compile(r"villainous choice", re.IGNORECASE), "you"),
     (
         "named_counter_misc",
-        re.compile(
-            r"\b(?:egg|divinity|prey|bounty|bribery|page|study|knowledge"
-            r"|silver|gold|fate|incubation) counters?\b",
-            re.IGNORECASE,
-        ),
+        re.compile(r"\b(?:page|study) counters?\b", re.IGNORECASE),
         "you",
     ),
     # ADR-0027 β — edict_matters. The structural opp/each `sacrifice` arm in
@@ -4256,6 +4259,47 @@ _COUNTER_KIND_KEYS: dict[str, tuple[str, str]] = {
     # advancement is not a build-around tell — the reminder is stripped, matching the
     # regex).
 }
+
+# ADR-0027 C19_C20 — named_counter_misc EFFECT-side CLOSED set (CR 122.1, counters
+# individuated by NAME — the kind IS the discriminant). phase carries the named
+# counter kind directly in Effect.counter_kind on a place_counter / remove_counter
+# (Tetzimoc ck='prey', Kindred Boon ck='divinity', Xira ck='egg', Mathas ck='bounty',
+# Kindred Charge ck='fate', …), so the effect arm routes these to named_counter_misc.
+# DELIBERATELY a CLOSED positive set (the regex's exact 12) — NOT the predicate-side's
+# negative catch-all: a place_counter carries 60+ distinct ck values (time 263 /
+# lore 231 / charge 135 / age 72 / p1p1 / …) that own their OWN CR-defined mechanics
+# (time → CR 702.62 suspend / 702.63 vanishing; lore → CR 714 Sagas; charge →
+# device counters), so a negative catch-all on the EFFECT side would flood. The
+# predicate side (``_counter_pred_lanes`` else-branch) stays the broad catch-all —
+# a hypothetical "creature WITH an <obscure> counter" payoff is rarer and intended.
+_NAMED_COUNTER_KINDS: frozenset[str] = frozenset(
+    {
+        "egg",
+        "divinity",
+        "prey",
+        "bounty",
+        "bribery",
+        "page",
+        "study",
+        "knowledge",
+        "silver",
+        "gold",
+        "fate",
+        "incubation",
+    }
+)
+
+# ADR-0027 C19_C20 — voting_matters (CR 701.38). The supplement re-categorizes a
+# genuine vote clause to a ``vote`` Effect (``_recover_vote``, scope 'each'); the
+# signals arm reads cat=='vote'. But phase ALSO natively tags the unrelated
+# "for each player, choose friend or foe" / "each opponent chooses X" Battlebond
+# choice mechanic as a ``vote`` Effect (scope 'any'/'opp'), which is NOT a vote
+# (no player votes). This guard re-confirms a literal vote idiom in the effect raw,
+# excluding the friend-or-foe mis-tag while keeping the phase-native genuine votes
+# (Expropriate, Tivit, Emissary Green) the supplement's scope='each' rewrite misses.
+_VOTE_EFFECT_GUARD = re.compile(
+    r"will of the council|council's dilemma|\bvotes?\b", re.IGNORECASE
+)
 
 # ADR-0027 counter/modified taxonomy — the Filter-PREDICATE counter routing (the
 # read side of project._predicate's SIDECAR-v38 ``Counters:<KIND>:<CMP>:<N>``
@@ -7401,6 +7445,35 @@ def extract_signals_ir(
             if cat == "place_counter" and e.counter_kind in _COUNTER_KIND_KEYS:
                 ck_key, ck_scope = _COUNTER_KIND_KEYS[e.counter_kind]
                 add(ck_key, ck_scope, "", e.raw)
+            # named_counter_misc (ADR-0027 C19_C20) — a place/remove of a NAMED
+            # singleton counter whose kind is its OWN build-around (CR 122.1, the kind
+            # is the discriminant). phase carries the kind in counter_kind on the
+            # place_counter / remove_counter (Tetzimoc ck='prey', Kindred Boon
+            # ck='divinity', Xira ck='egg', Mathas ck='bounty'). The closed
+            # _NAMED_COUNTER_KINDS set is the discriminator — a NEGATIVE catch-all here
+            # would flood (time/lore/charge own their own mechanics). scope 'you',
+            # matching the deleted regex + the predicate-side else-branch. The 2-card
+            # cost/replacement FOLD tail (Mazemind Tome's "Put a page counter" in the
+            # activated cost, Pursuit of Knowledge's "Remove three study counters" cost
+            # — phase drops counter_kind) rides the narrowed kept mirror.
+            if (
+                cat in ("place_counter", "remove_counter")
+                and e.counter_kind in _NAMED_COUNTER_KINDS
+            ):
+                add("named_counter_misc", "you", "", e.raw)
+            # voting_matters (ADR-0027 C19_C20, CR 701.38) — the supplement
+            # (_recover_vote) re-categorizes a genuine vote clause to a ``vote`` Effect
+            # (scope 'each'); read it here. The _VOTE_EFFECT_GUARD re-confirms a literal
+            # vote idiom in the raw, excluding phase's NATIVE "friend or foe" / "choose
+            # X" Battlebond choice mis-tag (also cat=='vote', scope 'any'/'opp', no vote
+            # word) while keeping the phase-native genuine votes (Expropriate, Tivit,
+            # Emissary Green) the supplement's scope rewrite misses. scope 'each' —
+            # every player votes (CR 701.38) — matching the deleted regex. The
+            # Saga-chapter vote (Vault 11, phase emits no vote Effect) + the
+            # trigger-CONDITION vote (Grudge Keeper, "whenever players finish voting")
+            # ride the narrowed mirror.
+            if cat == "vote" and _VOTE_EFFECT_GUARD.search(e.raw or ""):
+                add("voting_matters", "each", "", e.raw)
             # keyword_counter (ADR-0027 tranche2-C) — a place/remove of a CR-122.1b
             # keyword counter (a counter that grants a keyword ability via CR 613.1f).
             # phase tags the granted keyword in counter_kind on a place_counter /
