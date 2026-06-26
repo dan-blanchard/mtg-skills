@@ -25,6 +25,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COMBAT_BUFF_ENGINE_SWEEP_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
+    COPY_LIMIT_REGEX,
     COUNTER_DISTRIBUTE_SERVE_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
@@ -2512,19 +2513,27 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": DIES_RECURSION_REGEX},
         DIES_RECURSION_REGEX,
     ),
-    # ADR-0027 Cluster D (SIGNALS-ONLY): named_permanent's SWEEP_DETECTORS row is
-    # deleted (detection moved to the Card IR — a byte-identical NAMED_PERMANENT_REGEX
-    # kept word mirror in signals._IR_KEPT_DETECTORS for the named-card SYNERGY lane,
-    # which phase drops the referenced name for). The SERVE pool stays oracle-defined,
-    # so hand-register the spec the sweep auto-register loop used to build (scope "you",
-    # the deleted SWEEP row's scope), reusing the EXACT deleted regex (pinned as
-    # NAMED_PERMANENT_REGEX) so the served named-card pool never drifts. SWEEP_LABELS
-    # keeps the human label. DISTINCT from the CR 100.2a copy-limit `many_copies` field.
-    # CR 712.1.
-    ("named_permanent", "you"): _spec(
-        *SWEEP_LABELS["named_permanent"],
+    # Task #19 SPLIT — named_synergy (the named-card SYNERGY half of the old
+    # named_permanent lane). Detection lives in the Card IR (a NAMED_PERMANENT_REGEX
+    # kept word mirror in signals._IR_KEPT_DETECTORS — phase drops the referenced name).
+    # The SERVE pool stays oracle-defined, so hand-register the spec the sweep auto-
+    # register loop used to build (scope "you"), reusing NAMED_PERMANENT_REGEX so the
+    # served named-card pool never drifts. SWEEP_LABELS keeps the human label. CR 201.4
+    # (named references) / 201.5 (self-reference).
+    ("named_synergy", "you"): _spec(
+        *SWEEP_LABELS["named_synergy"],
         {"oracle": NAMED_PERMANENT_REGEX},
         NAMED_PERMANENT_REGEX,
+    ),
+    # Task #19 SPLIT — copy_limit (the COPY-LIMIT half, CR 100.2a). Detection is
+    # STRUCTURAL (the IR `many_copies` field, read in extract_signals_ir), but the SERVE
+    # pool stays oracle-defined: a copy-limit deck wants MORE cards sharing the relaxed
+    # name + go-wide-on-one-name payoffs, found by the COPY_LIMIT_REGEX scan ("A deck
+    # can have any number of / up to N cards named X"). Scope "you". CR 100.2a.
+    ("copy_limit", "you"): _spec(
+        *SWEEP_LABELS["copy_limit"],
+        {"oracle": COPY_LIMIT_REGEX},
+        COPY_LIMIT_REGEX,
     ),
     # ADR-0027: topdeck_stack's SWEEP_DETECTORS row is deleted (detection moved to the
     # Card IR — a STRUCTURAL arm over phase's `topdeck_stack` Effect + a byte-identical

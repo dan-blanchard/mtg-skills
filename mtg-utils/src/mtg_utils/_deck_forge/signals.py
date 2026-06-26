@@ -952,7 +952,7 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # has_other_plan, silencing the spurious commander-damage voltron tell on the 6
         # meld faces whose ONLY high plan was meld_pair (Hanweir Garrison, Bruna,
         # Phyrexian Dragon Engine, Midnight Scavengers, Urza Lord Protector, Titania —
-        # the other 7 also carry named_permanent, itself a _VOLTRON_SILENCING_PLAN_KEYS
+        # the other 7 also carry named_synergy, itself a _VOLTRON_SILENCING_PLAN_KEYS
         # entry below, so they stay silenced regardless). Its regex producer is deleted,
         # so the hybrid re-silences from the IR re-supply. The IR mirror reads the SAME
         # RAW joined oracle as the deleted producer, so it is BYTE-IDENTICAL (commander-
@@ -961,20 +961,19 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # Without this, the 6 faces leak a vanilla commander-damage tell. File-swap:
         # voltron 3010 -> 3010, A-B == 0. CR 701.42 / 903.10a.
         "meld_pair",
-        # ADR-0027 Cluster D (LAST): named_permanent (the named-card SYNERGY lane) fired
-        # HIGH confidence (scope 'you') in the regex path — a _NAMED_PERMANENT_SWEEP_RE
-        # SWEEP producer — and so counted toward has_other_plan, silencing the spurious
-        # commander-damage voltron tell on 8 LEGENDARY synergy bodies whose only high
-        # plan was named_permanent (Gisela, Venser, Vanille, Brothers Yamazaki, Gollum,
-        # Rufus Shinra, Mishra, Liu Bei). Its SWEEP row is deleted, so the hybrid re-
-        # silences from the IR re-supply (the _NAMED_PERMANENT_SWEEP_RE kept mirror in
-        # _IR_KEPT_DETECTORS). The mirror reads the SAME reminder-stripped joined oracle
-        # as the deleted per-clause SWEEP, BYTE-IDENTICALLY (commander-legal: regex ==
-        # hybrid == 26, regex_only == 0, ir_only == 0) — no broadening, so a set entry
-        # (not an oracle PLAN mirror) is correct. Without this, those 8 faces leak a
-        # vanilla commander-damage tell. File-swap: voltron 3010 -> 3010, A-B == 0.
-        # CR 712.1 / 903.10a.
-        "named_permanent",
+        # Task #19 SPLIT: named_synergy (the named-card SYNERGY half of the old
+        # named_permanent lane) fired HIGH confidence (scope 'you') in the regex path —
+        # a _NAMED_PERMANENT_SWEEP_RE SWEEP producer — and so counted toward
+        # has_other_plan, silencing the spurious commander-damage voltron tell on 8
+        # LEGENDARY synergy bodies whose only high plan was the named ref (Gisela,
+        # Venser, Vanille, Brothers Yamazaki, Gollum, Rufus Shinra, Mishra, Liu Bei).
+        # Its SWEEP row is deleted, so the hybrid re-silences from the IR re-supply (the
+        # _NAMED_PERMANENT_SWEEP_RE kept mirror in _IR_KEPT_DETECTORS) — the SAME 26
+        # cards. Without this, those 8 faces leak a vanilla commander-damage tell. The
+        # SIBLING copy_limit lane (CR 100.2a) is deliberately NOT here: it is a new
+        # structural lane with no prior regex producer, so its 12 cards' voltron tell is
+        # untouched (voltron unchanged by the split). CR 201.4 / 201.5 / 903.10a.
+        "named_synergy",
         # ADR-0027 reveal/dig-v2: tutor_matters fired HIGH confidence (scope 'you') in
         # the regex path — a _HAND_FLOOR producer ("search your library for …") — and so
         # counted toward has_other_plan, silencing the spurious commander-damage voltron

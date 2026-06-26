@@ -120,27 +120,37 @@ THEFT_MATTERS_REGEX = "conjure a duplicate of[^.]*from an opponent's library|you
 # Its `[^.]*\.?\s*` arms span a sentence over the WHOLE oracle, so the mirror MUST run
 # per-clause (matching the deleted SWEEP path), NOT flat. CR 701.8a.
 DISCARD_OUTLET_REGEX = "discard (?:a|an|another|two|three|your hand|x|\\d+) [^:.]{0,40}?:|, discard (?:a|an|another|two|three|x|\\d+) cards?:|discard (?:two|three|four|five|x|\\d+) cards? at random|discard all the cards in your hand|discard your hand|discard three cards at random|draw (?:two|three|\\w+|\\d+) cards?[^.]*\\.?\\s*then discard|draw [^.]*cards?,? then discard"
-# ADR-0027 Cluster D (SIGNALS-ONLY, no SIDECAR bump): named_permanent migrated to the
-# Card IR. This is the NAMED-CARD SYNERGY lane — a card whose oracle text references a
-# specific OTHER card BY NAME (Festering Newt → Bogbrew Witch, Pious Kitsune →
-# Eight-and-a-Half-Tails, Urborg Panther → Spirit of the Night, Bonder's Ornament →
-# itself). phase v0.1.60 DROPS the referenced name: it carries only a bare `Named`
-# predicate FLAG on one tutor (Urborg Panther) and otherwise leaves the name solely in
-# an effect's `raw` byte-fragment — the actual card name is never a structured field
-# project.py can promote (verified: the only name-ish strings phase emits are the
-# card's OWN name / type_line). So this is a SIGNALS-ONLY KEPT-MIRROR (the meld_pair
-# precedent): no projection, no sidecar bump. Its SWEEP_DETECTORS row is DELETED;
-# detection moves to a BYTE-IDENTICAL kept word mirror (NAMED_PERMANENT_REGEX in
-# signals._IR_KEPT_DETECTORS, scope 'you', run FLAT over the reminder-stripped joined-
-# face kept_oracle). The two `[^.]*`-free / `[^.]*`-bounded arms never cross a clause
-# boundary, so flat-over-kept_oracle == the deleted per-clause SWEEP firing byte-
-# identically (commander-legal: both==26, regex_only==0, ir_only==0). The serve spec
-# stays hand-registered. NB: this lane is DISTINCT from the IR `many_copies` field (CR
-# 100.2a copy-limit relaxation — Relentless Rats, Shadowborn Apostle), which is a
-# different deck-building signal (run-many-copies, not include-a-partner) and is NOT
-# this key — see the ADR recommendation in the migration record. CR 712.1 (named
-# references) vs CR 100.2a (copy limit).
+# ADR-0027 Cluster D (SIGNALS-ONLY, no SIDECAR bump) — the named_synergy lane (key
+# SPLIT off the old named_permanent in Task #19). A card whose ability references a
+# specific OTHER permanent/card BY NAME for synergy (Festering Newt → Bogbrew Witch,
+# Pious Kitsune → Eight-and-a-Half-Tails, Urborg Panther → Spirit of the Night,
+# Bonder's Ornament → itself). phase v0.1.60 DROPS the referenced name: it carries only
+# a bare `Named` predicate FLAG on one tutor (Urborg Panther) and otherwise leaves the
+# name solely in an effect's `raw` byte-fragment — the actual card name is never a
+# structured field project.py can promote (verified: the only name-ish strings phase
+# emits are the card's OWN name / type_line). So this is a SIGNALS-ONLY KEPT-MIRROR
+# (the meld_pair precedent): no projection, no sidecar bump. Its SWEEP_DETECTORS row is
+# DELETED; detection moves to a BYTE-IDENTICAL kept word mirror (NAMED_PERMANENT_REGEX
+# in signals._IR_KEPT_DETECTORS, scope 'you', run FLAT over the reminder-stripped
+# joined-face kept_oracle). The two `[^.]*`-free / `[^.]*`-bounded arms never cross a
+# clause boundary, so flat-over-kept_oracle == the deleted per-clause SWEEP firing
+# byte-identically (commander-legal: 26 cards). The serve spec stays hand-registered.
+# DISTINCT from the COPY_LIMIT lane below: this is "an ability refers to a named card"
+# (CR 201.4 choose-a-name / 201.5 self-reference), NOT the deck-construction copy-limit
+# relaxation. The regex constant keeps its NAMED_PERMANENT name (it matches the
+# "permanent named X" shape); only the signal KEY split to named_synergy.
 NAMED_PERMANENT_REGEX = "(?:permanent|creature|another permanent) named [A-Z]|a permanent you control named|control a (?:permanent|creature)[^.]*named"
+# Task #19 SPLIT — the copy_limit lane (key SPLIT off the old named_permanent). The CR
+# 100.2a deck-construction relaxation: "A deck can have any number of cards named X" /
+# "up to N cards named X" (Relentless Rats, Hare Apparent, Seven Dwarves, Persistent
+# Petitioners, Shadowborn Apostle, Dragon's Approach, Templar Knight, Nazgûl, Rat
+# Colony, Slime Against Humanity, Tempest Hawk, Cid). DETECTED STRUCTURALLY off the IR
+# `many_copies` field (phase's deck_copy_limit Unlimited / UpTo>=2) — NOT this regex,
+# which only powers the serve/search pool (the genuinely-different deck concern: a
+# swarm of one name, not a named-partner reference). 12 commander-legal cards; Seven
+# Dwarves is the lone card in BOTH lanes (its pump references its own name AND it is a
+# copy-limit swarm). CR 100.2a.
+COPY_LIMIT_REGEX = "a deck can have (?:any number of|up to \\w+) cards named"
 # ADR-0027 dig library-owner scope (SIDECAR v27): dig_until migrated to the Card IR (a
 # `dig_until` EFFECT scope=='you' structural arm — the own-library digs project.py now
 # scopes from the digger's `player` — UNION a byte-identical PER-CLAUSE mirror of this
@@ -2344,13 +2354,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # abilities can be blocked as though they didn't have those abilities" — Staff of
     # the Ages), appended by project._narrow_conferred_keyword_refs. Its oracle-regex
     # SWEEP_DETECTORS row is deleted; the serve spec stays hand-registered.
-    # ADR-0027 Cluster D (SIGNALS-ONLY): named_permanent migrated to the Card IR — the
-    # NAMED-CARD SYNERGY lane (a card referencing a specific OTHER card by name). phase
-    # drops the referenced name, so the lane stays a BYTE-IDENTICAL kept word mirror
-    # (NAMED_PERMANENT_REGEX in signals._IR_KEPT_DETECTORS, scope 'you'). This
-    # SWEEP_DETECTORS row is DELETED so the regex `extract_signals` path no longer emits
-    # the migrated key; the serve spec stays hand-registered. DISTINCT from the IR
-    # `many_copies` copy-limit field (CR 100.2a) — see NAMED_PERMANENT_REGEX above.
+    # ADR-0027 Cluster D + Task #19: named_synergy (SPLIT off the old named_permanent)
+    # is served from the Card IR — the NAMED-CARD SYNERGY lane (a card referencing a
+    # specific OTHER card by name). phase drops the referenced name, so the lane stays a
+    # BYTE-IDENTICAL kept word mirror (NAMED_PERMANENT_REGEX in
+    # signals._IR_KEPT_DETECTORS, scope 'you'). This SWEEP_DETECTORS row is DELETED so
+    # the regex `extract_signals` path no longer emits the migrated key; the serve spec
+    # stays hand-registered. The SIBLING copy_limit lane (CR 100.2a, IR `many_copies`)
+    # is a STRUCTURAL detector, also hand-registered — see COPY_LIMIT_REGEX above.
     # ADR-0027 discard-discarder scope (SIDECAR v26): discard_outlet migrated to the Card
     # IR (cost arm + scope in ('you','each') structural arm + a byte-identical PER-CLAUSE
     # mirror of THIS regex, pinned as _DISCARD_OUTLET_SWEEP_RE in _signals_regex). This
@@ -3003,9 +3014,13 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Other named counters",
         "enablers and payoffs for a niche named-counter mechanic",
     ),
-    "named_permanent": (
+    "named_synergy": (
         "Named-card synergy",
         "the specific named cards this references",
+    ),
+    "copy_limit": (
+        "Copy-limit swarm",
+        "more cards sharing this name + go-wide-on-one-name payoffs (CR 100.2a)",
     ),
     "ninjutsu_matters": (
         "Ninjutsu",

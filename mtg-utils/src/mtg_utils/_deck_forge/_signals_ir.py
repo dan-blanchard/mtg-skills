@@ -1038,26 +1038,25 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         _CHEAT_INTO_PLAY_RESIDUE_RE,
         "you",
     ),
-    # ADR-0027 Cluster D — named_permanent SIGNALS-ONLY kept WORD MIRROR. The named-
-    # card SYNERGY lane: a card whose oracle text references a specific OTHER card by
-    # name (Festering Newt → Bogbrew Witch, Pious Kitsune → Eight-and-a-Half-Tails,
-    # Urborg Panther → Spirit of the Night, Bonder's Ornament → itself). phase v0.1.60
-    # DROPS the referenced name — it survives only inside an effect's `raw` byte-
-    # fragment (one bare `Named` predicate flag on Urborg Panther's tutor, never the
-    # string), so project.py cannot recover it; the lane stays a regex mirror (the
-    # meld_pair precedent — phase loses the named-card data). The
+    # Task #19 SPLIT — named_synergy SIGNALS-ONLY kept WORD MIRROR (the named-card
+    # SYNERGY half of the old named_permanent lane). A card whose ability references a
+    # specific OTHER card by name (Festering Newt → Bogbrew Witch, Pious Kitsune →
+    # Eight-and-a-Half-Tails, Urborg Panther → Spirit of the Night, Bonder's Ornament →
+    # itself). phase v0.1.60 DROPS the referenced name — it survives only inside an
+    # effect's `raw` byte-fragment (one bare `Named` predicate flag on Urborg Panther's
+    # tutor, never the string), so project.py cannot recover it; the lane stays a regex
+    # mirror (the meld_pair precedent — phase loses the named-card data). The
     # _NAMED_PERMANENT_SWEEP_RE arms never cross a clause boundary (`[A-Z]`-anchored /
     # `[^.]*`-bounded), so a FLAT .search over the reminder-stripped joined-face
-    # kept_oracle == the deleted per-clause SWEEP firing byte-identically (commander-
-    # legal: both==26, regex_only==0, ir_only==0). Scope 'you', HIGH confidence (the
-    # loop's add() default) — the exact scope/confidence the deleted SWEEP row forced.
-    # It fed has_other_plan, so named_permanent joins
-    # signals._VOLTRON_SILENCING_PLAN_KEYS for the byte-identical voltron re-supply.
-    # DISTINCT from the IR `many_copies` field (CR 100.2a copy-limit — Relentless Rats,
-    # Shadowborn Apostle): a different deck-building signal (run-many-copies), NOT this
-    # key (the dead `many_copies` arm is removed). CR 712.1 / 903.10a.
+    # kept_oracle == the deleted per-clause SWEEP firing (commander-legal: 26 cards).
+    # Scope 'you', HIGH confidence (the loop's add() default). It fed has_other_plan, so
+    # named_synergy joins signals._VOLTRON_SILENCING_PLAN_KEYS for the byte-identical
+    # voltron re-supply. DISTINCT from the SIBLING copy_limit lane (CR 100.2a, the IR
+    # `many_copies` field — Relentless Rats, Shadowborn Apostle): a different deck
+    # concern (run-many-copies), fired by a structural arm in extract_signals_ir, NOT
+    # this mirror. CR 201.4 (named references) / 201.5 (self-reference) / 903.10a.
     (
-        "named_permanent",
+        "named_synergy",
         _NAMED_PERMANENT_SWEEP_RE,
         "you",
     ),
@@ -3254,12 +3253,15 @@ IR_SLICE_KEYS: frozenset[str] = (
             "trigger_doubling",
             # Batch 6 (unblocked) — flash_grant via CastWithKeyword{Flash}:
             "flash_grant",
-            # ADR-0027 Cluster D — named_permanent SIGNALS-ONLY kept word mirror
+            # Task #19 SPLIT — named_synergy SIGNALS-ONLY kept word mirror
             # (_NAMED_PERMANENT_SWEEP_RE in _IR_KEPT_DETECTORS): the named-card SYNERGY
             # lane (a card referencing a specific OTHER card by name). phase drops the
-            # referenced name, so it's a kept mirror, NOT the copy-limit `many_copies`
-            # field (CR 100.2a — that population is intentionally excluded here).
-            "named_permanent",
+            # referenced name, so it's a kept mirror. Its SIBLING copy_limit (the CR
+            # 100.2a `many_copies` field) is the STRUCTURAL arm below.
+            "named_synergy",
+            # Task #19 SPLIT — copy_limit: the CR 100.2a deck copy-limit relaxation,
+            # read STRUCTURALLY off the IR `many_copies` field (no regex, no mirror).
+            "copy_limit",
             # Deferred-sweep: evasion-denial (IgnoreLandwalk); clone_matters still
             # deferred (regex 1611 vs IR 70 — needs the 1541 audited first):
             "evasion_denial",
@@ -10203,19 +10205,26 @@ def extract_signals_ir(
         add("historic_matters", "you", "", "")
     if "IsCommander" in ir_predicates:  # Batch 15 — cares about your commander
         add("commander_matters", "you", "", "")
-    # ADR-0027 Cluster D — named_permanent is the NAMED-CARD SYNERGY lane (a card
-    # referencing a specific OTHER card by name), served BYTE-IDENTICALLY by the
-    # _NAMED_PERMANENT_SWEEP_RE kept mirror in _IR_KEPT_DETECTORS (scope 'you'). It is
-    # MIGRATED behavior-neutrally: the SAME 26 commander-legal cards the deleted SWEEP
-    # row captured. The CR 100.2a copy-limit population (ir.many_copies — Relentless
-    # Rats, Shadowborn Apostle, Dragon's Approach) is a DIFFERENT deck-building signal
-    # (run-many-copies, not include-a-partner) and is intentionally NOT folded into this
-    # key here — doing so would flip the lane's meaning and break behavior-neutrality
-    # (the two populations are almost disjoint: 25 synergy-only vs 11 copy-limit-only).
-    # The `many_copies` IR field stays projected (it is real, CR 100.2a) but feeds no
-    # signal until a follow-up ADR decides whether copy-limit is its own lane (e.g.
-    # `copy_limit` / `deck_singleton_break`). CR 712.1 (named refs) vs CR 100.2a (copy
-    # limit) — likely SEPARATE keys; see the migration record's ADR recommendation.
+    # Task #19 SPLIT — the old named_permanent lane is now TWO distinct lanes by
+    # mechanic (verified against live CR + real oracle text):
+    #   • named_synergy (CR 201.4 named references / 201.5 self-reference): a card whose
+    #     ability references a specific OTHER permanent BY NAME for synergy. phase drops
+    #     the referenced name, so it rides the _NAMED_PERMANENT_SWEEP_RE kept mirror in
+    #     _IR_KEPT_DETECTORS (scope 'you', 26 commander-legal cards — unchanged set).
+    #   • copy_limit (CR 100.2a): the deck-construction relaxation "A deck can have any
+    #     number of cards named X" / "up to N cards named X" (Relentless Rats, Hare
+    #     Apparent, Shadowborn Apostle, Dragon's Approach, Persistent Petitioners,
+    #     Nazgûl, Rat Colony, Slime Against Humanity, Tempest Hawk, Templar Knight, Cid,
+    #     Seven Dwarves). READ STRUCTURALLY off the IR `many_copies` field (phase's
+    #     deck_copy_limit Unlimited / UpTo>=2 — see card_ir._allows_many_copies). 12
+    #     commander-legal cards. A genuinely DIFFERENT deck concern: swarm-of-one-name,
+    #     not a named-partner reference. The two populations are nearly disjoint — Seven
+    #     Dwarves is the lone overlap (it both names itself for the pump AND is a
+    #     copy-limit swarm), so it correctly fires BOTH lanes.
+    # copy_limit is NOT in _VOLTRON_SILENCING_PLAN_KEYS (it is a new structural lane,
+    # no prior regex producer, so it leaves the voltron membership tell untouched).
+    if ir.many_copies:
+        add("copy_limit", "you", "", "")
 
     # Voltron PAYOFF (ADR-0027) — the structural Aura/Equipment build-around, read
     # from phase's IR (attach action / cast-an-Aura trigger / Aura-Equipment tutor /

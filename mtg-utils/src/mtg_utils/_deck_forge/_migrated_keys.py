@@ -6021,40 +6021,42 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # deleted producer fired HIGH scope 'you' and fed has_other_plan, silencing the
         # spurious commander-damage tell on 6 meld faces whose ONLY high plan was
         # meld_pair (Hanweir Garrison, Bruna, Phyrexian Dragon Engine, Midnight
-        # Scavengers, Urza Lord Protector, Titania — the other 7 carry named_permanent,
+        # Scavengers, Urza Lord Protector, Titania — the other 7 carry named_synergy,
         # still a regex key). The IR re-supply is the SAME 14 cards (byte-identical),
         # so meld_pair is added to _VOLTRON_SILENCING_PLAN_KEYS (not a broader mirror) —
         # the strict-subset facade is valid. voltron 3010 by set equality. NOT a SWEEP
         # row (a direct add() producer), so the detector floor is UNCHANGED. CR 701.42 /
         # 903.10a.
         "meld_pair",
-        # ADR-0027 Cluster D (LAST) — named_permanent (the NAMED-CARD SYNERGY lane: a
-        # card whose oracle text references a specific OTHER card BY NAME — Festering
-        # Newt → Bogbrew Witch, Pious Kitsune → Eight-and-a-Half-Tails, Urborg Panther →
-        # Spirit of the Night, Bonder's Ornament → itself). DIAGNOSIS (signals-only, NO
-        # projection, SIDECAR stays v36): phase v0.1.60 DROPS the referenced name — the
-        # actual card name survives only inside an effect's `raw` byte-fragment (a bare
-        # `Named` predicate FLAG on Urborg Panther's tutor, never the string); the
-        # only name-ish strings phase emits structurally are the card's OWN name /
-        # type_line. project.py CANNOT recover the referenced name, so this is a
-        # KEPT-MIRROR (meld_pair precedent), not a projection. WIRE: a byte-identical
-        # kept word mirror in extract_signals_ir runs the EXACT deleted
+        # Task #19 SPLIT — named_synergy (the NAMED-CARD SYNERGY half of the old
+        # named_permanent lane: a card whose ability references a specific OTHER card BY
+        # NAME — Festering Newt names Bogbrew Witch, Urborg Panther names Spirit of the
+        # Night, Bonder's Ornament names itself). Signals-only (NO projection): phase
+        # v0.1.60 DROPS the referenced name — it survives only in an effect's `raw`
+        # byte-fragment (a bare `Named` predicate FLAG on Urborg Panther's tutor, never
+        # the string). project.py CANNOT recover it, so this is a KEPT-MIRROR (meld_pair
+        # precedent). WIRE: a kept word mirror in extract_signals_ir runs the EXACT
         # NAMED_PERMANENT_REGEX (_NAMED_PERMANENT_SWEEP_RE) FLAT over the reminder-
-        # stripped joined-face kept_oracle, scope 'you', HIGH confidence — the two arms
-        # never cross a clause boundary so flat == the deleted per-clause SWEEP firing
-        # (commander-legal: both==26, regex_only==0, ir_only==0). VOLTRON: the deleted
-        # SWEEP fired HIGH scope 'you' and fed has_other_plan, silencing the spurious
+        # stripped joined-face kept_oracle, scope 'you', HIGH (commander-legal: 26 cards
+        # — unchanged set). VOLTRON: it fed has_other_plan, silencing the spurious
         # commander-damage tell on 8 LEGENDARY synergy bodies whose only high plan was
-        # named_permanent (Gisela, Venser, Vanille, Brothers Yamazaki, Gollum, Rufus
-        # Shinra, Mishra, Liu Bei); the IR re-supply is the SAME 26 byte-identically, so
-        # named_permanent joins _VOLTRON_SILENCING_PLAN_KEYS. voltron 3010 by set
-        # equality. This is a SWEEP row (DELETED), so the SWEEP floor drops 8→7. The CR
-        # 100.2a COPY-LIMIT population (ir.many_copies) is a DIFFERENT signal
-        # (run-many-copies) and is NOT folded into this key — the dead `many_copies` arm
-        # is removed (behavior-neutral: the SAME 26 synergy cards as the deleted regex).
-        # CR 712.1 (named references) vs CR 100.2a (copy limit) — likely SEPARATE keys;
-        # see the ADR recommendation in the migration record. CR 712.1 / 903.10a.
-        "named_permanent",
+        # the named ref (Gisela, Venser, Vanille, Brothers Yamazaki, Gollum, Rufus
+        # Shinra, Mishra, Liu Bei), so named_synergy joins _VOLTRON_SILENCING_PLAN_KEYS
+        # — voltron unchanged. CR 201.4 (named refs) / 201.5 (self-ref) / 903.10a.
+        "named_synergy",
+        # Task #19 SPLIT — copy_limit (the COPY-LIMIT half, CR 100.2a). The
+        # deck-construction relaxation "A deck can have any number of cards named X" /
+        # "up to N cards named X" (Relentless Rats, Hare Apparent, Shadowborn Apostle,
+        # Dragon's Approach, Persistent Petitioners, Nazgul, Rat Colony, Slime Against
+        # Humanity, Tempest Hawk, Templar Knight, Cid, Seven Dwarves). Signals-only, NO
+        # projection: the IR `many_copies` field is ALREADY projected (card_ir.
+        # _allows_many_copies, phase deck_copy_limit Unlimited / UpTo>=2), so a
+        # STRUCTURAL arm in extract_signals_ir reads it directly (scope 'you', HIGH) —
+        # no regex, no mirror, no SIDECAR bump. 12 commander-legal cards; a genuinely
+        # DIFFERENT deck concern (swarm-of-one-name) from named_synergy. Seven Dwarves
+        # is the lone overlap (both lanes). NOT in _VOLTRON_SILENCING_PLAN_KEYS (new
+        # lane, no prior producer → voltron untouched). CR 100.2a.
+        "copy_limit",
         # ADR-0027 reveal/dig-v2 — cheat_into_play (put a non-land card onto the
         # battlefield WITHOUT casting it, from a NON-graveyard source: hand — Sneak
         # Attack, Show and Tell; library/top — Collected Company, See the Unwritten, the

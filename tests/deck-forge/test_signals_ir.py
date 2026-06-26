@@ -2163,16 +2163,18 @@ def test_board_pillowfort_attack_lock_still_fires_stax_taxes():
     assert "stax_taxes" in _stax_keys(_ir(), oracle)
 
 
-# ── named_permanent (named-card SYNERGY kept word mirror) ─────────────────────
-# ADR-0027 Cluster D (SIGNALS-ONLY): named_permanent is the named-card SYNERGY lane
-# (a card referencing a specific OTHER card by name). phase drops the referenced
-# name, so the lane rides a BYTE-IDENTICAL kept word mirror (_NAMED_PERMANENT_SWEEP_RE
-# in _IR_KEPT_DETECTORS over the reminder-stripped oracle, scope 'you'). It is NOT the
-# CR 100.2a copy-limit `many_copies` field — that population is intentionally excluded.
+# ── named_synergy / copy_limit (Task #19 SPLIT of the old named_permanent) ────────
+# named_synergy (CR 201.4 named refs / 201.5 self-reference) is the named-card SYNERGY
+# lane — a card referencing a specific OTHER card by name. phase drops the referenced
+# name, so it rides a kept word mirror (_NAMED_PERMANENT_SWEEP_RE in _IR_KEPT_DETECTORS
+# over the reminder-stripped oracle, scope 'you'). copy_limit (CR 100.2a) is its
+# SIBLING — the deck copy-limit relaxation, read STRUCTURALLY off the IR `many_copies`
+# field. They are genuinely different deck concerns (named-partner vs swarm-of-copies).
 
 
-def test_named_card_synergy_fires_named_permanent_from_kept_mirror():
-    """A card naming a specific partner (CR 712.1) fires the kept-mirror lane."""
+def test_named_card_synergy_fires_named_synergy_from_kept_mirror():
+    """A card naming a specific partner (CR 201.4) fires the named_synergy mirror —
+    NOT copy_limit (no deck-relaxation field)."""
     card = {
         "name": "Festering Newt",
         "oracle_text": (
@@ -2182,28 +2184,48 @@ def test_named_card_synergy_fires_named_permanent_from_kept_mirror():
         ),
     }
     ir = _ir(Ability(kind="triggered", trigger=Trigger(event="dies", scope="you")))
-    sigs = sorted((s.key, s.scope, s.subject) for s in extract_signals_ir(card, ir))
-    assert ("named_permanent", "you", "") in sigs
+    keys = {s.key for s in extract_signals_ir(card, ir)}
+    assert "named_synergy" in keys
+    assert "copy_limit" not in keys
 
 
-def test_copy_limit_field_alone_does_not_fire_named_permanent():
-    """The CR 100.2a copy-limit population (ir.many_copies) is a DIFFERENT signal and
-    is NOT folded into named_permanent — the dead `many_copies` arm was removed for the
-    behavior-neutral migration. A card flagged many_copies but with only the deck-
-    relaxation clause ("cards named X" — not "creature/permanent named X") must NOT
-    fire named_permanent; only the synergy mirror does."""
+def test_copy_limit_field_fires_copy_limit_not_named_synergy():
+    """The CR 100.2a copy-limit population (ir.many_copies) fires its OWN structural
+    lane, copy_limit. Relentless Rats' pump phrasing ("each other creature on the
+    battlefield named …") does NOT match the named_synergy mirror (which anchors on
+    "control a creature named" / "permanent named"), so it fires copy_limit ALONE —
+    confirming the two lanes are genuinely distinct populations."""
     bare = {
-        "name": "X",
-        "oracle_text": "A deck can have any number of cards named X.",
+        "name": "Relentless Rats",
+        "oracle_text": (
+            "Relentless Rats gets +1/+1 for each other creature on the battlefield "
+            "named Relentless Rats.\n"
+            "A deck can have any number of cards named Relentless Rats."
+        ),
     }
-    ir = Card(oracle_id="x", name="X", many_copies=True)
-    assert "named_permanent" not in {s.key for s in extract_signals_ir(bare, ir)}
+    ir = Card(oracle_id="x", name="Relentless Rats", many_copies=True)
+    keys = {s.key for s in extract_signals_ir(bare, ir)}
+    assert "copy_limit" in keys
+    assert "named_synergy" not in keys
 
 
-def test_copy_limit_card_with_synergy_clause_fires_via_mirror_not_field():
+def test_pure_copy_limit_does_not_fire_named_synergy():
+    """A bare copy-limit card (only "A deck can have any number of cards named X", no
+    "creature/permanent named X" synergy clause) fires copy_limit ALONE."""
+    bare = {
+        "name": "Shadowborn Apostle",
+        "oracle_text": "A deck can have any number of cards named Shadowborn Apostle.",
+    }
+    ir = Card(oracle_id="x", name="Shadowborn Apostle", many_copies=True)
+    keys = {s.key for s in extract_signals_ir(bare, ir)}
+    assert "copy_limit" in keys
+    assert "named_synergy" not in keys
+
+
+def test_seven_dwarves_fires_both_lanes():
     """Seven Dwarves is many_copies True AND names itself ("creature named Seven
-    Dwarves") — it fires named_permanent via the SYNERGY mirror clause, not the
-    copy-limit field (the lane is the named-card synergy lane, CR 712.1)."""
+    Dwarves") — the lone overlap card, it fires BOTH copy_limit (the field) and
+    named_synergy (the mirror clause)."""
     card = {
         "name": "Seven Dwarves",
         "oracle_text": (
@@ -2213,13 +2235,17 @@ def test_copy_limit_card_with_synergy_clause_fires_via_mirror_not_field():
         ),
     }
     ir = Card(oracle_id="x", name="Seven Dwarves", many_copies=True)
-    assert "named_permanent" in {s.key for s in extract_signals_ir(card, ir)}
+    keys = {s.key for s in extract_signals_ir(card, ir)}
+    assert "named_synergy" in keys
+    assert "copy_limit" in keys
 
 
-def test_singleton_card_does_not_fire_named_permanent():
+def test_singleton_card_fires_neither_named_lane():
     card = {"name": "Test", "oracle_text": "Draw a card."}
     ir = _ir(Ability(kind="spell", effects=(Effect(category="draw"),)))
-    assert "named_permanent" not in {s.key for s in extract_signals_ir(card, ir)}
+    keys = {s.key for s in extract_signals_ir(card, ir)}
+    assert "named_synergy" not in keys
+    assert "copy_limit" not in keys
 
 
 # ── contract guards ───────────────────────────────────────────────────────────

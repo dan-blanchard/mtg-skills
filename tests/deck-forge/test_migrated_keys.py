@@ -1894,13 +1894,13 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
-    # ADR-0027 Cluster D — named_permanent (the named-card SYNERGY lane). phase drops
-    # the referenced name ("Bogbrew Witch" survives only in an effect `raw` byte-
-    # fragment, never a structured field), so the lane rides a byte-identical
-    # _NAMED_PERMANENT_SWEEP_RE scan over the reminder-stripped joined oracle, scope
-    # 'you'. A non-None IR routes the hybrid to the IR path, where the kept mirror
-    # serves it. DISTINCT from the CR 100.2a copy-limit `many_copies` field. CR 712.1.
-    "named_permanent": (
+    # Task #19 SPLIT — named_synergy (the named-card SYNERGY half of the old
+    # named_permanent lane). phase drops the referenced name ("Bogbrew Witch" survives
+    # only in an effect `raw` byte-fragment, never a structured field), so the lane
+    # rides a _NAMED_PERMANENT_SWEEP_RE scan over the reminder-stripped joined oracle,
+    # scope 'you'. A non-None IR routes the hybrid to the IR path, where the kept mirror
+    # serves it. CR 201.4 / 201.5.
+    "named_synergy": (
         {
             "name": "Festering Newt",
             "type_line": "Creature — Salamander",
@@ -1911,6 +1911,24 @@ _CASES: dict[str, tuple[dict, Card]] = {
             ),
         },
         _ir(),
+    ),
+    # Task #19 SPLIT — copy_limit (the COPY-LIMIT half, CR 100.2a). Read STRUCTURALLY
+    # off the IR `many_copies` field (phase deck_copy_limit Unlimited / UpTo>=2). The
+    # regex path emits nothing (no producer); the hybrid IR path fires the structural
+    # arm. Shadowborn Apostle is a pure copy-limit card (no named-synergy clause). CR
+    # 100.2a.
+    "copy_limit": (
+        {
+            "name": "Shadowborn Apostle",
+            "type_line": "Creature — Human Cleric",
+            "oracle_text": (
+                "A deck can have any number of cards named Shadowborn Apostle.\n"
+                "{B}, Sacrifice six creatures named Shadowborn Apostle: Search "
+                "your library for a Demon creature card, put it onto the "
+                "battlefield, then shuffle."
+            ),
+        },
+        Card(oracle_id="x", name="Shadowborn Apostle", many_copies=True),
     ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
