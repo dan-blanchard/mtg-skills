@@ -3001,6 +3001,35 @@ def test_coverage_gate_only_generic_creatures_matter():
     assert reason == "only_generic"
 
 
+def test_coverage_gate_flags_partial_parse_ir():
+    # ADR-0027 A4: a card with REAL signals but a PARTIAL Card-IR parse is flagged
+    # partial_parse so the agent knows the structural read may miss a lane. The
+    # signal-quality reasons keep precedence; this is the residual blind-spot net.
+    c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
+    partial = Card(
+        oracle_id="x",
+        name="X",
+        faces=(Face(name="X", abilities=()),),
+        parse_confidence="partial",
+    )
+    sigs = extract_signals_hybrid(c, partial)
+    assert any(s.subject == "Goblin" for s in sigs)  # a real (non-blind) lane
+    needs, reason = coverage_gate(c, sigs, partial)
+    assert needs is True
+    assert reason == "partial_parse"
+
+
+def test_coverage_gate_full_ir_does_not_trip_partial_parse():
+    # The new reason is additive: a FULL-confidence IR (the default) never flags
+    # partial_parse. Mirrors test_coverage_gate_passes_when_subject_present with
+    # the IR threaded as the 3rd arg.
+    c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
+    full = _bare_ir()  # parse_confidence defaults to "full"
+    needs, reason = coverage_gate(c, extract_signals_hybrid(c, full), full)
+    assert needs is False
+    assert reason == ""
+
+
 # --- regression: baseline still fires -----------------------------------------
 
 

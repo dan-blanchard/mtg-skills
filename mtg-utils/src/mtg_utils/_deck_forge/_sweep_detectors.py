@@ -2210,12 +2210,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # carved _BASE_PT_SET_MIRROR, and the serve spec is hand-registered in signal_specs.py
     # reusing BASE_PT_SET_REGEX (the auto-register loop no longer reaches it). SWEEP_LABELS
     # still carries the human label. CR 613.4b.
-    {
-        "key": "playtest_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bplaytest cards?\\b",
-    },
+    # ADR-0027 A4: playtest_matters DROPPED (not migrated). It fired only on 13
+    # non-commander-legal Mystery Booster playtest cards and resolved to no real
+    # serve spec, so its SWEEP_DETECTORS row + SWEEP_LABELS entry are deleted
+    # together (the key-agreement gate stays green). Zero commander-legal firings.
     # ADR-0027: stickers_matter migrated to the Card IR — served from the byte-identical
     # STICKERS_MATTER_REGEX (`\{tk\}|\bstickers?\b`) kept word mirror
     # (signals._IR_KEPT_DETECTORS, scope 'you'); phase v0.1.19 doesn't structure the CR
@@ -2335,12 +2333,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # in signals._IR_KEPT_DETECTORS, scope 'opponents', HIGH) — phase carries no
     # structural steal-and-cast form. SWEEP_LABELS keeps the human label; the serve spec
     # stays hand-registered in signal_specs.py reusing THEFT_MATTERS_REGEX.
-    {
-        "key": "cast_as_named_card",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "cast (?:creature )?cards? from your hand as though they were the card",
-    },
+    # ADR-0027 A4: cast_as_named_card DROPPED (not migrated). It fired only on 2
+    # non-commander-legal un-set cards and resolved to no real serve spec, so its
+    # SWEEP_DETECTORS row + SWEEP_LABELS entry are deleted together (the
+    # key-agreement gate stays green). Zero commander-legal firings.
     # ADR-0027: evasion_denial migrated to the Card IR — served structurally from
     # phase's `evasion_denial` (IgnoreLandwalkForBlocking) effect category for the
     # specific named-walk shapes (Great Wall, Crevasse, …) plus an `evasion_denial`
@@ -2820,7 +2816,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     ),
     "boast_matters": ("Boast", "boast creatures and ways to attack safely"),
     "cant_block_grant": ("Can't-block", "force blockers off to clear a path to attack"),
-    "cast_as_named_card": ("Cast-as", "play cards as though they were another card"),
+    # ADR-0027 A4: cast_as_named_card label deleted with its SWEEP_DETECTORS row.
     "changeling_matters": (
         "Changeling / all types",
         "all-creature-type cards for tribal overlap",
@@ -3041,7 +3037,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     ),
     "phasing_matters": ("Phasing", "phase-out effects for protection and resets"),
     "play_from_top": ("Play from the top", "top-of-library access plus reveal payoffs"),
-    "playtest_matters": ("Playtest cards", "Mystery Booster playtest-card effects"),
+    # ADR-0027 A4: playtest_matters label deleted with its SWEEP_DETECTORS row.
     "power_double": ("Power doubling", "big creatures to double in power"),
     "powerup_matters": ("Power-up", "power-up counters and payoffs"),
     "protection_grant": (

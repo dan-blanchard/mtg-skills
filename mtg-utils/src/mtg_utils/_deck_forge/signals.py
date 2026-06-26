@@ -1014,10 +1014,19 @@ def _scope_uncertain(text: str) -> bool:
     return False
 
 
-def coverage_gate(card: dict, signals: list[Signal]) -> tuple[bool, str]:
+def coverage_gate(
+    card: dict, signals: list[Signal], ir: Card | None = None
+) -> tuple[bool, str]:
     """Report a blind spot: (needs_agent, reason). reason ∈ {zero_signal,
-    only_generic, low_confidence, scope_uncertain, ""}. Surfaces gaps for agent
-    scoping instead of dropping them silently."""
+    only_generic, low_confidence, scope_uncertain, partial_parse, ""}. Surfaces
+    gaps for agent scoping instead of dropping them silently.
+
+    ADR-0027 A4: when the card's Card IR is a PARTIAL parse (``ir.parse_confidence
+    != "full"`` — some clause fell to ``category="other"`` / an unresolved
+    trigger), the structural signals may under-report, so the card is flagged
+    ``partial_parse`` for the agent to hand-scope. ``ir=None`` (no sidecar /
+    synthetic fixture) preserves the pre-A4 behavior exactly — the new reason is
+    purely additive and never changes an existing verdict."""
     if not signals:
         return (True, "zero_signal")
     keys = {s.key for s in signals}
@@ -1028,6 +1037,11 @@ def coverage_gate(card: dict, signals: list[Signal]) -> tuple[bool, str]:
         return (True, "low_confidence")
     if _scope_uncertain(get_oracle_text(card) or ""):
         return (True, "scope_uncertain")
+    # The IR itself reports an incomplete parse → some clause wasn't structured,
+    # so the structural signals may miss a lane. Flag it last (additive; the
+    # signal-quality reasons above keep precedence; ir=None → inert).
+    if ir is not None and ir.parse_confidence != "full":
+        return (True, "partial_parse")
     return (False, "")
 
 

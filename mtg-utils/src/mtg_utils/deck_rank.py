@@ -18,6 +18,7 @@ from pathlib import Path
 
 import click
 
+from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signals import rank_deck_signals
 from mtg_utils._tuner import metrics
@@ -26,6 +27,24 @@ from mtg_utils.deck import split_type_line
 from mtg_utils.hydrated_deck import HydratedDeck
 
 _ZONES = ("commanders", "cards", "sideboard")
+
+
+def _ensure_ir() -> None:
+    """Best-effort Card IR sidecar build so a fresh deck-wizard run is IR-native
+    (ADR-0027 A4). Called BEFORE the first ``ir_for`` (in ``rank_deck_signals`` /
+    ``rank_candidates``) so the memoized index isn't poisoned with ``None``.
+    Non-fatal — a build failure degrades to the regex path."""
+    import sys
+
+    from mtg_utils._deck_forge.production import ensure_card_ir
+
+    try:
+        ensure_card_ir()
+    except (OSError, ValueError) as exc:  # corrupt/locked phase data → degrade
+        print(
+            f"deck-rank: Card IR unavailable ({exc}); using regex path.",
+            file=sys.stderr,
+        )
 
 
 def _focus_sets(hd: HydratedDeck, signals: list, commander_names: set) -> dict:
@@ -69,9 +88,10 @@ def main(
     as_json: bool,
 ) -> None:
     """Rank CANDIDATES_JSON by synergy with DECK_JSON + HYDRATED_JSON."""
+    _ensure_ir()  # build the sidecar on first run, BEFORE the first ir_for
     hd = HydratedDeck.from_paths(deck_json, hydrated_json)
     commander_names = {c["name"] for c in hd.commanders}
-    signals = rank_deck_signals(hd.records, commander_names)
+    signals = rank_deck_signals(hd.records, commander_names, ir_for=ir_for)
     candidates = json.loads(Path(candidates_json).read_text(encoding="utf-8"))
     if not isinstance(candidates, list) or not all(
         isinstance(c, dict) for c in candidates

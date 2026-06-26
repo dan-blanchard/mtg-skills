@@ -1,12 +1,33 @@
 """Legacy regex-bag signal detection + shared parsing primitives.
 
-The ADR-0027 strangler's *base* module: ``extract_signals`` (the oracle-text
-regex path destined for deletion at A4) plus the parsing primitives both paths
-share (``Signal``, ``_clauses``/``_scope``/``_resolve_subject``, the voltron
-detectors, the ``*_PLAN_MIRROR`` regexes, ``_GENERIC_KEYS``). The IR path
-(:mod:`_signals_ir`) imports the shared primitives from here; this module never
-imports the IR path (acyclic). Split out of ``signals.py`` (behavior-neutral,
-2026-06-21) to cut per-edit token cost. ``signals`` re-exports the public names.
+The ADR-0027 strangler's *base* module: ``extract_signals`` plus the parsing
+primitives both paths share (``Signal``, ``_clauses``/``_scope``/
+``_resolve_subject``, the voltron detectors, the ``*_PLAN_MIRROR`` regexes,
+``_GENERIC_KEYS``). The IR path (:mod:`_signals_ir`) imports the shared
+primitives from here; this module never imports the IR path (acyclic). Split
+out of ``signals.py`` (behavior-neutral, 2026-06-21) to cut per-edit token cost.
+``signals`` re-exports the public names.
+
+ADR-0027 A4 (cutover, 2026-06-26): the regex path is **no longer "destined for
+deletion"** — it is now the legitimate, non-dead residue. The incremental
+migration already removed every deletable producer (``_DETECTORS`` and
+``_PRESET_REGEX_SIGNALS`` are empty; the producer-table residues that remain
+feed BOTH paths), so there is nothing left to delete here behavior-neutrally.
+What stays is load-bearing:
+
+  * ``extract_signals`` still produces ``voltron_matters`` — a *composite*
+    gate-metric (commander-damage membership silenced by ``has_other_plan``)
+    whose plan inputs are themselves already IR-served. ``extract_signals_hybrid``
+    strips every ``MIGRATED_KEYS`` emission from the regex output and re-supplies
+    it from the IR, so the surviving migrated-key emissions are harmless residue.
+  * The ~57 helpers/constants :mod:`_signals_ir` imports from here are re-run as
+    BYTE-IDENTICAL kept-mirrors of the IR re-supply (deleting them = gate drift).
+  * The ``*_PLAN_MIRROR`` regexes + ``has_other_plan`` helpers feed the regex-side
+    voltron silencing that the hybrid reconciliation depends on.
+
+This module is retired only when ``voltron_matters`` itself migrates off the
+regex path — tracked as the deferred voltron-migration work item (task #18),
+held behind the structural-audit backlog. Until then: do not delete from here.
 """
 
 from __future__ import annotations

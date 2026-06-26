@@ -200,8 +200,13 @@ def test_sweep_detectors_loaded():
     # abilities, Tannuk's "have warp" cheat-enabler). The deleted broad widen over-fired
     # on reanimation [from a graveyard] + land-ramp; the structural arm routes both OUT
     # via the source-zone tag + Land carve-out [+215 genuine library/hand cheats the
-    # narrow regex missed]; CR 110.2a / 400.7 / 701.23).
-    assert len(SWEEP_DETECTORS) >= 6
+    # narrow regex missed]; CR 110.2a / 400.7 / 701.23),
+    # then 6→4 as playtest_matters + cast_as_named_card rows were deleted (ADR-0027
+    # A4 — two SKIP keys that were never migrated: each fired only on a handful of
+    # non-commander-legal un-set / Mystery Booster cards and resolved to no real
+    # serve spec, so its SWEEP_DETECTORS row + SWEEP_LABELS entry were dropped
+    # together, keeping the key-agreement gate green; 0 commander-legal firings).
+    assert len(SWEEP_DETECTORS) >= 4
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 
