@@ -196,6 +196,94 @@ def _recover_exile_removal(out: Effect) -> Effect:
     return replace(out, category="exile", subject=subject)
 
 
+# ── ADR-0027 exile_removal PROJECTION TAIL (SIDECAR v46, Cluster C13) ──────────
+# Two phase MIS-PARSES each drop a genuine SINGLE-TARGET battlefield exile that the
+# C13 structural arm would otherwise admit. The supplement is our parser: we add the
+# structure phase missed (both upstreamable to phase-rs). Append-only / idempotent —
+# a correctly-parsed exile is untouched; only the mis-parsed shapes are repaired.
+#
+# (1) BATTLEFIELD-OR-GRAVEYARD HYBRID phase mis-zoned graveyard-only. Savior of
+#     Ollenbock — "exile up to one other target creature FROM THE BATTLEFIELD or
+#     creature card from a graveyard" — is partial battlefield removal, but phase
+#     emits zones=(from:graveyard, to:exile): the in:battlefield alternative is NOT
+#     emitted, so C13's pure-GY exclusion (graveyard zone present AND no
+#     in:battlefield) drops it. When the raw names a battlefield-exile alternative
+#     ("creature from the battlefield or … card from a graveyard" / "creature you
+#     don't control or creature card from a graveyard"), ADD in:battlefield so the
+#     effect becomes the HYBRID board+GY shape the structural arm already admits
+#     (matching Angel of Serenity / Aurelia's Vindicator, which phase parses with
+#     zones=(in:battlefield, in:graveyard, to:exile)). CR 406.1 — one-way exile of
+#     the on-board portion is removal; CR 406.2 — the battlefield half moves from the
+#     battlefield to exile.
+_EXILE_BATTLEFIELD_ALT = re.compile(
+    r"creature (?:from the battlefield|you don't control)\b[^.]*\bor\b[^.]*"
+    r"creature card from (?:a |an |their |each )?graveyard",
+    re.IGNORECASE,
+)
+
+
+def _recover_hybrid_exile_zone(out: Effect) -> Effect:
+    """ADD in:battlefield to a cat="exile" effect phase mis-zoned graveyard-only when
+    the raw names a battlefield-exile alternative (Savior of Ollenbock).
+
+    Idempotent: fires only when a graveyard zone is present, in:battlefield is ABSENT,
+    and the raw matches the battlefield-OR-graveyard alternative — so a pure-GY exile
+    (no battlefield clause) and an already-hybrid exile are both untouched. The
+    structural exile_removal arm's pure-GY exclusion then no longer drops the effect
+    (graveyard zone present AND in:battlefield present ⇒ admitted)."""
+    if out.category != "exile":
+        return out
+    zones = out.zones
+    if not any("graveyard" in z for z in zones):
+        return out
+    if any("in:battlefield" in z for z in zones):
+        return out
+    if not _EXILE_BATTLEFIELD_ALT.search(out.raw or ""):
+        return out
+    return replace(out, zones=(*zones, "in:battlefield"))
+
+
+# (2) OPPONENT-EXILE half phase split into a bare subjectless exile. Kaya, Spirits'
+#     Justice -2 — "Exile target creature you control. For each other player, exile
+#     up to one target creature that player controls" — is split by phase into a
+#     cat="blink"(subject=self, controller=you) self-exile half + a bare
+#     cat="exile"(subject=None) opponent half. The SECOND sentence is unconditional
+#     permanent exile of opponents' creatures = genuine removal. _recover_exile_removal
+#     can't refill it: its single-target core matches the EARLIER "creature you
+#     control" in the SAME raw and the self-target guard fires. Give the bare exile an
+#     OPPONENT-controlled creature subject (read from the per-opponent "exile … target
+#     creature that player controls" clause) so the structural arm admits the opponent
+#     half. Scoped to the opponent clause so the self-target collision is sidestepped.
+#     CR 406.1 (one-way exile = removal), CR 406.2 (to-exile moves from the
+#     battlefield).
+_EXILE_OPPONENT_CLAUSE = re.compile(
+    r"(?:for each other player|each opponent)\b[^.]*\bexile\b[^.]*"
+    r"creature (?:that player controls|you don't control)",
+    re.IGNORECASE,
+)
+
+
+def _recover_opponent_exile_subject(out: Effect) -> Effect:
+    """Fill an OPPONENT-controlled creature subject on a bare cat="exile"(subject=None)
+    that phase split off from a self+opponent dual-exile (Kaya, Spirits' Justice -2),
+    so the structural exile_removal arm admits the opponent-removal half.
+
+    Idempotent: fires only on a subjectless, non-mass, non-graveyard/hand exile whose
+    raw names the per-opponent "exile … creature that player controls" clause — so a
+    bare exile that is the controller's own (blink) half, a GY-source exile, or a mass
+    exile is untouched. The opponent-controlled subject clears the structural arm's
+    permanent-type + not-you-controlled gates."""
+    if out.category != "exile" or out.subject is not None:
+        return out
+    if out.counter_kind == "all":
+        return out
+    if any("graveyard" in z or "hand" in z for z in out.zones):
+        return out
+    if not _EXILE_OPPONENT_CLAUSE.search(out.raw or ""):
+        return out
+    return replace(out, subject=Filter(card_types=("Creature",), controller="opp"))
+
+
 def _topdeck_select_owner_scope(out: Effect) -> Effect:
     """Re-scope (or re-categorize) a supplement-recovered ``topdeck_select`` Effect by
     WHOSE library/hand it examines (read from ``raw`` — the recovery carries no
@@ -1872,4 +1960,13 @@ def _supplement_effect(e: Effect) -> Effect:
     # into a rider clause (restriction/lifegain) or left subjectless, so the migrated
     # exile_removal structural arm can read it. Runs after the scope passes so a
     # recovered exile keeps any opp/each scope it already had (Unexplained Absence).
-    return _recover_exile_removal(out)
+    out = _recover_exile_removal(out)
+
+    # 6. ADR-0027 exile_removal PROJECTION TAIL (SIDECAR v46, C13): repair two phase
+    # mis-parses the C13 structural arm would otherwise admit — Savior of Ollenbock's
+    # graveyard-only mis-zoning (ADD in:battlefield from the battlefield-exile
+    # alternative) and Kaya, Spirits' Justice's split-off bare opponent-exile (FILL an
+    # opponent-controlled subject). Both run after _recover_exile_removal so they see
+    # the post-retention shape; both are append-only / idempotent.
+    out = _recover_hybrid_exile_zone(out)
+    return _recover_opponent_exile_subject(out)

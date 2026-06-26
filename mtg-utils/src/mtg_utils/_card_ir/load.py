@@ -559,7 +559,24 @@ from mtg_utils.card_ir import Card
 #   a FIXED literal value (the dynamic "change base power to <…>" / "X/X" forms carry no
 #   digit → skipped, matching the mirror). debuff_matters is the only lane that moves;
 #   base_pt_set stays 219 (the mirror already supplied these), voltron 3007. CR 613.4b.
-SIDECAR_VERSION = 45
+# v46 (ADR-0027 exile_removal PROJECTION TAIL — C13; supplement
+#   `_recover_hybrid_exile_zone` + `_recover_opponent_exile_subject`): C13's
+#   signals-only over-fire removal dropped 137 exile_removal firings, but 2 of those
+#   were WRONGLY caught because phase MIS-PARSES the cards. Savior of Ollenbock
+#   ("exile … creature FROM THE BATTLEFIELD or creature card from a graveyard") is
+#   mis-zoned graveyard-only — phase emits zones=(from:graveyard, to:exile), dropping
+#   the in:battlefield alternative, so the pure-GY exclusion drops it; the supplement
+#   ADDS in:battlefield from the raw, restoring the HYBRID board+GY shape (== Angel of
+#   Serenity / Aurelia's Vindicator). Kaya, Spirits' Justice -2 ("Exile target
+#   creature you control. For each other player, exile … creature that player
+#   controls") is split into cat=blink(self) + a bare cat=exile(subject=None) opponent
+#   half; _recover_exile_removal can't refill it (the self-target guard matches the
+#   earlier "you control" in the same raw), so the supplement FILLS an
+#   opponent-controlled Creature subject scoped to the per-opponent clause. Both
+#   append-only / idempotent — a correctly-parsed exile is untouched. exile_removal
+#   408 (vs the C13 406 base minus these 2 = the 2 are now KEPT structurally); every
+#   other key incl. voltron_matters (3007) drift 0. CR 406.1 / 406.2.
+SIDECAR_VERSION = 46
 
 
 def card_ir_dir() -> Path:

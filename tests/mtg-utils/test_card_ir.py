@@ -4353,6 +4353,89 @@ def test_exile_removal_does_not_retag_blink_or_self_exile():
     assert not _exile_effects(project_card([blink]))
 
 
+# ── ADR-0027 exile_removal PROJECTION TAIL (SIDECAR v46, C13) ─────────────────
+
+
+def test_hybrid_exile_zone_recovered_for_savior_of_ollenbock():
+    """ADR-0027 C13 — Savior of Ollenbock: phase mis-zones the battlefield-or-graveyard
+    exile graveyard-only (zones=(from:graveyard, to:exile) — the in:battlefield
+    alternative is dropped), so C13's pure-GY exclusion would drop a genuine partial
+    battlefield removal. The supplement ADDS in:battlefield from the raw's
+    battlefield-exile alternative, restoring the HYBRID board+GY shape (CR 406.1)."""
+    from mtg_utils._card_ir.supplement import _supplement_effect
+
+    # The exact phase-emitted shape for Savior's "trains" trigger (graveyard-only).
+    e = Effect(
+        category="exile",
+        subject=Filter(card_types=("Creature",), predicates=("Another",)),
+        zones=("from:graveyard", "to:exile"),
+        raw=(
+            "Whenever ~ trains, exile up to one other target creature from the "
+            "battlefield or creature card from a graveyard."
+        ),
+    )
+    out = _supplement_effect(e)
+    assert "in:battlefield" in out.zones, out.zones
+    # the graveyard origin is retained (still a GY-interaction card too).
+    assert "from:graveyard" in out.zones, out.zones
+    # subject untouched.
+    assert out.subject.card_types == ("Creature",)
+
+
+def test_hybrid_exile_zone_not_added_to_pure_graveyard_exile():
+    """The hybrid-zone recovery is gated to a raw that NAMES a battlefield-exile
+    alternative — a pure GY-hate exile (Cemetery Reaper, no "from the battlefield" /
+    "you don't control" branch) keeps its graveyard-only zones (CR 406.2)."""
+    from mtg_utils._card_ir.supplement import _supplement_effect
+
+    e = Effect(
+        category="exile",
+        subject=Filter(card_types=("Creature",)),
+        zones=("from:graveyard", "to:exile", "in:graveyard"),
+        raw="{T}: Exile target creature card from a graveyard.",
+    )
+    out = _supplement_effect(e)
+    assert "in:battlefield" not in out.zones, out.zones
+
+
+def test_opponent_exile_subject_recovered_for_kaya_spirits_justice():
+    """ADR-0027 C13 — Kaya, Spirits' Justice -2: phase splits the dual exile into a
+    cat=blink(self) half + a bare cat=exile(subject=None) opponent half.
+    _recover_exile_removal can't refill it (the self-target guard matches the earlier
+    "creature you control"), so the supplement fills an OPPONENT-controlled Creature
+    subject scoped to the per-opponent clause (CR 406.1)."""
+    from mtg_utils._card_ir.supplement import _supplement_effect
+
+    # The exact phase-emitted bare opponent-exile half (subject dropped).
+    e = Effect(
+        category="exile",
+        subject=None,
+        raw=(
+            "[−2]: Exile target creature you control. For each other player, "
+            "exile up to one target creature that player controls."
+        ),
+    )
+    out = _supplement_effect(e)
+    assert out.subject is not None, "opponent-exile subject not recovered"
+    assert out.subject.card_types == ("Creature",)
+    assert out.subject.controller == "opp", out.subject.controller
+
+
+def test_opponent_exile_subject_not_filled_for_bare_self_exile():
+    """The opponent-exile recovery is gated to the per-opponent "exile … creature that
+    player controls" clause — a bare exile of the controller's OWN (a blink-of-own
+    half with no opponent clause) is left subjectless (CR 603.6e value, not removal)."""
+    from mtg_utils._card_ir.supplement import _supplement_effect
+
+    e = Effect(
+        category="exile",
+        subject=None,
+        raw="Exile target creature you control, then return it to the battlefield.",
+    )
+    out = _supplement_effect(e)
+    assert out.subject is None, out.subject
+
+
 # ── ADR-0027 graveyard scope/origin/zone (SIDECAR v29) ────────────────────────
 
 
