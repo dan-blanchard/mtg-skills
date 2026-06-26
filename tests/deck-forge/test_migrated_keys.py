@@ -387,6 +387,9 @@ _CASES: dict[str, tuple[dict, Card]] = {
     # make_token AND a structural arm would 100%-over-fire with reminder-text self-copies
     # (Embalm/Offspring), so the lane rides the exact deleted regex (empty IR — the mirror
     # reads the dict oracle). ADR-0027 β.
+    # token_copy_matters ← FULLY STRUCTURAL (ADR-0027 C5): a CopyTokenOf projects to a
+    # make_token whose subject carries the "Copy" predicate (CR 707). Helm of the Host
+    # copies the equipped creature each combat — the structural arm reads the Copy marker.
     "token_copy_matters": (
         {
             "name": "Helm of the Host",
@@ -397,7 +400,18 @@ _CASES: dict[str, tuple[dict, Card]] = {
                 "That token gains haste.\nEquip {5}"
             ),
         },
-        _ir(),
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="make_token",
+                        scope="you",
+                        subject=Filter(card_types=("Creature",), predicates=("Copy",)),
+                    ),
+                ),
+            )
+        ),
     ),
     # tokens_matter ← a BYTE-IDENTICAL kept mirror (_TOKENS_MATTER_MIRROR over the
     # reminder-stripped oracle: "Creature tokens you control get +1/+1 …" is the broad

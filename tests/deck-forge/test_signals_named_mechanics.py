@@ -770,13 +770,39 @@ def test_poison_scoped_to_opponents():
 
 
 def test_token_copy_engine():
-    # ADR-0027 β: token_copy_matters is IR-served (a byte-identical kept-mirror over the
-    # reminder-stripped oracle), so it comes through the hybrid path, not pure regex.
+    # ADR-0027 C5: token_copy_matters is FULLY STRUCTURAL — a CopyTokenOf projects to a
+    # make_token whose subject carries the "Copy" predicate (CR 707), which the
+    # structural arm reads; no regex mirror.
     c = {
         "name": "Orthion-like",
         "oracle_text": "{1}{R}, {T}: Create a token that's a copy of another target creature you control.",
     }
-    assert ("token_copy_matters", "you") in _ks_hybrid(c)
+    ir = Card(
+        oracle_id="x",
+        name="Orthion-like",
+        faces=(
+            Face(
+                name="Orthion-like",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        effects=(
+                            Effect(
+                                category="make_token",
+                                scope="you",
+                                subject=Filter(
+                                    card_types=("Creature",), predicates=("Copy",)
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("token_copy_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+    }
 
 
 def test_specialize():

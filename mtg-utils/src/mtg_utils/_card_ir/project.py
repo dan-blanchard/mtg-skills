@@ -92,6 +92,96 @@ def _is_selfref(node: object) -> bool:
     return isinstance(node, dict) and _norm(node.get("type")) == "selfref"
 
 
+# ADR-0027 C5 token_copy — the "Copy" make_token predicate (CR 707, "Copying Objects").
+# A copy of an object IS still a token, so the effect category stays ``make_token``
+# (token_maker / kindred reads are unaffected); this marker rides the made token's
+# subject so token_copy_matters can split a token COPY (Cackling Counterpart, populate)
+# from a vanilla "create a 1/1 Soldier token". Precedent: the ``Token`` predicate
+# _narrow_token_subtype_makers already stamps on make_token subjects. CR 707.
+_TOKEN_COPY_PRED = "Copy"
+# A bare ``Copy``-only make_token subject — the shape a SelfRef CopyTokenOf produces
+# (phase's ``target={type:SelfRef}`` → ``_filter`` None → ``_add_predicate`` builds a
+# fresh Filter). The _project_face reminder-self-copy keyword gate strips exactly this
+# shape; a TYPED copy (card_types present) is never stripped.
+_BARE_COPY_SUBJECT = Filter(predicates=(_TOKEN_COPY_PRED,))
+# CR 707 token-copy keywords whose copies are SELF-recursion of the card itself, living
+# in stripped reminder text (Embalm 702.128, Eternalize 702.129, Squad 702.157, Myriad
+# 702.116, Encore 702.140, plus Offspring / Double Team). These create CR-707 token
+# copies, but of THE CARD, not a copy-others payoff, so token_copy_matters must stay
+# silent on them — a SIGNAL-POLICY boundary mirroring the reminder-strip the deleted
+# regex did, NOT a claim they aren't copies. Used to gate the SelfRef ``Copy`` predicate
+# and the copy-spell supplement scan.
+_REMINDER_COPY_KEYWORDS: frozenset[str] = frozenset(
+    {"embalm", "eternalize", "offspring", "squad", "doubleteam", "encore", "myriad"}
+)
+
+
+def _has_reminder_copy_keyword(record: dict) -> bool:
+    """True when the card carries a CR-707 reminder-self-copy keyword (Embalm /
+    Eternalize / Encore / Squad / Myriad / Offspring / Double Team). Reads through
+    ``_keywords`` because phase encodes a keyword as either a string or a single-key
+    dict ({"Squad": {...}})."""
+    return any(
+        _norm(k) in _REMINDER_COPY_KEYWORDS for k in _keywords(record.get("keywords"))
+    )
+
+
+def _strip_selfref_copy(ability: Ability) -> Ability:
+    """Drop the bare ``Copy`` marker off a SelfRef CopyTokenOf make_token (Embalm /
+    Eternalize self-copies) so token_copy_matters stays silent — gated at the
+    _project_face level to faces carrying a reminder-self-copy keyword. A typed copy
+    (card_types present) is untouched. CR 707."""
+    effects = tuple(
+        replace(e, subject=None)
+        if e.category == "make_token" and e.subject == _BARE_COPY_SUBJECT
+        else e
+        for e in ability.effects
+    )
+    return replace(ability, effects=effects)
+
+
+# ADR-0027 C5 token_copy — the copy-SPELL phase-fold tail (~13). For a handful of copy
+# spells phase folds the "token that's a copy" clause into a SIBLING effect (Fractured
+# Identity → exile, Mirror March → coin_flip, Doppelgang / Esix → a make_token WITHOUT
+# the copy, Hate Mirage → target_only) or drops the copy node entirely (Mirrormind
+# Crown, Mirage Phalanx), so no make_token carries a ``Copy`` predicate. This scan over
+# the reminder-STRIPPED face oracle re-surfaces a make_token+(``Token``,``Copy``) marker
+# so token_copy_matters reads structure instead of a broad regex mirror. CR 707.
+_COPY_SPELL_RE = re.compile(
+    r"tokens? that(?:'s| are) (?:a )?cop(?:y|ies)|token copies (?:of|for)",
+    re.IGNORECASE,
+)
+
+
+def _copy_spell_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
+    """A make_token+(``Token``,``Copy``) marker for a copy SPELL whose copy clause phase
+    folded into a sibling effect / dropped, so no structural ``Copy`` make_token exists.
+    GATED to faces lacking a reminder-self-copy keyword (Squad / Myriad expand their
+    keyword reminder into the effect raw WITHOUT parens, an over-fire the reminder-strip
+    can't remove) and to faces with no structural ``Copy`` already. CR 707."""
+    if _has_reminder_copy_keyword(record):
+        return []
+    if any(
+        e.category == "make_token"
+        and e.subject is not None
+        and _TOKEN_COPY_PRED in e.subject.predicates
+        for a in abilities
+        for e in a.effects
+    ):
+        return []
+    text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")  # drop reminder
+    if not _COPY_SPELL_RE.search(text):
+        return []
+    return [
+        Effect(
+            category="make_token",
+            scope="you",
+            subject=Filter(predicates=("Token", _TOKEN_COPY_PRED)),
+            raw=text.strip(),
+        )
+    ]
+
+
 # ADR-0027 β — the MASS marker for a +1/+1 counter PLACEMENT that spreads across a
 # WHOLE GROUP ("put a +1/+1 counter on EACH creature you control / each Vampire you
 # control / each of up to two target creatures" — Cathars' Crusade, Titania's Boon,
@@ -1712,6 +1802,12 @@ def _project_face(record: dict) -> Face:
     # Token-subtype maker recovery (ADR-0027): append make_token markers for named
     # token subtypes phase left only in a choose-list / granted-ability carrier raw.
     abilities = [_narrow_token_subtype_makers(a) for a in abilities]
+    # ADR-0027 C5 reminder-self-copy gate: a SelfRef CopyTokenOf (Embalm / Eternalize /
+    # Encore) carries a bare ``Copy`` make_token subject; drop it for the closed
+    # reminder-self-copy keyword set so token_copy_matters stays silent (mirrors the
+    # deleted regex's reminder-strip). A TYPED copy is never touched. CR 707.
+    if _has_reminder_copy_keyword(record):
+        abilities = [_strip_selfref_copy(a) for a in abilities]
     # Own-board count operand (ADR-0027 go-wide): recover the count-over-your-board
     # operand phase keeps in its raw parse but the structured projection drops (a
     # characteristic-defining */* P/T, a ModifyCost reduction, a damage X, a gate
@@ -1891,6 +1987,13 @@ def _project_face(record: dict) -> Face:
     lifeloss_markers = _lifeloss_markers(record, abilities)
     if lifeloss_markers:
         abilities.append(Ability(kind="static", effects=tuple(lifeloss_markers)))
+    # ADR-0027 C5 token_copy — copy-SPELL phase-fold tail: a make_token+(Token,Copy)
+    # marker for a copy spell whose copy clause phase folded into a sibling effect or
+    # dropped (Fractured Identity, Mirror March, Mirrormind Crown), so no structural
+    # Copy make_token exists. Keyword-gated. CR 707.
+    copy_spell_markers = _copy_spell_markers(record, abilities)
+    if copy_spell_markers:
+        abilities.append(Ability(kind="static", effects=tuple(copy_spell_markers)))
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
@@ -2573,6 +2676,46 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
         ]
     if etype == "copytokenof":
         return [_copy_token_effect(eff, raw)]
+    if etype == "populate":
+        # CR 701.36 — populate = create a copy of a creature token you control. A copy
+        # of a creature token IS a token maker (make_token, Creature subject → fires
+        # token_maker) AND a token COPY (the ``Token``,``Copy`` predicates → fires
+        # token_copy_matters). Scope you (the token is created under YOUR control).
+        # phase emits a bare ``Populate`` node (subject=None, scope unset);
+        # _EFFECT_CATEGORY
+        # collapsed it to a vanilla make_token, dropping both the creature type and the
+        # copy semantic.
+        return [
+            Effect(
+                category="make_token",
+                amount=_amount(eff),
+                scope="you",
+                subject=Filter(
+                    card_types=("Creature",),
+                    predicates=("Token", _TOKEN_COPY_PRED),
+                ),
+                raw=raw,
+            )
+        ]
+    if etype == "investigate":
+        # CR 701.16 — investigate = create a Clue artifact token. phase tags the keyword
+        # action but DROPS the Clue artifact-token subtype (make_token subject=None), so
+        # the existing token-subtype arm couldn't fire clue_matters. Re-stamp Artifact +
+        # Clue + Token so it reads structurally (artifacts_matter already fires off the
+        # investigate keyword map, so this only adds the clue_matters subtype tell).
+        return [
+            Effect(
+                category="make_token",
+                amount=_amount(eff),
+                scope=_effect_scope(eff),
+                subject=Filter(
+                    card_types=("Artifact",),
+                    subtypes=("Clue",),
+                    predicates=("Token",),
+                ),
+                raw=raw,
+            )
+        ]
     if etype == "additionalphase":
         # Batch 14 — an extra phase, split by which phase it grants.
         ph = _norm(eff.get("phase"))
@@ -3712,12 +3855,19 @@ def _copy_token_effect(eff: dict, raw: str) -> Effect:
     → a token maker. Scope is the ``owner`` (Controller → you); the made token's
     type is the copied object's filter (``target``) when it's a Typed filter — a
     self/parent/tracked copy leaves the subject unbound (its type is the source's,
-    which the effect node doesn't carry)."""
+    which the effect node doesn't carry).
+
+    ADR-0027 C5 — the made token is stamped with the ``Copy`` predicate (CR 707) so
+    token_copy_matters can split it from a vanilla token. A Typed target (Cackling
+    Counterpart "copy of target creature") keeps its type + ``Copy``; a SelfRef /
+    ParentTarget copy (Embalm / Eternalize reminder self-copy) yields a BARE ``Copy``
+    marker that the _project_face keyword gate strips for the reminder-self-copy
+    keyword set. category stays ``make_token`` (a copy IS a token)."""
     return Effect(
         category="make_token",
         amount=_amount(eff),
         scope=_effect_scope(eff),
-        subject=_filter(eff.get("target")),
+        subject=_add_predicate(_filter(eff.get("target")), _TOKEN_COPY_PRED),
         raw=raw,
     )
 

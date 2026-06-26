@@ -603,7 +603,17 @@ from mtg_utils.card_ir import Card
 #   for combat_damage/deals_damage; tribe_damage_trigger fires on a Creature/You source
 #   CLASS (not a SelfRef). Both byte-mirrors retired; toughness_combat voltron silence
 #   moves to _VOLTRON_SILENCING_PLAN_KEYS. CR 510.1 / 510.1b / 119.3 / 604.3.
-SIDECAR_VERSION = 48
+#   C5 — token-copy cluster. project stamps a ``Copy`` predicate on the make_token
+#   subject of a CopyTokenOf (a Typed copy keeps its type + Copy; a SelfRef self-copy
+#   gets a bare Copy that _project_face strips for the reminder-self-copy keyword set —
+#   Embalm/Eternalize/Encore/Squad/Myriad/Offspring/Double Team). Populate → make_token
+#   scope=you, Creature+(Token,Copy) subject (fires token_maker + token_copy_matters).
+#   Investigate → make_token Artifact+Clue+(Token) subject (fires clue_matters off the
+#   existing token-subtype arm). _copy_spell_markers recovers the copy-spell phase-fold
+#   tail structurally. token_copy_matters / clue_matters firing byte-mirrors retired;
+#   tokens_matter mirror narrowed to the go-wide board-count residue. CR 707 / 701.36 /
+#   701.16.
+SIDECAR_VERSION = 49
 
 
 def card_ir_dir() -> Path:

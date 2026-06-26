@@ -6669,3 +6669,122 @@ def test_base_pt_set_dynamic_xx_synthesizes_no_fixed_set():
     }
     cats = {e.category for e in _effects(project_card([rec]))}
     assert "base_pt_set" not in cats
+
+
+# ── ADR-0027 C5: token-copy projection (CR 707 / 701.36 / 701.16) ─────────────
+
+
+def test_copytokenof_typed_target_carries_copy_predicate():
+    """Cackling Counterpart's "create a token that's a copy of target creature you
+    control" projects to a make_token whose subject keeps its Creature type AND a
+    "Copy" predicate (CR 707) — token_copy_matters reads the marker."""
+    eff = {
+        "type": "CopyTokenOf",
+        "owner": {"type": "Controller"},
+        "target": {"type": "Typed", "type_filters": ["Creature"], "controller": "You"},
+    }
+    [e] = _project_effect(
+        eff, "Create a token that's a copy of target creature you control."
+    )
+    assert e.category == "make_token"
+    assert "Creature" in e.subject.card_types
+    assert "Copy" in e.subject.predicates
+
+
+def test_copytokenof_selfref_target_carries_bare_copy_predicate():
+    """A SelfRef CopyTokenOf (the reminder-self-copy shape) projects to a BARE Copy
+    make_token subject — the _project_face keyword gate strips it for the
+    reminder-self-copy keyword set, so it never carries a card type here."""
+    eff = {
+        "type": "CopyTokenOf",
+        "owner": {"type": "Controller"},
+        "target": {"type": "SelfRef"},
+    }
+    [e] = _project_effect(eff, "create a token that's a copy of it")
+    assert e.category == "make_token"
+    assert e.subject.card_types == ()
+    assert e.subject.predicates == ("Copy",)
+
+
+def test_populate_projects_creature_token_copy():
+    """Populate (CR 701.36 = a copy of a creature token you control) projects to a
+    make_token scope you with a Creature subject carrying ("Token", "Copy") — so it
+    fires BOTH token_maker (a creature-token maker) and token_copy_matters."""
+    [e] = _project_effect({"type": "Populate"}, "Populate.")
+    assert e.category == "make_token"
+    assert e.scope == "you"
+    assert "Creature" in e.subject.card_types
+    assert "Token" in e.subject.predicates
+    assert "Copy" in e.subject.predicates
+
+
+def test_investigate_projects_clue_artifact_token_subtype():
+    """Investigate (CR 701.16 = create a Clue artifact token) projects to a make_token
+    whose subject carries the Artifact card type + Clue subtype + Token predicate, so
+    the token-subtype arm fires clue_matters structurally."""
+    [e] = _project_effect({"type": "Investigate"}, "Investigate.")
+    assert e.category == "make_token"
+    assert "Artifact" in e.subject.card_types
+    assert "Clue" in e.subject.subtypes
+    assert "Token" in e.subject.predicates
+
+
+def test_eternalize_selfcopy_is_keyword_gated_to_no_copy():
+    """A card with the Eternalize keyword whose CopyTokenOf is a SelfRef self-copy has
+    the bare Copy marker STRIPPED by the reminder-self-copy keyword gate (CR 707 policy
+    boundary) — the make_token carries no Copy predicate, so token_copy_matters stays
+    silent."""
+    rec = {
+        "name": "Adorned Pouncer",
+        "scryfall_oracle_id": "c5-eternalize",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": (
+            "Double strike\nEternalize {3}{W}{W} ({3}{W}{W}, Exile this card from your "
+            "graveyard: Create a token that's a copy of it, except it's a 4/4 black "
+            "Zombie Cat. Eternalize only as a sorcery.)"
+        ),
+        "keywords": ["Double strike", "Eternalize"],
+        "abilities": [
+            {
+                "kind": "activated",
+                "effect": {
+                    "type": "CopyTokenOf",
+                    "owner": {"type": "Controller"},
+                    "target": {"type": "SelfRef"},
+                },
+            }
+        ],
+    }
+    copies = [
+        e
+        for e in _effects(project_card([rec]))
+        if e.category == "make_token"
+        and e.subject is not None
+        and "Copy" in e.subject.predicates
+    ]
+    assert copies == []
+
+
+def test_copy_spell_marker_recovers_phase_fold_tail():
+    """A copy SPELL whose copy clause phase folds away (no structural Copy node)
+    recovers a make_token+("Token","Copy") marker via the face-level _copy_spell_markers
+    scan over the reminder-stripped oracle — token_copy_matters reads it. Gated off the
+    reminder-self-copy keywords."""
+    rec = {
+        "name": "Fractured Identity-like",
+        "scryfall_oracle_id": "c5-copyspell",
+        "card_type": {"core_types": ["Sorcery"]},
+        "oracle_text": (
+            "Exile target nonland permanent. You create a token that's a copy of it."
+        ),
+        "keywords": [],
+    }
+    copies = [
+        e
+        for e in _effects(project_card([rec]))
+        if e.category == "make_token"
+        and e.subject is not None
+        and "Copy" in e.subject.predicates
+    ]
+    assert copies, "expected a copy-spell make_token marker"
+    assert "Token" in copies[0].subject.predicates

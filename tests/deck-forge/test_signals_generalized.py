@@ -1375,11 +1375,30 @@ def test_token_copy_matters_opens_on_token_doubling():
             "Goblins you control."
         ),
     }
-    # ADR-0027 β: token_copy_matters migrated to the Card IR (a byte-identical kept-
-    # mirror over the reminder-stripped oracle), so it serves from the hybrid path.
-    assert "token_copy_matters" in _keys_hybrid(adrix)
-    assert "token_copy_matters" in _keys_hybrid(mondrak)
-    assert "token_copy_matters" not in _keys_hybrid(krenko)
+    # ADR-0027 C5: token_copy_matters is now FULLY STRUCTURAL — a token DOUBLER projects
+    # to a `token_doubling` Effect (phase's replacement category), which the structural
+    # arm reads. A plain token MAKER (Krenko) projects to a bare make_token with no Copy
+    # predicate and no token_doubling, so it does NOT open the lane.
+    doubler_ir = _ir_with(
+        Ability(
+            kind="static", effects=(Effect(category="token_doubling", scope="you"),)
+        )
+    )
+    krenko_ir = _ir_with(
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(card_types=("Creature",), subtypes=("Goblin",)),
+                ),
+            ),
+        )
+    )
+    assert "token_copy_matters" in _keys_hybrid_ir(adrix, doubler_ir)
+    assert "token_copy_matters" in _keys_hybrid_ir(mondrak, doubler_ir)
+    assert "token_copy_matters" not in _keys_hybrid_ir(krenko, krenko_ir)
 
 
 def test_clone_matters_opens_for_recurring_value_legendary():
@@ -4938,10 +4957,25 @@ def test_populate_opens_token_copy_matters():
             "token you control.)"
         ),
     }
-    # ADR-0027 β: token_copy_matters serves from the hybrid path (the kept-mirror fires
-    # on the reminder-STRIPPED oracle, where `Populate.` survives outside the parens).
-    assert "token_copy_matters" in _keys_hybrid(ghired)
-    assert "token_copy_matters" in _keys_hybrid(trostani)
+    # ADR-0027 C5: populate (CR 701.36) projects to a make_token whose subject carries
+    # the ("Token", "Copy") predicates (a copy of a creature token), which the structural
+    # token_copy_matters arm reads — no regex mirror.
+    populate_ir = _ir_with(
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(
+                        card_types=("Creature",), predicates=("Token", "Copy")
+                    ),
+                ),
+            ),
+        )
+    )
+    assert "token_copy_matters" in _keys_hybrid_ir(ghired, populate_ir)
+    assert "token_copy_matters" in _keys_hybrid_ir(trostani, populate_ir)
 
 
 def test_self_death_payoff_opens_for_own_death_trigger():

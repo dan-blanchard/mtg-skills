@@ -141,12 +141,36 @@ def test_exile_removal_separate_from_destroy():
 # #5 clone (becomes/enters as a copy) must not fire on token-copy phrasing.
 def test_token_copy_does_not_fire_clone():
     c = {"name": "X", "oracle_text": "Create a token that's a copy of target creature."}
-    # ADR-0027 β: token_copy_matters is IR-served (a byte-identical kept-mirror), so it
-    # comes through the hybrid path. ADR-0027 v30: clone_matters is now ALSO IR-served
-    # (the kept mirror over kept_oracle excludes the token-copy phrase), so it must NOT
-    # fire on token-copy phrasing in the hybrid path either.
-    assert "token_copy_matters" in _keys_hybrid(c)
-    assert "clone_matters" not in _keys_hybrid(c)
+    # ADR-0027 C5: token_copy_matters is FULLY STRUCTURAL — a CopyTokenOf projects to a
+    # make_token whose subject carries the "Copy" predicate (CR 707). clone_matters is
+    # IR-served (the kept mirror over kept_oracle excludes the token-copy phrase), so it
+    # must NOT fire on token-copy phrasing.
+    ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="spell",
+                        effects=(
+                            Effect(
+                                category="make_token",
+                                scope="you",
+                                subject=Filter(
+                                    card_types=("Creature",), predicates=("Copy",)
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    keys = {s.key for s in extract_signals_hybrid(c, ir)}
+    assert "token_copy_matters" in keys
+    assert "clone_matters" not in keys
 
 
 def test_clone_still_fires():

@@ -136,7 +136,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     SUPERFRIENDS_MATTERS_REGEX,
     SYMMETRIC_STAX_REGEX,
     THEFT_MATTERS_REGEX,
-    TOKEN_COPY_MATTERS_REGEX,
     TOKENS_MATTER_REGEX,
     TOPDECK_STACK_SWEEP_REGEX,
     TOUGHNESS_VALUE_REGEX,
@@ -1147,25 +1146,20 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # per-clause mismatches). FLOOR->KEPT: removed from _IR_FLOOR_LANES
     # (floor-mirror-dep -> 0). CR 301.7 (Vehicle artifact subtype) / 702.122 (Crew).
     ("vehicles_matter", re.compile(VEHICLES_MATTER_REGEX, re.IGNORECASE), "you"),
-    # ADR-0027 — clue_matters kept WORD MIRROR (pinned as CLUE_MATTERS_REGEX in
-    # _sweep_detectors). The STRUCTURAL artifact-token-subtype arm (the make_token /
-    # sacrifice subject scan + the token_subtype_ref marker shared with food/treasure/
-    # blood) fires only 52 of the 163 commander-legal lane cards: phase tags the
-    # Investigate keyword (-> artifacts_matter) but DROPS the Clue subtype off the
-    # make_token subject — Deduce, Bygone Bishop, Thraben Inspector, the SNC "Case"
-    # cards, and the MKM "Room" lands ("{4}, {T}: Investigate.") all parse with
-    # make_token subject=None — so the 112 pure-investigate / Clue-payoff cards survive
-    # ONLY textually. The deleted _HAND_FLOOR producer (`\bclue\b|\binvestigate\b`,
-    # scope 'you') rides here to recover them; the two bare `\b`-anchored words carry NO
-    # `[^.]*` span, so flat over the reminder-stripped kept_oracle == the deleted floor
-    # Detector's per-clause scan (the floor loop also ran flat over kept_oracle). The
-    # structural arm is BROADER (+1 ir_only — Tangletrove Kelp's plural "other Clues you
-    # control", which the singular-only `\bclue\b` missed), so the union (structural U
-    # mirror) == the old floor 163 + Tangletrove Kelp == 164, a genuine recall gain.
-    # add() dedups the structural arm's overlap. FLOOR->KEPT: removed from
-    # _IR_FLOOR_LANES (floor-mirror-dep -> 0); voltron re-silenced via the byte-
-    # identical _CLUE_MATTERS_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS).
-    # CR 701.16 (Investigate) / 111.10f (Clue token).
+    # ADR-0027 C5 — clue_matters. project's Investigate path now stamps the Clue
+    # artifact-token subtype on the make_token subject (CR 701.16), so the existing
+    # make_token/sacrifice token-subtype arm fires clue_matters STRUCTURALLY for the
+    # keyword-action Investigate cards (Thraben Inspector, Deduce, Bygone Bishop) AND
+    # gains the "investigates" inflection the `\binvestigate\b` word can't match
+    # (Fateful Absence, Declaration in Stone). What phase v0.1.60 still can NOT
+    # structure are clue refs folded into a modal VOTE (Tivit "vote, investigate"),
+    # a DELAYED trigger (Mistway Spy's "until end of turn … investigate"), a
+    # token-creation REPLACEMENT (Case of the Pilfered Proof's "those tokens plus a Clue
+    # token"), or a becomes-Clue static (In Too Deep) — all genuine clue_matters cards
+    # (verified hooks) the make_token subtype arm never reaches. They ride this kept
+    # RESIDUE word mirror (== CLUE_MATTERS_REGEX) over the reminder-stripped oracle;
+    # add() dedups the structural overlap. CR 701.16 (Investigate) / 111.10f (Clue
+    # token).
     ("clue_matters", re.compile(CLUE_MATTERS_REGEX, re.IGNORECASE), "you"),
     # The four bending keywords are SEPARATE mechanics (rules-lawyer-verified;
     # no unifying "bending ability" rule exists, no card references the set), so
@@ -3458,22 +3452,20 @@ IR_SLICE_KEYS: frozenset[str] = (
             # (floor-mirror-dep == 0). CR 704.5j / 117.1a.
             "legend_rule_off",
             "timing_control",
-            # ADR-0027 β — token_copy_matters: phase structures CopyTokenOf/Populate
-            # (421 cards) but the 80-card struct-only delta is 100% reminder-text SELF-
-            # copies (Embalm/Eternalize/Offspring/Double-team) the reminder-stripped
-            # regex excludes, so the lane rides a byte-identical _TOKEN_COPY_MATTERS_
-            # MIRROR of the exact deleted _HAND_FLOOR regex (commander-legal corpus:
-            # regex==mirror, 0 lost, 0 over-fire). NOT in _IR_FLOOR_LANES (floor-mirror-
-            # dep == 0). CR 702.95 / 707.
+            # ADR-0027 C5 — token_copy_matters: project stamps a "Copy" predicate on the
+            # make_token subject of a CopyTokenOf (Typed copy) / Populate / copy-spell
+            # phase-fold marker, plus the token_doubling category; the reminder
+            # self-copy SelfRef cases (Embalm/Eternalize/Squad/Myriad/Offspring) are
+            # stripped of the Copy marker IN PROJECTION (the keyword gate), so fully
+            # STRUCTURAL — no byte-mirror. CR 707 / 701.36.
             "token_copy_matters",
-            # ADR-0027 — tokens_matter: phase carries NO structural shape for the
-            # "tokens you control" / "for each creature you control" payoffs (raw-only),
-            # so a structural-only migration would LOSE 161 commander-legal cards. The
-            # lane rides the byte-identical _TOKENS_MATTER_MIRROR (the UNION of the two
-            # exact deleted _HAND_FLOOR regexes) PLUS the existing structural amass /
-            # fabricate effect-category arm (mirror OR IR-structural == full regex
-            # firing: regex==hybrid==230, 0 miss, 0 over-fire). NOT in _IR_FLOOR_LANES
-            # (floor-mirror-dep == 0). CR 111.1 / 701.47.
+            # ADR-0027 — tokens_matter: the clean Token-predicate pump/grant ANTHEM, the
+            # Token-predicate "token enters" etb trigger, and the token_doubling
+            # category are read STRUCTURALLY (additive). The broad "tokens you control"
+            # general payoff/ref, the subjectless token-enters trigger, and the go-wide
+            # board_count scaler phase doesn't cleanly structure ride a kept residue
+            # mirror (== TOKENS_MATTER_REGEX) alongside the existing amass / fabricate
+            # arm. NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0). CR 111.1 / 701.47.
             "tokens_matter",
             # NB: lifegain_matters is ALREADY in this set (the original 5-key vertical
             # slice, above) — the ADR-0027 β migration adds no new IR_SLICE_KEYS
@@ -5120,17 +5112,6 @@ _VARIABLE_PT_MIRROR_VETO = re.compile(
     r"|change the base power and toughness of (?:all|each|other|target|up to|the)",
     re.IGNORECASE,
 )
-# token_copy_matters BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the
-# EXACT deleted _HAND_FLOOR regex (pinned as TOKEN_COPY_MATTERS_REGEX) over the
-# reminder-stripped kept_oracle — a token-COPY maker ("create a token that's a copy of
-# …"), populate (CR 702.95, a token copy), or a token DOUBLER ("twice that many …
-# tokens" — Adrix and Nev, Mondrak, which fork token-copy spells). NOT a structural
-# CopyTokenOf/Populate arm: phase structures those (421 cards) but the 80-card struct-
-# only delta is 100% reminder-text SELF-copies (Embalm/Eternalize/Offspring/Double-
-# team) this reminder-stripped regex deliberately excludes. No veto needed (the regex
-# is precise — it never fired on the reminder-text self-copies because they live inside
-# parens). CR 702.95.
-_TOKEN_COPY_MATTERS_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
 # counter_doubling BYTE-IDENTICAL kept mirror (ADR-0027): the lane is BROADER than
 # phase's one `counter_doubling` REPLACEMENT category. The structural `cat ==
 # "counter_doubling"` arm (in extract_signals_ir) fires the 29 static replacement
@@ -5147,20 +5128,20 @@ _TOKEN_COPY_MATTERS_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
 # byte-identically (commander-legal: mirror == old regex == 69 exactly, 0 over-fire).
 # add() dedups vs the structural arm. CR 122 / 614.
 _COUNTER_DOUBLING_MIRROR = re.compile(COUNTER_DOUBLING_REGEX, re.IGNORECASE)
-# tokens_matter BYTE-IDENTICAL kept mirror (ADR-0027): the lane fires from the UNION of
-# the two EXACT deleted _HAND_FLOOR regexes (pinned as TOKENS_MATTER_REGEX) over the
-# reminder-stripped kept_oracle — a GO-WIDE count-scaler ("gets +N/+N for each creature
-# you control" / "power … equal to the number of creatures you control" — Adeline,
-# Leonardo, Bravado) OR a broad token PAYOFF ("tokens you control" anthems/refs, a
-# "whenever a … token … enters" trigger, the token DOUBLER replacement — Doubling
-# Season, Parallel Lives, Mondrak). NOT a structural arm: phase carries NO shape for
-# "tokens you control" / "for each creature you control" payoffs (they survive only in
-# raw), so a structural-only migration would LOSE 161 commander-legal cards. The amass
-# / fabricate keyword cards already fire tokens_matter STRUCTURALLY (the amass /
-# fabricate effect-category fan-out below + the moved _IR_KEYWORD_MAP keyword route), so
-# the mirror covers ONLY the two _HAND_FLOOR producers; mirror OR IR-structural == the
-# full regex firing (commander-legal: regex==hybrid==230, 0 miss, 0 over-fire).
-# CR 111.1 / 701.47.
+# tokens_matter RESIDUE mirror (ADR-0027 C5): the clean structural cases are read by
+# the arms in extract_signals_ir — the Token-predicate pump/grant ANTHEM, the
+# "token enters" etb trigger (Token-predicate subject), and the token_doubling category.
+# But phase carries NO clean lane-intent shape for the BROADER mirror arms: (a) the
+# general "tokens you control" PAYOFF/REF that is NOT a structured anthem (a sac outlet,
+# a count operand, a granted-ability over tokens, a conditional — phase drops the Token
+# predicate off most of these), (b) the "whenever a … token … enters" trigger phase
+# leaves subjectless, and (c) the GO-WIDE board-count scaler ("+N/+N for each creature
+# you control" — phase's unbounded board_count, 1091 fires, too broad to wire). Those
+# survive only on the kept regex (== TOKENS_MATTER_REGEX) over the reminder-stripped
+# kept_oracle. The structural arms ADD recall the regex missed (Token-predicate anthems
+# / doublers the word patterns didn't catch); add() dedups. A follow-up can split (a)/
+# (b)/(c) into structure (board_count → characteristic_pt/pump context, a Token-subject
+# sac/count arm) and retire this. CR 111.1 / 701.47.
 _TOKENS_MATTER_MIRROR = re.compile(TOKENS_MATTER_REGEX, re.IGNORECASE)
 # lifegain_matters BYTE-IDENTICAL kept mirror (ADR-0027 β): the structural arm above
 # (a `gain_life` Effect scope you/any + a `life_gained` trigger + the shared lifelink
@@ -8762,6 +8743,38 @@ def extract_signals_ir(
                     if st in _TOKEN_SUBTYPE_KEYS:
                         tk, ts = _TOKEN_SUBTYPE_KEYS[st]
                         add(tk, ts, "", e.raw)
+            # ADR-0027 C5 — token_copy_matters STRUCTURAL ARM. project stamps a "Copy"
+            # predicate (CR 707) on the make_token subject of a CopyTokenOf (Cackling
+            # Counterpart — Typed copy), a Populate (Trostani — CR 701.36 creature-token
+            # copy), or a copy-spell phase-fold marker (_copy_spell_markers). The
+            # reminder-self-copy SelfRef self-copies (Embalm / Eternalize / Squad /
+            # Myriad / Offspring) are stripped of the Copy marker in projection
+            # (_strip_selfref_copy keyword gate), so they correctly stay silent here —
+            # the discriminator is fully in the IR, not a reminder-strip regex. Replaces
+            # the deleted _TOKEN_COPY_MATTERS_MIRROR. CR 707 / 701.36.
+            if (
+                cat == "make_token"
+                and e.subject is not None
+                and "Copy" in e.subject.predicates
+            ):
+                add("token_copy_matters", "you", "", e.raw)
+            # ADR-0027 C5 — tokens_matter STRUCTURAL ARM A (the "tokens you control"
+            # anthem). A pump / grant_keyword whose subject Filter carries the Token
+            # predicate AND controller 'you' ("Creature tokens you control get +1/+1 and
+            # have vigilance" — Intangible Virtue, Phantom General, Gleaming Overseer)
+            # is a go-wide YOUR-token payoff. The controller='you' gate matches the
+            # lane's intent (the deleted `\btokens? you control\b` arm) and EXCLUDES
+            # symmetric controller='any' token anthems — most of which are anti-token
+            # HATE (Virulent Plague / Illness in the Ranks "Creature tokens get -2/-2"),
+            # an anti-go-wide hoser, not a tokens-deck payoff. phase carries the Token
+            # predicate on the buffed subject, so this is fully structural. CR 111.1.
+            if (
+                cat in ("pump", "grant_keyword")
+                and e.subject is not None
+                and e.subject.controller == "you"
+                and "Token" in e.subject.predicates
+            ):
+                add("tokens_matter", "you", "", e.raw)
             # ADR-0027 token_subtype_ref marker (project._dropped_static_markers): a
             # cares-about reference to a named token subtype ("Foods you control", "was
             # a Treasure") — the subtype rides counter_kind → its food/treasure/clue/
@@ -8933,6 +8946,14 @@ def extract_signals_ir(
             # a token doubler and a counter doubler are different archetypes.
             if cat == "token_doubling":
                 add("token_doubling", "you", "", e.raw)
+                # ADR-0027 C5 — a token DOUBLER (Adrix and Nev, Parallel Lives, Doubling
+                # Season) forks token-COPY spells (twice the copies) and is a go-wide
+                # token PAYOFF, so it opens both token_copy_matters and tokens_matter.
+                # phase fully structures this as the token_doubling replacement
+                # category, so both reads are structural — replaces "twice that many"
+                # mirror arm of the deleted token_copy / tokens_matter regexes. CR 614.
+                add("token_copy_matters", "you", "", e.raw)
+                add("tokens_matter", "you", "", e.raw)
             if cat == "counter_doubling":
                 add("counter_doubling", "you", "", e.raw)
                 # counter_replace_bonus (ADR-0027) — is_widen_of counter_doubling,
@@ -9213,6 +9234,20 @@ def extract_signals_ir(
                     add(ck, cs, "", "")
                 if _is_modified_subject(tsub):
                     add("modified_matters", "you", "", "")
+            # ADR-0027 C5 — tokens_matter STRUCTURAL ARM B (the "whenever a token
+            # enters" payoff). An etb trigger whose subject Filter carries the Token
+            # predicate ("Whenever one or more tokens enter under your control" —
+            # Woodland Champion, Anointer Priest, Caretaker's Talent) is a go-wide token
+            # payoff. phase carries the Token predicate on the entering subject, so this
+            # is fully structural — replaces the "whenever a … token … enters" arm of
+            # the deleted tokens_matter regex. CR 111.1 / 603.6.
+            if (
+                trig.event == "etb"
+                and isinstance(tsub, Filter)
+                and tsub.controller != "opp"
+                and "Token" in tsub.predicates
+            ):
+                add("tokens_matter", "you", "", "")
             # death_matters is the ARISTOCRATS payoff — OTHER creatures dying. A
             # "when this dies" self-death trigger (SelfRef → no subject filter) is
             # self_death_payoff, a different lane, so gate on a real subject.
@@ -10637,15 +10672,12 @@ def extract_signals_ir(
         kept_oracle
     ):
         add("variable_pt", "any", "", "")
-    # ADR-0027 β — token_copy_matters BYTE-IDENTICAL kept mirror. The structural arm
-    # (cat=='make_token') is the vanilla-token lane; phase DOES carry the copy detail
-    # (CopyTokenOf/Populate) but the projection collapses both to make_token AND a
-    # structural copy-arm would 100%-over-fire with reminder-text SELF-copies (Embalm/
-    # Eternalize/Offspring/Double-team). So recover the lane with the EXACT deleted
-    # _HAND_FLOOR regex over the reminder-stripped kept_oracle (scope 'you', matching
-    # the deleted producer). add() dedups. CR 702.95 / 707.
-    if _TOKEN_COPY_MATTERS_MIRROR.search(kept_oracle):
-        add("token_copy_matters", "you", "", "")
+    # ADR-0027 C5 — token_copy_matters firing mirror RETIRED. project now stamps a
+    # structural "Copy" predicate on the make_token subject (CopyTokenOf Typed copies,
+    # Populate, _copy_spell_markers phase-fold tail) + the token_doubling category, both
+    # read by the structural arms above; the SelfRef reminder-self-copy discriminator
+    # moved entirely into projection (_strip_selfref_copy keyword gate). The voltron-
+    # silencing _TOKEN_COPY_MATTERS_PLAN_MIRROR (signals_regex) is preserved. CR 707.
     # ADR-0027 — counter_doubling BYTE-IDENTICAL kept mirror. The structural
     # `cat == "counter_doubling"` arm (above) is the REPLACEMENT-effect lane (Doubling
     # Season, Branching Evolution, Hardened Scales family — including the 6 the regex
@@ -10662,15 +10694,17 @@ def extract_signals_ir(
     # regex == 69, struct adds 6, union 75, 0 over-fire). CR 122 / 614.
     if _COUNTER_DOUBLING_MIRROR.search(kept_oracle):
         add("counter_doubling", "you", "", "")
-    # ADR-0027 — tokens_matter BYTE-IDENTICAL kept mirror. phase carries NO structural
-    # shape for the "tokens you control" / "for each creature you control" payoffs (they
-    # survive only in raw), so recover the lane with the UNION of the two EXACT deleted
-    # _HAND_FLOOR regexes (the go-wide count-scaler + the broad token payoff) over the
-    # reminder-stripped kept_oracle (scope 'you', matching the deleted producers). add()
-    # dedups against the amass / fabricate effect-category arm above (those keyword
-    # cards already fire tokens_matter structurally). mirror OR IR-structural == full
-    # regex firing (commander-legal: regex==hybrid==230, 0 miss, 0 over-fire).
-    # CR 111.1 / 701.47.
+    # ADR-0027 C5 — tokens_matter NARROWED mirror. The "tokens you control" anthem
+    # (pump/grant_keyword whose subject carries the Token predicate), the "whenever a
+    # token enters" trigger (etb trigger subject Token predicate), and the token DOUBLER
+    # (token_doubling category) are now read STRUCTURALLY by the arms above. What phase
+    # still carries NO clean lane-intent shape for is the BROADER "tokens you control"
+    # general payoff/ref (a sac outlet, a count operand, a granted ability — phase drops
+    # the Token predicate off most of these), the subjectless "token enters" trigger,
+    # and the unbounded go-wide board_count scaler (1091 fires, too broad to wire).
+    # Those ride the kept residue mirror (== TOKENS_MATTER_REGEX) over the reminder
+    # kept_oracle; the structural arms only ADD the recall the word patterns missed.
+    # add() dedups. A follow-up can structure the residue and retire this. CR 111.1.
     if _TOKENS_MATTER_MIRROR.search(kept_oracle):
         add("tokens_matter", "you", "", "")
     # ADR-0027 β — creature_etb BYTE-IDENTICAL kept mirror. The structural etb-trigger
