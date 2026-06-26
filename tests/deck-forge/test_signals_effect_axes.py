@@ -4,7 +4,15 @@ that direction instead of reading as a value-pile.
 """
 
 from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
-from mtg_utils.card_ir import Ability, Card, Face, Trigger
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
+
+
+def _ir_one(ability: Ability) -> Card:
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=(ability,)),))
+
+
+def _keys_hybrid(card_dict, ir):
+    return {(s.key, s.scope) for s in extract_signals_hybrid(card_dict, ir)}
 
 
 def _ks(card):
@@ -34,10 +42,11 @@ CASES = [
     # structural arm + a narrowed kept mirror + a facade cross-open reconciliation), so
     # it no longer fires on the regex path tested here — its IR path is proven in
     # test_migrated_keys and test_signals_generalized.
-    # ADR-0027: opponent_discard migrated to the Card IR (a `discard` EFFECT scope 'opp'
-    # structural arm + a byte-identical _OPPONENT_DISCARD_MIRROR kept-mirror), so it no
-    # longer fires on the regex path tested here — its IR path is asserted by
-    # test_opponent_discard_migrated_off_regex_onto_ir below.
+    # ADR-0027: opponent_discard migrated to the Card IR (four structural arms — POP1
+    # ForcedDiscard / POP2 subject.controller / POP4 each scope / POP7 opp `discarded`
+    # trigger — plus a NARROWED residue mirror, C3 SIDECAR v50), so it no longer fires on
+    # the regex path tested here — its IR path is asserted by
+    # test_opponent_discard_migrated_off_regex_onto_ir and the POP1/2/4/7 tests below.
     # ADR-0027: evasion_self migrated to the Card IR (a byte-identical kept WORD MIRROR
     # of the deleted _HAND_FLOOR producer + the _IR_KEYWORD_MAP['shadow'] recall arm), so
     # it no longer fires on the regex path tested here — its IR path is proven in
@@ -72,10 +81,10 @@ def test_effect_axis_detectors_fire():
 
 
 def test_opponent_discard_migrated_off_regex_onto_ir():
-    # ADR-0027: opponent_discard fires from the hybrid IR path, not the regex path. The
-    # forced "each opponent discards" forcer rides the byte-identical
-    # _OPPONENT_DISCARD_MIRROR kept-mirror over the oracle, so a bare IR routes the hybrid
-    # to the mirror-bearing path.
+    # ADR-0027: opponent_discard fires from the hybrid IR path, not the regex path. With
+    # a bare (structure-less) IR the forced "each opponent discards" forcer rides the
+    # NARROWED residue mirror's "each opponent discards" alternation over the oracle (real
+    # cards fire structurally via the POP3 projection thread — see the POP tests below).
     c = {
         "name": "Mind Rot-like",
         "oracle_text": "When this creature enters, each opponent discards a card.",
@@ -86,6 +95,108 @@ def test_opponent_discard_migrated_off_regex_onto_ir():
         (s.key, s.scope) == ("opponent_discard", "opponents")
         for s in extract_signals_hybrid(c, bare_ir)
     )
+
+
+# --- ADR-0027 C3 opponent_discard structural arms (POP1/2/4/7) -----------------
+
+
+def test_pop1_forced_discard_marker_opens_opponent_discard():
+    """POP1 — a bare-Player "target player discards" projects scope 'opp' + a
+    ForcedDiscard subject marker (Mind Rot). The v50 arm DROPPED the marker-exclusion
+    guard, so the marked discard now fires opponent_discard structurally. CR 701.9."""
+    c = {"name": "Mind Rot", "oracle_text": "Target player discards two cards."}
+    ir = _ir_one(
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(
+                    category="discard",
+                    scope="opp",
+                    subject=Filter(predicates=("ForcedDiscard",)),
+                    raw="Target player discards two cards.",
+                ),
+            ),
+        )
+    )
+    assert ("opponent_discard", "opponents") in _keys_hybrid(c, ir)
+
+
+def test_pop2_typed_opp_subject_controller_opens_opponent_discard():
+    """POP2 — "target opponent discards" folds the effect scope to 'any' (Typed target),
+    but the opponent lands on subject.controller=='opp' (Stupor, Heartless Pillage). The
+    discard-LOCAL subject.controller read fires opponent_discard. CR 701.9 / 102.2."""
+    c = {
+        "name": "Heartless Pillage",
+        "oracle_text": "Target opponent discards two cards.",
+    }
+    ir = _ir_one(
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(
+                    category="discard",
+                    scope="any",
+                    subject=Filter(controller="opp"),
+                    raw="Target opponent discards two cards.",
+                ),
+            ),
+        )
+    )
+    assert ("opponent_discard", "opponents") in _keys_hybrid(c, ir)
+
+
+def test_pop4_each_player_discard_opens_opponent_discard_each():
+    """POP4 — a symmetric "each player discards" projects scope 'each' (Dark Deal); the
+    'each' scope opens opponent_discard at the 'each' label (it hits opponents). The
+    discard_outlet co-fire (a wheel is fuel + hand-attack) is verified at corpus level —
+    the gate set-diff shows each-PLAYER wheels keep discard_outlet; only each-OPPONENT
+    cards moved out of it. CR 701.9."""
+    c = {
+        "name": "Dark Deal",
+        "oracle_text": (
+            "Each player discards all the cards in their hand, then draws that "
+            "many cards minus one."
+        ),
+    }
+    ir = _ir_one(
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(category="draw", scope="each", raw="draws"),
+                Effect(
+                    category="discard",
+                    scope="each",
+                    raw="Each player discards all the cards in their hand.",
+                ),
+            ),
+        )
+    )
+    assert ("opponent_discard", "each") in _keys_hybrid(c, ir)
+
+
+def test_pop7_opponent_discarded_trigger_opens_opponent_discard():
+    """POP7 — "whenever an opponent discards a card …" is a Discarded TRIGGER scope 'opp'
+    with a non-discard punisher body (Megrim deals 2 damage). The trigger arm fires
+    opponent_discard; DISJOINT from discard_matters (scope != 'opp'). CR 701.9 / 102.2."""
+    c = {
+        "name": "Megrim",
+        "oracle_text": (
+            "Whenever an opponent discards a card, this enchantment deals 2 damage "
+            "to that player."
+        ),
+    }
+    ir = _ir_one(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="discarded", scope="opp", subject=Filter(controller="opp")
+            ),
+            effects=(Effect(category="damage", scope="opp", raw="deals 2 damage"),),
+        )
+    )
+    keys = _keys_hybrid(c, ir)
+    assert ("opponent_discard", "opponents") in keys
+    assert not any(k == "discard_matters" for k, _ in keys)
 
 
 # --- widens of existing keys ---------------------------------------------------

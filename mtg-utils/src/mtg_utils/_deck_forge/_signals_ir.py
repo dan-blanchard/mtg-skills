@@ -1592,32 +1592,45 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # ADR-0027 — opponent_discard (the forced-OPPONENT-discard / hand-attack avenue).
-    # The structural arm (a `discard` EFFECT scope == "opp") covers the 7 genuine
-    # forced-opp-discards phase structures as a scope-'opp' discard effect (Leshrac's
-    # Sigil, Thought-Stalker Warlock, Robber Fly, Doomsday Specter, Laquatus's
-    # Creativity), but phase UNDER-STRUCTURES the bulk of the lane: a directed "target
-    # player discards" parses scope 'any' (Mind Rot, Hymn to Tourach), a symmetric
-    # "each player discards" parses scope 'you'/'any' (Bottomless Pit), and a "whenever
-    # an opponent discards" PAYOFF parses a `discarded` TRIGGER scope opp with NO
-    # discard effect (Megrim, Waste Not, Tinybones — the discard-MATTERS payoffs). So
-    # this byte-identical mirror of the deleted _HAND_FLOOR producer recovers the
-    # forced-discard + opp-discard-payoff cards the structural arm alone misses. Run as
-    # a flat .search over the reminder-STRIPPED kept_oracle — byte-identical to the
-    # deleted producer's `re.sub(r"\([^)]*\)", " ", …)`-stripped input (and joining DFC
-    # faces via get_oracle_text). The `[^.]{0,20}` arm never crosses a sentence, so the
-    # flat .search == the deleted floor detector's per-clause path. Combined (struct OR
-    # mirror) reproduces the deleted regex with regex_only==0 + 7 genuine scope-'opp'
-    # recall gains and 0 over-fire (the mirror IS the regex). DISJOINT from the
-    # discard_matters lane (which reads the `discarded` self-discard TRIGGER scope !=
-    # 'opp'). CR 701.8a.
+    # ADR-0027 C3 (SIDECAR v50) — opponent_discard NARROWED RESIDUE mirror. The four
+    # structural arms now carry 388 of the lane (POP1 bare-Player ForcedDiscard, POP2
+    # Typed-opp subject.controller, POP3 each-opponent projection thread, POP4 each
+    # scope, POP7 `discarded` opp-trigger — see the discard-effect arm and the trigger
+    # loop), so this mirror is narrowed from the deleted _HAND_FLOOR word-list to the
+    # ~93 cards phase leaves genuinely unstructured for an effect/trigger arm to read:
+    #   • combat / non-combat damage-CONNECT specters ("deals combat damage to a
+    #     player, that player discards" — Abyssal/Hypnotic Specter, Dimir Cutpurse,
+    #     Cabal Slaver, Sword of Feast and Famine): phase emits a combat-damage trigger
+    #     + a discard target=TriggeringPlayer, NOT scope 'opp'. (A follow-up structural
+    #     arm — combat_damage-to-player trigger + discard effect, recipients already on
+    #     trig.recipient SIDECAR v41 — can absorb these later; deferred here.)
+    #   • bounce / counter / damage-then-discard ("Return target permanent …, then
+    #     that player discards" — Recoil, Dinrova Horror; Frightful Delusion;
+    #     Immersturm Skullcairn): the discardER is a ParentTarget / TriggeringPlayer.
+    #   • reveal-and-choose-from-hand whose ParentTarget didn't inherit opp (Collective
+    #     Brutality, Auntie's Sentence, Mind Warp, Extortion, Thrull Surgeon).
+    #   • would-draw REPLACEMENT ("a player would draw … discards instead" — Chains of
+    #     Mephistopheles, Breathstealer's Crypt) + granted/quoted (Wand of Ith,
+    #     Dementia Sliver) + Words of Waste-style delayed grants.
+    #   • "whenever a player discards" PAYOFFS keyed by a non-opp `discarded` trigger
+    #     (Confessor, Spirit Cairn, Telekinetic Bonds) and the "discarded a card this
+    #     turn" past-tense payoff (Tinybones, Trinket Thief; Azula).
+    #   • direct forms phase failed to structure inside a modal / conjunction / {TK} or
+    #     for-each body (Mindculling, Bladecoil Serpent, Magus of the Jar, Memory Jar,
+    #     Yawgmoth Merfolk Soul, Fervent Mastery).
+    # Every alternation is a STRICT SUBSET of the deleted word-list, so the narrowed
+    # regex adds zero cards outside the lane's prior population (verified: 0 new adds,
+    # 93/93 residue covered). Run flat over the reminder-STRIPPED, DFC-face-joined
+    # oracle. DISJOINT from discard_matters (the SELF-discard `discarded` TRIGGER scope
+    # != 'opp'). CR 701.9 / 102.2 / 510.1c.
     (
         "opponent_discard",
         re.compile(
-            r"(?:each opponent|target opponent|an opponent|that opponent"
-            r"|target player|that player|each player) discards"
+            r"that (?:player|opponent) discards"
+            r"|whenever a player discards"
             r"|(?:opponent|player)[^.]{0,20}discarded a card this turn"
-            r"|whenever (?:an opponent|a player|another player) discards",
+            r"|(?:each opponent|an opponent|target opponent|target player"
+            r"|each player) discards",
             re.IGNORECASE,
         ),
         "opponents",
@@ -8138,21 +8151,40 @@ def extract_signals_ir(
             # from discard_matters (the SELF-discard lane reads the `discarded` trigger
             # scope != 'opp', not this `discard` effect scope 'opp'). CR 701.8a.
             #
-            # ADR-0027 discard-discarder scope (SIDECAR v26) DECOUPLING: the v26
-            # projection promotes a bare `Player` discard target ("target player
-            # discards") from the lossy 'any' to 'opp' AND marks the subject
-            # `ForcedDiscard`. To hold this already-migrated lane at v25 breadth (so the
-            # discard-discarder projection is provably behavior-neutral), EXCLUDE the
-            # marker here: the mirror still recovers the mirror-matched bare-Player
-            # forcers (Mind Rot, Hymn — "target player discards"), so excluding the
-            # marker only skips the 9 mirror-MISS forcers the lane never counted at v25
-            # (drift 0). A future opponent_discard gain reads the marker to opt in.
-            if (
-                cat == "discard"
-                and e.scope == "opp"
-                and not _has_predicate(e.subject, "ForcedDiscard")
+            # ADR-0027 C3 (SIDECAR v50) — read the FOUR structural shapes phase
+            # preserves for a forced-OPPONENT discard, retiring the bulk of the byte
+            # mirror to the ~99 unstructurable residue:
+            #   POP1 bare-Player target ("target player discards" — Mind Rot, Hymn):
+            #     project._discard_player_scope promotes scope 'any'→'opp' AND marks
+            #     the subject `ForcedDiscard`. The v26 guard that EXCLUDED the marker
+            #     (to hold the lane drift-0 across that projection bump) is now dropped
+            #     — this is the "future gain reads the marker to opt in" the v26 note
+            #     promised. ForcedDiscard is stamped only on bare-Player discards
+            #     (already scope 'opp'), so reading it adds exactly POP1.
+            #   POP2 Typed-opp target ("target opponent discards" — Stupor, Heartless
+            #     Pillage): phase emits target={Typed,controller:Opponent}; _effect_
+            #     scope's `target` block doesn't read a Typed `.controller`, so scope
+            #     folds to 'any', BUT project._effect_subject maps the player-target
+            #     into the discard SUBJECT Filter → e.subject.controller=='opp'. Read
+            #     it here (discard-LOCAL — NOT a cross-cutting _effect_scope scope arm
+            #     that would re-scope lifeloss / reveal_hand / mill / exile drains).
+            #   POP4 symmetric each-player ("each player discards" — Dark Deal,
+            #     Delirium Skeins, Liliana of the Veil): player_scope:{type:All} →
+            #     _effect_scope 'each'. Hits opponents (the deleted regex matched "each
+            #     player discards"); also co-fires discard_outlet (scope 'each') — a
+            #     wheel is both fuel and hand-attack, pre-migration behavior.
+            #   POP3 each-opponent ("each opponent discards" — Burglar Rat): recovered
+            #     by the v50 PROJECTION thread (_merge_ability_player_scope now threads
+            #     player_scope:{type:Opponent} onto a discard), which projects scope
+            #     'opp' — caught by the scope arm with no further signals change.
+            # DISJOINT from discard_matters (the SELF-discard `discarded` TRIGGER,
+            # scope != 'opp'). CR 701.8a / 102.2.
+            if cat == "discard" and (
+                e.scope in ("opp", "each")
+                or (e.subject is not None and e.subject.controller == "opp")
             ):
-                add("opponent_discard", "opponents", "", e.raw)
+                label = "opponents" if e.scope != "each" else _ir_scope(e.scope)
+                add("opponent_discard", label, "", e.raw)
             # ADR-0027 — discard_outlet STRUCTURAL ARM (SIDECAR v26 discard-discarder
             # scope). A `discard` EFFECT scope in ('you','each') is a SELF-loot/rummage
             # outlet ("draw N, then discard" — Faithless Looting; "you may discard a
@@ -9547,6 +9579,15 @@ def extract_signals_ir(
             # _IR_KEPT_DETECTORS discard_matters mirror below. CR 702.35 / 120.1.
             if ev == "discarded" and trig.scope != "opp":
                 add("discard_matters", "you", "", "")
+            # ADR-0027 C3 (POP7) — the opponent_discard PAYOFF: "whenever an opponent
+            # discards a card …" (Megrim, Waste Not, Liliana's Caress, Nath, Geth's
+            # Grimoire). phase emits a `Discarded` TRIGGER with valid_card.controller=
+            # Opponent (→ trig.scope=='opp') and a NON-discard punisher body (DealDamage
+            # / Token / Draw / add-mana), so the discard-EFFECT arm above never sees it.
+            # DISJOINT from discard_matters (the SELF-discard payoff, scope != 'opp',
+            # mutually exclusive by the scope split). CR 701.8a / 102.2.
+            if ev == "discarded" and trig.scope == "opp":
+                add("opponent_discard", "opponents", "", "")
             # Token-subtype sacrifice PAYOFF (trigger side): "whenever you sacrifice
             # one or more <Subtype> tokens, ..." (Blood Hypnotist). The token subtype
             # rides the trigger subject Filter — the same token-subtype synergy

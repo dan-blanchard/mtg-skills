@@ -2504,28 +2504,44 @@ def _doubler_recipient_subject(rep: dict, raw: str) -> Filter | None:
 # opponent_discard reads the `discard` EFFECT scope=='opp' which 'each' does NOT
 # produce, and keeps its kept word mirror) are held drift-0 — see _discard_player_scope.
 _PLAYER_SCOPE_EFFECT_TYPES = frozenset({"draw", "discard"})
-# Only the symmetric `All` is a recipient scope. `Opponent` on a draw is a
-# DECISION-MAKER scope, not a recipient — "target opponent may have YOU draw N"
-# (Combustible Gearhulk, Bane, Palantír of Orthanc) draws to OriginalController (you),
-# the opponent only chooses; merging Opponent there would mis-read a you-draw punisher
-# as an opponent draw (and drop it from target_player_draws). group_hug_draw reads only
-# scope=='each', so excluding Opponent loses no group_hug_draw coverage.
+# The symmetric `All` is a recipient scope on both draw and discard. `Opponent` is a
+# recipient scope on a DISCARD ("each opponent discards a card" — Burglar Rat) but a
+# DECISION-MAKER scope on a DRAW — "target opponent may have YOU draw N" (Combustible
+# Gearhulk, Bane, Palantír of Orthanc) draws to OriginalController (you), the opponent
+# only chooses; merging Opponent on a draw would mis-read a you-draw punisher as an
+# opponent draw (and drop it from target_player_draws). group_hug_draw reads only
+# scope=='each', so excluding Opponent on draw loses no group_hug_draw coverage. So
+# `_merge_ability_player_scope` threads `All` for both types and `Opponent` for discard
+# only (the POP3 each-opponent-discard recovery, ADR-0027 C3).
 _PLAYER_SCOPE_EACH_TYPES = frozenset({"all", "allplayers"})
 
 
 def _merge_ability_player_scope(node: dict, eff: dict) -> dict:
-    """Surface an ability-level ``player_scope: All`` (a SIBLING of ``effect``) onto a
-    DRAW or DISCARD effect so ``_effect_scope`` reads the symmetric 'each'
-    (group_hug_draw / discard_outlet, ADR-0027). Only for those types, only for the All
-    scope, and only when the effect carries no ``player_scope`` of its own; returns a
-    shallow copy with the field merged, else the effect unchanged. CR 120.2 / 701.8a
-    (each player draws/discards is a player action against their own hand/library)."""
+    """Surface an ability-level ``player_scope`` (a SIBLING of ``effect``) onto a
+    DRAW or DISCARD effect so ``_effect_scope`` reads the recipient scope. The
+    symmetric ``All`` ("each player draws/discards") threads onto BOTH types (the
+    'each' group_hug_draw / discard_outlet pass). ``Opponent`` ("each opponent
+    discards") threads onto a DISCARD ONLY — phase emits target=Controller plus a
+    sibling ``player_scope:{type:Opponent}`` (Burglar Rat, Hopeless Nightmare,
+    Elderfang Disciple), so without the thread ``_effect_scope`` folds the discarding
+    recipient to 'you'. On a DRAW, ``Opponent`` is a DECISION-MAKER scope, not a
+    recipient ("target opponent may have YOU draw" — Combustible Gearhulk, Bane,
+    Palantír of Orthanc), so threading it would mis-scope group_hug_draw /
+    card_draw_engine; deliberately excluded (the 25 draw-side Opponent cards keep
+    their existing scope). Only for those types, only when the effect carries no
+    ``player_scope`` of its own; returns a shallow copy with the field merged, else
+    the effect unchanged. CR 120.2 / 701.8a / 102.2 (each player / each opponent
+    discards is a player action against their own hand)."""
     ps = node.get("player_scope")
     if not isinstance(ps, dict):
         return eff
-    if _norm(eff.get("type")) not in _PLAYER_SCOPE_EFFECT_TYPES:
+    et = _norm(eff.get("type"))
+    if et not in _PLAYER_SCOPE_EFFECT_TYPES:
         return eff
-    if _norm(ps.get("type")) not in _PLAYER_SCOPE_EACH_TYPES:
+    pst = _norm(ps.get("type"))
+    is_each = pst in _PLAYER_SCOPE_EACH_TYPES
+    is_opp_discard = "opponent" in pst and et == "discard"
+    if not (is_each or is_opp_discard):
         return eff
     if isinstance(eff.get("player_scope"), dict):
         return eff

@@ -4127,6 +4127,60 @@ def test_windfall_each_player_discard_scope_each():
     )
 
 
+def test_burglar_rat_each_opponent_discard_scope_opp():
+    """ADR-0027 C3 POP3 — "each opponent discards a card" (Burglar Rat ETB; phase emits
+    a Discard effect target=Controller plus a SIBLING ``player_scope: {type: Opponent}``
+    on the execute node) projects the Discard effect at scope 'opp':
+    _merge_ability_player_scope threads the Opponent player_scope onto the discard (only
+    discard, never draw) so _effect_scope reads the opponent recipient instead of folding
+    to 'you'. CR 701.9 / 102.2."""
+    rec = {
+        "name": "Burglar Rat",
+        "oracle_text": "When this creature enters, each opponent discards a card.",
+        "abilities": [],
+        "triggers": [
+            {
+                "mode": "ChangesZone",
+                "execute": {
+                    "kind": "Spell",
+                    "effect": {
+                        "type": "Discard",
+                        "count": {"type": "Fixed", "value": 1},
+                        "target": {"type": "Controller"},
+                    },
+                    "player_scope": {"type": "Opponent"},
+                },
+                "destination": "Battlefield",
+                "trigger_zones": ["Battlefield"],
+            }
+        ],
+    }
+    discs = [e for e in _effects(project_card([rec])) if e.category == "discard"]
+    assert discs
+    assert all(e.scope == "opp" for e in discs)
+
+
+def test_each_opponent_draw_player_scope_not_threaded():
+    """ADR-0027 C3 POP3 guard — an Opponent player_scope on a DRAW effect is a
+    decision-maker scope, NOT a recipient ("target opponent may have you draw"), so
+    _merge_ability_player_scope does NOT thread it; the draw must not fold to 'opp'
+    (would mis-scope group_hug_draw / card_draw_engine). Only discard threads Opponent."""
+    rec = {
+        "name": "Opp-draw decider",
+        "oracle_text": "Target opponent may have you draw a card.",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {"type": "Draw", "target": {"type": "Controller"}},
+                "player_scope": {"type": "Opponent"},
+            }
+        ],
+    }
+    draws = [e for e in _effects(project_card([rec])) if e.category == "draw"]
+    assert draws
+    assert all(e.scope != "opp" for e in draws)
+
+
 # ── ADR-0027 dig library-owner scope (SIDECAR v27) ────────────────────────────
 
 
