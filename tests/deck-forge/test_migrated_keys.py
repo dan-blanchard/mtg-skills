@@ -191,6 +191,7 @@ _REAL_CASES: dict[str, str] = {
     "free_spell_storm": "Thrasta, Tempest's Roar",
     "gain_control": "Control Magic",
     "global_ability_grant": "Cryptolith Rite",
+    "goad_matters": "Disrupt Decorum",
     "graveyard_matters": "Reanimate",
     "group_hug_draw": "Wheel of Fortune",
     "group_mana": "Magus of the Vineyard",
@@ -415,38 +416,6 @@ _SYNTHETIC_CASES: dict[str, tuple[dict, Card]] = {
                             "creature is dealt damage, it deals that much damage "
                             "to target player or planeswalker"
                         ),
-                    ),
-                ),
-            )
-        ),
-    ),
-    # goad_matters — migrated to a structural `goad_all` Effect arm, BUT the Goad
-    # Scryfall keyword still produces goad_matters via _PRESET_KEYWORD_SIGNALS['goad']
-    # in the regex path. A real record (keywords=["Goad"]) therefore still trips the
-    # regex producer, so it can't satisfy the "regex drops it" invariant. The original
-    # fixture masked this by omitting `keywords`; we keep that keyword-less synthetic
-    # shape, which honestly proves the ORACLE-TEXT regex producer is deleted.
-    # TODO #24: drop the residual _PRESET_KEYWORD_SIGNALS['goad'] producer (the hybrid
-    # already strips it and re-serves goad_matters structurally), then promote this to a
-    # real case (e.g. "Disrupt Decorum").
-    "goad_matters": (
-        {
-            "name": "Disrupt Decorum",
-            "type_line": "Sorcery",
-            "oracle_text": (
-                "Goad all creatures your opponents control. (Until your next "
-                "turn, those creatures attack each combat if able and attack a "
-                "player other than you if able.)"
-            ),
-        },
-        _ir(
-            Ability(
-                kind="spell",
-                effects=(
-                    Effect(
-                        category="goad_all",
-                        scope="opp",
-                        raw="Goad all creatures your opponents control.",
                     ),
                 ),
             )

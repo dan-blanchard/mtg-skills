@@ -2304,7 +2304,19 @@ _PRESET_KEYWORD_SIGNALS = {
     # same Scryfall `Mill` keyword array (byte-identical), and the has_other_plan
     # voltron silence is re-supplied by a `"mill" in card.keywords` gate term below
     # (the preset fired HIGH and fed has_other_plan — a mill engine is a real plan).
-    "goad": ("goad_matters", "opponents"),
+    # ADR-0027: the `goad` preset keyword moved to _IR_KEYWORD_MAP (the IR-only keyword
+    # path) because goad_matters is migrated — keeping it here would let the regex
+    # `extract_signals` path keep emitting a migrated key. This shared preset is read by
+    # BOTH paths (extract_signals via _detect_keyword_presets AND extract_signals_ir at
+    # line ~10318), so the IR path STILL needs the Scryfall `Goad` keyword array:
+    # phase's `goad_all` effect + the _GOAD_STYLE_FORCE single-target political force
+    # cover 57 of the 122 commander-legal goad cards structurally, but 65 fire SOLELY
+    # from the keyword (a vanilla "Goad" body — a granter / cost-rider whose goad lives
+    # in reminder text phase folds away). The IR keyword route (_IR_KEYWORD_MAP['goad'],
+    # byte-identical Scryfall `Goad` array) re-supplies those exactly — verified the
+    # hybrid goad set is unchanged (122) and voltron unchanged (2396) after the move.
+    # The hand-written serve spec (signal_specs.py) is independent and survives.
+    # CR 701.38.
     # ADR-0027: the `proliferate` preset keyword moved to _IR_KEYWORD_MAP (the
     # IR-only keyword path) because proliferate_matters is migrated — keeping it
     # here would let the regex `extract_signals` path keep emitting a migrated

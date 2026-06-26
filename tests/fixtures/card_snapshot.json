@@ -15545,6 +15545,77 @@
     "type_line": "Creature — Human Warlock"
    }
   },
+  "Disrupt Decorum": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "goad_all",
+          "raw": "Goad all creatures you don't control.",
+          "sub": {
+           "c": "opp",
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Disrupt Decorum",
+      "tl": "Sorcery"
+     }
+    ],
+    "n": "Disrupt Decorum",
+    "oid": "9b084cd4-cc21-4f3a-9ac5-1e1160a31aa6"
+   },
+   "scryfall": {
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Goad"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}{R}",
+    "name": "Disrupt Decorum",
+    "oracle_id": "9b084cd4-cc21-4f3a-9ac5-1e1160a31aa6",
+    "oracle_text": "Goad all creatures you don't control. (Until your next turn, those creatures attack each combat if able and attack a player other than you if able.)",
+    "type_line": "Sorcery"
+   }
+  },
   "Divination": {
    "ir": {
     "faces": [

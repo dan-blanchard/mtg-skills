@@ -651,6 +651,22 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # (ir_only==0, regex_only==0 — no mirror needed). scope "any" (it can self-mill or
     # mill an opponent — the deleted preset's scope). CR 701.13.
     "mill": (("mill_matters", "any"),),
+    # ADR-0027 goad_matters migration: Goad (CR 701.38 — "until your next turn, that
+    # creature attacks each combat if able and attacks a player other than you if able")
+    # MOVED here from _PRESET_KEYWORD_SIGNALS (the shared regex/IR keyword path).
+    # goad_matters is migrated, so it must leave the regex-readable preset map; but the
+    # IR path STILL needs the keyword. The structural arms (phase's `goad_all` effect →
+    # goad_matters, plus the _GOAD_STYLE_FORCE single-target political force over
+    # force_attack) cover only 57 of the 122 commander-legal goad cards; the other 65
+    # fire SOLELY from the Scryfall `Goad` keyword (a vanilla "Goad …" body whose effect
+    # phase folds into reminder text, or a granter/cost-rider carrying the keyword with
+    # no goad_all node). The Scryfall `Goad` array is the structured anchor, byte-
+    # identical to the deleted preset (get_preset("goad").keywords == ("Goad",)). scope
+    # "opponents" (you goad an opponent's creatures into attacking each other — the
+    # deleted preset's scope). Verified behavior-neutral: hybrid goad set == 122 and
+    # voltron == 2396 after the move (the preset's has_other_plan voltron silence is
+    # re-supplied because the IR keyword route keeps firing goad_matters). CR 701.38.
+    "goad": (("goad_matters", "opponents"),),
     # ADR-0027 magecraft_matters migration: Magecraft (CR 207.2c — an ability word
     # meaning "whenever you cast or copy an instant or sorcery spell") MOVED here from
     # _PRESET_KEYWORD_SIGNALS (the shared regex/IR keyword path). magecraft_matters is

@@ -1339,12 +1339,15 @@ def test_self_death_variable_damage_opens_payoff_and_clone():
 
 
 def test_goad_via_keyword_array_scoped_opponents():
+    # ADR-0027: goad_matters migrated to the Card IR; the Goad keyword now opens the
+    # lane via _IR_KEYWORD_MAP (the IR-only keyword path, reading the record's Scryfall
+    # keyword array), so this asserts the hybrid — the regex path no longer emits it.
     c = {
         "name": "Marisi-like",
         "oracle_text": "Goad target creature.",
         "keywords": ["Goad"],
     }
-    assert ("goad_matters", "opponents") in _ks(c)
+    assert ("goad_matters", "opponents") in _ks_hybrid(c)
 
 
 def test_proliferate_via_keyword_array():
