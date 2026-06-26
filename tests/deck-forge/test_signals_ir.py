@@ -2224,3 +2224,84 @@ def test_opp_top_exile_does_not_fire_on_bare_opponent_exile_removal():
         )
     )
     assert not any(k == "opp_top_exile" for k, _, _ in _sigs(ir))
+
+
+# ── direct_damage from a player-reaching damage doubler (ADR-0027 C7) ──────────
+
+
+def test_player_reaching_doubler_emits_direct_damage():
+    # A damage_doubling Effect with subject=None (absent / {Player} target_filter —
+    # Furnace of Rath, Fiery Emancipation) reaches a player (CR 115.4): it feeds
+    # direct_damage AND damage_doubling.
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="damage_doubling",
+                    scope="you",
+                    raw="If a source would deal damage to a permanent or player, it "
+                    "deals double that damage instead.",
+                ),
+            ),
+        )
+    )
+    keys = {k for k, _, _ in _sigs(ir)}
+    assert "damage_doubling" in keys
+    assert "direct_damage" in keys
+
+
+def test_creature_only_doubler_is_not_direct_damage():
+    # A CreatureOnly doubler carries a Creature subject from the projection (Blind
+    # Fury): players excluded (CR 120.1), so it stays out of direct_damage but still
+    # opens damage_doubling.
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="damage_doubling",
+                    scope="you",
+                    subject=Filter(card_types=("Creature",)),
+                    raw="If a creature would deal combat damage to a creature this "
+                    "turn, it deals double that damage to that creature instead.",
+                ),
+            ),
+        )
+    )
+    keys = {k for k, _, _ in _sigs(ir)}
+    assert "damage_doubling" in keys
+    assert "direct_damage" not in keys
+
+
+def test_bare_fragment_doubler_marker_with_multiply_sibling_is_not_direct_damage():
+    # Borborygmos / Chocobo / Cut bake the doubling into a real op=multiply `damage`
+    # sibling (recipient scored by the base damage arm) PLUS a recipient-less
+    # bare-fragment damage_doubling marker (subject=None). The marker must NOT
+    # over-fire direct_damage — the card-level multiply-sibling gate suppresses it.
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="damage",
+                    scope="any",
+                    amount=Quantity(op="multiply", factor=2),
+                    raw="Target creature deals damage to itself equal to its power.",
+                ),
+            ),
+        ),
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="damage_doubling",
+                    scope="you",
+                    raw="deals twice that much",
+                ),
+            ),
+        ),
+    )
+    keys = {k for k, _, _ in _sigs(ir)}
+    assert "damage_doubling" in keys
+    assert "direct_damage" not in keys

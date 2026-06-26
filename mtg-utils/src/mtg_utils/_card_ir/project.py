@@ -2189,7 +2189,9 @@ def _project_replacement(rep: dict) -> Ability | None:
         ck = _norm(cm.get("data")) if isinstance(cm.get("data"), str) else ""
         return _static_effect("counter_doubling", "you", raw, counter_kind=ck)
     if event == "damagedone" and dmod in _DAMAGE_INCREASE_MODS:
-        return _static_effect("damage_doubling", "you", raw)
+        return _static_effect(
+            "damage_doubling", "you", raw, subject=_doubler_recipient_subject(rep, raw)
+        )
     # Enters-with counter (ADR-0027): an enters-with replacement whose `execute` is
     # a PutCounter (counter_type carries the kind: P1P1 / M1M1 / Oil / Shield / Lore
     # / …). Two events reach the battlefield with this shape:
@@ -2287,14 +2289,60 @@ def _enter_with_counter_effects(eff: dict, raw: str) -> list[Effect]:
 
 
 def _static_effect(
-    category: str, scope: str, raw: str, *, counter_kind: str = ""
+    category: str,
+    scope: str,
+    raw: str,
+    *,
+    counter_kind: str = "",
+    subject: Filter | None = None,
 ) -> Ability:
     return Ability(
         kind="static",
         effects=(
-            Effect(category=category, scope=scope, raw=raw, counter_kind=counter_kind),
+            Effect(
+                category=category,
+                scope=scope,
+                raw=raw,
+                counter_kind=counter_kind,
+                subject=subject,
+            ),
         ),
     )
+
+
+# A doubler clause whose recipient names a PLAYER reaches a player (CR 120.1 — an
+# opponent IS a player) even if phase mis-typed `damage_target_filter` as CreatureOnly
+# (Disciples of the Inferno: "deal damage to a creature, battle, or OPPONENT" parses to
+# CreatureOnly, dropping the opponent). The override keys on the "damage to …" RECIPIENT
+# clause containing a player/opponent noun, scanning ACROSS the comma list ("to a
+# creature, battle, or opponent"), so a creature-only doubler whose recipient never
+# names a player (Blind Fury — "to that creature") is untouched.
+_DOUBLER_PLAYER_RECIPIENT = re.compile(
+    r"\bdamage to\b[^.]*?\b(?:player|opponent)s?\b",
+    re.IGNORECASE,
+)
+
+
+def _doubler_recipient_subject(rep: dict, raw: str) -> Filter | None:
+    """Recipient discriminator for a DamageDone doubler (ADR-0027 C7). phase carries
+    the player-reach scope on ``damage_target_filter``; the projected damage_doubling
+    Effect otherwise flattens to scope="you" with no recipient, so signals can't tell
+    Furnace of Rath (player-reaching) from Blind Fury (creature-only). A
+    ``"CreatureOnly"``/``"PermanentOnly"`` filter excludes players (CR 120.1) → stamp a
+    bare Creature subject (the SAME convention the base ``damage`` category uses for
+    creature-only bite) so the doubler reads as removal-amplifier, NOT face burn. Every
+    other shape — absent/null ("a permanent or player"), ``{Player: …}``,
+    ``{PlayerOrPermanentsControlledBy: …}`` — reaches a player (CR 115.4), subject=None.
+    Guard: when phase says CreatureOnly but the clause raw names a player RECIPIENT
+    ("… to … an opponent/player" — Disciples of the Inferno), it is a phase mis-parse
+    of a "creature, battle, or opponent" recipient → player-reaching (subject=None).
+    """
+    tf = rep.get("damage_target_filter")
+    if isinstance(tf, str) and _norm(tf) in ("creatureonly", "permanentonly"):
+        if _DOUBLER_PLAYER_RECIPIENT.search(raw or ""):
+            return None
+        return Filter(card_types=("Creature",))
+    return None
 
 
 # Effect types whose ability-level `player_scope: All` names a SYMMETRIC each-player
@@ -2476,7 +2524,14 @@ def _damage_doubling_from_replacement(eff: dict, raw: str) -> Effect | None:
         if isinstance(rep, dict) and _norm(rep.get("event")) == "damagedone":
             dmod = _norm((rep.get("damage_modification") or {}).get("type"))
             if dmod in _DAMAGE_INCREASE_MODS:
-                return Effect(category="damage_doubling", scope="you", raw=raw)
+                # ADR-0027 C7 — carry the player-reach scope from the nested rep's
+                # damage_target_filter (a CreatureOnly grant → creature-only bite).
+                return Effect(
+                    category="damage_doubling",
+                    scope="you",
+                    raw=raw,
+                    subject=_doubler_recipient_subject(rep, raw),
+                )
     elif etype == "createdamagereplacement":
         md = _norm((eff.get("modification") or {}).get("type"))
         if md in _DAMAGE_INCREASE_MODS:

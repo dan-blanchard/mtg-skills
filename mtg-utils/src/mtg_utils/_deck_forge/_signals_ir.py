@@ -4722,13 +4722,16 @@ _DIRECT_DAMAGE_PLAYER_REACH = re.compile(
 # scope arm can't read: the modal "deals N instead" clause keeps a creature recipient
 # elsewhere (so the scope arm correctly skips it, but the regex matched "any target" /
 # "{T}: deals N"), the "to that creature's controller" rider phase collapses to a
-# Creature subject (Searing Blood), the damage DOUBLERS (Furnace of Rath, Torbran,
-# Gratuitous Violence — "would deal damage … double", a replacement, not a `damage`
-# Effect), the damage-MATTERS payoffs ("whenever a source you control deals damage" —
-# The Red Terror, Tamanoa), and the DFC back-face / granted-ability / coin-flip burst
-# burn. Run FLAT over the reminder-stripped joined-face oracle in the kept-detector
-# pass; `[^.]*?` never crosses a sentence, so flat == the per-clause regex firing set
-# byte-identically (commander-legal: both == 1497, regex_only == 0; 0 flat over-fire).
+# Creature subject (Searing Blood), the damage-MATTERS payoffs ("whenever a source you
+# control deals damage" — The Red Terror, Tamanoa), and the DFC back-face /
+# granted-ability / coin-flip burst burn. The damage DOUBLERS (Furnace of Rath,
+# Torbran, Fiery Emancipation — "would deal damage … double/triple", a DamageDone
+# replacement) moved to the STRUCTURAL damage_doubling arm (ADR-0027 C7, SIDECAR v47):
+# the projection now carries phase's `damage_target_filter` recipient scope, so the
+# player-reach gate that the regex could only fake (matching by phrasing accident) is
+# read off the IR — the doubler alternation was DELETED from this regex. Run FLAT over
+# the reminder-stripped joined-face oracle in the kept-detector pass; `[^.]*?` never
+# crosses a sentence, so flat == the per-clause regex firing set byte-identically.
 _DIRECT_DAMAGE_MIRROR = re.compile(
     r"deals (?:\d+|x|that much) damage to "
     r"(?:target player|target opponent|each opponent|that player|any target"
@@ -4742,8 +4745,6 @@ _DIRECT_DAMAGE_MIRROR = re.compile(
     r"|deals? (?:\d+|x) damage to any target"
     r"|\{t\}[^.]*?:[^.]*?deals? (?:\d+|x) damage"
     r"|\{t\}[^.]*?:[^.]*?deals? damage to (?:each|any|target|that)"
-    r"|would deal damage[^.]*?(?:it deals double|it deals twice"
-    r"|deals that much damage plus)"
     r"|whenever (?:a|each) (?:player taps a )?land(?: enters| for mana)?"
     r"[^.]*?deals? (?:\d+|x) damage"
     r"|whenever a (?:\w+ )?source you control deals damage",
@@ -5954,6 +5955,45 @@ def _ir_damage_reaches_player(e: Effect) -> bool:
     return bool(_DIRECT_DAMAGE_PLAYER_REACH.search(e.raw or ""))
 
 
+def _ir_doubler_reaches_player(e: Effect) -> bool:
+    """direct_damage gate for a damage_doubling Effect (ADR-0027 C7). A DamageDone
+    doubler reaches a player iff the replaced-damage recipient set includes a player
+    (CR 120.1). The projection (`_doubler_recipient_subject`) stamps subject=Creature
+    when phase's `damage_target_filter` is "CreatureOnly"/"PermanentOnly" with no
+    player recipient in the raw (Blind Fury — players excluded), and leaves subject=None
+    for the player-reaching shapes (absent = "a permanent or player", {Player},
+    {PlayerOrPermanentsControlledBy}, or a CreatureOnly mis-parse whose raw still names
+    an opponent — Disciples of the Inferno; CR 115.4 / 120.1). So a None / Player-typed
+    subject reaches a player (Furnace of Rath, Fiery Emancipation, Torbran); a
+    creature/permanent subject is removal-amplifier only and stays out."""
+    subject = e.subject
+    if subject is None:
+        return True
+    return isinstance(subject, Filter) and "Player" in subject.card_types
+
+
+def _has_multiply_damage_sibling(ir: Card) -> bool:
+    """True when the card bakes its damage-doubling into a real `damage` Effect with a
+    multiply amount (ADR-0027 C7). phase emits these (Borborygmos and Fblthp, Chocobo
+    Kick, Cut Propulsion) as a structured `damage` Effect (op="multiply", factor=2)
+    whose recipient the base damage arm already reads — creature-subject for the first
+    two, subject=None reflexive "to itself" for Cut — PLUS a redundant recipient-less
+    bare-fragment damage_doubling MARKER ("deals twice that much"). The marker's subject
+    is None, so the doubler arm would over-fire direct_damage on it; this card-level
+    gate suppresses the marker fire whenever a structured multiply-damage sibling
+    exists, deferring the reach decision to that sibling (which the base damage arm
+    scores correctly — none of these three reach a player)."""
+    for ab in ir.all_abilities():
+        for e in ab.effects:
+            if (
+                e.category == "damage"
+                and e.amount is not None
+                and e.amount.op == "multiply"
+            ):
+                return True
+    return False
+
+
 # ADR-0027 destroy_legendary — phase stamps this exact predicate on a destroy
 # subject only for an explicitly legendary-restricted target (Bounty Agent, Tsabo
 # Tavoc). NB: match the EXACT string, NOT a "legendary" substring — `NotSupertype:
@@ -6360,6 +6400,12 @@ def extract_signals_ir(
     # form spans abilities), so it is decided once over the whole IR.
     if _is_exile_until_leaves(ir):
         add("exile_until_leaves", "you", "", "")
+
+    # ADR-0027 C7 — the damage-doubler over-fire gate (Borborygmos / Chocobo Kick /
+    # Cut Propulsion bake the doubling into an op=multiply `damage` sibling AND carry a
+    # recipient-less bare-fragment damage_doubling marker). Decided once over the whole
+    # IR so the doubler arm below can skip the redundant marker on those faces.
+    _doubler_has_mult_sibling = _has_multiply_damage_sibling(ir)
 
     for ab in ir.all_abilities():
         # cmdzone_ability (ADR-0027) — an ability that functions FROM the command
@@ -7294,9 +7340,10 @@ def extract_signals_ir(
             #     (or an "any target") — the _DIRECT_DAMAGE_PLAYER_REACH gate. This
             #     excludes the modal "deals N instead" clause phase emits with the
             #     recipient dropped (Fiery Impulse) and the bare "to you" drawback.
-            # The under-structured player-reaching tail (doublers, damage-matters
-            # payoffs, controller-riders, DFC/coin-flip burst) rides the byte-
-            # identical _DIRECT_DAMAGE_MIRROR in the kept-detector pass.
+            # The under-structured player-reaching tail (damage-matters payoffs,
+            # controller-riders, DFC/coin-flip burst) rides the byte-identical
+            # _DIRECT_DAMAGE_MIRROR in the kept-detector pass; the damage DOUBLERS now
+            # ride the structural damage_doubling arm (ADR-0027 C7).
             # scope 'opp'/'each' always reach a player; scope 'any' only when the
             # recipient is player-reachable (not creature/permanent-restricted); scope
             # 'you' is incidental self-damage (painlands), excluded.
@@ -8898,6 +8945,15 @@ def extract_signals_ir(
                 add("counter_replace_bonus", "you", "", e.raw)
             if cat == "damage_doubling":  # Batch 10 — DamageDone replacement doubler
                 add("damage_doubling", "you", "", e.raw)
+                # ADR-0027 C7 — a PLAYER-REACHING doubler is a burn AMPLIFIER payoff
+                # (Furnace of Rath, Fiery Emancipation, Torbran), so it also feeds
+                # direct_damage (the has-other-plan burn key); a CreatureOnly doubler
+                # (Blind Fury) carries a Creature subject from the projection and stays
+                # out. Skip the recipient-less bare-fragment marker on the cards whose
+                # doubling really lives on a creature-only op=multiply `damage` sibling
+                # (Borborygmos / Chocobo / Cut). CR 120.1 / 115.4 / 614.1.
+                if _ir_doubler_reaches_player(e) and not _doubler_has_mult_sibling:
+                    add("direct_damage", "you", "", e.raw)
             # hand_disruption only when an OPPONENT reveals (a self-reveal — "reveal
             # cards in your hand" — is scope "any" and not disruption).
             if cat == "reveal_hand" and e.scope == "opp":
@@ -9777,12 +9833,12 @@ def extract_signals_ir(
             add("combat_damage_to_opp", "opponents", "", "")
     # ADR-0027 — direct_damage byte-identical mirror (the OR of the two deleted
     # _HAND_FLOOR producers, scope 'you'). Recovers the player-reaching tail the v22
-    # scope arm can't read structurally: damage DOUBLERS (replacement effects, not a
-    # `damage` Effect), damage-MATTERS payoffs ("whenever a source you control deals
-    # damage"), the controller-rider (Searing Blood), and the DFC/coin-flip/granted
-    # burst burn. add() dedups vs the structural arm. Flat over kept_oracle == the
-    # per-clause regex firing set byte-identically (regex_only == 0, 0 over-fire).
-    # CR 120.1 / 115.4.
+    # scope arm can't read structurally: damage-MATTERS payoffs ("whenever a source you
+    # control deals damage"), the controller-rider (Searing Blood), and the
+    # DFC/coin-flip/granted burst burn. The damage DOUBLERS moved to the structural
+    # damage_doubling arm (ADR-0027 C7, recipient read off `damage_target_filter`).
+    # add() dedups vs the structural arm. Flat over kept_oracle == the per-clause regex
+    # firing set byte-identically (regex_only == 0, 0 over-fire). CR 120.1 / 115.4.
     if _DIRECT_DAMAGE_MIRROR.search(kept_oracle):
         add("direct_damage", "you", "", "")
     # ADR-0027 — color_hoser byte-identical mirror (the EXACT deleted _DETECTORS

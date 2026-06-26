@@ -576,7 +576,20 @@ from mtg_utils.card_ir import Card
 #   append-only / idempotent — a correctly-parsed exile is untouched. exile_removal
 #   408 (vs the C13 406 base minus these 2 = the 2 are now KEPT structurally); every
 #   other key incl. voltron_matters (3007) drift 0. CR 406.1 / 406.2.
-SIDECAR_VERSION = 46
+# v47 (ADR-0027 direct_damage PROJECTION — C7 damage-doubler recipient arm;
+#   project `_doubler_recipient_subject`): a DamageDone doubler (Furnace of Rath,
+#   Fiery Emancipation, Torbran) projected to damage_doubling flattened to scope="you"
+#   with NO recipient, dropping phase's `damage_target_filter` — the player-reach
+#   discriminator. The projection now stamps subject=Filter(Creature) when the filter
+#   is "CreatureOnly"/"PermanentOnly" (Blind Fury — excludes players, CR 120.1) and
+#   leaves subject=None when player-reaching (absent / {Player} / {PlayerOrPermanents
+#   ControlledBy} — CR 115.4). _signals_ir adds a sibling direct_damage fire on the
+#   player-reaching doublers (gated off a creature-only op=multiply sibling to skip the
+#   Borborygmos/Chocobo/Cut bare-fragment markers) and drops the doubler alternation
+#   from _DIRECT_DAMAGE_MIRROR. direct_damage +19 (the Triple/Plus/static doublers the
+#   regex missed); the 4 creature-only doublers stay out; damage_doubling 0 change;
+#   voltron_matters 3007. CR 614.1 / 120.1 / 115.4.
+SIDECAR_VERSION = 47
 
 
 def card_ir_dir() -> Path:

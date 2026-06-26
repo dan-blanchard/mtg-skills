@@ -2663,6 +2663,72 @@ def test_replacement_triple_damage_is_damage_doubling():
     assert [e.category for e in ab.effects] == ["damage_doubling"]
 
 
+def test_doubler_absent_target_filter_is_player_reaching():
+    """A DamageDone doubler with NO damage_target_filter ("a permanent or player" —
+    Furnace of Rath, City on Fire) reaches a player (CR 115.4), so the projection
+    leaves subject=None — the signals direct_damage gate keys on that (ADR-0027 C7)."""
+    rep = {
+        "event": "DamageDone",
+        "description": "If a source would deal damage to a permanent or player, it "
+        "deals double that damage instead.",
+        "damage_modification": {"type": "Double"},
+    }
+    ab = _project_replacement(rep)
+    assert ab is not None
+    assert ab.effects[0].category == "damage_doubling"
+    assert ab.effects[0].subject is None
+
+
+def test_doubler_player_filter_is_player_reaching():
+    """A {PlayerOrPermanentsControlledBy: Opponent} target_filter (Torbran) reaches a
+    player → subject=None."""
+    rep = {
+        "event": "DamageDone",
+        "description": "If a red source you control would deal damage to an opponent, "
+        "it deals that much damage plus 2.",
+        "damage_modification": {"type": "Plus", "value": 2},
+        "damage_target_filter": {
+            "PlayerOrPermanentsControlledBy": {"player": {"type": "Opponent"}}
+        },
+    }
+    ab = _project_replacement(rep)
+    assert ab is not None
+    assert ab.effects[0].subject is None
+
+
+def test_doubler_creature_only_filter_stamps_creature_subject():
+    """A "CreatureOnly" damage_target_filter (Blind Fury) excludes players (CR 120.1),
+    so the projection stamps a bare Creature subject — the signals direct_damage gate
+    then keeps it OUT (it is removal-amplifier, not face burn). ADR-0027 C7."""
+    rep = {
+        "event": "DamageDone",
+        "description": "If a creature would deal combat damage to a creature this turn, "
+        "it deals double that damage to that creature instead.",
+        "damage_modification": {"type": "Double"},
+        "damage_target_filter": "CreatureOnly",
+    }
+    ab = _project_replacement(rep)
+    assert ab is not None
+    assert ab.effects[0].subject == Filter(card_types=("Creature",))
+
+
+def test_doubler_creature_only_misparse_with_opponent_recipient_is_player_reaching():
+    """phase mis-types Disciples of the Inferno ("deal damage to a creature, battle, or
+    opponent") as CreatureOnly, dropping the opponent. When the clause raw still names a
+    player recipient, the projection treats it as player-reaching (subject=None) so the
+    real opponent reach is not lost. CR 120.1 — an opponent IS a player."""
+    rep = {
+        "event": "DamageDone",
+        "description": "If a noncreature source you control would deal damage to a "
+        "creature, battle, or opponent, it deals that much damage plus 2 instead.",
+        "damage_modification": {"type": "Plus", "value": 2},
+        "damage_target_filter": "CreatureOnly",
+    }
+    ab = _project_replacement(rep)
+    assert ab is not None
+    assert ab.effects[0].subject is None
+
+
 def test_add_target_replacement_nested_doubling_recovered():
     """An AddTargetReplacement installing a DamageDone replacement (Goblin Goliath,
     Isengard Unleashed) carries the amplifier as a NESTED damage_modification the
