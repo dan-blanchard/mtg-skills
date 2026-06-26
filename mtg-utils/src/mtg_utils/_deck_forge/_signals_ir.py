@@ -823,6 +823,26 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "dash": (("dash_matters", "you"),),
 }
 
+# ADR-0027 C10 — lifegain_matters ARM-B significance: the non-fixed (scaling /
+# "equal to") Quantity ops that make a self-life-LOSS engine worth sustaining. A
+# scope=='you' lose_life with one of these ops is a "lose life equal to X" bleed
+# (Dark Confidant op=count, Greven op=power) — the spec's B1-scale floor — vs a
+# one-shot fixed "you lose 2 life" rider that stays out of the lane. CR 119.3.
+_LOSE_LIFE_SCALE_OPS = frozenset(
+    {
+        "count",
+        "power",
+        "toughness",
+        "multiply",
+        "devotion",
+        "party",
+        "domain",
+        "counters",
+        "variable",
+        "experience",
+    }
+)
+
 # ADR-0027 β — cost_reduction structural-arm gates (a BUILD-AROUND reducer = an effect
 # that makes a CLASS of OTHER spells/abilities you cast cheaper — Goblin Electromancer,
 # Ruby Medallion, Helm of Awakening, Urza's Incubator; a SELF-discount "this spell costs
@@ -7165,6 +7185,51 @@ def extract_signals_ir(
                 add(rec_lane, "you", "", e.raw)
             if e.category == "gain_life" and e.scope in ("you", "any"):
                 add("lifegain_matters", "you", "", e.raw)
+            # ADR-0027 C10 — A2 GRANT-LIFELINK source. CR 702.15b: damage from a
+            # source with lifelink makes its controller gain that much life, so a card
+            # that GRANTS lifelink is a lifegain SOURCE in the same category as the
+            # card's OWN lifelink keyword (the _IR_KEYWORD_MAP lifelink→lifegain arm).
+            # phase carries the conferred keyword as a grant_keyword Effect with
+            # counter_kind=='lifelink' (Talus Paladin "Allies you control gain
+            # lifelink"; Basilisk Collar / Loxodon Warhammer "equipped creature has …
+            # lifelink"; Vault of the Archangel) — STRUCTURE the OWN-keyword arm can't
+            # see (it reads Face.keywords only). Gate the grant subject NOT to an
+            # opp-only controller so a hypothetical "creatures an opponent controls gain
+            # lifelink" hoser stays out (scope 'you', the lane's forced scope). Recovers
+            # the static "have lifelink" granters the bare regex MISSED; the "gain
+            # lifelink" idiom the deleted regex caught incidentally (gain[^.]*life
+            # matched "gain lifelink") is deduped by add(). CR 702.15b / 119.
+            if (
+                e.category == "grant_keyword"
+                and (e.counter_kind or "").lower() == "lifelink"
+                and not (isinstance(esub, Filter) and esub.controller == "opp")
+            ):
+                add("lifegain_matters", "you", "", e.raw)
+            # ADR-0027 C10 — ARM-B SELF-LOSS SUSTAIN. CR 119.3 makes lose_life a
+            # first-class life-resource event symmetric with gain_life; a SIGNIFICANT,
+            # repeated/scaling self-life-LOSS engine WANTS lifegain to stay alive
+            # ("cares-about"), so it opens the lane (scope 'you' — the loser is the
+            # controller, the lane's forced scope). DISCIPLINE (spec risk 3): only
+            # scope=='you' (phase tags "each/target opponent loses N" as scope 'any',
+            # which is opponent DRAIN → lifeloss_matters, NOT self-sustain — must be
+            # excluded). SIGNIFICANCE (matching the deleted ARM-B regex's narrow intent,
+            # NOT a blanket "lose 2 life" rider): (B1-scale) a SCALING "lose life equal
+            # to X" — Dark Confidant op=count, Greven op=power; OR (B1b-upkeep) a
+            # RECURRING upkeep bleed >=2 / scaling — Benthic Djinn (upkeep, factor 2),
+            # Xathrid Demon, Rust Elemental. A one-shot fixed "you lose 2 life" rider on
+            # a removal/tutor/draw spell (Infernal Grasp, Vampiric Tutor, Read the
+            # Bones) is NOT an engine and stays OUT (the over-broad trap the regex
+            # avoided). The draw-bleed dies/leaves/mill engine is ARM-B2 below.
+            if e.category == "lose_life" and e.scope == "you":
+                _amt = e.amount
+                _scaling = _amt is not None and _amt.op in _LOSE_LIFE_SCALE_OPS
+                _recurring_upkeep = (
+                    ab.trigger is not None
+                    and ab.trigger.event == "upkeep"
+                    and (_amt is None or _amt.op != "fixed" or (_amt.factor or 0) >= 2)
+                )
+                if _scaling or _recurring_upkeep:
+                    add("lifegain_matters", "you", "", e.raw)
             # graveyard_recursion (soulshift, GY→hand per CR 702.46) is a graveyard
             # payoff but NOT reanimation — it feeds graveyard_matters without the
             # reanimator / creature_recursion lanes (those are GY→battlefield).
@@ -9405,6 +9470,25 @@ def extract_signals_ir(
                 if _from_bf or not _has_dir:
                     add("ltb_matters", _ir_scope(trig.scope), "", "")
             if trig.event == "life_gained":
+                add("lifegain_matters", "you", "", "")
+            # ADR-0027 C10 — ARM-B2 DRAW-BLEED engine. A triggered ability on a
+            # death / leave / mill event (the aristocrats recurrence) whose effects
+            # include BOTH a draw AND a self-life-LOSS (scope 'you') is a Necropotence-
+            # style draw-for-life engine (Taborax, Disciple of Perdition, Novice
+            # Occultist, Mephitic Draught) — recurrence IS the significance, so the
+            # one-shot-rider floor (ARM-B1) does not apply; the recurring loss WANTS
+            # lifegain to sustain it. scope 'you', the lane's forced scope. The
+            # deleted ARM-B regex caught this as the "whenever … dies/… you draw … you
+            # lose N life" arm; this reads the trigger + effect STRUCTURE instead. The
+            # lose_life scope=='you' gate keeps a "draw, opponent loses" drain out.
+            # CR 119.3 / 603.10a.
+            if (
+                trig.event in ("dies", "leaves", "mill")
+                and any(e.category == "draw" for e in ab.effects)
+                and any(
+                    e.category == "lose_life" and e.scope == "you" for e in ab.effects
+                )
+            ):
                 add("lifegain_matters", "you", "", "")
             # ADR-0027 lifeloss_matters — the pure life-loss PAYOFF: a trigger that
             # fires when a player loses life ("whenever an opponent loses life" →

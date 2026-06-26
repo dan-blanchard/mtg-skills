@@ -24,6 +24,7 @@ from mtg_utils._card_ir.supplement import (
     _copied_type_from_text,
     _recover_base_pt_set,
     _recover_combat_damage_recipients,
+    _recover_dropped_gain_life,
     recover_effect_from_text,
     supplement_card,
 )
@@ -695,6 +696,15 @@ def project_card(records: list[dict]) -> Card:
     # so the MIGRATED debuff_matters lane reads a mass opponent/symmetric shrink
     # structurally. Same joined-oracle seam as combat-damage above. CR 613.4b.
     card = _recover_base_pt_set(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
+    # ADR-0027 C10 (SIDECAR v50) — dropped gain_life residue: synthesize a gain_life
+    # Effect (scope you) from the raw oracle when phase emitted none though the card
+    # plainly gains life (a multi-clause / symmetric fold — Game of Chaos), so the
+    # existing gain_life signals arm fires lifegain_matters STRUCTURALLY and the
+    # deleted regex's gain-act arm leaves the kept mirror. Same joined-oracle seam.
+    # CR 119.3.
+    card = _recover_dropped_gain_life(
         card, "\n".join(r.get("oracle_text") or "" for r in records)
     )
     # Post-supplement removal target-subject recovery (ADR-0027 removal_matters

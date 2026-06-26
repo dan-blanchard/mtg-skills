@@ -124,6 +124,151 @@ def test_opponent_gain_life_is_not_lifegain_payoff():
     assert _sigs(ir) == []
 
 
+# ── lifegain_matters: ADR-0027 C10 — A2 grant-lifelink + ARM-B self-loss ───────
+
+
+def test_lifegain_from_grant_lifelink_source():
+    # Talus Paladin "Allies you control gain lifelink": granting lifelink makes them a
+    # lifegain SOURCE (CR 702.15b), same lane as the card's own lifelink keyword.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="etb"),
+            effects=(
+                Effect(
+                    category="grant_keyword",
+                    scope="you",
+                    counter_kind="lifelink",
+                    subject=Filter(subtypes=("Ally",), controller="you"),
+                    raw="gain lifelink",
+                ),
+            ),
+        )
+    )
+    assert ("lifegain_matters", "you", "") in _sigs(ir)
+
+
+def test_grant_lifelink_to_opponent_creatures_not_lifegain():
+    # Over-fire guard: a hypothetical "creatures an opponent controls gain lifelink"
+    # is not YOUR lifegain source — the grant subject is opp-controlled.
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="grant_keyword",
+                    scope="you",
+                    counter_kind="lifelink",
+                    subject=Filter(card_types=("Creature",), controller="opp"),
+                    raw="creatures an opponent controls have lifelink",
+                ),
+            ),
+        )
+    )
+    assert "lifegain_matters" not in {k for (k, _s, _u) in _sigs(ir)}
+
+
+def test_lifegain_from_scaling_self_loss():
+    # Dark Confidant "You lose life equal to its mana value" — a scaling self-bleed
+    # (op=count) that wants lifegain to sustain it (CR 119.3).
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="upkeep"),
+            effects=(
+                Effect(
+                    category="lose_life",
+                    scope="you",
+                    amount=Quantity(op="count", factor=1),
+                    raw="You lose life equal to its mana value.",
+                ),
+            ),
+        )
+    )
+    assert ("lifegain_matters", "you", "") in _sigs(ir)
+
+
+def test_lifegain_from_recurring_upkeep_bleed():
+    # Benthic Djinn "At the beginning of your upkeep, you lose 2 life" — a recurring
+    # fixed >=2 upkeep bleed.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="upkeep"),
+            effects=(
+                Effect(
+                    category="lose_life",
+                    scope="you",
+                    amount=Quantity(op="fixed", factor=2),
+                    raw="At the beginning of your upkeep, you lose 2 life.",
+                ),
+            ),
+        )
+    )
+    assert ("lifegain_matters", "you", "") in _sigs(ir)
+
+
+def test_one_shot_fixed_self_loss_not_lifegain():
+    # Over-fire guard: a one-shot fixed "you lose 2 life" rider on a removal / tutor /
+    # draw spell (Infernal Grasp, Read the Bones) is NOT a sustain engine — factor>=2
+    # alone is not enough without recurrence (upkeep) or scaling.
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="lose_life",
+                    scope="you",
+                    amount=Quantity(op="fixed", factor=2),
+                    raw="Destroy target creature. You lose 2 life.",
+                ),
+            ),
+        )
+    )
+    assert "lifegain_matters" not in {k for (k, _s, _u) in _sigs(ir)}
+
+
+def test_opponent_loses_life_is_not_self_sustain():
+    # Over-fire guard: a scope-opp lose_life ("target opponent loses 2 life") is
+    # opponent DRAIN (the lifeloss lane), never the self-sustain ARM-B.
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="lose_life",
+                    scope="opp",
+                    amount=Quantity(op="count", factor=1),
+                    raw="Target opponent loses life equal to ...",
+                ),
+            ),
+        )
+    )
+    assert "lifegain_matters" not in {k for (k, _s, _u) in _sigs(ir)}
+
+
+def test_lifegain_from_draw_bleed_engine():
+    # Taborax / Disciple of Perdition: a death-triggered ability that BOTH draws and
+    # makes you lose life is a Necropotence-style draw-bleed engine — recurrence is
+    # the significance, so the fixed-factor-1 floor does not apply.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="dies"),
+            effects=(
+                Effect(category="draw", scope="you"),
+                Effect(
+                    category="lose_life",
+                    scope="you",
+                    amount=Quantity(op="fixed", factor=1),
+                    raw="you draw a card and you lose 1 life",
+                ),
+            ),
+        )
+    )
+    assert ("lifegain_matters", "you", "") in _sigs(ir)
+
+
 # ── graveyard_matters (scoped) ────────────────────────────────────────────────
 
 

@@ -1381,6 +1381,48 @@ def test_static_parser_failed_have_base_pt_recovers_base_pt_set():
     assert "base_pt_set" in {e.category for e in _effects(project_card([rec]))}
 
 
+def test_dropped_gain_life_synthesized_from_oracle():
+    """ADR-0027 C10: phase drops the gain clause of a multi-clause / symmetric fold
+    (Game of Chaos "you gain 1 life and target opponent loses 1 life" → only the other
+    effects), so the supplement synthesizes a gain_life Effect (scope you) from the raw
+    oracle. The gain survives ONLY in the joined oracle (no ability carries it), so the
+    per-effect recovery can't see it — only the card-level A3 pass. CR 119.3."""
+    rec = _spell(
+        {"type": "Draw", "amount": {"type": "Fixed", "value": 1}},
+        description="Draw a card.",
+    )
+    rec["oracle_text"] = "Draw a card. You gain 1 life."
+    gls = [e for e in _effects(project_card([rec])) if e.category == "gain_life"]
+    assert gls
+    assert all(e.scope == "you" for e in gls)
+
+
+def test_dropped_gain_life_not_synthesized_for_opponent_gain():
+    """Over-fire guard: an opponent/each gainer ("each opponent gains 2 life") is NOT
+    a you-scope gain_life — the synth is gated to a YOU gainer."""
+    rec = _spell(
+        {"type": "Draw", "amount": {"type": "Fixed", "value": 1}},
+        description="Draw a card.",
+    )
+    rec["oracle_text"] = "Draw a card. Each opponent gains 2 life."
+    assert not any(
+        e.category == "gain_life" and e.scope == "you"
+        for e in _effects(project_card([rec]))
+    )
+
+
+def test_dropped_gain_life_skips_when_native_you_gain_exists():
+    """Append-only: a card phase already structured with a you/any gain_life is not
+    re-synthesized (the lane needs only one)."""
+    rec = _spell(
+        {"type": "GainLife", "amount": {"type": "Fixed", "value": 3}},
+        description="You gain 3 life.",
+    )
+    rec["oracle_text"] = "You gain 3 life."
+    gls = [e for e in _effects(project_card([rec])) if e.category == "gain_life"]
+    assert len(gls) == 1
+
+
 def test_ignore_landwalk_is_evasion_denial():
     """Great Wall: IgnoreLandwalkForBlocking → evasion_denial (block through walk)."""
     rec = _static_card({"IgnoreLandwalkForBlocking": {"qualifier": "Mountain"}}, None)

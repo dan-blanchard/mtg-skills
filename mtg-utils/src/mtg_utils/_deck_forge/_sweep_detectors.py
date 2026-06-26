@@ -1457,22 +1457,47 @@ EXTRA_TURNS_REGEX = r"take an (?:extra|additional) turn"
 # lose >=2, cumulative upkeep, "lose life equal to", Necropotence-style draw-and-bleed,
 # symmetric "each player loses [2-9]") that WANTS lifegain to sustain. CR 119 / 118.
 LIFEGAIN_MATTERS_REGEX = (
-    # ARM (A) — lifegain payoff ("whenever you gain life") / the act of gaining life /
-    # a payoff that gates on HAVING gained life ("if you gained life this turn", "the
-    # amount of life you gained" — Aerith / Celestine / Lathiel) / variable self-gain
-    # ("gain X life", "gain life equal to", "you gain that much life") / amplifiers
-    # ("if you would gain life" — Bilbo, Boon Reflection, Rhox Faithmender).
-    r"whenever[^.]*gain[^.]*life|you gain \d+ life|gain \d+ life"
+    # ADR-0027 C10 — the GAIN-ACT arms are DELETED; their structured intent now rides
+    # real IR arms in extract_signals_ir:
+    #   • the act of gaining life ("you gain N/X life", "gain life equal to", "you
+    #     gain that much life") → the supplement-synthesized gain_life Effect
+    #     (_recover_dropped_gain_life, scope you even when phase mis-scoped 'opp' on a
+    #     "you gain life equal to … target opponent's hand" count) + phase's native
+    #     gain_life, read by the gain_life signals arm;
+    #   • grant-lifelink ("gain/has lifelink") → the grant_keyword(ck=lifelink) arm
+    #     (CR 702.15b) — the old "you gain N life" arm also matched "gain lifelink"
+    #     incidentally; the structural arm replaces that.
+    # The structural reader for SELF-LOSS sustain (the lose_life ARM-B signals arms —
+    # scope=='you' SCALE / upkeep-bleed / dies-leaves-mill draw-bleed) lands the CLEAN
+    # cases (and recovers sentence-spanning upkeep engines the regex's `[^.]*` can't
+    # span — Xathrid Demon "upkeep … . … you lose 7 life"). The ARM-A "whenever gain
+    # life" / A1 gate / replacement-amplifier residue and the ARM-B self-loss residue
+    # below are kept for the genuinely-unstructurable phase FOLDS:
+    # (R1) conferred life_gained TRIGGERS inside a granted ability ("whenever you gain
+    #   life" payoffs phase drops the inner trigger for — Sunbond, Field-Tested Frying
+    #   Pan); the native life_gained arm covers the non-conferred case, add() dedups.
+    # (R2) the GAINED-LIFE-THIS-TURN gate ("if you gained life this turn", "the amount
+    #   of life you gained" — Crested Sunmare, Will, Aerith) — phase folds the
+    #   discriminating operand (subjectless Condition / dynamic Amount). OUT of C10
+    #   scope (the A1 projection is a later pass).
+    # (R3) the CR-614 lifegain-REPLACEMENT amplifiers ("if you would gain life, …
+    #   twice/instead" — Rhox Faithmender EMPTY effects, Boon Reflection inconsistent).
+    # (R4) SELF-LOSS phase folds ARM-B's scope=='you' structural arm cannot claim: a
+    #   SCOPE-MERGED "you lose life equal to" (Caustic Bronco — phase merges the self
+    #   + "otherwise each opponent loses" branches to scope 'any'), an amount-DROPPED
+    #   variable "you lose X life" (Imskir Iron-Eater — X uncaptured → amount None), a
+    #   "you lose that much life" backref, the CONFERRED-GRANT upkeep bleed (Relic Bane
+    #   — "Enchanted artifact has 'At the beginning of your upkeep, you lose 2 life.'",
+    #   phase emits a static, no upkeep Trigger), the cumulative-upkeep PAY-life COST
+    #   (Gallowbraid, Morinfen — a cost, not a lose_life Effect), and the event='other'
+    #   draw-bleed (Kothophed "permanent … put into a graveyard from the battlefield …
+    #   you draw … you lose 1 life" — phase types the zone-change trigger 'other' with
+    #   no zones, so struct B2 can't reach it). CR 119.3 / 603.
+    # (R5) the SYMMETRIC "each player loses [2-9] life" drain — phase tags scope 'any'
+    #   (indistinguishable from "each opponent loses", the drain lane).
+    r"whenever[^.]*gain[^.]*life"
     r"|(?:you|your team)(?:'ve| have)? gained[^.]*life|life you gained"
-    r"|gains? x life|gains? life equal to|you gain that much life"
     r"|if you would gain life"
-    # ARM (B) — significant, repeated, unavoidable self-life-loss that wants lifegain
-    # sustain: MEANINGFUL fixed/scaling bleed (upkeep lose >=2 — Deadpool; cumulative
-    # upkeep — Gallowbraid/Morinfen; "you lose life equal to" sac engines — Greven),
-    # the Necropotence-style "draw X / lose X" engines (Be'lakor, Imskir, Corpse Augur)
-    # and "you lose that much life" (Asmodeus), and the symmetric significant drain
-    # ("each player loses [2-9] life" hits YOU too). The negligible controlled "lose 1
-    # life" rider and the optional "may pay X life" stay OUT (the over-broad trap).
     r"|at the beginning of (?:your|each)[^.]*upkeep[^.]*you lose (?:[2-9]|\d\d) "
     r"life|cumulative upkeep[^.]*life|you lose life equal to"
     r"|you lose x life|you lose that much life"

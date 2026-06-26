@@ -617,6 +617,11 @@ from mtg_utils.card_ir import Card
 # until-tail + an additive top:you / top:opp library-OWNER tag on every from:top effect
 # (project._recover_top_of_library_owner). topdeck_selection / dig_until read the
 # owner-resolved tag; the per-clause regex mirrors retire. CR 401.1 / 701.18 / 116.
+# v50: ADR-0027 C10 lifegain_matters — supplement synthesizes a dropped gain_life
+#   Effect (scope you) from the raw oracle when phase emitted none (multi-clause /
+#   symmetric fold — Game of Chaos), so the gain_life signals arm reads STRUCTURE and
+#   the kept mirror's gain-act + self-loss arms are deleted (grant-lifelink + lose_life
+#   ARM-B now structural). CR 119.3 / 702.15b.
 SIDECAR_VERSION = 50
 
 

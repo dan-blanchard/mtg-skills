@@ -1920,6 +1920,76 @@ def _recover_base_pt_set(card: Card, oracle: str) -> Card:
     )
 
 
+# ── ADR-0027 C10 — DROPPED gain_life residue (SIDECAR v50) ────────────────────
+# phase sometimes emits NO gain_life Effect though the raw oracle plainly says YOU
+# gain life: a multi-clause / symmetric fold (Game of Chaos "you gain 1 life and
+# target opponent loses 1 life" → only coin_flip + lose_life(opp), the gain is
+# dropped) or a dynamic "gain life equal to X" the engine didn't model. The gainer
+# survives only in the raw, so this card-level pass — the _recover_base_pt_set /
+# _recover_combat_damage_recipients precedent (phase dropped the structure, so
+# synthesize it from the joined oracle) — emits a gain_life Effect (scope you) so
+# the EXISTING gain_life signals arm fires lifegain_matters STRUCTURALLY, retiring
+# the deleted regex's gain-act arm from the kept mirror. CR 119.3. Upstream-to-phase
+# candidate (phase should keep the dropped gain clause).
+#
+# Append-only and gated to a YOU gainer: a card already carrying ANY gain_life
+# Effect (phase structured at least one gain clause) is untouched — the lane needs
+# only one, so a second dropped clause is moot. The patterns are the YOU-anchored
+# gain phrasings the deleted ARM-A regex matched ("you gain N/X life", "gain life
+# equal to", "you gain that much life"); an opponent/each gainer ("target opponent
+# gains 3 life") is NOT synthesized here (that gain_life rides phase's own scope-any
+# node + the existing arm, not a forced scope-you marker).
+_GAIN_LIFE_DROPPED = re.compile(
+    r"\byou gain \d+ life\b|\byou gain x life\b"
+    r"|\bgain life equal to\b|\byou gain that much life\b",
+    re.IGNORECASE,
+)
+
+
+def _recover_dropped_gain_life(card: Card, oracle: str) -> Card:
+    """Append a synthetic ``gain_life`` Effect (scope you) for the gain-life clauses
+    phase dropped (no gain_life node though the raw says you gain life). Append-only:
+    a card already carrying a gain_life Effect is left alone. One Effect per
+    value-bearing clause. CR 119.3."""
+    if not card.faces:
+        return card
+    # Skip only when a gain_life the signals arm WOULD read (scope you/any) already
+    # exists — NOT a gain_life phase mis-scoped to 'opp'. phase's third-party
+    # possessive heuristic flips "You gain life equal to the cards in target
+    # opponent's hand" (Gerrard Capashen, Search Warrant, Daxos, Froghemoth) to
+    # scope='opp' because the COUNT references an opponent, though the GAINER is you.
+    # Those never fire the you/any arm, so the synth must still run. CR 119.3.
+    if any(
+        e.category == "gain_life" and e.scope in ("you", "any")
+        for ab in card.all_abilities()
+        for e in ab.effects
+    ):
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    synth: list[Ability] = []
+    for clause in re.split(r"[.\n]", text):
+        if _GAIN_LIFE_DROPPED.search(clause):
+            synth.append(
+                Ability(
+                    kind="static",
+                    effects=(
+                        Effect(
+                            category="gain_life",
+                            scope="you",
+                            raw=clause.strip(),
+                        ),
+                    ),
+                )
+            )
+    if not synth:
+        return card
+    head, *rest = card.faces
+    return replace(
+        card,
+        faces=(replace(head, abilities=(*head.abilities, *synth)), *rest),
+    )
+
+
 def _supplement_effect(e: Effect) -> Effect:
     out = e
     # 1. recover a buried effect from its clause (the first matching rule wins).

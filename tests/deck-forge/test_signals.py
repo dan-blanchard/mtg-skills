@@ -1467,10 +1467,20 @@ def test_variable_lifegain_opens_lifegain():
         "type_line": "Legendary Creature — Kor Cleric",
         "oracle_text": "Deathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\n{1}, Sacrifice another creature: You gain life equal to the sacrificed creature's toughness.\n{1}{W}{B}, Sacrifice another creature: Exile target nonland permanent. Activate only if you have at least 10 life more than your starting life total.",
     }
-    # ADR-0027 β: lifegain_matters migrated to the Card IR — variable "gain X life" /
-    # "gain life equal to" rides the byte-identical kept-mirror, served from the hybrid.
-    assert ("lifegain_matters", "you") in _keys_hybrid(atalya)
-    assert ("lifegain_matters", "you") in _keys_hybrid(ayli)
+    # ADR-0027 C10: variable "gain X life" / "gain life equal to" now rides the
+    # STRUCTURAL gain_life Effect — phase's native gain_life plus the
+    # _recover_dropped_gain_life supplement synth — read by the gain_life signals arm,
+    # NOT a "gain X life" word mirror. Project the real oracle so the supplement runs.
+    from mtg_utils._card_ir.project import project_card
+
+    atalya_ir = project_card([{**atalya, "card_type": {"core_types": ["Creature"]}}])
+    ayli_ir = project_card([{**ayli, "card_type": {"core_types": ["Creature"]}}])
+    assert ("lifegain_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(atalya, atalya_ir)
+    }
+    assert ("lifegain_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(ayli, ayli_ir)
+    }
 
 
 def test_if_you_would_gain_life_opens_lifegain():

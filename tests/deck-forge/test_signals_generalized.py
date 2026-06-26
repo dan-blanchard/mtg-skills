@@ -6748,8 +6748,12 @@ def test_lifegain_payoff_matches_your_team_and_contraction():
 def test_lifegain_matches_variable_that_much_life():
     # Variable self-lifegain phrased "you gain that much life" (Varina attacks with
     # Zombies -> draw/discard/gain life equal to the count) is a real, repeatable
-    # lifegain SOURCE — it wants lifegain payoffs. The detector had "gain X life" and
-    # "gain life equal to" but not the equally-common "that much" form. Real oracle.
+    # lifegain SOURCE — it wants lifegain payoffs. ADR-0027 C10: this now rides the
+    # STRUCTURAL gain_life Effect (phase native + the _recover_dropped_gain_life
+    # supplement synth for the dropped "You gain that much life" clause), read by the
+    # gain_life signals arm — NOT a "that much life" word mirror. The lane scope is
+    # the GAINER's: phase tags "You gain that much life" gain_life scope you. Real
+    # oracle; the IR carries the production gain_life shape.
     varina = {
         "name": "Varina, Lich Queen",
         "type_line": "Legendary Creature — Zombie Wizard",
@@ -6760,12 +6764,24 @@ def test_lifegain_matches_variable_that_much_life():
             "Zombie creature token."
         ),
     }
-    # ADR-0027 β: lifegain_matters migrated to the Card IR (byte-identical kept-mirror),
-    # so it serves from the hybrid path.
-    assert "lifegain_matters" in _keys_hybrid(varina)
-    # Over-fire guard: the new clause is self-scoped. A third-person "<opponent>
-    # gains that much life" (no "whenever … gain … life" trigger sentence) must not
-    # open the lane — only "you gain that much life" does.
+    varina_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="gain_life",
+                    scope="you",
+                    raw="You gain that much life.",
+                ),
+            ),
+        )
+    )
+    assert "lifegain_matters" in {
+        s.key for s in extract_signals_hybrid(varina, varina_ir)
+    }
+    # Over-fire guard: the gainer is the OPPONENT. phase tags "target opponent gains
+    # that much life" gain_life scope='opp', which the you/any arm excludes — only a
+    # you/any gainer opens the lane (CR 119.3: the gain adjusts THAT player's total).
     opp = {
         "name": "Generous Foe",
         "type_line": "Legendary Creature — Spirit",
@@ -6773,7 +6789,21 @@ def test_lifegain_matches_variable_that_much_life():
             "At the beginning of your end step, target opponent gains that much life."
         ),
     }
-    assert "lifegain_matters" not in _keys_hybrid(opp)
+    opp_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="gain_life",
+                    scope="opp",
+                    raw="target opponent gains that much life",
+                ),
+            ),
+        )
+    )
+    assert "lifegain_matters" not in {
+        s.key for s in extract_signals_hybrid(opp, opp_ir)
+    }
 
 
 def test_debuff_serves_opponent_mass_shrink():
