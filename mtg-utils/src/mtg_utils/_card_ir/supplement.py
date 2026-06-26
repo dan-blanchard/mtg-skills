@@ -1521,7 +1521,14 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
     if _CONTROL_COMBAT.search(s):
         return replace(e, category="control_combat")
     if _ASSIGN_DAMAGE.search(s):
-        return replace(e, category="combat_damage_mod")
+        # ADR-0027 C14 — stamp the `from_toughness` marker (consistent with the project
+        # AssignDamageFromToughness arm) when the clause is "assigns combat damage equal
+        # to its TOUGHNESS rather than its power" (Doran's abilityless single-static
+        # face, recovered here). "assigns NO combat damage" (Master of Cruelties — a
+        # suppression, CR 510.1b/c) is the same regex but NOT a toughness care, so it
+        # gets no marker and the toughness_combat lane excludes it structurally.
+        ck = "from_toughness" if "toughness" in s.lower() else ""
+        return replace(e, category="combat_damage_mod", counter_kind=ck)
     if _TYPE_SET.search(s):
         return replace(e, category="type_set")
     if _EXTRA_COMBAT.search(s):

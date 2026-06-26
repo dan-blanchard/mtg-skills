@@ -82,7 +82,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TOKEN_COPY_MATTERS_REGEX,
     TOPDECK_SELECTION_REGEX,
     TOPDECK_STACK_SWEEP_REGEX,
-    TOUGHNESS_COMBAT_REGEX,
     UNSPENT_MANA_REGEX,
     VARIABLE_PT_SWEEP_REGEX,
 )
@@ -479,16 +478,15 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # a byte-identical _STAX_TAXES_PLAN_MIRROR (below) re-supplies the voltron silence
     # (the IR is BROADER, so NOT _VOLTRON_SILENCING_PLAN_KEYS). The serve spec stays
     # hand-registered in signal_specs. CR 604.1 / 903.10a.
-    # ADR-0027 β: toughness_combat migrated to the Card IR via a byte-identical kept-
-    # mirror. This inline _DETECTORS producer (the toughness-as-VALUE payoff half —
-    # a token/damage/value keyed on a creature's TOUGHNESS, Geralf "X is the sacrificed
-    # creature's toughness"; the "(?! are each)" guard kept set-base-P/T off) is deleted
-    # and joined with the deleted SWEEP combat-redirect row into the pinned
-    # TOUGHNESS_COMBAT_REGEX (_sweep_detectors). The lane now fires from the
-    # _TOUGHNESS_COMBAT_MIRROR (_signals_ir) over the reminder-stripped kept_oracle
-    # (commander-legal: regex==mirror, 0 lost, 0 over-fire); a byte-identical
-    # _TOUGHNESS_COMBAT_PLAN_MIRROR below re-supplies the has_other_plan silence.
-    # CR 510.1c / 122.
+    # ADR-0027 C14: toughness_combat is now a fully STRUCTURAL lane (the byte-identical
+    # mirror is retired). This inline _DETECTORS producer (the toughness-as-VALUE payoff
+    # half) and the SWEEP combat-redirect row are both gone: project recovers the
+    # AssignDamageFromToughness static modification (combat_damage_mod / from_toughness)
+    # and the Ref/Aggregate Toughness operand (Quantity op=='toughness'), and the
+    # extract_signals_ir arm reads those markers (+129 multi-ability faces phase's
+    # static-drop missed; AssignNoCombatDamage / "equal to its power" over-fires
+    # excluded). has_other_plan silence is re-supplied via _VOLTRON_SILENCING_PLAN_KEYS
+    # (signals.py). CR 510.1 / 119.3 / 604.3.
     # ADR-0027: snow_matters migrated to the Card IR — detected from the kept
     # word-detector mirror (signals._IR_KEPT_DETECTORS: \bsnow\b; snow is a
     # supertype CR 205.4 phase doesn't surface as a payoff tag). Its _DETECTORS
@@ -3737,21 +3735,11 @@ _ANIMATE_ARTIFACT_PLAN_MIRROR = re.compile(ANIMATE_ARTIFACT_REGEX, re.IGNORECASE
 # deleted SWEEP detector's per-clause input; the `[^.]*` arm never spans a sentence, so
 # full-text == per-clause. CR 903.10a / 601.2b.
 _FREE_CAST_PLAN_MIRROR = re.compile(FREE_CAST_REGEX, re.IGNORECASE)
-# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated toughness_combat key. BOTH
-# deleted producers (the SWEEP combat-redirect, scope 'you', + the inline _DETECTORS
-# value-payoff, scope 'you') fired HIGH-confidence and counted toward `has_other_plan`,
-# silencing the spurious commander-damage voltron tell on a body whose plan is making
-# toughness matter (a Doran-style combat redirect / a toughness-as-value engine —
-# Geralf, Angelic Chorus — not a vanilla beater; a Doran combat redirect IS a plan).
-# The migrated lane rides a BYTE-IDENTICAL kept mirror (no recall change vs the deleted
-# regexes), so this byte-identical gate mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS —
-# restores the old silence for ALL cards (matching the color_change / token_copy_matters
-# / variable_pt byte-identical-mirror pattern). Matched against reminder-STRIPPED
-# joined-face `text`, byte-identical to the deleted producers' per-clause reminder-
-# stripped input. The arms are clause-local (the `[^.]{0,40}` bounds never cross a
-# sentence), so full-text == per-clause. FILE-SWAP NO-FLOOD: voltron delta 0.
-# CR 903.10a / 510.1c.
-_TOUGHNESS_COMBAT_PLAN_MIRROR = re.compile(TOUGHNESS_COMBAT_REGEX, re.IGNORECASE)
+# ADR-0027 C14: the toughness_combat HAS-OTHER-PLAN mirror is retired — the lane is now
+# fully STRUCTURAL and its voltron silence is re-supplied via _VOLTRON_SILENCING_PLAN_
+# KEYS (signals.py): the IR fires the key, and the hybrid drops the spurious commander-
+# damage tell when the IR set carries it (a Doran-style combat redirect / a toughness-
+# as-value engine — Geralf, Angelic Chorus — is a plan, not a vanilla beater).
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated ability_copy key. The deleted
 # SWEEP producer (scope 'you') fired HIGH-confidence and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a body whose
@@ -6323,14 +6311,12 @@ def extract_signals(
         # Byte-identical gate mirror over reminder-stripped `text`; NOT SILENCING_KEYS.
         # CR 903.10a / 601.2b.
         or _FREE_CAST_PLAN_MIRROR.search(text)
-        # ADR-0027 β: re-silence the deleted toughness_combat producers (the SWEEP
-        # combat-redirect + the inline _DETECTORS value-payoff, both HIGH-confidence
-        # scope 'you', feeding has_other_plan). The migrated lane rides a byte-identical
-        # kept mirror, so this byte-identical gate mirror — NOT _VOLTRON_SILENCING_PLAN_
-        # KEYS — restores the old silence for ALL cards. Matched against the reminder-
-        # STRIPPED `text` (the deleted producers ran per-clause over stripped text).
-        # CR 903.10a.
-        or _TOUGHNESS_COMBAT_PLAN_MIRROR.search(text)
+        # ADR-0027 C14: toughness_combat is now a fully STRUCTURAL lane, so its
+        # has_other_plan voltron silence is re-supplied via _VOLTRON_SILENCING_PLAN_KEYS
+        # (signals.py) — the IR fires the key, and the hybrid drops the spurious
+        # commander-damage tell when the IR set carries it (a Doran combat redirect / a
+        # toughness-as-value engine is a plan, not a vanilla beater). The plan mirror is
+        # retired. CR 903.10a / 510.1.
         # ADR-0027 β: re-silence the deleted ability_copy SWEEP producer
         # (HIGH-confidence scope 'you', feeding has_other_plan). The migrated lane rides
         # a byte-identical kept mirror, so this byte-identical gate mirror — NOT

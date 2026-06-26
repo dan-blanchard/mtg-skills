@@ -809,6 +809,25 @@ TOUGHNESS_COMBAT_REGEX = (
     r"|\bx (?:is|equals?) [^.]{0,40}\btoughness\b"
     r"|equal to [^.]{0,40}\btoughness\b(?! are each)"
 )
+# ADR-0027 C14 — the NARROWED toughness-as-VALUE residue mirror. The combat-REDIRECT
+# alternative ("assigns combat damage equal to its toughness rather than its power") is
+# now read STRUCTURALLY (phase's AssignDamageFromToughness modification → combat_damage_
+# mod / counter_kind=='from_toughness'), and the clean value cards phase routes through a
+# {type:Toughness} Ref / Aggregate operand fire structurally via Quantity op=='toughness'
+# (Angelic Chorus gain_life, Last March draw). This mirror covers ONLY the measured
+# residue: the toughness-as-value cards phase routes through OTHER projection paths it
+# folds to a fixed/None operand — a token's P/T (Geralf, Kin-Tree Invocation, Soul
+# Separator, Sutured Ghoul), a -X/-X or +X/+X pump-X (Tip the Scales, Freelance Muscle,
+# Snowblind), mana = toughness (Vhal, Arbor Adherent), cost = total toughness (The Pride
+# of Hull Clade), discover/discover-X (Pantlaza). The dedicated combat-redirect + the
+# vestigial mana-value alternatives are dropped; the `equal to … toughness` arm still
+# incidentally matches the redirect phrase, but those fire structurally and the mirror is
+# a harmless dedup backstop. Both value arms are clause-local. CR 119.3 / 604.3.
+TOUGHNESS_VALUE_REGEX = (
+    r"deals damage equal to its toughness"
+    r"|\bx (?:is|equals?) [^.]{0,40}\btoughness\b"
+    r"|equal to [^.]{0,40}\btoughness\b(?! are each)"
+)
 # ADR-0027 β: ltb_matters (leaves-the-battlefield payoffs — sacrifice/blink/bounce
 # fodder to trigger a permanent leaving) migrated to the Card IR. The deleted
 # SWEEP_DETECTORS row's EXACT regex is pinned here so the migrated lane's narrowed

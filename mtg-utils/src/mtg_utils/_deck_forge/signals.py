@@ -555,6 +555,16 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         "targeting_matters",
         "theft_protection",
         "villainous_choice",
+        # ADR-0027 C14: toughness_combat reads STRUCTURE (the combat-redirect from_
+        # toughness marker + the op=='toughness' value operand) with a narrowed value
+        # residue mirror; its full byte-identical plan mirror is retired. The deleted
+        # regex producers fired high-confidence scope 'you' and counted toward
+        # has_other_plan, silencing the spurious commander-damage voltron tell on a
+        # toughness-care body (a Doran combat redirect / a toughness-as-value engine —
+        # Angelic Chorus, Geralf — is a plan, not a vanilla beater). The hybrid
+        # re-silences from the IR re-supply; the structural+mirror set matches the old
+        # silence set (voltron delta 0, verified). CR 903.10a / 510.1.
+        "toughness_combat",
         "named_counter_misc",
         # ADR-0027 β: tribe_damage_trigger fired high-confidence (forced scope 'you') in
         # the regex path and so counted toward has_other_plan, silencing the spurious

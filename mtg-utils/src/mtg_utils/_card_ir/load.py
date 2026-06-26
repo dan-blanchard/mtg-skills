@@ -589,7 +589,21 @@ from mtg_utils.card_ir import Card
 #   from _DIRECT_DAMAGE_MIRROR. direct_damage +19 (the Triple/Plus/static doublers the
 #   regex missed); the 4 creature-only doublers stay out; damage_doubling 0 change;
 #   voltron_matters 3007. CR 614.1 / 120.1 / 115.4.
-SIDECAR_VERSION = 47
+# v48 (ADR-0027 C14_C16): toughness_combat + tribe_damage_trigger projection.
+#   C14a — project._project_static_mods recovers phase's AssignDamageFromToughness
+#   static modification as a combat_damage_mod Effect tagged counter_kind=='from_
+#   toughness' (Doran / Assault Formation / High Alert / Arcades — the +129 multi-
+#   ability faces phase's static-drop missed; supplement._ASSIGN_DAMAGE stamps the same
+#   marker on the abilityless-face recovery). AssignNoCombatDamage (Master of Cruelties)
+#   gets NO marker → the over-fire is excluded structurally.
+#   C14b — project._quantity recovers a Ref/Aggregate Toughness operand as Quantity
+#   op=='toughness' (Angelic Chorus, Last March of the Ents, Geralf); the aggregate arm
+#   keeps the go-wide subject so draw_for_each/scaling_pump don't regress.
+#   C16 — Trigger.source field carries phase's DamageDone valid_source; project reads it
+#   for combat_damage/deals_damage; tribe_damage_trigger fires on a Creature/You source
+#   CLASS (not a SelfRef). Both byte-mirrors retired; toughness_combat voltron silence
+#   moves to _VOLTRON_SILENCING_PLAN_KEYS. CR 510.1 / 510.1b / 119.3 / 604.3.
+SIDECAR_VERSION = 48
 
 
 def card_ir_dir() -> Path:

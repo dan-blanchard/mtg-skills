@@ -163,6 +163,21 @@ class Trigger:
     # (an Or with no player/creature branch, a bare Typed with no card type, or a
     # node phase didn't carry) — no recipient lane fires. CR 510.1b / 510.1c / 120.3.
     recipient: tuple[str, ...] = ()
+    # ADR-0027 C16 combat-damage SOURCE filter (SIDECAR v48): for a `combat_damage` /
+    # `deals_damage` (phase `DamageDone`) trigger, the filter on WHICH object dealing
+    # the damage fires it — phase's `valid_source` ("a creature you control deals combat
+    # damage to a player"). The `event`/`scope`/`subject` otherwise drop it: `subject`
+    # reads `valid_card` (NULL on a DamageDone trigger) and `scope` reads only the
+    # controller, so a board-wide "your creatures connect → reward" payoff (Coastal
+    # Piracy, Bident of Thassa, Toski, Reconnaissance Mission) was indistinguishable
+    # from a SelfRef single-source "when this creature deals combat damage". This
+    # dedicated field re-surfaces the source CLASS so tribe_damage_trigger reads
+    # STRUCTURE (a Typed Creature/You source that is NOT a SelfRef) instead of a
+    # `[A-Z][a-z]+` word regex. A SelfRef / specific-permanent source projects to None
+    # (no Typed class), so the generic-vs-self split is structural. Kept SEPARATE from
+    # `subject` so the damage_to_opp_matters DamageToPlayer subject marker is untouched.
+    # CR 510.1 / 510.1b.
+    source: Filter | None = None
 
 
 @dataclass(frozen=True)
@@ -550,6 +565,9 @@ def _trigger_to_dict(t: Trigger | None) -> dict | None:
         out["z"] = list(t.zones)
     if t.recipient:
         out["rc"] = list(t.recipient)
+    src = _filter_to_dict(t.source)
+    if src is not None:
+        out["src"] = src
     return out
 
 
@@ -562,6 +580,7 @@ def _trigger_from_dict(d: dict | None) -> Trigger | None:
         scope=d.get("sc", "any"),
         zones=tuple(d.get("z", ())),
         recipient=tuple(d.get("rc", ())),
+        source=_filter_from_dict(d.get("src")),
     )
 
 

@@ -1540,14 +1540,14 @@ def test_modifycost_reduce_aggregate_power_recovers_board_count():
 
 
 def test_quantity_lifts_aggregate_sum_filter():
-    """A Ref→Aggregate(Sum, Toughness) lifts its filter as a count operand (Orysa's
-    total-toughness gate, Hobbit's Sting's Sum-of-counts amount)."""
+    """A Ref→Aggregate(Sum, Power) lifts its filter as a count operand (Orysa's
+    total-power gate, Hobbit's Sting's Sum-of-counts amount)."""
     node = {
         "type": "Ref",
         "qty": {
             "type": "Aggregate",
             "function": "Sum",
-            "property": "Toughness",
+            "property": "Power",
             "filter": {
                 "type": "Typed",
                 "type_filters": ["Creature"],
@@ -1562,6 +1562,45 @@ def test_quantity_lifts_aggregate_sum_filter():
     assert q is not None
     assert q.op == "count"
     assert q.subject == Filter(card_types=("Creature",), controller="you")
+
+
+def test_quantity_aggregate_toughness_is_op_toughness_keeps_filter():
+    """ADR-0027 C14 — a Ref→Aggregate over TOUGHNESS ("draw cards equal to the
+    greatest toughness among creatures you control" — Last March of the Ents) stamps
+    op=='toughness' (the toughness_combat discriminator) but KEEPS the go-wide filter
+    as subject so draw_for_each / scaling_pump don't regress when op flips off
+    'count'."""
+    node = {
+        "type": "Ref",
+        "qty": {
+            "type": "Aggregate",
+            "function": "Max",
+            "property": "Toughness",
+            "filter": {
+                "type": "Typed",
+                "type_filters": ["Creature"],
+                "controller": "You",
+                "properties": [],
+            },
+        },
+    }
+    from mtg_utils._card_ir.project import _quantity
+
+    q = _quantity(node)
+    assert q is not None
+    assert q.op == "toughness"
+    assert q.subject == Filter(card_types=("Creature",), controller="you")
+
+
+def test_quantity_ref_toughness_is_op_toughness():
+    """ADR-0027 C14 — a Ref over a bare Toughness operand ("gain life equal to its
+    toughness" — Angelic Chorus) stamps op=='toughness', subject None."""
+    from mtg_utils._card_ir.project import _quantity
+
+    q = _quantity({"type": "Ref", "qty": {"type": "Toughness", "scope": "Anaphoric"}})
+    assert q is not None
+    assert q.op == "toughness"
+    assert q.subject is None
 
 
 def test_cantbeblockedby_your_creatures_is_mass_evasion_grant():
@@ -6321,6 +6360,169 @@ def test_recipient_round_trips_through_serialization():
     )
     restored = Card.from_dict(card.to_dict())
     assert _cdmg_trigger(restored).recipient == ("creature", "player")
+
+
+# ── ADR-0027 C16: combat-damage SOURCE filter (tribe_damage_trigger) ───────────
+# phase carries the dealing-creature filter on a DamageDone trigger's valid_source;
+# project preserves it as Trigger.source so tribe_damage_trigger reads a go-wide
+# creature-population source instead of a single-word `[A-Z][a-z]+` regex. CR 510.1.
+
+
+def _cdmg_source_record(valid_source, *, valid_target=None, desc="x"):
+    """A combat_damage trigger record carrying a valid_source (the dealing creature
+    population) plus an optional player valid_target recipient."""
+    rec = _cdmg_record(valid_target or {"type": "Player"}, desc=desc)
+    rec["triggers"][0]["valid_source"] = valid_source
+    return rec
+
+
+def test_combat_damage_source_creature_you_is_preserved():
+    """Coastal Piracy: 'Whenever a creature you control deals combat damage to a
+    player' — valid_source {Creature, You} → Trigger.source Filter(Creature/you)."""
+    card = project_card(
+        [
+            _cdmg_source_record(
+                {"type": "Typed", "type_filters": ["Creature"], "controller": "You"},
+                desc=(
+                    "Whenever a creature you control deals combat damage to a "
+                    "player, you may draw a card."
+                ),
+            )
+        ]
+    )
+    src = _cdmg_trigger(card).source
+    assert src == Filter(card_types=("Creature",), controller="you")
+
+
+def test_combat_damage_source_subtype_population_is_preserved():
+    """Exsanguinator Cavalry: 'Whenever a Knight you control deals combat damage to a
+    player' — a creature SUBTYPE source → Filter(subtypes=('Knight',), you)."""
+    card = project_card(
+        [
+            _cdmg_source_record(
+                {
+                    "type": "Typed",
+                    "type_filters": [{"Subtype": "Knight"}],
+                    "controller": "You",
+                },
+                desc=(
+                    "Whenever a Knight you control deals combat damage to a player, "
+                    "put a +1/+1 counter on that creature."
+                ),
+            )
+        ]
+    )
+    src = _cdmg_trigger(card).source
+    assert src is not None
+    assert src.subtypes == ("Knight",)
+    assert src.controller == "you"
+
+
+def test_combat_damage_self_source_projects_to_none():
+    """A SelfRef source ('whenever this creature deals combat damage') is the single-
+    source combat_damage_to_opp case — project gives Trigger.source = None, so
+    tribe_damage_trigger (go-wide) cannot fire on it."""
+    card = project_card([_cdmg_source_record({"type": "SelfRef"})])
+    assert _cdmg_trigger(card).source is None
+
+
+def test_combat_damage_source_round_trips_through_serialization():
+    """Trigger.source survives the compact sidecar round-trip (key 'src')."""
+    card = project_card(
+        [
+            _cdmg_source_record(
+                {"type": "Typed", "type_filters": ["Creature"], "controller": "You"}
+            )
+        ]
+    )
+    restored = Card.from_dict(card.to_dict())
+    assert _cdmg_trigger(restored).source == Filter(
+        card_types=("Creature",), controller="you"
+    )
+
+
+# ── ADR-0027 C14: AssignDamageFromToughness → combat_damage_mod/from_toughness ──
+
+
+def _assign_dmg_static(mod_type, desc):
+    """A continuous static over your creatures carrying one damage-assignment
+    modification (the Doran / Master of Cruelties shape)."""
+    return {
+        "name": "T",
+        "scryfall_oracle_id": "assign-dmg",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": desc,
+        "static_abilities": [
+            {
+                "mode": "Continuous",
+                "affected": {
+                    "type": "Typed",
+                    "type_filters": ["Creature"],
+                    "controller": "You",
+                },
+                "modifications": [{"type": mod_type}],
+                "description": desc,
+            }
+        ],
+    }
+
+
+def test_assign_damage_from_toughness_is_combat_damage_mod_from_toughness():
+    """Assault Formation: 'Each creature you control assigns combat damage equal to
+    its toughness rather than its power' — phase's AssignDamageFromToughness static
+    modification → a combat_damage_mod Effect tagged counter_kind=='from_toughness'
+    (the toughness_combat discriminator). CR 510.1."""
+    rec = _assign_dmg_static(
+        "AssignDamageFromToughness",
+        "Each creature you control assigns combat damage equal to its toughness "
+        "rather than its power.",
+    )
+    effs = [
+        e for e in _effects(project_card([rec])) if e.category == "combat_damage_mod"
+    ]
+    assert effs, "expected a combat_damage_mod effect"
+    assert all(e.counter_kind == "from_toughness" for e in effs)
+
+
+def test_assign_no_combat_damage_gets_no_from_toughness_marker():
+    """Master of Cruelties' static analogue: an AssignNoCombatDamage modification is a
+    SUPPRESSION (CR 510.1b/c), NOT a toughness care — it gets NO from_toughness marker,
+    so the toughness_combat over-fire is excluded structurally."""
+    rec = _assign_dmg_static(
+        "AssignNoCombatDamage",
+        "Creatures you control assign no combat damage.",
+    )
+    cdm = [
+        e for e in _effects(project_card([rec])) if e.category == "combat_damage_mod"
+    ]
+    assert all(e.counter_kind != "from_toughness" for e in cdm)
+
+
+def test_supplement_assign_damage_marks_from_toughness_on_abilityless_face():
+    """Doran's abilityless single-static face (recovered by supplement's _ASSIGN_DAMAGE
+    oracle gap-filler) gets the SAME from_toughness marker for consistency — but only
+    when the clause names 'toughness', not 'no combat damage'."""
+    from mtg_utils._card_ir.supplement import _recover_static_pattern
+    from mtg_utils.card_ir import Effect
+
+    doran = _recover_static_pattern(
+        Effect(
+            category="other",
+            raw=(
+                "Each creature assigns combat damage equal to its toughness "
+                "rather than its power."
+            ),
+        )
+    )
+    assert doran is not None
+    assert doran.category == "combat_damage_mod"
+    assert doran.counter_kind == "from_toughness"
+    master = _recover_static_pattern(
+        Effect(category="other", raw="~ assigns no combat damage.")
+    )
+    assert master is not None
+    assert master.category == "combat_damage_mod"
+    assert master.counter_kind == ""
 
 
 def test_supplement_recovers_player_recipient_from_granted_ability():

@@ -139,7 +139,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TOKEN_COPY_MATTERS_REGEX,
     TOKENS_MATTER_REGEX,
     TOPDECK_STACK_SWEEP_REGEX,
-    TOUGHNESS_COMBAT_REGEX,
+    TOUGHNESS_VALUE_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
     UNSPENT_MANA_REGEX,
     VEHICLES_MATTER_REGEX,
@@ -1704,14 +1704,22 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # player → to_opp) and the residue phase leaves unstructured rides a synthetic
     # combat_damage trigger from supplement._recover_combat_damage_recipients — NOT a
     # mirror here. CR 510.1b / 510.1c / 120.3.
-    # ADR-0027 β — tribe_damage_trigger: phase leaves the combat_damage trigger subject
-    # = None (no structure to read — the `tsub_kinds` arm in extract_signals_ir was DEAD
-    # CODE, never firing on a combat-damage trigger), so this is a byte-identical KEPT
-    # MIRROR of the deleted SWEEP regex, not a projection. Under re.IGNORECASE the
-    # `[A-Z][a-z]+` ALSO matches a generic "creature", so the lane is really "your
-    # creatures connect for combat damage → reward" (Toski, Reconnaissance Mission,
-    # Coastal Piracy, Bident of Thassa), not strictly tribal. Scope 'you' (the deleted
-    # SWEEP row's scope). Reuses the shared regex so serve / mirror never drift.
+    # ADR-0027 C16 — tribe_damage_trigger reads STRUCTURE in extract_signals_ir
+    # (combat_damage block): phase carries the combat-damage SOURCE on the DamageDone
+    # trigger's `valid_source`, which project now preserves as `trig.source`. The
+    # structural arm (a you-controlled Creature/subtype population source, not a
+    # SelfRef) is a RECALL SUPERSET of this regex (+50 commander-legal — the qualified/
+    # subtype sources the single-word `[A-Z][a-z]+ you control` pattern could never
+    # match: Keeper of Fables "non-Human creatures", Quartzwood Crasher "creatures with
+    # trample", Tovolar "Wolf or Werewolf", Moria Marauder "Goblin or Orc", Mu Yanling
+    # "creatures with flying", Vraska Joins Up "legendary creature"). This regex is
+    # RETAINED as a NARROW residue backstop ONLY for the phase valid_source-DROP tail
+    # (risk #6): a combat-damage trigger QUOTED inside a planeswalker loyalty ability or
+    # a granted/delayed "this turn" clause (Jace Cunning Castaway, Dovin, Popular
+    # Entertainer, Surge to Victory), where phase folds the trigger and leaves
+    # valid_source=None, plus the "outlaw" AnyOf-subtype predicate source (Olivia) phase
+    # routes off the subtypes field. Reuses the shared regex so serve never drifts;
+    # add() dedups with the structural arm. CR 510.1 / 510.1b.
     (
         "tribe_damage_trigger",
         re.compile(TRIBE_DAMAGE_TRIGGER_REGEX, re.IGNORECASE),
@@ -5247,24 +5255,19 @@ _ANIMATE_ARTIFACT_MIRROR = re.compile(ANIMATE_ARTIFACT_REGEX, re.IGNORECASE)
 # of 39 "as though it had flash" cards only Qasali Ambusher fires (genuine: it pairs
 # without-cost + flash). CR 601.2b / 118.9.
 _FREE_CAST_MIRROR = re.compile(FREE_CAST_REGEX, re.IGNORECASE)
-# toughness_combat BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the
-# EXACT OR of two deleted producers (pinned TOUGHNESS_COMBAT_REGEX) over the reminder-
-# stripped kept_oracle — the Doran / Assault Formation / High Alert combat
-# redirect ("assigns combat damage equal to its toughness rather than power"), PLUS
-# the broader toughness-as-VALUE payoff half ("X is … toughness", "equal to … toughness"
-# — gain life / deal damage / draw / X/X token / lose life keyed on a creature's
-# toughness; Geralf, Last March of the Ents, Angelic Chorus). NOT a structural
-# `combat_damage_mod` arm: phase parses the Doran clause as an AssignDamageFromToughness
-# modification but project._project_static_mods drops it on every multi-ability face, so
-# the category fires on only 21 commander-legal (MISSES 129/133, no structural form for
-# the 111 value-payoffs) and over-fires 81% on "deal damage equal to its POWER" combat
-# punches (Laccolith *, Master of Cruelties). The deleted regexes are precise (133/133
-# genuine), so the lane rides their OR byte-identically. Both arms are clause-local (no
-# `[^.]` crossing a sentence), so this full-text scan == the deleted per-clause union
-# (commander-legal: regex==mirror, 0 lost, 0 over-fire). The value-payoff arm's
-# `(?! are each)` veto keeps a set-base */* ("power and toughness are each equal to …" —
-# variable_pt) off the lane. CR 510.1c / 122 / 604.3.
-_TOUGHNESS_COMBAT_MIRROR = re.compile(TOUGHNESS_COMBAT_REGEX, re.IGNORECASE)
+# ADR-0027 C14 — toughness_combat reads STRUCTURE for the combat-REDIRECT half + the
+# clean toughness-as-value operands (the full byte-identical mirror is retired):
+# project recovers phase's AssignDamageFromToughness static modification as a
+# combat_damage_mod / counter_kind=='from_toughness' Effect (the +129 multi-ability
+# faces phase's static-drop missed) and a {type:Toughness} Ref/Aggregate operand as a
+# Quantity op=='toughness' (Angelic Chorus gain_life, Last March draw). The narrowed
+# _TOUGHNESS_VALUE_MIRROR backs
+# only the toughness-as-VALUE residue phase folds to a fixed/None operand (a token P/T —
+# Geralf, Kin-Tree; a pump-X — Tip the Scales; mana / cost = toughness — Vhal, Pride of
+# Hull Clade). The from_toughness / op=='toughness' discriminator excludes the
+# AssignNoCombatDamage (Master of Cruelties) + "equal to its power" over-fires the broad
+# regex caught. CR 510.1 / 119.3 / 604.3.
+_TOUGHNESS_VALUE_MIRROR = re.compile(TOUGHNESS_VALUE_REGEX, re.IGNORECASE)
 # ability_copy BYTE-IDENTICAL kept mirror (ADR-0027 β): the "Ability copy" build-around
 # fires from the EXACT deleted SWEEP regex (pinned ABILITY_COPY_REGEX) over the
 # reminder- stripped kept_oracle — copy an activated/triggered ability (Strionic
@@ -5733,7 +5736,13 @@ def _is_scaling_count(amount: Quantity | None, raw: str) -> bool:
         return False
     if amount.op in _NAMED_SCALE_OPS:
         return True
-    if amount.op not in ("count", "multiply"):
+    # ADR-0027 C14 — op=="toughness" (a Max/Sum-toughness aggregate over a board filter,
+    # Last March of the Ents) is byte-identical to the op=="count" it replaced for this
+    # gate: it carries the same go-wide count-over-board subject (so draw_for_each /
+    # scaling_pump don't regress when project flips count→toughness), and a subjectless
+    # Ref→Toughness ("equal to its toughness") falls to the same _FOR_EACH_RAW check the
+    # old op=="count" subject=None path used. CR 604.3.
+    if amount.op not in ("count", "multiply", "toughness"):
         return False
     return amount.subject is not None or bool(_FOR_EACH_RAW.search(raw or ""))
 
@@ -9605,6 +9614,33 @@ def extract_signals_ir(
                     add("combat_damage_to_creature", "any", "", "")
                 if "player" in rcp:
                     add("combat_damage_to_opp", "opponents", "", "")
+                # ADR-0027 C16 — tribe_damage_trigger STRUCTURAL arm (regex kept only as
+                # a residue backstop): the go-wide "[your creatures] deal combat damage
+                # to a player -> reward" payoff (Coastal Piracy, Bident, Toski; the
+                # tribal-subtype forms Exsanguinator/Knight, Rakish Heir/Vampire,
+                # Seshiro/Snake, Setzer/Vehicle; the qualified forms Keeper of Fables/
+                # non-Human, Mu Yanling/flying — +recall the regex's single-word
+                # `[A-Z][a-z]+ you control` pattern missed). phase carries the SOURCE on
+                # the DamageDone trigger's valid_source (project -> trig.source); fire
+                # when the recipient reaches a PLAYER (CR 510.1b) AND the source is a
+                # YOUR-controlled creature POPULATION — a `Creature` card_type OR a
+                # creature SUBTYPE (Knight / Vampire / Vehicle — only creatures deal
+                # combat damage, so a subtype source is a creature at combat). A SelfRef
+                # single-permanent source projects to None (the combat_damage_to_opp
+                # self case); a pure-predicate source with no type ("a commander you
+                # control" — Kediss) is a single-source commander-spread, NOT a go-wide
+                # population, so it stays out. The source-is-a-CLASS test (vs "this
+                # creature") is the discriminator. CR 510.1 / 510.1b.
+                if (
+                    "player" in rcp
+                    and isinstance(trig.source, Filter)
+                    and _filter_controller(trig.source) == "you"
+                    and (
+                        "Creature" in trig.source.card_types
+                        or bool(trig.source.subtypes)
+                    )
+                ):
+                    add("tribe_damage_trigger", "you", "", "")
             # ADR-0027 β damage_to_opp_matters — a NON-COMBAT "deals damage to a
             # PLAYER / opponent" connect-payoff (Hypnotic Specter, Curiosity,
             # Goblin Lackey, Fungal Shambler). project._project_trigger stamps the
@@ -9627,10 +9663,10 @@ def extract_signals_ir(
                 and "DamageToPlayer" in trig.subject.predicates
             ):
                 add("damage_to_opp_matters", "opponents", "", "")
-            # ADR-0027 β — tribe_damage_trigger's dead `if tsub_kinds:` arm is removed:
-            # phase leaves a combat_damage trigger's subject = None, so tsub_kinds is
-            # always empty and the arm never fired. The lane is now served by the
-            # byte-identical _IR_KEPT_DETECTORS mirror.
+            # ADR-0027 — tribe_damage_trigger's dead `if tsub_kinds:` arm stays removed:
+            # phase leaves a combat_damage trigger's `subject` = None (valid_card is
+            # null on a DamageDone trigger). The lane now reads the SOURCE class off
+            # trig.source in the combat_damage block above. CR 510.1.
             if ev == "cast_spell":
                 # ADR-0027 opponent_cast_matters — the explicit scope=opp half
                 # ("whenever an opponent casts a spell" — Lavinia, Nekusar). The
@@ -10755,19 +10791,28 @@ def extract_signals_ir(
     # the deleted per-clause SWEEP set. CR 601.2b / 118.9.
     if _FREE_CAST_MIRROR.search(kept_oracle):
         add("free_cast", "you", "", "")
-    # ADR-0027 β — toughness_combat BYTE-IDENTICAL kept mirror. TWO deleted producers
-    # feed the key — the SWEEP combat-redirect ("assigns combat damage equal to its
-    # toughness rather than its power" — Doran / Assault Formation / High Alert) and
-    # the inline _DETECTORS value-payoff ("X is … toughness", "equal to … toughness"
-    # — Geralf, Last March of the Ents). phase parses the Doran clause as an
-    # AssignDamageFromToughness modification but project drops it on every multi-ability
-    # face, so the structural `combat_damage_mod` category fires on only 21 commander-
-    # legal (MISSES 129/133, no form for the 111 value-payoffs) and over-fires 81% on
-    # "deal damage equal to its POWER" punches. So recover the lane with the EXACT OR of
-    # the two deleted regexes over the reminder-stripped kept_oracle (scope 'you',
-    # matching the deleted producers). The `(?! are each)` veto keeps set-base */*
-    # (variable_pt) off. add() dedups. CR 510.1c / 122 / 604.3.
-    if _TOUGHNESS_COMBAT_MIRROR.search(kept_oracle):
+    # ADR-0027 C14 — toughness_combat STRUCTURAL arm (mirror retired). TOUGHNESS matters
+    # for combat in TWO structurally-distinct subsets, both now read from the IR:
+    #   • combat-REDIRECT — phase's `AssignDamageFromToughness` static modification,
+    #     projected to a combat_damage_mod Effect with counter_kind=='from_toughness'
+    #     (Doran, Assault Formation, High Alert, Arcades, Bedrock Tortoise). The project
+    #     arm fixes the +129 MULTI-ability faces phase's static-drop missed (the
+    #     supplement oracle gap-filler only recovered the ~21 abilityless single-static
+    #     faces). `AssignNoCombatDamage` (Master of Cruelties — a suppression, CR
+    #     510.1b/c) carries NO from_toughness marker, so the "no combat damage" /
+    #     "equal to its POWER" over-fires the broad oracle regex caught are DROPPED.
+    #   • toughness-as-VALUE — a Quantity with op=='toughness' ("gain life equal to its
+    #     toughness" Angelic Chorus; "draw cards equal to the greatest toughness" Last
+    #     March; an X set to a creature's toughness Geralf), recovered in project._
+    #     quantity's Ref/Aggregate Toughness arms.
+    # The from_toughness marker / op=='toughness' IS the toughness-vs-power/no-damage
+    # discriminator the broad regex couldn't make. CR 510.1 / 119.3 / 604.3.
+    if any(
+        (e.category == "combat_damage_mod" and e.counter_kind == "from_toughness")
+        or (e.amount is not None and e.amount.op == "toughness")
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    ) or _TOUGHNESS_VALUE_MIRROR.search(kept_oracle):
         add("toughness_combat", "you", "", "")
     # ADR-0027 β — ability_copy BYTE-IDENTICAL kept mirror. The "Ability copy" build-
     # around — copy an activated/triggered ability (Strionic, Lithoform, Rings, Bracers,

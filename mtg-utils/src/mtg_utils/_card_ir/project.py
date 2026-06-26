@@ -2126,12 +2126,24 @@ def _project_trigger(tr: dict) -> Ability:
     recipient: tuple[str, ...] = ()
     if event == "combat_damage":
         recipient = tuple(sorted(_recipient_of_target(tr.get("valid_target"))))
+    # ADR-0027 C16 (SIDECAR v48) — preserve the combat/deals-damage SOURCE filter phase
+    # carries on `valid_source` ("a creature you control deals combat damage to a
+    # player"). The Trigger otherwise drops it: `subject` reads valid_card (NULL on a
+    # DamageDone trigger) and `scope` reads only the controller. A dedicated `source`
+    # field (NOT subject) keeps the deals_damage DamageToPlayer subject marker and every
+    # other subject consumer untouched. tribe_damage_trigger reads this to split a
+    # board-wide "your creatures connect" payoff from a SelfRef single-source (a SelfRef
+    # source projects to None). CR 510.1 / 510.1b.
+    source: Filter | None = None
+    if event in ("combat_damage", "deals_damage"):
+        source = _filter(tr.get("valid_source"))
     trigger = Trigger(
         event=event,
         subject=subject,
         scope=_trigger_scope(tr),
         zones=zones,
         recipient=recipient,
+        source=source,
     )
     effects = _collect_effects(tr.get("execute"), tr.get("description") or "")
     return _recover_clone_subjects(
@@ -3032,6 +3044,31 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
                 )
             elif isinstance(kw, dict) and kw:
                 grants_ability_or_type = True
+        elif mt == "assigndamagefromtoughness":
+            # ADR-0027 C14 — a continuous static that makes the affected creatures
+            # ASSIGN combat damage equal to their TOUGHNESS rather than their power
+            # (Doran, Assault Formation, High Alert, Arcades, Bedrock Tortoise). phase
+            # carries this as an `AssignDamageFromToughness` modification over the
+            # affected set, but the modifications loop had NO arm for it → the whole
+            # static returned [] → _project_top_static dropped it on every MULTI-ability
+            # face (the abilityless single-static faces survive via supplement's
+            # _ASSIGN_DAMAGE oracle gap-filler). Surface a combat_damage_mod Effect with
+            # the `from_toughness` marker (the discriminator the toughness_combat lane
+            # reads). CR 510.1: a creature normally assigns combat damage equal to its
+            # power; this REPLACES the amount with its toughness — a toughness payoff.
+            # `AssignNoCombatDamage` (Master of Cruelties — a SUPPRESSION, not a
+            # toughness care, CR 510.1b/c) is a DISTINCT phase modification type and
+            # gets NO arm here, so the over-fire the broad oracle regex caught is
+            # excluded structurally.
+            out.append(
+                Effect(
+                    category="combat_damage_mod",
+                    counter_kind="from_toughness",
+                    scope=_controller_scope(affected),
+                    subject=affected,
+                    raw=desc,
+                )
+            )
     # A static that SETS base power AND toughness on OTHER permanents (Lignify 0/4,
     # Ovinize 0/1, Kenrith's Transformation, mass-animate like Living Plane) — the
     # base-P/T TOOLBOX. Distinct from a +X/+X pump. Excludes a characteristic-defining
@@ -3742,6 +3779,17 @@ def _quantity(node: object) -> Quantity | None:
             # inert metadata on any other effect ("draw equal to its power", etc.).
             if qt == "power":
                 return Quantity(op="power", factor=1)
+            # ADR-0027 C14 — a Ref over a Toughness operand ("gain life equal to its
+            # toughness" — Angelic Chorus; "deals damage equal to its toughness"; an X
+            # set to a creature's toughness — Geralf). phase folds this to a bare
+            # op="count" (subject=None), so the toughness-as-VALUE payoff was invisible.
+            # Recover op="toughness" (mirroring the op="power" arm above) so the
+            # toughness_combat lane reads the toughness-scaling discriminator.
+            # CR 119.3 / 604.3. A SetToughness/CDA */* (Serra Avatar) never produces a
+            # {type:Toughness} Ref qty, and a PtComparison threshold is a _predicate
+            # string not a Quantity, so op="toughness" cannot collide with either.
+            if qt == "toughness":
+                return Quantity(op="toughness", factor=1)
             # a Ref over an Aggregate (Sum of total power/toughness over a filter —
             # Ghalta, Orysa's gate): the operand IS that population. Lift the filter
             # so a count-over-own-board lane reads it (CR 604.3). NB: this is still
@@ -3749,6 +3797,14 @@ def _quantity(node: object) -> Quantity | None:
             # whether the population is summed power or a head count.
             if qt == "aggregate":
                 f = _filter(qty.get("filter"))
+                # ADR-0027 C14 — a Max/Sum aggregate over TOUGHNESS ("draw cards equal
+                # to the greatest toughness among creatures you control" — Last March of
+                # the Ents) is a toughness-as-value payoff: stamp op="toughness" but
+                # KEEP the go-wide count-over-board filter as subject so draw_for_each /
+                # scaling_pump / typed-matters reads (which key on amount.subject, op-
+                # agnostically; _is_scaling_count admits "toughness") don't regress.
+                if _norm(qty.get("property")) == "toughness":
+                    return Quantity(op="toughness", factor=1, subject=f)
                 return Quantity(op="count", factor=1, subject=f)
         return Quantity(op="count", factor=1, subject=_objectcount_filter(qty))
     if t == "counterson" and _norm(node.get("counter_type")) == "p1p1":
