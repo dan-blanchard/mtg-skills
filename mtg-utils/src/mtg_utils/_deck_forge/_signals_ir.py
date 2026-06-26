@@ -8196,6 +8196,22 @@ def extract_signals_ir(
             # lane convention). CR 701.23 / 401.
             if cat == "dig_until" and e.scope == "you":
                 add("dig_until", "you", "", e.raw)
+            # ADR-0027 C8 (SIDECAR v50) — dig_until OWNER-RESOLVED arm. phase
+            # RE-CATEGORIZES a your-library reveal-UNTIL dig to `cheat_play` (Mass
+            # Polymorph, Madcap Experiment) or leaves it a plain `reveal` with the
+            # owner unresolved (Fathom Trawl, Open the Way, Treasure Keeper — scope
+            # 'any'). The dig is still an own-library deep dig; the OWNER now rides the
+            # additive `top:you` tag (project._recover_top_of_library_owner), NOT scope
+            # — so this arm gates on `top:you` (own library) plus an `until` body (a
+            # reveal-UNTIL-a-condition dig, distinct from a fixed reveal-and-select
+            # like Fact or Fiction, which is topdeck_selection only). The owner gate
+            # keeps opponent-library reveal-until mills (top:opp) OUT. CR 701.23.
+            if (
+                cat in ("cheat_play", "reveal")
+                and "top:you" in e.zones
+                and re.search(r"\buntil you\b", (e.raw or "").lower())
+            ):
+                add("dig_until", "you", "", e.raw)
             # ADR-0027 topdeck library-owner scope (SIDECAR v28) — topdeck_selection
             # STRUCTURAL ARM. A `topdeck_select` EFFECT scope=='you' is the controller's
             # OWN-library card selection: the structured scry/surveil DOERS ("scry 2",
@@ -8214,6 +8230,20 @@ def extract_signals_ir(
             # cascade/dig bodies). Scope "you" (the lane convention). CR 701.18 / 701.42
             # / 116.
             if cat == "topdeck_select" and e.scope == "you":
+                add("topdeck_selection", "you", "", e.raw)
+            # ADR-0027 C8 (SIDECAR v50) — topdeck_selection OWNER-RESOLVED arm. The
+            # broad own-library curation surface: ANY effect carrying the additive
+            # `top:you` tag (project._recover_top_of_library_owner resolves the library
+            # OWNER from the raw on every from:top effect). This unifies the structured
+            # scry/surveil/look DOERS (already 'you' above) with the `reveal`-cat
+            # reveal-and-select forms phase leaves scope='any' because "an opponent
+            # separates" obscures that the library is YOURS — Fact or Fiction, Mulch,
+            # Sphinx of Uthuun — and the cheat/dig bodies that look at your top. The
+            # OWNER gate (top:you, NOT scope) is the CR-401.1 boundary: "top of YOUR
+            # library" curation here vs "top of an OPPONENT's library" theft (Gonti,
+            # Lurking Informant — top:opp) excluded. This is legitimate breadth (CR
+            # 701.18/701.25 own-library selection), not over-fire. CR 401.1 / 116.
+            if "top:you" in e.zones:
                 add("topdeck_selection", "you", "", e.raw)
             # ADR-0027 lifeloss_matters — a structured life-LOSS effect. phase emits a
             # `lose_life` category distinct from gain_life / set_life, so the lane reads
@@ -10371,36 +10401,66 @@ def extract_signals_ir(
     # dedups vs the structural arm. Subjectless, scope 'you' (deleted scope). CR 701.8a.
     if any(_DISCARD_OUTLET_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
         add("discard_outlet", "you", "", "")
-    # ADR-0027 dig library-owner scope (SIDECAR v27) — dig_until kept mirror. The
-    # structural `dig_until` EFFECT scope=='you' arm covers the 49 own-library digs
-    # phase models as a dig effect; but phase RE-CATEGORIZES 44 your-library digs to
-    # cheat_play / reveal / topdeck_stack (the cascade / discover / polymorph bodies —
-    # Apex Devastator, Mass Polymorph, Madcap Experiment, Maelstrom Wanderer), so their
-    # `dig_until` effect is gone. This is the EXACT deleted SWEEP regex
-    # (_DIG_UNTIL_SWEEP_RE) run PER-CLAUSE over the reminder-STRIPPED kept_oracle
-    # (matching the deleted SWEEP path byte-identically: cascade/discover restate the
-    # dig in PARENTHETICAL reminder text — stripped — so they never matched and still
-    # don't; union == 93 == the deleted producer, 0 over-fire). The regex is
-    # YOUR-library-anchored, so it never matches the opponent-library mills the
-    # structural arm also drops. add() dedups vs the structural arm. Scope 'you'
-    # (deleted scope). CR 701.23 / 401.
-    if any(_DIG_UNTIL_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
+    # ADR-0027 C8 (SIDECAR v50) — dig_until NARROWED keep-mirror, parse-gap residue
+    # only. The structural arms now own the bulk: the `dig_until` EFFECT scope=='you'
+    # arm + the C8 owner-resolved `cat in {cheat_play,reveal} and top:you and until`
+    # arm (cascade / discover / polymorph reveal-until bodies — Mass Polymorph, Madcap,
+    # Fathom Trawl, Open the Way). What REMAINS for the mirror is the tail phase emits
+    # NO top-of-library dig structure at all — a draw-replacement dig (Abundance,
+    # Underrealm Lich), a Saga / vote / mutate / roll body (An Unearthly Child,
+    # Selvala's Stampede, Auspicious Starrix, Kaboom!), a grandeur-cost dig (Page,
+    # Loose Leaf), a cast-trigger dig (Old Stickfingers). This mirror fires ONLY when
+    # the IR carries no dig/owner structure (so it never overlaps the structural arms —
+    # add() would dedup anyway, but the gate is the C13 exile_removal precedent: a
+    # residue mirror is gated to where structure has nothing). The regex stays
+    # YOUR-library-anchored, so it never matches an opponent-library mill. CR 701.23.
+    _ir_has_dig_struct = ir is not None and any(
+        (e.category == "dig_until" and e.scope == "you")
+        or (
+            e.category in ("cheat_play", "reveal")
+            and "top:you" in e.zones
+            and re.search(r"\buntil you\b", (e.raw or "").lower())
+        )
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    )
+    if not _ir_has_dig_struct and any(
+        _DIG_UNTIL_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)
+    ):
         add("dig_until", "you", "", "")
-    # ADR-0027 topdeck library-owner scope (SIDECAR v28) — topdeck_selection kept
-    # mirror. The structural `topdeck_select` EFFECT scope=='you' arm covers the
-    # scry/surveil doers + the supplement-promoted your-library look/reveal; but phase
-    # RE-CATEGORIZES 148 your-library reveals to `reveal` / cast_play (the "reveal the
-    # top N cards of your library, an opponent separates …" Fact-or-Fiction pile cards —
-    # Fact or Fiction, Allure of the Unknown, Sphinx of Uthuun; the cascade/dig reveal
-    # bodies — Ajani Unyielding, Atraxa Grand Unifier, Borborygmos Enraged), so their
-    # `topdeck_select` effect is gone. This is the EXACT deleted SWEEP regex
-    # (_TOPDECK_SELECTION_SWEEP_RE) run PER-CLAUSE over the reminder-STRIPPED
-    # kept_oracle (matching the deleted SWEEP path byte-identically). The regex is
-    # YOUR-library-anchored ("the top N cards of your library", "reveal cards from the
-    # top of your library until", "put … from among them onto the battlefield"), so it
-    # never matches the opponent-library peeks the structural arm also drops. add()
-    # dedups vs the structural arm. Scope 'you' (deleted scope). CR 116 / 701.18.
-    if any(_TOPDECK_SELECTION_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
+    # ADR-0027 C8 (SIDECAR v50) — topdeck_selection NARROWED keep-mirror, parse-gap
+    # residue only. The structural arms now own the bulk: the `topdeck_select`
+    # scope=='you' arm (scry/surveil doers + supplement-promoted your-library look) +
+    # the C8 owner-resolved `top:you` arm (Fact or Fiction & the reveal-and-select pile
+    # cards phase leaves scope='any'). What REMAINS for the mirror is (a) the modal /
+    # Saga / entwine your-library topdeck_select whose EFFECT-LOCAL raw is EMPTY so the
+    # owner can't be read from the effect (Supreme Will, Second Sight, The World Spell,
+    # Wail of the Forgotten, You Meet in a Tavern, Maestros Charm — genuinely effect-
+    # local-unstructurable, the spec's named keep-mirror residue), and (b) the tail
+    # phase emits NO top-of-library structure at all (Underrealm Lich's draw-
+    # replacement, Scion of Halaster's granted ability, Arcane Investigator's roll). The
+    # OWNER gate is the new correctness gain over the old broad mirror: it fires ONLY
+    # when the IR carries NO own-library topdeck structure (top:you / topdeck_select
+    # you) AND NO opponent-library structure (top:opp) — so the OPPONENT-library peeks
+    # the old `put … from among them onto the battlefield` regex arm WRONGLY matched
+    # (Lonis "target opponent reveals the top X of their library"; Lord of the Void
+    # "exile the top seven of that player's library") are DROPPED (CR 401.1 — a
+    # different player's library is theft, not own-library curation, made structural).
+    # The regex stays YOUR-library-anchored. add() dedups vs the structural arms. CR
+    # 116 / 701.18 / 401.1.
+    _ir_has_own_topdeck = ir is not None and any(
+        "top:you" in e.zones or (e.category == "topdeck_select" and e.scope == "you")
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    )
+    _ir_has_opp_topdeck = ir is not None and any(
+        "top:opp" in e.zones for ab in ir.all_abilities() for e in ab.effects
+    )
+    if (
+        not _ir_has_own_topdeck
+        and not _ir_has_opp_topdeck
+        and any(_TOPDECK_SELECTION_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle))
+    ):
         add("topdeck_selection", "you", "", "")
     # ADR-0027 exile_removal (C13) — NARROWED keep-mirror, E-bucket only. The
     # structural `cat=="exile"` single-target arm (above, with the v30 supplement

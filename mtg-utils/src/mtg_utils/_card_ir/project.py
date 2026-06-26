@@ -19,6 +19,8 @@ import re
 from dataclasses import replace
 
 from mtg_utils._card_ir.supplement import (
+    _TOPDECK_OTHER_ZONE,
+    _TOPDECK_YOUR_LIBRARY,
     _copied_type_from_text,
     _recover_base_pt_set,
     _recover_combat_damage_recipients,
@@ -752,6 +754,27 @@ def project_card(records: list[dict]) -> Card:
             replace(
                 face,
                 abilities=tuple(_recover_blink_returns_to(a) for a in face.abilities),
+            )
+            for face in card.faces
+        ),
+    )
+    # Post-supplement top-of-library owner + from:top normalization (ADR-0027 C8):
+    # re-run AFTER the supplement re-derives a `reveal` CATEGORY from an `other` clause
+    # (Fathom Trawl, Open the Way, Treasure Keeper — the reveal-from-top-UNTIL forms
+    # phase typed as a plain `other`/`reveal` with zones=()), so the C8 from:top stamp
+    # + top:you owner tag land on those supplement-promoted reveals. The pre-supplement
+    # run in _project_face already tagged the effects phase categorized (Fact or
+    # Fiction, Gonti, Mass Polymorph); this catches the supplement-created tail.
+    # Append-only / idempotent (an effect already carrying from:top + a top:* tag is
+    # untouched); mirrors the post-supplement _recover_graveyard_origin re-run.
+    card = replace(
+        card,
+        faces=tuple(
+            replace(
+                face,
+                abilities=tuple(
+                    _recover_top_of_library_owner(a) for a in face.abilities
+                ),
             )
             for face in card.faces
         ),
@@ -1782,6 +1805,14 @@ def _project_face(record: dict) -> Face:
     # are already clean cheat_play and suppress the marker) and AFTER the graveyard zone
     # recoveries (so a from:graveyard reanimate never masquerades as a non-gy cheat).
     abilities = [_recover_cheat_into_play_source(a) for a in abilities]
+    # Top-of-library owner + from:top normalization (ADR-0027 C8): stamp from:top on
+    # the reveal/exile UNTIL-tail phase left zones=() (Fathom Trawl, Open the Way,
+    # Treasure Keeper) and append an additive top:you / top:opp owner tag on every
+    # from:top effect (Fact or Fiction reveal scope='any' → top:you; Gonti
+    # topdeck_select scope='opp' → top:opp). RUNS AFTER the dig-into-play retags +
+    # cheat-into-play marker (so every cheat_play already carries its from:top) and the
+    # graveyard zone recoveries. Read by topdeck_selection / dig_until's C8 arms.
+    abilities = [_recover_top_of_library_owner(a) for a in abilities]
     # Edict-scope recovery (ADR-0027 edict_matters): promote a scope=='any' sacrifice
     # to each/opp from its raw when phase dropped the sacrificer scoping to a null
     # controller (Plaguecrafter, Fleshbag Marauder, Barter in Blood).
@@ -6224,6 +6255,97 @@ def _recover_cheat_into_play_source(ability: Ability) -> Ability:
         zones=(src, "to:battlefield"),
     )
     return replace(ability, effects=(*ability.effects, marker))
+
+
+# ADR-0027 C8 (SIDECAR v50) — top-of-library reveal/dig OWNER + from:top
+# normalization. Two phase gaps the cluster closes:
+#  (a) from:top is type-driven and INCONSISTENT — phase stamps it (via
+#      _TOP_OF_LIBRARY_EFFECT_TYPES) only for fixed-N reveals (Mulch "reveal the top
+#      four") but types the UNTIL-forms ("reveal cards from the top of your library
+#      UNTIL …" — Fathom Trawl, Open the Way, Treasure Keeper) as a PLAIN reveal with
+#      zones=() — the top-of-library origin is in the raw but absent from the IR.
+#  (b) library OWNER is dropped on `reveal`-cat from:top effects (Fact or Fiction
+#      reveal scope='any' because "an opponent separates" — the 'any' OBSCURES that
+#      the library is YOURS). topdeck_select already carries a resolved scope; reveal/
+#      exile do not.
+# Fix: (a) stamp from:top on a reveal/exile effect whose raw matches the top-of-library
+# idiom but phase left no from:top, and (b) append an ADDITIVE `top:you` / `top:opp`
+# owner tag on every from:top effect, read from the raw via the SAME owner regexes
+# _topdeck_select_owner_scope uses. The owner tag is the CR-401 boundary made
+# structural: "top of YOUR library" curation (topdeck_selection / dig_until) vs "top of
+# an OPPONENT's library" information/theft (Gonti, Lurking Informant — a different
+# lane). from:top is left owner-AGNOSTIC (cheat_into_play / Bribery cheat from an
+# opponent's library and read from:top untouched); top:you is a separate tag, never a
+# narrowing of from:top. CR 401.1 / 701.18 / 701.42 / 116.
+#
+# NORMALIZATION categories are reveal/exile ONLY — NOT cheat_play. A cheat_play that
+# reveals-until (Mass Polymorph) ALREADY carries from:top off its phase type; touching
+# cheat_play's from:top here would risk the cheat_into_play arm (reads cat=='cheat_play'
+# + to:battlefield + from:top), which this cluster must leave byte-identical.
+_TOP_NORM_CATEGORIES = frozenset({"reveal", "exile"})
+_TOP_OF_LIBRARY_RAW = re.compile(
+    r"\bfrom the top of (?:your|their|his or her|that player'?s?"
+    r"|an? opponent'?s?|target (?:opponent|player)'?s?) librar"
+    r"|\btop (?:\w+ )?cards? of (?:your|their|his or her|that player'?s?"
+    r"|an? opponent'?s?|target (?:opponent|player)'?s?) librar"
+    r"|\btop of (?:your|their) librar",
+    re.IGNORECASE,
+)
+
+
+def _top_library_owner(raw: str, scope: str | None) -> str | None:
+    """Resolve WHOSE library a top-of-library effect looks at, from the raw (the same
+    _TOPDECK_YOUR_LIBRARY / _TOPDECK_OTHER_ZONE discriminators
+    supplement._topdeck_select_owner_scope uses), falling back to a resolved scope
+    (topdeck_select/dig_until carry you/opp). Returns 'you' / 'opp' / None.
+
+    YOUR library takes precedence over an other-zone reference (a dual "reveal the top
+    of YOUR library, an opponent separates" — Fact or Fiction — is still YOUR
+    selection), mirroring _topdeck_select_owner_scope's `if other and not your`
+    ordering."""
+    if _TOPDECK_YOUR_LIBRARY.search(raw):
+        return "you"
+    if _TOPDECK_OTHER_ZONE.search(raw):
+        return "opp"
+    if scope in ("you", "opp"):
+        return scope
+    return None
+
+
+def _recover_top_of_library_owner(ability: Ability) -> Ability:
+    """Stamp from:top on the reveal/exile until-tail and append an additive
+    `top:you` / `top:opp` owner tag on every from:top effect (ADR-0027 C8).
+
+    Append-only on `zones` — never mutates category/scope/the existing from:top, so
+    every cross-lane read (cheat_into_play from:top, self-mill to:graveyard,
+    cheat_into_play opponent-library cheats) is byte-identical. The new `top:*` tags are
+    read by no existing lane (topdeck_selection / dig_until's C8 arms are the first
+    consumers)."""
+    new_effects: list[Effect] = []
+    changed = False
+    for e in ability.effects:
+        zones = set(e.zones)
+        raw = e.raw or ""
+        if (
+            "from:top" not in zones
+            and e.category in _TOP_NORM_CATEGORIES
+            and _TOP_OF_LIBRARY_RAW.search(raw)
+        ):
+            zones.add("from:top")
+        if "from:top" in zones and "top:you" not in zones and "top:opp" not in zones:
+            owner = _top_library_owner(raw, e.scope)
+            if owner == "you":
+                zones.add("top:you")
+            elif owner == "opp":
+                zones.add("top:opp")
+        if zones != set(e.zones):
+            changed = True
+            new_effects.append(replace(e, zones=tuple(sorted(zones))))
+        else:
+            new_effects.append(e)
+    if not changed:
+        return ability
+    return replace(ability, effects=tuple(new_effects))
 
 
 # Edict-scope recovery (ADR-0027 edict_matters) — a `sacrifice` effect whose

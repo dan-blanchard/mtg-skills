@@ -613,7 +613,11 @@ from mtg_utils.card_ir import Card
 #   tail structurally. token_copy_matters / clue_matters firing byte-mirrors retired;
 #   tokens_matter mirror narrowed to the go-wide board-count residue. CR 707 / 701.36 /
 #   701.16.
-SIDECAR_VERSION = 49
+# SIDECAR v50 — ADR-0027 C8 (digs): from:top normalization on the reveal/exile
+# until-tail + an additive top:you / top:opp library-OWNER tag on every from:top effect
+# (project._recover_top_of_library_owner). topdeck_selection / dig_until read the
+# owner-resolved tag; the per-clause regex mirrors retire. CR 401.1 / 701.18 / 116.
+SIDECAR_VERSION = 50
 
 
 def card_ir_dir() -> Path:

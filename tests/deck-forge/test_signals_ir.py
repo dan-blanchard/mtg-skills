@@ -2438,3 +2438,98 @@ def test_transform_trigger_does_not_fire_facedown():
         )
     )
     assert "facedown_matters" not in {k for k, _, _ in _sigs(ir)}
+
+
+# ── ADR-0027 C8 (SIDECAR v50) — topdeck_selection / dig_until owner-resolved arms ──
+# The OWNER now rides an additive top:you / top:opp zone tag
+# (project._recover_top_of_library_owner); the signal arms gate on the OWNER, not the
+# (often-'any') scope. CR 401.1 / 701.18 / 701.23.
+
+
+def _keys(ir: Card) -> set[str]:
+    return {s.key for s in extract_signals_ir(CARD, ir)}
+
+
+def test_topdeck_selection_from_top_you_reveal():
+    # Fact or Fiction — a reveal scope='any' (an opponent separates) whose library is
+    # YOURS via the top:you tag. The owner-resolved arm fires topdeck_selection.
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="reveal",
+                    scope="any",
+                    raw="Reveal the top five cards of your library.",
+                    zones=("from:top", "to:graveyard", "top:you"),
+                ),
+            ),
+        )
+    )
+    assert "topdeck_selection" in _keys(ir)
+
+
+def test_topdeck_selection_excludes_opponent_library():
+    # Gonti — a top:opp peek at an opponent's library is theft (CR 401.1), NOT the
+    # controller's own top-of-deck curation. The owner gate keeps it OUT.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="topdeck_select",
+                    scope="opp",
+                    raw="Look at the top four cards of target opponent's library.",
+                    zones=("from:top", "to:exile", "top:opp"),
+                ),
+            ),
+        )
+    )
+    assert "topdeck_selection" not in _keys(ir)
+
+
+def test_dig_until_from_cheat_play_top_you_until():
+    # Mass Polymorph — a reveal-UNTIL re-categorized to cheat_play, owner top:you, with
+    # an "until you reveal" body → the owner-resolved dig_until arm fires.
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="cheat_play",
+                    scope="you",
+                    raw=(
+                        "Reveal cards from the top of your library until you reveal "
+                        "that many creature cards."
+                    ),
+                    zones=("from:top", "to:battlefield", "top:you"),
+                ),
+            ),
+        )
+    )
+    assert "dig_until" in _keys(ir)
+
+
+def test_dig_until_not_fired_by_until_end_of_turn_duration():
+    # A reveal-the-top-card with an "until end of turn" DURATION rider (Stormchaser
+    # Chimera, the Deceiver cycle) is NOT a dig-until-a-condition — the `until you`
+    # discriminator keeps it out of dig_until (it is topdeck_selection only).
+    ir = _ir(
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(
+                    category="reveal",
+                    scope="any",
+                    raw=(
+                        "Reveal the top card of your library. This creature gets "
+                        "+X/+0 until end of turn."
+                    ),
+                    zones=("from:top", "top:you"),
+                ),
+            ),
+        )
+    )
+    keys = _keys(ir)
+    assert "dig_until" not in keys
+    assert "topdeck_selection" in keys

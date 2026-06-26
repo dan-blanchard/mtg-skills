@@ -48,9 +48,11 @@ from mtg_utils._card_ir.project import (
     _recover_count_operand,
     _recover_graveyard_origin,
     _recover_graveyard_zones,
+    _recover_top_of_library_owner,
     _sacrifice_cost_markers,
     _sacrifice_grant_markers,
     _sacrifice_player_scope,
+    _top_library_owner,
     _trigger_event,
     _zone_tags,
     project_card,
@@ -6788,3 +6790,104 @@ def test_copy_spell_marker_recovers_phase_fold_tail():
     ]
     assert copies, "expected a copy-spell make_token marker"
     assert "Token" in copies[0].subject.predicates
+
+
+# ── ADR-0027 C8 (SIDECAR v50) — top-of-library OWNER + from:top normalization ──
+# Real oracle text in Effect.raw; the pass reads the library OWNER off the raw and
+# stamps an additive top:you / top:opp tag, plus normalizes from:top on the reveal/
+# exile until-tail phase left zones=(). CR 401.1 (each player's own library).
+
+
+def test_top_library_owner_your_library():
+    # Fact or Fiction / Fathom Trawl — "of your library" → controller's own library.
+    raw = "Reveal cards from the top of your library until you reveal three nonland."
+    assert _top_library_owner(raw, "any") == "you"
+
+
+def test_top_library_owner_opponent_library():
+    # Gonti / Lord of the Void — a different player's library is theft, not curation.
+    raw = "Look at the top four cards of target opponent's library, exile one."
+    assert _top_library_owner(raw, "any") == "opp"
+
+
+def test_top_library_owner_falls_back_to_scope():
+    # No library-owner phrase in the effect-local raw (a modal/empty clause) → the
+    # resolved scope (topdeck_select carries you/opp) is the fallback.
+    assert _top_library_owner("put one into your hand", "you") == "you"
+    assert _top_library_owner("", "any") is None
+
+
+def test_recover_top_normalizes_from_top_on_until_reveal():
+    # Fathom Trawl: phase types the reveal-UNTIL form as a plain reveal with zones=()
+    # (the top-of-library origin is in the raw, absent from the IR). The pass stamps
+    # from:top AND the top:you owner tag.
+    raw = (
+        "Reveal cards from the top of your library until you reveal three nonland "
+        "cards. Put the nonland cards into your hand."
+    )
+    ability = Ability(
+        kind="spell", effects=(Effect(category="reveal", scope="any", raw=raw),)
+    )
+    out = _recover_top_of_library_owner(ability)
+    z = out.effects[0].zones
+    assert "from:top" in z
+    assert "top:you" in z
+    assert "top:opp" not in z
+
+
+def test_recover_top_owner_on_existing_from_top_reveal():
+    # Fact or Fiction: reveal already carries from:top (phase's revealtop type); the
+    # pass adds top:you because "an opponent separates" left the scope 'any'.
+    raw = "Reveal the top five cards of your library. An opponent separates those."
+    ability = Ability(
+        kind="spell",
+        effects=(
+            Effect(
+                category="reveal",
+                scope="any",
+                raw=raw,
+                zones=("from:top", "to:graveyard"),
+            ),
+        ),
+    )
+    out = _recover_top_of_library_owner(ability)
+    z = out.effects[0].zones
+    assert "top:you" in z
+    assert "to:graveyard" in z  # additive — the GY zone is untouched
+
+
+def test_recover_top_owner_opponent_gets_top_opp_not_top_you():
+    # Gonti, Lord of Luxury — opponent-library peek keeps from:top, gains top:opp, and
+    # MUST NOT gain top:you (the owner gate that excludes it from topdeck_selection).
+    raw = "Look at the top four cards of target opponent's library, exile one of them."
+    ability = Ability(
+        kind="triggered",
+        effects=(
+            Effect(
+                category="topdeck_select", scope="opp", raw=raw, zones=("from:top",)
+            ),
+        ),
+    )
+    out = _recover_top_of_library_owner(ability)
+    z = out.effects[0].zones
+    assert "top:opp" in z
+    assert "top:you" not in z
+
+
+def test_recover_top_does_not_touch_cheat_play_from_top_normalization():
+    # NORMALIZATION is reveal/exile only — a cheat_play with NO from:top and a top-of-
+    # library raw is NOT given from:top here (cheat_into_play's from:top read stays
+    # byte-identical). It still gets no top:* tag (no from:top to resolve against).
+    raw = "Reveal cards from the top of your library until you reveal a creature card."
+    ability = Ability(
+        kind="spell",
+        effects=(
+            Effect(
+                category="cheat_play", scope="you", raw=raw, zones=("to:battlefield",)
+            ),
+        ),
+    )
+    out = _recover_top_of_library_owner(ability)
+    z = out.effects[0].zones
+    assert "from:top" not in z
+    assert "top:you" not in z
