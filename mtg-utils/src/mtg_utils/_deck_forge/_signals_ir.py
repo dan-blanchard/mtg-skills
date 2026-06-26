@@ -131,10 +131,8 @@ from mtg_utils._deck_forge._sweep_detectors import (
     PUMP_MATTERS_REGEX,
     SCALING_PUMP_SWEEP_REGEX,
     STATION_MATTERS_REGEX,
-    STAX_TAXES_REGEX,
     STICKERS_MATTER_REGEX,
     SUPERFRIENDS_MATTERS_REGEX,
-    SYMMETRIC_STAX_REGEX,
     THEFT_MATTERS_REGEX,
     TOKENS_MATTER_REGEX,
     TOPDECK_STACK_SWEEP_REGEX,
@@ -5487,21 +5485,65 @@ _ENCHANTMENTS_MATTER_MIRROR = re.compile(
 # scope, the arms' scope, the serve spec's). DISTINCT from reanimator / graveyard_
 # matters. CR 404 / 700.4.
 _CREATURE_RECURSION_MIRROR = re.compile(CREATURE_RECURSION_REGEX, re.IGNORECASE)
-# stax_taxes + symmetric_stax BYTE-IDENTICAL kept mirrors (ADR-0027). The structural
-# `restriction` Effect arm (extract_signals_ir, scope-discriminated by the v22
-# projection: scope=='opp' → stax_taxes, scope=='each' → symmetric_stax) adds the
-# genuine ir_only recall (the symmetric ability-shutoffs / cost taxes / can't-block
-# locks + the opponent hand-size taxes / search-denial the brittle oracle regex missed)
-# but DROPS the regex's -X/-X-debuff over-fire. Because the arm is BROADER, the deleted
-# regex is reproduced byte-identically by these mirrors (run PER-CLAUSE over the
-# reminder-stripped kept_oracle in extract_signals_ir, matching the deleted detectors'
-# per-clause scan): STAX_TAXES_REGEX (the union of the deleted _signals_regex _DETECTORS
-# + _HAND_FLOOR producers and the kept SWEEP row) and SYMMETRIC_STAX_REGEX (the kept
-# SWEEP row alone). add() dedups vs the structural arm. Commander-legal, floor-disabled
-# by oracle_id: stax_taxes mirror==regex==339; symmetric_stax mirror==regex==292. CR
-# 604.1 / 118.9.
-_STAX_TAXES_MIRROR = re.compile(STAX_TAXES_REGEX, re.IGNORECASE)
-_SYMMETRIC_STAX_MIRROR = re.compile(SYMMETRIC_STAX_REGEX, re.IGNORECASE)
+# ADR-0027 C6 stax — the BROAD stax_taxes / symmetric_stax SIGNAL byte-mirrors are
+# RETIRED. The structural restriction-scope arm in extract_signals_ir now reads the
+# cleanly-structured recall off the IR (AddRestriction.affected_players -> opp; the
+# enters-tapped ChangeZone replacement's valid_card.controller -> opp/each; the
+# scope=='each' stax_tax co-fire). What remains in a regex are the two NARROW residue
+# mirrors below: the genuine STAX phrasings phase drops WHOLLY (an opponent / symmetric
+# cast-lock or pillowfort attack-lock on a creature body — Dragonlord Dromoka, Marisi,
+# Basandra, Moat; a CantWin/CantLose game-state static — Platinum Angel; a subjectless
+# "players can't cast/untap/play" the Continuous-static parse drops — Static Orb,
+# Grafdigger's Cage, Damping Field). They are the full deleted producers MINUS the two
+# OVER-FIRE branches the structural arm correctly excludes: `creatures your opponents
+# control` (which wrongly fired stax_taxes on every -X/-X debuff anthem / keyword-strip
+# / single-target tap / bounce / detain — Elesh Norn, Cower in Fear, Cryptic Command)
+# and `(?:doesn't|don't|does not) untap during` (which wrongly fired symmetric_stax on
+# ~200 single-target Aura/Equipment/spell tap-downs — Dehydration, Crippling Chill,
+# Apathy — single-target removal, IR restriction scope='any' pred=EnchantedBy). Dropping
+# those two branches is the ~129+ over-fire elimination; the rest is the unstructurable
+# residue keep-mirror. STAX_TAXES_REGEX / SYMMETRIC_STAX_REGEX (the UN-trimmed unions)
+# survive in _sweep_detectors ONLY as the voltron has_other_plan keep-mirror
+# (_STAX_TAXES_PLAN_MIRROR in _signals_regex) — feeding the gate, never a signal. CR
+# 604.1 / 614.1c / 601.2f / 303.4 (Aura attaches to a SINGLE object, not a lock).
+_STAX_TAXES_RESIDUE_RE = re.compile(
+    # pillowfort attack-lock (protects a player) + opponent cast/activate lock.
+    # ADR-0027 C6 final: `\bwith\b` (not bare `with`, which matched INSIDE "without"
+    # — "Enchant creature WITHOUT flying") and `[^.\n]*` (not `[^.]*`, which BRIDGED
+    # the newline to the next line's "can't attack") so a single-target pacify Aura
+    # whose two lines are one un-split clause (Trapped in the Tower) no longer fires.
+    # `(?<!target )` keeps a single-target "target creature an opponent controls can't
+    # attack" pacify (Spara's Adjudicators ETB) out — genuine board pillowfort never
+    # says "target" (it's a class-wide static the structural scope='opp' arm carries).
+    r"(?<!target )creatures? "
+    r"(?:\bwith\b|you don't control|an opponent controls)[^.\n]*can't attack"
+    r"|can't attack you\b"
+    r"|\bopponents? can't\b|spells your opponents cast cost"
+    # OVER-FIRE branch `creatures your opponents control` DROPPED here.
+    r"|(?:target player|that player|each player|a player|that opponent"
+    # one-sided controller tax — "enchanted creature's controller can't cast"
+    # (Brand of Ill Omen) restricts a PLAYER, CR 109.5; the pacify guard keeps it.
+    r"|(?:enchanted |equipped )?creature['\u2019]s controller)"
+    r"[^.]{0,90}?can't (?:cast|activate|attack|block|search|untap|draw)"
+    r"|must pay \{?\d?\}?[^.]*additional"
+    r"|spells?[^.]*cost \{?\d+\}? more to (?:cast|activate)"
+    r"|noncreature spells?[^.]*cost(?:s)? \{?\d"
+    r"|noncreature spells?[^.]*can't be cast"
+    r"|spells? with mana value \d[^.]*can't be cast"
+    r"|players? can't cast|that player can't cast spells|spells can't be cast"
+    r"|can cast spells only|your opponents control enter(?:s)? tapped"
+    r"|nonbasic lands enter(?:s)? tapped|costs? players \{?\d+\}? more"
+    r"|doing the chosen action costs"
+    r"|players? can't pay life or sacrifice nonland permanents",
+    re.IGNORECASE,
+)
+_SYMMETRIC_STAX_RESIDUE_RE = re.compile(
+    # symmetric "players can't <verb>" lock + symmetric enters-tapped. OVER-FIRE branch
+    # `(?:doesn't|don't|does not) untap during` (single-target removal) DROPPED here.
+    r"players? can't (?:cast|untap|attack|gain|search their|draw|play|activate)"
+    r"|other permanents enter (?:the battlefield )?tapped",
+    re.IGNORECASE,
+)
 # attack_matters BYTE-IDENTICAL kept mirror (ADR-0027): the structural `attacks`-trigger
 # arm (_PAYOFF_TRIGGER_KEYS) + the `Attacking` filter-predicate arm above catch phase's
 # combat payoffs (+135 ir_only recall — the reminder-only
@@ -6387,6 +6429,58 @@ def _is_facedown_subject(f: object) -> bool:
 # the effect phase DID emit (its category + counter_kind) plus this raw anchor,
 # rather than the >=5-distinct-ck count that the under-parse defeats. CR 702.
 _SAME_TRUE_KW_RE = re.compile(r"the same is true for", re.IGNORECASE)
+
+
+# ADR-0027 C6 final — the AFFECTED-ENTITY discriminator (replaces the over-broad
+# card-type gate). What a restriction Effect taxes is decided by WHO/WHAT it restricts,
+# never by the host's card type (CR 303.4: an Aura attaches to an object OR a PLAYER —
+# an "Enchant player" Curse is a player-wide TAX, not a single-target pacify). A
+# restriction whose AFFECTED ENTITY is a SINGLE CREATURE/permanent ("Enchanted creature
+# can't attack or block" — Lost in Thought, Arrest; "equipped creature can't …"; a
+# single "target creature can't …" — Spara's Adjudicators) is single-target
+# pacify/removal (CR 303.4 / 301.5 / 608.2), so it must open NEITHER stax lane. A
+# restriction whose affected entity is a PLAYER ("enchanted player can't …" — Curse of
+# Exhaustion; "your opponents can't …" — Conqueror's Flail, Godsend) or the whole BOARD
+# ("each player can't …", "players can't …", "creatures you/they control …") is a
+# genuine tax and KEEPS firing. Read the affected entity from the raw clause — the
+# SUPPLEMENT-RECOVERED tell phase carries even when it mangles the structured subject
+# (Lost in Thought's trailing "...for that player to ignore this effect" strips the
+# EnchantedBy tell → restriction leaks to scope='opp' subject=None).
+_PLAYER_BOARD_RESTR_RE = re.compile(
+    r"\benchanted player\b|\byour opponents?\b|\beach (?:other )?player\b"
+    r"|\bplayers? can't\b|\ball players\b|\bthat opponent\b"
+    # genitive player tell — "enchanted creature's controller can't cast" restricts a
+    # PLAYER (the controller), not the creature (Brand of Ill Omen); CR 109.5.
+    r"|\b(?:creature|permanent)['\u2019]?s controller\b"
+    r"|\beach creature\b|\ball creatures\b|\bnonland permanents\b"
+    r"|\bcreatures (?:you|they|your opponents|an opponent|each player)\b"
+    # board pillowfort — a class of creatures (by keyword / controller) can't attack:
+    # "creatures with power N or less can't attack you", "creatures you don't control".
+    r"|\bcreatures? (?:with\b|you don't control|an opponent controls)",
+    re.IGNORECASE,
+)
+_SINGLE_CREATURE_RESTR_RE = re.compile(
+    r"\benchanted creature\b|\bequipped creature\b|\benchanted permanent\b"
+    r"|\bequipped permanent\b|\bthat creature\b|\btarget creature\b",
+    re.IGNORECASE,
+)
+
+
+def _restriction_pacifies_single_creature(raw: str) -> bool:
+    """True when a restriction's AFFECTED ENTITY is a single creature/permanent — a
+    single-target pacify/removal (CR 303.4 / 301.5 / 608.2), so it must open NEITHER
+    stax lane regardless of how its subject/scope projected.
+
+    A PLAYER/BOARD tax tell ("enchanted player", "your opponents", "each player",
+    "players can't", "creatures you/they control") OVERRIDES — a clause that restricts a
+    player or the whole board is a genuine tax even when it also names a creature (an
+    "Enchant player" Curse, a board pillowfort), so it KEEPS firing. ADR-0027 C6 final —
+    the AFFECTED-ENTITY discriminator that replaces the over-broad card-type gate
+    (an Aura/Equipment can carry a player/board tax — CR 303.4)."""
+    r = raw or ""
+    if _PLAYER_BOARD_RESTR_RE.search(r):
+        return False
+    return bool(_SINGLE_CREATURE_RESTR_RE.search(r))
 
 
 def extract_signals_ir(
@@ -9048,11 +9142,45 @@ def extract_signals_ir(
             is_exile_restr = cat == "exile" and _EXILE_RESTRICTION_SWALLOW.search(
                 e.raw or ""
             )
-            if cat == "restriction" or is_exile_restr:
+            # ADR-0027 C6 stax — the structural restriction-scope arm. enters_tapped
+            # joins restriction/exile-swallow: phase models "creatures your opponents
+            # control enter tapped" as a ChangeZone replacement whose project reads
+            # valid_card.controller (opp -> stax_taxes; null/class -> symmetric_stax);
+            # see project._project_replacement. A SYMMETRIC cost-tax / cast-lock
+            # (counter_kind=='stax_tax' — Sphere of Resistance, Thalia, Lodestone
+            # Golem) ALSO opens stax_taxes: a symmetric tax still hobbles opponents
+            # (CR 601.2f). An untap/attack/block lock (Static Orb) is symmetric-only.
+            # ADR-0027 C6 final — a `restriction` Effect whose AFFECTED ENTITY is a
+            # single creature/permanent ("Enchanted creature can't attack or block" —
+            # Lost in Thought, whose trailing "...for that player to ignore this effect"
+            # clause stripped phase's EnchantedBy tell and leaked the Effect to
+            # scope='opp') is single-target pacify/removal (CR 303.4 / 301.5 / 608.2),
+            # never a board-wide / symmetric tax: skip it. A restriction taxing a PLAYER
+            # ("your opponents can't …" — Godsend; "enchanted player can't …" — Curse of
+            # Silence) or the BOARD stays — read WHO it restricts, not the host's card
+            # type (CR 303.4: an Aura can enchant a PLAYER). The project-side
+            # `_is_single_attached_restriction` gate already short-circuits the
+            # cleanly-structured SelfRef/EnchantedBy forms to scope='any'; this raw
+            # affected-entity supplement only fires when phase MANGLED the structured
+            # subject (``e.subject is None``) — a restriction with a real class subject
+            # is a board/class tax (Nils, Discipline Enforcer's "Each creature with one
+            # or more counters … can't attack you", whose pay-rider names "that
+            # creature" — a board tax, NOT a pacify): the structured subject decides it.
+            # enters_tapped / exile-swallow stay (those never carry a pacify raw).
+            restriction_single_creature = (
+                cat == "restriction"
+                and e.subject is None
+                and _restriction_pacifies_single_creature(e.raw or "")
+            )
+            if (
+                cat in ("restriction", "enters_tapped") or is_exile_restr
+            ) and not restriction_single_creature:
                 if e.scope == "opp":
                     add("stax_taxes", "opponents", "", e.raw)
                 elif e.scope == "each":
                     add("symmetric_stax", "each", "", e.raw)
+                    if e.counter_kind == "stax_tax":
+                        add("stax_taxes", "opponents", "", e.raw)
                 # ADR-0027 tranche2-B-3: timing_control DEFERRED — phase drops the
                 # Teferi-style "cast spells only any time they could cast a sorcery"
                 # cast-timing static entirely (it keeps only the flash-grant), a genuine
@@ -10459,19 +10587,37 @@ def extract_signals_ir(
     # scope 'you'. CR 404 / 700.4.
     if any(_CREATURE_RECURSION_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
         add("creature_recursion", "you", "", "")
-    # ADR-0027 — stax_taxes + symmetric_stax kept mirrors (byte-identical to the deleted
-    # regex producers). The structural `restriction` scope arm above ADDS the genuine
-    # ir_only recall; these mirrors reproduce the deleted regex tail the broader arm
-    # doesn't structurally cover — the opponent enter-tapped statics ("creatures your
-    # opponents control enter tapped"), the "your opponents can't cast during your turn"
-    # statics phase drops, the can't-cast-from-graveyard restrictions, and (for
-    # symmetric_stax) the full SWEEP firing. Run PER-CLAUSE over the reminder-stripped
-    # kept_oracle (== the deleted detectors' per-clause input). scope 'opponents' /
-    # 'each' (the deleted producers' forced scopes). add() dedups vs the structural arm.
-    # Commander-legal, floor-disabled: stax_taxes mirror==regex==339, symmetric==292.
-    if any(_STAX_TAXES_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
+    # ADR-0027 C6 stax — the NARROW residue keep-mirrors (the genuine stax phrasings
+    # phase drops wholly / parses to an unscoped restriction, MINUS the two over-fire
+    # branches the structural arm correctly excludes — see the _STAX_TAXES_RESIDUE_RE /
+    # _SYMMETRIC_STAX_RESIDUE_RE docstring). The structural restriction-scope arm above
+    # ADDS the cleanly-structured opp/each restrictions + enters_tapped + stax_tax
+    # co-fire; these residues cover the wholly-dropped tail (opponent / symmetric
+    # cast-locks + pillowfort attack-locks + game-state statics phase emits no Effect
+    # for, and the subjectless symmetric "players can't" statics the Continuous parse
+    # drops). Run PER-CLAUSE over the reminder-stripped kept_oracle. add() dedups vs the
+    # structural arm. CR 604.1 / 601.2f / 303.4. ADR-0027 C6 final — apply the
+    # AFFECTED-ENTITY discriminator PER-CLAUSE (replaces the over-broad card-type gate).
+    # The `can't attack you\b` residue branch is the one ambiguous branch: it matches
+    # both a genuine BOARD pillowfort ("Each creature with one or more counters … can't
+    # attack you" — Nils, "creatures your opponents control can't attack you") AND a
+    # single-target Vow ("Enchanted creature … can't attack you or planeswalkers you
+    # control" — Vow of Duty, an Aura restricting the ONE enchanted creature). The
+    # discriminator reads WHOM the clause restricts: a PLAYER/BOARD subject ("each
+    # creature", "creatures with/you don't control", "your opponents", "players can't")
+    # keeps; a single ENCHANTED/EQUIPPED creature drops. Conqueror's Flail / Curse of
+    # Exhaustion (player taxes the card-type gate wrongly dropped) keep.
+    if any(
+        _STAX_TAXES_RESIDUE_RE.search(cl)
+        and not _restriction_pacifies_single_creature(cl)
+        for cl in _clauses(kept_oracle)
+    ):
         add("stax_taxes", "opponents", "", "")
-    if any(_SYMMETRIC_STAX_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
+    if any(
+        _SYMMETRIC_STAX_RESIDUE_RE.search(cl)
+        and not _restriction_pacifies_single_creature(cl)
+        for cl in _clauses(kept_oracle)
+    ):
         add("symmetric_stax", "each", "", "")
     # ADR-0027 β — combat_damage_to_opp double-strike-grant tail: a LOW-confidence
     # mirror of the deleted narrow regex producer (kept out of the HIGH-confidence

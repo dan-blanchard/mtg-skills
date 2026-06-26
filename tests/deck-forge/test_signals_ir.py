@@ -1668,6 +1668,471 @@ def test_combat_force_on_opponents_still_feeds_stax():
     assert ("stax_taxes", "opponents", "") in sigs
 
 
+# ── ADR-0027 C6 stax — restriction-scope structure reads (REAL oracle text) ────
+# The IR Effects below are EXACTLY what project.py emits for these real cards
+# (verified against phase card-data.json); each carries the card's actual oracle raw.
+
+
+def _stax_keys(ir: Card, oracle: str = "") -> set[str]:
+    rec = {"name": "Test", "oracle_text": oracle}
+    return {s.key for s in extract_signals_ir(rec, ir)}
+
+
+def test_silence_addrestriction_opp_is_stax_taxes():
+    """Silence: AddRestriction whose restriction.affected_players is
+    OpponentsOfSourceController projects to a restriction scope='opp' (CR 604.1)."""
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="restriction",
+                    scope="opp",
+                    raw="Your opponents can't cast spells this turn.",
+                ),
+            ),
+        )
+    )
+    assert "stax_taxes" in _stax_keys(ir, "Your opponents can't cast spells this turn.")
+
+
+def test_enters_tapped_opponents_is_stax_taxes():
+    """Imposing Sovereign / Kinjalli's Sunwing: the enters-tapped ChangeZone
+    replacement projects to enters_tapped scope='opp' (valid_card.controller). CR
+    614.1c."""
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="enters_tapped",
+                    scope="opp",
+                    subject=Filter(card_types=("Creature",), controller="opp"),
+                    raw="Creatures your opponents control enter tapped.",
+                ),
+            ),
+        )
+    )
+    assert _stax_keys(ir) == {"stax_taxes"}
+
+
+def test_enters_tapped_symmetric_is_symmetric_stax():
+    """Orb of Dreams: 'Permanents enter tapped' (valid_card.controller null) is
+    symmetric — scope='each' (CR 604.1)."""
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="enters_tapped",
+                    scope="each",
+                    subject=Filter(card_types=("Permanent",), controller="any"),
+                    raw="Permanents enter tapped.",
+                ),
+            ),
+        )
+    )
+    assert _stax_keys(ir) == {"symmetric_stax"}
+
+
+def test_symmetric_cost_tax_cofires_stax_taxes():
+    """Sphere of Resistance / Thalia: a symmetric cost-tax (ModifyCost-Raise,
+    counter_kind='stax_tax') is symmetric_stax AND co-fires stax_taxes — a symmetric
+    tax still hobbles opponents (CR 601.2f)."""
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="restriction",
+                    scope="each",
+                    counter_kind="stax_tax",
+                    subject=Filter(card_types=("Card",), controller="any"),
+                    raw="Spells cost {1} more to cast.",
+                ),
+            ),
+        )
+    )
+    assert _stax_keys(ir) == {"stax_taxes", "symmetric_stax"}
+
+
+def test_symmetric_untap_lock_is_symmetric_only():
+    """Back to Basics: a symmetric UNTAP lock (no stax_tax marker) is symmetric_stax
+    only — it is not a cost/cast tax, so it does not co-fire stax_taxes."""
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="restriction",
+                    scope="each",
+                    subject=Filter(
+                        card_types=("Land",), predicates=("NotSupertype:Basic",)
+                    ),
+                    raw="Nonbasic lands don't untap during their controllers' "
+                    "untap steps.",
+                ),
+            ),
+        )
+    )
+    keys = _stax_keys(ir)
+    assert "symmetric_stax" in keys
+    assert "stax_taxes" not in keys
+
+
+def test_debuff_anthem_on_opponents_is_not_stax():
+    """Elesh Norn / Cower in Fear: 'Creatures your opponents control get -2/-2' is a
+    pump (debuff), NOT a restriction — the deleted byte-mirror's over-fire. The
+    structural arm correctly keeps it OUT of stax (it rides debuff_matters)."""
+    oracle = "Creatures your opponents control get -2/-2."
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    scope="opp",
+                    subject=Filter(card_types=("Creature",), controller="opp"),
+                    raw=oracle,
+                ),
+            ),
+        )
+    )
+    keys = _stax_keys(ir, oracle)
+    assert "stax_taxes" not in keys
+    assert "symmetric_stax" not in keys
+
+
+def test_single_target_aura_untap_lock_is_not_symmetric_stax():
+    """Dehydration: 'Enchanted creature doesn't untap' is a single-target Aura lock
+    (CR 303.4) — restriction scope='any' pred=EnchantedBy — NOT a symmetric lock. The
+    deleted byte-mirror wrongly fired symmetric_stax on it; the residue mirror drops
+    the `doesn't untap during` branch, so it stays out."""
+    oracle = "Enchanted creature doesn't untap during its controller's untap step."
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="restriction",
+                    scope="any",
+                    subject=Filter(
+                        card_types=("Creature",), predicates=("EnchantedBy",)
+                    ),
+                    raw=oracle,
+                ),
+            ),
+        )
+    )
+    assert "symmetric_stax" not in _stax_keys(ir, oracle)
+
+
+def test_residue_mirror_recovers_wholly_dropped_opponent_cast_lock():
+    """Dragonlord Dromoka: phase drops 'Your opponents can't cast spells during your
+    turn' entirely (zero restriction Effect). The narrow residue keep-mirror recovers
+    it as stax_taxes off the reminder-stripped oracle."""
+    ir = _ir()  # no restriction Effect — phase emits nothing for this clause
+    oracle = "Flying, lifelink\nYour opponents can't cast spells during your turn."
+    assert "stax_taxes" in _stax_keys(ir, oracle)
+
+
+# ── ADR-0027 C6 over-fire fix — single-attached pacify Aura is NOT stax ────────
+# Real phase records (focused to the fields project_card reads), projected END-TO-END
+# through project_card so this exercises _is_single_attached_restriction +
+# _restriction_scope + the stax_tax marker gate, not a hand-built Effect.
+
+_ARREST_REAL = {
+    "name": "Arrest",
+    "scryfall_oracle_id": "81728b98-8cf9-4734-a318-69184bb4d15c",
+    "card_type": {
+        "supertypes": [],
+        "core_types": ["Enchantment"],
+        "subtypes": ["Aura"],
+    },
+    "oracle_text": (
+        "Enchant creature\nEnchanted creature can't attack or block, and its "
+        "activated abilities can't be activated."
+    ),
+    "keywords": [],  # string-list (Scryfall) shape — Enchant kw not load-bearing here
+    "abilities": [],
+    "triggers": [],
+    "static_abilities": [
+        {"mode": "CantAttackOrBlock", "affected": {"type": "SelfRef"}},
+        {
+            "mode": {
+                "CantBeActivated": {
+                    "who": "AllPlayers",
+                    "source_filter": {"type": "SelfRef"},
+                    "exemption": "None",
+                }
+            },
+            "affected": {"type": "SelfRef"},
+        },
+    ],
+    "replacements": [],
+}
+
+_STATIC_ORB_REAL = {
+    "name": "Static Orb",
+    "scryfall_oracle_id": "0004ebd0-dfd6-4276-b4a6-de0003e94237",
+    "card_type": {"supertypes": [], "core_types": ["Artifact"], "subtypes": []},
+    "oracle_text": (
+        "As long as this artifact is untapped, players can't untap more than two "
+        "permanents during their untap steps."
+    ),
+    "keywords": [],
+    "abilities": [],
+    "triggers": [],
+    "static_abilities": [
+        {
+            "mode": "Continuous",
+            "affected": {"type": "SelfRef"},
+            "condition": {"type": "Not", "condition": {"type": "SourceIsTapped"}},
+            "description": (
+                "As long as ~ is untapped, players can't untap more than two "
+                "permanents during their untap steps."
+            ),
+        }
+    ],
+    "replacements": [],
+}
+
+_NULL_ROD_REAL = {
+    "name": "Null Rod",
+    "scryfall_oracle_id": "2f83ca86-e23d-40f7-8085-6928d8cfef9b",
+    "card_type": {"supertypes": [], "core_types": ["Artifact"], "subtypes": []},
+    "oracle_text": "Activated abilities of artifacts can't be activated.",
+    "keywords": [],
+    "abilities": [],
+    "triggers": [],
+    "static_abilities": [
+        {
+            "mode": {
+                "CantBeActivated": {
+                    "who": "AllPlayers",
+                    "source_filter": {
+                        "type": "Typed",
+                        "type_filters": ["Artifact"],
+                        "controller": None,
+                        "properties": [],
+                    },
+                    "exemption": "None",
+                }
+            },
+            "affected": None,
+        }
+    ],
+    "replacements": [],
+}
+
+
+def _real_stax_keys(record: dict) -> set[str]:
+    from mtg_utils._card_ir.project import project_card
+
+    ir = project_card([record])
+    return {s.key for s in extract_signals_ir(record, ir)}
+
+
+def test_pacify_aura_arrest_is_not_stax():
+    """Arrest: 'its activated abilities can't be activated' (CantBeActivated,
+    who=AllPlayers) on a SelfRef Aura host is single-target pacify (CR 303.4), NOT a
+    board-wide tax. The over-fire fix gates it out of BOTH stax lanes despite the
+    AllPlayers ``who`` (which only says no player may act on that one creature)."""
+    keys = _real_stax_keys(_ARREST_REAL)
+    assert "stax_taxes" not in keys
+    assert "symmetric_stax" not in keys
+
+
+def test_symmetric_static_orb_still_symmetric_stax():
+    """Static Orb: a symmetric 'players can't untap …' lock STILL fires symmetric_stax
+    (untap-lock — no stax_tax co-fire), proving the fix does not over-suppress genuine
+    board-wide stax."""
+    keys = _real_stax_keys(_STATIC_ORB_REAL)
+    assert "symmetric_stax" in keys
+    assert "stax_taxes" not in keys
+
+
+def test_prison_piece_null_rod_still_fires_both():
+    """Null Rod: 'Activated abilities of artifacts can't be activated' — a real
+    card-CLASS source_filter (Typed Artifact, no attach predicate) is genuine symmetric
+    stax. It keeps firing symmetric_stax AND co-fires stax_taxes (stax_tax marker)."""
+    keys = _real_stax_keys(_NULL_ROD_REAL)
+    assert "symmetric_stax" in keys
+    assert "stax_taxes" in keys
+
+
+# ── ADR-0027 C6 FINAL — AFFECTED-ENTITY discriminator (not card type) ──────────
+# What a restriction taxes is decided by WHO/WHAT it restricts, never by the host's
+# card type (CR 303.4: an Aura attaches to an object OR a PLAYER — an "Enchant player"
+# Curse is a player tax, an "Enchant creature" Aura is single-target pacify). The
+# discriminator reads the restriction's AFFECTED ENTITY from the structured subject,
+# supplement-recovered from the raw clause when phase mangled it (Lost in Thought's
+# trailing "...for that player to ignore this effect" leaks the Effect to scope='opp'
+# subject=None). A SINGLE creature → drop both lanes; a PLAYER / BOARD → keep. CR 303.4
+# / 301.5 / 608.2.
+
+_LOST_IN_THOUGHT_REAL = {
+    "name": "Lost in Thought",
+    "scryfall_oracle_id": "lost-in-thought-oid",
+    "card_type": {
+        "supertypes": [],
+        "core_types": ["Enchantment"],
+        "subtypes": ["Aura"],
+    },
+    "oracle_text": (
+        "Enchant creature\nEnchanted creature can't attack or block, and its "
+        "activated abilities can't be activated. Its controller may exile three "
+        "cards from their graveyard for that player to ignore this effect until "
+        "end of turn."
+    ),
+    # Scryfall string-list shape; the Aura subtype (not the Enchant kw) is the gate.
+    "keywords": [],
+    "abilities": [],
+    "triggers": [],
+    "static_abilities": [
+        {"mode": "CantAttackOrBlock", "affected": {"type": "SelfRef"}},
+        {
+            "mode": {
+                "CantBeActivated": {
+                    "who": "AllPlayers",
+                    "source_filter": {"type": "SelfRef"},
+                    "exemption": "None",
+                }
+            },
+            "affected": {"type": "SelfRef"},
+        },
+    ],
+    "replacements": [],
+}
+
+_TRAPPED_IN_THE_TOWER_REAL = {
+    "name": "Trapped in the Tower",
+    "scryfall_oracle_id": "trapped-in-the-tower-oid",
+    "card_type": {
+        "supertypes": [],
+        "core_types": ["Enchantment"],
+        "subtypes": ["Aura"],
+    },
+    "oracle_text": (
+        "Enchant creature without flying\nEnchanted creature can't attack or "
+        "block, and its activated abilities can't be activated."
+    ),
+    "keywords": [],
+    "abilities": [],
+    "triggers": [],
+    "static_abilities": [
+        {"mode": "CantAttackOrBlock", "affected": {"type": "SelfRef"}},
+        {
+            "mode": {
+                "CantBeActivated": {
+                    "who": "AllPlayers",
+                    "source_filter": {"type": "SelfRef"},
+                    "exemption": "None",
+                }
+            },
+            "affected": {"type": "SelfRef"},
+        },
+    ],
+    "replacements": [],
+}
+
+
+def test_pacify_aura_lost_in_thought_is_not_stax():
+    """Lost in Thought: the trailing '...for that player to ignore this effect'
+    clause leaks the restriction Effect to scope='opp' subject=None (an over-fire the
+    cleanly-structured `_is_single_attached_restriction` gate alone could not catch).
+    The raw affected-entity supplement reads 'Enchanted creature' (a SINGLE creature)
+    off the mangled (subject=None) restriction and excludes it from BOTH stax lanes."""
+    keys = _real_stax_keys(_LOST_IN_THOUGHT_REAL)
+    assert "stax_taxes" not in keys
+    assert "symmetric_stax" not in keys
+
+
+def test_pacify_aura_trapped_in_the_tower_is_not_stax():
+    """Trapped in the Tower: 'Enchant creature without flying' on line 1 + 'can't
+    attack' on line 2 form ONE un-split clause; the old residue regex bridged the
+    newline (and matched `with` inside 'without'). The tightened regex AND the
+    affected-entity ('Enchanted creature' = single) residue guard both keep it out of
+    BOTH stax lanes."""
+    keys = _real_stax_keys(_TRAPPED_IN_THE_TOWER_REAL)
+    assert "stax_taxes" not in keys
+    assert "symmetric_stax" not in keys
+
+
+def test_equipment_player_tax_conquerors_flail_fires_stax_taxes():
+    """Conqueror's Flail (Equipment): 'your opponents can't cast spells during your
+    turn' is a genuine PLAYER tax — the affected entity is opponents, not the equipped
+    creature (CR 303.4: card type is NOT the discriminator). The over-broad card-type
+    gate wrongly dropped it; the affected-entity discriminator KEEPS it in stax_taxes."""
+    oracle = (
+        "Equipped creature gets +1/+1 for each color among permanents you control.\n"
+        "As long as this Equipment is attached to a creature, your opponents can't "
+        "cast spells during your turn.\nEquip {2}"
+    )
+    assert "stax_taxes" in _stax_keys(_ir(), oracle)
+
+
+def test_aura_player_tax_curse_of_exhaustion_fires_stax():
+    """Curse of Exhaustion ('Enchant player' Aura): 'Enchanted player can't cast more
+    than one spell each turn' is a genuine PLAYER tax (Rule-of-Law on one opponent),
+    NOT single-target creature pacify. The affected-entity discriminator KEEPS it —
+    the card-type gate wrongly dropped every Aura-hosted player tax."""
+    oracle = (
+        "Enchant player\nEnchanted player can't cast more than one spell each turn."
+    )
+    assert "stax_taxes" in _stax_keys(_ir(), oracle)
+
+
+def test_vow_single_target_cant_attack_you_is_not_stax():
+    """Vow of Duty (single-target 'Enchant creature' Aura): 'Enchanted creature …
+    can't attack you or planeswalkers you control' restricts the ONE enchanted
+    creature — single-target pacify, NOT a board pillowfort. The `can't attack you`
+    residue branch is ambiguous; the affected-entity guard ('Enchanted creature' =
+    single, no player/board tell) keeps it out of BOTH lanes."""
+    oracle = (
+        "Enchant creature\nEnchanted creature gets +2/+2, has vigilance, and can't "
+        "attack you or planeswalkers you control."
+    )
+    assert "stax_taxes" not in _stax_keys(_ir(), oracle)
+    assert "symmetric_stax" not in _stax_keys(_ir(), oracle)
+
+
+def test_board_counter_tax_with_that_creature_rider_still_fires():
+    """Nils, Discipline Enforcer: 'Each creature with one or more counters … can't
+    attack you … where X is the number of counters on that creature' is a BOARD tax —
+    the trailing 'that creature' names the per-creature count, NOT the affected entity.
+    'Each creature' is a board tell, so the discriminator keeps it firing (regression:
+    a naive single-creature regex would match 'that creature' and wrongly drop it)."""
+    oracle = (
+        "Each creature with one or more counters on it can't attack you or "
+        "planeswalkers you control unless its controller pays {X}, where X is the "
+        "number of counters on that creature."
+    )
+    assert "stax_taxes" in _stax_keys(_ir(), oracle)
+
+
+def test_single_target_etb_pacify_is_not_stax_taxes():
+    """Spara's Adjudicators: 'target creature an opponent controls can't attack or
+    block' is a single-target ETB pacify (CR 303.4-class single-object lock), not a
+    board tax. The `(?<!target )` residue guard keeps it out of stax_taxes."""
+    oracle = (
+        "When this creature enters, target creature an opponent controls can't "
+        "attack or block until your next turn."
+    )
+    assert "stax_taxes" not in _stax_keys(_ir(), oracle)
+
+
+def test_board_pillowfort_attack_lock_still_fires_stax_taxes():
+    """A genuine board pillowfort — 'Creatures you don't control can't attack you
+    unless …' (class-wide, plural, no 'target') — STILL fires stax_taxes via the
+    residue branch, proving the single-target guard does not over-suppress."""
+    oracle = (
+        "Creatures you don't control can't attack you unless their controller "
+        "pays {2} for each of those creatures."
+    )
+    assert "stax_taxes" in _stax_keys(_ir(), oracle)
+
+
 # ── named_permanent (named-card SYNERGY kept word mirror) ─────────────────────
 # ADR-0027 Cluster D (SIGNALS-ONLY): named_permanent is the named-card SYNERGY lane
 # (a card referencing a specific OTHER card by name). phase drops the referenced

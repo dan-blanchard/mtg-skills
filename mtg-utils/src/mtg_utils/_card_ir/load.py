@@ -622,6 +622,14 @@ from mtg_utils.card_ir import Card
 #   symmetric fold — Game of Chaos), so the gain_life signals arm reads STRUCTURE and
 #   the kept mirror's gain-act + self-loss arms are deleted (grant-lifelink + lose_life
 #   ARM-B now structural). CR 119.3 / 702.15b.
+# v50 (ADR-0027 C6_stax) — restriction-scope structure: AddRestriction reads
+# restriction.affected_players (Silence -> opp); an enters-tapped ChangeZone
+# replacement reads valid_card.controller (Imposing Sovereign / Kinjalli -> opp,
+# null -> each); a cost-tax / cast-lock restriction carries counter_kind="stax_tax"
+# so the each-scope co-fire can re-open stax_taxes for the symmetric tax subset
+# (CR 601.2f). stax_taxes / symmetric_stax read this structure; the BROAD IR
+# over-firing byte-mirror is dropped (only a narrow residue keep-mirror for the
+# wholly-dropped tail survives). CR 604.1 / 614.1c / 601.2f.
 SIDECAR_VERSION = 50
 
 

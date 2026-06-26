@@ -2371,6 +2371,36 @@ def _project_replacement(rep: dict) -> Ability | None:
     ):
         execute = rep.get("execute")
         eff = execute.get("effect") if isinstance(execute, dict) else None
+        # ADR-0027 C6 stax — an enters-TAPPED replacement: phase models "creatures your
+        # opponents control enter tapped" / "nonbasic lands enter tapped" as a
+        # ChangeZone->Battlefield replacement whose execute taps the entering object
+        # (SetTapState{Tap}). phase HAS the affected set + its controller on
+        # ``valid_card`` (Opponent — Authority of the Consuls; null/class — Orb of
+        # Dreams, Archelos), but the structured projection emitted NOTHING (only the
+        # putcounter branch below was handled), so the enters_tapped read fell to the
+        # supplement's raw "enters tapped" tag — which MISSES "enter the battlefield
+        # tapped" (Kinjalli's Sunwing -> zero IR effects, the projection inconsistency
+        # vs the byte-identical Imposing Sovereign). Emit it structurally so both
+        # phrasings land deterministically: scope from the affected set's controller
+        # (opp -> stax on them; null/class -> 'each' symmetric; you -> a self-drawback
+        # that hobbles no one). A SelfRef valid_card is a self-tapland ("~ enters
+        # tapped", 732 cards) — ``_filter`` returns None — and is NOT a stax lock, so it
+        # is left to the supplement (scope 'any', no stax). CR 614.1c / 604.1.
+        if (
+            isinstance(eff, dict)
+            and _norm(eff.get("type")) == "settapstate"
+            and _norm((eff.get("state") or {}).get("type")) == "tap"
+        ):
+            affected = _filter(rep.get("valid_card"))
+            if affected is None:
+                return None
+            if affected.controller == "opp":
+                sc = "opp"
+            elif affected.controller == "you":
+                sc = "you"
+            else:
+                sc = "each"
+            return _static_effect("enters_tapped", sc, raw, subject=affected)
         if isinstance(eff, dict) and _norm(eff.get("type")) in (
             "putcounter",
             "putcounterall",
@@ -2859,6 +2889,14 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     # edict_matters) out of the you-sac sacrifice_matters lane (CR 701.16).
     if category == "sacrifice":
         scope = _sacrifice_player_scope(eff, scope)
+    # ADR-0027 C6 stax — an AddRestriction effect (Silence's ProhibitActivity, the
+    # one-turn cast/activate lock) carries WHOM it hobbles on the NESTED
+    # ``restriction.affected_players``, which ``_effect_scope`` never descends into, so
+    # it collapsed to 'any' — indistinguishable from a symmetric lock. Read the nested
+    # player so the opponent-scoped form (OpponentsOfSourceController — Silence,
+    # Orim's Chant) opens stax_taxes structurally. CR 604.1 / 720.
+    if category == "restriction":
+        scope = _add_restriction_scope(eff, scope)
     # ADR-0027 tutor scope='you': a SearchLibrary of the controller's OWN library
     # (no target_player) is a self-tutor — promote its scope to 'you' so an
     # opponent-/other-player-library search (Bribery, Arcum, Extract — target_player
@@ -2996,6 +3034,16 @@ _RESTRICTION_MODES = frozenset(
     }
 )
 
+# ADR-0027 C6 stax — restriction modes that are a COST TAX or a CAST/ACTIVATE lock (vs
+# an untap/attack/block lock). A SYMMETRIC ('each') one of these still hobbles
+# opponents (a "spells cost {1} more" / "players can't cast" taxes every player,
+# CR 601.2f), so it co-fires stax_taxes alongside symmetric_stax — the structural arm
+# reads the ``counter_kind="stax_tax"`` marker the projection stamps here. An untap /
+# attack / block lock (Static Orb, Winter Orb, Back to Basics) is symmetric-only.
+_STAX_TAX_LOCK_MODES = frozenset(
+    {"cantcast", "cantbecast", "cantbeactivated", "perturncastlimit", "raisecost"}
+)
+
 # Batch 13 — combat-FORCING modes are pulled OUT of the stax-bound _RESTRICTION_MODES
 # into their own categories (a "creatures must attack" is a force-the-table theme, not
 # a tax). mustbeblocked* were not captured at all before. cantattack/cantattackorblock
@@ -3015,6 +3063,51 @@ _COMBAT_FORCE_MODES: dict[str, str] = {
 _SELF_ATTACH_PREDICATES = frozenset({"enchantedby", "equippedby"})
 
 
+def _is_single_attached_restriction(st: dict) -> bool:
+    """True when a restriction static's SUBJECT is a SINGLE ATTACHED object — an Aura's
+    enchanted permanent / Equipment's equipped permanent (CR 303.4: an Aura is attached
+    to exactly ONE object; CR 301.5) or the source itself (``SelfRef``). Such a lock is
+    single-target pacify / removal (Arrest, Faith's Fetters, Brand of Ill Omen — "the
+    enchanted creature's abilities can't be activated"), NOT a board-wide or symmetric
+    TAX, so it must NOT open stax_taxes / symmetric_stax. ADR-0027 C6 over-fire fix.
+
+    The single-attach tell is ANY of: the affected set is ``SelfRef`` (the host's
+    attached permanent) or carries an EnchantedBy/EquippedBy predicate; the mode's
+    ``source_filter`` (which abilities/spells the lock names) is ``SelfRef`` or
+    EnchantedBy/EquippedBy; or the mode's ``who`` is the EnchantedCreatureController
+    (Brand of Ill Omen — a tax tied to one enchanted body, not the table). Contrast a
+    genuine prison piece (Null Rod / Cursed Totem / Karn — ``source_filter`` is a real
+    card-type CLASS or HasChosenName, never an attach predicate), which stays symmetric.
+    """
+
+    def _single(node: object) -> bool:
+        if not isinstance(node, dict):
+            return False
+        if _norm(node.get("type")) == "selfref":
+            return True
+        props = node.get("properties")
+        if not isinstance(props, list):
+            return False
+        return any(
+            isinstance(p, dict) and _norm(p.get("type")) in _SELF_ATTACH_PREDICATES
+            for p in props
+        )
+
+    if _single(st.get("affected")):
+        return True
+    mode = st.get("mode")
+    if isinstance(mode, dict):
+        for v in mode.values():
+            if not isinstance(v, dict):
+                continue
+            who = _norm(v.get("who") or v.get("cause"))
+            if "enchanted" in who and "controller" in who:
+                return True
+            if _single(v.get("source_filter")):
+                return True
+    return False
+
+
 def _restriction_scope(st: dict, affected: Filter | None) -> str:
     """Whom a restriction/combat-force static hobbles → the Effect scope (opp / each /
     any). Reads the affected set's controller and the mode's ``who`` qualifier.
@@ -3030,7 +3123,15 @@ def _restriction_scope(st: dict, affected: Filter | None) -> str:
     ``ParentTarget`` → ``_filter`` None), a you-only drawback (``controller=='you'`` —
     Doomed Artisan, Bontu's Last Reckoning), and an Aura/Equipment host (the
     self-attach predicates) all stay 'any'. The scope is DORMANT until the
-    symmetric_stax / stax_taxes lanes are wired — no migrated key reads it."""
+    symmetric_stax / stax_taxes lanes are wired — no migrated key reads it.
+
+    ADR-0027 C6 over-fire fix: a SINGLE-ATTACHED-object lock (an Aura/Equipment host —
+    ``_is_single_attached_restriction``) is single-target pacify/removal regardless of
+    its ``who`` qualifier ("its activated abilities can't be activated by ANY player"
+    still hobbles exactly one creature, CR 303.4), so it short-circuits to 'any' before
+    the opp/all/Typed symmetric branches — it must not read as a board-wide stax."""
+    if _is_single_attached_restriction(st):
+        return "any"
     who = _mode_who(st.get("mode"))
     if (affected is not None and affected.controller == "opp") or "opponent" in who:
         return "opp"
@@ -3361,7 +3462,13 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
             )
         elif affected is not None and affected.controller == "any":
             out.append(
-                Effect(category="restriction", scope="each", subject=affected, raw=desc)
+                Effect(
+                    category="restriction",
+                    scope="each",
+                    subject=affected,
+                    raw=desc,
+                    counter_kind="stax_tax",  # symmetric cost-tax co-fires stax_taxes
+                )
             )
         return out
     # A cost REDUCER (v0.1.60 ModifyCost{Reduce}): Goblin Electromancer / Ruby
@@ -3474,7 +3581,10 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
                 Effect(category=combat_cat, scope=scope, subject=affected, raw=desc)
             )
         return out
-    # A restriction static (stax/tax): scope = whom it hobbles.
+    # A restriction static (stax/tax): scope = whom it hobbles. A cost-tax / cast-lock
+    # mode carries the ``stax_tax`` marker so a symmetric ('each') one co-fires
+    # stax_taxes (it still taxes opponents — CR 601.2f); an untap/attack/block lock is
+    # symmetric-only.
     if mode_tok in _RESTRICTION_MODES:
         out.append(
             Effect(
@@ -3482,6 +3592,14 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
                 scope=_restriction_scope(st, affected),
                 subject=affected,
                 raw=desc,
+                # ADR-0027 C6 — a single-attached lock (Aura/Equipment host) is
+                # single-target removal, never a symmetric tax: no stax_tax marker.
+                counter_kind=(
+                    "stax_tax"
+                    if mode_tok in _STAX_TAX_LOCK_MODES
+                    and not _is_single_attached_restriction(st)
+                    else ""
+                ),
             )
         )
     # Quoted-grant-ability recursion (ADR-0027): recover the STRUCTURED inner effects
@@ -7732,6 +7850,28 @@ def _effect_scope(eff: dict) -> str:
         if pst == "all":
             return "each"
     return "any"
+
+
+# ADR-0027 C6 stax — an AddRestriction effect nests its affected player under
+# ``restriction.affected_players`` (phase's ProhibitActivity carrier). Map it to the
+# Effect scope so a one-sided cast/activate lock (Silence, Orim's Chant, Abeyance —
+# OpponentsOfSourceController / TargetedPlayer) reads 'opp' and a symmetric one
+# ('AllPlayers') reads 'each'. CR 604.1 / 720.
+def _add_restriction_scope(eff: dict, fallback: str) -> str:
+    restr = eff.get("restriction")
+    if not isinstance(restr, dict):
+        return fallback
+    ap = restr.get("affected_players")
+    apt = _norm(ap.get("type")) if isinstance(ap, dict) else ""
+    if not apt:
+        return fallback
+    if "opponent" in apt or apt in ("targetedplayer", "targetplayer"):
+        return "opp"
+    if apt in ("eachplayer", "allplayers"):
+        return "each"
+    if apt in ("sourcecontroller", "controller"):
+        return "you"
+    return fallback
 
 
 # Player-controller values phase puts on a sacrificed object's `target.controller`
