@@ -355,7 +355,16 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # extract_signals_ir mirrors the _type_hoser_clause subtype-gated word detector over
     # the joined oracle (clause-safe). This _DETECTORS row is deleted; the clause helper
     # stays (the IR path reuses it); the serve stays hand-registered.
-    ("spellcast_matters", lambda c: _IS_BUILDAROUND_RE.search(c) is not None, "you"),
+    # ADR-0027 spellcast_matters (signals-only, SIDECAR 50): this _IS_BUILDAROUND_RE
+    # producer (the instant/sorcery BUILD-AROUND with no cast trigger — Lier, Kess,
+    # Dralnu) is deleted with the migration. It rides the byte-identical kept mirror
+    # _detect_spellcast_matters (re-run PER-CLAUSE over the reminder-stripped
+    # kept_oracle in extract_signals_ir) — flat == per-clause (the `[^.]{0,50}` arm
+    # never crosses a sentence), so its firing set is byte-identical. The deleted
+    # producer fired HIGH (forced scope 'you') and fed has_other_plan, so the
+    # byte-identical _spellcast_has_plan (below) re-supplies the voltron silence for
+    # BOTH the hybrid and the pure-regex (ir is None) paths. Serve stays
+    # hand-registered. CR 601.2.
     # ADR-0027 t2b4a-B: xspell_matters ({X}-spells payoff) migrated to the Card IR —
     # the `HasXInManaCost` predicate on a `cast_spell` trigger subject (Zaxara, Nev,
     # Zimone …) + a kept effect-raw word mirror (_XSPELL_HOOK_RE minus _XSPELL_VETO_RE)
@@ -521,29 +530,19 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # cast-from-graveyard cards; the regex's 36 "enters/cast from a graveyard" payoff
     # cards (Prized Amalgam, River Kelpie, Flayer of the Hatebound — self-recursion /
     # escape, not the archetype) are the over-fire the migration drops.
-    # Spellslinger cast trigger — but NOT when the only cast trigger is an *enchantment*
-    # or *artifact* spell: those are enchantress / artifact-cast archetypes (Sythis,
-    # Sai), routed to their own type lanes below, not to cheap instants/sorceries.
-    (
-        "spellcast_matters",
-        lambda c: (
-            (
-                "whenever you cast" in c
-                and "spell" in c
-                and not _re(r"whenever you cast an (?:enchantment|artifact) spell")(c)
-            )
-            # Past-tense spell-COUNT payoff ("for each spell you've cast this turn" —
-            # Gnostro, Rionya, Narset) the present-tense "whenever you cast" missed.
-            or _re(r"spells? you've cast this turn")(c)
-            # Instant/sorcery COST reducers (Baral, Magnus, Vadrik) and cast-from-zone
-            # / next-cast-copy payoffs (Johann, Zaffai, Najal) — core spellslinger glue
-            # with no "whenever you cast" trigger.
-            or _re(r"instant and sorcery spells? you cast cost")(c)
-            or _re(r"cast an instant or sorcery spell from")(c)
-            or _re(r"when you (?:next )?cast an instant or sorcery spell this turn")(c)
-        ),
-        "you",
-    ),
+    # ADR-0027 spellcast_matters (signals-only, SIDECAR 50): the MAIN spellslinger cast
+    # detector ("whenever you cast a spell" payoff — NOT enchantment/artifact-cast,
+    # which route to their own type lanes — plus the past-tense spell-COUNT payoff
+    # "spells you've cast this turn", the instant/sorcery COST reducers, cast-from-zone,
+    # and next-cast-copy glue) is deleted with the migration. The IR re-reads the
+    # structural `cast_spell` trigger for the TYPED you-cast payoff (scope='any' + a
+    # typed-noncreature subject + the card oracle's "you cast", verified 0 over-fire —
+    # Talrand, Guttersnipe, Young Pyromancer) PLUS the byte-identical kept mirror
+    # _detect_spellcast_matters (re-run PER-CLAUSE over the reminder-stripped
+    # kept_oracle), which recovers the when/whenever-conflated + non-trigger glue phase
+    # doesn't structure. The deleted producer fired HIGH (forced scope 'you') and fed
+    # has_other_plan, so _spellcast_has_plan (below) re-supplies the voltron silence.
+    # Serve stays hand-registered. CR 601.2 / 608 / 207.2c.
     # ADR-0027: death_matters migrated to the Card IR — the aristocrats payoff (OTHER
     # creatures dying, CR 700.4: "dies" = battlefield→graveyard, disjoint from the
     # broader `leaves` event ltb_matters reads). The lane fires from the STRUCTURAL
@@ -693,6 +692,62 @@ def clauses(text: str) -> list[str]:
     detectors do — a shared splitter keeps spans aligned with detector scope.
     """
     return _clauses(text)
+
+
+# ── ADR-0027 spellcast_matters kept-mirror helpers (signals-only, SIDECAR 50) ──
+# The THREE deleted spellcast_matters producers, pinned so the IR path
+# (extract_signals_ir) re-runs them PER-CLAUSE over the reminder-stripped kept_oracle
+# for a byte-identical kept mirror, and so extract_signals's has_other_plan re-supplies
+# the voltron silence the deleted HIGH-confidence producers used to feed.
+_SPELLCAST_RECASTER_RE = re.compile(
+    r"(?:you may cast|cast target|copy target)[^.]*"
+    r"(?:instant or sorcery|instant and sorcery)"
+    r"|instant and sorcery (?:spells? )?you (?:may )?cast",
+    re.IGNORECASE,
+)
+
+
+def _spellcast_main_clause(c: str) -> bool:
+    """The deleted MAIN spellcast detector (lowercased reminder-stripped clause)."""
+    return (
+        (
+            "whenever you cast" in c
+            and "spell" in c
+            and not _re(r"whenever you cast an (?:enchantment|artifact) spell")(c)
+        )
+        or _re(r"spells? you've cast this turn")(c)
+        or _re(r"instant and sorcery spells? you cast cost")(c)
+        or _re(r"cast an instant or sorcery spell from")(c)
+        or _re(r"when you (?:next )?cast an instant or sorcery spell this turn")(c)
+    )
+
+
+def _detect_spellcast_matters(clause: str) -> bool:
+    """UNION of the three deleted spellcast_matters producers for one clause.
+
+    The two _DETECTORS lambdas ran on the lowercased clause; the _HAND_FLOOR recaster
+    ran IGNORECASE on the raw clause — identical on a lowercased input. Forced scope
+    'you'. The IR path imports this for the byte-identical kept mirror.
+    """
+    cl = clause.lower()
+    return (
+        _IS_BUILDAROUND_RE.search(cl) is not None
+        or _spellcast_main_clause(cl)
+        or _SPELLCAST_RECASTER_RE.search(cl) is not None
+    )
+
+
+def _spellcast_has_plan(card: dict, text: str) -> bool:
+    """Reproduce the deleted spellcast_matters HIGH-confidence has_other_plan term.
+
+    The deleted oracle producers + the deleted `prowess` keyword each fired
+    HIGH-confidence scope 'you' (non-generic, non-voltron-compat), silencing the
+    spurious commander-damage voltron membership tell. ``text`` is the reminder-stripped
+    joined-face oracle (DFC-safe), so per-clause == the regex path.
+    """
+    if "prowess" in {k.lower() for k in (card.get("keywords") or [])}:
+        return True
+    return any(_detect_spellcast_matters(cl) for cl in _clauses(text))
 
 
 def _scope(clause_lower: str) -> str:
@@ -1131,20 +1186,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _VOLTRON_SILENCING_PLAN_KEYS (signals.py). The serve spec stays hand-registered in
     # signal_specs.py (its curated search regex was always independent of these
     # producers). CR 111.1 / 701.47.
-    # Spellslinger recaster/copier (Mavinda recasts from the yard, Velomachus casts off
-    # the top, Naru Meha copies) — a commander that casts or copies instants/sorceries
-    # wants prowess/magecraft payoffs. The base spellcast detector keys on the "whenever
-    # you cast an instant/sorcery" PAYOFF form; these are enabler/copier forms.
-    (
-        "spellcast_matters",
-        re.compile(
-            r"(?:you may cast|cast target|copy target)[^.]*"
-            r"(?:instant or sorcery|instant and sorcery)"
-            r"|instant and sorcery (?:spells? )?you (?:may )?cast",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 spellcast_matters (signals-only, SIDECAR 50): this recaster/copier
+    # _HAND_FLOOR producer (Mavinda recasts from the yard, Velomachus casts off the
+    # top, Naru Meha copies — enabler/copier forms with no "whenever you cast" trigger)
+    # is deleted with the migration. Its pattern is pinned as _SPELLCAST_RECASTER_RE and
+    # rides the byte-identical kept mirror _detect_spellcast_matters (re-run PER-CLAUSE
+    # over the reminder-stripped kept_oracle in extract_signals_ir) — the `[^.]*` arm
+    # never crosses a sentence, so flat == per-clause. CR 601.2.
     # Enchantment-TOKEN maker (Scriv "create a white Aura enchantment token", The Rani,
     # Preston Garvey) — makes enchantments, so it's an enchantment deck wanting
     # enchantment payoffs (Eriette, Sphere of Safety).
@@ -2307,8 +2355,12 @@ _PRESET_KEYWORD_SIGNALS = {
     # has_other_plan voltron silence is re-supplied via _VOLTRON_SILENCING_PLAN_KEYS
     # (verified inert — every magecraft creature already carries another high-confidence
     # plan, notably co-firing spellcast_matters, so 0 voltron tells leak). CR 207.2c.
-    # Prowess is a spellslinger payoff (cast noncreature spells) → same avenue.
-    "prowess": ("spellcast_matters", "you"),
+    # ADR-0027: the `prowess` preset keyword likewise moved to _IR_KEYWORD_MAP (the
+    # IR-only keyword path) because spellcast_matters is migrated — keeping it here
+    # would let the regex `extract_signals` path keep emitting a migrated key. The IR
+    # path reads the SAME Scryfall `Prowess` keyword array (byte-identical), and the
+    # has_other_plan voltron silence is re-supplied via _spellcast_has_plan (the
+    # prowess-keyword arm). CR 702.108a.
     # Storm/Casualty/Replicate/etc. are spell-copy keywords.
     "spell-copy": ("spell_copy_matters", "you"),
 }
@@ -2496,7 +2548,11 @@ _DIRECT_KEYWORD_SIGNALS = {
     # emitting the migrated key.
     # Archetype-defining keyword abilities (CR §702): the mechanic is reminder text
     # (stripped), so a commander WITH the keyword reads as that archetype via keyword.
-    "prowess": ("spellcast_matters", "you"),  # cast a noncreature spell → +1/+1
+    # ADR-0027: prowess (CR 702.108a — "whenever you cast a noncreature spell, +1/+1")
+    # MOVED to _IR_KEYWORD_MAP with the spellcast_matters migration. The Scryfall
+    # `Prowess` keyword array is the structured anchor (the keyword lives in stripped
+    # reminder so no structural cast Effect fires for a vanilla body). Keeping it here
+    # would let the regex `extract_signals` path emit a migrated key.
     # ADR-0027 Cluster D: the `rampage` keyword (CR 702.23 — "whenever this becomes
     # BLOCKED, +X/+X per extra blocker") moved to the IR-only path with the
     # blocked_matters migration. phase parses rampage's reminder trigger as a
@@ -5784,6 +5840,15 @@ def extract_signals(
         )
         or _SACRIFICE_PLAN_MIRROR.search(_oracle)
         or _LIFELOSS_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 spellcast_matters (signals-only): the deleted oracle producers + the
+        # deleted `prowess` keyword fired HIGH-confidence scope 'you' (non-generic), so
+        # they fed has_other_plan, silencing the spurious commander-damage voltron tell
+        # on a spellslinger / prowess body. The migrated IR re-supply is byte-identical
+        # (the struct cast-trigger arm is verified 0 over-fire, the mirror is
+        # byte-identical), so _spellcast_has_plan reproduces the silence for BOTH the
+        # hybrid and the pure-regex (ir is None) paths (DFC-safe over reminder-stripped
+        # ``text``).
+        or _spellcast_has_plan(card, text)
         # ADR-0027: re-silence the deleted evasion_self _HAND_FLOOR producer. It fired
         # HIGH-confidence scope 'you' and counted toward has_other_plan, silencing the
         # spurious commander-damage voltron tell on a body whose plan is to connect

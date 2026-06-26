@@ -3054,11 +3054,14 @@ def test_instant_sorcery_recaster_opens_spellcast():
             "Other Wizards you control get +1/+1."
         ),
     }
+    # spellcast_matters is migrated (ADR-0027 SIDECAR 50); these recaster/copier forms
+    # have no cast_spell trigger, so they ride the byte-identical _detect_spellcast_
+    # matters kept mirror via the hybrid path.
     for cmd in (mavinda, velomachus, naru_meha):
-        assert ("spellcast_matters", "you") in _ks(cmd), cmd["name"]
+        assert ("spellcast_matters", "you") in _ks_hybrid(cmd), cmd["name"]
     # Over-fire guard: a vanilla creature is not a spellslinger.
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
-    assert ("spellcast_matters", "you") not in _ks(bear)
+    assert ("spellcast_matters", "you") not in _ks_hybrid(bear)
 
 
 def test_enchantment_token_maker_opens_enchantments():
@@ -3490,8 +3493,11 @@ def test_instant_sorcery_buildaround_opens_spellcast():
             "has flashback. The flashback cost is equal to that card's mana cost."
         ),
     }
+    # spellcast_matters is migrated (ADR-0027 SIDECAR 50); the flashback-grant
+    # build-around has no cast_spell trigger, so it rides the byte-identical
+    # _detect_spellcast_matters kept mirror via the hybrid path.
     assert "spellcast_matters" in {
-        s.key for s in extract_signals(lier, include_membership=True)
+        s.key for s in extract_signals_hybrid(lier, _bare_ir(), include_membership=True)
     }
     # Over-fire guard: a bare counterspell mentions an instant but isn't an instant/
     # sorcery build-around — it must NOT read as spellslinger.
@@ -3501,7 +3507,8 @@ def test_instant_sorcery_buildaround_opens_spellcast():
         "oracle_text": "Counter target instant spell.",
     }
     assert "spellcast_matters" not in {
-        s.key for s in extract_signals(dispel, include_membership=True)
+        s.key
+        for s in extract_signals_hybrid(dispel, _bare_ir(), include_membership=True)
     }
 
 

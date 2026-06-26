@@ -170,19 +170,19 @@ def extract_signals_hybrid(
             continue
         seen.add(ident)
         out.append(sig)
-    # ADR-0027 spell-copy cross-open reconciliation: the regex path cross-opens
-    # spellcast_matters from a spell_copy_matters commander (a spell-copier is a
-    # spellslinger wanting a dense I/S base), gated on the regex set carrying
-    # spell_copy_matters. Now that spell_copy_matters migrated, the regex set lacks it,
-    # so the cross-open stops firing — re-supply it here when the IR provides spell_copy
-    # and the regex set didn't already cross-open spellcast (matching pre-migration
-    # behavior; low confidence, you-scope).
+    # ADR-0027 spell-copy → spellcast cross-open reconciliation: the regex
+    # `extract_signals` path UNCONDITIONALLY cross-opens spellcast_matters (low) from
+    # any spell_copy_matters card (a spell-copier is a spellslinger wanting a dense I/S
+    # base — the inline producer at _signals_regex). Now that BOTH spell_copy_matters
+    # AND spellcast_matters are migrated, that inline producer's output is stripped from
+    # the regex set (line 150), so the hybrid re-supplies it from the final merged set:
+    # fire whenever spell_copy_matters ends up in `out` (the regex `spell-copy` keyword
+    # OR the IR provides it) and spellcast not already present. The `spellcast not in
+    # out` guard is the dedup; an earlier `spell_copy not in regex_signals` gate broke
+    # once spellcast migrated (storm/replicate carry the keyword in the regex set, so it
+    # wrongly blocked the re-supply for them). Low confidence, you-scope.
     out_keys = {s.key for s in out}
-    if (
-        "spell_copy_matters" in out_keys
-        and "spell_copy_matters" not in {s.key for s in regex_signals}
-        and "spellcast_matters" not in out_keys
-    ):
+    if "spell_copy_matters" in out_keys and "spellcast_matters" not in out_keys:
         out.append(
             Signal("spellcast_matters", "you", "", "", record.get("name", ""), "low")
         )

@@ -1048,10 +1048,40 @@ def test_mill_effect_without_keyword_does_not_fire_mill_matters():
 
 
 def test_cast_spell_trigger_fires_spellcast_matters():
+    # ADR-0027 (SIDECAR 50): the structural arm fires on a `cast_spell` trigger
+    # scope='any' over a typed-noncreature subject (Instant/Sorcery) when the card
+    # oracle says "you cast" — the Talrand you-cast PAYOFF. phase scopes "you cast" and
+    # the symmetric "a player casts" both 'any', so the oracle "you cast" is the gate.
+    card = {
+        "name": "Talrand",
+        "oracle_text": (
+            "Whenever you cast an instant or sorcery spell, create a 2/2 blue "
+            "Drake creature token with flying."
+        ),
+    }
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="cast_spell",
+                subject=Filter(card_types=("Instant", "Sorcery"), controller="any"),
+                scope="any",
+            ),
+        )
+    )
+    keys = {(s.key, s.scope) for s in extract_signals_ir(card, ir)}
+    assert ("spellcast_matters", "you") in keys
+
+
+def test_bare_cast_spell_trigger_does_not_fire_spellcast_matters():
+    # A bare scope='you' cast_spell trigger with no typed subject is the one-shot
+    # "When you cast THIS spell" self-cast (Kozilek, Storm) — NOT the repeatable
+    # spellslinger payoff. The structural arm must not fire (it needs scope='any' + a
+    # typed subject); the byte-identical mirror also stays silent (CARD has no oracle).
     ir = _ir(
         Ability(kind="triggered", trigger=Trigger(event="cast_spell", scope="you"))
     )
-    assert ("spellcast_matters", "you", "") in _sigs(ir)
+    assert ("spellcast_matters", "you", "") not in _sigs(ir)
 
 
 def test_attacks_trigger_fires_attack_matters():

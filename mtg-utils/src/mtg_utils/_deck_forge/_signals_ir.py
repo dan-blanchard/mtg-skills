@@ -71,6 +71,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_self_blink_fulltext,
     _detect_self_damage_prevention,
     _detect_self_death_payoff,
+    _detect_spellcast_matters,
     _detect_token_maker,
     _detect_type_matters,
     _detect_typed_gy_recursion,
@@ -400,7 +401,17 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
 # Batch 2c — trigger.event → (signal key, fixed scope | None). The CROSSWALK
 # "payoff" set: a card that CARES when X happens, keyed off the trigger.
 _PAYOFF_TRIGGER_KEYS: dict[str, tuple[str, str | None]] = {
-    "cast_spell": ("spellcast_matters", "you"),
+    # ADR-0027 spellcast_matters (signals-only, SIDECAR 50) — `cast_spell` is
+    # INTENTIONALLY absent. It used to map to spellcast_matters scope 'you' here,
+    # firing UNCONDITIONALLY on EVERY cast_spell trigger — which would over-fire the
+    # opponent-cast hosers (Mystic Remora, Lavinia → opponent_cast_matters), the
+    # symmetric "a player casts" punishers (Eidolon, Ruric Thar, Niv-Mizzet Parun),
+    # and the one-shot "When you cast THIS spell" self-casts (Kozilek, Storm — phase
+    # scopes these 'you'). The deleted regex anchored on "whenever you cast"
+    # (reminder-stripped, you-cast only), so the base lane is fired by a GATED arm in
+    # the `if ev == "cast_spell":` block below (scope=='any' + a typed-noncreature
+    # subject + the card oracle's "you cast", verified 0 over-fire) PLUS the
+    # byte-identical _detect_spellcast_matters kept mirror. CR 601.2 / 603.2.
     # ADR-0027 β — `combat_damage` is INTENTIONALLY absent: it used to map to
     # combat_damage_to_opp here, but that fired UNCONDITIONALLY on every
     # combat_damage trigger, including the "deals combat damage to a CREATURE"
@@ -619,6 +630,15 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # exactly (ir_only==0, regex_only==0 — no mirror, no doer arm needed). scope "you"
     # (the deleted preset's scope — the controller's own spell casts). CR 207.2c.
     "magecraft": (("magecraft_matters", "you"),),
+    # ADR-0027 spellcast_matters migration (signals-only, SIDECAR 50): Prowess (CR
+    # 702.108a — "whenever you cast a noncreature spell, this gets +1/+1") MOVED here
+    # from _PRESET_KEYWORD_SIGNALS / _DIRECT_KEYWORD_SIGNALS (both mapped prowess →
+    # spellcast_matters). spellcast_matters is migrated, so prowess must leave the
+    # regex-readable keyword maps. The Scryfall `Prowess` keyword array is the
+    # structured anchor and is byte-identical to the deleted entries (both regex maps
+    # read card['keywords'], and the prowess trigger lives in stripped reminder so a
+    # vanilla-keyword body fires NO structural cast Effect). scope "you". CR 702.108a.
+    "prowess": (("spellcast_matters", "you"),),
     # ADR-0027 daynight_matters migration: daybound / nightbound (CR 726, Innistrad:
     # Midnight Hunt) as the printed Scryfall KEYWORD — the 35 day/night transforming
     # creatures (Tovolar, the werewolf cycles, Arlinn). The keyword is the KEYWORD-only
@@ -10057,6 +10077,33 @@ def extract_signals_ir(
                 # over the joined face, NOT a scope='any' structural arm. CR 603.2.
                 if trig.scope == "opp":
                     add("opponent_cast_matters", "opponents", "", "")
+                # ADR-0027 spellcast_matters STRUCTURAL arm (signals-only, SIDECAR 50) —
+                # the TYPED you-cast payoff phase DOES structure: a cast_spell trigger
+                # scope=='any' over a typed-noncreature subject (Instant/Sorcery, or a
+                # NotType:Creature predicate) — Talrand, Guttersnipe, Young Pyromancer,
+                # Kessig Flamebreather. SELF-CAST gated on _self_cast_oracle ("you cast"
+                # in the card oracle): phase collapses "you cast" and the symmetric "a
+                # player casts" to scope=='any' (CR 603.2), so the oracle "you cast" is
+                # the discriminator that drops the symmetric punishers (Eidolon, Ruric
+                # Thar, Niv-Mizzet Parun — no "you cast"). scope=='any' (not !='opp')
+                # drops the one-shot "When you cast THIS spell" self-casts phase scopes
+                # 'you' (Kozilek, Storm). The enchantment/artifact-only subject is
+                # excluded (those route to artifacts_matter / enchantments_matter, like
+                # the deleted regex's "not whenever you cast an enchantment/artifact
+                # spell" clause). Verified 0 over-fire vs the deleted regex (struct ⊆
+                # regex set). The when/whenever-conflated + non-trigger glue rides the
+                # byte-identical _detect_spellcast_matters mirror below. CR 603.2.
+                if (
+                    trig.scope == "any"
+                    and _self_cast_oracle
+                    and isinstance(trig.subject, Filter)
+                ):
+                    _ct = set(trig.subject.card_types)
+                    _typed = (_ct & {"Instant", "Sorcery"}) or (
+                        "NotType:Creature" in trig.subject.predicates
+                    )
+                    if _typed and not (_ct and _ct <= {"Enchantment", "Artifact"}):
+                        add("spellcast_matters", "you", "", "")
                 if "Creature" in tsubs:
                     add("creature_cast_trigger", "any", "", "")
                 # ADR-0027 — convoke_matters PAYOFF: "Whenever you cast a spell that
@@ -10427,6 +10474,27 @@ def extract_signals_ir(
     for clause in _clauses(kept_oracle):
         for key, subject in _detect_typed_spellcast(clause, vocab):
             add(key, "you", subject, clause)
+    # ADR-0027 spellcast_matters BYTE-IDENTICAL kept mirror (signals-only, SIDECAR 50).
+    # The base lane is the BROAD spellslinger-glue lane: phase's `cast_spell` trigger
+    # covers only the TYPED you-cast PAYOFF (the structural arm above), but the regex
+    # producer ALSO fired on (a) UNTYPED "whenever you cast a spell" payoffs, (b) the
+    # non-trigger glue phase has NO cast trigger for — instant/sorcery cost reducers
+    # (Baral, Arcane Melee), build-arounds (Lier, Kess), recaster/copiers (Twincast,
+    # Naru Meha, Mavinda), cast-from-zone recursion (Salvager, Diviner of Mist),
+    # past-tense spell counts (Gnostro, Demilich), and the next-cast-copy delayed
+    # triggers (Howl of the Horde, Chandra) — and (c) DFC back faces. phase ALSO
+    # conflates the one-shot "When you cast THIS spell" (scope 'you') with the
+    # repeatable "Whenever you cast a spell", so a bare structural arm can't tell them
+    # apart. So the deleted producers' EXACT union (_detect_spellcast_matters) is re-run
+    # PER-CLAUSE over the reminder-stripped kept_oracle, forced scope 'you' —
+    # byte-identical to the regex path. The struct arm's typed payoffs are a SUBSET
+    # (add() dedups). The 101 commander-legal storm/replicate/twincast cards the mirror
+    # leaves uncovered ride the EXISTING signals.py spell_copy cross-open (IR
+    # spell_copy_matters → spellcast_matters low), so the hybrid set is byte-identical
+    # to base (regex-only==0, ir-only==0). CR 601.2 / 608.
+    for clause in _clauses(kept_oracle):
+        if _detect_spellcast_matters(clause):
+            add("spellcast_matters", "you", "", clause.strip())
     # ADR-0027 — type_matters SUBJECT-CARRYING UNION migration. The BIGGEST lane
     # (14751 commander-legal): a card that cares about a permanent TYPE / creature
     # SUBTYPE — tribal/kindred lords, typed counts, typed tutors/recursion, typed

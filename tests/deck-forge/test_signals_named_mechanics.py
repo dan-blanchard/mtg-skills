@@ -990,8 +990,10 @@ def _ks_bare_ir():
 
 
 def test_prowess_keyword_surfaces_spellslinger():
+    # spellcast_matters is migrated (ADR-0027 SIDECAR 50); prowess opens it via the
+    # _IR_KEYWORD_MAP (byte-identical Scryfall keyword array) on the hybrid path.
     c = {"name": "X", "oracle_text": "Prowess", "keywords": ["Prowess"]}
-    assert ("spellcast_matters", "you") in _ks(c)
+    assert ("spellcast_matters", "you") in _ks_hybrid(c)
 
 
 def test_loot_outlet_is_a_discard_avenue():

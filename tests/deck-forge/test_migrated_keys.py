@@ -7456,6 +7456,38 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # spellcast_matters ← the structural `cast_spell` trigger scope='any' over a
+    # typed-noncreature subject (Instant/Sorcery), self-cast gated on the oracle's
+    # "you cast". Talrand is the canonical you-cast PAYOFF (Drake per instant/sorcery).
+    # The mirror also fires (the oracle says "whenever you cast an instant or sorcery
+    # spell"); add() dedups. ADR-0027 (signals-only, SIDECAR 50).
+    "spellcast_matters": (
+        {
+            "name": "Talrand, Sky Summoner",
+            "type_line": "Legendary Creature — Merfolk Wizard",
+            "oracle_text": (
+                "Whenever you cast an instant or sorcery spell, create a 2/2 "
+                "blue Drake creature token with flying."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="cast_spell",
+                    subject=Filter(card_types=("Instant", "Sorcery"), controller="any"),
+                    scope="any",
+                ),
+                effects=(
+                    Effect(
+                        category="make_token",
+                        scope="you",
+                        subject=Filter(card_types=("Creature",)),
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
@@ -7731,3 +7763,89 @@ def test_blood_matters_fires_from_a_recovered_granted_ability_maker():
         )
     )
     assert "blood_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+# ── spellcast_matters (ADR-0027 signals-only) — scope discrimination + recovery ──
+
+
+def test_spellcast_matters_does_not_fire_on_opponent_cast():
+    """Mystic Remora's opponent-cast hoser is opponent_cast_matters, NOT spellcast."""
+    card = {
+        "name": "Mystic Remora",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Cumulative upkeep {1}\nWhenever an opponent casts a noncreature "
+            "spell, you may draw a card unless that player pays {4}."
+        ),
+    }
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="cast_spell",
+                subject=Filter(card_types=("Card",), predicates=("NotType:Creature",)),
+                scope="opp",
+            ),
+            effects=(Effect(category="draw", scope="you"),),
+        )
+    )
+    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "spellcast_matters" not in keys
+    assert "opponent_cast_matters" in keys
+
+
+def test_spellcast_matters_does_not_fire_on_symmetric_player_cast():
+    """A symmetric 'whenever a player casts' punisher (no 'you cast') is not the
+    you-cast spellslinger payoff."""
+    card = {
+        "name": "Eidolon of the Great Revel",
+        "type_line": "Enchantment Creature — Spirit",
+        "oracle_text": (
+            "Whenever a player casts a spell with mana value 3 or less, this "
+            "creature deals 2 damage to that player."
+        ),
+    }
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="cast_spell",
+                subject=Filter(card_types=("Card",), predicates=("Cmc:LE:3",)),
+                scope="any",
+            ),
+            effects=(Effect(category="damage", scope="any"),),
+        )
+    )
+    assert "spellcast_matters" not in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_spellcast_matters_fires_on_prowess_keyword():
+    """Prowess (CR 702.108a) opens spellcast_matters via the Scryfall keyword array."""
+    card = {
+        "name": "Jeskai Windscout",
+        "type_line": "Creature — Bird Monk",
+        "oracle_text": (
+            "Flying\nProwess (Whenever you cast a noncreature spell, this "
+            "creature gets +1/+1 until end of turn.)"
+        ),
+        "keywords": ["Flying", "Prowess"],
+    }
+    ir = _ir(keywords=("Prowess",))
+    assert "spellcast_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_spellcast_matters_fires_from_kept_mirror_cost_reducer():
+    """An instant/sorcery cost-reducer (Baral) has NO cast_spell trigger — it rides
+    the byte-identical _detect_spellcast_matters kept mirror over the oracle."""
+    card = {
+        "name": "Baral, Chief of Compliance",
+        "type_line": "Legendary Creature — Vedalken Wizard",
+        "oracle_text": (
+            "Instant and sorcery spells you cast cost {1} less to cast.\n"
+            "Whenever a spell or ability you control counters a spell, you may "
+            "draw a card. If you do, discard a card."
+        ),
+    }
+    # IR carries NO cast_spell trigger (a static cost reduction) — proves the mirror.
+    ir = _ir(Ability(kind="static", effects=(Effect(category="cost_reduction"),)))
+    assert "spellcast_matters" in {s.key for s in extract_signals_hybrid(card, ir)}

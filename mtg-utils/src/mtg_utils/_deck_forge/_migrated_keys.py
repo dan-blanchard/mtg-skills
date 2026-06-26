@@ -3998,6 +3998,25 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # keyword_tribe SUBJECT-CARRYING precedent above. CR 109.3 / 601.2 / 603.2 /
         # 903.10a.
         "typed_spellcast",
+        # ADR-0027 spellcast_matters (signals-only, SIDECAR 50) — the BASE spellslinger
+        # "cares about casting spells" lane (Talrand, Guttersnipe, prowess, instant/
+        # sorcery cost-reducers/build-arounds/recasters). STRUCTURAL ARM: a `cast_spell`
+        # trigger scope=='any' over a typed-noncreature subject (the you-cast PAYOFF —
+        # _self_cast_oracle gated, verified 0 over-fire vs the deleted regex). KEYWORD:
+        # `prowess` (CR 702.108a) via _IR_KEYWORD_MAP, byte-identical to the deleted
+        # preset/direct entries. MIRROR: the byte-identical _detect_spellcast_matters
+        # (the deleted three producers' union) re-run PER-CLAUSE over the reminder-
+        # stripped kept_oracle, for the when/whenever-conflated + non-trigger glue
+        # (copy/cost/recursion/count/DFC) phase doesn't structure. The 101 storm/
+        # replicate/twincast leftovers ride the EXISTING signals.py spell_copy cross-
+        # open (IR spell_copy_matters → spellcast low). VOLTRON: the deleted producers
+        # + the `prowess` keyword fired HIGH scope 'you' and fed has_other_plan, so the
+        # byte-identical _spellcast_has_plan re-supplies the silence for BOTH the hybrid
+        # and the pure-regex (ir is None) paths (DFC-safe). The serve spec (signal_specs
+        # _SPELLSLINGER_SPEC) is hand-written and survives. The hybrid set is byte-
+        # identical to base (regex-only==0, ir-only==0; voltron 3007 set-equal). CR
+        # 601.2 (casting) / 608 (resolving) / 207.2c / 702.108a.
+        "spellcast_matters",
         # ADR-0027 token-recipient scope — token_maker (the MAKER of creature tokens,
         # emitting the captured creature-SUBTYPE as the LOAD-BEARING Signal SUBJECT).
         # The FIRST projection-step migration of the cutover: a paired project.py +

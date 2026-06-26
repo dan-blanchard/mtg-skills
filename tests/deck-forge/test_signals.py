@@ -243,35 +243,46 @@ def test_signal_carries_source_and_quote():
         if s.key == "creature_etb"
     )
     assert etb.source == "ETB Boss"
-    # A still-regex-served lane (spellcast_matters) proves the source+quote contract holds
-    # end-to-end on the legacy path. (ADR-0027 v29: graveyard_matters migrated to the IR,
-    # whose structural/mirror add() emits no clause quote, so it can no longer demonstrate
-    # the legacy quote contract.)
+    # spellcast_matters (ADR-0027 signals-only, SIDECAR 50) is now IR-served, but its
+    # byte-identical kept mirror (_detect_spellcast_matters) runs PER-CLAUSE and passes
+    # the matched clause as the Signal's raw/text — so the source+quote contract still
+    # holds end-to-end through the hybrid path.
     spell_card = {
         "name": "Spell Boss",
         "oracle_text": "Whenever you cast an instant spell, draw a card.",
     }
     quoting = next(
-        s for s in extract_signals(spell_card) if s.key == "spellcast_matters"
+        s
+        for s in extract_signals_hybrid(spell_card, _bare_ir())
+        if s.key == "spellcast_matters"
     )
     assert quoting.source == "Spell Boss"
     assert "cast an instant spell" in quoting.text.lower()
 
 
 def test_aggregate_dedupes_across_records():
-    # ADR-0027 v29: aggregate_signals walks the legacy regex path (extract_signals), so
-    # the example uses a still-regex-served lane (spellcast_matters); graveyard_matters
-    # has migrated to the IR and no longer rides the regex path.
+    # aggregate_signals walks the legacy regex path (extract_signals), so the example
+    # uses a still-regex-served lane: voltron_matters (the commander-damage membership
+    # tell, the last common non-migrated key — spellcast_matters migrated in ADR-0027
+    # SIDECAR 50). Two distinct vanilla creature bodies both open voltron (you, "").
     a = {
         "name": "A",
-        "oracle_text": "Whenever you cast an instant spell, draw a card.",
+        "type_line": "Creature — Bird",
+        "oracle_text": "Flying",
+        "power": "2",
+        "toughness": "2",
+        "keywords": ["Flying"],
     }
     b = {
         "name": "B",
-        "oracle_text": "Whenever you cast an instant spell, scry 1.",
+        "type_line": "Creature — Spirit",
+        "oracle_text": "Flying",
+        "power": "2",
+        "toughness": "2",
+        "keywords": ["Flying"],
     }
     agg = aggregate_signals([a, b])
-    sc = [s for s in agg if s.key == "spellcast_matters" and s.scope == "you"]
+    sc = [s for s in agg if s.key == "voltron_matters" and s.scope == "you"]
     assert len(sc) == 1  # deduped by (key, scope, subject)
 
 
@@ -1832,7 +1843,8 @@ def test_counter_keyword_commander_opens_counters():
 def test_archetype_keywords_open_their_lane():
     # CR-keyword audit (Dan): an archetype-defining keyword ability on the COMMANDER
     # opens that lane via the keyword (the mechanic is reminder text, stripped). Prowess
-    # (spellcast_matters) is NOT migrated, so it still reads from the regex keyword path.
+    # (spellcast_matters) is migrated (ADR-0027 SIDECAR 50), so it reads from the
+    # _IR_KEYWORD_MAP via the hybrid path now (byte-identical Scryfall keyword array).
     card = {
         "name": "Prowess Lord",
         "type_line": "Legendary Creature — Test",
@@ -1840,7 +1852,7 @@ def test_archetype_keywords_open_their_lane():
         "oracle_text": "Some ability.",
     }
     assert ("spellcast_matters", "you") in {
-        (s.key, s.scope) for s in extract_signals(card)
+        (s.key, s.scope) for s in extract_signals_hybrid(card, _bare_ir())
     }
     # ADR-0027: Bushido / Annihilator (attack_matters) are migrated — their attack
     # condition is reminder text, so the lane fires from the keyword in _IR_KEYWORD_MAP
@@ -1904,14 +1916,18 @@ def test_past_tense_count_payoffs_open_their_lane():
     # Tense audit (Dan): past-tense "this turn" COUNT payoffs are a class, like
     # "died this turn". Each rewards an accumulated count and should open the present-
     # tense lane. Verified real templating + commanders via bulk.
-    # Gnostro / Rionya: "for each spell you've cast this turn" — spellcast_matters is NOT
-    # migrated, so it still fires from the regex path.
+    # Gnostro / Rionya: "for each spell you've cast this turn" — spellcast_matters is
+    # migrated (ADR-0027 SIDECAR 50), so the past-tense count payoff fires from the
+    # byte-identical _detect_spellcast_matters kept mirror over the dict oracle via the
+    # hybrid (bare IR), NOT the deleted regex producer.
     spellcast = {
         "name": "X",
         "type_line": "Legendary Creature — Test",
         "oracle_text": "Scry X, where X is the number of spells you've cast this turn.",
     }
-    assert "spellcast_matters" in {s.key for s in extract_signals(spellcast)}
+    assert "spellcast_matters" in {
+        s.key for s in extract_signals_hybrid(spellcast, _bare_ir())
+    }
     # ADR-0027: attack_matters migrated — the combat-count "attacked this turn" payoff
     # (Varragoth / Relentless Assault) fires from the _ATTACK_MATTERS_MIRROR over the
     # dict oracle via the hybrid (empty IR), NOT the deleted regex producer.
@@ -2350,8 +2366,10 @@ def test_enchantment_card_tutor_opens_enchantments():
 
 
 def test_instant_sorcery_cost_reducer_opens_spellslinger():
-    # Baral reduces instant/sorcery cost — a core spellslinger payoff the
-    # "whenever you cast" lambda missed (no cast trigger).
+    # Baral reduces instant/sorcery cost — a core spellslinger payoff with no cast
+    # trigger. spellcast_matters is migrated (ADR-0027 SIDECAR 50); the cost-reducer has
+    # NO structural cast_spell trigger, so it rides the byte-identical
+    # _detect_spellcast_matters kept mirror via the hybrid path.
     card = {
         "name": "Baral, Chief of Compliance",
         "type_line": "Legendary Creature — Human Wizard",
@@ -2361,7 +2379,7 @@ def test_instant_sorcery_cost_reducer_opens_spellslinger():
             "draw a card. If you do, discard a card."
         ),
     }
-    assert ("spellcast_matters", "you") in _keys(card)
+    assert ("spellcast_matters", "you") in _keys_hybrid(card)
 
 
 def test_artifact_entered_condition_opens_artifacts():
