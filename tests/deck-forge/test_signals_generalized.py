@@ -2594,7 +2594,7 @@ def test_self_heroic_commander_opens_voltron():
             "Draw a card."
         ),
     }
-    assert "voltron_matters" in _keys(brigone)
+    assert "voltron_matters" in _keys_hybrid(brigone)
     # The "targets only <name>" form (Feather).
     feather = {
         "name": "Feather, Radiant Arbiter",
@@ -2609,7 +2609,7 @@ def test_self_heroic_commander_opens_voltron():
             "of permanent spells become tokens.)"
         ),
     }
-    assert "voltron_matters" in _keys(feather)
+    assert "voltron_matters" in _keys_hybrid(feather)
     # Self-scoped: a trigger that targets ANOTHER creature (not itself) is NOT the
     # suit-up tell — the helper must not match it (isolates the rule from the power>=2
     # commander-damage fallback).
@@ -2636,7 +2636,7 @@ def test_land_scaling_power_opens_voltron():
         "toughness": "3",
         "oracle_text": "Sima Yi's power is equal to the number of Swamps you control.",
     }
-    assert "voltron_matters" in _keys(sima_yi)
+    assert "voltron_matters" in _keys_hybrid(sima_yi)
     # Self-scoped: a team anthem that sets OTHERS' power by a land count is not a single
     # suit-up threat — the helper must not match it.
     assert (
@@ -2665,7 +2665,7 @@ def test_self_recurring_commander_opens_voltron():
             "from your graveyard to the battlefield."
         ),
     }
-    assert "voltron_matters" in _keys(akuta)
+    assert "voltron_matters" in _keys_hybrid(akuta)
     # Self-scoped: a reanimation spell returning ANOTHER creature is not the resilience
     # tell — the helper must not match it.
     assert (
@@ -2854,7 +2854,7 @@ def test_self_double_strike_beater_opens_voltron():
             "cast this card from your graveyard using its blitz ability."
         ),
     }
-    assert "voltron_matters" in _keys(sabin)
+    assert "voltron_matters" in _keys_hybrid(sabin)
     # Gate (helper-level, no other voltron path interfering): a double-strike TOKEN
     # go-wide engine (Oketra: makes Warriors, power 3) is excluded by BOTH the power>=4
     # and no-token gates — the documented over-fire class stays out.
@@ -5389,7 +5389,7 @@ def test_voltron_override_opens_for_likely_voltron_commanders():
         "oracle_text": "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.",
     }
     assert "voltron_matters" in {
-        s.key for s in extract_signals(sram, include_membership=True)
+        s.key for s in extract_signals_hybrid(sram, _bare_ir())
     }
     # (F) Tromokratis (Kraken, 8/8) is self-unblockable — a fat evasive body.
     tromokratis = {
@@ -5403,7 +5403,7 @@ def test_voltron_override_opens_for_likely_voltron_commanders():
         ),
     }
     assert "voltron_matters" in {
-        s.key for s in extract_signals(tromokratis, include_membership=True)
+        s.key for s in extract_signals_hybrid(tromokratis, _bare_ir())
     }
     # Self-scope unit guards (isolate the override from the power>=2 path-B fallback):
     # a counter on a NON-self target, and unblockable GRANTED to others, do not qualify.
@@ -5472,10 +5472,10 @@ def test_voltron_orthogonal_signals_do_not_suppress_fallback():
         ),
     }
     assert "voltron_matters" in {
-        s.key for s in extract_signals(wilson, include_membership=True)
+        s.key for s in extract_signals_hybrid(wilson, _bare_ir())
     }
     assert "voltron_matters" in {
-        s.key for s in extract_signals(thrun, include_membership=True)
+        s.key for s in extract_signals_hybrid(thrun, _bare_ir())
     }
     # Over-fire guard: a real ENGINE (here a spellslinger draw engine) IS a non-voltron
     # plan — it suppresses the fallback even on an evasive power-2 body with no voltron
@@ -5489,7 +5489,7 @@ def test_voltron_orthogonal_signals_do_not_suppress_fallback():
         ),
     }
     assert "voltron_matters" not in {
-        s.key for s in extract_signals(spellslinger, include_membership=True)
+        s.key for s in extract_signals_hybrid(spellslinger, _bare_ir())
     }
 
 

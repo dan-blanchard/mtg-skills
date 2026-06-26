@@ -261,28 +261,31 @@ def test_signal_carries_source_and_quote():
 
 
 def test_aggregate_dedupes_across_records():
-    # aggregate_signals walks the legacy regex path (extract_signals), so the example
-    # uses a still-regex-served lane: voltron_matters (the commander-damage membership
-    # tell, the last common non-migrated key — spellcast_matters migrated in ADR-0027
-    # SIDECAR 50). Two distinct vanilla creature bodies both open voltron (you, "").
+    # aggregate_signals walks the legacy regex path (extract_signals). voltron_matters,
+    # the last common non-migrated key, migrated in ADR-0027 (the cutover is complete),
+    # so this uses a lane the regex still emits — type_matters (a tribal lord, scope you,
+    # subject "Goblin"). Two distinct Goblin lords open the SAME (key, scope, subject),
+    # which aggregate_signals must dedupe to one entry.
     a = {
         "name": "A",
-        "type_line": "Creature — Bird",
-        "oracle_text": "Flying",
+        "type_line": "Creature — Goblin",
+        "oracle_text": "Other Goblins you control get +1/+1.",
         "power": "2",
         "toughness": "2",
-        "keywords": ["Flying"],
     }
     b = {
         "name": "B",
-        "type_line": "Creature — Spirit",
-        "oracle_text": "Flying",
+        "type_line": "Creature — Goblin",
+        "oracle_text": "Other Goblin creatures you control get +1/+0.",
         "power": "2",
         "toughness": "2",
-        "keywords": ["Flying"],
     }
     agg = aggregate_signals([a, b])
-    sc = [s for s in agg if s.key == "voltron_matters" and s.scope == "you"]
+    sc = [
+        s
+        for s in agg
+        if s.key == "type_matters" and s.scope == "you" and s.subject == "Goblin"
+    ]
     assert len(sc) == 1  # deduped by (key, scope, subject)
 
 
@@ -580,7 +583,7 @@ def test_cheap_vanilla_legend_opens_voltron_fallback():
         "toughness": "2",
         "oracle_text": "",
     }
-    assert ("voltron_matters", "you") in _keys(isamaru)
+    assert ("voltron_matters", "you") in _keys_hybrid(isamaru)
 
 
 def test_indestructible_beater_opens_voltron_fallback():
@@ -594,7 +597,7 @@ def test_indestructible_beater_opens_voltron_fallback():
         "keywords": ["Vigilance", "Indestructible"],
         "oracle_text": "Vigilance, indestructible\nBushido 5 (Whenever this creature blocks or becomes blocked, it gets +5/+5 until end of turn.)",
     }
-    assert ("voltron_matters", "you") in _keys(konda)
+    assert ("voltron_matters", "you") in _keys_hybrid(konda)
 
 
 def test_themeless_one_one_does_not_open_voltron():
@@ -606,7 +609,7 @@ def test_themeless_one_one_does_not_open_voltron():
         "toughness": "1",
         "oracle_text": "",
     }
-    assert ("voltron_matters", "you") not in _keys(chump)
+    assert ("voltron_matters", "you") not in _keys_hybrid(chump)
 
 
 def test_global_tribal_anthem_opens_tribe():
@@ -1038,7 +1041,7 @@ def test_aura_recursion_opens_voltron_lane():
         "type_line": "Legendary Creature — Human Wizard",
         "oracle_text": "Flying\n{U}{U}: Return target Aura card from your graveyard to the battlefield attached to Hakim. Activate only during your upkeep and only if Hakim isn't enchanted.\n{U}{U}, {T}: Destroy all Auras attached to Hakim.",
     }
-    assert ("voltron_matters", "you") in _keys(hakim)
+    assert ("voltron_matters", "you") in _keys_hybrid(hakim)
 
 
 def test_passive_combat_damage_opens_combat_lane():
@@ -1220,7 +1223,7 @@ def test_hexproof_beater_opens_voltron_despite_other_signals():
         "oracle_text": "Flying, hexproof\nSpells and abilities your opponents control "
         "can't cause you to sacrifice permanents.",
     }
-    assert ("voltron_matters", "you") in _keys(sigarda)
+    assert ("voltron_matters", "you") in _keys_hybrid(sigarda)
 
 
 def test_offering_keyword_opens_tribe():
@@ -1531,7 +1534,7 @@ def test_aura_equipment_cost_reducer_opens_voltron():
         "oracle_text": "First strike, vigilance, lifelink\nAura and Equipment spells you "
         "cast cost {1} less to cast.",
     }
-    assert ("voltron_matters", "you") in _keys(danitha)
+    assert ("voltron_matters", "you") in _keys_hybrid(danitha)
 
 
 def test_greatest_power_among_other_opens_power():
@@ -1619,7 +1622,7 @@ def test_equipped_creature_reference_opens_voltron():
         "oracle_text": "Whenever you attack a player with one or more equipped creatures, draw a card.\n{W}: You may unattach an Equipment from a creature you control. If you do, tap that creature and it gains indestructible until end of turn.",
     }
     assert ("voltron_matters", "you") in {
-        (s.key, s.scope) for s in extract_signals(akiri)
+        (s.key, s.scope) for s in extract_signals_hybrid(akiri, _bare_ir())
     }
 
 
@@ -1632,7 +1635,7 @@ def test_unkillable_self_prevention_opens_voltron():
         "oracle_text": "Prevent all damage that would be dealt to Cho-Manno.",
     }
     assert ("voltron_matters", "you") in {
-        (s.key, s.scope) for s in extract_signals(cho)
+        (s.key, s.scope) for s in extract_signals_hybrid(cho, _bare_ir())
     }
 
 
@@ -2434,7 +2437,7 @@ def test_enchanted_or_equipped_opens_voltron():
             "tokens you control that are enchanted or equipped get +1/+1."
         ),
     }
-    assert ("voltron_matters", "you") in _keys(card)
+    assert ("voltron_matters", "you") in _keys_hybrid(card)
 
 
 def test_mv_scaling_burn_opens_noncombat_damage():

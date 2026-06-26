@@ -237,10 +237,9 @@ def test_representative_sweep_keys_fire_from_oracle():
             "stax_taxes",
             "Each player can't draw more than one card each turn.",
         ),
-        (
-            "voltron_matters",
-            "Whenever you attach an Equipment to a creature, draw a card.",
-        ),
+        # voltron_matters was here, but ADR-0027 migrated it to the Card IR (the LAST
+        # key — its regex producers are deleted), so the Equipment/Aura PAYOFF tell now
+        # routes through the IR path (asserted in test_migrated_keys).
     ]
     for key, oracle in cases:
         keys = {s.key for s in extract_signals({"name": "X", "oracle_text": oracle})}

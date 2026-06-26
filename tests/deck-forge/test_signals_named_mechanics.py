@@ -31,11 +31,9 @@ def _keys(card):
 # (expected_key, expected_scope, oracle text exercising the anchor)
 CASES = [
     # sweep survivors
-    (
-        "voltron_matters",
-        "you",
-        "Whenever you attach an Equipment to a creature, draw a card.",
-    ),
+    # ADR-0027: voltron_matters migrated to the Card IR (the LAST key — its regex
+    # producers are deleted). The Equipment/Aura PAYOFF tell routes through the IR path,
+    # so it is asserted via the hybrid path below (test_voltron_payoff_is_ir_served).
     # ADR-0027: vehicles_matter migrated to the Card IR (the byte-identical
     # VEHICLES_MATTER_MIRROR kept word mirror — the "Vehicles you control" anthem / crew
     # payoff / Vehicle-GRANTER lane — plus the per-clause Greasefang typed-gy Vehicle
@@ -713,13 +711,31 @@ def test_vehicles_does_not_fire_on_incidental_or_vehicle_target():
     }
 
 
+def test_voltron_payoff_is_ir_served():
+    # ADR-0027 (voltron migration — the LAST key): the Equipment/Aura PAYOFF tell now
+    # fires from the IR path (a per-clause VOLTRON_PAYOFF_REGEX word arm UNIONed with the
+    # structural _detect_voltron_payoff_ir), HIGH/scope you. The regex path no longer
+    # emits it. CR 301.5 / 303.4 / 702.6 / 903.10a.
+    c = {
+        "name": "Sram-like",
+        "type_line": "Legendary Creature — Dwarf Advisor",
+        "oracle_text": "Whenever you attach an Equipment to a creature, draw a card.",
+    }
+    assert "voltron_matters" not in {s.key for s in extract_signals(c)}
+    assert ("voltron_matters", "you") in _ks_hybrid(c)
+
+
 def test_voltron_does_not_fire_on_equipment_payload():
-    # The payload on an Equipment itself must not register as a voltron build-around.
+    # The payload on an Equipment itself must not register as a voltron build-around —
+    # the broad payoff regex deliberately keys on "equipped creatures" (PLURAL), so the
+    # singular "Equipped creature gets +2/+2" gear payload stays off it.
     c = {
         "name": "Bear Sword",
         "oracle_text": "Equipped creature gets +2/+2.\nEquip {2}",
     }
-    assert "voltron_matters" not in _keys(c)
+    assert "voltron_matters" not in {
+        s.key for s in extract_signals_hybrid(c, _bare_ir())
+    }
 
 
 def test_plus_one_matters_widened_for_distributors():

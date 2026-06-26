@@ -7506,6 +7506,35 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # voltron_matters ← the structural Equipment/Aura PAYOFF arm
+    # (_detect_voltron_payoff_ir): a cast-an-Aura/Equipment-spell trigger (Sram).
+    # The IR path fires voltron HIGH/ungated; the regex path no longer emits it
+    # (the _HAND_FLOOR payoff row + membership adds are dropped as a migrated key).
+    # CR 301.5 / 303.4 / 702.6 / 903.10a.
+    "voltron_matters": (
+        {
+            "name": "Sram, Senior Edificer",
+            "type_line": "Legendary Creature — Dwarf Advisor",
+            "oracle_text": (
+                "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card."
+            ),
+            "power": "2",
+            "toughness": "2",
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="cast_spell",
+                    subject=Filter(
+                        subtypes=("Aura", "Equipment", "Vehicle"), controller="you"
+                    ),
+                    scope="you",
+                ),
+                effects=(Effect(category="draw", scope="you"),),
+            )
+        ),
+    ),
 }
 
 

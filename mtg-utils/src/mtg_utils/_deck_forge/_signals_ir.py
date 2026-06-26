@@ -42,6 +42,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _EVERGREEN_KW_RE,
     _EXILE_REMOVAL_SWEEP_RE,
     _FLOOR_DETECTORS,
+    _GENERIC_KEYS,
     _IMPULSE_TOP_PLAY_SWEEP_RE,
     _KEYWORD_SOUP_CONTEXT_RE,
     _MANA_TAP_RE,
@@ -55,6 +56,10 @@ from mtg_utils._deck_forge._signals_regex import (
     _SELF_BLINK_SWEEP_RE,
     _TAP_ABILITY_RE,
     _TOPDECK_SELECTION_SWEEP_RE,
+    _VOLTRON_COMPAT_KEYS,
+    _VOLTRON_EQUIP_RE,
+    _VOLTRON_KEYWORDS,
+    _VOLTRON_PAYOFF_RE,
     _XSPELL_HOOK_RE,
     _XSPELL_VETO_RE,
     TUTOR_MATTERS_REGEX,
@@ -82,6 +87,12 @@ from mtg_utils._deck_forge._signals_regex import (
     _self_dies_value,
     _self_etb_value,
     _type_hoser_clause,
+    _voltron_double_strike_beater,
+    _voltron_land_scaler,
+    _voltron_self_heroic,
+    _voltron_self_pump,
+    _voltron_self_recurs,
+    _voltron_self_unblockable,
     self_power_scale_match,
 )
 from mtg_utils._deck_forge._subtypes import (
@@ -461,6 +472,28 @@ _PAYOFF_TRIGGER_KEYS: dict[str, tuple[str, str | None]] = {
     # trample-excess) — the event mapping stays for accurate IR, but no lane yet.
 }
 
+# ADR-0027 (voltron migration) — the voltron-COMPATIBLE high-confidence lanes that do
+# NOT count toward voltron's has_other_plan guard. A signal in this set is itself part
+# of the Power/Evasion/Protection voltron triad, or a vanilla-body characteristic, so it
+# does NOT redirect the deck away from the single-big-threat plan (unlike a card-draw /
+# ramp / token / aristocrats / graveyard / tribal-lord / removal engine, which does).
+# Without this, the IR-derived has_other_plan would over-silence genuine voltron-
+# eligible beaters the regex baseline kept (a regenerating Troll, a changeling, a morph
+# beater, a self-pumper). Grounded in CR: 701.19 (regenerate = removal-resistance, ideal
+# Equipment carrier), 702.73a (changeling = every creature type on a vanilla body),
+# 702.37a / 708 (morph = a casting option, not an engine), 122.1b / 509 (self power-
+# growth + evasion grants push the carrier's own combat damage through). CR 903.10a.
+_VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
+    {
+        "regenerate_matters",
+        "changeling_matters",
+        "facedown_matters",
+        "self_pump",
+        "pump_matters",
+        "cant_block_grant",
+    }
+)
+
 # Batch K — Scryfall keyword (lowercased) → the signal keys it fires. A clean
 # structured-field lookup (card["keywords"]), NOT oracle regex, so it survives
 # into the IR-native world. One keyword may open several lanes; several keywords
@@ -793,7 +826,12 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # bearer also has the word in its reminder-stripped oracle, so the mirror is a
     # strict superset of the keyword arm).
     "enlist": (("enlist_matters", "you"),),
-    "exalted": (("exalted_lone_attacker", "you"),),
+    # ADR-0027 (voltron migration): exalted ALSO opens voltron_matters — an exalted
+    # commander pumps a LONE attacker (itself), the canonical single-big-threat suit-up
+    # (CR 702.83). Reproduces the deleted regex _DIRECT_KEYWORD_SIGNALS['exalted'] ->
+    # voltron_matters (HIGH, unconditional) byte-identically; that regex row STAYS for
+    # the no-sidecar degradation path. CR 702.83 / 903.10a.
+    "exalted": (("exalted_lone_attacker", "you"), ("voltron_matters", "you")),
     "exhaust": (("exhaust_matters", "you"),),
     # NB: cycling/crew/curse are NOT here — having Cycling ≠ a cycling-MATTERS
     # payoff, having Crew ≠ a Vehicle-tribal payoff, being a Curse ≠ curses-matter.
@@ -10240,15 +10278,10 @@ def extract_signals_ir(
     if ir.many_copies:
         add("copy_limit", "you", "", "")
 
-    # Voltron PAYOFF (ADR-0027) — the structural Aura/Equipment build-around, read
-    # from phase's IR (attach action / cast-an-Aura trigger / Aura-Equipment tutor /
-    # attachment-state subject) instead of the oracle-regex floor+sweep rows. This is
-    # the *payoff* half only — the commander-damage MEMBERSHIP fallback stays on the
-    # regex path (it's gated on `not has_other_plan` over the full signal set, which
-    # the IR slice can't reproduce; see ADR-0027 deferral). Not membership-gated,
-    # matching the regex producer (the payoff fires from a card's text, not its type).
-    if _detect_voltron_payoff_ir(ir):
-        add("voltron_matters", "you", "", "", "low")
+    # Voltron PAYOFF (ADR-0027 — the LAST migrated key): the Equipment/Aura build-around
+    # tell fires HIGH/ungated, computed just below where `kept_oracle` is defined (see
+    # "Voltron PAYOFF detector"). The commander-damage MEMBERSHIP fallback + self-tells
+    # live in the include_membership block before `return out`.
 
     # creatures_matter mass-token-maker DOER (cross-open): a token_maker that makes
     # CREATURE tokens (a captured creature subject — Darien makes Soldiers, Jinnie
@@ -10288,6 +10321,22 @@ def extract_signals_ir(
         add(key, scope, "", "")
     # Kept narrow mechanic-word detectors (real mechanics phase doesn't structure).
     kept_oracle = re.sub(r"\([^)]*\)", " ", get_oracle_text(card) or "")
+    # Voltron PAYOFF detector (ADR-0027 — the LAST migrated key): the Equipment/Aura
+    # build-around tell, HIGH / scope 'you' / UNGATED (a voltron TOOL — Plate Armor,
+    # Magnetic Theft — and a payoff COMMANDER — Sram, Koll — both qualify, regardless of
+    # card type). The STRUCTURAL _detect_voltron_payoff_ir arm (attach-OTHER action /
+    # cast-an-Aura-or-Equipment trigger / Aura-Equipment tutor / attachment-STATE
+    # subject) UNIONed with the byte-identical _VOLTRON_PAYOFF_RE word regex run
+    # PER-CLAUSE over kept_oracle (the deleted _HAND_FLOOR producer's exact per-clause
+    # scan — its `[^.]` spans never cross a sentence, so this is byte-identical). The
+    # structural arm is the recall gain. Fires here, before the include_membership
+    # has_other_plan derivation, so a payoff card's voltron HIGH is in `out` when
+    # has_other_plan is read (matching the regex _HAND_FLOOR ordering). CR 301.5 / 303.4
+    # / 702.6 / 903.10a.
+    if _detect_voltron_payoff_ir(ir) or any(
+        _VOLTRON_PAYOFF_RE.search(cl) for cl in _clauses(kept_oracle)
+    ):
+        add("voltron_matters", "you", "", "", "high")
     for key, pat, scope in _IR_KEPT_DETECTORS:
         if pat.search(kept_oracle):
             add(key, scope, "", "")
@@ -11631,4 +11680,98 @@ def extract_signals_ir(
                     token_subjects.add(sub)
         for sub in token_subjects:
             add(signal_keys.TYPE_MATTERS, "you", sub, "", "low")
+
+        # ── Voltron membership (ADR-0027 — the LAST migrated key) ──────────────
+        # voltron_matters is a COMMANDER that wants to win via commander damage
+        # (CR 903.10a: 21 combat damage from one commander) by loading ONE creature
+        # (itself) with Equipment/Auras. It is a COMPOSITION OF STRUCTURAL MECHANICS,
+        # all of which now live in the IR — so it migrates here off the regex
+        # composite. The ONE sanctioned re-baseline: has_other_plan is now derived
+        # from THIS function's own `out` (every plan lane is migrated, so the IR set
+        # carries them all high-confidence) instead of the regex path's ~40
+        # byte-identical *_PLAN_MIRROR re-supplies. Where the IR lane is BROADER than
+        # the deleted regex producer (a self-death / combat-buff / cheat-into-play
+        # engine the word-list missed), the broader has_other_plan correctly SILENCES
+        # the spurious commander-damage tell on that engine — a more-correct set than
+        # the old regex's 3007. The unconditional tells (payoff, self-growth,
+        # evasion/resilience, self-protection) fire regardless; only the bare
+        # commander-damage fallback is gated on `not has_other_plan`.
+        power = card_pt_int(card)
+        kws = {k.lower() for k in (card.get("keywords") or [])}
+        # (4) self-protection (Power/Evasion/Protection triad; removal is the
+        # weakness): an unkillable body that prevents all damage to ITSELF is the
+        # ideal Equipment/Aura carrier (Cho-Manno, Gideon Blackblade). Not creature-
+        # gated, matching the deleted regex producer. CR 614.9 / 615 / 903.10a.
+        if _detect_self_damage_prevention(kept_oracle, name):
+            add("voltron_matters", "you", "", kept_oracle[:160], "low")
+        if "creature" in type_line:
+            # (4) hexproof/indestructible/shroud beater — a removal-resistant body
+            # you safely suit up (Sigarda, Uril, Geist of Saint Traft). The single
+            # most-distinguishing voltron tell (60% want the package vs 21.6% base).
+            # CR 702.11 / 702.12 / 702.18.
+            if power >= 2 and kws & {"hexproof", "indestructible", "shroud"}:
+                add(
+                    "voltron_matters",
+                    "you",
+                    "",
+                    "hexproof/indestructible beater",
+                    "low",
+                )
+            # (2) the narrower _VOLTRON_EQUIP_RE word tell ("enchanted creature" /
+            # "equipped creature" singular / reconfigure / equip {} — the singular
+            # payload forms the broad ungated payoff detector above stays off). (1/7)
+            # self combat-damage growth loop (_voltron_self_pump — Mirri) and self-
+            # targeting heroic suit-up (_voltron_self_heroic — Brigone, Feather; CR
+            # 702.83). (3) self-unblockable evasion (Tromokratis). (7) land-scaling
+            # threat (Sima Yi), self-recurring threat (Akuta), and double-strike beater
+            # (Sabin — doubles every equip/aura bonus, CR 702.4).
+            if (
+                _VOLTRON_EQUIP_RE.search(kept_oracle)
+                or (power >= 2 and _voltron_self_pump(kept_oracle, name))
+                or (power >= 4 and _voltron_self_unblockable(kept_oracle, name))
+                or _voltron_self_heroic(kept_oracle, name)
+                or _voltron_land_scaler(kept_oracle, name)
+                or _voltron_self_recurs(kept_oracle, name)
+                or _voltron_double_strike_beater(card, kept_oracle)
+            ):
+                add("voltron_matters", "you", "", "likely voltron commander", "low")
+        # has_other_plan (ADR-0027 re-baseline): a high-confidence signal in THIS
+        # function's IR `out` for a NON-COMBAT RESOURCE/BOARD ENGINE (card-draw / ramp /
+        # tokens / aristocrats / graveyard / tribal-lord / removal-control …) IS another
+        # plan — a commander whose primary identity is such an engine is NOT a vanilla
+        # voltron beater, so its commander-damage tell is silenced. EXCLUDED are the
+        # voltron-COMPATIBLE lanes (_VOLTRON_HAS_OTHER_PLAN_COMPAT): a high-conf signal
+        # that is itself a Power/Evasion/Protection tell or a vanilla-body trait does
+        # NOT redirect the deck away from the single-big-threat plan, so it must not
+        # silence the fallback. Per CR: regeneration (701.19) is removal-resistance — a
+        # resilient beater is the IDEAL Equipment carrier; changeling (702.73a) is a
+        # vanilla all-creature-type body; morph/facedown (702.37a / 708) is a casting
+        # option, not an engine; self power-growth (self_pump / pump_matters) and the
+        # evasion-enabling cant_block_grant push the carrier's own damage through (the
+        # Power/Evasion legs of the triad). The voltron LOW adds above are LOW (so are
+        # skipped); an exalted body's voltron HIGH from the keyword map counts but fired
+        # voltron (moot). Background / conditional self-protection stay compat.
+        has_other_plan = any(
+            s.confidence == "high"
+            and s.key not in _GENERIC_KEYS
+            and s.key not in _VOLTRON_COMPAT_KEYS
+            and s.key not in _VOLTRON_HAS_OTHER_PLAN_COMPAT
+            for s in out
+        )
+        # (base) commander-damage fallback (CR 903.10a): only when nothing else gave a
+        # strong direction and the creature is a real commander-damage threat (an
+        # evasion/resilience keyword, or power >= 2 — Isamaru is a 2/2). A 0/1
+        # themeless wall is excluded by the power floor.
+        if (
+            not has_other_plan
+            and "creature" in type_line
+            and (kws & _VOLTRON_KEYWORDS or power >= 2)
+        ):
+            add(
+                "voltron_matters",
+                "you",
+                "",
+                "commander damage (CR 903.10a)",
+                "low",
+            )
     return out

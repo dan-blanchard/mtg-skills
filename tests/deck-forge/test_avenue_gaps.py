@@ -220,14 +220,23 @@ class TestVoltronCastTrigger:
             "type_line": "Legendary Creature — Dwarf Advisor",
             "oracle_text": "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.",
         }
-        assert "voltron_matters" in {s.key for s in extract_signals(sram)}
-        # a non-equipment commander must NOT
-        bear = {
-            "name": "Grizzly Bears",
-            "type_line": "Creature — Bear",
-            "oracle_text": "",
+        # ADR-0027 (voltron migration — the LAST key): the Equipment/Aura PAYOFF tell
+        # ("cast an Aura, Equipment …") fires from the IR path now (a per-clause
+        # VOLTRON_PAYOFF_REGEX arm UNIONed with the structural _detect_voltron_payoff_ir).
+        assert "voltron_matters" not in {s.key for s in extract_signals(sram)}
+        assert "voltron_matters" in {
+            s.key for s in extract_signals_hybrid(sram, _bare_ir())
         }
-        assert "voltron_matters" not in {s.key for s in extract_signals(bear)}
+        # a non-equipment payoff (an Equipment's own singular payload) must NOT open the
+        # payoff lane — the broad regex keys on "equipped creatures" (PLURAL).
+        gear = {
+            "name": "Grizzly Sword",
+            "type_line": "Artifact — Equipment",
+            "oracle_text": "Equipped creature gets +1/+1.\nEquip {2}",
+        }
+        assert "voltron_matters" not in {
+            s.key for s in extract_signals_hybrid(gear, _bare_ir())
+        }
 
 
 class TestVoltronServesSram:

@@ -15,7 +15,7 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Card, Face
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 
 
 def _sigs(name="X", oracle="", type_line="Legendary Creature — Test", **kw):
@@ -41,6 +41,22 @@ def _hybrid_subjects(key, name="X", oracle="", type_line="Enchantment", **kw):
     card.update(kw)
     ir = Card(oracle_id="x", name=name, faces=(Face(name=name),))
     return {s.subject for s in extract_signals_hybrid(card, ir) if s.key == key}
+
+
+def _hybrid_sigs(name="X", oracle="", type_line="Legendary Creature — Test", **kw):
+    """Signals from the HYBRID (IR) path. ADR-0027 migrated voltron_matters (the LAST
+    key) off the regex path, so voltron tests run here against a minimal Card whose Face
+    carries the card's keywords — the self-tells / keyword / fallback all read the record
+    (oracle / keywords / power), and the keyword tells read the Face keyword array."""
+    card = {"name": name, "oracle_text": oracle, "type_line": type_line}
+    card.update(kw)
+    kws = tuple(kw.get("keywords", ()))
+    ir = Card(oracle_id="x", name=name, faces=(Face(name=name, keywords=kws),))
+    return extract_signals_hybrid(card, ir)
+
+
+def _hybrid_keys(**kw):
+    return {s.key for s in _hybrid_sigs(**kw)}
 
 
 # ── 1. build-around keyword → signal ──
@@ -116,7 +132,9 @@ def test_battle_cry_is_go_wide_attack():
 
 
 def test_exalted_is_voltron():
-    assert "voltron_matters" in _keys(keywords=["Exalted"])
+    # ADR-0027 (voltron migration): exalted opens voltron via the IR keyword route
+    # (_IR_KEYWORD_MAP['exalted'] → exalted_lone_attacker + voltron_matters), CR 702.83.
+    assert "voltron_matters" in _hybrid_keys(keywords=["Exalted"])
 
 
 def test_extort_is_drain():
@@ -208,10 +226,11 @@ def test_subtype_is_not_a_keyword_tribe():
     assert "Goblin" not in subs
 
 
-# ── 3. voltron fallback (commander damage) ──
+# ── 3. voltron fallback (commander damage) ── (ADR-0027: voltron_matters migrated to
+# the Card IR — the LAST key — so these assert against the HYBRID/IR path.)
 def test_vanilla_beater_gets_voltron_fallback():
     # 10/10 flier with no build-around oracle → voltron avenue, low confidence.
-    sigs = _sigs(
+    sigs = _hybrid_sigs(
         name="Mechtitan",
         oracle="",
         type_line="Legendary Creature — Robot",
@@ -228,21 +247,25 @@ def test_small_vanilla_no_voltron():
     # A 1/1 themeless legend is below the commander-damage floor → nothing. (A 2/2
     # vanilla legend like Isamaru now DOES open voltron — the iconic cheap voltron
     # commander; see test_cheap_vanilla_legend_opens_voltron_fallback in test_signals.)
-    assert "voltron_matters" not in _keys(
+    assert "voltron_matters" not in _hybrid_keys(
         oracle="", type_line="Legendary Creature — Dog", power="1", toughness="1"
     )
 
 
-def test_voltron_fallback_suppressed_when_real_signal_exists():
-    # a commander with a strong build-around must NOT also get the vanilla fallback.
-    sigs = _sigs(
+def test_voltron_fallback_suppressed_when_a_real_engine_exists():
+    # A commander whose IR signal lanes carry a NON-COMBAT engine (here a tribal lord —
+    # type_matters fires HIGH from the kept mirror over the oracle) has another plan, so
+    # the IR-derived has_other_plan silences the commander-damage fallback. CR 903.10a.
+    sigs = _hybrid_sigs(
         oracle="Other Goblins you control get +1/+1.",
         type_line="Legendary Creature — Goblin",
         keywords=["Menace"],
         power="5",
         toughness="5",
     )
-    assert "voltron_matters" not in {s.key for s in sigs}
+    keys = {s.key for s in sigs}
+    assert "type_matters" in keys  # the engine the IR detects
+    assert "voltron_matters" not in keys
 
 
 def test_voltron_fallback_routes_low_confidence():
@@ -254,6 +277,169 @@ def test_voltron_fallback_routes_low_confidence():
         "power": "20",
         "toughness": "20",
     }
-    needs, reason = coverage_gate(c, extract_signals(c))
+    ir = Card(
+        oracle_id="x",
+        name="Marit Lage",
+        faces=(Face(name="Marit Lage", keywords=("Flying", "Indestructible")),),
+    )
+    needs, reason = coverage_gate(c, extract_signals_hybrid(c, ir))
     assert needs is True
     assert reason == "low_confidence"
+
+
+# ── 4. the six voltron tell families (ADR-0027 — voltron migrated to the Card IR) ──
+# Each family is a structural tell from the web-validated Power / Evasion / Protection
+# triad (+ Background / Partner); an engine commander with another plan does NOT fire.
+def test_tell_self_combat_damage_growth_fires_voltron():
+    # (1) self combat-damage growth loop — Mirri grows herself on combat damage.
+    mirri = {
+        "name": "Mirri the Cursed",
+        "type_line": "Legendary Creature — Vampire Cat",
+        "power": "3",
+        "toughness": "1",
+        "oracle_text": (
+            "Flying, first strike, haste\nWhenever Mirri the Cursed deals combat "
+            "damage to a creature, put a +1/+1 counter on Mirri the Cursed."
+        ),
+    }
+    assert "voltron_matters" in _hybrid_keys(**mirri)
+
+
+def test_tell_equipment_aura_payoff_fires_voltron():
+    # (2) Equipment/Aura PAYOFF — the structural _detect_voltron_payoff_ir arm.
+    sram = {
+        "name": "Sram, Senior Edificer",
+        "type_line": "Legendary Creature — Dwarf Advisor",
+        "oracle_text": (
+            "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card."
+        ),
+        "power": "2",
+        "toughness": "2",
+    }
+    ir = Card(
+        oracle_id="x",
+        name="Sram, Senior Edificer",
+        faces=(
+            Face(
+                name="Sram, Senior Edificer",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(
+                            event="cast_spell",
+                            subject=Filter(
+                                subtypes=("Aura", "Equipment"), controller="you"
+                            ),
+                            scope="you",
+                        ),
+                        effects=(Effect(category="draw", scope="you"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "voltron_matters" in {s.key for s in extract_signals_hybrid(sram, ir)}
+
+
+def test_tell_evasion_self_fires_voltron():
+    # (3) evasion on self — a flying beater is a commander-damage threat (CR 903.10a).
+    assert "voltron_matters" in _hybrid_keys(
+        name="Skyfang",
+        type_line="Legendary Creature — Dragon",
+        keywords=["Flying"],
+        power="4",
+        toughness="4",
+    )
+
+
+def test_tell_self_protection_fires_voltron():
+    # (4) protection on self — an unkillable body is the ideal Equipment/Aura carrier.
+    cho = {
+        "name": "Cho-Manno, Revolutionary",
+        "type_line": "Legendary Creature — Human Rebel",
+        "oracle_text": "Prevent all damage that would be dealt to Cho-Manno, Revolutionary.",
+        "power": "2",
+        "toughness": "4",
+    }
+    assert "voltron_matters" in _hybrid_keys(**cho)
+
+
+def test_tell_background_fires_voltron():
+    # (5) Background — a "Choose a Background" beater is a vanilla voltron body (the
+    # Background grants the suit-up package). partner_background is voltron-compat.
+    wilson = {
+        "name": "Wilson, Refined Grizzly",
+        "type_line": "Legendary Creature — Bear Warrior",
+        "oracle_text": (
+            "Vigilance, reach, trample\nChoose a Background (You can have a Background "
+            "as a second commander.)"
+        ),
+        "power": "4",
+        "toughness": "4",
+        "keywords": ["Choose a Background"],
+    }
+    assert "voltron_matters" in _hybrid_keys(**wilson)
+
+
+def test_tell_partner_fires_voltron():
+    # (6) Partner — a Partner commander pairs with a second commander; the keyword maps
+    # to partner_background, which is voltron-COMPAT (it does not suppress the fallback).
+    # Ardenn is the real overlap: a Partner that ALSO suits up (attach Auras/Equipment).
+    ardenn = {
+        "name": "Ardenn, Intrepid Archaeologist",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": (
+            "Partner (You can have two commanders if both have partner.)\n"
+            "At the beginning of combat on your turn, you may attach any number of "
+            "target Auras and/or Equipment you control to any number of target "
+            "creatures and/or players."
+        ),
+        "power": "2",
+        "toughness": "3",
+        "keywords": ["Partner"],
+    }
+    keys = _hybrid_keys(**ardenn)
+    assert "partner_background" in keys  # the compat tell (does not suppress)
+    assert "voltron_matters" in keys
+
+
+def test_engine_commander_with_other_plan_does_not_fire_voltron():
+    # An engine commander whose primary identity is a NON-COMBAT resource engine (here a
+    # token engine — Krenko) has another plan, so the IR-derived has_other_plan silences
+    # the commander-damage tell. CR 903.10a.
+    krenko = {
+        "name": "Krenko, Mob Boss",
+        "type_line": "Legendary Creature — Goblin Warrior",
+        "oracle_text": (
+            "{T}: Create a number of 1/1 red Goblin creature tokens equal to the number "
+            "of Goblins you control."
+        ),
+        "power": "3",
+        "toughness": "3",
+    }
+    ir = Card(
+        oracle_id="x",
+        name="Krenko, Mob Boss",
+        faces=(
+            Face(
+                name="Krenko, Mob Boss",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        effects=(
+                            Effect(
+                                category="make_token",
+                                scope="you",
+                                subject=Filter(
+                                    card_types=("Creature",), subtypes=("Goblin",)
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    keys = {s.key for s in extract_signals_hybrid(krenko, ir)}
+    assert "token_maker" in keys  # the engine the IR detects
+    assert "voltron_matters" not in keys

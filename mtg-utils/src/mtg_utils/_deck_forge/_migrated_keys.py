@@ -6147,6 +6147,24 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # hand-registered
         # in signal_specs.py. CR 701.23 (search) / 401 (library zone).
         "tutor_matters",
+        # ADR-0027 — voltron_matters, the LAST migrated key (completing the regex→Card
+        # IR cutover). voltron is a COMMANDER that wins via commander damage (CR
+        # 903.10a: 21 combat damage from one commander) by loading ONE creature
+        # (itself) with Equipment/Auras — a COMPOSITION OF STRUCTURAL MECHANICS, all
+        # already in the IR. The IR membership block (extract_signals_ir, before
+        # `return out`) computes it from the structural tells (the
+        # _detect_voltron_payoff_ir attach/cast/tutor/attachment-state arm +
+        # _VOLTRON_EQUIP_RE union; self combat-damage growth / self-heroic / self-
+        # unblockable / land-scaler / self-recurs / double-strike; hexproof/
+        # indestructible/shroud + self-damage-prevention; the exalted keyword via
+        # _IR_KEYWORD_MAP) gated on a has_other_plan now DERIVED FROM THE IR SIGNAL
+        # LANES (this function's own `out` — every plan lane is migrated). This is the
+        # ONE sanctioned re-baseline: the regex's ~40 byte-identical *_PLAN_MIRROR
+        # has_other_plan re-supplies (and _VOLTRON_SILENCING_PLAN_KEYS) are retired;
+        # where an IR lane is BROADER than its deleted regex producer, the broader plan
+        # correctly silences a spurious commander-damage tell on a real engine — a
+        # MORE-correct set than the regex's 3007. CR 903.10a / 702.83 / 301.5 / 303.4.
+        "voltron_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

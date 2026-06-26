@@ -5,9 +5,11 @@ the tribal bodies/payoffs/enablers split."""
 from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.signal_specs import Serve, source_split
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 
 SRAM = {
     "name": "Sram, Senior Edificer",
+    "oracle_id": "sram-oid",
     "type_line": "Legendary Creature — Dwarf Advisor",
     "oracle_text": "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.",
     "color_identity": ["W"],
@@ -16,6 +18,32 @@ SRAM = {
     "cmc": 2,
 }
 INDEX = {SRAM["name"]: SRAM}
+
+# ADR-0027 (voltron migration — the LAST key): voltron_matters is served only from the
+# Card IR now, so the engine must resolve Sram's IR (the structural Aura/Equipment cast
+# trigger _detect_voltron_payoff_ir reads) for the voltron avenue to surface.
+_SRAM_IR = Card(
+    oracle_id="sram-oid",
+    name="Sram, Senior Edificer",
+    faces=(
+        Face(
+            name="Sram, Senior Edificer",
+            abilities=(
+                Ability(
+                    kind="triggered",
+                    trigger=Trigger(
+                        event="cast_spell",
+                        subject=Filter(
+                            subtypes=("Aura", "Equipment", "Vehicle"), controller="you"
+                        ),
+                        scope="you",
+                    ),
+                    effects=(Effect(category="draw", scope="you"),),
+                ),
+            ),
+        ),
+    ),
+)
 
 
 def _state():
@@ -28,7 +56,8 @@ def _by_label(avs):
     return {a["label"]: a for a in avs}
 
 
-def test_voltron_fans_into_payoff_and_source_avenues():
+def test_voltron_fans_into_payoff_and_source_avenues(monkeypatch):
+    monkeypatch.setattr(engine, "_ir_index", lambda: {"sram-oid": _SRAM_IR})
     avs = _by_label(engine.avenues(_state(), [SRAM]))
     # The payoff avenue (the _matters lane) stays, now oracle-only — no type fetch.
     payoff = avs["Voltron / equipment & auras"]
