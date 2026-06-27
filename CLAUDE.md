@@ -12,7 +12,7 @@ uv sync                              # Install dependencies
 uv run pytest ../tests/mtg-utils/ -v  # Run tests
 uv run ruff check src/ ../tests/mtg-utils/  # Lint
 uv run ruff format src/ ../tests/mtg-utils/  # Format
-uv run build-card-snapshot           # Regen the committed test card snapshot (gated; needs local bulk + a built sidecar, NEVER CI)
+uv run build-card-snapshot           # Regen the committed test card snapshot (gated; needs local bulk + the IR sidecar — card-data auto-fetched from the phase release tarball, no cargo; NEVER CI)
 ```
 
 ### deck-wizard
@@ -72,7 +72,7 @@ uv sync                              # Install deps (FastAPI/uvicorn; follows sy
 uv run pytest ../tests/deck-forge/ -v  # Run backend tests
 uv run download-bulk --output-dir /tmp/scryfall-bulk  # First-run only; loader reads this path
 uv run deck-forge                    # Launch the backend hub + open the browser UI
-uv run deck-forge-phase-crosscheck <cards.json>  # Read-only audit: diff detectors vs phase-rs parse (needs playtest-install-phase)
+uv run deck-forge-phase-crosscheck <cards.json>  # Read-only audit: diff detectors vs phase-rs parse (auto-fetches phase card-data from the v0.8.0 release tarball — no cargo)
 # Frontend (only to develop the UI; the built bundle is committed under frontend/dist):
 cd frontend && npm install && npm run build
 ```
@@ -142,8 +142,13 @@ Shared Python package (`mtg_utils`). 37 CLI script modules (23 deck + 9 cube + 3
   - `playtest-gauntlet` — Cube round-robin: build N archetype decks from the
     cube, run round-robin via phase, report win-rate matrix.
   - `playtest-draft` — Heuristic 8-player draft + per-deck goldfish.
-  - `playtest-install-phase` — One-time `cargo build` of phase v0.8.0 binaries
-    into `~/.cache/mtg-skills/phase/`.
+  - `playtest-install-phase` — One-time `cargo build` of phase v0.8.0
+    ai-duel/ai-commander BINARIES into `~/.cache/mtg-skills/phase/`. Only
+    playtesting needs this. The Card IR build (`build-card-ir` /
+    `build-card-snapshot` / deck-forge launch) fetches phase's
+    `card-data.json` straight from the v0.8.0 release tarball via
+    `_phase.ensure_card_data` (tag-keyed, cached) — no cargo build / repo
+    clone, so non-playtest users never pay the Rust compile.
   - `playtest-custom-format` — Multiplayer custom-format simulator (e.g.,
     shared-library marketplace draft). Pure Python; per-format module in
     `_custom_format/`.
