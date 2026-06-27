@@ -5746,6 +5746,175 @@
     "type_line": "Legendary Creature — Angel"
    }
   },
+  "Avatar Aang // Aang, Master of Elements": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "transform",
+          "raw": "At the beginning of each upkeep, you may transform ~. If you do, you gain 4 life, draw four cards, put four +1/+1 counters on him, and he deals 4 damage to each opponent."
+         },
+         {
+          "amt": {
+           "f": 4,
+           "op": "fixed"
+          },
+          "cat": "gain_life",
+          "raw": "At the beginning of each upkeep, you may transform ~. If you do, you gain 4 life, draw four cards, put four +1/+1 counters on him, and he deals 4 damage to each opponent."
+         },
+         {
+          "amt": {
+           "f": 4,
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "craw": "If you do, you gain 4 life, draw four cards, put four +1/+1 counters on him, and he deals 4 damage to each opponent.",
+          "raw": "At the beginning of each upkeep, you may transform ~. If you do, you gain 4 life, draw four cards, put four +1/+1 counters on him, and he deals 4 damage to each opponent.",
+          "sc": "you"
+         },
+         {
+          "amt": {
+           "f": 4,
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "At the beginning of each upkeep, you may transform ~. If you do, you gain 4 life, draw four cards, put four +1/+1 counters on him, and he deals 4 damage to each opponent."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "upkeep"
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "cost_reduction",
+          "raw": "Spells you cast cost {W}{U}{B}{R}{G} less to cast.",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "Flying"
+      ],
+      "n": "Aang, Master of Elements",
+      "tl": "Legendary Creature — Avatar Ally"
+     },
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "bending",
+          "raw": "Whenever you waterbend, earthbend, firebend, or airbend, draw a card. Then if you've done all four this turn, transform ~."
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "craw": "Whenever you waterbend, earthbend, firebend, or airbend, draw a card.",
+          "raw": "Whenever you waterbend, earthbend, firebend, or airbend, draw a card. Then if you've done all four this turn, transform ~.",
+          "sc": "you"
+         },
+         {
+          "cat": "transform",
+          "raw": "Whenever you waterbend, earthbend, firebend, or airbend, draw a card. Then if you've done all four this turn, transform ~."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "other"
+        }
+       }
+      ],
+      "kw": [
+       "Flying",
+       "Firebending"
+      ],
+      "n": "Avatar Aang",
+      "tl": "Legendary Creature — Human Avatar Ally"
+     }
+    ],
+    "n": "Aang, Master of Elements",
+    "oid": "b4872bac-5822-4c35-9b73-38c4e3ffa477"
+   },
+   "scryfall": {
+    "card_faces": [
+     {
+      "colors": [
+       "G",
+       "R",
+       "U",
+       "W"
+      ],
+      "mana_cost": "{R}{G}{W}{U}",
+      "name": "Avatar Aang",
+      "oracle_text": "Flying, firebending 2\nWhenever you waterbend, earthbend, firebend, or airbend, draw a card. Then if you've done all four this turn, transform Avatar Aang.",
+      "power": "4",
+      "toughness": "4",
+      "type_line": "Legendary Creature — Human Avatar Ally"
+     },
+     {
+      "colors": [],
+      "mana_cost": "",
+      "name": "Aang, Master of Elements",
+      "oracle_text": "Flying\nSpells you cast cost {W}{U}{B}{R}{G} less to cast. (This can reduce generic costs.)\nAt the beginning of each upkeep, you may transform Aang, Master of Elements. If you do, you gain 4 life, draw four cards, put four +1/+1 counters on him, and he deals 4 damage to each opponent.",
+      "power": "6",
+      "toughness": "6",
+      "type_line": "Legendary Creature — Avatar Ally"
+     }
+    ],
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "Flying",
+     "Transform",
+     "Firebending"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "name": "Avatar Aang // Aang, Master of Elements",
+    "oracle_id": "b4872bac-5822-4c35-9b73-38c4e3ffa477",
+    "type_line": "Legendary Creature — Human Avatar Ally // Legendary Creature — Avatar Ally"
+   }
+  },
   "Avatar Roku, Firebender": {
    "ir": {
     "faces": [
@@ -51593,6 +51762,94 @@
     "power": "6",
     "toughness": "6",
     "type_line": "Legendary Creature — Spider Dinosaur Hero"
+   }
+  },
+  "Spikeshell Harrier": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "bounce",
+          "raw": "When ~ enters, return target creature or Vehicle an opponent controls to its owner's hand. If that opponent's speed is greater than each other player's speed, reduce that opponent's speed by 1. This effect can't reduce their speed below 1.",
+          "sub": {
+           "c": "opp",
+           "s": [
+            "Vehicle"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "speed",
+          "raw": "When ~ enters, return target creature or Vehicle an opponent controls to its owner's hand. If that opponent's speed is greater than each other player's speed, reduce that opponent's speed by 1. This effect can't reduce their speed below 1."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       }
+      ],
+      "n": "Spikeshell Harrier",
+      "tl": "Artifact Creature — Robot Turtle"
+     }
+    ],
+    "n": "Spikeshell Harrier",
+    "oid": "23102d8a-3a93-4e83-af5b-401c85ba9dbc"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{U}",
+    "name": "Spikeshell Harrier",
+    "oracle_id": "23102d8a-3a93-4e83-af5b-401c85ba9dbc",
+    "oracle_text": "When this creature enters, return target creature or Vehicle an opponent controls to its owner's hand. If that opponent's speed is greater than each other player's speed, reduce that opponent's speed by 1. This effect can't reduce their speed below 1.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Artifact Creature — Robot Turtle"
    }
   },
   "Spirit Water Revival": {

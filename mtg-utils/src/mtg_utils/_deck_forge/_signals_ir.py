@@ -858,6 +858,36 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "skulk": (("evasion_self", "you"),),
     "horsemanship": (("evasion_self", "you"),),
     "shadow": (("evasion_self", "you"),),
+    # ADR-0027 #24 KW-WAVE-1 — speed_matters keyword bearers. The Aetherdrift Speed
+    # mechanic (CR 702.179: "Start your engines!" gives you a speed counter, "Max
+    # speed" abilities gate on speed 4) lives in stripped reminder text, so a vanilla
+    # body fires no `speed` Effect. The two printed Scryfall keywords are the structured
+    # anchor (the saddle/goad move). The keyword-LESS speed-CHANGER tail (Spikeshell
+    # Harrier — "When ~ enters, … your speed increases") rides the existing
+    # _DOER_EFFECT_KEYS['speed'] doer arm, which fires speed_matters from the structural
+    # `speed` Effect. Together keyword(40) + speed-Effect doer == the deleted
+    # `start your engines|max speed|your speed` mirror EXACTLY (commander-legal: 41==41,
+    # 0 drift). CR 702.179.
+    "start your engines!": (("speed_matters", "you"),),
+    "max speed": (("speed_matters", "you"),),
+    # ADR-0027 #24 KW-WAVE-1 — the three counter-type bending keywords (airbend CR
+    # 701.65, earthbend 701.66, waterbend 701.67) as printed Scryfall keywords. Each is
+    # a SEPARATE mechanic (rules-lawyer-verified; no unifying "bending" rule, no card
+    # references the set as a group), so each keeps its own cares-about lane — never
+    # conflated. Vanilla-keyword bodies carry the keyword in card['keywords'] but emit
+    # no `bending` Effect, so the keyword array is the structured anchor; the lone
+    # cross-bend PAYOFF (Avatar Aang — "whenever you waterbend, earthbend, firebend, or
+    # airbend, draw a card") carries only its own face's Firebending keyword and rides
+    # the structural `bending`-Effect arm in extract_signals_ir (which routes by the
+    # bend named in the Effect raw). keyword + bending-Effect arm == the deleted
+    # `\b<bend>(?:ing|s)?\b` mirrors EXACTLY (commander-legal: air 14==14, earth 37==37,
+    # water 29==29, 0 drift). firebending stays a kept word mirror — its Fire-Nation
+    # reference tail (Iroh, Sozin's Comet, the Fire Nation cards) emits no `bending`
+    # Effect and carries no keyword, so the keyword move would lose 10 genuine
+    # references (deferred). CR 701.65 / 701.66 / 701.67.
+    "airbend": (("airbend_matters", "you"),),
+    "earthbend": (("earthbend_matters", "you"),),
+    "waterbend": (("waterbend_matters", "you"),),
     # Spell-copy keywords (CR 702.40 storm, 702.108 replicate, 702.78 conspire) —
     # each COPIES the spell, the printed-keyword path for spell_copy_matters that the
     # structural CopySpell effect misses (the copy rides the keyword, not a CopySpell
@@ -1272,13 +1302,15 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # token).
     ("clue_matters", re.compile(CLUE_MATTERS_REGEX, re.IGNORECASE), "you"),
     # The four bending keywords are SEPARATE mechanics (rules-lawyer-verified;
-    # no unifying "bending ability" rule exists, no card references the set), so
-    # each gets its own lane rather than one conflated bending_matters: airbend
+    # no unifying "bending ability" rule exists, no card references the set): airbend
     # (CR 701.65), earthbend (CR 701.66), waterbend (CR 701.67), firebending
-    # (CR 702.189). These mirror the same-named _sweep_detectors regexes.
-    ("airbend_matters", re.compile(r"\bairbend(?:ing|s)?\b", re.IGNORECASE), "you"),
-    ("earthbend_matters", re.compile(r"\bearthbend(?:ing|s)?\b", re.IGNORECASE), "you"),
-    ("waterbend_matters", re.compile(r"\bwaterbend(?:ing|s)?\b", re.IGNORECASE), "you"),
+    # (CR 702.189). ADR-0027 #24 KW-WAVE-1: airbend/earthbend/waterbend MIGRATED to the
+    # Card IR — keyword bearers via _IR_KEYWORD_MAP, the lone cross-bend payoff (Avatar
+    # Aang) via the structural `bending`-Effect arm in extract_signals_ir (0 drift each:
+    # air 14, earth 37, water 29). firebending STAYS a kept word mirror: its Fire-Nation
+    # reference tail (Iroh, Sozin's Comet, the Fire Nation cards, Firebender Ascension)
+    # emits no `bending` Effect and carries no Firebending keyword, so the keyword move
+    # would lose 10 genuine references — deferred.
     (
         "firebending_matters",
         re.compile(r"\bfirebend(?:ing|s)?\b", re.IGNORECASE),
@@ -2011,11 +2043,11 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"attacks alone|\bexalted\b", re.IGNORECASE),
         "you",
     ),
-    (
-        "speed_matters",
-        re.compile(r"start your engines|max speed|your speed", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 #24 KW-WAVE-1 — speed_matters MIGRATED to the Card IR: the two printed
+    # keywords ("Start your engines!", "Max speed") via _IR_KEYWORD_MAP; the keyword-
+    # LESS
+    # speed-changer (Spikeshell Harrier) via the _DOER_EFFECT_KEYS['speed'] doer arm.
+    # 0 drift (41==41).
     (
         "tap_untap_matters",
         re.compile(
@@ -2963,9 +2995,9 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # clean structural arm exists. Moved floor->kept (floor-mirror-dep -> 0); its
         # SWEEP_DETECTORS row is deleted.
         # speed_matters removed — ADR-0027 migrated it to the Card IR (phase's `speed`
-        # doer + a "start your engines|max speed|your speed" kept word mirror; phase
-        # v0.1.19 doesn't structure the CR 702.178/702.179 Speed designation). Moved
-        # floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
+        # doer arm + the "Start your engines!"/"Max speed" Scryfall keywords via
+        # _IR_KEYWORD_MAP; #24 KW-WAVE-1 retired the "your speed" kept word mirror).
+        # Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
         # stickers_matter removed — ADR-0027 migrated it to the Card IR (a
         # byte-identical STICKERS_MATTER_REGEX `\{tk\}|\bstickers?\b` kept word mirror;
         # phase v0.1.19 doesn't structure the CR 123 sticker / CR 122 ticket-counter
@@ -7616,6 +7648,22 @@ def extract_signals_ir(
             if doer is not None:
                 key, fixed_scope = doer
                 add(key, fixed_scope or _ir_scope(e.scope), "", e.raw)
+            # ADR-0027 #24 KW-WAVE-1 — bending cross-bend PAYOFF arm. phase emits a
+            # `bending` Effect (no direction field) for cards that DO/reference a bend;
+            # the bend(s) named survive in the Effect's raw. The keyword bearers ride
+            # _IR_KEYWORD_MAP; this opens the per-bend lane for the keyword-LESS cross-
+            # bend payoff (Avatar Aang — a `bending` Effect raw naming all bends),
+            # routing by the bend named. firebend is intentionally NOT routed here — its
+            # cares-about lane stays a kept word mirror (the Fire Nation reference
+            # tail is un-structured). add() dedups vs the keyword arm. CR 701.65/66/67.
+            if e.category == "bending":
+                bend_raw = (e.raw or "").lower()
+                if "airbend" in bend_raw:
+                    add("airbend_matters", "you", "", e.raw)
+                if "earthbend" in bend_raw:
+                    add("earthbend_matters", "you", "", e.raw)
+                if "waterbend" in bend_raw:
+                    add("waterbend_matters", "you", "", e.raw)
             # ADR-0027 — extra_combats arm_gap recovery. The `extra_combat` doer above
             # is the primary producer (42 of 43); the ONE card phase folds into a lone
             # `restriction` Effect (Illusionist's Gambit — "After this phase, there is

@@ -70,6 +70,8 @@ _REAL_CASES: dict[str, str] = {
     "Verduran Enchantress": "Verduran Enchantress",
     "Yeva, Nature's Herald": "Yeva, Nature's Herald",
     "Yuriko, the Tiger's Shadow": "Yuriko, the Tiger's Shadow",
+    "Avatar Aang": "Avatar Aang // Aang, Master of Elements",
+    "Spikeshell Harrier": "Spikeshell Harrier",
 }
 
 
@@ -210,6 +212,35 @@ class TestSpeedMatters:
 
     def test_speed_keyword_card_served(self):
         assert serves(test_card("Howlsquad Heavy"), _sig("speed_matters", "you"))
+
+    def test_speed_keyword_bearer_via_ir_keyword_map(self):
+        # ADR-0027 #24 KW-WAVE-1: the "Start your engines!" keyword bearer opens
+        # speed_matters via _IR_KEYWORD_MAP (mirror deleted), not a word scan.
+        assert "speed_matters" in _hyb("The Speed Demon")
+
+    def test_speed_keywordless_changer_via_doer_arm(self):
+        # Spikeshell Harrier has NO speed keyword; its `speed` Effect ("your speed
+        # increases") opens the lane through the _DOER_EFFECT_KEYS['speed'] arm — the
+        # residue the deleted `your speed` mirror used to catch.
+        assert "speed_matters" in _hyb("Spikeshell Harrier")
+
+
+class TestBendingPayoff:
+    """ADR-0027 #24 KW-WAVE-1 — airbend/earthbend/waterbend migrated to the Card IR.
+    Keyword bearers ride _IR_KEYWORD_MAP; the cross-bend payoff rides the structural
+    `bending`-Effect arm (CR 701.65/66/67)."""
+
+    def test_cross_bend_payoff_via_bending_effect_arm(self):
+        # Avatar Aang carries ONLY the Firebending keyword, but its back-face
+        # "whenever you waterbend, earthbend, firebend, or airbend, draw a card"
+        # payoff is a `bending` Effect whose raw names all four bends. The three
+        # counter-bend lanes therefore fire from the structural arm, not a keyword.
+        keys = _hyb("Avatar Aang // Aang, Master of Elements")
+        assert {"airbend_matters", "earthbend_matters", "waterbend_matters"} <= keys
+
+    def test_bend_keyword_bearer_via_ir_keyword_map(self):
+        # A vanilla Waterbend body opens waterbend_matters from card['keywords'].
+        assert "waterbend_matters" in _hyb("Spirit Water Revival")
 
 
 class TestDiscoverMatters:
