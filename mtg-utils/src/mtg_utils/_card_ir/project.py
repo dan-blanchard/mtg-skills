@@ -32,7 +32,6 @@ from mtg_utils._card_ir.supplement import (
     _recover_combat_damage_recipients,
     _recover_cost_reduction,
     _recover_counter_removal,
-    _recover_counter_replacement,
     _recover_damage_reflect,
     _recover_damage_to_opp,
     _recover_destroy_subject,
@@ -56,7 +55,6 @@ from mtg_utils._card_ir.supplement import (
     _recover_scaling_pump,
     _recover_self_counter_grow,
     _recover_tap_down,
-    _recover_token_doubling,
     _recover_topdeck_stack_self,
     _recover_tribe_damage_source,
     _recover_vote_outcome,
@@ -753,22 +751,12 @@ def project_card(records: list[dict]) -> Card:
     card = _recover_dropped_gain_life(
         card, "\n".join(r.get("oracle_text") or "" for r in records)
     )
-    # ROOT B (v0.8.0 bump regression-recovery) — PASSIVE-VOICE token/counter
-    # DOUBLERS: v0.8.0 stopped parsing the "twice that many … are created/put …
-    # instead" replacement template (the active-voice "it creates/puts twice that
-    # many … instead" still parses), returning the 5 marquee passive token doublers
-    # (Adrix and Nev, Mondrak, Ojer Taq, Elspeth Storm Slayer, Exalted Sunborn) and
-    # the passive/you-side counter doublers (Loading Zone, Vorinclex, The Earth
-    # Crystal, Innkeeper's Talent) with the whole replacement ability DROPPED. These
-    # synthesize the token_doubling / counter_doubling static from the joined oracle
-    # so the migrated lanes (token_doubling, token_copy_matters, counter_doubling,
-    # counter_replace_bonus) read STRUCTURE. Same joined-oracle seam. CR 614.1.
-    card = _recover_token_doubling(
-        card, "\n".join(r.get("oracle_text") or "" for r in records)
-    )
-    card = _recover_counter_replacement(
-        card, "\n".join(r.get("oracle_text") or "" for r in records)
-    )
+    # SIDECAR v67 — the v66 ROOT B "passive-voice token/counter doubler" rebridge was
+    # RETIRED here: v0.8.0 parses those doublers fine (it renamed the doubler qmod
+    # Double/Multiply -> `Times`); _project_replacement now reads `Times` natively (see
+    # _INCREASE_MODS), so token_doubling / counter_doubling / token_copy_matters /
+    # counter_replace_bonus read STRUCTURE without the _recover_token_doubling /
+    # _recover_counter_replacement regex passes. CR 614.1.
     # ADR-0027 #24 (SIDECAR v52) — GRANTED damage-reflection residue: synthesize a
     # damage_reflect Effect from the raw oracle for the granted/quoted reflection
     # abilities phase leaves wholly unstructured (Spiteful Sliver's tribal grant →
@@ -2601,11 +2589,15 @@ def _project_top_static(st: dict) -> Ability | None:
 
 
 # Quantity-modification types that INCREASE the amount → the doubler archetype,
-# whatever the exact multiplier: Double (2x), Multiply (triple — only Ojer Taq for
-# tokens / Nyxbloom for mana exist today), Plus (the "+N"/"that many plus" adders,
-# e.g. Hardened Scales, Conclave Mentor). Half / Prevent / Minus are the opposite
-# (decreases) and excluded.
-_INCREASE_MODS = ("double", "multiply", "plus")
+# whatever the exact multiplier. phase v0.8.0 renamed the multiplier qmod from
+# Double/Multiply to a single `Times` carrying an integer `factor` (factor 2 = the
+# old Double — Adrix/Doubling Season; factor 3 = the old Multiply — Ojer Taq token
+# tripling), so `times` IS the load-bearing v0.8.0 token/counter doubler tag; the
+# lane is multiplier-agnostic so the factor is not read. Plus is the "+N"/"that many
+# plus" adders (Hardened Scales, Conclave Mentor). Double/Multiply are kept for
+# back-compat with any pre-v0.8.0 sidecar. Half / Prevent / Minus are the opposite
+# (decreases — Vorinclex's opp-side halving, Halving Season) and stay EXCLUDED.
+_INCREASE_MODS = ("times", "double", "multiply", "plus")
 
 # Damage-modification types that INCREASE dealt damage → the damage-doubling
 # archetype (CR 615 replacement, combat AND noncombat). phase emits a distinct

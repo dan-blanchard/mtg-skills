@@ -922,7 +922,16 @@ from mtg_utils.card_ir import Card
 #   (the bump+recover migration). voltron 2396->2394 is a CORRECT drop (Argentum
 #   Masticore/Gallant Fowlknight gained a real engine clause). aftermath back-face
 #   (#1) still absent. SIDECAR bump (projection-input changed).
-SIDECAR_VERSION = 66
+# v67 (CORRECTION to v66's "8 regressions" framing): re-verifying the v66 "regressions"
+#   against the actual v0.8.0 card-data.json showed most were NOT phase drops — phase
+#   parses them fine; OUR projection stopped reading v0.8.0's restructured nodes (the
+#   v66 supplement rebridges were papering over projection node-vocab DRIFT, not a phase
+#   break). FIX (preserve-from-node, retiring the regex rebridges): _project_replacement
+#   now reads the v0.8.0 `Times` quantity_modification (phase renamed Double/Multiply ->
+#   Times{factor}) so token_doubling / counter_doubling / token_copy_matters /
+#   counter_replace_bonus read STRUCTURE; _recover_token_doubling + _recover_counter_
+#   replacement deleted. Half/Minus stay excluded (reducers). Membership gate set-equal.
+SIDECAR_VERSION = 67
 
 
 def card_ir_dir() -> Path:

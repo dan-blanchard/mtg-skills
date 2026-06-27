@@ -830,7 +830,7 @@
         "e": [
          {
           "cat": "token_doubling",
-          "raw": "If one or more tokens would be created under your control, twice that many of those tokens are created instead",
+          "raw": "If one or more tokens would be created under your control, twice that many of those tokens are created instead.",
           "sc": "you"
          }
         ],
@@ -43102,6 +43102,16 @@
        {
         "e": [
          {
+          "cat": "token_doubling",
+          "raw": "If one or more tokens would be created under your control, twice that many of those tokens are created instead.",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
           "cat": "sacrifice",
           "raw": "cost: sacrifice artifact or creature",
           "sc": "you",
@@ -43111,16 +43121,6 @@
             "Creature"
            ]
           }
-         }
-        ],
-        "k": "static"
-       },
-       {
-        "e": [
-         {
-          "cat": "token_doubling",
-          "raw": "If one or more tokens would be created under your control, twice that many of those tokens are created instead",
-          "sc": "you"
          }
         ],
         "k": "static"
@@ -47362,11 +47362,11 @@
         "e": [
          {
           "cat": "token_doubling",
-          "raw": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead",
+          "raw": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.",
           "sc": "you"
          }
         ],
-        "k": "spell"
+        "k": "static"
        }
       ],
       "n": "Parallel Lives",
@@ -70995,5 +70995,5 @@
  },
  "phase_tag": "v0.8.0",
  "schema": 1,
- "sidecar_version": 66
+ "sidecar_version": 67
 }
