@@ -661,7 +661,32 @@ from mtg_utils.card_ir import Card
 #   Failure // Comply). stax_taxes drift 0 (behavior-neutral — the 8 mirror-only
 #   cast-locks now fire structurally). voltron_matters 2396 drift 0. CR 601.3 /
 #   604.1.
-SIDECAR_VERSION = 52
+# v53 (ADR-0027 #24c — SUPPLEMENT_RECOVER batch B2, trigger+counter structure for 3
+#   lanes; poison_matters / superfriends_matters deferred — their structurable subset
+#   is already structural and the mirror tail is irreducible raw payoff/secondary
+#   references phase v0.1.60 can't anchor):
+#   (1) tap_untap_matters — the becomes-UNTAPPED (Inspired) trigger phase folds away:
+#   `_trigger_event` now maps phase's structured `Untaps` mode to a first-class
+#   `untaps` event (Arbiter of the Ideal, Key to the City, Aerie Worshippers), and
+#   supplement `_recover_becomes_tap_untap` re-types the Unknown-mode becomes-(un)tapped
+#   tail (Darksteel Garrison, Grand Marshal Macie, Roots of Life) from event=='other' to
+#   taps/untaps. The lane arm reads ev in {taps, untaps}; the becomes-(un)tapped word
+#   mirror is deleted. CR 701.20a / 702.108.
+#   (2) dies_recursion — the "when this dies, return it to the battlefield" self-
+#   recursion phase flattens to place_counter / pump (Feign Death, Abnormal Endurance,
+#   Bronzehide Lion, Ashcloud Phoenix) + the would-die-instead-exile-with-counters
+#   delayed return (Darigaaz): supplement `_recover_dies_return` synthesizes a dedicated
+#   `self_recursion` marker (zero collateral into death/reanimate lanes). The keyword-
+#   LESS undying/persist GRANTERS read off phase's `undying_persist` marker; bearers
+#   ride _IR_KEYWORD_MAP. The word mirror is deleted — sheds the "Undying Flames" name
+#   over-fire. CR 700.4 / 603.6c / 702.92.
+#   (3) counter_manipulation — the +1/+1/-1/-1 counter REMOVAL phase keeps only as a
+#   `removecounter` cost token (kind dropped — Triskelion, Walking Ballista, Quillspike)
+#   or a damage-prevention replacement (Phantom Centaur): supplement
+#   `_recover_counter_removal` synthesizes a remove_counter Effect with the kind
+#   re-parsed from raw; the existing arm reads it. The cost/replacement word mirror is
+#   deleted. CR 122.1 / 122.6.
+SIDECAR_VERSION = 53
 
 
 def card_ir_dir() -> Path:

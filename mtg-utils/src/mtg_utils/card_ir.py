@@ -374,6 +374,13 @@ CATEGORIES: frozenset[str] = frozenset(
         "cascade",
         "undying_persist",
         "changeling",
+        # ADR-0027 #24c self dies-return marker (SIDECAR v53,
+        # supplement._recover_dies_return): the aristocrats/reanimator "when this dies,
+        # return it to the battlefield" self-recursion phase flattens to a
+        # place_counter / pump effect (Feign Death, Bronzehide Lion, Ashcloud Phoenix,
+        # Darigaaz Reincarnated). A dedicated marker ONLY dies_recursion reads — no
+        # collateral into death_matters / reanimate. CR 700.4 / 603.6c.
+        "self_recursion",
         # creature_cast ← a "casts a creature spell" reference phase dropped onto the
         # face oracle (a quoted token ability — Blink — or a spell's delayed trigger —
         # Glimpse of Nature). CR 601 (a creatures-being-cast payoff, scope "any").
@@ -441,6 +448,13 @@ EVENTS: frozenset[str] = frozenset(
         "life_gained",
         "life_lost",
         "taps",
+        # ADR-0027 #24c (SIDECAR v53) — the becomes-UNTAPPED trigger (CR 701.20a,
+        # Inspired CR 702.108): phase emits a structured `Untaps` mode that
+        # `_trigger_event` previously left to `other`; map it to a first-class
+        # `untaps` event so tap_untap_matters reads it (Arbiter of the Ideal, Key
+        # to the City, Aerie Worshippers). `taps` already covers becomes-tapped
+        # (phase mode `Taps`) and tap-for-mana (`TapsForMana`).
+        "untaps",
         "sacrificed",
         "discarded",
         "leaves",

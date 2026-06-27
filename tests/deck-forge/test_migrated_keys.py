@@ -797,3 +797,74 @@ def test_spellcast_matters_fires_from_kept_mirror_cost_reducer():
     # IR carries NO cast_spell trigger (a static cost reduction) — proves the mirror.
     ir = _ir(Ability(kind="static", effects=(Effect(category="cost_reduction"),)))
     assert "spellcast_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_dies_recursion_self_return_fires_via_recovered_marker():
+    """ADR-0027 #24c — the granted "When this dies, return it to the battlefield"
+    self-recursion phase flattens to a place_counter(p1p1) Effect (the +1/+1-counter
+    rider it saw) and DROPS the reanimate. supplement._recover_dies_return synthesizes
+    a dedicated `self_recursion` marker the dies_recursion arm reads; the pure-regex
+    path no longer carries the lane (the DIES_RECURSION_REGEX word mirror is deleted).
+    CR 700.4 / 603.6c."""
+    card = test_card("Feign Death")
+    ir = test_card_ir("Feign Death")
+    cats = {e.category for ab in ir.all_abilities() for e in ab.effects}
+    assert "self_recursion" in cats, "recovered self_recursion marker missing"
+    assert "dies_recursion" not in {s.key for s in extract_signals(card)}
+    assert "dies_recursion" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_dies_recursion_granter_fires_off_undying_persist_marker():
+    """ADR-0027 #24c — a keyword-LESS undying GRANTER (Mikaeus grants undying to a
+    class of creatures, but bears no undying keyword itself) rides phase's
+    `undying_persist` marker into dies_recursion, replacing the word mirror's bare
+    \\bundying\\b match. CR 702.92."""
+    card = test_card("Mikaeus, the Unhallowed")
+    ir = test_card_ir("Mikaeus, the Unhallowed")
+    cats = {e.category for ab in ir.all_abilities() for e in ab.effects}
+    assert "undying_persist" in cats
+    assert "dies_recursion" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_counter_manipulation_cost_removal_fires_via_recovered_kind():
+    """ADR-0027 #24c — Triskelion removes a +1/+1 counter as an activation COST; phase
+    emits the `removecounter` cost token but DROPS the kind, so no remove_counter
+    Effect exists. supplement._recover_counter_removal re-parses the kind (p1p1) from
+    raw onto a synthetic remove_counter Effect the counter_manipulation arm reads; the
+    cost-tail word mirror is deleted. CR 122.1."""
+    card = test_card("Triskelion")
+    ir = test_card_ir("Triskelion")
+    assert any(
+        e.category == "remove_counter" and e.counter_kind == "p1p1"
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    ), "recovered remove_counter(p1p1) missing"
+    assert "counter_manipulation" not in {s.key for s in extract_signals(card)}
+    assert "counter_manipulation" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_tap_untap_matters_fires_off_becomes_untapped_event():
+    """ADR-0027 #24c — Arbiter of the Ideal's Inspired "becomes untapped" trigger:
+    phase's structured `Untaps` mode now projects to the first-class `untaps` event
+    (was folded to `other`), and tap_untap_matters reads ev in {taps, untaps}. The
+    becomes-(un)tapped word mirror is deleted. CR 701.20a / 702.108."""
+    card = test_card("Arbiter of the Ideal")
+    ir = test_card_ir("Arbiter of the Ideal")
+    assert any(
+        ab.trigger is not None and ab.trigger.event == "untaps"
+        for ab in ir.all_abilities()
+    ), "becomes-untapped trigger not projected to event=='untaps'"
+    assert "tap_untap_matters" not in {s.key for s in extract_signals(card)}
+    assert "tap_untap_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_tap_untap_matters_recovers_unknown_mode_becomes_tapped():
+    """ADR-0027 #24c — Darksteel Garrison's "Whenever fortified land becomes tapped"
+    is an Unknown-mode trigger phase leaves at event=='other';
+    supplement._recover_becomes_tap_untap re-types it to `taps` from the trigger
+    clause's raw, so tap_untap_matters reads STRUCTURE for the tail too."""
+    ir = test_card_ir("Darksteel Garrison")
+    assert any(
+        ab.trigger is not None and ab.trigger.event == "taps"
+        for ab in ir.all_abilities()
+    ), "Unknown-mode becomes-tapped not recovered to event=='taps'"

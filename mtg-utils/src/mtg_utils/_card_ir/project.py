@@ -23,8 +23,11 @@ from mtg_utils._card_ir.supplement import (
     _TOPDECK_YOUR_LIBRARY,
     _copied_type_from_text,
     _recover_base_pt_set,
+    _recover_becomes_tap_untap,
     _recover_combat_damage_recipients,
+    _recover_counter_removal,
     _recover_damage_reflect,
+    _recover_dies_return,
     _recover_dropped_gain_life,
     _recover_opponent_cast_lock,
     recover_effect_from_text,
@@ -725,6 +728,30 @@ def project_card(records: list[dict]) -> Card:
     # the migrated stax arm reads STRUCTURE and the residue mirror's opponent-cast
     # branch defers to it. Same joined-oracle seam. CR 601.3 / 604.1.
     card = _recover_opponent_cast_lock(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
+    # ADR-0027 #24c (SIDECAR v53) — becomes-(un)tapped trigger residue: re-type the
+    # Unknown-mode "becomes tapped/untapped" triggers phase couldn't classify
+    # (Darksteel Garrison, Grand Marshal Macie, Roots of Life) from event=='other' to
+    # the structured taps/untaps event, so tap_untap_matters reads STRUCTURE. Reads
+    # the trigger clause's own raw off the IR (no joined oracle needed). CR 701.20a.
+    card = _recover_becomes_tap_untap(card)
+    # ADR-0027 #24c (SIDECAR v53) — SELF dies-return residue: synthesize a
+    # `self_recursion` marker from the joined oracle for the "when this dies, return
+    # it to the battlefield" self-recursion phase flattens to place_counter / pump
+    # (Feign Death, Abnormal Endurance, Bronzehide Lion, Ashcloud Phoenix) + the
+    # would-die-instead-exile-with-counters delayed return (Darigaaz Reincarnated), so
+    # dies_recursion reads STRUCTURE. Same joined-oracle seam. CR 700.4 / 603.6c.
+    card = _recover_dies_return(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
+    # ADR-0027 #24c (SIDECAR v53) — +1/+1 / -1/-1 counter REMOVAL-as-cost /
+    # -as-replacement residue: synthesize a remove_counter Effect (kind p1p1/m1m1
+    # recovered from raw) for the counter removal phase keeps only as a `removecounter`
+    # cost token (kind dropped — Triskelion, Walking Ballista, Quillspike) or a
+    # damage-prevention replacement (Phantom Centaur), so counter_manipulation reads
+    # STRUCTURE. Same joined-oracle seam. CR 122.1 / 122.6.
+    card = _recover_counter_removal(
         card, "\n".join(r.get("oracle_text") or "" for r in records)
     )
     # Post-supplement removal target-subject recovery (ADR-0027 removal_matters
@@ -8207,6 +8234,13 @@ def _trigger_event(tr: dict) -> str:
         return "sacrificed"
     if mode in ("taps", "tapsformana"):
         return "taps"
+    # ADR-0027 #24c (SIDECAR v53) — phase emits a structured `Untaps` mode for the
+    # becomes-untapped (Inspired) trigger; map it to a first-class `untaps` event so
+    # tap_untap_matters reads it (Arbiter of the Ideal, Key to the City, Aerie
+    # Worshippers). The Unknown-mode becomes-(un)tapped tail phase couldn't classify
+    # is recovered from raw in supplement._recover_becomes_tap_untap. CR 701.20a.
+    if mode == "untaps":
+        return "untaps"
     if mode in ("discarded", "discardedall"):
         return "discarded"
     if mode == "drawn":

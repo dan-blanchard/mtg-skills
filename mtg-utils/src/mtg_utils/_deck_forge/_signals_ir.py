@@ -120,7 +120,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DAMAGE_REDIRECT_REGEX,
     DAMAGE_TO_OPP_MATTERS_REGEX,
     DEATH_MATTERS_REGEX,
-    DIES_RECURSION_REGEX,
     ENCHANTMENTS_MATTER_REGEX,
     ENTERED_ATTACKER_REGEX,
     EXILE_MATTERS_REGEX,
@@ -1183,30 +1182,13 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the extra_combats precedent. add() dedups the 42 the structural arm already
     # supplies. CR 120.2.
     ("group_hug_draw", re.compile(GROUP_HUG_DRAW_REGEX, re.IGNORECASE), "each"),
-    # ADR-0027 — dies_recursion BYTE-IDENTICAL kept WORD MIRROR. SELF-recursion-on-
-    # death ("when this dies, return it to the battlefield/your hand" — Bloodghast /
-    # Reassembling Skeleton / Gravecrawler / Feign Death style; CR 700.4 dies = put into
-    # a graveyard from the battlefield, CR 603.6c leaves-the-battlefield trigger). The
-    # BROAD superset of undying_persist_matters: undying (CR 702.93a, +1/+1) and persist
-    # (CR 702.79a, -1/-1) ARE dies-recursion that also place a counter. phase v0.1.19
-    # carries NO structural "returns itself on death" form — the dies trigger flattens
-    # to event='other' with the return buried in the effect raw — so the lane stays a
-    # word mirror, NOT a structural arm. The undying/persist keyword BEARERS already
-    # open the lane via _IR_KEYWORD_MAP (they're the floor-disabled "both" set); this
-    # DIES_RECURSION_REGEX (the EXACT deleted SWEEP regex) run FLAT over the reminder-
-    # stripped kept_oracle recovers the bare dies-return GRANTS (Feign Death /
-    # Supernatural Stamina) and the keyword-LESS GRANTERS (Mikaeus / Cauldron of Souls /
-    # Endling, whose "have undying" / "gains persist" survives reminder-stripping as the
-    # bare word). The `[^.]*` arms never cross a clause boundary (the clause splitter
-    # cuts on [.;\n]; `[^.]*` excludes `.`, and no `;`/`\n` lands inside a span on the
-    # corpus), so flat == per-clause: floor-disabled IR-vs-regex residual, commander-
-    # legal, by oracle_id, is both==98 / ir_only==0 / regex_only==0. add() dedups the
-    # keyword bearers the _IR_KEYWORD_MAP path already supplies. PRESERVED over-fire
-    # (byte-identical, not introduced): "Undying Flames" (keywords=['Epic'], no undying
-    # mechanic) self-matches `\bundying\b` on its CARD NAME embedded in its oracle
-    # text — the exact artifact the deleted producer carried, mirrored unchanged for
-    # no-flood parity. CR 700.4 / 603.6c.
-    ("dies_recursion", re.compile(DIES_RECURSION_REGEX, re.IGNORECASE), "you"),
+    # ADR-0027 #24c — dies_recursion WORD MIRROR DELETED, now fully STRUCTURAL: the
+    # undying/persist keyword BEARERS ride _IR_KEYWORD_MAP, the keyword-LESS GRANTERS
+    # ride phase's `undying_persist` marker, and the literal "when this dies, return it
+    # to the battlefield" self-return rides supplement._recover_dies_return's
+    # `self_recursion` marker — all read in extract_signals_ir's effect loop. Dropping
+    # the mirror sheds the lone "Undying Flames" card-NAME self-match over-fire
+    # (keywords=['Epic'], no undying mechanic). CR 700.4 / 603.6c / 702.92.
     # ADR-0027 Cluster D — protection_grant BYTE-IDENTICAL kept WORD MIRROR (the
     # creatures-worth-protecting lane: a card that GRANTS a protective keyword —
     # hexproof / shroud / indestructible / ward / protection; pinned as
@@ -2011,8 +1993,10 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     #     payoff triggers + "X have exalted" grants are textual (CR 702.83).
     #   • speed_matters ← phase's `speed` doer is the changer; "Start your engines!" /
     #     "max speed" / "your speed" payoffs are unstructured (CR 702.178/702.179).
-    #   • tap_untap_matters ← phase's `taps` (tap-for-mana) trigger is structured; the
-    #     "becomes tapped/untapped" trigger (Inspired) flattens to event='other'.
+    #   • tap_untap_matters ← phase's `taps`/`untaps` triggers are structured (the
+    #     becomes-untapped Inspired trigger + the Unknown-mode tail recovered @ v53);
+    #     this mirror is residue: the GRANTED/quoted "becomes (un)tapped" trigger tail
+    #     (~10 cards) phase can't anchor yet — bucket-B, parse-later #24e.
     #   • domain_matters ← amount.op=='domain' is the scaler; cost-reduction /
     #     conditions / the "Domain —" ability word are textual (CR 700.3).
     #   • commander_matters ← the IsCommander subject-Filter predicate is structured;
@@ -2214,23 +2198,13 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # ADR-0027 counter_manipulation cost tail — the IR recovers the +1/+1/-1/-1
-    # MOVE (counter_move) and remove-as-EFFECT (remove_counter) halves structurally,
-    # but the remove-as-COST form ("Remove a +1/+1 counter from ~:" — Walking
-    # Ballista, Fertilid, Quillspike, Devoted Druid) is an Ability.cost phase leaves
-    # in raw, unreachable from the structured IR. This mirror is byte-identical to
-    # the deleted SWEEP_DETECTORS row so the hybrid reproduces its firings exactly
-    # (A-B==0; the IR additionally catches Graft's counter MOVE). CR 122.1 / 122.6.
-    (
-        "counter_manipulation",
-        re.compile(
-            r"(?:remove|move) (?:a|one|any number of|x|\d+) (?:\+1/\+1|-1/-1) "
-            r"counters?|(?:remove|move) (?:a|one|any number of|x|\d+) "
-            r"[^.]{0,20}?(?:\+1/\+1|-1/-1) counters?",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 #24c — counter_manipulation cost/replacement tail MIRROR DELETED, now
+    # STRUCTURAL: the remove-as-COST form (phase emits a `removecounter` cost token but
+    # drops the kind — Triskelion, Walking Ballista, Quillspike, Spike Weaver) and the
+    # damage-prevention REPLACEMENT form (Phantom Centaur / Flock / Nantuko, Oathsworn
+    # Knight) are recovered by supplement._recover_counter_removal as a remove_counter
+    # Effect with the kind (p1p1/m1m1) re-parsed from raw, which the
+    # counter_manipulation arm in extract_signals_ir reads structurally. CR 122.1.
     # ADR-0027 tranche2-C — extra_land_drop tail. The structural arms (cheat_play /
     # topdeck_select with a Land subject) cover the bulk; this YOUR-anchored mirror
     # recovers the cards phase leaves textual: an empty-raw modal Confluence
@@ -8018,13 +7992,28 @@ def extract_signals_ir(
             # Carnifex Demon, Retribution of the Ancients, Festercreep remove). The
             # counter_kind gate ({p1p1,m1m1}) is the +1/+1-vs-charge/oil/loyalty
             # discriminator. The remove-as-COST tail ("Remove a +1/+1 counter from
-            # ~:" — Walking Ballista, Fertilid, Quillspike, Devoted Druid) is an
-            # Ability.cost the IR does not structure, so it stays on a kept word
-            # mirror (_IR_KEPT_DETECTORS). CR 122.1 / 122.6.
+            # ~:" — Walking Ballista, Fertilid, Quillspike, Devoted Druid) — phase
+            # keeps only a `removecounter` cost token (kind dropped) — is recovered by
+            # supplement._recover_counter_removal as a remove_counter Effect with the
+            # kind re-parsed, read structurally here; the word mirror is DELETED.
+            # CR 122.1 / 122.6.
             if (cat == "counter_move" and e.counter_kind in ("p1p1", "m1m1")) or (
                 cat == "remove_counter" and e.counter_kind in ("p1p1", "m1m1")
             ):
                 add("counter_manipulation", "you", "", e.raw)
+            # dies_recursion (ADR-0027 #24c) — SELF-recursion on death, two of its three
+            # structural inputs read here (the undying/persist keyword BEARERS ride
+            # _IR_KEYWORD_MAP): the keyword-LESS GRANTERS via phase's `undying_persist`
+            # marker (Mikaeus, the Unhallowed; Cauldron of Souls; Endling — these also
+            # open undying_persist_matters via _DOER_EFFECT_KEYS, add() dedups), and the
+            # literal "when this dies, return it to the battlefield" self-return via the
+            # supplement's `self_recursion` marker (Feign Death, Bronzehide Lion,
+            # Darigaaz Reincarnated). The deleted DIES_RECURSION_REGEX word
+            # mirror is now fully structural — it loses only the "Undying Flames" card-
+            # NAME self-match (keywords=['Epic'], no undying mechanic) over-fire. CR
+            # 700.4 (dies) / 603.6c / 702.92/702.78 (undying/persist).
+            if cat in ("undying_persist", "self_recursion"):
+                add("dies_recursion", "you", "", e.raw)
             if cat == "counter_spell":
                 add("counter_control", "you", "", e.raw)
             if cat == "fight":
@@ -9922,7 +9911,13 @@ def extract_signals_ir(
                 e.category == "damage" for e in ab.effects
             ):
                 add("damage_reflect", "you", "", "")
-            if ev == "taps":
+            # ADR-0027 #24c — tap_untap_matters reads the tap/untap TRIGGER event:
+            # `taps` (phase mode Taps / TapsForMana — tap-for-mana payoffs + becomes-
+            # tapped) AND `untaps` (the becomes-untapped Inspired trigger, phase mode
+            # Untaps, project @ SIDECAR v53 + the supplement's Unknown-mode tail). The
+            # GRANTED/quoted "becomes (un)tapped" tail (~10 cards) phase can't anchor
+            # keeps its kept word mirror (bucket-B, parse-later #24e). CR 701.20a.
+            if ev in ("taps", "untaps"):
                 add("tap_untap_matters", "you", "", "")
             # ADR-0027 — discard_matters (a SELF-discard payoff — Madness's
             # discard-this-card-into-exile, "whenever you discard", "when an opponent

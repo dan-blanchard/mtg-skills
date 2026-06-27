@@ -2124,6 +2124,160 @@ def _recover_opponent_cast_lock(card: Card, oracle: str) -> Card:
     )
 
 
+# ── ADR-0027 #24c — becomes-(un)tapped trigger residue (SIDECAR v53) ───────────
+# phase emits a structured `Untaps` mode for the becomes-untapped (Inspired) trigger
+# — project._trigger_event NOW maps it to event=='untaps' — but it also leaves a
+# fistful of becomes-(un)tapped triggers on an UNKNOWN mode (the subject phase
+# couldn't parse: Darksteel Garrison's "fortified land becomes tapped", Grand Marshal
+# Macie's "becomes untapped", Roots of Life's "a land … an opponent controls becomes
+# tapped"), and those project to event=='other'. The tap_untap_matters lane fires on
+# trig.event in {taps, untaps}; this card-level pass recovers the dropped event for
+# the Unknown-mode tail by reading the trigger clause's OWN raw — "becomes untapped" →
+# `untaps`, "becomes tapped" → `taps` (folding into the same `taps` event the Taps
+# mode already uses). Idempotent: only event=='other' triggers are touched, so the
+# `Untaps`/`Taps`-mode cards project._trigger_event already typed are untouched. The
+# trigger SUBJECT is None on this tail (phase's Unknown), so no typed-subject lane
+# (line ~10112 `_typed_matters_lanes`) is disturbed. CR 701.20a / 702.108.
+_BECOMES_UNTAPPED_RE = re.compile(r"becomes? untapped", re.IGNORECASE)
+_BECOMES_TAPPED_RE = re.compile(r"becomes? tapped", re.IGNORECASE)
+
+
+def _recover_becomes_tap_untap(card: Card) -> Card:
+    """Re-type an event=='other' triggered ability whose effect raw is a
+    "becomes (un)tapped" trigger clause to the structured `untaps` / `taps` event,
+    so tap_untap_matters reads STRUCTURE for the Unknown-mode tap/untap tail phase
+    couldn't mode-classify. Append-free (rewrites the trigger event in place)."""
+    if not card.faces:
+        return card
+    new_faces = []
+    changed = False
+    for face in card.faces:
+        new_abs = []
+        for ab in face.abilities:
+            tr = ab.trigger
+            new_ab = ab
+            if tr is not None and tr.event == "other":
+                raw = " ".join(e.raw or "" for e in ab.effects)
+                clean = re.sub(r"\([^)]*\)", " ", raw)
+                if _BECOMES_UNTAPPED_RE.search(clean):
+                    new_ab = replace(ab, trigger=replace(tr, event="untaps"))
+                    changed = True
+                elif _BECOMES_TAPPED_RE.search(clean):
+                    new_ab = replace(ab, trigger=replace(tr, event="taps"))
+                    changed = True
+            new_abs.append(new_ab)
+        new_faces.append(replace(face, abilities=tuple(new_abs)))
+    return replace(card, faces=tuple(new_faces)) if changed else card
+
+
+# ── ADR-0027 #24c — SELF dies-return residue (SIDECAR v53) ─────────────────────
+# The aristocrats/reanimator CORE mechanic "When this dies, return it to the
+# battlefield" — phase flattens the granted/quoted form to a place_counter / pump
+# effect (Feign Death → place_counter(p1p1); Abnormal Endurance → pump) and DROPS the
+# reanimate, and the body-borne form (Bronzehide Lion, Ashcloud Phoenix) parses as a
+# dies-trigger + reanimate that would over-broaden if read directly (a dies-triggered
+# reanimate of OTHERS is NOT self-recursion). The undying/persist keyword BEARERS ride
+# _IR_KEYWORD_MAP and the keyword-LESS GRANTERS ride the `undying_persist` marker; this
+# pass covers the third class — the literal self dies-return clause — by synthesizing a
+# dedicated `self_recursion` marker Effect ONLY dies_recursion reads (zero collateral
+# into death_matters / graveyard_matters / reanimate lanes). The patterns mirror the
+# deleted DIES_RECURSION_REGEX's two non-keyword arms EXACTLY (self-return + the
+# would-die-instead-exile-with-counters delayed return — Darigaaz Reincarnated), run
+# over the joined oracle, so the recovered set is byte-identical sans the keyword arm
+# (now structural). CR 700.4 (dies = battlefield→graveyard) / 603.6c.
+_DIES_RETURN_RE = re.compile(
+    r"when [^.]* dies, return (?:it|her|him|them) to the battlefield"
+    r"|if [^.]* would die, instead exile it with [^.]*counters?",
+    re.IGNORECASE,
+)
+
+
+def _recover_dies_return(card: Card, oracle: str) -> Card:
+    """Append a synthetic `self_recursion` static marker Effect when the joined
+    oracle carries the literal self dies-return (or would-die-instead-exile-with-
+    counters) clause, so dies_recursion reads STRUCTURE. Append-only and idempotent
+    (skip a card already carrying the marker)."""
+    if not card.faces:
+        return card
+    if any(
+        e.category == "self_recursion"
+        for ab in card.all_abilities()
+        for e in ab.effects
+    ):
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    m = _DIES_RETURN_RE.search(text)
+    if m is None:
+        return card
+    synth = Ability(
+        kind="static",
+        effects=(Effect(category="self_recursion", scope="you", raw=m.group(0)),),
+    )
+    head, *rest = card.faces
+    return replace(
+        card,
+        faces=(replace(head, abilities=(*head.abilities, synth)), *rest),
+    )
+
+
+# ── ADR-0027 #24c — +1/+1 / -1/-1 counter REMOVAL-as-cost residue (SIDECAR v53) ─
+# counter_manipulation reads a counter_move / remove_counter Effect of kind p1p1/m1m1
+# (the structured MOVE + remove-as-effect halves). The remaining mirror tail is the
+# counter REMOVAL phase leaves OUTSIDE an effect: as an activation COST (phase emits
+# the `removecounter` cost token but DROPS the counter kind — Triskelion, Walking
+# Ballista, Quillspike, Spike Weaver) and as a damage-prevention REPLACEMENT (Phantom
+# Centaur / Flock / Nantuko, Oathsworn Knight — "prevent that damage … remove a +1/+1
+# counter"). phase keeps neither as a remove_counter Effect, so the kind survives only
+# in raw. This pass recovers the dropped KIND (the audit's named upstream gap) by
+# synthesizing a remove_counter Effect with counter_kind=p1p1/m1m1 from the raw
+# removal clause — the existing counter_manipulation arm then reads STRUCTURE. Gated to
+# skip a card already carrying a p1p1/m1m1 counter_move/remove_counter (the structured
+# MOVE/effect cards are untouched); the kind gate keeps a charge/oil/loyalty cost-side
+# removal (Coretapper, Surge Node) OUT. CR 122.1 / 122.6.
+_COUNTER_REMOVE_RE = re.compile(
+    r"(?:remove|move) (?:a|one|any number of|x|\d+) "
+    r"(?:[^.]{0,20}?)?(\+1/\+1|-1/-1) counters?",
+    re.IGNORECASE,
+)
+
+
+def _recover_counter_removal(card: Card, oracle: str) -> Card:
+    """Append a synthetic remove_counter Effect (counter_kind p1p1/m1m1) for a
+    +1/+1 or -1/-1 counter removal phase left as an activation cost / damage-
+    prevention replacement (kind dropped). Append-only; skip a card already carrying
+    a p1p1/m1m1 counter_move/remove_counter (structured) Effect. CR 122.1."""
+    if not card.faces:
+        return card
+    if any(
+        e.category in ("counter_move", "remove_counter")
+        and e.counter_kind in ("p1p1", "m1m1")
+        for ab in card.all_abilities()
+        for e in ab.effects
+    ):
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    m = _COUNTER_REMOVE_RE.search(text)
+    if m is None:
+        return card
+    kind = "p1p1" if m.group(1) == "+1/+1" else "m1m1"
+    synth = Ability(
+        kind="static",
+        effects=(
+            Effect(
+                category="remove_counter",
+                scope="you",
+                counter_kind=kind,
+                raw=m.group(0),
+            ),
+        ),
+    )
+    head, *rest = card.faces
+    return replace(
+        card,
+        faces=(replace(head, abilities=(*head.abilities, synth)), *rest),
+    )
+
+
 def _supplement_effect(e: Effect) -> Effect:
     out = e
     # 1. recover a buried effect from its clause (the first matching rule wins).

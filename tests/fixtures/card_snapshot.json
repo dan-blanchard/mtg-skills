@@ -3526,6 +3526,119 @@
     "type_line": "Legendary Creature — Merfolk Wizard"
    }
   },
+  "Arbiter of the Ideal": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "reveal",
+          "raw": "Whenever ~ becomes untapped, reveal the top card of your library. If it's an artifact, creature, or land card, you may put it onto the battlefield with a manifestation counter on it. That permanent is an enchantment in addition to its other types.",
+          "z": [
+           "from:top",
+           "top:you"
+          ]
+         },
+         {
+          "cat": "reveal",
+          "raw": "Whenever ~ becomes untapped, reveal the top card of your library. If it's an artifact, creature, or land card, you may put it onto the battlefield with a manifestation counter on it. That permanent is an enchantment in addition to its other types.",
+          "z": [
+           "from:top",
+           "top:you"
+          ]
+         },
+         {
+          "cat": "reveal",
+          "raw": "Whenever ~ becomes untapped, reveal the top card of your library. If it's an artifact, creature, or land card, you may put it onto the battlefield with a manifestation counter on it. That permanent is an enchantment in addition to its other types.",
+          "z": [
+           "from:top",
+           "to:battlefield",
+           "top:you"
+          ]
+         },
+         {
+          "cat": "place_counter",
+          "ck": "manifestation",
+          "raw": "Whenever ~ becomes untapped, reveal the top card of your library. If it's an artifact, creature, or land card, you may put it onto the battlefield with a manifestation counter on it. That permanent is an enchantment in addition to its other types.",
+          "sc": "you"
+         },
+         {
+          "cat": "reveal",
+          "raw": "Whenever ~ becomes untapped, reveal the top card of your library. If it's an artifact, creature, or land card, you may put it onto the battlefield with a manifestation counter on it. That permanent is an enchantment in addition to its other types.",
+          "z": [
+           "from:top",
+           "top:you"
+          ]
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "untaps",
+         "sc": "you"
+        }
+       }
+      ],
+      "kw": [
+       "Flying"
+      ],
+      "n": "Arbiter of the Ideal",
+      "tl": "Creature — Sphinx"
+     }
+    ],
+    "n": "Arbiter of the Ideal",
+    "oid": "a6cefecd-459e-439a-a62c-689c2919b689"
+   },
+   "scryfall": {
+    "cmc": 6.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Flying",
+     "Inspired"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{U}{U}",
+    "name": "Arbiter of the Ideal",
+    "oracle_id": "a6cefecd-459e-439a-a62c-689c2919b689",
+    "oracle_text": "Flying\nInspired — Whenever this creature becomes untapped, reveal the top card of your library. If it's an artifact, creature, or land card, you may put it onto the battlefield with a manifestation counter on it. That permanent is an enchantment in addition to its other types.",
+    "power": "4",
+    "toughness": "5",
+    "type_line": "Creature — Sphinx"
+   }
+  },
   "Arcbond": {
    "ir": {
     "faces": [
@@ -10133,6 +10246,17 @@
           ]
          }
         }
+       },
+       {
+        "e": [
+         {
+          "cat": "remove_counter",
+          "ck": "p1p1",
+          "raw": "Remove a +1/+1 counter",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
        }
       ],
       "kw": [
@@ -10340,6 +10464,16 @@
           "to:graveyard"
          ]
         }
+       },
+       {
+        "e": [
+         {
+          "cat": "self_recursion",
+          "raw": "When this creature dies, return it to the battlefield",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
        }
       ],
       "n": "Bronzehide Lion",
@@ -11735,6 +11869,17 @@
           "cat": "place_counter",
           "ck": "m1m1",
           "raw": "~ enters with two -1/-1 counters on it.",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "remove_counter",
+          "ck": "m1m1",
+          "raw": "Remove a -1/-1 counter",
           "sc": "you"
          }
         ],
@@ -14731,6 +14876,106 @@
     "oracle_id": "c527eb80-ccac-40b8-8377-c31121613128",
     "oracle_text": "Each player discards all the cards in their hand, then draws that many cards minus one.",
     "type_line": "Sorcery"
+   }
+  },
+  "Darksteel Garrison": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "grant_keyword",
+          "raw": "Fortified land has indestructible."
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "cost": "genericmana,mana",
+        "e": [
+         {
+          "cat": "attach",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Land"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "pump_target",
+          "dur": "UntilEndOfTurn",
+          "raw": "Whenever fortified land becomes tapped, target creature gets +1/+1 until end of turn.",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "taps"
+        }
+       }
+      ],
+      "kw": [
+       "Fortify"
+      ],
+      "n": "Darksteel Garrison",
+      "tl": "Artifact — Fortification"
+     }
+    ],
+    "n": "Darksteel Garrison",
+    "oid": "48bf020e-45b9-4c27-82e0-80d942656a67"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Fortify"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Darksteel Garrison",
+    "oracle_id": "48bf020e-45b9-4c27-82e0-80d942656a67",
+    "oracle_text": "Fortified land has indestructible.\nWhenever fortified land becomes tapped, target creature gets +1/+1 until end of turn.\nFortify {3} ({3}: Attach to target land you control. Fortify only as a sorcery. This card enters unattached and stays on the battlefield if the land leaves.)",
+    "type_line": "Artifact — Fortification"
    }
   },
   "Dead Weight": {
@@ -20562,6 +20807,81 @@
     "power": "4",
     "toughness": "3",
     "type_line": "Legendary Creature — Angel"
+   }
+  },
+  "Feign Death": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "When ~ dies, return it to the battlefield tapped under its owner's control with a +1/+1 counter on it.",
+          "sc": "you"
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "self_recursion",
+          "raw": "When this creature dies, return it to the battlefield",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Feign Death",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Feign Death",
+    "oid": "f718e507-296b-4f22-842b-5fb91322069b"
+   },
+   "scryfall": {
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Feign Death",
+    "oracle_id": "f718e507-296b-4f22-842b-5fb91322069b",
+    "oracle_text": "Until end of turn, target creature gains \"When this creature dies, return it to the battlefield tapped under its owner's control with a +1/+1 counter on it.\"",
+    "type_line": "Instant"
    }
   },
   "Felidar Sovereign": {
@@ -44010,7 +44330,7 @@
         ],
         "k": "triggered",
         "tr": {
-         "ev": "other",
+         "ev": "untaps",
          "sc": "you"
         }
        }
@@ -56273,7 +56593,7 @@
         ],
         "k": "triggered",
         "tr": {
-         "ev": "other",
+         "ev": "untaps",
          "sc": "you"
         }
        }
@@ -59227,6 +59547,17 @@
             "SelfRef"
            ]
           }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "remove_counter",
+          "ck": "p1p1",
+          "raw": "Remove a +1/+1 counter",
+          "sc": "you"
          }
         ],
         "k": "static"
@@ -64505,5 +64836,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 52
+ "sidecar_version": 53
 }
