@@ -7218,3 +7218,159 @@ def test_p1_becomes_untapped_scan_retries_past_a_false_lead():
     )
     out = _recover_becomes_tap_untap(card)
     assert [a.trigger.event for a in out.all_abilities()] == ["untaps"]
+
+
+# ── #24e P2 parser-substrate: 9 IMPROVES sites — whole-word slot-anchored reads ─
+# Each pin proves the converted DETECTION reads word-structure (slot-by-slot), with a
+# substring collision a regex would trip on but the word parser rejects. All 9 lanes
+# are SET-EQUAL on the commander-legal corpus (the whole-word reads matched the deleted
+# regexes' real sets); these pins protect the structural contract going forward.
+
+
+def test_p2_colorless_seq_is_whole_word_not_substring():
+    """seq2('colorless', type) fires on 'colorless creature' but NOT on the substring
+    'colorless spell' inside 'colorless Spellbomb'. CR 105.2c."""
+    from mtg_utils._card_ir.supplement import _recover_colorless_subject
+
+    hit = _recover_colorless_subject(
+        _bare_card("Consign"), "Counter target colorless spell."
+    )
+    assert any(
+        e.subject is not None and "ColorCount:EQ:0" in e.subject.predicates
+        for a in hit.all_abilities()
+        for e in a.effects
+    )
+    miss = _recover_colorless_subject(
+        _bare_card("Bomb"), "Sacrifice a colorless Spellbomb: Draw a card."
+    )
+    assert not any(
+        e.subject is not None for a in miss.all_abilities() for e in a.effects
+    )
+
+
+def test_p2_exile_gate_keeps_card_exiled_payoff_drops_collision():
+    """The terminal slot matches the 'exile' PREFIX (exile/exiled), so the gate keeps
+    the 'for each card exiled this way' payoff (Gorex, the March cost-reducers) — a real
+    exile_matters member — and the per-effect clause anchor stamps it. CR 406."""
+    from mtg_utils._card_ir.supplement import _EXILE_STANDING
+
+    assert (
+        _EXILE_STANDING.run("this costs 2 less for each card exiled this way")
+        is not None
+    )
+    assert _EXILE_STANDING.run("a card in exile counts double") is not None
+    # No 'card'/'for each card' lead → arm fails (a bare 'exile target creature').
+    assert _EXILE_STANDING.run("exile target creature") is None
+
+
+def test_p2_gain_life_value_slot_and_lifelink_collision():
+    """'you gain <N|X> life' reads a digit-or-x value slot; 'life' is whole-word, so
+    'gain lifelink' (the keyword) is NOT a gain-life clause. CR 119.3."""
+    from mtg_utils._card_ir.supplement import _recover_dropped_gain_life
+
+    hit = _recover_dropped_gain_life(_bare_card("Daxos"), "You gain X life.")
+    assert any(
+        e.category == "gain_life" and e.scope == "you"
+        for a in hit.all_abilities()
+        for e in a.effects
+    )
+    miss = _recover_dropped_gain_life(
+        _bare_card("Ajani"), "Creatures you control gain lifelink."
+    )
+    assert not any(
+        e.category == "gain_life" for a in miss.all_abilities() for e in a.effects
+    )
+
+
+def test_p2_damage_reflect_trigger_is_sentence_bounded():
+    """The 'whenever … is dealt damage' trigger is read within a no-period/quote run:
+    'whenever' and 'is dealt damage' split across a period do NOT form the trigger. The
+    'deals that much damage' consequence is read over the whole text. CR 120.3."""
+    from mtg_utils._card_ir.supplement import _has_damage_reflect_grant
+
+    grant = (
+        'Sliver creatures you control have "Whenever this creature is dealt '
+        'damage, it deals that much damage to target player."'
+    )
+    assert _has_damage_reflect_grant(grant)
+    # 'whenever' and 'is dealt damage' separated by a period → no trigger in one run.
+    split = "Whenever this attacks, draw. A creature is dealt damage and deals that much damage."
+    assert not _has_damage_reflect_grant(split)
+
+
+def test_p2_opp_discard_directed_rejects_past_tense():
+    """'that player discards' is an opponent-directed tell; the whole-word read rejects
+    the past-tense 'that player discarded' (a Tinybones-style payoff that stays on the
+    residue mirror, not a discardER tell). CR 701.9."""
+    from mtg_utils._card_ir.supplement import _directed_discard
+
+    assert _directed_discard("that player discards a card")
+    assert _directed_discard("its controller discards two cards")
+    assert not _directed_discard("if that player discarded a card this turn")
+
+
+def test_p2_scaling_pump_reads_pt_token_and_multidigit():
+    """The 'gets +N/+N for each' pump reads the signed P/T token as a structured unit;
+    the magnitude class is multi-digit, so '+10/+10' yields factor 10 (the deleted
+    single-digit regex would have missed it). CR 613."""
+    from mtg_utils._card_ir.supplement import _recover_scaling_pump
+
+    out = _recover_scaling_pump(
+        _bare_card("Gold Rush"),
+        "Target creature gets +10/+10 for each Treasure you control.",
+    )
+    pumps = [
+        e
+        for a in out.all_abilities()
+        for e in a.effects
+        if e.category == "pump" and e.amount is not None
+    ]
+    assert pumps
+    assert pumps[0].amount.op == "count"
+    assert pumps[0].amount.factor == 10
+    assert "for each" in (pumps[0].raw or "")
+
+
+def test_p2_opponent_cast_excludes_symmetric_a_player():
+    """phrase('whenever','an','opponent', cast) requires the 'an opponent' slot, so the
+    SYMMETRIC 'whenever a player casts' (CR 102.1) is excluded. CR 603.2 / 102.2."""
+    from mtg_utils._card_ir.supplement import _recover_opponent_cast_scope
+
+    hit = _recover_opponent_cast_scope(
+        _bare_card("Notion Thief"),
+        "Whenever an opponent casts a spell, draw a card.",
+    )
+    assert any(
+        a.trigger is not None
+        and a.trigger.event == "cast_spell"
+        and a.trigger.scope == "opp"
+        for a in hit.all_abilities()
+    )
+    miss = _recover_opponent_cast_scope(
+        _bare_card("Ruric Thar"),
+        "Whenever a player casts a noncreature spell, Ruric Thar deals 6 damage to that player.",
+    )
+    assert not any(
+        a.trigger is not None and a.trigger.scope == "opp" for a in miss.all_abilities()
+    )
+
+
+def test_p2_topdeck_self_whole_word_library_collision():
+    """The self top-stack tell is whole-word: 'on top of your library' fires; 'on top of
+    your libraries' (the 'libraries' word) does not. CR 401."""
+    from mtg_utils._card_ir.supplement import _topdeck_stack_self
+
+    assert _topdeck_stack_self("put them on top of your library")
+    assert _topdeck_stack_self("the top of your library in any order")
+    assert not _topdeck_stack_self("put a card on top of your libraries")
+
+
+def test_p2_group_hug_draw_whole_word_arms():
+    """'each player [may] draw(s)' / 'each player who drew' are whole-word arms; 'draws'
+    never matches inside a larger word. CR 121."""
+    from mtg_utils._card_ir.supplement import _group_hug_draw
+
+    assert _group_hug_draw("each player draws a card")
+    assert _group_hug_draw("each player may draw a card")
+    assert _group_hug_draw("each player who drew a card loses 1 life")
+    assert not _group_hug_draw("you draw a card")

@@ -892,7 +892,14 @@ from mtg_utils.card_ir import Card
 #   emitted-node contract — historic_matters, devotion_matters, stax_taxes (opp cast
 #   lock), base_power_matters, tap_untap_matters. Behavior-neutral (combinator reads
 #   the same set the regex did); the bump is only because supplement output is cached.
-SIDECAR_VERSION = 63
+# v64 (#24e P2 parser-substrate): the 9 IMPROVES bucket-B recoveries swap DETECTION
+#   regex for `_combinators` clause-parsers — colorless_matters, exile_matters,
+#   lifegain_matters, damage_reflect, opponent_discard, scaling_pump,
+#   opponent_cast_matters, topdeck_stack, group_hug_draw. Whole-word slot-anchored, so
+#   set-equal-or-improved per lane (drops substring over-fires; scaling_pump gains
+#   multi-digit scalers) — each gain/loss adjudicated. Bump because supplement is
+#   cached.
+SIDECAR_VERSION = 64
 
 
 def card_ir_dir() -> Path:

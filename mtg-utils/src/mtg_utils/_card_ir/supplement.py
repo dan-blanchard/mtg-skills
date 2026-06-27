@@ -2058,10 +2058,27 @@ def _recover_dynamic_base_pt_set(card: Card, oracle: str) -> Card:
 # equal to", "you gain that much life"); an opponent/each gainer ("target opponent
 # gains 3 life") is NOT synthesized here (that gain_life rides phase's own scope-any
 # node + the existing arm, not a forced scope-you marker).
-_GAIN_LIFE_DROPPED = re.compile(
-    r"\byou gain \d+ life\b|\byou gain x life\b"
-    r"|\bgain life equal to\b|\byou gain that much life\b",
-    re.IGNORECASE,
+# #24e P2 parser-substrate: DETECTION is a per-clause `_combinators` scan over three
+# arms (the deleted YOU-anchored regex):
+#   A: you gain <N|X> life   (value slot = satisfy(isdigit-or-x); folds multi-digit)
+#   B: gain life equal to
+#   C: you gain that much life
+# WHOLE-WORD ("life" never matches inside "lifelink"). Ports to phase-rs as
+# `alt((tuple((tag("you"), tag("gain"), digit, tag("life"))), ...))`. CR 119.3.
+_GAIN_LIFE_VALUE = comb.satisfy(lambda w: w.isdigit() or w == "x")
+_GAIN_LIFE_DROPPED = comb.scan(
+    comb.alt(
+        comb.value(
+            None,
+            comb.seq3(
+                comb.keyword({"you"}),
+                comb.keyword({"gain"}),
+                comb.seq2(_GAIN_LIFE_VALUE, comb.keyword({"life"})),
+            ),
+        ),
+        comb.value(None, comb.phrase({"gain"}, {"life"}, {"equal"}, {"to"})),
+        comb.value(None, comb.phrase({"you"}, {"gain"}, {"that"}, {"much"}, {"life"})),
+    )
 )
 
 
@@ -2087,7 +2104,7 @@ def _recover_dropped_gain_life(card: Card, oracle: str) -> Card:
     text = re.sub(r"\([^)]*\)", " ", oracle)
     synth: list[Ability] = []
     for clause in re.split(r"[.\n]", text):
-        if _GAIN_LIFE_DROPPED.search(clause):
+        if _anchored(clause, "gain", _GAIN_LIFE_DROPPED):
             synth.append(
                 Ability(
                     kind="static",
@@ -2137,10 +2154,34 @@ def _recover_dropped_gain_life(card: Card, oracle: str) -> Card:
 # off the trigger. The granted/quoted reflectors phase leaves wholly unstructured
 # (Spiteful Sliver's tribal grant, Arcbond's targeted grant, Donna Noble's
 # paired-subject trigger phase couldn't model) carry neither, so they recover here.
-_DAMAGE_REFLECT_TRIG_RE = re.compile(
-    r"\bwhenever\b[^.\"“”]*?\bis dealt damage\b", re.IGNORECASE
+# #24e P2 parser-substrate: both required anchors are `_combinators`:
+#   TRIG: "whenever … is dealt damage" — the bounded `[^.""]*?` gap is honored by
+#         splitting the text on period / quote chars and running, per segment,
+#         `preceded(find_word({"whenever"}), scan(phrase("is","dealt","damage")))`
+#         (whenever BEFORE is-dealt-damage, within one no-period-no-quote run).
+#   DEALS: `scan(phrase("deals","that","much","damage"))` over the whole text.
+# WHOLE-WORD throughout. Ports to phase-rs as a nom `tuple` inside a sentence-bounded
+# `take_until('.')`. CR 120.3.
+_DAMAGE_REFLECT_TRIG = comb.preceded(
+    comb.find_word({"whenever"}),
+    comb.scan(comb.phrase({"is"}, {"dealt"}, {"damage"})),
 )
-_DAMAGE_REFLECT_DEALS_RE = re.compile(r"\bdeals that much damage\b", re.IGNORECASE)
+_DAMAGE_REFLECT_DEALS = comb.scan(
+    comb.phrase({"deals"}, {"that"}, {"much"}, {"damage"})
+)
+
+
+def _has_damage_reflect_grant(text: str) -> bool:
+    """The GRANTED damage-reflection tell: a "whenever … is dealt damage" trigger (in a
+    no-period-no-quote run) AND a "deals that much damage" consequence somewhere in the
+    text. Mirrors the two deleted regexes; the trigger's sentence/quote bound is the
+    per-segment split."""
+    if "dealt damage" not in text.lower() or "that much damage" not in text.lower():
+        return False
+    segments = re.split(r"[.\"“”]", text)
+    if not any(_DAMAGE_REFLECT_TRIG.run(seg) is not None for seg in segments):
+        return False
+    return _DAMAGE_REFLECT_DEALS.run(text) is not None
 
 
 def _recover_damage_reflect(card: Card, oracle: str) -> Card:
@@ -2166,9 +2207,7 @@ def _recover_damage_reflect(card: Card, oracle: str) -> Card:
     ):
         return card
     text = re.sub(r"\([^)]*\)", " ", oracle)
-    if not (
-        _DAMAGE_REFLECT_TRIG_RE.search(text) and _DAMAGE_REFLECT_DEALS_RE.search(text)
-    ):
+    if not _has_damage_reflect_grant(text):
         return card
     synth = Ability(
         kind="static",
@@ -2616,10 +2655,51 @@ def _recover_cast_from_exile_zone(card: Card, oracle: str) -> Card:
 # ``in:exile`` onto the standing-in-exile effects phase left zoneless; synthesize a
 # marker for the oracle-only residue. Distinct from exile_removal (``to:exile``).
 # CR 406.
-_EXILE_STANDING_RE = re.compile(
-    r"cards? (?:you own )?(?:that are )?in exile"
-    r"|for each card (?:you own )?(?:in )?exile",
-    re.IGNORECASE,
+# #24e P2 parser-substrate: the CARD-LEVEL standing-in-exile gate is a `_combinators`
+# scan over two opt()-bearing arms (the deleted regex's two alternations) — a showcase
+# of opt() for the "(you own )?(that are )?"/"(you own )?(in )?" optional slots:
+#   A: cards [you own]? [that are]? in exile*
+#   B: for each card [you own]? [in]? exile*
+# The terminal slot matches the WHOLE word with the "exile" PREFIX (exile/exiled/exiles)
+# because the deleted regex's bare "exile" matched the "card exiled this way" / "cards
+# exiled" PAYOFFS by substring (the prefix of "exiled") — those are real exile_matters
+# members (Gorex, Lumbering Battlement, Crypt Incursion, the March cost-reducers), so
+# the gate must keep them; the per-effect ``_EXILE_STANDING_CLAUSE_RE`` (`card(s)
+# exiled` / `exiled with`) is the structural stamp the gate guards. Set-equal to the
+# deleted regex. Ports to phase-rs as nom `alt((..., ...))` with `opt`. CR 406.
+_EXILE_WORD = comb.satisfy(lambda w: w.startswith("exile"))
+_EXILE_STANDING = comb.scan(
+    comb.alt(
+        comb.value(
+            None,
+            comb.preceded(
+                comb.keyword({"card", "cards"}),
+                comb.preceded(
+                    comb.opt(comb.seq2(comb.keyword({"you"}), comb.keyword({"own"}))),
+                    comb.preceded(
+                        comb.opt(
+                            comb.seq2(comb.keyword({"that"}), comb.keyword({"are"}))
+                        ),
+                        comb.seq2(comb.keyword({"in"}), _EXILE_WORD),
+                    ),
+                ),
+            ),
+        ),
+        comb.value(
+            None,
+            comb.preceded(
+                comb.seq3(
+                    comb.keyword({"for"}),
+                    comb.keyword({"each"}),
+                    comb.keyword({"card"}),
+                ),
+                comb.preceded(
+                    comb.opt(comb.seq2(comb.keyword({"you"}), comb.keyword({"own"}))),
+                    comb.preceded(comb.opt(comb.keyword({"in"})), _EXILE_WORD),
+                ),
+            ),
+        ),
+    )
 )
 # Per-effect anchor (the clause references cards STANDING in exile, not exiling TO
 # exile) — used to pick which zoneless effect carries the in:exile tag.
@@ -2637,7 +2717,7 @@ def _recover_exile_zone_ref(card: Card, oracle: str) -> Card:
     standing-in-exile oracle. CR 406."""
     if not card.faces:
         return card
-    if _EXILE_STANDING_RE.search(re.sub(r"\([^)]*\)", " ", oracle)) is None:
+    if not _anchored(re.sub(r"\([^)]*\)", " ", oracle), "exile", _EXILE_STANDING):
         return card
     has_zone = any(
         "in:exile" in e.zones for ab in card.all_abilities() for e in ab.effects
@@ -2993,10 +3073,20 @@ def _recover_clone_creature(card: Card, oracle: str) -> Card:
 # REPLACEMENTS (Chains of Mephistopheles), and granted/quoted grants (Wand of Ith,
 # Dementia Sliver) — keeps the NARROWED residue mirror (the spec's upstream-phase gap).
 # CR 701.9 / 510.1c / 102.2.
-_OPP_DISCARD_RAW_RE = re.compile(
-    r"each opponent discards|target opponent discards|an opponent discards",
-    re.IGNORECASE,
+# #24e P2 parser-substrate: the each/target/an-opponent discardER raw tell is a
+# `_combinators` scan — `scan(phrase({each/target/an}, {opponent}, {discards}))` —
+# WHOLE-WORD ("discards" only, mirroring the deleted regex's no-`?`). Ports to phase-rs
+# as nom `tuple((alt(det tags), tag("opponent"), tag("discards")))`. CR 701.9.
+_OPP_DISCARD_RAW = comb.scan(
+    comb.phrase({"each", "target", "an"}, {"opponent"}, {"discards"})
 )
+
+
+def _opp_discard_raw(text: str) -> bool:
+    """``each/target/an opponent discards`` anywhere in ``text`` (whole-word)."""
+    return "discards" in text.lower() and _OPP_DISCARD_RAW.run(text) is not None
+
+
 # The OPPONENT-directed discardER tell — the disconnected discard piece's own text
 # names the discarding player as an anaphoric opponent ("that player/opponent
 # discards", "its controller discards", "each/target opponent discards"). This is the
@@ -3004,13 +3094,25 @@ _OPP_DISCARD_RAW_RE = re.compile(
 # the combat-damage SELF-LOOT ("you may draw a card, then discard a card" — Looter
 # il-Kor, Academy Raider, Wharf Infiltrator) OUT: a self-loot's discard names YOU, not
 # "that player", so it never fires the anchor. CR 701.9 vs the loot outlet (CR 701.8a).
-_DISCARD_OPP_DIRECTED = re.compile(
-    r"that (?:player|opponent) discards?"
-    r"|its controller discards?"
-    r"|(?:each|target|an) opponent discards?"
-    r"|each player discards?",
-    re.IGNORECASE,
+# #24e P2 parser-substrate: the OPPONENT-directed discardER tell is a `_combinators`
+# scan over four arms (the deleted regex's four alternations) — WHOLE-WORD, so a
+# past-tense "that player discarded" (the regex matched "that player discard" as a
+# substring of "discarded") is NOT a discard tell here (Tinybones-style past-tense
+# payoffs stay on the narrowed residue mirror, per this module's design). `discards?`
+# → {discard, discards}. CR 701.9.
+_DISCARD_OPP_DIRECTED = comb.scan(
+    comb.alt(
+        comb.phrase({"that"}, {"player", "opponent"}, {"discard", "discards"}),
+        comb.phrase({"its"}, {"controller"}, {"discard", "discards"}),
+        comb.phrase({"each", "target", "an"}, {"opponent"}, {"discard", "discards"}),
+        comb.phrase({"each"}, {"player"}, {"discard", "discards"}),
+    )
 )
+
+
+def _directed_discard(text: str) -> bool:
+    """An opponent-directed discardER tell anywhere in ``text`` (whole-word)."""
+    return "discard" in text.lower() and _DISCARD_OPP_DIRECTED.run(text) is not None
 
 
 def _opp_discard_anchor(ab: Ability, card_text: str) -> bool:
@@ -3037,8 +3139,8 @@ def _opp_discard_anchor(ab: Ability, card_text: str) -> bool:
         # The discard must be OPPONENT-directed (anaphoric "that player discards"),
         # read from its own raw or — for a modal/empty-raw discard — the card text.
         directed = e.raw or ""
-        if not _DISCARD_OPP_DIRECTED.search(directed) and not (
-            not directed.strip() and _DISCARD_OPP_DIRECTED.search(card_text)
+        if not _directed_discard(directed) and not (
+            not directed.strip() and _directed_discard(card_text)
         ):
             continue
         prior = ab.effects[:i]
@@ -3055,7 +3157,7 @@ def _opp_discard_anchor(ab: Ability, card_text: str) -> bool:
             for x in prior
         ):
             return True
-        if _OPP_DISCARD_RAW_RE.search(card_text):
+        if _opp_discard_raw(card_text):
             return True
     return False
 
@@ -3128,9 +3230,30 @@ def _append_marker(card: Card, effect: Effect) -> Card:
 # Filter with no color predicate). The discriminator survives only in the raw, so we
 # synth a ColorCount:EQ:0 subject Filter the colorless_matters arm
 # (_predicate_build_around_lanes) reads structurally. CR 105.2c (a colorless object
-# has no color) / 202.2. Set-equal to the deleted "colorless (creature|spell|
-# permanent)" word mirror (same anchor over the reminder-stripped joined oracle).
-_COLORLESS_REF_RE = re.compile(r"colorless (?:creature|spell|permanent)", re.IGNORECASE)
+# has no color) / 202.2.
+# #24e P2 parser-substrate: DETECTION is a `_combinators` word scan —
+# ``scan(seq2(keyword({"colorless"}), keyword({creature/spell/permanent + plurals})))``
+# — a WHOLE-WORD two-slot read, stricter than the deleted substring regex
+# `colorless (?:creature|spell|permanent)` which fired inside larger words ("colorless
+# spellbomb" → the regex's "colorless spell" substring). The plural forms are folded in
+# (the regex matched "colorless creatures"/"permanents" via its singular substring) so
+# the real set holds. Ports to phase-rs as a nom `tuple((tag("colorless"), alt(type
+# tags)))`. CR 105.2c.
+_COLORLESS_REF = comb.scan(
+    comb.seq2(
+        comb.keyword({"colorless"}),
+        comb.keyword(
+            {
+                "creature",
+                "creatures",
+                "spell",
+                "spells",
+                "permanent",
+                "permanents",
+            }
+        ),
+    )
+)
 
 
 def _recover_colorless_subject(card: Card, oracle: str) -> Card:
@@ -3147,7 +3270,7 @@ def _recover_colorless_subject(card: Card, oracle: str) -> Card:
         for f in _ability_subjects(ab)
     ):
         return card
-    if _COLORLESS_REF_RE.search(re.sub(r"\([^)]*\)", " ", oracle)) is None:
+    if not _anchored(re.sub(r"\([^)]*\)", " ", oracle), "colorless", _COLORLESS_REF):
         return card
     return _append_marker(
         card,
@@ -3287,11 +3410,38 @@ def _ability_subjects(ab: Ability) -> list[Filter]:
 # count's go-wide reference lives in the raw (`_is_scaling_count` reads the "for each"
 # raw for a subjectless count), and a typed subject would over-couple this pump-only
 # recovery to the typed-matters lanes (artifacts_matter / etc. cross-read amount
-# subjects). CR 613 (P/T-setting/modifying layer) / 107.3. Set-equal to the deleted
-# `gets [+\-][0-9x]/[+\-][0-9x] for (?:each|every)` word mirror (same single-digit
-# anchor over the reminder-stripped joined oracle).
-_SCALING_PUMP_CLAUSE_RE = re.compile(
-    r"gets ([+\-][0-9x])/[+\-][0-9x] for (?:each|every)[^.\n\"]*", re.IGNORECASE
+# subjects). CR 613 (P/T-setting/modifying layer) / 107.3.
+# #24e P2 parser-substrate: DETECTION is a `_combinators` scan — `scan(seq2(preceded(
+# keyword({"gets"}), <PT word>), phrase({"for"}, {"each","every"})))` — where the P/T
+# word is read as a STRUCTURED token (`+N/+N`, signed both sides) by a raw fullmatch,
+# and the per-each magnitude N is taken from the normalized form (split on '/'). The
+# whole-word read drops a substring over-fire and, because the magnitude class is
+# `[0-9x]+` (not the deleted regex's single `[0-9x]`), CORRECTLY captures a multi-digit
+# scaler ("gets +10/+10 for each …") the regex missed. The synth raw reconstructs the
+# matched fragment (incl. trailing) so `_is_scaling_count`'s "for each" read is
+# preserved. Ports to phase-rs as a nom `tuple((tag("gets"), pt_token, tag("for"),
+# alt((tag("each"), tag("every")))))`. CR 613.
+_PT_GETS_RE = re.compile(r"[+\-][0-9x]+/[+\-][0-9x]+", re.IGNORECASE)
+
+
+def _pt_after_gets() -> comb.Parser[str]:
+    """The signed P/T modification token (`+N/+N`) as one word — the structured operand
+    a "gets" pump applies (raw fullmatch keeps the sign the normalizer folds)."""
+
+    def go(s: str) -> tuple[str, str] | None:
+        r = comb.word().run(s)
+        if r is None or not _PT_GETS_RE.fullmatch(r[0]):
+            return None
+        return r
+
+    return comb.Parser(go)
+
+
+_SCALING_PUMP = comb.scan(
+    comb.seq2(
+        comb.preceded(comb.keyword({"gets"}), _pt_after_gets()),
+        comb.phrase({"for"}, {"each", "every"}),
+    )
 )
 _SCALING_FOR_EACH_RAW = re.compile(
     r"\bfor each\b|\bequal to the number of\b", re.IGNORECASE
@@ -3331,18 +3481,32 @@ def _recover_scaling_pump(card: Card, oracle: str) -> Card:
         return card
     if _has_structural_scaling_pump(card):
         return card
-    m = _SCALING_PUMP_CLAUSE_RE.search(re.sub(r"\([^)]*\)", " ", oracle))
-    if m is None:
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    if "gets" not in text.lower():
         return card
-    digit = m.group(1)[-1]
-    factor = 1 if digit == "x" else int(digit)
+    res = _SCALING_PUMP.run(text)
+    if res is None:
+        return card
+    (ptword, conn), rest = res
+    # Per-each magnitude N from the normalized P/T token ("+10/+10" -> "10/10" -> "10").
+    mag = comb.norm_word(ptword).split("/")[0]
+    factor = 1 if mag in ("x", "") else int(mag)
+    # Reconstruct the matched fragment (incl. the no-period/quote trailing) so the synth
+    # raw carries "for each <X>" exactly as the deleted regex's m.group(0) did — the
+    # `_is_scaling_count` "for each" read depends on it.
+    cut = len(rest)
+    for i, ch in enumerate(rest):
+        if ch in '.\n"':
+            cut = i
+            break
+    raw = f"gets {ptword} for {conn[1]}{rest[:cut]}"
     return _append_marker(
         card,
         Effect(
             category="pump",
             scope="you",
             amount=Quantity(op="count", factor=factor),
-            raw=m.group(0),
+            raw=raw,
         ),
     )
 
@@ -3779,7 +3943,15 @@ def _recover_keyword_grant_target(card: Card, oracle: str) -> Card:
 #     it drops those 17 symmetric punishers (genuine non-members of an opponent-
 #     scoped lane), and this recovery keeps the 4 genuinely-opponent quoted grants
 #     firing STRUCTURALLY. CR 601 / 603.2 / 102.2.
-_OPP_CAST_TRIGGER = re.compile(r"whenever an opponent casts?\b", re.IGNORECASE)
+# #24e P2 parser-substrate: DETECTION is a `_combinators` scan —
+# `scan(phrase({"whenever"}, {"an"}, {"opponent"}, {"cast","casts"}))` — a WHOLE-WORD
+# four-slot read. The "an opponent" slot is the clean bag discriminator that keeps the
+# SYMMETRIC "whenever a player casts" (CR 102.1) OUT (no "an opponent"). Ports to
+# phase-rs as nom `tuple((tag("whenever"), tag("an"), tag("opponent"), alt((tag("cast"),
+# tag("casts")))))`. CR 603.2 / 102.2.
+_OPP_CAST_TRIGGER = comb.scan(
+    comb.phrase({"whenever"}, {"an"}, {"opponent"}, {"cast", "casts"})
+)
 
 
 def _recover_opponent_cast_scope(card: Card, oracle: str) -> Card:
@@ -3792,7 +3964,7 @@ def _recover_opponent_cast_scope(card: Card, oracle: str) -> Card:
     if not card.faces:
         return card
     stripped = re.sub(r"\([^)]*\)", " ", oracle)
-    if not _OPP_CAST_TRIGGER.search(stripped):
+    if not _anchored(stripped, "opponent cast", _OPP_CAST_TRIGGER):
         return card
     if any(
         ab.trigger is not None
@@ -3879,9 +4051,25 @@ def _recover_tribe_damage_source(card: Card, oracle: str) -> Card:
 #     Effect (Diabolic Vision), a "put a card from your hand on top" ACTIVATION COST
 #     (Hidden Retreat, Leashling, Penance), or a dropped-clause look-then-stack (Munda)
 #     is not structurally recoverable → the kept mirror stays for those. CR 401.
-_TOPDECK_STACK_SELF = re.compile(
-    r"on top of your library|top of your library in any order", re.IGNORECASE
+# #24e P2 parser-substrate: the SELF top-stack tell is a `_combinators` scan over the
+# deleted regex's two alternations — `scan(alt(phrase("on","top","of","your","library"),
+# phrase("top","of","your","library","in","any","order")))` — WHOLE-WORD ("library"
+# never matches inside "libraries"). Ports to phase-rs as nom `alt`. CR 401.
+_TOPDECK_STACK_SELF = comb.scan(
+    comb.alt(
+        comb.phrase({"on"}, {"top"}, {"of"}, {"your"}, {"library"}),
+        comb.phrase({"top"}, {"of"}, {"your"}, {"library"}, {"in"}, {"any"}, {"order"}),
+    )
 )
+
+
+def _topdeck_stack_self(clause: str) -> bool:
+    """A SELF top-stack tell ("on top of your library" / "top of your library in any
+    order") anywhere in ``clause`` (whole-word)."""
+    return (
+        "top of your library" in clause.lower()
+        and _TOPDECK_STACK_SELF.run(clause) is not None
+    )
 
 
 def _recover_topdeck_stack_self(card: Card, oracle: str) -> Card:
@@ -3905,7 +4093,7 @@ def _recover_topdeck_stack_self(card: Card, oracle: str) -> Card:
                     e.category == "topdeck_stack"
                     and e.counter_kind in ("top", "topbottom")
                     and (e.subject is None or e.subject.controller != "you")
-                    and _TOPDECK_STACK_SELF.search(clause)
+                    and _topdeck_stack_self(clause)
                 ):
                     new_effs.append(
                         replace(
@@ -4003,9 +4191,23 @@ def _recover_extra_land_drop(card: Card, oracle: str) -> Card:
 #     Effect (Winter Sky) and the Saga-chapter collapse to a 'Chapter N' raw (Vault 11)
 #     leave no draw raw to read — those stay on the narrowed signals residue mirror
 #     (UPSTREAM phase folds). CR 121 / 120.2.
-_GROUP_HUG_DRAW_PUT = re.compile(
-    r"each player (?:may )?draws?\b|each player who drew", re.IGNORECASE
+# #24e P2 parser-substrate: the symmetric each-player-draws tell is a `_combinators`
+# scan over the deleted regex's two alternations (the optional "may" is a separate arm,
+# `draws?` → {draw, draws}) — WHOLE-WORD ("draws" never matches inside "drawstep").
+# Ports to phase-rs as nom `alt`. CR 121.
+_GROUP_HUG_DRAW = comb.scan(
+    comb.alt(
+        comb.phrase({"each"}, {"player"}, {"draw", "draws"}),
+        comb.phrase({"each"}, {"player"}, {"may"}, {"draw", "draws"}),
+        comb.phrase({"each"}, {"player"}, {"who"}, {"drew"}),
+    )
 )
+
+
+def _group_hug_draw(raw: str) -> bool:
+    """A symmetric "each player [may] draw(s)" / "each player who drew" tell anywhere in
+    ``raw`` (whole-word)."""
+    return "each player" in raw.lower() and _GROUP_HUG_DRAW.run(raw) is not None
 
 
 def _recover_group_hug_draw_scope(card: Card) -> Card:
@@ -4027,7 +4229,7 @@ def _recover_group_hug_draw_scope(card: Card) -> Card:
                     e.category == "draw"
                     and e.scope != "each"
                     and e.raw
-                    and _GROUP_HUG_DRAW_PUT.search(e.raw)
+                    and _group_hug_draw(e.raw)
                 ):
                     new_effs.append(replace(e, scope="each"))
                     changed = True
