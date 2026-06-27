@@ -3402,6 +3402,102 @@
     "type_line": "Legendary Creature — Vampire"
    }
   },
+  "Anointed Peacekeeper": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "reveal_hand",
+          "raw": "As ~ enters, look at an opponent's hand, then choose any card name.",
+          "sc": "opp"
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "cost_reduction",
+          "raw": "Activated abilities of sources with the chosen name cost {2} more to activate unless they're mana abilities."
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "restriction",
+          "raw": "Spells your opponents cast with the chosen name cost {2} more to cast.",
+          "sc": "opp",
+          "sub": {
+           "c": "opp",
+           "t": [
+            "Card"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "Vigilance"
+      ],
+      "n": "Anointed Peacekeeper",
+      "tl": "Creature — Human Cleric"
+     }
+    ],
+    "n": "Anointed Peacekeeper",
+    "oid": "a67f78be-8fbe-414a-9574-bb11ac50e1a5"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Vigilance"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Anointed Peacekeeper",
+    "oracle_id": "a67f78be-8fbe-414a-9574-bb11ac50e1a5",
+    "oracle_text": "Vigilance\nAs this creature enters, look at an opponent's hand, then choose any card name.\nSpells your opponents cast with the chosen name cost {2} more to cast.\nActivated abilities of sources with the chosen name cost {2} more to activate unless they're mana abilities.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Human Cleric"
+   }
+  },
   "Anti-Venom, Horrifying Healer": {
    "ir": {
     "faces": [
@@ -13801,6 +13897,101 @@
     "type_line": "Enchantment"
    }
   },
+  "Claim // Fame": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "reanimate",
+          "raw": "Return target creature card with mana value 2 or less from your graveyard to the battlefield.",
+          "sub": {
+           "c": "you",
+           "p": [
+            "Cmc:LE:2",
+            "InZone"
+           ],
+           "t": [
+            "Creature"
+           ]
+          },
+          "z": [
+           "from:graveyard",
+           "to:battlefield",
+           "in:graveyard"
+          ]
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Claim",
+      "tl": "Sorcery"
+     }
+    ],
+    "n": "Claim",
+    "oid": "16da9e4b-c6ee-4e70-8653-31ca147f3b01"
+   },
+   "scryfall": {
+    "card_faces": [
+     {
+      "mana_cost": "{B}",
+      "name": "Claim",
+      "oracle_text": "Return target creature card with mana value 2 or less from your graveyard to the battlefield.",
+      "type_line": "Sorcery"
+     },
+     {
+      "mana_cost": "{1}{R}",
+      "name": "Fame",
+      "oracle_text": "Aftermath (Cast this spell only from your graveyard. Then exile it.)\nTarget creature gets +2/+0 and gains haste until end of turn.",
+      "type_line": "Sorcery"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "R"
+    ],
+    "colors": [
+     "B",
+     "R"
+    ],
+    "keywords": [
+     "Aftermath"
+    ],
+    "layout": "split",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B} // {1}{R}",
+    "name": "Claim // Fame",
+    "oracle_id": "16da9e4b-c6ee-4e70-8653-31ca147f3b01",
+    "type_line": "Sorcery // Sorcery"
+   }
+  },
   "Clavileño, First of the Blessed": {
    "ir": {
     "faces": [
@@ -21965,6 +22156,117 @@
     "power": "4",
     "toughness": "6",
     "type_line": "Creature — Cat Beast"
+   }
+  },
+  "Ferocification": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "choose",
+          "raw": "At the beginning of combat on your turn"
+         },
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "pump_target",
+          "dur": "UntilEndOfTurn",
+          "raw": "• Target creature you control gets +2/+0 until end of turn.",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Creature"
+           ]
+          }
+         },
+         {
+          "cat": "grant_keyword",
+          "ck": "menace",
+          "raw": "gain menace and haste"
+         },
+         {
+          "cat": "grant_keyword",
+          "ck": "haste",
+          "raw": "gain menace and haste"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "begin_combat"
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "single_target_grant",
+          "ck": "menace",
+          "raw": "Target creature you control gains menace",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "p": [
+            "SingleTarget"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Ferocification",
+      "tl": "Enchantment"
+     }
+    ],
+    "n": "Ferocification",
+    "oid": "814e06c0-9b61-4a64-8c67-73a8eb00a768"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Ferocification",
+    "oracle_id": "814e06c0-9b61-4a64-8c67-73a8eb00a768",
+    "oracle_text": "At the beginning of combat on your turn, choose one —\n• Target creature you control gets +2/+0 until end of turn.\n• Target creature you control gains menace and haste until end of turn.",
+    "type_line": "Enchantment"
    }
   },
   "Fervor": {
@@ -38934,6 +39236,148 @@
     "type_line": "Enchantment"
    }
   },
+  "Mardu Charm": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 4,
+           "op": "fixed"
+          },
+          "cat": "damage",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Warrior"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         },
+         {
+          "cat": "grant_keyword",
+          "ck": "firststrike",
+          "raw": "gain first strike"
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "reveal_hand",
+          "sc": "opp",
+          "sub": {
+           "c": "opp"
+          }
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "discard"
+         },
+         {
+          "cat": "discard",
+          "raw": "opponent-directed discard (recovered)",
+          "sc": "opp"
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Mardu Charm",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Mardu Charm",
+    "oid": "147eabab-9d93-4cf4-811b-0efa3b84c5b5"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "combo_piece",
+      "id": "c35fb7a3-7c7f-4470-b1ad-5b8709a608e6",
+      "name": "Mardu Charm",
+      "object": "related_card",
+      "type_line": "Instant",
+      "uri": "https://api.scryfall.com/cards/c35fb7a3-7c7f-4470-b1ad-5b8709a608e6"
+     },
+     {
+      "component": "token",
+      "id": "677a1d9d-86fd-49db-9573-8cd2cbc1a096",
+      "name": "Warrior",
+      "object": "related_card",
+      "type_line": "Token Creature — Warrior",
+      "uri": "https://api.scryfall.com/cards/677a1d9d-86fd-49db-9573-8cd2cbc1a096"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "R",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "R",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}{W}{B}",
+    "name": "Mardu Charm",
+    "oracle_id": "147eabab-9d93-4cf4-811b-0efa3b84c5b5",
+    "oracle_text": "Choose one —\n• Mardu Charm deals 4 damage to target creature.\n• Create two 1/1 white Warrior creature tokens. They gain first strike until end of turn.\n• Target opponent reveals their hand. You choose a noncreature, nonland card from it. That player discards that card.",
+    "type_line": "Instant"
+   }
+  },
   "Marhault Elsdragon": {
    "ir": {
     "faces": [
@@ -51924,6 +52368,129 @@
     "type_line": "Legendary Creature — Phyrexian Angel"
    }
   },
+  "Sen Triplets": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "target_only",
+          "raw": "At the beginning of your upkeep, choose target opponent. This turn, that player can't cast spells or activate abilities and plays with their hand revealed. You may play lands and cast spells from that player's hand this turn.",
+          "sc": "opp",
+          "sub": {
+           "c": "opp"
+          }
+         },
+         {
+          "cat": "choose",
+          "raw": "At the beginning of your upkeep, choose target opponent. This turn, that player can't cast spells or activate abilities and plays with their hand revealed. You may play lands and cast spells from that player's hand this turn.",
+          "sc": "opp"
+         },
+         {
+          "cat": "restriction",
+          "raw": "At the beginning of your upkeep, choose target opponent. This turn, that player can't cast spells or activate abilities and plays with their hand revealed. You may play lands and cast spells from that player's hand this turn.",
+          "sc": "opp"
+         },
+         {
+          "cat": "choose",
+          "raw": "At the beginning of your upkeep, choose target opponent. This turn, that player can't cast spells or activate abilities and plays with their hand revealed. You may play lands and cast spells from that player's hand this turn.",
+          "sc": "opp"
+         },
+         {
+          "cat": "choose",
+          "raw": "At the beginning of your upkeep, choose target opponent. This turn, that player can't cast spells or activate abilities and plays with their hand revealed. You may play lands and cast spells from that player's hand this turn.",
+          "sc": "opp"
+         },
+         {
+          "cat": "cast_from_zone",
+          "dur": "UntilEndOfTurn",
+          "raw": "At the beginning of your upkeep, choose target opponent. This turn, that player can't cast spells or activate abilities and plays with their hand revealed. You may play lands and cast spells from that player's hand this turn.",
+          "sc": "opp",
+          "sub": {
+           "p": [
+            "InZone"
+           ],
+           "t": [
+            "Card"
+           ]
+          },
+          "z": [
+           "in:hand"
+          ]
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "upkeep"
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "reveal_hand",
+          "raw": "At the beginning of your upkeep, choose target opponent. This turn, that player can't cast spells or activate abilities and plays with their hand revealed. You may play lands and cast spells from that player's hand this turn.",
+          "sc": "opp"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Sen Triplets",
+      "tl": "Legendary Artifact Creature — Human Wizard"
+     }
+    ],
+    "n": "Sen Triplets",
+    "oid": "f0c5864f-83c3-4d99-8f97-0ab92608fff3"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "U",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "U",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}{U}{B}",
+    "name": "Sen Triplets",
+    "oracle_id": "f0c5864f-83c3-4d99-8f97-0ab92608fff3",
+    "oracle_text": "At the beginning of your upkeep, choose target opponent. This turn, that player can't cast spells or activate abilities and plays with their hand revealed. You may play lands and cast spells from that player's hand this turn.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Artifact Creature — Human Wizard"
+   }
+  },
   "Sensei's Divining Top": {
    "ir": {
     "faces": [
@@ -53308,6 +53875,93 @@
     "power": "2",
     "toughness": "1",
     "type_line": "Creature — Spirit"
+   }
+  },
+  "Skygames": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "grant_keyword",
+          "ck": "flying",
+          "raw": "gain flying"
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "single_target_grant",
+          "ck": "flying",
+          "raw": "Target creature gains flying",
+          "sub": {
+           "p": [
+            "SingleTarget"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "Enchant"
+      ],
+      "n": "Skygames",
+      "tl": "Enchantment — Aura"
+     }
+    ],
+    "n": "Skygames",
+    "oid": "5eeb1495-4f0c-4920-8cd6-9c9257327e33"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Skygames",
+    "oracle_id": "5eeb1495-4f0c-4920-8cd6-9c9257327e33",
+    "oracle_text": "Enchant land\nEnchanted land has \"{T}: Target creature gains flying until end of turn. Activate only as a sorcery.\"",
+    "type_line": "Enchantment — Aura"
    }
   },
   "Sleep-Cursed Faerie": {
@@ -67405,5 +68059,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 57
+ "sidecar_version": 58
 }

@@ -1786,30 +1786,14 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # longer imported here, but stays in _sweep_detectors for the
     # voltron plan mirror. Distinct from combat_damage_to_opp (the literal-"combat"
     # recipient). CR 119.3.
-    # ADR-0027 β — keyword_grant_target: a keyword grant to a SINGLE TARGET creature
-    # ("target creature gains menace until end of turn"). The STRUCTURAL arm in
-    # extract_signals_ir fires the single-target spell/ability grants via the SIDECAR
-    # v14 single_target_grant marker (project._single_target_keyword_grant_markers).
-    # This
-    # BYTE-IDENTICAL kept mirror of the deleted SWEEP regex recovers the textual tail
-    # phase can't structure as a spell/ability GenericEffect grant: the grant QUOTED
-    # inside a GrantAbility on an Aura / land / planeswalker ("Enchanted land has '{T}:
-    # Target creature gains haste'" — Racecourse Fury, Skygames, Footfall Crater;
-    # Rowan's Talent's quoted loyalty grant), a MODAL/choose grant ("• Target creature
-    # gains flying" — Balloon Stand, Adaptive Sporesinger, Retreat to Hagra, Feroc
-    # ification, Appa), and a compound grant carrying a quoted ability (Infuse with
-    # Vitality "gains deathtouch and '<dies trigger>'"). The deleted regex is clause-
-    # local (no `[^.]` spans a sentence), so the flat mirror over reminder-stripped
-    # kept_oracle reproduces the per-clause regex firing set exactly. add() dedups vs
-    # the structural arm; the union is +recall over the deleted regex (the "It gains X"
-    # idiom + protection/ward single-target grants the structural arm adds, which the
-    # regex missed). Same HIGH confidence + scope "you" the deleted SWEEP producer
-    # fired. CR 700.2.
-    (
-        "keyword_grant_target",
-        re.compile(KEYWORD_GRANT_TARGET_REGEX, re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 #24i — keyword_grant_target broad mirror DELETED. The single-target
+    # keyword grants phase folds to a bare grant_keyword (modal / quoted-on-Aura-or-
+    # land / Saga-chapter — Skygames, Footfall Crater, Ferocification, Rediscover the
+    # Way) now read STRUCTURE: supplement `_recover_keyword_grant_target` synthesizes a
+    # single_target_grant Effect from the raw oracle, which the existing arm reads. The
+    # split/aftermath BACK-HALF grants (Claim//Fame, Onward//Victory) are an UPSTREAM
+    # phase gap (no record for a split back face), kept by the narrow layout-gated
+    # residue at the _IR_KEPT_DETECTORS iteration site. CR 700.2.
     # ADR-0027 β — unspent_mana: the "you KEEP unspent mana across steps/phases"
     # payoff (Kruphix, Leyline Tyrant, Horizon Stone, Omnath Locus of Mana / All; the
     # mana-burst riders Savage Ventmaw, Avatar Roku, Birgi, Sakiko). phase carries a
@@ -1899,14 +1883,15 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     #   • commander_matters ← the IsCommander subject-Filter predicate is structured;
     #     Background grants ("Commander creatures you own have …") + "commander damage"
     #     / "your commander costs less" are textual (CR 903).
-    #   • hand_disruption ← the opp-reveal effect is structured (SIDECAR v51:
-    #     bare-Player / DefendingPlayer RevealHand → scope 'opp', and the supplement's
-    #     "play with hands revealed" reveal_hands → 'opp'; CR 402.3 / 506.2), so the
-    #     peek + plays-revealed bulk now reads structurally. This mirror is residue:
-    #     MODAL reveal-and-discard ("Choose one — • Target opponent reveals their hand"
-    #     — Collective Brutality, Doomfall) that phase leaves unstructured, look-at-hand
-    #     mis-categorized to topdeck_select (Anointed Peacekeeper), and the contaminated
-    #     ParentTargetController peek (Lay Bare) the projection can't cleanly promote.
+    #   • hand_disruption ← MIGRATED (ADR-0027 #24i, SIDECAR v58): the broad mirror is
+    #     DELETED. The opp-reveal effect is structured (SIDECAR v51: bare-Player /
+    #     DefendingPlayer RevealHand → scope 'opp'; the "play with hands revealed"
+    #     reveal_hands → 'opp'), and supplement `_recover_hand_disruption` now recovers
+    #     the residue: scope='opp' off a MODAL reveal_hand's opp subject (Collective
+    #     Brutality, Doomfall), a generic reveal / topdeck_select opp hand-peek re-
+    #     categorized to reveal_hand (Alhammarret, Anointed Peacekeeper), and a synth
+    #     reveal_hand scope='opp' for the folded/dropped tail (Thoughtcutter, Sen
+    #     Triplets, Wandering Eye, Arachne, The Raven's Warning). CR 402.3 / 701.x.
     #   • team_evasion_grant ← phase structures the generic creatures-you-control
     #     keyword grant; the subtype/color-scoped grants ("Sliver creatures you control
     #     have flying", "Blue creatures you control can't be blocked") are the broader
@@ -1959,20 +1944,6 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
             re.IGNORECASE,
         ),
         "you",
-    ),
-    (
-        "hand_disruption",
-        re.compile(
-            r"look at (?:target player|that player|an opponent|each opponent"
-            r"|target opponent)'?s?'? hands?"
-            r"|plays? with (?:their|his or her) hands? revealed"
-            r"|reveals? (?:their|his or her) hands?"
-            r"|reveals? (?:\w+ )?cards? (?:at random )?from "
-            r"(?:their|his or her|that player's) hand"
-            r"|reveals?[^.]*until you say stop",
-            re.IGNORECASE,
-        ),
-        "opponents",
     ),
     (
         "team_evasion_grant",
@@ -6477,6 +6448,16 @@ def _cond_counts_cards_in_exile(cond: object) -> bool:
     return any(_cond_counts_cards_in_exile(n) for n in cond.nested)
 
 
+# ADR-0027 #24i — keyword_grant_target split/aftermath BACK-HALF residue. The broad
+# KEYWORD_GRANT_TARGET mirror retired (the single-face fold residue now reads the
+# supplement's single_target_grant structure), but a split/aftermath back face is a
+# genuine UPSTREAM phase gap — phase emits NO record for it, so the supplement's
+# phase-records recovery can't see it. This narrow card-aware residue fires only when
+# the back face of a split/aftermath card grants a keyword to a target creature
+# (Claim//Fame's "Fame", Onward//Victory's "Victory"). CR 702.x (aftermath/split).
+_KGT_SPLIT_RESIDUE_RE = re.compile(KEYWORD_GRANT_TARGET_REGEX, re.IGNORECASE)
+
+
 def extract_signals_ir(
     card: dict,
     ir: Card | None,
@@ -10396,6 +10377,17 @@ def extract_signals_ir(
     for key, pat, scope in _IR_KEPT_DETECTORS:
         if pat.search(kept_oracle):
             add(key, scope, "", "")
+    # ADR-0027 #24i — keyword_grant_target split/aftermath back-half residue (the
+    # broad mirror retired; the single-face fold residue reads the supplement's
+    # single_target_grant structure). phase emits no record for a split/aftermath back
+    # face, so the supplement can't recover Claim//Fame's / Onward//Victory's back-half
+    # grant — read it here off the Scryfall back face (the only place it survives).
+    if card.get("layout") in ("split", "aftermath"):
+        _faces = card.get("card_faces") or []
+        if _faces:
+            _back = re.sub(r"\([^)]*\)", " ", _faces[-1].get("oracle_text", "") or "")
+            if _KGT_SPLIT_RESIDUE_RE.search(_back):
+                add("keyword_grant_target", "you", "", "")
     # ADR-0027 (SIDECAR v41) — combat-damage recipient FOLD recovery. The three
     # combat-damage lanes read trig.recipient off the pre-built sidecar IR above, but a
     # commander's combat-damage payoff can live on a RUNTIME-folded object (ADR-0025 —

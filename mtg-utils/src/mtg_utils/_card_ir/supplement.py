@@ -3367,3 +3367,185 @@ def _recover_damage_to_opp(card: Card, oracle: str) -> Card:
     return replace(
         card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
     )
+
+
+# ── ADR-0027 #24i (SIDECAR v58) — SUPPLEMENT_RECOVER D1 ───────────────────────
+# (1) hand_disruption — an opponent reveals / you look at an opponent's hand, the
+#     hand-disruption build-around tell. phase emits the structure THREE ways the
+#     existing scope-gated reveal_hand arm misses, plus drops/folds it on a tail:
+#       • a MODAL reveal-opponent-hand ("Choose one — Target opponent reveals their
+#         hand", Mardu Charm, Collective Brutality, Auntie's Sentence, Doomfall,
+#         Cerebral Confiscation, Shatter Assumptions) — phase keeps a `reveal_hand`
+#         Effect whose SUBJECT Filter is controller='opp' but the mode loses the
+#         scope, so it lands scope='any' and the arm (which needs scope=='opp')
+#         skips it. Recover scope='opp' off the subject controller (bucket A).
+#       • a `reveal` (NOT reveal_hand) scope='opp' whose raw says "<player> reveals
+#         their hand" (Alhammarret, Psychotic Episode) — phase typed the hand reveal
+#         as a generic reveal. Re-categorize to reveal_hand (bucket A).
+#       • a `topdeck_select` scope='opp' mis-categorized look-at-an-opponent's-hand
+#         peek ("look at an opponent's hand, then choose a card name", Anointed
+#         Peacekeeper, Sorcerous Spyglass) — re-categorize to reveal_hand (bucket A).
+#     A folded/dropped tail (Thoughtcutter Agent's reveal folded into the lose_life
+#     effect, Sen Triplets' / Wandering Eye's "plays with their hand(s) revealed"
+#     restriction, Arachne's dropped look-at-hand, The Raven's Warning's Saga-chapter
+#     combat-damage hand peek) survives only in the raw oracle: synth a reveal_hand
+#     scope='opp' from it (bucket B), guarded so a card already carrying an opp-
+#     directed reveal_hand / reveal_hands is untouched. The detect pattern is the
+#     deleted hand_disruption mirror byte-for-byte, so the recovered set == the
+#     mirror's. CR 402.3 / 701.x.
+_HD_REVEAL_HAND_TEXT = re.compile(
+    r"reveals? (?:their|his or her) hands?", re.IGNORECASE
+)
+_HD_LOOK_HAND_TEXT = re.compile(r"look at [^.]*\bhands?\b", re.IGNORECASE)
+# The opponent-directed hand-disruption oracle tell (the deleted mirror, verbatim).
+_HD_OPP_HAND = re.compile(
+    r"look at (?:target player|that player|an opponent|each opponent"
+    r"|target opponent)'?s?'? hands?"
+    r"|plays? with (?:their|his or her) hands? revealed"
+    r"|reveals? (?:their|his or her) hands?"
+    r"|reveals? (?:\w+ )?cards? (?:at random )?from "
+    r"(?:their|his or her|that player's) hand"
+    r"|reveals?[^.]*until you say stop",
+    re.IGNORECASE,
+)
+
+
+def _recover_hand_disruption(card: Card, oracle: str) -> Card:
+    """Recover the opponent-hand-reveal structure so the scope-gated reveal_hand arm
+    fires: scope='opp' off a modal reveal_hand's opp subject, a generic `reveal` /
+    `topdeck_select` opp hand-peek re-categorized to reveal_hand (bucket A), and a
+    synth reveal_hand scope='opp' for the folded/dropped tail (bucket B, guarded
+    against an existing opp-directed reveal_hand / reveal_hands). CR 402.3 / 701.x."""
+    if not card.faces:
+        return card
+
+    def has_opp_reveal(c: Card) -> bool:
+        return any(
+            (e.category == "reveal_hand" and e.scope == "opp")
+            or e.category == "reveal_hands"
+            for ab in c.all_abilities()
+            for e in ab.effects
+        )
+
+    changed = False
+    faces: list[Face] = []
+    for face in card.faces:
+        new_abs: list[Ability] = []
+        for ab in face.abilities:
+            new_effs: list[Effect] = []
+            for e in ab.effects:
+                raw = e.raw or ""
+                if (
+                    e.category == "reveal_hand"
+                    and e.scope != "opp"
+                    and isinstance(e.subject, Filter)
+                    and e.subject.controller == "opp"
+                ):
+                    new_effs.append(replace(e, scope="opp"))
+                    changed = True
+                elif e.scope == "opp" and (
+                    (e.category == "reveal" and _HD_REVEAL_HAND_TEXT.search(raw))
+                    or (
+                        e.category == "topdeck_select"
+                        and _HD_LOOK_HAND_TEXT.search(raw)
+                    )
+                ):
+                    new_effs.append(replace(e, category="reveal_hand"))
+                    changed = True
+                else:
+                    new_effs.append(e)
+            new_abs.append(replace(ab, effects=tuple(new_effs)))
+        faces.append(replace(face, abilities=tuple(new_abs)))
+    card = replace(card, faces=tuple(faces)) if changed else card
+
+    # bucket B — synth from the raw oracle the folded/dropped tail phase emits no
+    # opp-directed reveal node for (append-only; an existing opp reveal short-circuits).
+    if not has_opp_reveal(card):
+        stripped = re.sub(r"\([^)]*\)", " ", oracle)
+        if _HD_OPP_HAND.search(stripped):
+            synth = Ability(
+                kind="static",
+                effects=(
+                    Effect(category="reveal_hand", scope="opp", raw=stripped.strip()),
+                ),
+            )
+            head, *rest = card.faces
+            card = replace(
+                card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
+            )
+    return card
+
+
+# (2) keyword_grant_target — a spell/ability grants a keyword to a SINGLE TARGET
+#     creature ("target creature gains menace until end of turn"). The structural
+#     single_target_grant arm reads phase's clean ParentTarget AddKeyword markers;
+#     phase drops the target on a tail it folds into a bare `grant_keyword`
+#     (subject=None): a MODAL grant (Adaptive Sporesinger, Appa, Balloon Stand,
+#     Ferocification, Retreat to Hagra), a grant QUOTED on an Aura / land / planes-
+#     walker ("Enchanted land has '{T}: Target creature gains haste'", Racecourse
+#     Fury, Skygames, Footfall Crater, Rowan's Talent), a compound quoted grant
+#     (Infuse with Vitality), a Saga-chapter grant (Rediscover the Way), and Chariot
+#     of the Sun (routed to base_pt_set). For those the "target creature gains <kw>"
+#     survives only in the raw oracle, so synth a single_target_grant Effect (the
+#     resolved Creature subject + the SingleTarget predicate, faithful controller +
+#     granted keyword in counter_kind) so the arm reads STRUCTURE. The detect pattern
+#     is the deleted KEYWORD_GRANT_TARGET mirror byte-for-byte. The split/aftermath
+#     BACK-HALF grants (Claim//Fame's "Fame", Onward//Victory's "Victory") are a
+#     GENUINE UPSTREAM phase gap — phase emits NO record for a split back face, so the
+#     phase-records oracle this recovery reads never carries them; a narrow layout-
+#     gated residue in signals keeps those two. CR 700.2 / 702.x.
+_KGT_GRANT = re.compile(
+    r"target creature (?:you control )?"
+    r"(?:gains?|gets [+\-][0-9x]/[+\-][0-9x] and gains?) "
+    r"(deathtouch|trample|flying|menace|vigilance|double strike|first strike"
+    r"|lifelink|haste|hexproof|indestructible|protection|reach|ward|shroud)",
+    re.IGNORECASE,
+)
+_KGT_SINGLE_TARGET_PRED = "SingleTarget"
+
+
+def _recover_keyword_grant_target(card: Card, oracle: str) -> Card:
+    """Append synthetic ``single_target_grant`` Effects for the single-target keyword
+    grants phase folded to a bare grant_keyword (modal / quoted-on-Aura-or-land /
+    Saga-chapter) so the keyword_grant_target arm reads STRUCTURE. Append-only: a card
+    already carrying a single_target_grant (phase's clean ParentTarget marker) is left
+    alone. The split/aftermath back-half grants are out of reach here (no phase record
+    for the back face — upstream gap); a signals layout residue keeps them. CR 700.2."""
+    if not card.faces:
+        return card
+    if any(
+        e.category == "single_target_grant"
+        for ab in card.all_abilities()
+        for e in ab.effects
+    ):
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    synth_effs: list[Effect] = []
+    seen: set[str] = set()
+    for m in _KGT_GRANT.finditer(text):
+        clause = m.group(0)
+        if clause.lower() in seen:
+            continue
+        seen.add(clause.lower())
+        controller = "you" if "you control" in clause.lower() else "any"
+        kw = m.group(1).lower().replace(" ", "")
+        synth_effs.append(
+            Effect(
+                category="single_target_grant",
+                scope=controller,
+                subject=Filter(
+                    card_types=("Creature",),
+                    controller=controller,
+                    predicates=(_KGT_SINGLE_TARGET_PRED,),
+                ),
+                raw=clause.strip(),
+                counter_kind=kw,
+            )
+        )
+    if not synth_effs:
+        return card
+    synth = Ability(kind="static", effects=tuple(synth_effs))
+    head, *rest = card.faces
+    return replace(
+        card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
+    )

@@ -37,7 +37,9 @@ from mtg_utils._card_ir.supplement import (
     _recover_dropped_gain_life,
     _recover_exile_zone_ref,
     _recover_facedown,
+    _recover_hand_disruption,
     _recover_historic_subject,
+    _recover_keyword_grant_target,
     _recover_land_sacrifice,
     _recover_opponent_cast_lock,
     _recover_opponent_discard,
@@ -925,6 +927,21 @@ def project_card(records: list[dict]) -> Card:
     card = _recover_facedown(card, _oracle)
     card = _recover_tap_down(card, _oracle)
     card = _recover_damage_to_opp(card, _oracle)
+    # ADR-0027 #24i (SIDECAR v58) — SUPPLEMENT_RECOVER D1: two reclassified MED-
+    # residue lanes whose kept regex mirror was the sole source of a real tail.
+    # hand_disruption recovers the opponent-hand reveal/look STRUCTURE phase folds —
+    # scope='opp' off a modal reveal_hand's opp subject, a generic reveal /
+    # topdeck_select opp hand-peek re-categorized to reveal_hand, and a synth
+    # reveal_hand scope='opp' for the folded/dropped tail — so the scope-gated arm
+    # reads STRUCTURE and the broad mirror retires (CR 402.3). keyword_grant_target
+    # synth a single_target_grant Effect for the single-target keyword grants phase
+    # folds to a bare grant_keyword (modal / quoted-on-Aura-or-land / Saga-chapter),
+    # so the arm reads STRUCTURE and the broad mirror retires — a narrow split/
+    # aftermath layout residue in signals keeps the back-half grants phase drops
+    # wholly (no record for a split back face — upstream gap). Runs AFTER the post-
+    # supplement re-runs so the synth abilities are not re-scanned. CR 700.2 / 702.x.
+    card = _recover_hand_disruption(card, _oracle)
+    card = _recover_keyword_grant_target(card, _oracle)
     return replace(card, parse_confidence=_confidence(card))
 
 

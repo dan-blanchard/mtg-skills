@@ -777,7 +777,23 @@ from mtg_utils.card_ir import Card
 #   damage to a player/opponent" raw phase leaves unstructured; the existing arm reads
 #   STRUCTURE; the DAMAGE_TO_OPP_MATTERS mirror is DELETED (the regex constant stays
 #   for the voltron plan mirror). CR 119.3 / 120.
-SIDECAR_VERSION = 57
+# v58 — ADR-0027 #24i SUPPLEMENT_RECOVER D1 (two reclassified MED-residue lanes):
+#   (1) hand_disruption (supplement `_recover_hand_disruption`): recover the
+#   opponent-hand reveal/look STRUCTURE phase folds — scope='opp' off a MODAL
+#   reveal_hand's opp subject (Mardu Charm, Collective Brutality, Doomfall), a
+#   generic `reveal` / `topdeck_select` opp hand-peek re-categorized to reveal_hand
+#   (Alhammarret, Anointed Peacekeeper), and a synth reveal_hand scope='opp' for the
+#   folded/dropped tail (Thoughtcutter, Sen Triplets, Wandering Eye, Arachne, The
+#   Raven's Warning) — the scope-gated reveal_hand arm reads STRUCTURE; the broad
+#   hand_disruption mirror is DELETED. CR 402.3 / 701.x.
+#   (2) keyword_grant_target (supplement `_recover_keyword_grant_target`): synth a
+#   single_target_grant Effect for the single-target keyword grants phase folds to a
+#   bare grant_keyword (modal / quoted-on-Aura-or-land / Saga-chapter — Skygames,
+#   Footfall Crater, Ferocification, Rediscover the Way); the existing arm reads
+#   STRUCTURE; the broad mirror is DELETED, replaced by a narrow split/aftermath
+#   layout residue for the back-half grants phase drops wholly (Claim//Fame,
+#   Onward//Victory — UPSTREAM phase gap: no record for a split back face). CR 700.2.
+SIDECAR_VERSION = 58
 
 
 def card_ir_dir() -> Path:

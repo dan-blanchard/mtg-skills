@@ -32,7 +32,7 @@ from mtg_utils.card_ir import (
     Filter,
     Trigger,
 )
-from mtg_utils.testkit import test_card, test_signals
+from mtg_utils.testkit import test_card, test_card_ir, test_signals
 
 
 def _ksub(card):
@@ -392,6 +392,61 @@ def test_tap_down_blockers_opens_on_unblockable_unless_all():
     # longer emits it; it fires from a kept word mirror (bare IR routes to the IR path).
     assert "tap_down_blockers" not in _keys_real_regex("Tromokratis")
     assert ("tap_down_blockers", "you") in _ks_real("Tromokratis")
+
+
+def _ir_effect_cats(name):
+    return {e.category for ab in test_card_ir(name).all_abilities() for e in ab.effects}
+
+
+def _ir_has_reveal_hand_opp(name):
+    return any(
+        e.category == "reveal_hand" and e.scope == "opp"
+        for ab in test_card_ir(name).all_abilities()
+        for e in ab.effects
+    )
+
+
+def test_hand_disruption_reads_recovered_opp_reveal_structure():
+    # ADR-0027 #24i (SIDECAR v58): hand_disruption's broad regex mirror is DELETED; the
+    # opponent-hand reveal/look structure phase folds is RECOVERED onto the IR by
+    # supplement `_recover_hand_disruption`, so the scope-gated reveal_hand arm reads
+    # STRUCTURE. Three recovery shapes, all real oracle:
+    #   • a MODAL reveal-opponent-hand whose reveal_hand kept scope='any' off the mode
+    #     (subject controller='opp') — scope recovered to 'opp' (bucket A).
+    assert _ir_has_reveal_hand_opp("Mardu Charm")
+    assert ("hand_disruption", "opponents") in _ks_real("Mardu Charm")
+    #   • a look-at-an-opponent's-hand peek phase mis-typed as topdeck_select
+    #     (Anointed Peacekeeper) — re-categorized to reveal_hand (bucket A).
+    assert _ir_has_reveal_hand_opp("Anointed Peacekeeper")
+    assert ("hand_disruption", "opponents") in _ks_real("Anointed Peacekeeper")
+    #   • a "plays with their hand revealed" clause phase folds into a restriction
+    #     (Sen Triplets) — synth reveal_hand scope='opp' from the raw oracle (bucket B).
+    assert _ir_has_reveal_hand_opp("Sen Triplets")
+    assert ("hand_disruption", "opponents") in _ks_real("Sen Triplets")
+
+
+def test_keyword_grant_target_reads_recovered_single_target_grant():
+    # ADR-0027 #24i (SIDECAR v58): keyword_grant_target's broad regex mirror is DELETED;
+    # the single-target keyword grants phase folds to a bare grant_keyword (modal /
+    # quoted-on-Aura / Saga-chapter) are RECOVERED as a single_target_grant Effect by
+    # supplement `_recover_keyword_grant_target`, which the existing arm reads. Real
+    # oracle.
+    #   • a grant QUOTED on an Aura-on-a-land ("Enchanted land has '{T}: Target
+    #     creature gains flying'").
+    assert "single_target_grant" in _ir_effect_cats("Skygames")
+    assert ("keyword_grant_target", "you") in _ks_real("Skygames")
+    #   • a MODAL grant ("• Target creature you control gains menace and haste").
+    assert "single_target_grant" in _ir_effect_cats("Ferocification")
+    assert ("keyword_grant_target", "you") in _ks_real("Ferocification")
+
+
+def test_keyword_grant_target_split_back_half_is_upstream_residue():
+    # The split/aftermath BACK-HALF grant (Claim//Fame's "Fame") is a GENUINE UPSTREAM
+    # phase gap: phase emits NO record for a split back face, so the supplement's
+    # phase-records recovery never sees it (no single_target_grant in the IR). A narrow
+    # layout-gated residue in signals keeps it firing. Real oracle.
+    assert "single_target_grant" not in _ir_effect_cats("Claim // Fame")
+    assert ("keyword_grant_target", "you") in _ks_real("Claim // Fame")
 
 
 def test_island_matters_opens_on_island_attack_restriction():

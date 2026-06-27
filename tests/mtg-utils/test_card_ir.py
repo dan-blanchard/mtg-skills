@@ -1029,11 +1029,13 @@ def test_supplement_verb_dispatch_recovers_unimplemented():
 def test_supplement_strips_prefixes_before_verb_dispatch():
     """The grammar peels leading trigger / activation-cost / player prefixes so the
     effect verb dispatches: 'When ~ enters, draw' -> draw; '{2}, {T}: Draw' -> draw;
-    'Target player reveals ...' -> reveal."""
+    'Target player reveals their hand' -> reveal_hand (the supplement's `reveal` is
+    re-categorized to reveal_hand by #24i `_recover_hand_disruption` since the reveal
+    is an opp-scoped HAND reveal — CR 402.3)."""
     for desc, cat in [
         ("When ~ enters, draw a card.", "draw"),
         ("{2}, {T}: Draw a card.", "draw"),
-        ("Target player reveals their hand.", "reveal"),
+        ("Target player reveals their hand.", "reveal_hand"),
         ("Chapter 1 — Create a 1/1 Soldier.", "make_token"),
         ("At the beginning of your upkeep, you may draw a card.", "draw"),
     ]:
@@ -4382,9 +4384,29 @@ def test_topdeck_select_owner_scope_opponent_library_scope_opp():
         "Look at the top five cards of target opponent's library. Put one of "
         "those cards into that player's graveyard."
     )
-    assert ("topdeck_select", "opp") in _topdeck_cats_scopes(
-        "Look at an opponent's hand, then choose any card name."
-    )
+
+
+def test_look_at_opponent_hand_recategorized_to_reveal_hand():
+    """ADR-0027 #24i (SIDECAR v58): a look-at-an-opponent's-hand PEEK ("look at an
+    opponent's hand, then choose a card name" — Anointed Peacekeeper, Sorcerous
+    Spyglass) is a HAND peek, NOT a library topdeck_select — supplement
+    `_recover_hand_disruption` re-categorizes the opp-scoped topdeck_select to
+    reveal_hand so the hand_disruption arm reads STRUCTURE. CR 402.3."""
+    cats = {
+        (e.category, e.scope)
+        for e in _effects(
+            project_card(
+                [
+                    _spell(
+                        {"type": "Unimplemented"},
+                        "Look at an opponent's hand, then choose any card name.",
+                    )
+                ]
+            )
+        )
+    }
+    assert ("reveal_hand", "opp") in cats
+    assert ("topdeck_select", "opp") not in cats
 
 
 def test_topdeck_select_owner_scope_morph_recategorized_out():
