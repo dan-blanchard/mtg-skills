@@ -825,18 +825,6 @@
    "ir": {
     "faces": [
      {
-      "ab": [
-       {
-        "e": [
-         {
-          "cat": "token_doubling",
-          "raw": "If one or more tokens would be created under your control, twice that many of those tokens are created instead.",
-          "sc": "you"
-         }
-        ],
-        "k": "static"
-       }
-      ],
       "kw": [
        "Ward"
       ],
@@ -3568,15 +3556,6 @@
        {
         "e": [
          {
-          "cat": "cost_reduction",
-          "raw": "Activated abilities of sources with the chosen name cost {2} more to activate unless they're mana abilities."
-         }
-        ],
-        "k": "spell"
-       },
-       {
-        "e": [
-         {
           "cat": "restriction",
           "raw": "Spells your opponents cast with the chosen name cost {2} more to cast.",
           "sc": "opp",
@@ -6186,6 +6165,10 @@
      {
       "ab": [
        {
+        "cond": {
+         "cmp": "ge",
+         "kind": "attackersdeclaredcount"
+        },
         "e": [
          {
           "amt": {
@@ -6202,6 +6185,10 @@
         }
        },
        {
+        "cond": {
+         "cmp": "ge",
+         "kind": "attackersdeclaredcount"
+        },
         "e": [
          {
           "amt": {
@@ -6363,10 +6350,6 @@
       "ab": [
        {
         "e": [
-         {
-          "cat": "bending",
-          "raw": "Whenever you waterbend, earthbend, firebend, or airbend, draw a card. Then if you've done all four this turn, transform ~."
-         },
          {
           "amt": {
            "op": "fixed"
@@ -7528,6 +7511,23 @@
      {
       "ab": [
        {
+        "cond": {
+         "cmp": "none",
+         "kind": "controlstype",
+         "sub": {
+          "c": "you",
+          "p": [
+           "PowerExceedsBase",
+           "InZone"
+          ],
+          "t": [
+           "Creature"
+          ]
+         },
+         "zn": [
+          "battlefield"
+         ]
+        },
         "e": [
          {
           "amt": {
@@ -9205,7 +9205,6 @@
          },
          {
           "cat": "cast_from_zone",
-          "dur": "UntilEndOfTurn",
           "raw": "Discard a card: Exile the top two cards of your library. You may play those cards this turn.",
           "z": [
            "from:library"
@@ -10231,11 +10230,6 @@
           "cat": "cast_from_zone",
           "raw": "At the beginning of your end step, exile the top card of each opponent's library. You may play those cards for as long as they remain exiled. If you cast a spell this way, you may spend mana as though it were mana of any color to cast it.",
           "sc": "opp"
-         },
-         {
-          "cat": "exile",
-          "raw": "At the beginning of your end step, exile the top card of each opponent's library. You may play those cards for as long as they remain exiled. If you cast a spell this way, you may spend mana as though it were mana of any color to cast it.",
-          "sc": "opp"
          }
         ],
         "k": "triggered",
@@ -10718,26 +10712,20 @@
        {
         "e": [
          {
-          "cat": "transform",
-          "raw": "Turn target face-down creature an opponent controls face up."
-         }
-        ],
-        "k": "spell"
-       },
-       {
-        "e": [
-         {
-          "cat": "facedown_ref",
-          "raw": "face-down reference (recovered)",
-          "sc": "you",
+          "cat": "turn_face_up",
+          "raw": "Turn target face-down creature an opponent controls face up.",
           "sub": {
-           "s": [
-            "Face-down"
+           "c": "opp",
+           "p": [
+            "FaceDown"
+           ],
+           "t": [
+            "Creature"
            ]
           }
          }
         ],
-        "k": "static"
+        "k": "spell"
        }
       ],
       "n": "Break Open",
@@ -10967,9 +10955,6 @@
          "sub": {
           "p": [
            "Targets"
-          ],
-          "t": [
-           "Card"
           ]
          }
         }
@@ -12400,13 +12385,6 @@
          },
          {
           "amt": {
-           "op": "variable"
-          },
-          "cat": "base_pt_set",
-          "raw": "become a Vehicle artifact with base power and toughness each equal to its mana value, and it gains crew 2 and \"Crash Land — Whenever ~ deals damage, roll a six-sided die. If the result is equal to ~'s mana value, sacrifice ~, then it deals that much damage to any target.\""
-         },
-         {
-          "amt": {
            "op": "fixed"
           },
           "cat": "roll_die",
@@ -12437,6 +12415,18 @@
             "Artifact"
            ]
           }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "variable"
+          },
+          "cat": "base_pt_set",
+          "raw": "Until end of turn, it becomes a Vehicle artifact with base power and toughness each equal to its mana value, and it gains crew 2 and \"Crash Land — Whenever this Vehicle deals damage, roll a six-sided die"
          }
         ],
         "k": "static"
@@ -17891,25 +17881,7 @@
            "op": "count"
           },
           "cat": "damage",
-          "raw": "Whenever ~, ~ deals that much damage to target opponent.",
-          "sub": {
-           "c": "opp"
-          }
-         }
-        ],
-        "k": "triggered",
-        "tr": {
-         "ev": "other"
-        }
-       },
-       {
-        "e": [
-         {
-          "amt": {
-           "op": "count"
-          },
-          "cat": "damage",
-          "raw": "Whenever a creature it's paired with is dealt damage, ~ deals that much damage to target opponent.",
+          "raw": "Whenever ~ or a creature it's paired with is dealt damage, ~ deals that much damage to target opponent.",
           "sub": {
            "c": "opp"
           }
@@ -18365,7 +18337,7 @@
         "e": [
          {
           "cat": "cost_reduction",
-          "raw": "Boast abilities you activate cost {1} less to activate for each Dragon you control",
+          "raw": "Boast abilities you activate cost {1} less to activate for each Dragon you control.",
           "sc": "you"
          }
         ],
@@ -19766,7 +19738,7 @@
          {
           "cat": "shuffle",
           "raw": "When ~ is put into a graveyard from anywhere, its owner shuffles their graveyard into their library.",
-          "sc": "you"
+          "sc": "opp"
          }
         ],
         "k": "triggered",
@@ -20781,6 +20753,10 @@
        },
        {
         "e": [
+         {
+          "cat": "turn_face_up",
+          "raw": "{2}{U}{B}: Turn ~ face up. If you can't, exile it, then you may cast the exiled card without paying its mana cost."
+         },
          {
           "cat": "exile",
           "raw": "{2}{U}{B}: Turn ~ face up. If you can't, exile it, then you may cast the exiled card without paying its mana cost.",
@@ -23334,7 +23310,7 @@
            "op": "fixed"
           },
           "cat": "damage",
-          "raw": "Whenever a source an opponent controls deals damage to you, you may have ~ deal 1 damage to that source's controller."
+          "raw": "Whenever a source an opponent controls deals damage to you or a permanent you control, you may have ~ deal 1 damage to that source's controller."
          }
         ],
         "k": "triggered",
@@ -23343,21 +23319,6 @@
          "src": {
           "c": "opp"
          }
-        }
-       },
-       {
-        "e": [
-         {
-          "amt": {
-           "op": "fixed"
-          },
-          "cat": "damage",
-          "raw": "Whenever a permanent you control, you may have ~ deal 1 damage to that source's controller."
-         }
-        ],
-        "k": "triggered",
-        "tr": {
-         "ev": "other"
         }
        }
       ],
@@ -24469,21 +24430,29 @@
         "e": [
          {
           "cat": "restriction",
-          "raw": "Noncreature spells with {X} in their mana costs can't be cast."
-         }
-        ],
-        "k": "spell"
-       },
-       {
-        "e": [
-         {
-          "cat": "restriction",
           "ck": "stax_tax",
           "raw": "Noncreature spells with mana value 4 or greater can't be cast.",
           "sc": "each",
           "sub": {
            "p": [
             "Cmc:GE:4",
+            "NotType:Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "restriction",
+          "ck": "stax_tax",
+          "raw": "Noncreature spells with {X} in their mana costs can't be cast.",
+          "sc": "each",
+          "sub": {
+           "p": [
+            "HasXInManaCost",
             "NotType:Creature"
            ]
           }
@@ -24558,7 +24527,7 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "Whenever a creature attacks one of your opponents, that creature gets +2/+0 until end of turn."
+          "raw": "Whenever a creature attacks one of your opponents or a planeswalker an opponent controls, that creature gets +2/+0 until end of turn."
          }
         ],
         "k": "triggered",
@@ -24570,23 +24539,6 @@
            "Creature"
           ]
          }
-        }
-       },
-       {
-        "e": [
-         {
-          "amt": {
-           "f": 2,
-           "op": "fixed"
-          },
-          "cat": "pump_target",
-          "dur": "UntilEndOfTurn",
-          "raw": "Whenever a planeswalker an opponent controls, that creature gets +2/+0 until end of turn."
-         }
-        ],
-        "k": "triggered",
-        "tr": {
-         "ev": "other"
         }
        },
        {
@@ -29216,12 +29168,8 @@
           ]
          },
          {
-          "cat": "reveal",
-          "raw": "Whenever ~ attacks, reveal the top card of your library. If it's a creature card, put it onto the battlefield tapped and attacking defending player or a planeswalker they control. Otherwise, put that card into your hand. When you put a creature card onto the battlefield this way, it fights ~.",
-          "z": [
-           "from:top",
-           "top:you"
-          ]
+          "cat": "fight",
+          "raw": "Whenever ~ attacks, reveal the top card of your library. If it's a creature card, put it onto the battlefield tapped and attacking defending player or a planeswalker they control. Otherwise, put that card into your hand. When you put a creature card onto the battlefield this way, it fights ~."
          },
          {
           "cat": "cheat_play",
@@ -29795,11 +29743,10 @@
           ]
          },
          {
-          "cat": "exile",
+          "cat": "cast_from_zone",
           "raw": "At the beginning of your upkeep, exile the top card of your library face down. You may look at and play that card this turn.",
           "z": [
-           "from:top",
-           "top:you"
+           "from:library"
           ]
          }
         ],
@@ -30662,6 +30609,9 @@
         "cost": "mana,tap",
         "e": [
          {
+          "amt": {
+           "op": "fixed"
+          },
           "cat": "dig_until",
           "raw": "{G}, {T}: Reveal cards from the top of your library until you reveal a basic land card. Put that card into your hand and all other cards revealed this way into your graveyard.",
           "sc": "you",
@@ -32444,7 +32394,7 @@
            "op": "fixed"
           },
           "cat": "draw",
-          "raw": "Whenever a creature attacks you, you may draw a card.",
+          "raw": "Whenever a creature attacks you or a planeswalker you control, you may draw a card.",
           "sc": "you"
          }
         ],
@@ -32456,22 +32406,6 @@
            "Creature"
           ]
          }
-        }
-       },
-       {
-        "e": [
-         {
-          "amt": {
-           "op": "fixed"
-          },
-          "cat": "draw",
-          "raw": "Whenever a planeswalker you control, you may draw a card.",
-          "sc": "you"
-         }
-        ],
-        "k": "triggered",
-        "tr": {
-         "ev": "other"
         }
        }
       ],
@@ -32721,8 +32655,16 @@
         "cost": "genericmana,mana",
         "e": [
          {
-          "cat": "transform",
-          "raw": "{2}{U}: Turn target face-down creature face up."
+          "cat": "turn_face_up",
+          "raw": "{2}{U}: Turn target face-down creature face up.",
+          "sub": {
+           "p": [
+            "FaceDown"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
          }
         ],
         "k": "activated"
@@ -34412,8 +34354,18 @@
         "cost": "tap",
         "e": [
          {
-          "cat": "transform",
-          "raw": "{T}: Turn target face-down attacking creature you control face up."
+          "cat": "turn_face_up",
+          "raw": "{T}: Turn target face-down attacking creature you control face up.",
+          "sub": {
+           "c": "you",
+           "p": [
+            "FaceDown",
+            "Attacking"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
          }
         ],
         "k": "activated"
@@ -34448,21 +34400,6 @@
           "player"
          ]
         }
-       },
-       {
-        "e": [
-         {
-          "cat": "facedown_ref",
-          "raw": "face-down reference (recovered)",
-          "sc": "you",
-          "sub": {
-           "s": [
-            "Face-down"
-           ]
-          }
-         }
-        ],
-        "k": "static"
        }
       ],
       "n": "Kaust, Eyes of the Glade",
@@ -35896,18 +35833,10 @@
          },
          {
           "cat": "exile",
-          "ck": "all",
           "raw": "When ~ enters, exile target card other than a basic land card from an opponent's graveyard. Search that player's graveyard, hand, and library for any number of cards with the same name as that card and exile them. Then that player shuffles. For as long as you control ~, you may play one of the exiled cards, and you may spend mana as though it were mana of any color to cast it.",
           "sc": "opp",
-          "sub": {
-           "p": [
-            "InAnyZone",
-            "SameNameAsParentTarget"
-           ]
-          },
           "z": [
-           "in:graveyard",
-           "to:exile"
+           "in:graveyard"
           ]
          },
          {
@@ -36486,22 +36415,19 @@
         ],
         "k": "triggered",
         "tr": {
-         "ev": "other"
-        }
-       },
-       {
-        "e": [
-         {
-          "cat": "other",
-          "raw": "Your opponents can't cast spells during your turn.\nWhenever one or more creatures you control each with power greater than its base power deals combat damage to a player, draw a card."
-         }
-        ],
-        "k": "triggered",
-        "tr": {
          "ev": "combat_damage",
          "rc": [
           "player"
-         ]
+         ],
+         "src": {
+          "c": "you",
+          "p": [
+           "PowerExceedsBase"
+          ],
+          "t": [
+           "Creature"
+          ]
+         }
         }
        },
        {
@@ -36520,8 +36446,7 @@
      }
     ],
     "n": "Kutzil, Malamet Exemplar",
-    "oid": "3233af43-7826-4895-b67e-03c6102c2cd5",
-    "pc": "partial"
+    "oid": "3233af43-7826-4895-b67e-03c6102c2cd5"
    },
    "scryfall": {
     "cmc": 3.0,
@@ -36654,15 +36579,6 @@
     "faces": [
      {
       "ab": [
-       {
-        "e": [
-         {
-          "cat": "type_set",
-          "raw": "Creatures you control but don't own are Mercenaries in addition to their other types."
-         }
-        ],
-        "k": "spell"
-       },
        {
         "e": [
          {
@@ -37105,11 +37021,7 @@
           "raw": "Whenever ~ deals combat damage to a player, choose a planeswalker type. Until end of turn, whenever you activate an ability of a planeswalker of that type, copy that ability. You may choose new targets for the copies."
          },
          {
-          "cat": "choose",
-          "raw": "Whenever ~ deals combat damage to a player, choose a planeswalker type. Until end of turn, whenever you activate an ability of a planeswalker of that type, copy that ability. You may choose new targets for the copies."
-         },
-         {
-          "cat": "redirect",
+          "cat": "spell_copy",
           "raw": "Whenever ~ deals combat damage to a player, choose a planeswalker type. Until end of turn, whenever you activate an ability of a planeswalker of that type, copy that ability. You may choose new targets for the copies."
          }
         ],
@@ -43072,16 +42984,6 @@
        {
         "e": [
          {
-          "cat": "token_doubling",
-          "raw": "If one or more tokens would be created under your control, twice that many of those tokens are created instead.",
-          "sc": "you"
-         }
-        ],
-        "k": "static"
-       },
-       {
-        "e": [
-         {
           "cat": "sacrifice",
           "raw": "cost: sacrifice artifact or creature",
           "sc": "you",
@@ -44257,11 +44159,24 @@
         "e": [
          {
           "cat": "suspect",
-          "raw": "Whenever ~ attacks, suspect target creature"
+          "raw": "Whenever ~ attacks, suspect target creature. Then goad all suspected creatures.",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
          },
          {
-          "cat": "goad",
-          "raw": "Then goad all suspected creatures"
+          "cat": "goad_all",
+          "raw": "Whenever ~ attacks, suspect target creature. Then goad all suspected creatures.",
+          "sub": {
+           "p": [
+            "Suspected"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
          }
         ],
         "k": "triggered",
@@ -44283,6 +44198,10 @@
         "k": "triggered",
         "tr": {
          "ev": "combat_damage",
+         "rc": [
+          "player"
+         ],
+         "sc": "opp",
          "src": {
           "c": "opp",
           "t": [
@@ -44700,14 +44619,17 @@
        {
         "e": [
          {
-          "cat": "place_counter",
-          "raw": "At the beginning of your end step, for each player, put a +1/+1 counter on up to one target creature that player controls."
-         },
-         {
+          "amt": {
+           "op": "fixed"
+          },
           "cat": "place_counter",
           "ck": "p1p1",
           "raw": "At the beginning of your end step, for each player, put a +1/+1 counter on up to one target creature that player controls.",
-          "sc": "you"
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
          }
         ],
         "k": "triggered",
@@ -47312,11 +47234,11 @@
         "e": [
          {
           "cat": "token_doubling",
-          "raw": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.",
+          "raw": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead",
           "sc": "you"
          }
         ],
-        "k": "static"
+        "k": "spell"
        }
       ],
       "n": "Parallel Lives",
@@ -47899,6 +47821,22 @@
      {
       "ab": [
        {
+        "cond": {
+         "cmp": "none",
+         "kind": "not",
+         "nest": [
+          {
+           "cmp": "none",
+           "kind": "wascast",
+           "zn": [
+            "hand"
+           ]
+          }
+         ],
+         "zn": [
+          "hand"
+         ]
+        },
         "e": [
          {
           "cat": "lose_game",
@@ -48465,7 +48403,7 @@
           "raw": "{2}, {T}: When you next activate an exhaust ability that isn't a mana ability this turn, copy it. You may choose new targets for the copy."
          },
          {
-          "cat": "redirect",
+          "cat": "state",
           "raw": "{2}, {T}: When you next activate an exhaust ability that isn't a mana ability this turn, copy it. You may choose new targets for the copy."
          },
          {
@@ -50125,6 +50063,10 @@
         }
        },
        {
+        "cond": {
+         "cmp": "ge",
+         "kind": "quantitycomparison"
+        },
         "e": [
          {
           "cat": "untap",
@@ -50153,6 +50095,24 @@
         "tr": {
          "ev": "cast_spell"
         }
+       },
+       {
+        "e": [
+         {
+          "cat": "single_target_grant",
+          "ck": "trample",
+          "raw": "get +7/+7 and gains trample",
+          "sub": {
+           "p": [
+            "SingleTarget"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
        }
       ],
       "n": "Raggadragga, Goreguts Boss",
@@ -53300,8 +53260,17 @@
           ]
          },
          {
-          "cat": "reanimate",
-          "raw": "Whenever you cast your second spell each turn, each opponent mills two cards. When one or more cards are milled this way, exile target enchantment, instant, or sorcery card with equal or lesser mana value than that spell from an opponent's graveyard. Copy the exiled card. You may cast the copy without paying its mana cost."
+          "cat": "exile",
+          "raw": "Whenever you cast your second spell each turn, each opponent mills two cards. When one or more cards are milled this way, exile target enchantment, instant, or sorcery card with equal or lesser mana value than that spell from an opponent's graveyard. Copy the exiled card. You may cast the copy without paying its mana cost.",
+          "sub": {
+           "t": [
+            "Enchantment"
+           ]
+          },
+          "z": [
+           "in:graveyard",
+           "to:exile"
+          ]
          },
          {
           "cat": "spell_copy",
@@ -58515,8 +58484,13 @@
         "cost": "discard,genericmana,mana,tap",
         "e": [
          {
+          "amt": {
+           "op": "fixed"
+          },
           "cat": "draw",
-          "raw": "{1}{R}, {T}, Discard your hand: Until end of turn, whenever a creature you control with power 2 or less deals combat damage to a player, draw a card."
+          "craw": "Until end of turn, whenever a creature you control with power 2 or less deals combat damage to a player, draw a card.",
+          "raw": "{1}{R}, {T}, Discard your hand: Until end of turn, whenever a creature you control with power 2 or less deals combat damage to a player, draw a card.",
+          "sc": "you"
          }
         ],
         "k": "activated"
@@ -63854,19 +63828,18 @@
        {
         "e": [
          {
+          "amt": {
+           "op": "fixed"
+          },
           "cat": "make_token",
           "raw": "When ~ enters, create Voja, Friend to Elves, a legendary 3/3 green and white Wolf creature token.",
           "sc": "you",
           "sub": {
            "s": [
-            "Voja",
-            "Friend",
-            "To",
-            "Elves",
-            "A",
-            "Legendary",
-            "3/3",
-            "Green"
+            "Wolf"
+           ],
+           "t": [
+            "Creature"
            ]
           }
          }
@@ -64699,6 +64672,9 @@
         ],
         "k": "static"
        }
+      ],
+      "kw": [
+       "Enchant"
       ],
       "n": "Trapped in the Tower",
       "tl": "Enchantment — Aura"
@@ -65944,12 +65920,16 @@
           "raw": "For each player, exile up to one target nonland permanent that player controls. For each permanent exiled this way, its controller cloaks the top card of their library.",
           "sc": "opp",
           "sub": {
+           "p": [
+            "NotType:Land"
+           ],
            "t": [
             "Permanent"
            ]
           },
           "z": [
            "from:top",
+           "to:exile",
            "top:opp"
           ]
          },
@@ -69032,8 +69012,9 @@
           ]
          },
          {
-          "cat": "exile",
-          "raw": "At the beginning of your end step, exile target creature you control, then return it to the battlefield under its owner's control. Then if it's the first end step of the turn, there is an additional end step after this step."
+          "cat": "extra_end",
+          "raw": "At the beginning of your end step, exile target creature you control, then return it to the battlefield under its owner's control. Then if it's the first end step of the turn, there is an additional end step after this step.",
+          "sc": "you"
          }
         ],
         "k": "triggered",
@@ -70884,7 +70865,7 @@
    }
   }
  },
- "phase_tag": "v0.1.60",
+ "phase_tag": "v0.8.0",
  "schema": 1,
- "sidecar_version": 65
+ "sidecar_version": 66
 }

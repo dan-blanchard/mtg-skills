@@ -2706,6 +2706,140 @@ _DIES_RETURN_ARM_B = comb.seq2(
 )
 
 
+# ── v0.8.0 bump regression-recovery ROOT A (SIDECAR 66, no bump) ──────────────
+# phase v0.8.0 collapses a "Whenever <event>, ... (return|exile) THIS card from your
+# graveyard ..." TRIGGERED graveyard-recursion ability (the Recover template, CR
+# 702.59a) into a CONTENTLESS spell-kind ability — it strips BOTH the trigger AND the
+# in:graveyard zone, emitting a bare `bounce` Effect (raw="", zones=()). Two losses:
+# (1) the lane that EXCLUDES graveyard-recursion bounces (bounce_tempo guards on
+# `not any("graveyard" in z)`) now LEAKS these as if they were battlefield→hand tempo
+# bounces — A Good Day to Pie, Punishing Fire, Unlawful Entry, Spit Flame, Sosuke's
+# Summons, Killian's Confidence, Vivi's Persistence, Reach of Branches, Unconventional
+# Tactics are all "return this card from YOUR GRAVEYARD" (CR 400.7 graveyard→hand zone
+# change), NOT a tempo bounce of an opponent's permanent; (2) the tribal-ETB recursion
+# trigger ("Whenever a <subtype> you control enters" — Snake/Dragon/Zombie) and the
+# scry-recursion trigger ("Whenever you scry" — Council's Deliberation) vanish, so
+# tribal_etb_multi / scry_surveil_matters drop a real member. This card-level pass
+# re-bridges the structure v0.8.0 drops — the proven #24 supplement precedent
+# (_recover_dies_return / _recover_combat_damage_recipients): it stamps in:graveyard
+# back onto the contentless recursion bounce (re-arming the bounce_tempo graveyard
+# guard → the 9 over-fires drop) and, when the recursion's "Whenever" condition is a
+# creature-subtype ETB or a scry, rebuilds that Trigger onto the ability so the tribal/
+# scry payoff lanes read STRUCTURE again. Decoy Gambit ("return that creature to its
+# owner's hand", a battlefield→hand opponent-creature tempo bounce) carries a NON-empty
+# bounce raw and NO graveyard mention, so it is untouched and correctly stays in
+# bounce_tempo. CR 702.59a / 400.7 / 603.
+_GY_RECUR_MARK = re.compile(
+    r"\b(?:return|exile) this card from your graveyard\b", re.IGNORECASE
+)
+_GY_RECUR_WHENEVER = re.compile(r"\bwhenever\b", re.IGNORECASE)
+# "a [nontoken] <Subtype> you control enters [the battlefield]" — the tribal-ETB head.
+_GY_RECUR_TRIBAL_ETB = re.compile(
+    r"\b(?:a|an|another) (?:nontoken )?([A-Za-z]+) you control enters\b",
+    re.IGNORECASE,
+)
+_GY_RECUR_SCRY = re.compile(r"\byou scry\b", re.IGNORECASE)
+
+
+def _gy_recursion_trigger(oracle: str) -> Trigger | None:
+    """Reconstruct the Trigger v0.8.0 dropped from a graveyard-recursion ability, or
+    None when the "Whenever" condition is neither a creature-subtype ETB nor a scry
+    (a sticker / opp-lifegain / commander-ETB / combat-damage condition needs no
+    rebuilt trigger — the in:graveyard zone stamp alone excludes its bounce)."""
+    mark = _GY_RECUR_MARK.search(oracle)
+    if mark is None:
+        return None
+    head = oracle[: mark.start()]
+    whenevers = list(_GY_RECUR_WHENEVER.finditer(head))
+    if not whenevers:
+        return None
+    cond = oracle[whenevers[-1].end() : mark.start()].split(",", 1)[0]
+    etb = _GY_RECUR_TRIBAL_ETB.search(cond)
+    if etb is not None:
+        sub = etb.group(1).capitalize()
+        return Trigger(
+            event="etb",
+            subject=Filter(subtypes=(sub,), controller="you"),
+            scope="you",
+        )
+    if _GY_RECUR_SCRY.search(cond):
+        return Trigger(event="scried", scope="you")
+    return None
+
+
+def _is_gy_recursion_bounce(e: Effect) -> bool:
+    """A CONTENTLESS bounce v0.8.0 left from a collapsed GY-recursion trigger — empty
+    raw / zones / counter_kind / subject. The empty raw is the discriminator vs a real
+    tempo bounce (which carries its clause), so a card with BOTH a real bounce and a
+    Recover clause keeps the real bounce in bounce_tempo."""
+    return (
+        e.category == "bounce"
+        and not e.raw
+        and not e.zones
+        and not e.counter_kind
+        and e.subject is None
+    )
+
+
+def _is_gy_recursion_exile(e: Effect) -> bool:
+    """The exile-from-graveyard form of a collapsed GY-recursion trigger (Council's
+    Deliberation "exile this card from your graveyard. If you do, draw a card"). phase
+    keeps the from:graveyard zone but DROPS the trigger; the empty raw marks it as the
+    collapsed-trigger half (vs a real exile-removal clause, which carries its raw)."""
+    return e.category == "exile" and not e.raw and "from:graveyard" in e.zones
+
+
+def _is_gy_recursion_ability(ab: Ability) -> bool:
+    """A triggerless (kind spell/static) ability holding a collapsed GY-recursion
+    effect — either the contentless bounce or the exile-from-graveyard form."""
+    return (
+        ab.trigger is None
+        and ab.kind in ("spell", "static")
+        and any(
+            _is_gy_recursion_bounce(e) or _is_gy_recursion_exile(e) for e in ab.effects
+        )
+    )
+
+
+def _recover_gy_recursion(card: Card, oracle: str) -> Card:
+    """Re-bridge the v0.8.0 GY-recursion regression (ROOT A): stamp in:graveyard onto
+    the contentless recursion bounce (so bounce_tempo's graveyard guard excludes it)
+    and rebuild the dropped creature-subtype-ETB / scry Trigger so tribal_etb_multi /
+    scry_surveil_matters fire. Gated to cards whose oracle carries the literal
+    "(return|exile) this card from your graveyard"; idempotent (a contentless recursion
+    bounce already carrying a graveyard zone is left alone). CR 702.59a / 400.7."""
+    if not card.faces or not _GY_RECUR_MARK.search(oracle):
+        return card
+    trig = _gy_recursion_trigger(oracle)
+    changed = False
+    attached = False
+    new_faces: list[Face] = []
+    for face in card.faces:
+        new_abilities: list[Ability] = []
+        for ab in face.abilities:
+            if not _is_gy_recursion_ability(ab):
+                new_abilities.append(ab)
+                continue
+            changed = True
+            effects = tuple(
+                replace(e, zones=("in:graveyard",)) if _is_gy_recursion_bounce(e) else e
+                for e in ab.effects
+            )
+            # rebuild the dropped trigger onto the FIRST recursion ability only
+            # (each target card has exactly one recursion clause).
+            if trig is not None and not attached:
+                new_abilities.append(
+                    replace(ab, kind="triggered", trigger=trig, effects=effects)
+                )
+                attached = True
+            else:
+                new_abilities.append(replace(ab, effects=effects))
+        new_faces.append(replace(face, abilities=tuple(new_abilities)))
+    if not changed:
+        return card
+    return replace(card, faces=tuple(new_faces))
+
+
 def _recover_dies_return(card: Card, oracle: str) -> Card:
     """Append a synthetic `self_recursion` static marker Effect when the joined
     oracle carries the literal self dies-return (or would-die-instead-exile-with-

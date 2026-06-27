@@ -42,6 +42,7 @@ from mtg_utils._card_ir.supplement import (
     _recover_extra_land_drop,
     _recover_facedown,
     _recover_group_hug_draw_scope,
+    _recover_gy_recursion,
     _recover_hand_disruption,
     _recover_historic_subject,
     _recover_keyword_grant_target,
@@ -874,6 +875,18 @@ def project_card(records: list[dict]) -> Card:
     # Vren, Gold Rush), so the scaling_pump arm reads it STRUCTURALLY and the
     # `gets …/… for each` mirror retires (CR 613).
     card = _recover_scaling_pump(card, _oracle)
+    # v0.8.0 bump regression-recovery ROOT A (SIDECAR 66, no bump): re-bridge the
+    # GY-recursion / cross-ref trigger flattening. phase v0.8.0 collapses a "Whenever
+    # <event>, ... (return|exile) THIS card from your graveyard ..." Recover-template
+    # ability into a contentless `bounce` (raw="", zones=()), stripping the trigger AND
+    # the in:graveyard zone. This stamps in:graveyard back onto that bounce (re-arming
+    # bounce_tempo's graveyard guard → the 9 spurious over-fires drop) and rebuilds the
+    # dropped creature-subtype-ETB / scry Trigger so tribal_etb_multi (Sosuke's Summons,
+    # Spit Flame, Unconventional Tactics) and scry_surveil_matters (Council's
+    # Deliberation) read STRUCTURE again. Decoy Gambit (a battlefield→hand opponent-
+    # creature tempo bounce, non-empty raw, no graveyard) is untouched. CR 702.59a /
+    # 400.7 / 603. Same joined-oracle seam as the recoveries above.
+    card = _recover_gy_recursion(card, _oracle)
     # Post-supplement removal target-subject recovery (ADR-0027 removal_matters
     # shape 3): the supplement re-derives a `damage` / `destroy` CATEGORY from a
     # GenericEffect / Unimplemented body the projection left as `other` (Combo
