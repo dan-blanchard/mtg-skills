@@ -6165,6 +6165,15 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # correctly silences a spurious commander-damage tell on a real engine — a
         # MORE-correct set than the regex's 3007. CR 903.10a / 702.83 / 301.5 / 303.4.
         "voltron_matters",
+        # ADR-0027 #24n G1 — base_power_matters, a NEW niche lane (per the project
+        # exhaustive-audit rule: niche never means skip the lane). A base-power/tough
+        # REFERENCE payoff (CR 613.4b sentence 2 — effects that REFER to base P/T, not
+        # SET it) reads the supplement `BasePtRef` marker (`_recover_base_power_ref`,
+        # anchored on "creatures you control with base power|toughness"). The references
+        # LEFT base_pt_set (they were an over-fire: they set no base P/T) and now fire
+        # here. Bess Soul Nourisher, Zinnia, Duskana, Primo, Rapid Augmenter, Sword of
+        # the Squeak. CR 613.4b.
+        "base_power_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

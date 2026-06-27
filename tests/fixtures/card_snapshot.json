@@ -8808,6 +8808,21 @@
          "ev": "attacks",
          "sc": "you"
         }
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "base power/toughness reference (recovered)",
+          "sub": {
+           "c": "you",
+           "p": [
+            "BasePtRef"
+           ]
+          }
+         }
+        ],
+        "k": "static"
        }
       ],
       "n": "Bess, Soul Nourisher",
@@ -70111,6 +70126,167 @@
     "type_line": "Legendary Creature — Human Soldier"
    }
   },
+  "Zinnia, Valley's Voice": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "count",
+           "sub": {
+            "c": "you",
+            "p": [
+             "Another",
+             "PtComparison:Power:EQ:1"
+            ],
+            "t": [
+             "Creature"
+            ]
+           }
+          },
+          "cat": "pump",
+          "raw": "~ gets +X/+0, where X is the number of other creatures you control with base power 1."
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "cast_with_keyword",
+          "raw": "Creature spells you cast gain offspring {2} as you cast them.",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "count",
+           "sub": {
+            "c": "you",
+            "p": [
+             "PtComparison:Power:EQ:1"
+            ],
+            "t": [
+             "Creature"
+            ]
+           }
+          },
+          "cat": "board_count",
+          "raw": "~ gets +X/+0, where X is the number of other creatures you control with base power 1.",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "p": [
+            "PtComparison:Power:EQ:1"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "base power/toughness reference (recovered)",
+          "sub": {
+           "c": "you",
+           "p": [
+            "BasePtRef"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "Flying"
+      ],
+      "n": "Zinnia, Valley's Voice",
+      "tl": "Legendary Creature — Bird Bard"
+     }
+    ],
+    "n": "Zinnia, Valley's Voice",
+    "oid": "d8c16a3a-dd9d-410c-a5d5-06339a89970f"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "db388be3-ff31-4415-bc4b-de62f7223b1f",
+      "name": "Copy",
+      "object": "related_card",
+      "type_line": "Token",
+      "uri": "https://api.scryfall.com/cards/db388be3-ff31-4415-bc4b-de62f7223b1f"
+     },
+     {
+      "component": "combo_piece",
+      "id": "6263bd74-3f44-4206-8d4d-f90c333b601d",
+      "name": "Zinnia, Valley's Voice",
+      "object": "related_card",
+      "type_line": "Legendary Creature — Bird Bard",
+      "uri": "https://api.scryfall.com/cards/6263bd74-3f44-4206-8d4d-f90c333b601d"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [
+     "R",
+     "U",
+     "W"
+    ],
+    "colors": [
+     "R",
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}{R}{W}",
+    "name": "Zinnia, Valley's Voice",
+    "oracle_id": "d8c16a3a-dd9d-410c-a5d5-06339a89970f",
+    "oracle_text": "Flying\nZinnia gets +X/+0, where X is the number of other creatures you control with base power 1.\nCreature spells you cast gain offspring {2} as you cast them. (You may pay an additional {2} as you cast a creature spell. If you do, when that creature enters, create a 1/1 token copy of it.)",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Bird Bard"
+   }
+  },
   "Zo-Zu the Punisher": {
    "ir": {
     "faces": [
@@ -70478,5 +70654,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 61
+ "sidecar_version": 62
 }

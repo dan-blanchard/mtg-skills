@@ -22,6 +22,7 @@ from mtg_utils._card_ir.supplement import (
     _TOPDECK_OTHER_ZONE,
     _TOPDECK_YOUR_LIBRARY,
     _copied_type_from_text,
+    _recover_base_power_ref,
     _recover_base_pt_set,
     _recover_becomes_tap_untap,
     _recover_cast_from_exile_zone,
@@ -841,6 +842,14 @@ def project_card(records: list[dict]) -> Card:
     # drops (Raff Capashen, Sanctum Spirit), so the lane reads it STRUCTURALLY and the
     # "\bhistoric\b" mirror retires (CR 700.6 — legendary OR artifact OR Saga).
     card = _recover_historic_subject(card, _oracle)
+    # ADR-0027 #24n (SIDECAR v62) — base_power_matters NEW LANE. Synth a base-specific
+    # `BasePtRef` subject Filter for a card that REFERS to a creature's base power/
+    # toughness ("creatures you control with base power N" — Bess Soul Nourisher,
+    # Zinnia, Duskana, Primo, Rapid Augmenter, Sword of the Squeak), so the new
+    # base_power_matters arm reads it STRUCTURALLY. These references SET nothing (CR
+    # 613.4b sentence 2 — refer, not set), so they LEAVE the over-firing base_pt_set
+    # references mirror (deleted) and ENTER base_power_matters.
+    card = _recover_base_power_ref(card, _oracle)
     # scaling_pump: synth a `pump` Effect with the recovered op='count' operand for the
     # "gets +N/+N for each <X>" scaler phase routes through a board_count / make_token /
     # amount=None pump_target carrier (Karn Scion of Urza, Urza Lord High Artificer,

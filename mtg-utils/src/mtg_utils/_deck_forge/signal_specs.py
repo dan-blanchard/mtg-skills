@@ -5434,6 +5434,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         serve_types=("eldrazi",),
         serve_not=r"counter target colorless",
     ),
+    # ADR-0027 #24n G1 — base_power_matters (NEW niche lane). The payoffs that REWARD /
+    # SCALE WITH / SELECT creatures by their BASE power or toughness (CR 613.4b refer,
+    # not set): Bess Soul Nourisher's 1/1 ETB count, Zinnia's base-power-1 go-wide
+    # scale, Duskana's draw-per base-2/2, Primo's base-0 combat trigger, Rapid
+    # Augmenter's base-1 haste grant, Sword of the Squeak's equip scale. SERVE/SEARCH on
+    # the base-reference grammar (a base-power/toughness count/condition); the kept
+    # word mirror retired in favor of the structural `BasePtRef` read.
+    ("base_power_matters", "you"): _spec(
+        "Base power/toughness",
+        "the small base-P/T tribe — anthems and triggers that reward creatures by "
+        "their base power or toughness (Bess, Zinnia, Duskana, Primo, Rapid Augmenter, "
+        "Sword of the Squeak)",
+        {"oracle": r"with base (?:power|toughness)"},
+        r"with base (?:power|toughness)",
+    ),
     ("exalted_lone_attacker", "you"): _spec(
         "Exalted / lone attacker",
         "Exalted enablers plus the payoffs that reward a single attacker connecting "

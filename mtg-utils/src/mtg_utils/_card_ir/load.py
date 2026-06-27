@@ -873,7 +873,21 @@ from mtg_utils.card_ir import Card
 #   _BASE_PT_ANIMATE_HOOK ("N/N … in addition to its other types") so the 9 single-
 #   permanent animate effects phase ALREADY emits read structurally, and the kept word
 #   mirror narrows from BASE_PT_SET_REGEX to the references-only residue. CR 613.4b.
-SIDECAR_VERSION = 61
+# v62 — #24n G1 base_power_matters NEW LANE (per the project exhaustive-audit rule:
+#   niche never means skip the lane). supplement._recover_base_power_ref synthesizes a
+#   base-SPECIFIC `BasePtRef` subject Filter (controller='you') for the base-power/
+#   toughness REFERENCE payoffs — cards that REWARD / SCALE WITH / SELECT creatures by
+#   their base P/T (CR 613.4b sentence 2 — refer, not set): Bess Soul Nourisher, Zinnia,
+#   Duskana, Primo, Rapid Augmenter, Sword of the Squeak. Anchored on the same
+#   "creatures you control WITH base power|toughness" grammar the deleted base_pt_set
+#   references mirror used (phase preserves SOME as a PtComparison:Power predicate, but
+#   that predicate is base-BLIND (323/330 cards carrying it reference CURRENT power), so
+#   the lane reads ONLY the recovered base-anchored marker, never PtComparison. Signals:
+#   a new `"BasePtRef" in ir_predicates` arm emits base_power_matters scope 'you'; the
+#   base_pt_set references mirror (_IR_KEPT_DETECTORS) is DELETED — those refs were an
+#   OVER-FIRE (they set no base P/T) and LEAVE base_pt_set, which keeps only its genuine
+#   SETTERS. CR 613.4b (set vs refer).
+SIDECAR_VERSION = 62
 
 
 def card_ir_dir() -> Path:

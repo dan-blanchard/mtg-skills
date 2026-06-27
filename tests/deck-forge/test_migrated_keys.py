@@ -73,6 +73,7 @@ _REAL_CASES: dict[str, str] = {
     "aura_equip_kw_grant": "Rashel, Fist of Torm",
     "banding_matters": "Timber Wolves",
     "base_pt_set": "Lignify",
+    "base_power_matters": "Bess, Soul Nourisher",
     "big_hand_matters": "Reliquary Tower",
     "big_mana": "Gilded Lotus",
     "blink_flicker": "Flickerwisp",
@@ -561,18 +562,60 @@ def test_base_pt_set_mass_animator_stays_out():
     assert "base_pt_set" not in {s.key for s in extract_signals_hybrid(card, ir)}
 
 
-def test_base_pt_set_reference_stays_on_narrowed_mirror():
-    """F1: a base-power REFERENCE — Bess, Soul Nourisher cares about "creatures you
+# ── ADR-0027 #24n G1 — base_power_matters NEW LANE (base-P/T REFERENCE payoffs) ──
+
+
+def test_base_power_matters_reference_fires_and_leaves_base_pt_set():
+    """G1: a base-power REFERENCE — Bess, Soul Nourisher cares about "creatures you
     control with base power and toughness 1/1" — merely REFERS to base P/T (CR 613.4b
-    sentence 2) and sets nothing, so it carries no base_pt_set node and is NOT
-    re-synthesized. It stays in base_pt_set via the narrowed references-only kept mirror,
-    awaiting a separate base_power_matters decision."""
+    sentence 2) and SETS nothing, so it carries NO base_pt_set node. The supplement
+    `_recover_base_power_ref` synthesizes a base-specific `BasePtRef` marker so the new
+    base_power_matters arm reads it STRUCTURALLY. It NO LONGER fires base_pt_set (the
+    over-firing references mirror was deleted)."""
     card = test_card("Bess, Soul Nourisher")
     ir = test_card_ir("Bess, Soul Nourisher")
     assert not any(
         e.category == "base_pt_set" for ab in ir.all_abilities() for e in ab.effects
     )
-    assert "base_pt_set" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert any(
+        isinstance(e.subject, Filter) and "BasePtRef" in e.subject.predicates
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    )
+    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "base_power_matters" in keys
+    assert "base_pt_set" not in keys
+
+
+def test_base_power_matters_fires_zinnia():
+    """G1: Zinnia, Valley's Voice — "~ gets +X/+0, where X is the number of other
+    creatures you control with base power 1" — a base-power REFERENCE payoff. Fires
+    base_power_matters via the recovered `BasePtRef` marker, NOT base_pt_set."""
+    card = test_card("Zinnia, Valley's Voice")
+    ir = test_card_ir("Zinnia, Valley's Voice")
+    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "base_power_matters" in keys
+    assert "base_pt_set" not in keys
+
+
+def test_base_pt_set_setter_does_not_fire_base_power_matters():
+    """G1 boundary guard: Lignify is a genuine SETTER ("has base power and toughness
+    0/0" — CR 613.4b sentence 1) — it keeps its base_pt_set node and carries NO
+    `BasePtRef` marker, so it fires base_pt_set and NOT base_power_matters. The set-vs-
+    refer boundary holds."""
+    card = test_card("Lignify")
+    ir = test_card_ir("Lignify")
+    assert any(
+        e.category == "base_pt_set" for ab in ir.all_abilities() for e in ab.effects
+    )
+    assert not any(
+        isinstance(e.subject, Filter) and "BasePtRef" in e.subject.predicates
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    )
+    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "base_pt_set" in keys
+    assert "base_power_matters" not in keys
 
 
 def test_creatures_matter_mass_grant_fires_via_ir():

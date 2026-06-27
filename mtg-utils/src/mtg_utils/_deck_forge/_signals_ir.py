@@ -1062,30 +1062,17 @@ def _has_self_base_pt(subject: object) -> bool:
 # KEEPS them — they survive A4 like the keyword-array / type_line lookups. Grow
 # this as more mis-skipped mechanics are rules-lawyer-verified.
 _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
-    # ADR-0027 #24m F1 — base_pt_set kept WORD MIRROR NARROWED to the base-power
-    # REFERENCE residue. The carved BASE_PT_SET_REGEX mirror used to also carry the
-    # SETTERS phase routed to a sibling category without a base_pt_set Effect (the 2a
-    # single-permanent "becomes a N/N <Type> creature in addition to its other types"
-    # — now read by the _BASE_PT_ANIMATE_HOOK arm — and the 2b dynamic/quoted forms —
-    # Fractalize, Gigantoplasm, Trench Gorger, Sita Varma, Goddric, The Master,
-    # Tezzeret the Schemer, Cool Fluffy Loxodon, Displaced Dinosaurs, Mindlink Mech —
-    # now re-synthesized as a base_pt_set node by _recover_dynamic_base_pt_set). All
-    # that's left for the mirror is the base-power REFERENCE grammar "creature(s) you
-    # control WITH base power N" (Bess Soul Nourisher, Zinnia, Duskana, Primo, Rapid
-    # Augmenter): these merely REFER to base P/T (CR 613.4b sentence 2), set nothing,
-    # and have no base_pt_set node to read — they stay here, in base_pt_set, awaiting a
-    # SEPARATE base_power_matters lane decision (#24j). NOT re-routed by this task.
-    # Scope 'any' (unchanged). The SERVE spec (signal_specs) keeps the full
-    # BASE_PT_SET_REGEX — the lane still recommends every base-P/T setter, only
-    # DETECTION narrows here.
-    (
-        "base_pt_set",
-        re.compile(
-            r"creatures? you (?:control|own) with base (?:power|toughness)",
-            re.IGNORECASE,
-        ),
-        "any",
-    ),
+    # ADR-0027 #24n G1 — base_pt_set references mirror DELETED (SIDECAR v62). The carved
+    # BASE_PT_SET_REGEX mirror's last residue was the base-power REFERENCE grammar
+    # "creature(s) you control WITH base power N" (Bess Soul Nourisher, Zinnia, Duskana,
+    # Primo, Rapid Augmenter, Sword of the Squeak). Those REFER to base P/T (CR 613.4b
+    # sentence 2 — refer, not set), set NOTHING, and were an OVER-FIRE on base_pt_set —
+    # they now fire the NEW base_power_matters lane, which reads the supplement's
+    # `BasePtRef` marker (project `_recover_base_power_ref`, anchored on this exact
+    # grammar) STRUCTURALLY. base_pt_set keeps only its genuine SETTERS (the
+    # _BASE_PT_ANIMATE_HOOK 2a animates + the _recover_dynamic_base_pt_set 2b dynamic/
+    # quoted forms + the _recover_base_pt_set mass-debuff statics). base_pt_set's SERVE
+    # spec (signal_specs) keeps the full BASE_PT_SET_REGEX — unchanged.
     # ADR-0027 reveal/dig-v2 — tutor_matters BYTE-IDENTICAL kept mirror (== the deleted
     # TUTOR_MATTERS_REGEX, "search your library for (a|an|up to|...)" over the reminder-
     # STRIPPED kept_oracle). phase keeps a `tutor` EFFECT for EVERY search (opponent /
@@ -10315,6 +10302,16 @@ def extract_signals_ir(
         add("legends_matter", "you", "", "")
     if "Historic" in ir_predicates:
         add("historic_matters", "you", "", "")
+    # ADR-0027 #24n G1 — base_power_matters (NEW LANE). A base-power/toughness REFERENCE
+    # payoff (CR 613.4b sentence 2 — effects that REFER to base P/T) reads the project
+    # `BasePtRef` marker the project recovery synthesized (`_recover_base_power_ref`,
+    # anchored on "creatures you control with base power|toughness"). Base-SPECIFIC: the
+    # raw PtComparison:Power predicate phase preserves is base-BLIND (323/330 cards are
+    # current-power refs), so this reads ONLY the recovered base marker. Scope 'you'.
+    # Distinct from base_pt_set (sentence 1 — effects that SET P/T): a reference rewards
+    # creatures by their base P/T, it sets nothing.
+    if "BasePtRef" in ir_predicates:
+        add("base_power_matters", "you", "", "")
     if "IsCommander" in ir_predicates:  # Batch 15 — cares about your commander
         add("commander_matters", "you", "", "")
     # Task #19 SPLIT — the old named_permanent lane is now TWO distinct lanes by

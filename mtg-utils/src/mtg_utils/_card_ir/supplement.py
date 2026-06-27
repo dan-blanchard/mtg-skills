@@ -3150,6 +3150,57 @@ def _recover_historic_subject(card: Card, oracle: str) -> Card:
     )
 
 
+# base_power_matters — a base-power/toughness REFERENCE payoff (CR 613.4b sentence 2:
+# "effects that REFER to the base power/toughness of a creature apply in layer 7b") —
+# is distinct from a base_pt_set SETTER (sentence 1, "effects that SET power/tough").
+# A reference says "creatures you control WITH base power N" (Bess Soul Nourisher's ETB
+# count, Zinnia's go-wide scale, Duskana's draw-per, Primo's combat trigger, Rapid
+# Augmenter's haste grant, Sword of the Squeak's equip scale) — it SELECTS creatures by
+# their base P/T and rewards them; it sets nothing. phase preserves SOME of these as a
+# `PtComparison:Power:EQ:N` subject predicate but that predicate is base-BLIND (323 of
+# 330 cards carrying it reference CURRENT power — "creatures you control with power 4 or
+# greater"), so the lane can't read PtComparison directly without massively over-firing
+# to the current-power references. We therefore synth a base-SPECIFIC `BasePtRef` marker
+# Filter (controller='you'), anchored on the same base-reference grammar the deleted
+# base_pt_set kept word mirror used, so the base_power_matters arm reads the base-only
+# predicate STRUCTURALLY. Set-equal to that deleted mirror (`creatures? you control/own
+# with base power|toughness` over the reminder-stripped oracle) — the references LEAVE
+# base_pt_set (they were an over-fire: set no base P/T) and ENTER base_power_matters.
+# The setter verb ("have/has/are/is/becomes base power") is NOT matched, so a genuine
+# base_pt_set setter never enters this lane (CR 613.4b set vs refer).
+_BASE_POWER_REF_RE = re.compile(
+    r"creatures? you (?:control|own) with base (?:power|toughness)", re.IGNORECASE
+)
+
+
+def _recover_base_power_ref(card: Card, oracle: str) -> Card:
+    """Synth a base-specific `BasePtRef` subject Filter (controller='you') for a card
+    that REFERS to a creature's base power/toughness ("creatures you control with base
+    power N") but whose base qualifier phase either drops (Bess, Duskana — left an
+    `ev:other` trigger / bare-Creature subject) or preserves only as a base-blind
+    PtComparison (Zinnia, Primo, Rapid Augmenter, Sword of the Squeak), so the
+    base_power_matters arm reads the base-only predicate STRUCTURALLY. Idempotent
+    (skipped when a `BasePtRef` marker already exists). CR 613.4b (refer, not set)."""
+    if not card.faces:
+        return card
+    if any(
+        isinstance(f, Filter) and "BasePtRef" in f.predicates
+        for ab in card.all_abilities()
+        for f in _ability_subjects(ab)
+    ):
+        return card
+    if _BASE_POWER_REF_RE.search(re.sub(r"\([^)]*\)", " ", oracle)) is None:
+        return card
+    return _append_marker(
+        card,
+        Effect(
+            category="other",
+            subject=Filter(controller="you", predicates=("BasePtRef",)),
+            raw="base power/toughness reference (recovered)",
+        ),
+    )
+
+
 def _ability_subjects(ab: Ability) -> list[Filter]:
     """Every subject Filter an ability exposes (effect subjects, amount subjects,
     trigger subject) — the surface the predicate-reading lane arms scan."""
