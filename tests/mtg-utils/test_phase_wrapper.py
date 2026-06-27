@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import io
 import json
 import subprocess
+import tarfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -12,10 +14,34 @@ import pytest
 from mtg_utils import _phase
 
 
+def _fake_server_tarball(
+    payload: bytes, *, member: str = "data/card-data.json"
+) -> bytes:
+    """Build an in-memory .tar.gz carrying a single ``member`` of ``payload``."""
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        info = tarfile.TarInfo(member)
+        info.size = len(payload)
+        tar.addfile(info, io.BytesIO(payload))
+    return buf.getvalue()
+
+
+class _FakeUrlopen:
+    """Stand-in for ``urllib.request.urlopen`` that serves bytes and counts hits."""
+
+    def __init__(self, body: bytes) -> None:
+        self._body = body
+        self.calls: list[str] = []
+
+    def __call__(self, request, *_a, **_kw):
+        # ``request`` is a urllib.request.Request — record the URL it targets.
+        self.calls.append(getattr(request, "full_url", str(request)))
+        return io.BytesIO(self._body)
+
+
 class TestPhaseTag:
     def test_phase_tag_is_pinned(self):
-        assert _phase.PHASE_TAG.startswith("v0.1.")
-        assert _phase.PHASE_TAG == "v0.1.60"
+        assert _phase.PHASE_TAG == "v0.8.0"
 
 
 class TestCacheLayout:
@@ -67,7 +93,9 @@ class TestBinaryLookup:
 
 
 class TestInstall:
-    def test_install_runs_clone_setup_and_cargo(self, monkeypatch, tmp_path):
+    def test_install_runs_clone_then_cargo_binaries_only(self, monkeypatch, tmp_path):
+        # Binaries-only now: no card-data-gen (setup.sh) step — card-data comes
+        # from ensure_card_data, not from this cargo build.
         monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
         calls: list[list[str]] = []
 
@@ -87,12 +115,13 @@ class TestInstall:
 
         joined = [" ".join(c) if isinstance(c, list) else c for c in calls]
         clone_idx = next(i for i, c in enumerate(joined) if "git clone" in c)
-        setup_idx = next(i for i, c in enumerate(joined) if "setup.sh" in c)
         build_idx = next(
             i for i, c in enumerate(joined) if "cargo build" in c and "ai-duel" in c
         )
-        assert clone_idx < setup_idx < build_idx, (
-            f"clone/setup/cargo must run in order: {joined}"
+        assert clone_idx < build_idx, f"clone must precede cargo build: {joined}"
+        # No card-data-gen step in the binaries-only flow.
+        assert not any("setup.sh" in c for c in joined), (
+            f"install_phase must not run the card-data-gen setup.sh: {joined}"
         )
 
         version_file = _phase.cache_dir() / "version.txt"
@@ -103,11 +132,15 @@ class TestInstall:
 class TestCoverageGate:
     @pytest.fixture
     def phase_card_data(self, monkeypatch, tmp_path):
-        """Stand up a fake phase install with a card-data.json file."""
+        """Stand up a cached card-data.json at the tag-versioned cache path.
+
+        Pre-seeding the cache path means ``ensure_card_data`` returns it with no
+        download.
+        """
         monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
-        public = tmp_path / "phase" / "phase.git" / "client" / "public"
-        public.mkdir(parents=True)
-        public.joinpath("card-data.json").write_text(
+        path = _phase._card_data_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
             json.dumps(
                 {
                     "cards": [
@@ -120,7 +153,7 @@ class TestCoverageGate:
         )
         # Clear any cached supported-name set from earlier tests.
         _phase.load_supported_card_names.cache_clear()
-        return public / "card-data.json"
+        return path
 
     def test_loads_supported_set(self, phase_card_data):
         names = _phase.load_supported_card_names()
@@ -134,9 +167,9 @@ class TestCoverageGate:
         # dict, NOT {"cards": [...]}. Reading data.get("cards", []) against it
         # returned an empty set, marking every card unsupported.
         monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
-        public = tmp_path / "phase" / "phase.git" / "client" / "public"
-        public.mkdir(parents=True)
-        public.joinpath("card-data.json").write_text(
+        path = _phase._card_data_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
             json.dumps(
                 {
                     "sol ring": {"name": "Sol Ring"},
@@ -368,3 +401,107 @@ class TestRunCommander:
         assert result["status"] == "ok"
         assert result["winners_by_seat"] == [12, 8, 6, 4]
         assert result["games"] == 30
+
+
+class TestEnsureCardData:
+    def test_returns_cached_path_without_downloading(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+        dest = _phase._card_data_path()
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text('{"sol ring": {"name": "Sol Ring"}}')
+
+        fake = _FakeUrlopen(b"unused")
+        monkeypatch.setattr("urllib.request.urlopen", fake)
+
+        out = _phase.ensure_card_data()
+        assert out == dest
+        assert fake.calls == [], "must NOT download when the cache exists"
+
+    def test_downloads_and_extracts_to_tag_versioned_path(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+        payload = b'{"lightning bolt": {"name": "Lightning Bolt"}}'
+        fake = _FakeUrlopen(_fake_server_tarball(payload))
+        monkeypatch.setattr("urllib.request.urlopen", fake)
+
+        out = _phase.ensure_card_data()
+
+        expected = (
+            tmp_path / "phase" / "card-data" / f"card-data-{_phase.PHASE_TAG}.json"
+        )
+        assert out == expected
+        assert out.read_bytes() == payload
+        # Downloaded the LINUX server asset for the pinned tag.
+        assert len(fake.calls) == 1
+        assert _phase.PHASE_SERVER_ASSET in fake.calls[0]
+        assert _phase.PHASE_TAG in fake.calls[0]
+
+    def test_keyed_by_phase_tag_refetches_on_bump(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+
+        # Seed the cache for the current tag → no download.
+        first = _FakeUrlopen(_fake_server_tarball(b'{"a": {"name": "A"}}'))
+        monkeypatch.setattr("urllib.request.urlopen", first)
+        path_v1 = _phase.ensure_card_data()
+        assert len(first.calls) == 1
+        # Idempotent: second call for the SAME tag does not re-download.
+        again = _phase.ensure_card_data()
+        assert again == path_v1
+        assert len(first.calls) == 1
+
+        # A tag bump points at a different path and refetches.
+        monkeypatch.setattr(_phase, "PHASE_TAG", "v9.9.9")
+        second = _FakeUrlopen(_fake_server_tarball(b'{"b": {"name": "B"}}'))
+        monkeypatch.setattr("urllib.request.urlopen", second)
+        path_v2 = _phase.ensure_card_data()
+        assert path_v2 != path_v1
+        assert "v9.9.9" in path_v2.name
+        assert len(second.calls) == 1
+        # Old tag's cache file is untouched.
+        assert path_v1.exists()
+
+    def test_fails_loud_on_bad_asset(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+        # Tarball is missing the data/card-data.json member.
+        bad = _fake_server_tarball(b"x", member="data/other.json")
+        fake = _FakeUrlopen(bad)
+        monkeypatch.setattr("urllib.request.urlopen", fake)
+
+        with pytest.raises(RuntimeError) as excinfo:
+            _phase.ensure_card_data()
+        msg = str(excinfo.value)
+        assert "card-data.json" in msg
+        assert _phase.PHASE_TAG in msg
+        # No partial cache file left behind on failure.
+        assert not _phase._card_data_path().exists()
+
+
+class TestBuildAndCoverageUseEnsure:
+    def test_build_sidecar_calls_ensure_card_data(self, monkeypatch, tmp_path):
+        from mtg_utils._card_ir import build as build_mod
+
+        called = {"n": 0}
+        cdp = tmp_path / "card-data.json"
+        cdp.write_text("{}")
+
+        def fake_ensure():
+            called["n"] += 1
+            return cdp
+
+        monkeypatch.setattr(_phase, "ensure_card_data", fake_ensure)
+        out = tmp_path / "sidecar.json"
+        _path, stats = build_mod.build_sidecar(out_path=out)
+        assert called["n"] == 1
+        assert out.exists()
+        assert stats["phase_tag"] == _phase.PHASE_TAG
+
+    def test_coverage_uses_ensure_card_data(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+        payload = json.dumps({"sol ring": {"name": "Sol Ring"}}).encode()
+        fake = _FakeUrlopen(_fake_server_tarball(payload))
+        monkeypatch.setattr("urllib.request.urlopen", fake)
+        _phase.load_supported_card_names.cache_clear()
+
+        names = _phase.load_supported_card_names()
+        assert "sol ring" in names
+        assert len(fake.calls) == 1
+        _phase.load_supported_card_names.cache_clear()

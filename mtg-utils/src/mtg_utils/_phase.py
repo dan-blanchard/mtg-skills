@@ -10,12 +10,21 @@ import json
 import os
 import shutil
 import subprocess
+import tarfile
 import tempfile
+import urllib.error
+import urllib.request
 from functools import lru_cache
 from pathlib import Path
 
 PHASE_TAG = "v0.8.0"
 PHASE_REPO = "https://github.com/phase-rs/phase"
+
+# card-data.json is byte-identical across platforms, so the linux server
+# tarball is the universal source (avoids windows-.zip / mac-intel branching).
+PHASE_SERVER_ASSET = "phase-server-linux-x86_64.tar.gz"
+# The single member we want out of that tarball.
+_CARD_DATA_MEMBER = "data/card-data.json"
 
 
 class PhaseNotInstalledError(RuntimeError):
@@ -98,7 +107,12 @@ def _ensure_prereqs() -> None:
 
 
 def install_phase() -> None:
-    """Clone, generate card data, and build the phase binaries we use."""
+    """Clone + ``cargo build`` the phase playtest binaries (ai-duel/ai-commander).
+
+    Binaries-only: the Card IR pipeline no longer needs this. ``card-data.json``
+    now comes from :func:`ensure_card_data` (a release-tarball download), so this
+    step is required ONLY to actually playtest (``run_duel`` / ``run_commander``).
+    """
     _ensure_prereqs()
     repo = _repo_dir()
     repo.parent.mkdir(parents=True, exist_ok=True)
@@ -108,12 +122,6 @@ def install_phase() -> None:
             ["git", "clone", "--depth=1", "--branch", PHASE_TAG, PHASE_REPO, str(repo)],
             check=True,
         )
-
-    subprocess.run(
-        ["bash", "./scripts/setup.sh"],
-        cwd=str(repo),
-        check=True,
-    )
 
     subprocess.run(
         ["cargo", "build", "--release", "--bin", "ai-duel", "--bin", "ai-commander"],
@@ -136,7 +144,70 @@ DEFAULT_COVERAGE_THRESHOLD = 0.9
 
 
 def _card_data_path() -> Path:
-    return _repo_dir() / "client" / "public" / "card-data.json"
+    """The tag-versioned card-data cache path :func:`ensure_card_data` writes.
+
+    Keyed by ``PHASE_TAG`` so a tag bump auto-refetches and old tags stay
+    cached. Decoupled from the cargo build's repo path — building the Card IR
+    sidecar needs only this file, fetched from the release tarball.
+    """
+    return cache_dir() / "card-data" / f"card-data-{PHASE_TAG}.json"
+
+
+def ensure_card_data() -> Path:
+    """Return a local ``card-data.json`` for ``PHASE_TAG``, downloading if absent.
+
+    Returns the tag-versioned cache path (:func:`_card_data_path`). If that file
+    already exists it is returned without any network access. Otherwise the LINUX
+    phase-server release tarball for ``PHASE_TAG`` is downloaded, ``data/
+    card-data.json`` is extracted from it, and written to the cache path
+    atomically. Idempotent. No cargo build / no repo clone required.
+
+    Raises ``RuntimeError`` (naming the URL + tag) on any HTTP or extract error.
+    """
+    dest = _card_data_path()
+    if dest.exists():
+        return dest
+
+    url = f"{PHASE_REPO}/releases/download/{PHASE_TAG}/{PHASE_SERVER_ASSET}"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1) Stream the asset to a temp file (GitHub asset URLs 302 to a CDN;
+    #    urllib follows redirects by default).
+    request = urllib.request.Request(url, headers={"User-Agent": "mtg-skills/_phase"})
+    tmp_tarball = dest.parent / f".{PHASE_SERVER_ASSET}.tmp"
+    try:
+        with (
+            urllib.request.urlopen(request) as resp,
+            tmp_tarball.open("wb") as fh,
+        ):
+            shutil.copyfileobj(resp, fh)
+    except (urllib.error.URLError, OSError) as exc:
+        tmp_tarball.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"Failed to download phase card-data from {url} (tag {PHASE_TAG}): {exc}"
+        ) from exc
+
+    # 2) Extract only data/card-data.json and write it atomically.
+    try:
+        with tarfile.open(tmp_tarball, "r:gz") as tar:
+            member = tar.extractfile(_CARD_DATA_MEMBER)
+            if member is None:
+                raise RuntimeError(
+                    f"'{_CARD_DATA_MEMBER}' missing from {url} (tag {PHASE_TAG})."
+                )
+            payload = member.read()
+    except (tarfile.TarError, KeyError, OSError) as exc:
+        raise RuntimeError(
+            f"Failed to extract '{_CARD_DATA_MEMBER}' from {url} "
+            f"(tag {PHASE_TAG}): {exc}"
+        ) from exc
+    finally:
+        tmp_tarball.unlink(missing_ok=True)
+
+    tmp_dest = dest.with_name(dest.name + ".tmp")
+    tmp_dest.write_bytes(payload)
+    tmp_dest.replace(dest)
+    return dest
 
 
 @lru_cache(maxsize=1)
@@ -151,11 +222,7 @@ def load_supported_card_names() -> frozenset[str]:
     ``str.lower()`` — reading ``data.get("cards", [])`` against the flat schema
     returned an empty set, silently marking every card unsupported.
     """
-    path = _card_data_path()
-    if not path.exists():
-        raise PhaseNotInstalledError(
-            f"phase card-data.json not found at {path}. Run `playtest-install-phase`.",
-        )
+    path = ensure_card_data()
     data = json.loads(path.read_text())
     if isinstance(data, dict) and isinstance(data.get("cards"), list):
         raw = [c.get("name", "") for c in data["cards"]]  # legacy {"cards": [...]}

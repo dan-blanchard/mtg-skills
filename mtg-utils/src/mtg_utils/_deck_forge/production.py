@@ -191,14 +191,15 @@ def ensure_card_ir() -> bool:
 
     try:
         _out, stats = build_sidecar()
-    except FileNotFoundError:
-        # phase's card-data.json is absent → the sidecar can't be built. Do NOT
-        # silently degrade: name the cost (N migrated lanes) and the fix.
+    except (FileNotFoundError, RuntimeError):
+        # card-data couldn't be obtained (download failed / unreachable) → the
+        # sidecar can't be built. Do NOT silently degrade: name the cost (N
+        # migrated lanes) and the fix.
         print(
             f"deck-forge: WARNING — Card IR sidecar unavailable "
             f"({len(MIGRATED_KEYS)} migrated signal lanes degraded). "
-            "Run `playtest-install-phase`, then `build-card-ir`. "
-            "Building continues; those lanes stay dark until then.",
+            "card-data download failed; re-run `build-card-ir` with network "
+            "access. Building continues; those lanes stay dark until then.",
             file=sys.stderr,
         )
         return False

@@ -958,7 +958,8 @@ def load_card_ir(path: str | Path | None = None) -> dict[str, Card]:
     if not p.exists():
         raise FileNotFoundError(
             f"Card IR sidecar not found at {p}. Build it with `build-card-ir` "
-            "(requires phase's card-data.json — run `playtest-install-phase`)."
+            "(it downloads phase's card-data.json automatically — no cargo "
+            "build / `playtest-install-phase` required)."
         )
     mtime = p.stat().st_mtime
     key = str(p)

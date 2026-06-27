@@ -1086,14 +1086,19 @@ def draft_main(
 
 @click.command()
 def install_phase_main() -> None:
-    """One-time install of the phase-rs binaries we wrap."""
+    """One-time `cargo build` of the phase-rs playtest binaries we wrap.
+
+    Binaries-only (ai-duel / ai-commander) — needed solely to playtest. The
+    Card IR pipeline (build-card-ir) does NOT need this; it fetches card-data
+    from the release tarball via `_phase.ensure_card_data`.
+    """
     from mtg_utils import _phase
 
     click.echo(f"Installing phase {_phase.PHASE_TAG} into {_phase.cache_dir()}…")
-    click.echo("This downloads ~1 GB of card data and runs `cargo build --release`")
-    click.echo("(typical wall time 5-10 min on a modern Mac).")
+    click.echo("This clones phase and runs `cargo build --release` for the")
+    click.echo("ai-duel / ai-commander binaries (typical wall time 5-10 min).")
     _phase.install_phase()
-    click.echo(f"\n✓ phase {_phase.PHASE_TAG} ready at {_phase.cache_dir()}")
+    click.echo(f"\n✓ phase {_phase.PHASE_TAG} binaries ready at {_phase.cache_dir()}")
 
 
 @click.command()

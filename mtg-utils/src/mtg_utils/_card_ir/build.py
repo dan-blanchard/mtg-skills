@@ -45,13 +45,18 @@ def build_sidecar(
     card_data_path: str | Path | None = None,
     out_path: str | Path | None = None,
 ) -> tuple[Path, dict]:
-    """Project phase's card-data.json into the sidecar; return (path, stats)."""
-    cdp = Path(card_data_path) if card_data_path else _phase._card_data_path()  # noqa: SLF001 — canonical phase card-data path
-    if not cdp.exists():
-        raise FileNotFoundError(
-            f"phase card-data.json not found at {cdp}. "
-            "Run `playtest-install-phase` to generate it."
-        )
+    """Project phase's card-data.json into the sidecar; return (path, stats).
+
+    With no explicit ``card_data_path``, the card-data is fetched/cached via
+    ``_phase.ensure_card_data`` (a release-tarball download keyed by PHASE_TAG —
+    no cargo build / repo clone needed).
+    """
+    if card_data_path:
+        cdp = Path(card_data_path)
+        if not cdp.exists():
+            raise FileNotFoundError(f"phase card-data.json not found at {cdp}.")
+    else:
+        cdp = _phase.ensure_card_data()
     data = json.loads(cdp.read_text())
     groups = _group_by_oracle_id(data)
 
@@ -85,7 +90,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--card-data",
         default=None,
-        help="Path to phase card-data.json (default: the playtest-install location).",
+        help="Path to phase card-data.json (default: download+cache the "
+        "release tarball's copy for the pinned PHASE_TAG).",
     )
     parser.add_argument(
         "--out", default=None, help="Sidecar output path (default: the cache dir)."
@@ -94,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         out, stats = build_sidecar(args.card_data, args.out)
-    except FileNotFoundError as exc:
+    except (FileNotFoundError, RuntimeError) as exc:
         print(str(exc))
         return 1
 
