@@ -112,6 +112,10 @@ def install_phase() -> None:
     Binaries-only: the Card IR pipeline no longer needs this. ``card-data.json``
     now comes from :func:`ensure_card_data` (a release-tarball download), so this
     step is required ONLY to actually playtest (``run_duel`` / ``run_commander``).
+    We still place that downloaded card-data at the repo path the full
+    ``scripts/setup.sh`` would have generated (``client/public/card-data.json``),
+    so the binaries find it — whether they read it at runtime or embed it at
+    build time — WITHOUT running the heavy setup.sh / gen-card-data toolchain.
     """
     _ensure_prereqs()
     repo = _repo_dir()
@@ -122,6 +126,12 @@ def install_phase() -> None:
             ["git", "clone", "--depth=1", "--branch", PHASE_TAG, PHASE_REPO, str(repo)],
             check=True,
         )
+
+    # Place the release-tarball card-data where phase expects it, BEFORE the
+    # cargo build (covers both a runtime read and a build-time embed).
+    repo_card_data = repo / "client" / "public" / "card-data.json"
+    repo_card_data.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(ensure_card_data(), repo_card_data)
 
     subprocess.run(
         ["cargo", "build", "--release", "--bin", "ai-duel", "--bin", "ai-commander"],
