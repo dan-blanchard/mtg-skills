@@ -7133,3 +7133,88 @@ def test_recover_opponent_cast_lock_skips_when_restriction_present():
     )
     out = _recover_opponent_cast_lock(card, oracle)
     assert len(out.all_abilities()) == 1  # no synthetic ability appended
+
+
+# ── #24e P1 parser-substrate: combinator DETECTION reads word-structure ────────
+# These pins prove the converted recoveries detect via the `_combinators` word-parser
+# (whole-word, slot-anchored), not a substring regex — the structural read the
+# parser-substrate pass installs. Each: a POSITIVE (the word sequence is present) +
+# a NEGATIVE collision a substring match would trip on but a word parser rejects.
+
+
+def test_p1_historic_recovery_is_whole_word_not_substring():
+    """find_word({'historic'}) fires on the whole word 'historic' but NOT on
+    'history' — a word parser, not a substring scan. CR 700.6."""
+    from mtg_utils._card_ir.supplement import _recover_historic_subject
+
+    hit = _recover_historic_subject(
+        _bare_card("Raff"), "Whenever you cast a historic spell, scry 1."
+    )
+    assert any(
+        f.predicates == ("Historic",)
+        for a in hit.all_abilities()
+        for e in a.effects
+        if (f := e.subject) is not None
+    )
+    miss = _recover_historic_subject(
+        _bare_card("Chronicler"), "Read the history of this plane aloud."
+    )
+    assert not any(
+        e.subject is not None for a in miss.all_abilities() for e in a.effects
+    )
+
+
+def test_p1_base_power_ref_phrase_requires_the_base_slot():
+    """The 6-slot phrase 'creature(s) you control/own with base power/toughness' is
+    read slot-by-slot: dropping the 'base' word (a current-power reference) fails the
+    phrase, so no BasePtRef marker is synthesized. CR 613.4b (refer vs set)."""
+    from mtg_utils._card_ir.supplement import _recover_base_power_ref
+
+    hit = _recover_base_power_ref(
+        _bare_card("Zinnia"),
+        "Creatures you control with base power 1 get +1/+1.",
+    )
+    assert any(
+        e.subject is not None and e.subject.predicates == ("BasePtRef",)
+        for a in hit.all_abilities()
+        for e in a.effects
+    )
+    # No "base" slot → current-power reference → phrase fails → no marker.
+    miss = _recover_base_power_ref(
+        _bare_card("Tetsuko"),
+        "Creatures you control with power 1 or less can't be blocked.",
+    )
+    assert not any(
+        e.subject is not None for a in miss.all_abilities() for e in a.effects
+    )
+
+
+def test_p1_becomes_untapped_scan_retries_past_a_false_lead():
+    """scan(phrase(...)) re-types an event=='other' becomes-untapped trigger even when
+    an earlier 'becomes' in the clause is a false lead — the word parser advances past
+    it (a plain find-then-check would miss the real one). CR 701.20a."""
+    from mtg_utils._card_ir.supplement import _recover_becomes_tap_untap
+
+    card = Card(
+        oracle_id="x",
+        name="Macie",
+        faces=(
+            Face(
+                name="Macie",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="other"),
+                        effects=(
+                            Effect(
+                                category="other",
+                                raw="this becomes the chosen one. it becomes untapped",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    out = _recover_becomes_tap_untap(card)
+    assert [a.trigger.event for a in out.all_abilities()] == ["untaps"]

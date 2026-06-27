@@ -887,7 +887,12 @@ from mtg_utils.card_ir import Card
 #   base_pt_set references mirror (_IR_KEPT_DETECTORS) is DELETED — those refs were an
 #   OVER-FIRE (they set no base P/T) and LEAVE base_pt_set, which keeps only its genuine
 #   SETTERS. CR 613.4b (set vs refer).
-SIDECAR_VERSION = 62
+# v63 (#24e P1 parser-substrate): 5 bucket-B card-level recoveries swap their DETECTION
+#   regex for a `_combinators` clause-parser (find_word/phrase/scan), behind the SAME
+#   emitted-node contract — historic_matters, devotion_matters, stax_taxes (opp cast
+#   lock), base_power_matters, tap_untap_matters. Behavior-neutral (combinator reads
+#   the same set the regex did); the bump is only because supplement output is cached.
+SIDECAR_VERSION = 63
 
 
 def card_ir_dir() -> Path:

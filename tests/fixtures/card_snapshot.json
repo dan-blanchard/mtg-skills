@@ -33963,7 +33963,7 @@
            "op": "devotion"
           },
           "cat": "other",
-          "raw": "devotion to g"
+          "raw": "devotion to green."
          }
         ],
         "k": "static"
@@ -70886,5 +70886,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 62
+ "sidecar_version": 63
 }

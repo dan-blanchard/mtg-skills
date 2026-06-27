@@ -1697,6 +1697,24 @@ def recover_effect_from_text(raw: str) -> Effect:
     return _supplement_effect(Effect(category="other", scope="any", raw=raw))
 
 
+# ── #24e P1 parser-substrate: anchor-then-parse dispatch ──────────────────────
+# The bucket-B card-level recoveries below detect with a `_combinators` word-parser
+# instead of a regex. A word-combinator costs more per call than a compiled regex
+# (it walks the clause word by word), so running it on every card's whole oracle
+# would bloat the build. phase avoids this by ANCHORING via a cheap dispatch and
+# parsing only the structured part; we mirror that: a fast lowercase-substring gate
+# (a NECESSARY lead substring of the parser's match — never a false negative) keeps
+# the combinator off the ~99% of cards that cannot match. The combinator stays the
+# DETECTOR (whole-word, slot-by-slot); the substring is only the dispatch key.
+
+
+def _anchored[T](text: str, anchor: str, parser: comb.Parser[T]) -> bool:
+    """``anchor in text.lower()`` (cheap dispatch) AND ``parser`` matches (the real
+    word-combinator detection). ``anchor`` must be a necessary lead substring of any
+    string the parser accepts, so gating never drops a real match."""
+    return anchor in text.lower() and parser.run(text) is not None
+
+
 # ── ADR-0027 combat-damage RECIPIENT residue (SIDECAR v41) ────────────────────
 # project.py stamps a structured `recipient` on every NATIVE combat_damage trigger
 # (the DamageDone / DamageDoneOnceByController modes), but phase leaves combat-damage
@@ -2185,7 +2203,12 @@ def _recover_damage_reflect(card: Card, oracle: str) -> Card:
 # body phase left WITHOUT any restriction Effect (the 21 cleanly-structured
 # opponent cast-locks — Grand Abolisher, Drannith Magistrate, Azor — already fire
 # the structural arm and are untouched).
-_OPP_CAST_LOCK_RE = re.compile(r"\bopponents? can't cast\b", re.IGNORECASE)
+# #24e P1 parser-substrate: DETECTION is a `_combinators` clause scan
+# (``scan(phrase({"opponent","opponents"}, {"cant"}, {"cast"}))``) — the three
+# consecutive words "opponent(s) can't cast" ("can't" normalizes to "cant"). Behavior-
+# neutral with the deleted `\bopponents? can't cast\b` mirror; ports to phase-rs as a
+# nom `tuple((alt((tag("opponents"), tag("opponent"))), tag("can't"), tag("cast")))`.
+_OPP_CAST_LOCK = comb.scan(comb.phrase({"opponent", "opponents"}, {"cant"}, {"cast"}))
 
 
 def _recover_opponent_cast_lock(card: Card, oracle: str) -> Card:
@@ -2202,7 +2225,11 @@ def _recover_opponent_cast_lock(card: Card, oracle: str) -> Card:
         return card
     text = re.sub(r"\([^)]*\)", " ", oracle)
     clause = next(
-        (cl.strip() for cl in re.split(r"[.\n]", text) if _OPP_CAST_LOCK_RE.search(cl)),
+        (
+            cl.strip()
+            for cl in re.split(r"[.\n]", text)
+            if _anchored(cl, "can't cast", _OPP_CAST_LOCK)
+        ),
         None,
     )
     if clause is None:
@@ -2232,8 +2259,14 @@ def _recover_opponent_cast_lock(card: Card, oracle: str) -> Card:
 # `Untaps`/`Taps`-mode cards project._trigger_event already typed are untouched. The
 # trigger SUBJECT is None on this tail (phase's Unknown), so no typed-subject lane
 # (line ~10112 `_typed_matters_lanes`) is disturbed. CR 701.20a / 702.108.
-_BECOMES_UNTAPPED_RE = re.compile(r"becomes? untapped", re.IGNORECASE)
-_BECOMES_TAPPED_RE = re.compile(r"becomes? tapped", re.IGNORECASE)
+# #24e P1 parser-substrate: DETECTION is a `_combinators` clause scan over the
+# trigger effect raw — ``scan(phrase({"become","becomes"}, {"untapped"}))`` /
+# ``... {"tapped"}``. "becomes untapped" never matches the "tapped" phrase ("untapped"
+# is a distinct normalized word), so the untapped-first ordering is preserved exactly.
+# Behavior-neutral with the deleted `becomes? (un)tapped` mirrors; ports to phase-rs as
+# a nom `tuple((alt((tag("becomes"), tag("become"))), tag("untapped")))`.
+_BECOMES_UNTAPPED = comb.scan(comb.phrase({"become", "becomes"}, {"untapped"}))
+_BECOMES_TAPPED = comb.scan(comb.phrase({"become", "becomes"}, {"tapped"}))
 
 
 def _recover_becomes_tap_untap(card: Card) -> Card:
@@ -2253,10 +2286,15 @@ def _recover_becomes_tap_untap(card: Card) -> Card:
             if tr is not None and tr.event == "other":
                 raw = " ".join(e.raw or "" for e in ab.effects)
                 clean = re.sub(r"\([^)]*\)", " ", raw)
-                if _BECOMES_UNTAPPED_RE.search(clean):
+                # "tapped" is a necessary substring of both phrases ("untapped"
+                # contains it), so it is the cheap dispatch gate for the scans.
+                if "tapped" not in clean.lower():
+                    new_abs.append(new_ab)
+                    continue
+                if _BECOMES_UNTAPPED.run(clean) is not None:
                     new_ab = replace(ab, trigger=replace(tr, event="untaps"))
                     changed = True
-                elif _BECOMES_TAPPED_RE.search(clean):
+                elif _BECOMES_TAPPED.run(clean) is not None:
                     new_ab = replace(ab, trigger=replace(tr, event="taps"))
                     changed = True
             new_abs.append(new_ab)
@@ -2463,7 +2501,15 @@ def _supplement_effect(e: Effect) -> Effect:
 # op=='fixed'); instead append ONE inert devotion marker so the devotion_matters arm
 # reads op=='devotion' without disturbing those neighbors. Gated to a card not
 # already carrying a devotion operand. CR 700 (devotion).
-_DEVOTION_TO_COLOR_RE = re.compile(r"devotion to \w", re.IGNORECASE)
+#
+# #24e P1 parser-substrate: DETECTION is a `_combinators` clause scan
+# (``scan(seq3(keyword({"devotion"}), keyword({"to"}), word()))``) — "devotion to
+# <color>" read as three consecutive words, the trailing ``word()`` enforcing the
+# `\w`-after-"to" the regex required. Behavior-neutral with the deleted `devotion to
+# \w` mirror; ports to phase-rs as a nom `tuple((tag("devotion"), tag("to"), word))`.
+_DEVOTION_TO_COLOR = comb.scan(
+    comb.seq3(comb.keyword({"devotion"}), comb.keyword({"to"}), comb.word())
+)
 
 
 def _recover_devotion_operand(card: Card, oracle: str) -> Card:
@@ -2480,14 +2526,14 @@ def _recover_devotion_operand(card: Card, oracle: str) -> Card:
         for e in ab.effects
     ):
         return card
-    m = _DEVOTION_TO_COLOR_RE.search(re.sub(r"\([^)]*\)", " ", oracle))
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    m = _DEVOTION_TO_COLOR.run(text) if "devotion to" in text.lower() else None
     if m is None:
         return card
+    raw = " ".join(m[0])  # the matched "devotion to <color>" words (inert marker raw)
     synth = Ability(
         kind="static",
-        effects=(
-            Effect(category="other", amount=Quantity(op="devotion"), raw=m.group(0)),
-        ),
+        effects=(Effect(category="other", amount=Quantity(op="devotion"), raw=raw),),
     )
     head, *rest = card.faces
     return replace(
@@ -3122,7 +3168,13 @@ def _recover_colorless_subject(card: Card, oracle: str) -> Card:
 # reads structurally. An object is historic if it is legendary, an artifact, or a Saga
 # (CR 700.6). Set-equal to the deleted "\bhistoric\b" word mirror (same anchor over
 # the reminder-stripped joined oracle).
-_HISTORIC_REF_RE = re.compile(r"\bhistoric\b", re.IGNORECASE)
+# #24e P1 parser-substrate: the DETECTION is a `_combinators` word scan
+# (``find_word({"historic"})``), not a regex — it reads the oracle as a word stream
+# and matches the whole word "historic" (word-boundary-safe by the tokenizer, not a
+# `\b` assertion). Behavior-neutral with the deleted `\bhistoric\b` mirror (find_word's
+# normalized whole-word match == the corpus). Ports to phase-rs as a nom `tag` in a
+# word context. CR 700.6.
+_HISTORIC_REF = comb.find_word({"historic"})
 
 
 def _recover_historic_subject(card: Card, oracle: str) -> Card:
@@ -3138,7 +3190,7 @@ def _recover_historic_subject(card: Card, oracle: str) -> Card:
         for f in _ability_subjects(ab)
     ):
         return card
-    if _HISTORIC_REF_RE.search(re.sub(r"\([^)]*\)", " ", oracle)) is None:
+    if not _anchored(re.sub(r"\([^)]*\)", " ", oracle), "historic", _HISTORIC_REF):
         return card
     return _append_marker(
         card,
@@ -3168,8 +3220,20 @@ def _recover_historic_subject(card: Card, oracle: str) -> Card:
 # base_pt_set (they were an over-fire: set no base P/T) and ENTER base_power_matters.
 # The setter verb ("have/has/are/is/becomes base power") is NOT matched, so a genuine
 # base_pt_set setter never enters this lane (CR 613.4b set vs refer).
-_BASE_POWER_REF_RE = re.compile(
-    r"creatures? you (?:control|own) with base (?:power|toughness)", re.IGNORECASE
+# #24e P1 parser-substrate: DETECTION is a `_combinators` clause scan over the
+# six-slot phrase "creature(s) you control/own with base power/toughness" — each slot
+# a per-position alternation bag, read as consecutive words. Behavior-neutral with the
+# deleted `creatures? you (control|own) with base (power|toughness)` mirror; ports to
+# phase-rs as a nom `tuple` of six tags. CR 613.4b (refer, not set).
+_BASE_POWER_REF = comb.scan(
+    comb.phrase(
+        {"creature", "creatures"},
+        {"you"},
+        {"control", "own"},
+        {"with"},
+        {"base"},
+        {"power", "toughness"},
+    )
 )
 
 
@@ -3189,7 +3253,7 @@ def _recover_base_power_ref(card: Card, oracle: str) -> Card:
         for f in _ability_subjects(ab)
     ):
         return card
-    if _BASE_POWER_REF_RE.search(re.sub(r"\([^)]*\)", " ", oracle)) is None:
+    if not _anchored(re.sub(r"\([^)]*\)", " ", oracle), "with base", _BASE_POWER_REF):
         return card
     return _append_marker(
         card,

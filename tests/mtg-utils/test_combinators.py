@@ -7,9 +7,11 @@ from mtg_utils._card_ir._combinators import (
     keyword,
     many,
     opt,
+    phrase,
     preceded,
     regex_word,
     satisfy,
+    scan,
     succeed,
     tag,
     take_until,
@@ -98,3 +100,48 @@ class TestCombinators:
 
     def test_succeed_consumes_nothing(self):
         assert succeed(42).parse("abc") == (42, "abc")
+
+
+class TestPhrase:
+    def test_phrase_matches_consecutive_word_bags(self):
+        p = phrase({"creature", "creatures"}, {"you"}, {"control", "own"})
+        vals, rest = p.parse("creatures you control with base power")
+        assert vals == ["creatures", "you", "control"]
+        assert rest.strip().startswith("with")
+
+    def test_phrase_per_slot_alternation(self):
+        p = phrase({"creature", "creatures"}, {"you"}, {"control", "own"})
+        assert p.parse("creature you own a thing")[0] == ["creature", "you", "own"]
+
+    def test_phrase_fails_on_missing_slot(self):
+        p = phrase({"opponent", "opponents"}, {"cant"}, {"cast"})
+        # normalization folds the apostrophe: "can't" -> "cant"
+        assert p.parse("opponents can't cast spells") is not None
+        assert p.parse("opponents may cast spells") is None
+
+    def test_phrase_anchors_at_head_not_mid(self):
+        # phrase does NOT search — it anchors at the input head (scan adds search).
+        p = phrase({"base"}, {"power"})
+        assert p.parse("with base power") is None
+        assert p.parse("base power 2") is not None
+
+
+class TestScan:
+    def test_scan_finds_phrase_mid_clause(self):
+        p = scan(phrase({"base"}, {"power"}))
+        assert p.parse("creatures you control with base power 2") is not None
+
+    def test_scan_retries_past_a_false_lead(self):
+        # the first "becomes" is not followed by "untapped"; a later one is — scan
+        # must advance past the false lead (a plain find-then-check would miss it).
+        p = scan(phrase({"become", "becomes"}, {"untapped"}))
+        assert p.parse("becomes the target. it becomes untapped") is not None
+
+    def test_scan_returns_tail_after_the_match(self):
+        p = scan(phrase({"devotion"}, {"to"}))
+        vals, rest = p.parse("your devotion to black is high")
+        assert vals == ["devotion", "to"]
+        assert rest.strip().startswith("black")
+
+    def test_scan_fails_when_absent(self):
+        assert scan(phrase({"historic"})).parse("a history lesson") is None

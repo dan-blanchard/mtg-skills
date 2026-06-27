@@ -248,3 +248,47 @@ def seq3[A, B, C_](
         return ((ra[0], rb[0], rc[0]), rc[1])
 
     return Parser(go)
+
+
+def phrase(*bags: Iterable[str]) -> Parser[list[str]]:
+    """Match consecutive words, each whose normalized form is in the corresponding
+    ``bag`` — a fixed-shape word sequence with per-slot alternation (nom's
+    tuple-of-tags, but word-oriented). ``phrase({"creature", "creatures"}, {"you"},
+    {"control", "own"})`` matches "creatures you control" or "creature you own".
+    Returns the matched normalized words. Fails if any slot's word is absent."""
+    slots = [keyword(b) for b in bags]
+
+    def go(s: str) -> tuple[list[str], str] | None:
+        out: list[str] = []
+        rest = s
+        for p in slots:
+            r = p.run(rest)
+            if r is None:
+                return None
+            out.append(r[0])
+            rest = r[1]
+        return (out, rest)
+
+    return Parser(go)
+
+
+def scan[T](p: Parser[T]) -> Parser[T]:
+    """Try ``p`` at each successive word boundary; the first success wins — the
+    word-anchored analogue of a regex ``.search`` (vs. the combinators above, which
+    anchor at the input's head). Linear in the word count times ``p``'s own cost, so
+    detection that runs per clause stays linear. Returns ``p``'s value + the input
+    after ``p``'s match (NOT after the scanned prefix), mirroring how ``find_word``
+    hands back the tail past its hit."""
+
+    def go(s: str) -> tuple[T, str] | None:
+        rest = s
+        while True:
+            r = p.run(rest)
+            if r is not None:
+                return r
+            w = word().run(rest)
+            if w is None:
+                return None
+            rest = w[1]
+
+    return Parser(go)
