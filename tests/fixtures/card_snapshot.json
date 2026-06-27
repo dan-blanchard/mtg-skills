@@ -6350,16 +6350,6 @@
          }
         ],
         "k": "static"
-       },
-       {
-        "e": [
-         {
-          "cat": "bending",
-          "raw": "Whenever you waterbend, earthbend, firebend, or airbend, draw a card",
-          "sc": "you"
-         }
-        ],
-        "k": "triggered"
        }
       ],
       "kw": [
@@ -6384,6 +6374,11 @@
          {
           "cat": "transform",
           "raw": "Whenever you waterbend, earthbend, firebend, or airbend, draw a card. Then if you've done all four this turn, transform ~."
+         },
+         {
+          "cat": "bending",
+          "raw": "Whenever you waterbend, earthbend, firebend, or airbend, draw a card. Then if you've done all four this turn, transform ~.",
+          "sc": "you"
          }
         ],
         "k": "triggered",
@@ -70995,5 +70990,5 @@
  },
  "phase_tag": "v0.8.0",
  "schema": 1,
- "sidecar_version": 67
+ "sidecar_version": 68
 }

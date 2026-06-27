@@ -5323,45 +5323,6 @@ def _recover_discard_unless(card: Card) -> Card:
     return replace(card, faces=tuple(faces)) if changed else card
 
 
-# ── v0.8.0 ROOT E — bending cross-bend PAYOFF trigger condition ───────────────
-# phase v0.8.0 keeps Avatar Aang's front face as draw+transform only and DROPS the
-# `bending` Effect that v0.1.60 emitted for the cross-bend payoff. The bend keyword-
-# actions you DO survive only in the draw trigger's CONDITION raw ("Whenever you
-# waterbend, earthbend, firebend, or airbend, draw a card"). This pass re-synthesizes
-# a `bending` Effect carrying that span so the bending arm in extract_signals_ir
-# (which routes by the bend named in the Effect raw) re-opens airbend/earthbend/
-# waterbend_matters. firebend is intentionally not routed (its cares-about lane is a
-# kept keyword mirror). Append-only and idempotent (skip a card already carrying a
-# `bending` Effect — the keyword-driven bearers ride _IR_KEYWORD_MAP untouched).
-# CR 701.65 (airbend) / 701.66 (earthbend) / 701.67 (waterbend).
-_BENDING_TRIGGER = re.compile(
-    r"whenever you [^.]*\b(?:water|earth|fire|air)bends?\b[^.]*", re.IGNORECASE
-)
-
-
-def _recover_bending_trigger(card: Card, oracle: str) -> Card:
-    """Append a synthetic `bending` Effect from a "whenever you <bend>" trigger
-    condition phase dropped, so the per-bend lanes read STRUCTURE. Append-only and
-    idempotent (skip a card already carrying a `bending` Effect)."""
-    if not card.faces:
-        return card
-    if any(e.category == "bending" for ab in card.all_abilities() for e in ab.effects):
-        return card
-    m = _BENDING_TRIGGER.search(oracle)
-    if m is None:
-        return card
-    span = m.group(0)
-    synth = Ability(
-        kind="triggered",
-        effects=(Effect(category="bending", scope="you", raw=span),),
-    )
-    head, *rest = card.faces
-    return replace(
-        card,
-        faces=(replace(head, abilities=(*head.abilities, synth)), *rest),
-    )
-
-
 # ── v0.8.0 ROOT G — self_counter_grow self-anchor / anthem discriminator ──────
 # phase v0.8.0 regressed the +1/+1 enters-with replacement on two axes: (1) it NULLS
 # the SelfRef self-anchor on a genuine "~ enters with X +1/+1 counters on it" body

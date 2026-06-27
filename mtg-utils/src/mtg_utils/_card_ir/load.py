@@ -931,7 +931,14 @@ from mtg_utils.card_ir import Card
 #   Times{factor}) so token_doubling / counter_doubling / token_copy_matters /
 #   counter_replace_bonus read STRUCTURE; _recover_token_doubling + _recover_counter_
 #   replacement deleted. Half/Minus stay excluded (reducers). Membership gate set-equal.
-SIDECAR_VERSION = 67
+# v68 (same node-vocab cleanup, ROOT E bending): phase v0.8.0 structures "whenever
+#   you waterbend/earthbend/firebend/airbend …" as a clean `ElementalBend` trigger
+#   mode (the v66 "bending Effect dropped" claim was projection drift —
+#   _project_trigger never read the mode). _project_trigger now appends a `bending`
+#   Effect (scope you, raw=trigger description carrying the bend names) so airbend/
+#   earthbend/waterbend_matters route natively; _recover_bending_trigger deleted. Gate
+#   set-equal (air 14, earth 37, water 29). firebend stays a kept word mirror.
+SIDECAR_VERSION = 68
 
 
 def card_ir_dir() -> Path:

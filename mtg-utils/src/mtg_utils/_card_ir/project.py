@@ -25,7 +25,6 @@ from mtg_utils._card_ir.supplement import (
     _recover_base_power_ref,
     _recover_base_pt_set,
     _recover_becomes_tap_untap,
-    _recover_bending_trigger,
     _recover_cast_from_exile_zone,
     _recover_clone_creature,
     _recover_colorless_subject,
@@ -1046,16 +1045,16 @@ def project_card(records: list[dict]) -> Card:
     # Effect phase v0.8.0 dropped, so discard_outlet / discard_matters re-open. CR
     # 701.9.
     card = _recover_discard_unless(card)
-    # ADR-0027 v0.8.0 regression-recovery (R4) — four small parser shapes v0.8.0
-    # drops vs v0.1.60, recovered supplement-style off the joined oracle / effect
-    # raw so the migrated lanes read STRUCTURE: ROOT E the bending cross-bend payoff
-    # trigger condition (Avatar Aang — airbend/earthbend/waterbend_matters); ROOT G
-    # the +1/+1 enters-with self-anchor vs anthem split (self_counter_grow: stamp
-    # Naya Soulbeast / Pyretic Hunter / Lurking Automaton / Cogwork Grinder, clear
-    # the Bard Class / Curator Beastie anthem over-fires); ROOT H the nulled destroy
-    # subject (Dead Ringers — removal_matters). (ROOT F rides the extended
-    # _recover_group_hug_draw_scope above.) CR 701.65-67 / 614.13 / 701.8.
-    card = _recover_bending_trigger(card, _oracle)
+    # ADR-0027 v0.8.0 regression-recovery (R4) — small parser shapes recovered
+    # supplement-style off the joined oracle / effect raw so the migrated lanes read
+    # STRUCTURE. ROOT E (bending) is now read natively from the ElementalBend trigger
+    # in _project_trigger (SIDECAR v68) — recovery retired. Remaining genuine gaps:
+    # ROOT G the +1/+1 enters-with self-anchor vs anthem split (self_counter_grow:
+    # stamp Naya Soulbeast / Pyretic Hunter / Lurking Automaton / Cogwork Grinder,
+    # clear the Bard Class / Curator Beastie anthem over-fires — phase emits the
+    # enters-with as Unimplemented / corrupts the anthem valid_card); ROOT H the
+    # nulled destroy subject (Dead Ringers — removal_matters, an Unimplemented unless
+    # clause). CR 614.13 / 701.8.
     card = _recover_self_counter_grow(card)
     card = _recover_destroy_subject(card)
     return replace(card, parse_confidence=_confidence(card))
@@ -2567,6 +2566,19 @@ def _project_trigger(tr: dict) -> Ability:
         source=source,
     )
     effects = _collect_effects(tr.get("execute"), tr.get("description") or "")
+    # SIDECAR v68 — ElementalBend trigger → a `bending` marker Effect (scope you).
+    # phase v0.8.0 structures "whenever you waterbend/earthbend/firebend/airbend …"
+    # as a clean ElementalBend trigger mode whose effects are the payoff (draw /
+    # transform), but emits no `bending` category for the cross-bend payoff lane.
+    # The bend names survive only in the trigger description, and _signals_ir routes
+    # the per-bend lanes (air/earth/water _matters; firebend intentionally unrouted)
+    # by substring over the Effect raw — so carry the description verbatim. Retires
+    # _recover_bending_trigger. CR 701.65 / 701.66 / 701.67.
+    if _norm(tr.get("mode")) == "elementalbend":
+        effects = [
+            *effects,
+            Effect(category="bending", scope="you", raw=tr.get("description") or ""),
+        ]
     return _recover_clone_subjects(
         Ability(
             kind="triggered",
