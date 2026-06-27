@@ -3549,3 +3549,164 @@ def _recover_keyword_grant_target(card: Card, oracle: str) -> Card:
     return replace(
         card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
     )
+
+
+# ── ADR-0027 #24k (SIDECAR v59) — SUPPLEMENT_RECOVER D2 ───────────────────────
+# (1) opponent_cast_matters — the genuinely OPPONENT-scoped "whenever an opponent
+#     casts a spell" punisher/tax. phase scopes a DIRECT "whenever an opponent
+#     casts" trigger correctly (scope='opp' — Lavinia, Nekusar), but when the
+#     trigger is QUOTED inside a granted/emblem/Saga-token ability it FOLDS the
+#     clause into a non-trigger Effect (a `creature_cast` static, a `cheat_play`,
+#     an `emblem`, a `place_counter`) and emits NO cast_spell trigger at all —
+#     Hunting Grounds (threshold-granted), Jace, Unraveler of Secrets (emblem),
+#     Thundering Mightmare (soulbond-granted), Blink (Saga token). The opponent
+#     scope survives only in the raw, so synthesize a cast_spell trigger scope='opp'
+#     (the _recover_damage_to_opp precedent). The detect pattern is the OPPONENT-only
+#     phrase "whenever an opponent casts" — it must NOT match the SYMMETRIC "whenever
+#     a player casts" (CR 102.1 "a player" includes its controller — Eidolon of the
+#     Great Revel, Pyrostatic Pillar, Ruric Thar punish EVERYONE, not opponents
+#     only; CR 102.2/102.3 "an opponent" excludes you). The deleted regex mirror
+#     over-swept the symmetric "a player casts … punish that player" half; deleting
+#     it drops those 17 symmetric punishers (genuine non-members of an opponent-
+#     scoped lane), and this recovery keeps the 4 genuinely-opponent quoted grants
+#     firing STRUCTURALLY. CR 601 / 603.2 / 102.2.
+_OPP_CAST_TRIGGER = re.compile(r"whenever an opponent casts?\b", re.IGNORECASE)
+
+
+def _recover_opponent_cast_scope(card: Card, oracle: str) -> Card:
+    """Append a synthetic ``cast_spell`` Trigger scope='opp' when the raw oracle names
+    a "whenever an opponent casts" trigger phase folded into a non-trigger Effect (a
+    quoted/granted/emblem/Saga-token ability), so opponent_cast_matters reads STRUCTURE.
+    Deduped against a NATIVE opponent-scoped cast_spell trigger (a card phase already
+    scoped scope='opp' — Lavinia — is untouched). The SYMMETRIC "a player casts" is NOT
+    matched (CR 102.1 — symmetric, not opponent-only). CR 603.2 / 102.2."""
+    if not card.faces:
+        return card
+    stripped = re.sub(r"\([^)]*\)", " ", oracle)
+    if not _OPP_CAST_TRIGGER.search(stripped):
+        return card
+    if any(
+        ab.trigger is not None
+        and ab.trigger.event == "cast_spell"
+        and ab.trigger.scope == "opp"
+        for ab in card.all_abilities()
+    ):
+        return card
+    synth = Ability(
+        kind="triggered",
+        trigger=Trigger(event="cast_spell", scope="opp"),
+        effects=(Effect(category="other", raw=stripped.strip()),),
+    )
+    head, *rest = card.faces
+    return replace(
+        card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
+    )
+
+
+# (2) tribe_damage_trigger — a go-wide "[creatures/a tribe] you control deal combat
+#     damage to a player → reward" payoff. project stamps the DamageDone trigger's
+#     valid_source (project → trig.source), but phase DROPS the source when the trigger
+#     is QUOTED inside a loyalty / emblem / delayed ability — Vraska, Golgari Queen
+#     (emblem), Dovin, Jace Cunning Castaway, Kaito Shizuki, Mistway Spy, Popular
+#     Entertainer, Surge to Victory, The Girl in the Fireplace, Flitterwing Nuisance —
+#     so the combat_damage trigger lands source=None and the tribe_damage_trigger arm
+#     (which requires a Creature/subtype YOUR source) skips it. Recover source=Filter(
+#     Creature, controller=you) onto a source-None combat_damage trigger with a PLAYER
+#     recipient when the raw names "creatures you control deal combat damage to a
+#     player". (The AnyOf-subtype OUTLAW source — Olivia — and the deals_damage tribal
+#     source — Francisco — are CAPTURED by phase; the signals arm broadens to read those
+#     shapes, no supplement needed.) CR 603.2 / 510.1b.
+_TRIBE_CDMG_SRC = re.compile(
+    r"whenever (?:a|one or more) creatures? you control deals? combat damage to "
+    r"(?:a player|an opponent|one of your opponents|each opponent)",
+    re.IGNORECASE,
+)
+
+
+def _recover_tribe_damage_source(card: Card, oracle: str) -> Card:
+    """Stamp source=Filter(Creature, controller=you) on a combat_damage trigger phase
+    left source=None (quoted in a loyalty / emblem / delayed ability) when the raw names
+    a "creatures you control deal combat damage to a player" payoff, so
+    tribe_damage_trigger reads STRUCTURE. Gated to a PLAYER recipient (the lane needs a
+    reward-on-connect-to-a-player shape). Idempotent (a trigger already with a source
+    is untouched). CR 603.2 / 510.1b."""
+    if not card.faces:
+        return card
+    stripped = re.sub(r"\([^)]*\)", " ", oracle)
+    if not _TRIBE_CDMG_SRC.search(stripped):
+        return card
+    src = Filter(card_types=("Creature",), controller="you")
+    faces: list[Face] = []
+    changed = False
+    for face in card.faces:
+        new_abs: list[Ability] = []
+        for ab in face.abilities:
+            t = ab.trigger
+            if (
+                t is not None
+                and t.event == "combat_damage"
+                and t.source is None
+                and "player" in t.recipient
+            ):
+                new_abs.append(replace(ab, trigger=replace(t, source=src)))
+                changed = True
+            else:
+                new_abs.append(ab)
+        faces.append(replace(face, abilities=tuple(new_abs)))
+    return replace(card, faces=tuple(faces)) if changed else card
+
+
+# (3) topdeck_stack — self-library-top curation (look-then-stack / graveyard→top /
+#     hand→top recursion). phase structures the put-on-top as a `topdeck_stack` Effect
+#     (counter_kind 'top'/'topbottom') but DROPS the controller, landing subject=None —
+#     so the structural arm's controller==you gate skips it (Ancestral Knowledge, Orcish
+#     Librarian, Scroll Rack, Doomsday, Rowan's Grim Search, plus the broader self-top-
+#     stack set the narrow mirror missed — Mortuary, Cream of the Crop, Thassa's Oracle,
+#     …). Recover the SELF controller: stamp subject=Filter(Card, controller=you) (the
+#     shape phase's CLEANLY-parsed self top-stacks already carry — Brainstorm) on a
+#     subject-None top-stack whose OWN clause names "on top of your library" (the self
+#     anchor — an opponent tuck "on top of their owner's library" is excluded). PARTIAL:
+#     a self-curation phase FOLDED to topdeck_select-to-hand with NO topdeck_stack
+#     Effect (Diabolic Vision), a "put a card from your hand on top" ACTIVATION COST
+#     (Hidden Retreat, Leashling, Penance), or a dropped-clause look-then-stack (Munda)
+#     is not structurally recoverable → the kept mirror stays for those. CR 401.
+_TOPDECK_STACK_SELF = re.compile(
+    r"on top of your library|top of your library in any order", re.IGNORECASE
+)
+
+
+def _recover_topdeck_stack_self(card: Card, oracle: str) -> Card:
+    """Stamp subject=Filter(Card, controller=you) on a subject-None ``topdeck_stack``
+    Effect (counter_kind 'top'/'topbottom') whose clause names a SELF top-stack ("on top
+    of your library"), so the topdeck_stack arm reads STRUCTURE. Per-effect (each reads
+    its OWN clause raw; falls back to the oracle only when phase dropped that raw).
+    Idempotent (a top-stack already controller==you is untouched). CR 401."""
+    if not card.faces:
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    faces: list[Face] = []
+    changed = False
+    for face in card.faces:
+        new_abs: list[Ability] = []
+        for ab in face.abilities:
+            new_effs: list[Effect] = []
+            for e in ab.effects:
+                clause = re.sub(r"\([^)]*\)", " ", e.raw) if e.raw else text
+                if (
+                    e.category == "topdeck_stack"
+                    and e.counter_kind in ("top", "topbottom")
+                    and (e.subject is None or e.subject.controller != "you")
+                    and _TOPDECK_STACK_SELF.search(clause)
+                ):
+                    new_effs.append(
+                        replace(
+                            e,
+                            subject=Filter(card_types=("Card",), controller="you"),
+                        )
+                    )
+                    changed = True
+                else:
+                    new_effs.append(e)
+            new_abs.append(replace(ab, effects=tuple(new_effs)))
+        faces.append(replace(face, abilities=tuple(new_abs)))
+    return replace(card, faces=tuple(faces)) if changed else card

@@ -2916,6 +2916,154 @@
     "type_line": "Creature — Zombie Wizard"
    }
   },
+  "Ancestral Knowledge": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 10,
+           "op": "fixed"
+          },
+          "cat": "topdeck_select",
+          "raw": "When ~ enters, look at the top ten cards of your library, then exile any number of them and put the rest back on top of your library in any order.",
+          "sc": "you",
+          "z": [
+           "from:top",
+           "top:you"
+          ]
+         },
+         {
+          "cat": "exile",
+          "raw": "When ~ enters, look at the top ten cards of your library, then exile any number of them and put the rest back on top of your library in any order.",
+          "z": [
+           "from:top",
+           "to:exile",
+           "top:you"
+          ]
+         },
+         {
+          "cat": "topdeck_stack",
+          "ck": "top",
+          "raw": "When ~ enters, look at the top ten cards of your library, then exile any number of them and put the rest back on top of your library in any order.",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Card"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "shuffle",
+          "raw": "When ~ leaves the battlefield, shuffle your library.",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "leaves",
+         "sc": "you"
+        }
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "sourceinzone",
+         "zn": [
+          "battlefield"
+         ]
+        },
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "age",
+          "raw": "CR 702.24a: At the beginning of your upkeep, if this permanent is on the battlefield, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it."
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "sacrifice",
+          "raw": "CR 702.24a: At the beginning of your upkeep, if this permanent is on the battlefield, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "other"
+        }
+       }
+      ],
+      "kw": [
+       "CumulativeUpkeep"
+      ],
+      "n": "Ancestral Knowledge",
+      "tl": "Enchantment"
+     }
+    ],
+    "n": "Ancestral Knowledge",
+    "oid": "2786f210-ec64-46ea-9a7f-b03759fb1dae"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Cumulative upkeep"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Ancestral Knowledge",
+    "oracle_id": "2786f210-ec64-46ea-9a7f-b03759fb1dae",
+    "oracle_text": "Cumulative upkeep {1} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)\nWhen this enchantment enters, look at the top ten cards of your library, then exile any number of them and put the rest back on top of your library in any order.\nWhen this enchantment leaves the battlefield, shuffle your library.",
+    "type_line": "Enchantment"
+   }
+  },
   "Angel's Trumpet": {
    "ir": {
     "faces": [
@@ -16538,6 +16686,81 @@
     "type_line": "Creature — Spirit Avatar"
    }
   },
+  "Diabolic Vision": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 5,
+           "op": "fixed"
+          },
+          "cat": "topdeck_select",
+          "raw": "Look at the top five cards of your library. Put one of them into your hand and the rest on top of your library in any order.",
+          "sc": "you",
+          "z": [
+           "from:top",
+           "to:hand",
+           "top:you"
+          ]
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Diabolic Vision",
+      "tl": "Sorcery"
+     }
+    ],
+    "n": "Diabolic Vision",
+    "oid": "6b7b1a71-812d-4ff5-b38b-94d1cf634143"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "B",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}{B}",
+    "name": "Diabolic Vision",
+    "oracle_id": "6b7b1a71-812d-4ff5-b38b-94d1cf634143",
+    "oracle_text": "Look at the top five cards of your library. Put one of them into your hand and the rest on top of your library in any order.",
+    "type_line": "Sorcery"
+   }
+  },
   "Diamond City": {
    "ir": {
     "faces": [
@@ -18687,6 +18910,86 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Legendary Creature — Elf Rogue"
+   }
+  },
+  "Eidolon of the Great Revel": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "damage",
+          "raw": "Whenever a player casts a spell with mana value 3 or less, ~ deals 2 damage to that player."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "cast_spell",
+         "sub": {
+          "p": [
+           "Cmc:LE:3"
+          ],
+          "t": [
+           "Card"
+          ]
+         }
+        }
+       }
+      ],
+      "n": "Eidolon of the Great Revel",
+      "tl": "Enchantment Creature — Spirit"
+     }
+    ],
+    "n": "Eidolon of the Great Revel",
+    "oid": "2fd7018e-1c36-4d7f-8f72-22f2f7f60c60"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}{R}",
+    "name": "Eidolon of the Great Revel",
+    "oracle_id": "2fd7018e-1c36-4d7f-8f72-22f2f7f60c60",
+    "oracle_text": "Whenever a player casts a spell with mana value 3 or less, this creature deals 2 damage to that player.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Enchantment Creature — Spirit"
    }
   },
   "Eladamri, Lord of Leaves": {
@@ -23467,6 +23770,94 @@
     "oracle_id": "a4dc1fea-427c-424c-99c8-af2e6d3ad2a9",
     "oracle_text": "Target opponent loses 1 life for each attacking creature you control. You gain that much life.",
     "type_line": "Instant"
+   }
+  },
+  "Francisco, Fowl Marauder": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "explore",
+          "raw": "Whenever one or more Pirates you control deal damage to a player, ~ explores."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "deals_damage",
+         "src": {
+          "c": "you",
+          "s": [
+           "Pirate"
+          ]
+         },
+         "sub": {
+          "p": [
+           "DamageToPlayer"
+          ]
+         }
+        }
+       }
+      ],
+      "kw": [
+       "Explore",
+       "Flying",
+       "Partner"
+      ],
+      "n": "Francisco, Fowl Marauder",
+      "tl": "Legendary Creature — Bird Pirate"
+     }
+    ],
+    "n": "Francisco, Fowl Marauder",
+    "oid": "1dbe4eb4-8313-459a-89ce-982442cd0cd0"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Flying",
+     "Partner",
+     "Explore"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Francisco, Fowl Marauder",
+    "oracle_id": "1dbe4eb4-8313-459a-89ce-982442cd0cd0",
+    "oracle_text": "Flying\nFrancisco can't block.\nWhenever one or more Pirates you control deal damage to a player, Francisco explores.\nPartner (You can have two commanders if both have partner.)",
+    "power": "0",
+    "toughness": "1",
+    "type_line": "Legendary Creature — Bird Pirate"
    }
   },
   "Frost Lynx": {
@@ -30662,6 +31053,121 @@
     "type_line": "Creature — Goblin Mercenary"
    }
   },
+  "Hunting Grounds": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cond": {
+         "cmp": "ge",
+         "kind": "quantitycomparison",
+         "zn": [
+          "graveyard"
+         ]
+        },
+        "e": [
+         {
+          "cat": "cheat_play",
+          "raw": "Whenever an opponent casts a spell, you may put a creature card from your hand onto the battlefield.",
+          "sub": {
+           "c": "you",
+           "p": [
+            "InZone"
+           ],
+           "t": [
+            "Creature"
+           ]
+          },
+          "z": [
+           "from:hand",
+           "to:battlefield",
+           "in:hand"
+          ]
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "board_count",
+          "raw": "count of cards in a graveyard",
+          "sc": "you",
+          "z": [
+           "in:graveyard"
+          ]
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "Threshold — As long as there are seven or more cards in your graveyard, this enchantment has \"Whenever an opponent casts a spell, you may put a creature card from your hand onto the battlefield.\""
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "cast_spell",
+         "sc": "opp"
+        }
+       }
+      ],
+      "n": "Hunting Grounds",
+      "tl": "Enchantment"
+     }
+    ],
+    "n": "Hunting Grounds",
+    "oid": "2f3fec87-3dd2-4e5d-835c-eae535da4ecb",
+    "pc": "partial"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "G",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "W"
+    ],
+    "keywords": [
+     "Threshold"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}{W}",
+    "name": "Hunting Grounds",
+    "oracle_id": "2f3fec87-3dd2-4e5d-835c-eae535da4ecb",
+    "oracle_text": "Threshold — As long as there are seven or more cards in your graveyard, this enchantment has \"Whenever an opponent casts a spell, you may put a creature card from your hand onto the battlefield.\"",
+    "type_line": "Enchantment"
+   }
+  },
   "Icy Manipulator": {
    "ir": {
     "faces": [
@@ -31837,6 +32343,139 @@
     "power": "3",
     "toughness": "4",
     "type_line": "Legendary Creature — Human Wizard"
+   }
+  },
+  "Jace, Unraveler of Secrets": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "topdeck_select",
+          "raw": "[+1]: Scry 1, then draw a card.",
+          "sc": "you"
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "craw": "draw a card.",
+          "raw": "[+1]: Scry 1, then draw a card.",
+          "sc": "you"
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "bounce",
+          "raw": "[−2]: Return target creature to its owner's hand.",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "emblem",
+          "raw": "[−8]: You get an emblem with \"Whenever an opponent casts their first spell each turn, counter that spell.\""
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "[+1]: Scry 1, then draw a card.\n[−2]: Return target creature to its owner's hand.\n[−8]: You get an emblem with \"Whenever an opponent casts their first spell each turn, counter that spell.\""
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "cast_spell",
+         "sc": "opp"
+        }
+       }
+      ],
+      "n": "Jace, Unraveler of Secrets",
+      "tl": "Legendary Planeswalker — Jace"
+     }
+    ],
+    "n": "Jace, Unraveler of Secrets",
+    "oid": "ac29873e-28c3-4933-b427-61d34ff0afcd",
+    "pc": "partial"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "combo_piece",
+      "id": "e5797bac-bf43-4c96-9f84-60db130a15bb",
+      "name": "Jace, Unraveler of Secrets Emblem",
+      "object": "related_card",
+      "type_line": "Emblem — Jace",
+      "uri": "https://api.scryfall.com/cards/e5797bac-bf43-4c96-9f84-60db130a15bb"
+     },
+     {
+      "component": "combo_piece",
+      "id": "0cd42763-980b-4a77-b528-fda483af6ba8",
+      "name": "Jace, Unraveler of Secrets",
+      "object": "related_card",
+      "type_line": "Legendary Planeswalker — Jace",
+      "uri": "https://api.scryfall.com/cards/0cd42763-980b-4a77-b528-fda483af6ba8"
+     }
+    ],
+    "cmc": 5.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Scry"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}{U}",
+    "name": "Jace, Unraveler of Secrets",
+    "oracle_id": "ac29873e-28c3-4933-b427-61d34ff0afcd",
+    "oracle_text": "+1: Scry 1, then draw a card.\n−2: Return target creature to its owner's hand.\n−8: You get an emblem with \"Whenever an opponent casts their first spell each turn, counter that spell.\"",
+    "type_line": "Legendary Planeswalker — Jace"
    }
   },
   "Jhoira's Familiar": {
@@ -42231,6 +42870,90 @@
     "type_line": "Creature — Human Rogue"
    }
   },
+  "Mortuary": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "topdeck_stack",
+          "ck": "top",
+          "raw": "Whenever a creature is put into your graveyard from the battlefield, put that card on top of your library.",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Card"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "dies",
+         "sc": "you",
+         "sub": {
+          "c": "you",
+          "t": [
+           "Creature"
+          ]
+         },
+         "z": [
+          "from:battlefield",
+          "to:graveyard"
+         ]
+        }
+       }
+      ],
+      "n": "Mortuary",
+      "tl": "Enchantment"
+     }
+    ],
+    "n": "Mortuary",
+    "oid": "8bd2af55-5a48-4300-a893-ae6cd548db24"
+   },
+   "scryfall": {
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}",
+    "name": "Mortuary",
+    "oracle_id": "8bd2af55-5a48-4300-a893-ae6cd548db24",
+    "oracle_text": "Whenever a creature is put into your graveyard from the battlefield, put that card on top of your library.",
+    "type_line": "Enchantment"
+   }
+  },
   "Muraganda Petroglyphs": {
    "ir": {
     "faces": [
@@ -45208,6 +45931,162 @@
     "type_line": "Legendary Creature — Rat Faerie"
    }
   },
+  "Olivia, Opulent Outlaw": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "genericmana,mana,sacrifice",
+        "e": [
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "{3}, Sacrifice two Treasures: Put two +1/+1 counters on each creature you control. Activate only as a sorcery.",
+          "sub": {
+           "c": "you",
+           "p": [
+            "MassEach"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         },
+         {
+          "cat": "sacrifice",
+          "raw": "{3}, Sacrifice two Treasures: Put two +1/+1 counters on each creature you control. Activate only as a sorcery.",
+          "sc": "you",
+          "sub": {
+           "p": [
+            "Token"
+           ],
+           "s": [
+            "Treasure"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "raw": "Whenever one or more outlaws you control deal combat damage to a player, create a Treasure token.",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Treasure"
+           ],
+           "t": [
+            "Artifact"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "combat_damage",
+         "rc": [
+          "player"
+         ],
+         "src": {
+          "c": "you",
+          "p": [
+           "AnyOf:Assassin|Mercenary|Pirate|Rogue|Warlock"
+          ]
+         }
+        }
+       }
+      ],
+      "kw": [
+       "Flying",
+       "Lifelink"
+      ],
+      "n": "Olivia, Opulent Outlaw",
+      "tl": "Legendary Creature — Vampire Assassin"
+     }
+    ],
+    "n": "Olivia, Opulent Outlaw",
+    "oid": "4e5e0b22-ee5a-4c19-be95-2f9bd50641bc"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "7ec6f053-96f7-4e57-b2eb-4e7699a40a4f",
+      "name": "Treasure",
+      "object": "related_card",
+      "type_line": "Token Artifact — Treasure",
+      "uri": "https://api.scryfall.com/cards/7ec6f053-96f7-4e57-b2eb-4e7699a40a4f"
+     },
+     {
+      "component": "combo_piece",
+      "id": "55e6c31b-f9e9-4e42-a875-985d99300d9d",
+      "name": "Olivia, Opulent Outlaw",
+      "object": "related_card",
+      "type_line": "Legendary Creature — Vampire Assassin",
+      "uri": "https://api.scryfall.com/cards/55e6c31b-f9e9-4e42-a875-985d99300d9d"
+     }
+    ],
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "R",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "R",
+     "W"
+    ],
+    "keywords": [
+     "Flying",
+     "Lifelink",
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}{W}{B}",
+    "name": "Olivia, Opulent Outlaw",
+    "oracle_id": "4e5e0b22-ee5a-4c19-be95-2f9bd50641bc",
+    "oracle_text": "Flying, lifelink\nWhenever one or more outlaws you control deal combat damage to a player, create a Treasure token. (Assassins, Mercenaries, Pirates, Rogues, and Warlocks are outlaws.)\n{3}, Sacrifice two Treasures: Put two +1/+1 counters on each creature you control. Activate only as a sorcery.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Vampire Assassin"
+   }
+  },
   "Oloro, Ageless Ascetic": {
    "ir": {
     "faces": [
@@ -45711,6 +46590,101 @@
     "oracle_id": "2c24b7c3-7c90-4109-a4aa-d9cae6febf34",
     "oracle_text": "Permanents enter tapped.",
     "type_line": "Artifact"
+   }
+  },
+  "Orcish Librarian": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "mana,tap",
+        "e": [
+         {
+          "amt": {
+           "f": 8,
+           "op": "fixed"
+          },
+          "cat": "topdeck_select",
+          "raw": "{R}, {T}: Look at the top eight cards of your library. Exile four of them at random, then put the rest on top of your library in any order.",
+          "sc": "you",
+          "z": [
+           "from:top",
+           "top:you"
+          ]
+         },
+         {
+          "cat": "exile",
+          "raw": "{R}, {T}: Look at the top eight cards of your library. Exile four of them at random, then put the rest on top of your library in any order.",
+          "z": [
+           "from:top",
+           "to:exile",
+           "top:you"
+          ]
+         },
+         {
+          "cat": "topdeck_stack",
+          "ck": "top",
+          "raw": "{R}, {T}: Look at the top eight cards of your library. Exile four of them at random, then put the rest on top of your library in any order.",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Card"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       }
+      ],
+      "n": "Orcish Librarian",
+      "tl": "Creature — Orc"
+     }
+    ],
+    "n": "Orcish Librarian",
+    "oid": "3a05904d-5439-446d-a2a1-1475c9c7371d"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Orcish Librarian",
+    "oracle_id": "3a05904d-5439-446d-a2a1-1475c9c7371d",
+    "oracle_text": "{R}, {T}: Look at the top eight cards of your library. Exile four of them at random, then put the rest on top of your library in any order.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Orc"
    }
   },
   "Oroku Saki, Shredder Rising": {
@@ -48220,6 +49194,98 @@
     "power": "6",
     "toughness": "5",
     "type_line": "Legendary Enchantment Creature — God"
+   }
+  },
+  "Quest for Pure Flame": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "removecounter,sacrifice",
+        "e": [
+         {
+          "cat": "damage_doubling",
+          "raw": "Remove four quest counters from ~ and sacrifice it: If any source you control would deal damage to a permanent or player this turn, it deals double that damage to that permanent or player instead.",
+          "sc": "you"
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "quest",
+          "raw": "Whenever a source you control deals damage to an opponent, you may put a quest counter on ~."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "deals_damage",
+         "sc": "opp",
+         "src": {
+          "c": "you"
+         },
+         "sub": {
+          "p": [
+           "DamageToPlayer"
+          ]
+         }
+        }
+       }
+      ],
+      "n": "Quest for Pure Flame",
+      "tl": "Enchantment"
+     }
+    ],
+    "n": "Quest for Pure Flame",
+    "oid": "71220cc2-5f3d-4c97-ae66-05b1b79adef1"
+   },
+   "scryfall": {
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Double"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Quest for Pure Flame",
+    "oracle_id": "71220cc2-5f3d-4c97-ae66-05b1b79adef1",
+    "oracle_text": "Whenever a source you control deals damage to an opponent, you may put a quest counter on this enchantment.\nRemove four quest counters from this enchantment and sacrifice it: If any source you control would deal damage to a permanent or player this turn, it deals double that damage to that permanent or player instead.",
+    "type_line": "Enchantment"
    }
   },
   "Quicken": {
@@ -50834,6 +51900,104 @@
     "type_line": "Legendary Creature — Human Employee"
    }
   },
+  "Ruric Thar, the Unbowed": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 6,
+           "op": "fixed"
+          },
+          "cat": "damage",
+          "raw": "Whenever a player casts a noncreature spell, ~ deals 6 damage to that player."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "cast_spell",
+         "sub": {
+          "p": [
+           "NotType:Creature"
+          ],
+          "t": [
+           "Card"
+          ]
+         }
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "force_attack",
+          "raw": "attacks each combat if able"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "Reach",
+       "Vigilance"
+      ],
+      "n": "Ruric Thar, the Unbowed",
+      "tl": "Legendary Creature — Ogre Warrior"
+     }
+    ],
+    "n": "Ruric Thar, the Unbowed",
+    "oid": "6ed13a89-4284-4c01-8099-75e2d68c8c63"
+   },
+   "scryfall": {
+    "cmc": 6.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "colors": [
+     "G",
+     "R"
+    ],
+    "keywords": [
+     "Reach",
+     "Vigilance"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{R}{G}",
+    "name": "Ruric Thar, the Unbowed",
+    "oracle_id": "6ed13a89-4284-4c01-8099-75e2d68c8c63",
+    "oracle_text": "Vigilance, reach\nRuric Thar attacks each combat if able.\nWhenever a player casts a noncreature spell, Ruric Thar deals 6 damage to that player.",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Legendary Creature — Ogre Warrior"
+   }
+  },
   "Ruxa, Patient Professor": {
    "ir": {
     "faces": [
@@ -52043,6 +53207,106 @@
     "power": "2",
     "toughness": "3",
     "type_line": "Legendary Creature — Inkling Bird"
+   }
+  },
+  "Scroll Rack": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "genericmana,mana,tap",
+        "e": [
+         {
+          "cat": "blink",
+          "raw": "{1}, {T}: Exile any number of cards from your hand face down. Put that many cards from the top of your library into your hand. Then look at the exiled cards and put them on top of your library in any order.",
+          "sub": {
+           "c": "you",
+           "p": [
+            "InZone"
+           ],
+           "t": [
+            "Card"
+           ]
+          },
+          "z": [
+           "from:hand",
+           "to:exile",
+           "in:hand"
+          ]
+         },
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "mill",
+          "raw": "{1}, {T}: Exile any number of cards from your hand face down. Put that many cards from the top of your library into your hand. Then look at the exiled cards and put them on top of your library in any order.",
+          "sc": "you",
+          "z": [
+           "to:hand"
+          ]
+         },
+         {
+          "cat": "reveal_hand",
+          "raw": "{1}, {T}: Exile any number of cards from your hand face down. Put that many cards from the top of your library into your hand. Then look at the exiled cards and put them on top of your library in any order."
+         },
+         {
+          "cat": "topdeck_stack",
+          "ck": "top",
+          "raw": "{1}, {T}: Exile any number of cards from your hand face down. Put that many cards from the top of your library into your hand. Then look at the exiled cards and put them on top of your library in any order.",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Card"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       }
+      ],
+      "n": "Scroll Rack",
+      "tl": "Artifact"
+     }
+    ],
+    "n": "Scroll Rack",
+    "oid": "648bd03d-247e-4d6f-87a9-12a67688cbf5"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Scroll Rack",
+    "oracle_id": "648bd03d-247e-4d6f-87a9-12a67688cbf5",
+    "oracle_text": "{1}, {T}: Exile any number of cards from your hand face down. Put that many cards from the top of your library into your hand. Then look at the exiled cards and put them on top of your library in any order.",
+    "type_line": "Artifact"
    }
   },
   "Scrounging Bandar": {
@@ -58774,7 +60038,13 @@
          {
           "cat": "topdeck_stack",
           "ck": "top",
-          "raw": "When ~ enters, look at the top X cards of your library, where X is your devotion to blue. Put up to one of them on top of your library and the rest on the bottom of your library in a random order. If X is greater than or equal to the number of cards in your library, you win the game."
+          "raw": "When ~ enters, look at the top X cards of your library, where X is your devotion to blue. Put up to one of them on top of your library and the rest on the bottom of your library in a random order. If X is greater than or equal to the number of cards in your library, you win the game.",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Card"
+           ]
+          }
          },
          {
           "cat": "win_game",
@@ -61050,6 +62320,236 @@
     "oracle_id": "b2bd40a1-1857-4f4c-aed6-d4e224ac0ef7",
     "oracle_text": "Spells you cast have ripple 4. (Whenever you cast a spell, you may reveal the top four cards of your library. You may cast spells with the same name as that spell from among the revealed cards without paying their mana costs. Put the rest on the bottom of your library.)",
     "type_line": "Legendary Artifact"
+   }
+  },
+  "Thundering Mightmare": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "and",
+         "nest": [
+          {
+           "cmp": "none",
+           "kind": "sourcematchesfilter",
+           "sub": {
+            "c": "you",
+            "p": [
+             "InZone",
+             "Unpaired"
+            ],
+            "t": [
+             "Creature"
+            ]
+           },
+           "zn": [
+            "battlefield"
+           ]
+          },
+          {
+           "cmp": "none",
+           "kind": "controlstype",
+           "sub": {
+            "c": "you",
+            "p": [
+             "Another",
+             "InZone",
+             "Unpaired"
+            ],
+            "t": [
+             "Creature"
+            ]
+           },
+           "zn": [
+            "battlefield"
+           ]
+          }
+         ],
+         "zn": [
+          "battlefield"
+         ]
+        },
+        "e": [
+         {
+          "cat": "soulbond",
+          "raw": "CR 702.95a: When this creature enters, you may pair it with another unpaired creature you control.",
+          "sub": {
+           "c": "you",
+           "p": [
+            "Another",
+            "InZone",
+            "Unpaired"
+           ],
+           "t": [
+            "Creature"
+           ]
+          },
+          "z": [
+           "in:battlefield"
+          ]
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "and",
+         "nest": [
+          {
+           "cmp": "none",
+           "kind": "sourcematchesfilter",
+           "sub": {
+            "c": "you",
+            "p": [
+             "InZone",
+             "Unpaired"
+            ],
+            "t": [
+             "Creature"
+            ]
+           },
+           "zn": [
+            "battlefield"
+           ]
+          },
+          {
+           "cmp": "none",
+           "kind": "zonechangeobjectmatchesfilter",
+           "sub": {
+            "c": "you",
+            "p": [
+             "Another",
+             "InZone",
+             "Unpaired"
+            ],
+            "t": [
+             "Creature"
+            ]
+           },
+           "zn": [
+            "battlefield"
+           ]
+          }
+         ],
+         "zn": [
+          "battlefield"
+         ]
+        },
+        "e": [
+         {
+          "cat": "soulbond",
+          "raw": "CR 702.95a: Whenever another unpaired creature you control enters, you may pair it with this creature."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "sub": {
+          "c": "you",
+          "p": [
+           "Another",
+           "Unpaired"
+          ],
+          "t": [
+           "Creature"
+          ]
+         },
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "put a +1/+1 counter",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "Soulbond  \nAs long as Thundering Mightmare is paired with another creature, each of those creatures has \"Whenever an opponent casts a spell, put a +1/+1 counter on this creature.\""
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "cast_spell",
+         "sc": "opp"
+        }
+       }
+      ],
+      "kw": [
+       "Soulbond"
+      ],
+      "n": "Thundering Mightmare",
+      "tl": "Creature — Horse Spirit"
+     }
+    ],
+    "n": "Thundering Mightmare",
+    "oid": "bf9a6242-b608-46ef-a059-7e757dd52e9b",
+    "pc": "partial"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Soulbond"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{G}",
+    "name": "Thundering Mightmare",
+    "oracle_id": "bf9a6242-b608-46ef-a059-7e757dd52e9b",
+    "oracle_text": "Soulbond (You may pair this creature with another unpaired creature when either enters. They remain paired for as long as you control both of them.)\nAs long as Thundering Mightmare is paired with another creature, each of those creatures has \"Whenever an opponent casts a spell, put a +1/+1 counter on this creature.\"",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Horse Spirit"
    }
   },
   "Tibor and Lumia": {
@@ -65667,6 +67167,163 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Vraska, Golgari Queen": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "sacrifice",
+          "raw": "[+2]: You may sacrifice another permanent. If you do, you gain 1 life and draw a card.",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Permanent"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "gain_life",
+          "raw": "[+2]: You may sacrifice another permanent. If you do, you gain 1 life and draw a card."
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "craw": "If you do, you gain 1 life and draw a card.",
+          "raw": "[+2]: You may sacrifice another permanent. If you do, you gain 1 life and draw a card.",
+          "sc": "you"
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "destroy",
+          "raw": "[−3]: Destroy target nonland permanent with mana value 3 or less.",
+          "sub": {
+           "p": [
+            "Cmc:LE:3",
+            "NotType:Land"
+           ],
+           "t": [
+            "Permanent"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "emblem",
+          "raw": "[−9]: You get an emblem with \"Whenever a creature you control deals combat damage to a player, that player loses the game.\""
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "[+2]: You may sacrifice another permanent. If you do, you gain 1 life and draw a card.\n[−3]: Destroy target nonland permanent with mana value 3 or less.\n[−9]: You get an emblem with \"Whenever a creature you control deals combat damage to a player, that player loses the game.\""
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "combat_damage",
+         "rc": [
+          "player"
+         ],
+         "src": {
+          "c": "you",
+          "t": [
+           "Creature"
+          ]
+         }
+        }
+       }
+      ],
+      "n": "Vraska, Golgari Queen",
+      "tl": "Legendary Planeswalker — Vraska"
+     }
+    ],
+    "n": "Vraska, Golgari Queen",
+    "oid": "131096a3-2d53-4ec2-96d3-fcb58e698a13",
+    "pc": "partial"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "combo_piece",
+      "id": "0e2de47c-828e-4e09-996d-b4c360af2d2f",
+      "name": "Vraska, Golgari Queen",
+      "object": "related_card",
+      "type_line": "Legendary Planeswalker — Vraska",
+      "uri": "https://api.scryfall.com/cards/0e2de47c-828e-4e09-996d-b4c360af2d2f"
+     },
+     {
+      "component": "combo_piece",
+      "id": "d81478ee-1ddf-44f5-98a0-df6d4eecad7e",
+      "name": "Vraska, Golgari Queen Emblem",
+      "object": "related_card",
+      "type_line": "Emblem — Vraska",
+      "uri": "https://api.scryfall.com/cards/d81478ee-1ddf-44f5-98a0-df6d4eecad7e"
+     }
+    ],
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "G"
+    ],
+    "colors": [
+     "B",
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{G}",
+    "name": "Vraska, Golgari Queen",
+    "oracle_id": "131096a3-2d53-4ec2-96d3-fcb58e698a13",
+    "oracle_text": "+2: You may sacrifice another permanent. If you do, you gain 1 life and draw a card.\n−3: Destroy target nonland permanent with mana value 3 or less.\n−9: You get an emblem with \"Whenever a creature you control deals combat damage to a player, that player loses the game.\"",
+    "type_line": "Legendary Planeswalker — Vraska"
+   }
+  },
   "Walker of the Wastes": {
    "ir": {
     "faces": [
@@ -68059,5 +69716,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 58
+ "sidecar_version": 59
 }

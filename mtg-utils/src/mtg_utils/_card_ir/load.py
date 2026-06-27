@@ -793,7 +793,54 @@ from mtg_utils.card_ir import Card
 #   STRUCTURE; the broad mirror is DELETED, replaced by a narrow split/aftermath
 #   layout residue for the back-half grants phase drops wholly (Claim//Fame,
 #   Onward//Victory — UPSTREAM phase gap: no record for a split back face). CR 700.2.
-SIDECAR_VERSION = 58
+# v59 — ADR-0027 #24k SUPPLEMENT_RECOVER D2 (three reclassified MED-residue lanes
+#   whose kept regex mirror was the sole source of a real tail phase parses but drops
+#   the discriminating scope/source/controller; mirrors deleted except where a
+#   structural recovery is impossible — PARTIAL):
+#   (1) opponent_cast_matters (supplement `_recover_opponent_cast_scope`): the
+#       genuinely OPPONENT-scoped "whenever an opponent casts a spell" punisher/tax.
+#       phase scopes a DIRECT trigger scope='opp' correctly (Lavinia), but when the
+#       trigger is QUOTED inside a granted / emblem / Saga-token ability it FOLDS the
+#       clause into a non-trigger Effect (creature_cast / cheat_play / emblem /
+#       place_counter) and emits NO cast_spell trigger — Hunting Grounds, Jace
+#       Unraveler of Secrets, Thundering Mightmare, Blink. Synthesize a cast_spell
+#       trigger scope='opp' from the raw "whenever an opponent casts". The deleted
+#       mirror OVER-SWEPT the SYMMETRIC "a player casts … punish that player" half
+#       (CR 102.1 — "a player" INCLUDES the controller; Eidolon of the Great Revel,
+#       Pyrostatic Pillar, Ruric Thar, Ash Zealot hit EVERYONE, not opponents only),
+#       so deleting it drops those 17 symmetric punishers — genuine NON-members of an
+#       opponent-scoped lane (CR 102.2/102.3). opponent_cast_matters 120 → 103.
+#       CR 601 / 603.2 / 102.2.
+#   (2) tribe_damage_trigger (supplement `_recover_tribe_damage_source` + signals
+#       `_is_tribe_source`): a go-wide "[creatures/a tribe] you control deal combat
+#       damage to a player → reward" payoff. project carries the DamageDone trigger's
+#       valid_source (trig.source), but phase DROPS it when the trigger is QUOTED in a
+#       loyalty / emblem / delayed ability — Vraska Golgari Queen (emblem), Dovin,
+#       Jace Cunning Castaway, Kaito, Mistway Spy, Popular Entertainer, Surge to
+#       Victory, The Girl in the Fireplace, Flitterwing Nuisance (source=None). The
+#       supplement stamps source=Filter(Creature, you) from the raw; the arm broadens
+#       to read an AnyOf-outlaw source (Olivia) + a deals_damage tribal source
+#       (Francisco) — both phase-CAPTURED. The 2 single-source / non-creature spreads
+#       the deleted regex over-swept (Kediss "a commander you control"; Quest for Pure
+#       Flame "a source you control") are NON-members and drop. tribe_damage_trigger
+#       156 → 154. CR 510.1 / 510.1b / 603.2.
+#   (3) topdeck_stack (supplement `_recover_topdeck_stack_self`): self-library-top
+#       curation (look-then-stack / graveyard→top / hand→top recursion). phase
+#       structures the put-on-top as a `topdeck_stack` Effect (counter_kind 'top'/
+#       'topbottom') but DROPS the controller (subject=None), so the structural arm's
+#       controller==you gate skips it. Stamp subject=Filter(Card, you) — the shape
+#       phase's CLEANLY-parsed self top-stacks already carry (Brainstorm) — on a
+#       subject-None top-stack whose OWN clause names "on top of your library" (the
+#       self anchor; an opponent tuck "on top of their owner's library" is excluded).
+#       Recovers the 5 mirror-residue cards STRUCTURALLY (Ancestral Knowledge, Orcish
+#       Librarian, Scroll Rack, Doomsday, Rowan's Grim Search) PLUS +14 genuine self-
+#       top-stackers the narrow mirror missed (Mortuary, Cream of the Crop, Thassa's
+#       Oracle, Champion of Stray Souls, …). PARTIAL — the kept mirror STAYS for the
+#       residue phase FOLDED to topdeck_select-to-hand / a "put a card from your hand
+#       on top" ACTIVATION COST / a dropped-clause look-then-stack (Diabolic Vision,
+#       Hidden Retreat, Leashling, Penance, Munda), none of which carry a topdeck_stack
+#       Effect to recover. topdeck_stack 70 → 84. CR 401.
+SIDECAR_VERSION = 59
 
 
 def card_ir_dir() -> Path:

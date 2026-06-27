@@ -144,7 +144,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TOKENS_MATTER_REGEX,
     TOPDECK_STACK_SWEEP_REGEX,
     TOUGHNESS_VALUE_REGEX,
-    TRIBE_DAMAGE_TRIGGER_REGEX,
     UNSPENT_MANA_REGEX,
     VEHICLES_MATTER_REGEX,
     VOID_WARP_MATTERS_REGEX,
@@ -1747,27 +1746,15 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # player → to_opp) and the residue phase leaves unstructured rides a synthetic
     # combat_damage trigger from supplement._recover_combat_damage_recipients — NOT a
     # mirror here. CR 510.1b / 510.1c / 120.3.
-    # ADR-0027 C16 — tribe_damage_trigger reads STRUCTURE in extract_signals_ir
-    # (combat_damage block): phase carries the combat-damage SOURCE on the DamageDone
-    # trigger's `valid_source`, which project now preserves as `trig.source`. The
-    # structural arm (a you-controlled Creature/subtype population source, not a
-    # SelfRef) is a RECALL SUPERSET of this regex (+50 commander-legal — the qualified/
-    # subtype sources the single-word `[A-Z][a-z]+ you control` pattern could never
-    # match: Keeper of Fables "non-Human creatures", Quartzwood Crasher "creatures with
-    # trample", Tovolar "Wolf or Werewolf", Moria Marauder "Goblin or Orc", Mu Yanling
-    # "creatures with flying", Vraska Joins Up "legendary creature"). This regex is
-    # RETAINED as a NARROW residue backstop ONLY for the phase valid_source-DROP tail
-    # (risk #6): a combat-damage trigger QUOTED inside a planeswalker loyalty ability or
-    # a granted/delayed "this turn" clause (Jace Cunning Castaway, Dovin, Popular
-    # Entertainer, Surge to Victory), where phase folds the trigger and leaves
-    # valid_source=None, plus the "outlaw" AnyOf-subtype predicate source (Olivia) phase
-    # routes off the subtypes field. Reuses the shared regex so serve never drifts;
-    # add() dedups with the structural arm. CR 510.1 / 510.1b.
-    (
-        "tribe_damage_trigger",
-        re.compile(TRIBE_DAMAGE_TRIGGER_REGEX, re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 #24k — tribe_damage_trigger mirror DELETED. The structural arm in
+    # extract_signals_ir (the combat_damage + deals_damage blocks) reads `trig.source`
+    # via `_is_tribe_source`; supplement._recover_tribe_damage_source refills the source
+    # phase DROPS when the combat-damage trigger is QUOTED in a loyalty / emblem /
+    # delayed ability (Vraska Golgari Queen, Dovin, Kaito, Jace Cunning Castaway, …);
+    # the arm broadens to read the outlaw AnyOf source (Olivia) + a deals_damage tribal
+    # source (Francisco). The 2 single-source / non-creature spreads the deleted regex
+    # over-swept (Kediss "a commander you control"; Quest for Pure Flame "a source you
+    # control") are NON-members and drop. CR 510.1 / 510.1b.
     # NB: the LOW-confidence double-strike-grant producer of combat_damage_to_opp
     # (Raphael, Blade Historian, Berserkers' Onslaught) is NOT a recipient-type fact —
     # it's an INFERENCE ("attacking creatures you control have double strike" → they
@@ -2165,29 +2152,17 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # ADR-0027 tranche2-B (t2b3-B) — opponent_cast_matters symmetric-punish tail. The
-    # structural arm (a cast_spell trigger scope='opp') covers the explicit "whenever an
-    # opponent casts" half (Lavinia, Nekusar). This kept mirror — the deleted
-    # _HAND_FLOOR regex with its OVER-BROAD bare "whenever a player casts a spell" arm
-    # DROPPED (the IR is more precise than the regex here) — recovers the SYMMETRIC-
-    # PUNISHER half, where phase collapses "whenever a player casts" to scope='any'
-    # indistinguishable from a self-cast spellslinger payoff. The "that player" / "they
-    # lose/discard/sacrifice" punish anchor (the spell's caster punished as a third
-    # party — Ruric Thar "6 damage to that player", Mai, Eidolon of the Great Revel,
-    # Ash Zealot) is the discriminator that excludes the spellslinger over-fire (Kessig
-    # Flamebreather "damage to each opponent", Extort) the bare arm caused. The
-    # explicit-opponent arm is kept too for joined-face DFC robustness (add() dedups vs
-    # the structural scope='opp' arm). CR 603.2.
-    (
-        "opponent_cast_matters",
-        re.compile(
-            r"whenever an opponent casts|whenever an opponent cast"
-            r"|whenever (?:a|another) player casts[^.]*(?:(?:they|that player) "
-            r"(?:loses?|discards?|sacrifices?)|deals? \d+ damage to that player)",
-            re.IGNORECASE,
-        ),
-        "opponents",
-    ),
+    # ADR-0027 #24k — opponent_cast_matters mirror DELETED. The structural arm (a
+    # cast_spell trigger scope='opp') covers the explicit "whenever an opponent casts"
+    # half (Lavinia, Nekusar); supplement._recover_opponent_cast_scope synthesizes a
+    # scope='opp' trigger for the QUOTED/granted/emblem/Saga-token forms phase folds
+    # into a non-trigger Effect (Hunting Grounds, Jace Unraveler, Thundering Mightmare,
+    # Blink). The deleted regex's bare "whenever a player casts … punish that player"
+    # arm OVER-SWEPT the SYMMETRIC punishers (Eidolon of the Great Revel, Pyrostatic
+    # Pillar, Ruric Thar, Ash Zealot, Spellshock, … — "a player" INCLUDES the
+    # controller, CR 102.1, so they hit EVERYONE, not opponents only — genuine non-
+    # members of an opponent-scoped lane, CR 102.2/102.3); deleting it drops those 17.
+    # CR 601 / 603.2 / 102.2.
     # ADR-0027 tranche2-batch-4 (t2b4-C) — three kept_detector lanes phase v0.1.60
     # CANNOT structure (rules-lawyer / spec verified: the discriminant is DROPPED in
     # the parse), so each fires from a dedicated IR-path word mirror reproducing the
@@ -3033,9 +3008,9 @@ IR_SLICE_KEYS: frozenset[str] = (
             "draw_matters",
             "creature_etb",
             "combat_damage_matters",
-            # ADR-0027 β — tribe_damage_trigger (is_widen_of combat_damage_matters):
-            # a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP regex
-            # ("your creatures connect for combat damage → reward").
+            # ADR-0027 #24k — tribe_damage_trigger (is_widen_of combat_damage_matters):
+            # STRUCTURAL (mirror deleted) — `_is_tribe_source(trig.source)` over a
+            # combat_damage / deals_damage trigger; supplement refills a dropped source.
             "tribe_damage_trigger",
             # ADR-0027 β — combat_damage_to_creature + combat_damage_to_opp (both
             # is_widen_of combat_damage_matters): byte-identical _IR_KEPT_DETECTORS
@@ -3268,9 +3243,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             # ADR-0027 tranche2-B (t2b3-B) — structural IR-arm lanes:
             #   lose_unless_hand       ← an etb trigger scope=you + a lose_game effect
             #                            (Phage the Untouchable).
-            #   opponent_cast_matters  ← a cast_spell trigger scope=opp OR a symmetric
-            #                            scope=any/each cast trigger with a punish
-            #                            co-effect (Ruric Thar, Mai, Lavinia).
+            #   opponent_cast_matters  ← a cast_spell trigger scope=opp (Lavinia; the
+            #                            supplement-synth'd quoted/granted/emblem forms,
+            #                            Hunting Grounds, Jace Unraveler, Thundering
+            #                            Mightmare). #24k: SYMMETRIC "a player casts"
+            #                            punishers are NON-members (CR 102.1) and drop.
             #   opponent_counter_grant ← a place_counter(bounty/stun) on an opponent's
             #                            permanent — direct opp subject or a co-tap
             #                            effect carrying the opp filter (Mathas, Freeze
@@ -6046,6 +6023,26 @@ def _fsubs_lower(f: object) -> frozenset[str]:
         frozenset(s.lower() for s in f.subtypes)
         if isinstance(f, Filter)
         else frozenset()
+    )
+
+
+def _is_tribe_source(f: object) -> bool:
+    """A go-wide YOUR-controlled creature POPULATION that deals the damage — the
+    tribe_damage_trigger source CLASS. True for a Filter controller=='you' that is a
+    Creature card-type, a creature SUBTYPE (Knight / Pirate / Vehicle — only creatures
+    deal combat damage, so a subtype source is a creature at combat), OR an AnyOf-
+    subtype union (the OUTLAW umbrella — Assassin|Mercenary|Pirate|Rogue|Warlock, CR
+    702.166). A SelfRef single-permanent source projects to None (the
+    combat_damage_to_opp self case) and a pure-predicate source with no type ("a
+    commander you control" — Kediss; "a source you control" — Quest for Pure Flame) is a
+    single-source / non-creature spread, NOT a population, so both stay out. CR 510.1.
+    """
+    if not isinstance(f, Filter) or f.controller != "you":
+        return False
+    return (
+        "Creature" in f.card_types
+        or bool(f.subtypes)
+        or any(p.startswith("AnyOf:") for p in f.predicates)
     )
 
 
@@ -10100,32 +10097,22 @@ def extract_signals_ir(
                     add("combat_damage_to_creature", "any", "", "")
                 if "player" in rcp:
                     add("combat_damage_to_opp", "opponents", "", "")
-                # ADR-0027 C16 — tribe_damage_trigger STRUCTURAL arm (regex kept only as
-                # a residue backstop): the go-wide "[your creatures] deal combat damage
-                # to a player -> reward" payoff (Coastal Piracy, Bident, Toski; the
-                # tribal-subtype forms Exsanguinator/Knight, Rakish Heir/Vampire,
-                # Seshiro/Snake, Setzer/Vehicle; the qualified forms Keeper of Fables/
-                # non-Human, Mu Yanling/flying — +recall the regex's single-word
-                # `[A-Z][a-z]+ you control` pattern missed). phase carries the SOURCE on
-                # the DamageDone trigger's valid_source (project -> trig.source); fire
-                # when the recipient reaches a PLAYER (CR 510.1b) AND the source is a
-                # YOUR-controlled creature POPULATION — a `Creature` card_type OR a
-                # creature SUBTYPE (Knight / Vampire / Vehicle — only creatures deal
-                # combat damage, so a subtype source is a creature at combat). A SelfRef
-                # single-permanent source projects to None (the combat_damage_to_opp
-                # self case); a pure-predicate source with no type ("a commander you
-                # control" — Kediss) is a single-source commander-spread, NOT a go-wide
-                # population, so it stays out. The source-is-a-CLASS test (vs "this
-                # creature") is the discriminator. CR 510.1 / 510.1b.
-                if (
-                    "player" in rcp
-                    and isinstance(trig.source, Filter)
-                    and _filter_controller(trig.source) == "you"
-                    and (
-                        "Creature" in trig.source.card_types
-                        or bool(trig.source.subtypes)
-                    )
-                ):
+                # ADR-0027 #24k — tribe_damage_trigger STRUCTURAL arm (mirror DELETED):
+                # the go-wide "[your creatures] deal combat damage to a player → reward"
+                # payoff (Coastal Piracy, Bident, Toski; the tribal-subtype forms
+                # Exsanguinator/Knight, Rakish Heir/Vampire, Seshiro/Snake, Setzer/
+                # Vehicle; Olivia's outlaw AnyOf union; the qualified Keeper of Fables/
+                # non-Human, Mu Yanling/flying). phase carries the SOURCE on the
+                # DamageDone trigger's valid_source (project → trig.source); fire when
+                # the recipient reaches a PLAYER (CR 510.1b) AND the source is a YOUR-
+                # controlled creature POPULATION (`_is_tribe_source` — Creature / a
+                # creature SUBTYPE / an AnyOf-outlaw union). supplement._recover_tribe_
+                # damage_source refills the source phase DROPS when the trigger is
+                # QUOTED in a loyalty / emblem / delayed ability (Vraska Golgari Queen,
+                # Dovin, Kaito, Jace Cunning Castaway, …). Kediss ("a commander you
+                # control" — pure-predicate, single-source) and Quest for Pure Flame ("a
+                # source you control" — non-creature) are NON-members, drop. CR 510.1.
+                if "player" in rcp and _is_tribe_source(trig.source):
                     add("tribe_damage_trigger", "you", "", "")
             # ADR-0027 β damage_to_opp_matters — a NON-COMBAT "deals damage to a
             # PLAYER / opponent" connect-payoff (Hypnotic Specter, Curiosity,
@@ -10149,23 +10136,40 @@ def extract_signals_ir(
                 and "DamageToPlayer" in trig.subject.predicates
             ):
                 add("damage_to_opp_matters", "opponents", "", "")
-            # ADR-0027 — tribe_damage_trigger's dead `if tsub_kinds:` arm stays removed:
-            # phase leaves a combat_damage trigger's `subject` = None (valid_card is
-            # null on a DamageDone trigger). The lane now reads the SOURCE class off
-            # trig.source in the combat_damage block above. CR 510.1.
+            # ADR-0027 #24k — tribe_damage_trigger over a DEALS_DAMAGE (any-damage,
+            # not combat-only) tribal source: "Whenever one or more Pirates you control
+            # deal damage to a player, ~ explores" (Francisco, Fowl Marauder). phase
+            # types it `deals_damage` (the source dealing ANY damage, CR 119.3, not the
+            # combat-only CR 510.1b), carrying the tribal source on valid_source and the
+            # player recipient on the DamageToPlayer subject marker (recipient tuple is
+            # empty here — the recipient rides the subject, not valid_target). Fire when
+            # the source is a YOUR creature population AND the damage reaches a player
+            # (recipient OR the DamageToPlayer marker). CR 119.3 / 510.1.
+            if (
+                ev == "deals_damage"
+                and _is_tribe_source(trig.source)
+                and (
+                    "player" in trig.recipient
+                    or (
+                        trig.subject is not None
+                        and "DamageToPlayer" in trig.subject.predicates
+                    )
+                )
+            ):
+                add("tribe_damage_trigger", "you", "", "")
             if ev == "cast_spell":
-                # ADR-0027 opponent_cast_matters — the explicit scope=opp half
-                # ("whenever an opponent casts a spell" — Lavinia, Nekusar). The
-                # SYMMETRIC-PUNISH half (Ruric Thar, Mai, Eidolon of the Great Revel)
-                # is NOT structurally separable here: phase reports BOTH "whenever a
-                # player casts" (a punisher) AND "whenever YOU cast" (a self-cast
-                # spellslinger payoff — Kessig Flamebreather, Thief of Hope, Extort) as
-                # scope='any', so an effect-category punish gate would over-fire every
-                # spellslinger that drains/burns each opponent. The symmetric-punisher's
-                # discriminator survives only in raw ("…deals N damage to THAT PLAYER" /
-                # "THAT PLAYER loses/discards/sacrifices" — the caster punished as a
-                # third party), so it is recovered by an _IR_KEPT_DETECTORS word mirror
-                # over the joined face, NOT a scope='any' structural arm. CR 603.2.
+                # ADR-0027 #24k opponent_cast_matters — the OPPONENT-scoped cast
+                # trigger ("whenever an opponent casts a spell" — Lavinia, Nekusar).
+                # phase scopes a DIRECT one correctly; supplement._recover_opponent_
+                # cast_scope synthesizes a scope='opp' cast trigger for the QUOTED/
+                # granted/emblem/Saga-token forms it folds into a non-trigger Effect
+                # (Hunting Grounds, Jace Unraveler, Thundering Mightmare, Blink). The
+                # SYMMETRIC "a player casts" punishers (Eidolon of the Great Revel,
+                # Pyrostatic Pillar, Ruric Thar, Ash Zealot, …) report scope='any' — and
+                # CORRECTLY: "a player" INCLUDES the controller (CR 102.1), so they
+                # punish EVERYONE, not opponents only. They are genuine NON-members of
+                # an opponent-scoped lane (CR 102.2/102.3); the deleted regex's over-
+                # sweep of them is dropped, not mirrored. CR 601 / 603.2 / 102.2.
                 if trig.scope == "opp":
                     add("opponent_cast_matters", "opponents", "", "")
                 # ADR-0027 spellcast_matters STRUCTURAL arm (signals-only, SIDECAR 50) —

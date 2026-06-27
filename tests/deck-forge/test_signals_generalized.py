@@ -4197,70 +4197,60 @@ def test_discard_matters_payoff_opens_opponent_discard():
     assert "opponent_discard" not in _keys_hybrid(loot)
 
 
-def test_symmetric_cast_punisher_opens_opponent_cast_matters():
-    # A symmetric cast-PUNISHER with an adjective ("whenever a player casts a NONCREATURE
-    # spell, they lose 2 life" — Mai; "… deals 6 damage to that player" — Ruric Thar)
-    # slipped past the "casts a spell" branch, so it missed the punish-opponents'-spells
-    # lane and its payoffs (Soot Imp, Painful Quandary). Gated on the "that player" /
-    # "they lose/discard/sacrifice" punish anchor so benefit-on-cast commanders stay out.
-    # ADR-0027: opponent_cast_matters migrated to the Card IR — the symmetric-punisher
-    # tail is served by a kept word mirror (phase collapses "whenever a player casts" to
-    # scope='any', indistinguishable from a self-cast spellslinger payoff), so it is
-    # served via the hybrid path, not pure regex. Real oracle, full text.
-    mai = {
-        "name": "Mai, Scornful Striker",
-        "type_line": "Legendary Creature — Human Noble Ally",
-        "oracle_text": (
-            "First strike\n"
-            "Whenever a player casts a noncreature spell, they lose 2 life."
-        ),
-    }
-    ruric = {
-        "name": "Ruric Thar, the Unbowed",
-        "type_line": "Legendary Creature — Ogre Warrior",
-        "oracle_text": (
-            "Vigilance, reach\n"
-            "Whenever a player casts a noncreature spell, Ruric Thar deals 6 damage to "
-            "that player."
-        ),
-    }
-    assert "opponent_cast_matters" in _keys_hybrid(mai)
-    assert "opponent_cast_matters" in _keys_hybrid(ruric)
-    assert "opponent_cast_matters" not in _keys(mai)
-    assert "opponent_cast_matters" not in _keys(ruric)
+def test_symmetric_cast_punisher_is_not_opponent_cast_matters():
+    # ADR-0027 #24k — opponent_cast_matters is the genuinely OPPONENT-scoped "whenever an
+    # opponent casts" punisher/tax, read STRUCTURALLY off a cast_spell trigger
+    # scope=='opp' (real IR, mirror DELETED). A SYMMETRIC "whenever a PLAYER casts"
+    # punisher (Eidolon of the Great Revel, Ruric Thar "deals 6 damage to that player")
+    # is NOT opponent-only — CR 102.1 "a player" INCLUDES its controller, so it punishes
+    # EVERYONE (you too), a genuine NON-member of an opponent-scoped lane (CR 102.2/
+    # 102.3). The deleted regex mirror over-swept these; they must no longer fire.
+    assert "opponent_cast_matters" not in _keys_real("Eidolon of the Great Revel")
+    assert "opponent_cast_matters" not in _keys_real("Ruric Thar, the Unbowed")
+    # A GENUINELY opponent-scoped "whenever an opponent casts" punisher DOES fire
+    # (phase scopes the direct trigger scope='opp' — Lavinia). CR 102.2.
+    assert "opponent_cast_matters" in _keys_real("Lavinia, Azorius Renegade")
+    # The QUOTED/granted/emblem forms phase folds into a non-trigger Effect are recovered
+    # by supplement._recover_opponent_cast_scope (synth cast_spell scope='opp').
+    assert "opponent_cast_matters" in _keys_real("Hunting Grounds")
+    assert "opponent_cast_matters" in _keys_real("Jace, Unraveler of Secrets")
+    assert "opponent_cast_matters" in _keys_real("Thundering Mightmare")
 
-    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
-    from mtg_utils._deck_forge.signals import Signal
 
-    def lane_covers(card, key, scope):
-        sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
-        if sp.serve.matches(card):
-            return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+def test_tribe_damage_trigger_reads_recovered_source():
+    # ADR-0027 #24k — tribe_damage_trigger reads the combat-/deals-damage trigger SOURCE
+    # structurally (mirror DELETED). supplement._recover_tribe_damage_source refills the
+    # source phase DROPS when the combat-damage trigger is QUOTED in a loyalty / emblem /
+    # delayed ability; the arm broadens to read an AnyOf-outlaw source + a deals_damage
+    # tribal source. Real IR.
+    assert "tribe_damage_trigger" in _keys_real("Vraska, Golgari Queen")  # emblem
+    assert "tribe_damage_trigger" in _keys_real(
+        "Olivia, Opulent Outlaw"
+    )  # AnyOf outlaw
+    assert "tribe_damage_trigger" in _keys_real("Francisco, Fowl Marauder")  # deals_dmg
+    # NON-members: a single-source "a commander you control" spread (Kediss) and a non-
+    # creature "a source you control" payoff (Quest for Pure Flame) are NOT a go-wide
+    # creature population, so the deleted regex's over-sweep of them drops. CR 510.1.
+    assert "tribe_damage_trigger" not in _keys_real("Kediss, Emberclaw Familiar")
+    assert "tribe_damage_trigger" not in _keys_real("Quest for Pure Flame")
 
-    painful = {
-        "name": "Painful Quandary",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "Whenever an opponent casts a spell, that player loses 5 life unless they "
-            "discard a card."
-        ),
-    }
-    assert lane_covers(painful, "opponent_cast_matters", "opponents") is True
-    # Over-fire guard: a BENEFIT-on-cast commander (Niv-Mizzet draws) is a spellslinger
-    # engine, not a punisher — it must NOT open the punish lane via this branch.
-    niv = {
-        "name": "Niv-Mizzet, Parun",
-        "type_line": "Legendary Creature — Dragon Wizard",
-        "oracle_text": (
-            "Flying\n"
-            "Whenever you draw a card, Niv-Mizzet, Parun deals 1 damage to any target.\n"
-            "Whenever a player casts an instant or sorcery spell, you draw a card."
-        ),
-    }
-    assert "opponent_cast_matters" not in _keys(niv)
+
+def test_topdeck_stack_reads_recovered_self_controller():
+    # ADR-0027 #24k — topdeck_stack reads a self top-stack STRUCTURALLY:
+    # supplement._recover_topdeck_stack_self stamps subject=Filter(Card, you) on a
+    # subject-None `topdeck_stack` Effect whose clause names "on top of your library", so
+    # the controller==you arm fires (the controller phase DROPPED). Real IR — the 5
+    # mirror-residue self-curators plus the broader self-top-stack set the narrow mirror
+    # missed (graveyard→top recursion, look-then-stack). CR 401.
+    assert "topdeck_stack" in _keys_real("Ancestral Knowledge")
+    assert "topdeck_stack" in _keys_real("Orcish Librarian")
+    assert "topdeck_stack" in _keys_real("Scroll Rack")
+    assert "topdeck_stack" in _keys_real("Mortuary")
+    assert "topdeck_stack" in _keys_real("Thassa's Oracle")
+    # PARTIAL — a self-curation phase FOLDED to topdeck_select-to-hand with NO
+    # topdeck_stack Effect (Diabolic Vision) is not structurally recoverable; the kept
+    # mirror still serves it via the hybrid path.
+    assert "topdeck_stack" in _keys_real("Diabolic Vision")
 
 
 def test_opponent_reveal_mill_served_by_graveyard_opponents():

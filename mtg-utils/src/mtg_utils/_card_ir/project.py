@@ -42,9 +42,12 @@ from mtg_utils._card_ir.supplement import (
     _recover_keyword_grant_target,
     _recover_land_sacrifice,
     _recover_opponent_cast_lock,
+    _recover_opponent_cast_scope,
     _recover_opponent_discard,
     _recover_scaling_pump,
     _recover_tap_down,
+    _recover_topdeck_stack_self,
+    _recover_tribe_damage_source,
     recover_effect_from_text,
     supplement_card,
 )
@@ -942,6 +945,27 @@ def project_card(records: list[dict]) -> Card:
     # supplement re-runs so the synth abilities are not re-scanned. CR 700.2 / 702.x.
     card = _recover_hand_disruption(card, _oracle)
     card = _recover_keyword_grant_target(card, _oracle)
+    # ADR-0027 #24k (SIDECAR v59) — SUPPLEMENT_RECOVER D2: three reclassified MED-
+    # residue lanes whose kept regex mirror covered a real tail phase parses but
+    # drops the discriminating scope/source/controller. opponent_cast_matters synth
+    # a cast_spell trigger scope='opp' from the raw "whenever an opponent casts" phase
+    # folded into a quoted/granted/emblem/Saga-token Effect (Hunting Grounds, Jace
+    # Unraveler, Thundering Mightmare, Blink) — the OPPONENT-only phrase, NOT the
+    # symmetric "a player casts" (CR 102.1); the broad mirror retires, dropping its 17
+    # symmetric over-fires. tribe_damage_trigger stamps source=Filter(Creature, you)
+    # on a combat_damage trigger phase left source=None (quoted in a loyalty / emblem /
+    # delayed ability — Vraska, Dovin, Kaito, …) so the arm reads STRUCTURE; the arm
+    # also broadens to read an AnyOf-outlaw source (Olivia) + a deals_damage tribal
+    # source (Francisco), both phase-CAPTURED; the mirror retires (CR 510.1b).
+    # topdeck_stack stamps subject=Filter(Card, you) on a subject-None self top-stack
+    # ("on top of your library") so the controller==you arm reads STRUCTURE — PARTIAL:
+    # the kept mirror stays for the folded / cost-based / dropped-clause residue
+    # (Diabolic Vision, Hidden Retreat, Leashling, Penance, Munda). Runs AFTER the
+    # post-supplement re-runs so the synth/stamped shapes are not re-scanned. CR
+    # 603.2 / 510.1b / 401.
+    card = _recover_opponent_cast_scope(card, _oracle)
+    card = _recover_tribe_damage_source(card, _oracle)
+    card = _recover_topdeck_stack_self(card, _oracle)
     return replace(card, parse_confidence=_confidence(card))
 
 
