@@ -110,6 +110,12 @@ class TestInstall:
 
         monkeypatch.setattr("subprocess.run", fake_run)
         monkeypatch.setattr(_phase, "_ensure_prereqs", lambda: None)
+        # Hermetic: stub card-data (no download) + the ai-duel patch (no repo files
+        # exist under the mocked clone — the patch is exercised in its own test).
+        stub_cd = tmp_path / "stub-card-data.json"
+        stub_cd.write_text("{}")
+        monkeypatch.setattr(_phase, "ensure_card_data", lambda: stub_cd)
+        monkeypatch.setattr(_phase, "_apply_duel_files_patch", lambda _repo: None)
 
         _phase.install_phase()
 
@@ -127,6 +133,59 @@ class TestInstall:
         version_file = _phase.cache_dir() / "version.txt"
         assert version_file.exists(), "install_phase must write version.txt"
         assert version_file.read_text().strip() == "abc1234def5678"
+
+
+class TestDuelFilesPatch:
+    # Minimal ai_duel.rs carrying the four patch anchors.
+    _FAKE_SRC = (
+        "fn main() {\n"
+        '    let mut matchup = "red-vs-green".to_string();\n'
+        "    while let Some(arg) = it.next() {\n"
+        "        match arg {\n"
+        '            "--suite" => mode = Mode::Suite,\n'
+        "        }\n"
+        "    }\n"
+        "    match mode {\n"
+        "        Mode::Single => run_single(),\n"
+        "    }\n"
+        "}\n\n"
+        "fn run_game() {}\n"
+    )
+
+    def _write_src(self, tmp_path):
+        src = tmp_path / "crates" / "phase-ai" / "src" / "bin" / "ai_duel.rs"
+        src.parent.mkdir(parents=True)
+        src.write_text(self._FAKE_SRC)
+        return src
+
+    def test_applies_all_four_edits(self, tmp_path):
+        src = self._write_src(tmp_path)
+        _phase._apply_duel_files_patch(tmp_path)
+        text = src.read_text()
+        assert _phase._DUEL_FILES_MARKER in text
+        assert "matchup_files: Option<(PathBuf, PathBuf)>" in text
+        assert '"--matchup-files" =>' in text
+        assert "fn run_matchup_files(" in text
+        assert "fn read_deck_file(" in text
+        # dispatch grafted ahead of the mode match
+        assert text.index("if let Some((ref a, ref b)) = matchup_files") < text.index(
+            "match mode {"
+        )
+
+    def test_idempotent(self, tmp_path):
+        src = self._write_src(tmp_path)
+        _phase._apply_duel_files_patch(tmp_path)
+        once = src.read_text()
+        _phase._apply_duel_files_patch(tmp_path)  # second call is a no-op
+        assert src.read_text() == once
+
+    def test_missing_anchor_fails_loud(self, tmp_path):
+        src = tmp_path / "crates" / "phase-ai" / "src" / "bin" / "ai_duel.rs"
+        src.parent.mkdir(parents=True)
+        src.write_text("fn main() {}\n")  # none of the anchors present
+        with pytest.raises(_phase.PhaseRuntimeError) as excinfo:
+            _phase._apply_duel_files_patch(tmp_path)
+        assert "anchor" in str(excinfo.value)
 
 
 class TestCoverageGate:
@@ -249,27 +308,27 @@ class TestRunDuel:
         bin_path.chmod(0o755)
         monkeypatch.setenv("MTG_SKILLS_PHASE_BIN", str(bin_path))
 
+        # v0.8.0: ai-duel reads <data-root>/card-data.json + prints to stderr.
+        root = tmp_path / "root"
+        root.mkdir()
+        (root / "card-data.json").write_text("{}")
+        monkeypatch.setattr(_phase, "_binary_data_root", lambda: root)
+
         captured = {}
 
         def fake_run(cmd, **_kwargs):
             captured["cmd"] = cmd
-            captured["kwargs"] = _kwargs
-            output_path = Path([a for a in cmd if a.startswith("/")][-1])
-            output_path.write_text(
-                json.dumps(
-                    {
-                        "matchup": "deckA-vs-deckB",
-                        "games": 50,
-                        "p0_wins": 28,
-                        "p1_wins": 18,
-                        "draws": 4,
-                        "avg_turns": 7.2,
-                        "avg_duration_ms": 2100,
-                    }
-                )
-            )
             r = MagicMock()
             r.returncode = 0
+            r.stderr = (
+                "\nResults (50 games, seed: 42, difficulty: Medium, "
+                "matchup: matchup-files):\n"
+                "  P0 (A) wins:   28 (56.0%)\n"
+                "  P1 (B) wins:   18 (36.0%)\n"
+                "  Draws/aborted:    4 (8.0%)\n"
+                "  Avg turns: 7.2\n"
+                "  Avg duration: 2100ms\n"
+            )
             return r
 
         monkeypatch.setattr("subprocess.run", fake_run)
@@ -291,6 +350,11 @@ class TestRunDuel:
         assert result["wins_p0"] == 28
         assert result["wins_p1"] == 18
         assert result["draws"] == 4
+        assert result["avg_turns"] == 7.2
+        assert result["avg_duration_ms"] == 2100
+        assert result["games"] == 50
+        assert "--matchup-files" in captured["cmd"]
+        assert str(root) in captured["cmd"]  # data-root positional
         assert "--batch" in captured["cmd"]
         assert "50" in captured["cmd"]
         assert "--seed" in captured["cmd"]
@@ -338,6 +402,10 @@ class TestRunDuelError:
         bin_path.write_text("#!/bin/sh\n")
         bin_path.chmod(0o755)
         monkeypatch.setenv("MTG_SKILLS_PHASE_BIN", str(bin_path))
+        root = tmp_path / "root"
+        root.mkdir()
+        (root / "card-data.json").write_text("{}")
+        monkeypatch.setattr(_phase, "_binary_data_root", lambda: root)
 
         def fake_run(cmd, **_kwargs):
             raise subprocess.CalledProcessError(

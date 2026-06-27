@@ -107,6 +107,168 @@ def _ensure_prereqs() -> None:
             )
 
 
+_DUEL_FILES_MARKER = "// matchup-files patch (mtg-skills)"
+
+# The two functions the patch grafts ahead of ai_duel.rs's `fn run_game(`. Plain
+# string (Rust braces are literal here — NOT a Python f-string). Imports it needs
+# (PlayerDeckList / DeckList / resolve_deck_list / CardDatabase / AiDifficulty /
+# PlayerId / Instant) are all already in ai_duel.rs's `use` block.
+_DUEL_FILES_FNS = """\
+// matchup-files patch (mtg-skills): load two phase-native deck files into a
+// 2-player batch, restoring the v0.1.60 --matchup-files affordance v0.8.0 dropped.
+fn read_deck_file(path: &std::path::Path) -> (PlayerDeckList, String) {
+    let file = std::fs::File::open(path).unwrap_or_else(|e| {
+        eprintln!("failed to open deck {}: {e}", path.display());
+        std::process::exit(1);
+    });
+    let v: serde_json::Value = serde_json::from_reader(file).unwrap_or_else(|e| {
+        eprintln!("deck {} is not valid JSON: {e}", path.display());
+        std::process::exit(1);
+    });
+    let label = v["name"].as_str().unwrap_or("deck").to_string();
+    let mut main_deck: Vec<String> = Vec::new();
+    if let Some(arr) = v["main"].as_array() {
+        for e in arr {
+            let n = e["name"].as_str().unwrap_or("");
+            let c = e["count"].as_u64().unwrap_or(1) as usize;
+            for _ in 0..c {
+                main_deck.push(n.to_string());
+            }
+        }
+    }
+    let commander: Vec<String> = v["commander"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    (
+        PlayerDeckList {
+            main_deck,
+            commander,
+            ..Default::default()
+        },
+        label,
+    )
+}
+
+fn run_matchup_files(
+    db: &CardDatabase,
+    a_path: &std::path::Path,
+    b_path: &std::path::Path,
+    batch: Option<usize>,
+    base_seed: u64,
+    difficulty: AiDifficulty,
+    verbose: bool,
+) {
+    let (a_list, p0_label) = read_deck_file(a_path);
+    let (b_list, p1_label) = read_deck_file(b_path);
+    let deck_list = DeckList {
+        player: a_list,
+        opponent: b_list,
+        ..Default::default()
+    };
+    let payload = resolve_deck_list(db, &deck_list);
+
+    let game_count = batch.unwrap_or(1);
+    let mut p0_wins: usize = 0;
+    let mut p1_wins: usize = 0;
+    let mut draws: usize = 0;
+    let mut total_turns: u32 = 0;
+    let mut total_duration_ms: u128 = 0;
+    for game_idx in 0..game_count {
+        let game_seed = base_seed + game_idx as u64;
+        let start = Instant::now();
+        let (winner, turns) = run_game(&payload, game_seed, difficulty, verbose, true);
+        let elapsed = start.elapsed().as_millis();
+        match winner {
+            Some(PlayerId(0)) => p0_wins += 1,
+            Some(_) => p1_wins += 1,
+            None => draws += 1,
+        }
+        total_turns += turns;
+        total_duration_ms += elapsed;
+    }
+    let n = game_count.max(1);
+    eprintln!("\\nResults ({game_count} games, seed {base_seed}, matchup-files):");
+    eprintln!(
+        "  P0 ({p0_label}) wins: {p0_wins:>4} ({:.1}%)",
+        p0_wins as f64 / n as f64 * 100.0
+    );
+    eprintln!(
+        "  P1 ({p1_label}) wins: {p1_wins:>4} ({:.1}%)",
+        p1_wins as f64 / n as f64 * 100.0
+    );
+    eprintln!(
+        "  Draws/aborted:             {draws:>4} ({:.1}%)",
+        draws as f64 / n as f64 * 100.0
+    );
+    eprintln!("  Avg turns: {:.1}", total_turns as f64 / n as f64);
+    eprintln!("  Avg duration: {:.0}ms", total_duration_ms as f64 / n as f64);
+}
+
+"""
+
+
+def _apply_duel_files_patch(repo: Path) -> None:
+    """Re-add a ``--matchup-files <a> <b>`` flag to the cloned ai-duel binary.
+
+    v0.8.0 ai-duel resolves BOTH decks from a static built-in matchup registry — it
+    dropped the v0.1.60 affordance for two arbitrary deck files, so :func:`run_duel`
+    (playtest-match / playtest-gauntlet, 1v1) has no runtime custom-deck path. This
+    grafts the flag back: it loads two phase-native deck files
+    (``{name, main:[{name,count}], commander?}``), resolves them via the engine's
+    ``resolve_deck_list``, and runs the existing 2-player batch (printing the same
+    stderr summary the built-in matchups do). A local build-time graft, idempotent,
+    with asserted anchors so a phase bump fails loudly rather than mis-patching.
+    ADR-0028 consume-not-fork: we still consume the release; this is not a phase PR.
+    """
+    src = repo / "crates" / "phase-ai" / "src" / "bin" / "ai_duel.rs"
+    text = src.read_text()
+    if _DUEL_FILES_MARKER in text:
+        return  # already patched (idempotent)
+    edits = [
+        # 1. declare the option holding the two deck-file paths
+        (
+            'let mut matchup = "red-vs-green".to_string();',
+            'let mut matchup = "red-vs-green".to_string();\n'
+            "    let mut matchup_files: Option<(PathBuf, PathBuf)> = None;  "
+            + _DUEL_FILES_MARKER,
+        ),
+        # 2. parse the flag (two positional values) ahead of the --suite arm
+        (
+            '"--suite" => mode = Mode::Suite,',
+            '"--matchup-files" => {\n'
+            "                let a = args_iter.next().cloned().unwrap_or_default();\n"
+            "                let b = args_iter.next().cloned().unwrap_or_default();\n"
+            "                matchup_files ="
+            " Some((PathBuf::from(a), PathBuf::from(b)));\n"
+            "            }\n"
+            '            "--suite" => mode = Mode::Suite,',
+        ),
+        # 3. dispatch to the custom runner before the built-in mode match
+        (
+            "    match mode {\n",
+            "    if let Some((ref a, ref b)) = matchup_files {\n"
+            "        run_matchup_files("
+            "&db, a, b, batch, base_seed, difficulty, verbose);\n"
+            "        return;\n"
+            "    }\n\n"
+            "    match mode {\n",
+        ),
+        # 4. the runner + deck-file reader, ahead of run_game
+        ("fn run_game(", _DUEL_FILES_FNS + "fn run_game("),
+    ]
+    for anchor, replacement in edits:
+        if text.count(anchor) != 1:
+            raise PhaseRuntimeError(
+                f"ai-duel matchup-files patch anchor not unique/found: {anchor!r}",
+                stderr=(
+                    f"phase {PHASE_TAG} source drifted; update _apply_duel_files_patch."
+                ),
+            )
+        text = text.replace(anchor, replacement, 1)
+    src.write_text(text)
+
+
 def install_phase() -> None:
     """Clone + ``cargo build`` the phase playtest binaries (ai-duel/ai-commander).
 
@@ -133,6 +295,10 @@ def install_phase() -> None:
     repo_card_data = repo / "client" / "public" / "card-data.json"
     repo_card_data.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(ensure_card_data(), repo_card_data)
+
+    # Graft the --matchup-files flag back into ai-duel so run_duel (1v1
+    # playtest-match / playtest-gauntlet) has a runtime custom-deck path.
+    _apply_duel_files_patch(repo)
 
     subprocess.run(
         ["cargo", "build", "--release", "--bin", "ai-duel", "--bin", "ai-commander"],
@@ -338,62 +504,70 @@ def run_duel(
     ``avg_turns``, ``avg_duration_ms``, ``games``, ``status`` (``ok`` or
     ``timeout``).
 
-    NOTE: assumes phase's ``ai-duel`` accepts ``--matchup-files <a> <b>``
-    for inline-deck files. Phase v0.1.60's actual flag may differ (e.g.,
-    ``--matchup`` for built-in pair names). Adjust when wiring the real
-    binary; tests mock subprocess so the flag name is irrelevant here.
-
-    The ``format_`` parameter is not forwarded to the command — phase's
-    ``ai-duel`` infers the format from the deck JSON's ``"format"`` field.
-    The parameter is retained for the gauntlet caller in Task 14.
+    v0.8.0 model: ``ai-duel <data-root> --matchup-files <a> <b> --batch N`` (the
+    ``--matchup-files`` flag is re-grafted by :func:`_apply_duel_files_patch` at
+    install — stock v0.8.0 only resolves built-in matchups). The batch summary is
+    printed to STDERR (no ``--output`` JSON), so we parse it. ``format_`` is unused
+    (phase reads the format from the deck JSON), kept for call-site symmetry.
     """
     binary = find_binary("ai-duel")
-    with tempfile.TemporaryDirectory() as td:
-        out_path = Path(td) / "duel.json"
-        cmd = [
-            str(binary),
-            "--matchup-files",
-            str(deck_a_path),
-            str(deck_b_path),
-            "--batch",
-            str(games),
-            "--difficulty",
-            difficulty,
-            "--output",
-            str(out_path),
-        ]
-        if seed is not None:
-            cmd += ["--seed", str(seed)]
-        try:
-            subprocess.run(
-                cmd, check=True, timeout=timeout_s, capture_output=True, text=True
-            )
-        except subprocess.TimeoutExpired:
-            return {
-                "status": "timeout",
-                "wins_p0": 0,
-                "wins_p1": 0,
-                "draws": 0,
-                "games": 0,
-                "avg_turns": 0.0,
-                "avg_duration_ms": 0,
-            }
-        except subprocess.CalledProcessError as exc:
-            raise PhaseRuntimeError(
-                f"phase ai-duel exited with code {exc.returncode}",
-                stderr=exc.stderr or "",
-            ) from exc
+    data_root = _binary_data_root()
+    if not (data_root / "card-data.json").exists():
+        raise PhaseNotInstalledError(
+            f"phase card-data.json not found at {data_root / 'card-data.json'}. "
+            "Run `playtest-install-phase`.",
+        )
+    cmd = [
+        str(binary),
+        str(data_root),
+        "--matchup-files",
+        str(deck_a_path),
+        str(deck_b_path),
+        "--batch",
+        str(games),
+        "--difficulty",
+        difficulty,
+    ]
+    if seed is not None:
+        cmd += ["--seed", str(seed)]
+    try:
+        proc = subprocess.run(
+            cmd, check=True, timeout=timeout_s, capture_output=True, text=True
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "timeout",
+            "wins_p0": 0,
+            "wins_p1": 0,
+            "draws": 0,
+            "games": 0,
+            "avg_turns": 0.0,
+            "avg_duration_ms": 0,
+        }
+    except subprocess.CalledProcessError as exc:
+        raise PhaseRuntimeError(
+            f"phase ai-duel exited with code {exc.returncode}",
+            stderr=exc.stderr or "",
+        ) from exc
 
-        data = json.loads(out_path.read_text())
+    out = proc.stderr or ""  # ai-duel prints the batch summary to stderr
+
+    def _int(pat: str) -> int:
+        m = re.search(pat, out)
+        return int(m.group(1)) if m else 0
+
+    def _float(pat: str) -> float:
+        m = re.search(pat, out)
+        return float(m.group(1)) if m else 0.0
 
     return {
         "status": "ok",
-        "wins_p0": data.get("p0_wins", 0),
-        "wins_p1": data.get("p1_wins", 0),
-        "draws": data.get("draws", 0),
-        "games": data.get("games", games),
-        "avg_turns": data.get("avg_turns", 0.0),
-        "avg_duration_ms": data.get("avg_duration_ms", 0),
+        "wins_p0": _int(r"P0 \(.*?\) wins:\s*(\d+)"),
+        "wins_p1": _int(r"P1 \(.*?\) wins:\s*(\d+)"),
+        "draws": _int(r"Draws/aborted:\s*(\d+)"),
+        "games": games,
+        "avg_turns": _float(r"Avg turns:\s*([\d.]+)"),
+        "avg_duration_ms": _int(r"Avg duration:\s*(\d+)ms"),
     }
 
 
