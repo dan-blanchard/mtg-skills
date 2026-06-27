@@ -28,8 +28,9 @@ purpose: ``signals`` imports the IR, so a back-edge would be a cycle.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
+from typing import Any
 
 from mtg_utils._card_ir import _combinators as comb
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity, Trigger
@@ -1715,6 +1716,41 @@ def _anchored[T](text: str, anchor: str, parser: comb.Parser[T]) -> bool:
     return anchor in text.lower() and parser.run(text) is not None
 
 
+def _iter_spans(text: str, parser: comb.Parser[Any]) -> Iterator[tuple[str, Any]]:
+    """Yield ``(matched_span, value)`` for every NON-overlapping place ``parser``
+    matches, left to right — the structural analogue of ``re.finditer`` (advances past
+    each match's end, like ``finditer``). ``parser`` anchors at its own lead word."""
+    rest = text
+    while True:
+        r = parser.run(rest)
+        if r is not None:
+            span = rest[: len(rest) - len(r[1])].strip()
+            yield (span, r[0])
+            rest = r[1]
+            continue
+        w = comb.word().run(rest)
+        if w is None:
+            return
+        rest = w[1]
+
+
+def _scan_span(text: str, parser: comb.Parser[Any]) -> str | None:
+    """The first clause-span in ``text`` where ``parser`` matches at a word boundary,
+    returned as the matched substring (start-of-anchor → end-of-parser) — the
+    structural analogue of ``re.search(...).group(0)`` for recovering a synthetic
+    Effect's ``raw``. ``None`` if the parser never matches. ``parser`` should anchor at
+    its OWN lead word (it is tried at each successive boundary, like ``scan``)."""
+    rest = text
+    while True:
+        r = parser.run(rest)
+        if r is not None:
+            return rest[: len(rest) - len(r[1])].strip()
+        w = comb.word().run(rest)
+        if w is None:
+            return None
+        rest = w[1]
+
+
 # ── ADR-0027 combat-damage RECIPIENT residue (SIDECAR v41) ────────────────────
 # project.py stamps a structured `recipient` on every NATIVE combat_damage trigger
 # (the DamageDone / DamageDoneOnceByController modes), but phase leaves combat-damage
@@ -1736,17 +1772,39 @@ def _anchored[T](text: str, anchor: str, parser: comb.Parser[T]) -> bool:
 # three are combat-damage-to-a-player payoffs (the structural recipient is a player), so
 # all three fire BOTH the base matters lane and to_opp — a player recipient is a player
 # recipient regardless of the verb. CR 510.1b / 615.
-_CDMG_RECIPIENT_PLAYER = re.compile(
-    r"(?:when(?:ever)?|would)\b[^.]*?\bdeals? combat damage to "
-    r"(?:a player|an opponent|one of your opponents|each opponent"
-    r"|a player or planeswalker|a player or battle|that player)\b"
-    r"|(?:was|were) dealt combat damage by",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the combat-damage RECIPIENT detector reads STRUCTURE.
+# PLAYER arm A — (when|whenever|would) <bounded gap> "deals combat damage to" <player
+# recipient bag>: the "a player or planeswalker / or battle" variants are subsumed by
+# the bare "a player" slot (it matches the lead two words), exactly as the regex's
+# leftmost-alternation did. PLAYER arm B — the passive "was/were dealt combat damage
+# by" reference. CREATURE — "deals combat damage to (a|another|one or more) creature(s)"
+# (the regex's "whenever <gap> deals combat damage to a creature" arm is fully subsumed
+# by this, which anchors on "deals" anywhere). Ports to phase-rs as nom tuples.
+_CDMG_DEALS_TO = comb.phrase({"deal", "deals"}, {"combat"}, {"damage"}, {"to"})
+_CDMG_PLAYER_RECIPIENT = comb.alt(
+    comb.phrase({"a"}, {"player"}),
+    comb.phrase({"an"}, {"opponent"}),
+    comb.phrase({"one"}, {"of"}, {"your"}, {"opponents"}),
+    comb.phrase({"each"}, {"opponent"}),
+    comb.phrase({"that"}, {"player"}),
 )
-_CDMG_RECIPIENT_CREATURE = re.compile(
-    r"deals combat damage to (?:a|another|one or more) creatures?\b"
-    r"|whenever [^.]*deals combat damage to (?:a|another) creature",
-    re.IGNORECASE,
+_CDMG_RECIPIENT_PLAYER = comb.alt(
+    comb.scan(
+        comb.seq2(
+            comb.keyword({"when", "whenever", "would"}),
+            comb.bounded_scan(comb.seq2(_CDMG_DEALS_TO, _CDMG_PLAYER_RECIPIENT)),
+        )
+    ),
+    comb.scan(comb.phrase({"was", "were"}, {"dealt"}, {"combat"}, {"damage"}, {"by"})),
+)
+_CDMG_RECIPIENT_CREATURE = comb.scan(
+    comb.seq3(
+        comb.phrase({"deals"}, {"combat"}, {"damage"}, {"to"}),
+        comb.alt(
+            comb.phrase({"one"}, {"or"}, {"more"}), comb.keyword({"a", "another"})
+        ),
+        comb.keyword({"creature", "creatures"}),
+    )
 )
 
 
@@ -1758,10 +1816,13 @@ def combat_damage_recipients_from_text(text: str) -> frozenset[str]:
     "deals combat damage to a player" level) whose text is not in the commander's
     pre-built sidecar IR. CR 510.1b / 510.1c / 510.2 / 615."""
     stripped = re.sub(r"\([^)]*\)", " ", text or "")
+    low = stripped.lower()
     out: set[str] = set()
-    if _CDMG_RECIPIENT_PLAYER.search(stripped):
+    # cheap dispatch: every player arm carries "combat damage" (arm A) or "dealt
+    # combat damage by" (arm B); the creature detector likewise needs "combat damage".
+    if "combat damage" in low and _CDMG_RECIPIENT_PLAYER.run(stripped) is not None:
         out.add("player")
-    if _CDMG_RECIPIENT_CREATURE.search(stripped):
+    if "combat damage to" in low and _CDMG_RECIPIENT_CREATURE.run(stripped) is not None:
         out.add("creature")
     return frozenset(out)
 
@@ -1818,9 +1879,30 @@ def _recover_combat_damage_recipients(card: Card, oracle: str) -> Card:
 # Hag, Candlekeep Inspiration) carry no digit after the phrase, so the value regex
 # skips them — matching the carved word mirror's fixed-only firing set, so
 # base_pt_set stays drift-0. CR 613.4b layer 7b.
-_BASE_PT_SET_VALUE = re.compile(
-    r"base power and toughness (\d+)/(\d+)|base toughness (\d+)|base power (\d+)",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the base-P/T-SET reads are STRUCTURAL. The VALUE parser
+# returns the toughness it sets (int) — or None for a power-only set (amount variable,
+# no toughness shrink) — so it doubles as the detector (run is not None) and the
+# amount.factor source. Forms, in regex-alternation order: "base power and toughness
+# N/M" (toughness = M), "base toughness N" (= N), "base power N" (power-only → None).
+_BASE_PT_PAIR_RE = re.compile(r"\d+/\d+")
+_BASE_PT_VALUE_P = comb.scan(
+    comb.alt(
+        comb.seq2(
+            comb.phrase({"base"}, {"power"}, {"and"}, {"toughness"}),
+            comb.regex_word(_BASE_PT_PAIR_RE),
+        ).map(lambda v: int(comb.norm_word(v[1]).split("/")[1])),
+        comb.seq2(
+            comb.phrase({"base"}, {"toughness"}),
+            comb.satisfy(lambda w: w.isdigit()),
+        ).map(lambda v: int(comb.norm_word(v[1]))),
+        comb.value(
+            None,
+            comb.seq2(
+                comb.phrase({"base"}, {"power"}),
+                comb.satisfy(lambda w: w.isdigit()),
+            ),
+        ),
+    )
 )
 # The SET-EFFECT signature: the value is set by a "have/has/are/is base power…"
 # verb. This is the precision gate that keeps a REFERENCE / FILTER out — "creatures
@@ -1829,8 +1911,8 @@ _BASE_PT_SET_VALUE = re.compile(
 # toughness 1" (Sword of the Squeak) all use "with"/"its base", NOT a setting verb,
 # so they are not a layer-7b set and must not synthesize one. CR 613.4b vs a mere
 # characteristic reference.
-_BASE_PT_SET_VERB = re.compile(
-    r"\b(?:have|has|are|is) base (?:power|toughness)", re.IGNORECASE
+_BASE_PT_SET_VERB_P = comb.scan(
+    comb.phrase({"have", "has", "are", "is"}, {"base"}, {"power", "toughness"})
 )
 # The MASS-anthem affected set is a plural "creatures" the clause sets P/T on with
 # a "have/has base" verb. A SINGLE-target / aura / equipment / self set ("target
@@ -1840,13 +1922,26 @@ _BASE_PT_SET_VERB = re.compile(
 # animation (The Antiquities War, Tezzeret — artifacts becoming creatures) is its
 # OWN type-animator theme, not a creature anthem, so the "become" verb is excluded
 # from the mass arm too.
-_BASE_PT_SINGLE = re.compile(
-    r"\btarget creature|\benchanted creature|\bequipped creature|\bthis creature"
-    r"|\btarget artifact|\benchanted artifact",
-    re.IGNORECASE,
+# The regex anchored `\btarget creature` (no trailing boundary), so "target creatures"
+# (a small targeted set — "up to two target creatures each have base …", Will Kenrith,
+# Phantasmal Form) read as single/targeted, NOT a go-wide anthem. Mirror that by
+# accepting the plural in the noun slot (a true mass anthem says "Creatures you control
+# have base …", with no "target"/"enchanted"/"equipped"/"this" qualifier).
+_BASE_PT_SINGLE_P = comb.scan(
+    comb.alt(
+        comb.phrase({"target"}, {"creature", "creatures"}),
+        comb.phrase({"enchanted"}, {"creature", "creatures"}),
+        comb.phrase({"equipped"}, {"creature", "creatures"}),
+        comb.phrase({"this"}, {"creature", "creatures"}),
+        comb.phrase({"target"}, {"artifact", "artifacts"}),
+        comb.phrase({"enchanted"}, {"artifact", "artifacts"}),
+    )
 )
-_BASE_PT_BECOME = re.compile(
-    r"\bbecomes?\b[^.]*\bbase (?:power|toughness)", re.IGNORECASE
+_BASE_PT_BECOME_P = comb.scan(
+    comb.seq2(
+        comb.keyword({"become", "becomes"}),
+        comb.bounded_scan(comb.phrase({"base"}, {"power", "toughness"})),
+    )
 )
 # Whose creatures the set affects (read from the value-bearing clause): a PLAIN
 # go-wide "creatures you control/own" (controller you — the creatures_matter anthem
@@ -1857,13 +1952,18 @@ _BASE_PT_BECOME = re.compile(
 # control/own …") so a QUALIFIED you set ("Commander creatures you own" — Raised by
 # Giants, a narrow commander buff, NOT a go-wide anthem) does NOT read as a generic
 # controller-you creatures_matter subject (it falls to the symmetric controller-any
-# arm, which fires no lane for a >2 toughness).
-_BASE_PT_YOU_PLAIN = re.compile(
-    r"^(?:other |all )?creatures you (?:control|own)\b", re.IGNORECASE
+# arm, which fires no lane for a >2 toughness). Head-anchored (not scanned) — the
+# regex's `^`.
+_BASE_PT_YOU_PLAIN_P = comb.seq2(
+    comb.opt(comb.keyword({"other", "all"})),
+    comb.phrase({"creatures"}, {"you"}, {"control", "own"}),
 )
-_BASE_PT_OPP = re.compile(
-    r"opponents? control|enchanted player controls?|that player controls",
-    re.IGNORECASE,
+_BASE_PT_OPP_P = comb.scan(
+    comb.alt(
+        comb.phrase({"opponent", "opponents"}, {"control"}),
+        comb.phrase({"enchanted"}, {"player"}, {"control", "controls"}),
+        comb.phrase({"that"}, {"player"}, {"controls"}),
+    )
 )
 
 
@@ -1877,24 +1977,24 @@ def _base_pt_set_fields(clause: str) -> tuple[str, Filter | None, Quantity]:
     death-relevant stat); a power-only set → amount op="variable" (no toughness
     shrink). CR 613.4b. Shared by the per-clause supplement (``_recover_static_
     pattern``) and the card-level empty-IR recovery (``_recover_base_pt_set``)."""
-    m = _BASE_PT_SET_VALUE.search(clause)
-    tough = (m.group(2) or m.group(3)) if m is not None else None
+    r = _BASE_PT_VALUE_P.run(clause)
+    tough = r[0] if r is not None else None  # int (toughness) or None (power-only)
     amount = (
-        Quantity(op="fixed", factor=int(tough))
+        Quantity(op="fixed", factor=tough)
         if tough is not None
         else Quantity(op="variable")  # power-only / dynamic — no toughness shrink
     )
     cl = clause.strip()
     is_mass = (
-        re.search(r"\bcreatures\b", cl, re.IGNORECASE) is not None
-        and _BASE_PT_SINGLE.search(cl) is None
-        and _BASE_PT_BECOME.search(cl) is None
+        comb.find_word({"creatures"}).run(cl) is not None
+        and _BASE_PT_SINGLE_P.run(cl) is None
+        and _BASE_PT_BECOME_P.run(cl) is None
     )
     if not is_mass:
         return "any", None, amount
-    if _BASE_PT_OPP.search(cl):
+    if _BASE_PT_OPP_P.run(cl) is not None:
         scope, ctrl = "opp", "opp"
-    elif _BASE_PT_YOU_PLAIN.search(cl):
+    elif _BASE_PT_YOU_PLAIN_P.run(cl) is not None:
         scope, ctrl = "you", "you"
     else:
         scope, ctrl = "each", "any"
@@ -1914,11 +2014,15 @@ def _recover_base_pt_set(card: Card, oracle: str) -> Card:
     ):
         return card
     text = re.sub(r"\([^)]*\)", " ", oracle)
+    low = text.lower()
+    # cheap dispatch — the value + verb both need "base power"/"base toughness".
+    if "base power" not in low and "base toughness" not in low:
+        return card
     synth: list[Ability] = []
     for clause in re.split(r"[.\n]", text):
         if (
-            _BASE_PT_SET_VALUE.search(clause) is None
-            or _BASE_PT_SET_VERB.search(clause) is None
+            _BASE_PT_VALUE_P.run(clause) is None
+            or _BASE_PT_SET_VERB_P.run(clause) is None
         ):
             continue
         scope, subject, amount = _base_pt_set_fields(clause)
@@ -1978,20 +2082,62 @@ def _recover_base_pt_set(card: Card, oracle: str) -> Card:
 # Lattice) say neither "base power" nor "N/N … in addition to its other types", so they
 # are not matched. Upstream-to-phase candidate (phase should keep the dropped set as a
 # base_pt_set node).
-_DYN_BASE_PT_SET = re.compile(
-    r"\b(?:has|have) base (?:power|toughness)"
-    r"|\bbase power(?: and toughness)? \d"
-    r"|\bbase toughness \d"
-    r"|\bbecomes? a[n]? [^.]*with base (?:power|toughness)"
-    r"|\bbecomes? a[n]? [^.]*?\b\d+/\d+\b[^.]* in addition to its other types"
-    r"|\bbase (?:power|toughness)[^.]*\bbecome\b",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the 6 DYNAMIC-setter arms read STRUCTURE. A digit-leading
+# word (`_DIGIT_LEAD`: "3", "1/1", "4/4,") stands in for the regex `\d`; `_PT_PAIR_W`
+# is the `\b\d+/\d+\b` word. `[^.]*` gaps become `bounded_scan` (clause-bounded). Arm 6
+# keys on bare "become" (not "becomes"); arms 4/5 on "become(s) a/an". Ports to phase-rs
+# as a nom alt of tuples.
+_DIGIT_LEAD = comb.satisfy(lambda w: bool(w) and w[0].isdigit())
+_PT_PAIR_W = comb.regex_word(_BASE_PT_PAIR_RE)
+_DYN_BASE_PT_SET_P = comb.alt(
+    comb.scan(comb.phrase({"has", "have"}, {"base"}, {"power", "toughness"})),
+    comb.scan(
+        comb.seq3(
+            comb.phrase({"base"}, {"power"}),
+            comb.opt(comb.phrase({"and"}, {"toughness"})),
+            _DIGIT_LEAD,
+        )
+    ),
+    comb.scan(comb.seq2(comb.phrase({"base"}, {"toughness"}), _DIGIT_LEAD)),
+    comb.scan(
+        comb.seq3(
+            comb.keyword({"become", "becomes"}),
+            comb.keyword({"a", "an"}),
+            comb.bounded_scan(comb.phrase({"with"}, {"base"}, {"power", "toughness"})),
+        )
+    ),
+    comb.scan(
+        comb.seq2(
+            comb.seq2(comb.keyword({"become", "becomes"}), comb.keyword({"a", "an"})),
+            comb.seq2(
+                comb.bounded_scan(_PT_PAIR_W),
+                comb.bounded_scan(
+                    comb.phrase(
+                        {"in"}, {"addition"}, {"to"}, {"its"}, {"other"}, {"types"}
+                    )
+                ),
+            ),
+        )
+    ),
+    comb.scan(
+        comb.seq2(
+            comb.phrase({"base"}, {"power", "toughness"}),
+            comb.bounded_scan(comb.keyword({"become"})),
+        )
+    ),
 )
 # The REFERENCE grammar: "creature(s) you control WITH base power N" — a noun qualifier,
 # not a set. Excluded so the references stay on the narrowed mirror (await
 # base_power_matters), not synthesized into the SETTER lane.
-_REF_BASE_PT = re.compile(
-    r"creatures? you (?:control|own) with base (?:power|toughness)", re.IGNORECASE
+_REF_BASE_PT_P = comb.scan(
+    comb.phrase(
+        {"creature", "creatures"},
+        {"you"},
+        {"control", "own"},
+        {"with"},
+        {"base"},
+        {"power", "toughness"},
+    )
 )
 
 
@@ -2010,11 +2156,20 @@ def _recover_dynamic_base_pt_set(card: Card, oracle: str) -> Card:
     ):
         return card
     text = re.sub(r"\([^)]*\)", " ", oracle)
+    low = text.lower()
+    # cheap dispatch — every arm needs "base power"/"base toughness" or the
+    # type-conferral tail "in addition to its other types".
+    if not (
+        "base power" in low
+        or "base toughness" in low
+        or "in addition to its other types" in low
+    ):
+        return card
     synth: list[Ability] = []
     for clause in re.split(r"[.\n]", text):
-        if _DYN_BASE_PT_SET.search(clause) is None:
+        if _DYN_BASE_PT_SET_P.run(clause) is None:
             continue
-        if _REF_BASE_PT.search(clause) is not None:
+        if _REF_BASE_PT_P.run(clause) is not None:
             continue
         synth.append(
             Ability(
@@ -2356,10 +2511,36 @@ def _recover_becomes_tap_untap(card: Card) -> Card:
 # would-die-instead-exile-with-counters delayed return — Darigaaz Reincarnated), run
 # over the joined oracle, so the recovered set is byte-identical sans the keyword arm
 # (now structural). CR 700.4 (dies = battlefield→graveyard) / 603.6c.
-_DIES_RETURN_RE = re.compile(
-    r"when [^.]* dies, return (?:it|her|him|them) to the battlefield"
-    r"|if [^.]* would die, instead exile it with [^.]*counters?",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the two non-keyword DIES_RECURSION arms read STRUCTURE.
+# Arm A — "when ~ dies, return it to the battlefield": `when` anchor, a bounded-gap
+# scan over the creature description (no period crossed), then the fixed return phrase
+# (the pronoun bag covers it/her/him/them). `keyword({when})` matches ONLY "when", not
+# "whenever" (norm keeps them distinct), mirroring the regex's `when ` space-anchor.
+# Arm B — "if ~ would die, instead exile it with N counters" (Darigaaz Reincarnated's
+# delayed return): `if` anchor, bounded-gap to the fixed "would die instead exile it
+# with" phrase, then a second bounded gap to the `counter(s)` word. Both `[^.]*` gaps
+# become `bounded_scan` (clause-bounded). Ports to phase-rs as two nom tuples.
+_DIES_RETURN_ARM_A = comb.seq2(
+    comb.keyword({"when"}),
+    comb.bounded_scan(
+        comb.phrase(
+            {"dies"},
+            {"return"},
+            {"it", "her", "him", "them"},
+            {"to"},
+            {"the"},
+            {"battlefield"},
+        )
+    ),
+)
+_DIES_RETURN_ARM_B = comb.seq2(
+    comb.keyword({"if"}),
+    comb.bounded_scan(
+        comb.seq2(
+            comb.phrase({"would"}, {"die"}, {"instead"}, {"exile"}, {"it"}, {"with"}),
+            comb.bounded_scan(comb.keyword({"counter", "counters"})),
+        )
+    ),
 )
 
 
@@ -2377,12 +2558,18 @@ def _recover_dies_return(card: Card, oracle: str) -> Card:
     ):
         return card
     text = re.sub(r"\([^)]*\)", " ", oracle)
-    m = _DIES_RETURN_RE.search(text)
-    if m is None:
+    low = text.lower()
+    span: str | None = None
+    # cheap necessary-substring dispatch per arm (the combinator stays the detector).
+    if "battlefield" in low:
+        span = _scan_span(text, _DIES_RETURN_ARM_A)
+    if span is None and "exile it with" in low:
+        span = _scan_span(text, _DIES_RETURN_ARM_B)
+    if span is None:
         return card
     synth = Ability(
         kind="static",
-        effects=(Effect(category="self_recursion", scope="you", raw=m.group(0)),),
+        effects=(Effect(category="self_recursion", scope="you", raw=span),),
     )
     head, *rest = card.faces
     return replace(
@@ -2405,11 +2592,32 @@ def _recover_dies_return(card: Card, oracle: str) -> Card:
 # skip a card already carrying a p1p1/m1m1 counter_move/remove_counter (the structured
 # MOVE/effect cards are untouched); the kind gate keeps a charge/oil/loyalty cost-side
 # removal (Coretapper, Surge Node) OUT. CR 122.1 / 122.6.
-_COUNTER_REMOVE_RE = re.compile(
-    r"(?:remove|move) (?:a|one|any number of|x|\d+) "
-    r"(?:[^.]{0,20}?)?(\+1/\+1|-1/-1) counters?",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the +1/+1-vs--1/-1 counter-removal detector reads STRUCTURE
+# with the new SIGN-PRESERVING `signed_word` (`norm_word` folds both to "1/1", losing
+# the kind the lane needs). Shape mirrors `(?:remove|move) <qty> [gap] (+1/+1|-1/-1)
+# counter(s)`: verb anchor + a quantity (a|one|x|N|"any number of") + a bounded gap to
+# the signed token + the `counter(s)` word. The value threaded out is the signed form,
+# mapped p1p1/m1m1 by the caller. Ports to phase-rs as a nom tuple with a sign-tag.
+_COUNTER_REMOVE_QTY = comb.alt(
+    comb.phrase({"any"}, {"number"}, {"of"}),
+    comb.satisfy(lambda w: w in {"a", "one", "x"} or w.isdigit()),
 )
+# The gap is bounded by ``:`` too (not just sentence delims): a ``Remove a charge
+# counter from ~: Put a -1/-1 counter`` activation removes a charge/quest counter as a
+# COST and puts the signed counter in the EFFECT — the signed token after the colon is
+# a different clause and must not be read as the removed kind (Trigon of Corruption,
+# Quest for the Gemblades, The Duke). The regex's 20-char cap blocked these by accident;
+# the colon is the STRUCTURAL boundary (cost ``:`` effect, CR 602.1).
+_COUNTER_REMOVE_P = comb.seq2(
+    comb.seq2(comb.keyword({"remove", "move"}), _COUNTER_REMOVE_QTY),
+    comb.bounded_scan(
+        comb.seq2(
+            comb.signed_word({"+1/+1", "-1/-1"}),
+            comb.keyword({"counter", "counters"}),
+        ),
+        delims='.;:"“”',
+    ),
+).map(lambda v: v[1][0])
 
 
 def _recover_counter_removal(card: Card, oracle: str) -> Card:
@@ -2427,10 +2635,28 @@ def _recover_counter_removal(card: Card, oracle: str) -> Card:
     ):
         return card
     text = re.sub(r"\([^)]*\)", " ", oracle)
-    m = _COUNTER_REMOVE_RE.search(text)
-    if m is None:
+    low = text.lower()
+    # cheap dispatch: a removal verb AND a signed counter token must both be present.
+    if ("remove" not in low and "move" not in low) or (
+        "+1/+1" not in text and "-1/-1" not in text
+    ):
         return card
-    kind = "p1p1" if m.group(1) == "+1/+1" else "m1m1"
+    rest = text
+    sign: str | None = None
+    span = ""
+    while True:
+        r = _COUNTER_REMOVE_P.run(rest)
+        if r is not None:
+            sign = r[0]
+            span = rest[: len(rest) - len(r[1])].strip()
+            break
+        w = comb.word().run(rest)
+        if w is None:
+            break
+        rest = w[1]
+    if sign is None:
+        return card
+    kind = "p1p1" if sign == "+1/+1" else "m1m1"
     synth = Ability(
         kind="static",
         effects=(
@@ -2438,7 +2664,7 @@ def _recover_counter_removal(card: Card, oracle: str) -> Card:
                 category="remove_counter",
                 scope="you",
                 counter_kind=kind,
-                raw=m.group(0),
+                raw=span,
             ),
         ),
     )
@@ -2588,17 +2814,70 @@ def _recover_devotion_operand(card: Card, oracle: str) -> Card:
 # Effect and the ``cast_spell`` Trigger so the lane reads the zone STRUCTURALLY;
 # synthesize a marker only for the exile-and-cast / impulse engines phase leaves with
 # neither carrier. CR 601.3b / 702.143.
-_CAST_FROM_EXILE_RE = re.compile(
-    r"top card of your library has plot"
-    r"|(?:whenever|each time) you (?:cast a spell|play a (?:card|land)"
-    r"|play a land or cast a spell)[^.]*?from exile"
-    r"|spells? you cast from exile"
-    r"|you may (?:play|cast) (?:it|that card|this card|those cards?|them)"
-    r"[^.]*?(?:for as long as it remains exiled|from exile)"
-    r"|you may play (?:a |that )?card[^.]*?from exile"
-    r"|(?:cast a spell|play a land|play a card)[^.]*?"
-    r"from anywhere other than your hand",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the cast-from-exile detector reads STRUCTURE — six arms,
+# `[^.]*?` gaps → `bounded_scan`, anchored phrases. The "play a land or cast a spell"
+# regex option is subsumed by "play a land". Detection-only (boolean).
+_CFE_FROM_EXILE = comb.phrase({"from"}, {"exile"})
+_CFE_CAST_PLAY = comb.alt(
+    comb.phrase({"cast"}, {"a"}, {"spell"}),
+    comb.phrase({"play"}, {"a"}, {"card", "land"}),
+)
+_CAST_FROM_EXILE_P = comb.scan(
+    comb.alt(
+        comb.phrase(
+            {"top"}, {"card"}, {"of"}, {"your"}, {"library"}, {"has"}, {"plot"}
+        ),
+        comb.seq(
+            comb.alt(comb.keyword({"whenever"}), comb.phrase({"each"}, {"time"})),
+            comb.keyword({"you"}),
+            _CFE_CAST_PLAY,
+            comb.bounded_scan(_CFE_FROM_EXILE),
+        ),
+        comb.phrase({"spell", "spells"}, {"you"}, {"cast"}, {"from"}, {"exile"}),
+        comb.seq(
+            comb.phrase({"you"}, {"may"}, {"play", "cast"}),
+            comb.alt(
+                comb.keyword({"it", "them"}),
+                comb.phrase({"that"}, {"card"}),
+                comb.phrase({"this"}, {"card"}),
+                comb.phrase({"those"}, {"card", "cards"}),
+            ),
+            comb.bounded_scan(
+                comb.alt(
+                    comb.phrase(
+                        {"for"},
+                        {"as"},
+                        {"long"},
+                        {"as"},
+                        {"it"},
+                        {"remains"},
+                        {"exiled"},
+                    ),
+                    _CFE_FROM_EXILE,
+                )
+            ),
+        ),
+        comb.seq(
+            comb.phrase({"you"}, {"may"}, {"play"}),
+            comb.opt(comb.keyword({"a", "that"})),
+            # the regex `card` had no trailing boundary — "play cards … from exile"
+            # (Tinybones, Bauble Burglar) matched via the plural prefix.
+            comb.keyword({"card", "cards"}),
+            comb.bounded_scan(_CFE_FROM_EXILE),
+        ),
+        comb.seq(
+            comb.alt(
+                comb.phrase({"cast"}, {"a"}, {"spell"}),
+                comb.phrase({"play"}, {"a"}, {"land"}),
+                comb.phrase({"play"}, {"a"}, {"card"}),
+            ),
+            comb.bounded_scan(
+                comb.phrase(
+                    {"from"}, {"anywhere"}, {"other"}, {"than"}, {"your"}, {"hand"}
+                )
+            ),
+        ),
+    )
 )
 
 
@@ -2610,7 +2889,12 @@ def _recover_cast_from_exile_zone(card: Card, oracle: str) -> Card:
     Idempotent; gated to the cast-from-exile oracle. CR 601.3b."""
     if not card.faces:
         return card
-    if _CAST_FROM_EXILE_RE.search(re.sub(r"\([^)]*\)", " ", oracle)) is None:
+    stripped = re.sub(r"\([^)]*\)", " ", oracle)
+    low = stripped.lower()
+    # cheap dispatch: every arm needs one of these substrings (combinator detects).
+    if not ("exile" in low or "plot" in low or "anywhere other than your hand" in low):
+        return card
+    if _CAST_FROM_EXILE_P.run(stripped) is None:
         return card
     stamped = False
     new_faces = []
@@ -2763,13 +3047,54 @@ def _recover_exile_zone_ref(card: Card, oracle: str) -> Card:
 # land" body phase leaves unstructured) so the lane reads the sacrificed-permanent
 # type structurally. A Land-ONLY sacrifice subject is already excluded from
 # sacrifice_matters (CR 701.16), so it stays this lane's own signal.
-_LAND_SACRIFICE_RE = re.compile(
-    r"sacrifice a land(?: card)?:"
-    r"|whenever (?:a|one or more|another) lands?(?: cards?)?[^.]*"
-    r"put into[^.]*graveyard"
-    r"|whenever you sacrifice (?:a|one or more|another) lands?"
-    r"|unless you sacrifice a land",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the land-sacrifice detector reads STRUCTURE. Arm 1 keys on
+# the cost separator `:` glued to "land"/"land card" (`_word_with_colon`, since norm
+# strips the colon). `[^.]*` gaps → `bounded_scan`. Quantity bag (a|one or more|another)
+# is shared by arms 2-3. Detection-only.
+_LAND_SAC_QTY = comb.alt(
+    comb.phrase({"one"}, {"or"}, {"more"}), comb.keyword({"a", "another"})
+)
+
+
+def _word_with_colon(bag: set[str]) -> comb.Parser[str]:
+    """Match a word whose normalized form is in ``bag`` AND whose RAW form carries a
+    cost-separator ``:`` (which ``norm_word`` strips) — "Sacrifice a land:" / "land
+    card:". The colon distinguishes a sacrifice COST from a mere "sacrifice a land"
+    body verb, so it must not be folded away. CR 602.1 / 118.3."""
+
+    def go(s: str) -> tuple[str, str] | None:
+        r = comb.word().run(s)
+        if r is None or comb.norm_word(r[0]) not in bag or ":" not in r[0]:
+            return None
+        return (comb.norm_word(r[0]), r[1])
+
+    return comb.Parser(go)
+
+
+_LAND_SACRIFICE_P = comb.alt(
+    comb.seq(
+        comb.phrase({"sacrifice"}, {"a"}),
+        comb.alt(
+            _word_with_colon({"land"}),
+            comb.seq(comb.keyword({"land"}), _word_with_colon({"card"})),
+        ),
+    ),
+    comb.seq(
+        comb.keyword({"whenever"}),
+        _LAND_SAC_QTY,
+        comb.keyword({"land", "lands"}),
+        comb.opt(comb.keyword({"card", "cards"})),
+        comb.bounded_scan(comb.phrase({"put"}, {"into"})),
+        comb.bounded_scan(comb.keyword({"graveyard"})),
+    ),
+    comb.seq(
+        comb.keyword({"whenever"}),
+        comb.keyword({"you"}),
+        comb.keyword({"sacrifice"}),
+        _LAND_SAC_QTY,
+        comb.keyword({"land", "lands"}),
+    ),
+    comb.phrase({"unless"}, {"you"}, {"sacrifice"}, {"a"}, {"land"}),
 )
 
 
@@ -2813,8 +3138,11 @@ def _recover_land_sacrifice(card: Card, oracle: str) -> Card:
         return card
     if _land_sac_trigger_present(card) or _land_sac_effect_present(card):
         return card
-    m = _LAND_SACRIFICE_RE.search(re.sub(r"\([^)]*\)", " ", oracle))
-    if m is None:
+    stripped = re.sub(r"\([^)]*\)", " ", oracle)
+    if "land" not in stripped.lower():  # cheap dispatch — every arm names a land.
+        return card
+    span = _scan_span(stripped, _LAND_SACRIFICE_P)
+    if span is None:
         return card
     synth = Ability(
         kind="static",
@@ -2823,7 +3151,7 @@ def _recover_land_sacrifice(card: Card, oracle: str) -> Card:
                 category="sacrifice",
                 scope="you",
                 subject=Filter(card_types=("Land",), controller="you"),
-                raw=m.group(0),
+                raw=span,
             ),
         ),
     )
@@ -2862,35 +3190,146 @@ def _recover_land_sacrifice(card: Card, oracle: str) -> Card:
 # (_COST_SELF_DISCOUNT / _COST_LESS_REDUCER / _COST_INCREASE) and the recovered set is
 # exactly the mirror's. Append-only and gated to a body phase left WITHOUT any
 # cost_reduction Effect (the 211 cleanly-structured reducers already fire the arm).
-_COST_REDUCTION_RECOVER_RE = re.compile(
+# #24e P3 parser-substrate: the six cost-reducer arms read STRUCTURE. A mana token is
+# a word whose RAW carries `{…}` (`_MANA_BRACED`, where braces are required) or whose
+# NORM is a bare mana run (`_MANA_AMOUNT`, optional braces — norm strips them). `[^.]`
+# char-gaps → `bounded_scan` (clause-bounded; the recover runs per period-split clause,
+# so the char caps and the clause are near-coextensive). Arm C's `(?<!this )` lookbehind
+# is a custom scan that skips a "spell" preceded by "this".
+_MANA_BRACE_RE = re.compile(r"\{[wubrgcx0-9]+\}", re.IGNORECASE)
+_MANA_RUN_RE = re.compile(r"[wubrgcx0-9]+", re.IGNORECASE)
+_MANA_BRACED = comb.Parser(
+    lambda s: (
+        r
+        if (r := comb.word().run(s)) is not None and _MANA_BRACE_RE.match(r[0])
+        else None
+    )
+)
+_MANA_AMOUNT = comb.satisfy(lambda w: bool(_MANA_RUN_RE.fullmatch(w)))
+_CR_LESS_TO_CAST = comb.phrase({"less"}, {"to"}, {"cast"})
+
+
+def _cr_arm_c() -> comb.Parser[object]:
+    """Arm C: a spell CLASS you cast made cheaper — the regex's `(?<!this )` lookbehind
+    becomes a scan that skips a "spell(s)" preceded by "this" (a self-discount), then
+    parses "… you cast … cost <amount> … less to cast"."""
+    # The "cost <amount>" is one bounded_scan UNIT so it backtracks past a false "cost"
+    # lead (Zimone: "… with {X} in its mana cost each turn costs {1} less …" — the first
+    # "cost" carries no mana amount; the regex backtracked to "costs {1}", so must we).
+    rest = comb.seq(
+        comb.bounded_scan(comb.phrase({"you"}, {"cast"})),
+        comb.bounded_scan(comb.seq2(comb.keyword({"cost", "costs"}), _MANA_AMOUNT)),
+        comb.bounded_scan(_CR_LESS_TO_CAST),
+    )
+
+    def go(s: str) -> tuple[object, str] | None:
+        prev = None
+        cur = s
+        while True:
+            w = comb.word().run(cur)
+            if w is None:
+                return None
+            nw = comb.norm_word(w[0])
+            if nw in {"spell", "spells"} and prev != "this":
+                r = rest.run(w[1])
+                if r is not None:
+                    return r
+            prev = nw
+            cur = w[1]
+
+    return comb.Parser(go)
+
+
+_COST_REDUCTION_RECOVER_P = comb.alt(
     # A. ability-cost reducers: "<class of> abilities … cost {N} less to activate".
-    r"\babilities[^.]{0,70}?\bcost\b[^.]{0,30}?\bless\b[^.]{0,12}?to activate"
+    comb.scan(
+        comb.seq(
+            comb.keyword({"abilities"}),
+            comb.bounded_scan(comb.keyword({"cost"})),
+            comb.bounded_scan(comb.keyword({"less"})),
+            comb.bounded_scan(comb.phrase({"to"}, {"activate"})),
+        )
+    ),
     # B. conditional spell reducer: "those spells cost {C} less" (the Defiler cycle).
-    r"|\bthose spells cost \{[wubrgc0-9x]+\}[^.]{0,20}?less to cast"
+    comb.scan(
+        comb.seq(
+            comb.phrase({"those"}, {"spells"}, {"cost"}),
+            _MANA_BRACED,
+            comb.bounded_scan(_CR_LESS_TO_CAST),
+        )
+    ),
     # C. a spell CLASS (NOT "this spell") you cast made cheaper.
-    r"|(?<!this )\bspells?\b[^.]{0,40}?\byou cast\b[^.]{0,40}?"
-    r"\bcosts? \{?[wubrgc0-9x]+\}?[^.]{0,20}?less to cast"
+    _cr_arm_c(),
     # D. a donor reducer: "spells <a player> casts cost {N} less" (Will Kenrith).
-    r"|\bspells (?:that player|those players|that opponent|each player)[^.]{0,30}?"
-    r"casts? cost \{[wubrgcx0-9]+\}[^.]{0,15}?less to cast"
+    comb.scan(
+        comb.seq(
+            comb.keyword({"spells"}),
+            comb.alt(
+                comb.phrase({"that"}, {"player"}),
+                comb.phrase({"those"}, {"players"}),
+                comb.phrase({"that"}, {"opponent"}),
+                comb.phrase({"each"}, {"player"}),
+            ),
+            comb.bounded_scan(
+                comb.seq(
+                    comb.keyword({"cast", "casts"}),
+                    comb.keyword({"cost"}),
+                    _MANA_BRACED,
+                )
+            ),
+            comb.bounded_scan(_CR_LESS_TO_CAST),
+        )
+    ),
     # E. a named special cost: "Blitz/Flashback costs you pay cost {N} less".
-    r"|\b(?:blitz|cycling|kicker|flashback|escape|ninjutsu) costs[^.]{0,30}?"
-    r"cost \{[wubrgcx0-9]+\}[^.]{0,15}?less"
+    comb.scan(
+        comb.seq(
+            comb.keyword(
+                {"blitz", "cycling", "kicker", "flashback", "escape", "ninjutsu"}
+            ),
+            comb.keyword({"costs"}),
+            comb.bounded_scan(comb.seq2(comb.keyword({"cost"}), _MANA_BRACED)),
+            comb.bounded_scan(comb.keyword({"less"})),
+        )
+    ),
     # F. a granted/property-filtered spell class made cheaper, no "you cast".
-    r"|\bspells with [^.]{0,40}?\bcost \{?[wubrgc0-9x]+\}?[^.]{0,15}?less to cast",
-    re.IGNORECASE,
+    comb.scan(
+        comb.seq(
+            comb.phrase({"spells"}, {"with"}),
+            comb.bounded_scan(comb.seq2(comb.keyword({"cost"}), _MANA_AMOUNT)),
+            comb.bounded_scan(_CR_LESS_TO_CAST),
+        )
+    ),
 )
 # The arm's subject-None screen (mirrored here so the gate skips only a card that
 # already FIRES the cost_reduction arm, not one phase left a cost_reduction Effect on
 # that the screen rejects — Invasion of the Giants' chapter-III reducer collapses to a
 # raw "Chapter 3" Effect that fails the screen, so it must still recover). CR 601.2f.
-_COST_RED_SELF = re.compile(
-    r"\bthis spell costs\b|\bthis ability costs\b|\bthis costs\b", re.IGNORECASE
+# The `[^."]` gaps mirror onto bounded_scan with delims='."' (period + double-quote
+# only — commas/semicolons are allowed inside the regex char class).
+_COST_RED_SELF_P = comb.scan(
+    comb.alt(
+        comb.phrase({"this"}, {"spell"}, {"costs"}),
+        comb.phrase({"this"}, {"ability"}, {"costs"}),
+        comb.phrase({"this"}, {"costs"}),
+    )
 )
-_COST_RED_LESS = re.compile(r'\bcosts?\b[^."]{0,40}?\bless\b', re.IGNORECASE)
-_COST_RED_MORE = re.compile(
-    r"\bcost(?:s)?[^.\"]{0,30}?\b(?:more|an additional)\b|would cost less than",
-    re.IGNORECASE,
+_COST_RED_LESS_P = comb.scan(
+    comb.seq2(
+        comb.keyword({"cost", "costs"}),
+        comb.bounded_scan(comb.keyword({"less"}), delims='."'),
+    )
+)
+_COST_RED_MORE_P = comb.alt(
+    comb.scan(
+        comb.seq2(
+            comb.keyword({"cost", "costs"}),
+            comb.bounded_scan(
+                comb.alt(comb.keyword({"more"}), comb.phrase({"an"}, {"additional"})),
+                delims='."',
+            ),
+        )
+    ),
+    comb.scan(comb.phrase({"would"}, {"cost"}, {"less"}, {"than"})),
 )
 
 
@@ -2904,9 +3343,9 @@ def _cost_reduction_fires(e: Effect) -> bool:
         return True
     raw = e.raw or ""
     return (
-        bool(_COST_RED_LESS.search(raw))
-        and not _COST_RED_SELF.search(raw)
-        and not _COST_RED_MORE.search(raw)
+        _COST_RED_LESS_P.run(raw) is not None
+        and _COST_RED_SELF_P.run(raw) is None
+        and _COST_RED_MORE_P.run(raw) is None
     )
 
 
@@ -2924,11 +3363,13 @@ def _recover_cost_reduction(card: Card, oracle: str) -> Card:
     if any(_cost_reduction_fires(e) for ab in card.all_abilities() for e in ab.effects):
         return card
     text = re.sub(r"\([^)]*\)", " ", oracle)
+    if "less" not in text.lower():  # cheap dispatch — every reducer arm needs "less".
+        return card
     clause = next(
         (
             cl.strip()
             for cl in re.split(r"[.\n]", text)
-            if _COST_REDUCTION_RECOVER_RE.search(cl)
+            if _COST_REDUCTION_RECOVER_P.run(cl) is not None
         ),
         None,
     )
@@ -2967,30 +3408,89 @@ def _recover_cost_reduction(card: Card, oracle: str) -> Card:
 # creature-blind firing is the over-fire being shed (CR 707.2: a copy of an artifact
 # is an artifact copy, not a creature copy). The veto on a TOKEN-copy ("create a token
 # that's a copy" — Mirror Match) rides the existing arm, not here.
-_CLONE_CREATURE_COPY_RE = re.compile(
-    # "enter/become … as a copy of … creature" (the ETB / animate creature copy).
-    r"\bas a copy of\b[^.\"“”]*\bcreature"
-    # "(becomes) a copy of <det> … creature" (combat-damage / attack copy).
-    r"|\bcopy of (?:a |an |any |another |target |that |this )"
-    r"[^.\"“”]*?\bcreature"
-    # a changeling "copy of a permanent you control" (a permanent copy → all lanes).
-    r"|\bcopy of (?:a |an |any |another |target |that )?permanent\b"
-    # the go-wide grant "creatures you control enter as a copy".
-    r"|\bcreatures you control enter as a copy\b"
-    # the CLONE idiom over a graveyard/exile/revealed CARD ("enter/becomes a copy of
-    # that/a … card" — Vesuvan Drifter, Volatile Chimera, The Fourteenth Doctor's
-    # Doctor card, The Mimeoplasm). The clone idiom ("enter as"/"becomes a copy",
-    # NOT "create a copy" — Magar's spell-copy) over a "card" is creature-dominated
-    # (reanimation); the negative lookahead keeps an explicit non-creature card-type
-    # out so an artifact/land/instant card copy is not mis-tagged a creature clone.
-    r"|(?:enters? (?:the battlefield )?as|becomes?) a copy of "
-    r"(?:a |an |the |that |one of those |any )?"
-    r"(?!(?:artifact|land|enchantment|instant|sorcery|planeswalker)\b)"
-    r"[^.\"“”]*?\bcards?\b",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the creature-copy detector reads STRUCTURE. `[^.\"“”]` gaps
+# → bounded_scan with delims='.\"“”' (period + quotes only — the regex allows commas /
+# semicolons). `\bcreature` (no trailing boundary) → {creature, creatures}. Arm 5's
+# `(?!…\b)` negative lookahead → `_clone_not_next` (a zero-width assert that the next
+# word is not an explicit non-creature card type). The copy-of-a-permanent arm doubles
+# as the Permanent-subject discriminator. CR 707.1 / 707.2.
+_CLONE_DELIMS = '."“”'
+_CLONE_CREATURE_W = comb.keyword({"creature", "creatures"})
+
+
+def _clone_not_next(bag: set[str]) -> comb.Parser[None]:
+    """Zero-width negative lookahead (nom ``not``): succeed (consuming nothing) iff the
+    NEXT word's normalized form is not in ``bag`` — the regex `(?!(?:…)\\b)`."""
+
+    def go(s: str) -> tuple[None, str] | None:
+        w = comb.word().run(s)
+        if w is not None and comb.norm_word(w[0]) in bag:
+            return None
+        return (None, s)
+
+    return comb.Parser(go)
+
+
+_CLONE_COPY_PERMANENT_P = comb.scan(
+    comb.seq(
+        comb.phrase({"copy"}, {"of"}),
+        comb.opt(comb.keyword({"a", "an", "any", "another", "target", "that"})),
+        comb.keyword({"permanent"}),
+    )
 )
-_CLONE_COPY_PERMANENT_RE = re.compile(
-    r"\bcopy of (?:a |an |any |another |target |that )?permanent\b", re.IGNORECASE
+_CLONE_CREATURE_COPY_P = comb.scan(
+    comb.alt(
+        # "as a copy of … creature".
+        comb.seq(
+            comb.phrase({"as"}, {"a"}, {"copy"}, {"of"}),
+            comb.bounded_scan(_CLONE_CREATURE_W, delims=_CLONE_DELIMS),
+        ),
+        # "copy of <det> … creature".
+        comb.seq(
+            comb.phrase({"copy"}, {"of"}),
+            comb.keyword({"a", "an", "any", "another", "target", "that", "this"}),
+            comb.bounded_scan(_CLONE_CREATURE_W, delims=_CLONE_DELIMS),
+        ),
+        # "copy of <det?> permanent".
+        comb.seq(
+            comb.phrase({"copy"}, {"of"}),
+            comb.opt(comb.keyword({"a", "an", "any", "another", "target", "that"})),
+            comb.keyword({"permanent"}),
+        ),
+        # "creatures you control enter as a copy".
+        comb.phrase(
+            {"creatures"}, {"you"}, {"control"}, {"enter"}, {"as"}, {"a"}, {"copy"}
+        ),
+        # "enter(s) [the battlefield] as | become(s)" a copy of <det?> … card(s).
+        comb.seq(
+            comb.alt(
+                comb.seq(
+                    comb.keyword({"enter", "enters"}),
+                    comb.opt(comb.phrase({"the"}, {"battlefield"})),
+                    comb.keyword({"as"}),
+                ),
+                comb.keyword({"become", "becomes"}),
+            ),
+            comb.phrase({"a"}, {"copy"}, {"of"}),
+            comb.opt(
+                comb.alt(
+                    comb.phrase({"one"}, {"of"}, {"those"}),
+                    comb.keyword({"a", "an", "the", "that", "any"}),
+                )
+            ),
+            _clone_not_next(
+                {
+                    "artifact",
+                    "land",
+                    "enchantment",
+                    "instant",
+                    "sorcery",
+                    "planeswalker",
+                }
+            ),
+            comb.bounded_scan(comb.keyword({"card", "cards"}), delims=_CLONE_DELIMS),
+        ),
+    )
 )
 
 
@@ -3021,11 +3521,13 @@ def _recover_clone_creature(card: Card, oracle: str) -> Card:
     ):
         return card
     text = re.sub(r"\([^)]*\)", " ", oracle)
-    if not _CLONE_CREATURE_COPY_RE.search(text):
+    if "copy" not in text.lower():  # cheap dispatch — every arm needs "copy".
+        return card
+    if _CLONE_CREATURE_COPY_P.run(text) is None:
         return card
     copied = (
         Filter(card_types=("Permanent",))
-        if _CLONE_COPY_PERMANENT_RE.search(text)
+        if _CLONE_COPY_PERMANENT_P.run(text) is not None
         else Filter(card_types=("Creature",))
     )
     synth = Ability(
@@ -3535,12 +4037,39 @@ def _recover_scaling_pump(card: Card, oracle: str) -> Card:
 # deliberately NOT a bare "face down": a card EXILED face down (impulse-exile / hideaway
 # — Bottled Cloister, Scroll Rack, Gonti) is a hidden-card mechanic, not the morph /
 # manifest face-down-PERMANENT lane (CR 708 vs 702.36).
-_FACEDOWN_REF = re.compile(
-    r"\bmorph\b|\bmegamorph\b|\bmanifest\b|\bdisguise\b|\bcloak\b"
-    r"|face[- ]?down (?:creature|permanent)|as a 2/2 face[- ]?down"
-    r"|turn (?:it|that creature|this creature|them|a permanent you control) face up"
-    r"|turn target [^.]*?face up|turned face up",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the face-down reference detector reads STRUCTURE. The
+# `face[- ]?down` hyphen variants fold under norm ("face-down"/"facedown" → "facedown")
+# OR split into two words ("face down"); `_FACEDOWN_WORD` covers both. `[^.]*?` gap →
+# bounded_scan. Detection-only (the synth subject is fixed). CR 707.2 / 708.2.
+_FACEDOWN_WORD = comb.alt(comb.keyword({"facedown"}), comb.phrase({"face"}, {"down"}))
+_FACEDOWN_NOUN = comb.keyword({"creature", "creatures", "permanent", "permanents"})
+_FACEDOWN_REF_P = comb.scan(
+    comb.alt(
+        # keyword_bounded so an ability word fused to its cost by an em-dash
+        # ("Morph—Discard a card") still matches, like the regex `\bmorph\b`.
+        comb.keyword_bounded({"morph", "megamorph", "manifest", "disguise", "cloak"}),
+        comb.seq2(_FACEDOWN_WORD, _FACEDOWN_NOUN),
+        comb.seq(
+            comb.phrase({"as"}, {"a"}),
+            comb.regex_word(re.compile(r"2/2")),
+            _FACEDOWN_WORD,
+        ),
+        comb.seq(
+            comb.keyword({"turn"}),
+            comb.alt(
+                comb.keyword({"it", "them"}),
+                comb.phrase({"that"}, {"creature"}),
+                comb.phrase({"this"}, {"creature"}),
+                comb.phrase({"a"}, {"permanent"}, {"you"}, {"control"}),
+            ),
+            comb.phrase({"face"}, {"up"}),
+        ),
+        comb.seq(
+            comb.phrase({"turn"}, {"target"}),
+            comb.bounded_scan(comb.phrase({"face"}, {"up"})),
+        ),
+        comb.phrase({"turned"}, {"face"}, {"up"}),
+    )
 )
 # A card that already fires facedown_matters STRUCTURALLY (a morph-family MAKER) needs
 # no carrier: it bears the keyword, a native "Face-down" subject, or a turn_face_up.
@@ -3588,7 +4117,11 @@ def _recover_facedown(card: Card, oracle: str) -> Card:
     name = card.name or ""
     text = oracle.replace(name, " ") if name else oracle
     text = re.sub(r"\([^)]*\)", " ", text)
-    if not _FACEDOWN_REF.search(text):
+    low = text.lower()
+    # cheap dispatch: every arm needs a morph-family word or "face".
+    if not any(k in low for k in ("face", "morph", "manifest", "disguise", "cloak")):
+        return card
+    if _FACEDOWN_REF_P.run(text) is None:
         return card
     if _has_native_facedown(card):
         return card
@@ -3620,28 +4153,76 @@ def _recover_facedown(card: Card, oracle: str) -> Card:
 #     scope=='opp' on the skip_step effect. A symmetric "each player's … that player
 #     controls" tap (Monsoon, Angel's Trumpet) and a SELF untap-skip (Avizoa, Savor the
 #     Moment) are both excluded. CR 701.20 / 702.36.
-_TAP_OPP_CONTROL = re.compile(
-    r"(?<!un)tap\b[^.]*?\b(?:an opponent|that player|that opponent|target opponent"
-    r"|defending player|your opponents|opponents) controls?\b",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the tap-down anaphora reads STRUCTURE. `keyword({"tap"})`
+# matches only the standalone word "tap" (norm keeps "untap"/"taps"/"tapped" distinct),
+# so the regex `(?<!un)tap\b` lookbehind is satisfied for free. `[^.]*?` gap →
+# bounded_scan. `_TAP_NOUN_P` maps the tapped noun to its capitalized singular subject.
+_TAP_OPP_NOUN = comb.alt(
+    comb.phrase({"an"}, {"opponent"}),
+    comb.phrase({"that"}, {"player"}),
+    comb.phrase({"that"}, {"opponent"}),
+    comb.phrase({"target"}, {"opponent"}),
+    comb.phrase({"defending"}, {"player"}),
+    comb.phrase({"your"}, {"opponents"}),
+    comb.keyword({"opponents"}),
 )
-_EACH_PLAYER = re.compile(r"each player", re.IGNORECASE)
-_SKIP_UNTAP = re.compile(r"untap step", re.IGNORECASE)
-_SKIP_OPP = re.compile(
-    r"(?:each opponent|that player|target player|target opponent|an opponent"
-    r"|that opponent|opponents?) skips?\b",
-    re.IGNORECASE,
+_TAP_OPP_CONTROL_P = comb.scan(
+    comb.seq2(
+        comb.keyword({"tap"}),
+        comb.bounded_scan(
+            comb.seq2(_TAP_OPP_NOUN, comb.keyword({"control", "controls"}))
+        ),
+    )
 )
-_SKIP_SELF = re.compile(r"\byou skip|your (?:next )?untap step", re.IGNORECASE)
-_TAP_NOUN = re.compile(r"\b(land|permanent|artifact|creature)s?\b", re.IGNORECASE)
+# Substring regexes ("each player", "untap step") matched the possessive/plural
+# ("each player's", "untap steps"), so accept those in the trailing slot.
+_EACH_PLAYER_P = comb.scan(comb.phrase({"each"}, {"player", "players"}))
+_SKIP_UNTAP_P = comb.scan(comb.phrase({"untap"}, {"step", "steps"}))
+_SKIP_OPP_P = comb.scan(
+    comb.seq2(
+        comb.alt(
+            comb.phrase({"each"}, {"opponent"}),
+            comb.phrase({"that"}, {"player"}),
+            comb.phrase({"target"}, {"player"}),
+            comb.phrase({"target"}, {"opponent"}),
+            comb.phrase({"an"}, {"opponent"}),
+            comb.phrase({"that"}, {"opponent"}),
+            comb.keyword({"opponent", "opponents"}),
+        ),
+        comb.keyword({"skip", "skips"}),
+    )
+)
+_SKIP_SELF_P = comb.alt(
+    comb.scan(comb.phrase({"you"}, {"skip"})),
+    comb.scan(
+        comb.seq(
+            comb.keyword({"your"}),
+            comb.opt(comb.keyword({"next"})),
+            comb.phrase({"untap"}, {"step"}),
+        )
+    ),
+)
+_TAP_NOUN_MAP = {
+    "land": "Land",
+    "lands": "Land",
+    "permanent": "Permanent",
+    "permanents": "Permanent",
+    "artifact": "Artifact",
+    "artifacts": "Artifact",
+    "creature": "Creature",
+    "creatures": "Creature",
+}
+_TAP_NOUN_P = comb.scan(comb.satisfy(lambda w: w in _TAP_NOUN_MAP)).map(
+    lambda w: _TAP_NOUN_MAP[comb.norm_word(w)]
+)
 
 
 def _tap_subject_opp(subject: Filter | None, clause: str) -> Filter:
     """Set the tap target's controller to 'opp', synthesizing the type subject phase
     dropped (read from the tapped noun — "tap target LAND that player controls")."""
     if subject is None:
-        m = _TAP_NOUN.search(clause)
-        ct = m.group(1).capitalize() if m else "Creature"
+        r = _TAP_NOUN_P.run(clause)
+        ct = r[0] if r is not None else "Creature"
         return Filter(card_types=(ct,), controller="opp")
     return replace(subject, controller="opp")
 
@@ -3666,8 +4247,8 @@ def _recover_tap_down(card: Card, oracle: str) -> Card:
                 if (
                     e.category == "tap"
                     and not (e.subject is not None and e.subject.controller == "opp")
-                    and _TAP_OPP_CONTROL.search(clause)
-                    and not _EACH_PLAYER.search(clause)
+                    and _TAP_OPP_CONTROL_P.run(clause) is not None
+                    and _EACH_PLAYER_P.run(clause) is None
                 ):
                     new_effs.append(
                         replace(e, subject=_tap_subject_opp(e.subject, clause))
@@ -3676,9 +4257,9 @@ def _recover_tap_down(card: Card, oracle: str) -> Card:
                 elif (
                     e.category == "skip_step"
                     and e.scope != "opp"
-                    and _SKIP_UNTAP.search(clause)
-                    and _SKIP_OPP.search(clause)
-                    and not _SKIP_SELF.search(clause)
+                    and _SKIP_UNTAP_P.run(clause) is not None
+                    and _SKIP_OPP_P.run(clause) is not None
+                    and _SKIP_SELF_P.run(clause) is None
                 ):
                     new_effs.append(replace(e, scope="opp"))
                     changed = True
@@ -3703,11 +4284,28 @@ def _recover_tap_down(card: Card, oracle: str) -> Card:
 #     pattern is the deleted DAMAGE_TO_OPP_MATTERS_REGEX byte-for-byte, so the recovered
 #     set == the deleted mirror's; it EXCLUDES "combat damage" (the already-migrated
 #     combat_damage_to_opp recipient). CR 119.3 / 120.
-_DAMAGE_TO_OPP_PAYOFF = re.compile(
-    r"\bwhen(?:ever)?\b[^.]*?\bdeals (?:noncombat )?damage to "
-    r"(?:a player|an opponent|one of your opponents|each opponent"
-    r"|target opponent|that player|a player or planeswalker)\b",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the noncombat damage-to-a-player payoff reads STRUCTURE.
+# when/whenever anchor + bounded gap + "deals [noncombat] damage to <player recipient>".
+# "a player" subsumes "a player or planeswalker" (leftmost-alternation). CR 119.3 / 120.
+_DAMAGE_TO_OPP_PAYOFF_P = comb.scan(
+    comb.seq(
+        comb.keyword({"when", "whenever"}),
+        comb.bounded_scan(
+            comb.seq(
+                comb.keyword({"deals"}),
+                comb.opt(comb.keyword({"noncombat"})),
+                comb.phrase({"damage"}, {"to"}),
+                comb.alt(
+                    comb.phrase({"a"}, {"player"}),
+                    comb.phrase({"an"}, {"opponent"}),
+                    comb.phrase({"one"}, {"of"}, {"your"}, {"opponents"}),
+                    comb.phrase({"each"}, {"opponent"}),
+                    comb.phrase({"target"}, {"opponent"}),
+                    comb.phrase({"that"}, {"player"}),
+                ),
+            )
+        ),
+    )
 )
 _DAMAGE_TO_PLAYER_MARKER = Filter(predicates=("DamageToPlayer",))
 
@@ -3721,7 +4319,9 @@ def _recover_damage_to_opp(card: Card, oracle: str) -> Card:
     if not card.faces:
         return card
     stripped = re.sub(r"\([^)]*\)", " ", oracle)
-    if not _DAMAGE_TO_OPP_PAYOFF.search(stripped):
+    if "damage to" not in stripped.lower():  # cheap dispatch.
+        return card
+    if _DAMAGE_TO_OPP_PAYOFF_P.run(stripped) is None:
         return card
     if any(
         ab.trigger is not None
@@ -3766,20 +4366,71 @@ def _recover_damage_to_opp(card: Card, oracle: str) -> Card:
 #     directed reveal_hand / reveal_hands is untouched. The detect pattern is the
 #     deleted hand_disruption mirror byte-for-byte, so the recovered set == the
 #     mirror's. CR 402.3 / 701.x.
-_HD_REVEAL_HAND_TEXT = re.compile(
-    r"reveals? (?:their|his or her) hands?", re.IGNORECASE
+# #24e P3 parser-substrate: the hand-disruption tells read STRUCTURE. The possessive
+# `…'?s?'?` folds under norm ("opponent's" → "opponents"), so the noun slots accept the
+# possessive/plural form. `[^.]*` gaps → bounded_scan. `(\w+ )?cards?` → an alt that
+# tries "card" directly, else one filler word then "card" (regex backtracking). The
+# "their|his or her" possessive-pronoun bag recurs. CR 402.3 / 701.x.
+_HD_HIS_THEIR = comb.alt(comb.keyword({"their"}), comb.phrase({"his"}, {"or"}, {"her"}))
+_HD_REVEAL_HAND_TEXT_P = comb.scan(
+    comb.seq(
+        comb.keyword({"reveal", "reveals"}),
+        _HD_HIS_THEIR,
+        comb.keyword({"hand", "hands"}),
+    )
 )
-_HD_LOOK_HAND_TEXT = re.compile(r"look at [^.]*\bhands?\b", re.IGNORECASE)
+_HD_LOOK_HAND_TEXT_P = comb.scan(
+    comb.seq2(
+        comb.phrase({"look"}, {"at"}),
+        comb.bounded_scan(comb.keyword({"hand", "hands"})),
+    )
+)
 # The opponent-directed hand-disruption oracle tell (the deleted mirror, verbatim).
-_HD_OPP_HAND = re.compile(
-    r"look at (?:target player|that player|an opponent|each opponent"
-    r"|target opponent)'?s?'? hands?"
-    r"|plays? with (?:their|his or her) hands? revealed"
-    r"|reveals? (?:their|his or her) hands?"
-    r"|reveals? (?:\w+ )?cards? (?:at random )?from "
-    r"(?:their|his or her|that player's) hand"
-    r"|reveals?[^.]*until you say stop",
-    re.IGNORECASE,
+_HD_OPP_HAND_P = comb.scan(
+    comb.alt(
+        comb.seq(
+            comb.phrase({"look"}, {"at"}),
+            comb.alt(
+                comb.phrase({"target"}, {"player", "players"}),
+                comb.phrase({"that"}, {"player", "players"}),
+                comb.phrase({"an"}, {"opponent", "opponents"}),
+                comb.phrase({"each"}, {"opponent", "opponents"}),
+                comb.phrase({"target"}, {"opponent", "opponents"}),
+            ),
+            comb.keyword({"hand", "hands"}),
+        ),
+        comb.seq(
+            comb.keyword({"play", "plays"}),
+            comb.keyword({"with"}),
+            _HD_HIS_THEIR,
+            comb.keyword({"hand", "hands"}),
+            comb.keyword({"revealed"}),
+        ),
+        comb.seq(
+            comb.keyword({"reveal", "reveals"}),
+            _HD_HIS_THEIR,
+            comb.keyword({"hand", "hands"}),
+        ),
+        comb.seq(
+            comb.keyword({"reveal", "reveals"}),
+            comb.alt(
+                comb.keyword({"card", "cards"}),
+                comb.seq2(comb.word(), comb.keyword({"card", "cards"})),
+            ),
+            comb.opt(comb.phrase({"at"}, {"random"})),
+            comb.keyword({"from"}),
+            comb.alt(
+                comb.keyword({"their"}),
+                comb.phrase({"his"}, {"or"}, {"her"}),
+                comb.phrase({"that"}, {"players"}),
+            ),
+            comb.keyword({"hand"}),
+        ),
+        comb.seq2(
+            comb.keyword({"reveal", "reveals"}),
+            comb.bounded_scan(comb.phrase({"until"}, {"you"}, {"say"}, {"stop"})),
+        ),
+    )
 )
 
 
@@ -3817,10 +4468,13 @@ def _recover_hand_disruption(card: Card, oracle: str) -> Card:
                     new_effs.append(replace(e, scope="opp"))
                     changed = True
                 elif e.scope == "opp" and (
-                    (e.category == "reveal" and _HD_REVEAL_HAND_TEXT.search(raw))
+                    (
+                        e.category == "reveal"
+                        and _HD_REVEAL_HAND_TEXT_P.run(raw) is not None
+                    )
                     or (
                         e.category == "topdeck_select"
-                        and _HD_LOOK_HAND_TEXT.search(raw)
+                        and _HD_LOOK_HAND_TEXT_P.run(raw) is not None
                     )
                 ):
                     new_effs.append(replace(e, category="reveal_hand"))
@@ -3835,7 +4489,10 @@ def _recover_hand_disruption(card: Card, oracle: str) -> Card:
     # opp-directed reveal node for (append-only; an existing opp reveal short-circuits).
     if not has_opp_reveal(card):
         stripped = re.sub(r"\([^)]*\)", " ", oracle)
-        if _HD_OPP_HAND.search(stripped):
+        low = stripped.lower()
+        if ("reveal" in low or "look at" in low) and _HD_OPP_HAND_P.run(
+            stripped
+        ) is not None:
             synth = Ability(
                 kind="static",
                 effects=(
@@ -3867,12 +4524,55 @@ def _recover_hand_disruption(card: Card, oracle: str) -> Card:
 #     GENUINE UPSTREAM phase gap — phase emits NO record for a split back face, so the
 #     phase-records oracle this recovery reads never carries them; a narrow layout-
 #     gated residue in signals keeps those two. CR 700.2 / 702.x.
-_KGT_GRANT = re.compile(
-    r"target creature (?:you control )?"
-    r"(?:gains?|gets [+\-][0-9x]/[+\-][0-9x] and gains?) "
-    r"(deathtouch|trample|flying|menace|vigilance|double strike|first strike"
-    r"|lifelink|haste|hexproof|indestructible|protection|reach|ward|shroud)",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the single-target keyword grant reads STRUCTURE. The value
+# threads out (controller-flag, keyword) — controller "you" iff "you control" rode the
+# target, keyword folded to its no-space form ("double strike" → "doublestrike"). The
+# `gets ±N/±M and gains` arm reads the sign-bearing P/T delta off the raw word (norm
+# folds the sign, so `_KGT_PT_DELTA` checks the raw). Iterated via `_iter_spans`
+# (the regex finditer). CR 700.2 / 702.x.
+_KGT_PT_DELTA_RE = re.compile(r"[+\-][0-9x]/[+\-][0-9x]", re.IGNORECASE)
+_KGT_PT_DELTA = comb.Parser(
+    lambda s: (
+        r
+        if (r := comb.word().run(s)) is not None and _KGT_PT_DELTA_RE.match(r[0])
+        else None
+    )
+)
+_KGT_VERB = comb.alt(
+    comb.keyword({"gain", "gains"}),
+    comb.seq(
+        comb.keyword({"gets"}),
+        _KGT_PT_DELTA,
+        comb.keyword({"and"}),
+        comb.keyword({"gain", "gains"}),
+    ),
+)
+_KGT_KW = comb.alt(
+    comb.value("doublestrike", comb.phrase({"double"}, {"strike"})),
+    comb.value("firststrike", comb.phrase({"first"}, {"strike"})),
+    comb.keyword(
+        {
+            "deathtouch",
+            "trample",
+            "flying",
+            "menace",
+            "vigilance",
+            "lifelink",
+            "haste",
+            "hexproof",
+            "indestructible",
+            "protection",
+            "reach",
+            "ward",
+            "shroud",
+        }
+    ),
+)
+_KGT_GRANT_P = comb.seq(
+    comb.phrase({"target"}, {"creature"}),
+    comb.opt(comb.phrase({"you"}, {"control"})),
+    _KGT_VERB,
+    _KGT_KW,
 )
 _KGT_SINGLE_TARGET_PRED = "SingleTarget"
 
@@ -3893,15 +4593,16 @@ def _recover_keyword_grant_target(card: Card, oracle: str) -> Card:
     ):
         return card
     text = re.sub(r"\([^)]*\)", " ", oracle)
+    if "target creature" not in text.lower():  # cheap dispatch — every match needs it.
+        return card
     synth_effs: list[Effect] = []
     seen: set[str] = set()
-    for m in _KGT_GRANT.finditer(text):
-        clause = m.group(0)
+    for clause, value in _iter_spans(text, _KGT_GRANT_P):
         if clause.lower() in seen:
             continue
         seen.add(clause.lower())
-        controller = "you" if "you control" in clause.lower() else "any"
-        kw = m.group(1).lower().replace(" ", "")
+        controller = "you" if value[1] is not None else "any"
+        kw = value[3]
         synth_effs.append(
             Effect(
                 category="single_target_grant",
@@ -3997,10 +4698,24 @@ def _recover_opponent_cast_scope(card: Card, oracle: str) -> Card:
 #     player". (The AnyOf-subtype OUTLAW source — Olivia — and the deals_damage tribal
 #     source — Francisco — are CAPTURED by phase; the signals arm broadens to read those
 #     shapes, no supplement needed.) CR 603.2 / 510.1b.
-_TRIBE_CDMG_SRC = re.compile(
-    r"whenever (?:a|one or more) creatures? you control deals? combat damage to "
-    r"(?:a player|an opponent|one of your opponents|each opponent)",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the YOUR-creatures combat-damage-to-a-player tell reads
+# STRUCTURE — a fixed seven-slot read with a quantity bag and a player-recipient bag.
+# CR 603.2 / 510.1b.
+_TRIBE_CDMG_SRC_P = comb.scan(
+    comb.seq(
+        comb.keyword({"whenever"}),
+        comb.alt(comb.keyword({"a"}), comb.phrase({"one"}, {"or"}, {"more"})),
+        comb.keyword({"creature", "creatures"}),
+        comb.phrase({"you"}, {"control"}),
+        comb.keyword({"deal", "deals"}),
+        comb.phrase({"combat"}, {"damage"}, {"to"}),
+        comb.alt(
+            comb.phrase({"a"}, {"player"}),
+            comb.phrase({"an"}, {"opponent"}),
+            comb.phrase({"one"}, {"of"}, {"your"}, {"opponents"}),
+            comb.phrase({"each"}, {"opponent"}),
+        ),
+    )
 )
 
 
@@ -4014,7 +4729,9 @@ def _recover_tribe_damage_source(card: Card, oracle: str) -> Card:
     if not card.faces:
         return card
     stripped = re.sub(r"\([^)]*\)", " ", oracle)
-    if not _TRIBE_CDMG_SRC.search(stripped):
+    if "combat damage to" not in stripped.lower():  # cheap dispatch.
+        return card
+    if _TRIBE_CDMG_SRC_P.run(stripped) is None:
         return card
     src = Filter(card_types=("Creature",), controller="you")
     faces: list[Face] = []
@@ -4127,11 +4844,27 @@ def _recover_topdeck_stack_self(card: Card, oracle: str) -> Card:
 #     byte-identical to the deleted mirror and the symmetric "each player may put …
 #     from their hand" group ramp (Kynaios, Hypergenesis, Tempting Wurm) never matches
 #     (it lacks the YOUR "you may put"). The whole mirror retires. CR 305.9 / 720.
-_EXTRA_LAND_DROP_PUT = re.compile(
-    r"you may put (?:a |up to \w+ )?lands? cards? "
-    r"from (?:your hand|among them|among those cards|among the exiled cards)"
-    r"[^.]*onto the battlefield",
-    re.IGNORECASE,
+# #24e P3 parser-substrate: the YOUR land-into-play put reads STRUCTURE. The optional
+# quantity is "a" or "up to <word>"; the source is one of four fixed phrases; the gap
+# gap to "onto the battlefield" → bounded_scan. CR 305.9 / 720.
+_EXTRA_LAND_DROP_PUT_P = comb.seq(
+    comb.phrase({"you"}, {"may"}, {"put"}),
+    comb.opt(
+        comb.alt(
+            comb.keyword({"a"}),
+            comb.seq2(comb.phrase({"up"}, {"to"}), comb.word()),
+        )
+    ),
+    comb.keyword({"land", "lands"}),
+    comb.keyword({"card", "cards"}),
+    comb.keyword({"from"}),
+    comb.alt(
+        comb.phrase({"your"}, {"hand"}),
+        comb.phrase({"among"}, {"them"}),
+        comb.phrase({"among"}, {"those"}, {"cards"}),
+        comb.phrase({"among"}, {"the"}, {"exiled"}, {"cards"}),
+    ),
+    comb.bounded_scan(comb.phrase({"onto"}, {"the"}, {"battlefield"})),
 )
 
 
@@ -4156,8 +4889,11 @@ def _recover_extra_land_drop(card: Card, oracle: str) -> Card:
         for e in ab.effects
     ):
         return card
-    m = _EXTRA_LAND_DROP_PUT.search(re.sub(r"\([^)]*\)", " ", oracle))
-    if m is None:
+    stripped = re.sub(r"\([^)]*\)", " ", oracle)
+    if "you may put" not in stripped.lower():  # cheap dispatch — the lead phrase.
+        return card
+    span = _scan_span(stripped, _EXTRA_LAND_DROP_PUT_P)
+    if span is None:
         return card
     synth = Ability(
         kind="static",
@@ -4167,7 +4903,7 @@ def _recover_extra_land_drop(card: Card, oracle: str) -> Card:
                 scope="you",
                 subject=Filter(card_types=("Land",), controller="you"),
                 zones=("to:battlefield",),
-                raw=m.group(0),
+                raw=span,
             ),
         ),
     )

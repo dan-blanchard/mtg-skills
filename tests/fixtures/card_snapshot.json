@@ -11289,7 +11289,7 @@
         "e": [
          {
           "cat": "self_recursion",
-          "raw": "When this creature dies, return it to the battlefield",
+          "raw": "When this creature dies, return it to the battlefield.",
           "sc": "you"
          }
         ],
@@ -22623,7 +22623,7 @@
         "e": [
          {
           "cat": "self_recursion",
-          "raw": "When this creature dies, return it to the battlefield",
+          "raw": "\"When this creature dies, return it to the battlefield",
           "sc": "you"
          }
         ],
@@ -70886,5 +70886,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 64
+ "sidecar_version": 65
 }

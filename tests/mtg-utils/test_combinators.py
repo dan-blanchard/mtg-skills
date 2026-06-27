@@ -4,7 +4,9 @@ import re
 
 from mtg_utils._card_ir._combinators import (
     alt,
+    bounded_scan,
     keyword,
+    keyword_bounded,
     many,
     opt,
     phrase,
@@ -12,9 +14,14 @@ from mtg_utils._card_ir._combinators import (
     regex_word,
     satisfy,
     scan,
+    seq,
+    seq2,
+    seq3,
+    signed_word,
     succeed,
     tag,
     take_until,
+    take_until_clause,
     value,
     word,
     ws,
@@ -145,3 +152,91 @@ class TestScan:
 
     def test_scan_fails_when_absent(self):
         assert scan(phrase({"historic"})).parse("a history lesson") is None
+
+
+class TestKeywordBounded:
+    def test_matches_ability_word_fused_by_em_dash(self):
+        # norm_word glues "Morph—Discard" → "morphdiscard"; keyword misses, this hits.
+        assert keyword({"morph"}).parse("Morph—Discard a card") is None
+        assert keyword_bounded({"morph"}).parse("Morph—Discard a card")[0] == "morph"
+
+    def test_plain_spaced_word_still_matches(self):
+        assert keyword_bounded({"morph"}).parse("Morph {3}")[0] == "morph"
+
+    def test_no_internal_boundary_is_not_a_hit(self):
+        # "\bmorph\b" does not match inside "geomorph" (no boundary) — neither do we.
+        assert keyword_bounded({"morph"}).parse("geomorph rules") is None
+
+
+class TestSeq:
+    def test_seq_variadic_collects_values(self):
+        p = seq(keyword({"you"}), keyword({"may"}), keyword({"play"}))
+        vals, rest = p.parse("you may play it")
+        assert vals == ["you", "may", "play"]
+        assert rest.strip() == "it"
+
+    def test_seq_fails_on_any_slot(self):
+        p = seq(keyword({"you"}), keyword({"may"}), keyword({"draw"}))
+        assert p.parse("you may play it") is None
+
+    def test_seq_mixes_parser_kinds(self):
+        p = seq(keyword({"when"}), bounded_scan(keyword({"dies"})), keyword({"return"}))
+        assert p.parse("when this creature dies return it") is not None
+
+
+class TestBoundedScan:
+    def test_bounded_scan_finds_target_within_clause(self):
+        # "when ~ dies, return it" — the gap "this creature" carries no delimiter.
+        p = seq2(keyword({"when"}), bounded_scan(phrase({"dies"})))
+        assert p.parse("when this creature dies, return it") is not None
+
+    def test_bounded_scan_stops_at_period(self):
+        # the target sits in the NEXT sentence — the gap must not cross the period.
+        p = seq2(keyword({"when"}), bounded_scan(phrase({"dies"})))
+        assert p.parse("when you attack do this. a creature dies") is None
+
+    def test_bounded_scan_stops_at_semicolon_and_quote(self):
+        p = bounded_scan(phrase({"target"}))
+        assert p.parse("does a thing; then target a creature") is None
+        assert p.parse('gains "first strike" then target creature') is None
+
+    def test_bounded_scan_matches_clause_final_word(self):
+        # the delimiter rides the target word itself — still a hit (delim check is on
+        # the SKIPPED gap words, not on where the parser matches).
+        p = seq2(keyword({"return"}), bounded_scan(phrase({"battlefield"})))
+        assert p.parse("return it to the battlefield.") is not None
+
+    def test_bounded_scan_default_delims_allow_commas(self):
+        # a comma is NOT a clause delimiter (regex [^.]* allows it).
+        p = seq2(keyword({"when"}), bounded_scan(phrase({"dies"})))
+        assert p.parse("when this, that, the other dies") is not None
+
+
+class TestTakeUntilClause:
+    def test_take_until_clause_captures_the_gap(self):
+        gap, rest = take_until_clause().parse("this creature dies. next")
+        assert gap.strip() == "this creature dies"
+        assert rest.startswith(".")
+
+    def test_take_until_clause_empty_gap(self):
+        gap, rest = take_until_clause().parse(". rest")
+        assert gap == ""
+        assert rest.startswith(".")
+
+
+class TestSignedWord:
+    def test_signed_word_preserves_plus_vs_minus(self):
+        # norm_word folds both to "1/1"; signed_word keeps them distinct.
+        assert keyword({"1/1"}).parse("+1/+1 counter")[0] == "1/1"
+        assert signed_word({"+1/+1"}).parse("+1/+1 counter")[0] == "+1/+1"
+        assert signed_word({"+1/+1"}).parse("-1/-1 counter") is None
+        assert signed_word({"-1/-1"}).parse("-1/-1 counter")[0] == "-1/-1"
+
+    def test_signed_word_strips_trailing_punctuation(self):
+        assert signed_word({"+1/+1"}).parse("+1/+1, then") is not None
+        assert signed_word({"-1/-1"}).parse("-1/-1.")[0] == "-1/-1"
+
+    def test_signed_word_in_a_scan(self):
+        # "remove a +1/+1 counter" — verb anchor then the signed kind.
+        p = seq3(keyword({"remove"}), keyword({"a"}), signed_word({"+1/+1", "-1/-1"}))
+        assert p.parse("remove a +1/+1 counter")[0][2] == "+1/+1"

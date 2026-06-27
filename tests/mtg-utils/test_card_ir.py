@@ -7374,3 +7374,81 @@ def test_p2_group_hug_draw_whole_word_arms():
     assert _group_hug_draw("each player may draw a card")
     assert _group_hug_draw("each player who drew a card loses 1 life")
     assert not _group_hug_draw("you draw a card")
+
+
+# ── #24e P3 parser-substrate — structural pins for the new combinator primitives ──
+def test_recover_counter_removal_reads_p1p1_vs_m1m1_sign():
+    """`signed_word` keeps the counter KIND that norm_word folds: a +1/+1 cost-removal
+    synthesizes counter_kind='p1p1', a -1/-1 removal 'm1m1' — the sign the lane needs.
+    (Walking Ballista pays a +1/+1; an Oathsworn-style prevention removes a -1/-1.)"""
+    from mtg_utils._card_ir.supplement import _recover_counter_removal
+
+    plus = _recover_counter_removal(
+        _bare_card("Plus"),
+        "Remove a +1/+1 counter from this creature: It deals 1 damage to any target.",
+    )
+    minus = _recover_counter_removal(
+        _bare_card("Minus"),
+        "Prevent that damage. If you do, remove a -1/-1 counter from this creature.",
+    )
+    pk = [e.counter_kind for a in plus.all_abilities() for e in a.effects]
+    mk = [e.counter_kind for a in minus.all_abilities() for e in a.effects]
+    assert pk == ["p1p1"]
+    assert mk == ["m1m1"]
+
+
+def test_recover_counter_removal_colon_bounds_the_signed_token():
+    """A cost ':' separates the removed counter from a granted-effect counter — the
+    bounded_scan stops at the colon, so removing a CHARGE counter to PUT a -1/-1 counter
+    does NOT read as a -1/-1 removal (Trigon of Corruption). No synth."""
+    from mtg_utils._card_ir.supplement import _recover_counter_removal
+
+    out = _recover_counter_removal(
+        _bare_card("Trigon"),
+        "Remove a charge counter from this artifact: Put a -1/-1 counter on target "
+        "creature.",
+    )
+    assert not any(
+        e.category == "remove_counter" for a in out.all_abilities() for e in a.effects
+    )
+
+
+def test_recover_dies_return_bounded_gap_within_sentence():
+    """The bounded-gap scan reads "when <creature description> dies, return it to the
+    battlefield" across the multi-word gap, but does NOT bridge a sentence boundary."""
+    from mtg_utils._card_ir.supplement import _recover_dies_return
+
+    hit = _recover_dies_return(
+        _bare_card("Selfless"),
+        "When this enchanted creature dies, return it to the battlefield under your "
+        "control.",
+    )
+    assert any(
+        e.category == "self_recursion" for a in hit.all_abilities() for e in a.effects
+    )
+    # the "dies" and the "return ... battlefield" live in DIFFERENT sentences — the
+    # bounded gap must not cross the period, so no self-recursion is read.
+    miss = _recover_dies_return(
+        _bare_card("Unrelated"),
+        "When this creature dies, draw a card. Return target creature card to the "
+        "battlefield.",
+    )
+    assert not any(
+        e.category == "self_recursion" for a in miss.all_abilities() for e in a.effects
+    )
+
+
+def test_recover_cost_reduction_recovers_spell_class_past_long_gap():
+    """The structural read catches a spell-class reducer the old regex's 40-char gap
+    cap wrongly dropped (Mistform Warchief: "Creature spells you cast that share a
+    creature type with this creature cost {1} less to cast")."""
+    from mtg_utils._card_ir.supplement import _recover_cost_reduction
+
+    out = _recover_cost_reduction(
+        _bare_card("Mistform Warchief"),
+        "Creature spells you cast that share a creature type with this creature cost "
+        "{1} less to cast.",
+    )
+    assert any(
+        e.category == "cost_reduction" for a in out.all_abilities() for e in a.effects
+    )

@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -131,13 +131,41 @@ def regex_word(pattern: re.Pattern[str]) -> Parser[str]:
     return satisfy(lambda w: bool(pattern.fullmatch(w)))
 
 
+_ALNUM_RUN = re.compile(r"[a-z0-9]+")
+
+
+def keyword_bounded(words: Iterable[str]) -> Parser[str]:
+    """The next word if ANY of its ``\\b``-delimited alphanumeric segments is in
+    ``words`` — the boundary-aware analogue of ``keyword``. ``norm_word`` glues a word
+    across an em-dash/hyphen ("Morph—Discard" → "morphdiscard"), so a plain
+    ``keyword({"morph"})`` misses an ability word fused to its cost; this splits on the
+    punctuation ``norm_word`` strips, matching a regex ``\\bmorph\\b`` (a segment
+    is naturally word-boundary-delimited, so "geomorph" — no internal boundary — is not
+    a hit). Returns the matched segment."""
+    bag = frozenset(words)
+
+    def go(s: str) -> tuple[str, str] | None:
+        r = word().run(s)
+        if r is None:
+            return None
+        for seg in _ALNUM_RUN.findall(r[0].lower()):
+            if seg in bag:
+                return (seg, r[1])
+        return None
+
+    return Parser(go)
+
+
 # ── combinators (nom-shaped) ───────────────────────────────────────────────────
 
 
-def alt[T](*parsers: Parser[T]) -> Parser[T]:
-    """First parser to succeed (nom ``alt``)."""
+def alt(*parsers: Parser[Any]) -> Parser[Any]:
+    """First parser to succeed (nom ``alt``). Heterogeneous: arms may yield different
+    value types (a ``phrase`` list, a ``seq`` list, a ``keyword`` str), so the element
+    type is ``Any`` — the value of an ``alt`` used as a detector (run-is-not-None) or
+    mapped to a constant is rarely consumed positionally."""
 
-    def go(s: str) -> tuple[T, str] | None:
+    def go(s: str) -> tuple[Any, str] | None:
         for p in parsers:
             r = p.run(s)
             if r is not None:
@@ -250,6 +278,26 @@ def seq3[A, B, C_](
     return Parser(go)
 
 
+def seq(*parsers: Parser[Any]) -> Parser[list[Any]]:
+    """Run parsers in sequence, collecting their values into a list (variadic ``seq2``/
+    ``seq3``). Fails if any parser fails. The arbitrary-arity glue for a multi-slot
+    clause whose slots are heterogeneous parsers (a ``keyword`` then a ``bounded_scan``
+    then a ``phrase`` …) — where ``phrase`` (all-keyword slots) is too rigid."""
+
+    def go(s: str) -> tuple[list[Any], str] | None:
+        out: list[Any] = []
+        rest = s
+        for p in parsers:
+            r = p.run(rest)
+            if r is None:
+                return None
+            out.append(r[0])
+            rest = r[1]
+        return (out, rest)
+
+    return Parser(go)
+
+
 def phrase(*bags: Iterable[str]) -> Parser[list[str]]:
     """Match consecutive words, each whose normalized form is in the corresponding
     ``bag`` — a fixed-shape word sequence with per-slot alternation (nom's
@@ -290,5 +338,89 @@ def scan[T](p: Parser[T]) -> Parser[T]:
             if w is None:
                 return None
             rest = w[1]
+
+    return Parser(go)
+
+
+# Default clause delimiters: a period ends a sentence, a semicolon ends a sub-clause,
+# and a straight/typographic quote ends a granted-ability body. A regex ``[^.]*?`` gap
+# stops only at a period; ``bounded_scan`` adds ``;`` and the quotes so a multi-slot
+# phrase never bridges two clauses — the word-anchored analogue of phase's per-clause
+# ``take_until`` (oracle_effect splits on the same delimiters before parsing).
+_CLAUSE_DELIMS = '.;"“”'
+
+
+def _carries_delim(raw_word: str, delims: str) -> bool:
+    """A raw (un-normalized) word carries a clause delimiter — so the gap that
+    skipped it has crossed into the next clause and must stop. Checks the raw token
+    because ``norm_word`` strips punctuation away."""
+    return any(d in raw_word for d in delims)
+
+
+def bounded_scan[T](p: Parser[T], *, delims: str = _CLAUSE_DELIMS) -> Parser[T]:
+    """``scan`` bounded to the current clause: try ``p`` at each word boundary, but
+    FAIL once a word carrying a clause delimiter (``delims``) has been crossed — the
+    word-anchored analogue of a regex ``[^.]*?`` bounded gap inside one sentence.
+    Lets ``seq2(anchor, bounded_scan(target))`` parse "anchor … target" structurally
+    without bridging a period/semicolon/quote. The delimiter check is on the SKIPPED
+    gap words, never on where ``p`` matches, so a target sitting on the clause-final
+    word still parses. Linear, like ``scan``; mirrors phase's per-clause take_until."""
+
+    def go(s: str) -> tuple[T, str] | None:
+        rest = s
+        while True:
+            r = p.run(rest)
+            if r is not None:
+                return r
+            w = word().run(rest)
+            if w is None:
+                return None
+            if _carries_delim(w[0], delims):
+                return None
+            rest = w[1]
+
+    return Parser(go)
+
+
+def take_until_clause(*, delims: str = _CLAUSE_DELIMS) -> Parser[str]:
+    """Consume characters up to (not including) the first clause-delimiter character,
+    returning the skipped text. Always succeeds (an empty gap is valid). The capturing
+    companion to ``bounded_scan`` — use when the gap's *content* is wanted (e.g. a
+    recovered ``raw`` span), not merely skipped. Char-granular so it stops mid-word at
+    the delimiter exactly like a regex ``[^.]*``; mirrors phase ``take_until`` but with
+    a clause-delimiter set instead of a single literal."""
+    delim_set = frozenset(delims)
+
+    def go(s: str) -> tuple[str, str]:
+        for i, ch in enumerate(s):
+            if ch in delim_set:
+                return (s[:i], s[i:])
+        return (s, "")
+
+    return Parser(go)
+
+
+def _sign_form(w: str) -> str:
+    """A counter token's sign-preserving identity: keep ``+ - 0-9 /`` only, so
+    ``+1/+1`` and ``-1/-1`` stay DISTINCT (``norm_word`` folds both to ``1/1``)."""
+    return re.sub(r"[^+\-0-9/]", "", w.lower())
+
+
+def signed_word(words: Iterable[str]) -> Parser[str]:
+    """The next word if its SIGN-PRESERVING form (``_sign_form``) is in ``words`` —
+    the sign-sensitive analogue of ``keyword``. ``keyword({"+1/+1"})`` can never work
+    (``norm_word`` strips the sign), so a parser that must read the counter KIND
+    (``+1/+1`` vs ``-1/-1``) reaches for this. Returns the sign-preserving form, so a
+    caller maps ``+1/+1 → p1p1`` / ``-1/-1 → m1m1`` directly off the value."""
+    bag = frozenset(words)
+
+    def go(s: str) -> tuple[str, str] | None:
+        r = word().run(s)
+        if r is None:
+            return None
+        form = _sign_form(r[0])
+        if form not in bag:
+            return None
+        return (form, r[1])
 
     return Parser(go)

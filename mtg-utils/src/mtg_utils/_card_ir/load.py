@@ -899,7 +899,20 @@ from mtg_utils.card_ir import Card
 #   set-equal-or-improved per lane (drops substring over-fires; scaling_pump gains
 #   multi-digit scalers) — each gain/loss adjudicated. Bump because supplement is
 #   cached.
-SIDECAR_VERSION = 64
+# v65 (#24e P3 parser-substrate, FINAL batch): the 16 HARD bucket-B recoveries swap
+#   DETECTION regex for `_combinators` clause-parsers built on two new primitives —
+#   a BOUNDED-GAP-within-clause scan (`bounded_scan`/`take_until_clause`, the word-
+#   anchored `[^.]*?`) and a SIGN-PRESERVING `signed_word` (counter +1/+1 vs -1/-1,
+#   which norm folds) — plus a variadic `seq` and a boundary-aware `keyword_bounded`
+#   (matches an ability word fused by an em-dash, "Morph—Discard"). Sites:
+#   dies_recursion, combat_damage recipients, base_pt_set (+fields) / dynamic
+#   base_pt_set, counter_manipulation (p1p1/m1m1 kind), cast_from_exile, land_sacrifice,
+#   cost_reduction (+fires screen), clone_matters, facedown_matters, tap_down,
+#   damage_to_opp_matters, hand_disruption, keyword_grant_target, tribe_damage_trigger,
+#   extra_land_drop. Per-site SET-level diff: 14 byte-equal; cost_reduction gains 2
+#   genuine spell-class reducers the regex's 40-char gap cap wrongly dropped (recall
+#   improvement — Semblance Anvil, Mistform Warchief). Bump: supplement is cached.
+SIDECAR_VERSION = 65
 
 
 def card_ir_dir() -> Path:
