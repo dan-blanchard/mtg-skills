@@ -2370,6 +2370,17 @@ def _recover_token_doubling(card: Card, oracle: str) -> Card:
     )
 
 
+# The counter-placement REPLACEMENT event ("counters would be put" passive / "would
+# put … counters" active) — distinct from a sentence that merely MENTIONS a counter
+# (e.g. a TOKEN-doubler whose tokens enter WITH a +1/+1 counter — Hosting Season —
+# whose would/instead event is token creation, not a counter placement).
+_COUNTER_REPL_EVENT = re.compile(
+    r"counters?\s+would\s+be\s+(?:put|placed)"
+    r"|would\s+(?:put|place)\b[^.]{0,40}?counters?",
+    re.IGNORECASE,
+)
+
+
 def _recover_counter_replacement(card: Card, oracle: str) -> Card:
     """Append a synthetic ``counter_doubling`` static (scope you) for the passive- /
     you-side counter-placement REPLACEMENT v0.8.0 drops ("If one or more counters
@@ -2402,8 +2413,10 @@ def _recover_counter_replacement(card: Card, oracle: str) -> Card:
     for clause in re.split(r"[.\n]", text):
         low = clause.lower()
         if (
-            "counter" in low
-            and "would" in low  # the replacement trigger ("would be put"/"would put")
+            # the would/instead REPLACEMENT EVENT must itself be a counter placement —
+            # not a sentence that merely mentions a counter (Hosting Season's tokens
+            # enter WITH a +1/+1 counter, but its would-event is token creation)
+            _COUNTER_REPL_EVENT.search(clause)
             and "instead" in low
             and "opponent" not in low  # the opponent-side reducer clause is excluded
             and "half that many" not in low
