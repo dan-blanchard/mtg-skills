@@ -138,7 +138,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     NONCREATURE_CAST_PUNISH_REGEX,
     PROTECTION_GRANT_REGEX,
     PUMP_MATTERS_REGEX,
-    SCALING_PUMP_SWEEP_REGEX,
     STATION_MATTERS_REGEX,
     STICKERS_MATTER_REGEX,
     SUPERFRIENDS_MATTERS_REGEX,
@@ -1876,15 +1875,18 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # retains its EXISTING structural bind in extract_signals_ir too (add() dedups):
     #   • party_matters     ← amount.op=="party" count operand; this mirror adds the
     #     "full party" CONDITION + "creatures in your party" non-count refs. CR 700.6.
-    #   • historic_matters  ← the "Historic" subject-Filter predicate; this mirror adds
-    #     the cost-reduction / "play a historic" / type-group refs phase leaves textual
-    #     (artifacts, legendaries, and Sagas are historic — CR 702.18-style group).
-    #   • multicolor / colorless ← the ColorCount subject-Filter predicates (the
-    #     "multicolored/colorless <permanent> you control" build-arounds); this mirror
-    #     adds the "cast a multicolored spell" TRIGGER + "colorless spell/creature"
-    #     cost-reduction / cast-restriction refs that aren't a structured subject.
+    #   • multicolor ← the ColorCount subject-Filter predicate (the "multicolored
+    #     <permanent> you control" build-around); this mirror adds the "cast a
+    #     multicolored spell" TRIGGER refs that aren't a structured subject.
     #   • initiative_matters / attractions_matter ← recent named designations (CR
     #     720 / 717) phase doesn't structure at all — the word IS the build-around tell.
+    # ADR-0027 #24g — historic_matters + colorless_matters mirrors DELETED: the lanes
+    # read the "Historic" / "ColorCount:EQ:0" subject-Filter predicate;
+    # supplement._recover_historic_subject / _recover_colorless_subject now synthesize
+    # that predicate for the historic / colorless cast-restriction / cost-reduction /
+    # discard-cost phase emits without the qualifier (Raff Capashen, Sanctum Spirit;
+    # Ghostfire Blade, Ugin the Ineffable, Consign to Memory), so the existing
+    # predicate arms fire structurally. CR 700.6 / 105.2c.
     # ADR-0027 #24b — devotion_matters mirror DELETED: the lane reads an
     # amount.op=='devotion' operand; supplement._recover_devotion_operand now appends
     # that operand for the ramp / pump / characteristic_pt effects phase collapsed to
@@ -1899,7 +1901,6 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    ("historic_matters", re.compile(r"\bhistoric\b", re.IGNORECASE), "you"),
     (
         "multicolor_matters",
         re.compile(
@@ -1907,11 +1908,6 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|multicolored (?:creature|permanent|spell)s? you",
             re.IGNORECASE,
         ),
-        "you",
-    ),
-    (
-        "colorless_matters",
-        re.compile(r"colorless (?:creature|spell|permanent)", re.IGNORECASE),
         "you",
     ),
     ("initiative_matters", re.compile(r"\bthe initiative\b", re.IGNORECASE), "you"),
@@ -2670,39 +2666,17 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         _SHIELD_COUNTER_MATTERS_MIRROR,
         "you",
     ),
-    # ADR-0027 scaling_pump — byte-identical kept WORD MIRROR (the EXACT deleted
-    # SWEEP regex SCALING_PUMP_SWEEP_REGEX `gets [+\-][0-9x]/[+\-][0-9x] for
-    # (?:each|every)`, scope 'you' matching the deleted row). The lane's PRIMARY
+    # ADR-0027 #24g (SIDECAR v56) — scaling_pump mirror DELETED. The lane's PRIMARY
     # home is the STRUCTURAL `cat=='pump'` arm gated by _is_scaling_count (in
-    # extract_signals_ir) — a +X/+X whose value SCALES with a board count (the
-    # named ops counters/domain/devotion/party/experience + the generic count/
-    # multiply op carrying a counted subject or a "for each"/"number of" raw). The
-    # structural arm fires 262 (56 the narrow regex MISSED: the "+X/+X, where X is
-    # the number/greatest of" phrasing, the plural "creatures … get" team scalers,
-    # the counter-op anthems Door of Destinies / Joraga Warcaller, and the two-
-    # digit +10/+10 Rampant Frogantua the single-digit `[0-9x]` class drops). This
-    # mirror recovers the 17 the structural arm MISSES because phase routes them
-    # through a non-`pump`/amount=None carrier: the token-borne pump granted inside
-    # a created token's quotes ("This token gets +1/+1 for each artifact you
-    # control" — Urza Lord High Artificer/Chief Artificer, Karn Scion of Urza,
-    # Urza's Saga/Command, Digsite Engineer, Minn, Vren, Sound the Call, Dollhouse
-    # of Horrors, Simulacrum Synthesizer), the equipment-granted scaler (Moira
-    # Brown), and the single-target/self for-each pump phase routes to a
-    # `pump_target` Effect with amount=None (Gold Rush, Embiggen, Gran Pulse Ochu,
-    # Sunbathing Rootwalla, Ral's Staticaster). `gets …/… for each` has no `[^.]*`
-    # span, so a flat .search over the reminder-stripped joined-face kept_oracle ==
-    # the deleted per-clause SWEEP firing byte-identically (commander-legal: flat
-    # == per-clause == 223, identical sets). UNION(struct | mirror), floor-
-    # disabled, by oracle_id: both==206, ir_only==56 (all genuine scaling pumps the
-    # regex's narrow phrasing missed), regex_only==17 (all recovered by this
-    # mirror). add() dedups the 206 overlap. The token-grant quotes use single/
-    # double quotes, NOT parens, so they survive reminder-stripping just as they
-    # did for the deleted floor Detector. CR 613 / 107.3.
-    (
-        "scaling_pump",
-        re.compile(SCALING_PUMP_SWEEP_REGEX, re.IGNORECASE),
-        "you",
-    ),
+    # extract_signals_ir) — a +X/+X whose value SCALES with a board count (the named
+    # ops counters/domain/devotion/party/experience + the generic count/multiply op
+    # carrying a counted subject or a "for each"/"number of" raw). The 17 the
+    # structural arm missed (phase routed them through a non-`pump`/amount=None
+    # carrier: the token-borne pump granted inside a created token's quotes — Karn
+    # Scion of Urza, Urza Lord High Artificer, Vren; the amount=None pump_target — Gold
+    # Rush) are now recovered by supplement._recover_scaling_pump, which synthesizes a
+    # `pump` Effect carrying the dropped op='count' operand so the structural arm fires.
+    # CR 613 / 107.3.
     # ADR-0027 #24d (SIDECAR v53) — clone_matters mirror DELETED. The creature copies
     # phase folded to a non-clone node (no clone Effect — Spark Double, Stunt Double,
     # Mockingbird; Chameleon Master of Disguise, Vesuvan Shapeshifter; a "copy of that
@@ -2789,10 +2763,13 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # changeling keyword + a "changeling" / "is every creature type" marker). Its
         # SWEEP_DETECTORS row is deleted.
         # colorless_matters / multicolor_matters removed — ADR-0027 migrated them to the
-        # Card IR (the ColorCount subject-Filter predicate build-arounds +
-        # _IR_KEPT_DETECTORS word mirrors for the "cast a multicolored spell" trigger /
-        # "colorless spell/creature" cost-reduction refs that aren't a structured
-        # subject). Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR rows deleted.
+        # Card IR (the ColorCount subject-Filter predicate build-arounds). multicolor
+        # keeps an _IR_KEPT_DETECTORS word mirror for the "cast a multicolored spell"
+        # trigger; colorless's mirror is DELETED (#24g SIDECAR v56 —
+        # supplement._recover_colorless_subject synthesizes a ColorCount:EQ:0 subject
+        # Filter for the "colorless spell/creature" cost-reduction / cast-restriction /
+        # counter-target refs phase leaves color-blind, so the predicate arm fires
+        # structurally). CR 105.2c.
         # lands_matter removed — ADR-0027 migrated it to the Card IR (the
         # amount.subject=Land count operand + a kept word mirror for the "P/T equal to
         # the number of lands you control" / "for each land you control" forms phase
@@ -2830,9 +2807,11 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # control" tail phase emits as an empty-predicate board_count). REMOVED from
         # _IR_FLOOR_LANES; floor-mirror-dep == 0 (arm + mirror read no floor).
         # historic_matters removed — ADR-0027 migrated it to the Card IR (the
-        # "Historic" subject-Filter predicate + a "\bhistoric\b" kept word mirror for
-        # the cost-reduction / "play a historic" / type-group refs phase leaves
-        # textual). Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
+        # "Historic" subject-Filter predicate). The "\bhistoric\b" word mirror is
+        # DELETED (#24g SIDECAR v56 — supplement._recover_historic_subject synthesizes a
+        # Historic subject Filter for the historic cast-restriction / cost-reduction /
+        # discard-cost refs phase leaves without the qualifier, so the predicate arm
+        # fires structurally). CR 700.6 (legendary OR artifact OR Saga).
         # domain_matters removed — ADR-0027 migrated it to the Card IR (the
         # amount.op=="domain" count operand + a "\bdomain\b|basic land types" kept word
         # mirror for the cost-reduction / condition / ability-word refs phase leaves

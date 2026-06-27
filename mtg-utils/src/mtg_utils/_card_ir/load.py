@@ -732,7 +732,32 @@ from mtg_utils.card_ir import Card
 #   arm reads STRUCTURE for those buckets; the residue mirror is NARROWED to the
 #   unstructurable payoff/replacement/granted/past-tense tail (Confessor, Tinybones,
 #   Chains of Mephistopheles, Wand of Ith). CR 701.9 / 510.1c.
-SIDECAR_VERSION = 55
+# v56 — ADR-0027 #24g SUPPLEMENT_RECOVER C1 (3 reclassified MED-residue lanes whose
+#   mirror covered a real tail phase parses without the discriminating Filter/count;
+#   the dropped structure recovered onto the IR; mirrors deleted):
+#   (1) colorless_matters (supplement `_recover_colorless_subject`): phase DROPS the
+#   "colorless" qualifier off a cast-restriction / cost-reduction / counter-target,
+#   leaving a color-blind effect (Ghostfire Blade, Ugin the Ineffable, Consign to
+#   Memory). Synthesize a ColorCount:EQ:0 subject Filter; the existing
+#   `_predicate_build_around_lanes` arm reads it STRUCTURALLY; the "colorless
+#   (creature|spell|permanent)" mirror is DELETED. CR 105.2c / 202.2.
+#   (2) historic_matters (supplement `_recover_historic_subject`): phase DROPS the
+#   "historic" qualifier off a cast-restriction / cost-reduction / discard-cost (Raff
+#   Capashen, Sanctum Spirit). Synthesize a Historic subject Filter; the existing
+#   `"Historic" in ir_predicates` arm reads it STRUCTURALLY; the "\bhistoric\b" mirror
+#   is DELETED. CR 700.6 (legendary OR artifact OR Saga).
+#   (3) scaling_pump (supplement `_recover_scaling_pump`): a "gets +N/+N for each <X>"
+#   board-count scaler phase routes through a NON-`pump` carrier the structural arm
+#   misses — a board_count Effect (Karn Scion of Urza, Urza Lord High Artificer), a
+#   make_token raw (Vren), or an amount=None pump_target (Gold Rush). Synthesize a
+#   `pump` Effect carrying the recovered op='count' operand so the scaling_pump arm
+#   reads STRUCTURE; the `gets …/… for each` mirror is DELETED. CR 613 / 107.3.
+#   GATE: the 3 target lanes are SET-EQUAL to their deleted mirrors (count + set
+#   unchanged). One NEIGHBOR gain — any_counter_matters +1 (Moira Brown, Guide Author:
+#   the recovered scaling pump "for each quest counter" correctly opens the counter-
+#   scaling payoff lane too, CR 122.1; a legitimate shared-recovery help, not noise).
+#   voltron_matters 2396 set-equal.
+SIDECAR_VERSION = 56
 
 
 def card_ir_dir() -> Path:

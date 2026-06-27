@@ -12627,6 +12627,21 @@
          }
         ],
         "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "colorless reference (recovered)",
+          "sub": {
+           "c": "you",
+           "p": [
+            "ColorCount:EQ:0"
+           ]
+          }
+         }
+        ],
+        "k": "static"
        }
       ],
       "n": "Ceremonious Rejection",
@@ -14054,6 +14069,107 @@
     "oracle_id": "cac95494-0db0-4bec-8665-998431a6f76b",
     "oracle_text": "At the beginning of your upkeep, if you control a creature with power 4 or greater, draw a card.",
     "type_line": "Enchantment"
+   }
+  },
+  "Consign to Memory": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "counter_spell",
+          "raw": "Counter target triggered ability or colorless spell.",
+          "sub": {
+           "t": [
+            "Card"
+           ]
+          }
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "spell_copy",
+          "raw": "Replicate — copy this spell once for each time its replicate cost was paid"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "cast_spell",
+         "sc": "you"
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "colorless reference (recovered)",
+          "sub": {
+           "c": "you",
+           "p": [
+            "ColorCount:EQ:0"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "Replicate"
+      ],
+      "n": "Consign to Memory",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Consign to Memory",
+    "oid": "16c39265-72d9-4c86-a961-8dd38ff9adcd"
+   },
+   "scryfall": {
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Replicate"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}",
+    "name": "Consign to Memory",
+    "oracle_id": "16c39265-72d9-4c86-a961-8dd38ff9adcd",
+    "oracle_text": "Replicate {1} (When you cast this spell, copy it for each time you paid its replicate cost. You may choose new targets for the copies.)\nCounter target triggered ability or colorless spell.",
+    "type_line": "Instant"
    }
   },
   "Control Magic": {
@@ -24397,6 +24513,119 @@
     "type_line": "Legendary Creature — Human Shaman"
    }
   },
+  "Ghostfire Blade": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "genericmana,mana",
+        "e": [
+         {
+          "cat": "attach",
+          "raw": "Equip {3}",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "cost_reduction",
+          "raw": "~'s equip ability costs {2} less to activate if it targets a colorless creature."
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "pump",
+          "raw": "Equipped creature gets +2/+2.",
+          "sub": {
+           "p": [
+            "EquippedBy"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "colorless reference (recovered)",
+          "sub": {
+           "c": "you",
+           "p": [
+            "ColorCount:EQ:0"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Ghostfire Blade",
+      "tl": "Artifact — Equipment"
+     }
+    ],
+    "n": "Ghostfire Blade",
+    "oid": "093b1d8d-c836-4e9b-855b-4020361aa6ac"
+   },
+   "scryfall": {
+    "cmc": 1.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}",
+    "name": "Ghostfire Blade",
+    "oracle_id": "093b1d8d-c836-4e9b-855b-4020361aa6ac",
+    "oracle_text": "Equipped creature gets +2/+2.\nEquip {3}\nThis Equipment's equip ability costs {2} less to activate if it targets a colorless creature.",
+    "type_line": "Artifact — Equipment"
+   }
+  },
   "Giant Growth": {
    "ir": {
     "faces": [
@@ -25547,6 +25776,125 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Legendary Creature — Human Barbarian"
+   }
+  },
+  "Gold Rush": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "raw": "Create a Treasure token. Until end of turn, up to one target creature gets +2/+2 for each Treasure you control.",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Treasure"
+           ],
+           "t": [
+            "Artifact"
+           ]
+          }
+         },
+         {
+          "cat": "pump_target",
+          "dur": "UntilEndOfTurn",
+          "raw": "Create a Treasure token. Until end of turn, up to one target creature gets +2/+2 for each Treasure you control.",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 2,
+           "op": "count"
+          },
+          "cat": "pump",
+          "raw": "gets +2/+2 for each Treasure you control",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Gold Rush",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Gold Rush",
+    "oid": "45687a24-e8cb-4864-8721-410eb8320aab"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "7ec6f053-96f7-4e57-b2eb-4e7699a40a4f",
+      "name": "Treasure",
+      "object": "related_card",
+      "type_line": "Token Artifact — Treasure",
+      "uri": "https://api.scryfall.com/cards/7ec6f053-96f7-4e57-b2eb-4e7699a40a4f"
+     },
+     {
+      "component": "combo_piece",
+      "id": "15845be1-919d-4450-9de6-3552c52e8623",
+      "name": "Gold Rush",
+      "object": "related_card",
+      "type_line": "Instant",
+      "uri": "https://api.scryfall.com/cards/15845be1-919d-4450-9de6-3552c52e8623"
+     }
+    ],
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Gold Rush",
+    "oracle_id": "45687a24-e8cb-4864-8721-410eb8320aab",
+    "oracle_text": "Create a Treasure token. Until end of turn, up to one target creature gets +2/+2 for each Treasure you control.",
+    "type_line": "Instant"
    }
   },
   "Goldspan Dragon": {
@@ -28899,6 +29247,21 @@
          }
         ],
         "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "colorless reference (recovered)",
+          "sub": {
+           "c": "you",
+           "p": [
+            "ColorCount:EQ:0"
+           ]
+          }
+         }
+        ],
+        "k": "static"
        }
       ],
       "kw": [
@@ -30999,6 +31362,21 @@
          }
         ],
         "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "historic reference (recovered)",
+          "sub": {
+           "c": "you",
+           "p": [
+            "Historic"
+           ]
+          }
+         }
+        ],
+        "k": "static"
        }
       ],
       "kw": [
@@ -32139,6 +32517,212 @@
      "C"
     ],
     "type_line": "Land"
+   }
+  },
+  "Karn, Scion of Urza": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "reveal",
+          "raw": "[+1]: Reveal the top two cards of your library. An opponent chooses one of them. Put that card into your hand and exile the other with a silver counter on it.",
+          "z": [
+           "from:top",
+           "top:you"
+          ]
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "choose",
+          "raw": "[+1]: Reveal the top two cards of your library. An opponent chooses one of them. Put that card into your hand and exile the other with a silver counter on it."
+         },
+         {
+          "cat": "reveal",
+          "raw": "[+1]: Reveal the top two cards of your library. An opponent chooses one of them. Put that card into your hand and exile the other with a silver counter on it.",
+          "z": [
+           "from:top",
+           "to:hand",
+           "top:you"
+          ]
+         },
+         {
+          "cat": "exile",
+          "raw": "[+1]: Reveal the top two cards of your library. An opponent chooses one of them. Put that card into your hand and exile the other with a silver counter on it.",
+          "z": [
+           "from:top",
+           "to:exile",
+           "top:you"
+          ]
+         },
+         {
+          "cat": "place_counter",
+          "ck": "silver",
+          "raw": "[+1]: Reveal the top two cards of your library. An opponent chooses one of them. Put that card into your hand and exile the other with a silver counter on it.",
+          "sc": "you"
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "place_counter",
+          "raw": "[−1]: Put a card you own with a silver counter on it from exile into your hand.",
+          "sub": {
+           "p": [
+            "Owned:you",
+            "Counters:silver:GE:1",
+            "InZone"
+           ],
+           "t": [
+            "Card"
+           ]
+          },
+          "z": [
+           "from:exile",
+           "to:hand",
+           "in:exile"
+          ]
+         },
+         {
+          "cat": "place_counter",
+          "ck": "silver",
+          "raw": "[−1]: Put a card you own with a silver counter on it from exile into your hand.",
+          "sc": "you"
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "raw": "[−2]: Create a 0/0 colorless Construct artifact creature token with \"~ gets +1/+1 for each artifact you control.\"",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Construct"
+           ],
+           "t": [
+            "Artifact",
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "count",
+           "sub": {
+            "c": "you",
+            "t": [
+             "Artifact"
+            ]
+           }
+          },
+          "cat": "board_count",
+          "raw": "[−2]: Create a 0/0 colorless Construct artifact creature token with \"~ gets +1/+1 for each artifact you control.\"",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Artifact"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "pump",
+          "raw": "gets +1/+1 for each artifact you control",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Karn, Scion of Urza",
+      "tl": "Legendary Planeswalker — Karn"
+     }
+    ],
+    "n": "Karn, Scion of Urza",
+    "oid": "060209fa-4b7d-4e08-bf8b-8759bba5641b"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "combo_piece",
+      "id": "07a3d9e8-8597-498b-869c-cff79e0df516",
+      "name": "Karn, Scion of Urza",
+      "object": "related_card",
+      "type_line": "Legendary Planeswalker — Karn",
+      "uri": "https://api.scryfall.com/cards/07a3d9e8-8597-498b-869c-cff79e0df516"
+     },
+     {
+      "component": "token",
+      "id": "c5eafa38-5333-4ef2-9661-08074c580a32",
+      "name": "Construct",
+      "object": "related_card",
+      "type_line": "Token Artifact Creature — Construct",
+      "uri": "https://api.scryfall.com/cards/c5eafa38-5333-4ef2-9661-08074c580a32"
+     }
+    ],
+    "cmc": 4.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}",
+    "name": "Karn, Scion of Urza",
+    "oracle_id": "060209fa-4b7d-4e08-bf8b-8759bba5641b",
+    "oracle_text": "+1: Reveal the top two cards of your library. An opponent chooses one of them. Put that card into your hand and exile the other with a silver counter on it.\n−1: Put a card you own with a silver counter on it from exile into your hand.\n−2: Create a 0/0 colorless Construct artifact creature token with \"This token gets +1/+1 for each artifact you control.\"",
+    "type_line": "Legendary Planeswalker — Karn"
    }
   },
   "Karn, Silver Golem": {
@@ -40258,6 +40842,149 @@
     "type_line": "Legendary Creature — Goblin Wizard"
    }
   },
+  "Moira Brown, Guide Author": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "raw": "When ~ enters, create a colorless Book Equipment artifact token named Wasteland Survival Guide with \"Equipped creature gets +1/+1 for each quest counter among permanents you control\" and equip {1}.",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Book",
+            "Equipment"
+           ],
+           "t": [
+            "Artifact"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "quest",
+          "raw": "Whenever you attack, put a quest counter on target nonland permanent you control.",
+          "sub": {
+           "c": "you",
+           "p": [
+            "NotType:Land"
+           ],
+           "t": [
+            "Permanent"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "attacks"
+        }
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "pump",
+          "raw": "gets +1/+1 for each quest counter among permanents you control",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Moira Brown, Guide Author",
+      "tl": "Legendary Creature — Human Citizen"
+     }
+    ],
+    "n": "Moira Brown, Guide Author",
+    "oid": "db02644b-820f-4102-b1f6-ed8fac40baf8"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "ad073c87-42f2-45f0-9613-2cdbd0abf719",
+      "name": "Wasteland Survival Guide",
+      "object": "related_card",
+      "type_line": "Token Artifact — Equipment",
+      "uri": "https://api.scryfall.com/cards/ad073c87-42f2-45f0-9613-2cdbd0abf719"
+     },
+     {
+      "component": "combo_piece",
+      "id": "1062b4a3-c6f0-413a-b6f0-182c0d69b114",
+      "name": "Moira Brown, Guide Author",
+      "object": "related_card",
+      "type_line": "Legendary Creature — Human Citizen",
+      "uri": "https://api.scryfall.com/cards/1062b4a3-c6f0-413a-b6f0-182c0d69b114"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [
+     "R",
+     "W"
+    ],
+    "colors": [
+     "R",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}{W}",
+    "name": "Moira Brown, Guide Author",
+    "oracle_id": "db02644b-820f-4102-b1f6-ed8fac40baf8",
+    "oracle_text": "When Moira Brown enters, create a colorless Book Equipment artifact token named Wasteland Survival Guide with \"Equipped creature gets +1/+1 for each quest counter among permanents you control\" and equip {1}.\nWhenever you attack, put a quest counter on target nonland permanent you control.",
+    "power": "2",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Citizen"
+   }
+  },
   "Momo, Friendly Flier": {
    "ir": {
     "faces": [
@@ -46886,6 +47613,97 @@
     "type_line": "Creature — Devil Employee"
    }
   },
+  "Raff Capashen, Ship's Mage": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "cast_with_keyword",
+          "ck": "flash",
+          "raw": "You may cast historic spells as though they had flash.",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "historic reference (recovered)",
+          "sub": {
+           "c": "you",
+           "p": [
+            "Historic"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "Flash",
+       "Flying"
+      ],
+      "n": "Raff Capashen, Ship's Mage",
+      "tl": "Legendary Creature — Human Wizard"
+     }
+    ],
+    "n": "Raff Capashen, Ship's Mage",
+    "oid": "13044ca1-76a3-43b2-a8e4-3bbc692c30c5"
+   },
+   "scryfall": {
+    "cmc": 4.0,
+    "color_identity": [
+     "U",
+     "W"
+    ],
+    "colors": [
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "Flying",
+     "Flash"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}{U}",
+    "name": "Raff Capashen, Ship's Mage",
+    "oracle_id": "13044ca1-76a3-43b2-a8e4-3bbc692c30c5",
+    "oracle_text": "Flash\nFlying\nYou may cast historic spells as though they had flash. (Artifacts, legendaries, and Sagas are historic.)",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Wizard"
+   }
+  },
   "Rafiq of the Many": {
    "ir": {
     "faces": [
@@ -49866,6 +50684,93 @@
     "power": "4",
     "toughness": "5",
     "type_line": "Legendary Creature — Human Warrior Cleric"
+   }
+  },
+  "Sanctum Spirit": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "discard",
+        "e": [
+         {
+          "cat": "grant_keyword",
+          "ck": "indestructible",
+          "raw": "gain indestructible"
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "historic reference (recovered)",
+          "sub": {
+           "c": "you",
+           "p": [
+            "Historic"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "Lifelink"
+      ],
+      "n": "Sanctum Spirit",
+      "tl": "Creature — Spirit"
+     }
+    ],
+    "n": "Sanctum Spirit",
+    "oid": "1e640846-8f50-4a94-b7aa-f228124290d3"
+   },
+   "scryfall": {
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Lifelink"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{W}",
+    "name": "Sanctum Spirit",
+    "oracle_id": "1e640846-8f50-4a94-b7aa-f228124290d3",
+    "oracle_text": "Lifelink\nDiscard a historic card: This creature gains indestructible until end of turn. (Artifacts, legendaries, and Sagas are historic.)",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Spirit"
    }
   },
   "Saruman of Many Colors": {
@@ -61305,6 +62210,151 @@
     "type_line": "Legendary Creature — Human Cleric"
    }
   },
+  "Ugin, the Ineffable": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "exile",
+          "raw": "[+1]: Exile the top card of your library face down and look at it. Create a 2/2 colorless Spirit creature token. When that token leaves the battlefield, put the exiled card into your hand.",
+          "z": [
+           "from:top",
+           "top:you"
+          ]
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "raw": "[+1]: Exile the top card of your library face down and look at it. Create a 2/2 colorless Spirit creature token. When that token leaves the battlefield, put the exiled card into your hand.",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Spirit"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "ck": "all",
+          "raw": "[+1]: Exile the top card of your library face down and look at it. Create a 2/2 colorless Spirit creature token. When that token leaves the battlefield, put the exiled card into your hand.",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Spirit"
+           ],
+           "t": [
+            "Creature"
+           ]
+          },
+          "z": [
+           "from:exile",
+           "to:hand"
+          ]
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "destroy",
+          "raw": "[−3]: Destroy target permanent that's one or more colors.",
+          "sub": {
+           "p": [
+            "ColorCount:GE:1"
+           ],
+           "t": [
+            "Permanent"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "cost_reduction",
+          "raw": "Colorless spells you cast cost {2} less to cast.",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "colorless reference (recovered)",
+          "sub": {
+           "c": "you",
+           "p": [
+            "ColorCount:EQ:0"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Ugin, the Ineffable",
+      "tl": "Legendary Planeswalker — Ugin"
+     }
+    ],
+    "n": "Ugin, the Ineffable",
+    "oid": "18bdc181-9592-4147-81fb-7f83ce137f70"
+   },
+   "scryfall": {
+    "cmc": 6.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{6}",
+    "name": "Ugin, the Ineffable",
+    "oracle_id": "18bdc181-9592-4147-81fb-7f83ce137f70",
+    "oracle_text": "Colorless spells you cast cost {2} less to cast.\n+1: Exile the top card of your library face down and look at it. Create a 2/2 colorless Spirit creature token. When that token leaves the battlefield, put the exiled card into your hand.\n−3: Destroy target permanent that's one or more colors.",
+    "type_line": "Legendary Planeswalker — Ugin"
+   }
+  },
   "Uncle Iroh": {
    "ir": {
     "faces": [
@@ -61869,6 +62919,19 @@
             "Artifact"
            ]
           }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "pump",
+          "raw": "gets +1/+1 for each artifact you control",
+          "sc": "you"
          }
         ],
         "k": "static"
@@ -65911,5 +66974,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 55
+ "sidecar_version": 56
 }

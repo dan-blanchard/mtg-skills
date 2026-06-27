@@ -287,15 +287,44 @@ def test_devotion_historic_party_are_ir_served():
     # op=='variable' / drops (Karametra's Acolyte "Add {G} equal to your devotion to
     # green"). Asserted over the real projected IR via ``test_signals``.
     assert ("devotion_matters", "you") in _real("Karametra's Acolyte")
-    # historic / party stay kept word-detector mirrors (phase makes no count operand),
-    # so they come through the hybrid path off the oracle, not pure regex.
-    for key, oracle in (
-        ("historic_matters", "Whenever you cast a historic spell, draw a card."),
-        ("party_matters", "Whenever a creature in your party attacks, draw a card."),
-    ):
-        c = {"name": "X", "oracle_text": oracle}
-        assert (key, "you") in _ks_hybrid(c), f"{key} not IR-served"
-        assert (key, "you") not in _ks(c), f"{key} still regex-served"
+    # ADR-0027 #24g: historic_matters now reads STRUCTURE — supplement
+    # `_recover_historic_subject` synthesizes the Historic subject Filter for the
+    # historic cast-restriction phase drops (Raff Capashen's "cast historic spells as
+    # though they had flash"). Asserted over real projected IR; the "\bhistoric\b"
+    # mirror is deleted, so pure regex no longer serves it (CR 700.6).
+    assert ("historic_matters", "you") in _real("Raff Capashen, Ship's Mage")
+    assert ("historic_matters", "you") not in _ks(
+        {"name": "X", "oracle_text": "Whenever you cast a historic spell, draw a card."}
+    )
+    # party stays a kept word-detector mirror (phase makes no count operand), so it
+    # comes through the hybrid path off the oracle, not pure regex.
+    c = {"name": "X", "oracle_text": "Whenever a creature in your party attacks, draw."}
+    assert ("party_matters", "you") in _ks_hybrid(c), "party not IR-served"
+    assert ("party_matters", "you") not in _ks(c), "party still regex-served"
+
+
+def test_24g_colorless_historic_scaling_read_structure():
+    # ADR-0027 #24g: three MED-residue lanes now read recovered structure off the IR;
+    # their byte mirrors are deleted. Asserted over real projected IR (test_signals).
+    # colorless_matters (CR 105.2c) — _recover_colorless_subject synthesizes a
+    # ColorCount:EQ:0 subject Filter for the dropped "colorless" qualifier:
+    assert ("colorless_matters", "you") in _real("Ghostfire Blade")  # equip cost-reduce
+    assert ("colorless_matters", "you") in _real("Ugin, the Ineffable")  # cast-reduce
+    assert ("colorless_matters", "you") in _real("Consign to Memory")  # counter-target
+    # historic_matters (CR 700.6) — _recover_historic_subject synthesizes a Historic
+    # subject Filter, incl. the cost-borne case (Sanctum Spirit's "Discard a historic
+    # card" activation cost phase collapses to cost='discard'):
+    assert ("historic_matters", "you") in _real("Sanctum Spirit")
+    # scaling_pump (CR 613) — _recover_scaling_pump synthesizes a pump Effect with the
+    # op='count' operand for the "gets +N/+N for each <X>" scaler phase routes through a
+    # board_count / make_token / amount=None pump_target carrier:
+    assert ("scaling_pump", "you") in _real("Karn, Scion of Urza")  # board_count token
+    assert ("scaling_pump", "you") in _real("Gold Rush")  # amount=None pump_target
+    # Moira Brown's recovered counter-scaler also opens any_counter_matters (the shared
+    # recovery legitimately helps the neighbor lane — CR 122.1):
+    moira = _real("Moira Brown, Guide Author")
+    assert ("scaling_pump", "you") in moira
+    assert ("any_counter_matters", "you") in moira
 
 
 def test_legends_lands_suspend_are_ir_served():

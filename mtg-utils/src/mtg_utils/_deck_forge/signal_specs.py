@@ -2857,11 +2857,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": _COUNT_ANTHEM_SWEEP_REGEX},
         _COUNT_ANTHEM_SWEEP_REGEX,
     ),
-    # ADR-0027: scaling_pump migrated to the Card IR — its SWEEP_DETECTORS row is
-    # deleted (detection moved to the structural _is_scaling_count `pump` arm UNION
-    # the byte-identical SCALING_PUMP_SWEEP_REGEX kept word mirror), so the auto-
-    # register loop no longer builds this spec. Hand-register the spec the sweep
-    # loop used to build, reusing the pinned regex as both search and serve.
+    # ADR-0027 #24g: scaling_pump migrated to the Card IR — its SWEEP_DETECTORS row is
+    # deleted (detection is the structural _is_scaling_count `pump` arm reading the
+    # supplement-recovered op=count operand; the kept word mirror is now DELETED too),
+    # so the auto-register loop no longer builds this spec. Hand-register the spec the
+    # sweep loop used to build, reusing the pinned regex as the search/serve candidate
+    # surface only (NOT a detection path).
     ("scaling_pump", "you"): _spec(
         *SWEEP_LABELS["scaling_pump"],
         {"oracle": SCALING_PUMP_SWEEP_REGEX},

@@ -2965,3 +2965,174 @@ def _recover_opponent_discard(card: Card, oracle: str) -> Card:
     if not appended:
         return card
     return replace(card, faces=tuple(faces))
+
+
+def _append_marker(card: Card, effect: Effect) -> Card:
+    """Append a synthetic static ability carrying one marker ``effect`` to the head
+    face — the shared shape the subject-Filter recoveries below use to surface a
+    dropped predicate the lane reads off any ability's subject (mirrors
+    _recover_devotion_operand). The marker is category="other", so it opens no
+    category-gated lane; only the predicate-reading arms see its subject Filter."""
+    synth = Ability(kind="static", effects=(effect,))
+    head, *rest = card.faces
+    return replace(
+        card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
+    )
+
+
+# colorless_matters — phase DROPS the "colorless" qualifier off a cast-restriction /
+# cost-reduction / counter-target, leaving a subject-less effect (Ghostfire Blade's
+# "if it targets a colorless creature" cost_reduction subj=None, Ugin the Ineffable's
+# "Colorless spells you cast cost {2} less" cost_reduction subj=None, Consign to
+# Memory's "Counter … colorless spell" whose counter_spell subject is a bare Card
+# Filter with no color predicate). The discriminator survives only in the raw, so we
+# synth a ColorCount:EQ:0 subject Filter the colorless_matters arm
+# (_predicate_build_around_lanes) reads structurally. CR 105.2c (a colorless object
+# has no color) / 202.2. Set-equal to the deleted "colorless (creature|spell|
+# permanent)" word mirror (same anchor over the reminder-stripped joined oracle).
+_COLORLESS_REF_RE = re.compile(r"colorless (?:creature|spell|permanent)", re.IGNORECASE)
+
+
+def _recover_colorless_subject(card: Card, oracle: str) -> Card:
+    """Synth a ColorCount:EQ:0 subject Filter (controller='you') for a card that
+    references a colorless creature/spell/permanent but whose effects phase left
+    color-blind, so the colorless_matters arm reads the predicate STRUCTURALLY.
+    Idempotent (skipped when a real ColorCount:EQ:0 predicate already exists).
+    CR 105.2c."""
+    if not card.faces:
+        return card
+    if any(
+        isinstance(f, Filter) and "ColorCount:EQ:0" in f.predicates
+        for ab in card.all_abilities()
+        for f in _ability_subjects(ab)
+    ):
+        return card
+    if _COLORLESS_REF_RE.search(re.sub(r"\([^)]*\)", " ", oracle)) is None:
+        return card
+    return _append_marker(
+        card,
+        Effect(
+            category="other",
+            subject=Filter(controller="you", predicates=("ColorCount:EQ:0",)),
+            raw="colorless reference (recovered)",
+        ),
+    )
+
+
+# historic_matters — phase DROPS the "historic" qualifier off a cast-restriction /
+# cost-reduction / discard-cost, leaving a subject-less effect (Raff Capashen's "cast
+# historic spells as though they had flash" cast_with_keyword subj=None; Sanctum
+# Spirit's "Discard a historic card" activation cost phase collapses to cost='discard'
+# with no Historic carrier). The discriminator survives only in the raw, so we synth a
+# Historic subject Filter the historic_matters arm (``"Historic" in ir_predicates``)
+# reads structurally. An object is historic if it is legendary, an artifact, or a Saga
+# (CR 700.6). Set-equal to the deleted "\bhistoric\b" word mirror (same anchor over
+# the reminder-stripped joined oracle).
+_HISTORIC_REF_RE = re.compile(r"\bhistoric\b", re.IGNORECASE)
+
+
+def _recover_historic_subject(card: Card, oracle: str) -> Card:
+    """Synth a Historic subject Filter (controller='you') for a card that references a
+    historic object but whose effects/cost phase left without the Historic predicate,
+    so the historic_matters arm reads it STRUCTURALLY. Idempotent (skipped when a real
+    Historic predicate already exists). CR 700.6."""
+    if not card.faces:
+        return card
+    if any(
+        isinstance(f, Filter) and "Historic" in f.predicates
+        for ab in card.all_abilities()
+        for f in _ability_subjects(ab)
+    ):
+        return card
+    if _HISTORIC_REF_RE.search(re.sub(r"\([^)]*\)", " ", oracle)) is None:
+        return card
+    return _append_marker(
+        card,
+        Effect(
+            category="other",
+            subject=Filter(controller="you", predicates=("Historic",)),
+            raw="historic reference (recovered)",
+        ),
+    )
+
+
+def _ability_subjects(ab: Ability) -> list[Filter]:
+    """Every subject Filter an ability exposes (effect subjects, amount subjects,
+    trigger subject) — the surface the predicate-reading lane arms scan."""
+    subs: list[object] = [e.subject for e in ab.effects]
+    subs += [e.amount.subject for e in ab.effects if e.amount is not None]
+    if ab.trigger is not None:
+        subs.append(ab.trigger.subject)
+    return [f for f in subs if isinstance(f, Filter)]
+
+
+# scaling_pump — a "~ gets +N/+N for each <X>" board-count scaler phase routes through
+# a NON-`pump` carrier so the structural scaling_pump arm (cat=='pump' + scaling
+# count) misses it: the token-borne grant lands on a `board_count` Effect (Karn Scion
+# of Urza / Urza Lord High Artificer's "Construct … gets +1/+1 for each artifact you
+# control"), a make_token raw (Vren's "Rat … gets +1/+1 for each other Rat you
+# control"), or a single-target `pump_target` Effect with amount=None (Gold Rush's
+# "creature gets +2/+2 for each Treasure you control"). We synth a `pump` Effect
+# carrying the recovered op='count' operand (the for-each scaling reference the gate
+# reads), so the arm fires STRUCTURALLY. The synth subject is left None on purpose: the
+# count's go-wide reference lives in the raw (`_is_scaling_count` reads the "for each"
+# raw for a subjectless count), and a typed subject would over-couple this pump-only
+# recovery to the typed-matters lanes (artifacts_matter / etc. cross-read amount
+# subjects). CR 613 (P/T-setting/modifying layer) / 107.3. Set-equal to the deleted
+# `gets [+\-][0-9x]/[+\-][0-9x] for (?:each|every)` word mirror (same single-digit
+# anchor over the reminder-stripped joined oracle).
+_SCALING_PUMP_CLAUSE_RE = re.compile(
+    r"gets ([+\-][0-9x])/[+\-][0-9x] for (?:each|every)[^.\n\"]*", re.IGNORECASE
+)
+_SCALING_FOR_EACH_RAW = re.compile(
+    r"\bfor each\b|\bequal to the number of\b", re.IGNORECASE
+)
+_SCALING_NAMED_OPS = frozenset(
+    {"counters", "domain", "devotion", "party", "experience"}
+)
+
+
+def _has_structural_scaling_pump(card: Card) -> bool:
+    """True when a real `pump` Effect already carries a scaling count (a named scale
+    op, or a count/multiply/toughness op with a subject or a for-each raw) — i.e. the
+    structural scaling_pump arm already fires, so no synth is needed (the byte-mirror's
+    206-card overlap). Mirrors _deck_forge._signals_ir._is_scaling_count."""
+    for ab in card.all_abilities():
+        for e in ab.effects:
+            if e.category != "pump" or e.amount is None:
+                continue
+            op = e.amount.op
+            if op in _SCALING_NAMED_OPS:
+                return True
+            if op in ("count", "multiply", "toughness") and (
+                e.amount.subject is not None
+                or _SCALING_FOR_EACH_RAW.search(e.raw or "")
+            ):
+                return True
+    return False
+
+
+def _recover_scaling_pump(card: Card, oracle: str) -> Card:
+    """Synth a `pump` Effect with the recovered op='count' scaling operand for a card
+    whose "gets +N/+N for each <X>" pump phase routed through a board_count / make_token
+    / amount=None pump_target carrier, so the scaling_pump arm reads it STRUCTURALLY.
+    Skipped when a real scaling pump already exists (the structural arm already fires).
+    CR 613."""
+    if not card.faces:
+        return card
+    if _has_structural_scaling_pump(card):
+        return card
+    m = _SCALING_PUMP_CLAUSE_RE.search(re.sub(r"\([^)]*\)", " ", oracle))
+    if m is None:
+        return card
+    digit = m.group(1)[-1]
+    factor = 1 if digit == "x" else int(digit)
+    return _append_marker(
+        card,
+        Effect(
+            category="pump",
+            scope="you",
+            amount=Quantity(op="count", factor=factor),
+            raw=m.group(0),
+        ),
+    )

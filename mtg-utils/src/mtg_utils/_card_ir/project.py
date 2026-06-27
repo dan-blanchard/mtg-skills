@@ -26,6 +26,7 @@ from mtg_utils._card_ir.supplement import (
     _recover_becomes_tap_untap,
     _recover_cast_from_exile_zone,
     _recover_clone_creature,
+    _recover_colorless_subject,
     _recover_combat_damage_recipients,
     _recover_cost_reduction,
     _recover_counter_removal,
@@ -34,9 +35,11 @@ from mtg_utils._card_ir.supplement import (
     _recover_dies_return,
     _recover_dropped_gain_life,
     _recover_exile_zone_ref,
+    _recover_historic_subject,
     _recover_land_sacrifice,
     _recover_opponent_cast_lock,
     _recover_opponent_discard,
+    _recover_scaling_pump,
     recover_effect_from_text,
     supplement_card,
 )
@@ -805,6 +808,23 @@ def project_card(records: list[dict]) -> Card:
     card = _recover_opponent_discard(
         card, "\n".join(r.get("oracle_text") or "" for r in records)
     )
+    # ADR-0027 #24g (SIDECAR v56) — Filter/count synth residue. colorless_matters:
+    # synth a ColorCount:EQ:0 subject Filter for the cast-restriction / cost-reduction
+    # / counter-target whose "colorless" qualifier phase drops (Ghostfire Blade, Ugin
+    # the Ineffable, Consign to Memory), so the lane reads the predicate STRUCTURALLY
+    # and the "colorless (creature|spell|permanent)" mirror retires (CR 105.2c).
+    card = _recover_colorless_subject(card, _oracle)
+    # historic_matters: synth a Historic subject Filter for the historic cast-
+    # restriction / cost-reduction / discard-cost whose "historic" qualifier phase
+    # drops (Raff Capashen, Sanctum Spirit), so the lane reads it STRUCTURALLY and the
+    # "\bhistoric\b" mirror retires (CR 700.6 — legendary OR artifact OR Saga).
+    card = _recover_historic_subject(card, _oracle)
+    # scaling_pump: synth a `pump` Effect with the recovered op='count' operand for the
+    # "gets +N/+N for each <X>" scaler phase routes through a board_count / make_token /
+    # amount=None pump_target carrier (Karn Scion of Urza, Urza Lord High Artificer,
+    # Vren, Gold Rush), so the scaling_pump arm reads it STRUCTURALLY and the
+    # `gets …/… for each` mirror retires (CR 613).
+    card = _recover_scaling_pump(card, _oracle)
     # Post-supplement removal target-subject recovery (ADR-0027 removal_matters
     # shape 3): the supplement re-derives a `damage` / `destroy` CATEGORY from a
     # GenericEffect / Unimplemented body the projection left as `other` (Combo
@@ -903,8 +923,16 @@ def _confidence(card: Card) -> str:
         # conflated vanilla with failure; vanilla is `full`.
         return "full"
     effects = [e for a in abilities for e in a.effects]
-    # An ability with no recovered effects, or any effect still 'other', is a gap.
-    if any(e.category == "other" for e in effects):
+    # An ability with no recovered effects, or any effect still 'other', is a gap —
+    # EXCEPT a synthetic predicate marker the supplement appended on purpose (raw ends
+    # "(recovered)", e.g. _recover_colorless_subject / _recover_historic_subject's
+    # ColorCount/Historic carrier). That marker IS recovered structure, not an
+    # unparsed clause, so it must not flip a fully-parsed card to partial. CR 105.2c /
+    # 700.6.
+    if any(
+        e.category == "other" and not (e.raw or "").endswith("(recovered)")
+        for e in effects
+    ):
         return "partial"
     if any(not a.effects for a in abilities if a.kind != "static"):
         return "partial"
