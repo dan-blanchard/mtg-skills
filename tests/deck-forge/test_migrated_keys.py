@@ -1075,3 +1075,53 @@ def test_damage_to_opp_recovered_quoted_trigger_serpent_generator():
     ), "recovered deals_damage(DamageToPlayer) trigger missing"
     keys = {s.key for s in extract_signals_hybrid(test_card("Serpent Generator"), ir)}
     assert "damage_to_opp_matters" in keys
+
+
+def test_extra_land_drop_recovered_cascade_reanimate_averna():
+    """ADR-0027 #24l — Averna's "As you cascade, you may put a land card from among the
+    exiled cards onto the battlefield" is the YOUR land-into-play put phase mis-types as
+    a `reanimate` Effect (off cat=='cheat_play'). supplement._recover_extra_land_drop
+    appends a canonical cheat_play Land (controller='you') Effect the extra_land_drop arm
+    reads; the whole signals mirror is deleted. CR 305.9."""
+    ir = test_card_ir("Averna, the Chaos Bloom")
+    assert any(
+        e.category == "cheat_play"
+        and isinstance(e.subject, Filter)
+        and "Land" in e.subject.card_types
+        and e.subject.controller == "you"
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    ), "recovered cheat_play Land (controller=you) missing"
+    card = test_card("Averna, the Chaos Bloom")
+    assert "extra_land_drop" not in {s.key for s in extract_signals(card)}
+    assert "extra_land_drop" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_extra_land_drop_recovered_empty_raw_modal_confluence():
+    """ADR-0027 #24l — Riveteers Confluence's modal "put a land card from your hand or
+    graveyard onto the battlefield" reaches phase as a cheat_play Land controller='any'
+    with an EMPTY raw (the "or graveyard" disjunction defeats the YOUR pin), which the
+    arm's controller=='you' gate misses. The supplement's joined-oracle recovery appends
+    a controller='you' cheat_play Land so the arm fires. CR 305.9."""
+    card = test_card("Riveteers Confluence")
+    ir = test_card_ir("Riveteers Confluence")
+    assert "extra_land_drop" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_group_hug_draw_recovered_folded_each_player_scope_grothama():
+    """ADR-0027 #24l — Grothama's "each player draws cards equal to the amount of damage
+    …" is a symmetric group-hug draw phase folds to scope=='any' (the variable amount
+    defeats its each-scope). supplement._recover_group_hug_draw_scope re-stamps
+    scope=='each' on the draw, so the lane reads STRUCTURE — and Grothama correctly LEAVES
+    target_player_draws (a directed-draw lane scope=='any' feeds; an each-player draw is
+    never player-directed). CR 121 / 120.2."""
+    card = test_card("Grothama, All-Devouring")
+    ir = test_card_ir("Grothama, All-Devouring")
+    assert any(
+        e.category == "draw" and e.scope == "each"
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    ), "draw scope not re-stamped to 'each'"
+    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "group_hug_draw" in keys
+    assert "target_player_draws" not in keys

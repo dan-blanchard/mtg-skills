@@ -36,7 +36,9 @@ from mtg_utils._card_ir.supplement import (
     _recover_dies_return,
     _recover_dropped_gain_life,
     _recover_exile_zone_ref,
+    _recover_extra_land_drop,
     _recover_facedown,
+    _recover_group_hug_draw_scope,
     _recover_hand_disruption,
     _recover_historic_subject,
     _recover_keyword_grant_target,
@@ -966,6 +968,28 @@ def project_card(records: list[dict]) -> Card:
     card = _recover_opponent_cast_scope(card, _oracle)
     card = _recover_tribe_damage_source(card, _oracle)
     card = _recover_topdeck_stack_self(card, _oracle)
+    # ADR-0027 #24l (SIDECAR v60) — SUPPLEMENT_RECOVER E1 (low-residue tail).
+    # extra_land_drop: append a cheat_play Land (controller='you') for the YOUR land-
+    # into-play put phase folds off cat=='cheat_play' — the cascade-from-exile reanimate
+    # (Averna), the dig buried in an exile/topdeck_select raw (Aminatou's Augury, Planar
+    # Genesis), the draw-raw fold (Contaminant Grafter), the dropped d20 branch (Journey
+    # to the Lost City), the empty-raw modal Confluence cheat_play controller='any'
+    # (Riveteers) — so the arm reads STRUCTURE and the whole mirror retires (the detect
+    # is the EXACT deleted source-restricted mirror regex; the symmetric group ramp
+    # never matches). group_hug_draw: re-stamp scope='each' on the "each player draws"
+    # phase folded to scope!='each' (variable amount — Grothama; d20 branch — Mathise),
+    # reading the draw's OWN raw, so Grothama/Mathise read STRUCTURE (and leave target_
+    # player_draws — a directed-draw lane — correctly); the coin-flip (Winter Sky, no
+    # draw Effect) + Saga-chapter (Vault 11, 'Chapter N' raw) residue stays on the
+    # narrowed signals mirror (UPSTREAM phase folds). opp_top_exile is DEFERRED:
+    # phase's `top:opp` exile tag DROPS the exile's ACTOR, so "exile the top card OF an
+    # opponent" (the lane) is indistinguishable from "an opponent EXILES own top"
+    # (ingest — Benthic Infiltrator; symmetric self-mill — Omen Machine) and
+    # "target opponent exiles the top X" (Oona) — admitting top:opp would flood 25 non-
+    # members / require a forbidden taxonomy call, so its mirror (the oracle-phrasing
+    # discriminator) stays. CR 305.9 / 121 / 406.
+    card = _recover_extra_land_drop(card, _oracle)
+    card = _recover_group_hug_draw_scope(card)
     return replace(card, parse_confidence=_confidence(card))
 
 

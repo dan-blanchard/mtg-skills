@@ -6725,6 +6725,99 @@
     "type_line": "Creature — Elemental"
    }
   },
+  "Averna, the Chaos Bloom": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "reanimate",
+          "raw": "As you cascade, you may put a land card from among the exiled cards onto the battlefield tapped."
+         },
+         {
+          "cat": "cascade",
+          "raw": "As you cascade, you may put a land card from among the exiled cards onto the battlefield tapped.",
+          "sc": "you"
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "cheat_play",
+          "raw": "you may put a land card from among the exiled cards onto the battlefield",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Land"
+           ]
+          },
+          "z": [
+           "to:battlefield"
+          ]
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Averna, the Chaos Bloom",
+      "tl": "Legendary Creature — Elemental Shaman"
+     }
+    ],
+    "n": "Averna, the Chaos Bloom",
+    "oid": "23695bc2-86d3-4d78-b374-9e83c4cc9cc4"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "G",
+     "R",
+     "U"
+    ],
+    "colors": [
+     "G",
+     "R",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}{U}{R}",
+    "name": "Averna, the Chaos Bloom",
+    "oracle_id": "23695bc2-86d3-4d78-b374-9e83c4cc9cc4",
+    "oracle_text": "As you cascade, you may put a land card from among the exiled cards onto the battlefield tapped. (Do this after the last card is exiled but before deciding whether to cast a nonland card.)",
+    "power": "4",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Elemental Shaman"
+   }
+  },
   "Ayesha Tanaka": {
    "ir": {
     "faces": [
@@ -27806,6 +27899,87 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Creature — Bear"
+   }
+  },
+  "Grothama, All-Devouring": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "draw",
+          "raw": "When ~ leaves the battlefield, each player draws cards equal to the amount of damage dealt to ~ this turn by sources they controlled.",
+          "sc": "each"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "leaves",
+         "sc": "you"
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "fight",
+          "raw": "whenever ~ attacks, you may have it fight ~."
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Grothama, All-Devouring",
+      "tl": "Legendary Creature — Wurm"
+     }
+    ],
+    "n": "Grothama, All-Devouring",
+    "oid": "34fd52c1-3d81-4005-b826-eeefbd7fd874"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Fight"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}{G}",
+    "name": "Grothama, All-Devouring",
+    "oracle_id": "34fd52c1-3d81-4005-b826-eeefbd7fd874",
+    "oracle_text": "Other creatures have \"Whenever this creature attacks, you may have it fight Grothama, All-Devouring.\"\nWhen Grothama leaves the battlefield, each player draws cards equal to the amount of damage dealt to Grothama this turn by sources they controlled.",
+    "power": "10",
+    "toughness": "8",
+    "type_line": "Legendary Creature — Wurm"
    }
   },
   "Guan Yu, Sainted Warrior": {
@@ -51378,6 +51552,138 @@
     "type_line": "Legendary Creature — Human Time Lord Rogue"
    }
   },
+  "Riveteers Confluence": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "sc": "you"
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "lose_life",
+          "sc": "you"
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "damage",
+          "ck": "all",
+          "sub": {
+           "c": "opp",
+           "t": [
+            "Creature",
+            "Planeswalker"
+           ]
+          }
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "cheat_play",
+          "sub": {
+           "t": [
+            "Land"
+           ]
+          },
+          "z": [
+           "from:hand",
+           "to:battlefield"
+          ]
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "cheat_play",
+          "raw": "You may put a land card from your hand or graveyard onto the battlefield",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Land"
+           ]
+          },
+          "z": [
+           "to:battlefield"
+          ]
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Riveteers Confluence",
+      "tl": "Sorcery"
+     }
+    ],
+    "n": "Riveteers Confluence",
+    "oid": "9f0bd777-f79d-47cd-83e3-85b80d5e7942"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "G",
+     "R"
+    ],
+    "colors": [
+     "B",
+     "G",
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{R}{G}",
+    "name": "Riveteers Confluence",
+    "oracle_id": "9f0bd777-f79d-47cd-83e3-85b80d5e7942",
+    "oracle_text": "Choose three. You may choose the same mode more than once.\n• You draw a card and you lose 1 life.\n• Riveteers Confluence deals 1 damage to each creature and planeswalker you don't control.\n• You may put a land card from your hand or graveyard onto the battlefield tapped.",
+    "type_line": "Sorcery"
+   }
+  },
   "Rockslide Ambush": {
    "ir": {
     "faces": [
@@ -69716,5 +70022,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 59
+ "sidecar_version": 60
 }

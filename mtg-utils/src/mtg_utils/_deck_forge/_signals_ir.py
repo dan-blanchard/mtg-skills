@@ -1143,26 +1143,17 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "each",
     ),
-    # ADR-0027 — group_hug_draw TAIL kept WORD MIRROR (the symmetric group-hug
-    # card-advantage lane: a card that draws for EVERY player — Howling Mine,
-    # Wheel of Fortune, Prosperity; CR 120.2). phase DOES carry an accurate
-    # structural form — a `draw` Effect scope=='each' fires this lane through the
-    # cat=="draw" arm in extract_signals_ir (scope 'each', HIGH), covering 42 of
-    # the 46 commander-legal regex fires PLUS 37 wheel/mass-draw cards the narrow
-    # regex `each player (?:may )?draws?\b` MISSED on word-adjacency (the wheel text
-    # is "each player discards their hand, THEN draws seven cards" — "each player"
-    # isn't immediately followed by "draws"). The 4 under-structured regex_only
-    # cards (Grothama / Mathise / Vault 11, whose variable-amount / d20-outcome /
-    # Saga-chapter draws fold to a `draw` Effect scope=='any' → target_player_draws;
-    # Winter Sky, whose coin-flip branch emits NO draw Effect) are recovered by this
-    # GROUP_HUG_DRAW_REGEX (the EXACT deleted SWEEP regex) run FLAT over the
-    # reminder-stripped kept_oracle. The two arms never cross a clause (the regex has
-    # no `[^.]*`), so flat == per-clause and the mirror set == the deleted regex's 46
-    # commander-legal cards EXACTLY (no broadening: mirror==46, the structural arm
-    # supplies the 37 wheels on top). union(struct|mirror) loses 0, over-fires 0 —
-    # the extra_combats precedent. add() dedups the 42 the structural arm already
-    # supplies. CR 120.2.
-    ("group_hug_draw", re.compile(GROUP_HUG_DRAW_REGEX, re.IGNORECASE), "each"),
+    # ADR-0027 #24l — group_hug_draw mirror NARROWED to a guarded residue block (the
+    # symmetric group-hug card-advantage lane: a card that draws for EVERY player —
+    # Howling Mine, Wheel of Fortune, Prosperity; CR 120.2). phase's accurately-scoped
+    # `draw` Effect scope=='each' fires the lane STRUCTURALLY (the cat=="draw" arm);
+    # supplement._recover_group_hug_draw_scope now ALSO re-stamps scope='each' on the
+    # "each player draws" draw phase folded to scope!='each' (Grothama's variable
+    # amount, Mathise's d20 branch). The ONLY residue the structural arm can't reach — a
+    # coin-flip branch that emits NO draw Effect (Winter Sky) and a Saga-chapter
+    # collapse to a 'Chapter N' raw with no each-draw clause (Vault 11) — ride a GUARDED
+    # residue mirror after the _IR_KEPT_DETECTORS loop, fired ONLY when the structural
+    # each-draw didn't (UPSTREAM phase folds). See the `_GROUP_HUG_DRAW_RESIDUE` block.
     # ADR-0027 #24c — dies_recursion WORD MIRROR DELETED, now fully STRUCTURAL: the
     # undying/persist keyword BEARERS ride _IR_KEYWORD_MAP, the keyword-LESS GRANTERS
     # ride phase's `undying_persist` marker, and the literal "when this dies, return it
@@ -2064,26 +2055,17 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # Knight) are recovered by supplement._recover_counter_removal as a remove_counter
     # Effect with the kind (p1p1/m1m1) re-parsed from raw, which the
     # counter_manipulation arm in extract_signals_ir reads structurally. CR 122.1.
-    # ADR-0027 tranche2-C — extra_land_drop tail. The structural arms (cheat_play /
-    # topdeck_select with a Land subject) cover the bulk; this YOUR-anchored mirror
-    # recovers the cards phase leaves textual: an empty-raw modal Confluence
-    # (Riveteers), a cascade-from-exile put (Averna), a library/exile dig phase
-    # mis-zoned to to:hand (Aminatou's Augury, Planar Genesis, Journey to the Lost
-    # City), and a hand-put phase dropped entirely (Contaminant Grafter). The
-    # "from your hand|among them|among those/the exiled cards" source clause EXCLUDES
-    # the graveyard-source put (Wreck and Rebuild, Soul of Windgrace), which phase
-    # correctly routes to reanimate (a graveyard-lands engine, a different shape) —
-    # the deleted regex's broad arm over-matched into that graveyard source. CR 305.9.
-    (
-        "extra_land_drop",
-        re.compile(
-            r"you may put (?:a |up to \w+ )?lands? cards? "
-            r"from (?:your hand|among them|among those cards"
-            r"|among the exiled cards)[^.]*onto the battlefield",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 #24l — extra_land_drop MIRROR DELETED, now fully STRUCTURAL: the YOUR
+    # land-into-play put phase folds off cat=='cheat_play' — the cascade-from-exile
+    # reanimate (Averna), the dig buried in an exile/topdeck_select raw (Aminatou's
+    # Augury, Planar Genesis), the draw-raw fold (Contaminant Grafter), the dropped d20
+    # branch (Journey to the Lost City), and the empty-raw modal Confluence cheat_play
+    # controller='any' (Riveteers) — is recovered by supplement._recover_extra_land_drop
+    # as a canonical cheat_play Land (controller='you') Effect, which the
+    # extra_land_drop arm in extract_signals_ir reads structurally. The
+    # supplement detect is the EXACT deleted source-restricted regex, so the recovered
+    # set is byte-identical and the symmetric "each player may put … from their hand"
+    # group ramp (Kynaios, Hypergenesis, Tempting Wurm) never matches. CR 305.9.
     # ADR-0027 exile_until_leaves Saga tail — _is_exile_until_leaves recovers the
     # one-ability inline form (raw phrase) and the two-ability O-Ring form
     # structurally, but a SAGA CHAPTER exile collapses its per-effect raw to a
@@ -4434,6 +4416,13 @@ _EXTRA_LAND_DROP_YOU_RAW = re.compile(
 _EXTRA_LAND_DROP_GROUP_RAW = re.compile(
     r"each player|that player|each opponent|their hands?", re.IGNORECASE
 )
+
+# group_hug_draw GUARDED residue mirror (ADR-0027 #24l) — fired ONLY when the
+# structural arm + supplement scope-recovery didn't (a coin-flip branch with no draw
+# Effect — Winter Sky; a Saga-chapter "each player draws" collapsed to a bare
+# 'Chapter N' raw — Vault 11). The EXACT shared GROUP_HUG_DRAW_REGEX, so the residue
+# stays byte-tight to the deleted producer's set. CR 120.2.
+_GROUP_HUG_DRAW_RESIDUE = re.compile(GROUP_HUG_DRAW_REGEX, re.IGNORECASE)
 
 # mass_removal (ADR-0027): a BOARD WIPE — the counter_kind=='all' "each/all"
 # discriminator on a destroy/exile/damage of a battlefield permanent type, or a
@@ -10381,6 +10370,18 @@ def extract_signals_ir(
     for key, pat, scope in _IR_KEPT_DETECTORS:
         if pat.search(kept_oracle):
             add(key, scope, "", "")
+    # ADR-0027 #24l — group_hug_draw GUARDED residue mirror. The structural arm + the
+    # supplement scope-recovery (_recover_group_hug_draw_scope) now fire the lane for
+    # every "each player draws" phase carries OR folds into a readable draw raw. This
+    # residue mirror fires ONLY when that structural each-draw did NOT — the coin-flip
+    # branch phase emits as a `coin_flip` Effect with no draw (Winter Sky) and the Saga-
+    # chapter "each player draws" collapsed to a bare 'Chapter N' effect raw (Vault 11),
+    # both UPSTREAM phase folds with no each-draw clause to re-stamp. Gating on the
+    # already-fired structural identity keeps it byte-tight to that residue. CR 120.2.
+    if ("group_hug_draw", "each", "") not in seen and _GROUP_HUG_DRAW_RESIDUE.search(
+        kept_oracle
+    ):
+        add("group_hug_draw", "each", "", "")
     # ADR-0027 #24i — keyword_grant_target split/aftermath back-half residue (the
     # broad mirror retired; the single-face fold residue reads the supplement's
     # single_target_grant structure). phase emits no record for a split/aftermath back

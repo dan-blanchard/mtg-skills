@@ -3710,3 +3710,120 @@ def _recover_topdeck_stack_self(card: Card, oracle: str) -> Card:
             new_abs.append(replace(ab, effects=tuple(new_effs)))
         faces.append(replace(face, abilities=tuple(new_abs)))
     return replace(card, faces=tuple(faces)) if changed else card
+
+
+# ── ADR-0027 #24l (SIDECAR v60) — SUPPLEMENT_RECOVER E1 (low-residue tail) ─────
+# (1) extra_land_drop — the YOUR "put a land card from your hand / among the dug-or-
+#     cascaded cards onto the battlefield" put phase FOLDS off cat=='cheat_play':
+#     phase emits cat=='reanimate' for the cascade-from-exile put (Averna), buries the
+#     dig put inside the cat=='exile' / cat=='topdeck_select' effect raw (Aminatou's
+#     Augury, Planar Genesis — mis-zoned to:hand), folds it into a draw's raw
+#     (Contaminant Grafter), drops the d20-branch put (Journey to the Lost City), or
+#     leaves the modal Confluence cheat_play Land controller='any' + EMPTY raw
+#     (Riveteers Confluence — the "or graveyard" disjunction defeats phase's YOUR pin).
+#     The dropped structure (a YOUR land-into-play put) survives in the joined oracle,
+#     so synthesize a canonical cheat_play Effect (Land subject, controller='you') the
+#     extra_land_drop arm already reads — the _recover_combat_damage_recipients
+#     precedent. The detect pattern is the EXACT deleted signals mirror regex (the
+#     source-restricted "you may put … land card from your hand|among them|among those
+#     cards|among the exiled cards … onto the battlefield"), so the recovered set is
+#     byte-identical to the deleted mirror and the symmetric "each player may put …
+#     from their hand" group ramp (Kynaios, Hypergenesis, Tempting Wurm) never matches
+#     (it lacks the YOUR "you may put"). The whole mirror retires. CR 305.9 / 720.
+_EXTRA_LAND_DROP_PUT = re.compile(
+    r"you may put (?:a |up to \w+ )?lands? cards? "
+    r"from (?:your hand|among them|among those cards|among the exiled cards)"
+    r"[^.]*onto the battlefield",
+    re.IGNORECASE,
+)
+
+
+def _recover_extra_land_drop(card: Card, oracle: str) -> Card:
+    """Append a synthetic ``cheat_play`` Effect (Land subject, controller='you') for the
+    YOUR land-into-play put phase folds off cat=='cheat_play' — a cascade-from-exile
+    reanimate (Averna), a dig-into-play buried in an exile/topdeck_select raw
+    (Aminatou's Augury, Planar Genesis), a draw-raw fold (Contaminant Grafter), a
+    dropped d20 branch (Journey to the Lost City), or a modal Confluence cheat_play Land
+    controller='any' with empty raw (Riveteers). Append-only; skipped when the card
+    already carries a cheat_play Land controller='you' put (the shape the arm reads).
+    The synthetic Effect carries only zones=('to:battlefield',) so it fires
+    extra_land_drop alone (other cheat_play readers gate on from:graveyard/top:you)."""
+    if not card.faces:
+        return card
+    if any(
+        e.category == "cheat_play"
+        and isinstance(e.subject, Filter)
+        and "Land" in e.subject.card_types
+        and e.subject.controller == "you"
+        for ab in card.all_abilities()
+        for e in ab.effects
+    ):
+        return card
+    m = _EXTRA_LAND_DROP_PUT.search(re.sub(r"\([^)]*\)", " ", oracle))
+    if m is None:
+        return card
+    synth = Ability(
+        kind="static",
+        effects=(
+            Effect(
+                category="cheat_play",
+                scope="you",
+                subject=Filter(card_types=("Land",), controller="you"),
+                zones=("to:battlefield",),
+                raw=m.group(0),
+            ),
+        ),
+    )
+    head, *rest = card.faces
+    return replace(
+        card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
+    )
+
+
+# (2) group_hug_draw — the symmetric "each player draws" card-advantage scope phase
+#     FOLDS to scope=='any' when the draw amount is variable (Grothama, All-Devouring's
+#     "each player draws cards equal to the amount of damage …") or lives in a d20
+#     branch (Mathise, Surge Channeler's "1—9 | Each player draws a card."). phase's
+#     accurately-scoped each-draw (Howling Mine, Prosperity) already fires the lane
+#     STRUCTURALLY; this re-stamps scope='each' on the folded ones — reading the draw's
+#     OWN clause raw, so only an "each player draws" draw is retagged (a sibling "you
+#     draw a card" branch keeps its scope). The retag pulls Grothama/Mathise OUT of
+#     target_player_draws (a directed-draw lane scope=='any' feeds): an "each player
+#     draws" is a symmetric group-hug, never a player-DIRECTED draw, so the move is a
+#     correct reclassification, not a loss. The coin-flip branch that emits NO draw
+#     Effect (Winter Sky) and the Saga-chapter collapse to a 'Chapter N' raw (Vault 11)
+#     leave no draw raw to read — those stay on the narrowed signals residue mirror
+#     (UPSTREAM phase folds). CR 121 / 120.2.
+_GROUP_HUG_DRAW_PUT = re.compile(
+    r"each player (?:may )?draws?\b|each player who drew", re.IGNORECASE
+)
+
+
+def _recover_group_hug_draw_scope(card: Card) -> Card:
+    """Re-stamp scope='each' on a ``draw`` Effect whose OWN raw names a symmetric "each
+    player draws" but which phase folded to scope!='each' (a variable amount — Grothama
+    — or a d20 branch — Mathise). Reads the effect raw (not oracle), so a Saga-chapter
+    'Chapter N' raw / a coin-flip with no draw Effect is left for the residue mirror.
+    Idempotent (a draw already scope=='each' is untouched). CR 121."""
+    if not card.faces:
+        return card
+    faces: list[Face] = []
+    changed = False
+    for face in card.faces:
+        new_abs: list[Ability] = []
+        for ab in face.abilities:
+            new_effs: list[Effect] = []
+            for e in ab.effects:
+                if (
+                    e.category == "draw"
+                    and e.scope != "each"
+                    and e.raw
+                    and _GROUP_HUG_DRAW_PUT.search(e.raw)
+                ):
+                    new_effs.append(replace(e, scope="each"))
+                    changed = True
+                else:
+                    new_effs.append(e)
+            new_abs.append(replace(ab, effects=tuple(new_effs)))
+        faces.append(replace(face, abilities=tuple(new_abs)))
+    return replace(card, faces=tuple(faces)) if changed else card

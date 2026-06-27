@@ -840,7 +840,25 @@ from mtg_utils.card_ir import Card
 #       on top" ACTIVATION COST / a dropped-clause look-then-stack (Diabolic Vision,
 #       Hidden Retreat, Leashling, Penance, Munda), none of which carry a topdeck_stack
 #       Effect to recover. topdeck_stack 70 → 84. CR 401.
-SIDECAR_VERSION = 59
+# v60 — #24l SUPPLEMENT_RECOVER E1 (low-residue tail). extra_land_drop:
+#   supplement._recover_extra_land_drop appends a cheat_play Land (controller='you')
+#   for the YOUR land-into-play put phase folds off cat=='cheat_play' — the cascade-
+#   from-exile reanimate (Averna), the dig buried in an exile/topdeck_select raw
+#   (Aminatou's Augury, Planar Genesis), the draw-raw fold (Contaminant Grafter), the
+#   dropped d20 branch (Journey to the Lost City), the empty-raw modal Confluence
+#   cheat_play controller='any' (Riveteers) — so the arm reads STRUCTURE and the whole
+#   signals mirror retires (the detect is the EXACT deleted source-restricted regex;
+#   the symmetric group ramp never matches). group_hug_draw:
+#   supplement._recover_group_hug_draw_scope re-stamps scope='each' on the "each player
+#   draws" draw phase folded to scope!='each' (Grothama's variable amount, Mathise's
+#   d20 branch), so the lane reads STRUCTURE and Grothama/Mathise leave the directed-
+#   draw target_player_draws lane; the coin-flip (Winter Sky) + Saga-chapter (Vault 11)
+#   residue rides a narrowed GUARDED signals mirror. opp_top_exile DEFERRED — phase's
+#   `top:opp` exile tag drops the exile's ACTOR ("exile the top card OF an opponent" vs
+#   "an opponent EXILES their own top": ingest / symmetric self-mill / target-opp-mill
+#   all collapse to one shape), so admitting it would flood 25 non-members / force a
+#   taxonomy call; its oracle-phrasing mirror stays. CR 305.9 / 121 / 406.
+SIDECAR_VERSION = 60
 
 
 def card_ir_dir() -> Path:
