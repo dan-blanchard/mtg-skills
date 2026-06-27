@@ -240,9 +240,10 @@ mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 | Task | Tool |
 |------|------|
 | Find format-legal cards by oracle text, type, CMC | `card-search --format <fmt> --bulk-data <path>` |
-| See what the commander/deck cares about (signal lanes) | `deck-signals <deck.json> <hydrated.json>` |
-| Role-density budgets (lands/ramp/draw/interaction/wipes) | `slot-budgets <deck.json> <hydrated.json> --deck-size <60\|100>` |
-| Rank candidate cards by synergy with the deck | `deck-rank <deck.json> <hydrated.json> <candidates.json>` (from `card-search --json`) |
+| **Run the Step-6 deterministic spine (scorecard + candidate swaps)** — Commander family | `deck-tune <deck.json> <hydrated.json> --bulk-data <path> [--bracket <1-5>] [--max-swaps <N>] [--budget <usd>] --output <wd>/tune.json` |
+| See what the commander/deck cares about (signal lanes) — *ad-hoc; the spine's `focus` has this* | `deck-signals <deck.json> <hydrated.json>` |
+| Role-density budgets (lands/ramp/draw/interaction/wipes) — *ad-hoc; the spine's `template` has this* | `slot-budgets <deck.json> <hydrated.json> --deck-size <60\|100>` |
+| Rank a separate candidate list by synergy — *the spine's `swaps` already rank adds* | `deck-rank <deck.json> <hydrated.json> <candidates.json>` (from `card-search --json`) |
 | Look up a specific card's oracle text | `scryfall-lookup "<Card Name>"` |
 | View card table (mainboard) | `card-summary <hydrated.json> [--nonlands-only] [--lands-only] [--type <T>]` |
 | View card table (sideboard) | `card-summary <hydrated.json> --deck <deck.json> --sideboard` |
@@ -1219,6 +1220,35 @@ Review existing combos and near-misses. Distinguish:
 
 ## Step 6: Analysis
 
+**Commander / Brawl / Historic Brawl — run the deterministic spine first.** One `deck-tune` call replaces the mechanical counting and drafting this step used to do by hand. It runs the same deterministic tuner deck-forge uses (ADR-0023/0029) and returns a **scorecard** + **candidate swaps**:
+
+```
+deck-tune <deck.json> <hydrated.json> --bulk-data <path> \
+    --bracket <1-5> --max-swaps <N> [--budget <usd>] [--shape <aggro|midrange|control|combo>] \
+    --output <working-dir>/tune.json
+```
+
+Scorecard sections and what each subsumes:
+- **`shape` / `efficiency`** — deck speed + curve/tempo health (the 6a curve read).
+- **`template`** — role density (lands / ramp / draw / interaction / wipes) vs the Command-Zone bands (the old `slot-budgets` pass; 6a + 6b counts).
+- **`focus`** — the commander's signal lanes and whether the deck concentrates on them (the old `deck-signals` pass; 6c).
+- **`mana`** — the full mana audit: color balance, Burgess land target, untapped quality.
+- **`curve`** — the per-CMC histogram.
+- **`combos`** — combos + near-misses; combo pieces are auto-protected from the proposed cuts.
+- **`bracket`** — the constraint gate when you pass `--bracket` (Game Changers / mass land denial / extra turns / two-card combos vs the target bracket's official allowances; ADR-0030).
+- **`swaps`** — budgeted (cut, add) candidate pairs, synergy-ranked (the old `deck-rank` pass).
+
+**Your job is judgment, not counting.** Read the scorecard's `top_issues`, then run the per-card Cut Checklist (6d) on the *candidate swaps* `deck-tune` surfaced — verify oracle text, commander interaction, multiplied trigger values (Step 7 `cut-check`), and combo lines before accepting any swap. The Self-Grill (Step 8) still gates the final proposal, and **you and the user make every final call** (the user drives card choices).
+
+**What deliberately stays OUTSIDE the spine:**
+- `mana-audit --compare <old> <new>` for the before/after check in 6g / Step 10 (the scorecard carries the *current* mana read; the comparison is its own call).
+- The **bracket interaction-target table** in 6b (5-7 / 8-10 / 10-12) is an *agent-layer overlay* — compare the scorecard's interaction count against it as judgment. It is NOT a tuner role band: ADR-0024 keeps role density Shape-scaled, while the tuner's `bracket` gate governs *permission* (Game Changers etc.), not interaction density.
+- `archetype-audit` is now **optional** — `focus` answers the commander-coherence question. Reach for `archetype-audit` only to test a specific *named* theme's density or to find bridge cards (capabilities `focus` doesn't provide).
+
+**60-card constructed:** `deck-tune` refuses non-commander formats (the tuner is commander-shaped). Use the existing agent-driven analysis below — metagame archetypes, build-around evaluation, sideboard.
+
+---
+
 ### 6a: Mana Base & Curve Audit
 
 - Land count and ramp pieces (mana rocks, dorks, land-fetching spells)
@@ -1229,7 +1259,7 @@ Review existing combos and near-misses. Distinguish:
 - Mana base quality: untapped sources on key turns, color fixing
 - Flag: too few/many lands, color deficits, too many tapped lands
 
-**Role-density budgets (deterministic).** Run `slot-budgets <deck.json> <hydrated.json> --deck-size <60|100> [--shape <aggro|midrange|control|combo>]` to get the count of each role (lands / ramp / card_draw / interaction / board_wipe) against the template band. This is the same deterministic budgeter deck-forge uses — no agent guessing. Use it to ground this step (lands, ramp) and 6b (interaction, board wipes) in real counts before per-card judgment; a role showing `(under)`/`(over)` is a falsifiable signal of where to add or cut.
+**Role-density budgets (deterministic).** *Commander family:* the spine's scorecard `template` section already has the count of each role (lands / ramp / card_draw / interaction / board_wipe) against the Command-Zone band — read it there, don't re-run a separate pass. A role showing `(under)`/`(over)` is a falsifiable signal of where to add or cut. (The standalone `slot-budgets <deck.json> <hydrated.json> --deck-size <60|100> [--shape ...]` CLI remains for ad-hoc use, e.g. 60-card constructed, but it's the same budgeter the scorecard runs.)
 
 **Commander formats:** Land count is a hard constraint. Calculate the Burgess formula result (`31 + colors_in_identity + commander_cmc`) and treat it as the target. The `mana-audit` script enforces this — if it returns FAIL, you must add lands or cut fewer lands. Proposing a land count below the Burgess formula result requires `mana-audit` to return PASS or WARN (not FAIL). Proposing a land count below 36 is almost always a FAIL.
 
@@ -1258,9 +1288,9 @@ Count the deck's removal and interaction pieces. Compare against bracket-appropr
 
 ### 6c: Archetype Coherence
 
-**Commander-signal pass (Commander/Brawl/Historic Brawl — deterministic).** Run `deck-signals <deck.json> <hydrated.json>` first. It extracts what the commander's ORACLE TEXT cares about — the same detector deck-forge uses (tribes, tokens, sacrifice, graveyard, +1/+1 counters, ETB, etc.), each as a labeled avenue with a plain-English description. Unlike `archetype-audit` (which tests cards in isolation against regexes you supply), `deck-signals` reads the commander itself, so it names the deck's actual lanes without you guessing them — a deterministic starting point for the role grouping below, and a partial answer to the commander-shift blind spot noted next. Cross-check its lanes against the `archetype-audit` densities.
+**Commander-signal pass (Commander/Brawl/Historic Brawl — deterministic).** The spine's scorecard `focus` section already extracts what the commander's ORACLE TEXT cares about (tribes, tokens, sacrifice, graveyard, +1/+1 counters, ETB, etc.) as labeled avenues, and reports whether the deck's engine cards concentrate on them. Read `focus` for the deck's actual lanes — it reads the commander itself (commander-aware), so it's a deterministic starting point for the role grouping below and a partial answer to the commander-shift blind spot noted next. (The standalone `deck-signals <deck.json> <hydrated.json>` CLI surfaces the same lanes for ad-hoc use.)
 
-**Mechanical archetype pass (applies to all formats).** Before role grouping (commander) or build-around analysis (60-card), run `archetype-audit` with the deck's declared themes. It tests each card's own keywords and oracle text against preset regexes; the output is a falsifiable density baseline before you spend time on per-card judgment. Counts are in card copies, so 4x Lightning Bolt contributes 4 to `burn`, not 1 — non-singleton formats will naturally register larger numbers.
+**Mechanical archetype pass (optional — applies to all formats).** `focus` answers the commander-coherence question for the Commander family. Reach for `archetype-audit` only when you need a capability `focus` doesn't provide: testing a specific *named* theme's density against your own regex, or finding **bridge cards** (cards matching ≥2 themes). When you do run it, counts are in card copies, so 4x Lightning Bolt contributes 4 to `burn`, not 1 — non-singleton formats register larger numbers. For 60-card constructed (no spine), this remains the primary mechanical density baseline.
 
 **Known blind spot.** `archetype-audit` evaluates cards in isolation. It does NOT see commander-induced archetype shifts — a vanilla elf is not creature-removal to the tool even if your commander blights opponents when elves enter. "Whenever an X enters, do Y" / "creatures you control have Z" / cost-reduction and payoff commanders all create emergent categorizations the mechanical pass will miss. Capture those re-categorizations in the per-card analysis that follows. (Step 5 Commander Interaction Audit is the designated place for commander-lens reasoning.)
 
@@ -1386,7 +1416,7 @@ Source candidates from:
 
 Run: `card-search --bulk-data <path> --format <fmt> [--color-identity <ci>] [--oracle "<keyword>"] [--price-max <budget-per-card>] --json > candidates.json`
 
-**Rank candidates by synergy (deterministic).** Feed that `card-search --json` output to `deck-rank <deck.json> <hydrated.json> candidates.json`. It scores each candidate by how many of the deck's signal lanes it serves (synergy), then price, then curve — the same transparent multi-axis score deck-forge uses, never EDHREC popularity. Use the ordering to prioritize which candidates to evaluate; you and the user still make the final per-card call (the deck-building workflow has the user drive card choices).
+**Rank candidates by synergy (deterministic).** *Commander family:* the spine already proposes synergy-ranked `swaps` (cut+add pairs) — start from those candidate adds; combo pieces are pre-protected from the paired cuts. When you want to rank a *separate* candidate list you sourced yourself (e.g. EDHREC high-synergy picks not in the swap set), feed that `card-search --json` output to `deck-rank <deck.json> <hydrated.json> candidates.json` — the same synergy → price → curve score the spine uses, never EDHREC popularity. Either way you and the user make the final per-card call (the user drives card choices).
 
 For each proposed addition:
 1. Verify format legality and oracle text
