@@ -31,3 +31,9 @@ protection to hard-counted roles — their absence from the counted set is delib
 grounded in a real literature fork, not an oversight. Don't split counterspells out of
 interaction into a separate protection role for template counting. If a new consensus
 emerges that settles the fork, revisit it *here* — don't silently encode a number.
+
+**Amended by ADR-0030.** A *bracket-constraint* gate (Game Changers / mass land denial /
+extra turns / two-card combos, gated by a chosen target bracket) was later added to the
+tuner. It does **not** reintroduce bracket-scaled role bands — role density stays
+Shape-scaled per this ADR. The two are different questions: *permission* (what a bracket
+forbids) vs *density* (how much scaffolding a Shape wants). See ADR-0030.

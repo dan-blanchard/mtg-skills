@@ -56,12 +56,19 @@ surfaces a term that the skill's prose doesn't already pin down.
   finished deck. Both share the working dir and the SHA-keyed
   hydrated cache, so deck-strat reuses deck-wizard's parse + hydrate
   output transparently. No Skill-tool invocation between them.
-- **deck-forge → deck-wizard** (planned, ADR-0023) — the deterministic
-  tuning core (`mtg_utils/_tuner/`, `HydratedDeck → scorecard + swaps`)
-  is built skill-agnostic so deck-wizard's slow, agent-driven tuner can
-  later offload its mechanical steps (role counts, curve/efficiency,
-  focus, cut/add proposal) to it and keep the LLM only for judgment.
-  Not yet wired; deck-forge is consumer #1.
+- **deck-forge ↔ deck-wizard** (ADR-0023 → ADR-0029, ADR-0030) — the
+  deterministic tuning core (`mtg_utils/_tuner/`, `HydratedDeck →
+  scorecard + swaps`), built skill-agnostic, is now wired as
+  deck-wizard's Step-6 spine via a thin `deck-tune` CLI adapter
+  (Commander family only): deck-wizard offloads role counts / curve /
+  focus / cut+add proposal to it and keeps the LLM for judgment + the
+  self-grill. The shared `tune()` was IR-backed and enriched for *both*
+  consumers (full mana audit, curve histogram, combo surfacing +
+  combo-piece cut protection, Game-Changer count) and gained a
+  target-bracket constraint gate (ADR-0030, orthogonal to ADR-0024's
+  Shape-scaled role bands). cut-check (trigger multiplication) and
+  archetype-audit (arbitrary-theme density) are NOT subsumed — cut-check
+  survives Steps 5/7, archetype-audit is demoted to optional.
 - **cube-wizard ↔ lgs-search** — independent today; a cube author
   could in principle pipe a "wishlist" cube diff into lgs-search,
   but no automated bridge exists.

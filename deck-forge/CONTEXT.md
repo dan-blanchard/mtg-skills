@@ -481,3 +481,24 @@ that fall out of color identity on the switch. The one tuning fix card swaps str
 cannot make.
 _Avoid_: "best commander" (it is fit-to-*this*-deck, not context-free best — same caveat as
 [[Commander discovery]]), "recommendation" (the human switches; the tool ranks).
+
+**Bracket-constraint gate** (the [[Tune]] permission check):
+A check, parameterized by a *target* Commander bracket (1-5), that flags deck cards /
+elements exceeding that bracket's **official WotC** allowances — Game Changers count
+(ceiling 0/0/3/∞/∞), mass land denial, extra-turn cards, and two-card infinite combos.
+Orthogonal to [[Template deviation]] (which is [[Shape]]-scaled, ADR-0024): this gates
+*permission* (what a bracket forbids), not *density* (how much Spine a Shape wants). Two
+axes are crisp (Game Changers via Scryfall's `game_changer` flag — never hardcoded; mass
+land denial), two are heuristic WARNs (extra-turn "low quantity," B3 "cheap-&-early"
+combo). Brackets 4-5 always PASS. ADR-0030.
+_Avoid_: "power level" / "bracket scaling" (this gates permission, not role density — see
+[[Shape]]'s and [[Efficiency]]'s `_Avoid_` notes), "bracket detection" (that is the
+*descriptive* `detect_bracket` inference — this gate takes a *chosen* target).
+
+**Target bracket** vs **detected bracket**:
+The **target** bracket is the one the builder is aiming for (input to the
+[[Bracket-constraint gate]]). The **detected** bracket is `detect_bracket`'s *descriptive*
+inference of the deck's natural bracket from the same signals (Game Changers / mass land
+denial / fast curve). The gate compares the deck against the *target*; detection answers
+"what is this deck already?" — a deck can detect as Bracket 3 while the builder targets
+Bracket 2, and surfacing that mismatch is the gate's whole job.
