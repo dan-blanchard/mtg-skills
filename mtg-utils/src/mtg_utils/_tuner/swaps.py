@@ -10,7 +10,7 @@ existing search + ranking (ADR-0023).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 
 from mtg_utils._deck_forge.budgets import role_of
 from mtg_utils._deck_forge.ranking import rank_candidates
@@ -102,13 +102,18 @@ def cut_candidates(
     budgets: dict,
     focus_verdict: str,
     stranded: set[str],
+    protected: Collection[str] = (),
 ) -> list[tuple[str, CardClass]]:
-    """Ordered (reason, card) cut candidates, most-cuttable first. Hard floors apply."""
+    """Ordered (reason, card) cut candidates, most-cuttable first. Hard floors apply.
+
+    ``protected`` names cards the proposer must never cut (e.g. combo pieces, ADR-0029);
+    they are skipped even when they would otherwise be the top filler cut.
+    """
     out: list[tuple[str, CardClass]] = []
     seen: set[str] = set()
 
     def push(reason: str, card: CardClass) -> None:
-        if card.name not in seen:
+        if card.name not in seen and card.name not in protected:
             seen.add(card.name)
             out.append((reason, card))
 
@@ -303,6 +308,7 @@ def propose_swaps(
     top_heavy: bool,
     fill_slots: int = 0,
     wildcard_budget: Mapping[str, int] | None = None,
+    protected: Collection[str] = (),
 ) -> dict:
     """Walk the ranked issues, sourcing a (cut, add) pair per actionable issue up to
     ``max_swaps``. When ``fill_slots`` > 0 (an under-sized deck) a fill pass then adds
@@ -336,6 +342,7 @@ def propose_swaps(
         budgets=budgets,
         focus_verdict=focus_result["verdict"],
         stranded=stranded,
+        protected=protected,
     )
     # Route cuts: a role_over trim cuts from THAT over role; other issues draw from the
     # generic pool (filler then stranded), so a trim isn't derailed onto filler.

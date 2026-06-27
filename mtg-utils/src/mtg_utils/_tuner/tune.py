@@ -10,10 +10,12 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
+from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.budgets import slot_budgets
 from mtg_utils._deck_forge.signals import rank_deck_signals
 from mtg_utils._tuner import commander_fit, metrics
 from mtg_utils._tuner import swaps as swaps_mod
+from mtg_utils._tuner.bracket import bracket_gate
 from mtg_utils._tuner.classify import CardClass, classify_deck
 from mtg_utils._tuner.shape import infer_shape
 from mtg_utils.deck_stats import deck_stats
@@ -36,6 +38,9 @@ class TuneParams:
     paper_only: bool = True
     medium: str = "paper"
     wildcard_budget: Mapping[str, int] | None = None
+    # The bracket the builder is AIMING for (ADR-0030). When set, the scorecard carries
+    # a bracket-constraint gate; when None, the bracket axis is skipped entirely.
+    target_bracket: int | None = None
 
 
 def _deck_identity(hd: HydratedDeck) -> str:
@@ -116,11 +121,21 @@ def tune(
     fmt = hd.format
     identity = _deck_identity(hd)
 
-    avg_cmc = deck_stats(hd).get("avg_cmc", 0.0)
+    stats = deck_stats(hd)
+    avg_cmc = stats.get("avg_cmc", 0.0)
+    mana = mana_audit(hd)
     combos = _safe_combos(combos_fn, deck)
     combo_count = len((combos or {}).get("combos") or [])
+    # Cards in a combo line are protected from the cut proposer (ADR-0029): the
+    # deterministic core must not quietly cut a combo piece.
+    combo_pieces = {
+        name
+        for combo in (combos or {}).get("combos") or []
+        for name in combo.get("cards") or []
+    }
 
-    deck_signals = rank_deck_signals(hd.records, commander_names)
+    # ADR-0029: resolve signals through the Card IR (regex fallback when no sidecar).
+    deck_signals = rank_deck_signals(hd.records, commander_names, ir_for=ir_for)
     classes = classify_deck(hd, deck_signals, commander_names)
 
     shape_r = infer_shape(
@@ -147,6 +162,13 @@ def tune(
         commander_r=cfit,
     )
 
+    # ADR-0030: a target-bracket constraint gate, only when a target was chosen.
+    bracket = (
+        bracket_gate(hd.records, params.target_bracket, combos=combos)
+        if params.target_bracket is not None
+        else None
+    )
+
     scorecard = {
         "shape": {
             "value": shape,
@@ -162,11 +184,18 @@ def tune(
         "commander_fit": cfit,
         "top_issues": issues,
         "counts": _bucket_counts(classes),
+        # ADR-0029 enrichment: surface the mechanical reads the spine no longer leaves
+        # to the agent — full mana audit (not just the land count), the curve histogram,
+        # and the combo list (not just a tally).
+        "mana": mana,
+        "curve": stats.get("curve") or {},
+        "combos": combos or {"combos": []},
+        "bracket": bracket,
     }
 
     swaps_out: dict = {"swaps": [], "spent": 0.0, "wildcards_spent": None, "note": None}
     if params.max_swaps > 0 and hd.has_records:
-        recommended_lands = int(mana_audit(hd).get("recommended_land_count") or 0)
+        recommended_lands = int(mana.get("recommended_land_count") or 0)
         fill_slots, land_gap = _fill_gap(deck, classes, deck_size, recommended_lands)
         swaps_out = swaps_mod.propose_swaps(
             classes,
@@ -184,6 +213,7 @@ def tune(
             top_heavy=eff["verdict"] == "top-heavy",
             fill_slots=fill_slots,
             wildcard_budget=params.wildcard_budget,
+            protected=combo_pieces,
         )
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the
         # user runs the land tooling (balance-lands), not Tune, to finish it.

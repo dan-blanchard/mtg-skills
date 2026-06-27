@@ -189,3 +189,88 @@ def test_shape_override_respected():
     )
     assert out["scorecard"]["shape"]["value"] == "control"
     assert out["scorecard"]["shape"]["inferred"] is False
+
+
+def test_signals_resolved_through_card_ir(monkeypatch):
+    # ADR-0029: the tuner must thread the Card IR resolver into signal extraction, not
+    # run the regex-only path. End-to-end IR needs a built sidecar (absent in tests), so
+    # we verify the wiring — rank_deck_signals is called with a non-None ir_for resolver.
+    import sys
+
+    from mtg_utils._deck_forge.signals import rank_deck_signals as real
+
+    # _tuner/__init__ re-exports the tune() function, shadowing the tune submodule —
+    # so reach the real module object via sys.modules, not attribute access.
+    tune_mod = sys.modules["mtg_utils._tuner.tune"]
+    captured = {}
+
+    def spy(records, commander_names, **kw):
+        captured["ir_for"] = kw.get("ir_for")
+        return real(records, commander_names, **kw)
+
+    monkeypatch.setattr(tune_mod, "rank_deck_signals", spy)
+    tune(_hd(), search_fn=_fake_search, params=TuneParams())
+    assert captured["ir_for"] is not None
+    assert callable(captured["ir_for"])
+
+
+def test_scorecard_surfaces_full_mana_audit():
+    # ADR-0029 enrichment: the scorecard carries the full mana audit (color balance,
+    # land status), not just the recommended_land_count the swap pass needs.
+    sc = tune(_hd(), search_fn=_fake_search, params=TuneParams())["scorecard"]
+    assert "mana" in sc
+    assert "overall_status" in sc["mana"]
+
+
+def test_scorecard_surfaces_curve_histogram():
+    sc = tune(_hd(), search_fn=_fake_search, params=TuneParams())["scorecard"]
+    assert "curve" in sc
+    assert isinstance(sc["curve"], dict)
+
+
+def test_scorecard_surfaces_combo_list_not_just_count():
+    def combos_fn(_deck):
+        return {
+            "combos": [
+                {"cards": ["Krenko, Mob Boss", "Mountain"], "result": "Infinite"}
+            ]
+        }
+
+    sc = tune(_hd(), search_fn=_fake_search, params=TuneParams(), combos_fn=combos_fn)[
+        "scorecard"
+    ]
+    assert "combos" in sc
+    assert sc["combos"]["combos"]  # the actual list, not just a tally
+
+
+def test_scorecard_bracket_gate_present_when_target_set():
+    sc = tune(_hd(), search_fn=_fake_search, params=TuneParams(target_bracket=2))[
+        "scorecard"
+    ]
+    assert sc["bracket"]["target_bracket"] == 2
+    assert "pass" in sc["bracket"]
+
+
+def test_no_bracket_section_without_target():
+    sc = tune(_hd(), search_fn=_fake_search, params=TuneParams())["scorecard"]
+    assert sc.get("bracket") is None
+
+
+def test_combo_piece_protected_from_cuts():
+    # ADR-0029: cut_candidates is combo-aware — a card that's part of a combo must not
+    # be proposed as a cut, even when it would otherwise be the top filler cut.
+    def combos_fn(_deck):
+        return {
+            "combos": [
+                {"cards": ["Hill Giant", "Krenko, Mob Boss"], "result": "Infinite"}
+            ]
+        }
+
+    out = tune(
+        _hd(),
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=3, budget=100.0, paper_only=True),
+        combos_fn=combos_fn,
+    )
+    cut_names = {s["cut"]["name"] for s in out["swaps"]}
+    assert "Hill Giant" not in cut_names
