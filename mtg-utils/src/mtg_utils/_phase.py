@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tarfile
@@ -396,6 +397,38 @@ def run_duel(
     }
 
 
+def _binary_data_root() -> Path:
+    """Directory the playtest binaries read ``card-data.json`` from.
+
+    v0.8.0 ``ai-duel``/``ai-commander`` take a positional *data-root* and read
+    ``<data-root>/card-data.json``. :func:`install_phase` places phase's card-data
+    at ``<repo>/client/public/card-data.json`` (the path the full ``setup.sh``
+    would have generated), so that directory is the data-root.
+    """
+    return _repo_dir() / "client" / "public"
+
+
+def _phase_deck_to_feed_entry(deck: dict) -> dict:
+    """Convert a phase-native deck (:func:`to_phase_deck`) into a commander-feed
+    entry (``{name, commander, main}``).
+
+    The feed loader keys each seat's commander off ``commander`` (a name array);
+    when it's empty it falls back to treating the deck ``name`` as the commander
+    card, so a real commander deck MUST carry ``commander``.
+    """
+    return {
+        "name": deck.get("name", "deck"),
+        "commander": list(deck.get("commander") or []),
+        "main": list(deck.get("main") or []),
+    }
+
+
+# A finished ai-commander game prints "Winner: P<seat>" (or no winner line on a
+# draw/abort) plus "Turns played: N" to stdout — v0.8.0 has no --output JSON.
+_WINNER_RE = re.compile(r"Winner:\s*P(\d+)")
+_TURNS_RE = re.compile(r"Turns played:\s*(\d+)")
+
+
 def run_commander(
     deck_paths: list[Path],
     *,
@@ -404,54 +437,85 @@ def run_commander(
     difficulty: str = "Medium",
     timeout_s: int,
 ) -> dict:
-    """Run `ai-commander` for a 4-player FFA. Returns per-seat win counts.
+    """Run ``ai-commander`` for a 4-player FFA. Returns per-seat win counts.
 
     ``deck_paths`` must have length 4 (phase requires 4 seats). Each is a
-    phase-compatible deck JSON (see :func:`to_phase_deck`).
+    phase-native deck JSON (see :func:`to_phase_deck`) carrying a ``commander``.
+
+    v0.8.0 model: ``ai-commander <data-root> --feed <feed.json>`` plays ONE game
+    and prints the result to stdout (no ``--decks``/``--games``/``--output``). We
+    synthesize a runtime feed from the four decks and invoke once per game (seed
+    bumped per game), aggregating the parsed ``Winner: P<seat>`` lines.
     """
     if len(deck_paths) != 4:
         raise ValueError(
             f"ai-commander requires exactly 4 decks, got {len(deck_paths)}",
         )
     binary = find_binary("ai-commander")
-    with tempfile.TemporaryDirectory() as td:
-        out_path = Path(td) / "commander.json"
-        cmd = [
-            str(binary),
-            "--decks",
-            *[str(p) for p in deck_paths],
-            "--games",
-            str(games),
-            "--difficulty",
-            difficulty,
-            "--output",
-            str(out_path),
+    data_root = _binary_data_root()
+    if not (data_root / "card-data.json").exists():
+        raise PhaseNotInstalledError(
+            f"phase card-data.json not found at {data_root / 'card-data.json'}. "
+            "Run `playtest-install-phase`.",
+        )
+    feed = {
+        "decks": [
+            _phase_deck_to_feed_entry(json.loads(Path(p).read_text()))
+            for p in deck_paths
         ]
-        if seed is not None:
-            cmd += ["--seed", str(seed)]
-        try:
-            subprocess.run(
-                cmd, check=True, timeout=timeout_s, capture_output=True, text=True
-            )
-        except subprocess.TimeoutExpired:
-            return {
-                "status": "timeout",
-                "winners_by_seat": [0, 0, 0, 0],
-                "games": 0,
-                "draws": 0,
-                "avg_turns": 0.0,
-            }
-        except subprocess.CalledProcessError as exc:
-            raise PhaseRuntimeError(
-                f"phase ai-commander exited with code {exc.returncode}",
-                stderr=exc.stderr or "",
-            ) from exc
-        data = json.loads(out_path.read_text())
+    }
+    winners = [0, 0, 0, 0]
+    draws = 0
+    turns_total = 0
+    completed = 0
+    with tempfile.TemporaryDirectory() as td:
+        # An absolute --feed path overrides the data-root join (Rust Path::join
+        # with an absolute path replaces the base), so the feed lives off-root.
+        feed_path = Path(td) / "feed.json"
+        feed_path.write_text(json.dumps(feed))
+        for g in range(games):
+            cmd = [
+                str(binary),
+                str(data_root),
+                "--feed",
+                str(feed_path),
+                "--difficulty",
+                difficulty,
+            ]
+            if seed is not None:
+                cmd += ["--seed", str(seed + g)]
+            try:
+                proc = subprocess.run(
+                    cmd, check=True, timeout=timeout_s, capture_output=True, text=True
+                )
+            except subprocess.TimeoutExpired:
+                return {
+                    "status": "timeout",
+                    "winners_by_seat": [0, 0, 0, 0],
+                    "games": 0,
+                    "draws": 0,
+                    "avg_turns": 0.0,
+                }
+            except subprocess.CalledProcessError as exc:
+                raise PhaseRuntimeError(
+                    f"phase ai-commander exited with code {exc.returncode}",
+                    stderr=exc.stderr or "",
+                ) from exc
+            out = proc.stdout or ""
+            m = _WINNER_RE.search(out)
+            if m and 0 <= int(m.group(1)) < 4:
+                winners[int(m.group(1))] += 1
+            else:
+                draws += 1  # no winner line → draw / abort
+            tm = _TURNS_RE.search(out)
+            if tm:
+                turns_total += int(tm.group(1))
+            completed += 1
 
     return {
         "status": "ok",
-        "winners_by_seat": data.get("winners_by_seat", [0, 0, 0, 0]),
-        "games": data.get("games", games),
-        "draws": data.get("draws", 0),
-        "avg_turns": data.get("avg_turns", 0.0),
+        "winners_by_seat": winners,
+        "games": completed,
+        "draws": draws,
+        "avg_turns": (turns_total / completed) if completed else 0.0,
     }

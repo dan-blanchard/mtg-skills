@@ -365,21 +365,30 @@ class TestRunCommander:
         bin_path.write_text("#!/bin/sh\n")
         bin_path.chmod(0o755)
         monkeypatch.setenv("MTG_SKILLS_PHASE_BIN", str(bin_path.parent))
+        # v0.8.0: ai-commander reads <data-root>/card-data.json; stub the root.
+        root = tmp_path / "root"
+        root.mkdir()
+        (root / "card-data.json").write_text("{}")
+        monkeypatch.setattr(_phase, "_binary_data_root", lambda: root)
+
+        # One subprocess call per game; aggregate parsed "Winner: P<seat>" lines.
+        # 30 games → 12/8/6/4 wins across the four seats.
+        seq = [0] * 12 + [1] * 8 + [2] * 6 + [3] * 4
+        calls = {"i": 0}
 
         def fake_run(cmd, **_kwargs):
-            output_path = Path([a for a in cmd if a.endswith(".json")][-1])
-            output_path.write_text(
-                json.dumps(
-                    {
-                        "winners_by_seat": [12, 8, 6, 4],
-                        "games": 30,
-                        "draws": 0,
-                        "avg_turns": 14.5,
-                    }
-                )
-            )
+            # A real feed must be written off-root and passed via --feed.
+            feed = cmd[cmd.index("--feed") + 1]
+            assert json.loads(Path(feed).read_text())["decks"]  # 4 feed entries
+            assert str(root) in cmd  # data-root positional
+            seat = seq[calls["i"]]
+            calls["i"] += 1
             r = MagicMock()
             r.returncode = 0
+            r.stdout = (
+                f"=== RESULT ===\nTurns played: 15\n\n"
+                f"Game ended cleanly. Winner: P{seat}\n"
+            )
             return r
 
         monkeypatch.setattr("subprocess.run", fake_run)
@@ -401,6 +410,33 @@ class TestRunCommander:
         assert result["status"] == "ok"
         assert result["winners_by_seat"] == [12, 8, 6, 4]
         assert result["games"] == 30
+        assert result["draws"] == 0
+        assert result["avg_turns"] == 15.0
+
+    def test_draw_when_no_winner_line(self, monkeypatch, tmp_path):
+        bin_path = tmp_path / "ai-commander"
+        bin_path.write_text("#!/bin/sh\n")
+        bin_path.chmod(0o755)
+        monkeypatch.setenv("MTG_SKILLS_PHASE_BIN", str(bin_path.parent))
+        root = tmp_path / "root"
+        root.mkdir()
+        (root / "card-data.json").write_text("{}")
+        monkeypatch.setattr(_phase, "_binary_data_root", lambda: root)
+
+        def fake_run(_cmd, **_kwargs):
+            r = MagicMock()
+            r.returncode = 0
+            r.stdout = "=== RESULT ===\nGame aborted at action cap.\n"
+            return r
+
+        monkeypatch.setattr("subprocess.run", fake_run)
+        decks = [tmp_path / f"d{i}.json" for i in range(4)]
+        for d in decks:
+            d.write_text(json.dumps({"name": d.stem, "main": [], "commander": ["X"]}))
+        result = _phase.run_commander(decks, games=2, seed=1, timeout_s=600)
+        assert result["status"] == "ok"
+        assert result["winners_by_seat"] == [0, 0, 0, 0]
+        assert result["draws"] == 2
 
 
 class TestEnsureCardData:
