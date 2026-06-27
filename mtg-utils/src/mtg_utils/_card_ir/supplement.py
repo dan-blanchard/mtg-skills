@@ -5232,6 +5232,13 @@ _GROUP_HUG_DRAW = comb.scan(
         comb.phrase({"each"}, {"player"}, {"draw", "draws"}),
         comb.phrase({"each"}, {"player"}, {"may"}, {"draw", "draws"}),
         comb.phrase({"each"}, {"player"}, {"who"}, {"drew"}),
+        # v0.8.0 ROOT F — the symmetric wheel "each player who does draws seven
+        # cards" (Step Between Worlds, Turtles in Time). phase scopes the draw
+        # 'opp' (the "each player who does" relative clause loses its 'each'
+        # scope), so _recover_group_hug_draw_scope re-stamps scope='each' off
+        # this tell. "who does draw(s)" is the present-tense companion of the
+        # "who drew" past-tense arm above. CR 121.
+        comb.phrase({"each"}, {"player"}, {"who"}, {"does"}, {"draw", "draws"}),
     )
 )
 
@@ -5474,5 +5481,152 @@ def _recover_discard_unless(card: Card) -> Card:
             )
             new_abs.append(replace(ab, effects=new_effs))
             changed = True
+        faces.append(replace(face, abilities=tuple(new_abs)))
+    return replace(card, faces=tuple(faces)) if changed else card
+
+
+# ── v0.8.0 ROOT E — bending cross-bend PAYOFF trigger condition ───────────────
+# phase v0.8.0 keeps Avatar Aang's front face as draw+transform only and DROPS the
+# `bending` Effect that v0.1.60 emitted for the cross-bend payoff. The bend keyword-
+# actions you DO survive only in the draw trigger's CONDITION raw ("Whenever you
+# waterbend, earthbend, firebend, or airbend, draw a card"). This pass re-synthesizes
+# a `bending` Effect carrying that span so the bending arm in extract_signals_ir
+# (which routes by the bend named in the Effect raw) re-opens airbend/earthbend/
+# waterbend_matters. firebend is intentionally not routed (its cares-about lane is a
+# kept keyword mirror). Append-only and idempotent (skip a card already carrying a
+# `bending` Effect — the keyword-driven bearers ride _IR_KEYWORD_MAP untouched).
+# CR 701.65 (airbend) / 701.66 (earthbend) / 701.67 (waterbend).
+_BENDING_TRIGGER = re.compile(
+    r"whenever you [^.]*\b(?:water|earth|fire|air)bends?\b[^.]*", re.IGNORECASE
+)
+
+
+def _recover_bending_trigger(card: Card, oracle: str) -> Card:
+    """Append a synthetic `bending` Effect from a "whenever you <bend>" trigger
+    condition phase dropped, so the per-bend lanes read STRUCTURE. Append-only and
+    idempotent (skip a card already carrying a `bending` Effect)."""
+    if not card.faces:
+        return card
+    if any(e.category == "bending" for ab in card.all_abilities() for e in ab.effects):
+        return card
+    m = _BENDING_TRIGGER.search(oracle)
+    if m is None:
+        return card
+    span = m.group(0)
+    synth = Ability(
+        kind="triggered",
+        effects=(Effect(category="bending", scope="you", raw=span),),
+    )
+    head, *rest = card.faces
+    return replace(
+        card,
+        faces=(replace(head, abilities=(*head.abilities, synth)), *rest),
+    )
+
+
+# ── v0.8.0 ROOT G — self_counter_grow self-anchor / anthem discriminator ──────
+# phase v0.8.0 regressed the +1/+1 enters-with replacement on two axes: (1) it NULLS
+# the SelfRef self-anchor on a genuine "~ enters with X +1/+1 counters on it" body
+# (Naya Soulbeast, Pyretic Hunter, Lurking Automaton, Cogwork Grinder) — the
+# self-grow creature the lane wants; (2) it WRONGLY stamps the SelfRef marker on an
+# ANTHEM static "creatures you control enter with … counters on them" (Bard Class,
+# Curator Beastie) whose entering set is OTHER creatures, not the source. project's
+# valid_card clearing (CR 614.13) used to split these. This pass restores the split
+# off the effect raw: stamp the marker on the self body, clear it on the anthem, so
+# the self_counter_grow arm (which keys on the marker) reads the right membership.
+# CR 614.13c (the object enters with the counters) / 122.1.
+_SELF_GROW_ENTERS = re.compile(
+    r"~ enters with [^.]*\+1/\+1 counters? on it\b", re.IGNORECASE
+)
+_ANTHEM_ENTERS = re.compile(
+    r"creatures you control enter with [^.]*\+1/\+1 counters? on them\b",
+    re.IGNORECASE,
+)
+
+
+def _recover_self_counter_grow(card: Card) -> Card:
+    """Re-anchor the +1/+1 enters-with replacement: stamp the SelfRef self-anchor on
+    a genuine "~ enters with … on it" body and clear it on a "creatures you control
+    enter with … on them" anthem. Reads the place_counter effect's OWN raw; gated to
+    the p1p1 kind. Idempotent (a body already marked / an anthem already clear is
+    untouched)."""
+    if not card.faces:
+        return card
+    marker = Filter(predicates=("SelfRef",))
+    changed = False
+    faces: list[Face] = []
+    for face in card.faces:
+        new_abs: list[Ability] = []
+        for ab in face.abilities:
+            new_effs: list[Effect] = []
+            for e in ab.effects:
+                if e.category == "place_counter" and e.counter_kind == "p1p1":
+                    raw = e.raw or ""
+                    if e.subject is None and _SELF_GROW_ENTERS.search(raw):
+                        new_effs.append(replace(e, subject=marker))
+                        changed = True
+                        continue
+                    if e.subject == marker and _ANTHEM_ENTERS.search(raw):
+                        new_effs.append(replace(e, subject=None))
+                        changed = True
+                        continue
+                new_effs.append(e)
+            new_abs.append(replace(ab, effects=tuple(new_effs)))
+        faces.append(replace(face, abilities=tuple(new_abs)))
+    return replace(card, faces=tuple(faces)) if changed else card
+
+
+# ── v0.8.0 ROOT H — destroy subject re-typed Creature ─────────────────────────
+# phase v0.8.0 NULLS the subject on both destroy nodes of "Destroy two target
+# nonblack creatures unless …" (Dead Ringers) — the "two target … unless" conditional
+# defeats the subject parse — so removal_matters (which needs a permanent-type
+# subject) drops it. This pass re-types a subjectless single/multi-target destroy as
+# Creature when its OWN raw says "destroy … creature(s)", so removal_matters reads
+# STRUCTURE. Gated to subject is None + counter_kind != "all" (a board wipe is
+# mass_removal, never single-target removal) + a literal "target … creature(s)" in
+# the clause — the TARGETED-removal discriminator that keeps the anaphoric combat
+# forms phase also nulls ("destroy that creature" / "destroy it" deathtouch-likes —
+# Cockatrice, the Basilisks) OUT (those are not single-target removal spells, and
+# the v0.8.0 arm correctly never fired them). A non-battlefield zone on the node
+# (from:library/to:graveyard) means phase mis-tagged a search-and-mill as `destroy`
+# (Life's Finale's "search target opponent's library … creature cards") — gated out
+# by ``not e.zones``. A self-destroying form ("Destroy ~ and target creature it's
+# blocking" — Wall of Vipers) is excluded too: it sacrifices the source per use, so
+# it is not the repeatable creature-removal the lane (and the downstream kill_engine
+# membership cross-open) wants — keep it a non-member, matching v0.8.0. CR 701.8
+# (destroy) / 115.1.
+_DESTROY_CREATURE = re.compile(
+    r"\bdestroy\b[^.]*\btarget\b[^.]*\bcreatures?\b", re.IGNORECASE
+)
+_DESTROY_SELF = re.compile(r"\bdestroy ~(?!\w)", re.IGNORECASE)
+
+
+def _recover_destroy_subject(card: Card) -> Card:
+    """Re-type a subjectless TARGETED destroy as Creature when its raw names a
+    target creature, so removal_matters reads STRUCTURE. Gated to subject None +
+    non-mass + a literal "target … creature(s)" clause; idempotent."""
+    if not card.faces:
+        return card
+    creature = Filter(card_types=("Creature",))
+    changed = False
+    faces: list[Face] = []
+    for face in card.faces:
+        new_abs: list[Ability] = []
+        for ab in face.abilities:
+            new_effs: list[Effect] = []
+            for e in ab.effects:
+                if (
+                    e.category == "destroy"
+                    and e.subject is None
+                    and e.counter_kind != "all"
+                    and not e.zones
+                    and _DESTROY_CREATURE.search(e.raw or "")
+                    and not _DESTROY_SELF.search(e.raw or "")
+                ):
+                    new_effs.append(replace(e, subject=creature))
+                    changed = True
+                else:
+                    new_effs.append(e)
+            new_abs.append(replace(ab, effects=tuple(new_effs)))
         faces.append(replace(face, abilities=tuple(new_abs)))
     return replace(card, faces=tuple(faces)) if changed else card

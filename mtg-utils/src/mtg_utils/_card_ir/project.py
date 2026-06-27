@@ -25,6 +25,7 @@ from mtg_utils._card_ir.supplement import (
     _recover_base_power_ref,
     _recover_base_pt_set,
     _recover_becomes_tap_untap,
+    _recover_bending_trigger,
     _recover_cast_from_exile_zone,
     _recover_clone_creature,
     _recover_colorless_subject,
@@ -34,6 +35,7 @@ from mtg_utils._card_ir.supplement import (
     _recover_counter_replacement,
     _recover_damage_reflect,
     _recover_damage_to_opp,
+    _recover_destroy_subject,
     _recover_devotion_operand,
     _recover_dies_return,
     _recover_discard_unless,
@@ -52,6 +54,7 @@ from mtg_utils._card_ir.supplement import (
     _recover_opponent_cast_scope,
     _recover_opponent_discard,
     _recover_scaling_pump,
+    _recover_self_counter_grow,
     _recover_tap_down,
     _recover_token_doubling,
     _recover_topdeck_stack_self,
@@ -1055,6 +1058,18 @@ def project_card(records: list[dict]) -> Card:
     # Effect phase v0.8.0 dropped, so discard_outlet / discard_matters re-open. CR
     # 701.9.
     card = _recover_discard_unless(card)
+    # ADR-0027 v0.8.0 regression-recovery (R4) — four small parser shapes v0.8.0
+    # drops vs v0.1.60, recovered supplement-style off the joined oracle / effect
+    # raw so the migrated lanes read STRUCTURE: ROOT E the bending cross-bend payoff
+    # trigger condition (Avatar Aang — airbend/earthbend/waterbend_matters); ROOT G
+    # the +1/+1 enters-with self-anchor vs anthem split (self_counter_grow: stamp
+    # Naya Soulbeast / Pyretic Hunter / Lurking Automaton / Cogwork Grinder, clear
+    # the Bard Class / Curator Beastie anthem over-fires); ROOT H the nulled destroy
+    # subject (Dead Ringers — removal_matters). (ROOT F rides the extended
+    # _recover_group_hug_draw_scope above.) CR 701.65-67 / 614.13 / 701.8.
+    card = _recover_bending_trigger(card, _oracle)
+    card = _recover_self_counter_grow(card)
+    card = _recover_destroy_subject(card)
     return replace(card, parse_confidence=_confidence(card))
 
 

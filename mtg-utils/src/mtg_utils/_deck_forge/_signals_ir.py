@@ -3824,7 +3824,12 @@ def _none_animate_land(ab: object, e: object) -> bool:
     if "becomes" not in er and "creature" not in er:
         return False
     ab_raw = " ".join((x.raw or "") for x in getattr(ab, "effects", ())).lower()
-    return bool(re.search(r"\bland", ab_raw))
+    # v0.8.0 over-fire: exclude a "land" that is the second word of a named-ability
+    # header ("Crash Land — Whenever …" — Captain Rex Nebula animates a NONLAND
+    # permanent into a Vehicle; "Land" there is the verb, not the type). A genuine
+    # land animator references the type as a noun ("target land becomes", "lands you
+    # control"), never immediately before the em-dash that opens an ability name.
+    return bool(re.search(r"\blands?\b(?!\s*—)", ab_raw))
 
 
 def _is_land_animator(ab: object, e: object, controllers: tuple[str, ...]) -> bool:
@@ -5844,6 +5849,24 @@ _NONCREATURE_SPELL_TYPES: frozenset[str] = frozenset(
 
 def _ftypes(f: object) -> frozenset[str]:
     return frozenset(f.card_types) if isinstance(f, Filter) else frozenset()
+
+
+# v0.8.0 ROOT (R4) — a player-DIRECTED draw names a player right before "draw(s)"
+# ("target player draws", "each opponent draws", "that player draws"). A SELF-LOOT
+# ("draw a card, then discard …") names no such player — the drawer is YOU, which
+# v0.8.0 phantom-scopes to 'any'. target_player_draws excludes the non-directed loot.
+_TPD_DIRECTED_DRAW = re.compile(
+    r"(?:target|each|that|another|those|the|a)\s+(?:player|opponent)s?\s+"
+    r"(?:may\s+)?draws?\b",
+    re.IGNORECASE,
+)
+
+
+def _is_nondirected_self_loot(e: object) -> bool:
+    """True for a draw whose own clause loots (names a discard) but directs no other
+    player to draw — a self-loot phase mis-scoped 'any'. CR 120.2."""
+    cl = (getattr(e, "clause_raw", "") or getattr(e, "raw", "") or "").lower()
+    return "discard" in cl and _TPD_DIRECTED_DRAW.search(cl) is None
 
 
 # ADR-0027 reveal/dig-v2 — a put-onto-battlefield whose card is a LAND is RAMP
@@ -8382,7 +8405,14 @@ def extract_signals_ir(
                 # Howling Mine, Font of Mythos, Sphinx of Enlightenment (the latter's
                 # 'target opponent' subset also carries subject controller='opp', still
                 # scope='any'). CR 120.2 (draw is a player action).
-                if e.scope == "any":
+                # v0.8.0 over-fire: phase phantom-scopes a SELF-LOOT's draw ("draw a
+                # card, then discard …" — Jace Vryn's Prodigy, Evie Frye, Breakthrough,
+                # the rummage spells) to 'any' though the drawer is YOU. Exclude a
+                # non-directed loot: the draw's own clause names a discard but carries
+                # no "<player> draws" directed reference (Chains of Mephistopheles'
+                # symmetric draw-tax rides the same exclusion — not a directed draw).
+                # The genuine members all name a player before "draw(s)". CR 120.2.
+                if e.scope == "any" and not _is_nondirected_self_loot(e):
                     add("target_player_draws", "any", "", e.raw)
             # symmetric_damage_each (ADR-0027) — damage dealt to EACH player (the
             # Pestilence / Star of Extinction / Sulfurous Blast symmetric-board
@@ -9098,12 +9128,19 @@ def extract_signals_ir(
             # subtypes — a structurally clean discriminator (single-subtype anthem stays
             # type_matters at len==1). The pump-only gate excludes Paladin Danse (a
             # one-shot keyword GRANT via grant_keyword, not a +X/+X anthem).
+            # v0.8.0 over-fire: a COLOR disjunction (AnyOf:HasColor:Green|HasColor:
+            # White — Glistening Deluge's "green and/or white creatures get -2/-2") is
+            # NOT a multi-TYPE anthem; the lane wants named creature TYPES, so exclude
+            # an AnyOf whose alternatives are colors. CR 105 (a color is not a subtype).
             if (
                 cat == "pump"
                 and "Creature" in ftypes
                 and isinstance(e.subject, Filter)
                 and (
-                    any(p.startswith("AnyOf:") for p in e.subject.predicates)
+                    any(
+                        p.startswith("AnyOf:") and "HasColor" not in p
+                        for p in e.subject.predicates
+                    )
                     or len(e.subject.subtypes) >= 2
                 )
             ):
