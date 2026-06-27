@@ -825,6 +825,18 @@
    "ir": {
     "faces": [
      {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "token_doubling",
+          "raw": "If one or more tokens would be created under your control, twice that many of those tokens are created instead",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
       "kw": [
        "Ward"
       ],
@@ -6338,6 +6350,16 @@
          }
         ],
         "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "bending",
+          "raw": "Whenever you waterbend, earthbend, firebend, or airbend, draw a card",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered"
        }
       ],
       "kw": [
@@ -7503,6 +7525,102 @@
     "oracle_id": "05c2dec2-d2f7-4036-b91f-4fccba10a8bb",
     "oracle_text": "Nonbasic lands don't untap during their controllers' untap steps.",
     "type_line": "Enchantment"
+   }
+  },
+  "Backslide": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "transform",
+          "raw": "Turn target creature with a morph ability face down."
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "cost": "discardself,mana",
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "sc": "you"
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "facedown_ref",
+          "raw": "face-down reference (recovered)",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Face-down"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "Cycling"
+      ],
+      "n": "Backslide",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Backslide",
+    "oid": "6d9746bc-0b72-4ac4-b48a-742b63b1c41b"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Cycling"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Backslide",
+    "oracle_id": "6d9746bc-0b72-4ac4-b48a-742b63b1c41b",
+    "oracle_text": "Turn target creature with a morph ability face down.\nCycling {U} ({U}, Discard this card: Draw a card.)",
+    "type_line": "Instant"
    }
   },
   "Baird, Argivian Recruiter": {
@@ -42993,6 +43111,16 @@
             "Creature"
            ]
           }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "token_doubling",
+          "raw": "If one or more tokens would be created under your control, twice that many of those tokens are created instead",
+          "sc": "you"
          }
         ],
         "k": "static"

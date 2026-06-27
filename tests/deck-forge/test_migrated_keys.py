@@ -1124,18 +1124,43 @@ def test_opponent_discard_does_not_fire_on_combat_damage_self_loot():
 # damage_to_opp mirrors are deleted.
 
 
-def test_facedown_recovered_carrier_break_open():
-    """Break Open's "Turn target face-down creature an opponent controls face up" is a
-    generic `transform` with the face-down qualifier dropped; supplement._recover_facedown
-    appends a `facedown_ref` carrier whose subject carries the "Face-down" marker, so the
-    existing effect-subject arm fires facedown_matters. CR 708.2."""
-    ir = test_card_ir("Break Open")
+def test_facedown_recovered_carrier_backslide():
+    """Backslide's "Turn target creature with a morph ability face down" leaves no native
+    face-down structure in phase's parse (the face-down qualifier is dropped), so
+    supplement._recover_facedown appends a `facedown_ref` carrier whose subject carries the
+    "Face-down" marker and the effect-subject arm fires facedown_matters. CR 708.2.
+
+    (This replaces the old Break Open case: phase v0.8.0 now emits a native `turn_face_up`
+    Effect for "turn … face up", so Break Open no longer needs the recovery — see
+    test_facedown_native_turn_face_up_break_open. The recovery still fires for ~99 cards
+    phase leaves face-down-blind, of which Backslide is a clean morph-family example.)"""
+    ir = test_card_ir("Backslide")
     assert any(
         e.category == "facedown_ref" and "Face-down" in e.subject.subtypes
         for ab in ir.all_abilities()
         for e in ab.effects
         if e.subject is not None
     ), "recovered facedown_ref carrier missing"
+    keys = {s.key for s in extract_signals_hybrid(test_card("Backslide"), ir)}
+    assert "facedown_matters" in keys
+
+
+def test_facedown_native_turn_face_up_break_open():
+    """Break Open's "Turn target face-down creature … face up" gains a native `turn_face_up`
+    Effect under phase v0.8.0 (the v0.1.60 parse dropped it, which the recovery bridged).
+    So _recover_facedown correctly SKIPS it (native facedown structure present) yet
+    facedown_matters still fires off the native carrier — the bump closing the gap, not a
+    regression. CR 708.2."""
+    ir = test_card_ir("Break Open")
+    assert any(
+        e.category == "turn_face_up" for ab in ir.all_abilities() for e in ab.effects
+    ), "expected native turn_face_up effect under phase v0.8.0"
+    assert not any(
+        e.category == "facedown_ref"
+        and (e.raw or "") == "face-down reference (recovered)"
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    ), "recovery should skip a card phase parses natively"
     keys = {s.key for s in extract_signals_hybrid(test_card("Break Open"), ir)}
     assert "facedown_matters" in keys
 

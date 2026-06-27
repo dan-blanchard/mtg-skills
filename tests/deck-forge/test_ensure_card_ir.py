@@ -19,6 +19,7 @@ from unittest import mock
 
 import pytest
 
+from mtg_utils import _phase
 from mtg_utils._card_ir.load import (
     card_ir_dir,
     clear_memory_cache,
@@ -38,9 +39,16 @@ _CARD_DATA = {
 }
 
 
-def _phase_card_data_path(cache_root):
-    """The path ensure_card_ir / build_sidecar resolve to for phase's parse."""
-    return cache_root / "phase" / "phase.git" / "client" / "public" / "card-data.json"
+def _phase_card_data_path(cache_root):  # noqa: ARG001 — env-derived, kept for call symmetry
+    """The path ensure_card_ir / build_sidecar resolve to for phase's parse.
+
+    Since the v0.8.0 bump, card-data ships in the release tarball and lives at the
+    tag-versioned ``_phase._card_data_path()`` (under ``$MTG_SKILLS_CACHE_DIR``,
+    set by ``_isolated_cache``). The conftest ``_block_card_data_download`` guard
+    serves this path "cached-or-raise", so writing the fixture here makes the
+    phase-present path hermetic and leaving it absent drives the phase-absent path.
+    """
+    return _phase._card_data_path()
 
 
 @pytest.fixture(autouse=True)
@@ -114,7 +122,8 @@ def test_warns_non_blocking_when_phase_absent(tmp_path, capsys):
     err = capsys.readouterr().err
     assert "WARNING" in err
     assert f"{len(MIGRATED_KEYS)} migrated signal lanes" in err
-    assert "playtest-install-phase" in err
+    # Post-bump, card-data is fetched (release tarball), not cargo-built — the
+    # actionable fix is re-running build-card-ir with network, not install-phase.
     assert "build-card-ir" in err
 
 
