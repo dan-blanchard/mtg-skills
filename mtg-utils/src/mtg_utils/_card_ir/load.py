@@ -858,7 +858,22 @@ from mtg_utils.card_ir import Card
 #   "an opponent EXILES their own top": ingest / symmetric self-mill / target-opp-mill
 #   all collapse to one shape), so admitting it would flood 25 non-members / force a
 #   taxonomy call; its oracle-phrasing mirror stays. CR 305.9 / 121 / 406.
-SIDECAR_VERSION = 60
+# v61 — #24m F1 base_pt_set SETTER recovery (correction, no new lane).
+#   supplement._recover_dynamic_base_pt_set re-synthesizes a base_pt_set node (scope
+#   any, subject None, amount variable — a build-around SET, never a debuff mass shrink)
+#   for the DYNAMIC / quoted / type-conferral base-P/T SETTERS phase folded into a
+#   sibling category (animate / clone / reanimate / pump / place_counter / emblem /
+#   type_set) without one: Fractalize, Gigantoplasm, Trench Gorger, Sita Varma, Goddric,
+#   The Master Transcendent, Tezzeret the Schemer (emblem), Cool Fluffy Loxodon,
+#   Displaced Dinosaurs, Mindlink Mech. Runs AFTER the literal-mass debuff pass
+#   (_recover_base_pt_set), bps==0 gated, so the opp/each shrinks keep their scope. The
+#   base-power REFERENCE grammar ("creatures you control WITH base power N" — Bess,
+#   Zinnia, Duskana, Primo, Rapid Augmenter) is EXCLUDED (set nothing; await a separate
+#   base_power_matters lane). Signals: the cat=="base_pt_set" arm gains a
+#   _BASE_PT_ANIMATE_HOOK ("N/N … in addition to its other types") so the 9 single-
+#   permanent animate effects phase ALREADY emits read structurally, and the kept word
+#   mirror narrows from BASE_PT_SET_REGEX to the references-only residue. CR 613.4b.
+SIDECAR_VERSION = 61
 
 
 def card_ir_dir() -> Path:

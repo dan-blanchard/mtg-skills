@@ -1927,6 +1927,100 @@ def _recover_base_pt_set(card: Card, oracle: str) -> Card:
     )
 
 
+# ── ADR-0027 #24m F1 — DYNAMIC / QUOTED base-P/T SET residue (SIDECAR v61) ─────
+# The `_recover_base_pt_set` pass above is the DEBUFF path: it fires only on a FIXED
+# LITERAL "creatures … have/has/are/is base power N" mass shrink (Maha, Humility) and
+# scopes opp/each so debuff_matters reads the SHRINK. It deliberately ignores the
+# DYNAMIC / quoted / type-conferral SETTERS — phase routes those to animate / clone /
+# reanimate / pump / place_counter / emblem / type_set WITHOUT a base_pt_set Effect, so
+# the base_pt_set LANE (CR 613.4b layer 7b) leaned wholly on the carved kept word
+# mirror for them. This pass re-synthesizes a base_pt_set Effect for the SETTER residue
+# the lane needs (scope "any", subject None, amount variable — a build-around set, NOT a
+# mass debuff anthem, so it never feeds debuff_matters):
+#   • "<perm> becomes a N/N <Type> creature in addition to its other types" the dynamic
+#     forms where phase emitted no base_pt_set Effect (Cool Fluffy Loxodon → type_set,
+#     Displaced Dinosaurs → type_set, Mindlink Mech → a clone P/T override "it's 4/3 …
+#     in addition to its other types"). CR 205.1b + 613.4b.
+#   • "has/have base power [and toughness] …" dynamic or quoted (Trench Gorger "base
+#     power and base toughness each equal to the lands exiled", Gigantoplasm '"{X}: This
+#     creature has base power and toughness X/X"').
+#   • "becomes/is a <Type> with base power and toughness N" (Fractalize "with base power
+#     and toughness each equal to X plus 1", Goddric "is a Dragon with base power and
+#     toughness 4/4", The Master "a green Mutant with base power and toughness 3/3",
+#     Tezzeret the Schemer's emblem "becomes an artifact creature with base power and
+#     toughness 5/5").
+#   • "base power and toughness of each <perms> become …" (Sita Varma).
+# It EXCLUDES the base-power REFERENCE grammar "creatures you control WITH base power N"
+# (Bess Soul Nourisher, Zinnia, Duskana, Primo, Rapid Augmenter): those merely REFER to
+# base P/T (CR 613.4b sentence 2), set nothing, and await a separate base_power_matters
+# decision — they stay on the narrowed base_pt_set kept mirror, NOT synthesized here.
+# Append-only and gated to bps==0 so the DEBUFF pass (which runs first) owns the mass
+# shrinks. The symmetric MASS-animators (Living Plane "All lands are 1/1 creatures",
+# March of the Machines "… with power and toughness equal to its mana value", Mycosynth
+# Lattice) say neither "base power" nor "N/N … in addition to its other types", so they
+# are not matched. Upstream-to-phase candidate (phase should keep the dropped set as a
+# base_pt_set node).
+_DYN_BASE_PT_SET = re.compile(
+    r"\b(?:has|have) base (?:power|toughness)"
+    r"|\bbase power(?: and toughness)? \d"
+    r"|\bbase toughness \d"
+    r"|\bbecomes? a[n]? [^.]*with base (?:power|toughness)"
+    r"|\bbecomes? a[n]? [^.]*?\b\d+/\d+\b[^.]* in addition to its other types"
+    r"|\bbase (?:power|toughness)[^.]*\bbecome\b",
+    re.IGNORECASE,
+)
+# The REFERENCE grammar: "creature(s) you control WITH base power N" — a noun qualifier,
+# not a set. Excluded so the references stay on the narrowed mirror (await
+# base_power_matters), not synthesized into the SETTER lane.
+_REF_BASE_PT = re.compile(
+    r"creatures? you (?:control|own) with base (?:power|toughness)", re.IGNORECASE
+)
+
+
+def _recover_dynamic_base_pt_set(card: Card, oracle: str) -> Card:
+    """Append a synthetic ``base_pt_set`` static Effect for the DYNAMIC / quoted /
+    type-conferral base-P/T SETTERS phase folded into a sibling category (animate /
+    clone / reanimate / pump / place_counter / emblem / type_set) without a base_pt_set
+    node. Append-only and gated to bps==0 (the DEBUFF ``_recover_base_pt_set`` pass owns
+    the mass shrinks and runs first). One Effect per non-reference SETTER clause; scope
+    "any", subject None, amount variable so it feeds the base_pt_set LANE but never the
+    debuff_matters mass-shrink read. CR 613.4b layer 7b."""
+    if not card.faces:
+        return card
+    if any(
+        e.category == "base_pt_set" for ab in card.all_abilities() for e in ab.effects
+    ):
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    synth: list[Ability] = []
+    for clause in re.split(r"[.\n]", text):
+        if _DYN_BASE_PT_SET.search(clause) is None:
+            continue
+        if _REF_BASE_PT.search(clause) is not None:
+            continue
+        synth.append(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="base_pt_set",
+                        scope="any",
+                        subject=None,
+                        amount=Quantity(op="variable"),
+                        raw=clause.strip(),
+                    ),
+                ),
+            )
+        )
+    if not synth:
+        return card
+    head, *rest = card.faces
+    return replace(
+        card,
+        faces=(replace(head, abilities=(*head.abilities, *synth)), *rest),
+    )
+
+
 # ── ADR-0027 C10 — DROPPED gain_life residue (SIDECAR v50) ────────────────────
 # phase sometimes emits NO gain_life Effect though the raw oracle plainly says YOU
 # gain life: a multi-clause / symmetric fold (Game of Chaos "you gain 1 life and

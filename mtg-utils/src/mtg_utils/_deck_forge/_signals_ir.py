@@ -105,7 +105,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ANIMATE_ARTIFACT_REGEX,
     ARTIFACTS_MATTER_REGEX,
     ATTACK_MATTERS_REGEX,
-    BASE_PT_SET_REGEX,
     BLOCKED_MATTERS_REGEX,
     CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
@@ -1026,6 +1025,20 @@ _SHIELD_COUNTER_MATTERS_MIRROR = re.compile(r"\bshield counters?\b", re.IGNORECA
 # self-transforms ride the marker check instead (their raw may say only "becomes a N/N
 # …"). CR 613.4b.
 _BASE_PT_RAW_HOOK = re.compile(r"base power|base toughness", re.IGNORECASE)
+# ADR-0027 #24m F1 — the single-permanent type-conferral SET hook: phase emits a
+# cat=="base_pt_set" Effect for "<perm> becomes a N/N <Type> creature in addition to its
+# other types" (Vengeant Earth, Tezzeret Cruel Machinist, Tawnos's Tinkering, Case of
+# the Filched Falcon, Donatello, Voldaren Bloodcaster, …) but its raw NAMES no "base
+# power"/"base toughness", so the _BASE_PT_RAW_HOOK gate missed these 9 — they leaned on
+# the carved kept mirror. The literal "N/N … in addition to its other types" phrase is
+# specific to a SINGLE permanent gaining a creature type with a fixed base P/T (CR
+# 613.4b layer 7b set + CR 205.1b type-add); the symmetric land/artifact MASS-animators
+# the arm deliberately excludes ("All lands are 1/1 creatures", "Each noncreature
+# artifact is … with power and toughness equal to its mana value") say neither "in
+# addition to ITS other types" nor a literal N/N, so this hook leaves them out.
+_BASE_PT_ANIMATE_HOOK = re.compile(
+    r"\b\d+/\d+\b[^.]*\bin addition to its other types", re.IGNORECASE
+)
 
 
 def _has_self_base_pt(subject: object) -> bool:
@@ -1049,25 +1062,28 @@ def _has_self_base_pt(subject: object) -> bool:
 # KEEPS them — they survive A4 like the keyword-array / type_line lookups. Grow
 # this as more mis-skipped mechanics are rules-lawyer-verified.
 _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
-    # ADR-0027 Cluster C — base_pt_set CARVED kept WORD MIRROR (SIDECAR v32). The
-    # structural cat=="base_pt_set" arm (the v32 SelfBasePt self-transform + the OTHER-
-    # permanent toolbox + the supplement static-parser-failed recovery) supplies the
-    # cards phase structures or DROPS the clause for; this mirror recovers the tail
-    # phase routes to other categories WITHOUT a base_pt_set Effect — chiefly the
-    # dynamic "base power … equal to X" forms (Trench Gorger, Fractalize) that
-    # variable_pt leaves UNCLAIMED, plus the sticker-`{TK}`/Unimplemented animates (Cool
-    # Fluffy Loxodon). BASE_PT_SET_REGEX is the CARVED base-P/T-set-only subset (drops
-    # the two switch arms — CR 613.4d layer 7d — and narrows the type-conferral arm to
-    # require a literal N/N — CR 205.1b), so switch_pt / pure type-conferral are NOT
-    # swept into base_pt_set. Scope 'any' (the deleted SWEEP row's scope — a set-P/T
-    # effect spans neutralize-removal / self / mass). The carved arms' `[^.]*` spans
-    # never cross a clause boundary (`.`-excluded), so a flat .search over the
-    # reminder-stripped joined-face kept_oracle == the deleted per-clause SWEEP firing
-    # (verified 0 flat-only / 0 clause-only over the commander-legal corpus). CR 613.4b
-    # layer 7b.
+    # ADR-0027 #24m F1 — base_pt_set kept WORD MIRROR NARROWED to the base-power
+    # REFERENCE residue. The carved BASE_PT_SET_REGEX mirror used to also carry the
+    # SETTERS phase routed to a sibling category without a base_pt_set Effect (the 2a
+    # single-permanent "becomes a N/N <Type> creature in addition to its other types"
+    # — now read by the _BASE_PT_ANIMATE_HOOK arm — and the 2b dynamic/quoted forms —
+    # Fractalize, Gigantoplasm, Trench Gorger, Sita Varma, Goddric, The Master,
+    # Tezzeret the Schemer, Cool Fluffy Loxodon, Displaced Dinosaurs, Mindlink Mech —
+    # now re-synthesized as a base_pt_set node by _recover_dynamic_base_pt_set). All
+    # that's left for the mirror is the base-power REFERENCE grammar "creature(s) you
+    # control WITH base power N" (Bess Soul Nourisher, Zinnia, Duskana, Primo, Rapid
+    # Augmenter): these merely REFER to base P/T (CR 613.4b sentence 2), set nothing,
+    # and have no base_pt_set node to read — they stay here, in base_pt_set, awaiting a
+    # SEPARATE base_power_matters lane decision (#24j). NOT re-routed by this task.
+    # Scope 'any' (unchanged). The SERVE spec (signal_specs) keeps the full
+    # BASE_PT_SET_REGEX — the lane still recommends every base-P/T setter, only
+    # DETECTION narrows here.
     (
         "base_pt_set",
-        re.compile(BASE_PT_SET_REGEX, re.IGNORECASE),
+        re.compile(
+            r"creatures? you (?:control|own) with base (?:power|toughness)",
+            re.IGNORECASE,
+        ),
         "any",
     ),
     # ADR-0027 reveal/dig-v2 — tutor_matters BYTE-IDENTICAL kept mirror (== the deleted
@@ -1661,18 +1677,25 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the deleted SWEEP scope). Digital-only: the served set is empty on commander, ~158
     # HB-legal. CR 701.66a.
     ("conjure_matters", re.compile(r"\bconjure\b", re.IGNORECASE), "you"),
-    # forced_attack (ADR-0027) DET PUNISHER-incentive arm — the byte-identical kept
-    # mirror of the deleted _DETECTORS producer (scope "you"). The real 508.1d force
-    # compulsion rides the STRUCTURAL `force_attack` arm (extract_signals_ir); this row
-    # only adds the "didn't attack this turn" penalty + "untap creatures that attacked"
-    # tail phase carries no structural form for (Erg Raiders, Kratos, Angel's Trumpet,
-    # Season of the Witch). Neither phrase ever appears inside reminder text (DET
-    # full-text == reminder-stripped == 26), and there is no `[^.]*` cross-clause arm,
-    # so the flat .search over kept_oracle == the deleted per-clause producer. add()
-    # dedups cards already in the structural set. CR 508.1d.
+    # forced_attack (ADR-0027 #24m F1 — re-route correction) DET PUNISHER arm.
+    # forced_attack is the attack-RESTRICTION/punisher lane (CR 508.1: a card that
+    # FORCES attacks or penalizes a creature that DIDN'T attack — Erg Raiders, Kratos,
+    # Angel's Trumpet, Season of the Witch). The "didn't attack this turn" penalty is
+    # the only structural form phase carries no node for, so it stays a kept word
+    # mirror. The former `|that attacked this turn` arm was HETEROGENEOUS mis-categori-
+    # zation: it caught the EXTRA-COMBAT untap riders ("Untap all creatures that
+    # attacked this turn. … there is an additional combat phase" — World at War, Waves
+    # of Aggression, Full Throttle, Relentless Assault, Swinging Ship, Fury of the
+    # Horde, Overpowering Attack) — those belong to the extra_combats lane (CR 505.1a),
+    # NOT to a forced-attack compulsion, and ALREADY ride extra_combats via phase's
+    # `extra_combat` effect — plus cost/counter REFERENCES to "creatures that attacked
+    # this turn" (Witchstalker Frenzy cost reduction, Metzali, Rowdy Research) that were
+    # never forced_attack members. Dropping the arm re-routes the riders (re-caught in
+    # extra_combats) and sheds the reference over-fires. CR 508.1 (declare attackers) vs
+    # CR 505.1a (extra combat). add() dedups cards already in the structural set.
     (
         "forced_attack",
-        re.compile(r"didn't attack this turn|that attacked this turn", re.IGNORECASE),
+        re.compile(r"didn't attack this turn", re.IGNORECASE),
         "you",
     ),
     # snow is a real supertype (CR 205.4), NOT a skip — the analysis workflow
@@ -8064,7 +8087,14 @@ def extract_signals_ir(
             # equal to X" tail (Trench Gorger) rides the carved _BASE_PT_SET_MIRROR.
             # scope "any" (the deleted SWEEP row's scope). CR 613.4b.
             if cat == "base_pt_set" and (
-                _BASE_PT_RAW_HOOK.search(e.raw or "") or _has_self_base_pt(e.subject)
+                _BASE_PT_RAW_HOOK.search(e.raw or "")
+                or _has_self_base_pt(e.subject)
+                # ADR-0027 #24m F1 — the single-permanent "becomes a N/N <Type> creature
+                # in addition to its other types" animate (the 9 cards phase emits a
+                # base_pt_set Effect for whose raw names no "base power", plus the
+                # dynamic/quoted setters _recover_dynamic_base_pt_set re-synthesizes as
+                # base_pt_set with this same in-addition raw). CR 613.4b.
+                or _BASE_PT_ANIMATE_HOOK.search(e.raw or "")
             ):
                 add("base_pt_set", "any", "", e.raw)
             # Batch 6 — grant_keyword lanes (the AddKeyword category, +3.8% parse).

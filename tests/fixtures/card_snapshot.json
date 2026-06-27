@@ -8760,6 +8760,108 @@
     "type_line": "Creature — Djinn"
    }
   },
+  "Bess, Soul Nourisher": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "Whenever one or more other creatures you control with base power and toughness 1/1 enter, put a +1/+1 counter on ~.",
+          "sub": {
+           "p": [
+            "SelfRef"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "other"
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "pump",
+          "dur": "UntilEndOfTurn",
+          "raw": "Whenever ~ attacks, each other creature you control with base power and toughness 1/1 gets +X/+X until end of turn, where X is the number of +1/+1 counters on ~.",
+          "sub": {
+           "c": "you",
+           "p": [
+            "Another"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "attacks",
+         "sc": "you"
+        }
+       }
+      ],
+      "n": "Bess, Soul Nourisher",
+      "tl": "Legendary Creature — Human Citizen"
+     }
+    ],
+    "n": "Bess, Soul Nourisher",
+    "oid": "df72b5d6-6f9e-4d6b-acf6-7dec4ff35468"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "G",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}{W}",
+    "name": "Bess, Soul Nourisher",
+    "oracle_id": "df72b5d6-6f9e-4d6b-acf6-7dec4ff35468",
+    "oracle_text": "Whenever one or more other creatures you control with base power and toughness 1/1 enter, put a +1/+1 counter on Bess.\nWhenever Bess attacks, each other creature you control with base power and toughness 1/1 gets +X/+X until end of turn, where X is the number of +1/+1 counters on Bess.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Legendary Creature — Human Citizen"
+   }
+  },
   "Beza, the Bounding Spring": {
    "ir": {
     "faces": [
@@ -23862,6 +23964,81 @@
     "name": "Foul-Tongue Shriek",
     "oracle_id": "a4dc1fea-427c-424c-99c8-af2e6d3ad2a9",
     "oracle_text": "Target opponent loses 1 life for each attacking creature you control. You gain that much life.",
+    "type_line": "Instant"
+   }
+  },
+  "Fractalize": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "animate",
+          "raw": "Until end of turn, target creature becomes a green and blue Fractal with base power and toughness each equal to X plus 1."
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "variable"
+          },
+          "cat": "base_pt_set",
+          "raw": "Until end of turn, target creature becomes a green and blue Fractal with base power and toughness each equal to X plus 1"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Fractalize",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Fractalize",
+    "oid": "9e7bd032-8946-4d72-9910-b224823bc940"
+   },
+   "scryfall": {
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{X}{U}",
+    "name": "Fractalize",
+    "oracle_id": "9e7bd032-8946-4d72-9910-b224823bc940",
+    "oracle_text": "Until end of turn, target creature becomes a green and blue Fractal with base power and toughness each equal to X plus 1. (It loses all other colors and creature types.)",
     "type_line": "Instant"
    }
   },
@@ -53712,6 +53889,107 @@
     "type_line": "Creature — Cat Monkey"
    }
   },
+  "Season of the Witch": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "sacrifice",
+          "raw": "At the beginning of your upkeep, sacrifice ~ unless you pay 2 life."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "upkeep"
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "destroy",
+          "ck": "all",
+          "raw": "At the beginning of the end step, destroy all untapped creatures that didn't attack this turn, except for creatures that couldn't attack.",
+          "sub": {
+           "p": [
+            "Untapped",
+            "Not"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "end_step"
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "lose_life",
+          "raw": "pay-life cost / self loss",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Season of the Witch",
+      "tl": "Enchantment"
+     }
+    ],
+    "n": "Season of the Witch",
+    "oid": "307813c5-c3a8-46c5-8ed4-3b244dd169dc"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}{B}{B}",
+    "name": "Season of the Witch",
+    "oracle_id": "307813c5-c3a8-46c5-8ed4-3b244dd169dc",
+    "oracle_text": "At the beginning of your upkeep, sacrifice this enchantment unless you pay 2 life.\nAt the beginning of the end step, destroy all untapped creatures that didn't attack this turn, except for creatures that couldn't attack.",
+    "type_line": "Enchantment"
+   }
+  },
   "Security Bypass": {
    "ir": {
     "faces": [
@@ -66457,6 +66735,102 @@
     "type_line": "Creature — Dragon"
    }
   },
+  "Vengeant Earth": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "grant_keyword",
+          "ck": "haste",
+          "raw": "become a 4/4 Elemental creature with haste in addition to its other types"
+         },
+         {
+          "amt": {
+           "op": "variable"
+          },
+          "cat": "base_pt_set",
+          "raw": "become a 4/4 Elemental creature with haste in addition to its other types"
+         },
+         {
+          "cat": "lure",
+          "raw": "Target creature or land you control becomes a 4/4 Elemental creature with haste in addition to its other types until end of turn. It must be blocked this turn if able."
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "single_target_grant",
+          "ck": "haste",
+          "raw": "become a 4/4 Elemental creature with haste in addition to its other types",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "p": [
+            "SingleTarget"
+           ],
+           "t": [
+            "Creature",
+            "Land"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Vengeant Earth",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Vengeant Earth",
+    "oid": "237b8528-a199-45f4-8efc-96d67119f738"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Vengeant Earth",
+    "oracle_id": "237b8528-a199-45f4-8efc-96d67119f738",
+    "oracle_text": "Target creature or land you control becomes a 4/4 Elemental creature with haste in addition to its other types until end of turn. It must be blocked this turn if able.",
+    "type_line": "Instant"
+   }
+  },
   "Verazol, the Split Current": {
    "ir": {
     "faces": [
@@ -68188,6 +68562,88 @@
     "power": "4",
     "toughness": "4",
     "type_line": "Legendary Creature — Human Warrior"
+   }
+  },
+  "World at War": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "extra_combat",
+          "raw": "After the second main phase this turn, there's an additional combat phase followed by an additional main phase. At the beginning of that combat, untap all creatures that attacked this turn.",
+          "sc": "you"
+         },
+         {
+          "cat": "untap",
+          "ck": "all",
+          "raw": "After the second main phase this turn, there's an additional combat phase followed by an additional main phase. At the beginning of that combat, untap all creatures that attacked this turn.",
+          "sub": {
+           "p": [
+            "AttackedThisTurn"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "kw": [
+       "Rebound"
+      ],
+      "n": "World at War",
+      "tl": "Sorcery"
+     }
+    ],
+    "n": "World at War",
+    "oid": "02a8a5cc-62ce-4ae5-aa7d-760124af7d7b"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Rebound"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{R}",
+    "name": "World at War",
+    "oracle_id": "02a8a5cc-62ce-4ae5-aa7d-760124af7d7b",
+    "oracle_text": "After the second main phase this turn, there's an additional combat phase followed by an additional main phase. At the beginning of that combat, untap all creatures that attacked this turn.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
+    "type_line": "Sorcery"
    }
   },
   "Wrath of God": {
@@ -70022,5 +70478,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 60
+ "sidecar_version": 61
 }

@@ -6776,10 +6776,13 @@ def test_base_pt_set_single_target_neutralize_is_scope_any_subject_none():
     assert e.subject is None
 
 
-def test_base_pt_set_dynamic_xx_synthesizes_no_fixed_set():
-    """Biomass Mutation's "base power and toughness X/X" is a DYNAMIC characteristic,
-    not a fixed layer-7b set — it carries no digit, so the recovery synthesizes no
-    base_pt_set (the dynamic tail rides the kept word mirror, never the debuff arm)."""
+def test_base_pt_set_dynamic_xx_is_build_around_set_not_debuff():
+    """Biomass Mutation's "base power and toughness X/X" is a DYNAMIC build-around SET
+    (CR 613.4b layer 7b) — the F1 _recover_dynamic_base_pt_set pass DOES synthesize a
+    base_pt_set node for it (the fixed-digit DEBUFF pass deliberately skips no-digit
+    forms). But it is scope 'any' + subject None + a non-fixed amount, so it feeds the
+    base_pt_set LANE while staying OUT of the debuff_matters mass-shrink arm (which wants
+    an opp/each scope + a fixed toughness)."""
     rec = {
         "name": "Biomass Mutation",
         "scryfall_oracle_id": "bps-biomass",
@@ -6787,8 +6790,10 @@ def test_base_pt_set_dynamic_xx_synthesizes_no_fixed_set():
             "Creatures you control have base power and toughness X/X until end of turn."
         ),
     }
-    cats = {e.category for e in _effects(project_card([rec]))}
-    assert "base_pt_set" not in cats
+    e = _effect_with(project_card([rec]), "base_pt_set")
+    assert e.scope == "any"
+    assert e.subject is None
+    assert e.amount.op != "fixed"
 
 
 # ── ADR-0027 C5: token-copy projection (CR 707 / 701.36 / 701.16) ─────────────

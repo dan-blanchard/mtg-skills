@@ -495,6 +495,86 @@ def test_extra_combats_restriction_fold_fires_via_ir():
     assert "extra_combats" in {s.key for s in extract_signals_hybrid(card, ir)}
 
 
+# ── ADR-0027 #24m F1 — forced_attack → extra_combats re-route correction ──────
+
+
+def test_extra_combat_rider_is_not_forced_attack():
+    """F1 correction: World at War's "Untap all creatures that attacked this turn …
+    additional combat phase" is an EXTRA-COMBAT rider (CR 505.1a), NOT a forced-attack
+    compulsion (CR 508.1). It rides the extra_combats lane via phase's `extra_combat`
+    Effect, and the narrowed forced_attack mirror (which dropped the `that attacked this
+    turn` arm) no longer mis-fires forced_attack for it."""
+    card = test_card("World at War")
+    ir = test_card_ir("World at War")
+    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "extra_combats" in keys
+    assert "forced_attack" not in keys
+
+
+def test_forced_attack_punisher_still_fires():
+    """F1 correction keeps the attack-RESTRICTION/punisher half: Season of the Witch
+    destroys creatures that DIDN'T attack — the `didn't attack this turn` mirror (the
+    one structural form phase carries no node for) still opens forced_attack. CR 508.1."""
+    card = test_card("Season of the Witch")
+    ir = test_card_ir("Season of the Witch")
+    assert "forced_attack" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+# ── ADR-0027 #24m F1 — base_pt_set SETTER recovery ────────────────────────────
+
+
+def test_base_pt_set_single_target_animate_fires_via_in_addition_hook():
+    """F1 2a: Vengeant Earth's "becomes a 4/4 Elemental creature … in addition to its
+    other types" — phase ALREADY emits a base_pt_set Effect, but its raw names no "base
+    power", so the old gate missed it (it leaned on the carved mirror). The
+    _BASE_PT_ANIMATE_HOOK arm now reads the existing structure. CR 613.4b / 205.1b."""
+    card = test_card("Vengeant Earth")
+    ir = test_card_ir("Vengeant Earth")
+    assert any(
+        e.category == "base_pt_set" for ab in ir.all_abilities() for e in ab.effects
+    )
+    assert "base_pt_set" not in {s.key for s in extract_signals(card)}
+    assert "base_pt_set" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_base_pt_set_dynamic_setter_recovered_node_fires():
+    """F1 2b: Fractalize's "becomes … with base power and toughness each equal to X plus
+    1" is a DYNAMIC setter phase routed to `animate` with no base_pt_set node.
+    supplement._recover_dynamic_base_pt_set re-synthesizes a base_pt_set node (scope any,
+    subject None) so the lane reads STRUCTURE, not the deleted whole-card mirror arm. CR
+    613.4b layer 7b."""
+    card = test_card("Fractalize")
+    ir = test_card_ir("Fractalize")
+    assert any(
+        e.category == "base_pt_set" for ab in ir.all_abilities() for e in ab.effects
+    )
+    assert "base_pt_set" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_base_pt_set_mass_animator_stays_out():
+    """F1 over-fire guard: the symmetric MASS-animator Living Plane ("All lands are 1/1
+    creatures") sets P/T but is a land-creatures THEME, not a base-P/T build-around — it
+    says neither "base power" nor "N/N … in addition to its other types", so neither the
+    animate hook nor the dynamic recovery admits it. base_pt_set stays OUT (#26)."""
+    card = test_card("Living Plane")
+    ir = test_card_ir("Living Plane")
+    assert "base_pt_set" not in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_base_pt_set_reference_stays_on_narrowed_mirror():
+    """F1: a base-power REFERENCE — Bess, Soul Nourisher cares about "creatures you
+    control with base power and toughness 1/1" — merely REFERS to base P/T (CR 613.4b
+    sentence 2) and sets nothing, so it carries no base_pt_set node and is NOT
+    re-synthesized. It stays in base_pt_set via the narrowed references-only kept mirror,
+    awaiting a separate base_power_matters decision."""
+    card = test_card("Bess, Soul Nourisher")
+    ir = test_card_ir("Bess, Soul Nourisher")
+    assert not any(
+        e.category == "base_pt_set" for ab in ir.all_abilities() for e in ab.effects
+    )
+    assert "base_pt_set" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
 def test_creatures_matter_mass_grant_fires_via_ir():
     """A MASS keyword grant to the generic creature board (Champion of Lambholt's
     CantBeBlockedBy) → creatures_matter via the IR grant_keyword arm, not regex."""

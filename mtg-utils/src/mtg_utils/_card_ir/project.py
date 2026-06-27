@@ -35,6 +35,7 @@ from mtg_utils._card_ir.supplement import (
     _recover_devotion_operand,
     _recover_dies_return,
     _recover_dropped_gain_life,
+    _recover_dynamic_base_pt_set,
     _recover_exile_zone_ref,
     _recover_extra_land_drop,
     _recover_facedown,
@@ -721,6 +722,17 @@ def project_card(records: list[dict]) -> Card:
     # so the MIGRATED debuff_matters lane reads a mass opponent/symmetric shrink
     # structurally. Same joined-oracle seam as combat-damage above. CR 613.4b.
     card = _recover_base_pt_set(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
+    # ADR-0027 #24m F1 (SIDECAR v61) — DYNAMIC / quoted / type-conferral base-P/T SET
+    # residue: re-synthesize a base_pt_set node (scope any, build-around set) for the
+    # SETTERS phase folded into animate / clone / reanimate / pump / place_counter /
+    # emblem / type_set without one (Fractalize, Gigantoplasm, Trench Gorger, Sita
+    # Varma, Goddric, The Master, Tezzeret the Schemer, Cool Fluffy Loxodon, Displaced
+    # Dinosaurs, Mindlink Mech), so the base_pt_set LANE reads STRUCTURE and the mirror
+    # narrows to the base-power REFERENCE residue. Runs AFTER the debuff pass (bps==0
+    # gated) so the mass shrinks keep their opp/each scope. CR 613.4b.
+    card = _recover_dynamic_base_pt_set(
         card, "\n".join(r.get("oracle_text") or "" for r in records)
     )
     # ADR-0027 C10 (SIDECAR v50) — dropped gain_life residue: synthesize a gain_life
