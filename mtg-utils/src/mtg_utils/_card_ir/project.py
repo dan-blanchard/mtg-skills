@@ -31,6 +31,7 @@ from mtg_utils._card_ir.supplement import (
     _recover_combat_damage_recipients,
     _recover_cost_reduction,
     _recover_counter_removal,
+    _recover_counter_replacement,
     _recover_damage_reflect,
     _recover_damage_to_opp,
     _recover_devotion_operand,
@@ -50,6 +51,7 @@ from mtg_utils._card_ir.supplement import (
     _recover_opponent_discard,
     _recover_scaling_pump,
     _recover_tap_down,
+    _recover_token_doubling,
     _recover_topdeck_stack_self,
     _recover_tribe_damage_source,
     recover_effect_from_text,
@@ -743,6 +745,22 @@ def project_card(records: list[dict]) -> Card:
     # deleted regex's gain-act arm leaves the kept mirror. Same joined-oracle seam.
     # CR 119.3.
     card = _recover_dropped_gain_life(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
+    # ROOT B (v0.8.0 bump regression-recovery) — PASSIVE-VOICE token/counter
+    # DOUBLERS: v0.8.0 stopped parsing the "twice that many … are created/put …
+    # instead" replacement template (the active-voice "it creates/puts twice that
+    # many … instead" still parses), returning the 5 marquee passive token doublers
+    # (Adrix and Nev, Mondrak, Ojer Taq, Elspeth Storm Slayer, Exalted Sunborn) and
+    # the passive/you-side counter doublers (Loading Zone, Vorinclex, The Earth
+    # Crystal, Innkeeper's Talent) with the whole replacement ability DROPPED. These
+    # synthesize the token_doubling / counter_doubling static from the joined oracle
+    # so the migrated lanes (token_doubling, token_copy_matters, counter_doubling,
+    # counter_replace_bonus) read STRUCTURE. Same joined-oracle seam. CR 614.1.
+    card = _recover_token_doubling(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
+    card = _recover_counter_replacement(
         card, "\n".join(r.get("oracle_text") or "" for r in records)
     )
     # ADR-0027 #24 (SIDECAR v52) — GRANTED damage-reflection residue: synthesize a
