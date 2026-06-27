@@ -199,9 +199,34 @@ def test_clone_still_fires():
         "name": "X",
         "oracle_text": "You may have this creature enter as a copy of any creature.",
     }
-    # ADR-0027 v30: clone_matters migrated to the Card IR — it now fires from the hybrid
-    # path (the byte-identical _CLONE_MATTERS_MIRROR over kept_oracle), not pure regex.
-    assert "clone_matters" in _keys_hybrid(c)
+    # ADR-0027 #24d (SIDECAR v53): the clone_matters word mirror is DELETED — the lane
+    # is now FULLY structural, reading a `clone` Effect's copied CREATURE type (supplement.
+    # _recover_clone_creature synthesizes this Effect for the "enter as a copy of any
+    # creature" replacement phase folds to a non-clone node). A bare IR no longer fires
+    # it; a clone Effect with a Creature subject does. CR 707.2.
+    ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="clone",
+                                scope="any",
+                                subject=Filter(card_types=("Creature",)),
+                                raw=c["oracle_text"],
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "clone_matters" in {s.key for s in extract_signals_hybrid(c, ir)}
 
 
 # #6 "attacks each combat if able" is a forced-attack requirement, not evasion.

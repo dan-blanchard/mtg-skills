@@ -25,7 +25,9 @@ from mtg_utils._card_ir.supplement import (
     _recover_base_pt_set,
     _recover_becomes_tap_untap,
     _recover_cast_from_exile_zone,
+    _recover_clone_creature,
     _recover_combat_damage_recipients,
+    _recover_cost_reduction,
     _recover_counter_removal,
     _recover_damage_reflect,
     _recover_devotion_operand,
@@ -34,6 +36,7 @@ from mtg_utils._card_ir.supplement import (
     _recover_exile_zone_ref,
     _recover_land_sacrifice,
     _recover_opponent_cast_lock,
+    _recover_opponent_discard,
     recover_effect_from_text,
     supplement_card,
 )
@@ -772,6 +775,36 @@ def project_card(records: list[dict]) -> Card:
     card = _recover_cast_from_exile_zone(card, _oracle)
     card = _recover_exile_zone_ref(card, _oracle)
     card = _recover_land_sacrifice(card, _oracle)
+    # ADR-0027 #24d (SIDECAR v55) — cost-REDUCTION residue: synthesize a cost_reduction
+    # Effect from the raw oracle for the build-around reducers phase drops wholly
+    # (ability-cost reducers — Agatha, Dragonkin Berserker; the Defiler conditional;
+    # donor / named-special / granted reducers — Will Kenrith, Catalyst Stone, Tamiyo's
+    # Notebook), so the cost_reduction arm reads STRUCTURE and the kept reducer mirror
+    # retires. Same joined-oracle seam. CR 601.2f / 118.7.
+    card = _recover_cost_reduction(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
+    # ADR-0027 #24d (SIDECAR v55) — CREATURE-copy clone residue: synthesize a `clone`
+    # Effect (Creature/Permanent subject) from the raw oracle for the creature-copy
+    # replacements phase folds to a non-clone node (Spark Double, Chameleon Master of
+    # Disguise, Vesuvan Shapeshifter, The Mimeoplasm), so the clone_matters arm reads
+    # the copied type STRUCTURALLY and the over-broad CLONE_MATTERS_REGEX mirror (which
+    # fired clone_matters for NON-creature copies too) retires. Same seam. CR 707.2.
+    card = _recover_clone_creature(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
+    # ADR-0027 #24d (SIDECAR v55) — OPPONENT-directed discard residue: append a sibling
+    # `discard` Effect scope='opp' for the discards phase scoped 'any' because the
+    # discardER is anaphoric ("that player") but structurally an opponent — a damage-to-
+    # player trigger + discard (specters: Abyssal Specter, Chilling Apparition), a
+    # bounce/counter target + discard (Recoil, Frightful Delusion), a reveal-opponent-
+    # hand + discard (Mind Warp, Extortion), or an each/target-opponent raw (Words of
+    # Waste). The opponent_discard arm then reads STRUCTURE for those buckets; the
+    # narrowed residue mirror keeps the unstructurable payoff/replacement/granted tail.
+    # Same seam. CR 701.9 / 510.1c.
+    card = _recover_opponent_discard(
+        card, "\n".join(r.get("oracle_text") or "" for r in records)
+    )
     # Post-supplement removal target-subject recovery (ADR-0027 removal_matters
     # shape 3): the supplement re-derives a `damage` / `destroy` CATEGORY from a
     # GenericEffect / Unimplemented body the projection left as `other` (Combo

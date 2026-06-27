@@ -300,6 +300,181 @@
     "type_line": "Snow Creature — Treefolk"
    }
   },
+  "Abyssal Specter": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "discard",
+          "raw": "Whenever ~ deals damage to a player, that player discards a card."
+         },
+         {
+          "cat": "discard",
+          "raw": "opponent-directed discard (recovered)",
+          "sc": "opp"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "deals_damage",
+         "sub": {
+          "p": [
+           "DamageToPlayer"
+          ]
+         }
+        }
+       }
+      ],
+      "kw": [
+       "Flying"
+      ],
+      "n": "Abyssal Specter",
+      "tl": "Creature — Specter"
+     }
+    ],
+    "n": "Abyssal Specter",
+    "oid": "51833cff-6519-4806-8d91-0040e9a02189"
+   },
+   "scryfall": {
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{B}",
+    "name": "Abyssal Specter",
+    "oracle_id": "51833cff-6519-4806-8d91-0040e9a02189",
+    "oracle_text": "Flying\nWhenever this creature deals damage to a player, that player discards a card.",
+    "power": "2",
+    "toughness": "3",
+    "type_line": "Creature — Specter"
+   }
+  },
+  "Academy Raider": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "discard",
+          "raw": "Whenever ~ deals combat damage to a player, you may discard a card. If you do, draw a card.",
+          "sc": "you"
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "craw": "If you do, draw a card.",
+          "raw": "Whenever ~ deals combat damage to a player, you may discard a card. If you do, draw a card.",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "combat_damage",
+         "rc": [
+          "player"
+         ]
+        }
+       }
+      ],
+      "kw": [
+       "Intimidate"
+      ],
+      "n": "Academy Raider",
+      "tl": "Creature — Human Warrior"
+     }
+    ],
+    "n": "Academy Raider",
+    "oid": "75131d75-0703-44d0-b503-35190be8e66f"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Intimidate"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Academy Raider",
+    "oracle_id": "75131d75-0703-44d0-b503-35190be8e66f",
+    "oracle_text": "Intimidate (This creature can't be blocked except by artifact creatures and/or creatures that share a color with it.)\nWhenever this creature deals combat damage to a player, you may discard a card. If you do, draw a card.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Human Warrior"
+   }
+  },
   "Adaptive Snapjaw": {
    "ir": {
     "faces": [
@@ -3025,6 +3200,20 @@
           "sc": "you",
           "sub": {
            "c": "you",
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "clone",
+          "raw": "Menace\nOther enchantment creatures you control have menace.\nWhenever Anikthea enters or attacks, exile up to one target non-Aura enchantment card from your graveyard. Create a token that's a copy of that card, except it's a 3/3 black Zombie creature in addition to its other types.",
+          "sub": {
            "t": [
             "Creature"
            ]
@@ -12492,6 +12681,22 @@
    "ir": {
     "faces": [
      {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "clone",
+          "raw": "You may have Chameleon enter as a copy of a creature you control, except his name is Chameleon, Master of Disguise.\nMayhem {2}{U}",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
       "kw": [
        "Mayhem"
       ],
@@ -13928,6 +14133,74 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Copy Artifact": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "clone",
+          "raw": "You may have this enchantment enter as a copy of any artifact on the battlefield, except it's an enchantment in addition to its other types",
+          "sub": {
+           "t": [
+            "Artifact"
+           ]
+          }
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Copy Artifact",
+      "tl": "Enchantment"
+     }
+    ],
+    "n": "Copy Artifact",
+    "oid": "80bc56a9-40e0-48da-ae86-190e39c8a4a3"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Copy Artifact",
+    "oracle_id": "80bc56a9-40e0-48da-ae86-190e39c8a4a3",
+    "oracle_text": "You may have this enchantment enter as a copy of any artifact on the battlefield, except it's an enchantment in addition to its other types.",
+    "type_line": "Enchantment"
+   }
+  },
   "Cosmogoyf": {
    "ir": {
     "faces": [
@@ -15330,6 +15603,120 @@
     "type_line": "Instant"
    }
   },
+  "Defiler of Vigor": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "Whenever you cast a green permanent spell, put a +1/+1 counter on each creature you control.",
+          "sub": {
+           "c": "you",
+           "p": [
+            "MassEach"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "cast_spell",
+         "sub": {
+          "p": [
+           "HasColor:Green"
+          ],
+          "t": [
+           "Permanent"
+          ]
+         }
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "lose_life",
+          "raw": "pay-life cost / self loss",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "cost_reduction",
+          "raw": "Those spells cost {G} less to cast if you paid life this way",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "Trample"
+      ],
+      "n": "Defiler of Vigor",
+      "tl": "Creature — Phyrexian Wurm"
+     }
+    ],
+    "n": "Defiler of Vigor",
+    "oid": "0a1dc797-7531-4494-afe6-add6ac3f74c0"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}{G}",
+    "name": "Defiler of Vigor",
+    "oracle_id": "0a1dc797-7531-4494-afe6-add6ac3f74c0",
+    "oracle_text": "Trample\nAs an additional cost to cast green permanent spells, you may pay 2 life. Those spells cost {G} less to cast if you paid life this way. This effect reduces only the amount of green mana you pay.\nWhenever you cast a green permanent spell, put a +1/+1 counter on each creature you control.",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Creature — Phyrexian Wurm"
+   }
+  },
   "Dehydration": {
    "ir": {
     "faces": [
@@ -15489,6 +15876,101 @@
     "oracle_id": "82004860-e589-4e38-8d61-8c0210e4ea39",
     "oracle_text": "Search your library for a card, put that card into your hand, then shuffle.",
     "type_line": "Sorcery"
+   }
+  },
+  "Dermotaxi": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "exile",
+          "raw": "Imprint — As ~ enters, exile a creature card from a graveyard.",
+          "z": [
+           "in:graveyard"
+          ]
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "clone",
+          "dur": "UntilEndOfTurn",
+          "raw": "Tap two untapped creatures you control: Until end of turn, ~ becomes a copy of the exiled card, except it's a Vehicle artifact in addition to its other types.",
+          "sub": {
+           "t": [
+            "Artifact"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "clone",
+          "raw": "Imprint — As this Vehicle enters, exile a creature card from a graveyard.\nTap two untapped creatures you control: Until end of turn, this Vehicle becomes a copy of the exiled card, except it's a Vehicle artifact in addition to its other types.",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Dermotaxi",
+      "tl": "Artifact — Vehicle"
+     }
+    ],
+    "n": "Dermotaxi",
+    "oid": "b065ef1d-5cba-41f2-a4b4-a6ae479323d3"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Imprint"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Dermotaxi",
+    "oracle_id": "b065ef1d-5cba-41f2-a4b4-a6ae479323d3",
+    "oracle_text": "Imprint — As this Vehicle enters, exile a creature card from a graveyard.\nTap two untapped creatures you control: Until end of turn, this Vehicle becomes a copy of the exiled card, except it's a Vehicle artifact in addition to its other types.",
+    "power": "0",
+    "toughness": "0",
+    "type_line": "Artifact — Vehicle"
    }
   },
   "Deus of Calamity": {
@@ -16848,6 +17330,122 @@
     "oracle_id": "38ece0fa-2c94-4eae-b6ab-74b783862f3e",
     "oracle_text": "Destroy all creatures.\nForetell {1}{W}{W} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)",
     "type_line": "Sorcery"
+   }
+  },
+  "Dragonkin Berserker": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "sourceattackedthisturn"
+        },
+        "cost": "genericmana,mana",
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "raw": "Boast — {4}{R}: Create a 5/5 red Dragon creature token with flying.",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Dragon"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "cost_reduction",
+          "raw": "Boast abilities you activate cost {1} less to activate for each Dragon you control",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "kw": [
+       "FirstStrike"
+      ],
+      "n": "Dragonkin Berserker",
+      "tl": "Creature — Human Berserker"
+     }
+    ],
+    "n": "Dragonkin Berserker",
+    "oid": "06b77a80-4968-4385-960a-fb66bb4faa94"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "combo_piece",
+      "id": "017fef40-f958-46cc-b780-c91b48fc0f02",
+      "name": "Dragonkin Berserker",
+      "object": "related_card",
+      "type_line": "Creature — Human Berserker",
+      "uri": "https://api.scryfall.com/cards/017fef40-f958-46cc-b780-c91b48fc0f02"
+     },
+     {
+      "component": "token",
+      "id": "a9f4584c-fd86-4370-a85b-a989d20f3925",
+      "name": "Dragon",
+      "object": "related_card",
+      "type_line": "Token Creature — Dragon",
+      "uri": "https://api.scryfall.com/cards/a9f4584c-fd86-4370-a85b-a989d20f3925"
+     }
+    ],
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "First strike",
+     "Boast"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Dragonkin Berserker",
+    "oracle_id": "06b77a80-4968-4385-960a-fb66bb4faa94",
+    "oracle_text": "First strike\nBoast abilities you activate cost {1} less to activate for each Dragon you control.\nBoast — {4}{R}: Create a 5/5 red Dragon creature token with flying. (Activate only if this creature attacked this turn and only once each turn.)",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Human Berserker"
    }
   },
   "Dragonlord Dromoka": {
@@ -29617,6 +30215,158 @@
     "oracle_id": "d21c3c8f-d105-4ba9-bf69-e5f26f0f8ec5",
     "oracle_text": "Creature tokens you control get +1/+1 and have vigilance.",
     "type_line": "Enchantment"
+   }
+  },
+  "Invasion of the Giants": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "topdeck_select",
+          "raw": "Chapter 1",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "counter_added",
+         "sc": "you"
+        }
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "raw": "Chapter 2",
+          "sc": "you"
+         },
+         {
+          "cat": "reveal_hand",
+          "raw": "Chapter 2",
+          "sc": "you"
+         },
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "damage",
+          "raw": "Chapter 2",
+          "sub": {
+           "t": [
+            "Planeswalker"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "counter_added",
+         "sc": "you"
+        }
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "cost_reduction",
+          "raw": "Chapter 3"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "counter_added",
+         "sc": "you"
+        }
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "lore",
+          "raw": "Saga ETB lore counter",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "cost_reduction",
+          "raw": "III — The next Giant spell you cast this turn costs {2} less to cast",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Invasion of the Giants",
+      "tl": "Enchantment — Saga"
+     }
+    ],
+    "n": "Invasion of the Giants",
+    "oid": "807e35c0-8ea1-44a5-abac-51fd516aad03"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "R",
+     "U"
+    ],
+    "colors": [
+     "R",
+     "U"
+    ],
+    "keywords": [
+     "Scry"
+    ],
+    "layout": "saga",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}{R}",
+    "name": "Invasion of the Giants",
+    "oracle_id": "807e35c0-8ea1-44a5-abac-51fd516aad03",
+    "oracle_text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Scry 2.\nII — Draw a card. Then you may reveal a Giant card from your hand. When you do, this Saga deals 2 damage to target opponent or planeswalker.\nIII — The next Giant spell you cast this turn costs {2} less to cast.",
+    "type_line": "Enchantment — Saga"
    }
   },
   "Isamaru, Hound of Konda": {
@@ -45209,6 +45959,20 @@
           "to:battlefield"
          ]
         }
+       },
+       {
+        "e": [
+         {
+          "cat": "clone",
+          "raw": "Whenever another nontoken creature you control enters, if it wasn't cast, create a token that's a copy of that creature, except it's a 0/1 white Illusion.\n{1}{W}, Sacrifice five Illusions: Exile target nonland permanent.",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
        }
       ],
       "n": "Preston, the Vanisher",
@@ -47078,6 +47842,88 @@
     "name": "Reclaim",
     "oracle_id": "797155cd-faf4-4321-8629-c8c352392748",
     "oracle_text": "Put target card from your graveyard on top of your library.",
+    "type_line": "Instant"
+   }
+  },
+  "Recoil": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "bounce",
+          "raw": "Return target permanent to its owner's hand. Then that player discards a card.",
+          "sub": {
+           "t": [
+            "Permanent"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "discard",
+          "raw": "Return target permanent to its owner's hand. Then that player discards a card."
+         },
+         {
+          "cat": "discard",
+          "raw": "opponent-directed discard (recovered)",
+          "sc": "opp"
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Recoil",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Recoil",
+    "oid": "1579bf86-4400-4467-88e8-1c5ba1209804"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}{B}",
+    "name": "Recoil",
+    "oracle_id": "1579bf86-4400-4467-88e8-1c5ba1209804",
+    "oracle_text": "Return target permanent to its owner's hand. Then that player discards a card.",
     "type_line": "Instant"
    }
   },
@@ -51873,6 +52719,91 @@
     "oracle_id": "62d7ed6e-c386-477e-b155-982c3790f842",
     "oracle_text": "Target creature you control deals damage equal to its power to any target.",
     "type_line": "Instant"
+   }
+  },
+  "Spark Double": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "state",
+          "raw": "You may have this creature enter as a copy of a creature or planeswalker you control, except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary"
+         },
+         {
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "You may have this creature enter as a copy of a creature or planeswalker you control, except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary",
+          "sc": "you"
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "clone",
+          "raw": "You may have this creature enter as a copy of a creature or planeswalker you control, except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary.",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Spark Double",
+      "tl": "Creature — Illusion"
+     }
+    ],
+    "n": "Spark Double",
+    "oid": "8dcb35e5-ae44-455f-86e3-4a77d496ff34"
+   },
+   "scryfall": {
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}",
+    "name": "Spark Double",
+    "oracle_id": "8dcb35e5-ae44-455f-86e3-4a77d496ff34",
+    "oracle_text": "You may have this creature enter as a copy of a creature or planeswalker you control, except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary.",
+    "power": "0",
+    "toughness": "0",
+    "type_line": "Creature — Illusion"
    }
   },
   "Sphere of Resistance": {
@@ -64464,6 +65395,11 @@
           },
           "cat": "discard",
           "raw": "Whenever ~ deals damage to an opponent, that opponent discards a card."
+         },
+         {
+          "cat": "discard",
+          "raw": "opponent-directed discard (recovered)",
+          "sc": "opp"
          }
         ],
         "k": "triggered",
@@ -64975,5 +65911,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 54
+ "sidecar_version": 55
 }

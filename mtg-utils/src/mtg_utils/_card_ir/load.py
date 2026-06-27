@@ -710,7 +710,29 @@ from mtg_utils.card_ir import Card
 #   twins are excluded → follow-up #24f + upstream phase). CR 701.16.
 #   voltron_matters 2396 set-equal preserved via _BROADENED_PLAN_MIRROR (the old exile/
 #   land_sac regexes re-supply the has_other_plan silence set — transitional, #24e).
-SIDECAR_VERSION = 54
+# v55 — ADR-0027 #24d SUPPLEMENT_RECOVER B3 (3 reclassified HIGH-residue lanes, the
+#   structure phase drops recovered onto the IR; mirrors deleted/narrowed):
+#   (1) cost_reduction (supplement `_recover_cost_reduction`): phase emits NO
+#   cat=="cost_reduction" Effect for ability-cost reducers (Agatha, Dragonkin
+#   Berserker, Power Artifact), the Defiler conditional, donor/named-special/granted
+#   reducers (Will Kenrith, Catalyst Stone, Tamiyo's Notebook). Synthesize one from
+#   the matched reducer clause; the existing arm reads STRUCTURE; the narrowed
+#   `_COST_REDUCER_MIRROR` row is DELETED. CR 601.2f / 118.7.
+#   (2) clone_matters (supplement `_recover_clone_creature`): phase folds the
+#   creature-copy ETB replacement ("you may have this enter as a copy of any
+#   creature") to a non-clone node. Synthesize a `clone` Effect (Creature/Permanent
+#   subject) so the copied-type arm fires clone_matters; the over-broad
+#   CLONE_MATTERS_REGEX mirror (which fired clone_matters for NON-creature Copy
+#   Artifact/Land/Enchantment too — over-fires now shed to their per-type lane, CR
+#   707.2) is DELETED. CR 707.1 / 707.2.
+#   (3) opponent_discard (supplement `_recover_opponent_discard`): phase scopes an
+#   anaphoric "that player discards" to 'any'. Append a sibling discard scope='opp'
+#   when the discardER is structurally an opponent (damage-to-player trigger; prior
+#   bounce/counter target; prior reveal-opp-hand; each/target-opponent raw), so the
+#   arm reads STRUCTURE for those buckets; the residue mirror is NARROWED to the
+#   unstructurable payoff/replacement/granted/past-tense tail (Confessor, Tinybones,
+#   Chains of Mephistopheles, Wand of Ith). CR 701.9 / 510.1c.
+SIDECAR_VERSION = 55
 
 
 def card_ir_dir() -> Path:

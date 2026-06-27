@@ -107,7 +107,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ATTACK_MATTERS_REGEX,
     BASE_PT_SET_REGEX,
     BLOCKED_MATTERS_REGEX,
-    CLONE_MATTERS_REGEX,
     CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
@@ -1011,28 +1010,10 @@ _COST_INCREASE = re.compile(
 # it has ZERO cost-increase-only false positives, and the floor-disabled IR-vs-regex
 # residual is regex_only == 92 = 100% self-discount over-fire (correctly dropped), 0
 # genuine miss. add() dedups the overlap with the structural arm. CR 601.2f / 118.7.
-_COST_REDUCER_MIRROR = re.compile(
-    # A. ability-cost reducers: "<class of> abilities ... cost {N} less to activate".
-    r"\babilities[^.]{0,70}?\bcost\b[^.]{0,30}?\bless\b[^.]{0,12}?to activate"
-    # B. conditional spell reducer: "those spells cost {C} less" (the Defiler cycle).
-    r"|\bthose spells cost \{[wubrgc0-9x]+\}[^.]{0,20}?less to cast"
-    # C. a spell CLASS (NOT "this spell") you cast made cheaper. Allows a tribal/type
-    # adjective between "spell" and "you cast" (Invasion's "next Giant spell you cast",
-    # Momo's "creature spell with flying you cast"); the (?<!this ) guard keeps a self-
-    # discount out.
-    r"|(?<!this )\bspells?\b[^.]{0,40}?\byou cast\b[^.]{0,40}?"
-    r"\bcosts? \{?[wubrgc0-9x]+\}?[^.]{0,20}?less to cast"
-    # D. a donor reducer: "spells <a player> casts cost {N} less" (Will Kenrith).
-    r"|\bspells (?:that player|those players|that opponent|each player)[^.]{0,30}?"
-    r"casts? cost \{[wubrgcx0-9]+\}[^.]{0,15}?less to cast"
-    # E. a named special cost: "Blitz costs you pay cost {N} less" (Henzie / Catalyst).
-    r"|\b(?:blitz|cycling|kicker|flashback|escape|ninjutsu) costs[^.]{0,30}?"
-    r"cost \{[wubrgcx0-9]+\}[^.]{0,15}?less"
-    # F. a granted/property-filtered spell class made cheaper, no "you cast" ("Spells
-    # with the chosen name cost {1} less to cast" — Cheering Fanatic).
-    r"|\bspells with [^.]{0,40}?\bcost \{?[wubrgc0-9x]+\}?[^.]{0,15}?less to cast",
-    re.IGNORECASE,
-)
+# ADR-0027 #24d (SIDECAR v53) — the cost_reduction reducer arms moved out of this
+# module: supplement `_COST_REDUCTION_RECOVER_RE` now carries the SAME six arms to
+# synthesize a cat=="cost_reduction" Effect onto the IR (the structural arm reads it),
+# so the kept _COST_REDUCER_MIRROR signals row is deleted. CR 601.2f / 118.7.
 
 # ADR-0027 shield_counter_matters — the EXACT deleted SWEEP_DETECTORS regex
 # (`\bshield counters?\b`), pinned for the byte-identical kept mirror below. No
@@ -1673,11 +1654,19 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     #   • direct forms phase failed to structure inside a modal / conjunction / {TK} or
     #     for-each body (Mindculling, Bladecoil Serpent, Magus of the Jar, Memory Jar,
     #     Yawgmoth Merfolk Soul, Fervent Mastery).
-    # Every alternation is a STRICT SUBSET of the deleted word-list, so the narrowed
-    # regex adds zero cards outside the lane's prior population (verified: 0 new adds,
-    # 93/93 residue covered). Run flat over the reminder-STRIPPED, DFC-face-joined
-    # oracle. DISJOINT from discard_matters (the SELF-discard `discarded` TRIGGER scope
-    # != 'opp'). CR 701.9 / 102.2 / 510.1c.
+    # ADR-0027 #24d (SIDECAR v53) — the damage-CONNECT specter ("that player
+    # discards" after a damage-to-player trigger), the ParentTarget bounce/counter-
+    # then-discard, the reveal-opponent-hand-then-discard, and the each/target-OPPONENT
+    # buckets are RECOVERED STRUCTURALLY now: supplement._recover_opponent_discard links
+    # the disconnected pieces and appends a `discard` Effect scope='opp', so the arm
+    # above reads STRUCTURE for them (and gains 2 the mirror's exact phrasing missed —
+    # Dismal Failure "its controller discards", Slavering Nulls "have that player
+    # discard"). This mirror is RETAINED, narrowed-in-role, for the genuinely-
+    # unstructurable tail (the spec's upstream-phase gaps): "whenever a player discards"
+    # PAYOFFS, the past-tense payoff, would-draw REPLACEMENTS, granted/quoted grants,
+    # and the symmetric/modal forms phase leaves no anchor for. Run flat over the
+    # reminder-STRIPPED, DFC-face-joined oracle. DISJOINT from discard_matters (the
+    # SELF-discard `discarded` TRIGGER scope != 'opp'). CR 701.9 / 102.2 / 510.1c.
     (
         "opponent_discard",
         re.compile(
@@ -2596,21 +2585,12 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(NONCOMBAT_DAMAGE_PAYOFF_REGEX, re.IGNORECASE),
         "you",
     ),
-    # ADR-0027 β — cost_reduction NARROWED kept-mirror (see _COST_REDUCER_MIRROR above).
-    # The structural arm fires from the projection's cost_reduction Effects; this mirror
-    # recovers the genuine build-around reducers project.py drops (ability-cost
-    # reducers, the Defiler conditional cycle, granted/donor reducers, named special-
-    # cost reducers, and the Chapter-3 / empty-raw tail). NOT byte-identical: the
-    # deleted regex was
-    # direction-agnostic + self-blind, so the mirror is narrowed to only genuine "cost
-    # ... less" reducers of OTHER spells/abilities (0 cost-increase false positives; the
-    # 92 "this spell costs ... less" self-discounts stay correctly dropped). scope "you"
-    # matches the deleted producer; add() dedups the overlap with the structural arm.
-    (
-        "cost_reduction",
-        _COST_REDUCER_MIRROR,
-        "you",
-    ),
+    # ADR-0027 #24d (SIDECAR v53) — cost_reduction mirror DELETED. The build-around
+    # reducers project.py dropped (ability-cost reducers, the Defiler conditional,
+    # granted/donor/named-special reducers) are now synthesized as a cost_reduction
+    # Effect by supplement `_recover_cost_reduction` (the same narrowed reducer arms,
+    # moved from this mirror onto the IR), so the structural arm reads STRUCTURE for the
+    # full set. CR 601.2f / 118.7.
     # Strength — indistinguishable from a firebreather without phase's per-ability
     # `duration`, a fast-follow projection field). So this mirror still recovers the
     # deleted SWEEP path's matches (full-text over the reminder-stripped joined-face
@@ -2723,28 +2703,18 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(SCALING_PUMP_SWEEP_REGEX, re.IGNORECASE),
         "you",
     ),
-    # ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters BYTE-IDENTICAL
-    # kept WORD MIRROR — the COMBINED deleted regex (the _DETECTORS "becomes a copy"
-    # entry plus the SWEEP "enter as a copy" widen, pinned as CLONE_MATTERS_REGEX),
-    # scope 'you'. The structural cat=='clone' arm (above, reading the
-    # supplement-populated copied-type subject) supplies the broad "becomes a copy of
-    # target creature" recall (Cytoshape, Oko, Lazav, Sunfrill Imitator's Dinosaur — +2
-    # ir_only the regex missed); this mirror recovers the 54 cards phase
-    # under-structures (no clone effect — Spark Double, Stunt Double, Mockingbird; a
-    # rider-swallowed category — Dack's Duplicate) or that copy a NON-creature (Copy
-    # Artifact / Copy Enchantment / Copy Land — the regex fired clone_matters regardless
-    # of copied type). The two `[^.]*` arms never cross a clause on the corpus, so
-    # flat-over-kept_oracle == the deleted per-clause firing EXACTLY (commander-legal:
-    # both 83, ir_only 2, regex_only 54 — all recovered byte-identically by this mirror;
-    # union(struct | mirror) == 139 == the deleted producer 137 plus the 2 genuine
-    # ir_only). The token-copy clone (Mirror Match) is vetoed in the structural arm, NOT
-    # here — the mirror's CLONE_MATTERS_REGEX already excludes "create a token that's a
-    # copy". CR 707.1 / 707.2.
-    (
-        "clone_matters",
-        re.compile(CLONE_MATTERS_REGEX, re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 #24d (SIDECAR v53) — clone_matters mirror DELETED. The creature copies
+    # phase folded to a non-clone node (no clone Effect — Spark Double, Stunt Double,
+    # Mockingbird; Chameleon Master of Disguise, Vesuvan Shapeshifter; a "copy of that
+    # card" reanimation — Vesuvan Drifter, Volatile Chimera, The Fourteenth Doctor) are
+    # now synthesized as a `clone` Effect with a Creature/Permanent subject by
+    # supplement `_recover_clone_creature`, so the copied-type arm fires clone_matters
+    # STRUCTURALLY. The over-broad mirror's creature-BLIND firing — clone_matters for a
+    # NON-creature copy (Copy Artifact/Land/Enchantment, Mycosynth Gardens, Thespian's
+    # Stage) and for a spell/Equipment copy (Magar, Masterwork of Ingenuity) — is the
+    # over-fire SHED: those keep their per-type copy lane (copy_artifact/land/
+    # enchantment), correct per CR 707.2 (a copy of an artifact is an artifact copy, not
+    # a creature copy). CR 707.1 / 707.2.
 )
 
 # Cares-about floor lanes the IR path also runs. A `<mechanic>_matters` lane means
@@ -6221,6 +6191,17 @@ _COPY_TYPE_LANES: dict[str, str] = {
 # identical kept WORD MIRROR of the COMBINED deleted regex (CLONE_MATTERS_REGEX) lives
 # in _IR_KEPT_DETECTORS above (compiled inline there — it predates this module section).
 _CLONE_TOKEN_COPY_VETO = re.compile(r"create[sd]? [^.]*token[^.]*cop", re.IGNORECASE)
+# ADR-0027 #24d — the clone-SELF idiom ("enter/become as a copy of …"): a clone Effect
+# whose raw carries it is a real permanent-copy (the card itself enters/becomes the
+# copy), so a token-copy RIDER in the same raw (Progenitor Mimic's "except it has '…
+# create a token that's a copy of this creature'", Mirrorhall Mimic's aura side) must
+# NOT veto clone_matters. Only a PURE token-copy (Mirror Match — "create tokens that
+# are copies", no enter/become-as-a-copy) stays vetoed to token_copy_matters. CR 707.1.
+_CLONE_SELF_IDIOM = re.compile(
+    r"\b(?:enters?|become[sd]?|enter the battlefield)\b[^.\"“”]*\bas a copy of\b"
+    r"|\bbecome[sd]? a copy of\b",
+    re.IGNORECASE,
+)
 
 
 def _clone_copy_lanes(f: object, vocab: frozenset[str]) -> tuple[str, ...]:
@@ -8140,7 +8121,10 @@ def extract_signals_ir(
             # ("create a token that's a copy" — Mirror Match, CR 707.1) belongs to the
             # separate token_copy_matters lane (Dan's deliberate clone vs token-copy
             # boundary, the deleted DETECTOR's own comment), so it is vetoed here.
-            if cat == "clone" and not _CLONE_TOKEN_COPY_VETO.search(e.raw or ""):
+            if cat == "clone" and (
+                not _CLONE_TOKEN_COPY_VETO.search(e.raw or "")
+                or _CLONE_SELF_IDIOM.search(e.raw or "")
+            ):
                 for key in _clone_copy_lanes(e.subject, vocab):
                     add(key, "you", "", e.raw)
             # spell-copy (Twincast, Fork — "copy target spell") is a SEPARATE lane

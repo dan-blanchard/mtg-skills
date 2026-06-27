@@ -32,7 +32,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 from mtg_utils._card_ir import _combinators as comb
-from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity, Trigger
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity, Trigger
 
 # ── scope recovery (phase structures scope on only a sliver of abilities) ──────
 # Narrow Tinybones rule: combat-damage-to-a-player + that-player's-zone → opp.
@@ -2611,3 +2611,357 @@ def _recover_land_sacrifice(card: Card, oracle: str) -> Card:
     return replace(
         card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
     )
+
+
+# ── ADR-0027 #24d — cost-REDUCTION residue (SIDECAR v55) ──────────────────────
+# phase emits NO cat=="cost_reduction" Effect for a large class of genuine build-
+# around reducers — it carries only the static ModifyCost{Reduce} (a spell-class
+# discount) and the named `reducenextspellcost` effect, and DROPS WHOLLY:
+#   • ability-cost reducers ("Activated abilities of creatures you control cost {2}
+#     less to activate" — Agatha, Biomancer's Familiar, Power Artifact; Boast/Equip
+#     ability-cost reducers — Dragonkin Berserker, Fervent Champion),
+#   • conditional spell reducers ("Those spells cost {G} less to cast" — the Defiler
+#     cycle),
+#   • donor reducers ("spells that player casts cost {2} less" — Will Kenrith),
+#   • named special-cost reducers ("Blitz/Flashback costs you pay cost {N} less" —
+#     Henzie, Catalyst Stone), and
+#   • granted/quoted reducers ("Spells you cast cost {1} less" on a created token —
+#     Tamiyo, Compleated Sage's Notebook).
+# These are all CR 601.2f cost reductions (an effect that reduces the total cost to
+# cast a spell / activate an ability) the cost_reduction signals arm needs. This
+# card-level pass — the _recover_base_pt_set / _recover_opponent_cast_lock precedent
+# (phase dropped the WHOLE clause, so synthesize the Effect from the raw oracle) —
+# emits one cost_reduction static Effect (subject None, the matched reducer clause as
+# raw) so the EXISTING arm reads STRUCTURE and the kept _COST_REDUCER_MIRROR retires.
+# CR 601.2f / 118.7.
+#
+# The arms are the SIX the (already-narrowed, not byte-identical) signals mirror
+# carried — each requires a "cost(s) … less" reduction of OTHER spells/abilities and
+# structurally excludes "this spell costs" (self-discount) and "… more"/"an
+# additional" (increase), so the synthesized raw passes the arm's subject-None screen
+# (_COST_SELF_DISCOUNT / _COST_LESS_REDUCER / _COST_INCREASE) and the recovered set is
+# exactly the mirror's. Append-only and gated to a body phase left WITHOUT any
+# cost_reduction Effect (the 211 cleanly-structured reducers already fire the arm).
+_COST_REDUCTION_RECOVER_RE = re.compile(
+    # A. ability-cost reducers: "<class of> abilities … cost {N} less to activate".
+    r"\babilities[^.]{0,70}?\bcost\b[^.]{0,30}?\bless\b[^.]{0,12}?to activate"
+    # B. conditional spell reducer: "those spells cost {C} less" (the Defiler cycle).
+    r"|\bthose spells cost \{[wubrgc0-9x]+\}[^.]{0,20}?less to cast"
+    # C. a spell CLASS (NOT "this spell") you cast made cheaper.
+    r"|(?<!this )\bspells?\b[^.]{0,40}?\byou cast\b[^.]{0,40}?"
+    r"\bcosts? \{?[wubrgc0-9x]+\}?[^.]{0,20}?less to cast"
+    # D. a donor reducer: "spells <a player> casts cost {N} less" (Will Kenrith).
+    r"|\bspells (?:that player|those players|that opponent|each player)[^.]{0,30}?"
+    r"casts? cost \{[wubrgcx0-9]+\}[^.]{0,15}?less to cast"
+    # E. a named special cost: "Blitz/Flashback costs you pay cost {N} less".
+    r"|\b(?:blitz|cycling|kicker|flashback|escape|ninjutsu) costs[^.]{0,30}?"
+    r"cost \{[wubrgcx0-9]+\}[^.]{0,15}?less"
+    # F. a granted/property-filtered spell class made cheaper, no "you cast".
+    r"|\bspells with [^.]{0,40}?\bcost \{?[wubrgc0-9x]+\}?[^.]{0,15}?less to cast",
+    re.IGNORECASE,
+)
+# The arm's subject-None screen (mirrored here so the gate skips only a card that
+# already FIRES the cost_reduction arm, not one phase left a cost_reduction Effect on
+# that the screen rejects — Invasion of the Giants' chapter-III reducer collapses to a
+# raw "Chapter 3" Effect that fails the screen, so it must still recover). CR 601.2f.
+_COST_RED_SELF = re.compile(
+    r"\bthis spell costs\b|\bthis ability costs\b|\bthis costs\b", re.IGNORECASE
+)
+_COST_RED_LESS = re.compile(r'\bcosts?\b[^."]{0,40}?\bless\b', re.IGNORECASE)
+_COST_RED_MORE = re.compile(
+    r"\bcost(?:s)?[^.\"]{0,30}?\b(?:more|an additional)\b|would cost less than",
+    re.IGNORECASE,
+)
+
+
+def _cost_reduction_fires(e: Effect) -> bool:
+    """True iff this cost_reduction Effect would fire the signals arm (a non-None
+    subject is trusted; a subject-None effect must carry a genuine "cost(s) … less"
+    reduction that is neither a self-discount nor a cost-increase). CR 601.2f."""
+    if e.category != "cost_reduction":
+        return False
+    if e.subject is not None:
+        return True
+    raw = e.raw or ""
+    return (
+        bool(_COST_RED_LESS.search(raw))
+        and not _COST_RED_SELF.search(raw)
+        and not _COST_RED_MORE.search(raw)
+    )
+
+
+def _recover_cost_reduction(card: Card, oracle: str) -> Card:
+    """Append a synthetic ``cost_reduction`` static Effect (subject None, scope you)
+    for the build-around cost reducers phase drops wholly (ability-cost reducers, the
+    Defiler conditional, donor / named-special / granted reducers). Append-only and
+    gated: a card already carrying a cost_reduction Effect that FIRES the arm (see
+    _cost_reduction_fires) is left alone — but a Saga-chapter collapse ("Chapter 3"
+    raw) that does not is still recovered. One Effect per card, raw = the first
+    matching reducer clause (so the arm's subject-None screen sees a genuine reducer,
+    not the whole oracle). CR 601.2f / 118.7."""
+    if not card.faces:
+        return card
+    if any(_cost_reduction_fires(e) for ab in card.all_abilities() for e in ab.effects):
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    clause = next(
+        (
+            cl.strip()
+            for cl in re.split(r"[.\n]", text)
+            if _COST_REDUCTION_RECOVER_RE.search(cl)
+        ),
+        None,
+    )
+    if clause is None:
+        return card
+    synth = Ability(
+        kind="static",
+        effects=(Effect(category="cost_reduction", scope="you", raw=clause),),
+    )
+    head, *rest = card.faces
+    return replace(
+        card,
+        faces=(replace(head, abilities=(*head.abilities, synth)), *rest),
+    )
+
+
+# ── ADR-0027 #24d — CREATURE-copy clone residue (SIDECAR v55) ──────────────────
+# phase folds the optional ETB-copy replacement "you may have this creature enter as
+# a copy of any creature" (and "becomes a copy of that/target creature") into a
+# `choose` / empty node — emitting NO cat=="clone" Effect — for a class of genuine
+# CREATURE copies (Spark Double, Stunt Double, Mockingbird, Chameleon Master of
+# Disguise, Vesuvan Shapeshifter, Progenitor Mimic, The Mimeoplasm, Essence of the
+# Wild, Permeating Mass, Moritte of the Frost). The clone_matters arm reads the COPIED
+# type off a `clone` Effect's subject (creature copy → clone_matters; CR 707.2 — the
+# copy acquires the original's card type), so a dropped clone Effect = a silent miss.
+# This card-level pass — the _recover_base_pt_set precedent (phase dropped the WHOLE
+# Effect, so synthesize it from the raw oracle) — emits a `clone` Effect with a
+# Creature (or Permanent, for a "copy of a permanent" changeling) subject so the arm
+# reads STRUCTURE and the kept CLONE_MATTERS_REGEX mirror retires. CR 707.1 / 707.2.
+#
+# Append-only and gated to a body phase left WITHOUT any clone Effect: a card phase
+# DID structure a copy on (Copy Artifact / Copy Land / Mycosynth Gardens / Thespian's
+# Stage — a clone Effect with an Artifact/Land/Enchantment subject) is left alone, so
+# the NON-creature copies correctly fire their per-type copy lane (copy_artifact /
+# copy_land / copy_enchantment) and drop clone_matters — the over-broad mirror's
+# creature-blind firing is the over-fire being shed (CR 707.2: a copy of an artifact
+# is an artifact copy, not a creature copy). The veto on a TOKEN-copy ("create a token
+# that's a copy" — Mirror Match) rides the existing arm, not here.
+_CLONE_CREATURE_COPY_RE = re.compile(
+    # "enter/become … as a copy of … creature" (the ETB / animate creature copy).
+    r"\bas a copy of\b[^.\"“”]*\bcreature"
+    # "(becomes) a copy of <det> … creature" (combat-damage / attack copy).
+    r"|\bcopy of (?:a |an |any |another |target |that |this )"
+    r"[^.\"“”]*?\bcreature"
+    # a changeling "copy of a permanent you control" (a permanent copy → all lanes).
+    r"|\bcopy of (?:a |an |any |another |target |that )?permanent\b"
+    # the go-wide grant "creatures you control enter as a copy".
+    r"|\bcreatures you control enter as a copy\b"
+    # the CLONE idiom over a graveyard/exile/revealed CARD ("enter/becomes a copy of
+    # that/a … card" — Vesuvan Drifter, Volatile Chimera, The Fourteenth Doctor's
+    # Doctor card, The Mimeoplasm). The clone idiom ("enter as"/"becomes a copy",
+    # NOT "create a copy" — Magar's spell-copy) over a "card" is creature-dominated
+    # (reanimation); the negative lookahead keeps an explicit non-creature card-type
+    # out so an artifact/land/instant card copy is not mis-tagged a creature clone.
+    r"|(?:enters? (?:the battlefield )?as|becomes?) a copy of "
+    r"(?:a |an |the |that |one of those |any )?"
+    r"(?!(?:artifact|land|enchantment|instant|sorcery|planeswalker)\b)"
+    r"[^.\"“”]*?\bcards?\b",
+    re.IGNORECASE,
+)
+_CLONE_COPY_PERMANENT_RE = re.compile(
+    r"\bcopy of (?:a |an |any |another |target |that )?permanent\b", re.IGNORECASE
+)
+
+
+def _recover_clone_creature(card: Card, oracle: str) -> Card:
+    """Append a synthetic ``clone`` Effect (Creature subject, or Permanent for a
+    "copy of a permanent" changeling) for the creature-copy replacements phase folds
+    to a non-clone node. Append-only and gated: a card already carrying ANY clone
+    Effect (phase structured the copy — including the non-creature Copy Artifact / Copy
+    Land family) is left alone, so only the genuinely-dropped creature copies recover
+    and the non-creature copies keep their per-type lane. CR 707.1 / 707.2."""
+    if not card.faces:
+        return card
+    # Skip only when phase ALREADY structured a CREATURE/PERMANENT copy (the
+    # clone_matters arm fires off Creature/Permanent in the copied subject). A clone
+    # Effect typed to a non-creature permanent (the Copy Artifact / Copy Land family —
+    # Artifact/Land/Enchantment subject) does NOT fire clone_matters, so it must still
+    # run the creature-copy check: Dermotaxi copies a CREATURE card but phase types its
+    # subject "Artifact" (from the "Vehicle artifact" rider), so the gate would skip a
+    # creature copy. The creature-copy regex then no-ops on a true non-creature copy
+    # ("copy of any artifact") and recovers Dermotaxi's "copy of the exiled [creature]
+    # card". An EMPTY-subject clone (Essence of the Wild, Permeating Mass) also runs.
+    if any(
+        e.category == "clone"
+        and e.subject is not None
+        and bool({"Creature", "Permanent"} & set(e.subject.card_types))
+        for ab in card.all_abilities()
+        for e in ab.effects
+    ):
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    if not _CLONE_CREATURE_COPY_RE.search(text):
+        return card
+    copied = (
+        Filter(card_types=("Permanent",))
+        if _CLONE_COPY_PERMANENT_RE.search(text)
+        else Filter(card_types=("Creature",))
+    )
+    synth = Ability(
+        kind="static",
+        effects=(
+            Effect(category="clone", scope="any", subject=copied, raw=text.strip()),
+        ),
+    )
+    head, *rest = card.faces
+    return replace(
+        card,
+        faces=(replace(head, abilities=(*head.abilities, synth)), *rest),
+    )
+
+
+# ── ADR-0027 #24d — OPPONENT-directed discard residue (SIDECAR v55) ────────────
+# phase structures a forced discard as a `discard` Effect but DROPS the discardER
+# scope to 'any' whenever the discarding player is ANAPHORIC — "that player discards"
+# referring to a structurally-identified opponent it can't resolve. The disconnected
+# pieces survive in the IR:
+#   A. a damage-CONNECT specter: a combat_damage / deals_damage trigger whose
+#      recipient is a PLAYER (recipient=('player',) or a DamageToPlayer subject
+#      predicate) + a `discard` Effect on the SAME ability ("whenever ~ deals combat
+#      damage to a player, that player discards" — Abyssal/Hypnotic Specter, Chilling
+#      Apparition, Cabal Slaver, Larceny, Sword of Feast and Famine). The damaged
+#      player is the discardER → an opponent. CR 510.1c.
+#   B. a ParentTarget bounce/counter-then-discard: a `bounce` or `counter_spell`
+#      Effect preceding the discard in the same ability ("Return target permanent …,
+#      then that player discards" — Recoil, Dinrova Horror; "Counter target spell …
+#      that player discards" — Frightful Delusion, Compelling Deterrence). The
+#      target's controller is the discardER → an opponent. CR 701.9.
+#   C. a reveal-hand-then-discard: a `reveal_hand` / `reveal` Effect scoped to an
+#      opponent preceding the discard ("Look at target opponent's hand … that player
+#      discards" — Mind Warp, Extortion, Collective Brutality, Thrull Surgeon). CR
+#      701.9 / 701.18.
+#   D. an each/target-OPPONENT discard the raw names but phase scoped 'any' ("each
+#      opponent discards" — Words of Waste, Bite of the Black Rose, Bladecoil Serpent).
+# For each, append a sibling `discard` Effect scope='opp' so the EXISTING opponent_
+# discard arm (which reads a `discard` Effect scope opp/each or subject.controller==
+# opp) fires STRUCTURALLY. Append-only and gated to a body phase left WITHOUT an
+# opp/each-directed discard (the cleanly-structured forced-opponent discards — Mind
+# Rot, Stupor, Dark Deal — already fire the arm). The genuinely-unstructurable tail
+# phase leaves no anchor for — "whenever a player discards" PAYOFFS (Confessor, Spirit
+# Cairn), the "discarded a card this turn" past-tense payoff (Tinybones), would-draw
+# REPLACEMENTS (Chains of Mephistopheles), and granted/quoted grants (Wand of Ith,
+# Dementia Sliver) — keeps the NARROWED residue mirror (the spec's upstream-phase gap).
+# CR 701.9 / 510.1c / 102.2.
+_OPP_DISCARD_RAW_RE = re.compile(
+    r"each opponent discards|target opponent discards|an opponent discards",
+    re.IGNORECASE,
+)
+# The OPPONENT-directed discardER tell — the disconnected discard piece's own text
+# names the discarding player as an anaphoric opponent ("that player/opponent
+# discards", "its controller discards", "each/target opponent discards"). This is the
+# discriminator that keeps the damage-CONNECT specter ("that player discards") IN and
+# the combat-damage SELF-LOOT ("you may draw a card, then discard a card" — Looter
+# il-Kor, Academy Raider, Wharf Infiltrator) OUT: a self-loot's discard names YOU, not
+# "that player", so it never fires the anchor. CR 701.9 vs the loot outlet (CR 701.8a).
+_DISCARD_OPP_DIRECTED = re.compile(
+    r"that (?:player|opponent) discards?"
+    r"|its controller discards?"
+    r"|(?:each|target|an) opponent discards?"
+    r"|each player discards?",
+    re.IGNORECASE,
+)
+
+
+def _opp_discard_anchor(ab: Ability, card_text: str) -> bool:
+    """True iff this ability carries an OPPONENT-directed discard (its own text names
+    an anaphoric opponent discardER — NOT a self-loot) whose discarding player is a
+    structurally-identified opponent: a damage-to-player trigger, a prior bounce/
+    counter target, a prior reveal-opponent-hand, or an each/target-opponent raw. CR
+    701.9."""
+    tr = ab.trigger
+    dmg_to_player = (
+        tr is not None
+        and tr.event in ("deals_damage", "combat_damage")
+        and (
+            "player" in tr.recipient
+            or (
+                tr.subject is not None
+                and any(p.startswith("DamageToPlayer") for p in tr.subject.predicates)
+            )
+        )
+    )
+    for i, e in enumerate(ab.effects):
+        if e.category != "discard":
+            continue
+        # The discard must be OPPONENT-directed (anaphoric "that player discards"),
+        # read from its own raw or — for a modal/empty-raw discard — the card text.
+        directed = e.raw or ""
+        if not _DISCARD_OPP_DIRECTED.search(directed) and not (
+            not directed.strip() and _DISCARD_OPP_DIRECTED.search(card_text)
+        ):
+            continue
+        prior = ab.effects[:i]
+        if dmg_to_player:
+            return True
+        if any(x.category in ("bounce", "counter_spell") for x in prior):
+            return True
+        if any(
+            x.category in ("reveal_hand", "reveal")
+            and (
+                x.scope == "opp"
+                or (x.subject is not None and x.subject.controller == "opp")
+            )
+            for x in prior
+        ):
+            return True
+        if _OPP_DISCARD_RAW_RE.search(card_text):
+            return True
+    return False
+
+
+def _recover_opponent_discard(card: Card, oracle: str) -> Card:
+    """Append a sibling ``discard`` Effect scope='opp' to each ability whose discard is
+    directed at a structurally-identified opponent (see _opp_discard_anchor), so the
+    opponent_discard arm reads STRUCTURE for the damage-connect / bounce-counter /
+    reveal-hand / each-opponent buckets phase scoped 'any'. Append-only and gated to a
+    body phase left WITHOUT an opp/each-directed discard. CR 701.9 / 510.1c."""
+    if not card.faces:
+        return card
+    if any(
+        e.category == "discard"
+        and (
+            e.scope in ("opp", "each")
+            or (e.subject is not None and e.subject.controller == "opp")
+        )
+        for ab in card.all_abilities()
+        for e in ab.effects
+    ):
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    appended = False
+    faces: list[Face] = []
+    for face in card.faces:
+        new_abs: list[Ability] = []
+        for ab in face.abilities:
+            if _opp_discard_anchor(ab, text):
+                new_abs.append(
+                    replace(
+                        ab,
+                        effects=(
+                            *ab.effects,
+                            Effect(
+                                category="discard",
+                                scope="opp",
+                                raw="opponent-directed discard (recovered)",
+                            ),
+                        ),
+                    )
+                )
+                appended = True
+            else:
+                new_abs.append(ab)
+        faces.append(replace(face, abilities=tuple(new_abs)))
+    if not appended:
+        return card
+    return replace(card, faces=tuple(faces))

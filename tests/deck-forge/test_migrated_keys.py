@@ -868,3 +868,128 @@ def test_tap_untap_matters_recovers_unknown_mode_becomes_tapped():
         ab.trigger is not None and ab.trigger.event == "taps"
         for ab in ir.all_abilities()
     ), "Unknown-mode becomes-tapped not recovered to event=='taps'"
+
+
+# ── ADR-0027 #24d (SIDECAR v55) — SUPPLEMENT_RECOVER B3 real-card structural pins ──
+# Each proves the lane fires (or correctly does NOT) off the SUPPLEMENT-recovered
+# structure in the REAL projected IR (test_card_ir = a verbatim sidecar slice), not a
+# regex mirror — the mirrors for cost_reduction + clone_matters are deleted.
+
+
+def test_cost_reduction_recovered_ability_cost_reducer_dragonkin():
+    """Dragonkin Berserker's "Boast abilities you activate cost {1} less to activate"
+    is dropped by phase (no cost_reduction Effect); supplement._recover_cost_reduction
+    synthesizes one, so the structural arm fires cost_reduction. CR 601.2f."""
+    keys = {
+        s.key
+        for s in extract_signals_hybrid(
+            test_card("Dragonkin Berserker"), test_card_ir("Dragonkin Berserker")
+        )
+    }
+    assert "cost_reduction" in keys
+
+
+def test_cost_reduction_recovered_defiler_conditional():
+    """Defiler of Vigor's "Those spells cost {G} less to cast" conditional reducer is
+    dropped by phase; the recovery synthesizes the cost_reduction Effect. CR 601.2f."""
+    keys = {
+        s.key
+        for s in extract_signals_hybrid(
+            test_card("Defiler of Vigor"), test_card_ir("Defiler of Vigor")
+        )
+    }
+    assert "cost_reduction" in keys
+
+
+def test_cost_reduction_recovered_saga_chapter_collapse():
+    """Invasion of the Giants' chapter-III reducer collapses to a raw "Chapter 3"
+    Effect that fails the arm's subject-None screen; the recovery still synthesizes a
+    genuine reducer from the oracle clause, so cost_reduction fires. CR 601.2f."""
+    keys = {
+        s.key
+        for s in extract_signals_hybrid(
+            test_card("Invasion of the Giants"),
+            test_card_ir("Invasion of the Giants"),
+        )
+    }
+    assert "cost_reduction" in keys
+
+
+def test_clone_matters_recovered_creature_copy_etb():
+    """Spark Double's "enter as a copy of a creature" replacement is folded by phase to
+    a non-clone node; supplement._recover_clone_creature synthesizes a Creature-subject
+    clone Effect, so the copied-type arm fires clone_matters. CR 707.2."""
+    keys = {
+        s.key
+        for s in extract_signals_hybrid(
+            test_card("Spark Double"), test_card_ir("Spark Double")
+        )
+    }
+    assert "clone_matters" in keys
+
+
+def test_clone_matters_recovered_phase_mistyped_creature_copy_dermotaxi():
+    """Dermotaxi copies a CREATURE card ("becomes a copy of the exiled card") but phase
+    types its clone subject 'Artifact' (the "Vehicle artifact" rider). The recovery
+    runs anyway (the Artifact-typed clone does not fire clone_matters) and recovers the
+    Creature copy, so clone_matters fires. CR 707.2."""
+    keys = {
+        s.key
+        for s in extract_signals_hybrid(
+            test_card("Dermotaxi"), test_card_ir("Dermotaxi")
+        )
+    }
+    assert "clone_matters" in keys
+
+
+def test_clone_matters_does_not_fire_on_a_noncreature_copy_overfire():
+    """Copy Artifact copies an ARTIFACT only (CR 707.2 — an artifact copy, not a
+    creature clone). With the over-broad mirror deleted, it correctly does NOT fire
+    clone_matters (the creature-blind over-fire is shed); it keeps enchantments_matter
+    (it is an Enchantment)."""
+    keys = {
+        s.key
+        for s in extract_signals_hybrid(
+            test_card("Copy Artifact"), test_card_ir("Copy Artifact")
+        )
+    }
+    assert "clone_matters" not in keys
+
+
+def test_opponent_discard_recovered_damage_connect_specter():
+    """Abyssal Specter's "deals damage to a player, that player discards" is two
+    disconnected pieces (a damage-to-player trigger + a discard scope 'any'); supplement.
+    _recover_opponent_discard links them and appends a discard scope 'opp', so the arm
+    fires opponent_discard. CR 510.1c / 701.9."""
+    keys = {
+        s.key
+        for s in extract_signals_hybrid(
+            test_card("Abyssal Specter"), test_card_ir("Abyssal Specter")
+        )
+    }
+    assert "opponent_discard" in keys
+
+
+def test_opponent_discard_recovered_bounce_then_discard():
+    """Recoil's "Return target permanent …, then that player discards" — the discardER
+    is the bounce target's controller (an opponent); the recovery appends a discard
+    scope 'opp'. CR 701.9."""
+    keys = {
+        s.key
+        for s in extract_signals_hybrid(test_card("Recoil"), test_card_ir("Recoil"))
+    }
+    assert "opponent_discard" in keys
+
+
+def test_opponent_discard_does_not_fire_on_combat_damage_self_loot():
+    """Academy Raider's "deals combat damage to a player, you may discard a card. If you
+    do, draw" is a SELF-loot (the discardER is YOU), not an opponent discard — the
+    recovery's opponent-directed tell ("that player discards") is absent, so it does NOT
+    fire opponent_discard. CR 701.8a (loot) vs 701.9 (forced discard)."""
+    keys = {
+        s.key
+        for s in extract_signals_hybrid(
+            test_card("Academy Raider"), test_card_ir("Academy Raider")
+        )
+    }
+    assert "opponent_discard" not in keys
