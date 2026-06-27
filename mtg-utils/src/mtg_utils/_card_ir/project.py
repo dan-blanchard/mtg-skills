@@ -24,11 +24,15 @@ from mtg_utils._card_ir.supplement import (
     _copied_type_from_text,
     _recover_base_pt_set,
     _recover_becomes_tap_untap,
+    _recover_cast_from_exile_zone,
     _recover_combat_damage_recipients,
     _recover_counter_removal,
     _recover_damage_reflect,
+    _recover_devotion_operand,
     _recover_dies_return,
     _recover_dropped_gain_life,
+    _recover_exile_zone_ref,
+    _recover_land_sacrifice,
     _recover_opponent_cast_lock,
     recover_effect_from_text,
     supplement_card,
@@ -754,6 +758,20 @@ def project_card(records: list[dict]) -> Card:
     card = _recover_counter_removal(
         card, "\n".join(r.get("oracle_text") or "" for r in records)
     )
+    # ADR-0027 #24b (SIDECAR v54) — SUPPLEMENT_RECOVER batch B1: FOUR lanes phase
+    # parses but whose zone / count / devotion operand it drops. Each recovers the
+    # dropped structure from the joined oracle so the migrated lane reads STRUCTURE
+    # and its regex mirror is deleted (signals_ir): devotion's collapsed op, the
+    # cast-from-exile zone on cast_from_zone/cast_spell, the standing-in-exile zone
+    # on the P/T scaler / "exiled with ~" pile, and the sacrificed-Land type on the
+    # land sac-outlet cost. lands_matter DEFERRED (phase omits the aftermath back
+    # face — Road // Ruin — mirror kept; upstream phase gap). Same joined-oracle
+    # seam as the recoveries above. CR 700 / 601.3b / 406 / 701.16.
+    _oracle = "\n".join(r.get("oracle_text") or "" for r in records)
+    card = _recover_devotion_operand(card, _oracle)
+    card = _recover_cast_from_exile_zone(card, _oracle)
+    card = _recover_exile_zone_ref(card, _oracle)
+    card = _recover_land_sacrifice(card, _oracle)
     # Post-supplement removal target-subject recovery (ADR-0027 removal_matters
     # shape 3): the supplement re-derives a `damage` / `destroy` CATEGORY from a
     # GenericEffect / Unimplemented body the projection left as `other` (Combo

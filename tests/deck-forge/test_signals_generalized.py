@@ -4294,24 +4294,15 @@ def test_land_sacrifice_matters_opens_and_serves():
     # "Sacrifice a land:" outlets (Sylvan Safekeeper, Zuran Orb) are their core engine.
     # sacrifice_matters deliberately EXCLUDES "sacrifice a land" (fetchland guard), so
     # this land-sac archetype is its own lane. Real cards, full oracle.
-    # ADR-0027: land_sacrifice_matters migrated to the Card IR (the byte-identical
-    # LAND_SACRIFICE_REGEX kept WORD MIRROR in _IR_KEPT_DETECTORS — phase carries NO
-    # structural form), so this asserts on the HYBRID path. A bare non-None IR routes
-    # the hybrid to the IR path; the mirror reads the reminder-stripped oracle off the
-    # record. The serve-spec checks (lane_covers) are producer-independent.
-    gitrog = {
-        "name": "The Gitrog Monster",
-        "type_line": "Legendary Creature — Frog Horror",
-        "oracle_text": (
-            "Deathtouch\n"
-            "At the beginning of your upkeep, sacrifice The Gitrog Monster unless you "
-            "sacrifice a land.\n"
-            "You may play an additional land on each of your turns.\n"
-            "Whenever one or more land cards are put into your graveyard from "
-            "anywhere, draw a card."
-        ),
+    # ADR-0027 #24b: land_sacrifice_matters now reads STRUCTURE off the REAL IR — the
+    # leaves/dies Trigger whose subject is a Land you control (Gitrog's "Whenever one
+    # or more land cards are put into your graveyard") + the supplement-recovered
+    # Land-subject sacrifice Effect (the "unless you sacrifice a land" cost). Asserted
+    # over the real projected IR via ``test_signals`` (no synthetic-IR drift); the
+    # serve-spec checks (lane_covers) are producer-independent.
+    assert "land_sacrifice_matters" in {
+        s.key for s in test_signals("The Gitrog Monster")
     }
-    assert "land_sacrifice_matters" in _keys_hybrid(gitrog)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal

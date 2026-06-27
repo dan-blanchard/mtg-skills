@@ -2191,12 +2191,18 @@
            }
           },
           "cat": "pump",
-          "raw": "~ gets +1/+1 for each card in your hand and each foretold card you own in exile."
+          "raw": "~ gets +1/+1 for each card in your hand and each foretold card you own in exile.",
+          "z": [
+           "in:exile"
+          ]
          },
          {
           "cat": "foretell",
           "raw": "~ gets +1/+1 for each card in your hand and each foretold card you own in exile.",
-          "sc": "you"
+          "sc": "you",
+          "z": [
+           "in:exile"
+          ]
          }
         ],
         "k": "static"
@@ -13922,6 +13928,88 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Cosmogoyf": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "characteristic_pt",
+          "raw": "Cosmogoyf's power is equal to the number of cards you own in exile and its toughness is equal to that number plus 1",
+          "z": [
+           "in:exile"
+          ]
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "characteristic_pt",
+          "raw": "~'s power is equal to the number of cards you own in exile and its toughness is equal to that number plus 1.",
+          "z": [
+           "in:exile"
+          ]
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Cosmogoyf",
+      "tl": "Creature — Elemental Lhurgoyf"
+     }
+    ],
+    "n": "Cosmogoyf",
+    "oid": "99d8c5f9-ad8f-450e-9a7c-51a4c0ca5043"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "B",
+     "G"
+    ],
+    "colors": [
+     "B",
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}{G}",
+    "name": "Cosmogoyf",
+    "oracle_id": "99d8c5f9-ad8f-450e-9a7c-51a4c0ca5043",
+    "oracle_text": "Cosmogoyf's power is equal to the number of cards you own in exile and its toughness is equal to that number plus 1.",
+    "power": "*",
+    "toughness": "1+*",
+    "type_line": "Creature — Elemental Lhurgoyf"
+   }
+  },
   "Crumbling Ashes": {
    "ir": {
     "faces": [
@@ -20603,6 +20691,17 @@
          }
         ],
         "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "z": [
+           "from:exile"
+          ]
+         }
+        ],
+        "k": "static"
        }
       ],
       "kw": [
@@ -20613,7 +20712,8 @@
      }
     ],
     "n": "Fblthp, Lost on the Range",
-    "oid": "764f6412-c4ff-4eec-9a9d-870661f97f8b"
+    "oid": "764f6412-c4ff-4eec-9a9d-870661f97f8b",
+    "pc": "partial"
    },
    "scryfall": {
     "all_parts": [
@@ -25033,7 +25133,10 @@
          {
           "cat": "cast_from_zone",
           "raw": "When ~ enters, look at the top four cards of target opponent's library, exile one of them face down, then put the rest on the bottom of that library in a random order. You may cast that card for as long as it remains exiled, and mana of any type can be spent to cast that spell.",
-          "sc": "opp"
+          "sc": "opp",
+          "z": [
+           "from:exile"
+          ]
          }
         ],
         "k": "triggered",
@@ -27554,6 +27657,22 @@
           "cat": "grant_keyword",
           "ck": "haste",
           "raw": "8+ | Flying, vigilance, haste"
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "sacrifice",
+          "raw": "Sacrifice a land:",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Land"
+           ]
+          }
          }
         ],
         "k": "static"
@@ -31125,6 +31244,18 @@
          }
         ],
         "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "devotion"
+          },
+          "cat": "other",
+          "raw": "devotion to g"
+         }
+        ],
+        "k": "static"
        }
       ],
       "n": "Karametra's Acolyte",
@@ -31132,7 +31263,8 @@
      }
     ],
     "n": "Karametra's Acolyte",
-    "oid": "e8cf80a1-6908-4adb-88e7-2015672d4905"
+    "oid": "e8cf80a1-6908-4adb-88e7-2015672d4905",
+    "pc": "partial"
    },
    "scryfall": {
     "cmc": 4.0,
@@ -37104,7 +37236,10 @@
         "e": [
          {
           "cat": "grant_keyword",
-          "raw": "~ has all activated abilities of all cards you own in exile with cage counters on them. You may activate each of those abilities only once each turn."
+          "raw": "~ has all activated abilities of all cards you own in exile with cage counters on them. You may activate each of those abilities only once each turn.",
+          "z": [
+           "in:exile"
+          ]
          }
         ],
         "k": "spell"
@@ -45338,7 +45473,8 @@
           "cat": "cast_from_zone",
           "raw": "At the beginning of your end step, exile the top card of your library. Until the end of your next turn, you may play that card.",
           "z": [
-           "from:library"
+           "from:library",
+           "from:exile"
           ]
          }
         ],
@@ -61268,7 +61404,10 @@
         ],
         "k": "triggered",
         "tr": {
-         "ev": "cast_spell"
+         "ev": "cast_spell",
+         "z": [
+          "from:exile"
+         ]
         }
        }
       ],
@@ -64836,5 +64975,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 53
+ "sidecar_version": 54
 }

@@ -686,7 +686,31 @@ from mtg_utils.card_ir import Card
 #   `_recover_counter_removal` synthesizes a remove_counter Effect with the kind
 #   re-parsed from raw; the existing arm reads it. The cost/replacement word mirror is
 #   deleted. CR 122.1 / 122.6.
-SIDECAR_VERSION = 53
+# v54 (ADR-0027 #24b — SUPPLEMENT_RECOVER batch B1, zone/count structure for 4 lanes;
+#   lands_matter DEFERRED — phase's card-data.json OMITS the aftermath back face, so
+#   Road // Ruin's land-count payoff is unrecoverable from the records → upstream phase
+#   gap, mirror kept):
+#   (1) cast_from_exile — `_recover_cast_from_exile_zone` stamps from:exile onto the
+#   cast_from_zone Effect + cast_spell Trigger phase left zones=() (Eternal Scourge,
+#   Misthollow Griffin, Squee, Vega); the CAST arm gates blink/flicker exile so it
+#   doesn't leak. Mirror deleted, set-equal 77. CR 601.3.
+#   (2) devotion_matters — `_recover_devotion_operand` appends an inert op=='devotion'
+#   marker for the ramp/pump/characteristic_pt devotion-scalers phase collapses to
+#   op=='variable' (Nyx Lotus, Aspect of Hydra, Daxos); the existing op=='devotion' arm
+#   reads it. Mirror deleted, set-equal 61. CR 700.6.
+#   (3) exile_matters — `_recover_exile_zone_ref` stamps in:exile onto the exile-as-
+#   resource scaler/pile (Cosmogoyf, Gorex); new arms read the in:exile effect zone +
+#   the exile-count Condition. Mirror deleted, 63->80 (+17 real exile-pile members the
+#   narrow regex missed — Eldrazi processors, exile-count payoffs). CR 406.
+#   (4) land_sacrifice_matters — a new arm reads the leaves/dies Trigger whose subject
+#   is a Land you control + a your-side Land-sacrifice Effect; `_recover_land_sacrifice`
+#   synthesizes the sac-a-land COST phase drops (Zuran Orb). Mirror deleted, 66->103
+#   (+37 real land-sac fuel — Scapeshift, Titania/Gitrog payoffs). Symmetric land-wraths
+#   gated by scope; phase's each/any scope-tag is INCONSISTENT (3 admitted whose 'each'
+#   twins are excluded → follow-up #24f + upstream phase). CR 701.16.
+#   voltron_matters 2396 set-equal preserved via _BROADENED_PLAN_MIRROR (the old exile/
+#   land_sac regexes re-supply the has_other_plan silence set — transitional, #24e).
+SIDECAR_VERSION = 54
 
 
 def card_ir_dir() -> Path:

@@ -107,7 +107,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ATTACK_MATTERS_REGEX,
     BASE_PT_SET_REGEX,
     BLOCKED_MATTERS_REGEX,
-    CAST_FROM_EXILE_REGEX,
     CLONE_MATTERS_REGEX,
     CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
@@ -491,6 +490,24 @@ _VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
         "pump_matters",
         "cant_block_grant",
     }
+)
+
+# ADR-0027 #24b — exile_matters / land_sacrifice_matters BROADENED past their deleted
+# regex mirrors (they now read STRUCTURE — the in:exile zone / the Land-subject
+# sacrifice — catching real members the narrow word-mirror missed). Those broader
+# structural firings would feed the IR-derived has_other_plan and silence the
+# commander-damage voltron tell on the gained beaters (Oblivion Sower, Serendib Djinn,
+# Shivan Wumpus, Argothian Wurm, Foul Spirit), drifting voltron_matters off 2396. So
+# these two keys are EXCLUDED from the generic has_other_plan scan and their
+# has_other_plan contribution is re-supplied by the byte-identical OLD regexes over
+# kept_oracle (the deleted mirrors' exact firing set) — the established *_PLAN_MIRROR
+# pattern (superfriends / type_matters), restoring ONLY the old silence set so voltron
+# stays 2396 set-equal. CR 903.10a.
+_VOLTRON_PLAN_BROADENED: frozenset[str] = frozenset(
+    {"exile_matters", "land_sacrifice_matters"}
+)
+_BROADENED_PLAN_MIRROR: re.Pattern[str] = re.compile(
+    rf"(?:{EXILE_MATTERS_REGEX})|(?:{LAND_SACRIFICE_REGEX})", re.IGNORECASE
 )
 
 # Batch K — Scryfall keyword (lowercased) → the signal keys it fires. A clean
@@ -1375,28 +1392,12 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"\bmodified\b|power greater than its base power", re.IGNORECASE),
         "you",
     ),
-    # ADR-0027 — land_sacrifice_matters BYTE-IDENTICAL kept WORD MIRROR (the land-
-    # SACRIFICE archetype: a card paying an ongoing land-sac cost / drawing-growing when
-    # lands hit the graveyard / offering a repeatable "Sacrifice a land:" outlet —
-    # Gitrog, Titania, Slogurk, Zuran Orb, Sylvan Safekeeper, Squandered Resources; CR
-    # 701.16). phase carries NO structural form: over the commander-legal corpus (floor-
-    # disabled, by oracle_id) the structural sacrifice arm emits this lane on ZERO cards
-    # — the you-sac arm routes a land-ONLY sac subject AWAY from sacrifice_matters but
-    # never re-homes it here, and there is no structural `add("land_sacrifice_matters")`
-    # — so the lane fired ONLY from the deleted regex (66 commander-legal, all scope
-    # 'you' HIGH). This LAND_SACRIFICE_REGEX (the EXACT deleted _HAND_FLOOR pattern) run
-    # FLAT over the reminder-stripped kept_oracle reproduces the deleted per-clause
-    # producer BYTE-IDENTICALLY (the four arms' `[^.]*` never cross a clause; flat==per-
-    # clause==66). Distinct from land_destruction (DESTROY a land) and land_exchange
-    # (swap land CONTROL). The deleted producer fed has_other_plan (HIGH, scope 'you',
-    # not generic/voltron-compat), so the hybrid re-silences voltron via
-    # _VOLTRON_SILENCING_PLAN_KEYS — byte-identical re-supply, no over-silence (signals.
-    # py). CR 701.16.
-    (
-        "land_sacrifice_matters",
-        re.compile(LAND_SACRIFICE_REGEX, re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 #24b — land_sacrifice_matters mirror DELETED: the lane now reads
+    # STRUCTURE (a leaves/dies Trigger whose subject is a Land you control — the
+    # land-to-graveyard payoff phase structures; a `sacrifice` Effect with a
+    # Land-ONLY subject — the sac-outlet cost supplement._recover_land_sacrifice
+    # structures from the dropped Land type). See the land_sacrifice_matters arms in
+    # extract_signals_ir. CR 701.16 / 305.6.
     # ADR-0027 — theft_matters BYTE-IDENTICAL kept WORD MIRROR (STEAL an OPPONENT's
     # cards and CAST/PLAY them: the impulse-from-opponent steal-and-cast engines —
     # "target/each opponent exiles cards from the top of their library … you may cast
@@ -1474,68 +1475,17 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(VOID_WARP_MATTERS_REGEX, re.IGNORECASE),
         "you",
     ),
-    # ADR-0027 — cast_from_exile BYTE-IDENTICAL kept WORD MIRROR (the CAST/PLAY-FROM-
-    # EXILE build-around: payoffs and enablers that cast or play cards FROM EXILE —
-    # "whenever you cast a spell from exile" / "from anywhere other than your hand"
-    # Paradox triggers (Vega, Iraxxa, Quintorius Kand, Nalfeshnee, Keeper of Secrets),
-    # self-cast-from-exile creatures (Eternal Scourge, Misthollow Griffin, Squee),
-    # exile-and-cast engines (Court of Locthwain, Tinybones, Norin), the "exile this
-    # card from your hand … cast it for as long as it remains exiled" cycle (Masked
-    # Bandits, Rakish Revelers, Spara's Adjudicators), Plot from the top (Fblthp); CR
-    # 207.2c / 601.3b / 702.143 / 702.170). phase carries NO usable structural form: it
-    # DROPS the "from exile" zone off both the `cast_spell` trigger AND the self-cast
-    # `cast_from_zone` Effect (zones=() on Eternal Scourge / Misthollow), and the only
-    # exile cast-zone it DOES project — `castable_zones=('exile',)` — is the 51-card
-    # FORETELL-SPELL serve pool, DISJOINT from the 77 detector firings (overlap 0), so
-    # reading it as a detector would over-fire 51 keyword-having spells. Over the
-    # commander-legal corpus (floor-disabled, by oracle_id) the structural IR emits this
-    # lane on ZERO cards — it fired ONLY from the deleted regex (77 commander-legal, all
-    # scope 'you' HIGH). This CAST_FROM_EXILE_REGEX (the EXACT deleted _HAND_FLOOR
-    # pattern) run FLAT over the reminder-stripped kept_oracle reproduces the deleted
-    # per-clause producer BYTE-IDENTICALLY (every `[^.]*?` arm anchors within a single
-    # clause; flat==per-clause==77). Distinct from impulse_top_play (exile the TOP of
-    # YOUR library then temporary-play) and play_from_top (the ONGOING permission to
-    # play off the top of the LIBRARY — a different zone, not exile). The deleted
-    # producer fed has_other_plan (HIGH, scope 'you', not generic/voltron-compat), so
-    # the hybrid re-silences voltron via _VOLTRON_SILENCING_PLAN_KEYS — byte-identical
-    # re-supply, no over-silence (signals.py). CR 207.2c / 601.3b / 903.10a.
-    (
-        "cast_from_exile",
-        re.compile(CAST_FROM_EXILE_REGEX, re.IGNORECASE),
-        "you",
-    ),
-    # ADR-0027 — exile_matters BYTE-IDENTICAL kept WORD MIRROR (the EXILE-ZONE-AS-
-    # RESOURCE archetype: a card caring about cards STANDING IN exile — "cards you own
-    # in exile" / "card in exile with <kind> counter" P/T scalers +
-    # cast-from-the-exile-pile engines (Cosmogoyf, Crackling Drake, Mairsil, Grolnok,
-    # Tasha, Kianne, Ketramose, Ulamog), the wishboard fetch (Karn, Coax), the
-    # own-a-card-in-exile gates (Dreadlight Monstrosity, Howling Galefang, Warden of
-    # the Beyond), the "exiled with <this>" persistent-pile payoffs (Gorex, The
-    # Kenriths' Royal Funeral, Lumbering Battlement), and the "for each card exiled
-    # this way" one-shot scalers the prefix branch also reaches (the March cycle,
-    # Mizzix's Mastery, Haunting Echoes — pre-existing breadth); CR 406). phase
-    # carries NO usable structural form — it scatters the exile-zone reference across
-    # a count operand (Ulamog `zones=('in:exile',)`), a Condition (Ketramose
-    # `zones=('exile',)`), and a `characteristic_pt` Effect whose count operand drops
-    # the zone (Cosmogoyf, Crackling Drake), with no single category meaning "this
-    # card references cards standing in exile". Over the commander-legal corpus
-    # (floor-disabled, by oracle_id) the structural IR emits this lane on ZERO cards —
-    # it fired ONLY from the deleted regex (63 commander-legal, all scope 'you' HIGH).
-    # This EXILE_MATTERS_REGEX (the EXACT deleted _HAND_FLOOR pattern) run FLAT over
-    # the reminder-stripped kept_oracle reproduces the deleted per-clause producer
-    # BYTE-IDENTICALLY (neither branch carries a `[^.]*` cross-clause span; flat==per-
-    # clause==63). Distinct from exile_removal (EXILE a permanent as REMOVAL),
-    # cast_from_exile above (CAST/PLAY a card FROM exile), and opponent_exile_matters
-    # (GRAVEYARD HATE). FLOOR→KEPT: removed from _IR_FLOOR_LANES (floor-mirror-dep ->
-    # 0). The deleted producer fed has_other_plan (HIGH, scope 'you', not generic/
-    # voltron-compat), so the hybrid re-silences voltron via _VOLTRON_SILENCING_PLAN_
-    # KEYS — byte-identical re-supply (IR==regex==63), no over-silence (signals.py).
-    # CR 406.
-    (
-        "exile_matters",
-        re.compile(EXILE_MATTERS_REGEX, re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 #24b — cast_from_exile mirror DELETED: the lane now reads STRUCTURE
+    # (the `from:exile` cast-zone on a `cast_from_zone` Effect / `cast_spell`
+    # Trigger — supplement._recover_cast_from_exile_zone stamps the zone phase
+    # dropped on Eternal Scourge / Misthollow / Squee / Vega, and synthesizes the
+    # marker for the exile-and-cast engines). See the cast_from_exile arm in
+    # extract_signals_ir. CR 207.2c / 601.3b / 702.143.
+    # ADR-0027 #24b — exile_matters mirror DELETED: the lane now reads STRUCTURE (the
+    # `in:exile` zone on a count operand / P/T scaler / "exiled with ~" pile, and an
+    # `exile` Condition — supplement._recover_exile_zone_ref stamps the zone phase
+    # dropped on Cosmogoyf / Gorex; Ulamog / Ketramose phase already structures).
+    # See the exile_matters arms in extract_signals_ir. CR 406.
     # ADR-0027 — superfriends_matters SUPPLEMENT kept WORD MIRROR (the PLANESWALKER-as-
     # a-group cares-about lane: "planeswalkers you control" anthems, "loyalty counter"
     # payoffs, "activate a loyalty ability" engines, "planeswalker type" group refs
@@ -1935,9 +1885,6 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # here from _IR_FLOOR_LANES so the lane fires from a dedicated IR-path word mirror
     # instead of the reused production floor Detector (floor-mirror-dep -> 0). Each
     # retains its EXISTING structural bind in extract_signals_ir too (add() dedups):
-    #   • devotion_matters  ← amount.op=="devotion" count operand (the scaling payoffs);
-    #     this mirror adds the cost-reduction / counterspell-tax / mana forms
-    #     ("devotion to <color>") phase doesn't make a count operand. CR 700.5.
     #   • party_matters     ← amount.op=="party" count operand; this mirror adds the
     #     "full party" CONDITION + "creatures in your party" non-count refs. CR 700.6.
     #   • historic_matters  ← the "Historic" subject-Filter predicate; this mirror adds
@@ -1949,7 +1896,11 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     #     cost-reduction / cast-restriction refs that aren't a structured subject.
     #   • initiative_matters / attractions_matter ← recent named designations (CR
     #     720 / 717) phase doesn't structure at all — the word IS the build-around tell.
-    ("devotion_matters", re.compile(r"devotion to \w", re.IGNORECASE), "you"),
+    # ADR-0027 #24b — devotion_matters mirror DELETED: the lane reads an
+    # amount.op=='devotion' operand; supplement._recover_devotion_operand now appends
+    # that operand for the ramp / pump / characteristic_pt effects phase collapsed to
+    # op=='variable' or dropped (Nyx Lotus, Aspect of Hydra, Daxos), so the existing
+    # devotion_matters arm fires structurally. CR 700.
     (
         "party_matters",
         re.compile(
@@ -2135,7 +2086,11 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     #     scalers); the mirror adds the "P/T equal to the number of lands you control"
     #     (Dakkon / Molimo — phase emits characteristic_pt/pump_target but DROPS the
     #     count operand) and "for each land you control" pumps phase flattens to a bare
-    #     effect (CR 305).
+    #     effect (CR 305). ADR-0027 #24b: NOT migrated this batch — phase omits the
+    #     aftermath BACK face from card-data.json (Road // Ruin → only "Road"), so a
+    #     supplement reading the records oracle can't recover "Ruin deals damage …
+    #     equal to the number of lands you control"; deleting this mirror would
+    #     silently drop a real member. Deferred to a phase aftermath-face fix.
     #   • poison_matters ← the infect/toxic/poisonous Scryfall keywords (the bearers);
     #     the mirror adds the GRANTERS ("Enchanted creature has infect", "gains infect",
     #     "All Sliver creatures have poisonous 1") + "poison counter" / "has toxic"
@@ -6584,6 +6539,23 @@ def _restriction_pacifies_single_creature(raw: str) -> bool:
     return bool(_SINGLE_CREATURE_RESTR_RE.search(r))
 
 
+def _cond_counts_cards_in_exile(cond: object) -> bool:
+    """True iff a Condition (or any node in its And/Or/Not tree) COUNTS cards standing
+    in exile — a ``quantitycomparison`` node referencing the exile zone (Ketramose
+    "unless there are seven or more cards in exile"). Distinct from a
+    ``sourceinzone(exile)`` self-state gate (the SUSPEND / foretell "if this card is
+    suspended/exiled" condition — CR 702.62a / 702.143), which references the SOURCE
+    being in exile, not cards-in-exile as a resource, so it must NOT open
+    exile_matters. CR 406."""
+    if not isinstance(cond, Condition):
+        return False
+    if cond.kind == "quantitycomparison" and (
+        "exile" in cond.zones or "in:exile" in cond.zones
+    ):
+        return True
+    return any(_cond_counts_cards_in_exile(n) for n in cond.nested)
+
+
 def extract_signals_ir(
     card: dict,
     ir: Card | None,
@@ -7177,7 +7149,83 @@ def extract_signals_ir(
             )
             if _loot_disc is not None:
                 add("discard_matters", "you", "", _loot_disc.raw or "")
+        # ADR-0027 #24b — land_sacrifice_matters STRUCTURAL arm (the land-SACRIFICE
+        # archetype: land-to-graveyard payoffs + land sac-outlets). phase structures
+        # the PAYOFF directly as a leaves/dies Trigger whose subject is a Land you
+        # control (Slogurk leaves subj=Land; Titania dies subj=Land — "whenever a land
+        # you control is put into a graveyard"); the OUTLET is recovered by
+        # supplement._recover_land_sacrifice as a `sacrifice` Effect with a Land-ONLY
+        # subject (Zuran Orb's "Sacrifice a land:" cost phase drops the type from). A
+        # Land-only sacrifice subject is excluded from sacrifice_matters (the you-sac
+        # arm gates `card_types != ("Land",)`), so it stays this lane's own structural
+        # signal. Replaces the LAND_SACRIFICE_REGEX kept mirror. CR 701.16 / 305.6.
+        _ls_trig = ab.trigger
+        if (
+            _ls_trig is not None
+            and _ls_trig.event in ("leaves", "dies")
+            and isinstance(_ls_trig.subject, Filter)
+            and "Land" in _ls_trig.subject.card_types
+            and _ls_trig.subject.controller == "you"
+        ):
+            add("land_sacrifice_matters", "you", "", "")
+        # ADR-0027 #24b — exile_matters CONDITION arm: a Condition that COUNTS cards
+        # STANDING in exile (Ketramose "unless there are seven or more cards in exile"
+        # — a quantitycomparison over the exile zone). Gated to the count node, NOT a
+        # sourceinzone(exile) self-state gate (the suspend / foretell "if this card is
+        # suspended/exiled" condition — Greater Gargadon, Deep-Sea Kraken — which is
+        # the card's own exile state, not exile-as-resource). CR 406 vs 702.62a.
+        if ab.condition is not None and _cond_counts_cards_in_exile(ab.condition):
+            add("exile_matters", "you", "", "")
         for e in ab.effects:
+            # ADR-0027 #24b — cast_from_exile STRUCTURAL arm: the card CASTS / PLAYS a
+            # card FROM EXILE — a `cast_from_zone` Effect or a `cast_spell` Trigger
+            # carrying the recovered `from:exile` cast-zone (phase left zones=() on
+            # Eternal Scourge / Misthollow / Squee / Vega —
+            # supplement._recover_cast_from_exile_zone stamps it), plus the
+            # synthesized 'other' from:exile marker for the exile-and-cast engines.
+            # Gated to the CAST categories: a BLINK / flicker `exile` Effect whose
+            # exiled permanent RETURNS from exile to the battlefield (Flickerwisp,
+            # Galepowder Mage — zones=('from:exile','to:battlefield')) and a
+            # set-aside-then-return `pay_cost` (Necropotence) also carry from:exile but
+            # are NOT casting from exile, so they are excluded. Distinct from
+            # play_from_top (`from:library`). Replaces CAST_FROM_EXILE_REGEX. CR
+            # 601.3b / 702.143.
+            if (
+                (e.category == "cast_from_zone" and "from:exile" in e.zones)
+                or (e.category == "other" and e.zones == ("from:exile",))
+                or (
+                    ab.trigger is not None
+                    and ab.trigger.event == "cast_spell"
+                    and "from:exile" in ab.trigger.zones
+                )
+            ):
+                add("cast_from_exile", "you", "", e.raw)
+            # ADR-0027 #24b — exile_matters STRUCTURAL arm: an Effect carrying the
+            # `in:exile` zone references cards STANDING in exile as a resource (the
+            # `in:exile` count operand phase keeps — Ulamog; the P/T scaler /
+            # "exiled with ~" pile supplement._recover_exile_zone_ref stamps —
+            # Cosmogoyf, Gorex). Distinct from exile_removal (`to:exile`),
+            # cast_from_exile (`from:exile`), opponent_exile (GY hate). Replaces the
+            # EXILE_MATTERS_REGEX kept mirror. CR 406.
+            if "in:exile" in e.zones:
+                add("exile_matters", "you", "", e.raw)
+            # ADR-0027 #24b — land_sacrifice_matters sac-OUTLET arm: a YOUR-side
+            # `sacrifice` Effect whose subject is a Land-ONLY board — the sac-a-land
+            # cost / "sacrifice any number of lands" payoff phase structures
+            # (Scapeshift, Mana Seism, Glacial Chasm, Springbloom Druid) plus the
+            # supplement._recover_land_sacrifice cost synth (Zuran Orb). A Land-only
+            # subject is held out of sacrifice_matters (the you-sac arm gates
+            # `card_types != ("Land",)`), so this is its own structural signal. Gated
+            # to scope not opp/each: a SYMMETRIC "each player sacrifices N lands" mass
+            # land-destruction (Destructive Force, Tectonic Break) is a wrath/stax
+            # punisher, not the you-side land-sac archetype. CR 701.16 / 305.6.
+            if (
+                e.category == "sacrifice"
+                and isinstance(e.subject, Filter)
+                and e.subject.card_types == ("Land",)
+                and e.scope not in ("opp", "each")
+            ):
+                add("land_sacrifice_matters", "you", "", e.raw)
             # creatures_matter = a go-wide/scaling lane: a count operand over your
             # creatures (any effect), OR an anthem buffing them (a pump's affected
             # set). NOT a single reanimate/destroy TARGET that happens to be a
@@ -11828,8 +11876,9 @@ def extract_signals_ir(
             and s.key not in _GENERIC_KEYS
             and s.key not in _VOLTRON_COMPAT_KEYS
             and s.key not in _VOLTRON_HAS_OTHER_PLAN_COMPAT
+            and s.key not in _VOLTRON_PLAN_BROADENED
             for s in out
-        )
+        ) or bool(_BROADENED_PLAN_MIRROR.search(kept_oracle))
         # (base) commander-damage fallback (CR 903.10a): only when nothing else gave a
         # strong direction and the creature is a real commander-damage threat (an
         # evasion/resilience keyword, or power >= 2 — Isamaru is a 2/2). A 0/1

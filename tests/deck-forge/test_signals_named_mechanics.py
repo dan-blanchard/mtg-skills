@@ -282,11 +282,14 @@ def test_initiative_matters_is_ir_served():
 
 
 def test_devotion_historic_party_are_ir_served():
-    # ADR-0027: these cares-about lanes are IR-served from their kept word-detector
-    # mirrors (devotion to <color> / \bhistoric\b / creatures in your party), so they
-    # come through the hybrid path, not pure regex.
+    # ADR-0027 #24b: devotion_matters now reads STRUCTURE — the op=='devotion' operand
+    # the supplement re-supplies for the ramp/pump devotion-scalers phase collapses to
+    # op=='variable' / drops (Karametra's Acolyte "Add {G} equal to your devotion to
+    # green"). Asserted over the real projected IR via ``test_signals``.
+    assert ("devotion_matters", "you") in _real("Karametra's Acolyte")
+    # historic / party stay kept word-detector mirrors (phase makes no count operand),
+    # so they come through the hybrid path off the oracle, not pure regex.
     for key, oracle in (
-        ("devotion_matters", "Your devotion to green is increased by this creature."),
         ("historic_matters", "Whenever you cast a historic spell, draw a card."),
         ("party_matters", "Whenever a creature in your party attacks, draw a card."),
     ):
@@ -310,19 +313,15 @@ def test_legends_lands_suspend_are_ir_served():
 
 
 def test_exile_matters_is_ir_served():
-    # ADR-0027: exile_matters migrated to the Card IR via a byte-identical kept word
-    # mirror (EXILE_MATTERS_REGEX) for the EXILE-ZONE-AS-RESOURCE cares-about lane — a
-    # card referencing cards STANDING in exile ("cards you own in exile" / "for each card
-    # ... in exile"). phase scatters the exile-zone reference across count operands /
-    # conditions with no single category, so the lane rides the kept mirror — IR-served,
-    # not regex-served. Both regex branches exercised; scope "you". CR 406.
-    for oracle in (
-        "This creature gets +1/+0 for each card you own in exile.",
-        "Whenever a card you own in exile leaves exile, draw a card.",
-    ):
-        c = {"name": "X", "oracle_text": oracle}
-        assert ("exile_matters", "you") in _ks_hybrid(c), f"not IR-served: {oracle}"
-        assert ("exile_matters", "you") not in _ks(c), f"still regex-served: {oracle}"
+    # ADR-0027 #24b: exile_matters now reads STRUCTURE — the `in:exile` zone the
+    # supplement stamps on the standing-in-exile P/T scaler ("cards you own in exile" —
+    # Cosmogoyf) phase left zoneless, plus the cast-from-the-exile-pile engine (Mairsil
+    # "you may cast a card exiled with ~"). Additive to the `in:exile` count operand /
+    # `exile` Condition phase already structures (Ulamog / Ketramose). Asserted over the
+    # real projected IR via ``test_signals``; distinct from exile_removal (`to:exile`).
+    # CR 406.
+    assert ("exile_matters", "you") in _real("Cosmogoyf")
+    assert ("exile_matters", "you") in _real("Mairsil, the Pretender")
 
 
 def test_big_hand_matters_is_ir_served():

@@ -2335,3 +2335,279 @@ def _supplement_effect(e: Effect) -> Effect:
     # the post-retention shape; both are append-only / idempotent.
     out = _recover_hybrid_exile_zone(out)
     return _recover_opponent_exile_subject(out)
+
+
+# ── ADR-0027 #24b SUPPLEMENT_RECOVER batch B1 (SIDECAR v54) ───────────────────
+# Five lanes phase PARSES but whose zone / count / devotion operand it DROPS, today
+# carried by a signals-side regex mirror. Each recovery below RECOVERS the dropped
+# structure from the joined oracle (the recovery seam) onto the IR — the
+# ``_recover_base_pt_set`` / ``_recover_combat_damage_recipients`` precedent (phase
+# dropped the structure, synthesize it) — so the migrated lane reads STRUCTURE and
+# the mirror is deleted. Where phase DID leave usable partial structure (a
+# leaves/dies Land-subject trigger, an ``in:exile`` count operand, a
+# ``cast_from_zone`` Effect), the signals arm reads it directly and the supplement
+# only fills the residue; where phase scattered the operand across many effect
+# categories (lands_matter's land count, devotion's collapsed ``op``) the
+# supplement appends ONE inert marker carrying the recovered operand rather than
+# mutating the overloaded ``amount`` of each (which cascades into pump_matters /
+# ramp_matters that read ``amount.op``). All append-only / idempotent.
+
+# lands_matter — DEFERRED (mirror kept): phase's card-data.json omits the AFTERMATH
+# back face entirely (Road // Ruin projects only "Road"; "Ruin deals damage … equal
+# to the number of lands you control" is absent from the IR), so a supplement that
+# reads the records oracle cannot recover that real member — deleting the mirror
+# would silently drop it. The count operand also scatters across 12+ effect
+# categories (characteristic_pt P/T scalers, pump_target, make_token, tutor,
+# place_counter, cost_reduction) and a few cost/restriction bodies with no effect
+# raw, so a clean structural read awaits a phase aftermath-face fix. CR 305.
+
+# devotion_matters — phase preserves Quantity.op=='devotion' on SOME effects (Gray
+# Merchant, the Theros gods) but COLLAPSES it to op=='variable' on a devotion-scaled
+# ramp (Nyx Lotus, Karametra's Acolyte, Nykthos) and DROPS it on a devotion pump /
+# characteristic_pt (Aspect of Hydra, Daxos). Re-stamping the op in place would
+# cascade (ramp_matters reads op=='variable' for its accel split, pump_matters reads
+# op=='fixed'); instead append ONE inert devotion marker so the devotion_matters arm
+# reads op=='devotion' without disturbing those neighbors. Gated to a card not
+# already carrying a devotion operand. CR 700 (devotion).
+_DEVOTION_TO_COLOR_RE = re.compile(r"devotion to \w", re.IGNORECASE)
+
+
+def _recover_devotion_operand(card: Card, oracle: str) -> Card:
+    """Append a synthetic devotion marker (op='devotion') for the devotion operand
+    phase collapses to op='variable' (ramp) or drops (pump / characteristic_pt), so
+    the devotion_matters arm reads it structurally without re-stamping the overloaded
+    ``amount.op`` of the real ramp/pump effect (which ramp_matters / pump_matters
+    read). Append-only; skipped when an op=='devotion' operand already exists."""
+    if not card.faces:
+        return card
+    if any(
+        e.amount is not None and e.amount.op == "devotion"
+        for ab in card.all_abilities()
+        for e in ab.effects
+    ):
+        return card
+    m = _DEVOTION_TO_COLOR_RE.search(re.sub(r"\([^)]*\)", " ", oracle))
+    if m is None:
+        return card
+    synth = Ability(
+        kind="static",
+        effects=(
+            Effect(category="other", amount=Quantity(op="devotion"), raw=m.group(0)),
+        ),
+    )
+    head, *rest = card.faces
+    return replace(
+        card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
+    )
+
+
+# cast_from_exile — phase HAS the structure but DROPS the exile zone: a self-cast
+# permanent projects ``cast_from_zone`` zones=() (Eternal Scourge, Misthollow), a
+# cast-from-exile payoff projects an effect on a ``cast_spell`` Trigger zones=()
+# (Vega's "from anywhere other than your hand"), and Squee keeps from:graveyard but
+# drops the "or from exile". Stamp ``from:exile`` onto the real ``cast_from_zone``
+# Effect and the ``cast_spell`` Trigger so the lane reads the zone STRUCTURALLY;
+# synthesize a marker only for the exile-and-cast / impulse engines phase leaves with
+# neither carrier. CR 601.3b / 702.143.
+_CAST_FROM_EXILE_RE = re.compile(
+    r"top card of your library has plot"
+    r"|(?:whenever|each time) you (?:cast a spell|play a (?:card|land)"
+    r"|play a land or cast a spell)[^.]*?from exile"
+    r"|spells? you cast from exile"
+    r"|you may (?:play|cast) (?:it|that card|this card|those cards?|them)"
+    r"[^.]*?(?:for as long as it remains exiled|from exile)"
+    r"|you may play (?:a |that )?card[^.]*?from exile"
+    r"|(?:cast a spell|play a land|play a card)[^.]*?"
+    r"from anywhere other than your hand",
+    re.IGNORECASE,
+)
+
+
+def _recover_cast_from_exile_zone(card: Card, oracle: str) -> Card:
+    """Stamp ``from:exile`` onto the ``cast_from_zone`` Effect and ``cast_spell``
+    Trigger phase leaves zones=() (Eternal Scourge, Misthollow, Squee, Vega), and
+    synthesize a from:exile marker for the exile-and-cast engines phase leaves with
+    neither, so the cast_from_exile lane reads the cast-from zone structurally.
+    Idempotent; gated to the cast-from-exile oracle. CR 601.3b."""
+    if not card.faces:
+        return card
+    if _CAST_FROM_EXILE_RE.search(re.sub(r"\([^)]*\)", " ", oracle)) is None:
+        return card
+    stamped = False
+    new_faces = []
+    for face in card.faces:
+        new_abs = []
+        for ab in face.abilities:
+            trig = ab.trigger
+            if (
+                trig is not None
+                and trig.event == "cast_spell"
+                and "from:exile" not in trig.zones
+            ):
+                trig = replace(trig, zones=(*trig.zones, "from:exile"))
+                stamped = True
+            effs = []
+            for e in ab.effects:
+                new_e = e
+                if e.category == "cast_from_zone" and "from:exile" not in e.zones:
+                    new_e = replace(e, zones=(*e.zones, "from:exile"))
+                    stamped = True
+                effs.append(new_e)
+            new_abs.append(replace(ab, trigger=trig, effects=tuple(effs)))
+        new_faces.append(replace(face, abilities=tuple(new_abs)))
+    card = replace(card, faces=tuple(new_faces))
+    if stamped:
+        return card
+    synth = Ability(
+        kind="static",
+        effects=(Effect(category="other", zones=("from:exile",), raw=""),),
+    )
+    head, *rest = card.faces
+    return replace(
+        card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
+    )
+
+
+# exile_matters — the EXILE-ZONE-AS-RESOURCE lane. phase SCATTERS the reference: it
+# tags ``in:exile`` on a count operand (Ulamog place_counter) and ``exile`` on a
+# Condition (Ketramose) — those the signals arm reads directly — but DROPS the zone
+# off a ``characteristic_pt`` P/T scaler ("cards you own in exile" — Cosmogoyf,
+# Crackling Drake) and an "exiled with ~" persistent-pile payoff (Gorex). Stamp
+# ``in:exile`` onto the standing-in-exile effects phase left zoneless; synthesize a
+# marker for the oracle-only residue. Distinct from exile_removal (``to:exile``).
+# CR 406.
+_EXILE_STANDING_RE = re.compile(
+    r"cards? (?:you own )?(?:that are )?in exile"
+    r"|for each card (?:you own )?(?:in )?exile",
+    re.IGNORECASE,
+)
+# Per-effect anchor (the clause references cards STANDING in exile, not exiling TO
+# exile) — used to pick which zoneless effect carries the in:exile tag.
+_EXILE_STANDING_CLAUSE_RE = re.compile(
+    r"\bin exile\b|exiled with\b|\bcard exiled\b|\bcards exiled\b", re.IGNORECASE
+)
+
+
+def _recover_exile_zone_ref(card: Card, oracle: str) -> Card:
+    """Stamp ``in:exile`` onto the standing-in-exile effects phase leaves zoneless (a
+    ``characteristic_pt`` P/T scaler — Cosmogoyf; an "exiled with ~" pile payoff —
+    Gorex), and synthesize an in:exile marker for the oracle-only residue, so the
+    exile_matters arm reads the zone structurally (additive to the ``in:exile`` count
+    operand / ``exile`` Condition phase already structures). Idempotent; gated to the
+    standing-in-exile oracle. CR 406."""
+    if not card.faces:
+        return card
+    if _EXILE_STANDING_RE.search(re.sub(r"\([^)]*\)", " ", oracle)) is None:
+        return card
+    has_zone = any(
+        "in:exile" in e.zones for ab in card.all_abilities() for e in ab.effects
+    )
+    stamped = False
+    new_faces = []
+    for face in card.faces:
+        new_abs = []
+        for ab in face.abilities:
+            effs = []
+            for e in ab.effects:
+                new_e = e
+                if (
+                    "in:exile" not in e.zones
+                    and "to:exile" not in e.zones
+                    and _EXILE_STANDING_CLAUSE_RE.search(e.raw or "")
+                ):
+                    new_e = replace(e, zones=(*e.zones, "in:exile"))
+                    stamped = True
+                effs.append(new_e)
+            new_abs.append(replace(ab, effects=tuple(effs)))
+        new_faces.append(replace(face, abilities=tuple(new_abs)))
+    card = replace(card, faces=tuple(new_faces))
+    if stamped or has_zone:
+        return card
+    synth = Ability(
+        kind="static",
+        effects=(Effect(category="other", zones=("in:exile",), raw=""),),
+    )
+    head, *rest = card.faces
+    return replace(
+        card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
+    )
+
+
+# land_sacrifice_matters — phase emits real structure for most of the lane: the
+# land-to-graveyard PAYOFF is a leaves/dies Trigger whose subject is a Land you
+# control (Slogurk leaves subj=Land; Titania dies subj=Land) — the signals arm reads
+# it directly. The sac OUTLET (Zuran Orb "Sacrifice a land:") is an activated
+# Ability whose cost projects to a bare 'sacrifice' token, DROPPING the sacrificed
+# Land type into the raw. Synthesize a ``sacrifice`` Effect with a Land-you subject
+# for the cost-sac (and any "whenever you sacrifice a land" / "unless you sacrifice a
+# land" body phase leaves unstructured) so the lane reads the sacrificed-permanent
+# type structurally. A Land-ONLY sacrifice subject is already excluded from
+# sacrifice_matters (CR 701.16), so it stays this lane's own signal.
+_LAND_SACRIFICE_RE = re.compile(
+    r"sacrifice a land(?: card)?:"
+    r"|whenever (?:a|one or more|another) lands?(?: cards?)?[^.]*"
+    r"put into[^.]*graveyard"
+    r"|whenever you sacrifice (?:a|one or more|another) lands?"
+    r"|unless you sacrifice a land",
+    re.IGNORECASE,
+)
+
+
+def _land_sac_trigger_present(card: Card) -> bool:
+    """A leaves/dies Trigger whose subject is a Land you control — the structured
+    land-to-graveyard payoff the signals arm reads directly (Slogurk, Titania)."""
+    return any(
+        ab.trigger is not None
+        and ab.trigger.event in ("leaves", "dies")
+        and ab.trigger.subject is not None
+        and "Land" in ab.trigger.subject.card_types
+        and ab.trigger.subject.controller == "you"
+        for ab in card.all_abilities()
+    )
+
+
+def _land_sac_effect_present(card: Card) -> bool:
+    """A YOUR-side land-sacrifice Effect the signals arm already reads (scope not
+    each/opp — a symmetric "each player sacrifices a land" does NOT count, so a card
+    whose only structured land-sac is symmetric still gets the you-side cost synth —
+    Mana Vortex's "counter it unless you sacrifice a land")."""
+    return any(
+        e.category == "sacrifice"
+        and e.subject is not None
+        and e.subject.card_types == ("Land",)
+        and e.scope not in ("each", "opp")
+        for ab in card.all_abilities()
+        for e in ab.effects
+    )
+
+
+def _recover_land_sacrifice(card: Card, oracle: str) -> Card:
+    """Append a synthetic ``sacrifice`` Effect (subject Land you control) for the
+    land sac-OUTLET cost / "whenever you sacrifice a land" / "unless you sacrifice a
+    land" bodies phase leaves with the sacrificed Land type only in raw, so the
+    land_sacrifice_matters arm reads the sacrificed-permanent type structurally. The
+    leaves/dies Land-subject payoff trigger is already structured — no synth for it.
+    Append-only; skipped when a land-sac trigger or effect already exists. CR
+    701.16."""
+    if not card.faces:
+        return card
+    if _land_sac_trigger_present(card) or _land_sac_effect_present(card):
+        return card
+    m = _LAND_SACRIFICE_RE.search(re.sub(r"\([^)]*\)", " ", oracle))
+    if m is None:
+        return card
+    synth = Ability(
+        kind="static",
+        effects=(
+            Effect(
+                category="sacrifice",
+                scope="you",
+                subject=Filter(card_types=("Land",), controller="you"),
+                raw=m.group(0),
+            ),
+        ),
+    )
+    head, *rest = card.faces
+    return replace(
+        card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
+    )
