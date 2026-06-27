@@ -142,7 +142,7 @@ Shared Python package (`mtg_utils`). 37 CLI script modules (23 deck + 9 cube + 3
   - `playtest-gauntlet` — Cube round-robin: build N archetype decks from the
     cube, run round-robin via phase, report win-rate matrix.
   - `playtest-draft` — Heuristic 8-player draft + per-deck goldfish.
-  - `playtest-install-phase` — One-time `cargo build` of phase v0.1.19 binaries
+  - `playtest-install-phase` — One-time `cargo build` of phase v0.1.60 binaries
     into `~/.cache/mtg-skills/phase/`.
   - `playtest-custom-format` — Multiplayer custom-format simulator (e.g.,
     shared-library marketplace draft). Pure Python; per-format module in
@@ -187,7 +187,7 @@ Shared library modules (not CLI scripts):
 - **`_phase.py`** — Phase-rs subprocess wrapper. Manages the cached phase
   install at `~/.cache/mtg-skills/phase/` (or `$MTG_SKILLS_CACHE_DIR/phase`),
   exposes `run_duel` / `run_commander` and the coverage gate. Pinned to
-  phase tag `v0.1.19`; bump with care.
+  phase tag `v0.1.60`; bump with care.
 - **`_playtest_common.py`** — Schema-v1 JSON envelope and five markdown
   renderers (`render_goldfish_markdown`, `render_match_markdown`,
   `render_gauntlet_markdown`, `render_draft_markdown`,
