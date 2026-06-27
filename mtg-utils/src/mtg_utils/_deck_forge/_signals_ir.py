@@ -7107,21 +7107,32 @@ def extract_signals_ir(
             # EXILE_MATTERS_REGEX kept mirror. CR 406.
             if "in:exile" in e.zones:
                 add("exile_matters", "you", "", e.raw)
-            # ADR-0027 #24b — land_sacrifice_matters sac-OUTLET arm: a YOUR-side
-            # `sacrifice` Effect whose subject is a Land-ONLY board — the sac-a-land
-            # cost / "sacrifice any number of lands" payoff phase structures
-            # (Scapeshift, Mana Seism, Glacial Chasm, Springbloom Druid) plus the
-            # supplement._recover_land_sacrifice cost synth (Zuran Orb). A Land-only
-            # subject is held out of sacrifice_matters (the you-sac arm gates
-            # `card_types != ("Land",)`), so this is its own structural signal. Gated
-            # to scope not opp/each: a SYMMETRIC "each player sacrifices N lands" mass
-            # land-destruction (Destructive Force, Tectonic Break) is a wrath/stax
-            # punisher, not the you-side land-sac archetype. CR 701.16 / 305.6.
+            # ADR-0027 #24f — land_sacrifice_matters sac-OUTLET arm: ANY effect that
+            # makes YOU sacrifice a land — a `sacrifice` Effect over a Land-ONLY
+            # subject. Covers your-side sac costs/payoffs (Scapeshift, Mana Seism,
+            # Glacial Chasm, Springbloom Druid; Zuran Orb via
+            # supplement._recover_land_sacrifice) AND every SYMMETRIC "each player
+            # sacrifices N lands" outlet (Death Cloud, Smallpox, Restore Balance,
+            # Destructive Force, Tectonic Break, Wildfire, Pox, Epicenter, …): a
+            # symmetric sac puts YOUR land in YOUR graveyard AS A SACRIFICE (CR
+            # 701.21), so it FUELS the land-to-graveyard / "you sacrifice a land"
+            # payoffs (Gitrog, Titania, Lord Windgrace) — it COMBOS with the mechanic,
+            # which is exactly what a `_matters` lane fires for. Gate is `scope !=
+            # "opp"`: include you / each (symmetric) / any; EXCLUDE only opponent-only
+            # sac (Yawning Fissure, Din of the Fireherd, Epicenter's target-player
+            # face), which never touches your lands. The you/each split was a phase
+            # scope-tag QUIRK — phase tags structurally-identical symmetric land-sac
+            # inconsistently as `any` (Death Cloud) vs `each` (Destructive Force); this
+            # arm reads the structure regardless, so both are admitted consistently.
+            # A Land-only subject is held out of sacrifice_matters (the you-sac arm
+            # gates `card_types != ("Land",)`), so this stays this lane's own
+            # structural signal. Replaces the LAND_SACRIFICE_REGEX kept mirror.
+            # CR 701.21 / 305.6.
             if (
                 e.category == "sacrifice"
                 and isinstance(e.subject, Filter)
                 and e.subject.card_types == ("Land",)
-                and e.scope not in ("opp", "each")
+                and e.scope != "opp"
             ):
                 add("land_sacrifice_matters", "you", "", e.raw)
             # creatures_matter = a go-wide/scaling lane: a count operand over your

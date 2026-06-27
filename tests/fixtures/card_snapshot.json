@@ -16809,6 +16809,93 @@
     "type_line": "Artifact — Vehicle"
    }
   },
+  "Destructive Force": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 5,
+           "op": "fixed"
+          },
+          "cat": "sacrifice",
+          "raw": "Each player sacrifices five lands of their choice. ~ deals 5 damage to each creature.",
+          "sc": "each",
+          "sub": {
+           "t": [
+            "Land"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "f": 5,
+           "op": "fixed"
+          },
+          "cat": "damage",
+          "ck": "all",
+          "raw": "Each player sacrifices five lands of their choice. ~ deals 5 damage to each creature.",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Destructive Force",
+      "tl": "Sorcery"
+     }
+    ],
+    "n": "Destructive Force",
+    "oid": "b0967525-554b-41eb-b639-75fe36e0fe57"
+   },
+   "scryfall": {
+    "cmc": 7.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{R}{R}",
+    "name": "Destructive Force",
+    "oracle_id": "b0967525-554b-41eb-b639-75fe36e0fe57",
+    "oracle_text": "Each player sacrifices five lands of their choice. Destructive Force deals 5 damage to each creature.",
+    "type_line": "Sorcery"
+   }
+  },
   "Deus of Calamity": {
    "ir": {
     "faces": [
@@ -60015,6 +60102,78 @@
     "type_line": "Legendary Creature — Nightmare Beast"
    }
   },
+  "Tectonic Break": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "sacrifice",
+          "raw": "Each player sacrifices X lands of their choice.",
+          "sc": "each",
+          "sub": {
+           "t": [
+            "Land"
+           ]
+          }
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Tectonic Break",
+      "tl": "Sorcery"
+     }
+    ],
+    "n": "Tectonic Break",
+    "oid": "4a3c6d0e-6d77-4434-95f4-737879de026f"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{X}{R}{R}",
+    "name": "Tectonic Break",
+    "oracle_id": "4a3c6d0e-6d77-4434-95f4-737879de026f",
+    "oracle_text": "Each player sacrifices X lands of their choice.",
+    "type_line": "Sorcery"
+   }
+  },
   "Teferi, Mage of Zhalfir": {
    "ir": {
     "faces": [
@@ -69175,6 +69334,79 @@
     "power": "4",
     "toughness": "4",
     "type_line": "Legendary Creature — Elemental Boar"
+   }
+  },
+  "Yawning Fissure": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "sacrifice",
+          "raw": "Each opponent sacrifices a land of their choice.",
+          "sc": "opp",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Land"
+           ]
+          }
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "n": "Yawning Fissure",
+      "tl": "Sorcery"
+     }
+    ],
+    "n": "Yawning Fissure",
+    "oid": "634ec9d3-24c9-4090-a087-2624b6d5bf5b"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{R}",
+    "name": "Yawning Fissure",
+    "oracle_id": "634ec9d3-24c9-4090-a087-2624b6d5bf5b",
+    "oracle_text": "Each opponent sacrifices a land of their choice.",
+    "type_line": "Sorcery"
    }
   },
   "Yedora, Grave Gardener": {

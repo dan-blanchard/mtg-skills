@@ -4376,6 +4376,25 @@ def test_land_sacrifice_matters_opens_and_serves():
     assert lane_covers(viscera, "land_sacrifice_matters") is False
 
 
+def test_land_sacrifice_matters_includes_symmetric_each_scope():
+    # ADR-0027 #24f: a SYMMETRIC "each player sacrifices N lands" outlet makes YOU
+    # sacrifice a land — your land hits your graveyard AS A SACRIFICE (CR 701.21), so
+    # it FUELS the land-to-graveyard / "you sacrifice a land" payoffs (Gitrog, Titania,
+    # Lord Windgrace). phase tags these structurally-identical wraths inconsistently
+    # (`any` for Death Cloud, `each` for Destructive Force); the outlet arm reads the
+    # land-only sacrifice Effect regardless of scope (gate is `scope != "opp"`), so the
+    # twins are admitted consistently. Real cards, full oracle, real projected IR.
+    assert "land_sacrifice_matters" in {
+        s.key for s in test_signals("Destructive Force")
+    }
+    assert "land_sacrifice_matters" in {s.key for s in test_signals("Tectonic Break")}
+    # Boundary: an OPPONENT-ONLY land sac (scope=opp) never touches your lands, so it
+    # is NOT a member — "Each opponent sacrifices a land of their choice."
+    assert "land_sacrifice_matters" not in {
+        s.key for s in test_signals("Yawning Fissure")
+    }
+
+
 def test_gain_control_serve_catches_that_them_those():
     # A theft commander (Zidane, Sauron the Lidless Eye) wants every steal payoff, but
     # the serve's pronoun list missed "gain control of that/them/those" — Treasure
