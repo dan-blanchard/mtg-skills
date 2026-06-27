@@ -912,7 +912,17 @@ from mtg_utils.card_ir import Card
 #   extra_land_drop. Per-site SET-level diff: 14 byte-equal; cost_reduction gains 2
 #   genuine spell-class reducers the regex's 40-char gap cap wrongly dropped (recall
 #   improvement — Semblance Anvil, Mistform Warchief). Bump: supplement is cached.
-SIDECAR_VERSION = 65
+# v66 (phase bump v0.1.60 -> v0.8.0): the upstream parser closes 4 IR gaps natively
+#   (saga chapters carry per-chapter effects; coin-flip FlipCoin{win/lose}; exile-actor
+#   ExileTop.player Player-vs-TriggeringPlayer; granted abilities GrantAbility{def}) —
+#   gate gains keyword_grant_target +26 etc. But v0.8.0 ALSO REGRESSES 8 parser shapes
+#   (passive-voice "twice that many" doublers; GY-recursion trigger flattening; vote/
+#   modal outcome collapse; "discard unless"; Avatar Aang bending Effect; group_hug
+#   scope; self_counter SelfRef; Dead Ringers subject) — each REBRIDGED in supplement
+#   (the bump+recover migration). voltron 2396->2394 is a CORRECT drop (Argentum
+#   Masticore/Gallant Fowlknight gained a real engine clause). aftermath back-face
+#   (#1) still absent. SIDECAR bump (projection-input changed).
+SIDECAR_VERSION = 66
 
 
 def card_ir_dir() -> Path:

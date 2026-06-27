@@ -14,7 +14,7 @@ import tempfile
 from functools import lru_cache
 from pathlib import Path
 
-PHASE_TAG = "v0.1.60"
+PHASE_TAG = "v0.8.0"
 PHASE_REPO = "https://github.com/phase-rs/phase"
 
 
