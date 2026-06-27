@@ -31,15 +31,18 @@ from mtg_utils._card_ir.supplement import (
     _recover_cost_reduction,
     _recover_counter_removal,
     _recover_damage_reflect,
+    _recover_damage_to_opp,
     _recover_devotion_operand,
     _recover_dies_return,
     _recover_dropped_gain_life,
     _recover_exile_zone_ref,
+    _recover_facedown,
     _recover_historic_subject,
     _recover_land_sacrifice,
     _recover_opponent_cast_lock,
     _recover_opponent_discard,
     _recover_scaling_pump,
+    _recover_tap_down,
     recover_effect_from_text,
     supplement_card,
 )
@@ -907,6 +910,21 @@ def project_card(records: list[dict]) -> Card:
             for face in card.faces
         ),
     )
+    # ADR-0027 #24h (SIDECAR v56) — SUPPLEMENT_RECOVER C2: three reclassified MED-
+    # residue lanes whose kept regex mirror was the sole source of a real tail. Each
+    # recovers the dropped subject / scope / trigger onto the IR so the lane is
+    # structural and its mirror retires: facedown_matters' DROPPED face-down subject
+    # onto the reveal/look/turn-face-up payoffs (Smoke Teller, Break Open, Panoptic);
+    # tap_down's opponent ANAPHORA on a "that player controls" / "an opponent controls"
+    # tap and the no-tap "skips their next untap step" tempo-skip (Citadel Siege,
+    # Somnophore, Mind Spiral, Brine Elemental, Shisato); damage_to_opp_matters' synth
+    # deals_damage(player) trigger from the quoted-grant / ETB-burst "deals damage to a
+    # player/opponent" raw (Serpent Generator, Talon of Pain, Fanatic of Mogis). Runs
+    # AFTER the post-supplement re-runs so the synth damage_to_opp ability is not re-
+    # scanned. CR 708.2 / 701.20 / 119.3.
+    card = _recover_facedown(card, _oracle)
+    card = _recover_tap_down(card, _oracle)
+    card = _recover_damage_to_opp(card, _oracle)
     return replace(card, parse_confidence=_confidence(card))
 
 

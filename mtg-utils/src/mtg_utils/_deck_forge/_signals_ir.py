@@ -116,7 +116,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DAMAGE_EQUAL_POWER_REGEX,
     DAMAGE_PREVENTION_REGEX,
     DAMAGE_REDIRECT_REGEX,
-    DAMAGE_TO_OPP_MATTERS_REGEX,
     DEATH_MATTERS_REGEX,
     ENCHANTMENTS_MATTER_REGEX,
     ENTERED_ATTACKER_REGEX,
@@ -1036,27 +1035,13 @@ def _has_self_base_pt(subject: object) -> bool:
     return isinstance(subject, Filter) and "SelfBasePt" in subject.predicates
 
 
-# tap_down NARROW residue mirror (ADR-0027 #24). The structural arm in
-# extract_signals_ir (`cat=='tap'` + `subject.controller=='opp'`, plus `cat=='detain'`)
-# now carries the lane and adds +33 recall the brittle regex missed. This residue is
-# TAP_DOWN_REGEX MINUS the detain arm (detain is structural now) — it re-supplies ONLY
-# the 12 cards phase can't surface a structural opp-controller for: the anaphoric "tap
-# target <perm> THAT PLAYER controls" (Somnophore, Delirium, Karazikar, Mana Skimmer,
-# Sentinel, Citadel Siege, Yosei — phase leaves subject.controller you/any because it
-# can't resolve "that player" to an opponent), the subject-DROPPED "an opponent
-# controls" taps (Snaremaster Sprite, Mind Spiral — phase dropped subject to None),
-# Dovin's "tap all permanents target opponent controls", and the player-targeted "skips
-# their next untap step" tempo-skip (Yosei, Shisato — no controller-bearing effect). All
-# 12 are genuine tap-down. A byte-subset of the serve spec's TAP_DOWN_REGEX (unchanged),
-# so the serve pool never drifts; add() dedups the heavy overlap with the structural
-# arm. scope 'opponents'. CR 701.21 / 502.
-_TAP_DOWN_RESIDUE = re.compile(
-    r"(?<!un)tap target (?:permanent|creature|land|nonland permanent)"
-    r"[^.]*(?:an opponent|that player) controls"
-    r"|skips? (?:their|his or her|its) next untap step"
-    r"|tap (?:up to )?\w+ target permanents? (?:an opponent|that player) controls",
-    re.IGNORECASE,
-)
+# ADR-0027 #24h — _TAP_DOWN_RESIDUE mirror DELETED. The 12 residue cards now read
+# STRUCTURE: supplement `_recover_tap_down` resolves the opponent anaphora to a tap
+# `subject.controller=='opp'` (the 10 anaphoric / subject-dropped taps — Somnophore,
+# Delirium, Karazikar, Mana Skimmer, Sentinel, Citadel Siege, Yosei, Snaremaster Sprite,
+# Mind Spiral, Dovin) and the no-tap untap-skip to `skip_step` scope=='opp' (Brine
+# Elemental, Shisato), read by the existing tap arm + the new skip-untap arm in
+# extract_signals_ir. The serve spec keeps TAP_DOWN_REGEX (unchanged). CR 701.20 / 502.
 
 # Kept narrow mechanic-word detectors: REAL mechanics (rules-lawyer-verified —
 # voting CR 701.38, firebending CR 702.189, …) that phase v0.1.19 doesn't yet
@@ -1217,17 +1202,14 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # NO structural blocked_matters: the disjunctive "Whenever ~ attacks or blocks"
     # cards phase folds to event=='other' + the genuinely-trigger-less tail (quoted-
     # token / floating-delayed / equip-grant). CR 509.3a/b.
-    # ADR-0027 #24 — tap_down NARROW residue mirror. The structural `cat=='tap'` +
-    # `subject.controller=='opp'` arm (+ `cat=='detain'`) in extract_signals_ir now
-    # carries the lane (the inventory's "controller dropped" note was STALE — phase
-    # keeps the tap-target controller on the SUBJECT FILTER; only the OLD arm read wrong
-    # field, the cost-inferred EFFECT scope). _TAP_DOWN_RESIDUE re-supplies ONLY the 12
-    # cards phase can't surface a structural opp-controller for (the anaphoric "that
-    # player controls", the subject-dropped "an opponent controls" taps, and the
-    # player-targeted skip-untap — see _TAP_DOWN_RESIDUE docstring). add() dedups its
-    # overlap with the structural arm. The broad any-controller target tap stays on the
-    # SEPARATE tapper_engine lane (scope 'any'), untouched. CR 701.21 / 502.
-    ("tap_down", _TAP_DOWN_RESIDUE, "opponents"),
+    # ADR-0027 #24h — tap_down RESIDUE MIRROR DELETED. The anaphoric "tap target <perm>
+    # that player / an opponent controls" residue (Citadel Siege, Somnophore, Mind
+    # Spiral, Snaremaster Sprite, Delirium) now reads STRUCTURE: supplement
+    # `_recover_tap_down` resolves the opponent anaphora to `subject.controller=='opp'`
+    # (synthesizing the dropped subject), which the existing `cat=='tap'` + opp-
+    # controller arm reads. The "skips their next untap step" tempo-skip (Brine
+    # Elemental, Shisato) is recovered to `skip_step` scope=='opp', read by a new arm.
+    # CR 701.20 / 502.
     # ADR-0027 — island_matters BYTE-IDENTICAL kept WORD MIRROR (the islandwalk /
     # island-attack-restriction lane; pinned as ISLAND_MATTERS_REGEX in
     # _sweep_detectors). The deleted _HAND_FLOOR producer rides here, NOT the Scryfall
@@ -1706,22 +1688,14 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # snow is a real supertype (CR 205.4), NOT a skip — the analysis workflow
     # wrongly listed it. A snow-matters payoff cares about snow permanents/mana.
     ("snow_matters", re.compile(r"\bsnow\b", re.IGNORECASE), "you"),
-    # facedown_matters is a CARES-ABOUT lane: it must fire for face-down PAYOFFS
-    # (Ixidor "face-down creatures get +1/+1", Secret Plans, Trail of Mystery), not
-    # just the makers (morph/manifest/cloak/disguise). Those payoffs have no
-    # structural IR form, so mirror the full same-named sweep regex here for parity
-    # (the makers' IR categories + keywords also feed the lane; add() dedups).
-    (
-        "facedown_matters",
-        re.compile(
-            r"\bmorph\b|\bmegamorph\b|\bmanifest\b|\bdisguise\b|\bcloak\b"
-            r"|face-?down creatures?|as a 2/2 face-?down"
-            r"|turn (?:it|that creature|this creature|them|a permanent you control) "
-            r"face up|turn target [^.]*?face up|turned face up this turn",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 #24h — facedown_matters MIRROR DELETED. The face-down PAYOFF residue
+    # (Smoke Teller / Break Open / Panoptic Projektor: a reveal/look/turn-face-up effect
+    # whose face-down subject phase dropped) now reads STRUCTURE: supplement
+    # `_recover_facedown` stamps the exact "Face-down" subtype marker onto the effect
+    # subject, and the existing effect-subject arm (_is_facedown_subject) in
+    # extract_signals_ir fires. The name-strip in the recovery sheds the regex's name
+    # false-positive (Chameleon, Master of Disguise — a clone, not a morph payoff). CR
+    # 707.2 / 708.2.
     # ADR-0027 (q2-D3) — flash_matters: the GRANT half binds structurally in
     # extract_signals_ir (cast_with_keyword{flash}); this mirror is the FULL deleted
     # _HAND_FLOOR regex (both branches), recovering (a) the ACTIVATED flash-grant phase
@@ -1801,30 +1775,17 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # dedicated LOW inline mirror in extract_signals_ir (firing it at the structural
     # arm's HIGH confidence would feed has_other_plan and spuriously SILENCE those
     # power-2 voltron-eligible bodies' commander-damage tell).
-    # ADR-0027 β — damage_to_opp_matters (is_widen_of combat_damage_matters): the
-    # GENERAL (any-source, ANY damage — not the literal "combat damage") "deals damage
-    # to a PLAYER / opponent" connect-payoff (Hypnotic Specter, Curiosity, Goblin
-    # Lackey, Fungal Shambler). The STRUCTURAL arm in extract_signals_ir already fires
-    # the 69 phase-typed DamageDone player-recipient triggers (via the SIDECAR v13
-    # DamageToPlayer marker). This BYTE-IDENTICAL kept mirror of the deleted HAND_FLOOR
-    # regex recovers the textual tail phase can't structure as a DamageDone trigger: a
-    # trigger QUOTED inside a GrantAbility ("creatures you control gain 'whenever this
-    # creature deals damage to an opponent, draw' " — Snake Umbra, Helm of the
-    # Ghastlord, Serpent Generator, Arm with Aether), an ETB / set-in-motion BURST
-    # ("when ~ enters, it deals damage to each opponent" — Fanatic of Mogis, Meria's
-    # Outrider), and other-event consequences (Magebane Lizard's spellcast-punish). The
-    # deleted regex matched single clauses (`[^.]*?` never crosses `.`), so the flat
-    # mirror over reminder-stripped kept_oracle reproduces the per-clause regex firing
-    # set exactly. add() dedups vs the structural arm; the union is +recall over the
-    # deleted regex. Same HIGH confidence the deleted HAND_FLOOR producer fired (scope
-    # 'opponents'). Distinct from combat_damage_to_opp (the literal-"combat" recipient —
-    # this regex's `deals (?:noncombat )?damage` never matches "deals combat damage").
-    # CR 119.3.
-    (
-        "damage_to_opp_matters",
-        re.compile(DAMAGE_TO_OPP_MATTERS_REGEX, re.IGNORECASE),
-        "opponents",
-    ),
+    # ADR-0027 #24h — damage_to_opp_matters MIRROR DELETED. The "deals (noncombat)
+    # damage to a player/opponent" payoff residue phase couldn't structure as a
+    # DamageDone trigger — a trigger QUOTED inside a GrantAbility / token text (Snake
+    # Umbra, Helm of the Ghastlord, Serpent Generator, Arm with Aether, Talon of Pain),
+    # an ETB / set-in-motion BURST to each opponent (Fanatic of Mogis, Meria's Outrider,
+    # Stormbreath Dragon) — now reads STRUCTURE: supplement `_recover_damage_to_opp`
+    # synthesizes a `deals_damage`(DamageToPlayer) trigger from the raw, which the
+    # existing DamageToPlayer arm fires. The DAMAGE_TO_OPP_MATTERS_REGEX constant is no
+    # longer imported here, but stays in _sweep_detectors for the
+    # voltron plan mirror. Distinct from combat_damage_to_opp (the literal-"combat"
+    # recipient). CR 119.3.
     # ADR-0027 β — keyword_grant_target: a keyword grant to a SINGLE TARGET creature
     # ("target creature gains menace until end of turn"). The STRUCTURAL arm in
     # extract_signals_ir fires the single-target spell/ability grants via the SIDECAR
@@ -8985,6 +8946,18 @@ def extract_signals_ir(
             if cat == "tap" and e.subject is not None and e.subject.controller == "opp":
                 add("tap_down", "opponents", "", e.raw)
             if cat == "detain":
+                add("tap_down", "opponents", "", e.raw)
+            # ADR-0027 #24h — tap_down SKIP-UNTAP-STEP arm. A "<opponent> skips their
+            # next untap step" tempo-skip keeps the opponent's whole board tapped (CR
+            # 701.20 / 502 — a denied untap is a sustained tap-down) but emits NO tap
+            # effect, so the structural tap arm above can't see it. phase emits a
+            # generic `skip_step` with scope='any' (it never resolves WHO skips);
+            # supplement `_recover_tap_down` resolves the anaphora to scope='opp' ONLY
+            # for an opponent untap-step skip (Brine Elemental, Shisato, Yosei, Dovin —
+            # NOT the self-skip Avizoa / extra-turn Savor the Moment). No phase-native
+            # skip_step is scope 'opp', so this arm fires EXACTLY the recovered opponent
+            # untap-skip set. This replaces the _TAP_DOWN_RESIDUE skip arm. CR 701.20.
+            if cat == "skip_step" and e.scope == "opp":
                 add("tap_down", "opponents", "", e.raw)
             # ADR-0027 — tapper_engine: a repeatable TAPPER (Icy Manipulator,
             # Opposition, Master Decoy) — a tap Effect with a real TARGET/all/each

@@ -757,7 +757,27 @@ from mtg_utils.card_ir import Card
 #   the recovered scaling pump "for each quest counter" correctly opens the counter-
 #   scaling payoff lane too, CR 122.1; a legitimate shared-recovery help, not noise).
 #   voltron_matters 2396 set-equal.
-SIDECAR_VERSION = 56
+# v57 — ADR-0027 #24h SUPPLEMENT_RECOVER C2 (3 reclassified MED-residue lanes; the
+#   subject/scope/trigger phase drops recovered onto the IR; mirrors deleted):
+#   (1) facedown_matters (supplement `_recover_facedown`): phase emits a face-down
+#   reveal/look/turn-face-up payoff as a generic reveal/topdeck_select/transform/
+#   cost_reduction with the FACE-DOWN qualifier dropped from the subject. Stamp the
+#   exact "Face-down" subtype marker onto every effect whose clause references a
+#   face-down permanent/spell or a morph-family mechanic (name-stripped, so a card
+#   merely NAMED "… of Disguise" — Chameleon — is not swept in); the existing effect-
+#   subject arm reads STRUCTURE; the FACEDOWN_MATTERS mirror is DELETED. CR 707.2 /
+#   708.2.
+#   (2) tap_down (supplement `_recover_tap_down`): resolve the opponent ANAPHORA on an
+#   anaphoric "tap … that player/an opponent controls" tap (controller you/any or
+#   dropped subject) to controller=='opp', and the no-tap "skips their next untap step"
+#   tempo-skip to scope=='opp' on skip_step; the structural tap arm + a new skip_step
+#   arm read STRUCTURE; the _TAP_DOWN_RESIDUE mirror is DELETED. CR 701.20.
+#   (3) damage_to_opp_matters (supplement `_recover_damage_to_opp`): synthesize a
+#   deals_damage(DamageToPlayer) trigger from the quoted-grant / ETB-burst "deals
+#   damage to a player/opponent" raw phase leaves unstructured; the existing arm reads
+#   STRUCTURE; the DAMAGE_TO_OPP_MATTERS mirror is DELETED (the regex constant stays
+#   for the voltron plan mirror). CR 119.3 / 120.
+SIDECAR_VERSION = 57
 
 
 def card_ir_dir() -> Path:

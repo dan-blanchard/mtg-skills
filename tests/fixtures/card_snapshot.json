@@ -10256,6 +10256,84 @@
     "type_line": "Creature — Dwarf Shaman"
    }
   },
+  "Break Open": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "transform",
+          "raw": "Turn target face-down creature an opponent controls face up."
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "facedown_ref",
+          "raw": "face-down reference (recovered)",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Face-down"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Break Open",
+      "tl": "Instant"
+     }
+    ],
+    "n": "Break Open",
+    "oid": "1fcec3b2-47ba-4c56-9ce1-a4807e8ad262"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Break Open",
+    "oracle_id": "1fcec3b2-47ba-4c56-9ce1-a4807e8ad262",
+    "oracle_text": "Turn target face-down creature an opponent controls face up.",
+    "type_line": "Instant"
+   }
+  },
   "Breeches, Eager Pillager": {
    "ir": {
     "faces": [
@@ -10508,6 +10586,99 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Legendary Creature — Human Soldier"
+   }
+  },
+  "Brine Elemental": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "skip_step",
+          "raw": "When ~ is turned face up, each opponent skips their next untap step.",
+          "sc": "opp"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "turn_face_up",
+         "sc": "you"
+        }
+       }
+      ],
+      "kw": [
+       "Morph"
+      ],
+      "n": "Brine Elemental",
+      "tl": "Creature — Elemental"
+     }
+    ],
+    "n": "Brine Elemental",
+    "oid": "0e7b02fd-f2a3-493c-939b-ff9bca337774"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "combo_piece",
+      "id": "0b93a80e-7b93-4ea8-96b7-f48d5159360f",
+      "name": "Brine Elemental",
+      "object": "related_card",
+      "type_line": "Creature — Elemental",
+      "uri": "https://api.scryfall.com/cards/0b93a80e-7b93-4ea8-96b7-f48d5159360f"
+     },
+     {
+      "component": "combo_piece",
+      "id": "e9375cbe-93c0-41a5-a6e3-fb4416f54a69",
+      "name": "Morph",
+      "object": "related_card",
+      "type_line": "Creature",
+      "uri": "https://api.scryfall.com/cards/e9375cbe-93c0-41a5-a6e3-fb4416f54a69"
+     }
+    ],
+    "cmc": 6.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Morph"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{U}{U}",
+    "name": "Brine Elemental",
+    "oracle_id": "0e7b02fd-f2a3-493c-939b-ff9bca337774",
+    "oracle_text": "Morph {5}{U}{U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)\nWhen this creature is turned face up, each opponent skips their next untap step.",
+    "power": "5",
+    "toughness": "4",
+    "type_line": "Creature — Elemental"
    }
   },
   "Brinelin, the Moon Kraken": {
@@ -21108,6 +21279,23 @@
           "to:battlefield"
          ]
         }
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "When this creature enters, it deals damage to each opponent equal to your devotion to red."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "deals_damage",
+         "sub": {
+          "p": [
+           "DamageToPlayer"
+          ]
+         }
+        }
        }
       ],
       "n": "Fanatic of Mogis",
@@ -21115,7 +21303,8 @@
      }
     ],
     "n": "Fanatic of Mogis",
-    "oid": "f19d06af-6caf-41d8-8d0a-d5d50bd67900"
+    "oid": "f19d06af-6caf-41d8-8d0a-d5d50bd67900",
+    "pc": "partial"
    },
    "scryfall": {
     "cmc": 4.0,
@@ -32865,6 +33054,21 @@
           "player"
          ]
         }
+       },
+       {
+        "e": [
+         {
+          "cat": "facedown_ref",
+          "raw": "face-down reference (recovered)",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Face-down"
+           ]
+          }
+         }
+        ],
+        "k": "static"
        }
       ],
       "n": "Kaust, Eyes of the Glade",
@@ -40095,6 +40299,116 @@
     "name": "Mind Rot",
     "oracle_id": "ad44cf74-b717-48fb-9fa2-77512024d76a",
     "oracle_text": "Target player discards two cards.",
+    "type_line": "Sorcery"
+   }
+  },
+  "Mind Spiral": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "gift"
+         },
+         {
+          "amt": {
+           "f": 3,
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "craw": "Target player draws three cards.",
+          "raw": "Target player draws three cards. If the gift was promised, tap target creature an opponent controls and put a stun counter on it."
+         },
+         {
+          "cat": "tap",
+          "sub": {
+           "c": "opp",
+           "t": [
+            "Creature"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "stun"
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "kw": [
+       "Gift"
+      ],
+      "n": "Mind Spiral",
+      "tl": "Sorcery"
+     }
+    ],
+    "n": "Mind Spiral",
+    "oid": "03e356ae-f1e8-4730-8d2b-b9e2f32db915"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "combo_piece",
+      "id": "7e24fe6a-607b-49b8-9fca-cecb1e40de7f",
+      "name": "Mind Spiral",
+      "object": "related_card",
+      "type_line": "Sorcery",
+      "uri": "https://api.scryfall.com/cards/7e24fe6a-607b-49b8-9fca-cecb1e40de7f"
+     },
+     {
+      "component": "token",
+      "id": "de0d6700-49f0-4233-97ba-cef7821c30ed",
+      "name": "Fish",
+      "object": "related_card",
+      "type_line": "Token Creature — Fish",
+      "uri": "https://api.scryfall.com/cards/de0d6700-49f0-4233-97ba-cef7821c30ed"
+     }
+    ],
+    "cmc": 5.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Gift"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "oldschool": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{U}",
+    "name": "Mind Spiral",
+    "oracle_id": "03e356ae-f1e8-4730-8d2b-b9e2f32db915",
+    "oracle_text": "Gift a tapped Fish (You may promise an opponent a gift as you cast this spell. If you do, they create a tapped 1/1 blue Fish creature token before its other effects.)\nTarget player draws three cards. If the gift was promised, tap target creature an opponent controls and put a stun counter on it. (If a permanent with a stun counter would become untapped, remove one from it instead.)",
     "type_line": "Sorcery"
    }
   },
@@ -51697,6 +52011,123 @@
     "name": "Sensei's Divining Top",
     "oracle_id": "13575cf9-65c1-4861-b21e-eb2155e07766",
     "oracle_text": "{1}: Look at the top three cards of your library, then put them back in any order.\n{T}: Draw a card, then put this artifact on top of its owner's library.",
+    "type_line": "Artifact"
+   }
+  },
+  "Serpent Generator": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "genericmana,mana,tap",
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "raw": "{4}, {T}: Create a 1/1 colorless Snake artifact creature token. It has \"Whenever ~ deals damage to a player, that player gets a poison counter.\"",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Snake"
+           ],
+           "t": [
+            "Artifact",
+            "Creature"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "poison",
+          "ck": "poison",
+          "raw": "Whenever ~ deals damage to a player, that player gets a poison counter."
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "other",
+          "raw": "{4}, {T}: Create a 1/1 colorless Snake artifact creature token. It has \"Whenever this creature deals damage to a player, that player gets a poison counter.\""
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "deals_damage",
+         "sub": {
+          "p": [
+           "DamageToPlayer"
+          ]
+         }
+        }
+       }
+      ],
+      "n": "Serpent Generator",
+      "tl": "Artifact"
+     }
+    ],
+    "n": "Serpent Generator",
+    "oid": "0e3a11f4-c880-4932-bc7e-7aea8a9472bc",
+    "pc": "partial"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "combo_piece",
+      "id": "0b08f89d-2ce3-4686-a8bd-ed982280ae4d",
+      "name": "Serpent Generator",
+      "object": "related_card",
+      "type_line": "Artifact",
+      "uri": "https://api.scryfall.com/cards/0b08f89d-2ce3-4686-a8bd-ed982280ae4d"
+     },
+     {
+      "component": "combo_piece",
+      "id": "8a9cb417-8709-4336-be36-2fb0cea31fe1",
+      "name": "Poison Counter",
+      "object": "related_card",
+      "type_line": "Card",
+      "uri": "https://api.scryfall.com/cards/8a9cb417-8709-4336-be36-2fb0cea31fe1"
+     }
+    ],
+    "cmc": 6.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "oldschool": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "tlr": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{6}",
+    "name": "Serpent Generator",
+    "oracle_id": "0e3a11f4-c880-4932-bc7e-7aea8a9472bc",
+    "oracle_text": "{4}, {T}: Create a 1/1 colorless Snake artifact creature token. It has \"Whenever this creature deals damage to a player, that player gets a poison counter.\" (A player with ten or more poison counters loses the game.)",
     "type_line": "Artifact"
    }
   },
@@ -66974,5 +67405,5 @@
  },
  "phase_tag": "v0.1.60",
  "schema": 1,
- "sidecar_version": 56
+ "sidecar_version": 57
 }

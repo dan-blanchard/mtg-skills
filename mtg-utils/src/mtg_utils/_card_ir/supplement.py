@@ -3136,3 +3136,234 @@ def _recover_scaling_pump(card: Card, oracle: str) -> Card:
             raw=m.group(0),
         ),
     )
+
+
+# ── ADR-0027 #24h SUPPLEMENT_RECOVER C2 (subject / anaphora / quoted-trigger) ──
+# Three reclassified MED-residue lanes whose kept regex mirror was the SOLE source of
+# a real tail phase parses but DROPS the discriminating subject / scope / trigger.
+# Each recovery reconstructs the dropped STRUCTURE onto the IR (a face-down subject, a
+# resolved opponent controller, a synthesized deals_damage trigger) so the lane's IR
+# arm reads structure and the regex mirror retires. Append-only / idempotent; same
+# joined-oracle seam as the recoveries above.
+
+# (1) facedown_matters — phase emits a face-down REVEAL / LOOK / TURN-face-up payoff as
+#     a generic reveal / topdeck_select / transform / cost_reduction with the FACE-DOWN
+#     qualifier DROPPED from the subject (Smoke Teller "look at target face-down
+#     creature", Break Open "turn target face-down creature … face up", Panoptic
+#     Projektor's "next face-down creature spell … costs less"). Stamp the EXACT marker
+#     phase emits for NATIVE face-down subjects (the subtype token "Face-down" — see
+#     _signals_ir._is_facedown_subject) onto every effect whose own clause references a
+#     face-down permanent / spell or a morph-family mechanic, so the existing
+#     facedown_matters effect-subject arm fires. The marker is inert outside the lane
+#     ("Face-down" is not a creature subtype, so it can't cross into tribal lanes). CR
+#     707.2 / 708.2 / 702.36-37.
+# Mirror of the deleted FACEDOWN_MATTERS regex (NARROW — a face-down CREATURE/permanent
+# reference, a 2/2-face-down, a TURN-face-up phrasing, or a morph-family keyword). It is
+# deliberately NOT a bare "face down": a card EXILED face down (impulse-exile / hideaway
+# — Bottled Cloister, Scroll Rack, Gonti) is a hidden-card mechanic, not the morph /
+# manifest face-down-PERMANENT lane (CR 708 vs 702.36).
+_FACEDOWN_REF = re.compile(
+    r"\bmorph\b|\bmegamorph\b|\bmanifest\b|\bdisguise\b|\bcloak\b"
+    r"|face[- ]?down (?:creature|permanent)|as a 2/2 face[- ]?down"
+    r"|turn (?:it|that creature|this creature|them|a permanent you control) face up"
+    r"|turn target [^.]*?face up|turned face up",
+    re.IGNORECASE,
+)
+# A card that already fires facedown_matters STRUCTURALLY (a morph-family MAKER) needs
+# no carrier: it bears the keyword, a native "Face-down" subject, or a turn_face_up.
+_FACEDOWN_KEYWORDS = frozenset(
+    {"morph", "megamorph", "manifest", "disguise", "cloak", "manifest dread"}
+)
+
+
+def _has_native_facedown(card: Card) -> bool:
+    for face in card.faces:
+        if any(k.lower() in _FACEDOWN_KEYWORDS for k in face.keywords):
+            return True
+    for ab in card.all_abilities():
+        if ab.trigger is not None and (
+            ab.trigger.event == "turn_face_up"
+            or (
+                ab.trigger.subject is not None
+                and "Face-down" in ab.trigger.subject.subtypes
+            )
+        ):
+            return True
+        for e in ab.effects:
+            if e.category == "turn_face_up" or (
+                e.subject is not None and "Face-down" in e.subject.subtypes
+            ):
+                return True
+    return False
+
+
+def _recover_facedown(card: Card, oracle: str) -> Card:
+    """Append a synthetic ``facedown_ref`` carrier Effect (subject = the exact
+    "Face-down" marker phase emits for native face-down subjects) when the oracle
+    references a face-down permanent / spell or a morph-family mechanic, so the existing
+    facedown_matters effect-subject arm (``_is_facedown_subject``) reads STRUCTURE. The
+    card name is stripped first, so a card merely NAMED "… of Disguise" / "… Made
+    Manifest" / "Burning Cloak" — not a face-down payoff — is not swept in by its own
+    name (a precision gain over the name-blind regex). A dedicated carrier category +
+    subject is used (not a mutation of an existing effect's subject) so no other lane's
+    subject-presence assumption is disturbed (e.g. the cost_reduction arm trusts a
+    non-None subject — a stamped marker would mis-trust a "morph costs cost more" tax).
+    Deduped against the morph-family MAKERS already firing structurally. CR 707.2 /
+    708.2."""
+    if not card.faces:
+        return card
+    name = card.name or ""
+    text = oracle.replace(name, " ") if name else oracle
+    text = re.sub(r"\([^)]*\)", " ", text)
+    if not _FACEDOWN_REF.search(text):
+        return card
+    if _has_native_facedown(card):
+        return card
+    synth = Ability(
+        kind="static",
+        effects=(
+            Effect(
+                category="facedown_ref",
+                scope="you",
+                subject=Filter(subtypes=("Face-down",)),
+                raw="face-down reference (recovered)",
+            ),
+        ),
+    )
+    head, *rest = card.faces
+    return replace(
+        card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
+    )
+
+
+# (2) tap_down — phase leaves an OPPONENT-tap's controller UNRESOLVED: an anaphoric
+#     "tap target <perm> that player controls" / "an opponent controls" projects with
+#     subject.controller you/any (Citadel Siege, Karazikar, Sentinel, Somnophore,
+#     Delirium) or a DROPPED subject (Snaremaster Sprite, Mind Spiral), so the
+#     opponent-tapping lane can't read scope. Resolve the anaphor to controller=='opp'
+#     on the tap subject (synthesizing the dropped subject from the tapped noun). The
+#     "skips their next untap step" tempo-skip with NO tap effect at all (Brine
+#     Elemental, Shisato — keeping the opponent's board tapped) is resolved to
+#     scope=='opp' on the skip_step effect. A symmetric "each player's … that player
+#     controls" tap (Monsoon, Angel's Trumpet) and a SELF untap-skip (Avizoa, Savor the
+#     Moment) are both excluded. CR 701.20 / 702.36.
+_TAP_OPP_CONTROL = re.compile(
+    r"(?<!un)tap\b[^.]*?\b(?:an opponent|that player|that opponent|target opponent"
+    r"|defending player|your opponents|opponents) controls?\b",
+    re.IGNORECASE,
+)
+_EACH_PLAYER = re.compile(r"each player", re.IGNORECASE)
+_SKIP_UNTAP = re.compile(r"untap step", re.IGNORECASE)
+_SKIP_OPP = re.compile(
+    r"(?:each opponent|that player|target player|target opponent|an opponent"
+    r"|that opponent|opponents?) skips?\b",
+    re.IGNORECASE,
+)
+_SKIP_SELF = re.compile(r"\byou skip|your (?:next )?untap step", re.IGNORECASE)
+_TAP_NOUN = re.compile(r"\b(land|permanent|artifact|creature)s?\b", re.IGNORECASE)
+
+
+def _tap_subject_opp(subject: Filter | None, clause: str) -> Filter:
+    """Set the tap target's controller to 'opp', synthesizing the type subject phase
+    dropped (read from the tapped noun — "tap target LAND that player controls")."""
+    if subject is None:
+        m = _TAP_NOUN.search(clause)
+        ct = m.group(1).capitalize() if m else "Creature"
+        return Filter(card_types=(ct,), controller="opp")
+    return replace(subject, controller="opp")
+
+
+def _recover_tap_down(card: Card, oracle: str) -> Card:
+    """Resolve the opponent anaphora on tap / skip-untap-step effects so tap_down reads
+    STRUCTURE (a tap subject controller=='opp', a skip_step scope=='opp'). Each effect
+    reads its OWN clause raw (the full oracle only when phase dropped that raw —
+    Delirium, Mind Spiral). Idempotent (a tap already controller=='opp' / a skip already
+    scope=='opp' is untouched). CR 701.20."""
+    if not card.faces:
+        return card
+    text = re.sub(r"\([^)]*\)", " ", oracle)
+    faces: list[Face] = []
+    changed = False
+    for face in card.faces:
+        new_abs: list[Ability] = []
+        for ab in face.abilities:
+            new_effs: list[Effect] = []
+            for e in ab.effects:
+                clause = re.sub(r"\([^)]*\)", " ", e.raw) if e.raw else text
+                if (
+                    e.category == "tap"
+                    and not (e.subject is not None and e.subject.controller == "opp")
+                    and _TAP_OPP_CONTROL.search(clause)
+                    and not _EACH_PLAYER.search(clause)
+                ):
+                    new_effs.append(
+                        replace(e, subject=_tap_subject_opp(e.subject, clause))
+                    )
+                    changed = True
+                elif (
+                    e.category == "skip_step"
+                    and e.scope != "opp"
+                    and _SKIP_UNTAP.search(clause)
+                    and _SKIP_OPP.search(clause)
+                    and not _SKIP_SELF.search(clause)
+                ):
+                    new_effs.append(replace(e, scope="opp"))
+                    changed = True
+                else:
+                    new_effs.append(e)
+            new_abs.append(replace(ab, effects=tuple(new_effs)))
+        faces.append(replace(face, abilities=tuple(new_abs)))
+    if not changed:
+        return card
+    return replace(card, faces=tuple(faces))
+
+
+# (3) damage_to_opp_matters — a "deals (noncombat) damage to a player / opponent" payoff
+#     phase leaves UNSTRUCTURED: a trigger QUOTED inside a granted ability or a token's
+#     text (Serpent Generator, Snake Umbra, Helm of the Ghastlord, Arm with Aether,
+#     Talon of Pain), or a one-shot ETB / set-in-motion BURST to each opponent (Fanatic
+#     of Mogis, Meria's Outrider, Stormbreath Dragon). phase emits no DamageDone trigger
+#     for these, so the player recipient survives only in the raw. Synthesize a
+#     ``deals_damage`` trigger carrying the DamageToPlayer marker (the same marker
+#     project stamps on a NATIVE deals_damage player trigger), so the existing
+#     damage_to_opp_matters arm reads STRUCTURE. The detect
+#     pattern is the deleted DAMAGE_TO_OPP_MATTERS_REGEX byte-for-byte, so the recovered
+#     set == the deleted mirror's; it EXCLUDES "combat damage" (the already-migrated
+#     combat_damage_to_opp recipient). CR 119.3 / 120.
+_DAMAGE_TO_OPP_PAYOFF = re.compile(
+    r"\bwhen(?:ever)?\b[^.]*?\bdeals (?:noncombat )?damage to "
+    r"(?:a player|an opponent|one of your opponents|each opponent"
+    r"|target opponent|that player|a player or planeswalker)\b",
+    re.IGNORECASE,
+)
+_DAMAGE_TO_PLAYER_MARKER = Filter(predicates=("DamageToPlayer",))
+
+
+def _recover_damage_to_opp(card: Card, oracle: str) -> Card:
+    """Append a synthetic ``deals_damage`` (DamageToPlayer) Trigger ability when the raw
+    oracle names a non-combat "deals damage to a player/opponent" payoff that phase left
+    wholly unstructured, so damage_to_opp_matters reads STRUCTURE. Deduped against a
+    NATIVE deals_damage / combat_damage player trigger (a fully-structured card is
+    untouched). CR 119.3."""
+    if not card.faces:
+        return card
+    stripped = re.sub(r"\([^)]*\)", " ", oracle)
+    if not _DAMAGE_TO_OPP_PAYOFF.search(stripped):
+        return card
+    if any(
+        ab.trigger is not None
+        and ab.trigger.event in ("deals_damage", "combat_damage")
+        and ab.trigger.subject is not None
+        and "DamageToPlayer" in ab.trigger.subject.predicates
+        for ab in card.all_abilities()
+    ):
+        return card
+    synth = Ability(
+        kind="triggered",
+        trigger=Trigger(event="deals_damage", subject=_DAMAGE_TO_PLAYER_MARKER),
+        effects=(Effect(category="other", raw=stripped.strip()),),
+    )
+    head, *rest = card.faces
+    return replace(
+        card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
+    )

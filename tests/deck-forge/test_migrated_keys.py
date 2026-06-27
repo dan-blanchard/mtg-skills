@@ -993,3 +993,85 @@ def test_opponent_discard_does_not_fire_on_combat_damage_self_loot():
         )
     }
     assert "opponent_discard" not in keys
+
+
+# ── ADR-0027 #24h (SIDECAR v56) — SUPPLEMENT_RECOVER C2 real-card structural pins ──
+# Each proves the lane fires (or correctly does NOT) off the SUPPLEMENT-recovered
+# subject / scope / trigger in the REAL projected IR — the facedown / tap_down /
+# damage_to_opp mirrors are deleted.
+
+
+def test_facedown_recovered_carrier_break_open():
+    """Break Open's "Turn target face-down creature an opponent controls face up" is a
+    generic `transform` with the face-down qualifier dropped; supplement._recover_facedown
+    appends a `facedown_ref` carrier whose subject carries the "Face-down" marker, so the
+    existing effect-subject arm fires facedown_matters. CR 708.2."""
+    ir = test_card_ir("Break Open")
+    assert any(
+        e.category == "facedown_ref" and "Face-down" in e.subject.subtypes
+        for ab in ir.all_abilities()
+        for e in ab.effects
+        if e.subject is not None
+    ), "recovered facedown_ref carrier missing"
+    keys = {s.key for s in extract_signals_hybrid(test_card("Break Open"), ir)}
+    assert "facedown_matters" in keys
+
+
+def test_facedown_does_not_fire_on_name_only_disguise():
+    """Chameleon, Master of Disguise is a clone with NO face-down mechanic — only its
+    NAME contains "Disguise". The recovery strips the card name before matching, so it is
+    NOT swept in (a precision gain over the name-blind regex). CR 707.2."""
+    ir = test_card_ir("Chameleon, Master of Disguise")
+    assert not any(
+        e.category == "facedown_ref" for ab in ir.all_abilities() for e in ab.effects
+    )
+    keys = {
+        s.key
+        for s in extract_signals_hybrid(test_card("Chameleon, Master of Disguise"), ir)
+    }
+    assert "facedown_matters" not in keys
+
+
+def test_tap_down_recovered_opp_controller_mind_spiral():
+    """Mind Spiral's gift "tap target creature an opponent controls" projects with the
+    tap subject DROPPED to None; supplement._recover_tap_down synthesizes a Creature
+    subject with controller=='opp', so the structural tap arm fires tap_down. CR 701.20."""
+    ir = test_card_ir("Mind Spiral")
+    assert any(
+        e.category == "tap" and e.subject is not None and e.subject.controller == "opp"
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    ), "recovered opp-controlled tap subject missing"
+    keys = {s.key for s in extract_signals_hybrid(test_card("Mind Spiral"), ir)}
+    assert "tap_down" in keys
+
+
+def test_tap_down_recovered_skip_untap_step_brine_elemental():
+    """Brine Elemental's "each opponent skips their next untap step" is a no-tap tempo
+    lock; supplement._recover_tap_down resolves the anaphor to `skip_step` scope=='opp',
+    read by the new skip-untap arm. CR 701.20."""
+    ir = test_card_ir("Brine Elemental")
+    assert any(
+        e.category == "skip_step" and e.scope == "opp"
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    ), "recovered skip_step scope=='opp' missing"
+    keys = {s.key for s in extract_signals_hybrid(test_card("Brine Elemental"), ir)}
+    assert "tap_down" in keys
+
+
+def test_damage_to_opp_recovered_quoted_trigger_serpent_generator():
+    """Serpent Generator's token grant "Whenever ~ deals damage to a player, that player
+    gets a poison counter" is a quoted trigger phase leaves unstructured;
+    supplement._recover_damage_to_opp synthesizes a deals_damage(DamageToPlayer) trigger,
+    so the existing arm fires damage_to_opp_matters. CR 119.3."""
+    ir = test_card_ir("Serpent Generator")
+    assert any(
+        ab.trigger is not None
+        and ab.trigger.event == "deals_damage"
+        and ab.trigger.subject is not None
+        and "DamageToPlayer" in ab.trigger.subject.predicates
+        for ab in ir.all_abilities()
+    ), "recovered deals_damage(DamageToPlayer) trigger missing"
+    keys = {s.key for s in extract_signals_hybrid(test_card("Serpent Generator"), ir)}
+    assert "damage_to_opp_matters" in keys
