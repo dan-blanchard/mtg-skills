@@ -36,6 +36,7 @@ from mtg_utils._card_ir.supplement import (
     _recover_damage_to_opp,
     _recover_devotion_operand,
     _recover_dies_return,
+    _recover_discard_unless,
     _recover_dropped_gain_life,
     _recover_dynamic_base_pt_set,
     _recover_exile_zone_ref,
@@ -55,6 +56,7 @@ from mtg_utils._card_ir.supplement import (
     _recover_token_doubling,
     _recover_topdeck_stack_self,
     _recover_tribe_damage_source,
+    _recover_vote_outcome,
     recover_effect_from_text,
     supplement_card,
 )
@@ -1042,6 +1044,17 @@ def project_card(records: list[dict]) -> Card:
     # discriminator) stays. CR 305.9 / 121 / 406.
     card = _recover_extra_land_drop(card, _oracle)
     card = _recover_group_hug_draw_scope(card)
+    # v0.8.0 bump ROOT C (recovery) — re-synthesize the dropped vote/modal OUTCOME
+    # Effect (destroy-all / mass-exile / each-player-reanimate / opp life-loss / mass
+    # -X/-X) phase v0.8.0 collapsed to a lone `vote` / duplicate `choose`, so
+    # mass_removal / reanimator / lifeloss_matters / debuff_matters read STRUCTURE.
+    # CR 701.38a.
+    card = _recover_vote_outcome(card)
+    # v0.8.0 bump ROOT D (recovery) — convert the degenerate empty-draw fragment of a
+    # "draw N, then discard a card unless …" loot clause back into the `discard`
+    # Effect phase v0.8.0 dropped, so discard_outlet / discard_matters re-open. CR
+    # 701.9.
+    card = _recover_discard_unless(card)
     return replace(card, parse_confidence=_confidence(card))
 
 

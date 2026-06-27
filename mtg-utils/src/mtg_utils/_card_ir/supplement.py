@@ -5270,3 +5270,209 @@ def _recover_group_hug_draw_scope(card: Card) -> Card:
             new_abs.append(replace(ab, effects=tuple(new_effs)))
         faces.append(replace(face, abilities=tuple(new_abs)))
     return replace(card, faces=tuple(faces)) if changed else card
+
+
+# ── v0.8.0 bump ROOT C — vote / modal-OUTCOME collapse residue ─────────────────
+# phase v0.8.0 parses the vote/secret-council/dilemma carrier (CR 701.38a: a vote
+# "determine[s] some aspect of the effect of that spell or ability") but DROPS the
+# chosen-OUTCOME branch — "If <option> gets more votes, <outcome>" — leaving a lone
+# `vote` Effect (or, for the "Each player chooses … Then <outcome>" modal — Selective
+# Obliteration — a DUPLICATE `choose`) with NO structured node for the destroy-all /
+# mass-exile / each-player-reanimate / opponent-drain / mass-debuff the outcome
+# performs. The full vote/modal text (incl. every outcome clause) survives on the
+# carrier Effect's raw, so this card-level pass re-synthesizes the dropped outcome
+# Effect from that raw — the _recover_dropped_gain_life / _recover_base_pt_set
+# precedent (phase dropped the structure; rebuild it from the text). Each outcome is
+# APPEND-ONLY and gated on the card NOT already carrying that category, which excludes
+# the carriers whose outcome phase DID structure (Harsh Mercy / Kindred Dominance —
+# `choose`+`destroy(all)`; Council's Judgment / World-Bottling Kit — `vote`/`choose`+
+# `exile(all)`): those keep their existing node, only the genuinely-dropped outcomes
+# recover. CR 701.38a (vote) / 701.39 (choose) / 701.7 (destroy) / 406 (exile) /
+# 110.2a (reanimate) / 119.3 (life loss) / 613.4c (-X/-X).
+_VOTE_DESTROY_ALL = re.compile(
+    r"destroy all (nonland permanents|permanents|creatures)", re.IGNORECASE
+)
+_VOTE_EXILE_EACH = re.compile(
+    r"exile (?:each|all) (?:nonland )?permanents?\b", re.IGNORECASE
+)
+_VOTE_REANIMATE_EACH = re.compile(
+    r"each player returns each creature card from (?:their|his or her) "
+    r"graveyard to the battlefield",
+    re.IGNORECASE,
+)
+_VOTE_OPP_LOSE_LIFE = re.compile(r"each opponent loses (\d+) life", re.IGNORECASE)
+_VOTE_OPP_DEBUFF = re.compile(
+    r"creatures (?:your )?opponents control get -(\d+)/-\d+", re.IGNORECASE
+)
+
+
+def _has_category(card: Card, *cats: str) -> bool:
+    return any(e.category in cats for ab in card.all_abilities() for e in ab.effects)
+
+
+def _has_neg_pump(card: Card) -> bool:
+    """A negative-amount pump already on the card (the debuff_matters anchor) — so the
+    recovery never doubles a mass-debuff phase already structured."""
+    for ab in card.all_abilities():
+        for e in ab.effects:
+            if e.category in ("pump", "pump_target") and (
+                e.amount is not None
+                and e.amount.op == "fixed"
+                and isinstance(e.amount.factor, int)
+                and e.amount.factor < 0
+            ):
+                return True
+    return False
+
+
+def _recover_vote_outcome(card: Card) -> Card:
+    """Re-synthesize the dropped vote/modal OUTCOME Effect (destroy-all / mass-exile /
+    each-player-reanimate / opponent life-loss / mass -X/-X debuff) onto the carrier
+    ability, read from the `vote`/`choose` Effect raw. Append-only and category-gated
+    so a carrier whose outcome phase DID structure is untouched. CR 701.38a."""
+    if not card.faces:
+        return card
+    faces: list[Face] = []
+    changed = False
+    for face in card.faces:
+        new_abs: list[Ability] = []
+        for ab in face.abilities:
+            carrier = next(
+                (e for e in ab.effects if e.category in ("vote", "choose")), None
+            )
+            if carrier is None:
+                new_abs.append(ab)
+                continue
+            craw = carrier.raw or ""
+            extra: list[Effect] = []
+            m = _VOTE_DESTROY_ALL.search(craw)
+            if m and not _has_category(card, "destroy"):
+                kind = "Creature" if "creature" in m.group(1).lower() else "Permanent"
+                extra.append(
+                    Effect(
+                        category="destroy",
+                        scope="you",
+                        counter_kind="all",
+                        subject=Filter(card_types=(kind,)),
+                        raw=craw[m.start() :],
+                    )
+                )
+            m = _VOTE_EXILE_EACH.search(craw)
+            if m and not _has_category(card, "exile"):
+                extra.append(
+                    Effect(
+                        category="exile",
+                        scope="you",
+                        counter_kind="all",
+                        subject=Filter(card_types=("Permanent",)),
+                        zones=("to:exile",),
+                        raw=craw[m.start() :],
+                    )
+                )
+            m = _VOTE_REANIMATE_EACH.search(craw)
+            if m and not _has_category(card, "reanimate"):
+                extra.append(
+                    Effect(
+                        category="reanimate",
+                        scope="each",
+                        subject=Filter(card_types=("Creature",)),
+                        zones=("from:graveyard", "to:battlefield"),
+                        raw=craw[m.start() :],
+                    )
+                )
+            m = _VOTE_OPP_LOSE_LIFE.search(craw)
+            if m and not _has_category(card, "lose_life"):
+                extra.append(
+                    Effect(
+                        category="lose_life",
+                        scope="opp",
+                        amount=Quantity(op="fixed", factor=int(m.group(1))),
+                        raw=craw[m.start() :],
+                    )
+                )
+            m = _VOTE_OPP_DEBUFF.search(craw)
+            if m and not _has_neg_pump(card):
+                extra.append(
+                    Effect(
+                        category="pump",
+                        scope="opp",
+                        subject=Filter(card_types=("Creature",), controller="opp"),
+                        amount=Quantity(op="fixed", factor=-int(m.group(1))),
+                        duration="UntilEndOfTurn",
+                        raw=craw[m.start() :],
+                    )
+                )
+            if extra:
+                new_abs.append(replace(ab, effects=(*ab.effects, *extra)))
+                changed = True
+            else:
+                new_abs.append(ab)
+        faces.append(replace(face, abilities=tuple(new_abs)))
+    return replace(card, faces=tuple(faces)) if changed else card
+
+
+# ── v0.8.0 bump ROOT D — "discard a card unless <alt>" residue ─────────────────
+# phase v0.8.0 reparses a "Draw N cards. Then discard a card unless <non-discard
+# alternative>" loot/rummage clause into TWO `draw` Effects — the real one (carrying
+# the amount + clause_raw) and a DEGENERATE empty draw fragment (no amount, no
+# clause_raw) whose raw still holds the whole sentence: the discard branch (CR 701.9:
+# discard = hand → graveyard) is dropped to a phantom draw. The self-discard fuel
+# (discard_outlet) and the draw+discard loot co-occurrence (discard_matters) both
+# vanish. This pass converts that degenerate sibling draw back into the `discard`
+# Effect it misparses (scope you — a self-loot), so discard_outlet reads the discard
+# structurally and the loot arm (draw + discard in one ability) re-opens
+# discard_matters. Gated to the misparse shape: an ability with a REAL draw (amount /
+# clause_raw) AND a degenerate amount-less draw whose raw matches "discard <n> card(s)
+# unless", and no `discard` Effect already present. CR 701.9 / 701.50.
+_DISCARD_UNLESS = re.compile(
+    r"discard (?:a|an|one|two|three|four|five|x|\d+) cards? unless", re.IGNORECASE
+)
+
+
+def _recover_discard_unless(card: Card) -> Card:
+    """Convert the degenerate empty-draw fragment of a "draw N, then discard a card
+    unless …" clause back into the `discard` Effect (scope you) phase dropped, so the
+    discard_outlet / discard_matters loot lanes read STRUCTURE. Gated to the v0.8.0
+    misparse shape (real draw + amount-less duplicate draw whose raw is a "discard …
+    unless"); a card already carrying a `discard` Effect in that ability is left alone.
+    CR 701.9."""
+    if not card.faces:
+        return card
+    faces: list[Face] = []
+    changed = False
+    for face in card.faces:
+        new_abs: list[Ability] = []
+        for ab in face.abilities:
+            cats = {e.category for e in ab.effects}
+            draws = [e for e in ab.effects if e.category == "draw"]
+            has_real = any(e.amount is not None or e.clause_raw for e in draws)
+            degen = next(
+                (
+                    e
+                    for e in draws
+                    if e.amount is None
+                    and not e.clause_raw
+                    and _DISCARD_UNLESS.search(e.raw or "")
+                ),
+                None,
+            )
+            if "discard" in cats or not has_real or degen is None:
+                new_abs.append(ab)
+                continue
+            m = _DISCARD_UNLESS.search(degen.raw or "")
+            assert m is not None
+            new_effs = tuple(
+                Effect(
+                    category="discard",
+                    scope="you",
+                    subject=Filter(controller="you"),
+                    raw=(degen.raw or "")[m.start() :],
+                )
+                if e is degen
+                else e
+                for e in ab.effects
+            )
+            new_abs.append(replace(ab, effects=new_effs))
+            changed = True
+        faces.append(replace(face, abilities=tuple(new_abs)))
+    return replace(card, faces=tuple(faces)) if changed else card
