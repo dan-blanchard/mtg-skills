@@ -509,13 +509,20 @@ CROSSWALK: dict[str, frozenset[str]] = {
     "blocked_matters": frozenset(
         {"trigger:attackerblocked", "trigger:becomesblocked", "trigger:blocks"}
     ),
-    # plus_one_matters is mixed: deck-forge fires it for both placing and caring.
-    "plus_one_matters": frozenset(
+    # _matters sweep (ADR-0034): the +1/+1 split. The placement/double effects are the
+    # MAKER arm (deck-forge fires plus_one_makers); the counter MOVE and the
+    # counter-added TRIGGER are the PAYOFF arm (plus_one_matters — relocating / caring,
+    # not creating).
+    "plus_one_makers": frozenset(
         {
             "effect:addcounter",
             "effect:putcounter",
             "effect:putcounterall",
             "effect:multiplycounter",
+        }
+    ),
+    "plus_one_matters": frozenset(
+        {
             "effect:movecounters",
             "trigger:counteradded",
             "trigger:counteraddedall",

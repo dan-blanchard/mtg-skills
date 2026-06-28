@@ -1078,6 +1078,15 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # counter" payoffs route OFF it to minus_counters_matter / oil / named_counter_
         # misc / any_counter_matters, and the EQ:0 "with NO counter" anti-synergy gates
         # (Heartless Act, Damning Verdict) no longer fire it (the inverse). CR 122.1.
+        # _matters sweep (ADR-0034): split by emission arm. The MAKER arms (the
+        # place_counter(p1p1) placement, the +1/+1 keyword block, amass/fabricate/
+        # devour) emit plus_one_makers; the PAYOFF arms (counter_added trigger,
+        # for-each-counter scaler, counters_have_ref, p1p1 counter_move, the
+        # pump-scaling / hascounters / remove-cost references, the WITH-a-+1/+1-counter
+        # subject predicate) keep plus_one_matters. Gate-verified set-equal on the
+        # MTGJSON corpus: members(plus_one_makers) UNION members(plus_one_matters) ==
+        # the old plus_one_matters firing set (3152); voltron_matters unchanged at 2359.
+        "plus_one_makers",
         "plus_one_matters",
         # ADR-0027 counter/modified taxonomy (SIDECAR v38) — any_counter_matters: the
         # KIND-AGNOSTIC counter lane. IR-NATIVE FROM BIRTH (no deleted regex):

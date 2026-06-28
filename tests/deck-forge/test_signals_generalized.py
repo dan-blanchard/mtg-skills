@@ -2573,11 +2573,12 @@ def test_counter_payoff_with_a_counter_on_it_opens_counters():
     # the payoff clause ("with a counter on it") and the +1/+1 reference ("put a +1/+1
     # counter on Baxter") sit in SEPARATE sentences, so neither clause alone has both.
     # Needs full-text. Real oracle.
-    # ADR-0027: plus_one_matters migrated to the IR. Rishkar/Baxter project a
-    # place_counter(p1p1); Pipsqueak (a pure "has a +1/+1 counter" payoff) recovers a
-    # counters_have_ref marker. Assert via the hybrid (production) path.
-    assert "plus_one_matters" in _keys_real("Rishkar, Peema Renegade")
-    assert "plus_one_matters" in _keys_real("Baxter, Fly in the Ointment")
+    # ADR-0027 + _matters sweep (ADR-0034): Rishkar/Baxter project a place_counter(p1p1)
+    # — the MAKER arm → plus_one_makers; Pipsqueak (a pure "has a +1/+1 counter" payoff)
+    # recovers a counters_have_ref marker — the PAYOFF arm → plus_one_matters. Assert
+    # via the hybrid (production) path.
+    assert "plus_one_makers" in _keys_real("Rishkar, Peema Renegade")
+    assert "plus_one_makers" in _keys_real("Baxter, Fly in the Ointment")
     assert "plus_one_matters" in _keys_real("Pipsqueak, Rebel Strongarm")
 
 
@@ -3096,20 +3097,17 @@ def test_self_dies_value_resolves_short_name_for_clone():
     assert "wants_cloning" in _keys_real("The Locust God")
 
 
-def test_self_counter_accumulator_opens_plus_one_matters():
+def test_self_counter_accumulator_opens_plus_one_makers():
     # A commander that puts +1/+1 counters on ITSELF and cares about its COUNT
-    # (Sab-Sunen — "number of counters on it") is a +1/+1-counters commander; it should
-    # open plus_one_matters (counter sources/proliferate). The 2-condition check
-    # (accumulates AND cares about count) excludes incidental self-counter creatures
-    # (Thraximundar gets a counter but doesn't care about the count).
-    # ADR-0027: plus_one_matters migrated to the IR and now fires on ANY +1/+1
-    # PLACEMENT (CR 122.1 / 122.6) — even a bare self-accumulator is a source. Assert
-    # via the hybrid path; the old "must also care about the count" precision guard is
-    # superseded by the broadened lane (the IR fires on the place_counter alone).
-    assert "plus_one_matters" in _keys_real("Sab-Sunen, Luxa Embodied")
+    # (Sab-Sunen — "number of counters on it") is a +1/+1-counters commander; the
+    # self-placement is the MAKER arm, so it opens plus_one_makers (counter sources).
+    # ADR-0027 + _matters sweep (ADR-0034): the place_counter arm fires plus_one_makers
+    # on ANY +1/+1 PLACEMENT (CR 122.1 / 122.6) — even a bare self-accumulator is a
+    # source. Assert via the hybrid path.
+    assert "plus_one_makers" in _keys_real("Sab-Sunen, Luxa Embodied")
 
 
-def test_board_wide_counter_placement_opens_plus_one_matters():
+def test_board_wide_counter_placement_opens_plus_one_makers():
     # Board-wide "+1/+1 counter on each <group>" placement is a counters ENGINE —
     # the commander repeatedly spreads counters across a board, so it wants counter
     # payoffs (proliferate, doublers, counter-matters creatures). The detector keyed
@@ -3117,13 +3115,13 @@ def test_board_wide_counter_placement_opens_plus_one_matters():
     # group: "on each attacking creature", "on each <tribe> you control", "on each
     # of up to N target creatures", "on each other/legendary/artifact creature".
     # Generalize to the placement clause itself: "+1/+1 counter on each".
-    # ADR-0027: plus_one_matters migrated to the IR — every board-wide +1/+1 placement
-    # projects a place_counter(p1p1). Assert via the hybrid path. (The broadened lane
-    # also opens on a bare self-growth placement — a placement is a source whoever
-    # receives it — so the old "self-grower stays out" precision guard is dropped.)
-    assert "plus_one_matters" in _keys_real("Drana, Liberator of Malakir")
+    # ADR-0027 + _matters sweep (ADR-0034): every board-wide +1/+1 placement projects a
+    # place_counter(p1p1) — the MAKER arm → plus_one_makers. Assert via the hybrid path.
+    # (The maker lane opens on any placement — a placement is a source whoever receives
+    # it — so the old "self-grower stays out" precision guard is dropped.)
+    assert "plus_one_makers" in _keys_real("Drana, Liberator of Malakir")
     # Activated board-wide placer (Steel Overseer-style) — same lane.
-    assert "plus_one_matters" in _keys_real("Steel Overseer")
+    assert "plus_one_makers" in _keys_real("Steel Overseer")
 
 
 def test_voltron_override_opens_for_likely_voltron_commanders():

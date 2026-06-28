@@ -356,7 +356,7 @@ def test_variable_x_counters_opens_counters_lane():
     # ('for each'/'number of') gate missed the 'X +1/+1 counters' scaling form.
     # Real Halana and Alena (snapshot): the "X +1/+1 counters" placement projects a
     # place_counter(p1p1) that opens the counters lane.
-    assert any(k == "plus_one_matters" for k, _ in _real("Halana and Alena, Partners"))
+    assert any(k == "plus_one_makers" for k, _ in _real("Halana and Alena, Partners"))
 
 
 def test_cheap_vanilla_legend_opens_voltron_fallback():
@@ -691,9 +691,7 @@ def test_multi_counter_placement_opens_counters_lane():
     # recurring counter engine. Plural 'counters' (multi-placement) distinguishes it
     # from bare 'put a +1/+1 counter on it' self-growth.
     # Real Minsc & Boo (snapshot): "+1: Put three +1/+1 counters" is a counter engine.
-    assert any(
-        k == "plus_one_matters" for k, _ in _real("Minsc & Boo, Timeless Heroes")
-    )
+    assert any(k == "plus_one_makers" for k, _ in _real("Minsc & Boo, Timeless Heroes"))
 
 
 def test_self_counter_now_opens_counters_in_production():
@@ -705,7 +703,7 @@ def test_self_counter_now_opens_counters_in_production():
         "name": "Lonely Grower",
         "oracle_text": "Whenever this creature attacks, put a +1/+1 counter on it.",
     }
-    assert not any(k == "plus_one_matters" for k, _ in _keys(card))  # regex: migrated
+    assert not any(k == "plus_one_makers" for k, _ in _keys(card))  # regex: migrated
     ir = _ir_with(
         Ability(
             kind="triggered",
@@ -715,7 +713,7 @@ def test_self_counter_now_opens_counters_in_production():
         )
     )
     keys = {(s.key, s.scope) for s in extract_signals_hybrid(card, ir)}
-    assert any(k == "plus_one_matters" for k, _ in keys)
+    assert any(k == "plus_one_makers" for k, _ in keys)
 
 
 def test_opponent_library_exile_opens_opponents_mill():
@@ -960,7 +958,7 @@ def test_counter_on_another_opens_counters():
     # creature), distinct from bare self-growth ('on it').
     # Real Anafenza, the Foremost (snapshot): a counter placement on ANOTHER creature is
     # a counters engine.
-    assert any(k == "plus_one_matters" for k, _ in _real("Anafenza, the Foremost"))
+    assert any(k == "plus_one_makers" for k, _ in _real("Anafenza, the Foremost"))
 
 
 def test_variable_lifegain_opens_lifegain():
@@ -1142,10 +1140,11 @@ def test_ability_words_open_their_lane():
 
 def test_triggered_counter_placement_opens_counters():
     # Leinore (Coven) / Shelinda: a recurring trigger that places a +1/+1 counter on a
-    # CHOSEN creature is a counters engine. ADR-0027: plus_one_matters migrated to the
-    # IR and now fires on ANY +1/+1 PLACEMENT regardless of recipient (self / on-
-    # others / on-attacking — all are sources, CR 122.1 / 122.6), so even bare self-
-    # growth ("put a +1/+1 counter on it") opens the lane. Assert via the hybrid path.
+    # CHOSEN creature is a counters engine. ADR-0027 + _matters sweep (ADR-0034): the
+    # +1/+1 PLACEMENT arm is the MAKER side, so it fires plus_one_makers on ANY +1/+1
+    # placement regardless of recipient (self / on-others / on-attacking — all are
+    # sources, CR 122.1 / 122.6), so even bare self-growth ("put a +1/+1 counter on it")
+    # opens the maker lane. Assert via the hybrid path.
     ir = _ir_with(
         Ability(
             kind="triggered",
@@ -1168,7 +1167,7 @@ def test_triggered_counter_placement_opens_counters():
             "oracle_text": oracle,
         }
         keys = {s.key for s in extract_signals_hybrid(card, ir)}
-        assert "plus_one_matters" in keys, oracle
+        assert "plus_one_makers" in keys, oracle
 
 
 def test_fliers_matter_commander_opens_flying_keyword_tribe():
@@ -1206,10 +1205,10 @@ def test_lifelink_commander_opens_lifegain():
 
 def test_counter_keyword_commander_opens_counters():
     # A commander whose own keyword is a +1/+1-counter mechanic (Exava=Unleash,
-    # Cayth, Indoraptor=Bloodthirst) is a counters deck — open plus_one_matters.
-    # ADR-0027: plus_one_matters migrated to the IR — these keywords project a
-    # place_counter(p1p1) STRUCTURALLY (not via the keyword array), so assert via the
-    # hybrid path with the structural IR phase produces for them.
+    # Cayth, Indoraptor=Bloodthirst) is a counters deck — open plus_one_makers.
+    # ADR-0027 + _matters sweep (ADR-0034): these keywords are +1/+1 MAKERS — they
+    # project a place_counter(p1p1) STRUCTURALLY (not via the keyword array), so assert
+    # via the hybrid path with the structural IR phase produces for them.
     ir = _ir_with(
         Ability(
             kind="triggered",
@@ -1226,7 +1225,7 @@ def test_counter_keyword_commander_opens_counters():
             "oracle_text": "Some ability.",
         }
         keys = {s.key for s in extract_signals_hybrid(card, ir)}
-        assert "plus_one_matters" in keys, kw
+        assert "plus_one_makers" in keys, kw
 
 
 def test_archetype_keywords_open_their_lane():

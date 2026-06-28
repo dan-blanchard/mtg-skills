@@ -631,10 +631,11 @@ def test_voltron_does_not_fire_on_equipment_payload():
     }
 
 
-def test_plus_one_matters_widened_for_distributors():
+def test_plus_one_makers_widened_for_distributors():
     # A distributor like "+1/+1 counter on each creature you control" (Mikaeus) is a
-    # counters engine. ADR-0027: plus_one_matters migrated to the IR — the placement
-    # projects a place_counter(p1p1); assert via the hybrid (production) path.
+    # counters engine. ADR-0027 + _matters sweep (ADR-0034): the placement is the MAKER
+    # arm — it projects a place_counter(p1p1) → plus_one_makers; assert via the hybrid
+    # (production) path.
     c = {
         "name": "Mikaeus-like",
         "oracle_text": "At the beginning of your end step, put a +1/+1 counter on each creature you control.",
@@ -660,7 +661,7 @@ def test_plus_one_matters_widened_for_distributors():
             ),
         ),
     )
-    assert any(s.key == "plus_one_matters" for s in extract_signals_hybrid(c, ir))
+    assert any(s.key == "plus_one_makers" for s in extract_signals_hybrid(c, ir))
 
 
 def test_poison_scoped_to_opponents():

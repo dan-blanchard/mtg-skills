@@ -1910,6 +1910,24 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _COUNTER_RESILIENCE_EXTRA,
         ),
     ),
+    # _matters sweep (ADR-0034): the MAKER side of the +1/+1 split — cards that PLACE
+    # +1/+1 counters (the place_counter doers, the +1/+1 keyword bearers, amass /
+    # fabricate / devour). The avenue still offers the whole +1/+1 package (the makers
+    # plus the whenever-a-counter / has-a-counter payoffs together), so this spec copies
+    # the kept plus_one_matters serve content; only the role label differs.
+    ("plus_one_makers", "any"): _spec(
+        "+1/+1 counters (makers)",
+        "counter generators, doublers, and proliferate",
+        {"oracle": r"\+1/\+1 counter"},
+        r"\+1/\+1 counter|proliferate|" + _COUNTER_DOUBLER_ORACLE,
+        extras=(
+            _COUNTER_DOUBLER_EXTRA,
+            _KEYWORD_COUNTER_EXTRA,
+            _COUNTER_KEYWORD_EXTRA,
+            _PROLIFERATE_EXTRA,
+            _COUNTER_RESILIENCE_EXTRA,
+        ),
+    ),
     # ADR-0027 — any_counter_matters: the KIND-AGNOSTIC counter lane (CR 701.34a —
     # proliferate adds "one counter of each kind already there", so it cares about
     # counters generically). The "has any counter" / "for each counter on" / move-

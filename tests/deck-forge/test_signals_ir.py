@@ -609,13 +609,13 @@ def test_place_counter_effect_does_not_flood_plus_one_matters():
     assert "plus_one_matters" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
-# ── plus_one_matters shapes (ADR-0027) ─────────────────────────────────────────
+# ── plus_one_makers / plus_one_matters shapes (ADR-0027 / ADR-0034) ─────────────
 
 
-def test_place_counter_p1p1_fires_plus_one_matters():
-    """A +1/+1 counter PLACEMENT (the lane's core engine — Forgotten Ancient,
-    Hardened Scales) fires plus_one_matters; the p1p1 kind discriminates it from
-    loyalty/oil/shield placements."""
+def test_place_counter_p1p1_fires_plus_one_makers():
+    """A +1/+1 counter PLACEMENT (the MAKER lane's core engine — Forgotten Ancient,
+    Avenger of Zendikar) fires plus_one_makers (_matters sweep ADR-0034); the p1p1 kind
+    discriminates it from loyalty/oil/shield placements."""
     ir = _ir(
         Ability(
             kind="triggered",
@@ -628,7 +628,7 @@ def test_place_counter_p1p1_fires_plus_one_matters():
             ),
         )
     )
-    assert ("plus_one_matters", "you", "") in _sigs(ir)
+    assert ("plus_one_makers", "you", "") in _sigs(ir)
 
 
 def test_place_counter_blank_kind_with_p1p1_raw_fires():
@@ -646,7 +646,7 @@ def test_place_counter_blank_kind_with_p1p1_raw_fires():
             ),
         )
     )
-    assert ("plus_one_matters", "you", "") in _sigs(ir)
+    assert ("plus_one_makers", "you", "") in _sigs(ir)
 
 
 def test_place_counter_blank_kind_without_p1p1_raw_excluded():
@@ -2228,14 +2228,14 @@ def test_ir_membership_flag_does_not_touch_payoff_signals():
     assert "voltron_matters" in off
 
 
-def test_devour_keyword_opens_plus_one_matters():
+def test_devour_keyword_opens_plus_one_makers():
     """Devour (CR 702.82) enters with +1/+1 counters per sacrificed creature — a
-    definitional +1/+1 source, so the printed keyword opens plus_one_matters as well
-    as has_devour (Preyseizer Dragon, whose devour rides the keyword + a
-    board_count, not a structured `devour` effect)."""
+    definitional +1/+1 MAKER, so the printed keyword opens plus_one_makers (_matters
+    sweep ADR-0034) as well as has_devour (Preyseizer Dragon, whose devour rides the
+    keyword + a board_count, not a structured `devour` effect)."""
     keys = _skeys(test_signals("Preyseizer Dragon"))
     assert "has_devour" in keys
-    assert "plus_one_matters" in keys
+    assert "plus_one_makers" in keys
 
 
 # ── opp_top_exile (ADR-0027 q2-D2 — name-lock / impulse-cast steal) ────────────

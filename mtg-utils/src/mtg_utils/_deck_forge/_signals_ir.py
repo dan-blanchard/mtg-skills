@@ -679,10 +679,11 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # ("whenever you cast a spell that has convoke") stays convoke_matters.
     "convoke": (("convoke_makers", "you"),),
     # Devour (CR 702.82) enters with +1/+1 counters per sacrificed creature — a
-    # definitional +1/+1 source, so the printed keyword opens plus_one_matters too
-    # (mirrors the `devour` EFFECT-category fan-out; covers Preyseizer Dragon, whose
-    # devour rides the keyword + a board_count, not a `devour` effect). CR 122.1.
-    "devour": (("has_devour", "you"), ("plus_one_matters", "any")),
+    # definitional +1/+1 MAKER, so the printed keyword opens plus_one_makers too
+    # (_matters sweep ADR-0034; mirrors the `devour` EFFECT-category fan-out; covers
+    # Preyseizer Dragon, whose devour rides the keyword + a board_count, not a `devour`
+    # effect). CR 122.1.
+    "devour": (("has_devour", "you"), ("plus_one_makers", "any")),
     "discover": (("discover_makers", "you"),),
     # Explore (CR 701.44) as the printed KEYWORD — the Scryfall-authoritative path
     # covers explore cards whose explore lives in a granted ability / replacement
@@ -717,36 +718,37 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "manifest": (("facedown_makers", "you"),),
     "cloak": (("facedown_makers", "you"),),
     "manifest dread": (("facedown_makers", "you"),),
-    # ADR-0027 plus_one_matters migration: the +1/+1-counter keyword block MOVED here
-    # from _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). plus_one_matters
-    # is migrated, so it must leave the regex-readable _DIRECT_KEYWORD_SIGNALS; but the
-    # IR path STILL needs the keyword for cards whose place_counter phase emits with a
-    # blank counter_kind + a reminder-stripped raw (no "+1/+1" in the structural text —
-    # Anafenza Kin-Tree's bolster, Goblin Glory Chaser's renown, Pteramander's adapt),
-    # which the structural place_counter→plus_one_matters edge misses. _IR_KEYWORD_MAP
-    # is IR-only (extract_signals doesn't read it), so this is the saddle-style move.
-    # Each is definitionally a +1/+1-counter mechanic (CR 702.x). devour is mapped
-    # above (it also sacs).
-    # (scavenge and undying are mapped lower in this dict — plus_one_matters is merged
+    # ADR-0027 plus_one migration / _matters sweep (ADR-0034): the +1/+1-counter keyword
+    # block MOVED here from _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path).
+    # plus_one is migrated, so it must leave the regex-readable _DIRECT_KEYWORD_SIGNALS;
+    # but the IR path STILL needs the keyword for cards whose place_counter phase emits
+    # with a blank counter_kind + a reminder-stripped raw (no "+1/+1" in the structural
+    # text — Anafenza Kin-Tree's bolster, Goblin Glory Chaser's renown, Pteramander's
+    # adapt), which the structural place_counter→plus_one_makers edge misses.
+    # _IR_KEYWORD_MAP is IR-only (extract_signals doesn't read it), so this is the
+    # saddle-style move. Each is definitionally a +1/+1-counter MAKER (the bearer PLACES
+    # counters; CR 702.x) → plus_one_makers (the payoff arms keep plus_one_matters).
+    # devour is mapped above (it also sacs).
+    # (scavenge and undying are mapped lower in this dict — plus_one_makers is merged
     # into their existing entries there to avoid a duplicate key.)
-    "mentor": (("plus_one_matters", "any"),),
-    "training": (("plus_one_matters", "any"),),
-    "modular": (("plus_one_matters", "any"),),
-    "bolster": (("plus_one_matters", "any"),),
-    "evolve": (("plus_one_matters", "any"),),
-    "outlast": (("plus_one_matters", "any"),),
-    "renown": (("plus_one_matters", "any"),),
-    "adapt": (("plus_one_matters", "any"),),
-    "dethrone": (("plus_one_matters", "any"),),
-    "graft": (("plus_one_matters", "any"),),
-    "riot": (("plus_one_matters", "any"),),
-    "bloodthirst": (("plus_one_matters", "any"),),
-    "fabricate": (("plus_one_matters", "any"),),
-    "sunburst": (("plus_one_matters", "any"),),
-    "tribute": (("plus_one_matters", "any"),),
-    "unleash": (("plus_one_matters", "any"),),
-    "ravenous": (("plus_one_matters", "any"),),
-    "reinforce": (("plus_one_matters", "any"),),
+    "mentor": (("plus_one_makers", "any"),),
+    "training": (("plus_one_makers", "any"),),
+    "modular": (("plus_one_makers", "any"),),
+    "bolster": (("plus_one_makers", "any"),),
+    "evolve": (("plus_one_makers", "any"),),
+    "outlast": (("plus_one_makers", "any"),),
+    "renown": (("plus_one_makers", "any"),),
+    "adapt": (("plus_one_makers", "any"),),
+    "dethrone": (("plus_one_makers", "any"),),
+    "graft": (("plus_one_makers", "any"),),
+    "riot": (("plus_one_makers", "any"),),
+    "bloodthirst": (("plus_one_makers", "any"),),
+    "fabricate": (("plus_one_makers", "any"),),
+    "sunburst": (("plus_one_makers", "any"),),
+    "tribute": (("plus_one_makers", "any"),),
+    "unleash": (("plus_one_makers", "any"),),
+    "ravenous": (("plus_one_makers", "any"),),
+    "reinforce": (("plus_one_makers", "any"),),
     # ADR-0027 proliferate_matters migration: proliferate (CR 701.27 — "add
     # another counter of each kind already there") and station (CR 702.184 —
     # accrues CHARGE counters the deck wants to proliferate) MOVED here from the
@@ -926,11 +928,11 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # keyword-less "becomes saddled" granters.
     "saddle": (("saddle_matters", "you"),),
     # scavenge (CR 702.91) exiles a card from your GY to put that many +1/+1 counters
-    # — a +1/+1 source, so it ALSO opens plus_one_matters (ADR-0027 migration merge).
+    # — a +1/+1 MAKER, so it ALSO opens plus_one_makers (_matters sweep ADR-0034).
     "scavenge": (
         ("scavenge_fuel", "you"),
         ("graveyard_matters", "you"),
-        ("plus_one_matters", "any"),
+        ("plus_one_makers", "any"),
     ),
     # Spectacle (CR 702.111) — "cast cheaper if an opponent lost life this turn" is a
     # life-loss PAYOFF (it cares about opponents having lost life), but the condition
@@ -961,13 +963,13 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # The time-counter PAYOFFS / references keep suspend_matters via the kept word
     # mirror in _IR_KEPT_DETECTORS (As Foretold, "whenever a time counter is removed").
     "suspend": (("suspend_makers", "you"),),
-    # undying (CR 702.92) returns with a +1/+1 counter — a +1/+1 source, so it ALSO
-    # opens plus_one_matters (ADR-0027 migration merge). persist returns with a -1/-1
-    # counter (its own minus lane), so it is NOT given plus_one_matters.
+    # undying (CR 702.92) returns with a +1/+1 counter — a +1/+1 MAKER, so it ALSO
+    # opens plus_one_makers (_matters sweep ADR-0034). persist returns with a -1/-1
+    # counter (its own minus lane), so it is NOT given plus_one_makers.
     "undying": (
         ("has_undying_persist", "you"),
         ("dies_recursion", "you"),
-        ("plus_one_matters", "any"),
+        ("plus_one_makers", "any"),
     ),
     "persist": (("has_undying_persist", "you"), ("dies_recursion", "you")),
     "affinity": (("affinity_type", "you"),),
@@ -3264,6 +3266,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             "artifacts_matter",
             "enchantments_matter",
             # Batch E (effect-category lanes):
+            # _matters sweep (ADR-0034): the +1/+1 split — the place_counter / keyword /
+            # amass / fabricate / devour MAKER arms emit plus_one_makers; the
+            # trigger / count-scaler / has-ref / move / cost / condition PAYOFF arms
+            # keep plus_one_matters.
+            "plus_one_makers",
             "plus_one_matters",
             "minus_counters_matter",
             # _matters sweep (ADR-0034): the place_counter MAKER arm emits
@@ -8419,8 +8426,9 @@ def extract_signals_ir(
                 and e.counter_kind in _KEYWORD_COUNTER_KINDS
             ):
                 add("keyword_counter", "any", "", e.raw)
-            # plus_one_matters (ADR-0027 shape 1+2a) — a +1/+1 counter PLACEMENT is the
-            # lane's core engine (Forgotten Ancient, Hardened Scales, every etb /
+            # plus_one_makers (_matters sweep, ADR-0034 — the MAKER arm) — a +1/+1
+            # counter PLACEMENT is the lane's core engine (Forgotten Ancient, Avenger of
+            # Zendikar, every etb /
             # upkeep / combat / activated / spell +1/+1 source). place_counter with
             # counter_kind=='p1p1' is the discriminator phase already isolates from
             # loyalty / oil / shield / rad placements (those route to their own lanes
@@ -8435,7 +8443,7 @@ def extract_signals_ir(
                 e.counter_kind == "p1p1"
                 or (not e.counter_kind and "+1/+1 counter" in (e.raw or ""))
             ):
-                add("plus_one_matters", "you", "", e.raw)
+                add("plus_one_makers", "you", "", e.raw)
             # ADR-0027 β — self_counter_grow STRUCTURAL arm. A +1/+1 counter PLACEMENT a
             # creature puts on ITSELF to GROW (adapt CR 701.43 / monstrosity 701.13 /
             # renown 702.111 / Saga chapter "put N +1/+1 on ~" / "enters with / put a
@@ -9815,18 +9823,21 @@ def extract_signals_ir(
             # Modal keyword mechanics — own CR-accurate category fanning to EVERY mode
             # it touches, instead of being flattened into a single facet. The keyword
             # maps already fire the primary lane (amass→tokens_matter,
-            # fabricate→plus_one_matters, devour→sacrifice_outlets); these add the IR
-            # side (→ BOTH) plus the previously-dropped mode.
+            # fabricate→plus_one_makers, devour→sacrifice_outlets); these add the IR
+            # side (→ BOTH) plus the previously-dropped mode. _matters sweep (ADR-0034):
+            # these +1/+1-placing effects are MAKERS → plus_one_makers (the payoff arms
+            # keep plus_one_matters); the sibling tokens_matter/has_devour/
+            # sacrifice_outlets co-fires are untouched.
             if cat == "amass":  # CR 701.47 — grow an Army (+1/+1) or make an Army token
                 add("tokens_matter", "you", "", e.raw)
-                add("plus_one_matters", "any", "", e.raw)
+                add("plus_one_makers", "any", "", e.raw)
             if cat == "fabricate":  # CR 702.123 — Servo tokens OR +1/+1 counters
                 add("tokens_matter", "you", "", e.raw)
-                add("plus_one_matters", "any", "", e.raw)
+                add("plus_one_makers", "any", "", e.raw)
             if cat == "devour":  # CR 702.82 — sacrifice creatures, enter with counters
                 add("has_devour", "you", "", e.raw)
                 add("sacrifice_outlets", "you", "", e.raw)
-                add("plus_one_matters", "any", "", e.raw)
+                add("plus_one_makers", "any", "", e.raw)
             # ADR-0027 — creature_recursion STRUCTURAL ARM A (the GY->battlefield half).
             # A `reanimate` Effect whose subject is Creature-typed is a GY->battlefield
             # creature reanimator (Reanimate, Beacon of Unrest, Exhume, Living Death,
