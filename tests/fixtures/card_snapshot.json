@@ -9203,7 +9203,6 @@
         "e": [
          {
           "cat": "gain_life",
-          "raw": "If you would gain life, you gain that much life plus 1 instead",
           "sc": "you"
          }
         ],
@@ -11077,7 +11076,7 @@
          {
           "cat": "remove_counter",
           "ck": "p1p1",
-          "raw": "Remove a +1/+1 counter",
+          "raw": "cost: remove a p1p1 counter",
           "sc": "you"
          }
         ],
@@ -12802,7 +12801,7 @@
          {
           "cat": "remove_counter",
           "ck": "m1m1",
-          "raw": "Remove a -1/-1 counter",
+          "raw": "cost: remove a m1m1 counter",
           "sc": "you"
          }
         ],
@@ -22895,7 +22894,7 @@
          {
           "cat": "single_target_grant",
           "ck": "menace",
-          "raw": "Target creature you control gains menace",
+          "raw": "gain menace and haste",
           "sc": "you",
           "sub": {
            "c": "you",
@@ -30007,7 +30006,7 @@
         "e": [
          {
           "cat": "sacrifice",
-          "raw": "Sacrifice a land:",
+          "raw": "cost: sacrifice a land",
           "sc": "you",
           "sub": {
            "c": "you",
@@ -54206,7 +54205,7 @@
         "e": [
          {
           "cat": "other",
-          "raw": "Enchant creature\nAs long as enchanted creature is attacking alone, it can't be blocked.\nEnchanted creature has \"Whenever this creature deals combat damage to a player, it connives.\""
+          "raw": "Whenever ~ deals combat damage to a player, it connives."
          }
         ],
         "k": "triggered",
@@ -55940,7 +55939,7 @@
          {
           "cat": "single_target_grant",
           "ck": "flying",
-          "raw": "Target creature gains flying",
+          "raw": "gain flying",
           "sub": {
            "p": [
             "SingleTarget"
@@ -58634,8 +58633,7 @@
        {
         "e": [
          {
-          "cat": "other",
-          "raw": "Haste\n{1}: Another target creature with power 2 or less can't be blocked this turn.\n{1}{R}, {T}, Discard your hand: Until end of turn, whenever a creature you control with power 2 or less deals combat damage to a player, draw a card."
+          "cat": "other"
          }
         ],
         "k": "triggered",
@@ -58643,7 +58641,16 @@
          "ev": "combat_damage",
          "rc": [
           "player"
-         ]
+         ],
+         "src": {
+          "c": "you",
+          "p": [
+           "PtComparison:Power:LE:2"
+          ],
+          "t": [
+           "Creature"
+          ]
+         }
         }
        }
       ],
@@ -61288,6 +61295,22 @@
           "to:graveyard"
          ]
         }
+       },
+       {
+        "e": [
+         {
+          "cat": "sacrifice",
+          "raw": "cost: sacrifice a land",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Land"
+           ]
+          }
+         }
+        ],
+        "k": "static"
        }
       ],
       "kw": [
@@ -64964,7 +64987,7 @@
          {
           "cat": "remove_counter",
           "ck": "p1p1",
-          "raw": "Remove a +1/+1 counter",
+          "raw": "cost: remove a p1p1 counter",
           "sc": "you"
          }
         ],
@@ -68188,7 +68211,7 @@
         "e": [
          {
           "cat": "other",
-          "raw": "[+2]: You may sacrifice another permanent. If you do, you gain 1 life and draw a card.\n[−3]: Destroy target nonland permanent with mana value 3 or less.\n[−9]: You get an emblem with \"Whenever a creature you control deals combat damage to a player, that player loses the game.\""
+          "raw": "Whenever a creature you control deals combat damage to a player, that player loses the game"
          }
         ],
         "k": "triggered",
@@ -70984,5 +71007,5 @@
  },
  "phase_tag": "v0.8.0",
  "schema": 1,
- "sidecar_version": 70
+ "sidecar_version": 71
 }

@@ -713,6 +713,16 @@ def project_card(records: list[dict]) -> Card:
         many_copies=_allows_many_copies(records[0]),
     )
     card = supplement_card(card)
+    # ADR-0027 (SIDECAR v71) nested-lift — combat_damage RECIPIENT/SOURCE phase
+    # STRUCTURES inside a granted / loyalty-emblem / delayed inner DamageDone trigger
+    # (a GrantTrigger modification — Combat Research, Darkblade Agent; an emblem-created
+    # trigger — Kaito, Vraska; Dovin, Aphelia) but the projection read it only for its
+    # EXECUTE effects. Lift the trigger METADATA so the combat_damage_* +
+    # tribe_damage_trigger lanes read STRUCTURE. Runs here (post-supplement, like the
+    # recovery below) so the supplement's draw/effect raw-rescans never see the
+    # synthetic trigger's placeholder. The recovery below then self-deactivates for the
+    # recipients now carried natively. CR 510.1b / 510.1c / 510.1.
+    card = _attach_nested_combat_damage(card, records)
     # ADR-0027 (SIDECAR v41) — combat-damage recipient residue: synthesize a
     # combat_damage trigger (with its recipient) from the raw oracle for payoffs phase
     # left wholly unstructured (a trigger quoted inside an activated ability / one-shot
@@ -2024,6 +2034,91 @@ def _narrow_token_subtype_makers(ability: Ability) -> Ability:
     return replace(ability, effects=ability.effects + tuple(markers))
 
 
+# ── Nested gain_life (ADR-0027 — STRUCTURAL read of phase's GainLife node the flat
+# _collect_effects can't reach) ────────────────────────────────────────────────
+# phase parses a GainLife effect nested out of the flat walk's reach: inside a
+# replacement execute ("If you would gain life …" — Angel of Vitality, Rhox
+# Faithmender, Doctor Strange), an else_ability / sub_ability conditional chain
+# (Approach of the Second Sun's "Otherwise … you gain 7 life"), a modal mode body
+# (Callous Bloodmage's "… and you gain 2 life"), or a GrantTrigger modification on a
+# token you create (the Pest "when it dies, you gain 1 life" — Beledros Witherbloom;
+# the Banana / Food / emblem granted "You gain N life" — Kibo's Bananamobile, Peel
+# Out, The Value Knight, Teyo). project_card kept only the OUTER effect (win_game /
+# make_token / pump / choose), dropping the nested GainLife, so the lane fell to the
+# _recover_dropped_gain_life regex. This reads that SAME node structurally (the
+# _recover_dropped_gain_life precedent, inverted — read phase's structure instead of
+# re-deriving from the oracle), so the regex recovery SELF-DEACTIVATES (its
+# skip-guard fires once a you/any gain_life exists). CR 119.3 / 700.2 / 614.
+#
+# Gated to a YOU/controller gainer: the walk threads an opp/each context flag and
+# REFUSES any GainLife reachable only through a node whose gainer-scope field
+# (player_scope / player / owner — NOT a count/target reference) names an opponent or
+# 'each' — so Dungeon Master's "target opponent creates a token with 'when it dies,
+# EACH OPPONENT gains 2 life'" (player_scope:Opponent on the granted trigger) stays
+# OUT. Under-firing is SAFE: the regex recovery backstops any you-gainer this
+# conservative walk skips (no lane member lost). The synthetic Effect mirrors the
+# recovery's exact shape (gain_life, scope you), so ONLY lifegain_matters is touched.
+_GAINER_SCOPE_FIELDS = ("player_scope", "player", "owner")
+
+
+def _node_gainer_is_opp_or_each(node: dict) -> bool:
+    """True if this ability/effect node names an OPPONENT or EACH-player gainer via a
+    recipient-scope field. Threads the gain recipient down the nested GainLife walk;
+    a count/target reference (the ``amount``/``target`` of a *you*-gain) is ignored."""
+    for field in _GAINER_SCOPE_FIELDS:
+        val = node.get(field)
+        if isinstance(val, str):
+            if _controller(val) == "opp" or val.lower() in (
+                "each",
+                "all",
+                "allplayers",
+                "eachplayer",
+            ):
+                return True
+        elif isinstance(val, dict):
+            t = _norm(val.get("type"))
+            if "opponent" in t or t in ("all", "allplayers", "eachplayer"):
+                return True
+            if t == "typed" and _controller(val.get("controller")) == "opp":
+                return True
+    return False
+
+
+def _nested_gain_life_marker(record: dict, abilities: list[Ability]) -> Effect | None:
+    """Surface a YOU/controller GainLife phase structured but nested out of
+    _collect_effects' reach (replacement execute / else_ability / modal mode /
+    token-granted trigger). Returns a synthetic gain_life Effect (scope you) or None.
+    Skips when a structural you/any gain_life already exists on the face (flat
+    projection already covers it). The regex _recover_dropped_gain_life backstops the
+    nodeless tail this conservative walk leaves. CR 119.3."""
+    if any(
+        e.category == "gain_life" and e.scope in ("you", "any")
+        for a in abilities
+        for e in a.effects
+    ):
+        return None
+    found: list[str | None] = [None]
+
+    def walk(node: object, *, opp_ctx: bool) -> None:
+        if found[0] is not None:
+            return
+        if isinstance(node, dict):
+            here_opp = opp_ctx or _node_gainer_is_opp_or_each(node)
+            if _norm(node.get("type")) == "gainlife" and not here_opp:
+                found[0] = str(node.get("description") or "")
+                return
+            for val in node.values():
+                walk(val, opp_ctx=here_opp)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item, opp_ctx=opp_ctx)
+
+    walk(record, opp_ctx=False)
+    if found[0] is None:
+        return None
+    return Effect(category="gain_life", scope="you", raw=found[0])
+
+
 def _project_face(record: dict) -> Face:
     abilities: list[Ability] = []
     for ab in record.get("abilities") or []:
@@ -2239,6 +2334,12 @@ def _project_face(record: dict) -> Face:
     # lane fires distinctly from team/anthem grants (subject=None) and aura/equipment
     # grants (EnchantedBy/EquippedBy). A FACE-level pass like the gag markers. CR 700.2.
     stkg_markers = _single_target_keyword_grant_markers(record)
+    # Nested-container grants phase structures TWO deep (a GrantAbility definition,
+    # a modal mode, a Saga-chapter / delayed nested effect) the flat walk above can't
+    # reach. Merge deduped (the two emit byte-identical Effects for any leaf both see).
+    nested_markers = _nested_target_grant_markers(record)
+    if nested_markers:
+        stkg_markers = list(dict.fromkeys((*stkg_markers, *nested_markers)))
     if stkg_markers:
         abilities.append(Ability(kind="static", effects=tuple(stkg_markers)))
     # Face-level +1/+1 fallback (ADR-0027 plus_one_matters pass 2): a +1/+1 placement
@@ -2287,6 +2388,21 @@ def _project_face(record: dict) -> Face:
     typed_cost_markers = _typed_sacrifice_cost_markers(record)
     if typed_cost_markers:
         abilities.append(Ability(kind="static", effects=tuple(typed_cost_markers)))
+    # Land-sacrifice ACTIVATION-COST / unless-pay markers (ADR-0027 land_sacrifice
+    # cost-zone read): "Sacrifice a land:" (Zuran Orb) / "unless you sacrifice a land"
+    # (Mana Vortex). phase keeps the Sacrifice cost node (Typed Land target) but the
+    # projected effect drops the cost, so the land_sacrifice_matters OUTLET arm has no
+    # structural tell. Surface a Land-subject sacrifice marker the arm reads.
+    land_sac_cost_markers = _land_sacrifice_cost_markers(record)
+    if land_sac_cost_markers:
+        abilities.append(Ability(kind="static", effects=tuple(land_sac_cost_markers)))
+    # +1/+1 / -1/-1 counter-removal ACTIVATION-COST markers (ADR-0027 counter_removal
+    # cost-zone read): "Remove a +1/+1 counter from ~:" (Walking Ballista, Quillspike).
+    # phase keeps the RemoveCounter cost node but the projected effect drops it, so
+    # counter_manipulation / any_counter_matters have no structural tell off the cost.
+    counter_removal_markers = _counter_removal_cost_markers(record)
+    if counter_removal_markers:
+        abilities.append(Ability(kind="static", effects=tuple(counter_removal_markers)))
     # Becomes-an-artifact / enchantment TYPE-GRANT markers (ADR-0027): "target
     # noncreature artifact becomes an artifact creature" (Sydri, Karn's Touch — animate
     # your artifacts) and "<permanent> becomes an artifact in addition to its other
@@ -2312,6 +2428,13 @@ def _project_face(record: dict) -> Face:
     copy_spell_markers = _copy_spell_markers(record, abilities)
     if copy_spell_markers:
         abilities.append(Ability(kind="static", effects=tuple(copy_spell_markers)))
+    # Nested gain_life (ADR-0027): surface a YOU-gainer GainLife phase structured but
+    # nested out of _collect_effects' reach (replacement execute / else_ability /
+    # modal mode / token-granted trigger). Self-deactivates _recover_dropped_gain_life
+    # for the cards it covers; the regex backstops the nodeless tail. CR 119.3.
+    nested_gl = _nested_gain_life_marker(record, abilities)
+    if nested_gl is not None:
+        abilities.append(Ability(kind="static", effects=(nested_gl,)))
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
@@ -2505,17 +2628,152 @@ def _activation_condition(ab: dict) -> object:
     return ab.get("condition")
 
 
+# ── v0.8.0 createdelayedtrigger trigger-lift (gy-recursion bucketA) ───────────
+# phase models a graveyard-recursion / delayed-payoff ability ("Whenever a Dragon
+# you control enters, ... return this card from your graveyard" — Spit Flame,
+# Sosuke's Summons, Unconventional Tactics; "Whenever a player gains life, ..." —
+# Punishing Fire) as a SPELL-kind ability whose top-level effect is a
+# `CreateDelayedTrigger`, stashing the real triggering condition on
+# `effect.condition.WheneverEvent.trigger` — a fully-structured Trigger node phase
+# parses but the projection dropped (the ability landed kind='spell', trigger=None).
+# Lift that node into a REAL ability Trigger so the payoff lanes read STRUCTURE
+# again: a ChangesZone trigger with a `valid_card` subject + destination Battlefield
+# projects to an `etb` event (the tribal-ETB subject — Dragon/Snake/Zombie — is
+# node-native on valid_card, recovering tribal_etb_multi), and a LifeGained trigger
+# projects to `life_gained` (recovering lifegain_matters). Scoped to those two events
+# (`_trigger_event`'s `etb` / `life_gained`): the scry-recursion condition phase keeps
+# as `mode:Unknown` re-types to `other` and is left to the supplement's regex, and
+# every other delayed-trigger mode (SpellCast copy-engines, Attacks, Phase, …) is a
+# genuine create-a-delayed-trigger game object, not the ability's own condition, so it
+# stays a plain spell effect. The in:graveyard origin on the contentless SelfRef
+# Bounce is node-absent (phase's Bounce carries no origin), so the bounce_tempo
+# graveyard guard still rides the supplement zone stamp. CR 702.59a / 603.
+def _lift_delayed_trigger(ab: dict) -> Trigger | None:
+    eff = ab.get("effect")
+    if not isinstance(eff, dict) or _norm(eff.get("type")) != "createdelayedtrigger":
+        return None
+    cond = eff.get("condition")
+    if not isinstance(cond, dict) or _norm(cond.get("type")) != "wheneverevent":
+        return None
+    trg = cond.get("trigger")
+    if not isinstance(trg, dict):
+        return None
+    event = _trigger_event(trg)
+    if event == "etb":
+        # capability gate: ChangesZone + valid_card + destination Battlefield. A
+        # destinationless / subjectless ChangesZone is not a creature-enters payoff.
+        if trg.get("valid_card") is None:
+            return None
+    elif event != "life_gained":
+        return None
+    return Trigger(
+        event=event,
+        subject=_filter(trg.get("valid_card")),
+        scope=_trigger_scope(trg),
+        zones=_zone_tags(trg),
+    )
+
+
 def _project_spell_or_activated(ab: dict) -> Ability:
     kind = "activated" if _norm(ab.get("kind")) == "activated" else "spell"
     effects = _collect_effects(ab, ab.get("description") or "")
+    lifted = _lift_delayed_trigger(ab)
+    if lifted is not None:
+        kind = "triggered"
     return _recover_clone_subjects(
         Ability(
             kind=kind,
             effects=tuple(effects),
             cost=_cost_string(ab.get("cost")),
             condition=_project_condition(_activation_condition(ab)),
+            trigger=lifted,
         )
     )
+
+
+# phase trigger modes that project to a DamageDone event (the combat_damage /
+# deals_damage trigger family — see _trigger_event). Reused by the nested-lift below.
+_DAMAGE_DONE_MODES = (
+    "damagedone",
+    "damagedoneonce",
+    "damagedealtonce",
+    "damagedoneoncebycontroller",
+)
+
+
+def _lift_nested_combat_damage(record: dict) -> list[Ability]:
+    """Lift inner ``DamageDone`` triggers phase NESTS inside a granted ability (a
+    ``GrantTrigger`` modification — Combat Research, Darkblade Agent), a loyalty /
+    emblem-created trigger (Kaito, Vraska, Dovin), or a delayed trigger into
+    structured ``combat_damage`` Trigger abilities carrying the recipient
+    (``valid_target`` -> ``Trigger.recipient``) and source (``valid_source`` ->
+    ``Trigger.source``).
+
+    phase fully structures the inner trigger (mode + damage_kind + valid_target +
+    valid_source), but the projection only ever descended into a nested trigger's
+    EXECUTE effects (``_granted_ability_effects``) — the trigger METADATA (the
+    combat-damage recipient/source the three ``combat_damage_*`` lanes and
+    ``tribe_damage_trigger`` read off ``trig.recipient`` / ``trig.source``) was lost,
+    surviving only in the raw oracle the card-level
+    ``_recover_combat_damage_recipients`` regex re-scans. Read it STRUCTURALLY.
+
+    Only the top-level ``triggers`` are projected natively (``_project_trigger``);
+    this walks ``abilities`` + ``static_abilities`` for the NESTED DamageDone nodes,
+    so a native top-level trigger is never double-lifted. Restricted to the
+    ``combat_damage`` event (``damage_kind == CombatOnly``, via the reused
+    ``_project_trigger``) to match the recovery's combat-text scope — the
+    ``deals_damage`` / Unimplemented / would-deal-combat-damage REPLACEMENT tail
+    (Bello, Charging Tuskodon, Szadek) carries no DamageDone trigger node and stays on
+    the recovery. The synthetic ability keeps only the trigger metadata (a single
+    ``other`` placeholder effect, the recovery's footprint): the granted body's
+    structured effects are already recovered by ``_granted_ability_effects``, so this
+    adds the recipient/source WITHOUT double-counting them. Append-only — the recovery
+    self-deactivates (its recipient dedup sees the now-native recipient). CR 510.1b
+    (player / planeswalker) / 510.1c (creature) / 510.1 (source population)."""
+    out: list[Ability] = []
+    seen: set[int] = set()
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            if _norm(node.get("mode")) in _DAMAGE_DONE_MODES and id(node) not in seen:
+                seen.add(id(node))
+                ab = _project_trigger(node)
+                if ab.trigger is not None and ab.trigger.event == "combat_damage":
+                    placeholder = Effect(
+                        category="other", raw=str(node.get("description") or "")
+                    )
+                    out.append(replace(ab, effects=(placeholder,)))
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    for fld in ("abilities", "static_abilities"):
+        for entry in record.get(fld) or []:
+            walk(entry)
+    return out
+
+
+def _attach_nested_combat_damage(card: Card, records: list[dict]) -> Card:
+    """Attach the lifted nested combat_damage triggers (``_lift_nested_combat_damage``)
+    to each face. Runs at the CARD level — AFTER ``supplement_card``, mirroring the
+    ``_recover_combat_damage_recipients`` placement — so the supplement's raw-rescan
+    passes (which re-parse an ``other`` effect's clause raw into a typed draw / etc.)
+    never see the synthetic trigger's placeholder. Faces and records are 1:1 (faces
+    are projected one-per-record), so the per-record lift attaches to its own face."""
+    if len(card.faces) != len(records):
+        return card
+    new_faces: list[Face] = []
+    changed = False
+    for face, rec in zip(card.faces, records, strict=True):
+        lifted = _lift_nested_combat_damage(rec)
+        if lifted:
+            changed = True
+            new_faces.append(replace(face, abilities=(*face.abilities, *lifted)))
+        else:
+            new_faces.append(face)
+    return replace(card, faces=tuple(new_faces)) if changed else card
 
 
 def _project_trigger(tr: dict) -> Ability:
@@ -4120,6 +4378,19 @@ def _mana_kind(eff: dict) -> str:
     return "basic"
 
 
+# ADR-0027 self-set-aside referent target types: the cards THIS source exiled / tracked
+# / paid (ExiledBySource, TrackedSet, CostPaidObject, CardsExiledBySource) — a genuine
+# reference to the source's OWN persistent set-aside pile (used by the choose-from-exile
+# read for Gorex / Muse Vessel). NOTE deliberately NOT used for topdeck_stack: phase
+# carries NO library-owner field on PutAtLibraryPosition, so an opponent-tuck "on top of
+# THAT player's library" (Agonizing Memories, Stunted Growth, Sealed Fate) has a
+# BYTE-IDENTICAL node to a self top-stack (Scroll Rack) — the self/opponent distinction
+# lives only in oracle text, which supplement._recover_topdeck_stack_self reads.
+_SELF_SET_ASIDE_TARGETS = frozenset(
+    {"exiledbysource", "cardsexiledbysource", "trackedset", "costpaidobject"}
+)
+
+
 def _library_position_effect(eff: dict, raw: str) -> Effect:
     """A put-into-library effect → ``topdeck_stack``, tagged with WHERE in
     ``counter_kind``. The top-stacking archetype (Brainstorm; graveyard-/hand-to-top
@@ -4228,6 +4499,20 @@ def _zone_tags(eff: dict) -> tuple[str, ...]:
     etype = _norm(eff.get("type"))
     if etype in _TOP_OF_LIBRARY_EFFECT_TYPES:
         tags.append("from:top")
+    # ADR-0027 exile_zone_ref: a ChooseFromZone over the source's OWN exiled pile
+    # (filter=ExiledBySource — Gorex "choose a card at random exiled with ~", Muse
+    # Vessel) is a genuine standing-in-exile resource → surface in:exile so
+    # exile_matters reads it structurally. Gated to the self-set-aside filter: phase
+    # models the transient "reveal and separate into piles" / "search and reveal then
+    # choose" mechanics (Steam Augury, Intuition, Signal the Clans) as a BARE
+    # ChooseFromZone with zone=Exile (a holding zone, no filter) — those never touch
+    # exile as a resource, so the filter gate holds them out. CR 406.
+    if (
+        etype == "choosefromzone"
+        and _norm(eff.get("zone")) == "exile"
+        and _norm((eff.get("filter") or {}).get("type")) in _SELF_SET_ASIDE_TARGETS
+    ):
+        tags.append("in:exile")
     origin = _norm(eff.get("origin"))
     if origin in _ZONE_NAMES:
         tags.append(f"from:{origin}")
@@ -4716,8 +5001,37 @@ def _self_cda_marker(record: dict) -> Effect | None:
             continue
         eff = recover_effect_from_text(desc)
         if eff.category == "characteristic_pt":
+            # ADR-0027 exile_zone_ref: the */* count operand can count cards in EXILE
+            # (Cosmogoyf — power/toughness = "cards you own in exile"): an
+            # InZone:Exile property on the SetDynamic{Power,Toughness} count filter.
+            # Stamp in:exile so exile_matters reads it structurally. CR 406.
+            if _self_cda_counts_exile(st) and "in:exile" not in eff.zones:
+                eff = replace(eff, zones=(*eff.zones, "in:exile"))
             return eff
     return None
+
+
+def _node_has_inzone_exile(node: object) -> bool:
+    """Whether ``node`` contains an ``{type:InZone, zone:Exile}`` property anywhere."""
+    if isinstance(node, dict):
+        if _norm(node.get("type")) == "inzone" and _norm(node.get("zone")) == "exile":
+            return True
+        return any(_node_has_inzone_exile(v) for v in node.values())
+    if isinstance(node, list):
+        return any(_node_has_inzone_exile(x) for x in node)
+    return False
+
+
+def _self_cda_counts_exile(st: dict) -> bool:
+    """Whether a characteristic-defining SetDynamic{Power,Toughness} static counts
+    cards in EXILE — an InZone:Exile property on a set-mod's count operand (Cosmogoyf).
+    Scoped to exile (the exile_matters resource read)."""
+    for m in st.get("modifications") or []:
+        if _norm(m.get("type")) not in _SELF_CDA_SET_MODS:
+            continue
+        if _node_has_inzone_exile(m.get("value")):
+            return True
+    return False
 
 
 def _top_play_permission_marker(record: dict) -> Effect | None:
@@ -5519,6 +5833,73 @@ def _single_target_keyword_grant_markers(record: dict) -> list[Effect]:
         ex = tr.get("execute")
         if isinstance(ex, dict):
             walk_ability(ex)
+    return out
+
+
+def _nested_target_grant_markers(record: dict) -> list[Effect]:
+    """`single_target_grant` markers for keyword grants phase structures TWO grants
+    DEEP — nested inside a container the flat effect/sub_ability walk
+    (`_single_target_keyword_grant_markers`) never descends into: a GrantAbility
+    ``definition`` (a quoted ability on an Aura/permanent — "Enchanted land has '{T}:
+    Target creature gains haste'", Racecourse Fury), a modal ``mode_abilities`` mode
+    ("• Target creature gets +2/+2 and gains vigilance", Adaptive Sporesinger), and a
+    Saga-chapter / delayed-trigger nested ``effect`` chain ("target creature you
+    control gains double strike", Rediscover the Way). In EVERY shape the leaf is the
+    same GenericEffect phase already structures cleanly: a LOCAL Typed-Creature
+    ``target`` (CR 700.2 — a single target) plus a ``static_abilities`` entry whose
+    ``affected`` is ParentTarget carrying an AddKeyword modification. We recurse the
+    whole record tree and emit one marker per such leaf (the resolved creature target
+    + the SingleTarget predicate, granted keyword in counter_kind — identical to the
+    flat walk's emit). The split with the flat walk: this reads ONLY a LOCAL Typed
+    target, so the flat walk's "It gains X" tracked-target idiom (leaf target is
+    ParentTarget, real target in a SIBLING effect — Aim High, Act of Treason) is out
+    of reach here and stays with the flat walk; the two emit BYTE-IDENTICAL Effects
+    for any leaf both can see, so the call site dedups. Reads STRUCTURE for the cards
+    the oracle regex ``_recover_keyword_grant_target`` covered (it self-deactivates
+    once a single_target_grant exists). CR 700.2 / 702.x."""
+    out: list[Effect] = []
+
+    def emit(eff: dict) -> None:
+        own = _filter(eff.get("target"))
+        if not (isinstance(own, Filter) and "Creature" in own.card_types):
+            return
+        statics = eff.get("static_abilities")
+        for st in statics if isinstance(statics, list) else []:
+            if not isinstance(st, dict) or not _is_parent_target(st.get("affected")):
+                continue
+            mods = st.get("modifications")
+            if not any(
+                _norm(m.get("type")) == "addkeyword" and m.get("keyword")
+                for m in (mods if isinstance(mods, list) else [])
+                if isinstance(m, dict)
+            ):
+                continue
+            subject = replace(
+                own, predicates=(*own.predicates, _SINGLE_TARGET_GRANT_PRED)
+            )
+            desc = st.get("description") or eff.get("description")
+            out.append(
+                Effect(
+                    category="single_target_grant",
+                    scope=own.controller,
+                    subject=subject,
+                    raw=desc if isinstance(desc, str) else "",
+                    counter_kind=_single_target_grant_counter_kind(mods),
+                )
+            )
+            break  # one marker per leaf (a multi-keyword grant fires once)
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            if _norm(node.get("type")) == "genericeffect":
+                emit(node)
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(record)
     return out
 
 
@@ -7131,6 +7512,99 @@ def _typed_sacrifice_cost_target(node: object) -> Filter | None:
         if r is not None:
             return r
     return None
+
+
+def _land_sacrifice_cost(node: object) -> bool:
+    """Whether ``node`` (an activation / unless_pay cost subtree) contains a Sacrifice
+    whose target is EXACTLY a Land (Typed, ``type_filters == ["Land"]``) — the
+    sac-OUTLET cost phase keeps as a cost node but drops off the projected effect
+    (Zuran Orb's "Sacrifice a land:" Activated cost; Mana Vortex's "unless you
+    sacrifice a land" trigger ``unless_pay``). CR 701.16."""
+    if isinstance(node, list):
+        return any(_land_sacrifice_cost(x) for x in node)
+    if not isinstance(node, dict):
+        return False
+    if _norm(node.get("type")) == "sacrifice":
+        tgt = node.get("target")
+        if isinstance(tgt, dict) and _norm(tgt.get("type")) == "typed":
+            tf = tgt.get("type_filters")
+            tf = tf if isinstance(tf, list) else []
+            if [_norm(t) for t in tf] == ["land"]:
+                return True
+    return any(_land_sacrifice_cost(v) for v in node.values())
+
+
+def _land_sacrifice_cost_markers(record: dict) -> list[Effect]:
+    """A sacrifice marker (Land subject, scope 'you') when an activated ability COST —
+    or a trigger's ``unless_pay`` cost — sacrifices a land (Zuran Orb, Mana Vortex).
+    phase keeps the Sacrifice cost node (Typed Land target) but the projected effect
+    drops the cost, leaving the land_sacrifice_matters arm no structural tell off the
+    OUTLET (the leaves/dies Land-subject PAYOFF is already structured). A Land-only
+    sacrifice subject is excluded from sacrifice_matters (CR 701.16), so it stays this
+    lane's own signal. One marker per card; supplement._recover_land_sacrifice
+    self-deactivates once this fires and backstops the nodeless tail. CR 701.16."""
+    costs: list[object] = [ab.get("cost") for ab in record.get("abilities") or []]
+    for tr in record.get("triggers") or []:
+        up = tr.get("unless_pay")
+        if isinstance(up, dict):
+            costs.append(up.get("cost"))
+    if any(_land_sacrifice_cost(c) for c in costs):
+        return [
+            Effect(
+                category="sacrifice",
+                scope="you",
+                subject=Filter(card_types=("Land",), controller="you"),
+                raw="cost: sacrifice a land",
+            )
+        ]
+    return []
+
+
+def _remove_counter_cost_kind(node: object) -> str:
+    """``p1p1`` / ``m1m1`` if ``node`` (a cost subtree) contains a RemoveCounter of that
+    counter type; ``''`` otherwise (other counter kinds, or no RemoveCounter cost)."""
+    if isinstance(node, list):
+        for x in node:
+            if k := _remove_counter_cost_kind(x):
+                return k
+        return ""
+    if not isinstance(node, dict):
+        return ""
+    if _norm(node.get("type")) == "removecounter":
+        ct = node.get("counter_type")
+        data = ct.get("data") if isinstance(ct, dict) else ct
+        k = _norm_counter_kind(data) if isinstance(data, str) else ""
+        if k in ("p1p1", "m1m1"):
+            return k
+    for v in node.values():
+        if k := _remove_counter_cost_kind(v):
+            return k
+    return ""
+
+
+def _counter_removal_cost_markers(record: dict) -> list[Effect]:
+    """A remove_counter marker (counter_kind p1p1/m1m1, scope 'you') when an activated
+    ability COST removes a +1/+1 or -1/-1 counter (Walking Ballista, Quillspike,
+    Fertilid). phase keeps the RemoveCounter cost node but the projected effect drops
+    it, so counter_manipulation / any_counter_matters have no structural tell off cost.
+    The remove-as-EFFECT form is projected directly; the damage-prevention-replacement
+    tail stays with supplement._recover_counter_removal, which self-deactivates once a
+    structured p1p1/m1m1 remove_counter exists. One marker per kind. CR 122.1."""
+    markers: list[Effect] = []
+    seen: set[str] = set()
+    for ab in record.get("abilities") or []:
+        kind = _remove_counter_cost_kind(ab.get("cost"))
+        if kind and kind not in seen:
+            seen.add(kind)
+            markers.append(
+                Effect(
+                    category="remove_counter",
+                    scope="you",
+                    counter_kind=kind,
+                    raw=f"cost: remove a {kind} counter",
+                )
+            )
+    return markers
 
 
 # "becomes a/an artifact|enchantment" — a TYPE-GRANT (animate / grant the type) whose

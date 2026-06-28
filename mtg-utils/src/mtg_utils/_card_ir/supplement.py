@@ -2628,14 +2628,16 @@ def _is_gy_recursion_exile(e: Effect) -> bool:
 
 
 def _is_gy_recursion_ability(ab: Ability) -> bool:
-    """A triggerless (kind spell/static) ability holding a collapsed GY-recursion
-    effect — either the contentless bounce or the exile-from-graveyard form."""
-    return (
-        ab.trigger is None
-        and ab.kind in ("spell", "static")
-        and any(
-            _is_gy_recursion_bounce(e) or _is_gy_recursion_exile(e) for e in ab.effects
-        )
+    """An ability holding a collapsed GY-recursion effect — either the contentless
+    bounce or the exile-from-graveyard form. NOT gated on kind/trigger: the
+    createdelayedtrigger trigger-lift (project._lift_delayed_trigger) now projects the
+    etb/lifegain recursion ability as kind='triggered', but the contentless SelfRef
+    Bounce still carries no origin zone (node-absent), so this pass must still stamp
+    in:graveyard onto it regardless of whether the trigger was lifted natively. The
+    card-level _GY_RECUR_MARK oracle gate in _recover_gy_recursion already restricts
+    this to genuine 'return/exile this card from your graveyard' cards."""
+    return any(
+        _is_gy_recursion_bounce(e) or _is_gy_recursion_exile(e) for e in ab.effects
     )
 
 
@@ -2664,8 +2666,12 @@ def _recover_gy_recursion(card: Card, oracle: str) -> Card:
                 for e in ab.effects
             )
             # rebuild the dropped trigger onto the FIRST recursion ability only
-            # (each target card has exactly one recursion clause).
-            if trig is not None and not attached:
+            # (each target card has exactly one recursion clause). Skip when the
+            # ability already carries a trigger — project._lift_delayed_trigger now
+            # projects the etb/lifegain recursion trigger natively, so the recovery
+            # only backstops the still-node-absent in:graveyard zone stamp (else
+            # branch) and the regex-only scry trigger (mode:Unknown, ab.trigger None).
+            if trig is not None and not attached and ab.trigger is None:
                 new_abilities.append(
                     replace(ab, kind="triggered", trigger=trig, effects=effects)
                 )

@@ -961,7 +961,22 @@ from mtg_utils.card_ir import Card
 #   — the structured target carries its "power 4 or greater" predicate the regex
 #   flattened, a genuine power reference). Recovery self-deactivates for these 56, stays
 #   for the CopyTokenOf (token_copy semantics) + oracle-only residue.
-SIDECAR_VERSION = 70
+# v71 (nested-lift batch — 5 capabilities reading phase nodes the projection dropped to
+#   a recovery; all gate-verified set-equal or oracle-adjudicated genuine gains, voltron
+#   2394, no losses): (1) combat_damage RECIPIENT/SOURCE lifted from an inner DamageDone
+#   trigger nested in a GrantTrigger/emblem/loyalty/delayed ability (Combat Research,
+#   Aphelia) — combat_damage_* set-equal, tribe_damage_trigger +3 GENUINE (Subira,
+#   Aphelia, Feywild Visitor go-wide combat-connect payoffs the recipient-only regex
+#   dropped). (2) nested-context GainLife (replacement/composite/modal) — lifegain
+#   set-equal (faithful read). (3) modal/GrantAbility/Saga AddKeyword==ParentTarget ->
+#   keyword_grant_target +1 GENUINE (Venser modal target-grant). (4)
+#   createdelayedtrigger condition-trigger lift (tribal-ETB/lifegain) — set-equal.
+#   (5) cost/zone reads:
+#   Sacrifice-cost Land -> land_sacrifice_matters +15 GENUINE, activation-cost
+#   RemoveCounter -> counter_manipulation +17 GENUINE, InZone:Exile/ChooseFromZone ->
+#   exile_matters +2 GENUINE. Each recovery KEPT as backstop (self-deactivates for the
+#   structured subset, serves the Unimplemented/nodeless residue).
+SIDECAR_VERSION = 71
 
 
 def card_ir_dir() -> Path:
