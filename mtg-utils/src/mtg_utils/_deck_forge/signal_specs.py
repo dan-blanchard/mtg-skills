@@ -3830,8 +3830,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # The bare `cards in your hand` matched stax/hand-size references (Ensnaring Bridge,
     # Ivory Tower). Require a no-max-hand-size or a full-grip payoff/scaling phrase.
+    # _matters sweep (ADR-0034): the big-hand lane SPLITS by role at emission
+    # (big_hand_makers = the no-max-hand-size ENABLERS; big_hand_matters = the
+    # cards-in-hand PAYOFFS). Per ADR-0034 only MEMBERSHIP splits — the serve avenue
+    # still offers enablers + payoffs together, so BOTH specs keep the broad serve pool.
+    ("big_hand_makers", "you"): _spec(
+        "No maximum hand size",
+        "no-max-hand-size enablers and the payoffs that reward a full grip",
+        {"oracle": r"cards in your hand|no maximum hand size"},
+        r"maximum hand size"
+        r"|(?:\d+|five|six|seven|eight) or more cards in (?:your )?hand"
+        r"|for each card in your hand|equal to the number of cards in your hand",
+    ),
     ("big_hand_matters", "you"): _spec(
-        "Big hand / no max hand size",
+        "Big hand payoffs",
         "card draw and no-max-hand-size payoffs that reward a full grip",
         {"oracle": r"cards in your hand|no maximum hand size"},
         r"maximum hand size"

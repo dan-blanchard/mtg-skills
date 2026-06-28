@@ -32,13 +32,27 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # size" text). VOLTRON: both deleted producers fired HIGH-confidence scope 'you'
         # and fed has_other_plan, so deleting them un-silences the Site-2 commander-
         # damage voltron tell on 9 bodies where big_hand is the sole plan (Akki
-        # Underling, Thought Eater/Devourer, …); the byte-identical
-        # _BIG_HAND_MATTERS_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS — the IR
-        # is the SAME breadth, so the keys set would not broaden but the mirror is
-        # the precise idiom) re-supplies has_other_plan. Commander-legal, floor-
-        # disabled, by oracle_id: both == 140, ir_only == 0, regex_only == 0; scope
-        # parity (all 'you', HIGH). The hand-written serve spec in signal_specs.py is
-        # independent of the deleted regexes and survives. CR 402.2.
+        # Underling, Thought Eater/Devourer, …); BOTH split keys (big_hand_makers +
+        # big_hand_matters) stay HIGH scope 'you' and OUT of every voltron-exclusion
+        # set, so each feeds the generic IR-derived has_other_plan scan as the old
+        # single key did (the silence is preserved; there is no separate plan mirror —
+        # the named _BIG_HAND_MATTERS_PLAN_MIRROR lived only in comments). Commander-
+        # legal, floor-disabled, by oracle_id: union == 143, ir_only == 0,
+        # regex_only == 0; scope parity (all 'you', HIGH). The hand-written serve specs
+        # in signal_specs.py are independent of the deleted regexes and survive. CR
+        # 402.2.
+        #
+        # _matters sweep (ADR-0034): the lane SPLITS by role into the MAKER arm and the
+        # PAYOFF arm; the union of their memberships is set-equal to the old single
+        # big_hand_matters (143 commander-legal).
+        # big_hand_makers — the no-max-hand-size ENABLER (the card removes the CR 402.2
+        # cap so a full grip survives cleanup — Reliquary Tower, Thought Vessel,
+        # Spellbook): the structural no_max_handsize arm + the _BIG_HAND_MAKERS_MIRROR
+        # maker branch.
+        "big_hand_makers",
+        # big_hand_matters — the PAYOFF: "X = number of cards in your hand" P/T-scaling
+        # payoffs (Maro, Psychosis Crawler) + "N or more cards in hand" conditions (Akki
+        # Underling), via the _BIG_HAND_MATTERS_MIRROR payoff branch.
         "big_hand_matters",
         # Batch 1 — keys whose IR production is genuinely STRUCTURAL (not a
         # re-run of the deleted oracle regex), so deleting the regex cannot

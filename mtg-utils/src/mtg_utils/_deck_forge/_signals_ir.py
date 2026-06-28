@@ -3908,6 +3908,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             # ("whenever you cast a spell that has convoke") is the ONLY emitter of
             # convoke_matters, so the slice must carry the key explicitly.
             "convoke_matters",
+            # _matters sweep (ADR-0034): big_hand SPLIT — the MAKER arm
+            # (big_hand_makers). The no-max-hand-size ENABLER half of the lane: the
+            # structural no_max_handsize arm + the _BIG_HAND_MAKERS_MIRROR maker branch
+            # emit it (Reliquary Tower, Thought Vessel). The PAYOFF half keeps
+            # big_hand_matters (a kept-mirror lane like its old single key, which is not
+            # itself listed in the slice). CR 402.2.
+            "big_hand_makers",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -5043,22 +5050,30 @@ _POWER_MATTERS_MIRROR = re.compile(
     re.IGNORECASE,
 )
 
-# _BIG_HAND_MATTERS_MIRROR (ADR-0027) — the byte-identical OR of the two deleted
-# big_hand_matters producers: the _HAND_FLOOR row (no/maximum hand size + "N or more
-# cards in your hand") and the SWEEP row (the same + "(?:equal to|number of) [^.]*
-# cards in your hand"). It recovers the under-structured tail phase leaves textual —
-# the "X = the number of cards in your hand" P/T-scaling payoffs (Maro / Psychosis
-# Crawler / Sturmgeist, encoded as a `characteristic_pt` Effect with NO in:hand zone)
-# and the "N or more cards in hand" conditions. The no-max ENABLERS it ALSO matches
-# dedup against the structural no_max_handsize arm via add(). Run FLAT over the
-# reminder-stripped joined-face oracle (kept_oracle); the `[^.]*` arm never crosses a
-# sentence boundary the regex path split on, so flat == per-clause and the mirror's
-# firing set == the deleted producers' union EXACTLY (commander-legal: mirror == regex
-# == 140, 0 miss, 0 over-fire). scope 'you', HIGH conf — the parity the two deleted
-# producers fired. CR 402.2.
+# _matters sweep (ADR-0034): the old single _BIG_HAND_MATTERS_MIRROR — the byte-
+# identical OR of the two deleted producers (the _HAND_FLOOR row + the SWEEP row) — is
+# SPLIT by ROLE into a MAKER half and a PAYOFF half. The OR of the two halves is the
+# byte-identical OLD alternation, so the union of the two keys' firings stays set-equal
+# to the old big_hand_matters (commander-legal: 143, 0 miss, 0 over-fire). Both scope
+# 'you', HIGH conf — the parity the two deleted producers fired. CR 402.2.
+#
+# MAKER half — the no-max-hand-size ENABLER text ("no maximum hand size" / a "maximum
+# hand size" reducer): the card itself PERFORMS the mechanic, removing the CR 402.2 cap
+# so a full grip survives cleanup (Reliquary Tower, Thought Vessel, Spellbook, Folio of
+# Fancies). The enablers it matches dedup against the structural no_max_handsize arm
+# (line ~7861) via add(). -> big_hand_makers.
+_BIG_HAND_MAKERS_MIRROR = re.compile(
+    r"no maximum hand size|maximum hand size",
+    re.IGNORECASE,
+)
+# PAYOFF half — the "X = the number of cards in your hand" P/T-scaling payoffs (Maro,
+# Psychosis Crawler, Sturmgeist, encoded as a `characteristic_pt` Effect with NO
+# in:hand zone) and the "N or more cards in hand" CONDITIONS (Akki Underling). These
+# REFERENCE a full grip rather than create it. Run FLAT over the reminder-stripped
+# joined-face oracle (kept_oracle); the `[^.]*` arm never crosses a sentence boundary
+# the regex path split on, so flat == per-clause. -> big_hand_matters.
 _BIG_HAND_MATTERS_MIRROR = re.compile(
-    r"no maximum hand size|maximum hand size"
-    r"|(?:five|six|seven|eight) or more cards in (?:your )?hand"
+    r"(?:five|six|seven|eight) or more cards in (?:your )?hand"
     r"|(?:equal to|number of) [^.]*cards in your hand",
     re.IGNORECASE,
 )
@@ -7841,24 +7856,25 @@ def extract_signals_ir(
             # marker carries scope you, so the count-operand path stays you-scoped.
             if "in:graveyard" in e.zones and e.category not in ("exile", "blink"):
                 add("graveyard_matters", _gy_scope(e), "", e.raw)
-            # big_hand_matters STRUCTURAL ARM (ADR-0027, v23): a `no_max_handsize`
-            # Effect ("you/players have no maximum hand size" — Reliquary Tower /
-            # Thought Vessel / Spellbook / Folio of Fancies) is the canonical big-hand
-            # ENABLER (it removes the CR 402.2 cap, so a full grip survives the cleanup
-            # step). project._project_static_mods emits it for phase's bare
-            # `NoMaximumHandSize` static mode (which otherwise drops to the card's
-            # sibling ramp/draw ability and the build-around goes unstructured). All 25
-            # commander-legal fires are scope you. The "X = cards in your hand" P/T
-            # payoffs (Maro, Psychosis Crawler) ride the byte-identical
-            # _BIG_HAND_MATTERS_MIRROR kept word mirror below — phase encodes those as a
-            # `characteristic_pt` Effect carrying NO in:hand zone, so they are NOT
-            # structural here. The bare `in:hand` zone was REJECTED: _zone_tags surfaces
-            # it on every discard ("discards their hand", 116 cards) and hand-scaling
-            # draw (16), indistinguishable from a genuine HandSize count operand, so an
-            # `in:hand` arm over-fires on hand-as-zone DISCARD/REVEAL refs (the distinct
-            # lane boundary). CR 402.2.
+            # big_hand_makers STRUCTURAL ARM (ADR-0027 v23; ADR-0034 _matters split):
+            # a `no_max_handsize` Effect ("you/players have no maximum hand size" —
+            # Reliquary Tower / Thought Vessel / Spellbook / Folio of Fancies) is the
+            # canonical big-hand MAKER/ENABLER (it removes the CR 402.2 cap, so a full
+            # grip survives the cleanup step — the card PERFORMS the mechanic).
+            # project._project_static_mods emits it for phase's bare `NoMaximumHandSize`
+            # static mode (which otherwise drops to the card's sibling ramp/draw ability
+            # and the build-around goes unstructured). All 25 commander-legal fires are
+            # scope you. The "X = cards in your hand" P/T PAYOFFS (Maro, Psychosis
+            # Crawler) ride the byte-identical _BIG_HAND_MATTERS_MIRROR payoff mirror
+            # below as big_hand_matters — phase encodes those as a `characteristic_pt`
+            # Effect carrying NO in:hand zone, so they are NOT structural here. The bare
+            # `in:hand` zone was REJECTED: _zone_tags surfaces it on every discard
+            # ("discards their hand", 116 cards) and hand-scaling draw (16),
+            # indistinguishable from a genuine HandSize count operand, so an `in:hand`
+            # arm over-fires on hand-as-zone DISCARD/REVEAL refs (the distinct lane
+            # boundary). CR 402.2.
             if e.category == "no_max_handsize" and _ir_scope(e.scope) == "you":
-                add("big_hand_matters", "you", "", e.raw)
+                add("big_hand_makers", "you", "", e.raw)
             # token_maker (ADR-0027 MIGRATED) — the token goes to YOU. STRUCTURAL ARM:
             # a make_token of scope 'you'/'each' ("Create N Goblin tokens"; "each
             # player creates" gives you a board too). The v25 projection scopes
@@ -10979,14 +10995,20 @@ def extract_signals_ir(
     # over-fire. CR 102.2.
     if _SYMMETRIC_DAMAGE_EACH_MIRROR.search(kept_oracle):
         add("symmetric_damage_each", "each", "", "")
-    # ADR-0027 — big_hand_matters byte-identical mirror (the OR of the two deleted
-    # producers, scope 'you'). Recovers the under-structured tail phase leaves textual:
-    # the "X = the number of cards in your hand" P/T-scaling payoffs (Maro, Psychosis
-    # Crawler, Sturmgeist — a `characteristic_pt` Effect with NO in:hand zone) and the
-    # "N or more cards in hand" conditions. The no-max ENABLERS it also matches dedup
-    # via add() against the structural no_max_handsize arm. Flat over kept_oracle ==
-    # the per-clause regex firing set byte-identically (regex_only == 0, 0 over-fire).
+    # _matters sweep (ADR-0034): big_hand SPLIT mirror. The old single mirror (the OR of
+    # the two deleted producers, scope 'you') is partitioned into a MAKER half and a
+    # PAYOFF half; the OR of the two halves is the byte-identical old alternation, so
+    # the union of the two keys' firings == the old big_hand_matters (set-equal). Both
+    # arms dedup via add() and are HIGH 'you' (feeding has_other_plan exactly as the old
+    # single key did — neither is in any voltron-exclusion set, so the voltron silence
+    # is preserved). MAKER half — the no-max ENABLERS ("no maximum hand size" / a
+    # "maximum hand size" reducer), deduped against the structural no_max_handsize arm
+    # above -> big_hand_makers. PAYOFF half — the "X = number of cards in your hand"
+    # P/T-scaling payoffs (Maro, Psychosis Crawler — a `characteristic_pt` Effect with
+    # NO in:hand zone) and the "N or more cards in hand" conditions -> big_hand_matters.
     # CR 402.2.
+    if _BIG_HAND_MAKERS_MIRROR.search(kept_oracle):
+        add("big_hand_makers", "you", "", "")
     if _BIG_HAND_MATTERS_MIRROR.search(kept_oracle):
         add("big_hand_matters", "you", "", "")
     # ADR-0027 β — mana_amplifier DORK-SUPPORT arm (a payoff for mana-producing

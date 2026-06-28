@@ -382,10 +382,11 @@ def test_big_hand_matters_is_ir_served():
     # lane on the IR path, not pure regex.
     assert ("big_hand_matters", "you") in _real("Maro")
     assert ("big_hand_matters", "you") not in _ks(test_card("Maro"))
-    # The "no maximum hand size" ENABLER fires from the v23 `no_max_handsize` Effect
-    # STRUCTURAL arm — proven on an IR carrying that Effect (Spellbook's whole text is
-    # the cap-remover, but here we isolate the structural arm with a bare-text card so
-    # the mirror can't supply it).
+    # _matters sweep (ADR-0034): the "no maximum hand size" ENABLER is the MAKER arm,
+    # so it fires big_hand_makers (not big_hand_matters) from the v23 `no_max_handsize`
+    # Effect STRUCTURAL arm — proven on an IR carrying that Effect (Spellbook's whole
+    # text is the cap-remover, but here we isolate the structural arm with a bare-text
+    # card so the mirror can't supply it).
     enabler = {"name": "X", "type_line": "Artifact", "oracle_text": "Caps removed."}
     ir = Card(
         oracle_id="x",
@@ -408,10 +409,10 @@ def test_big_hand_matters_is_ir_served():
             ),
         ),
     )
-    assert ("big_hand_matters", "you") in {
+    assert ("big_hand_makers", "you") in {
         (s.key, s.scope) for s in extract_signals_hybrid(enabler, ir)
     }
-    assert ("big_hand_matters", "you") not in _ks(enabler)
+    assert ("big_hand_makers", "you") not in _ks(enabler)
 
 
 def test_token_doubling_is_ir_served():
