@@ -79,6 +79,7 @@ _REAL_CASES: dict[str, str] = {
     "blink_flicker": "Flickerwisp",
     "blocked_matters": "Kitsune Blademaster",
     "blood_matters": "Bloodtithe Harvester",
+    "boast_makers": "Arni Brokenbrow",
     "boast_matters": "Birgi, God of Storytelling",
     "bounce_tempo": "Boomerang",
     "cant_block_grant": "Breeches, Eager Pillager",

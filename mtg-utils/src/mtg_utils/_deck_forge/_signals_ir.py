@@ -535,7 +535,12 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "annihilator": (("attack_matters", "you"),),
     "flanking": (("attack_matters", "you"),),
     "frenzy": (("attack_matters", "you"),),
-    "boast": (("boast_matters", "you"), ("attack_matters", "you")),
+    # _matters sweep (ADR-0034): the Scryfall `Boast` keyword = the boast DOER (a
+    # creature with a Boast activated ability — Arni Brokenbrow, Varragoth). This is
+    # the MAKER arm → boast_makers. The payoff arm (event='other' boast trigger /
+    # 'can boast twice' amplifier — Birgi) keeps boast_matters via _DOER_EFFECT_KEYS.
+    # attack_matters is untouched (boast creatures attack to use the ability).
+    "boast": (("boast_makers", "you"), ("attack_matters", "you")),
     # ADR-0027 tokens_matter migration: amass (CR 701.47) / mobilize MOVED here from
     # _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). tokens_matter is
     # migrated, so it must leave the regex-readable _DIRECT_KEYWORD_SIGNALS; but the IR

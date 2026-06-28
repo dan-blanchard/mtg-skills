@@ -4190,6 +4190,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # (detection moved to the Card IR — keyword array + effect-category + supplement
     # markers). The SERVE pool stays oracle-defined, so hand-register the spec the
     # sweep auto-register loop used to build, reusing each deleted regex.
+    # _matters sweep (ADR-0034): the MAKER arm of the boast split — boast creatures
+    # (cards carrying the Boast ability). Same \bboast\b serve pool as the payoff arm.
+    ("boast_makers", "you"): _spec(
+        *SWEEP_LABELS["boast_makers"],
+        {"oracle": r"\bboast\b"},
+        r"\bboast\b",
+    ),
     ("boast_matters", "you"): _spec(
         *SWEEP_LABELS["boast_matters"],
         {"oracle": r"\bboast\b"},

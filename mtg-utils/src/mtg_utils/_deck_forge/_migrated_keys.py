@@ -224,6 +224,11 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                "if you would scry a number of cards" replacement face marker
         #                (Kenessos, Eligeth); left _IR_FLOOR_LANES.
         "boast_matters",
+        # _matters sweep (ADR-0034): the MAKER arm of the boast split — a creature
+        # carrying the Scryfall `Boast` keyword (Arni Brokenbrow, Varragoth) performs
+        # the boast ability. The IR path emits it via _IR_KEYWORD_MAP, so the hybrid
+        # must recognize it as migrated to keep it. boast_matters stays the payoff arm.
+        "boast_makers",
         "connive_makers",
         "end_the_turn",
         "exhaust_matters",

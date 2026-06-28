@@ -2825,7 +2825,11 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Blocks matter",
         "combat triggers when creatures block or become blocked",
     ),
-    "boast_matters": ("Boast", "boast creatures and ways to attack safely"),
+    # _matters sweep (ADR-0034): boast split into the MAKER arm (creatures with a
+    # Boast ability — this label fits them) and the PAYOFF arm (boast triggers /
+    # amplifiers — Birgi's 'can boast twice').
+    "boast_makers": ("Boast", "boast creatures and ways to attack safely"),
+    "boast_matters": ("Boast payoffs", "boast triggers and amplifiers"),
     "cant_block_grant": ("Can't-block", "force blockers off to clear a path to attack"),
     # ADR-0027 A4: cast_as_named_card label deleted with its SWEEP_DETECTORS row.
     "has_changeling": (
