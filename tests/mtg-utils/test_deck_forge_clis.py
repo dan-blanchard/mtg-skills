@@ -74,7 +74,7 @@ def test_deck_signals_surfaces_the_commander_tribe(tmp_path):
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
     res = CliRunner().invoke(deck_signals_main, [deck, hyd, "--json"])
     assert res.exit_code == 0, res.output
-    rows = json.loads(res.output)
+    rows = json.loads(res.stdout)
     assert any(r["subject"] == "Goblin" and r["actionable"] for r in rows)
 
 
@@ -83,7 +83,7 @@ def test_slot_budgets_counts_lands(tmp_path):
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
     res = CliRunner().invoke(slot_budgets_main, [deck, hyd, "--json"])
     assert res.exit_code == 0, res.output
-    budgets = json.loads(res.output)
+    budgets = json.loads(res.stdout)
     assert budgets["lands"]["current"] == 10
 
 
@@ -93,7 +93,7 @@ def test_deck_rank_orders_a_goblin_payoff_by_synergy(tmp_path):
     cands = _write(tmp_path, "cands.json", [CHIEFTAIN])
     res = CliRunner().invoke(deck_rank_main, [deck, hyd, cands, "--json"])
     assert res.exit_code == 0, res.output
-    ranked = json.loads(res.output)
+    ranked = json.loads(res.stdout)
     assert ranked
     assert ranked[0]["name"] == "Goblin Chieftain"
     assert ranked[0]["synergy_fit"] >= 1  # serves the Goblin lane
