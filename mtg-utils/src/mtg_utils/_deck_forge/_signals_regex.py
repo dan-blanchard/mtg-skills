@@ -2151,7 +2151,9 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # a "start your engines|max speed|your speed" _IR_KEPT_DETECTORS word mirror (phase
     # v0.1.19 doesn't structure the CR 702.178/702.179 Speed designation; Aetherdrift).
     # Moved floor->kept (floor-mirror-dep -> 0); this _HAND_FLOOR producer is deleted;
-    # the serve spec stays hand-registered.
+    # the serve spec stays hand-registered. ADR-0034 _matters sweep split this by role:
+    # the MAKER arms (the `speed` doer + the "Start your engines!" keyword that PERFORM/
+    # advance speed) now fire speed_makers; the "Max speed" PAYOFF keeps speed_matters.
     # ADR-0027: discover_makers migrated to the Card IR — served structurally from
     # the Scryfall `discover` keyword (_IR_KEYWORD_MAP, the discover SOURCES) plus a
     # `discover` effect category for the keyword-less re-trigger payoff (Curator of

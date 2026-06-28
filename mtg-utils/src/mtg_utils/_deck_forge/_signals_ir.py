@@ -222,7 +222,11 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # Stashed Skeleton "…and suspect it"). The generic doer arm reroutes the pure
     # "suspected"-STATE reference (no suspect verb) to the suspect_matters payoff.
     "suspect": ("suspect_makers", "you"),
-    "speed": ("speed_matters", "you"),
+    # ADR-0034 _matters sweep: the cat=='speed' doer arm is a MAKER (the card
+    # PERFORMS a speed change — Spikeshell Harrier "your speed increases"); the
+    # 'max speed' keyword payoff (gates on speed==4, advances nothing) keeps
+    # speed_matters.
+    "speed": ("speed_makers", "you"),
     # ADR-0027 — station_matters migrated to the Card IR via a BYTE-IDENTICAL kept WORD
     # MIRROR (_STATION_MATTERS_MIRROR in _IR_KEPT_DETECTORS — the EXACT deleted SWEEP
     # regex `\bstation\b|\bspacecraft\b` over the reminder-stripped kept_oracle). phase
@@ -899,7 +903,11 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # `speed` Effect. Together keyword(40) + speed-Effect doer == the deleted
     # `start your engines|max speed|your speed` mirror EXACTLY (commander-legal: 41==41,
     # 0 drift). CR 702.179.
-    "start your engines!": (("speed_matters", "you"),),
+    # ADR-0034 _matters sweep: "Start your engines!" initializes speed and
+    # installs the per-turn speed-increase rule = MAKER (speed_makers). "Max
+    # speed —" abilities only function at speed 4 — they care-about having
+    # reached max speed and advance nothing = PAYOFF (speed_matters).
+    "start your engines!": (("speed_makers", "you"),),
     "max speed": (("speed_matters", "you"),),
     # ADR-0027 #24 KW-WAVE-1 — the three counter-type bending keywords (airbend CR
     # 701.65, earthbend 701.66, waterbend 701.67) as printed Scryfall keywords. Each is

@@ -207,22 +207,24 @@ class TestSpeedMatters:
     lifeloss_matters overlaps 0/40 speed cards."""
 
     def test_speed_commander_emits(self):
-        # Samut, the Driving Force — speed_matters via the real IR (ADR-0027 hybrid).
-        assert "speed_matters" in _hyb("Samut, the Driving Force")
+        # ADR-0034 _matters sweep: Samut, the Driving Force carries "Start your
+        # engines!" (a MAKER arm) → speed_makers via the real IR (hybrid).
+        assert "speed_makers" in _hyb("Samut, the Driving Force")
 
     def test_speed_keyword_card_served(self):
+        # Howlsquad Heavy carries "Max speed" → the kept speed_matters payoff.
         assert serves(test_card("Howlsquad Heavy"), _sig("speed_matters", "you"))
 
     def test_speed_keyword_bearer_via_ir_keyword_map(self):
-        # ADR-0027 #24 KW-WAVE-1: the "Start your engines!" keyword bearer opens
-        # speed_matters via _IR_KEYWORD_MAP (mirror deleted), not a word scan.
-        assert "speed_matters" in _hyb("The Speed Demon")
+        # ADR-0034 _matters sweep: the "Start your engines!" keyword bearer is a
+        # MAKER → speed_makers via _IR_KEYWORD_MAP (mirror deleted), not a word scan.
+        assert "speed_makers" in _hyb("The Speed Demon")
 
     def test_speed_keywordless_changer_via_doer_arm(self):
         # Spikeshell Harrier has NO speed keyword; its `speed` Effect ("your speed
-        # increases") opens the lane through the _DOER_EFFECT_KEYS['speed'] arm — the
-        # residue the deleted `your speed` mirror used to catch.
-        assert "speed_matters" in _hyb("Spikeshell Harrier")
+        # increases") opens speed_makers through the _DOER_EFFECT_KEYS['speed'] MAKER
+        # arm — the residue the deleted `your speed` mirror used to catch.
+        assert "speed_makers" in _hyb("Spikeshell Harrier")
 
 
 class TestBendingPayoff:

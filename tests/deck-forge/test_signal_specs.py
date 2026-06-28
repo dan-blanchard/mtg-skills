@@ -622,11 +622,13 @@ def test_lose_unless_hand_serves_drawback_negation():
 
 
 def test_speed_matters_serves_cheap_unblockable_only():
+    # ADR-0034 _matters sweep: the cheap-evasion enabler moved to the MAKER spec
+    # (speed_makers) — advancing speed by chipping life is a maker-side avenue.
     # Vnwxt's speed ramps when an opponent loses life, so it wants CHEAP unblockable
     # creatures that connect early (Slither Blade, {U}). The cmc_max gate excludes an
     # expensive unblockable (Bubbling Beebles, mv 5) — that's not the early-pressure
     # package. Rides a sub-avenue, so check _lane_covers. Real oracle.
-    sig = _sig("speed_matters", "you")
+    sig = _sig("speed_makers", "you")
     slither_blade = {
         "name": "Slither Blade",
         "type_line": "Creature — Snake Rogue",

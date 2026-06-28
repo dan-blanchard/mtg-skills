@@ -781,6 +781,11 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "opponent_exile_makers",
         "opponent_exile_matters",
         "exalted_lone_attacker",
+        # ADR-0034 _matters sweep: speed_matters split by role. speed_makers =
+        # the MAKER arms (phase's `speed` doer + the "Start your engines!"
+        # keyword, both of which PERFORM/advance the speed mechanic);
+        # speed_matters keeps the "Max speed" PAYOFF (gates on speed==4).
+        "speed_makers",
         "speed_matters",
         "tap_untap_matters",
         "reanimator",

@@ -5481,14 +5481,29 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\bmadness\b|if it has madness",
         serve_keywords=("madness",),
     ),
-    ("speed_matters", "you"): _spec(
-        "Speed / Max speed",
-        "Start-your-engines and Max-speed payoffs, plus the your-turn life-loss "
-        "sources that advance your speed",
-        {"oracle": r"max speed|start your engines"},
-        r"max speed|start your engines|your speed",
-        serve_keywords=("start your engines!", "max speed"),
+    # ADR-0034 _matters sweep: the MAKER side of the speed split. speed_makers
+    # fires when a card PERFORMS/advances the speed mechanic (Start-your-engines,
+    # the keyword-less speed-changer). The avenue it opens is the engine that
+    # advances your speed — the your-turn life-loss sources (cheap evasive
+    # attackers that chip an opponent each turn).
+    ("speed_makers", "you"): _spec(
+        "Speed engine",
+        "Start-your-engines and speed-advancer bodies, plus the your-turn "
+        "life-loss sources that advance your speed",
+        {"oracle": r"start your engines|your speed"},
+        r"start your engines|your speed",
+        serve_keywords=("start your engines!",),
         extras=(_CHEAP_EVASION_EXTRA,),
+    ),
+    # ADR-0034 _matters sweep: the PAYOFF side. speed_matters keeps the Max-speed
+    # abilities, which only function at speed 4 (they care-about having reached
+    # max speed and advance nothing).
+    ("speed_matters", "you"): _spec(
+        "Max speed",
+        "Max-speed payoffs that reward reaching speed 4",
+        {"oracle": r"max speed"},
+        r"max speed",
+        serve_keywords=("max speed",),
     ),
     ("discover_makers", "you"): _spec(
         "Discover",
