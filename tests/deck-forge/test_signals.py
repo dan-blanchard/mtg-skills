@@ -671,9 +671,9 @@ def test_fog_does_not_open_redirect_lane():
 def test_aura_recursion_opens_voltron_lane():
     # Hakim: "return target Aura card ... attached to Hakim" — aura voltron, but the
     # detector caught "attach an Aura", not the "Aura ... attached" recursion form.
-    # Real Hakim, Loreweaver (snapshot): the "Aura ... attached to Hakim" recursion is
-    # aura voltron.
-    assert ("voltron_matters", "you") in _real("Hakim, Loreweaver")
+    # _matters sweep (ADR-0034): the recursion PERFORMS the attaching, so Hakim is on
+    # the MAKER arm voltron_makers now (it carries no payoff sub-tell).
+    assert ("voltron_makers", "you") in _real("Hakim, Loreweaver")
 
 
 def test_passive_combat_damage_opens_combat_lane():

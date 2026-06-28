@@ -1933,21 +1933,23 @@ def _voltron(ir: Card) -> bool:
     return ("voltron_matters", "you", "") in _sigs(ir)
 
 
-def test_voltron_payoff_attach_other_object():
-    # Kor Outfitter — attaches ANOTHER Equipment onto a creature (build-around).
-    assert ("voltron_matters", "you", "") in _striples(test_signals("Kor Outfitter"))
+def test_voltron_maker_attach_other_object():
+    # _matters sweep (ADR-0034): Kor Outfitter attaches ANOTHER Equipment onto a
+    # creature (a doer) — the MAKER arm voltron_makers, not the payoff lane.
+    assert ("voltron_makers", "you", "") in _striples(test_signals("Kor Outfitter"))
 
 
 def test_voltron_payoff_cast_aura_equipment_trigger():
-    # Sram, Senior Edificer — a cast-an-Aura/Equipment/Vehicle-spell trigger.
+    # Sram, Senior Edificer — a cast-an-Aura/Equipment/Vehicle-spell trigger (PAYOFF).
     assert ("voltron_matters", "you", "") in _striples(
         test_signals("Sram, Senior Edificer")
     )
 
 
-def test_voltron_payoff_tutor_for_equipment_card():
-    # Godo, Bandit Warlord — search your library for an Equipment card.
-    assert ("voltron_matters", "you", "") in _striples(
+def test_voltron_maker_tutor_for_equipment_card():
+    # _matters sweep (ADR-0034): Godo searches the library for an Equipment card (a
+    # fetch doer) — the MAKER arm voltron_makers, not the payoff lane.
+    assert ("voltron_makers", "you", "") in _striples(
         test_signals("Godo, Bandit Warlord")
     )
 

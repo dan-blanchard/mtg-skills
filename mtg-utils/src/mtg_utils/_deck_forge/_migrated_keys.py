@@ -633,7 +633,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (native phase rollers + the _DICE_REF spell/cost roll marker — the card
         # PERFORMS the roll) emits dice_makers; the "whenever you roll …" PAYOFF
         # marker (the _narrow_trigger_other_refs _DICE_TRIG re-route) keeps
-        # dice_matters. Gate-verified set-equal: makers ∪ matters == old dice_matters.
+        # dice_matters. Gate-verified set-equal: makers union matters == dice_matters.
         "dice_makers",
         "dice_matters",
         # ADR-0027 shield_counter_makers — migrated to the Card IR. UNION shape.
@@ -1716,8 +1716,8 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # ADR-0027 (q2-D3) — two half-migrations (clean IR arm + kept word mirror):
         #   flash (old flash_matters) ← the GRANT half binds via cast_with_keyword
         #     {flash} (the same node flash_grant reads; Leyline, Vivien). The FULL
-        #     deleted _HAND_FLOOR regex is kept byte-identically as an _IR_KEPT mirror to
-        #     recover the ACTIVATED flash-grant (phase folds to grant_keyword with empty
+        #     deleted _HAND_FLOOR regex is kept byte-identically as an _IR_KEPT mirror
+        #     to recover ACTIVATED flash-grant (phase folds to grant_keyword w/ empty
         #     ck — Winding Canyons, Teferi Time Raveler) + the opponent-turn cast payoff
         #     (textual). Broader-and-correct (+1: Teferi Mage of Zhalfir). floor-mirror-
         #     dep == 0 (not a floor lane). NO-FLOOD held (voltron 0 leaked). CR 702.8.
@@ -1725,7 +1725,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     cast_with_keyword{flash} doer + branch A of the mirror, "cast … as though
         #     they had flash" — the grant-to-others / activated granters). flash_matters
         #     keeps ONLY branch B, the opponent-turn cast PAYOFF (Alela). Gate-verified
-        #     set-equal: members(flash_makers) ∪ members(flash_matters) == the old key.
+        #     set-equal: members(flash_makers) union members(flash_matters) == old key.
         "flash_makers",
         #   noncreature_cast_punish ← the OPPONENT-punisher half binds via a cast_spell
         #     trigger scope=='opp' over a noncreature subject (NotType:Creature or a
@@ -6439,6 +6439,15 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # correctly silences a spurious commander-damage tell on a real engine — a
         # MORE-correct set than the regex's 3007. CR 903.10a / 702.83 / 301.5 / 303.4.
         "voltron_matters",
+        # _matters sweep (ADR-0034): voltron_makers — the MAKER arm split out of the
+        # voltron build-around (the card PERFORMS the gear-attaching/fetching: attach-
+        # OTHER, Equipment/Aura tutor, "unattach", Hakim aura-recursion, Siona
+        # "becomes attached"). The IR path emits it HIGH, so the hybrid must recognize
+        # it as migrated to keep it. The PAYOFF references (cast-trigger / attachment-
+        # STATE / cost-reducers) keep voltron_matters. Gate-verified set-equal:
+        # members(voltron_makers) union members(voltron_matters) == old voltron_matters
+        # (member-path n=2411 on the MTGJSON corpus). CR 301.5 / 303.4 / 702.6.
+        "voltron_makers",
         # ADR-0027 #24n G1 — base_power_matters, a NEW niche lane (per the project
         # exhaustive-audit rule: niche never means skip the lane). A base-power/tough
         # REFERENCE payoff (CR 613.4b sentence 2 — effects that REFER to base P/T, not

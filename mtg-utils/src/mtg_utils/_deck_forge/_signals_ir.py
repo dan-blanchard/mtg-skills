@@ -60,6 +60,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _VOLTRON_COMPAT_KEYS,
     _VOLTRON_EQUIP_RE,
     _VOLTRON_KEYWORDS,
+    _VOLTRON_MAKER_RE,
     _VOLTRON_PAYOFF_RE,
     _XSPELL_HOOK_RE,
     _XSPELL_VETO_RE,
@@ -82,6 +83,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_type_matters,
     _detect_typed_gy_recursion,
     _detect_typed_spellcast,
+    _detect_voltron_maker_ir,
     _detect_voltron_payoff_ir,
     _graveyard_matters_clauses,
     _resolve_subject,
@@ -565,6 +567,12 @@ _VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
         "self_pump",
         "pump_makers",
         "cant_block_grant",
+        # _matters sweep (ADR-0034): the voltron MAKER arm. Attaching/fetching gear
+        # IS the voltron plan (load one creature with Equipment/Auras), NOT another
+        # plan, so a voltron_makers HIGH must not silence the bare commander-damage
+        # fallback. (The old combined arm emitted voltron_matters HIGH here, which
+        # equally never silenced its own lane — keeping this compat preserves that.)
+        "voltron_makers",
     }
 )
 
@@ -11012,6 +11020,24 @@ def extract_signals_ir(
     # has_other_plan derivation, so a payoff card's voltron HIGH is in `out` when
     # has_other_plan is read (matching the regex _HAND_FLOOR ordering). CR 301.5 / 303.4
     # / 702.6 / 903.10a.
+    # _matters sweep (ADR-0034): SPLIT by emission role. The MAKER arm (the card
+    # PERFORMS the gear-attaching/fetching — attach-OTHER / Equipment-Aura tutor /
+    # "unattach" / Hakim recursion / Siona "becomes attached") re-keys to
+    # voltron_makers; the PAYOFF arm (cast-an-Aura/Equipment trigger / attachment-
+    # STATE predicate / cost-reducers / "for each"/"equipped creatures"/"enchanted or
+    # equipped" references) keeps voltron_matters. The maker/payoff detectors and
+    # regexes each split the old combined arm tell-for-tell / branch-for-branch, so
+    # members(voltron_makers) union members(voltron_matters) stays SET-EQUAL to the old
+    # voltron_matters. Many cards fire BOTH (Galea tutors AND carries a cast-trigger;
+    # Hammer of Nazahn attaches AND "Equipment you control have equip {0}"), so the
+    # two lanes OVERLAP — this is a union-set-equal split, not a disjoint partition.
+    # voltron_makers is in _VOLTRON_HAS_OTHER_PLAN_COMPAT (attaching gear IS the
+    # voltron plan, not another plan), so its HIGH firing never silences the bare
+    # commander-damage fallback.
+    if _detect_voltron_maker_ir(ir) or any(
+        _VOLTRON_MAKER_RE.search(cl) for cl in _clauses(kept_oracle)
+    ):
+        add("voltron_makers", "you", "", "", "high")
     if _detect_voltron_payoff_ir(ir) or any(
         _VOLTRON_PAYOFF_RE.search(cl) for cl in _clauses(kept_oracle)
     ):

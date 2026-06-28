@@ -416,6 +416,11 @@ _REAL_CASES: dict[str, str] = {
     "villainous_choice": "The Valeyard",
     "void_warp_makers": "Starfield Vocalist",
     "void_warp_matters": "Alpharael, Stonechosen",
+    # _matters sweep (ADR-0034): Kor Outfitter "attach target Equipment you control
+    # to target creature" is a pure attach-OTHER doer (no payoff sub-tell), so it
+    # proves the MAKER arm voltron_makers. Sram fires the PAYOFF arm (a cast-an-Aura/
+    # Equipment-spell trigger), so it keeps the kept voltron_matters.
+    "voltron_makers": "Kor Outfitter",
     "voltron_matters": "Sram, Senior Edificer",
     "voting_makers": "Capital Punishment",
     "wants_cloning": "Arcum Dagsson",

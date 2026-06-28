@@ -1098,14 +1098,37 @@ class Detector:
 # here so the IR path can run the SAME regex per-clause (byte-identically; the `[^.]`
 # spans never cross a sentence) UNIONed with the structural _detect_voltron_payoff_ir
 # recall gain. The _HAND_FLOOR row below references it for the no-sidecar regex path.
-VOLTRON_PAYOFF_REGEX = (
-    r"\bfor each (?:equipment|aura|role)\b[^.]*?\b(?:attached|you control)\b"
-    r"|\battach (?:target |all |any number of |up to one target |an |a )?"
+# _matters sweep (ADR-0034): the COMBINED voltron word regex SPLITS by emission
+# role. VOLTRON_MAKER_REGEX = the IMPERATIVE doer clauses (the card PERFORMS the
+# gear-attaching / fetching): "attach [target/all] equipment/aura", "search your
+# library for an equipment/aura … card" (Godo / Open the Armory), "unattach" (Akiri),
+# Hakim's "return … aura … attached" recursion, and Siona's "equipment you control
+# becomes attached". These re-key to voltron_makers. The MAKER-union-PAYOFF alternation
+# equals the old combined regex BRANCH-FOR-BRANCH (every atomic alternative lands in
+# exactly one), so the per-clause union stays set-equal. CR 301.5 / 303.4 / 702.6.
+VOLTRON_MAKER_REGEX = (
+    r"\battach (?:target |all |any number of |up to one target |an |a )?"
     r"(?:equipment|aura)"
     r"|attach (?:any number of |all )?"
     r"(?:auras? and equipment|equipment and auras?)"
     r"|search your library for an? (?:equipment|aura)"
     r"(?: or (?:equipment|aura|vehicle))? card"
+    # Akiri: "unattach an Equipment" moves gear around (a doer half of the old
+    # "equipped creatures|unattach" branch — the PLURAL "equipped creatures"
+    # payoff half stays in VOLTRON_PAYOFF_REGEX below).
+    r"|\bunattach\b"
+    # Hakim: Aura RECURSION onto a creature ("return … Aura … attached") — the card
+    # PERFORMS the attaching, even though the wording isn't "attach an Aura".
+    r"|(?:return|put)[^.]*\baura\b[^.]*\battached\b"
+    # Siona: an Aura/Equipment BECOMING attached (the card does the attaching).
+    r"|(?:aura|equipment) you control becomes attached"
+)
+_VOLTRON_MAKER_RE = re.compile(VOLTRON_MAKER_REGEX, re.IGNORECASE)
+# The PAYOFF half: triggers / references / cost-reducers / attachment-STATE
+# predicates that are REWARDED by the gear being attached but don't attach it
+# themselves. Keeps voltron_matters.
+VOLTRON_PAYOFF_REGEX = (
+    r"\bfor each (?:equipment|aura|role)\b[^.]*?\b(?:attached|you control)\b"
     r"|(?:equipment|auras?) you control have equip"
     r"|equip (?:abilities|costs?)[^.]{0,40}?(?:cost|costs?)[^.]{0,20}?less"
     r"|spend this mana only to cast (?:an? )?(?:aura|equipment)"
@@ -1115,8 +1138,8 @@ VOLTRON_PAYOFF_REGEX = (
     r"|pay [^.]*equip cost"
     # A commander that rewards / cares about "equipped creatures" (PLURAL — the
     # Equipment payload "Equipped creature gets…" is singular, so this stays off
-    # gear) or moves Equipment around (Akiri: "unattach an Equipment").
-    r"|equipped creatures\b|\bunattach\b"
+    # gear). The "unattach" doer half moved to VOLTRON_MAKER_REGEX.
+    r"|equipped creatures\b"
     # Sram / Galea / Danitha: a CAST-trigger or cast-from-top keyed on Aura/
     # Equipment spells (CR 601 cast) — the deck IS a voltron deck even though
     # the wording is "cast an Aura/Equipment", not "attach"/"equipped".
@@ -1125,14 +1148,9 @@ VOLTRON_PAYOFF_REGEX = (
     # Aura/Equipment cost reducers (Danitha, Galea): "Aura and Equipment spells
     # you cast cost {1} less" is a voltron payoff, not generic cost reduction.
     r"|(?:aura|equipment)[^.]*spells? you cast cost"
-    # Hakim: Aura RECURSION onto a creature ("return … Aura … attached") — aura
-    # voltron even though the wording isn't "attach an Aura".
-    r"|(?:return|put)[^.]*\baura\b[^.]*\battached\b"
-    # "enchanted or equipped" payoffs (Koll), an Aura/Equipment BECOMING
-    # attached (Siona), and Equipment-attached combat payoffs (Kassandra) —
-    # the lane keyed on "attach"/"equipped creatures" and missed these.
+    # "enchanted or equipped" payoffs (Koll) and Equipment-attached combat payoffs
+    # (Kassandra) — the lane keyed on "attach"/"equipped creatures" and missed these.
     r"|enchanted or equipped|equipped or enchanted"
-    r"|(?:aura|equipment) you control becomes attached"
     r"|(?:legendary )?equipment attached to it"
 )
 _VOLTRON_PAYOFF_RE = re.compile(VOLTRON_PAYOFF_REGEX, re.IGNORECASE)
@@ -2991,23 +3009,46 @@ def _is_attach_other(e: Effect) -> bool:
     return bool(_ATTACH_OTHER_RE.search(raw)) and not _SELF_ATTACH_RE.match(raw)
 
 
+def _detect_voltron_maker_ir(ir: Card) -> bool:
+    """_matters sweep (ADR-0034): the MAKER half of the old voltron structural arm —
+    the card PERFORMS the gear-attaching / fetching (voltron_makers). Two tells:
+
+    * an attach effect moving ANOTHER typed Equipment/Aura onto a creature
+      (``_is_attach_other`` — Kor Outfitter, Balan, Hammer of Nazahn);
+    * a tutor for an Aura/Equipment CARD (Godo, Three Dreams, Stoneforge Mystic).
+
+    Deliberately NOT projected: self-attach (the gear itself) — the regex floor
+    stays off it via ``_is_attach_other``. Split out of ``_detect_voltron_payoff_ir``;
+    maker-union-payoff equals the old 4-tell detector tell-for-tell (set-equal)."""
+    for ab in ir.all_abilities():
+        for e in ab.effects:
+            if _is_attach_other(e):
+                return True
+            # tutor for an Aura/Equipment CARD — the subtype on the searched filter.
+            if (
+                e.category == "tutor"
+                and isinstance(e.subject, Filter)
+                and ({s.lower() for s in e.subject.subtypes} & _EQUIP_AURA_SUBTYPES)
+            ):
+                return True
+    return False
+
+
 def _detect_voltron_payoff_ir(ir: Card) -> bool:
     """True if the Card IR carries a structural Aura/Equipment PAYOFF (the voltron
-    build-around, NOT the gear/aura payload or the commander-damage membership
-    fallback). Four unambiguous structural tells:
+    build-around, NOT the gear/aura payload, the maker arm, or the commander-damage
+    membership fallback). Two unambiguous structural tells (the maker half — attach-
+    other / Equipment-Aura tutor — split to ``_detect_voltron_maker_ir`` for the
+    _matters sweep, ADR-0034):
 
     * a cast-an-Aura/Equipment-spell trigger (Sram, Kor Spiritdancer);
-    * a tutor for an Aura/Equipment CARD (Godo, Three Dreams, Stoneforge Mystic);
     * an attachment-STATE predicate (``AttachedToRecipient`` "for each Aura attached
       to it"; ``HasAnyAttachmentOf`` "enchanted or equipped creatures" — Koll, Reyav)
-      on any effect/condition subject;
-    * an attach effect moving ANOTHER typed Equipment/Aura onto a creature
-      (``_is_attach_other`` — Kor Outfitter, Balan, Hammer of Nazahn).
+      on any effect/condition subject.
 
     Deliberately NOT projected: the bare Aura/Equipment SUBTYPE on an effect subject
     (also covers Aura HATE — "destroy target Aura"), the ``EquippedBy`` payload-pump
-    ("equipped creature gets +X/+X"), and self-attach (the gear itself) — all of
-    which the regex floor stays off. Projects the lane from phase's structure
+    ("equipped creature gets +X/+X"). Projects the lane from phase's structure
     instead of the oracle-regex floor/sweep rows (ADR-0027)."""
     for ab in ir.all_abilities():
         trg = ab.trigger
@@ -3019,15 +3060,6 @@ def _detect_voltron_payoff_ir(ir: Card) -> bool:
         ):
             return True
         for e in ab.effects:
-            if _is_attach_other(e):
-                return True
-            # tutor for an Aura/Equipment CARD — the subtype on the searched filter.
-            if (
-                e.category == "tutor"
-                and isinstance(e.subject, Filter)
-                and ({s.lower() for s in e.subject.subtypes} & _EQUIP_AURA_SUBTYPES)
-            ):
-                return True
             for f in (e.subject, e.amount.subject if e.amount is not None else None):
                 if isinstance(f, Filter) and (
                     set(f.predicates) & _ATTACHMENT_PREDICATES

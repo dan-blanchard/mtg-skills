@@ -3691,6 +3691,30 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Extra combats let the suited-up threat swing again — a top voltron payoff.
         extras=(_VOLTRON_PROTECT_EXTRA, _EXTRA_COMBAT_EXTRA),
     ),
+    # _matters sweep (ADR-0034): the MAKER side of the voltron split — cards that
+    # PERFORM the gear-attaching/fetching (attach-OTHER, Equipment/Aura tutors,
+    # "unattach", aura recursion). The avenue still offers the whole package (makers +
+    # the equipment/aura payoffs they enable — ADR-0034: serve is unaffected in
+    # spirit), so this copies the kept voltron_matters serve content; only the role
+    # label differs (the gear-attachers / suit-tutors, plus the suit to attach).
+    ("voltron_makers", "you"): _spec(
+        "Voltron gear-attachers & tutors",
+        "attach/fetch effects plus the equipment, auras, and equip-cost reducers they "
+        "load onto one creature",
+        {"preset_names": ("equip",)},
+        r"equipped creature|enchanted creature gets|equip \{"
+        r"|attach [^.]*(?:equipment|aura)"
+        r"|equipment you control|for each (?:equipment|aura)"
+        r"|cast an? (?:aura|equipment)|cast aura and equipment"
+        r"|(?:aura|equipment)s?[^.]*spells? you cast cost"
+        r"|search your library for an? (?:aura|equipment)",
+        serve_types=("equipment", "aura"),
+        serve_keywords=("reconfigure",),
+        serve_not=r"can't attack|can't block|doesn't untap during"
+        r"|enchant creature you don't control|defending player controls"
+        r"|enchant (?:player|land|forest|island|swamp|mountain|plains)",
+        extras=(_VOLTRON_PROTECT_EXTRA, _EXTRA_COMBAT_EXTRA),
+    ),
     # An extreme power-for-cost beater (Lord of Tresserhorn 10/4, Yargle 18/6) wins by
     # connecting ONCE for lethal — serve the damage amplifiers that convert raw power
     # into a kill: grant infect (power -> poison) and grant double strike (2x). Distinct
