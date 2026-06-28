@@ -3026,6 +3026,10 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Rad counters",
         "rad-counter sources and payoffs (Fallout — each player mills + loses life per rad)",
     ),
+    "oil_counter_makers": (
+        "Oil counters",
+        "oil-counter sources (Phyrexia — cards that place oil counters)",
+    ),
     "oil_counter_matters": (
         "Oil counters",
         "oil-counter sources and payoffs (Phyrexia — charge-style depletion counters)",

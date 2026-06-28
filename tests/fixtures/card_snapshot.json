@@ -4704,6 +4704,133 @@
     "type_line": "Legendary Creature — Kraken"
    }
   },
+  "Armored Scrapgorger": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "tap",
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "ramp",
+          "mk": "fixing",
+          "raw": "{T}: Add one mana of any color."
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "exile",
+          "raw": "Whenever ~ becomes tapped, exile target card from a graveyard and put an oil counter on ~.",
+          "sub": {
+           "p": [
+            "InZone"
+           ],
+           "t": [
+            "Card"
+           ]
+          },
+          "z": [
+           "from:graveyard",
+           "to:exile",
+           "in:graveyard"
+          ]
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "oil",
+          "raw": "Whenever ~ becomes tapped, exile target card from a graveyard and put an oil counter on ~."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "taps",
+         "sc": "you"
+        }
+       },
+       {
+        "cond": {
+         "ck": "oil",
+         "cmp": "none",
+         "kind": "hascounters"
+        },
+        "e": [
+         {
+          "amt": {
+           "f": 3,
+           "op": "fixed"
+          },
+          "cat": "pump",
+          "raw": "~ gets +3/+0 as long as it has three or more oil counters on it."
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Armored Scrapgorger",
+      "tl": "Creature — Phyrexian Beast"
+     }
+    ],
+    "n": "Armored Scrapgorger",
+    "oid": "0d3a4db2-df79-4946-8f87-b174cf9c293c"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Armored Scrapgorger",
+    "oracle_id": "0d3a4db2-df79-4946-8f87-b174cf9c293c",
+    "oracle_text": "This creature gets +3/+0 as long as it has three or more oil counters on it.\n{T}: Add one mana of any color.\nWhenever this creature becomes tapped, exile target card from a graveyard and put an oil counter on this creature.",
+    "power": "0",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "toughness": "3",
+    "type_line": "Creature — Phyrexian Beast"
+   }
+  },
   "Arni Brokenbrow": {
    "ir": {
     "faces": [

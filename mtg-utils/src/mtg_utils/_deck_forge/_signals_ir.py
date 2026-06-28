@@ -3075,6 +3075,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Batch E (effect-category lanes):
             "plus_one_matters",
             "minus_counters_matter",
+            # _matters sweep (ADR-0034): the place_counter MAKER arm emits
+            # oil_counter_makers; the predicate/count/hascounters PAYOFF arms
+            # keep oil_counter_matters. Both ride the shared _COUNTER_KIND_KEYS
+            # dispatch (only the maker arm overrides the key).
+            "oil_counter_makers",
             "oil_counter_matters",
             "shield_counter_makers",
             "rad_counter_makers",
@@ -7989,6 +7994,21 @@ def extract_signals_ir(
                 # overrides. Siblings (m1m1/oil/shield/rad) are untouched.
                 if e.counter_kind == "ki":
                     ck_key = "ki_counter_makers"
+                # ADR-0034 _matters split (oil): a REAL oil placement ("put
+                # an oil counter on ~") is the MAKER -> oil_counter_makers.
+                # The synthetic _OIL_REF marker (project @ project.py:8363 —
+                # a dropped count-operand/condition oil REFERENCE, a PAYOFF)
+                # is structurally a place_counter too, but its raw is the
+                # bare "oil counter(s)" phrase (m.group(0) of _OIL_REF); keep
+                # that on oil_counter_matters (Kuldotha Cackler fires the
+                # lane SOLELY through this marker — it places no oil). The
+                # bare-phrase discriminator is exact: a real placement's raw
+                # is the full effect clause, never the lone counter name.
+                elif e.counter_kind == "oil" and (e.raw or "").strip().lower() not in (
+                    "oil counter",
+                    "oil counters",
+                ):
+                    ck_key = "oil_counter_makers"
                 add(ck_key, ck_scope, "", e.raw)
             # named_counter_misc (ADR-0027 C19_C20) — a place/remove of a NAMED
             # singleton counter whose kind is its OWN build-around (CR 122.1, the kind

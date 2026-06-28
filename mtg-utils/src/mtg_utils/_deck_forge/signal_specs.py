@@ -4438,6 +4438,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # (detection moved to the Card IR — phase's place_counter(counter_kind='oil') placer
     # + an "oil counter(s)" payoff marker). Serve hand-registered reusing the deleted
     # regex so the lane still surfaces oil sources and payoffs.
+    # _matters sweep (ADR-0034): the MAKER side of the oil split (cards that
+    # PLACE oil counters). Same serve pool as the payoff lane — the avenue
+    # legitimately offers oil sources + payoffs together (ADR-0034: only
+    # membership splits by role, the serve avenue composes both).
+    ("oil_counter_makers", "you"): _spec(
+        *SWEEP_LABELS["oil_counter_makers"],
+        {"oracle": r"\boil counters?\b"},
+        r"\boil counters?\b",
+    ),
     ("oil_counter_matters", "you"): _spec(
         *SWEEP_LABELS["oil_counter_matters"],
         {"oracle": r"\boil counters?\b"},

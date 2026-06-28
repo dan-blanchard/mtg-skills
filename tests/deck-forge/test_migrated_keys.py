@@ -262,6 +262,11 @@ _REAL_CASES: dict[str, str] = {
     "noncombat_damage_payoff": "Spitemare",
     "noncreature_cast_punish": "Kambal, Consul of Allocation",
     "nonhuman_attackers": "Winota, Joiner of Forces",
+    # ADR-0034 _matters split: the MAKER arm (place_counter ck='oil') emits
+    # oil_counter_makers — Armored Scrapgorger PUTS an oil counter on itself.
+    # The PAYOFF arm keeps oil_counter_matters; Kuldotha Cackler fires it
+    # SOLELY through the synthetic _OIL_REF reference marker (it places no oil).
+    "oil_counter_makers": "Armored Scrapgorger",
     "oil_counter_matters": "Kuldotha Cackler",
     "one_punch": "Yargle and Multani",
     "opp_top_exile": "Villainous Wealth",

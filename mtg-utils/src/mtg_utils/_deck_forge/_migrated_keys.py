@@ -554,6 +554,12 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                trigger-other "whenever you roll" payoff + the dropped-static
         #                "Roll two d6 and choose" SPELL / "Roll a d8:" COST / "reroll").
         "oil_counter_matters",
+        # _matters sweep (ADR-0034): split out of oil_counter_matters. The
+        # place_counter ck='oil' MAKER arm (a card that PUTS an oil counter)
+        # emits oil_counter_makers; the predicate/count/hascounters PAYOFF arms
+        # and the synthetic _OIL_REF reference marker keep oil_counter_matters.
+        # Gate-verified set-equal: makers (44) union matters (7) = old key (48).
+        "oil_counter_makers",
         "mass_death_payoff",
         "starting_life_matters",
         "cycling_matters",
