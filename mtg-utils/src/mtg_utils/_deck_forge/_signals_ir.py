@@ -3671,6 +3671,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             "theft_protection",
             "villainous_choice",
             "named_counter_misc",
+            # _matters sweep: the kind-AGNOSTIC counter DOER lane (proliferate +
+            # counter-move / any-kind-remove), split out of any_counter_matters (the
+            # payoff key, which survives via the MIGRATED_KEYS gate). Listed here for
+            # hygiene — the doer-membership half of the split.
+            "any_counter_makers",
             # ADR-0027 cmdzone — an Eminence / command-zone-gated ability, fully
             # structural: every firing (triggered, activated, AND the static
             # cost-reducer — The Ur-Dragon) comes from the 'command' ability-zone /
@@ -3690,9 +3695,9 @@ IR_SLICE_KEYS: frozenset[str] = (
             # (cast_with_keyword{flash}) + the OPPONENT-punisher half of
             # noncreature_cast_punish (cast_spell trig scope=='opp' + noncreature
             # subject) bind structurally; the remaining halves ride _IR_KEPT mirrors.
-            # ADR-0034 _matters sweep: the MAKER arm (the cast_with_keyword{flash} doer +
-            # branch A of the mirror) is now flash_makers; flash_matters keeps only the
-            # opponent-turn cast PAYOFF (branch B).
+            # ADR-0034 _matters sweep: the MAKER arm (the cast_with_keyword{flash}
+            # doer + branch A of the mirror) is now flash_makers; flash_matters keeps
+            # only the opponent-turn cast PAYOFF (branch B).
             "flash_makers",
             "flash_matters",
             "noncreature_cast_punish",
@@ -8417,13 +8422,14 @@ def extract_signals_ir(
             # counter (the "_matters = cares-about" rule). CR 122.1 / 122.6.
             if cat == "counters_have_ref":
                 add("plus_one_matters", "you", "", e.raw)
-            # any_counter_matters (ADR-0027 — the kind-AGNOSTIC lane). proliferate adds
-            # "one counter of EACH KIND already there" (CR 701.34a), so it cares about
-            # counters GENERICALLY, not +1/+1 specifically — it routes to the kind-
-            # agnostic lane, NOT plus_one_matters (the dedicated proliferate_matters
-            # lane already fires via _DOER_EFFECT_KEYS). CR 701.34a.
+            # any_counter_makers (_matters sweep — the kind-AGNOSTIC counter DOER
+            # arm). proliferate adds "one counter of EACH KIND already there" (CR
+            # 701.34a), so it PERFORMS a kind-generic counter placement, not +1/+1
+            # specifically — it routes to the maker lane, NOT plus_one_matters (the
+            # dedicated proliferate_matters lane already fires via _DOER_EFFECT_KEYS).
+            # CR 701.34a.
             if cat == "proliferate":
-                add("any_counter_matters", "you", "", e.raw)
+                add("any_counter_makers", "you", "", e.raw)
             # plus_one_matters (ADR-0027) — a +1/+1 counter MOVE ("move +1/+1 counters
             # from … onto …" — Bioshift, Aetherborn Marauder, Nesting Grounds): the
             # counter_move category already opens the dedicated counter_move lane; a
@@ -8432,18 +8438,18 @@ def extract_signals_ir(
             # non-+1/+1 move out (CR 122.1; minus_counters stays its own lane).
             if cat == "counter_move" and e.counter_kind == "p1p1":
                 add("plus_one_matters", "you", "", e.raw)
-            # any_counter_matters (ADR-0027) — kind-AGNOSTIC counter manipulation: a
-            # counter MOVE (relocating counters between permanents — Power Conduit, The
-            # Ozolith, Bioshift), OR a remove with NO specified kind ("remove all
-            # counters" / "remove a counter of any kind" — Aether Snap, Hex Parasite,
-            # Vampire Hexmage, Suncleanser). A KIND-SPECIFIC remove (time/fade/oil) is
-            # a card spending its OWN niche counter (Tangle Wire's fade, Waning
-            # Wurm's time), NOT a kind-agnostic counter engine — it routes to its own
-            # kind lane (or none), so it's EXCLUDED here. CR 122.1 / 701.34a.
+            # any_counter_makers (_matters sweep) — kind-AGNOSTIC counter manipulation
+            # DOER: a counter MOVE (relocating counters between permanents — Power
+            # Conduit, The Ozolith, Bioshift), OR a remove with NO specified kind
+            # ("remove all counters" / "remove a counter of any kind" — Aether Snap, Hex
+            # Parasite, Vampire Hexmage, Suncleanser). A KIND-SPECIFIC remove
+            # (time/fade/oil) is a card spending its OWN niche counter (Tangle Wire's
+            # fade, Waning Wurm's time), NOT a kind-agnostic counter engine — it routes
+            # to its own kind lane (or none), so it's EXCLUDED here. CR 122.1 / 701.34a.
             if cat == "counter_move" or (
                 cat == "remove_counter" and not e.counter_kind
             ):
-                add("any_counter_matters", "you", "", e.raw)
+                add("any_counter_makers", "you", "", e.raw)
             # counter_manipulation (ADR-0027) — +1/+1 or -1/-1 counter MOVE or
             # remove-as-EFFECT (The Ozolith, Power Conduit, Nesting Grounds move;
             # Carnifex Demon, Retribution of the Ancients, Festercreep remove). The
@@ -9877,9 +9883,10 @@ def extract_signals_ir(
             # (the relabeled MAKER arm of the old flash_matters) — the GRANT-to-OTHERS
             # half of each lane is exactly this cast_with_keyword{flash} static (Leyline
             # of Anticipation, Vivien). The activated / conditional grant (empty
-            # counter_kind) + the self-flash tail are recovered by the FULL deleted-regex
-            # kept _IR_KEPT mirror (flash_grant ← FLASH_GRANT_REGEX, flash_makers ←
-            # branch A of its own mirror); add() dedups the overlap. The opponent-turn
+            # counter_kind) + the self-flash tail are recovered by the FULL
+            # deleted-regex kept _IR_KEPT mirror (flash_grant ← FLASH_GRANT_REGEX,
+            # flash_makers ← branch A of its own mirror); add() dedups the overlap.
+            # The opponent-turn
             # cast PAYOFF (branch B of that mirror) keeps flash_matters. CR 702.8.
             if cat == "cast_with_keyword" and e.counter_kind == "flash":
                 add("flash_grant", "you", "", e.raw)

@@ -662,13 +662,14 @@ def test_place_counter_blank_kind_without_p1p1_raw_excluded():
     assert "plus_one_matters" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
-def test_proliferate_fires_any_counter_matters():
+def test_proliferate_fires_any_counter_makers():
     """Proliferate adds 'one counter of EACH KIND already there' (CR 701.34a) — it
-    cares about counters GENERICALLY, so it opens the kind-agnostic any_counter_matters
-    lane, NOT the +1/+1-specific plus_one_matters (ADR-0027 taxonomy)."""
+    PERFORMS a kind-generic counter placement, so it opens the kind-agnostic DOER lane
+    any_counter_makers (_matters sweep — the maker arm split out of any_counter_matters),
+    NOT the +1/+1-specific plus_one_matters (ADR-0027 taxonomy)."""
     ir = _ir(Ability(kind="spell", effects=(Effect(category="proliferate"),)))
     keys = _sigs(ir)
-    assert ("any_counter_matters", "you", "") in keys
+    assert ("any_counter_makers", "you", "") in keys
     assert ("plus_one_matters", "you", "") not in keys
 
 

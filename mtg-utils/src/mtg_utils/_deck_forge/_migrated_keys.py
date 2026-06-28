@@ -1068,7 +1068,20 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # Bulwark Ox, Innkeeper's Talent, Iroh, Cleopatra, The Swarmlord). Distinct from
         # plus_one_matters (+1/+1 specific) and the per-kind oil/rad/named lanes. The
         # serve spec is hand-registered in signal_specs.py. CR 122.1 / 701.34a.
+        # _matters sweep (ADR-0034): the lane SPLITS by emission arm. The PAYOFF arms
+        # — a "for each counter on" pump scaler and a subject carrying an `Any`-type
+        # Counters predicate ("creature with any counter on it") — KEEP
+        # any_counter_matters (the card is rewarded by / references counters). The
+        # DOER arms (proliferate, counter-move / any-kind-remove) move to
+        # any_counter_makers below.
         "any_counter_matters",
+        # _matters sweep (ADR-0034): any_counter_makers — the kind-AGNOSTIC counter
+        # DOER half split out of any_counter_matters. proliferate (CR 701.34a) and a
+        # counter MOVE / kind-agnostic remove PERFORM a kind-generic counter
+        # manipulation. The IR path emits it, so the hybrid must recognize it as
+        # migrated to keep it. union(makers, matters) == old any_counter_matters
+        # (gate-verified set-equal). CR 122.1 / 701.34a.
+        "any_counter_makers",
         # Group "tranche2-B" (ADR-0027) — 5 keys phase v0.1.19 NOW structures, each
         # fires from the STRUCTURAL IR alone (NONE in _IR_FLOOR_LANES; floor-mirror-dep
         # == 0 by construction — no key reads a floor detector). Each key's oracle-regex

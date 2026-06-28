@@ -1911,6 +1911,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _PROLIFERATE_EXTRA,
         ),
     ),
+    # _matters sweep (ADR-0034): the DOER half of the any_counter split. A deck whose
+    # commander/cards PERFORM kind-agnostic counter manipulation (proliferate, counter
+    # relocation, any-kind removal) wants MORE such engines — proliferate sources and
+    # counter-movers that compound the kind-agnostic plan. Same search as the payoff
+    # lane; the label reframes it as the maker/engine avenue. CR 122.1 / 701.34a.
+    ("any_counter_makers", "you"): _spec(
+        "Any-counter engines",
+        "proliferate, counter movers, and any-kind counter manipulation",
+        {"oracle": r"proliferate|for each counter|move .* counter|\bcounter on\b"},
+        r"proliferate|for each counter on|" + _COUNTER_DOUBLER_ORACLE,
+        extras=(
+            _COUNTER_DOUBLER_EXTRA,
+            _PROLIFERATE_EXTRA,
+        ),
+    ),
     # Hand spec (overrides the mined sweep detector) so the avenue can fan out a
     # dedicated "Flip fixing" sub-avenue. The flat coin-flip search returns ~60 generic
     # "flip a coin" payoffs and buries Krark's-Thumb-style fixers past the package cap,
