@@ -239,8 +239,9 @@ class TestBendingPayoff:
         assert {"airbend_makers", "earthbend_matters", "waterbend_matters"} <= keys
 
     def test_bend_keyword_bearer_via_ir_keyword_map(self):
-        # A vanilla Waterbend body opens waterbend_matters from card['keywords'].
-        assert "waterbend_matters" in _hyb("Spirit Water Revival")
+        # _matters sweep (ADR-0034): a vanilla Waterbend body is a DOER — it opens
+        # waterbend_makers from card['keywords'], not the payoff lane.
+        assert "waterbend_makers" in _hyb("Spirit Water Revival")
 
 
 class TestDiscoverMatters:

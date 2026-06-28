@@ -912,7 +912,12 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # references (deferred). CR 701.65 / 701.66 / 701.67.
     "airbend": (("airbend_makers", "you"),),
     "earthbend": (("earthbend_matters", "you"),),
-    "waterbend": (("waterbend_matters", "you"),),
+    # _matters sweep (ADR-0034): waterbend SPLIT. The keyword-bearer arm is the
+    # DOER (a card carrying Scryfall `Waterbend` pays/performs a waterbend cost —
+    # Spirit Water Revival), so it emits waterbend_makers. The keyword-LESS
+    # cross-bend PAYOFF (Avatar Aang's "whenever you waterbend…draw") rides the
+    # `bending`-Effect arm in extract_signals_ir and STAYS waterbend_matters.
+    "waterbend": (("waterbend_makers", "you"),),
     # Spell-copy keywords (CR 702.40 storm, 702.108 replicate, 702.78 conspire) —
     # each COPIES the spell, the printed-keyword path for spell_copy_makers that the
     # structural CopySpell effect misses (the copy rides the keyword, not a CopySpell
@@ -3104,6 +3109,9 @@ IR_SLICE_KEYS: frozenset[str] = (
             "voting_matters",
             "airbend_makers",
             "earthbend_matters",
+            # _matters sweep (ADR-0034): waterbend split — the keyword-bearer DOER
+            # arm emits waterbend_makers; the cross-bend payoff stays _matters.
+            "waterbend_makers",
             "waterbend_matters",
             "firebending_matters",
             # Batch 16 — recent-set kept-detectors (rules-lawyer-verified):

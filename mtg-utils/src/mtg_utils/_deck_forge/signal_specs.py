@@ -4066,6 +4066,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bearthbend(?:ing|s)?\b"},
         r"\bearthbend(?:ing|s)?\b",
     ),
+    # _matters sweep (ADR-0034): waterbend split. The DOER arm (waterbend_makers,
+    # keyword bearers) and the PAYOFF arm (waterbend_matters) both serve the same
+    # oracle pool — clone-pilot precedent: the serve avenue legitimately offers
+    # makers + payoffs together; only membership splits by role.
+    ("waterbend_makers", "you"): _spec(
+        *SWEEP_LABELS["waterbend_makers"],
+        {"oracle": r"\bwaterbend(?:ing|s)?\b"},
+        r"\bwaterbend(?:ing|s)?\b",
+    ),
     ("waterbend_matters", "you"): _spec(
         *SWEEP_LABELS["waterbend_matters"],
         {"oracle": r"\bwaterbend(?:ing|s)?\b"},

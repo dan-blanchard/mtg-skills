@@ -364,7 +364,8 @@ _REAL_CASES: dict[str, str] = {
     "voltron_matters": "Sram, Senior Edificer",
     "voting_matters": "Capital Punishment",
     "wants_cloning": "Arcum Dagsson",
-    "waterbend_matters": "Spirit Water Revival",
+    "waterbend_makers": "Spirit Water Revival",
+    "waterbend_matters": "Avatar Aang // Aang, Master of Elements",
     "win_lose_game": "Thassa's Oracle",
     "xspell_matters": "Zaxara, the Exemplary",
 }

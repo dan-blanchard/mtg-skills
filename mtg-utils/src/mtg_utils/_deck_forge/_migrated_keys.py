@@ -57,6 +57,9 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # floor lanes disabled). See ADR-0027.
         "airbend_makers",
         "earthbend_matters",
+        # _matters sweep (ADR-0034): waterbend split — keyword-bearer DOER arm
+        # (waterbend_makers) + cross-bend payoff (waterbend_matters). Set-equal.
+        "waterbend_makers",
         "waterbend_matters",
         "firebending_matters",
         # Group "set-mechanics" — recent-set named mechanics. celebration (WOE

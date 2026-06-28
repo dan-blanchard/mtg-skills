@@ -2813,9 +2813,16 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Earthbend",
         "earthbend land-animation, +1/+1 counters, and payoffs for earthbending",
     ),
-    "waterbend_matters": (
+    # _matters sweep (ADR-0034): waterbend split into the keyword-bearer DOER arm
+    # (cards that pay/perform a waterbend cost) and the cross-bend PAYOFF arm
+    # (Avatar Aang's "whenever you waterbend…" reference).
+    "waterbend_makers": (
         "Waterbend",
-        "waterbend alternate-cost (tap artifacts/creatures) cards and payoffs",
+        "waterbend alternate-cost (tap artifacts/creatures) cards",
+    ),
+    "waterbend_matters": (
+        "Waterbend payoffs",
+        "payoffs that trigger when you waterbend",
     ),
     "firebending_matters": (
         "Firebending",
@@ -3004,6 +3011,10 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "oil_counter_matters": (
         "Oil counters",
         "oil-counter sources and payoffs (Phyrexia — charge-style depletion counters)",
+    ),
+    "ki_counter_makers": (
+        "Ki counters",
+        "ki-counter sources (Kamigawa Spirit/Arcane triggers place ki counters)",
     ),
     "ki_counter_matters": (
         "Ki counters",
