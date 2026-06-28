@@ -21,6 +21,7 @@ from dataclasses import replace
 from mtg_utils._card_ir.supplement import (
     _TOPDECK_OTHER_ZONE,
     _TOPDECK_YOUR_LIBRARY,
+    _append_marker,
     _copied_type_from_text,
     _recover_base_power_ref,
     _recover_base_pt_set,
@@ -699,6 +700,131 @@ _CASTABLE_ZONE_KEYWORDS: dict[str, str] = {
 }
 
 
+# ── single-field subject reads (structured-node projection) ────────────────────
+# Three single-field subject/predicate qualifiers phase carries as a filter
+# ``properties`` member that the colorless / historic / facedown lanes read as a
+# subject predicate, but that projection drops whenever the host filter (a static
+# ``affected``, a count/cost operand, an ``Or`` member, a trigger ``valid_card`` /
+# ``valid_source``) isn't projected into a Card subject the lane scans:
+#   * ``ColorCount{comparator:EQ, count:0}`` — a colorless object (CR 105.2c / 202.2)
+#   * ``Historic``                            — a historic object (CR 700.6)
+#   * ``FaceDown``                            — a face-down permanent (CR 708.2)
+# Read the NODE: scan the records' filter ``properties`` and synth the same marker the
+# regex recoveries (_recover_colorless_subject / _historic_subject / _facedown) would,
+# so the lane reads STRUCTURE not the oracle. The recoveries STAY (self-deactivate
+# idempotently, backstop the NODELESS Unimplemented tail).
+
+
+def _scan_props_for_tokens(props: list, found: set[str]) -> None:
+    """Record which of {ColorCount:EQ:0, Historic, FaceDown} a filter's ``properties``
+    list carries. A list that ALSO carries a ``Token`` member describes a CREATED token
+    (Robot Chicken's "0/1 colorless Egg token"), whose color / face-state is not a
+    *matters* reference — so it is skipped."""
+    members = [p for p in props if isinstance(p, dict)]
+    if any(p.get("type") == "Token" for p in members):
+        return
+    for p in members:
+        t = p.get("type")
+        if t == "FaceDown":
+            found.add("FaceDown")
+        elif t == "Historic":
+            found.add("Historic")
+        elif t == "ColorCount":
+            cnt = p.get("count")
+            val = cnt.get("value") if isinstance(cnt, dict) else cnt
+            if p.get("comparator") == "EQ" and val == 0:
+                found.add("ColorCount:EQ:0")
+
+
+def _filter_property_tokens(records: list[dict]) -> set[str]:
+    """The single-field subject qualifiers phase emits as a filter ``properties``
+    member anywhere in the records (Token-output filters excluded)."""
+    found: set[str] = set()
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            for key, val in node.items():
+                if key == "properties" and isinstance(val, list):
+                    _scan_props_for_tokens(val, found)
+                walk(val)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    for rec in records:
+        walk(rec)
+    return found
+
+
+def _card_subject_filters(card: Card) -> list[Filter]:
+    """Every subject Filter the card's abilities expose (effect / amount / trigger
+    subjects) — the surface the predicate-reading lane arms scan, and the idempotency
+    target so a card already carrying the predicate structurally is not re-marked."""
+    out: list[Filter] = []
+    for ab in card.all_abilities():
+        for e in ab.effects:
+            if isinstance(e.subject, Filter):
+                out.append(e.subject)
+            if e.amount is not None and isinstance(e.amount.subject, Filter):
+                out.append(e.amount.subject)
+        if ab.trigger is not None and isinstance(ab.trigger.subject, Filter):
+            out.append(ab.trigger.subject)
+    return out
+
+
+def _project_single_field_subjects(card: Card, records: list[dict]) -> Card:
+    """Surface the colorless / historic / face-down subject predicate from the
+    STRUCTURED phase filter property (not the regex recovery). Additive and idempotent:
+    skipped when the card already carries the predicate / Face-down subtype on a real
+    subject, so the natural-subject cards (Ancient Stirrings, Trail of Mystery) are
+    untouched and only the dropped-host cards gain the marker."""
+    if not card.faces:
+        return card
+    tokens = _filter_property_tokens(records)
+    if not tokens:
+        return card
+    subs = _card_subject_filters(card)
+    if "ColorCount:EQ:0" in tokens and not any(
+        "ColorCount:EQ:0" in f.predicates for f in subs
+    ):
+        card = _append_marker(
+            card,
+            Effect(
+                category="other",
+                subject=Filter(controller="you", predicates=("ColorCount:EQ:0",)),
+                raw="colorless reference (projected)",
+            ),
+        )
+    if "Historic" in tokens and not any("Historic" in f.predicates for f in subs):
+        card = _append_marker(
+            card,
+            Effect(
+                category="other",
+                subject=Filter(controller="you", predicates=("Historic",)),
+                raw="historic reference (projected)",
+            ),
+        )
+    if "FaceDown" in tokens and not any(
+        "Face-down" in f.subtypes or "FaceDown" in f.predicates for f in subs
+    ):
+        synth = Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="facedown_ref",
+                    scope="you",
+                    subject=Filter(subtypes=("Face-down",)),
+                    raw="face-down reference (projected)",
+                ),
+            ),
+        )
+        head, *rest = card.faces
+        card = replace(
+            card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
+        )
+    return card
+
+
 def project_card(records: list[dict]) -> Card:
     """Project the phase face-records sharing one oracle_id into a Card."""
     faces = tuple(_project_face(rec) for rec in records)
@@ -852,6 +978,12 @@ def project_card(records: list[dict]) -> Card:
     card = _recover_opponent_discard(
         card, "\n".join(r.get("oracle_text") or "" for r in records)
     )
+    # Single-field subject reads (STRUCTURED-node projection): surface the colorless /
+    # historic / face-down subject predicate from the phase filter ``properties`` member
+    # for the dropped-host cards, so the lanes read STRUCTURE. Runs BEFORE the three
+    # regex recoveries below, which then self-deactivate (idempotent) and keep covering
+    # the nodeless tail. CR 105.2c / 700.6 / 708.2.
+    card = _project_single_field_subjects(card, records)
     # ADR-0027 #24g (SIDECAR v56) — Filter/count synth residue. colorless_matters:
     # synth a ColorCount:EQ:0 subject Filter for the cast-restriction / cost-reduction
     # / counter-target whose "colorless" qualifier phase drops (Ghostfire Blade, Ugin
@@ -1091,7 +1223,8 @@ def _confidence(card: Card) -> str:
     # unparsed clause, so it must not flip a fully-parsed card to partial. CR 105.2c /
     # 700.6.
     if any(
-        e.category == "other" and not (e.raw or "").endswith("(recovered)")
+        e.category == "other"
+        and not (e.raw or "").endswith(("(recovered)", "(projected)"))
         for e in effects
     ):
         return "partial"
@@ -2119,6 +2252,78 @@ def _nested_gain_life_marker(record: dict, abilities: list[Ability]) -> Effect |
     return Effect(category="gain_life", scope="you", raw=found[0])
 
 
+_SPELLCAST_MODES = frozenset(
+    {"spellcast", "spellcopy", "spellcastorcopy", "spellabilitycast"}
+)
+
+
+def _is_opp_spellcast_trigger(tr: object) -> bool:
+    """True for a SpellCast trigger whose recipient names an OPPONENT — phase carries
+    the cast spell's controller on ``valid_target`` ({type:Typed, controller:Opponent}
+    — Jace's emblem, Hunting Grounds) or ``valid_card``. CR 102.2: "an opponent"
+    excludes you, so this is genuinely opponent-scoped (not the symmetric "a player
+    casts" form, which carries no Opponent controller). CR 603.2."""
+    if not isinstance(tr, dict):
+        return False
+    if _norm(tr.get("mode")) not in _SPELLCAST_MODES:
+        return False
+    for node in (tr.get("valid_target"), tr.get("valid_card")):
+        if isinstance(node, dict) and _controller(node.get("controller")) == "opp":
+            return True
+    return False
+
+
+def _synth_opp_cast_trigger() -> Ability:
+    # opponent_cast_matters reads only the trigger SCOPE, so the carrier needs no effect
+    # text. raw="(projected)" (no verb) keeps supplement's verb-scan (_recover_by_verb /
+    # _recover_verb_scan, 'other'-only) from re-tagging the inner "counter that spell" /
+    # "put a creature onto the battlefield" onto a spurious counter_spell / reanimate
+    # lane, AND the "(projected)" suffix keeps _confidence from flipping the card to
+    # partial (it is projected structure, not an unparsed clause). _clean_ability KEEPS
+    # a sole 'other'.
+    return Ability(
+        kind="triggered",
+        trigger=Trigger(event="cast_spell", scope="opp"),
+        effects=(Effect(category="other", raw="(projected)"),),
+    )
+
+
+def _lift_nested_opp_cast(record: dict) -> list[Ability]:
+    """Lift an opponent-scoped SpellCast trigger phase NESTED inside a CreateEmblem
+    effect's inner triggers (Jace, Unraveler of Secrets emblem) or a static
+    GrantTrigger modification (Hunting Grounds threshold grant) to a top-level
+    cast_spell trigger scope='opp', so opponent_cast_matters reads STRUCTURE.
+
+    The structured node (mode SpellCast + valid_target.controller==Opponent) IS the
+    opponent-scope tell — the same shape native top-level triggers carry (Lavinia,
+    Nekusar) and that ``_trigger_scope`` already reads. Mirrors
+    ``_recover_opponent_cast_scope`` but keyed off the node, not a raw phrase scan:
+    only the opp-cast SCOPE is surfaced (an ``other`` placeholder), leaving the inner
+    execute to the emblem / granted-ability projection. The modes=[] one-shot tail
+    keeps the recovery. CR 603.2 / 102.2."""
+    out: list[Ability] = []
+
+    def collect(node: object) -> None:
+        if isinstance(node, dict):
+            t = _norm(node.get("type"))
+            if t == "createemblem":
+                trs = node.get("triggers")
+                for tr in trs if isinstance(trs, list) else []:
+                    if _is_opp_spellcast_trigger(tr):
+                        out.append(_synth_opp_cast_trigger())
+            elif t == "granttrigger" and _is_opp_spellcast_trigger(node.get("trigger")):
+                out.append(_synth_opp_cast_trigger())
+            for v in node.values():
+                collect(v)
+        elif isinstance(node, list):
+            for x in node:
+                collect(x)
+
+    collect(record.get("abilities"))
+    collect(record.get("static_abilities"))
+    return out
+
+
 def _project_face(record: dict) -> Face:
     abilities: list[Ability] = []
     for ab in record.get("abilities") or []:
@@ -2428,6 +2633,15 @@ def _project_face(record: dict) -> Face:
     copy_spell_markers = _copy_spell_markers(record, abilities)
     if copy_spell_markers:
         abilities.append(Ability(kind="static", effects=tuple(copy_spell_markers)))
+    # ADR-0027 opponent_cast_scope — lift an opp-cast SpellCast trigger phase NESTED in
+    # a CreateEmblem effect / static GrantTrigger (Jace, Unraveler of Secrets emblem;
+    # Hunting Grounds threshold grant) to a top-level cast_spell trigger scope='opp'
+    # (native-Lavinia byte-shape), so opponent_cast_matters reads STRUCTURE. A TEXTLESS
+    # 'other' placeholder so neither oracle-fill nor supplement's verb-scan re-tags the
+    # inner execute onto an effect lane — that belongs to the emblem/grant
+    # (_granted_ability_effects). The modes=[] one-shot tail keeps the recovery.
+    # CR 603.2 / 102.2.
+    abilities.extend(_lift_nested_opp_cast(record))
     # Nested gain_life (ADR-0027): surface a YOU-gainer GainLife phase structured but
     # nested out of _collect_effects' reach (replacement execute / else_ability /
     # modal mode / token-granted trigger). Self-deactivates _recover_dropped_gain_life
@@ -2739,9 +2953,12 @@ def _lift_nested_combat_damage(record: dict) -> list[Ability]:
                 seen.add(id(node))
                 ab = _project_trigger(node)
                 if ab.trigger is not None and ab.trigger.event == "combat_damage":
-                    placeholder = Effect(
-                        category="other", raw=str(node.get("description") or "")
-                    )
+                    # raw="(projected)": the lanes read the trigger METADATA
+                    # (recipient/source), not this placeholder; the suffix keeps
+                    # _confidence from flipping the card to partial (it is projected
+                    # structure). Attached post-supplement, so the verb-scan never sees
+                    # it regardless.
+                    placeholder = Effect(category="other", raw="(projected)")
                     out.append(replace(ab, effects=(placeholder,)))
             for v in node.values():
                 walk(v)
@@ -3318,6 +3535,64 @@ def _damage_doubling_from_replacement(eff: dict, raw: str) -> Effect | None:
     return None
 
 
+# ADR-0027 #24 scaling_pump (token-borne / granted) — a "<token> gets +N/+N for each
+# <board count>" scaler phase STRUCTURES as an AddDynamicPower/AddDynamicToughness
+# (value Ref->ObjectCount) but nests OUTSIDE a record-level static: on a CREATED-TOKEN
+# static (a Token effect's `static_abilities` — Simulacrum Synthesizer, Karn's
+# Construct) or a GRANTED static (a `GrantStaticAbility` modification's `definition` —
+# Sound the Call, Iron Man Armor). `_project_static_mods` only reaches a record-level
+# static (and skips GrantStaticAbility), so this pump was dropped and the lane fired
+# only off the oracle regex (_recover_scaling_pump). Re-surface it as a SUBJECTLESS
+# op="count" pump (factor from the static value) — the count's typed subject is left
+# OFF the amount (mirroring the recovery) so it can't leak into the typed-matters lanes.
+# CR 613 / 107.3.
+def _nested_scaling_pump_effects(eff: dict, raw: str) -> list[Effect]:
+    out: list[Effect] = []
+
+    def emit(st: object) -> None:
+        if not isinstance(st, dict):
+            return
+        mods = st.get("modifications")
+        for m in mods if isinstance(mods, list) else []:
+            if not isinstance(m, dict) or _norm(m.get("type")) not in _PUMP_MODS:
+                continue
+            q = _quantity(m.get("value"))
+            # Only a genuine BOARD-COUNT scale (an ObjectCount carries a counted
+            # subject) — a fixed +N/+N grant (op="fixed", subject None) is NOT a
+            # scaling_pump and stays out.
+            if q is None or q.subject is None:
+                continue
+            if q.op not in ("count", "multiply", "toughness"):
+                continue
+            out.append(
+                Effect(
+                    category="pump",
+                    scope="you",
+                    amount=Quantity(op=q.op, factor=q.factor),
+                    raw=d if isinstance(d := st.get("description"), str) and d else raw,
+                )
+            )
+            return  # power + toughness in one static are ONE pump
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            t = _norm(node.get("type"))
+            if t == "grantstaticability":
+                emit(node.get("definition"))
+            elif t == "token":
+                sts = node.get("static_abilities")
+                for st in sts if isinstance(sts, list) else []:
+                    emit(st)
+            for key in ("static_abilities", "modifications", "definition"):
+                walk(node.get(key))
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(eff)
+    return out
+
+
 def _project_effect(eff: dict, raw: str) -> list[Effect]:
     etype = _norm(eff.get("type"))
     dd = _damage_doubling_from_replacement(eff, raw)
@@ -3332,6 +3607,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
             out.extend(_collect_effects(sub, raw))
         if not out:
             out.append(Effect(category="other", scope=_effect_scope(eff), raw=raw))
+        out.extend(_nested_scaling_pump_effects(eff, raw))
         return out
     if etype in ("changezone", "changezoneall"):
         return [
@@ -3596,6 +3872,9 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
             zones=_zone_tags(eff),
         ),
         *_enter_with_counter_effects(eff, raw),
+        # A CREATED-TOKEN scaling pump ("token gets +N/+N for each <board count>")
+        # rides this make_token effect's `static_abilities`; re-surface it structurally.
+        *_nested_scaling_pump_effects(eff, raw),
     ]
 
 
@@ -3608,6 +3887,16 @@ _RESTRICTION_MODES = frozenset(
         "cantbecast",
         "cantbeactivated",
         "cantcast",
+        # ADR-0027 opponent_cast_lock — player-scoped cast LOCKS phase models as their
+        # own static modes: CantCastDuring ("opponents can't cast during your turn" —
+        # Grand Abolisher; the symmetric "each player only on their own turn" — City of
+        # Solitude, Dosan) and CantCastFrom ("can't cast from graveyards/exile" —
+        # Drannith Magistrate). The mode's `who` carries the scope (Opponents -> opp ->
+        # stax_taxes; AllPlayers -> each -> symmetric_stax), read by the existing
+        # _restriction_scope path. The modes=[] one-shot tail (Silence) keeps the
+        # _recover_opponent_cast_lock recovery. CR 601.3 / 604.1.
+        "cantcastduring",
+        "cantcastfrom",
         "cantuntap",
         "canttap",
         "cantdraw",

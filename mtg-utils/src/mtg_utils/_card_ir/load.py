@@ -976,7 +976,22 @@ from mtg_utils.card_ir import Card
 #   RemoveCounter -> counter_manipulation +17 GENUINE, InZone:Exile/ChooseFromZone ->
 #   exile_matters +2 GENUINE. Each recovery KEPT as backstop (self-deactivates for the
 #   structured subset, serves the Unimplemented/nodeless residue).
-SIDECAR_VERSION = 71
+# v72 (nested-lift batch 2 — the 3 deferred capabilities re-anchored onto current main +
+#   2 placeholder-raw parse fixes; gate set-equal-or-genuine, voltron 2394): (1)
+#   opponent-cast: `cantcastduring`/`cantcastfrom` added to _RESTRICTION_MODES +
+#   emblem/granted SpellCast(controller:Opponent) descend (_lift_nested_opp_cast) ->
+#   opponent_cast_matters/stax_taxes set-equal, symmetric_stax +2 GENUINE (City of
+#   Solitude, Dosan "players can cast only on their own turns"). (2) scaling_pump:
+#   token-borne / GrantStaticAbility AddDynamicPower ObjectCount -> pump op=count
+#   (_nested_scaling_pump_effects) — set-equal (faithful). (3) single-field subject
+#   reads (_project_single_field_subjects): FaceDown / Historic / ColorCount:EQ:0 filter
+#   properties -> facedown/historic/colorless markers — set-equal (faithful). PLUS:
+#   _synth_opp_cast_trigger + the combat-damage lift placeholder now use
+#   raw="(projected)" (the lanes read trigger METADATA, not the placeholder) so
+#   _confidence no longer flips the carrier to partial -> parse_confidence full 33922 ->
+#   33994 (+72, recovers the
+#   combat-damage cards v71 had regressed). Recoveries all KEPT as backstops.
+SIDECAR_VERSION = 72
 
 
 def card_ir_dir() -> Path:

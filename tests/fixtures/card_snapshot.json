@@ -7933,6 +7933,16 @@
          }
         ],
         "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "restriction",
+          "raw": "Players can't cast spells during combat.",
+          "sc": "each"
+         }
+        ],
+        "k": "static"
        }
       ],
       "kw": [
@@ -13359,7 +13369,7 @@
         "e": [
          {
           "cat": "other",
-          "raw": "colorless reference (recovered)",
+          "raw": "colorless reference (projected)",
           "sub": {
            "c": "you",
            "p": [
@@ -14304,10 +14314,11 @@
         "e": [
          {
           "cat": "restriction",
-          "raw": "Players can cast spells and activate abilities only during their own turns"
+          "raw": "Players can cast spells and activate abilities only during their own turns.",
+          "sc": "each"
          }
         ],
-        "k": "spell"
+        "k": "static"
        }
       ],
       "n": "City of Solitude",
@@ -14930,7 +14941,7 @@
         "e": [
          {
           "cat": "other",
-          "raw": "colorless reference (recovered)",
+          "raw": "colorless reference (projected)",
           "sub": {
            "c": "you",
            "p": [
@@ -18540,7 +18551,7 @@
         "e": [
          {
           "cat": "restriction",
-          "raw": "Your opponents can't cast spells during your turn",
+          "raw": "Your opponents can't cast spells during your turn.",
           "sc": "opp"
          }
         ],
@@ -31621,7 +31632,7 @@
         "e": [
          {
           "cat": "other",
-          "raw": "Threshold — As long as there are seven or more cards in your graveyard, this enchantment has \"Whenever an opponent casts a spell, you may put a creature card from your hand onto the battlefield.\""
+          "raw": "(projected)"
          }
         ],
         "k": "triggered",
@@ -31636,8 +31647,7 @@
      }
     ],
     "n": "Hunting Grounds",
-    "oid": "2f3fec87-3dd2-4e5d-835c-eae535da4ecb",
-    "pc": "partial"
+    "oid": "2f3fec87-3dd2-4e5d-835c-eae535da4ecb"
    },
    "scryfall": {
     "cmc": 2.0,
@@ -32907,7 +32917,7 @@
         "e": [
          {
           "cat": "other",
-          "raw": "[+1]: Scry 1, then draw a card.\n[−2]: Return target creature to its owner's hand.\n[−8]: You get an emblem with \"Whenever an opponent casts their first spell each turn, counter that spell.\""
+          "raw": "(projected)"
          }
         ],
         "k": "triggered",
@@ -32922,8 +32932,7 @@
      }
     ],
     "n": "Jace, Unraveler of Secrets",
-    "oid": "ac29873e-28c3-4933-b427-61d34ff0afcd",
-    "pc": "partial"
+    "oid": "ac29873e-28c3-4933-b427-61d34ff0afcd"
    },
    "scryfall": {
     "all_parts": [
@@ -34258,6 +34267,14 @@
             "Creature"
            ]
           }
+         },
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "pump",
+          "raw": "~ gets +1/+1 for each artifact you control.",
+          "sc": "you"
          }
         ],
         "k": "activated"
@@ -34283,19 +34300,6 @@
             "Artifact"
            ]
           }
-         }
-        ],
-        "k": "static"
-       },
-       {
-        "e": [
-         {
-          "amt": {
-           "op": "count"
-          },
-          "cat": "pump",
-          "raw": "gets +1/+1 for each artifact you control",
-          "sc": "you"
          }
         ],
         "k": "static"
@@ -36547,7 +36551,7 @@
         "e": [
          {
           "cat": "restriction",
-          "raw": "Your opponents can't cast spells during your turn",
+          "raw": "Your opponents can't cast spells during your turn.",
           "sc": "opp"
          }
         ],
@@ -39020,6 +39024,21 @@
          }
         ],
         "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "facedown_ref",
+          "raw": "face-down reference (projected)",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Face-down"
+           ]
+          }
+         }
+        ],
+        "k": "static"
        }
       ],
       "kw": [
@@ -43866,7 +43885,7 @@
         "e": [
          {
           "cat": "restriction",
-          "raw": "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments",
+          "raw": "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.",
           "sc": "opp"
          }
         ],
@@ -49971,7 +49990,7 @@
         "e": [
          {
           "cat": "other",
-          "raw": "historic reference (recovered)",
+          "raw": "historic reference (projected)",
           "sub": {
            "c": "you",
            "p": [
@@ -54205,7 +54224,7 @@
         "e": [
          {
           "cat": "other",
-          "raw": "Whenever ~ deals combat damage to a player, it connives."
+          "raw": "(projected)"
          }
         ],
         "k": "triggered",
@@ -54225,8 +54244,7 @@
      }
     ],
     "n": "Security Bypass",
-    "oid": "cb660c6d-dc8b-4779-8613-6acf19418baa",
-    "pc": "partial"
+    "oid": "cb660c6d-dc8b-4779-8613-6acf19418baa"
    },
    "scryfall": {
     "cmc": 2.0,
@@ -58633,7 +58651,8 @@
        {
         "e": [
          {
-          "cat": "other"
+          "cat": "other",
+          "raw": "(projected)"
          }
         ],
         "k": "triggered",
@@ -58662,8 +58681,7 @@
      }
     ],
     "n": "Subira, Tulzidi Caravanner",
-    "oid": "9e2e3272-d4e1-4329-b1d2-f393b3511b82",
-    "pc": "partial"
+    "oid": "9e2e3272-d4e1-4329-b1d2-f393b3511b82"
    },
    "scryfall": {
     "cmc": 3.0,
@@ -60284,6 +60302,16 @@
           "ck": "flash",
           "raw": "Creature cards you own that aren't on the battlefield have flash.",
           "sc": "you"
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "restriction",
+          "raw": "Each opponent can cast spells only any time they could cast a sorcery.",
+          "sc": "opp"
          }
         ],
         "k": "static"
@@ -66350,6 +66378,14 @@
             "Creature"
            ]
           }
+         },
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "pump",
+          "raw": "~ gets +1/+1 for each artifact you control.",
+          "sc": "you"
          }
         ],
         "k": "triggered",
@@ -66382,19 +66418,6 @@
             "Artifact"
            ]
           }
-         }
-        ],
-        "k": "static"
-       },
-       {
-        "e": [
-         {
-          "amt": {
-           "op": "count"
-          },
-          "cat": "pump",
-          "raw": "gets +1/+1 for each artifact you control",
-          "sc": "you"
          }
         ],
         "k": "static"
@@ -68211,7 +68234,7 @@
         "e": [
          {
           "cat": "other",
-          "raw": "Whenever a creature you control deals combat damage to a player, that player loses the game"
+          "raw": "(projected)"
          }
         ],
         "k": "triggered",
@@ -68234,8 +68257,7 @@
      }
     ],
     "n": "Vraska, Golgari Queen",
-    "oid": "131096a3-2d53-4ec2-96d3-fcb58e698a13",
-    "pc": "partial"
+    "oid": "131096a3-2d53-4ec2-96d3-fcb58e698a13"
    },
    "scryfall": {
     "all_parts": [
@@ -71007,5 +71029,5 @@
  },
  "phase_tag": "v0.8.0",
  "schema": 1,
- "sidecar_version": 71
+ "sidecar_version": 72
 }
