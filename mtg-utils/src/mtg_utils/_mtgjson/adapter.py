@@ -158,45 +158,45 @@ def prices(uuid: str | None, price_index: dict) -> dict:
     return {k: v for k, v in out.items() if v is not None}
 
 
-def _part(component: str, rec: dict) -> dict:
+def _part(component: str, rec: dict, *, prefer_face: bool = False) -> dict:
     ids = rec.get("identifiers") or {}
+    # Tokens use the combined name ("Incubator // Phyrexian" for a DFC token, matching
+    # Scryfall); meld components use the singular face name (the piece/result name).
+    name = (
+        (rec.get("faceName") or rec.get("name", ""))
+        if prefer_face
+        else rec.get("name", "")
+    )
     return {
         "component": component,
         "id": ids.get("scryfallId"),
-        "name": rec.get("faceName") or rec.get("name", ""),
+        "name": name,
         "type_line": rec.get("type", ""),
         "oracle_id": ids.get("scryfallOracleId"),
     }
 
 
-def all_parts(
-    mj_card: dict, token_by_uuid: dict, card_by_uuid: dict | None = None
-) -> list:
-    """Build Scryfall-style ``all_parts`` components for a card.
+def token_part(token_rec: dict) -> dict:
+    """A Scryfall-style ``token`` all_parts component for a token record."""
+    return _part("token", token_rec)
 
-    * Tokens — from ``relatedCards.tokens`` (uuid → token record). Read by
-      ``deck.discover_tokens`` (``component == "token"``, part ``id`` in the by-id
-      index) and the tribal token-subject signal.
-    * Meld — from ``otherFaceIds`` on a ``meld`` card: a piece (one link) emits a
-      ``meld_result``; the result (2+ links) emits a ``meld_part`` per piece. Read by
-      ``production`` (excludes meld results from the commander pool) and the meld_pair
-      signal. Resolved via ``card_by_uuid``.
-    Unknown uuids are skipped. (Scryfall's ``combo_piece`` checklist links are dropped —
-    nothing reads them.)
+
+def meld_parts(mj_card: dict, card_by_uuid: dict | None) -> list:
+    """``meld_result`` / ``meld_part`` components from a meld card's ``otherFaceIds``.
+
+    A piece (one link) emits a ``meld_result``; the result (2+ links) emits a
+    ``meld_part`` per piece. Read by ``production`` (excludes meld results from the
+    commander pool) and the meld_pair signal. Resolved via ``card_by_uuid``.
     """
-    related = mj_card.get("relatedCards") or {}
-    parts = [
-        _part("token", token_by_uuid[u])
-        for u in related.get("tokens") or []
-        if u in token_by_uuid
+    if mj_card.get("layout") != "meld" or not card_by_uuid:
+        return []
+    links = mj_card.get("otherFaceIds") or []
+    component = "meld_part" if len(links) >= 2 else "meld_result"
+    return [
+        _part(component, card_by_uuid[u], prefer_face=True)
+        for u in links
+        if u in card_by_uuid
     ]
-    if mj_card.get("layout") == "meld" and card_by_uuid:
-        links = mj_card.get("otherFaceIds") or []
-        component = "meld_part" if len(links) >= 2 else "meld_result"
-        parts.extend(
-            _part(component, card_by_uuid[u]) for u in links if u in card_by_uuid
-        )
-    return parts
 
 
 def card_face(mj_face: dict) -> dict:
@@ -239,13 +239,19 @@ def translate_card(
     faces: list[dict],
     *,
     price_index: dict | None = None,
-    token_by_uuid: dict | None = None,
+    token_parts: list | None = None,
     card_by_uuid: dict | None = None,
     legalities_index: dict | None = None,
+    set_meta: dict | None = None,
 ) -> dict:
-    """Translate one physical card (1 entry, or 2+ face-entries) to a Scryfall dict."""
+    """Translate one physical card (1 entry, or 2+ face-entries) to a Scryfall dict.
+
+    ``token_parts`` is the precomputed oracle-level ``token`` all_parts list for this
+    card (built in ``load.flatten`` so a token-less promo printing still carries the
+    full token set). ``set_meta`` carries the set-level ``set_type`` / ``set_name`` /
+    ``released_at`` the AllPrintings per-card record lacks.
+    """
     price_index = price_index or {}
-    token_by_uuid = token_by_uuid or {}
     faces = sorted(faces, key=lambda f: f.get("side") or "a")
     front = faces[0]
     ids = front.get("identifiers") or {}
@@ -269,7 +275,9 @@ def translate_card(
         "id": ids.get("scryfallId"),
         "name": name,
         "type_line": " // ".join(f.get("type", "") or "" for f in faces),
-        "cmc": front.get("manaValue"),
+        # Scryfall cmc is always a float (0.0 for lands/tokens); MTGJSON omits manaValue
+        # on tokens/objects → default 0.0 so mana_audit / curve never see None.
+        "cmc": front.get("manaValue") or 0.0,
         "color_identity": front.get("colorIdentity") or [],
         "keywords": _union(faces, "keywords"),
         "legalities": legalities,
@@ -335,7 +343,12 @@ def translate_card(
         if img:
             rec["image_uris"] = img
 
-    parts = all_parts(front, token_by_uuid, card_by_uuid)
+    if set_meta:
+        rec["set_type"] = set_meta.get("set_type")
+        rec["set_name"] = set_meta.get("set_name")
+        rec["released_at"] = set_meta.get("released_at")
+
+    parts = list(token_parts or []) + meld_parts(front, card_by_uuid)
     if parts:
         rec["all_parts"] = parts
     prices_dict = prices(front.get("uuid"), price_index)

@@ -95,8 +95,8 @@ def test_prices_missing_uuid_is_empty():
     assert adapter.prices("absent", {}) == {}
 
 
-# ── all_parts (token graph) ───────────────────────────────────────────────────
-def test_all_parts_resolves_token_uuid_to_component():
+# ── token_part / meld_parts ───────────────────────────────────────────────────
+def test_token_part_component():
     token = {
         "name": "Human",
         "type": "Token Creature — Human",
@@ -105,19 +105,28 @@ def test_all_parts_resolves_token_uuid_to_component():
             "scryfallOracleId": "30272edf-097c-4918-84d2-9fa6c42dbe0a",
         },
     }
-    maker = {"relatedCards": {"tokens": ["tok-uuid"]}}
-    parts = adapter.all_parts(maker, {"tok-uuid": token})
-    assert len(parts) == 1
-    p = parts[0]
+    p = adapter.token_part(token)
     assert p["component"] == "token"
     assert p["id"] == "b7667345-e11b-4cad-ac4c-84eb1c5656c5"
     assert p["name"] == "Human"
     assert p["oracle_id"] == "30272edf-097c-4918-84d2-9fa6c42dbe0a"
 
 
-def test_all_parts_empty_when_no_tokens():
-    assert adapter.all_parts({"relatedCards": {}}, {}) == []
-    assert adapter.all_parts({}, {}) == []
+def test_token_part_uses_combined_name_for_df_token():
+    # A double-faced token's all_part name is the combined "A // B" (matches Scryfall),
+    # not the per-face name — so it's distinguishable in a token list.
+    df = {
+        "name": "Incubator // Phyrexian",
+        "faceName": "Incubator",
+        "type": "Token Artifact — Incubator",
+        "identifiers": {"scryfallId": "c5", "scryfallOracleId": "dd"},
+    }
+    assert adapter.token_part(df)["name"] == "Incubator // Phyrexian"
+
+
+def test_meld_parts_empty_for_non_meld():
+    assert adapter.meld_parts({"layout": "normal"}, {}) == []
+    assert adapter.meld_parts({"layout": "meld"}, None) == []
 
 
 # ── translate_card: single-face ───────────────────────────────────────────────
@@ -520,3 +529,100 @@ def test_gate_arena_formats_forces_not_legal_off_arena():
 def test_gate_arena_formats_noop_when_arena_available():
     leg = dict.fromkeys(adapter._LEGALITY_FORMATS, "legal")
     assert adapter.gate_arena_formats(leg, arena_available=True) == leg
+
+
+def test_translate_cmc_defaults_zero_when_manavalue_absent():
+    tok = {
+        "name": "Treasure",
+        "type": "Token Artifact — Treasure",
+        "identifiers": {"scryfallId": "t1", "scryfallOracleId": "to"},
+    }
+    assert adapter.translate_card([tok])["cmc"] == 0.0
+
+
+def test_translate_threads_set_metadata():
+    rec = adapter.translate_card(
+        [_sunfall()],
+        set_meta={
+            "set_type": "expansion",
+            "set_name": "MOM",
+            "released_at": "2023-04-21",
+        },
+    )
+    assert rec["set_type"] == "expansion"
+    assert rec["set_name"] == "MOM"
+    assert rec["released_at"] == "2023-04-21"
+
+
+# ── flatten: oracle-level token graph + DF-token collapse ───────────────────────
+def _maker(uuid, oid, *, tokens=None, setcode="X"):
+    return {
+        "uuid": uuid,
+        "name": "Goblin Boss",
+        "type": "Creature — Goblin",
+        "manaValue": 2.0,
+        "setCode": setcode,
+        "identifiers": {"scryfallId": uuid, "scryfallOracleId": oid},
+        "relatedCards": {"tokens": tokens or []},
+    }
+
+
+def _tok(uuid, sid, oid, name, *, side=None):
+    return {
+        "uuid": uuid,
+        "name": name,
+        "faceName": name.split(" // ")[0] if " // " in name else None,
+        "type": f"Token Creature — {name}",
+        "side": side,
+        "layout": "token",
+        "identifiers": {"scryfallId": sid, "scryfallOracleId": oid},
+    }
+
+
+def test_flatten_token_survives_token_less_printing():
+    # Maker printed twice: a normal printing references its token, a promo printing omits
+    # relatedCards.tokens. Oracle-level aggregation must give BOTH maker records the token.
+    data = {
+        "MAIN": {
+            "type": "expansion",
+            "name": "Main",
+            "releaseDate": "2020-01-01",
+            "cards": [_maker("m1", "MOID", tokens=["t1"], setcode="MAIN")],
+            "tokens": [_tok("t1", "sidGob", "TOID", "Goblin")],
+        },
+        "PROMO": {
+            "type": "promo",
+            "name": "Promo",
+            "releaseDate": "2021-01-01",
+            "cards": [_maker("m2", "MOID", tokens=[], setcode="PROMO")],
+            "tokens": [],
+        },
+    }
+    out = flatten(data)
+    makers = [r for r in out if r["name"] == "Goblin Boss"]
+    assert len(makers) == 2
+    for r in makers:
+        toks = [p for p in (r.get("all_parts") or []) if p["component"] == "token"]
+        assert [p["name"] for p in toks] == ["Goblin"], r["set"]
+
+
+def test_flatten_df_token_collapses_by_scryfall_id():
+    # Two faces sharing one scryfallId collapse to ONE record (no by-id collision).
+    data = {
+        "EOC": {
+            "type": "commander",
+            "name": "EOC",
+            "releaseDate": "2024-01-01",
+            "cards": [],
+            "tokens": [
+                _tok("ta", "c5", "dd", "Incubator // Phyrexian", side="a"),
+                _tok("tb", "c5", "dd", "Incubator // Phyrexian", side="b"),
+            ],
+        }
+    }
+    out = flatten(data)
+    by_id = {r["id"]: r for r in out}
+    assert "c5" in by_id  # single record, no collision
+    rec = by_id["c5"]
+    assert rec["name"] == "Incubator // Phyrexian"
+    assert len(rec["card_faces"]) == 2

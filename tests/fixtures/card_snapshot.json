@@ -629,7 +629,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "5054bb15-ddd5-4e5e-a9fd-6bdf255f7fd3",
+      "id": "147dd1c4-3f07-4e82-896d-08f182f436ac",
       "name": "Human",
       "oracle_id": "30272edf-097c-4918-84d2-9fa6c42dbe0a",
       "type_line": "Token Creature — Human"
@@ -808,7 +808,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "c7ba6540-3743-445c-99bf-feb5af2fd56d",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
       "name": "Copy",
       "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
       "type_line": "Token"
@@ -3176,7 +3176,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "febfca87-fc37-46cc-8236-73bc5c0e5755",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
       "name": "Copy",
       "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
       "type_line": "Token"
@@ -3669,7 +3669,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "9f834ec3-0901-455a-a32d-aa5d3fcdb247",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
       "name": "Copy",
       "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
       "type_line": "Token"
@@ -5725,7 +5725,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "6911181d-573b-41eb-96a4-799c96e008fc",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
       "name": "Treasure",
       "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
       "type_line": "Token Artifact — Treasure"
@@ -6884,7 +6884,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "8db9a248-d380-48e9-850c-38b2907332c1",
+      "id": "d1dfd9b9-8214-4e20-b1c9-48c9f7276883",
       "name": "Clue",
       "oracle_id": "496e1083-c792-40a4-adf4-fec1d559cd5e",
       "type_line": "Token Artifact — Clue"
@@ -7331,7 +7331,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "8c4b0257-2ca5-4015-9d63-d7cf6e87ab9d",
+      "id": "c8ae31d1-9a6e-43f3-9b04-bd15699f73d6",
       "name": "Soldier",
       "oracle_id": "eac25f12-6459-438c-a09e-93e23d2cf80d",
       "type_line": "Token Creature — Soldier"
@@ -7802,7 +7802,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "48703f7a-98af-4cf1-9782-4f344eeb2066",
+      "id": "e3683cc6-70e0-4d33-9fed-6a56ba8b6e9b",
       "name": "Human Soldier",
       "oracle_id": "a4095286-d51b-4527-b6ce-23aa539fc23a",
       "type_line": "Token Creature — Human Soldier"
@@ -8708,7 +8708,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "ff0357fb-d90c-49c7-b16a-8b52ac686c3b",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
       "name": "Treasure",
       "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
       "type_line": "Token Artifact — Treasure"
@@ -9295,7 +9295,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "6b563165-b97f-42c6-82a8-65d8ee69e381",
+      "id": "0753c3b5-6127-4e42-a029-b165d5f8170c",
       "name": "Blood",
       "oracle_id": "03f45075-9423-454f-a256-94dcafb2a779",
       "type_line": "Token Artifact — Blood"
@@ -10470,7 +10470,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "3dfaedeb-f8ec-4f0e-b243-c850770a86f2",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
       "name": "Treasure",
       "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
       "type_line": "Token Artifact — Treasure"
@@ -11100,7 +11100,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "cee3ecef-4566-4164-af39-89cb0bbbffeb",
+      "id": "4db2ad28-a2d9-41ba-811b-bde40a870675",
       "name": "Ox",
       "oracle_id": "d8235699-4c2c-4cf1-815a-d2a1c01b0cae",
       "type_line": "Token Creature — Ox"
@@ -11641,7 +11641,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "e85f57c5-923a-4824-969e-53feddd78c3b",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
       "name": "Copy",
       "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
       "type_line": "Token"
@@ -15799,7 +15799,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "ef607895-d6d2-44ab-a6b4-84af55fce593",
+      "id": "d1dfd9b9-8214-4e20-b1c9-48c9f7276883",
       "name": "Clue",
       "oracle_id": "496e1083-c792-40a4-adf4-fec1d559cd5e",
       "type_line": "Token Artifact — Clue"
@@ -17523,7 +17523,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "b5bd6905-79be-4d2c-a343-f6e6a181b3e6",
+      "id": "8a73e348-5bf1-4465-978b-3f31408bade9",
       "name": "Zombie",
       "oracle_id": "ddc8c973-c31e-463f-be45-f3fa7d632362",
       "type_line": "Token Creature — Zombie"
@@ -17700,7 +17700,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "029c9790-d5f3-4fe2-a2f5-6da5d27de835",
+      "id": "993b3b90-74c3-479b-b3e6-3f1cd8f1da04",
       "name": "Dragon",
       "oracle_id": "60fe4897-6760-4c5a-8074-c92bd64df52b",
       "type_line": "Token Creature — Dragon"
@@ -17958,7 +17958,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "65844e72-aa84-483f-b07e-9e34e798aaec",
+      "id": "958a4bb3-7f76-4f8a-8af6-439b09b3ee0f",
       "name": "Drake",
       "oracle_id": "9e266374-80f1-458a-9417-16220d2a013a",
       "type_line": "Token Creature — Drake"
@@ -18937,7 +18937,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "29e9326a-a435-44c7-939a-8da6ed3c4510",
+      "id": "959ed4bf-b276-45ed-b44d-c757e9c25846",
       "name": "Elf Warrior",
       "oracle_id": "dac8a765-6845-4b57-bb79-4ec463436f92",
       "type_line": "Token Creature — Elf Warrior"
@@ -21417,7 +21417,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "a6181330-7521-4ec6-be6c-b35487c2d2d4",
+      "id": "e3683cc6-70e0-4d33-9fed-6a56ba8b6e9b",
       "name": "Human Soldier",
       "oracle_id": "a4095286-d51b-4527-b6ce-23aa539fc23a",
       "type_line": "Token Creature — Human Soldier"
@@ -21697,7 +21697,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "30016f7d-5150-4ed1-bcd7-323063fa34dd",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
       "name": "Copy",
       "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
       "type_line": "Token"
@@ -22723,7 +22723,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "29e9326a-a435-44c7-939a-8da6ed3c4510",
+      "id": "959ed4bf-b276-45ed-b44d-c757e9c25846",
       "name": "Elf Warrior",
       "oracle_id": "dac8a765-6845-4b57-bb79-4ec463436f92",
       "type_line": "Token Creature — Elf Warrior"
@@ -24085,7 +24085,7 @@
      },
      {
       "component": "token",
-      "id": "a605be96-abae-4c11-8e7c-6fb87b4d8795",
+      "id": "d270aeed-b15f-46f9-97ba-ccce562caefa",
       "name": "Beast",
       "oracle_id": "6bb61f34-5d57-4eaa-a02c-f5d08c1ee920",
       "type_line": "Token Creature — Beast"
@@ -24474,7 +24474,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "f7ee09ec-0d88-469d-b61c-976f3be47766",
+      "id": "d791c7af-1ba7-45ab-ad0c-be9ebc9e51f9",
       "name": "Zombie",
       "oracle_id": "c634a9ee-3e95-4158-91ed-1614bef9e58d",
       "type_line": "Token Creature — Zombie"
@@ -24689,7 +24689,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "bc651dc2-9a3b-470c-b415-ecce0a725433",
+      "id": "214a48bc-4a1c-44e3-9415-a73af3d4fd95",
       "name": "Rhino",
       "oracle_id": "a685171a-616f-42e1-9161-4a64fb51a977",
       "type_line": "Token Creature — Rhino"
@@ -24995,7 +24995,7 @@
      },
      {
       "component": "token",
-      "id": "261aed78-2d57-4ed4-b3d2-53b139b6bd44",
+      "id": "280e3af6-7904-4214-8141-e145c48e2687",
       "name": "Food",
       "oracle_id": "a468338f-635e-4206-89d6-72d723071d45",
       "type_line": "Token Artifact — Food"
@@ -25996,7 +25996,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "7ec6f053-96f7-4e57-b2eb-4e7699a40a4f",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
       "name": "Treasure",
       "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
       "type_line": "Token Artifact — Treasure"
@@ -26127,7 +26127,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "c6e096bb-ad9e-4a8b-8b42-26852fa32c1d",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
       "name": "Treasure",
       "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
       "type_line": "Token Artifact — Treasure"
@@ -26442,7 +26442,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "b29d7556-9051-4451-812e-91513ef10e62",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
       "name": "Treasure",
       "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
       "type_line": "Token Artifact — Treasure"
@@ -27489,7 +27489,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "965bef73-eb93-4512-91b4-bf2ce7d27d42",
+      "id": "280e3af6-7904-4214-8141-e145c48e2687",
       "name": "Food",
       "oracle_id": "a468338f-635e-4206-89d6-72d723071d45",
       "type_line": "Token Artifact — Food"
@@ -28444,7 +28444,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "f4e87a11-b3b1-47b2-bd73-f4c78d6fbe6c",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
       "name": "Copy",
       "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
       "type_line": "Token"
@@ -28875,7 +28875,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "791f5fa0-f972-455e-9802-ff299853607f",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
       "name": "Treasure",
       "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
       "type_line": "Token Artifact — Treasure"
@@ -29232,7 +29232,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "db388be3-ff31-4415-bc4b-de62f7223b1f",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
       "name": "Copy",
       "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
       "type_line": "Token"
@@ -29487,7 +29487,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "4b5469aa-0f24-43ed-b605-35c344eebf96",
+      "id": "147dd1c4-3f07-4e82-896d-08f182f436ac",
       "name": "Human",
       "oracle_id": "30272edf-097c-4918-84d2-9fa6c42dbe0a",
       "type_line": "Token Creature — Human"
@@ -30117,7 +30117,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "7072dea6-0d99-47fa-a83d-c8607e6a4bbd",
+      "id": "e9577d3c-ee19-4b53-adac-b304287a066f",
       "name": "Goblin",
       "oracle_id": "4465eff4-5851-4721-a248-866c686c2ab8",
       "type_line": "Token Creature — Goblin"
@@ -32134,7 +32134,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "107be8ee-ee22-4d37-94f1-2a5b438fbe05",
+      "id": "74de70f2-93b6-4fc5-8c4d-464f880d3c54",
       "name": "Forest Dryad",
       "oracle_id": "5da15fc5-9cc0-4432-b8d7-cd88b74d4ea5",
       "type_line": "Token Land Creature — Forest Dryad"
@@ -32822,7 +32822,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "c5eafa38-5333-4ef2-9661-08074c580a32",
+      "id": "3877d2d1-61f2-4295-b0fc-827965eaaefc",
       "name": "Construct",
       "oracle_id": "ee740c48-59cd-4fcc-b4a5-fe3dde1361d5",
       "type_line": "Token Artifact Creature — Construct"
@@ -34732,7 +34732,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "419c1799-1525-44ec-9f6c-dfc290f04ba7",
+      "id": "e9577d3c-ee19-4b53-adac-b304287a066f",
       "name": "Goblin",
       "oracle_id": "4465eff4-5851-4721-a248-866c686c2ab8",
       "type_line": "Token Creature — Goblin"
@@ -35412,7 +35412,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "51d7dc49-7116-489b-a719-7b293a513cdc",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
       "name": "Copy",
       "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
       "type_line": "Token"
@@ -36506,7 +36506,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "0742ca95-9455-4f56-b26c-2994d12af602",
+      "id": "29c4e4f2-0040-4490-b357-660d729ad9cc",
       "name": "Cat Warrior",
       "oracle_id": "e2b387e7-8b4c-41cd-95ca-df5dd1680425",
       "type_line": "Token Creature — Cat Warrior"
@@ -38242,14 +38242,14 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "1145be5c-62f5-43ef-8dea-3a1e85ad9b72",
+      "id": "d1dfd9b9-8214-4e20-b1c9-48c9f7276883",
       "name": "Clue",
       "oracle_id": "496e1083-c792-40a4-adf4-fec1d559cd5e",
       "type_line": "Token Artifact — Clue"
      },
      {
       "component": "token",
-      "id": "be99852d-54f7-42bd-b2a2-e123302650eb",
+      "id": "280e3af6-7904-4214-8141-e145c48e2687",
       "name": "Food",
       "oracle_id": "a468338f-635e-4206-89d6-72d723071d45",
       "type_line": "Token Artifact — Food"
@@ -38708,7 +38708,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "677a1d9d-86fd-49db-9573-8cd2cbc1a096",
+      "id": "d36e3c0e-a759-4adc-aa2f-61b13c0f786d",
       "name": "Warrior",
       "oracle_id": "6a880a0f-0a98-4505-9c27-9821be3e4818",
       "type_line": "Token Creature — Warrior"
@@ -40280,7 +40280,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "0d0475e9-68ae-4553-a5ef-650091e04967",
+      "id": "c49e8e79-8673-41c2-a1ad-273c37e27aca",
       "name": "Boo",
       "oracle_id": "53c0975a-a240-4889-a7cb-8bca6dfe5a1b",
       "type_line": "Token Legendary Creature — Hamster"
@@ -41738,7 +41738,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "622759a9-e68b-48c1-8e03-beaab0a52556",
+      "id": "698d48fa-d6c1-44b9-8aa2-bb03e0e53788",
       "name": "Saproling",
       "oracle_id": "2b7dba01-b08c-4218-9fc1-da55559d9155",
       "type_line": "Token Creature — Saproling"
@@ -41947,7 +41947,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "83981313-ff55-4030-ac82-d6a3087cf675",
+      "id": "37da5b54-ec55-46e3-9f0b-565cbbe1ac7a",
       "name": "Soldier",
       "oracle_id": "0410f6f6-88f6-48e2-b301-7660c86317a1",
       "type_line": "Token Artifact Creature — Soldier"
@@ -44217,14 +44217,14 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "e85f57c5-923a-4824-969e-53feddd78c3b",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
       "name": "Copy",
       "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
       "type_line": "Token"
      },
      {
       "component": "token",
-      "id": "1632f3fa-4615-46ee-9768-22bbd9d142d6",
+      "id": "cf36b5f2-e699-41c0-ae89-23cd9c414b54",
       "name": "Elk",
       "oracle_id": "7bdd50bf-55fb-4fe7-9510-b0d8adf2bae9",
       "type_line": "Token Creature — Elk"
@@ -44358,7 +44358,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "f67727b7-819c-4e96-aa8e-1e01ecaf9f33",
+      "id": "280e3af6-7904-4214-8141-e145c48e2687",
       "name": "Food",
       "oracle_id": "a468338f-635e-4206-89d6-72d723071d45",
       "type_line": "Token Artifact — Food"
@@ -44498,7 +44498,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "7ec6f053-96f7-4e57-b2eb-4e7699a40a4f",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
       "name": "Treasure",
       "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
       "type_line": "Token Artifact — Treasure"
@@ -46858,7 +46858,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "f4e87a11-b3b1-47b2-bd73-f4c78d6fbe6c",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
       "name": "Copy",
       "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
       "type_line": "Token"
@@ -47143,7 +47143,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "a3a684b7-27e0-4d9e-a064-9e03c6e50c89",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
       "name": "Treasure",
       "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
       "type_line": "Token Artifact — Treasure"
@@ -50773,7 +50773,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "4501d15d-d306-4372-9516-bd63cf788f45",
+      "id": "75602e25-a0ab-430e-b610-5e12c1cab3d8",
       "name": "Thopter",
       "oracle_id": "7c0b6b53-4ddb-4bb5-8a26-0041b2006d3f",
       "type_line": "Token Artifact Creature — Thopter"
@@ -54097,7 +54097,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "b7c52125-929a-4e03-a955-d55ae34a905b",
+      "id": "d1dfd9b9-8214-4e20-b1c9-48c9f7276883",
       "name": "Clue",
       "oracle_id": "496e1083-c792-40a4-adf4-fec1d559cd5e",
       "type_line": "Token Artifact — Clue"
@@ -54623,7 +54623,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "0fb2c5a4-859e-40ac-8091-7ba44f57b878",
+      "id": "280e3af6-7904-4214-8141-e145c48e2687",
       "name": "Food",
       "oracle_id": "a468338f-635e-4206-89d6-72d723071d45",
       "type_line": "Token Artifact — Food"
@@ -55794,7 +55794,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "cb7b5024-3a0b-4f14-977e-ba6c4c2567c9",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
       "name": "Treasure",
       "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
       "type_line": "Token Artifact — Treasure"
@@ -58897,7 +58897,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "aeefb1d3-446f-4f07-9650-5b8c929f1ac9",
+      "id": "6bc05773-3721-4748-a218-97868e544b90",
       "name": "Insect",
       "oracle_id": "6f80811b-fdc7-4fb9-ac61-d8b51c28fe7f",
       "type_line": "Token Creature — Insect"
@@ -61093,7 +61093,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "5e644586-888f-4e2e-8d66-8aa02bd79ec1",
+      "id": "d1dfd9b9-8214-4e20-b1c9-48c9f7276883",
       "name": "Clue",
       "oracle_id": "496e1083-c792-40a4-adf4-fec1d559cd5e",
       "type_line": "Token Artifact — Clue"
@@ -61201,7 +61201,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "dac26fe3-b44c-4385-ad74-d348c33e151c",
+      "id": "8a73e348-5bf1-4465-978b-3f31408bade9",
       "name": "Zombie",
       "oracle_id": "ddc8c973-c31e-463f-be45-f3fa7d632362",
       "type_line": "Token Creature — Zombie"
@@ -61430,7 +61430,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "64839118-09d2-4645-9d3c-f80755ac781f",
+      "id": "03516d49-0613-46f7-8d88-3bf26d2c8659",
       "name": "Map",
       "oracle_id": "c050f054-1ccf-4819-bc30-a928aed60c56",
       "type_line": "Token Artifact — Map"
@@ -61987,7 +61987,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "261aed78-2d57-4ed4-b3d2-53b139b6bd44",
+      "id": "280e3af6-7904-4214-8141-e145c48e2687",
       "name": "Food",
       "oracle_id": "a468338f-635e-4206-89d6-72d723071d45",
       "type_line": "Token Artifact — Food"
@@ -63607,7 +63607,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "48fdadab-af27-46d3-bcf6-35e7affb1e43",
+      "id": "3877d2d1-61f2-4295-b0fc-827965eaaefc",
       "name": "Construct",
       "oracle_id": "ee740c48-59cd-4fcc-b4a5-fe3dde1361d5",
       "type_line": "Token Artifact Creature — Construct"
@@ -64335,7 +64335,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "f4e87a11-b3b1-47b2-bd73-f4c78d6fbe6c",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
       "name": "Copy",
       "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
       "type_line": "Token"
@@ -67290,7 +67290,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "8cd2c057-4cfd-4c45-a089-dbbe14b3ea53",
+      "id": "96c36884-df5e-435d-9473-65da550535fb",
       "name": "Griffin",
       "oracle_id": "3d395892-ef4e-41ea-a66b-99dc3affe51a",
       "type_line": "Token Creature — Griffin"
@@ -67594,7 +67594,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "db388be3-ff31-4415-bc4b-de62f7223b1f",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
       "name": "Copy",
       "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
       "type_line": "Token"
