@@ -3901,9 +3901,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bdaybound\b|\bnightbound\b|\bday\b|\bnight\b"},
         r"daybound|nightbound|becomes night|becomes day",
     ),
-    ("voting_matters", "each"): _spec(
+    # _matters sweep (ADR-0034): voting split. The vote-CREATOR doer arm
+    # (voting_makers, will-of-the-council / council's-dilemma cards that run a
+    # vote) and the finish-voting PAYOFF arm (voting_matters, triggers off a vote
+    # without creating one) both serve the same multiplayer-politics avenue. The
+    # union == the old voting_matters; only the role label differs.
+    ("voting_makers", "each"): _spec(
         "Voting / council",
         "will-of-the-council and vote effects — multiplayer politics",
+        {"oracle": r"\bvote\b|will of the council|council's dilemma"},
+        r"\bvote\b|will of the council",
+    ),
+    ("voting_matters", "each"): _spec(
+        "Voting / council payoffs",
+        "cards that trigger off a vote — multiplayer politics",
         {"oracle": r"\bvote\b|will of the council|council's dilemma"},
         r"\bvote\b|will of the council",
     ),

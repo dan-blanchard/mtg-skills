@@ -262,10 +262,19 @@ def test_daynight_matters_effect_arm_is_ir_served():
     assert ("daynight_matters", "you") not in _ks(c)
 
 
-def test_voting_matters_is_ir_served():
-    # ADR-0027: voting_matters is IR-served from the kept word-detector mirror, so
-    # it comes through the hybrid path, not pure regex.
+def test_voting_makers_is_ir_served():
+    # ADR-0027: voting is IR-served from the kept word-detector mirror, so it
+    # comes through the hybrid path, not pure regex. ADR-0034 _matters split:
+    # an "each player votes" vote-CREATOR is the MAKER arm -> voting_makers.
     c = {"name": "X", "oracle_text": "Each player votes for an option."}
+    assert ("voting_makers", "each") in _ks_hybrid(c)
+    assert ("voting_makers", "each") not in _ks(c)
+
+
+def test_voting_matters_payoff_is_ir_served():
+    # ADR-0034 _matters split: the finish-voting PAYOFF arm keeps voting_matters,
+    # served from the `\bfinish(?:ed)? voting\b` kept residue mirror via hybrid.
+    c = {"name": "X", "oracle_text": "Whenever players finish voting, draw a card."}
     assert ("voting_matters", "each") in _ks_hybrid(c)
     assert ("voting_matters", "each") not in _ks(c)
 

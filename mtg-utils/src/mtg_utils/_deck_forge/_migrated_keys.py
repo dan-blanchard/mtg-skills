@@ -97,6 +97,9 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "nonhuman_attackers",
         "opponent_draw_matters",
         "token_doubling",
+        # _matters sweep (ADR-0034): voting split — vote-CREATOR doer arm
+        # (voting_makers) + finish-voting payoff (voting_matters). Set-equal.
+        "voting_makers",
         "voting_matters",
         # Group "restriction-narrow" (ADR-0027 projection deepening) — keys whose
         # tail cards phase folds into a generic carrier (a static restriction, an

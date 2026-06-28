@@ -365,7 +365,7 @@ _REAL_CASES: dict[str, str] = {
     "villainous_choice": "The Valeyard",
     "void_warp_matters": "Starfield Vocalist",
     "voltron_matters": "Sram, Senior Edificer",
-    "voting_matters": "Capital Punishment",
+    "voting_makers": "Capital Punishment",
     "wants_cloning": "Arcum Dagsson",
     "waterbend_makers": "Spirit Water Revival",
     "waterbend_matters": "Avatar Aang // Aang, Master of Elements",
@@ -446,6 +446,28 @@ _SYNTHETIC_CASES: dict[str, tuple[dict, Card]] = {
             "name": "Opponents'-Exile Payoff-like",
             "type_line": "Enchantment",
             "oracle_text": "You may play cards your opponents own in exile.",
+        },
+        _ir(),
+    ),
+    # voting_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm (the
+    # vote-CREATOR cards that run a will-of-the-council / council's-dilemma vote —
+    # Capital Punishment, Expropriate, Tivit, plus the structural cat=='vote' arm)
+    # was relabeled to voting_makers (Capital Punishment, a real case). The payoff
+    # arm — a card that triggers OFF a vote without creating one ("whenever players
+    # finish voting", Grudge Keeper) — keeps voting_matters but has no
+    # snapshot-resident real card: the snapshot's only voting cards (Capital
+    # Punishment, The Valeyard) both fire the cat=='vote' maker arm. Minimal
+    # fixture proving the finish-voting payoff still serves the lane via the IR
+    # kept-detector residue mirror (`\bfinish(?:ed)? voting\b`). (Mirrors the
+    # ki_counter_matters / opponent_exile_matters splits.) CR 701.38.
+    "voting_matters": (
+        {
+            "name": "Grudge Keeper-like",
+            "type_line": "Creature — Spirit",
+            "oracle_text": (
+                "Whenever players finish voting, each opponent loses 1 life for "
+                "each vote they cast."
+            ),
         },
         _ir(),
     ),

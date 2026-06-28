@@ -1174,12 +1174,24 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # oracle, not a structured effect, so a kept word-scan is the only path. `each
     # player[^.]*votes?` also matches the structurally-covered "each player votes"
     # cards (harmless — add() dedups). CR 701.38.
+    #
+    # _matters sweep (ADR-0034): voting SPLIT. The role boundary cuts THROUGH this
+    # residue mirror, so the single deleted `each player[^.]*votes?|\bfinish(?:ed)?
+    # voting\b` regex is partitioned into two kept-mirror rows: the MAKER half
+    # (`each player[^.]*votes?` — Vault 11's Saga-chapter vote-CREATOR + the
+    # structurally-covered "each player votes" makers) emits voting_makers; the
+    # PAYOFF half (`\bfinish(?:ed)? voting\b` — Grudge Keeper's "whenever players
+    # finish voting", a trigger-OFF-voting that creates no vote of its own) keeps
+    # voting_matters. The structural cat=='vote' arm in extract_signals_ir also
+    # relabels wholesale to voting_makers. CR 701.38.
+    (
+        "voting_makers",
+        re.compile(r"each player[^.]*votes?", re.IGNORECASE),
+        "each",
+    ),
     (
         "voting_matters",
-        re.compile(
-            r"each player[^.]*votes?|\bfinish(?:ed)? voting\b",
-            re.IGNORECASE,
-        ),
+        re.compile(r"\bfinish(?:ed)? voting\b", re.IGNORECASE),
         "each",
     ),
     # ADR-0027 #24l — group_hug_draw mirror NARROWED to a guarded residue block (the
@@ -3134,6 +3146,9 @@ IR_SLICE_KEYS: frozenset[str] = (
             # (rules-lawyer-verified): voting (CR 701.38); the four distinct
             # bending keywords (airbend CR 701.65, earthbend 701.66, waterbend
             # 701.67, firebending 702.189) — each its own lane, never conflated.
+            # _matters sweep (ADR-0034): voting split — vote-CREATOR doer arm
+            # emits voting_makers; the finish-voting payoff stays _matters.
+            "voting_makers",
             "voting_matters",
             "airbend_makers",
             # _matters sweep (ADR-0034): earthbend split — the keyword-bearer DOER
@@ -7961,8 +7976,12 @@ def extract_signals_ir(
             # Saga-chapter vote (Vault 11, phase emits no vote Effect) + the
             # trigger-CONDITION vote (Grudge Keeper, "whenever players finish voting")
             # ride the narrowed mirror.
+            # _matters sweep (ADR-0034): the card PERFORMS a will-of-the-council /
+            # council's-dilemma vote (Capital Punishment, Expropriate, Tivit), so
+            # this structural maker arm emits voting_makers. The finish-voting PAYOFF
+            # (Grudge Keeper) keeps voting_matters via the kept residue mirror.
             if cat == "vote" and _VOTE_EFFECT_GUARD.search(e.raw or ""):
-                add("voting_matters", "each", "", e.raw)
+                add("voting_makers", "each", "", e.raw)
             # keyword_counter (ADR-0027 tranche2-C) — a place/remove of a CR-122.1b
             # keyword counter (a counter that grants a keyword ability via CR 613.1f).
             # phase tags the granted keyword in counter_kind on a place_counter /
