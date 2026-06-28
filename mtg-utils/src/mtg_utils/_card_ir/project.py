@@ -2665,6 +2665,19 @@ def _project_replacement(rep: dict) -> Ability | None:
     ):
         execute = rep.get("execute")
         eff = execute.get("effect") if isinstance(execute, dict) else None
+        # ADR-0027 — a BecomeCopy "Moved"-replacement: phase models "~ enters the
+        # battlefield as a copy of <Typed>" (Altered Ego, Activated Sleeper, Mirrorhall
+        # Mimic) as a ChangeZone->Battlefield replacement whose execute is
+        # BecomeCopy{target}. _EFFECT_CATEGORY maps a TOP-LEVEL BecomeCopy effect to
+        # clone, but a BecomeCopy buried in a replacement was dropped — the
+        # clone_matters / per-type copy lanes fell to the _recover_clone_creature oracle
+        # regex. Project the copied subject (the target's Typed filter — Creature ->
+        # clone_matters, other permanent types -> their copy_* lane) into a clone Effect
+        # so they read STRUCTURE. CR 707.2 / 614.1.
+        if isinstance(eff, dict) and _norm(eff.get("type")) == "becomecopy":
+            return _static_effect(
+                "clone", "any", raw, subject=_filter(eff.get("target"))
+            )
         # ADR-0027 C6 stax — an enters-TAPPED replacement: phase models "creatures your
         # opponents control enter tapped" / "nonbasic lands enter tapped" as a
         # ChangeZone->Battlefield replacement whose execute taps the entering object

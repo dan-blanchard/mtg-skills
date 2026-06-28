@@ -13429,8 +13429,9 @@
         "e": [
          {
           "cat": "clone",
-          "raw": "You may have Chameleon enter as a copy of a creature you control, except his name is Chameleon, Master of Disguise.\nMayhem {2}{U}",
+          "raw": "You may have ~ enter as a copy of a creature you control, except his name is ~.",
           "sub": {
+           "c": "you",
            "t": [
             "Creature"
            ]
@@ -15081,7 +15082,7 @@
         "e": [
          {
           "cat": "clone",
-          "raw": "You may have this enchantment enter as a copy of any artifact on the battlefield, except it's an enchantment in addition to its other types",
+          "raw": "You may have ~ enter as a copy of any artifact on the battlefield, except it's an enchantment in addition to its other types.",
           "sub": {
            "t": [
             "Artifact"
@@ -15089,7 +15090,7 @@
           }
          }
         ],
-        "k": "spell"
+        "k": "static"
        }
       ],
       "n": "Copy Artifact",
@@ -56761,28 +56762,21 @@
        {
         "e": [
          {
-          "cat": "state",
-          "raw": "You may have this creature enter as a copy of a creature or planeswalker you control, except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary"
+          "cat": "clone",
+          "raw": "You may have ~ enter as a copy of a creature or planeswalker you control, except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary.",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Creature",
+            "Planeswalker"
+           ]
+          }
          },
          {
           "cat": "place_counter",
           "ck": "p1p1",
-          "raw": "You may have this creature enter as a copy of a creature or planeswalker you control, except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary",
+          "raw": "You may have ~ enter as a copy of a creature or planeswalker you control, except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary.",
           "sc": "you"
-         }
-        ],
-        "k": "spell"
-       },
-       {
-        "e": [
-         {
-          "cat": "clone",
-          "raw": "You may have this creature enter as a copy of a creature or planeswalker you control, except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary.",
-          "sub": {
-           "t": [
-            "Creature"
-           ]
-          }
          }
         ],
         "k": "static"
@@ -70990,5 +70984,5 @@
  },
  "phase_tag": "v0.8.0",
  "schema": 1,
- "sidecar_version": 69
+ "sidecar_version": 70
 }

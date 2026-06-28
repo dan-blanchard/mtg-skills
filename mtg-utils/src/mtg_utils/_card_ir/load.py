@@ -952,7 +952,16 @@ from mtg_utils.card_ir import Card
 #   _has_neg_pump deleted; the one CHOOSE-carrier residual the descend can't reach
 #   (Selective Obliteration's Unimplemented mass-exile) moves to a minimal
 #   _recover_modal_mass_exile.
-SIDECAR_VERSION = 69
+# v70 (nested-lift, clone): a BecomeCopy "Moved"-replacement ("~ enters as a copy of
+#   <Typed>" — Altered Ego, Activated Sleeper, Sakashima, 56 cards) was dropped —
+#   _EFFECT_CATEGORY maps a top-level BecomeCopy effect to clone but not one nested in a
+#   replacement, so clone_matters fell to the _recover_clone_creature oracle regex.
+#   _project_replacement now reads it natively (clone Effect, copied-subject from the
+#   target Typed filter). clone_matters set-equal; power_matters +1 (Deceptive Frostkite
+#   — the structured target carries its "power 4 or greater" predicate the regex
+#   flattened, a genuine power reference). Recovery self-deactivates for these 56, stays
+#   for the CopyTokenOf (token_copy semantics) + oracle-only residue.
+SIDECAR_VERSION = 70
 
 
 def card_ir_dir() -> Path:
