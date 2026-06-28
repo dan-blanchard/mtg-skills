@@ -5584,6 +5584,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\bdiscover \d|\bdiscover x\b|whenever you discover",
         serve_keywords=("discover",),
     ),
+    # ADR-0027 / _matters sweep (ADR-0034): the Foretell lane migrated to the Card IR
+    # and then SPLIT into foretell_makers (the `foretell` keyword bearers + grant /
+    # "to foretell" enabler markers that PERFORM the mechanic) and foretell_matters
+    # (the Foretold-card payoffs — Niko Defies Destiny). Both serve the SAME foretell
+    # pool (the avenue composes maker + payoff), so both reuse the same oracle regex.
+    ("foretell_makers", "you"): _spec(
+        "Foretell",
+        "foretell cards to bank in exile plus enablers that let you foretell",
+        {"oracle": r"\bforetell\b|foretold"},
+        r"\bforetell\b|foretold",
+        serve_keywords=("foretell",),
+    ),
     ("foretell_matters", "you"): _spec(
         "Foretell",
         "foretell cards to bank in exile plus the payoffs that reward foretold cards",

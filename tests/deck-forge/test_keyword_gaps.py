@@ -262,9 +262,10 @@ class TestForetellMatters:
     is unsurfaced; the foretell preset finds keyword-bearers only."""
 
     def test_foretell_keyword_card_emits_and_served(self):
-        # Doomskar carries the Scryfall foretell keyword → IR opens the lane.
-        assert "foretell_matters" in _hyb("Doomskar")
-        assert serves(test_card("Doomskar"), _sig("foretell_matters", "you"))
+        # Doomskar carries the Scryfall foretell keyword → IR opens the MAKER lane
+        # (split per ADR-0034: foretell_makers is the keyword-bearer arm).
+        assert "foretell_makers" in _hyb("Doomskar")
+        assert serves(test_card("Doomskar"), _sig("foretell_makers", "you"))
 
     def test_foretell_payoff_carer_emits(self):
         # Alrund, God of the Cosmos counts "each foretold card you own in exile" — the

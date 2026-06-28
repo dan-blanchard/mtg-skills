@@ -241,9 +241,12 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                scaler operand (Atreus, Azula — the PAYOFF arm).
         #   explore    ← `explore` keyword (authoritative, 53 ⊇ 44 regex) + the
         #                event='other' explore payoff (Topography Tracker, Glowcap).
-        #   foretell   ← `foretell` keyword + grant marker + Foretold-predicate payoff
-        #                (Niko) + "to foretell" enabler marker (Karfell); left
-        #                _IR_FLOOR_LANES.
+        #   foretell   ← split (ADR-0034): foretell_makers = `foretell` keyword
+        #                bearers (Doomskar, Alrund's Epiphany) + the "has foretell"/
+        #                "you foretell" grant marker + "to foretell" enabler marker
+        #                (Karfell) — the MAKER arms; foretell_matters = the
+        #                Foretold-predicate payoff bind (Niko Defies Destiny — the
+        #                manual in-loop add()). Left _IR_FLOOR_LANES.
         #   scavenge_fuel ← `scavenge` keyword + the "has scavenge" graveyard-grant
         #                face marker (Varolz, Young Deathclaws, Cave of Skulls).
         #   scry_surveil ← scried/surveiled triggers + event='other' payoff + the
@@ -284,6 +287,13 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # creature you control explores, …" marker — Wildgrowth Walker).
         "explore_makers",
         "foretell_matters",
+        # _matters sweep (ADR-0034): the MAKER arm split out of foretell_matters —
+        # the `foretell` keyword bearers (Doomskar) + the "has foretell"/"you
+        # foretell" grant marker + the "to foretell" enabler marker (Karfell). The
+        # IR path emits it via _IR_KEYWORD_MAP / _DOER_EFFECT_KEYS, so the hybrid
+        # must recognize it as migrated to keep it. foretell_matters stays the
+        # payoff arm (the Foretold-predicate bind — Niko Defies Destiny).
+        "foretell_makers",
         "scavenge_fuel",
         "scry_surveil_matters",
         # Group "tail-supplement 2" (ADR-0027 projection deepening) — the next batch

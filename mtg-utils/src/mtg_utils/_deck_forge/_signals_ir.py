@@ -347,7 +347,7 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # damage_reflect their own per-effect reads.)
     "affinity": ("affinity_type", "you"),
     "madness": ("madness_matters", "you"),
-    "foretell": ("foretell_matters", "you"),
+    "foretell": ("foretell_makers", "you"),
     # ADR-0027 keyword-conditioned payoff markers (project._narrow_payoff_condition
     # _refs) + dropped-static face markers (project._dropped_static_markers): a
     # mutate cast-payoff / scavenge graveyard-grant phase left only in a non-grant
@@ -632,7 +632,7 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # too — the payoff lane explore_matters is the event='other' marker re-route in
     # the doer loop; union over the keyword 53 stays set-equal).
     "explore": (("explore_makers", "you"),),
-    "foretell": (("foretell_matters", "you"),),
+    "foretell": (("foretell_makers", "you"),),
     "madness": (("madness_matters", "you"),),
     # ADR-0027 C9 facedown_matters — the five face-down 2/2 MAKERS as printed
     # Scryfall KEYWORDS (CR 708 "Face-Down Spells and Permanents"): morph /
@@ -3257,6 +3257,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             # listed here explicitly (the suspect_matters / earthbend_matters
             # in-loop precedent).
             "explore_matters",
+            # _matters sweep (ADR-0034): foretell split — the printed-keyword +
+            # grant/enabler MAKER arms emit foretell_makers (auto-derived from
+            # _IR_KEYWORD_MAP / _DOER_EFFECT_KEYS); the Foretold-predicate PAYOFF
+            # bind (Niko Defies Destiny) is a manual in-loop add() in no map and no
+            # floor, so foretell_matters is pinned here explicitly (the
+            # explore_matters / experience_matters in-loop precedent).
+            "foretell_matters",
             # _matters sweep (ADR-0034): firebending split — the Firebending-keyword
             # BEARER arm emits firebending_makers; the keyword-LESS Fire-Nation
             # reference tail stays firebending_matters. Set-equal (26 makers / 10 refs).

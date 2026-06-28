@@ -194,6 +194,7 @@ _REAL_CASES: dict[str, str] = {
     "flip_self": "Nezumi Graverobber // Nighteyes the Desecrator",
     "food_matters": "Trail of Crumbs",
     "forced_attack": "Public Enemy",
+    "foretell_makers": "Doomskar",
     "foretell_matters": "Niko Defies Destiny",
     "free_cast": "Omniscience",
     "free_creature_payoff": "Satoru, the Infiltrator",
