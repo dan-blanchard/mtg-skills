@@ -938,7 +938,21 @@ from mtg_utils.card_ir import Card
 #   Effect (scope you, raw=trigger description carrying the bend names) so airbend/
 #   earthbend/waterbend_matters route natively; _recover_bending_trigger deleted. Gate
 #   set-equal (air 14, earth 37, water 29). firebend stays a kept word mirror.
-SIDECAR_VERSION = 68
+# v69 (same node-vocab cleanup, ROOT C vote outcomes): phase v0.8.0 structures the
+#   vote's chosen outcomes on the `Vote.per_choice_effect` node, but projection mapped
+#   Vote→vote and never descended it (the v66 "outcome collapse" claim was projection
+#   drift). _collect_effects now recurses per_choice_effect through the normal effect
+#   machinery, so mass_removal / reanimator / lifeloss_matters / debuff_matters read
+#   STRUCTURE (set-equal — and Magister's reanimate-each is moot, those lanes are
+#   scope-agnostic). The descend is MORE complete than the deleted 4-arm regex
+#   _recover_vote_outcome: it also surfaces the genuine edict / opponent_discard /
+#   token_maker / draw_for_each / counter_distribute / creature_recursion outcomes the
+#   regex never reached (~+12 firings, all real vote outcomes — a net coverage gain,
+#   Dan-approved). _recover_vote_outcome + its 5 regex arms + _has_category /
+#   _has_neg_pump deleted; the one CHOOSE-carrier residual the descend can't reach
+#   (Selective Obliteration's Unimplemented mass-exile) moves to a minimal
+#   _recover_modal_mass_exile.
+SIDECAR_VERSION = 69
 
 
 def card_ir_dir() -> Path:

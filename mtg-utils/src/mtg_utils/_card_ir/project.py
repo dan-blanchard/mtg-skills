@@ -48,6 +48,7 @@ from mtg_utils._card_ir.supplement import (
     _recover_historic_subject,
     _recover_keyword_grant_target,
     _recover_land_sacrifice,
+    _recover_modal_mass_exile,
     _recover_opponent_cast_lock,
     _recover_opponent_cast_scope,
     _recover_opponent_discard,
@@ -56,7 +57,6 @@ from mtg_utils._card_ir.supplement import (
     _recover_tap_down,
     _recover_topdeck_stack_self,
     _recover_tribe_damage_source,
-    _recover_vote_outcome,
     recover_effect_from_text,
     supplement_card,
 )
@@ -1034,12 +1034,13 @@ def project_card(records: list[dict]) -> Card:
     # discriminator) stays. CR 305.9 / 121 / 406.
     card = _recover_extra_land_drop(card, _oracle)
     card = _recover_group_hug_draw_scope(card)
-    # v0.8.0 bump ROOT C (recovery) — re-synthesize the dropped vote/modal OUTCOME
-    # Effect (destroy-all / mass-exile / each-player-reanimate / opp life-loss / mass
-    # -X/-X) phase v0.8.0 collapsed to a lone `vote` / duplicate `choose`, so
-    # mass_removal / reanimator / lifeloss_matters / debuff_matters read STRUCTURE.
-    # CR 701.38a.
-    card = _recover_vote_outcome(card)
+    # ROOT C (vote/modal OUTCOME) is now read natively in _collect_effects by
+    # descending Vote.per_choice_effect (SIDECAR v69) — _recover_vote_outcome retired.
+    # The descend is more complete than the old 4-arm regex: beyond destroy/reanimate/
+    # lose_life/pump it surfaces the edict / opponent-discard / token / draw outcomes
+    # phase structures on the same node. CR 701.38a. The one CHOOSE-carrier residual the
+    # descend can't reach (Selective Obliteration's Unimplemented mass-exile) is below.
+    card = _recover_modal_mass_exile(card)
     # v0.8.0 bump ROOT D (recovery) — convert the degenerate empty-draw fragment of a
     # "draw N, then discard a card unless …" loot clause back into the `discard`
     # Effect phase v0.8.0 dropped, so discard_outlet / discard_matters re-open. CR
@@ -2928,6 +2929,18 @@ def _collect_effects(node: dict | None, default_raw: str) -> list[Effect]:
             eff = _merge_ability_player_scope(node, eff)
             eff = _merge_ability_duration(node, eff)
             out.extend(_project_effect(eff, raw))
+            # ROOT C (SIDECAR v69) — descend the Vote's structured per_choice_effect
+            # outcomes (DestroyAll->destroy, ChangeZoneAll->reanimate, LoseLife->
+            # lose_life, PumpAll->pump, plus the edict/discard/token/draw outcomes the
+            # 4-arm regex never reached) phase carries on the node, replacing the
+            # oracle-raw _recover_vote_outcome. Each per_choice_effect entry is an
+            # ability node; _collect_effects walks its effect+sub_ability chain (so
+            # the outcome's own scope/subject/duration project through the normal
+            # machinery). CR 701.38a.
+            if _norm(eff.get("type")) == "vote":
+                for _choice in eff.get("per_choice_effect") or []:
+                    if isinstance(_choice, dict):
+                        out.extend(_collect_effects(_choice, raw))
     sub = node.get("sub_ability")
     if isinstance(sub, dict):
         out.extend(_collect_effects(sub, default_raw))

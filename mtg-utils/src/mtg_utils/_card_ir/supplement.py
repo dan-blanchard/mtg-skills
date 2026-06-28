@@ -5117,143 +5117,53 @@ def _recover_group_hug_draw_scope(card: Card) -> Card:
     return replace(card, faces=tuple(faces)) if changed else card
 
 
-# ── v0.8.0 bump ROOT C — vote / modal-OUTCOME collapse residue ─────────────────
-# phase v0.8.0 parses the vote/secret-council/dilemma carrier (CR 701.38a: a vote
-# "determine[s] some aspect of the effect of that spell or ability") but DROPS the
-# chosen-OUTCOME branch — "If <option> gets more votes, <outcome>" — leaving a lone
-# `vote` Effect (or, for the "Each player chooses … Then <outcome>" modal — Selective
-# Obliteration — a DUPLICATE `choose`) with NO structured node for the destroy-all /
-# mass-exile / each-player-reanimate / opponent-drain / mass-debuff the outcome
-# performs. The full vote/modal text (incl. every outcome clause) survives on the
-# carrier Effect's raw, so this card-level pass re-synthesizes the dropped outcome
-# Effect from that raw — the _recover_dropped_gain_life / _recover_base_pt_set
-# precedent (phase dropped the structure; rebuild it from the text). Each outcome is
-# APPEND-ONLY and gated on the card NOT already carrying that category, which excludes
-# the carriers whose outcome phase DID structure (Harsh Mercy / Kindred Dominance —
-# `choose`+`destroy(all)`; Council's Judgment / World-Bottling Kit — `vote`/`choose`+
-# `exile(all)`): those keep their existing node, only the genuinely-dropped outcomes
-# recover. CR 701.38a (vote) / 701.39 (choose) / 701.7 (destroy) / 406 (exile) /
-# 110.2a (reanimate) / 119.3 (life loss) / 613.4c (-X/-X).
-_VOTE_DESTROY_ALL = re.compile(
-    r"destroy all (nonland permanents|permanents|creatures)", re.IGNORECASE
-)
-_VOTE_EXILE_EACH = re.compile(
+# ── ROOT C residual — modal mass-EXILE phase leaves Unimplemented ──────────────
+# The Vote.per_choice_effect descend (project.py, SIDECAR v69) reads every VOTE card's
+# outcomes natively, retiring the 5-arm _recover_vote_outcome. The one residual it
+# can't reach is the CHOOSE-carrier modal "Each player chooses a color. Then exile each
+# permanent unless …" (Selective Obliteration): phase emits the mass-exile as an
+# Unimplemented unless-clause (CR 614 gap) under a `choose` carrier — there is no
+# per_choice_effect to descend. Re-synthesize the mass `exile` Effect from the carrier
+# raw so mass_removal reads it (the lone surviving arm of the deleted regex; the
+# _VOTE_EXILE_EACH pattern + Effect shape preserved verbatim). Append-only: skip a card
+# already carrying an exile (incl. one the descend produced). CR 701.38a.
+_MODAL_MASS_EXILE = re.compile(
     r"exile (?:each|all) (?:nonland )?permanents?\b", re.IGNORECASE
 )
-_VOTE_REANIMATE_EACH = re.compile(
-    r"each player returns each creature card from (?:their|his or her) "
-    r"graveyard to the battlefield",
-    re.IGNORECASE,
-)
-_VOTE_OPP_LOSE_LIFE = re.compile(r"each opponent loses (\d+) life", re.IGNORECASE)
-_VOTE_OPP_DEBUFF = re.compile(
-    r"creatures (?:your )?opponents control get -(\d+)/-\d+", re.IGNORECASE
-)
 
 
-def _has_category(card: Card, *cats: str) -> bool:
-    return any(e.category in cats for ab in card.all_abilities() for e in ab.effects)
-
-
-def _has_neg_pump(card: Card) -> bool:
-    """A negative-amount pump already on the card (the debuff_matters anchor) — so the
-    recovery never doubles a mass-debuff phase already structured."""
-    for ab in card.all_abilities():
-        for e in ab.effects:
-            if e.category in ("pump", "pump_target") and (
-                e.amount is not None
-                and e.amount.op == "fixed"
-                and isinstance(e.amount.factor, int)
-                and e.amount.factor < 0
-            ):
-                return True
-    return False
-
-
-def _recover_vote_outcome(card: Card) -> Card:
-    """Re-synthesize the dropped vote/modal OUTCOME Effect (destroy-all / mass-exile /
-    each-player-reanimate / opponent life-loss / mass -X/-X debuff) onto the carrier
-    ability, read from the `vote`/`choose` Effect raw. Append-only and category-gated
-    so a carrier whose outcome phase DID structure is untouched. CR 701.38a."""
+def _recover_modal_mass_exile(card: Card) -> Card:
     if not card.faces:
         return card
-    faces: list[Face] = []
-    changed = False
+    if any(e.category == "exile" for ab in card.all_abilities() for e in ab.effects):
+        return card
     for face in card.faces:
-        new_abs: list[Ability] = []
         for ab in face.abilities:
-            carrier = next(
-                (e for e in ab.effects if e.category in ("vote", "choose")), None
-            )
-            if carrier is None:
-                new_abs.append(ab)
-                continue
-            craw = carrier.raw or ""
-            extra: list[Effect] = []
-            m = _VOTE_DESTROY_ALL.search(craw)
-            if m and not _has_category(card, "destroy"):
-                kind = "Creature" if "creature" in m.group(1).lower() else "Permanent"
-                extra.append(
-                    Effect(
-                        category="destroy",
-                        scope="you",
-                        counter_kind="all",
-                        subject=Filter(card_types=(kind,)),
-                        raw=craw[m.start() :],
-                    )
+            for e in ab.effects:
+                if e.category not in ("vote", "choose") or not e.raw:
+                    continue
+                m = _MODAL_MASS_EXILE.search(e.raw)
+                if m is None:
+                    continue
+                synth = Ability(
+                    kind="spell",
+                    effects=(
+                        Effect(
+                            category="exile",
+                            scope="you",
+                            counter_kind="all",
+                            subject=Filter(card_types=("Permanent",)),
+                            zones=("to:exile",),
+                            raw=e.raw[m.start() :],
+                        ),
+                    ),
                 )
-            m = _VOTE_EXILE_EACH.search(craw)
-            if m and not _has_category(card, "exile"):
-                extra.append(
-                    Effect(
-                        category="exile",
-                        scope="you",
-                        counter_kind="all",
-                        subject=Filter(card_types=("Permanent",)),
-                        zones=("to:exile",),
-                        raw=craw[m.start() :],
-                    )
+                head, *rest = card.faces
+                return replace(
+                    card,
+                    faces=(replace(head, abilities=(*head.abilities, synth)), *rest),
                 )
-            m = _VOTE_REANIMATE_EACH.search(craw)
-            if m and not _has_category(card, "reanimate"):
-                extra.append(
-                    Effect(
-                        category="reanimate",
-                        scope="each",
-                        subject=Filter(card_types=("Creature",)),
-                        zones=("from:graveyard", "to:battlefield"),
-                        raw=craw[m.start() :],
-                    )
-                )
-            m = _VOTE_OPP_LOSE_LIFE.search(craw)
-            if m and not _has_category(card, "lose_life"):
-                extra.append(
-                    Effect(
-                        category="lose_life",
-                        scope="opp",
-                        amount=Quantity(op="fixed", factor=int(m.group(1))),
-                        raw=craw[m.start() :],
-                    )
-                )
-            m = _VOTE_OPP_DEBUFF.search(craw)
-            if m and not _has_neg_pump(card):
-                extra.append(
-                    Effect(
-                        category="pump",
-                        scope="opp",
-                        subject=Filter(card_types=("Creature",), controller="opp"),
-                        amount=Quantity(op="fixed", factor=-int(m.group(1))),
-                        duration="UntilEndOfTurn",
-                        raw=craw[m.start() :],
-                    )
-                )
-            if extra:
-                new_abs.append(replace(ab, effects=(*ab.effects, *extra)))
-                changed = True
-            else:
-                new_abs.append(ab)
-        faces.append(replace(face, abilities=tuple(new_abs)))
-    return replace(card, faces=tuple(faces)) if changed else card
+    return card
 
 
 # ── v0.8.0 bump ROOT D — "discard a card unless <alt>" residue ─────────────────
