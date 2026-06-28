@@ -769,6 +769,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "hand_disruption",
         "commander_matters",
         "domain_matters",
+        "opponent_exile_makers",
         "opponent_exile_matters",
         "exalted_lone_attacker",
         "speed_matters",

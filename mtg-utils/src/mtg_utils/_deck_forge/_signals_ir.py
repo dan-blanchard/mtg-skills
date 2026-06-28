@@ -1995,14 +1995,29 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # _matters sweep (ADR-0034) — opponent_exile lane SPLIT by role. The whole lane
+    # used to fire from ONE mirror tuple; split between regex ALTERNATIONS:
+    #   • opponent_exile_makers — the card itself PERFORMS the graveyard-hate exile
+    #     (Bojuka Bog "exile target player's graveyard", Disciple of Perdition,
+    #     Angel of Finality) or establishes the exile-instead-of-graveyard
+    #     replacement (Leyline of the Void). DOER -> opponent_exile_makers.
+    #   • opponent_exile_matters — REFERENCES cards opponents own standing in exile
+    #     so you can play them / scale off the count (Umbris-style). Payoff -> stays.
+    (
+        "opponent_exile_makers",
+        re.compile(
+            r"exile (?:target player's|target opponent's|each opponent's"
+            r"|that player's) graveyard"
+            r"|if a card would be put into an opponent's graveyard",
+            re.IGNORECASE,
+        ),
+        "opponents",
+    ),
     (
         "opponent_exile_matters",
         re.compile(
             r"cards? (?:your opponents own|an opponent owns)[^.]*in exile"
-            r"|for each card your opponents own in exile|opponents own in exile"
-            r"|exile (?:target player's|target opponent's|each opponent's"
-            r"|that player's) graveyard"
-            r"|if a card would be put into an opponent's graveyard",
+            r"|for each card your opponents own in exile|opponents own in exile",
             re.IGNORECASE,
         ),
         "opponents",
@@ -3043,6 +3058,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             "kill_engine",
             "removal",
             "exile_removal",
+            "opponent_exile_makers",
             "opponent_exile_matters",
             "tap_down",
             "scaling_pump",

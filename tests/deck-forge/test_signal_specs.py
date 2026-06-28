@@ -1165,9 +1165,11 @@ def test_outlaw_matters_serves_token_makers_and_recursion():
 
 def test_opponent_exile_serves_the_exile_enablers():
     # Umbris grows per "card your opponents own in exile", so it wants the ENABLERS that
-    # exile opponents' cards (Leyline of the Void, Ashiok, Bojuka Bog) — not just other
-    # "opponents own in exile" counters. Real oracle.
-    sig = _sig("opponent_exile_matters", "opponents")
+    # exile opponents' cards (Leyline of the Void, Ashiok, Bojuka Bog). ADR-0034 split
+    # those graveyard-hate DOERS into opponent_exile_makers (the maker serve spec); the
+    # opponent_exile_matters payoff lane keeps the "opponents own in exile" reference
+    # counters. The enablers serve from the makers spec. Real oracle.
+    sig = _sig("opponent_exile_makers", "opponents")
     leyline_of_the_void = {
         "name": "Leyline of the Void",
         "type_line": "Enchantment",

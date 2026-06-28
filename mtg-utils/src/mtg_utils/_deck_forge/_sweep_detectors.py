@@ -3071,6 +3071,10 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Mark opponents",
         "bounty/stun counters on opponents plus payoffs",
     ),
+    "opponent_exile_makers": (
+        "Graveyard hate",
+        "exile opponents' graveyards (graveyard-hate doers)",
+    ),
     "opponent_exile_matters": (
         "Opponents' exile",
         "exile opponents' cards and play them",

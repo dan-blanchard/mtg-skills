@@ -268,7 +268,7 @@ _REAL_CASES: dict[str, str] = {
     "opponent_counter_grant": "Mathas, Fiend Seeker",
     "opponent_discard": "Mind Rot",
     "opponent_draw_matters": "Underworld Dreams",
-    "opponent_exile_matters": "Bojuka Bog",
+    "opponent_exile_makers": "Bojuka Bog",
     "opponent_search_matters": "Ob Nixilis, Unshackled",
     "outlaw_matters": "Laughing Jasper Flint",
     "partner_background": "Astarion, the Decadent",
@@ -432,6 +432,22 @@ _SYNTHETIC_CASES: dict[str, tuple[dict, Card]] = {
                 condition=Condition(kind="hascounters", counter_kind="ki"),
             )
         ),
+    ),
+    # opponent_exile_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm
+    # (the graveyard-hate exile doers — Bojuka Bog, Leyline of the Void) was
+    # relabeled to opponent_exile_makers (a real case). The payoff arm — a card
+    # that REFERENCES cards opponents own standing in exile so you can play /
+    # scale off them (Umbris-style) — keeps opponent_exile_matters but has no
+    # snapshot-resident real card (the reference-alt cards aren't in the
+    # snapshot). Minimal fixture proving the reference arm still serves the lane
+    # via the IR kept-detector mirror. (Mirrors the ki_counter_matters split.)
+    "opponent_exile_matters": (
+        {
+            "name": "Opponents'-Exile Payoff-like",
+            "type_line": "Enchantment",
+            "oracle_text": "You may play cards your opponents own in exile.",
+        },
+        _ir(),
     ),
     "damage_reflect": (
         {

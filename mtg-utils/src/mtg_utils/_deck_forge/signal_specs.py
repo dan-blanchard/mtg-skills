@@ -4616,6 +4616,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"(?:their|his or her|that player's) hand"
         r"|reveals?[^.]*until you say stop",
     ),
+    # _matters sweep (ADR-0034): the opponent_exile lane SPLIT by role. ADR-0034 lets
+    # the avenue still serve makers + payoffs together; only MEMBERSHIP splits.
+    ("opponent_exile_makers", "opponents"): _spec(
+        *SWEEP_LABELS["opponent_exile_makers"],
+        {
+            "oracle": (
+                r"exile (?:target player's|target opponent's|each opponent's"
+                r"|that player's) graveyard"
+                r"|if a card would be put into an opponent's graveyard"
+            )
+        },
+        r"exile (?:target player's|target opponent's|each opponent's"
+        r"|that player's) graveyard"
+        r"|if a card would be put into an opponent's graveyard",
+    ),
     ("opponent_exile_matters", "opponents"): _spec(
         *SWEEP_LABELS["opponent_exile_matters"],
         {
@@ -4623,16 +4638,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
                 r"cards? (?:your opponents own|an opponent owns)[^.]*in exile"
                 r"|for each card your opponents own in exile"
                 r"|opponents own in exile"
-                r"|exile (?:target player's|target opponent's|each opponent's"
-                r"|that player's) graveyard"
-                r"|if a card would be put into an opponent's graveyard"
             )
         },
         r"cards? (?:your opponents own|an opponent owns)[^.]*in exile"
-        r"|for each card your opponents own in exile|opponents own in exile"
-        r"|exile (?:target player's|target opponent's|each opponent's"
-        r"|that player's) graveyard"
-        r"|if a card would be put into an opponent's graveyard",
+        r"|for each card your opponents own in exile|opponents own in exile",
     ),
     ("villainous_choice", "you"): _spec(
         "Villainous choice",
