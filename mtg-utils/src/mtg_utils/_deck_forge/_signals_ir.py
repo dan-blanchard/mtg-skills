@@ -217,7 +217,14 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # mirror, not this doer. The `tutor` EFFECT still opens graveyard_matters via a
     # separate from:graveyard arm. CR 701.23 / 401.
     # Batch P — phase-native mechanic effects.
-    "monarch": ("monarch_matters", "you"),
+    # ADR-0034 _matters sweep: the cat=='monarch' doer arm is a MAKER (the card
+    # PERFORMS/grants the monarch — "you become the monarch", Azure Fleet Admiral
+    # ETB; project._narrow_mechanic_refs appends the precise `monarch` marker
+    # effect for the grant). The ismonarch-condition PAYOFF ("if you're the
+    # monarch …", Throne Warden) is lifted into monarch_matters in
+    # extract_signals_ir. Set-equal: members(monarch_makers) union
+    # members(monarch_matters) == the old monarch_matters membership.
+    "monarch": ("monarch_makers", "you"),
     # ADR-0034 _matters sweep: the cat=='suspect' doer arm is a MAKER (the card
     # PERFORMS/grants suspect — Nelly Borca "suspect target creature", Case of the
     # Stashed Skeleton "…and suspect it"). The generic doer arm reroutes the pure
@@ -3202,6 +3209,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             "creature_cast_trigger",
             signal_keys.TYPED_SPELLCAST,
             # Batch P (phase-native mechanic effects):
+            # _matters sweep (ADR-0034): monarch split. The cat=='monarch' MAKER
+            # arm (the grant — "you become the monarch") emits monarch_makers via
+            # _DOER_EFFECT_KEYS; the ismonarch-condition PAYOFF keeps monarch_matters.
+            "monarch_makers",
             "monarch_matters",
             "suspect_makers",
             "suspect_matters",

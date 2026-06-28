@@ -490,10 +490,12 @@ def test_blood_matters_is_ir_served():
 
 
 def test_monarch_matters_is_ir_served():
-    # ADR-0027: monarch_matters is IR-served — from phase's `monarch` effect
-    # category (a "you become the monarch" grant narrowed into the `monarch` marker)
-    # AND the Condition(ismonarch) gate. The grant shape is a SYNTHETIC logic probe (no
-    # real card needed); the gated shape is proven on real Throne Warden below.
+    # ADR-0027: monarch is IR-served — from phase's `monarch` effect category (a
+    # "you become the monarch" grant narrowed into the `monarch` marker) AND the
+    # Condition(ismonarch) gate. ADR-0034 _matters sweep: the grant is the MAKER arm
+    # (monarch_makers); the ismonarch-gated PAYOFF keeps monarch_matters. The grant
+    # shape is a SYNTHETIC logic probe (no real card needed); the gated shape is
+    # proven on real Throne Warden below.
     grant = {"name": "X", "oracle_text": "When this enters, you become the monarch."}
     grant_ir = Card(
         oracle_id="x",
@@ -517,11 +519,12 @@ def test_monarch_matters_is_ir_served():
         ),
     )
     hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(grant, grant_ir)}
-    assert ("monarch_matters", "you") in hybrid
-    assert ("monarch_matters", "you") not in _ks(grant)
+    assert ("monarch_makers", "you") in hybrid
+    assert ("monarch_makers", "you") not in _ks(grant)
 
     # Real Throne Warden (snapshot): the condition-gated payoff ("if you're the monarch,
-    # …") opens monarch via the Condition(ismonarch) gate on the IR path, not regex.
+    # …") opens monarch_matters via the Condition(ismonarch) gate on the IR path, not
+    # regex.
     assert ("monarch_matters", "you") in _real("Throne Warden")
     assert ("monarch_matters", "you") not in _ks(test_card("Throne Warden"))
 

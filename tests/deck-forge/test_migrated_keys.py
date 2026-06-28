@@ -259,6 +259,7 @@ _REAL_CASES: dict[str, str] = {
     "minus_counters_matter": "Crumbling Ashes",
     "miracle_grant": "Lorehold, the Historian",
     "modified_matters": "Chishiro, the Shattered Blade",
+    "monarch_makers": "Azure Fleet Admiral",
     "monarch_matters": "Throne Warden",
     "multicolor_matters": "Hero of Precinct One",
     "has_mutate": "Pollywog Symbiote",

@@ -111,6 +111,11 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # source — A-B==0 (commander-legal, floor lanes disabled). soulbond also
         # reuses the Scryfall keyword; saddle also reuses the saddle keyword. Their
         # oracle-regex producers are deleted. See ADR-0027.
+        # _matters sweep (ADR-0034): monarch split. The MAKER arm (the `monarch`
+        # marker effect grant — "you become the monarch") emits monarch_makers;
+        # the ismonarch-condition PAYOFF keeps monarch_matters. Both ride the same
+        # project._narrow_mechanic_refs marker structure. Set-equal split.
+        "monarch_makers",
         "monarch_matters",
         "saddle_matters",
         "has_soulbond",

@@ -7252,6 +7252,76 @@
     "type_line": "Legendary Creature — Human Noble"
    }
   },
+  "Azure Fleet Admiral": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "monarch",
+          "raw": "When ~ enters, you become the monarch."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       }
+      ],
+      "n": "Azure Fleet Admiral",
+      "tl": "Creature — Human Pirate"
+     }
+    ],
+    "n": "Azure Fleet Admiral",
+    "oid": "b39f228f-d146-49c6-bab4-5304e0f742d8"
+   },
+   "scryfall": {
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}",
+    "name": "Azure Fleet Admiral",
+    "oracle_id": "b39f228f-d146-49c6-bab4-5304e0f742d8",
+    "oracle_text": "When this creature enters, you become the monarch.\nThis creature can't be blocked by creatures the monarch controls.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Human Pirate"
+   }
+  },
   "Azusa, Lost but Seeking": {
    "ir": {
     "faces": [

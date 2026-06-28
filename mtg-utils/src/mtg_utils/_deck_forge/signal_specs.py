@@ -3685,9 +3685,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\b(?:scry|surveil)\b",
     ),
     # ── Named-mechanic long tail ────────────────────────────────────────────────
+    # _matters sweep (ADR-0034): monarch split. The MAKER side — cards that GRANT
+    # the monarch ("you become the monarch", CR 725). The avenue it opens is the
+    # full monarch package (the grant + the evasion/combat-damage payoffs that
+    # defend it), so the search stays broad; only the lane KEY encodes the doer role.
+    ("monarch_makers", "you"): _spec(
+        "Monarch (become)",
+        "become the monarch — plus the evasion and combat triggers that defend it",
+        {"oracle": r"\bthe monarch\b|becomes? the monarch"},
+        r"\bthe monarch\b",
+        extras=(_PILLOWFORT_EXTRA,),
+    ),
     ("monarch_matters", "you"): _spec(
         "Monarch",
-        "become and defend the monarch — evasion and combat-damage triggers",
+        "defend the monarch — evasion and combat-damage triggers",
         {"oracle": r"\bthe monarch\b|becomes? the monarch"},
         r"\bthe monarch\b",
         extras=(_PILLOWFORT_EXTRA,),
