@@ -383,9 +383,12 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                'myriad' (granters) + a copy-exception conferred marker
         #                (Muddle). The "\bmyriad\b" floor over-fired on the "The Myriad
         #                Pools" card NAME — the IR correctly drops it.
-        #   convoke_matters ← `convoke` keyword (makers) + cast_with_keyword counter_
-        #                kind='convoke' granters + grant_spell_ability/cast-trigger
-        #                convoke-raw payoff markers.
+        #   convoke_makers / convoke_matters (split — _matters sweep, ADR-0034) ←
+        #                `convoke` keyword (DOER makers) + cast_with_keyword counter_
+        #                kind='convoke' granters + grant_spell_ability convoke-raw
+        #                enablers ALL emit convoke_makers; only the keyword-LESS
+        #                cast-trigger payoff ("whenever you cast a spell that has
+        #                convoke") keeps convoke_matters. Both keys stay migrated.
         #   tapped_matters ← a Tapped(controller='you') Filter predicate read in the
         #                effect subject / amount.subject COUNT / condition.subject
         #                threshold slots, plus a `_TAPPED_GRANT` marker (Masako's
@@ -399,6 +402,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                for "life total becomes <X>" + "double … life total". The IR
         #                drops Heartless Hidetsugu (a damage effect), the over-fire.
         "myriad_grant",
+        "convoke_makers",
         "convoke_matters",
         "tapped_matters",
         "typed_anthem_multi",

@@ -4406,6 +4406,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bconvoke\b"},
         r"\bconvoke\b",
     ),
+    # _matters sweep (ADR-0034): the DOER/ENABLER side of the convoke split (the
+    # `convoke` keyword bearers + the "<type> spells you cast have convoke" granters).
+    # Same serve pool as the payoff — both want wide, cheap creatures to tap.
+    ("convoke_makers", "you"): _spec(
+        *SWEEP_LABELS["convoke_makers"],
+        {"oracle": r"\bconvoke\b"},
+        r"\bconvoke\b",
+    ),
     # ADR-0027 t2b4a-B: win_lose_game / alt_cost_keyword / partner_background each had
     # their oracle-regex SWEEP_DETECTORS row deleted (detection moved to the Card IR —
     # win/lose Effect categories; the alt-cost & partner-family Scryfall keyword

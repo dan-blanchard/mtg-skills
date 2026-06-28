@@ -636,7 +636,11 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # native connive EFFECT already covers self-conniving cards via _DOER_EFFECT_KEYS;
     # Scryfall tags the granter with the keyword too, so this lifts it cleanly.
     "connive": (("connive_makers", "you"),),
-    "convoke": (("convoke_matters", "you"),),
+    # _matters sweep (ADR-0034): the printed `convoke` keyword is a DOER (the card
+    # taps your creatures to help cast itself — Ancient Imperiosaur, Angel of
+    # Salvation), so it rides the MAKER key. The keyword-LESS payoff trigger
+    # ("whenever you cast a spell that has convoke") stays convoke_matters.
+    "convoke": (("convoke_makers", "you"),),
     # Devour (CR 702.82) enters with +1/+1 counters per sacrificed creature — a
     # definitional +1/+1 source, so the printed keyword opens plus_one_matters too
     # (mirrors the `devour` EFFECT-category fan-out; covers Preyseizer Dragon, whose
@@ -3878,6 +3882,12 @@ IR_SLICE_KEYS: frozenset[str] = (
             # buff). NOT in _IR_FLOOR_LANES (no floor dep — the arm fires structurally).
             # CR 613.1f / 122.1b.
             "ability_strip_payoff",
+            # _matters sweep (ADR-0034) — convoke_matters PAYOFF key. After the maker/
+            # granter arms were relabeled to convoke_makers (which rides _IR_KEYWORD_
+            # KEYS via _IR_KEYWORD_MAP['convoke']), the surviving payoff trigger
+            # ("whenever you cast a spell that has convoke") is the ONLY emitter of
+            # convoke_matters, so the slice must carry the key explicitly.
+            "convoke_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4827,12 +4837,14 @@ _SAC_OUTLET_RAW = re.compile(
     re.IGNORECASE,
 )
 
-# convoke_matters (ADR-0027): the keyword-LESS convoke GRANTERS + PAYOFFS phase keeps
-# only in a carrier raw — Wand of the Worldsoul's grant_spell_ability ("the next spell
-# you cast this turn has convoke", counter_kind dropped) and the "spell that has
-# convoke" payoff trigger (Saint Traft, Joyful Stormsculptor). The structured static
-# granters ("<type> spells you cast have convoke") carry counter_kind='convoke' and
-# need no raw scan. The card's OWN printed convoke rides the keyword array.
+# convoke split (ADR-0034): the keyword-LESS convoke GRANTERS (→ convoke_makers) +
+# PAYOFFS (→ convoke_matters) phase keeps only in a carrier raw — Wand of the
+# Worldsoul's grant_spell_ability ("the next spell you cast this turn has convoke",
+# counter_kind dropped) is an ENABLER → convoke_makers, and the "spell that has
+# convoke" payoff trigger (Saint Traft, Joyful Stormsculptor) → convoke_matters. The
+# structured static granters ("<type> spells you cast have convoke") carry
+# counter_kind='convoke' (→ convoke_makers) and need no raw scan. The card's OWN
+# printed convoke rides the keyword array (→ convoke_makers).
 _CONVOKE_RAW = re.compile(r"\bconvoke\b", re.IGNORECASE)
 
 # power_tap_engine (ADR-0027): a {T}-activated ability whose output SCALES with a
@@ -9750,15 +9762,17 @@ def extract_signals_ir(
             if cat == "cast_with_keyword" and e.counter_kind == "flash":
                 add("flash_grant", "you", "", e.raw)
                 add("flash_makers", "you", "", e.raw)
-            # ADR-0027 — convoke_matters GRANTER: "<type> spells you cast have convoke"
-            # (CR 702.51, Fallaji Wayfarer, Chief Engineer) carries counter_kind=
-            # 'convoke' on the cast_with_keyword effect — a pure structured read. The
-            # activated "next spell … has convoke" granter (Wand of the Worldsoul)
-            # lands in grant_spell_ability with the keyword only in raw.
+            # _matters sweep (ADR-0034) — convoke_makers GRANTER/ENABLER: "<type>
+            # spells you cast have convoke" (CR 702.51, Fallaji Wayfarer, Chief
+            # Engineer) carries counter_kind='convoke' on the cast_with_keyword effect
+            # — a pure structured read. The activated "next spell … has convoke"
+            # granter (Wand of the Worldsoul) lands in grant_spell_ability with the
+            # keyword only in raw. Both ENABLE convoke on your spells = doer/enabler →
+            # convoke_makers (the keyword-LESS payoff trigger stays convoke_matters).
             if cat == "cast_with_keyword" and e.counter_kind == "convoke":
-                add("convoke_matters", "you", "", e.raw)
+                add("convoke_makers", "you", "", e.raw)
             if cat == "grant_spell_ability" and _CONVOKE_RAW.search(e.raw or ""):
-                add("convoke_matters", "you", "", e.raw)
+                add("convoke_makers", "you", "", e.raw)
             # spell_keyword_grant (ADR-0027 tranche2-B-3) — the UMBRELLA lane: a card
             # that grants ANY keyword to the spells you cast ("spells you cast have
             # convoke/cascade/improvise/delve/demonstrate/flash", a casualty granter
@@ -10625,11 +10639,13 @@ def extract_signals_ir(
                         add("spellcast_matters", "you", "", "")
                 if "Creature" in tsubs:
                     add("creature_cast_trigger", "any", "", "")
-                # ADR-0027 — convoke_matters PAYOFF: "Whenever you cast a spell that
-                # has convoke, …" (Saint Traft, Joyful Stormsculptor). The "that has
-                # convoke" qualifier survives only in the consequence effect raw (phase
-                # tags a bare cast_spell trigger), so anchor on it rather than firing on
-                # every spellcast trigger.
+                # _matters sweep (ADR-0034) — convoke_matters PAYOFF: "Whenever you
+                # cast a spell that has convoke, …" (Saint Traft, Joyful Stormsculptor).
+                # A reward that TRIGGERS off the mechanic, not a doer — this is the lone
+                # arm that keeps convoke_matters (the makers/granters → convoke_makers).
+                # The "that has convoke" qualifier survives only in the consequence
+                # effect raw (phase tags a bare cast_spell trigger), so anchor on it
+                # rather than firing on every spellcast trigger.
                 if any(_CONVOKE_RAW.search(e.raw or "") for e in ab.effects):
                     add("convoke_matters", "you", "", "")
                 # ADR-0027 (q2-D3) — noncreature_cast_punish OPPONENT-punisher half: a

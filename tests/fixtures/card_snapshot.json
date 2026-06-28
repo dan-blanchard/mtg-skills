@@ -32531,6 +32531,125 @@
     "type_line": "Legendary Creature — Human Spellshaper"
    }
   },
+  "Joyful Stormsculptor": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "raw": "When ~ enters, create two 1/1 blue and red Elemental creature tokens.",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Elemental"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "damage",
+          "ck": "all",
+          "raw": "Whenever you cast a spell that has convoke, ~ deals 1 damage to each opponent and each battle they protect.",
+          "sc": "opp",
+          "sub": {
+           "p": [
+            "ProtectorMatches"
+           ],
+           "t": [
+            "Battle"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "cast_spell"
+        }
+       }
+      ],
+      "n": "Joyful Stormsculptor",
+      "tl": "Creature — Human Shaman"
+     }
+    ],
+    "n": "Joyful Stormsculptor",
+    "oid": "39867856-c1f3-442a-abe9-53f8f73777d0"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "28a7a9b0-d823-4b34-829f-ade81fc141e0",
+      "name": "Elemental",
+      "oracle_id": "e1cab9f5-a094-4df4-9094-71bebf91956f",
+      "type_line": "Token Creature — Elemental"
+     }
+    ],
+    "cmc": 5.0,
+    "color_identity": [
+     "R",
+     "U"
+    ],
+    "colors": [
+     "R",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}{R}",
+    "name": "Joyful Stormsculptor",
+    "oracle_id": "39867856-c1f3-442a-abe9-53f8f73777d0",
+    "oracle_text": "When this creature enters, create two 1/1 blue and red Elemental creature tokens.\nWhenever you cast a spell that has convoke, this creature deals 1 damage to each opponent and each battle they protect.",
+    "power": "2",
+    "toughness": "3",
+    "type_line": "Creature — Human Shaman"
+   }
+  },
   "Junji, the Midnight Sky": {
    "ir": {
     "faces": [

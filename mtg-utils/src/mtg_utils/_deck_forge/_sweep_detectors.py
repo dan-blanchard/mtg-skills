@@ -2262,13 +2262,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # mirror (the exact regex — the granting DIRECTION, excluding intrinsic-miracle
     # makers). This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the human label,
     # and the serve is hand-registered in signal_specs.py reusing the regex.
-    # ADR-0027: convoke_matters migrated to the Card IR — the MAKERS ride the Scryfall
-    # `convoke` keyword (_IR_KEYWORD_MAP); the keyword-less GRANTERS + PAYOFFS read
-    # structurally: cast_with_keyword counter_kind='convoke' (static "<type> spells you
-    # cast have convoke" — Fallaji Wayfarer, Chief Engineer), grant_spell_ability with
-    # convoke in raw (Wand of the Worldsoul), and the "spell that has convoke" cast
-    # trigger payoff (Saint Traft, Joyful Stormsculptor). Removed from _IR_FLOOR_LANES;
-    # serve hand-registered in signal_specs reusing the deleted regex.
+    # ADR-0027/0034: convoke migrated to the Card IR and SPLIT by role — the MAKERS
+    # ride the Scryfall `convoke` keyword (_IR_KEYWORD_MAP → convoke_makers); the
+    # keyword-less GRANTERS read structurally and also emit convoke_makers:
+    # cast_with_keyword counter_kind='convoke' (static "<type> spells you cast have
+    # convoke" — Fallaji Wayfarer, Chief Engineer), grant_spell_ability with convoke
+    # in raw (Wand of the Worldsoul). Only the "spell that has convoke" cast trigger
+    # PAYOFF (Saint Traft, Joyful Stormsculptor) keeps convoke_matters. Removed from
+    # _IR_FLOOR_LANES; both serves hand-registered in signal_specs reusing the regex.
     # ADR-0027: explore_matters migrated to the Card IR — served structurally from
     # the Scryfall `explore` keyword (_IR_KEYWORD_MAP, the authoritative path: 53 ⊇
     # the 44 regex hits, covering Map-token grants / granted-ability / replacement-
@@ -2901,6 +2902,10 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "ways to satisfy the commander's protection condition",
     ),
     "conjure_makers": ("Conjure", "conjure effects (Alchemy)"),
+    "convoke_makers": (
+        "Convoke",
+        "wide, cheap creatures to convoke out your convoke spells",
+    ),
     "convoke_matters": ("Convoke", "wide, cheap creatures to convoke out big spells"),
     "count_anthem": ("Count anthem", "go-wide creatures to scale the count-based pump"),
     "counter_distribute": (
