@@ -4756,11 +4756,24 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_types=("curse",),
     ),
-    ("dice_matters", "you"): _spec(
+    # _matters sweep (ADR-0034): dice split. dice_makers = the ENABLER/doer side (cards
+    # that roll dice — "roll a d20", "roll a six-sided die"); dice_matters below = the
+    # PAYOFF side (cards rewarded by / triggering off a roll). The avenue serves both
+    # together (enablers to roll + payoffs that reward rolling).
+    ("dice_makers", "you"): _spec(
         "Dice rolling",
-        "dice-rolling enablers and roll-result payoffs",
+        "dice-rolling enablers plus roll-result payoffs",
         {"oracle": r"roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)|\bd20\b"},
         r"roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)|whenever you roll",
+    ),
+    ("dice_matters", "you"): _spec(
+        "Dice payoffs",
+        "cards rewarded by rolling dice, plus the rollers to feed them",
+        {
+            "oracle": r"whenever you roll"
+            r"|roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)"
+        },
+        r"whenever you roll|roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)",
     ),
     # A crime (CR 700.13) targets opponents / their permanents / spells they control —
     # i.e. targeted removal + explicit-opponent-target. The SEARCH's bare

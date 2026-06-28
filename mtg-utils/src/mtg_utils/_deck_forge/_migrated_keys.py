@@ -594,6 +594,12 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "mass_death_payoff",
         "starting_life_matters",
         "cycling_matters",
+        # _matters sweep (ADR-0034): dice split. The cat=='roll_die' MAKER arm
+        # (native phase rollers + the _DICE_REF spell/cost roll marker — the card
+        # PERFORMS the roll) emits dice_makers; the "whenever you roll …" PAYOFF
+        # marker (the _narrow_trigger_other_refs _DICE_TRIG re-route) keeps
+        # dice_matters. Gate-verified set-equal: makers ∪ matters == old dice_matters.
+        "dice_makers",
         "dice_matters",
         # ADR-0027 shield_counter_makers — migrated to the Card IR. UNION shape.
         # STRUCTURAL ARM: phase tags counter_kind='shield' on a place_counter (a real

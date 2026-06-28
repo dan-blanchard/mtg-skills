@@ -144,6 +144,7 @@ _REAL_CASES: dict[str, str] = {
     "destroy_legendary": "Hero's Demise",
     "devotion_matters": "Karametra's Acolyte",
     "has_devour": "Mycoloth",
+    "dice_makers": "Captain Rex Nebula",
     "dice_matters": "Brazen Dwarf",
     "dies_recursion": "Bronzehide Lion",
     "dig_until": "Hermit Druid",

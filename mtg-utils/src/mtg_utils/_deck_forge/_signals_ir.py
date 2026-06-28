@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 
+from mtg_utils._card_ir.project import _DICE_TRIG
 from mtg_utils._card_ir.supplement import (
     _EXILE_REMOVAL_FROM_ZONE,
     _EXILE_REMOVAL_RETURN,
@@ -382,7 +383,14 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # Connections, the volvers). The structural paylife COST rides "paylife" in
     # cost_parts below; this is the misparse/conferred-ability residual (CR 118).
     "life_payment": ("life_payment_insurance", "you"),
-    "roll_die": ("dice_matters", "you"),
+    # _matters sweep (ADR-0034): dice split. The cat=='roll_die' MAKER arm (native
+    # phase roll_die rollers — Captain Rex Nebula, Velukan Dragon's "roll a six-sided
+    # die" — plus the project._DICE_REF spell/cost roll marker — the card PERFORMS the
+    # roll) emits dice_makers; the PAYOFF arm (project._narrow_trigger_other_refs's
+    # cat=='roll_die' marker from a "whenever you roll …" event='other' trigger —
+    # Brazen Dwarf) is re-routed to dice_matters by a raw discriminator in the doer
+    # loop (the _DICE_TRIG shape). CR 706.
+    "roll_die": ("dice_makers", "you"),
     # ADR-0027 dig library-owner scope (SIDECAR v27): dig_until is NOT a fixed-scope
     # doer here — the `dig_until` EFFECT category now carries the digger's library owner
     # as its scope (project._dig_player_scope: own-library → 'you', opponent-library
@@ -395,8 +403,9 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # oracle text or in an event='other' carrier raw is appended as a precise marker
     # effect → its lane. starting_life ← "starting life total" compare (CR 103.4);
     # mass_death ← "creatures that died this turn" count operand (CR 700.4); cycling ← a
-    # "cycle or discard" payoff trigger (CR 702.29). roll_die above already maps the
-    # dice marker (same category as phase's native roll_die effect).
+    # "cycle or discard" payoff trigger (CR 702.29). roll_die above maps the dice
+    # MAKER (dice_makers); the dice PAYOFF marker is re-routed to dice_matters in the
+    # doer loop (same category as phase's native roll_die effect).
     "starting_life": ("starting_life_matters", "you"),
     "mass_death": ("mass_death_payoff", "you"),
     "cycling_payoff": ("cycling_matters", "you"),
@@ -3292,6 +3301,12 @@ IR_SLICE_KEYS: frozenset[str] = (
             # listed here explicitly (the suspect_matters / earthbend_matters
             # in-loop precedent).
             "explore_matters",
+            # _matters sweep (ADR-0034): dice split — the cat=='roll_die' MAKER arm
+            # emits dice_makers (auto-enters via _DOER_EFFECT_KEYS.values()); the
+            # "whenever you roll …" PAYOFF marker is re-routed to dice_matters in the
+            # doer loop (raw matches _DICE_TRIG), so dice_matters is pinned here
+            # explicitly (the explore_matters / experience_matters in-loop precedent).
+            "dice_matters",
             # _matters sweep (ADR-0034): foretell split — the printed-keyword +
             # grant/enabler MAKER arms emit foretell_makers (auto-derived from
             # _IR_KEYWORD_MAP / _DOER_EFFECT_KEYS); the Foretold-predicate PAYOFF
@@ -7897,6 +7912,17 @@ def extract_signals_ir(
                     rraw = (e.raw or "").lower()
                     if "whenever the ring tempts you" in rraw or "ring-bearer" in rraw:
                         key = "ring_matters"
+                # _matters sweep (ADR-0034): dice split. The cat=='roll_die' arm
+                # conflates the MAKER (native phase rollers + project._DICE_REF
+                # spell/cost roll marker — the card PERFORMS the roll) and the PAYOFF
+                # (project._narrow_trigger_other_refs synthesizes a cat=='roll_die'
+                # marker from a "whenever you roll …" event='other' trigger — Brazen
+                # Dwarf). Route the payoff marker (raw matches the _DICE_TRIG roll-
+                # trigger shape) to dice_matters; native rollers + spell/cost rolls
+                # ("roll a six-sided die" — no _DICE_TRIG match) stay dice_makers.
+                # CR 706.
+                if e.category == "roll_die" and _DICE_TRIG.search(e.raw or ""):
+                    key = "dice_matters"
                 add(key, fixed_scope or _ir_scope(e.scope), "", e.raw)
             # ADR-0027 #24 KW-WAVE-1 — bending cross-bend PAYOFF arm. phase emits a
             # `bending` Effect (no direction field) for cards that DO/reference a bend;
