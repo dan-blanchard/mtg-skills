@@ -335,7 +335,12 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # so it emits experience_makers; the op="experience" count-operand SCALER arm
     # (extract_signals_ir, "for each experience counter you have") keeps the payoff
     # key experience_matters.
-    "poison": ("poison_matters", "opponents"),
+    # _matters sweep (ADR-0034): the GivePlayerCounter:poison giver is the MAKER
+    # arm (the card PLACES poison counters on an opponent — a kill clock), so it
+    # emits poison_makers; the "poison counter" count/threshold REFERENCE PAYOFF
+    # (Corrupted, "for each poison counter", proliferate-to-finish) keeps the
+    # payoff key poison_matters (the _IR_KEPT_DETECTORS word mirror, split below).
+    "poison": ("poison_makers", "opponents"),
     "experience_counter": ("experience_makers", "you"),
     "rad_counter": ("rad_counter_makers", "opponents"),
     "phasing": ("phasing_makers", "you"),
@@ -884,9 +889,13 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "choose a background": (("partner_background", "you"),),
     "doctor's companion": (("partner_background", "you"),),
     "friends": (("partner_background", "you"),),
-    "infect": (("poison_matters", "opponents"),),
-    "toxic": (("poison_matters", "opponents"),),
-    "poisonous": (("poison_matters", "opponents"),),
+    # _matters sweep (ADR-0034): the infect/toxic/poisonous Scryfall-keyword
+    # BEARERS (a creature WITH the keyword deals poison in combat) are MAKERS, so
+    # they emit poison_makers; the "poison counter" reference PAYOFF keeps
+    # poison_matters (the word mirror, split in _IR_KEPT_DETECTORS).
+    "infect": (("poison_makers", "opponents"),),
+    "toxic": (("poison_makers", "opponents"),),
+    "poisonous": (("poison_makers", "opponents"),),
     # Saddle (CR 702.171) — moved here from _DIRECT_KEYWORD_SIGNALS for the ADR-0027
     # migration so the keyword detection lives on the IR-only path (the regex
     # `extract_signals` must no longer emit a migrated key); the `saddle` effect
@@ -2212,10 +2221,12 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     #     supplement reading the records oracle can't recover "Ruin deals damage …
     #     equal to the number of lands you control"; deleting this mirror would
     #     silently drop a real member. Deferred to a phase aftermath-face fix.
-    #   • poison_matters ← the infect/toxic/poisonous Scryfall keywords (the bearers);
-    #     the mirror adds the GRANTERS ("Enchanted creature has infect", "gains infect",
-    #     "All Sliver creatures have poisonous 1") + "poison counter" / "has toxic"
-    #     references phase folds into a grant carrier's raw (CR 122 / 702.90 Infect).
+    #   • poison split (ADR-0034): poison_makers ← the infect/toxic/poisonous Scryfall
+    #     keywords (the bearers) UNION the granter word mirror ("Enchanted creature has
+    #     infect", "gains infect", "All Sliver creatures have poisonous 1", "has toxic")
+    #     that grant the poison-MAKING keyword. poison_matters ← the "poison counter"
+    #     count/threshold REFERENCE payoff (Corrupted, proliferate-to-finish) phase
+    #     folds into a carrier's raw (CR 122 / 702.90 Infect).
     #   • suspend_matters ← the Scryfall `suspend` keyword (the bearers); the mirror
     #     adds the keyword-LESS suspend grants ("It gains suspend", As Foretold) + the
     #     whole time-counter superstructure (time travel CR 701.56, Vanishing 702.63,
@@ -2246,11 +2257,24 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # _matters sweep (ADR-0034): the poison word mirror is PARTITIONED by role. The
+    # MAKER sub-regex (the keyword GRANTERS — "has/gains infect", "poisonous N", "has
+    # toxic" — that make a creature DEAL poison) emits poison_makers, joining the
+    # infect/toxic/poisonous keyword bearers (_IR_KEYWORD_MAP) and the
+    # GivePlayerCounter:poison giver (_DOER_EFFECT_KEYS). The PAYOFF sub-regex (a
+    # "poison counter" count/threshold REFERENCE — Corrupted, "for each poison
+    # counter", proliferate-to-finish) keeps poison_matters. Their union == the old
+    # single pattern, so no member is lost. Gate-verified set-equal over the
+    # commander-legal corpus: members(poison_makers) union members(poison_matters) ==
+    # the old 168-card poison_matters population. CR 122 / 702.90 (Infect).
+    (
+        "poison_makers",
+        re.compile(r"\bpoisonous\b|\btoxic\b|\binfect\b", re.IGNORECASE),
+        "opponents",
+    ),
     (
         "poison_matters",
-        re.compile(
-            r"poison counters?|\bpoisonous\b|\btoxic\b|\binfect\b", re.IGNORECASE
-        ),
+        re.compile(r"poison counters?", re.IGNORECASE),
         "opponents",
     ),
     (
@@ -2835,10 +2859,11 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # granted-ability maker recovery), so it fires from the STRUCTURAL IR alone
         # and no longer needs the floor mirror. Its _HAND_FLOOR detector is deleted.
         # counter-type synergy (distinct from the +1/+1 plus_one_matters doer lane)
-        # poison_matters removed — ADR-0027 migrated it to the Card IR (the
-        # infect/toxic/poisonous Scryfall keywords + a kept word mirror for the
-        # GRANTERS / "poison counter" / "has toxic" refs phase folds into a grant
-        # carrier's raw). Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR gone.
+        # poison_makers / poison_matters removed — ADR-0027 migrated poison to the Card
+        # IR (the infect/toxic/poisonous Scryfall keywords + a kept word mirror, split
+        # by role under ADR-0034: the GRANTERS / "has toxic" -> poison_makers, the
+        # "poison counter" refs -> poison_matters). Moved floor->kept (floor-mirror-dep
+        # -> 0); _HAND_FLOOR gone.
         # oil_counter_matters removed — ADR-0027 migrated it to the Card IR (phase's
         # place_counter(counter_kind='oil') placer + an `_OIL_REF` payoff marker for the
         # count-operand/condition phase drops). Its SWEEP_DETECTORS row is deleted.
@@ -3191,6 +3216,16 @@ IR_SLICE_KEYS: frozenset[str] = (
             "oil_counter_matters",
             "shield_counter_makers",
             "rad_counter_makers",
+            # _matters sweep (ADR-0034): poison split. The MAKER arm (poison_makers)
+            # auto-enters via _DOER_EFFECT_KEYS.values() + _IR_KEYWORD_KEYS (the
+            # GivePlayerCounter:poison giver + the infect/toxic/poisonous keyword
+            # bearers); its sole remaining producer that does NOT ride those maps is
+            # the granter half of the _IR_KEPT_DETECTORS word mirror. The PAYOFF arm
+            # (poison_matters) now fires ONLY from the "poison counter" half of that
+            # word mirror — no longer via the doer/keyword maps — so its slice
+            # membership is pinned here (the experience_matters precedent).
+            "poison_makers",
+            "poison_matters",
             # _matters sweep (ADR-0034): the experience MAKER arm
             # (experience_makers) auto-enters via _DOER_EFFECT_KEYS.values();
             # the experience PAYOFF scaler arm (op="experience" in

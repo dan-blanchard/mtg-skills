@@ -881,6 +881,13 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "legends_matter",
         "lands_matter",
         "poison_matters",
+        # _matters sweep (ADR-0034): the poison MAKER arm — the
+        # GivePlayerCounter:poison giver, the infect/toxic/poisonous keyword bearers,
+        # and the granter half of the word mirror were relabeled poison_makers (the
+        # card MAKES poison — places poison counters on opponents); the IR path emits
+        # it, so the hybrid must recognize it as migrated to keep it. poison_matters
+        # survives as the "poison counter" reference PAYOFF lane.
+        "poison_makers",
         "suspend_matters",
         # _matters sweep (ADR-0034): the `suspend` keyword bearer arm was relabeled
         # to suspend_makers (the card PERFORMS suspend); the IR path emits it via

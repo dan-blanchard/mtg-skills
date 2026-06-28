@@ -3884,9 +3884,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"experience counter"},
         r"experience counter",
     ),
-    ("poison_matters", "opponents"): _spec(
+    # _matters sweep (ADR-0034): poison split by role. poison_makers = the MAKER arm
+    # (infect/toxic threats + poison-counter givers that DEAL the poison);
+    # poison_matters = the PAYOFF arm (cards that REWARD a high poison count —
+    # Corrupted, proliferate-to-finish). Both reuse the same search pool: the serve
+    # avenue legitimately composes infect/toxic threats AND the poison payoffs
+    # together (ADR-0034: only membership splits by role, the avenue offers both).
+    ("poison_makers", "opponents"): _spec(
         "Poison / infect",
-        "infect and toxic threats plus proliferate to finish with poison",
+        "infect and toxic threats to stack poison counters on opponents",
+        {"oracle": r"\binfect\b|\btoxic\b|poison counter|proliferate"},
+        r"poison counter|\binfect\b|\btoxic\b",
+    ),
+    ("poison_matters", "opponents"): _spec(
+        "Poison payoffs",
+        "payoffs that reward a high poison count plus proliferate to finish",
         {"oracle": r"\binfect\b|\btoxic\b|poison counter|proliferate"},
         r"poison counter|\binfect\b|\btoxic\b",
     ),
