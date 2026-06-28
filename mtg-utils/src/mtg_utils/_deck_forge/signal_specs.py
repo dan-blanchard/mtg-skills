@@ -897,7 +897,7 @@ _SELF_RECUR_EXTRA = SubAvenue(
 # creature … dies" TRIGGER plus a payoff clause, so a bare death-draw creature ("when
 # this dies, draw a card") or a removal spell does not register. Verified: 76 bulk hits,
 # all genuine. Shared by the death and sacrifice lanes (a sac-outlet commander opens
-# sacrifice_matters, not death_matters, but wants the same drain payoffs).
+# sacrifice_outlets, not death_matters, but wants the same drain payoffs).
 _DEATH_DRAIN_ORACLE = (
     r"whenever [^.]*\bcreatures?\b[^.]*dies[^.]*"
     r"(?:each opponent loses|target player loses|loses? \d+ life|you (?:may )?gain"
@@ -1388,11 +1388,11 @@ _MANA_AMP_EXTRA = SubAvenue(
     serve=Serve(oracle=re.compile(_MANA_AMP_ORACLE, _IC)),
 )
 # Instant-speed pump (Giant Growth / Berserk) to push through extra combat damage and
-# survive blocks — reuses the pinned pump_matters regex so it never drifts. ADR-0027 β:
-# pump_matters migrated to the Card IR (its SWEEP_DETECTORS row is deleted), so the
+# survive blocks — reuses the pinned pump_makers regex so it never drifts. ADR-0027 β:
+# pump_makers migrated to the Card IR (its SWEEP_DETECTORS row is deleted), so the
 # constant comes from PUMP_MATTERS_REGEX, not the (now-absent) sweep row.
 _PUMP_ORACLE = PUMP_MATTERS_REGEX
-# ADR-0027 β: edict_matters migrated to the Card IR — its SWEEP_DETECTORS row is
+# ADR-0027 β: edict_makers migrated to the Card IR — its SWEEP_DETECTORS row is
 # deleted (detection moved to the structural arm + a kept _IR_KEPT_DETECTORS mirror).
 # The SERVE pool stays oracle-defined, so the deleted regex is inlined here (byte-
 # identical to the old sweep row, so the served fodder/payoff pool never drifts).
@@ -1972,7 +1972,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # (~428 in WBR), none of which are sacrifice fodder. Require the literal "creature
     # token" (CR 111.10 token types); and exclude "sacrifice a land" (fetchlands) from
     # the outlet branch.
-    ("sacrifice_matters", "you"): _spec(
+    ("sacrifice_outlets", "you"): _spec(
         "Sacrifice — fodder & outlets",
         "token fodder and free sacrifice outlets",
         {"oracle": r"create [^.]*creature token|sacrifice"},
@@ -2023,8 +2023,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # sacrifices") loses its OWN board too, so it wants recurring fodder to survive:
     # recurring token makers ("create … creature token") and self-recurring creatures
     # (Reassembling Skeleton). The opponent-only-edict half is rare among commanders.
-    ("edict_matters", "each"): _spec(
-        *SWEEP_LABELS["edict_matters"],
+    ("edict_makers", "each"): _spec(
+        *SWEEP_LABELS["edict_makers"],
         {"oracle": _EDICT_SWEEP_REGEX},
         _EDICT_SWEEP_REGEX + r"|create [^.]*creature token",
         extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA),
@@ -2036,7 +2036,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"create [^.]*creature token|sacrifices? (?:a|an|another)(?! land\b)"
         r"|whenever .* dies"
         r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b"
-        # Death-trigger DOUBLER (Teysa Karlov, Drivnod) — see sacrifice_matters.
+        # Death-trigger DOUBLER (Teysa Karlov, Drivnod) — see sacrifice_outlets.
         r"|creature dying causes a triggered abilit",
         extras=(
             _SELF_RECUR_EXTRA,
@@ -2161,7 +2161,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Banding (CR 702.21): a banding commander (Ayesha, Jarkeld) wants other banding
     # creatures to form attacking/blocking bands. Keyword[]-anchored + the oracle word.
-    ("banding_matters", "you"): _spec(
+    ("has_banding", "you"): _spec(
         "Banding",
         "creatures with banding to form attacking and blocking bands",
         {"oracle": r"\bbanding\b"},
@@ -2384,13 +2384,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _SELF_BOUNCE_EXTRA,
         ),
     ),
-    ("mill_matters", "any"): _spec(
+    ("mill_makers", "any"): _spec(
         "Mill",
         "cards that mill — fuel a graveyard or grind a library",
         {"preset_names": ("mill",)},
         r"\bmills?\b",
     ),
-    ("goad_matters", "opponents"): _spec(
+    ("goad_makers", "opponents"): _spec(
         "Goad & politics",
         "goad and forced-attack effects that point creatures at your opponents",
         {"preset_names": ("goad",)},
@@ -2593,26 +2593,26 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": PROTECTION_GRANT_REGEX},
         PROTECTION_GRANT_REGEX,
     ),
-    # ADR-0027 β: debuff_matters's SWEEP_DETECTORS row is deleted (detection moved to
+    # ADR-0027 β: debuff_makers's SWEEP_DETECTORS row is deleted (detection moved to
     # the Card IR — the negative-pump (factor<0) / non-self m1m1 structural arm + a
     # byte-identical _IR_KEPT_DETECTORS mirror). The SERVE pool stays oracle-defined,
     # so hand-register the spec the sweep auto-register loop used to build (scope "any",
     # the deleted SWEEP row's scope), reusing the EXACT deleted regex (pinned as
     # DEBUFF_SWEEP_REGEX) so the serve pool never drifts. SWEEP_LABELS keeps the label.
-    ("debuff_matters", "any"): _spec(
-        *SWEEP_LABELS["debuff_matters"],
+    ("debuff_makers", "any"): _spec(
+        *SWEEP_LABELS["debuff_makers"],
         {"oracle": DEBUFF_SWEEP_REGEX},
         DEBUFF_SWEEP_REGEX,
     ),
-    # ADR-0027 β: pump_matters's SWEEP_DETECTORS row is deleted (detection moved to the
+    # ADR-0027 β: pump_makers's SWEEP_DETECTORS row is deleted (detection moved to the
     # Card IR — a byte-identical _IR_KEPT_DETECTORS mirror; the lane is unstructurable,
     # so no structural arm). The SERVE pool stays oracle-defined, so hand-register the
     # spec the sweep auto-register loop used to build (scope "you", the deleted SWEEP
     # row's scope), reusing the EXACT deleted regex (pinned as PUMP_MATTERS_REGEX, ==
     # _PUMP_ORACLE the _PUMP_EXTRA SubAvenue reuses) so the serve pool never drifts.
     # SWEEP_LABELS keeps the label.
-    ("pump_matters", "you"): _spec(
-        *SWEEP_LABELS["pump_matters"],
+    ("pump_makers", "you"): _spec(
+        *SWEEP_LABELS["pump_makers"],
         {"oracle": PUMP_MATTERS_REGEX},
         PUMP_MATTERS_REGEX,
     ),
@@ -2909,11 +2909,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Donate commander (Jon Irenicus, Harmless Offering) wants drawback creatures to
     # hand to opponents for the downside.
-    # ADR-0027: donate_matters had its SWEEP_DETECTORS row deleted (detection moved to
+    # ADR-0027: donate_makers had its SWEEP_DETECTORS row deleted (detection moved to
     # the Card IR — a gain_control raw-recipient discriminator). The serve pool stays
     # oracle-defined, so pass the deleted regex explicitly.
-    ("donate_matters", "you"): _sweep_spec_with_extras(
-        "donate_matters",
+    ("donate_makers", "you"): _sweep_spec_with_extras(
+        "donate_makers",
         (_DRAWBACK_EXTRA, _FORCE_FEED_EXTRA),
         regex=(
             r"(?:target opponent|another player|target player|that player"
@@ -3406,7 +3406,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Land sacrifice (Gitrog, Titania, Slogurk): lands hitting the graveyard is the
     # payoff, so repeatable "Sacrifice a land:" outlets (Sylvan Safekeeper, Zuran Orb)
-    # are the engine. Distinct from sacrifice_matters (which excludes "sacrifice a land"
+    # are the engine. Distinct from sacrifice_outlets (which excludes "sacrifice a land"
     # — the fetchland guard) and from landfall (lands ENTERING).
     ("land_sacrifice_matters", "you"): _spec(
         "Land sacrifice",
@@ -3429,7 +3429,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # structural keyword_count_min dimension, since "has 3+ keywords" is in keywords[],
     # not prose. Only the >=5-keyword soup-sharers open it, so the broad serve is on-
     # theme breadth, not over-fire.
-    ("keyword_soup_matters", "you"): _spec(
+    ("keyword_soup_makers", "you"): _spec(
         "Keyword soup",
         "creatures stacked with evergreen keywords to share across your team",
         {"oracle": r"\b(?:flying|first strike|double strike|trample|vigilance)\b"},
@@ -3794,7 +3794,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\bmodified\b|\+1/\+1 counters?",
         serve_types=("equipment", "aura"),
     ),
-    ("mutate_matters", "you"): _spec(
+    ("has_mutate", "you"): _spec(
         "Mutate",
         "mutate creatures and mutate-trigger payoffs",
         {"oracle": r"\bmutate\b"},
@@ -3892,14 +3892,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bcoven\b|different powers"},
         r"\bcoven\b",
     ),
-    # ADR-0027 β: conjure_matters migrated to the Card IR (its SWEEP_DETECTORS row is
+    # ADR-0027 β: conjure_makers migrated to the Card IR (its SWEEP_DETECTORS row is
     # deleted — detection moved to a byte-identical `\bconjure\b` kept word mirror in
     # signals._IR_KEPT_DETECTORS). The SERVE pool stays oracle-defined (Arena/Alchemy
     # conjure makers and payoffs), so hand-register the spec the sweep auto-register
     # loop used to build (scope "you", the deleted SWEEP row's scope), reusing the EXACT
     # deleted regex so the serve never drifts. SWEEP_LABELS keeps the human label.
-    ("conjure_matters", "you"): _spec(
-        *SWEEP_LABELS["conjure_matters"],
+    ("conjure_makers", "you"): _spec(
+        *SWEEP_LABELS["conjure_makers"],
         {"oracle": r"\bconjure\b"},
         r"\bconjure\b",
     ),
@@ -3948,13 +3948,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"(?:second|third) spell you cast|cast your (?:second|third) spell",
     ),
     # ── Mechanics recovered from the "rejected" families ────────────────────────
-    # ADR-0027 β: token_copy_matters migrated to the Card IR via a byte-identical kept-
+    # ADR-0027 β: token_copy_makers migrated to the Card IR via a byte-identical kept-
     # mirror (the lane fires from _TOKEN_COPY_MATTERS_MIRROR in _signals_ir). This serve
     # spec was always hand-registered and independent of the deleted _HAND_FLOOR
     # producer, so it survives unchanged — its curated SEARCH regex is intentionally
     # narrower than the detector (it omits the "twice that many … tokens" doubler arm,
     # which the _TOKEN_DOUBLER_EXTRA below already supplies as a separate avenue).
-    ("token_copy_matters", "you"): _spec(
+    ("token_copy_makers", "you"): _spec(
         "Token copies",
         "strong creatures to copy plus token-copy and populate engines",
         {"oracle": r"token that's a copy|tokens? that are copies|\bpopulate\b"},
@@ -4030,8 +4030,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # hand-register the spec the sweep auto-register loop used to build, reusing
     # each deleted regex as the serve pattern. (SWEEP_LABELS still carries the
     # human label.)
-    ("airbend_matters", "you"): _spec(
-        *SWEEP_LABELS["airbend_matters"],
+    ("airbend_makers", "you"): _spec(
+        *SWEEP_LABELS["airbend_makers"],
         {"oracle": r"\bairbend(?:ing|s)?\b"},
         r"\bairbend(?:ing|s)?\b",
     ),
@@ -4152,25 +4152,25 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"companion —|each (?:creature |permanent )?card in your starting deck"
         r"|your starting deck contains",
     ),
-    # ADR-0027: soulbond_matters had its oracle-regex SWEEP_DETECTORS row deleted
+    # ADR-0027: has_soulbond had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — the Scryfall `soulbond` keyword + a
     # `soulbond` effect marker for non-keyword references). The SERVE pool (the
     # creatures that ARE the thing — they carry the soulbond keyword) stays
     # oracle-defined, so hand-register the spec the sweep auto-register loop used to
     # build, reusing the deleted regex as the serve pattern.
-    ("soulbond_matters", "you"): _spec(
-        *SWEEP_LABELS["soulbond_matters"],
+    ("has_soulbond", "you"): _spec(
+        *SWEEP_LABELS["has_soulbond"],
         {"oracle": r"\bsoulbond\b"},
         r"\bsoulbond\b",
     ),
-    # ADR-0027: devour_matters had its oracle-regex SWEEP_DETECTORS row deleted
+    # ADR-0027: has_devour had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — the Scryfall `devour` keyword + phase's
     # `devour` effect category). The SERVE pool (the cards that ARE devourers /
     # token fodder to devour) stays oracle-defined, so hand-register the spec the
     # sweep auto-register loop used to build, reusing the deleted regex as the
     # serve pattern. (SWEEP_LABELS still carries the human label.)
-    ("devour_matters", "you"): _spec(
-        *SWEEP_LABELS["devour_matters"],
+    ("has_devour", "you"): _spec(
+        *SWEEP_LABELS["has_devour"],
         {"oracle": r"\bdevour\b"},
         r"\bdevour\b",
     ),
@@ -4194,8 +4194,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bexplores?\b"},
         r"\bexplores?\b",
     ),
-    ("phasing_matters", "you"): _spec(
-        *SWEEP_LABELS["phasing_matters"],
+    ("phasing_makers", "you"): _spec(
+        *SWEEP_LABELS["phasing_makers"],
         {"oracle": r"phase out|phases out|phased out"},
         r"phase out|phases out|phased out",
     ),
@@ -4314,12 +4314,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"power-up —",
         serve_keywords=("power-up",),
     ),
-    # ADR-0027: rad_counter_matters had its oracle-regex SWEEP_DETECTORS row deleted
+    # ADR-0027: rad_counter_makers had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — phase's `rad_counter` effect / rad place_counter
     # + a "rad counter(s)" face marker). The IR fires scope "opponents" (rad counters go
     # on players as a kill clock). Serve hand-registered reusing the deleted regex.
-    ("rad_counter_matters", "opponents"): _spec(
-        *SWEEP_LABELS["rad_counter_matters"],
+    ("rad_counter_makers", "opponents"): _spec(
+        *SWEEP_LABELS["rad_counter_makers"],
         {"oracle": r"\brad counters?\b"},
         r"\brad counters?\b",
     ),
@@ -4332,23 +4332,23 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\boil counters?\b"},
         r"\boil counters?\b",
     ),
-    # ADR-0027: shield_counter_matters had its oracle-regex SWEEP_DETECTORS row deleted
+    # ADR-0027: shield_counter_makers had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — phase's place_counter / hascounters
     # counter_kind='shield' structural arm + a byte-identical kept word mirror). The
     # SERVE pool (the cards that ARE the thing — shield-counter sources and payoffs) is
     # still oracle-defined, so hand-register the spec the sweep auto-register loop used
     # to build, reusing the deleted regex as the serve pattern. CR 122.1c.
-    ("shield_counter_matters", "you"): _spec(
-        *SWEEP_LABELS["shield_counter_matters"],
+    ("shield_counter_makers", "you"): _spec(
+        *SWEEP_LABELS["shield_counter_makers"],
         {"oracle": r"\bshield counters?\b"},
         r"\bshield counters?\b",
     ),
-    # ADR-0027: fight_matters had its oracle-regex SWEEP_DETECTORS row deleted (moved to
+    # ADR-0027: fight_makers had its oracle-regex SWEEP_DETECTORS row deleted (moved to
     # the Card IR — phase's fight effect + a granted/quoted/modal fight marker). Serve
     # hand-registered reusing the deleted regex (the lane wants big creatures to fight
     # with — surface fatties via power_min, plus the gear/buffs that suit them up).
-    ("fight_matters", "you"): _sweep_spec_with_extras(
-        "fight_matters",
+    ("fight_makers", "you"): _sweep_spec_with_extras(
+        "fight_makers",
         serve_power_min=4,
         regex=(
             r"\bfights? (?:up to (?:one|two|\d+) )?(?:other |another )?target\b"
@@ -4356,12 +4356,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             r"other\b|\bfights? it\b|\bfights? (?:another|each)"
         ),
     ),
-    # ADR-0027: changeling_matters had its oracle-regex SWEEP_DETECTORS row deleted
+    # ADR-0027: has_changeling had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — the Scryfall changeling keyword + a "changeling"
     # / "is every creature type" all-tribes marker). Serve hand-registered reusing the
     # deleted regex (plus the changeling keyword dimension for the bearers).
-    ("changeling_matters", "you"): _spec(
-        *SWEEP_LABELS["changeling_matters"],
+    ("has_changeling", "you"): _spec(
+        *SWEEP_LABELS["has_changeling"],
         {"oracle": r"is every creature type|\bchangeling\b"},
         r"is every creature type|\bchangeling\b",
         serve_keywords=("changeling",),
@@ -4465,14 +4465,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"can be blocked as though (?:it|they) didn't have"},
         r"can be blocked as though (?:it|they) didn't have",
     ),
-    # ADR-0027: lure_matters had its oracle-regex SWEEP_DETECTORS row deleted (detection
+    # ADR-0027: lure_makers had its oracle-regex SWEEP_DETECTORS row deleted (detection
     # moved to the Card IR — a structural `lure` arm + a byte-identical kept mirror for
     # the Aftermath-DFC back face phase drops). The SERVE pool stays oracle-defined, so
     # hand-register the spec the sweep auto-register loop used to build (scope 'you'),
     # reusing the pinned LURE_MATTERS_REGEX so the serve never drifts from the deleted
     # detector. CR 509.1c.
-    ("lure_matters", "you"): _spec(
-        *SWEEP_LABELS["lure_matters"],
+    ("lure_makers", "you"): _spec(
+        *SWEEP_LABELS["lure_makers"],
         {"oracle": LURE_MATTERS_REGEX},
         LURE_MATTERS_REGEX,
     ),
@@ -4602,20 +4602,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         },
         r"commit(?:s|ted)? a crime|whenever you commit",
     ),
-    ("connive_matters", "you"): _spec(
+    ("connive_makers", "you"): _spec(
         "Connive",
         "connive enablers and counter/discard payoffs",
         {"oracle": r"\bconnives?\b|draw a card, then discard"},
         r"\bconnives?\b",
     ),
-    ("spell_copy_matters", "you"): _spec(
+    ("spell_copy_makers", "you"): _spec(
         "Spell copy",
         "impactful instants/sorceries plus copy effects to multiply your spells",
         {"oracle": r"copy (?:target|that)|instant or sorcery|\bstorm\b"},
         r"copy target (?:instant|sorcery|spell)|\bcopy that spell\b|\bstorm\b",
     ),
     # ── Effect-axis specs ───────────────────────────────────────────────────────
-    ("ramp_matters", "you"): _spec(
+    ("ramp", "you"): _spec(
         "Ramp / big mana",
         "mana rocks, dorks, and land ramp to accelerate into your payoffs",
         {"oracle": r"add \{|search your library for .*\bland\b|" + _BASIC_LAND_FETCH},
@@ -4630,7 +4630,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # The `deals .* damage to target creature` branch missed every burn spell pointed at
     # ANY target (Lightning Bolt, Shock — "deals N damage to any target"). Broaden the
     # damage clause to any-target / player burn; constrain `.*` to a single clause.
-    ("removal_matters", "you"): _spec(
+    ("removal", "you"): _spec(
         "Removal / interaction",
         "destroy and burn removal — note indestructible/regeneration blank it",
         {"oracle": r"destroy target|deals .* damage to target"},
@@ -4677,7 +4677,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|creatures you control get \+\d+/\+\d+",
         serve_not=r"creatures you control get \+\d+/\+\d+ until end of turn",
     ),
-    ("tutor_matters", "you"): _spec(
+    ("tutor", "you"): _spec(
         "Tutors",
         "tutors to assemble your key pieces and combos",
         {"oracle": r"search your library for"},
@@ -4795,7 +4795,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # creatures to reliably connect (Slither Blade, Mist-Cloaked Herald, Tormented Soul,
     # Ornithopter). Reuses the evasion_self classifier — unconditional unblockable +
     # hard-evasion keywords; flying is excluded (soft/blockable).
-    ("ninjutsu_matters", "you"): _spec(
+    ("has_ninjutsu", "you"): _spec(
         "Ninjutsu",
         "ninja creatures plus the cheap unblockable/evasive creatures to carry them in",
         {"oracle": r"can't be blocked|\bunblockable\b|\bninjutsu\b"},
@@ -4883,7 +4883,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # (Ghalta, Etali) as the payoff, not just more cascade sources.
         serve_power_min=6,
     ),
-    ("regenerate_matters", "you"): _spec(
+    ("regenerate_makers", "you"): _spec(
         "Regenerate / resilience",
         "regeneration and resilience to keep your threats around",
         {"oracle": r"\bregenerate\b"},
@@ -4956,7 +4956,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # dasher: gate on the Equipment TYPE (CR 301.5 — the persistent buff) and the dash /
     # reconfigure KEYWORD (CR 702.109/702.151), plus a small oracle branch for cards
     # that move/cheat Equipment without the subtype.
-    ("dash_matters", "you"): _spec(
+    ("has_dash", "you"): _spec(
         "Dash / hit-and-run Equipment",
         "Equipment — it stays on the battlefield when Dash returns the creature to "
         "your hand at end of turn (Auras and counters don't), so it's the resilient "
@@ -4980,7 +4980,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         serve_keywords=("trample",),
     ),
     # anthem_static: a STATIC anthem, not a one-shot pump — VETO "until end of turn"
-    # (those are pump_matters). Oracle-with-temporal-guard (no structured 'is-static').
+    # (those are pump_makers). Oracle-with-temporal-guard (no structured 'is-static').
     ("anthem_static", "you"): _spec(
         "Static anthem",
         "go-wide creatures to ride the anthem",
@@ -5076,7 +5076,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Enlist (Aradesh): other enlist creatures (the keyword bearers) plus the big
     # stay-back fodder to tap for their power.
-    ("enlist_matters", "you"): _spec(
+    ("has_enlist", "you"): _spec(
         "Enlist",
         "enlist creatures plus big stay-back fodder to tap for their power",
         {"oracle": r"\benlist\b"},
@@ -5390,7 +5390,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         serve_keywords=("start your engines!", "max speed"),
         extras=(_CHEAP_EVASION_EXTRA,),
     ),
-    ("discover_matters", "you"): _spec(
+    ("discover_makers", "you"): _spec(
         "Discover",
         "discover sources to dig for free, plus low-mana-value nonland spells worth "
         "flipping into",
@@ -5405,7 +5405,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\bforetell\b|foretold",
         serve_keywords=("foretell",),
     ),
-    ("undying_persist_matters", "you"): _spec(
+    ("has_undying_persist", "you"): _spec(
         "Undying / Persist",
         "Undying and Persist bodies (free, repeatable death-return fodder) plus the "
         "anthems and grants that hand out the keyword",

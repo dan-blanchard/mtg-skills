@@ -916,7 +916,7 @@ def test_enlist_matters_serves_enlisters_and_stayback_fodder():
     # and big stay-back fodder to tap (the sub-avenue): Relic Golem (6/6, can't attack
     # unless an opponent has 8+ graveyard cards) is ideal — tap it for 6 power. A vanilla
     # bear is neither. Real oracle.
-    sig = _sig("enlist_matters", "you")
+    sig = _sig("has_enlist", "you")
     benalish = {
         "name": "Benalish Faithbonder",
         "type_line": "Creature — Human Cleric",
@@ -1253,7 +1253,7 @@ def test_cast_from_exile_serves_suspend_foretell_rebound():
 def test_keyword_soup_serves_keyword_dense_creatures():
     # The sweep 'keyword_soup' signal (Rayami absorbs keywords from dead creatures; Akroma
     # Vision / Indominus Rex share them) was stuck on the narrow sweep regex, not the
-    # keyword-count serve that 'keyword_soup_matters' (Odric) already had — so keyword-
+    # keyword-count serve that 'keyword_soup_makers' (Odric) already had — so keyword-
     # dense creatures weren't served. Real oracle.
     sig = _sig("keyword_soup", "you")
     venomthrope = {
@@ -1614,7 +1614,7 @@ def test_ninjutsu_lane_serves_ninja_creatures():
     # A ninjutsu deck (Yuriko, Satoru, Higure) wants the NINJA creatures themselves —
     # the ninjutsu payoff swapped in via an unblocked attacker — not just the evasion
     # carriers. The lane served evasion keywords but not the ninjutsu keyword. Real card.
-    sig = _sig("ninjutsu_matters", "you")
+    sig = _sig("has_ninjutsu", "you")
     satoru = {
         "name": "Satoru Umezawa",
         "type_line": "Legendary Creature — Human Ninja",
@@ -1663,7 +1663,7 @@ def test_aristocrats_lanes_serve_death_doublers_and_dies_return_grants():
             '+1/+1 counter on it."'
         ),
     }
-    for key, scope in (("death_matters", "any"), ("sacrifice_matters", "you")):
+    for key, scope in (("death_matters", "any"), ("sacrifice_outlets", "you")):
         sig = _sig(key, scope)
         assert _lane_covers(drivnod, sig) is True, key
         assert _lane_covers(feign_death, sig) is True, key
@@ -1825,15 +1825,15 @@ ZULAPORT = {
 
 def test_death_drain_served_by_both_aristocrats_and_sacrifice_lanes():
     # The drain payoff must be on-theme for BOTH the death lane and the sacrifice lane
-    # (a sac-outlet commander like Yawgmoth opens sacrifice_matters, not death_matters).
-    for sig in (_sig("death_matters", "any"), _sig("sacrifice_matters", "you")):
+    # (a sac-outlet commander like Yawgmoth opens sacrifice_outlets, not death_matters).
+    for sig in (_sig("death_matters", "any"), _sig("sacrifice_outlets", "you")):
         assert serves(BLOOD_ARTIST, sig) is True
         assert serves(ZULAPORT, sig) is True
 
 
 def test_sacrifice_lane_does_not_serve_plain_lifegain():
     # A bare lifegain card is not a sacrifice/aristocrats enabler.
-    assert serves(LIFEGAIN, _sig("sacrifice_matters", "you")) is False
+    assert serves(LIFEGAIN, _sig("sacrifice_outlets", "you")) is False
 
 
 # --- landfall: payoffs + extra lands + lands-from-graveyard ---------------------
@@ -2114,7 +2114,7 @@ def test_edicts_and_third_person_sac_feed_aristocrats():
     # Edict creatures ("each player sacrifices a creature" — Plaguecrafter, Fleshbag)
     # are the aristocrats sac package; the serve matched only "sacrifice a", not the
     # 3rd-person "sacrifices a".
-    for key, scope in [("sacrifice_matters", "you"), ("death_matters", "any")]:
+    for key, scope in [("sacrifice_outlets", "you"), ("death_matters", "any")]:
         for n, o in [
             (
                 "Plaguecrafter",
@@ -2275,7 +2275,7 @@ def test_aristocrats_lane_surfaces_board_wipes():
         "oracle_text": "Destroy all creatures. They can't be regenerated.",
     }
     assert _lane_covers(wrath, _sig("death_matters", "any")) is True
-    assert _lane_covers(wrath, _sig("sacrifice_matters", "you")) is True
+    assert _lane_covers(wrath, _sig("sacrifice_outlets", "you")) is True
 
 
 def test_keyword_counter_cards_surface_across_counter_lanes():
@@ -3601,10 +3601,10 @@ class TestStructuredServeFixes:
         assert serves(crystalline_giant, sig) is False  # bare word in a counter list
 
     def test_dash_avenue_keys_on_equipment_type_and_dash_keyword(self):
-        """dash_matters' serve had `whenever[^.]*attacks` and a bare `\\bequipment\\b`
+        """has_dash' serve had `whenever[^.]*attacks` and a bare `\\bequipment\\b`
         that matched any creature mentioning equipment/attacks (~1104). The avenue is
         Equipment-for-a-dasher: gate on the Equipment TYPE and the dash KEYWORD."""
-        sig = _sig("dash_matters", "you")
+        sig = _sig("has_dash", "you")
         skullclamp = {
             "type_line": "Artifact — Equipment",
             "oracle_text": "Equipped creature gets +1/-1.\nWhenever equipped creature dies, draw two cards.\nEquip {1}",
@@ -3680,7 +3680,7 @@ class TestStructuredServeFixes2:
         """sacrifice/death serves keyed on `create .*token`, which is type-blind: it
         served every Treasure/Clue/Food maker (~428 in WBR). Require the literal
         'creature token' so only real sacrifice fodder qualifies."""
-        sac = _sig("sacrifice_matters", "you")
+        sac = _sig("sacrifice_outlets", "you")
         death = _sig("death_matters", "any")
         bitterblossom = {
             "type_line": "Kindred Enchantment — Faerie",
@@ -4032,7 +4032,7 @@ class TestStructuredServeExtension:
         assert serves(sun_titan, sig) is False  # cmc 6 below the bomb threshold
 
     def test_removal_serves_burn_to_any_target(self):
-        sig = _sig("removal_matters", "you")
+        sig = _sig("removal", "you")
         bolt = {
             "type_line": "Instant",
             "oracle_text": "Lightning Bolt deals 3 damage to any target.",
@@ -4146,8 +4146,8 @@ class TestStructuredServeFixes4:
         assert serves(coiling_oracle, sig) is False
 
     def test_pump_matters_drops_minus_bonuses(self):
-        """pump's `[+\\-]` matched -X/-X shrink (that's debuff_matters). Positive only."""
-        sig = _sig("pump_matters", "you")
+        """pump's `[+\\-]` matched -X/-X shrink (that's debuff_makers). Positive only."""
+        sig = _sig("pump_makers", "you")
         giant_growth = {
             "type_line": "Instant",
             "oracle_text": "Target creature gets +3/+3 until end of turn.",
@@ -4265,7 +4265,7 @@ class TestMediumServeFixes:
 
     def test_ramp_serves_via_produced_mana(self):
         self._ck(
-            "ramp_matters",
+            "ramp",
             "you",
             [
                 {
@@ -5276,7 +5276,7 @@ def test_regenerate_lane_serves_voltron_auras():
     """A regenerate/resilience commander is a resilient beater — a voltron plan. Its
     top-synergy cards are buff/protection Auras and gear (Rancor, Bear Umbra, Alpha
     Authority) that the bare regenerate serve missed."""
-    sig = _sig("regenerate_matters")
+    sig = _sig("regenerate_makers")
     rancor = {
         "name": "Rancor",
         "type_line": "Enchantment — Aura",
@@ -5316,7 +5316,7 @@ def test_power_growth_lanes_serve_fling_payoffs():
 def test_token_copy_credits_big_creatures():
     """token_copy's blurb promises 'strong creatures to copy' — deliver it: Etali (6/6
     bomb) is a top token-copy target (Cadric, Feldon), not just the copy effects."""
-    sig = _sig("token_copy_matters")
+    sig = _sig("token_copy_makers")
     etali = {
         "name": "Etali, Primal Storm",
         "type_line": "Legendary Creature — Elder Dinosaur",
@@ -5373,10 +5373,10 @@ def test_reanimator_credits_etb_value_targets():
 
 
 def test_ramp_credits_the_fatties_it_accelerates_into():
-    """ramp_matters promises 'accelerate into your payoffs' — deliver them: the big
+    """ramp promises 'accelerate into your payoffs' — deliver them: the big
     bombs (Ghalta, power 12) and creature cost reducers (Goreclaw). Only 3% of
     commanders open this 'big mana' lane, so power_min=6 is clean. A 2/2 stays off."""
-    sig = _sig("ramp_matters")
+    sig = _sig("ramp")
     ghalta = {
         "name": "Ghalta, Primal Hunger",
         "type_line": "Legendary Creature — Elder Dinosaur",
@@ -5709,7 +5709,7 @@ def test_donate_lane_serves_drawback_creatures():
     """Jon Irenicus donates creatures to opponents — he wants creatures whose DOWNSIDE
     punishes their controller (Abyssal Persecutor 'you can't win', Flesh Reaver 'deals
     damage to you', Demonic Taskmaster 'upkeep: sacrifice a creature')."""
-    sig = _sig("donate_matters")
+    sig = _sig("donate_makers")
     persecutor = {
         "name": "Abyssal Persecutor",
         "type_line": "Creature — Demon",
@@ -5733,7 +5733,7 @@ def test_donate_lane_serves_drawback_creatures():
 
 
 def test_banding_lane_serves_banding_creatures():
-    sig = _sig("banding_matters")
+    sig = _sig("has_banding")
     hero = {
         "name": "Benalish Hero",
         "type_line": "Creature — Human Soldier",
@@ -6024,7 +6024,7 @@ def test_pillowfort_served_to_high_synergy_archetypes_only():
     ]
     served = [
         ("monarch_matters", "you"),
-        ("goad_matters", "opponents"),
+        ("goad_makers", "opponents"),
         ("superfriends_matters", "you"),
         ("damage_prevention", "you"),
     ]
@@ -6177,7 +6177,7 @@ def test_ramp_serves_basic_land_type_fetches():
     """Ramp serve must credit the basic-land-TYPE fetches (Skyshroud Claim, Nature's
     Lore, Three Visits, Farseek) — they search for "Forest/Plains/… cards", which don't
     contain the word "land", so the bare "search … for … land" missed them."""
-    sig = _sig("ramp_matters", "you")
+    sig = _sig("ramp", "you")
     for name, oracle in [
         (
             "Skyshroud Claim",
@@ -6205,7 +6205,7 @@ def test_sacrifice_serves_death_value_fodder():
     Filigree Familiar, Mycosynth Wellspring). The serve keyed on 'whenever … dies' and
     missed the 'put into a graveyard' (artifacts) and 'When … dies' forms. (Confirmed by
     the cross-archetype audit: Sacrifice lane, 9.2x lift.)"""
-    sig = _sig("sacrifice_matters", "you")
+    sig = _sig("sacrifice_outlets", "you")
     for name, oracle in [
         (
             "Ichor Wellspring",
@@ -6239,7 +6239,7 @@ def test_symmetric_edict_serves_recurring_fodder():
     """A forced/symmetric-sacrifice commander (Braids — "each player sacrifices") loses
     its OWN board too, so it wants recurring fodder to survive: recurring token makers
     (Bitterblossom) and self-recurring creatures (Reassembling Skeleton)."""
-    sig = _sig("edict_matters", "each")
+    sig = _sig("edict_makers", "each")
     bb = {
         "name": "Bitterblossom",
         "type_line": "Kindred Enchantment — Faerie",
@@ -6269,7 +6269,7 @@ def test_copy_lanes_serve_etb_doublers_and_payoffs():
         "type_line": "Enchantment",
         "oracle_text": "Whenever a creature you control enters, this enchantment deals 1 damage to each opponent.",
     }
-    for key in ("token_copy_matters", "clone_makers"):
+    for key in ("token_copy_makers", "clone_makers"):
         assert _lane_covers(pan, _sig(key, "you")) is True, f"{key}/Panharmonicon"
         assert _lane_covers(tremors, _sig(key, "you")) is True, f"{key}/Impact Tremors"
 
@@ -6325,7 +6325,7 @@ def test_token_copy_serves_makers_and_doublers():
     """Esix converts each token she'd create into a copy of a chosen creature — so she
     wants token MAKERS (more tokens → more copies) and token DOUBLERS (double the
     copies), not just big bodies to copy."""
-    sig = _sig("token_copy_matters", "you")
+    sig = _sig("token_copy_makers", "you")
     hornet = {
         "name": "Hornet Queen",
         "type_line": "Creature — Insect",
@@ -7114,7 +7114,7 @@ def test_mass_bounce_serves_creature_mass_bounce():
 
 def test_dies_recursion_is_superset_of_undying_persist():
     # dies_recursion is the BROAD "creatures recur when they die" category (with or
-    # without counters); undying_persist_matters is the counter-bearing SUBSET (undying
+    # without counters); has_undying_persist is the counter-bearing SUBSET (undying
     # = +1/+1 per CR 702.93a, persist = -1/-1 per CR 702.79a). So undying/persist cards
     # belong to BOTH; bare dies-return (Supernatural Stamina) only to dies_recursion.
     geralfs = {
@@ -7149,7 +7149,7 @@ def test_dies_recursion_is_superset_of_undying_persist():
         ),
     }
     dr = _sig("dies_recursion", "you")
-    up = _sig("undying_persist_matters", "you")
+    up = _sig("has_undying_persist", "you")
     # Superset: undying/persist AND bare dies-return are all dies_recursion.
     assert _lane_covers(geralfs, dr) is True
     assert _lane_covers(kitchen_finks, dr) is True
@@ -7159,23 +7159,23 @@ def test_dies_recursion_is_superset_of_undying_persist():
     assert _lane_covers(kitchen_finks, up) is True
     assert _lane_covers(supernatural_stamina, up) is False
     # And undying/persist cards OPEN both lanes (they are members of the superset).
-    # ADR-0027: BOTH dies_recursion and undying_persist_matters migrated to the Card IR,
+    # ADR-0027: BOTH dies_recursion and has_undying_persist migrated to the Card IR,
     # so the pure regex path emits NEITHER (the SWEEP_DETECTORS dies_recursion row and
     # the undying/persist keyword route are deleted); the hybrid re-supplies both — the
-    # intrinsic Undying bearer fires undying_persist_matters from the Scryfall keyword
+    # intrinsic Undying bearer fires has_undying_persist from the Scryfall keyword
     # array, and dies_recursion fires from _IR_KEYWORD_MAP['undying'] PLUS the
     # DIES_RECURSION_REGEX kept word mirror.
     from mtg_utils._deck_forge.signals import extract_signals_hybrid
 
     gk = {s.key for s in extract_signals(geralfs)}
     assert "dies_recursion" not in gk
-    assert "undying_persist_matters" not in gk
+    assert "has_undying_persist" not in gk
     # Real projected IR: the intrinsic Undying keyword bearer (Scryfall keyword array +
     # _IR_KEYWORD_MAP['undying']) re-supplies both lanes the pure regex path drops.
     geralfs_ir = test_card_ir("Geralf's Messenger")
     hybrid_keys = {s.key for s in extract_signals_hybrid(geralfs, geralfs_ir)}
     assert "dies_recursion" in hybrid_keys
-    assert "undying_persist_matters" in hybrid_keys
+    assert "has_undying_persist" in hybrid_keys
 
 
 def test_creature_cast_and_etb_serve_self_bounce_recast_engines():
@@ -7297,7 +7297,7 @@ def test_ninjutsu_serves_evasive_unblockable_enablers():
     # ninjutsu commander (Satoru Umezawa) wants cheap unblockable/evasive creatures to
     # reliably connect — Slither Blade, Mist-Cloaked Herald, Tormented Soul. Reuses the
     # evasion classifier (no flying — that's soft/blockable).
-    sig = _sig("ninjutsu_matters", "you")
+    sig = _sig("has_ninjutsu", "you")
     slither = {
         "name": "Slither Blade",
         "type_line": "Creature — Snake Rogue",
@@ -7338,7 +7338,7 @@ def test_aristocrats_graveyard_lanes_serve_self_sac_creatures():
             "indestructible until end of turn."
         ),
     }
-    for key in ("death_matters", "sacrifice_matters", "graveyard_matters"):
+    for key in ("death_matters", "sacrifice_outlets", "graveyard_matters"):
         scope = "any" if key == "death_matters" else "you"
         assert _lane_covers(selfless_spirit, _sig(key, scope)), key
     # Over-fire guard: a vanilla creature is not sac-fodder via this extra.

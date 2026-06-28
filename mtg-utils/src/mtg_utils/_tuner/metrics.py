@@ -22,7 +22,7 @@ from mtg_utils.theme_presets import get_preset
 # Signal keys that mirror a hard-counted Spine role (ramp / draw / interaction). Not
 # themes, so focus excludes their avenues: a "Ramp / big mana" avenue full of mana rocks
 # and lands is scaffolding, not a lane the deck is built around.
-_SPINE_AVENUE_KEYS = frozenset({"ramp_matters", "card_draw_engine", "removal_matters"})
+_SPINE_AVENUE_KEYS = frozenset({"ramp", "card_draw_engine", "removal"})
 
 # Shape → (lo, hi) nonland average-MV band; ~4.0 is the soft ceiling (waived when the
 # deck cheats costs). Centred ~3.0 per the verified research.

@@ -54,7 +54,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # them from the kept word-detector mirror (_IR_KEPT_DETECTORS), NOT a
         # re-run of the deleted SWEEP_DETECTORS rows. A-B==0 (commander-legal,
         # floor lanes disabled). See ADR-0027.
-        "airbend_matters",
+        "airbend_makers",
         "earthbend_matters",
         "waterbend_matters",
         "firebending_matters",
@@ -69,7 +69,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "outlaw_matters",
         "snow_matters",
         "lessons_matter",
-        "enlist_matters",
+        "has_enlist",
         "companion_keyword",
         # Group "structural" — keys backed by a STRUCTURED IR shape (not a re-run
         # of the deleted oracle regex). all_creatures_kw_grant ← GrantKeyword effect
@@ -99,7 +99,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # oracle-regex producers are deleted. See ADR-0027.
         "monarch_matters",
         "saddle_matters",
-        "soulbond_matters",
+        "has_soulbond",
         # Group "trigger-other raw-marker" (ADR-0027 projection deepening) — keys
         # whose tail cards are PAYOFF triggers phase flattened to event='other' (the
         # consequence is a typed effect; the trigger condition survives only in the
@@ -112,8 +112,8 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # scry_surveil got the same markers but a static-grant / delayed-trigger /
         # replacement-drop remainder keeps them on regex (not migrated). See ADR-0027.
         "coin_flip",
-        "discover_matters",
-        "ninjutsu_matters",
+        "discover_makers",
+        "has_ninjutsu",
         "ring_matters",
         # Group "conferred-keyword re-parse" (ADR-0027 projection deepening) — keys
         # whose tail cards GRANT a keyword/ability to a CLASS of objects, which phase
@@ -151,7 +151,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # producer ("creatures you control"/"for each creature you control" substring)
         # is deleted; the serve spec stays in signal_specs. See ADR-0027.
         "creatures_matter",
-        # devour_matters (CR 702.82) — the sacrifice-creatures-for-+1/+1-counters
+        # has_devour (CR 702.82) — the sacrifice-creatures-for-+1/+1-counters
         # keyword lane. Fires from STRUCTURAL IR alone (NOT in _IR_FLOOR_LANES): the
         # Scryfall `devour` keyword via _IR_KEYWORD_MAP plus phase's `devour` effect
         # category (the `devour N` make-token marker + the supplement keyword value),
@@ -162,7 +162,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (CR 207.2d, no rules meaning) and the "Devour in Flames" CARD NAME, neither
         # being the Devour keyword; the structural IR correctly excludes both. The
         # serve spec stays in signal_specs. See ADR-0027.
-        "devour_matters",
+        "has_devour",
         # blood_matters (CR 111.10g — the Blood token subtype, a discard-a-card-draw
         # artifact-token rummage engine) — the token-subtype synergy lane. REMOVED
         # from _IR_FLOOR_LANES and now fires from the STRUCTURAL IR alone: a
@@ -222,13 +222,13 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                "if you would scry a number of cards" replacement face marker
         #                (Kenessos, Eligeth); left _IR_FLOOR_LANES.
         "boast_matters",
-        "connive_matters",
+        "connive_makers",
         "end_the_turn",
         "exhaust_matters",
         "extra_end_step",
         "madness_matters",
-        "mutate_matters",
-        "phasing_matters",
+        "has_mutate",
+        "phasing_makers",
         "trigger_doubling",
         "experience_matters",
         "explore_matters",
@@ -267,7 +267,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "extra_upkeep",
         "counter_control",
         "cant_block_grant",
-        # ADR-0027 — lure_matters migrated to the Card IR. SHAPE: UNION of (a) the
+        # ADR-0027 — lure_makers migrated to the Card IR. SHAPE: UNION of (a) the
         # STRUCTURAL `lure` arm (extract_signals_ir: a combat-FORCING static whose
         # affected creatures must block — phase's mustbeblocked/mustbeblockedbyall
         # keyword, the _COMBAT_FORCE_MODES static modes, and the project/supplement
@@ -290,19 +290,19 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # kept_oracle == per-clause SWEEP firing (69==69, no divergence — every arm's
         # only span, "all creatures able to block [^.]*do so", can't cross a period).
         # VOLTRON: the deleted SWEEP producer fired HIGH-confidence scope 'you' and fed
-        # has_other_plan (lure_matters is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) —
+        # has_other_plan (lure_makers is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) —
         # a lure creature is not a vanilla commander-damage beater. The IR re-supply is
         # BROADER (+3), so _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those 3
         # bodies; instead a
         # byte-identical _LURE_MATTERS_PLAN_MIRROR (the EXACT deleted regex over the
         # reminder-STRIPPED `text`) OR'd into has_other_plan restores ONLY the old
-        # regex's silence set. CROSS-OPEN: the regex `lure_matters → blocked_matters`
+        # regex's silence set. CROSS-OPEN: the regex `lure_makers → blocked_matters`
         # archetype cross-open (a lure deck wants punish-when-blocked payoffs) reads the
         # regex `keys_now`, which now lacks the migrated key; re-supplied in the hybrid
-        # (signals.py) keyed off the IR-supplied lure_matters. Serve stays hand-
+        # (signals.py) keyed off the IR-supplied lure_makers. Serve stays hand-
         # registered in signal_specs.py (the sweep auto-register loop no longer reaches
         # the deleted row). CR 509.1c.
-        "lure_matters",
+        "lure_makers",
         "land_exchange",
         # Group "tail-supplement 3" (ADR-0027 projection deepening) — five more
         # synthesis-tail keys. Three (myriad_grant, convoke_matters, tapped_matters)
@@ -346,7 +346,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                `_ENERGY_REF` ({e}) marker for the sinks / "whenever you get
         #                {E}" payoffs / doublers phase loses. {e} is unambiguous (real
         #                energy cards only).
-        #   rad_counter_matters ← phase's `rad_counter` effect / rad place_counter + a
+        #   rad_counter_makers ← phase's `rad_counter` effect / rad place_counter + a
         #                `_RAD_REF` ("rad counter(s)") marker for the clauses phase
         #                mangles (rad kind dropped to '', counter_doubling, dropped).
         #   suspect_matters ← phase's `suspect` effect (leading-verb) + a `_SUSPECT_REF`
@@ -362,7 +362,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                `crime` condition-form marker ("(if|as long as) you've
         #                committed a crime") for the payoff phase has no kind for.
         "energy_matters",
-        "rad_counter_matters",
+        "rad_counter_makers",
         "suspect_matters",
         "venture_matters",
         "crimes_matter",
@@ -434,7 +434,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # NOT in _IR_FLOOR_LANES; gap=0, over=36 (all genuine paylife-cost recall).
         # NO-FLOOD held (only this key grew, +7). See ADR-0027.
         "life_payment_insurance",
-        # sacrifice_matters ← a you-sacrifice EFFECT (scope not opp/each OR a "you"
+        # sacrifice_outlets ← a you-sacrifice EFFECT (scope not opp/each OR a "you"
         # subject controller; a non-land subject; not a forced-opponent edict raw),
         # a "sacrificed" trigger payoff, the Casualty keyword, a subject-less / modal
         # raw fallback, and the project markers (additional-cost incl. Choice/Kicker,
@@ -445,10 +445,10 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # Ward—Sacrifice, and reanimation engines with NO sacrifice; the floor-disabled
         # residual re-adjudicates to all over-fire bar one card (Phyrexian Soulgorger,
         # a cumulative-upkeep cost phase parses as a SelfRef "sacrifice it"). NO-FLOOD
-        # held (only sacrifice_matters / edict_matters grew; edict_matters +107 is the
+        # held (only sacrifice_outlets / edict_makers grew; edict_makers +107 is the
         # recovered-from-mis-scope recall, plus 3 typed-sac-subject recall gains on
         # food/legends/type_matters — all correct). See ADR-0027.
-        "sacrifice_matters",
+        "sacrifice_outlets",
         # lifeloss_matters ← a structured `lose_life` Effect (scope you→you else
         # opponents — the drain / self-loss split), a `life_payment` marker + a paylife
         # ACTIVATION COST buying a non-ramp engine (the self life-as-resource half), a
@@ -464,7 +464,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # value-paylife with no "if you do" anchor, a replacement-effect life loss).
         # NO-FLOOD held (only lifeloss_matters grew). See ADR-0027.
         "lifeloss_matters",
-        # removal_matters ← phase's `destroy` / `damage` effect with a SINGLE-TARGET
+        # removal ← phase's `destroy` / `damage` effect with a SINGLE-TARGET
         # permanent SUBJECT (card_types ∩ permanent types OR a permanent subtype, CR
         # 115.1), the quoted-grant-ability recursion (an Aura/Equipment granting "{T}:
         # Destroy/deal damage to target …" — Manriki-Gusari, Lavamancer's Skill), the
@@ -485,7 +485,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # and ADDS ~218 genuine single-target recall the narrow regex missed ("destroy
         # X/two/any-number-of target", fight-style "deals damage equal to its power to
         # target creature", granted Aura/Equipment removal). See ADR-0027.
-        "removal_matters",
+        "removal",
         # Group "sweep" (ADR-0027 small-residual close) — five low-residual keys closed
         # by the sweep markers (prior commit). Four left _IR_FLOOR_LANES and
         # now fire from the STRUCTURAL IR alone; floor-mirror-dep == 0 for each
@@ -516,7 +516,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "starting_life_matters",
         "cycling_matters",
         "dice_matters",
-        # ADR-0027 shield_counter_matters — migrated to the Card IR. UNION shape.
+        # ADR-0027 shield_counter_makers — migrated to the Card IR. UNION shape.
         # STRUCTURAL ARM: phase tags counter_kind='shield' on a place_counter (a real
         # CR-122.1c shield counter — a replacement+prevention effect that absorbs the
         # next destroy/damage), dispatched via _COUNTER_KIND_KEYS['shield'] (scope you)
@@ -539,11 +539,11 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # structural arm already supplies. VOLTRON: the deleted SWEEP producer fired
         # HIGH scope 'you' and fed has_other_plan (NOT in _GENERIC_KEYS /
         # _VOLTRON_COMPAT_KEYS); the IR re-supply is BYTE-IDENTICAL (struct ⊆ mirror ==
-        # deleted regex), so shield_counter_matters is added to
+        # deleted regex), so shield_counter_makers is added to
         # _VOLTRON_SILENCING_PLAN_KEYS — voltron 3010→3010. Its SWEEP_DETECTORS row is
         # deleted; the serve spec is hand-registered in signal_specs.py reusing the
         # deleted regex. CR 122.1c.
-        "shield_counter_matters",
+        "shield_counter_makers",
         # Group "sweep 2" (ADR-0027 small-residual close) — five more low-residual keys
         # closed by the conferred/dropped-static markers (prior commit). Four left
         # _IR_FLOOR_LANES; floor-mirror-dep == 0 for cascade/changeling/regenerate
@@ -559,13 +559,13 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #   cascade_matters ← Scryfall `cascade` keyword + a `_CASCADE_GRANT` marker for
         #                the keyword-less granters/references (Maelstrom Nexus, Yidris,
         #                Averna, The First Doctor's "spell with cascade" payoff).
-        #   changeling_matters ← Scryfall `changeling` keyword + a `_CHANGELING_REF`
+        #   has_changeling ← Scryfall `changeling` keyword + a `_CHANGELING_REF`
         #                ("changeling" / "is every creature type") marker (Maskwood
         #                Nexus, Mistform Ultimus, Arachnoform, Omo's everything ctr).
-        #   regenerate_matters ← phase's `regenerate` effect + a `_REGENERATE_REF`
+        #   regenerate_makers ← phase's `regenerate` effect + a `_REGENERATE_REF`
         #                marker for the granted/quoted/replacement regenerate (Tribal
         #                Golem, Mossbridge Troll, the Holy Nimbus pair).
-        #   undying_persist_matters ← Scryfall undying/persist keywords + a
+        #   has_undying_persist ← Scryfall undying/persist keywords + a
         #                `_UNDYING_PERSIST_GRANT` marker for the keyword-less granters
         #                (Mikaeus, Cauldron of Souls, the Scarecrows). Drops "Undying
         #                Flames" (the name over-fire).
@@ -577,11 +577,11 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                different-trigger may-cast actions (Cavern of Souls, Dragon-
         #                Kami's Egg).
         "cascade_matters",
-        "changeling_matters",
-        "regenerate_matters",
-        "undying_persist_matters",
+        "has_changeling",
+        "regenerate_makers",
+        "has_undying_persist",
         "creature_cast_trigger",
-        # fight_matters ← phase's `fight` effect + a `_FIGHT_REF` dropped-static marker
+        # fight_makers ← phase's `fight` effect + a `_FIGHT_REF` dropped-static marker
         # (granted "it fights" / quoted-token / modal "Fight!" / emblem / symmetric
         # "fight each other") + a `_FIGHT_RAW` face-level fallback (the Aftermath DFC
         # phase doesn't project — Prepare // Fight). NOT in _IR_FLOOR_LANES;
@@ -589,7 +589,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # and-correct recall (+5: Grothama, Ezuri's Predation, Time to Feed, Kraul
         # Harpooner, Skophos Maze-Warden — granted/token fights the narrow regex
         # missed). Its SWEEP_DETECTORS row is deleted; serve hand-spec'd. CR 701.12.
-        "fight_matters",
+        "fight_makers",
         # food_matters / treasure_matters ← the generalized blood_matters token-subtype
         # widening: a Food/Treasure-subtype make_token MAKER (the die-roll/vote/choice
         # branch + the Aftermath-DFC face fallback), a "Sacrifice a Food/Treasure" SAC
@@ -665,7 +665,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # a recipient it drops). Each fires from its EXISTING structural bind PLUS a
         # dedicated _IR_KEPT_DETECTORS word mirror (or a raw discriminator), reproducing
         # the deleted regex exactly (regex_only_resid == 0). rules-lawyer-verified.
-        #   donate_matters ← a gain_control effect whose raw names an another-player
+        #   donate_makers ← a gain_control effect whose raw names an another-player
         #                RECIPIENT (_DONATE_RAW; phase drops the recipient to
         #                scope='any'). Replaces the dead scope=='opp' arm. CR 701.12.
         #   minus_counters_matter ← place_counter(m1m1) maker + a "-1/-1 counter" kept
@@ -722,7 +722,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # stripped `text`), NOT _VOLTRON_SILENCING_PLAN_KEYS (which would over-silence
         # Reign of Chaos). CR 105.2 (colors) / 613.1e (layer 5). See ADR-0027.
         "color_hoser",
-        "donate_matters",
+        "donate_makers",
         "minus_counters_matter",
         "team_evasion_grant",
         "hand_disruption",
@@ -794,8 +794,8 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # row is deleted; the serve spec is hand-registered. See ADR-0027.
         "damage_doubling",
         # Group "combat-forcing" (ADR-0027 projection deepening) — the goad half of
-        # the goad_matters <-> forced_attack disentanglement (CR 701.38 goad redirect-
-        # payoff vs CR 508.1g self-force). goad_matters fires from the STRUCTURAL IR
+        # the goad_makers <-> forced_attack disentanglement (CR 701.38 goad redirect-
+        # payoff vs CR 508.1g self-force). goad_makers fires from the STRUCTURAL IR
         # alone (NOT in _IR_FLOOR_LANES; floor-mirror-dep == 0): the Scryfall `goad`
         # keyword + phase's `goad_all` effect + a `_GOAD_REWARD_REF` face marker (the
         # redirect-reward conditions phase flattens to raw — "attacks one of your
@@ -812,9 +812,9 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # goad over-firing on self-force / blocks) is resolved structurally. The two
         # goad _DETECTORS / _HAND_FLOOR producers are deleted; the serve spec is
         # registered. See ADR-0027.
-        "goad_matters",
+        "goad_makers",
         # Group "combat-forcing" (ADR-0027) — forced_attack, the sibling of
-        # goad_matters above (CR 508.1d "attacks if able" REQUIREMENT vs CR 701.15
+        # goad_makers above (CR 508.1d "attacks if able" REQUIREMENT vs CR 701.15
         # goad's redirect-payoff). UNION migration shape:
         #   (a) STRUCTURAL arm — phase's `force_attack` Effect category, already wired
         #       in extract_signals_ir (scope "any"). This covers EVERY real 508.1d
@@ -844,7 +844,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # The 55 goad-reminder SWEEP over-fires the FULL-text SWEEP regex would catch
         # are NOT a residual: the production regex path strips reminder text first, so
         # those goad cards never fired forced_attack pre-migration (they fire
-        # goad_matters, the correct lane) — base hybrid forced_attack == 128. LOSE == 0:
+        # goad_makers, the correct lane) — base hybrid forced_attack == 128. LOSE == 0:
         # gained 41 (genuine recall), lost 0; post-mig commander-legal == 169. Voltron:
         # the deleted DET + SWEEP producers fed has_other_plan (HIGH, scope you/any, not
         # generic/voltron-compat). The IR re-supply is BROADER (169 vs 128), so a
@@ -856,7 +856,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # spec is hand-registered with the pinned SWEEP regex. CR 508.1d / 701.15 /
         # 903.10a.
         "forced_attack",
-        # Group "spell-copy" (ADR-0027 projection deepening) — spell_copy_matters fires
+        # Group "spell-copy" (ADR-0027 projection deepening) — spell_copy_makers fires
         # from the STRUCTURAL IR alone (NOT in _IR_FLOOR_LANES; floor-mirror-dep == 0):
         # phase's `spell_copy` effect (CopySpell + CastCopyOfCard) + the storm/replicate
         # /conspire/casualty Scryfall keywords (the HAVERS, _IR_KEYWORD_MAP) + a
@@ -874,7 +874,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # cards (all mention copy / a copy-keyword) the narrow regex missed. Both regex
         # producers (the _HAND_FLOOR + the SWEEP row) are deleted; the serve spec is
         # hand-registered. See ADR-0027.
-        "spell_copy_matters",
+        "spell_copy_makers",
         # Group "counters" (ADR-0027 plus_one_matters pass 2) — plus_one_matters fires
         # from the STRUCTURAL IR alone (NOT in _IR_FLOOR_LANES; floor-mirror-dep == 0,
         # floor-ON == floor-OFF). It fires on ANY +1/+1 counter PLACEMENT regardless
@@ -952,7 +952,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                exact string is the discriminator: a generic "destroy target
         #                creature" lacks it; NotSupertype:Legendary ("nonlegendary" —
         #                Cast Down, One Ring) is the OPPOSITE and stays out. ~0
-        #                residual. CR 205.4a. is_widen_of removal_matters preserved.
+        #                residual. CR 205.4a. is_widen_of removal preserved.
         #   power_double ← a `pump`/`pump_target` Effect whose raw carries the
         #                "double … power" / "power … doubled" word-mirror
         #                (_POWER_DOUBLE_RAW). phase sets no multiply quantity for P/T
@@ -1227,7 +1227,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # Group "tranche2-B-3" (ADR-0027) — 2 of 5 batch keys migrated structurally;
         # timing_control later migrated via an ADR-0027 β kept-mirror (phase emits
         # nothing structural for the cast-timing statics — see the entry above), and
-        # token_copy_matters via an ADR-0027 β kept-mirror too (the structural
+        # token_copy_makers via an ADR-0027 β kept-mirror too (the structural
         # CopyTokenOf/Populate effect 100%-over-fires the lane with reminder-text
         # SELF-copies — Embalm/Eternalize/Offspring/Double-team — that the
         # reminder-stripped regex deliberately excludes; see the entry below). The
@@ -1250,7 +1250,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     Floor-mirror-dep == 0. The floor-disabled regex-only residual is 1 card
         #     (Arcane Artisan, whose "Target player draws … then exiles" draw phase
         #     scopes 'opp' for the downstream forced discard — the card stays covered by
-        #     activated_draw + token_copy_matters, no coverage loss). The IR adds 233
+        #     activated_draw + token_copy_makers, no coverage loss). The IR adds 233
         #     genuine directed/forced draws the narrow "draws a card|target opponent
         #     draws" regex missed ("Target player draws seven cards", "that player
         #     draws", Edric's "its controller may draw"). Its SWEEP_DETECTORS row is
@@ -1330,7 +1330,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     structured ab.cost catches "{T}, Sacrifice …" engines the contiguous
         #     "{t}:" regex missed — Brion Stoutarm, Ghitu Fire-Eater). Its _HAND_FLOOR
         #     producer is deleted; serve hand-spec'd.
-        # pump_matters (a POSITIVE single-target combat-trick buff) migrated below as a
+        # pump_makers (a POSITIVE single-target combat-trick buff) migrated below as a
         # byte-identical kept-mirror — it is genuinely UNSTRUCTURABLE as a positive
         # discriminator (see its entry near the end of this set). See ADR-0027.
         "lose_unless_hand",
@@ -1566,7 +1566,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # return it to the battlefield/your hand" — Bloodghast / Reassembling Skeleton /
         # Gravecrawler / Feign Death style; undying/persist-adjacent; CR 700.4 dies =
         # put into a graveyard from the battlefield, CR 603.6c leaves-the-battlefield
-        # trigger). The BROAD superset of undying_persist_matters: undying (CR 702.93a,
+        # trigger). The BROAD superset of has_undying_persist: undying (CR 702.93a,
         # +1/+1) and persist (CR 702.79a, -1/-1) ARE dies-recursion that also place a
         # counter. The undying/persist keyword BEARERS already open the lane via the IR
         # keyword map (_IR_KEYWORD_MAP['undying'/'persist'] — the floor-disabled "both"
@@ -1773,7 +1773,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _HAND_FLOOR producer is deleted; the serve spec stays hand-registered in
         # signal_specs.py. CR 601.2f / 118.7.
         "free_spell_storm",
-        # ADR-0027 β — edict_matters: the structural opp/each `sacrifice` arm (gated by
+        # ADR-0027 β — edict_makers: the structural opp/each `sacrifice` arm (gated by
         # _ir_effect_is_edict against 6 leaked-scope self/you-sac over-fires) plus a
         # flat _IR_KEPT_DETECTORS mirror (the EXACT deleted SWEEP regex over the joined-
         # face oracle, scope 'each'). struct + mirror reproduces the regex firing set
@@ -1784,7 +1784,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # has_other_plan (the IR is +28 broader, so a mirror — not
         # _VOLTRON_SILENCING_PLAN_KEYS — keeps an Annihilator voltron beater from over-
         # silencing; NO-FLOOD: voltron 0 leaked). CR 701.16.
-        "edict_matters",
+        "edict_makers",
         # ADR-0027 β — tribe_damage_trigger: a byte-identical KEPT MIRROR (the EXACT
         # deleted SWEEP regex via _IR_KEPT_DETECTORS over the joined-face oracle, scope
         # 'you'). phase leaves the combat_damage trigger subject = None, so there is no
@@ -2046,9 +2046,9 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # a triggered `ramp` / `double` effect whose raw matches _MANA_AMPLIFY_RAW (the
         # AMOUNT-INCREASE discriminator — "add an additional/twice/that much/one mana
         # of any", "produces twice/three times", "double the amount of … mana"), read
-        # ADDITIVELY: the doubler ALREADY fired ramp_matters in the same loop and KEEPS
+        # ADDITIVELY: the doubler ALREADY fired ramp in the same loop and KEEPS
         # firing it (the category is NOT moved out of `ramp` — that would drift
-        # ramp_matters / group_mana / activated_ability / lifeloss_matters, which all
+        # ramp / group_mana / activated_ability / lifeloss_matters, which all
         # read `ramp`; instead only an EXTRA mana_amplifier signal is added). The DORK-
         # SUPPORT arm ("creatures with a mana ability" — Raggadragga) has NO structural
         # form (phase drops the "with a mana ability" subject), so it rides a byte-
@@ -2068,13 +2068,13 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # regex side (the IR arm is BROADER by +2, so _VOLTRON_SILENCING_PLAN_KEYS
         # would over-silence the 2 ir_only bodies — Doubling Cube, Virtue; the mirror
         # keeps the silence set byte-identical to pre-migration). FILE-SWAP no-flood:
-        # ONLY mana_amplifier moves; ramp_matters / group_mana / activated_ability /
+        # ONLY mana_amplifier moves; ramp / group_mana / activated_ability /
         # lifeloss_matters / mana_filter-reading lanes drift 0; voltron delta 0. The
         # two _HAND_FLOOR doubler/dork producers are deleted; the serve spec in
         # signal_specs.py is a standalone _spec (never read a SWEEP regex), so no serve
         # re-home. CR 106.4 / 605 / 903.10a.
         "mana_amplifier",
-        # ADR-0027 - ramp_matters (the ACCELERATION doer lane: a mana rock / dork /
+        # ADR-0027 - ramp (the ACCELERATION doer lane: a mana rock / dork /
         # ritual / "tap-a-land-add-more" engine / land-aura that produces mana to
         # accelerate into your payoffs - Sol Ring, Llanowar Elves, Crypt Ghast, Mirari's
         # Wake, Wild Growth, Magus of the Vineyard). The lane reads phase's `ramp` Mana
@@ -2094,7 +2094,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _RAMP_MATTERS_REGEX mirror, so no land recall is lost.
         #
         # STRUCTURAL ARM + BYTE-IDENTICAL KEPT-MIRROR. extract_signals_ir fires
-        # ramp_matters on (a) the structural `ramp` category for NON-LAND cards (the
+        # ramp on (a) the structural `ramp` category for NON-LAND cards (the
         # recall-GAINING arm) and (b) a byte-identical _RAMP_MATTERS_REGEX mirror of the
         # deleted _HAND_FLOOR producer (the "{T}: add {" / "add N mana" / "add {WUBRGC}"
         # anchors) PLUS a _MANA_DORK_SUPPORT_RAMP_MIRROR of the deleted dork-support
@@ -2113,7 +2113,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # verified vs Scryfall oracle (all 96 carry a real mana-production clause; 41
         # dorks, 28 land-auras, 15 rocks, 10 ritual spells, 2 DFC mana-lands). The 106
         # reminder-formatted mana-base lands do NOT fire (over-fire dropped). NO over-
-        # fire added. floor-mirror-dep == 0 (ramp_matters is NOT an _IR_FLOOR_LANE).
+        # fire added. floor-mirror-dep == 0 (ramp is NOT an _IR_FLOOR_LANE).
         #
         # VOLTRON. The deleted _HAND_FLOOR producer fired high-confidence scope 'you'
         # and counted toward has_other_plan (a ramp engine is a plan, silencing the
@@ -2122,10 +2122,10 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # KEYS would OVER-silence those 96 bodies; instead a byte-identical
         # _RAMP_MATTERS_PLAN_MIRROR (the EXACT deleted regex, run on the joined-face
         # oracle) restores the old regex's silence set without over-silencing. FILE-SWAP
-        # no-flood: ONLY ramp_matters moves (+96); mana_amplifier / group_mana drift 0;
+        # no-flood: ONLY ramp moves (+96); mana_amplifier / group_mana drift 0;
         # voltron delta 0. The two _HAND_FLOOR producers are deleted; the serve spec in
         # signal_specs.py stays hand-registered. CR 106.4 / 605 / 903.10a.
-        "ramp_matters",
+        "ramp",
         # ADR-0027 β — global_ability_grant (a card that grants a QUOTED activated /
         # triggered / static ability to YOUR whole creature board OR to an
         # ALL-permanents set: "Creatures you control have '{T}: …'" — Cryptolith Rite,
@@ -2324,7 +2324,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (signal_specs), independent of this regex (like gain_control).
         # CR 602.1a / 605.1a / 903.10a (voltron).
         "activated_ability",
-        # ADR-0027 β / #24 — debuff_matters (a -1/-1 / toughness-shrink removal-and-
+        # ADR-0027 β / #24 — debuff_makers (a -1/-1 / toughness-shrink removal-and-
         # payoff lane). The projection carries the debuff structure directly: a -N/-N
         # giver is a `pump` OR `pump_target` Effect with a FIXED amount.factor < 0 (the
         # NEGATIVE factor IS the signal), and a -1/-1-counter giver is a `place_counter`
@@ -2358,7 +2358,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # would OVER-silence those recall-gain bodies. SWEEP_DETECTORS row deleted
         # (SWEEP_LABELS kept); the serve is hand-registered in signal_specs.py reusing
         # the EXACT deleted regex (pinned as DEBUFF_SWEEP_REGEX). CR 122.1b / CR 613.
-        "debuff_matters",
+        "debuff_makers",
         # ADR-0027 β — variable_pt (a */* characteristic-defining P/T creature whose
         # power and/or toughness is "equal to <something>": Nightmare = */* equal to
         # Swamps; Pack Rat; Serra Avatar = */* equal to your life; Cultivator Colossus;
@@ -2397,7 +2397,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # so NOT in _VOLTRON_SILENCING_PLAN_KEYS (voltron delta 0). floor-mirror-dep
         # == 0 (variable_pt is not an _IR_FLOOR_LANE). CR 604.3.
         "variable_pt",
-        # ADR-0027 β — token_copy_matters (a card that makes TOKEN COPIES / populates:
+        # ADR-0027 β — token_copy_makers (a card that makes TOKEN COPIES / populates:
         # "create a token that's a copy of …" — Helm of the Host, Rite of Replication;
         # populate — Trostani, Ghired; token DOUBLERS — Doubling Season, Adrix and Nev,
         # Mondrak, Parallel Lives, Primal Vigor; the modal/Unimplemented copy spells —
@@ -2431,7 +2431,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _IR_FLOOR_LANES=frozenset()): both == 306, ir_only == 0, regex_only == 0 — the
         # mirror is byte-identical to the deleted regex over the same reminder-stripped
         # input, so the served set is UNCHANGED (a true behavior-neutral re-home, no
-        # recall gain, no over-fire). floor-mirror-dep == 0 (token_copy_matters is NOT
+        # recall gain, no over-fire). floor-mirror-dep == 0 (token_copy_makers is NOT
         # an _IR_FLOOR_LANE). The deleted producer fired HIGH-confidence (forced scope
         # 'you') and counted toward has_other_plan (a token-copy ENGINE is a real plan,
         # not a vanilla voltron beater), so a byte-identical _TOKEN_COPY_MATTERS_PLAN_
@@ -2439,7 +2439,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _VOLTRON_SILENCING_PLAN_KEYS, matching the variable_pt/cost_reduction byte-
         # identical-mirror pattern (restores has_other_plan for ALL cards regardless of
         # IR/regex mode). CR 702.95 (populate) / 707 (copies).
-        "token_copy_matters",
+        "token_copy_makers",
         # ADR-0027 — tokens_matter (the GO-WIDE token lane: a payoff/reference that
         # CARES about tokens — token DOUBLERS (Doubling Season, Parallel Lives,
         # Mondrak, Divine Visitation), "tokens you control" anthems/refs (Intangible
@@ -2447,7 +2447,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # Junk Winder), and the GO-WIDE creature-count-scaler whose own/granted P/T
         # scales with the board (Adeline, Leonardo, Bravado, Might of the Masses).
         # DISTINCT from token_maker (the subject-bearing MAKER lane, NOT migrated) and
-        # token_copy_matters (the token-COPY/populate lane, migrated). MIGRATED VIA A
+        # token_copy_makers (the token-COPY/populate lane, migrated). MIGRATED VIA A
         # KEPT-MIRROR (signals-only, NO sidecar bump), NOT a structural arm.
         #
         # WHY KEPT-MIRROR, NOT STRUCTURAL: phase carries NO structural shape for the
@@ -2615,7 +2615,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # HIGH-confidence (scope 'you'/'opponents') and counted toward has_other_plan
         # (an ETB-value/doubler/punisher engine is a real plan, not a vanilla beater),
         # so _creature_etb_has_plan in _signals_regex re-supplies that voltron silence —
-        # NOT _VOLTRON_SILENCING_PLAN_KEYS, matching the token_copy_matters/variable_pt
+        # NOT _VOLTRON_SILENCING_PLAN_KEYS, matching the token_copy_makers/variable_pt
         # byte-identical-mirror pattern (restores has_other_plan for ALL cards
         # regardless of IR/regex mode). CR 603.6.
         "creature_etb",
@@ -2754,7 +2754,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # has_other_plan, so a byte-identical _COLOR_CHANGE_PLAN_MIRROR in
         # _signals_regex re-supplies the voltron silence — NOT
         # _VOLTRON_SILENCING_PLAN_KEYS, matching
-        # the token_copy_matters/variable_pt byte-identical-mirror pattern (a color-
+        # the token_copy_makers/variable_pt byte-identical-mirror pattern (a color-
         # change body is rarely a vanilla beater; FILE-SWAP voltron delta == 0). CR 105
         # / 613 (color is a continuously-checked layer-5 characteristic, verified via
         # rules-lawyer).
@@ -2897,7 +2897,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # The deleted producer fired HIGH-confidence (scope 'you') and counted toward
         # has_other_plan, so a byte-identical _ANIMATE_ARTIFACT_PLAN_MIRROR in
         # _signals_regex re-supplies the voltron silence — NOT _VOLTRON_SILENCING_PLAN_
-        # KEYS, matching the color_change / token_copy_matters / variable_pt byte-
+        # KEYS, matching the color_change / token_copy_makers / variable_pt byte-
         # identical-mirror pattern (FILE-SWAP voltron delta == 0). CR 110.1 / 305.7 /
         # 613 (animating an artifact is a layer-4 type addition; Vehicles / noncreature
         # artifacts gain the creature type — verified via rules-lawyer).
@@ -3009,7 +3009,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # deleted producers fired HIGH-confidence (scope 'you') and counted toward
         # has_other_plan, so a byte-identical _TOUGHNESS_COMBAT_PLAN_MIRROR in
         # _signals_regex re-supplies the voltron silence — NOT
-        # _VOLTRON_SILENCING_PLAN_KEYS, matching the color_change / token_copy_matters /
+        # _VOLTRON_SILENCING_PLAN_KEYS, matching the color_change / token_copy_makers /
         # variable_pt byte-identical-mirror pattern (FILE-SWAP voltron delta == 0). The
         # serve spec stays hand-registered in signal_specs.py (_sweep_spec_with_extras
         # over the pinned regex, crediting high-toughness/Defender bodies), independent
@@ -3064,13 +3064,13 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # lane). The deleted producer fired HIGH-confidence (scope 'you') and counted
         # toward has_other_plan, so a byte-identical _ABILITY_COPY_PLAN_MIRROR in
         # _signals_regex re-supplies the voltron silence — NOT
-        # _VOLTRON_SILENCING_PLAN_KEYS, matching the color_change / token_copy_matters /
+        # _VOLTRON_SILENCING_PLAN_KEYS, matching the color_change / token_copy_makers /
         # toughness_combat byte-identical-mirror pattern (FILE-SWAP voltron delta == 0).
         # The serve spec stays hand-registered in signal_specs.py
         # (_sweep_spec_with_extras over the pinned regex), independent of the deleted
         # producer. CR 706.10 (copying an ability) / 113.2 (granted abilities) / 706.2.
         "ability_copy",
-        # ADR-0027 β / #24 — pump_matters (a POSITIVE single-target combat-trick buff:
+        # ADR-0027 β / #24 — pump_makers (a POSITIVE single-target combat-trick buff:
         # "target creature gets +N/+N", the instant-speed pump that wins combat). The
         # pump-MAGNITUDE field (SIDECAR v42) gives it a STRUCTURAL arm: a FIXED positive
         # `pump_target` Effect over a real target-Creature subject (Giant Growth +3/+3;
@@ -3089,7 +3089,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # the mirror recovers the deleted SWEEP set (the regex arms are clause-local, so
         # full-text == per-clause); add() dedups the overlap with the structural arm.
         # Net is the +36 structural recall gain (0 regex-only lost). floor-mirror-dep 0
-        # (pump_matters was a SWEEP key, never an _IR_FLOOR_LANE).
+        # (pump_makers was a SWEEP key, never an _IR_FLOOR_LANE).
         #
         # The deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted
         # toward has_other_plan (a combat-trick body is NOT a vanilla beater), so a
@@ -3097,11 +3097,11 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS (which the mirror equals
         # here since the IR set == the regex set exactly, but the byte-identical-mirror
         # pattern also covers the ir-is-None regex-path computation, matching the
-        # toughness_combat / debuff_matters / variable_pt siblings). The serve spec is
+        # toughness_combat / debuff_makers / variable_pt siblings). The serve spec is
         # hand-registered in signal_specs.py reusing PUMP_MATTERS_REGEX (the sweep
         # auto-register loop no longer builds it); the _PUMP_EXTRA combat-support
         # SubAvenue reuses the same pinned regex. CR 122.1b / 903.10a.
-        "pump_matters",
+        "pump_makers",
         # ADR-0027 β — gain_control (THEFT: you take control of an opponent's / any
         # permanent — Control Magic, Mind Control, Confiscate, Treachery; temp-steal —
         # Act of Treason, Threaten, Mark of Mutiny, Zealous Conscripts). MIGRATED VIA A
@@ -3312,7 +3312,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _detect_self_death_payoff(text, name) directly — byte-identical to the deleted
         # producer, restoring the EXACT old silence set. FILE-SWAP no-flood (base
         # 59b8e79 vs edits, commander-legal): ONLY self_death_payoff moves (229 → 820,
-        # +591 recall gain), 0 death_matters / reanimator / sacrifice_matters /
+        # +591 recall gain), 0 death_matters / reanimator / sacrifice_outlets /
         # aristocrats drift, voltron delta 0, 0 other lane drift. CR 700.4 / 603.6e /
         # 903.10a.
         "self_death_payoff",
@@ -3433,7 +3433,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # counter on TARGET creature you control" (New Horizons, Snakeskin Veil —
         # single-target, NOT board-wide; phase emits the SAME subject for both).
         # counter_kind stays p1p1 (additive — nothing else reads MassEach), so
-        # plus_one_matters / self_counter_grow / debuff_matters / type_matters are byte-
+        # plus_one_matters / self_counter_grow / debuff_makers / type_matters are byte-
         # identical. Two-sidecar behavior-neutral no-flood (v17 vs v18, SAME unwired
         # signals.py, 30969 commander-legal): drift_cards == 0. parse_confidence
         # unchanged (34118 full / 444 partial both sides).
@@ -3477,7 +3477,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # intent: the source grows itself, not the board; routed to self_counter_grow).
         # FILE-SWAP no-flood (base a96a28a + v17 vs edits + v18, commander-legal): drift
         # == 409, ONLY counter_distribute moves (gain 151 / lose 258); plus_one /
-        # self_counter_grow / debuff_matters / type_matters / creatures_matter drift 0,
+        # self_counter_grow / debuff_makers / type_matters / creatures_matter drift 0,
         # voltron gain 0. The deleted SWEEP producer fired HIGH-confidence (scope 'you')
         # and counted toward has_other_plan, so a byte-identical
         # _COUNTER_DISTRIBUTE_PLAN_MIRROR re-supplies the voltron silence on a board
@@ -3541,7 +3541,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # CR 701.19 (search) / 701.23 (shuffle) / 701.39 (scry) / 701.47 (surveil) /
         # 903.10a (voltron).
         "opponent_search_matters",
-        # ADR-0027 β — conjure_matters (CONJURE: the Arena/Alchemy "create a real
+        # ADR-0027 β — conjure_makers (CONJURE: the Arena/Alchemy "create a real
         # CARD onto the battlefield / into a zone, NOT a token" mechanic — Key to the
         # Archive-style spellbooks, Agent of Raffine, Drover of the Swine, the Collector
         # cycle, the Viconia personas). MIGRATED VIA A KEPT-MIRROR (signals-only, NO
@@ -3573,7 +3573,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # spec stays hand-registered in signal_specs.py (the sweep auto-register loop no
         # longer reaches it once the SWEEP_DETECTORS row is deleted).
         #
-        # GATES. floor-mirror-dep == 0 (conjure_matters is NOT an _IR_FLOOR_LANE — it
+        # GATES. floor-mirror-dep == 0 (conjure_makers is NOT an _IR_FLOOR_LANE — it
         # was a SWEEP key, like the sibling celebration/coven/outlaw kept mirrors).
         # Floor-disabled residual vs the deleted SWEEP regex over get_oracle_text
         # (joined faces, HB-legal — the corpus where conjure lives —
@@ -3581,18 +3581,18 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # mirror is byte-identical to the deleted regex over the same reminder-stripped
         # input; commander-legal: both == 1, the Silvanus false positive). FILE-SWAP
         # no-flood (base 813d507 vs edits, commander+HB, 31868 cards): drift_cards == 0
-        # — only conjure_matters re-homes, byte-identical, no other lane drifts.
+        # — only conjure_makers re-homes, byte-identical, no other lane drifts.
         #
         # VOLTRON. The deleted SWEEP producer fired HIGH-confidence (scope 'you') and
         # fed has_other_plan (a conjure ENGINE is a real value plan), so a
         # byte-identical _CONJURE_MATTERS_PLAN_MIRROR in _signals_regex re-supplies the
         # commander-damage voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS (matching
-        # the token_copy_matters / variable_pt byte-identical-mirror pattern: restores
+        # the token_copy_makers / variable_pt byte-identical-mirror pattern: restores
         # has_other_plan for ALL cards regardless of IR/regex mode). NEEDED: 23 HB-legal
-        # conjure creatures power>=2 carry conjure_matters as their ONLY high-confidence
+        # conjure creatures power>=2 carry conjure_makers as their ONLY high-confidence
         # plan (Cosmic Sovereign, Darigaaz Shivan Champion, Roalesk, …), so without the
         # mirror they would flip to a spurious voltron tell. CR 701.66a / 903.10a.
-        "conjure_matters",
+        "conjure_makers",
         # ADR-0027 β — draw_matters (the YOU-draw payoff: a "whenever you draw" engine
         # — Niv-Mizzet Parun, Chasm Skulker, The Locust God, Psychosis Crawler — and
         # the past-tense draw-COUNT payoff "for each card you've drawn this turn" —
@@ -3701,7 +3701,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #
         # VOLTRON. Two HIGH-confidence regex sources fed has_other_plan and are re-
         # supplied as byte-identical gate mirrors in _signals_regex (NOT the silencing-
-        # keys set, matching the token_copy_matters / conjure_matters pattern): (1) the
+        # keys set, matching the token_copy_makers / conjure_makers pattern): (1) the
         # registry-280 _DETECTORS producer (ARM A, forced scope 'you') →
         # _LIFEGAIN_MATTERS_PLAN_MIRROR, the ARM-A-only regex (NOT the A|B union — the
         # ARM-B sustain block fired LOW confidence and never fed has_other_plan, so
@@ -4009,7 +4009,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # stripped kept_oracle, for the when/whenever-conflated + non-trigger glue
         # (copy/cost/recursion/count/DFC) phase doesn't structure. The 101 storm/
         # replicate/twincast leftovers ride the EXISTING signals.py spell_copy cross-
-        # open (IR spell_copy_matters → spellcast low). VOLTRON: the deleted producers
+        # open (IR spell_copy_makers → spellcast low). VOLTRON: the deleted producers
         # + the `prowess` keyword fired HIGH scope 'you' and fed has_other_plan, so the
         # byte-identical _spellcast_has_plan re-supplies the silence for BOTH the hybrid
         # and the pure-regex (ir is None) paths (DFC-safe). The serve spec (signal_specs
@@ -4146,21 +4146,21 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # would over-silence the recall-gain bodies. FILE-SWAP voltron delta == 0,
         # verified over the full commander-legal corpus. CR 207.2c / 305 / 903.10a.
         "landfall",
-        # ADR-0027 — mill_matters (the self-mill / mill-payoff axis: a card with the
+        # ADR-0027 — mill_makers (the self-mill / mill-payoff axis: a card with the
         # Mill keyword action — CR 701.13, "put the top N cards of a library into its
         # owner's graveyard". scope "any": SELF-mill — you mill yourself to fuel a
         # graveyard-value engine — OR an OPPONENT mill — a wincon / disruption).
         # MIGRATED VIA THE KEYWORD ROUTE ONLY (signals-only, NO sidecar bump) — NOT a
         # structural arm, NOT a kept-mirror.
         #
-        # THE REGEX PRODUCER WAS THE Mill-KEYWORD PRESET ALONE. mill_matters was
+        # THE REGEX PRODUCER WAS THE Mill-KEYWORD PRESET ALONE. mill_makers was
         # produced regex-side SOLELY by _PRESET_KEYWORD_SIGNALS['mill'] — the Scryfall
         # `Mill`-keyword preset (get_preset("mill").keywords == ("Mill",)). Verified
         # over the commander-legal corpus: ALL 555 regex fires carry the `Mill` keyword,
         # 0 keyword-less. So the producer is a pure keyword-array lookup, with no oracle
         # regex.
         #
-        # WHY KEYWORD-ROUTE, NOT THE EFFECT-CATEGORY DOER. mill_matters was ALSO emitted
+        # WHY KEYWORD-ROUTE, NOT THE EFFECT-CATEGORY DOER. mill_makers was ALSO emitted
         # IR-side by the _DOER_EFFECT_KEYS['mill'] doer arm (phase's `mill` effect
         # category). But that arm OVER-FIRES: floor-disabled residual (commander-legal,
         # _IR_FLOOR_LANES=frozenset(), the DOER arm vs the deleted regex) is both==555,
@@ -4194,15 +4194,15 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # re-supplies the regex-path commander-damage voltron silence directly (the
         # lifelink/proliferate keyword-array precedent) — NOT _VOLTRON_SILENCING_PLAN_
         # KEYS. FILE-SWAP no-flood (base 333f2a6 vs edits, baked sidecar over 30969
-        # commander-legal, hybrid path): mill_matters is BYTE-IDENTICAL (555 → 555 —
+        # commander-legal, hybrid path): mill_makers is BYTE-IDENTICAL (555 → 555 —
         # the keyword route reproduces the regex preset exactly; the pre-migration
-        # hybrid already took mill_matters from the regex path, so leaving the doer arm
+        # hybrid already took mill_makers from the regex path, so leaving the doer arm
         # in would have ADDED the 3 over-fires — dropping it prevents that);
         # graveyard_matters
         # (4063), reanimator (135), creature_recursion (304) drift 0; voltron_matters
         # delta 0 (3010 → 3010); 0 other-key drift across all 298 keys. CR 701.13 /
         # 903.10a.
-        "mill_matters",
+        "mill_makers",
         # ADR-0027 magecraft_matters — migrated to the Card IR via a BYTE-IDENTICAL
         # keyword-array route (the saddle / lifelink / mill / proliferate precedent),
         # signals-only, NO sidecar bump. STRUCTURAL ANCHOR: the Scryfall `Magecraft`
@@ -4237,7 +4237,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # ("magecraft_matters","you")) is independent of the deleted preset and
         # survives. CR 207.2c / 903.10a.
         "magecraft_matters",
-        # ADR-0027 banding_matters — migrated to the Card IR via a BYTE-IDENTICAL
+        # ADR-0027 has_banding — migrated to the Card IR via a BYTE-IDENTICAL
         # keyword-array route (the saddle / lifelink / mill / magecraft precedent),
         # signals-only, NO sidecar bump. STRUCTURAL ANCHOR: the Scryfall `Banding`
         # keyword array via _IR_KEYWORD_MAP['banding'] — the SAME field the deleted
@@ -4256,7 +4256,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #
         # VOLTRON. The deleted _DIRECT_KEYWORD_SIGNALS row fired HIGH-confidence (the
         # default add() confidence, scope "you") and so counted toward has_other_plan
-        # (banding_matters is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing
+        # (has_banding is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing
         # the spurious commander-damage voltron membership tell on a banding creature
         # whose ONLY high plan is banding (most of the 24 are vanilla-bodied banders —
         # Timber Wolves, Benalish Hero, the Kjeldoran/Icatian cycles). Its producer is
@@ -4265,12 +4265,12 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # keyword array, so it is BYTE-IDENTICAL (commander-legal: IR == regex == 24, 0
         # ir_only), matching the mill / magecraft / lifelink keyword-array precedent.
         # File-swap (base 6dd4ec7 vs edits, baked sidecar over 30969 commander-legal,
-        # hybrid path): only banding_matters moves (24 → 24 — byte-identical), all 297
+        # hybrid path): only has_banding moves (24 → 24 — byte-identical), all 297
         # sibling keys drift 0, voltron_matters 3010 → 3010 (identical set). The banding
-        # serve spec in signal_specs.py (("banding_matters","you") → serve_keywords=
+        # serve spec in signal_specs.py (("has_banding","you") → serve_keywords=
         # ("banding",)) is independent of the deleted producer and survives. CR 702.22 /
         # 903.10a.
-        "banding_matters",
+        "has_banding",
         # ADR-0027 — land_destruction (the LD-support build-around axis: the Armageddon/
         # Numot stax-LD plan — own-land recursion to survive symmetric LD, land-loss
         # punishers; CR 305.6). MIGRATED VIA A BYTE-IDENTICAL MEMBERSHIP-GATED KEPT-
@@ -4300,7 +4300,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # producer for this lane. The broad structural `land_destruction` add is REMOVED
         # (it was DEAD pre-migration — the hybrid dropped the unmigrated IR
         # land_destruction, so it never reached production; nothing else reads it, and
-        # removal_matters' own land-subtype exclusion — Land ∉ _PERMANENT_TYPES — is
+        # removal' own land-subtype exclusion — Land ∉ _PERMANENT_TYPES — is
         # independent of it). The lane rides the membership-gated _LAND_DESTRUCTION_
         # MIRROR arm (LAND_DESTRUCTION_REGEX over the reminder-stripped kept_oracle,
         # creature + include_membership gated, LOW conf — the deleted _LAND_DESTRUCTION_
@@ -4319,7 +4319,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # no-flood (base b723a76 vs edits, baked sidecar over commander-legal, hybrid
         # path): land_destruction is BYTE-IDENTICAL (23 → 23 — the membership mirror
         # reproduces the cross-open exactly); voltron_matters delta 0 (3010 → 3010);
-        # siblings land_sacrifice_matters / land_exchange / removal_matters / stax_taxes
+        # siblings land_sacrifice_matters / land_exchange / removal / stax_taxes
         # drift 0; 0 other-key drift across all 298 keys. CR 305.6 / 903.10a.
         "land_destruction",
         # ADR-0027 — discard_matters (the SELF-discard payoff / discard-as-enabler
@@ -4446,7 +4446,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # structural IR emits land_sacrifice_matters on ZERO cards. There is no
         # `add("land_sacrifice_matters", ...)` anywhere in extract_signals_ir — the
         # you-sacrifice arm at ~line 5560 deliberately routes a land-ONLY sac SUBJECT
-        # AWAY from sacrifice_matters (`e.subject.card_types != ("Land",)`) but never
+        # AWAY from sacrifice_outlets (`e.subject.card_types != ("Land",)`) but never
         # re-homes it to land_sacrifice, and phase scatters the payoff/cost forms
         # across categories it never unifies. So the lane fired SOLELY from the deleted
         # _HAND_FLOOR regex producer (66 commander-legal cards, ALL scope 'you', HIGH
@@ -4482,7 +4482,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _LAND_SACRIFICE_PLAN_MIRROR. FILE-SWAP no-flood (base 6f84483 vs edits, baked
         # sidecar over commander-legal, hybrid path): land_sacrifice_matters is BYTE-
         # IDENTICAL (66 → 66); voltron_matters delta 0 (3010 → 3010); siblings
-        # land_destruction / land_exchange / sacrifice_matters / ramp_matters drift 0; 0
+        # land_destruction / land_exchange / sacrifice_outlets / ramp drift 0; 0
         # other-key drift across all 298 keys. CR 701.16 / 903.10a.
         "land_sacrifice_matters",
         # ADR-0027 — opponent_discard (the forced-OPPONENT-discard / hand-attack
@@ -4700,7 +4700,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (+8 ir_only, incl. the creature Eon Frolicker), _VOLTRON_SILENCING_PLAN_KEYS
         # would OVER-SILENCE the recall-gain bodies — so the regex path keeps a BYTE-
         # IDENTICAL _EXTRA_TURNS_PLAN_MIRROR over the reminder-stripped `text` (NOT
-        # _VOLTRON_SILENCING_PLAN_KEYS), matching the landfall / ramp_matters broader-IR
+        # _VOLTRON_SILENCING_PLAN_KEYS), matching the landfall / ramp broader-IR
         # precedent (42-card silence set, 0 Perch over-fire; FILE-SWAP voltron delta 0).
         #
         # FILE-SWAP no-flood (base fc02a23 vs edits, baked sidecar over commander-legal,
@@ -4952,7 +4952,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _SYMMETRIC_STAX_MIRROR from SYMMETRIC_STAX_REGEX (the kept SWEEP row;
         # symmetric_stax had no _signals_regex producer). Both SWEEP rows stay in
         # SWEEP_DETECTORS (len 36) as the pinned source — the artifacts_matter /
-        # edict_matters kept-row precedent.
+        # edict_makers kept-row precedent.
         #
         # SCOPE PARITY. The deleted producers forced scope 'opponents' (stax_taxes) /
         # 'each' (symmetric_stax); the structural arm fires the same scopes off
@@ -5137,7 +5137,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # hand-written add()), so the detector floor is unchanged. The serve spec stays
         # hand-registered in signal_specs.py. CR 305.6 / 701.37 / 701.27 / 707.
         "kill_engine",
-        # ADR-0027 keyword_soup_matters — a commander that GRANTS/SHARES many evergreen
+        # ADR-0027 keyword_soup_makers — a commander that GRANTS/SHARES many evergreen
         # keywords across the team (Odric Lunarch Marshal, Akroma Vision, Akroma's
         # Memorial/Will, Concerted Effort, Bleeding Effect) wants creatures STACKED with
         # keywords. MIRROR-ONLY: a structural grant_keyword-counter_kind arm (the
@@ -5160,7 +5160,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # needed. NOT a SWEEP_DETECTORS row (a hand-written add() inside
         # extract_signals' membership block), so the detector floor is unchanged. The
         # serve spec stays hand-registered in signal_specs.py. CR 702.
-        "keyword_soup_matters",
+        "keyword_soup_makers",
         # ADR-0027 arcane_matters — the Kamigawa Arcane / Splice-onto-Arcane /
         # Spiritcraft archetype (a commander caring about ARCANE spells: "cast a Spirit
         # or Arcane spell" — Tallowisp; "Splice onto Arcane" — the Kamigawa I/S spells;
@@ -5266,8 +5266,8 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # second_spell_matters / land_sacrifice_matters kept-mirror precedent. FILE-SWAP
         # no-flood (base 24c8eb1 vs edits, baked sidecar, commander-legal, hybrid path):
         # theft_matters BYTE-IDENTICAL (370 → 370); voltron_matters delta 0
-        # (3010 → 3010); siblings gain_control / donate_matters / clone_makers /
-        # removal_matters drift 0. CR DD9 (heist) / 613.1b (control-changing) / 903.10a.
+        # (3010 → 3010); siblings gain_control / donate_makers / clone_makers /
+        # removal drift 0. CR DD9 (heist) / 613.1b (control-changing) / 903.10a.
         "theft_matters",
         # ADR-0027 — evasion_self. The self-evasion lane ("This creature can't be
         # blocked" / unblockable / landwalk / the menace-family keyword words) rides a
@@ -5470,9 +5470,9 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # reusing TOPDECK_STACK_SWEEP_REGEX (the auto-sweep loop no longer builds it).
         # CR 401.4 (library ordering).
         "topdeck_stack",
-        # ADR-0027 dash_matters -- migrated to the Card IR. BYTE-IDENTICAL KEYWORD
-        # ROUTE: dash_matters had EXACTLY ONE regex producer, the
-        # _DIRECT_KEYWORD_SIGNALS['dash'] -> (dash_matters, you) entry firing whenever
+        # ADR-0027 has_dash -- migrated to the Card IR. BYTE-IDENTICAL KEYWORD
+        # ROUTE: has_dash had EXACTLY ONE regex producer, the
+        # _DIRECT_KEYWORD_SIGNALS['dash'] -> (has_dash, you) entry firing whenever
         # 'Dash' is in card['keywords']. The Dash mechanic (CR 702.109a -- cast for the
         # dash cost, gains haste, returns to hand at the next end step) lives ENTIRELY
         # in stripped reminder text (Zurgo Bellstriker: "Dash {1}{R} (You may cast this
@@ -5484,17 +5484,17 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # magecraft keyword-array precedent. Floor-disabled residual (commander-legal,
         # _IR_FLOOR_LANES=frozenset(), joined by the full (key, scope, subject) tuple):
         # both == 22, ir_only == 0, regex_only == 0 -- byte-identical (both arms read
-        # the SAME card['keywords'] and emit (dash_matters, you, '')). subject is '' on
-        # both sides (dash_matters carries no subject), so it matches byte-for-byte.
-        # VOLTRON: dash_matters is the SOLE producer (no other regex emitter), so
+        # the SAME card['keywords'] and emit (has_dash, you, '')). subject is '' on
+        # both sides (has_dash carries no subject), so it matches byte-for-byte.
+        # VOLTRON: has_dash is the SOLE producer (no other regex emitter), so
         # post-migration the regex set never carries it and the IR re-supply fires on
         # exactly the keyword bearers -- a clean _VOLTRON_SILENCING_PLAN_KEYS entry (the
         # magecraft precedent; the deleted producer fired HIGH and is NOT in
         # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS, so it fed has_other_plan -- a Dash aggro
         # engine is no vanilla commander-damage tell to re-open). NO-FLOOD: ONLY
-        # dash_matters changes count (22 -> 22, byte-identical); all siblings drift 0;
+        # has_dash changes count (22 -> 22, byte-identical); all siblings drift 0;
         # voltron 3010 -> 3010 identical set. CR 702.109a (Dash) / 903.10a.
-        "dash_matters",
+        "has_dash",
         # ADR-0027 card_draw_engine — migrated to the Card IR. The lane is a
         # recurring/BULK card-advantage engine, NOT a cantrip: a recurring "at the
         # beginning of [...] draw N card" anchor (single draw OK because it repeats),
@@ -5759,7 +5759,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # NON-creature (Copy Artifact / Copy Enchantment / Copy Land — the regex fired
         # clone_makers regardless of copied type). A TOKEN-copy clone (Mirror Match —
         # "create a token that's a copy") is VETOED in the structural arm: it's the
-        # separate token_copy_matters lane (Dan's clone-vs-token-copy boundary).
+        # separate token_copy_makers lane (Dan's clone-vs-token-copy boundary).
         # Residual (commander-legal, floor-disabled, by oracle_id): both 83, ir_only 2
         # (Metamorphic Alteration Aura clone + Mirror Match — vetoed, dropped to 1
         # genuine), regex_only 54 (all recovered byte-identically). The TWO membership
@@ -6110,7 +6110,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # equality. The serve spec stays hand-registered in signal_specs.py. CR 110.2a /
         # 400.7 / 701.23.
         "cheat_into_play",
-        # ADR-0027 reveal/dig-v2 — tutor_matters (a build-around lane for searching YOUR
+        # ADR-0027 reveal/dig-v2 — tutor (a build-around lane for searching YOUR
         # OWN library: Demonic/Mystical/Worldly/Vampiric Tutor, Eladamri's Call, the
         # creature/artifact/enchantment toolbox fetches). KEPT-MIRROR migration (the
         # conjure/mill/station precedent — phase under-structures the "your library"-vs-
@@ -6143,14 +6143,14 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # over-fire). Scope 'you'. The `tutor` EFFECT category STILL opens graveyard_
         # matters via a separate from:graveyard arm (untouched). VOLTRON: the deleted
         # producer fired HIGH scope 'you' and fed has_other_plan (a tutor engine is a
-        # card-advantage plan); the mirror re-supply is byte-identical, so tutor_matters
+        # card-advantage plan); the mirror re-supply is byte-identical, so tutor
         # joins _VOLTRON_SILENCING_PLAN_KEYS (the strict-subset facade is valid — same
         # 773
         # cards). voltron_matters 3010 by set equality. NOT a SWEEP row (a _HAND_FLOOR
         # producer), so the SWEEP floor is unchanged. The serve spec stays
         # hand-registered
         # in signal_specs.py. CR 701.23 (search) / 401 (library zone).
-        "tutor_matters",
+        "tutor",
         # ADR-0027 — voltron_matters, the LAST migrated key (completing the regex→Card
         # IR cutover). voltron is a COMMANDER that wins via commander damage (CR
         # 903.10a: 21 combat damage from one commander) by loading ONE creature

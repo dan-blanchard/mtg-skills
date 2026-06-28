@@ -198,12 +198,12 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # reanimation, Scroll Rack's library↔hand swap + reorder, Soldevi Digger's
     # GY→library-bottom — none a CR 701.13 mill, none carrying the Scryfall `Mill`
     # keyword). The regex producer was the `Mill`-KEYWORD preset alone (all 555
-    # commander-legal regex fires carry the keyword; 0 keyword-less). So mill_matters
+    # commander-legal regex fires carry the keyword; 0 keyword-less). So mill_makers
     # now fires from the Scryfall keyword array via _IR_KEYWORD_MAP['mill'] (byte-
     # identical to the deleted _PRESET_KEYWORD_SIGNALS preset — saddle/lifelink-style),
     # dropping this over-broad doer entry and its 3 phase over-fires. The `mill` effect
     # category STILL opens graveyard_matters below (a separate, broader arm). CR 701.13.
-    # ADR-0027 reveal/dig-v2 — tutor_matters migrated to the Card IR via a
+    # ADR-0027 reveal/dig-v2 — tutor migrated to the Card IR via a
     # BYTE-IDENTICAL kept mirror (_TUTOR_MATTERS_MIRROR in _IR_KEPT_DETECTORS). This
     # fixed-scope 'you'
     # doer row is REMOVED: phase keeps a `tutor` EFFECT for EVERY search, so the doer
@@ -246,7 +246,7 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # the _HAND_FLOOR producer is deleted. CR 726.
     "day_night": ("daynight_matters", "you"),
     "venture": ("venture_matters", "you"),
-    "connive": ("connive_matters", "you"),
+    "connive": ("connive_makers", "you"),
     "damage_prevention": ("damage_prevention", "you"),
     # ADR-0027: the `detain` → tap_down keyword entry is DELETED — tap_down now reads
     # the STRUCTURAL `cat=='detain'` Effect arm in extract_signals_ir (ADR-0027 #24;
@@ -267,7 +267,7 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "set_life": ("life_total_set", "any"),  # scope-agnostic build-around marker
     # reveal_hand → hand_disruption is scope-GATED below (only an opponent-reveal is
     # disruption; "reveal cards in your hand" is a self-reveal, scope "any").
-    "regenerate": ("regenerate_matters", "you"),
+    "regenerate": ("regenerate_makers", "you"),
     # Face-down 2/2 mechanics (CR 701.40 manifest / 701.58 cloak / 708) and the
     # turn-face-up payoff all feed the existing facedown_matters lane — manifest is
     # NOT a token_maker (CR 122.1), so it no longer pollutes that lane.
@@ -284,14 +284,14 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # a personal resource. ticket/unknown player counters stay lane-less (niche).
     "poison": ("poison_matters", "opponents"),
     "experience_counter": ("experience_matters", "you"),
-    "rad_counter": ("rad_counter_matters", "opponents"),
-    "phasing": ("phasing_matters", "you"),
+    "rad_counter": ("rad_counter_makers", "opponents"),
+    "phasing": ("phasing_makers", "you"),
     # ADR-0027 restriction-narrow markers (project._narrow_mechanic_refs): a
     # "becomes saddled"/"you saddle" grant (CR 702.171) and a "paired with a
     # creature with soulbond" reference (CR 702.95) phase folds into a generic
     # carrier are appended as precise saddle/soulbond marker effects → their lanes.
     "saddle": ("saddle_matters", "you"),
-    "soulbond": ("soulbond_matters", "you"),
+    "soulbond": ("has_soulbond", "you"),
     # ADR-0027 trigger-other raw-markers (project._narrow_trigger_other_refs): a
     # named-mechanic PAYOFF trigger phase flattened to event='other', surviving only
     # in the effect raw, is appended as a precise marker effect → its lane. coin_flip
@@ -301,8 +301,8 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # but a static-grant / delayed-trigger / scry-replacement remainder keeps them on
     # regex (see ADR-0027). CR 701.57 discover, 702.49 ninjutsu, 702.142 boast,
     # 702.177 exhaust, 701.22/701.25 scry/surveil.
-    "discover": ("discover_matters", "you"),
-    "ninjutsu": ("ninjutsu_matters", "you"),
+    "discover": ("discover_makers", "you"),
+    "ninjutsu": ("has_ninjutsu", "you"),
     "boast": ("boast_matters", "you"),
     "exhaust": ("exhaust_matters", "you"),
     "scry_surveil": ("scry_surveil_matters", "you"),
@@ -325,7 +325,7 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # as a precise marker effect → its lane. The keyword-bearing makers ride the
     # Scryfall keyword array (_IR_KEYWORD_MAP); these add the keyword-LESS payoff /
     # granter residual. CR 702.139 mutate, 702.97 scavenge.
-    "mutate": ("mutate_matters", "you"),
+    "mutate": ("has_mutate", "you"),
     "scavenge": ("scavenge_fuel", "you"),
     # ADR-0027 condition-form crime marker (project._dropped_static_markers): a
     # "(if|as long as) you've committed a crime this turn" payoff phase has no
@@ -362,8 +362,8 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # face oracle. The card's OWN printed cascade/undying/persist/changeling rides the
     # Scryfall keyword array (_IR_KEYWORD_MAP); these add the keyword-LESS form.
     "cascade": ("cascade_matters", "you"),
-    "undying_persist": ("undying_persist_matters", "you"),
-    "changeling": ("changeling_matters", "you"),
+    "undying_persist": ("has_undying_persist", "you"),
+    "changeling": ("has_changeling", "you"),
     # creature_cast ← the face-only-drop creature-cast reference (Blink's quoted token
     # ability, Glimpse of Nature's delayed trigger); scope "any" mirrors the regex.
     "creature_cast": ("creature_cast_trigger", "any"),
@@ -384,7 +384,7 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "extra_upkeep": ("extra_upkeep", "you"),
     "extra_draw": ("extra_draw_step", "you"),
     "extra_end": ("extra_end_step", "you"),
-    "goad_all": ("goad_matters", "opponents"),
+    "goad_all": ("goad_makers", "opponents"),
     "counter_move": ("counter_move", "you"),  # Batch 7 — MoveCounters effect
     # DEFERRED: type_change — SetCardTypes is kept as accurate IR but the lane
     # fires 0 in commander-legal (the regex's 25 are mostly static "is also a..."
@@ -478,11 +478,11 @@ _PAYOFF_TRIGGER_KEYS: dict[str, tuple[str, str | None]] = {
 # growth + evasion grants push the carrier's own combat damage through). CR 903.10a.
 _VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
     {
-        "regenerate_matters",
-        "changeling_matters",
+        "regenerate_makers",
+        "has_changeling",
         "facedown_matters",
         "self_pump",
-        "pump_matters",
+        "pump_makers",
         "cant_block_grant",
     }
 )
@@ -546,33 +546,33 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # Casualty (CR 702.153) sacrifices a creature as a cost to copy the spell — the
     # printed KEYWORD is the structural anchor for the sac cost phase folds into the
     # Casualty parse (no sacrifice Effect / cost token survives). Mirrors the regex
-    # `\bcasualty\b` → sacrifice_matters. It ALSO copies the spell, so it opens
-    # spell_copy_matters too (ADR-0027). The GRANTER (Anhelo — "has casualty 2") is
+    # `\bcasualty\b` → sacrifice_outlets. It ALSO copies the spell, so it opens
+    # spell_copy_makers too (ADR-0027). The GRANTER (Anhelo — "has casualty 2") is
     # keyword-less and is recovered by a cast_with_keyword raw marker below.
-    "casualty": (("sacrifice_matters", "you"), ("spell_copy_matters", "you")),
+    "casualty": (("sacrifice_outlets", "you"), ("spell_copy_makers", "you")),
     # Exploit (CR 702.139) — "when this enters, you may sacrifice a creature" — IS a
-    # sacrifice mechanic, so the printed Scryfall KEYWORD opens sacrifice_matters
+    # sacrifice mechanic, so the printed Scryfall KEYWORD opens sacrifice_outlets
     # (mirrors casualty). Covers the keyword-only tail (Silumgar Scavenger, which has no
     # `Exploited` trigger); the 24 native exploiters that DO carry the Exploited trigger
     # ALSO open it from the structural event arm in extract_signals_ir, and the
     # keyword-LESS granter Henry Wu opens it from his own Exploited trigger (he has no
     # exploit keyword — the grant lives in oracle text). CR 702.139.
-    "exploit": (("sacrifice_matters", "you"),),
-    "changeling": (("changeling_matters", "you"),),
+    "exploit": (("sacrifice_outlets", "you"),),
+    "changeling": (("has_changeling", "you"),),
     "companion": (("companion_keyword", "you"),),
     # Connive (CR 701.50) as the printed KEYWORD — covers the keyword-LESS GRANTER
     # (Security Bypass's Aura grants the enchanted creature "it connives", which
     # phase swallows into the Enchant parse so no connive effect is emitted). The
     # native connive EFFECT already covers self-conniving cards via _DOER_EFFECT_KEYS;
     # Scryfall tags the granter with the keyword too, so this lifts it cleanly.
-    "connive": (("connive_matters", "you"),),
+    "connive": (("connive_makers", "you"),),
     "convoke": (("convoke_matters", "you"),),
     # Devour (CR 702.82) enters with +1/+1 counters per sacrificed creature — a
     # definitional +1/+1 source, so the printed keyword opens plus_one_matters too
     # (mirrors the `devour` EFFECT-category fan-out; covers Preyseizer Dragon, whose
     # devour rides the keyword + a board_count, not a `devour` effect). CR 122.1.
-    "devour": (("devour_matters", "you"), ("plus_one_matters", "any")),
-    "discover": (("discover_matters", "you"),),
+    "devour": (("has_devour", "you"), ("plus_one_matters", "any")),
+    "discover": (("discover_makers", "you"),),
     # Explore (CR 701.44) as the printed KEYWORD — the Scryfall-authoritative path
     # covers explore cards whose explore lives in a granted ability / replacement
     # clause / Map-token grant (Topography Tracker, Glowcap Lantern, Get Lost, …)
@@ -648,10 +648,10 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # Plunderer) via _DOER_EFFECT_KEYS.
     "proliferate": (("proliferate_matters", "you"),),
     "station": (("proliferate_matters", "you"),),
-    # ADR-0027 mill_matters migration: the Mill keyword action (CR 701.13 — "put the
+    # ADR-0027 mill_makers migration: the Mill keyword action (CR 701.13 — "put the
     # top N cards of a library into its owner's graveyard"; self-mill OR targeted)
     # MOVED here from _PRESET_KEYWORD_SIGNALS (the shared regex/IR keyword path).
-    # mill_matters is migrated, so it must leave the regex-readable preset map. The
+    # mill_makers is migrated, so it must leave the regex-readable preset map. The
     # Scryfall `Mill` keyword array is the structured anchor and is byte-identical to
     # the deleted preset (get_preset("mill").keywords == ("Mill",); all 555 commander-
     # legal regex fires carry the keyword, 0 keyword-less). UNLIKE the proliferate /
@@ -661,13 +661,13 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # keyword, so the keyword route alone reproduces the deleted regex producer exactly
     # (ir_only==0, regex_only==0 — no mirror needed). scope "any" (it can self-mill or
     # mill an opponent — the deleted preset's scope). CR 701.13.
-    "mill": (("mill_matters", "any"),),
-    # ADR-0027 goad_matters migration: Goad (CR 701.38 — "until your next turn, that
+    "mill": (("mill_makers", "any"),),
+    # ADR-0027 goad_makers migration: Goad (CR 701.38 — "until your next turn, that
     # creature attacks each combat if able and attacks a player other than you if able")
     # MOVED here from _PRESET_KEYWORD_SIGNALS (the shared regex/IR keyword path).
-    # goad_matters is migrated, so it must leave the regex-readable preset map; but the
+    # goad_makers is migrated, so it must leave the regex-readable preset map; but the
     # IR path STILL needs the keyword. The structural arms (phase's `goad_all` effect →
-    # goad_matters, plus the _GOAD_STYLE_FORCE single-target political force over
+    # goad_makers, plus the _GOAD_STYLE_FORCE single-target political force over
     # force_attack) cover only 57 of the 122 commander-legal goad cards; the other 65
     # fire SOLELY from the Scryfall `Goad` keyword (a vanilla "Goad …" body whose effect
     # phase folds into reminder text, or a granter/cost-rider carrying the keyword with
@@ -676,8 +676,8 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # "opponents" (you goad an opponent's creatures into attacking each other — the
     # deleted preset's scope). Verified behavior-neutral: hybrid goad set == 122 and
     # voltron == 2396 after the move (the preset's has_other_plan voltron silence is
-    # re-supplied because the IR keyword route keeps firing goad_matters). CR 701.38.
-    "goad": (("goad_matters", "opponents"),),
+    # re-supplied because the IR keyword route keeps firing goad_makers). CR 701.38.
+    "goad": (("goad_makers", "opponents"),),
     # ADR-0027 magecraft_matters migration: Magecraft (CR 207.2c — an ability word
     # meaning "whenever you cast or copy an instant or sorcery spell") MOVED here from
     # _PRESET_KEYWORD_SIGNALS (the shared regex/IR keyword path). magecraft_matters is
@@ -720,9 +720,9 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # the stripped reminder text the regex floor misses. The phasing EFFECT category
     # (phase-out/in actions, project._narrow_mechanic_refs) opens the lane via
     # _DOER_EFFECT_KEYS; this opens it from the keyword the card actually carries.
-    "phasing": (("phasing_matters", "you"),),
-    # ADR-0027 banding_matters migration: Banding (CR 702.22) MOVED here from
-    # _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). banding_matters is
+    "phasing": (("phasing_makers", "you"),),
+    # ADR-0027 has_banding migration: Banding (CR 702.22) MOVED here from
+    # _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). has_banding is
     # migrated, so it must leave the regex-readable _DIRECT_KEYWORD_SIGNALS; the IR
     # path STILL needs the keyword because banding's band-forming combat ability lives
     # entirely in stripped reminder text (a banding creature's oracle body is otherwise
@@ -734,7 +734,7 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # regex_only==0 — every banding card carries the keyword, 0 keyword-less; no mirror
     # / doer arm needed). scope "you" matches the deleted producer. A banding commander
     # (Ayesha Tanaka) wants other banding creatures to form attacking/blocking bands.
-    "banding": (("banding_matters", "you"),),
+    "banding": (("has_banding", "you"),),
     # Graveyard-cast + graveyard-payoff keyword family — a card with any of these
     # uses ITS OWN / your graveyard as a resource (cast-from-GY: flashback/escape/
     # disturb/embalm/eternalize/encore/aftermath/retrace/jump-start/recover/unearth;
@@ -753,19 +753,19 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "unearth": (("graveyard_matters", "you"),),
     "dredge": (("graveyard_matters", "you"),),
     "delve": (("graveyard_matters", "you"),),
-    "mutate": (("mutate_matters", "you"),),
+    "mutate": (("has_mutate", "you"),),
     # myriad (CR 702.116) keeps its myriad_grant lane; attack_matters is merged in for
     # the ADR-0027 migration (its attacking-copies trigger lives in stripped reminder
     # text).
     "myriad": (("myriad_grant", "you"), ("attack_matters", "you")),
-    "ninjutsu": (("ninjutsu_matters", "you"),),
-    "commander ninjutsu": (("ninjutsu_matters", "you"),),
+    "ninjutsu": (("has_ninjutsu", "you"),),
+    "commander ninjutsu": (("has_ninjutsu", "you"),),
     # Sneak (the TMNT/Marvel ninjutsu-on-a-spell variant — Karai's Technique, Elektra,
     # New Generation's Technique) — the bounce-replay engine that recasts a cheap
     # creature to re-fire its ETB. ADR-0027: the Scryfall `sneak` keyword (28 cards)
     # is the structured detector for recast_etb, dropping the four `\bsneak\b`-regex
     # over-fires (Cheatyface, Lightfoot Rogue, etc.). Ninjutsu proper is the distinct
-    # ninjutsu_matters lane above, so recast_etb keys on Sneak specifically.
+    # has_ninjutsu lane above, so recast_etb keys on Sneak specifically.
     # ADR-0027 t2b4a-B: Sneak ALSO anchors the alt_cost_keyword lane (it pays an
     # alternative cost), alongside web-slinging and mayhem below — all three are
     # Scryfall keyword abilities that carry the alternative-cost ability, so the
@@ -823,18 +823,18 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # lane for a vanilla-lifelink creature whose only gain is the combat keyword (no
     # gain_life Effect node). CR 702.15.
     "lifelink": (("lifegain_matters", "you"),),
-    "soulbond": (("soulbond_matters", "you"),),
+    "soulbond": (("has_soulbond", "you"),),
     "specialize": (("specialize_matters", "you"),),
     "suspend": (("suspend_matters", "you"),),
     # undying (CR 702.92) returns with a +1/+1 counter — a +1/+1 source, so it ALSO
     # opens plus_one_matters (ADR-0027 migration merge). persist returns with a -1/-1
     # counter (its own minus lane), so it is NOT given plus_one_matters.
     "undying": (
-        ("undying_persist_matters", "you"),
+        ("has_undying_persist", "you"),
         ("dies_recursion", "you"),
         ("plus_one_matters", "any"),
     ),
-    "persist": (("undying_persist_matters", "you"), ("dies_recursion", "you")),
+    "persist": (("has_undying_persist", "you"), ("dies_recursion", "you")),
     "affinity": (("affinity_type", "you"),),
     # Investigate (CR 701.27) IS "create a Clue token" — a colorless ARTIFACT (CR
     # 205.3g). phase tags the keyword but drops the Clue subtype off the make_token
@@ -852,7 +852,7 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # `\bislandwalk\b` word in the mirror catches both bearers AND granters (every
     # bearer also has the word in its reminder-stripped oracle, so the mirror is a
     # strict superset of the keyword arm).
-    "enlist": (("enlist_matters", "you"),),
+    "enlist": (("has_enlist", "you"),),
     # ADR-0027 (voltron migration): exalted ALSO opens voltron_matters — an exalted
     # commander pumps a LONE attacker (itself), the canonical single-big-threat suit-up
     # (CR 702.83). Reproduces the deleted regex _DIRECT_KEYWORD_SIGNALS['exalted'] ->
@@ -896,19 +896,19 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # reference tail (Iroh, Sozin's Comet, the Fire Nation cards) emits no `bending`
     # Effect and carries no keyword, so the keyword move would lose 10 genuine
     # references (deferred). CR 701.65 / 701.66 / 701.67.
-    "airbend": (("airbend_matters", "you"),),
+    "airbend": (("airbend_makers", "you"),),
     "earthbend": (("earthbend_matters", "you"),),
     "waterbend": (("waterbend_matters", "you"),),
     # Spell-copy keywords (CR 702.40 storm, 702.108 replicate, 702.78 conspire) —
-    # each COPIES the spell, the printed-keyword path for spell_copy_matters that the
+    # each COPIES the spell, the printed-keyword path for spell_copy_makers that the
     # structural CopySpell effect misses (the copy rides the keyword, not a CopySpell
     # node). Distinct from the deleted regex's `\bstorm\b`, which over-fired on every
     # card NAMED "… Storm" (Comet Storm, Arrow Storm — burn, not the keyword); the
     # Scryfall keyword array carries Storm-the-mechanic only. Casualty is mapped above
     # (it sacs AND copies). CR 702.153.
-    "storm": (("spell_copy_matters", "you"),),
-    "replicate": (("spell_copy_matters", "you"),),
-    "conspire": (("spell_copy_matters", "you"),),
+    "storm": (("spell_copy_makers", "you"),),
+    "replicate": (("spell_copy_makers", "you"),),
+    "conspire": (("spell_copy_makers", "you"),),
     # Power-up (Marvel Universes Beyond) — a REAL ability word on expansion/commander
     # cards (Extremis Elite, Thanos, Abomination — set_type expansion/commander, NOT
     # funny; CR 207.2c). ADR-0027 t2b5-C: the Scryfall `Power-up` keyword array is exact
@@ -921,8 +921,8 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # keyword, so it is captured too. These cards currently show commander:not_legal
     # only because the recent set's legalities have not propagated in the bulk.
     "power-up": (("powerup_matters", "you"),),
-    # ADR-0027 dash_matters migration: the `dash` keyword MOVED here from
-    # _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). dash_matters is
+    # ADR-0027 has_dash migration: the `dash` keyword MOVED here from
+    # _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). has_dash is
     # migrated, so it must leave the regex-readable _DIRECT_KEYWORD_SIGNALS (the regex
     # extract_signals must no longer emit a migrated key); but the IR path STILL needs
     # the keyword because the Dash mechanic (CR 702.109a — cast for the dash cost,
@@ -930,10 +930,10 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # reminder text (Zurgo Bellstriker, Ragavan, Kolaghan the Storm's Fury), so no
     # structural arm or oracle mirror fires for a vanilla-Dash body. The Scryfall
     # keyword array is the structured anchor (the saddle/lifelink/mill keyword-array
-    # move) and is the SOLE producer of dash_matters. Commander-legal residual vs the
+    # move) and is the SOLE producer of has_dash. Commander-legal residual vs the
     # deleted producer: both==22, ir_only==0, regex_only==0 (byte-identical — both
     # arms read the same card['keywords']).
-    "dash": (("dash_matters", "you"),),
+    "dash": (("has_dash", "you"),),
 }
 
 # ADR-0027 C10 — lifegain_matters ARM-B significance: the non-fixed (scaling /
@@ -1011,7 +1011,7 @@ _COST_INCREASE = re.compile(
 # synthesize a cat=="cost_reduction" Effect onto the IR (the structural arm reads it),
 # so the kept _COST_REDUCER_MIRROR signals row is deleted. CR 601.2f / 118.7.
 
-# ADR-0027 shield_counter_matters — the EXACT deleted SWEEP_DETECTORS regex
+# ADR-0027 shield_counter_makers — the EXACT deleted SWEEP_DETECTORS regex
 # (`\bshield counters?\b`), pinned for the byte-identical kept mirror below. No
 # `[^.]*` span, so a flat .search over the reminder-stripped joined-face
 # kept_oracle is trivially == the deleted per-clause SWEEP firing. CR 122.1c.
@@ -1073,7 +1073,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _BASE_PT_ANIMATE_HOOK 2a animates + the _recover_dynamic_base_pt_set 2b dynamic/
     # quoted forms + the _recover_base_pt_set mass-debuff statics). base_pt_set's SERVE
     # spec (signal_specs) keeps the full BASE_PT_SET_REGEX — unchanged.
-    # ADR-0027 reveal/dig-v2 — tutor_matters BYTE-IDENTICAL kept mirror (== the deleted
+    # ADR-0027 reveal/dig-v2 — tutor BYTE-IDENTICAL kept mirror (== the deleted
     # TUTOR_MATTERS_REGEX, "search your library for (a|an|up to|...)" over the reminder-
     # STRIPPED kept_oracle). phase keeps a `tutor` EFFECT for EVERY search (opponent /
     # symmetric / composite-zone / reminder-cycle included), so a structural arm can't
@@ -1085,7 +1085,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # KEYS). The `tutor` EFFECT still opens graveyard_matters via a separate from:
     # graveyard arm. CR 701.23 / 401.
     (
-        "tutor_matters",
+        "tutor",
         TUTOR_MATTERS_REGEX,
         "you",
     ),
@@ -1653,7 +1653,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "opponents",
     ),
-    # ADR-0027 β — conjure_matters (CONJURE: the Arena/Alchemy "create a real CARD,
+    # ADR-0027 β — conjure_makers (CONJURE: the Arena/Alchemy "create a real CARD,
     # not a token" mechanic, CR 701.66a). phase carries a structural `Conjure` effect
     # type but the projection folds it to make_token AND that structural set is
     # INCOMPLETE (101 cards; misses conjure-via-activated/triggered/modal ability — 65
@@ -1663,7 +1663,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # mirror of the deleted SWEEP regex is the clean migration (scope 'you', matching
     # the deleted SWEEP scope). Digital-only: the served set is empty on commander, ~158
     # HB-legal. CR 701.66a.
-    ("conjure_matters", re.compile(r"\bconjure\b", re.IGNORECASE), "you"),
+    ("conjure_makers", re.compile(r"\bconjure\b", re.IGNORECASE), "you"),
     # forced_attack (ADR-0027 #24m F1 — re-route correction) DET PUNISHER arm.
     # forced_attack is the attack-RESTRICTION/punisher lane (CR 508.1: a card that
     # FORCES attacks or penalizes a creature that DIDN'T attack — Erg Raiders, Kratos,
@@ -2386,7 +2386,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"\b(?:page|study) counters?\b", re.IGNORECASE),
         "you",
     ),
-    # ADR-0027 β — edict_matters. The structural opp/each `sacrifice` arm in
+    # ADR-0027 β — edict_makers. The structural opp/each `sacrifice` arm in
     # extract_signals_ir is broader-and-correct (it reads Annihilator's reminder-only
     # "defending player sacrifices" and the modal "those players sacrifice", +28 over
     # the regex), but phase under-parses a 76-card tail (a sacrifice clause it folds
@@ -2396,7 +2396,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # deleted floor path); the add() dedup unions this with the structural arm. scope
     # "each" matches the deleted SWEEP row so the firing identity is byte-identical.
     (
-        "edict_matters",
+        "edict_makers",
         re.compile(
             r"each opponent sacrifices|whenever an opponent sacrifices"
             r"|target opponent sacrifices|each player sacrifices"
@@ -2493,7 +2493,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the overlap with the structural arm (net is the +36 recall, 0 regex-only lost).
     # scope "you" matches the deleted SWEEP row.
     (
-        "pump_matters",
+        "pump_makers",
         re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE),
         "you",
     ),
@@ -2546,7 +2546,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the SEPARATE _IR_KEYWORD_MAP['shadow'] route, not this mirror — genuine hard
     # evasion the regex deliberately excluded (name-collision risk). CR 509.1b / 702.14.
     ("evasion_self", _EVASION_SELF_REGEX, "you"),
-    # ADR-0027 shield_counter_matters — byte-identical kept WORD MIRROR (the EXACT
+    # ADR-0027 shield_counter_makers — byte-identical kept WORD MIRROR (the EXACT
     # deleted SWEEP regex `\bshield counters?\b`, scope 'you' matching the deleted
     # row). The lane's PRIMARY home is the STRUCTURAL arm (place_counter /
     # hascounters counter_kind=='shield' via _COUNTER_KIND_KEYS — 24 of the 27
@@ -2561,7 +2561,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # floor-disabled, by oracle_id: both==27, ir_only==0, regex_only==0. add() dedups
     # the 24 the structural arm already supplies. CR 122.1c.
     (
-        "shield_counter_matters",
+        "shield_counter_makers",
         _SHIELD_COUNTER_MATTERS_MIRROR,
         "you",
     ),
@@ -2626,8 +2626,8 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # oil_counter_matters removed — ADR-0027 migrated it to the Card IR (phase's
         # place_counter(counter_kind='oil') placer + an `_OIL_REF` payoff marker for the
         # count-operand/condition phase drops). Its SWEEP_DETECTORS row is deleted.
-        "shield_counter_matters",
-        # rad_counter_matters removed — ADR-0027 migrated it to the Card IR (the
+        "shield_counter_makers",
+        # rad_counter_makers removed — ADR-0027 migrated it to the Card IR (the
         # `rad_counter` effect / rad place_counter + a "rad counter(s)" face marker).
         # resource / devotion
         # energy_matters removed — ADR-0027 migrated it to the Card IR (phase's `energy`
@@ -2658,7 +2658,7 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # both _HAND_FLOOR rows for the cost-reduction / target-legendary / cast-
         # legendary / search refs phase leaves textual). Moved floor->kept (floor-
         # mirror-dep -> 0); both _HAND_FLOOR producers deleted.
-        # changeling_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
+        # has_changeling removed — ADR-0027 migrated it to the Card IR (the Scryfall
         # changeling keyword + a "changeling" / "is every creature type" marker). Its
         # SWEEP_DETECTORS row is deleted.
         # colorless_matters / multicolor_matters removed — ADR-0027 migrated them to the
@@ -2796,7 +2796,7 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # Foretold-predicate payoff bind (Niko) and the "to foretell" enabler marker
         # (Karfell)), so it no longer needs the regex floor (its _HAND_FLOOR detector
         # is deleted).
-        # phasing_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
+        # phasing_makers removed — ADR-0027 migrated it to the Card IR (the Scryfall
         # phasing keyword + the phase-out/in DOER markers, plus the event='other'
         # "permanents phase out" payoff-trigger marker (The War Doctor)), so it no
         # longer needs the regex floor (its SWEEP_DETECTORS row is deleted).
@@ -2815,7 +2815,7 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # cascade_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
         # cascade keyword + a `_CASCADE_GRANT` conferral/reference marker). Its
         # _HAND_FLOOR detector is deleted.
-        # undying_persist_matters removed — ADR-0027 migrated it to the Card IR (the
+        # has_undying_persist removed — ADR-0027 migrated it to the Card IR (the
         # Scryfall undying/persist keywords + a `_UNDYING_PERSIST_GRANT` grant marker);
         # the "\bundying\b" floor over-fired on the "Undying Flames" card NAME, which
         # the structural IR correctly drops. Its _HAND_FLOOR detector is deleted.
@@ -2854,7 +2854,7 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # marker, plus the "if you would scry a number of cards" replacement marker
         # (Kenessos, Eligeth)), so it no longer needs the regex floor (its _HAND_FLOOR
         # detector is deleted).
-        # regenerate_matters removed — ADR-0027 migrated it to the Card IR (phase's
+        # regenerate_makers removed — ADR-0027 migrated it to the Card IR (phase's
         # `regenerate` effect + a `_REGENERATE_REF` granted/quoted/replacement marker).
         # Its _HAND_FLOOR detector is deleted.
         # spell-pattern / count payoffs
@@ -2966,24 +2966,24 @@ IR_SLICE_KEYS: frozenset[str] = (
             "plus_one_matters",
             "minus_counters_matter",
             "oil_counter_matters",
-            "shield_counter_matters",
-            "rad_counter_matters",
+            "shield_counter_makers",
+            "rad_counter_makers",
             "ki_counter_matters",
             "counter_control",
-            "fight_matters",
-            "ramp_matters",
+            "fight_makers",
+            "ramp",
             "group_mana",
             "blink_flicker",
             "draw_for_each",
             "group_hug_draw",
             "symmetric_damage_each",
             "opponent_discard",
-            "sacrifice_matters",
-            "donate_matters",
+            "sacrifice_outlets",
+            "donate_makers",
             "land_exchange",
             "land_destruction",
             "kill_engine",
-            "removal_matters",
+            "removal",
             "exile_removal",
             "opponent_exile_matters",
             "tap_down",
@@ -3023,7 +3023,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             "monarch_matters",
             "suspect_matters",
             "venture_matters",
-            "connive_matters",
+            "connive_makers",
             "damage_prevention",
             # Batch ST (static restriction → stax):
             "stax_taxes",
@@ -3060,7 +3060,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             # bending keywords (airbend CR 701.65, earthbend 701.66, waterbend
             # 701.67, firebending 702.189) — each its own lane, never conflated.
             "voting_matters",
-            "airbend_matters",
+            "airbend_makers",
             "earthbend_matters",
             "waterbend_matters",
             "firebending_matters",
@@ -3073,7 +3073,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             # `\bconjure\b` kept word mirror (phase's structural Conjure set is
             # incomplete; the keyword is near-exact). Digital-only, so empty on
             # commander; serves ~158 in Historic Brawl.
-            "conjure_matters",
+            "conjure_makers",
             "snow_matters",  # Batch 18 — real (CR 205.4), not a skip
             # Batch 8 — named scaling-operand lanes:
             "devotion_matters",
@@ -3117,7 +3117,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Batch 13 — combat-forcing statics (split out of stax):
             "forced_attack",
             "cant_block_grant",
-            "lure_matters",
+            "lure_makers",
             # Batch 17 — DoubleTriggers static (Yarok / Panharmonicon):
             "trigger_doubling",
             # Batch 6 (unblocked) — flash_grant via CastWithKeyword{Flash}:
@@ -3150,7 +3150,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             "copy_planeswalker",
             "copy_permanent",
             # Spell-copy (Twincast/Fork) — separate from clone:
-            "spell_copy_matters",
+            "spell_copy_makers",
             # ADR-0027 tranche2-C — structural IR-arm lanes (recast_etb also rides
             # the Scryfall `sneak` keyword via _IR_KEYWORD_KEYS):
             #   exert_matters   ← grant_keyword/vigilance over a generic creature board
@@ -3227,7 +3227,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             # (self_counter_grow was DEFERRED — a genuine floor-disabled IR-vs-regex
             # recall gap, not 100% over-fire: it drops 14 subjNone p1p1 placements whose
             # raw lacks the self-anchor — Saga chapters, adapt/monstrosity.
-            # timing_control and token_copy_matters later MIGRATED via byte-identical
+            # timing_control and token_copy_makers later MIGRATED via byte-identical
             # kept-mirrors: phase drops the 2 Teferi cast-timing statics wholesale, and
             # its structural CopyTokenOf/Populate effect 100%-over-fires the token-copy
             # lane with reminder-text self-copies (Embalm/Eternalize/Offspring/Double-
@@ -3250,7 +3250,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             #   power_tap_engine       ← an ACTIVATED ability cost~'tap' + a power-
             #                            scaling effect raw (Marwyn, Selvala, Staff of
             #                            Domination).
-            # pump_matters has a structural arm (a FIXED positive `pump_target` over a
+            # pump_makers has a structural arm (a FIXED positive `pump_target` over a
             # real target-Creature subject — the pump-MAGNITUDE field, SIDECAR v42) PLUS
             # a retained tail-mirror for the X-variable "gets +X/+X" + "+N/+N and gains
             # <kw>" forms phase emits as amount==None (the trick-vs-permanent split
@@ -3381,7 +3381,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             # ab.kind=='static' gate is the EXACT mirror of impulse_top_play's
             # ab.kind!='static' split — zero double-fire.
             "play_from_top",
-            # ADR-0027 β — edict_matters: a FORCED player sacrifice (CR 701.16). The
+            # ADR-0027 β — edict_makers: a FORCED player sacrifice (CR 701.16). The
             # structural opp/each `sacrifice` arm (gated by _ir_effect_is_edict to drop
             # 6 leaked-scope self/you-sac over-fires) adds 28 real edicts the deleted
             # SWEEP regex never reached (Annihilator's reminder-only "defending player
@@ -3389,7 +3389,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             # _IR_KEPT_DETECTORS mirror (the exact deleted regex) covers the tail phase
             # folds into a categoryless / mis-scoped effect. struct + mirror reproduces
             # the regex firing set byte-identically (regex_only == 0).
-            "edict_matters",
+            "edict_makers",
             # ADR-0027 β — legend_rule_off + timing_control: phase emits NOTHING
             # structural for either (legend_exempt covers only 2 of 8; the cast-timing
             # statics are dropped wholesale), so each rides a byte-identical
@@ -3398,13 +3398,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             # (floor-mirror-dep == 0). CR 704.5j / 117.1a.
             "legend_rule_off",
             "timing_control",
-            # ADR-0027 C5 — token_copy_matters: project stamps a "Copy" predicate on the
+            # ADR-0027 C5 — token_copy_makers: project stamps a "Copy" predicate on the
             # make_token subject of a CopyTokenOf (Typed copy) / Populate / copy-spell
             # phase-fold marker, plus the token_doubling category; the reminder
             # self-copy SelfRef cases (Embalm/Eternalize/Squad/Myriad/Offspring) are
             # stripped of the Copy marker IN PROJECTION (the keyword gate), so fully
             # STRUCTURAL — no byte-mirror. CR 707 / 701.36.
-            "token_copy_matters",
+            "token_copy_makers",
             # ADR-0027 — tokens_matter: the clean Token-predicate pump/grant ANTHEM, the
             # Token-predicate "token enters" etb trigger, and the token_doubling
             # category are read STRUCTURALLY (additive). The broad "tokens you control"
@@ -3532,7 +3532,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             # `mana_amplifier` category (amount-MULTIPLIER doublers — Mana Reflection,
             # Virtue of Strength) + a _MANA_AMPLIFY_RAW discriminator over the triggered
             # `ramp` / `double` doublers (Crypt Ghast, Mirari's Wake, Cube), read
-            # ADDITIVELY (ramp_matters unchanged) + a byte-identical
+            # ADDITIVELY (ramp unchanged) + a byte-identical
             # _MANA_DORK_SUPPORT_MIRROR for the "creatures with a mana ability" payoff
             # phase can't structure (Raggadragga). NOT in _IR_FLOOR_LANES (floor-mirror-
             # dep == 0). CR 106.4 / 605.
@@ -3572,7 +3572,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             # no mirror (3010 -> 3010). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
             # CR 903.10a.
             "one_punch",
-            # ADR-0027 — keyword_soup_matters (a commander that GRANTS/SHARES many
+            # ADR-0027 — keyword_soup_makers (a commander that GRANTS/SHARES many
             # evergreen keywords across the team — Odric, Akroma Vision, Akroma's
             # Memorial/Will, Concerted Effort, Bleeding Effect — wants creatures
             # STACKED with keywords). MIRROR-ONLY: the structural
@@ -3584,7 +3584,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             # 'you', LOW conf (the deleted producer's identity — never fed
             # has_other_plan, so no voltron mirror is needed). NOT in _IR_FLOOR_LANES
             # (floor-mirror-dep == 0). CR 702.
-            "keyword_soup_matters",
+            "keyword_soup_makers",
             # ADR-0027 β — unspent_mana (the "you KEEP unspent mana across steps/phases"
             # payoff): a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP
             # regex. phase carries a `StepEndUnspentMana` static for the 11 pure statics
@@ -4207,8 +4207,8 @@ _PROTECTION_GRANT_RAW: re.Pattern[str] = re.compile(
 _COUNTER_KIND_KEYS: dict[str, tuple[str, str]] = {
     "m1m1": ("minus_counters_matter", "you"),
     "oil": ("oil_counter_matters", "you"),
-    "shield": ("shield_counter_matters", "you"),
-    "rad": ("rad_counter_matters", "opponents"),
+    "shield": ("shield_counter_makers", "you"),
+    "rad": ("rad_counter_makers", "opponents"),
     "ki": ("ki_counter_matters", "you"),
     # NB: lore counters do NOT map here — saga_matters fires from a `saga` marker
     # (project._dropped_static_markers, the "lore counter" / "Saga you control" face
@@ -4384,7 +4384,7 @@ _PERMANENT_TYPES: frozenset[str] = frozenset(
     {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker", "Battle"}
 )
 
-# removal_matters subtype-only destroy gate (ADR-0027): "destroy target Wall"
+# removal subtype-only destroy gate (ADR-0027): "destroy target Wall"
 # destroys a CREATURE; phase parses it as destroy(subject card_types=(),
 # subtypes=('Wall',)) so the _PERMANENT_TYPES card-type gate misses it. Fire on a
 # non-empty SUBTYPE subject UNLESS every subtype is a LAND subtype — "destroy target
@@ -4455,7 +4455,7 @@ _MASS_REMOVAL_TYPES: frozenset[str] = frozenset(
 )
 _MASS_DEBUFF_RAW = re.compile(r"all .*creatures? .*get -", re.IGNORECASE)
 
-# donate_matters (ADR-0027): a control CHANGE that gives a permanent YOU control to
+# donate_makers (ADR-0027): a control CHANGE that gives a permanent YOU control to
 # ANOTHER player (CR 701.12 — Donate, Harmless Offering, Zedruu). phase parses these
 # as gain_control with scope='any' (the RECIPIENT — an opponent/other player — is
 # dropped from the typed shape), so read the effect raw for the giving-away phrasing.
@@ -4475,7 +4475,7 @@ _DONATE_RAW = re.compile(
 # theft. phase maps these GiveControl effects to the gain_control category, so the
 # theft lane must exclude the give-away direction. Broader than _DONATE_RAW (adds
 # "an opponent" / "each player" / "that creature's controller / source's controller")
-# and gain_control-only (NOT wired to donate_matters, a separate migrated lane).
+# and gain_control-only (NOT wired to donate_makers, a separate migrated lane).
 _GIVE_CONTROL_AWAY = re.compile(
     r"(?:an opponent|each player|that (?:creature's|permanent's|source's) controller"
     r"|target opponent|another player|that player|each opponent|its owner"
@@ -4497,13 +4497,13 @@ _REANIMATE_CREATURE_RAW = re.compile(
     re.IGNORECASE,
 )
 
-# sacrifice_matters edict exclusion (ADR-0027): a FORCED sacrifice phase mis-scoped
+# sacrifice_outlets edict exclusion (ADR-0027): a FORCED sacrifice phase mis-scoped
 # to "any" (it dropped the opponent/each-player controller — Malfegor, Barter in
 # Blood, Plaguecrafter), so the structural opp/each edict split missed it. The raw
 # still names the sacrificing party ("<each opponent / each player / target player /
 # defending player / an opponent> ... sacrifices"), the 3rd-person forced form that
 # distinguishes an edict from a you-sacrifice ("you ... sacrifice"). Kept out of the
-# you-sac sacrifice_matters lane (it stays an edict_matters / removal effect).
+# you-sac sacrifice_outlets lane (it stays an edict_makers / removal effect).
 _SAC_EDICT_RAW = re.compile(
     r"\b(?:each opponent|each player|each of your opponents|target opponent"
     r"|target player|that player|an opponent|defending player|enchanted player"
@@ -4511,7 +4511,7 @@ _SAC_EDICT_RAW = re.compile(
     re.IGNORECASE,
 )
 
-# edict_matters IR-arm discriminators (ADR-0027 β). The structural opp/each sacrifice
+# edict_makers IR-arm discriminators (ADR-0027 β). The structural opp/each sacrifice
 # split over-fires when phase leaks scope='opp'/'each' onto a sacrifice from a SIBLING
 # clause: a self-permanent sac ("sacrifice ~ and target opponent discards" — Brink of
 # Madness, Helm of Obedience, Thought Dissector) or a you-sac ("you may sacrifice a
@@ -4548,7 +4548,7 @@ def _ir_effect_is_edict(e: Effect) -> bool:
     return not _EDICT_LEAKED_SAC.search(raw)
 
 
-# sacrifice_matters subject-less / modal fallback (ADR-0027): a YOU-sacrifice of a
+# sacrifice_outlets subject-less / modal fallback (ADR-0027): a YOU-sacrifice of a
 # NON-land permanent surviving only in a sacrifice/choose effect raw phase left
 # subjectless ("sacrifice any number of creatures" — Dracoplasm, Shimatsu; "sacrifice
 # … unless you sacrifice a creature" pay-or-die — Phyrexian Dreadnought, Contamination;
@@ -4648,7 +4648,7 @@ def _power_oracle(card: dict) -> str:
 # ADR-0027 — direct_damage / symmetric_damage_each share the v22 damage Effect.
 # direct_damage = a source that CAN deal damage to a PLAYER (CR 120.1 / 115.4 — "any
 # target" reaches creatures, players, planeswalkers, or battles, so it can go face);
-# damage restricted to a CREATURE / PERMANENT is REMOVAL (removal_matters), NOT
+# damage restricted to a CREATURE / PERMANENT is REMOVAL (removal), NOT
 # direct_damage. The v22 projection scopes the damage recipient: 'opp' ("deals N to
 # each/target opponent" — Sizzle), 'each' ("deals N to each player" — Pestilence,
 # symmetric), 'any' for creature-restricted bite (subject=Filter(Creature)) AND for
@@ -4849,9 +4849,9 @@ _PROLIFERATE_REMOVE_COST_RE = re.compile(
     re.IGNORECASE,
 )
 
-# fight_matters (ADR-0027): a face-level fallback for an Aftermath DFC whose "Fight"
+# fight_makers (ADR-0027): a face-level fallback for an Aftermath DFC whose "Fight"
 # back face phase never projects into the IR (Prepare // Fight) — the fight survives
-# only on the combined face oracle. Mirrors the project `_FIGHT_REF` / fight_matters
+# only on the combined face oracle. Mirrors the project `_FIGHT_REF` / fight_makers
 # regex shapes (the fight VERB with a target/creature/each-other object).
 _FIGHT_RAW = re.compile(
     r"\bfights? (?:up to (?:one|two|\d+) )?(?:other |another )?target\b"
@@ -4888,7 +4888,7 @@ _GROUP_MANA_RAW = re.compile(
 # generic ramp lane shared with thousands of dorks/rocks), and Doubling Cube's "Double
 # the amount of … unspent mana" lands in `double`; both are split out by this
 # AMOUNT-INCREASE discriminator over the ramp/double effect raw — read ADDITIVELY, so
-# doublers KEEP firing ramp_matters (the category is not moved; only an EXTRA
+# doublers KEEP firing ramp (the category is not moved; only an EXTRA
 # mana_amplifier signal is emitted). The discriminator requires a real amount increase
 # ("add an additional / twice / that much / one mana of any", "produces twice/three
 # times", "double the amount of … mana"); a plain "produces … instead" color FILTER and
@@ -4916,7 +4916,7 @@ _MANA_DORK_SUPPORT_MIRROR = re.compile(
     r"creatures?[^.]*\bwith (?:a )?mana abilit", re.IGNORECASE
 )
 
-# ADR-0027 — ramp_matters KEPT MIRROR. The byte-identical deleted _HAND_FLOOR producer
+# ADR-0027 — ramp KEPT MIRROR. The byte-identical deleted _HAND_FLOOR producer
 # (the "{T}: add {" / "add N mana" / "add {WUBRGC}" mana-production anchors). The
 # structural `ramp` arm (gated `not card_is_land`) is broader-and-correct for NON-LAND
 # ramp doers, but phase attributes a TOKEN's embedded "{T}: Add" to the token (so an
@@ -4927,7 +4927,7 @@ _MANA_DORK_SUPPORT_MIRROR = re.compile(
 # stripped kept oracle like the deleted floor Detector. Combined with the structural
 # arm: regex_only == 0, +96 nonland recall, 106 reminder-formatted mana-base lands
 # correctly dropped. The dork-support arm rides _MANA_DORK_SUPPORT_MIRROR (the EXACT
-# deleted 1368 ramp_matters producer — same pattern as the mana_amplifier dork arm).
+# deleted 1368 ramp producer — same pattern as the mana_amplifier dork arm).
 # CR 106.4 / 605.
 _RAMP_MATTERS_REGEX = re.compile(
     r"\{t\}[^.]*:\s*add \{|add (?:one|two|three|four|five|x|\d+) mana"
@@ -4980,7 +4980,7 @@ _DUNGEON_RAW = re.compile(r"\broom abilit|\bdungeon", re.IGNORECASE)
 # redirect engine that wants goad payoffs. phase types these as a `force_attack`
 # effect (the same category as the self/team "attacks each combat" compulsion), so the
 # IR routes the force_attack effect to forced_attack by default; this raw anchor lifts
-# the TARGETED form to goad_matters too. The self/team "each combat if able" static
+# the TARGETED form to goad_makers too. The self/team "each combat if able" static
 # (the forced_attack lane proper) never says "target creature", so it stays
 # forced_attack-only.
 _GOAD_STYLE_FORCE = re.compile(
@@ -5224,7 +5224,7 @@ _TOUGHNESS_VALUE_MIRROR = re.compile(TOUGHNESS_VALUE_REGEX, re.IGNORECASE)
 # deleted per-clause SWEEP union (commander-legal: regex==mirror, 51==51, 0 lost, 0
 # over-fire). CR 706.10 / 113.2 / 706.2.
 _ABILITY_COPY_MIRROR = re.compile(ABILITY_COPY_REGEX, re.IGNORECASE)
-# lure_matters BYTE-IDENTICAL kept mirror (ADR-0027): the force-a-block lane (CR 509.1c)
+# lure_makers BYTE-IDENTICAL kept mirror (ADR-0027): the force-a-block lane (CR 509.1c)
 # fires structurally from the `lure` arm below (extract_signals_ir), which catches the
 # 68 commander-legal cards phase projects + 3 the deleted SWEEP missed (typed/restricted
 # blockers — Marble Priest, Talruum Piper, You Look Upon the Tarrasque). This mirror —
@@ -5946,7 +5946,7 @@ def _is_mass_counter_marker(f: object) -> bool:
 def _is_permanent_subtype_destroy(f: object) -> bool:
     """True when ``f`` is a destroy/damage subject naming a permanent by SUBTYPE only
     (card_types empty) and that subtype is NOT a land — "destroy target Wall /
-    Equipment / Aura" is removal (ADR-0027 removal_matters shape 2), while "destroy
+    Equipment / Aura" is removal (ADR-0027 removal shape 2), while "destroy
     target Island" is land_destruction. Any non-land subtype qualifies (creature
     subtypes, Equipment/Aura/Vehicle/Room permanent subtypes); a subject that is ALL
     land subtypes returns False."""
@@ -6109,7 +6109,7 @@ def _hoses_a_color(f: object) -> bool:
 # generic "Permanent" (Crystalline Resonance) counts toward EVERY type lane AND the
 # generic copy_permanent — the hierarchy Dan asked for (anything that can target
 # permanents shows up for permanents AND each permanent type). Spell-copy (instant/
-# sorcery) is a SEPARATE concern (spell_copy_matters), not a clone.
+# sorcery) is a SEPARATE concern (spell_copy_makers), not a clone.
 _COPY_TYPE_LANES: dict[str, str] = {
     "Creature": "clone_makers",
     "Artifact": "copy_artifact",
@@ -6119,7 +6119,7 @@ _COPY_TYPE_LANES: dict[str, str] = {
 }
 # ADR-0027 clone copied-type subject (SIDECAR v30): clone_makers migrated to the Card
 # IR. A TOKEN-copy clone ("create a token that's a copy" — Mirror Match, CR 707.1) is
-# the separate token_copy_matters lane (Dan's clone-vs-token-copy boundary, the deleted
+# the separate token_copy_makers lane (Dan's clone-vs-token-copy boundary, the deleted
 # DETECTOR's own comment), so the structural cat=='clone' arm vetoes it. The byte-
 # identical kept WORD MIRROR of the COMBINED deleted regex (CLONE_MATTERS_REGEX) lives
 # in _IR_KEPT_DETECTORS above (compiled inline there — it predates this module section).
@@ -6129,7 +6129,7 @@ _CLONE_TOKEN_COPY_VETO = re.compile(r"create[sd]? [^.]*token[^.]*cop", re.IGNORE
 # copy), so a token-copy RIDER in the same raw (Progenitor Mimic's "except it has '…
 # create a token that's a copy of this creature'", Mirrorhall Mimic's aura side) must
 # NOT veto clone_makers. Only a PURE token-copy (Mirror Match — "create tokens that
-# are copies", no enter/become-as-a-copy) stays vetoed to token_copy_matters. CR 707.1.
+# are copies", no enter/become-as-a-copy) stays vetoed to token_copy_makers. CR 707.1.
 _CLONE_SELF_IDIOM = re.compile(
     r"\b(?:enters?|become[sd]?|enter the battlefield)\b[^.\"“”]*\bas a copy of\b"
     r"|\bbecome[sd]? a copy of\b",
@@ -6890,7 +6890,7 @@ def extract_signals_ir(
             if _COST_INCREASE.search(raw):
                 continue
             add("cost_reduction", "you", "", raw)
-        # ADR-0027 #24 Duration fast-follow — debuff_matters structural arm.
+        # ADR-0027 #24 Duration fast-follow — debuff_makers structural arm.
         # Two projected Effect forms anchor it:
         #   • a `pump` OR `pump_target` Effect with duration!="" AND a NEGATIVE amount
         #     (or "-" in raw for the variable/dropped amount tail). Retires the
@@ -6914,8 +6914,8 @@ def extract_signals_ir(
                 and e.scope != "you"
             )
             if is_neg_pump or is_other_m1m1:
-                add("debuff_matters", "any", "", e.raw or "")
-        # ADR-0027 base-P/T SET shrink — debuff_matters THIRD anchor (SIDECAR v45).
+                add("debuff_makers", "any", "", e.raw or "")
+        # ADR-0027 base-P/T SET shrink — debuff_makers THIRD anchor (SIDECAR v45).
         # A layer-7b set-P/T static (the _recover_base_pt_set residue, CR 613.4b) that
         # is a MASS shrink of OPPONENTS' (scope "opp" — Maha, Flatline, Overwhelming
         # Splendor) or SYMMETRIC (scope "each" — Humility, Godhead of Awe, Sudden
@@ -6938,7 +6938,7 @@ def extract_signals_ir(
                 and isinstance(getattr(amt, "factor", None), int)
                 and amt.factor <= 2
             ):
-                add("debuff_matters", "you", "", e.raw or "")
+                add("debuff_makers", "you", "", e.raw or "")
         # ADR-0027 β — global_ability_grant (a card that grants a QUOTED activated /
         # triggered / static ability to your whole CREATURE board or to an
         # ALL-permanents set — "Creatures you control have '{T}: …'", "All artifacts
@@ -7080,7 +7080,7 @@ def extract_signals_ir(
         # you control is put into a graveyard"); the OUTLET is recovered by
         # supplement._recover_land_sacrifice as a `sacrifice` Effect with a Land-ONLY
         # subject (Zuran Orb's "Sacrifice a land:" cost phase drops the type from). A
-        # Land-only sacrifice subject is excluded from sacrifice_matters (the you-sac
+        # Land-only sacrifice subject is excluded from sacrifice_outlets (the you-sac
         # arm gates `card_types != ("Land",)`), so it stays this lane's own structural
         # signal. Replaces the LAND_SACRIFICE_REGEX kept mirror. CR 701.16 / 305.6.
         _ls_trig = ab.trigger
@@ -7150,7 +7150,7 @@ def extract_signals_ir(
             # scope-tag QUIRK — phase tags structurally-identical symmetric land-sac
             # inconsistently as `any` (Death Cloud) vs `each` (Destructive Force); this
             # arm reads the structure regardless, so both are admitted consistently.
-            # A Land-only subject is held out of sacrifice_matters (the you-sac arm
+            # A Land-only subject is held out of sacrifice_outlets (the you-sac arm
             # gates `card_types != ("Land",)`), so this stays this lane's own
             # structural signal. Replaces the LAND_SACRIFICE_REGEX kept mirror.
             # CR 701.21 / 305.6.
@@ -7578,7 +7578,7 @@ def extract_signals_ir(
                 subject = _token_kindred_subject(e.subject, vocab)
                 if subject is not None:
                     add(signal_keys.TOKEN_MAKER, "you", subject, e.raw)
-            # ADR-0027 β: token_copy_matters MIGRATED via a kept-mirror, NOT a
+            # ADR-0027 β: token_copy_makers MIGRATED via a kept-mirror, NOT a
             # structural arm here. phase DOES structure the copy detail — `CopyTokenOf`
             # (394 cards) and `Populate` (27) effect types — but
             # project._copy_token_effect / _EFFECT_CATEGORY['populate'] both collapse
@@ -7616,7 +7616,7 @@ def extract_signals_ir(
             if e.category == "bending":
                 bend_raw = (e.raw or "").lower()
                 if "airbend" in bend_raw:
-                    add("airbend_matters", "you", "", e.raw)
+                    add("airbend_makers", "you", "", e.raw)
                 if "earthbend" in bend_raw:
                     add("earthbend_matters", "you", "", e.raw)
                 if "waterbend" in bend_raw:
@@ -7792,7 +7792,7 @@ def extract_signals_ir(
                 )
             ):
                 add("self_pump", "you", "", e.raw)
-            # ADR-0027 Duration fast-follow (SIDECAR v44) — pump_matters structural arm.
+            # ADR-0027 Duration fast-follow (SIDECAR v44) — pump_makers structural arm.
             # The lane is a POSITIVE combat-trick BUFF of ANOTHER creature ("target
             # creature gets +N/+N"). `duration` identifies temporary buffs, retiring
             # the mirror that kept the dynamic +X/+X and "AND gains <kw>" tricks alive.
@@ -7813,7 +7813,7 @@ def extract_signals_ir(
                     or (e.amount is None and "+" in (e.raw or ""))
                 )
             ):
-                add("pump_matters", "you", "", e.raw)
+                add("pump_makers", "you", "", e.raw)
             if cat == "place_counter" and e.counter_kind in _COUNTER_KIND_KEYS:
                 ck_key, ck_scope = _COUNTER_KIND_KEYS[e.counter_kind]
                 add(ck_key, ck_scope, "", e.raw)
@@ -7988,7 +7988,7 @@ def extract_signals_ir(
             # structural inputs read here (the undying/persist keyword BEARERS ride
             # _IR_KEYWORD_MAP): the keyword-LESS GRANTERS via phase's `undying_persist`
             # marker (Mikaeus, the Unhallowed; Cauldron of Souls; Endling — these also
-            # open undying_persist_matters via _DOER_EFFECT_KEYS, add() dedups), and the
+            # open has_undying_persist via _DOER_EFFECT_KEYS, add() dedups), and the
             # literal "when this dies, return it to the battlefield" self-return via the
             # supplement's `self_recursion` marker (Feign Death, Bronzehide Lion,
             # Darigaaz Reincarnated). The deleted DIES_RECURSION_REGEX word
@@ -8000,9 +8000,9 @@ def extract_signals_ir(
             if cat == "counter_spell":
                 add("counter_control", "you", "", e.raw)
             if cat == "fight":
-                add("fight_matters", "you", "", e.raw)
+                add("fight_makers", "you", "", e.raw)
             if cat == "ramp":
-                # ADR-0027 #24 — ramp_matters reads the `ramp` Mana effect STRUCTURE,
+                # ADR-0027 #24 — ramp reads the `ramp` Mana effect STRUCTURE,
                 # on the LAND/TOKEN too (SIDECAR v43 — was the single biggest regex
                 # mirror, ~1,047 cards). A NONLAND ramp doer (rock / dork / ritual /
                 # land-aura / "tap-a-land-add-more" engine) is always acceleration —
@@ -8024,7 +8024,7 @@ def extract_signals_ir(
                     amt.op == "variable" or (amt.op == "fixed" and amt.factor > 1)
                 )
                 if not card_is_land or accel or e.mana_kind == "fixing":
-                    add("ramp_matters", "you", "", e.raw)
+                    add("ramp", "you", "", e.raw)
                 # ADR-0027 — group_mana: a non-controller mana RECIPIENT in the ramp
                 # raw (phase emits scope='each' for ZERO ramp effects; the recipient
                 # survives only in raw — _GROUP_MANA_RAW is the discriminator).
@@ -8038,7 +8038,7 @@ def extract_signals_ir(
             # Zendikar Resurgent), and Doubling Cube's "double the amount of … mana"
             # lands in `double`; both are split out by the _MANA_AMPLIFY_RAW
             # amount-increase discriminator — read ADDITIVELY (the ramp branch above
-            # already fired ramp_matters; this only ADDS mana_amplifier, so the doublers
+            # already fired ramp; this only ADDS mana_amplifier, so the doublers
             # stay in the generic ramp lane too). scope "you" — the deleted regex's
             # firing identity. CR 106.4 / 605.
             if cat == "mana_amplifier" or (
@@ -8073,7 +8073,7 @@ def extract_signals_ir(
             # sorcery clones — Cytoshape, Oko, Lazav, Sunfrill Imitator's Dinosaur) the
             # narrow ETB-only regex missed. A clone effect whose raw is a TOKEN-copy
             # ("create a token that's a copy" — Mirror Match, CR 707.1) belongs to the
-            # separate token_copy_matters lane (Dan's deliberate clone vs token-copy
+            # separate token_copy_makers lane (Dan's deliberate clone vs token-copy
             # boundary, the deleted DETECTOR's own comment), so it is vetoed here.
             if cat == "clone" and (
                 not _CLONE_TOKEN_COPY_VETO.search(e.raw or "")
@@ -8084,7 +8084,7 @@ def extract_signals_ir(
             # spell-copy (Twincast, Fork — "copy target spell") is a SEPARATE lane
             # from clone (which is creatures-on-the-battlefield only), per Dan.
             if cat == "spell_copy":
-                add("spell_copy_matters", "you", "", e.raw)
+                add("spell_copy_makers", "you", "", e.raw)
             # evasion_denial: IgnoreLandwalkForBlocking (Great Wall) — block through
             # an opponent's landwalk evasion. Also fires off the ADR-0027 conferred
             # marker for the generic-landwalk umbrella (Staff of the Ages), which phase
@@ -8601,8 +8601,8 @@ def extract_signals_ir(
                 and e.scope in ("opp", "each")
                 and _ir_effect_is_edict(e)
             ):
-                add("edict_matters", _ir_scope(e.scope), "", e.raw)
-            # ADR-0027 sacrifice_matters — a YOU-sacrifice effect (the dominant gap):
+                add("edict_makers", _ir_scope(e.scope), "", e.raw)
+            # ADR-0027 sacrifice_outlets — a YOU-sacrifice effect (the dominant gap):
             # "you may sacrifice a creature/artifact", "sacrifice another creature",
             # the additional-cost-to-cast sac marker (Altar's Reap, Fling). phase
             # emits scope "any" even for a clearly-you sacrifice, so fire on scope NOT
@@ -8631,7 +8631,7 @@ def extract_signals_ir(
                 and e.subject.card_types != ("Land",)
                 and not _SAC_EDICT_RAW.search(e.raw or "")
             ):
-                add("sacrifice_matters", "you", "", e.raw)
+                add("sacrifice_outlets", "you", "", e.raw)
             # Subject-less / modal fallback: phase parsed a sacrifice or a `choose`
             # whose typed subject it dropped ("sacrifice any number of creatures" —
             # Dracoplasm; "sacrifice it unless you sacrifice a creature" pay-or-die;
@@ -8644,14 +8644,14 @@ def extract_signals_ir(
                 and _SAC_OUTLET_RAW.search(e.raw or "")
                 and not _SAC_EDICT_RAW.search(e.raw or "")
             ):
-                add("sacrifice_matters", "you", "", e.raw)
+                add("sacrifice_outlets", "you", "", e.raw)
             if cat == "gain_control":
-                # donate_matters (ADR-0027): you GIVE a permanent you control to
+                # donate_makers (ADR-0027): you GIVE a permanent you control to
                 # another player. phase drops the recipient (scope='any'), so read
                 # the raw for the recipient-is-another-player phrasing.
                 is_donate = bool(_DONATE_RAW.search(e.raw or ""))
                 if is_donate:
-                    add("donate_matters", "you", "", e.raw)
+                    add("donate_makers", "you", "", e.raw)
                 if "Land" in ftypes or (
                     e.subject is None and _LAND_EXCHANGE_RAW.search(e.raw or "")
                 ):
@@ -8690,7 +8690,7 @@ def extract_signals_ir(
                 # Nekrataal/Shriekmaw, planeswalkers, non-commanders). It rides the
                 # membership-gated structural arm in the include_membership block below
                 # (_is_kill_engine_ir + _REPEATABLE_KILL_MIRROR). REMOVED here.
-                # removal_matters: a SINGLE-TARGET destroy whose subject is a
+                # removal: a SINGLE-TARGET destroy whose subject is a
                 # permanent TYPE, or (ADR-0027) a subtype-ONLY subject that names a
                 # permanent — "destroy target Wall/Equipment/Aura" (card_types=(),
                 # subtypes set) is removal of a creature / artifact / enchantment.
@@ -8706,7 +8706,7 @@ def extract_signals_ir(
                     (ftypes & _PERMANENT_TYPES)
                     or _is_permanent_subtype_destroy(e.subject)
                 ):
-                    add("removal_matters", "you", "", e.raw)
+                    add("removal", "you", "", e.raw)
                 # destroy_legendary (ADR-0027): a destroy whose subject is restricted
                 # to legendary permanents (Bounty Agent, Tsabo Tavoc, Hero's Demise;
                 # the mass form "destroy each legendary creature" — Invasion of Fiora —
@@ -8715,8 +8715,8 @@ def extract_signals_ir(
                 # "destroy target creature" (Hero's Downfall, predicates=()) lacks it,
                 # and "destroy target NONlegendary creature" (Cast Down, One Ring)
                 # carries NotSupertype:Legendary, the OPPOSITE, so neither fires. Scope
-                # 'any' (the regex forces it). is_widen_of removal_matters is preserved
-                # — it stays a destroy effect, which opened removal_matters above where
+                # 'any' (the regex forces it). is_widen_of removal is preserved
+                # — it stays a destroy effect, which opened removal above where
                 # it qualifies. (CR 205.4a.) See ADR-0027.
                 if (
                     isinstance(e.subject, Filter)
@@ -8760,7 +8760,7 @@ def extract_signals_ir(
                 )
             ):
                 add("bounce_tempo", "you", "", e.raw)
-            # removal_matters (ADR-0027): a SINGLE-TARGET DAMAGE effect to a creature /
+            # removal (ADR-0027): a SINGLE-TARGET DAMAGE effect to a creature /
             # permanent (cat=='damage', subject a creature or other permanent type, or
             # a permanent subtype) is removal — Flame Slash, Crossbow Infantry, Nin
             # (op=count), Surgehacker (op=multiply), Hobbit's Sting (X). The regex
@@ -8781,7 +8781,7 @@ def extract_signals_ir(
                     or _is_permanent_subtype_destroy(e.subject)
                 )
             ):
-                add("removal_matters", "you", "", e.raw)
+                add("removal", "you", "", e.raw)
             # control_exchange (ADR-0027): exile a permanent/creature YOU OWN, then
             # return it to the battlefield (under your control) — Meneldor, The
             # Neutrinos, Aminatou's -1. This is the INVERSE of the exile_removal Owned-
@@ -9172,7 +9172,7 @@ def extract_signals_ir(
                     if st in _TOKEN_SUBTYPE_KEYS:
                         tk, ts = _TOKEN_SUBTYPE_KEYS[st]
                         add(tk, ts, "", e.raw)
-            # ADR-0027 C5 — token_copy_matters STRUCTURAL ARM. project stamps a "Copy"
+            # ADR-0027 C5 — token_copy_makers STRUCTURAL ARM. project stamps a "Copy"
             # predicate (CR 707) on the make_token subject of a CopyTokenOf (Cackling
             # Counterpart — Typed copy), a Populate (Trostani — CR 701.36 creature-token
             # copy), or a copy-spell phase-fold marker (_copy_spell_markers). The
@@ -9186,7 +9186,7 @@ def extract_signals_ir(
                 and e.subject is not None
                 and "Copy" in e.subject.predicates
             ):
-                add("token_copy_matters", "you", "", e.raw)
+                add("token_copy_makers", "you", "", e.raw)
             # ADR-0027 C5 — tokens_matter STRUCTURAL ARM A (the "tokens you control"
             # anthem). A pump / grant_keyword whose subject Filter carries the Token
             # predicate AND controller 'you' ("Creature tokens you control get +1/+1 and
@@ -9222,7 +9222,7 @@ def extract_signals_ir(
             # Modal keyword mechanics — own CR-accurate category fanning to EVERY mode
             # it touches, instead of being flattened into a single facet. The keyword
             # maps already fire the primary lane (amass→tokens_matter,
-            # fabricate→plus_one_matters, devour→sacrifice_matters); these add the IR
+            # fabricate→plus_one_matters, devour→sacrifice_outlets); these add the IR
             # side (→ BOTH) plus the previously-dropped mode.
             if cat == "amass":  # CR 701.47 — grow an Army (+1/+1) or make an Army token
                 add("tokens_matter", "you", "", e.raw)
@@ -9231,8 +9231,8 @@ def extract_signals_ir(
                 add("tokens_matter", "you", "", e.raw)
                 add("plus_one_matters", "any", "", e.raw)
             if cat == "devour":  # CR 702.82 — sacrifice creatures, enter with counters
-                add("devour_matters", "you", "", e.raw)
-                add("sacrifice_matters", "you", "", e.raw)
+                add("has_devour", "you", "", e.raw)
+                add("sacrifice_outlets", "you", "", e.raw)
                 add("plus_one_matters", "any", "", e.raw)
             # ADR-0027 — creature_recursion STRUCTURAL ARM A (the GY->battlefield half).
             # A `reanimate` Effect whose subject is Creature-typed is a GY->battlefield
@@ -9352,11 +9352,11 @@ def extract_signals_ir(
                 # the goad lane. The self/team "each combat" force never names a
                 # target, so it stays forced_attack-only.
                 if _GOAD_STYLE_FORCE.search(e.raw or ""):
-                    add("goad_matters", "opponents", "", e.raw)
+                    add("goad_makers", "opponents", "", e.raw)
             if cat == "cant_block":
                 add("cant_block_grant", "you", "", e.raw)
             if cat == "lure":
-                add("lure_matters", "you", "", e.raw)
+                add("lure_makers", "you", "", e.raw)
             if cat in ("force_attack", "cant_block"):
                 if e.scope == "opp":
                     add("stax_taxes", "opponents", "", e.raw)
@@ -9411,11 +9411,11 @@ def extract_signals_ir(
                 add("token_doubling", "you", "", e.raw)
                 # ADR-0027 C5 — a token DOUBLER (Adrix and Nev, Parallel Lives, Doubling
                 # Season) forks token-COPY spells (twice the copies) and is a go-wide
-                # token PAYOFF, so it opens both token_copy_matters and tokens_matter.
+                # token PAYOFF, so it opens both token_copy_makers and tokens_matter.
                 # phase fully structures this as the token_doubling replacement
                 # category, so both reads are structural — replaces "twice that many"
                 # mirror arm of the deleted token_copy / tokens_matter regexes. CR 614.
-                add("token_copy_matters", "you", "", e.raw)
+                add("token_copy_makers", "you", "", e.raw)
                 add("tokens_matter", "you", "", e.raw)
             if cat == "counter_doubling":
                 add("counter_doubling", "you", "", e.raw)
@@ -9561,7 +9561,7 @@ def extract_signals_ir(
         if ab.cost:
             cost_parts = set(ab.cost.split(","))
             if "sacrifice" in cost_parts:
-                add("sacrifice_matters", "you", "", "")
+                add("sacrifice_outlets", "you", "", "")
             # activated_draw (ADR-0027): a TAP-to-DRAW activated engine — the
             # repeatable card-advantage source you want to untap (Arch of Orazca,
             # Bonders' Enclave, Arcane Encyclopedia, Niv-Mizzet). The {T} gate is the
@@ -9806,24 +9806,24 @@ def extract_signals_ir(
                 and any(e.category == "lose_game" for e in ab.effects)
             ):
                 add("lose_unless_hand", "you", "", "")
-            # ADR-0027 sacrifice_matters — the pure SAC PAYOFF: a trigger that fires
+            # ADR-0027 sacrifice_outlets — the pure SAC PAYOFF: a trigger that fires
             # on the act of sacrificing ("whenever you sacrifice a creature/artifact"
             # → reward; Gleaming Geardrake's "sacrificed" trigger → +1/+1 counter).
             # phase parses this as Trigger(event='sacrificed') — unambiguously a sac
             # payoff, so no discriminator is needed. CR 701.16.
             if trig.event == "sacrificed":
-                add("sacrifice_matters", "you", "", "")
+                add("sacrifice_outlets", "you", "", "")
             # ADR-0027 (SIDECAR v40) — exploit IS a sacrifice (CR 702.139a: "when this
             # enters, you may sacrifice a creature"). phase carries the payoff as a
             # distinct `Exploited` trigger ("whenever a creature you control exploits a
-            # creature"), now event=='exploited'. Reading it opens sacrifice_matters
+            # creature"), now event=='exploited'. Reading it opens sacrifice_outlets
             # for the exploit-GRANTER Henry Wu (keyword-less — his exploit lives only
             # in the grant text, so the keyword route below can't reach him; his own
             # Exploited trigger does) and the 24 native exploiters that carry the
             # trigger. The Scryfall `exploit` keyword route (_IR_KEYWORD_MAP) covers
             # the keyword-only tail (Silumgar Scavenger). CR 702.139.
             if trig.event == "exploited":
-                add("sacrifice_matters", "you", "", "")
+                add("sacrifice_outlets", "you", "", "")
             # ADR-0027 (SIDECAR v40, MISS#1) — the BECOMES-TARGET payoff split. phase
             # carries a `BecomesTarget` trigger (CR 702.21a) whose targeted creature's
             # owner rides `scope` (valid_card) and whose TARGETING-spell controller
@@ -10543,7 +10543,7 @@ def extract_signals_ir(
     # add() dedups vs the structural doubler arm. CR 605.1a.
     if _MANA_DORK_SUPPORT_MIRROR.search(kept_oracle):
         add("mana_amplifier", "you", "", "")
-    # ADR-0027 #24 — ramp_matters NARROW residue mirror (gated `not card_is_land`).
+    # ADR-0027 #24 — ramp NARROW residue mirror (gated `not card_is_land`).
     # The structural arm above reads every LAND's ramp directly (accel / fixing fire,
     # basic-equivalent taps drop — SIDECAR v43 mana_kind), so the 1,005-nonbasic-land
     # re-supply this mirror used to carry is GONE. What phase has NO `ramp` effect for
@@ -10561,7 +10561,7 @@ def extract_signals_ir(
         _RAMP_MATTERS_REGEX.search(kept_oracle)
         or _MANA_DORK_SUPPORT_MIRROR.search(kept_oracle)
     ):
-        add("ramp_matters", "you", "", "")
+        add("ramp", "you", "", "")
     # ADR-0027 — artifacts_matter NARROWED kept mirror. The structural arms above (the
     # `_TYPE_MATTERS_LANE` count/grant/trigger DOERs, the `_ARTIFACT_TOKEN_SUBTYPES`
     # maker/sac arm, the type-gate condition arm, the type_line membership arm) ADD +325
@@ -10693,7 +10693,7 @@ def extract_signals_ir(
     # byte-identical to the regex path. The struct arm's typed payoffs are a SUBSET
     # (add() dedups). The 101 commander-legal storm/replicate/twincast cards the mirror
     # leaves uncovered ride the EXISTING signals.py spell_copy cross-open (IR
-    # spell_copy_matters → spellcast_matters low), so the hybrid set is byte-identical
+    # spell_copy_makers → spellcast_matters low), so the hybrid set is byte-identical
     # to base (regex-only==0, ir-only==0). CR 601.2 / 608.
     for clause in _clauses(kept_oracle):
         if _detect_spellcast_matters(clause):
@@ -11331,7 +11331,7 @@ def extract_signals_ir(
         kept_oracle
     ):
         add("variable_pt", "any", "", "")
-    # ADR-0027 C5 — token_copy_matters firing mirror RETIRED. project now stamps a
+    # ADR-0027 C5 — token_copy_makers firing mirror RETIRED. project now stamps a
     # structural "Copy" predicate on the make_token subject (CopyTokenOf Typed copies,
     # Populate, _copy_spell_markers phase-fold tail) + the token_doubling category, both
     # read by the structural arms above; the SelfRef reminder-self-copy discriminator
@@ -11534,17 +11534,15 @@ def extract_signals_ir(
         if det.key in _IR_FLOOR_LANES and det.pattern.search(kept_oracle):
             add(det.key, det.scope, "", "")
 
-    # ADR-0027 fight_matters (face-level fallback): an Aftermath DFC whose "Fight" back
+    # ADR-0027 fight_makers (face-level fallback): an Aftermath DFC whose "Fight" back
     # face phase never projects into the IR (Prepare // Fight) keeps the fight only on
     # the combined face oracle. Gated to faces with no structural fight effect/marker —
     # the project `_FIGHT_REF` dropped-static marker covers the single-face drops; this
     # is the back-face-not-projected residual. Reminder already stripped (kept_oracle).
-    if not any(s.key == "fight_matters" for s in out) and _FIGHT_RAW.search(
-        kept_oracle
-    ):
-        add("fight_matters", "you", "", "")
+    if not any(s.key == "fight_makers" for s in out) and _FIGHT_RAW.search(kept_oracle):
+        add("fight_makers", "you", "", "")
 
-    # ADR-0027 lure_matters BYTE-IDENTICAL kept mirror (face-level fallback): the
+    # ADR-0027 lure_makers BYTE-IDENTICAL kept mirror (face-level fallback): the
     # force-a-block lane (CR 509.1c) fires structurally from the `lure` arm above; this
     # mirror — the EXACT deleted SWEEP regex over the reminder-stripped kept_oracle —
     # recovers the ONE card the structural arm misses, the Aftermath DFC "Destined //
@@ -11553,10 +11551,10 @@ def extract_signals_ir(
     # "Destined" front face). Gated to faces with no structural lure (scope 'you',
     # matching the deleted producer). Flat over kept_oracle == the deleted per-clause
     # SWEEP firing (69==69). add() dedups vs the structural arm. CR 509.1c.
-    if not any(s.key == "lure_matters" for s in out) and _LURE_MATTERS_MIRROR.search(
+    if not any(s.key == "lure_makers" for s in out) and _LURE_MATTERS_MIRROR.search(
         kept_oracle
     ):
-        add("lure_matters", "you", "", "")
+        add("lure_makers", "you", "", "")
 
     # ADR-0027 Cluster C12 blocked_matters NARROWED inline mirror (structurally gated):
     # the attacker-side `becomes_blocked` + blocker-side `blocks` payoffs fire
@@ -11694,7 +11692,7 @@ def extract_signals_ir(
             cmc = card.get("cmc") or 0
             if power >= 8 and power >= 2 * cmc:
                 add("one_punch", "you", "", "extreme power-for-cost beater", "low")
-        # ADR-0027 — keyword_soup_matters BYTE-IDENTICAL membership-gated kept mirror.
+        # ADR-0027 — keyword_soup_makers BYTE-IDENTICAL membership-gated kept mirror.
         # A keyword-soup commander (Odric Lunarch Marshal, Akroma Vision, Akroma's
         # Memorial/Will, Concerted Effort, Bleeding Effect) GRANTS/SHARES many evergreen
         # keywords across the team, so it wants creatures STACKED with keywords.
@@ -11716,7 +11714,7 @@ def extract_signals_ir(
             _KEYWORD_SOUP_CONTEXT_RE.search(kept_oracle)
             and sum(1 for rx in _EVERGREEN_KW_RE if rx.search(kept_oracle)) >= 5
         ):
-            add("keyword_soup_matters", "you", "", kept_oracle[:160], "low")
+            add("keyword_soup_makers", "you", "", kept_oracle[:160], "low")
         # _matters sweep (wants_cloning): the two clone-TARGET membership cross-opens.
         # These are NOT clone DOERS (the structural cat=='clone' arm = clone_makers) —
         # they fire because the COMMANDER itself is a worth-copying target, so a clone
@@ -11878,7 +11876,7 @@ def extract_signals_ir(
         # silence the fallback. Per CR: regeneration (701.19) is removal-resistance — a
         # resilient beater is the IDEAL Equipment carrier; changeling (702.73a) is a
         # vanilla all-creature-type body; morph/facedown (702.37a / 708) is a casting
-        # option, not an engine; self power-growth (self_pump / pump_matters) and the
+        # option, not an engine; self power-growth (self_pump / pump_makers) and the
         # evasion-enabling cant_block_grant push the carrier's own damage through (the
         # Power/Evasion legs of the triad). The voltron LOW adds above are LOW (so are
         # skipped); an exalted body's voltron HIGH from the keyword map counts but fired

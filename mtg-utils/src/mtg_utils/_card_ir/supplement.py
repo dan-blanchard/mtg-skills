@@ -880,8 +880,8 @@ _SIMPLE_VERB = comb.alt(
     # Keyword abilities that survived as leading text — a closed CR vocabulary mapped
     # to the mechanic each one IS (generalizes to any card with the keyword).
     # Devour (CR 702.82): sacrifice creatures as it enters, ENTER WITH +1/+1
-    # counters. Own category fans to sacrifice_matters (the fodder) AND
-    # plus_one_matters (the payoff) + the dedicated devour_matters lane.
+    # counters. Own category fans to sacrifice_outlets (the fodder) AND
+    # plus_one_matters (the payoff) + the dedicated has_devour lane.
     comb.value("devour", comb.keyword({"devour", "devours"})),
     comb.value("vanishing", comb.keyword({"vanishing"})),  # CR 702.62 time counters
     # Soulshift returns a card from GY to HAND (CR 702.46) — graveyard recursion,
@@ -1289,7 +1289,7 @@ _MANA_PRODUCE = re.compile(
 # Menagerie) are NOT amplifiers and correctly stay mana_filter. This is the doubler arm
 # of the mana_amplifier lane; the triggered "tap a land … add an additional" doublers
 # (Crypt Ghast, Mirari's Wake) phase types as a triggered `ramp` Mana effect, read
-# discriminator-gated in extract_signals_ir (additive — they keep firing ramp_matters).
+# discriminator-gated in extract_signals_ir (additive — they keep firing ramp).
 # CR 106.4 / 605.
 _MANA_AMPLIFY = re.compile(
     r"\bproduces (?:twice|three times)\b"
@@ -1458,7 +1458,7 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
     # Conformity / Overwhelming Splendor) → base_pt_set, BEFORE the _HAVE_GAIN grant
     # fallback claims it as grant_keyword. After _CDA_PT so a dynamic */* keeps its
     # lane. v45: carry the discriminated scope + Creature subject + toughness amount
-    # (the same fields the card-level recovery synthesizes) so debuff_matters reads a
+    # (the same fields the card-level recovery synthesizes) so debuff_makers reads a
     # mass opp/symmetric shrink structurally. CR 613.4b.
     if _HAS_BASE_PT.search(s):
         sc, subj, amt = _base_pt_set_fields(s)
@@ -1867,7 +1867,7 @@ def _recover_combat_damage_recipients(card: Card, oracle: str) -> Card:
 # toughness N" parse to ZERO abilities — Maha, Lignify, Humility, Curse of
 # Conformity, Biomass Mutation, Godhead of Awe, Flatline. base_pt_set already fires
 # for them off the carved kept word mirror (it scans the raw oracle), but the
-# MIGRATED debuff_matters lane reads IR and saw nothing for an opponent / symmetric
+# MIGRATED debuff_makers lane reads IR and saw nothing for an opponent / symmetric
 # MASS shrink — Maha "Creatures your opponents control have base toughness 1" is a
 # -1/-1 enabler (7b sets toughness 1, a 7c -1/-1 then drops it to 0 → dies, CR
 # 613.4c / 704.5g). This card-level recovery (the _recover_combat_damage_recipients
@@ -1970,7 +1970,7 @@ _BASE_PT_OPP_P = comb.scan(
 def _base_pt_set_fields(clause: str) -> tuple[str, Filter | None, Quantity]:
     """The (scope, subject, amount) of a layer-7b base-P/T set from its raw clause.
     A MASS "creatures … have base …" anthem → a Creature subject (controller you/opp/
-    any) + a discriminated scope, so the debuff_matters arm reads the shrink SCOPE
+    any) + a discriminated scope, so the debuff_makers arm reads the shrink SCOPE
     and the land-animator arms — which key on a LAND subject — stay out; a single-
     target / self / "become" set → subject None + scope "any" (a neutralize is
     removal, not a -1/-1 anthem). The toughness is carried in ``amount.factor`` (the
@@ -2052,13 +2052,13 @@ def _recover_base_pt_set(card: Card, oracle: str) -> Card:
 # ── ADR-0027 #24m F1 — DYNAMIC / QUOTED base-P/T SET residue (SIDECAR v61) ─────
 # The `_recover_base_pt_set` pass above is the DEBUFF path: it fires only on a FIXED
 # LITERAL "creatures … have/has/are/is base power N" mass shrink (Maha, Humility) and
-# scopes opp/each so debuff_matters reads the SHRINK. It deliberately ignores the
+# scopes opp/each so debuff_makers reads the SHRINK. It deliberately ignores the
 # DYNAMIC / quoted / type-conferral SETTERS — phase routes those to animate / clone /
 # reanimate / pump / place_counter / emblem / type_set WITHOUT a base_pt_set Effect, so
 # the base_pt_set LANE (CR 613.4b layer 7b) leaned wholly on the carved kept word
 # mirror for them. This pass re-synthesizes a base_pt_set Effect for the SETTER residue
 # the lane needs (scope "any", subject None, amount variable — a build-around set, NOT a
-# mass debuff anthem, so it never feeds debuff_matters):
+# mass debuff anthem, so it never feeds debuff_makers):
 #   • "<perm> becomes a N/N <Type> creature in addition to its other types" the dynamic
 #     forms where phase emitted no base_pt_set Effect (Cool Fluffy Loxodon → type_set,
 #     Displaced Dinosaurs → type_set, Mindlink Mech → a clone P/T override "it's 4/3 …
@@ -2148,7 +2148,7 @@ def _recover_dynamic_base_pt_set(card: Card, oracle: str) -> Card:
     node. Append-only and gated to bps==0 (the DEBUFF ``_recover_base_pt_set`` pass owns
     the mass shrinks and runs first). One Effect per non-reference SETTER clause; scope
     "any", subject None, amount variable so it feeds the base_pt_set LANE but never the
-    debuff_matters mass-shrink read. CR 613.4b layer 7b."""
+    debuff_makers mass-shrink read. CR 613.4b layer 7b."""
     if not card.faces:
         return card
     if any(
@@ -2886,8 +2886,8 @@ def _supplement_effect(e: Effect) -> Effect:
 # only fills the residue; where phase scattered the operand across many effect
 # categories (lands_matter's land count, devotion's collapsed ``op``) the
 # supplement appends ONE inert marker carrying the recovered operand rather than
-# mutating the overloaded ``amount`` of each (which cascades into pump_matters /
-# ramp_matters that read ``amount.op``). All append-only / idempotent.
+# mutating the overloaded ``amount`` of each (which cascades into pump_makers /
+# ramp that read ``amount.op``). All append-only / idempotent.
 
 # lands_matter — DEFERRED (mirror kept): phase's card-data.json omits the AFTERMATH
 # back face entirely (Road // Ruin projects only "Road"; "Ruin deals damage … equal
@@ -2902,7 +2902,7 @@ def _supplement_effect(e: Effect) -> Effect:
 # Merchant, the Theros gods) but COLLAPSES it to op=='variable' on a devotion-scaled
 # ramp (Nyx Lotus, Karametra's Acolyte, Nykthos) and DROPS it on a devotion pump /
 # characteristic_pt (Aspect of Hydra, Daxos). Re-stamping the op in place would
-# cascade (ramp_matters reads op=='variable' for its accel split, pump_matters reads
+# cascade (ramp reads op=='variable' for its accel split, pump_makers reads
 # op=='fixed'); instead append ONE inert devotion marker so the devotion_matters arm
 # reads op=='devotion' without disturbing those neighbors. Gated to a card not
 # already carrying a devotion operand. CR 700 (devotion).
@@ -2921,7 +2921,7 @@ def _recover_devotion_operand(card: Card, oracle: str) -> Card:
     """Append a synthetic devotion marker (op='devotion') for the devotion operand
     phase collapses to op='variable' (ramp) or drops (pump / characteristic_pt), so
     the devotion_matters arm reads it structurally without re-stamping the overloaded
-    ``amount.op`` of the real ramp/pump effect (which ramp_matters / pump_matters
+    ``amount.op`` of the real ramp/pump effect (which ramp / pump_makers
     read). Append-only; skipped when an op=='devotion' operand already exists."""
     if not card.faces:
         return card
@@ -3186,7 +3186,7 @@ def _recover_exile_zone_ref(card: Card, oracle: str) -> Card:
 # for the cost-sac (and any "whenever you sacrifice a land" / "unless you sacrifice a
 # land" body phase leaves unstructured) so the lane reads the sacrificed-permanent
 # type structurally. A Land-ONLY sacrifice subject is already excluded from
-# sacrifice_matters (CR 701.16), so it stays this lane's own signal.
+# sacrifice_outlets (CR 701.16), so it stays this lane's own signal.
 # #24e P3 parser-substrate: the land-sacrifice detector reads STRUCTURE. Arm 1 keys on
 # the cost separator `:` glued to "land"/"land card" (`_word_with_colon`, since norm
 # strips the colon). `[^.]*` gaps → `bounded_scan`. Quantity bag (a|one or more|another)
@@ -5294,9 +5294,9 @@ def _recover_self_counter_grow(card: Card) -> Card:
 # ── v0.8.0 ROOT H — destroy subject re-typed Creature ─────────────────────────
 # phase v0.8.0 NULLS the subject on both destroy nodes of "Destroy two target
 # nonblack creatures unless …" (Dead Ringers) — the "two target … unless" conditional
-# defeats the subject parse — so removal_matters (which needs a permanent-type
+# defeats the subject parse — so removal (which needs a permanent-type
 # subject) drops it. This pass re-types a subjectless single/multi-target destroy as
-# Creature when its OWN raw says "destroy … creature(s)", so removal_matters reads
+# Creature when its OWN raw says "destroy … creature(s)", so removal reads
 # STRUCTURE. Gated to subject is None + counter_kind != "all" (a board wipe is
 # mass_removal, never single-target removal) + a literal "target … creature(s)" in
 # the clause — the TARGETED-removal discriminator that keeps the anaphoric combat
@@ -5318,7 +5318,7 @@ _DESTROY_SELF = re.compile(r"\bdestroy ~(?!\w)", re.IGNORECASE)
 
 def _recover_destroy_subject(card: Card) -> Card:
     """Re-type a subjectless TARGETED destroy as Creature when its raw names a
-    target creature, so removal_matters reads STRUCTURE. Gated to subject None +
+    target creature, so removal reads STRUCTURE. Gated to subject None +
     non-mass + a literal "target … creature(s)" clause; idempotent."""
     if not card.faces:
         return card

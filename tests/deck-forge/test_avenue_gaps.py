@@ -293,7 +293,7 @@ class TestSelfRecurringFodder:
             "type_line": "Creature — Giant",
             "oracle_text": "Vigilance\nWhenever this creature enters or attacks, you may return target permanent card with mana value 3 or less from your graveyard to the battlefield.",
         }
-        for key, scope in (("sacrifice_matters", "you"), ("death_matters", "any")):
+        for key, scope in (("sacrifice_outlets", "you"), ("death_matters", "any")):
             extra = _extra(spec_for(_sig(key, scope)), "Self-recurring fodder")
             assert extra is not None, key
             assert extra.serve.matches(bloodghast)

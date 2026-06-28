@@ -54,11 +54,11 @@ def _hyb_keys(name):
 
 
 CASES = [
-    # ADR-0027: ramp_matters migrated to the Card IR (the structural `ramp` category
+    # ADR-0027: ramp migrated to the Card IR (the structural `ramp` category
     # for NON-LAND cards + a byte-identical kept mirror), so a bare mana rock
     # "{T}: Add {G}{G}." no longer fires on the regex path tested here — its IR path is
     # proven in test_migrated_keys.
-    # ADR-0027: removal_matters migrated to the Card IR (phase's single-target
+    # ADR-0027: removal migrated to the Card IR (phase's single-target
     # destroy/damage SUBJECT), so it no longer fires on the regex path tested here —
     # its IR path is proven in test_migrated_keys.
     # ADR-0027: counter_control migrated to the Card IR (phase's `counter_spell`
@@ -67,7 +67,7 @@ CASES = [
     # ADR-0027: team_buff migrated to the Card IR (phase's `grant_keyword` effect on a
     # generic "creatures you control" subject), so it no longer fires on the regex path
     # tested here — its IR path is proven in test_migrated_keys.
-    # ADR-0027 reveal/dig-v2: tutor_matters migrated to the Card IR (a BYTE-IDENTICAL
+    # ADR-0027 reveal/dig-v2: tutor migrated to the Card IR (a BYTE-IDENTICAL
     # kept mirror == the deleted TUTOR_MATTERS_REGEX over the reminder-stripped oracle —
     # phase keeps a `tutor` EFFECT for every search incl. the opp/symmetric/composite/
     # reminder over-fires, so the regex IS the precise spec), so it no longer fires on the
@@ -99,7 +99,7 @@ CASES = [
     # so it no longer fires on the regex path tested here — its IR path is proven in
     # test_migrated_keys.
     # ADR-0027: cascade_matters (Scryfall cascade keyword + _CASCADE_GRANT marker) and
-    # regenerate_matters (phase's regenerate effect + _REGENERATE_REF marker) migrated to
+    # regenerate_makers (phase's regenerate effect + _REGENERATE_REF marker) migrated to
     # the Card IR, so they no longer fire on the regex path tested here — their IR paths
     # are proven in test_migrated_keys.
 ]

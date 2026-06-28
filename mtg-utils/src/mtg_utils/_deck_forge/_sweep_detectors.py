@@ -368,7 +368,7 @@ KEYWORD_GRANT_TARGET_REGEX = "target creature (?:you control )?(?:gains?|gets [+
 ACTIVATED_ABILITY_REGEX = (
     "\\{t\\}\\s*[,:]|\\{q\\}\\s*[,:]|\\{(?:\\d+|x)\\}[^.\\n]{0,18}:"
 )
-# ADR-0027 β — debuff_matters migrated to the Card IR; both deleted regex producers
+# ADR-0027 β — debuff_makers migrated to the Card IR; both deleted regex producers
 # (the SWEEP row + the Maha opponent-shrink _DETECTORS row) survive here as shared
 # constants. The structural arm fires from the projection's negative-pump (factor<0) /
 # non-self m1m1 Effects; these regexes back the byte-identical _IR_KEPT_DETECTORS
@@ -379,7 +379,7 @@ DEBUFF_SWEEP_REGEX = "(?:other [a-z]+ creatures|nonblack creatures|all creatures
 DEBUFF_MAHA_REGEX = (
     "creatures your opponents control (?:have base (?:power|toughness)|get -)"
 )
-# ADR-0027 β / #24 — pump_matters migrated to the Card IR; its SWEEP_DETECTORS row is
+# ADR-0027 β / #24 — pump_makers migrated to the Card IR; its SWEEP_DETECTORS row is
 # deleted but the EXACT mined regex survives here as a shared constant. The lane (a
 # POSITIVE single-target combat-trick buff: "target creature gets +N/+N") now has a
 # STRUCTURAL arm — a FIXED positive `pump_target` over a real target-Creature subject
@@ -562,7 +562,7 @@ SYMMETRIC_STAX_REGEX = (
     r"|(?:doesn't|don't|does not) untap during (?:its|their|the)"
 )
 
-# ADR-0027 β: token_copy_matters migrated to the Card IR via a kept-mirror — the
+# ADR-0027 β: token_copy_makers migrated to the Card IR via a kept-mirror — the
 # deleted _HAND_FLOOR producer is pinned here byte-identically so the serve spec, the
 # _TOKEN_COPY_MATTERS_MIRROR kept detector (_signals_ir), and the
 # _TOKEN_COPY_MATTERS_PLAN_MIRROR voltron gate (_signals_regex) all share ONE source.
@@ -585,7 +585,7 @@ TOKEN_COPY_MATTERS_REGEX = "tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of|creat
 # non-creature. The two `[^.]*` arms never cross a clause on the commander-legal corpus,
 # so flat-over-kept_oracle == the deleted per-clause firing EXACTLY (137 → 137, 0 miss /
 # 0 extra). The token-copy phrase ("create a token that's a copy") is deliberately
-# EXCLUDED — that's the separate token_copy_matters lane (Dan's clone-vs-token-copy
+# EXCLUDED — that's the separate token_copy_makers lane (Dan's clone-vs-token-copy
 # boundary). CR 707.1 / 707.2.
 CLONE_MATTERS_REGEX = "becomes? a copy of|enters [^.]*as a copy of|enter (?:the battlefield )?as a copy of|may have [^.]*enter as a copy|create a copy of the card|is a copy of (?:that|the chosen) card"
 
@@ -1218,7 +1218,7 @@ LANDFALL_REGEX = (
 # confidence) — reproducing the deleted cross-open's firing set EXACTLY (commander-
 # legal: regex==mirror, 23→23, 0 miss, 0 extra), NOT the broad structural arm. The
 # broad `destroy`/Land structural `add` is removed (it was DEAD — the hybrid dropped
-# the unmigrated IR land_destruction, so it never reached production; removal_matters'
+# the unmigrated IR land_destruction, so it never reached production; removal'
 # own land-subtype exclusion is independent of it). land_destruction was NEVER a SWEEP
 # key, so no SWEEP row is touched (len stays >=36). NO sidecar bump. NOT a voltron plan
 # key: the deleted cross-open fired LOW confidence and NEVER fed has_other_plan (which
@@ -1261,7 +1261,7 @@ CREATURE_RECURSION_REGEX = (
 # IDENTICAL kept WORD MIRROR. phase carries NO structural form for this lane — over the
 # commander-legal corpus (floor-disabled, by oracle_id) the structural sacrifice arm
 # emits land_sacrifice_matters on ZERO cards (the you-sac arm at line ~5560 deliberately
-# routes a land-ONLY sac subject AWAY from sacrifice_matters but never re-homes it to
+# routes a land-ONLY sac subject AWAY from sacrifice_outlets but never re-homes it to
 # land_sacrifice — there is no `add("land_sacrifice_matters", ...)` anywhere in the
 # structural IR), so the lane fired ONLY from this regex (66 commander-legal cards, all
 # scope 'you', HIGH conf). The deleted producer was a per-card `_HAND_FLOOR` Detector run
@@ -1447,7 +1447,7 @@ SUPERFRIENDS_MATTERS_REGEX = (
 # Manta). Because the structural arm is BROADER (+8), _VOLTRON_SILENCING_PLAN_KEYS would
 # OVER-SILENCE the recall-gain bodies (e.g. Eon Frolicker), so the regex path keeps a
 # BYTE-IDENTICAL _EXTRA_TURNS_PLAN_MIRROR over the reminder-stripped `text` (NOT
-# _VOLTRON_SILENCING_PLAN_KEYS) — matching the landfall / ramp_matters broader-IR
+# _VOLTRON_SILENCING_PLAN_KEYS) — matching the landfall / ramp broader-IR
 # precedent. CR 500.7 / 903.10a.
 EXTRA_TURNS_REGEX = r"take an (?:extra|additional) turn"
 # ADR-0027 β: lifegain_matters migrated to the Card IR via a byte-identical kept-
@@ -1550,7 +1550,7 @@ COUNTER_DOUBLING_REGEX = (
 # label. CR 207.2c (Void ability word) / 702.185 (Warp).
 VOID_WARP_MATTERS_REGEX = "void —|warp \\{|warp cost|warp—|for its warp cost|using its warp ability|cast (?:a |this )?(?:spell|card)[^.]*for its warp|target exiled card with warp"
 
-# ADR-0027 — lure_matters (force-a-block, CR 509.1c). Pinned as a shared constant so the
+# ADR-0027 — lure_makers (force-a-block, CR 509.1c). Pinned as a shared constant so the
 # kept WORD MIRROR (_LURE_MATTERS_MIRROR, _signals_ir — recovers the Aftermath-DFC back
 # face phase never projects, Destined // Lead), the voltron _LURE_MATTERS_PLAN_MIRROR
 # (_signals_regex), and the hand-registered serve (signal_specs) all reuse ONE source so
@@ -1668,7 +1668,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # (Living Death) are excluded by the battlefield-type + graveyard-zone gates. This
     # SWEEP_DETECTORS row is deleted; the serve spec stays hand-registered in
     # signal_specs.py (the rebuild-after-wrath package + indestructible serve keyword).
-    # ADR-0027 β: debuff_matters migrated to the Card IR — a -1/-1 / toughness-shrink
+    # ADR-0027 β: debuff_makers migrated to the Card IR — a -1/-1 / toughness-shrink
     # removal-and-payoff lane. The structural arm in extract_signals_ir fires from the
     # projection's negative-pump (amount.factor<0) and non-self -1/-1-counter (m1m1)
     # Effects (recall GAIN over this narrow regex). The big "gets -N/-N until end of
@@ -1731,7 +1731,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # owned by companion_keyword, NOT a wishboard build-around. SWEEP_LABELS keeps the
     # human label; the serve is hand-registered in signal_specs.py reusing the narrowed
     # regex.
-    # ADR-0027: fight_matters migrated to the Card IR — phase's `fight` effect + a
+    # ADR-0027: fight_makers migrated to the Card IR — phase's `fight` effect + a
     # `_FIGHT_REF` dropped-static marker (granted/quoted/modal/symmetric fights) and a
     # `_FIGHT_RAW` face-level fallback (the Aftermath DFC phase doesn't project, Prepare
     # // Fight). This SWEEP_DETECTORS row is deleted; the serve hand-spec keeps its regex.
@@ -1921,7 +1921,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # lookup). Its oracle-regex sweep row is deleted; SWEEP_LABELS keeps the human
     # label, and the serve spec is hand-registered in signal_specs.py (the sweep
     # auto-register loop no longer reaches it).
-    # ADR-0027: lure_matters migrated to the Card IR. Its SWEEP_DETECTORS row is
+    # ADR-0027: lure_makers migrated to the Card IR. Its SWEEP_DETECTORS row is
     # deleted; detection moved to a STRUCTURAL `lure` arm (extract_signals_ir — phase's
     # mustbeblocked keyword + _COMBAT_FORCE_MODES static + the project/supplement
     # force-a-block dropped-static markers, scope 'you', CR 509.1c) UNION a BYTE-
@@ -1948,7 +1948,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # ability-word refs phase leaves textual (CR 700.3). Its SWEEP_DETECTORS row is
     # deleted; the serve is its own hand-written _spec in signal_specs.py (independent
     # of this regex).
-    # ADR-0027 β: conjure_matters migrated to the Card IR — a byte-identical
+    # ADR-0027 β: conjure_makers migrated to the Card IR — a byte-identical
     # `\\bconjure\\b` kept word mirror (signals._IR_KEPT_DETECTORS, scope 'you').
     # CONJURE is digital-only (Arena/Alchemy): phase DOES carry a structural `Conjure`
     # effect type (101 cards) but the projection folds it to make_token, AND that
@@ -2003,7 +2003,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # structural `combat_damage_mod` arm (it MISSES 129/133 and over-fires 81% — see the
     # _migrated_keys.py rationale). SWEEP_LABELS keeps the human label; the serve is
     # hand-registered in signal_specs.py reusing the pinned regex. CR 510.1c / 122.
-    # ADR-0027: donate_matters migrated to the Card IR — a `gain_control` effect whose
+    # ADR-0027: donate_makers migrated to the Card IR — a `gain_control` effect whose
     # raw names another-player RECIPIENT (you GIVE a permanent you control away; phase
     # drops the recipient to scope='any', so the lane reads the effect raw — the
     # _DONATE_RAW discriminator in signals.py, the lane's own deleted serve regex
@@ -2107,8 +2107,8 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # subject Filter carries the exact HasSupertype:Legendary predicate (the mass
     # "destroy each legendary" form rides counter_kind=='all' with the same predicate).
     # This SWEEP_DETECTORS row is deleted; the hand-spec serve in signal_specs reuses
-    # the deleted regex. (is_widen_of removal_matters is preserved structurally — the
-    # destroy effect still opens removal_matters where it qualifies.)
+    # the deleted regex. (is_widen_of removal is preserved structurally — the
+    # destroy effect still opens removal where it qualifies.)
     # ADR-0027: anthem_static migrated to the Card IR — a STATIC +N/+N over a creature
     # GROUP (extract_signals_ir: ab.kind=='static', pump Effect, amount.factor>=0,
     # scope!='opp', subject a creature group). The structural gate is strictly cleaner
@@ -2168,7 +2168,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # `trigger_doubling` dropped-static face marker for the granted/quoted form
     # phase drops entirely (The Masamune's equipped-creature "triggers an additional
     # time"). The serve spec is hand-registered in signal_specs reusing the regex.
-    # ADR-0027: ninjutsu_matters migrated to the Card IR — served structurally from
+    # ADR-0027: has_ninjutsu migrated to the Card IR — served structurally from
     # the Scryfall `ninjutsu`/`commander ninjutsu` keyword (_IR_KEYWORD_MAP) plus a
     # `ninjutsu` marker effect for the keyword-less payoff commander (Satoru: "Whenever
     # you activate a ninjutsu ability" — a trigger phase flattened to event='other',
@@ -2184,14 +2184,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # (the event='other' boast-payoff trigger) plus a `boast` dropped-static face
     # marker for the "can boast twice" static amplifier phase drops (Birgi). The
     # serve spec is hand-registered in signal_specs reusing the deleted regex.
-    # ADR-0027: soulbond_matters migrated to the Card IR — served structurally from
+    # ADR-0027: has_soulbond migrated to the Card IR — served structurally from
     # the Scryfall `soulbond` keyword (_IR_KEYWORD_MAP) plus a `soulbond` effect
     # marker for non-keyword references ("paired with a creature with soulbond" —
     # Flowering Lumberknot — narrowed in project._narrow_mechanic_refs into the
     # `soulbond` effect category, read via _DOER_EFFECT_KEYS). Its oracle-regex
     # detector row is deleted; the serve spec is hand-registered in signal_specs.py
     # (SWEEP_LABELS still carries the human label).
-    # ADR-0027 β: pump_matters migrated to the Card IR — a POSITIVE single-target
+    # ADR-0027 β: pump_makers migrated to the Card IR — a POSITIVE single-target
     # combat-trick buff ("target creature gets +N/+N"). The lane is UNSTRUCTURABLE as a
     # positive discriminator: phase drops the value of every target-creature pump to
     # amount==None (the +N/+N lives only in the raw) and carries no temporal marker, so
@@ -2258,7 +2258,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # clause explore cards that emit no explore Effect node) + phase's `explore`
     # effect category (the event='other' explore payoff). The serve spec is hand-
     # registered in signal_specs reusing the deleted regex.
-    # ADR-0027: changeling_matters migrated to the Card IR — the Scryfall `changeling`
+    # ADR-0027: has_changeling migrated to the Card IR — the Scryfall `changeling`
     # keyword (_IR_KEYWORD_MAP, the intrinsic changelings) + a `_CHANGELING_REF`
     # ("changeling" / "is every creature type") dropped-static marker for the keyword-
     # less makers/anthems (Maskwood Nexus, Mistform Ultimus, Arachnoform). Removed from
@@ -2372,7 +2372,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # in signals._IR_KEPT_DETECTORS, scope 'you'). dies_recursion is the BROAD
     # "creatures recur when they die" SELF-recursion-on-death category (CR 700.4 dies
     # = put into a graveyard from the battlefield; CR 603.6c leaves-the-battlefield
-    # trigger) — the SUPERSET of undying_persist_matters: undying (CR 702.93a, +1/+1)
+    # trigger) — the SUPERSET of has_undying_persist: undying (CR 702.93a, +1/+1)
     # and persist (CR 702.79a, -1/-1) ARE dies-recursion that also place a counter, so
     # the keyword bearers are members too (the IR keyword map already opens them via
     # `undying`/`persist` in _IR_KEYWORD_MAP); bare dies-return grants (Feign Death /
@@ -2392,7 +2392,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # Flames" (keywords=['Epic'], no undying mechanic) self-matches `\bundying\b` on its
     # CARD NAME embedded in its oracle text — the exact regex artifact the deleted
     # producer carried, mirrored unchanged for no-flood parity.
-    # ADR-0027: devour_matters' oracle-regex SWEEP_DETECTORS row was deleted
+    # ADR-0027: has_devour' oracle-regex SWEEP_DETECTORS row was deleted
     # (detection moved to the Card IR — the Scryfall `devour` keyword via
     # _IR_KEYWORD_MAP + phase's `devour` effect category, fanned via the
     # cat=="devour" arm in extract_signals_ir). The bare "\bdevour\b" regex
@@ -2437,7 +2437,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # "fade" is dropped: fade counters are the Fading keyword's sacrifice clock
     # (CR 702.32), not a build-around payoff axis. The cross-type axis (proliferate)
     # already lives in proliferate_matters.
-    # ADR-0027: rad_counter_matters migrated to the Card IR — phase's `rad_counter`
+    # ADR-0027: rad_counter_makers migrated to the Card IR — phase's `rad_counter`
     # effect category + a rad place_counter (counter_kind='rad') plus a `_RAD_REF`
     # ("rad counter(s)") dropped-static face marker for the clauses phase mangles (the
     # rad kind dropped to '', a counter_doubling, or a dropped clause). Removed from
@@ -2450,7 +2450,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # from phase's counter-kind projection — _COUNTER_KIND_KEYS['ki'] in
     # signals.py); its oracle-regex detector row is deleted. The SWEEP_LABELS
     # entry survives to feed the serve spec (signal_specs.py hand-registers it).
-    # ADR-0027: shield_counter_matters migrated to the Card IR — UNION of the
+    # ADR-0027: shield_counter_makers migrated to the Card IR — UNION of the
     # STRUCTURAL arm (phase's place_counter / hascounters counter_kind=='shield'
     # via _COUNTER_KIND_KEYS['shield'] in _signals_ir, scope you — 24 of 27 cards)
     # and the byte-identical _SHIELD_COUNTER_MATTERS_MIRROR in
@@ -2486,7 +2486,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # hand-registered in signal_specs. The bare "\bmyriad\b" over-fired on the card
     # NAME "The Myriad Pools" (The Everflowing Well // The Myriad Pools), which the
     # structural IR correctly drops (no myriad effect or keyword).
-    # ADR-0027: phasing_matters migrated to the Card IR — served structurally from
+    # ADR-0027: phasing_makers migrated to the Card IR — served structurally from
     # the Scryfall `phasing` keyword (_IR_KEYWORD_MAP) + phase's `phasing` effect
     # category (the phase-out/in DOER markers, _narrow_mechanic_refs) plus a
     # `phasing` payoff-trigger marker for the event='other' "permanents phase out"
@@ -2555,7 +2555,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # voltron silence for the cards they cover — symmetric_stax is fully SWEEP-covered, so
     # it needs no plan mirror; stax_taxes' DETECTORS+HAND_FLOOR-only cards are re-silenced
     # by a byte-identical _STAX_TAXES_PLAN_MIRROR in _signals_regex). Mirrors the
-    # artifacts_matter / edict_matters kept-row precedent. CR 604.1 (static abilities are
+    # artifacts_matter / edict_makers kept-row precedent. CR 604.1 (static abilities are
     # simply true → an unqualified "Spells cost {1} more" taxes all players symmetrically)
     # / 118.9. The serve specs stay hand-registered in signal_specs.py.
     {
@@ -2647,13 +2647,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # a Creature subject + an effect-raw / face-oracle "whenever/when [player] casts a …
     # creature spell" scan (recovers the qualified-subject triggers the bare regex
     # missed). This SWEEP_DETECTORS row is deleted; the serve hand-spec keeps its regex.
-    # ADR-0027: spell_copy_matters migrated to the Card IR — phase's `spell_copy` effect
+    # ADR-0027: spell_copy_makers migrated to the Card IR — phase's `spell_copy` effect
     # (CopySpell + CastCopyOfCard) + storm/replicate/conspire/casualty Scryfall keywords
     # + a `_COPY_SPELL_REF` granted/quoted/conditional marker (project). The structural
     # IR EXCLUDES this row's `\bstorm\b` over-fire on the "… Storm" card NAME (Comet
     # Storm, Arrow Storm). This SWEEP_DETECTORS row is deleted; the hand-spec serve in
     # signal_specs.py is independent and survives.
-    # ADR-0027: removal_matters migrated to the Card IR (single-target destroy/damage
+    # ADR-0027: removal migrated to the Card IR (single-target destroy/damage
     # SUBJECT + quoted-grant recursion); this SWEEP_DETECTORS row is deleted. Its regex
     # over-fired by folding board wipes ("destroy all/each", "damage divided") and land
     # destruction into removal — the IR excludes those (mass_removal / land_destruction
@@ -2730,7 +2730,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # GY-recursion and self-bounce blink). Its SWEEP row (an is_widen_of base) is
     # deleted; the serve spec is hand-registered in signal_specs.py reusing the deleted
     # regex.
-    # ADR-0027 β: edict_matters migrated to the Card IR — the structural opp/each
+    # ADR-0027 β: edict_makers migrated to the Card IR — the structural opp/each
     # `sacrifice` Effect arm (gated by signals._ir_effect_is_edict to drop leaked-scope
     # self/you-sac over-fires) plus a byte-identical signals._IR_KEPT_DETECTORS mirror of
     # this exact regex (the tail phase folds into a categoryless / mis-scoped effect).
@@ -2805,7 +2805,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Set base power/toughness",
         "set-P/T effects and creatures that exploit them",
     ),
-    "airbend_matters": (
+    "airbend_makers": (
         "Airbend",
         "airbend exile-and-recast tempo and payoffs for airbending",
     ),
@@ -2828,7 +2828,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "boast_matters": ("Boast", "boast creatures and ways to attack safely"),
     "cant_block_grant": ("Can't-block", "force blockers off to clear a path to attack"),
     # ADR-0027 A4: cast_as_named_card label deleted with its SWEEP_DETECTORS row.
-    "changeling_matters": (
+    "has_changeling": (
         "Changeling / all types",
         "all-creature-type cards for tribal overlap",
     ),
@@ -2858,7 +2858,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Conditional protection",
         "ways to satisfy the commander's protection condition",
     ),
-    "conjure_matters": ("Conjure", "conjure effects (Alchemy)"),
+    "conjure_makers": ("Conjure", "conjure effects (Alchemy)"),
     "convoke_matters": ("Convoke", "wide, cheap creatures to convoke out big spells"),
     "count_anthem": ("Count anthem", "go-wide creatures to scale the count-based pump"),
     "counter_distribute": (
@@ -2910,12 +2910,12 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Punish damage to you",
         "take damage and punish the source",
     ),
-    "debuff_matters": (
+    "debuff_makers": (
         "-1/-1 / shrink",
         "minus-counter and toughness-shrink removal plus payoffs",
     ),
     "destroy_legendary": ("Legend removal", "targeted destruction of legends"),
-    "devour_matters": ("Devour", "token fodder to devour"),
+    "has_devour": ("Devour", "token fodder to devour"),
     "dies_recursion": (
         "Dies-recursion",
         "anything that makes creatures recur when they die — with or without counters "
@@ -2927,14 +2927,14 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "loot/rummage outlets to fuel discard and graveyard payoffs",
     ),
     "domain_matters": ("Domain", "basic land types and fixing to grow domain"),
-    "donate_matters": ("Donate", "give away downside permanents for advantage"),
+    "donate_makers": ("Donate", "give away downside permanents for advantage"),
     "draft_spellbook": (
         "Draft / spellbook",
         "draft-a-card and spellbook effects (Alchemy)",
     ),
     "draw_for_each": ("Scaling card draw", "grow the count your draw scales with"),
     "each_mode_player": ("Spread-the-modes", "modal effects that hit each player"),
-    "edict_matters": (
+    "edict_makers": (
         "Edicts / forced sacrifice",
         "edicts to make opponents sacrifice",
     ),
@@ -2954,7 +2954,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Face-down / morph",
         "morph/manifest/disguise creatures and flip payoffs",
     ),
-    "fight_matters": ("Fight", "big creatures to fight with as removal"),
+    "fight_makers": ("Fight", "big creatures to fight with as removal"),
     "flash_grant": ("Flash", "flash enablers and instant-speed threats"),
     "flip_self": (
         "Flip creature",
@@ -2988,12 +2988,12 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Leaves-the-battlefield",
         "sacrifice and blink fodder to trigger LTB",
     ),
-    "lure_matters": ("Lure", "lure effects plus deathtouch/trample to punish blocks"),
+    "lure_makers": ("Lure", "lure effects plus deathtouch/trample to punish blocks"),
     "mass_bounce": ("Mass bounce", "board-wide bounce and ETB re-use"),
     "mass_removal": ("Board wipes", "sweepers plus resilience to rebuild"),
     "miracle_grant": ("Miracle", "miracle support and top-deck setup"),
     "myriad_grant": ("Myriad", "attackers worth copying to each opponent"),
-    "rad_counter_matters": (
+    "rad_counter_makers": (
         "Rad counters",
         "rad-counter sources and payoffs (Fallout — each player mills + loses life per rad)",
     ),
@@ -3005,7 +3005,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Ki counters",
         "ki-counter sources and payoffs (Kamigawa Spirit/Arcane triggers)",
     ),
-    "shield_counter_matters": (
+    "shield_counter_makers": (
         "Shield counters",
         "shield-counter sources and payoffs (Brokers — a counter that absorbs the next "
         "destroy/damage)",
@@ -3022,7 +3022,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Copy-limit swarm",
         "more cards sharing this name + go-wide-on-one-name payoffs (CR 100.2a)",
     ),
-    "ninjutsu_matters": (
+    "has_ninjutsu": (
         "Ninjutsu",
         "cheap unblockable creatures to ninja in value bombs",
     ),
@@ -3050,7 +3050,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Companion",
         "a companion whose deckbuilding restriction your deck already meets",
     ),
-    "phasing_matters": ("Phasing", "phase-out effects for protection and resets"),
+    "phasing_makers": ("Phasing", "phase-out effects for protection and resets"),
     "play_from_top": ("Play from the top", "top-of-library access plus reveal payoffs"),
     # ADR-0027 A4: playtest_matters label deleted with its SWEEP_DETECTORS row.
     "power_double": ("Power doubling", "big creatures to double in power"),
@@ -3059,7 +3059,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Grant protection",
         "creatures worth protecting with hexproof/protection",
     ),
-    "pump_matters": (
+    "pump_makers": (
         "Combat tricks / pump",
         "instant-speed pump to win combat and push damage",
     ),
@@ -3083,7 +3083,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "counter doublers and ways to grow the commander",
     ),
     "self_pump": ("Firebreathing", "mana sinks to pump and close games"),
-    "soulbond_matters": ("Soulbond", "creatures to pair via soulbond"),
+    "has_soulbond": ("Soulbond", "creatures to pair via soulbond"),
     "spell_keyword_grant": (
         "Grant spells keywords",
         "instants/sorceries to give cascade/flashback/etc.",

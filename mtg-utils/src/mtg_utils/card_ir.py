@@ -115,12 +115,12 @@ class Effect:
     # {C} utility land) — the deck's MANA BASE, NOT acceleration. Empty ⇒ not a mana
     # producer (or a producer phase carried no ``produced`` shape). ACCELERATION (>1
     # mana — Sol Ring, Eldrazi Temple, a variable scaler) is orthogonal and read off
-    # ``amount`` (factor>1 / op=="variable"), so the ramp_matters lane fires on a land
+    # ``amount`` (factor>1 / op=="variable"), so the ramp lane fires on a land
     # whose ramp is acceleration OR fixing, and DROPS a basic-equivalent single-color
     # tap. CR 106.4 / 605.
     mana_kind: str = ""  # "" | basic | fixing
     # ADR-0027 Duration fast-follow (SIDECAR v44): the duration of an effect (e.g.
-    # "UntilEndOfTurn"). Used by pump_matters / debuff_matters to distinguish a
+    # "UntilEndOfTurn"). Used by pump_makers / debuff_makers to distinguish a
     # temporary combat trick (Giant Growth) from a permanent anthem/static modifier,
     # retiring the dynamic -X/-X regex mirror. CR 611.2a.
     duration: str = ""
@@ -417,7 +417,7 @@ CATEGORIES: frozenset[str] = frozenset(
         # mana_amplifier. The triggered "tap a land … add an additional" doublers
         # (Crypt Ghast, Mirari's Wake) phase types as a triggered `ramp` Mana
         # effect, read discriminator-gated there (additive — they keep firing
-        # ramp_matters). CR 106.4 / 605.
+        # ramp). CR 106.4 / 605.
         "mana_amplifier",
         # ADR-0027 β free_spell_storm marker — a per-spell SCALING self-discount whose
         # cost drops for each spell CAST THIS TURN (Thrasta "for each other spell cast

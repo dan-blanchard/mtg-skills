@@ -96,7 +96,7 @@ def test_flying_counter_is_keyword_counter():
 
 
 # #4 exile removal (bypasses indestructible/recursion) is its own slice vs destroy/
-# damage. Both exile_removal (ADR-0027 SIDECAR v30) and removal_matters migrated to the
+# damage. Both exile_removal (ADR-0027 SIDECAR v30) and removal migrated to the
 # Card IR, so the regex no longer fires either — exile_removal is served via the hybrid
 # IR path from a single-target `exile` Effect with a permanent subject (the destroy slice
 # from a `destroy` Effect). CR 406.1 (one-way exile) vs 701.7 (destroy).
@@ -129,10 +129,10 @@ def test_exile_removal_separate_from_destroy():
     )
     ex_keys = {s.key for s in extract_signals_hybrid(ex, exile_ir)}
     assert "exile_removal" in ex_keys
-    assert "removal_matters" not in ex_keys
-    # Regex no longer fires exile_removal / removal_matters (both IR-served now).
+    assert "removal" not in ex_keys
+    # Regex no longer fires exile_removal / removal (both IR-served now).
     assert "exile_removal" not in _keys(ex)
-    assert "removal_matters" not in _keys(de)
+    assert "removal" not in _keys(de)
     assert "exile_removal" not in _keys(de)
     destroy_ir = Card(
         oracle_id="y",
@@ -156,13 +156,13 @@ def test_exile_removal_separate_from_destroy():
             ),
         ),
     )
-    assert "removal_matters" in {s.key for s in extract_signals_hybrid(de, destroy_ir)}
+    assert "removal" in {s.key for s in extract_signals_hybrid(de, destroy_ir)}
 
 
 # #5 clone (becomes/enters as a copy) must not fire on token-copy phrasing.
 def test_token_copy_does_not_fire_clone():
     c = {"name": "X", "oracle_text": "Create a token that's a copy of target creature."}
-    # ADR-0027 C5: token_copy_matters is FULLY STRUCTURAL — a CopyTokenOf projects to a
+    # ADR-0027 C5: token_copy_makers is FULLY STRUCTURAL — a CopyTokenOf projects to a
     # make_token whose subject carries the "Copy" predicate (CR 707). clone_makers is
     # IR-served (the kept mirror over kept_oracle excludes the token-copy phrase), so it
     # must NOT fire on token-copy phrasing.
@@ -190,7 +190,7 @@ def test_token_copy_does_not_fire_clone():
         ),
     )
     keys = {s.key for s in extract_signals_hybrid(c, ir)}
-    assert "token_copy_matters" in keys
+    assert "token_copy_makers" in keys
     assert "clone_makers" not in keys
 
 
@@ -390,7 +390,7 @@ def test_mv_scaling_burn_still_opens_noncombat():
 # rad commander must not open oil/ki/shield, and shield (122.1c, excluded from
 # keyword_counter) has its own home. fade is dropped (Fading clock, CR 702.32).
 def test_named_counters_are_separate_lanes():
-    # ADR-0027: rad_counter_matters migrated to the Card IR — "rad counter(s)" phase
+    # ADR-0027: rad_counter_makers migrated to the Card IR — "rad counter(s)" phase
     # mangles, recovered by a `rad_counter` marker, read through the hybrid IR path.
     rad = {"name": "X", "oracle_text": "Each player gets a rad counter."}
     rad_ir = Card(
@@ -414,11 +414,11 @@ def test_named_counters_are_separate_lanes():
             ),
         ),
     )
-    assert "rad_counter_matters" in {s.key for s in extract_signals_hybrid(rad, rad_ir)}
+    assert "rad_counter_makers" in {s.key for s in extract_signals_hybrid(rad, rad_ir)}
     k = _keys(rad)
-    assert "rad_counter_matters" not in k  # regex path no longer produces it
+    assert "rad_counter_makers" not in k  # regex path no longer produces it
     assert "oil_counter_matters" not in k
-    assert "shield_counter_matters" not in k
+    assert "shield_counter_makers" not in k
     assert "named_counter_mechanic" not in k  # the old junk-drawer key is gone
 
     # ADR-0027: oil_counter_matters also migrated to the Card IR — the regex path no
@@ -448,7 +448,7 @@ def test_named_counters_are_separate_lanes():
     )
     assert "oil_counter_matters" not in _keys(oil)  # regex path no longer produces it
     assert "oil_counter_matters" in {s.key for s in extract_signals_hybrid(oil, oil_ir)}
-    # ADR-0027: shield_counter_matters also migrated to the Card IR — the regex path no
+    # ADR-0027: shield_counter_makers also migrated to the Card IR — the regex path no
     # longer produces it; the hybrid serves it from a place_counter(counter_kind=
     # 'shield'). CR 122.1c shield counters are a replacement+prevention effect, so they
     # get their own lane (excluded from the CR-122.1b keyword_counter set).
@@ -478,8 +478,8 @@ def test_named_counters_are_separate_lanes():
             ),
         ),
     )
-    assert "shield_counter_matters" not in _keys(shield)  # regex path drops it
-    assert "shield_counter_matters" in {
+    assert "shield_counter_makers" not in _keys(shield)  # regex path drops it
+    assert "shield_counter_makers" in {
         s.key for s in extract_signals_hybrid(shield, shield_ir)
     }
     # fade is not a payoff axis — it must not open any named-counter lane
@@ -508,9 +508,9 @@ def test_end_the_turn_split_from_timing_restriction():
 # card must NOT open the donate lane. ADR-0027: donate migrated to the IR — a
 # gain_control effect whose raw names an another-player RECIPIENT.
 def test_donate_is_control_change_only():
-    # Zedruu the Greathearted donates a permanent to another player → donate_matters on
+    # Zedruu the Greathearted donates a permanent to another player → donate_makers on
     # the real IR.
-    assert "donate_matters" in _hyb("Zedruu the Greathearted")
+    assert "donate_makers" in _hyb("Zedruu the Greathearted")
 
     # A group-hug "target opponent draws" is NOT a control change — its IR carries a
     # draw effect, not gain_control, so the lane stays closed (controlled negative).
@@ -536,7 +536,7 @@ def test_donate_is_control_change_only():
             ),
         ),
     )
-    assert "donate_matters" not in {
+    assert "donate_makers" not in {
         s.key for s in extract_signals_hybrid(grouphug, grouphug_ir)
     }
 

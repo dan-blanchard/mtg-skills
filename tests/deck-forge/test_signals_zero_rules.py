@@ -188,13 +188,13 @@ def test_direct_damage_pinger():
 def test_mana_amplifier():
     # Vorinclex, Voice of Hunger — "Whenever you tap a land for mana, add one mana …" is
     # the doubler arm (a triggered ramp Mana effect matching the amount-increase
-    # discriminator). The real IR opens mana_amplifier additively (ramp_matters also
+    # discriminator). The real IR opens mana_amplifier additively (ramp also
     # keeps firing); the regex path emits neither.
     assert "mana_amplifier" not in _reg_keys("Vorinclex, Voice of Hunger")
     hybrid = _hyb_ks("Vorinclex, Voice of Hunger")
     assert ("mana_amplifier", "you") in hybrid
     # read additively — the doubler stays in the generic ramp lane too.
-    assert ("ramp_matters", "you") in hybrid
+    assert ("ramp", "you") in hybrid
 
 
 def test_keyword_granting_team_is_not_a_separate_signal():

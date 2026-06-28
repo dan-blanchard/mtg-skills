@@ -172,17 +172,17 @@ def extract_signals_hybrid(
         out.append(sig)
     # ADR-0027 spell-copy → spellcast cross-open reconciliation: the regex
     # `extract_signals` path UNCONDITIONALLY cross-opens spellcast_matters (low) from
-    # any spell_copy_matters card (a spell-copier is a spellslinger wanting a dense I/S
-    # base — the inline producer at _signals_regex). Now that BOTH spell_copy_matters
+    # any spell_copy_makers card (a spell-copier is a spellslinger wanting a dense I/S
+    # base — the inline producer at _signals_regex). Now that BOTH spell_copy_makers
     # AND spellcast_matters are migrated, that inline producer's output is stripped from
     # the regex set (line 150), so the hybrid re-supplies it from the final merged set:
-    # fire whenever spell_copy_matters ends up in `out` (the regex `spell-copy` keyword
+    # fire whenever spell_copy_makers ends up in `out` (the regex `spell-copy` keyword
     # OR the IR provides it) and spellcast not already present. The `spellcast not in
     # out` guard is the dedup; an earlier `spell_copy not in regex_signals` gate broke
     # once spellcast migrated (storm/replicate carry the keyword in the regex set, so it
     # wrongly blocked the re-supply for them). Low confidence, you-scope.
     out_keys = {s.key for s in out}
-    if "spell_copy_matters" in out_keys and "spellcast_matters" not in out_keys:
+    if "spell_copy_makers" in out_keys and "spellcast_matters" not in out_keys:
         out.append(
             Signal("spellcast_matters", "you", "", "", record.get("name", ""), "low")
         )
@@ -301,10 +301,10 @@ def extract_signals_hybrid(
         # ADR-0027 Cluster D blocked_matters cross-open reconciliation. The regex
         # include_membership path cross-opens blocked_matters from a LURE body (a
         # lure / must-be-blocked commander wants the punish-when-blocked payoffs —
-        # Engulfing Slagwurm, Tolarian Entrancer), gated on lure_matters OR the
-        # byte-identical _LURE_MATTERS_PLAN_MIRROR. BOTH lure_matters AND
+        # Engulfing Slagwurm, Tolarian Entrancer), gated on lure_makers OR the
+        # byte-identical _LURE_MATTERS_PLAN_MIRROR. BOTH lure_makers AND
         # blocked_matters now migrate (v36), so the hybrid DROPS the regex LOW
-        # cross-open. lure_matters rides the IR (so it's in `out`), but the
+        # cross-open. lure_makers rides the IR (so it's in `out`), but the
         # cross-open's blocked_matters is filtered out as a migrated key — and a lure
         # commander that doesn't ITSELF carry a becomes-blocked trigger has no IR
         # blocked_matters. Re-run the EXACT gate (lure present in the merged set OR the
@@ -313,7 +313,7 @@ def extract_signals_hybrid(
         # _signals_regex.py. The cross-open was LOW so it never fed has_other_plan.
         # CR 509.1c.
         if "blocked_matters" not in out_now and (
-            "lure_matters" in out_now
+            "lure_makers" in out_now
             or _LURE_MATTERS_PLAN_MIRROR.search(
                 re.sub(r"\([^)]*\)", " ", get_oracle_text(record) or "")
             )

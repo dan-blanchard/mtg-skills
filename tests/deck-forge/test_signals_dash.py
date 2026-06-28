@@ -14,7 +14,7 @@ from mtg_utils._deck_forge.signals import (
 )
 from mtg_utils.card_ir import Card, Face
 
-# ADR-0027: dash_matters migrated to the Card IR (it now rides the Scryfall `Dash`
+# ADR-0027: has_dash migrated to the Card IR (it now rides the Scryfall `Dash`
 # keyword array via _IR_KEYWORD_MAP['dash'], not the regex _DIRECT_KEYWORD_SIGNALS
 # path), so the firing tests read the production dispatcher extract_signals_hybrid.
 # A bare non-None IR routes the hybrid to the IR path; the Batch-K keyword loop reads
@@ -35,29 +35,29 @@ ZURGO = {
 
 
 def test_dash_keyword_fires_dash_matters():
-    assert "dash_matters" in _keys(ZURGO)
+    assert "has_dash" in _keys(ZURGO)
 
 
 def test_dash_regex_path_no_longer_emits_dash_matters():
     # ADR-0027: the migrated key must leave the legacy regex path entirely.
-    assert "dash_matters" not in {s.key for s in extract_signals(ZURGO)}
+    assert "has_dash" not in {s.key for s in extract_signals(ZURGO)}
 
 
 def test_dash_scope_is_you():
     sig = next(
-        s for s in extract_signals_hybrid(ZURGO, _BARE_IR) if s.key == "dash_matters"
+        s for s in extract_signals_hybrid(ZURGO, _BARE_IR) if s.key == "has_dash"
     )
     assert sig.scope == "you"
 
 
 def test_no_dash_keyword_no_signal():
-    assert "dash_matters" not in _keys(
+    assert "has_dash" not in _keys(
         {"name": "X", "oracle_text": "Flying", "keywords": ["Flying"]}
     )
 
 
 def test_dash_spec_targets_equipment_not_auras():
-    sig = Signal("dash_matters", "you", "", "", "Zurgo Bellstriker")
+    sig = Signal("has_dash", "you", "", "", "Zurgo Bellstriker")
     assert spec_for(sig) is not None
     # Equipment serves it (persists across the Dash bounce)…
     assert serves({"oracle_text": "Equipped creature gets +2/+2. Equip {2}"}, sig)

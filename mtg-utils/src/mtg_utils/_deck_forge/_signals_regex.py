@@ -110,7 +110,7 @@ _EVERGREEN_KW_WORDS = (
 _EVERGREEN_KW_RE = tuple(
     re.compile(r"\b" + kw + r"\b", re.IGNORECASE) for kw in _EVERGREEN_KW_WORDS
 )
-# keyword_soup_matters team-grant context (ADR-0027 — pinned for the byte-identical
+# keyword_soup_makers team-grant context (ADR-0027 — pinned for the byte-identical
 # _signals_ir kept mirror): a commander that GRANTS/SHARES keywords across the team
 # ("creatures you control gain/have …", Odric's "each other creature you control",
 # Akroma Vision's "+1/+1 if it has <keyword>" enumeration). The >=5-distinct-evergreen
@@ -400,7 +400,7 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # new over-fire). This _DETECTORS row fired HIGH-confidence (forced scope 'you') and
     # counted toward has_other_plan, so the _LIFEGAIN_MATTERS_PLAN_MIRROR (below) re-
     # supplies the voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS, matching the
-    # token_copy_matters / conjure_matters byte-identical-mirror pattern. The serve spec
+    # token_copy_makers / conjure_makers byte-identical-mirror pattern. The serve spec
     # (signal_specs) survives — it was always hand-registered and independent of this
     # regex. CR 119 / 118 / 903.10a.
     # ADR-0027 graveyard scope/origin/zone (SIDECAR v29): graveyard_matters migrated to
@@ -438,7 +438,7 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # _signals_ir._IR_KEPT_DETECTORS. The has_other_plan voltron silence is re-supplied
     # by _FORCED_ATTACK_PLAN_MIRROR below (the IR re-supply is broader, so a byte-
     # identical regex mirror — not _VOLTRON_SILENCING_PLAN_KEYS). CR 508.1d / 903.10a.
-    # ADR-0027: goad_matters migrated to the Card IR — detected structurally from the
+    # ADR-0027: goad_makers migrated to the Card IR — detected structurally from the
     # Scryfall `goad` keyword + phase's `goad_all` effect + a `_GOAD_REWARD_REF` face
     # marker (the "attacks one of your opponents" / "a player other than you" /
     # "whenever a player attacks" / defending-player reward conditions phase flattens
@@ -531,7 +531,7 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # scoped _DETECTORS producer and the "died this turn" _HAND_FLOOR producer are
     # deleted; the serve spec stays hand-registered. The _DEATH_MATTERS_PLAN_MIRROR
     # re-supplies the has_other_plan voltron silence. (CR 700.4 / 603.6e.)
-    # ADR-0027: sacrifice_matters migrated to the Card IR — a you-sacrifice EFFECT
+    # ADR-0027: sacrifice_outlets migrated to the Card IR — a you-sacrifice EFFECT
     # (scope not opp/each, a non-land subject, not a forced-opponent edict raw) + a
     # "sacrificed" trigger payoff + the Casualty keyword + the additional-cost /
     # granted / pitch / morph / pay-or-die / bullet sac markers (project.py). The
@@ -1061,7 +1061,7 @@ def _detect_typed_gy_recursion(
 # "<Subtype>s you control" patterns miss. Ninjutsu (CR 702.49) is ONLY granted to/by
 # Ninjas, so a ninjutsu commander (Yuriko, Satoru, Higure — whose text never says
 # "Ninjas you control") is a Ninja-tribal deck; emit type_matters:Ninja so the tribal
-# bodies + lords/equipment/ETB payoffs surface alongside the existing ninjutsu_matters.
+# bodies + lords/equipment/ETB payoffs surface alongside the existing has_ninjutsu.
 _KEYWORD_IMPLIES_TRIBE: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bninjutsu\b"), "Ninja"),
 )
@@ -1142,12 +1142,12 @@ _VOLTRON_PAYOFF_RE = re.compile(VOLTRON_PAYOFF_REGEX, re.IGNORECASE)
 # don't misfire. Hand-written source stays as (key, compiled-pattern, scope) tuples;
 # the assembly below adapts both these and the mined sweep into Detector records.
 _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
-    # ADR-0027: goad_matters migrated to the Card IR — this second goad producer (the
+    # ADR-0027: goad_makers migrated to the Card IR — this second goad producer (the
     # force-OTHER-creatures-to-attack form + the "whenever a player attacks" / Kazuul
     # defending-player reward) is deleted. The IR recovers all three structurally: the
     # single-target political force via _GOAD_STYLE_FORCE over phase's force_attack
     # effect; the reward conditions via the _GOAD_REWARD_REF face marker
-    # (project._dropped_static_markers). Floor-mirror-dep == 0 (goad_matters is NOT in
+    # (project._dropped_static_markers). Floor-mirror-dep == 0 (goad_makers is NOT in
     # _IR_FLOOR_LANES). The hand-written serve spec (signal_specs.py) survives.
     # ADR-0027: modified_matters migrated to the Card IR — this FIRST of the two
     # _HAND_FLOOR producers (the indirect "power greater than its base power" anchor:
@@ -1216,12 +1216,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # hit the graveyard, or offering a repeatable "Sacrifice a land:" outlet) migrated
     # to the Card IR. phase carries NO structural form (the structural sacrifice arm
     # emits this lane on 0 commander-legal cards — a land-ONLY sac subject is routed
-    # AWAY from sacrifice_matters but never re-homed), so this _HAND_FLOOR producer is
+    # AWAY from sacrifice_outlets but never re-homed), so this _HAND_FLOOR producer is
     # deleted and survives BYTE-IDENTICALLY as the LAND_SACRIFICE_REGEX row in
     # _IR_KEPT_DETECTORS (scope 'you', HIGH conf — the EXACT pattern run flat over the
     # reminder-stripped kept_oracle; commander-legal: flat==per-clause==66, 0
     # gain/loss).
-    # A distinct archetype from sacrifice_matters (which EXCLUDES "sacrifice a land" —
+    # A distinct archetype from sacrifice_outlets (which EXCLUDES "sacrifice a land" —
     # the fetchland guard), land_destruction (DESTROY a land), land_exchange (swap land
     # CONTROL).
     # The hand-written serve spec (signal_specs.py) is independent and survives. The
@@ -1255,7 +1255,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # target-legendary / cast-legendary / library-search refs phase leaves textual.
     # Moved floor->kept (floor-mirror-dep -> 0); both _HAND_FLOOR producers deleted.
     # ADR-0027: the "sac-and-return-this-turn engine" floor (Garna, Gerrard, Moira)
-    # is DELETED with the sacrifice_matters migration — it over-fired on reanimation
+    # is DELETED with the sacrifice_outlets migration — it over-fired on reanimation
     # engines that name no sacrifice at all (the IR path correctly drops them).
     # ADR-0027 reveal/dig-v2: cheat_into_play migrated to the Card IR. The warp-GRANTING
     # membership cross-open (Tannuk: "cards in your hand have warp" — warp casts a hand
@@ -1273,7 +1273,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # DEATH_MATTERS_REGEX), and the morbid-condition family feeds the regex-path
     # has_other_plan via _DEATH_MATTERS_PLAN_MIRROR below. The serve spec stays hand-
     # registered in signal_specs.py. CR 700.4.
-    # ADR-0027 β: debuff_matters migrated to the Card IR. This Maha opponent-SHRINK
+    # ADR-0027 β: debuff_makers migrated to the Card IR. This Maha opponent-SHRINK
     # _DETECTORS row (scope "you") is deleted; it survives byte-identically as the
     # _DEBUFF_MAHA_REGEX _IR_KEPT_DETECTORS mirror, and feeds the regex-path
     # has_other_plan gate via _DEBUFF_MATTERS_PLAN_MIRROR below (it fired high-
@@ -1284,7 +1284,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # lane fires from the v22 damage Effect SCOPE arm in _signals_ir (scope 'opp'/'each'
     # always reaches a player; scope 'any' fires ONLY when the recipient is NOT
     # creature/permanent-restricted AND the raw names a player — so creature-only bite
-    # stays removal_matters) PLUS the byte-identical _DIRECT_DAMAGE_MIRROR (the OR of
+    # stays removal) PLUS the byte-identical _DIRECT_DAMAGE_MIRROR (the OR of
     # these two deleted producers) for the under-structured player-reaching tail
     # (doublers, damage-matters payoffs, controller-riders, DFC/coin-flip burst). The
     # serve spec stays hand-registered in signal_specs.py. The deleted producers fired
@@ -1325,7 +1325,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # deleted producer fed has_other_plan (HIGH, scope 'you'), but is NOT added to
     # _VOLTRON_SILENCING_PLAN_KEYS — the file-swap leaked 0 voltron (all 92 Arcane
     # bodies already carry another plan), so an entry would be dead over-silencing.
-    # ADR-0027: enlist_matters migrated to the Card IR — detected from the Scryfall
+    # ADR-0027: has_enlist migrated to the Card IR — detected from the Scryfall
     # `enlist` keyword (signals._IR_KEYWORD_MAP, a structured-field lookup). This
     # _HAND_FLOOR producer is deleted; the hand-written serve spec (signal_specs.py,
     # serve_keywords=("enlist",)) is independent of this regex and survives.
@@ -1340,7 +1340,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # Marvel ninjutsu-on-a-spell variant) drops the four `\bsneak\b`-regex over-fires
     # (Cheatyface "you may sneak", Lightfoot Rogue "Sneak Attack" ability word,
     # Fraternal Exaltation, empty-keyword Ninja Teen). Ninjutsu proper / "return an
-    # unblocked attacker" is ALREADY ninjutsu_matters, so recast_etb keys on Sneak
+    # unblocked attacker" is ALREADY has_ninjutsu, so recast_etb keys on Sneak
     # specifically. SERVE (the aggressive-ETB payoff): an etb Trigger plus a
     # discard/lose_life/sacrifice effect whose raw names "each opponent" (the
     # aggressive enter-bleed the recast repeats — Liliana's Specter, Skirmish Rhino),
@@ -1513,7 +1513,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # hand-written serve spec (signal_specs.py, redirect spells) is independent of this
     # regex and survives — the redirect SERVE pool is itself structural via
     # category=='redirect' should anyone tighten it later.
-    # ADR-0027: ramp_matters migrated to the Card IR. Its TWO _HAND_FLOOR producers are
+    # ADR-0027: ramp migrated to the Card IR. Its TWO _HAND_FLOOR producers are
     # deleted — this dork-support arm (Raggadragga: "Each creature you control with a
     # mana ability gets +2/+2 … untap it when it attacks") and the main mana-production
     # arm below. The dork-support arm has no structural form (phase drops the "with a
@@ -1785,7 +1785,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # greater than its base power" anchor deleted above) via the UNION kept WORD MIRROR
     # in _signals_ir._IR_KEPT_DETECTORS (byte-identical, residual 0). The voltron
     # silence is re-supplied via _VOLTRON_SILENCING_PLAN_KEYS. See the FIRST producer.
-    # ADR-0027: mutate_matters migrated to the Card IR — the Scryfall `mutate`
+    # ADR-0027: has_mutate migrated to the Card IR — the Scryfall `mutate`
     # keyword (_IR_KEYWORD_MAP, the 34 mutate creatures) plus a `mutate` payoff
     # marker for the keyword-less cast-payoff ("if it has mutate" —
     # project._narrow_payoff_condition_refs, read via _DOER_EFFECT_KEYS; Pollywog
@@ -1897,7 +1897,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # ANOTHER high-confidence plan (direct_damage / death_matters / lifegain_matters)
     # that keeps has_other_plan True. So no body leaks the commander-damage tell.
     # ── Mechanics recovered from the "rejected" families (still-zero commanders) ──
-    # ADR-0027 β: token_copy_matters migrated to the Card IR via a kept-mirror — the
+    # ADR-0027 β: token_copy_makers migrated to the Card IR via a kept-mirror — the
     # lane fires from _TOKEN_COPY_MATTERS_MIRROR in _signals_ir (the EXACT deleted
     # regex, pinned as TOKEN_COPY_MATTERS_REGEX, over the reminder-stripped oracle),
     # NOT a structural CopyTokenOf/Populate arm (phase structures those but the 80-card
@@ -1938,12 +1938,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # kind for ("(if|as long as) you've committed a crime this turn" — Oko, Nimble
     # Brigand, Slickshot Vault-Buster, the Outlaws cost-reducers). Removed from
     # _IR_FLOOR_LANES; serve stays hand-registered. (CR 701.49.)
-    # ADR-0027: connive_matters migrated to the Card IR — phase's `connive` effect
+    # ADR-0027: connive_makers migrated to the Card IR — phase's `connive` effect
     # category (self-conniving cards, _DOER_EFFECT_KEYS) + the `_CONNIVE_REF`
     # applied/granted marker, plus the Scryfall `connive` keyword (_IR_KEYWORD_MAP)
     # which lifts the keyword-less GRANTER phase swallows into an Enchant parse
     # (Security Bypass). This _HAND_FLOOR producer is deleted; the serve spec stays.
-    # ADR-0027: spell_copy_matters migrated to the Card IR — phase's `spell_copy`
+    # ADR-0027: spell_copy_makers migrated to the Card IR — phase's `spell_copy`
     # effect (CopySpell + CastCopyOfCard) + the storm/replicate/conspire/casualty
     # Scryfall keywords (the HAVERS, _IR_KEYWORD_MAP) + a `_COPY_SPELL_REF` marker for
     # the granted/quoted/conditional copy phase folds into a modal / coin-flip / storm-
@@ -1953,13 +1953,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # regex producers (this _HAND_FLOOR + the SWEEP row) are deleted; the serve spec
     # stays hand-registered.
     # ── Effect-axis detectors: every ability is a direction to build around ──────
-    # ADR-0027: ramp_matters main mana-production arm migrated to the Card IR. The
+    # ADR-0027: ramp main mana-production arm migrated to the Card IR. The
     # deleted regex ("{T}: add {" / "add N mana" / "add {WUBRGC}") is now the
     # byte-identical _RAMP_MATTERS_REGEX kept mirror in _signals_ir, paired with a
     # structural `ramp`-category arm gated `not card_is_land` (the recall-GAINING half:
     # +96 nonland ramp doers the brittle anchor missed). See the dork-support note above
     # and _migrated_keys.py for the full residual.
-    # ADR-0027: removal_matters migrated to the Card IR — phase's `destroy` / `damage`
+    # ADR-0027: removal migrated to the Card IR — phase's `destroy` / `damage`
     # effect categories with a single-target permanent SUBJECT (CR 115.1), plus the
     # quoted-grant-ability recursion (an Aura/Equipment granting "{T}: Destroy/deal
     # damage to target …" — Manriki-Gusari, Lavamancer's Skill) and the
@@ -1968,7 +1968,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # is a BOARD WIPE (CR 115.10), correctly EXCLUDED here and served by mass_removal;
     # the regex over-fired by folding board wipes / land destruction into removal. NOT
     # in _IR_FLOOR_LANES (floor-mirror-dep == 0); this _HAND_FLOOR producer is deleted
-    # and the SWEEP_DETECTORS removal_matters row with it; serve stays hand-registered.
+    # and the SWEEP_DETECTORS removal row with it; serve stays hand-registered.
     # ADR-0027 exile_removal (SIDECAR v30) migrated to the Card IR — phase's `exile`
     # effect category with a single-target permanent SUBJECT (CR 406.1 one-way exile /
     # 115.1 target), the v30 supplement RETAINING cat=exile + a permanent subject on the
@@ -1993,7 +1993,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the real grant was tribal/color-scoped); 0 genuine generic anthems lost. NOT in
     # _IR_FLOOR_LANES; this _HAND_FLOOR producer + the SWEEP_DETECTORS team_buff row
     # are deleted; the serve spec stays hand-registered.
-    # ADR-0027 reveal/dig-v2: tutor_matters migrated to the Card IR via a BYTE-IDENTICAL
+    # ADR-0027 reveal/dig-v2: tutor migrated to the Card IR via a BYTE-IDENTICAL
     # kept mirror (_TUTOR_MATTERS_MIRROR in _signals_ir._IR_KEPT_DETECTORS == the
     # deleted
     # TUTOR_MATTERS_REGEX, over reminder-stripped kept_oracle). This _HAND_FLOOR
@@ -2002,7 +2002,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the
     # has_other_plan voltron silence reuse. The producer fired HIGH-confidence scope
     # 'you' and fed has_other_plan (a tutor engine is a card-advantage plan), so
-    # tutor_matters joins _VOLTRON_SILENCING_PLAN_KEYS (the IR re-supply is
+    # tutor joins _VOLTRON_SILENCING_PLAN_KEYS (the IR re-supply is
     # byte-identical
     # — same 773 cards — so the strict-subset facade is valid). CR 701.23 / 401.
     # ADR-0027 β: untap_engine migrated to the Card IR — this _HAND_FLOOR producer (the
@@ -2103,7 +2103,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # under-structures (Spark Double / Stunt Double / Mockingbird — no clone effect) or
     # that copy a non-creature (Copy Artifact — the regex fired clone_makers regardless
     # of copied type). A token-copy clone ("create a token that's a copy" — Mirror
-    # Match) is vetoed in the structural arm (the separate token_copy_matters lane). The
+    # Match) is vetoed in the structural arm (the separate token_copy_makers lane). The
     # two membership cross-opens (the legendary recurring- value engine + the high-CMC
     # ETB/dies clone-TARGET tells) are reproduced in extract_signals_ir's
     # include_membership block (LOW conf, byte-identical). This _DETECTORS entry is
@@ -2132,7 +2132,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # keyword (_IR_KEYWORD_MAP, the intrinsic cascaders) + a `_CASCADE_GRANT` marker for
     # the keyword-less granters/references ("spells you cast have cascade", "as you
     # cascade", "spell with cascade"). Removed from _IR_FLOOR_LANES; serve hand-spec'd.
-    # ADR-0027: regenerate_matters migrated to the Card IR — phase's `regenerate` effect
+    # ADR-0027: regenerate_makers migrated to the Card IR — phase's `regenerate` effect
     # (_DOER_EFFECT_KEYS) + a `_REGENERATE_REF` marker for the granted/quoted/replace
     # regenerate phase drops (Tribal Golem, Mossbridge Troll). Removed from
     # _IR_FLOOR_LANES; serve hand-spec'd.
@@ -2152,7 +2152,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # v0.1.19 doesn't structure the CR 702.178/702.179 Speed designation; Aetherdrift).
     # Moved floor->kept (floor-mirror-dep -> 0); this _HAND_FLOOR producer is deleted;
     # the serve spec stays hand-registered.
-    # ADR-0027: discover_matters migrated to the Card IR — served structurally from
+    # ADR-0027: discover_makers migrated to the Card IR — served structurally from
     # the Scryfall `discover` keyword (_IR_KEYWORD_MAP, the discover SOURCES) plus a
     # `discover` effect category for the keyword-less re-trigger payoff (Curator of
     # Sun's Creation: "Whenever you discover, discover again" — a trigger phase
@@ -2167,7 +2167,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # marker for the "to foretell" mana ENABLER (Karfell Harbinger,
     # project._narrow_payoff_condition_refs). Removed from _IR_FLOOR_LANES. This
     # _HAND_FLOOR producer is deleted; the serve spec stays in signal_specs.
-    # ADR-0027: undying_persist_matters migrated to the Card IR — the Scryfall
+    # ADR-0027: has_undying_persist migrated to the Card IR — the Scryfall
     # `undying`/`persist` keywords (_IR_KEYWORD_MAP, the intrinsic bearers) + a
     # `_UNDYING_PERSIST_GRANT` marker for the keyword-less GRANTERS ("creatures you
     # control have undying" — Mikaeus, "gains persist until end of turn" — the persist-
@@ -2251,7 +2251,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # and the cross-pool enablers/payoffs As Foretold, Jhoira, Dust of Moments that
     # manipulate time counters without bearing Suspend). Moved floor->kept (floor-
     # mirror-dep -> 0); this _HAND_FLOOR producer + the SWEEP \bsuspend\b row deleted.
-    # ADR-0027: the Casualty (CR 702.153) sacrifice_matters regex is DELETED with the
+    # ADR-0027: the Casualty (CR 702.153) sacrifice_outlets regex is DELETED with the
     # migration — the printed Casualty keyword now routes via _IR_KEYWORD_MAP and the
     # keyword-LESS granter (Anhelo "has casualty N") via a project grant marker.
     # ADR-0027: saddle_matters migrated to the Card IR — served structurally from
@@ -2299,13 +2299,13 @@ _FLOOR_DETECTORS: tuple[Detector, ...] = tuple(
 # Scryfall's authoritative `keywords` array, the low-false-positive path.
 _PRESET_KEYWORD_SIGNALS = {
     # ADR-0027: the `mill` preset keyword moved to _IR_KEYWORD_MAP (the IR-only
-    # keyword path) because mill_matters is migrated — keeping it here would let the
+    # keyword path) because mill_makers is migrated — keeping it here would let the
     # regex `extract_signals` path keep emitting a migrated key. The IR path reads the
     # same Scryfall `Mill` keyword array (byte-identical), and the has_other_plan
     # voltron silence is re-supplied by a `"mill" in card.keywords` gate term below
     # (the preset fired HIGH and fed has_other_plan — a mill engine is a real plan).
     # ADR-0027: the `goad` preset keyword moved to _IR_KEYWORD_MAP (the IR-only keyword
-    # path) because goad_matters is migrated — keeping it here would let the regex
+    # path) because goad_makers is migrated — keeping it here would let the regex
     # `extract_signals` path keep emitting a migrated key. This shared preset is read by
     # BOTH paths (extract_signals via _detect_keyword_presets AND extract_signals_ir at
     # line ~10318), so the IR path STILL needs the Scryfall `Goad` keyword array:
@@ -2335,7 +2335,7 @@ _PRESET_KEYWORD_SIGNALS = {
     # has_other_plan voltron silence is re-supplied via _spellcast_has_plan (the
     # prowess-keyword arm). CR 702.108a.
     # Storm/Casualty/Replicate/etc. are spell-copy keywords.
-    "spell-copy": ("spell_copy_matters", "you"),
+    "spell-copy": ("spell_copy_makers", "you"),
 }
 # REGEX presets reused clause-scoped via the preset's own compiled patterns — these
 # close documented pure-reuse gaps (blink/Brago) where the tested theme exists but the
@@ -2469,10 +2469,10 @@ def _detect_keyword_presets(card: dict) -> list[tuple[str, str]]:
 _DIRECT_KEYWORD_SIGNALS = {
     # ADR-0027: the `dash` keyword (CR 702.109a — cast for the dash cost, gains haste,
     # returns to hand at the next end step) moved to _IR_KEYWORD_MAP (the IR-only
-    # keyword path) with the dash_matters migration. Dash's "return to hand" lives in
+    # keyword path) with the has_dash migration. Dash's "return to hand" lives in
     # stripped reminder text (Zurgo Bellstriker, Ragavan), so the Scryfall keyword array
     # is the only structured anchor; keeping it here would let the regex
-    # `extract_signals` keep emitting a migrated key. dash_matters was the SOLE
+    # `extract_signals` keep emitting a migrated key. has_dash was the SOLE
     # producer (no other regex emitter), so the IR re-supply is byte-identical
     # (commander-legal: both==22, ir_only==0, regex_only==0). Re-silenced via
     # _VOLTRON_SILENCING_PLAN_KEYS.
@@ -2510,7 +2510,7 @@ _DIRECT_KEYWORD_SIGNALS = {
     # IR-only keyword path) because saddle_matters is migrated — keeping it here
     # would let the regex `extract_signals` path keep emitting a migrated key.
     # ADR-0027: the `banding` keyword (CR 702.22) moved to _IR_KEYWORD_MAP (the
-    # IR-only keyword path) because banding_matters is migrated — keeping it here
+    # IR-only keyword path) because has_banding is migrated — keeping it here
     # would let the regex `extract_signals` path keep emitting a migrated key. The
     # IR keyword route reads the SAME Scryfall `Banding` keyword array (byte-
     # identical: commander-legal both==24, ir_only==0, regex_only==0 — every banding
@@ -2543,8 +2543,8 @@ _DIRECT_KEYWORD_SIGNALS = {
     # keyword path) for the lifegain_matters migration — keeping it here would let the
     # regex `extract_signals` keep emitting a migrated key. A vanilla-lifelink creature
     # now opens lifegain_matters from the IR keyword route (saddle/spectacle-style).
-    "exploit": ("sacrifice_matters", "you"),  # enters → sacrifice a creature
-    "devour": ("sacrifice_matters", "you"),  # enters → sacrifice creatures for counters
+    "exploit": ("sacrifice_outlets", "you"),  # enters → sacrifice a creature
+    "devour": ("sacrifice_outlets", "you"),  # enters → sacrifice creatures for counters
     # afflict / spectacle (→ lifeloss_matters) removed for the ADR-0027 migration —
     # see the note at the top of this map; the IR covers their keyword cards. The
     # +1/+1-counter keyword block (dethrone/undying/graft/riot/bloodthirst/fabricate/
@@ -2756,9 +2756,9 @@ def _attack_go_wide(card: dict) -> bool:
     )
 
 
-# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated lure_matters key. Its deleted
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated lure_makers key. Its deleted
 # SWEEP producer fired HIGH-confidence scope 'you' and counted toward `has_other_plan`
-# (lure_matters is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious
+# (lure_makers is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious
 # commander-damage voltron tell on a lure body that is NOT a vanilla beater — a lure /
 # must-be-blocked engine (Lure, Nemesis Mask, Bramblecrush-style) is the card's whole
 # plan (CR 509.1c). The migrated IR re-supply is BROADER (+3 ir_only: Marble Priest,
@@ -3568,7 +3568,7 @@ _CHEAT_INTO_PLAY_SWEEP_RE = re.compile(
 _CHEAT_INTO_PLAY_WARP_RE = re.compile(r"\bhave warp\b|gains? warp\b", re.IGNORECASE)
 
 
-# ADR-0027 reveal/dig-v2 — tutor_matters BYTE-IDENTICAL kept-mirror pattern (== the
+# ADR-0027 reveal/dig-v2 — tutor BYTE-IDENTICAL kept-mirror pattern (== the
 # deleted _HAND_FLOOR producer). A "search your library for (a|an|up to|...)" over the
 # REMINDER-STRIPPED kept_oracle: the "your" word drops opponent-library searches, the
 # immediate "for" drops composite "search your library AND graveyard for", and reminder-
@@ -3936,7 +3936,7 @@ def extract_signals(
         # A spell-copy commander (Veyran, Zevlor, Rassilon) copies the instants/
         # sorceries you cast, so it's a spellslinger wanting a dense spell base: cross-
         # open spellcast_matters (its serve covers every I/S). Low confidence.
-        if "spell_copy_matters" in keys_now and "spellcast_matters" not in keys_now:
+        if "spell_copy_makers" in keys_now and "spellcast_matters" not in keys_now:
             add("spellcast_matters", "you", "", text[:160], "low")
         # A discard-OUTLET commander (loot / rummage / discard-to-pay) fills the
         # graveyard, so the discarded cards become GY fuel: it wants reanimation /
@@ -3971,7 +3971,7 @@ def extract_signals(
         # wants the punish-when-blocked payoffs (Engulfing Slagwurm, Tolarian
         # Entrancer). One-directional — a bare "when blocked" trigger creature isn't a
         # lure deck, so blocked_matters does NOT cross-open lure.
-        # ADR-0027: lure_matters is migrated to the IR, so it no longer rides this regex
+        # ADR-0027: lure_makers is migrated to the IR, so it no longer rides this regex
         # path's keys_now; key the cross-open off the byte-identical
         # _LURE_MATTERS_PLAN_MIRROR (the EXACT deleted SWEEP regex over the reminder-
         # stripped `text`) so the sibling membership stays byte-identical to base
@@ -3979,7 +3979,7 @@ def extract_signals(
         # the deleted producer fired on — NOT the 3 ir_only cards the IR broadened to,
         # so no NEW blocked_matters firing leaks. CR 509.1c.
         if (
-            "lure_matters" in keys_now or _LURE_MATTERS_PLAN_MIRROR.search(text)
+            "lure_makers" in keys_now or _LURE_MATTERS_PLAN_MIRROR.search(text)
         ) and "blocked_matters" not in keys_now:
             add("blocked_matters", "you", "", text[:160], "low")
         # ADR-0027 β: the lifegain_matters self-bleed-wants-sustain block (ARM (B) — a
@@ -4005,7 +4005,7 @@ def extract_signals(
         # extract_signals_ir. It fired LOW confidence, so it never fed
         # has_other_plan — no voltron PLAN mirror term is needed for it (the 55
         # countdown-resource cards with no other plan keep their voltron tell).
-        # ADR-0027: keyword_soup_matters migrated to the Card IR. The keyword-soup
+        # ADR-0027: keyword_soup_makers migrated to the Card IR. The keyword-soup
         # commander (Odric Lunarch Marshal, Akroma Vision, Akroma's Memorial/Will,
         # Concerted Effort, Bleeding Effect) grants/shares MANY evergreen keywords
         # across the team, so it wants creatures STACKED with keywords. This inline

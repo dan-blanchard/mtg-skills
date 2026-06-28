@@ -18,9 +18,11 @@ lane). A 124-lane audit found the `_matters` suffix was doing triple duty:
 
 - **Payoff** lanes where the name is honest (`lifegain_matters` fires on "whenever you
   gain life", `attack_matters` on combat-trigger payoffs) — **46 lanes**.
-- **Doer** lanes mis-wearing `_matters` (`clone_matters`'s strict membership is cards
-  that *become a copy*; `edict_matters` is cards that *do* an edict; `mill_matters` is
-  cards that *mill*) — the name reads like a payoff but the cards are enablers.
+- **Doer** lanes that *wore* `_matters` but whose strict membership is cards that
+  *perform* the mechanic — a clone lane full of cards that *become a copy*, an edict
+  lane of cards that *force a sacrifice*, a mill lane of cards that *mill* — the name
+  read like a payoff but the cards are enablers (now `clone_makers` / `edict_makers` /
+  `mill_makers`).
 - **Mixed** lanes that fire on *both* a maker arm and a payoff arm under one name
   (`treasure_matters` = "create a Treasure" makers **and** "sacrifice a Treasure"
   payoffs) — **~44 lanes**.

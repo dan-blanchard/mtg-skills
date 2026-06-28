@@ -212,7 +212,7 @@ def test_direct_damage_opens_on_damage_to_a_creatures_controller():
     assert "direct_damage" in _keys_real("Shocker, Unshakable")
     # A pure creature-only removal ping (no player/controller damage) stays out — on
     # BOTH the regex path (producer deleted) and the hybrid path (the scope='any' damage
-    # Effect is creature-restricted → removal_matters, and the mirror doesn't match
+    # Effect is creature-restricted → removal, and the mirror doesn't match
     # "to target creature").
     assert "direct_damage" not in _keys_real("Flame Slash")
 
@@ -329,10 +329,10 @@ def test_arcane_matters_opens_on_arcane_payoff():
 
 def test_enlist_matters_opens_on_enlist():
     # Aradesh has enlist and rewards enlisting, so he wants other enlist creatures plus
-    # high-power tap fodder. ADR-0027: enlist_matters is IR-served from the Scryfall
+    # high-power tap fodder. ADR-0027: has_enlist is IR-served from the Scryfall
     # `enlist` keyword array, so it comes through the hybrid path, not pure regex.
-    assert ("enlist_matters", "you") in _ks_real("Aradesh, the Founder")
-    assert ("enlist_matters", "you") not in _ks_real_regex("Aradesh, the Founder")
+    assert ("has_enlist", "you") in _ks_real("Aradesh, the Founder")
+    assert ("has_enlist", "you") not in _ks_real_regex("Aradesh, the Founder")
 
 
 def test_power_tap_engine_opens_on_tap_ability_scaling_with_power():
@@ -588,13 +588,13 @@ def test_token_copy_matters_opens_on_token_doubling():
     # doubler then doubles. So it IS a token-copy commander. The detector only knew
     # "token that's a copy" / populate, so token-doublers never opened the lane and lost
     # their copy spells. Real oracle.
-    # ADR-0027 C5: token_copy_matters is now FULLY STRUCTURAL — a token DOUBLER projects
+    # ADR-0027 C5: token_copy_makers is now FULLY STRUCTURAL — a token DOUBLER projects
     # to a `token_doubling` Effect (phase's replacement category), which the structural
     # arm reads. A plain token MAKER (Krenko) projects to a bare make_token with no Copy
     # predicate and no token_doubling, so it does NOT open the lane.
-    assert "token_copy_matters" in _keys_real("Adrix and Nev, Twincasters")
-    assert "token_copy_matters" in _keys_real("Mondrak, Glory Dominus")
-    assert "token_copy_matters" not in _keys_real("Krenko, Mob Boss")
+    assert "token_copy_makers" in _keys_real("Adrix and Nev, Twincasters")
+    assert "token_copy_makers" in _keys_real("Mondrak, Glory Dominus")
+    assert "token_copy_makers" not in _keys_real("Krenko, Mob Boss")
 
 
 def test_wants_cloning_opens_for_recurring_value_legendary():
@@ -1394,7 +1394,7 @@ def test_self_death_variable_damage_opens_payoff_and_clone():
 
 
 def test_goad_via_keyword_array_scoped_opponents():
-    # ADR-0027: goad_matters migrated to the Card IR; the Goad keyword now opens the
+    # ADR-0027: goad_makers migrated to the Card IR; the Goad keyword now opens the
     # lane via _IR_KEYWORD_MAP (the IR-only keyword path, reading the record's Scryfall
     # keyword array), so this asserts the hybrid — the regex path no longer emits it.
     c = {
@@ -1402,7 +1402,7 @@ def test_goad_via_keyword_array_scoped_opponents():
         "oracle_text": "Goad target creature.",
         "keywords": ["Goad"],
     }
-    assert ("goad_matters", "opponents") in _ks_hybrid(c)
+    assert ("goad_makers", "opponents") in _ks_hybrid(c)
 
 
 def test_proliferate_via_keyword_array():
@@ -2099,8 +2099,8 @@ def test_spell_copy_cross_opens_spellcast():
             "that spell, and the copy targets the chosen player or permanent."
         ),
     }
-    # ADR-0027: spell_copy_matters migrated to the IR, so the cross-open is
-    # reconciled in the hybrid (the regex path no longer emits spell_copy_matters).
+    # ADR-0027: spell_copy_makers migrated to the IR, so the cross-open is
+    # reconciled in the hybrid (the regex path no longer emits spell_copy_makers).
     spell_copy_ir = Card(
         oracle_id="x",
         name="X",
@@ -2126,7 +2126,7 @@ def test_spell_copy_cross_opens_spellcast():
         s.key
         for s in extract_signals_hybrid(zevlor, spell_copy_ir, include_membership=True)
     }
-    assert "spell_copy_matters" in keys  # precondition
+    assert "spell_copy_makers" in keys  # precondition
     assert "spellcast_matters" in keys  # cross-opened
 
 
@@ -2279,16 +2279,16 @@ def test_play_from_top_cross_opens_topdeck_selection():
 
 
 def test_sac_and_return_this_turn_does_not_over_fire_sacrifice():
-    # ADR-0027: the old "sac-and-return-this-turn" floor regex fired sacrifice_matters
+    # ADR-0027: the old "sac-and-return-this-turn" floor regex fired sacrifice_outlets
     # on Garna / Gerrard — reanimation engines that name NO sacrifice at all. That was
     # an over-fire (a return-from-graveyard payoff is not a sacrifice OUTLET); the
     # migrated IR path correctly drops it, and the floor regex is deleted. Real oracle.
-    assert ("sacrifice_matters", "you") not in _ks_real_regex("Garna, the Bloodflame")
-    assert ("sacrifice_matters", "you") not in _ks_real_regex(
+    assert ("sacrifice_outlets", "you") not in _ks_real_regex("Garna, the Bloodflame")
+    assert ("sacrifice_outlets", "you") not in _ks_real_regex(
         "Gerrard, Weatherlight Hero"
     )
     # Over-fire guard: a vanilla creature is not a sac-and-return engine.
-    assert ("sacrifice_matters", "you") not in _ks_real_regex("Grizzly Bears")
+    assert ("sacrifice_outlets", "you") not in _ks_real_regex("Grizzly Bears")
 
 
 def test_warp_granting_opens_cheat_into_play():
@@ -2396,7 +2396,7 @@ def test_opponent_shrink_opens_debuff():
     # ADR-0027 v45: phase has a TOTAL blind spot for the layer-7b base-P/T set — Maha
     # parses to ZERO abilities. We project the REAL Maha dict through the pipeline so
     # `_recover_base_pt_set` synthesizes the dropped base_pt_set static (scope opp,
-    # toughness 1) and the debuff_matters arm reads it STRUCTURALLY (the deleted
+    # toughness 1) and the debuff_makers arm reads it STRUCTURALLY (the deleted
     # DEBUFF_MAHA_REGEX mirror is gone — structure, not a byte-mirror). Real oracle.
     from mtg_utils._card_ir.project import project_card
 
@@ -2410,8 +2410,8 @@ def test_opponent_shrink_opens_debuff():
     }
     maha_ir = project_card([{**maha, "scryfall_oracle_id": "maha"}])
     # The legacy regex path no longer emits it (the mirror is deleted).
-    assert ("debuff_matters", "you") not in _ks(maha)
-    assert ("debuff_matters", "you") in _ks_hybrid_ir(maha, maha_ir)
+    assert ("debuff_makers", "you") not in _ks(maha)
+    assert ("debuff_makers", "you") in _ks_hybrid_ir(maha, maha_ir)
     # Over-fire guard: a commander that BUFFS your creatures with a scope-"you" base-P/T
     # set (Biomass Mutation shape) is not a debuff commander — the arm fires only on an
     # opp / symmetric shrink to low toughness, never a "you" set.
@@ -2421,7 +2421,7 @@ def test_opponent_shrink_opens_debuff():
         "oracle_text": "Creatures you control have base power and toughness 6/6.",
     }
     buffer_ir = project_card([{**buffer_cmd, "scryfall_oracle_id": "buff"}])
-    assert ("debuff_matters", "you") not in _ks_hybrid_ir(buffer_cmd, buffer_ir)
+    assert ("debuff_makers", "you") not in _ks_hybrid_ir(buffer_cmd, buffer_ir)
 
 
 def test_treasure_care_opens_treasure_matters():
@@ -2446,18 +2446,18 @@ def test_treasure_care_opens_treasure_matters():
 def test_mana_ability_payoff_opens_ramp():
     # A commander that rewards "creatures you control with a mana ability" (Raggadragga
     # buffs/untaps them) is a mana-dork deck — it wants mana-dork creatures (served by
-    # ramp_matters) and dork support (mana_amplifier). Niche (one commander) but precise.
+    # ramp) and dork support (mana_amplifier). Niche (one commander) but precise.
     # ADR-0027 β: the dork-support mana_amplifier arm is migrated to the Card IR — phase
     # drops the "with a mana ability" subject, so it rides a byte-identical kept word
-    # mirror (_MANA_DORK_SUPPORT_MIRROR). ADR-0027: ramp_matters ALSO migrated — its
+    # mirror (_MANA_DORK_SUPPORT_MIRROR). ADR-0027: ramp ALSO migrated — its
     # dork-support producer rode the SAME mirror, so both now fire from the hybrid path.
-    assert ("ramp_matters", "you") not in _ks_real_regex("Raggadragga, Goreguts Boss")
-    assert ("ramp_matters", "you") in _ks_real("Raggadragga, Goreguts Boss")
+    assert ("ramp", "you") not in _ks_real_regex("Raggadragga, Goreguts Boss")
+    assert ("ramp", "you") in _ks_real("Raggadragga, Goreguts Boss")
     assert "mana_amplifier" not in _keys_real_regex("Raggadragga, Goreguts Boss")
     assert ("mana_amplifier", "you") in _ks_real("Raggadragga, Goreguts Boss")
     # Over-fire guard: a vanilla beater is not a mana-dork payoff.
-    assert ("ramp_matters", "you") not in _ks_real_regex("Grizzly Bears")
-    assert ("ramp_matters", "you") not in _ks_real("Grizzly Bears")
+    assert ("ramp", "you") not in _ks_real_regex("Grizzly Bears")
+    assert ("ramp", "you") not in _ks_real("Grizzly Bears")
 
 
 def test_charge_and_experience_counters_open_proliferate():
@@ -2603,29 +2603,27 @@ def test_power_greater_than_base_power_opens_counters():
 
 def test_forced_combat_and_any_player_attack_open_goad():
     # Goad cards (Disrupt Decorum) are top-synergy for two archetypes that never opened
-    # goad_matters: commanders that FORCE OTHER creatures to attack (Basandra "Target
+    # goad_makers: commanders that FORCE OTHER creatures to attack (Basandra "Target
     # creature attacks this turn if able" — the goad mechanic itself, CR 701.39) and
     # commanders that reward ANY player attacking (Aurelia "Whenever a player attacks
     # with three or more creatures" — goad makes opponents attack into the payoff). Real
     # oracle.
-    # ADR-0027: goad_matters migrated to the IR — the regex path no longer emits it;
+    # ADR-0027: goad_makers migrated to the IR — the regex path no longer emits it;
     # the hybrid path serves it (Basandra via the goad-style single-target force_attack
     # effect; Aurelia via the _GOAD_REWARD_REF marker, mirrored as a goad_all effect).
-    assert ("goad_matters", "opponents") not in _ks_real_regex(
-        "Basandra, Battle Seraph"
-    )
-    assert ("goad_matters", "opponents") not in _ks_real_regex("Aurelia, the Law Above")
-    assert ("goad_matters", "opponents") in {
+    assert ("goad_makers", "opponents") not in _ks_real_regex("Basandra, Battle Seraph")
+    assert ("goad_makers", "opponents") not in _ks_real_regex("Aurelia, the Law Above")
+    assert ("goad_makers", "opponents") in {
         (s.key, s.scope) for s in test_signals("Basandra, Battle Seraph")
     }
-    assert ("goad_matters", "opponents") in {
+    assert ("goad_makers", "opponents") in {
         (s.key, s.scope) for s in test_signals("Aurelia, the Law Above")
     }
     # Over-fire guard: a SELF forced-attacker (Zurgo) is an aggressive beater, not a
     # goad commander — it forces only ITSELF to attack each combat. The goad-style
     # force lift requires a "target creature" force, which Zurgo's self-force lacks.
-    assert ("goad_matters", "opponents") not in _ks_real_regex("Zurgo Helmsmasher")
-    assert ("goad_matters", "opponents") not in {
+    assert ("goad_makers", "opponents") not in _ks_real_regex("Zurgo Helmsmasher")
+    assert ("goad_makers", "opponents") not in {
         (s.key, s.scope) for s in test_signals("Zurgo Helmsmasher")
     }
 
@@ -2732,11 +2730,11 @@ def test_donate_via_that_player_opens_donate():
     # effect whose raw names an another-player RECIPIENT (phase drops the recipient to
     # scope='any', so the lane reads the effect raw). Real oracle.
     blim_keys = {(s.key, s.scope) for s in test_signals("Blim, Comedic Genius")}
-    assert ("donate_matters", "you") in blim_keys
+    assert ("donate_makers", "you") in blim_keys
     # Over-fire guard: a commander where YOU gain control (the opposite of donate — its
     # raw names no other-player recipient) does not open the donate lane.
     donate_keys = {(s.key, s.scope) for s in test_signals("Dragonlord Silumgar")}
-    assert ("donate_matters", "you") not in donate_keys
+    assert ("donate_makers", "you") not in donate_keys
 
 
 def test_dont_own_payoff_opens_theft_and_gain_control():
@@ -2908,13 +2906,13 @@ def test_coverage_gate_flags_low_confidence_only():
 
 def test_populate_opens_token_copy_matters():
     # Populate (CR 702.95) IS "create a token that's a copy of a creature token you
-    # control" — a token-copy mechanic — so a populate commander opens token_copy_matters
+    # control" — a token-copy mechanic — so a populate commander opens token_copy_makers
     # (the serve already credited populate; the detector missed the keyword).
     # ADR-0027 C5: populate (CR 701.36) projects to a make_token whose subject carries
     # the ("Token", "Copy") predicates (a copy of a creature token), which the structural
-    # token_copy_matters arm reads — no regex mirror.
-    assert "token_copy_matters" in _keys_real("Ghired, Conclave Exile")
-    assert "token_copy_matters" in _keys_real("Trostani, Selesnya's Voice")
+    # token_copy_makers arm reads — no regex mirror.
+    assert "token_copy_makers" in _keys_real("Ghired, Conclave Exile")
+    assert "token_copy_makers" in _keys_real("Trostani, Selesnya's Voice")
 
 
 def test_self_death_payoff_opens_for_own_death_trigger():
@@ -3306,7 +3304,7 @@ def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
     # Kazuul rewards opponents attacking YOU ("whenever a creature an opponent controls
     # attacks ... you're the defending player, create an Ogre"), so it wants force-attack
     # / goad to feed the trigger — but its phrasing matched no goad detector. Open
-    # goad_matters, and the lane's force-attack sub-avenue covers the force-ALL-attack
+    # goad_makers, and the lane's force-attack sub-avenue covers the force-ALL-attack
     # cards (which carry no "goad" keyword). Real oracle, full text.
     kazuul = {
         "name": "Kazuul, Tyrant of the Cliffs",
@@ -3317,10 +3315,10 @@ def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
             "controller pays {3}."
         ),
     }
-    # ADR-0027: goad_matters migrated to the IR — the regex path no longer emits it;
+    # ADR-0027: goad_makers migrated to the IR — the regex path no longer emits it;
     # the hybrid path serves it from the _GOAD_REWARD_REF defending-player marker
     # (mirrored as a goad_all effect).
-    assert "goad_matters" not in _keys(kazuul)
+    assert "goad_makers" not in _keys(kazuul)
     kazuul_ir = Card(
         oracle_id="x",
         name="X",
@@ -3343,7 +3341,7 @@ def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
             ),
         ),
     )
-    assert "goad_matters" in _keys_hybrid_ir(kazuul, kazuul_ir)
+    assert "goad_makers" in _keys_hybrid_ir(kazuul, kazuul_ir)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal
@@ -3371,8 +3369,8 @@ def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
             "controls attack if able."
         ),
     }
-    assert lane_covers(diplomats, "goad_matters", "opponents") is True
-    assert lane_covers(warstoll, "goad_matters", "opponents") is True
+    assert lane_covers(diplomats, "goad_makers", "opponents") is True
+    assert lane_covers(warstoll, "goad_makers", "opponents") is True
     # Over-fire guard: a SELF forced-attack drawback (Juggernaut) is an aggressive beater,
     # not a force-the-table effect — the plural/symmetric anchors must keep it out.
     juggernaut = {
@@ -3383,7 +3381,7 @@ def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
             "This creature can't be blocked by Walls."
         ),
     }
-    assert lane_covers(juggernaut, "goad_matters", "opponents") is False
+    assert lane_covers(juggernaut, "goad_makers", "opponents") is False
 
 
 def test_low_power_matters_opens_and_serves():
@@ -4337,7 +4335,7 @@ def test_missing_race_tribes_open_membership_but_classes_do_not():
 def test_land_sacrifice_matters_opens_and_serves():
     # Gitrog/Titania/Slogurk draw/grow when lands hit the graveyard, so repeatable
     # "Sacrifice a land:" outlets (Sylvan Safekeeper, Zuran Orb) are their core engine.
-    # sacrifice_matters deliberately EXCLUDES "sacrifice a land" (fetchland guard), so
+    # sacrifice_outlets deliberately EXCLUDES "sacrifice a land" (fetchland guard), so
     # this land-sac archetype is its own lane. Real cards, full oracle.
     # ADR-0027 #24b: land_sacrifice_matters now reads STRUCTURE off the REAL IR — the
     # leaves/dies Trigger whose subject is a Land you control (Gitrog's "Whenever one
@@ -4541,7 +4539,7 @@ def test_debuff_serves_opponent_mass_shrink():
             "and toughness 1/1."
         ),
     }
-    assert lane_covers(mass_diminish, "debuff_matters", "any") is True
+    assert lane_covers(mass_diminish, "debuff_makers", "any") is True
     # Over-fire guard: setting YOUR creatures' base P/T (Mirror Entity pump) is NOT a
     # debuff — the opponent-controls anchor must keep it out.
     mirror = {
@@ -4553,7 +4551,7 @@ def test_debuff_serves_opponent_mass_shrink():
             "toughness X/X and gain all creature types."
         ),
     }
-    assert lane_covers(mirror, "debuff_matters", "any") is False
+    assert lane_covers(mirror, "debuff_makers", "any") is False
 
 
 def test_lure_commander_cross_opens_blocked_matters():
@@ -4561,12 +4559,12 @@ def test_lure_commander_cross_opens_blocked_matters():
     # a commander that MUST be blocked / lures (Madame Vastra) wants the punish-when-
     # blocked payoffs (Engulfing Slagwurm, Tolarian Entrancer). Cross-open lure ->
     # blocked (one-directional — a bare "when blocked" trigger isn't a lure deck). Real
-    # card, full oracle. ADR-0027: lure_matters migrated to the IR, so route through the
+    # card, full oracle. ADR-0027: lure_makers migrated to the IR, so route through the
     # hybrid with the structural `lure` Effect; the regex path re-supplies the
     # blocked_matters cross-open from the byte-identical _LURE_MATTERS_PLAN_MIRROR
     # matching Vastra's "must be blocked if able".
     keys = _keys_real("Madame Vastra")
-    assert "lure_matters" in keys
+    assert "lure_makers" in keys
     assert "blocked_matters" in keys
 
 
@@ -4671,10 +4669,10 @@ def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():
             "indestructible, lifelink, menace, reach, skulk, trample, and vigilance."
         ),
     }
-    # ADR-0027: keyword_soup_matters migrated to the Card IR — assert via the hybrid
+    # ADR-0027: keyword_soup_makers migrated to the Card IR — assert via the hybrid
     # path (the include_membership-gated kept mirror reads oracle_text off the record;
     # _bare_ir routes the hybrid to the IR path). The regex path no longer emits it.
-    assert "keyword_soup_matters" in _keys_hybrid(odric)
+    assert "keyword_soup_makers" in _keys_hybrid(odric)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal
@@ -4693,7 +4691,7 @@ def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():
         "oracle_text": "Flying, vigilance, lifelink",
         "keywords": ["Flying", "Lifelink", "Vigilance"],
     }
-    assert lane_covers(aerial, "keyword_soup_matters") is True
+    assert lane_covers(aerial, "keyword_soup_makers") is True
     # Over-fire guard: a single-keyword anthem commander (grants only vigilance) is not
     # a keyword-soup deck.
     aang = {
@@ -4701,7 +4699,7 @@ def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():
         "type_line": "Legendary Creature — Human Avatar",
         "oracle_text": "Flying\nVigilance\nOther creatures you control have vigilance.",
     }
-    assert "keyword_soup_matters" not in _keys_hybrid(aang)
+    assert "keyword_soup_makers" not in _keys_hybrid(aang)
     # Over-fire guard: a one-keyword creature is not a multi-keyword body.
     sprite = {
         "name": "Scryb Sprite",
@@ -4709,7 +4707,7 @@ def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():
         "oracle_text": "Flying",
         "keywords": ["Flying"],
     }
-    assert lane_covers(sprite, "keyword_soup_matters") is False
+    assert lane_covers(sprite, "keyword_soup_makers") is False
 
 
 def test_combat_damage_serves_double_strike_granters():

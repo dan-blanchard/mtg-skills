@@ -25,7 +25,7 @@ from mtg_utils.card_ir import Card
 # _recover_library_zones — from:library on top-of-library cast_from_zone effects
 # (impulse_top_play / play_from_top). v5: _recover_edict_scope — promote scope=='any'
 # sacrifice → each/opp from raw when phase dropped the sacrificer scoping to a null
-# controller (edict_matters). v6: _quantity recovers op="power" on a Ref→Power amount
+# controller (edict_makers). v6: _quantity recovers op="power" on a Ref→Power amount
 # (phase folded it to a bare op="count"); read by the damage_equal_power / creature_ping
 # lanes (ADR-0027 β). v7: ModifyCost{Reduce} static → a category="cost_reduction" Effect
 # (Goblin Electromancer / Ruby Medallion); the cost_reduction lane reads it (ADR-0027
@@ -101,7 +101,7 @@ from mtg_utils.card_ir import Card
 # (the color-CHANGE filters and any-color SPEND permission — Celestial Dawn, Vizier —
 # stay mana_filter). nothing reads mana_filter, so the split is drift-free. Read in
 # extract_signals_ir + the triggered `ramp`/`double` doublers discriminator- gated
-# (additive — ramp_matters unchanged). ADR-0027 β. CR 106.4 / 605. - v17→v18:
+# (additive — ramp unchanged). ADR-0027 β. CR 106.4 / 605. - v17→v18:
 # counter_distribute — a BOARD-WIDE +1/+1 counter placement (phase's `PutCounterAll`
 # "put a +1/+1 counter on each … you control" — Cathars' Crusade, Titania's Boon, Krenko
 # Baron of Tin Street, Avenger of Zendikar) carries the `MassEach` predicate on the
@@ -110,7 +110,7 @@ from mtg_utils.card_ir import Card
 # project._with_mass_marker re-surfaces it so the counter_distribute lane can split
 # board-wide spread from a single-target placement (New Horizons, Snakeskin Veil — also
 # a Creature/you subject). counter_kind stays p1p1 (additive — nothing else reads
-# MassEach), so plus_one_matters / self_counter_grow / debuff_matters / type_matters are
+# MassEach), so plus_one_matters / self_counter_grow / debuff_makers / type_matters are
 # byte-identical. ADR-0027 β. CR 122.1 / 122.6. - v18→v19: opponent_search_matters — the
 # OPPONENT-library-manipulation trigger ("whenever an opponent searches/shuffles their
 # library / scries / surveils" — Ob Nixilis Unshackled, Psychic Surgery, River Song, Wan
@@ -172,15 +172,15 @@ from mtg_utils.card_ir import Card
 # dormant regex-served big_hand_matters. CR 402.2. SUB-SITE 3 big_mana — `_mana_amount`
 # reads the Mana effect's `produced` field so a ramp Effect carries amount: a fixed
 # factor>1 (Sol Ring {C}{C}=2, Dark Ritual {B}{B}{B}=3), a count/Variable scaler
-# (Selvala's greatest-power). ramp_matters / group_mana / mana_amplifier read scope/raw,
+# (Selvala's greatest-power). ramp / group_mana / mana_amplifier read scope/raw,
 # never amount, so drift 0. CR 106.4. v23→v24: ADR-0027 reveal/dig EFFECT PROJECTION
 # cluster — the search/reveal/dig surface is now structured so three (not-yet-wired)
-# lanes can read it; additive, no signal arm wired, drift 0: SUB-SITE 1 tutor_matters —
+# lanes can read it; additive, no signal arm wired, drift 0: SUB-SITE 1 tutor —
 # a SearchLibrary of the controller's OWN library (phase's `target_player` ABSENT) gets
 # scope='you' (project._search_self_library_scope), so an opponent-/other-player-library
 # tutor (Bribery / Praetor's Grasp target_player Opponent; Arcum Dagsson
 # ParentTargetController; Extract bare Typed; Fertilid / Varragoth Player) is
-# distinguishable as scope!='you'. The migrated tutor reads (tutor_matters fixed-'you'
+# distinguishable as scope!='you'. The migrated tutor reads (tutor fixed-'you'
 # doer, type-tutor, GY-tutor from:graveyard-scope) never read this effect scope, so
 # drift 0. CR 701.23 / 401. SUB-SITE 2 cheat_from_top — a top-of-library reveal/dig
 # effect (Dig / ExileTop / RevealTop / RevealUntil / ExileFromTopUntil) gets a
@@ -399,7 +399,7 @@ from mtg_utils.card_ir import Card
 #   APPENDS one canonical `cheat_play`+`from:<top|library|hand>`+`to:battlefield` marker
 #   per ability that genuinely cheats a NON-LAND card onto the battlefield from a
 #   NON-graveyard source, so the cheat_into_play arm reads ONE shape. Append-only: the
-#   scattered originals are untouched, so every sibling lane (mill_matters,
+#   scattered originals are untouched, so every sibling lane (mill_makers,
 #   exile_removal, graveyard_matters, blink_flicker, extra_land_drop) is behavior-
 #   neutral (the marker carries no from:graveyard → never opens graveyard_matters, and
 #   a Land-only put is gated out → never opens extra_land_drop). The graveyard-ONLY put
@@ -479,9 +479,9 @@ from mtg_utils.card_ir import Card
 #       becomes_unattached. No lane reads them yet — preservation enabling future
 #       equip/aura-attach lanes.
 #     - Exploited (CR 702.139 — exploit IS a sacrifice): split to `exploited`, read by
-#       the sacrifice_matters trigger arm (Henry Wu's grant + the 24 native
+#       the sacrifice_outlets trigger arm (Henry Wu's grant + the 24 native
 #       exploiters with the trigger). The Scryfall `exploit` keyword also maps to
-#       sacrifice_matters in _IR_KEYWORD_MAP (covers Silumgar Scavenger, keyword-
+#       sacrifice_outlets in _IR_KEYWORD_MAP (covers Silumgar Scavenger, keyword-
 #       only). CR 702.21a / 702.83 / 712 / 702.36 / 701.3 / 702.139 / 108.3.
 # v41 (ADR-0027 combat-damage RECIPIENT TYPE — Trigger.recipient; project.py
 #   `_project_trigger` + `_combat_damage_recipient`, supplement.py
@@ -511,9 +511,9 @@ from mtg_utils.card_ir import Card
 #   the SIGN-COHERENT fixed magnitude (the signed power, the toughness as a fallback;
 #   None for a true opposite-sign trick like -1/+1 / +3/-3, and None for a DYNAMIC
 #   `+X/+X` operand or a "for each" scaler — decoupling scaling_pump / count_anthem /
-#   lands_matter, which cross-read amount regardless of category). debuff_matters now
+#   lands_matter, which cross-read amount regardless of category). debuff_makers now
 #   reads a NEGATIVE-factor `pump`/`pump_target` (Tragic Slip, flanking's -1/-1 — CR
-#   702.25a; +27 recall) and pump_matters a POSITIVE-factor `pump_target` over a real
+#   702.25a; +27 recall) and pump_makers a POSITIVE-factor `pump_target` over a real
 #   target-Creature subject (the single-target combat trick the regex's "target
 #   creature gets +" missed — "two target creatures each get +N/+N"; +36 recall). The
 #   X-variable / for-each / "+N and gains <kw>" tail phase emits as amount=None still
@@ -521,7 +521,7 @@ from mtg_utils.card_ir import Card
 #   `duration` — a fast-follow). Static-anthem `pump` is unchanged. Other keys + voltron
 #   drift 0. CR 613.4c (layer 7c) / 702.25a.
 # v43 (ADR-0027 #24 mana-source KIND — Effect.mana_kind; project.py `_mana_kind`):
-#   `ramp_matters` was the single biggest regex MIRROR (~1,047 cards). The `ramp`
+#   `ramp` was the single biggest regex MIRROR (~1,047 cards). The `ramp`
 #   effect IS structured, but the signals arm gated OUT `card_is_land`, dropping the
 #   1,005 nonbasic ramp lands (their ramp is ON the land) + token-embedded "{T}: Add"
 #   makers; a byte-identical _RAMP_MATTERS_REGEX mirror re-supplied all of them. phase
@@ -531,18 +531,18 @@ from mtg_utils.card_ir import Card
 #   factor), so a basic Forest's single-color tap was indistinguishable from a dual's
 #   off-color fixing — both factor 1. `_mana_kind` projects the new `Effect.mana_kind`
 #   ("fixing" = a multi-color/any-color/any-type producer; "basic" = a single-color/
-#   colorless mana-base tap). signals now fires ramp_matters on a LAND whose ramp is
+#   colorless mana-base tap). signals now fires ramp on a LAND whose ramp is
 #   ACCELERATION (amount.factor>1 / op=="variable" — already projected) OR "fixing",
 #   and DROPS the basic-equivalent single-color taplands the old mirror over-supplied
 #   (CR 305.6: a basic land's intrinsic ability is exactly one single-color tap). The
 #   1,005 nonbasic lands shrink to ~534 real ramp lands read structurally; the
 #   _RAMP_MATTERS_REGEX/_MANA_DORK_SUPPORT mirror is GATED to nonland, re-supplying only
 #   the 42 commander-legal token-embedded makers + dork-support cards phase has no
-#   `ramp` effect for. ramp_matters 2099→1628 (-471 basic taplands); all other keys +
+#   `ramp` effect for. ramp 2099→1628 (-471 basic taplands); all other keys +
 #   voltron (3007) drift 0. CR 106.4 / 605 / 305.
 # v44 (ADR-0027 Duration fast-follow):
 #   Adds `Effect.duration` projected from `ability.duration` to distinguish temporary
-#   effects from permanent ones, fully retiring the pump_matters / debuff_matters
+#   effects from permanent ones, fully retiring the pump_makers / debuff_makers
 #   dynamic -X/-X regex mirrors.
 # v45 (ADR-0027 base-P/T SET static recovery — supplement `_recover_base_pt_set`):
 #   phase v0.1.60 has a TOTAL blind spot for the layer-7b "set base power and/or
@@ -550,14 +550,14 @@ from mtg_utils.card_ir import Card
 #   whose oracle carries "base power and toughness N/M" / "base power N" / "base
 #   toughness N" parse to ZERO abilities (Maha, Lignify, Humility, Curse of Conformity,
 #   Godhead of Awe, Flatline). base_pt_set already fired off the carved kept word
-#   mirror, but the MIGRATED debuff_matters lane read IR and saw nothing for an
+#   mirror, but the MIGRATED debuff_makers lane read IR and saw nothing for an
 #   opponent / symmetric MASS shrink — Maha "Creatures your opponents control have base
 #   toughness 1" is a -1/-1 enabler (7b sets toughness 1, a 7c -1/-1 drops it to 0 →
 #   dies, CR 613.4c / 704.5g). The card-level recovery synthesizes the dropped
 #   base_pt_set static (scope you/opp/each + a Creature subject + the toughness in
-#   amount.factor) from the raw oracle, so debuff_matters reads STRUCTURE. Fires only on
+#   amount.factor) from the raw oracle, so debuff_makers reads STRUCTURE. Fires only on
 #   a FIXED literal value (the dynamic "change base power to <…>" / "X/X" forms carry no
-#   digit → skipped, matching the mirror). debuff_matters is the only lane that moves;
+#   digit → skipped, matching the mirror). debuff_makers is the only lane that moves;
 #   base_pt_set stays 219 (the mirror already supplied these), voltron 3007. CR 613.4b.
 # v46 (ADR-0027 exile_removal PROJECTION TAIL — C13; supplement
 #   `_recover_hybrid_exile_zone` + `_recover_opponent_exile_subject`): C13's
@@ -607,10 +607,10 @@ from mtg_utils.card_ir import Card
 #   subject of a CopyTokenOf (a Typed copy keeps its type + Copy; a SelfRef self-copy
 #   gets a bare Copy that _project_face strips for the reminder-self-copy keyword set —
 #   Embalm/Eternalize/Encore/Squad/Myriad/Offspring/Double Team). Populate → make_token
-#   scope=you, Creature+(Token,Copy) subject (fires token_maker + token_copy_matters).
+#   scope=you, Creature+(Token,Copy) subject (fires token_maker + token_copy_makers).
 #   Investigate → make_token Artifact+Clue+(Token) subject (fires clue_matters off the
 #   existing token-subtype arm). _copy_spell_markers recovers the copy-spell phase-fold
-#   tail structurally. token_copy_matters / clue_matters firing byte-mirrors retired;
+#   tail structurally. token_copy_makers / clue_matters firing byte-mirrors retired;
 #   tokens_matter mirror narrowed to the go-wide board-count residue. CR 707 / 701.36 /
 #   701.16.
 # SIDECAR v50 — ADR-0027 C8 (digs): from:top normalization on the reveal/exile
@@ -928,7 +928,7 @@ from mtg_utils.card_ir import Card
 #   v66 supplement rebridges were papering over projection node-vocab DRIFT, not a phase
 #   break). FIX (preserve-from-node, retiring the regex rebridges): _project_replacement
 #   now reads the v0.8.0 `Times` quantity_modification (phase renamed Double/Multiply ->
-#   Times{factor}) so token_doubling / counter_doubling / token_copy_matters /
+#   Times{factor}) so token_doubling / counter_doubling / token_copy_makers /
 #   counter_replace_bonus read STRUCTURE; _recover_token_doubling + _recover_counter_
 #   replacement deleted. Half/Minus stay excluded (reducers). Membership gate set-equal.
 # v68 (same node-vocab cleanup, ROOT E bending): phase v0.8.0 structures "whenever
@@ -942,7 +942,7 @@ from mtg_utils.card_ir import Card
 #   vote's chosen outcomes on the `Vote.per_choice_effect` node, but projection mapped
 #   Vote→vote and never descended it (the v66 "outcome collapse" claim was projection
 #   drift). _collect_effects now recurses per_choice_effect through the normal effect
-#   machinery, so mass_removal / reanimator / lifeloss_matters / debuff_matters read
+#   machinery, so mass_removal / reanimator / lifeloss_matters / debuff_makers read
 #   STRUCTURE (set-equal — and Magister's reanimate-each is moot, those lanes are
 #   scope-agnostic). The descend is MORE complete than the deleted 4-arm regex
 #   _recover_vote_outcome: it also surfaces the genuine edict / opponent_discard /

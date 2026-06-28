@@ -118,7 +118,7 @@ def _reg(name):
 
 # ── Batch A: high-severity wiring fixes ──────────────────────────────────────
 class TestNinjaTribal:
-    """Ninjutsu commanders (Yuriko/Satoru/Higure) emit ninjutsu_matters but never
+    """Ninjutsu commanders (Yuriko/Satoru/Higure) emit has_ninjutsu but never
     type_matters:Ninja, so the 26-card Ninja tribal payoff axis (lords/equipment/ETB)
     is invisible. Wire ninjutsu -> type_matters:Ninja (CR 702.49)."""
 
@@ -236,7 +236,7 @@ class TestBendingPayoff:
         # payoff is a `bending` Effect whose raw names all four bends. The three
         # counter-bend lanes therefore fire from the structural arm, not a keyword.
         keys = _hyb("Avatar Aang // Aang, Master of Elements")
-        assert {"airbend_matters", "earthbend_matters", "waterbend_matters"} <= keys
+        assert {"airbend_makers", "earthbend_matters", "waterbend_matters"} <= keys
 
     def test_bend_keyword_bearer_via_ir_keyword_map(self):
         # A vanilla Waterbend body opens waterbend_matters from card['keywords'].
@@ -249,11 +249,9 @@ class TestDiscoverMatters:
 
     def test_discover_card_emits_and_served(self):
         # Geological Appraiser carries the Scryfall discover keyword → IR opens the lane.
-        assert "discover_matters" in _hyb("Geological Appraiser")
-        assert "discover_matters" not in _reg("Geological Appraiser")
-        assert serves(
-            test_card("Geological Appraiser"), _sig("discover_matters", "you")
-        )
+        assert "discover_makers" in _hyb("Geological Appraiser")
+        assert "discover_makers" not in _reg("Geological Appraiser")
+        assert serves(test_card("Geological Appraiser"), _sig("discover_makers", "you"))
 
 
 class TestForetellMatters:
@@ -280,17 +278,15 @@ class TestUndyingPersistMatters:
     def test_persist_card_emits_and_served(self):
         # Kitchen Finks — the intrinsic Persist bearer fires from the Scryfall keyword
         # array via the real IR, not the deleted regex.
-        assert "undying_persist_matters" in _hyb("Kitchen Finks")
-        assert "undying_persist_matters" not in _reg("Kitchen Finks")
-        assert serves(
-            test_card("Kitchen Finks"), _sig("undying_persist_matters", "you")
-        )
+        assert "has_undying_persist" in _hyb("Kitchen Finks")
+        assert "has_undying_persist" not in _reg("Kitchen Finks")
+        assert serves(test_card("Kitchen Finks"), _sig("has_undying_persist", "you"))
 
     def test_grant_card_emits(self):
         # Mikaeus, the Unhallowed is the keyword-less GRANTER ("other non-Human creatures
         # … have undying") — recovered as a conferred-grant marker on the real IR.
-        assert "undying_persist_matters" in _hyb("Mikaeus, the Unhallowed")
-        assert "undying_persist_matters" not in _reg("Mikaeus, the Unhallowed")
+        assert "has_undying_persist" in _hyb("Mikaeus, the Unhallowed")
+        assert "has_undying_persist" not in _reg("Mikaeus, the Unhallowed")
 
 
 # ── Batch C: counter / payoff-regex avenues ──────────────────────────────────
@@ -586,10 +582,10 @@ class TestCasualtyRouting:
 
     def test_casualty_grant_emits_sacrifice_matters(self):
         # Anhelo, the Painter's "has casualty 2" grant is keyword-less; the projection
-        # appends a `sacrifice` grant marker the real IR reads → sacrifice_matters.
-        assert "sacrifice_matters" in _hyb("Anhelo, the Painter")
+        # appends a `sacrifice` grant marker the real IR reads → sacrifice_outlets.
+        assert "sacrifice_outlets" in _hyb("Anhelo, the Painter")
         # and the legacy regex path no longer emits it
-        assert "sacrifice_matters" not in _reg("Anhelo, the Painter")
+        assert "sacrifice_outlets" not in _reg("Anhelo, the Painter")
 
 
 class TestStationDetection:

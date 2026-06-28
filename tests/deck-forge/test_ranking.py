@@ -27,7 +27,7 @@ _ARI_SIGNALS = [
     _sig("death_matters", "you"),
     _sig("death_matters", "opponents"),
     _sig("death_matters", "any"),
-    _sig("sacrifice_matters", "you"),
+    _sig("sacrifice_outlets", "you"),
     _sig("lifeloss_matters", "opponents"),
     _sig("lifegain_matters", "you"),
     _sig("creature_etb", "you"),
@@ -35,7 +35,7 @@ _ARI_SIGNALS = [
     _sig("voltron_matters", "you"),
     _sig("artifacts_matter", "you"),
     _sig("token_doubling", "you"),
-    _sig("edict_matters", "each"),
+    _sig("edict_makers", "each"),
     _sig("attack_matters", "you"),
     _sig("attack_matters", "any"),
 ]

@@ -249,7 +249,7 @@ def test_graveyard_from_reanimate_scoped_opp():
 
 def test_graveyard_from_self_mill():
     ir = _ir(Ability(kind="spell", effects=(Effect(category="mill", scope="you"),)))
-    # A mill effect feeds a graveyard (graveyard_matters). ADR-0027: mill_matters
+    # A mill effect feeds a graveyard (graveyard_matters). ADR-0027: mill_makers
     # migrated to the Scryfall `Mill` keyword route (_IR_KEYWORD_MAP), NOT the `mill`
     # effect category — phase mislabels 3 non-mill effects (Bone Dancer, Scroll Rack,
     # Soldevi Digger) as `mill`, and every genuine mill carries the keyword. So the
@@ -278,7 +278,7 @@ def test_graveyard_bounce_from_graveyard_scoped_you():
 
 def test_graveyard_tutor_from_graveyard_scoped_you():
     """A tutor whose search reaches YOUR graveyard (recovered from:graveyard, scope
-    you) fires graveyard_matters at you and cross-opens tutor_matters."""
+    you) fires graveyard_matters at you and cross-opens tutor."""
     ir = _ir(
         Ability(
             kind="triggered",
@@ -875,13 +875,13 @@ def test_pump_count_counter_payoff_fires():
     assert ("plus_one_matters", "you", "") in _sigs(ir2)
 
 
-# ── removal_matters shapes (ADR-0027) ─────────────────────────────────────────
+# ── removal shapes (ADR-0027) ─────────────────────────────────────────
 
 
 def test_damage_to_creature_fires_removal_matters():
-    """A damage effect to a target creature (Flame Slash) fires removal_matters — the
+    """A damage effect to a target creature (Flame Slash) fires removal — the
     regex routed this only to direct_damage; the lane was never wired to damage."""
-    assert ("removal_matters", "you", "") in _striples(test_signals("Flame Slash"))
+    assert ("removal", "you", "") in _striples(test_signals("Flame Slash"))
 
 
 def test_damage_to_any_target_not_removal():
@@ -900,12 +900,12 @@ def test_damage_to_any_target_not_removal():
             ),
         )
     )
-    assert "removal_matters" not in {s.key for s in extract_signals_ir(CARD, ir)}
+    assert "removal" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
 def test_destroy_subtype_only_fires_removal_matters():
     """'Destroy target Wall' (subtype-only subject, no card_types) fires
-    removal_matters — it destroys a creature."""
+    removal — it destroys a creature."""
     ir = _ir(
         Ability(
             kind="activated",
@@ -918,15 +918,15 @@ def test_destroy_subtype_only_fires_removal_matters():
             ),
         )
     )
-    assert ("removal_matters", "you", "") in _sigs(ir)
+    assert ("removal", "you", "") in _sigs(ir)
 
 
 def test_destroy_land_subtype_only_not_removal():
-    """'Destroy target Island' (land subtype only) is NOT removal_matters (CR 305.6 —
+    """'Destroy target Island' (land subtype only) is NOT removal (CR 305.6 —
     a bare land-subtype subject lacks _PERMANENT_TYPES and is not a non-land permanent
     subtype). ADR-0027: land_destruction is now a membership-gated cross-open (a
     creature commander's own repeatable LD), so a synthetic non-creature IR like this
-    opens NEITHER lane — only the removal_matters exclusion is asserted here."""
+    opens NEITHER lane — only the removal exclusion is asserted here."""
     ir = _ir(
         Ability(
             kind="spell",
@@ -939,26 +939,26 @@ def test_destroy_land_subtype_only_not_removal():
             ),
         )
     )
-    assert "removal_matters" not in {s.key for s in extract_signals_ir(CARD, ir)}
+    assert "removal" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
 def test_mill_keyword_fires_mill_matters():
-    # ADR-0027: mill_matters fires from the Scryfall `Mill` keyword array
+    # ADR-0027: mill_makers fires from the Scryfall `Mill` keyword array
     # (_IR_KEYWORD_MAP['mill'], read off the record dict), NOT the `mill` effect
     # category — phase mislabels non-mill effects as `mill`, and every genuine mill
     # carries the keyword. scope "any" (self-mill or opponent-mill). CR 701.13.
     ir = _ir(Ability(kind="spell", effects=(Effect(category="mill", scope="opp"),)))
     record = {"name": "Test", "keywords": ["Mill"]}
     keys = {(s.key, s.scope, s.subject) for s in extract_signals_ir(record, ir)}
-    assert ("mill_matters", "any", "") in keys
+    assert ("mill_makers", "any", "") in keys
 
 
 def test_mill_effect_without_keyword_does_not_fire_mill_matters():
-    # The bare `mill` effect category no longer opens mill_matters (the over-broad doer
+    # The bare `mill` effect category no longer opens mill_makers (the over-broad doer
     # arm was dropped — it mislabeled Bone Dancer / Scroll Rack / Soldevi Digger). A
     # keyword-LESS record carrying a `mill` effect opens graveyard_matters only.
     ir = _ir(Ability(kind="spell", effects=(Effect(category="mill", scope="you"),)))
-    assert "mill_matters" not in {s.key for s in extract_signals_ir(CARD, ir)}
+    assert "mill_makers" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
 def test_cast_spell_trigger_fires_spellcast_matters():
@@ -1424,7 +1424,7 @@ def test_cant_block_fires_cant_block_grant():
 
 
 def test_lure_fires_lure_matters():
-    assert ("lure_matters", "you", "") in _sigs(_static_effect("lure"))
+    assert ("lure_makers", "you", "") in _sigs(_static_effect("lure"))
 
 
 def test_evasion_denial_from_ignore_landwalk():
@@ -1483,10 +1483,10 @@ def test_creature_clone_is_clone_makers_only():
 
 
 def test_spell_copy_is_its_own_lane_not_clone():
-    """Twincast ('copy target spell') is spell_copy_matters, NOT a clone."""
+    """Twincast ('copy target spell') is spell_copy_makers, NOT a clone."""
     ir = _ir(Ability(kind="spell", effects=(Effect(category="spell_copy"),)))
     sigs = _sigs(ir)
-    assert ("spell_copy_matters", "you", "") in sigs
+    assert ("spell_copy_makers", "you", "") in sigs
     assert ("clone_makers", "you", "") not in sigs
 
 
@@ -1685,7 +1685,7 @@ def test_symmetric_untap_lock_is_symmetric_only():
 def test_debuff_anthem_on_opponents_is_not_stax():
     """Elesh Norn / Cower in Fear: 'Creatures your opponents control get -2/-2' is a
     pump (debuff), NOT a restriction — the deleted byte-mirror's over-fire. The
-    structural arm correctly keeps it OUT of stax (it rides debuff_matters)."""
+    structural arm correctly keeps it OUT of stax (it rides debuff_makers)."""
     keys = _skeys(test_signals("Elesh Norn, Grand Cenobite"))
     assert "stax_taxes" not in keys
     assert "symmetric_stax" not in keys
@@ -2223,10 +2223,10 @@ def test_ir_membership_flag_does_not_touch_payoff_signals():
 def test_devour_keyword_opens_plus_one_matters():
     """Devour (CR 702.82) enters with +1/+1 counters per sacrificed creature — a
     definitional +1/+1 source, so the printed keyword opens plus_one_matters as well
-    as devour_matters (Preyseizer Dragon, whose devour rides the keyword + a
+    as has_devour (Preyseizer Dragon, whose devour rides the keyword + a
     board_count, not a structured `devour` effect)."""
     keys = _skeys(test_signals("Preyseizer Dragon"))
-    assert "devour_matters" in keys
+    assert "has_devour" in keys
     assert "plus_one_matters" in keys
 
 

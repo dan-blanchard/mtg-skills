@@ -20,7 +20,7 @@ def _cc(name, bucket, served, roles=()):
 
 def test_lands_and_spine_avenues_are_not_themes():
     ramp_sig = Signal(
-        key="ramp_matters",
+        key="ramp",
         scope="you",
         subject="",
         text="",

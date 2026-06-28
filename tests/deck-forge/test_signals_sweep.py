@@ -25,7 +25,7 @@ def _bare_ir() -> Card:
 def test_sweep_detectors_loaded():
     # The threshold drops as the ADR-0027 regex→IR strangler deletes SWEEP rows
     # (boast/exhaust/explore/phasing/end_the_turn/extra_end_step/trigger_doubling +
-    # lifeloss_matters + removal_matters + the sweep batches oil/starting_life/dice +
+    # lifeloss_matters + removal + the sweep batches oil/starting_life/dice +
     # changeling/creature_cast/fight + the SWEEP batch commander/tap_untap/hand_disruption
     # /opponent_exile/domain/donate + tranche2-B's mass_bounce/power_double/
     # destroy_legendary/team_buff + tranche2-A activated_draw/anthem_static/mass_removal
@@ -38,7 +38,7 @@ def test_sweep_detectors_loaded():
     # batches migrated to the Card IR); it still guards "a non-empty set loads", not an
     # exact count. This floor is removed at A4 when the strangler empties SWEEP_DETECTORS
     # entirely. Floor lowered 38→37 as counter_distribute's row was deleted, then 37→36
-    # as conjure_matters's row was deleted (ADR-0027 β — migrated to a byte-identical
+    # as conjure_makers's row was deleted (ADR-0027 β — migrated to a byte-identical
     # `\bconjure\b` kept word mirror in signals._IR_KEPT_DETECTORS), then 36→35 as
     # group_hug_draw's row was deleted (ADR-0027 — migrated to a `draw` Effect
     # scope=='each' structural arm + a byte-identical GROUP_HUG_DRAW_REGEX kept word
@@ -75,7 +75,7 @@ def test_sweep_detectors_loaded():
     # deleted (ADR-0027 — migrated to a byte-identical STATION_MATTERS_REGEX kept word
     # mirror in _signals_ir; the EOE Station keyword action, CR 702.184, which phase
     # v0.1.19 doesn't structure for the Spacecraft/Planet carriers), then 25→24 as
-    # shield_counter_matters's row was deleted (ADR-0027 — migrated to the
+    # shield_counter_makers's row was deleted (ADR-0027 — migrated to the
     # place_counter/hascounters counter_kind=='shield' structural arm via
     # _COUNTER_KIND_KEYS UNION a byte-identical _SHIELD_COUNTER_MATTERS_MIRROR kept word
     # mirror in _signals_ir for the 3 cards phase folds the shield placement into a
@@ -87,7 +87,7 @@ def test_sweep_detectors_loaded():
     # arm over phase's `topdeck_stack` Effect, counter_kind in {top, topbottom}, UNION a
     # byte-identical TOPDECK_STACK_SWEEP_REGEX kept word mirror in
     # signals._IR_KEPT_DETECTORS for the look-then-stack / put-from-hand forms; CR 401.4),
-    # then 22→21 as lure_matters's row was deleted (ADR-0027 — migrated to a structural
+    # then 22→21 as lure_makers's row was deleted (ADR-0027 — migrated to a structural
     # `lure` arm UNION a byte-identical LURE_MATTERS_REGEX kept word mirror in _signals_ir
     # for the Aftermath-DFC back face phase drops; CR 509.1c), then 21→20 as tap_down's row
     # was deleted (ADR-0027 — migrated to a byte-identical TAP_DOWN_REGEX kept word mirror
@@ -128,7 +128,7 @@ def test_sweep_detectors_loaded():
     # projection makes the supplement's _CLONE_STATIC / _BECOMES re-tag populate the copied
     # permanent type so the structural arm fires the broad "becomes a copy of target
     # creature" family, while a token-copy clone is vetoed to the separate
-    # token_copy_matters lane; CR 707.1 / 707.2),
+    # token_copy_makers lane; CR 707.1 / 707.2),
     # then 14→13 as exile_removal's row was deleted (ADR-0027 SIDECAR v31 exile_removal
     # category+subject retention — migrated to a `cat=="exile"` single-target permanent
     # removal structural arm UNION a byte-identical EXILE_REMOVAL_REGEX per-clause kept
@@ -222,13 +222,13 @@ def test_every_sweep_key_is_actionable():
 def test_representative_sweep_keys_fire_from_oracle():
     cases = [
         # ADR-0027: coin_flip / commander_matters / hand_disruption / mass_removal
-        # (tranche2-A) / debuff_matters / variable_pt / free_cast (β) / scaling_pump /
+        # (tranche2-A) / debuff_makers / variable_pt / free_cast (β) / scaling_pump /
         # dig_until / topdeck_selection (SIDECAR v28 topdeck library-owner scope) /
         # protection_grant (SIDECAR v35 Cluster D — single_target_grant counter_kind)
         # migrated to the IR (their SWEEP_DETECTORS rows are deleted), so they no longer
         # fire from the regex path — swapped for still-regex sweep keys to keep this check.
         # ("All creatures get -1/-1 until end of turn." now routes through the IR
-        # debuff_matters arm; a "*/* power and toughness are each equal to …" CDA routes
+        # debuff_makers arm; a "*/* power and toughness are each equal to …" CDA routes
         # through the IR variable_pt arm; a "gets +X/+X for each …" scaling pump routes
         # through the IR scaling_pump arm; "Target creature gains protection from red"
         # routes through the IR single_target_grant protection arm — all asserted in

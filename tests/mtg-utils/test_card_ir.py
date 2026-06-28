@@ -2165,7 +2165,7 @@ def test_quoted_grant_destroy_recovers_inner_destroy_effect():
 def test_quoted_grant_damage_recovers_inner_damage_effect():
     """Lavamancer's Skill: an Aura whose enchanted creature 'has "{T}: ~ deals 1
     damage to target creature."' — the recursion recovers the damage Effect with its
-    creature target subject (removal_matters' source)."""
+    creature target subject (removal' source)."""
     rec = {
         "name": "Lavamancer's Skill",
         "scryfall_oracle_id": "id-lavamancer",
@@ -2292,7 +2292,7 @@ def test_quoted_grant_to_opponent_permanents_is_excluded():
 
 def test_damage_all_carries_mass_counter_kind_tell():
     """DamageAll ("deals N damage to each creature" — Breath Weapon) carries the
-    counter_kind='all' mass tell so the single-target removal_matters arm (CR 115.1)
+    counter_kind='all' mass tell so the single-target removal arm (CR 115.1)
     can exclude the board-wipe form (CR 115.10)."""
     rec = {
         "name": "Breath Weapon",
@@ -2316,7 +2316,7 @@ def test_damage_all_carries_mass_counter_kind_tell():
 
 def test_destroy_all_carries_mass_counter_kind_tell():
     """DestroyAll ("destroy all creatures" — a board wipe) carries the
-    counter_kind='all' mass tell so removal_matters excludes it (it is a board_wipe
+    counter_kind='all' mass tell so removal excludes it (it is a board_wipe
     axis, not single-target removal)."""
     rec = {
         "name": "Day of Judgment",
@@ -2341,7 +2341,7 @@ def test_post_supplement_recovers_removal_target_subject():
     """Combo Attack: "deal damage … to target creature" is an Unimplemented effect
     phase leaves as `other`; the supplement re-derives the `damage` category, and the
     POST-supplement removal-target-subject pass rebuilds the single-target Creature
-    subject so removal_matters can read it (the pre-supplement pass ran before the
+    subject so removal can read it (the pre-supplement pass ran before the
     category existed)."""
     rec = {
         "name": "Combo Attack",
@@ -2883,7 +2883,7 @@ def test_dropped_static_force_attack_self_static_marker():
 def test_dropped_static_goad_reward_marker():
     """A goad-REWARD payoff phase flattens to raw (Gahiji's "attacks one of your
     opponents", Kazuul's defending-player) recovers a goad_all marker (read into
-    goad_matters); a self-force "each combat" never matches the reward pattern."""
+    goad_makers); a self-force "each combat" never matches the reward pattern."""
     gahiji = {
         "oracle_text": "Whenever a creature attacks one of your opponents, that "
         "creature gets +2/+0 until end of turn.",
@@ -3932,7 +3932,7 @@ def test_graveyard_wide_cast_grant_gated_to_no_in_graveyard():
     assert not _graveyard_cast_grant_markers(rec, abilities)
 
 
-# ── ADR-0027 sacrifice_matters: edict scope split + additional-cost marker ─────
+# ── ADR-0027 sacrifice_outlets: edict scope split + additional-cost marker ─────
 
 
 def test_token_owner_recipient_scope():
@@ -4029,7 +4029,7 @@ def test_sacrifice_player_scope_edict_vs_you():
 def test_predatory_nightstalker_edict_scope():
     """An edict ("target opponent sacrifice a creature") projects the Sacrifice
     effect at scope opp — the structural discriminator that keeps it out of the
-    you-sacrifice lane while edict_matters still fires."""
+    you-sacrifice lane while edict_makers still fires."""
     rec = {
         "name": "Predatory Nightstalker",
         "oracle_text": "When this creature enters, you may have target opponent "
@@ -4792,7 +4792,7 @@ def test_sacrifice_cost_marker_from_additional_cost():
     assert markers[0].subject is not None
     assert markers[0].subject.card_types == ("Creature",)
     # land-only additional-cost sac (Crop Rotation / Harrow) is the land_sacrifice
-    # lane, not sacrifice_matters → no marker.
+    # lane, not sacrifice_outlets → no marker.
     land = dict(reap)
     land["additional_cost"] = {
         "type": "Required",
@@ -4986,7 +4986,7 @@ def test_lifeloss_markers_excluded():
     assert not _lifeloss_markers({"oracle_text": "Ward—Pay 2 life.\nFlying"}, [])
 
 
-# ── generalized modal-choose-split (ADR-0027 removal_matters shape 4 + reuse) ──
+# ── generalized modal-choose-split (ADR-0027 removal shape 4 + reuse) ──
 
 
 def test_modal_split_recovers_typed_mode_bodies():
@@ -6305,7 +6305,7 @@ HENRY_WU = {
 
 def test_exploited_mode_projects_to_exploited_event():
     """The Exploited mode (CR 702.139 — exploit is a sacrifice mechanic) projects to the
-    `exploited` event, read by the sacrifice_matters arm — so the keyword-less exploit
+    `exploited` event, read by the sacrifice_outlets arm — so the keyword-less exploit
     GRANTER Henry Wu opens the sac lane from his own trigger."""
     card = project_card([HENRY_WU])
     trig = next(a.trigger for a in card.all_abilities() if a.kind == "triggered")
@@ -6705,7 +6705,7 @@ def test_supplement_recovers_would_deal_replacement():
 # phase has a TOTAL blind spot for the layer-7b "set base power/toughness to a
 # specific value" static; the supplement recovers it from the raw oracle with a
 # discriminated scope + Creature subject + the toughness in amount.factor (the
-# death-relevant stat debuff_matters reads). Real oracle text.
+# death-relevant stat debuff_makers reads). Real oracle text.
 
 
 def test_base_pt_set_opponent_mass_shrink_is_scoped_opp_with_toughness():
@@ -6728,7 +6728,7 @@ def test_base_pt_set_opponent_mass_shrink_is_scoped_opp_with_toughness():
 
 def test_base_pt_set_opponent_curse_keeps_high_toughness_magnitude():
     """Curse of Conformity sets an enchanted player's creatures to 3/3 — opp-scoped
-    but toughness 3, so amount.factor=3 keeps it OFF debuff_matters' factor<=2 gate
+    but toughness 3, so amount.factor=3 keeps it OFF debuff_makers' factor<=2 gate
     (3/3 is no shrink-to-death). It is still a base_pt_set."""
     rec = {
         "name": "Curse of Conformity",
@@ -6745,7 +6745,7 @@ def test_base_pt_set_opponent_curse_keeps_high_toughness_magnitude():
 
 def test_base_pt_set_your_creatures_is_a_scope_you_buff():
     """March of the World Ooze sets YOUR creatures to 6/6 — a scope-you anthem/buff;
-    debuff_matters never fires on a 'you' set."""
+    debuff_makers never fires on a 'you' set."""
     rec = {
         "name": "March of the World Ooze",
         "scryfall_oracle_id": "bps-march",
@@ -6781,7 +6781,7 @@ def test_base_pt_set_dynamic_xx_is_build_around_set_not_debuff():
     (CR 613.4b layer 7b) — the F1 _recover_dynamic_base_pt_set pass DOES synthesize a
     base_pt_set node for it (the fixed-digit DEBUFF pass deliberately skips no-digit
     forms). But it is scope 'any' + subject None + a non-fixed amount, so it feeds the
-    base_pt_set LANE while staying OUT of the debuff_matters mass-shrink arm (which wants
+    base_pt_set LANE while staying OUT of the debuff_makers mass-shrink arm (which wants
     an opp/each scope + a fixed toughness)."""
     rec = {
         "name": "Biomass Mutation",
@@ -6802,7 +6802,7 @@ def test_base_pt_set_dynamic_xx_is_build_around_set_not_debuff():
 def test_copytokenof_typed_target_carries_copy_predicate():
     """Cackling Counterpart's "create a token that's a copy of target creature you
     control" projects to a make_token whose subject keeps its Creature type AND a
-    "Copy" predicate (CR 707) — token_copy_matters reads the marker."""
+    "Copy" predicate (CR 707) — token_copy_makers reads the marker."""
     eff = {
         "type": "CopyTokenOf",
         "owner": {"type": "Controller"},
@@ -6834,7 +6834,7 @@ def test_copytokenof_selfref_target_carries_bare_copy_predicate():
 def test_populate_projects_creature_token_copy():
     """Populate (CR 701.36 = a copy of a creature token you control) projects to a
     make_token scope you with a Creature subject carrying ("Token", "Copy") — so it
-    fires BOTH token_maker (a creature-token maker) and token_copy_matters."""
+    fires BOTH token_maker (a creature-token maker) and token_copy_makers."""
     [e] = _project_effect({"type": "Populate"}, "Populate.")
     assert e.category == "make_token"
     assert e.scope == "you"
@@ -6857,7 +6857,7 @@ def test_investigate_projects_clue_artifact_token_subtype():
 def test_eternalize_selfcopy_is_keyword_gated_to_no_copy():
     """A card with the Eternalize keyword whose CopyTokenOf is a SelfRef self-copy has
     the bare Copy marker STRIPPED by the reminder-self-copy keyword gate (CR 707 policy
-    boundary) — the make_token carries no Copy predicate, so token_copy_matters stays
+    boundary) — the make_token carries no Copy predicate, so token_copy_makers stays
     silent."""
     rec = {
         "name": "Adorned Pouncer",
@@ -6893,7 +6893,7 @@ def test_eternalize_selfcopy_is_keyword_gated_to_no_copy():
 def test_copy_spell_marker_recovers_phase_fold_tail():
     """A copy SPELL whose copy clause phase folds away (no structural Copy node)
     recovers a make_token+("Token","Copy") marker via the face-level _copy_spell_markers
-    scan over the reminder-stripped oracle — token_copy_matters reads it. Gated off the
+    scan over the reminder-stripped oracle — token_copy_makers reads it. Gated off the
     reminder-self-copy keywords."""
     rec = {
         "name": "Fractured Identity-like",

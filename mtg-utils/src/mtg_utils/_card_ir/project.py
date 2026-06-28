@@ -131,7 +131,7 @@ def _is_selfref(node: object) -> bool:
 # ADR-0027 C5 token_copy — the "Copy" make_token predicate (CR 707, "Copying Objects").
 # A copy of an object IS still a token, so the effect category stays ``make_token``
 # (token_maker / kindred reads are unaffected); this marker rides the made token's
-# subject so token_copy_matters can split a token COPY (Cackling Counterpart, populate)
+# subject so token_copy_makers can split a token COPY (Cackling Counterpart, populate)
 # from a vanilla "create a 1/1 Soldier token". Precedent: the ``Token`` predicate
 # _narrow_token_subtype_makers already stamps on make_token subjects. CR 707.
 _TOKEN_COPY_PRED = "Copy"
@@ -143,7 +143,7 @@ _BARE_COPY_SUBJECT = Filter(predicates=(_TOKEN_COPY_PRED,))
 # CR 707 token-copy keywords whose copies are SELF-recursion of the card itself, living
 # in stripped reminder text (Embalm 702.128, Eternalize 702.129, Squad 702.157, Myriad
 # 702.116, Encore 702.140, plus Offspring / Double Team). These create CR-707 token
-# copies, but of THE CARD, not a copy-others payoff, so token_copy_matters must stay
+# copies, but of THE CARD, not a copy-others payoff, so token_copy_makers must stay
 # silent on them — a SIGNAL-POLICY boundary mirroring the reminder-strip the deleted
 # regex did, NOT a claim they aren't copies. Used to gate the SelfRef ``Copy`` predicate
 # and the copy-spell supplement scan.
@@ -164,7 +164,7 @@ def _has_reminder_copy_keyword(record: dict) -> bool:
 
 def _strip_selfref_copy(ability: Ability) -> Ability:
     """Drop the bare ``Copy`` marker off a SelfRef CopyTokenOf make_token (Embalm /
-    Eternalize self-copies) so token_copy_matters stays silent — gated at the
+    Eternalize self-copies) so token_copy_makers stays silent — gated at the
     _project_face level to faces carrying a reminder-self-copy keyword. A typed copy
     (card_types present) is untouched. CR 707."""
     effects = tuple(
@@ -182,7 +182,7 @@ def _strip_selfref_copy(ability: Ability) -> Ability:
 # the copy, Hate Mirage → target_only) or drops the copy node entirely (Mirrormind
 # Crown, Mirage Phalanx), so no make_token carries a ``Copy`` predicate. This scan over
 # the reminder-STRIPPED face oracle re-surfaces a make_token+(``Token``,``Copy``) marker
-# so token_copy_matters reads structure instead of a broad regex mirror. CR 707.
+# so token_copy_makers reads structure instead of a broad regex mirror. CR 707.
 _COPY_SPELL_RE = re.compile(
     r"tokens? that(?:'s| are) (?:a )?cop(?:y|ies)|token copies (?:of|for)",
     re.IGNORECASE,
@@ -232,7 +232,7 @@ def _copy_spell_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
 # re-surface the mass distinction as the ``MassEach`` predicate on the placement's
 # subject so the counter_distribute lane can split board-wide spread from a single
 # target. One closed predicate string, additive (nothing else reads ``MassEach``), so
-# plus_one_matters / self_counter_grow / debuff_matters / type_matters are byte-
+# plus_one_matters / self_counter_grow / debuff_makers / type_matters are byte-
 # identical. CR 122.1 / 122.6.
 _MASS_COUNTER_MARKER_PRED = "MassEach"
 
@@ -309,7 +309,7 @@ _DYNAMIC_BASE_PT_RE = re.compile(
 
 # ADR-0027 base-P/T SET debuff magnitude + scope (SIDECAR v45). The TOUGHNESS is the
 # death-relevant stat — a 7b set to ≤2 plus a 7c -1/-1 (CR 613.4c) leaves toughness
-# 0 → dies (CR 704.5g) — so debuff_matters reads ``amount.factor``. A power-only /
+# 0 → dies (CR 704.5g) — so debuff_makers reads ``amount.factor``. A power-only /
 # dynamic "X/X" set names no fixed toughness → op="variable" (no shrink magnitude).
 _BASE_PT_SET_TOUGH = re.compile(
     r"base power and toughness \d+/(\d+)|base toughness (\d+)", re.IGNORECASE
@@ -333,7 +333,7 @@ def _base_pt_set_amount(desc: str) -> Quantity:
 def _base_pt_set_scope(affected: Filter | None) -> str:
     """The scope of a base-P/T set: the affected set's controller (you / opp), with a
     MASS-symmetric "all/other/non-X creatures" set (controller any, NOT a single-
-    creature Aura/Equipment) promoted to "each" so debuff_matters can tell a
+    creature Aura/Equipment) promoted to "each" so debuff_makers can tell a
     table-wide shrink (Humility, Godhead of Awe) from a single-target neutralize
     (subject None / EnchantedBy → "any", removal). CR 613.4b."""
     base = _controller_scope(affected)
@@ -643,7 +643,7 @@ _EFFECT_CATEGORY: dict[str, str] = {
 # its generic-set gate, not counter_kind, so marking them here would be inert noise.
 # ChangeZoneAll is marked in _changezone_effect (its own zone-routing handler).
 # DamageAll / DestroyAll carry the same counter_kind="all" mass tell so the single-
-# target removal_matters arm (CR 115.1) can exclude the board-wipe form (CR 115.10):
+# target removal arm (CR 115.1) can exclude the board-wipe form (CR 115.10):
 # "deals N damage to EACH creature" / "destroy ALL creatures" is a board wipe, not
 # the single-target destroy/burn the lane wants. The destroy arm's OTHER consumers
 # (land_destruction / kill_engine read the type, not counter_kind) are unaffected.
@@ -861,7 +861,7 @@ def project_card(records: list[dict]) -> Card:
     # ADR-0027 (SIDECAR v45) — base-P/T SET residue: synthesize a base_pt_set static
     # from the raw oracle for the layer-7b set-P/T statics phase drops wholly (empty
     # IR for all 222 "base power/toughness N" cards — Maha, Humility, Godhead of Awe),
-    # so the MIGRATED debuff_matters lane reads a mass opponent/symmetric shrink
+    # so the MIGRATED debuff_makers lane reads a mass opponent/symmetric shrink
     # structurally. Same joined-oracle seam as combat-damage above. CR 613.4b.
     card = _recover_base_pt_set(
         card, "\n".join(r.get("oracle_text") or "" for r in records)
@@ -889,7 +889,7 @@ def project_card(records: list[dict]) -> Card:
     # SIDECAR v67 — the v66 ROOT B "passive-voice token/counter doubler" rebridge was
     # RETIRED here: v0.8.0 parses those doublers fine (it renamed the doubler qmod
     # Double/Multiply -> `Times`); _project_replacement now reads `Times` natively (see
-    # _INCREASE_MODS), so token_doubling / counter_doubling / token_copy_matters /
+    # _INCREASE_MODS), so token_doubling / counter_doubling / token_copy_makers /
     # counter_replace_bonus read STRUCTURE without the _recover_token_doubling /
     # _recover_counter_replacement regex passes. CR 614.1.
     # ADR-0027 #24 (SIDECAR v52) — GRANTED damage-reflection residue: synthesize a
@@ -1021,14 +1021,14 @@ def project_card(records: list[dict]) -> Card:
     # creature tempo bounce, non-empty raw, no graveyard) is untouched. CR 702.59a /
     # 400.7 / 603. Same joined-oracle seam as the recoveries above.
     card = _recover_gy_recursion(card, _oracle)
-    # Post-supplement removal target-subject recovery (ADR-0027 removal_matters
+    # Post-supplement removal target-subject recovery (ADR-0027 removal
     # shape 3): the supplement re-derives a `damage` / `destroy` CATEGORY from a
     # GenericEffect / Unimplemented body the projection left as `other` (Combo
     # Attack's "deal damage … to target creature", Broken Visage's "destroy target
     # … attacking creature"), but its SUBJECT stays None — the pre-supplement
     # _recover_removal_target_subject pass ran before the category existed. Re-run it
     # over the supplemented faces so the single-target creature/permanent subject is
-    # rebuilt and removal_matters fires. Append-only on subject (a structured subject
+    # rebuilt and removal fires. Append-only on subject (a structured subject
     # is never overwritten); idempotent (an already-subject'd effect is untouched).
     # ADR-0027 graveyard scope/origin/zone (SIDECAR v29): re-run the exile-from-GY (#2)
     # + play-from-GY (#4) ORIGIN recovery AFTER the supplement. The pre-supplement pass
@@ -1196,7 +1196,7 @@ def project_card(records: list[dict]) -> Card:
     # stamp Naya Soulbeast / Pyretic Hunter / Lurking Automaton / Cogwork Grinder,
     # clear the Bard Class / Curator Beastie anthem over-fires — phase emits the
     # enters-with as Unimplemented / corrupts the anthem valid_card); ROOT H the
-    # nulled destroy subject (Dead Ringers — removal_matters, an Unimplemented unless
+    # nulled destroy subject (Dead Ringers — removal, an Unimplemented unless
     # clause). CR 614.13 / 701.8.
     card = _recover_self_counter_grow(card)
     card = _recover_destroy_subject(card)
@@ -2400,14 +2400,14 @@ def _project_face(record: dict) -> Face:
     # cheat-into-play marker (so every cheat_play already carries its from:top) and the
     # graveyard zone recoveries. Read by topdeck_selection / dig_until's C8 arms.
     abilities = [_recover_top_of_library_owner(a) for a in abilities]
-    # Edict-scope recovery (ADR-0027 edict_matters): promote a scope=='any' sacrifice
+    # Edict-scope recovery (ADR-0027 edict_makers): promote a scope=='any' sacrifice
     # to each/opp from its raw when phase dropped the sacrificer scoping to a null
     # controller (Plaguecrafter, Fleshbag Marauder, Barter in Blood).
     abilities = [_recover_edict_scope(a) for a in abilities]
-    # Removal target-subject recovery (ADR-0027 removal_matters shape 3): a damage /
+    # Removal target-subject recovery (ADR-0027 removal shape 3): a damage /
     # destroy effect whose creature/permanent TARGET phase dropped to subject=None,
     # but the effect raw still names it ("deals N damage to target creature", "destroy
-    # target Wall"). Rebuild a Creature/Permanent Filter so removal_matters fires —
+    # target Wall"). Rebuild a Creature/Permanent Filter so removal fires —
     # the predicate-narrowed (Smite "blocked creature") and power-scaled (Crush
     # Underfoot "damage equal to its power to target creature") removal phase strips.
     abilities = [_recover_removal_target_subject(a) for a in abilities]
@@ -2422,7 +2422,7 @@ def _project_face(record: dict) -> Face:
     abilities = [_narrow_token_subtype_makers(a) for a in abilities]
     # ADR-0027 C5 reminder-self-copy gate: a SelfRef CopyTokenOf (Embalm / Eternalize /
     # Encore) carries a bare ``Copy`` make_token subject; drop it for the closed
-    # reminder-self-copy keyword set so token_copy_matters stays silent (mirrors the
+    # reminder-self-copy keyword set so token_copy_makers stays silent (mirrors the
     # deleted regex's reminder-strip). A TYPED copy is never touched. CR 707.
     if _has_reminder_copy_keyword(record):
         abilities = [_strip_selfref_copy(a) for a in abilities]
@@ -2566,7 +2566,7 @@ def _project_face(record: dict) -> Face:
     gy_cast_markers = _graveyard_cast_grant_markers(record, abilities)
     if gy_cast_markers:
         abilities.append(Ability(kind="static", effects=tuple(gy_cast_markers)))
-    # Additional-cost sacrifice (ADR-0027 sacrifice_matters): an "As an additional
+    # Additional-cost sacrifice (ADR-0027 sacrifice_outlets): an "As an additional
     # cost to cast this spell, sacrifice a <permanent>" outlet. phase keeps it in the
     # record's `additional_cost` field but drops it off the projected spell ability
     # (Altar's Reap → only draw; Fling → only damage). Surface a sacrifice marker so
@@ -2575,7 +2575,7 @@ def _project_face(record: dict) -> Face:
     sac_cost_markers = _sacrifice_cost_markers(record, abilities)
     if sac_cost_markers:
         abilities.append(Ability(kind="static", effects=tuple(sac_cost_markers)))
-    # Granted/dropped sac outlet (ADR-0027 sacrifice_matters shapes 4-5): a quoted
+    # Granted/dropped sac outlet (ADR-0027 sacrifice_outlets shapes 4-5): a quoted
     # "Sacrifice a creature: …" inside a grant (Fallen Ideal), a "has casualty N"
     # grant (Anhelo), a free-spell pitch (Flare of Denial), or a flashback/escape sac
     # cost (Dread Return) phase keeps only in an opaque raw or drops to a body effect.
@@ -2586,9 +2586,9 @@ def _project_face(record: dict) -> Face:
     # cost-payer): "Sacrifice an artifact: …" (Atog, Krark-Clan Ironworks) / "Sacrifice
     # an enchantment: …". phase keeps the activated ability but collapses the cost to a
     # bare "sacrifice" token, dropping the sacrificed TYPE — so the typeless cost-parts
-    # arm fires sacrifice_matters but the artifacts/enchantments lane has no tell.
+    # arm fires sacrifice_outlets but the artifacts/enchantments lane has no tell.
     # Surface a sacrifice marker carrying the sacrificed object's typed Filter so the
-    # artifacts/enchantments sac-payoff arm fires (sacrifice_matters already fires off
+    # artifacts/enchantments sac-payoff arm fires (sacrifice_outlets already fires off
     # the cost token, so this adds no new sac firing). Artifact/Enchantment only.
     typed_cost_markers = _typed_sacrifice_cost_markers(record)
     if typed_cost_markers:
@@ -3372,8 +3372,8 @@ def _merge_ability_player_scope(node: dict, eff: dict) -> dict:
 
 def _merge_ability_duration(node: dict, eff: dict) -> dict:
     """Surface an ability-level ``duration`` onto the effect so ``_project_effect``
-    can capture it (ADR-0027 Duration fast-follow). Used by pump_matters and
-    debuff_matters to distinguish temporary combat tricks from permanent anthems.
+    can capture it (ADR-0027 Duration fast-follow). Used by pump_makers and
+    debuff_makers to distinguish temporary combat tricks from permanent anthems.
     Returns a shallow copy with the field merged if present, else the effect
     unchanged."""
     dur = node.get("duration")
@@ -3398,7 +3398,7 @@ def _collect_effects(node: dict | None, default_raw: str) -> list[Effect]:
     # damage, • you lose 2 life, • mill four) are LOST — only a downstream raw-text
     # recovery (_fill_sole_empty) re-derives their CATEGORY, dropping the SUBJECT
     # (the destroy/damage target). Recovering the modes structurally restores those
-    # subjects, so subject-gated lanes (removal_matters' permanent target, the
+    # subjects, so subject-gated lanes (removal' permanent target, the
     # counters kind, the graveyard self-mill zone) fire from real structure. General
     # by construction: it reuses _collect_effects per mode and benefits every lane,
     # not just removal (CR 700.2 — a modal spell/ability). When modes are recovered
@@ -3620,7 +3620,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
         # CR 701.36 — populate = create a copy of a creature token you control. A copy
         # of a creature token IS a token maker (make_token, Creature subject → fires
         # token_maker) AND a token COPY (the ``Token``,``Copy`` predicates → fires
-        # token_copy_matters). Scope you (the token is created under YOUR control).
+        # token_copy_makers). Scope you (the token is created under YOUR control).
         # phase emits a bare ``Populate`` node (subject=None, scope unset);
         # _EFFECT_CATEGORY
         # collapsed it to a vanilla make_token, dropping both the creature type and the
@@ -3732,14 +3732,14 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     if etype in _MASS_EFFECT_TYPES:
         counter_kind = "all"
     scope = _effect_scope(eff)
-    # ADR-0027 sacrifice_matters edict split: a Sacrifice effect's "who sacrifices"
+    # ADR-0027 sacrifice_outlets edict split: a Sacrifice effect's "who sacrifices"
     # is the controller of the sacrificed object (the effect's `target`). phase
     # encodes a FORCED OTHER-player sacrifice (an edict) as target.controller =
     # TargetPlayer / ScopedPlayer / DefendingPlayer / Opponent, but _effect_scope
     # never reads a Typed target's `controller`, so every edict landed on scope
     # "any" — indistinguishable from a genuine you-sacrifice. Promote the scope to
     # opp/each from the sacrificing player so signals can keep the edict (opp/each →
-    # edict_matters) out of the you-sac sacrifice_matters lane (CR 701.16).
+    # edict_makers) out of the you-sac sacrifice_outlets lane (CR 701.16).
     if category == "sacrifice":
         scope = _sacrifice_player_scope(eff, scope)
     # ADR-0027 C6 stax — an AddRestriction effect (Silence's ProhibitActivity, the
@@ -3847,7 +3847,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     # classified "fixing" (multi-color/any-color choice) vs "basic" (single-color tap)
     # off phase's `produced.type`, the ramp-vs-mana-base axis the factor-only `amount`
     # can't see (a dual's "Add {W} or {B}" and a basic's "Add {G}" are both factor 1).
-    # ramp_matters fires on a land whose ramp is acceleration (amount) OR fixing, and
+    # ramp fires on a land whose ramp is acceleration (amount) OR fixing, and
     # DROPS a basic-equivalent single-color tap. CR 106.4 / 605.
     mana_kind = ""
     dur_val = eff.get("duration")
@@ -4538,7 +4538,7 @@ def _pump_amount(eff: dict, raw: str) -> Quantity | None:
         lift. Returning None for the "for each" case keeps that v41 behavior, so those
         scaling pumps stay drift-0 on scaling_pump / count_anthem.
 
-    The two pump-magnitude lanes (debuff_matters / pump_matters) key on a FIXED factor's
+    The two pump-magnitude lanes (debuff_makers / pump_makers) key on a FIXED factor's
     SIGN only; the X-variable / for-each target-pump tail (``gets +X/+X`` / ``gets
     -X/-X``) is recovered by the kept regex word-mirror's ``+[0-9xX]`` / ``-[0-9x]``
     arms, so dropping it here loses no lane recall. CR 613.4c."""
@@ -4587,7 +4587,7 @@ def _mana_amount(eff: dict) -> Quantity | None:
     ``amount.subject`` / ``amount.op`` REGARDLESS of effect category, which would drift
     those MIGRATED lanes (a tap-for-mana producer is not a go-wide creatures/lands
     payoff). ``op="variable"`` is read by NO lane, keeping the big_mana magnitude
-    distinction while staying drift-0. ramp_matters / group_mana / mana_amplifier key
+    distinction while staying drift-0. ramp / group_mana / mana_amplifier key
     on category / scope / raw, never amount, so the fixed factor is drift-0 too."""
     produced = eff.get("produced")
     if not isinstance(produced, dict):
@@ -4612,7 +4612,7 @@ def _mana_amount(eff: dict) -> Quantity | None:
 # any-type — a producer that FIXES (Command Tower's commander-identity, City of Brass's
 # any-color, Reflecting Pool's any-type, a filter land's WW/WU/UU choice, a "color of a
 # permanent you control" / opponent-land / chosen-color tap). Off-color fixing the
-# factor-only ``amount`` can't see, so the ramp_matters lane reads it. ADR-0027 #24
+# factor-only ``amount`` can't see, so the ramp lane reads it. ADR-0027 #24
 # (SIDECAR v43). CR 106.4 / 605.
 _FIXING_PRODUCED_TYPES: frozenset[str] = frozenset(
     {
@@ -4633,7 +4633,7 @@ def _mana_kind(eff: dict) -> str:
     phase's ``produced.type`` (ADR-0027 #24, SIDECAR v43). The ramp-vs-mana-base axis
     the factor-only ``amount`` can't see — a dual/triome's "Add {W} or {B}" and a basic
     Forest's "Add {G}" are both ``amount`` factor 1, but the dual is off-color FIXING
-    and the basic is the deck's MANA BASE. ``signals.ramp_matters`` fires on a land
+    and the basic is the deck's MANA BASE. ``signals.ramp`` fires on a land
     whose ramp is acceleration (read off ``amount``) OR ``"fixing"``, and DROPS a
     basic-equivalent single-color tap.
 
@@ -4649,7 +4649,7 @@ def _mana_kind(eff: dict) -> str:
       • ``""`` — no ``produced`` shape (degrade, never fail).
 
     Magnitude (factor / variable) is NOT consulted: a Dark Ritual ({B}{B}{B}) is "basic"
-    here (one distinct color) yet still fires ramp_matters via its factor-3 ``amount``.
+    here (one distinct color) yet still fires ramp via its factor-3 ``amount``.
     CR 106.4 / 605."""
     produced = eff.get("produced")
     if not isinstance(produced, dict):
@@ -4939,7 +4939,7 @@ def _copy_token_effect(eff: dict, raw: str) -> Effect:
     which the effect node doesn't carry).
 
     ADR-0027 C5 — the made token is stamped with the ``Copy`` predicate (CR 707) so
-    token_copy_matters can split it from a vanilla token. A Typed target (Cackling
+    token_copy_makers can split it from a vanilla token. A Typed target (Cackling
     Counterpart "copy of target creature") keeps its type + ``Copy``; a SelfRef /
     ParentTarget copy (Embalm / Eternalize reminder self-copy) yields a BARE ``Copy``
     marker that the _project_face keyword gate strips for the reminder-self-copy
@@ -6508,7 +6508,7 @@ _SAGA_REF = re.compile(
 # bullet (Magus Sisters), a DFC face (Prepare // Fight), an emblem "have it fight"
 # (Kiora), or a symmetric "fight each other" (Tunnel of Love). phase emits a `fight`
 # effect for a plain top-level fight; this recovers the granted/quoted/modal residual.
-# Anchored on the fight VERB in its real shapes (mirrors the fight_matters regex):
+# Anchored on the fight VERB in its real shapes (mirrors the fight_makers regex):
 # "fight(s) [up to N] [other/another] target/creature", "fight(s) it", "fight each
 # other" — the verb appears only on real fight cards (the noun "fight" is rare and the
 # anchor requires a fight TARGET/object).
@@ -7211,7 +7211,7 @@ def _recover_dig_into_play(ability: Ability) -> Ability:
 # Effect per ability that genuinely cheats a non-land card onto the battlefield from a
 # NON-graveyard source, carrying a consistent SOURCE-ZONE tag (`from:top` / `from:
 # library` / `from:hand`) + `to:battlefield`. Append-only — the scattered originals
-# are untouched, so every sibling lane (mill_matters, exile_removal, graveyard_matters,
+# are untouched, so every sibling lane (mill_makers, exile_removal, graveyard_matters,
 # blink_flicker, …) is behavior-neutral. The marker carries NO `from:graveyard` (the
 # graveyard-ONLY put is reanimation — CR 110.2a shared put-onto-bf, CR 400.7 distinct
 # origin — handled by the existing `reanimate` category, routed to the reanimator lane,
@@ -7494,14 +7494,14 @@ def _recover_top_of_library_owner(ability: Ability) -> Ability:
     return replace(ability, effects=tuple(new_effects))
 
 
-# Edict-scope recovery (ADR-0027 edict_matters) — a `sacrifice` effect whose
+# Edict-scope recovery (ADR-0027 edict_makers) — a `sacrifice` effect whose
 # SACRIFICER scope phase dropped to "any" because the structural target.controller
 # was null (an Or-of-Typed filter with the player scoping lost — Plaguecrafter,
 # Fleshbag Marauder, Barter in Blood). The raw still names who sacrifices: "each
 # player sacrifices" → scope each (a symmetric edict, the deck still runs it as an
 # edict — it was in the regex hit set), and "(each|target|an|that) opponent / target
 # player sacrifices" → scope opp (a one-sided edict). A YOU-sacrifice ("you
-# sacrifice") is NOT promoted (it stays a you-sac, scope any — sacrifice_matters, not
+# sacrifice") is NOT promoted (it stays a you-sac, scope any — sacrifice_outlets, not
 # edict). Gated on scope=='any' so a structural opp/each from _sacrifice_player_scope
 # is never overwritten. CR 701.16 / 601.
 _EDICT_EACH_RAW = re.compile(
@@ -7537,7 +7537,7 @@ def _recover_edict_scope(ability: Ability) -> Ability:
     return replace(ability, effects=tuple(new_effects))
 
 
-# Removal target-subject recovery (ADR-0027 removal_matters shape 3) — a damage /
+# Removal target-subject recovery (ADR-0027 removal shape 3) — a damage /
 # destroy effect whose creature/permanent TARGET phase dropped to subject=None, the
 # target surviving only in the effect raw. Three lossy shapes: a power-scaled fight
 # ("deals damage equal to its power to target creature" — Crush Underfoot), a
@@ -7565,7 +7565,7 @@ _REMOVAL_MASS = re.compile(r"\bdestroy (?:all|each)\b", re.IGNORECASE)
 def _recover_removal_target_subject(ability: Ability) -> Ability:
     """Rebuild a Creature/Permanent Filter on a damage / destroy effect whose target
     phase dropped to subject=None but whose raw still names a creature/permanent
-    target (ADR-0027 removal_matters shape 3). Append-only on subject: a structured
+    target (ADR-0027 removal shape 3). Append-only on subject: a structured
     subject is never overwritten; a player/PW/land/any-target/board-wipe raw is left
     untouched (those are not single-target permanent removal)."""
     new_effects: list[Effect] = []
@@ -7724,7 +7724,7 @@ def _sacrifice_cost_markers(record: dict, abilities: list[Ability]) -> list[Effe
     Filter as the subject so the lane's land VETO + scope read it identically to a
     structural sacrifice Effect. The land-ONLY form (Crop Rotation, Harrow) is the
     land_sacrifice lane and is excluded. Skipped when a structural sacrifice Effect
-    already exists. ADR-0027 sacrifice_matters shape 2."""
+    already exists. ADR-0027 sacrifice_outlets shape 2."""
     if any(e.category == "sacrifice" for a in abilities for e in a.effects):
         return []
     subject = _nonland_sacrifice_target(record.get("additional_cost"))
@@ -7756,7 +7756,7 @@ def _typed_sacrifice_cost_markers(record: dict) -> list[Effect]:
     Artifact / Enchantment ("Sacrifice an artifact: …" — Atog, Krark-Clan Ironworks;
     "Sacrifice an enchantment: …"). phase keeps the activated ability but collapses the
     cost to a bare ``sacrifice`` token, dropping the sacrificed object's TYPE — so the
-    artifacts/enchantments cost-payer lane has no tell (sacrifice_matters still fires
+    artifacts/enchantments cost-payer lane has no tell (sacrifice_outlets still fires
     off the cost token). Surfaces the sacrificed Filter as a marker subject so the
     artifacts/enchantments sac-payoff arm reads it. ADR-0027 cost-payer shape."""
     markers: list[Effect] = []
@@ -7829,7 +7829,7 @@ def _land_sacrifice_cost_markers(record: dict) -> list[Effect]:
     phase keeps the Sacrifice cost node (Typed Land target) but the projected effect
     drops the cost, leaving the land_sacrifice_matters arm no structural tell off the
     OUTLET (the leaves/dies Land-subject PAYOFF is already structured). A Land-only
-    sacrifice subject is excluded from sacrifice_matters (CR 701.16), so it stays this
+    sacrifice subject is excluded from sacrifice_outlets (CR 701.16), so it stays this
     lane's own signal. One marker per card; supplement._recover_land_sacrifice
     self-deactivates once this fires and backstops the nodeless tail. CR 701.16."""
     costs: list[object] = [ab.get("cost") for ab in record.get("abilities") or []]
@@ -7937,7 +7937,7 @@ def _becomes_type_markers(abilities: list[Ability]) -> list[Effect]:
 
 # Sac-outlet shapes phase keeps only in an opaque raw / drops to a body effect
 # (granted/quoted sac outlets, casualty grants, free-spell pitch, graveyard-cast and
-# morph sac costs — ADR-0027 sacrifice_matters shapes 4-5). Each anchors on a NON-land
+# morph sac costs — ADR-0027 sacrifice_outlets shapes 4-5). Each anchors on a NON-land
 # sacrificed object: the lazy ``[^.]*?`` between the count and the type lets an
 # adjective ("three black creatures") through while ``_SAC_TYPE`` excludes a bare
 # "sacrifice a land" (Brutal Suppression) and a land-fetch alt cost.
@@ -8005,7 +8005,7 @@ def _sacrifice_grant_markers(record: dict, abilities: list[Ability]) -> list[Eff
     """One you-sacrifice marker when a sac OUTLET survives only in an opaque raw or
     phase dropped it to a body effect (granted/quoted sac outlet, casualty grant,
     free-spell pitch, keyworded-cost sac, pay-or-die alternative, clipped discard+sac
-    additional cost — ADR-0027 sacrifice_matters shapes 4-5). Gated to faces with no
+    additional cost — ADR-0027 sacrifice_outlets shapes 4-5). Gated to faces with no
     structural sacrifice effect (the structured path and the additional-cost marker
     are preferred). The subject is a generic Permanent so the signals land-ONLY veto
     passes (all anchors require a non-land sac target)."""
@@ -8242,7 +8242,7 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
     if not has_force_attack and (m := _FORCE_ATTACK_REF.search(text)) is not None:
         markers.append(Effect(category="force_attack", scope="any", raw=m.group(0)))
     # Goad REWARD payoff (CR 701.38b) phase flattened to event=None with the redirect
-    # condition in raw → a goad_all marker (read into goad_matters via
+    # condition in raw → a goad_all marker (read into goad_makers via
     # _DOER_EFFECT_KEYS). Distinct from the self-force above: this REWARDS opponents
     # being redirected at another player, so it wants goad effects, not a self-swing.
     if (m := _GOAD_REWARD_REF.search(text)) is not None:
@@ -8985,7 +8985,7 @@ def _sacrifice_player_scope(eff: dict, fallback: str) -> str:
     sacrifice → each; an explicit YOU-sacrifice → "any" (a you-sac, even when the
     effect's broader ``_effect_scope`` leaked opp from a downstream target-player
     clause — Cabal Therapist's "you may sacrifice … then target player reveals");
-    otherwise the existing ``fallback``. ADR-0027 sacrifice_matters edict split."""
+    otherwise the existing ``fallback``. ADR-0027 sacrifice_outlets edict split."""
     tgt = eff.get("target")
     if not isinstance(tgt, dict):
         return fallback
@@ -9015,10 +9015,10 @@ def _search_self_library_scope(eff: dict, fallback: str) -> str:
     never reads ``target_player``, so an own-library tutor landed on the unscoped
     fallback — indistinguishable from an opponent-library tutor (which the supplement's
     broad third-party raw recovery promotes to 'opp'). Promote ONLY the absent-
-    target_player own-library search to 'you', so a downstream tutor_matters lane can
+    target_player own-library search to 'you', so a downstream tutor lane can
     keep an opponent-library tutor (Bribery — scope!='you') out of the own-deck care
-    (CR 701.23). DORMANT: tutor_matters/dig_until are not yet wired, and the migrated
-    tutor reads (tutor_matters / type-tutor / GY-tutor) use a FIXED 'you' or the
+    (CR 701.23). DORMANT: tutor/dig_until are not yet wired, and the migrated
+    tutor reads (tutor / type-tutor / GY-tutor) use a FIXED 'you' or the
     from:graveyard-recovered scope — none read this effect scope — so this is
     behavior-neutral. CR 701.23 (search) / 401 (library zone)."""
     if eff.get("target_player") is None:
@@ -9325,7 +9325,7 @@ def _trigger_event(tr: dict) -> str:
     # structurally instead of grepping "transforms into" / "turned face up".
     # `Attached`/`Unattach` (CR 701.3, opposite halves of the equip/aura attach-state
     # change). `Exploited` (CR 702.139 — "whenever a creature you control exploits a
-    # creature"): exploit IS a sacrifice mechanic, so sacrifice_matters reads the event.
+    # creature"): exploit IS a sacrifice mechanic, so sacrifice_outlets reads the event.
     if mode == "becomestarget":
         return "becomes_target"
     if mode == "transformed":

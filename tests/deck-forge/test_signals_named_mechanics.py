@@ -81,7 +81,7 @@ CASES = [
     # card ... in exile" exile-zone-as-resource refs phase scatters across count
     # operands / conditions), so it is asserted via the hybrid path below, not this
     # regex CASES loop.
-    # ADR-0027: experience_matters / mutate_matters migrated to the Card IR (the
+    # ADR-0027: experience_matters / has_mutate migrated to the Card IR (the
     # GivePlayerCounter experience gainer + experience scaler operand; the mutate
     # keyword + "if it has mutate" payoff marker), so they are asserted via the
     # hybrid path below, not this regex CASES loop.
@@ -516,13 +516,13 @@ def test_saddle_matters_is_ir_served():
 
 
 def test_soulbond_matters_is_ir_served():
-    # ADR-0027: soulbond_matters is IR-served — from the Scryfall `soulbond` keyword
+    # ADR-0027: has_soulbond is IR-served — from the Scryfall `soulbond` keyword
     # AND a `soulbond` effect marker for non-keyword references ("paired with a
     # creature with soulbond" — Flowering Lumberknot), via the hybrid.
     # Real Flowering Lumberknot (snapshot): the non-keyword "paired with a creature with
     # soulbond" reference opens the lane via the `soulbond` effect marker, not regex.
-    assert ("soulbond_matters", "you") in _real("Flowering Lumberknot")
-    assert ("soulbond_matters", "you") not in _ks(test_card("Flowering Lumberknot"))
+    assert ("has_soulbond", "you") in _real("Flowering Lumberknot")
+    assert ("has_soulbond", "you") not in _ks(test_card("Flowering Lumberknot"))
 
 
 def test_coin_flip_is_ir_served():
@@ -536,25 +536,23 @@ def test_coin_flip_is_ir_served():
 
 
 def test_discover_matters_is_ir_served():
-    # ADR-0027: discover_matters is IR-served — the keyword-less re-trigger payoff
+    # ADR-0027: discover_makers is IR-served — the keyword-less re-trigger payoff
     # ("Whenever you discover, discover again" — Curator) is a trigger phase
     # flattened to event="other", appended as a discover marker effect, via hybrid.
     # Real Curator of Sun's Creation (snapshot): the keyword-less "Whenever you discover"
     # re-trigger payoff opens the lane via the discover marker on the IR path, not regex.
-    assert ("discover_matters", "you") in _real("Curator of Sun's Creation")
-    assert ("discover_matters", "you") not in _ks(
-        test_card("Curator of Sun's Creation")
-    )
+    assert ("discover_makers", "you") in _real("Curator of Sun's Creation")
+    assert ("discover_makers", "you") not in _ks(test_card("Curator of Sun's Creation"))
 
 
 def test_ninjutsu_matters_is_ir_served():
-    # ADR-0027: ninjutsu_matters is IR-served — the keyword-less payoff commander
+    # ADR-0027: has_ninjutsu is IR-served — the keyword-less payoff commander
     # (Satoru: "Whenever you activate a ninjutsu ability") is a trigger phase
     # flattened to event="other", appended as a ninjutsu marker effect, via hybrid.
     # Real Satoru Umezawa (snapshot): the keyword-less "Whenever you activate a ninjutsu
     # ability" payoff opens the lane via the ninjutsu marker on the IR path, not regex.
-    assert ("ninjutsu_matters", "you") in _real("Satoru Umezawa")
-    assert ("ninjutsu_matters", "you") not in _ks(test_card("Satoru Umezawa"))
+    assert ("has_ninjutsu", "you") in _real("Satoru Umezawa")
+    assert ("has_ninjutsu", "you") not in _ks(test_card("Satoru Umezawa"))
 
 
 def test_ring_matters_is_ir_served():
@@ -657,7 +655,7 @@ def test_poison_scoped_to_opponents():
 
 
 def test_token_copy_engine():
-    # ADR-0027 C5: token_copy_matters is FULLY STRUCTURAL — a CopyTokenOf projects to a
+    # ADR-0027 C5: token_copy_makers is FULLY STRUCTURAL — a CopyTokenOf projects to a
     # make_token whose subject carries the "Copy" predicate (CR 707), which the
     # structural arm reads; no regex mirror.
     c = {
@@ -687,7 +685,7 @@ def test_token_copy_engine():
             ),
         ),
     )
-    assert ("token_copy_matters", "you") in {
+    assert ("token_copy_makers", "you") in {
         (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
     }
 
@@ -781,7 +779,7 @@ def test_commit_a_crime():
 
 
 def test_connive_keyword():
-    # ADR-0027: connive_matters migrated to the Card IR — phase's `connive` effect
+    # ADR-0027: connive_makers migrated to the Card IR — phase's `connive` effect
     # category (a self-conniving card) opens the lane via _DOER_EFFECT_KEYS, so it
     # comes through the hybrid path, not the deleted regex.
     c = {
@@ -806,8 +804,8 @@ def test_connive_keyword():
         ),
     )
     hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
-    assert ("connive_matters", "you") in hybrid
-    assert ("connive_matters", "you") not in _ks(c)
+    assert ("connive_makers", "you") in hybrid
+    assert ("connive_makers", "you") not in _ks(c)
 
 
 def _one_ability_ir(ability):
@@ -860,7 +858,7 @@ def test_experience_is_ir_served():
 
 
 def test_mutate_is_ir_served():
-    # ADR-0027: mutate_matters migrated to the Card IR — the Scryfall mutate keyword
+    # ADR-0027: has_mutate migrated to the Card IR — the Scryfall mutate keyword
     # opens it via _IR_KEYWORD_MAP (a mutate creature carries the keyword).
     c = {
         "name": "X",
@@ -868,8 +866,8 @@ def test_mutate_is_ir_served():
         "keywords": ["Mutate"],
     }
     hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, _ks_bare_ir())}
-    assert ("mutate_matters", "you") in hybrid
-    assert ("mutate_matters", "you") not in _ks(c)
+    assert ("has_mutate", "you") in hybrid
+    assert ("has_mutate", "you") not in _ks(c)
 
 
 def _ks_bare_ir():
@@ -919,15 +917,15 @@ def _spell_copy_ir() -> Card:
 
 
 def test_spell_copy():
-    # ADR-0027: spell_copy_matters migrated to the IR (phase's spell_copy effect /
+    # ADR-0027: spell_copy_makers migrated to the IR (phase's spell_copy effect /
     # copy keywords / granted-copy marker) — the regex path no longer emits it.
     c = {
         "name": "X",
         "oracle_text": "Copy target instant or sorcery spell you control.",
     }
-    assert ("spell_copy_matters", "you") not in _ks(c)
+    assert ("spell_copy_makers", "you") not in _ks(c)
     hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, _spell_copy_ir())}
-    assert ("spell_copy_matters", "you") in hybrid
+    assert ("spell_copy_makers", "you") in hybrid
 
 
 def test_kitsa_gets_three_avenues():
@@ -936,7 +934,7 @@ def test_kitsa_gets_three_avenues():
     keys = {s.key for s in test_signals("Kitsa, Otterball Elite")}
     assert "spellcast_matters" in keys  # prowess → spellslinger
     assert "discard_matters" in keys  # loot outlet
-    assert "spell_copy_matters" in keys  # copy spells
+    assert "spell_copy_makers" in keys  # copy spells
 
 
 def test_type_matters_catches_another_singular_tribal():

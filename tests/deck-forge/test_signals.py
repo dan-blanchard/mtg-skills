@@ -947,11 +947,11 @@ def test_pacify_control_commander_opens_pillowfort():
 
 def test_banding_commander_opens_banding_lane():
     # Ayesha Tanaka has Banding — she wants other banding creatures to form bands.
-    # ADR-0027: banding_matters migrated to the Card IR (the byte-identical
+    # ADR-0027: has_banding migrated to the Card IR (the byte-identical
     # _IR_KEYWORD_MAP['banding'] keyword-array route), so it serves from the hybrid
     # path, not pure regex — the regex extract_signals no longer emits the migrated key.
     # Real Ayesha Tanaka (snapshot): the Banding keyword opens the banding lane.
-    assert ("banding_matters", "you") in _real("Ayesha Tanaka")
+    assert ("has_banding", "you") in _real("Ayesha Tanaka")
 
 
 def test_counter_on_another_opens_counters():
@@ -1257,7 +1257,7 @@ def test_archetype_keywords_open_their_lane():
         assert ("attack_matters", "you") in {
             (s.key, s.scope) for s in extract_signals_hybrid(card, ir)
         }, kw
-    # ADR-0027: Exploit (sacrifice_matters) and Afflict (lifeloss_matters) are migrated
+    # ADR-0027: Exploit (sacrifice_outlets) and Afflict (lifeloss_matters) are migrated
     # — phase models both as a STRUCTURAL effect (exploit's sacrifice, afflict's
     # lose_life), so they fire from the IR, not the regex keyword path.
     afflict = {
@@ -1455,8 +1455,8 @@ def test_reward_for_attacking_opponents_opens_goad():
     # _GOAD_REWARD_REF marker (here mirrored as a goad_all effect).
     # Real Gahiji, Honored One (snapshot): the "attacks one of your opponents" reward
     # opens goad on the IR path; the regex path no longer emits it.
-    assert ("goad_matters", "opponents") not in _keys(test_card("Gahiji, Honored One"))
-    assert ("goad_matters", "opponents") in _real("Gahiji, Honored One")
+    assert ("goad_makers", "opponents") not in _keys(test_card("Gahiji, Honored One"))
+    assert ("goad_makers", "opponents") in _real("Gahiji, Honored One")
 
 
 # ── Long-tail coverage clusters (workflow-diagnosed, verify-before-add) ────────
