@@ -2141,6 +2141,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"create [^.]*treasure token|treasures? you control"},
         r"\btreasure\b",
     ),
+    # _matters sweep (ADR-0034): treasure split. The make_token MAKER arm
+    # (treasure_makers, cards that create Treasure tokens) and the sacrifice/ref/
+    # sacrificed-trigger PAYOFF arm (treasure_matters) both serve the same
+    # Treasure ramp/fixing/sacrifice avenue. The union == the old treasure_matters;
+    # only the role label differs.
+    ("treasure_makers", "you"): _spec(
+        "Treasure makers",
+        "Treasure makers for ramp, fixing, and artifact synergy",
+        {"oracle": r"create [^.]*treasure token|treasures? you control"},
+        r"\btreasure\b",
+    ),
     # Pariah combo (Cho-Manno, Anti-Venom): an unkillable commander that prevents damage
     # to itself wants the redirect effects (Pariah / Pariah's Shield: "damage dealt to
     # you is dealt to enchanted/equipped creature instead") plus the indestructible /

@@ -3260,6 +3260,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             "scaling_pump",
             "lands_matter",
             "treasure_matters",
+            # _matters sweep (ADR-0034): the make_token MAKER arm of the treasure
+            # lane (Treasure-token creators — Goldspan Dragon, Dockside Extortionist,
+            # Old Gnawbone, Prismari Command + the maker-only "create … Treasure
+            # token" Aftermath-DFC face fallback); the sacrifice/ref/sacrificed-trigger
+            # PAYOFFS keep treasure_matters above. No regex mirror (phase structures
+            # the Treasure subtype cleanly — unlike clue).
+            "treasure_makers",
             "clue_matters",
             # _matters sweep (ADR-0034): the make_token MAKER arm of the clue lane
             # (Clue-token creators — structured make_token Clue subjects + the
@@ -9647,10 +9654,11 @@ def extract_signals_ir(
             # sacrifice payoffs"). One general scan over both maker + sacrifice
             # subjects (the trigger-side "whenever you sacrifice a <Subtype> token"
             # payoff is read in the trigger loop below).
-            # _matters sweep (ADR-0034): the `blood`, `food`, and `clue` lanes are
-            # split by ROLE — the make_token MAKER arm emits <x>_makers, the sacrifice
-            # PAYOFF arm keeps <x>_matters. treasure is NOT split, so it routes through
-            # _TOKEN_SUBTYPE_KEYS byte-identically off both arms.
+            # _matters sweep (ADR-0034): the `blood`, `food`, `clue`, and `treasure`
+            # lanes are split by ROLE — the make_token MAKER arm emits <x>_makers, the
+            # sacrifice PAYOFF arm keeps <x>_matters. The pure-PAYOFF arms (the
+            # token_subtype_ref cares-about marker + the sacrificed-trigger payoff)
+            # still route treasure through _TOKEN_SUBTYPE_KEYS -> treasure_matters.
             if cat in ("make_token", "sacrifice"):
                 for st in _fsubs_lower(e.subject):
                     if st == "blood":
@@ -9674,9 +9682,15 @@ def extract_signals_ir(
                             "",
                             e.raw,
                         )
-                    elif st in _TOKEN_SUBTYPE_KEYS:
-                        tk, ts = _TOKEN_SUBTYPE_KEYS[st]
-                        add(tk, ts, "", e.raw)
+                    elif st == "treasure":
+                        add(
+                            "treasure_makers"
+                            if cat == "make_token"
+                            else "treasure_matters",
+                            "you",
+                            "",
+                            e.raw,
+                        )
             # ADR-0027 C5 — token_copy_makers STRUCTURAL ARM. project stamps a "Copy"
             # predicate (CR 707) on the make_token subject of a CopyTokenOf (Cackling
             # Counterpart — Typed copy), a Populate (Trostani — CR 701.36 creature-token
@@ -12142,10 +12156,10 @@ def extract_signals_ir(
         elif st == "clue":
             if not any(s.key == "clue_makers" for s in out):
                 add("clue_makers", "you", "", "")
-        elif st in _TOKEN_SUBTYPE_KEYS:
-            tk, ts = _TOKEN_SUBTYPE_KEYS[st]
-            if not any(s.key == tk for s in out):
-                add(tk, ts, "", "")
+        elif st == "treasure" and not any(
+            s.key == "treasure_makers" for s in out
+        ):
+            add("treasure_makers", "you", "", "")
 
     # Batch K — additional keyword-array lanes + type_line membership (clean
     # structured-field lookups; membership is low-confidence, as in the regex path).

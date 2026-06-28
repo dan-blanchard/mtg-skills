@@ -380,7 +380,11 @@ _REAL_CASES: dict[str, str] = {
     "topdeck_selection": "Sensei's Divining Top",
     "topdeck_stack": "Reclaim",
     "toughness_combat": "Assault Formation",
-    "treasure_matters": "Dockside Extortionist",
+    "treasure_makers": "Dockside Extortionist",
+    # _matters sweep (ADR-0034): the make_token MAKER (Dockside) now fires
+    # treasure_makers; treasure_matters is the PAYOFF side — Evereth's "was a
+    # Treasure" token_subtype_ref care marker.
+    "treasure_matters": "Evereth, Viceroy of Plunder",
     "tribal_etb_multi": "Goblin Assassin",
     "tribe_damage_trigger": "Toski, Bearer of Secrets",
     "trigger_doubling": "The Masamune",

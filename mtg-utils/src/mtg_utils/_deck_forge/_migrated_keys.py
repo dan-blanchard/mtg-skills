@@ -724,6 +724,14 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # members(food_matters) == the old food_matters firing set (161).
         "food_makers",
         "treasure_matters",
+        # _matters sweep (ADR-0034): treasure_makers — the make_token MAKER arm split
+        # out of treasure_matters (a Treasure-subtype make_token subject or the
+        # maker-only creation-verb Aftermath-DFC face fallback). The sacrifice/ref/
+        # sacrificed-trigger PAYOFFS keep treasure_matters above. No regex mirror /
+        # _IR_FLOOR_LANES entry (phase structures the Treasure subtype cleanly). Gate
+        # set-equal: members(treasure_makers) UNION members(treasure_matters) == the
+        # old treasure_matters firing set (339).
+        "treasure_makers",
         # clue_matters ← the SAME token-subtype structural arm (Clue-subtype make_token
         # MAKER + "Sacrifice a Clue" SAC PAYOFF + `token_subtype_ref` "Clues you
         # control" CARES-ABOUT marker via _TOKEN_SUBTYPE_KEYS) UNIONed with a kept

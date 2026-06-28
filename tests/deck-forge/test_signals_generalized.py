@@ -1006,7 +1006,9 @@ def test_fblthp_free_plot_opens_for_zero_cost():
 
 def test_treasure_matters():
     # ADR-0027: treasure_matters migrated to the Card IR — a Treasure-subtype make_token
-    # opens the lane via _TOKEN_SUBTYPE_KEYS through the hybrid, not the deleted regex.
+    # opens the lane through the hybrid, not the deleted regex.
+    # _matters sweep (ADR-0034): the make_token MAKER arm now emits treasure_makers
+    # (the sacrifice/ref/sacrificed-trigger PAYOFFS keep treasure_matters).
     c = {
         "name": "Goldspan-like",
         "oracle_text": "Whenever this creature attacks, create a Treasure token.",
@@ -1036,10 +1038,10 @@ def test_treasure_matters():
             ),
         ),
     )
-    assert ("treasure_matters", "you") in {
+    assert ("treasure_makers", "you") in {
         (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
     }
-    assert ("treasure_matters", "you") not in _ks(c)
+    assert ("treasure_makers", "you") not in _ks(c)
 
 
 def test_artifacts_matter():
