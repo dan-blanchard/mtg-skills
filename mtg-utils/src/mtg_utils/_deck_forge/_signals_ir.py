@@ -123,6 +123,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
     GROUP_HUG_DRAW_REGEX,
+    ISLAND_MAKERS_REGEX,
     ISLAND_MATTERS_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
@@ -1324,25 +1325,31 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # controller arm reads. The "skips their next untap step" tempo-skip (Brine
     # Elemental, Shisato) is recovered to `skip_step` scope=='opp', read by a new arm.
     # CR 701.20 / 502.
-    # ADR-0027 — island_matters BYTE-IDENTICAL kept WORD MIRROR (the islandwalk /
-    # island-attack-restriction lane; pinned as ISLAND_MATTERS_REGEX in
-    # _sweep_detectors). The deleted _HAND_FLOOR producer rides here, NOT the Scryfall
-    # `islandwalk` keyword array (_IR_KEYWORD_MAP entry REMOVED): the keyword array
-    # carries only the keyword a card HAS, so it covers islandwalk BEARERS (Thada Adel,
-    # Wrexial) but MISSES every GRANTER / token-maker / reference (the conferred-keyword
-    # gap) — Lord of Atlantis & Master of the Pearl Trident (Merfolk anthems "have
-    # islandwalk"), Fishliver Oil (Aura grant), Chasm Skulker / Coral Barrier / The Sea
-    # Devils (make islandwalk tokens), Shore Snapper / Deeptread Merrow / Piracy Charm /
-    # War Barge / Part Water / Sandals of Abdallah / Streambed Aquitects (grant
-    # islandwalk), Island Sanctuary (cares about islandwalk attackers), Mystic Decree /
-    # Gosta Dirk / Undertow (neutralize islandwalk), Merfolk Assassin (destroys
-    # islandwalk creatures) — all carry keywords=[]. The bare `\bislandwalk\b` word plus
-    # the Zhou Yu "can't attack unless defending player controls an Island" phrase catch
-    # all of them. No `[^.]*` span, so flat over the reminder-stripped kept_oracle ==
-    # the deleted floor Detector's per-clause scan (commander-legal, floor-disabled, by
-    # oracle_id: both==79, regex_only==0, ir_only==0; scope 'you', HIGH; 0 flat /
-    # per-clause mismatches). FLOOR→KEPT: removed from _IR_FLOOR_LANES (floor-mirror-dep
-    # -> 0). CR 702.14c (islandwalk evasion) / 702.14b (landwalk).
+    # ADR-0027 + ADR-0034 _matters sweep — SPLIT BYTE-IDENTICAL kept WORD MIRRORS. The
+    # old single island_matters mirror fused two roles under one regex's two
+    # alternations; the sweep relabels the DOER arm. Both ride the deleted _HAND_FLOOR
+    # producer (pinned in _sweep_detectors), NOT the Scryfall `islandwalk` keyword array
+    # (_IR_KEYWORD_MAP entry REMOVED): the keyword array carries only the keyword a
+    # card HAS, so it covers islandwalk BEARERS (Thada Adel, Wrexial) but MISSES every
+    # GRANTER / token-maker / reference (the conferred-keyword gap) — Lord of Atlantis &
+    # Master of the Pearl Trident (Merfolk anthems "have islandwalk"), Fishliver Oil
+    # (Aura grant), Chasm Skulker / Coral Barrier / The Sea Devils (make islandwalk
+    # tokens), Shore Snapper / Deeptread Merrow / Piracy Charm / War Barge / Part
+    # Water / Sandals of Abdallah / Streambed Aquitects (grant islandwalk), Island
+    # Sanctuary
+    # (cares about islandwalk attackers), Mystic Decree / Gosta Dirk / Undertow
+    # (neutralize islandwalk), Merfolk Assassin (destroys islandwalk creatures) — all
+    # carry keywords=[].
+    #   * island_makers — the bare `\bislandwalk\b` word (ISLAND_MAKERS_REGEX): every
+    #     islandwalk DOER / HAS / grant / reference above.
+    #   * island_matters — the Zhou Yu "can't attack unless defending player controls an
+    #     Island" restriction (ISLAND_MATTERS_REGEX): the cares-about-Islands PAYOFF.
+    # Each old member matched exactly ONE alternation (verified: makers UNION matters ==
+    # 79, set-equal; both > 0), so the split preserves the old population. No `[^.]*`
+    # span, so flat over the reminder-stripped kept_oracle == the deleted floor
+    # Detector's per-clause scan. FLOOR→KEPT: removed from _IR_FLOOR_LANES. CR 702.14c
+    # (islandwalk evasion) / 702.14b (landwalk).
+    ("island_makers", re.compile(ISLAND_MAKERS_REGEX, re.IGNORECASE), "you"),
     ("island_matters", re.compile(ISLAND_MATTERS_REGEX, re.IGNORECASE), "you"),
     # ADR-0027 — vehicles_matter BYTE-IDENTICAL kept WORD MIRROR (the broad "Vehicles
     # you control" anthem / crew payoff / Vehicle-GRANTER lane; pinned as
@@ -3248,12 +3255,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Batch 2 — cost-based + Filter-predicate lanes:
             "life_payment_insurance",
             "legends_matter",
-            # ADR-0027 — island_matters (islandwalk / island-attack-restriction lane).
-            # Byte-identical _ISLAND_MATTERS_MIRROR kept WORD MIRROR (the bare
-            # `\bislandwalk\b` word + the Zhou Yu restriction); the keyword-array route
-            # is removed (it misses the conferred-keyword GRANTERS). Listed explicitly
-            # now it no longer rides _IR_FLOOR_LANES or _IR_KEYWORD_KEYS into
-            # IR_SLICE_KEYS.
+            # ADR-0027 + ADR-0034 _matters sweep — SPLIT kept WORD MIRRORS. The DOER arm
+            # (bare `\bislandwalk\b`) emits island_makers; the PAYOFF arm (the Zhou Yu
+            # "can't attack unless defending player controls an Island" restriction)
+            # keeps island_matters. The keyword-array route is removed (it misses the
+            # conferred-keyword GRANTERS). Listed explicitly now neither rides
+            # _IR_FLOOR_LANES or _IR_KEYWORD_KEYS into IR_SLICE_KEYS.
+            "island_makers",
             "island_matters",
             "historic_matters",
             "commander_matters",  # Batch 15

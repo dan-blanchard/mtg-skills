@@ -2593,18 +2593,17 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # re-supply is byte-identical (230 == 230), so no over-silence. CR 111.1 /
         # 701.47 (amass) / 702.123 (fabricate).
         "tokens_matter",
-        # ADR-0027 — island_matters (the islandwalk / island-attack-restriction lane:
-        # islandwalk BEARERS — Thada Adel, Wrexial; islandwalk GRANTERS / token-makers /
-        # references — Lord of Atlantis & Master of the Pearl Trident (Merfolk anthem),
-        # Fishliver Oil (Aura grant), Chasm Skulker / Coral Barrier / The Sea Devils
-        # (make islandwalk tokens), Shore Snapper / Deeptread Merrow / Piracy Charm /
-        # War Barge / Part Water / Sandals of Abdallah / Streambed Aquitects (grant
-        # islandwalk), Island Sanctuary (cares about islandwalk), Mystic Decree / Gosta
-        # Dirk / Undertow (neutralize islandwalk), Merfolk Assassin (destroys islandwalk
-        # creatures); plus the Zhou Yu "can't attack unless defending player controls an
-        # Island" attack restriction). MIGRATED VIA A BYTE-IDENTICAL KEPT-MIRROR
-        # (signals-only, NO sidecar bump), NOT the Scryfall `islandwalk` keyword-array
-        # path.
+        # ADR-0027 + ADR-0034 _matters sweep — the islandwalk /
+        # island-attack-restriction lane, now SPLIT by role at the regex's two
+        # alternations (each old member matched exactly one → union set-equal, 79):
+        #   * island_makers — the bare `\bislandwalk\b` DOER/HAS arm: islandwalk
+        #     BEARERS (Thada Adel, Wrexial), GRANTERS / token-makers / references
+        #     (Lord of Atlantis & Master of the Pearl Trident, Fishliver Oil, Chasm
+        #     Skulker, Mystic Decree, Merfolk Assassin).
+        #   * island_matters — the Zhou Yu "can't attack unless defending player
+        #     controls an Island" attack-restriction PAYOFF arm (cares-about-Islands).
+        # Both MIGRATED VIA BYTE-IDENTICAL KEPT-MIRRORS (signals-only, NO sidecar bump),
+        # NOT the Scryfall `islandwalk` keyword-array path.
         #
         # WHY KEPT-MIRROR, NOT THE KEYWORD ARM: the IR keyword route
         # (_IR_KEYWORD_MAP['islandwalk'], a card['keywords'] lookup) covers only the
@@ -2644,6 +2643,14 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # 3010). CR 702.14c (islandwalk = "can't be blocked as long as the defending
         # player controls at least one land with the specified land type") / 702.14b
         # (landwalk is an evasion ability) / 903.10a (commander damage).
+        #
+        # has_other_plan: the commander-legal island creatures whose SOLE plan is the
+        # "can't attack unless defending player controls an Island" restriction (Sea
+        # Serpent, Marjhan, Island Fish Jasconius, Zhou Yu …) carry the PAYOFF arm →
+        # island_matters (27); the islandwalk DOERS carry island_makers (52). Both keys
+        # stay in MIGRATED_KEYS, so the migrated lane set still feeds has_other_plan for
+        # every one of the 79 and voltron is unchanged (verified set-equal).
+        "island_makers",
         "island_matters",
         # ADR-0027 — vehicles_matter migrated to the Card IR. SHAPE: UNION of two
         # byte-identical kept producers. (1) The broad "Vehicles you control" anthem /

@@ -215,7 +215,12 @@ _REAL_CASES: dict[str, str] = {
     "impulse_top_play": "Light Up the Stage",
     "initiative_makers": "Aarakocra Sneak",
     "initiative_matters": "Imoen, Mystic Trickster",
-    "island_matters": "Lord of Atlantis",
+    # ADR-0034 _matters split: the islandwalk DOER arm (bare `\bislandwalk\b`) now
+    # emits island_makers — Lord of Atlantis GRANTS islandwalk. The PAYOFF arm keeps
+    # island_matters — Zhou Yu's "can't attack unless defending player controls an
+    # Island" cares-about-Islands restriction.
+    "island_makers": "Lord of Atlantis",
+    "island_matters": "Zhou Yu, Chief Commander",
     "keyword_counter": "Luminous Broodmoth",
     "keyword_grant_target": "Aim High",
     "keyword_soup": "Odric, Lunarch Marshal",

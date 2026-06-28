@@ -627,23 +627,26 @@ TOKENS_MATTER_REGEX = "(?:gets? \\+\\d+/\\+\\d+|power (?:and toughness )?(?:is|a
 # CR 603.10a (entered this turn) / 506.4 / 509 (attacking creatures).
 ENTERED_ATTACKER_REGEX = "(?:deals combat damage|attacks)[^.]*entered (?:the battlefield )?this turn|entered (?:the battlefield )?this turn[^.]*(?:attacks|deals combat damage)"
 
-# ADR-0027: island_matters migrated to the Card IR via a byte-identical kept-mirror.
-# The deleted _HAND_FLOOR producer is pinned here so the _ISLAND_MATTERS_MIRROR kept
-# detector (_signals_ir) shares ONE source. The lane is the islandwalk /
-# island-attack-restriction lane: islandwalk BEARERS (Thada Adel, Wrexial), islandwalk
-# GRANTERS / token-makers / references (Lord of Atlantis, Fishliver Oil, Chasm Skulker,
-# Mystic Decree), and the Zhou Yu "can't attack unless defending player controls an
-# Island" restriction. NOT the Scryfall `islandwalk` keyword array: that lists only the
-# keyword the card HAS, missing every GRANTER (the conferred-keyword gap). The `\\b`-
-# anchored word + the fixed restriction phrase carry NO `[^.]*` span, so a flat scan over
-# the reminder-stripped oracle == the deleted floor Detector's per-clause scan (verified:
-# both==79, ir_only==0, regex_only==0, 0 flat/per-clause mismatches over commander-legal).
-# The serve spec stays hand-registered in signal_specs.py with its own (independent)
-# "lands become Islands" search regex. CR 702.14c (islandwalk evasion) / 702.14b
-# (landwalk is an evasion ability).
-ISLAND_MATTERS_REGEX = (
-    "\\bislandwalk\\b|can'?t attack unless defending player controls an island"
-)
+# ADR-0027: migrated to the Card IR via byte-identical kept-mirrors. The deleted
+# _HAND_FLOOR producer is pinned here so the kept detectors (_signals_ir) share ONE
+# source. ADR-0034 _matters sweep — SPLIT by role: the original lane fused two
+# populations under one regex's two alternations.
+#  * ISLAND_MAKERS_REGEX (`\bislandwalk\b`) — the islandwalk DOER/HAS side: islandwalk
+#    BEARERS (Thada Adel, Wrexial), GRANTERS / token-makers (Lord of Atlantis,
+#    Master of the Pearl Trident, Fishliver Oil, Chasm Skulker), and islandwalk
+#    references (Mystic Decree, Merfolk Assassin). Emits `island_makers`.
+#  * ISLAND_MATTERS_REGEX (the Zhou Yu "can't attack unless defending player controls
+#    an Island" restriction) — the cares-about-Islands PAYOFF side: a card that wants
+#    the defender to control an Island. Emits `island_matters`.
+# Splitting at the alternation IS the maker/payoff split (each old member matched
+# exactly one alternation → union is set-equal; gate: both==79, makers>0, keep>0).
+# NOT the Scryfall `islandwalk` keyword array: that lists only the keyword the card HAS,
+# missing every GRANTER (the conferred-keyword gap). Neither pattern carries a `[^.]*`
+# span, so a flat scan over the reminder-stripped oracle == the deleted floor Detector's
+# per-clause scan. The serve specs stay hand-registered in signal_specs.py. CR 702.14c
+# (islandwalk evasion) / 702.14b (landwalk is an evasion ability).
+ISLAND_MAKERS_REGEX = "\\bislandwalk\\b"
+ISLAND_MATTERS_REGEX = "can'?t attack unless defending player controls an island"
 
 # ADR-0027: vehicles_matter migrated to the Card IR via a byte-identical kept WORD
 # MIRROR (the EXACT deleted _HAND_FLOOR producer, scope 'you', pinned here so the

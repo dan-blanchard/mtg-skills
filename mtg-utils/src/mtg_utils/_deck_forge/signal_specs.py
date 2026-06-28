@@ -5507,18 +5507,30 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"(?:another |a )?creature you control enters[^.]*(?:gets? \+|gains? haste|and "
         r"haste)|creatures you control (?:get|have|gain)[^.]*haste",
     ),
-    # Island matters (Zhou Yu, islandwalk commanders): effects that turn opponents'
-    # lands into Islands (so the attack restriction is met / islandwalk connects), plus
-    # more islandwalk and island-count payoffs.
-    ("island_matters", "you"): _spec(
-        "Island matters",
-        "make opponents' lands Islands, plus islandwalk and island-count payoffs",
+    # ADR-0034 _matters sweep — island lane split by role.
+    # island_makers (the islandwalk DOER side — islandwalk bearers / granters /
+    # token-makers): wants more islandwalk granters plus effects that turn opponents'
+    # lands into Islands (so islandwalk connects), and island-count payoffs.
+    ("island_makers", "you"): _spec(
+        "Islandwalk makers",
+        "islandwalk granters plus make opponents' lands Islands so it connects",
         {
             "oracle": r"lands?[^.]*are islands|becomes? an island|flood counter"
             r"|\bislandwalk\b"
         },
         r"(?:nonbasic |all )?lands?[^.]*are islands|becomes? an island|flood counter"
         r"|\bislandwalk\b|number of islands",
+    ),
+    # island_matters (the Zhou Yu cares-about-Islands PAYOFF side): effects that turn
+    # opponents' lands into Islands so the attack restriction is met, plus island-count
+    # payoffs. Quicksilver Fountain (flood counters → Islands) and Stormtide Leviathan
+    # ("All lands are Islands") feed it; a mana dork does not.
+    ("island_matters", "you"): _spec(
+        "Island matters",
+        "make opponents' lands Islands so the attack restriction is met",
+        {"oracle": r"lands?[^.]*are islands|becomes? an island|flood counter"},
+        r"(?:nonbasic |all )?lands?[^.]*are islands|becomes? an island|flood counter"
+        r"|number of islands",
     ),
     # Tap down blockers (Tromokratis): effects that tap OPPONENTS' creatures (Sleep,
     # Blustersquall) so the defender can't field enough blockers, letting the
