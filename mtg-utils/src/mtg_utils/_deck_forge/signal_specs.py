@@ -3772,9 +3772,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"exile the top|in exile|from exile"},
         r"cards? (?:you own )?in exile|for each card[^.]*exile",
     ),
-    ("experience_matters", "you"): _spec(
+    # _matters sweep (ADR-0034): split the conflated experience lane by role.
+    # experience_makers = the MAKER arm (cards that GAIN experience counters —
+    # Ezuri, Mizzix, Kalemne); experience_matters = the PAYOFF arm (cards that
+    # SCALE off your experience count — Atreus draw-X, Azula pump-X). Both reuse
+    # the same {"oracle": "experience counter"} search pool.
+    ("experience_makers", "you"): _spec(
         "Experience counters",
-        "ways to gain experience counters and scale with them",
+        "ways to gain experience counters",
+        {"oracle": r"experience counter"},
+        r"experience counter",
+    ),
+    ("experience_matters", "you"): _spec(
+        "Experience payoffs",
+        "payoffs that scale with experience counters",
         {"oracle": r"experience counter"},
         r"experience counter",
     ),

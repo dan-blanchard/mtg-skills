@@ -209,8 +209,10 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                payoff marker (War Doctor); left _IR_FLOOR_LANES.
         #   trigger_doubling ← phase's trigger_doubling effect + the granted/quoted
         #                "triggers an additional time" face marker (The Masamune).
-        #   experience ← GivePlayerCounter gainers + the op="experience" scaler
-        #                operand (Atreus, Azula).
+        #   experience ← split (ADR-0034): experience_makers = the
+        #                GivePlayerCounter gainers (Ezuri, Mizzix, Kalemne — the
+        #                MAKER arm); experience_matters = the op="experience"
+        #                scaler operand (Atreus, Azula — the PAYOFF arm).
         #   explore    ← `explore` keyword (authoritative, 53 ⊇ 44 regex) + the
         #                event='other' explore payoff (Topography Tracker, Glowcap).
         #   foretell   ← `foretell` keyword + grant marker + Foretold-predicate payoff
@@ -231,6 +233,11 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "phasing_makers",
         "trigger_doubling",
         "experience_matters",
+        # _matters sweep (ADR-0034): the MAKER arm split out of experience_matters
+        # — the GivePlayerCounter -> experience_counter gainers (Ezuri, Mizzix,
+        # Kalemne). The IR path emits it, so the hybrid must recognize it as
+        # migrated to keep it.
+        "experience_makers",
         "explore_matters",
         "foretell_matters",
         "scavenge_fuel",

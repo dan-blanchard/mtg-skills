@@ -169,6 +169,7 @@ _REAL_CASES: dict[str, str] = {
     "exile_matters": "Mairsil, the Pretender",
     "exile_removal": "Banishing Light",
     "exile_until_leaves": "Oblivion Ring",
+    "experience_makers": "Ezuri, Claw of Progress",
     "experience_matters": "Atreus, Impulsive Son",
     "explore_matters": "Topography Tracker",
     "extra_combats": "Aggravated Assault",

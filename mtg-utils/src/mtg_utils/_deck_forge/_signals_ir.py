@@ -282,8 +282,13 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # Player-counter givers (GivePlayerCounter, split by kind in project.py — CR
     # 122.1). poison/rad land on opponents (a kill clock / penalty); experience is
     # a personal resource. ticket/unknown player counters stay lane-less (niche).
+    # _matters sweep (ADR-0034): the GivePlayerCounter -> experience_counter gainer
+    # is the MAKER arm ("you get an experience counter" — Ezuri, Mizzix, Kalemne),
+    # so it emits experience_makers; the op="experience" count-operand SCALER arm
+    # (extract_signals_ir, "for each experience counter you have") keeps the payoff
+    # key experience_matters.
     "poison": ("poison_matters", "opponents"),
-    "experience_counter": ("experience_matters", "you"),
+    "experience_counter": ("experience_makers", "you"),
     "rad_counter": ("rad_counter_makers", "opponents"),
     "phasing": ("phasing_makers", "you"),
     # ADR-0027 restriction-narrow markers (project._narrow_mechanic_refs): a
@@ -2968,6 +2973,12 @@ IR_SLICE_KEYS: frozenset[str] = (
             "oil_counter_matters",
             "shield_counter_makers",
             "rad_counter_makers",
+            # _matters sweep (ADR-0034): the experience MAKER arm
+            # (experience_makers) auto-enters via _DOER_EFFECT_KEYS.values();
+            # the experience PAYOFF scaler arm (op="experience" in
+            # extract_signals_ir) emits experience_matters via a manual add(),
+            # not _DOER_EFFECT_KEYS, so its slice membership is pinned here.
+            "experience_matters",
             "ki_counter_matters",
             "counter_control",
             "fight_makers",
@@ -5002,7 +5013,8 @@ _FOR_EACH_RAW = re.compile(r"\bfor each\b|\bequal to the number of\b", re.IGNORE
 # 107.x devotion/party, CR 122 counters/experience) — distinct from the generic
 # `count` op, which also covers bare X-spells. A pump/draw scaling on any of these is
 # genuine (Kalemne's +1/+1 per experience, Atreus's draw-per-experience). experience
-# also routes to experience_matters (a correct co-fire), not stolen from it.
+# also routes to experience_matters (the payoff SCALER arm — a correct co-fire with
+# the experience_makers gainer arm, not stolen from it; ADR-0034).
 _NAMED_SCALE_OPS = frozenset({"counters", "domain", "devotion", "party", "experience"})
 
 
@@ -7191,10 +7203,12 @@ def extract_signals_ir(
                 elif e.amount.op == "counters":
                     add("plus_one_matters", "you", "", e.raw)
                 # ADR-0027 — "for each experience counter you have" → experience
-                # payoff SCALER (Atreus's draw-X, Azula's pump-X). The experience
-                # GAINERS ride the GivePlayerCounter -> experience_counter category
-                # (_DOER_EFFECT_KEYS); this is the count-operand scaler side phase
-                # collapsed to a bare op (CR 122.1).
+                # payoff SCALER (Atreus's draw-X, Azula's pump-X). This is the
+                # PAYOFF arm and keeps the experience_matters key (ADR-0034 sweep).
+                # The experience GAINERS ride the GivePlayerCounter ->
+                # experience_counter category (_DOER_EFFECT_KEYS), now the separate
+                # MAKER arm experience_makers; this is the count-operand scaler side
+                # phase collapsed to a bare op (CR 122.1).
                 elif e.amount.op == "experience":
                     add("experience_matters", "you", "", e.raw)
             # creatures_matter go-wide DOERs (over-fire-gated per rules-lawyer /

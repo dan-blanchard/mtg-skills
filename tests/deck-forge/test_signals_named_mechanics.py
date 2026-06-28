@@ -834,8 +834,10 @@ def test_scry_surveil_is_ir_served():
 
 
 def test_experience_is_ir_served():
-    # ADR-0027: experience_matters migrated to the Card IR — the GivePlayerCounter
-    # experience GAINER (phase's experience_counter effect category) opens it.
+    # ADR-0027: experience migrated to the Card IR. ADR-0034 _matters sweep: the
+    # GivePlayerCounter experience GAINER (phase's experience_counter effect
+    # category) is the MAKER arm, so it opens experience_makers (the payoff scaler
+    # arm keeps experience_matters).
     c = {
         "name": "X",
         "oracle_text": "When this creature enters, you get an experience counter.",
@@ -853,8 +855,8 @@ def test_experience_is_ir_served():
         )
     )
     hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
-    assert ("experience_matters", "you") in hybrid
-    assert ("experience_matters", "you") not in _ks(c)
+    assert ("experience_makers", "you") in hybrid
+    assert ("experience_makers", "you") not in _ks(c)
 
 
 def test_mutate_is_ir_served():
