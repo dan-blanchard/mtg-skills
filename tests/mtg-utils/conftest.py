@@ -209,6 +209,7 @@ def sample_bulk_data(tmp_path: Path) -> Path:
             "legalities": {"commander": "legal"},
             "prices": {"usd": "0.50", "usd_foil": "2.00"},
             "game_changer": False,
+            "edhrec_rank": 253,
         },
         {
             "id": "ccc-blood-artist",

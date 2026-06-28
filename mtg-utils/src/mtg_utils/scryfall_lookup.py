@@ -41,6 +41,10 @@ CARD_FIELDS = [
     "legalities",
     "rarity",
     "game_changer",
+    # Card-quality signal the tuner's fringe/upgrade logic reads (classify.is_fringe).
+    # MTGJSON populates it (adapter sets edhrec_rank); dropping it here made EVERY
+    # hydrated card look unranked → fringe, so the swap proposer cut premium staples.
+    "edhrec_rank",
 ]
 
 RARITY_ORDER = {

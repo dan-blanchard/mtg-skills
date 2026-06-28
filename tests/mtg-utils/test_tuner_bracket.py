@@ -138,6 +138,25 @@ class TestTwoCardComboAxis:
         result = bracket_gate([_plain("a")], target_bracket=2, combos=combos)
         assert not [v for v in result["violations"] if v["axis"] == "two_card_combo"]
 
+    def test_list_shaped_result_is_handled(self):
+        # combo_search emits `result` as a LIST of feature strings (the real
+        # Commander Spellbook shape), not a string. bracket_gate must not crash
+        # and must still detect the infinite outcome.
+        combos = {
+            "combos": [
+                {
+                    "cards": ["A", "B"],
+                    "result": ["Infinite colorless mana", "Infinite storm count"],
+                }
+            ]
+        }
+        result = bracket_gate(
+            [_card("A", 2), _card("B", 2)], target_bracket=2, combos=combos
+        )
+        c = [v for v in result["violations"] if v["axis"] == "two_card_combo"]
+        assert c
+        assert c[0]["severity"] == "FAIL"
+
 
 class TestUnconstrainedBrackets:
     def test_optimized_short_circuits_to_pass(self):

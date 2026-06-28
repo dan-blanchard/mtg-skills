@@ -17,6 +17,18 @@ from mtg_utils.card_classify import is_creature
 
 SHAPES = ("aggro", "midrange", "control", "combo")
 
+# A combo deck is BUILT AROUND assembling its combo; a creature-LED deck wins by
+# attacking and merely CARRIES a combo as a SECONDARY win condition (a go-wide Goblin
+# deck has dozens of 2-card loops among its pieces). Shape sizes the role template, so
+# what matters here is the PRIMARY plan: above this creature fraction the creatures are
+# the gameplan and the deck wants creature scaffolding, not the protection/redundancy a
+# combo-primary deck wants — so the flat combo-present bonus is withheld. The combo is
+# NOT ignored: it still counts on the win-conditions axis and is still policed by the
+# bracket gate. (Truly incidental output — infinite mana with no sink — is separate; it
+# isn't a win condition at all.) Genuine spell-dense combo decks (Kinnan ~36%, storm
+# ~8%) stay well under the ceiling.
+_COMBO_CREATURE_CEILING = 0.42
+
 
 @dataclass(frozen=True)
 class ShapeResult:
@@ -61,7 +73,12 @@ def infer_shape(
         + drw * 3.0
         + max(0.0, avg_cmc - 3.0) * 2.0
         - creat * 1.5,
-        "combo": (4.0 if combo_present else 0.0) + max(0.0, 0.35 - creat) * 6.0,
+        # Withhold the flat "combo present" bonus from a creature-LED deck — it wins
+        # by attacking and only carries the combo as a secondary win condition (see
+        # _COMBO_CREATURE_CEILING). The spell-density term still credits a genuinely
+        # spell-dense, combo-primary deck.
+        "combo": (4.0 if combo_present and creat <= _COMBO_CREATURE_CEILING else 0.0)
+        + max(0.0, 0.35 - creat) * 6.0,
         "midrange": 1.0
         + (1.0 if 2.8 <= avg_cmc <= 3.6 else 0.0)
         + (creat if 0.30 <= creat <= 0.62 else 0.0),

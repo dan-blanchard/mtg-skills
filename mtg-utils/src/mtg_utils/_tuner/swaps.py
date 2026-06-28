@@ -148,8 +148,18 @@ def cut_candidates(
             and not _fills_short_role(c, budgets)
         ]
         # Color-fixing ramp sorts LAST (cut redundant single-purpose ramp before a
-        # dork the manabase needs); then fewest avenues served, then highest CMC.
-        members.sort(key=lambda c: (_is_fixing(c), len(c.served), -c.cmc))
+        # dork the manabase needs); then trim the LEAST-PLAYED excess first (a premium
+        # staple like Sol Ring must not be cut to satisfy a band — it serves no
+        # thematic avenue but is the best card in the role); then fewest avenues
+        # served, then highest CMC.
+        members.sort(
+            key=lambda c: (
+                _is_fixing(c),
+                -(c.edhrec_rank if c.edhrec_rank is not None else 10**9),
+                len(c.served),
+                -c.cmc,
+            )
+        )
         for c in members[: b["deviation"]]:
             push(f"over:{role}", c)
 

@@ -148,6 +148,51 @@ def test_role_over_trims_the_over_role_not_a_floor_role():
     assert out["swaps"][0]["cut"]["name"] == "Pure Removal"
 
 
+def test_role_over_trim_cuts_least_played_excess_not_a_staple():
+    # Ramp over by 1. A premium staple (Sol Ring, rank 1, serving no thematic
+    # avenue) and a fringe on-theme ramp (rank 30000). The over-band trim must cut
+    # the least-played card, never the staple — the pre-fix sort keyed on
+    # served-count first, so it cut Sol Ring (0 avenues) over the fringe ramp.
+    classes = [
+        _cc("Sol Ring", "spine", roles=["ramp"], served=(), cmc=1.0, edhrec_rank=1),
+        _cc(
+            "Fringe Rock",
+            "spine",
+            roles=["ramp"],
+            served=("Lands matter",),
+            cmc=3.0,
+            edhrec_rank=30000,
+        ),
+    ]
+    budgets = {"ramp": _band(11, 8, 10)}  # over by 1
+    issue = {"kind": "role_over", "role": "ramp", "severity": 1, "message": "ramp over"}
+    add = {
+        "name": "Better Rock",
+        "type_line": "Artifact",
+        "oracle_text": "{T}: Add {C}.",
+        "cmc": 2.0,
+        "prices": {"usd": "1.00"},
+        "color_identity": [],
+    }
+    out = propose_swaps(
+        classes,
+        [issue],
+        budgets=budgets,
+        focus_result=_focus(viable=[{"label": "Main", "depth": 20, "cards": []}]),
+        deck_signals=[],
+        search_fn=lambda **_: [add],
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=50.0,
+        max_swaps=1,
+        top_heavy=False,
+    )
+    assert len(out["swaps"]) == 1
+    assert out["swaps"][0]["cut"]["name"] == "Fringe Rock"
+
+
 def test_role_search_specs_reference_only_real_presets():
     # Regression: _ROLE_SEARCH["ramp"] used a nonexistent 'ramp' preset, which made
     # card_search raise BadParameter and 500'd /api/tune for any ramp-short deck.

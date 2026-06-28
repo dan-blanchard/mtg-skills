@@ -51,8 +51,13 @@ def _extra_turn_cards(records: Sequence[dict | None]) -> list[str]:
     )
 
 
-def _is_infinite(result_text: str | None) -> bool:
-    t = (result_text or "").lower()
+def _is_infinite(result: str | list | None) -> bool:
+    # combo_search emits `result` as a LIST of feature strings (the real Commander
+    # Spellbook shape); a few synthetic call sites still pass a bare string. Normalize
+    # both the same way combo_search itself joins the list (line 317) before matching.
+    if isinstance(result, list):
+        result = " ".join(str(r) for r in result)
+    t = (result or "").lower()
     return "infinite" in t or "win the game" in t or "wins the game" in t
 
 

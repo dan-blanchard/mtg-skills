@@ -29,6 +29,13 @@ class TestLookupSingle:
         assert result["cmc"] == 1.0
         assert result["game_changer"] is False
 
+    def test_lookup_preserves_edhrec_rank(self, sample_bulk_data):
+        # The tuner's card-quality / fringe logic reads edhrec_rank; hydration must
+        # carry it through (it was silently dropped from CARD_FIELDS, making every
+        # hydrated card look unranked → fringe → wrongly cut by the swap proposer).
+        result = lookup_single("Viscera Seer", bulk_path=sample_bulk_data)
+        assert result["edhrec_rank"] == 253
+
     def test_finds_split_card_by_full_name(self, sample_bulk_data):
         result = lookup_single("Fire // Ice", bulk_path=sample_bulk_data)
         assert result is not None
