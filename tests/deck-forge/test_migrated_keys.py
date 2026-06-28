@@ -154,6 +154,7 @@ _REAL_CASES: dict[str, str] = {
     "dig_until": "Hermit Druid",
     "direct_damage": "Sizzle",
     "discard_matters": "Basking Rootwalla",
+    "discard_makers": "Faithless Looting",
     "discard_outlet": "Faithless Looting",
     "discover_makers": "Curator of Sun's Creation",
     "domain_matters": "Matca Rioters",

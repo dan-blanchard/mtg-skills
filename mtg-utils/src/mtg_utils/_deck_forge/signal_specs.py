@@ -3340,9 +3340,24 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"(?:play|cast)\b[^.]*?\bfrom the top of your library"},
         r"(?:play|cast)\b[^.]*?\bfrom the top of your library",
     ),
+    # _matters sweep (ADR-0034): the MAKER arm of the discard split. discard_makers
+    # fires on a loot/rummage/connive OUTLET (a draw+discard co-occurrence — Faithless
+    # Looting, Merfolk Looter, Windfall). The avenue it OPENS is the discard PAYOFFS
+    # those outlets power ("whenever you discard …" — Containment Construct, Rielle)
+    # plus more outlets (the same self-discard pool as discard_matters), so an outlet
+    # engine finds its payoffs. The maker/payoff split is in MEMBERSHIP; the avenue
+    # legitimately offers both.
+    ("discard_makers", "you"): _spec(
+        "Loot / discard outlets",
+        "loot/connive/rummage outlets plus the discard payoffs they power",
+        {"oracle": r"discard (?:a|an|two|your hand)[^:.]*?:|draw [^.]*?then discard"},
+        r"whenever you discard|discard (?:a|an|two|your hand)[^:.]*?:"
+        r"|draw [^.]*then discard"
+        r"|\bdiscard (?:x|\d+|two|three|four|all)\b",
+    ),
     ("discard_matters", "you"): _spec(
         "Discard",
-        "loot/connive discard outlets and discard payoffs",
+        "discard payoffs and the self-discard outlets that feed them",
         {"oracle": r"discard (?:a|an|two|your hand)[^:.]*?:|draw [^.]*?then discard"},
         r"whenever you discard|discard (?:a|an|two|your hand)[^:.]*?:"
         r"|draw [^.]*then discard"

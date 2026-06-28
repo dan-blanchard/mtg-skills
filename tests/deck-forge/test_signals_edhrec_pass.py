@@ -184,13 +184,13 @@ ALPHARAEL = (
 
 
 def test_alpharael_loot_is_discard():
-    # ADR-0027: discard_matters migrated to the Card IR — the cross-sentence loot
-    # ("draw two cards. Then discard") fires from the byte-identical _LOOT_FULLTEXT_RE
-    # kept-mirror in the IR path, not the deleted regex producer.
-    assert "discard_matters" in _hybrid_keys(
+    # ADR-0027: discard migrated to the Card IR. _matters sweep (ADR-0034): the loot
+    # OUTLET ("draw two cards. Then discard") is the MAKER arm → discard_makers; it fires
+    # from the byte-identical loot kept-mirror in the IR path, not the deleted regex.
+    assert "discard_makers" in _hybrid_keys(
         ALPHARAEL, name="Alpharael, Dreaming Acolyte"
     )
-    assert "discard_matters" not in _keys(ALPHARAEL, name="Alpharael, Dreaming Acolyte")
+    assert "discard_makers" not in _keys(ALPHARAEL, name="Alpharael, Dreaming Acolyte")
 
 
 def test_draw_then_unrelated_not_loot():

@@ -908,14 +908,14 @@ def test_prowess_keyword_surfaces_spellslinger():
 
 
 def test_loot_outlet_is_a_discard_avenue():
-    # ADR-0027: discard_matters migrated to the Card IR — the loot outlet ("draw a
-    # card, then discard") fires from the byte-identical _LOOT_FULLTEXT_RE kept-mirror
-    # in the IR path (which scans the record oracle, so a bare non-None IR routes the
-    # hybrid to it), NOT the deleted regex producer.
+    # ADR-0027: discard migrated to the Card IR. _matters sweep (ADR-0034): the loot
+    # OUTLET ("draw a card, then discard") is the MAKER arm → discard_makers; it fires
+    # from the byte-identical loot kept-mirror in the IR path (which scans the record
+    # oracle, so a bare non-None IR routes the hybrid to it), NOT the deleted regex.
     c = {"name": "X", "oracle_text": "{T}: Draw a card, then discard a card."}
     hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, _ks_bare_ir())}
-    assert ("discard_matters", "you") in hybrid
-    assert ("discard_matters", "you") not in _ks(c)
+    assert ("discard_makers", "you") in hybrid
+    assert ("discard_makers", "you") not in _ks(c)
 
 
 def _spell_copy_ir() -> Card:
@@ -959,7 +959,7 @@ def test_kitsa_gets_three_avenues():
     # discard, and "Copy target instant or sorcery" → spell_copy, all three over real IR.
     keys = {s.key for s in test_signals("Kitsa, Otterball Elite")}
     assert "spellcast_matters" in keys  # prowess → spellslinger
-    assert "discard_matters" in keys  # loot outlet
+    assert "discard_makers" in keys  # loot outlet (the MAKER arm, ADR-0034)
     assert "spell_copy_makers" in keys  # copy spells
 
 

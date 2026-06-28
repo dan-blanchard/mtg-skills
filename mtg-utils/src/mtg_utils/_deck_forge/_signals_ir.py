@@ -1736,8 +1736,11 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # fires (verified over the commander-legal corpus: 0 of the false-4, 6 of 6
     # genuine). UNIONed with the structural arm it is purely additive. CR 701.50
     # (connive = "draws a card, then discards a card") / 701.9a (discard).
+    # _matters sweep (ADR-0034): this loot MAKER mirror emits discard_makers (the card
+    # PERFORMS the discard via a draw-then-discard outlet) — the maker arm of the split;
+    # the `discarded`-trigger self-discard PAYOFF keeps discard_matters.
     (
-        "discard_matters",
+        "discard_makers",
         re.compile(
             r"\bdraw (?:a|an|two|three|four|five|x|\d+) cards?[.,]?\s+then "
             r"(?:you )?(?:may )?discard",
@@ -3312,6 +3315,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Batch T (trigger-event lanes):
             "tap_untap_matters",
             "discard_matters",
+            # _matters sweep (ADR-0034): the MAKER arm of the discard split — the
+            # loot/rummage/connive OUTLET (structural draw+discard co-occurrence +
+            # the partial-parse `draw N then discard` kept mirror); the `discarded`-
+            # trigger self-discard PAYOFF keeps discard_matters above.
+            "discard_makers",
             "draw_matters",
             "creature_etb",
             "combat_damage_matters",
@@ -7449,7 +7457,10 @@ def extract_signals_ir(
                     add("creature_ping", "you", "", recip_src)
                 if recip_player or _DAMAGE_EQUAL_POWER_ORACLE.search(recip_src):
                     add("damage_equal_power", "you", "", recip_src)
-        # ADR-0027 (C11_loot, SIGNALS-ONLY) — discard_matters loot/rummage/connive
+        # ADR-0027 (C11_loot, SIGNALS-ONLY) — _matters sweep (ADR-0034): the discard
+        # MAKER arm (discard_makers). A loot/rummage/connive OUTLET — the card PERFORMS
+        # the discard — so it is the maker side of the split; the `discarded`-trigger
+        # self-discard PAYOFF arm below keeps discard_matters.
         # OUTLET structural arm. An Ability carrying BOTH a `draw` Effect AND a
         # `discard` Effect scope in ('you','each') is a self-loot/rummage/connive
         # outlet — phase structures the discard as a SIBLING Effect in the SAME
@@ -7477,7 +7488,7 @@ def extract_signals_ir(
                 None,
             )
             if _loot_disc is not None:
-                add("discard_matters", "you", "", _loot_disc.raw or "")
+                add("discard_makers", "you", "", _loot_disc.raw or "")
         # ADR-0027 #24b — land_sacrifice_matters STRUCTURAL arm (the land-SACRIFICE
         # archetype: land-to-graveyard payoffs + land sac-outlets). phase structures
         # the PAYOFF directly as a leaves/dies Trigger whose subject is a Land you

@@ -4588,6 +4588,17 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # cards regardless of IR/regex mode (FILE-SWAP voltron delta 0). CR 702.35
         # (madness) / 120.1 (draw) / 903.10a (voltron).
         "discard_matters",
+        # _matters sweep (ADR-0034): the MAKER arm split out of discard_matters. The
+        # loot/rummage/connive OUTLET (the card PERFORMS the discard via a draw+discard
+        # co-occurrence ability — Faithless Looting, Merfolk Looter, Windfall — plus the
+        # partial-parse `draw N then discard` kept mirror) emits discard_makers; the
+        # `discarded`-trigger self-discard PAYOFF (Madness, "whenever you discard")
+        # keeps discard_matters above. The IR path emits it, so the hybrid must
+        # recognize it as migrated to keep it. Gate-verified set-equal: the union of
+        # members(discard_makers) and members(discard_matters) == the old
+        # discard_matters membership; voltron unchanged (both arms HIGH 'you', no key in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS, so both feed has_other_plan as before).
+        "discard_makers",
         # ADR-0027 — second_spell_matters (the SPECIFIC "whenever you cast your
         # second spell each turn" payoff — Saruman of Many Colors, Aria-of-Flame-
         # adjacent Storm-lite; the Dualcast "second spell ... costs {2} less"
