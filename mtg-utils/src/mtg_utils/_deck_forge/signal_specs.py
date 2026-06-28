@@ -3433,6 +3433,25 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"put into[^.]*graveyard"
         r"|whenever you sacrifice (?:a|one or more|another) lands?",
     ),
+    # _matters sweep (ADR-0034): the MAKER arm — cards that PERFORM the land
+    # sacrifice (repeatable "Sacrifice a land:" outlets — Zuran Orb, Sylvan
+    # Safekeeper — plus symmetric "each player sacrifices N lands" wraths). These
+    # are the enablers a land-to-graveyard payoff deck (Gitrog, Titania) wants as
+    # fuel; the leaves/dies PAYOFF trigger lives in land_sacrifice_matters above.
+    ("land_sacrifice_makers", "you"): _spec(
+        "Land sacrifice (makers)",
+        "sac-a-land outlets and symmetric land wraths to fuel your land-to-grave"
+        " payoffs",
+        {
+            "oracle": (
+                r"sacrifice a land(?: card)?:"
+                r"|each player sacrifices [^.]*land"
+            )
+        },
+        r"sacrifice a land(?: card)?:"
+        r"|each player sacrifices [^.]*land"
+        r"|whenever you sacrifice (?:a|one or more|another) lands?",
+    ),
     # Keyword soup (Odric Lunarch Marshal, Akroma Vision): shares many evergreen
     # keywords across the team, so it wants creatures stacked with keywords. Serve any
     # creature with >=3 evergreen keywords (Aerial Responder, Zetalpa, Danitha) — the

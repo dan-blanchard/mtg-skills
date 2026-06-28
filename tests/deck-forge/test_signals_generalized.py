@@ -4382,13 +4382,13 @@ def test_land_sacrifice_matters_includes_symmetric_each_scope():
     # (`any` for Death Cloud, `each` for Destructive Force); the outlet arm reads the
     # land-only sacrifice Effect regardless of scope (gate is `scope != "opp"`), so the
     # twins are admitted consistently. Real cards, full oracle, real projected IR.
-    assert "land_sacrifice_matters" in {
-        s.key for s in test_signals("Destructive Force")
-    }
-    assert "land_sacrifice_matters" in {s.key for s in test_signals("Tectonic Break")}
+    # _matters sweep (ADR-0034): the card PERFORMS the land sac, so it is the MAKER
+    # arm — land_sacrifice_makers, not the leaves/dies payoff land_sacrifice_matters.
+    assert "land_sacrifice_makers" in {s.key for s in test_signals("Destructive Force")}
+    assert "land_sacrifice_makers" in {s.key for s in test_signals("Tectonic Break")}
     # Boundary: an OPPONENT-ONLY land sac (scope=opp) never touches your lands, so it
     # is NOT a member — "Each opponent sacrifices a land of their choice."
-    assert "land_sacrifice_matters" not in {
+    assert "land_sacrifice_makers" not in {
         s.key for s in test_signals("Yawning Fissure")
     }
 

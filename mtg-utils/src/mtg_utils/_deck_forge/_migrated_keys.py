@@ -4606,6 +4606,13 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # land_destruction / land_exchange / sacrifice_outlets / ramp drift 0; 0
         # other-key drift across all 298 keys. CR 701.16 / 903.10a.
         "land_sacrifice_matters",
+        # _matters sweep (ADR-0034): land_sacrifice split by role. The MAKER arm —
+        # the card PERFORMS a land sacrifice (sac-outlet / cost / symmetric land
+        # wrath), a `sacrifice` Effect over a Land-ONLY subject (scope != "opp") in
+        # extract_signals_ir. The leaves/dies Land-you PAYOFF trigger keeps
+        # land_sacrifice_matters above. Both are IR-structural now (the regex
+        # producer is deleted; the stale comment block above predates the split).
+        "land_sacrifice_makers",
         # ADR-0027 — opponent_discard (the forced-OPPONENT-discard / hand-attack
         # avenue — "target/each player discards" hand-attack (Mind Rot, Hymn to
         # Tourach, Mind Twist, Stupor), the symmetric upkeep-discard forcers

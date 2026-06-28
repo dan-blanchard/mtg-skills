@@ -241,6 +241,7 @@ _REAL_CASES: dict[str, str] = {
     "land_destruction": "Numot, the Devastator",
     "land_exchange": "Political Trickery",
     "land_protection": "Living Plane",
+    "land_sacrifice_makers": "Hearthhull, the Worldseed",
     "land_sacrifice_matters": "The Gitrog Monster",
     "landfall": "Lotus Cobra",
     "lands_matter": "Dakkon Blackblade",

@@ -557,7 +557,13 @@ _VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
 # pattern (superfriends / type_matters), restoring ONLY the old silence set so voltron
 # stays 2396 set-equal. CR 903.10a.
 _VOLTRON_PLAN_BROADENED: frozenset[str] = frozenset(
-    {"exile_matters", "land_sacrifice_matters"}
+    # _matters sweep (ADR-0034): the land-sac population split into the MAKER arm
+    # (land_sacrifice_makers — the over-silencers Oblivion Sower / Serendib Djinn /
+    # Shivan Wumpus / Argothian Wurm / Foul Spirit all SAC a land, so they emit
+    # land_sacrifice_makers now) and the PAYOFF trigger (land_sacrifice_matters).
+    # BOTH stay excluded from the generic has_other_plan scan; the byte-identical
+    # _BROADENED_PLAN_MIRROR over kept_oracle re-supplies their narrow silence set.
+    {"exile_matters", "land_sacrifice_makers", "land_sacrifice_matters"}
 )
 _BROADENED_PLAN_MIRROR: re.Pattern[str] = re.compile(
     rf"(?:{EXILE_MATTERS_REGEX})|(?:{LAND_SACRIFICE_REGEX})", re.IGNORECASE
@@ -3191,6 +3197,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             "donate_makers",
             "land_exchange",
             "land_destruction",
+            # _matters sweep (ADR-0034): the MAKER arm of the land-sac lane (the
+            # card sacrifices a land — sac-outlet / cost / symmetric wrath). The
+            # leaves/dies Land-you PAYOFF trigger keeps land_sacrifice_matters.
+            "land_sacrifice_makers",
             "kill_engine",
             "removal",
             "exile_removal",
@@ -7437,7 +7447,11 @@ def extract_signals_ir(
                 and e.subject.card_types == ("Land",)
                 and e.scope != "opp"
             ):
-                add("land_sacrifice_matters", "you", "", e.raw)
+                # _matters sweep (ADR-0034): the card PERFORMS the land sacrifice
+                # (sac-outlet / cost / symmetric land-sac) — the MAKER arm, split
+                # off as land_sacrifice_makers. The leaves/dies Land-you payoff
+                # TRIGGER (above) keeps land_sacrifice_matters.
+                add("land_sacrifice_makers", "you", "", e.raw)
             # creatures_matter = a go-wide/scaling lane: a count operand over your
             # creatures (any effect), OR an anthem buffing them (a pump's affected
             # set). NOT a single reanimate/destroy TARGET that happens to be a
