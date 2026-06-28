@@ -4731,6 +4731,28 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|turn (?:it|that creature|this creature|them|a permanent you control) "
         r"face up|turn target [^.]*?face up|turned face up this turn",
     ),
+    # _matters sweep (ADR-0034): the MAKER side of the facedown split. facedown_makers
+    # fires on the morph/megamorph/disguise/manifest/cloak/manifest-dread bodies that
+    # PUT a face-down 2/2 on the battlefield (CR 708). The avenue serves more of those
+    # face-down 2/2 makers plus the turn-face-up payoffs the deck wants alongside them
+    # (the avenue composes makers + payoffs per ADR-0034).
+    ("facedown_makers", "you"): _spec(
+        "Face-down makers",
+        "morph/manifest/disguise/cloak creatures that enter face down",
+        {
+            "oracle": (
+                r"\bmorph\b|\bmegamorph\b|\bmanifest\b|\bdisguise\b|\bcloak\b"
+                r"|face-?down creatures?|as a 2/2 face-?down"
+                r"|turn (?:it|that creature|this creature|them"
+                r"|a permanent you control) face up|turn target [^.]*?face up"
+                r"|turned face up this turn"
+            )
+        },
+        r"\bmorph\b|\bmegamorph\b|\bmanifest\b|\bdisguise\b|\bcloak\b"
+        r"|face-?down creatures?|as a 2/2 face-?down"
+        r"|turn (?:it|that creature|this creature|them|a permanent you control) "
+        r"face up|turn target [^.]*?face up|turned face up this turn",
+    ),
     # ADR-0027: affinity_type + evasion_denial had their oracle-regex SWEEP_DETECTORS
     # rows deleted (detection moved to the Card IR — affinity ← the Scryfall keyword +
     # an `affinity` conferred-grant marker; evasion_denial ← phase's named-walk

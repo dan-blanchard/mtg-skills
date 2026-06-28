@@ -190,6 +190,7 @@ _REAL_CASES: dict[str, str] = {
     "extra_land_drop": "Burgeoning",
     "extra_turns": "Temporal Manipulation",
     "extra_upkeep": "Sphinx of the Second Sun",
+    "facedown_makers": "Unexplained Absence",
     "facedown_matters": "Etrata, Deadly Fugitive",
     "fight_makers": "Tolsimir, Friend to Wolves",
     "firebending_makers": "Fire Lord Azula",

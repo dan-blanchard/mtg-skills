@@ -99,14 +99,17 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # Group "structural" — keys backed by a STRUCTURED IR shape (not a re-run
         # of the deleted oracle regex). all_creatures_kw_grant ← GrantKeyword effect
         # on an "all creatures" subject; counter_move ← MoveCounters effect
-        # (_DOER_EFFECT_KEYS); facedown_matters ← manifest/cloak/turn_face_up effect
-        # categories + kept word mirror; nonhuman_attackers ← attacks trigger w/
+        # (_DOER_EFFECT_KEYS); _matters sweep (ADR-0034) split — facedown_makers ←
+        # manifest/cloak effect categories + the six morph/disguise keyword makers;
+        # facedown_matters ← the turn_face_up effect/trigger + face-down-subject
+        # PAYOFF arms; nonhuman_attackers ← attacks trigger w/
         # NotSubtype:Human subject; opponent_draw_matters ← "drawn" trigger scoped
         # opp; token_doubling ← token-doubling replacement effect; voting_matters ←
         # kept word mirror. All NON-floor IR sources; A-B==0 (commander-legal, floor
         # lanes disabled). See ADR-0027.
         "all_creatures_kw_grant",
         "counter_move",
+        "facedown_makers",
         "facedown_matters",
         "nonhuman_attackers",
         "opponent_draw_matters",

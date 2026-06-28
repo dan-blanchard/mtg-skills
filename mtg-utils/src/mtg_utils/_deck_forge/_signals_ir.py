@@ -293,11 +293,13 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # reveal_hand → hand_disruption is scope-GATED below (only an opponent-reveal is
     # disruption; "reveal cards in your hand" is a self-reveal, scope "any").
     "regenerate": ("regenerate_makers", "you"),
-    # Face-down 2/2 mechanics (CR 701.40 manifest / 701.58 cloak / 708) and the
-    # turn-face-up payoff all feed the existing facedown_matters lane — manifest is
-    # NOT a token_maker (CR 122.1), so it no longer pollutes that lane.
-    "manifest": ("facedown_matters", "you"),
-    "cloak": ("facedown_matters", "you"),
+    # Face-down 2/2 mechanics (CR 701.40 manifest / 701.58 cloak / 708). _matters
+    # sweep (ADR-0034): manifest + cloak PUT a face-down permanent on the battlefield
+    # → MAKER arm → facedown_makers. The turn-face-up EFFECT references/exploits an
+    # EXISTING face-down permanent (it does NOT make one) → PAYOFF arm → keeps
+    # facedown_matters. manifest is NOT a token_maker (CR 122.1).
+    "manifest": ("facedown_makers", "you"),
+    "cloak": ("facedown_makers", "you"),
     "turn_face_up": ("facedown_matters", "you"),
     # _matters sweep (ADR-0034): ring split. A NATIVE tempt-action effect (the card
     # performs "the Ring tempts you" as part of its own ability — Boromir, Warden of
@@ -552,7 +554,7 @@ _VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
     {
         "regenerate_makers",
         "has_changeling",
-        "facedown_matters",
+        "facedown_makers",
         "self_pump",
         "pump_makers",
         "cant_block_grant",
@@ -680,11 +682,12 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "explore": (("explore_makers", "you"),),
     "foretell": (("foretell_makers", "you"),),
     "madness": (("madness_matters", "you"),),
-    # ADR-0027 C9 facedown_matters — the five face-down 2/2 MAKERS as printed
-    # Scryfall KEYWORDS (CR 708 "Face-Down Spells and Permanents"): morph /
+    # ADR-0027 C9 / _matters sweep (ADR-0034): the six face-down 2/2 MAKERS as
+    # printed Scryfall KEYWORDS (CR 708 "Face-Down Spells and Permanents"): morph /
     # megamorph (702.37), disguise (702.168), manifest (701.40), cloak (701.58),
-    # plus manifest dread (701.55). All five converge on CR 708 — every maker puts
-    # a face-down permanent on the battlefield — so they feed ONE cares-about lane.
+    # plus manifest dread (701.55). All six converge on CR 708 — every maker puts
+    # a face-down permanent on the battlefield — so they feed the MAKER lane
+    # facedown_makers (the turn-face-up PAYOFF arm keeps facedown_matters).
     # phase carries morph/megamorph/disguise as IR kw but DROPS manifest/cloak/
     # manifest-dread from IR kw (those ride EFFECT categories), so the Scryfall
     # keyword array (this map) is the uniform anchor over all six — it covers the
@@ -693,12 +696,12 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # manifest/cloak EFFECT categories in _DOER_EFFECT_KEYS stay (add() dedups the
     # overlap). Exact-key match, so "Ceremorphosis"/"Polymorphine" (morph substring)
     # do NOT leak. manifest is NOT a token maker (CR 122.1) — facedown-only fan-out.
-    "morph": (("facedown_matters", "you"),),
-    "megamorph": (("facedown_matters", "you"),),
-    "disguise": (("facedown_matters", "you"),),
-    "manifest": (("facedown_matters", "you"),),
-    "cloak": (("facedown_matters", "you"),),
-    "manifest dread": (("facedown_matters", "you"),),
+    "morph": (("facedown_makers", "you"),),
+    "megamorph": (("facedown_makers", "you"),),
+    "disguise": (("facedown_makers", "you"),),
+    "manifest": (("facedown_makers", "you"),),
+    "cloak": (("facedown_makers", "you"),),
+    "manifest dread": (("facedown_makers", "you"),),
     # ADR-0027 plus_one_matters migration: the +1/+1-counter keyword block MOVED here
     # from _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). plus_one_matters
     # is migrated, so it must leave the regex-readable _DIRECT_KEYWORD_SIGNALS; but the
@@ -12156,9 +12159,7 @@ def extract_signals_ir(
         elif st == "clue":
             if not any(s.key == "clue_makers" for s in out):
                 add("clue_makers", "you", "", "")
-        elif st == "treasure" and not any(
-            s.key == "treasure_makers" for s in out
-        ):
+        elif st == "treasure" and not any(s.key == "treasure_makers" for s in out):
             add("treasure_makers", "you", "", "")
 
     # Batch K — additional keyword-array lanes + type_line membership (clean

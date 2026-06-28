@@ -2339,15 +2339,16 @@ def test_facedown_from_predicate_marker_subject():
 def test_facedown_from_cloak_keyword():
     # Unexplained Absence: keyword Cloak (CR 701.58) — a face-down 2/2 maker that
     # phase does NOT carry in IR kw (cloak rides an effect category). The Scryfall
-    # keyword array is the uniform anchor. Arm A.
-    assert "facedown_matters" in _skeys(test_signals("Unexplained Absence"))
+    # keyword array is the uniform anchor. Arm A. _matters sweep (ADR-0034): the
+    # keyword MAKER arm emits facedown_makers.
+    assert "facedown_makers" in _skeys(test_signals("Unexplained Absence"))
 
 
 def test_facedown_from_morph_keyword():
     # Lumbering Laundry — a Disguise body (CR 702.166 / 702.37 morph family) with no
     # structural face-down anchor — keyword-array re-key. Arm A. Confirms
-    # morph/megamorph/disguise re-key.
-    assert "facedown_matters" in _skeys(test_signals("Lumbering Laundry"))
+    # morph/megamorph/disguise re-key → facedown_makers (ADR-0034 maker arm).
+    assert "facedown_makers" in _skeys(test_signals("Lumbering Laundry"))
 
 
 def test_dfc_subject_does_not_leak_facedown():
