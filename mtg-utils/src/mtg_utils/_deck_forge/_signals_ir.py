@@ -145,6 +145,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TOUGHNESS_VALUE_REGEX,
     UNSPENT_MANA_REGEX,
     VEHICLES_MATTER_REGEX,
+    VOID_WARP_MAKERS_REGEX,
     VOID_WARP_MATTERS_REGEX,
 )
 from mtg_utils.card_classify import card_pt_int, get_oracle_text, is_creature
@@ -1502,6 +1503,18 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "void_warp_matters",
         re.compile(VOID_WARP_MATTERS_REGEX, re.IGNORECASE),
+        "you",
+    ),
+    # _matters sweep (ADR-0034) — the MAKER arm split out of the old void_warp_matters
+    # regex: cards that PERFORM/GRANT the Warp alt-cast (the "Warp {1}{U}" keyword
+    # bearer Starfield Vocalist, the "have warp {2}{R}" granter Tannuk, the em-dash
+    # warp-cost form, and the "using its warp ability" graveyard self-cast Timeline
+    # Culler). Same byte-identical kept-WORD-MIRROR path as the payoff arm (scope 'you',
+    # HIGH); both feed has_other_plan so the voltron silence on a Void/Warp creature
+    # commander is preserved. makers + matters == old 49, set-equal. CR 702.185.
+    (
+        "void_warp_makers",
+        re.compile(VOID_WARP_MAKERS_REGEX, re.IGNORECASE),
         "you",
     ),
     # ADR-0027 #24b — cast_from_exile mirror DELETED: the lane now reads STRUCTURE

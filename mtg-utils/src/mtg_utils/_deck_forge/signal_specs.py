@@ -65,6 +65,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TRIBE_DAMAGE_TRIGGER_REGEX,
     UNSPENT_MANA_REGEX,
     VARIABLE_PT_SWEEP_REGEX,
+    VOID_WARP_MAKERS_REGEX,
     VOID_WARP_MATTERS_REGEX,
 )
 from mtg_utils.card_classify import (
@@ -3257,6 +3258,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["void_warp_matters"],
         {"oracle": VOID_WARP_MATTERS_REGEX},
         VOID_WARP_MATTERS_REGEX,
+    ),
+    # _matters sweep (ADR-0034) — the MAKER arm of the void_warp split: cards that
+    # PERFORM/GRANT the Warp alt-cast (the keyword bearer/granter, the em-dash warp-cost
+    # form, the graveyard self-cast). Same oracle-defined serve pool, reusing the shared
+    # VOID_WARP_MAKERS_REGEX constant so serve / kept mirror never drift.
+    ("void_warp_makers", "you"): _spec(
+        *SWEEP_LABELS["void_warp_makers"],
+        {"oracle": VOID_WARP_MAKERS_REGEX},
+        VOID_WARP_MAKERS_REGEX,
     ),
     # Play from the TOP OF YOUR LIBRARY — Future Sight / Bolas's Citadel / Oracle of Mul
     # Daya. Casts from the LIBRARY zone (not exile), so it's its own avenue, distinct

@@ -5406,6 +5406,15 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # identical); voltron_matters 3010 → 3010 identical set; all siblings drift 0.
         # CR 207.2c (Void ability word) / 702.185 (Warp).
         "void_warp_matters",
+        # _matters sweep (ADR-0034) — void_warp_makers, the MAKER arm split out of the
+        # old void_warp_matters kept mirror: cards that PERFORM/GRANT the Warp alt-cast
+        # (the "Warp {1}{U}" bearer Starfield Vocalist, the "have warp {2}{R}" granter
+        # Tannuk, the em-dash warp-cost form, the "using its warp ability" graveyard
+        # self-cast). Its own byte-identical kept WORD MIRROR (VOID_WARP_MAKERS_REGEX)
+        # in _IR_KEPT_DETECTORS, scope 'you', HIGH — the IR path emits it so the hybrid
+        # must recognize it as migrated to keep it. makers + matters == old 49
+        # (set-equal); both arms feed has_other_plan, voltron preserved. CR 702.185.
+        "void_warp_makers",
         # ADR-0027 one_punch — migrated to the Card IR (membership audit). STRUCTURAL
         # ARM in extract_signals_ir's include_membership block: an extreme power-for-
         # cost beater (power >= 8 AND power >= 2x its mana value — Lord of Tresserhorn

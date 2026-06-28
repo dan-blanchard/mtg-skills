@@ -2231,6 +2231,107 @@
     "type_line": "Legendary Creature — Halfling Rogue"
    }
   },
+  "Alpharael, Stonechosen": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "or",
+         "nest": [
+          {
+           "cmp": "ge",
+           "kind": "quantitycomparison",
+           "sub": {
+            "p": [
+             "NotType:Land"
+            ],
+            "t": [
+             "Permanent"
+            ]
+           },
+           "zn": [
+            "battlefield"
+           ]
+          },
+          {
+           "cmp": "none",
+           "kind": "spellcastwithvariantthisturn"
+          }
+         ],
+         "zn": [
+          "battlefield"
+         ]
+        },
+        "e": [
+         {
+          "cat": "lose_life",
+          "raw": "Whenever ~ attacks, if a nonland permanent left the battlefield this turn or a spell was warped this turn, defending player loses half their life, rounded up."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "attacks",
+         "sc": "you"
+        }
+       }
+      ],
+      "kw": [
+       "Ward"
+      ],
+      "n": "Alpharael, Stonechosen",
+      "tl": "Legendary Creature — Human Cleric"
+     }
+    ],
+    "n": "Alpharael, Stonechosen",
+    "oid": "ed43f1f9-ef96-47bc-8a54-e59154319f9d"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Void",
+     "Ward"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}{B}",
+    "name": "Alpharael, Stonechosen",
+    "oracle_id": "ed43f1f9-ef96-47bc-8a54-e59154319f9d",
+    "oracle_text": "Ward—Discard a card at random.\nVoid — Whenever Alpharael attacks, if a nonland permanent left the battlefield this turn or a spell was warped this turn, defending player loses half their life, rounded up.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Cleric"
+   }
+  },
   "Alrund, God of the Cosmos": {
    "ir": {
     "faces": [

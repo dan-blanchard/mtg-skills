@@ -1548,7 +1548,21 @@ COUNTER_DOUBLING_REGEX = (
 # hand-registers the serve pool reusing it AND the kept mirror reuses it — serve /
 # mirror / (now-deleted) detector never drift. SWEEP_LABELS still carries the human
 # label. CR 207.2c (Void ability word) / 702.185 (Warp).
-VOID_WARP_MATTERS_REGEX = "void —|warp \\{|warp cost|warp—|for its warp cost|using its warp ability|cast (?:a |this )?(?:spell|card)[^.]*for its warp|target exiled card with warp"
+#
+# _matters sweep (ADR-0034): split by emission ARM. VOID_WARP_MAKERS_REGEX = the three
+# MAKER branches — the card PERFORMS/GRANTS the Warp alt-cast: the Warp keyword bearer
+# ("Warp {1}{U}", Starfield Vocalist) and granter ("have warp {2}{R}", Tannuk) via
+# `warp \{`, the em-dash non-mana warp-cost keyword form via `warp—`, and the warp-from-
+# graveyard self-cast (Timeline Culler, "using its warp ability") via that branch.
+# VOID_WARP_MATTERS_REGEX keeps the five PAYOFF branches — the Void ability word that
+# CARES whether "a spell was warped this turn" (CR 207.2c — Alpharael, Susurian
+# Voidborn) and the warp REFERENCES ("for its warp cost" Full Bore, "cast … for its
+# warp", "target exiled card with warp" Blade of the Swarm, bare "warp cost"). Both run
+# as separate kept WORD MIRRORS (scope 'you', HIGH); their union over the reminder-
+# stripped oracle == the old single regex (each branch lives in exactly one arm), so
+# membership is gate-verified set-equal (49 = makers + matters). CR 207.2c / 702.185.
+VOID_WARP_MAKERS_REGEX = "warp \\{|warp—|using its warp ability"
+VOID_WARP_MATTERS_REGEX = "void —|warp cost|for its warp cost|cast (?:a |this )?(?:spell|card)[^.]*for its warp|target exiled card with warp"
 
 # ADR-0027 — lure_makers (force-a-block, CR 509.1c). Pinned as a shared constant so the
 # kept WORD MIRROR (_LURE_MATTERS_MIRROR, _signals_ir — recovers the Aftermath-DFC back
@@ -3208,6 +3222,10 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "variable_pt": (
         "Variable power/toughness",
         "fill the resource your */* scales with",
+    ),
+    "void_warp_makers": (
+        "Void / warp makers",
+        "warp bearer/granter cards (Edge of Eternities)",
     ),
     "void_warp_matters": ("Void / warp", "void and warp cards (Edge of Eternities)"),
     "win_lose_game": (
