@@ -27,7 +27,7 @@ where = ["src"]
 testpaths = ["../tests/proxy-printer"]
 
 [dependency-groups]
-dev = ["pytest>=9.0.2", "ruff>=0.9", "pypdf>=6.12.0"]
+dev = ["pytest>=9.0.2", "ruff>=0.9", "pypdf>=6.13.3"]
 
 [tool.ruff.lint]
 select = ["ALL"]
