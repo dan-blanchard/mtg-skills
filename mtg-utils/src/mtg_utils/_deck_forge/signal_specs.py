@@ -3906,6 +3906,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"blood token"},
         r"blood token",
     ),
+    # _matters sweep (ADR-0034): Day/Night split. The transition-MAKER arm
+    # (daynight_makers — "it becomes day/night" flippers: The Celestus, Vadrik,
+    # Brimstone Vandal, Tovolar's upkeep flip) and the daybound/nightbound werewolf
+    # PAYOFF arm (daynight_matters — creatures rewarded by the flip) both serve the
+    # same Day/Night avenue. The union == the old daynight_matters; only the role
+    # label differs.
+    ("daynight_makers", "you"): _spec(
+        "Day / Night enablers",
+        "cards that flip day/night — the transition makers",
+        {"oracle": r"\bdaybound\b|\bnightbound\b|\bday\b|\bnight\b"},
+        r"daybound|nightbound|becomes night|becomes day",
+    ),
     ("daynight_matters", "you"): _spec(
         "Day / Night",
         "daybound/nightbound creatures and day-night transition payoffs",

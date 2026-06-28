@@ -137,6 +137,7 @@ _REAL_CASES: dict[str, str] = {
     "damage_to_you_punish": "Flameblade Angel",
     "has_dash": "Zurgo Bellstriker",
     "daynight_matters": "Tovolar, Dire Overlord",
+    "daynight_makers": "Tovolar, Dire Overlord",
     "death_matters": "Blood Artist",
     "debuff_makers": "Dead Weight",
     "destroy_legendary": "Hero's Demise",

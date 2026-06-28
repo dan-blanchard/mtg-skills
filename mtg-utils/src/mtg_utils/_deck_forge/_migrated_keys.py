@@ -4799,13 +4799,20 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #
         # VOLTRON. The deleted floor producer fired HIGH-confidence (scope 'you') and
         # fed has_other_plan (a daynight build-around — Tovolar — is no vanilla beater,
-        # not in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS). Because the two IR arms are
-        # BYTE-IDENTICAL (IR == regex == 47, no broadening), daynight_matters is added
-        # to _VOLTRON_SILENCING_PLAN_KEYS so the hybrid re-silences the spurious
-        # commander-damage membership tell from the IR re-supply, restoring
-        # pre-migration behavior (matching the kicked_spell / second_spell precedent).
-        # FILE-SWAP voltron delta 0. CR 726 (Day/Night) / 903.10a (voltron).
+        # not in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS). Voltron now self-derives in
+        # extract_signals_ir (the old _VOLTRON_SILENCING_PLAN_KEYS cross-check is
+        # retired — signals.py); both arms emit HIGH scope 'you' and neither key is in
+        # any voltron-exclusion set, so both auto-feed has_other_plan with delta 0.
+        # CR 726 (Day/Night) / 903.10a (voltron).
+        #
+        # ADR-0034 _matters sweep: the lane SPLITS at the emission arm. The
+        # daybound/nightbound KEYWORD arm (werewolves rewarded by the flip) KEEPS
+        # `daynight_matters` (payoff); the `day_night` EFFECT arm (the card itself
+        # becomes day/night) emits `daynight_makers` (maker). Gate-verified set-equal:
+        # members(daynight_makers) union members(daynight_matters) == 47 == old key,
+        # intersection == {Tovolar}.
         "daynight_matters",
+        "daynight_makers",
         # ADR-0027 — station_matters (the Edge of Eternities Station keyword action,
         # CR 702.184: a Spacecraft/Planet permanent accrues charge counters by tapping a
         # creature, then unlocks LEVEL abilities at 2+/8+/12+; the lane fires for the

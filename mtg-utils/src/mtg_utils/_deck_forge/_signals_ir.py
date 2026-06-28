@@ -238,21 +238,23 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # the deleted regex never produced (plural "stations" dodges the regex word
     # boundary), a +1 broadening the no-flood gate forbids. The mirror is the lane's
     # sole producer (commander-legal: both==44, ir_only==0, regex_only==0). CR 702.184.
-    # ADR-0027 — daynight_matters migrated to the Card IR. The Day/Night designation
-    # (CR 726, Innistrad: Midnight Hunt) splits into TWO arms: the daybound/nightbound
-    # KEYWORD (the 35 transforming creatures) rides _IR_KEYWORD_MAP['daybound'/
-    # 'nightbound'] below; this `day_night` effect category is the TEXTUAL transition
-    # PAYOFF arm ("it becomes day/night", "as long as it's day/night" — Brimstone
-    # Vandal, The Celestus, Vadrik, Tovolar's upkeep flip; the 12 keyword-LESS payoffs
-    # + Tovolar's both-arm card). phase v0.1.19 structures the transition as a clean
+    # ADR-0027 / ADR-0034 — the Day/Night lane (CR 726, Innistrad: Midnight Hunt)
+    # splits at the emission arm: the daybound/nightbound KEYWORD arm (the
+    # transforming werewolf creatures REWARDED by the day↔night flip) rides
+    # _IR_KEYWORD_MAP['daybound'/'nightbound'] below and KEEPS `daynight_matters`
+    # (the payoff side). This `day_night` EFFECT category is the MAKER arm — the
+    # card itself PERFORMS the transition ("it becomes day/night", "as long as it's
+    # day/night" — Brimstone Vandal, The Celestus, Vadrik, Tovolar's upkeep flip; the
+    # 12 keyword-LESS makers + Tovolar's both-arm card) — so it emits `daynight_makers`
+    # (ADR-0034 _matters sweep). phase v0.1.19 structures the transition as a clean
     # `day_night` effect, so NO mirror is needed: the two structural arms reproduce the
-    # deleted _HAND_FLOOR regex BYTE-IDENTICALLY (commander-legal: both==47,
-    # ir_only==0, regex_only==0; the day_night-effect arm fires the 12 keyword-less
-    # payoffs + Tovolar, the keyword arm the other 34). scope "you" matches the floor
-    # producer's forced scope (0 scope mismatch over all 47). Moved floor->kept
+    # deleted _HAND_FLOOR regex BYTE-IDENTICALLY (commander-legal: union==47,
+    # ir_only==0, regex_only==0; the day_night-effect MAKER arm fires the 12 keyword-
+    # less makers + Tovolar, the keyword arm the other 34). scope "you" matches the
+    # floor producer's forced scope (0 scope mismatch over all 47). Moved floor->kept
     # (floor-mirror-dep -> 0);
     # the _HAND_FLOOR producer is deleted. CR 726.
-    "day_night": ("daynight_matters", "you"),
+    "day_night": ("daynight_makers", "you"),
     "venture": ("venture_matters", "you"),
     "connive": ("connive_makers", "you"),
     "damage_prevention": ("damage_prevention", "you"),
@@ -717,20 +719,20 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # read card['keywords'], and the prowess trigger lives in stripped reminder so a
     # vanilla-keyword body fires NO structural cast Effect). scope "you". CR 702.108a.
     "prowess": (("spellcast_matters", "you"),),
-    # ADR-0027 daynight_matters migration: daybound / nightbound (CR 726, Innistrad:
+    # ADR-0027 / ADR-0034 daynight migration: daybound / nightbound (CR 726, Innistrad:
     # Midnight Hunt) as the printed Scryfall KEYWORD — the 35 day/night transforming
-    # creatures (Tovolar, the werewolf cycles, Arlinn). The keyword is the KEYWORD-only
-    # arm of the two-arm migration: a plain daybound creature carries NO `day_night`
-    # EFFECT (it doesn't itself flip the cycle — Reckless Stormseeker, the 34
-    # werewolves that fire keyword-only), so the keyword array is the structured
-    # anchor for them, byte-identical to the deleted _HAND_FLOOR
-    # `\bdaybound\b|\bnightbound\b` branch (all 35 keyword cards carry the word in
-    # their kept_oracle, 0 keyword-less keyword card). The TEXTUAL transition payoff
-    # ("it becomes day/night", "as long as it's day/night") rides the `day_night`
-    # effect-category doer (_DOER_EFFECT_KEYS) — the 12 keyword-LESS payoffs +
-    # Tovolar's both-arm upkeep flip. scope "you" matches the floor producer's forced
-    # scope. Combined the two arms == 47 == the deleted regex (ir_only==0,
-    # regex_only==0 — no mirror needed). CR 726.
+    # creatures (Tovolar, the werewolf cycles, Arlinn). This is the PAYOFF arm of the
+    # split — werewolves that are REWARDED by the day↔night flip — so it KEEPS
+    # `daynight_matters`. A plain daybound creature carries NO `day_night` EFFECT (it
+    # doesn't itself flip the cycle — Reckless Stormseeker, the 34 werewolves that fire
+    # keyword-only), so the keyword array is the structured anchor for them, byte-
+    # identical to the deleted _HAND_FLOOR `\bdaybound\b|\bnightbound\b` branch (all 35
+    # keyword cards carry the word in their kept_oracle, 0 keyword-less keyword card).
+    # The TEXTUAL transition MAKER ("it becomes day/night", "as long as it's day/night")
+    # rides the `day_night` effect-category arm (_DOER_EFFECT_KEYS, → daynight_makers) —
+    # the 12 keyword-LESS makers + Tovolar's both-arm upkeep flip. scope "you" matches
+    # the floor producer's forced scope. Combined the two arms == 47 == the deleted
+    # regex (ir_only==0, regex_only==0 — no mirror needed). CR 726.
     "daybound": (("daynight_matters", "you"),),
     "nightbound": (("daynight_matters", "you"),),
     # Phasing (CR 702.26) as the printed KEYWORD — Teferi's Imp, Ertai's Familiar,
@@ -2839,12 +2841,13 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # the lane rides the EXACT deleted _HAND_FLOOR pattern over the reminder-
         # stripped kept_oracle. Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR
         # row deleted. CR 205.3k / 702.47.
-        # daynight_matters removed — ADR-0027 migrated it to the Card IR (TWO structural
-        # arms: the daybound/nightbound Scryfall KEYWORD via _IR_KEYWORD_MAP for the 35
-        # transforming creatures, plus the `day_night` EFFECT-category doer via
+        # Day/Night regex floor removed — ADR-0027 migrated it to the Card IR and
+        # ADR-0034 SPLIT it at the emission arm: the daybound/nightbound Scryfall
+        # KEYWORD via _IR_KEYWORD_MAP for the 35 transforming werewolves is the PAYOFF
+        # arm (keeps daynight_matters), and the `day_night` EFFECT category via
         # _DOER_EFFECT_KEYS for the 12 keyword-less "becomes day/night" / "as long as
-        # it's day/night" transition payoffs + Tovolar's both-arm flip; CR 726
-        # Day/Night).
+        # it's day/night" transition MAKERS + Tovolar's both-arm flip is the MAKER arm
+        # (emits daynight_makers; CR 726 Day/Night).
         # phase v0.1.19 structures the transition cleanly, so NO mirror is needed — the
         # two arms reproduce the deleted _HAND_FLOOR regex byte-identically (commander-
         # legal: both==47, ir_only==0, regex_only==0). Moved floor->kept (floor-mirror-
