@@ -1879,6 +1879,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"[^.]*\blifelink\b|(?:gain|gains|have|has) lifelink",
         serve_keywords=("lifelink",),
     ),
+    # _matters sweep (ADR-0034): the MAKER side of the lifegain split — cards that
+    # PERFORM the lifegain (the lifelink keyword / a structured `gain_life` Effect / a
+    # grant-lifelink Effect). The avenue still offers the whole lifegain package (the
+    # makers and the whenever-you-gain-life payoffs together), so this spec copies the
+    # kept lifegain_matters serve content; only the role label differs. serve_keywords
+    # =("lifelink",) is a maker keyword (a lifelink bearer is a lifegain source).
+    ("lifegain_makers", "you"): _spec(
+        "Lifegain (makers)",
+        "lifegain sources — incidental and repeatable lifegain doers",
+        {"oracle": r"gain .* life"},
+        r"gain \d+ life|gain x life|gains? [^.]*\blife\b"
+        r"|whenever[^.]*gain[^.]*life"
+        r"|(?:creatures? you control|enchanted creature|equipped creature|they)"
+        r"[^.]*\blifelink\b|(?:gain|gains|have|has) lifelink",
+        serve_keywords=("lifelink",),
+    ),
     ("plus_one_matters", "any"): _spec(
         "+1/+1 counters",
         "counter generators, doublers, and proliferate",

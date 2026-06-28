@@ -968,8 +968,9 @@ def test_variable_lifegain_opens_lifegain():
     # detector (keyed on 'gain N life') missed.
     # Real Atalya + Ayli (snapshot): variable "gain X life" / "gain life equal to" rides
     # the structural gain_life Effect, read by the gain_life signals arm.
-    assert ("lifegain_matters", "you") in _real("Atalya, Samite Master")
-    assert ("lifegain_matters", "you") in _real("Ayli, Eternal Pilgrim")
+    # _matters sweep (ADR-0034): gaining life is the MAKER arm → lifegain_makers.
+    assert ("lifegain_makers", "you") in _real("Atalya, Samite Master")
+    assert ("lifegain_makers", "you") in _real("Ayli, Eternal Pilgrim")
 
 
 def test_if_you_would_gain_life_opens_lifegain():
@@ -1198,7 +1199,9 @@ def test_lifelink_commander_opens_lifegain():
     # from the hybrid via the IR's Lifelink keyword (the IR Face carries keywords[]).
     # Real Elenda, Saint of Dusk (snapshot): the Lifelink keyword opens lifegain via the
     # IR-only keyword map (the IR Face carries keywords[]).
-    assert ("lifegain_matters", "you") in _real("Elenda, Saint of Dusk")
+    # _matters sweep (ADR-0034): a lifelink bearer is a lifegain SOURCE → the keyword
+    # map emits the MAKER arm lifegain_makers.
+    assert ("lifegain_makers", "you") in _real("Elenda, Saint of Dusk")
 
 
 def test_counter_keyword_commander_opens_counters():

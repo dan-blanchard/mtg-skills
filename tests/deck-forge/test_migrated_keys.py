@@ -256,6 +256,13 @@ _REAL_CASES: dict[str, str] = {
     "lessons_matter": "Sokka, Bold Boomeranger",
     "life_payment_insurance": "Underworld Connections",
     "life_total_set": "Beacon of Immortality",
+    # _matters sweep (ADR-0034): Kitchen Finks fires only the MAKER arm ("When this
+    # creature enters, you gain 2 life" → a `gain_life` Effect scope you), so it proves
+    # lifegain_makers cleanly (no payoff arm). Archangel of Thune keeps the PAYOFF arm
+    # ("Whenever you gain life …" → Trigger event='life_gained'), proving the kept
+    # lifegain_matters; its lifelink keyword also fires lifegain_makers, but the payoff
+    # trigger is what satisfies lifegain_matters here.
+    "lifegain_makers": "Kitchen Finks",
     "lifegain_matters": "Archangel of Thune",
     # _matters sweep (ADR-0034): Gray Merchant fires the MAKER arm ("each opponent
     # loses X life" = a lose_life drain), so it proves lifeloss_makers. Vilis fires

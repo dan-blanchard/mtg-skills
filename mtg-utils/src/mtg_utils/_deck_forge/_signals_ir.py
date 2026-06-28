@@ -940,14 +940,19 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # afflict already fire lifeloss STRUCTURALLY and need no keyword entry).
     "spectacle": (("lifeloss_matters", "opponents"),),
     # Lifelink (CR 702.15) — a creature with lifelink gains life in combat, so it is a
-    # lifegain SOURCE that wants lifegain payoffs (Archangel of Thune, Heliod). MOVED
-    # here from _DIRECT_KEYWORD_SIGNALS for the ADR-0027 β lifegain_matters migration so
-    # the keyword route stays on the IR path (extract_signals must no longer emit the
-    # migrated key). The structural gain_life Effect / life_gained trigger covers
-    # explicit "gain N life" / "whenever you gain life" cards; this keyword opens the
-    # lane for a vanilla-lifelink creature whose only gain is the combat keyword (no
-    # gain_life Effect node). CR 702.15.
-    "lifelink": (("lifegain_matters", "you"),),
+    # lifegain SOURCE (a MAKER). MOVED here from _DIRECT_KEYWORD_SIGNALS for the
+    # ADR-0027 β lifegain migration so the keyword route stays on the IR path
+    # (extract_signals must no longer emit the migrated key). The structural gain_life
+    # Effect / life_gained trigger covers explicit "gain N life" / "whenever you gain
+    # life" cards; this keyword opens the lane for a vanilla-lifelink creature whose
+    # only gain is the combat keyword (no gain_life Effect node). CR 702.15.
+    # _matters sweep (ADR-0034): a lifelink bearer PERFORMS the lifegain (gains life in
+    # combat), so the keyword route emits lifegain_makers (the MAKER arm), not the
+    # lifegain_matters PAYOFF. Both keys stay HIGH 'you' and out of every voltron
+    # exclusion set, so the lifelink maker still feeds has_other_plan exactly as the old
+    # combined key did — vanilla-lifelink beaters (Divinity of Pride, Blood Baron) stay
+    # silenced, no spurious commander-damage tell.
+    "lifelink": (("lifegain_makers", "you"),),
     "soulbond": (("has_soulbond", "you"),),
     "specialize": (("specialize_matters", "you"),),
     # _matters sweep (ADR-0034): the `suspend` keyword bearer is a MAKER (the card
@@ -3225,6 +3230,17 @@ IR_SLICE_KEYS: frozenset[str] = (
         {
             "creatures_matter",
             "lifegain_matters",
+            # _matters sweep (ADR-0034): lifegain split. The MAKER arms emit
+            # lifegain_makers — the lifelink keyword map (a lifelink bearer gains life
+            # in combat), a structured `gain_life` Effect (scope you/any — "you gain N
+            # life"), and a grant-lifelink Effect (granting a lifegain source). The
+            # lifelink keyword carries lifegain_makers into the slice via
+            # _IR_KEYWORD_KEYS, but the two inline add()s in the doer loop are in no
+            # auto-derived map, so the new maker key is pinned here. The PAYOFF arms
+            # keep lifegain_matters (the life_gained trigger, the self-loss-sustain
+            # arms, and the byte-identical kept _LIFEGAIN_MATTERS_MIRROR). makers UNION
+            # matters == the old lifegain_matters set (gate-verified set-equal).
+            "lifegain_makers",
             # _matters sweep (ADR-0034): lifeloss split. The MAKER arms emit
             # lifeloss_makers (a structured lose_life Effect drain/self-loss, a
             # life_payment marker, and a paylife activation cost buying a non-ramp
@@ -7799,8 +7815,11 @@ def extract_signals_ir(
             # card" — Regrowth) fires nothing; Aura-subtype → loose enchantments member.
             for rec_lane in _type_recursion_lanes(e):
                 add(rec_lane, "you", "", e.raw)
+            # _matters sweep (ADR-0034): the card literally gains life ("You gain N
+            # life" — Kitchen Finks, Blood Artist, Gray Merchant). A pure lifegain
+            # SOURCE, so this is the MAKER arm → lifegain_makers.
             if e.category == "gain_life" and e.scope in ("you", "any"):
-                add("lifegain_matters", "you", "", e.raw)
+                add("lifegain_makers", "you", "", e.raw)
             # ADR-0027 C10 — A2 GRANT-LIFELINK source. CR 702.15b: damage from a
             # source with lifelink makes its controller gain that much life, so a card
             # that GRANTS lifelink is a lifegain SOURCE in the same category as the
@@ -7815,12 +7834,15 @@ def extract_signals_ir(
             # the static "have lifelink" granters the bare regex MISSED; the "gain
             # lifelink" idiom the deleted regex caught incidentally (gain[^.]*life
             # matched "gain lifelink") is deduped by add(). CR 702.15b / 119.
+            # _matters sweep (ADR-0034): a card that GRANTS lifelink is a lifegain
+            # SOURCE (Talus Paladin "Allies gain lifelink", Basilisk Collar), so it is
+            # the MAKER arm → lifegain_makers (parallel to the own-keyword arm above).
             if (
                 e.category == "grant_keyword"
                 and (e.counter_kind or "").lower() == "lifelink"
                 and not (isinstance(esub, Filter) and esub.controller == "opp")
             ):
-                add("lifegain_matters", "you", "", e.raw)
+                add("lifegain_makers", "you", "", e.raw)
             # ADR-0027 C10 — ARM-B SELF-LOSS SUSTAIN. CR 119.3 makes lose_life a
             # first-class life-resource event symmetric with gain_life; a SIGNIFICANT,
             # repeated/scaling self-life-LOSS engine WANTS lifegain to stay alive

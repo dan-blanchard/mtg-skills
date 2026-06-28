@@ -128,10 +128,11 @@ def test_tribal_filter_is_not_creatures_matter():
 
 
 def test_lifegain_from_gain_life_effect():
+    # _matters sweep (ADR-0034): gaining life is the MAKER arm → lifegain_makers.
     ir = _ir(
         Ability(kind="spell", effects=(Effect(category="gain_life", scope="you"),))
     )
-    assert _sigs(ir) == [("lifegain_matters", "you", "")]
+    assert _sigs(ir) == [("lifegain_makers", "you", "")]
 
 
 def test_lifegain_from_life_gained_trigger():
@@ -154,12 +155,16 @@ def test_opponent_gain_life_is_not_lifegain_payoff():
 def test_lifegain_from_grant_lifelink_source():
     # Talus Paladin "Allies you control gain lifelink": granting lifelink makes them a
     # lifegain SOURCE (CR 702.15b), same lane as the card's own lifelink keyword.
-    assert ("lifegain_matters", "you", "") in _striples(test_signals("Talus Paladin"))
+    # _matters sweep (ADR-0034): granting a lifegain source is the MAKER arm →
+    # lifegain_makers (parallel to the own-lifelink keyword map).
+    assert ("lifegain_makers", "you", "") in _striples(test_signals("Talus Paladin"))
 
 
 def test_grant_lifelink_to_opponent_creatures_not_lifegain():
     # Over-fire guard: a hypothetical "creatures an opponent controls gain lifelink"
     # is not YOUR lifegain source — the grant subject is opp-controlled.
+    # _matters sweep (ADR-0034): the grant-lifelink MAKER arm emits lifegain_makers; the
+    # opp-controlled subject must keep it OUT.
     ir = _ir(
         Ability(
             kind="static",
@@ -174,7 +179,7 @@ def test_grant_lifelink_to_opponent_creatures_not_lifegain():
             ),
         )
     )
-    assert "lifegain_matters" not in {k for (k, _s, _u) in _sigs(ir)}
+    assert "lifegain_makers" not in {k for (k, _s, _u) in _sigs(ir)}
 
 
 def test_lifegain_from_scaling_self_loss():

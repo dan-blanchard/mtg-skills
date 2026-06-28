@@ -196,14 +196,15 @@ def test_attack_matters_widened_for_isshin():
 
 
 def test_lifegain_widened_for_activated_gain():
-    # ADR-0027 β: lifegain_matters is IR-served; an activated "{T}: You gain 3 life"
-    # fires it from the IR structural arm (the gain_life Effect, scope you/any). A
+    # ADR-0027 β: lifegain is IR-served; an activated "{T}: You gain 3 life" fires it
+    # from the IR structural arm (the gain_life Effect, scope you/any). _matters sweep
+    # (ADR-0034): gaining life is the MAKER side, so it fires lifegain_makers. A
     # synthetic project_card input pins the activated-gain shape generically.
     from mtg_utils._card_ir.project import project_card
 
     c = {"name": "Healer", "oracle_text": "{T}: You gain 3 life."}
     ir = project_card([{**c, "card_type": {"core_types": ["Artifact"]}}])
-    assert any(s.key == "lifegain_matters" for s in extract_signals_hybrid(c, ir))
+    assert any(s.key == "lifegain_makers" for s in extract_signals_hybrid(c, ir))
 
 
 def test_lifeloss_widened_for_pay_life_engine():

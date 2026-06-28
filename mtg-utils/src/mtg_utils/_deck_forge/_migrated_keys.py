@@ -3911,6 +3911,20 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # legal lifelink creatures power>=2 — Divinity of Pride, Blood Baron — would
         # otherwise flip to a spurious voltron tell). FILE-SWAP voltron delta == 0.
         # CR 119 / 118 / 702.15 / 903.10a.
+        #
+        # _matters sweep (ADR-0034): split by emission arm. lifegain_makers ← the MAKER
+        # arms (the lifelink keyword map, the `gain_life` Effect, the grant-lifelink
+        # Effect — the card PERFORMS the lifegain). lifegain_matters keeps the PAYOFF
+        # arms (the `life_gained` trigger, the self-loss-sustain lose_life arms, and
+        # the byte-identical kept _LIFEGAIN_MATTERS_MIRROR — whenever-you-gain-life /
+        # gained-this-turn gate / would-gain amplifier / sustain residue). Gate-verified
+        # set-equal: makers UNION matters == the old lifegain_matters set. BOTH stay
+        # HIGH 'you'
+        # and out of every voltron exclusion set, so each feeds the IR-derived
+        # has_other_plan exactly as the old combined key did — the lifelink maker still
+        # silences vanilla-lifelink beaters (Divinity of Pride, Blood Baron), voltron
+        # delta 0.
+        "lifegain_makers",
         "lifegain_matters",
         # ADR-0027 proliferate_matters — the counter-SYNERGY hub (cards that want
         # MORE counters of an existing kind): proliferate itself (CR 701.27 — "add

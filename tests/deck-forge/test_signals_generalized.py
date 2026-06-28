@@ -4492,7 +4492,8 @@ def test_lifegain_matches_variable_that_much_life():
             ),
         )
     )
-    assert "lifegain_matters" in {
+    # _matters sweep (ADR-0034): gaining life is the MAKER arm → lifegain_makers.
+    assert "lifegain_makers" in {
         s.key for s in extract_signals_hybrid(varina, varina_ir)
     }
     # Over-fire guard: the gainer is the OPPONENT. phase tags "target opponent gains
@@ -4517,9 +4518,7 @@ def test_lifegain_matches_variable_that_much_life():
             ),
         )
     )
-    assert "lifegain_matters" not in {
-        s.key for s in extract_signals_hybrid(opp, opp_ir)
-    }
+    assert "lifegain_makers" not in {s.key for s in extract_signals_hybrid(opp, opp_ir)}
 
 
 def test_debuff_serves_opponent_mass_shrink():
