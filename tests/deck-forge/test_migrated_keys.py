@@ -79,7 +79,7 @@ _REAL_CASES: dict[str, str] = {
     "big_mana": "Gilded Lotus",
     "blink_flicker": "Flickerwisp",
     "blocked_matters": "Kitsune Blademaster",
-    "blood_matters": "Bloodtithe Harvester",
+    "blood_makers": "Bloodtithe Harvester",
     "boast_makers": "Arni Brokenbrow",
     "boast_matters": "Birgi, God of Storytelling",
     "bounce_tempo": "Boomerang",
@@ -471,6 +471,45 @@ _SYNTHETIC_CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # blood_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm (a
+    # Blood-subtype make_token subject — Bloodtithe Harvester, Blood Fountain)
+    # was relabeled to blood_makers (Bloodtithe Harvester, a real case). The
+    # payoff arm — a card that SACRIFICES or REFERENCES a Blood token (Wedding
+    # Security "sacrifice a Blood token", Blood Hypnotist's sacrificed trigger) —
+    # keeps blood_matters but has no snapshot-resident real card: the snapshot's
+    # only Blood card (Bloodtithe Harvester) fires the make_token maker arm.
+    # Minimal sacrifice-effect fixture proving the Blood PAYOFF still serves the
+    # lane via the IR structural arm. (Mirrors the voting_matters split.) CR
+    # 111.10g.
+    "blood_matters": (
+        {
+            "name": "Wedding Security-like",
+            "type_line": "Creature — Human Soldier",
+            "oracle_text": (
+                "Whenever this creature attacks, you may sacrifice a Blood "
+                "token. If you do, put a +1/+1 counter on this creature and "
+                "draw a card."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="attacks", scope="you"),
+                effects=(
+                    Effect(
+                        category="sacrifice",
+                        scope="any",
+                        subject=Filter(
+                            subtypes=("Blood",),
+                            controller="you",
+                            predicates=("Token",),
+                        ),
+                        raw="you may sacrifice a Blood token",
+                    ),
+                ),
+            )
+        ),
+    ),
     "damage_reflect": (
         {
             "name": "Spiteful Sliver",
@@ -821,11 +860,12 @@ def test_blood_matters_fires_from_a_sacrificed_trigger_subject():
     assert "blood_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
 
 
-def test_blood_matters_fires_from_a_recovered_choice_list_maker():
+def test_blood_makers_fires_from_a_recovered_choice_list_maker():
     """Token-subtype maker recovery (choice list): Transmutation Font "create your
     choice of a Blood token, a Clue token, or a Food token" — phase drops the choice
     subtypes onto a `choose` effect; project._narrow_token_subtype_makers recovers
-    them as make_token markers, so all three lanes fire via the IR."""
+    them as make_token markers, so all three lanes fire via the IR. ADR-0034: the
+    Blood MAKER arm emits blood_makers; clue/food are unsplit (clue/food_matters)."""
     card = {
         "name": "Transmutation Font",
         "type_line": "Artifact",
@@ -864,7 +904,7 @@ def test_blood_matters_fires_from_a_recovered_choice_list_maker():
         )
     )
     keys = {s.key for s in extract_signals_hybrid(card, ir)}
-    assert "blood_matters" in keys
+    assert "blood_makers" in keys
     # the generalized recovery also opens clue/food (all three are now ADR-0027-migrated,
     # IR-served via _TOKEN_SUBTYPE_KEYS — the structural maker recovery is general, which
     # proves the widening generalized across every artifact/blood token subtype)
@@ -872,11 +912,11 @@ def test_blood_matters_fires_from_a_recovered_choice_list_maker():
     assert "food_matters" in keys
 
 
-def test_blood_matters_fires_from_a_recovered_granted_ability_maker():
+def test_blood_makers_fires_from_a_recovered_granted_ability_maker():
     """Token-subtype maker recovery (granted ability): Ceremonial Knife grants the
     equipped creature a quoted "create a Blood token" ability — phase folds it into a
     `pump` carrier raw; the projection recovers the Blood make_token marker, so
-    blood_matters fires via the IR."""
+    blood_makers fires via the IR (ADR-0034 — the make_token MAKER arm)."""
     card = {
         "name": "Ceremonial Knife",
         "type_line": "Artifact — Equipment",
@@ -909,7 +949,7 @@ def test_blood_matters_fires_from_a_recovered_granted_ability_maker():
             ),
         )
     )
-    assert "blood_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "blood_makers" in {s.key for s in extract_signals_hybrid(card, ir)}
 
 
 # ── spellcast_matters (ADR-0027 signals-only) — scope discrimination + recovery ──

@@ -195,6 +195,12 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # recall: +18/+10/+8 structural firings, all real makers/sac-payoffs), which
         # keep their floor for now. See ADR-0027.
         "blood_matters",
+        # _matters sweep (ADR-0034): blood_makers — the make_token MAKER arm split
+        # out of blood_matters (a Blood-subtype make_token subject or the maker-only
+        # creation-verb fallback). The sacrifice/ref/sacrificed-trigger PAYOFFS keep
+        # blood_matters above. Gate set-equal: members(blood_makers) UNION
+        # members(blood_matters) == the old blood_matters firing set (41).
+        "blood_makers",
         # Group "tail-supplement" (ADR-0027 projection deepening) — the 1-2-card
         # synthesis tail: keys whose last residual is a named-mechanic reference phase
         # DROPS (a static grant, a payoff condition, a replacement clause, a delayed

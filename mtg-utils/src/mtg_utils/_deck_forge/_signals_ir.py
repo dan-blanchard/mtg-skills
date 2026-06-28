@@ -3079,6 +3079,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             "clue_matters",
             "food_matters",
             "blood_matters",
+            # _matters sweep (ADR-0034): the make_token MAKER arm of the blood lane
+            # (Blood-token creators — Bloodtithe Harvester); the sacrifice/ref/
+            # sacrificed-trigger PAYOFFS keep blood_matters above.
+            "blood_makers",
             "creature_recursion",
             # Batch T (trigger-event lanes):
             "tap_untap_matters",
@@ -9303,9 +9307,20 @@ def extract_signals_ir(
             # sacrifice payoffs"). One general scan over both maker + sacrifice
             # subjects (the trigger-side "whenever you sacrifice a <Subtype> token"
             # payoff is read in the trigger loop below).
+            # _matters sweep (ADR-0034): the `blood` lane is split by ROLE — the
+            # make_token MAKER arm emits blood_makers, the sacrifice PAYOFF arm keeps
+            # blood_matters. treasure/clue/food are NOT split, so they route through
+            # _TOKEN_SUBTYPE_KEYS byte-identically off both arms.
             if cat in ("make_token", "sacrifice"):
                 for st in _fsubs_lower(e.subject):
-                    if st in _TOKEN_SUBTYPE_KEYS:
+                    if st == "blood":
+                        add(
+                            "blood_makers" if cat == "make_token" else "blood_matters",
+                            "you",
+                            "",
+                            e.raw,
+                        )
+                    elif st in _TOKEN_SUBTYPE_KEYS:
                         tk, ts = _TOKEN_SUBTYPE_KEYS[st]
                         add(tk, ts, "", e.raw)
             # ADR-0027 C5 — token_copy_makers STRUCTURAL ARM. project stamps a "Copy"
@@ -11726,7 +11741,13 @@ def extract_signals_ir(
     # subtype, gated to subtypes not already opened by a structural maker/sac/ref.
     for tm in _TOKEN_SUBTYPE_RAW.finditer(kept_oracle):
         st = tm.group(1).lower()
-        if st in _TOKEN_SUBTYPE_KEYS:
+        # _matters sweep (ADR-0034): this creation-verb fallback is MAKER-only by
+        # construction, so blood routes to blood_makers (the sacrifice/ref/
+        # sacrificed-trigger blood PAYOFFS keep blood_matters elsewhere).
+        if st == "blood":
+            if not any(s.key == "blood_makers" for s in out):
+                add("blood_makers", "you", "", "")
+        elif st in _TOKEN_SUBTYPE_KEYS:
             tk, ts = _TOKEN_SUBTYPE_KEYS[st]
             if not any(s.key == tk for s in out):
                 add(tk, ts, "", "")

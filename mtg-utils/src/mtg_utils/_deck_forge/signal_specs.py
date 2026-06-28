@@ -3889,9 +3889,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bclue\b|investigate"},
         r"\bclue\b|investigate",
     ),
-    ("blood_matters", "you"): _spec(
+    # _matters sweep (ADR-0034): blood split. The make_token MAKER arm
+    # (blood_makers, cards that create Blood tokens) and the sacrifice/ref/
+    # sacrificed-trigger PAYOFF arm (blood_matters) both serve the same
+    # Blood-rummage-and-sacrifice avenue. The union == the old blood_matters;
+    # only the role label differs.
+    ("blood_makers", "you"): _spec(
         "Blood tokens",
         "Blood makers plus rummage and sacrifice payoffs",
+        {"oracle": r"blood token"},
+        r"blood token",
+    ),
+    ("blood_matters", "you"): _spec(
+        "Blood token payoffs",
+        "cards that sacrifice or reference Blood tokens",
         {"oracle": r"blood token"},
         r"blood token",
     ),
