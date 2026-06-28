@@ -1848,6 +1848,63 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             "haunt",
         ),
     ),
+    # _matters sweep (ADR-0034): the MAKER side of the graveyard split. graveyard_makers
+    # fires when the card PERFORMS a graveyard mechanic (reanimate / self-mill / GY
+    # recursion / GY-cast grant / GY-hate exile / self-recast-from-GY keywords). The
+    # avenue it OPENS is the rest of the graveyard engine — more self-mill / recursion /
+    # cast-from-GY tools plus the high-ETB and self-recurring bodies worth binning. Same
+    # serve pool as the graveyard_matters 'you' payoff (a graveyard deck wants makers
+    # and payoffs together — ADR-0034 keeps the avenue composing both roles).
+    ("graveyard_makers", "you"): _spec(
+        "Graveyard engine",
+        "self-mill, recursion, and cast-from-graveyard tools that fill and reuse your "
+        "graveyard, plus the high-ETB and self-recurring creatures worth binning",
+        {"oracle": r"into your graveyard|surveil"},
+        r"into your graveyard|from your graveyard|in your graveyard"
+        r"|surveil\b|self-mill",
+        extras=(_ETB_VALUE_EXTRA, _SELF_RECUR_EXTRA, _SELF_SAC_CREATURE_EXTRA),
+        serve_keywords=(
+            "dredge",
+            "flashback",
+            "jump-start",
+            "retrace",
+            "aftermath",
+            "encore",
+            "escape",
+            "disturb",
+            "unearth",
+            "embalm",
+            "eternalize",
+            "scavenge",
+            "recover",
+            "soulshift",
+            "delve",
+            "gravestorm",
+            "haunt",
+        ),
+    ),
+    # _matters sweep (ADR-0034): the opponent-facing MAKER — graveyard HATE (exile from
+    # an opponent's graveyard) and opponent-mill performed by the card. Same serve pool
+    # as the graveyard_matters 'opponents' avenue (GY-hate makers ride the makers lane
+    # per the split; the payoff side keeps its own opponents serve).
+    ("graveyard_makers", "opponents"): _spec(
+        "Opponents' graveyards",
+        "mill opponents and punish their graveyards (NOT self-mill)",
+        {"oracle": r"each opponent mills|target opponent mills|opponent.*mills"},
+        r"(?:each opponent|target opponent|an opponent|that player|target player"
+        r"|each player) mills"
+        r"|opponent[^.]*\bmill|mill[^.]*opponent"
+        r"|exile (?:target player'?s?|each opponent'?s?|a) graveyard"
+        r"|(?:cards?|creature cards?)[^.]*in [^.]*opponents'? graveyards?"
+        r"|each opponent'?s graveyard"
+        r"|(?:creature|planeswalker|permanent|those|that)[^.]*"
+        r"\b(?:in|from) (?:a|each|target|that) (?:player|opponent)(?:'?s)? graveyard"
+        r"|(?:each player|target player|an opponent|each opponent|that player)"
+        r"[^.]*exiles?[^.]*\blibrar"
+        r"|reveals? cards? from the top of "
+        r"(?:their|that player'?s?|each opponent'?s?) library until"
+        r"[\s\S]{0,140}?\bput[\s\S]{0,70}?graveyard",
+    ),
     # The PAYOFF that pairs with the FUEL above: reanimation effects + cast-from-grave
     # creatures, because Celes-style commanders reward a creature re-entering play from
     # the graveyard, not merely a full graveyard. See _REANIMATE_ORACLE above.

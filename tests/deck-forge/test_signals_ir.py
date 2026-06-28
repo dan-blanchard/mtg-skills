@@ -246,26 +246,32 @@ def test_lifegain_from_draw_bleed_engine():
 
 
 def test_graveyard_from_reanimate_scoped_opp():
+    # _matters sweep (ADR-0034): a reanimate effect PERFORMS GY recursion → the MAKER
+    # arm fires graveyard_makers (no oracle text on the synthetic card, so the broad
+    # graveyard-mention mirror does not also fire graveyard_matters).
     ir = _ir(
         Ability(kind="triggered", effects=(Effect(category="reanimate", scope="opp"),))
     )
-    assert _sigs(ir) == [("graveyard_matters", "opponents", "")]
+    assert _sigs(ir) == [("graveyard_makers", "opponents", "")]
 
 
 def test_graveyard_from_self_mill():
     ir = _ir(Ability(kind="spell", effects=(Effect(category="mill", scope="you"),)))
-    # A mill effect feeds a graveyard (graveyard_matters). ADR-0027: mill_makers
-    # migrated to the Scryfall `Mill` keyword route (_IR_KEYWORD_MAP), NOT the `mill`
-    # effect category — phase mislabels 3 non-mill effects (Bone Dancer, Scroll Rack,
-    # Soldevi Digger) as `mill`, and every genuine mill carries the keyword. So the
-    # blanket effect-category doer was dropped; a bare `mill` effect on a keyword-LESS
-    # record now opens graveyard_matters only. CR 701.13.
-    assert _sigs(ir) == [("graveyard_matters", "you", "")]
+    # A mill effect DEPOSITS cards into a graveyard — a MAKER (_matters sweep ADR-0034:
+    # graveyard_makers). ADR-0027: mill_makers migrated to the Scryfall `Mill` keyword
+    # route (_IR_KEYWORD_MAP), NOT the `mill` effect category — phase mislabels 3
+    # non-mill effects (Bone Dancer, Scroll Rack, Soldevi Digger) as `mill`, and every
+    # genuine mill carries the keyword. So the blanket effect-category doer was dropped;
+    # a bare `mill` effect on a keyword-LESS record now opens graveyard_makers only.
+    # CR 701.13.
+    assert _sigs(ir) == [("graveyard_makers", "you", "")]
 
 
 def test_graveyard_from_castable_zone():
+    # _matters sweep (ADR-0034): self-recast-from-GY is self-recursion the card
+    # PERFORMS → graveyard_makers.
     ir = _ir(castable=("graveyard",))
-    assert _sigs(ir) == [("graveyard_matters", "you", "")]
+    assert _sigs(ir) == [("graveyard_makers", "you", "")]
 
 
 # ── graveyard_matters pass 2 (from:graveyard recursion / search, exile-in-GY
@@ -274,8 +280,9 @@ def test_graveyard_from_castable_zone():
 
 def test_graveyard_bounce_from_graveyard_scoped_you():
     """A bounce returning cards FROM your graveyard to hand (Metallurgic Summonings,
-    from:graveyard) fires graveyard_matters at you — _gy_scope reads "your graveyard"
-    in the raw, overriding phase's recursion-target 'any' scope."""
+    from:graveyard) fires graveyard_matters at you — the broad graveyard-mention mirror
+    fires on the "your graveyard" oracle (the structural recursion arm also fires the
+    graveyard_makers MAKER, _matters sweep ADR-0034)."""
     assert ("graveyard_matters", "you", "") in _striples(
         test_signals("Metallurgic Summonings")
     )
@@ -283,7 +290,9 @@ def test_graveyard_bounce_from_graveyard_scoped_you():
 
 def test_graveyard_tutor_from_graveyard_scoped_you():
     """A tutor whose search reaches YOUR graveyard (recovered from:graveyard, scope
-    you) fires graveyard_matters at you and cross-opens tutor."""
+    you) is GY recursion the card PERFORMS → graveyard_makers at you, and cross-opens
+    tutor (_matters sweep ADR-0034; the synthetic card has no oracle so the broad
+    graveyard-mention mirror does not also add graveyard_matters)."""
     ir = _ir(
         Ability(
             kind="triggered",
@@ -297,12 +306,13 @@ def test_graveyard_tutor_from_graveyard_scoped_you():
             ),
         )
     )
-    assert ("graveyard_matters", "you", "") in _sigs(ir)
+    assert ("graveyard_makers", "you", "") in _sigs(ir)
 
 
 def test_graveyard_tutor_from_opponent_graveyard_scoped_opponents():
     """A tutor that searches an OPPONENT's graveyard (recovered from:graveyard, scope
-    opp) fires graveyard_matters at opponents (GY hate)."""
+    opp) is GY hate the card PERFORMS → graveyard_makers at opponents (_matters sweep
+    ADR-0034)."""
     ir = _ir(
         Ability(
             kind="spell",
@@ -317,13 +327,14 @@ def test_graveyard_tutor_from_opponent_graveyard_scoped_opponents():
             ),
         )
     )
-    assert ("graveyard_matters", "opponents", "") in _sigs(ir)
+    assert ("graveyard_makers", "opponents", "") in _sigs(ir)
 
 
 def test_graveyard_exile_in_graveyard_hate_scoped_opponents():
     """An exile of a card targeted IN an opponent's graveyard (in:graveyard, not
-    from:graveyard — Disposal Mummy) fires graveyard_matters at opponents (GY hate);
-    the in:graveyard hate path now covers it (it was double-missed before pass 2)."""
+    from:graveyard — Disposal Mummy) is GY hate the card PERFORMS → graveyard_makers at
+    opponents (_matters sweep ADR-0034); the in:graveyard hate path now covers it (it
+    was double-missed before pass 2)."""
     ir = _ir(
         Ability(
             kind="triggered",
@@ -337,7 +348,7 @@ def test_graveyard_exile_in_graveyard_hate_scoped_opponents():
             ),
         )
     )
-    assert _sigs(ir) == [("graveyard_matters", "opponents", "")]
+    assert _sigs(ir) == [("graveyard_makers", "opponents", "")]
 
 
 def test_graveyard_count_marker_opp_scope_fires_opponents():
@@ -363,10 +374,11 @@ def test_graveyard_bare_a_graveyard_recursion_defaults_you():
     """ADR-0027 v29: a recursion target with NO "opponent" tell ("Return target creature
     card from a graveyard" — a bare graveyard, structurally scope 'any' because the
     recursion target carries no controller) defaults to the SELF-graveyard 'you' (the
-    graveyard_matters scope-discrimination contract forbids a ('graveyard_matters','any')
-    avenue — signal_specs registers only 'you' / 'opponents'). A flexible "a graveyard"
-    recursion is YOUR graveyard build-around; an explicit opponent's-GY tell still routes
-    to 'opponents'. CR 400.7 / 701.17a."""
+    scope-discrimination contract forbids an 'any' avenue — signal_specs registers only
+    'you' / 'opponents'). A flexible "a graveyard" recursion is YOUR graveyard build-
+    around; an explicit opponent's-GY tell still routes to 'opponents'. _matters sweep
+    (ADR-0034): the recursion the card PERFORMS fires the graveyard_makers MAKER arm.
+    CR 400.7 / 701.17a."""
     ir = _ir(
         Ability(
             kind="spell",
@@ -381,7 +393,7 @@ def test_graveyard_bare_a_graveyard_recursion_defaults_you():
             ),
         )
     )
-    assert _sigs(ir) == [("graveyard_matters", "you", "")]
+    assert _sigs(ir) == [("graveyard_makers", "you", "")]
 
 
 # ── token_maker (subject-bearing) ─────────────────────────────────────────────
@@ -962,7 +974,8 @@ def test_mill_keyword_fires_mill_matters():
 def test_mill_effect_without_keyword_does_not_fire_mill_matters():
     # The bare `mill` effect category no longer opens mill_makers (the over-broad doer
     # arm was dropped — it mislabeled Bone Dancer / Scroll Rack / Soldevi Digger). A
-    # keyword-LESS record carrying a `mill` effect opens graveyard_matters only.
+    # keyword-LESS record carrying a `mill` effect opens graveyard_makers only (_matters
+    # sweep ADR-0034: self-mill DEPOSITS into a graveyard, a MAKER).
     ir = _ir(Ability(kind="spell", effects=(Effect(category="mill", scope="you"),)))
     assert "mill_makers" not in {s.key for s in extract_signals_ir(CARD, ir)}
 

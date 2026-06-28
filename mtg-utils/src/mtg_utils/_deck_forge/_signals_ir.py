@@ -859,21 +859,26 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # (Ayesha Tanaka) wants other banding creatures to form attacking/blocking bands.
     "banding": (("has_banding", "you"),),
     # Graveyard-cast + graveyard-payoff keyword family — a card with any of these
-    # uses ITS OWN / your graveyard as a resource (cast-from-GY: flashback/escape/
-    # disturb/embalm/eternalize/encore/aftermath/retrace/jump-start/recover/unearth;
-    # GY-payoff: dredge/delve/scavenge), so it cares about graveyards (scope you).
-    # NOT graveyard HATE (exile from an opponent's GY) — that's a different lane.
-    "flashback": (("graveyard_matters", "you"),),
-    "escape": (("graveyard_matters", "you"),),
-    "disturb": (("graveyard_matters", "you"),),
-    "embalm": (("graveyard_matters", "you"),),
-    "eternalize": (("graveyard_matters", "you"),),
-    "encore": (("graveyard_matters", "you"),),
-    "aftermath": (("graveyard_matters", "you"),),
-    "retrace": (("graveyard_matters", "you"),),
-    "jump-start": (("graveyard_matters", "you"),),
-    "recover": (("graveyard_matters", "you"),),
-    "unearth": (("graveyard_matters", "you"),),
+    # uses ITS OWN / your graveyard as a resource. NOT graveyard HATE (exile from an
+    # opponent's GY) — that's a different lane.
+    # _matters sweep (ADR-0034): SPLIT by emission role. The cast-from-GY keywords
+    # (flashback/escape/disturb/embalm/eternalize/encore/aftermath/retrace/jump-start/
+    # recover/unearth) re-cast the card itself FROM the graveyard — self-recursion the
+    # card PERFORMS — so they are MAKERS (graveyard_makers, scope you), consistent with
+    # the castable_zones self-cast arm. The GY-payoff keywords (dredge/delve/scavenge)
+    # CONSUME a stocked graveyard as fuel — they are rewarded by graveyard contents —
+    # so they keep the PAYOFF lane (graveyard_matters, scope you).
+    "flashback": (("graveyard_makers", "you"),),
+    "escape": (("graveyard_makers", "you"),),
+    "disturb": (("graveyard_makers", "you"),),
+    "embalm": (("graveyard_makers", "you"),),
+    "eternalize": (("graveyard_makers", "you"),),
+    "encore": (("graveyard_makers", "you"),),
+    "aftermath": (("graveyard_makers", "you"),),
+    "retrace": (("graveyard_makers", "you"),),
+    "jump-start": (("graveyard_makers", "you"),),
+    "recover": (("graveyard_makers", "you"),),
+    "unearth": (("graveyard_makers", "you"),),
     "dredge": (("graveyard_matters", "you"),),
     "delve": (("graveyard_matters", "you"),),
     "mutate": (("has_mutate", "you"),),
@@ -3252,6 +3257,12 @@ IR_SLICE_KEYS: frozenset[str] = (
             # which carries lifeloss_matters into the slice via _IR_KEYWORD_KEYS).
             "lifeloss_makers",
             "graveyard_matters",
+            # _matters sweep (ADR-0034): the MAKER arm of the graveyard split — the
+            # card PERFORMS a graveyard mechanic (reanimate / self-mill / GY recursion /
+            # GY-cast / GY-hate / self-recast-from-GY). The PAYOFF arms (in:graveyard
+            # count / threshold gate / GY-watcher trigger / delve-escape fuel cost / the
+            # broad graveyard-mention mirror) keep graveyard_matters.
+            "graveyard_makers",
             signal_keys.TOKEN_MAKER,
             "death_matters",
             # Batch 1 (aristocrats/recursion):
@@ -6964,10 +6975,12 @@ def extract_signals_ir(
         seen.add(ident)
         out.append(Signal(key, scope, subject, raw, name, conf))
 
-    # A self-cast-from-graveyard card (flashback / escape / disturb …) cares about
-    # its own graveyard.
+    # A self-cast-from-graveyard card (flashback / escape / disturb …) re-casts
+    # ITSELF from the graveyard — self-recursion the card PERFORMS, so it is a MAKER
+    # (_matters sweep ADR-0034: graveyard_makers, consistent with the cast-from-GY
+    # keyword grants).
     if "graveyard" in ir.castable_zones:
-        add("graveyard_matters", "you", "", "")
+        add("graveyard_makers", "you", "", "")
 
     # lifeloss_matters paylife VETO (ADR-0027): a card whose ONLY pay-life ability is
     # mana fixing is a painland/fetchland/shockland, not a life-as-resource engine —
@@ -7905,7 +7918,9 @@ def extract_signals_ir(
                     and not _GY_WORD_RE.search(e.raw or "")
                 )
             ):
-                add("graveyard_matters", _gy_scope(e), "", e.raw)
+                # _matters sweep (ADR-0034): the card REANIMATES / SELF-MILLS / recurs
+                # from a graveyard — it PERFORMS the mechanic, so it is a MAKER.
+                add("graveyard_makers", _gy_scope(e), "", e.raw)
             # GY-recursion at the TARGET's scope (ADR-0027 scope-gate fix): a bounce /
             # cast-from-zone / reanimate / blink whose target is restricted IN the
             # graveyard ('in:graveyard') is graveyard recursion — Raise Dead / Monk
@@ -7922,7 +7937,9 @@ def extract_signals_ir(
                 and "in:graveyard" in e.zones
                 and "from:battlefield" not in e.zones
             ):
-                add("graveyard_matters", _gy_scope(e), "", e.raw)
+                # _matters sweep (ADR-0034): returns / casts a card targeted IN a
+                # graveyard — the card PERFORMS GY recursion, so it is a MAKER.
+                add("graveyard_makers", _gy_scope(e), "", e.raw)
             # GY→battlefield cheat (ADR-0027 scope-gate fix, extended): a cheat_play /
             # reanimate whose ORIGIN includes a graveyard ('from:graveyard') puts a
             # card onto the battlefield from a graveyard — reanimation. Dakkon's "from
@@ -7933,7 +7950,9 @@ def extract_signals_ir(
                 e.category in ("cheat_play", "reanimate")
                 and "from:graveyard" in e.zones
             ):
-                add("graveyard_matters", _gy_scope(e), "", e.raw)
+                # _matters sweep (ADR-0034): GY→battlefield cheat/reanimate — the card
+                # PERFORMS reanimation, so it is a MAKER.
+                add("graveyard_makers", _gy_scope(e), "", e.raw)
             # Graveyard-cast payoff (ADR-0027): an effect that LETS YOU cast cards from
             # a graveyard (Finale of Promise's CastFromZone, Laelia, Jaya's emblem
             # marker) — the recovered 'from:graveyard' zone OR a zoneless cast_from_zone
@@ -7954,7 +7973,9 @@ def extract_signals_ir(
                 "from:graveyard" in e.zones
                 or (not e.zones and _GY_WORD_RE.search(e.raw or ""))
             ):
-                add("graveyard_matters", _gy_scope(e), "", e.raw)
+                # _matters sweep (ADR-0034): GRANTS casting cards from a graveyard —
+                # the card PERFORMS the GY-cast mechanic, so it is a MAKER.
+                add("graveyard_makers", _gy_scope(e), "", e.raw)
             # GY-recursion / GY-search at the 'from:graveyard' ORIGIN (ADR-0027 pass 2):
             # a bounce that returns a card FROM a graveyard to hand ("Return all instant
             # and sorcery cards from your graveyard to your hand" — Metallurgic
@@ -7966,7 +7987,9 @@ def extract_signals_ir(
             # the "shuffle your graveyard INTO your library" branch (empties the GY,
             # anti-synergy), deliberately NOT in this set.
             if e.category in ("bounce", "tutor") and "from:graveyard" in e.zones:
-                add("graveyard_matters", _gy_scope(e), "", e.raw)
+                # _matters sweep (ADR-0034): GY→hand recursion / multi-zone tutor
+                # reaching a graveyard — the card PERFORMS it, so it is a MAKER.
+                add("graveyard_makers", _gy_scope(e), "", e.raw)
             # Self-mill / fill-the-yard (ADR-0027): an effect that DEPOSITS cards into a
             # graveyard ('to:graveyard') — Mulch puts the non-lands in, Atris/Marchesa
             # bin a separated pile — fuels GY payoffs. Mirrors the trigger-dimension
@@ -7978,7 +8001,9 @@ def extract_signals_ir(
                 and "from:battlefield" not in e.zones
                 and _ir_scope(e.scope) in ("you", "any")
             ):
-                add("graveyard_matters", _gy_scope(e), "", e.raw)
+                # _matters sweep (ADR-0034): SELF-MILL / fill-the-yard — the card
+                # DEPOSITS cards into a graveyard, so it is a MAKER (flagship maker).
+                add("graveyard_makers", _gy_scope(e), "", e.raw)
             # Graveyard-HATE (ADR-0027): an exile EFFECT whose ORIGIN/TARGET is a
             # graveyard — 'from:graveyard' (Farewell's exile-all-graveyards mode,
             # Consecrate / Jack-o'-Lantern / Heated Argument's exile-as-cost) or
@@ -7992,7 +8017,10 @@ def extract_signals_ir(
             if e.category in ("exile", "blink") and (
                 "from:graveyard" in e.zones or "in:graveyard" in e.zones
             ):
-                add("graveyard_matters", _gy_scope(e), "", e.raw)
+                # _matters sweep (ADR-0034): GY-HATE — the card EXILES cards from a
+                # graveyard, so it is a MAKER (it PERFORMS the GY interaction).
+                # _gy_scope routes opp-GY hate to 'opponents' (the GY-hate avenue).
+                add("graveyard_makers", _gy_scope(e), "", e.raw)
             # Zone-aware graveyard_matters (structural projection): an effect that
             # targets/counts/copies cards IN a graveyard (delve, "creature card in
             # your graveyard", a count-operand over cards-in-GY — Enigma Drake /

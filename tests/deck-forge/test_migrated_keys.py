@@ -215,7 +215,12 @@ _REAL_CASES: dict[str, str] = {
     "gain_control": "Control Magic",
     "global_ability_grant": "Cryptolith Rite",
     "goad_makers": "Disrupt Decorum",
-    "graveyard_matters": "Reanimate",
+    # _matters sweep (ADR-0034): graveyard_matters keeps a PAYOFF real case — Araumi
+    # exiles cards from your graveyard as a cost and references "creature card in your
+    # graveyard", firing the payoff arms but NO maker arm. Reanimate (a pure reanimator
+    # MAKER) moved to graveyard_makers.
+    "graveyard_makers": "Reanimate",
+    "graveyard_matters": "Araumi of the Dead Tide",
     "group_hug_draw": "Wheel of Fortune",
     "group_mana": "Magus of the Vineyard",
     "hand_disruption": "Peek",

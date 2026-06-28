@@ -6032,6 +6032,20 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # bare "exile target card from a graveyard" rider). voltron_matters 3010 by set
         # equality. CR 400.7 / 701.17a.
         "graveyard_matters",
+        # _matters sweep (ADR-0034): graveyard_makers — the MAKER arm split out of
+        # graveyard_matters. The card PERFORMS a graveyard mechanic (reanimate /
+        # self-mill / GY recursion / GY-cast grant / GY-hate exile / self-recast-from-
+        # GY via castable_zones + the flashback/escape/… keyword grants). The PAYOFF
+        # arms (in:graveyard count-operand, threshold/delirium gate, GY-watcher trigger,
+        # delve/escape fuel cost, the dredge/delve/scavenge consume-keywords, and the
+        # broad graveyard-mention _graveyard_matters_clauses mirror) keep
+        # graveyard_matters. The IR path emits graveyard_makers, so the hybrid must
+        # recognize it as migrated to keep it. Gate-verified set-equal:
+        # members(graveyard_makers) UNION members(graveyard_matters) == the old
+        # graveyard_matters (5029, MTGJSON corpus); voltron unchanged (both keys feed
+        # has_other_plan identically — neither is in a voltron-exclusion set).
+        # CR 400.7 / 701.17a.
+        "graveyard_makers",
         # ADR-0027 clone copied-type subject (SIDECAR v30, Cluster B — subject
         # retention) — clone_makers (a permanent that itself becomes / enters as a copy
         # of another creature; CR 707.1). PROJECTION (behavior-neutral, drift 0): the
