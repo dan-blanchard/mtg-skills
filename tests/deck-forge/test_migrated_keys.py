@@ -381,6 +381,7 @@ _REAL_CASES: dict[str, str] = {
     "vanilla_matters": "Muraganda Petroglyphs",
     "variable_pt": "Nightmare",
     "vehicles_matter": "Cloudspire Captain",
+    "venture_makers": "Aarakocra Sneak",
     "venture_matters": "Gloom Stalker",
     "villainous_choice": "The Valeyard",
     "void_warp_makers": "Starfield Vocalist",

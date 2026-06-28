@@ -422,11 +422,13 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                suspect verb) — the payoff that rewards a suspected creature.
         #                The "(?! counter)" drops Investigator's Journal's "suspect
         #                counter" (a same-named counter type, CR 701.60b).
-        #   venture_matters ← phase's venture/take-initiative effect + a
-        #                completedadungeon/isinitiative condition read + a
-        #                trigger_doubling-over-dungeons read + a `_VENTURE_REF`
-        #                dropped-clause marker (gated out of a restriction effect so
-        #                Keen-Eared Sentry's opponent anti-venture hate stays out).
+        #   venture_makers ← phase's venture/take-initiative effect + a
+        #                `_VENTURE_REF` dropped-clause marker (gated out of a
+        #                restriction effect so Keen-Eared Sentry's opponent
+        #                anti-venture hate stays out). ADR-0034 split: the card
+        #                PERFORMS venture / take-the-initiative.
+        #   venture_matters ← the PAYOFF side: a completedadungeon/isinitiative
+        #                condition read + a trigger_doubling-over-dungeons read.
         #   crimes_matter ← phase's commit_crime trigger event (the trigger form) + a
         #                `crime` condition-form marker ("(if|as long as) you've
         #                committed a crime") for the payoff phase has no kind for.
@@ -434,6 +436,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "rad_counter_makers",
         "suspect_makers",
         "suspect_matters",
+        "venture_makers",
         "venture_matters",
         "crimes_matter",
         # group_mana ← phase emits scope='each' for ZERO ramp effects (the recipient

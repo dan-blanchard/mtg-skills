@@ -3735,9 +3735,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"the ring tempts you"},
         r"the ring tempts you",
     ),
+    # _matters sweep (ADR-0034): the MAKER side of the venture split — cards that
+    # venture / take the initiative (CR 701.46 / 720). The avenue it opens is the
+    # venture enablers package; only the lane KEY encodes the doer role.
+    ("venture_makers", "you"): _spec(
+        "Venture (enablers)",
+        "venture enablers — cards that venture into the dungeon",
+        {"oracle": r"venture into the dungeon|\bdungeon\b"},
+        r"venture into the dungeon|\bdungeon\b",
+    ),
     ("venture_matters", "you"): _spec(
         "Venture / dungeons",
-        "venture enablers and dungeon-completion payoffs",
+        "dungeon-completion payoffs and dungeon-trigger doublers",
         {"oracle": r"venture into the dungeon|\bdungeon\b"},
         r"venture into the dungeon|\bdungeon\b",
     ),

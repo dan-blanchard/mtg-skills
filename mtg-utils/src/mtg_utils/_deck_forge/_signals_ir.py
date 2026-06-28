@@ -263,7 +263,12 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # (floor-mirror-dep -> 0);
     # the _HAND_FLOOR producer is deleted. CR 726.
     "day_night": ("daynight_makers", "you"),
-    "venture": ("venture_matters", "you"),
+    # _matters sweep (ADR-0034): the venture/take-the-initiative EFFECT is a
+    # MAKER (the card PERFORMS the mechanic — Bar the Gate, plus the _VENTURE_REF
+    # dropped-clause markers phase appends as venture-category effects), so it
+    # fires venture_makers. The two PAYOFF arms (trigger-doubling over dungeons +
+    # completedadungeon/isinitiative gates) keep venture_matters.
+    "venture": ("venture_makers", "you"),
     "connive": ("connive_makers", "you"),
     "damage_prevention": ("damage_prevention", "you"),
     # ADR-0027: the `detain` → tap_down keyword entry is DELETED — tap_down now reads
