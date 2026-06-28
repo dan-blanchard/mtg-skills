@@ -2809,9 +2809,16 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Airbend",
         "airbend exile-and-recast tempo and payoffs for airbending",
     ),
-    "earthbend_matters": (
+    # _matters sweep (ADR-0034): earthbend split into the keyword-bearer DOER arm
+    # (cards carrying the Earthbend keyword — land-animation + +1/+1 counters) and
+    # the cross-bend PAYOFF arm (Avatar Aang's "whenever you …earthbend…" reference).
+    "earthbend_makers": (
         "Earthbend",
-        "earthbend land-animation, +1/+1 counters, and payoffs for earthbending",
+        "earthbend land-animation and +1/+1 counter cards (Earthbend keyword)",
+    ),
+    "earthbend_matters": (
+        "Earthbend payoffs",
+        "payoffs that trigger when you earthbend",
     ),
     # _matters sweep (ADR-0034): waterbend split into the keyword-bearer DOER arm
     # (cards that pay/perform a waterbend cost) and the cross-bend PAYOFF arm

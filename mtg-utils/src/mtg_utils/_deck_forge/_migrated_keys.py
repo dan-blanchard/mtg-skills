@@ -56,6 +56,9 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # re-run of the deleted SWEEP_DETECTORS rows. A-B==0 (commander-legal,
         # floor lanes disabled). See ADR-0027.
         "airbend_makers",
+        # _matters sweep (ADR-0034): earthbend split — keyword-bearer DOER arm
+        # (earthbend_makers) + cross-bend payoff (earthbend_matters). Set-equal.
+        "earthbend_makers",
         "earthbend_matters",
         # _matters sweep (ADR-0034): waterbend split — keyword-bearer DOER arm
         # (waterbend_makers) + cross-bend payoff (waterbend_matters). Set-equal.

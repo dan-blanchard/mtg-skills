@@ -4061,6 +4061,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bairbend(?:ing|s)?\b"},
         r"\bairbend(?:ing|s)?\b",
     ),
+    # _matters sweep (ADR-0034): earthbend split. The DOER arm (earthbend_makers,
+    # keyword bearers) and the PAYOFF arm (earthbend_matters, keyword-less cross-bend
+    # references) both serve the same oracle pool — clone-pilot precedent: the serve
+    # avenue legitimately offers makers + payoffs together; only membership splits by
+    # role.
+    ("earthbend_makers", "you"): _spec(
+        *SWEEP_LABELS["earthbend_makers"],
+        {"oracle": r"\bearthbend(?:ing|s)?\b"},
+        r"\bearthbend(?:ing|s)?\b",
+    ),
     ("earthbend_matters", "you"): _spec(
         *SWEEP_LABELS["earthbend_matters"],
         {"oracle": r"\bearthbend(?:ing|s)?\b"},

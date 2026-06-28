@@ -911,7 +911,12 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # Effect and carries no keyword, so the keyword move would lose 10 genuine
     # references (deferred). CR 701.65 / 701.66 / 701.67.
     "airbend": (("airbend_makers", "you"),),
-    "earthbend": (("earthbend_matters", "you"),),
+    # _matters sweep (ADR-0034): earthbend SPLIT. The keyword-bearer arm is the
+    # DOER (a card carrying Scryfall `Earthbend` pays/performs an earthbend cost —
+    # Earthen Ally, Badgermole), so it emits earthbend_makers. The keyword-LESS
+    # cross-bend PAYOFF (Avatar Aang's "whenever you …earthbend…draw") rides the
+    # `bending`-Effect arm in extract_signals_ir and STAYS earthbend_matters.
+    "earthbend": (("earthbend_makers", "you"),),
     # _matters sweep (ADR-0034): waterbend SPLIT. The keyword-bearer arm is the
     # DOER (a card carrying Scryfall `Waterbend` pays/performs a waterbend cost —
     # Spirit Water Revival), so it emits waterbend_makers. The keyword-LESS
@@ -3109,6 +3114,9 @@ IR_SLICE_KEYS: frozenset[str] = (
             # 701.67, firebending 702.189) — each its own lane, never conflated.
             "voting_matters",
             "airbend_makers",
+            # _matters sweep (ADR-0034): earthbend split — the keyword-bearer DOER
+            # arm emits earthbend_makers; the cross-bend payoff stays _matters.
+            "earthbend_makers",
             "earthbend_matters",
             # _matters sweep (ADR-0034): waterbend split — the keyword-bearer DOER
             # arm emits waterbend_makers; the cross-bend payoff stays _matters.
@@ -7688,7 +7696,15 @@ def extract_signals_ir(
                 bend_raw = (e.raw or "").lower()
                 if "airbend" in bend_raw:
                     add("airbend_makers", "you", "", e.raw)
-                if "earthbend" in bend_raw:
+                # _matters sweep (ADR-0034): earthbend SPLIT. The keyword bearer is
+                # the DOER (earthbend_makers, via _IR_KEYWORD_MAP). This bending-Effect
+                # arm is the PAYOFF lane, so gate out keyworded earthbenders (Earthen
+                # Ally carries the Earthbend keyword AND a `bending` Effect — without
+                # the gate it would double-fire earthbend_matters). What remains is the
+                # keyword-LESS cross-bend payoff (Avatar Aang) → earthbend_matters.
+                if "earthbend" in bend_raw and "earthbend" not in {
+                    k.lower() for k in (card.get("keywords") or [])
+                }:
                     add("earthbend_matters", "you", "", e.raw)
                 if "waterbend" in bend_raw:
                     add("waterbend_matters", "you", "", e.raw)
