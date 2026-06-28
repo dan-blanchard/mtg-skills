@@ -4080,6 +4080,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bwaterbend(?:ing|s)?\b"},
         r"\bwaterbend(?:ing|s)?\b",
     ),
+    # _matters sweep (ADR-0034): firebending split. The MAKER arm (firebending_makers,
+    # Firebending-keyword bearers) and the PAYOFF arm (firebending_matters, keyword-less
+    # Fire-Nation references) both serve the same oracle pool — clone-pilot precedent:
+    # the serve avenue legitimately offers makers + payoffs together; only membership
+    # splits by role.
+    ("firebending_makers", "you"): _spec(
+        *SWEEP_LABELS["firebending_makers"],
+        {"oracle": r"\bfirebend(?:ing|s)?\b"},
+        r"\bfirebend(?:ing|s)?\b",
+    ),
     ("firebending_matters", "you"): _spec(
         *SWEEP_LABELS["firebending_matters"],
         {"oracle": r"\bfirebend(?:ing|s)?\b"},

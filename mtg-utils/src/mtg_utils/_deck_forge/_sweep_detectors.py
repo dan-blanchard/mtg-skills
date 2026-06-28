@@ -2824,9 +2824,16 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Waterbend payoffs",
         "payoffs that trigger when you waterbend",
     ),
-    "firebending_matters": (
+    # _matters sweep (ADR-0034): firebending split into the keyword-bearer MAKER arm
+    # (cards carrying the Firebending keyword — attack-trigger red mana) and the
+    # keyword-LESS Fire-Nation reference/payoff arm.
+    "firebending_makers": (
         "Firebending",
-        "firebending attack-trigger red mana and payoffs for firebending",
+        "firebending attack-trigger red mana (Firebending keyword bearers)",
+    ),
+    "firebending_matters": (
+        "Firebending payoffs",
+        "Fire Nation references and payoffs for firebending",
     ),
     "blocked_matters": (
         "Blocks matter",

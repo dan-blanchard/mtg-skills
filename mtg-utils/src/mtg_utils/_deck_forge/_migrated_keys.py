@@ -61,6 +61,10 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (waterbend_makers) + cross-bend payoff (waterbend_matters). Set-equal.
         "waterbend_makers",
         "waterbend_matters",
+        # _matters sweep (ADR-0034): firebending split — the Firebending-keyword
+        # BEARER arm (firebending_makers) + the keyword-LESS Fire-Nation reference
+        # tail (firebending_matters). Set-equal (26 makers / 10 refs, union 36).
+        "firebending_makers",
         "firebending_matters",
         # Group "set-mechanics" — recent-set named mechanics. celebration (WOE
         # ability word), coven (MID ability word), outlaw (creature-type group),

@@ -1080,6 +1080,12 @@ def _has_self_base_pt(subject: object) -> bool:
 # regexes (not the brittle "for each Y" kind the IR replaces), so the IR path
 # KEEPS them — they survive A4 like the keyword-array / type_line lookups. Grow
 # this as more mis-skipped mechanics are rules-lawyer-verified.
+# _matters sweep (ADR-0034): firebending SPLIT. The kept Fire-Nation word mirror
+# (== the deleted SWEEP regex, also pinned in signal_specs) is bifurcated by the
+# Firebending-keyword (CR 702.189) presence into a MAKER arm + a PAYOFF arm in the
+# partition block after the _IR_KEPT_DETECTORS loop. Partitioning the SAME regex
+# firing keeps the split set-equal (union == old firebending_matters).
+_FIREBEND_RE = re.compile(r"\bfirebend(?:ing|s)?\b", re.IGNORECASE)
 _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # ADR-0027 #24n G1 — base_pt_set references mirror DELETED (SIDECAR v62). The carved
     # BASE_PT_SET_REGEX mirror's last residue was the base-power REFERENCE grammar
@@ -1280,15 +1286,10 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # (CR 702.189). ADR-0027 #24 KW-WAVE-1: airbend/earthbend/waterbend MIGRATED to the
     # Card IR — keyword bearers via _IR_KEYWORD_MAP, the lone cross-bend payoff (Avatar
     # Aang) via the structural `bending`-Effect arm in extract_signals_ir (0 drift each:
-    # air 14, earth 37, water 29). firebending STAYS a kept word mirror: its Fire-Nation
-    # reference tail (Iroh, Sozin's Comet, the Fire Nation cards, Firebender Ascension)
-    # emits no `bending` Effect and carries no Firebending keyword, so the keyword move
-    # would lose 10 genuine references — deferred.
-    (
-        "firebending_matters",
-        re.compile(r"\bfirebend(?:ing|s)?\b", re.IGNORECASE),
-        "you",
-    ),
+    # air 14, earth 37, water 29). firebending is the kept Fire-Nation word mirror —
+    # _matters sweep (ADR-0034): it SPLITS at the partition block after this loop (the
+    # mirror's firings are bifurcated by Firebending-keyword presence into
+    # firebending_makers / firebending_matters), so it is NOT a row here.
     # Batch 16 — recent-set mechanics phase v0.1.60 doesn't structure
     # (rules-lawyer-verified): celebration + coven (ability words, CR 207.2c),
     # outlaw (a creature-type group), plot (CR 702.170), miracle (CR 702.94),
@@ -3113,6 +3114,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             # arm emits waterbend_makers; the cross-bend payoff stays _matters.
             "waterbend_makers",
             "waterbend_matters",
+            # _matters sweep (ADR-0034): firebending split — the Firebending-keyword
+            # BEARER arm emits firebending_makers; the keyword-LESS Fire-Nation
+            # reference tail stays firebending_matters. Set-equal (26 makers / 10 refs).
+            "firebending_makers",
             "firebending_matters",
             # Batch 16 — recent-set kept-detectors (rules-lawyer-verified):
             "celebration_matters",
@@ -10522,6 +10527,21 @@ def extract_signals_ir(
     for key, pat, scope in _IR_KEPT_DETECTORS:
         if pat.search(kept_oracle):
             add(key, scope, "", "")
+    # _matters sweep (ADR-0034): firebending SPLIT. The kept Fire-Nation word mirror
+    # partitions by Firebending-keyword (CR 702.189) presence: a card BEARING the
+    # Scryfall Firebending keyword (Fire Lord Azula, Azula On the Hunt, Avatar Aang)
+    # PERFORMS the mechanic (attack-trigger red mana) -> firebending_makers; a
+    # keyword-LESS Fire-Nation reference (Sozin's Comet, the Fire Nation cards, Iroh,
+    # Dragon of the West) is a PAYOFF/reference -> firebending_matters. Bifurcating the
+    # SAME regex firing keeps the split set-equal (the union of makers + matters == the
+    # old firebending_matters, n=36 commander-legal; 26 makers / 10 references). The
+    # other 3 bends migrated to _IR_KEYWORD_MAP/bending-Effect; firebending's reference
+    # tail emits no keyword and no `bending` Effect, so it stays this kept mirror.
+    if _FIREBEND_RE.search(kept_oracle):
+        if "firebending" in {k.lower() for k in (card.get("keywords") or [])}:
+            add("firebending_makers", "you", "", "")
+        else:
+            add("firebending_matters", "you", "", "")
     # ADR-0027 #24l — group_hug_draw GUARDED residue mirror. The structural arm + the
     # supplement scope-recovery (_recover_group_hug_draw_scope) now fire the lane for
     # every "each player draws" phase carries OR folds into a readable draw raw. This

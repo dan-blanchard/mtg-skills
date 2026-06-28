@@ -54507,6 +54507,78 @@
     "type_line": "Instant"
    }
   },
+  "Sozin's Comet": {
+   "ir": {
+    "cz": [
+     "exile"
+    ],
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "grant_keyword",
+          "raw": "Each creature you control gains firebending 5 until end of turn."
+         }
+        ],
+        "k": "spell"
+       }
+      ],
+      "kw": [
+       "Foretell"
+      ],
+      "n": "Sozin's Comet",
+      "tl": "Sorcery"
+     }
+    ],
+    "n": "Sozin's Comet",
+    "oid": "bc0da02c-2b85-4ddc-9ce0-63934dd14164"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Foretell"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{R}",
+    "name": "Sozin's Comet",
+    "oracle_id": "bc0da02c-2b85-4ddc-9ce0-63934dd14164",
+    "oracle_text": "Each creature you control gains firebending 5 until end of turn. (Whenever it attacks, add {R}{R}{R}{R}{R}. This mana lasts until end of combat.)\nForetell {2}{R} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)",
+    "produced_mana": [
+     "R"
+    ],
+    "type_line": "Sorcery"
+   }
+  },
   "Spark Double": {
    "ir": {
     "faces": [
