@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Quantity, Trigger
 from mtg_utils.cut_check import (
     detect_commander_multiplication,
     detect_keyword_interactions,
@@ -12,6 +13,91 @@ from mtg_utils.cut_check import (
     main,
     run_cut_check,
 )
+
+
+def _ir_triggered(event, *, category, factor, op="fixed", effect_scope="any"):
+    """A hand-built single-trigger Card IR (the _SYNTHETIC_CASES pattern — no
+    snapshot/bulk needed) with one triggered ability whose effect carries a value."""
+    return Card(
+        oracle_id="test",
+        name="IR Card",
+        faces=(
+            Face(
+                name="IR Card",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event=event, scope="you"),
+                        effects=(
+                            Effect(
+                                category=category,
+                                amount=Quantity(op=op, factor=factor),
+                                scope=effect_scope,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
+class TestDetectTriggersFromIR:
+    """ADR-0029: trigger detection reads the Card IR structurally when present
+    (bucket-A), falling back to the regex path when absent (bucket-B)."""
+
+    _CARD = {"name": "x", "oracle_text": ""}
+
+    def test_ir_attack_trigger_to_each_opponent_multiplies(self):
+        # "Whenever you attack, deal 2 damage to each opponent" — IR-native.
+        ir = _ir_triggered("attacks", category="damage", factor=2, effect_scope="opp")
+        triggers = detect_triggers(
+            self._CARD, trigger_types=["attack"], opponents=3, ir=ir
+        )
+        matched = [t for t in triggers if t["matches_trigger_type"]]
+        assert len(matched) == 1
+        assert matched[0]["matched_type"] == "attack"
+        assert matched[0]["parseable"] is True
+        assert matched[0]["base_value"] == "6"  # 2 damage x 3 opponents
+
+    def test_ir_event_respects_trigger_type_filter(self):
+        ir = _ir_triggered("etb", category="draw", factor=1)
+        triggers = detect_triggers(
+            self._CARD, trigger_types=["upkeep"], opponents=3, ir=ir
+        )
+        assert [t for t in triggers if t["matches_trigger_type"]] == []
+
+    def test_ir_variable_amount_is_not_parseable(self):
+        # op="count" (scales with the board) is not a fixed multipliable value.
+        ir = _ir_triggered("upkeep", category="make_token", factor=1, op="count")
+        triggers = detect_triggers(
+            self._CARD, trigger_types=["upkeep"], opponents=3, ir=ir
+        )
+        matched = [t for t in triggers if t["matches_trigger_type"]]
+        assert len(matched) == 1
+        assert matched[0]["parseable"] is False
+
+    def test_run_cut_check_reads_ir_when_resolvable(self, monkeypatch):
+        # Wiring: run_cut_check resolves ir_for per card and feeds it to detect_triggers.
+        import mtg_utils.cut_check as cc
+
+        ir = _ir_triggered("attacks", category="damage", factor=2, effect_scope="opp")
+        monkeypatch.setattr(
+            cc, "ir_for", lambda card: ir if card.get("name") == "Atk" else None
+        )
+        hydrated = [{"name": "Atk", "oracle_text": "", "keywords": []}]
+        results = run_cut_check(
+            hydrated=hydrated,
+            commander_name="Atk",
+            cut_names=["Atk"],
+            trigger_types=["attack"],
+            multiplier_low=1,
+            multiplier_high=1,
+            opponents=3,
+        )
+        matched = [t for t in results[0]["triggers"] if t["matches_trigger_type"]]
+        assert matched
+        assert matched[0]["base_value"] == "6"  # the IR each-opponent value
 
 
 class TestDetectTriggers:

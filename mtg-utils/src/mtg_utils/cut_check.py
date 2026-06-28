@@ -1,4 +1,15 @@
-"""Cut-check: mechanical pre-grill analysis of cards under consideration for cutting."""
+"""Cut-check: mechanical pre-grill analysis of cards under consideration for cutting.
+
+ADR-0029 migration state (ADR-0027 strangler): **trigger detection** reads the Card IR
+structurally when a card's IR resolves (bucket-A — ``_detect_triggers_ir`` off
+``Ability.trigger.event`` + ``Effect.amount``), degrading to the oracle-regex path when
+no IR is present (bucket-B). The IR sidecar is built upstream by the Step-6 spine
+(``deck-tune`` → ``ensure_card_ir``); cut-check consumes it via ``ir_for`` and never
+builds it itself. **Keyword interactions / self-recurring / commander multiplication**
+stay on regex (bucket-B): phase's IR doesn't structurally encode "this copies the
+commander" or an emergent two-keyword interaction, so those are legitimate regex
+bridges, not yet-migrated debt. The multiplied-value math is unchanged.
+"""
 
 from __future__ import annotations
 
@@ -8,8 +19,10 @@ from pathlib import Path
 
 import click
 
+from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import build_card_lookup, get_oracle_text
+from mtg_utils.card_ir import Ability, Card
 from mtg_utils.rules_lookup import (
     find_citations_for_terms,
     load_rules,
@@ -145,13 +158,74 @@ def _match_trigger_type(
     return False, None
 
 
+# IR trigger event -> cut-check trigger type (ADR-0029 bucket-A: read the node, not a
+# `Whenever \S.*? attacks` regex). Events outside this map (cast_spell, taps, …) don't
+# correspond to a cut-check trigger type and so never `matches_trigger_type`.
+_IR_EVENT_TO_TYPE: dict[str, str] = {
+    "upkeep": "upkeep",
+    "attacks": "attack",
+    "combat_damage": "combat-damage",
+    "dies": "death",
+    "etb": "etb",
+    "end_step": "endstep",
+}
+# Effect categories that carry a fixed, multipliable numeric value.
+_IR_VALUE_CATEGORIES = frozenset({"damage", "gain_life", "make_token", "draw"})
+
+
+def _ir_base_value(ability: Ability, opponents: int) -> tuple[bool, str]:
+    """A fixed numeric value from the ability's effects, or (False, "").
+
+    Only ``op="fixed"`` amounts are parseable — ``count``/``multiply`` scale with the
+    board, the same "variable" non-multipliable case the regex path returns False for.
+    A ``damage`` effect scoped to each opponent multiplies by the opponent count (the
+    structural mirror of ``_DAMAGE_EACH_OPPONENT_RE``)."""
+    for e in ability.effects:
+        amt = e.amount
+        if e.category in _IR_VALUE_CATEGORIES and amt is not None and amt.op == "fixed":
+            base = amt.factor
+            if e.category == "damage" and e.scope in ("opp", "each"):
+                base *= opponents
+            return True, str(base)
+    return False, ""
+
+
+def _detect_triggers_ir(
+    ir: Card, trigger_types: list[str], opponents: int
+) -> list[dict]:
+    """Trigger detection read straight from the Card IR's triggered abilities."""
+    results: list[dict] = []
+    for ab in ir.all_abilities():
+        if ab.kind != "triggered" or ab.trigger is None:
+            continue
+        matched_type = _IR_EVENT_TO_TYPE.get(ab.trigger.event)
+        matches = matched_type is not None and matched_type in trigger_types
+        parseable, base_value = _ir_base_value(ab, opponents)
+        results.append(
+            {
+                "text": f"{ab.trigger.event} trigger",
+                "matches_trigger_type": matches,
+                "matched_type": matched_type,
+                "parseable": parseable,
+                "base_value": base_value
+                if parseable
+                else f"{ab.trigger.event} trigger",
+            }
+        )
+    return results
+
+
 def detect_triggers(
     card: dict,
     *,
     trigger_types: list[str],
     opponents: int,
+    ir: Card | None = None,
 ) -> list[dict]:
-    """Scan oracle text for triggered abilities and classify them."""
+    """Classify a card's triggered abilities. Reads the Card IR when ``ir`` is present
+    (ADR-0029 bucket-A), otherwise scans oracle text (bucket-B fallback)."""
+    if ir is not None:
+        return _detect_triggers_ir(ir, trigger_types, opponents)
     oracle = get_oracle_text(card)
     sentences = _split_trigger_sentences(oracle)
     results: list[dict] = []
@@ -438,8 +512,10 @@ def run_cut_check(
 
     for name in cut_names:
         card = lookup.get(name, {"name": name, "oracle_text": "", "keywords": []})
+        # ADR-0029: read the card's IR structurally when the sidecar (built upstream by
+        # the Step-6 spine) resolves it; ir_for returns None otherwise → regex fallback.
         triggers = detect_triggers(
-            card, trigger_types=trigger_types, opponents=opponents
+            card, trigger_types=trigger_types, opponents=opponents, ir=ir_for(card)
         )
         keyword_interactions = detect_keyword_interactions(card, commander)
         self_recurring = detect_self_recurring(card)
