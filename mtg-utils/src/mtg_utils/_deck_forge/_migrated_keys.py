@@ -270,6 +270,13 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # migrated to keep it.
         "experience_makers",
         "explore_matters",
+        # _matters sweep (ADR-0034): the MAKER arm split out of explore_matters —
+        # the native explore Effects + the Scryfall `explore` keyword bearers (a
+        # creature explores). The IR path emits it via _DOER_EFFECT_KEYS /
+        # _IR_KEYWORD_MAP, so the hybrid must recognize it as migrated to keep it.
+        # explore_matters stays the payoff arm (the event='other' "whenever a
+        # creature you control explores, …" marker — Wildgrowth Walker).
+        "explore_makers",
         "foretell_matters",
         "scavenge_fuel",
         "scry_surveil_matters",

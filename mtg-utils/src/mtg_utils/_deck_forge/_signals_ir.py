@@ -288,7 +288,14 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "ring_tempt": ("ring_matters", "you"),
     # Explore (CR 701.44) → its dedicated lane (was topdeck_select, but explore is a
     # reveal-top + land/counter mechanic, not a Brainstorm-style stacker).
-    "explore": ("explore_matters", "you"),
+    # _matters sweep (ADR-0034): explore split. A NATIVE explore Effect (the card
+    # makes a creature explore — "~ explores", an ETB→explore trigger) is the MAKER
+    # arm → explore_makers. The synthesized event='other' PAYOFF marker
+    # (project._narrow_trigger_other_refs — "whenever a creature you control
+    # explores, …", Wildgrowth Walker) rides the SAME cat=='explore', so the doer
+    # loop re-routes it to explore_matters by ab.trigger.event=='other' (the
+    # suspect/earthbend in-loop precedent).
+    "explore": ("explore_makers", "you"),
     "energy": ("energy_matters", "you"),
     # Player-counter givers (GivePlayerCounter, split by kind in project.py — CR
     # 122.1). poison/rad land on opponents (a kill clock / penalty); experience is
@@ -613,7 +620,11 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # and so emit NO explore EFFECT node. The explore EFFECT category (doers + the
     # event='other' payoff trigger) opens it via _DOER_EFFECT_KEYS; this opens it
     # from the keyword the card actually carries (53 ⊇ the 44 regex hits).
-    "explore": (("explore_matters", "you"),),
+    # _matters sweep (ADR-0034): the printed-keyword MAKER arm → explore_makers
+    # (Scryfall tags `explore` on doers AND payoffs, so the payoff cards land here
+    # too — the payoff lane explore_matters is the event='other' marker re-route in
+    # the doer loop; union over the keyword 53 stays set-equal).
+    "explore": (("explore_makers", "you"),),
     "foretell": (("foretell_matters", "you"),),
     "madness": (("madness_matters", "you"),),
     # ADR-0027 C9 facedown_matters — the five face-down 2/2 MAKERS as printed
@@ -3226,6 +3237,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             # arm emits waterbend_makers; the cross-bend payoff stays _matters.
             "waterbend_makers",
             "waterbend_matters",
+            # _matters sweep (ADR-0034): explore split — the keyword/native-effect
+            # MAKER arm emits explore_makers (auto-derived from _DOER_EFFECT_KEYS /
+            # _IR_KEYWORD_MAP); the event='other' "whenever a creature explores"
+            # PAYOFF marker is re-routed in the doer loop, so explore_matters is
+            # listed here explicitly (the suspect_matters / earthbend_matters
+            # in-loop precedent).
+            "explore_matters",
             # _matters sweep (ADR-0034): firebending split — the Firebending-keyword
             # BEARER arm emits firebending_makers; the keyword-LESS Fire-Nation
             # reference tail stays firebending_matters. Set-equal (26 makers / 10 refs).
@@ -7792,6 +7810,21 @@ def extract_signals_ir(
                     and not re.search(r"\bsuspects?\b", e.raw or "", re.IGNORECASE)
                 ):
                     key = "suspect_matters"
+                # _matters sweep (ADR-0034): explore split. The cat=='explore' arm
+                # conflates the MAKER (a native explore Effect — the card makes a
+                # creature explore) and the PAYOFF (project._narrow_trigger_other_
+                # refs synthesizes a cat=='explore' marker from an event='other'
+                # "whenever a creature you control explores, …" trigger — Wildgrowth
+                # Walker, Lurking Chupacabra). Route the synthesized payoff marker
+                # (the ONLY event='other' explore Effect — verified corpus-wide) to
+                # explore_matters; native explore makers (ETB→explore, "~ explores")
+                # stay explore_makers. CR 701.44.
+                if (
+                    e.category == "explore"
+                    and ab.trigger is not None
+                    and ab.trigger.event == "other"
+                ):
+                    key = "explore_matters"
                 add(key, fixed_scope or _ir_scope(e.scope), "", e.raw)
             # ADR-0027 #24 KW-WAVE-1 — bending cross-bend PAYOFF arm. phase emits a
             # `bending` Effect (no direction field) for cards that DO/reference a bend;

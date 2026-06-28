@@ -4302,6 +4302,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bexhaust\b"},
         r"\bexhaust\b",
     ),
+    # _matters sweep (ADR-0034): the MAKER arm of the explore split — creatures that
+    # explore. Same \bexplores?\b serve pool as the payoff arm.
+    ("explore_makers", "you"): _spec(
+        *SWEEP_LABELS["explore_makers"],
+        {"oracle": r"\bexplores?\b"},
+        r"\bexplores?\b",
+    ),
     ("explore_matters", "you"): _spec(
         *SWEEP_LABELS["explore_matters"],
         {"oracle": r"\bexplores?\b"},

@@ -66328,6 +66328,106 @@
     "type_line": "Creature — Lizard Hydra"
    }
   },
+  "Wildgrowth Walker": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "Whenever a creature you control explores, put a +1/+1 counter on ~ and you gain 3 life.",
+          "sub": {
+           "p": [
+            "SelfRef"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "f": 3,
+           "op": "fixed"
+          },
+          "cat": "gain_life",
+          "raw": "Whenever a creature you control explores, put a +1/+1 counter on ~ and you gain 3 life."
+         },
+         {
+          "cat": "explore",
+          "raw": "Whenever a creature you control explores, put a +1/+1 counter on ~ and you gain 3 life.",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "other",
+         "sc": "you",
+         "sub": {
+          "c": "you",
+          "t": [
+           "Creature"
+          ]
+         }
+        }
+       }
+      ],
+      "kw": [
+       "Explore"
+      ],
+      "n": "Wildgrowth Walker",
+      "tl": "Creature — Elemental"
+     }
+    ],
+    "n": "Wildgrowth Walker",
+    "oid": "d80562c2-cf90-43a4-9721-28da40fdfeed"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Explore"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Wildgrowth Walker",
+    "oracle_id": "d80562c2-cf90-43a4-9721-28da40fdfeed",
+    "oracle_text": "Whenever a creature you control explores, put a +1/+1 counter on this creature and you gain 3 life.",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Creature — Elemental"
+   }
+  },
   "Wilson, Refined Grizzly": {
    "ir": {
     "faces": [

@@ -2988,7 +2988,8 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "exhaust_makers": ("Exhaust", "exhaust abilities (once per game)"),
     "exhaust_matters": ("Exhaust payoffs", "exhaust-activation triggers and payoffs"),
     "exile_until_leaves": ("O-Ring removal", "exile-until-leaves removal effects"),
-    "explore_matters": ("Explore", "explore creatures plus counter/graveyard payoffs"),
+    "explore_makers": ("Explore", "creatures that explore"),
+    "explore_matters": ("Explore payoffs", "triggers when your creatures explore"),
     "extra_land_drop": (
         "Put lands into play",
         "lands to drop straight onto the battlefield",
