@@ -3267,8 +3267,24 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # (Hostage Taker). Opponent-anchored / "remains exiled"-anchored so a self-impulse
     # engine (Valakut Exploration — your own library, "until end of next turn") stays
     # out. Detector regex unchanged.
-    ("theft_matters", "opponents"): _spec(
-        *SWEEP_LABELS["theft_matters"],
+    ("theft_makers", "opponents"): _spec(
+        *SWEEP_LABELS["theft_makers"],
+        {"oracle": _THEFT_SWEEP_REGEX},
+        _THEFT_SWEEP_REGEX
+        + r"|"
+        + _OPP_LIBRARY_THEFT_ORACLE
+        + r"|"
+        + _STEAL_CAST_ORACLE,
+    ),
+    # _matters sweep (ADR-0034): the WANTS side of the theft split. wants_theft fires
+    # (LOW) when the commander itself rewards casting what you don't own (a don't-own
+    # payoff — Don Andres, Vaan, Gonti Canny) or steals battlefield permanents
+    # (gain_control). The avenue it OPENS is the theft ENABLERS that feed that payoff —
+    # the same steal-and-cast pool as theft_makers (Gonti, Hostage Taker, the impulse-
+    # from-opponent engines). Same opponent-anchored serve regex; the maker/payoff split
+    # is in MEMBERSHIP, the avenue legitimately offers the doers to a wants commander.
+    ("wants_theft", "opponents"): _spec(
+        *SWEEP_LABELS["wants_theft"],
         {"oracle": _THEFT_SWEEP_REGEX},
         _THEFT_SWEEP_REGEX
         + r"|"

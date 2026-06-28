@@ -458,7 +458,7 @@ CROSSWALK: dict[str, frozenset[str]] = {
     "gain_control": frozenset(
         {"effect:gaincontrol", "effect:controlnextturn", "effect:givecontrol"}
     ),
-    "theft_matters": frozenset(
+    "theft_makers": frozenset(
         {"effect:gaincontrol", "effect:controlnextturn", "effect:exchangecontrol"}
     ),
     # blink/reanimation both surface as a zone change in phase's IR; loose, so

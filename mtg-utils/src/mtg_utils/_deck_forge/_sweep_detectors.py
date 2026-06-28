@@ -2357,10 +2357,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # _signals_regex.py (the IR re-supply is BROADER, so a _VOLTRON_SILENCING_PLAN_KEYS
     # entry would over-silence the +47 recall bodies). CR 401.4.
     # ADR-0027: theft_matters migrated to the Card IR (its SWEEP_DETECTORS row deleted).
-    # The lane fires from a BYTE-IDENTICAL kept WORD MIRROR (THEFT_MATTERS_REGEX above,
-    # in signals._IR_KEPT_DETECTORS, scope 'opponents', HIGH) — phase carries no
-    # structural steal-and-cast form. SWEEP_LABELS keeps the human label; the serve spec
-    # stays hand-registered in signal_specs.py reusing THEFT_MATTERS_REGEX.
+    # _matters sweep (ADR-0034): SPLIT — the kept WORD MIRROR (THEFT_MATTERS_REGEX
+    # above, in signals._IR_KEPT_DETECTORS, scope 'opponents', HIGH) is the steal-and-
+    # cast DOER and now emits theft_makers; the LOW gain_control / don't-own cross-open
+    # is wants_theft. phase carries no structural steal-and-cast form. SWEEP_LABELS
+    # keeps both human labels; the serve spec stays hand-registered in signal_specs.py
+    # reusing THEFT_MATTERS_REGEX.
     # ADR-0027 A4: cast_as_named_card DROPPED (not migrated). It fired only on 2
     # non-commander-legal un-set cards and resolved to no real serve spec, so its
     # SWEEP_DETECTORS row + SWEEP_LABELS entry are deleted together (the
@@ -3187,7 +3189,11 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Targeting / heroic",
         "cheap targeted spells to trigger target-matters",
     ),
-    "theft_matters": ("Theft", "steal opponents' cards and cast them"),
+    "theft_makers": ("Theft", "steal opponents' cards and cast them"),
+    "wants_theft": (
+        "Wants theft",
+        "theft enablers — your commander rewards casting what you don't own",
+    ),
     "timing_control": (
         "Timing restriction",
         "effects that restrict WHEN spells can be cast (Teferi, City of Solitude, "

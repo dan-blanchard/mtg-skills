@@ -1617,14 +1617,15 @@ def test_artifact_entered_condition_opens_artifacts():
 
 
 def test_heist_opens_theft():
-    # Heist (Arena keyword) steals + casts an opponent's cards — a theft payoff
+    # Heist (Arena keyword) steals + casts an opponent's cards — a theft DOER
     # the detector missed. Grenzo, Crooked Jailer / Axavar / Mr. Monopoly.
     # ADR-0027: theft_matters migrated to the Card IR (a byte-identical THEFT_MATTERS_
     # REGEX kept mirror over the reminder-stripped oracle), so it serves from the hybrid
-    # path, not pure regex.
+    # path, not pure regex. ADR-0034 _matters sweep: the steal-and-cast MAKER arm now
+    # emits theft_makers (the LOW want-side cross-open is wants_theft).
     # Real Grenzo, Crooked Jailer (snapshot): Heist steals + casts opponents' cards — a
-    # theft payoff.
-    assert ("theft_matters", "opponents") in _real("Grenzo, Crooked Jailer")
+    # theft maker.
+    assert ("theft_makers", "opponents") in _real("Grenzo, Crooked Jailer")
 
 
 # ── Long-tail batch 3 (voltron / noncombat-engine / drain) ────────────────────

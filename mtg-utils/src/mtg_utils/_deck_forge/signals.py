@@ -188,7 +188,7 @@ def extract_signals_hybrid(
         )
     # ADR-0027 β gain_control cross-open reconciliation. The regex include_membership
     # cross-open ties two LOW-confidence theft-archetype tells to gain_control: (1) it
-    # opens the theft_matters sibling when a body has gain_control OR rewards permanents
+    # opens the wants_theft sibling when a body has gain_control OR rewards permanents
     # "you control but DON'T OWN"; (2) it opens a LOW gain_control on a theft-PAYOFF
     # commander that only says "don't own" with no structural form (Gonti Canny, Tasha,
     # Vaan, Don Andres, Arvinox, Nita, Laughing Jasper Flint, Nathan Drake, Thieving
@@ -198,10 +198,10 @@ def extract_signals_hybrid(
     # `gain_control in keys_now` test sees the deleted producer's absence — re-run both
     # tells against
     # the MERGED key set, gated on include_membership (the regex cross-open's gate).
-    # theft_matters is NOT migrated, so a regex firing already survives; re-open it only
-    # when the IR supplies gain_control and the merged set lacks it (a structural-theft
-    # commander — Memnarch, Dragonlord Silumgar, Nihiloor, Empress Galina — whose
-    # theft_matters depended on the deleted regex gain_control). Re-add the LOW
+    # wants_theft IS migrated (ADR-0034 split), so the hybrid drops the regex firing;
+    # re-open it against the merged set — incl. a structural-theft commander (Memnarch,
+    # Dragonlord Silumgar, Nihiloor, Empress Galina) whose gain_control comes only from
+    # the IR, not the deleted regex. Re-add the LOW
     # gain_control for the 13 "don't own" payoff commanders the hybrid dropped (no
     # structural form). Matches the spell_copy reconciliation pattern above. CR 800.4a.
     if include_membership:
@@ -211,19 +211,19 @@ def extract_signals_hybrid(
             get_oracle_text(record) or "",
             re.IGNORECASE,
         )
-        # theft_matters now ALSO migrates (the HIGH SWEEP steal-and-cast cards ride the
-        # IR kept mirror), so the hybrid drops EVERY regex theft_matters — including the
-        # LOW-confidence sibling cross-open the regex include_membership path fired
-        # whenever a body had gain_control OR rewarded permanents "you don't own". The
-        # IR re-supplies ONLY the HIGH SWEEP cards, so re-run that regex cross-open
-        # condition against the MERGED key set (gain_control in out_keys — from the IR
-        # arm or this reconciliation — OR dont_own) to restore the LOW sibling on the
-        # 337 battlefield-steal + 18 don't-own cards. Mirrors the regex producer at
-        # _signals_regex.py (`if gain_control in keys_now or dont_own: add theft LOW`).
-        if (gc_now or dont_own) and "theft_matters" not in out_keys:
+        # _matters sweep (ADR-0034): the theft split. The HIGH steal-and-cast DOERS
+        # ride the IR kept mirror as theft_makers; the LOW gain_control / don't-own
+        # cross-open — a steal commander that WANTS the theft package run — is
+        # wants_theft. Both theft_makers and wants_theft migrate, so the hybrid drops
+        # EVERY regex wants_theft. Re-run that cross-open condition against the MERGED
+        # key set (gain_control in out_keys — from the IR arm or this reconciliation OR
+        # dont_own) to restore the LOW wants_theft on the battlefield-steal + don't-own
+        # commanders. Mirrors the regex producer at _signals_regex.py (`if gain_control
+        # in keys_now or dont_own: add wants_theft LOW`).
+        if (gc_now or dont_own) and "wants_theft" not in out_keys:
             out.append(
                 Signal(
-                    "theft_matters", "opponents", "", "", record.get("name", ""), "low"
+                    "wants_theft", "opponents", "", "", record.get("name", ""), "low"
                 )
             )
         if dont_own and not gc_now:

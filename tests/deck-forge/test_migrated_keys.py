@@ -371,7 +371,11 @@ _REAL_CASES: dict[str, str] = {
     "targeting_matters": "Reality Smasher",
     "team_buff": "Brave the Sands",
     "team_evasion_grant": "Galerider Sliver",
-    "theft_matters": "Stolen Goods",
+    # _matters sweep (ADR-0034): the steal-and-cast kept-mirror DOER (Stolen Goods)
+    # now fires theft_makers; the LOW gain_control / don't-own cross-open is the
+    # wants_theft want-side (Dragonlord Silumgar — IR gain_control opens it via the
+    # signals.py facade; the regex path drops it).
+    "theft_makers": "Stolen Goods",
     "theft_protection": "Kira, Great Glass-Spinner",
     "timing_control": "City of Solitude",
     "token_copy_makers": "Helm of the Host",
@@ -408,6 +412,7 @@ _REAL_CASES: dict[str, str] = {
     "voltron_matters": "Sram, Senior Edificer",
     "voting_makers": "Capital Punishment",
     "wants_cloning": "Arcum Dagsson",
+    "wants_theft": "Dragonlord Silumgar",
     "waterbend_makers": "Spirit Water Revival",
     "waterbend_matters": "Avatar Aang // Aang, Master of Elements",
     "win_lose_game": "Thassa's Oracle",

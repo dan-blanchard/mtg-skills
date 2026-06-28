@@ -3332,9 +3332,9 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # Andres, Arvinox, Nita, Laughing Jasper Flint, Nathan Drake, Thieving Amalgam,
         # Thieving Varmint, Tinybones Bauble Burglar, Sentinel of Lost Lore, Staff of
         # Eden). The hybrid drops ALL regex gain_control (migrated), so signals.py re-
-        # supplies the LOW `dont_own` cross-open AND re-opens the theft_matters sibling
+        # supplies the LOW `dont_own` cross-open AND re-opens the wants_theft sibling
         # against the MERGED key set (the structural-theft commanders — Memnarch,
-        # Dragonlord Silumgar, Nihiloor, Empress Galina — that opened theft_matters via
+        # Dragonlord Silumgar, Nihiloor, Empress Galina — that opened wants_theft via
         # gain_control-in-regex-keys now open it from the IR set). Matches the
         # spell_copy cross-open reconciliation pattern already in the facade.
         #
@@ -5452,17 +5452,18 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # IDENTICALLY: the seven arms' `[^.]*` anchors never cross a clause boundary
         # (commander-legal: flat==per-clause==33, 0 gain, 0 loss; floor-disabled
         # residual: both==33, regex_only==0, ir_only==0). The SWEEP row is deleted
-        # (detector floor 32→31); SWEEP_LABELS["theft_matters"] and the hand-registered
+        # (detector floor 32→31); SWEEP_LABELS["theft_makers"] and the hand-registered
         # serve spec (signal_specs.py — _THEFT_SWEEP_REGEX, pinned verbatim) are
         # independent of the producer and survive.
         #
-        # CROSS-OPEN RECONCILIATION (facade). The 337 LOW-conf theft_matters firings in
-        # the hybrid are NOT this lane's producer — they ride the gain_control sibling
-        # cross-open (signals.py reconciliation: when the migrated IR supplies
-        # gain_control, open a LOW theft_matters) plus the regex `dont_own` membership
-        # path. Both are independent of the SWEEP producer and untouched here, so the
-        # 337 LOW survive byte-for-byte. Only the 33 HIGH steal-and-cast firings move
-        # from the SWEEP floor to the kept mirror.
+        # CROSS-OPEN RECONCILIATION (facade) — _matters sweep (ADR-0034): the LOW-conf
+        # firings in the hybrid are NOT this lane's producer; they ride the gain_control
+        # sibling cross-open (signals.py reconciliation: when the migrated IR supplies
+        # gain_control, open a LOW wants_theft) plus the regex `dont_own` membership
+        # path, and now carry the wants_theft key (the WANTS side of the split). Both
+        # are independent of the SWEEP producer and untouched here. Only the 33 HIGH
+        # steal-and-cast firings (theft_makers) move from the SWEEP floor to the kept
+        # mirror.
         #
         # SCOPE PARITY. The deleted producer forced scope 'opponents' / HIGH conf; the
         # mirror fires scope 'opponents' / HIGH conf — 0 scope/confidence mismatches
@@ -5480,7 +5481,21 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # theft_matters BYTE-IDENTICAL (370 → 370); voltron_matters delta 0
         # (3010 → 3010); siblings gain_control / donate_makers / clone_makers /
         # removal drift 0. CR DD9 (heist) / 613.1b (control-changing) / 903.10a.
-        "theft_matters",
+        #
+        # _matters sweep (ADR-0034): SPLIT by role. The HIGH steal-and-cast kept-mirror
+        # DOERS (above) now emit theft_makers — the card PERFORMS theft. The LOW
+        # gain_control / don't-own cross-open (a steal commander that WANTS the theft
+        # package) splits out to wants_theft, re-supplied by the signals.py facade
+        # against the MERGED gain_control set. makers + wants (union) == the old
+        # theft_matters membership, gate-verified set-equal. The old conflated
+        # "theft_matters" ends at 0.
+        "theft_makers",
+        # _matters sweep (ADR-0034): wants_theft — the steal-archetype WANTS lane (the
+        # include_membership gain_control / don't-own cross-open split out of the old
+        # theft_matters). The signals.py facade emits it (LOW 'opponents'), so the
+        # hybrid must recognize it as migrated to drop the now-redundant regex twin and
+        # keep the facade firing as the single source of the merged-set population.
+        "wants_theft",
         # ADR-0027 — evasion_self. The self-evasion lane ("This creature can't be
         # blocked" / unblockable / landwalk / the menace-family keyword words) rides a
         # BYTE-IDENTICAL kept WORD MIRROR (_EVASION_SELF_REGEX, the EXACT deleted

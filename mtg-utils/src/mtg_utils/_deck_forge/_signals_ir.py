@@ -1545,8 +1545,16 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # fed has_other_plan; the hybrid re-silences voltron via the byte-identical
     # _THEFT_MATTERS_PLAN_MIRROR (signals_regex) — NOT a coarse silencing-set entry,
     # which would over-silence the LOW-carrying gain_control beaters. CR DD9 / 613.1b.
+    # _matters sweep (ADR-0034): the MAKER arm of the theft split. This kept WORD
+    # MIRROR is the steal-and-cast DOER — the card PERFORMS theft (impulse-from-
+    # opponent steal-and-cast, the heist keyword action, the three-zone name-strip
+    # rifles) — so it emits theft_makers, NOT the old conflated theft_matters. The
+    # LOW gain_control / don't-own cross-opens (the deck WANTS to steal) split out
+    # to wants_theft (signals.py facade + _signals_regex). makers + wants (union) ==
+    # the old theft_matters membership, set-equal. HIGH 'opponents', feeds
+    # has_other_plan.
     (
-        "theft_matters",
+        "theft_makers",
         re.compile(THEFT_MATTERS_REGEX, re.IGNORECASE),
         "opponents",
     ),

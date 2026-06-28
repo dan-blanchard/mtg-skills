@@ -1313,10 +1313,11 @@ def test_three_zone_opponent_search_opens_theft():
     # forms, so Kotose missed the theft payoffs (Gonti, Praetor's Grasp). Real oracle.
     # ADR-0027: theft_matters migrated to the Card IR (a byte-identical THEFT_MATTERS_
     # REGEX kept mirror over the reminder-stripped oracle), so it serves from the hybrid
-    # path, not pure regex.
-    assert "theft_matters" in _keys_real("Kotose, the Silent Spider")
+    # path, not pure regex. ADR-0034 _matters sweep: the steal-and-cast MAKER arm now
+    # emits theft_makers.
+    assert "theft_makers" in _keys_real("Kotose, the Silent Spider")
     # Over-fire guard: searching YOUR OWN library is not theft.
-    assert "theft_matters" not in _keys_hybrid(
+    assert "theft_makers" not in _keys_hybrid(
         {"name": "X", "oracle_text": "Search your library for a card."}
     )
 
@@ -2630,16 +2631,17 @@ def test_forced_combat_and_any_player_attack_open_goad():
     }
 
 
-def test_gain_control_commander_also_opens_theft_matters():
+def test_gain_control_commander_also_opens_wants_theft():
     # A battlefield-steal commander (Dragonlord Silumgar "gain control of target
     # creature") and a borrow-and-cast theft commander are facets of the SAME stealing
-    # archetype — a steal deck runs the borrow-and-cast package (Gonti, Hostage Taker,
-    # Thief of Sanity), which lives in theft_matters. The card classification stays
-    # split (battlefield control change vs play-what-you-don't-own); only the COMMANDER
-    # cross-opens both sibling lanes. ADR-0027 β: gain_control migrated to the Card IR
-    # (the gated cat=='gain_control' arm), so it now fires from the hybrid IR path, and
-    # the facade re-opens the theft_matters sibling against the merged key set. Real
-    # oracle; the IR mirrors phase's ETB gain_control Effect.
+    # archetype — a steal deck WANTS the borrow-and-cast package (Gonti, Hostage Taker,
+    # Thief of Sanity). ADR-0034 _matters sweep: that want-side cross-open is wants_theft
+    # (the steal-and-cast DOERS themselves are theft_makers). The card classification
+    # stays split (battlefield control change vs play-what-you-don't-own); only the
+    # COMMANDER cross-opens both sibling lanes. ADR-0027 β: gain_control migrated to the
+    # Card IR (the gated cat=='gain_control' arm), so it now fires from the hybrid IR
+    # path, and the facade re-opens the wants_theft sibling against the merged key set.
+    # Real oracle; the IR mirrors phase's ETB gain_control Effect.
     silumgar = {
         "name": "Dragonlord Silumgar",
         "type_line": "Legendary Creature — Elder Dragon",
@@ -2664,14 +2666,14 @@ def test_gain_control_commander_also_opens_theft_matters():
     )
     ks = _ks_hybrid_ir(silumgar, silumgar_ir)
     assert ("gain_control", "you") in ks
-    assert ("theft_matters", "opponents") in ks
+    assert ("wants_theft", "opponents") in ks
     # Over-fire guard: a commander with no steal/theft text opens neither.
     plain = {
         "name": "Plain Beater",
         "type_line": "Legendary Creature — Bear",
         "oracle_text": "Trample\nWhenever this creature attacks, it gets +1/+1.",
     }
-    assert ("theft_matters", "opponents") not in _ks_hybrid(plain)
+    assert ("wants_theft", "opponents") not in _ks_hybrid(plain)
 
 
 def test_player_burn_source_opens_direct_damage():
@@ -2739,10 +2741,11 @@ def test_donate_via_that_player_opens_donate():
     assert ("donate_makers", "you") not in donate_keys
 
 
-def test_dont_own_payoff_opens_theft_and_gain_control():
+def test_dont_own_payoff_opens_wants_theft_and_gain_control():
     # A theft-PAYOFF commander that rewards permanents "you control but DON'T OWN"
-    # (Don Andres, Arvinox) is built on stealing — it wants the whole theft package
-    # (battlefield steals AND borrow-and-cast). Open both sibling lanes. Real oracle.
+    # (Don Andres, Arvinox) is built on stealing — it WANTS the whole theft package
+    # (battlefield steals AND borrow-and-cast). ADR-0034 _matters sweep: the want-side
+    # cross-open is wants_theft. Open both sibling lanes. Real oracle.
     don_andres = {
         "name": "Don Andres, the Renegade",
         "type_line": "Legendary Creature — Vampire Pirate",
@@ -2774,7 +2777,7 @@ def test_dont_own_payoff_opens_theft_and_gain_control():
     }
     for cmd in (don_andres, arvinox, gonti_canny):
         ks = _ks(cmd)
-        assert ("theft_matters", "opponents") in ks, cmd["name"]
+        assert ("wants_theft", "opponents") in ks, cmd["name"]
         assert ("gain_control", "you") in ks, cmd["name"]
     # Over-fire guard: a plain commander opens neither.
     plain = {
@@ -2782,7 +2785,7 @@ def test_dont_own_payoff_opens_theft_and_gain_control():
         "type_line": "Legendary Creature — Bear",
         "oracle_text": "Trample",
     }
-    assert ("theft_matters", "opponents") not in _ks(plain)
+    assert ("wants_theft", "opponents") not in _ks(plain)
 
 
 def test_baseline_creature_etb_unchanged():

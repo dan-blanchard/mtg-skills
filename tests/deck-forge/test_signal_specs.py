@@ -6663,7 +6663,7 @@ THIEF_OF_SANITY = {
         "though it were mana of any color to cast it."
     ),
 }
-# Over-fire guard for theft_matters: self-impulse (your OWN library) is not theft.
+# Over-fire guard for theft_makers: self-impulse (your OWN library) is not theft.
 VALAKUT_EXPLORATION = {
     "name": "Valakut Exploration",
     "type_line": "Enchantment",
@@ -6686,10 +6686,10 @@ def test_impulse_and_cast_from_exile_serve_exile_then_cast_engines():
         assert _lane_covers(THIEF_OF_SANITY, sig) is True, sig.key
 
 
-def test_theft_matters_serves_opponent_library_theft_not_self_impulse():
-    # theft_matters is steal-from-OPPONENT — Gonti/Thief dig an opponent's library;
+def test_theft_makers_serves_opponent_library_theft_not_self_impulse():
+    # theft_makers is steal-from-OPPONENT — Gonti/Thief dig an opponent's library;
     # Valakut Exploration impulses YOUR OWN library and must NOT register as theft.
-    sig = _sig("theft_matters", "opponents")
+    sig = _sig("theft_makers", "opponents")
     assert _lane_covers(GONTI, sig) is True
     assert _lane_covers(THIEF_OF_SANITY, sig) is True
     assert _lane_covers(VALAKUT_EXPLORATION, sig) is False
@@ -6790,16 +6790,16 @@ def test_landfall_serves_return_lands_from_graveyard():
 def test_gain_control_vs_theft_borrow_and_cast_are_distinct():
     # PRECISION boundary: gain_control is a BATTLEFIELD control change. Borrow-and-cast
     # engines (Gonti/Hostage Taker) exile a card and let you CAST it — playing what you
-    # don't own — which is theft_matters, NOT gain_control. Bribery is the genuine
+    # don't own — which is theft_makers, NOT gain_control. Bribery is the genuine
     # gain-control case: it seats a permanent onto the battlefield UNDER YOUR CONTROL.
     gc = _sig("gain_control", "you")
-    theft = _sig("theft_matters", "opponents")
+    theft = _sig("theft_makers", "opponents")
     assert (
         _lane_covers(BRIBERY, gc) is True
     )  # library -> battlefield under your control
     assert _lane_covers(GONTI, gc) is False  # exile + cast is not a control change
     assert _lane_covers(HOSTAGE_TAKER, gc) is False
-    # Their real home is theft_matters (play-what-you-don't-own).
+    # Their real home is theft_makers (play-what-you-don't-own).
     assert _lane_covers(GONTI, theft) is True
     assert _lane_covers(HOSTAGE_TAKER, theft) is True
 

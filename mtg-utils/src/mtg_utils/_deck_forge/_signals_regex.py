@@ -3876,8 +3876,10 @@ def extract_signals(
 
     # Theft-archetype siblings (membership). Stealing battlefield permanents
     # (gain_control — Silumgar / Garland / Nihiloor) and borrowing-and-casting what you
-    # don't own (theft_matters — Gonti, Hostage Taker, Thief of Sanity) are facets of
-    # ONE stealing archetype; a steal commander runs the whole theft package. The card
+    # don't own (the steal-and-cast doers — Gonti, Hostage Taker, Thief of Sanity) are
+    # facets of ONE stealing archetype; a steal commander WANTS the whole theft package.
+    # ADR-0034 _matters sweep: this LOW want-side cross-open is wants_theft (the doers
+    # themselves emit theft_makers). The card
     # classification stays split (battlefield control change vs play-what-you-don't-own
     # — these are distinct mechanics), so only the COMMANDER cross-opens the sibling
     # lane, at LOW confidence (an archetype suggestion, not a detected payoff). A theft
@@ -3894,7 +3896,12 @@ def extract_signals(
             re.IGNORECASE,
         )
         if "gain_control" in keys_now or dont_own:
-            add("theft_matters", "opponents", "", text[:160], "low")
+            # _matters sweep (ADR-0034): the PAYOFF/WANTS arm of the theft split — a
+            # steal commander WANTS the theft package run (it doesn't itself steal-and-
+            # cast). LOW archetype suggestion -> wants_theft, NOT the maker key. In the
+            # hybrid this regex firing is dropped (wants_theft is migrated) and the
+            # signals.py facade re-supplies it against the MERGED gain_control set.
+            add("wants_theft", "opponents", "", text[:160], "low")
         if dont_own and "gain_control" not in keys_now:
             add("gain_control", "you", "", text[:160], "low")
         # Play-from-top engine (Gwenom, Glarb, Reality Chip) curates its top — it wants
