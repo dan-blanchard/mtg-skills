@@ -377,6 +377,12 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # granter / anthem / reference phase folds into a carrier raw or drops onto the
     # face oracle. The card's OWN printed cascade/undying/persist/changeling rides the
     # Scryfall keyword array (_IR_KEYWORD_MAP); these add the keyword-LESS form.
+    # _matters sweep (ADR-0034): this `_CASCADE_GRANT` marker reads a
+    # conferral/reference (keyword-less granters — Maelstrom Nexus, Yidris,
+    # Zhulodok — and cares-about refs — Averna's "as you cascade", The First
+    # Doctor's "spell with cascade"), NOT an intrinsic cascader, so it is the
+    # PAYOFF arm and KEEPS cascade_matters. The intrinsic-keyword MAKER arm
+    # (_IR_KEYWORD_MAP["cascade"]) emits cascade_makers.
     "cascade": ("cascade_matters", "you"),
     "undying_persist": ("has_undying_persist", "you"),
     "changeling": ("has_changeling", "you"),
@@ -563,7 +569,14 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # mobilize-keyword bodies the mirror can't reach (the saddle/lifelink-style move).
     "amass": (("tokens_matter", "you"),),
     "mobilize": (("tokens_matter", "you"),),
-    "cascade": (("cascade_matters", "you"),),
+    # _matters sweep (ADR-0034): the Scryfall `cascade` keyword array marks an
+    # INTRINSIC cascader that PERFORMS cascade (The First Sliver, Annoyed
+    # Altisaur, Apex Devastator, Bituminous Blast) — the MAKER arm, so it emits
+    # cascade_makers. The keyword-LESS granters/references (Maelstrom Nexus's
+    # "spells you cast have cascade", Averna's "as you cascade") ride the
+    # _CASCADE_GRANT marker through _DOER_EFFECT_KEYS["cascade"] and keep the
+    # PAYOFF key cascade_matters.
+    "cascade": (("cascade_makers", "you"),),
     # Casualty (CR 702.153) sacrifices a creature as a cost to copy the spell — the
     # printed KEYWORD is the structural anchor for the sac cost phase folds into the
     # Casualty parse (no sacrifice Effect / cost token survives). Mirrors the regex

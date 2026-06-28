@@ -5013,13 +5013,28 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"return (?:up to \w+ )?target (?:creature|permanent|nonland permanent)"
         r"[^.\n]*to (?:its|their) owner's hand",
     ),
-    ("cascade_matters", "you"): _spec(
+    # _matters sweep (ADR-0034): the cascade build-around is driven by an
+    # intrinsic-cascader commander (The First Sliver, Apex Devastator) — a
+    # cascade_makers card — so the "Cascade" avenue attaches to cascade_makers.
+    # The serve regex \bcascade\b serves makers + granters + payoffs alike.
+    ("cascade_makers", "you"): _spec(
         "Cascade",
         "high-value spells to hit off cascade plus more cascade enablers",
         {"oracle": r"\bcascade\b"},
         r"\bcascade\b",
         # Cascade cheats big nonland bombs into play for free — credit genuine fatties
         # (Ghalta, Etali) as the payoff, not just more cascade sources.
+        serve_power_min=6,
+    ),
+    # _matters sweep (ADR-0034): the PAYOFF side — a keyword-less cascade granter
+    # / cares-about reference (Maelstrom Nexus, Yidris, Averna). Same cascade
+    # build-around: surface the high-value spell pool to hit off cascade plus
+    # more cascade sources to thread through the granter.
+    ("cascade_matters", "you"): _spec(
+        "Cascade payoffs",
+        "high-value spells to hit off cascade plus more cascade enablers",
+        {"oracle": r"\bcascade\b"},
+        r"\bcascade\b",
         serve_power_min=6,
     ),
     ("regenerate_makers", "you"): _spec(

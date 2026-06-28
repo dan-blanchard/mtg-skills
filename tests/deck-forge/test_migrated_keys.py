@@ -85,6 +85,7 @@ _REAL_CASES: dict[str, str] = {
     "bounce_tempo": "Boomerang",
     "cant_block_grant": "Breeches, Eager Pillager",
     "card_draw_engine": "Phyrexian Arena",
+    "cascade_makers": "The First Sliver",
     "cascade_matters": "Maelstrom Nexus",
     "cast_from_exile": "Vega, the Watcher",
     "celebration_matters": "Tuinvale Guide",

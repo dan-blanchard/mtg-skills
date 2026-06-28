@@ -604,9 +604,12 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # triggers — "green/Vampire/Eldrazi creature spell", "nonlegendary creature
         # spell with flying" — the bare "casts a creature spell" regex missed). Each
         # key's oracle-regex producer is deleted; serve specs stay hand-spec'd.
-        #   cascade_matters ← Scryfall `cascade` keyword + a `_CASCADE_GRANT` marker for
-        #                the keyword-less granters/references (Maelstrom Nexus, Yidris,
-        #                Averna, The First Doctor's "spell with cascade" payoff).
+        #   cascade_makers ← Scryfall `cascade` keyword (the INTRINSIC cascaders
+        #                that PERFORM cascade — The First Sliver, Annoyed Altisaur,
+        #                Apex Devastator); the MAKER arm of the _matters sweep split.
+        #   cascade_matters ← a `_CASCADE_GRANT` marker for the keyword-less
+        #                granters/references (Maelstrom Nexus, Yidris, Averna, The
+        #                First Doctor's "spell with cascade" payoff); the PAYOFF arm.
         #   has_changeling ← Scryfall `changeling` keyword + a `_CHANGELING_REF`
         #                ("changeling" / "is every creature type") marker (Maskwood
         #                Nexus, Mistform Ultimus, Arachnoform, Omo's everything ctr).
@@ -625,6 +628,8 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                different-trigger may-cast actions (Cavern of Souls, Dragon-
         #                Kami's Egg).
         "cascade_matters",
+        # _matters sweep (ADR-0034): the intrinsic-cascader MAKER arm.
+        "cascade_makers",
         "has_changeling",
         "regenerate_makers",
         "has_undying_persist",
