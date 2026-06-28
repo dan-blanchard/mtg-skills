@@ -1409,10 +1409,13 @@ def test_goad_via_keyword_array_scoped_opponents():
 
 
 def test_proliferate_via_keyword_array():
-    # ADR-0027: proliferate_matters migrated to the Card IR; the proliferate
-    # keyword now opens the lane via _IR_KEYWORD_MAP (the IR-only keyword path,
-    # reading the record's Scryfall keyword array), so this asserts the hybrid.
-    assert ("proliferate_matters", "you") in _ks_real("Atraxa, Praetors' Voice")
+    # ADR-0027: proliferate migrated to the Card IR; the proliferate keyword now
+    # opens the lane via _IR_KEYWORD_MAP (the IR-only keyword path, reading the
+    # record's Scryfall keyword array), so this asserts the hybrid. _matters sweep
+    # (ADR-0034): Atraxa CARRIES the Proliferate keyword (it PERFORMS proliferate),
+    # so the keyword arm now emits the MAKER key proliferate_makers, not the
+    # cares-about payoff lane proliferate_matters.
+    assert ("proliferate_makers", "you") in _ks_real("Atraxa, Praetors' Voice")
 
 
 # --- narrow Tinybones scope fix (ADR-0009) ------------------------------------

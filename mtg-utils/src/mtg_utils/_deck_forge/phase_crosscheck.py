@@ -448,7 +448,9 @@ CROSSWALK: dict[str, frozenset[str]] = {
         {"effect:dealdamage", "effect:damageall", "effect:damageeachplayer"}
     ),
     "untap_engine": frozenset({"effect:untap", "effect:untapall"}),
-    "proliferate_matters": frozenset({"effect:proliferate"}),
+    # _matters sweep (ADR-0034): effect:proliferate is the DOER crosswalk — it maps
+    # to the maker arm (proliferate_makers), not the cares-about payoff lane.
+    "proliferate_makers": frozenset({"effect:proliferate"}),
     "topdeck_selection": frozenset(
         {"effect:scry", "effect:surveil", "effect:dig", "effect:explore"}
     ),

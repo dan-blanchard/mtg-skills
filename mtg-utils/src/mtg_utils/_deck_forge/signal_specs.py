@@ -2442,6 +2442,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\bproliferate\b|(?:poison|loyalty|charge|oil|\+1/\+1) counter",
         extras=(_COUNTER_DOUBLER_EXTRA, _KEYWORD_COUNTER_EXTRA),
     ),
+    # _matters sweep (ADR-0034): the MAKER side of the proliferate split — cards
+    # that PERFORM proliferate (the Scryfall keyword carriers Atraxa / Evolution
+    # Sage / Karn's Bastion + the keyword-less native proliferators). A
+    # proliferate-makers commander wants MORE proliferate engines plus the
+    # any-kind counter sources and doublers those engines multiply — same serve
+    # pool as the payoff lane (the avenue legitimately offers makers + payoffs
+    # together, ADR-0034).
+    ("proliferate_makers", "you"): _spec(
+        "Proliferate",
+        "proliferate engines plus any-kind counter sources and doublers",
+        {"preset_names": ("proliferate",)},
+        r"\bproliferate\b|(?:poison|loyalty|charge|oil|\+1/\+1) counter",
+        extras=(_COUNTER_DOUBLER_EXTRA, _KEYWORD_COUNTER_EXTRA),
+    ),
     # Hand-promote EVERY mined +1/+1-counter lane with the shared counters package so a
     # counters commander surfaces sources (Forgotten Ancient), doublers (Hardened
     # Scales), keyword counters, and proliferate no matter which fragmented lane opened.

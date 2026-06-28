@@ -178,7 +178,14 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # loop. The lane wants a deliberate untap ENGINE (untap target/all/each — Seedborn
     # Muse, Kiora), so it now fires from a GATED arm (cat=="untap" + _UNTAP_ENGINE_RAW
     # or a mass untap) instead of this entry. See extract_signals_ir.
-    "proliferate": ("proliferate_matters", "you"),
+    # _matters sweep (ADR-0034): the native phase `proliferate` EFFECT category is
+    # the MAKER arm — the card PERFORMS proliferate (CR 701.34a, adds another
+    # counter of each kind already there), so it opens proliferate_makers for the
+    # keyword-LESS proliferators (Maulfist Revolutionary, Skyship Plunderer) the
+    # Scryfall keyword regex missed. The PAYOFF arms (station accrual, the
+    # divinity/charge enters-with mirrors, the remove-cost engine) keep
+    # proliferate_matters.
+    "proliferate": ("proliferate_makers", "you"),
     # ADR-0027 topdeck library-owner scope (SIDECAR v28): topdeck_select is NOT a
     # fixed-scope doer here — the `topdeck_select` EFFECT category now carries WHOSE
     # library/hand it examines as its scope (supplement._topdeck_select_owner_scope:
@@ -747,7 +754,12 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # ("Proliferate",)). The native `proliferate` EFFECT category already opens
     # the lane for keyword-LESS proliferators (Maulfist Revolutionary, Skyship
     # Plunderer) via _DOER_EFFECT_KEYS.
-    "proliferate": (("proliferate_matters", "you"),),
+    # _matters sweep (ADR-0034): the Scryfall `Proliferate` keyword carrier
+    # (Atraxa, Evolution Sage, Karn's Bastion) PERFORMS proliferate → the MAKER
+    # arm emits proliferate_makers. The `station` keyword is NOT a proliferate
+    # doer — it ACCRUES charge counters the deck WANTS to proliferate (CR 702.184),
+    # so it KEEPS proliferate_matters (the cares-about payoff lane).
+    "proliferate": (("proliferate_makers", "you"),),
     "station": (("proliferate_matters", "you"),),
     # ADR-0027 mill_makers migration: the Mill keyword action (CR 701.13 — "put the
     # top N cards of a library into its owner's graveyard"; self-mill OR targeted)

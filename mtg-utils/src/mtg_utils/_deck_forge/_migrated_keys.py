@@ -3948,6 +3948,21 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # proliferate_matters moves (404 → 406, +2 recall gain), plus_one_matters /
         # counter_distribute / counter_manipulation / minus_counters_matter drift 0,
         # voltron_matters delta 0 (gained 0 / lost 0). CR 701.27 / 702.184 / 903.10a.
+        #
+        # _matters sweep (ADR-0034): split by emission arm. The MAKER arms — the
+        # native phase `proliferate` EFFECT (_DOER_EFFECT_KEYS, keyword-less
+        # proliferators) and the Scryfall `Proliferate` keyword carrier
+        # (_IR_KEYWORD_MAP) — re-key to proliferate_makers (the card PERFORMS
+        # proliferate). The PAYOFF arms keep proliferate_matters: the `station`
+        # keyword (charge accrual), the divinity/charge-counter HIGH mirrors, and
+        # the LOW remove-cost engine (cards that WANT proliferate, not doers).
+        # Gate-verified set-equal: members(proliferate_makers) union
+        # members(proliferate_matters) == 407 (the old key), voltron unchanged at
+        # 2411. Both keys auto-flow into IR_SLICE_KEYS (makers via _IR_KEYWORD_KEYS
+        # + _DOER_EFFECT_KEYS.values(); matters via the station keyword). Both feed
+        # the generic IR has_other_plan scan (neither is voltron-compat), so the
+        # maker population retains its commander-damage silence key-independently.
+        "proliferate_makers",
         "proliferate_matters",
         # ADR-0027 — artifacts_matter (the ARTIFACTS go-wide / matters axis: a card
         # that cares about your artifact population — "artifacts you control" anthems,
