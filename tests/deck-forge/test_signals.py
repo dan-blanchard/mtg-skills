@@ -1257,9 +1257,11 @@ def test_archetype_keywords_open_their_lane():
         assert ("attack_matters", "you") in {
             (s.key, s.scope) for s in extract_signals_hybrid(card, ir)
         }, kw
-    # ADR-0027: Exploit (sacrifice_outlets) and Afflict (lifeloss_matters) are migrated
+    # ADR-0027: Exploit (sacrifice_outlets) and Afflict (lifeloss_makers) are migrated
     # — phase models both as a STRUCTURAL effect (exploit's sacrifice, afflict's
-    # lose_life), so they fire from the IR, not the regex keyword path.
+    # lose_life), so they fire from the IR, not the regex keyword path. _matters sweep
+    # (ADR-0034): afflict CAUSES opponents to lose life (a lose_life MAKER), so it fires
+    # lifeloss_makers, not the lifeloss_matters payoff.
     afflict = {
         "name": "Afflict Lord",
         "type_line": "Legendary Creature — Test",
@@ -1272,7 +1274,7 @@ def test_archetype_keywords_open_their_lane():
             effects=(Effect(category="lose_life", scope="any"),),
         )
     )
-    assert ("lifeloss_matters", "opponents") in {
+    assert ("lifeloss_makers", "opponents") in {
         (s.key, s.scope) for s in extract_signals_hybrid(afflict, ir)
     }
 
@@ -1326,8 +1328,10 @@ def test_past_tense_count_payoffs_open_their_lane():
     assert "attack_matters" in {
         s.key for s in extract_signals_hybrid(attack, _bare_ir())
     }
-    # ADR-0027: lifeloss_matters is migrated — Neheb / Rakdos "for each 1 life your
-    # opponents have lost this turn" fires from the IR's _LOST_LIFE_TURN drain marker.
+    # ADR-0027: lifeloss is migrated — Neheb / Rakdos "for each 1 life your opponents
+    # have lost this turn" fires from the IR's _LOST_LIFE_TURN drain marker. _matters
+    # sweep (ADR-0034): the marker folds into the structural lose_life MAKER arm, so it
+    # fires lifeloss_makers (the whole lose_life arm is the maker side of the split).
     neheb = {
         "name": "Neheb",
         "type_line": "Legendary Creature — Test",
@@ -1336,9 +1340,7 @@ def test_past_tense_count_payoffs_open_their_lane():
     from mtg_utils._card_ir.project import project_card
 
     neheb_ir = project_card([{**neheb, "card_type": {"core_types": ["Creature"]}}])
-    assert "lifeloss_matters" in {
-        s.key for s in extract_signals_hybrid(neheb, neheb_ir)
-    }
+    assert "lifeloss_makers" in {s.key for s in extract_signals_hybrid(neheb, neheb_ir)}
     # ADR-0027 β: draw_matters is migrated — Proft / Kydele "for each card you've
     # drawn this turn" is a count-operand payoff with NO `drawn` trigger, so it fires
     # from the byte-identical draw_matters kept-mirror in the IR path (which scans the
@@ -1651,12 +1653,12 @@ def test_mv_scaling_burn_opens_noncombat_damage():
 
 
 def test_opponent_lost_life_this_turn_opens_drain():
-    # Sygg pays off "an opponent lost 3 or more life this turn" — a drain/lifeloss
-    # payoff. ADR-0027: lifeloss_matters is migrated, served from the IR's
-    # _LOST_LIFE_TURN drain marker.
-    # Real Sygg, River Cutthroat (snapshot): "an opponent lost 3 or more life this turn"
-    # is a drain/lifeloss payoff (the _LOST_LIFE_TURN drain marker).
-    assert ("lifeloss_matters", "opponents") in _real("Sygg, River Cutthroat")
+    # Sygg keys off "an opponent lost 3 or more life this turn" — the IR's
+    # _LOST_LIFE_TURN drain marker. _matters sweep (ADR-0034): that marker folds into
+    # the structural lose_life MAKER arm, so it fires lifeloss_makers (the whole
+    # lose_life structural arm is the maker side of the split).
+    # Real Sygg, River Cutthroat (snapshot): the _LOST_LIFE_TURN drain marker.
+    assert ("lifeloss_makers", "opponents") in _real("Sygg, River Cutthroat")
 
 
 def test_turn_target_face_up_opens_facedown():

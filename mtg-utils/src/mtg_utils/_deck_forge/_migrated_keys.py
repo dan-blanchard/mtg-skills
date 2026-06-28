@@ -563,6 +563,14 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # residual re-adjudicates to ~all over-fire bar ~3 deep edge cards (a
         # value-paylife with no "if you do" anchor, a replacement-effect life loss).
         # NO-FLOOD held (only lifeloss_matters grew). See ADR-0027.
+        # _matters sweep (ADR-0034): split by emission arm. lifeloss_makers ← the
+        # MAKER arms (a structured `lose_life` Effect drain/self-loss, a
+        # `life_payment` marker, a paylife ACTIVATION COST buying a non-ramp engine
+        # — the card PERFORMS / pays the life loss). lifeloss_matters keeps the
+        # PAYOFF arms (the `life_lost` trigger + the spectacle keyword reference).
+        # Gate-verified set-equal: makers UNION matters == the old lifeloss_matters
+        # membership (1291) over the commander-legal corpus.
+        "lifeloss_makers",
         "lifeloss_matters",
         # removal ← phase's `destroy` / `damage` effect with a SINGLE-TARGET
         # permanent SUBJECT (card_types ∩ permanent types OR a permanent subtype, CR

@@ -4610,24 +4610,21 @@ def test_variable_self_bleed_opens_lifegain_sustain():
 
 
 def test_variable_self_lifeloss_opens_life_as_resource_lane():
-    # The lifeloss_matters "you" lane (life-as-resource: pay/lose life on demand, plus
-    # life-total swap/reset/recovery payoffs like Repay in Kind / Children of Korlis /
-    # Near-Death Experience). Its SERVE already matched variable "you lose X life", but
-    # the DETECTOR that decides whether a COMMANDER opens it was numeric-only, so the
-    # variable-bleed commanders missed this second avenue. Real oracle.
-    # ADR-0027: lifeloss_matters is IR-served — both fire from the structural
-    # `lose_life` ("you lose X/that much life"). phase emits the lose_life Effect; the
-    # IR here mirrors that node (the supplement does not synthesize a bare-clause
-    # lose_life out of a trimmed activated-ability raw).
-    assert ("lifeloss_matters", "you") in {
+    # The lifeloss "you" lane (life-as-resource: pay/lose life on demand). Both fire
+    # from the structural `lose_life` ("you lose X/that much life"). _matters sweep
+    # (ADR-0034): a self life-loss DOER fires the MAKER arm lifeloss_makers (the card
+    # performs the life loss); phase emits the lose_life Effect, the IR mirrors that
+    # node (the supplement does not synthesize a bare-clause lose_life out of a trimmed
+    # activated-ability raw).
+    assert ("lifeloss_makers", "you") in {
         (s.key, s.scope) for s in test_signals("Asmodeus the Archfiend")
     }
-    assert ("lifeloss_matters", "you") in {
+    assert ("lifeloss_makers", "you") in {
         (s.key, s.scope) for s in test_signals("Be'lakor, the Dark Master")
     }
     # Over-fire guard: a "Ward—Pay life equal to" cost (Raubahn) is the OPPONENT paying,
-    # not self life-loss — phase emits no lose_life, so the lane stays out on the IR.
-    assert "lifeloss_matters" not in {
+    # not self life-loss — phase emits no lose_life, so neither lane fires on the IR.
+    assert "lifeloss_makers" not in {
         s.key for s in test_signals("Raubahn, Bull of Ala Mhigo")
     }
 

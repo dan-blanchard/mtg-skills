@@ -113,15 +113,17 @@ def test_haktos_forced_attack():
 
 # ── The Actualizer: life-loss with an interposed relative clause ──
 def test_lifeloss_with_relative_clause():
-    # ADR-0027: lifeloss_matters is IR-served; phase emits the structural lose_life.
+    # ADR-0027: lifeloss is IR-served; phase emits the structural lose_life. _matters
+    # sweep (ADR-0034): causing opponents to lose life is the MAKER side, so it fires
+    # lifeloss_makers.
     sigs = _hybrid_sigs(
         "Each opponent who guessed incorrectly loses 3 life.", name="The Actualizer"
     )
-    assert any(s.key == "lifeloss_matters" and s.scope == "opponents" for s in sigs)
+    assert any(s.key == "lifeloss_makers" and s.scope == "opponents" for s in sigs)
 
 
 def test_plain_lifeloss_still_fires():
-    assert "lifeloss_matters" in {
+    assert "lifeloss_makers" in {
         s.key for s in _hybrid_sigs("Each opponent loses 2 life.")
     }
 

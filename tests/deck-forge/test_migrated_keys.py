@@ -257,7 +257,12 @@ _REAL_CASES: dict[str, str] = {
     "life_payment_insurance": "Underworld Connections",
     "life_total_set": "Beacon of Immortality",
     "lifegain_matters": "Archangel of Thune",
-    "lifeloss_matters": "Gray Merchant of Asphodel",
+    # _matters sweep (ADR-0034): Gray Merchant fires the MAKER arm ("each opponent
+    # loses X life" = a lose_life drain), so it proves lifeloss_makers. Vilis fires
+    # the PAYOFF arm (Trigger event='life_lost' — "whenever you lose life, draw") so
+    # it proves the kept lifeloss_matters.
+    "lifeloss_makers": "Gray Merchant of Asphodel",
+    "lifeloss_matters": "Vilis, Broker of Blood",
     "lose_unless_hand": "Phage the Untouchable",
     "low_power_matters": "Subira, Tulzidi Caravanner",
     "ltb_matters": "Azorius Aethermage",

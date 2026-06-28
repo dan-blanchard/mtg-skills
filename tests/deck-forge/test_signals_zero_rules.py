@@ -115,8 +115,10 @@ def test_discard_matters():
 
 
 def test_lifeloss_drain_scoped_opponents():
-    # ADR-0027: lifeloss_matters is IR-served — a `lose_life` drain (scope any/opp →
-    # opponents). A synthetic dies-drain shape pins the scope fold generically.
+    # ADR-0027: lifeloss is IR-served — a `lose_life` drain (scope any/opp →
+    # opponents). _matters sweep (ADR-0034): the lose_life structural arm is the MAKER
+    # side, so a drain fires lifeloss_makers. A synthetic dies-drain shape pins the
+    # scope fold generically.
     c = {
         "name": "Drainer",
         "oracle_text": "Whenever a creature you control dies, each opponent loses 1 life.",
@@ -136,7 +138,7 @@ def test_lifeloss_drain_scoped_opponents():
             ),
         ),
     )
-    assert ("lifeloss_matters", "opponents") in {
+    assert ("lifeloss_makers", "opponents") in {
         (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
     }
 

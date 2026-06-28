@@ -3451,6 +3451,40 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|if you have [^.]*life[^.]*win the game",
         serve_not=r"\bas this land enters\b|enters tapped",
     ),
+    # _matters sweep (ADR-0034): the MAKER side of the lifeloss split — cards that
+    # PERFORM the life loss (a structured `lose_life` drain, a `life_payment`
+    # marker, a paylife activation cost buying a non-ramp engine). The avenue still
+    # offers the whole package (makers + drain/aristocrats payoffs together — ADR
+    # -0034: serve is unaffected in spirit), so these specs copy the kept
+    # lifeloss_matters serve content; only the role label differs. opponents = the
+    # drain doers; you = the self life-as-resource doers.
+    ("lifeloss_makers", "opponents"): _spec(
+        "Drain (makers)",
+        "repeatable life-drain doers plus the aristocrats payoffs they enable",
+        {
+            "oracle": r"each opponent loses|target opponent loses|whenever .* dies"
+            r"|(?:an? |each )?opponents? lost life this turn"
+        },
+        r"opponent[^.]*loses [^.]*life|whenever an opponent loses life|\bextort\b"
+        r"|(?:target player|that player|a player) loses? [^.]*\blife\b"
+        r"|(?:an? opponent|each opponent|opponents?|a player|each player)"
+        r"(?: who)? lost life this turn"
+        r"|deals (?:\d+|x|that much) damage to "
+        r"(?:each opponent|target opponent|each of your opponents"
+        r"|that player|each player)",
+    ),
+    ("lifeloss_makers", "you"): _spec(
+        "Self life-loss (makers)",
+        "ways to pay or lose life on demand to fuel your payoffs, plus the life-total "
+        "swaps/resets and recovery that turn a low life total into an advantage",
+        {"oracle": r"you lose \d+ life|pay \d+ life|lose \d+ life"},
+        r"whenever you (?:gain or )?lose life|you lose (?:\d+|x) life"
+        r"|pay (?:\d+|x) life"
+        r"|exchange life totals?|life totals? becomes?|lowest life total"
+        r"|gain life equal to[^.]*lost|life you(?:'ve| have)? lost this turn"
+        r"|if you have [^.]*life[^.]*win the game",
+        serve_not=r"\bas this land enters\b|enters tapped",
+    ),
     # Celebration (WOE): all 11 cards carry the exact phrase, so serve == open. A
     # Celebration commander floods nonland permanents each turn to switch the payoffs
     # on; the lane surfaces the other Celebration cards (Grand Ball Guest, Raging

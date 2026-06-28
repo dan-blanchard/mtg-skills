@@ -139,9 +139,11 @@ def test_exalted_is_voltron():
 
 
 def test_extort_is_drain():
-    # ADR-0027: lifeloss_matters is migrated. phase models Extort (CR 702.101) as a
+    # ADR-0027: lifeloss is migrated. phase models Extort (CR 702.101) as a
     # structural `lose_life` ("each opponent loses 1 life"), so a real extort card
-    # fires the lane from the IR — not the regex keyword path.
+    # fires the lane from the IR — not the regex keyword path. _matters sweep
+    # (ADR-0034): extort CAUSES opponents to lose life (a lose_life MAKER), so it
+    # fires lifeloss_makers.
     from mtg_utils._card_ir.project import project_card
     from mtg_utils._deck_forge.signals import extract_signals_hybrid
 
@@ -172,7 +174,7 @@ def test_extort_is_drain():
         ]
     )
     sigs = extract_signals_hybrid(card, ir)
-    assert any(s.key == "lifeloss_matters" and s.scope == "opponents" for s in sigs)
+    assert any(s.key == "lifeloss_makers" and s.scope == "opponents" for s in sigs)
 
 
 def test_amass_is_tokens():

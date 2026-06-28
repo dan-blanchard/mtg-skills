@@ -3217,6 +3217,14 @@ IR_SLICE_KEYS: frozenset[str] = (
         {
             "creatures_matter",
             "lifegain_matters",
+            # _matters sweep (ADR-0034): lifeloss split. The MAKER arms emit
+            # lifeloss_makers (a structured lose_life Effect drain/self-loss, a
+            # life_payment marker, and a paylife activation cost buying a non-ramp
+            # engine) — all inline add()s in the doer loop, in no auto-derived map,
+            # so the new maker key is pinned here. The PAYOFF arms keep
+            # lifeloss_matters (the life_lost trigger + the spectacle keyword map,
+            # which carries lifeloss_matters into the slice via _IR_KEYWORD_KEYS).
+            "lifeloss_makers",
             "graveyard_matters",
             signal_keys.TOKEN_MAKER,
             "death_matters",
@@ -9089,15 +9097,16 @@ def extract_signals_ir(
             # 701.18/701.25 own-library selection), not over-fire. CR 401.1 / 116.
             if "top:you" in e.zones:
                 add("topdeck_selection", "you", "", e.raw)
-            # ADR-0027 lifeloss_matters — a structured life-LOSS effect. phase emits a
+            # _matters sweep (ADR-0034): lifeloss_makers — a structured life-LOSS effect
+            # is the MAKER arm (the card PERFORMS the life loss). phase emits a
             # `lose_life` category distinct from gain_life / set_life, so the lane reads
             # it directly. scope splits the half: a drain ("each opponent / target
             # player / that player loses N life") is scope opp/any → opponents; a self
-            # life-loss cost/payoff ("you lose N/X life") is scope you → you. lifeGAIN
+            # life-loss cost/doer ("you lose N/X life") is scope you → you. lifeGAIN
             # and combat damage are sibling categories that never reach here. CR 119.3.
             if cat == "lose_life":
                 add(
-                    "lifeloss_matters",
+                    "lifeloss_makers",
                     "you" if e.scope == "you" else "opponents",
                     "",
                     e.raw,
@@ -9105,10 +9114,11 @@ def extract_signals_ir(
             # A `life_payment` marker (project._dropped_static_markers: a "Pay N life:"
             # cost phase misparsed — Arco-Flagellant — or dropped inside a conferred
             # quoted ability — Hibernation Sliver, Underworld Connections) is a self
-            # life-as-resource engine, so it opens lifeloss_matters too. (It already
-            # opens life_payment_insurance via _DOER_EFFECT_KEYS.) Not a Land card.
+            # life-as-resource DOER, so it opens lifeloss_makers too (_matters sweep,
+            # ADR-0034 — the card pays/loses the life). (It already opens
+            # life_payment_insurance via _DOER_EFFECT_KEYS.) Not a Land card.
             if cat == "life_payment" and not card_is_land:
-                add("lifeloss_matters", "you", "", e.raw)
+                add("lifeloss_makers", "you", "", e.raw)
             # An edict forces OPPONENTS / each player to sacrifice — gate on an
             # explicit opp/each scope (an unscoped sacrifice effect is ambiguous,
             # often a self-sac inside a larger effect, so don't call it an edict).
@@ -10138,16 +10148,17 @@ def extract_signals_ir(
             # Batch 2 — a repeatable pay-life COST wants lifegain insurance.
             if "paylife" in cost_parts:
                 add("life_payment_insurance", "you", "", "")
-                # ADR-0027 lifeloss_matters — a pay-life ACTIVATION COST that buys a
-                # real engine effect (Beledros paylife→untap-all-lands, Cauldron
-                # paylife→reanimate, Sentry paylife→regenerate) is a life-as-resource
-                # payoff. Gate hard against the lane's land trap: a paylife ability
-                # whose ONLY effects are mana fixing (`ramp`) is a painland/fetch/
-                # shockland (Horizon Canopy, Boseiju), excluded by the non-ramp gate;
-                # a Land card is excluded defensively (Eumidian Hatchery rides a
-                # place_counter past the ramp gate but is still mana fixing). CR 118.
+                # _matters sweep (ADR-0034): lifeloss_makers — a pay-life ACTIVATION
+                # COST that buys a real engine effect (Beledros paylife→untap-all-lands,
+                # Cauldron paylife→reanimate, Sentry paylife→regenerate) is the MAKER
+                # arm: the card PAYS/LOSES life as a cost. Gate hard against the lane's
+                # land trap: a paylife ability whose ONLY effects are mana fixing
+                # (`ramp`) is a painland/fetch/shockland (Horizon Canopy, Boseiju),
+                # excluded by the non-ramp gate; a Land card is excluded defensively
+                # (Eumidian Hatchery rides a place_counter past the ramp gate but is
+                # still mana fixing). CR 118.
                 if not card_is_land and any(e.category != "ramp" for e in ab.effects):
-                    add("lifeloss_matters", "you", "", "")
+                    add("lifeloss_makers", "you", "", "")
             # A discard OUTLET ("Discard a card: ...") pitches fodder for value —
             # madness/reanimator fuel. The cost projection splits self-discard
             # (Cycling's "discardself") out, so this no longer floods on alt-costs.
