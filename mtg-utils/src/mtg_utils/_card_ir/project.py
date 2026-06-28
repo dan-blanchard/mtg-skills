@@ -960,9 +960,9 @@ def project_card(records: list[dict]) -> Card:
     # ADR-0027 #24d (SIDECAR v55) — CREATURE-copy clone residue: synthesize a `clone`
     # Effect (Creature/Permanent subject) from the raw oracle for the creature-copy
     # replacements phase folds to a non-clone node (Spark Double, Chameleon Master of
-    # Disguise, Vesuvan Shapeshifter, The Mimeoplasm), so the clone_matters arm reads
+    # Disguise, Vesuvan Shapeshifter, The Mimeoplasm), so the clone_makers arm reads
     # the copied type STRUCTURALLY and the over-broad CLONE_MATTERS_REGEX mirror (which
-    # fired clone_matters for NON-creature copies too) retires. Same seam. CR 707.2.
+    # fired clone_makers for NON-creature copies too) retires. Same seam. CR 707.2.
     card = _recover_clone_creature(
         card, "\n".join(r.get("oracle_text") or "" for r in records)
     )
@@ -3145,9 +3145,9 @@ def _project_replacement(rep: dict) -> Ability | None:
         # Mimic) as a ChangeZone->Battlefield replacement whose execute is
         # BecomeCopy{target}. _EFFECT_CATEGORY maps a TOP-LEVEL BecomeCopy effect to
         # clone, but a BecomeCopy buried in a replacement was dropped — the
-        # clone_matters / per-type copy lanes fell to the _recover_clone_creature oracle
+        # clone_makers / per-type copy lanes fell to the _recover_clone_creature oracle
         # regex. Project the copied subject (the target's Typed filter — Creature ->
-        # clone_matters, other permanent types -> their copy_* lane) into a clone Effect
+        # clone_makers, other permanent types -> their copy_* lane) into a clone Effect
         # so they read STRUCTURE. CR 707.2 / 614.1.
         if isinstance(eff, dict) and _norm(eff.get("type")) == "becomecopy":
             return _static_effect(

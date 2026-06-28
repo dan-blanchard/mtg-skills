@@ -2091,17 +2091,17 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _EVASION_SELF_PLAN_MIRROR (the EXACT deleted regex) restores the voltron silence —
     # NOT _VOLTRON_SILENCING_PLAN_KEYS, which would over-silence the 36 Shadow bodies.
     # The hand-written serve spec (signal_specs.py) survives. CR 509.1b / 702.14 /
-    # 702.28. ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters migrated
+    # 702.28. ADR-0027 clone copied-type subject (SIDECAR v30): clone_makers migrated
     # to the Card IR. The supplement now populates the copied-type subject
     # (_copied_type_from_ text on the _CLONE_STATIC / _BECOMES re-tag), so a
-    # cat=='clone' STRUCTURAL arm in extract_signals_ir fires clone_matters for the
+    # cat=='clone' STRUCTURAL arm in extract_signals_ir fires clone_makers for the
     # broad "becomes a copy of target creature" family (triggered/activated/sorcery
     # clones — Cytoshape, Oko, Lazav, Sunfrill Imitator's Dinosaur) the narrow ETB-only
     # patterns missed, UNION a byte- identical _CLONE_MATTERS_MIRROR (the COMBINED
     # deleted regex — this _DETECTORS entry plus the SWEEP widen, pinned as
     # CLONE_MATTERS_REGEX) over the reminder-stripped kept_oracle for the 54 cards phase
     # under-structures (Spark Double / Stunt Double / Mockingbird — no clone effect) or
-    # that copy a non-creature (Copy Artifact — the regex fired clone_matters regardless
+    # that copy a non-creature (Copy Artifact — the regex fired clone_makers regardless
     # of copied type). A token-copy clone ("create a token that's a copy" — Mirror
     # Match) is vetoed in the structural arm (the separate token_copy_matters lane). The
     # two membership cross-opens (the legendary recurring- value engine + the high-CMC
@@ -4126,7 +4126,7 @@ def extract_signals(
     # silencing entry is needed (the silence gate is confidence=='high'), matching the
     # land_destruction precedent. The serve spec stays hand-registered in
     # signal_specs.py. CR 106.4. ADR-0027 clone copied-type subject (SIDECAR v30):
-    # clone_matters migrated to the Card IR. The legendary-recurring-value-engine
+    # clone_makers migrated to the Card IR. The legendary-recurring-value-engine
     # clone-TARGET cross-open (a LEGENDARY creature whose value is a REPEATABLE engine —
     # a per-turn triggered ability or a non-mana tap-activated ability — is itself a
     # clone target: copying it forks the engine and the copy dodges the legend rule;

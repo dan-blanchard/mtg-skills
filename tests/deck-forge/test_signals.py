@@ -836,7 +836,7 @@ def test_high_cmc_etb_commander_opens_clone():
     # "Gyruda, Doom of Depths" — the clone gate must match the short name like
     # _self_etb_value does, or it misses the very commander it was built for.
     # Real Gyruda, Doom of Depths (snapshot): a high-CMC ETB commander worth cloning.
-    assert ("clone_matters", "you") in _real("Gyruda, Doom of Depths")
+    assert ("wants_cloning", "you") in _real("Gyruda, Doom of Depths")
 
 
 def test_cheap_etb_or_expensive_vanilla_does_not_open_clone():
@@ -854,10 +854,10 @@ def test_cheap_etb_or_expensive_vanilla_does_not_open_clone():
         "cmc": 8.0,
         "oracle_text": "Trample",
     }
-    # ADR-0027 v30: clone_matters migrated — assert via the hybrid path (the membership
+    # ADR-0027 v30: wants_cloning migrated — assert via the hybrid path (the membership
     # gate now lives in extract_signals_ir).
-    assert ("clone_matters", "you") not in _keys_hybrid(cheap)
-    assert ("clone_matters", "you") not in _keys_hybrid(vanilla)
+    assert ("wants_cloning", "you") not in _keys_hybrid(cheap)
+    assert ("wants_cloning", "you") not in _keys_hybrid(vanilla)
 
 
 def test_high_cmc_dies_trigger_commander_opens_clone():
@@ -865,14 +865,14 @@ def test_high_cmc_dies_trigger_commander_opens_clone():
     # copying — a clone/token-copy re-fires the death trigger when the copy dies
     # (sac-loop staple). Short name, like Scryfall prints it.
     # Real Keiga + Kokusho (snapshot): high-CMC death-trigger commanders worth cloning.
-    assert ("clone_matters", "you") in _real("Keiga, the Tide Star")
-    assert ("clone_matters", "you") in _real("Kokusho, the Evening Star")
+    assert ("wants_cloning", "you") in _real("Keiga, the Tide Star")
+    assert ("wants_cloning", "you") in _real("Kokusho, the Evening Star")
 
 
 def test_cheap_dies_trigger_does_not_open_clone():
     # Precision: a CHEAP death-trigger creature isn't worth a clone.
     # Real Doomed Dissenter (snapshot): a CHEAP death-trigger creature isn't worth a clone.
-    assert ("clone_matters", "you") not in _real("Doomed Dissenter")
+    assert ("wants_cloning", "you") not in _real("Doomed Dissenter")
 
 
 def test_land_enter_punisher_opens_burn_lane():

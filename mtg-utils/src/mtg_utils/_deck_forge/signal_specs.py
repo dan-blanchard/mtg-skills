@@ -3960,7 +3960,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"token that's a copy|tokens? that are copies|\bpopulate\b"},
         r"tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of|\bpopulate\b",
         # Deliver on "strong creatures to copy": a token-copy deck wants big bombs to
-        # copy (Etali). power_min=6 keeps it to genuine bombs, mirroring clone_matters.
+        # copy (Etali). power_min=6 keeps it to genuine bombs, mirroring clone_makers.
         serve_power_min=6,
         # A token-copy commander (Esix) turns each token it would create into a copy —
         # so it also wants raw token MAKERS (more tokens → more copies) and token
@@ -4813,7 +4813,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             "skulk",
         ),
     ),
-    ("clone_matters", "you"): _spec(
+    ("clone_makers", "you"): _spec(
         "Clones / copies",
         "clone effects plus strong creatures worth copying",
         {
@@ -4837,6 +4837,23 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _CLONE_DIES_VALUE_EXTRA,
             _SELF_BOUNCE_RECAST_EXTRA,
         ),
+    ),
+    # _matters sweep: the benefit side of the clone split. wants_cloning fires when the
+    # commander/deck is itself a worth-copying target (a repeatable engine or a big
+    # ETB/dies bomb — the include_membership cross-open). The avenue it OPENS is the
+    # clone ENABLERS to copy that target (Clone, Spark Double, Sakashima) plus the
+    # token-copy gear (Helm of the Host, Rite of Replication). Same clone-effect search
+    # as clone_makers, minus the power-6 bomb floor (here we want the copiers, not more
+    # bodies to copy).
+    ("wants_cloning", "you"): _spec(
+        "Wants cloning",
+        "clone enablers — your commander/creatures are worth copying",
+        {
+            "oracle": r"becomes a copy|copy of (?:target|another|any|a|that)\b"
+            r"|as a copy of"
+        },
+        r"becomes a copy|copy of (?:target|another|any|a|that)\b|as a copy of",
+        extras=(_COPY_EXTRA,),
     ),
     ("cheat_into_play", "you"): _spec(
         "Cheat into play",

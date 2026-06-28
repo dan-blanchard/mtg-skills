@@ -299,7 +299,7 @@ from mtg_utils.card_ir import Card
 # "enter/is a copy of <type>" clause (step 4 of _supplement_effect). The project-side
 # _recover_clone_subjects ran pre-supplement and never saw these newly-recovered clone
 # effects, so _clone_copy_lanes(None) dropped the copied type on ~49 creature-copies
-# (Clone, Body Double, Phyrexian Metamorph). The clone_matters migration reads the
+# (Clone, Body Double, Phyrexian Metamorph). The clone_makers migration reads the
 # now-populated subject structurally; a typeless referent ("copy of that card / ~")
 # stays subject=None. CR 707.2 (a copy takes the copiable values, incl. card type).
 # v31 (ADR-0027 Cluster B — exile_removal subject/category retention, supplement.py
@@ -718,11 +718,11 @@ from mtg_utils.card_ir import Card
 #   reducers (Will Kenrith, Catalyst Stone, Tamiyo's Notebook). Synthesize one from
 #   the matched reducer clause; the existing arm reads STRUCTURE; the narrowed
 #   `_COST_REDUCER_MIRROR` row is DELETED. CR 601.2f / 118.7.
-#   (2) clone_matters (supplement `_recover_clone_creature`): phase folds the
+#   (2) clone_makers (supplement `_recover_clone_creature`): phase folds the
 #   creature-copy ETB replacement ("you may have this enter as a copy of any
 #   creature") to a non-clone node. Synthesize a `clone` Effect (Creature/Permanent
-#   subject) so the copied-type arm fires clone_matters; the over-broad
-#   CLONE_MATTERS_REGEX mirror (which fired clone_matters for NON-creature Copy
+#   subject) so the copied-type arm fires clone_makers; the over-broad
+#   CLONE_MATTERS_REGEX mirror (which fired clone_makers for NON-creature Copy
 #   Artifact/Land/Enchantment too — over-fires now shed to their per-type lane, CR
 #   707.2) is DELETED. CR 707.1 / 707.2.
 #   (3) opponent_discard (supplement `_recover_opponent_discard`): phase scopes an
@@ -907,7 +907,7 @@ from mtg_utils.card_ir import Card
 #   (matches an ability word fused by an em-dash, "Morph—Discard"). Sites:
 #   dies_recursion, combat_damage recipients, base_pt_set (+fields) / dynamic
 #   base_pt_set, counter_manipulation (p1p1/m1m1 kind), cast_from_exile, land_sacrifice,
-#   cost_reduction (+fires screen), clone_matters, facedown_matters, tap_down,
+#   cost_reduction (+fires screen), clone_makers, facedown_matters, tap_down,
 #   damage_to_opp_matters, hand_disruption, keyword_grant_target, tribe_damage_trigger,
 #   extra_land_drop. Per-site SET-level diff: 14 byte-equal; cost_reduction gains 2
 #   genuine spell-class reducers the regex's 40-char gap cap wrongly dropped (recall
@@ -955,9 +955,9 @@ from mtg_utils.card_ir import Card
 # v70 (nested-lift, clone): a BecomeCopy "Moved"-replacement ("~ enters as a copy of
 #   <Typed>" — Altered Ego, Activated Sleeper, Sakashima, 56 cards) was dropped —
 #   _EFFECT_CATEGORY maps a top-level BecomeCopy effect to clone but not one nested in a
-#   replacement, so clone_matters fell to the _recover_clone_creature oracle regex.
+#   replacement, so clone_makers fell to the _recover_clone_creature oracle regex.
 #   _project_replacement now reads it natively (clone Effect, copied-subject from the
-#   target Typed filter). clone_matters set-equal; power_matters +1 (Deceptive Frostkite
+#   target Typed filter). clone_makers set-equal; power_matters +1 (Deceptive Frostkite
 #   — the structured target carries its "power 4 or greater" predicate the regex
 #   flattened, a genuine power reference). Recovery self-deactivates for these 56, stays
 #   for the CopyTokenOf (token_copy semantics) + oracle-only residue.

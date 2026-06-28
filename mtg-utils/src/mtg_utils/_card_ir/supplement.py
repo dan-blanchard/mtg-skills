@@ -3532,8 +3532,8 @@ def _recover_cost_reduction(card: Card, oracle: str) -> Card:
 # `choose` / empty node — emitting NO cat=="clone" Effect — for a class of genuine
 # CREATURE copies (Spark Double, Stunt Double, Mockingbird, Chameleon Master of
 # Disguise, Vesuvan Shapeshifter, Progenitor Mimic, The Mimeoplasm, Essence of the
-# Wild, Permeating Mass, Moritte of the Frost). The clone_matters arm reads the COPIED
-# type off a `clone` Effect's subject (creature copy → clone_matters; CR 707.2 — the
+# Wild, Permeating Mass, Moritte of the Frost). The clone_makers arm reads the COPIED
+# type off a `clone` Effect's subject (creature copy → clone_makers; CR 707.2 — the
 # copy acquires the original's card type), so a dropped clone Effect = a silent miss.
 # This card-level pass — the _recover_base_pt_set precedent (phase dropped the WHOLE
 # Effect, so synthesize it from the raw oracle) — emits a `clone` Effect with a
@@ -3544,7 +3544,7 @@ def _recover_cost_reduction(card: Card, oracle: str) -> Card:
 # DID structure a copy on (Copy Artifact / Copy Land / Mycosynth Gardens / Thespian's
 # Stage — a clone Effect with an Artifact/Land/Enchantment subject) is left alone, so
 # the NON-creature copies correctly fire their per-type copy lane (copy_artifact /
-# copy_land / copy_enchantment) and drop clone_matters — the over-broad mirror's
+# copy_land / copy_enchantment) and drop clone_makers — the over-broad mirror's
 # creature-blind firing is the over-fire being shed (CR 707.2: a copy of an artifact
 # is an artifact copy, not a creature copy). The veto on a TOKEN-copy ("create a token
 # that's a copy" — Mirror Match) rides the existing arm, not here.
@@ -3644,9 +3644,9 @@ def _recover_clone_creature(card: Card, oracle: str) -> Card:
     if not card.faces:
         return card
     # Skip only when phase ALREADY structured a CREATURE/PERMANENT copy (the
-    # clone_matters arm fires off Creature/Permanent in the copied subject). A clone
+    # clone_makers arm fires off Creature/Permanent in the copied subject). A clone
     # Effect typed to a non-creature permanent (the Copy Artifact / Copy Land family —
-    # Artifact/Land/Enchantment subject) does NOT fire clone_matters, so it must still
+    # Artifact/Land/Enchantment subject) does NOT fire clone_makers, so it must still
     # run the creature-copy check: Dermotaxi copies a CREATURE card but phase types its
     # subject "Artifact" (from the "Vehicle artifact" rider), so the gate would skip a
     # creature copy. The creature-copy regex then no-ops on a true non-creature copy

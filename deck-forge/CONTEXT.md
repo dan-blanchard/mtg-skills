@@ -103,12 +103,16 @@ cost-reducer. Scope is part of the Signal's identity: *Tinybones, the Pickpocket
 yields the Signal "cast/steal from an **opponent's** graveyard," NOT "graveyard
 matters." Signals are the atoms the discovery engine reasons over.
 **Membership is strict**: a card emits a Signal only when it *literally performs that
-exact mechanic* — never because a deck on that Signal would also want the card. A "create
-a token that's a copy" card emits `token_copy_matters`, not `clone_matters` ("becomes a
-copy"), even though a clone deck wants it. Archetype *adjacency* — the cards a Signal's
-deck also reaches for — is never an emission; it lives entirely in the serve layer as a
-**SubAvenue**. This keeps emission a clean truth about the card and serve a separate
-question about the deck.
+exact mechanic* — never because a deck on that Signal would also want the card. The
+lane name encodes the role (ADR-0034 — the `_matters` sweep): **`<x>_makers`** = cards
+that *do* the mechanic (a "create a token that's a copy" card is a `token_copy_makers`,
+not a `clone_makers` — it *makes* copy tokens, it doesn't *become* a copy); **`<x>_matters`**
+= the *payoff* side (cards rewarded by / that reference the mechanic — "whenever you gain
+life…"); **`wants_<x>`** = a card whose own identity makes a deck *want* the mechanic done
+to it (a worth-copying commander opens `wants_cloning`, a benefit lane, not membership in
+`clone_makers`). Archetype *adjacency* — the cards a Signal's deck also reaches for — is
+never an emission; it lives entirely in the serve layer as a **SubAvenue**. This keeps
+emission a clean truth about the card and serve a separate question about the deck.
 _Avoid_: "theme" (a Signal is narrower and clause-scoped), "trigger" alone
 (ignores payoffs / static hooks), "keyword".
 

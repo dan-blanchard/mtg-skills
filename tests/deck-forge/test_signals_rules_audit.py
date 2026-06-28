@@ -163,7 +163,7 @@ def test_exile_removal_separate_from_destroy():
 def test_token_copy_does_not_fire_clone():
     c = {"name": "X", "oracle_text": "Create a token that's a copy of target creature."}
     # ADR-0027 C5: token_copy_matters is FULLY STRUCTURAL — a CopyTokenOf projects to a
-    # make_token whose subject carries the "Copy" predicate (CR 707). clone_matters is
+    # make_token whose subject carries the "Copy" predicate (CR 707). clone_makers is
     # IR-served (the kept mirror over kept_oracle excludes the token-copy phrase), so it
     # must NOT fire on token-copy phrasing.
     ir = Card(
@@ -191,7 +191,7 @@ def test_token_copy_does_not_fire_clone():
     )
     keys = {s.key for s in extract_signals_hybrid(c, ir)}
     assert "token_copy_matters" in keys
-    assert "clone_matters" not in keys
+    assert "clone_makers" not in keys
 
 
 def test_clone_still_fires():
@@ -199,7 +199,7 @@ def test_clone_still_fires():
         "name": "X",
         "oracle_text": "You may have this creature enter as a copy of any creature.",
     }
-    # ADR-0027 #24d (SIDECAR v53): the clone_matters word mirror is DELETED — the lane
+    # ADR-0027 #24d (SIDECAR v53): the clone_makers word mirror is DELETED — the lane
     # is now FULLY structural, reading a `clone` Effect's copied CREATURE type (supplement.
     # _recover_clone_creature synthesizes this Effect for the "enter as a copy of any
     # creature" replacement phase folds to a non-clone node). A bare IR no longer fires
@@ -226,7 +226,7 @@ def test_clone_still_fires():
             ),
         ),
     )
-    assert "clone_matters" in {s.key for s in extract_signals_hybrid(c, ir)}
+    assert "clone_makers" in {s.key for s in extract_signals_hybrid(c, ir)}
 
 
 # #6 "attacks each combat if able" is a forced-attack requirement, not evasion.

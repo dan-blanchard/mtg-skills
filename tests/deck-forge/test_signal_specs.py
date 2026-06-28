@@ -1569,7 +1569,7 @@ def test_clone_serves_high_value_dies_trigger_creatures():
     # Keiga steals, Junji). clone served big bodies (power>=6) but not these (power 4-5,
     # cmc 5-6). The serve needs "self-dies VALUE trigger AND mana value >= 5" — an AND
     # the flat OR-Serve couldn't express. Real oracle.
-    sig = _sig("clone_matters", "you")
+    sig = _sig("clone_makers", "you")
     kokusho = {
         "name": "Kokusho, the Evening Star",
         "type_line": "Legendary Creature — Dragon Spirit",
@@ -2075,7 +2075,7 @@ def test_grant_become_credited_for_clone_enchantment_food():
     # ("are Foods in addition") must hit their lanes (main serve or a sub-avenue).
     cases = [
         (
-            "clone_matters",
+            "clone_makers",
             "Clone",
             "You may have Clone enter the battlefield as a copy of any creature on the battlefield.",
         ),
@@ -3146,7 +3146,7 @@ def test_clone_self_bounce_serves_recast_enablers():
     controlled by DIFFERENT players (Run Away Together) isn't a clean self-bounce."""
     from mtg_utils._deck_forge.ranking import score_candidate
 
-    avenues = _avenue_dicts(spec_for(_sig("clone_matters", "you")))
+    avenues = _avenue_dicts(spec_for(_sig("clone_makers", "you")))
 
     def served(card):
         return set(score_candidate(card, active_signals=[], avenues=avenues)["served"])
@@ -5203,7 +5203,7 @@ def test_toughness_combat_credits_big_butts_and_walls():
 def test_clone_credits_big_creatures_worth_copying():
     """The clone blurb promises 'strong creatures worth copying' — deliver it: Etali (a
     6/6 bomb) is a top clone/token-copy target, not just the clone effects themselves."""
-    sig = _sig("clone_matters")
+    sig = _sig("clone_makers")
     etali = {
         "name": "Etali, Primal Storm",
         "type_line": "Legendary Creature — Elder Dinosaur",
@@ -6269,7 +6269,7 @@ def test_copy_lanes_serve_etb_doublers_and_payoffs():
         "type_line": "Enchantment",
         "oracle_text": "Whenever a creature you control enters, this enchantment deals 1 damage to each opponent.",
     }
-    for key in ("token_copy_matters", "clone_matters"):
+    for key in ("token_copy_matters", "clone_makers"):
         assert _lane_covers(pan, _sig(key, "you")) is True, f"{key}/Panharmonicon"
         assert _lane_covers(tremors, _sig(key, "you")) is True, f"{key}/Impact Tremors"
 
@@ -6279,7 +6279,7 @@ def test_clone_lane_serves_token_copy_effects():
     the Host ("a token that's a copy of equipped creature"), Blade of Selves (myriad),
     Rite of Replication. The clone serve's bare "copy of target/that" missed the
     "equipped"/"it"/myriad forms."""
-    sig = _sig("clone_matters", "you")
+    sig = _sig("clone_makers", "you")
     helm = {
         "name": "Helm of the Host",
         "type_line": "Legendary Artifact — Equipment",

@@ -574,7 +574,7 @@ SYMMETRIC_STAX_REGEX = (
 # (Embalm/Eternalize/Offspring/Double-team) the reminder-stripped regex excludes.
 # CR 702.95 / 707.
 TOKEN_COPY_MATTERS_REGEX = "tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of|create a token that's a copy|\\bpopulate\\b|twice that many[^.]*tokens?"
-# ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters migrated to the Card
+# ADR-0027 clone copied-type subject (SIDECAR v30): clone_makers migrated to the Card
 # IR. This is the COMBINED deleted regex — the _DETECTORS "becomes a copy" entry UNION
 # the deleted SWEEP widen above — pinned byte-identically so the serve spec, the
 # _CLONE_MATTERS_MIRROR kept detector (_signals_ir), and the _CLONE_MATTERS_PLAN_MIRROR
@@ -2588,7 +2588,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # serve is hand-registered in signal_specs.py reusing DRAW_FOR_EACH_REGEX, so serve /
     # mirror / (now-deleted) detector never drift. SWEEP_LABELS keeps the human label.
     # CR 107.3.
-    # ADR-0027 clone copied-type subject (SIDECAR v30): clone_matters migrated to the
+    # ADR-0027 clone copied-type subject (SIDECAR v30): clone_makers migrated to the
     # Card IR. Detection moves to a STRUCTURAL arm (cat=='clone' → _clone_copy_lanes(
     # e.subject) over the now-populated copied-type subject — supplement._copied_type_
     # from_text on the _CLONE_STATIC / _BECOMES re-tag) UNION a byte-identical kept WORD
@@ -2599,7 +2599,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # Dinosaur); the mirror recovers the 54 cards phase under-structures (mis-categorizes
     # the "enter as a copy" clause to state/grant_keyword off a rider, or emits nothing —
     # Spark Double, Stunt Double, Mockingbird) or copies a non-creature (Copy Artifact —
-    # the regex fires clone_matters regardless of copied type). The regex survives as a
+    # the regex fires clone_makers regardless of copied type). The regex survives as a
     # shared constant so signal_specs hand-registers the serve pool reusing it AND the
     # kept mirror (_CLONE_MATTERS_MIRROR in _signals_ir) reuses it — serve / mirror /
     # (now-deleted) detector never drift. This SWEEP row is deleted (SWEEP floor 18→17).

@@ -89,7 +89,7 @@ _REAL_CASES: dict[str, str] = {
     "changeling_matters": "Maskwood Nexus",
     "cheat_from_top": "Hans Eriksson",
     "cheat_into_play": "Sneak Attack",
-    "clone_matters": "Cytoshape",
+    "clone_makers": "Cytoshape",
     "clue_matters": "Tireless Tracker",
     "cmdzone_ability": "Oloro, Ageless Ascetic",
     "coin_flip": "Chance Encounter",
@@ -353,6 +353,7 @@ _REAL_CASES: dict[str, str] = {
     "void_warp_matters": "Starfield Vocalist",
     "voltron_matters": "Sram, Senior Edificer",
     "voting_matters": "Capital Punishment",
+    "wants_cloning": "Arcum Dagsson",
     "waterbend_matters": "Spirit Water Revival",
     "win_lose_game": "Thassa's Oracle",
     "xspell_matters": "Zaxara, the Exemplary",
@@ -996,7 +997,7 @@ def test_tap_untap_matters_recovers_unknown_mode_becomes_tapped():
 # ── ADR-0027 #24d (SIDECAR v55) — SUPPLEMENT_RECOVER B3 real-card structural pins ──
 # Each proves the lane fires (or correctly does NOT) off the SUPPLEMENT-recovered
 # structure in the REAL projected IR (test_card_ir = a verbatim sidecar slice), not a
-# regex mirror — the mirrors for cost_reduction + clone_matters are deleted.
+# regex mirror — the mirrors for cost_reduction + clone_makers are deleted.
 
 
 def test_cost_reduction_recovered_ability_cost_reducer_dragonkin():
@@ -1038,37 +1039,37 @@ def test_cost_reduction_recovered_saga_chapter_collapse():
     assert "cost_reduction" in keys
 
 
-def test_clone_matters_recovered_creature_copy_etb():
+def test_clone_makers_recovered_creature_copy_etb():
     """Spark Double's "enter as a copy of a creature" replacement is folded by phase to
     a non-clone node; supplement._recover_clone_creature synthesizes a Creature-subject
-    clone Effect, so the copied-type arm fires clone_matters. CR 707.2."""
+    clone Effect, so the copied-type arm fires clone_makers. CR 707.2."""
     keys = {
         s.key
         for s in extract_signals_hybrid(
             test_card("Spark Double"), test_card_ir("Spark Double")
         )
     }
-    assert "clone_matters" in keys
+    assert "clone_makers" in keys
 
 
-def test_clone_matters_recovered_phase_mistyped_creature_copy_dermotaxi():
+def test_clone_makers_recovered_phase_mistyped_creature_copy_dermotaxi():
     """Dermotaxi copies a CREATURE card ("becomes a copy of the exiled card") but phase
     types its clone subject 'Artifact' (the "Vehicle artifact" rider). The recovery
-    runs anyway (the Artifact-typed clone does not fire clone_matters) and recovers the
-    Creature copy, so clone_matters fires. CR 707.2."""
+    runs anyway (the Artifact-typed clone does not fire clone_makers) and recovers the
+    Creature copy, so clone_makers fires. CR 707.2."""
     keys = {
         s.key
         for s in extract_signals_hybrid(
             test_card("Dermotaxi"), test_card_ir("Dermotaxi")
         )
     }
-    assert "clone_matters" in keys
+    assert "clone_makers" in keys
 
 
-def test_clone_matters_does_not_fire_on_a_noncreature_copy_overfire():
+def test_clone_makers_does_not_fire_on_a_noncreature_copy_overfire():
     """Copy Artifact copies an ARTIFACT only (CR 707.2 — an artifact copy, not a
     creature clone). With the over-broad mirror deleted, it correctly does NOT fire
-    clone_matters (the creature-blind over-fire is shed); it keeps enchantments_matter
+    clone_makers (the creature-blind over-fire is shed); it keeps enchantments_matter
     (it is an Enchantment)."""
     keys = {
         s.key
@@ -1076,7 +1077,7 @@ def test_clone_matters_does_not_fire_on_a_noncreature_copy_overfire():
             test_card("Copy Artifact"), test_card_ir("Copy Artifact")
         )
     }
-    assert "clone_matters" not in keys
+    assert "clone_makers" not in keys
 
 
 def test_opponent_discard_recovered_damage_connect_specter():

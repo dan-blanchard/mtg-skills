@@ -597,7 +597,7 @@ def test_token_copy_matters_opens_on_token_doubling():
     assert "token_copy_matters" not in _keys_real("Krenko, Mob Boss")
 
 
-def test_clone_matters_opens_for_recurring_value_legendary():
+def test_wants_cloning_opens_for_recurring_value_legendary():
     # "Clone your engine" is legitimate for a recurring-value LEGENDARY: copying it forks
     # the per-turn engine and the copy dodges the legend rule. Obeka ("{T}: end the turn")
     # and Koma (per-upkeep token engine) are clone targets; a vanilla legendary (Isamaru)
@@ -651,14 +651,14 @@ def test_clone_matters_opens_for_recurring_value_legendary():
             "additional upkeep steps after this phase."
         ),
     }
-    # ADR-0027 v30: clone_matters migrated — the legendary-recurring-value-engine clone-
+    # ADR-0027 v30: wants_cloning migrated — the legendary-recurring-value-engine clone-
     # TARGET membership cross-open is reproduced in the IR path, so assert via the hybrid.
-    assert "clone_matters" in _keys_hybrid(obeka)  # {T} engine
-    assert "clone_matters" in _keys_hybrid(koma)  # per-upkeep engine
-    assert "clone_matters" in _keys_hybrid(obeka_splitter)  # extra-upkeep engine
-    assert "clone_matters" not in _keys_hybrid(isamaru)  # vanilla legendary
+    assert "wants_cloning" in _keys_hybrid(obeka)  # {T} engine
+    assert "wants_cloning" in _keys_hybrid(koma)  # per-upkeep engine
+    assert "wants_cloning" in _keys_hybrid(obeka_splitter)  # extra-upkeep engine
+    assert "wants_cloning" not in _keys_hybrid(isamaru)  # vanilla legendary
     # Commander-level: must NOT fire when aggregating the 99 (include_membership=False).
-    assert "clone_matters" not in {
+    assert "wants_cloning" not in {
         s.key
         for s in extract_signals_hybrid(obeka, _bare_ir(), include_membership=False)
     }
@@ -670,14 +670,14 @@ def test_clone_engine_fires_for_legendary_with_intervening_card_type():
     # was wrongly excluded — yet a Shrine whose mill SCALES per-Shrine is a textbook
     # clone-your-engine target: fork the end-step engine, dodge the legend rule. Real
     # oracle.
-    # ADR-0027 v30: clone_matters migrated — assert via the hybrid path (a bare IR routes
+    # ADR-0027 v30: wants_cloning migrated — assert via the hybrid path (a bare IR routes
     # to the IR-side membership block where the cross-open is reproduced byte-identically).
-    assert ("clone_matters", "you", "") in _ksub_real("Go-Shintai of Lost Wisdom")
+    assert ("wants_cloning", "you", "") in _ksub_real("Go-Shintai of Lost Wisdom")
     # Precision: broadening the type gate must not bypass the ENGINE gate. A legendary
     # enchantment creature with only static abilities and a non-tap activated ability
     # (Heliod, Sun-Crowned — no per-turn trigger, no {T} ability) is not a clone-your-
     # engine target. Real oracle.
-    assert ("clone_matters", "you", "") not in _ksub_real("Heliod, Sun-Crowned")
+    assert ("wants_cloning", "you", "") not in _ksub_real("Heliod, Sun-Crowned")
 
 
 def test_token_maker_prefers_creature_subtype_over_artifact_word():
@@ -1129,14 +1129,14 @@ def test_self_etb_variable_damage_opens_flicker_and_clone():
             "damage equal to its power to that player."
         ),
     }
-    # ADR-0027 v30: clone_matters migrated — use the hybrid path (blink_flicker is not
+    # ADR-0027 v30: wants_cloning migrated — use the hybrid path (blink_flicker is not
     # migrated, so its regex firing still passes through the hybrid).
     keys = {
         s.key
         for s in extract_signals_hybrid(dong_zhou, _bare_ir(), include_membership=True)
     }
     assert "blink_flicker" in keys
-    assert "clone_matters" in keys  # cmc 5 >= 5 -> worth copying
+    assert "wants_cloning" in keys  # cmc 5 >= 5 -> worth copying
     # Over-fire guard: an exile-removal ETB (Banisher Priest) is NOT a flicker payoff —
     # damage/value verbs qualify, "exile target" does not (O-Ring rule). Real oracle.
     banisher = {
@@ -1374,7 +1374,7 @@ def test_self_death_variable_damage_opens_payoff_and_clone():
         s.key for s in extract_signals_hybrid(orca, _bare_ir(), include_membership=True)
     }
     assert "self_death_payoff" in keys
-    assert "clone_matters" in keys  # cmc 7 >= 5
+    assert "wants_cloning" in keys  # cmc 7 >= 5
     # Over-fire guard: a "deals damage equal to" clause NOT on a death trigger (a combat
     # trigger) must not open the death payoff. Real oracle (Inferno Titan-style is
     # numeric, so use a variable-combat case).
@@ -3084,10 +3084,10 @@ def test_self_dies_value_resolves_short_name_for_clone():
     # name token before "dies", so "When The Scarab God dies" missed ("The" is an
     # article, "Scarab" is followed by " God", not " dies"). Real cards, cmc>=5, no ETB
     # (so the clone signal comes from the DIES path, not the ETB path).
-    # ADR-0027 v30: clone_matters migrated — the high-CMC self-dies clone-TARGET
+    # ADR-0027 v30: wants_cloning migrated — the high-CMC self-dies clone-TARGET
     # membership cross-open is reproduced in the IR path, so assert via the hybrid.
-    assert "clone_matters" in _keys_real("The Scarab God")
-    assert "clone_matters" in _keys_real("The Locust God")
+    assert "wants_cloning" in _keys_real("The Scarab God")
+    assert "wants_cloning" in _keys_real("The Locust God")
 
 
 def test_self_counter_accumulator_opens_plus_one_matters():

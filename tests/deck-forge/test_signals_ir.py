@@ -1476,9 +1476,9 @@ def _clone(*card_types, subtypes=()):
     )
 
 
-def test_creature_clone_is_clone_matters_only():
+def test_creature_clone_is_clone_makers_only():
     sigs = _sigs(_clone("Creature"))
-    assert ("clone_matters", "you", "") in sigs
+    assert ("clone_makers", "you", "") in sigs
     assert not any(s[0].startswith("copy_") for s in sigs)
 
 
@@ -1487,18 +1487,18 @@ def test_spell_copy_is_its_own_lane_not_clone():
     ir = _ir(Ability(kind="spell", effects=(Effect(category="spell_copy"),)))
     sigs = _sigs(ir)
     assert ("spell_copy_matters", "you", "") in sigs
-    assert ("clone_matters", "you", "") not in sigs
+    assert ("clone_makers", "you", "") not in sigs
 
 
-def test_creature_subtype_clone_is_clone_matters():
-    """Sunfrill Imitator copies a Dinosaur (a creature subtype) → clone_matters."""
-    assert ("clone_matters", "you", "") in _sigs(_clone(subtypes=("Dinosaur",)))
+def test_creature_subtype_clone_is_clone_makers():
+    """Sunfrill Imitator copies a Dinosaur (a creature subtype) → clone_makers."""
+    assert ("clone_makers", "you", "") in _sigs(_clone(subtypes=("Dinosaur",)))
 
 
-def test_artifact_clone_is_copy_artifact_not_clone_matters():
+def test_artifact_clone_is_copy_artifact_not_clone_makers():
     sigs = _sigs(_clone("Artifact"))
     assert ("copy_artifact", "you", "") in sigs
-    assert ("clone_matters", "you", "") not in sigs
+    assert ("clone_makers", "you", "") not in sigs
 
 
 def test_permanent_clone_fans_out_to_every_type_lane():
@@ -1507,7 +1507,7 @@ def test_permanent_clone_fans_out_to_every_type_lane():
     sigs = {s[0] for s in _sigs(_clone("Permanent"))}
     assert {
         "copy_permanent",
-        "clone_matters",
+        "clone_makers",
         "copy_artifact",
         "copy_enchantment",
         "copy_land",

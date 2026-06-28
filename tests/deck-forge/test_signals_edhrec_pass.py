@@ -41,16 +41,16 @@ GOGO = (
 
 
 def test_gogo_become_a_copy_fires_clone():
-    # ADR-0027 v30: clone_matters migrated to the Card IR — the bare-infinitive "become a
+    # ADR-0027 v30: clone_makers migrated to the Card IR — the bare-infinitive "become a
     # copy of" fires from the hybrid path (the structural cat=='clone' arm on the now-
     # populated copied-type subject + the byte-identical kept mirror), not pure regex.
-    assert "clone_matters" in _hybrid_keys(GOGO, name="Gogo, Mysterious Mime")
+    assert "clone_makers" in _hybrid_keys(GOGO, name="Gogo, Mysterious Mime")
 
 
 def test_token_copy_still_not_clone():
     # ADR-0027 v30: assert via the hybrid path — the structural arm vetoes the token-copy
-    # phrase and the kept mirror excludes it, so clone_matters must not fire.
-    assert "clone_matters" not in _hybrid_keys(
+    # phrase and the kept mirror excludes it, so clone_makers must not fire.
+    assert "clone_makers" not in _hybrid_keys(
         "Create a token that's a copy of target creature."
     )
 

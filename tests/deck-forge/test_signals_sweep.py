@@ -121,7 +121,7 @@ def test_sweep_detectors_loaded():
     # the controller's own scry/surveil/look-at-top selection 'you' is the lane, while an
     # opponent-library / target-player-library / opponent-hand peek 'opp' and the Morph
     # face-down reveal (re-categorized to `reveal`) are excluded; CR 116 / 701.18 / 701.42),
-    # then 15→14 as clone_matters' row was deleted (ADR-0027 SIDECAR v30 clone copied-type
+    # then 15→14 as clone_makers' row was deleted (ADR-0027 SIDECAR v30 clone copied-type
     # subject — migrated to a cat=='clone' structural arm reading the supplement-populated
     # copied-type subject UNION a byte-identical CLONE_MATTERS_REGEX kept word mirror (the
     # COMBINED deleted _DETECTORS + SWEEP regex) in signals._IR_KEPT_DETECTORS; the v30

@@ -5266,7 +5266,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # second_spell_matters / land_sacrifice_matters kept-mirror precedent. FILE-SWAP
         # no-flood (base 24c8eb1 vs edits, baked sidecar, commander-legal, hybrid path):
         # theft_matters BYTE-IDENTICAL (370 → 370); voltron_matters delta 0
-        # (3010 → 3010); siblings gain_control / donate_matters / clone_matters /
+        # (3010 → 3010); siblings gain_control / donate_matters / clone_makers /
         # removal_matters drift 0. CR DD9 (heist) / 613.1b (control-changing) / 903.10a.
         "theft_matters",
         # ADR-0027 — evasion_self. The self-evasion lane ("This creature can't be
@@ -5740,7 +5740,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # equality. CR 400.7 / 701.17a.
         "graveyard_matters",
         # ADR-0027 clone copied-type subject (SIDECAR v30, Cluster B — subject
-        # retention) — clone_matters (a permanent that itself becomes / enters as a copy
+        # retention) — clone_makers (a permanent that itself becomes / enters as a copy
         # of another creature; CR 707.1). PROJECTION (behavior-neutral, drift 0): the
         # supplement's _CLONE_STATIC / _BECOMES re-tag now populates
         # subject=_copied_type_from_text(raw) on a clone effect it recovers from an
@@ -5757,7 +5757,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # the 54 cards phase under-structures (no clone effect — Spark Double, Stunt
         # Double, Mockingbird; or a rider-swallowed category) or that copy a
         # NON-creature (Copy Artifact / Copy Enchantment / Copy Land — the regex fired
-        # clone_matters regardless of copied type). A TOKEN-copy clone (Mirror Match —
+        # clone_makers regardless of copied type). A TOKEN-copy clone (Mirror Match —
         # "create a token that's a copy") is VETOED in the structural arm: it's the
         # separate token_copy_matters lane (Dan's clone-vs-token-copy boundary).
         # Residual (commander-legal, floor-disabled, by oracle_id): both 83, ir_only 2
@@ -5775,7 +5775,11 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS. The membership cross-opens
         # fired LOW and never fed has_other_plan. voltron_matters 3010 by set equality.
         # CR 707.1 / 707.2.
-        "clone_matters",
+        "clone_makers",
+        # _matters sweep: wants_cloning — the commander-as-clone-target benefit lane,
+        # the include_membership cross-open split out of the old clone_matters (the IR
+        # path emits it, so the hybrid must recognize it as migrated to keep it).
+        "wants_cloning",
         # ADR-0027 exile_removal (SIDECAR v31, Cluster B — subject/category retention)
         # — a genuine SINGLE-TARGET exile of a permanent as removal (CR 406.1 one-way
         # exile / 115.1 target), distinct from mass_removal (CR 115.10 board wipe) and
