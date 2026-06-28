@@ -20,6 +20,7 @@ parse-deck = "mtg_utils.parse_deck:main"
 set-commander = "mtg_utils.set_commander:main"
 scryfall-lookup = "mtg_utils.scryfall_lookup:main"
 download-bulk = "mtg_utils.download_bulk:main"
+download-mtgjson = "mtg_utils.download_mtgjson:main"
 web-fetch = "mtg_utils.web_fetch:main"
 
 # Baseline diagnostics

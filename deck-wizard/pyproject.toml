@@ -13,6 +13,7 @@ dependencies = ["click>=8.0", "requests>=2.28"]
 parse-deck = "mtg_utils.parse_deck:main"
 scryfall-lookup = "mtg_utils.scryfall_lookup:main"
 download-bulk = "mtg_utils.download_bulk:main"
+download-mtgjson = "mtg_utils.download_mtgjson:main"
 download-rules = "mtg_utils.download_rules:main"
 rules-lookup = "mtg_utils.rules_lookup:main"
 rulings-lookup = "mtg_utils.rulings_lookup:main"

@@ -28,13 +28,46 @@ import pickle
 from pathlib import Path
 
 # Bump when the on-disk payload shape changes so old sidecars are
-# rejected and rebuilt.
-SIDECAR_VERSION = 1
+# rejected and rebuilt. v2: records are MTGJSON-sourced (adapter-translated to the
+# Scryfall shape, with new types/subtypes/supertypes arrays).
+SIDECAR_VERSION = 2
 SIDECAR_SUFFIX = ".idx.pkl"
 
 
 def _sidecar_path(bulk_path: Path) -> Path:
     return bulk_path.with_name(bulk_path.name + SIDECAR_SUFFIX)
+
+
+def _read_source(bulk_path: Path) -> list[dict]:
+    """Parse a bulk source file into the Scryfall-shaped card list.
+
+    An MTGJSON ``AllPrintings`` file is translated through the ``_mtgjson`` adapter
+    (folding ``AllPricesToday`` prices from the same dir); a legacy Scryfall bulk JSON
+    is loaded as-is. This is the single source-swap seam — every caller above stays on
+    the Scryfall record shape.
+    """
+    from mtg_utils._mtgjson.load import is_mtgjson_path, load_mtgjson_cards
+
+    if is_mtgjson_path(bulk_path):
+        return load_mtgjson_cards(bulk_path)
+    with bulk_path.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _source_mtime(bulk_path: Path) -> float:
+    """Newest mtime across the source file(s) a sidecar derives from.
+
+    For MTGJSON that includes the sibling ``AllPricesToday.json`` so a daily price
+    refresh invalidates the sidecar even when ``AllPrintings.json`` is untouched.
+    """
+    from mtg_utils._mtgjson.load import ALLPRICES_NAME, is_mtgjson_path
+
+    mtime = bulk_path.stat().st_mtime
+    if is_mtgjson_path(bulk_path):
+        prices = bulk_path.with_name(ALLPRICES_NAME)
+        if prices.exists():
+            mtime = max(mtime, prices.stat().st_mtime)
+    return mtime
 
 
 def _read_sidecar(sidecar: Path, bulk_path: Path) -> list[dict] | None:
@@ -44,9 +77,9 @@ def _read_sidecar(sidecar: Path, bulk_path: Path) -> list[dict] | None:
     """
     if not sidecar.exists():
         return None
-    # Stale if the underlying JSON has been touched since the sidecar
-    # was written.
-    if sidecar.stat().st_mtime < bulk_path.stat().st_mtime:
+    # Stale if any underlying source file has been touched since the sidecar
+    # was written (for MTGJSON that includes the sibling prices file).
+    if sidecar.stat().st_mtime < _source_mtime(bulk_path):
         return None
     try:
         with sidecar.open("rb") as f:
@@ -124,7 +157,7 @@ def load_bulk_cards(bulk_path: Path) -> list[dict]:
     # _read_sidecar's staleness check and serve data from a since-refreshed bulk file.
     try:
         sidecar_mtime = sidecar.stat().st_mtime if sidecar.exists() else None
-        fresh = sidecar_mtime is not None and sidecar_mtime >= bulk_path.stat().st_mtime
+        fresh = sidecar_mtime is not None and sidecar_mtime >= _source_mtime(bulk_path)
     except OSError:
         sidecar_mtime, fresh = None, False
     if fresh:
@@ -137,8 +170,7 @@ def load_bulk_cards(bulk_path: Path) -> list[dict]:
         _MEM_CACHE[key] = (sidecar.stat().st_mtime, cached)
         return cached
 
-    with bulk_path.open(encoding="utf-8") as f:
-        cards = json.load(f)
+    cards = _read_source(bulk_path)
     _write_sidecar(sidecar, cards)
     _MEM_CACHE[key] = (bulk_mtime(bulk_path), cards)
     return cards
@@ -152,33 +184,38 @@ def build_sidecar(bulk_path: Path) -> Path:
     any existing sidecar.
     """
     sidecar = _sidecar_path(bulk_path)
-    with bulk_path.open(encoding="utf-8") as f:
-        cards = json.load(f)
+    cards = _read_source(bulk_path)
     _write_sidecar(sidecar, cards)
     return sidecar
 
 
 def default_bulk_path() -> Path | None:
-    """Resolve the default Scryfall bulk path used by ``download-bulk``.
+    """Resolve the default card-data bulk path, first existing wins.
 
-    Resolution order, first existing wins:
-      1. ``$MTG_SKILLS_CACHE_DIR/scryfall-bulk/default-cards.json`` (explicit override)
-      2. ``$HOME/.cache/mtg-skills/scryfall-bulk/default-cards.json`` (durable default,
-         mirroring ``_phase`` / ``proxy_print``) — checked even without the env var so
-         a downloaded bulk survives the periodic ``/tmp`` cleanup.
-      3. ``/tmp/scryfall-bulk/default-cards.json`` (legacy fallback; ephemeral).
+    MTGJSON ``AllPrintings`` (``download-mtgjson``) is the source of record (ADR-0033)
+    and is preferred; a legacy Scryfall ``default-cards.json`` (``download-bulk``) is
+    kept as a graceful fallback so a not-yet-migrated install keeps working. Each is
+    checked under ``$MTG_SKILLS_CACHE_DIR``, then ``$HOME/.cache/mtg-skills`` (durable,
+    survives ``/tmp`` cleanup), then ``/tmp`` (ephemeral).
     Returns ``None`` if none exists.
     """
-    candidates: list[Path] = []
     cache_root = os.environ.get("MTG_SKILLS_CACHE_DIR")
-    if cache_root:
-        candidates.append(Path(cache_root) / "scryfall-bulk" / "default-cards.json")
     home = os.environ.get("HOME")
+    roots: list[Path] = []
+    if cache_root:
+        roots.append(Path(cache_root))
     if home:
-        durable = Path(home) / ".cache" / "mtg-skills" / "scryfall-bulk"
-        candidates.append(durable / "default-cards.json")
-    candidates.append(Path("/tmp/scryfall-bulk/default-cards.json"))
-    for p in candidates:
-        if p.is_file():
-            return p
+        roots.append(Path(home) / ".cache" / "mtg-skills")
+    roots.append(Path("/tmp"))
+
+    # (subdir, filename) pairs in preference order: MTGJSON first, Scryfall fallback.
+    sources = (
+        ("mtgjson", "AllPrintings.json"),
+        ("scryfall-bulk", "default-cards.json"),
+    )
+    for subdir, fname in sources:
+        for root in roots:
+            p = root / subdir / fname
+            if p.is_file():
+                return p
     return None

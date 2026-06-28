@@ -21,6 +21,7 @@ scryfall-lookup = "mtg_utils.scryfall_lookup:main"
 card-search = "mtg_utils.card_search:main"
 mark-owned = "mtg_utils.mark_owned:main"
 download-bulk = "mtg_utils.download_bulk:main"
+download-mtgjson = "mtg_utils.download_mtgjson:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -22,8 +22,10 @@ local bulk + a built sidecar, never run in CI). The snapshot carries the
 :data:`SIDECAR_VERSION`, so a projection bump fails loudly until the snapshot is
 regenerated (the same staleness guard the production sidecar uses).
 
-The future MTGJSON swap changes only ``build-card-snapshot``'s SOURCE — not a single
-committed fixture or test (the committed artifact is the IR *output*, format-agnostic).
+The card-data source is MTGJSON (ADR-0033): ``build-card-snapshot`` sources the
+minimal records from the MTGJSON-backed ``bulk_loader`` (translated to the Scryfall
+record shape), and the committed snapshot is MTGJSON-sourced. The committed IR slices
+are source-agnostic (the IR is the *output*); a re-source is signal-identical.
 """
 
 from __future__ import annotations

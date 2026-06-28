@@ -20,6 +20,7 @@ rulings-lookup = "mtg_utils.rulings_lookup:main"
 card-search = "mtg_utils.card_search:main"
 card-summary = "mtg_utils.card_summary:main"
 download-bulk = "mtg_utils.download_bulk:main"
+download-mtgjson = "mtg_utils.download_mtgjson:main"
 scryfall-lookup = "mtg_utils.scryfall_lookup:main"
 web-fetch = "mtg_utils.web_fetch:main"
 
