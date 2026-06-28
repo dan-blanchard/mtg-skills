@@ -392,19 +392,19 @@ class TestFlashMatters:
 
     def test_flash_enabler_commander_emits_and_served(self):
         # Yeva, Nature's Herald grants flash to a class ("green creature spells … as
-        # though they had flash") — fires flash_matters on the real IR, not the regex.
-        assert "flash_matters" in _hyb("Yeva, Nature's Herald")
-        assert "flash_matters" not in _reg("Yeva, Nature's Herald")
-        assert serves(test_card("Yeva, Nature's Herald"), _sig("flash_matters", "you"))
+        # though they had flash") — fires flash_makers on the real IR, not the regex.
+        assert "flash_makers" in _hyb("Yeva, Nature's Herald")
+        assert "flash_makers" not in _reg("Yeva, Nature's Herald")
+        assert serves(test_card("Yeva, Nature's Herald"), _sig("flash_makers", "you"))
 
     def test_flash_creature_served_but_not_spellslinger(self):
-        assert serves(test_card("Ambush Viper"), _sig("flash_matters", "you"))
+        assert serves(test_card("Ambush Viper"), _sig("flash_makers", "you"))
         assert not serves(test_card("Ambush Viper"), _sig("spellcast_matters", "you"))
 
     def test_self_only_flash_grant_not_an_enabler_signal(self):
         # Quicken's one-shot "as though IT had flash" (singular pronoun) is NOT a flash
-        # ENABLER — the real IR opens flash_grant but not the flash_matters enabler lane.
-        assert "flash_matters" not in _hyb("Quicken")
+        # ENABLER — the real IR opens flash_grant but not the flash_makers enabler lane.
+        assert "flash_makers" not in _hyb("Quicken")
 
 
 class TestTeamEvasionGrant:

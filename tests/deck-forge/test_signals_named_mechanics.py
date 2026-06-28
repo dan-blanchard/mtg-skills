@@ -258,8 +258,9 @@ def test_daynight_matters_effect_arm_is_ir_served():
         ),
     )
     hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
-    assert ("daynight_matters", "you") in hybrid
-    assert ("daynight_matters", "you") not in _ks(c)
+    # ADR-0034 split: the day_night EFFECT-category doer is the MAKER arm.
+    assert ("daynight_makers", "you") in hybrid
+    assert ("daynight_makers", "you") not in _ks(c)
 
 
 def test_voting_makers_is_ir_served():
@@ -665,15 +666,17 @@ def test_plus_one_makers_widened_for_distributors():
 
 
 def test_poison_scoped_to_opponents():
-    # ADR-0027: poison_matters is IR-served (the infect Scryfall keyword + a kept word
-    # mirror for the granters/references), so it comes through the hybrid path, scoped
-    # to opponents, not pure regex.
+    # ADR-0034 _matters split: the infect/toxic/poisonous BEARER (a creature that
+    # PLACES poison counters in combat) is the MAKER arm -> poison_makers, opponents.
+    # It is IR-served (the keyword reads off the projected IR), not pure regex.
     c = {
         "name": "Skithiryx-like",
         "oracle_text": "Infect\nThis creature can't be blocked.",
     }
-    assert ("poison_matters", "opponents") in _ks_hybrid(c)
-    assert ("poison_matters", "opponents") not in _ks(c)
+    ir = Card(oracle_id="x", name="X", faces=(Face(name="X", keywords=("Infect",)),))
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("poison_makers", "opponents") in hybrid
+    assert ("poison_makers", "opponents") not in _ks(c)
 
 
 # --- mechanics recovered from the "rejected" families (still-zero commanders) ---
