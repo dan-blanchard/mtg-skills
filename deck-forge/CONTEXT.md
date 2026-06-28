@@ -102,6 +102,13 @@ condition ("a creature you control enters"), a payoff, a type-matters hook, or a
 cost-reducer. Scope is part of the Signal's identity: *Tinybones, the Pickpocket*
 yields the Signal "cast/steal from an **opponent's** graveyard," NOT "graveyard
 matters." Signals are the atoms the discovery engine reasons over.
+**Membership is strict**: a card emits a Signal only when it *literally performs that
+exact mechanic* — never because a deck on that Signal would also want the card. A "create
+a token that's a copy" card emits `token_copy_matters`, not `clone_matters` ("becomes a
+copy"), even though a clone deck wants it. Archetype *adjacency* — the cards a Signal's
+deck also reaches for — is never an emission; it lives entirely in the serve layer as a
+**SubAvenue**. This keeps emission a clean truth about the card and serve a separate
+question about the deck.
 _Avoid_: "theme" (a Signal is narrower and clause-scoped), "trigger" alone
 (ignores payoffs / static hooks), "keyword".
 
@@ -123,6 +130,17 @@ package is not a Combo).
 A *direction* the assistant offers to pursue — "lean Voltron vs. tokens," "look at
 ramp now?" An avenue is a branch in the build, never a specific card.
 _Avoid_: "suggestion" (overloaded — covers cards too), "option".
+
+**SubAvenue**:
+A separately-searchable angle on the *same* Signal — the serve-side fan-out. One Signal
+can want several distinct buckets (be the manlands / reward them / animate lands), each
+with its own search + classifier, so the Signal's spec carries a primary serve plus
+`extras` of SubAvenues. SubAvenues are also where archetype *adjacency* lives: a Signal
+serves cards a deck wants but that don't themselves emit the Signal (a clone deck reaching
+for token-copy gear). Because membership is strict (see [[Signal]]), every "and a deck
+might also want…" is a SubAvenue, never a new emission.
+_Avoid_: "extra" (the field name, not the concept), "sub-signal" (it's a serve angle, not
+a membership fact).
 
 **Focused avenue**:
 An Avenue the human has *pinned* to declare it a lane they're actually building
