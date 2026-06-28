@@ -5672,13 +5672,25 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"attacks alone",
         serve_keywords=("exalted",),
     ),
+    # ADR-0034 _matters sweep SPLIT: the MAKER side of the old flash_matters — the
+    # flash-GRANTERS (cast your spells as though they had flash — Leyline of
+    # Anticipation, Vedalken Orrery, Yeva) plus flash creatures to ambush-cast.
+    ("flash_makers", "you"): _spec(
+        "Flash",
+        "flash creatures to ambush-cast plus the flash-granters that build the deck "
+        "around instant-speed play",
+        {"preset_names": ("flash",)},
+        r"cast[^.]{0,60}spells?[^.]{0,30}as though they had flash",
+        serve_keywords=("flash",),
+    ),
+    # ADR-0034 _matters sweep SPLIT: the PAYOFF side — the opponent-turn cast triggers
+    # that reward instant-speed play (Alela). Same flash serve pool as flash_makers.
     ("flash_matters", "you"): _spec(
         "Flash",
-        "flash creatures to ambush-cast plus the flash-granters and opponent-turn "
-        "payoffs that build the deck around instant-speed play",
+        "opponent-turn cast payoffs plus flash creatures and granters that build the "
+        "deck around instant-speed play",
         {"preset_names": ("flash",)},
-        r"cast[^.]{0,60}spells?[^.]{0,30}as though they had flash"
-        r"|whenever you cast (?:a |your first )?spells? "
+        r"whenever you cast (?:a |your first )?spells? "
         r"during (?:an|each|any) opponent",
         serve_keywords=("flash",),
     ),

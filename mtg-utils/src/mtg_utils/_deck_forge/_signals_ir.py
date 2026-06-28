@@ -1814,18 +1814,29 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # extract_signals_ir fires. The name-strip in the recovery sheds the regex's name
     # false-positive (Chameleon, Master of Disguise — a clone, not a morph payoff). CR
     # 707.2 / 708.2.
-    # ADR-0027 (q2-D3) — flash_matters: the GRANT half binds structurally in
-    # extract_signals_ir (cast_with_keyword{flash}); this mirror is the FULL deleted
-    # _HAND_FLOOR regex (both branches), recovering (a) the ACTIVATED flash-grant phase
-    # folds into grant_keyword with an EMPTY counter_kind (Winding Canyons {2}{T},
-    # Teferi Time Raveler +1) and (b) the opponent-turn cast payoff phase leaves textual
-    # ("whenever you cast a spell during an opponent's turn"). add() dedups the overlap
-    # with the structural arm. CR 702.8.
+    # ADR-0034 _matters sweep: the old flash_matters mirror was a two-branch OR — the
+    # split breaks it into one tuple per role. Branch A (the ACTIVATED flash-GRANT phase
+    # folds into grant_keyword with an EMPTY counter_kind — Winding Canyons {2}{T},
+    # Teferi Time Raveler +1, Alchemist's Refuge) is a MAKER (the card PERFORMS the
+    # flash-grant), so it keys flash_makers — the kept mirror for the structural
+    # cast_with_keyword{flash} arm above. add() dedups the overlap with that arm.
+    # CR 702.8.
+    (
+        "flash_makers",
+        re.compile(
+            r"cast[^.]{0,60}spells?[^.]{0,30}as though they had flash",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # ADR-0034 _matters sweep: branch B — the opponent-turn cast PAYOFF (a trigger that
+    # rewards instant-speed play; phase leaves it textual — "whenever you cast a spell
+    # during an opponent's turn", Alela). This is a payoff REFERENCE, not a doer, so it
+    # keeps flash_matters. CR 702.8.
     (
         "flash_matters",
         re.compile(
-            r"cast[^.]{0,60}spells?[^.]{0,30}as though they had flash"
-            r"|whenever you cast (?:a |your first )?spells? "
+            r"whenever you cast (?:a |your first )?spells? "
             r"during (?:an|each|any) opponent",
             re.IGNORECASE,
         ),
@@ -3561,10 +3572,14 @@ IR_SLICE_KEYS: frozenset[str] = (
             # under-parses (Circu scope=='any'; Scrib Nibblers; granted clauses). The
             # deleted _HAND_FLOOR producer fired scope 'you'.
             "opp_top_exile",
-            # ADR-0027 (q2-D3) half-migrations: the GRANT half of flash_matters
+            # ADR-0027 (q2-D3) half-migrations: the GRANT half of the old flash_matters
             # (cast_with_keyword{flash}) + the OPPONENT-punisher half of
             # noncreature_cast_punish (cast_spell trig scope=='opp' + noncreature
             # subject) bind structurally; the remaining halves ride _IR_KEPT mirrors.
+            # ADR-0034 _matters sweep: the MAKER arm (the cast_with_keyword{flash} doer +
+            # branch A of the mirror) is now flash_makers; flash_matters keeps only the
+            # opponent-turn cast PAYOFF (branch B).
+            "flash_makers",
             "flash_matters",
             "noncreature_cast_punish",
             # ADR-0027 β — impulse_top_play: a TEMPORARY exile-the-top-then-play engine.
@@ -9673,16 +9688,18 @@ def extract_signals_ir(
                     add("venture_matters", "you", "", e.raw)
             # Batch 6 (flash_grant) — CastWithKeyword{Flash}: a flash ENABLER (cast
             # <a class of> spells as though they had flash — Teferi, Yeva, Vedalken
-            # Orrery). ADR-0027: flash_grant AND flash_matters both ride this node —
-            # the GRANT-to-OTHERS half of each lane is exactly this cast_with_keyword
-            # {flash} static (Leyline of Anticipation, Vivien). The activated /
-            # conditional grant (empty counter_kind) + the self-flash tail are recovered
-            # by each lane's FULL deleted-regex kept _IR_KEPT mirror (flash_grant ←
-            # FLASH_GRANT_REGEX, flash_matters ← its own mirror); add() dedups the
-            # overlap. CR 702.8.
+            # Orrery). ADR-0034 _matters sweep: this structural node is a MAKER (the
+            # card PERFORMS the flash-grant), so it fires flash_grant AND flash_makers
+            # (the relabeled MAKER arm of the old flash_matters) — the GRANT-to-OTHERS
+            # half of each lane is exactly this cast_with_keyword{flash} static (Leyline
+            # of Anticipation, Vivien). The activated / conditional grant (empty
+            # counter_kind) + the self-flash tail are recovered by the FULL deleted-regex
+            # kept _IR_KEPT mirror (flash_grant ← FLASH_GRANT_REGEX, flash_makers ←
+            # branch A of its own mirror); add() dedups the overlap. The opponent-turn
+            # cast PAYOFF (branch B of that mirror) keeps flash_matters. CR 702.8.
             if cat == "cast_with_keyword" and e.counter_kind == "flash":
                 add("flash_grant", "you", "", e.raw)
-                add("flash_matters", "you", "", e.raw)
+                add("flash_makers", "you", "", e.raw)
             # ADR-0027 — convoke_matters GRANTER: "<type> spells you cast have convoke"
             # (CR 702.51, Fallaji Wayfarer, Chief Engineer) carries counter_kind=
             # 'convoke' on the cast_with_keyword effect — a pure structured read. The

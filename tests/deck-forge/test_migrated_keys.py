@@ -190,7 +190,11 @@ _REAL_CASES: dict[str, str] = {
     "firebending_makers": "Fire Lord Azula",
     "firebending_matters": "Sozin's Comet",
     "flash_grant": "Vedalken Orrery",
-    "flash_matters": "Leyline of Anticipation",
+    # ADR-0034 _matters sweep SPLIT: the MAKER arm (flash-granter doer) is flash_makers;
+    # Leyline of Anticipation is a real snapshot maker. The PAYOFF arm keeps
+    # flash_matters and rides a _SYNTHETIC_CASES fixture (no opponent-turn cast payoff
+    # card in the snapshot).
+    "flash_makers": "Leyline of Anticipation",
     "flip_self": "Nezumi Graverobber // Nighteyes the Desecrator",
     "food_matters": "Trail of Crumbs",
     "forced_attack": "Public Enemy",
@@ -549,6 +553,26 @@ _SYNTHETIC_CASES: dict[str, tuple[dict, Card]] = {
                 ),
             )
         ),
+    ),
+    # flash_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm (the flash-
+    # GRANTER doers — the cast_with_keyword{flash} structural node + branch A of the kept
+    # mirror, "cast … as though they had flash") was relabeled to flash_makers (Leyline
+    # of Anticipation, a real case). The payoff arm — a card that TRIGGERS off casting
+    # during an opponent's turn (Alela, Artful Provocateur) — keeps flash_matters but has
+    # no snapshot-resident real card (no opponent-turn-cast payoff in the snapshot).
+    # Minimal fixture carrying the opponent-turn cast trigger, proving the PAYOFF still
+    # serves the lane via the IR kept-detector mirror (branch B). (Mirrors the
+    # voting_matters / blood_matters splits.) CR 702.8.
+    "flash_matters": (
+        {
+            "name": "Alela-like",
+            "type_line": "Legendary Creature — Faerie Wizard",
+            "oracle_text": (
+                "Whenever you cast a spell during an opponent's turn, create "
+                "a 1/1 white Faerie creature token with flying."
+            ),
+        },
+        _ir(),
     ),
     "damage_reflect": (
         {

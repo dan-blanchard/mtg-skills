@@ -1618,13 +1618,19 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # steal-and-cast cards the regex never reached). _HAND_FLOOR producer deleted.
         "opp_top_exile",
         # ADR-0027 (q2-D3) — two half-migrations (clean IR arm + kept word mirror):
-        #   flash_matters ← the GRANT half binds via cast_with_keyword{flash} (the same
-        #     node flash_grant reads; Leyline, Vivien). The FULL deleted _HAND_FLOOR
-        #     regex is kept byte-identically as an _IR_KEPT mirror to recover the
-        #     ACTIVATED flash-grant (phase folds to grant_keyword with empty ck —
-        #     Winding Canyons, Teferi Time Raveler) + the opponent-turn cast payoff
+        #   flash (old flash_matters) ← the GRANT half binds via cast_with_keyword
+        #     {flash} (the same node flash_grant reads; Leyline, Vivien). The FULL
+        #     deleted _HAND_FLOOR regex is kept byte-identically as an _IR_KEPT mirror to
+        #     recover the ACTIVATED flash-grant (phase folds to grant_keyword with empty
+        #     ck — Winding Canyons, Teferi Time Raveler) + the opponent-turn cast payoff
         #     (textual). Broader-and-correct (+1: Teferi Mage of Zhalfir). floor-mirror-
         #     dep == 0 (not a floor lane). NO-FLOOD held (voltron 0 leaked). CR 702.8.
+        #   ADR-0034 _matters sweep SPLIT: flash_makers ← the MAKER arm (the
+        #     cast_with_keyword{flash} doer + branch A of the mirror, "cast … as though
+        #     they had flash" — the grant-to-others / activated granters). flash_matters
+        #     keeps ONLY branch B, the opponent-turn cast PAYOFF (Alela). Gate-verified
+        #     set-equal: members(flash_makers) ∪ members(flash_matters) == the old key.
+        "flash_makers",
         #   noncreature_cast_punish ← the OPPONENT-punisher half binds via a cast_spell
         #     trigger scope=='opp' over a noncreature subject (NotType:Creature or a
         #     noncreature card-type set; Kambal, Mystic Remora, Esper Sentinel — +13
