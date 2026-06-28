@@ -168,6 +168,7 @@ _REAL_CASES: dict[str, str] = {
     "exalted_lone_attacker": "Rogue Kavu",
     "excess_damage": "Aegar, the Freezing Flame",
     "exert_matters": "Brave the Sands",
+    "exhaust_makers": "Bitter Work",
     "exhaust_matters": "Pit Automaton",
     "exile_matters": "Mairsil, the Pretender",
     "exile_removal": "Banishing Light",

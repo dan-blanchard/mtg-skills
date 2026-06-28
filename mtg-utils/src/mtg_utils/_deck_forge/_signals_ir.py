@@ -873,7 +873,13 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # voltron_matters (HIGH, unconditional) byte-identically; that regex row STAYS for
     # the no-sidecar degradation path. CR 702.83 / 903.10a.
     "exalted": (("exalted_lone_attacker", "you"), ("voltron_matters", "you")),
-    "exhaust": (("exhaust_matters", "you"),),
+    # _matters sweep (ADR-0034): the Scryfall `exhaust` keyword = the exhaust DOER
+    # (a card carrying an "Exhaust — {cost}: effect" ability performs the mechanic —
+    # Bitter Work), so this is the MAKER arm → exhaust_makers. The payoff arm
+    # (event='other' "activate an exhaust ability" trigger — Pit Automaton's
+    # delayed-trigger-inside-activated shape) keeps exhaust_matters via
+    # _DOER_EFFECT_KEYS. CR 702.177.
+    "exhaust": (("exhaust_makers", "you"),),
     # NB: cycling/crew/curse are NOT here — having Cycling ≠ a cycling-MATTERS
     # payoff, having Crew ≠ a Vehicle-tribal payoff, being a Curse ≠ curses-matter.
     # Those derive from triggers / Filter subtypes in later batches.

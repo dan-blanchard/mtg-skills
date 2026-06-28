@@ -4246,6 +4246,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bboast\b"},
         r"\bboast\b",
     ),
+    # _matters sweep (ADR-0034): the MAKER arm of the exhaust split — cards carrying
+    # an Exhaust ability. Same \bexhaust\b serve pool as the payoff arm.
+    ("exhaust_makers", "you"): _spec(
+        *SWEEP_LABELS["exhaust_makers"],
+        {"oracle": r"\bexhaust\b"},
+        r"\bexhaust\b",
+    ),
     ("exhaust_matters", "you"): _spec(
         *SWEEP_LABELS["exhaust_matters"],
         {"oracle": r"\bexhaust\b"},

@@ -2968,7 +2968,11 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "strip an opponent's landwalk so you can block (CR 702.14)",
     ),
     "excess_damage": ("Excess damage", "trample and big hits to exploit excess damage"),
-    "exhaust_matters": ("Exhaust", "exhaust abilities (once per game)"),
+    # _matters sweep (ADR-0034): exhaust split into the MAKER arm (cards with an
+    # Exhaust ability — this label fits them) and the PAYOFF arm (exhaust-activation
+    # triggers — Pit Automaton).
+    "exhaust_makers": ("Exhaust", "exhaust abilities (once per game)"),
+    "exhaust_matters": ("Exhaust payoffs", "exhaust-activation triggers and payoffs"),
     "exile_until_leaves": ("O-Ring removal", "exile-until-leaves removal effects"),
     "explore_matters": ("Explore", "explore creatures plus counter/graveyard payoffs"),
     "extra_land_drop": (

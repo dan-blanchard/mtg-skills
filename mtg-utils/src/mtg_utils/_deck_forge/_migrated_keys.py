@@ -243,6 +243,12 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "connive_makers",
         "end_the_turn",
         "exhaust_matters",
+        # _matters sweep (ADR-0034): the MAKER arm of the exhaust split — a card
+        # carrying the Scryfall `exhaust` keyword (an "Exhaust — {cost}: effect"
+        # ability; Bitter Work) performs the mechanic. The IR path emits it via
+        # _IR_KEYWORD_MAP, so the hybrid must recognize it as migrated to keep it.
+        # exhaust_matters stays the payoff arm (the event='other' reference).
+        "exhaust_makers",
         "extra_end_step",
         "madness_matters",
         "has_mutate",

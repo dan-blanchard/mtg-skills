@@ -9083,6 +9083,116 @@
     "type_line": "Legendary Creature — God // Legendary Artifact"
    }
   },
+  "Bitter Work": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "genericmana,mana",
+        "e": [
+         {
+          "cat": "animate",
+          "dur": "Permanent",
+          "raw": "Exhaust — {4}: Earthbend 4. Activate only during your turn.",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Land"
+           ]
+          }
+         },
+         {
+          "amt": {
+           "f": 4,
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "Exhaust — {4}: Earthbend 4. Activate only during your turn."
+         },
+         {
+          "cat": "bending",
+          "raw": "Exhaust — {4}: Earthbend 4. Activate only during your turn.",
+          "z": [
+           "to:battlefield"
+          ]
+         },
+         {
+          "cat": "bending",
+          "raw": "Exhaust — {4}: Earthbend 4. Activate only during your turn."
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "raw": "Whenever you attack a player with one or more creatures with power 4 or greater, draw a card.",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "attacks"
+        }
+       }
+      ],
+      "n": "Bitter Work",
+      "tl": "Enchantment"
+     }
+    ],
+    "n": "Bitter Work",
+    "oid": "e9a24ed8-e844-4c50-b386-bc28da9989b1"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "colors": [
+     "G",
+     "R"
+    ],
+    "keywords": [
+     "Earthbend",
+     "Exhaust"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}{G}",
+    "name": "Bitter Work",
+    "oracle_id": "e9a24ed8-e844-4c50-b386-bc28da9989b1",
+    "oracle_text": "Whenever you attack a player with one or more creatures with power 4 or greater, draw a card.\nExhaust — {4}: Earthbend 4. Activate only during your turn. (Target land you control becomes a 0/0 creature with haste that's still a land. Put four +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped. Activate each exhaust ability only once.)",
+    "type_line": "Enchantment"
+   }
+  },
   "Blim, Comedic Genius": {
    "ir": {
     "faces": [
