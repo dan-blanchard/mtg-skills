@@ -743,6 +743,14 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # held (only clue_matters 163->164; voltron 3010 set identical). The hand-
         # written serve spec survives. CR 701.16 / 111.10f.
         "clue_matters",
+        # _matters sweep (ADR-0034): clue_makers — the make_token MAKER arm split out
+        # of clue_matters (a structured Clue-subtype make_token subject or the
+        # maker-only "create … Clue token" face fallback). The sacrifice/ref/
+        # sacrificed-trigger PAYOFFS keep clue_matters above, as does the mixed
+        # CLUE_MATTERS_REGEX word mirror (investigate/Clue textual residue phase can't
+        # structure — it stays on clue_matters). Gate set-equal: members(clue_makers)
+        # UNION members(clue_matters) == the old clue_matters firing set (169).
+        "clue_makers",
         # saga_matters ← a `_SAGA_REF` ("lore counter" / "Saga you control") dropped-
         # static face marker (lore-counter manipulation — Keldon Warcaller, Satsuki,
         # Garnet; chapter-scaling payoff Sagas; the Saga-payoff commander Tom Bombadil;

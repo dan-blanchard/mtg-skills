@@ -94,6 +94,7 @@ _REAL_CASES: dict[str, str] = {
     "cheat_from_top": "Hans Eriksson",
     "cheat_into_play": "Sneak Attack",
     "clone_makers": "Cytoshape",
+    "clue_makers": "Deduce",
     "clue_matters": "Tireless Tracker",
     "cmdzone_ability": "Oloro, Ageless Ascetic",
     "coin_flip": "Chance Encounter",
@@ -966,8 +967,7 @@ def test_blood_makers_fires_from_a_recovered_choice_list_maker():
     choice of a Blood token, a Clue token, or a Food token" — phase drops the choice
     subtypes onto a `choose` effect; project._narrow_token_subtype_makers recovers
     them as make_token markers, so all three lanes fire via the IR. ADR-0034: the
-    Blood and Food MAKER arms emit blood_makers / food_makers; clue is unsplit
-    (clue_matters)."""
+    Blood, Clue, and Food MAKER arms emit blood_makers / clue_makers / food_makers."""
     card = {
         "name": "Transmutation Font",
         "type_line": "Artifact",
@@ -1008,9 +1008,10 @@ def test_blood_makers_fires_from_a_recovered_choice_list_maker():
     keys = {s.key for s in extract_signals_hybrid(card, ir)}
     assert "blood_makers" in keys
     # the generalized recovery also opens clue/food (all three are now ADR-0027-migrated,
-    # IR-served via _TOKEN_SUBTYPE_KEYS — the structural maker recovery is general, which
-    # proves the widening generalized across every artifact/blood token subtype)
-    assert "clue_matters" in keys
+    # IR-served — the structural make_token MAKER recovery is general, which proves the
+    # widening generalized across every artifact/blood token subtype; ADR-0034 routes
+    # the make_token Clue subject to clue_makers)
+    assert "clue_makers" in keys
     assert "food_makers" in keys
 
 
