@@ -301,6 +301,7 @@ _REAL_CASES: dict[str, str] = {
     "regenerate_makers": "Tribal Golem",
     "removal": "Flame Slash",
     "ring_matters": "Faramir, Field Commander",
+    "ring_tempters": "Boromir, Warden of the Tower",
     "sacrifice_outlets": "Disciple of Bolas",
     "sacrifice_protection": "Sigarda, Host of Herons",
     "saddle_matters": "Guidelight Matrix",

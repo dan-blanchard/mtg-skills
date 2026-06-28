@@ -129,6 +129,12 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "discover_makers",
         "has_ninjutsu",
         "ring_matters",
+        # _matters sweep (ADR-0034): ring split. ring_tempters is the MAKER arm (a
+        # card that performs "the Ring tempts you" as its own action — Boromir); the
+        # PAYOFF/Ring-bearer-reference markers keep ring_matters above. Both ride the
+        # cat=='ring_tempt' doer loop; the maker is the _DOER_EFFECT_KEYS default, the
+        # payoff a raw-discriminated key override. Set-equal to old ring_matters.
+        "ring_tempters",
         # Group "conferred-keyword re-parse" (ADR-0027 projection deepening) — keys
         # whose tail cards GRANT a keyword/ability to a CLASS of objects, which phase
         # folds into a grant carrier (cast_with_keyword / grant_spell_ability /

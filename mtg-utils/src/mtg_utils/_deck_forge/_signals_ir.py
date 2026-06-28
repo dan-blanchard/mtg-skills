@@ -285,7 +285,14 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "manifest": ("facedown_matters", "you"),
     "cloak": ("facedown_matters", "you"),
     "turn_face_up": ("facedown_matters", "you"),
-    "ring_tempt": ("ring_matters", "you"),
+    # _matters sweep (ADR-0034): ring split. A NATIVE tempt-action effect (the card
+    # performs "the Ring tempts you" as part of its own ability — Boromir, Warden of
+    # the Tower) is the MAKER arm → ring_tempters (the dict default). The PAYOFF
+    # markers project._narrow_trigger_other_refs synthesizes — the event='other'
+    # "Whenever the Ring tempts you, …" trigger (Faramir, Aragorn) and a buried
+    # "Ring-bearer" reference (Sauron, no tempt trigger) — ride the SAME cat=='ring_
+    # tempt'; the doer loop re-routes them to ring_matters by a raw discriminator.
+    "ring_tempt": ("ring_tempters", "you"),
     # Explore (CR 701.44) → its dedicated lane (was topdeck_select, but explore is a
     # reveal-top + land/counter mechanic, not a Brainstorm-style stacker).
     # _matters sweep (ADR-0034): explore split. A NATIVE explore Effect (the card
@@ -3187,6 +3194,12 @@ IR_SLICE_KEYS: frozenset[str] = (
             "monarch_matters",
             "suspect_makers",
             "suspect_matters",
+            # _matters sweep (ADR-0034): ring split. The tempt-action MAKER arm
+            # emits ring_tempters (auto-enters via _DOER_EFFECT_KEYS.values()); the
+            # event='other'/Ring-bearer PAYOFF markers are re-routed to ring_matters
+            # by a manual key override in the doer loop (not the dict), so its slice
+            # membership is pinned here (the experience_matters precedent).
+            "ring_matters",
             "venture_matters",
             "connive_makers",
             "damage_prevention",
@@ -7825,6 +7838,19 @@ def extract_signals_ir(
                     and ab.trigger.event == "other"
                 ):
                     key = "explore_matters"
+                # _matters sweep (ADR-0034): ring split. The cat=='ring_tempt' arm
+                # conflates the MAKER (a native tempt action — the card itself does
+                # "the Ring tempts you", Boromir) and the PAYOFF (project._narrow_
+                # trigger_other_refs synthesizes a cat=='ring_tempt' marker from a
+                # "Whenever the Ring tempts you, …" event='other' trigger — Faramir,
+                # Aragorn — or a buried "Ring-bearer" reference — Sauron, no tempt
+                # trigger). Route the synthesized payoff/reference markers (raw carries
+                # "whenever the ring tempts you" or "ring-bearer") to ring_matters;
+                # native tempt-action makers stay ring_tempters. CR 701.54.
+                if e.category == "ring_tempt":
+                    rraw = (e.raw or "").lower()
+                    if "whenever the ring tempts you" in rraw or "ring-bearer" in rraw:
+                        key = "ring_matters"
                 add(key, fixed_scope or _ir_scope(e.scope), "", e.raw)
             # ADR-0027 #24 KW-WAVE-1 — bending cross-bend PAYOFF arm. phase emits a
             # `bending` Effect (no direction field) for cards that DO/reference a bend;

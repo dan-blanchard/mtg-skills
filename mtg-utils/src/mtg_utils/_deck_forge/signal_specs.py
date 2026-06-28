@@ -3710,9 +3710,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     ("ring_matters", "you"): _spec(
         "The Ring",
-        "Ring-bearer payoffs and ways to tempt you with the Ring",
-        {"oracle": r"ring tempts you|ring-bearer"},
-        r"ring tempts you|ring-bearer",
+        "Ring-bearer payoffs — cards rewarded by the Ring tempting you",
+        {"oracle": r"whenever the ring tempts you|ring-bearer"},
+        r"whenever the ring tempts you|ring-bearer",
+    ),
+    # _matters sweep (ADR-0034): the maker side of the ring split. ring_tempters
+    # fires on a NATIVE tempt action (the card itself does "the Ring tempts you" —
+    # Boromir). The avenue it OPENS is the Ring-bearer payoffs to reward the tempting
+    # (the ring_matters serve) plus more ways to tempt yourself.
+    ("ring_tempters", "you"): _spec(
+        "Tempt the Ring",
+        "ways to tempt yourself with the Ring (advance the Ring-bearer)",
+        {"oracle": r"the ring tempts you"},
+        r"the ring tempts you",
     ),
     ("venture_matters", "you"): _spec(
         "Venture / dungeons",
