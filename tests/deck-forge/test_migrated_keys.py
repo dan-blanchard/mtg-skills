@@ -317,7 +317,11 @@ _REAL_CASES: dict[str, str] = {
     "spell_keyword_grant": "Thrumming Stone",
     "spellcast_matters": "Talrand, Sky Summoner",
     "starting_life_matters": "Path of Bravery",
-    "station_matters": "Lumen-Class Frigate",
+    # _matters sweep (ADR-0034): station split. Lumen-Class Frigate is a MAKER (Station
+    # keyword, Spacecraft body), so it proves the station_makers arm. The station_matters
+    # payoff arm (a card that only REFERENCES Spacecraft — Focus Fire) has no
+    # snapshot-resident card, so it rides a _SYNTHETIC_CASES fixture below.
+    "station_makers": "Lumen-Class Frigate",
     "stax_taxes": "Gnat Miser",
     "stickers_matter": "Aerialephant",
     "superfriends_matters": "The Chain Veil",
@@ -468,6 +472,30 @@ _SYNTHETIC_CASES: dict[str, tuple[dict, Card]] = {
             "oracle_text": (
                 "Whenever players finish voting, each opponent loses 1 life for "
                 "each vote they cast."
+            ),
+        },
+        _ir(),
+    ),
+    # station_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm (the
+    # Spacecraft/Planet bodies with the Station keyword + the chargers that put/double
+    # charge counters on a Spacecraft — Lumen-Class Frigate, Drill Too Deep, Loading
+    # Zone) was relabeled to station_makers (Lumen-Class Frigate, a real case). The
+    # payoff arm — a card that only NAMES Spacecraft to count / destroy / exile / tutor
+    # off it (Focus Fire counts Spacecraft, Embrace Oblivion / Gravkill destroy or exile
+    # one) — keeps station_matters but has no snapshot-resident real card: the snapshot's
+    # only Station cards (Lumen-Class Frigate, Hearthhull) both fire the maker arm.
+    # Minimal fixture carrying Focus Fire's REAL oracle, proving the Spacecraft-reference
+    # payoff still serves the lane via the IR partition mirror (no Station keyword, no
+    # Spacecraft type, no charge-on-Spacecraft effect). (Mirrors the voting_matters /
+    # opponent_exile_matters splits.) CR 702.184.
+    "station_matters": (
+        {
+            "name": "Focus Fire-like",
+            "type_line": "Instant",
+            "oracle_text": (
+                "Focus Fire deals X damage to target attacking or blocking "
+                "creature, where X is 2 plus the number of creatures and/or "
+                "Spacecraft you control."
             ),
         },
         _ir(),

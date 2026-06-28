@@ -4290,10 +4290,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"phase out|phases out|phased out"},
         r"phase out|phases out|phased out",
     ),
-    # ADR-0027: station_matters migrated to the Card IR (its SWEEP_DETECTORS row is
-    # deleted, so the auto-register loop no longer builds this spec). Hand-register it
-    # reusing the pinned STATION_MATTERS_REGEX so the serve pool never drifts from the
-    # (now-deleted) detector. SWEEP_LABELS still carries the human label.
+    # ADR-0027 / _matters sweep (ADR-0034): the Station/Spacecraft lane migrated to the
+    # Card IR and then SPLIT into station_makers (the Spacecraft/Planet bodies + the
+    # chargers that PERFORM Station) and station_matters (the Spacecraft-ref payoffs).
+    # Both serve the SAME Station/Spacecraft pool (the avenue composes maker + payoff),
+    # so both reuse the pinned STATION_MATTERS_REGEX — the serve pool never drifts from
+    # the (now-deleted) detector.
+    ("station_makers", "you"): _spec(
+        "Station / Spacecraft",
+        "Spacecraft/Planet to station plus ways to charge them",
+        {"oracle": STATION_MATTERS_REGEX},
+        STATION_MATTERS_REGEX,
+    ),
     ("station_matters", "you"): _spec(
         *SWEEP_LABELS["station_matters"],
         {"oracle": STATION_MATTERS_REGEX},

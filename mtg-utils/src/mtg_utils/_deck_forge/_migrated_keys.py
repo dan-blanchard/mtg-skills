@@ -4843,16 +4843,23 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # signal_specs.py reusing the EXACT deleted regex (pinned constant — the serve
         # pool never drifts).
         #
-        # VOLTRON. The deleted SWEEP producer fired HIGH-confidence (scope 'you') and
-        # fed has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS — a
-        # station build-around is a charge-counter engine, no vanilla beater). Because
-        # the kept mirror is BYTE-IDENTICAL (IR == regex == 44, no broadening),
-        # station_matters is added to _VOLTRON_SILENCING_PLAN_KEYS so the hybrid re-
-        # silences the spurious commander-damage membership tell from the IR re-supply,
-        # restoring pre-migration
-        # behavior (matching the daynight_matters / dies_recursion kept-mirror
-        # precedent). FILE-SWAP voltron delta 0 (3010 -> 3010). CR 702.184 (Station) /
-        # 903.10a (voltron).
+        # VOLTRON. The producer fires HIGH-confidence (scope 'you') and feeds the
+        # IR-derived has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS —
+        # a station build-around is a charge-counter engine, no vanilla beater).
+        #
+        # _matters sweep (ADR-0034): station SPLIT into station_makers +
+        # station_matters. The single Station/Spacecraft word mirror was
+        # inherently MIXED — Spacecraft/Planet BODIES (Station keyword) and
+        # chargers PERFORM the mechanic, while Focus Fire / Embrace Oblivion /
+        # Gravkill only REFERENCE Spacecraft. The role boundary is drawn in the
+        # partition block (_signals_ir): a card with the Station keyword, a
+        # Spacecraft/Planet type, OR a charge-counters-on-Spacecraft effect emits
+        # station_makers (34); the bare Spacecraft references keep
+        # station_matters (10). Gate-verified set-equal on the MTGJSON corpus:
+        # the union of makers + matters == 44 == the old key. BOTH arms are HIGH
+        # 'you' and in NO voltron-exclusion set, so each feeds has_other_plan as
+        # the old key did — voltron unchanged at 2428. CR 702.184 / 903.10a.
+        "station_makers",
         "station_matters",
         # ADR-0027 — tap_down (the tap-down control lane — tap an OPPONENT's
         # permanent / "skips its next untap step" / detain to lock an opponent's

@@ -1105,6 +1105,25 @@ def _has_self_base_pt(subject: object) -> bool:
 # partition block after the _IR_KEPT_DETECTORS loop. Partitioning the SAME regex
 # firing keeps the split set-equal (union == old firebending_matters).
 _FIREBEND_RE = re.compile(r"\bfirebend(?:ing|s)?\b", re.IGNORECASE)
+# _matters sweep (ADR-0034): station SPLIT. The kept Station/Spacecraft word mirror
+# (STATION_MATTERS_REGEX `\bstation\b|\bspacecraft\b`, also pinned in signal_specs +
+# _sweep_detectors) is bifurcated in the partition block after the _IR_KEPT_DETECTORS
+# loop. A card PERFORMS the Station mechanic (a MAKER) when it bears the Scryfall
+# Station keyword (CR 702.184 — a Spacecraft/Planet that accrues charge counters), IS a
+# Spacecraft/Planet body, OR charges one (puts/doubles counters on a Spacecraft/Planet —
+# Drill Too Deep, Systems Override, Loading Zone); a card that only NAMES Spacecraft to
+# count / destroy / tutor / gate off it (Focus Fire, Embrace Oblivion, Gravkill,
+# Tractor Beam) is a PAYOFF/reference and keeps station_matters. Partitioning the SAME
+# regex firing keeps the split set-equal (union == old station_matters, 44; 34 makers /
+# 10 references). The Station keyword separately routes to proliferate_matters via
+# _IR_KEYWORD_MAP (the charge-counter avenue) — unaffected by this split.
+_STATION_GUARD_RE = re.compile(STATION_MATTERS_REGEX, re.IGNORECASE)
+_STATION_TL_RE = re.compile(r"\b(?:Spacecraft|Planet)\b")
+_STATION_CHARGE_RE = re.compile(
+    r"counters?[^.]*\b(?:spacecraft|planet)\b"
+    r"|\b(?:spacecraft|planet)\b[^.]*counters?",
+    re.IGNORECASE,
+)
 _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # ADR-0027 #24n G1 — base_pt_set references mirror DELETED (SIDECAR v62). The carved
     # BASE_PT_SET_REGEX mirror's last residue was the base-power REFERENCE grammar
@@ -1345,7 +1364,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _IR_FLOOR_LANES (floor-mirror-dep -> 0); its SWEEP_DETECTORS row is deleted (serve
     # stays, reusing the same shared regex). CR 123 / 122.1.
     ("stickers_matter", re.compile(STICKERS_MATTER_REGEX, re.IGNORECASE), "you"),
-    # ADR-0027 — station_matters BYTE-IDENTICAL kept WORD MIRROR (the Edge of Eternities
+    # ADR-0027 — station kept Station/Spacecraft WORD MIRROR (the Edge of Eternities
     # Station keyword action — CR 702.184: a Spacecraft/Planet permanent accrues charge
     # counters by tapping a creature, unlocking LEVEL abilities at 2+/8+/12+). phase
     # v0.1.19 doesn't structure Station for the carriers — the bare "Station" keyword
@@ -1353,16 +1372,18 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # structural `station` effect-category arm (now removed from _DOER_EFFECT_KEYS)
     # caught ONLY 1 card (Tapestry Warden's "...stations permanents using its
     # toughness", which the regex's `\bstation\b` word boundary MISSES on the plural)
-    # and MISSED all 44 regex producers. So the lane rides this EXACT deleted SWEEP
-    # regex (pinned as STATION_MATTERS_REGEX) run FLAT over the reminder-stripped
-    # kept_oracle. No `[^.]*` cross-clause span, so flat == per-clause and the mirror
-    # set == the deleted regex's firing set EXACTLY (commander-legal, floor-disabled, by
-    # oracle_id: both==44, regex_only==0, ir_only==0). The 44 producers are genuine —
-    # the Spacecraft/Planet bodies carrying the bare "Station" keyword (Lumen-Class
-    # Frigate, Hearthhull, Adagia) PLUS the "Spacecraft"-referencing payoffs (Focus Fire
-    # counts Spacecraft, Embrace Oblivion destroys one, Loading Zone / Drill Too Deep
-    # charge them). CR 702.184.
-    ("station_matters", re.compile(STATION_MATTERS_REGEX, re.IGNORECASE), "you"),
+    # and MISSED all 44 regex producers. So the lane rides the EXACT deleted SWEEP regex
+    # (pinned as STATION_MATTERS_REGEX) run FLAT over the reminder-stripped kept_oracle.
+    # No `[^.]*` cross-clause span, so flat == per-clause and the mirror set == the
+    # deleted regex's firing set EXACTLY (commander-legal, floor-disabled, by oracle_id:
+    # both==44, regex_only==0, ir_only==0).
+    # _matters sweep (ADR-0034): station SPLIT — the role boundary cuts THROUGH this
+    # single mirror, so it is NOT a row here; the partition block after this loop
+    # bifurcates the SAME regex firing into station_makers (the Station-keyword /
+    # Spacecraft-Planet bodies + the chargers — 34) and station_matters (the
+    # Spacecraft-referencing payoffs — Focus Fire, Embrace Oblivion, Gravkill — 10),
+    # union == 44 set-equal. See the `_STATION_TL_RE` / `_STATION_CHARGE_RE` block.
+    # CR 702.184.
     # ADR-0027 — arcane_matters BYTE-IDENTICAL kept WORD MIRROR (the Kamigawa Arcane /
     # Splice-onto-Arcane / Spiritcraft archetype: a commander caring about ARCANE spells
     # — "cast a Spirit or Arcane spell" / "Splice onto Arcane"; CR 205.3k spell type, CR
@@ -3176,6 +3197,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             # reference tail stays firebending_matters. Set-equal (26 makers / 10 refs).
             "firebending_makers",
             "firebending_matters",
+            # _matters sweep (ADR-0034): station split — the Station-keyword /
+            # Spacecraft-Planet bodies + chargers emit station_makers; the
+            # Spacecraft-referencing payoffs keep station_matters. Set-equal (34/10).
+            "station_makers",
+            "station_matters",
             # Batch 16 — recent-set kept-detectors (rules-lawyer-verified):
             "celebration_matters",
             "coven_matters",
@@ -10622,6 +10648,28 @@ def extract_signals_ir(
             add("firebending_makers", "you", "", "")
         else:
             add("firebending_matters", "you", "", "")
+    # _matters sweep (ADR-0034): station SPLIT. The kept Station/Spacecraft word mirror
+    # (STATION_MATTERS_REGEX) partitions by ROLE: a card PERFORMS the Station mechanic
+    # (CR 702.184) when it BEARS the Scryfall Station keyword (the Spacecraft/Planet
+    # bodies — Lumen-Class Frigate, Hearthhull, Adagia), IS a Spacecraft/Planet body, OR
+    # CHARGES one (puts/doubles counters on a Spacecraft/Planet — Drill Too Deep,
+    # Systems Override, Loading Zone) -> station_makers; a card that only NAMES
+    # Spacecraft to count / destroy / exile / tutor / gate off it (Focus Fire, Oblivion,
+    # Gravkill, Tractor Beam) is a PAYOFF/reference -> station_matters. Bifurcating the
+    # SAME regex firing keeps the split set-equal (the union of makers + matters == the
+    # old station_matters, n=44 commander-legal; 34 makers / 10 references). Both arms
+    # are HIGH 'you', so each feeds has_other_plan exactly as the old key did — voltron
+    # is preserved (neither key is in any voltron-exclusion set).
+    if _STATION_GUARD_RE.search(kept_oracle):
+        kws_lower = {k.lower() for k in (card.get("keywords") or [])}
+        if (
+            "station" in kws_lower
+            or _STATION_TL_RE.search(card.get("type_line") or "")
+            or _STATION_CHARGE_RE.search(kept_oracle)
+        ):
+            add("station_makers", "you", "", "")
+        else:
+            add("station_matters", "you", "", "")
     # ADR-0027 #24l — group_hug_draw GUARDED residue mirror. The structural arm + the
     # supplement scope-recovery (_recover_group_hug_draw_scope) now fire the lane for
     # every "each player draws" phase carries OR folds into a readable draw raw. This
