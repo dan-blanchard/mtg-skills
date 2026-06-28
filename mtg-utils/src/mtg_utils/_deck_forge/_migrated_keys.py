@@ -675,6 +675,14 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "multicolor_matters",
         "colorless_matters",
         "initiative_matters",
+        # _matters sweep (ADR-0034): the role-split MAKER arm of the old
+        # initiative_matters word mirror. "you take the initiative" (CR 720) emits
+        # initiative_makers; "while/if you have the initiative" keeps the payoff
+        # initiative_matters. Gate-verified set-equal: members(initiative_makers)
+        # union members(initiative_matters) == the old 26-card \bthe initiative\b
+        # population. The IR path emits it, so the hybrid must recognize it as
+        # migrated to keep it.
+        "initiative_makers",
         "attractions_matter",
         # Group "SWEEP batch" (ADR-0027) — 11 keys whose forms phase scatters across
         # categories it doesn't unify (a count operand it drops, a trigger flattened to

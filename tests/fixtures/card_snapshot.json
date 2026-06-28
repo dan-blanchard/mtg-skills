@@ -30610,6 +30610,95 @@
     "type_line": "Legendary Creature — Human Soldier"
    }
   },
+  "Imoen, Mystic Trickster": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "isinitiative"
+        },
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "raw": "At the beginning of your end step, if you have the initiative, draw a card. Draw another card if you've completed a dungeon.",
+          "sc": "you"
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "raw": "At the beginning of your end step, if you have the initiative, draw a card. Draw another card if you've completed a dungeon.",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "end_step"
+        }
+       }
+      ],
+      "kw": [
+       "Partner",
+       "Ward"
+      ],
+      "n": "Imoen, Mystic Trickster",
+      "tl": "Legendary Creature — Human Rogue Wizard"
+     }
+    ],
+    "n": "Imoen, Mystic Trickster",
+    "oid": "280e05c5-7ab4-45bf-aa15-e594cec49ef3"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Choose a background",
+     "Ward"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Imoen, Mystic Trickster",
+    "oracle_id": "280e05c5-7ab4-45bf-aa15-e594cec49ef3",
+    "oracle_text": "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nAt the beginning of your end step, if you have the initiative, draw a card. Draw another card if you've completed a dungeon.\nChoose a Background (You can have a Background as a second commander.)",
+    "power": "2",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Rogue Wizard"
+   }
+  },
   "Imposing Sovereign": {
    "ir": {
     "faces": [

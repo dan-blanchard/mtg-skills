@@ -3682,9 +3682,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\bthe monarch\b",
         extras=(_PILLOWFORT_EXTRA,),
     ),
+    # _matters sweep (ADR-0034): the MAKER side of the initiative split — cards that
+    # TAKE the initiative (CR 720). The avenue it opens is the full initiative package
+    # (takers + the "have the initiative" payoffs + Undercity venture), so the search
+    # stays broad; only the lane KEY encodes the doer role.
+    ("initiative_makers", "you"): _spec(
+        "Initiative (take)",
+        "take the initiative; venture through the Undercity",
+        {"oracle": r"\bthe initiative\b|undercity"},
+        r"\bthe initiative\b",
+    ),
     ("initiative_matters", "you"): _spec(
         "Initiative",
-        "take and hold the initiative; venture through the Undercity",
+        "hold the initiative payoffs; venture through the Undercity",
         {"oracle": r"\bthe initiative\b|undercity"},
         r"\bthe initiative\b",
     ),

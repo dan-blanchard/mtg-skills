@@ -1825,8 +1825,10 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     #   • multicolor ← the ColorCount subject-Filter predicate (the "multicolored
     #     <permanent> you control" build-around); this mirror adds the "cast a
     #     multicolored spell" TRIGGER refs that aren't a structured subject.
-    #   • initiative_matters / attractions_matter ← recent named designations (CR
-    #     720 / 717) phase doesn't structure at all — the word IS the build-around tell.
+    #   • initiative_makers / initiative_matters / attractions_matter ← recent named
+    #     designations (CR 720 / 717) phase doesn't structure at all — the word IS the
+    #     build-around tell. initiative is role-split (ADR-0034): take -> makers,
+    #     have -> matters.
     # ADR-0027 #24g — historic_matters + colorless_matters mirrors DELETED: the lanes
     # read the "Historic" / "ColorCount:EQ:0" subject-Filter predicate;
     # supplement._recover_historic_subject / _recover_colorless_subject now synthesize
@@ -1857,7 +1859,25 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    ("initiative_matters", re.compile(r"\bthe initiative\b", re.IGNORECASE), "you"),
+    # _matters sweep (ADR-0034): the role-blind "\bthe initiative\b" word mirror is
+    # PARTITIONED by role. The MAKER arm (you TAKE the initiative — Aarakocra Sneak,
+    # Caves of Chaos Adventurer) emits initiative_makers; the PAYOFF arm (while/if you
+    # HAVE the initiative — Imoen, Safana) keeps initiative_matters. A card that does
+    # both (ETB-take + upkeep-payoff — Feywild Caretaker, Passageway Seer, Sarevok's
+    # Tome) fires BOTH keys. Gate-verified set-equal over the commander-legal corpus:
+    # members(initiative_makers) union members(initiative_matters) == the old 26-card
+    # \bthe initiative\b population (every member contains "take" or "have the
+    # initiative"; none neither). CR 720.
+    (
+        "initiative_makers",
+        re.compile(r"\btake the initiative\b", re.IGNORECASE),
+        "you",
+    ),
+    (
+        "initiative_matters",
+        re.compile(r"\bhave the initiative\b", re.IGNORECASE),
+        "you",
+    ),
     (
         "attractions_matter",
         re.compile(r"\battraction\b|open an attraction", re.IGNORECASE),

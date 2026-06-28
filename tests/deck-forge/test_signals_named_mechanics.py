@@ -270,15 +270,26 @@ def test_voting_matters_is_ir_served():
     assert ("voting_matters", "each") not in _ks(c)
 
 
-def test_initiative_matters_is_ir_served():
-    # ADR-0027: initiative_matters is IR-served from the \bthe initiative\b kept
+def test_initiative_is_ir_served():
+    # ADR-0027: the initiative lane is IR-served from a "the initiative" kept
     # word-detector mirror, so it comes through the hybrid path, not pure regex.
-    c = {
+    # ADR-0034 _matters sweep: the mirror is role-split — "you TAKE the initiative"
+    # is a MAKER (initiative_makers); "while/if you HAVE the initiative" is the
+    # payoff (initiative_matters).
+    maker = {
         "name": "X",
         "oracle_text": "When this creature enters, you take the initiative.",
     }
-    assert ("initiative_matters", "you") in _ks_hybrid(c)
-    assert ("initiative_matters", "you") not in _ks(c)
+    assert ("initiative_makers", "you") in _ks_hybrid(maker)
+    assert ("initiative_makers", "you") not in _ks(maker)
+    payoff = {
+        "name": "Y",
+        "oracle_text": (
+            "At the beginning of your upkeep, if you have the initiative, draw a card."
+        ),
+    }
+    assert ("initiative_matters", "you") in _ks_hybrid(payoff)
+    assert ("initiative_matters", "you") not in _ks(payoff)
 
 
 def test_devotion_historic_party_are_ir_served():
