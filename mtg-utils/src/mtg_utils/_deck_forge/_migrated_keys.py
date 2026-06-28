@@ -47,6 +47,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # projection). See ADR-0027.
         "seek_matters",
         "specialize_matters",
+        "ki_counter_makers",
         "ki_counter_matters",
         # Group "bending" — the four bending lanes (airbend CR 701.65, earthbend
         # CR 701.66, waterbend CR 701.67, firebending CR 702.189). phase v0.1.19
@@ -361,8 +362,11 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #   rad_counter_makers ← phase's `rad_counter` effect / rad place_counter + a
         #                `_RAD_REF` ("rad counter(s)") marker for the clauses phase
         #                mangles (rad kind dropped to '', counter_doubling, dropped).
-        #   suspect_matters ← phase's `suspect` effect (leading-verb) + a `_SUSPECT_REF`
-        #                marker for the verb mid-clause/granted + the "suspected" state.
+        #   suspect_makers ← phase's `suspect` effect (leading-verb) + the
+        #                `_SUSPECT_REF` marker's verb form (mid-clause/granted suspect).
+        #                ADR-0034 split: the card PERFORMS/grants suspect.
+        #   suspect_matters ← the `_SUSPECT_REF` marker's "suspected" STATE form (no
+        #                suspect verb) — the payoff that rewards a suspected creature.
         #                The "(?! counter)" drops Investigator's Journal's "suspect
         #                counter" (a same-named counter type, CR 701.60b).
         #   venture_matters ← phase's venture/take-initiative effect + a
@@ -375,6 +379,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #                committed a crime") for the payoff phase has no kind for.
         "energy_matters",
         "rad_counter_makers",
+        "suspect_makers",
         "suspect_matters",
         "venture_matters",
         "crimes_matter",

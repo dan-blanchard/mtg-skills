@@ -620,9 +620,11 @@ class TestSuspectMatters:
 
     def test_suspect_commander_emits_and_served(self):
         # Nelly Borca's "suspect target creature" is phase's `suspect` effect category,
-        # read through the real IR. The serve pool stays oracle-defined.
-        assert "suspect_matters" in _hyb("Nelly Borca, Impulsive Accuser")
-        assert "suspect_matters" not in _reg("Nelly Borca, Impulsive Accuser")
+        # read through the real IR. ADR-0034 split: a card that PERFORMS suspect is a
+        # MAKER (suspect_makers), not the "suspected"-state payoff (suspect_matters).
+        # The serve pool stays oracle-defined.
+        assert "suspect_makers" in _hyb("Nelly Borca, Impulsive Accuser")
+        assert "suspect_makers" not in _reg("Nelly Borca, Impulsive Accuser")
         assert serves(
-            test_card("Nelly Borca, Impulsive Accuser"), _sig("suspect_matters", "you")
+            test_card("Nelly Borca, Impulsive Accuser"), _sig("suspect_makers", "you")
         )

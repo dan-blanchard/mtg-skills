@@ -217,7 +217,11 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # separate from:graveyard arm. CR 701.23 / 401.
     # Batch P — phase-native mechanic effects.
     "monarch": ("monarch_matters", "you"),
-    "suspect": ("suspect_matters", "you"),
+    # ADR-0034 _matters sweep: the cat=='suspect' doer arm is a MAKER (the card
+    # PERFORMS/grants suspect — Nelly Borca "suspect target creature", Case of the
+    # Stashed Skeleton "…and suspect it"). The generic doer arm reroutes the pure
+    # "suspected"-STATE reference (no suspect verb) to the suspect_matters payoff.
+    "suspect": ("suspect_makers", "you"),
     "speed": ("speed_matters", "you"),
     # ADR-0027 — station_matters migrated to the Card IR via a BYTE-IDENTICAL kept WORD
     # MIRROR (_STATION_MATTERS_MIRROR in _IR_KEPT_DETECTORS — the EXACT deleted SWEEP
@@ -2984,6 +2988,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             # extract_signals_ir) emits experience_matters via a manual add(),
             # not _DOER_EFFECT_KEYS, so its slice membership is pinned here.
             "experience_matters",
+            "ki_counter_makers",
             "ki_counter_matters",
             "counter_control",
             "fight_makers",
@@ -3037,6 +3042,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             signal_keys.TYPED_SPELLCAST,
             # Batch P (phase-native mechanic effects):
             "monarch_matters",
+            "suspect_makers",
             "suspect_matters",
             "venture_matters",
             "connive_makers",
@@ -7623,6 +7629,19 @@ def extract_signals_ir(
             doer = _DOER_EFFECT_KEYS.get(e.category)
             if doer is not None:
                 key, fixed_scope = doer
+                # ADR-0034 _matters sweep: the cat=='suspect' arm conflates the
+                # suspect VERB (maker → suspect_makers) and the "suspected" STATE
+                # (payoff → suspect_matters). project._SUSPECT_REF emits both as
+                # cat=='suspect' Effects; route the pure "suspected"-state reference
+                # (no suspect verb in raw — Agency Coroner "if … was suspected, …")
+                # to the payoff lane. Native suspect effects + the marker's verb form
+                # ("suspect"/"suspects") stay suspect_makers.
+                if (
+                    e.category == "suspect"
+                    and re.search(r"\bsuspected\b", e.raw or "", re.IGNORECASE)
+                    and not re.search(r"\bsuspects?\b", e.raw or "", re.IGNORECASE)
+                ):
+                    key = "suspect_matters"
                 add(key, fixed_scope or _ir_scope(e.scope), "", e.raw)
             # ADR-0027 #24 KW-WAVE-1 — bending cross-bend PAYOFF arm. phase emits a
             # `bending` Effect (no direction field) for cards that DO/reference a bend;
@@ -7835,6 +7854,14 @@ def extract_signals_ir(
                 add("pump_makers", "you", "", e.raw)
             if cat == "place_counter" and e.counter_kind in _COUNTER_KIND_KEYS:
                 ck_key, ck_scope = _COUNTER_KIND_KEYS[e.counter_kind]
+                # ADR-0034 _matters split: the place_counter MAKER arm for ki
+                # emits ki_counter_makers (the card PERFORMS the placement);
+                # the payoff/predicate/condition arms keep ki_counter_matters.
+                # ki is context-sensitive because _COUNTER_KIND_KEYS is the
+                # SHARED dispatch table for both roles — only this maker arm
+                # overrides. Siblings (m1m1/oil/shield/rad) are untouched.
+                if e.counter_kind == "ki":
+                    ck_key = "ki_counter_makers"
                 add(ck_key, ck_scope, "", e.raw)
             # named_counter_misc (ADR-0027 C19_C20) — a place/remove of a NAMED
             # singleton counter whose kind is its OWN build-around (CR 122.1, the kind

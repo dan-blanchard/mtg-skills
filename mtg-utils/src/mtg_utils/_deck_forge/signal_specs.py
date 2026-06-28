@@ -3999,6 +3999,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # ARE the thing) is still oracle-defined, so hand-register the spec the
     # sweep auto-register loop used to build — reusing the deleted regex as the
     # serve pattern. (SWEEP_LABELS still carries the human label.)
+    ("ki_counter_makers", "you"): _spec(
+        *SWEEP_LABELS["ki_counter_makers"],
+        {"oracle": r"\bki counters?\b"},
+        r"\bki counters?\b",
+    ),
     ("ki_counter_matters", "you"): _spec(
         *SWEEP_LABELS["ki_counter_matters"],
         {"oracle": r"\bki counters?\b"},
@@ -5559,12 +5564,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\bsaddled\b|whenever you saddle|while saddled",
         serve_keywords=("saddle",),
     ),
+    ("suspect_makers", "you"): _spec(
+        "Suspect makers",
+        "cards that suspect creatures (menace + can't block) to fuel your "
+        "suspected-creature payoffs",
+        {"oracle": r"\bsuspect\b"},
+        r"\bsuspects?\b",
+    ),
     ("suspect_matters", "you"): _spec(
-        "Suspect",
-        "cards that suspect creatures (menace + can't block) plus the payoffs that "
-        "reward having suspected creatures",
-        {"oracle": r"\bsuspect\b|\bsuspected\b"},
-        r"\bsuspects?\b|\bsuspected\b",
+        "Suspect payoffs",
+        "payoffs that reward having suspected creatures",
+        {"oracle": r"\bsuspected\b"},
+        r"\bsuspected\b",
     ),
     # ADR-0027: cmdzone_ability had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — a 'command' ability-zone / condition-zone

@@ -1352,6 +1352,95 @@
     "type_line": "Land"
    }
   },
+  "Agency Coroner": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "genericmana,mana,sacrifice",
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "craw": "Draw a card. If the sacrificed creature was suspected, draw two cards instead.",
+          "raw": "{2}{B}, Sacrifice another creature: Draw a card. If the sacrificed creature was suspected, draw two cards instead.",
+          "sc": "you"
+         },
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "craw": "Draw a card. If the sacrificed creature was suspected, draw two cards instead.",
+          "raw": "{2}{B}, Sacrifice another creature: Draw a card. If the sacrificed creature was suspected, draw two cards instead.",
+          "sc": "you"
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "suspect",
+          "raw": "suspected",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Agency Coroner",
+      "tl": "Creature — Ogre Cleric"
+     }
+    ],
+    "n": "Agency Coroner",
+    "oid": "3686fd97-49ff-4a92-9cb2-7d8e9438d945"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{B}",
+    "name": "Agency Coroner",
+    "oracle_id": "3686fd97-49ff-4a92-9cb2-7d8e9438d945",
+    "oracle_text": "{2}{B}, Sacrifice another creature: Draw a card. If the sacrificed creature was suspected, draw two cards instead.",
+    "power": "3",
+    "toughness": "6",
+    "type_line": "Creature — Ogre Cleric"
+   }
+  },
   "Aggravated Assault": {
    "ir": {
     "faces": [

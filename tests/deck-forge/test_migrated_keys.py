@@ -34,6 +34,7 @@ from mtg_utils._deck_forge.signals import (
 from mtg_utils.card_ir import (
     Ability,
     Card,
+    Condition,
     Effect,
     Face,
     Filter,
@@ -208,7 +209,12 @@ _REAL_CASES: dict[str, str] = {
     "keyword_soup": "Odric, Lunarch Marshal",
     "keyword_soup_makers": "Odric, Lunarch Marshal",
     "keyword_tribe": "Favorable Winds",
-    "ki_counter_matters": "Skullmane Baku",
+    # ADR-0034 _matters split: the MAKER arm (place_counter ck='ki') now emits
+    # ki_counter_makers — Skullmane Baku PERFORMS the ki placement. The PAYOFF
+    # arm keeps ki_counter_matters but has no snapshot-resident real card (every
+    # ki card is a self-contained Baku maker engine), so it lives in
+    # _SYNTHETIC_CASES below as a hascounters-condition fixture.
+    "ki_counter_makers": "Skullmane Baku",
     "kicked_spell_matters": "Verazol, the Split Current",
     "kill_engine": "Visara the Dreadful",
     "land_creatures_matter": "Sylvan Advocate",
@@ -310,7 +316,8 @@ _REAL_CASES: dict[str, str] = {
     "stax_taxes": "Gnat Miser",
     "stickers_matter": "Aerialephant",
     "superfriends_matters": "The Chain Veil",
-    "suspect_matters": "Case of the Stashed Skeleton",
+    "suspect_makers": "Case of the Stashed Skeleton",
+    "suspect_matters": "Agency Coroner",
     "suspend_matters": "Calciderm",
     "symmetric_damage_each": "Pestilence",
     "symmetric_stax": "Cursed Totem",
@@ -398,6 +405,29 @@ _SYNTHETIC_CASES: dict[str, tuple[dict, Card]] = {
     # NOT a first-class damage_reflect Effect — so the real IR does not fire the lane.
     # TODO #24: structural board_grant damage-reflect recovery. Until then this row is a
     # minimal synthetic fixture, not a real-IR proof.
+    # ki_counter_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm
+    # (place_counter ck='ki') was relabeled to ki_counter_makers (Skullmane
+    # Baku, a real case). The payoff arm — a card GATED on / REFERENCING a ki
+    # counter ("as long as ~ has a ki counter …", a hascounters condition) —
+    # keeps ki_counter_matters but has no snapshot-resident real card: every
+    # ki card in MTG is a self-contained Baku maker, so no "creature with a ki
+    # counter" payoff exists in the corpus. Minimal hascounters fixture proving
+    # the condition arm still serves the lane via the IR path.
+    "ki_counter_matters": (
+        {
+            "name": "Ki-Gated Sentinel-like",
+            "type_line": "Creature — Spirit",
+            "oracle_text": (
+                "As long as this creature has a ki counter on it, it gets +2/+2."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                condition=Condition(kind="hascounters", counter_kind="ki"),
+            )
+        ),
+    ),
     "damage_reflect": (
         {
             "name": "Spiteful Sliver",
