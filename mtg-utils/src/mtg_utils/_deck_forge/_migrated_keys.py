@@ -876,6 +876,11 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "lands_matter",
         "poison_matters",
         "suspend_matters",
+        # _matters sweep (ADR-0034): the `suspend` keyword bearer arm was relabeled
+        # to suspend_makers (the card PERFORMS suspend); the IR path emits it via
+        # _IR_KEYWORD_MAP['suspend'], so the hybrid must recognize it as migrated.
+        # The time-counter PAYOFF mirror keeps suspend_matters (above).
+        "suspend_makers",
         # stickers_matter (ADR-0027 floor->kept, same shape as the SWEEP batch above) —
         # the Unfinity sticker-sheet archetype: the {TK} (ticket) ability-sticker costs
         # on "Stickers"-type creatures plus the "put a sticker"/"name|art|ability|power

@@ -5841,6 +5841,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|suspended cards?",
         serve_keywords=("suspend", "vanishing", "impending"),
     ),
+    # _matters sweep (ADR-0034): the MAKER side of the suspend split — cards that
+    # PERFORM suspend (the keyword bearers: Ancestral Vision, Aeon Chronicler). The
+    # avenue it opens is more suspend bodies plus the time-counter accelerators that
+    # cash them in early; the broad serve overlaps suspend_matters (ADR-0034: a serve
+    # avenue legitimately combines makers + payoffs + targets).
+    ("suspend_makers", "you"): _spec(
+        "Suspend (makers)",
+        "cards that suspend themselves plus the time-counter accelerators that cast "
+        "them early (Paradox Haze, Jhoira)",
+        {"oracle": r"\bsuspend\b|time counter"},
+        r"\bsuspend\b|time counter|time travel"
+        r"|additional upkeep step|additional beginning phase",
+        serve_keywords=("suspend",),
+    ),
     ("saddle_matters", "you"): _spec(
         "Saddle / Mounts",
         "Mounts to ride plus the cheap wide creatures that pay the Saddle cost and the "

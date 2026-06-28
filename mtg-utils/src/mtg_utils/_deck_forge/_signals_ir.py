@@ -918,7 +918,12 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "lifelink": (("lifegain_matters", "you"),),
     "soulbond": (("has_soulbond", "you"),),
     "specialize": (("specialize_matters", "you"),),
-    "suspend": (("suspend_matters", "you"),),
+    # _matters sweep (ADR-0034): the `suspend` keyword bearer is a MAKER (the card
+    # performs suspend — exiles itself with time counters, casts for free later:
+    # Ancestral Vision, Aeon Chronicler), so the keyword route emits suspend_makers.
+    # The time-counter PAYOFFS / references keep suspend_matters via the kept word
+    # mirror in _IR_KEPT_DETECTORS (As Foretold, "whenever a time counter is removed").
+    "suspend": (("suspend_makers", "you"),),
     # undying (CR 702.92) returns with a +1/+1 counter — a +1/+1 source, so it ALSO
     # opens plus_one_matters (ADR-0027 migration merge). persist returns with a -1/-1
     # counter (its own minus lane), so it is NOT given plus_one_matters.
@@ -3915,6 +3920,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             # big_hand_matters (a kept-mirror lane like its old single key, which is not
             # itself listed in the slice). CR 402.2.
             "big_hand_makers",
+            # _matters sweep (ADR-0034): suspend SPLIT — the `suspend` keyword bearer
+            # arm was relabeled to suspend_makers (rides _IR_KEYWORD_KEYS via
+            # _IR_KEYWORD_MAP['suspend']). The surviving emitter of suspend_matters is
+            # the _IR_KEPT_DETECTORS word mirror (the time-counter superstructure +
+            # keyword-less suspend grants), so the slice must carry the key explicitly
+            # (the convoke_matters precedent).
+            "suspend_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):

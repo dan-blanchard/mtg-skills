@@ -351,6 +351,7 @@ _REAL_CASES: dict[str, str] = {
     "superfriends_matters": "The Chain Veil",
     "suspect_makers": "Case of the Stashed Skeleton",
     "suspect_matters": "Agency Coroner",
+    "suspend_makers": "Aeon Chronicler",
     "suspend_matters": "Calciderm",
     "symmetric_damage_each": "Pestilence",
     "symmetric_stax": "Cursed Totem",
