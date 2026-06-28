@@ -199,6 +199,7 @@ _REAL_CASES: dict[str, str] = {
     # card in the snapshot).
     "flash_makers": "Leyline of Anticipation",
     "flip_self": "Nezumi Graverobber // Nighteyes the Desecrator",
+    "food_makers": "Spider-Ham, Peter Porker",
     "food_matters": "Trail of Crumbs",
     "forced_attack": "Public Enemy",
     "foretell_makers": "Doomskar",
@@ -964,7 +965,8 @@ def test_blood_makers_fires_from_a_recovered_choice_list_maker():
     choice of a Blood token, a Clue token, or a Food token" — phase drops the choice
     subtypes onto a `choose` effect; project._narrow_token_subtype_makers recovers
     them as make_token markers, so all three lanes fire via the IR. ADR-0034: the
-    Blood MAKER arm emits blood_makers; clue/food are unsplit (clue/food_matters)."""
+    Blood and Food MAKER arms emit blood_makers / food_makers; clue is unsplit
+    (clue_matters)."""
     card = {
         "name": "Transmutation Font",
         "type_line": "Artifact",
@@ -1008,7 +1010,7 @@ def test_blood_makers_fires_from_a_recovered_choice_list_maker():
     # IR-served via _TOKEN_SUBTYPE_KEYS — the structural maker recovery is general, which
     # proves the widening generalized across every artifact/blood token subtype)
     assert "clue_matters" in keys
-    assert "food_matters" in keys
+    assert "food_makers" in keys
 
 
 def test_blood_makers_fires_from_a_recovered_granted_ability_maker():

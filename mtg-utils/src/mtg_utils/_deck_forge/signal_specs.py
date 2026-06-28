@@ -3906,9 +3906,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bmutate\b"},
         r"\bmutate\b",
     ),
-    ("food_matters", "you"): _spec(
-        "Food",
+    # _matters sweep (ADR-0034): food split. The make_token MAKER arm
+    # (food_makers, cards that create Food tokens) and the sacrifice/ref/
+    # sacrificed-trigger PAYOFF arm (food_matters) both serve the same Food
+    # makers-plus-sacrifice-and-lifegain avenue. The union == the old
+    # food_matters; only the role label differs.
+    ("food_makers", "you"): _spec(
+        "Food tokens",
         "Food makers plus sacrifice outlets and lifegain payoffs",
+        {"oracle": r"\bfood token|foods? you control|sacrifice a food"},
+        # Food-GRANTERS (Ragost, The Food Court, Ygra: "are Foods in addition").
+        r"\bfood token|foods? you control|sacrifice a food"
+        r"|(?:are|is|becomes?) (?:an? )?foods? in addition",
+    ),
+    ("food_matters", "you"): _spec(
+        "Food token payoffs",
+        "cards that sacrifice or reference Food tokens, plus lifegain payoffs",
         {"oracle": r"\bfood token|foods? you control|sacrifice a food"},
         # Food-GRANTERS (Ragost, The Food Court, Ygra: "are Foods in addition").
         r"\bfood token|foods? you control|sacrifice a food"

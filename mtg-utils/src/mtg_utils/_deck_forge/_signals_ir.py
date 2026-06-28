@@ -3227,6 +3227,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             "treasure_matters",
             "clue_matters",
             "food_matters",
+            # _matters sweep (ADR-0034): the make_token MAKER arm of the food lane
+            # (Food-token creators — Spider-Ham, Academy Manufactor); the sacrifice/ref/
+            # sacrificed-trigger PAYOFFS keep food_matters above.
+            "food_makers",
             "blood_matters",
             # _matters sweep (ADR-0034): the make_token MAKER arm of the blood lane
             # (Blood-token creators — Bloodtithe Harvester); the sacrifice/ref/
@@ -9595,15 +9599,22 @@ def extract_signals_ir(
             # sacrifice payoffs"). One general scan over both maker + sacrifice
             # subjects (the trigger-side "whenever you sacrifice a <Subtype> token"
             # payoff is read in the trigger loop below).
-            # _matters sweep (ADR-0034): the `blood` lane is split by ROLE — the
-            # make_token MAKER arm emits blood_makers, the sacrifice PAYOFF arm keeps
-            # blood_matters. treasure/clue/food are NOT split, so they route through
+            # _matters sweep (ADR-0034): the `blood` and `food` lanes are split by
+            # ROLE — the make_token MAKER arm emits <x>_makers, the sacrifice PAYOFF
+            # arm keeps <x>_matters. treasure/clue are NOT split, so they route through
             # _TOKEN_SUBTYPE_KEYS byte-identically off both arms.
             if cat in ("make_token", "sacrifice"):
                 for st in _fsubs_lower(e.subject):
                     if st == "blood":
                         add(
                             "blood_makers" if cat == "make_token" else "blood_matters",
+                            "you",
+                            "",
+                            e.raw,
+                        )
+                    elif st == "food":
+                        add(
+                            "food_makers" if cat == "make_token" else "food_matters",
                             "you",
                             "",
                             e.raw,
@@ -12064,11 +12075,14 @@ def extract_signals_ir(
     for tm in _TOKEN_SUBTYPE_RAW.finditer(kept_oracle):
         st = tm.group(1).lower()
         # _matters sweep (ADR-0034): this creation-verb fallback is MAKER-only by
-        # construction, so blood routes to blood_makers (the sacrifice/ref/
-        # sacrificed-trigger blood PAYOFFS keep blood_matters elsewhere).
+        # construction, so blood/food route to <x>_makers (the sacrifice/ref/
+        # sacrificed-trigger blood/food PAYOFFS keep <x>_matters elsewhere).
         if st == "blood":
             if not any(s.key == "blood_makers" for s in out):
                 add("blood_makers", "you", "", "")
+        elif st == "food":
+            if not any(s.key == "food_makers" for s in out):
+                add("food_makers", "you", "", "")
         elif st in _TOKEN_SUBTYPE_KEYS:
             tk, ts = _TOKEN_SUBTYPE_KEYS[st]
             if not any(s.key == tk for s in out):

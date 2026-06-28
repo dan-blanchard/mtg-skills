@@ -274,9 +274,9 @@ def test_noncombat_damage_to_opponent_excluded():
 
 # #12 Food keys on the Food-token mechanic, not the bare word.
 def test_food_token_fires():
-    # ADR-0027: food_matters migrated to the Card IR — a Food-subtype make_token MAKER
-    # and a "Sacrifice a Food" SAC PAYOFF open the lane via _TOKEN_SUBTYPE_KEYS through
-    # the hybrid, not the deleted regex.
+    # ADR-0027: food keys migrated to the Card IR — a Food-subtype make_token MAKER
+    # opens food_makers and a "Sacrifice a Food" SAC PAYOFF opens food_matters through
+    # the hybrid, not the deleted regex (ADR-0034 _matters sweep split the lane).
     maker = {"name": "X", "oracle_text": "Create a Food token."}
     maker_ir = Card(
         oracle_id="x",
@@ -302,8 +302,8 @@ def test_food_token_fires():
             ),
         ),
     )
-    assert "food_matters" in {s.key for s in extract_signals_hybrid(maker, maker_ir)}
-    assert "food_matters" not in _keys(maker)
+    assert "food_makers" in {s.key for s in extract_signals_hybrid(maker, maker_ir)}
+    assert "food_makers" not in _keys(maker)
     sac = {"name": "Y", "oracle_text": "Sacrifice a Food: Gain 3 life."}
     sac_ir = Card(
         oracle_id="y",

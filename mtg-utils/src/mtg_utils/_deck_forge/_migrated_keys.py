@@ -717,6 +717,12 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # make_token-SUBJECT makers the narrow "create … <Subtype> token" regex missed —
         # Old Gnawbone, Prismari Command, Wanted Scoundrels). CR 111.10 / 701.16.
         "food_matters",
+        # _matters sweep (ADR-0034): food_makers — the make_token MAKER arm split out
+        # of food_matters (a Food-subtype make_token subject or the maker-only
+        # creation-verb face fallback). The sacrifice/ref/sacrificed-trigger PAYOFFS
+        # keep food_matters above. Gate set-equal: members(food_makers) UNION
+        # members(food_matters) == the old food_matters firing set (161).
+        "food_makers",
         "treasure_matters",
         # clue_matters ← the SAME token-subtype structural arm (Clue-subtype make_token
         # MAKER + "Sacrifice a Clue" SAC PAYOFF + `token_subtype_ref` "Clues you
