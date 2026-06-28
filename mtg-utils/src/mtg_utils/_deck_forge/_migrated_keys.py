@@ -412,10 +412,15 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # for each (the floor-dependent gap cards now bind structurally). NO-FLOOD held
         # (only the target keys grew; no non-target key moved). Each key's oracle-regex
         # producer is deleted; serve specs stay hand-registered. See ADR-0027.
-        #   energy_matters ← phase's `energy` effect (gainenergy producers) + an
-        #                `_ENERGY_REF` ({e}) marker for the sinks / "whenever you get
-        #                {E}" payoffs / doublers phase loses. {e} is unambiguous (real
-        #                energy cards only).
+        #   energy_makers ← phase's `energy` effect (gainenergy producers / the
+        #                GivePlayerCounter energy kind — the card PRODUCES energy).
+        #                ADR-0034 _matters split MAKER arm.
+        #   energy_matters ← the PAYOFF side: the `_ENERGY_REF` ({e}) marker phase
+        #                appends (gated to faces with NO structural energy of their
+        #                own) for the sinks / "whenever you get {E}" payoffs /
+        #                doublers phase loses. {e} is unambiguous (real energy cards
+        #                only). Re-routed off the shared `energy` arm by a raw=='{e}'
+        #                discriminator in extract_signals_ir.
         #   rad_counter_makers ← phase's `rad_counter` effect / rad place_counter + a
         #                `_RAD_REF` ("rad counter(s)") marker for the clauses phase
         #                mangles (rad kind dropped to '', counter_doubling, dropped).
@@ -436,6 +441,7 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #   crimes_matter ← phase's commit_crime trigger event (the trigger form) + a
         #                `crime` condition-form marker ("(if|as long as) you've
         #                committed a crime") for the payoff phase has no kind for.
+        "energy_makers",
         "energy_matters",
         "rad_counter_makers",
         "suspect_makers",

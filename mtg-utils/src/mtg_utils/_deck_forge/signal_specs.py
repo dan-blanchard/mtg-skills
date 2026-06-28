@@ -3769,6 +3769,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"venture into the dungeon|\bdungeon\b"},
         r"venture into the dungeon|\bdungeon\b",
     ),
+    # _matters sweep (ADR-0034): the energy split. energy_makers fires on cards
+    # that PRODUCE energy (a real `energy` Effect — "you get {E}"); its avenue
+    # serves the rest of the energy engine (more producers + the sinks that spend
+    # it). Same oracle search as the old combined lane.
+    ("energy_makers", "you"): _spec(
+        "Energy",
+        "energy makers and energy sinks",
+        {"oracle": r"\{e\}|energy counter"},
+        r"\{e\}|energy counter",
+    ),
+    # The PAYOFF side of the energy split: a card that SPENDS / references energy
+    # without producing its own (a "Pay {E}{E}:" sink, a "whenever you get {E}"
+    # trigger, a doubler). It wants the producers that fuel it — same energy
+    # search pool.
     ("energy_matters", "you"): _spec(
         "Energy",
         "energy makers and energy sinks",

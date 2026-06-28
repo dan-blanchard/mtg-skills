@@ -317,7 +317,16 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # loop re-routes it to explore_matters by ab.trigger.event=='other' (the
     # suspect/earthbend in-loop precedent).
     "explore": ("explore_makers", "you"),
-    "energy": ("energy_matters", "you"),
+    # _matters sweep (ADR-0034): energy split. The cat=='energy' arm is the
+    # MAKER (a real `energy` Effect — the card PRODUCES/gets energy: "you get
+    # {E}", Aether Hub's ETB; project.py gainenergy producers + the
+    # GivePlayerCounter energy kind), so it emits energy_makers. The PAYOFF
+    # arm — project._ENERGY_REF appends a bare `{e}` marker Effect, gated to
+    # faces with NO structural energy production, for the sinks / "whenever you
+    # get {E}" triggers / doublers phase loses — is re-routed to energy_matters
+    # in extract_signals_ir by a raw discriminator. Set-equal: members(
+    # energy_makers) union members(energy_matters) == the old energy_matters.
+    "energy": ("energy_makers", "you"),
     # Player-counter givers (GivePlayerCounter, split by kind in project.py — CR
     # 122.1). poison/rad land on opponents (a kill clock / penalty); experience is
     # a personal resource. ticket/unknown player counters stay lane-less (niche).
@@ -2832,8 +2841,9 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # rad_counter_makers removed — ADR-0027 migrated it to the Card IR (the
         # `rad_counter` effect / rad place_counter + a "rad counter(s)" face marker).
         # resource / devotion
-        # energy_matters removed — ADR-0027 migrated it to the Card IR (phase's `energy`
-        # effect + a {e} face marker for the sinks/payoffs/doublers phase loses).
+        # energy_makers / energy_matters removed — ADR-0027 migrated to the Card IR
+        # (phase's `energy` effect = makers + a {e} face marker = matters payoff for
+        # the sinks/payoffs/doublers phase loses; ADR-0034 _matters split).
         # devotion_matters removed — ADR-0027 migrated it to the Card IR (the
         # amount.op=="devotion" count operand + a "devotion to <color>" kept word
         # mirror for the cost-reduction / counterspell-tax forms phase doesn't make a
@@ -7949,6 +7959,16 @@ def extract_signals_ir(
                 # CR 706.
                 if e.category == "roll_die" and _DICE_TRIG.search(e.raw or ""):
                     key = "dice_matters"
+                # _matters sweep (ADR-0034): energy split. The cat=='energy' arm
+                # conflates the MAKER (a real `energy` Effect — the card PRODUCES
+                # energy, "you get {E}", Aether Hub) and the PAYOFF (project.
+                # _ENERGY_REF appends a bare `{e}` marker Effect, raw=='{e}',
+                # gated to faces with NO structural energy production — the sinks
+                # / "whenever you get {E}" triggers / doublers phase loses).
+                # Route the marker (raw is just the bare energy symbol) to
+                # energy_matters; real producers stay energy_makers. CR 122.1.
+                if e.category == "energy" and (e.raw or "").strip().lower() == ("{e}"):
+                    key = "energy_matters"
                 add(key, fixed_scope or _ir_scope(e.scope), "", e.raw)
             # ADR-0027 #24 KW-WAVE-1 — bending cross-bend PAYOFF arm. phase emits a
             # `bending` Effect (no direction field) for cards that DO/reference a bend;

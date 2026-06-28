@@ -164,7 +164,7 @@ _REAL_CASES: dict[str, str] = {
     "edict_makers": "Plaguecrafter",
     "enchantments_matter": "Tuvasa the Sunlit",
     "end_the_turn": "Obeka, Brute Chronologist",
-    "energy_matters": "Aether Hub",
+    "energy_makers": "Aether Hub",
     "has_enlist": "Benalish Faithbonder",
     "entered_attacker": "Samut, Vizier of Naktamun",
     "evasion_denial": "Staff of the Ages",
@@ -583,6 +583,29 @@ _SYNTHETIC_CASES: dict[str, tuple[dict, Card]] = {
             ),
         },
         _ir(),
+    ),
+    # energy_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm (a real
+    # `energy` Effect — the card PRODUCES energy, "you get {E}") was relabeled to
+    # energy_makers (Aether Hub, a real case). The payoff arm — project._ENERGY_REF
+    # appends a bare `{e}` marker Effect (gated to faces with no structural energy
+    # production) for the sinks / "whenever you get {E}" triggers / doublers phase
+    # loses — keeps energy_matters but has no snapshot-resident real card (the
+    # snapshot's only energy card, Aether Hub, fires the maker arm). Minimal fixture
+    # carrying the bare `{e}` marker Effect, proving the energy PAYOFF still serves
+    # the lane via the raw=='{e}' re-route. (Mirrors the station_matters / blood_
+    # matters splits.) CR 122.1.
+    "energy_matters": (
+        {
+            "name": "Energy-sink-like",
+            "type_line": "Artifact",
+            "oracle_text": "Pay {E}{E}: Draw a card.",
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(Effect(category="energy", scope="you", raw="{e}"),),
+            )
+        ),
     ),
     "damage_reflect": (
         {
