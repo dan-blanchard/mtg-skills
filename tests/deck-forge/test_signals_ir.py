@@ -2439,3 +2439,21 @@ def test_dig_until_not_fired_by_until_end_of_turn_duration():
     keys = _skeys(test_signals("Stormchaser Chimera"))
     assert "dig_until" not in keys
     assert "topdeck_selection" in keys
+
+
+def test_legends_activation_excludes_nonlegendary_substring():
+    # The legends_matter activation mirror matched "legendary ... you control" /
+    # "legendary spells" INSIDE "nonlegendary ..." for lack of a word boundary, so a
+    # "copy target nonlegendary creature" effect (Kiki-Jiki) falsely opened a
+    # Legends-matter theme — padding the viable-avenue count toward SPREAD-THIN.
+    from mtg_utils._deck_forge._signals_ir import _IR_KEPT_DETECTORS
+
+    pat = next(p for k, p, _ in _IR_KEPT_DETECTORS if k == "legends_matter")
+    assert not pat.search(
+        "Create a token that's a copy of target nonlegendary creature you control."
+    )
+    assert not pat.search("Whenever you cast a nonlegendary spell, draw a card.")
+    # Genuine legends payoffs still activate the lane.
+    assert pat.search("Other legendary creatures you control get +1/+1.")
+    assert pat.search("Whenever you cast a legendary spell, scry 1.")
+    assert pat.search("For each legendary creature you control, draw a card.")

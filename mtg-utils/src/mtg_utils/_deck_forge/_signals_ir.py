@@ -2280,9 +2280,11 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "legends_matter",
         re.compile(
+            # \b before a clause-leading "legendary" so it can't substring-match inside
+            # "nonlegendary ... you control" / "nonlegendary spell" (Kiki-Jiki).
             r"search your library for a legendary"
             r"|target legendary (?:creature|permanent)"
-            r"|legendary (?:creatures?|permanents?|spells?) you (?:control|cast)"
+            r"|\blegendary (?:creatures?|permanents?|spells?) you (?:control|cast)"
             r"|(?:number of|other) legendary"
             r"|whenever (?:a|another|one or more) legendary "
             r"(?:permanents?|creatures?)"
@@ -2290,7 +2292,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|you control)"
             r"|whenever you cast a legendary|for each legendary "
             r"(?:creature|permanent)"
-            r"|cast legendary|legendary spells?",
+            r"|cast legendary|\blegendary spells?",
             re.IGNORECASE,
         ),
         "you",
