@@ -62,16 +62,29 @@ def infer_shape(
         len(draw_cards),
     )
 
+    wipes = sum(1 for c in nonland if "board_wipe" in c.roles)
+
     creat = creatures / n
     inter = interaction / n
     drw = draw / n
     lowf = low_drops / n
 
     scores = {
-        "aggro": max(0.0, 2.8 - avg_cmc) * 2.0 + creat * 3.0 + lowf * 2.0,
+        # Aggro is a LOW-curve beatdown plan: penalize a high curve (a ramp/stompy
+        # creature deck is not aggro) and a wrath-heavy build (>=3 sweepers). Without
+        # these, creat*3 alone mislabeled high-curve creature decks and lifegain-wrath
+        # shells as aggro, mis-sizing the board_wipe band.
+        "aggro": max(0.0, 2.8 - avg_cmc) * 2.0
+        + creat * 3.0
+        + lowf * 2.0
+        - max(0.0, avg_cmc - 3.0) * 1.5
+        - (2.0 if wipes >= 3 else 0.0),
+        # The high-curve term credits control only when the deck ISN'T creature-dense —
+        # a deck of expensive creatures (Goreclaw/Gishath) is not control just for being
+        # expensive; genuine control wins on interaction + draw density.
         "control": inter * 6.0
         + drw * 3.0
-        + max(0.0, avg_cmc - 3.0) * 2.0
+        + (max(0.0, avg_cmc - 3.0) * 2.0 if creat <= 0.45 else 0.0)
         - creat * 1.5,
         # Withhold the flat "combo present" bonus from a creature-LED deck — it wins
         # by attacking and only carries the combo as a secondary win condition (see
