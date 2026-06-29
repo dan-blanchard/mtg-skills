@@ -1,6 +1,25 @@
 """Tuner Tier-2 metrics: win-condition heuristic detection (grill F6)."""
 
-from mtg_utils._tuner.metrics import _is_wincon_card
+from mtg_utils._tuner.metrics import _ir_wincon, _is_wincon_card
+from mtg_utils.card_ir import Ability, Card, Effect, Face
+
+
+def _ir(*effects):
+    return Card(
+        oracle_id="x",
+        name="T",
+        faces=(Face(name="T", abilities=(Ability(kind="spell", effects=effects),)),),
+    )
+
+
+def test_ir_wincon_reads_win_lose_game_structurally():
+    # The IR encodes alt-wins natively: cat=win_game (Felidar Sovereign) and a
+    # cat=lose_game forcing a non-self player to lose (Door to Nothingness). A
+    # cat=lose_game scope="you" is the Pact-of-Negation self-loss drawback — NOT a closer.
+    assert _ir_wincon(_ir(Effect(category="win_game", scope="you"))) is True
+    assert _ir_wincon(_ir(Effect(category="lose_game", scope="any"))) is True
+    assert _ir_wincon(_ir(Effect(category="lose_game", scope="you"))) is False
+    assert _ir_wincon(_ir(Effect(category="counter_spell", scope="any"))) is False
 
 
 def _card(name, oracle, type_line="Instant", power=None):

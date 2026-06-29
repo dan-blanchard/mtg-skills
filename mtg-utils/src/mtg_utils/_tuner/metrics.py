@@ -13,10 +13,12 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
+from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.budgets import protects
 from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._tuner.classify import CardClass, is_fringe
 from mtg_utils.card_classify import card_pt_int, is_creature
+from mtg_utils.card_ir import Card
 from mtg_utils.theme_presets import get_preset
 
 # Signal keys that mirror a hard-counted Spine role (ramp / draw / interaction). Not
@@ -307,7 +309,27 @@ def template_deviation(budgets: dict) -> dict:
 # ── Tier-2 advisory flags ──────────────────────────────────────────────────────
 
 
+def _ir_wincon(ir: Card) -> bool:
+    """Structural alt-win read. A ``cat=win_game`` (you win: Felidar, Thassa's Oracle),
+    or a ``cat=lose_game`` with scope != "you" that forces another player to lose (Door
+    to Nothingness). A ``cat=lose_game`` scope "you" is a self-loss DRAWBACK (Pact of
+    Negation), never a closer (CR 104.3e): the IR makes the self-vs-opponent split the
+    regex approximates with a subject guard.
+
+    A scaling group-drain stays on the regex: ``lose_life`` projects scope="any" for
+    every drain (Exsanguinate AND Blood Artist), so a structural read can't separate an
+    opponent finisher from a 1-life drip; only ``amount.op`` carries the scaling."""
+    return any(
+        e.category == "win_game" or (e.category == "lose_game" and e.scope != "you")
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    )
+
+
 def _is_wincon_card(card: dict) -> bool:
+    ir = ir_for(card)
+    if ir is not None and _ir_wincon(ir):
+        return True
     text = card.get("oracle_text") or ""
     if any(p.search(text) for p in _WINCON_PATTERNS):
         return True
