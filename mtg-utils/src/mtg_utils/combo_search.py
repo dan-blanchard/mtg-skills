@@ -87,8 +87,19 @@ def _card_matches_query(card: dict, query: str) -> bool:
     return True
 
 
-def _template_satisfied(query: str, deck_records: Sequence[dict | None]) -> bool:
-    return any(_card_matches_query(c, query) for c in deck_records if c)
+def _unmet_templates(
+    templates: Sequence[dict], deck_records: Sequence[dict | None]
+) -> list[dict]:
+    """Templates whose Scryfall query isn't satisfied by >= ``quantity`` deck cards. A
+    Spellbook combo lists its generic requirements (e.g. "a Persist Creature") under
+    ``templates``; the ``included`` bucket does NOT guarantee they're met, so validate
+    each against the deck before treating a combo as assembled (or one piece away)."""
+    return [
+        t
+        for t in templates
+        if sum(1 for c in deck_records if c and _card_matches_query(c, t["query"]))
+        < t.get("quantity", 1)
+    ]
 
 
 def _is_format_legal(variant: dict, legality_key: str = "commander") -> bool:
@@ -166,18 +177,29 @@ def combo_search(hd: HydratedDeck, *, max_near_misses: int = 5) -> dict:
 
     results = data.get("results", data)
 
-    combos = [
-        _extract_combo(variant)
-        for variant in results.get("included", [])
-        if _is_format_legal(variant, legality_key)
-    ]
-
     # Deck records (for template validation) — only when hydrated data is available.
     deck_records = (
         [card_lookup[n] for n in all_card_names if n in card_lookup]
         if card_lookup
         else None
     )
+
+    combos = []
+    for variant in results.get("included", []):
+        if not _is_format_legal(variant, legality_key):
+            continue
+        entry = _extract_combo(variant)
+        # `included` lists a combo when its named `uses` are present, but a generic
+        # template (e.g. "a Persist Creature") can still be UNSATISFIED — validate it
+        # before treating the combo as assembled. The bracket gate's two-card axis,
+        # combo_count, and combo-piece cut protection all read this list, so an
+        # unassemblable combo mis-fires all three. Without hydrated data we can't
+        # validate, so keep the legacy (cards-only) behavior.
+        if deck_records is not None and _unmet_templates(
+            entry["templates"], deck_records
+        ):
+            continue
+        combos.append(entry)
 
     near_misses = []
     for variant in results.get("almostIncluded", []):
@@ -187,18 +209,8 @@ def combo_search(hd: HydratedDeck, *, max_near_misses: int = 5) -> dict:
         missing_cards = [c for c in entry["cards"] if c not in all_card_names]
         # Unmet generic requirements — only checkable with hydrated deck data; without
         # it we fall back to the cards-only count (legacy behavior).
-        # A template needs ``quantity`` distinct matching cards (e.g. "two creatures
-        # with power 4+"); counting matches — not a bare boolean — keeps a combo that
-        # has only one of the two required pieces from registering as satisfied.
         unmet_templates = (
-            [
-                t
-                for t in entry["templates"]
-                if sum(
-                    1 for c in deck_records if c and _card_matches_query(c, t["query"])
-                )
-                < t.get("quantity", 1)
-            ]
+            _unmet_templates(entry["templates"], deck_records)
             if deck_records is not None
             else []
         )

@@ -7,7 +7,7 @@ from click.testing import CliRunner
 
 from mtg_utils.combo_search import (
     _card_matches_query,
-    _template_satisfied,
+    _unmet_templates,
     combo_search,
     discover_main,
     main,
@@ -820,10 +820,90 @@ class TestTemplateMatching:
             _card_matches_query(_PERSIST_CREATURE, "mana:{G} keyword:persist") is False
         )
 
-    def test_template_satisfied(self):
+    def test_unmet_templates(self):
         deck = [_PERSIST_CREATURE, _VANILLA]
-        assert _template_satisfied("keyword:persist t:creature", deck) is True
-        assert _template_satisfied("keyword:undying t:creature", deck) is False
+        met = [
+            {"name": "Persist", "query": "keyword:persist t:creature", "quantity": 1}
+        ]
+        unmet = [
+            {"name": "Undying", "query": "keyword:undying t:creature", "quantity": 1}
+        ]
+        assert _unmet_templates(met, deck) == []
+        assert _unmet_templates(unmet, deck) == unmet
+        # quantity-aware: one persist creature does not satisfy a 2-quantity template.
+        two = [
+            {"name": "Persist", "query": "keyword:persist t:creature", "quantity": 2}
+        ]
+        assert _unmet_templates(two, deck) == two
+
+
+_ASHNOD = {
+    "name": "Ashnod's Altar",
+    "type_line": "Artifact",
+    "keywords": [],
+    "oracle_text": "Sacrifice a creature: Add {C}{C}.",
+}
+_RHYTHM = {
+    "name": "Rhythm of the Wild",
+    "type_line": "Enchantment",
+    "keywords": [],
+    "oracle_text": "Creature spells you control can't be countered.\nNontoken "
+    "creatures you control have riot.",
+}
+# An INCLUDED variant whose named `uses` are present but which also REQUIRES a persist
+# creature (a template). Spellbook returns it in `included` even when the template isn't
+# satisfied — the bug that listed an unassemblable combo as present.
+_INCLUDED_TEMPLATE_VARIANT = {
+    "uses": [
+        {"card": {"name": "Ashnod's Altar"}},
+        {"card": {"name": "Rhythm of the Wild"}},
+    ],
+    "requires": [
+        {
+            "quantity": 1,
+            "template": {
+                "name": "Persist Creature",
+                "scryfallQuery": "keyword:persist t:creature",
+            },
+        }
+    ],
+    "produces": [{"feature": {"name": "Infinite colorless mana"}}],
+    "legalities": {"commander": True},
+    "popularity": 100,
+}
+_API_INCLUDED = {
+    "results": {"included": [_INCLUDED_TEMPLATE_VARIANT], "almostIncluded": []}
+}
+
+
+class TestIncludedTemplateValidation:
+    def test_included_combo_dropped_when_template_unsatisfied(self):
+        # Deck has both named pieces but NO persist creature → the combo cannot assemble,
+        # so it must NOT be reported as a present combo (it would mis-fire the bracket
+        # gate's two-card-combo axis, combo_count, and combo-piece cut protection).
+        result = _mock_combo_search(
+            _API_INCLUDED,
+            _deck(["Ashnod's Altar", "Rhythm of the Wild"]),
+            hydrated=[_CMDR, _ASHNOD, _RHYTHM],
+        )
+        assert result["combos"] == []
+
+    def test_included_combo_kept_when_template_satisfied(self):
+        # Same combo, but the deck now fields a persist creature → genuinely assemblable.
+        result = _mock_combo_search(
+            _API_INCLUDED,
+            _deck(["Ashnod's Altar", "Rhythm of the Wild", "Murderous Redcap"]),
+            hydrated=[_CMDR, _ASHNOD, _RHYTHM, _PERSIST_CREATURE],
+        )
+        assert len(result["combos"]) == 1
+
+    def test_included_combo_kept_without_hydration_legacy(self):
+        # With no hydrated deck data we can't validate templates → keep legacy behavior
+        # (don't silently drop combos we can't check).
+        result = _mock_combo_search(
+            _API_INCLUDED, _deck(["Ashnod's Altar", "Rhythm of the Wild"])
+        )
+        assert len(result["combos"]) == 1
 
 
 class TestNearMissTemplateValidation:
