@@ -286,7 +286,9 @@ deterministic *forge projection* (`_card_ir/project.py`) plus a combinator-parse
 (Craterhoof's "for each creature you control") and the *scope* of an effect (Tinybones
 reanimates only from opponents' graveyards), so a [[Signal key]] becomes a derived query
 over structure rather than a substring match. The substrate of the regex→IR cutover
-(ADR-0027).
+(ADR-0027). **Evolving (ADR-0035):** the *lossy* projection is being replaced by a
+lossless [[Phase-mirror substrate]] + a derived [[Concept overlay]] — the term "Card IR"
+will name that layered whole, not the single closed-vocab projection.
 _Avoid_: "phase IR" (phase provides the structural substrate; the Card IR is *our*
 payoff/scope-shaped projection of it), "the parser" (the projection consumes phase's
 parse, it is not itself a card parser).
@@ -300,6 +302,66 @@ regex blind-spot heuristics). Not a per-firing accuracy score: a fully-parsed ca
 still feed an over-broad lane, which is a downstream gating concern, not a parse gap.
 _Avoid_: "accuracy" (it measures parse completeness, not whether a lane fires correctly),
 "coverage" alone (collides with `coverage_gate`'s blind-spot sense).
+
+**Phase-mirror substrate** (a.k.a. Layer 1; ADR-0035):
+A codegen'd typed mirror of phase's emitted `card-data.json`, **inferred from the data**
+(not phase's Rust source) and **strict-loaded**, that retains *every* phase field verbatim.
+Because nothing is dropped, [[bucket-A]] field-loss is impossible *at the substrate* — the
+class of bug where a field phase parsed is silently omitted by our projection. It is a
+**shape-faithful structural mirror**, not a claim to phase's nominal type graph.
+_Avoid_: "the Card IR" (the substrate is the lossless bottom layer; the [[Card IR]] is the
+whole stack), "phase's IR" (it is *our* mirror of phase's output, regenerated on a phase
+bump).
+
+**Strict loader / loud drift** (ADR-0035):
+Loading the [[Phase-mirror substrate]] with `extra=forbid`, so a phase schema change becomes
+a *load-time failure* instead of today's silent `node.get("type")→None` degrade. The fix for
+the v0.8.0 silent-drift episode. Its guarantee is "caught a missed regen / version bump"; a
+strict-load failure that produces zero [[Signal]]-diff is a soft "re-run codegen" notice.
+_Avoid_: "validation" (it is drift *detection*, not card-correctness checking).
+
+**Concept overlay / crosswalk** (a.k.a. Layer 2; ADR-0035):
+The single derivation path that maps the [[Phase-mirror substrate]]'s nodes into the
+~80-concept synergy vocabulary a [[Signal key]] queries. **Totally lossless:** every node
+becomes a recognized [[Concept-node]] *or* an `other` concept that *carries the verbatim
+structured node* — so the unrecognized tail stays reachable as structure, never re-grepped
+text. The home the lossy `project.py` concept-derivation *relocates* into.
+_Avoid_: "projection" (it is a lossless derivation over a retained substrate, not the old
+lossy projection it replaces), "the categoriser" (it preserves tree position, see
+[[Concept-node]]).
+
+**Concept-node** (ADR-0035):
+A per-node *decoration* hanging off its preserved Layer-1 tree position (its face and
+ability) — **not** a flattening into a node bag. This keeps the joins lanes depend on
+queryable: per-ability sibling co-occurrence (`discard_makers` needs a `draw` sibling in the
+*same* ability), per-ability aggregation, and whole-card / cross-face merges.
+_Avoid_: "flat node" / "node bag" (the granularity that would break sibling and whole-card
+lanes).
+
+**Convergence check / shrinking bridge** (ADR-0035):
+The detector that flags a *true-synthesis* [[supplement]] arm for retirement when phase
+begins parsing the clauses it covered — **input-side** (its `recovered_by_category` count
+drops toward zero), not output-shape equality. Indefinite persistence for a mechanic phase
+never implements is a *correct* true-negative, not a failure. Operationalises the supplement
+as a *shrinking* bridge whose long-term home is upstreamed phase grammar (ADR-0028).
+_Avoid_: "diff against phase" (it watches the *input* clauses converging, not byte-matching
+nodes).
+
+**Two seams** (ADR-0035):
+The two stable surfaces consumers read, both of which the migration gates: the
+[[Signal]]`(key, scope, subject)` contract (lanes/presets) **and** the Effect/Ability/Card
+dataclass API (`.category`/`.scope`/`.counter_kind`/`.toughness`/`ab.trigger.event`/…) read
+directly by `ranking` / `budgets` / `cut_check` / the tuner. "Signal is the only seam" is
+false — the dataclass seam needs its own corpus output-diff harness.
+_Avoid_: "the Signal seam" (singular — it elides the four non-Signal consumers).
+
+**bucket-A vs `bucket_a_masking`** (ADR-0035):
+**bucket-A** is the silent sub-field *drop* inside an already-categorised node (the
+re-surfacing-ledger bug class the [[Phase-mirror substrate]] eliminates). The committed
+`bucket_a_masking` *counter* measures a *different* thing — regex-masking recoveries — and
+reads 0. Keep them disambiguated: a 0 counter does **not** mean the drop class is absent.
+_Avoid_: conflating the named class with the counter (the misread that made the drop class
+look already-solved).
 
 ### Roles & surfaces
 
