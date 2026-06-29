@@ -78,6 +78,12 @@ class Effect:
 
     category: str  # see CATEGORIES
     amount: Quantity | None = None
+    # For a pump effect, ``amount`` is the SIGNED POWER (via _pump_amount);
+    # ``toughness`` is its SIGNED TOUGHNESS companion (SIDECAR v74), the death-relevant
+    # stat: a fixed -N keeps its magnitude; a variable "-X" keeps only the SIGN
+    # (op="variable", factor +-1). Tells a lethal mass "-2/-2" / "-X/-X" from a harmless
+    # power-only "-2/-0" (toughness factor 0). CR 613.4c.
+    toughness: Quantity | None = None
     scope: str = "any"  # you | opp | each | any
     subject: Filter | None = None
     raw: str = ""
@@ -528,6 +534,9 @@ def _effect_to_dict(e: Effect) -> dict:
     amt = _quantity_to_dict(e.amount)
     if amt is not None:
         out["amt"] = amt
+    tuf = _quantity_to_dict(e.toughness)
+    if tuf is not None:
+        out["tuf"] = tuf
     if e.scope != "any":
         out["sc"] = e.scope
     sub = _filter_to_dict(e.subject)
@@ -554,6 +563,7 @@ def _effect_from_dict(d: dict) -> Effect:
     return Effect(
         category=d["cat"],
         amount=_quantity_from_dict(d.get("amt")),
+        toughness=_quantity_from_dict(d.get("tuf")),
         scope=d.get("sc", "any"),
         subject=_filter_from_dict(d.get("sub")),
         raw=d.get("raw", ""),

@@ -459,14 +459,57 @@ def test_ir_board_wipe_reads_mass_marker_and_subject_gate():
         )
         is False
     )
-    # A mass -X/-X shrink (Toxic Deluge / Marsh Gas's harmless -2/-0) is NOT read here —
-    # amount.factor is the power, so lethality can't be judged; the regex preset owns it.
+    # Mass -X/-X shrink (SIDECAR v74 Effect.toughness): a mass pump whose TOUGHNESS factor
+    # is negative can kill — fixed (Drown -2/-2) and variable (Toxic Deluge -X/-X) both.
     assert (
         _ir_board_wipe(
             _ir_effect(
                 category="pump",
-                duration="UntilEndOfTurn",
+                toughness=Quantity(op="fixed", factor=-2),
+                subject=creature,
+            )
+        )
+        is True
+    )
+    assert (
+        _ir_board_wipe(
+            _ir_effect(
+                category="pump",
+                toughness=Quantity(op="variable", factor=-1),
+                subject=creature,
+            )
+        )
+        is True
+    )
+    # Power-only -2/-0 (Marsh Gas), toughness factor 0 — harmless, NOT a wipe.
+    assert (
+        _ir_board_wipe(
+            _ir_effect(
+                category="pump",
                 amount=Quantity(op="fixed", factor=-2),
+                toughness=Quantity(op="fixed", factor=0),
+                subject=creature,
+            )
+        )
+        is False
+    )
+    # +X/+X mass anthem (toughness > 0) is a buff, and a SINGLE-target shrink is
+    # pump_target — neither is a board wipe.
+    assert (
+        _ir_board_wipe(
+            _ir_effect(
+                category="pump",
+                toughness=Quantity(op="fixed", factor=2),
+                subject=creature,
+            )
+        )
+        is False
+    )
+    assert (
+        _ir_board_wipe(
+            _ir_effect(
+                category="pump_target",
+                toughness=Quantity(op="fixed", factor=-2),
                 subject=creature,
             )
         )

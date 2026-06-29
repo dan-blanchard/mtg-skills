@@ -3751,7 +3751,11 @@
            "op": "fixed"
           },
           "cat": "pump_target",
-          "raw": "CR 702.154a: Enlist — this creature gets +X/+0 until end of turn, where X is the tapped creature's power"
+          "raw": "CR 702.154a: Enlist — this creature gets +X/+0 until end of turn, where X is the tapped creature's power",
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -5372,6 +5376,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -5735,7 +5742,11 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "Sacrifice an artifact: ~ gets +2/+2 until end of turn."
+          "raw": "Sacrifice an artifact: ~ gets +2/+2 until end of turn.",
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
+          }
          }
         ],
         "k": "activated"
@@ -6511,6 +6522,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
           }
          }
         ],
@@ -8052,7 +8067,11 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "{1}{G}: ~ gets +2/+2 until end of turn. Activate only once each turn."
+          "raw": "{1}{G}: ~ gets +2/+2 until end of turn. Activate only once each turn.",
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
+          }
          }
         ],
         "k": "activated"
@@ -8663,7 +8682,11 @@
            "op": "fixed"
           },
           "cat": "pump_target",
-          "raw": "CR 702.154a: Enlist — this creature gets +X/+0 until end of turn, where X is the tapped creature's power"
+          "raw": "CR 702.154a: Enlist — this creature gets +X/+0 until end of turn, where X is the tapped creature's power",
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -9762,6 +9785,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": -1,
+           "op": "variable"
           }
          }
         ],
@@ -16034,6 +16061,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -17099,6 +17129,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -22435,6 +22468,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
           }
          },
          {
@@ -22626,6 +22663,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": -1,
+           "op": "fixed"
           }
          },
          {
@@ -22634,7 +22675,11 @@
            "op": "fixed"
           },
           "cat": "pump_target",
-          "raw": "When ~ dies, target creature an opponent controls gets -1/-1 until end of turn. That creature gets -4/-4 instead if you control a creature named Bogbrew Witch."
+          "raw": "When ~ dies, target creature an opponent controls gets -1/-1 until end of turn. That creature gets -4/-4 instead if you control a creature named Bogbrew Witch.",
+          "tuf": {
+           "f": -4,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -24129,7 +24174,11 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "Whenever a creature attacks one of your opponents or a planeswalker an opponent controls, that creature gets +2/+0 until end of turn."
+          "raw": "Whenever a creature attacks one of your opponents or a planeswalker an opponent controls, that creature gets +2/+0 until end of turn.",
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -25383,6 +25432,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": 3,
+           "op": "fixed"
           }
          }
         ],
@@ -26477,6 +26530,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "variable"
           }
          }
         ],
@@ -33154,6 +33210,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": 3,
+           "op": "fixed"
           }
          }
         ],
@@ -33172,6 +33232,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": -3,
+           "op": "fixed"
           }
          }
         ],
@@ -33605,7 +33669,11 @@
          {
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "Whenever ~ blocks or becomes blocked, it gets -4/+4 until end of turn."
+          "raw": "Whenever ~ blocks or becomes blocked, it gets -4/+4 until end of turn.",
+          "tuf": {
+           "f": 4,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -34568,7 +34636,10 @@
            "op": "fixed"
           },
           "cat": "pump_target",
-          "raw": "CR 702.45a: Bushido 1 — +1/+1 until end of turn"
+          "raw": "CR 702.45a: Bushido 1 — +1/+1 until end of turn",
+          "tuf": {
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -34584,7 +34655,10 @@
            "op": "fixed"
           },
           "cat": "pump_target",
-          "raw": "CR 702.45a: Bushido 1 — +1/+1 until end of turn"
+          "raw": "CR 702.45a: Bushido 1 — +1/+1 until end of turn",
+          "tuf": {
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -34867,7 +34941,11 @@
            "op": "fixed"
           },
           "cat": "pump_target",
-          "raw": "CR 702.45a: Bushido 5 — +5/+5 until end of turn"
+          "raw": "CR 702.45a: Bushido 5 — +5/+5 until end of turn",
+          "tuf": {
+           "f": 5,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -34884,7 +34962,11 @@
            "op": "fixed"
           },
           "cat": "pump_target",
-          "raw": "CR 702.45a: Bushido 5 — +5/+5 until end of turn"
+          "raw": "CR 702.45a: Bushido 5 — +5/+5 until end of turn",
+          "tuf": {
+           "f": 5,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -35512,7 +35594,11 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "Whenever ~ attacks, it gets +X/+0 until end of turn, where X is the number of permanents you control with oil counters on them."
+          "raw": "Whenever ~ attacks, it gets +X/+0 until end of turn, where X is the number of permanents you control with oil counters on them.",
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -39501,7 +39587,10 @@
         "e": [
          {
           "cat": "pump_target",
-          "raw": "CR 702.23a: Rampage 1 — +1/+1 for each creature blocking it beyond the first"
+          "raw": "CR 702.23a: Rampage 1 — +1/+1 for each creature blocking it beyond the first",
+          "tuf": {
+           "op": "variable"
+          }
          }
         ],
         "k": "triggered",
@@ -41719,7 +41808,10 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "Whenever another creature you control with flying enters, ~ gets +1/+1 until end of turn."
+          "raw": "Whenever another creature you control with flying enters, ~ gets +1/+1 until end of turn.",
+          "tuf": {
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -45020,7 +45112,11 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "{2}{B}, Sacrifice another creature or artifact: ~ gets +2/+2 until end of turn."
+          "raw": "{2}{B}, Sacrifice another creature or artifact: ~ gets +2/+2 until end of turn.",
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
+          }
          }
         ],
         "k": "activated"
@@ -48185,6 +48281,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
           }
          }
         ],
@@ -48663,7 +48763,10 @@
            "op": "fixed"
           },
           "cat": "pump_target",
-          "raw": "CR 702.83a: Exalted — +1/+1 until end of turn"
+          "raw": "CR 702.83a: Exalted — +1/+1 until end of turn",
+          "tuf": {
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -50747,7 +50850,11 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "Whenever ~ attacks alone, it gets +2/+0 until end of turn."
+          "raw": "Whenever ~ attacks alone, it gets +2/+0 until end of turn.",
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -53442,7 +53549,11 @@
          {
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "Whenever a creature you control attacks, it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it."
+          "raw": "Whenever a creature you control attacks, it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it.",
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -53718,7 +53829,11 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "{R}: ~ gets +1/+0 until end of turn."
+          "raw": "{R}: ~ gets +1/+0 until end of turn.",
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
+          }
          }
         ],
         "k": "activated"
@@ -54174,6 +54289,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": -1,
+           "op": "variable"
           }
          }
         ],
@@ -56684,7 +56803,11 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "{2}{U}{R}: Scry 1, then reveal the top card of your library. ~ gets +X/+0 until end of turn, where X is that card's mana value."
+          "raw": "{2}{U}{R}: Scry 1, then reveal the top card of your library. ~ gets +X/+0 until end of turn, where X is that card's mana value.",
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
+          }
          }
         ],
         "k": "activated"
@@ -59895,7 +60018,11 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "Whenever another creature you control enters, ~ get +1/+0 until end of turn."
+          "raw": "Whenever another creature you control enters, ~ get +1/+0 until end of turn.",
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -63495,7 +63622,11 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "{1}{G}: ~ gets +2/+2 until end of turn. Activate only once each turn."
+          "raw": "{1}{G}: ~ gets +2/+2 until end of turn. Activate only once each turn.",
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
+          }
          }
         ],
         "k": "activated"
@@ -64937,7 +65068,11 @@
           },
           "cat": "pump_target",
           "dur": "UntilEndOfTurn",
-          "raw": "Whenever ~ attacks or blocks, roll a six-sided die. ~ gets +X/+0 until end of turn, where X is the result minus 1."
+          "raw": "Whenever ~ attacks or blocks, roll a six-sided die. ~ gets +X/+0 until end of turn, where X is the result minus 1.",
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -65379,6 +65514,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": -1,
+           "op": "fixed"
           }
          }
         ],
@@ -68921,5 +69060,5 @@
  },
  "phase_tag": "v0.9.0",
  "schema": 1,
- "sidecar_version": 73
+ "sidecar_version": 74
 }

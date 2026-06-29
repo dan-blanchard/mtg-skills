@@ -144,22 +144,26 @@ def _ir_board_wipe(ir: Card) -> bool:
       - no graveyard zone ("return all creature cards FROM YOUR GRAVEYARD" recursion,
         Lychguard, is not removal).
 
-    Mass ``-X/-X`` shrinks (Toxic Deluge, Drown in Sorrow) are NOT read here: a mass
-    pump projects a single ``amount.factor`` (the POWER, so a harmless "-2/-0" looks
-    like a lethal "-2/-2") and a variable "-X" projects ``amount=None``, so toughness-0
-    lethality isn't readable. Projecting power+toughness separately is a scoped
-    ``project.py`` follow-up; the toughness-guarded regex preset owns those for now."""
+    A mass ``-X/-X`` shrink (Toxic Deluge, Drown in Sorrow) is read via the SIDECAR-v74
+    ``Effect.toughness`` companion: a mass ``pump`` whose toughness factor is negative
+    can kill, where a harmless power-only "-2/-0" (toughness factor 0) and a "+X/+X"
+    anthem (factor > 0) are excluded. A SINGLE-target shrink is ``pump_target`` (not the
+    mass ``pump``). (A STATIC mass debuff anthem, Elesh Norn, still rides the regex
+    preset; its static-mod projection carries no toughness yet.)"""
     for ab in ir.all_abilities():
         for e in ab.effects:
             subj = e.subject
             if (
-                subj is not None
-                and e.category in _MASS_REMOVAL_CATS
-                and e.counter_kind == "all"
-                and subj.controller != "you"
-                and ("Creature" in subj.card_types or "Permanent" in subj.card_types)
-                and not any("graveyard" in z for z in e.zones)
+                subj is None
+                or subj.controller == "you"
+                or not ("Creature" in subj.card_types or "Permanent" in subj.card_types)
+                or any("graveyard" in z for z in e.zones)
             ):
+                continue
+            if e.category in _MASS_REMOVAL_CATS and e.counter_kind == "all":
+                return True
+            tuf = e.toughness
+            if e.category == "pump" and tuf is not None and tuf.factor < 0:
                 return True
     return False
 

@@ -26,7 +26,7 @@
  },
  "phase_tag": "v0.9.0",
  "schema": 1,
- "sidecar_version": 73,
+ "sidecar_version": 74,
  "snapshot": {
   "cards": 726,
   "feed_phase_readiness": {

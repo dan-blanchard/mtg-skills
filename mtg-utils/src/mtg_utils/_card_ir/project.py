@@ -3927,10 +3927,12 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     # ramp fires on a land whose ramp is acceleration (amount) OR fixing, and
     # DROPS a basic-equivalent single-color tap. CR 106.4 / 605.
     mana_kind = ""
+    toughness: Quantity | None = None
     dur_val = eff.get("duration")
     duration: str = dur_val if isinstance(dur_val, str) else ""
     if category in ("pump", "pump_target"):
         amount = _pump_amount(eff, raw)
+        toughness = _pump_toughness(eff)
     elif etype == "mana":
         amount = _mana_amount(eff)
         mana_kind = _mana_kind(eff)
@@ -3940,6 +3942,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
         Effect(
             category=category,
             amount=amount,
+            toughness=toughness,
             scope=scope,
             subject=subject,
             raw=raw,
@@ -4638,6 +4641,50 @@ def _pump_amount(eff: dict, raw: str) -> Quantity | None:
     if p.factor == 0:
         return t
     return p
+
+
+def _toughness_sign(node: object) -> int:
+    """Sign (-1 / 0 / +1) of a phase power/toughness modifier node — Fixed by its value,
+    Variable by its "-X"/"+X" string, Quantity/Multiply by its factor. Used to keep the
+    SIGN of a non-fixed pump toughness whose magnitude can't be projected. CR 613.4c."""
+    if isinstance(node, bool):
+        return 0
+    if isinstance(node, int):
+        return (node > 0) - (node < 0)
+    if not isinstance(node, dict):
+        return 0
+    t = _norm(node.get("type"))
+    if t == "fixed":
+        return _intsign(node.get("value"))
+    if t == "variable":
+        v = str(node.get("value") or "").lstrip()
+        return -1 if v.startswith("-") else (1 if v else 0)
+    if t in ("quantity", "multiply"):
+        inner = node.get("value") if t == "quantity" else node
+        return _intsign(inner.get("factor") if isinstance(inner, dict) else None)
+    return 0
+
+
+def _intsign(v: object) -> int:
+    return (v > 0) - (v < 0) if isinstance(v, int) and not isinstance(v, bool) else 0
+
+
+def _pump_toughness(eff: dict) -> Quantity | None:
+    """The SIGNED toughness modifier of a pump effect — the death-relevant companion to
+    ``_pump_amount``'s power (SIDECAR v74). A fixed modifier keeps its signed magnitude
+    (``-2`` stays -2, a power-only ``-2/-0`` keeps toughness factor 0); a variable /
+    multiply ``-X`` keeps only the SIGN (``op="variable"``, factor +-1) since its
+    magnitude is dynamic. ``None`` when phase carries no toughness mod. CR 613.4c."""
+    node = eff.get("toughness")
+    if node is None:
+        return None
+    q = _quantity(node)
+    if q is not None and q.op == "fixed":
+        return q
+    sign = _toughness_sign(node)
+    if sign == 0:
+        return q
+    return Quantity(op="variable", factor=-1 if sign < 0 else 1)
 
 
 def _mana_amount(eff: dict) -> Quantity | None:

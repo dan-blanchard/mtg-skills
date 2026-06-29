@@ -1021,7 +1021,10 @@ from mtg_utils.card_ir import Card
 #   target_own_payoff; River Song topdeck_selection -1 is a CORRECT drop — v0.9.0 parses
 #   "draw from the bottom" as a native DrawFromBottom static, ending a v0.8.0
 #   Unimplemented-text over-fire). SIDECAR bump (projection-input + projection changed).
-SIDECAR_VERSION = 73
+# v74: Effect.toughness — the SIGNED toughness companion to amount's power on a pump
+#   effect (project._pump_toughness), so a mass -X/-X shrink is structurally a board
+#   wipe (vs a harmless power-only -2/-0). Additive field; only _ir_board_wipe reads it.
+SIDECAR_VERSION = 74
 
 
 def card_ir_dir() -> Path:
