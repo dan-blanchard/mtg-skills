@@ -2,7 +2,7 @@
 Source avenue (the pieces, fetched by card_type) — the static-membership analogue of
 the tribal bodies/payoffs/enablers split."""
 
-from mtg_utils._deck_forge import engine
+from mtg_utils._deck_forge import _ir_lookup, engine
 from mtg_utils._deck_forge.signal_specs import Serve, source_split
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.testkit import test_card, test_card_ir
@@ -28,7 +28,7 @@ def _by_label(avs):
 
 
 def test_voltron_fans_into_payoff_and_source_avenues(monkeypatch):
-    monkeypatch.setattr(engine, "_ir_index", lambda: {_SRAM_OID: _SRAM_IR})
+    monkeypatch.setattr(_ir_lookup, "_index", lambda: {_SRAM_OID: _SRAM_IR})
     avs = _by_label(engine.avenues(_state(), [SRAM]))
     # The payoff avenue (the _matters lane) stays, now oracle-only — no type fetch.
     payoff = avs["Voltron / equipment & auras"]

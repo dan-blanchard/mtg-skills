@@ -2,7 +2,7 @@
 
 from fastapi.testclient import TestClient
 
-from mtg_utils._deck_forge import engine
+from mtg_utils._deck_forge import _ir_lookup
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.events import EventHub
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
@@ -153,8 +153,8 @@ def test_partner_avenue_filters_to_valid_partners(monkeypatch):
     # ADR-0027 t2b4a-B: partner_background is IR-served, so wire a non-None IR for
     # Ishai's oracle_id (the hybrid path reads the record's keywords + needs an IR).
     monkeypatch.setattr(
-        engine,
-        "_ir_index",
+        _ir_lookup,
+        "_index",
         lambda: {
             "oid-ishai": Card(
                 oracle_id="oid-ishai",

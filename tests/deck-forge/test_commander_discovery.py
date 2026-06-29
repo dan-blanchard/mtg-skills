@@ -5,7 +5,7 @@ rarity, hard-gated by support). Never EDHREC popularity."""
 import pytest
 from fastapi.testclient import TestClient
 
-from mtg_utils._deck_forge import engine
+from mtg_utils._deck_forge import _ir_lookup, engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.card_ir import Card, Face
@@ -92,7 +92,7 @@ _BARE_IR_INDEX = {
 
 @pytest.fixture(autouse=True)
 def _wire_bare_ir(monkeypatch):
-    monkeypatch.setattr(engine, "_ir_index", lambda: _BARE_IR_INDEX)
+    monkeypatch.setattr(_ir_lookup, "_index", lambda: _BARE_IR_INDEX)
 
 
 def _state(fmt="commander"):
@@ -207,7 +207,7 @@ def test_support_is_collection_specific_not_lane_width(monkeypatch):
         )
         for c in by_name.values()
     }
-    monkeypatch.setattr(engine, "_ir_index", lambda: local_ir)
+    monkeypatch.setattr(_ir_lookup, "_index", lambda: local_ir)
     state = ForgeState(
         by_name=by_name,
         search_fn=lambda **_: [],

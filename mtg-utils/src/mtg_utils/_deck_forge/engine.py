@@ -13,7 +13,6 @@ reads ``state`` at call time and can never go stale.
 
 from __future__ import annotations
 
-import functools
 import json
 import math
 from dataclasses import dataclass
@@ -21,6 +20,7 @@ from pathlib import Path
 
 from mtg_utils import mark_owned, price_check, theme_presets
 from mtg_utils._deck_forge import collection, staples, views
+from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.budgets import role_of, slot_budgets
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import (
@@ -40,7 +40,6 @@ from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import is_basic_land, is_commander, valid_partner_search
-from mtg_utils.card_ir import Card
 from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.format_config import FORMAT_CONFIGS
 from mtg_utils.hydrated_deck import HydratedDeck
@@ -81,28 +80,11 @@ _EXPLORE_KEYS = (
 _FIND_POOL = 96
 
 
-@functools.cache
-def _ir_index() -> dict | None:
-    """The Card IR index (oracle_id → Card), loaded once for the process lifetime.
-
-    The ADR-0027 hybrid dispatch (``extract_signals_hybrid``) serves migrated keys
-    from this IR; with ``MIGRATED_KEYS`` empty it's behavior-neutral, so a missing
-    sidecar just degrades every card to the regex path. Returns ``None`` when the
-    sidecar is absent so production degrades instead of crashing — memoized, so no
-    per-card reload attempts."""
-    from mtg_utils._card_ir.load import load_card_ir
-
-    try:
-        return load_card_ir()
-    except (FileNotFoundError, ValueError):
-        return None
-
-
 def _signals(record: dict, *, include_membership: bool = True) -> list[Signal]:
     """Hybrid signal extraction with the card's IR wired by oracle_id (ADR-0027)."""
-    index = _ir_index()
-    ir = index.get(record.get("oracle_id") or "") if index else None
-    return extract_signals_hybrid(record, ir, include_membership=include_membership)
+    return extract_signals_hybrid(
+        record, ir_for(record), include_membership=include_membership
+    )
 
 
 def avenue_with_serve(avenue: dict, serve: Serve | None) -> dict:
@@ -805,16 +787,11 @@ def ranked_deck_signals(state: ForgeState, hydrated: list[dict]) -> list:
     deterministic tuner also calls (ADR-0023). Wires the Card-IR index (ADR-0027) so
     migrated keys — served only from the IR — surface in the deck's avenues."""
     commander_names = {e["name"] for e in state.session.to_deck_dict()["commanders"]}
-    index = _ir_index()
-
-    def _ir_for(record: dict) -> Card | None:
-        return index.get(record.get("oracle_id") or "") if index else None
-
     return rank_deck_signals(
         hydrated,
         commander_names,
         resolve_object=state.object_resolver,
-        ir_for=_ir_for,
+        ir_for=ir_for,
     )
 
 

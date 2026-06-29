@@ -36,12 +36,12 @@ Three verdicts per (card, lane):
 
 from __future__ import annotations
 
-import functools
 import json
 import re
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
+from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.signals import extract_signals_hybrid
 
 # ── phase enum vocabularies (harvested from phase v0.1.19 source) ─────────────
@@ -537,27 +537,9 @@ DETECTOR_ONLY = "detector_only"
 PHASE_ONLY = "phase_only"
 
 
-@functools.cache
-def _ir_index() -> dict | None:
-    """The Card IR index (oracle_id → Card), loaded once for the process lifetime.
-
-    The ADR-0027 hybrid dispatch serves migrated keys from this IR; with
-    ``MIGRATED_KEYS`` empty it's behavior-neutral, so a missing sidecar just
-    degrades each card to the regex path. Returns ``None`` when the sidecar is
-    absent so the crosscheck degrades instead of crashing (memoized)."""
-    from mtg_utils._card_ir.load import load_card_ir
-
-    try:
-        return load_card_ir()
-    except (FileNotFoundError, ValueError):
-        return None
-
-
 def detector_lanes(card: dict) -> frozenset[str]:
     """The set of signal keys deck-forge's detectors fire on ``card``."""
-    index = _ir_index()
-    ir = index.get(card.get("oracle_id") or "") if index else None
-    return frozenset(s.key for s in extract_signals_hybrid(card, ir))
+    return frozenset(s.key for s in extract_signals_hybrid(card, ir_for(card)))
 
 
 def classify_card(

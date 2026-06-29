@@ -2,7 +2,7 @@
 
 from fastapi.testclient import TestClient
 
-from mtg_utils._deck_forge import engine
+from mtg_utils._deck_forge import _ir_lookup
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
@@ -13,7 +13,7 @@ def _wire_ir(monkeypatch, mapping: dict):
     """Wire a {oracle_id: Card} IR index into the engine for the test (ADR-0027:
     the hybrid path serves migrated keys — e.g. land_creatures_matter — only from the
     IR, joined by oracle_id, so an engine test for a migrated avenue must supply one)."""
-    monkeypatch.setattr(engine, "_ir_index", lambda: mapping)
+    monkeypatch.setattr(_ir_lookup, "_index", lambda: mapping)
 
 
 CMD = {

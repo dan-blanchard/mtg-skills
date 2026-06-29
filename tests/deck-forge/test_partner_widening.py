@@ -5,7 +5,7 @@ broadest color-openers surface first."""
 
 from fastapi.testclient import TestClient
 
-from mtg_utils._deck_forge import engine
+from mtg_utils._deck_forge import _ir_lookup
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.card_ir import Card, Face
@@ -49,8 +49,8 @@ def _client(monkeypatch):
     # partner_background key (it reads the record's `keywords`, but needs ir is not None
     # to take the IR arm). ADR-0027 hybrid dispatch, joined by oracle_id.
     monkeypatch.setattr(
-        engine,
-        "_ir_index",
+        _ir_lookup,
+        "_index",
         lambda: {
             c["oracle_id"]: _bare_ir(c["oracle_id"]) for c in (PAIR_LORD, WIDE, MONO)
         },

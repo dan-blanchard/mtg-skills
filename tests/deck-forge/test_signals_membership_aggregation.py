@@ -157,7 +157,7 @@ def test_avenues_capped_for_many_themes(monkeypatch):
     # its avenue (the mirror reads the oracle off the record), matching production where
     # real cards carry real IR. Without it the lane silently drops and the cap math
     # surfaces more trailing sub-avenues.
-    from mtg_utils._deck_forge import engine as _engine
+    from mtg_utils._deck_forge import _ir_lookup
     from mtg_utils.card_ir import Card, Face
 
     bare_ir = {
@@ -166,7 +166,7 @@ def test_avenues_capped_for_many_themes(monkeypatch):
         )
         for c in (cmd, *deck)
     }
-    monkeypatch.setattr(_engine, "_ir_index", lambda: bare_ir)
+    monkeypatch.setattr(_ir_lookup, "_index", lambda: bare_ir)
     avenues = _client(cmd, deck).get("/api/snapshot").json()["avenues"]
     engine = [a for a in avenues if a["source"] == "engine"]
     # capped to the dominant themes (+ at most the trailing parent's sub-avenues).
