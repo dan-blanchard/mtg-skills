@@ -260,8 +260,20 @@ def is_ramp(card: dict) -> bool:
     # Mana amplifiers ("add an additional {X}" per land tapped) ramp you too.
     if _AMPLIFY_MANA_RE.search(oracle_lower):
         return True
-    # Cards that search library for lands
-    if "search your library for" in oracle_lower and "land" in oracle_lower:
+    # Cards that search the library for a LAND and put it onto the battlefield are ramp.
+    # Require the battlefield destination — a land TUTOR to hand (Moonsilver Key, Sylvan
+    # Scrying) adds no mana and drops no land, so it is not acceleration — and match the
+    # land by basic-land subtype name / "land card" / "basic land", not a raw "land"
+    # substring (which missed "Forest card" yet let "Island" slip through).
+    if (
+        "search your library for" in oracle_lower
+        and "onto the battlefield" in oracle_lower
+        and (
+            _FETCH_BASIC_LAND_PATTERN.search(oracle)
+            or "land card" in oracle_lower
+            or "basic land" in oracle_lower
+        )
+    ):
         return True
     # Land-acceleration that adds no mana: extra land drops (Azusa) and put-a-land-from-
     # hand (Arboreal Grazer, Burgeoning) — both ramp your lands ahead of the curve.

@@ -247,6 +247,40 @@ class TestIsRamp:
         }
         assert is_ramp(card) is True
 
+    def test_typed_subtype_land_fetch_to_battlefield_is_ramp(self):
+        # "Search your library for a Forest card ... onto the battlefield" is ramp, but
+        # the raw "land" substring test missed it ("Forest card" has no "land"); Farseek
+        # only passed because "Island" contains "land". Match the land by subtype name.
+        natures_lore = {
+            "type_line": "Sorcery",
+            "oracle_text": "Search your library for a Forest card, put that card onto "
+            "the battlefield, then shuffle.",
+        }
+        three_visits = {
+            "type_line": "Sorcery",
+            "oracle_text": "Search your library for a Forest card, put it onto the "
+            "battlefield, then shuffle.",
+        }
+        farseek = {
+            "type_line": "Sorcery",
+            "oracle_text": "Search your library for a Plains, Island, Swamp, or Mountain "
+            "card, put it onto the battlefield tapped, then shuffle.",
+        }
+        assert is_ramp(natures_lore) is True
+        assert is_ramp(three_visits) is True
+        assert is_ramp(farseek) is True
+
+    def test_land_tutor_to_hand_is_not_ramp(self):
+        # A land TUTOR that puts the card into your hand (Moonsilver Key, Sylvan Scrying)
+        # is not acceleration — it adds no mana and drops no land. The library-search
+        # branch must require the fetched card to enter the battlefield.
+        moonsilver_key = {
+            "type_line": "Artifact",
+            "oracle_text": "{2}, {T}, Sacrifice Moonsilver Key: Search your library for "
+            "an artifact or land card, put it into your hand, then shuffle.",
+        }
+        assert is_ramp(moonsilver_key) is False
+
     def test_conditional_mox_still_counts_as_ramp(self):
         """is_ramp counts a conditionally-gated rock the user chose to run (it DOES add
         mana directly). The tuner's separate reliable-ramp filter is what keeps it from
