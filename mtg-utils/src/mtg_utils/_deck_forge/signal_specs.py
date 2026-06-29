@@ -833,6 +833,11 @@ _STAX_SERVE_ORACLE = (
     r"|can't attack you|unless [^.]*\bpays?\b|may pay \{"
     r"|if (?:a player|an opponent|that player|they) would search[^.]*library"
     r"|(?:doesn't|don't|does not) untap during (?:its|their|the)"
+    # Forcing opponents to skip a step/phase/turn is stax (CR 500.11). Scope to an
+    # opponent/that-player/the-player/each-player subject so "you skip your draw step"
+    # self-drawbacks stay out (Fatespinner's skip clause subject is "The player").
+    r"|(?:each opponent|that player|the player|each (?:other )?player|opponents?)"
+    r"[^.]*\bskips?\b[^.]*(?:step|phase|turn)"
     # Land-DENIAL stax (Blood Moon archetype): "nonbasic lands are Mountains" (Magus),
     # "taps a nonbasic land" → punish (Burning Earth), "number of nonbasic lands" (Price
     # of Progress) — restricts opponents' mana, so a stax commander (Zhao, Thalia) wants

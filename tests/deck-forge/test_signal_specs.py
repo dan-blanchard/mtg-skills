@@ -116,6 +116,32 @@ def test_stax_serves_nonbasic_land_hate():
     assert _lane_covers(ramp, sig) is False
 
 
+def test_stax_serves_opponent_skip_step_imposition():
+    # Forcing opponents to skip a step/phase is stax (CR 500.11) — the same family as
+    # "opponents can't cast/attack/untap" the lane already serves. Fatespinner's skip
+    # clause subject is "The player" (the opponent named the sentence before), so the
+    # opponent/that-player/the-player skip branch must catch it. Without it Fatespinner
+    # served nothing -> filler -> the spread_thin pass cut the deck's stax piece.
+    sig = _sig("stax_taxes", "opponents")
+    fatespinner = {
+        "name": "Fatespinner",
+        "type_line": "Creature — Human Wizard",
+        "oracle_text": (
+            "At the beginning of each opponent's upkeep, that player chooses draw "
+            "step, main phase, or combat phase. The player skips each instance of the "
+            "chosen step or phase this turn."
+        ),
+    }
+    assert _lane_covers(fatespinner, sig) is True
+    # Over-fire guard: a SELF skip-step drawback ("skip your ...") is not stax.
+    drawback = {
+        "name": "Self Drawback",
+        "type_line": "Enchantment",
+        "oracle_text": "At the beginning of your draw step, you skip your draw step.",
+    }
+    assert _lane_covers(drawback, sig) is False
+
+
 def test_free_creature_payoff_serves_only_zero_cost_creatures():
     # Satoru's "no mana was spent to cast" payoff wants 0-cost CREATURES (Ornithopter),
     # not 0-cost mana rocks (Lotus Petal is {0} but not a creature) and not normal-cost
