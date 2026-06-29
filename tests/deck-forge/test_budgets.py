@@ -520,3 +520,13 @@ def test_ir_board_wipe_reads_mass_marker_and_subject_gate():
 def test_board_wipe_role_reads_real_ir_mass_destroy():
     # Real projected IR (committed snapshot): Wrath of God is a structural board wipe.
     assert _ir_board_wipe(test_card_ir("Wrath of God")) is True
+    # A mass -X/-X shrink SPELL (Toxic Deluge) — via the SIDECAR-v74 Effect.toughness.
+    assert _ir_board_wipe(test_card_ir("Toxic Deluge")) is True
+
+
+def test_static_mass_debuff_anthem_is_board_wipe():
+    # SIDECAR v75: a STATIC mass-debuff anthem (Elesh Norn's "Creatures your opponents
+    # control get -2/-2") now carries Effect.toughness on its static-mod pump, so it reads
+    # as a structural board wipe — while its own "+2/+2" buff (controller=you, factor > 0)
+    # does not flip it.
+    assert _ir_board_wipe(test_card_ir("Elesh Norn, Grand Cenobite")) is True

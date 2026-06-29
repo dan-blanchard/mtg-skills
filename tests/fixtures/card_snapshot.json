@@ -1542,7 +1542,11 @@
            "op": "fixed"
           },
           "cat": "pump",
-          "raw": "get +2/+2 and gains reach"
+          "raw": "get +2/+2 and gains reach",
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
+          }
          }
         ],
         "k": "spell"
@@ -2391,6 +2395,19 @@
           },
           "cat": "pump",
           "raw": "~ gets +1/+1 for each card in your hand and each foretold card you own in exile.",
+          "tuf": {
+           "op": "count",
+           "sub": {
+            "p": [
+             "Foretold",
+             "Owned:you",
+             "InZone"
+            ],
+            "t": [
+             "Card"
+            ]
+           }
+          },
           "z": [
            "in:exile"
           ]
@@ -4388,7 +4405,10 @@
            "op": "fixed"
           },
           "cat": "pump",
-          "raw": "get +1/+1 and gains flying"
+          "raw": "get +1/+1 and gains flying",
+          "tuf": {
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -4874,7 +4894,11 @@
            "op": "fixed"
           },
           "cat": "pump",
-          "raw": "~ gets +3/+0 as long as it has three or more oil counters on it."
+          "raw": "~ gets +3/+0 as long as it has three or more oil counters on it.",
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
+          }
          }
         ],
         "k": "static"
@@ -14484,6 +14508,9 @@
             "Creature",
             "Artifact"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -16141,6 +16168,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": -2,
+           "op": "fixed"
           }
          }
         ],
@@ -19203,7 +19234,10 @@
            "op": "fixed"
           },
           "cat": "pump",
-          "raw": "As long as your life total is greater than your starting life total, ~ gets +1/+1 and has menace. ~ gets an additional +5/+5 as long as your life total is at least 10 greater than your starting life total."
+          "raw": "As long as your life total is greater than your starting life total, ~ gets +1/+1 and has menace. ~ gets an additional +5/+5 as long as your life total is at least 10 greater than your starting life total.",
+          "tuf": {
+           "op": "fixed"
+          }
          }
         ],
         "k": "static"
@@ -19300,6 +19334,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
           }
          }
         ],
@@ -19320,6 +19358,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": -2,
+           "op": "fixed"
           }
          }
         ],
@@ -19465,6 +19507,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
           }
          }
         ],
@@ -22030,6 +22076,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -23533,6 +23582,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
           }
          }
         ],
@@ -25348,6 +25401,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
           }
          }
         ],
@@ -26018,6 +26075,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -28461,6 +28521,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -30298,6 +30361,15 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "count",
+           "sub": {
+            "c": "you",
+            "s": [
+             "Gate"
+            ]
+           }
           }
          }
         ],
@@ -30543,6 +30615,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -31285,6 +31360,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -32027,6 +32105,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -34872,6 +34953,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -37380,6 +37464,9 @@
            "s": [
             "Merfolk"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -37835,7 +37922,11 @@
            "op": "fixed"
           },
           "cat": "pump",
-          "raw": "Each creature that's a Barbarian, a Warrior, or a Berserker gets +2/+2 and has haste."
+          "raw": "Each creature that's a Barbarian, a Warrior, or a Berserker gets +2/+2 and has haste.",
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
+          }
          }
         ],
         "k": "static"
@@ -38256,6 +38347,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -40750,6 +40844,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          },
          {
@@ -41260,6 +41357,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -41292,6 +41392,19 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "count",
+           "sub": {
+            "c": "you",
+            "p": [
+             "Another",
+             "SameNameAsParentTarget"
+            ],
+            "t": [
+             "Creature"
+            ]
+           }
           }
          }
         ],
@@ -42378,6 +42491,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
           }
          }
         ],
@@ -46246,6 +46363,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -48093,7 +48213,11 @@
            "op": "fixed"
           },
           "cat": "pump",
-          "raw": "get +4/+4 and gains lifelink"
+          "raw": "get +4/+4 and gains lifelink",
+          "tuf": {
+           "f": 4,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -48891,7 +49015,11 @@
            "op": "fixed"
           },
           "cat": "pump",
-          "raw": "get +7/+7 and gains trample"
+          "raw": "get +7/+7 and gains trample",
+          "tuf": {
+           "f": 7,
+           "op": "fixed"
+          }
          }
         ],
         "k": "triggered",
@@ -50004,7 +50132,20 @@
            }
           },
           "cat": "pump",
-          "raw": "~ gets +1/+1 for each other creature on the battlefield named Relentless Rats."
+          "raw": "~ gets +1/+1 for each other creature on the battlefield named Relentless Rats.",
+          "tuf": {
+           "op": "count",
+           "sub": {
+            "p": [
+             "Another",
+             "InZone",
+             "Named"
+            ],
+            "t": [
+             "Creature"
+            ]
+           }
+          }
          }
         ],
         "k": "static"
@@ -51337,6 +51478,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -53260,7 +53404,20 @@
            }
           },
           "cat": "pump",
-          "raw": "~ gets +1/+1 for each other creature named Seven Dwarves you control."
+          "raw": "~ gets +1/+1 for each other creature named Seven Dwarves you control.",
+          "tuf": {
+           "op": "count",
+           "sub": {
+            "c": "you",
+            "p": [
+             "Another",
+             "Named"
+            ],
+            "t": [
+             "Creature"
+            ]
+           }
+          }
          }
         ],
         "k": "static"
@@ -53458,7 +53615,16 @@
            }
           },
           "cat": "pump",
-          "raw": "~ gets +1/+1 for each creature you control."
+          "raw": "~ gets +1/+1 for each creature you control.",
+          "tuf": {
+           "op": "count",
+           "sub": {
+            "c": "you",
+            "t": [
+             "Creature"
+            ]
+           }
+          }
          }
         ],
         "k": "static"
@@ -54617,6 +54783,18 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "count",
+           "sub": {
+            "p": [
+             "Another",
+             "InZone"
+            ],
+            "s": [
+             "Sliver"
+            ]
+           }
           }
          }
         ],
@@ -55027,6 +55205,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -55525,6 +55706,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "fixed"
           }
          }
         ],
@@ -57654,6 +57838,10 @@
             "Creature",
             "Land"
            ]
+          },
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
           }
          }
         ],
@@ -60989,6 +61177,9 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "op": "count"
           }
          }
         ],
@@ -62818,6 +63009,87 @@
     "type_line": "Legendary Creature — Human Werewolf // Legendary Creature — Werewolf"
    }
   },
+  "Toxic Deluge": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "pump",
+          "dur": "UntilEndOfTurn",
+          "raw": "All creatures get -X/-X until end of turn.",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          },
+          "tuf": {
+           "f": -1,
+           "op": "variable"
+          }
+         }
+        ],
+        "k": "spell"
+       },
+       {
+        "e": [
+         {
+          "cat": "lose_life",
+          "raw": "pay-life cost / self loss",
+          "sc": "you"
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Toxic Deluge",
+      "tl": "Sorcery"
+     }
+    ],
+    "n": "Toxic Deluge",
+    "oid": "afaef788-34d1-460b-b884-9d7ae6ddeb18"
+   },
+   "scryfall": {
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Toxic Deluge",
+    "oracle_id": "afaef788-34d1-460b-b884-9d7ae6ddeb18",
+    "oracle_text": "As an additional cost to cast this spell, pay X life.\nAll creatures get -X/-X until end of turn.",
+    "type_line": "Sorcery"
+   }
+  },
   "Trail of Crumbs": {
    "ir": {
     "faces": [
@@ -63424,7 +63696,11 @@
            "op": "fixed"
           },
           "cat": "pump",
-          "raw": "Celebration — ~ gets +1/+0 and has lifelink as long as two or more nonland permanents entered the battlefield under your control this turn."
+          "raw": "Celebration — ~ gets +1/+0 and has lifelink as long as two or more nonland permanents entered the battlefield under your control this turn.",
+          "tuf": {
+           "f": 0,
+           "op": "fixed"
+          }
          }
         ],
         "k": "static"
@@ -63524,7 +63800,16 @@
            }
           },
           "cat": "pump",
-          "raw": "~ gets +1/+1 for each enchantment you control."
+          "raw": "~ gets +1/+1 for each enchantment you control.",
+          "tuf": {
+           "op": "count",
+           "sub": {
+            "c": "you",
+            "t": [
+             "Enchantment"
+            ]
+           }
+          }
          }
         ],
         "k": "static"
@@ -66144,6 +66429,10 @@
            "t": [
             "Creature"
            ]
+          },
+          "tuf": {
+           "f": 2,
+           "op": "fixed"
           }
          }
         ],
@@ -66375,7 +66664,19 @@
            }
           },
           "cat": "pump",
-          "raw": "~ gets +1/+1 for each land you control named Wastes."
+          "raw": "~ gets +1/+1 for each land you control named Wastes.",
+          "tuf": {
+           "op": "count",
+           "sub": {
+            "c": "you",
+            "p": [
+             "Named"
+            ],
+            "t": [
+             "Land"
+            ]
+           }
+          }
          }
         ],
         "k": "static"
@@ -69060,5 +69361,5 @@
  },
  "phase_tag": "v0.9.0",
  "schema": 1,
- "sidecar_version": 74
+ "sidecar_version": 75
 }

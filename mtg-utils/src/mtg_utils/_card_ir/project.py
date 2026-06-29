@@ -4240,6 +4240,7 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
             )
         )
     pump_amount: Quantity | None = None
+    pump_toughness: Quantity | None = None
     is_pump = False
     set_power = set_toughness = False
     grants_ability_or_type = False
@@ -4265,6 +4266,11 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
             is_pump = True
             if pump_amount is None:
                 pump_amount = _quantity(m.get("value"))
+            # Capture the TOUGHNESS modification separately (SIDECAR v75) — the
+            # death-relevant stat for a static mass-debuff anthem (Elesh Norn's
+            # opponents'-creatures -2/-2), the companion to pump_amount's power.
+            if mt in ("addtoughness", "adddynamictoughness"):
+                pump_toughness = _signed_pt_mod(m.get("value"))
         elif mt in ("setpower", "setdynamicpower", "setpowerdynamic"):
             set_power = True
         elif mt in ("settoughness", "setdynamictoughness", "settoughnessdynamic"):
@@ -4406,6 +4412,7 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
             Effect(
                 category="pump",
                 amount=pump_amount,
+                toughness=pump_toughness,
                 scope=_controller_scope(affected),
                 subject=affected,
                 raw=desc,
@@ -4669,13 +4676,12 @@ def _intsign(v: object) -> int:
     return (v > 0) - (v < 0) if isinstance(v, int) and not isinstance(v, bool) else 0
 
 
-def _pump_toughness(eff: dict) -> Quantity | None:
-    """The SIGNED toughness modifier of a pump effect — the death-relevant companion to
-    ``_pump_amount``'s power (SIDECAR v74). A fixed modifier keeps its signed magnitude
-    (``-2`` stays -2, a power-only ``-2/-0`` keeps toughness factor 0); a variable /
-    multiply ``-X`` keeps only the SIGN (``op="variable"``, factor +-1) since its
-    magnitude is dynamic. ``None`` when phase carries no toughness mod. CR 613.4c."""
-    node = eff.get("toughness")
+def _signed_pt_mod(node: object) -> Quantity | None:
+    """The SIGNED magnitude of a power/toughness modifier node — a fixed modifier keeps
+    its signed magnitude (``-2`` stays -2, a 0 stays 0); a variable / multiply ``-X``
+    keeps only the SIGN (``op="variable"``, factor +-1) since its magnitude is dynamic.
+    ``None`` when absent. The shared core of the spell-pump ``toughness`` key and the
+    static-anthem ``AddToughness`` modification value. CR 613.4c."""
     if node is None:
         return None
     q = _quantity(node)
@@ -4685,6 +4691,12 @@ def _pump_toughness(eff: dict) -> Quantity | None:
     if sign == 0:
         return q
     return Quantity(op="variable", factor=-1 if sign < 0 else 1)
+
+
+def _pump_toughness(eff: dict) -> Quantity | None:
+    """The signed toughness companion to ``_pump_amount``'s power on a spell/activated
+    ``Pump`` (SIDECAR v74), the death-relevant stat — see :func:`_signed_pt_mod`."""
+    return _signed_pt_mod(eff.get("toughness"))
 
 
 def _mana_amount(eff: dict) -> Quantity | None:

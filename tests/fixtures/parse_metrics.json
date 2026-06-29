@@ -26,9 +26,9 @@
  },
  "phase_tag": "v0.9.0",
  "schema": 1,
- "sidecar_version": 74,
+ "sidecar_version": 75,
  "snapshot": {
-  "cards": 726,
+  "cards": 727,
   "feed_phase_readiness": {
    "bucket_a_masking": 0,
    "bucket_b_genuine_gap": 12,
@@ -42,10 +42,10 @@
   },
   "synergy_completeness": {
    "effects_category_other": 26,
-   "effects_total": 1720,
+   "effects_total": 1722,
    "full_pct": 98.62,
    "parse_confidence": {
-    "full": 716,
+    "full": 717,
     "partial": 10
    },
    "triggers_event_other": 44,

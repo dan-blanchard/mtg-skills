@@ -1024,7 +1024,10 @@ from mtg_utils.card_ir import Card
 # v74: Effect.toughness — the SIGNED toughness companion to amount's power on a pump
 #   effect (project._pump_toughness), so a mass -X/-X shrink is structurally a board
 #   wipe (vs a harmless power-only -2/-0). Additive field; only _ir_board_wipe reads it.
-SIDECAR_VERSION = 74
+# v75: extend Effect.toughness to the STATIC-anthem pump path (the AddToughness
+#   modification), so a static mass-debuff anthem (Elesh Norn's opponents' -2/-2) is a
+#   structural board wipe too.
+SIDECAR_VERSION = 75
 
 
 def card_ir_dir() -> Path:

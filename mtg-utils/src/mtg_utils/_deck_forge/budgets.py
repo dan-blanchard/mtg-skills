@@ -148,8 +148,8 @@ def _ir_board_wipe(ir: Card) -> bool:
     ``Effect.toughness`` companion: a mass ``pump`` whose toughness factor is negative
     can kill, where a harmless power-only "-2/-0" (toughness factor 0) and a "+X/+X"
     anthem (factor > 0) are excluded. A SINGLE-target shrink is ``pump_target`` (not the
-    mass ``pump``). (A STATIC mass debuff anthem, Elesh Norn, still rides the regex
-    preset; its static-mod projection carries no toughness yet.)"""
+    mass ``pump``). Covers both a mass-shrink SPELL (Toxic Deluge) and a STATIC
+    mass-debuff anthem (Elesh Norn's opponents' -2/-2 — SIDECAR v75)."""
     for ab in ir.all_abilities():
         for e in ab.effects:
             subj = e.subject
