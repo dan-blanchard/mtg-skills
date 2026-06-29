@@ -168,6 +168,63 @@ def _ir_board_wipe(ir: Card) -> bool:
     return False
 
 
+# Effect categories that ARE a real answer (so a card carrying one is not pure graveyard
+# recursion). topdeck_stack is a tuck ("put target X on top of its owner's library" —
+# Rootrunner, or graveyard hate); the rest are removal / counters / edict / pacify.
+_IR_REAL_ANSWER_CATS = frozenset(
+    {
+        "destroy",
+        "damage",
+        "counter_spell",
+        "exile",
+        "restriction",
+        "sacrifice",
+        "topdeck_stack",
+    }
+)
+
+
+def _ir_recursion_only(ir: Card) -> bool:
+    """True iff the card's ONLY interaction-shaped effect is GRAVEYARD RECURSION — a
+    bounce that returns a card from a graveyard, with no real answer alongside it.
+
+    Such a card (Pharika's Mender, Pulse of Murasa, Neva — "return target creature OR
+    enchantment card from your graveyard to your hand") is value/recursion, NOT removal;
+    the ``removal`` / ``bounce`` presets misfire on the "X or Y card from graveyard"
+    form their ``(?!\\s+card\\b)`` anchor can't exclude (the "card" doesn't immediately
+    follow the first noun). The structural read vetoes those.
+
+    A battlefield bounce (``in:battlefield`` target, or a bounce with no graveyard
+    zone), a targeted ``-X/-X`` shrink (``pump_target`` with negative toughness), a
+    tuck, or any destroy/damage/counter/exile/edict/pacify effect means the card has a
+    REAL answer → NOT recursion-only (returns False). The veto only fires when a
+    graveyard bounce is the SOLE interaction-shaped effect, so a card with no graveyard
+    bounce can never be vetoed (``saw_gy_bounce`` stays False). Requires the SIDECAR-v76
+    per-effect graveyard zones (before v76 a sibling's "from graveyard" bled onto
+    battlefield bounces, which would have made answers like Aether Helix look
+    recursion-only)."""
+    saw_gy_bounce = False
+    for ab in ir.all_abilities():
+        for e in ab.effects:
+            cat = e.category
+            if cat == "bounce":
+                if "in:battlefield" in e.zones:
+                    return False  # targets a battlefield permanent — a real bounce
+                if any("graveyard" in z for z in e.zones):
+                    saw_gy_bounce = True
+                else:
+                    return False  # a non-graveyard bounce is a real tempo answer
+            elif cat in _IR_REAL_ANSWER_CATS:
+                return False
+            elif (
+                cat == "pump_target"
+                and e.toughness is not None
+                and e.toughness.factor < 0
+            ):
+                return False  # a targeted -X/-X shrink is removal
+    return saw_gy_bounce
+
+
 def role_of(card: dict) -> set[str]:
     """Hard-counted template roles a card fills (a card may fill several).
 
@@ -177,8 +234,11 @@ def role_of(card: dict) -> set[str]:
     the ``counter_kind="all"`` mass-removal marker), degrading to the curated presets
     when the card has no IR. The regex preset ALSO runs for ``board_wipe``: it still
     owns the ``-X/-X`` mass shrink the projection can't yet express (see
-    ``_ir_board_wipe``). ``interaction`` stays on its presets: the IR's ``destroy`` /
-    ``restriction`` categories don't encode the pacify-vs-self and edict boundaries."""
+    ``_ir_board_wipe``). ``interaction`` stays on its presets for the positive match
+    (the IR's ``destroy`` / ``restriction`` categories don't encode the pacify-vs-self
+    and edict boundaries), but a structural VETO drops a preset hit the IR shows is pure
+    graveyard recursion (``_ir_recursion_only`` — "return X or Y card from your
+    graveyard", which the preset's ``card`` anchor misses)."""
     roles: set[str] = set()
     ir = ir_for(card)
     if is_land(card):
@@ -194,7 +254,9 @@ def role_of(card: dict) -> set[str]:
         roles.add("card_draw")
     if (ir is not None and _ir_board_wipe(ir)) or _matches_preset(card, "board-wipe"):
         roles.add("board_wipe")
-    if _matches_any(card, _INTERACTION_PRESETS):
+    if _matches_any(card, _INTERACTION_PRESETS) and not (
+        ir is not None and _ir_recursion_only(ir)
+    ):
         roles.add("interaction")
     return roles
 
