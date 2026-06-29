@@ -29,14 +29,21 @@ to it.
 from __future__ import annotations
 
 from mtg_utils._card_ir.crosswalk import (
+    ARTIFACT_TOKEN_SUBTYPES,
     ConceptTree,
     amount_factor,
     amount_is_scaling,
     change_zone_dirs,
+    count_operand_filter,
     counter_kind,
+    counter_pred_kinds,
+    effect_filter,
     effect_reaches_player,
     explicit_recipient_scope,
+    filter_controller,
+    filter_core_types,
     filter_predicates,
+    filter_subtypes,
     tag_of,
     trigger_scope,
     trigger_subject,
@@ -71,8 +78,46 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "blink_flicker",
         "tokens_matter",
         "ramp",
+        # Batch 3 (ADR-0035 Stage 2, big over-fire lanes + doer cluster):
+        "creatures_matter",
+        "artifacts_matter",
+        "enchantments_matter",
+        "attack_matters",
+        "tapped_matters",
+        "any_counter_makers",
+        "any_counter_matters",
+        "plus_one_matters",
+        "minus_counters_matter",
+        "gain_control",
+        "treasure_makers",
+        "food_makers",
+        "clue_makers",
+        "blood_makers",
+        "mill_makers",
+        "proliferate_makers",
+        "energy_makers",
+        "voltron_makers",
+        "voltron_matters",
     }
 )
+
+# Equipment / Aura / Role subtypes that mark a voltron build-around (CR 301.5 /
+# 303.4 / 702.5). Mirrors ``_signals_regex._EQUIP_AURA_SUBTYPES`` (+ Role, a Aura
+# subtype phase carries on Virtuous Role tokens).
+_VOLTRON_SUBTYPES: frozenset[str] = frozenset({"aura", "equipment", "role"})
+
+# Attachment-STATE predicate tags (CR 301.5c / 303). Mirrors
+# ``_signals_regex._ATTACHMENT_PREDICATES``.
+_ATTACHMENT_PREDS: frozenset[str] = frozenset(
+    {"AttachedToRecipient", "HasAnyAttachmentOf"}
+)
+
+# Core-type → matters lane. A composite (Artifact AND/OR Enchantment) subject fires
+# BOTH. Mirrors ``_signals_ir._TYPE_MATTERS_LANE`` for this batch's two types.
+_TYPE_MATTERS_LANE: dict[str, str] = {
+    "Artifact": "artifacts_matter",
+    "Enchantment": "enchantments_matter",
+}
 
 # Effect/owner scopes that count as "your" resource for a maker lane.
 _YOU_EACH = ("you", "each")
@@ -656,6 +701,418 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ── Batch 3 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────
+
+
+def _typed_matters_lanes(filt: object) -> list[str]:
+    """The artifacts/enchantments lane(s) for a YOUR-permanents filter (CR 702.41 /
+    604.3). Mirrors ``_signals_ir._typed_matters_lanes``: a non-opponent filter naming
+    Artifact / Enchantment in its CORE types fires that type's lane; a composite fires
+    both. The SYMMETRIC-LIST GATE (CR 702.166a): a filter that ALSO carries the
+    catch-all ``Permanent`` (Bargain's "an artifact, enchantment, or token") is a
+    generic alt-cost, not a build-around — fire no lane.
+    """
+    if filt is None or filter_controller(filt) == "Opponent":
+        return []
+    cores = filter_core_types(filt)
+    if "Permanent" in cores:
+        return []
+    return [lane for ct, lane in _TYPE_MATTERS_LANE.items() if ct in cores]
+
+
+def _is_artifact_token_types(types: tuple[str, ...]) -> bool:
+    """Whether a token's ``types`` name an Artifact — the Artifact card-type OR a
+    predefined artifact-token subtype (Treasure/Clue/Food/… CR 205.3g), which phase
+    carries with an empty card-type list.
+    """
+    if "Artifact" in types:
+        return True
+    return any(t.lower() in ARTIFACT_TOKEN_SUBTYPES for t in types)
+
+
+def _generic_board_lanes(filt: object) -> list[str]:
+    """artifacts/enchantments lane(s) for a GENERIC own-board anthem subject — a
+    static buff/grant over your whole artifact/enchantment board (Padeem; Fountain
+    Watch composite). Mirrors ``_signals_ir._generic_board_subject``: controller you,
+    NO subtype (a subtyped buff is a narrower tribal care), Artifact/Enchantment in
+    core types.
+    """
+    if filter_controller(filt) != "You" or filter_subtypes(filt):
+        return []
+    cores = filter_core_types(filt)
+    if "Permanent" in cores:
+        return []
+    return [lane for ct, lane in _TYPE_MATTERS_LANE.items() if ct in cores]
+
+
+def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
+    """artifacts_matter / enchantments_matter — the broad type-payoff lanes (CR 301 /
+    303). Mirrors ``_signals_ir`` six structural arms over the typed substrate:
+
+    * **count operand** — a value scaling with your artifacts/enchantments
+      (Affinity payoffs, "for each artifact you control");
+    * **tutor** — a ``SearchLibrary`` whose CORE filter type is Artifact/Enchantment
+      with NO subtype (Fabricate, Idyllic Tutor; Enlightened Tutor → both);
+    * **generic-board anthem** — a static pump/grant over the whole own-board set
+      (Padeem);
+    * **token maker** — a ``make_token`` of an Artifact (incl. Treasure/Clue/Food
+      resource subtypes) / Enchantment subject, scope you/any;
+    * **sac payoff** — a ``Sacrifice`` of an Artifact/Enchantment subject (Atog-style
+      fodder), non-opponent, with the Permanent-symmetric-list gate (CR 702.166a).
+
+    The ``Permanent``-in-list gate drops the Bargain alt-cost over-fires.
+    """
+    out: list[str] = []
+    for c in tree.iter_concepts():
+        node = c.node
+        # count operand (scaling value over your artifacts/enchantments)
+        out.extend(_typed_matters_lanes(count_operand_filter(node)))
+        if c.role != "effect":
+            continue
+        if c.concept == "tutor":
+            sub = effect_filter(node)
+            if sub is not None and not filter_subtypes(sub):
+                out.extend(_typed_matters_lanes(sub))
+        if c.concept == "make_token" and c.scope in ("you", "any"):
+            types = c.subject
+            if _is_artifact_token_types(types):
+                out.append("artifacts_matter")
+            if "Enchantment" in types:
+                out.append("enchantments_matter")
+    # SAC PAYOFF — your-fodder artifact/enchantment sac (Atog-style). Per-unit so the
+    # edict guard applies: "each opponent sacrifices an artifact/enchantment" (Tribute
+    # to the Wild, Mire in Misery, Vile Mutilator) is an EDICT phase mislabels with a
+    # you-controlled subject; ``_edict_actor`` rejects it (CR 701.21a). The sac subject
+    # must be genuinely you-controlled; the Permanent-symmetric-list gate (CR 702.166a)
+    # drops the Bargain alt-cost.
+    for unit in tree.units:
+        if _edict_actor(unit):
+            continue
+        for c in unit.effects:
+            if c.concept != "sacrifice" or c.scope == "opponents":
+                continue
+            sub = effect_filter(c.node)
+            if sub is None or filter_controller(sub) != "You":
+                continue
+            cores = filter_core_types(sub)
+            if "Permanent" in cores:
+                continue
+            if _is_artifact_token_types(c.subject):
+                out.append("artifacts_matter")
+            if "Enchantment" in cores:
+                out.append("enchantments_matter")
+    # generic-board static anthem/grant (Padeem) — read the static's affected filter
+    for unit in tree.units:
+        for c in unit.statics:
+            if c.concept in ("pump", "grant_keyword", "set_pt"):
+                out.extend(_generic_board_lanes(getattr(unit.node, "affected", None)))
+    seen: set[str] = set()
+    sigs: list[Signal] = []
+    for lane in out:
+        if lane not in seen:
+            seen.add(lane)
+            sigs.append(Signal(lane, "you", "", "", tree.name, "high"))
+    return sigs
+
+
+def _is_generic_creature_filter(filt: object) -> bool:
+    """A GENERIC "creatures you control" filter (CR 604.3) — Creature in core types,
+    NO subtype, controller you. A tribal (subtyped) filter is ``type_matters``, a
+    different lane; a single-target removal/buff (controller any) fails the gate.
+    """
+    return (
+        filter_controller(filt) == "You"
+        and "Creature" in filter_core_types(filt)
+        and not filter_subtypes(filt)
+    )
+
+
+def _creatures_matter(tree: ConceptTree) -> list[Signal]:
+    """creatures_matter — a go-wide payoff scaling with / antheming the GENERIC
+    creature population you control (CR 604.3). Mirrors ``_signals_ir`` line ~7686:
+
+    * a **count operand** that is a generic creature count (Craterhoof's +X/+X, a
+      "for each creature you control" value);
+    * a **team anthem** — a top-level pump / grant-keyword / set-P/T static over the
+      generic own-board creature set (Intangible-Virtue-class team buff).
+
+    A SUBTYPE filter (Goblin King's "other Goblins") fails the no-subtype gate (it is
+    ``type_matters``). A single-target removal/buff (controller any) never reaches
+    here. The LOW regex floor (token-maker → creatures_matter) stays a ``live_only``
+    mirror, not ported.
+    """
+    for c in tree.iter_concepts():
+        if _is_generic_creature_filter(count_operand_filter(c.node)):
+            return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for c in unit.statics:
+            if c.concept in ("pump", "grant_keyword", "set_pt") and (
+                _is_generic_creature_filter(getattr(unit.node, "affected", None))
+            ):
+                return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
+    """attack_matters / tapped_matters — a combat-state payoff over YOUR creatures
+    (CR 508.4 attacking / 301 tapped). Mirrors ``_signals_ir`` line ~8259: an effect
+    whose subject (or count operand) filter has controller you AND carries the
+    ``Attacking`` / ``Tapped`` predicate ("attacking creatures you control get
+    +1/+0"; "for each tapped creature you control"). The controller gate is
+    load-bearing — "destroy target attacking creature" (controller any) is removal,
+    not an aggro lane. Tapped is creature-gated (a tapped LAND bounce is mana, not
+    aggro).
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", raw, tree.name, "high"))
+
+    for c in tree.iter_concepts():
+        if c.role != "effect":
+            continue
+        for filt in (effect_filter(c.node), count_operand_filter(c.node)):
+            if filt is None or filter_controller(filt) != "You":
+                continue
+            preds = filter_predicates(filt)
+            cores = filter_core_types(filt)
+            if "Tapped" in preds and ("Creature" in cores or not cores):
+                fire("tapped_matters", c.raw)
+            if "Attacking" in preds:
+                fire("attack_matters", c.raw)
+    return out
+
+
+def _any_counter_makers(tree: ConceptTree) -> list[Signal]:
+    """any_counter_makers — a kind-AGNOSTIC counter DOER (CR 122.1 / 701.34a).
+    Mirrors ``_signals_ir`` lines ~8548/8566: a ``proliferate`` (adds one counter of
+    EACH kind already there), a counter MOVE (relocates counters — Bioshift, The
+    Ozolith), OR a ``remove_counter`` with NO specified kind (Aether Snap, Hex
+    Parasite). A KIND-SPECIFIC remove (fade/time/oil — a card spending its own niche
+    counter) is excluded. Scope "you".
+    """
+    for c in tree.effect_concepts("proliferate"):
+        return [Signal("any_counter_makers", "you", "", c.raw, tree.name, "high")]
+    for c in tree.effect_concepts("move_counters"):
+        return [Signal("any_counter_makers", "you", "", c.raw, tree.name, "high")]
+    for c in tree.effect_concepts("remove_counter"):
+        if not counter_kind(c.node):
+            return [Signal("any_counter_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _minus_counters_matter(tree: ConceptTree) -> list[Signal]:
+    """minus_counters_matter — a -1/-1 counter PLACEMENT maker (CR 122.1 / 122.6 /
+    702.90 wither). Mirrors ``_signals_ir`` ``_COUNTER_KIND_KEYS['m1m1']`` on the
+    ``place_counter`` maker arm: a ``PutCounter`` / ``PutCounterAll`` whose
+    ``counter_type`` is ``M1M1`` (Hapatra, Blight Mamba). The kind gate is the whole
+    discriminator vs +1/+1 (split-lane principle). persist/wither keyword arms stay
+    keyword-derived (out of this typed arm). Scope "you".
+    """
+    for c in tree.effect_concepts("place_counter"):
+        if counter_kind(c.node).upper() == "M1M1":
+            return [
+                Signal("minus_counters_matter", "you", "", c.raw, tree.name, "high")
+            ]
+    return []
+
+
+def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
+    """plus_one_matters — a +1/+1 counter PAYOFF (CR 122.1). The structural arms
+    (``_signals_ir`` ~8556 / ~8278): a ``move_counters`` whose kind is ``P1P1`` (a
+    p1p1 move relocates the engine — Bioshift), OR a subject / count-operand filter
+    carrying a ``Counters`` predicate of kind ``P1P1`` ("creatures you control with a
+    +1/+1 counter", "for each creature with a +1/+1 counter on it" — Inspiring Call).
+    The raw-``"+1/+1 counter"`` idiom arms stay ``live_only`` raw-fold mirrors. Scope
+    "you".
+    """
+    for c in tree.effect_concepts("move_counters"):
+        if counter_kind(c.node).upper() == "P1P1":
+            return [Signal("plus_one_matters", "you", "", c.raw, tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.role == "cost":
+            continue
+        for filt in (effect_filter(c.node), count_operand_filter(c.node)):
+            if filt is None or filter_controller(filt) == "Opponent":
+                continue
+            if "P1P1" in counter_pred_kinds(filt):
+                return [Signal("plus_one_matters", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _any_counter_matters(tree: ConceptTree) -> list[Signal]:
+    """any_counter_matters — a kind-AGNOSTIC counter PAYOFF (CR 122.1). The structural
+    arm only (``_signals_ir`` ~9694 arm b): a subject / count-operand filter carrying
+    a ``Counters`` predicate of the kind-agnostic ``Any`` form ("for each counter on
+    ~", "a permanent with a counter on it"). The amount-raw "counter"-discriminator
+    arm (a) is a documented ``live_only`` raw-fold (phase drops the counted-object).
+    Scope "you".
+    """
+    for c in tree.iter_concepts():
+        if c.role == "cost":
+            continue
+        for filt in (effect_filter(c.node), count_operand_filter(c.node)):
+            if filt is None or filter_controller(filt) == "Opponent":
+                continue
+            if "Any" in counter_pred_kinds(filt):
+                return [
+                    Signal("any_counter_matters", "you", "", c.raw, tree.name, "high")
+                ]
+    return []
+
+
+def _gain_control(tree: ConceptTree) -> list[Signal]:
+    """gain_control — THEFT (you take control of a permanent you don't own, CR 110.2 /
+    720). Mirrors ``_signals_ir`` line ~9270: a ``GainControl`` / ``GainControlAll``
+    effect (Threaten, Control Magic's reset-free theft), EXCLUDING a control-RESET
+    (an ``Owned`` predicate on the target — "each player gains control of permanents
+    they own", Brooding Saurian, CR 110.2a). A donate (``GiveControl`` — you give
+    your OWN away) is a SEPARATE phase tag, never reaching this arm. A ``Control
+    Magic`` enchant rides a ``ChangeController`` STATIC modification. Scope "you".
+    """
+    for c in tree.effect_concepts("gain_control"):
+        sub = effect_filter(c.node)
+        if sub is not None and "Owned" in filter_predicates(sub):
+            continue  # control-RESET, not theft
+        return [Signal("gain_control", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for c in unit.statics:
+            if tag_of(c.node) == "ChangeController":
+                return [Signal("gain_control", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
+    """treasure_makers / food_makers / clue_makers / blood_makers — a predefined
+    artifact-token maker (CR 111.10 / 205.3g / 701.16a investigate). Mirrors
+    ``_signals_ir`` ~12297: a ``make_token`` whose token subtype is Treasure / Food /
+    Clue / Blood, scope you/each; ``Investigate`` is a first-class Clue maker. The
+    structural read improves on the raw-fallback (the resource subtype rides the
+    token's typed ``types``). Scope "you".
+    """
+    keys = {
+        "Treasure": "treasure_makers",
+        "Food": "food_makers",
+        "Clue": "clue_makers",
+        "Blood": "blood_makers",
+    }
+    out: list[str] = []
+    for c in tree.effect_concepts("make_token"):
+        if c.scope not in _YOU_EACH:
+            continue
+        for sub, key in keys.items():
+            if sub in c.subject:
+                out.append(key)
+    if tree.has_effect("investigate"):
+        out.append("clue_makers")
+    seen: set[str] = set()
+    sigs: list[Signal] = []
+    for key in out:
+        if key not in seen:
+            seen.add(key)
+            sigs.append(Signal(key, "you", "", "", tree.name, "high"))
+    return sigs
+
+
+def _mill_makers(tree: ConceptTree) -> list[Signal]:
+    """mill_makers — a mill DOER (CR 701.17a). A ``Mill`` effect (Stitcher's Supplier
+    self-mill, Maddening Cacophony opponent-mill). The live lane fires the keyword
+    array scoped "any"; the structural ``Mill`` effect is broader (catches the
+    keyword-less millers). Scope mirrors the live preset's "any".
+
+    Gated to ``destination == "Graveyard"`` (CR 701.17a — mill puts cards into a
+    graveyard): drops Scroll Rack (phase mislabels its library↔hand swap ``Mill`` with
+    a Hand destination). Two phase reanimation/recycle mislabels (Bone Dancer, Soldevi
+    Digger) keep a Graveyard destination and stay ``crosswalk_only``.
+    """
+    for c in tree.effect_concepts("mill"):
+        if getattr(c.node, "destination", None) == "Graveyard":
+            return [Signal("mill_makers", "any", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _proliferate_makers(tree: ConceptTree) -> list[Signal]:
+    """proliferate_makers — a proliferate DOER (CR 701.34a). A native ``Proliferate``
+    effect (Atraxa, Evolution Sage; the keyword-less proliferators the Scryfall regex
+    missed). The ``station`` keyword is a proliferate_matters payoff, not a doer —
+    routed elsewhere. Scope "you".
+    """
+    for c in tree.effect_concepts("proliferate"):
+        return [Signal("proliferate_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _energy_makers(tree: ConceptTree) -> list[Signal]:
+    """energy_makers — an energy producer (CR 107.14 / 122.1). A ``GainEnergy`` effect
+    (Aetherworks Marvel, Dynavolt Tower). phase models energy as a first-class effect
+    (NOT a kind-dropped ``GivePlayerCounter``), so the structural read is clean. Scope
+    "you".
+    """
+    for c in tree.effect_concepts("gain_energy"):
+        return [Signal("energy_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _voltron_makers(tree: ConceptTree) -> list[Signal]:
+    """voltron_makers — gear-attaching / Equipment-Aura tutor (CR 301.5 / 303.4 /
+    701.23). Mirrors ``_signals_regex._detect_voltron_maker_ir``: (a) an ``Attach``
+    effect moving ANOTHER typed Equipment/Aura onto a creature (the ``attachment``
+    field is a separate typed gear, NOT absent — Kor Outfitter, Balan), scope not
+    opponent; (b) a ``SearchLibrary`` whose searched filter SUBTYPE is Equipment/Aura
+    (Stoneforge Mystic, Godo, Three Dreams). Self-attach (Bonesplitter's equip —
+    ``attachment`` absent) is the payload, not a maker. Scope "you".
+    """
+    for c in tree.effect_concepts("attach"):
+        if c.scope == "opponents":
+            continue
+        attachment = getattr(c.node, "attachment", None)
+        if attachment is not None and (
+            {s.lower() for s in filter_subtypes(attachment)} & _VOLTRON_SUBTYPES
+        ):
+            return [Signal("voltron_makers", "you", "", c.raw, tree.name, "high")]
+    for c in tree.effect_concepts("tutor"):
+        sub = effect_filter(c.node)
+        if sub is not None and (
+            {s.lower() for s in filter_subtypes(sub)} & _VOLTRON_SUBTYPES
+        ):
+            return [Signal("voltron_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _voltron_matters(tree: ConceptTree) -> list[Signal]:
+    """voltron_matters — an Aura/Equipment PAYOFF build-around (CR 301.5c / 303).
+    Mirrors ``_signals_regex._detect_voltron_payoff_ir``: (a) a ``cast_spell`` trigger
+    whose watched subject SUBTYPE is Equipment/Aura (Sram, Kor Spiritdancer); (b) an
+    attachment-STATE predicate (``AttachedToRecipient`` / ``HasAnyAttachmentOf`` — "for
+    each Aura attached to it", "enchanted or equipped creatures" — Reyav, Koll) on any
+    effect / count-operand subject. NOT the bare subtype on an effect subject (covers
+    Aura hate), NOT an ``EquippedBy`` payload-pump. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.trigger_event == "cast_spell":
+            vc = getattr(unit.node, "valid_card", None)
+            if {s.lower() for s in filter_subtypes(vc)} & _VOLTRON_SUBTYPES:
+                return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        # an attachment-STATE watched subject ("enchanted or equipped creature you
+        # control attacks" — Reyav) carries the predicate on the trigger's valid_card.
+        for fname in ("valid_card", "valid_source"):
+            wf = getattr(unit.node, fname, None)
+            if wf is not None and set(filter_predicates(wf)) & _ATTACHMENT_PREDS:
+                return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        for c in unit.iter_concepts():
+            for filt in (effect_filter(c.node), count_operand_filter(c.node)):
+                if filt is not None and (
+                    set(filter_predicates(filt)) & _ATTACHMENT_PREDS
+                ):
+                    return [
+                        Signal("voltron_matters", "you", "", c.raw, tree.name, "high")
+                    ]
+    return []
+
+
 _LANES = (
     _win_lose_game,
     _discard_makers,
@@ -675,6 +1132,20 @@ _LANES = (
     _blink_flicker,
     _tokens_matter,
     _ramp,
+    _artifacts_enchantments_matter,
+    _creatures_matter,
+    _attack_tapped_matters,
+    _any_counter_makers,
+    _minus_counters_matter,
+    _plus_one_matters,
+    _any_counter_matters,
+    _gain_control,
+    _resource_token_makers,
+    _mill_makers,
+    _proliferate_makers,
+    _energy_makers,
+    _voltron_makers,
+    _voltron_matters,
 )
 
 

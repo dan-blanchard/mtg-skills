@@ -74,7 +74,39 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "ChangeZone": "change_zone",  # reanimator (GY→bf) / blink (exile+return)
     "ChangeZoneAll": "change_zone",
     "Mana": "ramp",  # mana production (lane splits land base vs accel/fixing)
+    # Batch 3 (ADR-0035 Stage 2):
+    "Mill": "mill",  # mill_makers / graveyard self-fill (CR 701.17a)
+    "Proliferate": "proliferate",  # proliferate_makers / any_counter_makers
+    "MoveCounters": "move_counters",  # any_counter_makers / plus_one_matters (p1p1)
+    "RemoveCounter": "remove_counter",  # any_counter_makers (kindless)
+    "GainControl": "gain_control",  # theft (CR 720) — donate/reset excluded
+    "GainControlAll": "gain_control",
+    "GiveControl": "give_control",  # donate (the exclusion direction)
+    "Attach": "attach",  # voltron_makers (attach-other gear)
+    "SearchLibrary": "tutor",  # type/subtype tutor (artifacts/voltron)
+    "Investigate": "investigate",  # clue_makers (CR 701.16a) → also artifacts
+    "GainEnergy": "gain_energy",  # energy_makers (CR 107.14)
 }
+
+# Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): a maker / sac-payoff over
+# one feeds artifacts_matter even when phase carries only the subtype with an empty
+# card_types (Emissary Green, Giant Opportunity). Mirrors ``_signals_ir``
+# ``_ARTIFACT_TOKEN_SUBTYPES``.
+ARTIFACT_TOKEN_SUBTYPES: frozenset[str] = frozenset(
+    {
+        "treasure",
+        "clue",
+        "food",
+        "powerstone",
+        "gold",
+        "map",
+        "junk",
+        "incubator",
+        "blood",
+        "lander",
+        "mutagen",
+    }
+)
 
 OTHER = "other"
 
@@ -471,6 +503,138 @@ def filter_predicates(filt: object) -> tuple[str, ...]:
     elif t in ("Or", "And"):
         for sub in getattr(filt, "filters", ()) or ():
             out.extend(filter_predicates(sub))
+    return tuple(out)
+
+
+def effect_filter(node: TypedMirrorNode) -> object | None:
+    """The typed FILTER node an effect names (``subject`` / ``filter`` / ``target`` /
+    ``affected``), or ``None``.
+
+    Distinct from :func:`_effect_subject` (which flattens a filter to plain type
+    words and special-cases a token's ``types`` list): the type-payoff / predicate
+    lanes need the filter NODE itself to read its controller, core-vs-subtype split,
+    and predicates (:func:`filter_controller` / :func:`filter_core_types` /
+    :func:`filter_subtypes` / :func:`filter_predicates`).
+    """
+    for fname in ("subject", "filter", "target", "affected"):
+        sub = getattr(node, fname, MISSING)
+        if _present(sub):
+            return sub
+    return None
+
+
+def count_operand_filter(node: TypedMirrorNode) -> object | None:
+    """The FILTER of an effect's dynamic count operand (``Ref`` → ``ObjectCount``).
+
+    A scaling value ("draw a card for each artifact you control" — Inspiring Call;
+    "+X/+X where X is the number of creatures you control" — Craterhoof) carries the
+    counted population on ``amount`` / ``count`` / ``value`` as a ``Ref`` whose
+    ``qty`` is an ``ObjectCount`` with a ``filter``. The type/counter-matters lanes
+    read that counted set's filter — the operand the old projection dropped.
+    """
+    for fname in ("amount", "count", "value"):
+        q = getattr(node, fname, MISSING)
+        if not _present(q) or tag_of(q) != "Ref":
+            continue
+        qty = getattr(q, "qty", None)
+        if tag_of(qty) == "ObjectCount":
+            filt = getattr(qty, "filter", None)
+            if filt is not None:
+                return filt
+    return None
+
+
+def filter_controller(filt: object) -> str | None:
+    """The phase ``controller`` of a typed filter (``"You"`` / ``"Opponent"`` /
+    ``None``), recursing ``Or`` / ``And`` to the first that names one.
+    """
+    t = tag_of(filt)
+    if t == "Typed":
+        c = getattr(filt, "controller", None)
+        return c if isinstance(c, str) else None
+    if t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            c = filter_controller(sub)
+            if c is not None:
+                return c
+    return None
+
+
+def filter_core_types(filt: object) -> tuple[str, ...]:
+    """The CORE card-type words of a typed filter (bare strings — ``Creature`` /
+    ``Artifact`` / ``Permanent``), EXCLUDING subtype / ``Non`` / ``AnyOf`` wrappers.
+
+    The complement of :func:`filter_subtypes`. The generic-board / type-matters gates
+    read core types (no subtype) — a ``{Subtype: Equipment}`` entry is NOT a core
+    type. Recurses ``Or`` / ``And``.
+    """
+    out: list[str] = []
+    t = tag_of(filt)
+    if t == "Typed":
+        for tf in getattr(filt, "type_filters", ()) or ():
+            if isinstance(tf, str):
+                out.append(tf)
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            out.extend(filter_core_types(sub))
+    return tuple(out)
+
+
+def filter_subtypes(filt: object) -> tuple[str, ...]:
+    """The SUBTYPE words of a typed filter (``{Subtype: Equipment}`` → ``Equipment``;
+    ``{AnyOf: [...]}`` recursed), EXCLUDING bare core types and ``Non`` negations.
+
+    The voltron / tribal gates read subtypes; the generic-board gate requires the
+    subtype set EMPTY. Recurses ``Or`` / ``And``.
+    """
+    out: list[str] = []
+    t = tag_of(filt)
+    if t == "Typed":
+        for tf in getattr(filt, "type_filters", ()) or ():
+            if isinstance(tf, MirrorVariant):
+                if tf.key == "Subtype":
+                    inner = tf.inner
+                    out.append(inner if isinstance(inner, str) else tf.key)
+                elif tf.key == "AnyOf" and isinstance(tf.inner, list):
+                    for e in tf.inner:
+                        if isinstance(e, MirrorVariant) and e.key == "Subtype":
+                            out.append(e.inner if isinstance(e.inner, str) else e.key)
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            out.extend(filter_subtypes(sub))
+    return tuple(out)
+
+
+def counter_pred_kinds(filt: object) -> tuple[str, ...]:
+    """The counter KINDS a filter's ``Counters`` predicates reference (``"P1P1"`` /
+    ``"M1M1"`` / ``"Any"`` …), EXCLUDING the ``EQ 0`` "with NO counter" inverse.
+
+    Mirrors ``_signals_ir._counter_pred_kinds`` over the typed predicate: a
+    ``Counters`` property carries ``comparator`` + ``count`` + ``counters``
+    (``{OfType: <kind>}`` for a named kind, else the kind-agnostic "any counter"
+    form → ``"Any"``). The +1/+1 / -1/-1 / any-counter payoff lanes route by kind.
+    Recurses ``Or`` / ``And``.
+    """
+    out: list[str] = []
+    t = tag_of(filt)
+    if t == "Typed":
+        for prop in getattr(filt, "properties", ()) or ():
+            if tag_of(prop) != "Counters":
+                continue
+            cmp_ = getattr(prop, "comparator", None)
+            cnt = getattr(prop, "count", None)
+            val = getattr(cnt, "value", None) if cnt is not None else None
+            if cmp_ == "EQ" and val == 0:
+                continue  # "with NO counter" — the inverse, not a payoff
+            counters = getattr(prop, "counters", None)
+            if tag_of(counters) == "OfType":
+                data = getattr(counters, "data", None)
+                out.append(data if isinstance(data, str) else "Any")
+            else:
+                out.append("Any")
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            out.extend(counter_pred_kinds(sub))
     return tuple(out)
 
 

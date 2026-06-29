@@ -462,6 +462,188 @@ def test_filter_type_words_recurses_anyof():
     assert "Mercenary" in subj
 
 
+# ── Batch 3 (ADR-0035 Stage 2): big over-fire lanes + doer cluster ────────────
+
+
+def test_batch3_framework_filter_helpers():
+    """The new typed filter reads: core-vs-subtype split, controller, count operand."""
+    from mtg_utils._card_ir.crosswalk import (
+        count_operand_filter,
+        effect_filter,
+        filter_controller,
+        filter_core_types,
+        filter_subtypes,
+    )
+
+    # Stoneforge's tutor filter names the Equipment SUBTYPE, not a core type.
+    sm = _tree("Stoneforge Mystic")
+    tut = next(c for c in sm.effect_concepts("tutor"))
+    f = effect_filter(tut.node)
+    assert "Equipment" in filter_subtypes(f)
+    assert "Equipment" not in filter_core_types(f)
+    # Padeem's anthem affected filter is a generic own-board Artifact set.
+    pad = _tree("Padeem, Consul of Innovation")
+    static = next(u for u in pad.units if u.origin == "static")
+    aff = static.node.affected
+    assert "Artifact" in filter_core_types(aff)
+    assert not filter_subtypes(aff)
+    assert filter_controller(aff) == "You"
+    # Inspiring Call's draw counts creatures-you-control with a +1/+1 counter.
+    ic = _tree("Inspiring Call")
+    draw = next(c for c in ic.effect_concepts("draw"))
+    cf = count_operand_filter(draw.node)
+    assert cf is not None
+    assert filter_controller(cf) == "You"
+
+
+def test_counter_pred_kinds_reads_typed_counters_predicate():
+    """``counter_pred_kinds`` surfaces the P1P1 kind off a typed Counters predicate."""
+    from mtg_utils._card_ir.crosswalk import (
+        count_operand_filter,
+        counter_pred_kinds,
+    )
+
+    ic = _tree("Inspiring Call")
+    draw = next(c for c in ic.effect_concepts("draw"))
+    assert "P1P1" in counter_pred_kinds(count_operand_filter(draw.node))
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Glorious Anthem", True),  # generic creatures-you-control anthem
+        ("Inspiring Call", True),  # count operand over your creatures
+        ("Goblin King", False),  # SUBTYPE anthem — type_matters, not this
+    ],
+)
+def test_creatures_matter_generic_gate(name, should_fire):
+    assert (("creatures_matter", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "ident", "should_fire"),
+    [
+        ("Padeem, Consul of Innovation", ("artifacts_matter", "you", ""), True),
+        ("Enlightened Tutor", ("artifacts_matter", "you", ""), True),  # composite
+        ("Enlightened Tutor", ("enchantments_matter", "you", ""), True),
+        ("Dockside Extortionist", ("artifacts_matter", "you", ""), True),  # Treasure
+        ("Bartered Cow", ("artifacts_matter", "you", ""), True),  # Food token
+        # Edict over-fire: "each opponent sacrifices an artifact or enchantment" is a
+        # you-controlled-subject phase mislabel — must NOT open either type lane.
+        ("Tribute to the Wild", ("artifacts_matter", "you", ""), False),
+        ("Tribute to the Wild", ("enchantments_matter", "you", ""), False),
+    ],
+)
+def test_artifacts_enchantments_matter(name, ident, should_fire):
+    assert (ident in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Foul-Tongue Shriek", True),  # count of attacking creatures you control
+        ("Aetherize", False),  # "all attacking creatures" (controller any) — removal
+    ],
+)
+def test_attack_matters_controller_gate(name, should_fire):
+    assert (("attack_matters", "you", "") in _idents(name)) is should_fire
+
+
+def test_tapped_matters_fires():
+    assert ("tapped_matters", "you", "") in _idents("Toil to Renown")
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Karn's Bastion", True),  # proliferate
+        ("Aether Snap", True),  # kindless "remove all counters"
+        ("Bioshift", True),  # counter MOVE
+        ("Tangle Wire", False),  # fade-counter remove (kind set) — excluded
+    ],
+)
+def test_any_counter_makers_kind_gate(name, should_fire):
+    assert (("any_counter_makers", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Hapatra, Vizier of Poisons", True),  # M1M1 placement
+        ("Cathars' Crusade", False),  # P1P1 placement — the +1/+1 lane, not this
+    ],
+)
+def test_minus_counters_matter_kind_gate(name, should_fire):
+    assert (("minus_counters_matter", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize("name", ["Inspiring Call", "Bioshift"])
+def test_plus_one_matters_structural_arms(name):
+    assert ("plus_one_matters", "you", "") in _idents(name)
+
+
+def test_any_counter_matters_predicate_arm():
+    assert ("any_counter_matters", "you", "") in _idents("Concord with the Kami")
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Control Magic", True),  # ChangeController static — theft
+        ("Act of Treason", True),  # GainControl effect — theft
+        ("Donate", False),  # GiveControl (you give your own away)
+        ("Brooding Saurian", False),  # Owned reset (each player regains own)
+    ],
+)
+def test_gain_control_theft_vs_donate_reset(name, should_fire):
+    assert (("gain_control", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        ("Dockside Extortionist", ("treasure_makers", "you", "")),
+        ("Tireless Tracker", ("clue_makers", "you", "")),  # investigate
+        ("Bartered Cow", ("food_makers", "you", "")),
+        ("Voldaren Bloodcaster", ("blood_makers", "you", "")),
+    ],
+)
+def test_resource_token_makers(name, ident):
+    assert ident in _idents(name)
+
+
+def test_mill_makers_fires():
+    assert ("mill_makers", "any", "") in _idents("Stitcher's Supplier")
+
+
+def test_proliferate_makers_fires():
+    assert ("proliferate_makers", "you", "") in _idents("Karn's Bastion")
+
+
+def test_energy_makers_fires():
+    assert ("energy_makers", "you", "") in _idents("Aetherworks Marvel")
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Stoneforge Mystic", True),  # Equipment-card tutor
+        ("Kor Outfitter", True),  # attach ANOTHER Equipment onto a creature
+        ("Bonesplitter", False),  # self-equip (the gear) — payload, not a maker
+    ],
+)
+def test_voltron_makers_attach_other_vs_self(name, should_fire):
+    assert (("voltron_makers", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Sram, Senior Edificer", "Reyav, Master Smith"],  # cast-spell / attachment-state
+)
+def test_voltron_matters_payoff(name):
+    assert ("voltron_matters", "you", "") in _idents(name)
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 
