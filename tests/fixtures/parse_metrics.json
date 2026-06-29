@@ -3,30 +3,30 @@
   "cards": 34555,
   "feed_phase_readiness": {
    "bucket_a_masking": 0,
-   "bucket_b_genuine_gap": 182,
-   "cards_with_recovered_node": 181,
+   "bucket_b_genuine_gap": 181,
+   "cards_with_recovered_node": 180,
    "recovered_by_category": {
     "discard": 61,
     "facedown_ref": 91,
-    "other": 30
+    "other": 29
    },
-   "recovered_nodes": 182
+   "recovered_nodes": 181
   },
   "synergy_completeness": {
    "effects_category_other": 834,
-   "effects_total": 75981,
+   "effects_total": 75960,
    "full_pct": 98.38,
    "parse_confidence": {
     "full": 33994,
     "partial": 561
    },
-   "triggers_event_other": 1845,
-   "triggers_total": 19186
+   "triggers_event_other": 1844,
+   "triggers_total": 19188
   }
  },
- "phase_tag": "v0.8.0",
+ "phase_tag": "v0.9.0",
  "schema": 1,
- "sidecar_version": 72,
+ "sidecar_version": 73,
  "snapshot": {
   "cards": 726,
   "feed_phase_readiness": {
@@ -42,7 +42,7 @@
   },
   "synergy_completeness": {
    "effects_category_other": 26,
-   "effects_total": 1721,
+   "effects_total": 1720,
    "full_pct": 98.62,
    "parse_confidence": {
     "full": 716,

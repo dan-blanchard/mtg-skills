@@ -2324,6 +2324,55 @@ def _lift_nested_opp_cast(record: dict) -> list[Ability]:
     return out
 
 
+def _drop_pacify_cant_block(abilities: list[Ability], record: dict) -> list[Ability]:
+    """Drop the ``cant_block`` Effect from a "can't attack or block" PACIFY aura.
+
+    v0.9.0 SPLIT phase's combined ``CantAttackOrBlock`` static into separate
+    ``CantAttack`` + ``CantBlock`` statics. ``_COMBAT_FORCE_MODES`` maps the
+    ``CantBlock`` half to category ``cant_block`` → the ``cant_block_grant`` EVASION
+    lane ("force blockers off to clear a path to attack"). But a creature that ALSO
+    can't attack is fully NEUTRALIZED — single-target pacify/REMOVAL (Pacifism, Cage
+    of Hands, Luminous Bonds), not an evasion enabler; v0.8.0 (combined mode) and the
+    regex era both excluded it. Suppress the ``cant_block`` Effect when a SIBLING
+    cant-attack restriction covers the SAME affected set (the pacify shape). A
+    STANDALONE "enchanted creature can't block" aura (Crippling Blight, Maniacal
+    Rage, Gelid Shackles — no cant-attack sibling) IS a legitimate evasion enabler on
+    an opponent's blocker and KEEPS firing. CR 509.1b distinguishes a can't-block
+    restriction from the pacify shape; CR 303.4 — an Aura attaches to one object.
+    """
+    statics = [s for s in (record.get("static_abilities") or []) if isinstance(s, dict)]
+    ca_affecteds = [
+        s.get("affected")
+        for s in statics
+        if _mode_token(s.get("mode")) in ("cantattack", "cantattackorblock")
+    ]
+    if not ca_affecteds:
+        return abilities
+    pacify_subjects = {
+        _filter(s.get("affected"))
+        for s in statics
+        if _mode_token(s.get("mode")) == "cantblock"
+        # SINGLE-ATTACHED host only (Aura/Equipment — CR 303.4 / 301.5). A board-wide
+        # block TAX over an opponent CLASS ("creatures can't block you unless their
+        # controller pays {1}" — Archangel of Tithes, controller=Opponent, no attach
+        # predicate) is a genuine pillowfort/evasion enabler and must KEEP firing
+        # cant_block_grant even though it carries a sibling can't-attack tax.
+        and _is_single_attached_restriction(s)
+        and s.get("affected") in ca_affecteds
+    }
+    if not pacify_subjects:
+        return abilities
+    out: list[Ability] = []
+    for ab in abilities:
+        kept = tuple(
+            e
+            for e in ab.effects
+            if not (e.category == "cant_block" and e.subject in pacify_subjects)
+        )
+        out.append(ab if kept == ab.effects else replace(ab, effects=kept))
+    return out
+
+
 def _project_face(record: dict) -> Face:
     abilities: list[Ability] = []
     for ab in record.get("abilities") or []:
@@ -2649,6 +2698,10 @@ def _project_face(record: dict) -> Face:
     nested_gl = _nested_gain_life_marker(record, abilities)
     if nested_gl is not None:
         abilities.append(Ability(kind="static", effects=(nested_gl,)))
+    # v0.9.0 cant-block over-fire fix: drop the cant_block half of a "can't attack or
+    # block" pacify aura (now split into sibling CantAttack + CantBlock statics) so a
+    # removal aura doesn't read as an evasion enabler. See _drop_pacify_cant_block.
+    abilities = _drop_pacify_cant_block(abilities, record)
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
@@ -3705,6 +3758,30 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
         # next end step, ...") — recurse into the stored effect so its mechanics parse.
         inner = _collect_effects(eff.get("effect"), raw)
         return inner or [Effect(category="other", scope=_effect_scope(eff), raw=raw)]
+    if etype == "applyperpetual":
+        # v0.9.0 introduced ApplyPerpetual{modification} for Alchemy "perpetually
+        # gets +N/+M" effects, REPLACING the plain `Pump` node v0.8.0 (and earlier)
+        # used to flatten a perpetual P/T change to. A ModifyPowerToughness
+        # modification IS a (sign-coherent) pump/debuff — its +N/+M lives in
+        # `power_delta`/`toughness_delta` instead of `Pump`'s `power`/`toughness`
+        # sub-nodes. Rewrite it to the `Pump` shape (target/scope/duration carry
+        # through unchanged) and recurse, so the existing pump path projects it
+        # IDENTICALLY to the v0.8.0 Pump — self_pump / debuff_makers / pump_makers
+        # all read the result with no per-lane change (bucket-A: phase parses it,
+        # our projection just had to read the restructured node). A
+        # SetBasePowerToughness modification is a base-P/T SET, not an additive pump
+        # (High Fae Prankster, unchanged v0.8.0→v0.9.0) — fall through to "other" as
+        # before. CR 613.4c.
+        mod = eff.get("modification") or {}
+        if _norm(mod.get("kind")) == "modifypowertoughness":
+            pump = {k: v for k, v in eff.items() if k not in ("type", "modification")}
+            pump["type"] = "Pump"
+            pump["power"] = {"type": "Fixed", "value": mod.get("power_delta", 0)}
+            pump["toughness"] = {
+                "type": "Fixed",
+                "value": mod.get("toughness_delta", 0),
+            }
+            return _project_effect(pump, raw)
     category = _EFFECT_CATEGORY.get(etype)
     if category is None or etype in _OTHER:
         return [Effect(category="other", scope=_effect_scope(eff), raw=raw)]

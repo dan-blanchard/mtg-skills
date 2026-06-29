@@ -9950,10 +9950,28 @@ def extract_signals_ir(
             # or more counters … can't attack you", whose pay-rider names "that
             # creature" — a board tax, NOT a pacify): the structured subject decides it.
             # enters_tapped / exile-swallow stay (those never carry a pacify raw).
-            restriction_single_creature = (
-                cat == "restriction"
-                and e.subject is None
-                and _restriction_pacifies_single_creature(e.raw or "")
+            restriction_single_creature = cat == "restriction" and (
+                # v0.8.0-: phase MANGLED the subject (None) so the single-attach tell
+                # survived only in the raw — read it from the pacify text.
+                (
+                    e.subject is None
+                    and _restriction_pacifies_single_creature(e.raw or "")
+                )
+                # v0.9.0+: phase cleanly STRUCTURES the single-attached host as an
+                # EnchantedBy/EquippedBy creature subject (Lost in Thought's
+                # CantBeActivated lock gained affected=Typed Creature EnchantedBy). An
+                # Aura/Equipment attaches to exactly one object (CR 303.4 / 301.5), so
+                # its lock is single-target pacify/removal, never a board-wide stax —
+                # read the structure (the e.subject-is-None raw fallback is the backstop
+                # for mangled parses). A genuine board/class tax carries a real
+                # card-type/subtype subject WITHOUT an attach predicate (Discipline
+                # Enforcer), so it is untouched.
+                or (
+                    e.subject is not None
+                    and any(
+                        p in ("EnchantedBy", "EquippedBy") for p in e.subject.predicates
+                    )
+                )
             )
             if (
                 cat in ("restriction", "enters_tapped") or is_exile_restr

@@ -1766,19 +1766,20 @@ def test_prison_piece_null_rod_still_fires_both():
 # What a restriction taxes is decided by WHO/WHAT it restricts, never by the host's
 # card type (CR 303.4: an Aura attaches to an object OR a PLAYER — an "Enchant player"
 # Curse is a player tax, an "Enchant creature" Aura is single-target pacify). The
-# discriminator reads the restriction's AFFECTED ENTITY from the structured subject,
-# supplement-recovered from the raw clause when phase mangled it (Lost in Thought's
-# trailing "...for that player to ignore this effect" leaks the Effect to scope='opp'
-# subject=None). A SINGLE creature → drop both lanes; a PLAYER / BOARD → keep. CR 303.4
-# / 301.5 / 608.2.
+# discriminator reads the restriction's AFFECTED ENTITY two ways: from a STRUCTURED
+# EnchantedBy/EquippedBy subject (phase v0.9.0 cleanly structures Lost in Thought's
+# host as Typed Creature EnchantedBy), and — for older/mangled parses where phase
+# leaked the Effect to scope='opp' subject=None — from the raw clause. A SINGLE
+# creature → drop both lanes; a PLAYER / BOARD → keep. CR 303.4 / 301.5 / 608.2.
 
 
 def test_pacify_aura_lost_in_thought_is_not_stax():
-    """Lost in Thought: the trailing '...for that player to ignore this effect'
-    clause leaks the restriction Effect to scope='opp' subject=None (an over-fire the
-    cleanly-structured `_is_single_attached_restriction` gate alone could not catch).
-    The raw affected-entity supplement reads 'Enchanted creature' (a SINGLE creature)
-    off the mangled (subject=None) restriction and excludes it from BOTH stax lanes."""
+    """Lost in Thought: "Enchanted creature can't attack or block, and its activated
+    abilities can't be activated." A single-attach ability-lock aura (CR 303.4 — one
+    object), NOT a board-wide tax. phase v0.9.0 structures the host as a Typed Creature
+    EnchantedBy subject, so the `restriction_single_creature` gate reads the structured
+    EnchantedBy predicate (the v0.8.0 subject=None raw-supplement path is the backstop)
+    and excludes it from BOTH stax lanes."""
     keys = _skeys(test_signals("Lost in Thought"))
     assert "stax_taxes" not in keys
     assert "symmetric_stax" not in keys

@@ -991,7 +991,37 @@ from mtg_utils.card_ir import Card
 #   _confidence no longer flips the carrier to partial -> parse_confidence full 33922 ->
 #   33994 (+72, recovers the
 #   combat-damage cards v71 had regressed). Recoveries all KEPT as backstops.
-SIDECAR_VERSION = 72
+# v73 (phase bump v0.8.0 -> v0.9.0): a small, additive parser bump (4 new node keys,
+#   none removed; parse_warnings 959 -> 948). THREE projection edits, all rules-lawyer'd
+#   (CR-cited) + adversarially adjudicated (workflow wf_7dc5f8c2, 20 agents). (1)
+#   ApplyPerpetual{ModifyPowerToughness}: v0.9.0's "Alchemy perpetual P/T" feature
+#   REPLACES the plain `Pump` node v0.8.0 flattened "perpetually gets +N/+M" to. A
+#   perpetual P/T change is the SAME layer-7c modification as a temporary pump (CR
+#   613.4c; "perpetually" = DD1, a duration property) — _project_effect rewrites it to
+#   the Pump shape so self_pump/debuff_makers read it natively (recovers 6 firings
+#   set-equal: Scion of Shiv, Diminished Returner, Longtusk Stalker, Freyalise, Wizened
+#   Githzerai; a SetBasePowerToughness modification stays "other" as before). (2)
+#   cant_block over-fire: v0.9.0 SPLIT the combined `CantAttackOrBlock` static into
+#   `CantAttack` + `CantBlock`; _COMBAT_FORCE_MODES maps CantBlock -> cant_block ->
+#   cant_block_grant, leaking 22 "can't attack or block" PACIFY auras (Pacifism, Cage
+#   of Hands) into the evasion lane. _drop_pacify_cant_block drops the cant_block half
+#   when a SINGLE-ATTACHED (CR 303.4) sibling cant-attack restriction shares the
+#   affected — the pacify=removal shape. A standalone "can't block" aura (Crippling
+#   Blight) and a board-class block TAX (Archangel of Tithes, controller=Opponent) KEEP
+#   firing. Also corrects 2 v0.8.0 over-fires (Revoke Privileges, Intercessor's Arrest
+#   — already-split pacify auras). (3) stax_taxes over-fire: v0.9.0 cleanly STRUCTURES
+#   Lost in Thought's
+#   single-attach ability-lock subject (SelfRef -> Typed Creature EnchantedBy), which
+#   disabled the `restriction_single_creature` skip-guard (it keyed on subject==None);
+#   the guard now also reads a structured EnchantedBy/EquippedBy subject (CR 303.4 — one
+#   object, not a board tax). 9 singleton GAINS are bucket-A recoveries (v0.9.0 parses
+#   what v0.8.0 left Unimplemented/Unknown: Omnath big_mana, Martha Jones clue_makers,
+#   Three Dog creatures_matter, Shard edict_makers, Magitek Scythe/Bant
+#   keyword_grant_target, Bant protection_grant, Nyssa tapper_engine, Loki
+#   target_own_payoff; River Song topdeck_selection -1 is a CORRECT drop — v0.9.0 parses
+#   "draw from the bottom" as a native DrawFromBottom static, ending a v0.8.0
+#   Unimplemented-text over-fire). SIDECAR bump (projection-input + projection changed).
+SIDECAR_VERSION = 73
 
 
 def card_ir_dir() -> Path:

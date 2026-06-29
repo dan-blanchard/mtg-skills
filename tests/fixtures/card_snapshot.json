@@ -1628,7 +1628,6 @@
            ]
           },
           "z": [
-           "from:battlefield",
            "to:exile"
           ]
          },
@@ -5015,7 +5014,15 @@
         "e": [
          {
           "cat": "restriction",
-          "raw": "Enchanted creature can't attack or block, and its activated abilities can't be activated."
+          "raw": "Enchanted creature can't attack or block, and its activated abilities can't be activated.",
+          "sub": {
+           "p": [
+            "EnchantedBy"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
          }
         ],
         "k": "static"
@@ -5024,7 +5031,15 @@
         "e": [
          {
           "cat": "restriction",
-          "raw": "Enchanted creature can't attack or block, and its activated abilities can't be activated."
+          "raw": "Enchanted creature can't attack or block, and its activated abilities can't be activated.",
+          "sub": {
+           "p": [
+            "EnchantedBy"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
          }
         ],
         "k": "static"
@@ -37544,7 +37559,15 @@
          {
           "cat": "restriction",
           "raw": "Enchanted creature can't attack or block, and its activated abilities can't be activated. Its controller may exile three cards from their graveyard for that player to ignore this effect until end of turn.",
-          "sc": "opp"
+          "sc": "opp",
+          "sub": {
+           "p": [
+            "EnchantedBy"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
          }
         ],
         "k": "static"
@@ -37554,7 +37577,15 @@
          {
           "cat": "restriction",
           "raw": "Enchanted creature can't attack or block, and its activated abilities can't be activated. Its controller may exile three cards from their graveyard for that player to ignore this effect until end of turn.",
-          "sc": "opp"
+          "sc": "opp",
+          "sub": {
+           "p": [
+            "EnchantedBy"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
          }
         ],
         "k": "static"
@@ -41991,7 +42022,6 @@
           "cat": "exile",
           "raw": "Whenever another creature you control becomes the target of a spell or ability, you may airbend that creature.",
           "z": [
-           "from:battlefield",
            "to:exile"
           ]
          },
@@ -45948,6 +45978,9 @@
           }
          }
         ],
+        "k": "static"
+       },
+       {
         "k": "static"
        }
       ],
@@ -50316,16 +50349,6 @@
     "faces": [
      {
       "ab": [
-       {
-        "e": [
-         {
-          "cat": "topdeck_select",
-          "raw": "You draw cards from the bottom of your library rather than the top.",
-          "sc": "you"
-         }
-        ],
-        "k": "spell"
-       },
        {
         "e": [
          {
@@ -62819,7 +62842,15 @@
         "e": [
          {
           "cat": "restriction",
-          "raw": "Enchanted creature can't attack or block, and its activated abilities can't be activated."
+          "raw": "Enchanted creature can't attack or block, and its activated abilities can't be activated.",
+          "sub": {
+           "p": [
+            "EnchantedBy"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
          }
         ],
         "k": "static"
@@ -62828,7 +62859,15 @@
         "e": [
          {
           "cat": "restriction",
-          "raw": "Enchanted creature can't attack or block, and its activated abilities can't be activated."
+          "raw": "Enchanted creature can't attack or block, and its activated abilities can't be activated.",
+          "sub": {
+           "p": [
+            "EnchantedBy"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
          }
         ],
         "k": "static"
@@ -68880,7 +68919,7 @@
    }
   }
  },
- "phase_tag": "v0.8.0",
+ "phase_tag": "v0.9.0",
  "schema": 1,
- "sidecar_version": 72
+ "sidecar_version": 73
 }
