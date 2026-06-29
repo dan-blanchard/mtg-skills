@@ -80,6 +80,18 @@ _PROTECT_DETER = re.compile(
     r"no more than \w+ creatures? can attack",
     re.IGNORECASE,
 )
+# Redirect answers (CR 115.7): a free "change the target" / "choose new targets for
+# target spell or ability" (Misdirection, Deflecting Swat, Divert) answers removal aimed
+# at your board like the counterspells protects() already counts. Anchored on "target
+# spell" / "spell or ability" — NOT "the copy" — so copy spells (Twincast, Fork) don't
+# match. Umbra/totem armor (CR 702.89a) grants a destroy-replacement shield to your
+# permanents (Umbra Mystic and the totem-armor auras themselves).
+_PROTECT_REDIRECT = re.compile(
+    r"change the target(?:\(s\))? of target spell"
+    r"|choose new targets for target spell or ability"
+    r"|\b(?:umbra|totem) armor\b",
+    re.IGNORECASE,
+)
 
 
 def _matches_preset(card: dict, name: str) -> bool:
@@ -165,6 +177,7 @@ def protects(card: dict) -> bool:
         _PROTECT_GRANT.search(text)
         or _PROTECT_SAVE.search(text)
         or _PROTECT_DETER.search(text)
+        or _PROTECT_REDIRECT.search(text)
     )
 
 

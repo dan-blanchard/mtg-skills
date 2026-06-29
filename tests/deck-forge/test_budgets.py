@@ -140,6 +140,53 @@ def test_protection_requires_granting_not_a_self_keyword():
     assert protects(pillow) is True
 
 
+def test_protection_recognizes_redirect_and_totem_armor():
+    # Free redirect answers (CR 115.7 — "change the target"/"choose new targets for
+    # target spell or ability") answer removal like a counterspell, and umbra/totem
+    # armor (CR 702.89a) grants a destroy-replacement shield to your permanents. Both
+    # were missed, so Misdirection/Deflecting Swat/Umbra Mystic bucketed filler and the
+    # tuner proposed cutting them "serves no avenue (filler)". They must read as
+    # protection (spine), never filler.
+    misdirection = {
+        "name": "Misdirection",
+        "type_line": "Instant",
+        "oracle_text": (
+            "You may exile a blue card from your hand rather than pay this spell's "
+            "mana cost.\nChange the target of target spell with a single target."
+        ),
+    }
+    deflecting_swat = {
+        "name": "Deflecting Swat",
+        "type_line": "Instant",
+        "oracle_text": (
+            "If you control a commander, you may cast this spell without paying its "
+            "mana cost.\nYou may choose new targets for target spell or ability."
+        ),
+    }
+    umbra_mystic = {
+        "name": "Umbra Mystic",
+        "type_line": "Creature — Elf Mystic",
+        "oracle_text": (
+            "Auras attached to permanents you control have totem armor. (If such a "
+            "permanent would be destroyed, instead remove all damage from it and "
+            "destroy that Aura.)"
+        ),
+    }
+    assert protects(misdirection) is True
+    assert protects(deflecting_swat) is True
+    assert protects(umbra_mystic) is True
+    # Over-fire guard: a copy spell redirects "the copy", not an answer — not protection.
+    twincast = {
+        "name": "Twincast",
+        "type_line": "Instant",
+        "oracle_text": (
+            "Copy target instant or sorcery spell. You may choose new targets for "
+            "the copy."
+        ),
+    }
+    assert protects(twincast) is False
+
+
 def test_protection_excludes_self_only_saves():
     # A creature that only phases/regenerates ITSELF is self-protection — doesn't count.
     self_phase = {
