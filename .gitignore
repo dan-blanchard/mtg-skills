@@ -45,6 +45,10 @@ mtg-utils/src/mtg_utils/data/card_art/*.jpeg
 # task #25). Lets the signal tests run real-card IR in CI with no sidecar/bulk/
 # network. Refresh with `build-card-snapshot`. Overrides the global *.json ignore.
 !tests/fixtures/card_snapshot.json
+# Committed parse-completeness metric (ADR-0032), regenerated in the same gated
+# `build-card-snapshot` step. The full-corpus numbers are the review drift-watch;
+# the snapshot block is what test_parse_metrics recomputes offline in CI.
+!tests/fixtures/parse_metrics.json
 
 # Local scratch / session dirs (skill working output + Claude Code session state)
 .deck-wizard-work/

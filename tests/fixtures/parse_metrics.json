@@ -1,0 +1,55 @@
+{
+ "full_corpus": {
+  "cards": 34555,
+  "feed_phase_readiness": {
+   "bucket_a_masking": 0,
+   "bucket_b_genuine_gap": 182,
+   "cards_with_recovered_node": 181,
+   "recovered_by_category": {
+    "discard": 61,
+    "facedown_ref": 91,
+    "other": 30
+   },
+   "recovered_nodes": 182
+  },
+  "synergy_completeness": {
+   "effects_category_other": 834,
+   "effects_total": 75981,
+   "full_pct": 98.38,
+   "parse_confidence": {
+    "full": 33994,
+    "partial": 561
+   },
+   "triggers_event_other": 1845,
+   "triggers_total": 19186
+  }
+ },
+ "phase_tag": "v0.8.0",
+ "schema": 1,
+ "sidecar_version": 72,
+ "snapshot": {
+  "cards": 726,
+  "feed_phase_readiness": {
+   "bucket_a_masking": 0,
+   "bucket_b_genuine_gap": 12,
+   "cards_with_recovered_node": 12,
+   "recovered_by_category": {
+    "discard": 4,
+    "facedown_ref": 1,
+    "other": 7
+   },
+   "recovered_nodes": 12
+  },
+  "synergy_completeness": {
+   "effects_category_other": 26,
+   "effects_total": 1721,
+   "full_pct": 98.62,
+   "parse_confidence": {
+    "full": 716,
+    "partial": 10
+   },
+   "triggers_event_other": 44,
+   "triggers_total": 500
+  }
+ }
+}

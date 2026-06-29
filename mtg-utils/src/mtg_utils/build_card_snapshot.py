@@ -28,6 +28,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from mtg_utils._card_ir.load import SIDECAR_VERSION, load_card_ir
+from mtg_utils._card_ir.metrics import compute_parse_metrics
 from mtg_utils._deck_forge.signals import extract_signals_hybrid
 from mtg_utils._phase import PHASE_TAG
 from mtg_utils.bulk_loader import default_bulk_path, load_bulk_cards
@@ -143,6 +144,7 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
     index = _index_by_name(bulk, ir)
 
     cards: dict[str, dict] = {}
+    snapshot_ir: dict = {}  # oid -> Card, for the snapshot field-coverage metric
     unresolved: list[str] = []
     no_ir: list[str] = []
     lossy: list[str] = []
@@ -151,7 +153,8 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
         if rec is None:
             unresolved.append(name)
             continue
-        card_ir = ir.get(rec.get("oracle_id"))
+        oid = rec.get("oracle_id")
+        card_ir = ir.get(oid)
         if card_ir is None:  # pragma: no cover — index already gates on sidecar
             no_ir.append(name)
             continue
@@ -172,6 +175,7 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
             )
             continue
         cards[name] = {"scryfall": minimal, "ir": ir_dict}
+        snapshot_ir[oid] = card_ir
 
     if lossy:
         raise SystemExit(
@@ -191,12 +195,34 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
         json.dumps(payload, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    # ADR-0032 parse-completeness metric: the committed full-corpus drift-watch
+    # (regenerated in this same gated step) + the snapshot field-coverage the CI
+    # assertion (test_parse_metrics) recomputes offline from card_snapshot.json.
+    metrics_path = out.parent / "parse_metrics.json"
+    metrics_path.write_text(
+        json.dumps(
+            {
+                "schema": SCHEMA_VERSION,
+                "sidecar_version": SIDECAR_VERSION,
+                "phase_tag": PHASE_TAG,
+                "full_corpus": compute_parse_metrics(ir),
+                "snapshot": compute_parse_metrics(snapshot_ir),
+            },
+            ensure_ascii=False,
+            indent=1,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     stats = {
         "cards": len(cards),
         "requested": len(names),
         "unresolved": unresolved,
         "no_ir": no_ir,
         "bytes": out.stat().st_size,
+        "metrics_path": str(metrics_path),
     }
     return out, stats
 
