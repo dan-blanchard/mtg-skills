@@ -127,18 +127,54 @@ def _ir_draws(ir: Card) -> bool:
     )
 
 
+# Mass-removal effect categories phase tags with the counter_kind="all" mass marker
+# (DestroyAll / DamageAll / BounceAll — Wrath, Blasphemous Act, Evacuation).
+_MASS_REMOVAL_CATS = frozenset({"destroy", "damage", "bounce"})
+
+
+def _ir_board_wipe(ir: Card) -> bool:
+    """Does the card's IR carry a creature/permanent BOARD WIPE — the structured mirror
+    of the ``board-wipe`` preset? phase parses single-vs-mass and the projection keeps
+    it as ``counter_kind="all"`` on a DestroyAll / DamageAll / BounceAll (a single
+    Destroy does not). Three gates keep it to genuine sweepers:
+      - subject is Creature / Permanent (not "destroy all LANDS" = mass land denial,
+        not "all ARTIFACTS" = Bane of Progress);
+      - controller != "you" (a "return all creatures YOU CONTROL" self-bounce, Denizen
+        of the Deep, is a drawback; symmetric "any" / one-sided "opp" are kept);
+      - no graveyard zone ("return all creature cards FROM YOUR GRAVEYARD" recursion,
+        Lychguard, is not removal).
+
+    Mass ``-X/-X`` shrinks (Toxic Deluge, Drown in Sorrow) are NOT read here: a mass
+    pump projects a single ``amount.factor`` (the POWER, so a harmless "-2/-0" looks
+    like a lethal "-2/-2") and a variable "-X" projects ``amount=None``, so toughness-0
+    lethality isn't readable. Projecting power+toughness separately is a scoped
+    ``project.py`` follow-up; the toughness-guarded regex preset owns those for now."""
+    for ab in ir.all_abilities():
+        for e in ab.effects:
+            subj = e.subject
+            if (
+                subj is not None
+                and e.category in _MASS_REMOVAL_CATS
+                and e.counter_kind == "all"
+                and subj.controller != "you"
+                and ("Creature" in subj.card_types or "Permanent" in subj.card_types)
+                and not any("graveyard" in z for z in e.zones)
+            ):
+                return True
+    return False
+
+
 def role_of(card: dict) -> set[str]:
     """Hard-counted template roles a card fills (a card may fill several).
 
-    ``lands`` / ``ramp`` read ``card_classify`` (the cheapest correct source — a
-    structured type_line / produced_mana check, kept per ADR-0027). ``card_draw``
-    reads the candidate's Card IR (the ``draw`` effect category) when available,
-    degrading to the ``card-draw`` / ``cantrip`` presets when the card has no IR.
-    ``board_wipe`` and ``interaction`` stay on their curated presets: the IR's
-    ``destroy`` / ``exile`` / ``restriction`` categories don't structurally encode
-    the single-target-vs-mass and pacify-vs-self-drawback boundaries those presets
-    guard (the projection collapses "Destroy target creature" and "Destroy all
-    creatures" to the same node — see ADR-0027 A3 notes)."""
+    ``lands`` / ``ramp`` read ``card_classify`` (the cheapest correct source: a
+    structured type_line / produced_mana check, kept per ADR-0027). ``card_draw`` and
+    ``board_wipe`` read the candidate's Card IR when available (the ``draw`` category;
+    the ``counter_kind="all"`` mass-removal marker), degrading to the curated presets
+    when the card has no IR. The regex preset ALSO runs for ``board_wipe``: it still
+    owns the ``-X/-X`` mass shrink the projection can't yet express (see
+    ``_ir_board_wipe``). ``interaction`` stays on its presets: the IR's ``destroy`` /
+    ``restriction`` categories don't encode the pacify-vs-self and edict boundaries."""
     roles: set[str] = set()
     ir = ir_for(card)
     if is_land(card):
@@ -152,7 +188,7 @@ def role_of(card: dict) -> set[str]:
     )
     if draws:
         roles.add("card_draw")
-    if _matches_preset(card, "board-wipe"):
+    if (ir is not None and _ir_board_wipe(ir)) or _matches_preset(card, "board-wipe"):
         roles.add("board_wipe")
     if _matches_any(card, _INTERACTION_PRESETS):
         roles.add("interaction")

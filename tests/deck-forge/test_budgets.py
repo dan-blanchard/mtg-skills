@@ -1,7 +1,13 @@
 """Tests for slot budgets vs the (soft) Command Zone template (band model, ADR-0024)."""
 
-from mtg_utils._deck_forge.budgets import _ir_draws, protects, role_of, slot_budgets
-from mtg_utils.card_ir import Ability, Card, Effect, Face
+from mtg_utils._deck_forge.budgets import (
+    _ir_board_wipe,
+    _ir_draws,
+    protects,
+    role_of,
+    slot_budgets,
+)
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity
 from mtg_utils.testkit import test_card_ir
 
 FOREST = {
@@ -342,3 +348,132 @@ def test_ir_non_draw_and_opponent_draw_do_not_fill_card_draw():
         Ability(kind="spell", effects=(Effect(category="draw", scope="opp"),))
     )
     assert _ir_draws(giveaway) is False
+
+
+def _ir_effect(**kw):
+    """One spell effect wrapped in a Card IR, for board-wipe structural probes."""
+    return Card(
+        oracle_id="x",
+        name="T",
+        faces=(
+            Face(name="T", abilities=(Ability(kind="spell", effects=(Effect(**kw),)),)),
+        ),
+    )
+
+
+def test_ir_board_wipe_reads_mass_marker_and_subject_gate():
+    # phase parses single-vs-mass; the projection keeps it (DestroyAll/DamageAll/BounceAll
+    # → counter_kind="all"; fixed mass -N/-N → cat=pump, negative amount, temporary). The
+    # board_wipe role can read that structurally instead of by oracle regex. Shapes below
+    # are the ones the real cards project to (verified against the v0.9.0 card-data).
+    creature = Filter(card_types=("Creature",))
+    permanent = Filter(card_types=("Permanent",), predicates=("NotType:Land",))
+    # Mass creature destroy (Wrath / Damnation / Crux) — board wipe.
+    assert (
+        _ir_board_wipe(
+            _ir_effect(category="destroy", counter_kind="all", subject=creature)
+        )
+        is True
+    )
+    # Mass nonland-permanent destroy (Culling Ritual) — board wipe.
+    assert (
+        _ir_board_wipe(
+            _ir_effect(category="destroy", counter_kind="all", subject=permanent)
+        )
+        is True
+    )
+    # Mass damage to each creature (Blasphemous Act) — board wipe.
+    assert (
+        _ir_board_wipe(
+            _ir_effect(
+                category="damage",
+                counter_kind="all",
+                amount=Quantity(op="fixed", factor=13),
+                subject=creature,
+            )
+        )
+        is True
+    )
+    # One-sided mass destroy of opponents' creatures — board wipe.
+    assert (
+        _ir_board_wipe(
+            _ir_effect(
+                category="destroy",
+                counter_kind="all",
+                subject=Filter(card_types=("Creature",), controller="opp"),
+            )
+        )
+        is True
+    )
+    # Single-target destroy (Murder) — NOT a wipe (no mass marker).
+    assert (
+        _ir_board_wipe(
+            _ir_effect(category="destroy", counter_kind="", subject=creature)
+        )
+        is False
+    )
+    # Mass destroy gated to LANDS (Armageddon) = mass land denial, NOT a creature sweeper.
+    assert (
+        _ir_board_wipe(
+            _ir_effect(
+                category="destroy",
+                counter_kind="all",
+                subject=Filter(card_types=("Land",)),
+            )
+        )
+        is False
+    )
+    # Mass destroy of artifacts+enchantments (Bane of Progress) — not a creature sweeper.
+    assert (
+        _ir_board_wipe(
+            _ir_effect(
+                category="destroy",
+                counter_kind="all",
+                subject=Filter(card_types=("Artifact", "Enchantment")),
+            )
+        )
+        is False
+    )
+    # Self-only mass bounce ("return each creature YOU CONTROL" — Denizen of the Deep) is
+    # a drawback, not board control.
+    assert (
+        _ir_board_wipe(
+            _ir_effect(
+                category="bounce",
+                counter_kind="all",
+                subject=Filter(card_types=("Creature",), controller="you"),
+            )
+        )
+        is False
+    )
+    # Mass graveyard recursion ("return all creature cards from your graveyard" —
+    # Lychguard) is not removal.
+    assert (
+        _ir_board_wipe(
+            _ir_effect(
+                category="bounce",
+                counter_kind="all",
+                zones=("from:graveyard", "to:hand"),
+                subject=Filter(card_types=("Creature",)),
+            )
+        )
+        is False
+    )
+    # A mass -X/-X shrink (Toxic Deluge / Marsh Gas's harmless -2/-0) is NOT read here —
+    # amount.factor is the power, so lethality can't be judged; the regex preset owns it.
+    assert (
+        _ir_board_wipe(
+            _ir_effect(
+                category="pump",
+                duration="UntilEndOfTurn",
+                amount=Quantity(op="fixed", factor=-2),
+                subject=creature,
+            )
+        )
+        is False
+    )
+
+
+def test_board_wipe_role_reads_real_ir_mass_destroy():
+    # Real projected IR (committed snapshot): Wrath of God is a structural board wipe.
+    assert _ir_board_wipe(test_card_ir("Wrath of God")) is True
