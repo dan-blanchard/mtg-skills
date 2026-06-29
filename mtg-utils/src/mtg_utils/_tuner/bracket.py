@@ -16,7 +16,9 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
+from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils.card_classify import get_oracle_text
+from mtg_utils.card_ir import Card
 from mtg_utils.deck_stats import detect_bracket
 
 # Game-Changers count ceiling per target bracket. Brackets 4 (Optimized) and 5 (cEDH)
@@ -31,10 +33,18 @@ _UNCONSTRAINED_FROM = 4
 # at 2-3 they're allowed "in low quantities... not chained/looped" — a qualitative
 # rule, so more than this many is a heuristic WARN (project-chosen, not an official
 # number), never a hard FAIL.
-# "takes an extra turn" OR "takes two/three/N extra turns" (Time Stretch, Karn's
-# Temporal Sundering) — the bare "an extra turn" missed the multi-turn cards.
+# Extra-turn detection prefers the IR (``cat=extra_turn`` — phase parses Time Warp and
+# Time Stretch's "two extra turns" identically, no count needed for B1's "any = FAIL").
+# The regex is the no-IR fallback: "takes an extra turn" OR "takes two/N extra turns".
 _EXTRA_TURN_RE = re.compile(r"takes? \w+ extra turns?", re.IGNORECASE)
 _EXTRA_TURN_LOW_MAX = 1
+
+
+def _ir_has_extra_turn(ir: Card) -> bool:
+    return any(
+        e.category == "extra_turn" for ab in ir.all_abilities() for e in ab.effects
+    )
+
 
 # A two-card infinite combo whose pieces' combined mana value is at or below this reads
 # as "cheap and early" (can assemble around the ~turn-6 anchor). Project heuristic, not
@@ -43,14 +53,15 @@ _EXTRA_TURN_LOW_MAX = 1
 _COMBO_CHEAP_MV_MAX = 6.0
 
 
+def _has_extra_turn(card: dict) -> bool:
+    ir = ir_for(card)
+    if ir is not None and _ir_has_extra_turn(ir):
+        return True
+    return bool(_EXTRA_TURN_RE.search(get_oracle_text(card) or ""))
+
+
 def _extra_turn_cards(records: Sequence[dict | None]) -> list[str]:
-    return sorted(
-        {
-            c["name"]
-            for c in records
-            if c and _EXTRA_TURN_RE.search(get_oracle_text(c) or "")
-        }
-    )
+    return sorted({c["name"] for c in records if c and _has_extra_turn(c)})
 
 
 def _is_infinite(result: str | list | None) -> bool:

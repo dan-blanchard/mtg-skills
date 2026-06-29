@@ -221,3 +221,23 @@ class TestUnconstrainedBrackets:
     def test_cedh_short_circuits_to_pass(self):
         result = bracket_gate([_gc("Mana Crypt"), _mld("Armageddon")], target_bracket=5)
         assert result["pass"] is True
+
+
+def test_ir_extra_turn_read_is_structural():
+    # phase parses both Time Warp and Time Stretch as cat=extra_turn; the gate reads that
+    # structurally (no "takes N extra turns" regex needed), regex staying as the no-IR
+    # fallback.
+    from mtg_utils._tuner.bracket import _ir_has_extra_turn
+    from mtg_utils.card_ir import Ability, Card, Effect, Face
+
+    def _ir(*effects):
+        return Card(
+            oracle_id="x",
+            name="T",
+            faces=(
+                Face(name="T", abilities=(Ability(kind="spell", effects=effects),)),
+            ),
+        )
+
+    assert _ir_has_extra_turn(_ir(Effect(category="extra_turn", scope="any"))) is True
+    assert _ir_has_extra_turn(_ir(Effect(category="draw", scope="you"))) is False
