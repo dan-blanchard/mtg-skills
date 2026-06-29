@@ -199,21 +199,35 @@ def role_of(card: dict) -> set[str]:
     return roles
 
 
+def _ir_redirect(ir: Card) -> bool:
+    """A redirect answer (``cat=redirect`` — Misdirection, Deflecting Swat): changing a
+    spell's target / choosing new targets answers removal aimed at your board like a
+    counterspell. phase parses it as its own category, so this reads it structurally."""
+    return any(
+        e.category == "redirect" for ab in ir.all_abilities() for e in ab.effects
+    )
+
+
 def protects(card: dict) -> bool:
     """Tier-2 (advisory, ADR-0024): does this card protect your own board/commander?
 
-    Counts counterspells (answer removal) and cards that GRANT a protective quality to
-    another permanent or save it for a turn — NOT a permanent that merely has hexproof /
-    indestructible / ward on itself (which protects only itself, not your board).
+    Counts counterspells (answer removal), REDIRECT answers (``cat=redirect``, read
+    structurally), and cards that GRANT a protective quality to another permanent or
+    save it for a turn — NOT a permanent that merely has hexproof / indestructible /
+    ward on itself (which protects only itself, not your board).
 
-    Stays on oracle regex under ADR-0027 A3 (the one regex residual in this file):
-    the most common protect mode, a "gains protection from <color>" grant (Mother of
-    Runes, Alseid, Apostle's Blessing — ~80 cards), projects to ``grant_keyword`` with
-    an EMPTY ``counter_kind`` (the IR carries no "protection" marker; the keyword lives
-    only in ``raw``), so an IR-only ``protects`` would silently drop them — a recall
-    regression that needs a project.py marker (out of A3 scope).
+    The grant/save/deter modes stay on oracle regex under ADR-0027 A3 (the regex
+    residual here): the most common protect mode, a "gains protection from <color>"
+    grant (Mother of Runes, Alseid, Apostle's Blessing — ~80 cards), projects to
+    ``grant_keyword`` with an EMPTY ``counter_kind`` (the IR carries no "protection"
+    marker; the keyword lives only in ``raw``), so an IR-only ``protects`` would
+    silently drop them — a recall regression needing a project.py marker (out of A3
+    scope). Umbra/totem armor likewise rides the regex (projects to ``grant_keyword``).
     """
     if _matches_preset(card, "counterspell"):
+        return True
+    ir = ir_for(card)
+    if ir is not None and _ir_redirect(ir):
         return True
     text = re.sub(r"\([^)]*\)", " ", get_oracle_text(card) or "")  # strip reminder text
     return bool(

@@ -530,3 +530,14 @@ def test_static_mass_debuff_anthem_is_board_wipe():
     # as a structural board wipe — while its own "+2/+2" buff (controller=you, factor > 0)
     # does not flip it.
     assert _ir_board_wipe(test_card_ir("Elesh Norn, Grand Cenobite")) is True
+
+
+def test_ir_redirect_is_structural():
+    # phase parses redirect answers (Misdirection, Deflecting Swat) as cat=redirect, so
+    # protects() reads that structurally instead of the "change the target / choose new
+    # targets" regex (kept as the no-IR fallback — Misdirection/Deflecting Swat have no
+    # oracle_id in the test record, so the regex still covers the inline-dict test above).
+    from mtg_utils._deck_forge.budgets import _ir_redirect
+
+    assert _ir_redirect(_ir_effect(category="redirect")) is True
+    assert _ir_redirect(_ir_effect(category="destroy")) is False
