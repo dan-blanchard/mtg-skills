@@ -7,8 +7,10 @@ from mtg_utils._tuner.metrics import top_issues
 from mtg_utils._tuner.swaps import (
     _PROTECTION_SEARCH,
     _ROLE_SEARCH,
+    _is_fixing,
     _reliable_ramp,
     _spec_for_issue,
+    cut_candidates,
     propose_swaps,
 )
 from mtg_utils.theme_presets import get_preset
@@ -23,7 +25,16 @@ def _focus(viable=(), emerging=(), stranded=()):
     }
 
 
-def _cc(name, bucket, roles=(), served=(), cmc=2.0, edhrec_rank=1000):
+def _cc(
+    name,
+    bucket,
+    roles=(),
+    served=(),
+    cmc=2.0,
+    edhrec_rank=1000,
+    oracle="",
+    produced=None,
+):
     return CardClass(
         name=name,
         bucket=bucket,
@@ -31,7 +42,12 @@ def _cc(name, bucket, roles=(), served=(), cmc=2.0, edhrec_rank=1000):
         served=tuple(served),
         dual_purpose=(bucket == "spine" and bool(served)),
         cmc=cmc,
-        record={"name": name, "edhrec_rank": edhrec_rank},
+        record={
+            "name": name,
+            "edhrec_rank": edhrec_rank,
+            "oracle_text": oracle,
+            "produced_mana": produced,
+        },
         edhrec_rank=edhrec_rank,
     )
 
@@ -46,6 +62,72 @@ def _band(current, lo, hi):
         "remaining": max(0, lo - current),
         "deviation": dev,
     }
+
+
+def test_is_fixing_counts_basic_land_fetch():
+    # Land-fetch ramp produces no battlefield mana (produced_mana is empty on a sorcery),
+    # but a basic-land search IS color fixing: a generic "basic land" fetch lets you pick
+    # the color you need, and a multi-type land-name fetch grabs 2+ types. _is_fixing read
+    # only produced_mana, so it protected a strictly-worse 2-color rock while cutting the
+    # any-basic fetcher that fixes all of the deck's colors.
+    kodama = _cc(
+        "Kodama's Reach",
+        "spine",
+        roles=("ramp",),
+        oracle=(
+            "Search your library for up to two basic land cards, reveal those cards, "
+            "put one onto the battlefield tapped and the other into your hand, then "
+            "shuffle."
+        ),
+    )
+    farseek = _cc(
+        "Farseek",
+        "spine",
+        roles=("ramp",),
+        oracle=(
+            "Search your library for a Plains, Island, Swamp, or Mountain card, put it "
+            "onto the battlefield tapped, then shuffle."
+        ),
+    )
+    rampant = _cc(
+        "Rampant Growth",
+        "spine",
+        roles=("ramp",),
+        oracle=(
+            "Search your library for a basic land card, put it onto the battlefield "
+            "tapped, then shuffle."
+        ),
+    )
+    signet = _cc("Golgari Signet", "spine", roles=("ramp",), produced=["B", "G"])
+    sol_ring = _cc("Sol Ring", "spine", roles=("ramp",), produced=["C"])
+    assert _is_fixing(kodama) is True
+    assert _is_fixing(farseek) is True
+    assert _is_fixing(rampant) is True
+    assert _is_fixing(signet) is True  # 2 produced colors
+    assert _is_fixing(sol_ring) is False  # colorless rock
+
+
+def test_over_band_ramp_cut_keeps_basic_land_fetch_over_colorless_rock():
+    # ramp over by 1; the cut must trim the redundant colorless rock, not the basic-land
+    # fetch that fixes the deck's colors. Kodama is the LEAST-played (rank 900 vs 40) so
+    # without the fix the play-rate tiebreak cuts it first — _is_fixing must override that.
+    kodama = _cc(
+        "Kodama's Reach",
+        "spine",
+        roles=("ramp",),
+        edhrec_rank=900,
+        oracle="Search your library for up to two basic land cards, put one onto the "
+        "battlefield tapped and the other into your hand, then shuffle.",
+    )
+    mind_stone = _cc(
+        "Mind Stone", "spine", roles=("ramp",), edhrec_rank=40, produced=["C"]
+    )
+    budgets = {"ramp": _band(2, 0, 1), "lands": _band(36, 36, 38)}
+    cuts = cut_candidates(
+        [kodama, mind_stone], budgets=budgets, focus_verdict="FOCUSED", stranded=set()
+    )
+    over_ramp = [c.name for reason, c in cuts if reason == "over:ramp"]
+    assert over_ramp[:1] == ["Mind Stone"]  # the colorless rock, not Kodama's Reach
 
 
 def test_curve_fix_does_not_overshoot_a_full_role():
