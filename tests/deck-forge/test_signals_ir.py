@@ -2457,3 +2457,22 @@ def test_legends_activation_excludes_nonlegendary_substring():
     assert pat.search("Other legendary creatures you control get +1/+1.")
     assert pat.search("Whenever you cast a legendary spell, scry 1.")
     assert pat.search("For each legendary creature you control, draw a card.")
+
+
+def test_spellcast_matters_excludes_creature_spell_triggers():
+    # A "whenever you cast a CREATURE spell" trigger (Beast Whisperer, Rhonas's Monument)
+    # belongs to the creature/tribal lane, not the instant-and-sorcery Spellslinger lane;
+    # the generic spellcast detector excluded only enchantment/artifact triggers, so it
+    # falsely opened Spellslinger in creature decks (Krenko, Goreclaw).
+    from mtg_utils._deck_forge._signals_regex import _detect_spellcast_matters
+
+    assert not _detect_spellcast_matters(
+        "whenever you cast a creature spell, draw a card."
+    )
+    # NONcreature / instant-or-sorcery triggers (prowess, Guttersnipe) still activate it.
+    assert _detect_spellcast_matters(
+        "whenever you cast a noncreature spell, this creature gets +1/+1."
+    )
+    assert _detect_spellcast_matters(
+        "whenever you cast an instant or sorcery spell, deal 2 damage to each opponent."
+    )

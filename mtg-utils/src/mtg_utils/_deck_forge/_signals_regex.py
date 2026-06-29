@@ -689,7 +689,14 @@ def _spellcast_main_clause(c: str) -> bool:
         (
             "whenever you cast" in c
             and "spell" in c
-            and not _re(r"whenever you cast an (?:enchantment|artifact) spell")(c)
+            # spellcast_matters is the INSTANT-AND-SORCERY (Spellslinger) lane. A
+            # permanent-type cast trigger ("whenever you cast a creature/enchantment/
+            # artifact/... spell") belongs to that type's lane, not here. \b before
+            # creature so a NONcreature trigger (prowess) still activates Spellslinger.
+            and not _re(
+                r"whenever you cast an? "
+                r"(?:enchantment|artifact|planeswalker|battle|land|\bcreature) spell"
+            )(c)
         )
         or _re(r"spells? you've cast this turn")(c)
         or _re(r"instant and sorcery spells? you cast cost")(c)
