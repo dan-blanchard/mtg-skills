@@ -49,8 +49,8 @@ def test_sweep_returns_per_card_row(monkeypatch):
     row = rows[0]
     assert row["card_name"] == "Sol Ring"
     assert row["scryfall_usd"] == 1.10
-    assert row["tgp"]["price"] == 1.50
-    assert row["atomic_empire"]["price"] == 1.80
+    assert row["by_store"]["tgp"]["price"] == 1.50
+    assert row["by_store"]["atomic_empire"]["price"] == 1.80
 
 
 def test_sweep_handles_search_failure(monkeypatch):
@@ -77,5 +77,5 @@ def test_sweep_handles_search_failure(monkeypatch):
         prefs={"max_condition": "lp", "allow_foil": False, "prefer_set": None},
         max_workers=2,
     )
-    assert rows[0]["tgp"] is None
-    assert rows[0]["atomic_empire"] is None
+    assert rows[0]["by_store"]["tgp"] is None
+    assert rows[0]["by_store"]["atomic_empire"] is None

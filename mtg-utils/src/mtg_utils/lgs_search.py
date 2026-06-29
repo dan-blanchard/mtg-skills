@@ -169,8 +169,7 @@ def summarize_basics(basics: dict[str, int]) -> str:
 class SearchResultRow(TypedDict):
     card_name: str
     qty: int
-    tgp: Listing | None
-    atomic_empire: Listing | None
+    by_store: dict[str, Listing | None]  # registry-keyed: one entry per LGS_STORES
     scryfall_usd: float
 
 
@@ -187,10 +186,6 @@ class AllocationConfig:
     lgs_online_threshold_usd: float
     consolidate_threshold_pct: float
     consolidate_threshold_usd: float
-
-
-# TODO: replace with `_stores.LGS_STORES` once Task 12 wires the registry.
-_LGS_KEYS = ("tgp", "atomic_empire")
 
 
 def _spill_triggered(
@@ -240,11 +235,12 @@ def allocate(
       4. If chosen store can't fill the requested qty, fall through to the
          next-cheapest store; residual that no store can fill goes online.
     """
-    running_totals: dict[str, float] = dict.fromkeys(_LGS_KEYS, 0.0)
+    running_totals: dict[str, float] = dict.fromkeys(LGS_STORES, 0.0)
     out: list[AllocatedCard] = []
 
     for row in rows:
-        candidates = {k: v for k in _LGS_KEYS if (v := row[k]) is not None}
+        by_store = row["by_store"]
+        candidates = {k: v for k in LGS_STORES if (v := by_store[k]) is not None}
         sorted_keys = sorted(candidates, key=lambda k: candidates[k]["price"])
 
         cheapest_lgs = (
@@ -468,8 +464,10 @@ def sweep_lgs(
             SearchResultRow(
                 card_name=card["card_name"],
                 qty=card["qty"],
-                tgp=results.get((card["card_name"], "tgp")),
-                atomic_empire=results.get((card["card_name"], "atomic_empire")),
+                by_store={
+                    store: results.get((card["card_name"], store))
+                    for store in LGS_STORES
+                },
                 scryfall_usd=scryfall_usd_lookup.get(card["card_name"], 0.0),
             )
         )
@@ -779,7 +777,7 @@ def main(ctx: click.Context, **kwargs: object) -> None:
 @click.option(
     "--store",
     required=True,
-    type=click.Choice(["tgp", "atomic_empire", "tcgplayer", "manapool"]),
+    type=click.Choice([*LGS_STORES, *MARKETPLACE_STORES]),
 )
 def login(store: str) -> None:
     """Open a headed browser for one-time login at a Storefront."""

@@ -18,8 +18,7 @@ def _row(card, qty=1, *, tgp=None, ae=None, scryfall_usd=0.0):
     return SearchResultRow(
         card_name=card,
         qty=qty,
-        tgp=tgp,
-        atomic_empire=ae,
+        by_store={"tgp": tgp, "atomic_empire": ae},
         scryfall_usd=scryfall_usd,
     )
 
