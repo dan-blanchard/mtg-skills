@@ -20,13 +20,12 @@ from pathlib import Path
 import click
 import requests
 
-from mtg_utils._mtgjson.load import ALLPRICES_NAME, ALLPRINTINGS_NAME
+from mtg_utils._mtgjson.load import ALLPRINTINGS_NAME, MTGJSON_FILES
 from mtg_utils.bulk_loader import build_sidecar
 
 MTGJSON_BASE = "https://mtgjson.com/api/v5"
 USER_AGENT = "mtg-skills/0.1.0"
 FRESHNESS_SECONDS = 86400  # 24 hours
-_FILES = (ALLPRINTINGS_NAME, ALLPRICES_NAME)
 
 
 def default_mtgjson_dir() -> Path:
@@ -64,12 +63,12 @@ def download_mtgjson(output_dir: Path | None = None) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     printings = output_dir / ALLPRINTINGS_NAME
 
-    if all(_is_fresh(output_dir / f) for f in _FILES):
+    if all(_is_fresh(output_dir / f) for f in MTGJSON_FILES):
         return printings
 
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
-    for fname in _FILES:
+    for fname in MTGJSON_FILES:
         _download_gz(session, f"{MTGJSON_BASE}/{fname}.gz", output_dir / fname)
 
     # Eagerly build the translated sidecar (non-fatal on error; load_bulk_cards

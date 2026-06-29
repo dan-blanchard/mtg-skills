@@ -23,11 +23,24 @@ from mtg_utils._mtgjson.adapter import (
 
 ALLPRINTINGS_NAME = "AllPrintings.json"
 ALLPRICES_NAME = "AllPricesToday.json"
+# The files an MTGJSON source comprises, in load order: AllPrintings plus its
+# sibling AllPricesToday. The single home for that set — what the loader reads,
+# what the sidecar freshness check stats, and what download fetches — so the
+# three can't drift (e.g. freshness silently not watching a daily price refresh).
+MTGJSON_FILES = (ALLPRINTINGS_NAME, ALLPRICES_NAME)
 
 
 def is_mtgjson_path(path: Path) -> bool:
     """True if *path* is an MTGJSON ``AllPrintings`` file (dispatched by name)."""
     return Path(path).name == ALLPRINTINGS_NAME
+
+
+def source_files(printings_path: Path) -> list[Path]:
+    """The MTGJSON source's files resolved beside *printings_path* (the
+    ``AllPrintings`` file), in ``MTGJSON_FILES`` order — so the sidecar freshness
+    check stats exactly the set ``load_mtgjson_cards`` reads."""
+    base = Path(printings_path)
+    return [base.with_name(name) for name in MTGJSON_FILES]
 
 
 def _group_faces(cards: list[dict]) -> list[list[dict]]:
@@ -171,7 +184,8 @@ def load_mtgjson_cards(
         data = json.load(f)["data"]
     price_index: dict = {}
     if prices_path is None:
-        prices_path = printings_path.with_name(ALLPRICES_NAME)
+        # MTGJSON_FILES[1] — the prices sibling, the same set freshness stats.
+        prices_path = source_files(printings_path)[1]
     prices_path = Path(prices_path)
     if prices_path.exists():
         with prices_path.open(encoding="utf-8") as f:

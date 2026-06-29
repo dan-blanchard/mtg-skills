@@ -10,6 +10,7 @@ import pytest
 from mtg_utils.bulk_loader import (
     SIDECAR_VERSION,
     _sidecar_path,
+    _source_mtime,
     build_sidecar,
     clear_memory_cache,
     default_bulk_path,
@@ -207,3 +208,23 @@ def test_concurrent_writers_dont_observe_partial(bulk_path: Path):
     assert len(cards) == 2
     # Real sidecar should now exist; the leftover tmp is irrelevant
     assert sidecar.exists()
+
+
+def test_source_mtime_watches_the_prices_sibling(tmp_path: Path):
+    # A daily AllPricesToday refresh must invalidate the sidecar even when
+    # AllPrintings is untouched: _source_mtime stats the whole MTGJSON source set
+    # (source_files), not just the printings file. Closes the read-set/freshness
+    # desync — this test fails if freshness ever stops watching the prices file.
+    printings = tmp_path / "AllPrintings.json"
+    prices = tmp_path / "AllPricesToday.json"
+    printings.write_text("{}")
+    prices.write_text("{}")
+    os.utime(printings, (1000, 1000))
+    os.utime(prices, (2000, 2000))  # prices refreshed AFTER printings
+    assert _source_mtime(printings) == 2000  # the newer sibling dominates
+
+    # A legacy Scryfall bulk has no sibling, so only its own mtime counts.
+    legacy = tmp_path / "default-cards.json"
+    legacy.write_text("[]")
+    os.utime(legacy, (1500, 1500))
+    assert _source_mtime(legacy) == 1500

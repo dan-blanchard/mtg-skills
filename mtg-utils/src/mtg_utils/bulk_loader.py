@@ -58,16 +58,14 @@ def _source_mtime(bulk_path: Path) -> float:
     """Newest mtime across the source file(s) a sidecar derives from.
 
     For MTGJSON that includes the sibling ``AllPricesToday.json`` so a daily price
-    refresh invalidates the sidecar even when ``AllPrintings.json`` is untouched.
+    refresh invalidates the sidecar even when ``AllPrintings.json`` is untouched —
+    the freshness set is exactly ``source_files``, the set the loader reads.
     """
-    from mtg_utils._mtgjson.load import ALLPRICES_NAME, is_mtgjson_path
+    from mtg_utils._mtgjson.load import is_mtgjson_path, source_files
 
-    mtime = bulk_path.stat().st_mtime
     if is_mtgjson_path(bulk_path):
-        prices = bulk_path.with_name(ALLPRICES_NAME)
-        if prices.exists():
-            mtime = max(mtime, prices.stat().st_mtime)
-    return mtime
+        return max(f.stat().st_mtime for f in source_files(bulk_path) if f.exists())
+    return bulk_path.stat().st_mtime
 
 
 def _read_sidecar(sidecar: Path, bulk_path: Path) -> list[dict] | None:

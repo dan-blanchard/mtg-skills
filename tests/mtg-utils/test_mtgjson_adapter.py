@@ -7,7 +7,14 @@ suite runs in CI with no MTGJSON data on disk.
 from __future__ import annotations
 
 from mtg_utils._mtgjson import adapter
-from mtg_utils._mtgjson.load import _group_faces, flatten
+from mtg_utils._mtgjson.load import (
+    ALLPRICES_NAME,
+    ALLPRINTINGS_NAME,
+    MTGJSON_FILES,
+    _group_faces,
+    flatten,
+    source_files,
+)
 from mtg_utils.card_classify import get_mana_cost, get_oracle_text
 
 
@@ -626,3 +633,12 @@ def test_flatten_df_token_collapses_by_scryfall_id():
     rec = by_id["c5"]
     assert rec["name"] == "Incubator // Phyrexian"
     assert len(rec["card_faces"]) == 2
+
+
+# ── source descriptor (one home for "which files an MTGJSON source is") ─────────
+def test_source_files_lists_printings_then_prices(tmp_path):
+    printings = tmp_path / ALLPRINTINGS_NAME
+    # The loader and the freshness check resolve the SAME set off the printings path.
+    assert source_files(printings) == [printings, tmp_path / ALLPRICES_NAME]
+    # ...and download fetches exactly those names — one home, so they can't drift.
+    assert MTGJSON_FILES == (ALLPRINTINGS_NAME, ALLPRICES_NAME)
