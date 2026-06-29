@@ -49,12 +49,21 @@ _WINCON_TARGET = {
 _WINCON_PATTERNS = [
     re.compile(p, re.IGNORECASE)
     for p in (
-        r"wins? the game",
-        r"loses? the game",
+        # Guard "can't win" — Platinum Angel ("your opponents can't win the game") is
+        # self-protection, not a finisher.
+        r"(?<!can't )(?<!cannot )wins? the game",
+        # Opponent-scoped: a real alt-win makes an OPPONENT lose (CR 104.3e). The bare
+        # r"loses? the game" matched self-loss DRAWBACKS (Pact of Negation "you lose the
+        # game") and self-protection (Platinum Angel "you can't lose the game").
+        r"(?:each opponent|target (?:player|opponent)|that player) loses? the game",
         r"an additional combat phase",
         r"extra combat",
         r"infinite",
         r"damage to each opponent equal",
+        # Scaling group-drain finisher (Yuriko base drain, Exsanguinate) — the life-loss
+        # sibling of the burn clause above. Scaling-scoped so a 1-life pinger (Blood
+        # Artist) is not counted as a closer.
+        r"each opponent loses (?:life equal|x life)",
         r"creatures you control get \+\d",
     )
 ]
