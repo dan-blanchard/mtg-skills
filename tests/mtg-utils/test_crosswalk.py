@@ -375,6 +375,93 @@ def test_ramp_land_base_vs_accel_fixing(name, should_fire):
     assert (("ramp", "you", "") in _idents(name)) is should_fire
 
 
+# ── Batch-2 over-fire regressions (rules-lawyer adjudicated; ADR-0035) ─────────
+# The systemic root: phase's ``{Non: X}`` negation wrapper was flattened to its
+# POSITIVE inner type word, so a "nonland permanent" satisfied ``"Land" in subject``
+# and a "noncreature" satisfied ``"Creature" in subject``. The fix drops the Non
+# wrapper (CR 207.2c / 400.7); these pin the four adjudicated over-fires gone while
+# the legitimate positive reads survive.
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Brainstealer Dragon", "Builder's Talent"],  # "a nonland permanent enters"
+)
+def test_landfall_not_fired_by_nonland_permanent(name):
+    """A ``{Non: Land}`` "nonland permanent" enters-trigger must NOT read as
+    landfall — the negation is dropped, never flattened to a positive ``Land``."""
+    assert "landfall" not in _keys(name)
+
+
+def test_real_landfall_still_fires_after_non_fix():
+    """A genuine "a land enters" trigger (positive ``Land``) is unaffected."""
+    assert ("landfall", "you", "") in _idents("Lotus Cobra")
+
+
+def test_reanimator_not_fired_by_noncreature_return():
+    """Astelli Reclaimer returns a "noncreature, nonland permanent" card from the
+    graveyard — the ``{Non: Creature}`` must not satisfy the is-creature gate."""
+    assert "reanimator" not in _keys("Astelli Reclaimer")
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Grave Pact", "Dictate of Erebos"],  # "each opponent sacrifices" — an EDICT
+)
+def test_sacrifice_outlets_not_fired_by_edict(name):
+    """An "each opponent sacrifices a creature" edict (phase mislabels the
+    sacrificed subject ``controller: You`` but tags the ability ``player_scope:
+    Opponent``) is NOT a you-sac outlet (CR 701.21a)."""
+    assert "sacrifice_outlets" not in _keys(name)
+
+
+def test_sacrifice_outlets_self_sac_preserved():
+    """Mycoloth's Devour ("you may sacrifice any number of creatures") still fires
+    — it carries no opponents ``player_scope`` to veto it (CR 702.82a)."""
+    assert ("sacrifice_outlets", "you", "") in _idents("Mycoloth")
+
+
+def test_death_matters_not_fired_by_noncreature_arrival():
+    """Scrapheap watches an artifact/enchantment put into the graveyard from the
+    battlefield — only CREATURES "die" (CR 700.4), so it must not fire."""
+    assert "death_matters" not in _keys("Scrapheap")
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Kithkin Mourncaller", "Rakish Crew"],  # creature-subtype dies payoffs
+)
+def test_death_matters_creature_subtype_preserved(name):
+    """A dies-trigger watching creature subtypes — Kithkin/Elf, and an ``AnyOf`` of
+    Assassin/Mercenary/Pirate/Rogue/Warlock — is a real creature-death payoff that
+    must survive the CR-700.4 creature gate."""
+    assert "death_matters" in _keys(name)
+
+
+def test_filter_type_words_drops_non_negation():
+    """``{Non: Land}`` is DROPPED (not flattened to ``Land``) — the systemic root of
+    the landfall / reanimator over-fires (CR 207.2c / 400.7)."""
+    from mtg_utils._card_ir.crosswalk import trigger_subject
+
+    bsd = _tree("Brainstealer Dragon")
+    enters = next(u for u in bsd.units if u.trigger_event == "enters")
+    subj = trigger_subject(enters.node)
+    assert "Land" not in subj  # the "nonland" arm must not surface Land
+    assert "Permanent" in subj  # the positive "Permanent" word survives
+
+
+def test_filter_type_words_recurses_anyof():
+    """An ``{AnyOf: [{Subtype: Assassin}, …]}`` disjunction surfaces its inner
+    subtypes (parallel to the Or/And recursion) — Rakish Crew's creature set."""
+    from mtg_utils._card_ir.crosswalk import trigger_subject
+
+    rc = _tree("Rakish Crew")
+    dies = next(u for u in rc.units if u.trigger_event == "dies")
+    subj = trigger_subject(dies.node)
+    assert "Assassin" in subj
+    assert "Mercenary" in subj
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

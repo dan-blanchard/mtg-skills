@@ -274,6 +274,24 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
 # ── Batch 2 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────
 
 
+def _is_creature_death_subject(subject: tuple[str, ...]) -> bool:
+    """Whether a ``dies`` trigger's watched OBJECT is a CREATURE (CR 700.4).
+
+    "Dies" is defined only for creatures (a creature put into a graveyard from the
+    battlefield); a watcher of a non-creature graveyard-arrival (Scrapheap —
+    "an artifact or enchantment is put into your graveyard from the battlefield")
+    is a different lane, NOT a death payoff. True when the watched subject names
+    ``Creature`` OR resolves to a real creature subtype (Kithkin Mourncaller — "an
+    attacking Kithkin or Elf"); a pure ``Artifact`` / ``Enchantment`` subject is
+    rejected. The subtype check routes through ``_resolve_subject`` so it shares the
+    vocab's case-folding + the card-type / non-creature-token (Treasure / Clue)
+    denylists rather than a raw membership test against the lowercased vocab.
+    """
+    return "Creature" in subject or any(
+        _resolve_subject(w, CREATURE_SUBTYPES) for w in subject
+    )
+
+
 def _death_matters(tree: ConceptTree) -> list[Signal]:
     """Aristocrats payoff — a ``dies`` trigger watching OTHER creatures (CR 700.4).
 
@@ -294,7 +312,13 @@ def _death_matters(tree: ConceptTree) -> list[Signal]:
         # Countryside Crusher) is a graveyard-arrival payoff, not a death payoff.
         if getattr(unit.node, "origin", None) != "Battlefield":
             continue
-        if not trigger_subject(unit.node):  # bare SelfRef self-death
+        subj = trigger_subject(unit.node)
+        if not subj:  # bare SelfRef self-death
+            continue
+        # CR 700.4: only CREATURES die. A non-creature GY-arrival watcher (Scrapheap
+        # — artifact/enchantment) is not a death payoff, even though phase emits the
+        # same battlefield→graveyard trigger shape.
+        if not _is_creature_death_subject(subj):
             continue
         out.append(
             Signal(
@@ -433,13 +457,44 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
                 return [
                     Signal("sacrifice_outlets", "you", "", c.raw, tree.name, "high")
                 ]
-        # An EFFECT-role sac is an edict UNLESS its subject is explicitly you.
+        # An EFFECT-role sac is an edict UNLESS its subject is explicitly you AND
+        # the resolving ability's actor is NOT an opponent (the player_scope guard
+        # below catches the "each opponent sacrifices" edicts phase mislabels as a
+        # you-controlled sacrificed subject — Grave Pact, Dictate of Erebos).
+        if _edict_actor(unit):
+            continue
         for c in unit.effects:
             if c.concept == "sacrifice" and _is_you_sac_subject(c, cost=False):
                 return [
                     Signal("sacrifice_outlets", "you", "", c.raw, tree.name, "high")
                 ]
     return []
+
+
+# player_scope actor tags that are NOT the ability's controller (an edict makes
+# someone ELSE sacrifice; the controller never does). CR 701.21a / 800.4a.
+_EDICT_ACTORS: frozenset[str] = frozenset(
+    {"Opponent", "Opponents", "EachOpponent", "All", "EachPlayer", "Each"}
+)
+
+
+def _edict_actor(unit: object) -> bool:
+    """Whether the ability whose effect resolves names a NON-controller actor.
+
+    Phase tags "each opponent / each other player sacrifices" edicts with a
+    ``player_scope`` of ``Opponent`` / ``All`` on the resolving ability (a trigger's
+    ``execute``, or the activated/replacement ability itself), while MISLABELING the
+    sacrificed creature's filter ``controller: You`` — but per CR 701.21a a player
+    can only sacrifice a permanent THEY control, so an "each opponent sacrifices"
+    effect is an EDICT, not a self-sac outlet. Reading the actor here rejects the
+    edict (Grave Pact, Dictate of Erebos, Butcher of Malakir, Dusk Mangler) while a
+    genuine self-sac (Mycoloth's Devour — no opponents ``player_scope``) still fires.
+    """
+    node = getattr(unit, "node", None)
+    for holder in (node, getattr(node, "execute", None)):
+        if tag_of(getattr(holder, "player_scope", None)) in _EDICT_ACTORS:
+            return True
+    return False
 
 
 def _is_you_sac_subject(c: object, *, cost: bool) -> bool:

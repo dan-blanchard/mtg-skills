@@ -9476,6 +9476,1858 @@
     "rare",
     "mythic"
    ]
+  },
+  "Brainstealer Dragon": {
+   "name": "Brainstealer Dragon",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Black",
+     "Black"
+    ],
+    "generic": 5
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Creature"
+    ],
+    "subtypes": [
+     "Dragon",
+     "Horror"
+    ]
+   },
+   "power": {
+    "type": "Fixed",
+    "value": 6
+   },
+   "toughness": {
+    "type": "Fixed",
+    "value": 6
+   },
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Flying\nAt the beginning of your end step, exile the top card of each opponent's library. You may play those cards for as long as they remain exiled. If you cast a spell this way, you may spend mana as though it were mana of any color to cast it.\nWhenever a nonland permanent an opponent owns enters the battlefield under your control, they lose life equal to its mana value.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [
+    "Flying"
+   ],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "Phase",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "ChangeZone",
+       "origin": null,
+       "destination": "Exile",
+       "target": {
+        "type": "Typed",
+        "type_filters": [],
+        "controller": "Opponent",
+        "properties": [
+         {
+          "type": "InZone",
+          "zone": "Library"
+         }
+        ]
+       },
+       "owner_library": false,
+       "enter_transformed": false,
+       "enter_tapped": false,
+       "enters_attacking": false
+      },
+      "cost": null,
+      "sub_ability": {
+       "kind": "Spell",
+       "effect": {
+        "type": "GrantCastingPermission",
+        "permission": {
+         "type": "PlayFromExile",
+         "duration": "Permanent",
+         "granted_to": 0,
+         "mana_spend_permission": "AnyTypeOrColor"
+        },
+        "target": {
+         "type": "TrackedSet",
+         "id": 0
+        }
+       },
+       "cost": null,
+       "sub_ability": null,
+       "duration": null,
+       "description": null,
+       "target_prompt": null,
+       "condition": null,
+       "optional_targeting": false,
+       "optional": false,
+       "forward_result": false,
+       "sub_link": "SequentialSibling"
+      },
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": null,
+     "origin": null,
+     "destination": null,
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": "End",
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "At the beginning of your end step, exile the top card of each opponent's library. You may play those cards for as long as they remain exiled. If you cast a spell this way, you may spend mana as though it were mana of any color to cast it.",
+     "constraint": {
+      "type": "OnlyDuringYourTurn"
+     },
+     "condition": null,
+     "batched": false
+    },
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "LoseLife",
+       "amount": {
+        "type": "Ref",
+        "qty": {
+         "type": "ObjectManaValue",
+         "scope": {
+          "type": "Anaphoric"
+         }
+        }
+       },
+       "target": {
+        "type": "TriggeringSource"
+       }
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "Typed",
+      "type_filters": [
+       "Permanent",
+       {
+        "Non": "Land"
+       }
+      ],
+      "controller": "You",
+      "properties": [
+       {
+        "type": "Owned",
+        "controller": "Opponent"
+       }
+      ]
+     },
+     "origin": null,
+     "destination": "Battlefield",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "Whenever a nonland permanent an opponent owns enters the battlefield under your control, they lose life equal to its mana value.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Black"
+   ],
+   "scryfall_oracle_id": "13cb958f-1e66-4219-901a-ff58275c8475",
+   "metadata": {
+    "source_printing_ids": [
+     "0984b1f1-dfc8-4cb9-90a3-e084950438bf",
+     "884d4eea-77c0-4b78-bb83-3f855cc77298",
+     "bdeda32b-9c70-47c6-bfbe-06b651af1ce1"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "oathbreaker": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "CLB",
+    "OTC"
+   ],
+   "rarities": [
+    "rare"
+   ]
+  },
+  "Builder's Talent": {
+   "name": "Builder's Talent",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "White"
+    ],
+    "generic": 1
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Enchantment"
+    ],
+    "subtypes": [
+     "Class"
+    ]
+   },
+   "power": null,
+   "toughness": null,
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "(Gain the next level as a sorcery to add its ability.)\nWhen this Class enters, create a 0/4 white Wall creature token with defender.\n{W}: Level 2\nWhenever one or more noncreature, nonland permanents you control enter, put a +1/+1 counter on target creature you control.\n{4}{W}: Level 3\nWhen this Class becomes level 3, return target noncreature, nonland permanent card from your graveyard to the battlefield.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [
+    {
+     "kind": "Activated",
+     "effect": {
+      "type": "SetClassLevel",
+      "level": 2
+     },
+     "cost": {
+      "type": "Mana",
+      "cost": {
+       "type": "Cost",
+       "shards": [
+        "White"
+       ],
+       "generic": 0
+      }
+     },
+     "sub_ability": null,
+     "duration": null,
+     "description": "{W}: Level 2",
+     "target_prompt": null,
+     "activation_restrictions": [
+      {
+       "type": "AsSorcery"
+      },
+      {
+       "type": "ClassLevelIs",
+       "data": {
+        "level": 1
+       }
+      }
+     ],
+     "condition": null,
+     "optional_targeting": false,
+     "optional": false,
+     "forward_result": false
+    },
+    {
+     "kind": "Activated",
+     "effect": {
+      "type": "SetClassLevel",
+      "level": 3
+     },
+     "cost": {
+      "type": "Mana",
+      "cost": {
+       "type": "Cost",
+       "shards": [
+        "White"
+       ],
+       "generic": 4
+      }
+     },
+     "sub_ability": null,
+     "duration": null,
+     "description": "{4}{W}: Level 3",
+     "target_prompt": null,
+     "activation_restrictions": [
+      {
+       "type": "AsSorcery"
+      },
+      {
+       "type": "ClassLevelIs",
+       "data": {
+        "level": 2
+       }
+      }
+     ],
+     "condition": null,
+     "optional_targeting": false,
+     "optional": false,
+     "forward_result": false
+    }
+   ],
+   "triggers": [
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "Token",
+       "name": "Wall",
+       "power": {
+        "type": "Fixed",
+        "value": 0
+       },
+       "toughness": {
+        "type": "Fixed",
+        "value": 4
+       },
+       "types": [
+        "Creature",
+        "Wall"
+       ],
+       "colors": [
+        "White"
+       ],
+       "keywords": [
+        "Defender"
+       ],
+       "tapped": false,
+       "count": {
+        "type": "Fixed",
+        "value": 1
+       },
+       "owner": {
+        "type": "Controller"
+       },
+       "enters_attacking": false
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "SelfRef"
+     },
+     "origin": null,
+     "destination": "Battlefield",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "When ~ enters, create a 0/4 white Wall creature token with defender.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    },
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "PutCounter",
+       "counter_type": "P1P1",
+       "count": {
+        "type": "Fixed",
+        "value": 1
+       },
+       "target": {
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ],
+        "controller": "You",
+        "properties": []
+       }
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "Typed",
+      "type_filters": [
+       "Permanent",
+       {
+        "Non": "Creature"
+       },
+       {
+        "Non": "Land"
+       }
+      ],
+      "controller": "You",
+      "properties": []
+     },
+     "origin": null,
+     "destination": "Battlefield",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "Whenever one or more noncreature, nonland permanents you control enter, put a +1/+1 counter on target creature you control.",
+     "constraint": null,
+     "condition": {
+      "type": "ClassLevelGE",
+      "level": 2
+     },
+     "batched": true
+    },
+    {
+     "mode": "ClassLevelGained",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "ChangeZone",
+       "origin": "Graveyard",
+       "destination": "Battlefield",
+       "target": {
+        "type": "Typed",
+        "type_filters": [
+         "Permanent",
+         {
+          "Non": "Creature"
+         },
+         {
+          "Non": "Land"
+         }
+        ],
+        "controller": "You",
+        "properties": [
+         {
+          "type": "InZone",
+          "zone": "Graveyard"
+         }
+        ]
+       },
+       "owner_library": false,
+       "enter_transformed": false,
+       "enter_tapped": false,
+       "enters_attacking": false
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "SelfRef"
+     },
+     "origin": null,
+     "destination": null,
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "When ~ becomes level 3",
+     "constraint": {
+      "type": "AtClassLevel",
+      "level": 3
+     },
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "White"
+   ],
+   "scryfall_oracle_id": "0b19082c-8f80-448b-9e1b-0f324a159409",
+   "metadata": {
+    "related_token_ids": [
+     "5c11257f-fd89-5f00-87c8-ff8fad9fb5c1"
+    ],
+    "source_printing_ids": [
+     "15fa581a-724e-4196-a9a3-ff84c54bdb7d"
+    ]
+   },
+   "legalities": {
+    "brawl": "legal",
+    "commander": "legal",
+    "duel": "legal",
+    "historic": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "pioneer": "legal",
+    "standard": "legal",
+    "standardbrawl": "legal",
+    "timeless": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "BLB"
+   ],
+   "rulings": [
+    {
+     "date": "2024-07-26",
+     "text": "Each Class has five abilities. The three in the major sections of its text box are class abilities. Class abilities can be static, activated, or triggered abilities. The other two are level abilities, one activated ability to advance the Class to level 2 and another to advance the Class to level 3."
+    },
+    {
+     "date": "2024-07-26",
+     "text": "Each Class starts with only the first of its three class abilities. As the first level ability resolves, the Class becomes level 2 and gains the second class ability. As the second level ability resolves, the Class becomes level 3 and gains the third class ability."
+    },
+    {
+     "date": "2024-07-26",
+     "text": "Gaining a level is a normal activated ability. It uses the stack and can be responded to."
+    },
+    {
+     "date": "2024-07-26",
+     "text": "Gaining a level won't remove abilities that a Class had at a previous level."
+    },
+    {
+     "date": "2024-07-26",
+     "text": "There's no restriction on how many Class permanents you can control, whether they're the same or different classes. Each Class permanent tracks its own level separately."
+    },
+    {
+     "date": "2024-07-26",
+     "text": "You can't activate the first level ability of a Class unless that Class is level 1. Similarly, you can't activate the second level ability of a Class unless that Class is level 2."
+    }
+   ],
+   "rarities": [
+    "uncommon"
+   ]
+  },
+  "Astelli Reclaimer": {
+   "name": "Astelli Reclaimer",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "White",
+     "White"
+    ],
+    "generic": 3
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Creature"
+    ],
+    "subtypes": [
+     "Angel",
+     "Warrior"
+    ]
+   },
+   "power": {
+    "type": "Fixed",
+    "value": 5
+   },
+   "toughness": {
+    "type": "Fixed",
+    "value": 4
+   },
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Flying\nWhen this creature enters, return target noncreature, nonland permanent card with mana value X or less from your graveyard to the battlefield, where X is the amount of mana spent to cast this creature.\nWarp {2}{W}",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [
+    "Flying",
+    {
+     "Warp": {
+      "type": "Cost",
+      "shards": [
+       "White"
+      ],
+      "generic": 2
+     }
+    }
+   ],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "ChangeZone",
+       "origin": "Graveyard",
+       "destination": "Battlefield",
+       "target": {
+        "type": "Typed",
+        "type_filters": [
+         "Permanent",
+         {
+          "Non": "Creature"
+         },
+         {
+          "Non": "Land"
+         }
+        ],
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Cmc",
+          "comparator": "LE",
+          "value": {
+           "type": "Ref",
+           "qty": {
+            "type": "ManaSpentToCast",
+            "scope": "SelfObject",
+            "metric": {
+             "type": "Total"
+            }
+           }
+          }
+         },
+         {
+          "type": "InZone",
+          "zone": "Graveyard"
+         }
+        ]
+       },
+       "owner_library": false,
+       "enter_transformed": false,
+       "enter_tapped": false,
+       "enters_attacking": false
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "SelfRef"
+     },
+     "origin": null,
+     "destination": "Battlefield",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "When ~ enters, return target noncreature, nonland permanent card with mana value X or less from your graveyard to the battlefield, where X is the amount of mana spent to cast ~.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "White"
+   ],
+   "scryfall_oracle_id": "bb956492-e3ed-483a-9169-5b795a8e619e",
+   "metadata": {
+    "source_printing_ids": [
+     "4fb36405-cd28-432f-b0a4-e74ff8be928d",
+     "f01aaada-2525-4f92-83e8-bbc61fa7b9cd"
+    ]
+   },
+   "legalities": {
+    "brawl": "legal",
+    "commander": "legal",
+    "duel": "legal",
+    "historic": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "pioneer": "legal",
+    "standard": "legal",
+    "standardbrawl": "legal",
+    "timeless": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "EOE",
+    "PEOE"
+   ],
+   "rulings": [
+    {
+     "date": "2025-07-25",
+     "text": "Astelli Reclaimer’s enters ability cares about the mana you actually paid to cast Astelli Reclaimer, not its mana cost. If you cast Astelli Reclaimer for {3}{W}{W}, X is 5. If you cast it with warp for {2}{W}, X is 3. Any effects that increase or decrease the cost to cast it will also be taken into account."
+    },
+    {
+     "date": "2025-07-25",
+     "text": "If a card in your graveyard has {X} in its mana cost, X is 0 for the purpose of determining its mana value."
+    },
+    {
+     "date": "2025-07-25",
+     "text": "If a copy of Astelli Reclaimer is created on the stack, no mana was spent to cast the copy, so X will be 0. The amount of mana spent to cast the original spell is not copied."
+    },
+    {
+     "date": "2025-07-25",
+     "text": "If an effect allows you to cast Astelli Reclaimer without paying its mana cost, X will be 0."
+    },
+    {
+     "date": "2025-07-25",
+     "text": "If an effect requires you to pay some amount of mana to prevent Astelli Reclaimer from being countered, as Divert Disaster does, that mana wasn’t spent to cast Astelli Reclaimer and will not be taken into account."
+    }
+   ],
+   "rarities": [
+    "rare"
+   ]
+  },
+  "Grave Pact": {
+   "name": "Grave Pact",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Black",
+     "Black",
+     "Black"
+    ],
+    "generic": 1
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Enchantment"
+    ],
+    "subtypes": []
+   },
+   "power": null,
+   "toughness": null,
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Whenever a creature you control dies, each other player sacrifices a creature of their choice.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "Sacrifice",
+       "target": {
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ],
+        "controller": "You",
+        "properties": []
+       },
+       "count": {
+        "type": "Fixed",
+        "value": 1
+       }
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false,
+      "player_scope": {
+       "type": "Opponent"
+      }
+     },
+     "valid_card": {
+      "type": "Typed",
+      "type_filters": [
+       "Creature"
+      ],
+      "controller": "You",
+      "properties": []
+     },
+     "origin": "Battlefield",
+     "destination": "Graveyard",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "Whenever a creature you control dies, each other player sacrifices a creature of their choice.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Black"
+   ],
+   "scryfall_oracle_id": "6f4ac4a4-53ec-4bc9-8f5c-d4b801d867b2",
+   "metadata": {
+    "source_printing_ids": [
+     "291af6dc-9f71-4e8e-9ecc-24fa90aacb23",
+     "2b9d2a9b-daf2-4ebe-bb8c-0b1d4dfa9e35",
+     "655a654b-87e8-41af-b9db-54afee485946",
+     "940536be-fce1-4a90-9126-195815a43e0f",
+     "9aaced6e-f656-49d3-9130-ba255800e0a5",
+     "aeeb9e6f-3c04-4b87-9d51-33516d0e9102",
+     "b728cdab-e4fe-478b-b7b2-5912bd6a80a3",
+     "b88471f6-ccb3-4129-b7a4-62cee65605ef",
+     "bfd23186-6796-4430-86c5-f0d5337bbc91",
+     "c87fe9b8-3dae-4b22-bceb-be48cd082921",
+     "f24021ca-f493-4de8-9e65-01bf10fe2920",
+     "f32a394c-aa7e-40a7-958d-ed89e82bd473",
+     "f5a4970b-2ba6-4c91-a301-369369cdf360"
+    ]
+   },
+   "legalities": {
+    "brawl": "legal",
+    "commander": "legal",
+    "duel": "legal",
+    "historic": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "premodern": "legal",
+    "timeless": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "10E",
+    "8ED",
+    "9ED",
+    "CM2",
+    "CMD",
+    "CMM",
+    "HOP",
+    "STH",
+    "WOT"
+   ],
+   "rulings": [
+    {
+     "date": "2023-09-01",
+     "text": "If multiple creatures you control die at the same time, Grave Pact's ability will trigger that many times."
+    },
+    {
+     "date": "2023-09-01",
+     "text": "If two players each control a Grave Pact and a creature controlled by one of those players dies, a chain reaction happens. First the ability of that player's Grave Pact will trigger, causing each other player to sacrifice a creature. That sacrifice causes the ability of the other player's Grave Pact to trigger, and so on."
+    },
+    {
+     "date": "2023-09-01",
+     "text": "If you control more than one Grave Pact and a creature you control dies, each of the triggered abilities will trigger. Each other player will sacrifice a creature each time one of those abilities resolves."
+    },
+    {
+     "date": "2023-09-01",
+     "text": "In a Two-Headed Giant game, when a creature you control dies, Grave Pact's triggered ability will cause each other player, including your teammate, to sacrifice a creature. Grave Pact's ability won't trigger when a creature your teammate controls dies."
+    },
+    {
+     "date": "2023-09-01",
+     "text": "None of the players are targeted. A player with hexproof would still sacrifice a creature."
+    },
+    {
+     "date": "2023-09-01",
+     "text": "When the triggered ability resolves, first the player whose turn it is (if it isn't your turn) chooses which creature they will sacrifice, then each other player in turn order does the same, then all chosen creatures are sacrificed at the same time."
+    }
+   ],
+   "rarities": [
+    "rare",
+    "mythic"
+   ]
+  },
+  "Dictate of Erebos": {
+   "name": "Dictate of Erebos",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Black",
+     "Black"
+    ],
+    "generic": 3
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Enchantment"
+    ],
+    "subtypes": []
+   },
+   "power": null,
+   "toughness": null,
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Flash\nWhenever a creature you control dies, each opponent sacrifices a creature of their choice.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [
+    "Flash"
+   ],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "Sacrifice",
+       "target": {
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ],
+        "controller": "You",
+        "properties": []
+       },
+       "count": {
+        "type": "Fixed",
+        "value": 1
+       }
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false,
+      "player_scope": {
+       "type": "Opponent"
+      }
+     },
+     "valid_card": {
+      "type": "Typed",
+      "type_filters": [
+       "Creature"
+      ],
+      "controller": "You",
+      "properties": []
+     },
+     "origin": "Battlefield",
+     "destination": "Graveyard",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "Whenever a creature you control dies, each opponent sacrifices a creature of their choice.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Black"
+   ],
+   "scryfall_oracle_id": "7c777a41-e40a-4b40-96bf-8ddd5c12924c",
+   "metadata": {
+    "source_printing_ids": [
+     "343e7a7a-60d3-4a63-8428-25de639e5df1",
+     "354356c1-7b25-4d27-8887-ef9fe68bb76b",
+     "93789500-bcc5-40b0-991d-84d17cef95a6",
+     "9f06db70-95f9-41eb-8e5f-8bc56fd34c09",
+     "ec2265b7-1851-4e35-ade5-582054570747"
+    ]
+   },
+   "legalities": {
+    "brawl": "legal",
+    "commander": "legal",
+    "duel": "legal",
+    "historic": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "pioneer": "legal",
+    "timeless": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "JOU",
+    "PIO",
+    "PLST",
+    "SLD"
+   ],
+   "rulings": [
+    {
+     "date": "2014-04-26",
+     "text": "If multiple creatures you control die at the same time, Dictate of Erebos's triggered ability will trigger that many times."
+    },
+    {
+     "date": "2014-04-26",
+     "text": "If you and an opponent each control a Dictate of Erebos and a creature dies, a chain reaction happens. First the ability of one player's Dictate of Erebos will trigger, causing each opponent to sacrifice a creature. That sacrifice causes the ability of the other player's Dictate of Erebos to trigger, and so on."
+    },
+    {
+     "date": "2014-04-26",
+     "text": "If you control more than one Dictate of Erebos and a creature you control dies, each of the triggered abilities will trigger. Each opponent will sacrifice a creature each time one of those abilities resolves."
+    },
+    {
+     "date": "2014-04-26",
+     "text": "None of the opponents are targeted. An opponent with hexproof would still sacrifice a creature."
+    },
+    {
+     "date": "2014-04-26",
+     "text": "When the triggered ability resolves, first the player whose turn it is (if that player is an opponent) chooses which creature they will sacrifice, then each other opponent in turn order does the same, then all chosen creatures are sacrificed at the same time."
+    }
+   ],
+   "rarities": [
+    "rare"
+   ]
+  },
+  "Scrapheap": {
+   "name": "Scrapheap",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [],
+    "generic": 3
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Artifact"
+    ],
+    "subtypes": []
+   },
+   "power": null,
+   "toughness": null,
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Whenever an artifact or enchantment is put into your graveyard from the battlefield, you gain 1 life.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "GainLife",
+       "amount": {
+        "type": "Fixed",
+        "value": 1
+       }
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "Or",
+      "filters": [
+       {
+        "type": "Typed",
+        "type_filters": [
+         "Artifact"
+        ],
+        "controller": "You",
+        "properties": []
+       },
+       {
+        "type": "Typed",
+        "type_filters": [
+         "Enchantment"
+        ],
+        "controller": "You",
+        "properties": []
+       }
+      ]
+     },
+     "origin": "Battlefield",
+     "destination": "Graveyard",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": {
+      "type": "Typed",
+      "type_filters": [],
+      "controller": "You",
+      "properties": []
+     },
+     "valid_source": null,
+     "description": "Whenever an artifact or enchantment is put into your graveyard from the battlefield, you gain 1 life.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "scryfall_oracle_id": "dfed42b8-b35e-4c70-9e75-25a4da158e76",
+   "metadata": {
+    "source_printing_ids": [
+     "14aa4474-96a0-4c1d-a09d-73b9c1073b00"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "oathbreaker": "legal",
+    "premodern": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "ULG"
+   ],
+   "rarities": [
+    "rare"
+   ]
+  },
+  "Kithkin Mourncaller": {
+   "name": "Kithkin Mourncaller",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Green"
+    ],
+    "generic": 2
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Creature"
+    ],
+    "subtypes": [
+     "Kithkin",
+     "Scout"
+    ]
+   },
+   "power": {
+    "type": "Fixed",
+    "value": 2
+   },
+   "toughness": {
+    "type": "Fixed",
+    "value": 2
+   },
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Whenever an attacking Kithkin or Elf is put into your graveyard from the battlefield, you may draw a card.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "Draw",
+       "count": {
+        "type": "Fixed",
+        "value": 1
+       },
+       "target": {
+        "type": "Controller"
+       }
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": true,
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "Or",
+      "filters": [
+       {
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Subtype": "Kithkin"
+         }
+        ],
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Attacking"
+         }
+        ]
+       },
+       {
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Subtype": "Elf"
+         }
+        ],
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Attacking"
+         }
+        ]
+       }
+      ]
+     },
+     "origin": "Battlefield",
+     "destination": "Graveyard",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": true,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": {
+      "type": "Typed",
+      "type_filters": [],
+      "controller": "You",
+      "properties": []
+     },
+     "valid_source": null,
+     "description": "Whenever an attacking Kithkin or Elf is put into your graveyard from the battlefield, you may draw a card.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Green"
+   ],
+   "scryfall_oracle_id": "a21e773e-1f23-42af-a1bf-b92c84b7436e",
+   "metadata": {
+    "source_printing_ids": [
+     "0a8b6f90-c609-4ffd-9136-9fd7a833ebb3"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "LRW"
+   ],
+   "rulings": [
+    {
+     "date": "2007-10-01",
+     "text": "If an attacking creature that’s both a Kithkin and an Elf is put into your graveyard from the battlefield, Kithkin Mourncaller’s ability triggers only once."
+    }
+   ],
+   "rarities": [
+    "uncommon"
+   ]
+  },
+  "Mycoloth": {
+   "name": "Mycoloth",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Green",
+     "Green"
+    ],
+    "generic": 3
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Creature"
+    ],
+    "subtypes": [
+     "Fungus"
+    ]
+   },
+   "power": {
+    "type": "Fixed",
+    "value": 4
+   },
+   "toughness": {
+    "type": "Fixed",
+    "value": 4
+   },
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Devour 2 (As this creature enters, you may sacrifice any number of creatures. It enters with twice that many +1/+1 counters on it.)\nAt the beginning of your upkeep, create a 1/1 green Saproling creature token for each +1/+1 counter on this creature.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [
+    {
+     "Devour": 2
+    }
+   ],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "Phase",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "Token",
+       "name": "Saproling",
+       "power": {
+        "type": "Fixed",
+        "value": 1
+       },
+       "toughness": {
+        "type": "Fixed",
+        "value": 1
+       },
+       "types": [
+        "Creature",
+        "Saproling"
+       ],
+       "colors": [
+        "Green"
+       ],
+       "keywords": [],
+       "tapped": false,
+       "count": {
+        "type": "Ref",
+        "qty": {
+         "type": "CountersOn",
+         "scope": {
+          "type": "Source"
+         },
+         "counter_type": "P1P1"
+        }
+       },
+       "owner": {
+        "type": "Controller"
+       },
+       "enters_attacking": false
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": null,
+     "origin": null,
+     "destination": null,
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": "Upkeep",
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "At the beginning of your upkeep, create a 1/1 green Saproling creature token for each +1/+1 counter on ~.",
+     "constraint": {
+      "type": "OnlyDuringYourTurn"
+     },
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [
+    {
+     "event": "Moved",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "Sacrifice",
+       "target": {
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ],
+        "controller": "You",
+        "properties": []
+       },
+       "count": {
+        "type": "UpTo",
+        "max": {
+         "type": "Ref",
+         "qty": {
+          "type": "ObjectCount",
+          "filter": {
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ],
+           "controller": "You",
+           "properties": []
+          }
+         }
+        }
+       }
+      },
+      "cost": null,
+      "sub_ability": {
+       "kind": "Spell",
+       "effect": {
+        "type": "PutCounter",
+        "counter_type": "P1P1",
+        "count": {
+         "type": "Multiply",
+         "factor": 2,
+         "inner": {
+          "type": "Ref",
+          "qty": {
+           "type": "EventContextAmount"
+          }
+         }
+        },
+        "target": {
+         "type": "SelfRef"
+        }
+       },
+       "cost": null,
+       "sub_ability": null,
+       "duration": null,
+       "description": null,
+       "target_prompt": null,
+       "condition": null,
+       "optional_targeting": false,
+       "optional": false,
+       "forward_result": false
+      },
+      "duration": null,
+      "description": "CR 702.82a: Devour 2 — sacrifice any number of creatures; this permanent enters with 2 +1/+1 counters per creature sacrificed.",
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "mode": {
+      "type": "Mandatory"
+     },
+     "valid_card": {
+      "type": "SelfRef"
+     },
+     "description": "CR 702.82a + CR 614.1c: Devour 2 — as this creature enters, you may sacrifice any number of creatures; it enters with 2 +1/+1 counters for each creature sacrificed this way.",
+     "condition": null,
+     "destination_zone": "Battlefield"
+    }
+   ],
+   "color_override": null,
+   "color_identity": [
+    "Green"
+   ],
+   "scryfall_oracle_id": "d7fd16ce-282d-49cd-b2b4-0d25935e7a72",
+   "metadata": {
+    "related_token_ids": [
+     "0628f530-1f4d-5171-b7d0-da2a155273e6",
+     "993318ee-4e8f-58a6-b55f-894b9310a3d9",
+     "b97a960d-5d34-5fd0-a94c-af7bb41c3edb",
+     "ba1d8604-e466-5949-a156-abf0d3bbb33e",
+     "c0edfb5e-e4bc-52df-aa04-92671cb93cd2",
+     "dc6b409b-79e0-5103-9e78-2bf1c9a3deac"
+    ],
+    "source_printing_ids": [
+     "014c07d2-b698-4459-b8b8-47f3aa1acce3",
+     "15360a16-b785-4ffe-bfa8-6c7f6a37455d",
+     "28b878b9-d6d2-4316-866e-0d6573ee80e1",
+     "6cc3ba22-3f1c-41fe-800b-cdf7af44e74b",
+     "75d495f2-2eb4-43b1-becc-1570ec57eb6a",
+     "798748d5-cb17-4f9a-85d4-1bc518222bb8",
+     "924976cf-9b46-4cbf-ab27-07ca72a21608",
+     "a45d83bb-5422-4a72-bbc0-2529ecfa0b4a",
+     "c3f7faed-de6b-404f-b54f-e60d5b55485b"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "ALA",
+    "C15",
+    "C16",
+    "CMA",
+    "PC2",
+    "PCA",
+    "PLST",
+    "SLD",
+    "SOC"
+   ],
+   "rulings": [
+    {
+     "date": "2008-10-01",
+     "text": "If multiple creatures with devour are entering under your control at the same time, you may use each one's devour ability. A creature you already control can be devoured by only one of them, however. (In other words, you can't sacrifice the same creature to satisfy multiple devour abilities.) All creatures devoured this way are sacrificed at the same time."
+    },
+    {
+     "date": "2008-10-01",
+     "text": "The number of Saproling tokens created by the triggered ability is based on the number of +1/+1 counters on Mycoloth, not on the number of creatures Mycoloth devoured. It doesn't matter where the +1/+1 counters came from."
+    },
+    {
+     "date": "2008-10-01",
+     "text": "You may choose not to sacrifice any creatures for the Devour ability."
+    },
+    {
+     "date": "2008-10-01",
+     "text": "You may sacrifice only creatures that are already on the battlefield. If a creature with devour and another creature are entering under your control at the same time, the creature with devour can't devour that other creature. The creature with devour also can't devour itself."
+    }
+   ],
+   "rarities": [
+    "rare"
+   ]
+  },
+  "Rakish Crew": {
+   "name": "Rakish Crew",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Black"
+    ],
+    "generic": 2
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Enchantment"
+    ],
+    "subtypes": []
+   },
+   "power": null,
+   "toughness": null,
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "When this enchantment enters, create a 1/1 red Mercenary creature token with \"{T}: Target creature you control gets +1/+0 until end of turn. Activate only as a sorcery.\"\nWhenever an outlaw you control dies, each opponent loses 1 life and you gain 1 life. (Assassins, Mercenaries, Pirates, Rogues, and Warlocks are outlaws.)",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "Token",
+       "name": "Mercenary",
+       "power": {
+        "type": "Fixed",
+        "value": 1
+       },
+       "toughness": {
+        "type": "Fixed",
+        "value": 1
+       },
+       "types": [
+        "Creature",
+        "Mercenary"
+       ],
+       "colors": [
+        "Red"
+       ],
+       "keywords": [],
+       "tapped": false,
+       "count": {
+        "type": "Fixed",
+        "value": 1
+       },
+       "owner": {
+        "type": "Controller"
+       },
+       "enters_attacking": false,
+       "static_abilities": [
+        {
+         "mode": "Continuous",
+         "affected": {
+          "type": "SelfRef"
+         },
+         "modifications": [
+          {
+           "type": "GrantAbility",
+           "definition": {
+            "kind": "Activated",
+            "effect": {
+             "type": "Pump",
+             "power": {
+              "type": "Fixed",
+              "value": 1
+             },
+             "toughness": {
+              "type": "Fixed",
+              "value": 0
+             },
+             "target": {
+              "type": "Typed",
+              "type_filters": [
+               "Creature"
+              ],
+              "controller": "You",
+              "properties": []
+             }
+            },
+            "cost": {
+             "type": "Tap"
+            },
+            "sub_ability": null,
+            "duration": "UntilEndOfTurn",
+            "description": "{T}: Target creature you control gets +1/+0 until end of turn. Activate only as a sorcery.",
+            "target_prompt": null,
+            "activation_restrictions": [
+             {
+              "type": "AsSorcery"
+             }
+            ],
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+           }
+          }
+         ],
+         "condition": null,
+         "affected_zone": null,
+         "effect_zone": null,
+         "active_zones": [],
+         "characteristic_defining": false,
+         "description": null
+        }
+       ]
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "SelfRef"
+     },
+     "origin": null,
+     "destination": "Battlefield",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "When ~ enters, create a 1/1 red Mercenary creature token with \"{T}: Target creature you control gets +1/+0 until end of turn. Activate only as a sorcery.\"",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    },
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "LoseLife",
+       "amount": {
+        "type": "Fixed",
+        "value": 1
+       }
+      },
+      "cost": null,
+      "sub_ability": {
+       "kind": "Spell",
+       "effect": {
+        "type": "GainLife",
+        "amount": {
+         "type": "Fixed",
+         "value": 1
+        }
+       },
+       "cost": null,
+       "sub_ability": null,
+       "duration": null,
+       "description": null,
+       "target_prompt": null,
+       "condition": null,
+       "optional_targeting": false,
+       "optional": false,
+       "forward_result": false
+      },
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false,
+      "player_scope": {
+       "type": "Opponent"
+      }
+     },
+     "valid_card": {
+      "type": "Typed",
+      "type_filters": [
+       {
+        "AnyOf": [
+         {
+          "Subtype": "Assassin"
+         },
+         {
+          "Subtype": "Mercenary"
+         },
+         {
+          "Subtype": "Pirate"
+         },
+         {
+          "Subtype": "Rogue"
+         },
+         {
+          "Subtype": "Warlock"
+         }
+        ]
+       }
+      ],
+      "controller": "You",
+      "properties": []
+     },
+     "origin": "Battlefield",
+     "destination": "Graveyard",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "Whenever an outlaw you control dies, each opponent loses 1 life and you gain 1 life.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Black"
+   ],
+   "scryfall_oracle_id": "ddf34404-39dd-4dcf-a706-ec78d47167e9",
+   "metadata": {
+    "related_token_ids": [
+     "0b3c8513-324d-5347-af39-b6da4161a67a"
+    ],
+    "source_printing_ids": [
+     "70f64358-58db-40ab-90e8-6137c3bd0a29"
+    ]
+   },
+   "legalities": {
+    "brawl": "legal",
+    "commander": "legal",
+    "duel": "legal",
+    "historic": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "pioneer": "legal",
+    "standard": "legal",
+    "standardbrawl": "legal",
+    "timeless": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "OTJ"
+   ],
+   "rulings": [
+    {
+     "date": "2024-04-12",
+     "text": "A card, spell, or permanent is an outlaw if it has the Assassin, Mercenary, Pirate, Rogue, or Warlock creature type. It doesn’t matter if it has more than one of those creature types; as long as it has at least one, it’s an outlaw."
+    },
+    {
+     "date": "2024-04-12",
+     "text": "If an ability refers to an outlaw or whether a player controls an outlaw, it’s referring only to permanents with one or more of the creature types specified above. Notably, it’s not referring to any spell or card not on the battlefield. However, other abilities may refer to an “outlaw spell” or “outlaw card” in a zone other than the battlefield. Those abilities refer to spells and cards with one or more of the specified creature types."
+    },
+    {
+     "date": "2024-04-12",
+     "text": "If one or more outlaws you control die at the same time that Rakish Crew leaves the battlefield, its last ability triggers for each of those outlaws."
+    },
+    {
+     "date": "2024-04-12",
+     "text": "Outlaw is not a creature type. If an effect asks you to choose a creature type, you can’t choose outlaw."
+    }
+   ],
+   "rarities": [
+    "uncommon"
+   ]
   }
  }
 }

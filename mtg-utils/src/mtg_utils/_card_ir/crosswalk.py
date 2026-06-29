@@ -288,22 +288,48 @@ def effect_reaches_player(node: TypedMirrorNode) -> bool:
     return False
 
 
+def _type_filter_words(entries: object) -> list[str]:
+    """Flatten one ``type_filters`` list to plain positive type words.
+
+    Handles each entry kind: a bare ``str`` (``"Creature"``); a ``{Subtype: X}``
+    wrapper (surfaced as ``X``); a ``{AnyOf: [...]}`` disjunction (recursed, so an
+    "Assassin, Mercenary, … you control dies" — Rakish Crew — surfaces its inner
+    creature subtypes, parallel to the ``Or`` recursion below); and a ``{Non: X}``
+    NEGATION (CR 207.2c type words / 400.7), whose inner word is DROPPED — never
+    flattened to the positive it negates (the reanimator-on-Astelli-Reclaimer,
+    landfall-on-Brainstealer-Dragon / Builder's-Talent over-fires all stemmed from
+    flattening ``{Non: Land}`` / ``{Non: Creature}`` to the positive type word).
+    """
+    out: list[str] = []
+    if not isinstance(entries, (list, tuple)):
+        return out
+    for tf in entries:
+        if isinstance(tf, str):
+            out.append(tf)
+        elif isinstance(tf, MirrorVariant):
+            if tf.key == "Non":
+                continue  # negation — drop the inner word
+            if tf.key == "AnyOf" and isinstance(tf.inner, list):
+                out.extend(_type_filter_words(tf.inner))  # disjunction — recurse
+                continue
+            inner = tf.inner
+            out.append(inner if isinstance(inner, str) else tf.key)
+    return out
+
+
 def _filter_type_words(filt: object) -> tuple[str, ...]:
-    """Flatten a typed filter's ``type_filters`` (str or ``{Subtype: X}``) words.
+    """Flatten a typed filter's ``type_filters`` (str / ``{Subtype: X}`` / ``{AnyOf:
+    [...]}`` / ``{Non: X}``) words.
 
     Recurses through ``Or`` / ``And`` filter nodes so a dual ``Creature``+``Land``
     or a ``{Subtype: Goblin}`` is surfaced as plain strings — the type-membership
-    granularity reads these, not oracle text.
+    granularity reads these, not oracle text. Per-entry handling (Subtype / AnyOf /
+    Non) lives in :func:`_type_filter_words`.
     """
     out: list[str] = []
     t = tag_of(filt)
     if t == "Typed":
-        for tf in getattr(filt, "type_filters", ()) or ():
-            if isinstance(tf, str):
-                out.append(tf)
-            elif isinstance(tf, MirrorVariant):
-                inner = tf.inner
-                out.append(inner if isinstance(inner, str) else tf.key)
+        out.extend(_type_filter_words(getattr(filt, "type_filters", ())))
     elif t in ("Or", "And"):
         for sub in getattr(filt, "filters", ()) or ():
             out.extend(_filter_type_words(sub))
