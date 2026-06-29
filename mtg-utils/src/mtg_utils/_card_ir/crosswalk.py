@@ -60,6 +60,20 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "LoseTheGame": "lose_game",
     "Pump": "pump",
     "PumpAll": "pump",
+    # Batch 2 (ADR-0035 Stage 2):
+    "GainLife": "gain_life",  # lifegain_makers / matters
+    "LoseLife": "lose_life",  # lifegain_matters self-loss sustain
+    "DealDamage": "deal_damage",  # direct_damage (single-target / "any target")
+    "DamageEachPlayer": "deal_damage",  # direct_damage (each/opp player)
+    "DamageAll": "deal_damage",  # direct_damage (mass; players when player_filter)
+    "Sacrifice": "sacrifice",  # sacrifice_outlets (effect + cost) / edict
+    "PutCounter": "place_counter",  # plus_one_makers (counter_type discriminates)
+    "PutCounterAll": "place_counter",
+    "AddPendingETBCounters": "place_counter",
+    "ExtraTurn": "extra_turn",  # extra_turns (CR 500.7)
+    "ChangeZone": "change_zone",  # reanimator (GY→bf) / blink (exile+return)
+    "ChangeZoneAll": "change_zone",
+    "Mana": "ramp",  # mana production (lane splits land base vs accel/fixing)
 }
 
 OTHER = "other"
@@ -136,6 +150,15 @@ class ConceptTree:
     name: str
     oracle_id: str
     units: tuple[AbilityUnit, ...] = field(default_factory=tuple)
+    card_types: tuple[str, ...] = ()  # the card's own core types (Creature / Land …)
+
+    def is_type(self, core: str) -> bool:
+        """Whether the card itself has core type ``core`` (Creature / Land / …).
+
+        The whole-card type gate the reanimator (is-creature) and ramp (is-land)
+        lanes read off the typed ``card_type`` — never a re-grepped type line.
+        """
+        return core in self.card_types
 
     def iter_concepts(self) -> Iterator[ConceptNode]:
         """Every concept-node across every unit (the whole-card scan)."""
@@ -214,6 +237,55 @@ def _effect_scope(node: TypedMirrorNode) -> str:
             if sc is not None:
                 return sc
     return "you"
+
+
+def explicit_recipient_scope(node: TypedMirrorNode) -> str | None:
+    """The scope of an effect's EXPLICIT recipient field, or ``None`` if none present.
+
+    Distinct from :func:`_effect_scope` (which defaults to "you" when phase carries
+    no recipient): the self-loss-sustain lane must NOT read a default-"you" as a
+    genuine self target (Gray Merchant's ``LoseLife`` has no ``target`` — the "each
+    opponent loses" recipient lives on the trigger, not the node — so its scope is
+    *unknown*, not self). ``None`` here means "no recipient on the node".
+    """
+    for fname in _SCOPE_FIELDS:
+        sub = getattr(node, fname, MISSING)
+        if _present(sub):
+            return _scope_from_player_node(sub)
+    return None
+
+
+def effect_reaches_player(node: TypedMirrorNode) -> bool:
+    """Whether a damage EFFECT reaches a PLAYER (CR 120.1), read structurally.
+
+    The direct-damage / burn gate: a creature-only bite ("4 damage to target
+    creature" — Flame Slash; "2 to each creature" — Pyroclasm) is removal, not burn.
+
+    * ``DamageEachPlayer`` always hits players.
+    * ``DamageAll`` hits players iff it carries a ``player_filter`` (Pestilence pings
+      creatures AND each player; Pyroclasm-as-``DamageAll`` has none).
+    * ``DealDamage`` hits a player iff its target is "any target"/a player node, or a
+      ``Player``-typed filter — NOT a creature/permanent-typed filter, and NOT a
+      bare self target ("deals 1 damage to you" painland).
+    """
+    t = tag_of(node)
+    if t == "DamageEachPlayer":
+        return True
+    if t == "DamageAll":
+        return _present(getattr(node, "player_filter", MISSING))
+    if t == "DealDamage":
+        tgt = getattr(node, "target", MISSING)
+        if not _present(tgt):
+            return False
+        tt = tag_of(tgt)
+        if tt == "Typed":
+            words = _filter_type_words(tgt)
+            return "Player" in words  # creature/permanent typed → removal
+        if tt in ("Any", "Target", "ParentTarget"):
+            return True
+        sc = _scope_from_player_node(tgt)  # a direct player node
+        return sc in ("opponents", "each", "any")
+    return False
 
 
 def _filter_type_words(filt: object) -> tuple[str, ...]:
@@ -296,6 +368,7 @@ def _trigger_event(trig: TypedMirrorNode) -> str:
         "LifeGained": "life_gained",
         "Taps": "taps",
         "Sacrificed": "sacrificed",
+        "Exploited": "exploited",  # CR 702.110 — exploit IS a sacrifice payoff
         "BecomesTarget": "becomes_target",
         "BecomesBlocked": "becomes_blocked",
         "Blocks": "blocks",
@@ -314,6 +387,120 @@ def trigger_scope(trig: TypedMirrorNode) -> str:
         if sc is not None:
             return sc
     return "you"
+
+
+def trigger_subject(trig: TypedMirrorNode) -> tuple[str, ...]:
+    """Type-words of the OBJECT a trigger watches (its ``valid_card`` filter).
+
+    Parallel to :func:`trigger_scope` (which reads the watched *player*): the
+    death/landfall/token-ETB lanes need the watched OBJECT's types — "a creature
+    dies", "a land you control enters", "a token you control enters". A bare
+    ``SelfRef`` (When THIS dies) yields ``()`` so the self-death payoff stays out of
+    the aristocrats lane. Recurses ``Or`` / ``And`` (Blood Artist's "this or another
+    creature") so the real creature filter surfaces past the SelfRef arm.
+    """
+    vc = getattr(trig, "valid_card", MISSING)
+    return _filter_type_words(vc) if _present(vc) else ()
+
+
+def trigger_subject_scope(trig: TypedMirrorNode) -> str:
+    """The watched OBJECT's controller scope (you/opponents/any) for a trigger.
+
+    Reads ``valid_card``'s ``controller`` (a creature-you-control death vs an
+    opponent's creature vs the symmetric any). An ``Or``/``And`` (Blood Artist —
+    SelfRef OR another creature) or an unscoped filter is "any". Mirrors the old
+    projection's ``trig.scope`` for the death lane (You→you, Opponent→opponents,
+    null/mixed→any).
+    """
+    vc = getattr(trig, "valid_card", MISSING)
+    if _present(vc):
+        t = tag_of(vc)
+        if t == "Typed":
+            ctrl = getattr(vc, "controller", None)
+            if ctrl == "You":
+                return "you"
+            if ctrl == "Opponent":
+                return "opponents"
+    return "any"
+
+
+def filter_predicates(filt: object) -> tuple[str, ...]:
+    """The PREDICATE tags of a typed filter (``Token`` / ``Counters`` / ``Tapped`` /
+    ``Attacking`` / ``Another`` / ``NonToken`` …), read off its ``properties`` list.
+
+    Distinct from :func:`_filter_type_words` (which flattens ``type_filters`` —
+    Creature / Land): the token / go-wide lanes gate on the *property* a filter
+    carries, not its card type ("Creature tokens you control", "creatures with a
+    +1/+1 counter"). Recurses ``Or`` / ``And`` like the type-word read. Generic and
+    reusable (the Tapped / Attacking / Counters predicates land here for later
+    batches).
+    """
+    out: list[str] = []
+    t = tag_of(filt)
+    if t == "Typed":
+        for prop in getattr(filt, "properties", ()) or ():
+            pt = tag_of(prop)
+            if pt is not None:
+                out.append(pt)
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            out.extend(filter_predicates(sub))
+    return tuple(out)
+
+
+def change_zone_dirs(node: TypedMirrorNode) -> tuple[str | None, str | None]:
+    """``(origin, destination)`` of a ``ChangeZone`` EFFECT, the same fields
+    :func:`_trigger_event` reads on the trigger side.
+
+    Reanimation is ``(Graveyard, Battlefield)``; a blink exile is
+    ``(_, Exile)`` and its return ``(_, Battlefield)``. Exposing them on the effect
+    side lets the GY-engine / flicker lanes read the zone change STRUCTURALLY rather
+    than from a post-hoc recovered field.
+    """
+    return (
+        getattr(node, "origin", None),
+        getattr(node, "destination", None),
+    )
+
+
+def counter_kind(node: TypedMirrorNode) -> str:
+    """The ``counter_type`` of a counter-placing effect (``"P1P1"`` / ``"Loyalty"`` /
+    ``"Oil"`` …), normalized to a string (``""`` when absent).
+
+    The discriminator that keeps a +1/+1 placement (``plus_one_makers``) apart from
+    loyalty / oil / shield / charge placements (their own lanes). CR 122.1.
+    """
+    ck = getattr(node, "counter_type", MISSING)
+    return ck if isinstance(ck, str) else ""
+
+
+def amount_is_scaling(node: TypedMirrorNode, field: str = "amount") -> bool:
+    """Whether an effect's ``field`` (``amount`` / ``count``) is a DYNAMIC quantity.
+
+    A ``Fixed`` value is a constant magnitude; anything else (``Ref`` over a
+    devotion / power / object-count / multiply) scales with the board — the
+    "significant engine" signal a one-shot fixed rider lacks (Dark Confidant's
+    lose-life-equal-to-mana-value vs Infernal Grasp's fixed "lose 2 life").
+    """
+    q = getattr(node, field, MISSING)
+    if not _present(q):
+        return False
+    return tag_of(q) not in ("Fixed", None)
+
+
+def amount_factor(node: TypedMirrorNode, field: str = "amount") -> int:
+    """The fixed magnitude of an effect's ``field`` (``1`` when dynamic/absent).
+
+    The acceleration / upkeep-bleed gates read it (Sol Ring's ``{C}{C}`` count 2,
+    a recurring upkeep loss ≥ 2). A dynamic quantity returns ``1`` (its magnitude
+    is read via :func:`amount_is_scaling` instead).
+    """
+    q = getattr(node, field, MISSING)
+    if _present(q) and tag_of(q) == "Fixed":
+        v = getattr(q, "value", None)
+        if isinstance(v, int):
+            return v
+    return 1
 
 
 # ── overlay construction ──────────────────────────────────────────────────────
@@ -506,6 +693,9 @@ def build_concept_tree(
     """
     oid = oracle_id or getattr(root, "scryfall_oracle_id", "") or ""
     nm = name or getattr(root, "name", "") or ""
+    ct = getattr(root, "card_type", None)
+    cores = getattr(ct, "core_types", None) if ct is not None else None
+    card_types = tuple(c for c in cores if isinstance(c, str)) if cores else ()
     units: list[AbilityUnit] = []
 
     abilities = getattr(root, "abilities", ()) or ()
@@ -586,4 +776,6 @@ def build_concept_tree(
             )
         )
 
-    return ConceptTree(name=nm, oracle_id=oid, units=tuple(units))
+    return ConceptTree(
+        name=nm, oracle_id=oid, units=tuple(units), card_types=card_types
+    )
