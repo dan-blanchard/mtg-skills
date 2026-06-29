@@ -56,6 +56,10 @@ mtg-utils/src/mtg_utils/data/card_art/*.jpeg
 !tests/fixtures/phase_mirror_schema.json
 !tests/fixtures/phase_variant_population.json
 !tests/fixtures/phase_mirror_samples.json
+# Curated phase-record slice the ADR-0035 Stage-2 crosswalk gate tests read
+# offline (the granularity fixtures: Psychic Frog / Nezahal / animate-land /
+# reconciliation cards). Extracted from card-data.json by hand, never CI.
+!tests/fixtures/crosswalk_fixture_cards.json
 
 # Local scratch / session dirs (skill working output + Claude Code session state)
 .deck-wizard-work/
