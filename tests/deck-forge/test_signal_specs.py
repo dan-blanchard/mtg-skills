@@ -1640,6 +1640,23 @@ def test_ninjutsu_lane_serves_ninja_creatures():
     }
     assert _lane_covers(satoru, sig) is True
     assert _lane_covers(silver_fur, sig) is True
+    # Commander ninjutsu is a ninjutsu variant (CR 702.49d): Yuriko — the canonical
+    # ninjutsu commander — carries only the "Commander ninjutsu" keyword, so the lane
+    # missed her and commander_fit then mis-flagged the deck "built for a different
+    # commander". The serve must credit the variant.
+    yuriko = {
+        "name": "Yuriko, the Tiger's Shadow",
+        "type_line": "Legendary Creature — Human Ninja",
+        "keywords": ["Commander ninjutsu"],
+        "oracle_text": (
+            "Commander ninjutsu {U}{B} (Return an unblocked attacker you control to "
+            "hand: Put this card onto the battlefield from the command zone tapped and "
+            "attacking.)\nWhenever a Ninja you control deals combat damage to a player, "
+            "reveal the top card of your library and put that card into your hand. Each "
+            "opponent loses life equal to that card's mana value."
+        ),
+    }
+    assert _lane_covers(yuriko, sig) is True
     # Over-fire guard: a vanilla creature is not a ninjutsu card.
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
     assert _lane_covers(bear, sig) is False

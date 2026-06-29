@@ -5322,9 +5322,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"can't be blocked(?! except)|\bunblockable\b"
         r"|\b(?:forest|island|mountain|plains|swamp)walk\b",
         # The NINJA creatures themselves are the payoff (swapped in via ninjutsu off an
-        # unblocked attacker), not just the evasion carriers.
+        # unblocked attacker), not just the evasion carriers. "Commander ninjutsu" is a
+        # ninjutsu variant (CR 702.49d) — Yuriko/Satoru carry only that keyword, so the
+        # lane must credit it or the canonical ninjutsu commander reads as a misfit.
         serve_keywords=(
             "ninjutsu",
+            "commander ninjutsu",
             "horsemanship",
             "menace",
             "fear",
