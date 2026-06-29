@@ -27,6 +27,7 @@ from typing import cast
 from mtg_utils import _phase
 from mtg_utils._card_ir.load import card_ir_dir
 from mtg_utils._card_ir.metrics import compute_phase_variant_population
+from mtg_utils._card_ir.mirror.codegen import emit_typed_codegen
 from mtg_utils._card_ir.mirror.infer import infer_schema
 from mtg_utils._card_ir.mirror.loader import (
     MirrorDriftError,
@@ -153,6 +154,12 @@ def build_substrate(
     for rec in records:
         strict_load_card(rec, schema, build=False)
         loaded += 1
+
+    # Full codegen (ADR-0035, Stage 2): emit the committed typed-class module
+    # from the inferred schema BEFORE the corpus round-trip below, so the
+    # strict-load exercises the freshly generated typed instances.
+    if write_fixtures:
+        emit_typed_codegen(schema)
 
     population = compute_phase_variant_population(records)
     samples = _select_samples(records)

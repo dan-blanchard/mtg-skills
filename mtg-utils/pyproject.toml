@@ -116,6 +116,11 @@ ignore = [
 "src/mtg_utils/cube_config.py" = [
     "E501",    # line length — REFERENCE_CUBES descriptions are data, not prose
 ]
+"src/mtg_utils/_card_ir/mirror/generated_types.py" = [
+    "N801",    # class name CapWords — generated S_<ckey>/T_<ckey>__<tag> names
+    #            encode (content_key, tag) verbatim for collision-free dispatch
+    #            (ADR-0035 Stage 2 codegen; treat like protobuf/openapi output)
+]
 "tests/*" = [
     "SLF001",  # private member access — tests need to test internals
     "E501",    # line length — test data and assertions can be long

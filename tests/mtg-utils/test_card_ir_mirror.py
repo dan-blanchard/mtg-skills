@@ -17,6 +17,7 @@ Two tiers:
 from __future__ import annotations
 
 import copy
+import dataclasses
 import json
 from pathlib import Path
 
@@ -28,6 +29,8 @@ from mtg_utils._card_ir.mirror import (
     EFFECT_VARIANTS,
     ZERO_INSTANCE_EFFECTS,
     MirrorDriftError,
+    MirrorVariant,
+    TypedMirrorNode,
     find_ambiguous_fields,
     infer_schema,
     strict_load_card,
@@ -38,6 +41,12 @@ from mtg_utils._card_ir.mirror.build import (
     SCHEMA_FIXTURE,
     fixtures_dir,
     load_committed_schema,
+)
+from mtg_utils._card_ir.mirror.generated_types import (
+    GENERATED_BY_CKEY,
+    GENERATED_BY_KEY,
+    S_Root,
+    S_sub_ability,
 )
 
 # ---------------------------------------------------------------------------
@@ -309,3 +318,126 @@ def test_variant_population_recompute_matches_corpus():
     committed = _fixture(POPULATION_FIXTURE)
     assert recomputed["population"] == committed["population"]
     assert recomputed["total_effect_nodes"] == committed["total_effect_nodes"]
+
+
+# ---------------------------------------------------------------------------
+# GATE 5 — full codegen: typed-class coverage + typed instances (Stage 2)
+# ---------------------------------------------------------------------------
+
+
+def _no_dict_leak(node) -> None:
+    """Assert the built tree contains no generic ``dict`` — every record-shaped
+    value is a generated typed instance (no generic-interpreter fallback)."""
+    if isinstance(node, TypedMirrorNode):
+        for f in dataclasses.fields(node):
+            _no_dict_leak(getattr(node, f.name))
+    elif isinstance(node, MirrorVariant):
+        _no_dict_leak(node.inner)
+    elif isinstance(node, list):
+        for it in node:
+            _no_dict_leak(it)
+    elif isinstance(node, dict):  # pragma: no cover - the failure we guard
+        msg = f"generic dict leaked into the typed tree: {sorted(node)[:6]}"
+        raise AssertionError(msg)  # noqa: TRY004
+
+
+def test_generated_classes_dispatch_table():
+    """The dispatch tables cover EVERY schema shape — 1:1, no gaps."""
+    schema = _schema()
+    assert len(GENERATED_BY_KEY) == len(schema.tagged), (
+        f"{len(GENERATED_BY_KEY)} tagged classes vs {len(schema.tagged)} shapes"
+    )
+    assert len(GENERATED_BY_CKEY) == len(schema.structs), (
+        f"{len(GENERATED_BY_CKEY)} struct classes vs {len(schema.structs)} shapes"
+    )
+    for key in schema.tagged:
+        assert key in GENERATED_BY_KEY, f"{key} has no generated class"
+        assert issubclass(GENERATED_BY_KEY[key], TypedMirrorNode)
+        assert GENERATED_BY_KEY[key]._tag == key[1]
+    for ckey in schema.structs:
+        assert ckey in GENERATED_BY_CKEY, f"struct {ckey!r} has no generated class"
+        assert issubclass(GENERATED_BY_CKEY[ckey], TypedMirrorNode)
+    # the headline coverage number: 1478 tagged + 97 struct = 1575 classes
+    assert len(GENERATED_BY_KEY) + len(GENERATED_BY_CKEY) == 1575
+
+
+def test_typed_instances_no_fallback_samples():
+    """Every committed sample loads into generated typed instances (no generic
+    fallback) and round-trips byte-for-byte."""
+    schema = _schema()
+    for name, rec in _samples().items():
+        loaded = strict_load_card(rec, schema, name=name, build=True)
+        assert isinstance(loaded, TypedMirrorNode)
+        _no_dict_leak(loaded)
+        assert loaded.to_dict() == rec, f"{name} dropped a field"
+
+
+def test_typed_attribute_access_nested_chain():
+    """Typed attribute access on a nested ``sub_ability`` chain: the loaded tree
+    exposes precisely-typed fields (the Stage-2 point — typed, not stringly).
+
+    Proven dynamically here; ``test_typed_access_static.py`` proves the SAME
+    accesses pass the type checker statically.
+    """
+    schema = _schema()
+    found_chain = False
+    for name, rec in _samples().items():
+        loaded = strict_load_card(rec, schema, name=name, build=True)
+        # root is the typed card record with a typed abilities list
+        assert isinstance(loaded, S_Root)
+        assert isinstance(loaded.abilities, list)
+
+        node = _find_node(
+            loaded,
+            lambda n: (
+                isinstance(n, TypedMirrorNode)
+                and isinstance(getattr(n, "sub_ability", None), S_sub_ability)
+            ),
+        )
+        if node is None:
+            continue
+        inner = node.sub_ability  # typed: S_sub_ability (not a dict)
+        assert isinstance(inner, S_sub_ability)
+        # nested typed field access: inner.effect is a typed effect node
+        assert isinstance(inner.effect, TypedMirrorNode)
+        assert inner.effect._tag is not None
+        # the recursive struct field is itself typed-or-None
+        assert inner.sub_ability is None or isinstance(inner.sub_ability, S_sub_ability)
+        found_chain = True
+        break
+    assert found_chain, "no nested sub_ability chain in committed samples"
+
+
+def _find_node(node, pred):
+    """First node (DFS) for which ``pred`` is true, else None."""
+    if pred(node):
+        return node
+    if isinstance(node, TypedMirrorNode):
+        for f in dataclasses.fields(node):
+            hit = _find_node(getattr(node, f.name), pred)
+            if hit is not None:
+                return hit
+    elif isinstance(node, MirrorVariant):
+        return _find_node(node.inner, pred)
+    elif isinstance(node, list):
+        for it in node:
+            hit = _find_node(it, pred)
+            if hit is not None:
+                return hit
+    return None
+
+
+def test_full_corpus_typed_no_fallback():
+    """100% of the corpus builds typed instances with NO generic fallback, and
+    round-trips losslessly (gated: needs the pinned card-data locally)."""
+    records = _card_data_records()
+    schema = infer_schema(records, phase_tag=_phase.PHASE_TAG)
+    checked = 0
+    for rec in records:
+        loaded = strict_load_card(rec, schema, build=True)
+        assert isinstance(loaded, TypedMirrorNode)
+        _no_dict_leak(loaded)
+        assert loaded.to_dict() == rec
+        checked += 1
+    assert checked == len(records)
+    assert checked >= 35000

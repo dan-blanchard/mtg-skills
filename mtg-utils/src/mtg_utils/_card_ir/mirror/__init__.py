@@ -13,10 +13,13 @@ from __future__ import annotations
 from mtg_utils._card_ir.mirror.infer import infer_schema
 from mtg_utils._card_ir.mirror.loader import (
     MirrorDriftError,
-    MirrorNode,
-    MirrorVariant,
     find_ambiguous_fields,
     strict_load_card,
+)
+from mtg_utils._card_ir.mirror.runtime import (
+    MISSING,
+    MirrorVariant,
+    TypedMirrorNode,
 )
 from mtg_utils._card_ir.mirror.schema import MirrorSchema, value_kind
 from mtg_utils._card_ir.mirror.variants import (
@@ -26,11 +29,12 @@ from mtg_utils._card_ir.mirror.variants import (
 
 __all__ = [
     "EFFECT_VARIANTS",
+    "MISSING",
     "ZERO_INSTANCE_EFFECTS",
     "MirrorDriftError",
-    "MirrorNode",
     "MirrorSchema",
     "MirrorVariant",
+    "TypedMirrorNode",
     "find_ambiguous_fields",
     "infer_schema",
     "strict_load_card",

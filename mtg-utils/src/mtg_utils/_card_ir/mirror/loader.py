@@ -1,4 +1,4 @@
-"""Strict loader for the phase-mirror substrate (ADR-0035, Stage 1).
+"""Strict loader for the phase-mirror substrate (ADR-0035).
 
 The drift detector. ``strict_load_card`` walks a real card record against an
 inferred :class:`MirrorSchema` with ``extra=forbid`` semantics: an **unknown
@@ -8,9 +8,14 @@ degrades to ``None`` (the v0.8.0 failure mode). A tag that is a name-known but
 zero-instance phase ``Effect`` variant raises a *specific* closed-union message
 on its first emission.
 
-The loader is **lossless**: it builds a typed :class:`MirrorNode` /
-:class:`MirrorVariant` tree that retains every field verbatim, so
-``to_dict(strict_load_card(rec, schema)) == rec`` for any in-schema record.
+Stage 2 (full codegen): the loader builds **typed instances of the generated
+classes** (``generated_types.py``) — one concrete frozen dataclass per shape,
+dispatched on ``(content_key, tag)`` for tagged nodes and ``content_key`` for
+structs, with **no generic-interpreter fallback** for any real card shape. The
+``variant1`` single-key positions wrap their (already typed) inner value in the
+thin typed :class:`MirrorVariant`. The tree is **lossless**: every concrete
+node's ``to_dict`` reconstructs its source dict, so
+``strict_load_card(rec, schema).to_dict() == rec`` for any in-schema record.
 
 For the full-corpus gate pass we validate without materializing the tree
 (``build=False``) to stay fast and low-memory; losslessness round-trips a
@@ -19,9 +24,14 @@ sample with ``build=True``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import cast
 
+from mtg_utils._card_ir.mirror.generated_types import (
+    GENERATED_BY_CKEY,
+    GENERATED_BY_KEY,
+    JSON_TO_PY,
+)
+from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 from mtg_utils._card_ir.mirror.schema import (
     EMPTY,
     LIST,
@@ -46,57 +56,21 @@ class MirrorDriftError(ValueError):
     """
 
 
-@dataclass
-class MirrorNode:
-    """A loaded tagged-enum node (``tag`` set) or struct node (``tag is None``)."""
-
-    tag: str | None
-    ckey: str | None
-    fields: dict[str, object]
-
-    def to_dict(self) -> dict:
-        out: dict[str, object] = {}
-        if self.tag is not None:
-            out["type"] = self.tag
-        for name, val in self.fields.items():
-            out[name] = _to_plain(val)
-        return out
-
-
-@dataclass
-class MirrorVariant:
-    """A loaded untagged single-key enum node, e.g. ``{"UntilNextTurnOf": …}``."""
-
-    key: str
-    ckey: str | None
-    inner: object
-
-    def to_dict(self) -> dict:
-        return {self.key: _to_plain(self.inner)}
-
-
-def _to_plain(v: object) -> object:
-    if isinstance(v, (MirrorNode, MirrorVariant)):
-        return v.to_dict()
-    if isinstance(v, list):
-        return [_to_plain(x) for x in v]
-    return v
-
-
 def strict_load_card(
     record: dict,
     schema: MirrorSchema,
     *,
     name: str | None = None,
     build: bool = True,
-) -> MirrorNode | None:
+) -> TypedMirrorNode | None:
     """Strict-load one card record; raise :class:`MirrorDriftError` on drift.
 
-    With ``build=False`` the record is only validated (no typed tree returned).
+    With ``build=True`` returns the typed-instance tree (root is an
+    ``S_Root``); with ``build=False`` the record is only validated.
     """
     where = name or record.get("name") or "<card>"
     return cast(
-        "MirrorNode | None",
+        "TypedMirrorNode | None",
         _walk(record, ROOT, schema, build=build, where=str(where)),
     )
 
@@ -147,7 +121,7 @@ def _walk_tagged(
             f"{where}: unknown tagged node (content_key={ckey!r}, "
             f"type={tag!r}) — phase schema drift"
         )
-    fields: dict[str, object] = {}
+    field_values: dict[str, object] = {}
     for fk, fv in v.items():
         if fk == "type":
             continue
@@ -158,9 +132,11 @@ def _walk_tagged(
             )
         child = _walk(fv, fk, schema, build=build, where=where)
         if build:
-            fields[fk] = child
+            field_values[JSON_TO_PY.get(fk, fk)] = child
     _check_required(grp.required_fields(), v, ckey, tag, where)
-    return MirrorNode(tag, ckey, fields) if build else None
+    if not build:
+        return None
+    return GENERATED_BY_KEY[(ckey, tag)](**field_values)
 
 
 def _walk_struct(
@@ -171,7 +147,7 @@ def _walk_struct(
         raise MirrorDriftError(
             f"{where}: unknown struct position {ckey!r} — phase schema drift"
         )
-    fields: dict[str, object] = {}
+    field_values: dict[str, object] = {}
     for fk, fv in v.items():
         if fk not in grp.fields:
             raise MirrorDriftError(
@@ -179,9 +155,11 @@ def _walk_struct(
             )
         child = _walk(fv, fk, schema, build=build, where=where)
         if build:
-            fields[fk] = child
+            field_values[JSON_TO_PY.get(fk, fk)] = child
     _check_required(grp.required_fields(), v, ckey, None, where)
-    return MirrorNode(None, ckey, fields) if build else None
+    if not build:
+        return None
+    return GENERATED_BY_CKEY[ckey](**field_values)
 
 
 def _check_required(
