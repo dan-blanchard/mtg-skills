@@ -1027,7 +1027,12 @@ from mtg_utils.card_ir import Card
 # v75: extend Effect.toughness to the STATIC-anthem pump path (the AddToughness
 #   modification), so a static mass-debuff anthem (Elesh Norn's opponents' -2/-2) is a
 #   structural board wipe too.
-SIDECAR_VERSION = 75
+# v76: the in:graveyard graveyard-zone recovery reads each effect's OWN sentence (not
+#   the shared multi-sentence blob) for phase's SequentialSibling shape, so a sibling's
+#   "from your graveyard" no longer bleeds in:graveyard onto a battlefield bounce /
+#   token-maker / choose (Aether Helix, Murk Strider, Reincarnation). See
+#   project._per_effect_sentences.
+SIDECAR_VERSION = 76
 
 
 def card_ir_dir() -> Path:

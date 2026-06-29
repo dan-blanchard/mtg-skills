@@ -5814,6 +5814,71 @@ def test_blink_other_controller_exile_carries_returns_to_battlefield():
     assert half.returns_to == "battlefield"
 
 
+def _two_bounce_spell(oracle):
+    """A phase spell record mirroring Aether Helix: a head Bounce of a BATTLEFIELD
+    permanent (Typed, no InZone) plus a sub_ability Bounce of a permanent card in the
+    GRAVEYARD (InZone:Graveyard). Only the head carries the (2-sentence) description, so
+    the sub-ability inherits the whole blob as its raw — phase's SequentialSibling shape."""
+    return {
+        "name": "T",
+        "scryfall_oracle_id": "tb",
+        "card_type": {"core_types": ["Sorcery"]},
+        "oracle_text": oracle,
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Bounce",
+                    "target": {
+                        "type": "Typed",
+                        "type_filters": ["Permanent"],
+                        "controller": None,
+                        "properties": [],
+                    },
+                },
+                "sub_ability": {
+                    "kind": "Spell",
+                    "effect": {
+                        "type": "Bounce",
+                        "target": {
+                            "type": "Typed",
+                            "type_filters": ["Permanent"],
+                            "controller": "You",
+                            "properties": [{"type": "InZone", "zone": "Graveyard"}],
+                        },
+                    },
+                    "sub_ability": None,
+                    "description": None,
+                },
+                "description": oracle,
+            }
+        ],
+    }
+
+
+def test_battlefield_bounce_in_sibling_chain_does_not_bleed_graveyard():
+    """SIDECAR v76: a multi-sentence ability whose battlefield bounce shares the blob raw
+    with a graveyard-recursion sibling (Aether Helix: "Return target permanent to its
+    owner's hand. Return target permanent card from your graveyard to your hand."). The
+    in:graveyard recovery reads each effect's OWN sentence, so the BATTLEFIELD bounce
+    (sentence 1, no graveyard) stays zones=() while the recursion (sentence 2) keeps
+    in:graveyard — no sibling bleed. The structured InZone read already separates them;
+    this pins the raw-recovery no longer overriding it."""
+    card = project_card(
+        [
+            _two_bounce_spell(
+                "Return target permanent to its owner's hand. Return target permanent "
+                "card from your graveyard to your hand."
+            )
+        ]
+    )
+    bounces = [e for e in _effects(card) if e.category == "bounce"]
+    assert len(bounces) == 2
+    battlefield, recursion = bounces
+    assert "in:graveyard" not in battlefield.zones  # the bleed that v76 fixes
+    assert "in:graveyard" in recursion.zones
+
+
 def test_exile_with_no_same_ability_return_has_no_returns_to():
     """ADR-0027 v34: a one-way exile (no return at all — Chrome Mox / Helvault's exile,
     a permanent-removal) gets NO returns_to: the blink_flicker lane drops the exile-as-

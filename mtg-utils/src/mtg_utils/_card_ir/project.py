@@ -6993,21 +6993,63 @@ def _is_board_wipe_subject(subj: object) -> bool:
     return bool(cts) and cts <= _BOARD_WIPE_TYPES
 
 
+def _per_effect_sentences(effs: tuple[Effect, ...]) -> list[str] | None:
+    """One oracle sentence per effect, or None, for phase's SequentialSibling shape.
+
+    phase parses a multi-sentence ability into a head effect plus a ``sub_ability``
+    chain whose descendants carry ``description=None``; every effect then ends up with
+    the head's whole blob as its ``raw``. When the effects all share that one blob and
+    it splits into EXACTLY one sentence per effect, return ``sentences[i]`` for effect
+    ``i`` (in order) so a per-effect raw recovery reads its own clause, not the blob.
+    Any other shape (differing raws, count mismatch, <2 effects) returns None — the
+    caller falls back to ``e.raw``. Reminder text is stripped before splitting so the
+    sentence count matches the structured effect count."""
+    if len(effs) < 2:
+        return None
+    raws = {e.raw or "" for e in effs}
+    if len(raws) != 1:
+        return None
+    blob = next(iter(raws))
+    text = re.sub(r"\([^)]*\)", " ", blob)  # drop reminder text
+    sents = [s.strip() for s in re.split(r"[.\n]", text) if s.strip()]
+    if len(sents) != len(effs):
+        return None
+    return sents
+
+
 def _recover_graveyard_zones(ability: Ability) -> Ability:
     """Append a missing graveyard zone tag to an effect whose raw names a GY movement
     phase dropped (per-effect graveyard zone recovery, ADR-0027). A return-from-GY →
     in:graveyard (World Breaker, Grim Captain's Call SelfRef forms); a hand-or-GY /
     GY-onto-battlefield cheat → from:graveyard (Dakkon); a deposit "the other into
     your graveyard" → to:graveyard (Atris, Marchesa); a card REFERENCED in/from a
-    graveyard whose target lost the InZone (Aberrant Mind, Biblioplex, All Suns'
-    Dawn) or a GY-wide cast-keyword GRANT (Lier, Snapcaster, Niv-Mizzet) becomes
+    graveyard whose target lost the InZone (Aberrant Mind, Biblioplex, All Suns' Dawn)
+    or a GY-wide cast-keyword GRANT (Lier, Snapcaster, Niv-Mizzet) becomes
     in:graveyard; a multi-zone TUTOR whose graveyard disjunct phase dropped becomes
     from:graveyard (Boonweaver scope you, Dispossess scope opp). Append-only (a
-    tutor's scope is also recovered when its search reaches a graveyard)."""
+    tutor's scope is also recovered when its search reaches a graveyard).
+
+    Per-sentence reads for phase's SequentialSibling shape: when every effect of the
+    ability shares the SAME blob ``raw`` (descendants of a multi-sentence ability
+    inherit the head's whole text — Aether Helix: "Return target permanent to its
+    owner's hand. Return target permanent card from your graveyard to your hand.") and
+    the blob splits into EXACTLY one sentence per effect, the two ``in:graveyard``
+    arms read each effect's OWN sentence (``gy_raw``) — so a sibling's "from your
+    graveyard" can't bleed ``in:graveyard`` onto a battlefield bounce / token-maker /
+    choose. The other arms (to:/from:graveyard deposit, tutor, hand-or-GY) keep the blob
+    ``raw``: their tags aren't the bounce bleed, and a deposit clause ("the other into
+    your graveyard") legitimately belongs to a sibling reveal/separate effect. And
+    ``Effect.raw`` itself stays the blob, so cross-sentence recoveries (the blink
+    ``returns_to`` read) are untouched. Count/raw mismatch → blob for every arm."""
+    effs = ability.effects
+    per_sentence = _per_effect_sentences(effs)
     new_effects: list[Effect] = []
     changed = False
-    for e in ability.effects:
+    for i, e in enumerate(effs):
         raw = e.raw or ""
+        # The in:graveyard arms read the effect's own sentence (when the blob splits one
+        # per effect) to stop a sibling's graveyard clause bleeding onto this effect.
+        gy_raw = per_sentence[i] if per_sentence is not None else raw
         zones = set(e.zones)
         before = set(zones)
         before_scope = e.scope
@@ -7016,7 +7058,7 @@ def _recover_graveyard_zones(ability: Ability) -> Ability:
             e.category in ("bounce", "reanimate", "cast_from_zone", "blink")
             and "in:graveyard" not in zones
             and "from:battlefield" not in zones
-            and _GY_RETURN_PHRASE.search(raw)
+            and _GY_RETURN_PHRASE.search(gy_raw)
         ):
             zones.add("in:graveyard")
         # A card referenced IN/FROM a graveyard in a target_only / topdeck_stack /
@@ -7039,8 +7081,8 @@ def _recover_graveyard_zones(ability: Ability) -> Ability:
             )
             and "in:graveyard" not in zones
             and "to:graveyard" not in zones
-            and not _GY_FROM_BATTLEFIELD.search(raw)
-            and _GY_CARD_REFERENCE.search(raw)
+            and not _GY_FROM_BATTLEFIELD.search(gy_raw)
+            and _GY_CARD_REFERENCE.search(gy_raw)
         ):
             zones.add("in:graveyard")
         # A TUTOR whose multi-zone search reaches a graveyard (the GY disjunct phase

@@ -14,7 +14,7 @@
   },
   "synergy_completeness": {
    "effects_category_other": 834,
-   "effects_total": 75960,
+   "effects_total": 75962,
    "full_pct": 98.38,
    "parse_confidence": {
     "full": 33994,
@@ -26,7 +26,7 @@
  },
  "phase_tag": "v0.9.0",
  "schema": 1,
- "sidecar_version": 75,
+ "sidecar_version": 76,
  "snapshot": {
   "cards": 727,
   "feed_phase_readiness": {
