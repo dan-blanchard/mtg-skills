@@ -93,3 +93,37 @@ def test_dual_purpose_spine_card():
     assert dual.bucket == "spine"  # interaction wins the bucket
     assert dual.dual_purpose is True  # but it also feeds the token avenue
     assert dual.served
+
+
+def test_serving_protection_card_buckets_spine_not_engine():
+    # classify checked `served` before `protects`, so a protection card that ALSO serves
+    # an avenue (Heroic Intervention serves the "Grant protection" lane) bucketed engine
+    # — and the stranded-cut pass then cut it WHILE the scorecard flagged the deck
+    # protection-short. Protection must outrank generic avenue-serving (classify
+    # docstring: "protection is conditional Spine (Tier-2), never filler").
+    from mtg_utils._deck_forge.signals import Signal
+
+    heroic = {
+        "name": "Heroic Intervention",
+        "type_line": "Instant",
+        "oracle_text": "Permanents you control gain hexproof and indestructible until "
+        "end of turn.",
+        "cmc": 2.0,
+    }
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [{"name": "Heroic Intervention", "quantity": 1}],
+    }
+    index = {KRENKO["name"]: KRENKO, heroic["name"]: heroic}
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    # Synthetic active signal so the grant-protection lane is served without needing the
+    # IR sidecar (the activation gate is exercised elsewhere; here we test bucket order).
+    sigs = [
+        Signal(key="protection_grant", scope="you", subject="", text="", source="x")
+    ]
+    classes = {c.name: c for c in classify_deck(hd, sigs, {"Krenko, Mob Boss"})}
+    hi = classes["Heroic Intervention"]
+    assert hi.served  # it does serve the grant-protection lane
+    assert hi.bucket == "spine"  # but protection outranks engine
+    assert hi.dual_purpose is True

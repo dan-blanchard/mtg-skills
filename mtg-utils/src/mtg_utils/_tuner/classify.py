@@ -68,10 +68,14 @@ def classify_deck(
             bucket = "land"
         elif roles & _SPINE_ROLES:
             bucket = "spine"
+        elif protects(rec):
+            # Protection is conditional Spine (Tier-2), never filler — and this MUST be
+            # checked before `served`: a protection card that also serves an avenue
+            # (Heroic Intervention serves "Grant protection") would otherwise bucket
+            # engine and be cut by the stranded pass while the deck reads short on it.
+            bucket = "spine"
         elif served:
             bucket = "engine"
-        elif protects(rec):
-            bucket = "spine"  # protection is conditional Spine (Tier-2), never filler
         else:
             bucket = "filler"
         out.append(
