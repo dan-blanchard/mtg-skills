@@ -1061,13 +1061,22 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         name="board-wipe",
         description="Destroys or damages all creatures (board-wide removal).",
         patterns=_rx(
-            r"\bdestroy all (?:creatures|nonland)",
-            r"\bexile all (?:creatures|nonland)",
+            # Qualified mass destroy: "destroy all [non-Dragon/Dragon/tapped/…]
+            # creatures" (Crux of Fate, Wakening Sun's Avatar). Qualifier bounded to
+            # <=3 words so "Destroy all artifacts, then a player sacrifices a creature"
+            # can't false-match across clauses.
+            r"\b(?:destroy|exile) all (?:[\w-]+ ){0,3}creatures?\b",
+            r"\b(?:destroy|exile) all (?:[\w-]+ ){0,3}nonland\b",
+            # "Destroy/exile each ... creature/nonland" (Culling Ritual).
+            r"\b(?:destroy|exile) each (?:[\w-]+ ){0,3}(?:creature|nonland)\b",
             r"\bdeals? " + _COUNT + r" damage to each creature",
-            # Mass -X/-X shrink that kills the board (Drown in Sorrow, Yahenni's
-            # Expertise, Mutilate). Require a toughness reduction (-N/-[1-9]) so a
-            # power-only debuff ("all creatures get -2/-0", Ivory Charm) stays out.
-            r"\ball creatures get -\d+/-[1-9]",
+            # Mass -X/-X shrink that kills the board (Drown in Sorrow, Toxic Deluge,
+            # Mutilate). Allow X for the variable form; require a toughness reduction
+            # (-N/-[1-9] or -X) so a power-only debuff ("-2/-0", Ivory Charm) stays out.
+            r"\ball creatures get -(?:\d+|x)/-(?:[1-9]|x)\b",
+            # One-sided mass shrink (Massacre Wurm: opponents' creatures get -2/-2).
+            r"\bcreatures (?:your opponents|you don't) control get "
+            r"-(?:\d+|x)/-(?:[1-9]|x)\b",
             # Symmetric mass sacrifice = a wipe (Tragic Arrogance, Winnowing, Bringer
             # of the Last Gift).
             r"\beach player sacrifices all\b",
@@ -1077,8 +1086,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Farewell",
             "Drown in Sorrow",
             "Tragic Arrogance",
+            "Toxic Deluge",
+            "Crux of Fate",
+            "Culling Ritual",
+            "Massacre Wurm",
         ),
-        should_not_match=("Lightning Bolt", "Swords to Plowshares"),
+        should_not_match=("Lightning Bolt", "Swords to Plowshares", "Ivory Charm"),
     ),
     # ── Type-specific removal ──
     #

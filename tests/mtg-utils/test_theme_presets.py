@@ -59,6 +59,35 @@ FIXTURE_CARDS: dict[str, dict] = {
             "player sacrifices all other nonland permanents they control."
         ),
     },
+    "Crux of Fate": {
+        "keywords": [],
+        "oracle_text": (
+            "Choose one —\n• Destroy all Dragon creatures.\n• Destroy all non-Dragon "
+            "creatures."
+        ),
+    },
+    "Culling Ritual": {
+        "keywords": [],
+        "oracle_text": (
+            "Destroy each nonland permanent with mana value 3 or less. Add {B} or {G} "
+            "for each permanent destroyed this way."
+        ),
+    },
+    "Massacre Wurm": {
+        "keywords": [],
+        "oracle_text": (
+            "When Massacre Wurm enters, creatures your opponents control get -2/-2 "
+            "until end of turn.\nWhenever a creature an opponent controls dies, that "
+            "player loses 2 life."
+        ),
+    },
+    "Ivory Charm": {
+        "keywords": [],
+        "oracle_text": (
+            "Choose one —\n• Tap target creature.\n• Target creature gains flying until "
+            "end of turn.\n• All creatures get -2/-0 until end of turn."
+        ),
+    },
     "Lightning Bolt": {
         "keywords": [],
         "oracle_text": "Lightning Bolt deals 3 damage to any target.",
