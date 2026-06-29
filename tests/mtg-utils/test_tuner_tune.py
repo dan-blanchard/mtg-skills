@@ -222,6 +222,54 @@ def test_scorecard_surfaces_full_mana_audit():
     assert "overall_status" in sc["mana"]
 
 
+def test_wincon_at_floor_is_protected_from_cuts(monkeypatch):
+    # The proposer guarded template-role floors and combo pieces but was wincon-blind:
+    # it could cut a card the SAME scorecard counts as a win condition, dropping the deck
+    # below the wincon floor it just reported. tune() must add the heuristic finishers to
+    # the proposer's `protected` set while the deck is at/below the wincon floor (the
+    # propose_swaps protected-respect contract is separately tested). Verify the wiring by
+    # capturing the `protected` argument.
+    import sys
+
+    tune_mod = sys.modules["mtg_utils._tuner.tune"]
+    captured = {}
+    real_propose = tune_mod.swaps_mod.propose_swaps
+
+    def spy(*args, **kw):
+        captured["protected"] = set(kw.get("protected") or ())
+        return real_propose(*args, **kw)
+
+    monkeypatch.setattr(tune_mod.swaps_mod, "propose_swaps", spy)
+
+    lab = {
+        "name": "Laboratory Maniac",
+        "type_line": "Creature — Human Wizard",
+        "oracle_text": "If you would draw a card while your library has no cards in it, "
+        "you win the game instead.",
+        "cmc": 3.0,
+        "color_identity": ["R"],
+    }
+    index = {KRENKO["name"]: KRENKO, lab["name"]: lab, MOUNTAIN["name"]: MOUNTAIN}
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [
+            {"name": "Laboratory Maniac", "quantity": 1},
+            {"name": "Mountain", "quantity": 1},
+        ],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    out = tune(hd, search_fn=_fake_search, params=TuneParams(max_swaps=5, budget=100.0))
+    # Precondition: Lab Man is a counted wincon and the deck is at/below the floor.
+    assert "Laboratory Maniac" in out["scorecard"]["wincons"]["cards"]
+    assert (
+        out["scorecard"]["wincons"]["count"] <= out["scorecard"]["wincons"]["target"][0]
+    )
+    # The wincon name must be threaded into the proposer's protected set.
+    assert "Laboratory Maniac" in captured["protected"]
+
+
 def test_scorecard_surfaces_curve_histogram():
     sc = tune(_hd(), search_fn=_fake_search, params=TuneParams())["scorecard"]
     assert "curve" in sc

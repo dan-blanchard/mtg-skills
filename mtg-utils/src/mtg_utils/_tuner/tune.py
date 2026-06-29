@@ -193,6 +193,12 @@ def tune(
         "bracket": bracket,
     }
 
+    # Win-con floor protection (ADR-0029, sibling to combo-piece protection): at/below
+    # the heuristic win-con floor, don't let the proposer cut a card the SAME scorecard
+    # counts as a finisher — that would drop it below the floor it just reported. Above
+    # the floor, marginal finishers stay trimmable.
+    wincon_protect = set(wins["cards"]) if wins["count"] <= wins["target"][0] else set()
+
     swaps_out: dict = {"swaps": [], "spent": 0.0, "wildcards_spent": None, "note": None}
     if params.max_swaps > 0 and hd.has_records:
         recommended_lands = int(mana.get("recommended_land_count") or 0)
@@ -213,7 +219,7 @@ def tune(
             top_heavy=eff["verdict"] == "top-heavy",
             fill_slots=fill_slots,
             wildcard_budget=params.wildcard_budget,
-            protected=combo_pieces,
+            protected=combo_pieces | wincon_protect,
         )
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the
         # user runs the land tooling (balance-lands), not Tune, to finish it.
