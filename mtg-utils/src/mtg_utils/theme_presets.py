@@ -1018,7 +1018,10 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             r"\bcounter\s+target\b",
             r"\bdeals?\s+\d+\s+damage\s+to\s+(?:target\s+creature|any target)",
             r"\bdeals?\s+\d+\s+damage\s+divided\b.*\btargets?\b",
-            r"\breturn\s+target\s+(?:creature|(?:nonland )?permanent)\b.*\bhand\b",
+            # Battlefield bounce only: exclude graveyard recursion, which returns a
+            # "target permanent CARD from your graveyard" (Unnatural Restoration).
+            r"\breturn\s+target\s+(?:creature|(?:nonland )?permanent)\b"
+            r"(?!\s+card\b).*\bhand\b",
             r"\bfights?\s+target\b",
             r"\btarget\s+creature\s+gets\s+-\d",
             # Toxic Deluge, Black Sun's Zenith style mass -N/-N. The `\b`
@@ -1250,11 +1253,13 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "to its owner's hand."
         ),
         patterns=_rx(
+            # Battlefield bounce only: a "target permanent CARD from your graveyard"
+            # (graveyard recursion, Unnatural Restoration) is not bounce.
             r"return target (?:creature|nonland permanent|permanent)"
-            r"\b.*\b(?:to|into) .*\bhand\b",
+            r"\b(?!\s+card\b).*\b(?:to|into) .*\bhand\b",
         ),
         should_match=("Unsummon", "Boomerang"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Unnatural Restoration"),
     ),
     # Targeted discard — opponent discards card(s).
     Preset(

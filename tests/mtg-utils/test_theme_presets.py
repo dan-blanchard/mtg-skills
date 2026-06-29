@@ -92,6 +92,10 @@ FIXTURE_CARDS: dict[str, dict] = {
         "keywords": [],
         "oracle_text": "Lightning Bolt deals 3 damage to any target.",
     },
+    "Unnatural Restoration": {
+        "keywords": [],
+        "oracle_text": "Return target permanent card from your graveyard to your hand.",
+    },
     "Counterspell": {
         "keywords": [],
         "oracle_text": "Counter target spell.",

@@ -45,9 +45,12 @@ _SHAPE_BANDS: dict[str, dict[str, tuple[int, int]]] = {
 # creature-edict (forced sacrifice — Diabolic Edict, Fleshbag) is removal that bypasses
 # hexproof/indestructible, so it counts too; the `removal` preset also carries pacify
 # auras ("Enchanted creature can't attack or block" — Pacifism, Arrest).
+# `creature-removal` is deliberately EXCLUDED: its removal SPELLS are already matched by
+# `removal`, while its Fight/Infect/Wither KEYWORDS tag static combat creatures (CR
+# 702.90a infect is a combat ability, not spot removal) — over-counting Infect beaters
+# as interaction and then cutting a poison payoff to "trim the over-band role".
 _INTERACTION_PRESETS = (
     "removal",
-    "creature-removal",
     "counterspell",
     "bounce",
     "creature-edict",

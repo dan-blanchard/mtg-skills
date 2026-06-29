@@ -95,6 +95,63 @@ def test_edicts_and_pacify_auras_count_as_interaction():
     assert "interaction" not in role_of(LUPINE)
 
 
+def test_interaction_excludes_infect_creatures_and_graveyard_recursion():
+    # The interaction TEMPLATE role is "targeted removal + counterspells" (budgets
+    # docstring). Two over-fires inflated it: (1) the creature-removal preset's
+    # Fight/Infect/Wither KEYWORDS tagged static combat creatures (CR 702.90a infect is
+    # a static combat ability, not spot removal); (2) the removal/bounce "return target
+    # permanent ... hand" regexes matched graveyard recursion ("return target permanent
+    # CARD from your graveyard"). Both must be excluded.
+    blighted_agent = {
+        "name": "Blighted Agent",
+        "type_line": "Creature — Human Rogue",
+        "oracle_text": "Infect (This creature deals damage to creatures in the form of "
+        "-1/-1 counters and to players in the form of poison counters.)\n"
+        "Blighted Agent can't be blocked.",
+        "keywords": ["Infect"],
+    }
+    swarmlord = {
+        "name": "Phyrexian Swarmlord",
+        "type_line": "Creature — Phyrexian Insect",
+        "oracle_text": "Infect\nAt the beginning of your upkeep, create a 1/1 green and "
+        "black Insect creature token with infect for each poison counter your opponents "
+        "have.",
+        "keywords": ["Infect"],
+    }
+    unnatural_restoration = {
+        "name": "Unnatural Restoration",
+        "type_line": "Instant",
+        "oracle_text": "Return target permanent card from your graveyard to your hand.",
+        "keywords": [],
+    }
+    assert "interaction" not in role_of(blighted_agent)
+    assert "interaction" not in role_of(swarmlord)
+    assert "interaction" not in role_of(unnatural_restoration)
+    # Genuine targeted removal / bounce still counts.
+    murder = {
+        "name": "Murder",
+        "type_line": "Instant",
+        "oracle_text": "Destroy target creature.",
+        "keywords": [],
+    }
+    boomerang = {
+        "name": "Boomerang",
+        "type_line": "Instant",
+        "oracle_text": "Return target permanent to its owner's hand.",
+        "keywords": [],
+    }
+    prey_upon = {
+        "name": "Prey Upon",
+        "type_line": "Sorcery",
+        "oracle_text": "Target creature you control fights target creature you don't "
+        "control.",
+        "keywords": [],
+    }
+    assert "interaction" in role_of(murder)
+    assert "interaction" in role_of(boomerang)
+    assert "interaction" in role_of(prey_upon)
+
+
 def test_protection_is_advisory_not_a_counted_role():
     # Counterspell counts as both interaction (template) AND protection (Tier-2 flag).
     assert protects(COUNTERSPELL) is True
