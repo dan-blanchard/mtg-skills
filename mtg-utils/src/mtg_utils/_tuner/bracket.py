@@ -31,7 +31,9 @@ _UNCONSTRAINED_FROM = 4
 # at 2-3 they're allowed "in low quantities... not chained/looped" — a qualitative
 # rule, so more than this many is a heuristic WARN (project-chosen, not an official
 # number), never a hard FAIL.
-_EXTRA_TURN_RE = re.compile(r"takes? an extra turn", re.IGNORECASE)
+# "takes an extra turn" OR "takes two/three/N extra turns" (Time Stretch, Karn's
+# Temporal Sundering) — the bare "an extra turn" missed the multi-turn cards.
+_EXTRA_TURN_RE = re.compile(r"takes? \w+ extra turns?", re.IGNORECASE)
 _EXTRA_TURN_LOW_MAX = 1
 
 # A two-card infinite combo whose pieces' combined mana value is at or below this reads
@@ -58,7 +60,14 @@ def _is_infinite(result: str | list | None) -> bool:
     if isinstance(result, list):
         result = " ".join(str(r) for r in result)
     t = (result or "").lower()
-    return "infinite" in t or "win the game" in t or "wins the game" in t
+    return (
+        "infinite" in t
+        or "win the game" in t
+        or "wins the game" in t
+        # Loss-side kills are equally game-ending (Each opponent loses the game).
+        or "lose the game" in t
+        or "loses the game" in t
+    )
 
 
 def _two_card_infinite_combos(combos: dict | None) -> list[list[str]]:

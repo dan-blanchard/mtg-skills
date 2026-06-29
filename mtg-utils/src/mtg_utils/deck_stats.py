@@ -99,7 +99,10 @@ def _detect_alternative_costs(card: dict) -> list[dict]:
 _MASS_LAND_DENIAL_RE = re.compile(
     r"destroy all lands|destroy all nonbasic lands"
     r"|each (?:player|opponent) sacrifices?[^.]*\blands?\b"
-    r"|nonbasic lands don't untap|lands don't untap during",
+    r"|nonbasic lands don't untap|lands don't untap during"
+    # Winter Orb / Static Orb untap-lock: "can't untap more than one land" (the comment
+    # named Winter Orb but the regex matched only the "don't untap" templating).
+    r"|can't untap more than \w+ lands?",
     re.IGNORECASE,
 )
 # avg CMC at or below this reads as a fast, high-power curve.

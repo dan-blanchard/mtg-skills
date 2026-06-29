@@ -29,6 +29,58 @@ def _extra_turn(name):
     }
 
 
+def test_winter_orb_untap_lock_is_mass_land_denial():
+    # Winter Orb is the canonical untap-lock mass land denial the detector comment
+    # explicitly names, but the regex only matched "lands don't untap", missing the
+    # "can't untap more than one land" templating — so a Winter Orb deck could PASS a
+    # deterministic FAIL axis at bracket 2.
+    winter_orb = {
+        "name": "Winter Orb",
+        "type_line": "Artifact",
+        "oracle_text": (
+            "As long as Winter Orb is untapped, players can't untap more than one land "
+            "during their untap steps."
+        ),
+    }
+    result = bracket_gate([winter_orb, _plain("x")], target_bracket=2)
+    mld = [v for v in result["violations"] if v["axis"] == "mass_land_denial"]
+    assert mld
+    assert mld[0]["severity"] == "FAIL"
+    assert "Winter Orb" in mld[0]["cards"]
+
+
+def test_loses_the_game_two_card_combo_fails_below_bracket_three():
+    # A 2-card "each opponent loses the game" kill is an infinite/game-ending combo, but
+    # _is_infinite only matched "infinite"/"win the game", missing the loss-side feature.
+    combos = {
+        "combos": [
+            {
+                "cards": ["Piece A", "Piece B"],
+                "result": ["Each opponent loses the game"],
+            }
+        ]
+    }
+    result = bracket_gate([_plain("a"), _plain("b")], target_bracket=2, combos=combos)
+    two = [v for v in result["violations"] if v["axis"] == "two_card_combo"]
+    assert two
+    assert two[0]["severity"] == "FAIL"
+
+
+def test_multi_extra_turn_card_detected_at_exhibition():
+    # Time Stretch ("Take two extra turns after this one") is an extra-turn card, but the
+    # regex only matched "an extra turn" — so a B1 deck could PASS holding it.
+    time_stretch = {
+        "name": "Time Stretch",
+        "type_line": "Sorcery",
+        "oracle_text": "Take two extra turns after this one.",
+    }
+    result = bracket_gate([time_stretch, _plain("x")], target_bracket=1)
+    ext = [v for v in result["violations"] if v["axis"] == "extra_turns"]
+    assert ext
+    assert ext[0]["severity"] == "FAIL"
+    assert "Time Stretch" in ext[0]["cards"]
+
+
 class TestGameChangersAxis:
     def test_game_changer_over_core_ceiling_fails(self):
         # Bracket 2 (Core) allows 0 Game Changers; one present is a FAIL naming it.

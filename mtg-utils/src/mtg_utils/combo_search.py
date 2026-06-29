@@ -313,9 +313,14 @@ def search_combos(
 
 
 def _is_game_winning(combo: dict) -> bool:
-    """Heuristic: combos whose result includes 'infinite' or 'win the game'."""
+    """Heuristic: combos whose result is infinite or game-ending (win OR make an
+    opponent lose the game)."""
     result_text = " ".join(str(r) for r in combo.get("result", [])).lower()
-    return "infinite" in result_text or "win the game" in result_text
+    return (
+        "infinite" in result_text
+        or "win the game" in result_text
+        or "lose the game" in result_text
+    )
 
 
 def render_combo_search_report(data: dict) -> str:
