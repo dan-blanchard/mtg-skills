@@ -1,0 +1,2201 @@
+{
+  "phase_tag": "v0.9.0",
+  "schema_version": 1,
+  "cards": {
+    "\"Ach! Hans, Run!\"": {
+      "name": "\"Ach! Hans, Run!\"",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Red",
+          "Red",
+          "Green",
+          "Green"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Enchantment"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "At the beginning of your upkeep, you may say \"Ach! Hans, run! It's the . . .\" and the name of a creature card. If you do, search your library for a card with that name, put it onto the battlefield, then shuffle. That creature gains haste. Exile it at the beginning of the next end step.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Unimplemented",
+              "name": "say",
+              "description": "say ~, run! It's the"
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "CreateDelayedTrigger",
+                "condition": {
+                  "type": "AtNextPhase",
+                  "phase": "End"
+                },
+                "effect": {
+                  "kind": "Spell",
+                  "effect": {
+                    "type": "Unimplemented",
+                    "name": "\"",
+                    "description": "\" and the name of a creature card. If you do, search your library for a card with that name, put it onto the battlefield, then shuffle. That creature gains haste. Exile it"
+                  },
+                  "cost": null,
+                  "sub_ability": null,
+                  "duration": null,
+                  "description": null,
+                  "target_prompt": null,
+                  "condition": null,
+                  "optional_targeting": false,
+                  "optional": false,
+                  "forward_result": false,
+                  "sub_link": "SequentialSibling"
+                },
+                "uses_tracked_set": false
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": true,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": "Upkeep",
+          "optional": true,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "At the beginning of your upkeep, you may say ~, run! It's the . . .\" and the name of a creature card. If you do, search your library for a card with that name, put it onto the battlefield, then shuffle. That creature gains haste. Exile it at the beginning of the next end step.",
+          "constraint": {
+            "type": "OnlyDuringYourTurn"
+          },
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": [
+        "Green",
+        "Red"
+      ],
+      "color_identity": [
+        "Green",
+        "Red"
+      ],
+      "scryfall_oracle_id": "a2c5ee76-6084-413c-bb70-45490d818374",
+      "metadata": {
+        "source_printing_ids": [
+          "84f2c8f5-8e11-4639-b7de-00e4a2cbabee"
+        ]
+      },
+      "legalities": {},
+      "printings": [
+        "UNH"
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
+    "\"Brims\" Barone, Midway Mobster": {
+      "name": "\"Brims\" Barone, Midway Mobster",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White",
+          "Black"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Rogue"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 5
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "When \"Brims\" Barone, Midway Mobster enters, put a +1/+1 counter on each other creature you control that has a hat.\n\"Brims\" Barone, Midway Mobster has menace as long as you're wearing a hat.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "PutCounterAll",
+              "counter_type": "P1P1",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "target": {
+                "type": "Typed",
+                "type_filters": [
+                  "Creature"
+                ],
+                "controller": "You",
+                "properties": [
+                  {
+                    "type": "Another"
+                  }
+                ]
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": "Battlefield",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ enters, put a +1/+1 counter on each other creature you control that has a hat.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [
+        {
+          "mode": "Continuous",
+          "affected": {
+            "type": "SelfRef"
+          },
+          "modifications": [
+            {
+              "type": "AddKeyword",
+              "keyword": "Menace"
+            }
+          ],
+          "condition": {
+            "type": "Unrecognized",
+            "text": "you're wearing a hat"
+          },
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "~ has menace as long as you're wearing a hat."
+        }
+      ],
+      "replacements": [],
+      "color_override": [
+        "Black",
+        "White"
+      ],
+      "color_identity": [
+        "Black",
+        "White"
+      ],
+      "scryfall_oracle_id": "c64c31f2-c1be-414e-9dff-c3b77ba97545",
+      "brawl_commander": true,
+      "is_commander": true,
+      "metadata": {
+        "source_printing_ids": [
+          "68832214-2943-4253-8884-ffa490e84087",
+          "b24b0f07-999f-437a-af88-5d3f391afe12",
+          "d87d23de-0d40-4dad-be40-e7724e63168a",
+          "f3ffb0ab-d7bf-4136-9aa7-0a4965581a75"
+        ]
+      },
+      "legalities": {},
+      "printings": [
+        "UNF"
+      ],
+      "rulings": [
+        {
+          "date": "2022-10-07",
+          "text": "Whether or not Brims has menace matters only as blockers are declared. After that point, a gust of wind removing your hat or blowing a new hat onto your head won’t change which blockers have already legally been declared."
+        }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
+    "\"Lifetime\" Pass Holder": {
+      "name": "\"Lifetime\" Pass Holder",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black"
+        ],
+        "generic": 0
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Zombie",
+          "Guest"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 1
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "This creature enters tapped.\nWhen this creature dies, open an Attraction.\nWhenever you roll to visit your Attractions, if you roll a 6, you may return this card from your graveyard to the battlefield.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "OpenAttractions",
+              "count": 1
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": "Battlefield",
+          "destination": "Graveyard",
+          "trigger_zones": [
+            "Graveyard"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ dies, open an Attraction.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        },
+        {
+          "mode": {
+            "Unknown": "Whenever you roll to visit your Attractions"
+          },
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "ChangeZone",
+              "origin": "Graveyard",
+              "destination": "Battlefield",
+              "target": {
+                "type": "SelfRef"
+              },
+              "owner_library": false,
+              "enter_transformed": false,
+              "enter_tapped": false,
+              "enters_attacking": false
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": true,
+            "target_choice_timing": "Resolution",
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Graveyard"
+          ],
+          "phase": null,
+          "optional": true,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "Whenever you roll to visit your Attractions, if you roll a 6, you may return this card from your graveyard to the battlefield.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [
+        {
+          "event": "Moved",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "SetTapState",
+              "target": {
+                "type": "SelfRef"
+              },
+              "scope": {
+                "type": "Single"
+              },
+              "state": {
+                "type": "Tap"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "mode": {
+            "type": "Mandatory"
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "description": "~ enters tapped.",
+          "condition": null,
+          "destination_zone": "Battlefield"
+        }
+      ],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "7bf6f13a-3c90-4bda-bc84-e026828bf4d1",
+      "metadata": {
+        "source_printing_ids": [
+          "42293306-aaea-4542-8df4-8138234bf556",
+          "fede7f75-0dff-4f3e-816d-e52b43e8b33b"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "banned",
+        "legacy": "banned",
+        "oathbreaker": "banned",
+        "vintage": "banned"
+      },
+      "printings": [
+        "UNF"
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
+    "\"Name Sticker\" Goblin": {
+      "name": "\"Name Sticker\" Goblin",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Red"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Goblin",
+          "Guest"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "When this creature enters from anywhere other than a graveyard or exile, if it's on the battlefield and you control 9 or fewer creatures named \"Name Sticker\" Goblin, roll a 20-sided die.\n1-6 | Add {R}{R}{R}{R}.\n7-14 | Add {R}{R}{R}{R}{R}.\n15-20 | Add {R}{R}{R}{R}{R}{R}.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Unimplemented",
+            "name": "unknown",
+            "description": "1-6 | Add {R}{R}{R}{R}."
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": "1-6 | Add {R}{R}{R}{R}.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Unimplemented",
+            "name": "unknown",
+            "description": "7-14 | Add {R}{R}{R}{R}{R}."
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": "7-14 | Add {R}{R}{R}{R}{R}.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Unimplemented",
+            "name": "unknown",
+            "description": "15-20 | Add {R}{R}{R}{R}{R}{R}."
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": "15-20 | Add {R}{R}{R}{R}{R}{R}.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "RollDie",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "sides": 20,
+              "results": []
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "zone_change_clauses": [
+            {
+              "origin": {
+                "type": "OneOf",
+                "data": [
+                  "Library",
+                  "Hand",
+                  "Battlefield",
+                  "Stack",
+                  "Command"
+                ]
+              },
+              "destination": "Battlefield",
+              "valid_card": {
+                "type": "SelfRef"
+              }
+            }
+          ],
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ enters from anywhere other than a graveyard or exile, if it's on the battlefield and you control 9 or fewer creatures named \"Name Sticker\" Goblin, roll a 20-sided die.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Red"
+      ],
+      "scryfall_oracle_id": "acee1d16-1651-4e2c-8138-cc6456c4ee71",
+      "metadata": {
+        "source_printing_ids": [
+          "fd1442b4-da59-4042-835f-143c8dcaa73b"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "legacy": "banned",
+        "pauper": "banned",
+        "vintage": "banned"
+      },
+      "printings": [
+        "UNF"
+      ],
+      "rarities": [
+        "common"
+      ]
+    },
+    "17-Year Cicadas": {
+      "name": "17-Year Cicadas",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White"
+        ],
+        "generic": 7
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Create ten 1/1 white Insect creature tokens with flying. Exile 17-Year Cicadas with seventeen time counters on it.\nSuspend 17 — {0} (Rather than cast this card from your hand, you may pay {0} and exile it with seventeen time counters on it. At the beginning of your upkeep, remove a time counter. When the last is removed, you may cast it without paying its mana cost.)\nWhenever you cast a spell, if this card is suspended, remove a time counter from it.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        {
+          "Suspend": {
+            "count": 17,
+            "cost": {
+              "type": "Cost",
+              "shards": [],
+              "generic": 0
+            }
+          }
+        }
+      ],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Token",
+            "name": "Insect",
+            "power": {
+              "type": "Fixed",
+              "value": 1
+            },
+            "toughness": {
+              "type": "Fixed",
+              "value": 1
+            },
+            "types": [
+              "Creature",
+              "Insect"
+            ],
+            "colors": [
+              "White"
+            ],
+            "keywords": [
+              "Flying"
+            ],
+            "tapped": false,
+            "count": {
+              "type": "Fixed",
+              "value": 10
+            },
+            "owner": {
+              "type": "Controller"
+            },
+            "enters_attacking": false
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "ChangeZone",
+              "origin": null,
+              "destination": "Exile",
+              "target": {
+                "type": "SelfRef"
+              },
+              "owner_library": false,
+              "enter_transformed": false,
+              "enter_tapped": false,
+              "enters_attacking": false,
+              "enter_with_counters": [
+                [
+                  "time",
+                  {
+                    "type": "Fixed",
+                    "value": 17
+                  }
+                ]
+              ]
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "sub_link": "SequentialSibling"
+          },
+          "duration": null,
+          "description": "Create ten 1/1 white Insect creature tokens with flying. Exile ~ with seventeen time counters on it.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "CreateDelayedTrigger",
+            "condition": {
+              "type": "WheneverEvent",
+              "trigger": {
+                "mode": "SpellCast",
+                "execute": null,
+                "valid_card": null,
+                "origin": null,
+                "destination": null,
+                "trigger_zones": [
+                  "Battlefield"
+                ],
+                "phase": null,
+                "optional": false,
+                "damage_kind": "Any",
+                "secondary": false,
+                "valid_target": {
+                  "type": "Controller"
+                },
+                "valid_source": null,
+                "description": null,
+                "constraint": null,
+                "condition": null,
+                "batched": false
+              }
+            },
+            "effect": {
+              "kind": "Spell",
+              "effect": {
+                "type": "RemoveCounter",
+                "counter_type": "time",
+                "count": {
+                  "type": "Fixed",
+                  "value": 1
+                },
+                "target": {
+                  "type": "SelfRef"
+                }
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false
+            },
+            "uses_tracked_set": false
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "PutCounter",
+            "counter_type": "time",
+            "count": {
+              "type": "Fixed",
+              "value": 17
+            },
+            "target": {
+              "type": "SelfRef"
+            }
+          },
+          "cost": {
+            "type": "Composite",
+            "costs": [
+              {
+                "type": "Mana",
+                "cost": {
+                  "type": "Cost",
+                  "shards": [],
+                  "generic": 0
+                }
+              },
+              {
+                "type": "Exile",
+                "count": 1,
+                "zone": "Hand",
+                "filter": {
+                  "type": "SelfRef"
+                }
+              }
+            ]
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "MatchesCardCastTiming"
+            }
+          ],
+          "activation_zone": "Hand",
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "RemoveCounter",
+              "counter_type": "time",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "target": {
+                "type": "SelfRef"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Exile"
+          ],
+          "phase": "Upkeep",
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "CR 702.62a: At the beginning of your upkeep, if this card is suspended, remove a time counter from it.",
+          "constraint": {
+            "type": "OnlyDuringYourTurn"
+          },
+          "condition": {
+            "type": "HasCounters",
+            "counters": {
+              "type": "OfType",
+              "data": "time"
+            },
+            "minimum": 1
+          },
+          "batched": false
+        },
+        {
+          "mode": "CounterRemoved",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "CastFromZone",
+              "target": {
+                "type": "SelfRef"
+              },
+              "without_paying_mana_cost": true,
+              "mode": "Cast",
+              "driver": "DuringResolution"
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": true,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Exile"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "CR 702.62a: When the last time counter is removed from this card, if it's exiled, you may play it without paying its mana cost.",
+          "constraint": null,
+          "condition": null,
+          "counter_filter": {
+            "counter_type": "time",
+            "threshold": 0
+          },
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "White"
+      ],
+      "scryfall_oracle_id": "dcbf8d0d-a5a8-4dc2-828f-25ccfe87fe0f",
+      "metadata": {
+        "source_printing_ids": [
+          "a732bc65-33fe-4445-ba3f-082578ee837a"
+        ]
+      },
+      "legalities": {},
+      "printings": [
+        "UNK"
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
+    "A Killer Among Us": {
+      "name": "A Killer Among Us",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Green"
+        ],
+        "generic": 4
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Enchantment"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "When this enchantment enters, create a 1/1 white Human creature token, a 1/1 blue Merfolk creature token, and a 1/1 red Goblin creature token. Then secretly choose Human, Merfolk, or Goblin.\nSacrifice this enchantment, Reveal the creature type you chose: If target attacking creature token is the chosen type, put three +1/+1 counters on it and it gains deathtouch until end of turn.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "PutCounter",
+            "counter_type": "P1P1",
+            "count": {
+              "type": "Fixed",
+              "value": 3
+            },
+            "target": {
+              "type": "SelfRef"
+            }
+          },
+          "cost": {
+            "type": "Composite",
+            "costs": [
+              {
+                "type": "Sacrifice",
+                "target": {
+                  "type": "SelfRef"
+                },
+                "count": 1
+              },
+              {
+                "type": "Sacrifice",
+                "target": {
+                  "type": "Typed",
+                  "type_filters": [],
+                  "controller": null,
+                  "properties": []
+                },
+                "count": 1
+              }
+            ]
+          },
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "GenericEffect",
+              "static_abilities": [
+                {
+                  "mode": "Continuous",
+                  "affected": {
+                    "type": "SelfRef"
+                  },
+                  "modifications": [
+                    {
+                      "type": "AddKeyword",
+                      "keyword": "Deathtouch"
+                    }
+                  ],
+                  "condition": null,
+                  "affected_zone": null,
+                  "effect_zone": null,
+                  "active_zones": [],
+                  "characteristic_defining": false,
+                  "description": "gain deathtouch"
+                }
+              ],
+              "duration": "UntilEndOfTurn",
+              "target": null
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": "UntilEndOfTurn",
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "duration": null,
+          "description": "Sacrifice ~, Reveal the creature type you chose: If target attacking creature token is the chosen type, put three +1/+1 counters on it and it gains deathtouch until end of turn.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Token",
+              "name": "Human",
+              "power": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "toughness": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "types": [
+                "Creature",
+                "Human"
+              ],
+              "colors": [
+                "White"
+              ],
+              "keywords": [],
+              "tapped": false,
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "owner": {
+                "type": "Controller"
+              },
+              "enters_attacking": false
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "Token",
+                "name": "Goblin",
+                "power": {
+                  "type": "Fixed",
+                  "value": 1
+                },
+                "toughness": {
+                  "type": "Fixed",
+                  "value": 1
+                },
+                "types": [
+                  "Creature",
+                  "Goblin"
+                ],
+                "colors": [
+                  "Red"
+                ],
+                "keywords": [],
+                "tapped": false,
+                "count": {
+                  "type": "Fixed",
+                  "value": 1
+                },
+                "owner": {
+                  "type": "Controller"
+                },
+                "enters_attacking": false
+              },
+              "cost": null,
+              "sub_ability": {
+                "kind": "Spell",
+                "effect": {
+                  "type": "Choose",
+                  "choice_type": {
+                    "Labeled": {
+                      "options": [
+                        "Human",
+                        "Merfolk",
+                        "Goblin"
+                      ]
+                    }
+                  },
+                  "persist": true
+                },
+                "cost": null,
+                "sub_ability": null,
+                "duration": null,
+                "description": null,
+                "target_prompt": null,
+                "condition": null,
+                "optional_targeting": false,
+                "optional": false,
+                "forward_result": false,
+                "sub_link": "SequentialSibling"
+              },
+              "duration": null,
+              "description": "create a 1/1 red Goblin creature token",
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": "Battlefield",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ enters, create a 1/1 white Human creature token, a 1/1 blue Merfolk creature token, and a 1/1 red Goblin creature token. Then secretly choose Human, Merfolk, or Goblin.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Green"
+      ],
+      "scryfall_oracle_id": "79d577a8-53c0-4220-bc0e-70764d72d5fd",
+      "parse_warnings": [
+        {
+          "type": "SwallowedClause",
+          "detector": "Condition_If",
+          "description": "When this enchantment enters, create a 1/1 white Human creature token, a 1/1 blue Merfolk creature token, and a 1/1 red Goblin creature toke",
+          "line_index": 0
+        }
+      ],
+      "metadata": {
+        "related_token_ids": [
+          "9ac7e305-d4ff-57c5-8aa0-d0b1272b7212",
+          "ea2f86f5-bc5a-58d4-8ae6-116f9a5981c0",
+          "f4991ff1-b597-5f15-9a8e-9724ae5ee3fe"
+        ],
+        "source_printing_ids": [
+          "2c1392c5-91a5-4e6e-803d-ed032e4d594b"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "standard": "legal",
+        "standardbrawl": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "MKM"
+      ],
+      "rulings": [
+        {
+          "date": "2024-02-02",
+          "text": "A Killer Among Us's last ability can target any attacking creature token, not just one of the tokens created by its first ability, and not just one of the chosen type. Only a token of the chosen type will get the bonuses, though."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If you control multiple copies of A Killer Among Us, you may choose the same or different creature types for each one. Be careful to keep track of which type is chosen for each A Killer Among Us."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "Only the player who secretly chose the creature type can reveal the creature type they chose. If another player gains control of A Killer Among Us, they will be unable to activate its last ability."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "There are several ways to secretly choose one of the creature types, including writing that type on a piece of paper that's kept with A Killer Among Us."
+        }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
+    "A Little Chat": {
+      "name": "A Little Chat",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue"
+        ],
+        "generic": 1
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Instant"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Casualty 1 (As you cast this spell, you may sacrifice a creature with power 1 or greater. When you do, copy this spell.)\nLook at the top two cards of your library. Put one of them into your hand and the other on the bottom of your library.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        {
+          "Casualty": 1
+        }
+      ],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Dig",
+            "player": {
+              "type": "Controller"
+            },
+            "count": {
+              "type": "Fixed",
+              "value": 2
+            },
+            "destination": "Hand",
+            "keep_count": 1,
+            "up_to": false,
+            "filter": {
+              "type": "Any"
+            },
+            "rest_destination": "Library",
+            "reveal": false,
+            "enter_tapped": false
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": "Look at the top two cards of your library. Put one of them into your hand and the other on the bottom of your library.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [
+        {
+          "mode": "SpellCast",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "CopySpell",
+              "target": {
+                "type": "SelfRef"
+              },
+              "retarget": {
+                "type": "MayChooseNewTargets"
+              },
+              "starting_loyalty_from_casualty_sacrifice": false
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": {
+              "type": "AdditionalCostPaid",
+              "source": "NonKicker",
+              "origin": "Casualty",
+              "origin_ordinal": 0
+            },
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Stack"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "Casualty — copy this spell when cast with casualty paid",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "1167fe30-32b8-4381-8067-a05cd345977b",
+      "additional_cost": {
+        "type": "Optional",
+        "data": {
+          "cost": {
+            "type": "Sacrifice",
+            "target": {
+              "type": "Typed",
+              "type_filters": [
+                "Creature"
+              ],
+              "controller": null,
+              "properties": [
+                {
+                  "type": "PtComparison",
+                  "stat": "Power",
+                  "scope": "Current",
+                  "comparator": "GE",
+                  "value": {
+                    "type": "Fixed",
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            "count": 1
+          }
+        }
+      },
+      "metadata": {
+        "source_printing_ids": [
+          "4d7424b6-b56a-47b7-8204-294d3dca925f"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "SNC"
+      ],
+      "rulings": [
+        {
+          "date": "2022-04-29",
+          "text": "Casualty N means “As an additional cost to cast this spell, you may sacrifice a creature with power N or greater.” and “When you cast this spell, if a casualty cost was paid for it, copy it. If the spell has any targets, you may choose new targets for the copy.”"
+        },
+        {
+          "date": "2022-04-29",
+          "text": "If there's only one card in your library as A Little Chat resolves, you'll put it into your hand."
+        },
+        {
+          "date": "2022-04-29",
+          "text": "If you pay the casualty cost of a spell, the copy will resolve before the original spell."
+        },
+        {
+          "date": "2022-04-29",
+          "text": "The copy of the spell is created on the stack, so it's not “cast.” Abilities that trigger when a player casts a spell won't trigger."
+        },
+        {
+          "date": "2022-04-29",
+          "text": "You may sacrifice only one creature to pay a spell's casualty cost, and you copy the spell only once."
+        }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
+    "A-Alrund, God of the Cosmos": {
+      "name": "A-Alrund, God of the Cosmos",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue",
+          "Blue"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "God"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 1
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 1
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Alrund gets +1/+1 for each card in your hand and each foretold card you own in exile.\nAt the beginning of your end step, choose a card type, then reveal the top three cards of your library. Put all cards of the chosen type revealed this way into your hand and the rest on the bottom of your library in any order.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Choose",
+              "choice_type": "CardType",
+              "persist": true
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "RevealTop",
+                "player": {
+                  "type": "Controller"
+                },
+                "count": 3
+              },
+              "cost": null,
+              "sub_ability": {
+                "kind": "Spell",
+                "effect": {
+                  "type": "PutAtLibraryPosition",
+                  "target": {
+                    "type": "Typed",
+                    "type_filters": [
+                      "Card"
+                    ],
+                    "controller": null,
+                    "properties": [
+                      {
+                        "type": "IsChosenCardType"
+                      }
+                    ]
+                  },
+                  "count": {
+                    "type": "Fixed",
+                    "value": 1
+                  },
+                  "position": {
+                    "type": "Bottom"
+                  }
+                },
+                "cost": null,
+                "sub_ability": null,
+                "duration": null,
+                "description": null,
+                "target_prompt": null,
+                "condition": null,
+                "optional_targeting": false,
+                "optional": false,
+                "forward_result": false,
+                "sub_link": "SequentialSibling"
+              },
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": "End",
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "At the beginning of your end step, choose a card type, then reveal the top three cards of your library. Put all cards of the chosen type revealed this way into your hand and the rest on the bottom of your library in any order.",
+          "constraint": {
+            "type": "OnlyDuringYourTurn"
+          },
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [
+        {
+          "mode": "Continuous",
+          "affected": {
+            "type": "SelfRef"
+          },
+          "modifications": [
+            {
+              "type": "AddDynamicPower",
+              "value": {
+                "type": "Sum",
+                "exprs": [
+                  {
+                    "type": "Ref",
+                    "qty": {
+                      "type": "ZoneCardCount",
+                      "zone": "Hand",
+                      "card_types": [],
+                      "scope": "Controller"
+                    }
+                  },
+                  {
+                    "type": "Ref",
+                    "qty": {
+                      "type": "ObjectCount",
+                      "filter": {
+                        "type": "Typed",
+                        "type_filters": [
+                          "Card"
+                        ],
+                        "controller": null,
+                        "properties": [
+                          {
+                            "type": "Foretold"
+                          },
+                          {
+                            "type": "Owned",
+                            "controller": "You"
+                          },
+                          {
+                            "type": "InZone",
+                            "zone": "Exile"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "AddDynamicToughness",
+              "value": {
+                "type": "Sum",
+                "exprs": [
+                  {
+                    "type": "Ref",
+                    "qty": {
+                      "type": "ZoneCardCount",
+                      "zone": "Hand",
+                      "card_types": [],
+                      "scope": "Controller"
+                    }
+                  },
+                  {
+                    "type": "Ref",
+                    "qty": {
+                      "type": "ObjectCount",
+                      "filter": {
+                        "type": "Typed",
+                        "type_filters": [
+                          "Card"
+                        ],
+                        "controller": null,
+                        "properties": [
+                          {
+                            "type": "Foretold"
+                          },
+                          {
+                            "type": "Owned",
+                            "controller": "You"
+                          },
+                          {
+                            "type": "InZone",
+                            "zone": "Exile"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "condition": null,
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "~ gets +1/+1 for each card in your hand and each foretold card you own in exile."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "2d6186a6-5236-4fb9-bcb6-f6825b148886",
+      "brawl_commander": true,
+      "is_commander": true,
+      "metadata": {
+        "source_printing_ids": [
+          "b443504e-1b25-4565-bad7-2575826c7bb9"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "historic": "legal"
+      },
+      "layout": "modal_dfc",
+      "printings": [
+        "KHM"
+      ],
+      "rarities": [
+        "mythic"
+      ]
+    },
+    "A-Cabaretti Charm": {
+      "name": "A-Cabaretti Charm",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Red",
+          "Green",
+          "White"
+        ],
+        "generic": 0
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Instant"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Choose one —\n• Cabaretti Charm deals damage equal to twice the number of creatures you control to target creature or planeswalker.\n• Creatures you control get +1/+1 and gain trample until end of turn.\n• Create two 1/1 green and white Citizen creature tokens.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "DealDamage",
+            "amount": {
+              "type": "Multiply",
+              "factor": 2,
+              "inner": {
+                "type": "Ref",
+                "qty": {
+                  "type": "ObjectCount",
+                  "filter": {
+                    "type": "Typed",
+                    "type_filters": [
+                      "Creature"
+                    ],
+                    "controller": "You",
+                    "properties": []
+                  }
+                }
+              }
+            },
+            "target": {
+              "type": "Or",
+              "filters": [
+                {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Creature"
+                  ],
+                  "controller": null,
+                  "properties": []
+                },
+                {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Planeswalker"
+                  ],
+                  "controller": null,
+                  "properties": []
+                }
+              ]
+            }
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "GenericEffect",
+            "static_abilities": [
+              {
+                "mode": "Continuous",
+                "affected": {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Creature"
+                  ],
+                  "controller": "You",
+                  "properties": []
+                },
+                "modifications": [
+                  {
+                    "type": "AddPower",
+                    "value": 1
+                  },
+                  {
+                    "type": "AddToughness",
+                    "value": 1
+                  },
+                  {
+                    "type": "AddKeyword",
+                    "keyword": "Trample"
+                  }
+                ],
+                "condition": null,
+                "affected_zone": null,
+                "effect_zone": null,
+                "active_zones": [],
+                "characteristic_defining": false,
+                "description": "get +1/+1 and gain trample"
+              }
+            ],
+            "duration": "UntilEndOfTurn",
+            "target": null
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": "UntilEndOfTurn",
+          "description": null,
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Token",
+            "name": "Citizen",
+            "power": {
+              "type": "Fixed",
+              "value": 1
+            },
+            "toughness": {
+              "type": "Fixed",
+              "value": 1
+            },
+            "types": [
+              "Creature",
+              "Citizen"
+            ],
+            "colors": [
+              "Green",
+              "White"
+            ],
+            "keywords": [],
+            "tapped": false,
+            "count": {
+              "type": "Fixed",
+              "value": 2
+            },
+            "owner": {
+              "type": "Controller"
+            },
+            "enters_attacking": false
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": [
+        "Green",
+        "Red",
+        "White"
+      ],
+      "color_identity": [
+        "Green",
+        "Red",
+        "White"
+      ],
+      "scryfall_oracle_id": "71b3e813-7205-43e5-8411-7945191c766f",
+      "modal": {
+        "min_choices": 1,
+        "max_choices": 1,
+        "mode_count": 3,
+        "mode_descriptions": [
+          "~ deals damage equal to twice the number of creatures you control to target creature or planeswalker.",
+          "Creatures you control get +1/+1 and gain trample until end of turn.",
+          "Create two 1/1 green and white Citizen creature tokens."
+        ],
+        "allow_repeat_modes": false,
+        "chooser": {
+          "type": "Controller"
+        }
+      },
+      "metadata": {
+        "source_printing_ids": [
+          "94e82413-9736-4013-a39a-5498c1c85bba"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "historic": "legal"
+      },
+      "printings": [
+        "SNC"
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
+    "A-Ellywick Tumblestrum": {
+      "name": "A-Ellywick Tumblestrum",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Green",
+          "Green"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "core_types": [
+          "Planeswalker"
+        ],
+        "subtypes": [
+          "Ellywick"
+        ]
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": "4",
+      "defense": null,
+      "oracle_text": "[+1]: Venture into the dungeon. (Enter the first room or advance to the next room.)\n[−2]: Look at the top six cards of your library. You may reveal a creature card from among them and put it into your hand. If it's legendary, you gain 3 life. Put the rest on the bottom of your library in a random order.\n[−6]: You get an emblem with \"Creatures you control have trample and haste and get +2/+2 for each differently named dungeon you've completed.\"",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "VentureIntoDungeon"
+          },
+          "cost": {
+            "type": "Loyalty",
+            "amount": 1
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "[+1]: Venture into the dungeon.",
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "AsSorcery"
+            }
+          ],
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "Dig",
+            "player": {
+              "type": "Controller"
+            },
+            "count": {
+              "type": "Fixed",
+              "value": 6
+            },
+            "destination": "Hand",
+            "keep_count": 1,
+            "up_to": true,
+            "filter": {
+              "type": "Typed",
+              "type_filters": [
+                "Creature"
+              ],
+              "controller": null,
+              "properties": []
+            },
+            "rest_destination": null,
+            "reveal": true,
+            "enter_tapped": false
+          },
+          "cost": {
+            "type": "Loyalty",
+            "amount": -2
+          },
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "GainLife",
+              "amount": {
+                "type": "Fixed",
+                "value": 3
+              }
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "PutAtLibraryPosition",
+                "target": {
+                  "type": "TrackedSet",
+                  "id": 0
+                },
+                "count": {
+                  "type": "Fixed",
+                  "value": 1
+                },
+                "position": {
+                  "type": "Bottom"
+                }
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false,
+              "sub_link": "SequentialSibling"
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": {
+              "type": "TargetMatchesFilter",
+              "filter": {
+                "type": "Typed",
+                "type_filters": [],
+                "controller": null,
+                "properties": [
+                  {
+                    "type": "HasSupertype",
+                    "value": "Legendary"
+                  }
+                ]
+              },
+              "use_lki": false
+            },
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "sub_link": "SequentialSibling"
+          },
+          "duration": null,
+          "description": "[−2]: Look at the top six cards of your library. You may reveal a creature card from among them and put it into your hand. If it's legendary, you gain 3 life. Put the rest on the bottom of your library in a random order.",
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "AsSorcery"
+            }
+          ],
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "CreateEmblem",
+            "statics": [
+              {
+                "mode": "Continuous",
+                "affected": {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Creature"
+                  ],
+                  "controller": "You",
+                  "properties": []
+                },
+                "modifications": [
+                  {
+                    "type": "AddPower",
+                    "value": 2
+                  },
+                  {
+                    "type": "AddToughness",
+                    "value": 2
+                  },
+                  {
+                    "type": "AddKeyword",
+                    "keyword": "Trample"
+                  },
+                  {
+                    "type": "AddKeyword",
+                    "keyword": "Haste"
+                  }
+                ],
+                "condition": null,
+                "affected_zone": null,
+                "effect_zone": null,
+                "active_zones": [],
+                "characteristic_defining": false,
+                "description": "Creatures you control have trample and haste and get +2/+2 for each differently named dungeon you've completed"
+              }
+            ],
+            "triggers": []
+          },
+          "cost": {
+            "type": "Loyalty",
+            "amount": -6
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "[−6]: You get an emblem with \"Creatures you control have trample and haste and get +2/+2 for each differently named dungeon you've completed.\"",
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "AsSorcery"
+            }
+          ],
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Green"
+      ],
+      "scryfall_oracle_id": "fbd5f5ed-cdd9-4cf7-a66f-788d63151a05",
+      "brawl_commander": true,
+      "is_oathbreaker": true,
+      "parse_warnings": [
+        {
+          "type": "SwallowedClause",
+          "detector": "DynamicQty",
+          "description": "[+1]: Venture into the dungeon. (Enter the first room or advance to the next room.)\n[−2]: Look at the top six cards of your library. You m",
+          "line_index": 0
+        }
+      ],
+      "metadata": {
+        "source_printing_ids": [
+          "49215be1-88ed-4302-a708-99496d90d175"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "historic": "legal"
+      },
+      "printings": [
+        "AFR"
+      ],
+      "rarities": [
+        "mythic"
+      ]
+    }
+  }
+}
