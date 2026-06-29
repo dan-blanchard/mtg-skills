@@ -100,3 +100,42 @@ def test_near_duplicate_avenues_collapse_to_one():
     ]
     fr = focus(classes, deck_size=10)
     assert len(fr["viable_avenues"]) == 1
+
+
+def test_removal_family_avenues_are_not_themes():
+    # Exile-based removal and counterspells are scaffolding (they answer the board),
+    # never a "commit or cut" theme — but _SPINE_AVENUE_KEYS excluded only "removal", so
+    # sibling removal lanes leaked into focus: Light-Paws got "Exile removal (5) is an
+    # under-supported theme" for running Swords / Path to Exile.
+    exile_sig = Signal(
+        key="exile_removal",
+        scope="you",
+        subject="",
+        text="",
+        source="x",
+        confidence="high",
+    )
+    counter_sig = Signal(
+        key="counter_control",
+        scope="you",
+        subject="",
+        text="",
+        source="x",
+        confidence="high",
+    )
+    exile_label = spec_for(exile_sig).label  # "Exile removal"
+    counter_label = spec_for(counter_sig).label  # "Counterspells / control"
+    classes = [
+        _cc("Swords to Plowshares", "spine", [exile_label], roles=["interaction"]),
+        _cc("Path to Exile", "spine", [exile_label], roles=["interaction"]),
+        _cc("Counterspell", "spine", [counter_label], roles=["interaction"]),
+        _cc("Aura A", "engine", ["Voltron / equipment & auras"]),
+        _cc("Aura B", "engine", ["Voltron / equipment & auras"]),
+        _cc("Aura C", "engine", ["Voltron / equipment & auras"]),
+    ]
+    fr = focus(classes, deck_size=10, deck_signals=[exile_sig, counter_sig])
+    labels = {a["label"] for a in fr["viable_avenues"]}
+    labels |= {a["label"] for a in fr["emerging"]}
+    assert exile_label not in labels  # scaffolding, not a theme
+    assert counter_label not in labels
+    assert "Voltron / equipment & auras" in {a["label"] for a in fr["viable_avenues"]}
