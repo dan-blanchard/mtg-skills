@@ -304,6 +304,68 @@ def explicit_recipient_scope(node: TypedMirrorNode) -> str | None:
     return None
 
 
+# Recipient tags naming a player OTHER than the ability's controller: the
+# triggering object's controller (``ParentTargetController``), the triggering
+# player (``TriggeringPlayer``), or a chosen/targeted player (``ParentTarget`` /
+# ``Player`` / ``Target`` / ``Any``). A loss aimed at one of these is a DIRECTED
+# loss at another player (CR 119.3), never a self-loss.
+_DIRECTED_PLAYER_TAGS: frozenset[str] = frozenset(
+    {
+        "ParentTargetController",
+        "TriggeringPlayer",
+        "ParentTarget",
+        "Player",
+        "Target",
+        "Any",
+    }
+)
+
+
+def lifeloss_recipient_scope(node: TypedMirrorNode) -> str | None:
+    """The DIRECTION of a life-loss effect (who loses) from its recipient node.
+
+    Reads a ``LoseLife`` node's recipient/target player STRUCTURALLY (CR 119.3), so
+    direction never rides phase's ``trigger_scope`` — which it MIS-scopes to ``you``
+    for an ability triggered off an OPPONENT's object (Archfiend of the Dross
+    "whenever a creature an opponent controls dies, its controller loses 2 life" —
+    recipient ``ParentTargetController``; Ashenmoor Liege "that player loses 4 life"
+    — recipient ``TriggeringPlayer``; phase bug [P5]). A controller/self recipient →
+    ``you``; an each/all-player recipient → ``each``; an opponent recipient, or a
+    RELATIVE/targeted one (the triggering object's controller / the triggering
+    player / a targeted player) → ``opponents`` (a directed loss). ``None`` when the
+    node carries NO recipient field — a bare self-loss (Agent Venom "you draw a card
+    and lose 1 life", Dark Confidant's upkeep self-loss), so the caller falls back to
+    the wrapper ``player_scope`` (Gray Merchant's "each opponent loses").
+    """
+    for fname in _SCOPE_FIELDS:
+        sub = getattr(node, fname, MISSING)
+        if not _present(sub) or tag_of(sub) is None:
+            continue
+        if tag_of(sub) in _DIRECTED_PLAYER_TAGS:
+            return "opponents"
+        sc = _scope_from_player_node(sub)
+        if sc == "you":
+            return "you"
+        if sc == "each":
+            return "each"
+        return "opponents"
+    return None
+
+
+def trigger_turn_constraint(trig: TypedMirrorNode) -> str | None:
+    """The turn-restriction tag of a trigger's ``constraint`` (``OnlyDuringYourTurn``
+    / ``OnlyDuringOpponentsTurn`` / ``None``).
+
+    phase gates a per-turn trigger with a ``constraint`` node: an "each opponent's
+    upkeep" trigger carries ``OnlyDuringOpponentsTurn`` (Sheoldred, Whispering One),
+    a "your upkeep" trigger ``OnlyDuringYourTurn`` (Archfiend of the Dross), and an
+    "each player's upkeep" trigger no constraint (Braids, Cabal Minion; Smokestack).
+    The edict scope of a ``ScopedPlayer`` ("that player sacrifices") reads it to tell
+    a symmetric each-player wrath from an opponent-only edict (CR 701.21a).
+    """
+    return tag_of(getattr(trig, "constraint", None))
+
+
 def effect_reaches_player(node: TypedMirrorNode) -> bool:
     """Whether a damage EFFECT reaches a PLAYER (CR 120.1), read structurally.
 

@@ -48,6 +48,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_predicates,
     filter_subtypes,
+    lifeloss_recipient_scope,
     mod_value,
     node_lure_mode,
     pump_is_negative,
@@ -55,6 +56,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
+    trigger_turn_constraint,
 )
 from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 from mtg_utils._deck_forge import signal_keys
@@ -1348,21 +1350,21 @@ def _regenerate_makers(tree: ConceptTree) -> list[Signal]:
 
 def _lifeloss_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str:
     """The lifeloss-maker scope split (CR 119.3): a self-loss ("you lose N") → you; a
-    drain ("each opponent / target player loses N") → opponents. Reads the effect's
-    EXPLICIT recipient first; when phase carries none on the node (Gray Merchant — the
-    "each opponent" lives as ``player_scope`` on the trigger wrapper), reads the
-    wrapper actor that OWNS this effect (:func:`effect_owner_player_scope`)."""
-    rs = explicit_recipient_scope(node)
+    drain ("each opponent / its controller / that player loses N") → opponents.
+
+    Direction comes from the ``LoseLife`` node's RECIPIENT, read structurally
+    (:func:`lifeloss_recipient_scope`) — NOT from ``trigger_scope``, which phase
+    MIS-scopes to ``you`` for an ability triggered off an OPPONENT's object (Archfiend
+    of the Dross, Ashenmoor Liege — phase bug [P5]). When the node carries no
+    recipient (Gray Merchant — the "each opponent loses" lives as ``player_scope`` on
+    the trigger wrapper), reads the wrapper actor that OWNS this effect
+    (:func:`effect_owner_player_scope`); a bare self-loss with no wrapper actor (Agent
+    Venom, Dark Confidant) stays ``you``."""
+    rs = lifeloss_recipient_scope(node)
     if rs is not None:
-        return "you" if rs == "you" else "opponents"
+        return rs
     owner = effect_owner_player_scope(getattr(unit, "node", None), node)
     if owner in _EDICT_ACTORS:
-        return "opponents"
-    # A "target opponent loses N" drain on a TRIGGER carries the recipient on the
-    # trigger's ``valid_target`` (Bishop of the Bloodstained — ``Player``), not on the
-    # ``LoseLife`` node. A null valid_target is a self-loss (Agent Venom — "you draw
-    # and lose 1 life"), staying ``you``.
-    if unit.origin == "trigger" and trigger_scope(unit.node) != "you":
         return "opponents"
     return "you"
 
@@ -1418,21 +1420,45 @@ def _edict_scope(owner_tag: str | None) -> str:
     return "each"
 
 
-def _sac_actor_scope(node: TypedMirrorNode) -> str | None:
+def _scoped_player_scope(unit: AbilityUnit | None) -> str | None:
+    """Resolve a ``ScopedPlayer`` sacrifice controller to a lane scope via the owning
+    trigger's turn constraint (CR 701.21a).
+
+    phase tags a triggered "that player sacrifices" edict ``controller: ScopedPlayer``
+    — the scoped player is whoever the trigger references, which the constraint
+    disambiguates: ``OnlyDuringOpponentsTurn`` (Sheoldred — "each opponent's upkeep")
+    → opponents; no constraint (Braids, Cabal Minion; Smokestack — "each player's
+    upkeep, that player sacrifices") → each, a SYMMETRIC self-inclusive wrath that
+    hits YOU too (matching the live edict_makers /each scope, NOT a clean opponent
+    edict); ``OnlyDuringYourTurn`` (a "your upkeep, you sacrifice" self-sac) → ``None``
+    (a you-sac, not an edict). A non-trigger ScopedPlayer keeps the opponent default.
+    """
+    if unit is None or getattr(unit, "origin", None) != "trigger":
+        return "opponents"
+    c = trigger_turn_constraint(unit.node)
+    if c == "OnlyDuringOpponentsTurn":
+        return "opponents"
+    if c == "OnlyDuringYourTurn":
+        return None
+    return "each"
+
+
+def _sac_actor_scope(
+    node: TypedMirrorNode, unit: AbilityUnit | None = None
+) -> str | None:
     """The edict scope of a ``Sacrifice`` effect from its sacrificed filter's
     CONTROLLER (CR 701.21a — a player only sacrifices a permanent THEY control, so the
-    controller IS the forced actor). An opponent / target-player / scoped-player
-    controller → opponents; an each/all-player controller → each; a ``You`` controller
-    (a you-sac outlet — Mycoloth) or none (an unscoped/bare-self sac) → ``None`` (not an
-    edict via this arm)."""
+    controller IS the forced actor). An opponent / target-player controller →
+    opponents; an each/all-player controller → each; a ``ScopedPlayer`` ("that player
+    sacrifices") resolves by the trigger's turn constraint
+    (:func:`_scoped_player_scope`) so a symmetric each-player upkeep edict (Braids,
+    Smokestack) scopes /each, not /opponents; a ``You`` controller (a you-sac outlet —
+    Mycoloth) or none (an unscoped/bare-self sac) → ``None`` (not an edict via this
+    arm)."""
     ctrl = filter_controller(effect_filter(node))
-    if ctrl in (
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-        "TargetPlayer",
-        "ScopedPlayer",
-    ):
+    if ctrl == "ScopedPlayer":
+        return _scoped_player_scope(unit)
+    if ctrl in ("Opponent", "Opponents", "EachOpponent", "TargetPlayer"):
         return "opponents"
     if ctrl in ("All", "EachPlayer", "Each"):
         return "each"
@@ -1449,9 +1475,12 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
       permanent ``controller: You`` while tagging the wrapper ``player_scope:
       Opponent`` (Grave Pact, Dictate of Erebos), so the wrapper is load-bearing;
     * the sacrificed filter's CONTROLLER is itself a non-you player
-      (:func:`_sac_actor_scope`) — "target player / each opponent sacrifices a
-      creature" carries ``controller: TargetPlayer`` / ``ScopedPlayer`` (Diabolic
-      Edict, Sheoldred).
+      (:func:`_sac_actor_scope`) — "target player sacrifices a creature" carries
+      ``controller: TargetPlayer`` (Diabolic Edict); a triggered "that player
+      sacrifices" carries ``controller: ScopedPlayer``, scoped by the trigger's turn
+      constraint so an "each opponent's upkeep" edict is /opponents (Sheoldred) but a
+      symmetric "each player's upkeep" wrath is /each (Braids, Smokestack — it hits
+      YOU too, so it is not a clean opponent edict).
 
     A you-sac outlet (Mycoloth — ``controller: You``; Viscera Seer — a COST, never an
     effect) is excluded.
@@ -1472,17 +1501,69 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
             if owner in _EDICT_ACTORS:
                 fire(_edict_scope(owner), c.raw)
             else:
-                fire(_sac_actor_scope(c.node), c.raw)
+                fire(_sac_actor_scope(c.node, unit), c.raw)
     return out
 
 
+# Actor tags that name an OPPONENT or a targeted player (never the controller). A
+# land sacrifice directed at one of these is land DESTRUCTION / an opponent edict
+# on lands (Yawning Fissure, Din of the Fireherd, Epicenter), NOT a self land-sac
+# engine (CR 701.21a). ``ScopedPlayer`` ("that player") is deliberately ABSENT — it
+# is symmetric (each player, including you) UNLESS the owning trigger is
+# OnlyDuringOpponentsTurn, handled separately. The ``All`` / ``EachPlayer`` / ``Each``
+# actors are absent too: they include you (Smallpox, Death Cloud, Keldon Firebombers,
+# Pox — you sac your own lands), keeping the lane.
+_OPP_SAC_ACTORS: frozenset[str] = frozenset(
+    {"Opponent", "Opponents", "EachOpponent", "TargetPlayer"}
+)
+
+
+def _sac_targets_opponent(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
+    """Whether a land ``Sacrifice`` in ``unit`` is directed at an OPPONENT (CR
+    701.21a) — the opponent land-edict the self-land-sac lane must exclude.
+
+    Works around two phase mislabels the land-sac node's own filter controller can't
+    be trusted through: [P1] Yawning Fissure ("Each opponent sacrifices a land") —
+    phase tags the Sacrifice filter ``controller: You`` but hangs ``player_scope:
+    Opponent`` on the wrapper; [P3] Din of the Fireherd (a chained "then sacrifices a
+    land of their choice") — the chained land Sacrifice drops its own controller, but
+    its parent "target opponent sacrifices a creature" carries ``controller:
+    TargetPlayer``. Reading BOTH the wrapper ``player_scope`` and every sibling
+    Sacrifice's filter controller catches the opponent direction the mislabeled node
+    hides. A ``ScopedPlayer`` ("that player sacrifices") counts only when the trigger
+    is ``OnlyDuringOpponentsTurn`` (a Sheoldred-style "each opponent's upkeep" edict)
+    — a symmetric "each player's upkeep" land sac (Mana Vortex, Stoneshaker Shaman)
+    and the ``All`` / ``EachPlayer`` wraths (Smallpox, Keldon Firebombers, Pox) are
+    NOT opponent-directed (you sac your own lands too)."""
+    owner = effect_owner_player_scope(getattr(unit, "node", None), node)
+    if owner in _OPP_SAC_ACTORS:
+        return True
+    opp_scoped = (
+        getattr(unit, "origin", None) == "trigger"
+        and trigger_turn_constraint(unit.node) == "OnlyDuringOpponentsTurn"
+    )
+    for c in unit.effects:
+        if c.concept != "sacrifice":
+            continue
+        ctrl = filter_controller(effect_filter(c.node))
+        if ctrl in _OPP_SAC_ACTORS or (ctrl == "ScopedPlayer" and opp_scoped):
+            return True
+    return False
+
+
 def _land_sacrifice_makers(tree: ConceptTree) -> list[Signal]:
-    """land_sacrifice_makers — a self land-sacrifice (CR 701.21 / 305.6). A
-    ``Sacrifice`` effect OR cost whose subject is LAND-ONLY (Zuran Orb's "Sacrifice a
-    land:", Constant Mists), scope not opponent. This is the Land-only branch
-    ``sacrifice_outlets`` deliberately EXCLUDES (:func:`_is_you_sac_subject` returns
-    False on a ``("Land",)`` subject), so it is a clean complement. A mixed
-    "creature or land" sac (Reprocess) is ``sacrifice_outlets``, not this.
+    """land_sacrifice_makers — a SELF land-sacrifice engine (CR 701.21 / 305.6): a
+    ``Sacrifice`` effect OR cost whose subject is LAND-ONLY where YOU sacrifice your
+    OWN lands (Zuran Orb's "Sacrifice a land:", Scapeshift; symmetric "each player
+    sacrifices a land" — Smallpox, Death Cloud — counts, you sac too). The Land-only
+    branch ``sacrifice_outlets`` deliberately EXCLUDES
+    (:func:`_is_you_sac_subject` returns False on a ``("Land",)`` subject), so it is a
+    clean complement; a mixed "creature or land" sac (Reprocess) is
+    ``sacrifice_outlets``, not this. An OPPONENT land-edict (land destruction —
+    Yawning Fissure "each opponent sacrifices a land", Din of the Fireherd "target
+    opponent ... sacrifices a land") is NOT a self engine and is gated out by
+    :func:`_sac_targets_opponent`, working around phase's [P1]/[P3] direction
+    mislabels.
     """
     for unit in tree.units:
         for c in (*unit.effects, *unit.costs):
@@ -1490,6 +1571,7 @@ def _land_sacrifice_makers(tree: ConceptTree) -> list[Signal]:
                 c.concept == "sacrifice"
                 and tuple(c.subject) == ("Land",)
                 and c.scope != "opponents"
+                and not _sac_targets_opponent(unit, c.node)
             ):
                 return [
                     Signal("land_sacrifice_makers", "you", "", c.raw, tree.name, "high")

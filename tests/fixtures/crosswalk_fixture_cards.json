@@ -1197,6 +1197,166 @@
         "mythic"
       ]
     },
+    "Agent Venom": {
+      "name": "Agent Venom",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Symbiote",
+          "Soldier",
+          "Hero"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Flash\nMenace\nWhenever another nontoken creature you control dies, you draw a card and lose 1 life.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Flash",
+        "Menace"
+      ],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Draw",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "target": {
+                "type": "Controller"
+              }
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "LoseLife",
+                "amount": {
+                  "type": "Fixed",
+                  "value": 1
+                }
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "Typed",
+            "type_filters": [
+              "Creature"
+            ],
+            "controller": "You",
+            "properties": [
+              {
+                "type": "NonToken"
+              },
+              {
+                "type": "Another"
+              }
+            ]
+          },
+          "origin": "Battlefield",
+          "destination": "Graveyard",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "Whenever another nontoken creature you control dies, you draw a card and lose 1 life.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "14c356aa-178d-4c14-a88e-fbe92ee6d89f",
+      "brawl_commander": true,
+      "is_commander": true,
+      "metadata": {
+        "source_printing_ids": [
+          "5569baf4-0cc9-46da-80cb-2cac5452f460",
+          "d62cf4f8-36a2-4d9f-9d52-53ea18a52760",
+          "f5f80d82-d64c-466f-8874-9cfb00469f02"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "standard": "legal",
+        "standardbrawl": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "OM1",
+        "PSPM",
+        "SPM"
+      ],
+      "rulings": [
+        {
+          "date": "2025-09-19",
+          "text": "If your Agent Venom dies at the same time as one or more other nontoken creatures you control, his ability triggers for each of those creatures."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
     "Anointer Priest": {
       "name": "Anointer Priest",
       "mana_cost": {
@@ -1585,6 +1745,463 @@
       ],
       "rarities": [
         "mythic"
+      ]
+    },
+    "Archfiend of the Dross": {
+      "name": "Archfiend of the Dross",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black",
+          "Black"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Phyrexian",
+          "Demon"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 6
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 6
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Flying\nThis creature enters with four oil counters on it.\nAt the beginning of your upkeep, remove an oil counter from this creature. Then if it has no oil counters on it, you lose the game.\nWhenever a creature an opponent controls dies, its controller loses 2 life.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Flying"
+      ],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "RemoveCounter",
+              "counter_type": "oil",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "target": {
+                "type": "SelfRef"
+              }
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "LoseTheGame",
+                "target": {
+                  "type": "Controller"
+                }
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": {
+                "type": "QuantityCheck",
+                "lhs": {
+                  "type": "Ref",
+                  "qty": {
+                    "type": "CountersOn",
+                    "scope": {
+                      "type": "Source"
+                    },
+                    "counter_type": "oil"
+                  }
+                },
+                "comparator": "EQ",
+                "rhs": {
+                  "type": "Fixed",
+                  "value": 0
+                }
+              },
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false,
+              "sub_link": "SequentialSibling"
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": "Upkeep",
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "At the beginning of your upkeep, remove an oil counter from ~. Then if it has no oil counters on it, you lose the game.",
+          "constraint": {
+            "type": "OnlyDuringYourTurn"
+          },
+          "condition": null,
+          "batched": false
+        },
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "LoseLife",
+              "amount": {
+                "type": "Fixed",
+                "value": 2
+              },
+              "target": {
+                "type": "ParentTargetController"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "Typed",
+            "type_filters": [
+              "Creature"
+            ],
+            "controller": "Opponent",
+            "properties": []
+          },
+          "origin": "Battlefield",
+          "destination": "Graveyard",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "Whenever a creature an opponent controls dies, its controller loses 2 life.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [
+        {
+          "event": "Moved",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "PutCounter",
+              "counter_type": "oil",
+              "count": {
+                "type": "Fixed",
+                "value": 4
+              },
+              "target": {
+                "type": "SelfRef"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "mode": {
+            "type": "Mandatory"
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "description": "~ enters with four oil counters on it.",
+          "condition": null,
+          "destination_zone": "Battlefield"
+        }
+      ],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "9188031e-1c24-4981-a3d2-461a2bf917b6",
+      "metadata": {
+        "source_printing_ids": [
+          "01d02c56-bf38-4bd8-9e0b-c1e2cc2e5dfe",
+          "5a4aad94-5b0e-4644-b331-39dae2a7e937",
+          "86b0edaf-8cfd-4508-9554-6f0fddc2dfc4"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "ONE",
+        "PONE"
+      ],
+      "rulings": [
+        {
+          "date": "2023-02-04",
+          "text": "If Archfiend of the Dross is no longer on the battlefield as its upkeep triggered ability resolves, use the number of oil counters it had the last time it existed on the battlefield to determine whether you lose the game. You can't remove oil counters from it if it's not on the battlefield, so you won't lose the game if it had only one oil counter on it before leaving the battlefield."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "If Archfiend of the Dross somehow loses all of its oil counters due to an effect other than its upkeep triggered ability, this won't cause you to lose the game until the next time that ability resolves."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
+    "Ashenmoor Liege": {
+      "name": "Ashenmoor Liege",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "BlackRed",
+          "BlackRed",
+          "BlackRed"
+        ],
+        "generic": 1
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Elemental",
+          "Knight"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 1
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Other black creatures you control get +1/+1.\nOther red creatures you control get +1/+1.\nWhenever this creature becomes the target of a spell or ability an opponent controls, that player loses 4 life.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "BecomesTarget",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "LoseLife",
+              "amount": {
+                "type": "Fixed",
+                "value": 4
+              },
+              "target": {
+                "type": "TriggeringPlayer"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": {
+            "type": "Or",
+            "filters": [
+              {
+                "type": "And",
+                "filters": [
+                  {
+                    "type": "StackSpell"
+                  },
+                  {
+                    "type": "Typed",
+                    "type_filters": [],
+                    "controller": "Opponent",
+                    "properties": []
+                  }
+                ]
+              },
+              {
+                "type": "StackAbility",
+                "controller": "Opponent"
+              }
+            ]
+          },
+          "description": "Whenever ~ becomes the target of a spell or ability an opponent controls, that player loses 4 life.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [
+        {
+          "mode": "Continuous",
+          "affected": {
+            "type": "Typed",
+            "type_filters": [
+              "Creature"
+            ],
+            "controller": "You",
+            "properties": [
+              {
+                "type": "HasColor",
+                "color": "Black"
+              },
+              {
+                "type": "Another"
+              }
+            ]
+          },
+          "modifications": [
+            {
+              "type": "AddPower",
+              "value": 1
+            },
+            {
+              "type": "AddToughness",
+              "value": 1
+            }
+          ],
+          "condition": null,
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "black creatures you control get +1/+1."
+        },
+        {
+          "mode": "Continuous",
+          "affected": {
+            "type": "Typed",
+            "type_filters": [
+              "Creature"
+            ],
+            "controller": "You",
+            "properties": [
+              {
+                "type": "HasColor",
+                "color": "Red"
+              },
+              {
+                "type": "Another"
+              }
+            ]
+          },
+          "modifications": [
+            {
+              "type": "AddPower",
+              "value": 1
+            },
+            {
+              "type": "AddToughness",
+              "value": 1
+            }
+          ],
+          "condition": null,
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "red creatures you control get +1/+1."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "scryfall_oracle_id": "f779754a-3de9-4621-b190-cf32949da0e8",
+      "metadata": {
+        "source_printing_ids": [
+          "235b41c7-1e22-42e8-9ea1-a3610576dc3a",
+          "3bac7744-ba18-4fc5-8a6f-840dad28f6c0",
+          "9a40793a-f5d1-4a1b-a7ab-0cb7513a00ca"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "2X2",
+        "SHM"
+      ],
+      "rulings": [
+        {
+          "date": "2008-05-01",
+          "text": "The abilities are separate and cumulative. If another creature you control is both of the listed colors, it will get a total of +2/+2."
+        }
+      ],
+      "rarities": [
+        "rare"
       ]
     },
     "Ashnod's Altar": {
@@ -3663,6 +4280,158 @@
       "rarities": [
         "common"
       ]
+    },
+    "Braids, Cabal Minion": {
+      "name": "Braids, Cabal Minion",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black",
+          "Black"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Minion"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "At the beginning of each player's upkeep, that player sacrifices an artifact, creature, or land of their choice.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Sacrifice",
+              "target": {
+                "type": "Or",
+                "filters": [
+                  {
+                    "type": "Typed",
+                    "type_filters": [
+                      "Artifact"
+                    ],
+                    "controller": "ScopedPlayer",
+                    "properties": []
+                  },
+                  {
+                    "type": "Typed",
+                    "type_filters": [
+                      "Creature"
+                    ],
+                    "controller": "ScopedPlayer",
+                    "properties": []
+                  },
+                  {
+                    "type": "Typed",
+                    "type_filters": [
+                      "Land"
+                    ],
+                    "controller": "ScopedPlayer",
+                    "properties": []
+                  }
+                ]
+              },
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": "Upkeep",
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "At the beginning of each player's upkeep, that player sacrifices an artifact, creature, or land of their choice.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "d85aa59b-c6aa-4b2f-885c-59d6e5e6e8b9",
+      "brawl_commander": true,
+      "is_commander": true,
+      "metadata": {
+        "source_printing_ids": [
+          "27691efa-052d-4afe-b9ef-159858ca660f",
+          "4dcdcad5-e4fb-480e-984f-1ac5cdc986b9",
+          "f532bca1-a115-4fe7-847e-296677bdd3ee"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "premodern": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "EMA",
+        "MH2",
+        "ODY"
+      ],
+      "rulings": [
+        {
+          "date": "2016-06-08",
+          "text": "At the beginning of your upkeep, triggered abilities you control will resolve after triggered abilities your opponents control. If an opponent controls Braids and you control a triggered ability that puts a permanent onto the battlefield, you won't be able to sacrifice that permanent to satisfy Braids's ability."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ],
+      "bracket_signals": {
+        "game_changer": true,
+        "mass_land_denial": false,
+        "extra_turn": false,
+        "efficient_tutor": false
+      }
     },
     "Brainstealer Dragon": {
       "name": "Brainstealer Dragon",
@@ -6621,6 +7390,189 @@
         "uncommon"
       ]
     },
+    "Death Cloud": {
+      "name": "Death Cloud",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "X",
+          "Black",
+          "Black",
+          "Black"
+        ],
+        "generic": 0
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Each player loses X life, discards X cards, sacrifices X creatures of their choice, then sacrifices X lands of their choice.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "LoseLife",
+            "amount": {
+              "type": "Ref",
+              "qty": {
+                "type": "Variable",
+                "name": "X"
+              }
+            }
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Discard",
+              "count": {
+                "type": "Ref",
+                "qty": {
+                  "type": "Variable",
+                  "name": "X"
+                }
+              },
+              "target": {
+                "type": "Controller"
+              }
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "Sacrifice",
+                "target": {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Creature"
+                  ],
+                  "controller": null,
+                  "properties": []
+                },
+                "count": {
+                  "type": "Ref",
+                  "qty": {
+                    "type": "Variable",
+                    "name": "X"
+                  }
+                }
+              },
+              "cost": null,
+              "sub_ability": {
+                "kind": "Spell",
+                "effect": {
+                  "type": "Sacrifice",
+                  "target": {
+                    "type": "Typed",
+                    "type_filters": [
+                      "Land"
+                    ],
+                    "controller": null,
+                    "properties": []
+                  },
+                  "count": {
+                    "type": "Ref",
+                    "qty": {
+                      "type": "Variable",
+                      "name": "X"
+                    }
+                  }
+                },
+                "cost": null,
+                "sub_ability": null,
+                "duration": null,
+                "description": null,
+                "target_prompt": null,
+                "condition": null,
+                "optional_targeting": false,
+                "optional": false,
+                "forward_result": false,
+                "player_scope": {
+                  "type": "All"
+                }
+              },
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false,
+              "player_scope": {
+                "type": "All"
+              }
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "player_scope": {
+              "type": "All"
+            }
+          },
+          "duration": null,
+          "description": "Each player loses X life, discards X cards, sacrifices X creatures of their choice, then sacrifices X lands of their choice.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false,
+          "player_scope": {
+            "type": "All"
+          }
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "680f5eca-b98e-4f73-a852-ab629d94297e",
+      "metadata": {
+        "source_printing_ids": [
+          "514154e5-931f-4924-aef1-8e66d2efe16f",
+          "97a0bfb9-859b-4fed-a1c4-1f0924715801",
+          "b0870b88-2794-4646-9f51-f3af03bc8bc8"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "DST",
+        "MMA",
+        "PLST"
+      ],
+      "rulings": [
+        {
+          "date": "2013-06-07",
+          "text": "If you control a permanent that’s a creature and a land, and you choose to sacrifice it as you sacrifice creatures, it won’t be on the battlefield when you sacrifice lands. You can’t sacrifice it again."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
     "Diabolic Edict": {
       "name": "Diabolic Edict",
       "mana_cost": {
@@ -6864,6 +7816,201 @@
         {
           "date": "2014-04-26",
           "text": "When the triggered ability resolves, first the player whose turn it is (if that player is an opponent) chooses which creature they will sacrifice, then each other opponent in turn order does the same, then all chosen creatures are sacrificed at the same time."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
+    "Din of the Fireherd": {
+      "name": "Din of the Fireherd",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "BlackRed",
+          "BlackRed",
+          "BlackRed"
+        ],
+        "generic": 5
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Create a 5/5 black and red Elemental creature token. Target opponent sacrifices a creature of their choice for each black creature you control, then sacrifices a land of their choice for each red creature you control.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Token",
+            "name": "Elemental",
+            "power": {
+              "type": "Fixed",
+              "value": 5
+            },
+            "toughness": {
+              "type": "Fixed",
+              "value": 5
+            },
+            "types": [
+              "Creature",
+              "Elemental"
+            ],
+            "colors": [
+              "Black",
+              "Red"
+            ],
+            "keywords": [],
+            "tapped": false,
+            "count": {
+              "type": "Fixed",
+              "value": 1
+            },
+            "owner": {
+              "type": "Controller"
+            },
+            "enters_attacking": false
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Sacrifice",
+              "target": {
+                "type": "Typed",
+                "type_filters": [
+                  "Creature"
+                ],
+                "controller": "TargetPlayer",
+                "properties": []
+              },
+              "count": {
+                "type": "Ref",
+                "qty": {
+                  "type": "ObjectCount",
+                  "filter": {
+                    "type": "Typed",
+                    "type_filters": [
+                      "Creature"
+                    ],
+                    "controller": "You",
+                    "properties": [
+                      {
+                        "type": "HasColor",
+                        "color": "Black"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "Sacrifice",
+                "target": {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Land"
+                  ],
+                  "controller": null,
+                  "properties": []
+                },
+                "count": {
+                  "type": "Ref",
+                  "qty": {
+                    "type": "ObjectCount",
+                    "filter": {
+                      "type": "Typed",
+                      "type_filters": [
+                        "Creature"
+                      ],
+                      "controller": "You",
+                      "properties": [
+                        {
+                          "type": "HasColor",
+                          "color": "Red"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "sub_link": "SequentialSibling"
+          },
+          "duration": null,
+          "description": "Create a 5/5 black and red Elemental creature token. Target opponent sacrifices a creature of their choice for each black creature you control, then sacrifices a land of their choice for each red creature you control.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "scryfall_oracle_id": "6480ab32-3a29-4449-8ff7-c8e43c320ed3",
+      "metadata": {
+        "related_token_ids": [
+          "0d54973b-0600-5ea7-bb7c-28ee330c448b"
+        ],
+        "source_printing_ids": [
+          "9bde655f-9f49-42f8-a168-9cbca0592bb8"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "SHM"
+      ],
+      "rulings": [
+        {
+          "date": "2008-05-01",
+          "text": "If the targeted opponent becomes an illegal target, the entire spell doesn’t resolve. You won’t get a token."
+        },
+        {
+          "date": "2008-05-01",
+          "text": "The parts of the spell happen in order. When determining how many black creatures and how many red creatures you control, keep in mind that you just put a creature onto the battlefield that’s black and red."
         }
       ],
       "rarities": [
@@ -19219,6 +20366,358 @@
         "rare"
       ]
     },
+    "Smallpox": {
+      "name": "Smallpox",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black",
+          "Black"
+        ],
+        "generic": 0
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Each player loses 1 life, discards a card, sacrifices a creature of their choice, then sacrifices a land of their choice.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "LoseLife",
+            "amount": {
+              "type": "Fixed",
+              "value": 1
+            }
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Discard",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "target": {
+                "type": "Controller"
+              }
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "Sacrifice",
+                "target": {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Creature"
+                  ],
+                  "controller": null,
+                  "properties": []
+                },
+                "count": {
+                  "type": "Fixed",
+                  "value": 1
+                }
+              },
+              "cost": null,
+              "sub_ability": {
+                "kind": "Spell",
+                "effect": {
+                  "type": "Sacrifice",
+                  "target": {
+                    "type": "Typed",
+                    "type_filters": [
+                      "Land"
+                    ],
+                    "controller": null,
+                    "properties": []
+                  },
+                  "count": {
+                    "type": "Fixed",
+                    "value": 1
+                  }
+                },
+                "cost": null,
+                "sub_ability": null,
+                "duration": null,
+                "description": null,
+                "target_prompt": null,
+                "condition": null,
+                "optional_targeting": false,
+                "optional": false,
+                "forward_result": false,
+                "player_scope": {
+                  "type": "All"
+                }
+              },
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false,
+              "player_scope": {
+                "type": "All"
+              }
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "player_scope": {
+              "type": "All"
+            }
+          },
+          "duration": null,
+          "description": "Each player loses 1 life, discards a card, sacrifices a creature of their choice, then sacrifices a land of their choice.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false,
+          "player_scope": {
+            "type": "All"
+          }
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "7bd22c98-0782-447f-a5fa-4281585a3eab",
+      "metadata": {
+        "source_printing_ids": [
+          "0f6f64b9-145c-4ed2-b90c-cbcf021b353d",
+          "175d5a88-2597-4e85-aed6-7a65c0595fb4",
+          "22001352-9e3d-41dc-96b9-1ec4b8970fba",
+          "530c6da3-628b-4c7d-9839-086b8973744a",
+          "78275769-6203-4bc5-bbb7-3016c31d5cb5",
+          "93c8159b-8c1d-480a-b517-dbd67bba1838",
+          "988f9e6f-4ba2-4f6f-8733-23ba838179ac",
+          "c28db9a4-6696-460b-a9d3-98f4a31abe75"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "CNS",
+        "DDR",
+        "M12",
+        "SOA",
+        "TSP",
+        "TSR"
+      ],
+      "rulings": [
+        {
+          "date": "2021-03-19",
+          "text": "Any abilities of the lands sacrificed may modify or trigger on the creatures being sacrificed and on the cards being discarded. Abilities of the creatures won't modify or trigger on the lands being sacrificed, but may modify or trigger on the cards being discarded."
+        },
+        {
+          "date": "2021-03-19",
+          "text": "Any abilities that trigger while Smallpox is resolving will wait to be put onto the stack until Smallpox is done resolving."
+        },
+        {
+          "date": "2021-03-19",
+          "text": "As Smallpox resolves, first each player loses 1 life at the same time. Next, each player chooses a card in hand without revealing it, then all of the cards are discarded at the same time. Then starting with the player whose turn it is and proceeding in turn order, each player chooses a creature, knowing the choices made before them. All of the creatures are sacrificed at the same time, then finally repeat this process for lands."
+        }
+      ],
+      "rarities": [
+        "uncommon",
+        "rare"
+      ]
+    },
+    "Smokestack": {
+      "name": "Smokestack",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [],
+        "generic": 4
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Artifact"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "At the beginning of your upkeep, you may put a soot counter on this artifact.\nAt the beginning of each player's upkeep, that player sacrifices a permanent of their choice for each soot counter on this artifact.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "PutCounter",
+              "counter_type": "soot",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "target": {
+                "type": "SelfRef"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": true,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": "Upkeep",
+          "optional": true,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "At the beginning of your upkeep, you may put a soot counter on ~.",
+          "constraint": {
+            "type": "OnlyDuringYourTurn"
+          },
+          "condition": null,
+          "batched": false
+        },
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Sacrifice",
+              "target": {
+                "type": "Typed",
+                "type_filters": [
+                  "Permanent"
+                ],
+                "controller": "ScopedPlayer",
+                "properties": []
+              },
+              "count": {
+                "type": "Ref",
+                "qty": {
+                  "type": "CountersOn",
+                  "scope": {
+                    "type": "Source"
+                  },
+                  "counter_type": "soot"
+                }
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": "Upkeep",
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "At the beginning of each player's upkeep, that player sacrifices a permanent of their choice for each soot counter on ~.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "scryfall_oracle_id": "fda61506-ed79-47fd-badd-639185297913",
+      "metadata": {
+        "source_printing_ids": [
+          "3a22892e-abf9-4353-82b8-1d1fc2bd9b26",
+          "6a37ab2d-094f-431e-878f-93aef0360413",
+          "d1af92a1-a86a-43eb-82fd-394f1168111e",
+          "e272f599-a15e-47be-802e-fc6b4ab77f1f"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "premodern": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "MB2",
+        "PLST",
+        "SLC",
+        "USG",
+        "V14",
+        "VMA"
+      ],
+      "rulings": [
+        {
+          "date": "2004-10-04",
+          "text": "Adding a counter is optional. If you forget to add one during your upkeep, you cannot back up and add one later."
+        },
+        {
+          "date": "2004-10-04",
+          "text": "If a player does not have enough permanents, they sacrifice all the ones they have."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
     "Sol Ring": {
       "name": "Sol Ring",
       "mana_cost": {
@@ -23846,6 +25345,98 @@
         "extra_turn": false,
         "efficient_tutor": true
       }
+    },
+    "Yawning Fissure": {
+      "name": "Yawning Fissure",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Red"
+        ],
+        "generic": 4
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Each opponent sacrifices a land of their choice.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Sacrifice",
+            "target": {
+              "type": "Typed",
+              "type_filters": [
+                "Land"
+              ],
+              "controller": "You",
+              "properties": []
+            },
+            "count": {
+              "type": "Fixed",
+              "value": 1
+            }
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": "Each opponent sacrifices a land of their choice.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false,
+          "player_scope": {
+            "type": "Opponent"
+          }
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Red"
+      ],
+      "scryfall_oracle_id": "634ec9d3-24c9-4090-a087-2624b6d5bf5b",
+      "metadata": {
+        "source_printing_ids": [
+          "fa364a1c-14e4-4dda-aa1f-edb879a64a2d"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "M10"
+      ],
+      "rulings": [
+        {
+          "date": "2009-10-01",
+          "text": "First the opponent whose turn it is — or, more likely, the first opponent to left of the player whose turn it is — chooses and announces which land they will sacrifice, then each other opponent in turn order does the same, then all lands are sacrificed at the same time."
+        }
+      ],
+      "rarities": [
+        "common"
+      ]
     },
     "Zuran Orb": {
       "name": "Zuran Orb",

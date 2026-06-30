@@ -808,6 +808,88 @@ def test_land_sacrifice_makers_fires():
     assert "land_sacrifice_makers" not in _keys("Ashnod's Altar")
 
 
+# ── batch-4 over-fire fixes (3 rules-lawyer-adjudicated scope gates, ADR-0035) ──
+#   Fix 1: lifeloss direction reads the LoseLife RECIPIENT, not phase's trigger_scope
+#     (mis-scoped to "you" for an opponent-object trigger — phase bug [P5], CR 119.3).
+#   Fix 2: a triggered "that player sacrifices" upkeep edict (ScopedPlayer) scopes by
+#     the trigger's turn constraint — symmetric each-player wraths → /each (CR 701.21a).
+#   Fix 3: land_sacrifice_makers fires only on a SELF land-sac, excluding opponent
+#     land-edicts that phase mislabels [P1]/[P3] (CR 701.21a).
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # phase mis-scopes trigger_scope="you" off an OPPONENT's object (bug [P5]):
+        "Archfiend of the Dross",  # recipient ParentTargetController ("its controller")
+        "Ashenmoor Liege",  # recipient TriggeringPlayer ("that player")
+    ],
+)
+def test_lifeloss_makers_wrong_direction_excluded(name):
+    """A drain whose LoseLife recipient is a RELATIVE/opponent player is opponent-loss,
+    NOT a self-loss — it must scope /opponents, never /you (CR 119.3)."""
+    idents = _idents(name)
+    assert ("lifeloss_makers", "you", "") not in idents  # the wrong-direction over-fire
+    assert ("lifeloss_makers", "opponents", "") in idents  # correct direction
+
+
+def test_lifeloss_makers_self_loss_preserved():
+    """Agent Venom's "you draw a card and lose 1 life" carries NO LoseLife recipient —
+    a genuine self-loss, preserved at scope you (CR 119.3)."""
+    assert ("lifeloss_makers", "you", "") in _idents("Agent Venom")
+
+
+@pytest.mark.parametrize("name", ["Braids, Cabal Minion", "Smokestack"])
+def test_edict_makers_symmetric_upkeep_scoped_each(name):
+    """A triggered "at the beginning of each player's upkeep, that player sacrifices"
+    edict (ScopedPlayer, no turn constraint) is SYMMETRIC — it hits YOU too, so it
+    scopes /each, NOT the /opponents over-fire (CR 701.21a), matching the live lane."""
+    idents = _idents(name)
+    assert ("edict_makers", "opponents", "") not in idents  # the scope over-fire
+    assert ("edict_makers", "each", "") in idents
+
+
+def test_edict_makers_opponent_upkeep_scoped_opponents():
+    """Sheoldred's "each opponent's upkeep, that player sacrifices" (ScopedPlayer +
+    OnlyDuringOpponentsTurn) stays a real opponent edict — /opponents (CR 701.21a)."""
+    assert ("edict_makers", "opponents", "") in _idents("Sheoldred, Whispering One")
+
+
+@pytest.mark.parametrize("name", ["Smallpox", "Death Cloud"])
+def test_edict_makers_symmetric_wrath_preserved(name):
+    """A symmetric "each player sacrifices a creature" wrath (player_scope All) keeps
+    firing /each — the genuine improvement (CR 701.21a)."""
+    assert ("edict_makers", "each", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Yawning Fissure",  # [P1] "each opponent sacrifices a land" (filt You, scope Opp)
+        "Din of the Fireherd",  # [P3] chained land sac after "target opponent ..."
+    ],
+)
+def test_land_sacrifice_makers_excludes_opponent_land_edict(name):
+    """An opponent land-EDICT (land destruction) is NOT a self land-sac engine — the
+    lane reads the surrounding opponent scope past phase's [P1]/[P3] direction
+    mislabels and excludes it (CR 701.21a)."""
+    assert "land_sacrifice_makers" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Zuran Orb",  # "Sacrifice a land:" — a you-sac cost
+        "Smallpox",  # "each player ... sacrifices a land" — symmetric, you sac too
+        "Death Cloud",  # symmetric X-land sac
+    ],
+)
+def test_land_sacrifice_makers_self_and_symmetric_preserved(name):
+    """A self / symmetric land sacrifice (you sac your own lands) still fires
+    (CR 701.21 / 305.6)."""
+    assert ("land_sacrifice_makers", "you", "") in _idents(name)
+
+
 @pytest.mark.parametrize(
     ("name", "ident"),
     [
