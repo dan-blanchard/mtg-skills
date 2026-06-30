@@ -126,6 +126,14 @@ EFFECT_CONCEPTS: dict[str, str] = {
     # Plotted) — the cast_from_exile build-around the live path kept as a
     # byte-identical word-mirror. Read structurally via :func:`permission_tag`.
     "GrantCastingPermission": "grant_cast_permission",  # cast_from_exile
+    # Batch 6 (ADR-0035 Stage 2) — the counter-KIND / count-operand / property
+    # cluster. A player-counter giver (rad / experience) and a coin flip the OLD
+    # lossy IR reached via a kind-split effect category; the crosswalk reads them
+    # off the first-class typed node.
+    "GivePlayerCounter": "give_player_counter",  # rad / experience makers (CR 122.1)
+    "FlipCoin": "flip_coin",  # coin_flip (CR 705.1)
+    "FlipCoins": "flip_coin",
+    "FlipCoinUntilLose": "flip_coin",
 }
 
 # Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): a maker / sac-payoff over
@@ -739,6 +747,169 @@ def counter_pred_kinds(filt: object) -> tuple[str, ...]:
         for sub in getattr(filt, "filters", ()) or ():
             out.extend(counter_pred_kinds(sub))
     return tuple(out)
+
+
+def color_count_preds(filt: object) -> tuple[tuple[str, int], ...]:
+    """The ``(comparator, count)`` pairs of a filter's ``ColorCount`` predicates.
+
+    Mirrors the OLD-IR ``ColorCount:<CMP>:<N>`` predicate string (CR 105.2): a
+    ``ColorCount`` property carries ``comparator`` (``GE`` / ``EQ`` / …) + ``count``
+    (an int). The multicolor (``GE``≥2 / ``EQ``≥2) and colorless (``EQ`` 0)
+    build-around lanes route by it. Recurses ``Or`` / ``And``.
+    """
+    out: list[tuple[str, int]] = []
+    t = tag_of(filt)
+    if t == "Typed":
+        for prop in getattr(filt, "properties", ()) or ():
+            if tag_of(prop) != "ColorCount":
+                continue
+            cmp_ = getattr(prop, "comparator", None)
+            cnt = getattr(prop, "count", None)
+            if isinstance(cmp_, str) and isinstance(cnt, int):
+                out.append((cmp_, cnt))
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            out.extend(color_count_preds(sub))
+    return tuple(out)
+
+
+def power_threshold_preds(filt: object) -> tuple[tuple[str, str, int], ...]:
+    """The ``(stat, comparator, value)`` triples of a filter's FIXED ``PtComparison``
+    predicates (CR 208.1).
+
+    Mirrors the OLD-IR ``PtComparison:Power:GE:4`` predicate string but EXCLUDES the
+    dynamic form (the old ``:*`` tail — a relative "power less than this creature's"
+    fight-style check, whose ``value`` is a ``Ref``/``Difference``, not a ``Fixed``).
+    Only a ``Fixed`` value yields a triple; the high-power (GE/GT) and low-power
+    (LE/LT) lanes split on the comparator direction. Recurses ``Or`` / ``And``.
+    """
+    out: list[tuple[str, str, int]] = []
+    t = tag_of(filt)
+    if t == "Typed":
+        for prop in getattr(filt, "properties", ()) or ():
+            if tag_of(prop) != "PtComparison":
+                continue
+            val = getattr(prop, "value", None)
+            if tag_of(val) != "Fixed":
+                continue  # dynamic / relative comparison — not a fixed theme floor
+            stat = getattr(prop, "stat", None)
+            cmp_ = getattr(prop, "comparator", None)
+            v = getattr(val, "value", None)
+            if isinstance(stat, str) and isinstance(cmp_, str) and isinstance(v, int):
+                out.append((stat, cmp_, v))
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            out.extend(power_threshold_preds(sub))
+    return tuple(out)
+
+
+def player_counter_kind(node: TypedMirrorNode) -> str:
+    """The ``counter_kind`` of a ``GivePlayerCounter`` effect (``"Rad"`` /
+    ``"Experience"`` / ``"Poison"`` …), normalized to a string (``""`` when absent).
+
+    A player-resource counter (CR 122.1 / 728) is given to a PLAYER, not placed on a
+    permanent — phase carries the kind directly on ``GivePlayerCounter.counter_kind``.
+    The rad / experience maker lanes route by it (the OLD lossy IR split the giver
+    into per-kind effect categories; this reads the kind off the typed node).
+    """
+    ck = getattr(node, "counter_kind", MISSING)
+    return ck if isinstance(ck, str) else ""
+
+
+def count_operand_qty(node: TypedMirrorNode) -> object | None:
+    """The QTY node of an effect's dynamic count operand, or ``None``.
+
+    Two shapes carry a named scaler (CR 700.5 devotion / 700.6 domain / 700.8 party,
+    or a player-counter count): a ``Ref``-wrapped operand on ``amount`` / ``count`` /
+    ``value`` (``Ref.qty`` — the same path :func:`count_operand_filter` reads, but
+    returning the qty itself rather than its ``ObjectCount`` filter), and a direct
+    ``dynamic_count`` on a static P/T modification (``AddDynamicPower`` — "+X/+X where
+    X is your devotion"). Returns the qty node so a lane can read its discriminator
+    tag (:func:`tag_of`) plus its ``controller`` / ``player`` / ``kind`` fields.
+    """
+    for fname in ("amount", "count", "value"):
+        q = getattr(node, fname, MISSING)
+        if _present(q) and tag_of(q) == "Ref":
+            qty = getattr(q, "qty", None)
+            if isinstance(qty, TypedMirrorNode):
+                return qty
+    dc = getattr(node, "dynamic_count", MISSING)
+    if isinstance(dc, TypedMirrorNode):
+        return dc
+    return None
+
+
+# Recipient tags marking a discard DIRECTED at another player (CR 701.9): a targeted
+# player ("target player / opponent discards" — Mind Rot, Stupor), or an explicit
+# opponent. A you/controller recipient is a self-loot (the ported ``discard_makers``
+# lane), not this hand-attack.
+_DISCARD_OPP_TAGS: frozenset[str] = frozenset(
+    {
+        "Player",
+        "Target",
+        "ParentTarget",
+        "Any",
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "TargetPlayer",
+        "TriggeringPlayer",
+        "ParentTargetController",
+    }
+)
+_DISCARD_EACH_TAGS: frozenset[str] = frozenset({"Each", "AllPlayers", "EachPlayer"})
+
+
+def recipient_tag(node: TypedMirrorNode) -> str | None:
+    """The discriminator tag of an effect's FIRST present recipient sub-field, or
+    ``None``.
+
+    The raw tag (``ParentTarget`` / ``Player`` / ``Controller`` / ``Opponent`` …)
+    behind :func:`_effect_scope` — exposed so a lane can tell a directed-player loot
+    (a "target player draws, then discards" whose draw + discard share the SAME
+    targeted player — Cephalid Looter) from a one-sided hand attack.
+    """
+    for fname in _SCOPE_FIELDS:
+        sub = getattr(node, fname, MISSING)
+        if _present(sub) and tag_of(sub) is not None:
+            return tag_of(sub)
+    return None
+
+
+def discard_recipient_scope(node: TypedMirrorNode) -> str | None:
+    """The DIRECTION of a ``Discard`` effect (who discards) from its recipient node.
+
+    The ``opponent_discard`` gate (CR 701.9). Mirrors the OLD-IR ``_discard_player_
+    scope`` promotion: a targeted "target player discards" (recipient ``Player``) is a
+    forced opponent-hand attack → ``opponents``; an explicit opponent recipient →
+    ``opponents``; a symmetric "each player discards" wheel → ``each`` (it hits
+    opponents too); a you/controller recipient (a self-loot — Faithless Looting) →
+    ``you`` (NOT this lane); ``None`` when the node carries no recipient field. Reads
+    the discard's OWN recipient STRUCTURALLY, never phase's mis-scoped trigger scope.
+    """
+    for fname in _SCOPE_FIELDS:
+        sub = getattr(node, fname, MISSING)
+        if not _present(sub) or tag_of(sub) is None:
+            continue
+        t = tag_of(sub)
+        if t in _DISCARD_EACH_TAGS:
+            return "each"
+        if t in _DISCARD_OPP_TAGS:
+            return "opponents"
+        if t == "Typed":
+            ctrl = getattr(sub, "controller", None)
+            if ctrl == "Opponent":
+                return "opponents"
+            if ctrl == "You":
+                return "you"
+            return "each"
+        sc = _scope_from_player_node(sub)
+        if sc == "you":
+            return "you"
+        if sc == "each":
+            return "each"
+        return "opponents"
+    return None
 
 
 def change_zone_dirs(node: TypedMirrorNode) -> tuple[str | None, str | None]:

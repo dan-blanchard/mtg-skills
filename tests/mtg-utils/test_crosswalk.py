@@ -1173,6 +1173,201 @@ def test_keyword_field_lookup_immune_to_name_collision():
         assert k not in keys
 
 
+# ── batch 6: counter-KIND / count-operand / property cluster ─────────────────
+
+
+@pytest.mark.parametrize(
+    ("name", "key"),
+    [
+        ("Glistener Seer", "oil_counter_makers"),  # places an oil counter
+        ("Petalmane Baku", "ki_counter_makers"),  # places a ki counter
+        ("Boon of Safety", "shield_counter_makers"),  # places a shield counter
+    ],
+)
+def test_off_p1p1_counter_makers(name, key):
+    """A place_counter of an off-+1/+1 named kind (oil / ki / shield) fires its
+    dedicated MAKER lane, scope you (CR 122.1)."""
+    assert (key, "you", "") in _idents(name)
+
+
+def test_counter_makers_kind_discriminates():
+    """A pure +1/+1 placer (Cathars' Crusade) must NOT fire any off-+1/+1 counter
+    maker — the counter_type is the whole discriminator (split-lane principle)."""
+    keys = _keys("Cathars' Crusade")
+    for k in ("oil_counter_makers", "ki_counter_makers", "shield_counter_makers"):
+        assert k not in keys
+
+
+def test_oil_counter_matters_payoff():
+    """Urabrask's Anointer scales off oil counters on creatures you control — a
+    Counters-OfType-oil filter predicate → oil_counter_matters (CR 122.1)."""
+    assert ("oil_counter_matters", "you", "") in _idents("Urabrask's Anointer")
+
+
+def test_oil_maker_is_not_an_oil_payoff():
+    """A bare oil PLACER with no payoff filter (Glistener Seer) fires the maker, not
+    the matters lane."""
+    assert "oil_counter_matters" not in _keys("Glistener Seer")
+
+
+def test_rad_counter_makers_scope_opponents():
+    """A rad-counter giver (Tato Farmer) fires rad_counter_makers — fixed scope
+    opponents, a mill-and-bleed kill clock (CR 728), read off GivePlayerCounter."""
+    assert ("rad_counter_makers", "opponents", "") in _idents("Tato Farmer")
+
+
+def test_experience_makers_scope_you():
+    """An experience-counter giver (Mizzix) fires experience_makers you — a personal
+    resource, the opposite direction to rad (checklist #5)."""
+    assert ("experience_makers", "you", "") in _idents("Mizzix of the Izmagnus")
+
+
+def test_player_counter_makers_do_not_cross():
+    """The rad giver (Tato Farmer) is not an experience maker, and the experience
+    giver (Mizzix) is not a rad maker — the kind routes the lane (checklist #5)."""
+    assert "experience_makers" not in _keys("Tato Farmer")
+    assert "rad_counter_makers" not in _keys("Mizzix of the Izmagnus")
+
+
+def test_experience_matters_scaler():
+    """Ezuri scales a +1/+1 placement by experience counters (Ref.qty=PlayerCounter
+    kind=Experience) → experience_matters you (CR 122.1)."""
+    assert ("experience_matters", "you", "") in _idents("Ezuri, Claw of Progress")
+
+
+def test_experience_matters_excludes_poison_player_counter():
+    """A PlayerCounter scaler of a DIFFERENT kind (Mycosynth Fiend — poison) must
+    NOT fire experience_matters; the kind gate is the discriminator (checklist #4)."""
+    assert "experience_matters" not in _keys("Mycosynth Fiend")
+
+
+def test_experience_maker_is_not_a_matters_scaler():
+    """Mizzix gives experience (a maker) but carries no experience count-operand
+    scaler → no experience_matters."""
+    assert "experience_matters" not in _keys("Mizzix of the Izmagnus")
+
+
+@pytest.mark.parametrize(
+    ("name", "key"),
+    [
+        ("Gray Merchant of Asphodel", "devotion_matters"),  # CR 700.5
+        ("Burakos, Party Leader", "party_matters"),  # CR 700.8
+        ("Tribal Flames", "domain_matters"),  # CR 700.6 (BasicLandTypeCount)
+    ],
+)
+def test_named_count_operand_payoffs(name, key):
+    """A named count-operand SCALER (devotion / party / domain) fires its payoff
+    lane, scope you — read off the typed Ref.qty tag."""
+    assert (key, "you", "") in _idents(name)
+
+
+def test_count_operand_lanes_do_not_cross():
+    """The named scalers are kind-specific: a devotion scaler (Gray Merchant) is not
+    party/domain, and a domain scaler (Tribal Flames) is not devotion/party."""
+    gm = _keys("Gray Merchant of Asphodel")
+    assert "party_matters" not in gm
+    assert "domain_matters" not in gm
+    tf = _keys("Tribal Flames")
+    assert "devotion_matters" not in tf
+    assert "party_matters" not in tf
+
+
+def test_modified_matters_payoff():
+    """Chishiro places +1/+1 counters on modified creatures you control — a Modified
+    filter predicate, controller you → modified_matters (CR 700.9)."""
+    assert ("modified_matters", "you", "") in _idents("Chishiro, the Shattered Blade")
+
+
+def test_modified_matters_excludes_plain_anthem():
+    """A generic creatures-you-control anthem (Glorious Anthem) carries no Modified
+    predicate → no modified_matters."""
+    assert "modified_matters" not in _keys("Glorious Anthem")
+
+
+def test_multicolor_matters_anthem():
+    """Knight of New Alara anthems multicolored creatures you control — a ColorCount
+    GE 2 predicate, controller you → multicolor_matters (CR 105.2)."""
+    assert ("multicolor_matters", "you", "") in _idents("Knight of New Alara")
+
+
+@pytest.mark.parametrize("name", ["Forsaken Monument", "Conduit of Ruin"])
+def test_colorless_matters(name):
+    """A ColorCount EQ 0 reference (Forsaken Monument's anthem; Conduit of Ruin's
+    colorless tutor, unscoped) → colorless_matters you (CR 105.2)."""
+    assert ("colorless_matters", "you", "") in _idents(name)
+
+
+def test_color_lanes_do_not_cross():
+    """A multicolor anthem (Knight of New Alara) is not colorless, and a colorless
+    anthem (Forsaken Monument) is not multicolor — the comparator/count splits."""
+    assert "colorless_matters" not in _keys("Knight of New Alara")
+    assert "multicolor_matters" not in _keys("Forsaken Monument")
+
+
+def test_power_matters_high():
+    """Shaman of the Great Hunt scales off creatures you control with power 4 or
+    greater — a fixed PtComparison Power GE, controller you → power_matters."""
+    assert ("power_matters", "you", "") in _idents("Shaman of the Great Hunt")
+
+
+def test_low_power_matters():
+    """Arabella scales off creatures you control with power 2 or less — a fixed
+    PtComparison Power LE → low_power_matters (the go-low split, CR 208.1)."""
+    assert ("low_power_matters", "you", "") in _idents("Arabella, Abandoned Doll")
+
+
+def test_power_lanes_split_by_direction():
+    """High-power and low-power are inherently different properties (split-lane): a
+    GE payoff (Shaman) is not low_power; an LE payoff (Arabella) is not power."""
+    assert "low_power_matters" not in _keys("Shaman of the Great Hunt")
+    assert "power_matters" not in _keys("Arabella, Abandoned Doll")
+
+
+def test_power_removal_target_not_a_build_around():
+    """ "Destroy target creature with power 4 or greater" (Big Game Hunter) is a
+    controller-any REMOVAL target, not a you-controlled build-around → no
+    power_matters (checklist #6)."""
+    assert "power_matters" not in _keys("Big Game Hunter")
+
+
+@pytest.mark.parametrize("name", ["Muraganda Petroglyphs", "Ruxa, Patient Professor"])
+def test_vanilla_matters(name):
+    """A HasNoAbilities payoff (Muraganda's symmetric anthem; Ruxa's you-controlled
+    vanilla care) → vanilla_matters you (CR 113.3)."""
+    assert ("vanilla_matters", "you", "") in _idents(name)
+
+
+def test_coin_flip_doer():
+    """Krark instructs a coin flip — a FlipCoin effect → coin_flip you (CR 705.1)."""
+    assert ("coin_flip", "you", "") in _idents("Krark, the Thumbless")
+
+
+def test_coin_flip_excludes_die_roll():
+    """A die-roller (Adorable Kitten — RollDie → dice_makers, CR 706) carries no
+    FlipCoin effect; coin and dice stay split."""
+    assert "coin_flip" not in _keys("Adorable Kitten")
+
+
+def test_opponent_discard_hand_attack():
+    """Mind Rot forces a targeted player to discard — a Discard effect whose
+    recipient is a targeted player → opponent_discard opponents (CR 701.9)."""
+    assert ("opponent_discard", "opponents", "") in _idents("Mind Rot")
+
+
+def test_opponent_discard_excludes_self_loot():
+    """A self-loot (Faithless Looting — "draw two, then discard two", a you-scoped
+    discard) is the ported discard_makers lane, NOT opponent_discard (checklist #5)."""
+    assert "opponent_discard" not in _keys("Faithless Looting")
+
+
+def test_opponent_discard_excludes_target_player_loot():
+    """ "Target player draws a card, then discards a card" (Cephalid Looter) tags the
+    discard recipient ``ParentTarget`` — but a SIBLING draw names the same single
+    targeted player, so the controller self-targets to filter cards, not a hand
+    attack (checklist #4 — loot role, not opponent_discard)."""
+    assert "opponent_discard" not in _keys("Cephalid Looter")
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

@@ -31,16 +31,20 @@ from __future__ import annotations
 from mtg_utils._card_ir.crosswalk import (
     ARTIFACT_TOKEN_SUBTYPES,
     AbilityUnit,
+    ConceptNode,
     ConceptTree,
     amount_factor,
     amount_is_scaling,
     change_zone_dirs,
+    color_count_preds,
     condition_tags,
     cost_has_paylife,
     count_operand_filter,
+    count_operand_qty,
     counter_kind,
     counter_pred_kinds,
     damage_recipient_is_player,
+    discard_recipient_scope,
     effect_filter,
     effect_owner_player_scope,
     effect_reaches_player,
@@ -53,7 +57,10 @@ from mtg_utils._card_ir.crosswalk import (
     mod_value,
     node_lure_mode,
     permission_tag,
+    player_counter_kind,
+    power_threshold_preds,
     pump_is_negative,
+    recipient_tag,
     tag_of,
     trigger_scope,
     trigger_subject,
@@ -150,6 +157,26 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "cascade_makers",
         "suspend_makers",
         "poison_makers",
+        # Batch 6 (ADR-0035 Stage 2): the counter-KIND / count-operand / property
+        # build-around cluster.
+        "oil_counter_makers",
+        "oil_counter_matters",
+        "ki_counter_makers",
+        "rad_counter_makers",
+        "shield_counter_makers",
+        "experience_makers",
+        "experience_matters",
+        "devotion_matters",
+        "party_matters",
+        "domain_matters",
+        "modified_matters",
+        "multicolor_matters",
+        "colorless_matters",
+        "power_matters",
+        "low_power_matters",
+        "coin_flip",
+        "opponent_discard",
+        "vanilla_matters",
     }
 )
 
@@ -2076,6 +2103,311 @@ def _keyword_field_signals(keywords: frozenset[str], name: str) -> list[Signal]:
     return out
 
 
+# ── Batch 6 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────
+
+# place_counter ``counter_type`` (upper-cased) → its off-+1/+1 MAKER lane (CR
+# 122.1). The card PERFORMS the placement. p1p1 / m1m1 are ported elsewhere.
+_PLACE_COUNTER_MAKER_KINDS: dict[str, str] = {
+    "OIL": "oil_counter_makers",
+    "KI": "ki_counter_makers",
+    "SHIELD": "shield_counter_makers",
+}
+# Predicate-side counter-KIND payoff routing (CR 122.1) — mirrors the live
+# ``_COUNTER_KIND_KEYS`` dispatch a "creature WITH an X counter" subject filter
+# rides. Only ``oil`` has a structural payoff filter in the v0.9.0 substrate
+# (the ki / shield counter PAYOFFS are cost-side "remove an X counter" or
+# un-structured → a documented ``live_only`` residue); the full map is kept for
+# fidelity (the unported ki_counter_matters key slices out in the extractor).
+_COUNTER_PRED_LANES: dict[str, tuple[str, str]] = {
+    "oil": ("oil_counter_matters", "you"),
+    "shield": ("shield_counter_makers", "you"),
+    "rad": ("rad_counter_makers", "opponents"),
+    "ki": ("ki_counter_matters", "you"),
+}
+# GivePlayerCounter ``counter_kind`` (lower-cased) → its player-resource MAKER
+# lane + the FIXED lane scope (CR 122.1 / 728). rad lands on opponents (a kill
+# clock — the live ``_PLAYER_COUNTER_KEYS`` scopes it ``opponents`` regardless of
+# the giver's recipient); experience is a personal resource (scope ``you``). The
+# poison giver is ported elsewhere (the ``poison_makers`` keyword lane).
+_PLAYER_COUNTER_MAKER: dict[str, tuple[str, str]] = {
+    "rad": ("rad_counter_makers", "opponents"),
+    "experience": ("experience_makers", "you"),
+}
+# Player-reference tags naming an opponent — the only direction that takes a
+# party/poison-style count off YOUR resource (CR 700.8 — "your party").
+_OPP_PLAYER_TAGS: frozenset[str] = frozenset({"Opponent", "Opponents", "EachOpponent"})
+
+
+def _counter_kind_lanes(tree: ConceptTree) -> list[Signal]:
+    """oil / ki / shield counter lanes (CR 122.1). Two structural arms:
+
+    * **MAKER** — a ``place_counter`` (``PutCounter`` / ``PutCounterAll``) whose
+      ``counter_type`` is an off-+1/+1 ported kind (oil / ki / shield), mirroring
+      ``plus_one_makers`` / ``minus_counters_matter``. The card PERFORMS the
+      placement (Glistener Seer's oil, Petalmane Baku's ki, Boon of Safety's
+      shield). The kind discriminates — a +1/+1 / loyalty placement never fires.
+    * **MATTERS** — a non-cost subject / count-operand filter carrying a
+      ``Counters`` predicate of a ported kind (Urabrask's Anointer scales off "oil
+      counters on creatures you control"). Routed via :data:`_COUNTER_PRED_LANES`,
+      controller-gated against an opponent filter (checklist #6). Only oil has a
+      structural payoff filter in v0.9.0; ki / shield payoffs are cost-side and
+      stay ``live_only``.
+    """
+    out: list[Signal] = []
+    seen: set[tuple[str, str]] = set()
+
+    def fire(key: str, scope: str, raw: str) -> None:
+        if (key, scope) not in seen:
+            seen.add((key, scope))
+            out.append(Signal(key, scope, "", raw, tree.name, "high"))
+
+    for c in tree.effect_concepts("place_counter"):
+        key = _PLACE_COUNTER_MAKER_KINDS.get(counter_kind(c.node).upper())
+        if key:
+            fire(key, "you", c.raw)
+    for c in tree.iter_concepts():
+        if c.role == "cost":
+            continue
+        for filt in (effect_filter(c.node), count_operand_filter(c.node)):
+            if filt is None or filter_controller(filt) == "Opponent":
+                continue
+            for kind in counter_pred_kinds(filt):
+                lane = _COUNTER_PRED_LANES.get(kind.lower())
+                if lane:
+                    fire(lane[0], lane[1], c.raw)
+    return out
+
+
+def _player_counter_makers(tree: ConceptTree) -> list[Signal]:
+    """rad_counter_makers / experience_makers — a ``GivePlayerCounter`` DOER (CR
+    122.1 / 728). The card gives a player a rad (a mill-and-bleed kill clock,
+    fixed scope ``opponents``) or an experience counter (a personal resource,
+    scope ``you``) — read off the typed ``counter_kind``, the kind the OLD lossy
+    IR split into per-kind effect categories. Tato Farmer → rad; Mizzix / Ezuri →
+    experience. The poison giver routes to its own ``poison_makers`` lane.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+    for c in tree.effect_concepts("give_player_counter"):
+        lane = _PLAYER_COUNTER_MAKER.get(player_counter_kind(c.node).lower())
+        if lane and lane[0] not in seen:
+            seen.add(lane[0])
+            out.append(Signal(lane[0], lane[1], "", c.raw, tree.name, "high"))
+    return out
+
+
+def _count_operand_lanes(tree: ConceptTree) -> list[Signal]:
+    """devotion / party / domain / experience_matters — a NAMED count-operand
+    SCALER payoff (CR 700.5 / 700.6 / 700.8 / 122.1). Reads the qty tag of an
+    effect's (or static P/T mod's) dynamic count operand
+    (:func:`count_operand_qty`):
+
+    * ``Devotion`` / ``DevotionGE`` → ``devotion_matters`` (Gray Merchant, a
+      "lose life equal to your devotion" scaler) — intrinsically your permanents
+      (CR 700.5), no extra gate;
+    * ``PartySize`` → ``party_matters`` (Burakos), gated off an opponent's-party
+      reference (checklist #6);
+    * ``BasicLandTypeCount`` → ``domain_matters`` (Tribal Flames), controller-
+      gated against an opponent's lands (the old "not modeled" classification was
+      wrong — the substrate carries ``BasicLandTypeCount``);
+    * ``PlayerCounter`` with ``kind == experience`` → ``experience_matters``
+      (Ezuri's "+1/+1 counter for each experience counter you have"); a ``Poison``
+      PlayerCounter (Mycosynth Fiend) is gated out by the kind check (it is a
+      separate ``poison_matters`` lane). All scope ``you``.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", raw, tree.name, "high"))
+
+    for c in tree.iter_concepts():
+        if c.role == "cost":
+            continue
+        qty = count_operand_qty(c.node)
+        if qty is None:
+            continue
+        t = tag_of(qty)
+        if t in ("Devotion", "DevotionGE"):
+            fire("devotion_matters", c.raw)
+        elif t == "PartySize" and (
+            tag_of(getattr(qty, "player", None)) not in _OPP_PLAYER_TAGS
+        ):
+            fire("party_matters", c.raw)
+        elif t == "BasicLandTypeCount" and (
+            getattr(qty, "controller", None) != "Opponent"
+        ):
+            fire("domain_matters", c.raw)
+        elif t == "PlayerCounter" and (
+            str(getattr(qty, "kind", "")).lower() == "experience"
+        ):
+            fire("experience_matters", c.raw)
+    return out
+
+
+def _modified_matters(tree: ConceptTree) -> list[Signal]:
+    """modified_matters — a Kamigawa-NEO "modified creature" payoff (CR 700.9: a
+    permanent is modified if it has a counter, is equipped, or is enchanted by an
+    Aura its controller controls). phase DERIVES the CR-700.9 union as a single
+    ``Modified`` predicate, so the lane reads that tag off a non-cost subject /
+    count-operand / static-affected filter, controller-gated to ``You`` (Chishiro,
+    Thundering Raiju). A removal "destroy target modified creature" (controller
+    any) is NOT a build-around. The bare ``\\bmodified\\b`` word references stay a
+    ``live_only`` mirror. Scope ``you``.
+    """
+    for c in tree.iter_concepts():
+        if c.role == "cost":
+            continue
+        for filt in (effect_filter(c.node), count_operand_filter(c.node)):
+            if (
+                filt is not None
+                and "Modified" in filter_predicates(filt)
+                and filter_controller(filt) == "You"
+            ):
+                return [Signal("modified_matters", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        if not unit.statics:
+            continue
+        aff = getattr(unit.node, "affected", None)
+        if (
+            aff is not None
+            and "Modified" in filter_predicates(aff)
+            and filter_controller(aff) == "You"
+        ):
+            return [Signal("modified_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
+    """multicolor / colorless / power / low_power / vanilla matters — color- and
+    P/T-property BUILD-AROUND lanes (CR 105.2 / 208.1 / 113.3). Mirrors
+    ``_signals_ir._predicate_build_around_lanes`` over a non-cost subject /
+    count-operand / static-affected filter, scope ``you``:
+
+    * **multicolor_matters** — a ``ColorCount`` ``GE``≥2 / ``EQ``≥2 predicate
+      (Knight of New Alara's "other multicolored creatures you control"),
+      controller ``You`` (a single-color / hoser reference is not a build-around);
+    * **colorless_matters** — a ``ColorCount`` ``EQ 0`` predicate (Forsaken
+      Monument; Ancient Stirrings' unscoped reveal), controller ``You`` or
+      unscoped (the regex reads colorless unscoped too);
+    * **power_matters** / **low_power_matters** — a FIXED ``PtComparison`` on
+      Power, split by comparator direction (``GE``/``GT`` high — Shaman of the
+      Great Hunt; ``LE``/``LT`` low — Arabella), controller ``You``. A relative /
+      dynamic comparison (the old ``:*``) is a fight-style check, excluded by
+      :func:`power_threshold_preds`. A "destroy target creature with power 4 or
+      greater" removal (controller any — Big Game Hunter) never fires;
+    * **vanilla_matters** — a ``HasNoAbilities`` predicate (Muraganda, Ruxa),
+      controller ``You`` or unscoped (a shared-board static is unscoped).
+
+    The condition-subject power gate (Challenger Troll's Ferocious "as long as you
+    control a creature with power 4+") and the trigger-subject sites the substrate
+    does not surface through ``iter_concepts`` are a documented ``live_only``
+    residue.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", raw, tree.name, "high"))
+
+    def handle(filt: object, raw: str) -> None:
+        if filt is None:
+            return
+        ctrl = filter_controller(filt)
+        you = ctrl == "You"
+        shared = ctrl in ("You", "Any", None)  # you or an unscoped global
+        for cmp_, cnt in color_count_preds(filt):
+            if cmp_ == "EQ" and cnt == 0:
+                if shared:
+                    fire("colorless_matters", raw)
+            elif you and ((cmp_ == "GE" and cnt >= 2) or (cmp_ == "EQ" and cnt >= 2)):
+                fire("multicolor_matters", raw)
+        if you:
+            for stat, cmp_, _v in power_threshold_preds(filt):
+                if stat != "Power":
+                    continue
+                if cmp_ in ("GE", "GT"):
+                    fire("power_matters", raw)
+                elif cmp_ in ("LE", "LT"):
+                    fire("low_power_matters", raw)
+        if shared and "HasNoAbilities" in filter_predicates(filt):
+            fire("vanilla_matters", raw)
+
+    for c in tree.iter_concepts():
+        if c.role == "cost":
+            continue
+        handle(effect_filter(c.node), c.raw)
+        handle(count_operand_filter(c.node), c.raw)
+    for unit in tree.units:
+        if unit.statics:
+            handle(getattr(unit.node, "affected", None), "")
+    return out
+
+
+def _coin_flip(tree: ConceptTree) -> list[Signal]:
+    """coin_flip — a ``FlipCoin`` / ``FlipCoins`` / ``FlipCoinUntilLose`` DOER (CR
+    705.1). The card instructs a coin flip (Krark, the Thumbless). A die roll
+    (``RollDie`` → ``dice_makers``, CR 706) is a SEPARATE lane — kept split. Scope
+    ``you``.
+    """
+    for c in tree.effect_concepts("flip_coin"):
+        return [Signal("coin_flip", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _opponent_discard(tree: ConceptTree) -> list[Signal]:
+    """opponent_discard — a forced OPPONENT discard / hand attack (CR 701.9). A
+    ``Discard`` effect whose recipient is a targeted / opponent player ("target
+    player discards two cards" — Mind Rot → ``opponents``) or a symmetric
+    each-player wheel (``each`` — it hits opponents too). Direction is read off the
+    discard's OWN recipient node (:func:`discard_recipient_scope`), NOT phase's
+    mis-scoped trigger scope ([P5]). A you-scoped self-loot ("draw, then discard"
+    — Faithless Looting) is the ported ``discard_makers`` lane, NOT this one.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+    for unit in tree.units:
+        for c in unit.effect_concepts("discard"):
+            sc = discard_recipient_scope(c.node)
+            if sc not in ("opponents", "each") or sc in seen:
+                continue
+            if _is_target_player_loot(unit, c):
+                continue
+            seen.add(sc)
+            out.append(Signal("opponent_discard", sc, "", c.raw, tree.name, "high"))
+    return out
+
+
+# Recipient tags naming a SINGLE targeted player (not an explicit opponent / each).
+_TARGETED_PLAYER_TAGS: frozenset[str] = frozenset({"ParentTarget", "Player", "Target"})
+
+
+def _is_target_player_loot(unit: AbilityUnit, discard: ConceptNode) -> bool:
+    """Whether a discard is a "target player draws, then discards" LOOT, not a hand
+    attack (CR 701.9 / 701.8a).
+
+    Cephalid Looter / Cephalid Broker resolve "target player draws a card, then
+    discards a card": phase tags the discard recipient ``ParentTarget`` (the
+    just-targeted player), so :func:`discard_recipient_scope` reads ``opponents`` —
+    but a SIBLING draw targets the SAME single player, so the controller points it
+    at THEMSELVES to filter cards (the ported ``discard_makers`` role), never at an
+    opponent. The gate fires only when BOTH the discard AND a sibling draw name a
+    single targeted player; a one-sided attack with no draw (Mind Rot, Blightning)
+    and a wheel whose draw is for YOU while an opponent discards (Cruel Ultimatum —
+    draw recipient ``Controller``) are correctly NOT loots.
+    """
+    if recipient_tag(discard.node) not in _TARGETED_PLAYER_TAGS:
+        return False
+    return any(
+        recipient_tag(d.node) in _TARGETED_PLAYER_TAGS
+        for d in unit.effect_concepts("draw")
+    )
+
+
 _LANES = (
     _win_lose_game,
     _discard_makers,
@@ -2136,6 +2468,13 @@ _LANES = (
     _facedown_makers,
     _dice_makers,
     _cast_from_exile,
+    _counter_kind_lanes,
+    _player_counter_makers,
+    _count_operand_lanes,
+    _modified_matters,
+    _predicate_build_around,
+    _coin_flip,
+    _opponent_discard,
 )
 
 
