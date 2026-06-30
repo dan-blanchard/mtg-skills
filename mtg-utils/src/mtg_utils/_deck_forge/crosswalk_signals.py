@@ -33,11 +33,13 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    additional_phase_kind,
     amount_factor,
     amount_is_scaling,
     change_zone_dirs,
     color_count_preds,
     condition_tags,
+    control_recipient_scope,
     cost_has_paylife,
     count_operand_filter,
     count_operand_qty,
@@ -55,6 +57,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     lifeloss_recipient_scope,
     mod_value,
+    modify_cost_mode,
     node_lure_mode,
     permission_tag,
     player_counter_kind,
@@ -177,6 +180,21 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "coin_flip",
         "opponent_discard",
         "vanilla_matters",
+        # Batch 7 (ADR-0035 Stage 2): the phase / control / terminal-effect cluster
+        # + four Scryfall-keyword maker survivors.
+        "extra_combats",
+        "cost_reduction",
+        "donate_makers",
+        "conjure_makers",
+        "blocked_matters",
+        "initiative_makers",
+        "initiative_matters",
+        "end_the_turn",
+        "opponent_exile_makers",
+        "boast_makers",
+        "exhaust_makers",
+        "convoke_makers",
+        "magecraft_matters",
     }
 )
 
@@ -2408,6 +2426,235 @@ def _is_target_player_loot(unit: AbilityUnit, discard: ConceptNode) -> bool:
     )
 
 
+# ── Batch 7 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────
+
+# AdditionalPhase.phase values (lowercased) that are a COMBAT phase (CR 505 / 506)
+# — the only phase the live ``extra_combats`` lane reads (project._EXTRA_PHASE). An
+# extra upkeep / draw / end phase is mis-routed by phase to combat and recovered by
+# a separate ``project`` marker (a documented KEPT-DETECTOR), so the combat gate
+# mirrors the live ``extra_combats`` exactly.
+_COMBAT_PHASES: frozenset[str] = frozenset({"begincombat", "combat"})
+
+# GiveControl recipient scopes that are a give-AWAY (the beneficiary is NOT you —
+# checklist #2): a targeted player ("any"), an opponent, or each player. A
+# you-recipient (no real card) is excluded.
+_GIVE_AWAY_SCOPES: frozenset[str] = frozenset({"any", "opponents", "each"})
+
+
+def _extra_combats(tree: ConceptTree) -> list[Signal]:
+    """extra_combats — an ADDITIONAL combat phase (CR 505 / 506). Mirrors the live
+    ``_DOER_EFFECT_KEYS["extra_combat"]`` doer: an ``AdditionalPhase`` effect whose
+    ``phase`` is a combat phase (Aurelia, Moraug, Combat Celebrant). Distinct from
+    ``extra_turns`` (``ExtraTurn`` — Time Warp): a different effect tag, never read
+    here. The phase gate discriminates against the mis-routed extra-upkeep/draw/end
+    forms (a documented KEPT-DETECTOR ``project`` marker). Scope "you" — the active
+    player takes the phase (the live forces "you").
+    """
+    for c in tree.effect_concepts("extra_phase"):
+        if additional_phase_kind(c.node) in _COMBAT_PHASES:
+            return [Signal("extra_combats", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _cost_reduction(tree: ConceptTree) -> list[Signal]:
+    """cost_reduction — a static spell-cost REDUCER build-around (CR 601.2f / 118.7).
+    Mirrors the live ``cost_reduction`` doer: a ``static_ability`` whose ``mode`` is a
+    ``ModifyCost`` of direction ``Reduce`` (Goblin Electromancer, Helm of Awakening,
+    Ruby Medallion). Two structural gates replace the live path's raw screens:
+
+    * **direction** — :func:`modify_cost_mode` reads the typed ``mode``; a ``Raise``
+      tax (Thalia) / ``Minimum`` floor is excluded (the live ``_COST_INCREASE`` raw
+      screen);
+    * **not a self-discount** — the ``affected`` filter must NOT be ``SelfRef`` ("this
+      spell costs {X} less" — Cavern-Hoard Dragon carries no static here anyway, and
+      the few that model it as a static ``SelfRef``-affected reducer — A-Demilich —
+      are the self-discount the live ``_COST_SELF_DISCOUNT`` raw screen drops).
+
+    A flat ramp rock (no ``ModifyCost``) never reaches the gate. The activated
+    "next spell you cast costs less" synth form (``reducenextspellcost`` — no native
+    static node) is a documented ``live_only`` tail. Scope "you".
+    """
+    for unit in tree.units:
+        if modify_cost_mode(unit.node) != "Reduce":
+            continue
+        if tag_of(getattr(unit.node, "affected", None)) == "SelfRef":
+            continue
+        return [Signal("cost_reduction", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _donate_makers(tree: ConceptTree) -> list[Signal]:
+    """donate_makers — give a permanent YOU control to ANOTHER player (CR 110.2).
+    Mirrors the live ``donate_makers`` doer (which folds the recipient from raw
+    because the OLD lossy IR dropped it): a ``GiveControl`` effect whose ``recipient``
+    is a non-you player (Donate, Bazaar Trader, Harmless Offering) — the give-away
+    direction read STRUCTURALLY off the recipient node (checklist #2,
+    :func:`control_recipient_scope`). Theft (``GainControl`` / ``GainControlAll`` →
+    ``gain_control``) and a control-RESET ("each player gains control of permanents
+    they own" — Brooding Saurian, a ``GainControlAll``) are a different concept,
+    never read here. Scope "you" (the controller performs the gift).
+    """
+    for c in tree.effect_concepts("give_control"):
+        if control_recipient_scope(c.node) in _GIVE_AWAY_SCOPES:
+            return [Signal("donate_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _conjure_makers(tree: ConceptTree) -> list[Signal]:
+    """conjure_makers — a ``Conjure`` DOER (DD2 / DD5): create a real card from
+    outside the deck into a zone (an Alchemy mechanic; NOT a token, NOT a copy).
+    Mirrors the live ``\\bconjure\\b`` regex but reads the typed ``Conjure`` effect —
+    a fidelity GAIN: the regex over-fires on a card whose ABILITY NAME contains
+    "Conjure" (Silvanus's Invoker — "Conjure Elemental — {8}: …", an animate-land
+    with no ``Conjure`` effect node), which the structural read correctly drops. A
+    token maker (``make_token`` — Krenko) is a different effect tag. Scope "you".
+    """
+    for c in tree.effect_concepts("conjure"):
+        return [Signal("conjure_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _blocked_matters(tree: ConceptTree) -> list[Signal]:
+    """blocked_matters — a combat-block payoff (CR 509). Mirrors the live
+    ``_PAYOFF_TRIGGER_KEYS`` ``becomes_blocked`` / ``blocks`` rows: a trigger whose
+    derived event is ``becomes_blocked`` (the attacker-side "whenever ~ becomes
+    blocked" — CR 509.1h) or ``blocks`` (the blocker-side "whenever ~ blocks" — CR
+    509.1g). An ``attacks`` trigger is a different lane (``attack_matters``). The
+    disjunctive "attacks or blocks" membership fold (phase → event='other') stays a
+    ``live_only`` mirror. Scope "you" (the live forces it; no opponent-side ``blocks``
+    trigger exists to over-fire).
+    """
+    for unit in tree.units:
+        if unit.trigger_event in ("becomes_blocked", "blocks"):
+            return [Signal("blocked_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _initiative(tree: ConceptTree) -> list[Signal]:
+    """initiative_makers / initiative_matters — The Initiative (CR 726). Mirrors the
+    live ``\\btake the initiative\\b`` / ``\\bhave the initiative\\b`` regex pair,
+    read structurally:
+
+    * **MAKER** — a ``TakeTheInitiative`` effect node (Caves of Chaos Adventurer,
+      White Plume Adventurer, Seasoned Dungeoneer). Read off the typed ``_tag``
+      DISTINCTLY from ``VentureIntoDungeon`` (both fold to the ``venture`` concept),
+      so ``venture_makers`` keeps co-firing — matching the live DOUBLE-fire (an
+      initiative card fires both ``venture_makers`` structurally AND
+      ``initiative_makers``). A pure-venture card (Acererak — ``VentureIntoDungeon``)
+      fires ``venture_makers`` only, NEVER ``initiative_makers``;
+    * **MATTERS** — an ``IsInitiative`` payoff CONDITION ("as long as / if you have
+      the initiative" — Passageway Seer, Sarevok's Tome), read via
+      :func:`condition_tags`. A maker that only TAKES the initiative carries no such
+      condition. A monarch-gated card (``IsMonarch`` → ``monarch_matters``) is a
+      different designation.
+
+    Both scope "you".
+    """
+    out: list[Signal] = []
+    for c in tree.effect_concepts("venture"):
+        if tag_of(c.node) == "TakeTheInitiative":
+            out.append(Signal("initiative_makers", "you", "", c.raw, tree.name, "high"))
+            break
+    if "IsInitiative" in condition_tags(tree):
+        out.append(Signal("initiative_matters", "you", "", "", tree.name, "high"))
+    return out
+
+
+def _end_the_turn(tree: ConceptTree) -> list[Signal]:
+    """end_the_turn — an ``EndTheTurn`` DOER (CR 724): expedite the rest of the turn,
+    exiling whatever is on the stack (Time Stop, Sundial of the Infinite). Mirrors
+    the live ``_DOER_EFFECT_KEYS["end_the_turn"]`` doer. Distinct from ``ExtraTurn``
+    (``extra_turns`` — Time Warp) and an ``EndCombatPhase`` fog: different effect
+    tags, never read here. Scope "you" (the build-around marker the live forces).
+    """
+    for c in tree.effect_concepts("end_the_turn"):
+        return [Signal("end_the_turn", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _opponent_exile_makers(tree: ConceptTree) -> list[Signal]:
+    """opponent_exile_makers — GRAVEYARD HATE the card PERFORMS (CR 406 / 701.17a).
+    Mirrors the live ``opponent_exile_makers`` doer (a kept word-mirror over phase's
+    scattered exile forms), ported as the CLEAN structural arm: a role=effect
+    ``ChangeZone`` moving cards ``(Graveyard → Exile)`` that targets a whole PLAYER's
+    graveyard (``target`` is a ``Player`` node — Bojuka Bog, Angel of Finality,
+    Tormod's Crypt) OR is explicitly opponent-scoped (Author of Shadows). The
+    player-target gate is the discriminator that isolates graveyard HATE from a
+    self-graveyard-exile-for-value (an escape/fuel ``(Graveyard → Exile)`` of a
+    specific CARD — controller you / a single Typed card), which it must NOT fire on.
+    Self-blink (Cloudshift — origin not Graveyard), Leyline of the Void (a
+    ``replacement``, origin not Graveyard), and an any-graveyard single-card exile
+    (Scavenging Ooze — target a Typed card, not a player) are all naturally excluded;
+    the replacement / mass-all-graveyards forms stay a documented ``live_only`` tail.
+    Scope "opponents" (the live's fixed lane scope).
+    """
+    for c in tree.effect_concepts("change_zone"):
+        if change_zone_dirs(c.node) != ("Graveyard", "Exile"):
+            continue
+        if (
+            tag_of(getattr(c.node, "target", None)) == "Player"
+            or c.scope == "opponents"
+        ):
+            return [
+                Signal(
+                    "opponent_exile_makers", "opponents", "", c.raw, tree.name, "high"
+                )
+            ]
+    return []
+
+
+# Batch-7 Scryfall-keyword field-lookups (checklist #3 — the live path keeps these
+# as keyword survivors via ``_IR_KEYWORD_MAP`` / ``_PRESET_KEYWORD_SIGNALS``). Each
+# keyword tags the BEARER (the maker), not a payoff, so a clean keyword-array read is
+# precise. NB: the Scryfall keyword array (the bulk record) carries these — phase's
+# OWN ``keywords`` does NOT (Boast / Magecraft / Exhaust are absent from the phase
+# record), so the caller supplies the bulk array (the same source ``mill_makers``
+# reads). ``flash`` is deliberately ABSENT: the live ``flash_makers`` fires from a
+# grant-regex + a ``cast_with_keyword{flash}`` synth (both zero-node in v0.9.0), NOT
+# the own ``Flash`` keyword (Snapcaster Mage fires nothing) — so it has no clean
+# hook and stays a KEPT-DETECTOR.
+_BOAST_KEYWORDS: frozenset[str] = frozenset({"boast"})
+_EXHAUST_KEYWORDS: frozenset[str] = frozenset({"exhaust"})
+_CONVOKE_KEYWORDS: frozenset[str] = frozenset({"convoke"})
+_MAGECRAFT_KEYWORDS: frozenset[str] = frozenset({"magecraft"})
+
+
+def _keyword_field_signals_b7(keywords: frozenset[str], name: str) -> list[Signal]:
+    """The batch-7 Scryfall-keyword field-lookups (checklist #3 survivors):
+
+    * ``boast`` → ``boast_makers`` you + ``attack_matters`` you (CR 702.142 — the
+      Scryfall ``Boast`` keyword is the DOER; the live preset co-fires
+      ``attack_matters`` because a boast creature attacks to use the ability —
+      ``_IR_KEYWORD_MAP["boast"]``);
+    * ``exhaust`` → ``exhaust_makers`` you (CR 702.177 — the once-only activated
+      ability maker, ``_IR_KEYWORD_MAP["exhaust"]``);
+    * ``convoke`` → ``convoke_makers`` you (CR 702.51 — the BEARER of convoke; the
+      "spells you cast have convoke" GRANTER (Chief Engineer — no ``Convoke``
+      keyword) fires the live lane from a separate grant detector, a documented
+      ``live_only`` tail);
+    * ``magecraft`` → ``magecraft_matters`` you (CR 207.2c — an ability WORD; the
+      "whenever you cast or copy" trigger lives in stripped reminder text, so the
+      Scryfall ``Magecraft`` keyword is the only reachable anchor. A plain
+      "whenever you cast an instant or sorcery" creature WITHOUT the keyword (Young
+      Pyromancer) carries none → ``spellcast_matters``, not this).
+
+    Reading the STRUCTURED keyword array (not oracle text) makes the lanes immune to
+    name / ability-word collisions.
+    """
+    out: list[Signal] = []
+    low = {k.lower() for k in keywords}
+    if low & _BOAST_KEYWORDS:
+        out.append(Signal("boast_makers", "you", "", "", name, "high"))
+        out.append(Signal("attack_matters", "you", "", "", name, "high"))
+    if low & _EXHAUST_KEYWORDS:
+        out.append(Signal("exhaust_makers", "you", "", "", name, "high"))
+    if low & _CONVOKE_KEYWORDS:
+        out.append(Signal("convoke_makers", "you", "", "", name, "high"))
+    if low & _MAGECRAFT_KEYWORDS:
+        out.append(Signal("magecraft_matters", "you", "", "", name, "high"))
+    return out
+
+
 _LANES = (
     _win_lose_game,
     _discard_makers,
@@ -2475,6 +2722,14 @@ _LANES = (
     _predicate_build_around,
     _coin_flip,
     _opponent_discard,
+    _extra_combats,
+    _cost_reduction,
+    _donate_makers,
+    _conjure_makers,
+    _blocked_matters,
+    _initiative,
+    _end_the_turn,
+    _opponent_exile_makers,
 )
 
 
@@ -2517,6 +2772,8 @@ def extract_crosswalk_signals(
     for sig in _keyword_field_signals(frozenset(keywords), tree.name):
         add(sig)
     for sig in _keyword_field_signals_b5(frozenset(keywords), tree.name):
+        add(sig)
+    for sig in _keyword_field_signals_b7(frozenset(keywords), tree.name):
         add(sig)
 
     # Whole-card reconciliation (granularity c): cross-open spellcast_matters LOW

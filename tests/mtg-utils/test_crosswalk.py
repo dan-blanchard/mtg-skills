@@ -1368,6 +1368,228 @@ def test_opponent_discard_excludes_target_player_loot():
     assert "opponent_discard" not in _keys("Cephalid Looter")
 
 
+# ── batch 7: phase / control / terminal-effect cluster + keyword survivors ────
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Aurelia, the Warleader", "Moraug, Fury of Akoum", "Combat Celebrant"],
+)
+def test_extra_combats_additional_combat_phase(name):
+    """An AdditionalPhase effect whose phase is a combat phase → extra_combats you
+    (CR 505 / 506)."""
+    assert ("extra_combats", "you", "") in _idents(name)
+
+
+def test_extra_combats_excludes_extra_turn():
+    """An extra TURN (Time Warp — ExtraTurn → extra_turns) is a different effect tag,
+    never extra_combats."""
+    assert "extra_combats" not in _keys("Time Warp")
+
+
+def test_extra_combats_excludes_vanilla():
+    """A vanilla creature carries no AdditionalPhase → no extra_combats."""
+    assert "extra_combats" not in _keys("Grizzly Bears")
+
+
+@pytest.mark.parametrize(
+    "name", ["Goblin Electromancer", "Helm of Awakening", "Ruby Medallion"]
+)
+def test_cost_reduction_static_reduce(name):
+    """A static ModifyCost of direction Reduce over a class of spells → cost_reduction
+    you (CR 601.2f). Helm of Awakening (all spells, controller null) fires alongside
+    the you-cast reducers — the controller is NOT gated, only direction."""
+    assert ("cost_reduction", "you", "") in _idents(name)
+
+
+def test_cost_reduction_excludes_tax():
+    """Thalia's "noncreature spells cost {1} more" is a ModifyCost of direction Raise
+    → excluded by the direction gate (the live _COST_INCREASE screen)."""
+    assert "cost_reduction" not in _keys("Thalia, Guardian of Thraben")
+
+
+def test_cost_reduction_excludes_ramp_rock():
+    """A flat ramp rock (Sol Ring) carries no ModifyCost static → no cost_reduction."""
+    assert "cost_reduction" not in _keys("Sol Ring")
+
+
+@pytest.mark.parametrize("name", ["Donate", "Bazaar Trader", "Harmless Offering"])
+def test_donate_makers_give_away(name):
+    """A GiveControl whose recipient is a non-you player (a targeted player or an
+    explicit opponent) → donate_makers you (CR 110.2, checklist #2)."""
+    assert ("donate_makers", "you", "") in _idents(name)
+
+
+def test_donate_makers_excludes_theft():
+    """Control Magic STEALS (GainControl → gain_control), the opposite direction —
+    never donate_makers."""
+    assert "donate_makers" not in _keys("Control Magic")
+
+
+def test_donate_makers_excludes_control_reset():
+    """Brooding Saurian's "each player gains control of permanents they own" is a
+    GainControlAll control-RESET, not a give-away → no donate_makers."""
+    assert "donate_makers" not in _keys("Brooding Saurian")
+
+
+@pytest.mark.parametrize("name", ["Call the Crash", "Current Curriculum"])
+def test_conjure_makers_structural(name):
+    """A Conjure effect → conjure_makers you (DD2 / DD5)."""
+    assert ("conjure_makers", "you", "") in _idents(name)
+
+
+def test_conjure_makers_excludes_ability_name_false_positive():
+    """Silvanus's Invoker's ability is NAMED "Conjure Elemental" but carries no
+    Conjure effect node — the structural read drops the live \\bconjure\\b regex
+    false-positive (fidelity gain)."""
+    assert "conjure_makers" not in _keys("Silvanus's Invoker")
+
+
+def test_conjure_makers_excludes_token_maker():
+    """A token maker (Krenko — make_token) is a different effect tag, not Conjure."""
+    assert "conjure_makers" not in _keys("Krenko, Mob Boss")
+
+
+@pytest.mark.parametrize("name", ["Alley Grifters", "Aether Membrane"])
+def test_blocked_matters_trigger_event(name):
+    """A becomes_blocked (attacker-side) or blocks (blocker-side) trigger →
+    blocked_matters you (CR 509)."""
+    assert ("blocked_matters", "you", "") in _idents(name)
+
+
+def test_blocked_matters_excludes_attacks_trigger():
+    """An attacks-only trigger (Arabella) is attack_matters, not blocked_matters."""
+    assert "blocked_matters" not in _keys("Arabella, Abandoned Doll")
+
+
+def test_initiative_makers_take_the_initiative():
+    """A TakeTheInitiative effect → initiative_makers you, read distinctly from the
+    venture concept it folds into so venture_makers still co-fires (CR 726)."""
+    ids = _idents("Caves of Chaos Adventurer")
+    assert ("initiative_makers", "you", "") in ids
+    assert ("venture_makers", "you", "") in ids  # the co-fire is preserved
+
+
+def test_initiative_makers_excludes_pure_venture():
+    """Acererak ventures into a dungeon (VentureIntoDungeon) but never takes the
+    initiative → venture_makers yes, initiative_makers NO."""
+    keys = _keys("Acererak the Archlich")
+    assert "venture_makers" in keys
+    assert "initiative_makers" not in keys
+
+
+def test_initiative_matters_condition():
+    """Passageway Seer's "if you have the initiative" payoff (IsInitiative condition)
+    → initiative_matters you; it also takes the initiative → initiative_makers."""
+    ids = _idents("Passageway Seer")
+    assert ("initiative_matters", "you", "") in ids
+    assert ("initiative_makers", "you", "") in ids
+
+
+def test_initiative_matters_excludes_take_only():
+    """A take-only initiative card (Caves of Chaos Adventurer) carries no IsInitiative
+    condition → initiative_makers yes, initiative_matters NO (checklist #4)."""
+    keys = _keys("Caves of Chaos Adventurer")
+    assert "initiative_makers" in keys
+    assert "initiative_matters" not in keys
+
+
+def test_initiative_matters_excludes_monarch():
+    """A monarch card (Azure Fleet Admiral — IsMonarch designation) is a different
+    designation → no initiative_matters."""
+    assert "initiative_matters" not in _keys("Azure Fleet Admiral")
+
+
+@pytest.mark.parametrize("name", ["Time Stop", "Sundial of the Infinite"])
+def test_end_the_turn_structural(name):
+    """An EndTheTurn effect → end_the_turn you (CR 724)."""
+    assert ("end_the_turn", "you", "") in _idents(name)
+
+
+def test_end_the_turn_excludes_extra_turn():
+    """Time Warp's ExtraTurn (→ extra_turns) is a different effect tag, never
+    end_the_turn."""
+    assert "end_the_turn" not in _keys("Time Warp")
+
+
+@pytest.mark.parametrize(
+    "name", ["Bojuka Bog", "Angel of Finality", "Author of Shadows"]
+)
+def test_opponent_exile_makers_graveyard_hate(name):
+    """A ChangeZone (Graveyard → Exile) targeting a whole player's graveyard, or
+    opponent-scoped, → opponent_exile_makers opponents (CR 406, graveyard hate).
+    Author of Shadows ("exile all opponents' graveyards") is a crosswalk_only
+    fidelity GAIN over the live word-mirror."""
+    assert ("opponent_exile_makers", "opponents", "") in _idents(name)
+
+
+def test_opponent_exile_makers_excludes_self_blink():
+    """Cloudshift exiles and returns YOUR creature (origin not Graveyard) → no
+    opponent_exile_makers."""
+    assert "opponent_exile_makers" not in _keys("Cloudshift")
+
+
+def test_opponent_exile_makers_excludes_replacement():
+    """Leyline of the Void's GY→exile is a REPLACEMENT whose ChangeZone has no
+    Graveyard origin → the ChangeZone arm does not fire (the replacement arm is a
+    documented live_only tail)."""
+    assert "opponent_exile_makers" not in _keys("Leyline of the Void")
+
+
+def test_opponent_exile_makers_excludes_any_card_exile():
+    """Scavenging Ooze exiles a single CARD from a graveyard (target a Typed card, not
+    a player) — ambiguous with self-graveyard-exile-for-value, so the player-target
+    gate correctly excludes it (matching the live, which also does not fire it)."""
+    assert "opponent_exile_makers" not in _keys("Scavenging Ooze")
+
+
+@pytest.mark.parametrize("name", ["Bitter Work", "Boom Scholar"])
+def test_exhaust_makers_keyword(name):
+    """The Scryfall Exhaust keyword → exhaust_makers you (CR 702.177)."""
+    assert ("exhaust_makers", "you", "") in _idents(name)
+
+
+def test_boast_makers_keyword_co_fires_attack_matters():
+    """The Scryfall Boast keyword → boast_makers you AND attack_matters you (the live
+    preset co-fire, CR 702.142)."""
+    ids = _idents("Dragonkin Berserker")
+    assert ("boast_makers", "you", "") in ids
+    assert ("attack_matters", "you", "") in ids
+
+
+def test_boast_exhaust_keyword_negative():
+    """A card without the Boast / Exhaust keyword (Young Pyromancer) fires neither."""
+    keys = _keys("Young Pyromancer")
+    assert "boast_makers" not in keys
+    assert "exhaust_makers" not in keys
+
+
+@pytest.mark.parametrize("name", ["Chord of Calling", "Venerated Loxodon"])
+def test_convoke_makers_keyword(name):
+    """The Scryfall Convoke keyword (the BEARER) → convoke_makers you (CR 702.51)."""
+    assert ("convoke_makers", "you", "") in _idents(name)
+
+
+def test_convoke_makers_excludes_granter():
+    """Chief Engineer GRANTS convoke ("spells you cast have convoke") and carries no
+    Convoke keyword → the keyword lane does not fire (the granter is a documented
+    live_only tail)."""
+    assert "convoke_makers" not in _keys("Chief Engineer")
+
+
+@pytest.mark.parametrize("name", ["Storm-Kiln Artist", "Archmage Emeritus"])
+def test_magecraft_matters_keyword(name):
+    """The Scryfall Magecraft keyword (the only reachable anchor — the trigger lives
+    in stripped reminder text) → magecraft_matters you (CR 207.2c)."""
+    assert ("magecraft_matters", "you", "") in _idents(name)
+
+
+def test_magecraft_matters_excludes_plain_spellcast():
+    """Young Pyromancer's "whenever you cast an instant or sorcery" carries no
+    Magecraft keyword (no "or copy" clause) → spellcast_matters, not magecraft."""
+    assert "magecraft_matters" not in _keys("Young Pyromancer")
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

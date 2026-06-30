@@ -134,6 +134,16 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "FlipCoin": "flip_coin",  # coin_flip (CR 705.1)
     "FlipCoins": "flip_coin",
     "FlipCoinUntilLose": "flip_coin",
+    # Batch 7 (ADR-0035 Stage 2) — the phase / control / terminal-effect cluster.
+    # An additional combat phase, a card conjure (Alchemy), and an end-the-turn
+    # the OLD lossy IR reached via a kind-split effect category / word-mirror; the
+    # crosswalk reads them off the first-class typed node.
+    "AdditionalPhase": "extra_phase",  # extra_combats (phase gates begin/combat)
+    "Conjure": "conjure",  # conjure_makers (DD2/DD5 — a real card, not a token)
+    "EndTheTurn": "end_the_turn",  # end_the_turn (CR 724 — Time Stop, Sundial)
+    # NB: ``TakeTheInitiative`` stays mapped to ``venture`` (above) so
+    # ``venture_makers`` keeps co-firing; ``initiative_makers`` reads the
+    # ``TakeTheInitiative`` _tag distinctly off the same effect node.
 }
 
 # Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): a maker / sac-payoff over
@@ -925,6 +935,57 @@ def change_zone_dirs(node: TypedMirrorNode) -> tuple[str | None, str | None]:
         getattr(node, "origin", None),
         getattr(node, "destination", None),
     )
+
+
+def additional_phase_kind(node: TypedMirrorNode) -> str:
+    """The lowercased ``phase`` of an ``AdditionalPhase`` effect (CR 505 / 506), or
+    ``""`` when absent.
+
+    Phase carries the granted extra phase on ``AdditionalPhase.phase``
+    (``"BeginCombat"`` — Aurelia, Moraug, Combat Celebrant). The ``extra_combats``
+    lane gates on it being a combat phase, mirroring ``project._EXTRA_PHASE``: phase
+    v0.9.0 only structurally emits a combat phase here (it mis-routes
+    extra-upkeep/draw/end to combat, recovered by a separate ``project`` marker), so
+    the combat read mirrors the live ``extra_combats`` exactly.
+    """
+    p = getattr(node, "phase", MISSING)
+    return p.lower() if isinstance(p, str) else ""
+
+
+def modify_cost_mode(static_node: TypedMirrorNode) -> str | None:
+    """The ``mode`` of a static ability's ``ModifyCost`` (``"Reduce"`` / ``"Raise"`` /
+    ``"Minimum"``), or ``None`` when the static is not a cost modifier.
+
+    Phase models a cost modifier (CR 601.2f / 118.7) as a ``static_ability`` whose
+    ``mode`` field is a ``{ModifyCost: S_ModifyCost}`` variant (the ``modifications``
+    list is empty — the cost change rides ``mode``, not a P/T modification). The
+    ``cost_reduction`` lane reads the inner ``S_ModifyCost.mode`` STRUCTURALLY to
+    gate direction — a ``Raise`` tax (Thalia) is excluded without the live path's raw
+    ``_COST_INCREASE`` screen. ``None`` for any non-``ModifyCost`` static.
+    """
+    mode = getattr(static_node, "mode", MISSING)
+    if isinstance(mode, MirrorVariant) and mode.key == "ModifyCost":
+        inner_mode = getattr(mode.inner, "mode", None)
+        return inner_mode if isinstance(inner_mode, str) else None
+    return None
+
+
+def control_recipient_scope(node: TypedMirrorNode) -> str | None:
+    """The scope of a control-change effect's ``recipient`` (who GAINS control), or
+    ``None`` when the node carries no recipient.
+
+    A ``GiveControl`` (CR 110.2) hands a permanent YOU control to ``recipient`` — a
+    targeted player (``Player`` → ``"any"`` — Donate, Bazaar Trader) or an explicit
+    opponent (``Typed controller=Opponent`` → ``"opponents"`` — Harmless Offering).
+    The ``donate_makers`` give-away gate (checklist #2) reads the ``recipient`` node
+    directly — NOT :func:`explicit_recipient_scope`, which reads the donated
+    permanent's own ``target`` filter first and mis-returns ``"you"``. Reading the
+    recipient SPECIFICALLY isolates the beneficiary the OLD lossy IR dropped.
+    """
+    rcp = getattr(node, "recipient", MISSING)
+    if not _present(rcp):
+        return None
+    return _scope_from_player_node(rcp)
 
 
 def counter_kind(node: TypedMirrorNode) -> str:
