@@ -16331,6 +16331,2263 @@
     "uncommon",
     "rare"
    ]
+  },
+  "Sky Swallower": {
+   "name": "Sky Swallower",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Blue",
+     "Blue"
+    ],
+    "generic": 3
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Creature"
+    ],
+    "subtypes": [
+     "Leviathan"
+    ]
+   },
+   "power": {
+    "type": "Fixed",
+    "value": 8
+   },
+   "toughness": {
+    "type": "Fixed",
+    "value": 8
+   },
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Flying\nWhen this creature enters, target opponent gains control of all other permanents you control.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [
+    "Flying"
+   ],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "GainControlAll",
+       "target": {
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ],
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Another"
+         }
+        ]
+       }
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "SelfRef"
+     },
+     "origin": null,
+     "destination": "Battlefield",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": {
+      "type": "Player"
+     },
+     "valid_source": null,
+     "description": "When ~ enters, target opponent gains control of all other permanents you control.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Blue"
+   ],
+   "scryfall_oracle_id": "b345c413-df5a-4dae-8b92-5fab54a097fc",
+   "metadata": {
+    "source_printing_ids": [
+     "05189964-5ad0-48b7-a3af-67c7f46fe89e"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "GPT"
+   ],
+   "rulings": [
+    {
+     "date": "2006-02-01",
+     "text": "Auras your opponent gains control of won't move from where they are."
+    },
+    {
+     "date": "2006-02-01",
+     "text": "The permanents don't return to your control when Sky Swallower leaves the battlefield."
+    }
+   ],
+   "rarities": [
+    "rare"
+   ]
+  },
+  "Fateful Handoff": {
+   "name": "Fateful Handoff",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Black"
+    ],
+    "generic": 3
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Sorcery"
+    ],
+    "subtypes": []
+   },
+   "power": null,
+   "toughness": null,
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Draw cards equal to the mana value of target artifact or creature you control. An opponent gains control of that permanent.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [
+    {
+     "kind": "Spell",
+     "effect": {
+      "type": "Draw",
+      "count": {
+       "type": "Ref",
+       "qty": {
+        "type": "TargetObjectManaValue",
+        "filter": {
+         "type": "Or",
+         "filters": [
+          {
+           "type": "Typed",
+           "type_filters": [
+            "Artifact"
+           ],
+           "controller": "You",
+           "properties": []
+          },
+          {
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ],
+           "controller": "You",
+           "properties": []
+          }
+         ]
+        }
+       }
+      },
+      "target": {
+       "type": "Controller"
+      }
+     },
+     "cost": null,
+     "sub_ability": {
+      "kind": "Spell",
+      "effect": {
+       "type": "Choose",
+       "choice_type": "Opponent",
+       "persist": false
+      },
+      "cost": null,
+      "sub_ability": {
+       "kind": "Spell",
+       "effect": {
+        "type": "GainControl",
+        "target": {
+         "type": "ParentTarget"
+        }
+       },
+       "cost": null,
+       "sub_ability": null,
+       "duration": null,
+       "description": null,
+       "target_prompt": null,
+       "condition": null,
+       "optional_targeting": false,
+       "optional": false,
+       "forward_result": false
+      },
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false,
+      "sub_link": "SequentialSibling"
+     },
+     "duration": null,
+     "description": "Draw cards equal to the mana value of target artifact or creature you control. An opponent gains control of that permanent.",
+     "target_prompt": null,
+     "condition": null,
+     "optional_targeting": false,
+     "optional": false,
+     "forward_result": false
+    }
+   ],
+   "triggers": [],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Black"
+   ],
+   "scryfall_oracle_id": "1ecde43f-e418-437b-8b8f-efe120f96cb3",
+   "metadata": {
+    "source_printing_ids": [
+     "0bbed8f9-3615-428b-8d0d-18291c5a99be",
+     "a15095c3-b9a1-43e2-8140-2a73a89336de",
+     "b2d19ec6-2c0d-4807-9255-feb61181c531",
+     "e6237ee9-66e6-4a56-9aa3-02ece754b12e"
+    ]
+   },
+   "legalities": {
+    "brawl": "legal",
+    "commander": "legal",
+    "duel": "legal",
+    "historic": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "pioneer": "legal",
+    "timeless": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "BRO",
+    "PBRO",
+    "PRM"
+   ],
+   "rulings": [
+    {
+     "date": "2022-10-14",
+     "text": "If an artifact or creature on the battlefield has {X} in its mana cost, X is 0."
+    },
+    {
+     "date": "2022-10-14",
+     "text": "The mana value of an artifact creature that was cast as a prototype is based on the prototype mana cost rather than the card's usual mana cost."
+    }
+   ],
+   "rarities": [
+    "rare"
+   ]
+  },
+  "Rogue Skycaptain": {
+   "name": "Rogue Skycaptain",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Red"
+    ],
+    "generic": 2
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Creature"
+    ],
+    "subtypes": [
+     "Human",
+     "Rogue",
+     "Mercenary"
+    ]
+   },
+   "power": {
+    "type": "Fixed",
+    "value": 3
+   },
+   "toughness": {
+    "type": "Fixed",
+    "value": 4
+   },
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Flying\nAt the beginning of your upkeep, put a wage counter on this creature. You may pay {2} for each wage counter on it. If you don't, remove all wage counters from this creature and an opponent gains control of it.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [
+    "Flying"
+   ],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "Phase",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "PutCounter",
+       "counter_type": "wage",
+       "count": {
+        "type": "Fixed",
+        "value": 1
+       },
+       "target": {
+        "type": "SelfRef"
+       }
+      },
+      "cost": null,
+      "sub_ability": {
+       "kind": "Spell",
+       "effect": {
+        "type": "PayCost",
+        "cost": {
+         "type": "Mana",
+         "cost": {
+          "type": "Cost",
+          "shards": [],
+          "generic": 2
+         }
+        },
+        "payer": {
+         "type": "Controller"
+        }
+       },
+       "cost": null,
+       "sub_ability": {
+        "kind": "Spell",
+        "effect": {
+         "type": "RemoveCounter",
+         "counter_type": "wage",
+         "count": {
+          "type": "Fixed",
+          "value": -1
+         },
+         "target": {
+          "type": "SelfRef"
+         }
+        },
+        "cost": null,
+        "sub_ability": {
+         "kind": "Spell",
+         "effect": {
+          "type": "Choose",
+          "choice_type": "Opponent",
+          "persist": false
+         },
+         "cost": null,
+         "sub_ability": {
+          "kind": "Spell",
+          "effect": {
+           "type": "GainControl",
+           "target": {
+            "type": "ParentTarget"
+           }
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+         },
+         "duration": null,
+         "description": null,
+         "target_prompt": null,
+         "condition": null,
+         "optional_targeting": false,
+         "optional": false,
+         "forward_result": false
+        },
+        "duration": null,
+        "description": null,
+        "target_prompt": null,
+        "condition": {
+         "type": "Not",
+         "condition": {
+          "type": "EffectOutcome",
+          "signal": "OptionalEffectPerformed"
+         }
+        },
+        "optional_targeting": false,
+        "optional": false,
+        "forward_result": false,
+        "sub_link": "SequentialSibling"
+       },
+       "duration": null,
+       "description": null,
+       "target_prompt": null,
+       "condition": null,
+       "optional_targeting": false,
+       "optional": true,
+       "forward_result": false,
+       "sub_link": "SequentialSibling"
+      },
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": null,
+     "origin": null,
+     "destination": null,
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": "Upkeep",
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "At the beginning of your upkeep, put a wage counter on ~. You may pay {2} for each wage counter on it. If you don't, remove all wage counters from ~ and an opponent gains control of it.",
+     "constraint": {
+      "type": "OnlyDuringYourTurn"
+     },
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Red"
+   ],
+   "scryfall_oracle_id": "e600136a-8b4f-4725-a29e-021e0cfc7d0a",
+   "parse_warnings": [
+    {
+     "type": "SwallowedClause",
+     "detector": "DynamicQty",
+     "description": "Flying\nAt the beginning of your upkeep, put a wage counter on this creature. You may pay {2} for each wage counter on it. If you don't, remo",
+     "line_index": 0
+    }
+   ],
+   "metadata": {
+    "source_printing_ids": [
+     "2d449a05-c0b9-4532-a67d-21d3d3baea59",
+     "97aebf3b-e77d-4d18-b58b-117ae91792e2"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "oathbreaker": "legal",
+    "premodern": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "ALL",
+    "ME2"
+   ],
+   "rulings": [
+    {
+     "date": "2008-10-01",
+     "text": "If you can’t pay the entire payment, none of it is paid."
+    },
+    {
+     "date": "2008-10-01",
+     "text": "No choices are made when this ability triggers. After the wage counter is put on Rogue Skycaptain, then you choose whether to pay mana and, if you don’t, which opponent gains control of it."
+    }
+   ],
+   "rarities": [
+    "rare"
+   ]
+  },
+  "Inniaz, the Gale Force": {
+   "name": "Inniaz, the Gale Force",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Blue",
+     "Blue"
+    ],
+    "generic": 3
+   },
+   "card_type": {
+    "supertypes": [
+     "Legendary"
+    ],
+    "core_types": [
+     "Creature"
+    ],
+    "subtypes": [
+     "Djinn"
+    ]
+   },
+   "power": {
+    "type": "Fixed",
+    "value": 4
+   },
+   "toughness": {
+    "type": "Fixed",
+    "value": 4
+   },
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Flying\n{2}{W/U}: Attacking creatures with flying get +1/+1 until end of turn. ({W/U} can be paid with either {W} or {U}.)\nWhenever three or more creatures you control with flying attack, each player gains control of a nonland permanent of your choice controlled by the player to their right.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [
+    "Flying"
+   ],
+   "abilities": [
+    {
+     "kind": "Activated",
+     "effect": {
+      "type": "PumpAll",
+      "power": {
+       "type": "Fixed",
+       "value": 1
+      },
+      "toughness": {
+       "type": "Fixed",
+       "value": 1
+      },
+      "target": {
+       "type": "Typed",
+       "type_filters": [
+        "Creature"
+       ],
+       "controller": null,
+       "properties": [
+        {
+         "type": "Attacking"
+        },
+        {
+         "type": "WithKeyword",
+         "value": "Flying"
+        }
+       ]
+      }
+     },
+     "cost": {
+      "type": "Mana",
+      "cost": {
+       "type": "Cost",
+       "shards": [
+        "WhiteBlue"
+       ],
+       "generic": 2
+      }
+     },
+     "sub_ability": null,
+     "duration": "UntilEndOfTurn",
+     "description": "{2}{W/U}: Attacking creatures with flying get +1/+1 until end of turn.",
+     "target_prompt": null,
+     "condition": null,
+     "optional_targeting": false,
+     "optional": false,
+     "forward_result": false
+    }
+   ],
+   "triggers": [
+    {
+     "mode": {
+      "Unknown": "Whenever three or more creatures you control with flying attack"
+     },
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "GainControl",
+       "target": {
+        "type": "Typed",
+        "type_filters": [
+         "Permanent",
+         {
+          "Non": "Land"
+         }
+        ],
+        "controller": null,
+        "properties": []
+       }
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false,
+      "player_scope": {
+       "type": "All"
+      }
+     },
+     "valid_card": null,
+     "origin": null,
+     "destination": null,
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "Whenever three or more creatures you control with flying attack, each player gains control of a nonland permanent of your choice controlled by the player to their right.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Blue",
+    "White"
+   ],
+   "scryfall_oracle_id": "b06ebf74-4042-4c8f-a70b-98ba9e74e6ed",
+   "brawl_commander": true,
+   "is_commander": true,
+   "metadata": {
+    "source_printing_ids": [
+     "b238485f-ef67-4295-892b-a10235368f74"
+    ]
+   },
+   "legalities": {
+    "brawl": "legal",
+    "commander": "legal",
+    "duel": "legal",
+    "historic": "legal",
+    "legacy": "legal",
+    "oathbreaker": "legal",
+    "timeless": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "JMP"
+   ],
+   "rulings": [
+    {
+     "date": "2020-06-23",
+     "text": "If any player controls no nonland permanents, the player to their left doesn’t gain control of anything."
+    },
+    {
+     "date": "2020-06-23",
+     "text": "If you give away a creature you control with flying that attacked, it’s removed from combat. It will still be tapped if it was tapped, so it won’t be able to block."
+    },
+    {
+     "date": "2020-06-23",
+     "text": "In a Two-Headed Giant game, Inniaz’s ability ignores who’s on which team. The leftmost player on each team gains control of a teammate’s permanent, and the rightmost player gains one from the opposing team’s leftmost player. If your teammate gains control of an attacking creature this way, it’s still removed from combat."
+    },
+    {
+     "date": "2020-06-23",
+     "text": "In a two-player game, you exchange control of two permanents of your choice with your opponent."
+    },
+    {
+     "date": "2020-06-23",
+     "text": "Inniaz’s ability resolves before blockers are chosen."
+    },
+    {
+     "date": "2020-06-23",
+     "text": "Inniaz’s ability resolves even if some or all of the attacking creatures lose flying or leave combat before it resolves."
+    },
+    {
+     "date": "2020-06-23",
+     "text": "Inniaz’s ability triggers just once, no matter how many creatures with flying attack beyond the third."
+    },
+    {
+     "date": "2020-06-23",
+     "text": "The control-change effect of Inniaz’s last ability lasts indefinitely. It doesn’t wear off during the cleanup step, and it doesn’t expire if Inniaz leaves the battlefield. In a multiplayer game, a player who leaves the game takes back their permanent and gives back the one they took."
+    },
+    {
+     "date": "2020-06-23",
+     "text": "You choose the permanents to be blown over to other players while Inniaz’s ability is resolving. No player may take actions between the time you make the choices and the time control changes."
+    }
+   ],
+   "rarities": [
+    "rare"
+   ]
+  },
+  "Scrambleverse": {
+   "name": "Scrambleverse",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Red",
+     "Red"
+    ],
+    "generic": 6
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Sorcery"
+    ],
+    "subtypes": []
+   },
+   "power": null,
+   "toughness": null,
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "For each nonland permanent, choose a player at random. Then each player gains control of each permanent for which they were chosen. Untap those permanents.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [
+    {
+     "kind": "Spell",
+     "effect": {
+      "type": "Choose",
+      "choice_type": "Player",
+      "persist": false,
+      "selection": {
+       "type": "Random"
+      }
+     },
+     "cost": null,
+     "sub_ability": {
+      "kind": "Spell",
+      "effect": {
+       "type": "GainControlAll",
+       "target": {
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ],
+        "controller": null,
+        "properties": []
+       }
+      },
+      "cost": null,
+      "sub_ability": {
+       "kind": "Spell",
+       "effect": {
+        "type": "SetTapState",
+        "target": {
+         "type": "TrackedSet",
+         "id": 0
+        },
+        "scope": {
+         "type": "Single"
+        },
+        "state": {
+         "type": "Untap"
+        }
+       },
+       "cost": null,
+       "sub_ability": null,
+       "duration": null,
+       "description": null,
+       "target_prompt": null,
+       "condition": null,
+       "optional_targeting": false,
+       "optional": false,
+       "forward_result": false,
+       "sub_link": "SequentialSibling"
+      },
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false,
+      "player_scope": {
+       "type": "All"
+      },
+      "sub_link": "SequentialSibling"
+     },
+     "duration": null,
+     "description": "For each nonland permanent, choose a player at random. Then each player gains control of each permanent for which they were chosen. Untap those permanents.",
+     "target_prompt": null,
+     "condition": null,
+     "optional_targeting": false,
+     "optional": false,
+     "repeat_for": {
+      "type": "Ref",
+      "qty": {
+       "type": "ObjectCount",
+       "filter": {
+        "type": "Typed",
+        "type_filters": [
+         "Permanent",
+         {
+          "Non": "Land"
+         }
+        ],
+        "controller": null,
+        "properties": []
+       }
+      }
+     },
+     "forward_result": false
+    }
+   ],
+   "triggers": [],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Red"
+   ],
+   "scryfall_oracle_id": "35fe3c61-8eaa-465d-ac34-63efda72fef2",
+   "metadata": {
+    "source_printing_ids": [
+     "2b61fa9d-3f69-4632-be0e-09924ca88501"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "M12"
+   ],
+   "rulings": [
+    {
+     "date": "2011-09-22",
+     "text": "All of the control-change effects happen at the same time."
+    },
+    {
+     "date": "2011-09-22",
+     "text": "Each nonland permanent will untap, no matter which player was randomly chosen to gain control of it."
+    },
+    {
+     "date": "2011-09-22",
+     "text": "For each nonland permanent, any player may be randomly chosen, including the permanent’s current controller."
+    },
+    {
+     "date": "2011-09-22",
+     "text": "Once Scrambleverse starts to resolve, no player may respond until it has finished resolving. For example, you can’t wait to see who will control a creature before deciding whether or not to activate one of its abilities."
+    }
+   ],
+   "rarities": [
+    "rare"
+   ]
+  },
+  "Baleful Beholder": {
+   "name": "Baleful Beholder",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Black",
+     "Black"
+    ],
+    "generic": 4
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Creature"
+    ],
+    "subtypes": [
+     "Beholder"
+    ]
+   },
+   "power": {
+    "type": "Fixed",
+    "value": 6
+   },
+   "toughness": {
+    "type": "Fixed",
+    "value": 5
+   },
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "When this creature enters, choose one —\n• Antimagic Cone — Each opponent sacrifices an enchantment of their choice.\n• Fear Ray — Creatures you control gain menace until end of turn. (A creature with menace can't be blocked except by two or more creatures.)",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "GenericEffect",
+       "static_abilities": [],
+       "duration": null,
+       "target": null
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "modal": {
+       "min_choices": 1,
+       "max_choices": 1,
+       "mode_count": 2,
+       "mode_descriptions": [
+        "Antimagic Cone — Each opponent sacrifices an enchantment of their choice.",
+        "Fear Ray — Creatures you control gain menace until end of turn."
+       ],
+       "allow_repeat_modes": false,
+       "chooser": {
+        "type": "Controller"
+       }
+      },
+      "mode_abilities": [
+       {
+        "kind": "Spell",
+        "effect": {
+         "type": "Sacrifice",
+         "target": {
+          "type": "Typed",
+          "type_filters": [
+           "Enchantment"
+          ],
+          "controller": "You",
+          "properties": []
+         },
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         }
+        },
+        "cost": null,
+        "sub_ability": null,
+        "duration": null,
+        "description": null,
+        "target_prompt": null,
+        "condition": null,
+        "optional_targeting": false,
+        "optional": false,
+        "forward_result": false,
+        "player_scope": {
+         "type": "Opponent"
+        }
+       },
+       {
+        "kind": "Spell",
+        "effect": {
+         "type": "GenericEffect",
+         "static_abilities": [
+          {
+           "mode": "Continuous",
+           "affected": {
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ],
+            "controller": "You",
+            "properties": []
+           },
+           "modifications": [
+            {
+             "type": "AddKeyword",
+             "keyword": "Menace"
+            }
+           ],
+           "condition": null,
+           "affected_zone": null,
+           "effect_zone": null,
+           "active_zones": [],
+           "characteristic_defining": false,
+           "description": "gain menace"
+          }
+         ],
+         "duration": "UntilEndOfTurn",
+         "target": null
+        },
+        "cost": null,
+        "sub_ability": null,
+        "duration": "UntilEndOfTurn",
+        "description": null,
+        "target_prompt": null,
+        "condition": null,
+        "optional_targeting": false,
+        "optional": false,
+        "forward_result": false
+       }
+      ],
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "SelfRef"
+     },
+     "origin": null,
+     "destination": "Battlefield",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "When ~ enters",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Black"
+   ],
+   "scryfall_oracle_id": "e7645ac4-6e05-426a-a62d-a33b30c33102",
+   "metadata": {
+    "source_printing_ids": [
+     "204f3cba-df13-4c89-b92d-47ee3be6809c",
+     "e52d6ef6-d8a3-4288-8917-4c0a179ed4e0"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "pauper": "legal",
+    "paupercommander": "legal",
+    "pioneer": "legal",
+    "timeless": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "AFR",
+    "HBG"
+   ],
+   "rulings": [
+    {
+     "date": "2021-07-23",
+     "text": "In a multiplayer game, each opponent in turn order will choose which enchantment to sacrifice, and they get to know the choices made before them by other players. Once those decisions are made, the chosen enchantments are all sacrificed at the same time."
+    }
+   ],
+   "rarities": [
+    "common"
+   ]
+  },
+  "Bone Dancer": {
+   "name": "Bone Dancer",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Black",
+     "Black"
+    ],
+    "generic": 1
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Creature"
+    ],
+    "subtypes": [
+     "Zombie"
+    ]
+   },
+   "power": {
+    "type": "Fixed",
+    "value": 2
+   },
+   "toughness": {
+    "type": "Fixed",
+    "value": 2
+   },
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Whenever this creature attacks and isn't blocked, you may put the top creature card of defending player's graveyard onto the battlefield under your control. If you do, this creature assigns no combat damage this turn.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "AttackerUnblocked",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "Mill",
+       "count": {
+        "type": "Fixed",
+        "value": 1
+       },
+       "target": {
+        "type": "Controller"
+       },
+       "destination": "Graveyard"
+      },
+      "cost": null,
+      "sub_ability": {
+       "kind": "Spell",
+       "effect": {
+        "type": "GenericEffect",
+        "static_abilities": [
+         {
+          "mode": "AssignNoCombatDamage",
+          "affected": {
+           "type": "SelfRef"
+          },
+          "modifications": [
+           {
+            "type": "AssignNoCombatDamage"
+           }
+          ],
+          "condition": null,
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": null
+         }
+        ],
+        "duration": "UntilEndOfTurn",
+        "target": null
+       },
+       "cost": null,
+       "sub_ability": null,
+       "duration": "UntilEndOfTurn",
+       "description": null,
+       "target_prompt": null,
+       "condition": {
+        "type": "EffectOutcome",
+        "signal": "OptionalEffectPerformed"
+       },
+       "optional_targeting": false,
+       "optional": false,
+       "forward_result": false,
+       "sub_link": "SequentialSibling"
+      },
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": true,
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "SelfRef"
+     },
+     "origin": null,
+     "destination": null,
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": true,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "Whenever ~ attacks and isn't blocked, you may put the top creature card of defending player's graveyard onto the battlefield under your control. If you do, ~ assigns no combat damage this turn.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Black"
+   ],
+   "scryfall_oracle_id": "13b5c9ef-d0e3-453d-ae5e-8de4f310cc38",
+   "metadata": {
+    "source_printing_ids": [
+     "207bb4cd-4525-47e0-b412-0d0e29717d44"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "oathbreaker": "legal",
+    "premodern": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "WTH"
+   ],
+   "rulings": [
+    {
+     "date": "2008-04-01",
+     "text": "If an effect or rule puts two or more cards into the same graveyard at the same time, the owner of those cards may arrange them in any order."
+    },
+    {
+     "date": "2008-04-01",
+     "text": "Players may not rearrange the cards in their graveyards. This is a little-known rule because new cards that care about graveyard order haven’t been printed in years."
+    },
+    {
+     "date": "2008-04-01",
+     "text": "Say you’re the owner of both a permanent and an Aura that’s attached to it. If both the permanent and the Aura are destroyed at the same time (by Akroma’s Vengeance, for example), you decide the order they’re put into your graveyard. If just the enchanted permanent is destroyed, it’s put into your graveyard first. Then, after state-based actions are checked, the Aura (which is no longer attached to anything) is put into your graveyard on top of it."
+    },
+    {
+     "date": "2008-04-01",
+     "text": "The last thing that happens to a resolving instant or sorcery spell is that it’s put into its owner’s graveyard. —Example: You cast Wrath of God. All creatures on the battlefield are destroyed. You arrange all the cards put into your graveyard this way in any order you want. The other players in the game do the same to the cards that are put into their graveyards. Then you put Wrath of God into your graveyard, on top of the other cards."
+    },
+    {
+     "date": "2008-04-01",
+     "text": "The “top” card of your graveyard is the card that was put there most recently."
+    },
+    {
+     "date": "2013-04-15",
+     "text": "An ability that triggers when something “attacks and isn’t blocked” triggers in the declare blockers step after blockers are declared if (1) that creature is attacking and (2) no creatures are declared to block it. It will trigger even if that creature was put onto the battlefield attacking rather than having been declared as an attacker in the declare attackers step."
+    }
+   ],
+   "rarities": [
+    "rare"
+   ]
+  },
+  "Soldevi Digger": {
+   "name": "Soldevi Digger",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [],
+    "generic": 2
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Artifact"
+    ],
+    "subtypes": []
+   },
+   "power": null,
+   "toughness": null,
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "{2}: Put the top card of your graveyard on the bottom of your library.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [
+    {
+     "kind": "Activated",
+     "effect": {
+      "type": "Mill",
+      "count": {
+       "type": "Fixed",
+       "value": 1
+      },
+      "target": {
+       "type": "Controller"
+      },
+      "destination": "Graveyard"
+     },
+     "cost": {
+      "type": "Mana",
+      "cost": {
+       "type": "Cost",
+       "shards": [],
+       "generic": 2
+      }
+     },
+     "sub_ability": null,
+     "duration": null,
+     "description": "{2}: Put the top card of your graveyard on the bottom of your library.",
+     "target_prompt": null,
+     "condition": null,
+     "optional_targeting": false,
+     "optional": false,
+     "forward_result": false
+    }
+   ],
+   "triggers": [],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "scryfall_oracle_id": "b526962e-be8a-4803-b038-57869bb96751",
+   "metadata": {
+    "source_printing_ids": [
+     "473d6e22-1184-4d29-a7d1-f6773666ff29",
+     "5a3a0ab4-e8ef-45fd-9a73-86d1ee30cb48"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "oathbreaker": "legal",
+    "premodern": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "ALL",
+    "ME2"
+   ],
+   "rarities": [
+    "uncommon",
+    "rare"
+   ]
+  },
+  "Glimpse the Unthinkable": {
+   "name": "Glimpse the Unthinkable",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Blue",
+     "Black"
+    ],
+    "generic": 0
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Sorcery"
+    ],
+    "subtypes": []
+   },
+   "power": null,
+   "toughness": null,
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Target player mills ten cards.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [
+    {
+     "kind": "Spell",
+     "effect": {
+      "type": "Mill",
+      "count": {
+       "type": "Fixed",
+       "value": 10
+      },
+      "target": {
+       "type": "Player"
+      },
+      "destination": "Graveyard"
+     },
+     "cost": null,
+     "sub_ability": null,
+     "duration": null,
+     "description": "Target player mills ten cards.",
+     "target_prompt": null,
+     "condition": null,
+     "optional_targeting": false,
+     "optional": false,
+     "forward_result": false
+    }
+   ],
+   "triggers": [],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": [
+    "Black",
+    "Blue"
+   ],
+   "color_identity": [
+    "Black",
+    "Blue"
+   ],
+   "scryfall_oracle_id": "552f0163-a19d-4671-888f-044fc0354875",
+   "metadata": {
+    "source_printing_ids": [
+     "45cd3942-f385-493c-b667-e35af7f60b83",
+     "48058253-54b8-403b-8d95-94d8da986e69",
+     "65d6f1ff-7514-4fed-80e9-fd912e21bd26",
+     "6afde7ce-b0d7-4ac0-947b-ae298a61c37b",
+     "986fdbed-b16f-41c5-809f-91080d5c2780",
+     "c54a2256-673d-4d93-9e1d-7790bf254881"
+    ]
+   },
+   "legalities": {
+    "brawl": "legal",
+    "commander": "legal",
+    "duel": "legal",
+    "historic": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "timeless": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "2X2",
+    "GK1",
+    "HA6",
+    "IMA",
+    "PRM",
+    "RAV"
+   ],
+   "rarities": [
+    "rare"
+   ]
+  },
+  "Hedron Crab": {
+   "name": "Hedron Crab",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Blue"
+    ],
+    "generic": 0
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Creature"
+    ],
+    "subtypes": [
+     "Crab"
+    ]
+   },
+   "power": {
+    "type": "Fixed",
+    "value": 0
+   },
+   "toughness": {
+    "type": "Fixed",
+    "value": 2
+   },
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Landfall — Whenever a land you control enters, target player mills three cards. (They put the top three cards of their library into their graveyard.)",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "Mill",
+       "count": {
+        "type": "Fixed",
+        "value": 3
+       },
+       "target": {
+        "type": "Player"
+       },
+       "destination": "Graveyard"
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "Typed",
+      "type_filters": [
+       "Land"
+      ],
+      "controller": "You",
+      "properties": []
+     },
+     "origin": null,
+     "destination": "Battlefield",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": {
+      "type": "Player"
+     },
+     "valid_source": null,
+     "description": "Whenever a land you control enters, target player mills three cards.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Blue"
+   ],
+   "scryfall_oracle_id": "7216f974-3c84-40ef-b904-82019900c204",
+   "metadata": {
+    "source_printing_ids": [
+     "4d804aad-ccf5-4605-9076-9000f8f9538a",
+     "d109b70e-862f-4d8a-8b40-ef6dc904868f",
+     "eaa1db45-6e3a-4941-b55e-7a91a60ea1b6",
+     "f0fa1946-4f97-4c52-b5f2-b80571230616"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "PLST",
+    "SLD",
+    "TDC",
+    "ZEN"
+   ],
+   "rulings": [
+    {
+     "date": "2024-11-08",
+     "text": "A landfall ability doesn't trigger if a permanent already on the battlefield becomes a land."
+    },
+    {
+     "date": "2024-11-08",
+     "text": "A landfall ability triggers whenever a land you control enters for any reason. It triggers whenever you play a land, as well as whenever a spell or ability puts a land onto the battlefield under your control."
+    },
+    {
+     "date": "2024-11-08",
+     "text": "Whenever a land you control enters, each landfall ability of the permanents you control will trigger. You can put them   on the stack in any order. The last ability you put on the stack will be the first one to resolve (As a result, you can have those abilities resolve in the order of your choosing.)."
+    }
+   ],
+   "rarities": [
+    "uncommon",
+    "rare"
+   ]
+  },
+  "Mind Control": {
+   "name": "Mind Control",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Blue",
+     "Blue"
+    ],
+    "generic": 3
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Enchantment"
+    ],
+    "subtypes": [
+     "Aura"
+    ]
+   },
+   "power": null,
+   "toughness": null,
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "Enchant creature\nYou control enchanted creature.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [
+    {
+     "Enchant": {
+      "type": "Typed",
+      "type_filters": [
+       "Creature"
+      ],
+      "controller": null,
+      "properties": []
+     }
+    }
+   ],
+   "abilities": [],
+   "triggers": [],
+   "static_abilities": [
+    {
+     "mode": "Continuous",
+     "affected": {
+      "type": "Typed",
+      "type_filters": [
+       "Creature"
+      ],
+      "controller": null,
+      "properties": [
+       {
+        "type": "EnchantedBy"
+       }
+      ]
+     },
+     "modifications": [
+      {
+       "type": "ChangeController"
+      }
+     ],
+     "condition": null,
+     "affected_zone": null,
+     "effect_zone": null,
+     "active_zones": [],
+     "characteristic_defining": false,
+     "description": "You control enchanted creature."
+    }
+   ],
+   "replacements": [],
+   "color_override": null,
+   "color_identity": [
+    "Blue"
+   ],
+   "scryfall_oracle_id": "5912546a-acc2-448c-b042-64bdac5ec129",
+   "metadata": {
+    "source_printing_ids": [
+     "37151305-e489-4df1-9b0a-c5e11c77d2f1",
+     "496f79d6-33ee-4e31-9601-2722b0bc9141",
+     "ec7f77af-17d7-4746-bc83-f455b9b6f9ea"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "DCI",
+    "DPA",
+    "M10",
+    "M11",
+    "M12",
+    "PRM",
+    "PS11"
+   ],
+   "rulings": [
+    {
+     "date": "2010-08-15",
+     "text": "Gaining control of a creature doesn’t cause you gain control of any Auras or Equipment attached to it."
+    }
+   ],
+   "rarities": [
+    "uncommon"
+   ]
+  },
+  "Nihiloor": {
+   "name": "Nihiloor",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "White",
+     "Blue",
+     "Black"
+    ],
+    "generic": 2
+   },
+   "card_type": {
+    "supertypes": [
+     "Legendary"
+    ],
+    "core_types": [
+     "Creature"
+    ],
+    "subtypes": [
+     "Horror"
+    ]
+   },
+   "power": {
+    "type": "Fixed",
+    "value": 3
+   },
+   "toughness": {
+    "type": "Fixed",
+    "value": 5
+   },
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "When Nihiloor enters, for each opponent, tap up to one untapped creature you control. When you do, gain control of target creature that player controls with power less than or equal to the tapped creature's power for as long as you control Nihiloor.\nWhenever you attack with a creature an opponent owns, you gain 2 life and that player loses 2 life.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [],
+   "triggers": [
+    {
+     "mode": "ChangesZone",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "SetTapState",
+       "target": {
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ],
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Untapped"
+         }
+        ]
+       },
+       "scope": {
+        "type": "Single"
+       },
+       "state": {
+        "type": "Tap"
+       }
+      },
+      "cost": null,
+      "sub_ability": {
+       "kind": "Spell",
+       "effect": {
+        "type": "GainControl",
+        "target": {
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ],
+         "controller": "You",
+         "properties": []
+        }
+       },
+       "cost": null,
+       "sub_ability": null,
+       "duration": "UntilHostLeavesPlay",
+       "description": null,
+       "target_prompt": null,
+       "condition": {
+        "type": "WhenYouDo"
+       },
+       "optional_targeting": false,
+       "optional": false,
+       "forward_result": false,
+       "sub_link": "SequentialSibling"
+      },
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": true,
+      "optional": false,
+      "multi_target": {
+       "min": 0,
+       "max": {
+        "type": "Fixed",
+        "value": 1
+       }
+      },
+      "target_choice_timing": "Resolution",
+      "repeat_for": {
+       "type": "Ref",
+       "qty": {
+        "type": "PlayerCount",
+        "filter": {
+         "type": "Opponent"
+        }
+       }
+      },
+      "forward_result": false
+     },
+     "valid_card": {
+      "type": "SelfRef"
+     },
+     "origin": null,
+     "destination": "Battlefield",
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "When ~ enters, for each opponent, tap up to one untapped creature you control. When you do, gain control of target creature that player controls with power less than or equal to the tapped creature's power for as long as you control ~.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    },
+    {
+     "mode": "YouAttack",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "GainLife",
+       "amount": {
+        "type": "Fixed",
+        "value": 2
+       }
+      },
+      "cost": null,
+      "sub_ability": {
+       "kind": "Spell",
+       "effect": {
+        "type": "LoseLife",
+        "amount": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "type": "TriggeringPlayer"
+        }
+       },
+       "cost": null,
+       "sub_ability": null,
+       "duration": null,
+       "description": null,
+       "target_prompt": null,
+       "condition": null,
+       "optional_targeting": false,
+       "optional": false,
+       "forward_result": false
+      },
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "valid_card": null,
+     "origin": null,
+     "destination": null,
+     "trigger_zones": [
+      "Battlefield"
+     ],
+     "phase": null,
+     "optional": false,
+     "damage_kind": "Any",
+     "secondary": false,
+     "valid_target": null,
+     "valid_source": null,
+     "description": "Whenever you attack with a creature an opponent owns, you gain 2 life and that player loses 2 life.",
+     "constraint": null,
+     "condition": null,
+     "batched": false
+    }
+   ],
+   "static_abilities": [],
+   "replacements": [],
+   "color_override": [
+    "Black",
+    "Blue",
+    "White"
+   ],
+   "color_identity": [
+    "Black",
+    "Blue",
+    "White"
+   ],
+   "scryfall_oracle_id": "148271de-3351-41a1-bcf5-3ecaadc51540",
+   "brawl_commander": true,
+   "is_commander": true,
+   "metadata": {
+    "source_printing_ids": [
+     "443d468d-3676-4fba-810c-ea342c520ab9",
+     "a652ac92-4e61-45ec-866e-baafefd355e5"
+    ]
+   },
+   "legalities": {
+    "commander": "legal",
+    "duel": "legal",
+    "legacy": "legal",
+    "oathbreaker": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "AFC"
+   ],
+   "rulings": [
+    {
+     "date": "2021-07-23",
+     "text": "As Nihiloor's first triggered ability resolves, you choose up to one creature for each opponent, and tap them all at the same time. Then, a separate triggered ability is put on the stack for each creature you tapped this way. Those abilities are placed on the stack in the order you choose. If tapping those creature caused any other abilities you control to trigger, those are also placed on the stack at this time."
+    },
+    {
+     "date": "2021-07-23",
+     "text": "Both the tapped creature's power and the target creature's power are checked both as you put the ability on the stack and as the ability resolves in order to make sure the target is legal."
+    },
+    {
+     "date": "2021-07-23",
+     "text": "If Nihiloor leaves the battlefield before its enters-the-battlefield ability resolves or before its reflexive triggered abilities resolve, then you won't gain control of any creatures."
+    },
+    {
+     "date": "2021-07-23",
+     "text": "If a creature you tapped for Nihiloor's ability is somehow no longer tapped as the reflexive triggered ability resolves, that ability will still resolve and you will still gain control of the target as long as it has less power than the creature you tapped."
+    },
+    {
+     "date": "2021-07-23",
+     "text": "If the tapped creature is no longer on the battlefield as the trigger resolves, use its last existence on the battlefield to determine whether the target is still legal as the ability resolves."
+    }
+   ],
+   "rarities": [
+    "mythic"
+   ]
+  },
+  "Wishclaw Talisman": {
+   "name": "Wishclaw Talisman",
+   "mana_cost": {
+    "type": "Cost",
+    "shards": [
+     "Black"
+    ],
+    "generic": 1
+   },
+   "card_type": {
+    "supertypes": [],
+    "core_types": [
+     "Artifact"
+    ],
+    "subtypes": []
+   },
+   "power": null,
+   "toughness": null,
+   "loyalty": null,
+   "defense": null,
+   "oracle_text": "This artifact enters with three wish counters on it.\n{1}, {T}, Remove a wish counter from this artifact: Search your library for a card, put it into your hand, then shuffle. An opponent gains control of this artifact. Activate only during your turn.",
+   "non_ability_text": null,
+   "flavor_name": null,
+   "keywords": [],
+   "abilities": [
+    {
+     "kind": "Activated",
+     "effect": {
+      "type": "SearchLibrary",
+      "filter": {
+       "type": "Typed",
+       "type_filters": [
+        "Card"
+       ],
+       "controller": null,
+       "properties": []
+      },
+      "count": {
+       "type": "Fixed",
+       "value": 1
+      },
+      "reveal": false
+     },
+     "cost": {
+      "type": "Composite",
+      "costs": [
+       {
+        "type": "Mana",
+        "cost": {
+         "type": "Cost",
+         "shards": [],
+         "generic": 1
+        }
+       },
+       {
+        "type": "Tap"
+       },
+       {
+        "type": "RemoveCounter",
+        "count": 1,
+        "counter_type": {
+         "type": "OfType",
+         "data": "wish"
+        },
+        "target": null,
+        "selection": "SingleObject"
+       }
+      ]
+     },
+     "sub_ability": {
+      "kind": "Spell",
+      "effect": {
+       "type": "ChangeZone",
+       "origin": "Library",
+       "destination": "Hand",
+       "target": {
+        "type": "Any"
+       },
+       "owner_library": false,
+       "enter_transformed": false,
+       "enter_tapped": false,
+       "enters_attacking": false
+      },
+      "cost": null,
+      "sub_ability": {
+       "kind": "Spell",
+       "effect": {
+        "type": "Shuffle",
+        "target": {
+         "type": "Controller"
+        }
+       },
+       "cost": null,
+       "sub_ability": {
+        "kind": "Spell",
+        "effect": {
+         "type": "Choose",
+         "choice_type": "Opponent",
+         "persist": false
+        },
+        "cost": null,
+        "sub_ability": {
+         "kind": "Spell",
+         "effect": {
+          "type": "GainControl",
+          "target": {
+           "type": "SelfRef"
+          }
+         },
+         "cost": null,
+         "sub_ability": null,
+         "duration": null,
+         "description": null,
+         "target_prompt": null,
+         "condition": null,
+         "optional_targeting": false,
+         "optional": false,
+         "forward_result": false
+        },
+        "duration": null,
+        "description": null,
+        "target_prompt": null,
+        "condition": null,
+        "optional_targeting": false,
+        "optional": false,
+        "forward_result": false,
+        "sub_link": "SequentialSibling"
+       },
+       "duration": null,
+       "description": null,
+       "target_prompt": null,
+       "condition": null,
+       "optional_targeting": false,
+       "optional": false,
+       "forward_result": false
+      },
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "duration": null,
+     "description": "{1}, {T}, Remove a wish counter from ~: Search your library for a card, put it into your hand, then shuffle. An opponent gains control of ~. Activate only during your turn.",
+     "target_prompt": null,
+     "activation_restrictions": [
+      {
+       "type": "DuringYourTurn"
+      }
+     ],
+     "condition": null,
+     "optional_targeting": false,
+     "optional": false,
+     "forward_result": false
+    }
+   ],
+   "triggers": [],
+   "static_abilities": [],
+   "replacements": [
+    {
+     "event": "Moved",
+     "execute": {
+      "kind": "Spell",
+      "effect": {
+       "type": "PutCounter",
+       "counter_type": "wish",
+       "count": {
+        "type": "Fixed",
+        "value": 3
+       },
+       "target": {
+        "type": "SelfRef"
+       }
+      },
+      "cost": null,
+      "sub_ability": null,
+      "duration": null,
+      "description": null,
+      "target_prompt": null,
+      "condition": null,
+      "optional_targeting": false,
+      "optional": false,
+      "forward_result": false
+     },
+     "mode": {
+      "type": "Mandatory"
+     },
+     "valid_card": {
+      "type": "SelfRef"
+     },
+     "description": "~ enters with three wish counters on it.",
+     "condition": null,
+     "destination_zone": "Battlefield"
+    }
+   ],
+   "color_override": null,
+   "color_identity": [
+    "Black"
+   ],
+   "scryfall_oracle_id": "81c70ae7-3c18-4c9b-8505-e4db9e0e6518",
+   "metadata": {
+    "source_printing_ids": [
+     "07c17b01-ee5d-491a-8403-b3f819b778c4",
+     "69d0f5bd-ccea-49b2-bd79-ad5e4d850cf5",
+     "9da15685-69c4-4517-b5a7-cf929e2788ba",
+     "9ebcb070-953c-4b47-ad8a-ef207c65053f"
+    ]
+   },
+   "legalities": {
+    "brawl": "legal",
+    "commander": "legal",
+    "duel": "legal",
+    "historic": "legal",
+    "legacy": "legal",
+    "modern": "legal",
+    "oathbreaker": "legal",
+    "pioneer": "legal",
+    "standard": "legal",
+    "standardbrawl": "legal",
+    "timeless": "legal",
+    "vintage": "legal"
+   },
+   "printings": [
+    "ELD",
+    "FDN",
+    "MB2",
+    "PELD"
+   ],
+   "rulings": [
+    {
+     "date": "2019-10-04",
+     "text": "Once Wishclaw Talisman runs out of wish counters, it remains on the battlefield. You can't activate its last ability at all."
+    },
+    {
+     "date": "2019-10-04",
+     "text": "You choose which opponent gains control of Wishclaw Talisman while its ability is resolving. If that player later leaves the game, you regain control of Wishclaw Talisman."
+    }
+   ],
+   "rarities": [
+    "rare"
+   ],
+   "bracket_signals": {
+    "game_changer": false,
+    "mass_land_denial": false,
+    "extra_turn": false,
+    "efficient_tutor": true
+   }
   }
+ },
+ "scryfall_keywords": {
+  "A-Orcish Bowmasters": [
+   "Amass",
+   "Flash"
+  ],
+  "Anointer Priest": [
+   "Embalm"
+  ],
+  "Archangel of Thune": [
+   "Flying",
+   "Lifelink"
+  ],
+  "Astelli Reclaimer": [
+   "Flying",
+   "Warp"
+  ],
+  "Bartered Cow": [
+   "Food"
+  ],
+  "Basilisk Collar": [
+   "Equip"
+  ],
+  "Bonesplitter": [
+   "Equip"
+  ],
+  "Brainstealer Dragon": [
+   "Flying"
+  ],
+  "Chrome Mox": [
+   "Imprint"
+  ],
+  "Control Magic": [
+   "Enchant"
+  ],
+  "Dictate of Erebos": [
+   "Flash"
+  ],
+  "Dockside Extortionist": [
+   "Treasure"
+  ],
+  "Faithless Looting": [
+   "Flashback"
+  ],
+  "Flickerwisp": [
+   "Flying"
+  ],
+  "Glimpse the Unthinkable": [
+   "Mill"
+  ],
+  "Hedron Crab": [
+   "Landfall",
+   "Mill"
+  ],
+  "Inniaz, the Gale Force": [
+   "Flying"
+  ],
+  "Karn's Bastion": [
+   "Proliferate"
+  ],
+  "Lotus Cobra": [
+   "Landfall"
+  ],
+  "Mulldrifter": [
+   "Evoke",
+   "Flying"
+  ],
+  "Mycoloth": [
+   "Devour"
+  ],
+  "Rogue Skycaptain": [
+   "Flying"
+  ],
+  "Sheoldred, Whispering One": [
+   "Landwalk",
+   "Swampwalk"
+  ],
+  "Sky Swallower": [
+   "Flying"
+  ],
+  "Stitcher's Supplier": [
+   "Mill"
+  ],
+  "Sylvan Advocate": [
+   "Vigilance"
+  ],
+  "Tangle Wire": [
+   "Fading"
+  ],
+  "The Locust God": [
+   "Flying"
+  ],
+  "Throne of Geth": [
+   "Proliferate"
+  ],
+  "Tireless Tracker": [
+   "Investigate",
+   "Landfall"
+  ]
  }
 }

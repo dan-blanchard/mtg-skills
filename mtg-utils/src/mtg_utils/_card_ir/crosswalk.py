@@ -86,6 +86,9 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "SearchLibrary": "tutor",  # type/subtype tutor (artifacts/voltron)
     "Investigate": "investigate",  # clue_makers (CR 701.16a) → also artifacts
     "GainEnergy": "gain_energy",  # energy_makers (CR 107.14)
+    # NB: phase's ``Mill`` effect is NOT mapped — mill_makers reverted to the
+    # Scryfall ``Mill`` keyword field-lookup (ADR-0027), because phase mislabels
+    # three non-mill effects (Bone Dancer / Scroll Rack / Soldevi Digger) as Mill.
 }
 
 # Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): a maker / sac-payoff over
@@ -757,6 +760,56 @@ def _walk_effects(node: object, depth: int, seen: set[int]) -> Iterator[ConceptN
         for m in modes:
             if isinstance(m, TypedMirrorNode):
                 yield from _walk_effects(m, depth + 1, seen)
+
+
+def _player_scope_tag(ps: object) -> str | None:
+    """The actor tag of a ``player_scope`` value (tagged node / variant / string)."""
+    if isinstance(ps, TypedMirrorNode):
+        return tag_of(ps)
+    if isinstance(ps, MirrorVariant):
+        return ps.key
+    return ps if isinstance(ps, str) else None
+
+
+def _find_owner_scope(
+    node: object, target: object, depth: int, seen: set[int]
+) -> str | None:
+    if depth > 40 or not isinstance(node, TypedMirrorNode) or id(node) in seen:
+        return None
+    seen.add(id(node))
+    if getattr(node, "effect", MISSING) is target:
+        return _player_scope_tag(getattr(node, "player_scope", MISSING))
+    for fname in (*_EFFECT_CHILD_FIELDS, "mode_abilities"):
+        child = getattr(node, fname, MISSING)
+        if isinstance(child, TypedMirrorNode):
+            r = _find_owner_scope(child, target, depth + 1, seen)
+            if r is not None:
+                return r
+        elif _present(child) and isinstance(child, list):
+            for m in child:
+                r = _find_owner_scope(m, target, depth + 1, seen)
+                if r is not None:
+                    return r
+    return None
+
+
+def effect_owner_player_scope(root: object, effect_node: object) -> str | None:
+    """The ``player_scope`` actor tag on the ability wrapper that DIRECTLY owns
+    ``effect_node`` (the wrapper whose ``.effect`` IS it), or ``None`` when that
+    wrapper carries none.
+
+    phase hangs ``player_scope`` ("each player / an opponent <does X>") on the
+    wrapper whose ``effect`` is the resolving action — a trigger ``execute``, a
+    sequential ``sub_ability``, a modal ``mode_abilities`` arm — NOT on the inner
+    effect node the overlay decorates. Reading the scope of the wrapper that owns
+    THIS effect (not a sibling's) tells a give-away / edict ("each player gains
+    control", "each opponent sacrifices an enchantment") from a you-effect that
+    merely shares a unit with an unrelated each-player action — Nihiloor's
+    per-opponent tap loop (a ``repeat_for`` on the OUTER trigger, not the
+    gain-control's wrapper), Garland's monarch vote. Typed-attr reads only;
+    depth-capped, cycle-safe. ``None`` == owned by the ability's controller.
+    """
+    return _find_owner_scope(root, effect_node, 0, set())
 
 
 def _cost_concepts(ability: TypedMirrorNode) -> tuple[ConceptNode, ...]:

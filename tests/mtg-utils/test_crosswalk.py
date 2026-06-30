@@ -46,11 +46,25 @@ FIXTURE = "crosswalk_fixture_cards.json"
 
 
 @lru_cache(maxsize=1)
-def _cards() -> dict[str, dict]:
+def _fixture() -> dict:
     path = fixtures_dir() / FIXTURE
     if not path.exists():
         pytest.skip(f"{FIXTURE} not present")
-    return json.loads(Path(path).read_text())["cards"]
+    return json.loads(Path(path).read_text())
+
+
+def _cards() -> dict[str, dict]:
+    return _fixture()["cards"]
+
+
+def _kw(name: str) -> frozenset[str]:
+    """The card's real Scryfall keyword array (the mill_makers field-lookup source).
+
+    Not in the phase typed substrate (phase carries no ``Mill`` keyword), so the
+    fixture stores it alongside the phase records — the shadow diff reads the same
+    array off the bulk record. Absent == no keywords.
+    """
+    return frozenset(_fixture().get("scryfall_keywords", {}).get(name, ()))
 
 
 @lru_cache(maxsize=1)
@@ -65,7 +79,10 @@ def _tree(name: str) -> ConceptTree:
 
 
 def _idents(name: str) -> set[tuple[str, str, str]]:
-    return {(s.key, s.scope, s.subject) for s in extract_crosswalk_signals(_tree(name))}
+    return {
+        (s.key, s.scope, s.subject)
+        for s in extract_crosswalk_signals(_tree(name), keywords=_kw(name))
+    }
 
 
 def _keys(name: str) -> set[str]:
@@ -612,8 +629,13 @@ def test_resource_token_makers(name, ident):
     assert ident in _idents(name)
 
 
-def test_mill_makers_fires():
-    assert ("mill_makers", "any", "") in _idents("Stitcher's Supplier")
+@pytest.mark.parametrize(
+    "name",
+    # genuine mills carrying the Scryfall ``Mill`` keyword (the field-lookup source)
+    ["Stitcher's Supplier", "Glimpse the Unthinkable", "Hedron Crab"],
+)
+def test_mill_makers_fires(name):
+    assert ("mill_makers", "any", "") in _idents(name)
 
 
 def test_proliferate_makers_fires():
@@ -642,6 +664,81 @@ def test_voltron_makers_attach_other_vs_self(name, should_fire):
 )
 def test_voltron_matters_payoff(name):
     assert ("voltron_matters", "you", "") in _idents(name)
+
+
+# ── Batch-3 over-fire regressions (rules-lawyer adjudicated; ADR-0035) ─────────
+# Three blocking crosswalk-only over-fires the Stage-2 shadow diff surfaced:
+#   1. gain_control fired on GIVE-AWAY / chaos control changes (CR 110.2 / 603.10d —
+#      the beneficiary is an opponent, not you).
+#   2. enchantments_matter fired on a MODAL "each opponent sacrifices an enchantment"
+#      edict (CR 701.21a — a player only sacrifices a permanent THEY control); the
+#      sac's mode-arm player_scope was below the batch-2 unit-level edict guard's reach.
+#   3. mill_makers, as a structural ``Mill``-effect port, re-introduced the three
+#      phase mislabels (Bone Dancer / Scroll Rack / Soldevi Digger) ADR-0027 dropped
+#      by moving mill_makers to the Scryfall ``Mill`` keyword (CR 701.17a).
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Sky Swallower",  # target opponent gains control of all YOUR permanents
+        "Fateful Handoff",  # an opponent gains control of that permanent (ParentTarget)
+        "Rogue Skycaptain",  # an opponent gains control of it (ParentTarget)
+        "Wishclaw Talisman",  # an opponent gains control of THIS artifact (SelfRef)
+        "Inniaz, the Gale Force",  # each player gains control (player_scope on execute)
+        "Scrambleverse",  # each player gains control (player_scope on deep sub_ability)
+    ],
+)
+def test_gain_control_not_fired_by_giveaway(name):
+    """A control change whose NEW controller is an opponent / each player is a
+    give-away or chaos swap, not a you-gain payoff (CR 110.2 / 603.10d)."""
+    assert "gain_control" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Mind Control",  # ChangeController enchant — the new controller is you
+        "Control Magic",  # ChangeController enchant
+        "Act of Treason",  # GainControl of an opponent's creature (controller-null)
+        # phase mislabels "target creature that OPPONENT controls" as controller:You
+        # AND the unit has an unrelated per-opponent tap loop — the give-away guard
+        # must read the gain-control's OWN wrapper scope, not the sibling loop's.
+        "Nihiloor",
+    ],
+)
+def test_gain_control_youtheft_preserved(name):
+    """Genuine you-take-control still fires past the give-away guard (CR 720)."""
+    assert ("gain_control", "you", "") in _idents(name)
+
+
+def test_enchantments_matter_not_fired_by_modal_edict():
+    """Baleful Beholder's mode 1 ("Each opponent sacrifices an enchantment of their
+    choice") is enchantment HATE, an opponent edict — the mode-arm player_scope is
+    Opponent, so neither enchantments_matter NOR sacrifice_outlets fires (CR 701.21a).
+    """
+    keys = _keys("Baleful Beholder")
+    assert "enchantments_matter" not in keys
+    assert "sacrifice_outlets" not in keys
+
+
+def test_enchantments_matter_payoff_preserved():
+    """A genuine your-enchantments payoff (Enlightened Tutor's Enchantment tutor)
+    still fires past the modal-edict guard."""
+    assert ("enchantments_matter", "you", "") in _idents("Enlightened Tutor")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Bone Dancer",  # opp-GY→battlefield REANIMATION — phase mislabels as Mill
+        "Soldevi Digger",  # GY→library-bottom recycle — phase mislabels as Mill
+    ],
+)
+def test_mill_makers_not_fired_by_phase_mislabel(name):
+    """The keyword field-lookup (no Scryfall ``Mill`` keyword) drops the phase
+    ``Mill``-effect mislabels the structural port re-introduced (CR 701.17a)."""
+    assert "mill_makers" not in _keys(name)
 
 
 # ── batch hygiene ─────────────────────────────────────────────────────────────

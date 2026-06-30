@@ -30,6 +30,7 @@ from __future__ import annotations
 
 from mtg_utils._card_ir.crosswalk import (
     ARTIFACT_TOKEN_SUBTYPES,
+    AbilityUnit,
     ConceptTree,
     amount_factor,
     amount_is_scaling,
@@ -38,6 +39,7 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind,
     counter_pred_kinds,
     effect_filter,
+    effect_owner_player_scope,
     effect_reaches_player,
     explicit_recipient_scope,
     filter_controller,
@@ -49,6 +51,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_subject,
     trigger_subject_scope,
 )
+from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_regex import Signal, _resolve_subject
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
@@ -503,13 +506,16 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
                     Signal("sacrifice_outlets", "you", "", c.raw, tree.name, "high")
                 ]
         # An EFFECT-role sac is an edict UNLESS its subject is explicitly you AND
-        # the resolving ability's actor is NOT an opponent (the player_scope guard
-        # below catches the "each opponent sacrifices" edicts phase mislabels as a
-        # you-controlled sacrificed subject — Grave Pact, Dictate of Erebos).
-        if _edict_actor(unit):
-            continue
+        # the sac's OWN ability wrapper does not name a non-controller actor (the
+        # per-effect player_scope guard catches the "each opponent sacrifices" edicts
+        # phase mislabels as a you-controlled sacrificed subject — Grave Pact, Dictate
+        # of Erebos, Baleful Beholder's modal mode arm).
         for c in unit.effects:
-            if c.concept == "sacrifice" and _is_you_sac_subject(c, cost=False):
+            if (
+                c.concept == "sacrifice"
+                and _is_you_sac_subject(c, cost=False)
+                and not _sac_is_edict(unit, c.node)
+            ):
                 return [
                     Signal("sacrifice_outlets", "you", "", c.raw, tree.name, "high")
                 ]
@@ -523,23 +529,23 @@ _EDICT_ACTORS: frozenset[str] = frozenset(
 )
 
 
-def _edict_actor(unit: object) -> bool:
-    """Whether the ability whose effect resolves names a NON-controller actor.
+def _sac_is_edict(unit: AbilityUnit, sac_node: TypedMirrorNode) -> bool:
+    """Whether a ``Sacrifice`` EFFECT is an EDICT (someone ELSE sacrifices their own).
 
     Phase tags "each opponent / each other player sacrifices" edicts with a
-    ``player_scope`` of ``Opponent`` / ``All`` on the resolving ability (a trigger's
-    ``execute``, or the activated/replacement ability itself), while MISLABELING the
-    sacrificed creature's filter ``controller: You`` — but per CR 701.21a a player
-    can only sacrifice a permanent THEY control, so an "each opponent sacrifices"
-    effect is an EDICT, not a self-sac outlet. Reading the actor here rejects the
-    edict (Grave Pact, Dictate of Erebos, Butcher of Malakir, Dusk Mangler) while a
-    genuine self-sac (Mycoloth's Devour — no opponents ``player_scope``) still fires.
+    ``player_scope`` of ``Opponent`` / ``All`` on the ability WRAPPER that OWNS the
+    sacrifice — a trigger's ``execute``, a sequential ``sub_ability``, or a modal
+    ``mode_abilities`` arm (Baleful Beholder's "Each opponent sacrifices an
+    enchantment") — while MISLABELING the sacrificed permanent's filter
+    ``controller: You``. Per CR 701.21a a player can only sacrifice a permanent THEY
+    control, so the effect is an EDICT, not a self-sac outlet. Reading the scope of
+    the sacrifice's OWN wrapper (not a sibling's) rejects the edict (Grave Pact,
+    Dictate of Erebos, Baleful Beholder's modal arm) while a genuine self-sac
+    (Mycoloth's Devour — no non-controller scope on the sac's wrapper) still fires.
     """
-    node = getattr(unit, "node", None)
-    for holder in (node, getattr(node, "execute", None)):
-        if tag_of(getattr(holder, "player_scope", None)) in _EDICT_ACTORS:
-            return True
-    return False
+    return effect_owner_player_scope(getattr(unit, "node", None), sac_node) in (
+        _EDICT_ACTORS
+    )
 
 
 def _is_you_sac_subject(c: object, *, cost: bool) -> bool:
@@ -782,14 +788,14 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # SAC PAYOFF — your-fodder artifact/enchantment sac (Atog-style). Per-unit so the
     # edict guard applies: "each opponent sacrifices an artifact/enchantment" (Tribute
     # to the Wild, Mire in Misery, Vile Mutilator) is an EDICT phase mislabels with a
-    # you-controlled subject; ``_edict_actor`` rejects it (CR 701.21a). The sac subject
-    # must be genuinely you-controlled; the Permanent-symmetric-list gate (CR 702.166a)
-    # drops the Bargain alt-cost.
+    # you-controlled subject; ``_sac_is_edict`` (per-effect player_scope, incl. modal
+    # arms) rejects it (CR 701.21a). The sac subject must be genuinely you-controlled;
+    # the Permanent-symmetric-list gate (CR 702.166a) drops the Bargain alt-cost.
     for unit in tree.units:
-        if _edict_actor(unit):
-            continue
         for c in unit.effects:
             if c.concept != "sacrifice" or c.scope == "opponents":
+                continue
+            if _sac_is_edict(unit, c.node):
                 continue
             sub = effect_filter(c.node)
             if sub is None or filter_controller(sub) != "You":
@@ -964,20 +970,77 @@ def _any_counter_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _gain_control(tree: ConceptTree) -> list[Signal]:
-    """gain_control — THEFT (you take control of a permanent you don't own, CR 110.2 /
-    720). Mirrors ``_signals_ir`` line ~9270: a ``GainControl`` / ``GainControlAll``
-    effect (Threaten, Control Magic's reset-free theft), EXCLUDING a control-RESET
-    (an ``Owned`` predicate on the target — "each player gains control of permanents
-    they own", Brooding Saurian, CR 110.2a). A donate (``GiveControl`` — you give
-    your OWN away) is a SEPARATE phase tag, never reaching this arm. A ``Control
-    Magic`` enchant rides a ``ChangeController`` STATIC modification. Scope "you".
+def _chooses_opponent(node: object) -> bool:
+    """Whether a ``Choose`` effect picks an OPPONENT (the give-away beneficiary).
+
+    Fateful Handoff / Rogue Skycaptain resolve "an opponent gains control of it" as
+    a ``Choose`` of ``choice_type: Opponent`` feeding the gain-control's
+    ``ParentTarget``. A directional / random ``Choose`` (Order of Succession's
+    Left/Right, Scrambleverse's random Player) is instead caught by the player_scope
+    arm; only the literal Opponent choice is read here.
     """
-    for c in tree.effect_concepts("gain_control"):
-        sub = effect_filter(c.node)
-        if sub is not None and "Owned" in filter_predicates(sub):
-            continue  # control-RESET, not theft
-        return [Signal("gain_control", "you", "", c.raw, tree.name, "high")]
+    return getattr(node, "choice_type", None) == "Opponent"
+
+
+def _gives_control_to_other(node: TypedMirrorNode, unit: AbilityUnit) -> bool:
+    """Whether a gain-control effect hands control to a NON-you player (CR 110.2 /
+    603.10d) — a give-away / chaos swap, not a you-theft payoff. The beneficiary of a
+    control change is structural; three typed markers say "not you":
+
+    * a MASS give-away of your OWN board — ``GainControlAll`` whose target is
+      ``controller: You`` ("target opponent gains control of all permanents YOU
+      control": Sky Swallower). Restricted to the *mass* form: a single
+      ``GainControl`` of ``controller: You`` is a phase MISLABEL of "target creature
+      that <opponent> controls" (Nihiloor), a genuine you-theft, not a give-away;
+    * a ``Choose`` of an OPPONENT in the unit feeding the gain-control's ``SelfRef`` /
+      ``ParentTarget`` ("an opponent gains control of it / this" — Fateful Handoff,
+      Rogue Skycaptain, Wishclaw Talisman, Rainbow Vale). Gaining control of THIS
+      card / the just-targeted thing for an opponent is never a you-theft;
+    * a non-controller ``player_scope`` on the gain-control's OWN ability wrapper
+      ("each player gains control …": Order of Succession, Inniaz, Scrambleverse,
+      Aminatou) — read per-effect (:func:`effect_owner_player_scope`), so an unrelated
+      each-player action sharing the unit (Nihiloor's per-opponent tap loop) does NOT
+      veto a genuine you-theft.
+    """
+    if tag_of(node) == "GainControlAll":
+        sub = effect_filter(node)
+        if sub is not None and filter_controller(sub) == "You":
+            return True
+    if tag_of(effect_filter(node)) in ("SelfRef", "ParentTarget") and any(
+        tag_of(c.node) == "Choose" and _chooses_opponent(c.node) for c in unit.effects
+    ):
+        return True
+    return effect_owner_player_scope(getattr(unit, "node", None), node) in (
+        _EDICT_ACTORS
+    )
+
+
+def _gain_control(tree: ConceptTree) -> list[Signal]:
+    """gain_control — YOU-THEFT (you take control of a permanent you don't own,
+    CR 110.2 / 720). Mirrors ``_signals_ir`` line ~9270: a ``GainControl`` /
+    ``GainControlAll`` effect (Threaten, Control Magic's reset-free theft), EXCLUDING:
+
+    * a control-RESET — an ``Owned`` predicate on the target ("each player gains
+      control of permanents they own", Brooding Saurian, CR 110.2a);
+    * a GIVE-AWAY / chaos swap whose new controller is NOT you
+      (:func:`_gives_control_to_other`): "target opponent gains control of all
+      permanents you control" (Sky Swallower), "an opponent gains control of it"
+      (Fateful Handoff, Rogue Skycaptain), "each player gains control …" (Order of
+      Succession, Inniaz, Scrambleverse, Aminatou). The beneficiary being an opponent
+      is structural (CR 110.2 / 603.10d), so these are NOT a you-gain payoff.
+
+    A donate (``GiveControl`` — you give your OWN away) is a SEPARATE phase tag,
+    never reaching this arm. A ``Control Magic`` enchant rides a ``ChangeController``
+    STATIC modification (the new controller is you). Scope "you".
+    """
+    for unit in tree.units:
+        for c in unit.effect_concepts("gain_control"):
+            sub = effect_filter(c.node)
+            if sub is not None and "Owned" in filter_predicates(sub):
+                continue  # control-RESET, not theft
+            if _gives_control_to_other(c.node, unit):
+                continue  # give-away — the new controller is an opponent, not you
+            return [Signal("gain_control", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
         for c in unit.statics:
             if tag_of(c.node) == "ChangeController":
@@ -1017,20 +1080,19 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
     return sigs
 
 
-def _mill_makers(tree: ConceptTree) -> list[Signal]:
-    """mill_makers — a mill DOER (CR 701.17a). A ``Mill`` effect (Stitcher's Supplier
-    self-mill, Maddening Cacophony opponent-mill). The live lane fires the keyword
-    array scoped "any"; the structural ``Mill`` effect is broader (catches the
-    keyword-less millers). Scope mirrors the live preset's "any".
-
-    Gated to ``destination == "Graveyard"`` (CR 701.17a — mill puts cards into a
-    graveyard): drops Scroll Rack (phase mislabels its library↔hand swap ``Mill`` with
-    a Hand destination). Two phase reanimation/recycle mislabels (Bone Dancer, Soldevi
-    Digger) keep a Graveyard destination and stay ``crosswalk_only``.
+def _mill_makers(keywords: frozenset[str], name: str) -> list[Signal]:
+    """mill_makers — a FIELD-LOOKUP on the Scryfall ``Mill`` keyword, NOT a structural
+    port (ADR-0027 / CR 701.17a). The live survivor (``_signals_ir``
+    ``_IR_KEYWORD_MAP['mill']``) was DELIBERATELY moved to the keyword array to drop
+    three phase mislabels of the ``Mill`` effect category — Bone Dancer (opp-GY →
+    battlefield REANIMATION), Scroll Rack (library↔hand swap), Soldevi Digger (GY →
+    library bottom) — none a CR 701.17a mill, none carrying the ``Mill`` keyword. Every
+    genuine mill DOES carry it (0 keyword-less commander-legal fires), so the keyword
+    route reproduces the deleted regex producer exactly. Scope "any" (self- or
+    opponent-mill — the deleted preset's scope).
     """
-    for c in tree.effect_concepts("mill"):
-        if getattr(c.node, "destination", None) == "Graveyard":
-            return [Signal("mill_makers", "any", "", c.raw, tree.name, "high")]
+    if any(k.lower() == "mill" for k in keywords):
+        return [Signal("mill_makers", "any", "", "", name, "high")]
     return []
 
 
@@ -1141,7 +1203,6 @@ _LANES = (
     _any_counter_matters,
     _gain_control,
     _resource_token_makers,
-    _mill_makers,
     _proliferate_makers,
     _energy_makers,
     _voltron_makers,
@@ -1150,7 +1211,10 @@ _LANES = (
 
 
 def extract_crosswalk_signals(
-    tree: ConceptTree, *, keys: frozenset[str] = PORTED_KEYS
+    tree: ConceptTree,
+    *,
+    keys: frozenset[str] = PORTED_KEYS,
+    keywords: frozenset[str] = frozenset(),
 ) -> list[Signal]:
     """Run the ported crosswalk lanes over one concept tree; dedupe by ident.
 
@@ -1159,6 +1223,11 @@ def extract_crosswalk_signals(
     (granularity c — mirrors ``signals.py`` lines 185-188: a spell-copier wants a
     dense instant/sorcery base, so a ``spellcast_matters`` LOW is cross-opened when
     absent).
+
+    ``keywords`` is the card's Scryfall keyword array (the bulk record's
+    ``keywords``), the field-lookup source ``mill_makers`` gates on — it is NOT in
+    the phase typed substrate (phase carries no ``Mill`` keyword), so the caller
+    supplies it (the shadow diff from the bulk record, the tests from the fixture).
     """
     out: list[Signal] = []
     seen: set[tuple[str, str, str]] = set()
@@ -1175,6 +1244,8 @@ def extract_crosswalk_signals(
     for lane in _LANES:
         for sig in lane(tree):
             add(sig)
+    for sig in _mill_makers(frozenset(keywords), tree.name):
+        add(sig)
 
     # Whole-card reconciliation (granularity c): cross-open spellcast_matters LOW
     # from a spell-copier that has no native spellcast signal in this batch.

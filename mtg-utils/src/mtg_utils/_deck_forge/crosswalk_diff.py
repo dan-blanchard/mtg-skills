@@ -121,7 +121,12 @@ def diff_corpus_crosswalk(
 
         name = bulk.get("name", rec.get("name", ""))
         tree = build_concept_tree(root, name=name, oracle_id=oid)
-        crosswalk = _slice(extract_crosswalk_signals(tree, keys=keys), keys)
+        # mill_makers is a Scryfall-``Mill``-keyword field-lookup (ADR-0027); the
+        # keyword lives on the bulk record, not the phase substrate.
+        kws = frozenset(bulk.get("keywords") or [])
+        crosswalk = _slice(
+            extract_crosswalk_signals(tree, keys=keys, keywords=kws), keys
+        )
         live = _slice(extract_signals_hybrid(bulk, ir), keys)
         for ident in crosswalk & live:
             tally(ident, BOTH, name)
