@@ -741,6 +741,186 @@ def test_mill_makers_not_fired_by_phase_mislabel(name):
     assert "mill_makers" not in _keys(name)
 
 
+# ── Batch 4 (ADR-0035 Stage 2): graveyard pair + doer cluster + copy cluster ──
+
+
+def test_fight_makers_fires():
+    assert ("fight_makers", "you", "") in _idents("Prey Upon")
+    # Lightning Bolt is a DealDamage burn, not a Fight — must NOT fire.
+    assert "fight_makers" not in _keys("Lightning Bolt")
+
+
+def test_goad_makers_structural_and_keyword():
+    # Disrupt Decorum carries a GoadAll effect AND the Scryfall Goad keyword.
+    assert ("goad_makers", "opponents", "") in _idents("Disrupt Decorum")
+
+
+def test_regenerate_makers_fires():
+    assert ("regenerate_makers", "you", "") in _idents("River Boa")
+
+
+@pytest.mark.parametrize(
+    ("name", "scope"),
+    [
+        ("Gray Merchant of Asphodel", "opponents"),  # drain (player_scope on wrapper)
+        ("Dark Confidant", "you"),  # self-loss upkeep
+        ("Erebos, God of the Dead", "you"),  # paylife cost buys a draw
+    ],
+)
+def test_lifeloss_makers_scope_split(name, scope):
+    assert ("lifeloss_makers", scope, "") in _idents(name)
+
+
+def test_lifeloss_makers_land_paylife_excluded():
+    """Horizon Canopy's ``Pay 1 life: draw`` is a LAND mana-source paylife — the land
+    gate excludes it (CR 118.8), so no lifeloss_makers (the painland trap)."""
+    assert "lifeloss_makers" not in _keys("Horizon Canopy")
+
+
+def test_lifeloss_matters_trigger_and_keyword():
+    assert ("lifeloss_matters", "opponents", "") in _idents("Exquisite Blood")
+    # Light Up the Stage's Spectacle condition is reminder-text only → keyword route.
+    assert ("lifeloss_matters", "opponents", "") in _idents("Light Up the Stage")
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        ("Diabolic Edict", ("edict_makers", "opponents", "")),  # subject TargetPlayer
+        ("Grave Pact", ("edict_makers", "opponents", "")),  # player_scope on wrapper
+        ("Fleshbag Marauder", ("edict_makers", "each", "")),  # player_scope All
+    ],
+)
+def test_edict_makers_fires(name, ident):
+    assert ident in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Mycoloth", "Viscera Seer"])
+def test_edict_makers_excludes_you_sac(name):
+    """A you-sac (Mycoloth — sacrificed subject controller You; Viscera Seer — a sac
+    COST, never an effect) is NOT an edict (CR 701.21a)."""
+    assert "edict_makers" not in _keys(name)
+
+
+def test_land_sacrifice_makers_fires():
+    assert ("land_sacrifice_makers", "you", "") in _idents("Zuran Orb")
+    # Ashnod's Altar sacrifices a CREATURE, not a land → sacrifice_outlets, not this.
+    assert "land_sacrifice_makers" not in _keys("Ashnod's Altar")
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        ("Bile Blight", ("debuff_makers", "any", "")),  # negative Pump
+        ("Black Sun's Zenith", ("debuff_makers", "any", "")),  # M1M1 on all creatures
+        ("Humility", ("debuff_makers", "you", "")),  # mass base-toughness set ≤2
+    ],
+)
+def test_debuff_makers_anchors(name, ident):
+    assert ident in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Darksteel Mutation", "Glorious Anthem"])
+def test_debuff_makers_excludes_single_aura_and_buff(name):
+    """A single-Aura shrink (Darksteel Mutation — affected carries ``EnchantedBy``) is
+    a neutralize, not a mass -1/-1 enabler; a positive anthem (Glorious Anthem) is a
+    buff. Neither fires debuff_makers (CR 613.4c / checklist #6)."""
+    assert "debuff_makers" not in _keys(name)
+
+
+def test_lure_makers_fires():
+    assert ("lure_makers", "you", "") in _idents("Lure")
+    # Academic Dispute's single-target ForceBlock is a provoke-style effect, not the
+    # all-creatures-must-block lure mode — must NOT fire.
+    assert "lure_makers" not in _keys("Academic Dispute")
+
+
+def test_copy_permanent_and_clone():
+    # Crystalline Resonance copies a Permanent → copy_permanent + clone_makers.
+    idents = _idents("Crystalline Resonance")
+    assert ("copy_permanent", "you", "") in idents
+    assert ("clone_makers", "you", "") in idents
+
+
+@pytest.mark.parametrize("name", ["Clone", "Spark Double"])
+def test_clone_makers_fires(name):
+    assert ("clone_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Twincast", "Mirror Match"])
+def test_clone_makers_excludes_spell_and_token_copy(name):
+    """A spell-copy (Twincast) and a token-copy (Mirror Match — a
+    ``CopyTokenBlockingAttacker``) are NOT creature clones (Dan's clone-vs-token-copy
+    boundary, CR 707.1)."""
+    assert "clone_makers" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Cackling Counterpart", "Trostani, Selesnya's Voice", "Mirror Match"],
+)
+def test_token_copy_makers_fires(name):
+    assert ("token_copy_makers", "you", "") in _idents(name)
+
+
+def test_token_copy_makers_excludes_selfref_self_copy():
+    """Adorned Pouncer's Eternalize self-copy is a ``CopyTokenOf`` with a ``SelfRef``
+    target (a copy of THIS card, not a copy-others payoff) — must NOT fire (CR 707)."""
+    assert "token_copy_makers" not in _keys("Adorned Pouncer")
+
+
+def test_connive_makers_fires():
+    assert ("connive_makers", "you", "") in _idents("Hypnotic Grifter")
+
+
+def test_explore_makers_structural_only_excludes_payoff():
+    assert ("explore_makers", "you", "") in _idents("Merfolk Branchwalker")
+    # Wildgrowth Walker is an explore PAYOFF ("whenever a creature you control
+    # explores") with NO Explore effect — only a watch-trigger. Read structurally, it
+    # must NOT fire, even though its Scryfall keyword array carries "Explore" (the
+    # keyword field-lookup would over-fire — CR 701.44a).
+    assert "explore_makers" not in _keys("Wildgrowth Walker")
+
+
+def test_suspect_makers_fires():
+    assert ("suspect_makers", "you", "") in _idents("Nelly Borca, Impulsive Accuser")
+
+
+@pytest.mark.parametrize("name", ["Coastal Piracy", "Bident of Thassa"])
+def test_combat_damage_to_opp_fires(name):
+    assert ("combat_damage_to_opp", "opponents", "") in _idents(name)
+
+
+def test_combat_damage_to_opp_excludes_damage_to_you():
+    """Contested War Zone triggers on combat damage dealt to YOU (``valid_target:
+    Controller``) — a defensive trigger, not the aggressive lane (CR 510.1c)."""
+    assert "combat_damage_to_opp" not in _keys("Contested War Zone")
+
+
+def test_graveyard_makers_structural_and_keyword():
+    # Reanimate: a ChangeZone (Graveyard, Battlefield), scope you (the recursion
+    # target carries no controller — the self-graveyard default, NOT opponents).
+    assert ("graveyard_makers", "you", "") in _idents("Reanimate")
+    # Faithless Looting: the Flashback keyword field-lookup.
+    assert ("graveyard_makers", "you", "") in _idents("Faithless Looting")
+    # Stitcher's Supplier: a Mill effect with destination Graveyard (self-mill).
+    assert ("graveyard_makers", "you", "") in _idents("Stitcher's Supplier")
+
+
+@pytest.mark.parametrize("name", ["Scroll Rack", "Banisher Priest"])
+def test_graveyard_makers_excludes_mislabels(name):
+    """A library↔hand swap phase MISLABELS as ``Mill`` with destination=Hand (Scroll
+    Rack) and an exile-return reanimate has origin=Exile (Banisher Priest) — neither is
+    a graveyard interaction (CR 701.17a / 603.6e); the dest/origin reads exclude them.
+    """
+    assert "graveyard_makers" not in _keys(name)
+
+
+def test_graveyard_matters_keyword():
+    # Stinkweed Imp carries the Dredge keyword → graveyard_matters.
+    assert ("graveyard_matters", "you", "") in _idents("Stinkweed Imp")
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

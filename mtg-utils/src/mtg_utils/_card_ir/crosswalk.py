@@ -86,6 +86,20 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "SearchLibrary": "tutor",  # type/subtype tutor (artifacts/voltron)
     "Investigate": "investigate",  # clue_makers (CR 701.16a) → also artifacts
     "GainEnergy": "gain_energy",  # energy_makers (CR 107.14)
+    # Batch 4 (ADR-0035 Stage 2):
+    "Fight": "fight",  # fight_makers (CR 701.14a)
+    "Goad": "goad",  # goad_makers (CR 701.15a)
+    "GoadAll": "goad",
+    "Regenerate": "regenerate",  # regenerate_makers (CR 701.19a)
+    "Connive": "connive",  # connive_makers (CR 701.50a)
+    "Explore": "explore",  # explore_makers (CR 701.44a)
+    "ExploreAll": "explore",
+    "Suspect": "suspect",  # suspect_makers (CR 701.60a)
+    "BecomeCopy": "become_copy",  # clone_makers / copy_permanent (CR 707)
+    "CopyTokenOf": "copy_token",  # token_copy_makers (CR 707 / 701.36)
+    "CopyTokenBlockingAttacker": "copy_token",  # Mirror Match
+    "Populate": "populate",  # token_copy_makers (CR 701.36a)
+    "NoMaximumHandSize": "no_max_handsize",  # big_hand_makers (CR 402.2)
     # NB: phase's ``Mill`` effect is NOT mapped — mill_makers reverted to the
     # Scryfall ``Mill`` keyword field-lookup (ADR-0027), because phase mislabels
     # three non-mill effects (Bone Dancer / Scroll Rack / Soldevi Digger) as Mill.
@@ -427,6 +441,7 @@ def _trigger_event(trig: TypedMirrorNode) -> str:
         "DamageDone": "deals_damage",
         "CounterAdded": "counter_added",
         "LifeGained": "life_gained",
+        "LifeLost": "life_lost",  # lifeloss_matters (CR 119.3)
         "Taps": "taps",
         "Sacrificed": "sacrificed",
         "Exploited": "exploited",  # CR 702.110 — exploit IS a sacrifice payoff
@@ -694,6 +709,116 @@ def amount_factor(node: TypedMirrorNode, field: str = "amount") -> int:
         if isinstance(v, int):
             return v
     return 1
+
+
+def pump_is_negative(node: TypedMirrorNode) -> bool:
+    """Whether a ``Pump`` / ``PumpAll`` effect is a SHRINK (CR 613.4c) — a negative
+    fixed ``power`` or ``toughness`` (Bile Blight's -3/-3, a -X/-X mass shrink).
+
+    The ``Pump`` effect carries ``power`` / ``toughness`` as ``Fixed`` sub-nodes
+    (distinct from the static ``AddPower`` mod's plain-int ``value``); a negative
+    value is a debuff (CR 613.4c), a positive one a buff (an anthem). A dynamic /
+    variable amount is NOT read here (it has no fixed sign to gate on).
+    """
+    for fname in ("power", "toughness"):
+        sub = getattr(node, fname, MISSING)
+        if _present(sub) and tag_of(sub) == "Fixed":
+            v = getattr(sub, "value", None)
+            if isinstance(v, int) and v < 0:
+                return True
+    return False
+
+
+def mod_value(node: TypedMirrorNode) -> int | None:
+    """The plain-int ``value`` of a static P/T modification (``AddPower`` /
+    ``SetToughness`` …), or ``None`` when absent/dynamic.
+
+    The static mods carry a bare-int ``value`` (Glorious Anthem's +1, Humility's
+    set-to-1), unlike the ``Pump`` effect's ``Fixed``-wrapped ``power``/``toughness``.
+    The base-P/T-shrink debuff gate (a SET ≤ 2 on opponents/symmetric) reads it.
+    """
+    v = getattr(node, "value", MISSING)
+    return v if isinstance(v, int) else None
+
+
+# Cost component tags that constitute a self life-payment (CR 118.8) — "Pay N life".
+_PAYLIFE_COST_TAGS: frozenset[str] = frozenset({"PayLife"})
+
+
+def cost_has_paylife(node: object, *, depth: int = 0) -> bool:
+    """Whether an activation-cost node pays life (CR 118.8), recursing ``Composite``.
+
+    Phase nests a ``Pay N life`` cost as a ``PayLife`` node, often inside a
+    ``Composite`` cost (mana + life — Erebos's ``{1}{B}, Pay 2 life``). The
+    lifeloss-maker cost arm reads it through the composite the single top-level
+    cost-concept decoration does not flatten.
+    """
+    if depth > 8 or not isinstance(node, TypedMirrorNode):
+        return False
+    if tag_of(node) in _PAYLIFE_COST_TAGS:
+        return True
+    costs = getattr(node, "costs", MISSING)
+    if _present(costs) and isinstance(costs, list):
+        return any(cost_has_paylife(c, depth=depth + 1) for c in costs)
+    return False
+
+
+def damage_recipient_is_player(vt: object) -> bool:
+    """Whether a combat-damage TRIGGER's recipient (``valid_target``) is a PLAYER an
+    aggressor reaches — an OPPONENT / generic / targeted player (CR 510.1c).
+
+    The ``combat_damage_to_opp`` gate. A ``Player`` / planeswalker / opponent / generic
+    targeted player IS a reachable player; a ``Typed`` filter naming ``Creature`` (or
+    any core type that is not Player/Planeswalker) is a CREATURE recipient (Ohran
+    Viper's first trigger → the to-creature lane). A ``Controller`` / ``You`` /
+    ``SelfRef`` recipient is "deals combat damage to YOU" — a DEFENSIVE trigger
+    (Contested War Zone, Norn's Decree; phase also MISLABELS some "to a player"
+    triggers as ``Controller``, a phase-parse bug the live path excludes too), NOT this
+    aggressive lane. A bare ``Typed`` filter with no core type words (a controller-only
+    reference — Coastal Piracy's "an opponent") IS a reachable player.
+    """
+    t = tag_of(vt)
+    if t in (
+        "Player",
+        "Any",
+        "Target",
+        "ParentTarget",
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "Each",
+        "AllPlayers",
+        "EachPlayer",
+    ):
+        return True
+    if t == "Typed":
+        ctrl = getattr(vt, "controller", None)
+        if ctrl == "You":
+            return False
+        cores = filter_core_types(vt)
+        if not cores:
+            return True
+        return "Player" in cores or "Planeswalker" in cores
+    return False
+
+
+# Static-restriction modes that force a creature to be blocked (CR 509.1c lure).
+_LURE_MODES: frozenset[str] = frozenset({"MustBeBlocked", "MustBeBlockedByAll"})
+
+
+def node_lure_mode(node: object) -> bool:
+    """Whether a typed node carries a "must be blocked" lure mode (CR 509.1c).
+
+    Phase encodes Lure as a static ability whose ``mode`` is ``MustBeBlockedByAll``,
+    conferred via an ``AddStaticMode`` modification carrying the same ``mode``. Either
+    surface marks the all-creatures-must-block requirement the lure lane reads (a
+    single-creature ``ForceBlock`` — Academic Dispute — is a narrower provoke-style
+    effect, NOT this lane).
+    """
+    if not isinstance(node, TypedMirrorNode):
+        return False
+    mode = getattr(node, "mode", None)
+    return isinstance(mode, str) and mode in _LURE_MODES
 
 
 # ── overlay construction ──────────────────────────────────────────────────────

@@ -35,9 +35,11 @@ from mtg_utils._card_ir.crosswalk import (
     amount_factor,
     amount_is_scaling,
     change_zone_dirs,
+    cost_has_paylife,
     count_operand_filter,
     counter_kind,
     counter_pred_kinds,
+    damage_recipient_is_player,
     effect_filter,
     effect_owner_player_scope,
     effect_reaches_player,
@@ -46,6 +48,9 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_predicates,
     filter_subtypes,
+    mod_value,
+    node_lure_mode,
+    pump_is_negative,
     tag_of,
     trigger_scope,
     trigger_subject,
@@ -101,7 +106,60 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "energy_makers",
         "voltron_makers",
         "voltron_matters",
+        # Batch 4 (ADR-0035 Stage 2, this increment):
+        "graveyard_makers",
+        "graveyard_matters",
+        "fight_makers",
+        "goad_makers",
+        "regenerate_makers",
+        "lifeloss_makers",
+        "lifeloss_matters",
+        "edict_makers",
+        "land_sacrifice_makers",
+        "debuff_makers",
+        "lure_makers",
+        "copy_permanent",
+        "clone_makers",
+        "token_copy_makers",
+        "connive_makers",
+        "explore_makers",
+        "suspect_makers",
+        "combat_damage_to_opp",
     }
+)
+
+# Cast-from-graveyard keyword family (CR 601.3 / 702.62a …) — a card that re-casts
+# ITSELF from a graveyard PERFORMS self-recursion → ``graveyard_makers`` you. A
+# Scryfall keyword field-lookup (the live ``_IR_KEYWORD_MAP`` survivors): these are
+# NOT a ``ChangeZone`` effect (phase carries them on castable-zone metadata, no
+# effect node), so the structural substrate cannot read them — re-introducing them
+# structurally is impossible, dropping them a regression (checklist #3).
+_GY_CAST_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "flashback",
+        "escape",
+        "disturb",
+        "embalm",
+        "eternalize",
+        "encore",
+        "aftermath",
+        "retrace",
+        "jump-start",
+        "recover",
+        "unearth",
+    }
+)
+
+# Graveyard-payoff keyword family (CR 702.51 dredge / 702.66 delve / 702.91
+# scavenge) — a card that CONSUMES a stocked graveyard as fuel → ``graveyard_matters``
+# you. Keyword field-lookup, same survivor rationale.
+_GY_MATTERS_KEYWORDS: frozenset[str] = frozenset({"dredge", "delve", "scavenge"})
+
+# Attachment predicates that mark a SINGLE-Aura / single-target shrink (CR 303) — the
+# affected creature is the one enchanted, not a mass population. A base-P/T-shrink
+# debuff carrying one is a neutralize, not a -1/-1 enabler.
+_DEBUFF_SINGLE_AURA_PREDS: frozenset[str] = frozenset(
+    {"EnchantedBy", "AttachedToRecipient", "HasAnyAttachmentOf"}
 )
 
 # Equipment / Aura / Role subtypes that mark a voltron build-around (CR 301.5 /
@@ -1175,6 +1233,468 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ── Batch 4 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────
+
+
+def _gy_scope(scope: str) -> str:
+    """The graveyard lane scope (CR 400.7): an EXPLICIT opponent's-GY interaction →
+    ``opponents`` (GY-hate / opponent mill); else the self-graveyard default ``you``.
+    There is no ``…/any`` GY avenue. A structurally-"each" / "any" effect (a recursion
+    TARGET whose card-in-a-graveyard filter carries no player controller — Reanimate's
+    "creature card from a graveyard" — which the overlay scopes ``each``) maps to
+    ``you``: it enables YOUR self-graveyard build, matching the live ``_gy_scope`` else
+    branch (CR 701.17a)."""
+    return "opponents" if scope == "opponents" else "you"
+
+
+def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
+    """graveyard_makers — the card PERFORMS a graveyard interaction (CR 404 /
+    603.6e / 701.17a). Structural arms over the typed substrate:
+
+    * a ``ChangeZone`` reanimation (``(Graveyard, Battlefield)``) or recursion
+      (``(Graveyard, Hand)``) — the typed ``change_zone_dirs`` reads the origin
+      HONESTLY, so an exile-return (origin=Exile — Banisher Priest) is excluded
+      structurally without the live path's ``_EXILE_RETURN_RE`` (the substrate is
+      strictly better here);
+    * a ``Mill`` effect (self / any / symmetric scope) — self-mill fills your own
+      graveyard.
+
+    The cast-from-GY keyword family (flashback / escape / …) rides a keyword
+    field-lookup in :func:`extract_crosswalk_signals` (no effect node to read).
+    The broad zone-tag-recovered arms (GY-cast grants, GY-hate exile, ``in:graveyard``
+    bounce) the lossy IR reconstructed from recovered zone strings are a documented
+    ``live_only`` residue (the typed substrate exposes zones only on ``ChangeZone``).
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(scope: str, raw: str) -> None:
+        if scope not in seen:
+            seen.add(scope)
+            out.append(Signal("graveyard_makers", scope, "", raw, tree.name, "high"))
+
+    for c in tree.effect_concepts("change_zone"):
+        origin, dest = change_zone_dirs(c.node)
+        if origin == "Graveyard" and dest in ("Battlefield", "Hand"):
+            fire(_gy_scope(c.scope), c.raw)
+    for c in tree.effect_concepts("mill"):
+        # The ``Mill`` effect carries a ``destination``; only a Graveyard destination
+        # is a CR-701.17a mill (Stitcher's Supplier). A library↔hand swap phase
+        # MISLABELS as ``Mill`` with destination=Hand (Scroll Rack) — a phase-parse
+        # bug [P2], excluded structurally by the dest gate.
+        if getattr(c.node, "destination", None) != "Graveyard":
+            continue
+        if c.scope in ("you", "any", "each"):
+            fire(_gy_scope(c.scope), c.raw)
+    return out
+
+
+def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
+    """graveyard_matters — the cares-about PAYOFF (CR 404 / 701.17a). The cleanly
+    typed arm: a trigger watching cards ENTERING a graveyard from a non-battlefield
+    zone, or LEAVING a graveyard (Syr Konrad-class), read off the trigger's typed
+    ``origin`` / ``destination``. The battlefield→graveyard ``dies`` movement is a
+    death payoff (a different lane), excluded. The dredge / delve / scavenge keyword
+    payoffs ride a keyword field-lookup. The count-operand-over-cards-in-a-graveyard
+    arm + the delirium/threshold CONDITION arm depend on zone tags the substrate does
+    not expose uniformly, so a LOW reproduce rate here is EXPECTED (documented
+    ``live_only`` residue), not a gap.
+    """
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        node = unit.node
+        origin = getattr(node, "origin", None)
+        dest = getattr(node, "destination", None)
+        gy_arrival = dest == "Graveyard" and origin not in ("Battlefield", None)
+        gy_departure = origin == "Graveyard"
+        if gy_arrival or gy_departure:
+            sc = _gy_scope(trigger_subject_scope(node))
+            return [Signal("graveyard_matters", sc, "", "", tree.name, "high")]
+    return []
+
+
+def _fight_makers(tree: ConceptTree) -> list[Signal]:
+    """fight_makers — a fight / bite DOER (CR 701.14a). Any ``Fight`` effect (Prey
+    Upon, Ulvenwald Tracker). Scope "you" (the lane convention). The Aftermath DFC
+    back-face fallback phase never projects stays a ``live_only`` byte-mirror.
+    """
+    for c in tree.effect_concepts("fight"):
+        return [Signal("fight_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _goad_makers(tree: ConceptTree) -> list[Signal]:
+    """goad_makers — a goad DOER (CR 701.15a). A ``Goad`` / ``GoadAll`` effect
+    (Disrupt Decorum, Bloodthirster). Pure political force directed AT opponents →
+    scope "opponents". The ``force_attack``→goad single-target bridge
+    (``_GOAD_STYLE_FORCE``) stays a ``live_only`` survivor.
+    """
+    for c in tree.effect_concepts("goad"):
+        return [Signal("goad_makers", "opponents", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _regenerate_makers(tree: ConceptTree) -> list[Signal]:
+    """regenerate_makers — a regeneration shield (CR 701.19a). A ``Regenerate`` effect
+    (River Boa, Troll Ascetic). A "can't be regenerated" clause is the INVERSE (a flag
+    on a ``Destroy``, NOT a ``Regenerate`` effect — Pongify), so it never reaches here.
+    Scope "you".
+    """
+    for c in tree.effect_concepts("regenerate"):
+        return [Signal("regenerate_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _lifeloss_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str:
+    """The lifeloss-maker scope split (CR 119.3): a self-loss ("you lose N") → you; a
+    drain ("each opponent / target player loses N") → opponents. Reads the effect's
+    EXPLICIT recipient first; when phase carries none on the node (Gray Merchant — the
+    "each opponent" lives as ``player_scope`` on the trigger wrapper), reads the
+    wrapper actor that OWNS this effect (:func:`effect_owner_player_scope`)."""
+    rs = explicit_recipient_scope(node)
+    if rs is not None:
+        return "you" if rs == "you" else "opponents"
+    owner = effect_owner_player_scope(getattr(unit, "node", None), node)
+    if owner in _EDICT_ACTORS:
+        return "opponents"
+    # A "target opponent loses N" drain on a TRIGGER carries the recipient on the
+    # trigger's ``valid_target`` (Bishop of the Bloodstained — ``Player``), not on the
+    # ``LoseLife`` node. A null valid_target is a self-loss (Agent Venom — "you draw
+    # and lose 1 life"), staying ``you``.
+    if unit.origin == "trigger" and trigger_scope(unit.node) != "you":
+        return "opponents"
+    return "you"
+
+
+def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
+    """lifeloss_makers — the card PERFORMS life loss (CR 119.3). (a) a ``LoseLife``
+    effect, scope-split self/drain; (b) a pay-life ACTIVATION COST that buys a
+    non-ramp effect (Erebos's ``Pay 2 life`` → draw) — the card pays/loses life. The
+    cost arm is gated HARD against the lane's land trap: a Land card (Horizon Canopy's
+    ``Pay 1 life: draw``) is excluded (CR 118.8), and a paylife ability whose only
+    effect is mana fixing (``ramp``) is a painland, excluded by the non-ramp gate.
+    Combat damage (CR 120) is a sibling category that never tags ``LoseLife``.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(scope: str, raw: str) -> None:
+        if scope not in seen:
+            seen.add(scope)
+            out.append(Signal("lifeloss_makers", scope, "", raw, tree.name, "high"))
+
+    for unit in tree.units:
+        for c in unit.effect_concepts("lose_life"):
+            fire(_lifeloss_scope(unit, c.node), c.raw)
+    if not tree.is_type("Land"):
+        for unit in tree.units:
+            paylife = any(cost_has_paylife(cc.node) for cc in unit.costs)
+            non_ramp = any(e.concept != "ramp" for e in unit.effects)
+            if paylife and non_ramp:
+                fire("you", "")
+    return out
+
+
+def _lifeloss_matters(tree: ConceptTree) -> list[Signal]:
+    """lifeloss_matters — the life-loss PAYOFF (CR 119.3). A ``life_lost`` trigger
+    (Exquisite Blood, Vilis): an opp-scoped watcher is the drain payoff (opponents),
+    else you. The ``spectacle`` keyword (a "cast cheaper if an opponent lost life"
+    condition stripped to reminder text — no structural ``LoseLife``) rides a keyword
+    field-lookup in :func:`extract_crosswalk_signals`.
+    """
+    for unit in tree.units:
+        if unit.trigger_event == "life_lost":
+            sc = "opponents" if trigger_scope(unit.node) == "opponents" else "you"
+            return [Signal("lifeloss_matters", sc, "", "", tree.name, "high")]
+    return []
+
+
+def _edict_scope(owner_tag: str | None) -> str:
+    """An edict actor tag → lane scope (CR 701.21a). An opponent actor → opponents; a
+    symmetric each-player actor → each (mirrors ``_ir_scope`` opp/each)."""
+    if owner_tag in ("Opponent", "Opponents", "EachOpponent"):
+        return "opponents"
+    return "each"
+
+
+def _sac_actor_scope(node: TypedMirrorNode) -> str | None:
+    """The edict scope of a ``Sacrifice`` effect from its sacrificed filter's
+    CONTROLLER (CR 701.21a — a player only sacrifices a permanent THEY control, so the
+    controller IS the forced actor). An opponent / target-player / scoped-player
+    controller → opponents; an each/all-player controller → each; a ``You`` controller
+    (a you-sac outlet — Mycoloth) or none (an unscoped/bare-self sac) → ``None`` (not an
+    edict via this arm)."""
+    ctrl = filter_controller(effect_filter(node))
+    if ctrl in (
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "TargetPlayer",
+        "ScopedPlayer",
+    ):
+        return "opponents"
+    if ctrl in ("All", "EachPlayer", "Each"):
+        return "each"
+    return None
+
+
+def _edict_makers(tree: ConceptTree) -> list[Signal]:
+    """edict_makers — a FORCED player sacrifice (CR 701.21a / 800.4a). The INVERSE of
+    the ``sacrifice_outlets`` you-sac gate. Two structural tells, each reading the
+    sacrifice's OWN node/wrapper (never a sibling's):
+
+    * the wrapper ``player_scope`` names a non-controller actor
+      (:func:`_sac_is_edict`, modal arms included) — phase MISLABELS the sacrificed
+      permanent ``controller: You`` while tagging the wrapper ``player_scope:
+      Opponent`` (Grave Pact, Dictate of Erebos), so the wrapper is load-bearing;
+    * the sacrificed filter's CONTROLLER is itself a non-you player
+      (:func:`_sac_actor_scope`) — "target player / each opponent sacrifices a
+      creature" carries ``controller: TargetPlayer`` / ``ScopedPlayer`` (Diabolic
+      Edict, Sheoldred).
+
+    A you-sac outlet (Mycoloth — ``controller: You``; Viscera Seer — a COST, never an
+    effect) is excluded.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(scope: str | None, raw: str) -> None:
+        if scope and scope not in seen:
+            seen.add(scope)
+            out.append(Signal("edict_makers", scope, "", raw, tree.name, "high"))
+
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.concept != "sacrifice":
+                continue
+            owner = effect_owner_player_scope(getattr(unit, "node", None), c.node)
+            if owner in _EDICT_ACTORS:
+                fire(_edict_scope(owner), c.raw)
+            else:
+                fire(_sac_actor_scope(c.node), c.raw)
+    return out
+
+
+def _land_sacrifice_makers(tree: ConceptTree) -> list[Signal]:
+    """land_sacrifice_makers — a self land-sacrifice (CR 701.21 / 305.6). A
+    ``Sacrifice`` effect OR cost whose subject is LAND-ONLY (Zuran Orb's "Sacrifice a
+    land:", Constant Mists), scope not opponent. This is the Land-only branch
+    ``sacrifice_outlets`` deliberately EXCLUDES (:func:`_is_you_sac_subject` returns
+    False on a ``("Land",)`` subject), so it is a clean complement. A mixed
+    "creature or land" sac (Reprocess) is ``sacrifice_outlets``, not this.
+    """
+    for unit in tree.units:
+        for c in (*unit.effects, *unit.costs):
+            if (
+                c.concept == "sacrifice"
+                and tuple(c.subject) == ("Land",)
+                and c.scope != "opponents"
+            ):
+                return [
+                    Signal("land_sacrifice_makers", "you", "", c.raw, tree.name, "high")
+                ]
+    return []
+
+
+def _debuff_makers(tree: ConceptTree) -> list[Signal]:
+    """debuff_makers — a -X/-X / -1/-1 enabler (CR 613.4c / 704.5g). Three anchors:
+
+    * a NEGATIVE ``Pump`` / ``PumpAll`` EFFECT (Bile Blight's -3/-3) — scope "any";
+    * a ``-1/-1`` (``M1M1``) counter PLACEMENT whose scope is NOT you (an opponent /
+      symmetric debuff — Black Sun's Zenith), distinct from the you-maker
+      ``minus_counters_matter`` — scope "any";
+    * a mass base-toughness SET ≤ 2 on opponents / symmetric creatures (Humility,
+      Overwhelming Splendor) — a 0-toughness enabler — scope "you".
+
+    A scope-you base-P/T set is a BUFF (Biomass Mutation), excluded; a single-target
+    neutralize (scope any) is removal, not a -1/-1 payoff.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(scope: str, raw: str) -> None:
+        if scope not in seen:
+            seen.add(scope)
+            out.append(Signal("debuff_makers", scope, "", raw, tree.name, "high"))
+
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.concept == "pump" and pump_is_negative(c.node):
+                fire("any", c.raw)
+            if (
+                c.concept == "place_counter"
+                and counter_kind(c.node).upper() == "M1M1"
+                and c.scope != "you"
+            ):
+                fire("any", c.raw)
+        for c in unit.statics:
+            if c.concept != "set_pt" or c.scope not in ("opponents", "each"):
+                continue
+            # A single-Aura / single-target shrink (Darksteel Mutation, Frogify —
+            # affected carries an ``EnchantedBy`` / attachment predicate) is a
+            # neutralize, NOT a mass -1/-1 enabler (checklist #6 — the live path
+            # scopes it "any" via its single-target read; the overlay scopes the
+            # controller-less Aura filter "each", so the attachment predicate is the
+            # discriminator). A genuine mass shrink (Humility — "all creatures") carries
+            # no attachment predicate.
+            aff = getattr(unit.node, "affected", None)
+            if set(filter_predicates(aff)) & _DEBUFF_SINGLE_AURA_PREDS:
+                continue
+            v = mod_value(c.node)
+            if v is not None and v <= 2:
+                fire("you", c.raw)
+    return out
+
+
+def _lure_makers(tree: ConceptTree) -> list[Signal]:
+    """lure_makers — a forced-block / lure requirement (CR 509.1c). A
+    ``MustBeBlockedByAll`` / ``MustBeBlocked`` static mode (Lure, Nemesis Mask),
+    conferred via an ``AddStaticMode`` modification (:func:`node_lure_mode`). A
+    single-target ``ForceBlock`` (Academic Dispute) is a narrower provoke-style effect
+    that does NOT carry the mode, correctly excluded. Scope "you".
+    """
+    for unit in tree.units:
+        if node_lure_mode(unit.node):
+            return [Signal("lure_makers", "you", "", "", tree.name, "high")]
+        for c in unit.iter_concepts():
+            if node_lure_mode(c.node):
+                return [Signal("lure_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _copy_clone(tree: ConceptTree) -> list[Signal]:
+    """copy_permanent / clone_makers / token_copy_makers — the copy cluster (CR 707 /
+    701.36). Three structural surfaces (Dan's clone-vs-token-copy boundary):
+
+    * a ``BecomeCopy`` effect — the copied filter (its ``target``) drives the lane: a
+      generic ``Permanent`` copy (Crystalline Resonance) fans to ``copy_permanent`` +
+      ``clone_makers``; a ``Creature`` core type or a resolved creature SUBTYPE
+      (Sunfrill Imitator's Dinosaur) → ``clone_makers``;
+    * a ``CopyTokenOf`` / ``CopyTokenBlockingAttacker`` / ``Populate`` effect →
+      ``token_copy_makers``. The Embalm / Eternalize / … reminder self-copies carry a
+      ``SelfRef`` target (a copy of THIS card, not a copy-others payoff — Adorned
+      Pouncer) and are EXCLUDED structurally, the discriminator fully in the IR.
+
+    The token-doubling cross-open (Doubling Season forks copy-tokens) and the
+    clone-self idiom veto (Progenitor Mimic) stay ``live_only``. Scope "you".
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", raw, tree.name, "high"))
+
+    for c in tree.effect_concepts("become_copy"):
+        sub = effect_filter(c.node)
+        cores = filter_core_types(sub) if sub is not None else ()
+        if "Permanent" in cores:
+            fire("copy_permanent", c.raw)
+            fire("clone_makers", c.raw)
+        if "Creature" in cores:
+            fire("clone_makers", c.raw)
+        subtypes = filter_subtypes(sub) if sub is not None else ()
+        if any(_resolve_subject(w, CREATURE_SUBTYPES) for w in subtypes):
+            fire("clone_makers", c.raw)
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.concept not in ("copy_token", "populate"):
+                continue
+            if c.scope not in _YOU_EACH:
+                continue
+            tgt = getattr(c.node, "target", None)
+            if c.concept == "copy_token" and tag_of(tgt) == "SelfRef":
+                continue  # a copy of THIS card (Embalm / Eternalize / Squad / Myriad)
+            fire("token_copy_makers", c.raw)
+    return out
+
+
+def _connive_makers(tree: ConceptTree) -> list[Signal]:
+    """connive_makers — a connive DOER (CR 701.50a). A ``Connive`` effect (Shipwreck
+    Sifters, Old Rutstein; the granted Aura form — Security Bypass — also carries a
+    structural ``Connive`` effect, so no keyword field-lookup is needed). A pure
+    connive-STATE payoff is a different lane. Scope "you".
+    """
+    for c in tree.effect_concepts("connive"):
+        return [Signal("connive_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _explore_makers(tree: ConceptTree) -> list[Signal]:
+    """explore_makers — an explore DOER (CR 701.44a). An ``Explore`` / ``ExploreAll``
+    effect (Merfolk Branchwalker, Jadelight Ranger). Read STRUCTURALLY only — the
+    Scryfall ``Explore`` keyword array ALSO tags the explore PAYOFF Wildgrowth Walker
+    ("whenever a creature you control explores"), which has NO ``Explore`` effect
+    (only a watch-trigger), so a keyword field-lookup would over-fire (CR 701.44a — the
+    maker performs the explore; the payoff merely watches). Scope "you".
+    """
+    for c in tree.effect_concepts("explore"):
+        return [Signal("explore_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _suspect_makers(tree: ConceptTree) -> list[Signal]:
+    """suspect_makers — a suspect DOER (CR 701.60a). A ``Suspect`` effect (Nelly
+    Borca, Case of the Stashed Skeleton). A ``Suspected`` PROPERTY reference (the
+    payoff — "whenever a suspected creature …") is a distinct phase tag, never an
+    ``Suspect`` effect, so it is correctly excluded. Scope "you".
+    """
+    for c in tree.effect_concepts("suspect"):
+        return [Signal("suspect_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _combat_damage_to_opp(tree: ConceptTree) -> list[Signal]:
+    """combat_damage_to_opp — a "deals combat damage to a player" trigger (CR 510.1c).
+    A ``DamageDone`` trigger whose ``damage_kind`` is ``CombatOnly`` AND whose
+    recipient (``valid_target``) reaches a PLAYER (Coastal Piracy, Bident of Thassa).
+    A creature recipient (Ohran Viper's first trigger) is ``combat_damage_to_creature``
+    (a different lane); a non-combat "deals damage" trigger never reaches here. The
+    quoted-in-an-activated-ability text-fold residue stays ``live_only``. Scope
+    "opponents".
+    """
+    for unit in tree.units:
+        node = unit.node
+        if unit.trigger_event != "deals_damage":
+            continue
+        if getattr(node, "damage_kind", None) != "CombatOnly":
+            continue
+        if damage_recipient_is_player(getattr(node, "valid_target", None)):
+            return [
+                Signal("combat_damage_to_opp", "opponents", "", "", tree.name, "high")
+            ]
+    return []
+
+
+def _keyword_field_signals(keywords: frozenset[str], name: str) -> list[Signal]:
+    """The batch-4 Scryfall-keyword field-lookups — survivor routes the live path
+    DELIBERATELY keeps because phase carries no effect node (checklist #3):
+
+    * cast-from-GY family (flashback / escape / …) → ``graveyard_makers`` you;
+    * dredge / delve / scavenge → ``graveyard_matters`` you;
+    * ``spectacle`` (the condition is reminder-text-only, no structural ``LoseLife``)
+      → ``lifeloss_matters`` opponents;
+    * ``goad`` → ``goad_makers`` opponents — UNLIKE explore / connive (whose keyword is
+      ALSO carried by PAYOFFS — Wildgrowth Walker, Copycrook — forcing structural-only
+      there), the Scryfall ``Goad`` keyword marks only the ACTION's makers (every
+      goader, incl. the Impetus / Bloodthirsty-Blade auras that goad the enchanted
+      creature), so the field-lookup is precise (CR 701.15a).
+    """
+    out: list[Signal] = []
+    low = {k.lower() for k in keywords}
+    if low & _GY_CAST_KEYWORDS:
+        out.append(Signal("graveyard_makers", "you", "", "", name, "high"))
+    if low & _GY_MATTERS_KEYWORDS:
+        out.append(Signal("graveyard_matters", "you", "", "", name, "high"))
+    if "spectacle" in low:
+        out.append(Signal("lifeloss_matters", "opponents", "", "", name, "high"))
+    if "goad" in low:
+        out.append(Signal("goad_makers", "opponents", "", "", name, "high"))
+    return out
+
+
 _LANES = (
     _win_lose_game,
     _discard_makers,
@@ -1207,6 +1727,22 @@ _LANES = (
     _energy_makers,
     _voltron_makers,
     _voltron_matters,
+    _graveyard_makers,
+    _graveyard_matters,
+    _fight_makers,
+    _goad_makers,
+    _regenerate_makers,
+    _lifeloss_makers,
+    _lifeloss_matters,
+    _edict_makers,
+    _land_sacrifice_makers,
+    _debuff_makers,
+    _lure_makers,
+    _copy_clone,
+    _connive_makers,
+    _explore_makers,
+    _suspect_makers,
+    _combat_damage_to_opp,
 )
 
 
@@ -1245,6 +1781,8 @@ def extract_crosswalk_signals(
         for sig in lane(tree):
             add(sig)
     for sig in _mill_makers(frozenset(keywords), tree.name):
+        add(sig)
+    for sig in _keyword_field_signals(frozenset(keywords), tree.name):
         add(sig)
 
     # Whole-card reconciliation (granularity c): cross-open spellcast_matters LOW
