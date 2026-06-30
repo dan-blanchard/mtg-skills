@@ -1003,6 +1003,176 @@ def test_graveyard_matters_keyword():
     assert ("graveyard_matters", "you", "") in _idents("Stinkweed Imp")
 
 
+# ── Batch 5: the named-mechanic long tail (ADR-0035 Stage 2) ──────────────────
+
+
+def test_monarch_makers_and_matters_split():
+    """A ``BecomeMonarch`` doer (Azure Fleet Admiral) fires makers; an ``IsMonarch``
+    payoff condition (Throne Warden) fires matters ONLY — the maker/payoff split
+    (CR 725)."""
+    assert ("monarch_makers", "you", "") in _idents("Azure Fleet Admiral")
+    assert "monarch_matters" not in _keys("Azure Fleet Admiral")
+    assert ("monarch_matters", "you", "") in _idents("Throne Warden")
+    assert "monarch_makers" not in _keys("Throne Warden")
+
+
+def test_monarch_makers_phase_drops_opponent_direction():
+    """phase carries a BARE ``BecomeMonarch`` for "target opponent becomes the
+    monarch" (Jared Carthalion) — it drops the give-away direction, so the lane
+    fires you, MATCHING the live ``monarch`` doer's identical limitation (a shared
+    phase gap, documented, not a crosswalk over-fire)."""
+    assert ("monarch_makers", "you", "") in _idents("Jared Carthalion, True Heir")
+
+
+def test_discover_makers_structural():
+    """A ``Discover`` effect (Geological Appraiser) fires structurally (CR 701.57)."""
+    assert ("discover_makers", "you", "") in _idents("Geological Appraiser")
+
+
+@pytest.mark.parametrize("name", ["Bar the Gate", "Avenging Hunter"])
+def test_venture_makers_fires(name):
+    """A ``VentureIntoDungeon`` (Bar the Gate) / ``TakeTheInitiative`` (Avenging
+    Hunter) doer fires venture_makers (CR 701.49 / the Initiative)."""
+    assert ("venture_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Gloom Stalker", "Imoen, Mystic Trickster"])
+def test_venture_matters_is_condition_only(name):
+    """A ``CompletedADungeon`` (Gloom Stalker) / ``IsInitiative`` (Imoen) payoff
+    condition fires venture_matters — and NOT makers (no venture effect)."""
+    assert ("venture_matters", "you", "") in _idents(name)
+    assert "venture_makers" not in _keys(name)
+
+
+def test_daynight_makers_vs_matters_keyword():
+    """A ``SetDayNight`` doer (Brimstone Vandal) fires makers (CR 731); a daybound
+    werewolf (Reckless Stormseeker — the keyword PAYOFF) fires matters via the
+    keyword field-lookup and NOT makers (no SetDayNight effect)."""
+    assert ("daynight_makers", "you", "") in _idents("Brimstone Vandal")
+    assert "daynight_matters" not in _keys("Brimstone Vandal")
+    assert ("daynight_matters", "you", "") in _idents("Reckless Stormseeker")
+    assert "daynight_makers" not in _keys("Reckless Stormseeker")
+
+
+@pytest.mark.parametrize("name", ["Blink Dog", "Divine Smite"])
+def test_phasing_makers_blanket_both_directions(name):
+    """phasing_makers is a BLANKET maker (matching the live undirected doer): a self
+    phase-out (Blink Dog — protection) and an opponent-directed phase-out (Divine
+    Smite — denial) both fire you (CR 702.26)."""
+    assert ("phasing_makers", "you", "") in _idents(name)
+
+
+def test_voting_makers_allplayers_gate_excludes_friend_or_foe():
+    """A council/dilemma vote (Coercive Portal — ``voter_scope: AllPlayers``) fires
+    voting_makers /each (CR 701.38); phase OVER-TAGS Battlebond "choose friend or
+    foe" (Khorvath's Fury — ``voter_scope: ControllerLabels``) as ``Vote`` too, and
+    the AllPlayers gate excludes it STRUCTURALLY (a clean improvement over the live
+    raw-idiom guard)."""
+    assert ("voting_makers", "each", "") in _idents("Coercive Portal")
+    assert "voting_makers" not in _keys("Khorvath's Fury")
+
+
+def test_ring_tempters_and_matters_split():
+    """A ``RingTemptsYou`` doer (Boromir) fires ring_tempters; a buried
+    ``IsRingBearer`` payoff condition with NO tempt trigger (Sauron, the Necromancer)
+    fires ring_matters structurally — neither leaks into the other (CR 701.54)."""
+    assert ("ring_tempters", "you", "") in _idents("Boromir, Warden of the Tower")
+    assert "ring_matters" not in _keys("Boromir, Warden of the Tower")
+    assert ("ring_matters", "you", "") in _idents("Sauron, the Necromancer")
+    assert "ring_tempters" not in _keys("Sauron, the Necromancer")
+
+
+def test_amass_makers_new_lane():
+    """An ``Amass`` effect (Aven Eternal) fires the new amass_makers lane (CR
+    701.47)."""
+    assert ("amass_makers", "you", "") in _idents("Aven Eternal")
+
+
+def test_incubate_makers_new_lane():
+    """An ``Incubate`` effect (Brimaz, Blight of Oreskos) fires the new
+    incubate_makers lane (CR 701.53)."""
+    assert ("incubate_makers", "you", "") in _idents("Brimaz, Blight of Oreskos")
+
+
+@pytest.mark.parametrize("name", ["Cloudform", "Cryptic Coat"])
+def test_facedown_makers_fires(name):
+    """A ``Manifest`` (Cloudform) / ``Cloak`` (Cryptic Coat) doer fires
+    facedown_makers (CR 701.40 / 701.58 / 708)."""
+    assert ("facedown_makers", "you", "") in _idents(name)
+
+
+def test_facedown_makers_morph_keyword():
+    """A morph body (Abzan Guide) is CAST face down via the printed keyword and
+    carries NO Manifest/Cloak effect — the Scryfall keyword field-lookup is the
+    uniform anchor over morph/megamorph/disguise/manifest-dread (CR 708 / 702.37)."""
+    assert ("facedown_makers", "you", "") in _idents("Abzan Guide")
+
+
+def test_facedown_makers_excludes_facedown_predicate():
+    """Dream Chisel carries a ``FaceDown`` filter PREDICATE ("face-down creature
+    spells you cast cost less") but no Manifest/Cloak effect — the cares-about state
+    is NOT a maker (CR 708)."""
+    assert "facedown_makers" not in _keys("Dream Chisel")
+
+
+def test_dice_makers_fires():
+    """A ``RollDie`` effect (Adorable Kitten) fires dice_makers (CR 706)."""
+    assert ("dice_makers", "you", "") in _idents("Adorable Kitten")
+
+
+@pytest.mark.parametrize("name", ["Act on Impulse", "Aloe Alchemist"])
+def test_cast_from_exile_structural_permission(name):
+    """A ``GrantCastingPermission`` whose permission is ``PlayFromExile`` (Act on
+    Impulse — impulse exile-and-play) or ``Plotted`` (Aloe Alchemist — plot) fires
+    cast_from_exile STRUCTURALLY (the batch's marquee fidelity gain over the live
+    word-mirror; CR 116 / 702.170)."""
+    assert ("cast_from_exile", "you", "") in _idents(name)
+
+
+def test_cast_from_exile_excludes_plain_exile_removal():
+    """Path to Exile is an ``Exile`` REMOVAL with no play permission — not a
+    cast-from-exile build-around (CR 406)."""
+    assert "cast_from_exile" not in _keys("Path to Exile")
+
+
+@pytest.mark.parametrize(
+    ("name", "key"),
+    [
+        ("Behold the Multiverse", "foretell_makers"),
+        ("Bituminous Blast", "cascade_makers"),
+        ("Ancestral Vision", "suspend_makers"),
+    ],
+)
+def test_keyword_makers_field_lookup(name, key):
+    """foretell / cascade / suspend have NO typed effect tag — they ride the Scryfall
+    keyword array field-lookup (CR 702.143 / 702.85 / 702.62)."""
+    assert (key, "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Plague Stinger", "Bloated Contaminator"])
+def test_poison_makers_keyword(name):
+    """infect (Plague Stinger) / toxic (Bloated Contaminator) → poison_makers
+    opponents (the poison-counter dealers, CR 702.90 / 702.164)."""
+    assert ("poison_makers", "opponents", "") in _idents(name)
+
+
+def test_poison_makers_excludes_corrupted_payoff():
+    """Apostle of Invasion carries an ``OpponentPoisonAtLeast`` Corrupted PAYOFF
+    condition but no infect/toxic/poisonous keyword — it CARES about poison, it does
+    not DEAL it (CR 702.90)."""
+    assert "poison_makers" not in _keys("Apostle of Invasion")
+
+
+def test_keyword_field_lookup_immune_to_name_collision():
+    """The keyword field-lookups read the STRUCTURED array — a card carrying none of
+    the batch-5 keywords (Lightning Bolt) can never fire foretell/cascade/suspend/
+    poison, immune to the name / ability-word collisions the deleted regex floors
+    suffered (checklist #3)."""
+    keys = _keys("Lightning Bolt")
+    for k in ("foretell_makers", "cascade_makers", "suspend_makers", "poison_makers"):
+        assert k not in keys
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

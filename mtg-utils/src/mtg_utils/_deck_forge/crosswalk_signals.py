@@ -35,6 +35,7 @@ from mtg_utils._card_ir.crosswalk import (
     amount_factor,
     amount_is_scaling,
     change_zone_dirs,
+    condition_tags,
     cost_has_paylife,
     count_operand_filter,
     counter_kind,
@@ -51,6 +52,7 @@ from mtg_utils._card_ir.crosswalk import (
     lifeloss_recipient_scope,
     mod_value,
     node_lure_mode,
+    permission_tag,
     pump_is_negative,
     tag_of,
     trigger_scope,
@@ -127,6 +129,27 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "explore_makers",
         "suspect_makers",
         "combat_damage_to_opp",
+        # Batch 5 (ADR-0035 Stage 2, the named-mechanic long tail):
+        "monarch_makers",
+        "monarch_matters",
+        "discover_makers",
+        "venture_makers",
+        "venture_matters",
+        "daynight_makers",
+        "daynight_matters",
+        "phasing_makers",
+        "voting_makers",
+        "ring_tempters",
+        "ring_matters",
+        "amass_makers",
+        "incubate_makers",
+        "facedown_makers",
+        "dice_makers",
+        "cast_from_exile",
+        "foretell_makers",
+        "cascade_makers",
+        "suspend_makers",
+        "poison_makers",
     }
 )
 
@@ -1750,6 +1773,282 @@ def _combat_damage_to_opp(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ── Batch 5 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────
+
+# Condition-node tags the batch-5 ``*_matters`` payoff lanes gate on (whole-card,
+# read via :func:`condition_tags`). A designation/state PAYOFF ("if you're the
+# monarch", "if you've completed a dungeon", "as long as ~ is the Ring-bearer")
+# carries one of these typed conditions; the bare MAKER (BecomeMonarch / venture /
+# RingTemptsYou effect) carries none.
+_MONARCH_CONDITIONS: frozenset[str] = frozenset({"IsMonarch", "NoMonarch"})
+_VENTURE_CONDITIONS: frozenset[str] = frozenset(
+    {"CompletedADungeon", "CompletedDungeon", "IsInitiative"}
+)
+_RING_CONDITIONS: frozenset[str] = frozenset({"IsRingBearer"})
+# Permission tags marking a cast/play-FROM-EXILE build-around (CR 116 / 702.170).
+_CAST_FROM_EXILE_PERMS: frozenset[str] = frozenset({"PlayFromExile", "Plotted"})
+
+
+def _whole_card_maker(
+    tree: ConceptTree, concept: str, key: str, scope: str
+) -> list[Signal]:
+    """A whole-card presence maker (granularity c): the first ``concept`` effect →
+    one ``Signal(key, scope)``. The shared shape for the batch-5 phase-native
+    makers (discover / venture / amass / incubate / dice / facedown / day-night /
+    phasing) — each a clean structural read off a first-class effect node.
+    """
+    for c in tree.effect_concepts(concept):
+        return [Signal(key, scope, "", c.raw, tree.name, "high")]
+    return []
+
+
+def _monarch(tree: ConceptTree) -> list[Signal]:
+    """monarch_makers / monarch_matters — The Monarch (CR 725).
+
+    MAKER: a ``BecomeMonarch`` effect that makes YOU (not an opponent) the monarch
+    — the give-away gate (checklist #2) reads the wrapper ``player_scope`` via
+    :func:`effect_owner_player_scope`; an "each opponent / an opponent becomes the
+    monarch" wrapper is excluded. phase carries a BARE ``BecomeMonarch`` for "target
+    opponent becomes the monarch" (it drops the direction — Jared Carthalion), so
+    the gate is a no-op there and the lane fires you, MATCHING the live ``monarch``
+    doer's identical limitation (a shared phase gap, not a crosswalk over-fire).
+    MATTERS: an ``IsMonarch`` / ``NoMonarch`` payoff condition (Throne Warden,
+    Garrulous Sycophant) — the bare maker carries none. Both scope "you".
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", raw, tree.name, "high"))
+
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.concept != "become_monarch":
+                continue
+            if effect_owner_player_scope(getattr(unit, "node", None), c.node) in (
+                _EDICT_ACTORS
+            ):
+                continue
+            fire("monarch_makers", c.raw)
+    if condition_tags(tree) & _MONARCH_CONDITIONS:
+        fire("monarch_matters", "")
+    return out
+
+
+def _venture(tree: ConceptTree) -> list[Signal]:
+    """venture_makers / venture_matters — Dungeons + the Initiative (CR 309 / 701.49).
+
+    MAKER: a ``VentureIntoDungeon`` or ``TakeTheInitiative`` effect (the card
+    PERFORMS the venture / takes the Initiative — Bar the Gate, Avenging Hunter).
+    MATTERS: a ``CompletedADungeon`` / ``CompletedDungeon`` / ``IsInitiative``
+    payoff condition (Gloom Stalker, Imoen, Nadaar) — read structurally off the
+    typed ``condition``. A maker-only card carries no condition; a matters-only
+    card carries no venture effect. Both scope "you".
+    """
+    out: list[Signal] = []
+    out += _whole_card_maker(tree, "venture", "venture_makers", "you")
+    if condition_tags(tree) & _VENTURE_CONDITIONS:
+        out.append(Signal("venture_matters", "you", "", "", tree.name, "high"))
+    return out
+
+
+def _ring(tree: ConceptTree) -> list[Signal]:
+    """ring_tempters / ring_matters — The Ring Tempts You (CR 701.54).
+
+    MAKER: a ``RingTemptsYou`` effect (the card performs the tempt — Boromir,
+    Warden of the Tower) → ``ring_tempters`` (the live maker key). MATTERS: an
+    ``IsRingBearer`` payoff condition (Sauron, the Necromancer — a buried
+    Ring-bearer reference with NO tempt trigger, which the typed condition recovers
+    STRUCTURALLY where the live path needed a raw "ring-bearer" marker). Both scope
+    "you".
+    """
+    out: list[Signal] = []
+    out += _whole_card_maker(tree, "ring_tempt", "ring_tempters", "you")
+    if condition_tags(tree) & _RING_CONDITIONS:
+        out.append(Signal("ring_matters", "you", "", "", tree.name, "high"))
+    return out
+
+
+def _discover_makers(tree: ConceptTree) -> list[Signal]:
+    """discover_makers — a ``Discover N`` DOER (CR 701.57). Read STRUCTURALLY off the
+    typed ``Discover`` effect (Geological Appraiser; the keyword-LESS re-trigger
+    "whenever you discover, discover again" also carries a second ``Discover``
+    effect). A discover-PAYOFF trigger with no ``Discover`` effect is a separate
+    lane (out of batch). Scope "you".
+    """
+    return _whole_card_maker(tree, "discover", "discover_makers", "you")
+
+
+def _daynight_makers(tree: ConceptTree) -> list[Signal]:
+    """daynight_makers — a ``SetDayNight`` transition DOER (CR 731). The card itself
+    flips the day/night state ("it becomes day/night" — Brimstone Vandal, The
+    Celestus). The daybound/nightbound transforming werewolves (the PAYOFF that
+    flips ON the state) ride a ``daynight_matters`` keyword field-lookup, NOT this
+    arm — a daybound werewolf carries no ``SetDayNight`` effect. Scope "you".
+    """
+    return _whole_card_maker(tree, "set_daynight", "daynight_makers", "you")
+
+
+def _phasing_makers(tree: ConceptTree) -> list[Signal]:
+    """phasing_makers — a ``PhaseOut`` / ``PhaseIn`` DOER (CR 702.26). Matching the
+    live ``phasing`` doer, this is a BLANKET maker (scope "you") that does NOT split
+    by direction: a self phase-out (protection — Blink Dog) and an opponent-directed
+    phase-out (denial — Divine Smite's "creature an opponent controls phases out")
+    both fire. The direction split checklist gate (#6) is moot because the live
+    target lane is a single undirected key; collapsing the two directions matches
+    it. Scope "you".
+    """
+    return _whole_card_maker(tree, "phasing", "phasing_makers", "you")
+
+
+def _voting_makers(tree: ConceptTree) -> list[Signal]:
+    """voting_makers — a council/dilemma VOTE the card instructs (CR 701.38). Fires
+    on a ``Vote`` effect whose ``voter_scope`` is ``AllPlayers`` ("each player votes"
+    — Coercive Portal, Expropriate, Tivit). phase OVER-TAGS the Battlebond
+    "for each player, choose friend or foe" mechanic (``voter_scope:
+    ControllerLabels`` — Pir's Whim, Zndrsplt's Judgment) and the "each opponent
+    chooses X" cards (``voter_scope: EachOpponent`` — Seize the Spotlight, Master of
+    Ceremonies) as ``Vote`` too; the ``AllPlayers`` gate excludes them STRUCTURALLY
+    — a clean improvement over the live ``_VOTE_EFFECT_GUARD`` raw-idiom regex.
+    Scope "each" (every player votes), matching the live structural maker arm.
+    """
+    for c in tree.effect_concepts("vote"):
+        if tag_of(getattr(c.node, "voter_scope", None)) == "AllPlayers":
+            return [Signal("voting_makers", "each", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _amass_makers(tree: ConceptTree) -> list[Signal]:
+    """amass_makers — an ``Amass N`` DOER (CR 701.47): grow / create a Zombie or
+    Orc Army (Aven Eternal, Eternal Taskmaster). A NEW dedicated lane (the live path
+    routes amass into the broad ``tokens_matter`` keyword arm); the typed ``Amass``
+    effect gives it its own Army-population key. Scope "you".
+    """
+    return _whole_card_maker(tree, "amass", "amass_makers", "you")
+
+
+def _incubate_makers(tree: ConceptTree) -> list[Signal]:
+    """incubate_makers — an ``Incubate N`` DOER (CR 701.53): make an Incubator token
+    with N +1/+1 counters that transforms into a 0/0 artifact creature (Brimaz,
+    Blight of Oreskos, Chrome Host Seedshark). A NEW dedicated lane (the live path
+    has no incubate key). The Incubator co-feeds ``artifacts_matter`` only when a
+    card MAKES the token via ``make_token``; the ``Incubate`` effect is its own
+    maker. Scope "you".
+    """
+    return _whole_card_maker(tree, "incubate", "incubate_makers", "you")
+
+
+def _facedown_makers(tree: ConceptTree) -> list[Signal]:
+    """facedown_makers — a ``Manifest`` / ``Cloak`` DOER (CR 701.40 / 701.58 / 708):
+    put a card onto the battlefield face down as a 2/2 (Cloudform, Cryptic Coat).
+    The ``TurnFaceUp`` effect REFERENCES an existing face-down permanent (a payoff →
+    ``facedown_matters``, out of batch) and the ``FaceDown`` filter PREDICATE
+    ("face-down creature spells you cast cost less" — Dream Chisel) is the
+    cares-about state, NOT a maker — neither surfaces as the ``facedown`` effect
+    concept, so both are excluded structurally. The morph / megamorph / disguise /
+    manifest-dread printed keywords (no ``Manifest`` / ``Cloak`` effect node — they
+    are CAST face down) ride the keyword field-lookup in
+    :func:`_keyword_field_signals_b5`. Scope "you".
+    """
+    return _whole_card_maker(tree, "facedown", "facedown_makers", "you")
+
+
+def _dice_makers(tree: ConceptTree) -> list[Signal]:
+    """dice_makers — a ``RollDie`` DOER (CR 706): the card instructs a die roll
+    (Adorable Kitten, the d20 Dungeons & Dragons engines). A "whenever you roll"
+    PAYOFF trigger is a separate lane (out of batch). Scope "you".
+    """
+    return _whole_card_maker(tree, "roll_die", "dice_makers", "you")
+
+
+def _cast_from_exile(tree: ConceptTree) -> list[Signal]:
+    """cast_from_exile — a play/cast-FROM-EXILE build-around (CR 116 / 601.3b /
+    702.170). Reads the ``GrantCastingPermission`` effect's ``permission`` node
+    STRUCTURALLY (:func:`permission_tag`): ``PlayFromExile`` (impulse exile-and-play
+    — Act on Impulse, Abbot of Keral Keep) or ``Plotted`` (plot — Aloe Alchemist).
+    This is the batch's marquee fidelity gain — the live path kept a byte-identical
+    word-mirror because the OLD lossy IR dropped the from-exile zone off the cast.
+    Keyword cast-from-exile mechanics (foretell / suspend) are kept OUT of this lane
+    (they have their own maker field-lookups), avoiding double counting; the
+    self-recast cards phase represents without a ``GrantCastingPermission`` (Eternal
+    Scourge) stay a documented ``live_only`` residue. A plain ``Exile`` removal
+    (Banisher Priest, Path to Exile) carries no permission → no fire. Scope "you".
+    """
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.concept != "grant_cast_permission":
+                continue
+            if permission_tag(c.node) in _CAST_FROM_EXILE_PERMS:
+                return [Signal("cast_from_exile", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+# Batch-5 Scryfall-keyword field-lookups (checklist #3 — NO typed effect tag for
+# these; the live path keeps them as keyword survivors). Each keyword tags the
+# BEARER / enabler (the maker), NOT a payoff (unlike Explore / Connive whose
+# keyword also tags payoffs), so a clean keyword array read is precise.
+_FORETELL_KEYWORDS: frozenset[str] = frozenset({"foretell"})
+_CASCADE_KEYWORDS: frozenset[str] = frozenset({"cascade"})
+_SUSPEND_KEYWORDS: frozenset[str] = frozenset({"suspend"})
+# infect / toxic / poisonous (CR 702.90 / 702.164) — the poison-counter DEALERS.
+_POISON_KEYWORDS: frozenset[str] = frozenset({"infect", "toxic", "poisonous"})
+# daybound / nightbound (CR 702.145) — the transforming werewolves REWARDED by the
+# day↔night flip (the daynight_matters payoff side).
+_DAYNIGHT_KEYWORDS: frozenset[str] = frozenset({"daybound", "nightbound"})
+# The face-down 2/2 KEYWORD makers (CR 708): morph / megamorph (702.37) and
+# disguise (702.168) are CAST face down and ride the Scryfall keyword array (phase
+# emits no Manifest/Cloak effect for them); manifest dread (701.55) likewise.
+# manifest / cloak ALSO carry the keyword (the structural ``facedown`` effect arm
+# dedups the overlap). Every keyword puts a face-down permanent on the battlefield
+# → the maker lane. Exact-key match keeps "Ceremorphosis" (morph substring) out.
+_FACEDOWN_KEYWORDS: frozenset[str] = frozenset(
+    {"morph", "megamorph", "disguise", "manifest", "cloak", "manifest dread"}
+)
+
+
+def _keyword_field_signals_b5(keywords: frozenset[str], name: str) -> list[Signal]:
+    """The batch-5 Scryfall-keyword field-lookups (checklist #3 survivors):
+
+    * ``foretell`` → ``foretell_makers`` you (CR 702.143);
+    * ``cascade`` → ``cascade_makers`` you (CR 702.85);
+    * ``suspend`` → ``suspend_makers`` you (CR 702.62);
+    * ``infect`` / ``toxic`` / ``poisonous`` → ``poison_makers`` opponents (CR
+      702.90 / 702.164 — the poison-counter dealers; a ``OpponentPoisonAtLeast``
+      Corrupted PAYOFF with no such keyword stays out, the typed condition being a
+      separate ``poison_matters`` lane);
+    * ``daybound`` / ``nightbound`` → ``daynight_matters`` you (CR 702.145);
+    * morph / megamorph / disguise / manifest / cloak / manifest dread →
+      ``facedown_makers`` you (CR 708 — every face-down 2/2 maker; the
+      keyword-only morph / disguise bodies carry NO ``Manifest`` / ``Cloak``
+      effect, so the keyword array is the uniform anchor over all six, deduped
+      against the structural :func:`_facedown_makers` arm).
+
+    Reading the STRUCTURED keyword array (not oracle text) makes the lanes immune to
+    the name / ability-word collisions the deleted regex floors suffered (a card
+    naming the mechanic only in its title can never carry the keyword). The poison
+    GRANTERS ("gains infect") and the structural ``GivePlayerCounter:poison`` givers
+    phase carries off the keyword array are a documented ``live_only`` residue
+    (checklist #6).
+    """
+    out: list[Signal] = []
+    low = {k.lower() for k in keywords}
+    if low & _FORETELL_KEYWORDS:
+        out.append(Signal("foretell_makers", "you", "", "", name, "high"))
+    if low & _CASCADE_KEYWORDS:
+        out.append(Signal("cascade_makers", "you", "", "", name, "high"))
+    if low & _SUSPEND_KEYWORDS:
+        out.append(Signal("suspend_makers", "you", "", "", name, "high"))
+    if low & _POISON_KEYWORDS:
+        out.append(Signal("poison_makers", "opponents", "", "", name, "high"))
+    if low & _DAYNIGHT_KEYWORDS:
+        out.append(Signal("daynight_matters", "you", "", "", name, "high"))
+    if low & _FACEDOWN_KEYWORDS:
+        out.append(Signal("facedown_makers", "you", "", "", name, "high"))
+    return out
+
+
 def _keyword_field_signals(keywords: frozenset[str], name: str) -> list[Signal]:
     """The batch-4 Scryfall-keyword field-lookups — survivor routes the live path
     DELIBERATELY keeps because phase carries no effect node (checklist #3):
@@ -1825,6 +2124,18 @@ _LANES = (
     _explore_makers,
     _suspect_makers,
     _combat_damage_to_opp,
+    _monarch,
+    _venture,
+    _ring,
+    _discover_makers,
+    _daynight_makers,
+    _phasing_makers,
+    _voting_makers,
+    _amass_makers,
+    _incubate_makers,
+    _facedown_makers,
+    _dice_makers,
+    _cast_from_exile,
 )
 
 
@@ -1865,6 +2176,8 @@ def extract_crosswalk_signals(
     for sig in _mill_makers(frozenset(keywords), tree.name):
         add(sig)
     for sig in _keyword_field_signals(frozenset(keywords), tree.name):
+        add(sig)
+    for sig in _keyword_field_signals_b5(frozenset(keywords), tree.name):
         add(sig)
 
     # Whole-card reconciliation (granularity c): cross-open spellcast_matters LOW

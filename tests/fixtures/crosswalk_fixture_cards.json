@@ -130,6 +130,135 @@
         "rare"
       ]
     },
+    "Abzan Guide": {
+      "name": "Abzan Guide",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White",
+          "Black",
+          "Green"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Warrior"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Lifelink (Damage dealt by this creature also causes you to gain that much life.)\nMorph {2}{W}{B}{G} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Lifelink",
+        {
+          "Morph": {
+            "type": "Cost",
+            "shards": [
+              "White",
+              "Black",
+              "Green"
+            ],
+            "generic": 2
+          }
+        }
+      ],
+      "abilities": [],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": [
+        "Black",
+        "Green",
+        "White"
+      ],
+      "color_identity": [
+        "Black",
+        "Green",
+        "White"
+      ],
+      "scryfall_oracle_id": "85b2fb89-5ebe-4c13-bc12-38d1417e5880",
+      "metadata": {
+        "source_printing_ids": [
+          "1b7f7158-4a31-4a1c-bf3b-574c0b09276a",
+          "fadcff4d-7b5d-4bbb-a893-0002c06731e5"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "KTK",
+        "PLST"
+      ],
+      "rulings": [
+        {
+          "date": "2014-09-20",
+          "text": "A permanent that turns face up or face down changes characteristics but is otherwise the same permanent. Spells and abilities that were targeting that permanent, as well as Auras and Equipment that were attached to the permanent, aren't affected."
+        },
+        {
+          "date": "2014-09-20",
+          "text": "Any time you have priority, you may turn the face-down creature face up by revealing what its morph cost is and paying that cost. This is a special action. It doesn't use the stack and can't be responded to. Only a face-down permanent can be turned face up this way; a face-down spell cannot."
+        },
+        {
+          "date": "2014-09-20",
+          "text": "At any time, you can look at a face-down spell or permanent you control. You can't look at face-down spells or permanents you don't control unless an effect instructs you to do so."
+        },
+        {
+          "date": "2014-09-20",
+          "text": "Because the permanent is on the battlefield both before and after it's turned face up, turning a permanent face up doesn't cause any enters-the-battlefield abilities to trigger."
+        },
+        {
+          "date": "2014-09-20",
+          "text": "If a face-down permanent leaves the battlefield, you must reveal it. You must also reveal all face-down spells and permanents you control if you leave the game or if the game ends."
+        },
+        {
+          "date": "2014-09-20",
+          "text": "Morph lets you cast a card face down by paying {3}, and lets you turn the face-down permanent face up any time you have priority by paying its morph cost."
+        },
+        {
+          "date": "2014-09-20",
+          "text": "The face-down spell has no mana cost and has a mana value of 0. When you cast a face-down spell, put it on the stack face down so no other player knows what it is, and pay {3}. This is an alternative cost."
+        },
+        {
+          "date": "2014-09-20",
+          "text": "When the spell resolves, it enters the battlefield as a 2/2 creature with no name, mana cost, creature types, or abilities. It's colorless and has a mana value of 0. Other effects that apply to the creature can still grant it any of these characteristics."
+        },
+        {
+          "date": "2014-09-20",
+          "text": "You must ensure that your face-down spells and permanents can easily be differentiated from each other. You're not allowed to mix up the cards that represent them on the battlefield in order to confuse other players. The order they entered the battlefield should remain clear. Common methods for doing this include using markers or dice, or simply placing them in order on the battlefield."
+        }
+      ],
+      "rarities": [
+        "common"
+      ]
+    },
     "Academic Dispute": {
       "name": "Academic Dispute",
       "mana_cost": {
@@ -479,6 +608,257 @@
       "rarities": [
         "common",
         "uncommon"
+      ]
+    },
+    "Act on Impulse": {
+      "name": "Act on Impulse",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Red"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Exile the top three cards of your library. Until end of turn, you may play those cards. (If you cast a spell this way, you still pay its costs. You can play a land this way only if you have an available land play remaining.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "ExileTop",
+            "player": {
+              "type": "Controller"
+            },
+            "count": {
+              "type": "Fixed",
+              "value": 3
+            }
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "GrantCastingPermission",
+              "permission": {
+                "type": "PlayFromExile",
+                "duration": "UntilEndOfTurn",
+                "granted_to": 0
+              },
+              "target": {
+                "type": "TrackedSet",
+                "id": 0
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": "UntilEndOfTurn",
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "sub_link": "SequentialSibling"
+          },
+          "duration": null,
+          "description": "Exile the top three cards of your library. Until end of turn, you may play those cards.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Red"
+      ],
+      "scryfall_oracle_id": "19ad338a-c89f-406d-ad1a-222c22044e1b",
+      "metadata": {
+        "source_printing_ids": [
+          "ae4fd9dc-5cf9-4f10-836a-8b7aaf8aca29",
+          "bced316b-6148-4c0b-a6f7-de9240e5eebe",
+          "bfe513d1-2509-4051-ba85-49a19479fa5c"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "J22",
+        "M15",
+        "PLST"
+      ],
+      "rulings": [
+        {
+          "date": "2014-07-18",
+          "text": "Any cards you don't play will remain exiled."
+        },
+        {
+          "date": "2014-07-18",
+          "text": "Playing a card this way follows the normal rules for playing the card. You must pay its costs, and you must follow all applicable timing rules. For example, if one of the cards is a creature card, you can cast that card only during your main phase while the stack is empty."
+        },
+        {
+          "date": "2014-07-18",
+          "text": "The cards are exiled face up."
+        },
+        {
+          "date": "2014-07-18",
+          "text": "Under normal circumstances, you can play a land card exiled with Act on Impulse only if you haven't played a land yet that turn."
+        }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
+    "Adorable Kitten": {
+      "name": "Adorable Kitten",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White"
+        ],
+        "generic": 0
+      },
+      "card_type": {
+        "supertypes": [
+          "Host"
+        ],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Cat"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 1
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 1
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "When this creature enters, roll a six-sided die. You gain life equal to the result.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "RollDie",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "sides": 6,
+              "results": []
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "GainLife",
+                "amount": {
+                  "type": "Ref",
+                  "qty": {
+                    "type": "EventContextAmount"
+                  }
+                }
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false,
+              "sub_link": "SequentialSibling"
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": "Battlefield",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ enters, roll a six-sided die. You gain life equal to the result.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "White"
+      ],
+      "scryfall_oracle_id": "748d5353-b66c-4d7a-8c55-0d28fefb1e2a",
+      "metadata": {
+        "source_printing_ids": [
+          "2729cce6-f380-4c94-ac64-3a2487da6130",
+          "d25ff6aa-a01d-49f2-926f-8f5457143b5c"
+        ]
+      },
+      "legalities": {},
+      "printings": [
+        "UND",
+        "UST"
+      ],
+      "rulings": [
+        {
+          "date": "2018-01-19",
+          "text": "Host creatures each have an ability that triggers when it enters the battlefield. It functions like any other creature."
+        }
+      ],
+      "rarities": [
+        "common"
       ]
     },
     "Adorned Pouncer": {
@@ -1357,6 +1737,545 @@
         "rare"
       ]
     },
+    "Aloe Alchemist": {
+      "name": "Aloe Alchemist",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Green"
+        ],
+        "generic": 1
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Plant",
+          "Warlock"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Trample\nWhen this card becomes plotted, target creature gets +3/+2 and gains trample until end of turn.\nPlot {1}{G} (You may pay {1}{G} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Trample",
+        {
+          "Plot": {
+            "type": "Cost",
+            "shards": [
+              "Green"
+            ],
+            "generic": 1
+          }
+        }
+      ],
+      "abilities": [
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "GrantCastingPermission",
+            "permission": {
+              "type": "Plotted",
+              "turn_plotted": 0
+            },
+            "target": {
+              "type": "SelfRef"
+            }
+          },
+          "cost": {
+            "type": "Composite",
+            "costs": [
+              {
+                "type": "Mana",
+                "cost": {
+                  "type": "Cost",
+                  "shards": [
+                    "Green"
+                  ],
+                  "generic": 1
+                }
+              },
+              {
+                "type": "Exile",
+                "count": 1,
+                "zone": "Hand",
+                "filter": {
+                  "type": "SelfRef"
+                }
+              }
+            ]
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "AsSorcery"
+            }
+          ],
+          "activation_zone": "Hand",
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [
+        {
+          "mode": "BecomesPlotted",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "GenericEffect",
+              "static_abilities": [
+                {
+                  "mode": "Continuous",
+                  "affected": {
+                    "type": "ParentTarget"
+                  },
+                  "modifications": [
+                    {
+                      "type": "AddPower",
+                      "value": 3
+                    },
+                    {
+                      "type": "AddToughness",
+                      "value": 2
+                    },
+                    {
+                      "type": "AddKeyword",
+                      "keyword": "Trample"
+                    }
+                  ],
+                  "condition": null,
+                  "affected_zone": null,
+                  "effect_zone": null,
+                  "active_zones": [],
+                  "characteristic_defining": false,
+                  "description": "get +3/+2 and gains trample"
+                }
+              ],
+              "duration": "UntilEndOfTurn",
+              "target": {
+                "type": "Typed",
+                "type_filters": [
+                  "Creature"
+                ],
+                "controller": null,
+                "properties": []
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": "UntilEndOfTurn",
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Exile"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When this card becomes plotted, target creature gets +3/+2 and gains trample until end of turn.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Green"
+      ],
+      "scryfall_oracle_id": "97489ef7-98c3-4700-bbe6-185215d41b25",
+      "metadata": {
+        "source_printing_ids": [
+          "69f2f632-b6cc-4092-acd5-a6b152e90488"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "standard": "legal",
+        "standardbrawl": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "OTJ"
+      ],
+      "rulings": [
+        {
+          "date": "2024-04-12",
+          "text": "Exiling a card using its plot ability is a special action. Once you announce you're taking that action, no other player can respond by trying to remove that card from your hand."
+        },
+        {
+          "date": "2024-04-12",
+          "text": "If a plotted card has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+        },
+        {
+          "date": "2024-04-12",
+          "text": "If you're casting a plotted card from exile without paying its mana cost, you can't choose to cast it for any other alternative costs. You can, however, pay additional costs, such as kicker costs. If the plotted card has any mandatory additional costs, those must still be paid to cast the spell."
+        },
+        {
+          "date": "2024-04-12",
+          "text": "Plot abilities are written \"Plot [cost],\" which means \"Any time you have priority during your main phase while the stack is empty, you may pay [cost] and exile this card from your hand. It becomes plotted.\""
+        },
+        {
+          "date": "2024-04-12",
+          "text": "You can't cast a plotted card on the same turn it became plotted. On any future turn, you may cast that card from exile without paying its mana cost during your main phase while the stack is empty."
+        }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
+    "Ancestral Vision": {
+      "name": "Ancestral Vision",
+      "mana_cost": {
+        "type": "NoCost"
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Suspend 4—{U} (Rather than cast this card from your hand, pay {U} and exile it with four time counters on it. At the beginning of your upkeep, remove a time counter. When the last is removed, you may cast it without paying its mana cost.)\nTarget player draws three cards.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        {
+          "Suspend": {
+            "count": 4,
+            "cost": {
+              "type": "Cost",
+              "shards": [
+                "Blue"
+              ],
+              "generic": 0
+            }
+          }
+        }
+      ],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Draw",
+            "count": {
+              "type": "Fixed",
+              "value": 3
+            },
+            "target": {
+              "type": "Player"
+            }
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": "Target player draws three cards.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "PutCounter",
+            "counter_type": "time",
+            "count": {
+              "type": "Fixed",
+              "value": 4
+            },
+            "target": {
+              "type": "SelfRef"
+            }
+          },
+          "cost": {
+            "type": "Composite",
+            "costs": [
+              {
+                "type": "Mana",
+                "cost": {
+                  "type": "Cost",
+                  "shards": [
+                    "Blue"
+                  ],
+                  "generic": 0
+                }
+              },
+              {
+                "type": "Exile",
+                "count": 1,
+                "zone": "Hand",
+                "filter": {
+                  "type": "SelfRef"
+                }
+              }
+            ]
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "MatchesCardCastTiming"
+            }
+          ],
+          "activation_zone": "Hand",
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "RemoveCounter",
+              "counter_type": "time",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "target": {
+                "type": "SelfRef"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Exile"
+          ],
+          "phase": "Upkeep",
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "CR 702.62a: At the beginning of your upkeep, if this card is suspended, remove a time counter from it.",
+          "constraint": {
+            "type": "OnlyDuringYourTurn"
+          },
+          "condition": {
+            "type": "HasCounters",
+            "counters": {
+              "type": "OfType",
+              "data": "time"
+            },
+            "minimum": 1
+          },
+          "batched": false
+        },
+        {
+          "mode": "CounterRemoved",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "CastFromZone",
+              "target": {
+                "type": "SelfRef"
+              },
+              "without_paying_mana_cost": true,
+              "mode": "Cast",
+              "driver": "DuringResolution"
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": true,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Exile"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "CR 702.62a: When the last time counter is removed from this card, if it's exiled, you may play it without paying its mana cost.",
+          "constraint": null,
+          "condition": null,
+          "counter_filter": {
+            "counter_type": "time",
+            "threshold": 0
+          },
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": [
+        "Blue"
+      ],
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "9728dec9-d482-4c7a-8cdc-44d010dc878d",
+      "metadata": {
+        "source_printing_ids": [
+          "307752ed-f4cc-4e2d-a0fd-0c677844e848",
+          "9079c93e-3da8-442a-89d2-609a3eac83b0",
+          "9ec075ba-db56-4dcf-b1dc-fe6270b7ab36",
+          "a5dc736d-7e61-4909-973f-61f7adb82b64",
+          "bccedc4d-38c7-4bf3-9ca7-4febd6c49d3d",
+          "dd18851b-5e8d-4d56-b58c-f62b8e43ba0d"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "DD2",
+        "IMA",
+        "JVC",
+        "TDC",
+        "TSP",
+        "TSR"
+      ],
+      "rulings": [
+        {
+          "date": "2013-06-07",
+          "text": "Although originally printed with a characteristic-defining ability that defined its color, this card now has a color indicator. This color indicator can't be affected by text-changing effects (such as the one created by Crystal Spray), although color-changing effects can still overwrite it."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "A card with no mana cost can't be cast normally; you'll need a way to cast it for an alternative cost or without paying its mana cost, such as by suspending it."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "Cards exiled with suspend are exiled face up."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "Due to a recent rules change to suspend, you are no longer required to cast the suspended card as the second triggered ability of suspend resolves. Instead, as the second triggered ability resolves, you may cast the card. Timing permissions based on the card's type are ignored. If you don't cast the card, it remains exiled with no time counters on it, and it's no longer suspended."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "Exiling a card with suspend isn't casting that card. This action doesn't use the stack and can't be responded to."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If a card with no mana cost is given an alternative cost equal to its mana cost (by Snapcaster Mage, for example), that cost cannot be paid and the card cannot be cast this way."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If an effect refers to a \"suspended card,\" that means a card that (1) has suspend, (2) is in exile, and (3) has one or more time counters on it."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If the card has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If the first triggered ability of suspend (the one that removes time counters) is countered, no time counter is removed. The ability will trigger again at the beginning of the card's owner's next upkeep."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If the second triggered ability is countered, the card can't be cast. It remains exiled with no time counters on it, and it's no longer suspended."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If the spell requires any targets, those targets are chosen when the spell is finally cast, not when it's exiled."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If you cast a card \"without paying its mana cost,\" such as with suspend, you can't choose to cast it for any alternative costs. You can, however, pay additional costs. If the card has any mandatory additional costs, you must pay those if you want to cast the card."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "Suspend is a keyword that represents three abilities. The first is a static ability that allows you to exile the card from your hand with the specified number of time counters (the number before the dash) on it by paying its suspend cost (listed after the dash). The second is a triggered ability that removes a time counter from the suspended card at the beginning of each of your upkeeps. The third is a triggered ability that gives you the option to cast the card when the last time counter is removed."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "The mana value of a spell cast without paying its mana cost is determined by its mana cost, even though that cost wasn't paid."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "When the last time counter is removed, the second triggered ability of suspend (the one that lets you cast the card) triggers. It doesn't matter why the last time counter was removed or what effect removed it."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "You can exile a card in your hand using suspend any time you could cast that card. Consider its card type, any effects that modify when you could cast it (such as flash) and any other effects that stop you from casting it (such as from Meddling Mage's ability) to determine if and when you can do this. Whether you could actually complete all steps in casting the card is irrelevant. For example, you can exile a card with suspend that has no mana cost or that requires a target even if no legal targets are available at that time."
+        }
+      ],
+      "rarities": [
+        "rare",
+        "mythic"
+      ]
+    },
     "Anointer Priest": {
       "name": "Anointer Priest",
       "mana_cost": {
@@ -1598,6 +2517,103 @@
       ],
       "rarities": [
         "common"
+      ]
+    },
+    "Apostle of Invasion": {
+      "name": "Apostle of Invasion",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White",
+          "White"
+        ],
+        "generic": 4
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Phyrexian",
+          "Angel"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Flying\nCorrupted — As long as an opponent has three or more poison counters, this creature has double strike.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Flying"
+      ],
+      "abilities": [],
+      "triggers": [],
+      "static_abilities": [
+        {
+          "mode": "Continuous",
+          "affected": {
+            "type": "SelfRef"
+          },
+          "modifications": [
+            {
+              "type": "AddKeyword",
+              "keyword": "DoubleStrike"
+            }
+          ],
+          "condition": {
+            "type": "OpponentPoisonAtLeast",
+            "count": 3
+          },
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "Corrupted — As long as an opponent has three or more poison counters, ~ has double strike."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "White"
+      ],
+      "scryfall_oracle_id": "d56f1543-2b2d-4ce3-bcfe-41224a0cece4",
+      "metadata": {
+        "source_printing_ids": [
+          "8a973487-5def-4771-bb77-5748cbd2f469"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "ONE"
+      ],
+      "rulings": [
+        {
+          "date": "2023-02-04",
+          "text": "In a multiplayer game, Apostle of Invasion can lose double strike after dealing damage in the first combat damage step if all the opponents that had three or more poison counters left the game. (This is most likely due to that combat damage, so good job!). In that case, it will not deal any combat damage in the regular combat damage step."
+        }
+      ],
+      "rarities": [
+        "uncommon"
       ]
     },
     "Archangel of Thune": {
@@ -2500,6 +3516,445 @@
         "rare"
       ]
     },
+    "Aven Eternal": {
+      "name": "Aven Eternal",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Zombie",
+          "Bird",
+          "Warrior"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Flying\nWhen this creature enters, amass Zombies 1. (Put a +1/+1 counter on an Army you control. It's also a Zombie. If you don't control an Army, create a 0/0 black Zombie Army creature token first.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Flying"
+      ],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Amass",
+              "subtype": "Zombie",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": "Battlefield",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ enters, amass Zombies 1.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "ba7aad10-6897-4e85-a976-1bf9282de5de",
+      "metadata": {
+        "related_token_ids": [
+          "b58e80b0-3835-5eda-8aa0-b600a9a7cc6c"
+        ],
+        "source_printing_ids": [
+          "fe479484-a827-4d3c-8e35-e905e4f6664a"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "WAR"
+      ],
+      "rulings": [
+        {
+          "date": "2023-06-16",
+          "text": "Amass Orcs works the same way, except you create a 0/0 black Orc Army creature token if you don't control an Army. If the Army creature you chose isn't already an Orc, it becomes an Orc in addition to its other types. By combining cards with amass Orcs and amass Zombies, you can end up with an Orc Zombie Army."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "Amass abilities are now written as \"amass [subtype] N.\" Previous cards with amass have received errata to say \"amass Zombies N.\""
+        },
+        {
+          "date": "2023-06-16",
+          "text": "If you don't control an Army, the Zombie Army token you create enters the battlefield as a 0/0 creature before receiving counters. Any abilities that trigger when a creature with a certain power enters the battlefield, such as that of Mentor of the Meek, will see the token enter as a 0/0 creature before it gets +1/+1 counters."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "In the rare case that you control multiple Army creatures (perhaps because you played a creature with changeling) while you amass Zombies, you choose which of your Army creatures to put the +1/+1 counters on. If that creature isn't a Zombie, it becomes a Zombie in addition to its other types."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "Some cards refer to the \"amassed Army.\" That means the Army creature you chose to receive counters, even if no counters were placed on it for some reason."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "To amass Zombies N, if you don't control an Army creature, create a 0/0 black Zombie Army creature token. Then you choose an Army creature you control and put N +1/+1 counters on it. If that Army isn't already a Zombie, it becomes a Zombie in addition to its other types."
+        }
+      ],
+      "rarities": [
+        "common"
+      ]
+    },
+    "Avenging Hunter": {
+      "name": "Avenging Hunter",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Green"
+        ],
+        "generic": 4
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Dragon",
+          "Ranger"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 5
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Trample\nWhen this creature enters, you take the initiative.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Trample"
+      ],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "TakeTheInitiative"
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": "Battlefield",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ enters, you take the initiative.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Green"
+      ],
+      "scryfall_oracle_id": "e0aa5e3d-17c0-4ac7-9d76-9ce579d1eb2b",
+      "metadata": {
+        "source_printing_ids": [
+          "f4072640-0f9b-4f0a-84cc-eda415cc92e7"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "CLB"
+      ],
+      "rulings": [
+        {
+          "date": "2022-06-10",
+          "text": "A player who currently has the initiative may take the initiative again. This causes that player to venture into Undercity again, but does not cause them to have multiple initiative designations."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "If the player with the initiative leaves the game, the active player takes the initiative at the same time that player leaves the game. If the active player is leaving the game or if there is no active player, the next player in turn order takes the initiative."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "If you aren’t in a dungeon when instructed to venture into Undercity, you will put Undercity into the command zone and move your venture marker to Secret Entrance (the first room)."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "If you’re already in a dungeon when instructed to venture into Undercity, you move to the next room of that dungeon. If you are already in the last room, you will complete that dungeon and start Undercity. This is true whether you’re already in Undercity or any other dungeon."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "In a Two-Headed Giant game, if both players on a team deal combat damage to the player that has the initiative at the same time, the player with the initiative will choose the order of the triggered abilities. Then, as those abilities resolve, one team member takes the initiative (and ventures into Undercity) and then the other team member does the same. The last player to take the initiative keeps it until the initiative changes again."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "Only one player can have the initiative at a time. As one player takes the initiative, any other player that had the initiative ceases to have it."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "Similarly, when instructed to venture into Undercity, you can’t start a dungeon that isn’t Undercity."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "The initiative is a designation a player can have. A player with the initiative designation is said to “have the initiative.” The initiative carries two inherent rules. First, whenever a player takes the initiative, and at the beginning of the upkeep of the player with the initiative, that player ventures into Undercity. Second, whenever one or more creatures a player controls deal combat damage to the player who has the initiative, the first player takes the initiative. Also, some abilities will refer to having the initiative and provide other benefits."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "There is no initiative in a game until an effect instructs a player to take the initiative. Once a player is instructed to do this, they have the initiative until another player takes the initiative."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "You cannot venture into Undercity unless instructed to do so, either because you have the initiative at the beginning of your upkeep or because you take the initiative. Notably, if you aren’t in a dungeon and an effect instructs you to venture into the dungeon (not venture into Undercity), you can’t start Undercity."
+        }
+      ],
+      "rarities": [
+        "common"
+      ]
+    },
+    "Azure Fleet Admiral": {
+      "name": "Azure Fleet Admiral",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Pirate"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "When this creature enters, you become the monarch.\nThis creature can't be blocked by creatures the monarch controls.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "BecomeMonarch"
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": "Battlefield",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ enters, you become the monarch.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [
+        {
+          "mode": {
+            "CantBeBlockedBy": {
+              "filter": {
+                "type": "Typed",
+                "type_filters": [
+                  "Creature"
+                ],
+                "controller": null,
+                "properties": []
+              }
+            }
+          },
+          "affected": {
+            "type": "SelfRef"
+          },
+          "modifications": [],
+          "condition": null,
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "~ can't be blocked by creatures the monarch controls."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "b39f228f-d146-49c6-bab4-5304e0f742d8",
+      "metadata": {
+        "source_printing_ids": [
+          "adb04bab-a10a-40da-813e-6afa68956efc",
+          "c0889e22-deab-48ba-bbd6-f0d49bee5d9c"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "CMR",
+        "LCC"
+      ],
+      "rulings": [
+        {
+          "date": "2020-11-10",
+          "text": "Azure Fleet Admiral's last ability normally means that it can't be blocked while attacking the monarch or a planeswalker the monarch controls. In some variants with shared team turns, such as Two-Headed Giant, creatures controlled by the monarch's teammate can block Azure Fleet Admiral, even if it's attacking the monarch."
+        },
+        {
+          "date": "2020-11-10",
+          "text": "If combat damage dealt to the monarch causes that player to lose the game, the triggered ability that causes the controller of the attacking creature to become the monarch doesn't resolve. In most cases, the controller of the attacking creature will still become the monarch as it is likely their turn."
+        },
+        {
+          "date": "2020-11-10",
+          "text": "If the monarch leaves the game during another player's turn, that player becomes the monarch. If the monarch leaves the game during their turn, the next player in turn order becomes the monarch."
+        },
+        {
+          "date": "2020-11-10",
+          "text": "If the triggered ability that causes the monarch to draw a card goes on the stack and a different player becomes the monarch before that ability resolves, the first player will still draw the card."
+        },
+        {
+          "date": "2020-11-10",
+          "text": "The game starts with no monarch. Once an effect makes one player the monarch, the game will have exactly one monarch from that point forward. As a player becomes the monarch, the current monarch (if any) ceases being the monarch."
+        },
+        {
+          "date": "2020-11-10",
+          "text": "There are two inherent triggered abilities associated with being the monarch. These triggered abilities have no source and are controlled by the player who was the monarch at the time the abilities triggered. The full texts of these abilities are \"At the beginning of the monarch's end step, that player draws a card\" and \"Whenever a creature deals combat damage to the monarch, its controller becomes the monarch.\""
+        }
+      ],
+      "rarities": [
+        "common"
+      ]
+    },
     "Baleful Beholder": {
       "name": "Baleful Beholder",
       "mana_cost": {
@@ -2849,6 +4304,175 @@
       ],
       "rarities": [
         "uncommon"
+      ]
+    },
+    "Bar the Gate": {
+      "name": "Bar the Gate",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Instant"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Counter target creature or planeswalker spell. Venture into the dungeon. (Enter the first room or advance to the next room.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Counter",
+            "target": {
+              "type": "Or",
+              "filters": [
+                {
+                  "type": "And",
+                  "filters": [
+                    {
+                      "type": "StackSpell"
+                    },
+                    {
+                      "type": "Typed",
+                      "type_filters": [
+                        "Creature"
+                      ],
+                      "controller": null,
+                      "properties": []
+                    }
+                  ]
+                },
+                {
+                  "type": "And",
+                  "filters": [
+                    {
+                      "type": "StackSpell"
+                    },
+                    {
+                      "type": "Typed",
+                      "type_filters": [
+                        "Planeswalker"
+                      ],
+                      "controller": null,
+                      "properties": []
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "VentureIntoDungeon"
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "sub_link": "SequentialSibling"
+          },
+          "duration": null,
+          "description": "Counter target creature or planeswalker spell. Venture into the dungeon.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "11f55ec5-b9a3-4670-8afb-31d29478fb59",
+      "metadata": {
+        "source_printing_ids": [
+          "b9b1e53f-1384-4860-9944-e68922afc65c"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "AFR"
+      ],
+      "rulings": [
+        {
+          "date": "2021-07-23",
+          "text": "A player may only have one dungeon in the command zone at a time."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Choosing the dungeon or room to venture into is part of resolving the venture into the dungeon keyword action. Once that choice is made, players may not respond until after the appropriate room ability has triggered."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Dungeon cards are not part of a player's deck or sideboard. In both constructed and limited formats, players can use any dungeon card when they venture into the dungeon."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Dungeons are removed from the game as a state-based action."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "If you somehow venture into the dungeon while a room's ability is on the stack, you will continue on in the dungeon. If you're already in the last room, complete that dungeon and start a new one."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Moving into a dungeon room will cause its room ability to trigger."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Once you resolve the last room ability of a dungeon, that dungeon is now completed and is removed from the game."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "The player venturing into the dungeon chooses which dungeon they will venture into. They may choose a dungeon that they have already completed this game."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "To venture into the dungeon, a player moves their venture marker into the next room of the dungeon they are currently in. If they aren't currently in a dungeon, that player instead chooses a dungeon card from outside the game, puts it into the command zone, and moves their venture marker onto the first room."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "You can only move forward (well, downward) in a dungeon, never backwards or sideways."
+        }
+      ],
+      "rarities": [
+        "common"
       ]
     },
     "Bartered Cow": {
@@ -3219,6 +4843,133 @@
       ],
       "rarities": [
         "rare"
+      ]
+    },
+    "Behold the Multiverse": {
+      "name": "Behold the Multiverse",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Instant"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Scry 2, then draw two cards.\nForetell {1}{U} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        {
+          "Foretell": {
+            "type": "Cost",
+            "shards": [
+              "Blue"
+            ],
+            "generic": 1
+          }
+        }
+      ],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Scry",
+            "count": {
+              "type": "Fixed",
+              "value": 2
+            },
+            "target": {
+              "type": "Controller"
+            }
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Draw",
+              "count": {
+                "type": "Fixed",
+                "value": 2
+              },
+              "target": {
+                "type": "Controller"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "duration": null,
+          "description": "Scry 2, then draw two cards.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "d7d2f701-77df-4169-bf98-0d51d6886e9b",
+      "metadata": {
+        "source_printing_ids": [
+          "27855a38-a682-4f97-ad22-ac625e86faec"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "KHM"
+      ],
+      "rulings": [
+        {
+          "date": "2021-02-05",
+          "text": "Because exiling a card with foretell from your hand is a special action, you can do so any time you have priority during your turn, including in response to spells and abilities. Once you announce you're taking the action, no other player can respond by trying to remove the card from your hand."
+        },
+        {
+          "date": "2021-02-05",
+          "text": "Casting a foretold card from exile follows the timing rules for that card. If you foretell an instant card, you can cast it as soon as the next player's turn. In most cases, if you foretell a card that isn't an instant (or doesn't have flash), you'll have to wait until your next turn to cast it."
+        },
+        {
+          "date": "2021-02-05",
+          "text": "If you're casting a foretold card from exile for its foretell cost, you can't choose to cast it for any other alternative costs. You can, however, pay additional costs, such as kicker costs. If the card has any mandatory additional costs, those must be paid to cast the spell."
+        }
+      ],
+      "rarities": [
+        "common"
       ]
     },
     "Bident of Thassa": {
@@ -3644,6 +5395,151 @@
         "common"
       ]
     },
+    "Bituminous Blast": {
+      "name": "Bituminous Blast",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black",
+          "Red"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Instant"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Cascade (When you cast this spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order.)\nBituminous Blast deals 4 damage to target creature.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Cascade"
+      ],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "DealDamage",
+            "amount": {
+              "type": "Fixed",
+              "value": 4
+            },
+            "target": {
+              "type": "Typed",
+              "type_filters": [
+                "Creature"
+              ],
+              "controller": null,
+              "properties": []
+            }
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": "~ deals 4 damage to target creature.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "scryfall_oracle_id": "d291d8f7-bb67-470c-8794-cd553c91e5cc",
+      "metadata": {
+        "source_printing_ids": [
+          "4e72d6ed-535a-4ea1-b3c7-bd5d792290b2",
+          "5d3c5532-20a4-48aa-bf08-73ab0579e5d4",
+          "65badf7f-7e69-4e2a-91c5-041e3c8bd32e",
+          "89cafccf-c199-4c07-857e-956adaf2817d",
+          "af8613ee-4b67-49b8-920b-3b5a25897f64",
+          "d6f3d13e-14ce-449f-9a08-cd9bef33981a",
+          "ef5eb555-4de2-4d58-afce-7cafdddb5bc0",
+          "f4a72bcb-bcfd-4cd3-bfa2-2c48582059b7",
+          "fd6a3c48-b01e-4462-a4a1-8d5009a6a844"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "40K",
+        "AFC",
+        "ARB",
+        "ARC",
+        "C16",
+        "J25",
+        "M3C",
+        "P10",
+        "PC2",
+        "PCA",
+        "PLST",
+        "PRM"
+      ],
+      "rulings": [
+        {
+          "date": "2021-06-18",
+          "text": "A spell's mana value is determined only by its mana cost. Ignore any alternative costs, additional costs, cost increases, or cost reductions."
+        },
+        {
+          "date": "2021-06-18",
+          "text": "Cascade triggers when you cast the spell, meaning that it resolves before that spell. If you end up casting the exiled card, it will go on the stack above the spell with cascade."
+        },
+        {
+          "date": "2021-06-18",
+          "text": "Due to a 2021 rules change to cascade, not only do you stop exiling cards if you exile a nonland card with lesser mana value than the spell with cascade, but the resulting spell you cast must also have lesser mana value. Previously, in cases where a card's mana value differed from the resulting spell, such as with some modal double-faced cards or cards with an Adventure, you could cast a spell with a higher mana value than the exiled card."
+        },
+        {
+          "date": "2021-06-18",
+          "text": "If a spell with cascade is countered, the cascade ability will still resolve normally."
+        },
+        {
+          "date": "2021-06-18",
+          "text": "If the card has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+        },
+        {
+          "date": "2021-06-18",
+          "text": "If you cast a card \"without paying its mana cost,\" you can't choose to cast it for any alternative costs. You can, however, pay additional costs. If the card has any mandatory additional costs, you must pay those to cast the card."
+        },
+        {
+          "date": "2021-06-18",
+          "text": "The mana value of a split card is determined by the combined mana cost of its two halves. If cascade allows you to cast a split card, you may cast either half but not both halves."
+        },
+        {
+          "date": "2021-06-18",
+          "text": "When the cascade ability resolves, you must exile cards. The only optional part of the ability is whether or not you cast the last card exiled."
+        },
+        {
+          "date": "2021-06-18",
+          "text": "You exile the cards face up. All players will be able to see them."
+        }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
     "Black Sun's Zenith": {
       "name": "Black Sun's Zenith",
       "mana_cost": {
@@ -3791,6 +5687,302 @@
       "rarities": [
         "rare",
         "mythic"
+      ]
+    },
+    "Blink Dog": {
+      "name": "Blink Dog",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Dog"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 1
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 1
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Double strike\nTeleport — {3}{W}: This creature phases out. (Treat it and anything attached to it as though they don't exist until your next turn.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "DoubleStrike"
+      ],
+      "abilities": [
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "PhaseOut",
+            "target": {
+              "type": "SelfRef"
+            }
+          },
+          "cost": {
+            "type": "Mana",
+            "cost": {
+              "type": "Cost",
+              "shards": [
+                "White"
+              ],
+              "generic": 3
+            }
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "Teleport — {3}{W}: ~ phases out.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "White"
+      ],
+      "scryfall_oracle_id": "02a7d95a-0a45-4aa3-b5b8-01c0b36462d8",
+      "metadata": {
+        "source_printing_ids": [
+          "4fcf1082-25ac-4537-9fd9-631f834097ad",
+          "cc040492-7fb7-4fdb-aafe-8179e5f2b28c"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "AFR"
+      ],
+      "rulings": [
+        {
+          "date": "2021-07-23",
+          "text": "An attacking or blocking creature that phases out is removed from combat."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Any continuous effects with a \"for as long as\" duration, such as that of Mind Flayer, ignore phased-out objects. If ignoring those objects causes the effect's conditions to no longer be met, the duration will expire."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "As Blink Dog phases out, Auras and Equipment attached to it also phase out at the same time. Those Auras and Equipment will phase in at the same time Blink Dog does, and they'll phase in still attached to Blink Dog."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Choices made for permanents as they entered the battlefield are remembered when they phase in."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "If an opponent gains control of your Blink Dog, activates its Teleport ability, and the duration of the control-change effect expires before it phases in, Blink Dog phases in under your control as that opponent's next untap step begins. If they leave the game before their next untap step, Blink Dog phases in as the next untap step begins after their turn would have begun."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Permanents phase back in during their controller's untap step, immediately before that player untaps their permanents. Creatures that phase in this way are able to attack and pay a cost of {T} during that turn. If a permanent had counters on it when it phased out, it will have those counters when it phases back in."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Phased out permanents are treated as though they don't exist. They can't be the target of spells or abilities, their static abilities have no effect on the game, their triggered abilities can't trigger, they can't attack or block, and so on."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Phasing out doesn't cause any \"leaves the battlefield\" abilities to trigger. Similarly, phasing in won't cause any \"enters the battlefield\" abilities to trigger."
+        }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
+    "Bloated Contaminator": {
+      "name": "Bloated Contaminator",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Green"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Phyrexian",
+          "Beast"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Trample\nToxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhenever this creature deals combat damage to a player, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Trample",
+        {
+          "Toxic": 1
+        }
+      ],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "DamageDone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Proliferate"
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "CombatOnly",
+          "secondary": false,
+          "valid_target": {
+            "type": "Player"
+          },
+          "valid_source": {
+            "type": "SelfRef"
+          },
+          "description": "Whenever ~ deals combat damage to a player, proliferate.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Green"
+      ],
+      "scryfall_oracle_id": "090018e0-4dcb-4b3c-b4e0-7ba62de0484d",
+      "metadata": {
+        "source_printing_ids": [
+          "411bda96-6c65-475d-9850-0a9b3eefa553",
+          "a53285ae-3345-4ebf-836f-8eb8ae43c21f"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "ONE",
+        "PONE"
+      ],
+      "rulings": [
+        {
+          "date": "2023-02-04",
+          "text": "A player with ten or more poison counters loses the game. This is a state-based action and doesn't use the stack. In other words, it happens immediately and players can't respond to it, just like a player losing the game due to having 0 or less life."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "An ability that triggers \"Whenever you proliferate\" triggers even if you chose no permanents or players while doing so."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "Any other effects of that damage, such as life gain from lifelink, still apply."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "Conversely, replacement effects that apply to the number of counters put on a player can modify the counters placed this way. For example, Vorinclex, Monstrous Raider's last two abilities can apply to counters placed this way."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "Damage dealt by a creature with toxic grants the same number of counters regardless of how much damage is dealt. Notably, if a replacement effect modifies the damage in some way (such as that of Gratuitous Violence), the number of counters given remains unchanged."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "If a creature with toxic deals combat damage to a creature or planeswalker, or if it deals noncombat damage, toxic has no effect and no player gets poison counters."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "If a permanent ever has both +1/+1 counters and -1/-1 counters on it at the same time, they're removed in pairs as a state-based action so that the permanent has only one of those kinds of counters on it."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "If a player or permanent has more than one kind of counter on it, and you choose for it to get additional counters, it must get one of each kind of counter it already has. You can't have it get just one kind of counter it already has and not the others."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "Multiple instances of toxic are cumulative. For example, if a creature has toxic 2 and gains toxic 1 due to another effect, combat damage that creature deals to a player will cause that player to get 3 poison counters."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "Players can respond to a spell or ability whose effect includes proliferating. Once that spell or ability starts to resolve, however, and its controller chooses which permanents and players will get new counters, it's too late for anyone to respond."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "To proliferate, you can choose any permanent that has a counter, including ones controlled by opponents. You can choose any player who has a counter, including opponents. You can't choose cards in any zone other than the battlefield, even if they have counters on them."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "Toxic doesn't change the amount of combat damage a creature deals. For example, if a 2/2 creature with toxic 1 deals combat damage to a player, that creature will deal 2 damage. The results of that damage are the player loses 2 life and gets a poison counter."
+        },
+        {
+          "date": "2023-02-04",
+          "text": "You don't have to choose every permanent or player that has a counter, only the ones you want to add another counter to. Since \"any number\" includes zero, you don't have to choose any permanents at all, and you don't have to choose any players at all."
+        }
+      ],
+      "rarities": [
+        "rare"
       ]
     },
     "Blood Artist": {
@@ -4281,6 +6473,230 @@
         "common"
       ]
     },
+    "Boromir, Warden of the Tower": {
+      "name": "Boromir, Warden of the Tower",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Soldier"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Vigilance\nWhenever an opponent casts a spell, if no mana was spent to cast it, counter that spell.\nSacrifice Boromir: Creatures you control gain indestructible until end of turn. The Ring tempts you.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Vigilance"
+      ],
+      "abilities": [
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "GenericEffect",
+            "static_abilities": [
+              {
+                "mode": "Continuous",
+                "affected": {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Creature"
+                  ],
+                  "controller": "You",
+                  "properties": []
+                },
+                "modifications": [
+                  {
+                    "type": "AddKeyword",
+                    "keyword": "Indestructible"
+                  }
+                ],
+                "condition": null,
+                "affected_zone": null,
+                "effect_zone": null,
+                "active_zones": [],
+                "characteristic_defining": false,
+                "description": "gain indestructible"
+              }
+            ],
+            "duration": "UntilEndOfTurn",
+            "target": null
+          },
+          "cost": {
+            "type": "Sacrifice",
+            "target": {
+              "type": "SelfRef"
+            },
+            "count": 1
+          },
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "RingTemptsYou"
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "sub_link": "SequentialSibling"
+          },
+          "duration": "UntilEndOfTurn",
+          "description": "Sacrifice ~: Creatures you control gain indestructible until end of turn. the ring tempts you.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [
+        {
+          "mode": "SpellCast",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Counter",
+              "target": {
+                "type": "TriggeringSource"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": {
+            "type": "Typed",
+            "type_filters": [],
+            "controller": "Opponent",
+            "properties": []
+          },
+          "valid_source": null,
+          "description": "Whenever an opponent casts a spell, if no mana was spent to cast it, counter that spell.",
+          "constraint": null,
+          "condition": {
+            "type": "ManaSpentCondition",
+            "text": "no mana was spent to cast it"
+          },
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "White"
+      ],
+      "scryfall_oracle_id": "d72b57e5-1c6e-4f02-968f-7e2dd24f0d3c",
+      "brawl_commander": true,
+      "is_commander": true,
+      "metadata": {
+        "source_printing_ids": [
+          "554110e1-dcf1-4656-bec0-084e501ce71e",
+          "7443a193-8ddb-43a9-8293-3791f4df0dc0",
+          "97ec04f9-0563-4490-b252-714df2ddbf58",
+          "e186ef93-f369-4b4d-a683-36f338b6ce3f",
+          "f6bc3720-2892-4dda-8f30-079a1ac8e1e2"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "LTR",
+        "PLTR"
+      ],
+      "rulings": [
+        {
+          "date": "2023-06-16",
+          "text": "As the Ring tempts you, you get an emblem named The Ring if you don't have one. Then your emblem gains its next ability and you choose a creature you control to become (or remain) your Ring-bearer."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "Each player can have only one emblem named The Ring and only one Ring-bearer at a time."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "Each time the Ring tempts you, you must choose a creature if you control one."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "If a spell is cast with an alternative cost that includes mana (such as flashback), Boromir's second ability won't trigger and won't counter that spell. Similarly, if a spell is cast without paying its mana cost, but the player did pay mana for additional costs such as from kicker or from Thorn of Amethyst, Boromir's second ability won't trigger and won't counter that spell."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "If the creature you choose as your Ring-bearer was already your Ring-bearer, that still counts as choosing that creature as your Ring-bearer for the purpose of abilities that trigger \"whenever you choose a creature as your Ring-bearer\" or abilities that care about which creature was chosen as your Ring-bearer."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "Players may cast spells that they know Boromir, Warden of the Tower will counter. Any abilities that trigger when spells are cast will still trigger and resolve if appropriate, and any effects that count how many spells are cast will still count those spells if appropriate."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "Some spells and abilities that cause the Ring to tempt you may require targets. If each target chosen is an illegal target as that spell or ability tries to resolve, it won't resolve. The Ring won't tempt you."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "The Ring can tempt you even if you don't control a creature. In this case, abilities that trigger \"whenever the Ring tempts you\" will still trigger."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "The Ring gains its abilities in order from top to bottom. Once it gains an ability, it has that ability for the rest of the game."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
     "Braids, Cabal Minion": {
       "name": "Braids, Cabal Minion",
       "mana_cost": {
@@ -4638,6 +7054,380 @@
       ],
       "rarities": [
         "rare"
+      ]
+    },
+    "Brimaz, Blight of Oreskos": {
+      "name": "Brimaz, Blight of Oreskos",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White",
+          "Black"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Phyrexian",
+          "Cat"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Whenever you cast a Phyrexian creature or artifact creature spell, incubate X, where X is that spell's mana value. (Create an Incubator token with X +1/+1 counters on it and \"{2}: Transform this token.\" It transforms into a 0/0 Phyrexian artifact creature.)\nAt the beginning of each end step, if a Phyrexian died under your control this turn, proliferate.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "SpellCast",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Incubate",
+              "count": {
+                "type": "Ref",
+                "qty": {
+                  "type": "ObjectManaValue",
+                  "scope": {
+                    "type": "EventSource"
+                  }
+                }
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "Or",
+            "filters": [
+              {
+                "type": "Typed",
+                "type_filters": [
+                  "Creature",
+                  {
+                    "Subtype": "Phyrexian"
+                  }
+                ],
+                "controller": null,
+                "properties": []
+              },
+              {
+                "type": "Typed",
+                "type_filters": [
+                  "Artifact",
+                  "Creature"
+                ],
+                "controller": null,
+                "properties": []
+              }
+            ]
+          },
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": {
+            "type": "Controller"
+          },
+          "valid_source": null,
+          "description": "Whenever you cast a Phyrexian creature or artifact creature spell, incubate X, where X is that spell's mana value.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        },
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Proliferate"
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": "End",
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "At the beginning of each end step, if a Phyrexian died under your control this turn, proliferate.",
+          "constraint": null,
+          "condition": {
+            "type": "QuantityComparison",
+            "lhs": {
+              "type": "Ref",
+              "qty": {
+                "type": "ZoneChangeCountThisTurn",
+                "from": "Battlefield",
+                "to": "Graveyard",
+                "filter": {
+                  "type": "Typed",
+                  "type_filters": [
+                    {
+                      "Subtype": "Phyrexian"
+                    }
+                  ],
+                  "controller": "You",
+                  "properties": [
+                    {
+                      "type": "InZone",
+                      "zone": "Battlefield"
+                    }
+                  ]
+                }
+              }
+            },
+            "comparator": "GE",
+            "rhs": {
+              "type": "Fixed",
+              "value": 1
+            }
+          },
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": [
+        "Black",
+        "White"
+      ],
+      "color_identity": [
+        "Black",
+        "White"
+      ],
+      "scryfall_oracle_id": "a6e7cbfc-6d5a-4a67-9dad-d512d3c97bda",
+      "brawl_commander": true,
+      "is_commander": true,
+      "metadata": {
+        "related_token_ids": [
+          "4db065f6-6ce4-5ce5-a19a-02dfc694ba5b",
+          "f4fd5aae-f65c-5d73-88ce-2a052c7616f8"
+        ],
+        "source_printing_ids": [
+          "2f92733b-6d7e-4037-a2dd-e85726721863",
+          "653294a2-e023-4142-96d8-29568315649f",
+          "f0d31ae7-8580-402a-a917-3d626a9e1f49"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "MOC"
+      ],
+      "rulings": [
+        {
+          "date": "2023-04-14",
+          "text": "Brimaz's last ability will check as the end step starts to see if a Phyrexian died under your control this turn. If one did not, the ability won't trigger at all."
+        },
+        {
+          "date": "2023-04-14",
+          "text": "If you cast a Phyrexian artifact creature spell, Brimaz's first ability will trigger only once."
+        }
+      ],
+      "rarities": [
+        "mythic"
+      ]
+    },
+    "Brimstone Vandal": {
+      "name": "Brimstone Vandal",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Red"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Devil"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)\nIf it's neither day nor night, it becomes day as this creature enters.\nWhenever day becomes night or night becomes day, this creature deals 1 damage to each opponent.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Menace"
+      ],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "SetDayNight",
+            "to": "Day"
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "condition": {
+            "type": "DayNightIsNeither"
+          },
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [
+        {
+          "mode": "DayTimeChanges",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "DamageEachPlayer",
+              "amount": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "player_filter": {
+                "type": "Opponent"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "Whenever day becomes night or night becomes day, ~ deals 1 damage to each opponent.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Red"
+      ],
+      "scryfall_oracle_id": "7af23925-6d32-407d-9a99-a57b2ebb63ac",
+      "metadata": {
+        "source_printing_ids": [
+          "10addf9a-daca-4b84-a9d3-f98f7b955af9",
+          "c666c29a-2410-4556-97fe-ea2ab0904a70"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "DBL",
+        "MID"
+      ],
+      "rulings": [
+        {
+          "date": "2021-09-24",
+          "text": "Before a player untaps their permanents during the untap step, the game checks to see if the day/night designation should change."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "Day and night are designations that the game itself can have. The game starts as neither. Once the game becomes day (or less commonly, night), the game will be exactly one of them—day or night—going back and forth for the rest of the game."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If a triggered ability triggers whenever day becomes night or night becomes day, it only triggers if it was already either day/night and becomes the other. It does not trigger when the game becomes day or night for the first time."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If it is day, and the active player of the previous turn cast no spells during their turn, it becomes night."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If it is night, and the active player of the previous turn cast two or more spells during their turn, it becomes day."
+        }
+      ],
+      "rarities": [
+        "common"
       ]
     },
     "Brooding Saurian": {
@@ -5770,6 +8560,311 @@
         "mythic"
       ]
     },
+    "Cloudform": {
+      "name": "Cloudform",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue",
+          "Blue"
+        ],
+        "generic": 1
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Enchantment"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "When this enchantment enters, it becomes an Aura with enchant creature. Manifest the top card of your library and attach this enchantment to it. (To manifest a card, put it onto the battlefield face down as a 2/2 creature. Turn it face up any time for its mana cost if it's a creature card.)\nEnchanted creature has flying and hexproof.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "GenericEffect",
+              "static_abilities": [
+                {
+                  "mode": "Continuous",
+                  "affected": {
+                    "type": "SelfRef"
+                  },
+                  "modifications": [
+                    {
+                      "type": "AddKeyword",
+                      "keyword": {
+                        "Enchant": {
+                          "type": "Typed",
+                          "type_filters": [
+                            "Creature"
+                          ],
+                          "controller": null,
+                          "properties": []
+                        }
+                      }
+                    },
+                    {
+                      "type": "RemoveAllSubtypes",
+                      "set": "Enchantment"
+                    },
+                    {
+                      "type": "AddSubtype",
+                      "subtype": "Aura"
+                    }
+                  ],
+                  "condition": null,
+                  "affected_zone": null,
+                  "effect_zone": null,
+                  "active_zones": [],
+                  "characteristic_defining": false,
+                  "description": "become an Aura with enchant creature"
+                }
+              ],
+              "duration": "Permanent",
+              "target": null
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "Manifest",
+                "target": {
+                  "type": "Controller"
+                },
+                "count": {
+                  "type": "Fixed",
+                  "value": 1
+                }
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false,
+              "sub_link": "SequentialSibling"
+            },
+            "duration": "Permanent",
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": "Battlefield",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ enters, it becomes an Aura with enchant creature. Manifest the top card of your library and attach ~ to it.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [
+        {
+          "mode": "Continuous",
+          "affected": {
+            "type": "Typed",
+            "type_filters": [
+              "Creature"
+            ],
+            "controller": null,
+            "properties": [
+              {
+                "type": "EnchantedBy"
+              }
+            ]
+          },
+          "modifications": [
+            {
+              "type": "AddKeyword",
+              "keyword": "Flying"
+            },
+            {
+              "type": "AddKeyword",
+              "keyword": "Hexproof"
+            }
+          ],
+          "condition": null,
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "Enchanted creature has flying and hexproof."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "2b9384a0-db2d-49e2-b121-6b81a0d77722",
+      "metadata": {
+        "source_printing_ids": [
+          "00e3ff89-9901-48ba-900c-5778cdd1b112",
+          "a7bb0f87-a0b3-4389-9580-63db449a2241"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "C18",
+        "FRF"
+      ],
+      "rulings": [
+        {
+          "date": "2014-11-24",
+          "text": "A permanent that turns face up or face down changes characteristics but is otherwise the same permanent. Spells and abilities that were targeting that permanent, as well as Auras and Equipment that were attached to the permanent, aren't affected."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "Any time you have priority, you may turn a manifested creature face up by revealing that it's a creature card (ignoring any copy effects or type-changing effects that might be applying to it) and paying its mana cost. This is a special action. It doesn't use the stack and can't be responded to."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "At any time, you can look at a face-down permanent you control. You can't look at face-down permanents you don't control unless an effect allows you to or instructs you to."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "Because face-down creatures don't have names, they can't have the same name as any other creature, even another face-down creature."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "Because the permanent is on the battlefield both before and after it's turned face up, turning a permanent face up doesn't cause any enters-the-battlefield abilities to trigger."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "If a double-faced card is manifested, it will be put onto the battlefield face down. While face down, it can't transform. If the front face of the card is a creature card, you can turn it face up by paying its mana cost. If you do, its front face will be up."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "If a face-down permanent you control leaves the battlefield, you must reveal it. You must also reveal all face-down spells and permanents you control if you leave the game or if the game ends."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "If a manifested creature would have morph if it were face up, you may also turn it face up by paying its morph cost."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "If the enchanted creature is turned face up, the \"Form\" will continue to enchant it."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "If you have no cards in your library as the ability resolves, the \"Form\" will be put into its owner's graveyard as a state-based action."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "The face-down permanent is a 2/2 creature with no name, mana cost, creature types, or abilities. It's colorless and has a mana value of 0. Other effects that apply to the permanent can still grant or change any of these characteristics."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "There are no cards in the Fate Reforged set that would turn a face-down instant or sorcery card on the battlefield face up, but some older cards can try to do this. If something tries to turn a face-down instant or sorcery card on the battlefield face up, reveal that card to show all players it's an instant or sorcery card. The permanent remains on the battlefield face down. Abilities that trigger when a permanent turns face up won't trigger, because even though you revealed the card, it never turned face up."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "Turning a permanent face up or face down doesn't change whether that permanent is tapped or untapped."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "Unlike a face-down creature that was cast using the morph ability, a manifested creature may still be turned face up after it loses its abilities if it's a creature card."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "You must ensure that your face-down spells and permanents can easily be differentiated from each other. You're not allowed to mix up the cards that represent them on the battlefield in order to confuse other players. The order they entered the battlefield should remain clear. Common methods for indicating this include using markers or dice, or simply placing them in order on the battlefield. You must also track how each became face down (manifested, cast face down using the morph ability, and so on)."
+        },
+        {
+          "date": "2014-11-24",
+          "text": "You'll still manifest the top card of your library even if the \"Form\" isn't on the battlefield as its enters-the-battlefield ability resolves."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "A permanent that turns face up or face down changes characteristics but is otherwise the same permanent. Spells and abilities that were targeting that permanent, as well as Auras and Equipment that were attached to the permanent, aren't affected."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "Any time you have priority, you may turn a manifested creature face up by revealing that it's a creature card (ignoring any type-changing effects that might be applying to it) and paying its mana cost. This is a special action. It doesn't use the stack and can't be responded to."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "At any time, you can look at a face-down permanent you control. You can't look at face-down permanents you don't control unless an effect instructs you to do so."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "Because face-down creatures don't have a name, they can't have the same name as any other creature or share any creature types with any other creature, even another face-down creature."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "Because the permanent is on the battlefield both before and after it's turned face up, turning a permanent face up doesn't cause any enters-the-battlefield abilities to trigger."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "If a face-down permanent you control leaves the battlefield, you must reveal it. You must also reveal all face-down spells and permanents you control if you leave the game or if the game ends."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "If an effect tries to return a face-down creature to the battlefield after it leaves (such as Aminatou's second ability or Adarkar Valkyrie's delayed triggered ability), that effect returns the card face up. If it tries to put an instant or sorcery card onto the battlefield this way, that card remains in its current zone instead."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "Some previous Magic sets feature double-faced cards, which have a Magic card face on each side rather than a Magic card face on one side and a Magic card back on the other. If a double-faced card is manifested, it will be put onto the battlefield face down. While face down, it can't transform. If the front face of the card is a creature card, you can turn it face up by paying its mana cost. If you do, its front face will be up. Although a double-faced card can enter the battlefield face down, one already on the battlefield can't be turned face down."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "The face-down characteristics of a permanent are copiable values. If another object becomes a copy of a face-down creature or if a token is created that's a copy of a face-down creature, that new object is a 2/2 colorless face-up creature with no abilities."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "The face-down permanent is a 2/2 creature with no name, mana cost, creature types, or abilities. It's colorless and has a mana value of 0. Other effects that apply to the permanent can still grant or change any of these characteristics."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "There are no cards in this set that would turn a face-down instant or sorcery card on the battlefield face up, but some older cards can try to do this. If something tries to turn a face-down instant or sorcery card on the battlefield face up, reveal that card to show all players it's an instant or sorcery card. The permanent remains on the battlefield face down. Abilities that trigger when a permanent turns face up won't trigger, because even though you revealed the card, it never turned face up."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "Turning a permanent face up or face down doesn't change whether that permanent is tapped or untapped."
+        },
+        {
+          "date": "2018-07-13",
+          "text": "You must ensure that your face-down spells and permanents can easily be differentiated from each other. You're not allowed to mix up the cards that represent them on the battlefield to confuse other players. The order they entered the battlefield should remain clear. Common methods for indicating this include using markers or dice, or simply placing them in order on the battlefield. You must also track how each became face down (manifested, cast face down using a morph ability, and so on)."
+        }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
     "Cloudshift": {
       "name": "Cloudshift",
       "mana_cost": {
@@ -6038,6 +9133,200 @@
       "rarities": [
         "uncommon",
         "rare"
+      ]
+    },
+    "Coercive Portal": {
+      "name": "Coercive Portal",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [],
+        "generic": 4
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Artifact"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Will of the council — At the beginning of your upkeep, starting with you, each player votes for carnage or homage. If carnage gets more votes, sacrifice this artifact and destroy all nonland permanents. If homage gets more votes or the vote is tied, draw a card.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Vote",
+              "choices": [
+                "carnage",
+                "homage"
+              ],
+              "per_choice_effect": [
+                {
+                  "kind": "Spell",
+                  "effect": {
+                    "type": "Sacrifice",
+                    "target": {
+                      "type": "SelfRef"
+                    },
+                    "count": {
+                      "type": "Fixed",
+                      "value": 1
+                    }
+                  },
+                  "cost": null,
+                  "sub_ability": {
+                    "kind": "Spell",
+                    "effect": {
+                      "type": "DestroyAll",
+                      "target": {
+                        "type": "Typed",
+                        "type_filters": [
+                          "Permanent",
+                          {
+                            "Non": "Land"
+                          }
+                        ],
+                        "controller": null,
+                        "properties": []
+                      },
+                      "cant_regenerate": false
+                    },
+                    "cost": null,
+                    "sub_ability": null,
+                    "duration": null,
+                    "description": null,
+                    "target_prompt": null,
+                    "condition": null,
+                    "optional_targeting": false,
+                    "optional": false,
+                    "forward_result": false
+                  },
+                  "duration": null,
+                  "description": null,
+                  "target_prompt": null,
+                  "condition": null,
+                  "optional_targeting": false,
+                  "optional": false,
+                  "forward_result": false
+                },
+                {
+                  "kind": "Spell",
+                  "effect": {
+                    "type": "Draw",
+                    "count": {
+                      "type": "Fixed",
+                      "value": 1
+                    },
+                    "target": {
+                      "type": "Controller"
+                    }
+                  },
+                  "cost": null,
+                  "sub_ability": null,
+                  "duration": null,
+                  "description": null,
+                  "target_prompt": null,
+                  "condition": null,
+                  "optional_targeting": false,
+                  "optional": false,
+                  "forward_result": false
+                }
+              ],
+              "starting_with": "You",
+              "voter_scope": {
+                "type": "AllPlayers"
+              },
+              "tally_mode": {
+                "type": "Threshold",
+                "tie_breaker_index": 1
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": "Upkeep",
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "At the beginning of your upkeep, starting with you, each player votes for carnage or homage. If carnage gets more votes, sacrifice ~ and destroy all nonland permanents. If homage gets more votes or the vote is tied, draw a card.",
+          "constraint": {
+            "type": "OnlyDuringYourTurn"
+          },
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "scryfall_oracle_id": "eea4feef-2595-4ed2-92a0-11ccb3e7d40e",
+      "metadata": {
+        "source_printing_ids": [
+          "18e8c013-1a56-4894-a4f5-6ec564bcbe9b",
+          "b010ece6-ccb9-4237-8682-2e147220f908",
+          "bf75477f-d42b-4756-a05a-4ec45a246709"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "CNS",
+        "LCC",
+        "VMA"
+      ],
+      "rulings": [
+        {
+          "date": "2014-05-29",
+          "text": "Because the votes are cast in turn order, each player will know the votes of players who voted beforehand."
+        },
+        {
+          "date": "2014-05-29",
+          "text": "No player votes until the spell or ability resolves. Any responses to that spell or ability must be made without knowing the outcome of the vote."
+        },
+        {
+          "date": "2014-05-29",
+          "text": "Players can't do anything after they finish voting but before the spell or ability that included the vote finishes resolving."
+        },
+        {
+          "date": "2014-05-29",
+          "text": "The phrase \"the vote is tied\" refers only to when there is more than one choice that received the most votes. For example, if a 5-player vote from among three different choices ends 3 votes to 1 vote to 1 vote, the vote isn't tied."
+        },
+        {
+          "date": "2014-05-29",
+          "text": "You must vote for one of the available options. You can't abstain."
+        }
+      ],
+      "rarities": [
+        "mythic"
       ]
     },
     "Command Tower": {
@@ -6852,6 +10141,279 @@
       ],
       "rarities": [
         "uncommon",
+        "rare"
+      ]
+    },
+    "Cryptic Coat": {
+      "name": "Cryptic Coat",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Artifact"
+        ],
+        "subtypes": [
+          "Equipment"
+        ]
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "When this Equipment enters, cloak the top card of your library, then attach this Equipment to it. (To cloak a card, put it onto the battlefield face down as a 2/2 creature with ward {2}. Turn it face up any time for its mana cost if it's a creature card.)\nEquipped creature gets +1/+0 and can't be blocked.\n{1}{U}: Return this Equipment to its owner's hand.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "Bounce",
+            "target": {
+              "type": "SelfRef"
+            },
+            "destination": null
+          },
+          "cost": {
+            "type": "Mana",
+            "cost": {
+              "type": "Cost",
+              "shards": [
+                "Blue"
+              ],
+              "generic": 1
+            }
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "{1}{U}: Return ~ to its owner's hand.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Cloak",
+              "target": {
+                "type": "Controller"
+              },
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              }
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "Attach",
+                "target": {
+                  "type": "ParentTarget"
+                }
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": "Battlefield",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ enters, cloak the top card of your library, then attach ~ to it.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [
+        {
+          "mode": "Continuous",
+          "affected": {
+            "type": "Typed",
+            "type_filters": [
+              "Creature"
+            ],
+            "controller": null,
+            "properties": [
+              {
+                "type": "EquippedBy"
+              }
+            ]
+          },
+          "modifications": [
+            {
+              "type": "AddPower",
+              "value": 1
+            },
+            {
+              "type": "AddToughness",
+              "value": 0
+            }
+          ],
+          "condition": null,
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "Equipped creature gets +1/+0 and can't be blocked."
+        },
+        {
+          "mode": "CantBeBlocked",
+          "affected": {
+            "type": "Typed",
+            "type_filters": [
+              "Creature"
+            ],
+            "controller": null,
+            "properties": [
+              {
+                "type": "EquippedBy"
+              }
+            ]
+          },
+          "modifications": [],
+          "condition": null,
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "Equipped creature gets +1/+0 and can't be blocked."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "73b8adea-1786-44fc-b190-bf240b07f5b6",
+      "metadata": {
+        "source_printing_ids": [
+          "0c3d7e2c-a104-4757-9984-fb31088f92c4",
+          "c3faa376-7391-4084-8b57-15d71ab07cbd"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "standard": "legal",
+        "standardbrawl": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "MKM",
+        "PMKM"
+      ],
+      "rulings": [
+        {
+          "date": "2024-02-02",
+          "text": "A permanent that turns face up or face down changes characteristics but is otherwise the same permanent. Spells and abilities that were targeting that permanent and Auras and Equipment that were attached to that permanent aren't affected unless the new characteristics of the object change the legality of those targets or attachments."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "Any time you have priority, you can turn a cloaked permanent you control face-up by revealing that it's a creature card (ignoring any copy effects or type-changing effects that might be applying to it) and paying its mana cost. This is a special action. It doesn't use the stack and can't be responded to."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "At any time, you can look at a face-down spell or permanent you control. You can't look at face-down permanents or spells you don't control unless an effect instructs or allows you to do so."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "Because face-down creatures don't have a name, they can't have the same name as any other creature, even another face-down creature."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "Because the permanent is on the battlefield both before and after it's turned face up, turning a permanent face up doesn't cause any enters-the-battlefield abilities to trigger."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "Cryptic Coat has no equip ability. Without assistance from other cards, there's no way to attach it to a creature other than with its first triggered ability. How cryptic!"
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If a cloaked creature would have disguise (or morph) if it were face up, you may also turn it face up by paying its disguise (or morph) cost."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If a double-faced card is cloaked, it will be put onto the battlefield face down. While face down, it can't transform. If the front face of the card is a creature card, you can turn it face up by paying its mana cost. If you do, its front face will be up."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If a face-down creature loses its abilities, it can't be turned face up with a disguise ability because it will no longer have a disguise ability (or a disguise cost) once face up."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If a face-down spell leaves the stack and goes to any zone other than the battlefield (if it was countered, for example), you must reveal it. Similarly, if a face-down permanent leaves the battlefield, you must reveal it. You must also reveal all face-down spells and permanents you control if you leave the game or the game ends."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "If something tries to turn a face-down instant or sorcery card on the battlefield face up, reveal that card to show all players it's an instant or sorcery card. The permanent remains on the battlefield face down. Abilities that trigger when a permanent turns face up won't trigger, because even though you revealed the card, it never turned face up."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "To cloak a card, put it onto the battlefield face down. It becomes a 2/2 face-down creature card with ward {2} and no name, mana cost, or creature types. It's colorless and has a mana value of 0. Other effects that apply to the permanent can still grant it any characteristics it doesn't have or change the characteristics it does have."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "Turning a permanent face up or face down doesn't change whether that permanent is tapped or untapped."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "Unlike a face-down creature that was cast using a disguise or morph ability, a cloaked creature may still be turned face up after it loses its abilities if it's a creature card."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "You must ensure that your face-down spells and permanents can be easily differentiated from each other. You're not allowed to mix up the cards that represent them on the battlefield to confuse other players. The order in which they entered the battlefield should remain clear, as well as what ability caused them to be face down. (This includes disguise, cloak, and in games involving older cards, morph and manifest, as well as a few other effects that turn cards face down.) Common methods for doing this include using markers or dice, or simply placing them in order on the battlefield."
+        },
+        {
+          "date": "2024-02-02",
+          "text": "You'll still cloak the top card of your library even if Cryptic Coat isn't on the battlefield as its first ability resolves."
+        }
+      ],
+      "rarities": [
         "rare"
       ]
     },
@@ -8362,6 +11924,174 @@
         "rare"
       ]
     },
+    "Divine Smite": {
+      "name": "Divine Smite",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White"
+        ],
+        "generic": 1
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Instant"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Target creature or planeswalker an opponent controls phases out. If that permanent is black, exile it instead. (If it phases out, treat it and anything attached to it as though they don't exist until its controller's next turn.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "PhaseOut",
+            "target": {
+              "type": "Or",
+              "filters": [
+                {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Creature"
+                  ],
+                  "controller": "Opponent",
+                  "properties": []
+                },
+                {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Planeswalker"
+                  ],
+                  "controller": "Opponent",
+                  "properties": []
+                }
+              ]
+            }
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "ChangeZone",
+              "origin": null,
+              "destination": "Exile",
+              "target": {
+                "type": "ParentTarget"
+              },
+              "owner_library": false,
+              "enter_transformed": false,
+              "enter_tapped": false,
+              "enters_attacking": false
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": {
+              "type": "ConditionInstead",
+              "inner": {
+                "type": "TargetMatchesFilter",
+                "filter": {
+                  "type": "Typed",
+                  "type_filters": [],
+                  "controller": null,
+                  "properties": [
+                    {
+                      "type": "HasColor",
+                      "color": "Black"
+                    }
+                  ]
+                },
+                "use_lki": false
+              }
+            },
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "duration": null,
+          "description": "Target creature or planeswalker an opponent controls phases out. If that permanent is black, exile it instead.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "White"
+      ],
+      "scryfall_oracle_id": "3b06b242-caed-4c8f-b5ab-30e86061286e",
+      "metadata": {
+        "source_printing_ids": [
+          "6b8d0852-4df3-4b29-830d-c6975265ef53"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "AFR"
+      ],
+      "rulings": [
+        {
+          "date": "2021-07-23",
+          "text": "An attacking or blocking creature that phases out is removed from combat."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Any continuous effects with a “for as long as” duration, such as that of Mind Flayer, ignore phased-out objects. If ignoring those objects causes the effect's conditions to no longer be met, the duration will expire."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "As a creature is phased out, Auras and Equipment attached to it also phase out at the same time. Those Auras and Equipment will phase in at the same time that creature does, and they'll phase in still attached to that creature."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Choices made for permanents as they entered the battlefield are remembered when they phase in."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "If an opponent gains control of your nonblack creature, you phase it out with Divine Smite, and the duration of the control-change effect expires before it phases back in, your creature phases in under your control as that opponent's next untap step begins. If they leave the game before their next untap step, it phases in as the next untap step begins after their turn would have begun."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Permanents phase back in during their controller's untap step, immediately before that player untaps their permanents. Creatures that phase in this way are able to attack and pay a cost of {T} during that turn. If a permanent had counters on it when it phased out, it will have those counters when it phases back in."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Phased out permanents are treated as though they don't exist. They can't be the target of spells or abilities, their static abilities have no effect on the game, their triggered abilities can't trigger, they can't attack or block, and so on."
+        },
+        {
+          "date": "2021-07-23",
+          "text": "Phasing out doesn't cause any “leaves the battlefield” abilities to trigger. Similarly, phasing in won't cause any “enters the battlefield” abilities to trigger."
+        }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
     "Dockside Extortionist": {
       "name": "Dockside Extortionist",
       "mana_cost": {
@@ -8771,6 +12501,94 @@
         "M13",
         "PLST",
         "SLD"
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
+    "Dream Chisel": {
+      "name": "Dream Chisel",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Artifact"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Face-down creature spells you cast cost {1} less to cast.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [],
+      "static_abilities": [
+        {
+          "mode": {
+            "ModifyCost": {
+              "mode": "Reduce",
+              "amount": {
+                "type": "Cost",
+                "shards": [],
+                "generic": 1
+              },
+              "spell_filter": {
+                "type": "Typed",
+                "type_filters": [
+                  "Creature"
+                ],
+                "controller": null,
+                "properties": [
+                  {
+                    "type": "FaceDown"
+                  }
+                ]
+              }
+            }
+          },
+          "affected": {
+            "type": "Typed",
+            "type_filters": [
+              "Card"
+            ],
+            "controller": "You",
+            "properties": []
+          },
+          "modifications": [],
+          "condition": null,
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "Face-down creature spells you cast cost {1} less to cast."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "scryfall_oracle_id": "7776c114-c02a-4694-9b9d-00fbfad2d2a2",
+      "metadata": {
+        "source_printing_ids": [
+          "e89610e9-f1d3-4332-901a-2598bf01d61d"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "premodern": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "ONS"
       ],
       "rarities": [
         "rare"
@@ -11570,6 +15388,159 @@
         "common"
       ]
     },
+    "Geological Appraiser": {
+      "name": "Geological Appraiser",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Red",
+          "Red"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Artificer"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "When this creature enters, if you cast it, discover 3. (Exile cards from the top of your library until you exile a nonland card with mana value 3 or less. Cast it without paying its mana cost or put it into your hand. Put the rest on the bottom in a random order.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Discover",
+              "mana_value_limit": {
+                "type": "Fixed",
+                "value": 3
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": "Battlefield",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ enters, if you cast it, discover 3.",
+          "constraint": null,
+          "condition": {
+            "type": "WasCast"
+          },
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Red"
+      ],
+      "scryfall_oracle_id": "a0a1cd2b-ed7c-4cce-8497-4873e1e5e3df",
+      "metadata": {
+        "source_printing_ids": [
+          "7f9c1a82-695b-4df2-8e51-2d71a62e7baf",
+          "9fb48483-5990-46cf-b200-032500c4a6b3"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "banned",
+        "standard": "legal",
+        "standardbrawl": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "LCI"
+      ],
+      "rulings": [
+        {
+          "date": "2023-11-10",
+          "text": "A spell's mana value is determined only by its mana cost. Ignore any alternative costs, additional costs, cost increases, or cost reductions."
+        },
+        {
+          "date": "2023-11-10",
+          "text": "Geological Appraiser's triggered ability triggers if you cast it from any zone. It doesn't trigger if you put Geological Appraiser onto the battlefield without casting it."
+        },
+        {
+          "date": "2023-11-10",
+          "text": "If the discovered card has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+        },
+        {
+          "date": "2023-11-10",
+          "text": "If you can't cast the discovered card (perhaps because there are no legal targets for the spell), you'll put it into your hand."
+        },
+        {
+          "date": "2023-11-10",
+          "text": "If you cast a spell \"without paying its mana cost\", you can't choose to cast it for any alternative costs. You can, however, pay additional costs. If the spell has any mandatory additional costs, you must pay those to cast it."
+        },
+        {
+          "date": "2023-11-10",
+          "text": "If you discover an adventurer card, split card, or modal double-faced card, you might be able to cast that card with either set of characteristics depending on the effect's discover value. For example, if you discover 4 and reveal Galvanic Giant (an adventurer card from Wilds of Eldraine with a mana value of 4), you could cast Galvanic Giant, but not Storm Reading (its Adventure, which has a mana value of 7). If you discover 7 and reveal Galvanic Giant, you could cast either Galvanic Giant or Storm Reading."
+        },
+        {
+          "date": "2023-11-10",
+          "text": "Some spells and abilities that cause you to discover may require targets. If each target chosen is an illegal target as that spell or ability tries to resolve, it won't resolve and you won't discover."
+        },
+        {
+          "date": "2023-11-10",
+          "text": "The mana value of a split card is determined by the combined mana cost of its two halves. If discover allows you to cast a split card, you may cast either half (as long as its mana value is less than or equal to the effect's discover value) but not both halves."
+        },
+        {
+          "date": "2023-11-10",
+          "text": "When you discover, you must exile cards. The only optional part of the ability is whether you cast the exiled card or put it into your hand."
+        },
+        {
+          "date": "2023-11-10",
+          "text": "You exile the cards face up. All players will be able to see them."
+        }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
     "Glimpse the Unthinkable": {
       "name": "Glimpse the Unthinkable",
       "mana_cost": {
@@ -11663,6 +15634,101 @@
       ],
       "rarities": [
         "rare"
+      ]
+    },
+    "Gloom Stalker": {
+      "name": "Gloom Stalker",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Dwarf",
+          "Ranger"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "As long as you've completed a dungeon, this creature has double strike.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [],
+      "static_abilities": [
+        {
+          "mode": "Continuous",
+          "affected": {
+            "type": "SelfRef"
+          },
+          "modifications": [
+            {
+              "type": "AddKeyword",
+              "keyword": "DoubleStrike"
+            }
+          ],
+          "condition": {
+            "type": "CompletedADungeon"
+          },
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "As long as you've completed a dungeon, ~ has double strike."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "White"
+      ],
+      "scryfall_oracle_id": "16201410-86e9-40a7-88a6-c6c2fb2ea6bd",
+      "metadata": {
+        "source_printing_ids": [
+          "388722ad-dcc6-41b9-afd8-a93be91b30e0"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "AFR"
+      ],
+      "rulings": [
+        {
+          "date": "2021-07-23",
+          "text": "Gloom Stalker will have double strike even if it wasn't on the battlefield as you completed a dungeon."
+        }
+      ],
+      "rarities": [
+        "common"
       ]
     },
     "Glorious Anthem": {
@@ -12990,6 +17056,204 @@
         "uncommon"
       ]
     },
+    "Imoen, Mystic Trickster": {
+      "name": "Imoen, Mystic Trickster",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Rogue",
+          "Wizard"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nAt the beginning of your end step, if you have the initiative, draw a card. Draw another card if you've completed a dungeon.\nChoose a Background (You can have a Background as a second commander.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        {
+          "Partner": {
+            "type": "ChooseABackground"
+          }
+        },
+        {
+          "Ward": {
+            "type": "Mana",
+            "data": {
+              "type": "Cost",
+              "shards": [],
+              "generic": 2
+            }
+          }
+        }
+      ],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Draw",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "target": {
+                "type": "Controller"
+              }
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "Draw",
+                "count": {
+                  "type": "Fixed",
+                  "value": 1
+                },
+                "target": {
+                  "type": "Controller"
+                }
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false,
+              "sub_link": "SequentialSibling"
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": "End",
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "At the beginning of your end step, if you have the initiative, draw a card. Draw another card if you've completed a dungeon.",
+          "constraint": {
+            "type": "OnlyDuringYourTurn"
+          },
+          "condition": {
+            "type": "IsInitiative"
+          },
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "280e05c5-7ab4-45bf-aa15-e594cec49ef3",
+      "brawl_commander": true,
+      "is_commander": true,
+      "metadata": {
+        "source_printing_ids": [
+          "1097264b-e383-4864-a587-dc7d5468f359",
+          "5ce62167-bd2c-4192-9ce4-dd19a1080db6",
+          "5d07f957-ad7b-463f-b642-b5d47eadf37a"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "CLB"
+      ],
+      "rulings": [
+        {
+          "date": "2022-06-10",
+          "text": " If something refers to your commander while you have two commanders, it refers to one of them of your choice. If you are instructed to perform an action on your commander (e.g. put it from the command zone into your hand due to Command Beacon), you choose one of your commanders at the time the effect happens."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "An effect that checks whether you control your commander is satisfied if you control one or both of your two commanders."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "Both commanders start in the command zone, and the remaining 98 cards (or 58 cards in a Commander Draft game) of your deck are shuffled to become your library."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "Choose a Background is a variant of the partner ability. You may have two commanders if one of them is a legendary creature with the choose a background ability and the other is a legendary Background enchantment. Backgrounds and cards with choose a Background do not interact with cards which have any other partner ability."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "If a card refers to a commander creature you own, a Background won't usually be counted or included for that effect. If another spell or ability causes your Background to become a creature, however, it will be included. Any effect that refers to your commander or a commander you own or control without specifying creature will apply to a Background that is your commander, as appropriate."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "If you control a Background that grants an ability to commander creatures you own, and you own more than one commander creature, each of them will have that ability."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "If your Commander deck has two commanders, you can include only cards whose own color identities are also found in your commanders' combined color identities."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "If your commander loses the choose a Background ability or stops being a Background during the game, as appropriate, it is still your commander."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "Imoen's second ability triggers only if you have the initiative as your end step begins. If the ability does trigger, it will check if you have the initiative again as it tries to resolve. If you don't still have the initiative at that time, the ability won't resolve and none of its effects will happen. Notably, if you don't have the initiative as your end step begins but you have completed a dungeon, the ability won't trigger and you won't draw any cards."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "Once the game begins, your two commanders are tracked separately. If you cast one, you won't have to pay an additional {2} the first time you cast the other. A player loses the game after having been dealt 21 combat damage from any one of them, not from both of them combined (although your Background won't usually be a creature anyway)."
+        },
+        {
+          "date": "2022-06-10",
+          "text": "You can choose two commanders that are the same color or colors."
+        }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
     "Inniaz, the Gale Force": {
       "name": "Inniaz, the Gale Force",
       "mana_cost": {
@@ -13506,6 +17770,215 @@
         "special"
       ]
     },
+    "Jared Carthalion, True Heir": {
+      "name": "Jared Carthalion, True Heir",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Red",
+          "Green",
+          "White"
+        ],
+        "generic": 0
+      },
+      "card_type": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Warrior"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "When Jared Carthalion enters, target opponent becomes the monarch. You can't become the monarch this turn.\nIf damage would be dealt to Jared Carthalion while you're the monarch, prevent that damage and put that many +1/+1 counters on it.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "BecomeMonarch"
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "Unimplemented",
+                "name": "can't",
+                "description": "can't become the monarch"
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": "UntilEndOfTurn",
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false,
+              "sub_link": "SequentialSibling"
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": "Battlefield",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": {
+            "type": "Player"
+          },
+          "valid_source": null,
+          "description": "When ~ enters, target opponent becomes the monarch. You can't become the monarch this turn.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [
+        {
+          "event": "DamageDone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "PutCounter",
+              "counter_type": "P1P1",
+              "count": {
+                "type": "Ref",
+                "qty": {
+                  "type": "EventContextAmount"
+                }
+              },
+              "target": {
+                "type": "SelfRef"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "mode": {
+            "type": "Mandatory"
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "description": "If damage would be dealt to ~ while you're the monarch, prevent that damage and put that many +1/+1 counters on it.",
+          "condition": null,
+          "shield_kind": {
+            "Prevention": {
+              "amount": "All"
+            }
+          }
+        }
+      ],
+      "color_override": [
+        "Green",
+        "Red",
+        "White"
+      ],
+      "color_identity": [
+        "Green",
+        "Red",
+        "White"
+      ],
+      "scryfall_oracle_id": "b48da54c-002f-4afb-9fdf-2a3e1cf77383",
+      "brawl_commander": true,
+      "is_commander": true,
+      "metadata": {
+        "source_printing_ids": [
+          "6b925277-89e7-4143-8985-46c2fe3aeb9c",
+          "81bd293b-07b9-4d7c-826a-948d5b01ab5e",
+          "ae54027e-4204-498b-9b6e-9d4a1f84ade7"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "CMR",
+        "PLST",
+        "PRM"
+      ],
+      "rulings": [
+        {
+          "date": "2020-11-10",
+          "text": "If combat damage dealt to the monarch causes that player to lose the game, the triggered ability that causes the controller of the attacking creature to become the monarch doesn't resolve. In most cases, the controller of the attacking creature will still become the monarch as it is likely their turn."
+        },
+        {
+          "date": "2020-11-10",
+          "text": "If damage that can't be prevented is dealt to Jared Carthalion while you're the monarch, the damage is dealt and you'll simultaneously put that many +1/+1 counters on it, all before the game checks for lethal damage."
+        },
+        {
+          "date": "2020-11-10",
+          "text": "If the first ability resolves but the target opponent can't become the monarch (perhaps because they also had a Jared Carthalion enter the battlefield earlier in the turn), the current monarch stays the monarch, even if that player is you."
+        },
+        {
+          "date": "2020-11-10",
+          "text": "If the monarch leaves the game during another player's turn, that player becomes the monarch. If the monarch leaves the game during their turn, the next player in turn order becomes the monarch."
+        },
+        {
+          "date": "2020-11-10",
+          "text": "If the triggered ability that causes the monarch to draw a card goes on the stack and a different player becomes the monarch before that ability resolves, the first player will still draw the card."
+        },
+        {
+          "date": "2020-11-10",
+          "text": "If you're the monarch and damage would be dealt to Jared Carthalion at the same time combat damage is dealt to you, Jared Carthalion's last ability will prevent damage and put counters on it before the triggered ability that makes another player the monarch resolves."
+        },
+        {
+          "date": "2020-11-10",
+          "text": "The game starts with no monarch. Once an effect makes one player the monarch, the game will have exactly one monarch from that point forward. As a player becomes the monarch, the current monarch (if any) ceases being the monarch."
+        },
+        {
+          "date": "2020-11-10",
+          "text": "There are two inherent triggered abilities associated with being the monarch. These triggered abilities have no source and are controlled by the player who was the monarch at the time the abilities triggered. The full texts of these abilities are \"At the beginning of the monarch's end step, that player draws a card\" and \"Whenever a creature deals combat damage to the monarch, its controller becomes the monarch.\""
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
     "Karn's Bastion": {
       "name": "Karn's Bastion",
       "mana_cost": {
@@ -13650,6 +18123,199 @@
         {
           "date": "2023-02-04",
           "text": "You don't have to choose every permanent or player that has a counter, only the ones you want to add another counter to. Since \"any number\" includes zero, you don't have to choose any permanents at all, and you don't have to choose any players at all."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
+    "Khorvath's Fury": {
+      "name": "Khorvath's Fury",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Red"
+        ],
+        "generic": 4
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "For each player, choose friend or foe. Each friend discards all cards from their hand, then draws that many cards plus one. Khorvath's Fury deals damage to each foe equal to the number of cards in their hand.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Vote",
+            "choices": [
+              "friend",
+              "foe"
+            ],
+            "per_choice_effect": [
+              {
+                "kind": "Spell",
+                "effect": {
+                  "type": "Unimplemented",
+                  "name": "discard",
+                  "description": "discard all cards from their hand"
+                },
+                "cost": null,
+                "sub_ability": {
+                  "kind": "Spell",
+                  "effect": {
+                    "type": "Draw",
+                    "count": {
+                      "type": "Offset",
+                      "inner": {
+                        "type": "Ref",
+                        "qty": {
+                          "type": "EventContextAmount"
+                        }
+                      },
+                      "offset": 1
+                    },
+                    "target": {
+                      "type": "Controller"
+                    }
+                  },
+                  "cost": null,
+                  "sub_ability": {
+                    "kind": "Spell",
+                    "effect": {
+                      "type": "Unimplemented",
+                      "name": "deal",
+                      "description": "deal damage to"
+                    },
+                    "cost": null,
+                    "sub_ability": null,
+                    "duration": null,
+                    "description": null,
+                    "target_prompt": null,
+                    "condition": null,
+                    "optional_targeting": false,
+                    "optional": false,
+                    "forward_result": false,
+                    "sub_link": "SequentialSibling"
+                  },
+                  "duration": null,
+                  "description": null,
+                  "target_prompt": null,
+                  "condition": null,
+                  "optional_targeting": false,
+                  "optional": false,
+                  "forward_result": false
+                },
+                "duration": null,
+                "description": null,
+                "target_prompt": null,
+                "condition": null,
+                "optional_targeting": false,
+                "optional": false,
+                "forward_result": false,
+                "player_scope": {
+                  "type": "VotedFor",
+                  "choice_index": 0
+                }
+              },
+              {
+                "kind": "Spell",
+                "effect": {
+                  "type": "Unimplemented",
+                  "name": "equal",
+                  "description": "equal to the number of cards in their hand"
+                },
+                "cost": null,
+                "sub_ability": null,
+                "duration": null,
+                "description": null,
+                "target_prompt": null,
+                "condition": null,
+                "optional_targeting": false,
+                "optional": false,
+                "forward_result": false,
+                "player_scope": {
+                  "type": "VotedFor",
+                  "choice_index": 1
+                }
+              }
+            ],
+            "starting_with": "You",
+            "voter_scope": {
+              "type": "ControllerLabels"
+            },
+            "tally_mode": {
+              "type": "PerVote"
+            }
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": "For each player, choose friend or foe. Each friend discards all cards from their hand, then draws that many cards plus one. ~ deals damage to each foe equal to the number of cards in their hand.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Red"
+      ],
+      "scryfall_oracle_id": "c3575cf9-847a-472c-94b3-ef70712c297d",
+      "metadata": {
+        "source_printing_ids": [
+          "39107560-58d5-4a7d-84a0-df26f89856b4"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "BBD"
+      ],
+      "rulings": [
+        {
+          "date": "2018-06-08",
+          "text": "Friends perform their specified actions before foes. This means that a friend’s action may cause a triggered ability of a foe’s permanent to trigger before that foe’s action causes that permanent to leave the battlefield."
+        },
+        {
+          "date": "2018-06-08",
+          "text": "If a friend has zero cards in hand, that player discards nothing and draws one card."
+        },
+        {
+          "date": "2018-06-08",
+          "text": "Players can’t take actions in between the time that friends perform their actions and the time that foes perform theirs. If any abilities trigger from friends performing actions, those triggers won’t be put onto the stack until the foes perform their actions and the spell finishes resolving."
+        },
+        {
+          "date": "2018-06-08",
+          "text": "The designation of friend or foe is only relevant to the spell that asks you to choose. A player you call your friend doesn’t become your teammate, and the next “friend or foe” spell you cast could name that player your foe."
+        },
+        {
+          "date": "2018-06-08",
+          "text": "You make this choice for yourself as well as each other player. In some rare cases, you may wish to call yourself (or your teammate in a Two-Headed Giant game) a foe. You can do that."
+        },
+        {
+          "date": "2018-06-08",
+          "text": "You may call a player a friend or a foe even if that player will be instructed to perform an impossible action. For example, for Regna’s Sanction, a foe may control no untapped creatures."
         }
       ],
       "rarities": [
@@ -18001,6 +22667,104 @@
         "special"
       ]
     },
+    "Plague Stinger": {
+      "name": "Plague Stinger",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black"
+        ],
+        "generic": 1
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Phyrexian",
+          "Insect",
+          "Horror"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 1
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 1
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Flying\nInfect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Flying",
+        "Infect"
+      ],
+      "abilities": [],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "047e761e-7bbe-403b-86d7-cb9fb0b20b21",
+      "metadata": {
+        "source_printing_ids": [
+          "325a8b1b-fa0c-4140-b9e3-a93705b06aa0",
+          "aae856bc-f65f-42ba-9344-1a30b356c041"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "DCI",
+        "ONC",
+        "PRM",
+        "SOM"
+      ],
+      "rulings": [
+        {
+          "date": "2011-01-01",
+          "text": "A player who has ten or more poison counters loses the game. This is a state-based action."
+        },
+        {
+          "date": "2011-01-01",
+          "text": "Damage from a source with infect affects planeswalkers normally."
+        },
+        {
+          "date": "2011-01-01",
+          "text": "Damage from a source with infect is damage in all respects. If the source with infect also has lifelink, damage dealt by that source also causes its controller to gain that much life. Damage from a source with infect can be prevented or redirected. Abilities that trigger on damage being dealt will trigger if a source with infect deals damage, if appropriate."
+        },
+        {
+          "date": "2011-01-01",
+          "text": "If damage from a source with infect that would be dealt to a player is prevented, that player doesn't get poison counters. If damage from a source with infect that would be dealt to a creature is prevented, that creature doesn't get -1/-1 counters."
+        },
+        {
+          "date": "2011-01-01",
+          "text": "Infect's effect applies to any damage, not just combat damage."
+        },
+        {
+          "date": "2011-01-01",
+          "text": "The -1/-1 counters remain on the creature indefinitely. They're not removed if the creature regenerates or the turn ends."
+        }
+      ],
+      "rarities": [
+        "common"
+      ]
+    },
     "Prey Upon": {
       "name": "Prey Upon",
       "mana_cost": {
@@ -19064,6 +23828,191 @@
         "mythic"
       ]
     },
+    "Reckless Stormseeker": {
+      "name": "Reckless Stormseeker",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Red"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Werewolf"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "At the beginning of combat on your turn, target creature you control gets +1/+0 and gains haste until end of turn.\nDaybound (If a player casts no spells during their own turn, it becomes night next turn.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Daybound"
+      ],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "GenericEffect",
+              "static_abilities": [
+                {
+                  "mode": "Continuous",
+                  "affected": {
+                    "type": "ParentTarget"
+                  },
+                  "modifications": [
+                    {
+                      "type": "AddPower",
+                      "value": 1
+                    },
+                    {
+                      "type": "AddToughness",
+                      "value": 0
+                    },
+                    {
+                      "type": "AddKeyword",
+                      "keyword": "Haste"
+                    }
+                  ],
+                  "condition": null,
+                  "affected_zone": null,
+                  "effect_zone": null,
+                  "active_zones": [],
+                  "characteristic_defining": false,
+                  "description": "get +1/+0 and gains haste"
+                }
+              ],
+              "duration": "UntilEndOfTurn",
+              "target": {
+                "type": "Typed",
+                "type_filters": [
+                  "Creature"
+                ],
+                "controller": "You",
+                "properties": []
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": "UntilEndOfTurn",
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": "BeginCombat",
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "At the beginning of combat on your turn, target creature you control gets +1/+0 and gains haste until end of turn.",
+          "constraint": {
+            "type": "OnlyDuringYourTurn"
+          },
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Red"
+      ],
+      "scryfall_oracle_id": "ea5fd21a-c23a-49ee-aab8-0a9618d65c11",
+      "metadata": {
+        "source_printing_ids": [
+          "061171f6-7da3-494d-82d1-1406fd7f5439",
+          "a33af331-0746-4adf-935a-bf61ff9d8d4b",
+          "c882efbc-8443-4521-9e6a-807997a6439b"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "layout": "transform",
+      "printings": [
+        "DBL",
+        "MID",
+        "PMID"
+      ],
+      "rulings": [
+        {
+          "date": "2021-09-24",
+          "text": "Before a player untaps their permanents during the untap step, the game checks to see if the day/night designation should change."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "Day and night are designations that the game itself can have. The game starts as neither. Once the game becomes day (or less commonly, night), the game will be exactly one of them—day or night—going back and forth for the rest of the game."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "Double-faced permanents with daybound transform to their nightbound faces as it becomes night. Similarly, double-faced permanents with nightbound transform to their daybound faces as it becomes day. This happens immediately and is not a state-based action. It happens any time it becomes day or night, not just during the untap step."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If it is day, and the active player of the previous turn cast no spells during their turn, it becomes night."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If it is night, and the active player of the previous turn cast two or more spells during their turn, it becomes day."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If it is night, permanents with daybound that enter the battlefield without being cast will enter with their nightbound faces up."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If it's neither day nor night, and a creature with daybound and a creature with nightbound somehow appear on the battlefield at the same time, it becomes day. The creature with nightbound will transform."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If you cast a spell with daybound during night, that spell will be front face up (that is, daybound face up) on the stack. However, it will enter the battlefield with its back face up (that is, with its nightbound face up). It won't enter with its daybound face up and then transform."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "Permanents with daybound and nightbound can't transform via any means other than their daybound and nightbound abilities. Notably, older cards such as Moonmist that instruct a player to transform permanents don't affect permanents with daybound or nightbound."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
     "Reyav, Master Smith": {
       "name": "Reyav, Master Smith",
       "mana_cost": {
@@ -19553,6 +24502,276 @@
         {
           "date": "2008-10-01",
           "text": "No choices are made when this ability triggers. After the wage counter is put on Rogue Skycaptain, then you choose whether to pay mana and, if you don’t, which opponent gains control of it."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
+    "Sauron, the Necromancer": {
+      "name": "Sauron, the Necromancer",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black",
+          "Black"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Avatar",
+          "Horror"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Menace\nWhenever Sauron attacks, exile target creature card from your graveyard. Create a tapped and attacking token that's a copy of that card, except it's a 3/3 black Wraith with menace. At the beginning of the next end step, exile that token unless Sauron is your Ring-bearer.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Menace"
+      ],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "Attacks",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "ChangeZone",
+              "origin": "Graveyard",
+              "destination": "Exile",
+              "target": {
+                "type": "Typed",
+                "type_filters": [
+                  "Creature"
+                ],
+                "controller": "You",
+                "properties": [
+                  {
+                    "type": "InZone",
+                    "zone": "Graveyard"
+                  }
+                ]
+              },
+              "owner_library": false,
+              "enter_transformed": false,
+              "enter_tapped": false,
+              "enters_attacking": false
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "CopyTokenOf",
+                "target": {
+                  "type": "TrackedSet",
+                  "id": 0
+                },
+                "owner": {
+                  "type": "Controller"
+                },
+                "enters_attacking": true,
+                "tapped": true,
+                "count": {
+                  "type": "Fixed",
+                  "value": 1
+                },
+                "additional_modifications": [
+                  {
+                    "type": "SetPower",
+                    "value": 3
+                  },
+                  {
+                    "type": "SetToughness",
+                    "value": 3
+                  },
+                  {
+                    "type": "SetColor",
+                    "colors": [
+                      "Black"
+                    ]
+                  },
+                  {
+                    "type": "RemoveAllSubtypes",
+                    "set": "Creature"
+                  },
+                  {
+                    "type": "AddType",
+                    "core_type": "Creature"
+                  },
+                  {
+                    "type": "AddSubtype",
+                    "subtype": "Wraith"
+                  },
+                  {
+                    "type": "AddSubtype",
+                    "subtype": "With"
+                  },
+                  {
+                    "type": "AddSubtype",
+                    "subtype": "Menace"
+                  }
+                ]
+              },
+              "cost": null,
+              "sub_ability": {
+                "kind": "Spell",
+                "effect": {
+                  "type": "CreateDelayedTrigger",
+                  "condition": {
+                    "type": "AtNextPhase",
+                    "phase": "End"
+                  },
+                  "effect": {
+                    "kind": "Spell",
+                    "effect": {
+                      "type": "ChangeZone",
+                      "origin": null,
+                      "destination": "Exile",
+                      "target": {
+                        "type": "LastCreated"
+                      },
+                      "owner_library": false,
+                      "enter_transformed": false,
+                      "enter_tapped": false,
+                      "enters_attacking": false
+                    },
+                    "cost": null,
+                    "sub_ability": null,
+                    "duration": null,
+                    "description": null,
+                    "target_prompt": null,
+                    "condition": null,
+                    "optional_targeting": false,
+                    "optional": false,
+                    "forward_result": false
+                  },
+                  "uses_tracked_set": false
+                },
+                "cost": null,
+                "sub_ability": null,
+                "duration": null,
+                "description": null,
+                "target_prompt": null,
+                "condition": {
+                  "type": "Not",
+                  "condition": {
+                    "type": "IsRingBearer"
+                  }
+                },
+                "optional_targeting": false,
+                "optional": false,
+                "forward_result": false,
+                "sub_link": "SequentialSibling"
+              },
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false,
+              "sub_link": "SequentialSibling"
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "Whenever ~ attacks, exile target creature card from your graveyard. Create a tapped and attacking token that's a copy of that card, except it's a 3/3 black Wraith with menace. At the beginning of the next end step, exile that token unless ~ is your Ring-bearer.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "8dcd7e2b-75a9-476a-a0a0-798613e8dad6",
+      "brawl_commander": true,
+      "is_commander": true,
+      "metadata": {
+        "related_token_ids": [
+          "3ae3c4af-2b85-5943-bab1-760e1b7da047"
+        ],
+        "source_printing_ids": [
+          "24521350-ffa6-46d9-95ed-6573c681e095",
+          "377d65d8-21c8-4292-97db-610e0173ba59",
+          "75e85c69-f8ec-40ea-aeb4-7422961f6915",
+          "e6550f81-16d2-4e53-af98-1f7231c1491f"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "LTR",
+        "PLTR"
+      ],
+      "rulings": [
+        {
+          "date": "2023-06-16",
+          "text": "If the card copied by the token had any \"when [this permanent] enters the battlefield\" abilities, then the token also has those abilities and will trigger them when it's created. Similarly, any \"as [this permanent] enters the battlefield\" or \"[this permanent] enters the battlefield with\" abilities that the token has copied will also work."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "If the exiled card has {X} in its mana cost, X is 0."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "The delayed triggered ability will exile the token at the beginning of your next end step unless Sauron, the Necromancer is your Ring-bearer at the time that the ability resolves. If Sauron, the Necromancer leaves the battlefield before the delayed triggered ability resolves, that ability will exile the token, even if Sauron, the Necromancer later returns to the battlefield or you control another copy of Sauron, the Necromancer as your Ring-bearer."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "The token copies exactly what was printed on the original card and nothing else, except the characteristics it specifically modifies. It doesn't copy any information about the object the card was before it was put into your graveyard."
+        },
+        {
+          "date": "2023-06-16",
+          "text": "The token is a Wraith instead of its other creature types (and other subtypes if it has any) and is black instead of its other colors. Its base power and toughness are 3/3. These are copiable values of the token that other effects may copy."
         }
       ],
       "rarities": [
@@ -23436,6 +28655,139 @@
         "mythic"
       ]
     },
+    "Throne Warden": {
+      "name": "Throne Warden",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White"
+        ],
+        "generic": 1
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Soldier"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "At the beginning of your end step, if you're the monarch, put a +1/+1 counter on this creature.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "Phase",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "PutCounter",
+              "counter_type": "P1P1",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "target": {
+                "type": "SelfRef"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": "End",
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "At the beginning of your end step, if you're the monarch, put a +1/+1 counter on ~.",
+          "constraint": {
+            "type": "OnlyDuringYourTurn"
+          },
+          "condition": {
+            "type": "IsMonarch"
+          },
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "White"
+      ],
+      "scryfall_oracle_id": "b50c1dd3-0495-427f-b5a9-9ac44a4554d1",
+      "metadata": {
+        "source_printing_ids": [
+          "cd1408a3-ddba-4837-b930-9663c5c83007"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "CN2",
+        "PZ2"
+      ],
+      "rulings": [
+        {
+          "date": "2016-08-23",
+          "text": "Abilities that trigger whenever you \"become the monarch\" trigger only if you aren't already the monarch. For example, if you are already the monarch as Custodi Lich enters the battlefield, its last ability won't trigger."
+        },
+        {
+          "date": "2016-08-23",
+          "text": "Being the monarch carries two inherent triggered abilities. \"At the beginning of the monarch's end step, that player draws a card\" and \"Whenever a creature deals combat damage to the monarch, its controller becomes the monarch.\""
+        },
+        {
+          "date": "2016-08-23",
+          "text": "If the triggered ability that causes the monarch to draw a card goes on the stack, and a different player becomes the monarch before that ability resolves, the first player will still draw the card."
+        },
+        {
+          "date": "2016-08-23",
+          "text": "The game starts with no monarch. Once an effect makes one player the monarch, the game will have exactly one monarch from that point forward."
+        },
+        {
+          "date": "2016-08-23",
+          "text": "The last ability of Throne Warden checks to see if you're the monarch as your end step begins. If you're not, the ability won't trigger at all. You won't be able to do anything that would make you the monarch during your end step in time to have that ability trigger. The ability will also check to see if you're the monarch as it tries to resolve. If you're not the monarch at that time, the ability will have no effect."
+        }
+      ],
+      "rarities": [
+        "common"
+      ]
+    },
     "Throne of Geth": {
       "name": "Throne of Geth",
       "mana_cost": {
@@ -25546,6 +30898,10 @@
       "Amass",
       "Flash"
     ],
+    "Abzan Guide": [
+      "Lifelink",
+      "Morph"
+    ],
     "Academic Dispute": [
       "Learn"
     ],
@@ -25553,8 +30909,15 @@
       "Double strike",
       "Eternalize"
     ],
+    "Ancestral Vision": [
+      "Suspend"
+    ],
     "Anointer Priest": [
       "Embalm"
+    ],
+    "Apostle of Invasion": [
+      "Corrupted",
+      "Flying"
     ],
     "Archangel of Thune": [
       "Flying",
@@ -25569,6 +30932,18 @@
     ],
     "Basilisk Collar": [
       "Equip"
+    ],
+    "Behold the Multiverse": [
+      "Foretell",
+      "Scry"
+    ],
+    "Bituminous Blast": [
+      "Cascade"
+    ],
+    "Bloated Contaminator": [
+      "Proliferate",
+      "Toxic",
+      "Trample"
     ],
     "Bonesplitter": [
       "Equip"
@@ -25646,8 +31021,15 @@
       "Suspect",
       "Vigilance"
     ],
+    "Plague Stinger": [
+      "Flying",
+      "Infect"
+    ],
     "Prey Upon": [
       "Fight"
+    ],
+    "Reckless Stormseeker": [
+      "Daybound"
     ],
     "River Boa": [
       "Islandwalk",

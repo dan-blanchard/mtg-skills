@@ -103,6 +103,29 @@ EFFECT_CONCEPTS: dict[str, str] = {
     # NB: phase's ``Mill`` effect is NOT mapped — mill_makers reverted to the
     # Scryfall ``Mill`` keyword field-lookup (ADR-0027), because phase mislabels
     # three non-mill effects (Bone Dancer / Scroll Rack / Soldevi Digger) as Mill.
+    # Batch 5 (ADR-0035 Stage 2) — the named-mechanic long tail. Each is a
+    # first-class phase effect node the OLD lossy IR dropped (the live path
+    # reached most via a Scryfall-keyword survivor or a kept-word-mirror); the
+    # crosswalk reads them STRUCTURALLY off the typed substrate.
+    "BecomeMonarch": "become_monarch",  # monarch_makers (CR 725)
+    "Discover": "discover",  # discover_makers (CR 701.57)
+    "VentureIntoDungeon": "venture",  # venture_makers (CR 701.49 / 309)
+    "TakeTheInitiative": "venture",  # venture_makers (the Initiative designation)
+    "SetDayNight": "set_daynight",  # daynight_makers (CR 731)
+    "PhaseOut": "phasing",  # phasing_makers (CR 702.26)
+    "PhaseIn": "phasing",
+    "Vote": "vote",  # voting_makers (CR 701.38; raw-guarded vs friend-or-foe)
+    "RingTemptsYou": "ring_tempt",  # ring_tempters (CR 701.54)
+    "Amass": "amass",  # amass_makers (CR 701.47)
+    "Incubate": "incubate",  # incubate_makers (CR 701.53)
+    "Manifest": "facedown",  # facedown_makers (CR 701.40 / 708)
+    "Cloak": "facedown",  # facedown_makers (CR 701.58 / 708)
+    "TurnFaceUp": "turn_face_up",  # facedown_matters payoff (out of this batch)
+    "RollDie": "roll_die",  # dice_makers (CR 706)
+    # ``GrantCastingPermission`` carries a ``permission`` sub-node (PlayFromExile /
+    # Plotted) — the cast_from_exile build-around the live path kept as a
+    # byte-identical word-mirror. Read structurally via :func:`permission_tag`.
+    "GrantCastingPermission": "grant_cast_permission",  # cast_from_exile
 }
 
 # Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): a maker / sac-payoff over
@@ -866,6 +889,85 @@ def damage_recipient_is_player(vt: object) -> bool:
 
 # Static-restriction modes that force a creature to be blocked (CR 509.1c lure).
 _LURE_MODES: frozenset[str] = frozenset({"MustBeBlocked", "MustBeBlockedByAll"})
+
+
+def permission_tag(node: TypedMirrorNode) -> str | None:
+    """The tag of a ``GrantCastingPermission`` effect's ``permission`` sub-node.
+
+    Phase models "you may play those cards" / plot as a ``GrantCastingPermission``
+    effect carrying a ``permission`` node — ``PlayFromExile`` (impulse exile-and-
+    play — Act on Impulse, Abbot of Keral Keep) or ``Plotted`` (CR 702.170 plot —
+    Aloe Alchemist). The cast-from-exile lane reads that tag STRUCTURALLY (the live
+    path kept a byte-identical word-mirror; this is the fidelity gain of batch 5).
+    """
+    return tag_of(getattr(node, "permission", None))
+
+
+# Condition-wrapper fields that nest an inner condition (CR boolean glue):
+# ``Not`` carries ``condition``; ``ConditionInstead`` carries ``inner``; an
+# ``And`` / ``Or`` of conditions carries ``conditions``. Walked so a leaf
+# condition tag (``IsMonarch`` …) buried under a wrapper still surfaces.
+_CONDITION_INNER_FIELDS = ("inner", "condition", "conditions")
+# Ability-wrapper fields a ``condition`` can hang off, recursively: a trigger's
+# ``execute`` Spell, a sequential ``sub_ability``, a nested ``effect``, modal
+# ``mode_abilities`` arms, a ``GenericEffect``'s ``static_abilities``.
+_CONDITION_CARRIER_FIELDS = ("effect", "sub_ability", "execute")
+
+
+def _walk_condition_subtree(cond: object, depth: int, seen: set[int]) -> Iterator[str]:
+    """Yield every condition-node tag reachable from one ``condition`` value."""
+    if depth > 20 or not isinstance(cond, TypedMirrorNode) or id(cond) in seen:
+        return
+    seen.add(id(cond))
+    t = tag_of(cond)
+    if t is not None:
+        yield t
+    for fname in _CONDITION_INNER_FIELDS:
+        child = getattr(cond, fname, MISSING)
+        if isinstance(child, TypedMirrorNode):
+            yield from _walk_condition_subtree(child, depth + 1, seen)
+        elif _present(child) and isinstance(child, list):
+            for c in child:
+                yield from _walk_condition_subtree(c, depth + 1, seen)
+
+
+def _walk_unit_conditions(node: object, depth: int, seen: set[int]) -> Iterator[str]:
+    """Yield condition-node tags from every ``condition`` field under one unit node.
+
+    Descends the ability-wrapper chain (``effect`` / ``sub_ability`` / ``execute``
+    / ``mode_abilities`` / nested ``static_abilities``) so a condition on a
+    trigger's ``execute`` Spell (Court of Ambition, Sauron) or a continuous
+    ability (Gloom Stalker, Nadaar) surfaces alongside one on the wrapper itself
+    (Brimstone Vandal, Imoen). Cycle-safe (id-set + depth cap).
+    """
+    if depth > 40 or not isinstance(node, TypedMirrorNode) or id(node) in seen:
+        return
+    seen.add(id(node))
+    cond = getattr(node, "condition", MISSING)
+    if isinstance(cond, TypedMirrorNode):
+        yield from _walk_condition_subtree(cond, 0, set())
+    for fname in (*_CONDITION_CARRIER_FIELDS, "mode_abilities", "static_abilities"):
+        child = getattr(node, fname, MISSING)
+        if isinstance(child, TypedMirrorNode):
+            yield from _walk_unit_conditions(child, depth + 1, seen)
+        elif _present(child) and isinstance(child, list):
+            for m in child:
+                yield from _walk_unit_conditions(m, depth + 1, seen)
+
+
+def condition_tags(tree: ConceptTree) -> frozenset[str]:
+    """Every condition-node tag present anywhere on the card (whole-card scan).
+
+    The additive primitive the batch-5 ``*_matters`` lanes read: a payoff GATED on
+    a designation/state (``IsMonarch`` / ``CompletedADungeon`` / ``IsInitiative`` /
+    ``IsRingBearer`` …) carries a typed ``condition`` node the crosswalk's
+    effect/cost/static decoration does not surface. These leaf tags are unique to
+    conditions (no effect shares the name), so a tag-membership scan is precise.
+    """
+    out: set[str] = set()
+    for unit in tree.units:
+        out.update(_walk_unit_conditions(unit.node, 0, set()))
+    return frozenset(out)
 
 
 def node_lure_mode(node: object) -> bool:
