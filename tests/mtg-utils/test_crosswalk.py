@@ -1590,6 +1590,356 @@ def test_magecraft_matters_excludes_plain_spellcast():
     assert "magecraft_matters" not in _keys("Young Pyromancer")
 
 
+# ── batch 8: mana / card-flow / removal / pump / library-top cluster ─────────
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Mana Reflection",  # ProduceMana replacement, Multiply x2
+        "Virtue of Strength",  # Multiply x3 (basic lands)
+        "Crypt Ghast",  # TapsForMana trigger, produced.contribution Additional
+    ],
+)
+def test_mana_amplifier_structural(name):
+    """A mana doubler fires mana_amplifier (CR 106.4 / 605.1 / 614.1): the
+    ProduceMana Multiply replacement (Mana Reflection) and the tap-for-mana
+    additional-contribution trigger (Crypt Ghast — a structural read of the
+    live raw tail)."""
+    assert ("mana_amplifier", "you", "") in _idents(name)
+
+
+def test_mana_amplifier_excludes_plain_ramp():
+    """A plain producer (Sol Ring — a ramp effect, no replacement/Additional)
+    is acceleration, never a doubler."""
+    assert "mana_amplifier" not in _keys("Sol Ring")
+
+
+def test_mana_amplifier_excludes_single_land_ramp_aura():
+    """Wild Growth's "enchanted land … adds an additional {G}" watches ONE
+    attached land (valid_card ``AttachedTo``) — a ramp Aura, not a class-wide
+    doubling engine; the Typed-class gate excludes it."""
+    assert "mana_amplifier" not in _keys("Wild Growth")
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Burgeoning", True),  # put a land from HAND onto the battlefield
+        ("Elvish Rejuvenator", True),  # Dig destination Battlefield, Land
+        ("Planar Genesis", False),  # Dig destination HAND — card selection
+        ("Sneak Attack", False),  # a CREATURE cheat → cheat_into_play
+    ],
+)
+def test_extra_land_drop_zone_and_type_gates(name, should_fire):
+    """extra_land_drop fires on a land PUT into play (CR 305.9 — a put, not a
+    play); a dig-to-hand and a creature cheat stay out (checklist #2/#4)."""
+    assert (("extra_land_drop", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Mana Flare", True),  # "that player adds" — TriggeringPlayer recipient
+        ("Magus of the Vineyard", True),  # each player's upkeep — ScopedPlayer
+        ("Sol Ring", False),  # controller-only ramp, no recipient
+        ("Crypt Ghast", False),  # YOUR additional mana — not a group gift
+    ],
+)
+def test_group_mana_recipient_direction(name, should_fire):
+    """group_mana reads the Mana effect's typed RECIPIENT (CR 106.4) — the
+    non-controller direction the old lossy IR dropped to raw (checklist #5)."""
+    assert (("group_mana", "each", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Shamanic Revelation", True),  # draw for each creature — ObjectCount
+        ("Braingeyser", False),  # draw X — Ref→Variable, the cast cost
+        ("Tamiyo's Logbook", False),  # fixed draw; for-each is a cost rider
+    ],
+)
+def test_draw_for_each_scaling_gate(name, should_fire):
+    """draw_for_each admits a board-count scaler and rejects bare X-draws and
+    fixed draws whose for-each lives in a sibling clause (CR 107.3,
+    granularity a)."""
+    assert (("draw_for_each", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Faithless Looting", True),  # self-loot (you discard)
+        ("Dark Deal", True),  # symmetric each-player wheel — hits you too
+        ("Mind Rot", False),  # targeted hand attack → opponent_discard
+        ("The Eldest Reborn", False),  # saga "each opponent discards" mislabel
+    ],
+)
+def test_discard_outlet_direction_gates(name, should_fire):
+    """discard_outlet is SELF/symmetric loot fuel (CR 701.9): the wrapper
+    player_scope read rejects the phase-mislabeled opponent-directed saga
+    discard STRUCTURALLY (the live path needed two raw vetoes)."""
+    assert (("discard_outlet", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Wrath of God", True),  # DestroyAll creatures
+        ("Blasphemous Act", True),  # DamageAll creatures
+        ("Merciless Eviction", True),  # mass exile (ChangeZoneAll → Exile)
+        ("Languish", True),  # negative PumpAll — typed -4/-4 (structural)
+        ("Armageddon", False),  # destroy all LANDS → land_destruction
+        ("Living Death", False),  # graveyard-zone mass exile → GY recursion
+    ],
+)
+def test_mass_removal_arms_and_gates(name, should_fire):
+    """mass_removal fires the four typed wipe arms and excludes the land-only
+    sweep and the graveyard mass-exile (CR 115.10 / 406, checklist #2)."""
+    assert (("mass_removal", "you", "") in _idents(name)) is should_fire
+
+
+def test_mass_removal_languish_negative_amount_is_typed():
+    """The substrate carries Languish's -4/-4 as a typed Fixed(-4) PumpAll —
+    the live raw-only debuff arm reads structurally here (fidelity gain)."""
+    from mtg_utils._card_ir.crosswalk import pump_is_negative
+
+    tree = _tree("Languish")
+    pump = next(c for c in tree.effect_concepts("pump"))
+    assert pump_is_negative(pump.node)
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Evacuation", True),  # BounceAll creatures
+        ("Devastation Tide", True),  # BounceAll nonland permanents
+        ("Boomerang", False),  # single-target Bounce → bounce_tempo
+        ("Cyclonic Rift", False),  # base mode targeted; Overload = parse drop
+    ],
+)
+def test_mass_bounce_mass_gate(name, should_fire):
+    """mass_bounce fires only the BounceAll board sweep (CR 115.10). Cyclonic
+    Rift's Overload each-mode is a phase modal-alt-cost parse drop
+    (phase_parse_bug) — the crosswalk reads only the targeted base mode."""
+    assert (("mass_bounce", "any", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Swords to Plowshares", True),  # single-target exile removal
+        ("Path to Exile", True),  # sibling put is a DIFFERENT card (Any)
+        ("Cloudshift", False),  # exiles YOUR OWN (blink)
+        ("Eldrazi Displacer", False),  # sibling TrackedSet return (blink)
+        ("Bojuka Bog", False),  # graveyard-zone exile (GY hate)
+        ("Merciless Eviction", False),  # mass exile → mass_removal
+    ],
+)
+def test_exile_removal_vetoes(name, should_fire):
+    """exile_removal keeps the genuine one-way single-target exile (CR 406.1 /
+    115.1) and vetoes blink (own/returned object, checklist #9), graveyard
+    zones (checklist #2), and the mass form."""
+    assert (("exile_removal", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Avenger of Zendikar", True),  # a token for each land you control
+        ("Wilderness Elemental", False),  # scales with OPPONENT lands
+        ("Pallimud", False),  # chosen player's lands (SourceChosenPlayer)
+    ],
+)
+def test_lands_matter_controller_gate(name, should_fire):
+    """lands_matter reads the count operand's Land population, controller-
+    gated (checklist #6 — proactive vs the live ungated arm): an opponent-
+    lands punisher is not a your-lands build-around."""
+    assert (("lands_matter", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        ("Jolene, the Plunder Queen", ("treasure_matters", "you", "")),  # cost
+        ("Wedding Security", ("blood_matters", "you", "")),  # effect
+    ],
+)
+def test_resource_token_sac_payoffs(name, ident):
+    """The sacrifice-PAYOFF half of the Treasure/Blood lanes (CR 111.10 /
+    701.21, role-split per ADR-0034): a sacrifice effect (Wedding Security)
+    or a Composite-nested sacrifice cost (Jolene)."""
+    assert ident in _idents(name)
+
+
+def test_resource_token_matters_role_split():
+    """A pure MAKER (Dockside's Treasures; Voldaren Bloodcaster's Blood) fires
+    the *_makers lane and never the sacrifice payoff (checklist #4)."""
+    assert "treasure_matters" not in _keys("Dockside Extortionist")
+    assert "blood_matters" not in _keys("Voldaren Bloodcaster")
+
+
+def test_resource_token_matters_excludes_non_token_sac():
+    """A generic creature sac outlet (Ashnod's Altar) names no Treasure/Blood
+    subtype — no resource payoff."""
+    keys = _keys("Ashnod's Altar")
+    assert "treasure_matters" not in keys
+    assert "blood_matters" not in keys
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Glorious Anthem", True),  # generic +1/+1 team anthem
+        ("Goblin King", True),  # subtyped "Other Goblins get +1/+1"
+        ("Virulent Plague", False),  # -2/-2 hoser — negative values
+        ("Shivan Dragon", False),  # activated self firebreathing, not static
+    ],
+)
+def test_anthem_static_group_and_sign_gates(name, should_fire):
+    """anthem_static fires a STATIC non-negative +N/+N over a creature group
+    (CR 604.3 / 613.4 7c); a debuff and an activated self-pump stay out."""
+    assert (("anthem_static", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Craterhoof Behemoth", True),  # +X/+X for each creature you control
+        ("Commander's Insignia", True),  # commander-cast count anthem
+        ("Shivan Dragon", False),  # fixed +1/+0 firebreathing
+        ("Grim Hireling", False),  # -X/-X — a bare X (Variable), not a scale
+    ],
+)
+def test_scaling_pump_gate(name, should_fire):
+    """scaling_pump admits a board-count +X/+X (typed dynamic P/T mods) and
+    rejects fixed pumps and bare-X activations (CR 107.3, split-lane #4)."""
+    assert (("scaling_pump", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Commander's Insignia", True),  # creatures YOU control team anthem
+        ("Craterhoof Behemoth", True),  # one-shot team scaling anthem
+        ("Coat of Arms", False),  # symmetric "each creature" — controller any
+        ("Shivan Dragon", False),  # single-target self pump
+    ],
+)
+def test_count_anthem_team_subject_gate(name, should_fire):
+    """count_anthem is the TEAM-subject subset of scaling_pump: a generic
+    creatures-you-control affected filter (checklist #6 — a symmetric global
+    is not a your-team anthem)."""
+    assert (("count_anthem", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Shivan Dragon", True),  # {R}: +1/+0 firebreather (Pump SelfRef)
+        ("Walking Ballista", True),  # {4}: put a +1/+1 counter on SELF
+        ("Glorious Anthem", False),  # static team anthem, not activated
+        ("Grim Hireling", False),  # activated pump of a TARGET creature
+    ],
+)
+def test_self_pump_activated_self_anchor(name, should_fire):
+    """self_pump fires the activated SELF pump / self +1/+1 placement (the
+    mana-sink shape, CR 122.1); statics and target-pumps stay out."""
+    assert (("self_pump", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Always Watching", True),  # nontoken creatures you control: vigilance
+        ("Akroma's Memorial", True),  # broad evergreen union grant
+        ("Craterhoof Behemoth", True),  # one-shot team "gain trample"
+        ("Goblin King", False),  # tribal (subtyped) grant → type_matters
+        ("Grizzly Bears", False),  # no grant at all
+    ],
+)
+def test_team_buff_generic_team_gate(name, should_fire):
+    """team_buff fires an evergreen keyword granted to your GENERIC creature
+    board (CR 604.3 / 702); a tribal narrowing fails the gate (checklist
+    #6)."""
+    assert (("team_buff", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Sneak Attack", True),  # creature from hand
+        ("Elvish Piper", True),  # creature from hand (activated)
+        ("Bribery", True),  # from an OPPONENT's library — still your cheat
+        ("Burgeoning", False),  # a LAND put → extra_land_drop
+        ("Leyline of Anticipation", False),  # opening-hand BeginGame setup
+        # phase drops "basic land" to filter Any — no type evidence, no guess
+        # (a supplement-fixable parse drop, reported for adjudication):
+        ("Planar Engineering", False),
+        # the punished player's compensation fetch (ParentTargetController):
+        ("Settle the Wreckage", False),
+    ],
+)
+def test_cheat_into_play_gates(name, should_fire):
+    """cheat_into_play fires the non-land Hand/Library→Battlefield put (CR
+    110.2 / 400.7); the land carve-out and the typed BeginGame opening-hand
+    kind stay out (checklist #2/#4)."""
+    assert (("cheat_into_play", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Light Up the Stage", True),  # ExileTop + PlayFromExile grant
+        ("Act on Impulse", True),
+        ("Etali, Primal Storm", True),  # ExileTop + CastFromZone sibling
+        ("Bolas's Citadel", False),  # ONGOING static → play_from_top
+        ("Aloe Alchemist", False),  # Plotted grant, no ExileTop — plot only
+        ("Gonti, Night Minister", False),  # opponent-library theft engine
+    ],
+)
+def test_impulse_top_play_sibling_pair(name, should_fire):
+    """impulse_top_play needs the exile-the-top + play-permission SIBLING pair
+    in one non-static unit (CR 601.3b, granularity a); the ongoing static
+    permission is the disjoint play_from_top lane (checklist #3)."""
+    assert (("impulse_top_play", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Bolas's Citadel", True),  # TopOfLibraryCastPermission static mode
+        ("Future Sight", True),
+        ("Light Up the Stage", False),  # one-shot impulse, not ongoing
+        ("Capricious Sliver", False),  # granted impulse trigger (Continuous)
+    ],
+)
+def test_play_from_top_static_mode(name, should_fire):
+    """play_from_top reads phase's dedicated TopOfLibraryCastPermission static
+    mode (CR 116 / 601.3b) — the granted-impulse static (Capricious Sliver)
+    carries a different mode and stays out structurally (no raw veto
+    needed)."""
+    assert (("play_from_top", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Bioshift", True),  # MoveCounters counter_type P1P1
+        ("Walking Ballista", True),  # remove-as-COST {OfType: P1P1}
+        ("Carnifex Demon", True),  # Composite cost, {OfType: M1M1}
+        ("Tangle Wire", False),  # fade-counter remove — kind gate
+        ("Power Conduit", False),  # kindless {Any} remove — not p1p1/m1m1
+    ],
+)
+def test_counter_manipulation_kind_gate(name, should_fire):
+    """counter_manipulation fires the +1/+1 / -1/-1 move-or-remove (CR 122.1 /
+    122.6), including the remove-as-cost read through Composite nesting; the
+    kind gate keeps fade/charge/kindless spends out (split-lane #4)."""
+    assert (("counter_manipulation", "you", "") in _idents(name)) is should_fire
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

@@ -144,6 +144,20 @@ EFFECT_CONCEPTS: dict[str, str] = {
     # NB: ``TakeTheInitiative`` stays mapped to ``venture`` (above) so
     # ``venture_makers`` keeps co-firing; ``initiative_makers`` reads the
     # ``TakeTheInitiative`` _tag distinctly off the same effect node.
+    # Batch 8 (ADR-0035 Stage 2) — the removal / card-flow / library-top
+    # cluster. ``Destroy``/``Bounce`` and their ``*All`` mass forms are
+    # first-class phase tags (the ``*All`` tag IS the CR 115.10 mass
+    # discriminator — the lanes read it via :func:`tag_of`); ``Dig`` is the
+    # look-at-top-N selector (destination-gated: to:battlefield = a put-into-
+    # play, to:hand = card selection); ``ExileTop`` + ``CastFromZone`` are the
+    # impulse-draw pair (exile the top, then cast from exile).
+    "Destroy": "destroy",  # single-target destroy (CR 701.8)
+    "DestroyAll": "destroy",  # board wipe (mass_removal, CR 115.10)
+    "Bounce": "bounce",  # return-to-hand (single target)
+    "BounceAll": "bounce",  # mass_bounce (CR 115.10)
+    "Dig": "dig",  # look at top N (extra_land_drop's dig-into-play arm)
+    "ExileTop": "exile_top",  # impulse_top_play's exile-the-top half
+    "CastFromZone": "cast_from_zone",  # the play-it half (Etali)
 }
 
 # Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): a maker / sac-payoff over
@@ -1215,6 +1229,185 @@ def node_lure_mode(node: object) -> bool:
         return False
     mode = getattr(node, "mode", None)
     return isinstance(mode, str) and mode in _LURE_MODES
+
+
+# ── Batch-8 typed accessors (removal / card-flow / library-top cluster) ──────
+
+
+def static_mode_tag(node: object) -> str | None:
+    """The MODE discriminator of a static ability (CR 604.3), across shapes.
+
+    Phase's static ``mode`` is a plain string for the common forms
+    (``"Continuous"`` / ``"MayLookAtTopOfLibrary"``) and a variant wrapper for
+    the parameterized ones (``{TopOfLibraryCastPermission: …}`` — Bolas's
+    Citadel, Future Sight; ``{ModifyCost: …}`` — the cost_reduction seam). The
+    play_from_top lane reads the variant KEY so the ongoing top-play permission
+    is a pure typed read (the live path needed a recovered ``from:library``
+    zone marker).
+    """
+    mode = getattr(node, "mode", MISSING)
+    if isinstance(mode, str):
+        return mode
+    if isinstance(mode, MirrorVariant):
+        return mode.key
+    if isinstance(mode, TypedMirrorNode):
+        return tag_of(mode)
+    return None
+
+
+def mana_replacement_multiplier(node: TypedMirrorNode) -> int:
+    """The ``Multiply`` factor of a ``ProduceMana`` replacement's
+    ``mana_modification`` (CR 106.4 / 614.1) — Mana Reflection x2, Virtue of
+    Strength x3. ``0`` when the node is not a mana-multiplier replacement, so
+    the mana_amplifier lane can gate on ``>= 2``.
+    """
+    mm = getattr(node, "mana_modification", MISSING)
+    if _present(mm) and tag_of(mm) == "Multiply":
+        f = getattr(mm, "factor", None)
+        return f if isinstance(f, int) else 2
+    return 0
+
+
+def produced_contribution(node: TypedMirrorNode) -> str:
+    """The ``contribution`` of a ``Mana`` effect's ``produced`` spec (CR 106.4).
+
+    Phase marks the triggered "whenever you tap a <land> for mana, add an
+    additional {B}" doublers (Crypt Ghast, Nirkana Revenant) with
+    ``produced.contribution == "Additional"`` — the extra mana rides ON TOP of
+    the tap's own production. ``""`` when absent (a plain producer).
+    """
+    p = getattr(node, "produced", MISSING)
+    if not _present(p):
+        return ""
+    c = getattr(p, "contribution", MISSING)
+    return c if isinstance(c, str) else ""
+
+
+def counter_kind_any(node: TypedMirrorNode) -> str:
+    """``counter_type`` normalized UPPER across BOTH phase shapes (CR 122.1).
+
+    An EFFECT-side counter node carries a plain string kind (``"M1M1"`` /
+    ``"fade"``); a COST-side ``RemoveCounter`` carries a tagged node —
+    ``{OfType: "P1P1"}`` (Walking Ballista's remove-as-cost) or the kindless
+    ``{Any}`` (Power Conduit) → ``"ANY"``. ``""`` when absent. The
+    counter_manipulation lane routes by the normalized kind.
+    """
+    ck = getattr(node, "counter_type", MISSING)
+    if isinstance(ck, str):
+        return ck.upper()
+    if isinstance(ck, TypedMirrorNode):
+        t = tag_of(ck)
+        if t == "OfType":
+            data = getattr(ck, "data", None)
+            return data.upper() if isinstance(data, str) else ""
+        return (t or "").upper()
+    return ""
+
+
+def iter_cost_leaves(node: object, *, depth: int = 0) -> Iterator[TypedMirrorNode]:
+    """Leaf cost nodes of an activation cost, recursing ``Composite`` /
+    ``OneOf`` ``costs`` lists (the same nesting :func:`cost_has_paylife`
+    walks). A ``{B}, Remove a -1/-1 counter from ~:`` composite (Carnifex
+    Demon) yields its ``Mana`` AND ``RemoveCounter`` leaves; a bare cost
+    yields itself.
+    """
+    if depth > 8 or not isinstance(node, TypedMirrorNode):
+        return
+    costs = getattr(node, "costs", MISSING)
+    if _present(costs) and isinstance(costs, list):
+        for c in costs:
+            yield from iter_cost_leaves(c, depth=depth + 1)
+        return
+    yield node
+
+
+def ref_qty_tag(node: TypedMirrorNode, field: str) -> str | None:
+    """The qty-node discriminator tag of a ``Ref``-wrapped ``field``, or
+    ``None`` when the field is absent / not a ``Ref``.
+
+    The scaling-count lanes (draw_for_each / scaling_pump / count_anthem) read
+    the tag to tell a board-count scaler (``ObjectCount`` — Shamanic
+    Revelation, Craterhoof) from a bare X-spell (``Variable`` — Braingeyser,
+    CR 107.3).
+    """
+    q = getattr(node, field, MISSING)
+    if _present(q) and tag_of(q) == "Ref":
+        qty = getattr(q, "qty", None)
+        return tag_of(qty)
+    return None
+
+
+def iter_mod_sites(
+    root: object,
+) -> Iterator[tuple[TypedMirrorNode, TypedMirrorNode]]:
+    """``(static_def, modification)`` pairs reachable from one unit node.
+
+    Covers BOTH continuous-ability shapes: a top-level static (the unit node
+    itself carries ``modifications`` — Glorious Anthem, Commander's Insignia)
+    and the one-shot ``GenericEffect``-nested static defs a spell/trigger
+    confers (Craterhoof's "gain trample and get +X/+X" — nested
+    ``static_abilities`` whose defs carry their OWN ``affected``). The
+    anthem / scaling-pump / team-buff lanes read the def's ``affected`` filter
+    together with each modification (granularity b). Cycle-safe, depth-capped.
+    """
+    seen: set[int] = set()
+    stack: list[object] = [root]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, TypedMirrorNode) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        mods = getattr(node, "modifications", MISSING)
+        if _present(mods) and isinstance(mods, list):
+            for mod in mods:
+                if isinstance(mod, TypedMirrorNode):
+                    yield node, mod
+        for fname in (*_EFFECT_CHILD_FIELDS, "mode_abilities", "static_abilities"):
+            child = getattr(node, fname, MISSING)
+            if isinstance(child, TypedMirrorNode):
+                stack.append(child)
+            elif _present(child) and isinstance(child, list):
+                stack.extend(child)
+
+
+def filter_inzone_zones(filt: object) -> tuple[str, ...]:
+    """The zones named by a filter's ``InZone`` properties (CR 400.7),
+    recursing ``Or`` / ``And``. The exile_removal zone gate reads them: an
+    "exile … from a graveyard" subject carries ``InZone: Graveyard`` — GY-hate,
+    not battlefield removal.
+    """
+    out: list[str] = []
+    t = tag_of(filt)
+    if t == "Typed":
+        for prop in getattr(filt, "properties", ()) or ():
+            if tag_of(prop) == "InZone":
+                z = getattr(prop, "zone", None)
+                if isinstance(z, str):
+                    out.append(z)
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            out.extend(filter_inzone_zones(sub))
+    return tuple(out)
+
+
+def filter_owned_controller(filt: object) -> str | None:
+    """The ``controller`` of a filter's ``Owned`` property (CR 108.3), or
+    ``None``. ``Owned: You`` marks an exile of YOUR OWN object — the
+    blink-your-own tell the exile_removal lane must exclude (the object comes
+    back, CR 603.6e). Recurses ``Or`` / ``And``.
+    """
+    t = tag_of(filt)
+    if t == "Typed":
+        for prop in getattr(filt, "properties", ()) or ():
+            if tag_of(prop) == "Owned":
+                c = getattr(prop, "controller", None)
+                return c if isinstance(c, str) else ""
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            c = filter_owned_controller(sub)
+            if c is not None:
+                return c
+    return None
 
 
 # ── overlay construction ──────────────────────────────────────────────────────

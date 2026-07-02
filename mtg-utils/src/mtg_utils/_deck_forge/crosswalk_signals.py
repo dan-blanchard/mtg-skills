@@ -44,6 +44,7 @@ from mtg_utils._card_ir.crosswalk import (
     count_operand_filter,
     count_operand_qty,
     counter_kind,
+    counter_kind_any,
     counter_pred_kinds,
     damage_recipient_is_player,
     discard_recipient_scope,
@@ -53,17 +54,25 @@ from mtg_utils._card_ir.crosswalk import (
     explicit_recipient_scope,
     filter_controller,
     filter_core_types,
+    filter_inzone_zones,
+    filter_owned_controller,
     filter_predicates,
     filter_subtypes,
+    iter_cost_leaves,
+    iter_mod_sites,
     lifeloss_recipient_scope,
+    mana_replacement_multiplier,
     mod_value,
     modify_cost_mode,
     node_lure_mode,
     permission_tag,
     player_counter_kind,
     power_threshold_preds,
+    produced_contribution,
     pump_is_negative,
     recipient_tag,
+    ref_qty_tag,
+    static_mode_tag,
     tag_of,
     trigger_scope,
     trigger_subject,
@@ -195,6 +204,28 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "exhaust_makers",
         "convoke_makers",
         "magecraft_matters",
+        # Batch 8 (ADR-0035 Stage 2): the mana / card-flow / removal-sub-lane /
+        # pump-sub-lane / library-top cluster.
+        "mana_amplifier",
+        "extra_land_drop",
+        "group_mana",
+        "draw_for_each",
+        "discard_outlet",
+        "mass_removal",
+        "mass_bounce",
+        "exile_removal",
+        "lands_matter",
+        "treasure_matters",
+        "blood_matters",
+        "anthem_static",
+        "count_anthem",
+        "scaling_pump",
+        "self_pump",
+        "team_buff",
+        "cheat_into_play",
+        "impulse_top_play",
+        "play_from_top",
+        "counter_manipulation",
     }
 )
 
@@ -2655,6 +2686,852 @@ def _keyword_field_signals_b7(keywords: frozenset[str], name: str) -> list[Signa
     return out
 
 
+# ── Batch 8 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────
+
+# Battlefield permanent types a single-target exile/removal subject may name
+# (CR 115.1 / 406.1) — mirrors ``_signals_ir._PERMANENT_TYPES``.
+_PERMANENT_TYPES: frozenset[str] = frozenset(
+    {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker", "Battle"}
+)
+# Board-wipe subject types (CR 115.10) — mirrors ``_signals_ir._MASS_REMOVAL_
+# TYPES``. Land is deliberately ABSENT: "destroy all lands" is land
+# destruction (Armageddon), a different lane.
+_MASS_REMOVAL_TYPES: frozenset[str] = frozenset(
+    {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker"}
+)
+# Evergreen team-anthem keywords (CR 702) — mirrors ``_signals_ir._TEAM_BUFF_
+# GRANT_KW`` (phase's spaceless spelling normalized via lower+strip).
+_TEAM_BUFF_GRANT_KW: frozenset[str] = frozenset(
+    {
+        "flying",
+        "trample",
+        "menace",
+        "hexproof",
+        "indestructible",
+        "protection",
+        "deathtouch",
+        "lifelink",
+        "doublestrike",
+        "firststrike",
+        "vigilance",
+        "haste",
+        "ward",
+        "reach",
+    }
+)
+# Predicates a GENERIC your-team anthem subject may carry (Always Watching's
+# NonToken, "each OTHER creature you control") — mirrors ``_TEAM_BUFF_OK_PREDS``.
+_TEAM_BUFF_OK_PREDS: frozenset[str] = frozenset({"NonToken", "Another", "Other"})
+# Ref-qty tags that are a BOARD-COUNT scaler by construction (CR 107.3) — a
+# counted object population or a named game count. The scaling gate admits
+# them structurally; every other non-bare-X tag needs the "for each" raw.
+_SCALING_QTY_TAGS: frozenset[str] = frozenset(
+    {
+        "ObjectCount",
+        "ObjectCountDistinct",
+        "ObjectCountBySharedQuality",
+        "CountersOn",
+        "CountersOnObjects",
+        "Devotion",
+        "PartySize",
+        "BasicLandTypeCount",
+        "PlayerCounter",
+    }
+)
+# Ref-qty tags that are a bare X / cost-derived magnitude (CR 107.3) — NEVER a
+# board scale (Braingeyser's "draw X cards", a "-X/-X" activation).
+_BARE_X_QTY_TAGS: frozenset[str] = frozenset(
+    {
+        "Variable",
+        "CostXPaid",
+        "ChosenNumber",
+        "EventContextAmount",
+        "PreviousEffectAmount",
+        "TimesCostPaidThisResolution",
+    }
+)
+# Mana-effect recipient tags naming a NON-controller player (CR 106.4) — the
+# group_mana direction: "whenever a player taps … THAT PLAYER adds" (Mana
+# Flare — TriggeringPlayer), "each player's upkeep, that player adds" (Magus
+# of the Vineyard — ScopedPlayer), "target player adds" (Player/Target).
+_GROUP_MANA_RECIPIENTS: frozenset[str] = frozenset(
+    {
+        "TriggeringPlayer",
+        "ScopedPlayer",
+        "Player",
+        "Target",
+        "ParentTarget",
+        "Each",
+        "AllPlayers",
+        "EachPlayer",
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+    }
+)
+# Discard-owning wrapper actors that mark an OPPONENT-directed discard (CR
+# 701.9): phase mislabels a modal/saga/per-opponent "each opponent discards"
+# recipient ``Controller`` but hangs ``player_scope: Opponent`` on the wrapper
+# (The Eldest Reborn ch. 2, Aclazotz). ``All``/``Each`` are deliberately
+# ABSENT — a symmetric wheel (Dark Deal) hits YOU too and stays loot fuel.
+_OPP_DISCARD_ACTORS: frozenset[str] = frozenset(
+    {"Opponent", "Opponents", "EachOpponent", "TargetPlayer"}
+)
+# Sibling-return target tags marking the SAME exiled object coming back (CR
+# 603.6e) — the blink tell the exile_removal lane vetoes on.
+_RETURN_TARGET_TAGS: frozenset[str] = frozenset(
+    {"ParentTarget", "TrackedSet", "TrackedSetFiltered"}
+)
+# Counted-population controllers naming an OPPONENT-directed count (checklist
+# #6): an explicit opponent, a targeted/defending player, or the ETB-chosen
+# opponent (Pallimud / Skyshroud War Beast's ``SourceChosenPlayer``).
+_OPP_COUNT_CONTROLLERS: frozenset[str] = frozenset(
+    {
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "TargetPlayer",
+        "DefendingPlayer",
+        "SourceChosenPlayer",
+    }
+)
+# ExileTop owners naming ANOTHER player's library (a theft-impulse — Gonti,
+# Night Minister exiles from the damaged OPPONENT's library): not the
+# your-library impulse engine.
+_OPP_TOP_OWNERS: frozenset[str] = frozenset(
+    {
+        "ParentTarget",
+        "ParentTargetController",
+        "Player",
+        "Target",
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "TriggeringPlayer",
+        "ScopedPlayer",
+    }
+)
+# SearchLibrary target_player tags directing the search at ANOTHER player —
+# a punisher's compensation fetch (Settle the Wreckage), never YOUR cheat.
+_DIRECTED_SEARCHERS: frozenset[str] = frozenset(
+    {
+        "ParentTarget",
+        "ParentTargetController",
+        "Player",
+        "Target",
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "TriggeringPlayer",
+        "ScopedPlayer",
+    }
+)
+# +1/+1 / -1/-1 counter kinds (upper) — the counter_manipulation discriminator
+# vs charge/oil/loyalty/fade (split-lane #4, CR 122.1 / 122.6).
+_PT_COUNTER_KINDS: frozenset[str] = frozenset({"P1P1", "M1M1"})
+# Dynamic-P/T modification tags (a +X/+X anthem/pump whose X is computed) —
+# the scaling_pump / count_anthem mod-site anchor. The ``Set*`` forms are
+# characteristic-defining */* bodies (variable_pt), NOT a pump — excluded.
+_DYNAMIC_PT_MODS: frozenset[str] = frozenset({"AddDynamicPower", "AddDynamicToughness"})
+
+
+def _is_scaling_count(node: TypedMirrorNode, fields: tuple[str, ...], raw: str) -> bool:
+    """Whether one of ``node``'s ``fields`` is a genuine BOARD-COUNT scaler
+    ("for each <X>", CR 107.3), not a bare X-spell whose X is the cast cost.
+
+    Mirrors ``_signals_ir._is_scaling_count`` over the typed substrate: a
+    counted-population / named-count qty tag (:data:`_SCALING_QTY_TAGS`) is
+    always a scale; a bare-X tag (:data:`_BARE_X_QTY_TAGS` — Braingeyser)
+    never is; any OTHER dynamic tag (CommanderCastFromCommandZoneCount,
+    GraveyardSize, …) scales only when the node's raw names the count ("for
+    each" / "equal to the number of" — Commander's Insignia).
+    """
+    low = (raw or "").lower()
+    phrase = "for each" in low or "equal to the number of" in low
+    for f in fields:
+        qt = ref_qty_tag(node, f)
+        if qt is None or qt in _BARE_X_QTY_TAGS:
+            continue
+        if qt in _SCALING_QTY_TAGS or phrase:
+            return True
+    return False
+
+
+def _mana_amplifier(tree: ConceptTree) -> list[Signal]:
+    """mana_amplifier — a mana DOUBLER (CR 106.4 / 605.1 / 614.1). Two typed
+    arms:
+
+    * a ``ProduceMana`` REPLACEMENT whose ``mana_modification`` is a
+      ``Multiply`` ("it produces twice/three times as much … instead" — Mana
+      Reflection x2, Virtue of Strength x3), beneficiary-gated (checklist #2:
+      the replaced production must not be opponent-only);
+    * a ``TapsForMana`` TRIGGER whose ``Mana`` effect carries
+      ``produced.contribution == "Additional"`` ("whenever you tap a Swamp
+      for mana, add an additional {B}" — Crypt Ghast) — the typed substrate
+      carries the additional-contribution marker the OLD lossy IR folded into
+      raw (the live ``_MANA_AMPLIFY_RAW`` tail), so this arm is a structural
+      fidelity gain, not a port of the regex. The watched producer must be a
+      ``Typed`` CLASS of permanents (every Swamp / every Mountain — Gauntlet
+      of Might); a single ENCHANTED land's tap (``AttachedTo`` — Wild Growth,
+      Utopia Sprawl) is a ramp Aura, not a doubling engine.
+
+    The generic ramp lane keeps co-firing where applicable (additive, matching
+    the live path). Doubling Cube's "double the amount of unspent mana" stays
+    a ``live_only`` residue. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.origin == "replacement":
+            vc = getattr(unit.node, "valid_card", None)
+            if (
+                mana_replacement_multiplier(unit.node) >= 2
+                and filter_controller(vc) != "Opponent"
+            ):
+                return [Signal("mana_amplifier", "you", "", "", tree.name, "high")]
+        if unit.origin == "trigger" and unit.trigger_event == "tapsformana":
+            if tag_of(getattr(unit.node, "valid_card", None)) != "Typed":
+                continue  # AttachedTo single-land Aura — ramp, not a doubler
+            for c in unit.effect_concepts("ramp"):
+                if produced_contribution(c.node) == "Additional":
+                    return [
+                        Signal("mana_amplifier", "you", "", c.raw, tree.name, "high")
+                    ]
+    return []
+
+
+def _land_only_filter(filt: object) -> bool:
+    """A filter whose CORE types are Land and nothing else (the ramp-vs-cheat
+    carve-out, CR 305)."""
+    cores = set(filter_core_types(filt))
+    return bool(cores) and cores <= {"Land"}
+
+
+def _extra_land_drop(tree: ConceptTree) -> list[Signal]:
+    """extra_land_drop — a land PUT onto the battlefield (CR 305.2 / 116.2a /
+    305.9: a put is not a play, so it bypasses the land-per-turn limit). Two
+    typed arms mirroring the live structural pair:
+
+    * a ``ChangeZone`` Hand→Battlefield whose moved subject is Land-only,
+      controller you (Burgeoning's "put a land card from your hand onto the
+      battlefield"); the "from hand OR graveyard" controller-any recovery
+      stays ``live_only`` (checklist #6 keeps the you-gate);
+    * a ``Dig`` whose ``destination`` is Battlefield with a Land filter
+      (Elvish Rejuvenator's look-at-top-five put) — the ``to:hand`` dig
+      (Planar Genesis) is card selection, NOT a land drop (checklist #2).
+
+    The extra-land STATIC (Exploration's "play an additional land") is a
+    different mechanic the live lane also excludes. Scope "you".
+    """
+    for unit in tree.units:
+        for c in unit.effect_concepts("change_zone"):
+            origin, dest = change_zone_dirs(c.node)
+            sub = effect_filter(c.node)
+            if (
+                tag_of(c.node) == "ChangeZone"
+                and origin == "Hand"
+                and dest == "Battlefield"
+                and _land_only_filter(sub)
+                and filter_controller(sub) == "You"
+            ):
+                return [Signal("extra_land_drop", "you", "", c.raw, tree.name, "high")]
+        for c in unit.effect_concepts("dig"):
+            if getattr(c.node, "destination", None) == "Battlefield" and (
+                "Land" in filter_core_types(getattr(c.node, "filter", None))
+            ):
+                return [Signal("extra_land_drop", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _group_mana(tree: ConceptTree) -> list[Signal]:
+    """group_mana — mana given to a NON-controller player (CR 106.4): "each /
+    that / target player adds …" (Mana Flare, Magus of the Vineyard, Heartbeat
+    of Spring). The typed substrate carries the recipient the OLD lossy IR
+    dropped (its ``Effect`` had no recipient field, so the live path fell back
+    to the ``_GROUP_MANA_RAW`` regex): a ``Mana`` effect whose recipient tag
+    names another player (:data:`_GROUP_MANA_RECIPIENTS` — ``TriggeringPlayer``
+    for the taps-for-mana mirrors, ``ScopedPlayer`` for the each-player-upkeep
+    forms, ``Player`` for a targeted gift). A controller-only producer (Sol
+    Ring — no recipient field) never fires (checklist #5). Scope "each".
+    """
+    for c in tree.effect_concepts("ramp"):
+        if recipient_tag(c.node) in _GROUP_MANA_RECIPIENTS:
+            return [Signal("group_mana", "each", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _draw_for_each(tree: ConceptTree) -> list[Signal]:
+    """draw_for_each — a draw SCALING with a board count (CR 120 / 107.3):
+    "draw a card for each creature you control" (Shamanic Revelation). The
+    ``count`` is read structurally per draw NODE (granularity a): a fixed draw
+    sharing an ability with a for-each rider (Tamiyo's Logbook — the for-each
+    lives on ``cost_reduction``, not the draw) carries ``Fixed`` and never
+    fires; a bare X-draw (Braingeyser — ``Ref → Variable``) is the cast cost,
+    not a board scale (split-lane #4). Scope "you".
+    """
+    for c in tree.effect_concepts("draw"):
+        if _is_scaling_count(c.node, ("count", "amount"), c.raw):
+            return [Signal("draw_for_each", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _discard_outlet(tree: ConceptTree) -> list[Signal]:
+    """discard_outlet — a SELF-loot / symmetric discard outlet (CR 701.9):
+    fuel for YOUR graveyard (Faithless Looting; Dark Deal's each-player
+    wheel). A ``Discard`` effect whose recipient is you/each, MINUS the
+    opponent-directed forms (checklist #1/#5):
+
+    * a recipient naming a targeted/opponent player (Mind Rot) reads
+      ``opponents`` off :func:`discard_recipient_scope` — hand attack, out;
+    * phase MISLABELS the modal / saga / per-opponent "each opponent
+      discards" recipient as ``Controller`` while hanging ``player_scope:
+      Opponent`` on the wrapper that owns the discard (The Eldest Reborn
+      ch. 2, Aclazotz) — the wrapper actor read
+      (:func:`effect_owner_player_scope`) rejects it STRUCTURALLY, replacing
+      the live path's two raw/oracle veto regexes. A symmetric ``All`` actor
+      (Dark Deal) is NOT vetoed — the wheel hits you too.
+
+    Scope "you" (the lane convention — it fuels the controller's engine).
+    """
+    for unit in tree.units:
+        for c in unit.effect_concepts("discard"):
+            if discard_recipient_scope(c.node) not in ("you", "each", None):
+                continue
+            owner = effect_owner_player_scope(getattr(unit, "node", None), c.node)
+            if owner in _OPP_DISCARD_ACTORS:
+                continue
+            return [Signal("discard_outlet", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _mass_removal(tree: ConceptTree) -> list[Signal]:
+    """mass_removal — a BOARD WIPE (CR 115.10 / 701.8 / 406.1). Four typed
+    arms, each anchored on phase's first-class ``*All`` mass tag (the
+    counter_kind=='all' discriminator of the old IR, carried structurally):
+
+    * ``DestroyAll`` over a battlefield permanent type (Wrath of God);
+    * ``ChangeZoneAll`` → Exile with no graveyard origin (Merciless
+      Eviction) — a graveyard-zone mass exile (Living Death) is GY
+      recursion, NOT a wipe (checklist #2);
+    * ``DamageAll`` over a Creature/Permanent subject (Blasphemous Act,
+      Pyroclasm);
+    * a NEGATIVE symmetric ``PumpAll`` over creatures (Languish's "all
+      creatures get -4/-4") — the typed substrate carries the negative amount
+      (``power: Fixed -4``), so the live ``_MASS_DEBUFF_RAW`` raw arm reads
+      structurally here (a fidelity gain over the spec's live-only
+      expectation). Three sub-gates keep the sweep genuine: the
+      controller-less gate mirrors the live raw's "ALL creatures" anchor (a
+      one-sided "creatures your opponents control get -1/-1" dip — Cower in
+      Fear — is debuff_makers); the NEGATIVE-TOUGHNESS gate is the lethality
+      tell (CR 704.5f — a "-2/-0" combat dip like Hydrolash never kills); and
+      the attachment-predicate veto drops the single-Aura "+1/-1" shifter
+      (Flowstone Blade's enchanted creature — one target, not a board).
+
+    The type gate (:data:`_MASS_REMOVAL_TYPES`) keeps "destroy all LANDS"
+    (Armageddon) in land_destruction; a controller-You mass exile (Day of the
+    Dragons' own-board swap) is a drawback, not removal (checklist #6). Scope
+    "you".
+    """
+    for c in tree.iter_concepts():
+        if c.role != "effect":
+            continue
+        t = tag_of(c.node)
+        sub = effect_filter(c.node)
+        cores = set(filter_core_types(sub))
+        ctrl = filter_controller(sub)
+        raw = c.raw
+        if t == "DestroyAll" and ctrl != "You" and cores & _MASS_REMOVAL_TYPES:
+            return [Signal("mass_removal", "you", "", raw, tree.name, "high")]
+        if t == "ChangeZoneAll" and ctrl != "You":
+            origin, dest = change_zone_dirs(c.node)
+            gy = origin == "Graveyard" or ("Graveyard" in filter_inzone_zones(sub))
+            if dest == "Exile" and not gy and cores & _MASS_REMOVAL_TYPES:
+                return [Signal("mass_removal", "you", "", raw, tree.name, "high")]
+        if t == "DamageAll" and cores & {"Creature", "Permanent"}:
+            return [Signal("mass_removal", "you", "", raw, tree.name, "high")]
+        toughness = _fixed_pt(c.node, "toughness") if t == "PumpAll" else None
+        if (
+            toughness is not None
+            and toughness < 0
+            and "Creature" in cores
+            and ctrl is None
+            and not (set(filter_predicates(sub)) & _DEBUFF_SINGLE_AURA_PREDS)
+        ):
+            return [Signal("mass_removal", "you", "", raw, tree.name, "high")]
+    return []
+
+
+def _fixed_pt(node: TypedMirrorNode, field: str) -> int | None:
+    """The fixed P/T component of a Pump-style node (``toughness: Fixed N``),
+    ``None`` when absent/dynamic. The mass-debuff arm gates on a NEGATIVE
+    toughness — the lethality tell (CR 704.5f: a creature with toughness 0 or
+    less dies; a "-2/-0" power dip never kills)."""
+    p = getattr(node, field, None)
+    if tag_of(p) == "Fixed":
+        v = getattr(p, "value", None)
+        return v if isinstance(v, int) else None
+    return None
+
+
+def _mass_bounce(tree: ConceptTree) -> list[Signal]:
+    """mass_bounce — a BOARD-WIDE bounce (CR 115.10): ``BounceAll`` over a
+    generic Creature/Permanent subject (Evacuation, Devastation Tide). The
+    single-target ``Bounce`` (Boomerang; Cyclonic Rift's base mode) is
+    bounce_tempo, not this lane; a graveyard-recursion subject (``InZone`` /
+    ``Owned`` predicate — "return all creature cards from graveyards") is
+    recursion (CR 404), excluded (checklist #2). KNOWN RESIDUE: Cyclonic
+    Rift's Overload each-mode is a phase modal-alt-cost parse drop
+    (phase_parse_bug) — the crosswalk correctly reads only the targeted base
+    mode. Scope "any" (the sweep convention).
+    """
+    for c in tree.effect_concepts("bounce"):
+        if tag_of(c.node) != "BounceAll":
+            continue
+        sub = effect_filter(c.node)
+        if not (set(filter_core_types(sub)) & {"Creature", "Permanent"}):
+            continue
+        preds = set(filter_predicates(sub))
+        if "InZone" in preds or "Owned" in preds:
+            continue
+        return [Signal("mass_bounce", "any", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _exile_removal(tree: ConceptTree) -> list[Signal]:
+    """exile_removal — a SINGLE-TARGET exile of a battlefield permanent (CR
+    406.1 "without any way to return" / 115.1): Swords to Plowshares, Path to
+    Exile. A ``ChangeZone`` → Exile over a permanent-typed subject, with the
+    live arm's five vetoes read STRUCTURALLY (granularity a — the sibling
+    scans):
+
+    * **blink** — exiling YOUR OWN (``Owned: You`` / controller-you subject —
+      Cloudshift) OR a sibling battlefield RETURN of the SAME object
+      (``ParentTarget``/``TrackedSet`` target — Eldrazi Displacer; checklist
+      #9). A sibling put of a DIFFERENT object (Path to Exile's searched land
+      — target ``Any``) does not veto;
+    * **zone** — a Graveyard/Hand origin or ``InZone`` subject (GY-hate /
+      cage setup — Bojuka Bog), not battlefield removal (checklist #2);
+    * **mass** — the ``ChangeZoneAll`` wipe is mass_removal (a different
+      tag, structurally disjoint);
+    * **haunt** — ``ExileHaunting`` is its own phase tag, never this
+      concept;
+    * **clone-from-mill** — a sibling ``BecomeCopy`` marks a copy setup, not
+      removal (Shadow Kin).
+
+    Scope "you".
+    """
+    for unit in tree.units:
+        czs = unit.effect_concepts("change_zone")
+        sib_return = any(
+            change_zone_dirs(s.node)[1] == "Battlefield"
+            and tag_of(getattr(s.node, "target", None)) in _RETURN_TARGET_TAGS
+            for s in czs
+        )
+        sib_clone = unit.has_effect("become_copy")
+        for c in czs:
+            if tag_of(c.node) != "ChangeZone":
+                continue
+            origin, dest = change_zone_dirs(c.node)
+            if dest != "Exile":
+                continue
+            sub = effect_filter(c.node)
+            if not (set(filter_core_types(sub)) & _PERMANENT_TYPES):
+                continue
+            if filter_controller(sub) == "You" or (
+                filter_owned_controller(sub) == "You"
+            ):
+                continue  # blink-your-own (CR 603.6e), not removal
+            if origin in ("Graveyard", "Hand") or (
+                set(filter_inzone_zones(sub)) & {"Graveyard", "Hand"}
+            ):
+                continue  # GY-hate / cage setup (CR 406.2), not removal
+            if sib_return or sib_clone:
+                continue
+            return [Signal("exile_removal", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _lands_matter(tree: ConceptTree) -> list[Signal]:
+    """lands_matter — a payoff SCALING with lands (CR 305 / 604.3): a count
+    operand whose counted population names Land ("create a Plant token for
+    each land you control" — Avenger of Zendikar; a lands-count CDA). The
+    live arm carries NO controller gate; per checklist #6 the crosswalk adds
+    an opponent-direction veto proactively — a "power equal to the number of
+    nonbasic lands your OPPONENTS / the chosen player controls" body
+    (Wilderness Elemental, Pallimud's ``SourceChosenPlayer``) is a punisher,
+    not a your-lands build-around. The parity cost is flagged for
+    adjudication, not silently absorbed. Scope "you".
+    """
+    for c in tree.iter_concepts():
+        if c.role == "cost":
+            continue
+        cf = count_operand_filter(c.node)
+        if cf is None or "Land" not in filter_core_types(cf):
+            continue
+        if filter_controller(cf) in _OPP_COUNT_CONTROLLERS:
+            continue
+        return [Signal("lands_matter", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+# Sacrificed-token subtype → the sacrifice-PAYOFF lane (role-split per
+# ADR-0034 — the ``make_token`` MAKER halves are already ported).
+_SAC_TOKEN_MATTERS: dict[str, str] = {
+    "treasure": "treasure_matters",
+    "blood": "blood_matters",
+}
+
+
+def _resource_token_matters(tree: ConceptTree) -> list[Signal]:
+    """treasure_matters / blood_matters — the sacrifice-PAYOFF half of the
+    predefined-token lanes (CR 111.10 / 701.21, role-split per ADR-0034): a
+    ``Sacrifice`` whose sacrificed filter carries the Treasure/Blood subtype.
+    Two roles fire:
+
+    * a sacrifice EFFECT ("you may sacrifice a Blood token. If you do…" —
+      Wedding Security), edict-gated (checklist #1: an "each opponent
+      sacrifices" direction is not your payoff);
+    * a sacrifice COST ("Sacrifice five Treasures: …" — Jolene, the Plunder
+      Queen), read through ``Composite`` cost nesting — a cost is always paid
+      by the controller (CR 701.21a), the cleanest payoff tell. The live path
+      reads effects only, so the cost arm is a structural widening (flagged
+      in the shadow diff, not silently absorbed).
+
+    A pure token MAKER (Dockside Extortionist) fires ``*_makers``, never this.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", raw, tree.name, "high"))
+
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.concept != "sacrifice" or _sac_is_edict(unit, c.node):
+                continue
+            for st in filter_subtypes(effect_filter(c.node)):
+                key = _SAC_TOKEN_MATTERS.get(st.lower())
+                if key:
+                    fire(key, c.raw)
+        for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
+            if tag_of(leaf) != "Sacrifice":
+                continue
+            for st in filter_subtypes(getattr(leaf, "target", None)):
+                key = _SAC_TOKEN_MATTERS.get(st.lower())
+                if key:
+                    fire(key, "")
+    return out
+
+
+def _is_anthem_group_filter(filt: object) -> bool:
+    """A creature-GROUP anthem subject (CR 604.3 / 613.4): Creature in core
+    types AND (controller you OR ``Another`` OR subtyped) AND not an
+    opponent-board debuff target. A single-target pump (controller any, no
+    Another/subtype) fails the group test."""
+    if filt is None or filter_controller(filt) == "Opponent":
+        return False
+    if "Creature" not in filter_core_types(filt):
+        return False
+    return (
+        filter_controller(filt) == "You"
+        or "Another" in filter_predicates(filt)
+        or bool(filter_subtypes(filt))
+    )
+
+
+def _anthem_static(tree: ConceptTree) -> list[Signal]:
+    """anthem_static — a STATIC +N/+N over a creature group (CR 604.3 / 613.4
+    layer 7c): Glorious Anthem, Goblin King's subtyped "Other Goblins". Reads
+    the top-level static units' plain-int P/T mods (granularity b — the
+    ``affected`` subject and the mod values together): every present value
+    must be non-negative (a -2/-2 token hoser — Virulent Plague — is a
+    debuff, checklist #4), the subject must be a creature GROUP
+    (:func:`_is_anthem_group_filter` — a single-target/activated pump is
+    self_pump or a trick, and an opponent-board shrink is scoped out,
+    checklist #6). One-shot until-end-of-turn pumps live on spell/trigger
+    units, never on a ``static`` origin unit, so the origin gate mirrors the
+    live ``ab.kind == 'static'``. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.origin != "static":
+            continue
+        pumps = [c for c in unit.statics if c.concept == "pump"]
+        vals = [mod_value(c.node) for c in pumps]
+        ints = [v for v in vals if v is not None]
+        if not ints or any(v < 0 for v in ints):
+            continue
+        if _is_anthem_group_filter(getattr(unit.node, "affected", None)):
+            return [Signal("anthem_static", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _pump_scaling_lanes(tree: ConceptTree) -> list[Signal]:
+    """scaling_pump / count_anthem — a +X/+X that SCALES with a board count
+    (CR 107.3 / 613.4b). Two typed surfaces:
+
+    * a mass ``PumpAll`` whose power/toughness is a scaling ``Ref``;
+    * a dynamic P/T modification site (``AddDynamicPower`` — Craterhoof's
+      nested one-shot static, Commander's Insignia's continuous anthem) whose
+      ``value`` scales; the ``Set*`` forms are */* CDA bodies, excluded.
+
+    ``count_anthem`` is the TEAM-subject subset (the site's ``affected`` /
+    the pump's subject is a generic creatures-you-control filter — Hold the
+    Gates, Commander's Insignia); a symmetric controller-any global (Coat of
+    Arms) or single-target firebreathing stays scaling_pump-or-nothing
+    (checklist #6). Bare-X pumps (a "-X/-X" activation — ``Variable``) never
+    scale (split-lane #4). Both scope "you".
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", raw, tree.name, "high"))
+
+    for c in tree.effect_concepts("pump"):
+        if tag_of(c.node) == "PumpAll" and _is_scaling_count(
+            c.node, ("power", "toughness"), c.raw
+        ):
+            fire("scaling_pump", c.raw)
+            if _is_generic_creature_filter(effect_filter(c.node)):
+                fire("count_anthem", c.raw)
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) not in _DYNAMIC_PT_MODS:
+                continue
+            raw = _site_raw(sdef)
+            if not _is_scaling_count(mod, ("value",), raw):
+                continue
+            fire("scaling_pump", raw)
+            if _is_generic_creature_filter(getattr(sdef, "affected", None)):
+                fire("count_anthem", raw)
+    return out
+
+
+def _site_raw(sdef: object) -> str:
+    """A static-def site's grounding clause (its ``description``, else "")."""
+    desc = getattr(sdef, "description", None)
+    return desc if isinstance(desc, str) else ""
+
+
+def _self_pump(tree: ConceptTree) -> list[Signal]:
+    """self_pump — a firebreather / self-grow mana-sink (CR 122.1 / 613): an
+    ACTIVATED ability pumping SELF ("{R}: this creature gets +1/+0" — Shivan
+    Dragon) or placing a +1/+1 counter on SELF ("{4}: Put a +1/+1 counter on
+    this creature" — Walking Ballista). The activated-only gate is the
+    mana-sink anchor (a static team anthem — Glorious Anthem — and a one-shot
+    spell pump are different lanes); the self-anchor is the typed ``SelfRef``
+    target (a "target creature" pump is a granted trick, not self). Scope
+    "you".
+    """
+    for unit in tree.units:
+        if unit.origin != "ability" or unit.kind != "Activated":
+            continue
+        for c in unit.effects:
+            t = tag_of(c.node)
+            tgt = tag_of(getattr(c.node, "target", None))
+            if t == "Pump" and tgt in (None, "SelfRef"):
+                return [Signal("self_pump", "you", "", c.raw, tree.name, "high")]
+            if (
+                t == "PutCounter"
+                and counter_kind(c.node).upper() == "P1P1"
+                and tgt == "SelfRef"
+            ):
+                return [Signal("self_pump", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _is_team_buff_filter(filt: object) -> bool:
+    """The team_buff anthem subject (CR 604.3): GENERIC creatures YOU control
+    — no subtypes (tribal is type_matters), predicates at most
+    NonToken/Another/Other (Always Watching stays in; an Attacking/color/
+    equipped narrowing fails). Mirrors ``_signals_ir._is_team_buff_grant``."""
+    return (
+        filter_controller(filt) == "You"
+        and "Creature" in filter_core_types(filt)
+        and not filter_subtypes(filt)
+        and set(filter_predicates(filt)) <= _TEAM_BUFF_OK_PREDS
+    )
+
+
+def _team_buff(tree: ConceptTree) -> list[Signal]:
+    """team_buff — the BROAD evergreen-keyword union anthem (CR 604.3 / 702):
+    "creatures you control have/gain <evergreen keyword>" (Akroma's Memorial,
+    Always Watching; Craterhoof's one-shot "gain trample"). Reads every
+    modification site's ``AddKeyword`` whose keyword is a plain evergreen
+    string (:data:`_TEAM_BUFF_GRANT_KW`) over a generic your-team subject
+    (:func:`_is_team_buff_filter`) — a tribal grant ("Sliver creatures you
+    control gain …") or a single-target grant (an effect target, never a
+    generic your-team ``affected``) stays out (checklist #6). The variant-
+    parameterized keywords (Protection-from-X, Ward-{N}) are non-string nodes
+    — a documented residue. Scope "you".
+    """
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) not in ("AddKeyword", "AddKeywordUntilEndOfTurn"):
+                continue
+            kw = getattr(mod, "keyword", None)
+            if not isinstance(kw, str):
+                continue
+            if kw.lower().replace(" ", "") not in _TEAM_BUFF_GRANT_KW:
+                continue
+            if _is_team_buff_filter(getattr(sdef, "affected", None)):
+                return [
+                    Signal("team_buff", "you", "", _site_raw(sdef), tree.name, "high")
+                ]
+    return []
+
+
+def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
+    """cheat_into_play — put a card onto the battlefield WITHOUT casting it
+    (CR 110.2 / 400.7): Sneak Attack (hand), Elvish Piper, Bribery (an
+    opponent's library — control is orthogonal, the cheat is still yours). A
+    ``ChangeZone`` Hand/Library→Battlefield, with three carve-outs:
+
+    * **land / type evidence** — a Land-only put is ramp (extra_land_drop;
+      checklist #4). The cheated TYPE is read off the effect's own filter,
+      falling back to a sibling tutor/dig selector (Bribery's
+      ``SearchLibrary`` names the Creature; a fetchland's names the Land).
+      When NEITHER names a type (phase drops the "basic land" restriction to
+      ``Any`` — Wild Endeavor, Planar Engineering), the lane does NOT guess —
+      no fire (the drop is supplement-fixable, reported, never a heuristic);
+    * **directed search** — a search whose ``target_player`` is ANOTHER
+      player (Settle the Wreckage's compensation basics) is the punished
+      player's fetch, not your cheat (checklist #1);
+    * **opening hand** — the "begin the game with it on the battlefield"
+      setup is a ``BeginGame`` ability kind (Leyline of Anticipation), a
+      one-time pre-game action, not a cheat ENGINE — read structurally off
+      the typed kind (the live path needed a raw regex).
+
+    A Graveyard origin is reanimation (a different lane, checklist #2). Scope
+    "you".
+    """
+    for unit in tree.units:
+        if unit.kind == "BeginGame":
+            continue
+        for c in unit.effect_concepts("change_zone"):
+            if tag_of(c.node) != "ChangeZone":
+                continue
+            origin, dest = change_zone_dirs(c.node)
+            if dest != "Battlefield" or origin not in ("Hand", "Library"):
+                continue
+            cores = set(filter_core_types(effect_filter(c.node)))
+            if not cores:
+                cores = _sibling_selector_cores(unit)
+            if not cores or cores <= {"Land"}:
+                continue  # land carve-out / no type evidence — never guess
+            if _directed_search_sibling(unit):
+                continue  # another player's compensation fetch, not yours
+            return [Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _sibling_selector_cores(unit: AbilityUnit) -> set[str]:
+    """The CORE types a sibling tutor/dig selector names (the search half of a
+    split search-into-play — Bribery's Creature, a fetchland's Land)."""
+    cores: set[str] = set()
+    for c in unit.effects:
+        if c.concept in ("tutor", "dig"):
+            cores |= set(filter_core_types(effect_filter(c.node)))
+    return cores
+
+
+def _directed_search_sibling(unit: AbilityUnit) -> bool:
+    """Whether a sibling ``SearchLibrary`` directs ANOTHER player to search
+    (``target_player`` a directed-PLAYER tag — Settle the Wreckage's
+    ``ParentTargetController`` "that player may search"). A ``Typed`` library
+    OWNER (Bribery — YOU search target opponent's library) is not directed:
+    the controller performs the search and the put stays yours."""
+    for c in unit.effects:
+        if c.concept != "tutor":
+            continue
+        if tag_of(getattr(c.node, "target_player", None)) in _DIRECTED_SEARCHERS:
+            return True
+    return False
+
+
+def _impulse_top_play(tree: ConceptTree) -> list[Signal]:
+    """impulse_top_play — a one-shot "exile the top, you may play/cast it"
+    engine (CR 601.3b / 116): Light Up the Stage, Act on Impulse, Etali. The
+    typed anchor is granularity (a): ONE non-static unit carrying BOTH an
+    ``ExileTop`` effect AND its play-permission sibling — a
+    ``GrantCastingPermission`` of ``PlayFromExile`` (the impulse grant) or a
+    ``CastFromZone`` (Etali's cast-from-among). The exiled library must be
+    reachable as YOURS: an ``ExileTop`` whose ``player`` names another player
+    only (``ParentTarget`` — Gonti, Night Minister steals from the damaged
+    opponent's library) is a theft engine, not your impulse (checklist #5).
+    The ONGOING top-play statics (Bolas's Citadel) are a static-mode unit,
+    structurally disjoint → play_from_top (checklist #3: the static /
+    non-static split is the discriminator). Scope "you".
+    """
+    for unit in tree.units:
+        if unit.origin == "static":
+            continue
+        tops = [c for c in unit.effects if c.concept == "exile_top"]
+        if not tops or all(
+            tag_of(getattr(c.node, "player", None)) in _OPP_TOP_OWNERS for c in tops
+        ):
+            # No exile-the-top, or another player's library only (Gonti,
+            # Night Minister's theft — checklist #5): not YOUR impulse.
+            continue
+        for c in unit.effects:
+            if c.concept == "cast_from_zone" or (
+                c.concept == "grant_cast_permission"
+                and permission_tag(c.node) == "PlayFromExile"
+            ):
+                return [Signal("impulse_top_play", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _play_from_top(tree: ConceptTree) -> list[Signal]:
+    """play_from_top — the ONGOING permission to play/cast from the top of
+    your library (CR 116 / 601.3b): Bolas's Citadel, Future Sight. Reads
+    phase's dedicated ``TopOfLibraryCastPermission`` static MODE
+    (:func:`static_mode_tag`) — a pure typed read where the live path needed
+    a recovered ``from:library`` zone marker. A granted-impulse static
+    (Capricious Sliver — a ``Continuous`` mode granting an exile-the-top
+    trigger) carries a different mode and never fires; the one-shot impulse
+    is the sibling lane. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.origin == "static" and (
+            static_mode_tag(unit.node) == "TopOfLibraryCastPermission"
+        ):
+            return [Signal("play_from_top", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _counter_manipulation(tree: ConceptTree) -> list[Signal]:
+    """counter_manipulation — a +1/+1 / -1/-1 counter MOVE or REMOVE (CR
+    122.1 / 122.6): Bioshift's p1p1 move; Walking Ballista's "Remove a +1/+1
+    counter from this creature:" cost; Carnifex Demon's m1m1 remove-cost. The
+    kind gate (:data:`_PT_COUNTER_KINDS`) is the whole discriminator vs
+    charge/oil/loyalty/fade spends (split-lane #4 — Tangle Wire's fade
+    remove, Power Conduit's kindless ``Any`` remove stay out). Three typed
+    surfaces: a ``MoveCounters`` / ``RemoveCounter`` EFFECT, and a
+    ``RemoveCounter`` activation COST (read through ``Composite`` nesting —
+    the remove-as-cost the OLD lossy IR needed a supplement re-parse for).
+    Scope "you".
+    """
+    for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) in ("MoveCounters", "RemoveCounter") and (
+                counter_kind_any(c.node) in _PT_COUNTER_KINDS
+            ):
+                return [
+                    Signal("counter_manipulation", "you", "", c.raw, tree.name, "high")
+                ]
+        for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
+            if tag_of(leaf) == "RemoveCounter" and (
+                counter_kind_any(leaf) in _PT_COUNTER_KINDS
+            ):
+                return [
+                    Signal("counter_manipulation", "you", "", "", tree.name, "high")
+                ]
+    return []
+
+
 _LANES = (
     _win_lose_game,
     _discard_makers,
@@ -2730,6 +3607,24 @@ _LANES = (
     _initiative,
     _end_the_turn,
     _opponent_exile_makers,
+    _mana_amplifier,
+    _extra_land_drop,
+    _group_mana,
+    _draw_for_each,
+    _discard_outlet,
+    _mass_removal,
+    _mass_bounce,
+    _exile_removal,
+    _lands_matter,
+    _resource_token_matters,
+    _anthem_static,
+    _pump_scaling_lanes,
+    _self_pump,
+    _team_buff,
+    _cheat_into_play,
+    _impulse_top_play,
+    _play_from_top,
+    _counter_manipulation,
 )
 
 
