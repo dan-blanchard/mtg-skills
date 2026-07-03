@@ -3181,6 +3181,409 @@ def test_base_pt_set_dynamic_pair_arm():
     assert ("base_pt_set", "any", "") in _idents("Aettir and Priwen")
 
 
+# ── Batch 12: §A trigger-event payoff cluster ────────────────────────────────
+
+
+def test_scry_surveil_matters_trigger_not_effect():
+    """CR 701.22a / 701.25a: a Scry/Surveil TRIGGER mode is the payoff
+    (Arwen Undómiel's "whenever you scry", Whispering Snitch / Mirko's
+    surveil watchers); a bare Scry EFFECT node (Opt — a doer, gate #4
+    membership) never fires — doers ride the ported topdeck_selection."""
+    for name in ("Arwen Undómiel", "Whispering Snitch", "Mirko, Obsessive Theorist"):
+        assert ("scry_surveil_matters", "you", "") in _idents(name)
+    assert "scry_surveil_matters" not in _keys("Opt")
+
+
+def test_cycling_matters_mode_and_selfref_gate():
+    """CR 702.29a: a Cycled / CycledOrDiscarded trigger whose valid_card is
+    not SelfRef fires (Astral Slide — null watcher; Archfiend of Ifnir —
+    Typed/Another); the "when you cycle THIS card" bonus (Agonasaur Rex —
+    SelfRef) is membership, not a cycling-theme payoff."""
+    assert ("cycling_matters", "you", "") in _idents("Astral Slide")
+    assert ("cycling_matters", "you", "") in _idents("Archfiend of Ifnir")
+    assert "cycling_matters" not in _keys("Agonasaur Rex")
+
+
+def test_exert_matters_vigilance_grant_and_johan_mirror():
+    """CR 701.43a + 702.20b: the mass-vigilance enabler (Always Watching —
+    generic your-creatures grant, NonToken allowed) and the Johan word
+    mirror fire; the Exerted trigger is MEMBERSHIP (Combat Celebrant never
+    fires, gate #4) and a subtype-scoped vigilance grant (Pheres-Band
+    Warchief's Centaurs) fails the generic-team gate."""
+    assert ("exert_matters", "you", "") in _idents("Always Watching")
+    assert ("exert_matters", "you", "") in _idents("Johan")
+    assert "exert_matters" not in _keys("Combat Celebrant")
+    assert "exert_matters" not in _keys("Pheres-Band Warchief")
+
+
+def test_entered_attacker_mirror_per_clause():
+    """CR 302.6 / 603.10a: the byte-identical ENTERED_ATTACKER_REGEX mirror
+    run per-clause (Pick Up the Pace, Samut); Cradle to Grave's "destroy
+    ... that entered this turn" has no attack/combat-damage word in the
+    clause and never fires."""
+    assert ("entered_attacker", "you", "") in _idents("Pick Up the Pace")
+    assert ("entered_attacker", "you", "") in _idents("Samut, Vizier of Naktamun")
+    assert "entered_attacker" not in _keys("Cradle to Grave")
+
+
+def test_saga_matters_lore_and_saga_reference_arms():
+    """CR 714.2/714.4 (case law Satsuki: putting a lore counter usually
+    triggers the next chapter): a lore-counter manipulation on a NON-Saga
+    card (Keldon Warcaller, Satsuki) and a Saga-subtype static reference
+    (Barbara Wright's read-ahead grant) fire; a Saga's OWN chapters / ETB
+    lore replacement are membership (An Unearthly Child, History of
+    Benalia — gate #4), and a multi-choice tutor that merely CAN fetch a
+    Saga (Search for Glory — [P16], live-verified no-fire) stays out."""
+    for name in ("Keldon Warcaller", "Satsuki, the Living Lore", "Barbara Wright"):
+        assert ("saga_matters", "you", "") in _idents(name)
+    for name in ("An Unearthly Child", "History of Benalia", "Search for Glory"):
+        assert "saga_matters" not in _keys(name)
+
+
+# ── Batch 12: §B effect-node lanes ───────────────────────────────────────────
+
+
+def test_life_total_set_player_shaped_target_gate():
+    """CR 119.5 + 701.12c (case law Magister Sphinx): SetLifeTotal with a
+    PLAYER target, ExchangeLifeTotals, and Double{LifeTotal} fire scope
+    "any"; the SetLifeTotal-onto-a-CREATURE-filter misparse family
+    (Baffling Defenses — a perpetual P/T set) is vetoed, and a plain
+    GainLife (Whispering Snitch) never reaches the lane."""
+    assert ("life_total_set", "any", "") in _idents("Magister Sphinx")
+    assert ("life_total_set", "any", "") in _idents("Axis of Mortality")
+    assert ("life_total_set", "any", "") in _idents("Celestial Mantle")
+    assert "life_total_set" not in _keys("Baffling Defenses")
+    assert "life_total_set" not in _keys("Whispering Snitch")
+
+
+def test_unspent_mana_structural_mode_and_mirror():
+    """CR 106.4 / 500.5 (case law Kruphix): the StepEndUnspentMana static
+    mode (Retain — Upwelling; Transform — Horizon Stone, Kruphix) fires
+    structurally; the byte-identical UNSPENT_MANA_REGEX mirror covers the
+    burst-rider tail; a plain rock (Sol Ring) never fires."""
+    assert ("unspent_mana", "you", "") in _idents("Horizon Stone")
+    assert ("unspent_mana", "you", "") in _idents("Upwelling")
+    assert ("unspent_mana", "you", "") in _idents("Kruphix, God of Horizons")
+    assert "unspent_mana" not in _keys("Sol Ring")
+
+
+def test_opp_top_exile_direction_gates():
+    """CR 406.1: ExileTop whose player is Typed{controller: Opponent}
+    (Ashiok, Nightmare Weaver) or a directed Player target (Circu) fires;
+    a Controller-resolving player node ([P5]/[P17]) would be self-mill and
+    never fires. Ashiok, Wicked Manipulator's pay-life self-exile IS
+    Controller-side (a ChangeZone, doubly out) — but its [-7] "target
+    player exiles the top X" is a genuine directed ``Player`` ExileTop,
+    the SAME typed shape as Circu's, so it fires (a documented deviation
+    from the spec's negative: the spec's "resolves to Controller" premise
+    was probed false for that node, and a tag-Player veto would drop
+    Circu, a live member — parity-before-veto)."""
+    assert ("opp_top_exile", "you", "") in _idents("Ashiok, Nightmare Weaver")
+    assert ("opp_top_exile", "you", "") in _idents("Circu, Dimir Lobotomist")
+    assert ("opp_top_exile", "you", "") in _idents("Ashiok, Wicked Manipulator")
+
+
+def test_kill_engine_repeatable_creature_gate():
+    """CR 305.6 / 701.8: a repeatable-frame single-target creature Destroy
+    on a card that is itself a Creature fires LOW (Visara, Avatar of Woe,
+    Royal Assassin's qualified "tapped creature" the narrow live regex
+    missed rides the same structural read); a one-shot ETB destroy
+    (Nekrataal) and a DestroyAll wipe on a noncreature (Wrath of God)
+    never fire."""
+    for name in ("Visara the Dreadful", "Avatar of Woe", "Royal Assassin"):
+        assert ("kill_engine", "you", "") in _idents(name)
+    sigs = extract_crosswalk_signals(_tree("Visara the Dreadful"))
+    assert all(s.confidence == "low" for s in sigs if s.key == "kill_engine")
+    assert "kill_engine" not in _keys("Nekrataal")
+    assert "kill_engine" not in _keys("Wrath of God")
+
+
+# ── Batch 12: §C control / land cluster ──────────────────────────────────────
+
+
+def test_control_exchange_owned_return_shape_only():
+    """CR 701.12b / 108.3: the exile-leaf-with-Owned:you + sibling
+    return-to-battlefield chain join fires (Meneldor); Oblivion Sower's
+    Owned:TargetPlayer theft-ramp and a plain blink (Cloudshift — controller
+    You, no Owned predicate) stay out. The 18 ExchangeControl nodes stay in
+    gain_control's country (live-extractor-verified on Gilded Drake /
+    Daring Thief — the spec's mandatory parity check)."""
+    assert ("control_exchange", "you", "") in _idents("Meneldor, Swift Savior")
+    assert "control_exchange" not in _keys("Oblivion Sower")
+    assert "control_exchange" not in _keys("Cloudshift")
+    assert "control_exchange" not in _keys("Gilded Drake")
+
+
+def test_land_exchange_land_cored_exchange():
+    """CR 701.12b: ExchangeControl whose target filters are Land-cored
+    fires (Political Trickery, Vedalken Plotter); Gilded Drake's
+    creature-for-creature exchange stays out."""
+    assert ("land_exchange", "you", "") in _idents("Political Trickery")
+    assert ("land_exchange", "you", "") in _idents("Vedalken Plotter")
+    assert "land_exchange" not in _keys("Gilded Drake")
+
+
+def test_land_denial_pure_your_land_phaseout():
+    """CR 702.26: PhaseOut whose filter is pure Typed[Land] controller You
+    fires (Taniwha); Reality Ripple's Or-filter one-shot and Clever
+    Concealment's nonland-permanent phase-out never fire."""
+    assert ("land_denial", "you", "") in _idents("Taniwha")
+    assert "land_denial" not in _keys("Reality Ripple")
+    assert "land_denial" not in _keys("Clever Concealment")
+
+
+def test_land_protection_widened_animator_and_manland_mirror():
+    """CR 613.1d / 305: the b1 animator arm widened to ("you","any")
+    controllers fires on the symmetric all-lands animate (Living Plane —
+    live-parity: live passes the widened tuple) and the manland
+    self-animate mirror recovers Restless Anchorage; Reality Ripple's
+    phase-out is not an animator."""
+    assert ("land_protection", "you", "") in _idents("Living Plane")
+    assert ("land_protection", "you", "") in _idents("Restless Anchorage")
+    assert "land_protection" not in _keys("Reality Ripple")
+
+
+def test_evasion_denial_ignore_landwalk_mode():
+    """CR 702.14: the IgnoreLandwalkForBlocking static mode fires scope
+    "opponents" (Great Wall's plainswalk, Crevasse's mountainwalk); a
+    single-creature pacify Aura (Pacifism) is not evasion denial."""
+    assert ("evasion_denial", "opponents", "") in _idents("Great Wall")
+    assert ("evasion_denial", "opponents", "") in _idents("Crevasse")
+    assert "evasion_denial" not in _keys("Pacifism")
+
+
+# ── Batch 12: §D mirror-parity lanes ─────────────────────────────────────────
+
+
+def test_animate_artifact_mirror_primary():
+    """CR 613.1d + 702.122b: the byte-identical ANIMATE_ARTIFACT_REGEX
+    mirror fires (Karn, Silver Golem; Titania's Song); a bare
+    becomes-an-artifact type conferral (Liquimetal Coating, Mycosynth
+    Lattice) never fires."""
+    assert ("animate_artifact", "you", "") in _idents("Karn, Silver Golem")
+    assert ("animate_artifact", "you", "") in _idents("Titania's Song")
+    assert "animate_artifact" not in _keys("Liquimetal Coating")
+    assert "animate_artifact" not in _keys("Mycosynth Lattice")
+
+
+def test_color_change_mirror_primary():
+    """CR 105.3: the byte-identical COLOR_CHANGE_REGEX mirror fires
+    (Alchor's Tomb, Distorting Lens); "becomes colorless" (Ancient Kavu)
+    is a regex non-match and eternalize's token SetColor (Adorned Pouncer)
+    never reaches the lane — the raw structural SetColor read over-fires
+    ~94% and stays unported."""
+    assert ("color_change", "you", "") in _idents("Alchor's Tomb")
+    assert ("color_change", "you", "") in _idents("Distorting Lens")
+    assert "color_change" not in _keys("Ancient Kavu")
+    assert "color_change" not in _keys("Adorned Pouncer")
+
+
+def test_type_change_protection_payload_vocab_gate():
+    """CR 702.16 + 613.1d: AddKeyword{Protection: {CardType: <arg>}} with a
+    vocab-validated creature-subtype arg fires (Gor Muldrak's Salamanders —
+    the "phase drops the argument" note was STALE); protection from a COLOR
+    (White Knight) never fires."""
+    assert ("type_change", "you", "") in _idents("Gor Muldrak, Amphinologist")
+    assert "type_change" not in _keys("White Knight")
+
+
+# ── Batch 12: §E statics / taxes / counters cluster ──────────────────────────
+
+
+def test_stax_taxes_structural_census():
+    """CR 101.2 + 604.1, scope from each static's OWN who/affected node:
+    CantAttack onto opponents' creatures (Propaganda), ModifyCost{Raise}
+    directed at opponents (Aura of Silence — gate ii's non-you direction),
+    MustAttack onto opponents (Fumiko), the opponents-enter-tapped
+    replacement (Authority of the Consuls), and the opponent hand-size
+    reducer (Gnat Miser) all fire stax_taxes."""
+    for name in (
+        "Propaganda",
+        "Aura of Silence",
+        "Fumiko the Lowblood",
+        "Authority of the Consuls",
+        "Gnat Miser",
+    ):
+        assert ("stax_taxes", "opponents", "") in _idents(name), name
+
+
+def test_symmetric_stax_census_and_residue_mirror():
+    """CR 604.1: an AllPlayers/unscoped restriction fires symmetric_stax
+    (Warmonger Hellkite's MustAttack, Root Maze's symmetric enters-tapped);
+    Winter Orb's unparsed "players can't untap" clause rides the
+    byte-identical residue mirror; a symmetric COST tax (Sphere of
+    Resistance) co-fires stax_taxes (live's stax_tax-kind co-fire)."""
+    assert ("symmetric_stax", "each", "") in _idents("Warmonger Hellkite")
+    assert ("symmetric_stax", "each", "") in _idents("Root Maze")
+    assert ("symmetric_stax", "each", "") in _idents("Winter Orb")
+    assert ("symmetric_stax", "each", "") in _idents("Sphere of Resistance")
+    assert ("stax_taxes", "opponents", "") in _idents("Sphere of Resistance")
+
+
+def test_stax_cast_activation_lock_cofire():
+    """An AllPlayers cast/activation LOCK is both a symmetric restriction
+    and a tax the caster-you cares about (live fires both on Stony
+    Silence's CantBeActivated{AllPlayers})."""
+    assert ("symmetric_stax", "each", "") in _idents("Stony Silence")
+    assert ("stax_taxes", "opponents", "") in _idents("Stony Silence")
+
+
+def test_stax_pacify_and_untap_blessing_vetoes():
+    """Gate (i): the single-creature pacify veto is LOAD-BEARING — Pacifism
+    and Arrest (EnchantedBy-predicated restriction statics) open NEITHER
+    lane; gate (iii): an untap BLESSING (Seedborn Muse's
+    UntapsDuringEachOtherPlayersUntapStep) is not a restriction."""
+    for name in ("Pacifism", "Arrest", "Seedborn Muse"):
+        ks = _keys(name)
+        assert "stax_taxes" not in ks, name
+        assert "symmetric_stax" not in ks, name
+
+
+def test_keyword_counter_kind_gate_and_mirror():
+    """CR 122.1b: a place/remove of a counter whose kind is in the live
+    _KEYWORD_COUNTER_KINDS closed set fires scope "any" (Arwen, Mortal
+    Queen's indestructible enters-with + remove-as-cost); the
+    counter-kind-dropped choice tail (Wingfold Pteron) rides the
+    KEYWORD_COUNTER_REGEX mirror; a stun counter (Icebind Pillar — CR
+    122.1d, a replacement-maker, not a 122.1b keyword counter) and a plain
+    +1/+1 placement (Cathedral Acolyte) never fire."""
+    assert ("keyword_counter", "any", "") in _idents("Arwen, Mortal Queen")
+    assert ("keyword_counter", "any", "") in _idents("Wingfold Pteron")
+    assert "keyword_counter" not in _keys("Icebind Pillar")
+    assert "keyword_counter" not in _keys("Cathedral Acolyte")
+
+
+def test_counter_grants_kw_pred_kind_and_controller_gates():
+    """A keyword granted to YOUR creatures that HAVE a counter — the
+    Counters predicate of kind P1P1 (Bramblewood Paragon) or the
+    kind-agnostic Any (Cathedral Acolyte's ward) with controller You;
+    an enters-with-counter chooser (Wingfold Pteron) and a plain team
+    grant with no Counters predicate (Always Watching) never fire."""
+    assert ("counter_grants_kw", "you", "") in _idents("Bramblewood Paragon")
+    assert ("counter_grants_kw", "you", "") in _idents("Cathedral Acolyte")
+    assert "counter_grants_kw" not in _keys("Wingfold Pteron")
+    assert "counter_grants_kw" not in _keys("Always Watching")
+
+
+def test_counter_distribute_structural_marker_and_mirror():
+    """CR 115.7f + 601.2d: the mass PutCounterAll P1P1 onto your creatures
+    (Cathars' Crusade), the typed distribute marker phase v0.9.0 DOES carry
+    (Verdurous Gearhulk — the spec's [P-fold] claim was stale; the mirror
+    co-fires), and the enters-with-ADDITIONAL replacement (Bramblewood
+    Paragon, mirror arm) fire; a SELF-enters-with (Endless One —
+    self_counter_grow country) and a lore-kind PutCounterAll (Satsuki)
+    never fire."""
+    assert ("counter_distribute", "you", "") in _idents("Cathars' Crusade")
+    assert ("counter_distribute", "you", "") in _idents("Verdurous Gearhulk")
+    assert ("counter_distribute", "you", "") in _idents("Bramblewood Paragon")
+    assert "counter_distribute" not in _keys("Endless One")
+    assert "counter_distribute" not in _keys("Satsuki, the Living Lore")
+
+
+# ── Batch 12: §F reference / condition lanes ─────────────────────────────────
+
+
+def test_superfriends_matters_condition_site_only():
+    """CR 306.5: a condition-site Planeswalker filter with controller not
+    Opponent fires (Historian of Zhalfir's ControlsType, Arisen Gorgon's
+    IsPresent) and the named-planeswalker activation gate reads typed
+    (Companion of the Trials' YouControlNamedPlaneswalker — a logged add
+    over live's projection); a target-matching removal condition
+    (Chandra's Defeat — TargetMatchesFilter), a PW-removal effect target
+    (Hero's Downfall), and BEING a planeswalker (Jace Beleren) never
+    fire."""
+    assert ("superfriends_matters", "you", "") in _idents("Historian of Zhalfir")
+    assert ("superfriends_matters", "you", "") in _idents("Arisen Gorgon")
+    assert ("superfriends_matters", "you", "") in _idents("Companion of the Trials")
+    assert "superfriends_matters" not in _keys("Chandra's Defeat")
+    assert "superfriends_matters" not in _keys("Hero's Downfall")
+    assert "superfriends_matters" not in _keys("Jace Beleren")
+
+
+def test_commander_matters_filter_property_not_metadata():
+    """CR 903.3: the IsCommander filter property fires (Bastion Protector,
+    Anara); the card-level is_commander/brawl_commander metadata flags are
+    NEVER read — a legendary creature with no commander reference (Visara)
+    stays out (eligibility is not caring)."""
+    assert ("commander_matters", "you", "") in _idents("Bastion Protector")
+    assert ("commander_matters", "you", "") in _idents("Anara, Wolvid Familiar")
+    assert "commander_matters" not in _keys("Visara the Dreadful")
+
+
+def test_big_hand_makers_modes_and_reducer_quirk():
+    """CR 402.2: the NoMaximumHandSize static mode (Reliquary Tower,
+    Kruphix) and the MaximumHandSize{SetTo/AdjustedBy} family fire — the
+    reducers (Cursed Rack, Gnat Miser) are kept by live's mirror parity
+    (the spec's mandatory reducer-quirk check; logged for a future lane
+    split); Time Stop's reminder-only "maximum hand size" is stripped and
+    never fires."""
+    assert ("big_hand_makers", "you", "") in _idents("Reliquary Tower")
+    assert ("big_hand_makers", "you", "") in _idents("Kruphix, God of Horizons")
+    assert ("big_hand_makers", "you", "") in _idents("Cursed Rack")
+    assert ("big_hand_makers", "you", "") in _idents("Gnat Miser")
+    assert "big_hand_makers" not in _keys("Time Stop")
+
+
+def test_big_hand_matters_your_hand_operand():
+    """CR 402.2: a HandSize operand reading YOUR hand fires — the dynamic
+    P/T pair (Maro, Psychosis Crawler), the threshold condition (Akki
+    Underling), and Body of Knowledge fires BOTH halves; a "discards down
+    to"-style end-the-turn card (Time Stop) and the opponent-hand reducer
+    (Gnat Miser — [P5], no your-hand operand) never fire matters."""
+    assert ("big_hand_matters", "you", "") in _idents("Maro")
+    assert ("big_hand_matters", "you", "") in _idents("Psychosis Crawler")
+    assert ("big_hand_matters", "you", "") in _idents("Akki Underling")
+    bok = _keys("Body of Knowledge")
+    assert {"big_hand_matters", "big_hand_makers"} <= bok
+    assert "big_hand_matters" not in _keys("Time Stop")
+    assert "big_hand_matters" not in _keys("Gnat Miser")
+
+
+def test_vehicles_matter_arms_and_membership_gates():
+    """CR 301.7 + 702.122: the Crews trigger (Gearshift Ace), the
+    vehicle-subtype static (Aeronaut Admiral; Depala's "Each Vehicle you
+    control" — a structural add over live's plural-literal miss, logged),
+    and the Vehicle graveyard-recursion (Greasefang) fire; a card that IS
+    a Vehicle never fires from its own nodes — BecomesCrewed/SelfRef
+    (Ghost Ark) and a plain Vehicle (Smuggler's Copter) stay out."""
+    assert ("vehicles_matter", "you", "") in _idents("Gearshift Ace")
+    assert ("vehicles_matter", "you", "") in _idents("Aeronaut Admiral")
+    assert ("vehicles_matter", "you", "") in _idents("Depala, Pilot Exemplar")
+    assert ("vehicles_matter", "you", "") in _idents("Greasefang, Okiba Boss")
+    assert "vehicles_matter" not in _keys("Ghost Ark")
+    assert "vehicles_matter" not in _keys("Smuggler's Copter")
+
+
+# ── Batch 12: batch-11 adjudicated follow-ups ────────────────────────────────
+
+
+def test_typed_spellcast_static_cost_reduction_arm():
+    """Follow-up (a): the STATIC tribal cost-reduction form (CR 601.2f
+    couples the discount to the cast event) — a ModifyCost{Reduce} whose
+    spell_filter carries a vocab creature subtype and whose affected is
+    your cards emits typed_spellcast with the subject (Goblin Warchief);
+    the self-discount (Avatar of Woe — affected SelfRef, no spell_filter
+    subtype) never fires; the existing cost_reduction firing is
+    unchanged."""
+    assert ("typed_spellcast", "you", "Goblin") in _idents("Goblin Warchief")
+    assert ("cost_reduction", "you", "") in _idents("Goblin Warchief")
+    assert "typed_spellcast" not in _keys("Avatar of Woe")
+
+
+def test_tap_down_defending_player_and_gated_target_player():
+    """Follow-up (b): SetTapState{Tap} onto a DefendingPlayer-controlled
+    filter fires unconditionally (Master of Diversion, Sidar Jabari — CR
+    506.2 makes it opponent-directed) and a TargetPlayer-controlled filter
+    fires ONLY under an attack/damage-trigger unit (Hammers of Moradin);
+    the one-shot/activated TargetPlayer sweeps (Sleep, Dawnglare Invoker)
+    are the genuine supplement tail and never fire."""
+    assert ("tap_down", "opponents", "") in _idents("Master of Diversion")
+    assert ("tap_down", "opponents", "") in _idents("Sidar Jabari")
+    assert ("tap_down", "opponents", "") in _idents("Hammers of Moradin")
+    assert "tap_down" not in _keys("Sleep")
+    assert "tap_down" not in _keys("Dawnglare Invoker")
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

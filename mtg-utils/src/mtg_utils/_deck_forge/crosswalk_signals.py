@@ -28,6 +28,9 @@ to it.
 
 from __future__ import annotations
 
+import re
+from dataclasses import fields as dc_fields
+
 from mtg_utils._card_ir.crosswalk import (
     ARTIFACT_TOKEN_SUBTYPES,
     OTHER,
@@ -51,6 +54,7 @@ from mtg_utils._card_ir.crosswalk import (
     damage_filter_scope,
     damage_recipient_is_player,
     discard_recipient_scope,
+    distribute_counter_kind,
     double_target_kind,
     double_triggers_cause_core_types,
     effect_filter,
@@ -67,26 +71,31 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     filter_without_keywords,
+    hand_size_scopes,
     has_filter_property,
     is_dies_return_trigger,
+    iter_condition_sites,
     iter_cost_leaves,
     iter_deep_target_grants,
     iter_mod_sites,
     iter_single_target_grants,
     iter_static_defs,
     iter_threaded_target_statics,
+    iter_typed_nodes,
     lifeloss_recipient_scope,
     mana_replacement_multiplier,
     mana_restrictions,
     mod_keyword_name,
     mod_value,
     modify_cost_mode,
+    modify_cost_spell_filter,
     node_lure_mode,
     permission_tag,
     player_counter_kind,
     player_filter_tag,
     power_threshold_preds,
     produced_contribution,
+    protection_cardtype,
     pump_is_negative,
     recipient_tag,
     ref_qty_tag,
@@ -98,6 +107,7 @@ from mtg_utils._card_ir.crosswalk import (
     reveal_until_player,
     settap_state,
     spell_count_at_least,
+    static_mode_field,
     static_mode_tag,
     static_reveal_who,
     tag_of,
@@ -112,10 +122,39 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_turn_constraint,
     zone_change_count_reads,
 )
-from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
+from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 from mtg_utils._deck_forge import signal_keys
-from mtg_utils._deck_forge._signals_regex import Signal, _resolve_subject
+
+# The b12 SANCTIONED byte-identical mirror ports import the LIVE constants
+# (never re-typed copies): the pinned shared sources from _sweep_detectors,
+# and the private live mirrors/kind-sets from _signals_ir / _signals_regex
+# (the _resolve_subject precedent) — one source, zero drift.
+from mtg_utils._deck_forge._signals_ir import (
+    _BIG_HAND_MAKERS_MIRROR,
+    _BIG_HAND_MATTERS_MIRROR,
+    _COUNTER_DISTRIBUTE_MIRROR,
+    _KEYWORD_COUNTER_KINDS,
+    _STAX_TAXES_RESIDUE_RE,
+    _SYMMETRIC_STAX_RESIDUE_RE,
+    _restriction_pacifies_single_creature,
+)
+from mtg_utils._deck_forge._signals_regex import (
+    _REPEATABLE_KILL_RE,
+    Signal,
+    _resolve_subject,
+    _type_hoser_clause,
+    clauses,
+)
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
+from mtg_utils._deck_forge._sweep_detectors import (
+    ANIMATE_ARTIFACT_REGEX,
+    COLOR_CHANGE_REGEX,
+    ENTERED_ATTACKER_REGEX,
+    KEYWORD_COUNTER_REGEX,
+    SUPERFRIENDS_MATTERS_REGEX,
+    UNSPENT_MANA_REGEX,
+    VEHICLES_MATTER_REGEX,
+)
 
 # The Signal keys this batch derives from the typed substrate. The shadow harness
 # slices BOTH the crosswalk and the live hybrid path to exactly this set.
@@ -340,6 +379,38 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "legends_matter",
         "historic_matters",
         "self_blink",
+        # Batch 12 (ADR-0035 Stage 2): the trigger-event payoff cluster, the
+        # effect-node lanes, the control/land cluster, the mirror-parity
+        # lanes, the statics/taxes/counters cluster, and the reference/
+        # condition lanes (+ 2 batch-11 adjudicated follow-ups riding the
+        # already-ported typed_spellcast / tap_down lanes).
+        "scry_surveil_matters",
+        "cycling_matters",
+        "exert_matters",
+        "entered_attacker",
+        "saga_matters",
+        "life_total_set",
+        "unspent_mana",
+        "opp_top_exile",
+        "kill_engine",
+        "control_exchange",
+        "land_exchange",
+        "land_denial",
+        "land_protection",
+        "evasion_denial",
+        "animate_artifact",
+        "color_change",
+        "type_change",
+        "stax_taxes",
+        "symmetric_stax",
+        "keyword_counter",
+        "counter_grants_kw",
+        "counter_distribute",
+        "superfriends_matters",
+        "commander_matters",
+        "big_hand_matters",
+        "big_hand_makers",
+        "vehicles_matter",
         # NB: damage_redirect stays KEPT (spec §G): `redirect_target` exists
         # on only 8 corpus replacements and Pariah itself parses with NO
         # redirect_target (shield Prevention only — structurally identical to
@@ -424,6 +495,121 @@ _FIXING_PRODUCED_TYPES: frozenset[str] = frozenset(
         "ChoiceAmongExiledColors",
     }
 )
+
+
+# ── Batch-12 mirror constants + census sets ──────────────────────────────────
+
+# Compiled forms of the pinned live regex sources (byte-identical by import;
+# same IGNORECASE flag the live kept-detectors compile with).
+_ENTERED_ATTACKER_RX = re.compile(ENTERED_ATTACKER_REGEX, re.IGNORECASE)
+_ANIMATE_ARTIFACT_RX = re.compile(ANIMATE_ARTIFACT_REGEX, re.IGNORECASE)
+_COLOR_CHANGE_RX = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
+_UNSPENT_MANA_RX = re.compile(UNSPENT_MANA_REGEX, re.IGNORECASE)
+_VEHICLES_MATTER_RX = re.compile(VEHICLES_MATTER_REGEX, re.IGNORECASE)
+_KEYWORD_COUNTER_RX = re.compile(KEYWORD_COUNTER_REGEX, re.IGNORECASE)
+_SUPERFRIENDS_RX = re.compile(SUPERFRIENDS_MATTERS_REGEX, re.IGNORECASE)
+
+# Johan + manland mirrors: byte-identical copies of the two INLINE (unnamed)
+# ``_IR_KEPT_DETECTORS`` rows in ``_signals_ir`` (exert_matters ~line 2343,
+# land_protection ~line 2411) — the only two b12 mirrors with no importable
+# name.
+_JOHAN_MIRROR = re.compile(
+    r"attacking doesn'?t cause (?:creatures|them)[^.]*to tap", re.IGNORECASE
+)
+_MANLAND_MIRROR = re.compile(
+    r"land[^.]*becomes? a[^.]*creature|lands? you control are[^.]*creatures"
+    r"|that land becomes",
+    re.IGNORECASE,
+)
+
+# Reminder-text strip — the same paren-substitution the live path applies to
+# build ``kept_oracle`` (_signals_ir line ~11091).
+_REMINDER_RX = re.compile(r"\([^)]*\)")
+
+# Trigger events that fire AT MOST ONCE per object (crosswalk event names) —
+# NOT a repeatable kill frame. Mirrors live's ``_KILL_ENGINE_ONESHOT_EVENTS``
+# {etb, ltb, dies, death, leaves, transformed, turn_face_up} + the monstrous
+# one-shot (CR 701.37b) live screens by raw.
+_KILL_ONESHOT_EVENTS: frozenset[str] = frozenset(
+    {
+        "enters",
+        "dies",
+        "leaves",
+        "changes_zone",
+        "transformed",
+        "transforms",
+        "turnedfaceup",
+        "turnfaceup",
+        "becomemonstrous",
+        "becomesmonstrous",
+    }
+)
+
+# Stax census (spec §E): plain-restriction static modes whose direction rides
+# the AFFECTED filter's controller, and parameterized cast/activation LOCK
+# modes whose direction rides the mode's own ``who`` field. CR 101.2 + 604.1.
+_STAX_SIMPLE_RESTRICTIONS: frozenset[str] = frozenset(
+    {
+        "CantAttack",
+        "CantBlock",
+        "CantAttackOrBlock",
+        "CantUntap",
+        "CantGainLife",
+        "MustAttack",
+        "CantPlayLand",
+    }
+)
+_STAX_LOCK_MODES: frozenset[str] = frozenset(
+    {
+        "CantBeActivated",
+        "CantBeCast",
+        "CantCastDuring",
+        "CantActivateDuring",
+        "PerTurnCastLimit",
+    }
+)
+
+# Predicates that mark a single-Aura pacify subject (gate i — Pacifism/Arrest).
+_PACIFY_PREDS: frozenset[str] = frozenset({"EnchantedBy", "EquippedBy"})
+
+# Land subtype words the land-animate arms accept when the animated filter
+# names the land by SUBTYPE ("target Forest" — Awakener Druid). CR 205.3i.
+_LAND_SUBTYPE_WORDS: frozenset[str] = frozenset(
+    {
+        "plains",
+        "island",
+        "swamp",
+        "mountain",
+        "forest",
+        "desert",
+        "gate",
+        "lair",
+        "locus",
+        "cave",
+        "mine",
+        "power-plant",
+        "sphere",
+        "tower",
+        "urza's",
+    }
+)
+
+# Dynamic P/T modification tags (both phase spellings — Maro's
+# ``SetDynamicPower`` pair and Titania's Song's ``SetPowerDynamic`` pair):
+# the big_hand_matters CDA site.
+_DYNAMIC_PT_MODS: frozenset[str] = frozenset(
+    {
+        "SetDynamicPower",
+        "SetDynamicToughness",
+        "SetPowerDynamic",
+        "SetToughnessDynamic",
+    }
+)
+
+
+def _kept(tree: ConceptTree) -> str:
+    """The reminder-stripped face oracle — the b12 mirror ports' scan text."""
+    return _REMINDER_RX.sub(" ", tree.oracle or "")
 
 
 def _win_lose_game(tree: ConceptTree) -> list[Signal]:
@@ -524,20 +710,22 @@ def _draw_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _is_creature_animator(unit: object) -> bool:
+def _is_creature_animator(unit: object, scopes: tuple[str, ...] = ("you",)) -> bool:
     """A static ability that turns its Land subject into a creature (animate-land).
 
     Granularity (b) per-ability aggregation: the unit's ``affected`` Land subject
     and an ``AddType Creature`` (or a base-P/T set that makes it a creature) modi-
     fication are read TOGETHER off one continuous ability — the split-subject the
     old projection drops to ``None`` and spreads across effects (Natural
-    Emergence). Scope-gated to YOUR lands (``_signals_ir`` passes ``("you",)``), so
-    a symmetric all-lands animate (Living Plane) does not open a your-lands build.
+    Emergence). ``scopes`` mirrors the live controller tuple: ``("you",)`` for
+    land_creatures_matter (a symmetric all-lands animate — Living Plane — does
+    not open a your-lands build), widened to ``("you", "any")`` by the b12
+    land_protection lane (live passes the same widened tuple).
     """
     statics = getattr(unit, "statics", ())
     if not statics:
         return False
-    if statics[0].scope != "you":  # the affected-filter controller (you-gate)
+    if statics[0].scope not in scopes:  # the affected-filter controller gate
         return False
     subject = statics[0].subject  # all mods share the ability's affected subject
     if "Land" not in subject or "Creature" in subject:
@@ -5568,13 +5756,47 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                 if tag_of(tgt) not in ("Typed", "Or", "And"):
                     continue  # SelfRef self-tap / no real target
                 fire("tapper_engine", "any", c.raw)
-                if filter_controller(tgt) == "Opponent":
+                ctrl = filter_controller(tgt)
+                # b11 follow-up (b), adjudicated: DefendingPlayer is
+                # opponent-directed BY RULE (CR 506.2 — the defending player
+                # is an opponent of the attacker; 20/21 live-verified), so it
+                # joins Opponent unconditionally. A TargetPlayer tap joins
+                # ONLY under an attack/damage-trigger unit (Hammers of
+                # Moradin's Myriad rider — ~25 of 44 live_only recovered);
+                # the one-shot/activated TargetPlayer sweeps (Sleep,
+                # Dawnglare Invoker) are the genuine supplement tail.
+                if ctrl in ("Opponent", "DefendingPlayer") or (
+                    ctrl == "TargetPlayer"
+                    and unit.origin == "trigger"
+                    and unit.trigger_event in ("attacks", "deals_damage")
+                ):
                     fire("tap_down", "opponents", c.raw)
             elif c.concept == "detain":
                 fire("tap_down", "opponents", c.raw)
         for sdef in iter_static_defs(unit.node):
             if static_mode_tag(sdef) == "CantUntap":
                 fire("tapper_engine", "any", _site_raw(sdef))
+        # b11 follow-up (b) continued: a GRANTED attack-tap trigger — an
+        # Aura/Equipment conferring "Whenever this creature attacks, tap
+        # target creature defending player controls" (Grasp of the
+        # Hieromancer, Conformer Shuriken: a ``GrantTrigger`` modification
+        # whose inner trigger's effect chain carries the SetTapState).
+        for _sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "GrantTrigger":
+                continue
+            trig = getattr(mod, "trigger", None)
+            tmode = getattr(trig, "mode", None)
+            tmode = tmode if isinstance(tmode, str) else tag_of(tmode)
+            if tmode not in ("Attacks", "YouAttack", "DamageDone"):
+                continue
+            for tnode in iter_typed_nodes(getattr(trig, "execute", None)):
+                if tag_of(tnode) != "SetTapState":
+                    continue
+                if settap_state(tnode) != "Tap":
+                    continue
+                tctrl = filter_controller(getattr(tnode, "target", None))
+                if tctrl in ("Opponent", "DefendingPlayer", "TargetPlayer"):
+                    fire("tap_down", "opponents", "")
     return out
 
 
@@ -5655,26 +5877,44 @@ def _typed_spellcast_lane(tree: ConceptTree) -> list[Signal]:
     Giant spell" hoser — Elvish Handservant — carries none, and an
     opponent-punisher carries Opponent). REPLACES live's
     ``_self_cast_oracle`` "you cast" regex gate with a typed read (a
-    documented improvement). The static "<Subtype> spells you cast cost
-    less" form is cost_reduction's country. Scope "you", subject = the
-    subtype.
+    documented improvement).
+
+    b11 follow-up (a), adjudicated: the STATIC cost-reduction form is a cast
+    payoff too — "<Subtype> spells you cast cost {N} less" (the Warchief /
+    Banneret family; CR 601.2f couples the discount to the cast event, so the
+    tribal reducer rewards CASTING the tribe). Read the already-ported
+    cost-modification static's typed ``spell_filter`` subtypes
+    (vocab-validated), gated to a ``Reduce`` direction and YOUR cards
+    (``affected`` controller You; a SelfRef self-discount never fires).
+    Scope "you", subject = the subtype.
     """
     out: list[Signal] = []
     seen: set[str] = set()
+
+    def emit(subtype: str) -> None:
+        sub = _resolve_subject(subtype, CREATURE_SUBTYPES)
+        if sub and sub not in seen:
+            seen.add(sub)
+            out.append(
+                Signal(signal_keys.TYPED_SPELLCAST, "you", sub, "", tree.name, "high")
+            )
+
     for unit in tree.units:
-        if unit.origin != "trigger" or unit.trigger_event != "cast_spell":
-            continue
-        if trigger_caster_scope(unit.node) != "you":
-            continue
-        for s in filter_subtypes(getattr(unit.node, "valid_card", None)):
-            sub = _resolve_subject(s, CREATURE_SUBTYPES)
-            if sub and sub not in seen:
-                seen.add(sub)
-                out.append(
-                    Signal(
-                        signal_keys.TYPED_SPELLCAST, "you", sub, "", tree.name, "high"
-                    )
-                )
+        if unit.origin == "trigger" and unit.trigger_event == "cast_spell":
+            if trigger_caster_scope(unit.node) != "you":
+                continue
+            for s in filter_subtypes(getattr(unit.node, "valid_card", None)):
+                emit(s)
+        elif unit.origin == "static":
+            if modify_cost_mode(unit.node) != "Reduce":
+                continue
+            affected = getattr(unit.node, "affected", None)
+            if tag_of(affected) == "SelfRef":
+                continue  # a self-discount (A-Demilich) is not a cast payoff
+            if filter_controller(affected) != "You":
+                continue  # the "you cast" coupling (checklist #6)
+            for s in filter_subtypes(modify_cost_spell_filter(unit.node)):
+                emit(s)
     return out
 
 
@@ -5750,6 +5990,893 @@ def _self_blink_lane(tree: ConceptTree) -> list[Signal]:
                 continue  # the unearth-style graveyard self-return
             if tag_of(getattr(c.node, "target", None)) in _SELF_BLINK_RETURN_TAGS:
                 return [Signal("self_blink", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+# ── Batch 12 lanes (ADR-0035 Stage 2) ────────────────────────────────────────
+
+
+def _scry_surveil_matters(tree: ConceptTree) -> list[Signal]:
+    """scry_surveil_matters (§A) — CR 701.22a / 701.25a: a Scry / Surveil
+    TRIGGER mode is the payoff watcher (Arwen Undómiel, Whispering Snitch,
+    Mirko). Gate #4 membership: a bare Scry/Surveil EFFECT node (Opt — a
+    doer) never fires; doers ride the ported topdeck_selection. The
+    conferral/reference residue live reaches via the ADR-0027 marker is
+    SUPPLEMENT-FIXABLE (the oracle carries "you scry"), logged. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.origin == "trigger" and unit.trigger_event in ("scry", "surveil"):
+            return [Signal("scry_surveil_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _cycling_matters(tree: ConceptTree) -> list[Signal]:
+    """cycling_matters (§A) — CR 702.29a: a Cycled / CycledOrDiscarded
+    trigger whose watched card is NOT SelfRef (Astral Slide — null watcher;
+    Archfiend of Ifnir — Typed/Another). The "when you cycle THIS card"
+    bonus (Agonasaur Rex — SelfRef, 58 corpus) is membership. Reads the RAW
+    mode (not the derived event — CycledOrDiscarded shares the "discarded"
+    event with plain Discarded watchers). The ReduceAbilityCost{Cycling}
+    static family (Fluctuator, 26 corpus) is live-verified no-fire — logged,
+    not ported. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        mode = getattr(unit.node, "mode", None)
+        mode_s = mode if isinstance(mode, str) else tag_of(mode)
+        if mode_s not in ("Cycled", "CycledOrDiscarded"):
+            continue
+        if tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef":
+            continue
+        return [Signal("cycling_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _exert_matters(tree: ConceptTree) -> list[Signal]:
+    """exert_matters (§A) — CR 701.43a + 702.20b (vigilance neutralizes
+    exert's won't-untap): (a) a mass-vigilance grant onto your GENERIC
+    creature board (Always Watching — AddKeyword{Vigilance}, affected
+    Typed[Creature] controller You, no subtype scoping; Another/NonToken
+    allowed, a Counters-predicated grant is counter_grants_kw's country);
+    (b) the Johan word mirror, byte-identical. Gate #4: the Exerted trigger
+    (28 corpus, all SelfRef riders — Combat Celebrant) is MEMBERSHIP and
+    never fires. SELF-GRANT veto via the affected-tag check. Scope "you".
+    """
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "AddKeyword" or mod_keyword_name(mod) != "Vigilance":
+                continue
+            affected = getattr(sdef, "affected", None)
+            if tag_of(affected) != "Typed":
+                continue  # SelfRef / ParentTarget self- or single-grant
+            if "Creature" not in filter_core_types(affected):
+                continue
+            if filter_controller(affected) != "You" or filter_subtypes(affected):
+                continue
+            return [
+                Signal("exert_matters", "you", "", _site_raw(sdef), tree.name, "high")
+            ]
+    if _JOHAN_MIRROR.search(_kept(tree)):
+        return [Signal("exert_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _entered_attacker(tree: ConceptTree) -> list[Signal]:
+    """entered_attacker (§A) — CR 302.6 / 603.10a: kept-mirror-ONLY, the
+    EXACT live ENTERED_ATTACKER_REGEX run PER-CLAUSE over the
+    reminder-stripped oracle (Pick Up the Pace, Samut). The structural
+    EnteredThisTurn read would ADD the no-combat-word Deathleaper family —
+    PARITY-BEFORE-VETO: the mirror is the producer; the structural adds stay
+    LOGGED only. Scope "you".
+    """
+    if any(_ENTERED_ATTACKER_RX.search(cl) for cl in clauses(_kept(tree))):
+        return [Signal("entered_attacker", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _saga_matters(tree: ConceptTree) -> list[Signal]:
+    """saga_matters (§A) — CR 714.2 / 714.4 (case law Satsuki: a lore
+    counter usually triggers the next chapter): on a NON-Saga card, (a) a
+    lore-kind place/remove/move counter effect (Keldon Warcaller, Satsuki,
+    Myth Realized's SelfRef build-up), or (b) a Saga-subtype AFFECTED filter
+    on a top-level static (Barbara Wright's read-ahead grant — a documented
+    crosswalk add; live's projection dropped it). Gate #4: a Saga's OWN
+    chapter triggers / ETB lore replacement are membership — the whole-card
+    Saga-subtype gate excludes them (An Unearthly Child, History of
+    Benalia). [P16]: a multi-choice tutor that merely CAN fetch a Saga
+    (Search for Glory — live-verified no-fire) never fires — search/reveal
+    selector filters are not read. Scope "you".
+
+    Arm (c) runs BEFORE the membership gate: a ``CountersOn{lore}`` COUNT
+    operand (Genesis of the Daleks' "a Dalek for each lore counter") is a
+    lore PAYOFF even on a Saga itself — scaling on the pile is caring,
+    while chapters merely HAVING lore thresholds (``counter_filter``) is
+    membership and is never read.
+    """
+    for unit in tree.units:
+        for c in unit.iter_concepts():
+            for q in iter_typed_nodes(c.node):
+                ct = getattr(q, "counter_type", None)
+                if (
+                    tag_of(q) == "CountersOn"
+                    and isinstance(ct, str)
+                    and ct.lower() == "lore"
+                ):
+                    return [Signal("saga_matters", "you", "", c.raw, tree.name, "high")]
+    if "Saga" in tree.card_subtypes:
+        return []
+    for unit in tree.units:
+        for c in unit.iter_concepts():
+            if c.role != "effect":
+                continue
+            if c.concept not in ("place_counter", "remove_counter", "move_counters"):
+                continue
+            kind = counter_kind(c.node) or counter_kind_any(c.node)
+            if kind.lower() == "lore":
+                return [Signal("saga_matters", "you", "", c.raw, tree.name, "high")]
+        if unit.origin == "static":
+            subs = {
+                s.lower() for s in filter_subtypes(getattr(unit.node, "affected", None))
+            }
+            if "saga" in subs:
+                return [
+                    Signal(
+                        "saga_matters",
+                        "you",
+                        "",
+                        _site_raw(unit.node),
+                        tree.name,
+                        "high",
+                    )
+                ]
+    return []
+
+
+def _life_total_set(tree: ConceptTree) -> list[Signal]:
+    """life_total_set (§B) — CR 119.5 + 701.12c (case law Magister Sphinx:
+    becoming 10 IS gaining/losing the difference): a ``SetLifeTotal`` with a
+    PLAYER-shaped target, an ``ExchangeLifeTotals`` / ``ExchangeLifeWithStat``,
+    or a one-shot ``Double{LifeTotal}`` (Celestial Mantle). Gate: phase
+    misparses perpetual P/T sets as SetLifeTotal onto CREATURE filters
+    (Baffling Defenses / Teyo / Mortal Flesh Is Weak — live over-fires them
+    from the same misparse; the spec's rules-lawyer gate vetoes any target
+    with core card types). Scope "any" (a scope-agnostic build-around).
+    """
+    for c in tree.effect_concepts("set_life"):
+        if tag_of(c.node) == "SetLifeTotal":
+            if filter_core_types(getattr(c.node, "target", None)):
+                continue  # a P/T-set misparse onto a permanent filter
+            return [Signal("life_total_set", "any", "", c.raw, tree.name, "high")]
+        return [Signal("life_total_set", "any", "", c.raw, tree.name, "high")]
+    for c in tree.effect_concepts("double_quantity"):
+        if double_target_kind(c.node) == "LifeTotal":
+            return [Signal("life_total_set", "any", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _unspent_mana(tree: ConceptTree) -> list[Signal]:
+    """unspent_mana (§B) — CR 106.4 / 500.5 (case law Kruphix: unspent mana
+    becomes colorless as steps end): RECLASSIFIED structural+mirror union —
+    the ``StepEndUnspentMana`` static mode (action Retain — Upwelling;
+    Transform — Horizon Stone, Kruphix; live's "v0.1.19 drops it" note was
+    STALE) plus the byte-identical UNSPENT_MANA_REGEX mirror for the
+    burst-rider tail (all 10 mode carriers also match the mirror — expected
+    structural-arm diff 0). Scope "you" (live's forced scope — parity).
+    """
+    for unit in tree.units:
+        if (
+            unit.origin == "static"
+            and static_mode_tag(unit.node) == "StepEndUnspentMana"
+        ):
+            return [
+                Signal(
+                    "unspent_mana", "you", "", _site_raw(unit.node), tree.name, "high"
+                )
+            ]
+    if _UNSPENT_MANA_RX.search(_kept(tree)):
+        return [Signal("unspent_mana", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _opp_top_exile(tree: ConceptTree) -> list[Signal]:
+    """opp_top_exile (§B) — CR 406.1: an ``ExileTop`` whose exiled-library
+    PLAYER is an opponent — the Typed{controller: Opponent} filter (Ashiok,
+    Nightmare Weaver) or a directed ``Player`` target (Circu; the caster
+    aims it at an opponent's library). Gates ([P5]/[P17]): a
+    Controller-resolving player is self-mill / impulse territory (Ashiok,
+    Wicked Manipulator's pay-life exile rides ChangeZone, not ExileTop —
+    doubly out). Scope "you" (the engine controller, matching live).
+    """
+    for c in tree.effect_concepts("exile_top"):
+        player = getattr(c.node, "player", None)
+        ptag = tag_of(player)
+        if ptag == "Typed" and filter_controller(player) == "Opponent":
+            return [Signal("opp_top_exile", "you", "", c.raw, tree.name, "high")]
+        if ptag in ("Player", "TriggeringPlayer"):
+            return [Signal("opp_top_exile", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _kill_engine(tree: ConceptTree) -> list[Signal]:
+    """kill_engine (§B) — CR 305.6 / 701.8: a REPEATABLE-frame single-target
+    creature ``Destroy`` on a card that is itself a Creature — an activated
+    unit (Visara, Avatar of Woe, Royal Assassin's qualified "tapped
+    creature") or a recurring trigger (event outside the one-shot set;
+    Nekrataal's ETB destroy is out). ``DestroyAll`` wipes never fire (the
+    tag IS the mass discriminator). The Evil Twin quoted-grant fold rides
+    the byte-identical _REPEATABLE_KILL_RE mirror. LOW confidence, scope
+    "you" (the live producer's identity — never feeds has_other_plan).
+    """
+    if not tree.is_type("Creature"):
+        return []
+    for unit in tree.units:
+        repeatable = (unit.origin == "ability" and unit.kind == "Activated") or (
+            unit.origin == "trigger"
+            and (unit.trigger_event or "") not in _KILL_ONESHOT_EVENTS
+        )
+        if not repeatable:
+            continue
+        for c in unit.effect_concepts("destroy"):
+            if tag_of(c.node) != "Destroy":
+                continue
+            if "Creature" in filter_core_types(getattr(c.node, "target", None)):
+                return [Signal("kill_engine", "you", "", c.raw, tree.name, "low")]
+    if _REPEATABLE_KILL_RE.search(_kept(tree)):
+        return [Signal("kill_engine", "you", "", "", tree.name, "low")]
+    return []
+
+
+def _control_exchange(tree: ConceptTree) -> list[Signal]:
+    """control_exchange (§C) — CR 701.12b / 108.3: the exile-your-OWNED +
+    sibling return-to-battlefield chain join (granularity a — Meneldor's
+    "exile up to one target creature you own, then return it"). The
+    mandatory parity check ran FIRST: live fires the 18 ``ExchangeControl``
+    swaps (Gilded Drake, Daring Thief, Perplexing Chimera) under the PORTED
+    gain_control lane, so ONLY the exile-Owned-return shape ports here.
+    Oblivion Sower (Owned:TargetPlayer — theft-ramp) and a plain blink
+    (controller-You filter, no Owned predicate — Cloudshift) never fire.
+    Scope "you".
+    """
+    for unit in tree.units:
+        czs = [
+            c
+            for c in unit.effect_concepts("change_zone")
+            if tag_of(c.node) == "ChangeZone"
+        ]
+        exile_owned = any(
+            change_zone_dirs(c.node)[1] == "Exile"
+            and filter_owned_controller(getattr(c.node, "target", None)) == "You"
+            for c in czs
+        )
+        returns = any(change_zone_dirs(c.node)[1] == "Battlefield" for c in czs)
+        if exile_owned and returns:
+            return [Signal("control_exchange", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _land_exchange(tree: ConceptTree) -> list[Signal]:
+    """land_exchange (§C) — CR 701.12b: an ``ExchangeControl`` either of
+    whose sides is a Land-cored filter (Political Trickery, Vedalken
+    Plotter), or a ``gain_control`` effect over a Land filter (live's
+    "Land in ftypes" rider). Gilded Drake's creature-for-creature swap
+    never fires. Scope "you".
+    """
+    for c in tree.effect_concepts("exchange_control"):
+        for side in ("target_a", "target_b"):
+            if "Land" in filter_core_types(getattr(c.node, side, None)):
+                return [Signal("land_exchange", "you", "", c.raw, tree.name, "high")]
+    for concept in ("gain_control", "give_control"):
+        for c in tree.effect_concepts(concept):
+            if "Land" in filter_core_types(effect_filter(c.node)):
+                return [Signal("land_exchange", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "ChangeController":
+                continue
+            if "Land" in filter_core_types(getattr(sdef, "affected", None)):
+                return [
+                    Signal(
+                        "land_exchange", "you", "", _site_raw(sdef), tree.name, "high"
+                    )
+                ]
+    return []
+
+
+def _land_denial(tree: ConceptTree) -> list[Signal]:
+    """land_denial (§C) — CR 702.26: a ``PhaseOut`` whose target is the pure
+    Typed[Land] controller-You board (Taniwha's upkeep mass phase-out — the
+    Taniwha probe verbatim). Reality Ripple's Or-filter one-shot and Clever
+    Concealment's Non-Land permanent sweep never fire (checklist #5 — the
+    effect's own target node). Scope "you".
+    """
+    for c in tree.effect_concepts("phasing"):
+        if tag_of(c.node) != "PhaseOut":
+            continue
+        target = getattr(c.node, "target", None)
+        if tag_of(target) != "Typed":
+            continue
+        if set(filter_core_types(target)) != {"Land"} or filter_non_types(target):
+            continue
+        if filter_controller(target) == "You":
+            return [Signal("land_denial", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _is_protection_animator(unit: AbilityUnit) -> bool:
+    """The land_protection-only WIDER animator read (the shared b1 helper is
+    untouched so the settled land_creatures_matter lane cannot move): any
+    static whose subject is land-ish — the ``Land`` core OR a land SUBTYPE
+    word ("Enchanted Forest" — Genju of the Cedars) — carrying an ``AddType
+    Creature`` OR the ``SetCardTypes [Creature]`` rewrite (the Zendikon
+    family). All controllers (live passes ("you","any"))."""
+    statics = getattr(unit, "statics", ())
+    if not statics:
+        return False
+    subject = statics[0].subject
+    landish = "Land" in subject or ({w.lower() for w in subject} & _LAND_SUBTYPE_WORDS)
+    if not landish or "Creature" in subject:
+        return False
+    for concept in statics:
+        node = concept.node
+        if (
+            concept.concept == "add_type"
+            and getattr(node, "core_type", None) == "Creature"
+        ):
+            return True
+        if tag_of(node) == "SetCardTypes":
+            cores = getattr(node, "core_types", None) or ()
+            if "Creature" in cores:
+                return True
+    return False
+
+
+def _land_protection(tree: ConceptTree) -> list[Signal]:
+    """land_protection (§C) — CR 613.1d / 305: a commander animating MANY
+    lands wants them kept alive. Shares the b1 animator predicate widened
+    past the you-gate (Living Plane — live passes ("you","any"); the
+    crosswalk's controller-less scope maps to "each", so the widened tuple
+    here is ("you","any","each")), plus the byte-identical manland
+    self-animate mirror (the Restless lands — phase drops the self-animate
+    clause). Scope "you".
+    """
+    for unit in tree.units:
+        if _is_protection_animator(unit):
+            return [Signal("land_protection", "you", "", "", tree.name, "high")]
+        for c in unit.iter_concepts():
+            # The first-class Animate node (the TLA earthbend family — Bumi,
+            # Badgermole: "Animate {types: [Creature], target: Land you
+            # control}"): a mass/targeted land-animate the statics walk never
+            # sees (no static def — the node carries the types directly).
+            if c.role == "effect" and tag_of(c.node) == "Animate":
+                tgt = getattr(c.node, "target", None)
+                if "Land" in filter_core_types(tgt) or (
+                    {t.lower() for t in filter_subtypes(tgt)} & _LAND_SUBTYPE_WORDS
+                ):
+                    return [
+                        Signal("land_protection", "you", "", c.raw, tree.name, "high")
+                    ]
+        # The threaded one-shot animate ("target Forest becomes a 4/5 …
+        # creature" — Awakener Druid: a GenericEffect whose resolved target is
+        # the land, mods AddType Creature).
+        for resolved, sdef in iter_threaded_target_statics(unit.node):
+            landish = "Land" in filter_core_types(resolved) or (
+                {t.lower() for t in filter_subtypes(resolved)} & _LAND_SUBTYPE_WORDS
+            )
+            if not landish:
+                continue
+            for _sd, mod in iter_mod_sites(sdef):
+                if (
+                    tag_of(mod) == "AddType"
+                    and getattr(mod, "core_type", None) == "Creature"
+                ):
+                    return [Signal("land_protection", "you", "", "", tree.name, "high")]
+        # The reverse animator (Ashaya: "creatures you control are Forest
+        # lands in addition …" — an AddType Land over your board; both type
+        # sets live on one permanent, the same keep-my-lands-alive care).
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "AddType" or getattr(mod, "core_type", None) != "Land":
+                continue
+            affected = getattr(sdef, "affected", None)
+            if filter_controller(affected) == "You":
+                return [
+                    Signal(
+                        "land_protection", "you", "", _site_raw(sdef), tree.name, "high"
+                    )
+                ]
+    if _MANLAND_MIRROR.search(_kept(tree)):
+        return [Signal("land_protection", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _evasion_denial(tree: ConceptTree) -> list[Signal]:
+    """evasion_denial (§C) — CR 702.14: the ``IgnoreLandwalkForBlocking``
+    static mode (Great Wall's plainswalk, Crevasse's mountainwalk — 9 corpus
+    statics on 8 cards). The Staff of the Ages conferral residue is
+    SUPPLEMENT-FIXABLE (the grant survives in the carrier's oracle), logged.
+    Scope "opponents" (live).
+    """
+    for unit in tree.units:
+        if (
+            unit.origin == "static"
+            and static_mode_tag(unit.node) == "IgnoreLandwalkForBlocking"
+        ):
+            return [
+                Signal(
+                    "evasion_denial",
+                    "opponents",
+                    "",
+                    _site_raw(unit.node),
+                    tree.name,
+                    "high",
+                )
+            ]
+    return []
+
+
+def _animate_artifact(tree: ConceptTree) -> list[Signal]:
+    """animate_artifact (§D) — CR 613.1d + 702.122b: kept-mirror-PRIMARY
+    (verdict upheld): the EXACT live ANIMATE_ARTIFACT_REGEX over the
+    reminder-stripped oracle (Karn Silver Golem, Titania's Song). All 8
+    clean AddType statics already match the regex (structural assist adds
+    0 — LOG only); the Animate effect tag is TLA earthbend, not artifact
+    animation. A bare becomes-an-ARTIFACT type conferral (Liquimetal
+    Coating, Mycosynth Lattice) is a regex non-match. Scope "you".
+    """
+    if _ANIMATE_ARTIFACT_RX.search(_kept(tree)):
+        return [Signal("animate_artifact", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _color_change(tree: ConceptTree) -> list[Signal]:
+    """color_change (§D) — CR 105.3: kept-mirror-PRIMARY (verdict upheld —
+    raw structural SetColor fires on 391 corpus cards, ~94% over-fire from
+    devoid CDAs / eternalize token colors / animate riders): the EXACT live
+    COLOR_CHANGE_REGEX (Alchor's Tomb, Distorting Lens). The AddChosenColor
+    structural assist adds 0 over the mirror — LOG only. "Becomes colorless"
+    (Ancient Kavu) is a deliberate non-match. Scope "you".
+    """
+    if _COLOR_CHANGE_RX.search(_kept(tree)):
+        return [Signal("color_change", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _type_change(tree: ConceptTree) -> list[Signal]:
+    """type_change (§D) — CR 702.16 + 613.1d: RECLASSIFIED structural+mirror
+    union — the type-HOSER read. Structural: an ``AddKeyword`` whose keyword
+    is ``Protection{CardType: <arg>}`` with the argument vocab-validated
+    against the creature-subtype list (Gor Muldrak's Salamanders — the
+    "phase drops the argument" note was STALE); protection from a COLOR
+    (White Knight) fails the vocab gate. Mirror: the live per-clause
+    ``protection from (\\w+)`` vocab-gated scan for parity. Scope "you".
+    """
+    for unit in tree.units:
+        for _sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "AddKeyword":
+                continue
+            arg = protection_cardtype(mod)
+            if arg is None:
+                continue
+            w = arg.lower()
+            if w in CREATURE_SUBTYPES or w.rstrip("s") in CREATURE_SUBTYPES:
+                return [Signal("type_change", "you", "", "", tree.name, "high")]
+    if _type_hoser_clause(_kept(tree).lower()):
+        return [Signal("type_change", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _stax_lanes(tree: ConceptTree) -> list[Signal]:
+    """stax_taxes (scope "opponents") + symmetric_stax (scope "each") — CR
+    101.2 + 604.1. Scope from each static's OWN who/affected node
+    (checklist #5), live-parity-calibrated over the census probes:
+
+    * **plain restrictions** (CantAttack / CantBlock / CantAttackOrBlock /
+      CantUntap / CantGainLife / MustAttack / CantPlayLand): affected
+      controller Opponent/TargetPlayer → stax (Propaganda, Fumiko);
+      unscoped board filter → symmetric (Warmonger Hellkite, Meekstone,
+      Bedlam, An-Zerrin Ruins). Gate (i): the single-creature pacify veto is
+      LOAD-BEARING — a SelfRef affected (a drawback) or an EnchantedBy/
+      EquippedBy-predicated subject (Pacifism, Arrest, the stun-Auras)
+      opens NEITHER lane.
+    * **cost taxes** (ModifyCost{Raise}): affected Opponent → stax (Aura of
+      Silence); gate (ii) — a You/SelfRef direction is a self-cost quirk;
+      an unscoped tax is symmetric AND co-fires stax (Sphere of Resistance —
+      live's stax_tax-kind co-fire).
+    * **cast/activation locks** (CantBeActivated / CantBeCast /
+      CantCastDuring / CantActivateDuring / PerTurnCastLimit): ``who``
+      Opponents → stax (Alhammarret, A-Teferi); ``who`` Controller → skip
+      (Colfenor's Plans); else BOTH lanes (Stony Silence, Arcane
+      Laboratory, Karn GC, Curse of Exhaustion — live fires both; City of
+      Solitude's extra stax co-fire is a logged uniform-rule cost). The
+      Arrest-shape lock (EnchantedBy source_filter) is pacified out.
+    * **attack ceilings** (MaxAttackersEachCombat): defender Controller →
+      stax (Crawlspace — a logged add; live misses the family); else
+      symmetric (Dueling Grounds).
+    * **step skips** (SkipStep): affected Player → symmetric (Stasis — a
+      logged add); affected Controller → skip (Damia's self-cost).
+    * **trigger suppression** (SuppressTriggers): symmetric (Hushbringer /
+      Torpor Orb — logged adds; hatebear stax live misses).
+    * **hand-size reducers** (MaximumHandSize, affected Opponent): stax
+      co-fire (Gnat Miser, Jin-Gitaxias — live parity; the big_hand_makers
+      quirk fires separately).
+    * **opponents-enter-tapped** (a Moved→Battlefield replacement whose
+      SetTapState{Tap} valid_card is NOT SelfRef): controller Opponent →
+      stax (Authority of the Consuls, Kismet); unscoped → symmetric (Root
+      Maze). A SelfRef valid_card ("this land enters tapped") is membership.
+    * **residue mirrors**: the EXACT live _STAX_TAXES_RESIDUE_RE /
+      _SYMMETRIC_STAX_RESIDUE_RE per-clause with the live pacify veto
+      (Winter Orb's unparsed "players can't untap" clause).
+
+    Gate (iii): an untap BLESSING (Seedborn Muse's
+    UntapsDuringEachOtherPlayersUntapStep) is not in any census set.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def stax(raw: str) -> None:
+        if "stax_taxes" not in seen:
+            seen.add("stax_taxes")
+            out.append(Signal("stax_taxes", "opponents", "", raw, tree.name, "high"))
+
+    def sym(raw: str) -> None:
+        if "symmetric_stax" not in seen:
+            seen.add("symmetric_stax")
+            out.append(Signal("symmetric_stax", "each", "", raw, tree.name, "high"))
+
+    # The census walks EVERY static def reachable from a unit (a top-level
+    # continuous ability AND the one-shot GenericEffect-nested defs a spell
+    # confers — Falter's "creatures without flying can't block this turn" is
+    # a live symmetric member). A ParentTarget affected is a single-target
+    # combat trick / pacify (Sleep's rider, Basandra's {R} force) — skipped.
+    for unit in tree.units:
+        defs = iter_static_defs(unit.node) if unit.origin != "replacement" else ()
+        for node in defs:
+            mt = static_mode_tag(node)
+            affected = getattr(node, "affected", None)
+            atag = tag_of(affected)
+            ctrl = filter_controller(affected)
+            raw = _site_raw(node)
+            if atag in ("SelfRef", "ParentTarget"):
+                continue  # a drawback / single-target trick, never a lock
+            if mt in _STAX_SIMPLE_RESTRICTIONS:
+                if set(filter_predicates(affected)) & _PACIFY_PREDS:
+                    continue
+                if ctrl == "Opponent":
+                    stax(raw)
+                elif ctrl == "TargetPlayer":
+                    # live scopes the directed one-shot board lock (Mana
+                    # Vapors, Aggravate) "each", not "opponents" — parity.
+                    sym(raw)
+                elif ctrl is None and atag in ("Typed", "Or", "And"):
+                    sym(raw)
+            elif mt == "ModifyCost" and modify_cost_mode(node) == "Raise":
+                if atag == "SelfRef" or ctrl == "You":
+                    continue
+                if ctrl == "Opponent":
+                    stax(raw)
+                else:
+                    sym(raw)
+                    stax(raw)
+            elif mt in _STAX_LOCK_MODES:
+                src = static_mode_field(node, "source_filter")
+                if set(filter_predicates(src)) & _PACIFY_PREDS:
+                    continue
+                if tag_of(src) == "SelfRef" or atag == "SelfRef":
+                    continue  # an Aura's own-view lock (Detainment Spell)
+                who = static_mode_field(node, "who")
+                if who == "Opponents":
+                    stax(raw)
+                elif who == "Controller":
+                    continue
+                elif who == "EnchantedCreatureController":
+                    # An enchant-player curse: live fires BOTH on the
+                    # per-turn cast limit (Curse of Exhaustion) but stax
+                    # only on the named cast-lock (Brand of Ill Omen).
+                    stax(raw)
+                    if mt == "PerTurnCastLimit":
+                        sym(raw)
+                else:
+                    sym(raw)
+                    stax(raw)
+            elif mt == "MaxAttackersEachCombat":
+                if static_mode_field(node, "defender") == "Controller":
+                    stax(raw)
+                else:
+                    sym(raw)
+            elif mt == "SkipStep":
+                if atag == "Player":
+                    sym(raw)
+            elif mt == "SuppressTriggers":
+                sym(raw)
+            elif mt == "MaximumHandSize" and ctrl == "Opponent":
+                stax(raw)
+        if unit.origin == "replacement":
+            node = unit.node
+            if getattr(node, "destination_zone", None) != "Battlefield":
+                continue
+            vc = getattr(node, "valid_card", None)
+            if tag_of(vc) not in ("Typed", "Or", "And"):
+                continue  # SelfRef "this enters tapped" is membership
+            taps = any(
+                c.concept == "tap_untap"
+                and settap_state(c.node) == "Tap"
+                and tag_of(getattr(c.node, "target", None)) == "SelfRef"
+                for c in unit.effects
+            )
+            if not taps:
+                continue
+            desc = getattr(node, "description", None) or ""
+            if filter_controller(vc) == "Opponent":
+                stax(desc)
+            elif filter_controller(vc) is None:
+                sym(desc)
+
+    for cl in clauses(_kept(tree)):
+        if _restriction_pacifies_single_creature(cl):
+            continue
+        if _STAX_TAXES_RESIDUE_RE.search(cl):
+            stax("")
+        if _SYMMETRIC_STAX_RESIDUE_RE.search(cl):
+            sym("")
+    return out
+
+
+def _keyword_counter(tree: ConceptTree) -> list[Signal]:
+    """keyword_counter (§E) — CR 122.1b: a place/remove of a counter whose
+    kind is in the live ``_KEYWORD_COUNTER_KINDS`` closed set (imported, not
+    widened — the full 122.1b list would need its own logged pass): Arwen,
+    Mortal Queen's indestructible enters-with. The counter-kind-dropped
+    choice/grant tail (Wingfold Pteron's ChooseOneOf branches phase nests
+    outside the effect chain) rides the live KEYWORD_COUNTER_REGEX mirror.
+    Gates: P1P1/loyalty/oil/shield/rad/lore route to their own ported lanes
+    via the kind set; stun is NOT a 122.1b keyword counter (CR 122.1d — a
+    replacement-maker, the b11 tap cluster's country). Scope "any".
+    """
+    for c in tree.iter_concepts():
+        if c.role != "effect":
+            continue
+        if c.concept not in ("place_counter", "remove_counter"):
+            continue
+        kind = (counter_kind(c.node) or counter_kind_any(c.node)).lower()
+        kind = kind.replace(" ", "")  # phase's "double strike" → doublestrike
+        if kind in _KEYWORD_COUNTER_KINDS:
+            return [Signal("keyword_counter", "any", "", c.raw, tree.name, "high")]
+    if _KEYWORD_COUNTER_RX.search(_kept(tree)):
+        return [Signal("keyword_counter", "any", "", "", tree.name, "high")]
+    return []
+
+
+def _counter_grants_kw(tree: ConceptTree) -> list[Signal]:
+    """counter_grants_kw (§E) — a keyword granted to YOUR creatures that
+    HAVE a counter (Bramblewood Paragon's P1P1-predicated trample; Cathedral
+    Acolyte's kind-agnostic Any ward). Gates: an off-kind SPECIFIC grant
+    (oil/stun) is keyword_counter's domain (the P1P1/Any kind gate);
+    an opponent-side subject is the wrong direction (checklist #6 — the
+    controller-You gate). Scope "you".
+    """
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) not in ("AddKeyword", "GrantAbility"):
+                continue
+            affected = getattr(sdef, "affected", None)
+            kinds = counter_pred_kinds(affected)
+            if not ("P1P1" in kinds or "Any" in kinds):
+                continue
+            if filter_controller(affected) != "You":
+                continue
+            return [
+                Signal(
+                    "counter_grants_kw", "you", "", _site_raw(sdef), tree.name, "high"
+                )
+            ]
+    return []
+
+
+def _counter_distribute(tree: ConceptTree) -> list[Signal]:
+    """counter_distribute (§E) — CR 115.7f + 601.2d, the board-wide +1/+1
+    spread: (a) a mass ``PutCounterAll`` of kind P1P1 onto your creatures
+    (Cathars' Crusade); (b) the typed ``distribute`` marker v0.9.0 DOES
+    carry on the distribute-among PutCounter (Verdurous Gearhulk — the
+    spec's "[P-fold]" claim was STALE; measured, the marker is present);
+    (c) the EXACT live _COUNTER_DISTRIBUTE_MIRROR per-clause
+    (enters-with-ADDITIONAL — Bramblewood Paragon; support N). The plain
+    self-enters arm stays deliberately DROPPED (Endless One / Triskelion →
+    self_counter_grow); a lore/loyalty PutCounterAll (Satsuki) fails the
+    kind gate. Scope "you".
+    """
+    for c in tree.effect_concepts("place_counter"):
+        kind = counter_kind(c.node).upper()
+        if tag_of(c.node) == "PutCounterAll" and kind == "P1P1":
+            return [Signal("counter_distribute", "you", "", c.raw, tree.name, "high")]
+        if distribute_counter_kind(c.node) == "P1P1":
+            tgt = getattr(c.node, "target", None)
+            if filter_controller(tgt) == "You":
+                return [
+                    Signal("counter_distribute", "you", "", c.raw, tree.name, "high")
+                ]
+    if any(_COUNTER_DISTRIBUTE_MIRROR.search(cl) for cl in clauses(_kept(tree))):
+        return [Signal("counter_distribute", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _superfriends_matters(tree: ConceptTree) -> list[Signal]:
+    """superfriends_matters (§F) — CR 306.5: a CONDITION-site Planeswalker
+    reference with a non-Opponent controller (Historian of Zhalfir's
+    ControlsType, Arisen Gorgon's IsPresent, the QuantityCheck family) plus
+    the typed ``YouControlNamedPlaneswalker`` activation gate (Companion of
+    the Trials — a documented add over live's projection carry). Gates: an
+    effect TARGET filter naming a Planeswalker is removal (condition sites
+    only — Hero's Downfall never fires); a ``TargetMatchesFilter`` condition
+    references the spell's own target (Chandra's Defeat — removal, skipped
+    subtree); BEING a planeswalker is membership. Loyalty-trigger /
+    GrantExtraLoyaltyActivations adds stay LOGGED, unported. Scope "you".
+    """
+
+    def scan(node: object, depth: int) -> bool:
+        if depth > 24:
+            return False
+        if isinstance(node, MirrorVariant):
+            return scan(node.inner, depth + 1)
+        if isinstance(node, list):
+            return any(scan(e, depth + 1) for e in node)
+        if not isinstance(node, TypedMirrorNode):
+            return False
+        t = tag_of(node)
+        if t == "TargetMatchesFilter":
+            return False  # a removal condition on the spell's own target
+        if t == "YouControlNamedPlaneswalker":
+            return True
+        if (
+            t == "Typed"
+            and "Planeswalker" in filter_core_types(node)
+            and filter_controller(node) != "Opponent"
+        ):
+            return True
+        return any(scan(getattr(node, f.name), depth + 1) for f in dc_fields(node))
+
+    for unit in tree.units:
+        for site in iter_condition_sites(unit.node):
+            if scan(site, 0):
+                return [
+                    Signal("superfriends_matters", "you", "", "", tree.name, "high")
+                ]
+    # The live producer is condition-arm + the SUPERFRIENDS_MATTERS_REGEX kept
+    # WORD MIRROR (_signals_ir:1688 — the broad planeswalkers-as-a-group refs:
+    # anthems, loyalty-counter payoffs, activate-loyalty engines, PW-ability
+    # copiers). The spec cited only the condition arm; without the mirror the
+    # lane reproduced 15% — port the pinned live constant flat, byte-identical.
+    if _SUPERFRIENDS_RX.search(_kept(tree)):
+        return [Signal("superfriends_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _commander_matters(tree: ConceptTree) -> list[Signal]:
+    """commander_matters (§F) — CR 903.3: an ``IsCommander`` FILTER property
+    anywhere on the card (Bastion Protector, Anara, Forge of Heroes).
+    CRITICAL gate: the card-level is_commander / brawl_commander metadata
+    flags are NEVER read — eligibility is not caring. The
+    CommanderManaValue / commander-cast trigger tail stays LOGGED, unported.
+    Scope "you".
+    """
+    if any(has_filter_property(u.node, "IsCommander") for u in tree.units):
+        return [Signal("commander_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _big_hand_lanes(tree: ConceptTree) -> list[Signal]:
+    """big_hand_makers + big_hand_matters (§F) — CR 402.2, one shared walk:
+
+    * **makers** — the ``NoMaximumHandSize`` static mode (Reliquary Tower,
+      Kruphix) or effect node, the ``MaximumHandSize{SetTo/AdjustedBy}``
+      family (Cursed Rack, Gnat Miser, Jin-Gitaxias — live's mirror keeps
+      the REDUCERS in the lane; the parity quirk is kept and logged for a
+      future lane split), plus the byte-identical maker mirror.
+    * **matters** — a ``HandSize``-family qty operand reading YOUR hand
+      ([P5] gate — Maro's dynamic-P/T pair, Akki Underling's threshold
+      condition; an opponent-hand count is vetoed), plus the byte-identical
+      matters mirror (Body of Knowledge fires BOTH halves).
+
+    Both scope "you" (the live pair's identity).
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", raw, tree.name, "high"))
+
+    kept = _kept(tree)
+    for unit in tree.units:
+        if unit.origin == "static":
+            mt = static_mode_tag(unit.node)
+            if mt in ("NoMaximumHandSize", "MaximumHandSize"):
+                fire("big_hand_makers", _site_raw(unit.node))
+        for c in unit.effect_concepts("no_max_handsize"):
+            fire("big_hand_makers", c.raw)
+        # matters SITE gate: only a CONDITION threshold (Akki Underling)
+        # or a dynamic-P/T modification value (Maro) is a grip PAYOFF — a
+        # raw count ref ("discard your hand" = Discard{count: HandSize})
+        # is not, and the hellbent family (HandSize EQ 0 — Bloodhall
+        # Priest) is the OPPOSITE payoff, so the condition arm requires a
+        # GE/GT comparison against a full-grip bar (>= 4 — the live
+        # mirror's "five or more" family, Akki's GE 7).
+        for site in iter_condition_sites(unit.node):
+            for q in iter_typed_nodes(site):
+                if tag_of(q) != "QuantityComparison":
+                    continue
+                lhs = getattr(q, "lhs", None)
+                if "you" not in hand_size_scopes(lhs):
+                    continue
+                if getattr(q, "comparator", None) not in ("GE", "GT"):
+                    continue
+                rhs = getattr(q, "rhs", None)
+                val = getattr(rhs, "value", None) if tag_of(rhs) == "Fixed" else None
+                if isinstance(val, int) and val >= 4:
+                    fire("big_hand_matters", "")
+        for _sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) in _DYNAMIC_PT_MODS and "you" in hand_size_scopes(mod):
+                fire("big_hand_matters", "")
+    if _BIG_HAND_MAKERS_MIRROR.search(kept):
+        fire("big_hand_makers", "")
+    if _BIG_HAND_MATTERS_MIRROR.search(kept):
+        fire("big_hand_matters", "")
+    return out
+
+
+def _vehicles_matter(tree: ConceptTree) -> list[Signal]:
+    """vehicles_matter (§F) — CR 301.7 + 702.122, the four-arm union:
+    (a) a Crews / SaddlesOrCrews trigger (Gearshift Ace, Speedway Fanatic,
+    Tiana — the crewING pilot's payoff, SelfRef watcher included);
+    (b) a top-level static whose AFFECTED filter subtypes contain Vehicle,
+    controller You (Aeronaut Admiral; Depala's "Each Vehicle you control" —
+    a structural add over live's plural-literal miss, logged);
+    (c) a graveyard→battlefield recursion over a Vehicle filter
+    (Greasefang); (d) the EXACT live VEHICLES_MATTER_REGEX mirror.
+    Gate #4 membership: a card that IS a Vehicle never fires from its own
+    nodes (arms a-c gated; Smuggler's Copter/Peacewalker); ``BecomesCrewed``
+    with a SelfRef watcher (Ghost Ark) is not a ``crews?`` payoff — its
+    mode is outside arm (a)'s set. Scope "you".
+    """
+    kept = _kept(tree)
+    if "Vehicle" not in tree.card_subtypes:
+        for unit in tree.units:
+            if unit.origin == "trigger" and unit.trigger_event in (
+                "crews",
+                "saddlesorcrews",
+            ):
+                return [Signal("vehicles_matter", "you", "", "", tree.name, "high")]
+            if unit.origin == "static":
+                affected = getattr(unit.node, "affected", None)
+                # Word-token match: phase emits Depala's subject as the
+                # multi-word subtype wart ``{Subtype: "Each Vehicle"}`` —
+                # the probed v0.9.0 shape, so the gate matches the
+                # ``vehicle`` TOKEN, not the raw string.
+                subs = {w for s in filter_subtypes(affected) for w in s.lower().split()}
+                if "vehicle" in subs and filter_controller(affected) == "You":
+                    return [
+                        Signal(
+                            "vehicles_matter",
+                            "you",
+                            "",
+                            _site_raw(unit.node),
+                            tree.name,
+                            "high",
+                        )
+                    ]
+            for c in unit.effect_concepts("change_zone"):
+                origin, dest = change_zone_dirs(c.node)
+                if origin != "Graveyard" or dest != "Battlefield":
+                    continue
+                tsubs = {
+                    s.lower() for s in filter_subtypes(getattr(c.node, "target", None))
+                }
+                if "vehicle" in tsubs:
+                    return [
+                        Signal("vehicles_matter", "you", "", c.raw, tree.name, "high")
+                    ]
+    if _VEHICLES_MATTER_RX.search(kept):
+        return [Signal("vehicles_matter", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -5899,6 +7026,31 @@ _LANES = (
     _typed_spellcast_lane,
     _legends_historic_matters,
     _self_blink_lane,
+    _scry_surveil_matters,
+    _cycling_matters,
+    _exert_matters,
+    _entered_attacker,
+    _saga_matters,
+    _life_total_set,
+    _unspent_mana,
+    _opp_top_exile,
+    _kill_engine,
+    _control_exchange,
+    _land_exchange,
+    _land_denial,
+    _land_protection,
+    _evasion_denial,
+    _animate_artifact,
+    _color_change,
+    _type_change,
+    _stax_lanes,
+    _keyword_counter,
+    _counter_grants_kw,
+    _counter_distribute,
+    _superfriends_matters,
+    _commander_matters,
+    _big_hand_lanes,
+    _vehicles_matter,
 )
 
 

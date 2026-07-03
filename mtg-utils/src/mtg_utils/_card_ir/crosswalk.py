@@ -202,6 +202,19 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "RevealUntil": "reveal_until",  # dig_until (CR 701.20a)
     "Double": "double_quantity",  # counter_doubling arm b (CR 122.1)
     "MultiplyCounter": "multiply_counter",  # counter_doubling arm c
+    # Batch 12 (ADR-0035 Stage 2) — the life-total / control-exchange
+    # cluster. ``SetLifeTotal`` / ``ExchangeLifeTotals`` /
+    # ``ExchangeLifeWithStat`` are the CR 119.5 + 701.12c set-life family
+    # (case law Magister Sphinx: becoming 10 IS gaining/losing the
+    # difference); ``Double{LifeTotal}`` reuses :func:`double_target_kind`.
+    # ``ExchangeControl`` is the CR 701.12b two-sided control swap (Gilded
+    # Drake, Political Trickery) — the land_exchange lane reads its two
+    # target filters; the creature swaps stay in gain_control's country
+    # (live-extractor-verified, the b12 mandatory parity check).
+    "SetLifeTotal": "set_life",  # life_total_set (CR 119.5)
+    "ExchangeLifeTotals": "set_life",  # Axis of Mortality
+    "ExchangeLifeWithStat": "set_life",  # Serra Avatar-family stat swap
+    "ExchangeControl": "exchange_control",  # land_exchange (CR 701.12b)
 }
 
 # Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): a maker / sac-payoff over
@@ -300,6 +313,12 @@ class ConceptTree:
     units: tuple[AbilityUnit, ...] = field(default_factory=tuple)
     card_types: tuple[str, ...] = ()  # the card's own core types (Creature / Land …)
     card_subtypes: tuple[str, ...] = ()  # the card's own subtypes (Saga / Elf …)
+    # The phase record's face oracle text (``S_Root.oracle_text``), verbatim.
+    # Carried for the b12 SANCTIONED byte-identical mirror ports (the live
+    # kept-regex lanes: entered_attacker, animate_artifact, color_change, the
+    # stax residues, …) — those lanes strip reminder parens and re-run the
+    # EXACT live constants; every structural lane stays a typed read.
+    oracle: str = ""
 
     def is_type(self, core: str) -> bool:
         """Whether the card itself has core type ``core`` (Creature / Land / …).
@@ -2166,6 +2185,109 @@ def entered_this_turn_filters(root: object) -> Iterator[object]:
                 yield f
 
 
+# ── Batch-12 typed accessors (life / stax / protection / condition cluster) ──
+
+
+def protection_cardtype(mod: TypedMirrorNode) -> str | None:
+    """The CardType ARGUMENT of an ``AddKeyword {Protection: {CardType: X}}``
+    modification (Gor Muldrak — ``"salamanders"``), or ``None`` for any other
+    keyword / a protection-from-COLOR payload (White Knight). CR 702.16: the
+    type_change lane vocab-validates the argument upstream.
+    """
+    kw = getattr(mod, "keyword", MISSING)
+    if not (isinstance(kw, MirrorVariant) and kw.key == "Protection"):
+        return None
+    arg = _variant_field(kw.inner, "CardType")
+    return arg if isinstance(arg, str) else None
+
+
+def modify_cost_spell_filter(static_node: TypedMirrorNode) -> object | None:
+    """The ``spell_filter`` of a ``{ModifyCost: …}`` static mode, or ``None``.
+
+    The typed_spellcast static arm (b11 follow-up a) reads its subtypes: a
+    "<Subtype> spells you cast cost {N} less" static (Goblin Warchief) carries
+    the tribe on ``spell_filter`` — CR 601.2f couples the discount to the cast
+    event, so the tribal reducer is a cast payoff, subject-bearing.
+    """
+    mode = getattr(static_node, "mode", MISSING)
+    if isinstance(mode, MirrorVariant) and mode.key == "ModifyCost":
+        return _variant_field(mode.inner, "spell_filter")
+    return None
+
+
+def static_mode_field(node: object, field: str) -> object:
+    """One named field of a parameterized static MODE's payload, or ``None``.
+
+    The stax census reads discriminating sub-fields off the variant modes the
+    b12 port added — ``who`` (``CantBeActivated`` / ``CantBeCast`` /
+    ``PerTurnCastLimit`` …), ``source_filter`` (the Arrest pacify veto),
+    ``defender`` (``MaxAttackersEachCombat``). ``None`` for a plain-string
+    mode or an absent field.
+    """
+    mode = getattr(node, "mode", MISSING)
+    if isinstance(mode, MirrorVariant):
+        return _variant_field(mode.inner, field)
+    return None
+
+
+def distribute_counter_kind(node: TypedMirrorNode) -> str:
+    """The counter kind of a ``PutCounter`` effect's ``distribute`` marker
+    (Verdurous Gearhulk — ``{Counters: "P1P1"}`` → ``"P1P1"``), ``""`` when the
+    placement is not a distribute-among (CR 601.2d). v0.9.0 DOES carry the
+    marker — the earlier "[P-fold]" note was stale.
+    """
+    d = getattr(node, "distribute", MISSING)
+    if _present(d) and tag_of(d) == "Counters":
+        data = getattr(d, "data", None)
+        return data if isinstance(data, str) else ""
+    return ""
+
+
+def iter_typed_nodes(root: object) -> Iterator[TypedMirrorNode]:
+    """Public deep walk over every typed node reachable from ``root`` (the
+    generic scan behind narrow unique-tag reads — the b12 saga CountersOn
+    and big-hand HandSize operand arms). Cycle-safe, field-order agnostic.
+    """
+    yield from _iter_typed_nodes(root)
+
+
+def iter_condition_sites(root: object) -> Iterator[TypedMirrorNode]:
+    """Every CONDITION-site subtree root under one unit node: each ``condition``
+    field plus each ``activation_restrictions`` entry (Companion of the Trials'
+    ``RequiresCondition``). The superfriends lane scans ONLY these sites — an
+    effect TARGET filter naming a Planeswalker is removal, not synergy
+    (checklist gate; CR 306.5).
+    """
+    for n in _iter_typed_nodes(root):
+        cond = getattr(n, "condition", MISSING)
+        if isinstance(cond, TypedMirrorNode):
+            yield cond
+        ars = getattr(n, "activation_restrictions", MISSING)
+        if _present(ars) and isinstance(ars, list):
+            for ar in ars:
+                if isinstance(ar, TypedMirrorNode):
+                    yield ar
+
+
+def hand_size_scopes(root: object) -> tuple[str, ...]:
+    """The player scope of every ``HandSize`` / ``HandSizeExact`` /
+    ``HandSizeOneOf`` QTY operand under one unit node (Maro's dynamic-P/T
+    pair, Akki Underling's threshold condition). The big_hand_matters lane
+    fires only on a ``"you"`` scope ([P5] — an opponent-hand count is not
+    your grip payoff). A player-less operand reports ``"you"`` (phase's
+    implicit controller). CR 402.2.
+    """
+    out: list[str] = []
+    for n in _iter_typed_nodes(root):
+        if tag_of(n) in ("HandSize", "HandSizeExact", "HandSizeOneOf"):
+            player = getattr(n, "player", MISSING)
+            if not _present(player):
+                out.append("you")
+                continue
+            out.append(_scope_from_player_node(player) or "any")
+    return tuple(out)
+
+
 # ── overlay construction ──────────────────────────────────────────────────────
 
 
@@ -2491,10 +2613,12 @@ def build_concept_tree(
             )
         )
 
+    oracle = getattr(root, "oracle_text", None)
     return ConceptTree(
         name=nm,
         oracle_id=oid,
         units=tuple(units),
         card_types=card_types,
         card_subtypes=card_subtypes,
+        oracle=oracle if isinstance(oracle, str) else "",
     )
