@@ -4037,9 +4037,15 @@ def _topdeck_selection(tree: ConceptTree) -> list[Signal]:
     battlefield (Sensei's Divining Top — a dig-to-battlefield is the
     cheat/ramp put, fix b), and a ``RevealTop`` whose ``player`` is
     Controller. Gate #5: the library OWNER is the boundary — an opponent
-    peek (Orcish Spy — ``player: Player``) never fires. Scope "you".
+    peek (Orcish Spy — ``player: Player``) never fires. The RevealTop arm
+    additionally vetoes a SAME-unit ``SearchLibrary`` sibling: phase
+    mislabels a tutor's found-card reveal ("searches their library …
+    reveals it" — Auditore Ambush) as ``RevealTop(Controller)``
+    (phase_parse_bug — a found-card reveal is not a top reveal, CR 701.23).
+    Scope "you".
     """
     for unit in tree.units:
+        has_search = any(tag_of(c.node) == "SearchLibrary" for c in unit.effects)
         for c in unit.effects:
             t = tag_of(c.node)
             if t in ("Scry", "Surveil"):
@@ -4055,7 +4061,7 @@ def _topdeck_selection(tree: ConceptTree) -> list[Signal]:
                 return [
                     Signal("topdeck_selection", "you", "", c.raw, tree.name, "high")
                 ]
-            if t == "RevealTop" and player == "Controller":
+            if t == "RevealTop" and player == "Controller" and not has_search:
                 return [
                     Signal("topdeck_selection", "you", "", c.raw, tree.name, "high")
                 ]
@@ -4273,7 +4279,10 @@ def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
     opponent. A Flash grant additionally opens flash_grant + flash_makers
     (the live structural ``cast_with_keyword{flash}`` pair); a PRINTED
     keyword bearer (Faithless Looting's own Flashback) carries no grant node
-    and never fires.
+    and never fires. A conditional printed SELF-flash ("~ has flash as long
+    as you control a Merfolk" — Crashing Tide) parses as ``AddKeyword`` with
+    ``affected=SelfRef``: the card grants only ITSELF castability (CR
+    702.8a), not your spells — the SelfRef veto keeps all three keys out.
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -4284,6 +4293,8 @@ def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
             out.append(Signal(key, "you", "", raw, tree.name, "high"))
 
     def grant(kw: str, affected: object, raw: str) -> None:
+        if tag_of(affected) == "SelfRef":
+            return  # a self-grant is castability of this card, not an engine
         if filter_controller(affected) == "Opponent":
             return  # a grant to the opponent's spells is not your engine
         fire("spell_keyword_grant", raw)

@@ -6585,6 +6585,230 @@
         "rare"
       ]
     },
+    "Auditore Ambush": {
+      "name": "Auditore Ambush",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue",
+          "Black"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Choose one or both \u2014\n\u2022 Return target creature to its owner's hand.\n\u2022 Target player searches their library and/or graveyard for a card named Ezio, Blade of Vengeance, reveals it, and puts it into their hand. If they search their library this way, they shuffle.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Bounce",
+            "target": {
+              "type": "Typed",
+              "type_filters": [
+                "Creature"
+              ],
+              "controller": null,
+              "properties": []
+            },
+            "destination": null
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "SearchLibrary",
+            "source_zones": [
+              "Graveyard",
+              "Library"
+            ],
+            "filter": {
+              "type": "Typed",
+              "type_filters": [],
+              "controller": null,
+              "properties": [
+                {
+                  "type": "Named",
+                  "name": "ezio, blade of vengeance"
+                }
+              ]
+            },
+            "count": {
+              "type": "Fixed",
+              "value": 1
+            },
+            "reveal": false,
+            "target_player": {
+              "type": "Player"
+            }
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "ChangeZone",
+              "origin": null,
+              "destination": "Hand",
+              "target": {
+                "type": "Any"
+              },
+              "owner_library": false,
+              "enter_transformed": false,
+              "enter_tapped": false,
+              "enters_attacking": false
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "RevealTop",
+                "player": {
+                  "type": "Controller"
+                },
+                "count": 1
+              },
+              "cost": null,
+              "sub_ability": {
+                "kind": "Spell",
+                "effect": {
+                  "type": "ChangeZone",
+                  "origin": null,
+                  "destination": "Hand",
+                  "target": {
+                    "type": "ParentTarget"
+                  },
+                  "owner_library": false,
+                  "enter_transformed": false,
+                  "enter_tapped": false,
+                  "enters_attacking": false
+                },
+                "cost": null,
+                "sub_ability": {
+                  "kind": "Spell",
+                  "effect": {
+                    "type": "Shuffle",
+                    "target": {
+                      "type": "ParentTarget"
+                    }
+                  },
+                  "cost": null,
+                  "sub_ability": null,
+                  "duration": null,
+                  "description": null,
+                  "target_prompt": null,
+                  "condition": null,
+                  "optional_targeting": false,
+                  "optional": false,
+                  "forward_result": false,
+                  "sub_link": "SequentialSibling"
+                },
+                "duration": null,
+                "description": null,
+                "target_prompt": null,
+                "condition": null,
+                "optional_targeting": false,
+                "optional": false,
+                "forward_result": false
+              },
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": [
+        "Black",
+        "Blue"
+      ],
+      "color_identity": [
+        "Black",
+        "Blue"
+      ],
+      "scryfall_oracle_id": "72075231-e3b3-46cc-b994-2d95b24cf904",
+      "modal": {
+        "min_choices": 1,
+        "max_choices": 2,
+        "mode_count": 2,
+        "mode_descriptions": [
+          "Return target creature to its owner's hand.",
+          "Target player searches their library and/or graveyard for a card named Ezio, Blade of Vengeance, reveals it, and puts it into their hand. If they search their library this way, they shuffle."
+        ],
+        "allow_repeat_modes": false,
+        "chooser": {
+          "type": "Controller"
+        }
+      },
+      "parse_warnings": [
+        {
+          "type": "SwallowedClause",
+          "detector": "Condition_If",
+          "description": "Choose one or both \u2014\n\u2022 Return target creature to its owner's hand.\n\u2022 Target player searches their library and/or graveyard for a card ",
+          "line_index": 0
+        }
+      ],
+      "metadata": {
+        "source_printing_ids": [
+          "7426f3dc-385b-42ea-85cb-853e6035ca6f"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "ACR"
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
     "Aurelia, the Warleader": {
       "name": "Aurelia, the Warleader",
       "mana_cost": {
@@ -18102,6 +18326,215 @@
         "mythic"
       ]
     },
+    "Colossal Rattlewurm": {
+      "name": "Colossal Rattlewurm",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Green",
+          "Green"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Wurm"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 6
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 5
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Colossal Rattlewurm has flash as long as you control a Desert.\nTrample\n{1}{G}, Exile this card from your graveyard: Search your library for a Desert card, put it onto the battlefield tapped, then shuffle.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Trample"
+      ],
+      "abilities": [
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "SearchLibrary",
+            "filter": {
+              "type": "Typed",
+              "type_filters": [
+                "Land",
+                {
+                  "Subtype": "Desert"
+                }
+              ],
+              "controller": null,
+              "properties": []
+            },
+            "count": {
+              "type": "Fixed",
+              "value": 1
+            },
+            "reveal": false
+          },
+          "cost": {
+            "type": "Composite",
+            "costs": [
+              {
+                "type": "Mana",
+                "cost": {
+                  "type": "Cost",
+                  "shards": [
+                    "Green"
+                  ],
+                  "generic": 1
+                }
+              },
+              {
+                "type": "Exile",
+                "count": 1,
+                "zone": "Graveyard",
+                "filter": {
+                  "type": "SelfRef"
+                }
+              }
+            ]
+          },
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "ChangeZone",
+              "origin": "Library",
+              "destination": "Battlefield",
+              "target": {
+                "type": "Any"
+              },
+              "owner_library": false,
+              "enter_transformed": false,
+              "enter_tapped": true,
+              "enters_attacking": false
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "Shuffle",
+                "target": {
+                  "type": "Controller"
+                }
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "duration": null,
+          "description": "{1}{G}, Exile this card from your graveyard: Search your library for a Desert card, put it onto the battlefield tapped, then shuffle.",
+          "target_prompt": null,
+          "activation_zone": "Graveyard",
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [
+        {
+          "mode": "Continuous",
+          "affected": {
+            "type": "SelfRef"
+          },
+          "modifications": [
+            {
+              "type": "AddKeyword",
+              "keyword": "Flash"
+            }
+          ],
+          "condition": {
+            "type": "IsPresent",
+            "filter": {
+              "type": "Typed",
+              "type_filters": [
+                {
+                  "Subtype": "Desert"
+                }
+              ],
+              "controller": "You",
+              "properties": [
+                {
+                  "type": "InZone",
+                  "zone": "Battlefield"
+                }
+              ]
+            }
+          },
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "~ has flash as long as you control a Desert."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Green"
+      ],
+      "scryfall_oracle_id": "510659d6-69b4-4b04-8836-08b76213954e",
+      "metadata": {
+        "source_printing_ids": [
+          "17a104d3-e4ac-44a0-9c6a-39965b1b9751",
+          "e6fbb0c7-29ac-4394-87e1-6e8227602aac"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "standard": "legal",
+        "standardbrawl": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "OTJ",
+        "POTJ"
+      ],
+      "rulings": [
+        {
+          "date": "2024-04-12",
+          "text": "The game checks whether it is legal to cast a spell before costs are determined or mana abilities are activated while casting it. If you no longer control a Desert after that point, perhaps because you sacrificed all of your Deserts while activating mana abilities, this won't affect whether you can legally cast Colossal Rattlewurm."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
     "Combat Celebrant": {
       "name": "Combat Celebrant",
       "mana_cost": {
@@ -19479,6 +19912,162 @@
       "rarities": [
         "uncommon",
         "rare"
+      ]
+    },
+    "Crashing Tide": {
+      "name": "Crashing Tide",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "This spell has flash as long as you control a Merfolk.\nReturn target creature to its owner's hand.\nDraw a card.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Bounce",
+            "target": {
+              "type": "Typed",
+              "type_filters": [
+                "Creature"
+              ],
+              "controller": null,
+              "properties": []
+            },
+            "destination": null
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Draw",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "target": {
+                "type": "Controller"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "sub_link": "SequentialSibling"
+          },
+          "duration": null,
+          "description": "Return target creature to its owner's hand.\nDraw a card.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [
+        {
+          "mode": "Continuous",
+          "affected": {
+            "type": "SelfRef"
+          },
+          "modifications": [
+            {
+              "type": "AddKeyword",
+              "keyword": "Flash"
+            }
+          ],
+          "condition": {
+            "type": "IsPresent",
+            "filter": {
+              "type": "Typed",
+              "type_filters": [
+                {
+                  "Subtype": "Merfolk"
+                }
+              ],
+              "controller": "You",
+              "properties": [
+                {
+                  "type": "InZone",
+                  "zone": "Battlefield"
+                }
+              ]
+            }
+          },
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "This spell has flash as long as you control a Merfolk."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "4c3f87d7-a632-4b8c-9052-b4055ea88771",
+      "metadata": {
+        "source_printing_ids": [
+          "8c06593d-3214-4c3a-981d-5300f1065573",
+          "9ba21250-baae-4f40-8efc-6a58a287bcdc",
+          "e312980a-7b3c-43f8-81cf-53ff818cea30"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "J22",
+        "PLST",
+        "RIX"
+      ],
+      "rulings": [
+        {
+          "date": "2018-01-19",
+          "text": "If the target creature is an illegal target by the time Crashing Tide tries to resolve, the spell doesn\u2019t resolve. You won\u2019t draw a card."
+        },
+        {
+          "date": "2018-01-19",
+          "text": "Once you announce that you\u2019re casting Crashing Tide, players can\u2019t try to remove your Merfolk to make it lose flash until you\u2019re done casting it. If it loses flash after it\u2019s been cast, it will still resolve if able."
+        }
+      ],
+      "rarities": [
+        "common"
       ]
     },
     "Craterhoof Behemoth": {
@@ -29589,6 +30178,148 @@
       "rarities": [
         "rare",
         "mythic"
+      ]
+    },
+    "Graveyard Shift": {
+      "name": "Graveyard Shift",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black"
+        ],
+        "generic": 4
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "This spell has flash as long as there are five or more mana values among cards in your graveyard.\nReturn target creature card from your graveyard to the battlefield.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "ChangeZone",
+            "origin": "Graveyard",
+            "destination": "Battlefield",
+            "target": {
+              "type": "Typed",
+              "type_filters": [
+                "Creature"
+              ],
+              "controller": "You",
+              "properties": [
+                {
+                  "type": "InZone",
+                  "zone": "Graveyard"
+                }
+              ]
+            },
+            "owner_library": false,
+            "enter_transformed": false,
+            "enter_tapped": false,
+            "enters_attacking": false
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": "Return target creature card from your graveyard to the battlefield.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [
+        {
+          "mode": "Continuous",
+          "affected": {
+            "type": "SelfRef"
+          },
+          "modifications": [
+            {
+              "type": "AddKeyword",
+              "keyword": "Flash"
+            }
+          ],
+          "condition": {
+            "type": "Unrecognized",
+            "text": "there are five or more mana values among cards in your graveyard"
+          },
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "This spell has flash as long as there are five or more mana values among cards in your graveyard."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "da8a93c6-66e2-492d-8894-397ba9ec5a87",
+      "metadata": {
+        "source_printing_ids": [
+          "394d7fb3-44ee-409f-a992-27e5aabd9c2b"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "SNC"
+      ],
+      "rulings": [
+        {
+          "date": "2022-04-29",
+          "text": "If an effect allows you to cast Graveyard Shift from your graveyard, you may cast it any time you could cast an instant if you have five or more mana values among cards in your graveyard immediately before you begin to cast it, even if moving it to the stack would reduce that number to four."
+        },
+        {
+          "date": "2022-04-29",
+          "text": "The game checks whether it is legal to cast a spell before costs are determined or mana abilities are activated while casting it. If cards are removed from your graveyard after that point, such as by exiling Jack-o'-Lantern from your graveyard to pay for its mana ability, this won't affect whether you can legally cast Graveyard Shift, even if that reduces the number of mana values in your graveyard to below five."
+        },
+        {
+          "date": "2022-04-29",
+          "text": "The mana value of a double-faced card in your graveyard is always the mana value of the front face."
+        },
+        {
+          "date": "2022-04-29",
+          "text": "The mana value of a land card is 0."
+        },
+        {
+          "date": "2022-04-29",
+          "text": "The mana value of a split card in the graveyard is the total mana value of both halves of that card. It does not have two mana values."
+        },
+        {
+          "date": "2022-04-29",
+          "text": "X is 0 when determining the mana value of a card in your graveyard."
+        },
+        {
+          "date": "2022-04-29",
+          "text": "\u201cFive or more mana values among cards in your graveyard\u201d means there are at least five mana values among those cards."
+        }
+      ],
+      "rarities": [
+        "uncommon"
       ]
     },
     "Gray Merchant of Asphodel": {
@@ -58520,6 +59251,9 @@
       "Flying",
       "Warp"
     ],
+    "Auditore Ambush": [
+      "Freerunning"
+    ],
     "Aurelia, the Warleader": [
       "Flying",
       "Haste",
@@ -58582,11 +59316,17 @@
     "Chrome Mox": [
       "Imprint"
     ],
+    "Colossal Rattlewurm": [
+      "Flash"
+    ],
     "Combat Celebrant": [
       "Exert"
     ],
     "Control Magic": [
       "Enchant"
+    ],
+    "Crashing Tide": [
+      "Flash"
     ],
     "Current Curriculum": [
       "Conjure"

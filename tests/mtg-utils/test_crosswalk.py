@@ -2133,6 +2133,16 @@ def test_topdeck_selection_excludes_opponent_peek():
     assert "topdeck_selection" not in _keys("Orcish Spy")
 
 
+def test_topdeck_selection_excludes_search_reveal():
+    """Auditore Ambush's "searches their library … reveals it" found-card
+    reveal is phase-mislabeled ``RevealTop(player=Controller)`` inside the
+    SAME unit as the ``SearchLibrary`` (phase_parse_bug — a found-card
+    reveal is not a top-of-library reveal, CR 701.23). The co-residence
+    veto keeps the tutor-reveal out; the standalone RevealTop doer still
+    fires (rules-lawyer-adjudicated, batch 9)."""
+    assert "topdeck_selection" not in _keys("Auditore Ambush")
+
+
 @pytest.mark.parametrize("name", ["Brainstorm", "Sensei's Divining Top"])
 def test_topdeck_stack_fires(name):
     """topdeck_stack fires the hand-to-top put (Brainstorm — filter
@@ -2286,6 +2296,21 @@ def test_spell_keyword_grant_excludes_bearer_and_nongrant():
     no grant node; Anafenza grants nothing — neither fires."""
     assert "spell_keyword_grant" not in _keys("Faithless Looting")
     assert "spell_keyword_grant" not in _keys("Anafenza, the Foremost")
+
+
+@pytest.mark.parametrize(
+    "name", ["Crashing Tide", "Colossal Rattlewurm", "Graveyard Shift"]
+)
+def test_spell_keyword_grant_excludes_conditional_self_flash(name):
+    """A conditional PRINTED self-flash ("~ has flash as long as …") parses
+    as ``AddKeyword{Flash}`` with ``affected=SelfRef`` — the card grants
+    ITSELF castability (CR 702.8a), not your spells: not a flash engine.
+    The SelfRef veto keeps all three lanes out (rules-lawyer-adjudicated,
+    batch 9)."""
+    keys = _keys(name)
+    assert "spell_keyword_grant" not in keys
+    assert "flash_grant" not in keys
+    assert "flash_makers" not in keys
 
 
 @pytest.mark.parametrize("name", ["Duress", "Addle", "Telepathy"])
