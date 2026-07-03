@@ -313,6 +313,13 @@ class ConceptTree:
     units: tuple[AbilityUnit, ...] = field(default_factory=tuple)
     card_types: tuple[str, ...] = ()  # the card's own core types (Creature / Land …)
     card_subtypes: tuple[str, ...] = ()  # the card's own subtypes (Saga / Elf …)
+    # b14 (§0 deepening-start-minimal): the card's own supertypes (Legendary /
+    # Snow — CR 205.4) and its phase-derived mana value (``mana_cost.generic +
+    # len(shards)``, 0 when the cost is null — CR 202.3). Added ONLY for the
+    # wants_cloning membership gates; phase cmc can differ from bulk cmc on odd
+    # frames (logged shadow-diff data, not chased).
+    card_supertypes: tuple[str, ...] = ()
+    cmc: int = 0
     # The phase record's face oracle text (``S_Root.oracle_text``), verbatim.
     # Carried for the b12 SANCTIONED byte-identical mirror ports (the live
     # kept-regex lanes: entered_attacker, animate_artifact, color_change, the
@@ -2561,6 +2568,17 @@ def build_concept_tree(
     card_types = tuple(c for c in cores if isinstance(c, str)) if cores else ()
     subs = getattr(ct, "subtypes", None) if ct is not None else None
     card_subtypes = tuple(s for s in subs if isinstance(s, str)) if subs else ()
+    supers = getattr(ct, "supertypes", None) if ct is not None else None
+    card_supertypes = tuple(s for s in supers if isinstance(s, str)) if supers else ()
+    # Phase mana value (CR 202.3): generic + one per shard ("X" counts 1 in the
+    # shard list — an accepted phase-vs-bulk cmc divergence, logged not chased).
+    mc = getattr(root, "mana_cost", None)
+    if isinstance(mc, TypedMirrorNode):
+        generic = getattr(mc, "generic", 0)
+        shards = getattr(mc, "shards", None) or []
+        cmc = (generic if isinstance(generic, int) else 0) + len(shards)
+    else:
+        cmc = 0
     units: list[AbilityUnit] = []
 
     abilities = getattr(root, "abilities", ()) or ()
@@ -2648,5 +2666,7 @@ def build_concept_tree(
         units=tuple(units),
         card_types=card_types,
         card_subtypes=card_subtypes,
+        card_supertypes=card_supertypes,
+        cmc=cmc,
         oracle=oracle if isinstance(oracle, str) else "",
     )

@@ -89,6 +89,7 @@ from mtg_utils._card_ir.crosswalk import (
     mod_value,
     modify_cost_mode,
     modify_cost_spell_filter,
+    node_duration,
     node_lure_mode,
     permission_tag,
     player_counter_kind,
@@ -134,9 +135,13 @@ from mtg_utils._card_ir.project import (
     _AFFINITY_GRANT,
     _CASCADE_GRANT,
     _CHANGELING_REF,
+    _CRIME_REF,
+    _LIB_SEARCH_PLAYER_ACTIONS,
     _MADNESS_GRANT,
+    _MASS_DEATH_REF,
     _MUTATE_COND,
     _SOULBOND_REF,
+    _TOKEN_SUBTYPE_OWN_REF,
     _UNDYING_PERSIST_GRANT,
 )
 from mtg_utils._deck_forge import signal_keys
@@ -146,33 +151,63 @@ from mtg_utils._deck_forge import signal_keys
 # and the private live mirrors/kind-sets from _signals_ir / _signals_regex
 # (the _resolve_subject precedent) — one source, zero drift.
 from mtg_utils._deck_forge._signals_ir import (
+    _ACTIVATED_ABILITY_DROP_EFFECTS,
     _BIG_HAND_MAKERS_MIRROR,
     _BIG_HAND_MATTERS_MIRROR,
     _CONVOKE_RAW,
     _COUNTER_DISTRIBUTE_MIRROR,
     _KEYWORD_COUNTER_KINDS,
+    _PROLIFERATE_REMOVE_COST_RE,
     _SAME_TRUE_KW_RE,
+    _SELF_COUNTER_GROW_MIRROR,
     _STAX_TAXES_RESIDUE_RE,
     _SYMMETRIC_STAX_RESIDUE_RE,
+    _UNTAP_ATTACH_VETO,
+    _UNTAP_ENGINE_MIRROR_LANDS,
+    _UNTAP_ENGINE_MIRROR_RAW,
+    _UNTAP_ENGINE_OPP_VETO,
     _restriction_pacifies_single_creature,
 )
+from mtg_utils._deck_forge._signals_ir import (
+    _LAND_SUBTYPES as _LIVE_LAND_SUBTYPES,
+)
 from mtg_utils._deck_forge._signals_regex import (
+    _COLOR_HOSER_RE,
     _EVERGREEN_CK,
+    _MANA_TAP_RE,
+    _PER_TURN_ENGINE_RE,
     _REPEATABLE_KILL_RE,
+    _TAP_ABILITY_RE,
+    TUTOR_MATTERS_REGEX,
     Signal,
+    _detect_keyword_implied_tribe,
     _detect_keyword_tribe,
+    _detect_multi_tribe_anthem,
+    _detect_token_maker,
+    _detect_type_matters,
+    _detect_typed_gy_recursion,
     _resolve_subject,
+    _self_dies_value,
+    _self_etb_value,
     _type_hoser_clause,
     clauses,
+    self_power_scale_match,
 )
-from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
+from mtg_utils._deck_forge._subtypes import (
+    CLASS_TRIBES,
+    CREATURE_SUBTYPES,
+    TRIBAL_SUBTYPES,
+)
 from mtg_utils._deck_forge._sweep_detectors import (
     ANIMATE_ARTIFACT_REGEX,
+    CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
     ENTERED_ATTACKER_REGEX,
     ISLAND_MATTERS_REGEX,
     KEYWORD_COUNTER_REGEX,
+    PUMP_MATTERS_REGEX,
     SUPERFRIENDS_MATTERS_REGEX,
+    THEFT_MATTERS_REGEX,
     UNSPENT_MANA_REGEX,
     VEHICLES_MATTER_REGEX,
 )
@@ -463,6 +498,37 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "poison_matters",
         "suspend_matters",
         signal_keys.KEYWORD_TRIBE,
+        # Batch 14 (ADR-0035 Stage 2): the first structural-remainder batch —
+        # the big dynamic-subject lane (type_matters), two never-listed core
+        # lanes (removal / tutor), the counter/untap/pump engine cluster, the
+        # membership benefit lanes (wants_cloning / wants_theft), the
+        # food/clue token-subtype payoffs, the cost-census activated_ability
+        # lane, and the kept-mirror survivors re-confirmed against v0.9.0
+        # (tutor / flash_matters / coven / outlaw / theft_makers /
+        # opponent_exile_matters — mirror-primary, structural reads
+        # LOGGED-adds-only where the spec marks them).
+        signal_keys.TYPE_MATTERS,
+        "removal",
+        "tutor",
+        "proliferate_matters",
+        "untap_engine",
+        "theft_makers",
+        "wants_theft",
+        "wants_cloning",
+        "food_matters",
+        "clue_matters",
+        "pump_makers",
+        "self_counter_grow",
+        "flash_matters",
+        "activated_ability",
+        "mass_death_payoff",
+        "destroy_legendary",
+        "opponent_exile_matters",
+        "opponent_search_matters",
+        "color_hoser",
+        "coven_matters",
+        "crimes_matter",
+        "outlaw_matters",
         # NB: damage_redirect stays KEPT (spec §G): `redirect_target` exists
         # on only 8 corpus replacements and Pariah itself parses with NO
         # redirect_target (shield Prevention only — structurally identical to
@@ -609,6 +675,15 @@ _STAX_SIMPLE_RESTRICTIONS: frozenset[str] = frozenset(
         "CantGainLife",
         "MustAttack",
         "CantPlayLand",
+        # b14 §R(b) — CR 509.1b/509.1c block requirements / restrictions: the
+        # existing gates reproduce the census with zero new code — a SelfRef
+        # affected (Spirespine's own MustBlock drawback) or an EnchantedBy /
+        # EquippedBy-predicated subject (Spirespine's bestow row, Air Bladder,
+        # Stratus Walk) opens NEITHER lane; an unscoped Typed board filter
+        # (Grand Melee, Invasion Plans; Chaosphere / Dense Canopy's
+        # WithKeyword group) is symmetric.
+        "MustBlock",
+        "BlockRestriction",
     }
 )
 _STAX_LOCK_MODES: frozenset[str] = frozenset(
@@ -618,6 +693,11 @@ _STAX_LOCK_MODES: frozenset[str] = frozenset(
         "CantCastDuring",
         "CantActivateDuring",
         "PerTurnCastLimit",
+        # b14 §R(b) — CR 601.3 cast-permission locks: the mode's own ``who``
+        # routes direction (Drannith Magistrate ``Opponents`` → stax only;
+        # Ashes of the Abhorrent / Grafdigger's Cage / Kunoros / Weathered
+        # Runestone ``AllPlayers`` → BOTH lanes via the existing else branch).
+        "CantCastFrom",
     }
 )
 
@@ -6059,6 +6139,32 @@ def _scry_surveil_matters(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if unit.origin == "trigger" and unit.trigger_event in ("scry", "surveil"):
             return [Signal("scry_surveil_matters", "you", "", "", tree.name, "high")]
+        # b14 §R(c) arm 1 — the PlayerPerformedAction composite (Matoya,
+        # Planetarium of Wan Shi Tong — probed verbatim): ``player_actions``
+        # a NON-EMPTY subset of {scry, surveil} (NO "searchedlibrary" — that
+        # routes to opponent_search_matters; the Proliferate composites fail
+        # the subset), watched player Controller (River Song fails twice:
+        # names SearchedLibrary AND valid_target Opponent). CR 701.22a /
+        # 701.25a.
+        if unit.origin == "trigger":
+            mode = getattr(unit.node, "mode", None)
+            mode_s = mode if isinstance(mode, str) else tag_of(mode)
+            if mode_s == "PlayerPerformedAction":
+                actions = getattr(unit.node, "player_actions", None)
+                norm = {a.lower() for a in actions or () if isinstance(a, str)}
+                if (
+                    norm
+                    and norm <= {"scry", "surveil"}
+                    and trigger_scope(unit.node) == "you"
+                ):
+                    return [
+                        Signal("scry_surveil_matters", "you", "", "", tree.name, "high")
+                    ]
+        # b14 §R(c) arm 2 — the Scry-event REPLACEMENTS (CR 614.1a "instead"):
+        # ``event == "Scry"`` (Eligeth's scry-becomes-draw, Kenessos's
+        # scry-plus-one — the ENTIRE corpus census, probed).
+        if unit.origin == "replacement" and getattr(unit.node, "event", None) == "Scry":
+            return [Signal("scry_surveil_matters", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -6247,6 +6353,52 @@ def _opp_top_exile(tree: ConceptTree) -> list[Signal]:
             return [Signal("opp_top_exile", "you", "", c.raw, tree.name, "high")]
         if ptag in ("Player", "TriggeringPlayer"):
             return [Signal("opp_top_exile", "you", "", c.raw, tree.name, "high")]
+    # b14 §R(a) — the ChangeZone/ChooseFromZone steal-chain family (CR 406.1).
+    for unit in tree.units:
+        # (1) Exile-from-opponent-library head: ``ChangeZone → Exile`` whose
+        # target is an opponent-controlled Library-zone filter (Brainstealer
+        # Dragon, Arvinox, Stolen Strategy — probed verbatim; corpus census is
+        # exactly the 7-card steal family, so no cast-permission sibling gate:
+        # Arvinox's permission is textual-only in a GenericEffect description
+        # and a GrantCastingPermission gate would LOSE it). Nassari, Dean of
+        # Expression was banked as the ONE logged add (hook = exile-each-
+        # opponent-top + "you may cast spells from among those exiled cards"
+        # — the same steal-and-cast contract); the shadow diff's DFC
+        # same-oid union shows live firing the joined "Uvilda // Nassari"
+        # record, so the arm lands it as BOTH (live_only shrank by exactly
+        # the 7-card census + that DFC row; cw_only grew by ZERO).
+        for c in unit.effect_concepts("change_zone"):
+            if tag_of(c.node) != "ChangeZone":
+                continue
+            if change_zone_dirs(c.node)[1] != "Exile":
+                continue
+            target = getattr(c.node, "target", None)
+            if (
+                tag_of(target) == "Typed"
+                and filter_controller(target) == "Opponent"
+                and "Library" in filter_inzone_zones(target)
+            ):
+                return [Signal("opp_top_exile", "you", "", c.raw, tree.name, "high")]
+        # (2) Choose-from-their-zones chain (Covetous Urge, Psychic Intrusion
+        # — probed verbatim): a ``ChooseFromZone`` with an opponent/targeted
+        # zone owner + a same-unit sibling ChangeZone→Exile + a
+        # ``cast_from_zone`` concept (the SequentialSibling chain,
+        # granularity a). ``ChooseFromZone`` is a tag_of read only — no
+        # EFFECT_CONCEPTS row (§0.2).
+        chooses_theirs = any(
+            tag_of(c.node) == "ChooseFromZone"
+            and getattr(c.node, "zone_owner", None) in ("TargetedPlayer", "Opponent")
+            for c in unit.effects
+        )
+        exiles = any(
+            tag_of(c.node) == "ChangeZone" and change_zone_dirs(c.node)[1] == "Exile"
+            for c in unit.effect_concepts("change_zone")
+        )
+        if chooses_theirs and exiles and unit.has_effect("cast_from_zone"):
+            return [Signal("opp_top_exile", "you", "", "", tree.name, "high")]
+    # Deliberate NON-extension: ``ExileFromTopUntil{player: Opponent}``
+    # (Umbris, Chaos Wand, Nicol Bolas God-Pharaoh) lives in theft_makers'
+    # mirror pop, NOT here — reading it would move both/live_only.
     return []
 
 
@@ -6640,6 +6792,18 @@ def _stax_lanes(tree: ConceptTree) -> list[Signal]:
                 else:
                     sym(raw)
                     stax(raw)
+            elif mt == "CantSearchLibrary":
+                # b14 §R(b) — CR 701.23: searching is the restricted act; the
+                # lock's direction comes from the mode's OWN ``cause`` field
+                # (checklist #5). NOT the lock set — routing through it would
+                # wrongly co-fire stax on Mindlock Orb (cause AllPlayers is
+                # symmetric ONLY: live sym w/o stax, probed). Stranglehold /
+                # Ashiok Dream Render (cause Opponents) → stax.
+                cause = static_mode_field(node, "cause")
+                if cause == "Opponents":
+                    stax(raw)
+                elif cause == "AllPlayers":
+                    sym(raw)
             elif mt == "MaxAttackersEachCombat":
                 if static_mode_field(node, "defender") == "Controller":
                     stax(raw)
@@ -7329,6 +7493,769 @@ def _keyword_tribe(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+# ── Batch-14 mirror constants + census sets ──────────────────────────────────
+
+# Compiled forms of the pinned shared regex sources (byte-identical by import;
+# the same IGNORECASE the live kept-detector loop compiles with).
+_THEFT_MAKERS_RX = re.compile(THEFT_MATTERS_REGEX, re.IGNORECASE)
+_CLUE_MATTERS_RX = re.compile(CLUE_MATTERS_REGEX, re.IGNORECASE)
+_PUMP_MAKERS_RX = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
+
+# Byte-identical copies of the INLINE (unnamed) ``_IR_KEPT_DETECTORS`` rows —
+# the _JOHAN_MIRROR precedent (no importable name exists for these).
+_PROLIF_ENTERS_COUNTER_MIRROR = re.compile(
+    r"enters with a(?:n)? (?:divinity|indestructible) counter", re.IGNORECASE
+)
+_PROLIF_RESOURCE_COUNTER_MIRROR = re.compile(
+    r"\bcharge counter|\bexperience counter", re.IGNORECASE
+)
+_FLASH_MATTERS_MIRROR = re.compile(
+    r"whenever you cast (?:a |your first )?spells? "
+    r"during (?:an|each|any) opponent",
+    re.IGNORECASE,
+)
+_OPP_EXILE_MATTERS_MIRROR = re.compile(
+    r"cards? (?:your opponents own|an opponent owns)[^.]*in exile"
+    r"|for each card your opponents own in exile|opponents own in exile",
+    re.IGNORECASE,
+)
+_COVEN_MIRROR = re.compile(r"\bcoven\b", re.IGNORECASE)
+_OUTLAW_MIRROR = re.compile(r"\boutlaws?\b", re.IGNORECASE)
+
+# The signals.py wants_theft hybrid FACADE's don't-own tell (byte-identical to
+# the inline regex at signals.py's include_membership block). Live runs it over
+# the RAW oracle (get_oracle_text — NOT reminder-stripped); the crosswalk reads
+# ``tree.oracle`` unstripped for byte-parity. Phase oracle_text occasionally
+# differs from bulk oracle in whitespace/name-substitution — shadow-diff data,
+# logged not normalized.
+_DONT_OWN_RX = re.compile(
+    r"you (?:cast|control|own)?[^.]{0,25}?(?:do not|don't) own", re.IGNORECASE
+)
+
+# activated_ability cost census (b14 §14 — CR 602.1): phase COST-leaf tags.
+# Tap/Untap = the {T}/{Q} branch (overrides an extra cost, like live's
+# tap-anchor override); a generic-only Mana leaf (generic>0, shards empty) =
+# the {N}: branch, vetoed by an extra-cost leaf. The extra set deliberately
+# EXCLUDES ReturnToHand / TapCreatures / Mill / RevealHand — the Meloku
+# cost-vocabulary parity pin: the old projection never emitted 'return', so
+# mapping ReturnToHand here would move live_only (PARITY-BEFORE-VETO; tune
+# only against the shadow diff). A Loyalty cost is neither branch → no fire
+# (planeswalker loyalty abilities stay out, matching live).
+_AA_TAP_COST_TAGS: frozenset[str] = frozenset({"Tap", "Untap"})
+_AA_EXTRA_COST_TAGS: frozenset[str] = frozenset(
+    {"Sacrifice", "Discard", "Exile", "PayLife", "RemoveCounter"}
+)
+
+# self_counter_grow keyword-action tags (CR 701.46 adapt / 701.37 monstrosity
+# / 702.104 renown): first-class v0.9.0 effect nodes; every corpus carrier is
+# already in the live pop (probed 24/37/20, zero over-fire).
+_SELF_GROW_ACTION_TAGS: frozenset[str] = frozenset({"Adapt", "Monstrosity", "Renown"})
+
+# Sibling force-block tags (the provoke veto — an "untap … and block" combat
+# trick untaps the BLOCKER, not your board). Phase keyword-provoke bearers
+# carry no untap effect at all (reminder text), so this guards only the
+# explicit spelled-out forms.
+_FORCE_BLOCK_TAGS: frozenset[str] = frozenset(
+    {"MustBlock", "ForceBlock", "MustBeBlocked", "Provoke"}
+)
+
+# opponent_search_matters raw trigger modes (CR 701.23 search / shuffle).
+_OPP_SEARCH_MODES: frozenset[str] = frozenset({"SearchedLibrary", "Shuffled"})
+
+# The batch-14 Scryfall-keyword row: a `station` bearer ACCRUES charge
+# counters the deck wants to proliferate (CR 702.184 — the ADR-0034
+# cares-about side, distinct from the ported proliferate_makers doer row).
+_B14_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
+    (frozenset({"station"}), "proliferate_matters"),
+)
+
+
+def _keyword_field_signals_b14(keywords: frozenset[str], name: str) -> list[Signal]:
+    """The batch-14 Scryfall-keyword field-lookups (checklist #3 survivors)."""
+    low = {k.lower() for k in keywords}
+    return [
+        Signal(key, "you", "", "", name, "high")
+        for kws, key in _B14_KEYWORD_LANES
+        if low & kws
+    ]
+
+
+# ── Batch 14 lanes (ADR-0035 Stage 2 — first structural-remainder batch) ─────
+
+
+def _trigger_mode_tag(unit: AbilityUnit) -> str | None:
+    """A trigger unit's RAW phase mode tag (plain string or variant key)."""
+    mode = getattr(unit.node, "mode", None)
+    return mode if isinstance(mode, str) else tag_of(mode)
+
+
+def _type_matters_lane(tree: ConceptTree) -> list[Signal]:
+    """type_matters (§1, SUBJECT-CARRYING) — CR 205.3 / 109.3: a card that
+    CARES about a creature subtype / names a kindred population; the captured
+    subject (vocab-validated through ``_resolve_subject``, which carries the
+    ``NON_CREATURE_TOKEN`` denylist — CR 111.10 / 205.3g) is LOAD-BEARING.
+    A UNION, mirroring live's :11422-:11474 documentation:
+
+    * **Arm A (byte-identical kept mirror):** the four EXACT live producers
+      (``_detect_type_matters`` + ``_detect_multi_tribe_anthem`` +
+      ``_detect_keyword_implied_tribe`` + the type_matters rows of
+      ``_detect_typed_gy_recursion``), imported and re-run PER-CLAUSE over
+      the reminder-stripped kept oracle, forced scope "you", HIGH — live
+      measured regex_only == 0 against these producers.
+    * **Arm B (structural kindred):** subtypes of every non-opponent Typed
+      filter at an effect subject / count-operand / trigger valid_card /
+      static affected / condition site, vocab-resolved, HIGH "you" (the
+      live ``_kindred_subjects`` reads).
+
+    The MEMBERSHIP arms (own type_line race/class tribes + token-profile
+    subtypes, LOW) run as a granularity-c reconciliation in
+    :func:`extract_crosswalk_signals` — the class-tribe go_wide gate needs
+    the MERGED out-key set. No subject → no signal (the silent-drop
+    precision gate); dedupe by (key, scope, subject).
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def emit(subject: str, raw: str) -> None:
+        if subject and subject not in seen:
+            seen.add(subject)
+            out.append(
+                Signal(signal_keys.TYPE_MATTERS, "you", subject, raw, tree.name, "high")
+            )
+
+    vocab = CREATURE_SUBTYPES
+    for clause in clauses(_kept(tree)):
+        for _key, subject in _detect_type_matters(clause, vocab):
+            emit(subject, clause)
+        for _key, subject in _detect_multi_tribe_anthem(clause, vocab):
+            emit(subject, clause)
+        for _key, subject in _detect_keyword_implied_tribe(clause):
+            emit(subject, clause)
+        for key, _scope, subject in _detect_typed_gy_recursion(clause, vocab):
+            if key == signal_keys.TYPE_MATTERS:
+                emit(subject, clause)
+
+    def emit_filter(filt: object, raw: str) -> None:
+        if filt is None or filter_controller(filt) == "Opponent":
+            return
+        for s in filter_subtypes(filt):
+            emit(_resolve_subject(s, vocab), raw)
+
+    for unit in tree.units:
+        for c in unit.effects:
+            emit_filter(count_operand_filter(c.node), c.raw)
+            if c.concept != "make_token":
+                emit_filter(effect_filter(c.node), c.raw)
+        if unit.origin == "trigger":
+            emit_filter(getattr(unit.node, "valid_card", None), "")
+        if unit.origin == "static":
+            emit_filter(getattr(unit.node, "affected", None), "")
+        for cond in iter_condition_sites(unit.node):
+            for q in iter_typed_nodes(cond):
+                if tag_of(q) == "Typed":
+                    emit_filter(q, "")
+    return out
+
+
+def _removal(tree: ConceptTree) -> list[Signal]:
+    """removal (§2) — CR 701.8/701.8a: single-target destroy or burn of a
+    permanent. Two structural arms, scope "you", HIGH:
+
+    (a) effect-role ``Destroy`` (the tag — NOT ``DestroyAll``; ``tag_of`` is
+    the CR 115.10 mass discriminator, the b8 mass_removal precedent) whose
+    target names a permanent core type (``_PERMANENT_TYPES``, imported live
+    — Land excluded: "destroy target Island" is land_destruction's country,
+    CR 305.6) OR a non-land permanent SUBTYPE only ("destroy target Wall /
+    Equipment" — the live ``_is_permanent_subtype_destroy`` mirror);
+    (b) effect-role ``DealDamage`` (not DamageAll / DamageEachPlayer) with
+    the same subject test — a player-only burn (target ``Any`` / Player) has
+    no permanent-typed subject and stays direct_damage. Cost-role Destroy
+    never fires (effects-only read, granularity a).
+    """
+
+    def _perm_subject(target: object) -> bool:
+        ftypes = frozenset(filter_core_types(target))
+        if ftypes & _PERMANENT_TYPES:
+            return True
+        subs = filter_subtypes(target)
+        return bool(subs) and any(s.lower() not in _LIVE_LAND_SUBTYPES for s in subs)
+
+    for c in tree.effect_concepts("destroy"):
+        if tag_of(c.node) != "Destroy":
+            continue
+        if _perm_subject(getattr(c.node, "target", None)):
+            return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+    for c in tree.effect_concepts("deal_damage"):
+        if tag_of(c.node) != "DealDamage":
+            continue
+        if _perm_subject(getattr(c.node, "target", None)):
+            return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _tutor_lane(tree: ConceptTree) -> list[Signal]:
+    """tutor (§3) — CR 701.23/701.23a: kept-mirror-ONLY (verdict RE-CONFIRMED
+    against v0.9.0): the pinned ``TUTOR_MATTERS_REGEX`` flat over the
+    reminder-stripped oracle. Phase keeps a ``SearchLibrary`` effect for
+    EVERY search — opponent (Bribery carries ``target_player``), symmetric,
+    composite-zone, reminder-cycle (landcycling still parses to
+    SearchLibrary) — so raw structural ≫ live; the your-library +
+    reminder-stripping precision lives in the regex. The
+    ``SearchLibrary``-without-target_player structural read stays a
+    LOGGED-adds-only candidate (PARITY-BEFORE-VETO), not ported. Scope
+    "you", HIGH.
+    """
+    if TUTOR_MATTERS_REGEX.search(_kept(tree)):
+        return [Signal("tutor", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _proliferate_matters_lane(tree: ConceptTree) -> list[Signal]:
+    """proliferate_matters (§4) — CR 701.34/701.34a proliferate + CR
+    702.184/702.184a station + 721.1. Four live producers: the `station`
+    Scryfall-keyword row rides :func:`_keyword_field_signals_b14`; here the
+    two HIGH mirrors (divinity/indestructible enters-counter — the Myojin
+    cycle; charge/experience resource counters — Ezuri, Mizzix) and the LOW
+    remove-counter-activation-cost mirror (imported
+    ``_PROLIFERATE_REMOVE_COST_RE`` — LOW so the countdown-resource cards
+    keep their voltron tell), all flat over the kept oracle (live runs them
+    flat). v0.9.0 types the counter kinds, but mirror-parity stays cheapest
+    and exact — logged, not restructured.
+
+    **Logged live GAP (do NOT port):** v0.9.0 carries a first-class
+    "whenever you proliferate" payoff family (``PlayerPerformedAction
+    {player_actions: ['Proliferate']}`` — Ezuri Stalker of Spheres, Voidwing
+    Hybrid) with NONE in the live pop — a candidate adjudicated widen for a
+    fix batch (the has_mutate precedent), pinned by the Ezuri negative
+    fixture.
+    """
+    kept = _kept(tree)
+    out: list[Signal] = []
+    if _PROLIF_ENTERS_COUNTER_MIRROR.search(kept) or (
+        _PROLIF_RESOURCE_COUNTER_MIRROR.search(kept)
+    ):
+        out.append(Signal("proliferate_matters", "you", "", "", tree.name, "high"))
+    if _PROLIFERATE_REMOVE_COST_RE.search(kept):
+        out.append(Signal("proliferate_matters", "you", "", "", tree.name, "low"))
+    return out
+
+
+def _untap_engine(tree: ConceptTree) -> list[Signal]:
+    """untap_engine (§5) — CR 701.26/701.26b: a DELIBERATE untap engine.
+    Structural arm: an effect-role ``SetTapState{state: Untap}`` (the bare
+    ``Untap`` tag is the state SUB-node, not an effect), NOT opponent-
+    directed (target controller Opponent or the imported
+    ``_UNTAP_ENGINE_OPP_VETO`` raw — Provoke / Spinal Embrace untap an ENEMY
+    permanent), NOT a provoke force-block sibling, and either the scope-All
+    mass form (Early Harvest — probed verbatim) or a Typed target filter
+    with real card types (Candelabra "Untap X target lands", Snap "Untap up
+    to two lands" — a LIVE member, polarity from the banked pop) minus the
+    attach rider (Crab Umbra "untap enchanted creature" —
+    ``_UNTAP_ATTACH_VETO`` over the unit description, since the sub-effect
+    node carries none). Mirror arm: the imported engine-words + Ashaya
+    creatures-are-lands mirrors flat with the opp veto (Seedborn Muse fires
+    HERE via "untap all" — live-verified; no
+    UntapsDuringEachOtherPlayersUntapStep static arm, it stays the stax
+    gate-iii exclusion). Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        provoke = any(tag_of(c.node) in _FORCE_BLOCK_TAGS for c in unit.effects)
+        if provoke:
+            continue
+        for c in unit.effect_concepts("tap_untap"):
+            if settap_state(c.node) != "Untap":
+                continue
+            raw = c.raw or getattr(unit.node, "description", None) or ""
+            target = getattr(c.node, "target", None)
+            if filter_controller(target) == "Opponent":
+                continue
+            if _UNTAP_ENGINE_OPP_VETO.search(raw):
+                continue
+            mass = tag_of(getattr(c.node, "scope", None)) == "All"
+            typed_ok = (
+                tag_of(target) == "Typed"
+                and bool(filter_core_types(target))
+                and not _UNTAP_ATTACH_VETO.search(raw)
+            )
+            if mass or typed_ok:
+                return [Signal("untap_engine", "you", "", raw, tree.name, "high")]
+    kept = _kept(tree)
+    if not _UNTAP_ENGINE_OPP_VETO.search(kept) and (
+        _UNTAP_ENGINE_MIRROR_RAW.search(kept) or _UNTAP_ENGINE_MIRROR_LANDS.search(kept)
+    ):
+        return [Signal("untap_engine", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _theft_makers_lane(tree: ConceptTree) -> list[Signal]:
+    """theft_makers (§6) — CR DD9 (heist, digital supplement) + CR 613.1b:
+    the steal-and-cast DOER, kept-mirror-ONLY (the pinned
+    ``THEFT_MATTERS_REGEX`` flat, scope "opponents", HIGH — the ADR-0034
+    split; the LOW wants-side is the wants_theft facade). No structural arm:
+    the v0.9.0 steal family (``ExileFromTopUntil{player: Opponent}`` etc. —
+    Chaos Wand, Dazzling Sphinx, Bismuth Mindrender) feeds this same word
+    population, and a structural read would drag in Controller-player
+    self-exile forms ([P5] direction trap).
+    """
+    if _THEFT_MAKERS_RX.search(_kept(tree)):
+        return [Signal("theft_makers", "opponents", "", "", tree.name, "high")]
+    return []
+
+
+def _wants_cloning(tree: ConceptTree) -> list[Signal]:
+    """wants_cloning (§8) — CR 707.1 / 704.5j (legend rule) / 603.6: the
+    commander-as-CLONE-TARGET benefit lane (NOT a clone doer — clone_makers
+    is ported). Two LOW membership arms, byte-identical regex gates over the
+    kept oracle + the §0 builder fields:
+
+    (1) a LEGENDARY CREATURE (``card_supertypes`` + ``is_type``) whose value
+    is a repeatable engine — ``_PER_TURN_ENGINE_RE`` (per-turn triggers /
+    extra-turn/phase generators — Koma) OR a tap ability that is not a pure
+    lone mana dork (``_TAP_ABILITY_RE`` minus the single-"{T}"
+    ``_MANA_TAP_RE``);
+    (2) a HIGH-CMC card (``tree.cmc >= 5``) with a strong self-ETB or
+    self-dies clause (``_self_etb_value`` / ``_self_dies_value`` — Gyruda,
+    Kokusho).
+
+    NOTE the include_membership flag asymmetry (the b12 kill_engine
+    precedent): live gates these behind ``include_membership``; the
+    crosswalk has no such flag and live pops are measured with it True, so
+    the arms run unconditionally. Scope "you", LOW.
+    """
+    kept = _kept(tree)
+    if "Legendary" in tree.card_supertypes and tree.is_type("Creature"):
+        is_engine = bool(_PER_TURN_ENGINE_RE.search(kept)) or (
+            bool(_TAP_ABILITY_RE.search(kept))
+            and not (_MANA_TAP_RE.search(kept) and kept.count("{T}") == 1)
+        )
+        if is_engine:
+            return [Signal("wants_cloning", "you", "", kept[:160], tree.name, "low")]
+    if tree.cmc >= 5:
+        clone_clause = _self_etb_value(kept, tree.name) or _self_dies_value(
+            kept, tree.name
+        )
+        if clone_clause is not None:
+            return [Signal("wants_cloning", "you", "", clone_clause, tree.name, "low")]
+    return []
+
+
+def _unit_sacrifice_nodes(unit: AbilityUnit) -> list[TypedMirrorNode]:
+    """Every ``Sacrifice`` node of one unit — effect role AND activation-cost
+    leaves (a sacrifice COST is always the controller's, CR 701.21a; Gyome /
+    Gilded Goose carry theirs inside a ``Composite`` cost the top-level cost
+    decoration types ``other``)."""
+    out = [c.node for c in unit.effects if tag_of(c.node) == "Sacrifice"]
+    for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
+        if tag_of(leaf) == "Sacrifice":
+            out.append(leaf)
+    return out
+
+
+def _token_subtype_payoff(tree: ConceptTree, sub: str) -> list[Signal]:
+    """Shared food/clue cares-about arms (§9/§10) — CR 111.10b Food /
+    701.16a+111.10f Clue; one subtype-parameterized function, all "you"
+    HIGH:
+
+    (1) a ``Sacrifice`` of the subtype (effect OR cost role — Gyome probed
+    verbatim; Gilded Goose's "{T}, Sacrifice a Food: Add…" is a LIVE member,
+    polarity from the banked pop);
+    (2) the ``_TOKEN_SUBTYPE_OWN_REF`` marker re-derivation over the kept
+    oracle ("Foods you control" — Honored Dreyleader), gated to subtypes the
+    face does not already make/sacrifice (the live projection's made/sacd
+    dedup gate — a bare maker is <sub>_makers' country, never matters);
+    (3) a ``Sacrificed``-mode trigger whose ``valid_card`` names the subtype
+    (Experimental Confectioner probed verbatim).
+    """
+    key = f"{sub.lower()}_matters"
+    subl = sub.lower()
+    sacd: set[str] = set()
+    for unit in tree.units:
+        for node in _unit_sacrifice_nodes(unit):
+            subs = {s.lower() for s in filter_subtypes(getattr(node, "target", None))}
+            sacd |= subs
+            if subl in subs:
+                return [Signal(key, "you", "", "", tree.name, "high")]
+        if unit.origin == "trigger" and _trigger_mode_tag(unit) == "Sacrificed":
+            vc = getattr(unit.node, "valid_card", None)
+            if subl in {s.lower() for s in filter_subtypes(vc)}:
+                return [Signal(key, "you", "", "", tree.name, "high")]
+    made: set[str] = set()
+    for c in tree.effect_concepts("make_token"):
+        types = getattr(c.node, "types", None) or []
+        made |= {t.lower() for t in types if isinstance(t, str)}
+    if tree.has_effect("investigate"):
+        made.add("clue")  # Investigate IS "create a Clue token" (CR 701.16a)
+    for m in _TOKEN_SUBTYPE_OWN_REF.finditer(_kept(tree)):
+        ref = next(g for g in m.groups() if g).lower()
+        if ref == subl and ref not in made and ref not in sacd:
+            return [Signal(key, "you", "", m.group(0), tree.name, "high")]
+    return []
+
+
+def _food_matters_lane(tree: ConceptTree) -> list[Signal]:
+    """food_matters (§9) — see :func:`_token_subtype_payoff`."""
+    return _token_subtype_payoff(tree, "Food")
+
+
+def _clue_matters_lane(tree: ConceptTree) -> list[Signal]:
+    """clue_matters (§10) — the three shared structural arms plus the kept
+    RESIDUE mirror (``CLUE_MATTERS_REGEX`` — ``clue|investigate``) carrying
+    the modal-vote folds (Tivit), delayed triggers, token replacements and
+    becomes-Clue statics (In Too Deep). Breadth intended: bare investigate
+    DOERS fire matters too via the word (live behavior, the b13
+    suspend_matters precedent — port as-is).
+    """
+    hits = _token_subtype_payoff(tree, "Clue")
+    if hits:
+        return hits
+    if _CLUE_MATTERS_RX.search(_kept(tree)):
+        return [Signal("clue_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _pump_makers_lane(tree: ConceptTree) -> list[Signal]:
+    """pump_makers (§11) — CR 611.2c: the duration-scoped combat-trick BUFF.
+    Structural arm: an effect-role ``Pump``/``PumpAll`` whose unit (or
+    trigger execute wrapper, or the node itself) carries a duration (Giant
+    Growth's ``UntilEndOfTurn`` rides the ability node — probed verbatim) +
+    a positive fixed power (``power: {Fixed, value>0}``) or a "+" in the
+    grounding raw when the amount is dynamic + the firebreathing veto (an
+    Activated unit whose Pump target is SelfRef/absent — Shivan Dragon
+    probed verbatim; ported self_pump's country). Statics never fire (no
+    duration — Glorious Anthem / Ascendant Evincar). Mirror: the pinned
+    ``PUMP_MATTERS_REGEX`` flat. Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        if not any(c.concept == "pump" for c in unit.effects):
+            continue
+        # The duration rides WHICHEVER wrapper phase hung the buff on — the
+        # ability node (Giant Growth), the trigger execute, or a nested
+        # sub-ability wrapper ("Untap target creature. It gets +2/+2 …" —
+        # Act of Heroism chains the Pump behind the untap). Shadow-diff-
+        # tuned: the unit-node-only draft left the nested-wrapper triggered
+        # tricks behind (PARITY-BEFORE-VETO).
+        dur_unit = any(
+            node_duration(n) is not None for n in iter_typed_nodes(unit.node)
+        )
+        for c in unit.effect_concepts("pump"):
+            if not (dur_unit or node_duration(c.node)):
+                continue
+            if unit.kind == "Activated" and tag_of(getattr(c.node, "target", None)) in (
+                None,
+                "SelfRef",
+            ):
+                continue  # the firebreathing self-pump veto
+            p = getattr(c.node, "power", None)
+            raw = c.raw or getattr(unit.node, "description", None) or ""
+            # Positive gate (shadow-diff-tuned twice): a FIXED positive
+            # amount, or a "+" grounding for a dynamic/absent amount —
+            # but a DYNAMIC amount aimed at SELF ("gets +1/+0 for each
+            # attacking creature" — Akroan Hoplite, Erratic Cyclops) is a
+            # self-scaler, not a trick buffing ANOTHER creature (live's
+            # amount-None fallback never fired those; ported self_pump /
+            # scaling_pump country).
+            dynamic_ok = "+" in raw and (
+                p is None or tag_of(getattr(c.node, "target", None)) != "SelfRef"
+            )
+            positive = (tag_of(p) == "Fixed" and (getattr(p, "value", 0) or 0) > 0) or (
+                tag_of(p) != "Fixed" and dynamic_ok
+            )
+            if positive:
+                return [Signal("pump_makers", "you", "", raw, tree.name, "high")]
+    if _PUMP_MAKERS_RX.search(_kept(tree)):
+        return [Signal("pump_makers", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _self_counter_grow(tree: ConceptTree) -> list[Signal]:
+    """self_counter_grow (§12) — CR 122.1 + the adapt/monstrosity/renown
+    keyword actions (CR 701.46 / 701.37 / 702.104): the grow-ITSELF lane.
+
+    (a) effect-role ``PutCounter{counter_type: P1P1, target: SelfRef}``
+    (Scavenging Ooze probed verbatim); replacement-origin units additionally
+    require the replacement's ``valid_card`` SelfRef so "each other creature
+    enters with…" board grants (Master Biomancer) stay out — the probed ±97
+    role/replacement residue gate; ``PutCounterAll`` board spreads are
+    ported counter_distribute's country (tag gate).
+    (b) ``tag_of`` ∈ {Adapt, Monstrosity, Renown} effect nodes (Arbor
+    Colossus probed verbatim).
+    (c) the imported NARROWED ``_SELF_COUNTER_GROW_MIRROR`` per-clause (the
+    loose "on it" arm stays deliberately dropped — 103 over-fires) +
+    ``self_power_scale_match``. Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        for c in unit.effect_concepts("place_counter"):
+            if tag_of(c.node) != "PutCounter":
+                continue
+            if counter_kind(c.node) != "P1P1":
+                continue
+            if tag_of(getattr(c.node, "target", None)) != "SelfRef":
+                continue
+            if unit.origin == "replacement":
+                if tag_of(getattr(unit.node, "valid_card", None)) != "SelfRef":
+                    continue
+                # Devour veto (CR 702.82a — shadow-diff-tuned): the devour
+                # enters-with replacement chains a Sacrifice ahead of its
+                # SelfRef PutCounter (Mycoloth probed verbatim). The
+                # counters mirror a one-shot cast-time sacrifice — ported
+                # has_devour's country, and live uniformly no-fires the
+                # family (the un-vetoed draft added 20 devour cw-onlys).
+                if any(s.concept == "sacrifice" for s in unit.effects):
+                    continue
+            return [Signal("self_counter_grow", "you", "", c.raw, tree.name, "high")]
+        for c in unit.effects:
+            if tag_of(c.node) in _SELF_GROW_ACTION_TAGS:
+                return [
+                    Signal("self_counter_grow", "you", "", c.raw, tree.name, "high")
+                ]
+    kept = _kept(tree)
+    if any(
+        _SELF_COUNTER_GROW_MIRROR.search(cl) for cl in clauses(kept)
+    ) or self_power_scale_match(kept, tree.name):
+        return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _flash_matters_lane(tree: ConceptTree) -> list[Signal]:
+    """flash_matters (§13) — CR 702.8/702.8a, ADR-0034 branch B: ONLY the
+    opponent-turn cast PAYOFF (makers/grant are ported flash_makers /
+    flash_grant). Kept-mirror-ONLY. **Structural is a trap (probed):** phase
+    carries ``SpellCast + {OnlyDuringOpponentsTurn}`` for the plain form
+    (Faerie Tauntings) but DROPS the qualifier on the "first spell" form
+    (Alela, Wavebreak Hippocamp = ``NthSpellThisTurn{n:1}`` only —
+    indistinguishable from ported second_spell_matters), so the
+    OnlyDuringOpponentsTurn read stays LOGGED-adds-only (bucket-B
+    regex-bridge NOW, parser substrate LATER). Scope "you", HIGH.
+    """
+    if _FLASH_MATTERS_MIRROR.search(_kept(tree)):
+        return [Signal("flash_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _activated_ability(tree: ConceptTree) -> list[Signal]:
+    """activated_ability (§14) — CR 602.1: the tap/generic-mana value-engine
+    census. Units of kind "Activated" on a NON-Land card whose flattened
+    cost (``iter_cost_leaves``) carries a Tap/Untap leaf OR a generic-only
+    Mana leaf with no extra-cost leaf (``_AA_EXTRA_COST_TAGS`` — see the
+    Meloku parity pin there), with at least one effect concept outside the
+    live drop set ({ramp, attach} — a mana rock / dork never fires: Sol
+    Ring, Llanowar Elves, both live-verified non-members). Fires once per
+    card, scope "you", HIGH. NO kept mirror (live's own note: a mirror
+    re-floods on dorks).
+    """
+    if tree.is_type("Land"):
+        return []
+    for unit in tree.units:
+        if unit.origin != "ability" or unit.kind != "Activated":
+            continue
+        leaves = list(iter_cost_leaves(getattr(unit.node, "cost", None)))
+        tags = {tag_of(leaf) for leaf in leaves}
+        tapish = bool(tags & _AA_TAP_COST_TAGS)
+        genmana = False
+        for leaf in leaves:
+            if tag_of(leaf) != "Mana":
+                continue
+            cost = getattr(leaf, "cost", None)
+            generic = getattr(cost, "generic", 0) if cost is not None else 0
+            shards = getattr(cost, "shards", None) if cost is not None else ()
+            # A GENERIC component anywhere in the cost ({2}{U} counts —
+            # live's cost token fired on any generic part; an {X} shard is
+            # generic too). A pure colored cost ({R} firebreathing) has
+            # neither → no fire (Shivan Dragon, live-verified absent).
+            # Shadow-diff-tuned: a shards-empty draft left 1229 live
+            # members behind (PARITY-BEFORE-VETO).
+            if (isinstance(generic, int) and generic > 0) or "X" in (shards or ()):
+                genmana = True
+        if not (tapish or (genmana and not (tags & _AA_EXTRA_COST_TAGS))):
+            continue
+        if any(c.concept not in _ACTIVATED_ABILITY_DROP_EFFECTS for c in unit.effects):
+            return [Signal("activated_ability", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _mass_death_payoff(tree: ConceptTree) -> list[Signal]:
+    """mass_death_payoff (§15) — CR 700.4: the AGGREGATE board-wipe payoff
+    ("for each creature that died this turn" — Gadrak), NOT the single-death
+    morbid conditional (death_matters — Bone Picker, Skirsdag; checklist
+    #4). The imported ``_MASS_DEATH_REF`` per-clause (the ``[^.]*`` span is
+    clause-local) — exact parity by construction (the live marker IS this
+    regex over face text). **Structural is a trap (probed):** the typed
+    ``ZoneChangeCountThisTurn`` operand carries 99 corpus cards, ~80 of them
+    morbid CONDITIONALS — an amount-position read stays a LOGGED assist
+    (bucket-A-adjacent: preserve-from-node possible later). Scope "you",
+    HIGH.
+    """
+    for cl in clauses(_kept(tree)):
+        if _MASS_DEATH_REF.search(cl):
+            return [Signal("mass_death_payoff", "you", "", cl, tree.name, "high")]
+    return []
+
+
+def _destroy_legendary(tree: ConceptTree) -> list[Signal]:
+    """destroy_legendary (§16) — CR 205.4 + 701.8a: a destroy whose target
+    filter carries the ``HasSupertype: Legendary`` property (probed
+    verbatim: exactly 5 corpus carriers == the exact live 5). ``Destroy`` OR
+    ``DestroyAll`` (the mass form fires HERE though not `removal` — Invasion
+    of Fiora). "Nonlegendary" (NotSupertype — Cast Down) is the OPPOSITE and
+    never fires. Scope "any" (live's forced scope).
+    """
+    for c in tree.effect_concepts("destroy"):
+        target = getattr(c.node, "target", None)
+        if target is not None and has_filter_property(
+            target, "HasSupertype", "Legendary"
+        ):
+            return [Signal("destroy_legendary", "any", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _opponent_exile_matters_lane(tree: ConceptTree) -> list[Signal]:
+    """opponent_exile_matters (§17) — CR 406.1: the REFERENCES-their-exile
+    payoff (ADR-0034 split; the graveyard-hate DOER is ported
+    opponent_exile_makers — Bojuka Bog never fires here). Kept-mirror-ONLY;
+    pop is exactly {Umbris, Fear Manifest; That Which Was Compleated} — a
+    2-card lane earns no structural arm (Umbris's count operand IS typed in
+    v0.9.0; mirror parity is total). Scope "opponents", HIGH.
+    """
+    if _OPP_EXILE_MATTERS_MIRROR.search(_kept(tree)):
+        return [
+            Signal("opponent_exile_matters", "opponents", "", "", tree.name, "high")
+        ]
+    return []
+
+
+def _opponent_search_matters(tree: ConceptTree) -> list[Signal]:
+    """opponent_search_matters (§18) — CR 701.23 / 701.22 / 701.25: punish
+    opponents' library manipulation. Trigger units with raw mode ∈
+    {SearchedLibrary, Shuffled} OR a ``PlayerPerformedAction`` whose
+    ``player_actions`` NAME the library search and are ⊆ the
+    scry/surveil/search set (the imported live
+    ``_LIB_SEARCH_PLAYER_ACTIONS`` frozenset + subset test — River Song's
+    composite probed verbatim; Proliferate composites excluded), AND
+    ``trigger_scope == "opponents"`` (valid_target Opponent). The YOU/any-
+    scoped forms (Matoya / Planetarium — §R(c)'s country; Search Elemental —
+    scope any, not commander-legal) are EXCLUDED. Scope "opponents", HIGH.
+    """
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        mode_s = _trigger_mode_tag(unit)
+        is_search = mode_s in _OPP_SEARCH_MODES
+        if not is_search and mode_s == "PlayerPerformedAction":
+            actions = getattr(unit.node, "player_actions", None)
+            norm = {a.lower() for a in actions or () if isinstance(a, str)}
+            is_search = bool(
+                norm
+                and "searchedlibrary" in norm
+                and norm <= _LIB_SEARCH_PLAYER_ACTIONS
+            )
+        if is_search and trigger_scope(unit.node) == "opponents":
+            return [
+                Signal(
+                    "opponent_search_matters", "opponents", "", "", tree.name, "high"
+                )
+            ]
+    return []
+
+
+def _color_hoser(tree: ConceptTree) -> list[Signal]:
+    """color_hoser (§19) — CR 105.2 + 613.1e-adjacent: removal keyed on a
+    SPECIFIC color. Mirror-primary (the imported live ``_COLOR_HOSER_RE``
+    flat — covers the debuff / can't-cast / protection alternations phase
+    scatters) + the structural assist: an effect-role ``Destroy`` /
+    ``Counter`` / ``ChangeZone→Exile`` whose target carries a ``HasColor``
+    property (probed: 34 direct carriers, 27 live), gated to effect role
+    (the "March of" cycle's cost-role exile never fires — effects-only read)
+    and NOT a your-graveyard subject (Kaervek's "exile … black card from
+    your graveyard" is self-recursion, [P5] direction). **Logged live GAP:**
+    two-color disjunctions (Deathmark, Celestial Purge) carry NO direct
+    HasColor and live misses them too — candidate adjudicated widen, NOT
+    parity (pinned by the Deathmark negative). Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        for c in unit.effects:
+            t = tag_of(c.node)
+            hosing = t in ("Destroy", "Counter") or (
+                t == "ChangeZone" and change_zone_dirs(c.node)[1] == "Exile"
+            )
+            if not hosing:
+                continue
+            target = getattr(c.node, "target", None)
+            # DIRECT carrier only: a top-level Typed filter whose OWN
+            # properties name the color. An Or-of-colors disjunction
+            # (Deathmark's green-or-white) is the logged live GAP — a
+            # recursing read would over-fire past parity.
+            if tag_of(target) != "Typed":
+                continue
+            direct = any(
+                tag_of(p) == "HasColor" for p in getattr(target, "properties", ()) or ()
+            )
+            if not direct:
+                continue
+            if "Graveyard" in filter_inzone_zones(target) and (
+                filter_controller(target) != "Opponent"
+            ):
+                continue  # your-graveyard self-recursion, not hosing
+            return [Signal("color_hoser", "you", "", c.raw, tree.name, "high")]
+    if _COLOR_HOSER_RE.search(_kept(tree)):
+        return [Signal("color_hoser", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _coven_matters_lane(tree: ConceptTree) -> list[Signal]:
+    """coven_matters (§20) — CR 207.2c (coven IS an ability word; ability
+    words have no rules meaning — the word IS the mechanic's only stable
+    anchor). Kept-mirror-ONLY: ``\\bcoven\\b`` flat. Bearers fire
+    (ability-word membership IS the lane — Leinore; checklist #4).
+    **Structural is a trap (probed):** phase renders coven as generic
+    ``QuantityCheck``/``ObjectCountDistinct`` (+ one misparse — Sungold
+    Sentinel), shapes that also serve non-coven distinct-count cards
+    ([P-family generic condition fold; supplement-fixable only if a Coven
+    condition kind lands]). The Hourglass Coven fires via its own
+    name-reference in oracle text — an acknowledged quirk, ported as-is +
+    LOGGED (the b13 Blue Screen of Death precedent). Scope "you", HIGH.
+    """
+    if _COVEN_MIRROR.search(_kept(tree)):
+        return [Signal("coven_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _crimes_matter(tree: ConceptTree) -> list[Signal]:
+    """crimes_matter (§21) — CR 700.13 + glossary "Crime": (a) trigger units
+    with raw mode ``CommitCrime`` (probed: 21 corpus carriers, ALL in live,
+    0 extra); (b) the imported ``_CRIME_REF`` condition-form anchor over the
+    kept oracle, gated to trees with NO CommitCrime trigger (the exact live
+    marker gate — 21 + 7 = 28 = the whole pop). Fixability: the condition
+    form is a real phase gap ([P20]-adjacent condition-kind hole —
+    bucket B: regex-bridge NOW, parser substrate LATER). Scope "you", HIGH.
+    """
+    has_trigger = any(
+        u.origin == "trigger" and _trigger_mode_tag(u) == "CommitCrime"
+        for u in tree.units
+    )
+    if has_trigger:
+        return [Signal("crimes_matter", "you", "", "", tree.name, "high")]
+    m = _CRIME_REF.search(_kept(tree))
+    if m is not None:
+        return [Signal("crimes_matter", "you", "", m.group(0), tree.name, "high")]
+    return []
+
+
+def _outlaw_matters_lane(tree: ConceptTree) -> list[Signal]:
+    """outlaw_matters (§22) — CR 700.12/700.12a: kept-mirror-ONLY
+    (``\\boutlaws?\\b`` flat). Phase faithfully expands the word to the CR
+    700.12 five-subtype AnyOf filter (Olivia, Jasper Flint — probed
+    verbatim), so an exact-five-AnyOf structural read is available as a
+    LOGGED assist — but the mirror already covers the pop and the AnyOf
+    shape adds parse-dependence for zero recall today. An outlaw-TYPED
+    creature without the word (Anowon — Rogue tribal) deliberately does NOT
+    fire (the CR 700.12 membership direction the lane does not open;
+    checklist #4). Scope "you", HIGH.
+    """
+    if _OUTLAW_MIRROR.search(_kept(tree)):
+        return [Signal("outlaw_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
 _LANES = (
     _win_lose_game,
     _discard_makers,
@@ -7510,6 +8437,27 @@ _LANES = (
     _poison_matters,
     _suspend_matters,
     _keyword_tribe,
+    _type_matters_lane,
+    _removal,
+    _tutor_lane,
+    _proliferate_matters_lane,
+    _untap_engine,
+    _theft_makers_lane,
+    _wants_cloning,
+    _food_matters_lane,
+    _clue_matters_lane,
+    _pump_makers_lane,
+    _self_counter_grow,
+    _flash_matters_lane,
+    _activated_ability,
+    _mass_death_payoff,
+    _destroy_legendary,
+    _opponent_exile_matters_lane,
+    _opponent_search_matters,
+    _color_hoser,
+    _coven_matters_lane,
+    _crimes_matter,
+    _outlaw_matters_lane,
 )
 
 
@@ -7557,11 +8505,75 @@ def extract_crosswalk_signals(
         add(sig)
     for sig in _keyword_field_signals_b13(frozenset(keywords), tree.name):
         add(sig)
+    for sig in _keyword_field_signals_b14(frozenset(keywords), tree.name):
+        add(sig)
 
     # Whole-card reconciliation (granularity c): cross-open spellcast_matters LOW
     # from a spell-copier that has no native spellcast signal in this batch.
     out_keys = {s.key for s in out}
     if "spell_copy_makers" in out_keys and "spellcast_matters" not in out_keys:
         add(Signal("spellcast_matters", "you", "", "", tree.name, "low"))
+
+    # b14 §7 — the wants_theft hybrid-FACADE reconciliation (CR 800.4a; the
+    # spell_copy precedent above): a battlefield-steal (gain_control in the
+    # MERGED out keys) or a "don't own" payoff tell over the RAW oracle opens
+    # the LOW wants_theft benefit lane; a dont_own tell with NO structural
+    # gain_control also restores the facade's LOW gain_control half.
+    # include_membership flag asymmetry noted at _wants_cloning — live gates
+    # this behind include_membership, the crosswalk runs it unconditionally
+    # (live pops measured with the flag True; the b12 kill_engine precedent).
+    out_keys = {s.key for s in out}
+    gc_now = "gain_control" in out_keys
+    dont_own = _DONT_OWN_RX.search(tree.oracle or "")
+    if (gc_now or dont_own) and "wants_theft" not in out_keys:
+        add(Signal("wants_theft", "opponents", "", "", tree.name, "low"))
+    if dont_own and not gc_now:
+        add(Signal("gain_control", "you", "", "", tree.name, "low"))
+
+    # b14 §1 arm C — the type_matters MEMBERSHIP reconciliation (LOW; runs
+    # AFTER the lane loop so the class-tribe go_wide gate reads the MERGED
+    # out keys and a HIGH lane firing wins the ident dedupe):
+    # (i) own type_line subtype — race tribes (TRIBAL_SUBTYPES) fire
+    # unconditionally, class tribes (CLASS_TRIBES) only behind a go-wide
+    # signal (CR 205.3);
+    # (ii) token-profile subtypes — the Token effect nodes' creature-token
+    # ``types`` (the b13 has_devour token-profile precedent; ``human``
+    # excluded, matching live's all_parts arm) UNION the byte-identical
+    # ``_detect_token_maker`` mirror per-clause (Krenko makes Goblins →
+    # wants Goblin lords). Live's all_parts membership can fire tokens the
+    # PHASE record doesn't name (bulk-side data) → a small live_only
+    # membership tail is a documented join artifact (the b13 island_matters
+    # precedent), NOT chased with bulk reads.
+    out_keys = {s.key for s in out}
+    go_wide = bool(out_keys & {"creatures_matter", "attack_matters", "anthem_static"})
+    if tree.is_type("Creature"):
+        for st in tree.card_subtypes:
+            sl = st.lower()
+            if sl in TRIBAL_SUBTYPES or (sl in CLASS_TRIBES and go_wide):
+                add(
+                    Signal(
+                        signal_keys.TYPE_MATTERS,
+                        "you",
+                        sl.capitalize(),
+                        "",
+                        tree.name,
+                        "low",
+                    )
+                )
+    token_subjects: set[str] = set()
+    for c in tree.effect_concepts("make_token"):
+        types = [t for t in getattr(c.node, "types", None) or [] if isinstance(t, str)]
+        if "Creature" not in types:
+            continue
+        for t in types:
+            sub = _resolve_subject(t, CREATURE_SUBTYPES)
+            if sub and sub.lower() != "human":
+                token_subjects.add(sub)
+    for clause in clauses(_kept(tree)):
+        for _key, sub in _detect_token_maker(clause, CREATURE_SUBTYPES):
+            if sub:
+                token_subjects.add(sub)
+    for sub in token_subjects:
+        add(Signal(signal_keys.TYPE_MATTERS, "you", sub, "", tree.name, "low"))
 
     return out

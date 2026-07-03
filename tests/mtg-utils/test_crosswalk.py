@@ -3947,6 +3947,385 @@ def test_keyword_tribe_subject_carrying_mirror():
     assert "keyword_tribe" not in _keys("Whirlwind")
 
 
+# ── Batch 14: the first structural-remainder batch ───────────────────────────
+
+
+def _confidences(name: str, key: str) -> set[str]:
+    sigs = extract_crosswalk_signals(_tree(name), keywords=_kw(name))
+    return {s.confidence for s in sigs if s.key == key}
+
+
+def test_type_matters_mirror_subjects_are_load_bearing():
+    """CR 205.3 / 109.3: the four byte-identical kept producers emit the
+    vocab-validated SUBJECT — Magda's "Other Dwarves you control"
+    (IGNORECASE is load-bearing), Kaalia's _TRIBE_LIST_RE hand-drop,
+    Lovisa's _MULTI_TRIBE_HEAD_RE three-tribe anthem."""
+    assert ("type_matters", "you", "Dwarf") in _idents("Magda, Brazen Outlaw")
+    kaalia = _idents("Kaalia of the Vast")
+    for sub in ("Angel", "Demon", "Dragon"):
+        assert ("type_matters", "you", sub) in kaalia, sub
+    lovisa = _idents("Lovisa Coldeyes")
+    for sub in ("Barbarian", "Warrior", "Berserker"):
+        assert ("type_matters", "you", sub) in lovisa, sub
+
+
+def test_type_matters_structural_count_and_token_cross_open():
+    """Krenko fires Goblin HIGH via the typed count operand
+    (Ref→ObjectCount filter, the structural arm) AND the token cross-open
+    (a LOW that dedupes under the HIGH ident)."""
+    assert ("type_matters", "you", "Goblin") in _idents("Krenko, Mob Boss")
+    assert _confidences("Krenko, Mob Boss", "type_matters") == {"high"}
+
+
+def test_type_matters_gates_no_subject_no_signal():
+    """A generic anthem (Glorious Anthem) captures no subject; a Food-token
+    maker's profile is NON_CREATURE_TOKEN-denied (Gilded Goose never mints
+    a Food subject — CR 111.10 / 205.3g; its Bird membership row is the
+    separate own-subtype arm)."""
+    assert "type_matters" not in _keys("Glorious Anthem")
+    goose = _idents("Gilded Goose")
+    assert ("type_matters", "you", "Food") not in goose
+    assert ("type_matters", "you", "Bird") in goose
+
+
+def test_removal_destroy_and_damage_arms():
+    """CR 701.8a: single-target destroy (Hero's Downfall) and burn (Flame
+    Slash) of a permanent fire; the mass forms (Wrath of God — DestroyAll,
+    CR 115.10) and player-only burn (Lightning Bolt — target Any) never
+    fire."""
+    assert ("removal", "you", "") in _idents("Hero's Downfall")
+    assert ("removal", "you", "") in _idents("Flame Slash")
+    assert "removal" not in _keys("Wrath of God")
+    assert "removal" not in _keys("Lightning Bolt")
+
+
+def test_tutor_kept_mirror_only():
+    """CR 701.23a: the pinned "search your library for" mirror fires
+    Demonic Tutor; Bribery searches an OPPONENT's library ("your library"
+    absent — and the v0.9.0 ``target_player`` node pins the structural
+    boundary too) and never fires."""
+    assert ("tutor", "you", "") in _idents("Demonic Tutor")
+    assert "tutor" not in _keys("Bribery")
+
+
+def test_proliferate_matters_four_producers_and_boundaries():
+    """CR 701.34a + 702.184a: the station keyword row (Adagia — a station
+    card ACCRUES charge counters), the divinity/indestructible mirror
+    (Myojin), the charge/experience mirror (Ezuri Claw), and the LOW
+    remove-counter-cost mirror (Migloz — LOW asserted) fire; a Proliferate
+    KEYWORD bearer is the ported proliferate_makers DOER and must not fire
+    matters (Atraxa), and the "whenever you proliferate" payoff family is
+    the LOGGED live gap (Ezuri, Stalker of Spheres — pins both the gap and
+    the makers/matters boundary)."""
+    assert ("proliferate_matters", "you", "") in _idents("Adagia, Windswept Bastion")
+    assert ("proliferate_matters", "you", "") in _idents("Myojin of Cleansing Fire")
+    assert ("proliferate_matters", "you", "") in _idents("Ezuri, Claw of Progress")
+    assert _confidences("Migloz, Maze Crusher", "proliferate_matters") == {"low"}
+    atraxa = _keys("Atraxa, Praetors' Voice")
+    assert "proliferate_matters" not in atraxa
+    assert "proliferate_makers" in atraxa
+    ezuri = _keys("Ezuri, Stalker of Spheres")
+    assert "proliferate_matters" not in ezuri
+    assert "proliferate_makers" in ezuri
+
+
+def test_untap_engine_structural_and_mirror_arms():
+    """CR 701.26b: the scope-All mass untap (Early Harvest — probed
+    verbatim), the typed multi-target subject (Candelabra "Untap X target
+    lands"; Snap "Untap up to two lands" — a LIVE member, polarity from the
+    banked pop), and the mirror (Seedborn Muse via "untap all", NOT an
+    UntapsDuringEachOtherPlayersUntapStep static read) fire; the
+    enchanted-rider (Crab Umbra — attach veto) never fires."""
+    for name in ("Early Harvest", "Candelabra of Tawnos", "Snap", "Seedborn Muse"):
+        assert ("untap_engine", "you", "") in _idents(name), name
+    assert "untap_engine" not in _keys("Crab Umbra")
+
+
+def test_theft_makers_mirror_only_and_exchange_boundary():
+    """CR DD9 (heist) + 613.1b: the steal-and-cast doers fire (Dazzling
+    Sphinx's exile-until; Gríma's play-from-their-hand); a control EXCHANGE
+    (Gilded Drake) is ported gain_control/control_exchange country and a
+    regex non-match."""
+    assert ("theft_makers", "opponents", "") in _idents("Dazzling Sphinx")
+    assert ("theft_makers", "opponents", "") in _idents("Gríma, Saruman's Footman")
+    assert "theft_makers" not in _keys("Gilded Drake")
+
+
+def test_wants_theft_facade_reconciliation():
+    """CR 800.4a: the gain_control cross-open (Abduction) and the don't-own
+    arm (Thieving Amalgam — also restores the facade's LOW gain_control
+    half) fire wants_theft LOW; plain removal (Hero's Downfall) never
+    fires."""
+    assert ("wants_theft", "opponents", "") in _idents("Abduction")
+    amalgam = _idents("Thieving Amalgam")
+    assert ("wants_theft", "opponents", "") in amalgam
+    assert ("gain_control", "you", "") in amalgam
+    assert "wants_theft" not in _keys("Hero's Downfall")
+    assert _confidences("Thieving Amalgam", "wants_theft") == {"low"}
+
+
+def test_wants_cloning_membership_arms():
+    """CR 707.1 / 704.5j / 603.6: a legendary-creature ENGINE (Koma's
+    per-upkeep token engine) and a cmc>=5 self-ETB value (Gyruda) fire LOW;
+    a non-creature (Glorious Anthem) and a vanilla legendary with no
+    engine/ETB (Isamaru) never fire."""
+    assert ("wants_cloning", "you", "") in _idents("Koma, Cosmos Serpent")
+    assert ("wants_cloning", "you", "") in _idents("Gyruda, Doom of Depths")
+    assert _confidences("Koma, Cosmos Serpent", "wants_cloning") == {"low"}
+    assert "wants_cloning" not in _keys("Glorious Anthem")
+    assert "wants_cloning" not in _keys("Isamaru, Hound of Konda")
+
+
+def test_food_matters_three_arms_and_maker_boundary():
+    """CR 111.10b: the sacrifice arm — cost role included, CR 701.21a a
+    sacrifice cost is the controller's (Gyome; Gilded Goose's "{T},
+    Sacrifice a Food: Add…" is a LIVE member, polarity from the banked
+    pop), the Sacrificed-trigger arm (Experimental Confectioner) and the
+    "Foods you control" marker arm (Honored Dreyleader) fire; a pure MAKER
+    (Bake into a Pie — create-only) is food_makers' country."""
+    for name in (
+        "Gyome, Master Chef",
+        "Gilded Goose",
+        "Experimental Confectioner",
+        "Honored Dreyleader",
+    ):
+        assert ("food_matters", "you", "") in _idents(name), name
+    pie = _keys("Bake into a Pie")
+    assert "food_matters" not in pie
+    assert "food_makers" in pie
+
+
+def test_clue_matters_structural_and_residue_mirror():
+    """CR 701.16a + 111.10f: the word mirror carries the investigate DOER
+    (Thraben Inspector — breadth intended, the b13 suspend_matters
+    precedent; clue_makers co-fires), the becomes-Clue static (In Too
+    Deep) and the trigger+mirror pair (Bygone Bishop); no clue text, no
+    fire (Hero's Downfall)."""
+    inspector = _keys("Thraben Inspector")
+    assert "clue_matters" in inspector
+    assert "clue_makers" in inspector
+    assert ("clue_matters", "you", "") in _idents("In Too Deep")
+    assert ("clue_matters", "you", "") in _idents("Bygone Bishop")
+    assert "clue_matters" not in _keys("Hero's Downfall")
+
+
+def test_pump_makers_duration_gate_and_firebreathing_veto():
+    """CR 611.2c: the duration-scoped trick fires (Giant Growth —
+    UntilEndOfTurn on the ability node, probed verbatim); the activated
+    SELF-pump (Shivan Dragon — Pump{target: SelfRef}, ported self_pump's
+    country), the duration-less static (Glorious Anthem) and the debuff
+    (Ascendant Evincar — negative factor) never fire."""
+    assert ("pump_makers", "you", "") in _idents("Giant Growth")
+    assert "pump_makers" not in _keys("Shivan Dragon")
+    assert "pump_makers" not in _keys("Glorious Anthem")
+    assert "pump_makers" not in _keys("Ascendant Evincar")
+
+
+def test_self_counter_grow_selfref_and_keyword_actions():
+    """CR 122.1 + 701.46/701.37/702.104: the PutCounter{P1P1, SelfRef} arm
+    (Scavenging Ooze) and the Monstrosity keyword-action node (Arbor
+    Colossus) fire; the board-wide spread (Cathars' Crusade —
+    PutCounterAll, ported counter_distribute's country) and a counter-less
+    pump (Giant Growth) never fire."""
+    assert ("self_counter_grow", "you", "") in _idents("Scavenging Ooze")
+    assert ("self_counter_grow", "you", "") in _idents("Arbor Colossus")
+    assert "self_counter_grow" not in _keys("Cathars' Crusade")
+    assert "self_counter_grow" not in _keys("Giant Growth")
+
+
+def test_flash_matters_opponent_turn_cast_payoff_mirror():
+    """CR 702.8a, ADR-0034 branch B: the opponent-turn cast payoff fires
+    (Faerie Tauntings; Alela's "first spell during each opponent's turn" —
+    the form phase drops the qualifier on, the mirror's whole point); a
+    flash-speed spell with no payoff (Snap) and a flash GRANTER (Teferi,
+    Mage of Zhalfir — ported flash_makers' country) never fire."""
+    assert ("flash_matters", "you", "") in _idents("Faerie Tauntings")
+    assert ("flash_matters", "you", "") in _idents("Alela, Cunning Conqueror")
+    assert "flash_matters" not in _keys("Snap")
+    assert "flash_matters" not in _keys("Teferi, Mage of Zhalfir")
+
+
+def test_activated_ability_cost_census():
+    """CR 602.1: a tap-cost value engine (Prodigal Sorcerer), the Meloku
+    cost-vocabulary parity pin ({1} + Return a land — ReturnToHand is
+    deliberately NOT in the extra-cost exclusion set) and a generic-mana
+    one-shot (Sensei's Top "{1}:") fire; a mana dork/rock (Llanowar
+    Elves, Sol Ring, Azorius Signet — ramp-only effects) and a land
+    (Bojuka Bog) never fire."""
+    for name in (
+        "Prodigal Sorcerer",
+        "Meloku the Clouded Mirror",
+        "Sensei's Divining Top",
+    ):
+        assert ("activated_ability", "you", "") in _idents(name), name
+    for name in ("Llanowar Elves", "Sol Ring", "Azorius Signet", "Bojuka Bog"):
+        assert "activated_ability" not in _keys(name), name
+
+
+def test_mass_death_payoff_aggregate_head_only():
+    """CR 700.4: the AGGREGATE "for each … died this turn" head fires
+    (Gadrak, Grizzly Ghoul); the single-death morbid conditional (Skirsdag
+    High Priest) and the cost reducer (Bone Picker) are plain death_matters
+    country — no "for each / number of" head, no fire (checklist #4)."""
+    assert ("mass_death_payoff", "you", "") in _idents("Gadrak, the Crown-Scourge")
+    assert ("mass_death_payoff", "you", "") in _idents("Grizzly Ghoul")
+    assert "mass_death_payoff" not in _keys("Skirsdag High Priest")
+    assert "mass_death_payoff" not in _keys("Bone Picker")
+
+
+def test_destroy_legendary_supertype_predicate():
+    """CR 205.4 + 701.8a: the HasSupertype:Legendary target predicate fires
+    (Bounty Agent, Hero's Demise — 5/5 exact live census); NotSupertype
+    ("nonlegendary" — Cast Down) is the OPPOSITE and a bare destroy
+    (Hero's Downfall) carries no predicate."""
+    assert ("destroy_legendary", "any", "") in _idents("Bounty Agent")
+    assert ("destroy_legendary", "any", "") in _idents("Hero's Demise")
+    assert "destroy_legendary" not in _keys("Cast Down")
+    assert "destroy_legendary" not in _keys("Hero's Downfall")
+
+
+def test_opponent_exile_matters_reference_vs_doer():
+    """CR 406.1, ADR-0034 split: the REFERENCES-their-exile payoff fires
+    (Umbris — "for each card your opponents own in exile"); the
+    graveyard-hate DOER (Bojuka Bog) is ported opponent_exile_makers."""
+    assert ("opponent_exile_matters", "opponents", "") in _idents(
+        "Umbris, Fear Manifest"
+    )
+    assert "opponent_exile_matters" not in _keys("Bojuka Bog")
+
+
+def test_opponent_search_matters_trigger_modes():
+    """CR 701.23/701.22/701.25: SearchedLibrary (Ob Nixilis), the
+    PlayerPerformedAction composite NAMING the search (River Song) and
+    Shuffled (Psychic Surgery) fire when opponent-scoped; the YOU-scoped
+    scry/surveil composite (Matoya) is §R(c)'s country — cross-lane."""
+    assert ("opponent_search_matters", "opponents", "") in _idents(
+        "Ob Nixilis, Unshackled"
+    )
+    assert ("opponent_search_matters", "opponents", "") in _idents("River Song")
+    assert ("opponent_search_matters", "opponents", "") in _idents("Psychic Surgery")
+    matoya = _keys("Matoya, Archon Elder")
+    assert "opponent_search_matters" not in matoya
+    assert "scry_surveil_matters" in matoya
+
+
+def test_color_hoser_mirror_and_direct_structural_carrier():
+    """CR 105.2: the modal counter/destroy hoser (Blue Elemental Blast —
+    direct HasColor carrier + mirror) and the non{color} debuff mirror arm
+    (Ascendant Evincar) fire; the two-color disjunction (Deathmark — an
+    Or-of-colors, NO direct HasColor) is the LOGGED live gap and pins
+    parity; no color word, no fire (Swords to Plowshares)."""
+    assert ("color_hoser", "you", "") in _idents("Blue Elemental Blast")
+    assert ("color_hoser", "you", "") in _idents("Ascendant Evincar")
+    assert "color_hoser" not in _keys("Deathmark")
+    assert "color_hoser" not in _keys("Swords to Plowshares")
+
+
+def test_coven_matters_ability_word_membership():
+    """CR 207.2c: coven is an ability word — the word IS the anchor and
+    BEARERS fire (Leinore, Augur of Autumn — membership IS the lane,
+    checklist #4); no coven word, no fire (Glorious Anthem)."""
+    assert ("coven_matters", "you", "") in _idents("Leinore, Autumn Sovereign")
+    assert ("coven_matters", "you", "") in _idents("Augur of Autumn")
+    assert "coven_matters" not in _keys("Glorious Anthem")
+
+
+def test_crimes_matter_trigger_and_condition_anchor():
+    """CR 700.13: the CommitCrime trigger mode (Gisa, Vadmir) and the
+    condition-form anchor gated to no-trigger faces (Nimble Brigand, Oko
+    the Ringleader — the [P20]-adjacent condition-kind hole, bucket-B
+    regex-bridge) fire; targeting an opponent's creature without saying
+    crime (Murder) never fires."""
+    assert ("crimes_matter", "you", "") in _idents("Gisa, the Hellraiser")
+    assert ("crimes_matter", "you", "") in _idents("Vadmir, New Blood")
+    assert ("crimes_matter", "you", "") in _idents("Nimble Brigand")
+    assert ("crimes_matter", "you", "") in _idents("Oko, the Ringleader")
+    assert "crimes_matter" not in _keys("Murder")
+
+
+def test_outlaw_matters_word_vs_typed_membership():
+    """CR 700.12/700.12a: the word fires (Olivia; Laughing Jasper Flint —
+    who also fires wants_theft via don't-own, cross-lane); an outlaw-TYPED
+    tribal without the word (Anowon — Rogue lord) and a crime card with no
+    outlaw word (Oko) never fire — the CR 700.12 membership direction the
+    lane deliberately does not open."""
+    assert ("outlaw_matters", "you", "") in _idents("Olivia, Opulent Outlaw")
+    jasper = _idents("Laughing Jasper Flint")
+    assert ("outlaw_matters", "you", "") in jasper
+    assert ("wants_theft", "opponents", "") in jasper
+    assert "outlaw_matters" not in _keys("Anowon, the Ruin Thief")
+    assert "outlaw_matters" not in _keys("Oko, the Ringleader")
+
+
+# ── Batch 14 §R: recall follow-ups on PORTED lanes ───────────────────────────
+
+
+def test_opp_top_exile_change_zone_and_choose_chain_extensions():
+    """§R(a) — CR 406.1: the exile-from-opponent-library head (Brainstealer
+    Dragon, Stolen Strategy — ChangeZone→Exile + Typed{Opponent} +
+    InZone:Library, probed verbatim) and the choose-from-their-zones chain
+    (Covetous Urge — ChooseFromZone + sibling exile + CastFromZone) fire;
+    graveyard hate (Bojuka Bog) never fires. Nassari, Dean of Expression
+    was banked as the one logged add (hook: the same steal-and-cast
+    contract); the shadow diff's DFC same-oid union shows live firing the
+    joined "Uvilda // Nassari" record, so the arm lands the face as BOTH —
+    this assertion pins the face-level firing either way."""
+    assert ("opp_top_exile", "you", "") in _idents("Brainstealer Dragon")
+    assert ("opp_top_exile", "you", "") in _idents("Stolen Strategy")
+    assert ("opp_top_exile", "you", "") in _idents("Covetous Urge")
+    assert "opp_top_exile" not in _keys("Bojuka Bog")
+    assert ("opp_top_exile", "you", "") in _idents("Nassari, Dean of Expression")
+
+
+def test_stax_census_cantcastfrom_and_block_modes():
+    """§R(b) — CR 601.3 + 509.1b/509.1c + 701.23: CantCastFrom routes by
+    ``who`` (Drannith Magistrate Opponents → stax ONLY; Grafdigger's Cage
+    AllPlayers → BOTH); CantSearchLibrary routes by its OWN ``cause``
+    (Stranglehold Opponents → stax; Mindlock Orb AllPlayers → symmetric
+    ONLY, stax asserted absent); MustBlock / BlockRestriction ride the
+    existing gates (Invasion Plans / Dense Canopy unscoped → symmetric;
+    Spirespine's SelfRef + EnchantedBy rows and Air Bladder's EnchantedBy
+    row open NEITHER lane)."""
+    drannith = _idents("Drannith Magistrate")
+    assert ("stax_taxes", "opponents", "") in drannith
+    assert ("symmetric_stax", "each", "") not in drannith
+    cage = _idents("Grafdigger's Cage")
+    assert ("stax_taxes", "opponents", "") in cage
+    assert ("symmetric_stax", "each", "") in cage
+    orb = _idents("Mindlock Orb")
+    assert ("symmetric_stax", "each", "") in orb
+    assert ("stax_taxes", "opponents", "") not in orb
+    assert ("stax_taxes", "opponents", "") in _idents("Stranglehold")
+    assert ("symmetric_stax", "each", "") in _idents("Invasion Plans")
+    assert ("symmetric_stax", "each", "") in _idents("Dense Canopy")
+    for name in ("Spirespine", "Air Bladder"):
+        ks = _keys(name)
+        assert "stax_taxes" not in ks, name
+        assert "symmetric_stax" not in ks, name
+
+
+def test_scry_surveil_matters_composite_and_replacement_extensions():
+    """§R(c) — CR 701.22a/701.25a + 614.1a: the you-scoped scry/surveil
+    PlayerPerformedAction composite (Matoya, Planetarium of Wan Shi Tong)
+    and the Scry-event replacements (Eligeth, Kenessos — the entire corpus
+    census) fire; River Song routes to opponent_search_matters (composite
+    names SearchedLibrary, valid_target Opponent) and the Proliferate
+    composite (Ezuri, Stalker of Spheres) fires neither scry lane."""
+    for name in (
+        "Matoya, Archon Elder",
+        "Planetarium of Wan Shi Tong",
+        "Eligeth, Crossroads Augur",
+        "Kenessos, Priest of Thassa",
+    ):
+        assert ("scry_surveil_matters", "you", "") in _idents(name), name
+    river = _keys("River Song")
+    assert "scry_surveil_matters" not in river
+    assert "opponent_search_matters" in river
+    ezuri = _keys("Ezuri, Stalker of Spheres")
+    assert "scry_surveil_matters" not in ezuri
+    assert "opponent_search_matters" not in ezuri
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 
