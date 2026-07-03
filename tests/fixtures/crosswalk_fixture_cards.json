@@ -22759,6 +22759,140 @@
         "uncommon"
       ]
     },
+    "Discontinuity": {
+      "name": "Discontinuity",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue",
+          "Blue",
+          "Blue"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Instant"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "During your turn, this spell costs {2}{U}{U} less to cast.\nEnd the turn. (Exile all spells and abilities from the stack, including this card. The player whose turn it is discards down to their maximum hand size. Damage wears off, and \"this turn\" and \"until end of turn\" effects end.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "EndTheTurn"
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": "End the turn.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [
+        {
+          "mode": {
+            "ModifyCost": {
+              "mode": "Reduce",
+              "amount": {
+                "type": "Cost",
+                "shards": [
+                  "Blue",
+                  "Blue"
+                ],
+                "generic": 2
+              },
+              "spell_filter": null
+            }
+          },
+          "affected": {
+            "type": "Typed",
+            "type_filters": [
+              "Card"
+            ],
+            "controller": null,
+            "properties": []
+          },
+          "modifications": [],
+          "condition": {
+            "type": "DuringYourTurn"
+          },
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "During your turn, this spell costs {2}{U}{U} less to cast."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "5cfd73ab-8509-4e4b-9704-68d8dad3b301",
+      "metadata": {
+        "source_printing_ids": [
+          "0b2f8208-0dba-49e0-ae53-b1c9347b92b6",
+          "b33ba0a8-04e9-4df6-af20-a3ca4470cdcc"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "M21",
+        "PM21",
+        "PRM"
+      ],
+      "rulings": [
+        {
+          "date": "2020-06-23",
+          "text": "Any \u201cat the beginning of the next end step\u201d triggered abilities won't get the chance to trigger that turn because the end step is skipped. Those abilities will trigger at the beginning of the end step of the next turn."
+        },
+        {
+          "date": "2020-06-23",
+          "text": "Ending the turn this way means the following things happen in order: 1) All spells and abilities on the stack are exiled. This includes spells and abilities that can't be countered. 2) If there are any attacking and blocking creatures, they're removed from combat. 3) State-based actions are checked. No player gets priority, and no triggered abilities are put onto the stack. 4) The current phase and/or step ends. The game skips straight to the cleanup step. 5) The cleanup step happens in its entirety."
+        },
+        {
+          "date": "2020-06-23",
+          "text": "If any triggered abilities do trigger during this process, they're put onto the stack during the cleanup step. If this happens, players will have a chance to cast spells and activate abilities, then there will be another cleanup step before the turn is over."
+        },
+        {
+          "date": "2020-06-23",
+          "text": "Though other spells and abilities that are exiled won't get a chance to resolve, they don't count as being countered."
+        },
+        {
+          "date": "2020-06-23",
+          "text": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying, add any cost increases, then apply any cost reductions (such as that of Discontinuity). The mana value of the spell remains unchanged, no matter what the total cost to cast it was."
+        }
+      ],
+      "rarities": [
+        "mythic"
+      ]
+    },
     "Disrupt Decorum": {
       "name": "Disrupt Decorum",
       "mana_cost": {
@@ -31473,6 +31607,166 @@
       ],
       "rarities": [
         "uncommon",
+        "rare"
+      ]
+    },
+    "Hierophant Bio-Titan": {
+      "name": "Hierophant Bio-Titan",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Green",
+          "Green"
+        ],
+        "generic": 10
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Tyranid"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 12
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 12
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Frenzied Metabolism \u2014 As an additional cost to cast this spell, you may remove any number of +1/+1 counters from among creatures you control. This spell costs {2} less to cast for each counter removed this way.\nVigilance, reach, ward {2}\nTitanic \u2014 This creature can't be blocked by creatures with power 2 or less.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Reach",
+        "Vigilance",
+        {
+          "Ward": {
+            "type": "Mana",
+            "data": {
+              "type": "Cost",
+              "shards": [],
+              "generic": 2
+            }
+          }
+        }
+      ],
+      "abilities": [],
+      "triggers": [],
+      "static_abilities": [
+        {
+          "mode": {
+            "ModifyCost": {
+              "mode": "Reduce",
+              "amount": {
+                "type": "Cost",
+                "shards": [],
+                "generic": 2
+              },
+              "spell_filter": null,
+              "dynamic_count": {
+                "type": "PreviousEffectAmount"
+              }
+            }
+          },
+          "affected": {
+            "type": "Typed",
+            "type_filters": [
+              "Card"
+            ],
+            "controller": null,
+            "properties": []
+          },
+          "modifications": [],
+          "condition": null,
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "Frenzied Metabolism \u2014 As an additional cost to cast this spell, you may remove any number of +1/+1 counters from among creatures you control. This spell costs {2} less to cast for each counter removed this way."
+        },
+        {
+          "mode": {
+            "CantBeBlockedBy": {
+              "filter": {
+                "type": "Typed",
+                "type_filters": [
+                  "Creature"
+                ],
+                "controller": null,
+                "properties": [
+                  {
+                    "type": "PtComparison",
+                    "stat": "Power",
+                    "scope": "Current",
+                    "comparator": "LE",
+                    "value": {
+                      "type": "Fixed",
+                      "value": 2
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "affected": {
+            "type": "SelfRef"
+          },
+          "modifications": [],
+          "condition": null,
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "Titanic \u2014 ~ can't be blocked by creatures with power 2 or less."
+        }
+      ],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Green"
+      ],
+      "scryfall_oracle_id": "f334c57b-0a57-4fbd-8798-948371d6589d",
+      "parse_warnings": [
+        {
+          "type": "SwallowedClause",
+          "detector": "Optional_YouMay",
+          "description": "Frenzied Metabolism \u2014 As an additional cost to cast this spell, you may remove any number of +1/+1 counters from among creatures you contr",
+          "line_index": 0
+        }
+      ],
+      "metadata": {
+        "source_printing_ids": [
+          "a7626f4e-aab7-40b9-8f26-e033ba10112f",
+          "be8a8e26-39cb-440a-a428-58b49ff8d017"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "40K"
+      ],
+      "rulings": [
+        {
+          "date": "2022-10-07",
+          "text": "Heirophant Bio-Titan's first ability can't reduce its cost below {G}{G}. You can remove any number of counters, even if they won't reduce its cost any further."
+        },
+        {
+          "date": "2022-10-07",
+          "text": "Once a creature with power 3 or greater has blocked this creature, changing the power of the blocking creature won't cause this creature to become unblocked."
+        }
+      ],
+      "rarities": [
         "rare"
       ]
     },

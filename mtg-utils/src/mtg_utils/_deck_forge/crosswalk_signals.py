@@ -2545,10 +2545,15 @@ def _cost_reduction(tree: ConceptTree) -> list[Signal]:
     * **direction** — :func:`modify_cost_mode` reads the typed ``mode``; a ``Raise``
       tax (Thalia) / ``Minimum`` floor is excluded (the live ``_COST_INCREASE`` raw
       screen);
-    * **not a self-discount** — the ``affected`` filter must NOT be ``SelfRef`` ("this
-      spell costs {X} less" — Cavern-Hoard Dragon carries no static here anyway, and
-      the few that model it as a static ``SelfRef``-affected reducer — A-Demilich —
-      are the self-discount the live ``_COST_SELF_DISCOUNT`` raw screen drops).
+    * **not a self-discount** — two screens. The ``affected`` filter must NOT be
+      ``SelfRef`` — phase's canonical self-discount shape, 220/226 of the "this
+      spell costs" statics (A-Demilich). Six residual self-discounts instead
+      parse as ``Typed[Card]`` + ``spell_filter=null`` — byte-identical to the
+      symmetric Helm-of-Awakening reducer, distinguishable only by the static's
+      own ``description`` ([P8], refined 2026-07-02) — so a node-local
+      "this spell costs" description screen (the live ``_COST_SELF_DISCOUNT``
+      mirror; node-local raw precedent ``_is_scaling_count``) drops them
+      (Discontinuity, Hierophant Bio-Titan).
 
     A flat ramp rock (no ``ModifyCost``) never reaches the gate. The activated
     "next spell you cast costs less" synth form (``reducenextspellcost`` — no native
@@ -2558,6 +2563,9 @@ def _cost_reduction(tree: ConceptTree) -> list[Signal]:
         if modify_cost_mode(unit.node) != "Reduce":
             continue
         if tag_of(getattr(unit.node, "affected", None)) == "SelfRef":
+            continue
+        desc = getattr(unit.node, "description", None) or ""
+        if "this spell costs" in desc.lower():
             continue
         return [Signal("cost_reduction", "you", "", "", tree.name, "high")]
     return []

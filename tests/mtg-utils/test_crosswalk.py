@@ -1408,6 +1408,19 @@ def test_cost_reduction_excludes_tax():
     assert "cost_reduction" not in _keys("Thalia, Guardian of Thraben")
 
 
+@pytest.mark.parametrize("name", ["Discontinuity", "Hierophant Bio-Titan"])
+def test_cost_reduction_excludes_residual_self_discount(name):
+    """Phase marks 220/226 "this spell costs" self-discounts affected=SelfRef
+    (the existing gate), but 6 residual cards parse as Typed[Card] +
+    spell_filter=null — the SAME shape as Helm of Awakening's symmetric
+    reducer, distinguishable only by the static's own description
+    (phase_parse_errors [P8], refined 2026-07-02). The node-local
+    "this spell costs" screen (mirror of the live _COST_SELF_DISCOUNT)
+    keeps them out; Helm-class symmetric reducers still fire (pinned by
+    test_cost_reduction_static_reduce)."""
+    assert "cost_reduction" not in _keys(name)
+
+
 def test_cost_reduction_excludes_ramp_rock():
     """A flat ramp rock (Sol Ring) carries no ModifyCost static → no cost_reduction."""
     assert "cost_reduction" not in _keys("Sol Ring")
