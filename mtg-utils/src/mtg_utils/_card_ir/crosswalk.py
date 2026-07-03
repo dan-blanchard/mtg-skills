@@ -38,7 +38,7 @@ lives at Layer 3 in ``_deck_forge.crosswalk_signals``.
 from __future__ import annotations
 
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -170,6 +170,20 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "PutOnTopOrBottom": "put_library_position",  # the top-or-bottom choice form
     "RevealHand": "reveal_hand",  # hand_disruption (CR 402.3)
     "RevealTop": "reveal_top",  # topdeck_selection's reveal arm (CR 401.1)
+    # Batch 10 (ADR-0035 Stage 2) — the trigger-event / effect-tag / P/T /
+    # static-mode cluster. ``Counter`` is the stack counterspell (CR 701.6a —
+    # structurally DISJOINT from ``PutCounter``/``RemoveCounter``, the other
+    # meaning of "counter"); ``PreventDamage`` the CR 615 prevention shield;
+    # ``DoublePT``/``SwitchPT`` the P/T arithmetic forms (CR 613.4c/613.4d);
+    # ``ManifestDread`` the batch-9-adjudicated first-class manifest-dread doer
+    # (CR 701.55 — joins Manifest/Cloak under the facedown concept).
+    "Counter": "counter_spell",  # counter_control (CR 701.6a)
+    "CounterAll": "counter_spell",  # the mass form ("counter all …")
+    "PreventDamage": "prevent_damage",  # damage_prevention (CR 615.1)
+    "DoublePT": "double_pt",  # power_double (CR 613.4c)
+    "DoublePTAll": "double_pt",
+    "SwitchPT": "switch_pt",  # base_pt_set's switch arm (CR 613.4d)
+    "ManifestDread": "facedown",  # facedown_makers + _matters (CR 701.55)
 }
 
 # Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): a maker / sac-payoff over
@@ -419,6 +433,29 @@ def lifeloss_recipient_scope(node: TypedMirrorNode) -> str | None:
     return None
 
 
+def trigger_constraint_tag(trig: TypedMirrorNode) -> str | None:
+    """The discriminator tag of a trigger's ``constraint`` node, or ``None``.
+
+    phase gates a trigger with a typed ``constraint``: the per-turn restrictions
+    (``OnlyDuringYourTurn`` / ``OnlyDuringOpponentsTurn``) and the spell-velocity
+    ``NthSpellThisTurn`` ("whenever you cast your second spell each turn" —
+    Cori-Steel Cutter; the qualifier the OLD lossy projection dropped, forcing
+    the live path onto a byte word-mirror). The batch-10 second-spell lane reads
+    this tag + :func:`trigger_constraint_n` — a pure typed read (CR 603.2).
+    """
+    return tag_of(getattr(trig, "constraint", None))
+
+
+def trigger_constraint_n(trig: TypedMirrorNode) -> int | None:
+    """The ``n`` of a trigger's constraint (``NthSpellThisTurn`` → 2 for the
+    second-spell form, 1 for "your first spell during each opponent's turn" —
+    Alela, Cunning Conqueror, which the second-spell lane must NOT read as a
+    velocity payoff). ``None`` when the constraint carries no ``n``.
+    """
+    n = getattr(getattr(trig, "constraint", None), "n", None)
+    return n if isinstance(n, int) else None
+
+
 def trigger_turn_constraint(trig: TypedMirrorNode) -> str | None:
     """The turn-restriction tag of a trigger's ``constraint`` (``OnlyDuringYourTurn``
     / ``OnlyDuringOpponentsTurn`` / ``None``).
@@ -430,7 +467,35 @@ def trigger_turn_constraint(trig: TypedMirrorNode) -> str | None:
     The edict scope of a ``ScopedPlayer`` ("that player sacrifices") reads it to tell
     a symmetric each-player wrath from an opponent-only edict (CR 701.21a).
     """
-    return tag_of(getattr(trig, "constraint", None))
+    return trigger_constraint_tag(trig)
+
+
+def trigger_damage_kind(trig: TypedMirrorNode) -> str:
+    """The ``damage_kind`` of a damage trigger (``"CombatOnly"`` / ``"Any"``),
+    ``""`` when absent.
+
+    phase stamps every trigger with a ``damage_kind`` (default ``"Any"``); it is
+    meaningful only on a ``DamageDone``-mode trigger, where it discriminates the
+    combat-connect payoff ("deals combat damage to an opponent" — Coastal Piracy,
+    CR 510.1b) from the any-damage connect ("deals damage to an opponent" —
+    Hypnotic Specter, CR 120.3). The caller gates on the mode first.
+    """
+    dk = getattr(trig, "damage_kind", MISSING)
+    return dk if isinstance(dk, str) else ""
+
+
+def mana_restrictions(node: TypedMirrorNode) -> tuple[str, ...]:
+    """The spend-restriction strings of a ``Mana`` effect (CR 106.4 / 106.6).
+
+    phase carries "Spend this mana only …" as ``Mana.restrictions`` —
+    ``"XCostOnly"`` (Rosheen Meanderer's "only on costs that contain {X}", the
+    xspell-enabler arm), ``"ActivateOnly"``, ``"ChosenCreatureType"``,
+    ``"SpellOnly"``. Empty when unrestricted.
+    """
+    rs = getattr(node, "restrictions", MISSING)
+    if _present(rs) and isinstance(rs, (list, tuple)):
+        return tuple(r for r in rs if isinstance(r, str))
+    return ()
 
 
 def effect_reaches_player(node: TypedMirrorNode) -> bool:
@@ -1565,6 +1630,214 @@ def static_reveal_who(static_node: TypedMirrorNode) -> str | None:
         who = _variant_field(mode.inner, "who")
         return who if isinstance(who, str) else None
     return None
+
+
+# ── Batch-10 typed accessors (trigger-event / grant / static-mode cluster) ───
+
+
+def double_triggers_cause_core_types(
+    static_node: TypedMirrorNode,
+) -> tuple[str, ...] | None:
+    """The ``core_types`` of a ``DoubleTriggers`` static's ``EntersBattlefield``
+    cause, or ``None`` when the static is not an ETB-cause trigger doubler.
+
+    phase models "an [artifact or creature / permanent] entering … causes a
+    triggered ability … to trigger an additional time" as a static whose ``mode``
+    is ``{DoubleTriggers: {cause: {EntersBattlefield: {core_types: […]}}}}``
+    (Panharmonicon — ``["Artifact", "Creature"]``; Yarok / Elesh Norn — ``[]``,
+    the any-PERMANENT form, which subsumes creatures). A non-ETB cause (``Any`` —
+    Strionic Resonator; ``CreatureDying`` — Teysa Karlov) and any other static
+    return ``None`` — those still open ``trigger_doubling`` via
+    :func:`static_mode_tag`, but carry no creature-ETB evidence. CR 603.2 +
+    Panharmonicon's 2021-03-19 ruling.
+    """
+    mode = getattr(static_node, "mode", MISSING)
+    if not (isinstance(mode, MirrorVariant) and mode.key == "DoubleTriggers"):
+        return None
+    cause = _variant_field(mode.inner, "cause")
+    if not (isinstance(cause, MirrorVariant) and cause.key == "EntersBattlefield"):
+        return None
+    cores = _variant_field(cause.inner, "core_types")
+    if isinstance(cores, (list, tuple)):
+        return tuple(c for c in cores if isinstance(c, str))
+    return ()
+
+
+def _is_static_def(node: object) -> bool:
+    """Whether a typed node is a static-ability DEF (carries the ``affected`` +
+    ``modifications`` field pair — a trigger/ability wrapper carries neither)."""
+    return (
+        isinstance(node, TypedMirrorNode)
+        and getattr(node, "affected", MISSING) is not MISSING
+        and getattr(node, "modifications", MISSING) is not MISSING
+    )
+
+
+def iter_static_defs(root: object) -> Iterator[TypedMirrorNode]:
+    """Every static-ability DEF node reachable from one unit node.
+
+    Yields the unit node itself when it IS a def (a top-level continuous
+    ability — Warmonger Hellkite's "All creatures attack each combat if able")
+    plus every def inside a nested ``GenericEffect.static_abilities`` list (the
+    one-shot conferred form). The modification-less MODE statics
+    (``MustAttack`` / ``DoubleTriggers`` / ``CantBeCountered``) never surface
+    through :func:`iter_mod_sites` (no modifications to pair with), so the
+    mode-read lanes walk defs directly via :func:`static_mode_tag`.
+    Cycle-safe, same traversal as :func:`iter_mod_sites`.
+    """
+    seen: set[int] = set()
+    stack: list[object] = [root]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, TypedMirrorNode) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if _is_static_def(node):
+            yield node
+        for fname in (*_EFFECT_CHILD_FIELDS, "mode_abilities", "static_abilities"):
+            child = getattr(node, fname, MISSING)
+            if isinstance(child, TypedMirrorNode):
+                stack.append(child)
+            elif _present(child) and isinstance(child, list):
+                stack.extend(child)
+
+
+def _iter_typed_nodes(root: object) -> Iterator[TypedMirrorNode]:
+    """Every typed node reachable from ``root`` via dataclass fields /
+    variant payloads / lists — the generic deep walk behind the narrow
+    unique-tag scans (cycle-safe, field-order agnostic)."""
+    seen: set[int] = set()
+    stack: list[object] = [root]
+    while stack:
+        node = stack.pop()
+        if id(node) in seen:
+            continue
+        seen.add(id(node))
+        if isinstance(node, TypedMirrorNode):
+            yield node
+            for f in fields(node):
+                stack.append(getattr(node, f.name))
+        elif isinstance(node, MirrorVariant):
+            stack.append(node.inner)
+        elif isinstance(node, list):
+            stack.extend(node)
+
+
+def iter_threaded_target_statics(
+    ability_like: object,
+) -> Iterator[tuple[object, TypedMirrorNode]]:
+    """``(resolved_target_filter, static_def)`` pairs for every
+    ``ParentTarget``-affected nested static in one ability/trigger chain, the
+    target THREADED through the chain.
+
+    Mirrors the live v14 tracked-target walk over the typed substrate: phase
+    parses "target creature gains <kw> / becomes a 1/1" as a ``GenericEffect``
+    whose nested static's ``affected`` is ``ParentTarget``, with the real
+    target riding the ``GenericEffect``'s own ``target`` (Jump, Gods Willing)
+    or an EARLIER effect's target the static re-references — the "It gains X"
+    / "It becomes a 0/0" idiom ("Untap target creature. It gains reach" — Aim
+    High; Cyclone Sire's land animate), resolved by threading the most recent
+    non-ParentTarget filter through the ``effect`` / ``sub_ability`` /
+    ``execute`` chain. Callers apply their own gates on the resolved filter.
+    """
+    tracked: object | None = None
+    seen: set[int] = set()
+    queue: list[object] = [ability_like]
+    while queue:
+        node = queue.pop(0)
+        if not isinstance(node, TypedMirrorNode) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        execute = getattr(node, "execute", MISSING)
+        if isinstance(execute, TypedMirrorNode):
+            queue.append(execute)
+        eff = getattr(node, "effect", MISSING)
+        if isinstance(eff, TypedMirrorNode) and id(eff) not in seen:
+            seen.add(id(eff))
+            tgt = getattr(eff, "target", MISSING)
+            if _present(tgt) and tag_of(tgt) in ("Typed", "Or", "And"):
+                tracked = tgt
+            if tag_of(eff) == "GenericEffect" and tracked is not None:
+                nested = getattr(eff, "static_abilities", MISSING)
+                sts = nested if _present(nested) and isinstance(nested, list) else []
+                for st in sts:
+                    if tag_of(getattr(st, "affected", None)) == "ParentTarget":
+                        yield tracked, st
+            sub2 = getattr(eff, "sub_ability", MISSING)
+            if isinstance(sub2, TypedMirrorNode):
+                queue.append(sub2)
+        sub = getattr(node, "sub_ability", MISSING)
+        if isinstance(sub, TypedMirrorNode):
+            queue.append(sub)
+
+
+def iter_single_target_grants(
+    ability_like: object,
+) -> Iterator[tuple[object, TypedMirrorNode]]:
+    """``(resolved_target_filter, AddKeyword_mod)`` pairs for the SINGLE-TARGET
+    keyword grants of one SPELL/ability node (CR 700.2) — the AddKeyword
+    projection of :func:`iter_threaded_target_statics`, mirroring the live v14
+    ``_single_target_keyword_grant_markers`` emit. The caller applies the live
+    gates (Creature core on the resolved filter; abilities only — the
+    trigger-conferred grants ride the DEEP local-target arm).
+    """
+    for tracked, st in iter_threaded_target_statics(ability_like):
+        mods = getattr(st, "modifications", MISSING)
+        for mod in mods if _present(mods) and isinstance(mods, list) else []:
+            if tag_of(mod) == "AddKeyword":
+                yield tracked, mod
+
+
+def iter_deep_target_grants(
+    root: object,
+) -> Iterator[tuple[object, TypedMirrorNode]]:
+    """``(local_target_filter, AddKeyword_mod)`` pairs for every
+    ``GenericEffect`` leaf under ``root`` with a LOCAL Typed target and a
+    ``ParentTarget``-affected AddKeyword static.
+
+    Mirrors the live DEEP marker (``project._deep_single_target_grant``
+    shapes): the same leaf phase structures for a trigger-conferred grant
+    ("target artifact creature you control … gains indestructible" —
+    Aethershield Artificer), a modal arm, a Saga chapter, or a quoted
+    GrantAbility definition — the flat threaded walk
+    (:func:`iter_single_target_grants`) never descends there. LOCAL target
+    only (the "It gains X" tracked idiom stays with the flat walk, exactly
+    the live split). CR 700.2.
+    """
+    for n in _iter_typed_nodes(root):
+        if tag_of(n) != "GenericEffect":
+            continue
+        tgt = getattr(n, "target", MISSING)
+        if not _present(tgt) or tag_of(tgt) not in ("Typed", "Or", "And"):
+            continue
+        nested = getattr(n, "static_abilities", MISSING)
+        for st in nested if _present(nested) and isinstance(nested, list) else []:
+            if tag_of(getattr(st, "affected", None)) != "ParentTarget":
+                continue
+            mods = getattr(st, "modifications", MISSING)
+            for mod in mods if _present(mods) and isinstance(mods, list) else []:
+                if tag_of(mod) == "AddKeyword":
+                    yield tgt, mod
+
+
+def spell_count_at_least(root: object) -> int:
+    """The largest ``count`` of any ``YouCastSpellCountAtLeast`` condition on
+    the card (``0`` when none).
+
+    phase gates "Activate only if you've cast two or more spells this turn"
+    (Xerex Strobe-Knight) as an activation-restriction condition ``{type:
+    YouCastSpellCountAtLeast, count: 2}`` — the CONDITION form of the
+    second-spell velocity payoff (the trigger form rides the
+    ``NthSpellThisTurn`` constraint, :func:`trigger_constraint_tag`). The tag
+    is unique to conditions, so the deep typed scan is precise. CR 601.
+    """
+    best = 0
+    for n in _iter_typed_nodes(root):
+        if tag_of(n) == "YouCastSpellCountAtLeast":
+            c = getattr(n, "count", None)
+            if isinstance(c, int) and c > best:
+                best = c
+    return best
 
 
 # ── overlay construction ──────────────────────────────────────────────────────

@@ -2394,6 +2394,319 @@ def test_cheat_into_play_settle_stays_out():
     assert "cheat_into_play" not in _keys("Settle the Wreckage")
 
 
+# ── batch 10: trigger-event / effect-tag / grant / P/T / static-mode ─────────
+
+
+def test_creature_etb_trigger_arm():
+    """CR 603.6a: Soul Warden's "Whenever another creature enters" watcher
+    (controller null → you-scope) fires creature_etb; the SelfRef enters-draw
+    (Elvish Visionary) is ETB value on itself, never a payoff engine."""
+    assert ("creature_etb", "you", "") in _idents("Soul Warden")
+    assert "creature_etb" not in _keys("Elvish Visionary")
+
+
+@pytest.mark.parametrize("name", ["Panharmonicon", "Yarok, the Desecrated"])
+def test_creature_etb_doubler_arm(name):
+    """Arm 2 (the known-lossy-case improvement over the live byte mirror):
+    a ``DoubleTriggers`` static whose ``EntersBattlefield`` cause covers
+    creatures — Panharmonicon's ``[Artifact, Creature]``, Yarok's empty
+    any-permanent form (Panharmonicon ruling 2021-03-19: "…causes a
+    triggered ability of a permanent you control to trigger, that ability
+    triggers an additional time")."""
+    assert ("creature_etb", "you", "") in _idents(name)
+    assert ("trigger_doubling", "you", "") in _idents(name)
+
+
+def test_permanent_etb_generic_engine():
+    """Amareth's "another permanent you control enters" (Permanent core +
+    controller You — checklist #6) is permanent_etb, NOT creature_etb; Soul
+    Warden's Creature core routes the other way."""
+    assert ("permanent_etb", "you", "") in _idents("Amareth, the Lustrous")
+    assert "creature_etb" not in _keys("Amareth, the Lustrous")
+    assert "permanent_etb" not in _keys("Soul Warden")
+
+
+def test_ltb_matters_fires_and_gates():
+    """CR 603.6c: Luminous Phantom's LeavesBattlefield watcher fires; the
+    SelfRef self-leave (Thalakos Seer) and the graveyard-ARRIVAL "from
+    anywhere" watcher (Compost — CR 603.6c explicitly de-classifies it as an
+    LTB ability) never fire."""
+    assert ("ltb_matters", "you", "") in _idents("Luminous Phantom")
+    assert "ltb_matters" not in _keys("Thalakos Seer")
+    assert "ltb_matters" not in _keys("Compost")
+
+
+def test_creature_cast_trigger_type_gate():
+    """CR 701.5a: Beast Whisperer's creature-spell cast watcher fires scope
+    "any"; Talrand's instant/sorcery Or-filter and Kambal's NONcreature
+    filter (the ``{Non: Creature}`` negation is dropped, never flattened)
+    stay out."""
+    assert ("creature_cast_trigger", "any", "") in _idents("Beast Whisperer")
+    assert "creature_cast_trigger" not in _keys("Talrand, Sky Summoner")
+    assert "creature_cast_trigger" not in _keys("Kambal, Consul of Allocation")
+
+
+def test_opponent_cast_matters_recipient_gate():
+    """Kambal's cast-player recipient (``valid_target Typed controller
+    Opponent`` — checklist #5) fires scope "opponents"; the symmetric "a
+    player casts" punisher (Eidolon of the Great Revel — CR 102.1: "a
+    player" includes you) and the self-cast watcher (Beast Whisperer) stay
+    out."""
+    assert (
+        "opponent_cast_matters",
+        "opponents",
+        "",
+    ) in _idents("Kambal, Consul of Allocation")
+    assert "opponent_cast_matters" not in _keys("Eidolon of the Great Revel")
+    assert "opponent_cast_matters" not in _keys("Beast Whisperer")
+
+
+def test_combat_damage_matters_kind_and_recipient():
+    """CR 510.1b: Coastal Piracy's CombatOnly player-connect fires
+    combat_damage_matters; a creature recipient (Serpentine Basilisk) and
+    the any-damage connect (Hypnotic Specter) route elsewhere."""
+    assert ("combat_damage_matters", "opponents", "") in _idents("Coastal Piracy")
+    assert "combat_damage_matters" not in _keys("Serpentine Basilisk")
+    assert "combat_damage_matters" not in _keys("Hypnotic Specter")
+
+
+def test_damage_to_opp_matters_any_kind():
+    """CR 120.3: Hypnotic Specter's ``damage_kind Any`` opponent-connect
+    fires damage_to_opp_matters; Coastal Piracy's CombatOnly kind is the
+    combat lane, not this one."""
+    assert ("damage_to_opp_matters", "opponents", "") in _idents("Hypnotic Specter")
+    assert "damage_to_opp_matters" not in _keys("Coastal Piracy")
+
+
+def test_second_spell_matters_constraint_arm():
+    """The probe win (CR 603.2): Cori-Steel Cutter's SpellCast trigger
+    carries ``constraint {NthSpellThisTurn, n: 2}`` — a clean structural
+    read of the qualifier the old projection dropped. A bare SpellCast
+    (Talrand) and the n=1 first-spell form (Alela, Cunning Conqueror) never
+    fire."""
+    assert ("second_spell_matters", "you", "") in _idents("Cori-Steel Cutter")
+    assert "second_spell_matters" not in _keys("Talrand, Sky Summoner")
+    assert "second_spell_matters" not in _keys("Alela, Cunning Conqueror")
+
+
+def test_second_spell_matters_condition_arm():
+    """The CONDITION form: Xerex Strobe-Knight's "Activate only if you've
+    cast two or more spells this turn" is a ``YouCastSpellCountAtLeast
+    count=2`` activation-restriction condition (CR 601)."""
+    assert ("second_spell_matters", "you", "") in _idents("Xerex Strobe-Knight")
+
+
+def test_xspell_matters_two_arms():
+    """CR 107.3: Zaxara's ``HasXInManaCost`` cast-watcher predicate and
+    Rosheen's ``XCostOnly`` mana restriction both fire; a spell that merely
+    HAS {X} in its own cost (Hydroid Krasis) never does."""
+    assert ("xspell_matters", "you", "") in _idents("Zaxara, the Exemplary")
+    assert ("xspell_matters", "you", "") in _idents("Rosheen Meanderer")
+    assert "xspell_matters" not in _keys("Hydroid Krasis")
+
+
+def test_counter_control_stack_counter_only():
+    """CR 701.6a: Counterspell's ``Counter {StackSpell}`` fires; the "can't
+    be countered" permission statics (Vexing Shusher) are not a counter
+    effect."""
+    assert ("counter_control", "you", "") in _idents("Counterspell")
+    assert "counter_control" not in _keys("Vexing Shusher")
+
+
+def test_bounce_tempo_direction_gate():
+    """CR 402.1: Unsummon's bounce of an unowned creature is tempo; the
+    self-bounce value engine (Aviary Mechanic — subject controller You,
+    checklist #2) never fires."""
+    assert ("bounce_tempo", "you", "") in _idents("Unsummon")
+    assert "bounce_tempo" not in _keys("Aviary Mechanic")
+
+
+def test_power_double_typed_tag():
+    """CR 613.4c: Unleash Fury's ``DoublePT mode=Power`` fires; a flat pump
+    (Giant Growth — a ``Pump`` node, not a doubling tag) never does."""
+    assert ("power_double", "you", "") in _idents("Unleash Fury")
+    assert "power_double" not in _keys("Giant Growth")
+
+
+@pytest.mark.parametrize("name", ["Snakeskin Veil", "Jump"])
+def test_keyword_grant_target_single_target(name):
+    """CR 613.1f: an ``AddKeyword`` whose affected is ``ParentTarget`` (the
+    single-target tell) fires keyword_grant_target; a team anthem (Akroma's
+    Memorial) is the team lanes' shape, not this one."""
+    assert ("keyword_grant_target", "you", "") in _idents(name)
+
+
+def test_keyword_grant_target_excludes_team_anthem():
+    assert "keyword_grant_target" not in _keys("Akroma's Memorial")
+
+
+def test_protection_grant_arms():
+    """CR 702.16a/702.11a: Gods Willing's parameterized ``{Protection: …}``
+    variant (the KEY is the keyword name) and Snakeskin Veil's hexproof
+    single-target grant both fire; a non-protective grant (Jump — flying)
+    never does."""
+    assert ("protection_grant", "you", "") in _idents("Gods Willing")
+    assert ("protection_grant", "you", "") in _idents("Snakeskin Veil")
+    assert "protection_grant" not in _keys("Jump")
+
+
+def test_all_creatures_kw_grant_symmetric_gate():
+    """Concordant Crossroads' "All creatures have haste" (controller NULL —
+    the symmetric global, checklist #5 → scope "any") fires; Levitation's
+    "Creatures you control" is the your-team shape, not the symmetric one."""
+    assert ("all_creatures_kw_grant", "any", "") in _idents("Concordant Crossroads")
+    assert "all_creatures_kw_grant" not in _keys("Levitation")
+
+
+def test_team_evasion_grant_generic_team_gate():
+    """Levitation's team flying grant fires (CR 702.9); the chosen-type
+    tribal grant (Cover of Darkness — an ``IsChosenCreatureType`` predicate
+    fails the generic-team gate; the live path rides its mirror there —
+    supplement tail) and the symmetric all-creatures grant (Concordant
+    Crossroads) never fire."""
+    assert ("team_evasion_grant", "you", "") in _idents("Levitation")
+    assert "team_evasion_grant" not in _keys("Cover of Darkness")
+    assert "team_evasion_grant" not in _keys("Concordant Crossroads")
+
+
+def test_aura_equip_kw_grant_subgroup_gate():
+    """Rashel's "Auras you control have exalted" (Subtype Aura + controller
+    You) fires; the name-scoped controller-null Equipment cycle (Shield of
+    Kaldra) and the equipped-CREATURE recipient grant (Cori-Steel Cutter's
+    haste — no Aura/Equipment subtype on the affected filter) never fire."""
+    assert ("aura_equip_kw_grant", "you", "") in _idents("Rashel, Fist of Torm")
+    assert "aura_equip_kw_grant" not in _keys("Shield of Kaldra")
+    assert "aura_equip_kw_grant" not in _keys("Cori-Steel Cutter")
+
+
+def test_base_pt_set_set_and_switch_arms():
+    """CR 613.4b/613.4d: Polymorphist's Jest (SetPower+SetToughness on one
+    mod site) and Merfolk Thaumaturgist (``SwitchPT``) fire scope "any"."""
+    assert ("base_pt_set", "any", "") in _idents("Polymorphist's Jest")
+    assert ("base_pt_set", "any", "") in _idents("Merfolk Thaumaturgist")
+
+
+def test_base_pt_set_animate_carve_out():
+    """THE over-fire gate (live history): the mass land animator (Living
+    Plane — a Land-cored affected filter) is a land_creatures_matter theme,
+    never base_pt_set; a flat pump (Giant Growth) has no Set mods."""
+    assert "base_pt_set" not in _keys("Living Plane")
+    assert "base_pt_set" not in _keys("Giant Growth")
+
+
+def test_variable_pt_cda_gate():
+    """CR 604.3 / 613.4a: Tarmogoyf's ``characteristic_defining`` static with
+    ``SetDynamicPower`` fires scope "any"; a fixed-number set (Polymorphist's
+    Jest) is base_pt_set, not the CDA lane."""
+    assert ("variable_pt", "any", "") in _idents("Tarmogoyf")
+    assert "variable_pt" not in _keys("Polymorphist's Jest")
+
+
+def test_trigger_doubling_excludes_replacement_doublers():
+    """Panharmonicon's ``DoubleTriggers`` static fires (see the doubler-arm
+    test for the positive); Doubling Season's token/counter REPLACEMENT
+    doublers (``quantity_modification`` nodes) are split lanes and never
+    fire trigger_doubling."""
+    assert "trigger_doubling" not in _keys("Doubling Season")
+
+
+@pytest.mark.parametrize("name", ["Warmonger Hellkite", "Juggernaut"])
+def test_forced_attack_static_mode(name):
+    """CR 508.1d: a ``MustAttack`` static fires scope "any" — the table-wide
+    force (Warmonger Hellkite) AND the SelfRef drawback (Juggernaut, kept IN
+    to match live)."""
+    assert ("forced_attack", "any", "") in _idents(name)
+
+
+def test_forced_attack_excludes_goad():
+    """Goad is a distinct typed tag (CR 701.15a) — Disrupt Decorum stays in
+    goad_makers, never forced_attack."""
+    assert "forced_attack" not in _keys("Disrupt Decorum")
+
+
+@pytest.mark.parametrize("name", ["Fog", "Story Circle"])
+def test_damage_prevention_effect_tag(name):
+    """CR 615.1: a ``PreventDamage`` effect fires scope "you"."""
+    assert ("damage_prevention", "you", "") in _idents(name)
+
+
+def test_damage_prevention_excludes_protection_grant():
+    """Gods Willing grants protection (CR 702.16a) — a different typed node,
+    routed to protection_grant, never a PreventDamage read."""
+    assert "damage_prevention" not in _keys("Gods Willing")
+
+
+def test_damage_equal_power_fling_shape():
+    """CR 120.3: Fling's ``DealDamage`` with a Power-qty ``Ref`` amount
+    reaching ``{Any}`` fires; a fixed-amount ping (Prodigal Sorcerer) never
+    does."""
+    assert ("damage_equal_power", "you", "") in _idents("Fling")
+    assert "damage_equal_power" not in _keys("Prodigal Sorcerer")
+
+
+# NB: land_destruction stays KEPT (the batch-8 reclassification upheld) — the
+# structural membership-gated arm reproduces the live 23-card set 23/23 but
+# adds 2 non-byte-identical extras (Goblin Grenadiers, Orcish Settlers), so it
+# fails the spec's byte-match condition for superseding the KEPT verdict.
+
+
+# ── batch 10: the four adjudicated batch-9 follow-up fixes ────────────────────
+
+
+def test_facedown_matters_manifest_dread_node():
+    """Fix (a): the first-class ``ManifestDread`` node (CR 701.55) fires
+    facedown_matters + facedown_makers (Abhorrent Oculus — live fires the
+    pair; manifest dread both makes the face-down 2/2 and selects for the
+    face-down theme)."""
+    keys = _keys("Abhorrent Oculus")
+    assert "facedown_matters" in keys
+    assert "facedown_makers" in keys
+
+
+def test_facedown_matters_plain_manifest_maker_stays_out():
+    """The tag read keeps a plain Manifest/Cloak DOER (Cloudform — shares the
+    ``facedown`` concept) out of the payoff arm."""
+    assert "facedown_matters" not in _keys("Cloudform")
+    assert "facedown_makers" in _keys("Cloudform")
+
+
+def test_combat_buff_engine_reads_nested_mod_sites():
+    """Fix (b): Aethershield Artificer's begin-combat pump is a fully-typed
+    ``AddPower``/``AddToughness`` mod site inside a ``GenericEffect`` (a
+    static-role pump in the SAME unit, granularity a) — the engine fires."""
+    assert ("combat_buff_engine", "you", "") in _idents("Aethershield Artificer")
+
+
+def test_combat_buff_engine_keyword_only_grant_stays_out():
+    """The nested-mod read is pump-gated: a combat-frame trigger conferring
+    only KEYWORDS/other effects (Alela, Cunning Conqueror's opponent-turn
+    spell trigger; no combat pump site) never fires."""
+    assert "combat_buff_engine" not in _keys("Alela, Cunning Conqueror")
+
+
+def test_topdeck_stack_tracked_set_dig():
+    """Fix (c): Ancestral Knowledge's ``PutAtLibraryPosition position=Top``
+    over a ``TrackedSet`` fed by a SAME-unit Controller ``Dig`` (the tracked
+    set IS your dug top-of-library — CR 401.4) fires topdeck_stack."""
+    assert ("topdeck_stack", "you", "") in _idents("Ancestral Knowledge")
+    assert ("topdeck_selection", "you", "") in _idents("Ancestral Knowledge")
+
+
+def test_topdeck_stack_tracked_set_needs_own_dig():
+    """The TrackedSet arm is Dig-joined per unit: Griptide's bounce-to-top
+    REMOVAL (no Controller Dig sibling) still never fires."""
+    assert "topdeck_stack" not in _keys("Griptide")
+
+
+def test_target_player_draws_excludes_scoped_player_group_draw():
+    """Fix (d): Academy Loremaster's "that player may draw" under an
+    each-player draw-step trigger is a ``ScopedPlayer`` GROUP draw — the
+    card_draw_engine each-arm, never a directed gift (the live routing to
+    target_player_draws is the documented divergence)."""
+    assert "target_player_draws" not in _keys("Academy Loremaster")
+    assert ("card_draw_engine", "each", "") in _idents("Academy Loremaster")
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 
