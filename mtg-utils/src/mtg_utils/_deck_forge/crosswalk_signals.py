@@ -148,9 +148,11 @@ from mtg_utils._card_ir.project import (
     _PAY_LIFE_REF,
     _SINGLE_PERMANENT_GRANT_PREDS,
     _SOULBOND_REF,
+    _STARTING_LIFE_REF,
     _SUSPECT_REF,
     _TOKEN_SUBTYPE_OWN_REF,
     _UNDYING_PERSIST_GRANT,
+    _counter_kind_token,
 )
 
 # The b15 opponent_counter_grant co-tap join imports the LIVE supplement
@@ -166,14 +168,18 @@ from mtg_utils._deck_forge import signal_keys
 # and the private live mirrors/kind-sets from _signals_ir / _signals_regex
 # (the _resolve_subject precedent) — one source, zero drift.
 from mtg_utils._deck_forge._signals_ir import (
+    _ABILITY_COPY_MIRROR,
     _ACTIVATED_ABILITY_DROP_EFFECTS,
     _BIG_HAND_MAKERS_MIRROR,
     _BIG_HAND_MATTERS_MIRROR,
     _CONVOKE_RAW,
     _COUNTER_DISTRIBUTE_MIRROR,
+    _COUNTER_KIND_KEYS,
     _FIREBEND_RE,
     _KEYWORD_COUNTER_KINDS,
+    _NAMED_COUNTER_KINDS,
     _OPP_COUNTER_BENEFICIAL,
+    _POWER_SCALING_RAW,
     _PROLIFERATE_REMOVE_COST_RE,
     _SAME_TRUE_KW_RE,
     _SELF_COUNTER_GROW_MIRROR,
@@ -181,6 +187,8 @@ from mtg_utils._deck_forge._signals_ir import (
     _STATION_CHARGE_RE,
     _STAX_TAXES_RESIDUE_RE,
     _SYMMETRIC_STAX_RESIDUE_RE,
+    _TOUGHNESS_VALUE_MIRROR,
+    _TYPED_ANTHEM_MULTI_RAW,
     _UNTAP_ATTACH_VETO,
     _UNTAP_ENGINE_MIRROR_LANDS,
     _UNTAP_ENGINE_MIRROR_RAW,
@@ -194,7 +202,10 @@ from mtg_utils._deck_forge._signals_regex import (
     _COLOR_HOSER_RE,
     _EVASION_SELF_REGEX,
     _EVERGREEN_CK,
+    _EVERGREEN_KW_RE,
+    _KEYWORD_SOUP_CONTEXT_RE,
     _MANA_TAP_RE,
+    _MELD_FULLTEXT_RE,
     _PER_TURN_ENGINE_RE,
     _REPEATABLE_KILL_RE,
     _TAP_ABILITY_RE,
@@ -223,8 +234,10 @@ from mtg_utils._deck_forge._sweep_detectors import (
     CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
     ENTERED_ATTACKER_REGEX,
+    ISLAND_MAKERS_REGEX,
     ISLAND_MATTERS_REGEX,
     KEYWORD_COUNTER_REGEX,
+    NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     PUMP_MATTERS_REGEX,
     STATION_MATTERS_REGEX,
     SUPERFRIENDS_MATTERS_REGEX,
@@ -580,6 +593,35 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "saddle_matters",
         "suspect_matters",
         "void_warp_makers",
+        # Batch 16 (ADR-0035 Stage 2): THE FINAL structural batch — closes the
+        # porting phase at 318 keys (314 literal + 4 constants; meld_pair is a
+        # literal key ported via the signal_keys.MELD_PAIR constant import, the
+        # b12 TYPE_MATTERS precedent). Nine flat kept mirrors, the one
+        # raw-oracle SUBJECT mirror (meld_pair — reminder text load-bearing),
+        # seven structural arms, two LOW membership lanes (one_punch /
+        # keyword_soup_makers), and the exalted keyword row emitting BOTH its
+        # own lane and the already-ported voltron_matters (the live tuple).
+        "ability_copy",
+        "ability_strip_payoff",
+        "arcane_matters",
+        "celebration_matters",
+        "cmdzone_ability",
+        "exalted_lone_attacker",
+        "flip_self",
+        "free_creature_payoff",
+        "free_spell_storm",
+        "island_makers",
+        "keyword_soup_makers",
+        signal_keys.MELD_PAIR,
+        "named_counter_misc",
+        "noncombat_damage_payoff",
+        "nonhuman_attackers",
+        "one_punch",
+        "per_target_payoff",
+        "power_tap_engine",
+        "starting_life_matters",
+        "toughness_combat",
+        "typed_anthem_multi",
         # NB: damage_redirect stays KEPT (spec §G): `redirect_target` exists
         # on only 8 corpus replacements and Pariah itself parses with NO
         # redirect_target (shield Prevention only — structurally identical to
@@ -9026,6 +9068,677 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ── Batch 16 lanes (ADR-0035 Stage 2 — THE FINAL structural batch) ───────────
+
+# Byte-identical inline copies of the live INLINE (unnamed) kept-detector rows
+# (_IR_KEPT_DETECTORS / the deleted-producer patterns) — the b12 _JOHAN_MIRROR
+# precedent for rows with no importable name. Named live constants are imported
+# above (one source, zero drift): _ABILITY_COPY_MIRROR, ISLAND_MAKERS_REGEX,
+# NONCOMBAT_DAMAGE_PAYOFF_REGEX, _KEYWORD_SOUP_CONTEXT_RE + _EVERGREEN_KW_RE,
+# _MELD_FULLTEXT_RE, _POWER_SCALING_RAW, _TOUGHNESS_VALUE_MIRROR,
+# _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF.
+_ARCANE_RX = re.compile(r"\barcane\b", re.IGNORECASE)
+_CELEBRATION_RX = re.compile(r"\bcelebration\b", re.IGNORECASE)
+_EXALTED_TEXT_RX = re.compile(r"attacks alone|\bexalted\b", re.IGNORECASE)
+_FLIP_SELF_RX = re.compile(r"\bflip this creature\b", re.IGNORECASE)
+_ISLAND_MAKERS_RX = re.compile(ISLAND_MAKERS_REGEX, re.IGNORECASE)
+_NONCOMBAT_DAMAGE_RX = re.compile(NONCOMBAT_DAMAGE_PAYOFF_REGEX, re.IGNORECASE)
+_PAGE_STUDY_RX = re.compile(r"\b(?:page|study) counters?\b", re.IGNORECASE)
+_PER_TARGET_RX = re.compile(
+    r"less (?:to cast )?for each (?:of those )?target", re.IGNORECASE
+)
+_POWER_TAP_CONFERRED_RX = re.compile(
+    r"\{t\}:[^.]*(?:equal to|where x is|x is)[^.]*\bpower\b", re.IGNORECASE
+)
+
+# Counter-placement effect tags (the live place_counter category's producers)
+# for the ability_strip same-unit join (§2).
+_B16_PLACE_COUNTER_TAGS: frozenset[str] = frozenset(
+    {"PutCounter", "PutCounterAll", "AddPendingETBCounters"}
+)
+# Pump modification tags projecting to the live cat=='pump' (fixed AND dynamic
+# spellings — Hancock's AddDynamicPower rides the same anthem, CR 613.4c).
+_ANTHEM_PUMP_MODS: frozenset[str] = frozenset(
+    {
+        "AddPower",
+        "AddToughness",
+        "AddDynamicPower",
+        "AddDynamicToughness",
+        "AddPowerDynamic",
+        "AddToughnessDynamic",
+    }
+)
+# Activation-cost leaf tags whose live projected cost string contains 'tap'
+# ("{T}" AND "{Q}" — the live `'tap' in ab.cost` substring matches "untap":
+# Hateflayer / Vikya are banked pop members via their Untap costs). CR 602.1.
+_B16_TAP_COST_TAGS: frozenset[str] = frozenset({"Tap", "Untap"})
+# Static modification families the OLD projection kept as subject-bearing
+# effects (pump / base-P/T-set / strip) — the named_counter_misc static
+# sub-arm's gate: an affected-filter counter pred on one of these (or on a
+# plain-string restriction mode with no modifications — CantUntap) fired
+# live via the projected effect subject; the dropped-static families
+# (AddAllLandTypes, ModifyCost) never did. CR 122.1 / 613.4c.
+_B16_STATIC_KEPT_MODS: frozenset[str] = (
+    _WB_PT_SET_MODS | _ANTHEM_PUMP_MODS | frozenset({"RemoveAllAbilities"})
+)
+
+
+def _keyword_field_signals_b16(keywords: frozenset[str], name: str) -> list[Signal]:
+    """The batch-16 Scryfall-keyword field-lookup: exalted (CR 702.83a — "a
+    creature you control attacks alone, that creature gets +1/+1").
+
+    The row emits BOTH ``exalted_lone_attacker`` AND the already-ported
+    ``voltron_matters`` — an exalted commander pumps a LONE attacker (itself),
+    the canonical single-big-threat suit-up. This mirrors the live
+    ``_IR_KEYWORD_MAP['exalted']`` tuple byte-identically; emitting only one
+    half would drift the sibling. Scope "you", HIGH.
+    """
+    if "exalted" in {k.lower() for k in keywords}:
+        return [
+            Signal("exalted_lone_attacker", "you", "", "", name, "high"),
+            Signal("voltron_matters", "you", "", "", name, "high"),
+        ]
+    return []
+
+
+def _ability_copy(tree: ConceptTree) -> list[Signal]:
+    """ability_copy (§1) — CR 707.10 ("To copy a spell, activated ability, or
+    triggered ability means to put a copy of it onto the stack; … A copy of an
+    ability is itself an ability.") + 113.2b. (The live docstrings' "CR
+    706.10 / 706.2" cites are STALE — 706 is now die-rolling; corrected here.)
+
+    The imported live ``_ABILITY_COPY_MIRROR`` FLAT over the kept oracle
+    (every arm clause-local, so flat == the deleted per-clause union): the
+    ability-copiers (Strionic Resonator, Rings of Brighthearth), the "you may
+    copy it" self-copiers (Chancellor of Tales), and the whole-suite importers
+    ("has all activated abilities of" — Necrotic Ooze). NOT a structural
+    ``copy_spell`` arm: phase's CopySpell covers spell-copy too (Twincast —
+    pop-verified False, the 90% over-fire). LOGGED widen (closeout §C): the
+    v0.9.0 CopySpell.target StackAbility-vs-StackSpell discriminator +
+    GrantAllActivatedAbilitiesOf now structure this lane — a candidate
+    structural split, parity-first today. Scope "you", HIGH.
+    """
+    if _ABILITY_COPY_MIRROR.search(_kept(tree)):
+        return [Signal("ability_copy", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _ability_strip_payoff(tree: ConceptTree) -> list[Signal]:
+    """ability_strip_payoff (§2) — CR 613.1f (layer 6: ability-removing
+    effects) + 122.1b (keyword counters — Abigale's flying / first strike /
+    lifelink counters are exactly the CR's keyword-counter set).
+
+    Granularity (a) same-ability join, fully typed: ONE unit carries a
+    ``RemoveAllAbilities`` modification (the live "loses all abilities" raw
+    anchor is its projection) AND a counter-placement concept — a PutCounter
+    node (Abigale's SequentialSibling chain of three keyword counters) OR a
+    ``ChangeZone`` with non-empty ``enter_with_counters`` (Hellcat, whose
+    record carries NO PutCounter node — the live place_counter comes from the
+    enter-with-counters recovery) — AND no base-P/T-set modification
+    (:data:`_WB_PT_SET_MODS` — the shrinker veto: Turn to Frog / Ovinize turn
+    the target into a small body, not a kept beater). The SequentialSibling
+    chain is ONE unit (the tree walk descends sub_ability — the v76 per-arm
+    rule needs no raw read here). Retched Wretch's counter ref is the trigger
+    CONDITION, never a placement — pop-verified False. Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        has_strip = False
+        has_counter = False
+        has_shrink = False
+        for n in iter_typed_nodes(unit.node):
+            t = tag_of(n)
+            if t == "RemoveAllAbilities":
+                has_strip = True
+            elif t in _B16_PLACE_COUNTER_TAGS:
+                has_counter = True
+            elif t in _WB_PT_SET_MODS:
+                has_shrink = True
+            elif t == "ChangeZone":
+                ewc = getattr(n, "enter_with_counters", None)
+                if isinstance(ewc, list) and ewc:
+                    has_counter = True
+        if has_strip and has_counter and not has_shrink:
+            return [Signal("ability_strip_payoff", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _arcane_matters(tree: ConceptTree) -> list[Signal]:
+    """arcane_matters (§3) — CR 205.3k (Arcane is a SPELL type) + 304.3/307.3
+    + 702.47a (Splice onto Arcane): the byte-identical ``\\barcane\\b`` word
+    mirror flat over the kept oracle — payoffs (Tallowisp) + Splice spells
+    (Glacial Ray). LOGGED widen: v0.9.0 structures ``{"Subtype": "Arcane"}``
+    in cast-trigger filters (Tallowisp probed) — a candidate typed arm; the
+    word is the parity home (the Splice spells fire on the word, not a
+    filter). Scope "you", HIGH.
+    """
+    if _ARCANE_RX.search(_kept(tree)):
+        return [Signal("arcane_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _celebration_matters(tree: ConceptTree) -> list[Signal]:
+    """celebration_matters (§4) — CR 207.2c: celebration is an ABILITY WORD
+    ("no special rules meaning and no individual entries in the Comprehensive
+    Rules") — there is no structured rules object for phase to parse (probed:
+    Ash, Party Crasher carries "Celebration —" only in strings), so the word
+    mirror IS the lane, by CR construction — NOT a phase bug. Scope "you",
+    HIGH.
+    """
+    if _CELEBRATION_RX.search(_kept(tree)):
+        return [Signal("celebration_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _cmdzone_ability(tree: ConceptTree) -> list[Signal]:
+    """cmdzone_ability (§5) — CR 113.6 (abilities usually function on the
+    battlefield; the command-zone-stated abilities are the exceptions) +
+    207.2c (eminence is an ability word) + 903.6. (The live "113.6k" cite is
+    STALE — per the current CR that is the multi-zone trigger-condition rule,
+    still apt for the Oloro trigger half but not the lane's grounding.)
+
+    A recursive condition-tree read: any ``SourceInZone`` node with zone
+    ``Command`` under the unit (Oloro's trigger condition; The Ur-Dragon's
+    Eminence static ``Or[SourceInZone Command, SourceInZone Battlefield]``).
+    Deliberately NOT the raw ``trigger_zones``/``active_zones`` lists: phase
+    stamps 'Command' into every plane/scheme trigger_zones and every
+    on-stack cost-static active_zones (Thrasta), which the live projection
+    never surfaced — the condition tree is the live-parity discriminator
+    (over-fire == 0; Command Beacon's EFFECT moves the commander FROM the
+    zone and carries no zone condition, pop-verified False). Scope "you",
+    HIGH.
+    """
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "SourceInZone" and getattr(n, "zone", None) == "Command":
+                return [Signal("cmdzone_ability", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _exalted_textual(tree: ConceptTree) -> list[Signal]:
+    """exalted_lone_attacker textual arm (§6) — CR 702.83a/702.83b + 506.5
+    ("A creature attacks alone if it's the only creature declared as an
+    attacker"): the byte-identical ``attacks alone|\\bexalted\\b`` kept mirror
+    for the textual grants/payoffs ("X have exalted", Sovereigns of Lost
+    Alara's attacks-alone trigger). The keyword-bearer row rides
+    :func:`_keyword_field_signals_b16` (emitting the voltron pair); this
+    mirror is a strict superset of the bearers (every bearer carries the
+    word) — ``add()`` dedups. Scope "you", HIGH.
+    """
+    if _EXALTED_TEXT_RX.search(_kept(tree)):
+        return [Signal("exalted_lone_attacker", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _flip_self(tree: ConceptTree) -> list[Signal]:
+    """flip_self (§7) — CR 710.1/710.2 (flip cards; live cite CORRECT): the
+    coined "flip this creature" phrase on exactly the Kamigawa flip fronts
+    (Nezumi Graverobber, Bushi Tenderfoot). Akki Lavarunner ("flip it") /
+    Erayo ("flip Erayo") defeat the anchor — pop-verified False, the
+    documented live wording GAP. [P48] LOGGED: phase parses every flip to a
+    self-identifying ``Unimplemented{name=='flip'}`` node — a typed read
+    would close the gap uniformly; parity port = the mirror (7/7). Scope
+    "you", HIGH.
+    """
+    if _FLIP_SELF_RX.search(_kept(tree)):
+        return [Signal("flip_self", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _free_creature_payoff(tree: ConceptTree) -> list[Signal]:
+    """free_creature_payoff (§8) — CR 601.2f-h + 118.7 ("If the mana
+    component of a cost is reduced to nothing … it's considered to be {0}" —
+    a 0-cost creature is CAST with no mana spent). (The live "CR 712 /
+    601.2h" cite is STALE — 712 is now Double-Faced Cards; corrected here.)
+
+    An etb-event trigger unit with a ``ManaSpentCondition`` anywhere in its
+    condition tree (Satoru nests it under ``Or[Not(WasCast), …]``). The etb
+    gate is the discriminator vs the cast_spell-triggered anti-free-spell
+    punishers (Lavinia / Boromir / Roiling Vortex / Vexing Bauble — pop
+    False); 'WasCast' alone is NOT the tell. Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        if unit.trigger_event != "enters":
+            continue
+        if any(tag_of(n) == "ManaSpentCondition" for n in iter_typed_nodes(unit.node)):
+            return [Signal("free_creature_payoff", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _free_spell_storm(tree: ConceptTree) -> list[Signal]:
+    """free_spell_storm (§9) — CR 601.2f / 118.7: a per-spell SCALING
+    self-discount (the SelfRef static is rules-excluded from the
+    build-around cost_reduction lane — it cheapens no OTHER spell).
+
+    Re-derives the live project marker's gate VERBATIM over the mirror
+    nodes (never re-implemented from scratch): a ``ModifyCost{Reduce}``
+    static whose ``affected`` is SelfRef AND whose ``dynamic_count`` is one
+    of the two corpus-unique cast-this-turn shapes — ``SpellsCastThisTurn{
+    scope: Controller}`` (Demilich) or an ``ObjectCount`` whose filter
+    carries an ``Another`` property (Thrasta). An opponent-cast scaler
+    (Delightful Discovery — ObjectCount with NO Another) is excluded by the
+    same gate, pop-verified False. Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        if unit.origin != "static":
+            continue
+        if modify_cost_mode(unit.node) != "Reduce":
+            continue
+        if tag_of(getattr(unit.node, "affected", None)) != "SelfRef":
+            continue
+        dc = static_mode_field(unit.node, "dynamic_count")
+        t = tag_of(dc)
+        if t == "SpellsCastThisTurn" and getattr(dc, "scope", None) == "Controller":
+            return [Signal("free_spell_storm", "you", "", "", tree.name, "high")]
+        if t == "ObjectCount" and has_filter_property(
+            getattr(dc, "filter", None), "Another"
+        ):
+            return [Signal("free_spell_storm", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _island_makers(tree: ConceptTree) -> list[Signal]:
+    """island_makers (§10) — CR 702.14a/702.14b/702.14c (landwalk is an
+    evasion ability; "can't be blocked as long as the defending player
+    controls … an Island"): the imported pinned ``ISLAND_MAKERS_REGEX``
+    (``\\bislandwalk\\b``) flat over the kept oracle — the ADR-0034 MAKER
+    arm: bearers (Thada Adel), granters (Lord of Atlantis — the Scryfall
+    array's conferred-keyword gap keeps this a word mirror) and neutralizers
+    (Mystic Decree). The Zhou Yu attack-restriction PAYOFF is the sibling
+    ``island_matters`` lane (ported b13 — zero drift). LOGGED widen: v0.9.0
+    parameterized ``{"Landwalk": "Island"}`` keywords + structured AddKeyword
+    grants. Scope "you", HIGH.
+    """
+    if _ISLAND_MAKERS_RX.search(_kept(tree)):
+        return [Signal("island_makers", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _keyword_soup_makers(tree: ConceptTree) -> list[Signal]:
+    """keyword_soup_makers (§11) — CR 122.1b (the CR's evergreen-keyword
+    inventory) + 613.1f (keyword grants apply in layer 6): the
+    byte-identical membership-gated mirror — the imported live
+    ``_KEYWORD_SOUP_CONTEXT_RE`` team-grant context AND >= 5 distinct
+    ``_EVERGREEN_KW_RE`` word hits, WHOLE-TEXT (no per-clause span). The
+    per-site structural count is rejected: Akroma's Will splits its modal
+    grants so no single site reaches 5, and the count absorbs the
+    single-creature ABSORBERS (Cairn Wanderer — the ``keyword_soup`` lane,
+    a different archetype; the context RE requires the team-grant phrasing).
+    Live is include_membership-gated; the crosswalk runs it unconditionally
+    (live pops measured with the flag True — the b12 kill_engine precedent).
+    Scope "you", **LOW** (the live producer's identity; never feeds
+    voltron).
+    """
+    kept = _kept(tree)
+    if (
+        _KEYWORD_SOUP_CONTEXT_RE.search(kept)
+        and sum(1 for rx in _EVERGREEN_KW_RE if rx.search(kept)) >= 5
+    ):
+        return [Signal("keyword_soup_makers", "you", "", kept[:160], tree.name, "low")]
+    return []
+
+
+def _meld_pair(tree: ConceptTree) -> list[Signal]:
+    """meld_pair (§12, SUBJECT-carrying — signal_keys.MELD_PAIR) — CR
+    701.42a/701.42b (meld pairs; "See rule 712, 'Double-Faced Cards.'") +
+    201.4e + 712.1 (live cite CORRECT).
+
+    The batch's ONE raw-oracle mirror: the imported live
+    ``_MELD_FULLTEXT_RE`` over the **UN-stripped** oracle — the back piece's
+    meld info lives ONLY in reminder text ("(Melds with X.)"), which
+    reminder-stripping would lose. Subject = THIS card's name (the partner
+    names it back; the subject-spec branch serves exactly the one partner),
+    gated ``if name``. Bucket-B: phase drops 12/14 partners (only the
+    trigger-fronts Gisela + Graf Rats carry a Meld node; the RESULT face —
+    Brisela — names no partner, pop False) — long-logged, NOT a new bug
+    entry. Scope "you", HIGH.
+    """
+    raw = tree.oracle or ""
+    if tree.name and _MELD_FULLTEXT_RE.search(raw):
+        return [
+            Signal(
+                signal_keys.MELD_PAIR,
+                "you",
+                tree.name,
+                raw[:160],
+                tree.name,
+                "high",
+            )
+        ]
+    return []
+
+
+def _named_counter_misc(tree: ConceptTree) -> list[Signal]:
+    """named_counter_misc (§13) — CR 122.1 ("Counters with the same name or
+    description are interchangeable" — the NAME is the mechanic
+    discriminant). Three live arms:
+
+    (a) EFFECT arm — a role=effect place/remove of a kind in the CLOSED
+    12-kind ``_NAMED_COUNTER_KINDS`` set (imported; deliberately POSITIVE —
+    time/lore/charge own their own mechanics, a negative catch-all floods).
+    Tetzimoc's ``PutCounter{counter_type: 'prey'}``. **Cost-role gate:** the
+    arm reads role=effect only — Mazemind Tome's page PutCounter rides an
+    ``EffectCost`` (COST role), so it must fire via the MIRROR, not here
+    (the live role separation; a double-home would drift the shadow diff).
+    (b) PREDICATE arm — the broad catch-all is CORRECT on the payoff side
+    (niche≠skip): a "WITH an X counter" predicate whose live-normalized
+    kind token (:func:`_counter_kind_token` — the projection's own
+    normalization, imported) is NOT owned by a ported sibling (P1P1 →
+    plus_one_matters, Any → any_counter_matters, ``_COUNTER_KIND_KEYS``
+    kinds → their lanes — all prior-batch ports, sibling zero-drift). Three
+    read sites, mirroring live's e.subject / amount.subject / trig.subject
+    union: (i) every Typed filter UNDER a non-cost effect-concept node —
+    the deep scan reaches the Sum-wrapped count operand the flat
+    Ref-only helper misses (Rose Tyler's "for each suspended card you own
+    with a time counter"); an ability WRAPPER's condition is not an effect
+    node's subtree, so a condition-side pred never enters (Brood
+    Astronomer's Planet-with-charge instead-gate, Phylactery Lich —
+    pop-verified False; live's hascounters dispatch never feeds this lane);
+    (ii) a trigger's watched subject (Sporogenesis' "nontoken creature with
+    a fungus counter" dies-watcher); (iii) a STATIC def's affected filter,
+    gated to the modification families the old projection KEPT as
+    subject-bearing effects — P/T mods / strips (Time of Heroes' level
+    anthem, Sludge Monster / Spark Rupture strips) and plain-string
+    restriction modes (Rimescale Dragon / Temporal Distortion CantUntap) —
+    while the dropped-static families stay out (Omo's AddAllLandTypes,
+    Eluge's ModifyCost scaler — pop-verified False). Bomb Squad's fuse
+    predicate rides (i).
+    (c) the flat 2-word page/study mirror residue (Mazemind Tome, Pursuit
+    of Knowledge — the cost/replacement FOLD tail). LOGGED widen: v0.9.0
+    now carries the kind INSIDE the activation cost (a cost-role PutCounter
+    read candidate). All scope "you", HIGH.
+    """
+    for concept in ("place_counter", "remove_counter"):
+        for c in tree.effect_concepts(concept):
+            if counter_kind_any(c.node).lower() in _NAMED_COUNTER_KINDS:
+                return [
+                    Signal("named_counter_misc", "you", "", c.raw, tree.name, "high")
+                ]
+
+    def _misc_kind(filt: object) -> bool:
+        if filt is None or filter_controller(filt) == "Opponent":
+            return False
+        for kind in counter_pred_kinds(filt):
+            tok = "Any" if kind == "Any" else _counter_kind_token(kind)
+            if tok in ("P1P1", "Any"):
+                continue
+            if tok.lower() in _COUNTER_KIND_KEYS:
+                continue
+            return True
+        return False
+
+    for c in tree.iter_concepts():
+        if c.role == "cost":
+            continue
+        for n in iter_typed_nodes(c.node):
+            if tag_of(n) == "Typed" and _misc_kind(n):
+                return [
+                    Signal("named_counter_misc", "you", "", c.raw, tree.name, "high")
+                ]
+    for unit in tree.units:
+        if unit.origin == "trigger" and _misc_kind(
+            getattr(unit.node, "valid_card", None)
+        ):
+            return [Signal("named_counter_misc", "you", "", "", tree.name, "high")]
+        if unit.origin != "static":
+            continue
+        if not _misc_kind(getattr(unit.node, "affected", None)):
+            continue
+        mods = getattr(unit.node, "modifications", None)
+        tags = {tag_of(m) for m in mods} if isinstance(mods, list) else set()
+        mode = getattr(unit.node, "mode", None)
+        if (tags & _B16_STATIC_KEPT_MODS) or (isinstance(mode, str) and not tags):
+            return [Signal("named_counter_misc", "you", "", "", tree.name, "high")]
+    if _PAGE_STUDY_RX.search(_kept(tree)):
+        return [Signal("named_counter_misc", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _noncombat_damage_payoff(tree: ConceptTree) -> list[Signal]:
+    """noncombat_damage_payoff (§14) — CR 510.1a ("each attacking creature
+    and each blocking creature assigns combat damage equal to its power") +
+    510.2 set the combat/noncombat boundary; 702.19a (trample "… is dealing
+    noncombat damage") is the CR's literal term witness.
+
+    The imported pinned ``NONCOMBAT_DAMAGE_PAYOFF_REGEX`` flat over the kept
+    oracle (the lone ``[^.]*`` arm never crosses a period — flat ==
+    per-clause): the doublers (Solphim), reflectors (Boros Reckoner), and
+    the "deals exactly N damage" family phase leaves an Unknown-mode blob
+    (Ghyrson Starn — known event-other flattening, not a new bug). A COMBAT
+    damage payoff never fires (Cold-Eyed Selkie, pop False). LOGGED widen:
+    v0.9.0's first-class ``combat_scope=='NoncombatOnly'`` on the
+    doubler/preventer replacements. Scope "you", HIGH.
+    """
+    if _NONCOMBAT_DAMAGE_RX.search(_kept(tree)):
+        return [Signal("noncombat_damage_payoff", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _nonhuman_attackers(tree: ConceptTree) -> list[Signal]:
+    """nonhuman_attackers (§15) — CR 508.3 (attack-declaration triggers) +
+    205.3m (Human is a CR creature type): an attacks-trigger unit whose
+    watched subject filter carries the first-class Non:Subtype:Human entry
+    with controller you (Winota's ``Typed[Creature, {Non: {Subtype:
+    Human}}]``, the Batch-12-origin lane). A plain attack trigger without
+    the Non-Human subject stays out (Hanweir Garrison, pop False). Scope
+    "you", HIGH.
+    """
+    for unit in tree.units:
+        if unit.trigger_event != "attacks":
+            continue
+        vc = getattr(unit.node, "valid_card", None)
+        if "Human" in filter_non_types(vc) and filter_controller(vc) == "You":
+            return [Signal("nonhuman_attackers", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _one_punch(tree: ConceptTree) -> list[Signal]:
+    """one_punch (§16) — CR 903.10a (21 combat damage from one commander) +
+    702.90a (infect: power → poison) / 702.4a-b (double strike: a second
+    combat damage step) — the two amplifiers the serve credits.
+
+    Granularity (c) field-numeric membership: a creature with FIXED printed
+    power >= 8 AND power >= 2x its mana value connects ONCE for lethal
+    (Phyrexian Dreadnought 12/12 mv 1, Death's Shadow 13/13 mv 1); the ratio
+    gate excludes big-mana fatties (Emrakul 15/15 mv 15, pop False). Reads
+    the tree's typed ``power`` / ``cmc`` / ``has_printed_cost`` — the same
+    card-record fields the live producer reads off Scryfall (phase-
+    independent by design; NO absence claim made). The ``has_printed_cost``
+    gate keeps phase ``NoCost`` transform backs / meld results (mana value
+    belongs to the FRONT face, CR 202.3b) out of the numeric gate — the
+    live path reads the merged bulk record and never sees them. Live is
+    include_membership-gated, fired AFTER has_other_plan and never feeds
+    voltron; the crosswalk runs it unconditionally (the b12 precedent).
+    Scope "you", **LOW**.
+    """
+    if (
+        tree.is_type("Creature")
+        and tree.has_printed_cost
+        and tree.power is not None
+        and tree.power >= 8
+        and tree.power >= 2 * tree.cmc
+    ):
+        return [
+            Signal(
+                "one_punch",
+                "you",
+                "",
+                "extreme power-for-cost beater",
+                tree.name,
+                "low",
+            )
+        ]
+    return []
+
+
+def _per_target_payoff(tree: ConceptTree) -> list[Signal]:
+    """per_target_payoff (§17) — CR 601.2c (targets announced and locked as
+    part of casting) + 601.2f (the locked-in total cost): Hinata's YOUR-side
+    per-target cost reduction — the kept mirror ``less (to cast )?for each
+    (of those )?target``, corpus population exactly 1. [P49] LOGGED: phase
+    parses the reduction but degrades the "for each TARGET" discriminator to
+    an ObjectCount over an EMPTY filter (only the node description carries
+    it) — SUPPLEMENT-RECOVERABLE via a Stage-3 description screen (the [P8]
+    precedent). Scope "you", HIGH.
+    """
+    if _PER_TARGET_RX.search(_kept(tree)):
+        return [Signal("per_target_payoff", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _power_tap_engine(tree: ConceptTree) -> list[Signal]:
+    """power_tap_engine (§18) — CR 602.1 ("Activated abilities have a cost
+    and an effect. They are written as '[Cost]: [Effect.]'"): the repeatable
+    {T} power-scaling engine. Two live arms:
+
+    (a) STRUCTURAL — an Activated unit whose cost carries a Tap/Untap leaf
+    (:data:`_B16_TAP_COST_TAGS` — the live ``'tap' in ab.cost`` substring
+    also matches "untap": Hateflayer / Vikya are banked members via {Q})
+    AND the imported ``_POWER_SCALING_RAW`` over the unit's raws (Marwyn's
+    ``{T}: Add {G} equal to ~'s power``).
+    (b) the conferred ``{t}:`` kept mirror for the quoted-grant / DFC-back
+    form phase folds into a carrier (Predatory Urge, Dragon Throne) — live
+    fires Predatory Urge via the MIRROR (banked pop), ported as-is; the
+    v0.9.0 granted-subtree parse is a LOGGED widen candidate.
+
+    One-shot power-scaling with NO activation cost never fires (Soul's
+    Majesty, pop False). Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        if unit.kind != "Activated":
+            continue
+        cost = getattr(unit.node, "cost", None)
+        if not any(
+            tag_of(leaf) in _B16_TAP_COST_TAGS for leaf in iter_cost_leaves(cost)
+        ):
+            continue
+        raws = [getattr(unit.node, "description", None) or ""] + [
+            c.raw for c in unit.iter_concepts() if c.raw
+        ]
+        if any(_POWER_SCALING_RAW.search(r) for r in raws if r):
+            return [Signal("power_tap_engine", "you", "", "", tree.name, "high")]
+    if _POWER_TAP_CONFERRED_RX.search(_kept(tree)):
+        return [Signal("power_tap_engine", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _starting_life_matters(tree: ConceptTree) -> list[Signal]:
+    """starting_life_matters (§19) — CR 103.4 ("Each player begins the game
+    with a starting life total of 20") / 103.4c (Commander: 40) — live cite
+    CORRECT. The imported live project marker source ``_STARTING_LIFE_REF``
+    (``\\bstarting life total\\b``) re-derived VERBATIM flat over the kept
+    oracle (the phrase never lives in reminder text; phase carries no
+    StartingLife structure — probed, a genuine long-logged representation
+    gap, NOT a bug). Anchored on the PHRASE, not the concept: the old broad
+    regex's "life total is greater/less" arm over-fired on unrelated
+    thresholds (Elderscale Wurm, pop-verified False). Scope "you", HIGH.
+    """
+    m = _STARTING_LIFE_REF.search(_kept(tree))
+    if m is not None:
+        return [
+            Signal("starting_life_matters", "you", "", m.group(0), tree.name, "high")
+        ]
+    return []
+
+
+def _toughness_combat(tree: ConceptTree) -> list[Signal]:
+    """toughness_combat (§20) — CR 510.1a (the assign-combat-damage-equal-
+    to-POWER default the Doran statics override; the live "CR 510.1c" cite
+    is STALE — 510.1c is lethal-assignment ordering) + 613.4c (layer 7c) +
+    604.3 (CDAs). Two arms, the mirror NARROWED (the live C14 shape):
+
+    (a) STRUCTURAL — an ``AssignDamageFromToughness`` modification anywhere
+    (Doran; Assault Formation — the multi-ability face phase-static-drop is
+    fixed in v0.9.0, both probed) OR a Toughness-typed quantity in a node's
+    ``amount``/``count`` (a ``Ref{qty: Toughness}`` — Angelic Chorus; a
+    ``Ref{qty: Aggregate{property: 'Toughness'}}`` — Loxodon Lifechanter).
+    Deliberately NOT a whole-tree Toughness-tag scan: the evolve/comparison
+    predicates carry Toughness refs in ``value`` fields (Hulkling — NOT a
+    combat-toughness payoff). ``AssignNoCombatDamage`` is NOT a hit (Master
+    of Cruelties, pop-verified False — the discriminator the broad regex
+    couldn't make).
+    (b) the imported narrowed ``_TOUGHNESS_VALUE_MIRROR`` over the kept
+    oracle — the toughness-as-VALUE residue phase folds to fixed/None
+    operands (token P/T, pump-X, mana/cost = toughness). Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            t = tag_of(n)
+            if t == "AssignDamageFromToughness":
+                return [Signal("toughness_combat", "you", "", "", tree.name, "high")]
+            for fname in ("amount", "count"):
+                q = getattr(n, fname, None)
+                if tag_of(q) != "Ref":
+                    continue
+                qty = getattr(q, "qty", None)
+                qt = tag_of(qty)
+                if qt == "Toughness" or (
+                    qt == "Aggregate" and getattr(qty, "property", None) == "Toughness"
+                ):
+                    return [
+                        Signal("toughness_combat", "you", "", "", tree.name, "high")
+                    ]
+    if _TOUGHNESS_VALUE_MIRROR.search(_kept(tree)):
+        return [Signal("toughness_combat", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _typed_anthem_multi(tree: ConceptTree) -> list[Signal]:
+    """typed_anthem_multi (§21) — CR 205.3m (the creature-type list) +
+    613.4c (layer 7c P/T anthems) + 105.2a (colors are NOT subtypes — the
+    Glistening Deluge exclusion).
+
+    STRUCTURAL: a pump — an :data:`_ANTHEM_PUMP_MODS` modification (fixed
+    AND dynamic spellings — Hancock) read via ``iter_mod_sites``, or a mass
+    ``PumpAll`` effect (the single-target ``Pump`` is NOT an anthem —
+    Grassland Crusader stays out) — over a Creature filter naming >= 2
+    subtypes. ``filter_subtypes`` recurses the flat tuple (Brenard's
+    Food-or-Golem), the ``AnyOf``-of-subtypes entry (Dead Before Sunrise)
+    AND the Or-of-Typed disjunction (Lovisa — v0.9.0 structures what the
+    old projection dropped to subject=None; treat Or-of-single-subtype-Typed
+    as the AnyOf equivalent), while a color-only disjunction contributes NO
+    subtypes (HasColor rides properties, not type_filters — Glistening
+    Deluge, pop False) and a keyword GRANT with no pump never enters
+    (Paladin Danse, pop False). RAW FALLBACK: the imported CASE-SENSITIVE
+    ``_TYPED_ANTHEM_MULTI_RAW`` (capitalized subtype tokens are load-
+    bearing — NO IGNORECASE) for any remaining subject-less pump. Scope
+    "you", HIGH.
+    """
+
+    def _hits(f: object) -> bool:
+        return (
+            f is not None
+            and "Creature" in filter_core_types(f)
+            and len(set(filter_subtypes(f))) >= 2
+        )
+
+    for unit in tree.units:
+        for sd, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) not in _ANTHEM_PUMP_MODS:
+                continue
+            aff = getattr(sd, "affected", None)
+            if _hits(aff):
+                return [Signal("typed_anthem_multi", "you", "", "", tree.name, "high")]
+            if aff is None and _TYPED_ANTHEM_MULTI_RAW.search(
+                getattr(sd, "description", None) or ""
+            ):
+                return [Signal("typed_anthem_multi", "you", "", "", tree.name, "high")]
+        for c in unit.effects:
+            if tag_of(c.node) != "PumpAll":
+                continue
+            tgt = getattr(c.node, "target", None)
+            if _hits(tgt):
+                return [
+                    Signal("typed_anthem_multi", "you", "", c.raw, tree.name, "high")
+                ]
+            if tgt is None and _TYPED_ANTHEM_MULTI_RAW.search(
+                c.raw or getattr(unit.node, "description", None) or ""
+            ):
+                return [
+                    Signal("typed_anthem_multi", "you", "", c.raw, tree.name, "high")
+                ]
+    return []
+
+
 _LANES = (
     _win_lose_game,
     _discard_makers,
@@ -9240,6 +9953,27 @@ _LANES = (
     _saddle_matters_lane,
     _suspect_matters_lane,
     _void_warp_makers,
+    _ability_copy,
+    _ability_strip_payoff,
+    _arcane_matters,
+    _celebration_matters,
+    _cmdzone_ability,
+    _exalted_textual,
+    _flip_self,
+    _free_creature_payoff,
+    _free_spell_storm,
+    _island_makers,
+    _keyword_soup_makers,
+    _meld_pair,
+    _named_counter_misc,
+    _noncombat_damage_payoff,
+    _nonhuman_attackers,
+    _one_punch,
+    _per_target_payoff,
+    _power_tap_engine,
+    _starting_life_matters,
+    _toughness_combat,
+    _typed_anthem_multi,
 )
 
 
@@ -9290,6 +10024,8 @@ def extract_crosswalk_signals(
     for sig in _keyword_field_signals_b14(frozenset(keywords), tree.name):
         add(sig)
     for sig in _keyword_field_signals_b15(frozenset(keywords), tree.name):
+        add(sig)
+    for sig in _keyword_field_signals_b16(frozenset(keywords), tree.name):
         add(sig)
     # b15 keyword-DISCRIMINATED lanes (the bending node arm's earthbend gate
     # and the firebending / station mirror splits read the Scryfall array,

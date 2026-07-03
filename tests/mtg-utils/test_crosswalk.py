@@ -4569,6 +4569,278 @@ def test_void_warp_makers_mirror_and_void_payoff_boundary():
     assert "void_warp_makers" not in _keys("Alpharael, Stonechosen")
 
 
+# ── Batch 16: THE FINAL structural batch — porting phase complete ────────────
+
+
+def test_ability_copy_mirror_and_spell_copy_boundary():
+    """CR 707.10 ("A copy of an ability is itself an ability") + 113.2b: the
+    byte-identical kept mirror fires the ability-copiers (Strionic Resonator)
+    and the whole-suite importers ("has all activated abilities of" —
+    Necrotic Ooze); a SPELL copier (Twincast — the CopySpell/StackSpell shape
+    that made the structural arm over-fire 90%) never fires here (it rides
+    spell_copy_makers). The stale live "CR 706.10" cite is corrected — 706 is
+    now die-rolling."""
+    assert ("ability_copy", "you", "") in _idents("Strionic Resonator")
+    assert ("ability_copy", "you", "") in _idents("Necrotic Ooze")
+    twin = _keys("Twincast")
+    assert "ability_copy" not in twin
+    assert "spell_copy_makers" in twin
+
+
+def test_ability_strip_payoff_counter_join_and_vetoes():
+    """CR 613.1f (ability-removing effects, layer 6) + 122.1b (keyword
+    counters): one ability unit joins a RemoveAllAbilities modification with a
+    counter-placement concept — Abigale rides PutCounter, Hellcat rides the
+    ChangeZone ``enter_with_counters`` field (the parity trap: NO PutCounter
+    node on the record; the SequentialSibling chain is ONE unit). Retched
+    Wretch's counter ref is the trigger CONDITION (no placement — pop False);
+    Turn to Frog carries the SetPower/SetToughness shrinker veto shape."""
+    assert ("ability_strip_payoff", "you", "") in _idents(
+        "Abigale, Eloquent First-Year"
+    )
+    assert ("ability_strip_payoff", "you", "") in _idents("Hellcat, Undying Vigilante")
+    assert "ability_strip_payoff" not in _keys("Retched Wretch")
+    assert "ability_strip_payoff" not in _keys("Turn to Frog")
+
+
+def test_arcane_matters_word_mirror():
+    """CR 205.3k (Arcane is a SPELL type) + 702.47a (Splice onto Arcane): the
+    flat ``\\barcane\\b`` word mirror fires the payoff (Tallowisp) and the
+    Splice spells (Glacial Ray); a Spirit payoff with no "arcane" token never
+    fires (Geist-Honored Monk). The v0.9.0 ``{"Subtype": "Arcane"}`` filter
+    is a LOGGED widen candidate — the word mirror is the parity home."""
+    assert ("arcane_matters", "you", "") in _idents("Tallowisp")
+    assert ("arcane_matters", "you", "") in _idents("Glacial Ray")
+    assert "arcane_matters" not in _keys("Geist-Honored Monk")
+
+
+def test_celebration_matters_word_mirror():
+    """CR 207.2c — celebration is an ABILITY WORD (no rules meaning, no
+    structured phase node — probed: Ash carries "Celebration —" only in
+    strings), so the word mirror is the only home. Ash, Party Crasher and
+    Raging Battle Mouse fire; an Adventure payoff never does (Edgewall
+    Innkeeper)."""
+    assert ("celebration_matters", "you", "") in _idents("Ash, Party Crasher")
+    assert ("celebration_matters", "you", "") in _idents("Raging Battle Mouse")
+    assert "celebration_matters" not in _keys("Edgewall Innkeeper")
+
+
+def test_cmdzone_ability_condition_zone_read():
+    """CR 113.6 (abilities usually function on the battlefield; command-zone
+    abilities are stated exceptions) + 207.2c (eminence is an ability word) +
+    903.6: a recursive SourceInZone('Command') condition-tree read fires the
+    trigger form (Oloro) and the Eminence static (The Ur-Dragon — v0.9.0
+    structures the Or[Command, Battlefield] condition). Command Beacon's
+    EFFECT moves the commander FROM the zone — no zone condition, pop False.
+    (The stale live "113.6k" cite is now the multi-zone trigger rule.)"""
+    assert ("cmdzone_ability", "you", "") in _idents("Oloro, Ageless Ascetic")
+    assert ("cmdzone_ability", "you", "") in _idents("The Ur-Dragon")
+    assert "cmdzone_ability" not in _keys("Command Beacon")
+
+
+def test_exalted_keyword_and_textual_arms_emit_voltron_pair():
+    """CR 702.83a/702.83b + 506.5 ("attacks alone"): the Scryfall keyword row
+    emits BOTH exalted_lone_attacker AND voltron_matters (the live tuple —
+    an exalted commander suits up a lone attacker); the kept mirror fires
+    the "attacks alone" payoffs (Sovereigns of Lost Alara). Soulbond alone
+    never fires (Silverblade Paladin)."""
+    rafiq = _idents("Rafiq of the Many")
+    assert ("exalted_lone_attacker", "you", "") in rafiq
+    assert ("voltron_matters", "you", "") in rafiq
+    assert ("exalted_lone_attacker", "you", "") in _idents("Sovereigns of Lost Alara")
+    assert "exalted_lone_attacker" not in _keys("Silverblade Paladin")
+
+
+def test_flip_self_mirror_and_wording_gap():
+    """CR 710.1/710.2 (flip cards): the coined "flip this creature" phrase
+    fires the Kamigawa flip fronts (Nezumi Graverobber, Bushi Tenderfoot).
+    Akki Lavarunner's "flip it" wording defeats the anchor — pop False,
+    pinning parity AND documenting the [P48] Unimplemented{name=='flip'}
+    typed-read widen candidate (phase parses all flips to the same
+    self-identifying Unimplemented node)."""
+    assert ("flip_self", "you", "") in _idents("Nezumi Graverobber")
+    assert ("flip_self", "you", "") in _idents("Bushi Tenderfoot")
+    assert "flip_self" not in _keys("Akki Lavarunner")
+
+
+def test_free_creature_payoff_etb_gate():
+    """CR 601.2f-h + 118.7 (a cost reduced to nothing is {0} — cast with no
+    mana spent): an etb-event trigger with a ManaSpentCondition anywhere in
+    the condition tree fires (Satoru — Or[Not(WasCast), ManaSpentCondition]);
+    the CAST-trigger punisher is the opposite lane and never fires (Lavinia).
+    The stale live "CR 712" cite is now Double-Faced Cards."""
+    assert ("free_creature_payoff", "you", "") in _idents("Satoru, the Infiltrator")
+    assert "free_creature_payoff" not in _keys("Lavinia, Azorius Renegade")
+
+
+def test_free_spell_storm_selfref_scaler_shapes():
+    """CR 601.2f/118.7: a SelfRef ModifyCost{Reduce} static whose
+    dynamic_count is the cast-this-turn shape fires — the ObjectCount-with-
+    Another form (Thrasta) and the SpellsCastThisTurn{Controller} form
+    (Demilich); an opponent-cast scaler is excluded by the same gate
+    (Delightful Discovery — pop False)."""
+    assert ("free_spell_storm", "you", "") in _idents("Thrasta, Tempest's Roar")
+    assert ("free_spell_storm", "you", "") in _idents("Demilich")
+    assert "free_spell_storm" not in _keys("Delightful Discovery")
+
+
+def test_island_makers_word_mirror_and_matters_boundary():
+    """CR 702.14b/702.14c (islandwalk is an evasion ability): the flat
+    ``\\bislandwalk\\b`` word mirror fires bearers (Thada Adel), granters
+    (Lord of Atlantis — no Scryfall keyword, the conferred-keyword gap) and
+    neutralizers (Mystic Decree). The Zhou Yu attack-restriction PAYOFF is
+    the sibling island_matters lane (ported b13, zero drift) — makers stays
+    out."""
+    assert ("island_makers", "you", "") in _idents("Lord of Atlantis")
+    assert ("island_makers", "you", "") in _idents("Thada Adel, Acquisitor")
+    assert ("island_makers", "you", "") in _idents("Mystic Decree")
+    zhou = _keys("Zhou Yu, Chief Commander")
+    assert "island_makers" not in zhou
+    assert "island_matters" in zhou
+
+
+def test_keyword_soup_makers_context_and_count():
+    """CR 122.1b (the evergreen keyword inventory) + 613.1f: the
+    membership-gated mirror — team-grant context AND >= 5 distinct evergreen
+    keyword words over the whole kept text — fires Odric and the cross-modal
+    Akroma's Will (whose per-ability structural count never reaches 5); the
+    single-creature ABSORBER (Cairn Wanderer — keyword_soup, a different
+    lane) never fires makers. LOW confidence, membership block."""
+    assert ("keyword_soup_makers", "you", "") in _idents("Odric, Lunarch Marshal")
+    assert ("keyword_soup_makers", "you", "") in _idents("Akroma's Will")
+    assert "keyword_soup_makers" not in _keys("Cairn Wanderer")
+
+
+def test_meld_pair_raw_oracle_and_subject():
+    """CR 701.42a/701.42b (meld pairs) + 712.1: the ONE raw-oracle mirror —
+    reminder text is load-bearing: the back piece carries only "(Melds with
+    X.)", which reminder-stripping would lose. Subject = THIS card's name
+    (signal_keys.MELD_PAIR ∈ SUBJECT_KEYS serves the one partner). The meld
+    RESULT names no partner and never fires (Brisela)."""
+    assert ("meld_pair", "you", "Gisela, the Broken Blade") in _idents(
+        "Gisela, the Broken Blade"
+    )
+    assert ("meld_pair", "you", "Bruna, the Fading Light") in _idents(
+        "Bruna, the Fading Light"
+    )
+    assert ("meld_pair", "you", "Hanweir Garrison") in _idents("Hanweir Garrison")
+    assert "meld_pair" not in _keys("Brisela, Voice of Nightmares")
+
+
+def test_named_counter_misc_three_arms_and_cost_role_gate():
+    """CR 122.1 (counters are individuated by NAME): (1) the closed-12-kind
+    effect arm (Tetzimoc — PutCounter ck='prey'); (2) the predicate
+    else-branch catch-all ("with a fuse counter" — Bomb Squad; niche≠skip);
+    (3) the page/study mirror residue (Mazemind Tome — the parity trap: its
+    PutCounter rides the activation COST (EffectCost), so the effect arm must
+    NOT fire; the MIRROR is the home). 'time' owns suspend/vanishing (CR
+    702.62 family) and stays out (Deep-Sea Kraken)."""
+    assert ("named_counter_misc", "you", "") in _idents("Tetzimoc, Primal Death")
+    assert ("named_counter_misc", "you", "") in _idents("Mazemind Tome")
+    assert ("named_counter_misc", "you", "") in _idents("Bomb Squad")
+    assert "named_counter_misc" not in _keys("Deep-Sea Kraken")
+
+
+def test_noncombat_damage_payoff_word_mirror():
+    """CR 510.1a/510.2 (combat damage is assigned in the combat damage step —
+    everything else is noncombat) + 702.19a (the CR's literal term witness):
+    the byte-identical word mirror fires the doubler (Solphim), the reflector
+    (Boros Reckoner) and the Unknown-mode "deals exactly" family (Ghyrson
+    Starn — mirror-only home); a COMBAT-damage payoff never fires (Cold-Eyed
+    Selkie). The v0.9.0 combat_scope=='NoncombatOnly' read is a LOGGED widen
+    candidate. (Stale live "510.1c" corrected — that is lethal-assignment
+    ordering.)"""
+    assert ("noncombat_damage_payoff", "you", "") in _idents("Solphim, Mayhem Dominus")
+    assert ("noncombat_damage_payoff", "you", "") in _idents("Boros Reckoner")
+    assert ("noncombat_damage_payoff", "you", "") in _idents(
+        "Ghyrson Starn, Kelermorph"
+    )
+    assert "noncombat_damage_payoff" not in _keys("Cold-Eyed Selkie")
+
+
+def test_nonhuman_attackers_subject_gate():
+    """CR 508.3 + 205.3m: an attacks-trigger whose subject filter carries the
+    Non:Subtype:Human predicate with controller you (Winota's
+    ``Typed[Creature, {Non: {Subtype: Human}}]``); a plain attack trigger
+    without the Non-Human subject stays out (Hanweir Garrison — reused as
+    §12's positive AND this lane's negative)."""
+    assert ("nonhuman_attackers", "you", "") in _idents("Winota, Joiner of Forces")
+    assert "nonhuman_attackers" not in _keys("Hanweir Garrison")
+
+
+def test_one_punch_numeric_membership_gate():
+    """CR 903.10a (21 commander damage) + 702.90a infect / 702.4a-b double
+    strike (the amplifiers the serve credits): the field-numeric membership
+    gate — creature, Fixed power >= 8, power >= 2x mana value, and a REAL
+    printed cost (phase NoCost backs never enter). Phyrexian Dreadnought
+    12/12 mv 1 and Death's Shadow 13/13 mv 1 fire; Emrakul 15/15 mv 15 wins
+    by size, not amplification (ratio gate). LOW confidence, membership
+    block."""
+    assert ("one_punch", "you", "") in _idents("Phyrexian Dreadnought")
+    assert ("one_punch", "you", "") in _idents("Death's Shadow")
+    assert "one_punch" not in _keys("Emrakul, the Aeons Torn")
+
+
+def test_per_target_payoff_mirror():
+    """CR 601.2c (targets are locked at announce) + 601.2f: the kept mirror
+    fires Hinata's YOUR-side per-target reduction (the corpus population is
+    exactly one card); a plain self-side reducer with no per-target scaler
+    never fires (Goblin Anarchomancer). Phase degrades the "for each target"
+    discriminator to an empty ObjectCount — the [P49] description-screen
+    recovery is Stage-3."""
+    assert ("per_target_payoff", "you", "") in _idents("Hinata, Dawn-Crowned")
+    assert "per_target_payoff" not in _keys("Goblin Anarchomancer")
+
+
+def test_power_tap_engine_structural_and_conferred_arms():
+    """CR 602.1 ("[Cost]: [Effect.]"): the structural arm — an Activated unit
+    with a Tap/Untap cost leaf and a power-scaling raw (Marwyn's ``{T}: Add
+    {G} equal to ~'s power``) — and the conferred ``{t}:`` mirror for the
+    quoted-grant form phase folds into a carrier (Predatory Urge). One-shot
+    power-scaling with NO activation cost never fires (Soul's Majesty)."""
+    assert ("power_tap_engine", "you", "") in _idents("Marwyn, the Nurturer")
+    assert ("power_tap_engine", "you", "") in _idents("Predatory Urge")
+    assert "power_tap_engine" not in _keys("Soul's Majesty")
+
+
+def test_starting_life_matters_marker_rederivation():
+    """CR 103.4/103.4c (starting life totals): the verbatim ``\\bstarting
+    life total\\b`` marker re-derivation fires the compare payoff (Angel of
+    Destiny) and the halving effect (Torgaar); the PHRASE, not the concept —
+    "your life total becomes 7" stays out (Elderscale Wurm, the old broad
+    regex's over-fire)."""
+    assert ("starting_life_matters", "you", "") in _idents("Angel of Destiny")
+    assert ("starting_life_matters", "you", "") in _idents("Torgaar, Famine Incarnate")
+    assert "starting_life_matters" not in _keys("Elderscale Wurm")
+
+
+def test_toughness_combat_structural_and_value_residue():
+    """CR 510.1a (the assign-equal-to-POWER default the Doran statics
+    override; the stale live "510.1c" is lethal-assignment ordering) +
+    613.4c + 604.3: the AssignDamageFromToughness modification fires the
+    redirect half (Doran; Assault Formation — the multi-ability face); a
+    Toughness-typed Ref quantity in an effect amount fires the value half
+    (Angelic Chorus); AssignNoCombatDamage is NOT a from-toughness hit
+    (Master of Cruelties — pop False)."""
+    assert ("toughness_combat", "you", "") in _idents("Doran, the Siege Tower")
+    assert ("toughness_combat", "you", "") in _idents("Angelic Chorus")
+    assert ("toughness_combat", "you", "") in _idents("Assault Formation")
+    assert "toughness_combat" not in _keys("Master of Cruelties")
+
+
+def test_typed_anthem_multi_structural_and_color_gate():
+    """CR 205.3m (creature types) + 613.4c + 105.2a (colors are NOT
+    subtypes): a pump modification over a Creature filter naming >= 2
+    subtypes fires — the Or-of-Typed disjunction (Lovisa — v0.9.0 structures
+    what the old projection dropped) and the flat 2-subtype form (Brenard's
+    Food-or-Golem); a color-only disjunction never fires (Glistening
+    Deluge), nor does a keyword GRANT with no pump (Paladin Danse)."""
+    assert ("typed_anthem_multi", "you", "") in _idents("Lovisa Coldeyes")
+    assert ("typed_anthem_multi", "you", "") in _idents("Brenard, Ginger Sculptor")
+    assert "typed_anthem_multi" not in _keys("Glistening Deluge")
+    assert "typed_anthem_multi" not in _keys("Paladin Danse, Steel Maverick")
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

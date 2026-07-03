@@ -320,6 +320,14 @@ class ConceptTree:
     # frames (logged shadow-diff data, not chased).
     card_supertypes: tuple[str, ...] = ()
     cmc: int = 0
+    # b16 (§16 one_punch, deepening-start-minimal): the card's own FIXED printed
+    # power (None for CDA/dynamic ``*`` powers) and whether the face carries a
+    # REAL printed mana cost (phase tags transform backs / meld results
+    # ``NoCost`` — their mana value lives on the FRONT face, so a NoCost face
+    # must never enter a power-for-cost numeric gate; CR 202.3b treats the back
+    # face's mana value as the front's).
+    power: int | None = None
+    has_printed_cost: bool = False
     # The phase record's face oracle text (``S_Root.oracle_text``), verbatim.
     # Carried for the b12 SANCTIONED byte-identical mirror ports (the live
     # kept-regex lanes: entered_attacker, animate_artifact, color_change, the
@@ -2579,6 +2587,14 @@ def build_concept_tree(
         cmc = (generic if isinstance(generic, int) else 0) + len(shards)
     else:
         cmc = 0
+    # b16: a REAL printed cost is phase's ``Cost`` node; transform backs / meld
+    # results carry ``NoCost`` (mana value belongs to the front, CR 202.3b).
+    has_printed_cost = isinstance(mc, TypedMirrorNode) and tag_of(mc) == "Cost"
+    pw = getattr(root, "power", None)
+    power: int | None = None
+    if isinstance(pw, TypedMirrorNode) and tag_of(pw) == "Fixed":
+        v = getattr(pw, "value", None)
+        power = v if isinstance(v, int) else None
     units: list[AbilityUnit] = []
 
     abilities = getattr(root, "abilities", ()) or ()
@@ -2668,5 +2684,7 @@ def build_concept_tree(
         card_subtypes=card_subtypes,
         card_supertypes=card_supertypes,
         cmc=cmc,
+        power=power,
+        has_printed_cost=has_printed_cost,
         oracle=oracle if isinstance(oracle, str) else "",
     )
