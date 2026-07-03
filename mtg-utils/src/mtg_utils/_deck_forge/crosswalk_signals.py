@@ -58,6 +58,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_owned_controller,
     filter_predicates,
     filter_subtypes,
+    filter_without_keywords,
     iter_cost_leaves,
     iter_mod_sites,
     lifeloss_recipient_scope,
@@ -3027,35 +3028,45 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
 
     The type gate (:data:`_MASS_REMOVAL_TYPES`) keeps "destroy all LANDS"
     (Armageddon) in land_destruction; a controller-You mass exile (Day of the
-    Dragons' own-board swap) is a drawback, not removal (checklist #6). Scope
-    "you".
+    Dragons' own-board swap) is a drawback, not removal (checklist #6). Two
+    COMBAT-SCOPE vetoes keep the debuff arm off one-combat tricks phase
+    flattens to a bare board sweep by dropping the "blocking it" clause
+    (phase_parse_bug [P12]): a ``becomes_blocked``/``blocks`` trigger unit
+    (Baneblade Scoundrel) and a ``WithoutKeyword:Flanking`` blocker filter —
+    the flanking template, whose -1/-1 hits only blocking creatures per CR
+    702.25a (Knight of Valor). Scope "you".
     """
-    for c in tree.iter_concepts():
-        if c.role != "effect":
-            continue
-        t = tag_of(c.node)
-        sub = effect_filter(c.node)
-        cores = set(filter_core_types(sub))
-        ctrl = filter_controller(sub)
-        raw = c.raw
-        if t == "DestroyAll" and ctrl != "You" and cores & _MASS_REMOVAL_TYPES:
-            return [Signal("mass_removal", "you", "", raw, tree.name, "high")]
-        if t == "ChangeZoneAll" and ctrl != "You":
-            origin, dest = change_zone_dirs(c.node)
-            gy = origin == "Graveyard" or ("Graveyard" in filter_inzone_zones(sub))
-            if dest == "Exile" and not gy and cores & _MASS_REMOVAL_TYPES:
-                return [Signal("mass_removal", "you", "", raw, tree.name, "high")]
-        if t == "DamageAll" and cores & {"Creature", "Permanent"}:
-            return [Signal("mass_removal", "you", "", raw, tree.name, "high")]
-        toughness = _fixed_pt(c.node, "toughness") if t == "PumpAll" else None
-        if (
-            toughness is not None
-            and toughness < 0
-            and "Creature" in cores
-            and ctrl is None
-            and not (set(filter_predicates(sub)) & _DEBUFF_SINGLE_AURA_PREDS)
-        ):
-            return [Signal("mass_removal", "you", "", raw, tree.name, "high")]
+    for unit in tree.units:
+        combat_scope = unit.trigger_event in ("becomes_blocked", "blocks")
+        for c in unit.iter_concepts():
+            if c.role != "effect":
+                continue
+            t = tag_of(c.node)
+            sub = effect_filter(c.node)
+            cores = set(filter_core_types(sub))
+            ctrl = filter_controller(sub)
+            raw = c.raw
+            hit = [Signal("mass_removal", "you", "", raw, tree.name, "high")]
+            if t == "DestroyAll" and ctrl != "You" and cores & _MASS_REMOVAL_TYPES:
+                return hit
+            if t == "ChangeZoneAll" and ctrl != "You":
+                origin, dest = change_zone_dirs(c.node)
+                gy = origin == "Graveyard" or ("Graveyard" in filter_inzone_zones(sub))
+                if dest == "Exile" and not gy and cores & _MASS_REMOVAL_TYPES:
+                    return hit
+            if t == "DamageAll" and cores & {"Creature", "Permanent"}:
+                return hit
+            toughness = _fixed_pt(c.node, "toughness") if t == "PumpAll" else None
+            if (
+                toughness is not None
+                and toughness < 0
+                and "Creature" in cores
+                and ctrl is None
+                and not combat_scope
+                and "Flanking" not in filter_without_keywords(sub)
+                and not (set(filter_predicates(sub)) & _DEBUFF_SINGLE_AURA_PREDS)
+            ):
+                return hit
     return []
 
 

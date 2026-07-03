@@ -641,6 +641,27 @@ def filter_predicates(filt: object) -> tuple[str, ...]:
     return tuple(out)
 
 
+def filter_without_keywords(filt: object) -> tuple[str, ...]:
+    """The keyword names a typed filter EXCLUDES via ``WithoutKeyword``
+    properties ("creature without flanking" — the flanking template's blocker
+    filter, CR 702.25a). The value-level companion to
+    :func:`filter_predicates`, which returns only the property TAGS. Recurses
+    ``Or`` / ``And`` like the other filter reads.
+    """
+    out: list[str] = []
+    t = tag_of(filt)
+    if t == "Typed":
+        for prop in getattr(filt, "properties", ()) or ():
+            if tag_of(prop) == "WithoutKeyword":
+                v = getattr(prop, "value", None)
+                if isinstance(v, str):
+                    out.append(v)
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            out.extend(filter_without_keywords(sub))
+    return tuple(out)
+
+
 def effect_filter(node: TypedMirrorNode) -> object | None:
     """The typed FILTER node an effect names (``subject`` / ``filter`` / ``target`` /
     ``affected``), or ``None``.

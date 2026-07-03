@@ -6092,6 +6092,178 @@
         "common"
       ]
     },
+    "Baneblade Scoundrel": {
+      "name": "Baneblade Scoundrel",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Rogue",
+          "Werewolf"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 3
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Whenever this creature becomes blocked, each creature blocking it gets -1/-1 until end of turn.\nDaybound (If a player casts no spells during their own turn, it becomes night next turn.)",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Daybound"
+      ],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "BecomesBlocked",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "PumpAll",
+              "power": {
+                "type": "Fixed",
+                "value": -1
+              },
+              "toughness": {
+                "type": "Fixed",
+                "value": -1
+              },
+              "target": {
+                "type": "Typed",
+                "type_filters": [
+                  "Creature"
+                ],
+                "controller": null,
+                "properties": []
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": "UntilEndOfTurn",
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "Whenever ~ becomes blocked, each creature blocking it gets -1/-1 until end of turn.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "4f5da665-e880-4325-a9e2-6fc4ca1d807a",
+      "metadata": {
+        "source_printing_ids": [
+          "5b13fbff-8b72-459a-ac72-3429be6e192d",
+          "7b63f2ae-5bfd-452f-b1f5-8459bcecd3bb",
+          "f5809d03-35d8-4975-bcfb-d42616b70129"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "layout": "transform",
+      "printings": [
+        "DBL",
+        "MID"
+      ],
+      "rulings": [
+        {
+          "date": "2021-09-24",
+          "text": "A blocked attacker remains blocked even if all blockers are destroyed before combat damage. If there are no blockers blocking it, it won't deal combat damage, unless it has trample."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "Abilities that trigger when a creature \"becomes blocked\" resolve before combat damage is dealt."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "Before a player untaps their permanents during the untap step, the game checks to see if the day/night designation should change."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "Day and night are designations that the game itself can have. The game starts as neither. Once the game becomes day (or less commonly, night), the game will be exactly one of them\u2014day or night\u2014going back and forth for the rest of the game."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "Double-faced permanents with daybound transform to their nightbound faces as it becomes night. Similarly, double-faced permanents with nightbound transform to their daybound faces as it becomes day. This happens immediately and is not a state-based action. It happens any time it becomes day or night, not just during the untap step."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If it is day, and the active player of the previous turn cast no spells during their turn, it becomes night."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If it is night, and the active player of the previous turn cast two or more spells during their turn, it becomes day."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If it is night, permanents with daybound that enter the battlefield without being cast will enter with their nightbound faces up."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If it's neither day nor night, and a creature with daybound and a creature with nightbound somehow appear on the battlefield at the same time, it becomes day. The creature with nightbound will transform."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "If you cast a spell with daybound during night, that spell will be front face up (that is, daybound face up) on the stack. However, it will enter the battlefield with its back face up (that is, with its nightbound face up). It won't enter with its daybound face up and then transform."
+        },
+        {
+          "date": "2021-09-24",
+          "text": "Permanents with daybound and nightbound can't transform via any means other than their daybound and nightbound abilities. Notably, older cards such as Moonmist that instruct a player to transform permanents don't affect permanents with daybound or nightbound."
+        }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
     "Banisher Priest": {
       "name": "Banisher Priest",
       "mana_cost": {
@@ -28993,6 +29165,187 @@
         "rare"
       ]
     },
+    "Knight of Valor": {
+      "name": "Knight of Valor",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Knight"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Flanking (Whenever a creature without flanking blocks this creature, the blocking creature gets -1/-1 until end of turn.)\n{1}{W}: Each creature without flanking blocking this creature gets -1/-1 until end of turn. Activate only once each turn.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Flanking"
+      ],
+      "abilities": [
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "PumpAll",
+            "power": {
+              "type": "Fixed",
+              "value": -1
+            },
+            "toughness": {
+              "type": "Fixed",
+              "value": -1
+            },
+            "target": {
+              "type": "Typed",
+              "type_filters": [
+                "Creature"
+              ],
+              "controller": null,
+              "properties": [
+                {
+                  "type": "WithoutKeyword",
+                  "value": "Flanking"
+                }
+              ]
+            }
+          },
+          "cost": {
+            "type": "Mana",
+            "cost": {
+              "type": "Cost",
+              "shards": [
+                "White"
+              ],
+              "generic": 1
+            }
+          },
+          "sub_ability": null,
+          "duration": "UntilEndOfTurn",
+          "description": "{1}{W}: Each creature without flanking blocking ~ gets -1/-1 until end of turn. Activate only once each turn.",
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "OnlyOnceEachTurn"
+            }
+          ],
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [
+        {
+          "mode": "BecomesBlocked",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Pump",
+              "power": {
+                "type": "Fixed",
+                "value": -1
+              },
+              "toughness": {
+                "type": "Fixed",
+                "value": -1
+              },
+              "target": {
+                "type": "TriggeringSource"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": "UntilEndOfTurn",
+            "description": "CR 702.25a: Flanking \u2014 blocking creatures without flanking get -1/-1 until end of turn",
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": {
+            "type": "Typed",
+            "type_filters": [
+              "Creature"
+            ],
+            "controller": null,
+            "properties": [
+              {
+                "type": "WithoutKeyword",
+                "value": "Flanking"
+              }
+            ]
+          },
+          "valid_source": null,
+          "description": "CR 702.25a: Flanking \u2014 whenever this creature becomes blocked by a creature without flanking, the blocking creature gets -1/-1 until end of turn.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "White"
+      ],
+      "scryfall_oracle_id": "f2edb543-de33-4eed-892c-98038eec96e2",
+      "metadata": {
+        "source_printing_ids": [
+          "25aa80ae-bb17-4e52-a269-efe75cf4c041"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "premodern": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "VIS"
+      ],
+      "rulings": [
+        {
+          "date": "2004-10-04",
+          "text": "The second ability is not Flanking and is not removed by an effect that removes Flanking."
+        }
+      ],
+      "rarities": [
+        "common"
+      ]
+    },
     "Kor Outfitter": {
       "name": "Kor Outfitter",
       "mana_cost": {
@@ -49385,6 +49738,10 @@
       "Haste",
       "Vigilance"
     ],
+    "Baneblade Scoundrel": [
+      "Daybound",
+      "Nightbound"
+    ],
     "Bartered Cow": [
       "Food"
     ],
@@ -49481,6 +49838,9 @@
     ],
     "Karn's Bastion": [
       "Proliferate"
+    ],
+    "Knight of Valor": [
+      "Flanking"
     ],
     "Light Up the Stage": [
       "Spectacle"

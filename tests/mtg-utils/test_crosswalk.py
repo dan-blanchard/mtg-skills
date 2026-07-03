@@ -1692,12 +1692,29 @@ def test_discard_outlet_direction_gates(name, should_fire):
         ("Languish", True),  # negative PumpAll — typed -4/-4 (structural)
         ("Armageddon", False),  # destroy all LANDS → land_destruction
         ("Living Death", False),  # graveyard-zone mass exile → GY recursion
+        ("Knight of Valor", False),  # flanking template — one combat's blocker
+        ("Baneblade Scoundrel", False),  # becomes-blocked -1/-1 — not a board
     ],
 )
 def test_mass_removal_arms_and_gates(name, should_fire):
     """mass_removal fires the four typed wipe arms and excludes the land-only
     sweep and the graveyard mass-exile (CR 115.10 / 406, checklist #2)."""
     assert (("mass_removal", "you", "") in _idents(name)) is should_fire
+
+
+def test_mass_removal_combat_debuff_vetoes():
+    """A flanking-style -1/-1 hits one combat's blockers, never the board
+    (CR 702.25a) — but phase drops the "blocking it" clause from the PumpAll
+    filter (phase_parse_bug [P12]), leaving Knight of Valor a bare
+    WithoutKeyword:Flanking sweep and Baneblade Scoundrel a bare
+    Typed[Creature] sweep. Two vetoes restore the scope: the
+    WithoutKeyword:Flanking predicate (the flanking template's blocker
+    filter) and the becomes_blocked/blocks trigger unit. The combat payoff
+    itself still reads (blocked_matters)."""
+    assert "mass_removal" not in _keys("Knight of Valor")
+    assert "mass_removal" not in _keys("Baneblade Scoundrel")
+    assert "blocked_matters" in _keys("Baneblade Scoundrel")
+    assert "blocked_matters" in _keys("Knight of Valor")
 
 
 def test_mass_removal_languish_negative_amount_is_typed():
