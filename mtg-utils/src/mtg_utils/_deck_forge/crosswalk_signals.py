@@ -4738,16 +4738,57 @@ def _bounce_tempo(tree: ConceptTree) -> list[Signal]:
     is the direction): a graveyard-zone subject (``InZone: Graveyard`` — a
     GY→hand recall, the creature_recursion arm) and a your-own-permanent
     subject (Aviary Mechanic — self-bounce value, controller You) never fire.
-    A mass bounce co-fires with the ported ``mass_bounce`` (live keeps both).
-    Scope "you".
+    Phase ALSO emits a ZONE-LESS ``Bounce`` for graveyard-to-hand returns
+    ([P21] — the InZone marker is dropped), so the [P8]-precedent node-local
+    description screen restores the recursion/tempo boundary (CR 402.1 vs
+    404.1), scoped two ways against the multi-sentence description blob:
+    a SelfRef subject with a "from ... graveyard" description is a
+    self-return (Abzan Devotee) — WITHOUT it, battlefield self-bounce
+    (Blinking Spirit) keeps firing, matching live; a targeted bounce with
+    that description is vetoed only when it is the unit's ONLY bounce
+    (Aphetto Dredging, Greasefang's reanimate-loop return) — a unit that
+    also carries a genuine tempo bounce (Aether Helix's two-sentence pair)
+    still fires, matching live. A mass bounce co-fires with the ported
+    ``mass_bounce`` (live keeps both). Scope "you".
     """
-    for c in tree.effect_concepts("bounce"):
-        sub = effect_filter(c.node)
-        if "Graveyard" in filter_inzone_zones(sub):
-            continue
-        if filter_controller(sub) == "You":
-            continue
-        return [Signal("bounce_tempo", "you", "", c.raw, tree.name, "high")]
+
+    def _gy(text: str) -> bool:
+        return any(
+            phrase in text
+            for phrase in (
+                "from your graveyard",
+                "from a graveyard",
+                "from their graveyard",
+                "from graveyards",
+                "from target player's graveyard",
+            )
+        )
+
+    card_desc = " ".join(
+        (getattr(u.node, "description", None) or "") for u in tree.units
+    ).lower()
+    for unit in tree.units:
+        desc = (getattr(unit.node, "description", None) or "").lower()
+        # a nested delayed-trigger unit carries no description of its own —
+        # the oracle text stayed on the parent, so fall back to the card's.
+        gy_return = _gy(desc) if desc else _gy(card_desc)
+        bounces = [
+            c
+            for c in unit.iter_concepts()
+            if c.role == "effect" and c.concept == "bounce"
+        ]
+        for c in bounces:
+            sub = effect_filter(c.node)
+            if tag_of(sub) == "SelfRef":
+                if gy_return:
+                    continue  # self GY-return — recursion, not tempo
+            elif gy_return and len(bounces) == 1 and desc:
+                continue  # the unit IS the graveyard recall
+            if "Graveyard" in filter_inzone_zones(sub):
+                continue
+            if filter_controller(sub) == "You":
+                continue
+            return [Signal("bounce_tempo", "you", "", c.raw, tree.name, "high")]
     return []
 
 

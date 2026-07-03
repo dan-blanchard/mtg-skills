@@ -318,6 +318,147 @@
         "mythic"
       ]
     },
+    "Abzan Devotee": {
+      "name": "Abzan Devotee",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black"
+        ],
+        "generic": 1
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Dog",
+          "Cleric"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 1
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "{1}: Add {W}, {B}, or {G}. Activate only once each turn.\n{2}{B}: Return this card from your graveyard to your hand.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "Mana",
+            "produced": {
+              "type": "AnyOneColor",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "color_options": [
+                "White",
+                "Black",
+                "Green"
+              ]
+            }
+          },
+          "cost": {
+            "type": "Mana",
+            "cost": {
+              "type": "Cost",
+              "shards": [],
+              "generic": 1
+            }
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "{1}: Add {W}, {B}, or {G}. Activate only once each turn.",
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "OnlyOnceEachTurn"
+            }
+          ],
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false,
+          "is_mana_ability": true
+        },
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "Bounce",
+            "target": {
+              "type": "SelfRef"
+            },
+            "destination": null
+          },
+          "cost": {
+            "type": "Mana",
+            "cost": {
+              "type": "Cost",
+              "shards": [
+                "Black"
+              ],
+              "generic": 2
+            }
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "{2}{B}: Return this card from your graveyard to your hand.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black",
+        "Green",
+        "White"
+      ],
+      "scryfall_oracle_id": "3d02ee2f-b7bd-40b0-b9be-2420991b2be0",
+      "metadata": {
+        "source_printing_ids": [
+          "66555946-e747-46fa-b1ac-b103a8edcd93"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "pioneer": "legal",
+        "standard": "legal",
+        "standardbrawl": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "TDM"
+      ],
+      "rarities": [
+        "common"
+      ]
+    },
     "Abzan Guide": {
       "name": "Abzan Guide",
       "mana_cost": {
@@ -1990,6 +2131,129 @@
       ],
       "rarities": [
         "rare"
+      ]
+    },
+    "Aether Helix": {
+      "name": "Aether Helix",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Green",
+          "Blue"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Return target permanent to its owner's hand. Return target permanent card from your graveyard to your hand.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Bounce",
+            "target": {
+              "type": "Typed",
+              "type_filters": [
+                "Permanent"
+              ],
+              "controller": null,
+              "properties": []
+            },
+            "destination": null
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Bounce",
+              "target": {
+                "type": "Typed",
+                "type_filters": [
+                  "Permanent"
+                ],
+                "controller": "You",
+                "properties": [
+                  {
+                    "type": "InZone",
+                    "zone": "Graveyard"
+                  }
+                ]
+              },
+              "destination": null
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "sub_link": "SequentialSibling"
+          },
+          "duration": null,
+          "description": "Return target permanent to its owner's hand. Return target permanent card from your graveyard to your hand.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Green",
+        "Blue"
+      ],
+      "scryfall_oracle_id": "9c83979a-b354-4e20-9638-85e8f354da81",
+      "metadata": {
+        "source_printing_ids": [
+          "7d1c653e-f629-4105-a52c-379c5cd78208"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "STX"
+      ],
+      "rulings": [
+        {
+          "date": "2021-04-16",
+          "text": "If only one target is still legal as Aether Helix tries to resolve, it will still resolve and perform the appropriate action on the remaining target."
+        },
+        {
+          "date": "2021-04-16",
+          "text": "You must choose two legal targets in order to cast Aether Helix. If there are either no permanent cards in your graveyard or no permanents on the battlefield, you cannot begin to cast it."
+        }
+      ],
+      "rarities": [
+        "uncommon"
       ]
     },
     "Aether Hub": {
@@ -4421,6 +4685,374 @@
         "uncommon"
       ]
     },
+    "Altar of the Wretched": {
+      "name": "Altar of the Wretched",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Artifact"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "When this artifact enters, you may sacrifice a nontoken creature. If you do, draw X cards, then mill X cards, where X is that creature's power.\nCraft with one or more creatures {2}{B}{B}\n{2}{B}: Return this card from your graveyard to your hand.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        {
+          "Craft": {
+            "cost": {
+              "type": "Cost",
+              "shards": [
+                "Black",
+                "Black"
+              ],
+              "generic": 2
+            },
+            "materials": {
+              "type": "Or",
+              "filters": [
+                {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Permanent",
+                    "Creature"
+                  ],
+                  "controller": "You",
+                  "properties": [
+                    {
+                      "type": "InZone",
+                      "zone": "Battlefield"
+                    }
+                  ]
+                },
+                {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Card",
+                    "Creature"
+                  ],
+                  "controller": null,
+                  "properties": [
+                    {
+                      "type": "InZone",
+                      "zone": "Graveyard"
+                    },
+                    {
+                      "type": "Owned",
+                      "controller": "You"
+                    }
+                  ]
+                }
+              ]
+            },
+            "count": {
+              "type": "AtLeast",
+              "count": 1
+            }
+          }
+        }
+      ],
+      "abilities": [
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "Bounce",
+            "target": {
+              "type": "SelfRef"
+            },
+            "destination": null
+          },
+          "cost": {
+            "type": "Mana",
+            "cost": {
+              "type": "Cost",
+              "shards": [
+                "Black"
+              ],
+              "generic": 2
+            }
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "{2}{B}: Return this card from your graveyard to your hand.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "ChangeZone",
+            "origin": "Exile",
+            "destination": "Battlefield",
+            "target": {
+              "type": "SelfRef"
+            },
+            "owner_library": false,
+            "enter_transformed": true,
+            "enter_tapped": false,
+            "enters_attacking": false
+          },
+          "cost": {
+            "type": "Composite",
+            "costs": [
+              {
+                "type": "Mana",
+                "cost": {
+                  "type": "Cost",
+                  "shards": [
+                    "Black",
+                    "Black"
+                  ],
+                  "generic": 2
+                }
+              },
+              {
+                "type": "Exile",
+                "count": 1,
+                "zone": "Battlefield",
+                "filter": {
+                  "type": "SelfRef"
+                }
+              },
+              {
+                "type": "ExileMaterials",
+                "materials": {
+                  "type": "Or",
+                  "filters": [
+                    {
+                      "type": "Typed",
+                      "type_filters": [
+                        "Permanent",
+                        "Creature"
+                      ],
+                      "controller": "You",
+                      "properties": [
+                        {
+                          "type": "InZone",
+                          "zone": "Battlefield"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Typed",
+                      "type_filters": [
+                        "Card",
+                        "Creature"
+                      ],
+                      "controller": null,
+                      "properties": [
+                        {
+                          "type": "InZone",
+                          "zone": "Graveyard"
+                        },
+                        {
+                          "type": "Owned",
+                          "controller": "You"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "count": {
+                  "type": "AtLeast",
+                  "count": 1
+                }
+              }
+            ]
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "AsSorcery"
+            }
+          ],
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Sacrifice",
+              "target": {
+                "type": "Typed",
+                "type_filters": [
+                  "Creature"
+                ],
+                "controller": "You",
+                "properties": [
+                  {
+                    "type": "NonToken"
+                  }
+                ]
+              },
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              }
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "Draw",
+                "count": {
+                  "type": "Ref",
+                  "qty": {
+                    "type": "Power",
+                    "scope": {
+                      "type": "CostPaidObject"
+                    }
+                  }
+                },
+                "target": {
+                  "type": "Controller"
+                }
+              },
+              "cost": null,
+              "sub_ability": {
+                "kind": "Spell",
+                "effect": {
+                  "type": "Mill",
+                  "count": {
+                    "type": "Ref",
+                    "qty": {
+                      "type": "Power",
+                      "scope": {
+                        "type": "CostPaidObject"
+                      }
+                    }
+                  },
+                  "target": {
+                    "type": "Controller"
+                  },
+                  "destination": "Graveyard"
+                },
+                "cost": null,
+                "sub_ability": null,
+                "duration": null,
+                "description": null,
+                "target_prompt": null,
+                "condition": {
+                  "type": "EffectOutcome",
+                  "signal": "OptionalEffectPerformed"
+                },
+                "optional_targeting": false,
+                "optional": false,
+                "forward_result": false
+              },
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": {
+                "type": "EffectOutcome",
+                "signal": "OptionalEffectPerformed"
+              },
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false,
+              "sub_link": "SequentialSibling"
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": true,
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": "Battlefield",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": true,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ enters, you may sacrifice a nontoken creature. If you do, draw X cards, then mill X cards, where X is that creature's power.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "c551f007-9740-4a2a-8ef5-7be1a7afe14b",
+      "metadata": {
+        "source_printing_ids": [
+          "5842332a-b27b-49ac-948d-f88a21deb1de",
+          "e2c812bb-19f8-4a22-bda9-f2a6233cf700"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "vintage": "legal"
+      },
+      "layout": "transform",
+      "printings": [
+        "LCC"
+      ],
+      "rulings": [
+        {
+          "date": "2023-11-10",
+          "text": "If a card that isn't a transforming double-faced card becomes a copy of a card with craft, it'll stay in exile if you activate the craft ability. It won't return to the battlefield."
+        },
+        {
+          "date": "2023-11-10",
+          "text": "If any of the exiled cards has a characteristic-defining ability that defines its power and/or toughness, that ability will apply. For example, if you used Souls of the Lost to craft Wretched Bonemass, its power and toughness while in exile are determined by the number of permanent cards in your graveyard, and Wretched Bonemass's power and toughness will change as the number of permanent cards in your graveyard changes. If the characteristic-defining ability can't be applied, then use 0."
+        },
+        {
+          "date": "2023-11-10",
+          "text": "If the materials required include multiple objects, you may exile some of them from among permanents you control and the rest from among cards in your graveyard. You don't have to choose all permanents or all cards from your graveyard."
+        },
+        {
+          "date": "2023-11-10",
+          "text": "The back faces of some cards with craft refer to cards \"used to craft\" it. This refers to the cards exiled as part of the cost of the craft ability of the front face. Those cards are considered to be \"used to craft\" that permanent as long as they remain exiled and the permanent remains on the battlefield, even if the permanent's controller changes or some of its characteristics change (because of a copy effect, for example.)"
+        },
+        {
+          "date": "2023-11-10",
+          "text": "You may exile tokens you control as part of the materials required. However, because they aren't cards and won't stay in exile, any abilities that refer to what you \"used to craft\" the back faces won't refer to anything."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
     "Always Watching": {
       "name": "Always Watching",
       "mana_cost": {
@@ -5877,6 +6509,101 @@
         "common"
       ]
     },
+    "Aphetto Dredging": {
+      "name": "Aphetto Dredging",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Return up to three target creature cards of the creature type of your choice from your graveyard to your hand.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Bounce",
+            "target": {
+              "type": "Typed",
+              "type_filters": [
+                "Creature"
+              ],
+              "controller": null,
+              "properties": []
+            },
+            "destination": null
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": "Return up to three target creature cards of the creature type of your choice from your graveyard to your hand.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "multi_target": {
+            "min": 0,
+            "max": {
+              "type": "Fixed",
+              "value": 3
+            }
+          },
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "6cb8c627-6b2f-48a7-b2d9-8772defea560",
+      "metadata": {
+        "source_printing_ids": [
+          "c4e7fadf-40f1-45ff-97ef-5830381accc9"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "premodern": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "H09",
+        "ONS",
+        "PSAL"
+      ],
+      "rulings": [
+        {
+          "date": "2004-10-04",
+          "text": "You need to choose the creature type before choosing the targets."
+        }
+      ],
+      "rarities": [
+        "common"
+      ]
+    },
     "Apostle of Invasion": {
       "name": "Apostle of Invasion",
       "mana_cost": {
@@ -7254,6 +7981,197 @@
         "extra_turn": false,
         "efficient_tutor": false
       }
+    },
+    "Asgardian Inspiration": {
+      "name": "Asgardian Inspiration",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Red"
+        ],
+        "generic": 0
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Exile the top card of your library. You may play it this turn.\nWhenever a source you control deals noncombat damage to an opponent, you may pay {2}. If you do, return this card from your graveyard to your hand.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "ExileTop",
+            "player": {
+              "type": "Controller"
+            },
+            "count": {
+              "type": "Fixed",
+              "value": 1
+            }
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "GrantCastingPermission",
+              "permission": {
+                "type": "PlayFromExile",
+                "duration": "UntilEndOfTurn",
+                "granted_to": 0
+              },
+              "target": {
+                "type": "TrackedSet",
+                "id": 0
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "sub_link": "SequentialSibling"
+          },
+          "duration": null,
+          "description": "Exile the top card of your library. You may play it this turn.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "CreateDelayedTrigger",
+            "condition": {
+              "type": "WheneverEvent",
+              "trigger": {
+                "mode": {
+                  "Unknown": "a source you control deals noncombat damage to an opponent"
+                },
+                "execute": null,
+                "valid_card": null,
+                "origin": null,
+                "destination": null,
+                "trigger_zones": [
+                  "Battlefield"
+                ],
+                "phase": null,
+                "optional": false,
+                "damage_kind": "Any",
+                "secondary": false,
+                "valid_target": null,
+                "valid_source": null,
+                "description": "a source you control deals noncombat damage to an opponent",
+                "constraint": null,
+                "condition": null,
+                "batched": false
+              }
+            },
+            "effect": {
+              "kind": "Spell",
+              "effect": {
+                "type": "PayCost",
+                "cost": {
+                  "type": "Mana",
+                  "cost": {
+                    "type": "Cost",
+                    "shards": [],
+                    "generic": 2
+                  }
+                },
+                "payer": {
+                  "type": "Controller"
+                }
+              },
+              "cost": null,
+              "sub_ability": {
+                "kind": "Spell",
+                "effect": {
+                  "type": "Bounce",
+                  "target": {
+                    "type": "SelfRef"
+                  },
+                  "destination": null
+                },
+                "cost": null,
+                "sub_ability": null,
+                "duration": null,
+                "description": null,
+                "target_prompt": null,
+                "condition": {
+                  "type": "EffectOutcome",
+                  "signal": "OptionalEffectPerformed"
+                },
+                "optional_targeting": false,
+                "optional": false,
+                "forward_result": false,
+                "sub_link": "SequentialSibling"
+              },
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": true,
+              "forward_result": false
+            },
+            "uses_tracked_set": false
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Red"
+      ],
+      "scryfall_oracle_id": "1be4bb28-6ad7-4df9-98b7-fa32061e7a95",
+      "metadata": {
+        "source_printing_ids": [
+          "d1fe7eef-2636-484f-b476-4dc9c9dbfddd"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "MSC"
+      ],
+      "rarities": [
+        "uncommon"
+      ]
     },
     "Ashenmoor Liege": {
       "name": "Ashenmoor Liege",
@@ -12179,6 +13097,106 @@
       ],
       "rarities": [
         "uncommon"
+      ]
+    },
+    "Blinking Spirit": {
+      "name": "Blinking Spirit",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Spirit"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "{0}: Return this creature to its owner's hand.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "Bounce",
+            "target": {
+              "type": "SelfRef"
+            },
+            "destination": null
+          },
+          "cost": {
+            "type": "Mana",
+            "cost": {
+              "type": "Cost",
+              "shards": [],
+              "generic": 0
+            }
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "{0}: Return ~ to its owner's hand.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "White"
+      ],
+      "scryfall_oracle_id": "a26f6958-9bc8-46f8-8ca7-7f55098e1291",
+      "metadata": {
+        "source_printing_ids": [
+          "14fc0683-9cfa-4439-a533-8773e7747ec4",
+          "5b340426-b852-43a5-8868-d5dacfdaf031",
+          "692ac387-be1f-48e0-945e-cbb1254d395c",
+          "bfbab7f8-6fd8-4aaa-bd0f-0a1ecd247547",
+          "dca912d1-9123-4b0d-863d-c7ee12bfdbcc",
+          "f6ff7626-de7d-443a-8eb7-fccaba6f2336"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "premodern": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "5ED",
+        "9ED",
+        "BRB",
+        "ICE",
+        "OLEP",
+        "PSAL",
+        "PTC"
+      ],
+      "rarities": [
+        "rare"
       ]
     },
     "Bloated Contaminator": {
@@ -66777,6 +67795,9 @@
     ],
     "Alesha, Who Smiles at Death": [
       "First strike"
+    ],
+    "Altar of the Wretched": [
+      "Craft"
     ],
     "Amareth, the Lustrous": [
       "Flying"

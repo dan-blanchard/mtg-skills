@@ -2521,6 +2521,47 @@ def test_bounce_tempo_direction_gate():
     assert "bounce_tempo" not in _keys("Aviary Mechanic")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Abzan Devotee",  # SelfRef self-return from graveyard
+        "Altar of the Wretched",  # SelfRef activated self-return
+        "Aphetto Dredging",  # targeted "from your graveyard" recall
+    ],
+)
+def test_bounce_tempo_excludes_graveyard_returns(name):
+    """Phase emits a ZONE-LESS Bounce for graveyard-to-hand returns
+    (phase_parse_bug [P21] — the InZone:Graveyard marker is dropped), so
+    they are byte-shaped like battlefield tempo bounces. Two adjudicated
+    gates restore the boundary: a SelfRef-subject veto (a self-return is
+    recursion value, never tempo — also correct for battlefield self-bounce
+    per the Aviary Mechanic gate) and the [P8]-precedent node-local
+    description screen for targeted "from ... graveyard" recalls (CR 402.1
+    vs 404.1: a graveyard return is recursion, not tempo)."""
+    assert "bounce_tempo" not in _keys(name)
+
+
+def test_bounce_tempo_gy_screen_keeps_live_positives():
+    """The [P21] gates must not over-cut the live lane's members: battlefield
+    SELF-bounce fires (Blinking Spirit — SelfRef with no graveyard clause;
+    live includes the self-bounce family), and a unit pairing a genuine
+    tempo bounce with a graveyard recall in one description blob fires off
+    the tempo half (Aether Helix — two bounce effects, so the single-bounce
+    screen stands down)."""
+    assert ("bounce_tempo", "you", "") in _idents("Blinking Spirit")
+    assert ("bounce_tempo", "you", "") in _idents("Aether Helix")
+
+
+def test_bounce_tempo_p21_empty_desc_residue_pinned():
+    """KNOWN [P21] residue, deliberately still firing: phase drops BOTH the
+    InZone:Graveyard marker AND the nested unit's description for the
+    pay-to-return self-recursion family (Asgardian Inspiration — "return
+    this card from your graveyard" survives only in the card oracle, which
+    the crosswalk must not re-grep). 23 cards corpus-wide; the Stage-3 [P21]
+    supplement arm re-types these — flip this pin when it lands."""
+    assert "bounce_tempo" in _keys("Asgardian Inspiration")
+
+
 def test_power_double_typed_tag():
     """CR 613.4c: Unleash Fury's ``DoublePT mode=Power`` fires; a flat pump
     (Giant Growth — a ``Pump`` node, not a doubling tag) never does."""
