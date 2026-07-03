@@ -161,9 +161,13 @@ def test_pump_mass_vs_target_split():
 
 def test_unported_effect_degrades_to_other_and_is_tallied():
     cov = CompatCoverage()
-    card = _compat("Path to Exile", cov)  # carries a Shuffle node (unported)
+    # Boros Reckoner's damage-redirect trigger parses to a GenericEffect node;
+    # tag:GenericEffect stays a documented explicit miss (62% indecisive), so
+    # it degrades to "other" and is tallied. (Path to Exile no longer probes
+    # this path — its Shuffle node ports to "shuffle" post-exit-gate.)
+    card = _compat("Boros Reckoner", cov)
     assert any(e.category == "other" for e in _effects(card))
-    assert any(k.startswith("tag:") for k in cov.unported)
+    assert "tag:GenericEffect" in cov.unported
 
 
 # ── the production consumers run unchanged over the compat card ───────────────
@@ -321,3 +325,63 @@ def test_report_renders_markdown():
     assert "Compat coverage" in text
     assert "bracket" in text
     assert "extra_turn" in text
+
+
+# ── exit gate: the compat adapter grown to the 341-key crosswalk surface ──────
+# One assertion per structural routing BRANCH in _effect_category /
+# _static_effect (the flat map rows are near-zero-risk lookups; a
+# representative sample is pinned below). Every card + category was measured
+# against the joined corpus before landing the mapping.
+
+
+def _cats(name: str) -> set[str]:
+    return {e.category for e in _effects(_compat(name))}
+
+
+def test_change_zone_structural_splits():
+    # library/hand → battlefield = cheat_play; graveyard → library = shuffle.
+    assert "cheat_play" in _cats("Bribery")
+    assert "shuffle" in _cats("Kozilek, Butcher of Truth")
+
+
+def test_tap_untap_split_untap_ports_tap_stays_miss():
+    assert "untap" in _cats("Act of Treason")  # SetTapState.state == Untap
+    cov = CompatCoverage()
+    _compat("Cryptic Command", cov)  # a Tap SetTapState — no old category
+    assert "concept:tap_untap" in cov.unported
+
+
+def test_extra_phase_field_split():
+    assert "extra_combat" in _cats("Aurelia, the Warleader")
+    assert "extra_upkeep" in _cats("Paradox Haze")
+
+
+def test_give_player_counter_kind_split():
+    # CR 122.1 — player-counter kinds are non-interchangeable; route on kind.
+    assert "poison" in _cats("Fynn, the Fangbearer")
+    assert "experience_counter" in _cats("Ezuri, Claw of Progress")
+    assert "rad_counter" in _cats("Tato Farmer")
+    assert "ticket_counter" in _cats("Carnival Carnivore")
+
+
+def test_tag_split_concepts_route_on_tag():
+    assert "clone" in _cats("Mirror Match")  # copy_token: CopyTokenBlockingAttacker
+    assert "manifest" in _cats("Cloudform")  # facedown: Manifest
+    assert "cloak" in _cats("Cryptic Coat")  # facedown: Cloak
+    assert "goad" in _cats("Alela, Cunning Conqueror")  # goad: Goad
+    assert "goad_all" in _cats("Disrupt Decorum")  # goad: GoadAll
+    assert "pump_target" in _cats("Unleash Fury")  # double_pt: DoublePT
+
+
+def test_flat_concept_and_tag_routes():
+    assert "counter_spell" in _cats("Blue Elemental Blast")  # concept
+    assert "regenerate" in _cats("River Boa")  # concept
+    assert "topdeck_stack" in _cats("Brainstorm")  # put_library_position
+    assert "transform" in _cats("Voldaren Bloodcaster")  # tag:Transform
+    assert "emblem" in _cats("Spirit Water Revival")  # tag:CreateEmblem
+
+
+def test_static_mod_tag_routes():
+    assert "changeling" in _cats("Maskwood Nexus")  # AddAllCreatureTypes
+    assert "combat_damage_mod" in _cats("Doran, the Siege Tower")  # AssignFromTough
+    assert "characteristic_pt" in _cats("Maro")  # SetDynamicPower

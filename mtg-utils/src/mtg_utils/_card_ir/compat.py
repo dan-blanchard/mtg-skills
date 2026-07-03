@@ -44,6 +44,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inzone_zones,
     filter_subtypes,
+    settap_state,
     tag_of,
     trigger_subject,
 )
@@ -112,6 +113,12 @@ _CORE_TYPE_WORDS = frozenset(
 # A concept ABSENT here maps to "other" + an explicit ``concept:`` coverage
 # bucket — never a silent guess. ``change_zone`` and ``pump`` are structural
 # splits handled in :func:`_effect_category`.
+#
+# Exit-gate rows (ADR-0035 S2 exit gate) are MEASURED, not guessed: each
+# trailing comment records the old-IR category's card-level presence over the
+# joined 31622-card corpus for cards carrying the concept, its lift over the
+# global baseline, and the node count. A row was added only when the dominant
+# old category cleared >=90% presence (most are ~100%).
 _CONCEPT_CATEGORY: dict[str, str] = {
     "draw": "draw",
     "deal_damage": "damage",
@@ -135,6 +142,47 @@ _CONCEPT_CATEGORY: dict[str, str] = {
     "gain_control": "gain_control",
     "fight": "fight",
     "cast_from_zone": "cast_from_zone",
+    # ── exit-gate growth (measured presence% / lift / nodes) ─────────────
+    "attach": "attach",  # 100% x43.9 n=882
+    "dig": "topdeck_select",  # 100% x26.7 n=533
+    "scry": "topdeck_select",  # 100% x26.7 n=405
+    "surveil": "topdeck_select",  # 100% x26.7 n=209
+    "counter_spell": "counter_spell",  # 100% x64.8 n=490
+    "put_library_position": "topdeck_stack",  # 99% x70.1 n=452
+    "prevent_damage": "damage_prevention",  # 100% x79.7 n=370
+    "exile_top": "exile",  # 100% x15.4 n=348
+    "copy_spell": "spell_copy",  # 100% x99.4 n=297
+    "grant_cast_permission": "cast_from_zone",  # 100% x29.2 n=285
+    "regenerate": "regenerate",  # 100% x116.7 n=250
+    "reveal_hand": "reveal_hand",  # 100% x127.0 n=237
+    "reveal_top": "reveal",  # 99% x106.0 n=214
+    "investigate": "make_token",  # 100% x8.7 n=138
+    "gain_energy": "energy",  # 100% x222.7 n=135
+    "become_copy": "clone",  # 99% x113.3 n=133
+    "flip_coin": "coin_flip",  # 100% x433.2 n=74
+    "roll_die": "roll_die",  # 100% x292.8 n=72
+    "move_counters": "counter_move",  # 100% x518.4 n=62
+    "venture": "venture",  # 100% x510.0 n=59
+    "amass": "amass",  # 100% x585.6 n=58
+    "give_control": "gain_control",  # 98% x81.0 n=54
+    "become_monarch": "monarch",  # 100% x545.2 n=54
+    "ring_tempt": "ring_tempt",  # 100% x574.9 n=52
+    "phasing": "phasing",  # 100% x564.7 n=48
+    "explore": "explore",  # 97% x715.5 n=41
+    "multiply_counter": "place_counter",  # 100% x7.6 n=39
+    "set_life": "set_life",  # 100% x702.7 n=34
+    "incubate": "make_token",  # 100% x8.7 n=30
+    "exchange_control": "gain_control",  # 100% x82.6 n=29
+    "discover": "discover",  # 100% x1054.1 n=27
+    "populate": "make_token",  # 100% x8.7 n=25
+    "vote": "vote",  # 100% x718.7 n=25
+    "switch_pt": "switch_pt",  # 100% x1171 n=23
+    "suspect": "suspect",  # 100% x1375 n=15
+    "set_daynight": "day_night",  # 100% x2432 n=14
+    "detain": "detain",  # 100% x2635 n=12
+    "turn_face_up": "turn_face_up",  # 100% x2432 n=12
+    "double_quantity": "double",  # 100% x1506 n=16
+    "end_the_turn": "end_the_turn",  # 100% x3953 n=7
 }
 
 # Static modification concept → old-IR category (the ranking anthem set).
@@ -142,6 +190,140 @@ _STATIC_CATEGORY: dict[str, str] = {
     "pump": "pump",
     "grant_keyword": "grant_keyword",
     "set_pt": "base_pt_set",
+}
+
+# Tag-routed splits (exit gate): one concept whose old-IR category depended
+# on the phase tag / a discriminator sub-field. Every row is measured per
+# tag over the joined corpus (presence% / lift / nodes) — all 100% decisive.
+_COPY_TOKEN_TAG: dict[str, str] = {
+    "CopyTokenOf": "make_token",  # 100% x9 n=338
+    "CopyTokenBlockingAttacker": "clone",  # 100% x114 n=1 (Mirror Match)
+}
+_FACEDOWN_TAG: dict[str, str] = {
+    "Manifest": "manifest",  # 100% x555 n=23
+    "ManifestDread": "manifest",  # 100% x555 n=31
+    "Cloak": "cloak",  # 100% x7906 n=4
+}
+_GOAD_TAG: dict[str, str] = {
+    "Goad": "goad",  # 100% x687 n=44
+    "GoadAll": "goad_all",  # 100% x735 n=16
+}
+_DOUBLE_PT_TAG: dict[str, str] = {
+    "DoublePT": "pump_target",  # 100% x16 n=27
+    "DoublePTAll": "pump",  # 100% x10 n=7
+}
+# AdditionalPhase.phase → old extra-phase category (project.py _EXTRA_PHASE).
+_EXTRA_PHASE_FIELD: dict[str, str] = {
+    "begincombat": "extra_combat",  # 100% x735 n=41
+    "upkeep": "extra_upkeep",  # 100% x5270 n=3
+    "end": "extra_end",  # 100% n=1
+}
+# GivePlayerCounter.counter_kind → old kind-split category (CR 122.1; the old
+# projection routes by counter_kind — _PLAYER_COUNTER_CATEGORY).
+_PLAYER_COUNTER_KIND: dict[str, str] = {
+    "Poison": "poison",  # 100% x1129 n=27
+    "Experience": "experience_counter",  # 100% x2259 n=15
+    "Rad": "rad_counter",  # 100% x1375 n=12
+    "Ticket": "ticket_counter",  # 100% x1581 n=20
+}
+
+# Effect tag → old-IR category for tags the crosswalk itself keeps ``other``
+# (no concept yet). Same measured bar as _CONCEPT_CATEGORY: dominant old
+# category >=90% card-level presence over the joined corpus (comments record
+# presence/lift/nodes). A tag ABSENT here stays an explicit ``tag:`` miss —
+# notably tag:GenericEffect (grant_keyword 62% = sibling-anthem pollution,
+# indecisive), tag:Unimplemented (top old category ``choose`` at 14% —
+# no old category; project.py routes it to "other" via _OTHER),
+# tag:RuntimeHandled (project.py _OTHER routes it to "other"; the measured
+# cheat_play 97% is sibling pollution), and tag:PayCost (kept an explicit
+# miss BY DESIGN as a structural non-effect, though measurement RECORDS
+# old ``pay_cost`` at 100% x54.9 n=546 — the no-old-category claim did not
+# verify for this tag).
+_TAG_CATEGORY: dict[str, str] = {
+    "Shuffle": "shuffle",  # 99% x24.7 n=1278
+    "TargetOnly": "target_only",  # 100% x62.0 n=527
+    "ChooseOneOf": "choose",  # 95% x34.2 n=148
+    "ChooseFromZone": "choose",  # 100% x36.0 n=86
+    "Transform": "transform",  # 100% x118.9 n=139
+    "DiscardCard": "discard",  # 100% x30.1 n=89 (reveal_hand 97% co-fires)
+    "CreateEmblem": "emblem",  # 100% x367.7 n=80
+    "AddTargetReplacement": "redirect",  # 93% x188.2 n=122
+    "ChangeTargets": "redirect",  # 100% x201.4 n=33
+    "MadnessCast": "cast_from_zone",  # 100% x29.2 n=58
+    "SetClassLevel": "class_level",  # 100% x930.1 n=68
+    "PairWith": "soulbond",  # 100% x1216.2 n=50
+    "RegisterBending": "bending",  # 100% x585.6 n=48
+    "ForceBlock": "force_block",  # 100% x645.3 n=48
+    "AddRestriction": "restriction",  # 100% x26.6 n=45
+    "ExileFromTopUntil": "dig_until",  # 100% x313.1 n=42
+    "Animate": "animate",  # 100% x127.5 n=42
+    "Monstrosity": "place_counter",  # 100% x7.6 n=37
+    "Encore": "make_token",  # 100% x8.7 n=26
+    "Myriad": "make_token",  # 100% x9 n=24
+    "Adapt": "place_counter",  # 100% x8 n=24
+    "Bolster": "place_counter",  # 100% x8 n=22
+    "Renown": "place_counter",  # 100% x8 n=20
+    "Clash": "clash",  # 100% x1129.4 n=27
+    "Learn": "learn",  # 100% x1581 n=20
+    "GiftDelivery": "gift",  # 100% x1581 n=20
+    "HideawayConceal": "hideaway",  # 100% x1664 n=20
+    "OpenAttractions": "attraction",  # 100% x1437 n=21
+    "RollToVisitAttractions": "attraction",  # 100% x1437 n=2
+    "RemoveFromCombat": "remove_from_combat",  # 100% x1581 n=20
+    "UnattachAll": "unattach",  # 100% x1506 n=18
+    "ReturnAsAura": "attach",  # 100% x44 n=3
+    "GrantNextSpellAbility": "grant_spell_ability",  # 100% x1757 n=17
+    "CreateDamageReplacement": "damage_replacement",  # 100% x1976 n=17
+    "ReduceNextSpellCost": "cost_reduction",  # 100% x111 n=5
+    "SearchOutsideGame": "tutor",  # 100% x29 n=9
+    "ExileHaunting": "exile",  # 100% x15 n=10
+    "CastCopyOfCard": "spell_copy",  # 100% x99 n=12
+    "ControlNextTurn": "gain_control",  # 100% x83 n=5
+    "ChooseAndSacrificeRest": "sacrifice",  # 100% x18 n=6
+    "ForceAttack": "force_attack",  # 100% x207 n=7
+    "Endure": "endure",  # 100% x3162 n=10
+    "TimeTravel": "time_travel",  # 100% x3514 n=9
+    "SkipNextTurn": "skip_turn",  # 100% x3514 n=8
+    "SkipNextStep": "skip_step",  # 100% x1664 n=11
+    "CollectEvidence": "collect_evidence",  # 100% x4517 n=7
+    "BlightEffect": "blight",  # 100% x2432 n=13
+    "SolveCase": "solve_case",  # 100% x2432 n=13
+    "Meld": "meld",  # 100% x15811 n=2
+    "Planeswalk": "planeswalk",  # 100% x4517 n=2
+    "Forage": "forage",  # 100% x7906 n=4
+    "ProliferateTarget": "proliferate",  # 100% x340 n=4
+    "LoseAllPlayerCounters": "remove_counter",  # 100% x80 n=2
+    "ChooseObjectsIntoTrackedSet": "choose",  # 100% x36 n=4 (old map row)
+    "ChooseDrawnThisTurnPayOrTopdeck": "choose",  # 100% x36 n=1 (old map row)
+    "Harness": "harness",  # 100% x15811 n=2 (category unique to these cards)
+    "BecomeSaddled": "saddle",  # 100% x3162 n=3
+    "FreeCastFromZones": "cast_from_zone",  # 100% x29 n=1
+    "ExileResolvingSpellInsteadOfGraveyard": "exile",  # 100% x15 n=2
+    "EndCombatPhase": "end_combat",  # 100% n=1 (old map row)
+    "ChangeSpeed": "speed",  # 100% n=1 (old map row)
+    "GrantExtraLoyaltyActivations": "grant_activation",  # 100% n=1
+    "SeparateIntoPiles": "piles",  # 100% n=1 (old map row)
+}
+
+# Static-modification tag → old-IR category, for modification kinds outside
+# the anthem concept set. Same measured bar; node-level raw-match dominance
+# corroborates the card-level presence for these (the static units carry
+# phase descriptions, so raw matching worked there). Everything else stays
+# an explicit ``mod:`` miss — the big indecisive families are AddStaticMode
+# (restriction 48% / cant_block 23%), AddSubtype (grant_keyword 43% /
+# base_pt_set 38%), SetColor (animate 23%), GrantAbility (board_grant 13%),
+# GrantTrigger (pump 30%), RemoveAllSubtypes (base_pt_set 46%),
+# SetPowerDynamic / SetToughnessDynamic (base_pt_set 77% / 79% — under the
+# 90% bar), RemoveKeyword (ability_loss 49%), RemoveAllAbilities
+# (base_pt_set 62%), RemoveType (state 53%), SetCardTypes (base_pt_set 54%).
+_MOD_TAG_CATEGORY: dict[str, str] = {
+    "AddDynamicPower": "pump",  # 100% x10.3 n=290; raw-match dom 100%
+    "AddDynamicToughness": "pump",  # 100% x10.3 n=204; raw-match dom 100%
+    "SetDynamicPower": "characteristic_pt",  # 100% x136.9 n=204
+    "SetDynamicToughness": "characteristic_pt",  # 100% x136.9 n=149
+    "ChangeController": "gain_control",  # 100% x82.6 n=41; raw-match 100%
+    "AddAllCreatureTypes": "changeling",  # 100% x416.1 n=68
+    "AssignDamageFromToughness": "combat_damage_mod",  # 100% x855 n=19
 }
 
 # Trigger events already named identically on both sides pass through; these
@@ -298,21 +480,50 @@ def _pump_pt(
     return out[0], out[1]
 
 
+# Concept → tag-routed split map (exit gate): the concept's old category
+# depends on the phase tag; a tag absent from its split map is an explicit
+# miss under the concept's own bucket.
+_TAG_SPLIT_CONCEPTS: dict[str, dict[str, str]] = {
+    "copy_token": _COPY_TOKEN_TAG,
+    "facedown": _FACEDOWN_TAG,
+    "goad": _GOAD_TAG,
+    "double_pt": _DOUBLE_PT_TAG,
+}
+
+
 def _effect_category(cnode: ConceptNode, cov: CompatCoverage) -> str:
     """The old-IR category for one effect concept-node, coverage-tallied.
 
     Structural splits the flat concept map can't carry:
 
     * ``change_zone`` routes on origin/destination (graveyard→battlefield =
-      ``reanimate``; →exile = ``exile``; →hand = ``bounce``); any other pair
-      is an explicit ``concept:change_zone`` miss, not a guess.
+      ``reanimate``; →exile = ``exile``; →hand = ``bounce``; library/hand→
+      battlefield = ``cheat_play``, measured 100% x38.8; graveyard→library =
+      ``shuffle``, measured 98% x24.4); any other pair is an explicit
+      ``concept:change_zone`` miss, not a guess — the measured-indecisive
+      pairs are None→battlefield (exile 35% / reanimate 28%), exile→
+      battlefield (exile 66%), None→library (shuffle 82%).
     * ``pump`` routes single-vs-class on the target node: a ``PumpAll`` or a
       class-filter target (``Typed``/``Or``/``And`` — Languish, Overrun,
       Bile Blight) is the mass ``pump``; a specific-object target
       (ParentTarget — "target creature gets -3/-3") is ``pump_target``.
+    * ``tap_untap`` routes on ``SetTapState.state``: Untap = ``untap``
+      (measured 99% x44.1); Tap stays a miss (old ``tap`` presence 49% —
+      the old projection categorized only some tap forms, via markers).
+    * ``extra_phase`` routes on ``AdditionalPhase.phase`` (the old
+      projection's _EXTRA_PHASE routing, measured per phase).
+    * ``give_player_counter`` routes on ``counter_kind`` (CR 122.1 — kinds
+      are non-interchangeable; mirrors the old _PLAYER_COUNTER_CATEGORY),
+      measured 100% per kind; an unmeasured kind stays a miss.
+    * the ``_TAG_SPLIT_CONCEPTS`` (copy_token / facedown / goad / double_pt)
+      route on the phase tag, each row measured 100% decisive.
     """
     tag = tag_of(cnode.node) or ""
     if cnode.concept == OTHER:
+        cat = _TAG_CATEGORY.get(tag)
+        if cat is not None:
+            cov.ported[cat] += 1
+            return cat
         cov.unported[f"tag:{tag or 'scalar'}"] += 1
         return "other"
     if cnode.concept == "change_zone":
@@ -324,6 +535,10 @@ def _effect_category(cnode: ConceptNode, cov: CompatCoverage) -> str:
             cat = "exile"
         elif dest == "Hand":
             cat = "bounce"
+        elif origin in ("Library", "Hand") and dest == "Battlefield":
+            cat = "cheat_play"
+        elif origin == "Graveyard" and dest == "Library":
+            cat = "shuffle"
         if cat is not None:
             cov.ported[cat] += 1
             return cat
@@ -335,6 +550,36 @@ def _effect_category(cnode: ConceptNode, cov: CompatCoverage) -> str:
         cat = "pump" if mass else "pump_target"
         cov.ported[cat] += 1
         return cat
+    if cnode.concept == "tap_untap":
+        if settap_state(cnode.node) == "Untap":
+            cov.ported["untap"] += 1
+            return "untap"
+        cov.unported["concept:tap_untap"] += 1
+        return "other"
+    if cnode.concept == "extra_phase":
+        ph = getattr(cnode.node, "phase", None)
+        cat = _EXTRA_PHASE_FIELD.get(ph.lower() if isinstance(ph, str) else "")
+        if cat is not None:
+            cov.ported[cat] += 1
+            return cat
+        cov.unported["concept:extra_phase"] += 1
+        return "other"
+    if cnode.concept == "give_player_counter":
+        kind = getattr(cnode.node, "counter_kind", None)
+        cat = _PLAYER_COUNTER_KIND.get(kind if isinstance(kind, str) else "")
+        if cat is not None:
+            cov.ported[cat] += 1
+            return cat
+        cov.unported["concept:give_player_counter"] += 1
+        return "other"
+    split = _TAG_SPLIT_CONCEPTS.get(cnode.concept)
+    if split is not None:
+        cat = split.get(tag)
+        if cat is not None:
+            cov.ported[cat] += 1
+            return cat
+        cov.unported[f"concept:{cnode.concept}"] += 1
+        return "other"
     cat = _CONCEPT_CATEGORY.get(cnode.concept)
     if cat is None:
         cov.unported[f"concept:{cnode.concept}"] += 1
@@ -375,6 +620,10 @@ def _static_effect(cnode: ConceptNode, cov: CompatCoverage) -> Effect:
     concept = cnode.concept
     cat = _STATIC_CATEGORY.get(concept)
     tag = tag_of(cnode.node) or ""
+    tag_routed = False
+    if cat is None and concept == OTHER:
+        cat = _MOD_TAG_CATEGORY.get(tag)
+        tag_routed = cat is not None
     if cat is None:
         bucket = f"mod:{tag or 'scalar'}" if concept == OTHER else f"concept:{concept}"
         cov.unported[bucket] += 1
@@ -383,7 +632,10 @@ def _static_effect(cnode: ConceptNode, cov: CompatCoverage) -> Effect:
         cov.ported[cat] += 1
     v = getattr(cnode.node, "value", MISSING)
     qty = Quantity(op="fixed", factor=v) if isinstance(v, int) else None
-    if qty is None and cat in ("pump", "base_pt_set"):
+    # The gap tally is for a concept-mapped anthem whose value SHOULD be a
+    # plain int but isn't; a tag-routed dynamic mod (AddDynamicPower …) is
+    # valueless by definition, not a gap.
+    if qty is None and not tag_routed and cat in ("pump", "base_pt_set"):
         cov.unported["gap:static_dynamic_value"] += 1
     amount: Quantity | None = None
     toughness: Quantity | None = None
