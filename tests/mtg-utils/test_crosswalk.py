@@ -1957,6 +1957,405 @@ def test_counter_manipulation_kind_gate(name, should_fire):
     assert (("counter_manipulation", "you", "") in _idents(name)) is should_fire
 
 
+# ── batch 9: discard/draw payoffs, death loops, engines, library-top, grants ─
+
+
+def test_discard_matters_cycle_is_discard():
+    """CR 702.29a: cycling IS a discard — Archfiend of Ifnir's
+    ``CycledOrDiscarded`` trigger fires discard_matters (watcher not the
+    opponent)."""
+    assert ("discard_matters", "you", "") in _idents("Archfiend of Ifnir")
+
+
+def test_discard_matters_opponent_watcher_routes_to_opponent_discard():
+    """Megrim watches the OPPONENT's discard (``valid_card`` controller
+    Opponent — checklist #5: the recipient node, never the mislabeled
+    trigger_scope) → the disjoint opponent_discard punisher lane, never
+    discard_matters."""
+    assert "discard_matters" not in _keys("Megrim")
+    assert ("opponent_discard", "opponents", "") in _idents("Megrim")
+
+
+def test_discard_matters_excludes_loot_outlet():
+    """Careful Study is a loot OUTLET (draw+discard effects, no Discarded
+    trigger) — discard_makers, never the payoff lane."""
+    keys = _keys("Careful Study")
+    assert "discard_matters" not in keys
+    assert "discard_makers" in keys
+
+
+@pytest.mark.parametrize("name", ["Nekusar, the Mindrazer", "Underworld Dreams"])
+def test_opponent_draw_matters_fires(name):
+    """A ``Drawn`` trigger watching the opponents (CR 121.1) fires the
+    wheel-punisher lane, scope "opponents"."""
+    assert ("opponent_draw_matters", "opponents", "") in _idents(name)
+
+
+def test_opponent_draw_matters_disjoint_from_draw_matters():
+    """Niv-Mizzet, Parun watches YOUR draws → draw_matters only; the two
+    scope-gated lanes stay set-disjoint."""
+    assert "opponent_draw_matters" not in _keys("Niv-Mizzet, Parun")
+    assert ("draw_matters", "you", "") in _idents("Niv-Mizzet, Parun")
+    assert "draw_matters" not in _keys("Underworld Dreams")
+
+
+@pytest.mark.parametrize("name", ["Solemn Simulacrum", "Kokusho, the Evening Star"])
+def test_self_death_payoff_fires(name):
+    """A SelfRef dies trigger with a recognized payoff (Solemn's draw,
+    Kokusho's drain — CR 700.4 / 603.6c) fires self_death_payoff."""
+    assert ("self_death_payoff", "you", "") in _idents(name)
+
+
+def test_self_death_payoff_excludes_aristocrats_and_self_return():
+    """Blood Artist's subject-bearing watcher is death_matters (the
+    aristocrats lane); Kitchen Finks' dies unit carries only the persist
+    SELF-RETURN (→ dies_recursion), not a death VALUE payoff."""
+    assert "self_death_payoff" not in _keys("Blood Artist")
+    assert "self_death_payoff" not in _keys("Kitchen Finks")
+
+
+def test_self_death_payoff_excludes_shuffle_back_protection():
+    """Kozilek's "put into a graveyard from anywhere → shuffle that
+    graveyard into its owner's library" is self-preservation (a dies-to-
+    Library move), never a death VALUE payoff."""
+    assert "self_death_payoff" not in _keys("Kozilek, Butcher of Truth")
+
+
+@pytest.mark.parametrize("name", ["Young Wolf", "Kitchen Finks", "Feign Death"])
+def test_dies_recursion_structural(name):
+    """The dies-self-return shape (CR 702.93a undying / 702.79a persist)
+    fires dies_recursion: the bearers parse to the literal dies-return
+    trigger (Young Wolf, Kitchen Finks) and the GRANT form walks the
+    GrantTrigger subtree (Feign Death)."""
+    assert ("dies_recursion", "you", "") in _idents(name)
+
+
+def test_dies_recursion_excludes_value_payoff_and_reanimate():
+    """Solemn Simulacrum's dies-draw has no self-return (→
+    self_death_payoff); Reanimate returns OTHERS from a graveyard (→
+    creature_recursion/reanimator), never dies_recursion."""
+    assert "dies_recursion" not in _keys("Solemn Simulacrum")
+    assert "dies_recursion" not in _keys("Reanimate")
+
+
+@pytest.mark.parametrize(
+    "name", ["Alesha, Who Smiles at Death", "Reanimate", "Soul Salvage"]
+)
+def test_creature_recursion_arms(name):
+    """creature_recursion fires the GY→battlefield reanimation arm (Alesha,
+    Reanimate) and the GY→hand recall arm (Soul Salvage — Bounce over a
+    Creature ``InZone: Graveyard``). CR 700.4 / 404."""
+    assert ("creature_recursion", "you", "") in _idents(name)
+
+
+def test_creature_recursion_needs_creature_core_and_gy_zone():
+    """Regrowth's "target card" has no Creature core → no fire (never
+    guess); a battlefield bounce (Boomerang) has no graveyard zone → tempo,
+    not recursion."""
+    assert "creature_recursion" not in _keys("Regrowth")
+    assert "creature_recursion" not in _keys("Boomerang")
+
+
+@pytest.mark.parametrize(
+    ("name", "scope"),
+    [
+        ("Divination", "you"),  # Draw Fixed 2 — the bulk arm
+        ("Phyrexian Arena", "you"),  # Phase Upkeep + Draw Controller
+        ("Howling Mine", "each"),  # Phase Draw + ScopedPlayer recipient
+        ("Alhammarret's Archive", "you"),  # Draw-replacement (event=Draw)
+    ],
+)
+def test_card_draw_engine_structural_arms(name, scope):
+    """card_draw_engine reads the typed amount, the Phase-mode trigger unit
+    (the anchor and the Draw SHARE a unit — granularity a, the read the
+    stale live-mirror justification said phase couldn't carry), and the
+    Draw-replacement doubler (CR 121.1/121.2)."""
+    assert ("card_draw_engine", scope, "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Opt", "Elvish Visionary"])
+def test_card_draw_engine_excludes_cantrips(name):
+    """A bare cantrip (Opt — count 1) and a one-shot ETB draw (Elvish
+    Visionary — the live mirror's ETB skip) are not engines."""
+    assert "card_draw_engine" not in _keys(name)
+
+
+def test_group_hug_draw_player_scope_all():
+    """Temple Bell's Draw rides a ``player_scope: All`` wrapper ("each
+    player draws a card" — CR 121.1) → group_hug_draw each."""
+    assert ("group_hug_draw", "each", "") in _idents("Temple Bell")
+
+
+def test_group_hug_draw_excludes_controller_draw():
+    """Divination draws for YOU only — no group gift."""
+    assert "group_hug_draw" not in _keys("Divination")
+
+
+def test_target_player_draws_directed():
+    """Bloodgift Demon's Draw carries the typed ``Player`` recipient (a
+    directed/forced draw, CR 121.1) → target_player_draws any."""
+    assert ("target_player_draws", "any", "") in _idents("Bloodgift Demon")
+
+
+def test_target_player_draws_excludes_self_loot_and_group():
+    """Careful Study's draw is ``Controller`` (the v0.8.0 self-loot phantom
+    is typed away in v0.9.0 — pinned regardless); Temple Bell's each-player
+    draw is the group lane."""
+    assert "target_player_draws" not in _keys("Careful Study")
+    assert "target_player_draws" not in _keys("Temple Bell")
+
+
+def test_target_player_draws_excludes_replacement_tax():
+    """Chains of Mephistopheles' replacement rewrites the draw ("… discards
+    a card [and draws] instead") — a rules rewrite, not a directed forced
+    draw; replacement units are skipped."""
+    assert "target_player_draws" not in _keys("Chains of Mephistopheles")
+
+
+def test_activated_draw_tap_gate():
+    """Sensei's Divining Top's ``{T}: draw`` fires activated_draw (CR
+    601.2b); Archfiend of Ifnir's cycling (``Composite[Mana, Discard]``, no
+    Tap leaf) stays out."""
+    assert ("activated_draw", "you", "") in _idents("Sensei's Divining Top")
+    assert "activated_draw" not in _keys("Archfiend of Ifnir")
+
+
+@pytest.mark.parametrize("name", ["Preordain", "Sensei's Divining Top"])
+def test_topdeck_selection_fires(name):
+    """topdeck_selection fires the first-class Scry doer (Preordain) and the
+    controller-owned Dig-to-library (SDT). CR 701.22 / 401.1."""
+    assert ("topdeck_selection", "you", "") in _idents(name)
+
+
+def test_topdeck_selection_excludes_opponent_peek():
+    """Orcish Spy digs an OPPONENT's library (``player: Player``) — the
+    library OWNER is the boundary (checklist #5)."""
+    assert "topdeck_selection" not in _keys("Orcish Spy")
+
+
+@pytest.mark.parametrize("name", ["Brainstorm", "Sensei's Divining Top"])
+def test_topdeck_stack_fires(name):
+    """topdeck_stack fires the hand-to-top put (Brainstorm — filter
+    controller You) and the SelfRef top put (SDT). CR 401.4."""
+    assert ("topdeck_stack", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Chronostutter",  # NthFromTop — precise-insertion removal
+        "Griptide",  # bounce-to-top REMOVAL (controller None)
+        "Aethermage's Touch",  # rest-to-Bottom cleanup
+    ],
+)
+def test_topdeck_stack_position_and_owner_gates(name):
+    """The position gate (Top only) and the owner gate (You/SelfRef) keep
+    tuck-removal and cleanup puts out (CR 401.4)."""
+    assert "topdeck_stack" not in _keys(name)
+
+
+@pytest.mark.parametrize("name", ["Anafenza, the Foremost", "Accorder Paladin"])
+def test_combat_buff_engine_fires(name):
+    """A combat-frame trigger + a pump/counter effect in the SAME unit fires
+    combat_buff_engine (CR 508): Anafenza's attack counter; Accorder
+    Paladin's Battle-cry expansion (the keyword-payoff recall — checklist
+    #3)."""
+    assert ("combat_buff_engine", "you", "") in _idents(name)
+
+
+def test_combat_buff_engine_excludes_combat_damage():
+    """Skirk Commando's DamageDone trigger is deliberately excluded so
+    Renown/self_counter_grow shapes never over-fire."""
+    assert "combat_buff_engine" not in _keys("Skirk Commando")
+
+
+def test_land_sacrifice_matters_gitrog():
+    """The Gitrog Monster's ``ChangesZoneAll`` → Graveyard land watcher
+    (§0.2 mass-mode derivation) fires land_sacrifice_matters; the upkeep
+    sac OUTLET stays the disjoint land_sacrifice_makers key."""
+    assert ("land_sacrifice_matters", "you", "") in _idents("The Gitrog Monster")
+
+
+def test_land_sacrifice_matters_excludes_landfall():
+    """A land-ETB watcher (Lotus Cobra) is the landfall lane, not the
+    lands-to-graveyard payoff."""
+    assert "land_sacrifice_matters" not in _keys("Lotus Cobra")
+
+
+def test_exile_matters_watcher():
+    """Ketramose's dest-Exile watcher over a non-self subject fires
+    exile_matters (CR 406.1)."""
+    assert ("exile_matters", "you", "") in _idents("Ketramose, the New Dawn")
+
+
+def test_exile_matters_excludes_self_state_and_dig_cast():
+    """God-Eternal Bontu's "when this is exiled" is SELF-state (the live
+    #24b boundary); Aetherworks Marvel exiles as part of a dig-cast with no
+    exile-watcher trigger; Kaya's Ghostform watches its ENCHANTED object
+    (``AttachedTo`` — recursion insurance on one object, not
+    exile-as-resource)."""
+    assert "exile_matters" not in _keys("God-Eternal Bontu")
+    assert "exile_matters" not in _keys("Aetherworks Marvel")
+    assert "exile_matters" not in _keys("Kaya's Ghostform")
+
+
+@pytest.mark.parametrize("name", ["Whirler Virtuoso", "Aetherworks Marvel"])
+def test_energy_matters_pay_energy_sink(name):
+    """A ``PayEnergy`` cost leaf buying a non-mana effect is the energy SINK
+    payoff (CR 107.14)."""
+    assert ("energy_matters", "you", "") in _idents(name)
+
+
+def test_energy_matters_excludes_fixing_land_gainer():
+    """Aether Hub's pay-{E} ability buys only MANA (the painland-pattern
+    non-ramp gate) — it stays energy_makers, not a sink engine."""
+    assert "energy_matters" not in _keys("Aether Hub")
+    assert ("energy_makers", "you", "") in _idents("Aether Hub")
+
+
+def test_counter_move_dedicated_key():
+    """Nesting Grounds' ``MoveCounters`` fires the dedicated counter_move
+    key (CR 122.1); a placer (Renata) never does."""
+    assert ("counter_move", "you", "") in _idents("Nesting Grounds")
+    assert "counter_move" not in _keys("Renata, Called to the Hunt")
+
+
+def test_explore_matters_first_class_mode():
+    """Wildgrowth Walker's ``Explored`` trigger mode fires explore_matters
+    (CR 701.44) — a structural fidelity gain over the live raw
+    discriminator; the DOER (Merfolk Branchwalker) stays explore_makers
+    only."""
+    assert ("explore_matters", "you", "") in _idents("Wildgrowth Walker")
+    assert "explore_matters" not in _keys("Merfolk Branchwalker")
+    assert "explore_makers" not in _keys("Wildgrowth Walker")
+
+
+def test_dice_matters_roll_trigger():
+    """Brazen Dwarf's ``RolledDie`` trigger fires dice_matters (CR 706.1);
+    the roller (Adorable Kitten — RollDie effect) stays dice_makers."""
+    assert ("dice_matters", "you", "") in _idents("Brazen Dwarf")
+    assert "dice_matters" not in _keys("Adorable Kitten")
+
+
+def test_extra_upkeep_and_end_step():
+    """AdditionalPhase kind routes the non-combat extra phases (CR 500.8):
+    Upkeep (Paradox Haze — scope "you" though the recipient is the
+    enchanted TriggeringPlayer, mirroring the live build-around scope) and
+    End (Y'shtola Rhul)."""
+    assert ("extra_upkeep", "you", "") in _idents("Paradox Haze")
+    assert ("extra_end_step", "you", "") in _idents("Y'shtola Rhul")
+
+
+def test_extra_phase_lanes_disjoint():
+    """A combat AdditionalPhase (Aurelia) is extra_combats only; the upkeep/
+    end keys never fire it, and Paradox Haze never fires extra_combats."""
+    keys = _keys("Aurelia, the Warleader")
+    assert "extra_upkeep" not in keys
+    assert "extra_end_step" not in keys
+    assert "extra_combats" not in _keys("Paradox Haze")
+
+
+def test_facedown_matters_turn_face_up_effect():
+    """Break Open's ``TurnFaceUp`` effect references existing face-down
+    permanents (CR 708.1) → facedown_matters; the Manifest/Cloak DOERS
+    (Cloudform) stay facedown_makers."""
+    assert ("facedown_matters", "you", "") in _idents("Break Open")
+    assert "facedown_matters" not in _keys("Cloudform")
+
+
+@pytest.mark.parametrize(
+    ("name", "extra_flash"),
+    [
+        ("Leyline of Anticipation", True),  # CastWithKeyword{Flash} static
+        ("Snapcaster Mage", False),  # targeted AddKeyword{Flashback} grant
+    ],
+)
+def test_spell_keyword_grant_arms(name, extra_flash):
+    """spell_keyword_grant fires the CastWithKeyword static (Leyline — also
+    flash_grant + flash_makers) and the targeted spell-class AddKeyword
+    grant (Snapcaster's flashback recursion grant). CR 702.8 / 702.34 /
+    601.3e."""
+    idents = _idents(name)
+    assert ("spell_keyword_grant", "you", "") in idents
+    assert (("flash_grant", "you", "") in idents) is extra_flash
+    assert (("flash_makers", "you", "") in idents) is extra_flash
+
+
+def test_spell_keyword_grant_excludes_bearer_and_nongrant():
+    """A PRINTED-keyword bearer (Faithless Looting's own Flashback) carries
+    no grant node; Anafenza grants nothing — neither fires."""
+    assert "spell_keyword_grant" not in _keys("Faithless Looting")
+    assert "spell_keyword_grant" not in _keys("Anafenza, the Foremost")
+
+
+@pytest.mark.parametrize("name", ["Duress", "Addle", "Telepathy"])
+def test_hand_disruption_fires(name):
+    """hand_disruption fires the opponent-directed RevealHand effect
+    (Duress — Typed Opponent; Addle — targeted Player) and the RevealHand
+    static reaching opponents' hands (Telepathy). CR 402.3."""
+    assert ("hand_disruption", "opponents", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Goblin Secret Agent", "Land Grant", "Manabond"])
+def test_hand_disruption_excludes_self_reveal(name):
+    """A SELF-reveal never fires — the reveal must reach ANOTHER player's
+    hand: Goblin Secret Agent's upkeep reveal (``Controller``), Land
+    Grant's alt-cost reveal, and Manabond's "reveal your hand" (phase's
+    bare ``Any`` CARDS target carries no player evidence — never guess)."""
+    assert "hand_disruption" not in _keys(name)
+
+
+# ── batch 9: the three adjudicated batch-8 follow-up fixes ────────────────────
+
+
+def test_cheat_into_play_subtype_only_type_evidence():
+    """Fix (a): Academy Researchers' put carries a SUBTYPE-only filter
+    (``{Subtype: Aura}``, cores ∅) — a non-land subtype IS type evidence
+    (phase's filter is correct and complete), so the cheat fires."""
+    assert ("cheat_into_play", "you", "") in _idents("Academy Researchers")
+
+
+@pytest.mark.parametrize("name", ["Nature's Lore", "Path to Exile"])
+def test_cheat_into_play_land_puts_stay_out(name):
+    """The land carve-out survives fix (a): Nature's Lore (core Land +
+    Subtype Forest) and Path to Exile (basic-Land compensation fetch) are
+    excluded by the cores gate BEFORE the subtype path can run — pinned so
+    the subtype path can never resurrect them."""
+    assert "cheat_into_play" not in _keys(name)
+
+
+def test_cheat_into_play_dig_to_battlefield_arm():
+    """Fix (b): Aethermage's Touch's ``Dig`` lands a Creature on the
+    battlefield (destination gate + non-Land cores) — a put, not a cast (CR
+    401.1)."""
+    assert ("cheat_into_play", "you", "") in _idents("Aethermage's Touch")
+
+
+def test_cheat_into_play_dig_arm_negatives():
+    """The dig arm's gates: Elvish Rejuvenator's land dig stays
+    extra_land_drop; Aetherworks Marvel's dig-and-CAST has destination None
+    (a cast, not a put)."""
+    assert "cheat_into_play" not in _keys("Elvish Rejuvenator")
+    assert ("extra_land_drop", "you", "") in _idents("Elvish Rejuvenator")
+    assert "cheat_into_play" not in _keys("Aetherworks Marvel")
+
+
+def test_cheat_into_play_arcum_directed_search_narrowing():
+    """Fix (c): Arcum Dagsson's search resolves through the sacrificed
+    ARTIFACT's controller (``ParentTargetController`` with NO player-target
+    marker in the unit — CR 115.1: you choose the target, so the directed
+    player is routinely YOU) — the narrowed veto no longer excludes it."""
+    assert ("cheat_into_play", "you", "") in _idents("Arcum Dagsson")
+
+
+def test_cheat_into_play_settle_stays_out():
+    """Settle the Wreckage stays out on BOTH gates: its wipe filter carries
+    ``controller: TargetPlayer`` (the player-target marker keeps the
+    ParentTargetController veto), AND its search filter is ``Any`` (no type
+    evidence — never guess)."""
+    assert "cheat_into_play" not in _keys("Settle the Wreckage")
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

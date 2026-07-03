@@ -158,6 +158,18 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "Dig": "dig",  # look at top N (extra_land_drop's dig-into-play arm)
     "ExileTop": "exile_top",  # impulse_top_play's exile-the-top half
     "CastFromZone": "cast_from_zone",  # the play-it half (Etali)
+    # Batch 9 (ADR-0035 Stage 2) — the library-top / hand-reveal cluster.
+    # ``Scry`` / ``Surveil`` are first-class doer nodes (CR 701.22 / 701.25 —
+    # the library owner is always the implicit controller); the two library
+    # PUT forms carry a ``position`` sub-node (``Top`` / ``Bottom`` /
+    # ``NthFromTop``) the topdeck_stack lane discriminates on; the hand /
+    # top-of-library reveals carry the revealed PLAYER (CR 402.3 / 401.1).
+    "Scry": "scry",  # topdeck_selection (CR 701.22)
+    "Surveil": "surveil",  # topdeck_selection (CR 701.25)
+    "PutAtLibraryPosition": "put_library_position",  # topdeck_stack (CR 401.4)
+    "PutOnTopOrBottom": "put_library_position",  # the top-or-bottom choice form
+    "RevealHand": "reveal_hand",  # hand_disruption (CR 402.3)
+    "RevealTop": "reveal_top",  # topdeck_selection's reveal arm (CR 401.1)
 }
 
 # Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): a maker / sac-payoff over
@@ -541,7 +553,10 @@ def _trigger_event(trig: TypedMirrorNode) -> str:
     """
     mode = getattr(trig, "mode", None)
     mode = mode if isinstance(mode, str) else tag_of(mode) or "other"
-    if mode == "ChangesZone":
+    # ``ChangesZoneAll`` is the mass form of the same watcher ("whenever one
+    # or more … are put into …" — The Gitrog Monster's land-dies trigger);
+    # the zone derivation is identical (CR 603.6c).
+    if mode in ("ChangesZone", "ChangesZoneAll"):
         dest = getattr(trig, "destination", None)
         origin = getattr(trig, "origin", None)
         if dest == "Battlefield":
@@ -552,6 +567,15 @@ def _trigger_event(trig: TypedMirrorNode) -> str:
     return {
         "Drawn": "drawn",
         "Discarded": "discarded",
+        # CR 702.29a: cycling IS "[Cost], Discard this card: Draw a card" —
+        # a cycle is a discard, so the combined mode joins the discard event
+        # (Archfiend of Ifnir); ``DiscardedAll`` is the mass watcher.
+        "CycledOrDiscarded": "discarded",
+        "DiscardedAll": "discarded",
+        "LeavesBattlefield": "leaves",  # CR 603.6c — broader than dies
+        "Explored": "explored",  # CR 701.44 — the explore PAYOFF watcher
+        "RolledDie": "rolled_die",  # CR 706 — the roll PAYOFF watcher
+        "RolledDieOnce": "rolled_die",
         "Attacks": "attacks",
         "YouAttack": "attacks",
         "SpellCast": "cast_spell",
@@ -1428,6 +1452,118 @@ def filter_owned_controller(filt: object) -> str | None:
             c = filter_owned_controller(sub)
             if c is not None:
                 return c
+    return None
+
+
+# ── Batch-9 typed accessors (death / library-top / grant cluster) ────────────
+
+# Effect targets that name the granted-trigger's OWN source object: the bare
+# ``SelfRef`` (an undying/persist expansion — Young Wolf) and the granted-quote
+# ``TriggeringSource`` (Feign Death's "return IT to the battlefield").
+_SELF_RETURN_TARGETS: frozenset[str] = frozenset({"SelfRef", "TriggeringSource"})
+
+
+def is_dies_return_trigger(trig: object) -> bool:
+    """Whether a trigger node is the dies-self-return shape (CR 702.93a undying
+    / 702.79a persist): "When this permanent dies, … return it to the
+    battlefield".
+
+    Reads the trigger's OWN typed shape — a dies event (``ChangesZone``
+    Battlefield→Graveyard) watching ``SelfRef``, whose ``execute`` chain
+    carries a ``ChangeZone`` back to the Battlefield targeting the same object
+    (``SelfRef`` / ``TriggeringSource``). Works on a card's own trigger unit
+    (Young Wolf — undying parses to exactly this) AND on the granted trigger
+    inside a ``GrantTrigger`` modification (Feign Death), so the
+    dies_recursion lane walks both tree positions with one predicate. A
+    dies→HAND return is NOT this shape (the destination gate).
+    """
+    if not isinstance(trig, TypedMirrorNode):
+        return False
+    if _trigger_event(trig) != "dies":
+        return False
+    if tag_of(getattr(trig, "valid_card", None)) != "SelfRef":
+        return False
+    execute = getattr(trig, "execute", MISSING)
+    if not isinstance(execute, TypedMirrorNode):
+        return False
+    for cn in _walk_effect_chain(execute):
+        if tag_of(cn.node) != "ChangeZone":
+            continue
+        if getattr(cn.node, "destination", None) == "Battlefield" and (
+            tag_of(getattr(cn.node, "target", None)) in _SELF_RETURN_TARGETS
+        ):
+            return True
+    return False
+
+
+def mod_keyword_name(mod: TypedMirrorNode) -> str | None:
+    """The keyword NAME of an ``AddKeyword`` modification, across both shapes.
+
+    A plain evergreen grant carries a bare string (``"Trample"`` — the
+    team_buff read); a PARAMETERIZED grant carries a variant wrapper whose key
+    is the keyword name (``{Flashback: <cost>}`` — Snapcaster Mage's targeted
+    flashback grant, CR 702.34). ``None`` when absent / not a keyword node.
+    """
+    kw = getattr(mod, "keyword", MISSING)
+    if isinstance(kw, str):
+        return kw
+    if isinstance(kw, MirrorVariant):
+        return kw.key
+    if isinstance(kw, TypedMirrorNode):
+        return tag_of(kw)
+    return None
+
+
+def cast_with_keyword_name(static_node: TypedMirrorNode) -> str | None:
+    """The keyword a ``CastWithKeyword`` static confers on casts, or ``None``.
+
+    Phase models "you may cast spells as though they had flash" / "<class>
+    spells you cast have <keyword>" as a static whose ``mode`` is a
+    ``{CastWithKeyword: {keyword: …}}`` variant (Leyline of Anticipation —
+    ``Flash``; Chief Engineer — ``Convoke``). The keyword itself is a plain
+    string or a parameterized variant (``{Affinity: …}``) — the KEY is the
+    name. ``None`` for any other static mode (CR 601.3e).
+    """
+    mode = getattr(static_node, "mode", MISSING)
+    if not (isinstance(mode, MirrorVariant) and mode.key == "CastWithKeyword"):
+        return None
+    kw = _variant_field(mode.inner, "keyword")
+    if isinstance(kw, str):
+        return kw
+    if isinstance(kw, MirrorVariant):
+        return kw.key
+    if isinstance(kw, TypedMirrorNode):
+        return tag_of(kw)
+    return None
+
+
+def _variant_field(inner: object, field: str) -> object:
+    """One named field of a variant's INNER payload, across both loads.
+
+    A single-field payload loads as a nested ``MirrorVariant`` whose key IS
+    the field name (``{RevealHand: {who: "Opponents"}}`` →
+    ``MirrorVariant(key="who", inner="Opponents")``); a multi-field payload
+    loads as a typed struct read by attribute. ``None`` when absent.
+    """
+    if isinstance(inner, MirrorVariant):
+        return inner.inner if inner.key == field else None
+    v = getattr(inner, field, MISSING)
+    return v if _present(v) else None
+
+
+def static_reveal_who(static_node: TypedMirrorNode) -> str | None:
+    """The revealed PLAYER of a ``RevealHand`` static mode, or ``None``.
+
+    Phase models "players play with their hands revealed" as a static whose
+    ``mode`` is ``{RevealHand: {who: …}}`` — ``who`` ∈ ``Controller`` (Enduring
+    Renewal's self-reveal) / ``Opponents`` (Telepathy) / ``AllPlayers`` (Zur's
+    Weirding). The hand_disruption lane gates on the reveal reaching an
+    opponent's hand (CR 402.3).
+    """
+    mode = getattr(static_node, "mode", MISSING)
+    if isinstance(mode, MirrorVariant) and mode.key == "RevealHand":
+        who = _variant_field(mode.inner, "who")
+        return who if isinstance(who, str) else None
     return None
 
 

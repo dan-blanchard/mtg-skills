@@ -30,12 +30,14 @@ from __future__ import annotations
 
 from mtg_utils._card_ir.crosswalk import (
     ARTIFACT_TOKEN_SUBTYPES,
+    OTHER,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
     additional_phase_kind,
     amount_factor,
     amount_is_scaling,
+    cast_with_keyword_name,
     change_zone_dirs,
     color_count_preds,
     condition_tags,
@@ -59,10 +61,12 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     filter_without_keywords,
+    is_dies_return_trigger,
     iter_cost_leaves,
     iter_mod_sites,
     lifeloss_recipient_scope,
     mana_replacement_multiplier,
+    mod_keyword_name,
     mod_value,
     modify_cost_mode,
     node_lure_mode,
@@ -74,6 +78,7 @@ from mtg_utils._card_ir.crosswalk import (
     recipient_tag,
     ref_qty_tag,
     static_mode_tag,
+    static_reveal_who,
     tag_of,
     trigger_scope,
     trigger_subject,
@@ -227,6 +232,33 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "impulse_top_play",
         "play_from_top",
         "counter_manipulation",
+        # Batch 9 (ADR-0035 Stage 2): the discard/draw payoff, death-loop,
+        # card-advantage-engine, library-top, combat-pump, and grant cluster.
+        "discard_matters",
+        "opponent_draw_matters",
+        "self_death_payoff",
+        "dies_recursion",
+        "creature_recursion",
+        "card_draw_engine",
+        "group_hug_draw",
+        "target_player_draws",
+        "activated_draw",
+        "topdeck_selection",
+        "topdeck_stack",
+        "combat_buff_engine",
+        "land_sacrifice_matters",
+        "exile_matters",
+        "energy_matters",
+        "counter_move",
+        "explore_matters",
+        "dice_matters",
+        "extra_upkeep",
+        "extra_end_step",
+        "facedown_matters",
+        "spell_keyword_grant",
+        "flash_grant",
+        "flash_makers",
+        "hand_disruption",
     }
 )
 
@@ -2429,6 +2461,22 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
                 continue
             seen.add(sc)
             out.append(Signal("opponent_discard", sc, "", c.raw, tree.name, "high"))
+        # Batch 9 — the PUNISHER trigger arm: "whenever an opponent discards
+        # a card, …" (Megrim, Liliana's Caress). phase watches the discarder
+        # on the trigger's ``valid_card`` controller (Megrim — Opponent) or
+        # ``valid_target``; the self/any-scope complement is the disjoint
+        # ``discard_matters`` lane (checklist #5 — the discarder scope is
+        # read off the trigger's own recipient nodes, never the mislabeled
+        # trigger_scope). CR 701.8a / 102.2.
+        if (
+            unit.trigger_event == "discarded"
+            and _discard_watch_is_opponent(unit)
+            and "opponents" not in seen
+        ):
+            seen.add("opponents")
+            out.append(
+                Signal("opponent_discard", "opponents", "", "", tree.name, "high")
+            )
     return out
 
 
@@ -2812,12 +2860,18 @@ _OPP_TOP_OWNERS: frozenset[str] = frozenset(
         "ScopedPlayer",
     }
 )
-# SearchLibrary target_player tags directing the search at ANOTHER player —
-# a punisher's compensation fetch (Settle the Wreckage), never YOUR cheat.
+# SearchLibrary target_player tags UNCONDITIONALLY directing the search at
+# ANOTHER player — never YOUR cheat. ``ParentTargetController`` is NOT here
+# (batch-9 follow-up c): it resolves through the parent TARGET, which may be
+# an OBJECT you chose (Arcum Dagsson's "target artifact creature's controller
+# … may search" — CR 115.1 puts the target choice with the ability's
+# controller, so the directed player is routinely YOU) or a targeted PLAYER
+# (Settle the Wreckage's wiped-player compensation). The conditional veto in
+# :func:`_directed_search_sibling` splits the two on the unit's player-target
+# marker.
 _DIRECTED_SEARCHERS: frozenset[str] = frozenset(
     {
         "ParentTarget",
-        "ParentTargetController",
         "Player",
         "Target",
         "Opponent",
@@ -3415,6 +3469,22 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
       one-time pre-game action, not a cheat ENGINE — read structurally off
       the typed kind (the live path needed a raw regex).
 
+    Two batch-9 follow-ups widen the type evidence, both typed / zero-guess:
+
+    * **subtype-only filters** (fix a) — when cores are EMPTY, a non-empty
+      SUBTYPE set that names no land subtype (:data:`_LAND_SUBTYPES`) is
+      non-Land type evidence (Academy Researchers' ``{Subtype: Aura}`` filter
+      — phase's filter is correct and complete, CR 205.3); a subtype set
+      touching a land subtype still never fires (Nature's Lore is already
+      excluded by its Land core);
+    * **the Dig arm** (fix b) — a ``Dig`` whose ``destination`` is Battlefield
+      with non-empty, non-Land-only cores is the look-at-top-N put
+      (Aethermage's Touch's "put a creature card onto the battlefield" — a
+      put, not a cast, CR 401.1); the destination gate keeps Aetherworks
+      Marvel's dig-and-CAST (destination None) out, the core gate keeps
+      Elvish Rejuvenator's land put in extra_land_drop, and a no-filter dig
+      (filter ``Any``) has no type evidence — never guess.
+
     A Graveyard origin is reanimation (a different lane, checklist #2). Scope
     "you".
     """
@@ -3430,10 +3500,27 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
             cores = set(filter_core_types(effect_filter(c.node)))
             if not cores:
                 cores = _sibling_selector_cores(unit)
-            if not cores or cores <= {"Land"}:
-                continue  # land carve-out / no type evidence — never guess
+            if not cores:
+                # Fix (a): subtype-only type evidence (cores empty on both the
+                # effect's own filter and the sibling selector).
+                subs = {s.lower() for s in filter_subtypes(effect_filter(c.node))}
+                if not subs:
+                    subs = {s.lower() for s in _sibling_selector_subtypes(unit)}
+                if not subs or subs & _LAND_SUBTYPES:
+                    continue  # no type evidence / a land put — never guess
+            elif cores <= {"Land"}:
+                continue  # land carve-out (ramp, not a cheat)
             if _directed_search_sibling(unit):
                 continue  # another player's compensation fetch, not yours
+            return [Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")]
+        # Fix (b): the non-land Dig→Battlefield arm (mirrors _extra_land_drop's
+        # dig arm with the complementary type gate).
+        for c in unit.effect_concepts("dig"):
+            if getattr(c.node, "destination", None) != "Battlefield":
+                continue
+            cores = set(filter_core_types(getattr(c.node, "filter", None)))
+            if not cores or cores <= {"Land"}:
+                continue  # land put (extra_land_drop) / no evidence — no guess
             return [Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")]
     return []
 
@@ -3448,18 +3535,54 @@ def _sibling_selector_cores(unit: AbilityUnit) -> set[str]:
     return cores
 
 
+def _sibling_selector_subtypes(unit: AbilityUnit) -> set[str]:
+    """The SUBTYPE words a sibling tutor/dig selector names — the fallback
+    type evidence when the put's own filter carries none (batch-9 follow-up
+    a)."""
+    subs: set[str] = set()
+    for c in unit.effects:
+        if c.concept in ("tutor", "dig"):
+            subs |= set(filter_subtypes(effect_filter(c.node)))
+    return subs
+
+
 def _directed_search_sibling(unit: AbilityUnit) -> bool:
-    """Whether a sibling ``SearchLibrary`` directs ANOTHER player to search
-    (``target_player`` a directed-PLAYER tag — Settle the Wreckage's
-    ``ParentTargetController`` "that player may search"). A ``Typed`` library
-    OWNER (Bribery — YOU search target opponent's library) is not directed:
-    the controller performs the search and the put stays yours."""
+    """Whether a sibling ``SearchLibrary`` directs ANOTHER player to search.
+
+    A ``target_player`` naming a directed-PLAYER tag (:data:`_DIRECTED_
+    SEARCHERS`) always vetoes. ``ParentTargetController`` vetoes ONLY when the
+    unit carries a player-TARGET marker (batch-9 follow-up c): Settle the
+    Wreckage targets a PLAYER (its wipe filter carries ``controller:
+    "TargetPlayer"``), so "that player may search" is the WIPED player's
+    compensation fetch; Arcum Dagsson targets an OBJECT (the sacrificed
+    artifact creature — no player-target anywhere in the unit), so the
+    "controller" the search resolves through is routinely YOU (CR 115.1 — the
+    ability's controller chooses the target) and the put is your cheat. A
+    ``Typed`` library OWNER (Bribery — YOU search target opponent's library)
+    is not directed: the controller performs the search and the put stays
+    yours.
+    """
+    ptc = False
     for c in unit.effects:
         if c.concept != "tutor":
             continue
-        if tag_of(getattr(c.node, "target_player", None)) in _DIRECTED_SEARCHERS:
+        t = tag_of(getattr(c.node, "target_player", None))
+        if t in _DIRECTED_SEARCHERS:
             return True
-    return False
+        if t == "ParentTargetController":
+            ptc = True
+    return ptc and _unit_targets_player(unit)
+
+
+def _unit_targets_player(unit: AbilityUnit) -> bool:
+    """Whether any effect in the unit targets a PLAYER — a filter carrying
+    ``controller: "TargetPlayer"`` (Settle the Wreckage's "all attacking
+    creatures target player controls"). The marker that makes a sibling
+    ``ParentTargetController`` search resolve through that targeted player,
+    not you."""
+    return any(
+        filter_controller(effect_filter(c.node)) == "TargetPlayer" for c in unit.effects
+    )
 
 
 def _impulse_top_play(tree: ConceptTree) -> list[Signal]:
@@ -3541,6 +3664,705 @@ def _counter_manipulation(tree: ConceptTree) -> list[Signal]:
                     Signal("counter_manipulation", "you", "", "", tree.name, "high")
                 ]
     return []
+
+
+# ── Batch 9 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────
+
+# Land subtypes (CR 205.3i — basic + nonbasic): the fix-(a) membership test
+# that keeps a SUBTYPE-only put from resurrecting a land put as a cheat.
+_LAND_SUBTYPES: frozenset[str] = frozenset(
+    {
+        "plains",
+        "island",
+        "swamp",
+        "mountain",
+        "forest",
+        "wastes",
+        "gate",
+        "desert",
+        "lair",
+        "locus",
+        "mine",
+        "power-plant",
+        "tower",
+        "urza's",
+        "cave",
+        "sphere",
+        "town",
+    }
+)
+# Draw recipients naming EVERY player (CR 121.1) — the group_hug_draw
+# direction. ``ScopedPlayer`` is deliberately ABSENT: an each-player Phase
+# trigger's "that player draws" (Howling Mine) is the card_draw_engine
+# each-arm, and the live path routes it to target_player_draws, not the
+# group-hug gift.
+_EACH_DRAW_RECIPIENTS: frozenset[str] = frozenset({"Each", "AllPlayers", "EachPlayer"})
+# Draw recipients naming a DIRECTED single player (CR 121.1) — the
+# target_player_draws forced-draw direction (Bloodgift Demon's ``Player``).
+_TARGETED_DRAW_TAGS: frozenset[str] = frozenset({"Player", "ParentTarget", "Target"})
+# Combat-frame trigger events (CR 508 / 509.3a) — the combat_buff_engine
+# anchor. ``deals_damage`` is DELIBERATELY absent so Renown / the separate
+# self_counter_grow shapes don't over-fire (mirrors the live exclusion).
+_COMBAT_BUFF_EVENTS: frozenset[str] = frozenset(
+    {"attacks", "blocks", "becomes_blocked"}
+)
+# Land-to-graveyard payoff trigger events (CR 701.21a / 603.6c).
+_LAND_SAC_EVENTS: frozenset[str] = frozenset({"dies", "leaves", "sacrificed"})
+# Effect targets naming the granted trigger's own source (mirrors
+# ``crosswalk._SELF_RETURN_TARGETS`` for the self_death_payoff exclusion).
+_SELF_RETURN_TAGS: frozenset[str] = frozenset({"SelfRef", "TriggeringSource"})
+# Spell-cast keywords (CR 702 — flash 702.8, flashback 702.34, cascade
+# 702.85, …): an ``AddKeyword`` grant of one of these is a grant to a SPELL /
+# castable card, never a battlefield keyword anthem (team_buff). Normalized
+# lower/spaceless/hyphenless (phase spells ``JumpStart``).
+_SPELL_GRANT_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "flashback",
+        "flash",
+        "cascade",
+        "storm",
+        "replicate",
+        "conspire",
+        "jumpstart",
+        "retrace",
+        "convoke",
+        "improvise",
+        "delve",
+        "demonstrate",
+        "casualty",
+        "rebound",
+        "escape",
+        "affinity",
+        "buyback",
+        "madness",
+    }
+)
+# RevealHand static ``who`` values that reach an OPPONENT's hand (CR 402.3):
+# Telepathy's ``Opponents``, Zur's Weirding's symmetric ``AllPlayers`` (it
+# reveals their hands too). A ``Controller`` self-reveal (Enduring Renewal)
+# is not disruption.
+_REVEAL_WHO_OPP: frozenset[str] = frozenset({"Opponents", "AllPlayers"})
+
+
+def _discard_watch_is_opponent(unit: AbilityUnit) -> bool:
+    """Whether a discarded-family trigger watches an OPPONENT's discard.
+
+    phase carries the watched discarder on ``valid_target`` (Archfiend of
+    Ifnir — ``Controller``) or on ``valid_card``'s controller (Megrim —
+    ``Typed controller=Opponent``); either naming the opponent routes the
+    trigger to the punisher lane (checklist #5 — the recipient nodes, never
+    the mislabeled trigger_scope).
+    """
+    return (
+        trigger_scope(unit.node) == "opponents"
+        or trigger_subject_scope(unit.node) == "opponents"
+    )
+
+
+def _discard_matters(tree: ConceptTree) -> list[Signal]:
+    """discard_matters — the SELF/any-scope discard PAYOFF (CR 702.29a:
+    cycling IS "[Cost], Discard this card: Draw a card", so a cycle is a
+    discard — phase's ``CycledOrDiscarded`` joins ``Discarded`` /
+    ``DiscardedAll`` under the derived ``discarded`` event): "whenever you
+    cycle or discard a card, …" (Archfiend of Ifnir). DISJOINT from the
+    opponent-watching punisher (Megrim → the ``opponent_discard`` trigger
+    arm) by the same watcher read. A loot OUTLET (Careful Study) has no
+    discarded trigger — it stays discard_makers. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.trigger_event != "discarded":
+            continue
+        if not _discard_watch_is_opponent(unit):
+            return [Signal("discard_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _opponent_draw_matters(tree: ConceptTree) -> list[Signal]:
+    """opponent_draw_matters — the wheel-punisher payoff (CR 121.1):
+    "whenever an opponent draws a card, …" (Nekusar, Underworld Dreams). The
+    complementary scope gate to the ported ``draw_matters`` (you/any-scope
+    drawn watcher — Niv-Mizzet) — the two stay set-disjoint. Scope
+    "opponents".
+    """
+    for unit in tree.units:
+        if unit.trigger_event == "drawn" and trigger_scope(unit.node) == "opponents":
+            return [
+                Signal("opponent_draw_matters", "opponents", "", "", tree.name, "high")
+            ]
+    return []
+
+
+def _is_self_return_effect(c: ConceptNode) -> bool:
+    """A ``ChangeZone`` back to the battlefield targeting the trigger's own
+    source — the dies_recursion return arm (Kitchen Finks' persist), NOT a
+    death VALUE payoff."""
+    return (
+        tag_of(c.node) == "ChangeZone"
+        and getattr(c.node, "destination", None) == "Battlefield"
+        and tag_of(getattr(c.node, "target", None)) in _SELF_RETURN_TAGS
+    )
+
+
+def _is_shuffle_back_effect(c: ConceptNode) -> bool:
+    """A zone move whose destination is the LIBRARY — the "shuffle it / your
+    graveyard into its owner's library" self-protection rider (Kozilek,
+    Serra Avatar — CR 701.19b), not a death VALUE payoff."""
+    return (
+        tag_of(c.node) in ("ChangeZone", "ChangeZoneAll")
+        and getattr(c.node, "destination", None) == "Library"
+    )
+
+
+def _self_death_payoff(tree: ConceptTree) -> list[Signal]:
+    """self_death_payoff — own-death VALUE (CR 700.4 dies / 603.6c): "when
+    this creature dies, <payoff>" (Solemn Simulacrum's draw, Kokusho's
+    drain). Four gates mirror the live split: the ``SelfRef`` watcher
+    excludes the aristocrats lane (``death_matters`` — a subject-bearing
+    watcher, Blood Artist); the recognized-effect gate drops unparsed
+    bodies; the SELF-RETURN exclusion keeps the undying/persist return
+    (Kitchen Finks — ``ChangeZone`` back to the battlefield) in
+    ``dies_recursion``, not here; and the SHUFFLE-BACK exclusion drops the
+    "shuffle … into its owner's library" protection rider (Kozilek — a
+    dies-to-Library move is self-preservation, not value). Scope "you".
+    """
+    for unit in tree.units:
+        if unit.origin != "trigger" or unit.trigger_event != "dies":
+            continue
+        if tag_of(getattr(unit.node, "valid_card", None)) != "SelfRef":
+            continue
+        for c in unit.effects:
+            if (
+                c.concept == OTHER
+                or _is_self_return_effect(c)
+                or _is_shuffle_back_effect(c)
+            ):
+                continue
+            return [Signal("self_death_payoff", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _dies_recursion(tree: ConceptTree) -> list[Signal]:
+    """dies_recursion — SELF-recursion on death (CR 702.93a undying /
+    702.79a persist: "when this permanent is put into a graveyard from the
+    battlefield, … return it to the battlefield"). Fully structural, two
+    arms sharing one predicate (:func:`is_dies_return_trigger`):
+
+    * the card's OWN dies-return trigger — phase expands undying (Young
+      Wolf) and persist (Kitchen Finks) to exactly this shape, so the
+      keyword bearers read structurally (memory: mirror=backup — prefer the
+      structural shape over a keyword field-lookup);
+    * the GRANT form — a ``GrantTrigger`` modification whose granted trigger
+      is that same dies-return shape (Feign Death), reached tree-preservingly
+      through :func:`iter_mod_sites`.
+
+    The destination gate (Battlefield) keeps a dies→hand return out; a
+    GY→battlefield reanimate of OTHERS (Reanimate) has no SelfRef dies
+    watcher and stays creature_recursion/reanimator. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.origin == "trigger" and is_dies_return_trigger(unit.node):
+            return [Signal("dies_recursion", "you", "", "", tree.name, "high")]
+        for _sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) == "GrantTrigger" and is_dies_return_trigger(
+                getattr(mod, "trigger", None)
+            ):
+                return [Signal("dies_recursion", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _creature_recursion(tree: ConceptTree) -> list[Signal]:
+    """creature_recursion — loop-a-creature (CR 700.4 / 401.4 / 404). Two
+    typed arms mirroring the live structural pair:
+
+    * **reanimation** — a ``ChangeZone`` / ``ChangeZoneAll`` Graveyard→
+      Battlefield over a Creature-cored filter (Alesha's attack trigger;
+      Reanimate — scope stays "you" even over an opponent's graveyard: you
+      control the returned creature);
+    * **recall** — a ``Bounce`` (→hand) or ``PutAtLibraryPosition``
+      (→library) whose subject is a Creature card IN a graveyard (the
+      ``InZone: Graveyard`` predicate — Soul Salvage); the graveyard-zone
+      predicate is required (a battlefield bounce is tempo, not recursion).
+
+    Gate #6: subject controller ≠ Opponent (an opponents'-graveyard-ONLY
+    pull is graveyard hate, not your loop). A type-less "target card"
+    (Regrowth) has no Creature core — no fire. Scope "you".
+    """
+    for unit in tree.units:
+        for c in unit.effects:
+            t = tag_of(c.node)
+            sub = effect_filter(c.node)
+            if filter_controller(sub) == "Opponent":
+                continue
+            if "Creature" not in filter_core_types(sub):
+                continue
+            if t in ("ChangeZone", "ChangeZoneAll"):
+                origin, dest = change_zone_dirs(c.node)
+                if origin == "Graveyard" and dest == "Battlefield":
+                    return [
+                        Signal(
+                            "creature_recursion", "you", "", c.raw, tree.name, "high"
+                        )
+                    ]
+            if t in ("Bounce", "PutAtLibraryPosition") and (
+                "Graveyard" in filter_inzone_zones(sub)
+            ):
+                return [
+                    Signal("creature_recursion", "you", "", c.raw, tree.name, "high")
+                ]
+    return []
+
+
+def _draw_engine_scope(unit: AbilityUnit, c: ConceptNode) -> str:
+    """The card_draw_engine scope: "each" when the draw reaches every player
+    (an each-player Phase trigger's ``ScopedPlayer`` — Howling Mine; an
+    explicit each-player recipient; a ``player_scope: All`` wrapper — Temple
+    Bell), else "you"."""
+    if recipient_tag(c.node) == "ScopedPlayer":
+        return "each"
+    if recipient_tag(c.node) in _EACH_DRAW_RECIPIENTS:
+        return "each"
+    if effect_owner_player_scope(unit.node, c.node) == "All":
+        return "each"
+    return "you"
+
+
+def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
+    """card_draw_engine — recurring / BULK card advantage, NOT a cantrip (CR
+    121.1 / 121.2). The live path is a byte-identical kept mirror whose "no
+    clean structural shape" justification is STALE for the lossless
+    substrate: the tree preserves the Phase-mode trigger unit CONTAINING the
+    Draw (granularity a — the anchor and the Draw share a unit). Three
+    typed arms:
+
+    * a ``Draw`` whose typed ``count`` is ≥2 or dynamic ("draw three cards"
+      — Divination; "draw cards equal to …"), excluding a one-shot ETB unit
+      (Elvish Visionary's enters-draw never fires, mirroring the live
+      mirror's ETB skip) — a bare cantrip (Opt, count 1) never fires;
+    * ANY ``Draw`` inside a ``Phase``-mode trigger unit ("at the beginning
+      of …, draw" — Phyrexian Arena; Howling Mine's each-player draw step →
+      scope "each" via the ``ScopedPlayer`` recipient);
+    * a Draw-REPLACEMENT unit ("if you would draw a card, … draw two cards
+      instead" — Alhammarret's Archive; the replacement's ``event`` field is
+      the typed anchor).
+
+    Expected shadow posture: recall gains over the mirror are the desired
+    structural improvement — adjudicated via the harness, not drift.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+    for unit in tree.units:
+        is_phase = unit.trigger_event == "phase"
+        is_draw_repl = (
+            unit.origin == "replacement" and getattr(unit.node, "event", None) == "Draw"
+        )
+        for c in unit.effect_concepts("draw"):
+            bulk = amount_factor(c.node, "count") >= 2 or amount_is_scaling(
+                c.node, "count"
+            )
+            if not (
+                is_phase or is_draw_repl or (bulk and unit.trigger_event != "enters")
+            ):
+                continue
+            scope = _draw_engine_scope(unit, c)
+            if scope not in seen:
+                seen.add(scope)
+                out.append(
+                    Signal("card_draw_engine", scope, "", c.raw, tree.name, "high")
+                )
+    return out
+
+
+def _group_hug_draw(tree: ConceptTree) -> list[Signal]:
+    """group_hug_draw — a draw GIVEN to everyone (CR 121.1): "each player
+    draws a card" (Temple Bell — the ``player_scope: All`` wrapper on the
+    ability that owns the Draw; an explicit each-player recipient). A
+    controller-only draw (Divination) never fires. Scope "each".
+    """
+    for unit in tree.units:
+        for c in unit.effect_concepts("draw"):
+            if recipient_tag(c.node) in _EACH_DRAW_RECIPIENTS or (
+                effect_owner_player_scope(unit.node, c.node) == "All"
+            ):
+                return [Signal("group_hug_draw", "each", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _target_player_draws(tree: ConceptTree) -> list[Signal]:
+    """target_player_draws — a DIRECTED / forced draw (CR 121.1): "target
+    player draws a card" (Bloodgift Demon — the typed ``Player`` recipient).
+    With the typed recipient present the live path's self-loot phantom
+    exclusion is unnecessary in v0.9.0 (Careful Study's draw carries
+    ``Controller``); the negative fixture pins it regardless. A REPLACEMENT
+    unit's rewritten draw ("if a player would draw …, that player … instead"
+    — Chains of Mephistopheles' draw-tax) is a rules rewrite, not a forced
+    gift — replacement units are skipped (mirrors the live non-directed
+    exclusion). Scope "any".
+    """
+    for unit in tree.units:
+        if unit.origin == "replacement":
+            continue
+        for c in unit.effect_concepts("draw"):
+            if recipient_tag(c.node) in _TARGETED_DRAW_TAGS:
+                return [
+                    Signal("target_player_draws", "any", "", c.raw, tree.name, "high")
+                ]
+    return []
+
+
+def _activated_draw(tree: ConceptTree) -> list[Signal]:
+    """activated_draw — a tap-to-draw engine (CR 121.1 / 601.2b): an
+    ``Activated`` unit with ``Tap`` among its cost leaves and a ``Draw``
+    effect (Sensei's Divining Top's ``{T}: Draw``). A cycling activation
+    (Archfiend of Ifnir — ``Composite[Mana, Discard]``, no Tap) and a
+    tap-for-mana ability (no Draw) stay out. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.origin != "ability" or unit.kind != "Activated":
+            continue
+        if not unit.has_effect("draw"):
+            continue
+        if any(
+            tag_of(leaf) == "Tap"
+            for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
+        ):
+            return [Signal("activated_draw", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _topdeck_selection(tree: ConceptTree) -> list[Signal]:
+    """topdeck_selection — OWN-library top curation (CR 701.22 scry / 701.25
+    surveil / 401.1). Four first-class hooks: ``Scry`` / ``Surveil`` (the
+    player is always the implicit controller — zero opponent over-fire), a
+    ``Dig`` whose ``player`` is Controller and whose destination is NOT the
+    battlefield (Sensei's Divining Top — a dig-to-battlefield is the
+    cheat/ramp put, fix b), and a ``RevealTop`` whose ``player`` is
+    Controller. Gate #5: the library OWNER is the boundary — an opponent
+    peek (Orcish Spy — ``player: Player``) never fires. Scope "you".
+    """
+    for unit in tree.units:
+        for c in unit.effects:
+            t = tag_of(c.node)
+            if t in ("Scry", "Surveil"):
+                return [
+                    Signal("topdeck_selection", "you", "", c.raw, tree.name, "high")
+                ]
+            player = tag_of(getattr(c.node, "player", None))
+            if (
+                t == "Dig"
+                and player == "Controller"
+                and (getattr(c.node, "destination", None) != "Battlefield")
+            ):
+                return [
+                    Signal("topdeck_selection", "you", "", c.raw, tree.name, "high")
+                ]
+            if t == "RevealTop" and player == "Controller":
+                return [
+                    Signal("topdeck_selection", "you", "", c.raw, tree.name, "high")
+                ]
+    return []
+
+
+def _topdeck_stack(tree: ConceptTree) -> list[Signal]:
+    """topdeck_stack — stack the top of YOUR library (CR 401.4): a
+    ``PutAtLibraryPosition`` whose ``position`` is ``Top`` (Brainstorm's
+    hand-to-top; Sensei's Divining Top's SelfRef top) or the
+    ``PutOnTopOrBottom`` choice form, over YOUR object (filter controller
+    You / ``SelfRef``). The owner gate keeps the bounce-to-top REMOVAL out
+    (Griptide — controller None), mirroring the live controller=='you' gate;
+    the position gate keeps the ``NthFromTop`` precise-insertion removal
+    (Chronostutter) and the ``Bottom`` cleanup (Aethermage's Touch) out.
+    Scope "you".
+    """
+    for c in tree.effect_concepts("put_library_position"):
+        if tag_of(c.node) == "PutAtLibraryPosition" and (
+            tag_of(getattr(c.node, "position", None)) != "Top"
+        ):
+            continue
+        tgt = getattr(c.node, "target", None)
+        if tag_of(tgt) == "SelfRef" or filter_controller(tgt) == "You":
+            return [Signal("topdeck_stack", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
+    """combat_buff_engine — combat-keyed pump (CR 508 / 509.3a): a trigger in
+    the combat frame (attacks / blocks / becomes-blocked / begin-combat) with
+    a ``pump`` / ``place_counter`` effect in the SAME unit (granularity a) —
+    Anafenza's attack counter, Accorder Paladin's Battle-cry ``PumpAll``
+    (the keyword expansion the deleted regex missed — checklist #3: the
+    keyword tags payoffs, so the structural read wins). ``deals_damage`` is
+    DELIBERATELY excluded so Renown / self_counter_grow shapes (Skirk
+    Commando) never over-fire. Scope "you".
+    """
+    for unit in tree.units:
+        ev = unit.trigger_event
+        combat = ev in _COMBAT_BUFF_EVENTS or (
+            ev == "phase" and getattr(unit.node, "phase", None) == "BeginCombat"
+        )
+        if not combat:
+            continue
+        if any(c.concept in ("pump", "place_counter") for c in unit.effects):
+            return [Signal("combat_buff_engine", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _land_sacrifice_matters(tree: ConceptTree) -> list[Signal]:
+    """land_sacrifice_matters — the lands-to-graveyard PAYOFF (CR 701.21a /
+    603.6c): a dies / leaves / sacrificed trigger whose watched OBJECT is a
+    Land you control (The Gitrog Monster's ``ChangesZoneAll`` → Graveyard
+    land watcher — the mass mode joins via the §0.2 derivation). Gate #6:
+    subject controller you (an opponent-land watcher is not your payoff); a
+    land-ETB watcher is the landfall lane. The you-sacrifice-a-land OUTLET
+    (Gitrog's upkeep unit) is the already-ported ``land_sacrifice_makers`` —
+    keys disjoint. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.trigger_event not in _LAND_SAC_EVENTS:
+            continue
+        if "Land" not in trigger_subject(unit.node):
+            continue
+        if trigger_subject_scope(unit.node) != "you":
+            continue
+        return [Signal("land_sacrifice_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _exile_matters(tree: ConceptTree) -> list[Signal]:
+    """exile_matters — exile-as-resource payoff (CR 406.1): a trigger
+    watching cards LAND in exile (``ChangesZone`` destination Exile) whose
+    watched object is NOT the card itself (Ketramose's "whenever one or more
+    cards leave the battlefield and/or graveyards … [to] exile"). The
+    ``SelfRef`` gate keeps the suspend/foretell/blink SELF-state watcher
+    (God-Eternal Bontu's "when this is exiled" shuffle-in) out — the live
+    #24b boundary (CR 702.62a analog); the ``AttachedTo`` gate keeps the
+    enchanted-object recursion Aura (Kaya's Ghostform — insurance on ONE
+    object, not exile-as-resource) out. A dig-and-cast engine with no
+    exile-watcher trigger (Aetherworks Marvel) never fires. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        if change_zone_dirs(unit.node)[1] != "Exile":
+            continue
+        if tag_of(getattr(unit.node, "valid_card", None)) in ("SelfRef", "AttachedTo"):
+            continue
+        return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _energy_matters(tree: ConceptTree) -> list[Signal]:
+    """energy_matters — an energy SINK payoff (CR 107.14: "to pay {E}, a
+    player removes one energy counter"): a ``PayEnergy`` cost leaf
+    (Whirler Virtuoso's ``Pay {E}{E}{E}: token``; Aetherworks Marvel's
+    ``Composite[Tap, PayEnergy 6]``) buying a NON-mana effect. The non-ramp
+    gate mirrors the live pay-life painland exclusion: a fixing land whose
+    only pay-energy effect is mana (Aether Hub) is the mana base +
+    energy_makers, not a sink engine. The "whenever you get {E}" doubler
+    trigger has NO mode in v0.9.0 — SUPPLEMENT-FIXABLE (the oracle carries
+    "you get {E}"; a Stage-3 re-categorizer arm can stamp the marker). Scope
+    "you".
+    """
+    for unit in tree.units:
+        if not any(
+            tag_of(leaf) == "PayEnergy"
+            for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
+        ):
+            continue
+        if any(c.concept != "ramp" for c in unit.effects):
+            return [Signal("energy_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _counter_move(tree: ConceptTree) -> list[Signal]:
+    """counter_move — a counter RELOCATION engine (CR 122.1): a
+    ``MoveCounters`` effect (Nesting Grounds). The kind-gated
+    ``counter_manipulation`` and the kind-agnostic ``any_counter_makers``
+    co-fire where already ported (additive); this adds only the dedicated
+    key. A ``PutCounter`` placer (Renata) never fires. Scope "you".
+    """
+    hits = tree.effect_concepts("move_counters")
+    if hits:
+        return [Signal("counter_move", "you", "", hits[0].raw, tree.name, "high")]
+    return []
+
+
+def _explore_matters(tree: ConceptTree) -> list[Signal]:
+    """explore_matters — the explore PAYOFF (CR 701.44): a first-class
+    ``Explored`` trigger mode ("whenever a creature you control explores" —
+    Wildgrowth Walker; the live path reaches this via a raw discriminator on
+    an event='other' marker, so the mode read is a structural fidelity
+    gain). An explore DOER (Merfolk Branchwalker — ``Explore`` effect →
+    explore_makers) never co-fires. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.trigger_event == "explored":
+            return [Signal("explore_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _dice_matters(tree: ConceptTree) -> list[Signal]:
+    """dice_matters — the roll PAYOFF (CR 706.1): a ``RolledDie`` /
+    ``RolledDieOnce`` trigger mode ("whenever you roll one or more dice" —
+    Brazen Dwarf). A roller DOER (Adorable Kitten — ``RollDie`` effect →
+    dice_makers) never co-fires. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.trigger_event == "rolled_die":
+            return [Signal("dice_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _extra_upkeep_end(tree: ConceptTree) -> list[Signal]:
+    """extra_upkeep / extra_end_step — extra non-combat phases (CR 500.8): an
+    ``AdditionalPhase`` whose ``phase`` is Upkeep (Paradox Haze, Obeka) or
+    End (Y'shtola Rhul). Paradox Haze's recipient is ``TriggeringPlayer``
+    under an Enchant-Player trigger — the lane fires scope "you" regardless,
+    mirroring the live scope (an extra upkeep you distribute is the
+    build-around). A combat phase is the disjoint ``extra_combats`` lane.
+    Tiny lanes are deliberate (niche ≠ skip).
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+    for c in tree.effect_concepts("extra_phase"):
+        kind = additional_phase_kind(c.node)
+        key = {"upkeep": "extra_upkeep", "end": "extra_end_step"}.get(kind)
+        if key and key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", c.raw, tree.name, "high"))
+    return out
+
+
+def _facedown_matters(tree: ConceptTree) -> list[Signal]:
+    """facedown_matters — the face-down PAYOFF (CR 708.1). Two typed hooks:
+    a ``TurnFaceUp`` EFFECT (the turner references existing face-down
+    permanents — Break Open) and the ``TurnFaceUp`` TRIGGER mode ("when this
+    is turned face up" morph payoffs — CR 708.3: the event arises only from
+    a face-down permanent turning up). A Manifest/Cloak DOER is the ported
+    ``facedown_makers``, disjoint. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.trigger_event == "turnfaceup":
+            return [Signal("facedown_matters", "you", "", "", tree.name, "high")]
+    hits = tree.effect_concepts("turn_face_up")
+    if hits:
+        return [Signal("facedown_matters", "you", "", hits[0].raw, tree.name, "high")]
+    return []
+
+
+def _norm_kw(kw: str) -> str:
+    """Normalize a phase keyword spelling for set membership (lower,
+    spaceless, hyphenless — ``JumpStart`` → ``jumpstart``)."""
+    return kw.lower().replace(" ", "").replace("-", "")
+
+
+def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
+    """spell_keyword_grant (+ flash_grant / flash_makers) — grants a keyword
+    to spells / castable cards (CR 702.8 flash, 702.34 flashback, 601.3e).
+    Two typed arms:
+
+    * a ``CastWithKeyword`` STATIC ("you may cast spells as though they had
+      flash" — Leyline of Anticipation; "<class> spells you cast have
+      <keyword>" — Chief Engineer), read via
+      :func:`cast_with_keyword_name`;
+    * an ``AddKeyword`` modification whose keyword is a SPELL-CAST keyword
+      (:data:`_SPELL_GRANT_KEYWORDS` — Snapcaster Mage's targeted Flashback
+      grant); the curated set is the spell-vs-battlefield discriminator (an
+      evergreen grant is team_buff territory, checklist #3).
+
+    Gate #2: beneficiary you — the affected filter must not name an
+    opponent. A Flash grant additionally opens flash_grant + flash_makers
+    (the live structural ``cast_with_keyword{flash}`` pair); a PRINTED
+    keyword bearer (Faithless Looting's own Flashback) carries no grant node
+    and never fires.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", raw, tree.name, "high"))
+
+    def grant(kw: str, affected: object, raw: str) -> None:
+        if filter_controller(affected) == "Opponent":
+            return  # a grant to the opponent's spells is not your engine
+        fire("spell_keyword_grant", raw)
+        if _norm_kw(kw) == "flash":
+            fire("flash_grant", raw)
+            fire("flash_makers", raw)
+
+    for unit in tree.units:
+        if unit.origin == "static":
+            kw = cast_with_keyword_name(unit.node)
+            if kw is not None:
+                grant(kw, getattr(unit.node, "affected", None), "")
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "AddKeyword":
+                continue
+            kw = mod_keyword_name(mod)
+            if kw is None or _norm_kw(kw) not in _SPELL_GRANT_KEYWORDS:
+                continue
+            grant(kw, getattr(sdef, "affected", None), _site_raw(sdef))
+    return out
+
+
+def _hand_disruption(tree: ConceptTree) -> list[Signal]:
+    """hand_disruption — opponent hand reveal/peek (CR 402.3: "a player
+    can't look at the cards in another player's hand"). Two typed arms:
+
+    * a ``RevealHand`` EFFECT whose recipient EXPLICITLY names another
+      player (Duress — ``Typed controller=Opponent``; Addle — a targeted
+      ``Player``; checklist #5). A self-reveal (Goblin Secret Agent —
+      ``Controller``) never fires; nor does a bare ``Any`` target — phase
+      uses ``Any`` for the revealed CARDS of a "reveal … cards from your
+      hand" SELF-reveal (Manabond, Cursed Scroll, Brine Seer), so ``Any``
+      carries no player evidence — never guess;
+    * the ``RevealHand`` STATIC mode ("your opponents play with their hands
+      revealed" — Telepathy; the symmetric Zur's Weirding reaches their
+      hands too), via :func:`static_reveal_who`.
+
+    Scope "opponents" (the live lane's).
+    """
+    for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) != "RevealHand":
+                continue
+            if _reveal_names_other_player(c.node):
+                return [
+                    Signal("hand_disruption", "opponents", "", c.raw, tree.name, "high")
+                ]
+        if unit.origin == "static" and static_reveal_who(unit.node) in _REVEAL_WHO_OPP:
+            return [Signal("hand_disruption", "opponents", "", "", tree.name, "high")]
+    return []
+
+
+# RevealHand recipient tags that EXPLICITLY name another player (CR 402.3).
+# ``Any`` is deliberately absent — phase's self-reveal ("reveal any number of
+# cards from your hand") carries a bare ``Any`` CARDS target, not a player.
+_REVEAL_PLAYER_TAGS: frozenset[str] = frozenset(
+    {
+        "Player",
+        "ParentTarget",
+        "Target",
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "TriggeringPlayer",
+        "ParentTargetController",
+        "Each",
+        "AllPlayers",
+        "EachPlayer",
+    }
+)
+
+
+def _reveal_names_other_player(node: TypedMirrorNode) -> bool:
+    """Whether a ``RevealHand`` effect's recipient names ANOTHER player —
+    an explicit player tag or an opponent-controlled ``Typed`` filter."""
+    t = recipient_tag(node)
+    if t in _REVEAL_PLAYER_TAGS:
+        return True
+    return t == "Typed" and filter_controller(effect_filter(node)) == "Opponent"
 
 
 _LANES = (
@@ -3636,6 +4458,28 @@ _LANES = (
     _impulse_top_play,
     _play_from_top,
     _counter_manipulation,
+    _discard_matters,
+    _opponent_draw_matters,
+    _self_death_payoff,
+    _dies_recursion,
+    _creature_recursion,
+    _card_draw_engine,
+    _group_hug_draw,
+    _target_player_draws,
+    _activated_draw,
+    _topdeck_selection,
+    _topdeck_stack,
+    _combat_buff_engine,
+    _land_sacrifice_matters,
+    _exile_matters,
+    _energy_matters,
+    _counter_move,
+    _explore_matters,
+    _dice_matters,
+    _extra_upkeep_end,
+    _facedown_matters,
+    _spell_keyword_grant,
+    _hand_disruption,
 )
 
 
