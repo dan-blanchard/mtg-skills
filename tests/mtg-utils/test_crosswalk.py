@@ -570,6 +570,75 @@ def test_tapped_matters_fires():
     assert ("tapped_matters", "you", "") in _idents("Toil to Renown")
 
 
+# ── recall-completion b1: genuine payoff arms (ADR-0034 role-aware) ────────────
+
+
+def test_attack_matters_attacks_trigger():
+    """recall-completion b1: an ``attacks`` trigger-event is an attack_matters
+    payoff — Accorder Paladin's battle-cry trigger, Isshin's attack-doubling. The
+    SIBLING doer/type lanes stay byte-unmoved (no re-conflation)."""
+    assert ("attack_matters", "you", "") in _idents("Accorder Paladin")
+    assert ("attack_matters", "you", "") in _idents("Isshin, Two Heavens as One")
+    # sibling lanes on Accorder Paladin are unchanged (combat-buff doer + type)
+    assert {"combat_buff_engine", "type_matters"} <= _keys("Accorder Paladin")
+
+
+def test_spellcast_matters_trigger_and_prowess():
+    """recall-completion b1: a you-cast ``cast_spell`` trigger over a typed
+    noncreature subject (Talrand, Young Pyromancer) and the Prowess keyword (Abbot
+    of Keral Keep) fire spellcast_matters; the token/type sibling lanes are
+    unchanged."""
+    assert ("spellcast_matters", "you", "") in _idents("Talrand, Sky Summoner")
+    assert ("spellcast_matters", "you", "") in _idents("Young Pyromancer")
+    assert ("spellcast_matters", "you", "") in _idents("Abbot of Keral Keep")
+    # Talrand's token/type doer lanes stay byte-unmoved
+    assert ("token_maker", "you", "Drake") in _idents("Talrand, Sky Summoner")
+
+
+def test_plus_one_matters_counters_scaler():
+    """recall-completion b1: a ``CountersOn`` P1P1 count-operand ("for each +1/+1
+    counter on ~" — Mycoloth) fires plus_one_matters; its plus_one_makers /
+    token_maker doer siblings stay byte-unmoved."""
+    assert ("plus_one_matters", "you", "") in _idents("Mycoloth")
+    assert {"plus_one_makers", "token_maker"} <= _keys("Mycoloth")
+
+
+def test_tokens_matter_created_trigger_and_count():
+    """recall-completion b1: a ``TokenCreated`` trigger (Akim) and a Token-predicate
+    count-operand (Audience with Trostani) fire tokens_matter."""
+    assert ("tokens_matter", "you", "") in _idents("Akim, the Soaring Wind")
+    assert ("tokens_matter", "you", "") in _idents("Audience with Trostani")
+
+
+def test_ltb_matters_self_leaves_trigger():
+    """recall-completion b1: a SelfRef self-LTB value trigger (Skyclave Apparition
+    — "when this leaves the battlefield, create a token") fires ltb_matters — no
+    separate self_ltb lane, so no re-conflation."""
+    assert ("ltb_matters", "you", "") in _idents("Skyclave Apparition")
+
+
+def test_power_matters_ferocious_condition():
+    """recall-completion b1: a Ferocious power-threshold CONDITION ("as long as you
+    control a creature with power 4 or greater" — Beastbond Outcaster) fires
+    power_matters via the condition-site read; low_power_matters must NOT (GE/GT
+    only)."""
+    assert ("power_matters", "you", "") in _idents("Beastbond Outcaster")
+    assert "low_power_matters" not in _keys("Beastbond Outcaster")
+
+
+def test_tapped_matters_static_anthem():
+    """recall-completion b1: a static anthem over your tapped creatures ("other
+    tapped creatures you control have indestructible" — Adept Watershaper) fires
+    tapped_matters (the effect-only arm skipped statics)."""
+    assert ("tapped_matters", "you", "") in _idents("Adept Watershaper")
+
+
+def test_death_matters_morbid_condition():
+    """recall-completion b1: the morbid "if a creature died this turn" family (Bone
+    Picker) fires death_matters scope "any" via the byte-identical kept mirror."""
+    assert ("death_matters", "any", "") in _idents("Bone Picker")
+
+
 @pytest.mark.parametrize(
     ("name", "should_fire"),
     [
@@ -2427,12 +2496,15 @@ def test_permanent_etb_generic_engine():
 
 
 def test_ltb_matters_fires_and_gates():
-    """CR 603.6c: Luminous Phantom's LeavesBattlefield watcher fires; the
-    SelfRef self-leave (Thalakos Seer) and the graveyard-ARRIVAL "from
-    anywhere" watcher (Compost — CR 603.6c explicitly de-classifies it as an
-    LTB ability) never fire."""
+    """CR 603.6c: Luminous Phantom's LeavesBattlefield watcher fires. recall-
+    completion b1 (ADR-0034): a SelfRef self-LTB VALUE trigger (Thalakos Seer —
+    "when this leaves the battlefield, draw a card") NOW fires ``ltb_matters``
+    scope "you" — there is no separate self_ltb lane, so live keys both self and
+    other leaves on ltb_matters (verified live). The graveyard-ARRIVAL "from
+    anywhere" watcher (Compost — CR 603.6c explicitly de-classifies it as an LTB
+    ability) still never fires."""
     assert ("ltb_matters", "you", "") in _idents("Luminous Phantom")
-    assert "ltb_matters" not in _keys("Thalakos Seer")
+    assert ("ltb_matters", "you", "") in _idents("Thalakos Seer")
     assert "ltb_matters" not in _keys("Compost")
 
 

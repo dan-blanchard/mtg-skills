@@ -46,6 +46,7 @@ from mtg_utils._card_ir.crosswalk import (
     condition_tags,
     control_recipient_scope,
     cost_has_paylife,
+    count_distinct_operand_filter,
     count_operand_filter,
     count_operand_qty,
     counter_kind,
@@ -171,15 +172,19 @@ from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
     _ABILITY_COPY_MIRROR,
     _ACTIVATED_ABILITY_DROP_EFFECTS,
+    _ATTACK_MATTERS_MIRROR,
     _BIG_HAND_MAKERS_MIRROR,
     _BIG_HAND_MATTERS_MIRROR,
     _CONVOKE_RAW,
     _COUNTER_DISTRIBUTE_MIRROR,
     _COUNTER_KIND_KEYS,
+    _DEATH_MATTERS_MIRROR,
     _FIREBEND_RE,
     _KEYWORD_COUNTER_KINDS,
+    _LIFEGAIN_MATTERS_MIRROR,
     _NAMED_COUNTER_KINDS,
     _OPP_COUNTER_BENEFICIAL,
+    _POWER_MATTERS_MIRROR,
     _POWER_SCALING_RAW,
     _PROLIFERATE_REMOVE_COST_RE,
     _SAME_TRUE_KW_RE,
@@ -215,6 +220,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_keyword_implied_tribe,
     _detect_keyword_tribe,
     _detect_multi_tribe_anthem,
+    _detect_spellcast_matters,
     _detect_token_maker,
     _detect_type_matters,
     _detect_typed_gy_recursion,
@@ -1108,6 +1114,20 @@ def _death_matters(tree: ConceptTree) -> list[Signal]:
                 "high",
             )
         )
+    # recall-completion b1 (ADR-0035 backstop): the morbid "if a creature died this
+    # turn" / "whenever [permanents/tokens] die" CONDITION family (Bone Picker,
+    # Skirsdag High Priest, Tragic Slip) — phase carries no structural morbid-condition
+    # node. Byte-identical to the two deleted producers run PER-CLAUSE over the
+    # reminder-stripped face oracle: ``_DEATH_MATTERS_MIRROR`` plus the two
+    # substring-AND branches ("whenever"&"dies", "dying"&"trigger"). scope "any" (the
+    # producer's forced scope; the extractor dedups vs the structural arm). CR 700.4.
+    if any(
+        _DEATH_MATTERS_MIRROR.search(cl)
+        or ("whenever" in (lc := cl.lower()) and "dies" in lc)
+        or ("dying" in lc and "trigger" in lc)
+        for cl in clauses(_kept(tree))
+    ):
+        out.append(Signal("death_matters", "any", "", "", tree.name, "high"))
     return out
 
 
@@ -1249,6 +1269,16 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
                 return [
                     Signal("sacrifice_outlets", "you", "", c.raw, tree.name, "high")
                 ]
+    # recall-completion b1: the subject-dropped / modal you-sac raw fallback
+    # (_SAC_OUTLET_RAW) is DELIBERATELY NOT ported. The IR gates it PER-EFFECT
+    # (``cat in (sacrifice, choose)`` AND the SAME effect's ``e.raw`` matches), but
+    # the crosswalk substrate carries NO per-effect raw (``c.raw`` is empty for a
+    # subject-dropped sacrifice). A card-level gate (has a sacrifice/choose concept)
+    # + an oracle-clause match over-fires (+11 crosswalk_only: Braids, Serendib Djinn,
+    # Phyrexian War Beast — "sacrifice unless" downsides and upkeep saccers), so it
+    # stays a documented ``live_only`` residue (ADR-0035 convergence tail). The
+    # additional-cost-to-CAST sacrifice (Abjure) likewise does not surface a typed
+    # sacrifice node this batch. CR 701.16 / 701.21.
     return []
 
 
@@ -1335,6 +1365,14 @@ def _lifegain_matters(tree: ConceptTree) -> list[Signal]:
                 _is_upkeep_unit(unit) and amount_factor(c.node) >= 2
             ):
                 return [Signal("lifegain_matters", "you", "", c.raw, tree.name, "high")]
+    # recall-completion b1 (ADR-0035 backstop): the "gained life this turn" CONDITION
+    # + variable "life you gained this turn" scaler (Aerith, Accomplished Alchemist,
+    # Aetherflux Reservoir), and the "if you would gain life, you gain twice"
+    # amplifier/replacement (Alhammarret's Archive, Boon Reflection) — phase carries
+    # no this-turn-tracker / gain-life-replacement node. Byte-identical
+    # ``_LIFEGAIN_MATTERS_MIRROR`` over the reminder-stripped face oracle, scope "you".
+    if _LIFEGAIN_MATTERS_MIRROR.search(_kept(tree)):
+        return [Signal("lifegain_matters", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -1372,6 +1410,12 @@ def _tokens_matter(tree: ConceptTree) -> list[Signal]:
     controller-any token anthem (Virulent Plague's -2/-2 hoser) is correctly scoped
     out; (B) an enters trigger whose watched subject carries ``Token`` AND
     controller you (Anointer Priest). Scope "you".
+
+    recall-completion b1 (ADR-0034) adds two structural arms the live path only got
+    via the ``TOKENS_MATTER_REGEX`` mirror: (C) a ``TokenCreated`` trigger ("whenever
+    you create one or more tokens" — Akim); (D) a count-operand carrying the ``Token``
+    predicate + controller you ("draw = differently-named creature tokens you
+    control" — Audience with Trostani), reading the plain AND distinct count forms.
     """
     for unit in tree.units:
         anthem = [
@@ -1389,6 +1433,21 @@ def _tokens_matter(tree: ConceptTree) -> list[Signal]:
             and trigger_subject_scope(unit.node) == "you"
         ):
             return [Signal("tokens_matter", "you", "", "", tree.name, "high")]
+        if unit.trigger_event == "tokencreated":
+            return [Signal("tokens_matter", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.role == "cost":
+            continue
+        for filt in (
+            count_operand_filter(c.node),
+            count_distinct_operand_filter(c.node),
+        ):
+            if (
+                filt is not None
+                and filter_controller(filt) == "You"
+                and "Token" in filter_predicates(filt)
+            ):
+                return [Signal("tokens_matter", "you", "", c.raw, tree.name, "high")]
     return []
 
 
@@ -1607,6 +1666,16 @@ def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, "you", "", raw, tree.name, "high"))
 
+    # recall-completion b1 (ADR-0034): the ``attacks`` trigger-event payoff — a
+    # "whenever ~ attacks" reward (Accorder Paladin, Adeline, Aurelia, Isshin).
+    # ``_signals_ir`` fires ``_PAYOFF_TRIGGER_KEYS["attacks"]`` unconditionally on
+    # every attacks-trigger unit, scope forced "you". The read machinery already
+    # existed (``nonhuman_attackers`` / ``tap_down`` read the same event); neither
+    # emitted ``attack_matters``. CR 508.1 / 603.2.
+    for unit in tree.units:
+        if unit.origin == "trigger" and unit.trigger_event == "attacks":
+            fire("attack_matters", "")
+
     for c in tree.iter_concepts():
         if c.role != "effect":
             continue
@@ -1619,7 +1688,80 @@ def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
                 fire("tapped_matters", c.raw)
             if "Attacking" in preds:
                 fire("attack_matters", c.raw)
+
+    # recall-completion b1 (ADR-0034): a static ANTHEM over your tapped creatures
+    # ("other tapped creatures you control have indestructible" — Adept Watershaper,
+    # Alibou). The effect loop above skips statics (``c.role != "effect"``); read the
+    # static's affected filter for Tapped + controller you. ``_signals_ir`` fires this
+    # via the effect-subject arm (~8267). CR 301 / 604.3.
+    for unit in tree.units:
+        if not unit.statics:
+            continue
+        aff = getattr(unit.node, "affected", None)
+        if (
+            aff is not None
+            and filter_controller(aff) == "You"
+            and "Tapped" in filter_predicates(aff)
+            and ("Creature" in filter_core_types(aff) or not filter_core_types(aff))
+        ):
+            fire("tapped_matters", "")
+
+    # recall-completion b1 (ADR-0035 backstop): the attack_matters raw-fold residue
+    # phase gives no clean ``attacks`` shape for — the disjunctive "enters or
+    # attacks" / "attacks or blocks" (phase → event='other'), the Raid "if you
+    # attacked this turn" condition, the AttackedThisTurn effect predicate, and
+    # "attacking causes" (Isshin). Byte-identical to the deleted producer run
+    # PER-CLAUSE over the reminder-stripped face oracle (``_ATTACK_MATTERS_MIRROR``
+    # + the substring-AND "whenever" & "attack" branch). CR 508 / 702.10.
+    if any(
+        _ATTACK_MATTERS_MIRROR.search(cl)
+        or ("whenever" in (lc := cl.lower()) and "attack" in lc)
+        for cl in clauses(_kept(tree))
+    ):
+        fire("attack_matters", "")
     return out
+
+
+def _spellcast_matters(tree: ConceptTree) -> list[Signal]:
+    """spellcast_matters — the you-cast (Spellslinger) PAYOFF (CR 601.2 / 603.2).
+    recall-completion b1 (ADR-0034): the crosswalk had NO positive detector, only
+    the ``spell_copy_makers`` LOW cross-open. Two arms mirror ``_signals_ir``:
+
+    * the STRUCTURAL typed ``cast_spell`` trigger (~10906): a you-cast trigger
+      (``trigger_caster_scope == "you"`` — the typed discriminator that REPLACES
+      the live ``_self_cast_oracle`` regex, per ``trigger_caster_scope`` docs) over
+      a typed-NONcreature watched subject (Instant/Sorcery core type, or a
+      ``Non: Creature`` negation) — Talrand, Guttersnipe, Young Pyromancer. An
+      enchantment/artifact-only cast watcher routes to those type lanes (excluded),
+      matching the deleted regex's carve-out.
+    * the byte-identical ``_detect_spellcast_matters`` kept mirror (~11420) run
+      PER-CLAUSE over the reminder-stripped face oracle — the UNTYPED "whenever you
+      cast a spell" (Aetherflux Reservoir) + the non-trigger glue phase gives no
+      cast node for (cost reducers Baral, build-arounds Lier/Kess, recaster/copiers,
+      cast-from-zone recursion, past-tense spell counts). Forced scope "you".
+
+    The symmetric "a player casts" punishers (Eidolon, Ruric Thar) carry no you
+    caster-scope AND no "you cast" clause, so neither arm opens a you build-around
+    (they stay ``opponent_cast_matters`` / ``noncreature_cast_punish``).
+    """
+    for unit in tree.units:
+        if unit.origin != "trigger" or unit.trigger_event != "cast_spell":
+            continue
+        if trigger_caster_scope(unit.node) != "you":
+            continue
+        vc = getattr(unit.node, "valid_card", None)
+        cores = set(filter_core_types(vc))
+        typed = bool(cores & {"Instant", "Sorcery"}) or (
+            "Creature" in filter_non_types(vc)
+        )
+        if typed and not (cores and cores <= {"Enchantment", "Artifact"}):
+            return [Signal("spellcast_matters", "you", "", "", tree.name, "high")]
+    for cl in clauses(_kept(tree)):
+        if _detect_spellcast_matters(cl):
+            return [
+                Signal("spellcast_matters", "you", "", cl.strip(), tree.name, "high")
+            ]
+    return []
 
 
 def _any_counter_makers(tree: ConceptTree) -> list[Signal]:
@@ -1662,15 +1804,40 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
     p1p1 move relocates the engine — Bioshift), OR a subject / count-operand filter
     carrying a ``Counters`` predicate of kind ``P1P1`` ("creatures you control with a
     +1/+1 counter", "for each creature with a +1/+1 counter on it" — Inspiring Call).
+
+    recall-completion b1 (ADR-0034) adds two arms:
+
+    * the ``counter_added`` trigger whose ``counter_filter`` kind IS ``P1P1``
+      (Fractal Harness, Hardened-Scales-style +1/+1-specific placement triggers) —
+      a p1p1-SPECIFIC placement trigger is a genuine +1/+1 payoff, CO-FIRED alongside
+      the kind-agnostic sibling ``counter_place_trigger`` (a kind-AGNOSTIC "whenever
+      one or more counters are put" trigger correctly stays there, NOT here).
+    * a ``CountersOn`` count-operand of kind ``P1P1`` ("~ for each +1/+1 counter on
+      it" — Mycoloth) — ``_signals_ir``'s ``e.amount.op == "counters"`` (IR:7666).
+
     The raw-``"+1/+1 counter"`` idiom arms stay ``live_only`` raw-fold mirrors. Scope
     "you".
     """
+    for unit in tree.units:
+        if (
+            unit.origin == "trigger"
+            and unit.trigger_event == "counter_added"
+            and trigger_counter_filter(unit.node)[0].upper() == "P1P1"
+        ):
+            return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
     for c in tree.effect_concepts("move_counters"):
         if counter_kind(c.node).upper() == "P1P1":
             return [Signal("plus_one_matters", "you", "", c.raw, tree.name, "high")]
     for c in tree.iter_concepts():
         if c.role == "cost":
             continue
+        q = count_operand_qty(c.node)
+        if (
+            q is not None
+            and tag_of(q) == "CountersOn"
+            and str(getattr(q, "counter_type", "")).upper() == "P1P1"
+        ):
+            return [Signal("plus_one_matters", "you", "", c.raw, tree.name, "high")]
         for filt in (effect_filter(c.node), count_operand_filter(c.node)):
             if filt is None or filter_controller(filt) == "Opponent":
                 continue
@@ -2720,6 +2887,12 @@ def _keyword_field_signals(keywords: frozenset[str], name: str) -> list[Signal]:
         out.append(Signal("lifeloss_matters", "opponents", "", "", name, "high"))
     if "goad" in low:
         out.append(Signal("goad_makers", "opponents", "", "", name, "high"))
+    # recall-completion b1 (ADR-0034): prowess (CR 702.108) is a you-cast
+    # Spellslinger payoff — the creature is rewarded when you cast a noncreature
+    # spell. ``_signals_ir`` reads it off the Scryfall keyword array (~line 824);
+    # no prowess row existed in the crosswalk keyword tables.
+    if "prowess" in low:
+        out.append(Signal("spellcast_matters", "you", "", "", name, "high"))
     return out
 
 
@@ -2965,6 +3138,31 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if unit.statics:
             handle(getattr(unit.node, "affected", None), "")
+
+    # recall-completion b1 (ADR-0034): the Ferocious/Formidable power-threshold
+    # CONDITION ("as long as you control a creature with power 4 or greater" —
+    # Challenger Troll, Beastbond Outcaster). ``_signals_ir._condition_power_matters``
+    # reads the condition-subject filter for a fixed ``PtComparison:Power:GE/GT``,
+    # controller you — the SAME condition-site machinery tapped_matters reads. GE/GT
+    # only (LE/LT would drift the sibling low_power_matters). CR 208.1 / 207.2c.
+    for unit in tree.units:
+        for site in iter_condition_sites(unit.node):
+            for n in iter_typed_nodes(site):
+                if filter_controller(n) != "You":
+                    continue
+                if any(
+                    stat == "Power" and cmp_ in ("GE", "GT")
+                    for stat, cmp_, _v in power_threshold_preds(n)
+                ):
+                    fire("power_matters", "")
+    # recall-completion b1 (ADR-0035 backstop): the "greatest/total/combined power of
+    # creatures you control" AGGREGATE scaler (Ghalta, Rishkar's Expertise, The Great
+    # Henge) — phase folds the threshold into an empty-predicate board_count carrier,
+    # so it is not cleanly structural this batch. Byte-identical
+    # ``_POWER_MATTERS_MIRROR`` over the reminder-stripped face oracle (flat ==
+    # per-clause, 0 miss / 0 over-fire).
+    if _POWER_MATTERS_MIRROR.search(_kept(tree)):
+        fire("power_matters", "")
     return out
 
 
@@ -5075,11 +5273,17 @@ def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
 def _ltb_matters(tree: ConceptTree) -> list[Signal]:
     """ltb_matters — the leaves-the-battlefield payoff (CR 603.6c). Two typed
     arms: the bare ``LeavesBattlefield`` mode (Luminous Phantom) and a
-    ``ChangesZone`` FROM the battlefield to a non-graveyard zone. Gates: a
-    SelfRef watcher (Thalakos Seer's own leave — the live self/other split)
-    never fires, and neither does an ``AttachedTo`` watcher (Curator's Ward /
+    ``ChangesZone`` FROM the battlefield to a non-graveyard zone. Gates:
+    recall-completion b1 (ADR-0034) NOW fires a SelfRef self-LTB value trigger
+    ("when THIS leaves the battlefield, [value]" — Skyclave Apparition, Sengir
+    Autocrat, Walker of the Grove, Thalakos Seer): unlike death→self_death_payoff
+    there is NO separate self_ltb lane, so live keys BOTH self and other leaves on
+    ``ltb_matters`` (verified: every SelfRef leaves-trigger fires it, the O-Ring
+    cards Fiend Hunter / Oblivion Ring co-fire ``exile_until_leaves`` + ltb_matters,
+    Banishing Light carries an exile-DURATION not a leaves-trigger so stays out).
+    An ``AttachedTo`` watcher (Curator's Ward /
     Traveling Plague — insurance on the ONE enchanted object, the same
-    boundary the exile_matters lane draws); a graveyard-ARRIVAL "from
+    boundary the exile_matters lane draws) still never fires; a graveyard-ARRIVAL "from
     anywhere" watcher (Compost — dest Graveyard, no battlefield origin) is
     graveyard territory, and CR 603.6c explicitly de-classifies it as an LTB
     ability. Third arm (b10 follow-up a — the batch-10 "no phase node"
@@ -5098,14 +5302,18 @@ def _ltb_matters(tree: ConceptTree) -> list[Signal]:
         if unit.origin != "trigger":
             continue
         vc = getattr(unit.node, "valid_card", None)
-        if vc is None or tag_of(vc) in ("SelfRef", "AttachedTo"):
+        if vc is None or tag_of(vc) == "AttachedTo":
             continue
         origin, dest = change_zone_dirs(unit.node)
         is_ltb = unit.trigger_event == "leaves" or (
             origin == "Battlefield" and dest not in ("Graveyard", "Battlefield")
         )
         if is_ltb:
-            scope = trigger_subject_scope(unit.node)
+            # A self-LTB (SelfRef) value trigger keys "you" (the self form); an
+            # other-permanent watcher keys its watched object's controller.
+            scope = (
+                "you" if tag_of(vc) == "SelfRef" else trigger_subject_scope(unit.node)
+            )
             return [Signal("ltb_matters", scope, "", "", tree.name, "high")]
     for unit in tree.units:
         for frm, to, filt in zone_change_count_reads(unit.node):
@@ -10318,6 +10526,7 @@ _LANES = (
     _artifacts_enchantments_matter,
     _creatures_matter,
     _attack_tapped_matters,
+    _spellcast_matters,
     _any_counter_makers,
     _minus_counters_matter,
     _plus_one_matters,

@@ -855,6 +855,28 @@ def count_operand_filter(node: TypedMirrorNode) -> object | None:
     return None
 
 
+def count_distinct_operand_filter(node: TypedMirrorNode) -> object | None:
+    """The FILTER of a DISTINCT-count operand (``Ref`` → ``ObjectCountDistinct``).
+
+    The sibling of :func:`count_operand_filter` for the "for each **differently
+    named** ~ you control" scaler (Audience with Trostani — draw = the number of
+    differently-named creature tokens you control). phase carries the counted
+    population on the same ``amount`` / ``count`` / ``value`` ``Ref`` but under an
+    ``ObjectCountDistinct`` qty (a distinct ``qualities`` dimension). Kept a SEPARATE
+    helper so widening it never moves the lanes that read the plain ObjectCount form.
+    """
+    for fname in ("amount", "count", "value"):
+        q = getattr(node, fname, MISSING)
+        if not _present(q) or tag_of(q) != "Ref":
+            continue
+        qty = getattr(q, "qty", None)
+        if tag_of(qty) == "ObjectCountDistinct":
+            filt = getattr(qty, "filter", None)
+            if filt is not None:
+                return filt
+    return None
+
+
 def filter_controller(filt: object) -> str | None:
     """The phase ``controller`` of a typed filter (``"You"`` / ``"Opponent"`` /
     ``None``), recursing ``Or`` / ``And`` to the first that names one.
