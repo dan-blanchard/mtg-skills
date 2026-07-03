@@ -3606,6 +3606,334 @@ def test_tap_down_defending_player_and_gated_target_player():
     assert "tap_down" not in _keys("Dawnglare Invoker")
 
 
+# ── Batch 13: §A pure Scryfall-keyword field-lookups ─────────────────────────
+
+
+def test_companion_keyword_bearer_vs_doctors_companion():
+    """CR 702.139: the Companion keyword fires the deckbuild-constraint lane
+    (Lurrus); "Doctor's companion" is the PARTNER family (Rose Tyler) and
+    deliberately never fires companion_keyword."""
+    assert ("companion_keyword", "you", "") in _idents("Lurrus of the Dream-Den")
+    ks = _keys("Rose Tyler")
+    assert "companion_keyword" not in ks
+    assert "partner_background" in ks
+
+
+def test_has_banding_bearer_vs_granter_reverse_trap():
+    """CR 702.22: the Banding keyword bearer fires (Timber Wolves); the
+    keyword-LESS banding GRANTER (Baton of Morale — AddKeyword{Banding})
+    must NOT fire the membership lane (the batch-13 reverse trap)."""
+    assert ("has_banding", "you", "") in _idents("Timber Wolves")
+    assert "has_banding" not in _keys("Baton of Morale")
+
+
+def test_has_dash_sole_keyword_producer():
+    """CR 702.109: the Dash keyword array is the SOLE producer (Zurgo
+    Bellstriker); a haste granter (Goblin Motivator) never fires."""
+    assert ("has_dash", "you", "") in _idents("Zurgo Bellstriker")
+    assert "has_dash" not in _keys("Goblin Motivator")
+
+
+def test_has_enlist_keyword_bearer():
+    """CR 702.154: the Enlist bearer fires (Argivian Cavalier); a tapper
+    outlet that merely taps creatures (Springleaf Drum) never fires."""
+    assert ("has_enlist", "you", "") in _idents("Argivian Cavalier")
+    assert "has_enlist" not in _keys("Springleaf Drum")
+
+
+def test_specialize_matters_digital_lane():
+    """DD4 (digital supplement): the Specialize bearer fires (Gale — the
+    Historic Brawl lane); "Choose a background" (Faceless One) routes to
+    the partner lane, never specialize."""
+    assert ("specialize_matters", "you", "") in _idents("Gale, Conduit of the Arcane")
+    ks = _keys("Faceless One")
+    assert "specialize_matters" not in ks
+    assert "partner_background" in ks
+
+
+def test_alt_cost_keyword_three_strings():
+    """CR 118/601 + 702.190a/.188a/.187a-c: Sneak / Web-slinging / Mayhem
+    bearers fire; a TEXTUAL alternative cost (Force of Will) and Dash (a
+    separate lane) never fire."""
+    for name in (
+        "Elektra, Daughter of the Hand",
+        "Spider-UK",
+        "Green Goblin, Back for More",
+    ):
+        assert ("alt_cost_keyword", "you", "") in _idents(name), name
+    assert "alt_cost_keyword" not in _keys("Force of Will")
+    assert "alt_cost_keyword" not in _keys("Zurgo Bellstriker")
+
+
+def test_partner_background_family_and_negatives():
+    """CR 702.124/.124a/.124k/.124m/.124i: Partner (Thrasios), Doctor's
+    companion (Rose Tyler), Choose a Background (Abdel Adrian) all fire;
+    Companion (Lurrus) is the separate lane and an actual Background CARD
+    (Raised by Giants — the lane is the commander side) never fires."""
+    for name in ("Thrasios, Triton Hero", "Rose Tyler", "Abdel Adrian, Gorion's Ward"):
+        assert ("partner_background", "you", "") in _idents(name), name
+    assert "partner_background" not in _keys("Lurrus of the Dream-Den")
+    assert "partner_background" not in _keys("Raised by Giants")
+
+
+# ── Batch 13: §B keyword + top-up lanes ──────────────────────────────────────
+
+
+def test_madness_matters_keyword_and_grant_anchor():
+    """CR 702.35: the Madness bearer (Anje's Ravager), the keyword-less
+    "has madness" GRANTER (Falkenrath Gorger — v0.9.0 FAILED static, raw
+    survives) and the "if it has madness" payoff (Anje Falkenrath) fire;
+    a discard-exile-play engine with no madness text (Containment
+    Construct) never fires."""
+    assert ("madness_matters", "you", "") in _idents("Anje's Ravager")
+    assert ("madness_matters", "you", "") in _idents("Falkenrath Gorger")
+    assert ("madness_matters", "you", "") in _idents("Anje Falkenrath")
+    assert "madness_matters" not in _keys("Containment Construct")
+
+
+def test_affinity_type_keyword_and_castwith_static():
+    """CR 702.41: the Affinity bearer (Qumulox) and the keyword-less
+    granter's CastWithKeyword{Affinity} static (Tezzeret, Master of the
+    Bridge) fire — subject stays "" (the type travels in serve prose);
+    a generic cost reducer (Foundry Inspector) never fires."""
+    assert ("affinity_type", "you", "") in _idents("Qumulox")
+    assert ("affinity_type", "you", "") in _idents("Tezzeret, Master of the Bridge")
+    assert "affinity_type" not in _keys("Foundry Inspector")
+
+
+def test_scavenge_fuel_keyword_and_addkeyword_granter():
+    """CR 702.97: the Scavenge bearer (Dreg Mangler) and the clean
+    AddKeyword{Scavenge} granter (Varolz) fire; a graveyard hoser
+    (Deathrite Shaman) never fires."""
+    assert ("scavenge_fuel", "you", "") in _idents("Dreg Mangler")
+    assert ("scavenge_fuel", "you", "") in _idents("Varolz, the Scar-Striped")
+    assert "scavenge_fuel" not in _keys("Deathrite Shaman")
+
+
+def test_has_soulbond_keyword_and_reference_tail():
+    """CR 702.95: the Soulbond bearer (Silverblade Paladin) and the
+    1-card keyword-less reference (Flowering Lumberknot — condition-text
+    only) fire; a support pairer (Together Forever) never fires."""
+    assert ("has_soulbond", "you", "") in _idents("Silverblade Paladin")
+    assert ("has_soulbond", "you", "") in _idents("Flowering Lumberknot")
+    assert "has_soulbond" not in _keys("Together Forever")
+
+
+def test_has_mutate_keyword_and_condition_tail_pins_gap():
+    """CR 702.140: the Mutate bearer (Otrimi) and the "if it has mutate"
+    condition payoff (Pollywog Symbiote) fire; Essence Symbiote (a genuine
+    mutate payoff with a clean v0.9.0 Mutates trigger) is NOT in the live
+    pop — the negative pins the parity boundary AND documents the gap
+    (candidate adjudicated widen, not part of this port)."""
+    assert ("has_mutate", "you", "") in _idents("Otrimi, the Ever-Playful")
+    assert ("has_mutate", "you", "") in _idents("Pollywog Symbiote")
+    assert "has_mutate" not in _keys("Essence Symbiote")
+
+
+def test_has_ninjutsu_both_keywords_and_satoru():
+    """CR 702.49: Ninjutsu (Higure), Commander ninjutsu (Yuriko) and the
+    keyword-less granter's AddKeyword{Ninjutsu} static (Satoru Umezawa)
+    fire; an unblockable enabler (Key to the City) never fires."""
+    assert ("has_ninjutsu", "you", "") in _idents("Higure, the Still Wind")
+    assert ("has_ninjutsu", "you", "") in _idents("Yuriko, the Tiger's Shadow")
+    assert ("has_ninjutsu", "you", "") in _idents("Satoru Umezawa")
+    assert "has_ninjutsu" not in _keys("Key to the City")
+
+
+def test_has_undying_persist_keywords_grants_and_name_trap():
+    """CR 702.93 (undying) / 702.79 (persist): the bearers (Butcher Ghoul,
+    Puppeteer Clique), the AddKeyword granters (Mikaeus{Undying}, Cauldron
+    of Souls{Persist}) fire; Persistent Petitioners (name-substring trap —
+    both gates immune) never fires."""
+    assert ("has_undying_persist", "you", "") in _idents("Butcher Ghoul")
+    assert ("has_undying_persist", "you", "") in _idents("Puppeteer Clique")
+    assert ("has_undying_persist", "you", "") in _idents("Mikaeus, the Unhallowed")
+    assert ("has_undying_persist", "you", "") in _idents("Cauldron of Souls")
+    assert "has_undying_persist" not in _keys("Persistent Petitioners")
+
+
+def test_has_devour_keyword_and_token_profile_tail():
+    """CR 702.82: the Devour bearer (Mycoloth) and the token-profile tail
+    (Dragon Broodmother — token keywords carry {Devour: 2}) fire; a sac
+    outlet (Viscera Seer) never fires."""
+    assert ("has_devour", "you", "") in _idents("Mycoloth")
+    assert ("has_devour", "you", "") in _idents("Dragon Broodmother")
+    assert "has_devour" not in _keys("Viscera Seer")
+
+
+def test_has_changeling_keyword_typed_reads_and_clone_negative():
+    """CR 702.73: the Changeling bearer (Chameleon Colossus), the
+    token-profile Changeling (Maskwood Nexus) and the AddAllCreatureTypes
+    modification (Mistform Ultimus) fire; Clone (no changeling /
+    every-creature-type text) never fires."""
+    assert ("has_changeling", "you", "") in _idents("Chameleon Colossus")
+    assert ("has_changeling", "you", "") in _idents("Maskwood Nexus")
+    assert ("has_changeling", "you", "") in _idents("Mistform Ultimus")
+    assert "has_changeling" not in _keys("Clone")
+
+
+def test_myriad_grant_keyword_and_addkeyword_granters():
+    """CR 702.116: the Myriad bearer (Herald of the Host), the
+    AddKeyword{Myriad} granter (Blade of Selves) and the copy-EXCEPTION
+    conferral (Muddle — "except it has myriad" rides the copy node's
+    additional_modifications, CR 707.9a) fire; a nonlegendary copy-maker
+    with no myriad (Helm of the Host) never fires."""
+    assert ("myriad_grant", "you", "") in _idents("Herald of the Host")
+    assert ("myriad_grant", "you", "") in _idents("Blade of Selves")
+    assert ("myriad_grant", "you", "") in _idents("Muddle, the Ever-Changing")
+    assert "myriad_grant" not in _keys("Helm of the Host")
+
+
+# ── Batch 13: §C structural arms ─────────────────────────────────────────────
+
+
+def test_boast_matters_typed_nodes_only():
+    """CR 702.142: the KeywordAbilityActivated{Boast} trigger mode
+    (Frenzied Raider) and the ModifyActivationLimit{keyword: boast} static
+    (Birgi face record) fire; the BEARER (Varragoth → ported boast_makers)
+    must NOT fire the payoff lane. The ModifyActivationLimit guard is
+    keyword=="boast" (Wonder Man carries keyword "power-up")."""
+    assert ("boast_matters", "you", "") in _idents("Frenzied Raider")
+    assert ("boast_matters", "you", "") in _idents("Birgi, God of Storytelling")
+    ks = _keys("Varragoth, Bloodsky Sire")
+    assert "boast_matters" not in ks
+    assert "boast_makers" in ks
+
+
+def test_cascade_matters_typed_reads_and_multicascade_quirk():
+    """CR 702.85: CastWithKeyword{Cascade} (Maelstrom Nexus), the "as you
+    cascade" anchor (Averna) and the DELIBERATE multi-cascade-body quirk
+    ("cascade, cascade" — Apex Devastator, ported as-is) fire; the
+    single-cascade bearer (Bloodbraid Elf → cascade_makers) stays out."""
+    assert ("cascade_matters", "you", "") in _idents("Maelstrom Nexus")
+    assert ("cascade_matters", "you", "") in _idents("Averna, the Chaos Bloom")
+    assert ("cascade_matters", "you", "") in _idents("Apex Devastator")
+    ks = _keys("Bloodbraid Elf")
+    assert "cascade_matters" not in ks
+    assert "cascade_makers" in ks
+
+
+def test_convoke_matters_cast_trigger_anchor_only():
+    """CR 702.51: a cast_spell trigger whose sentence carries "convoke"
+    fires (Kasla — herself a Convoke bearer; Joyful Stormsculptor); the
+    bearer (Chord of Calling → convoke_makers) and the CastWithKeyword
+    granter (Chief Engineer → spell_keyword_grant, verified live) never
+    fire the payoff lane."""
+    assert ("convoke_matters", "you", "") in _idents("Kasla, the Broken Halo")
+    assert ("convoke_matters", "you", "") in _idents("Joyful Stormsculptor")
+    ks = _keys("Chord of Calling")
+    assert "convoke_matters" not in ks
+    assert "convoke_makers" in ks
+    cks = _keys("Chief Engineer")
+    assert "convoke_matters" not in cks
+    assert "spell_keyword_grant" in cks
+
+
+def test_curse_matters_subtype_reads_and_mirror():
+    """CR 205.3h: the Curse trigger-subject read (Lynde), the Curse
+    effect-subject read (Witchbane Orb) and the kept mirror (Curse of
+    Misfortunes — search filter still dropped in v0.9.0, [P11] family)
+    fire; MEMBERSHIP stays out — Cruel Reality (an Aura Curse CARD)
+    never fires."""
+    assert ("curse_matters", "you", "") in _idents("Lynde, Cheerful Tormentor")
+    assert ("curse_matters", "you", "") in _idents("Witchbane Orb")
+    assert ("curse_matters", "you", "") in _idents("Curse of Misfortunes")
+    assert "curse_matters" not in _keys("Cruel Reality")
+
+
+def test_foretell_matters_foretold_predicate_only():
+    """CR 702.143: the typed Foretold-predicate read fires (Niko Defies
+    Destiny — the property nests inside the count operand's filter);
+    bearers AND granters/payoff-triggers ride the PORTED foretell_makers
+    (Ranar, Glorious Protector) and never fire the matters lane."""
+    assert ("foretell_matters", "you", "") in _idents("Niko Defies Destiny")
+    # Ranar (keyword-less payoff-trigger granter) rides foretell_makers
+    # live-side via the projection marker — a documented pre-existing b5
+    # live_only residue crosswalk-side; the batch-13 gate is that he never
+    # fires the matters lane.
+    assert "foretell_matters" not in _keys("Ranar the Ever-Watchful")
+    gks = _keys("Glorious Protector")
+    assert "foretell_matters" not in gks
+    assert "foretell_makers" in gks
+
+
+def test_keyword_soup_per_site_count_and_same_true_absorb():
+    """CR 702: >=5 DISTINCT evergreen AddKeyword mods within ONE ability
+    site fire (Odric's 13 under one trigger execute; Cairn Wanderer's 10
+    on one static — co-fires has_changeling; Chromanticore's bestow
+    static's 5); the "same is true" absorb arm catches the collapsed
+    keyword-copy idiom (Urborg Scavengers); a 4-keyword equipment (Sword
+    of Vengeance) and a single conditional grant (Lightwalker) never
+    fire."""
+    assert ("keyword_soup", "you", "") in _idents("Odric, Lunarch Marshal")
+    cks = _keys("Cairn Wanderer")
+    assert "keyword_soup" in cks
+    assert "has_changeling" in cks
+    assert ("keyword_soup", "you", "") in _idents("Chromanticore")
+    assert ("keyword_soup", "you", "") in _idents("Urborg Scavengers")
+    assert "keyword_soup" not in _keys("Sword of Vengeance")
+    assert "keyword_soup" not in _keys("Lightwalker")
+
+
+# ── Batch 13: §D kept-mirror ports ───────────────────────────────────────────
+
+
+def test_island_matters_mirror():
+    """CR 702.14: the pinned ISLAND_MATTERS_REGEX fires (Dandân); an
+    islandwalk BEARER (Segovian Leviathan — island_MAKERS material)
+    never fires the matters lane."""
+    assert ("island_matters", "you", "") in _idents("Dandân")
+    assert "island_matters" not in _keys("Segovian Leviathan")
+
+
+def test_poison_matters_mirror_scope_opponents():
+    """CR 122 + 704.5c: the "poison counter" reference mirror fires scope
+    "opponents" — INCLUDING poison-givers that spell it out (Caress of
+    Phyrexia, Vraska — live behavior, ported byte-identically); a
+    reminder-only Infect bearer (Glistener Elf) fires only the ported
+    poison_makers."""
+    assert ("poison_matters", "opponents", "") in _idents("Caress of Phyrexia")
+    assert ("poison_matters", "opponents", "") in _idents("Vraska, Betrayal's Sting")
+    gks = _keys("Glistener Elf")
+    assert "poison_matters" not in gks
+    assert "poison_makers" in gks
+
+
+def test_suspend_matters_mirror_breadth_and_boundary():
+    """CR 702.62: the mirror deliberately fires bearers (un-parenthesized
+    "Suspend 4—{1}{U}" survives stripping — Ancestral Vision, Jhoira),
+    time-counter engines (As Foretold), Vanishing (Aven Riftwatcher) and
+    Impending (Overlord of the Mistmoors) — breadth intended; "suspended
+    card" does NOT match \\bsuspend\\b (Clockspinning — the sharpest
+    boundary) and Time Warp never fires."""
+    for name in (
+        "Ancestral Vision",
+        "As Foretold",
+        "Jhoira of the Ghitu",
+        "Aven Riftwatcher",
+        "Overlord of the Mistmoors",
+    ):
+        assert ("suspend_matters", "you", "") in _idents(name), name
+    assert "suspend_matters" not in _keys("Clockspinning")
+    assert "suspend_matters" not in _keys("Time Warp")
+
+
+def test_keyword_tribe_subject_carrying_mirror():
+    """CR 109.3 + 702: the byte-identical _detect_keyword_tribe producer
+    re-runs per-clause, emitting the capitalized keyword SUBJECT (the
+    (key, scope, subject) triple is LOAD-BEARING): Sephara → Flying, Fynn
+    → Deathtouch (cross-lane: also poison_matters), Isperia → Flying via
+    the tutor pattern; a SUBTYPE tribe (Goblin King) and anti-tribe
+    removal with no qualifier (Whirlwind) never fire."""
+    assert ("keyword_tribe", "you", "Flying") in _idents("Sephara, Sky's Blade")
+    fyn = _idents("Fynn, the Fangbearer")
+    assert ("keyword_tribe", "you", "Deathtouch") in fyn
+    assert ("poison_matters", "opponents", "") in fyn
+    assert ("keyword_tribe", "you", "Flying") in _idents("Isperia the Inscrutable")
+    assert "keyword_tribe" not in _keys("Goblin King")
+    assert "keyword_tribe" not in _keys("Whirlwind")
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

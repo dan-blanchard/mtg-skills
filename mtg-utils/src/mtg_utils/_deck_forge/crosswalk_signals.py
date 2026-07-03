@@ -111,6 +111,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_tag,
     static_reveal_who,
     tag_of,
+    token_profile_keywords,
     trigger_caster_scope,
     trigger_constraint_n,
     trigger_constraint_tag,
@@ -123,6 +124,21 @@ from mtg_utils._card_ir.crosswalk import (
     zone_change_count_reads,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
+
+# The b13 conferred-grant / condition-payoff raw anchors import the LIVE
+# projection constants (project.py's _narrow_* marker sources — the same
+# b12-sanctioned single-source pattern): the marker effects those anchors
+# produce exist only in the LOSSY projection, so the crosswalk re-derives
+# their populations from the same pinned regexes over the kept oracle.
+from mtg_utils._card_ir.project import (
+    _AFFINITY_GRANT,
+    _CASCADE_GRANT,
+    _CHANGELING_REF,
+    _MADNESS_GRANT,
+    _MUTATE_COND,
+    _SOULBOND_REF,
+    _UNDYING_PERSIST_GRANT,
+)
 from mtg_utils._deck_forge import signal_keys
 
 # The b12 SANCTIONED byte-identical mirror ports import the LIVE constants
@@ -132,15 +148,19 @@ from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
     _BIG_HAND_MAKERS_MIRROR,
     _BIG_HAND_MATTERS_MIRROR,
+    _CONVOKE_RAW,
     _COUNTER_DISTRIBUTE_MIRROR,
     _KEYWORD_COUNTER_KINDS,
+    _SAME_TRUE_KW_RE,
     _STAX_TAXES_RESIDUE_RE,
     _SYMMETRIC_STAX_RESIDUE_RE,
     _restriction_pacifies_single_creature,
 )
 from mtg_utils._deck_forge._signals_regex import (
+    _EVERGREEN_CK,
     _REPEATABLE_KILL_RE,
     Signal,
+    _detect_keyword_tribe,
     _resolve_subject,
     _type_hoser_clause,
     clauses,
@@ -150,6 +170,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ANIMATE_ARTIFACT_REGEX,
     COLOR_CHANGE_REGEX,
     ENTERED_ATTACKER_REGEX,
+    ISLAND_MATTERS_REGEX,
     KEYWORD_COUNTER_REGEX,
     SUPERFRIENDS_MATTERS_REGEX,
     UNSPENT_MANA_REGEX,
@@ -411,6 +432,37 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "big_hand_matters",
         "big_hand_makers",
         "vehicles_matter",
+        # Batch 13 (ADR-0035 Stage 2): the field-lookup wholesale batch — 7
+        # pure Scryfall-keyword rows, 11 keyword+top-up membership lanes, 5
+        # structural payoff arms, 4 kept-mirror ports (keyword_tribe is
+        # SUBJECT-carrying).
+        "companion_keyword",
+        "has_banding",
+        "has_dash",
+        "has_enlist",
+        "specialize_matters",
+        "alt_cost_keyword",
+        "partner_background",
+        "madness_matters",
+        "affinity_type",
+        "scavenge_fuel",
+        "has_soulbond",
+        "has_mutate",
+        "has_ninjutsu",
+        "has_undying_persist",
+        "has_devour",
+        "has_changeling",
+        "myriad_grant",
+        "boast_matters",
+        "cascade_matters",
+        "convoke_matters",
+        "curse_matters",
+        "foretell_matters",
+        "keyword_soup",
+        "island_matters",
+        "poison_matters",
+        "suspend_matters",
+        signal_keys.KEYWORD_TRIBE,
         # NB: damage_redirect stays KEPT (spec §G): `redirect_target` exists
         # on only 8 corpus replacements and Pariah itself parses with NO
         # redirect_target (shield Prevention only — structurally identical to
@@ -6896,6 +6948,380 @@ def _vehicles_matter(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ── Batch 13 lanes (ADR-0035 Stage 2): the field-lookup wholesale batch ──────
+
+# Byte-identical compiled mirrors. island_matters imports the pinned shared
+# source (_sweep_detectors.ISLAND_MATTERS_REGEX — the live row's own constant);
+# poison / suspend / curse copy the three INLINE (unnamed) _IR_KEPT_DETECTORS
+# rows (_signals_ir ~2324-2340 / ~2511-2519 — the _JOHAN_MIRROR precedent for
+# rows with no importable name). Live runs them FLAT over the reminder-stripped
+# kept oracle; so do these.
+_ISLAND_MATTERS_RX = re.compile(ISLAND_MATTERS_REGEX, re.IGNORECASE)
+_POISON_MATTERS_MIRROR = re.compile(r"poison counters?", re.IGNORECASE)
+_SUSPEND_MATTERS_MIRROR = re.compile(
+    r"\bsuspend\b|time counter|time travel|\bvanishing\b|\bimpending\b",
+    re.IGNORECASE,
+)
+_CURSE_MATTERS_MIRROR = re.compile(
+    r"curse spells?|curses? you (?:cast|control|own)"
+    r"|(?:\ba|target|each|another|your) curse\b|curse cards?",
+    re.IGNORECASE,
+)
+
+# The batch-13 Scryfall-keyword rows (lowercased-membership → lane key; every
+# row scope "you", subject ""). These ARE membership lanes — the BEARER fires
+# (checklist #4a): companion / specialize / madness / affinity / scavenge and
+# the has_* keys tag the card that carries the mechanic. Byte-faithful to the
+# live _IR_KEYWORD_MAP rows (:607); the MTGJSON string gotchas ('Choose a
+# background' lowercase b, "Doctor's companion", 'Friends') are preserved by
+# the lowercase membership gate. companion is deliberately NOT partner
+# (CR 702.139 — a deckbuild constraint); "Friends" ∈ partner carries the
+# Astarion source-data quirk (MTGJSON tags his modal label "Friends" as a
+# keyword — live fires it, ported as-is + logged).
+_B13_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
+    (frozenset({"companion"}), "companion_keyword"),  # CR 702.139
+    (frozenset({"banding"}), "has_banding"),  # CR 702.22
+    (frozenset({"dash"}), "has_dash"),  # CR 702.109 (SOLE producer)
+    (frozenset({"enlist"}), "has_enlist"),  # CR 702.154
+    (frozenset({"specialize"}), "specialize_matters"),  # DD4 (digital)
+    # CR 118/601 + 702.190a/.188a/.187a-c — the three alternative-cost
+    # keyword abilities (sneak ALSO fires the unported recast_etb live-side;
+    # only this row is batch-13's).
+    (frozenset({"sneak", "web-slinging", "mayhem"}), "alt_cost_keyword"),
+    # CR 702.124/.124a/.124k/.124m/.124i — the partner family (MTGJSON folds
+    # "Friends forever" → 'Partner').
+    (
+        frozenset(
+            {
+                "partner",
+                "partner with",
+                "choose a background",
+                "doctor's companion",
+                "friends",
+            }
+        ),
+        "partner_background",
+    ),
+    (frozenset({"madness"}), "madness_matters"),  # CR 702.35
+    (frozenset({"affinity"}), "affinity_type"),  # CR 702.41
+    # CR 702.97 — the scavenge_fuel arm only; the graveyard_matters +
+    # plus_one_makers co-fires ride the already-ported b4/b3 keyword rows.
+    (frozenset({"scavenge"}), "scavenge_fuel"),
+    (frozenset({"soulbond"}), "has_soulbond"),  # CR 702.95
+    (frozenset({"mutate"}), "has_mutate"),  # CR 702.140
+    (frozenset({"ninjutsu", "commander ninjutsu"}), "has_ninjutsu"),  # CR 702.49
+    # CR 702.93 undying / 702.79 persist (the sibling dies_recursion /
+    # plus_one_makers fans are already-ported earlier-batch rows).
+    (frozenset({"undying", "persist"}), "has_undying_persist"),
+    # CR 702.82 (sacrifice_outlets / plus_one_makers fans ride earlier rows).
+    (frozenset({"devour"}), "has_devour"),
+    (frozenset({"changeling"}), "has_changeling"),  # CR 702.73
+    # CR 702.116 (the attack_matters co-fire rides the b3 keyword row).
+    (frozenset({"myriad"}), "myriad_grant"),
+)
+
+
+def _keyword_field_signals_b13(keywords: frozenset[str], name: str) -> list[Signal]:
+    """The batch-13 Scryfall-keyword field-lookups (checklist #3 survivors).
+
+    Reading the STRUCTURED keyword array (not oracle text) keeps the lanes
+    immune to name / ability-word collisions (Persistent Petitioners never
+    fires has_undying_persist). The keyword-LESS granter / payoff tails ride
+    :func:`_b13_conferred_grant_lanes` and the structural arms below.
+    """
+    low = {k.lower() for k in keywords}
+    return [
+        Signal(key, "you", "", "", name, "high")
+        for kws, key in _B13_KEYWORD_LANES
+        if low & kws
+    ]
+
+
+# AddKeyword-modification keyword name → the membership lane its keyword-less
+# GRANTER opens (CR 702.97 / 702.49 / 702.93 / 702.79 / 702.73 / 702.116 /
+# 702.85). The granter confers the mechanic on your creatures, so the card is
+# lane MATERIAL exactly like the bearer (live's conferred-grant markers).
+# banding is deliberately ABSENT: AddKeyword{Banding} granters (Baton of
+# Morale) must NOT fire has_banding (the batch-13 reverse trap — the live pop
+# is keyword-only).
+_B13_MOD_GRANT_LANES: dict[str, str] = {
+    "Scavenge": "scavenge_fuel",
+    "Ninjutsu": "has_ninjutsu",
+    "Undying": "has_undying_persist",
+    "Persist": "has_undying_persist",
+    "Changeling": "has_changeling",
+    "Myriad": "myriad_grant",
+    "Cascade": "cascade_matters",
+}
+
+# Raw-anchor → lane rows for the conferred/reference tails phase leaves
+# un-typed (each anchor is the LIVE projection marker's own pinned regex —
+# project.py's _narrow_* sources, imported single-source). Scanned FLAT over
+# the reminder-stripped kept oracle, mirroring the marker's ability-raw scan.
+_B13_RAW_ANCHOR_LANES: tuple[tuple[re.Pattern[str], str], ...] = (
+    (_MADNESS_GRANT, "madness_matters"),  # Anje, Falkenrath Gorger ([P20])
+    (_AFFINITY_GRANT, "affinity_type"),  # Don & Raph / Saheeli / Mycosynthwave
+    (_SOULBOND_REF, "has_soulbond"),  # Flowering Lumberknot
+    (_MUTATE_COND, "has_mutate"),  # Pollywog Symbiote
+    (_UNDYING_PERSIST_GRANT, "has_undying_persist"),  # Haunted One's quoted gain
+    (_CHANGELING_REF, "has_changeling"),  # Belonging, Birthing Boughs, …
+    (_CASCADE_GRANT, "cascade_matters"),  # Averna / Zhulodok ([P20]) / quirks
+)
+
+
+def _b13_conferred_grant_lanes(tree: ConceptTree) -> list[Signal]:
+    """The batch-13 keyword-LESS granter / conferred-reference top-ups.
+
+    Four typed reads + the pinned raw anchors (checklist #3 — structural
+    where the spec's probes say so, raw-bridge where phase drops the grant):
+
+    * ``AddKeyword`` mod-walk (:data:`_B13_MOD_GRANT_LANES`) — Varolz's
+      Scavenge, Satoru's Ninjutsu, Mikaeus's Undying, Cauldron's Persist,
+      Blade of Selves' Myriad, Yidris's sub-ability Cascade;
+    * ``CastWithKeyword`` statics — Tezzeret's ``{Affinity: …}``, Maelstrom
+      Nexus's ``Cascade`` (CR 601.3e);
+    * token-PROFILE keywords — Dragon Broodmother's ``{Devour: 2}`` token,
+      Maskwood Nexus's Changeling Shapeshifter (CR 111.4);
+    * the ``AddAllCreatureTypes`` modification — Mistform Ultimus's "every
+      creature type" static (CR 205.3c) → has_changeling;
+    * the raw anchors (:data:`_B13_RAW_ANCHOR_LANES`) for the conferred /
+      quoted residue whose grant phase folds into a carrier ([P20] family —
+      supplement-fixable, logged).
+
+    NO subject is emitted anywhere (live subject "" — affinity's "type"
+    travels in serve prose only).
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def add(key: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", raw, tree.name, "high"))
+
+    for unit in tree.units:
+        for _sdef, mod in iter_mod_sites(unit.node):
+            tag = tag_of(mod)
+            if tag == "AddKeyword":
+                lane = _B13_MOD_GRANT_LANES.get(mod_keyword_name(mod) or "")
+                if lane is not None:
+                    add(lane, "")
+            elif tag == "AddAllCreatureTypes":
+                add("has_changeling", "")
+        for sdef in iter_static_defs(unit.node):
+            cw = cast_with_keyword_name(sdef)
+            if cw == "Affinity":
+                add("affinity_type", _site_raw(sdef))
+            elif cw == "Cascade":
+                add("cascade_matters", _site_raw(sdef))
+        for q in iter_typed_nodes(unit.node):
+            profile = token_profile_keywords(q)
+            if "Devour" in profile:
+                add("has_devour", "")
+            if "Changeling" in profile:
+                add("has_changeling", "")
+            # Copy-EXCEPTION myriad conferral (CR 707.9a — "except it has
+            # myriad": Auton Soldier's enters-as-a-copy, Muddle's becomes-a-
+            # copy): the grant rides the copy node's ``additional_
+            # modifications`` list, which the shared mod-walk (a
+            # ``modifications`` reader) never reaches. Live carries these
+            # via the projection's copy-exception marker; Myriad-only (the
+            # banked pop has no other b13 copy-exception member).
+            amods = getattr(q, "additional_modifications", None)
+            if isinstance(amods, list) and any(
+                isinstance(m, TypedMirrorNode)
+                and tag_of(m) == "AddKeyword"
+                and mod_keyword_name(m) == "Myriad"
+                for m in amods
+            ):
+                add("myriad_grant", "")
+    kept = _kept(tree)
+    for pat, key in _B13_RAW_ANCHOR_LANES:
+        if pat.search(kept):
+            add(key, "")
+    return out
+
+
+def _boast_matters(tree: ConceptTree) -> list[Signal]:
+    """boast_matters (§C) — CR 702.142: the boast PAYOFF arm, two typed
+    nodes ONLY (no regex): the ``KeywordAbilityActivated{Boast}`` trigger
+    mode (Frenzied Raider) and the ``ModifyActivationLimit{keyword:
+    "boast"}`` static mode (Birgi). The ModifyActivationLimit guard is
+    keyword=="boast" — Wonder Man's carries keyword "power-up" (checklist
+    #4b: the BEARER — Varragoth — rides the ported boast_makers keyword
+    row and must never fire here)."""
+    for unit in tree.units:
+        mode = getattr(unit.node, "mode", None)
+        if (
+            isinstance(mode, MirrorVariant)
+            and mode.key == "KeywordAbilityActivated"
+            and tag_of(mode.inner) == "Boast"
+        ):
+            return [Signal("boast_matters", "you", "", "", tree.name, "high")]
+        if (
+            static_mode_tag(unit.node) == "ModifyActivationLimit"
+            and static_mode_field(unit.node, "keyword") == "boast"
+        ):
+            return [Signal("boast_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _convoke_matters(tree: ConceptTree) -> list[Signal]:
+    """convoke_matters (§C) — CR 702.51: a cast-spell TRIGGER whose sentence
+    carries "convoke" (the live in-loop arm's _CONVOKE_RAW over the
+    consequence raws; the qualifier survives only in the description, phase
+    tags a bare cast trigger). Pop = exactly 3 (Joyful Stormsculptor, Kasla,
+    Saint Traft and Rem Karolus). Boundary (checklist #4b): bearers (Chord
+    of Calling) ride convoke_makers; the CastWithKeyword{Convoke} granter
+    (Chief Engineer) rides the b9 spell_keyword_grant — neither is routed
+    here."""
+    for unit in tree.units:
+        if unit.trigger_event != "cast_spell":
+            continue
+        desc = getattr(unit.node, "description", None)
+        if isinstance(desc, str) and _CONVOKE_RAW.search(desc):
+            return [Signal("convoke_matters", "you", "", desc, tree.name, "high")]
+    return []
+
+
+def _curse_matters(tree: ConceptTree) -> list[Signal]:
+    """curse_matters (§C) — CR 205.3h: a card that REFERENCES the Curse
+    subtype — a trigger watching Curses (Lynde's dies filter), an effect
+    acting on a Curse subject (Witchbane Orb's DestroyAll) — plus the
+    byte-identical kept mirror for the search-filter drop (Curse of
+    Misfortunes — [P11] family, still dropped in v0.9.0) and the
+    acknowledged "a curse counter" quirk (Blue Screen of Death, not-cl).
+    MEMBERSHIP stays OUT: BEING an Aura — Curse (Cruel Reality) never
+    fires (the live :2509-2510 deferral)."""
+    for unit in tree.units:
+        vc = getattr(unit.node, "valid_card", None)
+        if vc is not None and "Curse" in filter_subtypes(vc):
+            return [Signal("curse_matters", "you", "", "", tree.name, "high")]
+        for c in unit.effects:
+            filt = effect_filter(c.node)
+            if filt is not None and "Curse" in filter_subtypes(filt):
+                return [Signal("curse_matters", "you", "", c.raw, tree.name, "high")]
+    if _CURSE_MATTERS_MIRROR.search(_kept(tree)):
+        return [Signal("curse_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _foretell_matters(tree: ConceptTree) -> list[Signal]:
+    """foretell_matters (§C) — CR 702.143: the ``Foretold`` subject-
+    predicate read, incl. count-operand subjects (Niko Defies Destiny —
+    the property nests inside amount/inner/qty/filter/properties; Alrund's
+    dynamic-P/T operand). Pop == the v0.9.0 Foretold property census
+    (exactly 3 cards). Boundary (checklist #4b): bearers AND granters /
+    payoff-triggers (Ranar, Dream Devourer) ride the ported
+    foretell_makers keyword+marker rows, never this lane."""
+    for unit in tree.units:
+        for q in iter_typed_nodes(unit.node):
+            for fname in ("subject", "filter", "target", "affected", "valid_card"):
+                filt = getattr(q, fname, None)
+                if filt is not None and "Foretold" in filter_predicates(filt):
+                    return [
+                        Signal("foretell_matters", "you", "", "", tree.name, "high")
+                    ]
+    return []
+
+
+def _keyword_soup(tree: ConceptTree) -> list[Signal]:
+    """keyword_soup (§C) — CR 702: the keyword-stacking granter, two arms.
+
+    (a) ≥5 DISTINCT evergreen ``AddKeyword`` keyword names WITHIN ONE
+    ability site (per-unit, never per-card — two separate 3-keyword grants
+    must not sum to 6): Cairn Wanderer's one static with 10 mods, Odric /
+    Concerted Effort's per-keyword statics under ONE trigger execute,
+    Soulflayer's under one spell GenericEffect, Chromanticore's bestow
+    static's 5. The evergreen vocabulary is the LIVE ``_EVERGREEN_CK``
+    (space-stripped lower — "FirstStrike" → "firststrike").
+
+    (b) the "same is true" absorb arm: an evergreen grant / place_counter
+    site plus the live ``_SAME_TRUE_KW_RE`` anchor in the kept oracle
+    (Urborg Scavengers, Escaped Shapeshifter — phase collapses the
+    conferred list to one lead-keyword grant, defeating the count)."""
+    same_true = bool(_SAME_TRUE_KW_RE.search(_kept(tree)))
+    for unit in tree.units:
+        kinds: set[str] = set()
+        for _sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "AddKeyword":
+                continue
+            kw = (mod_keyword_name(mod) or "").replace(" ", "").lower()
+            if kw:
+                kinds.add(kw)
+        if len(kinds & _EVERGREEN_CK) >= 5:
+            return [Signal("keyword_soup", "you", "", "", tree.name, "high")]
+        if same_true and kinds & _EVERGREEN_CK:
+            return [Signal("keyword_soup", "you", "", "", tree.name, "high")]
+        if same_true and any(
+            c.concept == "place_counter"
+            and (counter_kind(c.node) or "").replace(" ", "").lower() in _EVERGREEN_CK
+            for c in unit.effects
+        ):
+            return [Signal("keyword_soup", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _island_matters(tree: ConceptTree) -> list[Signal]:
+    """island_matters (§D) — CR 702.14c: the pinned ISLAND_MATTERS_REGEX
+    kept mirror (Dandân, the serpents). Zhou Yu is absent from phase
+    card-data entirely — a documented live-side join artifact, not a
+    regression (the mirror reproduces live for every joinable record).
+    Bearers/granters of islandwalk are island_MAKERS material (Segovian
+    Leviathan never fires here)."""
+    if _ISLAND_MATTERS_RX.search(_kept(tree)):
+        return [Signal("island_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _poison_matters(tree: ConceptTree) -> list[Signal]:
+    """poison_matters (§D) — CR 122 + 704.5c, scope "opponents": the
+    "poison counter" reference mirror (the ADR-0034 partition: the
+    infect/toxic/poisonous keyword BEARERS ride poison_makers). Includes
+    the poison-GIVERS that spell out "poison counter" (Fynn, Caress of
+    Phyrexia, Vraska) — live behavior, ported byte-identically; a
+    reminder-only Infect bearer (Glistener Elf) is stripped and stays
+    out."""
+    if _POISON_MATTERS_MIRROR.search(_kept(tree)):
+        return [Signal("poison_matters", "opponents", "", "", tree.name, "high")]
+    return []
+
+
+def _suspend_matters(tree: ConceptTree) -> list[Signal]:
+    """suspend_matters (§D) — CR 702.62: the five-arm time-counter mirror.
+    Deliberately BROAD (live's SWEEP_LABELS breadth, ported as-is +
+    logged): fires bearers (un-parenthesized "Suspend 4—{1}{U}" survives
+    stripping), Vanishing, Impending, and every time-counter manipulator.
+    "suspended card" does NOT match ``\\bsuspend\\b`` (Clockspinning — the
+    sharpest boundary)."""
+    if _SUSPEND_MATTERS_MIRROR.search(_kept(tree)):
+        return [Signal("suspend_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _keyword_tribe(tree: ConceptTree) -> list[Signal]:
+    """keyword_tribe (§D) — CR 109.3 + 702: the SUBJECT-CARRYING
+    byte-identical mirror — re-run the EXACT live producer
+    (``_detect_keyword_tribe``, imported like live does) PER-CLAUSE over
+    the reminder-stripped kept oracle, emitting the capitalized ability
+    keyword as the Signal SUBJECT (checklist #6 — the subject is
+    LOAD-BEARING; the per-subject serve spec interpolates it). NOT
+    structural: phase's WithKeyword covers ~70 but loses the tutor
+    (Isperia), play-from-top (Errant and Giada), keyword-count scalers and
+    granted-fly riders. Face-join caveat: the crosswalk runs per face
+    record; the shadow diff unions faces by oracle_id (Henrika fires from
+    the back face)."""
+    out: list[Signal] = []
+    seen: set[tuple[str, str, str]] = set()
+    for clause in clauses(_kept(tree)):
+        for key, scope, subject in _detect_keyword_tribe(clause):
+            ident = (key, scope, subject)
+            if ident not in seen:
+                seen.add(ident)
+                out.append(Signal(key, scope, subject, clause, tree.name, "high"))
+    return out
+
+
 _LANES = (
     _win_lose_game,
     _discard_makers,
@@ -7067,6 +7493,16 @@ _LANES = (
     _commander_matters,
     _big_hand_lanes,
     _vehicles_matter,
+    _b13_conferred_grant_lanes,
+    _boast_matters,
+    _convoke_matters,
+    _curse_matters,
+    _foretell_matters,
+    _keyword_soup,
+    _island_matters,
+    _poison_matters,
+    _suspend_matters,
+    _keyword_tribe,
 )
 
 
@@ -7111,6 +7547,8 @@ def extract_crosswalk_signals(
     for sig in _keyword_field_signals_b5(frozenset(keywords), tree.name):
         add(sig)
     for sig in _keyword_field_signals_b7(frozenset(keywords), tree.name):
+        add(sig)
+    for sig in _keyword_field_signals_b13(frozenset(keywords), tree.name):
         add(sig)
 
     # Whole-card reconciliation (granularity c): cross-open spellcast_matters LOW

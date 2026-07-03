@@ -1624,6 +1624,34 @@ def mod_keyword_name(mod: TypedMirrorNode) -> str | None:
     return None
 
 
+def token_profile_keywords(node: object) -> tuple[str, ...]:
+    """The keyword NAMES a ``Token`` effect's profile carries (CR 111.4).
+
+    A token profile's ``keywords`` list mixes bare strings (``"Flying"``)
+    with parameterized variants whose KEY is the keyword name (Dragon
+    Broodmother's ``{Devour: 2}``, Chromanticore's bestow token) — the same
+    two shapes :func:`mod_keyword_name` normalizes. ``()`` for a non-Token
+    node. The has_devour / has_changeling token-profile tails read this
+    (grow-on-demand: only the batch-13 lanes consume it today).
+    """
+    if not isinstance(node, TypedMirrorNode) or tag_of(node) != "Token":
+        return ()
+    kws = getattr(node, "keywords", MISSING)
+    if not _present(kws) or not isinstance(kws, list):
+        return ()
+    out: list[str] = []
+    for kw in kws:
+        if isinstance(kw, str):
+            out.append(kw)
+        elif isinstance(kw, MirrorVariant):
+            out.append(kw.key)
+        elif isinstance(kw, TypedMirrorNode):
+            t = tag_of(kw)
+            if t is not None:
+                out.append(t)
+    return tuple(out)
+
+
 def cast_with_keyword_name(static_node: TypedMirrorNode) -> str | None:
     """The keyword a ``CastWithKeyword`` static confers on casts, or ``None``.
 
