@@ -133,6 +133,7 @@ from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 # their populations from the same pinned regexes over the kept oracle.
 from mtg_utils._card_ir.project import (
     _AFFINITY_GRANT,
+    _BECOMES_TARGET_SRC_OPP,
     _CANT_BLOCK_GRANT_QUOTE,
     _CANT_BLOCK_MODAL_BULLET,
     _CANT_BLOCK_REF,
@@ -240,11 +241,13 @@ from mtg_utils._deck_forge._sweep_detectors import (
     NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     PUMP_MATTERS_REGEX,
     STATION_MATTERS_REGEX,
+    STICKERS_MATTER_REGEX,
     SUPERFRIENDS_MATTERS_REGEX,
     THEFT_MATTERS_REGEX,
     UNSPENT_MANA_REGEX,
     VEHICLES_MATTER_REGEX,
     VOID_WARP_MAKERS_REGEX,
+    VOID_WARP_MATTERS_REGEX,
 )
 
 # The Signal keys this batch derives from the typed substrate. The shadow harness
@@ -622,6 +625,36 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "starting_life_matters",
         "toughness_combat",
         "typed_anthem_multi",
+        # Stage-2 closeout sweep (ADR-0035): the 23 skip-lane dispositions —
+        # 14 PORT (structural content lands) + 9 FORMAL KEPT-MIRROR (the
+        # b12-sanctioned byte-identical mirror port). Every "digital-only /
+        # not commander-buildable" skip rationale was falsified by measured
+        # bulk legalities (min: seek_matters cl=0 but bl=98 — deck-forge
+        # serves historic_brawl), so nothing stays invisible: all 23 join
+        # PORTED_KEYS (318 → 341) and the mapping file's skip klass dies.
+        "attractions_matter",
+        "draft_spellbook",
+        "each_mode_player",
+        "free_plot",
+        "legend_rule_off",
+        "lessons_matter",
+        "lose_unless_hand",
+        "miracle_grant",
+        "powerup_matters",
+        "recast_etb",
+        "secret_writedown",
+        "seek_matters",
+        "snow_matters",
+        "stickers_matter",
+        "tap_down_blockers",
+        "target_own_payoff",
+        "target_redirect",
+        "targeting_matters",
+        "theft_protection",
+        "timing_control",
+        "villainous_choice",
+        "void_warp_matters",
+        "voting_matters",
         # NB: damage_redirect stays KEPT (spec §G): `redirect_target` exists
         # on only 8 corpus replacements and Pariah itself parses with NO
         # redirect_target (shield Prevention only — structurally identical to
@@ -9739,6 +9772,530 @@ def _typed_anthem_multi(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ── Stage-2 closeout sweep lanes (the 23 skip-lane dispositions) ──────────────
+
+# Byte-identical inline copies of the live kept-detector rows with NO importable
+# name (the b12 _JOHAN_MIRROR precedent — _IR_KEPT_DETECTORS rows are unnamed
+# tuple entries); the named live constants (STICKERS_MATTER_REGEX /
+# VOID_WARP_MATTERS_REGEX / _BECOMES_TARGET_SRC_OPP) are imported single-source
+# above. Every mirror runs FLAT over the reminder-stripped kept oracle — the
+# exact live application (`pat.search(kept_oracle)`).
+_ATTRACTIONS_RX = re.compile(r"\battraction\b|open an attraction", re.IGNORECASE)
+_DRAFT_SPELLBOOK_RX = re.compile(r"\bdraft a card\b|spellbook", re.IGNORECASE)
+_FREE_PLOT_RX = re.compile(r"plot cost is equal to its mana cost", re.IGNORECASE)
+_LEGEND_RULE_OFF_RX = re.compile(r"the .legend rule. doesn't apply", re.IGNORECASE)
+_LESSONS_RX = re.compile(r"\blessons?\b", re.IGNORECASE)
+_MIRACLE_GRANT_RX = re.compile(
+    r"(?:cards?|spells?) (?:in your hand )?ha(?:s|ve) miracle", re.IGNORECASE
+)
+_SECRET_WRITEDOWN_RX = re.compile(
+    r"secretly (?:write|choose|name)"
+    r"|before the game begins[^.]*(?:write|name|choose)"
+    r"|from outside the game",
+    re.IGNORECASE,
+)
+_SNOW_RX = re.compile(r"\bsnow\b", re.IGNORECASE)
+_STICKERS_RX = re.compile(STICKERS_MATTER_REGEX, re.IGNORECASE)
+_TAP_DOWN_BLOCKERS_RX = re.compile(r"can'?t be blocked unless all", re.IGNORECASE)
+_TARGETING_RESIDUE_RX = re.compile(
+    r"becomes the target of a spell or ability"
+    r"|whenever [^.]{0,60}?becomes? the target of|\bheroic\b"
+    r"|whenever you cast (?:an instant or sorcery spell |a spell )?"
+    r"that targets",
+    re.IGNORECASE,
+)
+_TIMING_CONTROL_RX = re.compile(
+    r"cast spells (?:and activate abilities )?only during their own"
+    r"|spells? only any time they could cast a sorcery"
+    r"|can cast spells only",
+    re.IGNORECASE,
+)
+_VILLAINOUS_RX = re.compile(r"villainous choice", re.IGNORECASE)
+_VOID_WARP_MATTERS_RX = re.compile(VOID_WARP_MATTERS_REGEX, re.IGNORECASE)
+_VOTING_MATTERS_RX = re.compile(r"\bfinish(?:ed)? voting\b", re.IGNORECASE)
+
+# The 9 FORMAL KEPT-MIRROR dispositions (sweep §1/§2/§4/§11/§14/§15/§20/§21/
+# §22) — each a byte-identical mirror of the live row, scope pinned to the
+# live row's scope. Structural absences re-probed at v0.9.0 (double tag/mode
+# census + substring scan):
+#   • attractions_matter — CR 717 / 701.51 / 701.52 / 702.159. Structural ≠
+#     live in BOTH directions (26 phase-only Attraction permanents' own visit
+#     nodes = membership, gate #4; 4 live-only word references) → mirror is
+#     the producer. LOGGED widen (closeout (c) #20): an OpenAttractions read
+#     behind a NOT-self-Attraction-subtype membership veto.
+#   • draft_spellbook — DD5 (Spellbook) + CR 905.1c/905.2b (Conspiracy
+#     draft). NO Draft/Spellbook node in the census; digital vocabulary
+#     stays category='other'.
+#   • free_plot — CR 702.170. Single-card lane (Fblthp) BY DESIGN; phase
+#     parses Fblthp to MayLookAtTopOfLibrary + Ward only (both plot clauses
+#     dropped — parse-gap candidate, adjudicator-logged).
+#   • secret_writedown — CR 702.106a/b (hidden agenda) + 400.11b/108.3
+#     (outside the game). The live constant already drops the deleted
+#     "|your sideboard" companion arm — the LIVE constant is ported, and
+#     reminder-strip keeps companion reminder text out (Lutri pinned).
+#   • stickers_matter — CR 123 / 122.1. PutSticker (43) is ALL ⊆ live; the
+#     {TK}-cost / reference tail (64) is mirror-only → mirror is the
+#     producer, the PutSticker read is typed corroboration (below).
+#   • tap_down_blockers — CR 509.1c. Tromokratis's clause survives ONLY as
+#     Unrecognized condition TEXT on a 143-holder CantBeBlocked static —
+#     a "typed" read would still be a raw-text match at pop=1 (no fidelity
+#     gain). LOGGED: upgrade if a later tag types blocking requirements.
+#   • timing_control — CR 117.1a + 307.5. Phase still drops the cast-timing
+#     statics (CastTimingPermission = the flash-permission aura family;
+#     MatchesCardCastTiming = the suspend timing check; neither intersects
+#     the live 6) — the ADR-0027 β note HOLDS at v0.9.0. Scope "any".
+#   • villainous_choice — CR 701.55a-d (resolves the live "CR 701.x"). The
+#     choice action is unstructured; GrantsExtraVillainousChoice = 1 holder
+#     (The Valeyard) is corroboration, not a producer (LOGGED, closeout (c)
+#     #22).
+#   • void_warp_matters — CR 702.185 (Warp) + 207.2c (void is an ABILITY
+#     WORD). The stale-skip closeout flag CONFIRMED; sibling
+#     void_warp_makers ported b15 (its docstring reserves this lane for the
+#     sweep). The Void payoff side has NO node (only Devoid substring-hits
+#     a census scan). Both arms feed has_other_plan — porting
+#     byte-identically preserves the voltron-silence identity.
+_SWEEP_MIRROR_ROWS: tuple[tuple[re.Pattern[str], str, str], ...] = (
+    (_ATTRACTIONS_RX, "attractions_matter", "you"),
+    (_DRAFT_SPELLBOOK_RX, "draft_spellbook", "you"),
+    (_FREE_PLOT_RX, "free_plot", "you"),
+    (_SECRET_WRITEDOWN_RX, "secret_writedown", "you"),
+    (_STICKERS_RX, "stickers_matter", "you"),
+    (_TAP_DOWN_BLOCKERS_RX, "tap_down_blockers", "you"),
+    (_TIMING_CONTROL_RX, "timing_control", "any"),
+    (_VILLAINOUS_RX, "villainous_choice", "you"),
+    (_VOID_WARP_MATTERS_RX, "void_warp_matters", "you"),
+)
+
+# The etb-bleed sibling concepts recast_etb's serve arm joins on (the live
+# categories {discard, lose_life, sacrifice} — crosswalk concept names).
+_RECAST_BLEED_CONCEPTS: frozenset[str] = frozenset(
+    {"discard", "lose_life", "sacrifice"}
+)
+# The verb-anchored bleed clause for the two shapes phase carries the text
+# AWAY from a first-class bleed effect node (the live path reaches both
+# through the old projection's flattening, which stamps a bleed CATEGORY
+# effect whose raw carries the phrase): a for-each clause dropped to
+# ``Unimplemented`` (Bladecoil Serpent — read off that node's own raw, the
+# b13 node's-own-raw sanction), and a GRANT-flattened bleed (Lurking
+# Spinecrawler's perpetual "When you cast this spell, each opponent
+# sacrifices…"; The Bus Runner's granted token ability) — read off the
+# unit's own description with a deep bleed-TAG node as the structural
+# anchor (the granted execute's Sacrifice/Discard/LoseLife).
+_RECAST_UNIMPL_BLEED_RX = re.compile(
+    r"each opponent (?:discards?|loses|sacrifices?)", re.IGNORECASE
+)
+_RECAST_BLEED_TAGS: frozenset[str] = frozenset({"Discard", "LoseLife", "Sacrifice"})
+
+# Sweep Scryfall-keyword field-lookups (checklist #3 survivors — both rows
+# MUST read the caller-supplied Scryfall array, not phase keywords):
+#   • power-up → powerup_matters (CR 702.193 — a one-time activated ability,
+#     cheaper the turn the permanent entered; the mapping row's "Unfinity
+#     acorn … not commander-buildable" was FLAT WRONG: 37 commander-legal
+#     members). Phase DROPS Power-up from Face.keywords (Extremis Elite
+#     probed), so the Scryfall array is the ONLY structured source. The
+#     payoff-granter (Wonder Man) carries the keyword too — covered.
+#   • sneak → recast_etb (CR 702.190 — Sneak is a real CR keyword now; the
+#     row's "no rules meaning" note was STALE; + 118.9 alternative costs).
+#     b13 already ports alt_cost_keyword off the same keyword and its
+#     comment leaves recast_etb to this sweep. The keyword drops the old
+#     `\bsneak\b` over-fires (Cheatyface, Lightfoot Rogue).
+_SWEEP_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
+    (frozenset({"power-up"}), "powerup_matters"),
+    (frozenset({"sneak"}), "recast_etb"),
+)
+
+
+def _keyword_field_signals_sweep(keywords: frozenset[str], name: str) -> list[Signal]:
+    """The sweep Scryfall-keyword field-lookups (:data:`_SWEEP_KEYWORD_LANES`).
+
+    Same channel shape as :func:`_keyword_field_signals_b13`: the structured
+    keyword array read keeps the lanes immune to name / reminder collisions,
+    and phase's keyword drops (Power-up gone from Face.keywords entirely)
+    make the caller-supplied array the single usable source.
+    """
+    low = {k.lower() for k in keywords}
+    return [
+        Signal(key, "you", "", "", name, "high")
+        for kws, key in _SWEEP_KEYWORD_LANES
+        if low & kws
+    ]
+
+
+def _sweep_kept_mirrors(tree: ConceptTree) -> list[Signal]:
+    """The 9 FORMAL KEPT-MIRROR sweep dispositions (:data:`_SWEEP_MIRROR_ROWS`).
+
+    Each row is the byte-identical live constant run FLAT over the
+    reminder-stripped kept oracle — see the row-table comment above for the
+    per-lane CR grounding, the re-probed structural absences, and the LOGGED
+    (not taken) widen candidates. Diff target 0/0 per lane.
+    """
+    kept = _kept(tree)
+    return [
+        Signal(key, scope, "", "", tree.name, "high")
+        for rx, key, scope in _SWEEP_MIRROR_ROWS
+        if rx.search(kept)
+    ]
+
+
+def _each_mode_player(tree: ConceptTree) -> list[Signal]:
+    """each_mode_player (sweep §3) — CR 700.2d (the "same player or object
+    may be chosen as the target for each" default these 8 cards override):
+    a ``DifferentTargetPlayers`` modal-constraint node anywhere on the card
+    (it rides ``execute.modal.constraints`` — Vindictive Lich probed). The
+    v0.9.0 holder set is SET-EQUAL to the live 8, so no mirror is needed —
+    the "IR does not capture per-mode target legality" skip note was STALE.
+    Scope "each" (the live row's scope), HIGH.
+    """
+    for unit in tree.units:
+        for node in iter_typed_nodes(unit.node):
+            if tag_of(node) == "DifferentTargetPlayers":
+                return [Signal("each_mode_player", "each", "", "", tree.name, "high")]
+    return []
+
+
+def _legend_rule_off(tree: ConceptTree) -> list[Signal]:
+    """legend_rule_off (sweep §5) — CR 704.5j: the ``LegendRuleDoesntApply``
+    static mode (9 holders, ALL ⊆ live 13 — v0.9.0 now structures the
+    BOUNDED forms too: Cadric / Sliver Gravemother / Spider-Verse, so the
+    β "bounded is DROPPED entirely" note is STALE) UNION the byte-identical
+    mirror for the 4-card residue phase keeps textual (the Yamazaki family,
+    Syr Joshua and Syr Saxon, The Herald of Numot — parse-gap candidate,
+    adjudicator-logged). Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        if unit.origin == "static" and (
+            static_mode_tag(unit.node) == "LegendRuleDoesntApply"
+        ):
+            return [Signal("legend_rule_off", "you", "", "", tree.name, "high")]
+    if _LEGEND_RULE_OFF_RX.search(_kept(tree)):
+        return [Signal("legend_rule_off", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _lessons_matter(tree: ConceptTree) -> list[Signal]:
+    """lessons_matter (sweep §6) — CR 701.48 (Learn — "add a Lesson card to
+    their hand from outside the game"; Lesson is the subtype the mechanic
+    names): a ``{"Subtype": "Lesson"}`` filter anywhere on the card (Uncle
+    Iroh's ModifyCost spell_filter probed; 24 holders ALL ⊆ live 31) UNION
+    the byte-identical ``\\blessons?\\b`` mirror for the 7-card word residue
+    (Twenty Lessons, …). Gate #4 membership: the 21 STX Learn DOERS never
+    fire ("Lesson" only in stripped reminder text — both arms naturally
+    exclude; the lane must NOT read ``Learn`` nodes), and a Lesson CARD
+    whose own oracle never says "lesson" stays out (Environmental
+    Sciences). Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        for node in iter_typed_nodes(unit.node):
+            if any(s.lower() == "lesson" for s in filter_subtypes(node)):
+                return [Signal("lessons_matter", "you", "", "", tree.name, "high")]
+    if _LESSONS_RX.search(_kept(tree)):
+        return [Signal("lessons_matter", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _lose_unless_hand(tree: ConceptTree) -> list[Signal]:
+    """lose_unless_hand (sweep §7) — CR 104.3e ("An effect may state that a
+    player loses the game" — refining the live comment's 104.3a concede
+    cite): the cast-from-hand-or-lose drawback, corpus-unique to Phage the
+    Untouchable. A self-etb trigger unit (``ChangesZone{destination:
+    Battlefield, valid_card: SelfRef}``) carrying a Controller-recipient
+    ``lose_game`` effect — the 2-field join has exactly one holder, so the
+    ``Not(WasCast{zone: Hand})`` condition (typed at v0.9.0 — the "no
+    cast-zone-condition modeling" skip note was STALE) is not re-gated.
+    The end-step delayed self-lose (Final Fortune) and the opponent-lose
+    payoffs are excluded by the etb event. Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        if unit.trigger_event != "enters":
+            continue
+        if tag_of(getattr(unit.node, "valid_card", None)) != "SelfRef":
+            continue
+        for c in unit.effect_concepts("lose_game"):
+            if tag_of(getattr(c.node, "target", None)) == "Controller":
+                return [Signal("lose_unless_hand", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _miracle_grant(tree: ConceptTree) -> list[Signal]:
+    """miracle_grant (sweep §8) — CR 702.94 (Miracle): the ``AddKeyword{
+    Miracle}`` modification walk (the b13 _B13_MOD_GRANT_LANES precedent —
+    Lorehold, the Historian; Molecule Man; both ⊆ live 4) UNION the
+    byte-identical mirror for the folded grants (Aminatou, Veil Piercer;
+    Topdeck the Halls — parse-gap candidate, adjudicator-logged). Gate #4
+    membership: the 18 intrinsic ``Miracle {cost}`` bearers (Bonfire of the
+    Damned, …) never fire — the AddKeyword walk reads GRANTS, not own
+    keywords, and a keyword line doesn't match the grant phrasing. Scope
+    "you", HIGH.
+    """
+    for unit in tree.units:
+        for _sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) == "AddKeyword" and mod_keyword_name(mod) == "Miracle":
+                return [Signal("miracle_grant", "you", "", "", tree.name, "high")]
+    if _MIRACLE_GRANT_RX.search(_kept(tree)):
+        return [Signal("miracle_grant", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _recast_etb_bleed(tree: ConceptTree) -> list[Signal]:
+    """recast_etb SERVE arm (sweep §10, arm b) — the aggressive-ETB payoff a
+    Sneak engine recasts (CR 702.190 / 118.9): an enters-trigger unit whose
+    sibling effects include a discard / lose_life / sacrifice concept AND
+    whose trigger text names "each opponent" (Burglar Rat "each opponent
+    discards", Skirmish Rhino "each opponent loses 2 life"). Phase tags the
+    controller scope, not the recipient (Burglar Rat's Discard decorates
+    scope 'you' — probed), so the opponent bleed is recovered from the
+    trigger's own description — the b13 raw-anchor precedent (a node's OWN
+    raw), mirroring the live per-effect raw recovery. A MODAL etb bleed
+    ("choose one — • Each opponent sacrifices an enchantment" — Baleful
+    Beholder, Skemfar Shadowsage) carries the phrase on the unit's
+    ``modal.mode_descriptions`` instead, so those strings join the scan
+    (same unit node — still its own raw); a for-each bleed phase drops to
+    ``Unimplemented`` (Bladecoil Serpent) is read off that node's own raw;
+    a GRANT-flattened bleed (Lurking Spinecrawler, The Bus Runner — live
+    fires via the old projection's grant flattening) requires the
+    verb-anchored phrase (:data:`_RECAST_UNIMPL_BLEED_RX`) in the unit's
+    own text PLUS a deep bleed-TAG node under the same unit. The unit join
+    (etb + bleed in the SAME ability) is the lane's anti-goodstuff point —
+    a value etb (Wood Elves) never fires. The Sneak keyword arm (a) rides
+    :data:`_SWEEP_KEYWORD_LANES`. Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        if unit.trigger_event != "enters":
+            continue
+        parts = [getattr(unit.node, "description", None)]
+        for node in iter_typed_nodes(unit.node):
+            mds = getattr(node, "mode_descriptions", None)
+            if isinstance(mds, list):
+                parts.extend(m for m in mds if isinstance(m, str))
+        text = " ".join(p for p in parts if isinstance(p, str))
+        if "each opponent" not in text.lower():
+            continue
+        native = any(c.concept in _RECAST_BLEED_CONCEPTS for c in unit.effects)
+        unimpl = any(
+            tag_of(c.node) == "Unimplemented"
+            and _RECAST_UNIMPL_BLEED_RX.search(c.raw or "")
+            for c in unit.effects
+        )
+        granted = _RECAST_UNIMPL_BLEED_RX.search(text) and any(
+            tag_of(n) in _RECAST_BLEED_TAGS for n in iter_typed_nodes(unit.node)
+        )
+        if native or unimpl or granted:
+            return [Signal("recast_etb", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _seek_matters(tree: ConceptTree) -> list[Signal]:
+    """seek_matters (sweep §12) — DD3 (Seek — "the game randomly chooses a
+    card matching given criteria from your library"): the first-class
+    ``Seek`` effect node (120 holders at v0.9.0), riding the new sweep
+    ``EFFECT_CONCEPTS`` row. The "phase has a Seek EffectKind but it is
+    unmapped in project.py" skip note was STALE (project.py:506 maps it and
+    the live lane fires through it); Arena-only is a LEGALITY property, not
+    a skip — deck-forge serves historic_brawl (bl=98). A library SEARCH is
+    a different node family (``SearchLibrary`` → tutor) — no gate needed.
+    Scope "you", HIGH.
+    """
+    hits = tree.effect_concepts("seek")
+    if hits:
+        return [Signal("seek_matters", "you", "", hits[0].raw, tree.name, "high")]
+    return []
+
+
+def _snow_matters(tree: ConceptTree) -> list[Signal]:
+    """snow_matters (sweep §13) — CR 205.4 (Snow is a real supertype — the
+    live comment itself calls the old skip wrong): two typed reads UNION
+    the byte-identical ``\\bsnow\\b`` mirror (the producer — snow-mana
+    payoffs and prose references phase leaves textual):
+
+    * a ``{HasSupertype: Snow}`` filter property on any subject filter
+      (52 holders, 48 ⊆ live; the 3 outliers are documented DFC name-join
+      artifacts — the b13 island_matters precedent, NOT chased);
+    * a ``YouControlSnowPermanentCountAtLeast`` condition (Heidar /
+      Rimewind Cryomancer / Rimewind Taskmage).
+
+    Gate #4 membership: a Snow-SUPERTYPE card itself never fires off its
+    type line (parity: live reads oracle only — NO card_supertypes read;
+    Boreal Druid pinned). Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        if has_filter_property(unit.node, "HasSupertype", "Snow"):
+            return [Signal("snow_matters", "you", "", "", tree.name, "high")]
+        for node in iter_typed_nodes(unit.node):
+            if tag_of(node) == "YouControlSnowPermanentCountAtLeast":
+                return [Signal("snow_matters", "you", "", "", tree.name, "high")]
+    if _SNOW_RX.search(_kept(tree)):
+        return [Signal("snow_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _stickers_structural(tree: ConceptTree) -> list[Signal]:
+    """stickers_matter typed corroboration (sweep §14) — CR 123: the
+    ``PutSticker`` effect node (43 holders, ALL ⊆ the mirror's live 107 —
+    phase-only == 0, probed), included per the fidelity-direction memory
+    (a structural read the substrate already carries adds zero members but
+    grounds the lane in the typed tree). The mirror in
+    :func:`_sweep_kept_mirrors` is the producer; ``add()`` dedups.
+    """
+    for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) == "PutSticker":
+                return [Signal("stickers_matter", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _sweep_watched_owner_scope(trig: TypedMirrorNode) -> str:
+    """The creature-owner scope of a ``BecomesTarget`` trigger — mirrors the
+    live projection's ``_trigger_scope`` over the TYPED node: ``valid_card``
+    SelfRef → you; a Typed controller You/Opponent → you/opp; otherwise fall
+    through to ``valid_target``'s controller; default "any". CR 702.21a.
+    """
+    for fname in ("valid_card", "valid_target"):
+        sub = getattr(trig, fname, None)
+        if not isinstance(sub, TypedMirrorNode):
+            continue
+        if fname == "valid_card" and tag_of(sub) == "SelfRef":
+            return "you"
+        c = getattr(sub, "controller", None)
+        if isinstance(c, str):
+            cl = c.lower()
+            if cl == "you":
+                return "you"
+            if "opponent" in cl:
+                return "opp"
+    return "any"
+
+
+def _sweep_source_is_opp(trig: TypedMirrorNode) -> bool:
+    """Whether a ``BecomesTarget`` trigger's targeting SOURCE is
+    opponent-restricted — mirrors the live ``_becomes_target_src_zones``
+    "src:opp" derivation: collect every ``controller`` string under
+    ``valid_source`` (Shapers' Sanctuary / Battle Mammoth carry
+    ``Or[And[StackSpell, Typed{controller: Opponent}], StackAbility]`` —
+    probed); all-Opponent → redirect. A bare no-controller source falls back
+    to the trigger's own description via the imported live
+    ``_BECOMES_TARGET_SRC_OPP`` anchor (the Reality Smasher / Swarm Shambler
+    / Tectonic Giant parse gap). CR 702.21a / 108.3.
+    """
+    ctrls: set[str] = set()
+    vs = getattr(trig, "valid_source", None)
+    if isinstance(vs, TypedMirrorNode):
+        for node in iter_typed_nodes(vs):
+            c = getattr(node, "controller", None)
+            if isinstance(c, str) and c:
+                ctrls.add(re.sub(r"[^a-z0-9]", "", c.lower()))
+    if ctrls:
+        return ctrls <= {"opponent"}
+    desc = getattr(trig, "description", None)
+    return bool(_BECOMES_TARGET_SRC_OPP.search(desc or ""))
+
+
+def _becomes_target_lanes(tree: ConceptTree) -> list[Signal]:
+    """The BECOMES-TARGET payoff split (sweep §16/§17/§18) — live-STRUCTURAL
+    since SIDECAR v40; the "no BecomesTarget projection; single-card Monk
+    Gyatso lane" skip notes were doubly STALE (v0.9.0 carries 122
+    ``BecomesTarget`` trigger modes; crosswalk.py already maps the event).
+    CR 702.21a (Ward — the CR's own becomes-target-punish template) +
+    207.2c (heroic / valiant are ability words — NB the live comments'
+    "CR 702.83" heroic cite is a miscite; 207.2c is carried here) + 603.2.
+
+    Three lanes off each native trigger unit's OWN fields (scope/direction
+    gate — never zone-tag re-derivation):
+
+    * ``targeting_matters`` "any" — EVERY becomes_target trigger (the broad
+      lane; Willbreaker's opponent-creature subject counts too), UNION the
+      byte-identical residue mirror for the granted/quoted/player-targeted
+      forms phase emits no native trigger for (Kira / Opaline Sliver /
+      Dormant Gomazoa / heroic). LOGGED widen (closeout (c) #21): a
+      GrantTrigger{BecomesTarget} deep-grant read — v0.9.0 structures
+      Kira's grant, but PARITY-BEFORE-VETO keeps the mirror the producer.
+    * ``target_own_payoff`` "you" — the creature is yours/any
+      (:func:`_sweep_watched_owner_scope` ∈ {you, any} — Willbreaker / Shay
+      Cormac's opp-subject excluded) and the source is NOT
+      opponent-restricted (heroic/valiant + "you may" reactions).
+    * ``target_redirect`` "you" — same owner gate, opponent-restricted
+      source (:func:`_sweep_source_is_opp` — Shapers' Sanctuary, Battle
+      Mammoth). The v40 double-fire fix holds: Shapers' fires redirect,
+      NEVER own-payoff.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def add(key: str, scope: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, scope, "", "", tree.name, "high"))
+
+    for unit in tree.units:
+        if unit.trigger_event != "becomes_target":
+            continue
+        add("targeting_matters", "any")
+        owner = _sweep_watched_owner_scope(unit.node)
+        if owner in ("you", "any"):
+            if _sweep_source_is_opp(unit.node):
+                add("target_redirect", "you")
+            else:
+                add("target_own_payoff", "you")
+    if "targeting_matters" not in seen and _TARGETING_RESIDUE_RX.search(_kept(tree)):
+        add("targeting_matters", "any")
+    return out
+
+
+def _theft_protection(tree: ConceptTree) -> list[Signal]:
+    """theft_protection (sweep §19) — CR 702.21a (Ward — the intrinsic
+    counter-when-targeted form the CR itself templates): ``BecomesTarget``
+    + ``OncePerTurn`` constraint + a ``Counter`` execute — native trigger
+    units (Glyph Keeper, Jetting Glasskite, Shimmering Glasskite) AND the
+    ``GrantTrigger`` modification walk (Kira, Great Glass-Spinner's quoted
+    grant). Census-probed EXACTLY the live 4; the Counter-exec gate cuts
+    the 19-card OncePerTurn+BecomesTarget family (Heartfire Hero
+    exec=PutCounter, Loki exec=Draw — pinned negatives). The "once-per-turn
+    gate is NOT structured" skip note was STALE
+    (:func:`trigger_constraint_tag` reads it today); no mirror needed
+    (set-equal). Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        if (
+            unit.trigger_event == "becomes_target"
+            and trigger_constraint_tag(unit.node) == "OncePerTurn"
+            and any(tag_of(c.node) == "Counter" for c in unit.effects)
+        ):
+            return [Signal("theft_protection", "you", "", "", tree.name, "high")]
+        for _sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "GrantTrigger":
+                continue
+            trig = getattr(mod, "trigger", None)
+            if not isinstance(trig, TypedMirrorNode):
+                continue
+            if (
+                getattr(trig, "mode", None) == "BecomesTarget"
+                and trigger_constraint_tag(trig) == "OncePerTurn"
+                and any(
+                    tag_of(n) == "Counter"
+                    for n in iter_typed_nodes(getattr(trig, "execute", None))
+                )
+            ):
+                return [Signal("theft_protection", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _voting_matters(tree: ConceptTree) -> list[Signal]:
+    """voting_matters (sweep §23) — CR 701.38 (Vote — fixes the mapping
+    row's stale 701.32 cite): the ``Vote`` TRIGGER mode ("Whenever players
+    finish voting" — Erestor probed verbatim), readable TODAY as
+    ``trigger_event == "vote"`` via ``_trigger_event``'s ``mode.lower()``
+    fall-through. Census-probed EXACTLY the live 3 (Erestor, Grudge Keeper,
+    Model of Unity) — the ADR-0034 split's mirror residue retires into a
+    structural read. The 25 ``Vote`` EFFECT nodes (Expropriate, Magister of
+    Worth, …) stay :func:`_voting_makers` — the trigger-vs-effect split
+    keeps the maker/matters partition exact (gate #4 satisfied
+    structurally). Scope "each" (every player votes), HIGH.
+    """
+    for unit in tree.units:
+        if unit.trigger_event == "vote":
+            return [Signal("voting_matters", "each", "", "", tree.name, "high")]
+    return []
+
+
 _LANES = (
     _win_lose_game,
     _discard_makers,
@@ -9974,6 +10531,20 @@ _LANES = (
     _starting_life_matters,
     _toughness_combat,
     _typed_anthem_multi,
+    # Stage-2 closeout sweep (the 23 skip-lane dispositions):
+    _sweep_kept_mirrors,
+    _each_mode_player,
+    _legend_rule_off,
+    _lessons_matter,
+    _lose_unless_hand,
+    _miracle_grant,
+    _recast_etb_bleed,
+    _seek_matters,
+    _snow_matters,
+    _stickers_structural,
+    _becomes_target_lanes,
+    _theft_protection,
+    _voting_matters,
 )
 
 
@@ -10026,6 +10597,8 @@ def extract_crosswalk_signals(
     for sig in _keyword_field_signals_b15(frozenset(keywords), tree.name):
         add(sig)
     for sig in _keyword_field_signals_b16(frozenset(keywords), tree.name):
+        add(sig)
+    for sig in _keyword_field_signals_sweep(frozenset(keywords), tree.name):
         add(sig)
     # b15 keyword-DISCRIMINATED lanes (the bending node arm's earthbend gate
     # and the firebending / station mirror splits read the Scryfall array,

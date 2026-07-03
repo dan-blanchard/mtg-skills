@@ -215,6 +215,12 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "ExchangeLifeTotals": "set_life",  # Axis of Mortality
     "ExchangeLifeWithStat": "set_life",  # Serra Avatar-family stat swap
     "ExchangeControl": "exchange_control",  # land_exchange (CR 701.12b)
+    # Stage-2 closeout sweep (ADR-0035) — ``Seek`` is the DD3 Alchemy doer
+    # ("the game randomly chooses a matching card from your library"); the
+    # live path reads it via project.py's ``"seek"`` category row, and the
+    # sweep's seek_matters lane reads the same node here. Arena-only is a
+    # LEGALITY property, not a skip (deck-forge serves historic_brawl).
+    "Seek": "seek",  # seek_matters (DD3)
 }
 
 # Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): a maker / sac-payoff over

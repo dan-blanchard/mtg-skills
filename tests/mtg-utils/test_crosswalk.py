@@ -4841,6 +4841,292 @@ def test_typed_anthem_multi_structural_and_color_gate():
     assert "typed_anthem_multi" not in _keys("Paladin Danse, Steel Maverick")
 
 
+# ── Stage-2 closeout sweep: the 23 skip-lane dispositions ────────────────────
+
+
+def test_attractions_matter_mirror_and_membership_floor():
+    """CR 717 (Attraction cards) / 701.51 (Open an Attraction) / 702.159
+    (Visit): the byte-identical kept mirror fires the openers ("Lifetime"
+    Pass Holder; Coming Attraction — the word survives outside the reminder
+    parens); an Attraction permanent ITSELF (Balloon Stand — visit nodes,
+    reminder-stripped oracle never says "attraction") is membership and
+    must NOT fire (gate #4); a plain artifact stays out."""
+    assert ("attractions_matter", "you", "") in _idents('"Lifetime" Pass Holder')
+    assert ("attractions_matter", "you", "") in _idents("Coming Attraction")
+    assert "attractions_matter" not in _keys("Balloon Stand")
+    assert "attractions_matter" not in _keys("Sol Ring")
+
+
+def test_draft_spellbook_mirror_paper_and_alchemy_arms():
+    """CR 905.1c/905.2b (Conspiracy draft) + DD5 (Spellbook — conjure/draft):
+    the kept mirror fires the paper draft-matters card (Cogwork Librarian
+    "draft a card") and the Alchemy spellbook card (Bind to Secrecy); a
+    plain draw spell never fires (Divination)."""
+    assert ("draft_spellbook", "you", "") in _idents("Cogwork Librarian")
+    assert ("draft_spellbook", "you", "") in _idents("Bind to Secrecy")
+    assert "draft_spellbook" not in _keys("Divination")
+
+
+def test_each_mode_player_structural_constraint_node():
+    """CR 700.2d (the same-target default these cards override): the
+    ``DifferentTargetPlayers`` modal-constraint node — set-equal to the
+    live 8 — fires Vindictive Lich and Shadrix Silverquill; a plain modal
+    with no per-mode player constraint never fires (Cryptic Command)."""
+    assert ("each_mode_player", "each", "") in _idents("Vindictive Lich")
+    assert ("each_mode_player", "each", "") in _idents("Shadrix Silverquill")
+    assert "each_mode_player" not in _keys("Cryptic Command")
+
+
+def test_free_plot_single_card_mirror():
+    """CR 702.170 (Plot): the single-card kept mirror (Fblthp, Lost on the
+    Range — phase drops both plot clauses, parse-gap logged); a plain plot
+    card (Aloe Alchemist — "Plot {1}{G}" keyword line only) never fires."""
+    assert ("free_plot", "you", "") in _idents("Fblthp, Lost on the Range")
+    assert "free_plot" not in _keys("Aloe Alchemist")
+
+
+def test_legend_rule_off_structural_and_mirror_residue():
+    """CR 704.5j (the legend rule): the ``LegendRuleDoesntApply`` static mode
+    fires the unbounded form (Mirror Gallery) AND the bounded form v0.9.0
+    now structures (Cadric — the stale "bounded is DROPPED" β note); the
+    Yamazaki family rides the byte-identical mirror residue (phase keeps
+    only their +2/+2 static); a legendary REFERENCE never fires
+    (Blackblade Reforged)."""
+    assert ("legend_rule_off", "you", "") in _idents("Mirror Gallery")
+    assert ("legend_rule_off", "you", "") in _idents("Cadric, Soul Kindler")
+    assert ("legend_rule_off", "you", "") in _idents("Brothers Yamazaki")
+    assert "legend_rule_off" not in _keys("Blackblade Reforged")
+
+
+def test_lessons_matter_filter_read_mirror_and_learn_floor():
+    """CR 701.48 (Learn names the Lesson subtype): the {"Subtype": "Lesson"}
+    filter read fires the cost-reducer (Uncle Iroh) and the state-check
+    (Aang, A Lot to Learn); Twenty Lessons rides the word-mirror residue.
+    Membership floor (gate #4): a Learn DOER (Field Trip — "Lesson" only in
+    stripped reminder text) and a Lesson CARD whose oracle never says
+    "lesson" (Environmental Sciences) must NOT fire."""
+    assert ("lessons_matter", "you", "") in _idents("Uncle Iroh")
+    assert ("lessons_matter", "you", "") in _idents("Aang, A Lot to Learn")
+    assert ("lessons_matter", "you", "") in _idents("Twenty Lessons")
+    assert "lessons_matter" not in _keys("Field Trip")
+    assert "lessons_matter" not in _keys("Environmental Sciences")
+
+
+def test_lose_unless_hand_etb_self_lose_join():
+    """CR 104.3e (an effect may state that a player loses the game): the
+    corpus-unique join — a self-etb trigger whose unit carries a
+    Controller-recipient ``lose_game`` — fires Phage the Untouchable only.
+    The end-step delayed self-lose (Final Fortune) and the opponent-lose
+    activation (Door to Nothingness) never fire."""
+    assert ("lose_unless_hand", "you", "") in _idents("Phage the Untouchable")
+    assert "lose_unless_hand" not in _keys("Final Fortune")
+    assert "lose_unless_hand" not in _keys("Door to Nothingness")
+
+
+def test_miracle_grant_addkeyword_walk_and_intrinsic_floor():
+    """CR 702.94 (Miracle): the AddKeyword{Miracle} mod-walk fires the
+    structural granter (Lorehold, the Historian); Aminatou, Veil Piercer
+    rides the byte-identical mirror residue (her grant folds). Membership
+    floor (gate #4): an intrinsic Miracle BEARER (Bonfire of the Damned —
+    "Miracle {cost}" keyword line) must NOT fire."""
+    assert ("miracle_grant", "you", "") in _idents("Lorehold, the Historian")
+    assert ("miracle_grant", "you", "") in _idents("Aminatou, Veil Piercer")
+    assert "miracle_grant" not in _keys("Bonfire of the Damned")
+
+
+def test_powerup_matters_scryfall_keyword_row():
+    """CR 702.193 (Power-up — a one-time activated ability, cheaper the turn
+    the permanent entered; the mapping row's "Unfinity acorn" rationale was
+    FLAT WRONG): the sweep keyword-field row reads the caller-supplied
+    Scryfall array (phase DROPS Power-up from Face.keywords — Extremis
+    Elite probed), so the bearer and the payoff-granter (Wonder Man, who
+    carries the keyword too) fire; a keyword-less creature never does."""
+    assert ("powerup_matters", "you", "") in _idents("Extremis Elite")
+    assert ("powerup_matters", "you", "") in _idents("Wonder Man, Hollywood Hero")
+    assert "powerup_matters" not in _keys("Serra Angel")
+
+
+def test_recast_etb_keyword_and_etb_bleed_arms():
+    """CR 702.190 (Sneak — now a real CR keyword; the "no rules meaning" row
+    note is STALE) + 118.9: arm (a) the Sneak Scryfall-keyword row fires
+    Karai's Technique; arm (b) the structural etb-bleed join (an enters
+    trigger + a discard/lose_life/sacrifice sibling whose text names "each
+    opponent") fires Burglar Rat. The old ``\\bsneak\\b`` regex over-fire
+    (Lightfoot Rogue) and a value etb (Wood Elves) never fire — the
+    anti-goodstuff point of the lane."""
+    assert ("recast_etb", "you", "") in _idents("Karai's Technique")
+    assert ("recast_etb", "you", "") in _idents("Burglar Rat")
+    assert "recast_etb" not in _keys("Lightfoot Rogue")
+    assert "recast_etb" not in _keys("Wood Elves")
+
+
+def test_secret_writedown_mirror_and_companion_reminder_floor():
+    """CR 702.106a/b (hidden agenda — "secretly choose a card name") +
+    400.11b/108.3 (cards from outside the game): the kept mirror fires the
+    wish (Burning Wish), the secret choice (A Killer Among Us) and the
+    real outside-the-game text (Karn, the Great Creator); a COMPANION's
+    reminder-only "outside the game" is stripped before the scan and never
+    fires (Lutri, the Spellchaser)."""
+    assert ("secret_writedown", "you", "") in _idents("Burning Wish")
+    assert ("secret_writedown", "you", "") in _idents("A Killer Among Us")
+    assert ("secret_writedown", "you", "") in _idents("Karn, the Great Creator")
+    assert "secret_writedown" not in _keys("Lutri, the Spellchaser")
+
+
+def test_seek_matters_structural_effect_read():
+    """DD3 (Seek — the game randomly chooses a matching card from your
+    library; Arena-only is a LEGALITY property, not a skip — deck-forge
+    serves historic_brawl): the ``Seek`` effect node fires Bounty of the
+    Deep and Cabaretti Revels; a library SEARCH is a different node family
+    and never fires (Demonic Tutor)."""
+    assert ("seek_matters", "you", "") in _idents("Bounty of the Deep")
+    assert ("seek_matters", "you", "") in _idents("Cabaretti Revels")
+    assert "seek_matters" not in _keys("Demonic Tutor")
+
+
+def test_snow_matters_structural_arms_mirror_and_membership_floor():
+    """CR 205.4 (Snow is a real supertype — the live comment itself calls
+    the old skip wrong): the HasSupertype:Snow filter-property read fires
+    Abominable Treefolk, the ``YouControlSnowPermanentCountAtLeast``
+    condition read fires Rimewind Taskmage, and the byte-identical
+    ``\\bsnow\\b`` mirror (the producer) fires Skred. Membership floor
+    (gate #4): a Snow-SUPERTYPE card itself (Boreal Druid — no "snow" in
+    oracle) never fires off its type line."""
+    assert ("snow_matters", "you", "") in _idents("Abominable Treefolk")
+    assert ("snow_matters", "you", "") in _idents("Rimewind Taskmage")
+    assert ("snow_matters", "you", "") in _idents("Skred")
+    assert "snow_matters" not in _keys("Boreal Druid")
+
+
+def test_stickers_matter_mirror_and_structural_corroboration():
+    """CR 123 (Stickers) / 122.1 (ticket counters): the byte-identical
+    STICKERS_MATTER_REGEX mirror (``\\{tk\\}|\\bstickers?\\b``) fires the
+    sticker payoffs ("Name Sticker" Goblin), the {TK}+sticker engine (Tusk
+    and Whiskers) and the PutSticker holder (Carnival Carnivore — also the
+    typed corroboration arm's witness); a regular card never fires."""
+    assert ("stickers_matter", "you", "") in _idents('"Name Sticker" Goblin')
+    assert ("stickers_matter", "you", "") in _idents("Tusk and Whiskers")
+    assert ("stickers_matter", "you", "") in _idents("Carnival Carnivore")
+    assert "stickers_matter" not in _keys("Sol Ring")
+
+
+def test_tap_down_blockers_single_card_mirror():
+    """CR 509.1c (blocking-requirement evaluation): the single-card kept
+    mirror fires Tromokratis ("can't be blocked unless all creatures
+    defending player controls block it" — v0.9.0 keeps the clause only as
+    Unrecognized condition TEXT on a 143-holder ``CantBeBlocked`` static,
+    no fidelity gain available); a menace card (Davros) and a plain
+    unblockable (Aether Figment) never fire."""
+    assert ("tap_down_blockers", "you", "") in _idents("Tromokratis")
+    assert "tap_down_blockers" not in _keys("Davros, Dalek Creator")
+    assert "tap_down_blockers" not in _keys("Aether Figment")
+
+
+def test_target_own_payoff_source_split_v40_holds():
+    """CR 702.21a + 207.2c (heroic/valiant are ability words; the live
+    "702.83" heroic cite is a miscite): a becomes_target trigger whose
+    watched owner is you/any and whose ``valid_source`` is NOT
+    opponent-restricted fires own-payoff (Heartfire Hero — source
+    controller You; Loki — an "any"-owner watcher, ability-source You);
+    the opponent-creature subject is scoped out (Willbreaker), the
+    opponent-source redirect (Shapers' Sanctuary) must NOT double-fire
+    here — the v40 fix holds — and paper Nadu's GRANTED trigger (no
+    native BecomesTarget unit; live fires only the rebalanced A-Nadu)
+    rides the targeting_matters mirror, never own-payoff — live parity,
+    the spec's "+ Nadu (verify)" failing its own verify."""
+    assert ("target_own_payoff", "you", "") in _idents("Heartfire Hero")
+    assert ("target_own_payoff", "you", "") in _idents("Loki, God of Mischief")
+    assert "target_own_payoff" not in _keys("Willbreaker")
+    assert "target_own_payoff" not in _keys("Shapers' Sanctuary")
+    nadu = _keys("Nadu, Winged Wisdom")
+    assert "target_own_payoff" not in nadu
+    assert "targeting_matters" in nadu
+
+
+def test_target_redirect_opponent_source_branch():
+    """CR 702.21a / 603.2: the same read's opponent-source branch — the
+    trigger's own ``valid_source`` carries the Opponent controller
+    (Shapers' Sanctuary / Battle Mammoth probed) — fires redirect; an
+    unrestricted source (Heartfire Hero) stays own-payoff."""
+    assert ("target_redirect", "you", "") in _idents("Shapers' Sanctuary")
+    assert ("target_redirect", "you", "") in _idents("Battle Mammoth")
+    assert "target_redirect" not in _keys("Heartfire Hero")
+
+
+def test_targeting_matters_structural_any_and_residue_mirror():
+    """CR 702.21a (the load-bearing becomes-target family rule): EVERY
+    becomes_target trigger fires the broad scope-'any' lane (Willbreaker —
+    opponent-subject counts too); the byte-identical residue mirror covers
+    the heroic ability word (Akroan Crusader) and the granted/quoted forms
+    phase emits no native trigger for (Kira, Great Glass-Spinner); a
+    targeted SPELL is not a targeting payoff (Murder)."""
+    assert ("targeting_matters", "any", "") in _idents("Willbreaker")
+    assert ("targeting_matters", "any", "") in _idents("Akroan Crusader")
+    assert ("targeting_matters", "any", "") in _idents("Kira, Great Glass-Spinner")
+    assert "targeting_matters" not in _keys("Murder")
+
+
+def test_theft_protection_counter_exec_gate_cuts_family_to_four():
+    """CR 702.21a (Ward — the CR's own counter-when-targeted template): the
+    OncePerTurn + BecomesTarget + Counter-execute join — native (Glyph
+    Keeper) and via the GrantTrigger walk (Kira, Great Glass-Spinner) —
+    lands exactly the live 4. The Counter-exec gate cuts the 19-card
+    OncePerTurn+BecomesTarget family: Heartfire Hero (exec=PutCounter) and
+    Loki, God of Mischief (exec=Draw) are the pinned negatives."""
+    assert ("theft_protection", "you", "") in _idents("Glyph Keeper")
+    assert ("theft_protection", "you", "") in _idents("Kira, Great Glass-Spinner")
+    assert "theft_protection" not in _keys("Heartfire Hero")
+    assert "theft_protection" not in _keys("Loki, God of Mischief")
+
+
+def test_timing_control_mirror_scope_any():
+    """CR 117.1a (timing permissions) + 307.5 ("only any time they could
+    cast a sorcery"): the byte-identical kept mirror (scope "any") fires
+    the symmetric lock (City of Solitude) and the opponent lock (Teferi,
+    Time Raveler); a flash GRANT is the opposite direction and never fires
+    (Vedalken Orrery). Phase still drops the cast-timing statics — the β
+    note holds at v0.9.0."""
+    assert ("timing_control", "any", "") in _idents("City of Solitude")
+    assert ("timing_control", "any", "") in _idents("Teferi, Time Raveler")
+    assert "timing_control" not in _keys("Vedalken Orrery")
+
+
+def test_villainous_choice_mirror_and_doubler():
+    """CR 701.55a-d (Face a Villainous Choice — resolves the live "CR
+    701.x"): the kept mirror fires the chooser (Davros, Dalek Creator) and
+    the doubler (The Valeyard — also the 1-holder
+    ``GrantsExtraVillainousChoice`` corroboration witness); a generic
+    "choose one" modal never fires (Cryptic Command)."""
+    assert ("villainous_choice", "you", "") in _idents("Davros, Dalek Creator")
+    assert ("villainous_choice", "you", "") in _idents("The Valeyard")
+    assert "villainous_choice" not in _keys("Cryptic Command")
+
+
+def test_void_warp_matters_mirror_and_makers_boundary():
+    """CR 702.185 (Warp) + 207.2c (void is an ABILITY WORD — the stale skip
+    the closeout flagged): the byte-identical VOID_WARP_MATTERS_REGEX
+    mirror fires the Void payoffs (Alpharael, Stonechosen; Chorale of the
+    Void); a Warp KEYWORD BEARER is the b15 makers arm only (Starfield
+    Vocalist — the matters regex must not fire its keyword line)."""
+    assert ("void_warp_matters", "you", "") in _idents("Alpharael, Stonechosen")
+    assert ("void_warp_matters", "you", "") in _idents("Chorale of the Void")
+    assert "void_warp_matters" not in _keys("Starfield Vocalist")
+
+
+def test_voting_matters_trigger_event_and_effect_split():
+    """CR 701.38 (Vote — fixes the mapping row's stale 701.32): the ``Vote``
+    TRIGGER mode (readable today via the ``mode.lower()`` fall-through as
+    trigger_event == "vote") fires the finish-voting payoffs — exactly the
+    live 3 (Erestor, Grudge Keeper set-checked here); a Vote EFFECT node
+    stays voting_makers (Expropriate — the trigger-vs-effect split keeps
+    the ADR-0034 maker/matters partition exact)."""
+    assert ("voting_matters", "each", "") in _idents("Erestor of the Council")
+    assert ("voting_matters", "each", "") in _idents("Grudge Keeper")
+    expro = _keys("Expropriate")
+    assert "voting_matters" not in expro
+    assert "voting_makers" in expro
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 
