@@ -6236,7 +6236,10 @@ def _control_exchange(tree: ConceptTree) -> list[Signal]:
     gain_control lane, so ONLY the exile-Owned-return shape ports here.
     Oblivion Sower (Owned:TargetPlayer — theft-ramp) and a plain blink
     (controller-You filter, no Owned predicate — Cloudshift) never fire.
-    Scope "you".
+    An exile filter carrying Owned:You AND controller:You is a pure value
+    blink (own+control leaves no steal to recover — CR 108.3 vs 701.12b;
+    Yorion, rules-lawyer-adjudicated b12): the CONJUNCTION is vetoed while
+    Meneldor's controller-null Owned:You keeps firing. Scope "you".
     """
     for unit in tree.units:
         czs = [
@@ -6244,9 +6247,16 @@ def _control_exchange(tree: ConceptTree) -> list[Signal]:
             for c in unit.effect_concepts("change_zone")
             if tag_of(c.node) == "ChangeZone"
         ]
+
+        def _steal_recovery(target: object) -> bool:
+            return (
+                filter_owned_controller(target) == "You"
+                and filter_controller(target) != "You"
+            )
+
         exile_owned = any(
             change_zone_dirs(c.node)[1] == "Exile"
-            and filter_owned_controller(getattr(c.node, "target", None)) == "You"
+            and _steal_recovery(getattr(c.node, "target", None))
             for c in czs
         )
         returns = any(change_zone_dirs(c.node)[1] == "Battlefield" for c in czs)
@@ -6724,6 +6734,12 @@ def _superfriends_matters(tree: ConceptTree) -> list[Signal]:
         t = tag_of(node)
         if t == "TargetMatchesFilter":
             return False  # a removal condition on the spell's own target
+        if t == "WheneverEvent":
+            # an event-watcher's recipient list (Or[Player, Planeswalker] —
+            # an attacked opposing planeswalker per CR 506.2) is event
+            # plumbing, not a planeswalker reference (adjudicated b12:
+            # Hunter's Insight, Flitterwing Nuisance)
+            return False
         if t == "YouControlNamedPlaneswalker":
             return True
         if (

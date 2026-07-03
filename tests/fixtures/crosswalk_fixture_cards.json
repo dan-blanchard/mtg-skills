@@ -39273,6 +39273,221 @@
         "rare"
       ]
     },
+    "Flitterwing Nuisance": {
+      "name": "Flitterwing Nuisance",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue"
+        ],
+        "generic": 0
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Faerie",
+          "Rogue"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 2
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Flying\nThis creature enters with a -1/-1 counter on it.\n{2}{U}, Remove a counter from this creature: Whenever a creature you control deals combat damage to a player or planeswalker this turn, draw a card.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Flying"
+      ],
+      "abilities": [
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "CreateDelayedTrigger",
+            "condition": {
+              "type": "WheneverEvent",
+              "trigger": {
+                "mode": "DamageDone",
+                "execute": null,
+                "valid_card": null,
+                "origin": null,
+                "destination": null,
+                "trigger_zones": [
+                  "Battlefield"
+                ],
+                "phase": null,
+                "optional": false,
+                "damage_kind": "CombatOnly",
+                "secondary": false,
+                "valid_target": {
+                  "type": "Or",
+                  "filters": [
+                    {
+                      "type": "Player"
+                    },
+                    {
+                      "type": "Typed",
+                      "type_filters": [
+                        "Planeswalker"
+                      ],
+                      "controller": null,
+                      "properties": []
+                    }
+                  ]
+                },
+                "valid_source": {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Creature"
+                  ],
+                  "controller": "You",
+                  "properties": []
+                },
+                "description": null,
+                "constraint": null,
+                "condition": null,
+                "batched": false
+              }
+            },
+            "effect": {
+              "kind": "Spell",
+              "effect": {
+                "type": "Draw",
+                "count": {
+                  "type": "Fixed",
+                  "value": 1
+                },
+                "target": {
+                  "type": "Controller"
+                }
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false
+            },
+            "uses_tracked_set": false
+          },
+          "cost": {
+            "type": "Composite",
+            "costs": [
+              {
+                "type": "Mana",
+                "cost": {
+                  "type": "Cost",
+                  "shards": [
+                    "Blue"
+                  ],
+                  "generic": 2
+                }
+              },
+              {
+                "type": "RemoveCounter",
+                "count": 1,
+                "counter_type": {
+                  "type": "Any"
+                },
+                "target": null,
+                "selection": "SingleObject"
+              }
+            ]
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "{2}{U}, Remove a counter from ~: Whenever a creature you control deals combat damage to a player or planeswalker this turn, draw a card.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [
+        {
+          "event": "Moved",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "PutCounter",
+              "counter_type": "M1M1",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "target": {
+                "type": "SelfRef"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "mode": {
+            "type": "Mandatory"
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "description": "~ enters with a -1/-1 counter on it.",
+          "condition": null,
+          "destination_zone": "Battlefield"
+        }
+      ],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "9148f2cb-5594-463c-a21b-a67706ec46d1",
+      "metadata": {
+        "source_printing_ids": [
+          "7ecc95a7-51c8-45a1-bebf-9dfa053f7403",
+          "ad0f6536-5295-4835-8883-35d711dfe6de"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "standard": "legal",
+        "standardbrawl": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "ECL",
+        "PECL"
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
     "Fog": {
       "name": "Fog",
       "mana_cost": {
@@ -48135,6 +48350,186 @@
         "extra_turn": false,
         "efficient_tutor": false
       }
+    },
+    "Hunter's Insight": {
+      "name": "Hunter's Insight",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Green"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Instant"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Choose target creature you control. Whenever that creature deals combat damage to a player or planeswalker this turn, draw that many cards.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "TargetOnly",
+            "target": {
+              "type": "Typed",
+              "type_filters": [
+                "Creature"
+              ],
+              "controller": "You",
+              "properties": []
+            }
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "CreateDelayedTrigger",
+              "condition": {
+                "type": "WheneverEvent",
+                "trigger": {
+                  "mode": "DamageDone",
+                  "execute": null,
+                  "valid_card": null,
+                  "origin": null,
+                  "destination": null,
+                  "trigger_zones": [
+                    "Battlefield"
+                  ],
+                  "phase": null,
+                  "optional": false,
+                  "damage_kind": "CombatOnly",
+                  "secondary": false,
+                  "valid_target": {
+                    "type": "Or",
+                    "filters": [
+                      {
+                        "type": "Player"
+                      },
+                      {
+                        "type": "Typed",
+                        "type_filters": [
+                          "Planeswalker"
+                        ],
+                        "controller": null,
+                        "properties": []
+                      }
+                    ]
+                  },
+                  "valid_source": {
+                    "type": "ParentTarget"
+                  },
+                  "description": null,
+                  "constraint": null,
+                  "condition": null,
+                  "batched": false
+                }
+              },
+              "effect": {
+                "kind": "Spell",
+                "effect": {
+                  "type": "Draw",
+                  "count": {
+                    "type": "Ref",
+                    "qty": {
+                      "type": "EventContextAmount"
+                    }
+                  },
+                  "target": {
+                    "type": "Controller"
+                  }
+                },
+                "cost": null,
+                "sub_ability": null,
+                "duration": null,
+                "description": null,
+                "target_prompt": null,
+                "condition": null,
+                "optional_targeting": false,
+                "optional": false,
+                "forward_result": false
+              },
+              "uses_tracked_set": false
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "sub_link": "SequentialSibling"
+          },
+          "duration": null,
+          "description": "Choose target creature you control. Whenever that creature deals combat damage to a player or planeswalker this turn, draw that many cards.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Green"
+      ],
+      "scryfall_oracle_id": "cf8a0782-f545-445e-abac-d9063dad696b",
+      "metadata": {
+        "source_printing_ids": [
+          "4e1448cf-3ddc-437b-a21e-4f4086492ec6",
+          "8c7549c2-7f66-4fdc-9852-6796292c6a85",
+          "96c20d6f-6272-42f1-bfda-308ce7c4206a",
+          "a85d0ca4-551c-4e23-b35b-e49b89ce86bd",
+          "b2fb825e-0c93-4555-9f6e-9b9d21566c2a",
+          "b78a13fa-ba9c-4ee3-89a4-6774ddae8a08",
+          "c12cf74d-aad9-41d8-959e-66557c39204d",
+          "de399acd-e792-4f4a-8025-434f1080c0fc",
+          "e4044a9f-43bd-4c32-9d53-29a27ad9be80",
+          "f68090b1-77f0-49e7-8f2b-e78ce3cf8c86"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "C20",
+        "CMM",
+        "CMR",
+        "JMP",
+        "M12",
+        "MAR",
+        "NEC",
+        "OMB",
+        "SCD",
+        "SLD"
+      ],
+      "rarities": [
+        "uncommon",
+        "rare",
+        "mythic"
+      ]
     },
     "Hydroid Krasis": {
       "name": "Hydroid Krasis",
@@ -90366,6 +90761,282 @@
         "common"
       ]
     },
+    "Yorion, Sky Nomad": {
+      "name": "Yorion, Sky Nomad",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "WhiteBlue",
+          "WhiteBlue"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Bird",
+          "Serpent"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 5
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Companion \u2014 Your starting deck contains at least twenty cards more than the minimum deck size. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)\nFlying\nWhen Yorion enters, exile any number of other nonland permanents you own and control. Return those cards to the battlefield at the beginning of the next end step.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Flying",
+        {
+          "Companion": {
+            "type": "SharedCardType"
+          }
+        }
+      ],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "ChangesZone",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "ChangeZone",
+              "origin": null,
+              "destination": "Exile",
+              "target": {
+                "type": "Typed",
+                "type_filters": [
+                  "Permanent",
+                  {
+                    "Non": "Land"
+                  }
+                ],
+                "controller": "You",
+                "properties": [
+                  {
+                    "type": "Another"
+                  },
+                  {
+                    "type": "Owned",
+                    "controller": "You"
+                  }
+                ]
+              },
+              "owner_library": false,
+              "enter_transformed": false,
+              "enter_tapped": false,
+              "enters_attacking": false
+            },
+            "cost": null,
+            "sub_ability": {
+              "kind": "Spell",
+              "effect": {
+                "type": "CreateDelayedTrigger",
+                "condition": {
+                  "type": "AtNextPhase",
+                  "phase": "End"
+                },
+                "effect": {
+                  "kind": "Spell",
+                  "effect": {
+                    "type": "ChangeZone",
+                    "origin": "Exile",
+                    "destination": "Battlefield",
+                    "target": {
+                      "type": "ParentTarget"
+                    },
+                    "owner_library": false,
+                    "enter_transformed": false,
+                    "enter_tapped": false,
+                    "enters_attacking": false
+                  },
+                  "cost": null,
+                  "sub_ability": null,
+                  "duration": null,
+                  "description": null,
+                  "target_prompt": null,
+                  "condition": null,
+                  "optional_targeting": false,
+                  "optional": false,
+                  "forward_result": false,
+                  "sub_link": "SequentialSibling"
+                },
+                "uses_tracked_set": true
+              },
+              "cost": null,
+              "sub_ability": null,
+              "duration": null,
+              "description": null,
+              "target_prompt": null,
+              "condition": null,
+              "optional_targeting": false,
+              "optional": false,
+              "forward_result": false
+            },
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "multi_target": {
+              "min": 0,
+              "max": null
+            },
+            "forward_result": false
+          },
+          "valid_card": {
+            "type": "SelfRef"
+          },
+          "origin": null,
+          "destination": "Battlefield",
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "When ~ enters, exile any number of other nonland permanents you own and control. Return those cards to the battlefield at the beginning of the next end step.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": [
+        "Blue",
+        "White"
+      ],
+      "color_identity": [
+        "Blue",
+        "White"
+      ],
+      "scryfall_oracle_id": "e15504a7-2b67-4185-b916-172145f10b19",
+      "brawl_commander": true,
+      "is_commander": true,
+      "metadata": {
+        "source_printing_ids": [
+          "275426c4-c14e-47d0-a9d4-24da7f6f6911",
+          "572f03c2-cd20-4e09-90a4-13bd291c5478",
+          "77b05368-1661-42de-9319-bbe987d27327",
+          "9809d7f7-c91c-4883-872a-0c8581eb71e5",
+          "a245bb3b-9126-4361-824b-2b27fbba9696",
+          "d754022f-9921-4701-9b41-d40f265cb311",
+          "e40512d7-e083-4dd0-9dd2-5b81f557c87f"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "banned",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "IKO",
+        "MB2",
+        "MUL",
+        "PIKO",
+        "PRM"
+      ],
+      "rulings": [
+        {
+          "date": "2020-04-17",
+          "text": "Auras attached to the exiled permanents will be put into their owners' graveyards. Equipment attached to the exiled permanents will become unattached and remain on the battlefield. Any counters on the exiled permanents will cease to exist. Once the exiled permanents return, they're considered new objects with no relation to the objects that they were."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "Before shuffling your deck to become your library, you may reveal one card from outside the game to be your companion if your starting deck meets the requirements of the companion ability. You can't reveal more than one. It remains revealed outside the game as the game begins."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "If a token is exiled this way, it will cease to exist and won't return to the battlefield."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "If more than one player wishes to reveal a companion, the starting player does so first, and players proceed in turn order. Once a player has chosen not to reveal a companion, that player can't change their mind."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "If you reveal a companion outside the game, for as long as it remains there, you may pay {3} any time you could cast a sorcery (that is, you have priority during your main phase and the stack is empty). Once you do, you put it into your hand and behaves like any other card you've brought into the game. For example, if it's discard, countered, or destroyed, it's put into your graveyard, remaining in the game. This is a change from previous rules."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "Paying {3} to put your companion into your hand is a special action. It doesn't use the stack and players can't respond to it. Once you take this action, you may cast that card if it's legal to do so before any other player can take actions."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "The companion ability has no effect if the card is in your starting deck and creates no restriction on putting a card with a companion ability into your starting deck. For example, Zirda may be in your starting deck even if your other permanent cards don't all have activated abilities."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "The companion's other abilities apply only if the creature is on the battlefield. They have no effect while the companion is outside the game."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "The requirements of the companion ability apply only to your starting deck. They do not apply to your sideboard."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "You can't exile permanents you control but don't own, or permanents that you own but don't control."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "You choose which permanents to exile as Yorion's triggered ability resolves. No player may take action between the time you choose the permanents and the time they're exiled."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "You may have one companion in the Commander variant. Your deck, including your commander, must meet its companion requirement. Your companion is not one of your one hundred cards."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "Your companion begins the game outside the game. In tournament play, this means your sideboard. In casual play, it's simply a card you own that's not in your starting deck."
+        },
+        {
+          "date": "2020-04-17",
+          "text": "Your minimum deck size is forty cards for Limited events (such as Booster Draft and Sealed Deck) and sixty cards for Constructed events (such as Standard or casual freeform play). Certain variants may have other minimums. The Commander variant requires exactly one hundred cards, so Yorion can never be your chosen companion in a Commander game."
+        },
+        {
+          "date": "2020-06-01",
+          "text": "If you reveal a companion outside the game, for as long as it remains there, you may pay {3} any time you could cast a sorcery (that is, you have priority during your main phase and the stack is empty). Once you do, you put it into your hand and behaves like any other card you've brought into the game. For example, if it's discarded, countered, or destroyed, it's put into your graveyard, remaining in the game. This is a change from previous rules."
+        },
+        {
+          "date": "2020-06-01",
+          "text": "Once you put your companion into your hand, it behaves like any other card you\u2019ve brought into the game. For example, if it\u2019s countered or destroyed, it\u2019s put into your graveyard, remaining in the game."
+        },
+        {
+          "date": "2020-06-01",
+          "text": "Paying {3} to put your companion into your hand is a special action. It doesn't use the stack and players can't respond to it. Once you take this action, you may cast that card if it's legal to do so before any other player can take actions."
+        },
+        {
+          "date": "2020-06-01",
+          "text": "Wizards of the Coast has issued functional errata for the Companion mechanic. Instead of casting companions from outside the game: Once per game, any time you could cast a sorcery (during your main phase when the stack is empty), you can pay {3} to put your companion from your sideboard into your hand. This is a special action, not an activated ability. It happens immediately and can\u2019t be responded to. It can\u2019t be countered or stopped by cards like Phyrexian Revoker. For more information please see https://magic.wizards.com/en/articles/archive/news/june-1-2020-banned-and-restricted-announcement"
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
     "Young Pyromancer": {
       "name": "Young Pyromancer",
       "mana_cost": {
@@ -91272,6 +91943,9 @@
     "Flickerwisp": [
       "Flying"
     ],
+    "Flitterwing Nuisance": [
+      "Flying"
+    ],
     "Furnace of Rath": [
       "Double"
     ],
@@ -91582,6 +92256,10 @@
     "Yarok, the Desecrated": [
       "Deathtouch",
       "Lifelink"
+    ],
+    "Yorion, Sky Nomad": [
+      "Companion",
+      "Flying"
     ],
     "Young Wolf": [
       "Undying"

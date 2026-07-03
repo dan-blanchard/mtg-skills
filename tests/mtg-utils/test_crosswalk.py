@@ -3314,6 +3314,16 @@ def test_control_exchange_owned_return_shape_only():
     assert "control_exchange" not in _keys("Gilded Drake")
 
 
+def test_control_exchange_excludes_owned_and_controlled_blink():
+    """Yorion exiles permanents you OWN **and** CONTROL — own+control is a
+    pure value blink (no steal-recovery is possible; CR 108.3 owned vs
+    701.12b exchanged control), rules-lawyer-adjudicated blocking in
+    batch 12. The veto is the CONJUNCTION on the same filter; Meneldor's
+    Owned:You with controller null keeps firing (the steal-recovery
+    shape)."""
+    assert "control_exchange" not in _keys("Yorion, Sky Nomad")
+
+
 def test_land_exchange_land_cored_exchange():
     """CR 701.12b: ExchangeControl whose target filters are Land-cored
     fires (Political Trickery, Vedalken Plotter); Gilded Drake's
@@ -3498,6 +3508,18 @@ def test_superfriends_matters_condition_site_only():
     assert "superfriends_matters" not in _keys("Chandra's Defeat")
     assert "superfriends_matters" not in _keys("Hero's Downfall")
     assert "superfriends_matters" not in _keys("Jace Beleren")
+
+
+def test_superfriends_matters_skips_whenever_event_recipients():
+    """A WheneverEvent damage-watcher condition carries the combat-damage
+    RECIPIENT list Or[Player, Planeswalker] (an attacked opposing
+    planeswalker per CR 506.2) — that is event plumbing, not a
+    planeswalker-you-control reference. The scan stops at WheneverEvent
+    subtrees (rules-lawyer-adjudicated blocking, batch 12); Hunter's
+    Insight and Flitterwing Nuisance stay out while the condition-site
+    positives above keep firing."""
+    assert "superfriends_matters" not in _keys("Hunter's Insight")
+    assert "superfriends_matters" not in _keys("Flitterwing Nuisance")
 
 
 def test_commander_matters_filter_property_not_metadata():
