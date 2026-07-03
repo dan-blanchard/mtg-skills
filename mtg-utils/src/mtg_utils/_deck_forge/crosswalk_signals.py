@@ -7237,11 +7237,19 @@ def _keyword_soup(tree: ConceptTree) -> list[Signal]:
     (space-stripped lower — "FirstStrike" → "firststrike").
 
     (b) the "same is true" absorb arm: an evergreen grant / place_counter
-    site plus the live ``_SAME_TRUE_KW_RE`` anchor in the kept oracle
+    site plus the live ``_SAME_TRUE_KW_RE`` anchor in the granting UNIT's
+    OWN text — description + effect raws, never the whole kept oracle
     (Urborg Scavengers, Escaped Shapeshifter — phase collapses the
-    conferred list to one lead-keyword grant, defeating the count)."""
-    same_true = bool(_SAME_TRUE_KW_RE.search(_kept(tree)))
+    conferred list to one lead-keyword grant, defeating the count; Roshan's
+    same-true extends an Assassin SUBTYPE grant on a different sentence and
+    must not absorb through his menace unit — adjudicated b13, CR
+    205.1b/205.3m vs 702.111a)."""
     for unit in tree.units:
+        unit_text = " ".join(
+            [getattr(unit.node, "description", None) or ""]
+            + [c.raw for c in unit.iter_concepts() if c.raw]
+        )
+        same_true = bool(_SAME_TRUE_KW_RE.search(unit_text))
         kinds: set[str] = set()
         for _sdef, mod in iter_mod_sites(unit.node):
             if tag_of(mod) != "AddKeyword":
@@ -7264,11 +7272,10 @@ def _keyword_soup(tree: ConceptTree) -> list[Signal]:
 
 def _island_matters(tree: ConceptTree) -> list[Signal]:
     """island_matters (§D) — CR 702.14c: the pinned ISLAND_MATTERS_REGEX
-    kept mirror (Dandân, the serpents). Zhou Yu is absent from phase
-    card-data entirely — a documented live-side join artifact, not a
-    regression (the mirror reproduces live for every joinable record).
-    Bearers/granters of islandwalk are island_MAKERS material (Segovian
-    Leviathan never fires here)."""
+    kept mirror (Dandân, the serpents, Zhou Yu — present in phase v0.9.0
+    and firing; an implement-time "absent entirely" claim was retracted by
+    the b13 adjudication). Bearers/granters of islandwalk are
+    island_MAKERS material (Segovian Leviathan never fires here)."""
     if _ISLAND_MATTERS_RX.search(_kept(tree)):
         return [Signal("island_matters", "you", "", "", tree.name, "high")]
     return []

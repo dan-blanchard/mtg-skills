@@ -3875,6 +3875,15 @@ def test_keyword_soup_per_site_count_and_same_true_absorb():
     assert "keyword_soup" not in _keys("Lightwalker")
 
 
+def test_keyword_soup_same_true_scoped_to_granting_site():
+    """Roshan, Hidden Magister's "The same is true" sentence extends an
+    Assassin SUBTYPE grant (CR 205.1b/205.3m) — his only keyword grant is
+    menace. The same-true anchor must read the granting UNIT's own text,
+    never the whole kept oracle (rules-lawyer-adjudicated blocking, batch
+    13; parity-verified — all 22 banked live members still fire)."""
+    assert "keyword_soup" not in _keys("Roshan, Hidden Magister")
+
+
 # ── Batch 13: §D kept-mirror ports ───────────────────────────────────────────
 
 
@@ -3884,6 +3893,10 @@ def test_island_matters_mirror():
     never fires the matters lane."""
     assert ("island_matters", "you", "") in _idents("Dandân")
     assert "island_matters" not in _keys("Segovian Leviathan")
+    # RETRACTION (adjudicated b13): Zhou Yu IS present in phase card-data
+    # v0.9.0 and fires the mirror — the implement-time "absent entirely /
+    # genuinely phase-only" claim was a false provenance lookup.
+    assert ("island_matters", "you", "") in _idents("Zhou Yu, Chief Commander")
 
 
 def test_poison_matters_mirror_scope_opponents():
