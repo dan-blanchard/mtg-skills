@@ -65,13 +65,12 @@ def diff_corpus_crosswalk(
     idents: dict[Ident, dict] = {}
     per_key: dict[str, dict] = {}
     joined = 0
-    seen_oids: set[str] = set()
     skipped = {
         "no_oracle_id": 0,
         "not_in_bulk": 0,
         "not_in_ir": 0,
         "not_commander_legal": 0,
-        "duplicate_printing": 0,
+        "same_oid_extra_faces": 0,
         "schema_drift": 0,
     }
 
@@ -86,14 +85,23 @@ def diff_corpus_crosswalk(
         if len(ex) < example_cap and name not in ex:
             ex.append(name)
 
+    # Group phase records by oracle_id FIRST (b10 follow-up g): a DFC carries
+    # BOTH faces as separate records sharing one scryfall_oracle_id, and the
+    # old first-record dedup silently dropped the second face's signals
+    # (counter_control's 17 spurious diffs). The crosswalk idents are the
+    # UNION across same-oid records; the live path already reads the whole
+    # merged bulk record.
+    grouped: dict[str, list[dict]] = {}
     for rec in phase_records:
         oid = rec.get("scryfall_oracle_id")
         if not oid:
             skipped["no_oracle_id"] += 1
             continue
-        if oid in seen_oids:
-            skipped["duplicate_printing"] += 1
-            continue
+        if oid in grouped:
+            skipped["same_oid_extra_faces"] += 1
+        grouped.setdefault(oid, []).append(rec)
+
+    for oid, recs in grouped.items():
         bulk = bulk_index.get(oid)
         if bulk is None:
             skipped["not_in_bulk"] += 1
@@ -108,25 +116,29 @@ def diff_corpus_crosswalk(
         ):
             skipped["not_commander_legal"] += 1
             continue
-        try:
-            root = strict_load_card(rec, schema, name=rec.get("name"))
-        except MirrorDriftError:
-            skipped["schema_drift"] += 1
-            continue
-        if root is None:  # build=True always materializes; narrow for the type
-            skipped["schema_drift"] += 1
-            continue
-        seen_oids.add(oid)
-        joined += 1
-
-        name = bulk.get("name", rec.get("name", ""))
-        tree = build_concept_tree(root, name=name, oracle_id=oid)
+        name = bulk.get("name", recs[0].get("name", ""))
         # mill_makers is a Scryfall-``Mill``-keyword field-lookup (ADR-0027); the
         # keyword lives on the bulk record, not the phase substrate.
         kws = frozenset(bulk.get("keywords") or [])
-        crosswalk = _slice(
-            extract_crosswalk_signals(tree, keys=keys, keywords=kws), keys
-        )
+        crosswalk: set[Ident] = set()
+        loaded_any = False
+        for rec in recs:
+            try:
+                root = strict_load_card(rec, schema, name=rec.get("name"))
+            except MirrorDriftError:
+                skipped["schema_drift"] += 1
+                continue
+            if root is None:  # build=True always materializes; narrow for type
+                skipped["schema_drift"] += 1
+                continue
+            loaded_any = True
+            tree = build_concept_tree(root, name=name, oracle_id=oid)
+            crosswalk |= _slice(
+                extract_crosswalk_signals(tree, keys=keys, keywords=kws), keys
+            )
+        if not loaded_any:
+            continue
+        joined += 1
         live = _slice(extract_signals_hybrid(bulk, ir), keys)
         for ident in crosswalk & live:
             tally(ident, BOTH, name)
@@ -153,7 +165,7 @@ def render_report(report: dict) -> str:
         f"(skipped: {sk['no_oracle_id']} no-oracle_id, {sk['not_in_bulk']} "
         f"not-in-bulk, {sk['not_in_ir']} not-in-IR, "
         f"{sk['not_commander_legal']} not-commander-legal, "
-        f"{sk['duplicate_printing']} dup-printings, "
+        f"{sk['same_oid_extra_faces']} same-oid faces unioned, "
         f"{sk['schema_drift']} schema-drift).",
         "",
         "## Per-key reproduce rollup",

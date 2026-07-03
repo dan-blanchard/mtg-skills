@@ -2748,6 +2748,414 @@ def test_target_player_draws_excludes_scoped_player_group_draw():
     assert ("card_draw_engine", "each", "") in _idents("Academy Loremaster")
 
 
+# ── Batch 11: replacement-doubler cluster (§A) ────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Doubling Season", True),  # CreateToken replacement, Times 2, You
+        ("Parallel Lives", True),
+        ("Primal Vigor", True),  # symmetric no-owner-scope — beneficiary is you
+        ("Hardened Scales", False),  # AddCounter event — the counter lane
+        ("Vizier of Remedies", False),  # Minus reducer
+    ],
+)
+def test_token_doubling_replacement_read(name, should_fire):
+    """CR 614.1a + 111.1: a CreateToken replacement with an INCREASE
+    quantity_modification is the token doubler; an AddCounter event or a
+    reducer never fires. Case law (Doubling Season): two Seasons = four
+    times the tokens."""
+    assert (("token_doubling", "you", "") in _idents(name)) is should_fire
+
+
+def test_token_doubling_co_fires_copy_and_matters():
+    """Live ADR-0027 C5 co-fire reproduced: a token doubler forks token-copy
+    spells and is a go-wide payoff — token_copy_makers + tokens_matter open
+    alongside."""
+    idents = _idents("Parallel Lives")
+    assert ("token_copy_makers", "you", "") in idents
+    assert ("tokens_matter", "you", "") in idents
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Doubling Season", True),  # AddCounter Times 2, Permanent/You
+        ("Hardened Scales", True),  # Plus 1 — live counter_doubling co-fires
+        ("Vorel of the Hull Clade", True),  # arm b: Double {Counters} effect
+        ("Kalonian Hydra", True),  # arm c: triggered MultiplyCounter x2
+        ("Vizier of Remedies", False),  # Minus — a REDUCER (M1M1 minus one)
+        ("Parallel Lives", False),  # CreateToken event — the token lane
+    ],
+)
+def test_counter_doubling_arms(name, should_fire):
+    """CR 614.1a + 122.1: the AddCounter increase replacement (live's
+    counter_doubling category is Times AND Plus — measured live parity:
+    Hardened Scales carries both keys), the one-shot Double{Counters}
+    (Vorel — the live byte-mirror's "phase mangles Vorel" complaint was
+    STALE), and the triggered MultiplyCounter (Kalonian Hydra). Case law
+    (Vorel): "essentially double the counters on the target"."""
+    assert (("counter_doubling", "you", "") in _idents(name)) is should_fire
+
+
+def test_counter_replace_bonus_increase_gate():
+    """CR 614.1a: the increase gate IS the gate — Hardened Scales (Plus 1,
+    valid_card Creature/You) and the Doubling Season co-fire arm fire;
+    Vizier of Remedies' Minus never does. Case law (Hardened Scales): "that
+    many plus one instead"."""
+    assert ("counter_replace_bonus", "you", "") in _idents("Hardened Scales")
+    assert ("counter_replace_bonus", "you", "") in _idents("Doubling Season")
+    assert "counter_replace_bonus" not in _keys("Vizier of Remedies")
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Furnace of Rath", True),  # bare Double — every damage doubled
+        ("Gisela, Blade of Goldnight", True),  # opponent-directed Double
+        ("Gratuitous Violence", True),  # your-creatures source filter
+        ("Blind Fury", True),  # creature-only Double still amplifies
+        ("Palisade Giant", False),  # NO damage_modification — a shield
+        ("Vizier of Remedies", False),  # not a DamageDone event
+    ],
+)
+def test_damage_doubling_replacement_read(name, should_fire):
+    """CR 614.1a + 120.3: a DamageDone replacement carrying an AMPLIFY
+    damage_modification (Double/Triple/Plus — live's category includes the
+    Torbran +N amplifiers, measured); the prevention/redirect shields carry
+    no damage_modification and never fire."""
+    assert (("damage_doubling", "you", "") in _idents(name)) is should_fire
+
+
+def test_damage_doubling_direct_damage_co_fire_is_player_gated():
+    """Live ADR-0027 C7 reproduced: a player-reaching doubler (Furnace —
+    filterless; Gisela — opponent-side filter) co-fires direct_damage; the
+    creature-only doubler (Blind Fury — ``damage_target_filter:
+    "CreatureOnly"``) does not (measured live parity)."""
+    assert ("direct_damage", "you", "") in _idents("Furnace of Rath")
+    assert ("direct_damage", "you", "") in _idents("Gisela, Blade of Goldnight")
+    assert "direct_damage" not in _keys("Blind Fury")
+
+
+# ── Batch 11: damage-trigger cluster (§B) ─────────────────────────────────────
+
+
+def test_damage_reflect_co_occurrence():
+    """CR 603.2 + 120.3: Boros Reckoner's DamageReceived trigger + same-unit
+    DealDamage fires; Phytohydra (a DealtDamage REPLACEMENT with a
+    PutCounter execute — different node family) and Michiko (a DamageDone
+    watcher) never do. Case law (Boros Reckoner): the reflected damage
+    "isn't combat damage"."""
+    assert ("damage_reflect", "you", "") in _idents("Boros Reckoner")
+    assert "damage_reflect" not in _keys("Phytohydra")
+    assert "damage_reflect" not in _keys("Michiko Konda, Truth Seeker")
+
+
+def test_damage_to_you_punish_direction_gates():
+    """CR 603.2 + 102.2/102.3: Michiko's DamageDone + valid_target
+    {Controller} + Opponent-controlled valid_source fires (the live "no
+    structural shape" comment was STALE); Boros Reckoner (DamageReceived)
+    and Hypnotic Specter (target Opponent — the wrong direction) never do.
+    Case law (Michiko): "One permanent is sacrificed each time an
+    opponent's source deals damage"."""
+    assert (
+        "damage_to_you_punish",
+        "opponents",
+        "",
+    ) in _idents("Michiko Konda, Truth Seeker")
+    assert "damage_to_you_punish" not in _keys("Boros Reckoner")
+    assert "damage_to_you_punish" not in _keys("Hypnotic Specter")
+
+
+def test_combat_damage_to_creature_recipient_gate():
+    """CR 510.1c: Serpentine Basilisk's CombatOnly Creature-recipient fires
+    scope "any"; Seshiro's Player recipient routes to the player-connect
+    lanes instead."""
+    assert ("combat_damage_to_creature", "any", "") in _idents("Serpentine Basilisk")
+    assert "combat_damage_to_creature" not in _keys("Seshiro the Anointed")
+
+
+def test_tribe_damage_trigger_population_gate():
+    """CR 510.1b: a YOUR-controlled creature POPULATION source (Seshiro's
+    Snakes — subtype; Coastal Piracy's Creature core) reaching a player
+    fires; a SelfRef single doer (Hypnotic Specter) and an
+    opponent-controlled source (Michiko) never do (checklist #6 — the You
+    gate on valid_source IS the lane)."""
+    assert ("tribe_damage_trigger", "you", "") in _idents("Seshiro the Anointed")
+    assert ("tribe_damage_trigger", "you", "") in _idents("Coastal Piracy")
+    assert "tribe_damage_trigger" not in _keys("Hypnotic Specter")
+    assert "tribe_damage_trigger" not in _keys("Michiko Konda, Truth Seeker")
+    assert "tribe_damage_trigger" not in _keys("Serpentine Basilisk")
+
+
+def test_batched_combat_damage_mode_joins_the_event_read():
+    """b10 follow-up (d): the ``DamageDoneOnceByController`` batched mode
+    ("whenever one or more Rogues you control deal combat damage to a
+    player" — Anowon) joins the shared deals_damage read — the combat
+    connect, the ported to_opp lane, and the tribal population lane all
+    fire (measured live parity)."""
+    idents = _idents("Anowon, the Ruin Thief")
+    assert ("combat_damage_matters", "opponents", "") in idents
+    assert ("combat_damage_to_opp", "opponents", "") in idents
+    assert ("tribe_damage_trigger", "you", "") in idents
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Pestilence", True),  # DamageAll + player_filter All
+        ("Earthquake", True),  # the X-form the deleted regex missed
+        ("Witty Roastmaster", False),  # each-OPPONENT — one-sided (259 corpus)
+        ("Pyroclasm", False),  # creatures-only sweep, no player reach
+    ],
+)
+def test_symmetric_damage_each_player_filter_gate(name, should_fire):
+    """CR 102.2/102.3: the each-PLAYER vs each-OPPONENT split is the whole
+    gate, read off the effect's OWN player_filter node (checklist #5)."""
+    assert (("symmetric_damage_each", "each", "") in _idents(name)) is should_fire
+
+
+def test_aoe_ping_repeatable_gate():
+    """CR 120.3: Pestilence's activated ``{B}`` DamageAll-creatures is a
+    repeatable pinger; the one-shot Spell sweeps (Pyroclasm — mass_removal
+    country; Earthquake — §9 only) never fire."""
+    assert ("aoe_ping", "you", "") in _idents("Pestilence")
+    assert "aoe_ping" not in _keys("Pyroclasm")
+    assert "aoe_ping" not in _keys("Earthquake")
+
+
+def test_creature_ping_power_scaled_gate():
+    """CR 120.3: Ram Through's POWER-scaled Ref amount into a Creature-cored
+    target fires; a fixed-amount pinger (Prodigal Sorcerer) never does."""
+    assert ("creature_ping", "you", "") in _idents("Ram Through")
+    assert "creature_ping" not in _keys("Prodigal Sorcerer")
+
+
+# ── Batch 11: counter / ETB / cast trigger-event cluster (§C) ────────────────
+
+
+def test_counter_place_trigger_typed_lore_gate():
+    """CR 122.1 + 714.2b: Scurry Oak's P1P1 CounterAdded payoff fires; a
+    Saga's chapters ARE lore-CounterAdded triggers ("{rN}—[Effect]" means
+    "When one or more lore counters are put onto this Saga…") — History of
+    Benalia's three lore-typed chapters must not open a counters
+    build-around. The typed counter_filter is a CLEANER gate than live's
+    type_line sniff."""
+    assert ("counter_place_trigger", "you", "") in _idents("Scurry Oak")
+    assert "counter_place_trigger" not in _keys("History of Benalia")
+
+
+def test_counter_place_trigger_effect_and_opponent_vetoes():
+    """Cathars' Crusade PLACES counters via effect (ChangesZone trigger +
+    PutCounterAll — no CounterAdded mode) and stays out; Kros's
+    opponent-side population punisher ("creature you don't control" —
+    valid_card controller Opponent) is vetoed (checklist #6)."""
+    assert "counter_place_trigger" not in _keys("Cathars' Crusade")
+    assert "counter_place_trigger" not in _keys("Kros, Defense Contractor")
+
+
+def test_tribal_etb_multi_vocab_gate():
+    """CR 603.6a: Noxious Ghoul's Or[SelfRef, Zombie] watcher surfaces the
+    vocab-validated Zombie subtype through the Or walk; Soul Warden's
+    generic Creature watcher is creature_etb, not tribal."""
+    assert ("tribal_etb_multi", "you", "") in _idents("Noxious Ghoul")
+    assert "tribal_etb_multi" not in _keys("Soul Warden")
+
+
+def test_typed_enters_punish_damage_direction():
+    """CR 603.6a + 102.2/102.3: Witty Roastmaster's your-creature ETB +
+    typed ``DamageEachPlayer {player_filter: Opponent}`` fires (the shape
+    live could only recover from raw); Suture Priest (opponent-enterer
+    watcher / GainLife payoff) and Soul Warden (no damage) never do."""
+    assert ("typed_enters_punish", "you", "") in _idents("Witty Roastmaster")
+    assert "typed_enters_punish" not in _keys("Suture Priest")
+    assert "typed_enters_punish" not in _keys("Soul Warden")
+
+
+def test_noncreature_cast_punish_non_entry_gate():
+    """CR 603.2 + 102.2 (scope "any" — "a player" includes you): Ruric
+    Thar's ``{Non: Creature}`` watched-spell entry is the discriminator,
+    read via the negation-aware non-type read; Beast Whisperer (Creature
+    core) stays out."""
+    assert ("noncreature_cast_punish", "any", "") in _idents("Ruric Thar, the Unbowed")
+    assert "noncreature_cast_punish" not in _keys("Beast Whisperer")
+
+
+def test_noncreature_cast_punish_prowess_caster_gate():
+    """Checklist #5 (corpus-measured — 126 prowess over-fires without it):
+    the YOU-cast noncreature REWARD (Burning Prophet — ``valid_target
+    {Controller}``) is prowess, not a punisher, and never fires; Ruric
+    Thar's recipient-less symmetric watcher still does."""
+    assert "noncreature_cast_punish" not in _keys("Burning Prophet")
+
+
+# ── Batch 11: tap cluster (§D) ───────────────────────────────────────────────
+
+
+def test_tap_down_opponent_and_detain_arms():
+    """CR 701.26a + 701.35 (Detain glossary: "temporarily stops a permanent
+    from attacking, blocking, or having its activated abilities
+    activated"): Dungeon Geists' opponent-controlled tap target fires arm
+    a; Azorius Arrester's Detain fires arm b; the controller-null taps
+    (Master Decoy, Frost Titan) are tapper_engine only — live's strict opp
+    gate."""
+    assert ("tap_down", "opponents", "") in _idents("Dungeon Geists")
+    assert ("tap_down", "opponents", "") in _idents("Azorius Arrester")
+    assert "tap_down" not in _keys("Master Decoy")
+    assert "tap_down" not in _keys("Frost Titan")
+
+
+def test_tapper_engine_real_target_and_cost_self_exclusion():
+    """CR 701.26a: Master Decoy / Frost Titan's SetTapState with a real
+    Typed target fire scope "any" (Frost Titan also via the typed CantUntap
+    static rider); Prodigal Sorcerer's tap-as-COST emits no SetTapState
+    effect and self-excludes (live's subject-is-not-None gate)."""
+    assert ("tapper_engine", "any", "") in _idents("Master Decoy")
+    assert ("tapper_engine", "any", "") in _idents("Frost Titan")
+    assert ("tapper_engine", "any", "") in _idents("Dungeon Geists")
+    assert "tapper_engine" not in _keys("Prodigal Sorcerer")
+
+
+def test_tap_untap_matters_trigger_events():
+    """CR 603.2e + 701.26a: the becomes-tapped payoff (Attentive Sunscribe —
+    Taps mode) and the Inspired becomes-untapped payoff (Pain Seer — Untaps
+    mode, SelfRef live-included) fire; the tap DOER (Master Decoy) never
+    does."""
+    assert ("tap_untap_matters", "you", "") in _idents("Attentive Sunscribe")
+    assert ("tap_untap_matters", "you", "") in _idents("Pain Seer")
+    assert "tap_untap_matters" not in _keys("Master Decoy")
+
+
+# ── Batch 11: library / zone cluster (§E) ────────────────────────────────────
+
+
+def test_dig_until_own_library_gate():
+    """CR 701.20a: Hermit Druid's RevealUntil with player {Controller}
+    fires; the FIXED-count reveal (Fact or Fiction — a RevealTop node, a
+    different node type) never does."""
+    assert ("dig_until", "you", "") in _idents("Hermit Druid")
+    assert "dig_until" not in _keys("Fact or Fiction")
+
+
+def test_exile_until_leaves_duration_gate():
+    """CR 611.2b + 603.6c: both O-Ring forms carry ``UntilHostLeavesPlay``
+    on the exiling unit (Banisher Priest single-trigger; Oblivion Ring's
+    ETB trigger — the return half alone never fires per CR 603.6c's
+    from-anywhere caveat); a bare exile removal (Path to Exile — no
+    duration) is the ported exile_removal, not this lane. Case law
+    (Banisher Priest): a token exiled this way ceases to exist."""
+    assert ("exile_until_leaves", "you", "") in _idents("Banisher Priest")
+    assert ("exile_until_leaves", "you", "") in _idents("Oblivion Ring")
+    assert "exile_until_leaves" not in _keys("Path to Exile")
+
+
+# ── Batch 11: bonus ports (§F) ───────────────────────────────────────────────
+
+
+def test_typed_spellcast_you_cast_discriminator():
+    """CR 603.2 + 102.2: the typed you-cast discriminator — Lys Alana's
+    "Whenever you cast an Elf spell" carries ``valid_target {Controller}``
+    and fires subject Elf (REPLACES live's "you cast" oracle-regex gate);
+    the symmetric hoser (Elvish Handservant — no valid_target) and the
+    subtype-less creature-cast watcher (Beast Whisperer) never fire."""
+    assert ("typed_spellcast", "you", "Elf") in _idents("Lys Alana Huntmaster")
+    assert "typed_spellcast" not in _keys("Elvish Handservant")
+    assert "typed_spellcast" not in _keys("Beast Whisperer")
+
+
+def test_legends_matter_filter_property():
+    """CR 205.4d: Reki's ``HasSupertype: Legendary`` watched-spell filter
+    fires; being legendary ITSELF (Ruric Thar — no Legendary-referencing
+    filter) is not legends-matter."""
+    assert ("legends_matter", "you", "") in _idents("Reki, the History of Kamigawa")
+    assert "legends_matter" not in _keys("Ruric Thar, the Unbowed")
+
+
+def test_historic_matters_filter_property():
+    """CR 700.6 ("The term historic refers to an object that has the
+    legendary supertype, the artifact card type, or the Saga subtype"):
+    Jhoira's ``Historic`` filter property fires; Reki's Legendary-only
+    filter does not cross-fire."""
+    assert ("historic_matters", "you", "") in _idents("Jhoira, Weatherlight Captain")
+    assert "historic_matters" not in _keys("Reki, the History of Kamigawa")
+
+
+def test_self_blink_chain_join():
+    """CR 611.2b (contrast 603.6c): Aetherling's ChangeZone SelfRef→Exile +
+    the delayed ParentTarget return in the SAME unit fires (live is
+    kept-mirror-ONLY — STALE for the v0.9.0 mirror); exiling ANOTHER target
+    (Banisher Priest, Oblivion Ring) fails the SelfRef gate."""
+    assert ("self_blink", "you", "") in _idents("Aetherling")
+    assert "self_blink" not in _keys("Banisher Priest")
+    assert "self_blink" not in _keys("Oblivion Ring")
+
+
+def test_self_blink_saga_and_unearth_vetoes_scoped_by_live_parity():
+    """Corpus-measured, SCOPED gates (parity-before-veto): the
+    transforming-Saga lore-chapter flip ("Exile this Saga, then return it
+    to the battlefield transformed" — The Restoration of Eiganjo; 29
+    corpus, live uniformly no-fire; CR 714.2b) and unearth's
+    graveyard-origin self-return (Anathemancer — CR 702.84a) never fire —
+    but the NON-Saga transform flip live DOES fire (Liliana, Heretical
+    Healer's dies-flip, measured) stays IN: a blanket enter_transformed
+    veto would have regressed live members."""
+    assert "self_blink" not in _keys("The Restoration of Eiganjo")
+    assert "self_blink" not in _keys("Anathemancer")
+    assert ("self_blink", "you", "") in _idents("Liliana, Heretical Healer")
+
+
+# ── Batch 11: batch-10 adjudicated follow-ups ────────────────────────────────
+
+
+def test_ltb_matters_condition_arm_zone_precise():
+    """Follow-up (a): the Revolt-family typed ``ZoneChangeCountThisTurn
+    {from: Battlefield}`` condition with controller You fires (Airdrop
+    Aeronauts); Morbid's ``to: Graveyard`` variant (Tragic Slip — a death
+    check) is zone-precise and never fires."""
+    assert ("ltb_matters", "you", "") in _idents("Airdrop Aeronauts")
+    assert "ltb_matters" not in _keys("Tragic Slip")
+
+
+def test_creature_etb_entered_this_turn_arm():
+    """Follow-up (b): the "you had a creature enter under your control this
+    turn" condition family carries a typed ``EnteredThisTurn`` qty whose
+    filter is Creature-cored + controller You (Bellowing Elk); the
+    Celebration nonland-permanent form (Ash, Party Crasher) fails the
+    Creature gate (measured live parity)."""
+    assert ("creature_etb", "you", "") in _idents("Bellowing Elk")
+    assert "creature_etb" not in _keys("Ash, Party Crasher")
+
+
+def test_damage_prevention_shield_replacement_arm():
+    """Follow-up (c): the CR 615 prevention-shield MEMBERSHIP via typed
+    ``shield_kind {Prevention}`` on a DamageDone replacement (Palisade
+    Giant family) — redirect SEMANTICS deliberately uncaptured
+    (damage_redirect stays KEPT); an amplify replacement with no shield
+    (Furnace of Rath) never fires this lane."""
+    assert ("damage_prevention", "you", "") in _idents("Palisade Giant")
+    assert "damage_prevention" not in _keys("Furnace of Rath")
+
+
+def test_opponent_cast_matters_spell_cast_or_copy_mode():
+    """Follow-up (e): the batched ``SpellCastOrCopy`` mode joins the read —
+    Mage Hunter's opponent-scoped valid_target fires; the Controller-scoped
+    Magecraft form (Archmage Emeritus) stays out on the same recipient
+    gate."""
+    assert ("opponent_cast_matters", "opponents", "") in _idents("Mage Hunter")
+    assert "opponent_cast_matters" not in _keys("Archmage Emeritus")
+
+
+def test_base_pt_set_dynamic_pair_arm():
+    """Follow-up (f): the DYNAMIC base-P/T-set pair ``SetPowerDynamic`` +
+    ``SetToughnessDynamic`` fires on both shapes — the one-shot nested
+    static ("base power and toughness X/X" — Biomass Mutation) and the
+    top-level equipped-creature static (Aettir and Priwen). Distinct from
+    the SetDynamicPower CDA tags (variable_pt — Tarmogoyf's */*)."""
+    assert ("base_pt_set", "any", "") in _idents("Biomass Mutation")
+    assert ("base_pt_set", "any", "") in _idents("Aettir and Priwen")
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

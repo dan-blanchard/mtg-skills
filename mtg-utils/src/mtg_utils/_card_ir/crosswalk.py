@@ -184,6 +184,24 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "DoublePTAll": "double_pt",
     "SwitchPT": "switch_pt",  # base_pt_set's switch arm (CR 613.4d)
     "ManifestDread": "facedown",  # facedown_makers + _matters (CR 701.55)
+    # Batch 11 (ADR-0035 Stage 2) — the tap / detain / library-dig / one-shot
+    # doubler cluster. ``SetTapState`` carries a ``state`` sub-node (Tap /
+    # Untap — CR 701.26a) the tap lanes discriminate on via
+    # :func:`settap_state`; ``Detain`` is the CR 701.35 tempo-denial (all
+    # opponent-targeted corpus-wide); ``RevealUntil`` the reveal-until-a-
+    # condition dig (CR 701.20a) whose digger rides ``player``;
+    # ``Double`` the one-shot quantity doubler whose ``target_kind``
+    # (Counters / LifeTotal / ManaPool) routes the lane (Vorel — the live
+    # byte-mirror's "phase mangles Vorel" complaint was STALE);
+    # ``MultiplyCounter`` the triggered counter-multiplier (Kalonian Hydra).
+    # NB: ``DamageAll`` / ``DamageEachPlayer`` stay mapped to ``deal_damage``
+    # (batch 2) — the spec's ``mass_damage`` remap would break the ported
+    # ``direct_damage`` parity; the mass lanes read the TAG via ``tag_of``.
+    "SetTapState": "tap_untap",  # tap_down / tapper_engine (CR 701.26a)
+    "Detain": "detain",  # tap_down's detain arm (CR 701.35)
+    "RevealUntil": "reveal_until",  # dig_until (CR 701.20a)
+    "Double": "double_quantity",  # counter_doubling arm b (CR 122.1)
+    "MultiplyCounter": "multiply_counter",  # counter_doubling arm c
 }
 
 # Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): a maker / sac-payoff over
@@ -281,6 +299,7 @@ class ConceptTree:
     oracle_id: str
     units: tuple[AbilityUnit, ...] = field(default_factory=tuple)
     card_types: tuple[str, ...] = ()  # the card's own core types (Creature / Land …)
+    card_subtypes: tuple[str, ...] = ()  # the card's own subtypes (Saga / Elf …)
 
     def is_type(self, core: str) -> bool:
         """Whether the card itself has core type ``core`` (Creature / Land / …).
@@ -645,6 +664,13 @@ def _trigger_event(trig: TypedMirrorNode) -> str:
         "YouAttack": "attacks",
         "SpellCast": "cast_spell",
         "DamageDone": "deals_damage",
+        # CR 510.1b batched form — "whenever one or more [creatures you
+        # control] deal (combat) damage to …" (Anowon, the Ruin Thief). Same
+        # valid_target / valid_source / damage_kind shape as ``DamageDone``;
+        # the live path fires the same combat-connect lanes on it (b10
+        # follow-up d).
+        "DamageDoneOnceByController": "deals_damage",
+        "DamageReceived": "damage_received",  # the "is dealt damage" reflector
         "CounterAdded": "counter_added",
         "LifeGained": "life_gained",
         "LifeLost": "life_lost",  # lifeloss_matters (CR 119.3)
@@ -1840,6 +1866,306 @@ def spell_count_at_least(root: object) -> int:
     return best
 
 
+# ── Batch-11 typed accessors (replacement / damage-trigger / tap / library) ──
+
+
+def replacement_event_tag(node: TypedMirrorNode) -> str:
+    """The ``event`` of a replacement node (``"CreateToken"`` / ``"AddCounter"``
+    / ``"DamageDone"`` / ``"Moved"`` …), ``""`` when absent. CR 614.1a — the
+    event discriminator splits the token / counter / damage doubler lanes.
+    """
+    ev = getattr(node, "event", MISSING)
+    return ev if isinstance(ev, str) else ""
+
+
+def replacement_qty_mod(node: TypedMirrorNode) -> tuple[str, int] | None:
+    """``(kind, n)`` of a replacement's ``quantity_modification``, or ``None``.
+
+    phase types the CR 614 quantity rewrites as a tagged node — ``Times``
+    (factor: Doubling Season x2), ``Plus`` (value: Hardened Scales +1),
+    ``Minus`` (Vizier of Remedies), ``Prevent``, ``Half``. The doubler lanes
+    gate on the INCREASE kinds; a reducer/denial never fires.
+    """
+    qm = getattr(node, "quantity_modification", MISSING)
+    if not _present(qm):
+        return None
+    t = tag_of(qm)
+    if t is None:
+        return None
+    f = getattr(qm, "factor", None)
+    v = getattr(qm, "value", None)
+    n = f if isinstance(f, int) else (v if isinstance(v, int) else 0)
+    return (t, n)
+
+
+def replacement_damage_mod(node: TypedMirrorNode) -> str | None:
+    """The tag of a replacement's ``damage_modification`` (``Double`` /
+    ``Triple`` / ``Plus`` / ``Minus`` / ``LifeFloor`` …), or ``None`` when the
+    node carries none (a pure prevention/redirect shield — Palisade Giant).
+    CR 614.1a + 120.3.
+    """
+    return tag_of(getattr(node, "damage_modification", None))
+
+
+def replacement_counter_match(node: TypedMirrorNode) -> str:
+    """The counter KIND a replacement's ``counter_match`` names (``"P1P1"`` /
+    ``"M1M1"``), ``""`` when kindless/absent. CR 122.1.
+    """
+    cm = getattr(node, "counter_match", MISSING)
+    if _present(cm) and tag_of(cm) == "OfType":
+        d = getattr(cm, "data", None)
+        return d if isinstance(d, str) else ""
+    return ""
+
+
+def replacement_shield_kind(node: TypedMirrorNode) -> str | None:
+    """The tag of a replacement's ``shield_kind`` (``Prevention`` — the CR 615
+    prevention-shield membership on a DamageDone replacement, Palisade Giant
+    family), or ``None``. Deliberately does NOT read ``redirect_target`` —
+    the redirect lane is a settled KEPT (phase drops the redirect side on all
+    but 8 corpus replacements).
+    """
+    sk = getattr(node, "shield_kind", MISSING)
+    if isinstance(sk, MirrorVariant):
+        return sk.key
+    if isinstance(sk, TypedMirrorNode):
+        return tag_of(sk)
+    return None
+
+
+def replacement_token_owner_scope(node: TypedMirrorNode) -> str:
+    """The ``token_owner_scope`` of a ``CreateToken`` replacement (``"You"``
+    — Doubling Season / Parallel Lives; ``""`` for the symmetric Primal
+    Vigor form). The give-away gate (checklist #2) reads it.
+    """
+    s = getattr(node, "token_owner_scope", MISSING)
+    return s if isinstance(s, str) else ""
+
+
+def damage_filter_scope(node: TypedMirrorNode, field: str) -> str | None:
+    """The player scope of a DamageDone replacement's ``damage_target_filter``
+    / ``damage_source_filter``, or ``None`` when absent.
+
+    Three phase shapes: a bare string (``"CreatureOnly"`` — Blind Fury) →
+    ``"objects"`` (no player reach); a variant ``{Player: {player}}`` /
+    ``{PlayerOrPermanentsControlledBy: {player}}`` → the named player's scope
+    (Gisela: Opponent → ``"opponents"``; Ali from Cairo: Controller →
+    ``"you"``); a ``Typed`` object filter (Gratuitous Violence's creature
+    source) → ``"objects"``. Checklist #5: direction reads the filter's OWN
+    player node, never a summary scope.
+    """
+    f = getattr(node, field, MISSING)
+    if not _present(f):
+        return None
+    if isinstance(f, str):
+        return "objects"
+    if isinstance(f, MirrorVariant):
+        if f.key in ("Player", "PlayerOrPermanentsControlledBy"):
+            ply = _variant_field(f.inner, "player")
+            return _scope_from_player_node(ply) or "any"
+        return "objects"
+    if isinstance(f, TypedMirrorNode):
+        if tag_of(f) in ("Typed", "Or", "And"):
+            return "objects"
+        return _scope_from_player_node(f) or "objects"
+    return None
+
+
+def trigger_counter_filter(trig: TypedMirrorNode) -> tuple[str, int]:
+    """``(counter_type, threshold)`` of a ``CounterAdded`` trigger's
+    ``counter_filter`` (``("lore", 3)`` — a Saga chapter, CR 714.2b;
+    ``("P1P1", 0)`` — Scurry Oak; ``("", 0)`` when kindless/absent).
+
+    The typed Saga gate: 723 of the 798 CounterAdded triggers are Saga
+    chapters, and the ``lore`` counter_type is a CLEANER discriminator than
+    live's type_line sniff.
+    """
+    cf = getattr(trig, "counter_filter", MISSING)
+    if not _present(cf):
+        return ("", 0)
+    ct = getattr(cf, "counter_type", None)
+    th = getattr(cf, "threshold", None)
+    return (
+        ct if isinstance(ct, str) else "",
+        th if isinstance(th, int) else 0,
+    )
+
+
+def trigger_caster_scope(trig: TypedMirrorNode) -> str | None:
+    """The cast-PLAYER scope of a ``SpellCast`` trigger's ``valid_target`` —
+    ``"you"`` for the "whenever YOU cast" form (Lys Alana — ``Controller``),
+    ``"opponents"`` for the opponent punisher, ``None`` for the symmetric
+    "a player casts" hoser (Elvish Handservant — no valid_target). The typed
+    you-cast discriminator that replaces live's ``_self_cast_oracle`` regex
+    gate. CR 603.2 + 102.2.
+    """
+    vt = getattr(trig, "valid_target", MISSING)
+    if not _present(vt):
+        return None
+    return _scope_from_player_node(vt)
+
+
+def settap_state(node: TypedMirrorNode) -> str | None:
+    """The ``state`` tag of a ``SetTapState`` effect (``Tap`` / ``Untap``),
+    or ``None``. CR 701.26a.
+    """
+    return tag_of(getattr(node, "state", None))
+
+
+def player_filter_tag(node: TypedMirrorNode) -> str | None:
+    """The ``player_filter`` tag of a ``DamageAll`` / ``DamageEachPlayer``
+    effect (``All`` — the symmetric Pestilence form; ``Opponent`` — the
+    one-sided Witty Roastmaster form), or ``None`` when the sweep never
+    reaches players (Pyroclasm). CR 102.2/102.3 — the each-PLAYER vs
+    each-OPPONENT split is the whole gate.
+    """
+    return tag_of(getattr(node, "player_filter", None))
+
+
+def double_target_kind(node: TypedMirrorNode) -> str | None:
+    """The ``target_kind`` tag of a one-shot ``Double`` effect (``Counters``
+    — Vorel; ``LifeTotal``; ``ManaPool``; ``None`` for the power doublers).
+    The counter_doubling arm gates on ``Counters`` exactly. CR 122.1.
+    """
+    return tag_of(getattr(node, "target_kind", None))
+
+
+def node_duration(node: object) -> str | None:
+    """The ``duration`` of an ability/effect wrapper, normalized to its tag
+    string (``"UntilHostLeavesPlay"`` — the O-Ring exile duration, CR 611.2b;
+    ``"UntilEndOfTurn"``; the parameterized ``{UntilNextStepOf: …}`` → its
+    KEY). ``None`` when absent.
+    """
+    d = getattr(node, "duration", MISSING)
+    if isinstance(d, str):
+        return d
+    if isinstance(d, MirrorVariant):
+        return d.key
+    if isinstance(d, TypedMirrorNode):
+        return tag_of(d)
+    return None
+
+
+def _find_owner_wrapper(
+    node: object, target: object, depth: int, seen: set[int]
+) -> TypedMirrorNode | None:
+    """The ability wrapper whose ``.effect`` IS ``target`` (same walk as
+    :func:`effect_owner_player_scope`'s), or ``None``."""
+    if depth > 40 or not isinstance(node, TypedMirrorNode) or id(node) in seen:
+        return None
+    seen.add(id(node))
+    if getattr(node, "effect", MISSING) is target:
+        return node
+    for fname in (*_EFFECT_CHILD_FIELDS, "mode_abilities"):
+        child = getattr(node, fname, MISSING)
+        if isinstance(child, TypedMirrorNode):
+            r = _find_owner_wrapper(child, target, depth + 1, seen)
+            if r is not None:
+                return r
+        elif _present(child) and isinstance(child, list):
+            for m in child:
+                r = _find_owner_wrapper(m, target, depth + 1, seen)
+                if r is not None:
+                    return r
+    return None
+
+
+def effect_owner_duration(root: object, effect_node: object) -> str | None:
+    """The ``duration`` tag on the wrapper that DIRECTLY owns ``effect_node``
+    (Banisher Priest's exile execute carries ``UntilHostLeavesPlay`` on the
+    Spell wrapper, not on the ``ChangeZone`` node itself), or ``None``.
+    CR 611.2b.
+    """
+    owner = _find_owner_wrapper(root, effect_node, 0, set())
+    return node_duration(owner) if owner is not None else None
+
+
+def reveal_until_player(node: TypedMirrorNode) -> str | None:
+    """The DIGGER of a ``RevealUntil`` effect from its ``player`` node —
+    ``"you"`` for an own-library dig (Hermit Druid — ``Controller``); the
+    opponent-library digs carry ``ParentTargetController`` /
+    ``TriggeringPlayer`` / ``Typed`` → not-you ([P16]-adjacent direction
+    gate). ``None`` when unresolvable. CR 701.20a.
+    """
+    return _scope_from_player_node(getattr(node, "player", None))
+
+
+def filter_non_types(filt: object) -> tuple[str, ...]:
+    """The words a typed filter NEGATES via ``{Non: X}`` entries ("noncreature
+    spell" — Ruric Thar → ``("Creature",)``; "non-Zombie" → ``("Zombie",)``).
+
+    The complement of :func:`_type_filter_words` (which DROPS the negation):
+    the noncreature-cast punisher gates on the ``Non`` entry itself being
+    present. Recurses ``Or`` / ``And``. CR 207.2c / 400.7.
+    """
+    out: list[str] = []
+    t = tag_of(filt)
+    if t == "Typed":
+        for tf in getattr(filt, "type_filters", ()) or ():
+            if isinstance(tf, MirrorVariant) and tf.key == "Non":
+                inner = tf.inner
+                if isinstance(inner, str):
+                    out.append(inner)
+                elif isinstance(inner, MirrorVariant):
+                    out.append(
+                        inner.inner if isinstance(inner.inner, str) else inner.key
+                    )
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            out.extend(filter_non_types(sub))
+    return tuple(out)
+
+
+def has_filter_property(root: object, tag: str, value: str | None = None) -> bool:
+    """Whether ANY typed node under ``root`` carries the property ``tag``
+    (optionally with ``value``) — the whole-card predicate scan behind the
+    legends_matter / historic_matters build-arounds (``HasSupertype:
+    Legendary`` — Reki; ``Historic`` — Jhoira). The property tags are unique
+    to filter ``properties`` entries, so the deep scan is precise. CR 205.4d
+    / 700.6.
+    """
+    for n in _iter_typed_nodes(root):
+        if tag_of(n) != tag:
+            continue
+        if value is None or getattr(n, "value", None) == value:
+            return True
+    return False
+
+
+def zone_change_count_reads(
+    root: object,
+) -> Iterator[tuple[str | None, str | None, object]]:
+    """``(from, to, filter)`` for every ``ZoneChangeCountThisTurn`` qty node
+    under ``root`` — the "a permanent left the battlefield this turn"
+    condition family (CR 603.10-adjacent state checks). Revolt carries
+    ``from: Battlefield`` with NO ``to`` (Airdrop Aeronauts); Morbid carries
+    ``to: Graveyard`` (Tragic Slip) — zone-precise, the two must not blur.
+    """
+    for n in _iter_typed_nodes(root):
+        if tag_of(n) != "ZoneChangeCountThisTurn":
+            continue
+        frm = getattr(n, "from_", MISSING)
+        to = getattr(n, "to", MISSING)
+        yield (
+            frm if isinstance(frm, str) else None,
+            to if isinstance(to, str) else None,
+            getattr(n, "filter", None),
+        )
+
+
+def entered_this_turn_filters(root: object) -> Iterator[object]:
+    """The ``filter`` of every ``EnteredThisTurn`` QTY node under ``root`` —
+    the "if a creature entered the battlefield under your control this turn"
+    condition family (Bellowing Elk; CR 603.6a-adjacent state check). A
+    filterless ``EnteredThisTurn`` (Cactuar's self-check) yields nothing.
+    """
+    for n in _iter_typed_nodes(root):
+        if tag_of(n) == "EnteredThisTurn":
+            f = getattr(n, "filter", MISSING)
+            if _present(f):
+                yield f
+
+
 # ── overlay construction ──────────────────────────────────────────────────────
 
 
@@ -2083,6 +2409,8 @@ def build_concept_tree(
     ct = getattr(root, "card_type", None)
     cores = getattr(ct, "core_types", None) if ct is not None else None
     card_types = tuple(c for c in cores if isinstance(c, str)) if cores else ()
+    subs = getattr(ct, "subtypes", None) if ct is not None else None
+    card_subtypes = tuple(s for s in subs if isinstance(s, str)) if subs else ()
     units: list[AbilityUnit] = []
 
     abilities = getattr(root, "abilities", ()) or ()
@@ -2164,5 +2492,9 @@ def build_concept_tree(
         )
 
     return ConceptTree(
-        name=nm, oracle_id=oid, units=tuple(units), card_types=card_types
+        name=nm,
+        oracle_id=oid,
+        units=tuple(units),
+        card_types=card_types,
+        card_subtypes=card_subtypes,
     )

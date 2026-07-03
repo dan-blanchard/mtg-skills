@@ -48,20 +48,26 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind,
     counter_kind_any,
     counter_pred_kinds,
+    damage_filter_scope,
     damage_recipient_is_player,
     discard_recipient_scope,
+    double_target_kind,
     double_triggers_cause_core_types,
     effect_filter,
+    effect_owner_duration,
     effect_owner_player_scope,
     effect_reaches_player,
+    entered_this_turn_filters,
     explicit_recipient_scope,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
+    filter_non_types,
     filter_owned_controller,
     filter_predicates,
     filter_subtypes,
     filter_without_keywords,
+    has_filter_property,
     is_dies_return_trigger,
     iter_cost_leaves,
     iter_deep_target_grants,
@@ -78,22 +84,33 @@ from mtg_utils._card_ir.crosswalk import (
     node_lure_mode,
     permission_tag,
     player_counter_kind,
+    player_filter_tag,
     power_threshold_preds,
     produced_contribution,
     pump_is_negative,
     recipient_tag,
     ref_qty_tag,
+    replacement_damage_mod,
+    replacement_event_tag,
+    replacement_qty_mod,
+    replacement_shield_kind,
+    replacement_token_owner_scope,
+    reveal_until_player,
+    settap_state,
     spell_count_at_least,
     static_mode_tag,
     static_reveal_who,
     tag_of,
+    trigger_caster_scope,
     trigger_constraint_n,
     trigger_constraint_tag,
+    trigger_counter_filter,
     trigger_damage_kind,
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
     trigger_turn_constraint,
+    zone_change_count_reads,
 )
 from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 from mtg_utils._deck_forge import signal_keys
@@ -295,6 +312,39 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "forced_attack",
         "damage_prevention",
         "damage_equal_power",
+        # Batch 11 (ADR-0035 Stage 2): the replacement-doubler cluster, the
+        # damage-trigger cluster, the counter/ETB/cast trigger-event cluster,
+        # the tap cluster, the library/zone cluster, and four probed bonus
+        # ports (§F).
+        "token_doubling",
+        "counter_doubling",
+        "counter_replace_bonus",
+        "damage_doubling",
+        "damage_reflect",
+        "damage_to_you_punish",
+        "combat_damage_to_creature",
+        "tribe_damage_trigger",
+        "symmetric_damage_each",
+        "aoe_ping",
+        "creature_ping",
+        "counter_place_trigger",
+        "tribal_etb_multi",
+        "typed_enters_punish",
+        "noncreature_cast_punish",
+        "tap_down",
+        "tapper_engine",
+        "tap_untap_matters",
+        "dig_until",
+        "exile_until_leaves",
+        signal_keys.TYPED_SPELLCAST,
+        "legends_matter",
+        "historic_matters",
+        "self_blink",
+        # NB: damage_redirect stays KEPT (spec §G): `redirect_target` exists
+        # on only 8 corpus replacements and Pariah itself parses with NO
+        # redirect_target (shield Prevention only — structurally identical to
+        # a pure prevention shield). SUPPLEMENT-RECOVERABLE ("is dealt to [X]
+        # instead" carries the signal); the live word mirrors stay.
         # NB: land_destruction stays KEPT (batch-8 reclassification upheld):
         # the membership-gated structural arm reproduces the live 23-card set
         # 23/23 but adds 2 non-byte-identical extras (Goblin Grenadiers,
@@ -4534,9 +4584,15 @@ def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
       ``DoubleTriggers`` static whose cause is an ``EntersBattlefield`` whose
       core types include Creature — or are EMPTY, the any-permanent form that
       subsumes creatures (Panharmonicon / Yarok / Elesh Norn, per
-      Panharmonicon's 2021-03-19 ruling). The Ephara-style delayed condition
-      ("you had a creature enter under your control") has no phase condition
-      node — SUPPLEMENT-recoverable, logged, not forced.
+      Panharmonicon's 2021-03-19 ruling). **Arm 3** (b10 follow-up b): the
+      "if a creature entered the battlefield under your control this turn"
+      CONDITION family carries a typed ``EnteredThisTurn`` qty whose filter
+      names the population (Bellowing Elk — Creature core, controller You;
+      the batch-10 "no phase condition node" comment was STALE for this
+      slice). The Celebration nonland-permanent forms (Ash, Party Crasher)
+      and the filterless self-check (Cactuar) fail the Creature/You gates
+      (measured live parity); Ephara HERSELF still parses condition-less —
+      that residue stays SUPPLEMENT, logged.
     * ``permanent_etb`` — the GENERIC permanent-ETB engine: a Permanent-cored
       watcher with controller You (Amareth; checklist #6 — an opp-scoped
       permanent-ETB punisher is excluded, mirroring live).
@@ -4562,6 +4618,11 @@ def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
             dt_cores = double_triggers_cause_core_types(unit.node)
             if dt_cores is not None and (not dt_cores or "Creature" in dt_cores):
                 fire("creature_etb", "you")
+        for filt in entered_this_turn_filters(unit.node):
+            if "Creature" in filter_core_types(filt) and (
+                filter_controller(filt) == "You"
+            ):
+                fire("creature_etb", "you")
     return out
 
 
@@ -4575,9 +4636,17 @@ def _ltb_matters(tree: ConceptTree) -> list[Signal]:
     boundary the exile_matters lane draws); a graveyard-ARRIVAL "from
     anywhere" watcher (Compost — dest Graveyard, no battlefield origin) is
     graveyard territory, and CR 603.6c explicitly de-classifies it as an LTB
-    ability. The "a permanent left the battlefield this turn" CONDITION
-    family has no phase node — SUPPLEMENT, logged. Scope from the watched
-    object's controller.
+    ability. Third arm (b10 follow-up a — the batch-10 "no phase node"
+    comment was STALE): the "a permanent left the battlefield under your
+    control this turn" CONDITION family carries a typed
+    ``ZoneChangeCountThisTurn {from: Battlefield}`` qty (the Revolt shape —
+    Airdrop Aeronauts / Aid from the Cowl; 33 corpus with controller You).
+    Zone-precise: Morbid's ``to: Graveyard`` variant (Tragic Slip — a death
+    check) and the bounce-precise ``to: Hand`` (Barrin, Tolarian Archmage)
+    carry a ``to`` and never fire; the controller-less symmetric forms
+    (Alpharael, Stonechosen) fail the You gate (measured live parity). Scope
+    from the watched object's controller (trigger arms) / "you" (condition
+    arm, matching live).
     """
     for unit in tree.units:
         if unit.origin != "trigger":
@@ -4592,6 +4661,10 @@ def _ltb_matters(tree: ConceptTree) -> list[Signal]:
         if is_ltb:
             scope = trigger_subject_scope(unit.node)
             return [Signal("ltb_matters", scope, "", "", tree.name, "high")]
+    for unit in tree.units:
+        for frm, to, filt in zone_change_count_reads(unit.node):
+            if frm == "Battlefield" and to is None and filter_controller(filt) == "You":
+                return [Signal("ltb_matters", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -4620,10 +4693,17 @@ def _opponent_cast_matters(tree: ConceptTree) -> list[Signal]:
     checklist #5, the recipient node, never a summary scope). The SYMMETRIC "a
     player casts" punisher (Eidolon of the Great Revel — no recipient node) is
     CORRECTLY excluded: "a player" includes you (CR 102.1). A self-cast
-    watcher (Beast Whisperer — ``Controller``) never fires. Scope "opponents".
+    watcher (Beast Whisperer — ``Controller``) never fires. The batched
+    ``SpellCastOrCopy`` mode ("whenever [a player] casts or copies …", 33
+    corpus — b10 follow-up e) joins the same read: its opponent-scoped
+    ``valid_target`` fires, its Controller-scoped form (Archmage Emeritus)
+    stays out on the same gate. Scope "opponents".
     """
     for unit in tree.units:
-        if unit.origin != "trigger" or unit.trigger_event != "cast_spell":
+        if unit.origin != "trigger" or unit.trigger_event not in (
+            "cast_spell",
+            "spellcastorcopy",
+        ):
             continue
         vt = getattr(unit.node, "valid_target", None)
         opp = tag_of(vt) in ("Opponent", "Opponents", "EachOpponent") or (
@@ -4918,8 +4998,10 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
     sites: list[tuple[object, set[str]]] = []
     for unit in tree.units:
         if unit.origin == "static":
-            mods = {tag_of(c.node) or "" for c in unit.statics if c.concept == "set_pt"}
-            sites.append((getattr(unit.node, "affected", None), mods))
+            # raw modification tags (not the set_pt concept slice) so the
+            # dynamic pair on a top-level static (Aettir and Priwen)
+            # surfaces alongside SetPower/SetToughness.
+            sites.append((getattr(unit.node, "affected", None), mod_tags(unit.node)))
         # Filter-affected nested statics (Polymorphist's Jest — the affected
         # IS the population) read directly; ParentTarget-affected ones
         # resolve through the THREADED target walk (Ovinize's local target,
@@ -4935,7 +5017,15 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
         for resolved, st in iter_threaded_target_statics(unit.node):
             sites.append((resolved, mod_tags(st)))
     for resolved, mods in sites:
-        if not {"SetPower", "SetToughness"} <= mods:
+        # Fixed pair (Polymorphist's Jest) OR the DYNAMIC base-P/T-set pair
+        # (b10 follow-up f): ``SetPowerDynamic`` + ``SetToughnessDynamic``
+        # ("base power and toughness X/X" — Biomass Mutation; "…each equal
+        # to your life total" — Aettir and Priwen). Distinct from the
+        # ``SetDynamicPower`` CDA tags (:func:`_variable_pt` — Tarmogoyf).
+        if not (
+            {"SetPower", "SetToughness"} <= mods
+            or {"SetPowerDynamic", "SetToughnessDynamic"} <= mods
+        ):
             continue
         if tag_of(resolved) not in ("Typed", "Or", "And"):
             continue  # SelfRef self-transform, or an unresolvable ParentTarget
@@ -5015,14 +5105,26 @@ def _forced_attack(tree: ConceptTree) -> list[Signal]:
 def _damage_prevention(tree: ConceptTree) -> list[Signal]:
     """damage_prevention — the CR 615 prevention shield: a ``PreventDamage``
     effect (Fog — ``{amount: All, scope: CombatDamage}``; Story Circle's
-    activated next-time shield). Protection grants are a DIFFERENT node
-    (Gods Willing → :func:`_keyword_grant_lanes`); the Aura/ward
-    reminder-text tail rides the live byte mirror — SUPPLEMENT, logged.
-    Scope "you" (live).
+    activated next-time shield). Second arm (b10 follow-up c, adjudicated):
+    a ``DamageDone`` REPLACEMENT carrying ``shield_kind {Prevention}`` (the
+    Palisade Giant family, 146 corpus) — prevention-shield MEMBERSHIP only;
+    the redirect SEMANTICS deliberately stay uncaptured (``damage_redirect``
+    is a settled KEPT — Pariah parses indistinguishably from a pure shield).
+    Protection grants are a DIFFERENT node (Gods Willing →
+    :func:`_keyword_grant_lanes`); the Aura/ward reminder-text tail rides
+    the live byte mirror — SUPPLEMENT, logged. Scope "you" (live).
     """
     hits = tree.effect_concepts("prevent_damage")
     if hits:
         return [Signal("damage_prevention", "you", "", hits[0].raw, tree.name, "high")]
+    for unit in tree.units:
+        if (
+            unit.origin == "replacement"
+            and replacement_event_tag(unit.node) == "DamageDone"
+            and replacement_shield_kind(unit.node) == "Prevention"
+        ):
+            raw = getattr(unit.node, "description", None) or ""
+            return [Signal("damage_prevention", "you", "", raw, tree.name, "high")]
     return []
 
 
@@ -5051,6 +5153,584 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
                 return [
                     Signal("damage_equal_power", "you", "", c.raw, tree.name, "high")
                 ]
+    return []
+
+
+# ── Batch 11 lanes (ADR-0035 Stage 2) ────────────────────────────────────────
+
+# Replacement quantity-modification kinds that INCREASE the count (CR 614.1a).
+# Live's counter_doubling category is event==addcounter + an increase mod — the
+# measured live set fires BOTH counter_doubling and counter_replace_bonus on
+# Times AND Plus (Hardened Scales carries counter_doubling live), so both arms
+# read the same increase set; Minus (Vizier of Remedies) / Prevent never fire.
+_INCREASE_QTY_MODS: frozenset[str] = frozenset({"Times", "Plus"})
+# DamageDone replacement damage-modification kinds that AMPLIFY (CR 614.1a +
+# 120.3): Double (Furnace of Rath), Triple (Fiery Emancipation), Plus (Torbran
+# — live's damage_doubling category includes the +N amplifiers, measured).
+# LifeFloor (Ali from Cairo) / Minus (Lashknife Barrier) are shields/reducers.
+_DAMAGE_AMP_MODS: frozenset[str] = frozenset({"Double", "Triple", "Plus"})
+# Trigger modes marking a tap/untap payoff (CR 701.26a): phase's ``Taps`` /
+# ``TapsForMana`` (both "becomes tapped" family) + ``Untaps`` (Inspired).
+_TAP_EVENTS: frozenset[str] = frozenset({"taps", "untaps", "tapsformana"})
+# Self-return target tags for the self-blink return half (CR 611.2b): the
+# delayed return names the exiled object as ParentTarget / TrackedSet
+# (Aetherling) or SelfRef / TriggeringSource (granted-quote forms).
+_SELF_BLINK_RETURN_TAGS: frozenset[str] = frozenset(
+    {"ParentTarget", "TrackedSet", "SelfRef", "TriggeringSource"}
+)
+
+
+def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
+    """The CR 614.1a replacement-doubler cluster — one shared walk over the
+    typed replacement units, split by ``event`` (granularity a):
+
+    * ``token_doubling`` — a ``CreateToken`` replacement with an INCREASE
+      ``quantity_modification`` (Doubling Season ``Times 2``, Parallel Lives;
+      Primal Vigor's symmetric no-owner-scope form INCLUDED — the beneficiary
+      includes you). Give-away gate (checklist #2): an Opponent-only
+      ``token_owner_scope`` is excluded (zero corpus members; defensive).
+      Co-fires ``token_copy_makers`` + ``tokens_matter`` (live's ADR-0027 C5
+      read: a token doubler forks copies and is a go-wide payoff).
+    * ``counter_doubling`` + ``counter_replace_bonus`` — an ``AddCounter``
+      replacement with an INCREASE mod whose ``valid_card`` controller is
+      You/null (checklist #6). Live subsumption reproduced: both keys co-fire
+      on Times AND Plus (measured — Hardened Scales carries both). A
+      ``Minus`` reducer (Vizier of Remedies) and the CreateToken event never
+      fire. Case law: Vorel ruling "essentially double the counters".
+    * ``counter_doubling`` arm b/c (the probe win — live's "phase mangles
+      Vorel" byte-mirror complaint is STALE): the one-shot ``Double`` effect
+      with ``target_kind {Counters}`` (Vorel, 12 corpus — LifeTotal/ManaPool/
+      None target_kinds gated out) and the triggered ``MultiplyCounter``
+      (Kalonian Hydra — live counter_doubling fires, measured).
+    * ``damage_doubling`` — a ``DamageDone`` replacement carrying an AMPLIFY
+      ``damage_modification`` (Double/Triple/Plus). Direction gate
+      (checklist #2/#5, read off the replacement's OWN
+      ``damage_target_filter``): a YOUR-side-only doubler (doubles damage TO
+      you — a drawback) is vetoed; Gisela's opponent-side filter is the
+      include case. Shield replacements with NO damage_modification
+      (Palisade Giant) never fire. Co-fires ``direct_damage`` when the
+      doubler reaches players (live ADR-0027 C7): a filterless doubler
+      (Furnace of Rath) or a player-inclusive filter fires it; the
+      creature-only ``"CreatureOnly"`` filter (Blind Fury) does not
+      (measured live parity).
+
+    All scope "you" (live).
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", raw, tree.name, "high"))
+
+    for unit in tree.units:
+        if unit.origin != "replacement":
+            continue
+        node = unit.node
+        ev = replacement_event_tag(node)
+        raw = getattr(node, "description", None) or ""
+        if ev == "CreateToken":
+            qm = replacement_qty_mod(node)
+            if (
+                qm is not None
+                and qm[0] in _INCREASE_QTY_MODS
+                and replacement_token_owner_scope(node) != "Opponent"
+            ):
+                fire("token_doubling", raw)
+                fire("token_copy_makers", raw)
+                fire("tokens_matter", raw)
+        elif ev == "AddCounter":
+            qm = replacement_qty_mod(node)
+            vc = getattr(node, "valid_card", None)
+            if (
+                qm is not None
+                and qm[0] in _INCREASE_QTY_MODS
+                and filter_controller(vc) in (None, "You")
+            ):
+                fire("counter_doubling", raw)
+                fire("counter_replace_bonus", raw)
+        elif ev == "DamageDone":
+            mod = replacement_damage_mod(node)
+            if mod in _DAMAGE_AMP_MODS:
+                tscope = damage_filter_scope(node, "damage_target_filter")
+                if tscope != "you":  # the your-side-only drawback veto
+                    fire("damage_doubling", raw)
+                    if tscope in (None, "opponents", "each", "any"):
+                        fire("direct_damage", raw)
+    for c in tree.effect_concepts("double_quantity"):
+        if double_target_kind(c.node) == "Counters":
+            fire("counter_doubling", c.raw)
+    for c in tree.effect_concepts("multiply_counter"):
+        mult = getattr(c.node, "multiplier", None)
+        if isinstance(mult, int) and mult >= 2:
+            fire("counter_doubling", c.raw)
+    return out
+
+
+def _is_tribe_damage_source(vs: object) -> bool:
+    """Whether a damage trigger's ``valid_source`` is a YOUR-controlled
+    creature POPULATION (CR 510.1b): a Typed/Or filter with controller You
+    and either the Creature core type (Coastal Piracy) or a vocab-validated
+    creature subtype (Seshiro's Snakes; the AnyOf outlaw unions recurse). A
+    ``SelfRef`` source (Hypnotic Specter — a single doer) is not a
+    population."""
+    if tag_of(vs) not in ("Typed", "Or", "And"):
+        return False
+    if filter_controller(vs) != "You":
+        return False
+    if "Creature" in filter_core_types(vs):
+        return True
+    return any(_resolve_subject(s, CREATURE_SUBTYPES) for s in filter_subtypes(vs))
+
+
+def _damage_trigger_lanes(tree: ConceptTree) -> list[Signal]:
+    """The damage-trigger cluster (CR 603.2 + 120.3 / 510.1b/c) — one shared
+    trigger walk, direction read off each trigger's OWN ``valid_target`` /
+    ``valid_source`` nodes (checklist #5):
+
+    * ``damage_reflect`` — a ``DamageReceived`` trigger whose SAME unit deals
+      damage back (Boros Reckoner; co-occurrence, granularity a). Phytohydra
+      parses as a replacement with a PutCounter execute — out twice over.
+      Case law: "Damage dealt by Boros Reckoner due to its first ability
+      isn't combat damage."
+    * ``damage_to_you_punish`` — ``DamageDone`` with ``valid_target
+      {Controller}`` AND an Opponent-controlled ``valid_source`` (Michiko
+      Konda — the exact probed shape; live's "no structural shape" comment
+      was STALE). The ported ``damage_to_opp_matters`` direction (target
+      Opponent/Player) and the You-controlled source never fire. Scope
+      "opponents" (live's mirror scope).
+    * ``combat_damage_to_creature`` — ``DamageDone`` + ``CombatOnly`` kind +
+      a Creature-cored recipient (Serpentine Basilisk; CR 510.1c). A Player
+      recipient (Seshiro) is the ported player-connect lanes. Scope "any".
+    * ``tribe_damage_trigger`` — a player-reaching recipient AND a
+      your-creature-population source (Seshiro / Coastal Piracy; both
+      CombatOnly and Any damage kinds, live reads both; the batched
+      ``DamageDoneOnceByController`` mode — Anowon — joins via the shared
+      ``deals_damage`` event). Scope "you", bare key (live).
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, scope: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, scope, "", "", tree.name, "high"))
+
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        if unit.trigger_event == "damage_received" and unit.has_effect("deal_damage"):
+            fire("damage_reflect", "you")
+        if unit.trigger_event != "deals_damage":
+            continue
+        node = unit.node
+        vt = getattr(node, "valid_target", None)
+        vs = getattr(node, "valid_source", None)
+        if (
+            tag_of(vt) == "Controller"
+            and tag_of(vs) == "Typed"
+            and filter_controller(vs) == "Opponent"
+        ):
+            fire("damage_to_you_punish", "opponents")
+        if (
+            trigger_damage_kind(node) == "CombatOnly"
+            and tag_of(vt) == "Typed"
+            and "Creature" in filter_core_types(vt)
+            and "Player" not in filter_core_types(vt)
+        ):
+            fire("combat_damage_to_creature", "any")
+        if (
+            vt is not None
+            and damage_recipient_is_player(vt)
+            and _is_tribe_damage_source(vs)
+        ):
+            fire("tribe_damage_trigger", "you")
+    return out
+
+
+def _unit_is_repeatable(unit: AbilityUnit) -> bool:
+    """The aoe_ping repeatable gate (mirrors live): an Activated ability whose
+    cost leaves include Tap or Mana and do NOT include a Sacrifice
+    (Pestilence's ``{B}``), or a trigger on a Phase (upkeep/end step) or
+    SpellCast mode. A one-shot Spell (Pyroclasm), a sac-cost activation, and
+    an ETB-trigger sweep (Chaos Maw — ChangesZone mode) all fail."""
+    if unit.origin == "ability" and unit.kind == "Activated":
+        leaves = {tag_of(n) for n in iter_cost_leaves(getattr(unit.node, "cost", None))}
+        return bool(leaves & {"Tap", "Mana", "ManaDynamic"}) and (
+            "Sacrifice" not in leaves
+        )
+    if unit.origin == "trigger":
+        mode = getattr(unit.node, "mode", None)
+        return mode in ("Phase", "SpellCast")
+    return False
+
+
+def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
+    """symmetric_damage_each + aoe_ping + creature_ping — the effect-side
+    damage lanes, scope from each effect's OWN player_filter / target node
+    (checklist #5):
+
+    * ``symmetric_damage_each`` — a ``DamageAll`` / ``DamageEachPlayer``
+      whose ``player_filter`` is ``All`` (Pestilence; Earthquake's X-form —
+      the recall the deleted regex's literal ``\\d+`` missed). The one-sided
+      ``Opponent`` filter (Witty Roastmaster — 259 corpus, THE over-fire
+      mass) and a player-less creature sweep never fire. Scope "each"
+      (CR 102.2/102.3 — the each-player/each-opponent split is the gate).
+    * ``aoe_ping`` — a ``DamageAll`` with a Creature-cored target on a
+      REPEATABLE unit (:func:`_unit_is_repeatable` mirrors live's gate).
+      One-shot sweeps (Pyroclasm — Spell kind) are mass_removal country.
+      Scope "you".
+    * ``creature_ping`` — a ``DealDamage`` whose amount is a POWER-scaled
+      ``Ref`` reaching a Creature-cored target (Ram Through; CR 120.3).
+      Fixed amounts (Prodigal Sorcerer) and player recipients (Fling — the
+      ported ``damage_equal_power``) never fire. Scope "you".
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, scope: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, scope, "", raw, tree.name, "high"))
+
+    for unit in tree.units:
+        repeatable = _unit_is_repeatable(unit)
+        for c in unit.effect_concepts("deal_damage"):
+            t = tag_of(c.node)
+            if t in ("DamageAll", "DamageEachPlayer") and (
+                player_filter_tag(c.node) == "All"
+            ):
+                fire("symmetric_damage_each", "each", c.raw)
+            if t == "DamageAll" and repeatable:
+                tgt = getattr(c.node, "target", None)
+                if "Creature" in filter_core_types(tgt):
+                    fire("aoe_ping", "you", c.raw)
+            if t == "DealDamage" and ref_qty_tag(c.node, "amount") == "Power":
+                tgt = getattr(c.node, "target", None)
+                if tag_of(tgt) in ("Typed", "Or", "And") and (
+                    "Creature" in filter_core_types(tgt)
+                ):
+                    fire("creature_ping", "you", c.raw)
+    return out
+
+
+def _counter_place_trigger(tree: ConceptTree) -> list[Signal]:
+    """counter_place_trigger — the counters-placed payoff (CR 122.1 + 603.2):
+    a ``CounterAdded`` trigger whose typed ``counter_filter`` is NOT the lore
+    kind. The typed Saga gate (CR 714.2b: a chapter IS a lore-CounterAdded
+    trigger — 723 of 798 corpus) IMPROVES on live's type_line sniff; the
+    card-subtype belt (``Saga`` in the card's own subtypes) rides over it.
+    The opponent-side population punisher (Kros, Defense Contractor /
+    Generous Patron — ``valid_card`` controller Opponent) is vetoed
+    (checklist #6). Cards that PLACE counters via effect (Cathars' Crusade —
+    a ChangesZone trigger + PutCounterAll, no CounterAdded mode) never fire.
+    Scope "you" (live).
+    """
+    if "Saga" in tree.card_subtypes:
+        return []
+    for unit in tree.units:
+        if unit.origin != "trigger" or unit.trigger_event != "counter_added":
+            continue
+        ct, _threshold = trigger_counter_filter(unit.node)
+        if ct == "lore":
+            continue
+        if filter_controller(getattr(unit.node, "valid_card", None)) == "Opponent":
+            continue
+        return [Signal("counter_place_trigger", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _tribal_etb_multi(tree: ConceptTree) -> list[Signal]:
+    """tribal_etb_multi — the tribal ETB-chain payoff (CR 603.6a): an
+    ``enters`` trigger whose watched-object filter carries a vocab-validated
+    CREATURE subtype, including Or-branch walks (Noxious Ghoul's
+    ``Or[SelfRef, Typed[Zombie, Another]]``). The ``_subtypes`` vocab IS the
+    precision gate: a generic Creature watcher (Soul Warden → the ported
+    ``creature_etb``) and a non-creature-subtype watcher (an Aura/Equipment
+    ETB) never fire. Scope "you" (live).
+    """
+    for unit in tree.units:
+        if unit.origin != "trigger" or unit.trigger_event != "enters":
+            continue
+        subs = filter_subtypes(getattr(unit.node, "valid_card", None))
+        if any(_resolve_subject(s, CREATURE_SUBTYPES) for s in subs):
+            return [Signal("tribal_etb_multi", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _typed_enters_punish(tree: ConceptTree) -> list[Signal]:
+    """typed_enters_punish — the "your things enter → burn the opponents"
+    co-occurrence (CR 603.6a + 102.2/102.3, granularity a): an ``enters``
+    trigger on a YOUR-controlled population whose SAME unit deals damage
+    reaching opponents — the typed ``DamageEachPlayer {player_filter:
+    Opponent}`` read (Witty Roastmaster — the shape live could only recover
+    from raw "each opponent") or an opponent/each-scoped ``DealDamage``
+    player recipient. Checklist #1/#5: the enterer's controller reads off
+    the trigger's own ``valid_card``; the damage recipient off the effect's
+    OWN player_filter/recipient node. The opponent-enterer punisher (Suture
+    Priest's second trigger) and non-damage payoffs (Soul Warden) never
+    fire. Scope "you" (live).
+    """
+    for unit in tree.units:
+        if unit.origin != "trigger" or unit.trigger_event != "enters":
+            continue
+        if filter_controller(getattr(unit.node, "valid_card", None)) != "You":
+            continue
+        for c in unit.effect_concepts("deal_damage"):
+            if not effect_reaches_player(c.node):
+                continue
+            t = tag_of(c.node)
+            if t in ("DamageEachPlayer", "DamageAll"):
+                hit = player_filter_tag(c.node) in ("Opponent", "All")
+            else:
+                hit = explicit_recipient_scope(c.node) in ("opponents", "each")
+            if hit:
+                return [
+                    Signal("typed_enters_punish", "you", "", c.raw, tree.name, "high")
+                ]
+    return []
+
+
+def _noncreature_cast_punish(tree: ConceptTree) -> list[Signal]:
+    """noncreature_cast_punish — the noncreature-spell punisher (CR 603.2 +
+    102.2 — deliberately scope "any": "a player" includes you): a
+    ``SpellCast`` trigger whose watched-spell filter carries a
+    ``{Non: Creature}`` entry (Ruric Thar — the entry IS the discriminator,
+    read via the negation-aware :func:`filter_non_types`). A Creature-typed
+    cast watcher (Beast Whisperer) and an instant/sorcery-only watcher
+    (Talrand → the ported ``spellcast_matters``) never fire. Caster gate
+    (checklist #5, corpus-measured: 126 prowess-family over-fires without
+    it): a YOU-cast noncreature REWARD ("whenever you cast a noncreature
+    spell, ~ gets +1/+0" — Burning Prophet, ``valid_target {Controller}``)
+    is prowess, not a punisher — live fires only the symmetric
+    (recipient-less "a player casts" — Ruric Thar) and opponent-scoped
+    halves.
+    """
+    for unit in tree.units:
+        if unit.origin != "trigger" or unit.trigger_event != "cast_spell":
+            continue
+        if trigger_caster_scope(unit.node) == "you":
+            continue  # the prowess/you-cast reward family — not a punisher
+        if "Creature" in filter_non_types(getattr(unit.node, "valid_card", None)):
+            return [Signal("noncreature_cast_punish", "any", "", "", tree.name, "high")]
+    return []
+
+
+def _tap_lanes(tree: ConceptTree) -> list[Signal]:
+    """tap_down + tapper_engine — the CR 701.26a tap-doer pair, one shared
+    effect walk (a tap-as-COST emits no ``SetTapState`` effect — Prodigal
+    Sorcerer — so pure-cost taps self-exclude, reproducing live's
+    subject-is-not-None gate):
+
+    * ``tap_down`` — (arm a) a ``SetTapState {state: Tap}`` whose target's
+      controller is Opponent (Dungeon Geists; checklist #5 — the effect's
+      own target node); (arm b) a ``Detain`` effect (Azorius Arrester —
+      CR 701.35, all opponent-targeted corpus-wide). A controller-null tap
+      (Master Decoy, Frost Titan) is arm-less here (live's strict opp gate).
+      Scope "opponents".
+    * ``tapper_engine`` — a ``SetTapState {state: Tap}`` with a REAL
+      Typed/Or target, any controller (Master Decoy / Frost Titan), plus
+      the typed ``CantUntap`` static-rider arm (live's raw-"untap"
+      restriction arm — the mirror types it: Frost Titan / Dungeon Geists
+      nested static ``mode: CantUntap``). Self-taps (SelfRef) and untap
+      engines (state Untap) never fire. Scope "any".
+
+    Logged SUPPLEMENT tails (live-documented, phase-confirmed): the
+    anaphoric "tap target creature that player controls"; the "skips their
+    next untap step" tempo-skip (no SkipStep node in v0.9.0); the aura/morph
+    untap-lock statics.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(key: str, scope: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, scope, "", raw, tree.name, "high"))
+
+    for unit in tree.units:
+        for c in unit.iter_concepts():
+            if c.role != "effect":
+                continue
+            if c.concept == "tap_untap":
+                if settap_state(c.node) != "Tap":
+                    continue
+                tgt = getattr(c.node, "target", None)
+                if tag_of(tgt) not in ("Typed", "Or", "And"):
+                    continue  # SelfRef self-tap / no real target
+                fire("tapper_engine", "any", c.raw)
+                if filter_controller(tgt) == "Opponent":
+                    fire("tap_down", "opponents", c.raw)
+            elif c.concept == "detain":
+                fire("tap_down", "opponents", c.raw)
+        for sdef in iter_static_defs(unit.node):
+            if static_mode_tag(sdef) == "CantUntap":
+                fire("tapper_engine", "any", _site_raw(sdef))
+    return out
+
+
+def _tap_untap_matters(tree: ConceptTree) -> list[Signal]:
+    """tap_untap_matters — the becomes-tapped/untapped payoff (CR 603.2e +
+    701.26a): a trigger whose mode is ``Taps`` / ``TapsForMana`` (both the
+    becomes-tapped family — Attentive Sunscribe) or ``Untaps`` (the Inspired
+    payoff — Pain Seer; a SelfRef subject is live-INCLUDED, a genuine untap
+    payoff). Tap DOERS (Master Decoy — a SetTapState effect, no Taps
+    trigger) never fire. The granted/quoted "becomes tapped" tail (~10
+    cards) is SUPPLEMENT — logged, live keeps its word mirror. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.origin == "trigger" and unit.trigger_event in _TAP_EVENTS:
+            return [Signal("tap_untap_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _dig_until(tree: ConceptTree) -> list[Signal]:
+    """dig_until — the reveal-until-a-condition deep dig (CR 701.20a): a
+    ``RevealUntil`` effect whose ``player`` is the Controller (Hermit Druid —
+    90 of 115 corpus). The opponent-library digs (``player``
+    ParentTargetController / TriggeringPlayer / Typed — Telemin
+    Performance-family mill/theft, the [P16]-adjacent direction gate) and
+    the FIXED-count reveals (Fact or Fiction — a ``RevealTop`` node →
+    topdeck_selection) never fire. The draw-replacement / Saga / grandeur
+    residue phase emits no dig structure for is SUPPLEMENT — logged, live's
+    narrowed residue mirror stays. Scope "you".
+    """
+    for c in tree.effect_concepts("reveal_until"):
+        if reveal_until_player(c.node) == "you":
+            return [Signal("dig_until", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _exile_until_leaves(tree: ConceptTree) -> list[Signal]:
+    """exile_until_leaves — the O-Ring exile (CR 611.2b durations + 603.6c):
+    a ``ChangeZone {destination: Exile}`` whose OWNING wrapper carries the
+    ``UntilHostLeavesPlay`` duration (Banisher Priest; Oblivion Ring's ETB
+    trigger — the duration on the FIRST trigger alone suffices, no
+    cross-ability join). Checklist #5 zone/dest ([P2]/[P4] family): the
+    destination must be Exile with the duration on the same node chain — a
+    permanent exile (no duration → the ported ``exile_removal``) and the LTB
+    return trigger alone (TrackedSet → Battlefield; CR 603.6c's
+    from-anywhere caveat) never fire. Case law (Banisher Priest): "If a
+    token is exiled this way, it will cease to exist." Scope "you".
+    """
+    for unit in tree.units:
+        for c in unit.effect_concepts("change_zone"):
+            if tag_of(c.node) != "ChangeZone":
+                continue
+            if change_zone_dirs(c.node)[1] != "Exile":
+                continue
+            if effect_owner_duration(unit.node, c.node) == "UntilHostLeavesPlay":
+                return [
+                    Signal("exile_until_leaves", "you", "", c.raw, tree.name, "high")
+                ]
+    return []
+
+
+def _typed_spellcast_lane(tree: ConceptTree) -> list[Signal]:
+    """typed_spellcast (§F, SUBJECT-BEARING) — the tribal cast payoff
+    (CR 603.2 + 102.2): a ``SpellCast`` trigger whose watched-spell filter
+    carries a vocab creature subtype AND whose ``valid_target`` is the
+    Controller — the TYPED you-cast discriminator (Lys Alana Huntmaster
+    carries ``valid_target {Controller}``; the symmetric "a player casts a
+    Giant spell" hoser — Elvish Handservant — carries none, and an
+    opponent-punisher carries Opponent). REPLACES live's
+    ``_self_cast_oracle`` "you cast" regex gate with a typed read (a
+    documented improvement). The static "<Subtype> spells you cast cost
+    less" form is cost_reduction's country. Scope "you", subject = the
+    subtype.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+    for unit in tree.units:
+        if unit.origin != "trigger" or unit.trigger_event != "cast_spell":
+            continue
+        if trigger_caster_scope(unit.node) != "you":
+            continue
+        for s in filter_subtypes(getattr(unit.node, "valid_card", None)):
+            sub = _resolve_subject(s, CREATURE_SUBTYPES)
+            if sub and sub not in seen:
+                seen.add(sub)
+                out.append(
+                    Signal(
+                        signal_keys.TYPED_SPELLCAST, "you", sub, "", tree.name, "high"
+                    )
+                )
+    return out
+
+
+def _legends_historic_matters(tree: ConceptTree) -> list[Signal]:
+    """legends_matter + historic_matters (§F) — the supertype/historic
+    build-arounds, whole-card granularity (c) mirroring live's
+    ``ir_predicates`` collection:
+
+    * ``legends_matter`` — any typed filter carrying ``HasSupertype:
+      Legendary`` (Reki — CR 205.4d). Being legendary ITSELF (Ruric Thar) is
+      not legends-matter — no Legendary-referencing filter, no fire.
+    * ``historic_matters`` — any filter carrying the ``Historic`` property
+      (Jhoira — CR 700.6: "legendary supertype, the artifact card type, or
+      the Saga subtype"). A Legendary-only filter (Reki) does not cross-fire.
+
+    Both scope "you" (live).
+    """
+    out: list[Signal] = []
+    if any(
+        has_filter_property(u.node, "HasSupertype", "Legendary") for u in tree.units
+    ):
+        out.append(Signal("legends_matter", "you", "", "", tree.name, "high"))
+    if any(has_filter_property(u.node, "Historic") for u in tree.units):
+        out.append(Signal("historic_matters", "you", "", "", tree.name, "high"))
+    return out
+
+
+def _self_blink_lane(tree: ConceptTree) -> list[Signal]:
+    """self_blink (§F) — the self-exile-and-return engine (CR 611.2b
+    durations; contrast 603.6c): an effect-role ``ChangeZone {target:
+    SelfRef, destination: Exile}`` whose SAME unit chains a return —
+    another ``ChangeZone`` to the Battlefield naming the exiled object
+    (ParentTarget / TrackedSet through a ``CreateDelayedTrigger`` —
+    Aetherling's probed shape; the effect-chain walk flattens the delayed
+    trigger's inner return into the unit). Live is kept-mirror-ONLY ("no
+    clean structural IR form" — STALE for the v0.9.0 mirror). Cost-exiles
+    live in cost leaves and self-exclude; exiling ANOTHER target (Banisher
+    Priest, Oblivion Ring) fails the SelfRef gate. The "~-substituted raw"
+    residue tail live's fulltext detector catches is SUPPLEMENT — logged.
+    Two corpus-measured gates (97 over-fires without them; SCOPED by
+    per-shape live measurement, not blanket — the parity-before-veto
+    lesson): a Saga LORE-CHAPTER unit never fires (the transforming-Saga
+    chapter-III "Exile this Saga, then return it … transformed" — The
+    Restoration of Eiganjo family, 29 corpus, live uniformly no-fire;
+    CR 714.2b + 712 — a one-shot flip vehicle, not a blink engine), and a
+    GRAVEYARD-origin return never counts as the return half (unearth's
+    Graveyard→Battlefield self-return — Anathemancer; CR 702.84a —
+    graveyard recursion whose exile is the delayed unearth cleanup). The
+    NON-Saga transform flips stay IN: live fires the ability/dies forms
+    (Clive / Elesh Norn / Liliana, Heretical Healer — measured), so a
+    transform veto there would regress live members. Scope "you"
+    (granularity a chain-join).
+    """
+    for unit in tree.units:
+        if unit.origin not in ("ability", "trigger"):
+            continue
+        if trigger_counter_filter(unit.node)[0] == "lore":
+            continue  # a Saga chapter (CR 714.2b) — a flip, not a blink
+        czs = [
+            c
+            for c in unit.effect_concepts("change_zone")
+            if tag_of(c.node) == "ChangeZone"
+        ]
+        if not any(
+            change_zone_dirs(c.node)[1] == "Exile"
+            and tag_of(getattr(c.node, "target", None)) == "SelfRef"
+            for c in czs
+        ):
+            continue
+        for c in czs:
+            origin, dest = change_zone_dirs(c.node)
+            if dest != "Battlefield" or origin == "Graveyard":
+                continue  # the unearth-style graveyard self-return
+            if tag_of(getattr(c.node, "target", None)) in _SELF_BLINK_RETURN_TAGS:
+                return [Signal("self_blink", "you", "", c.raw, tree.name, "high")]
     return []
 
 
@@ -5186,6 +5866,20 @@ _LANES = (
     _forced_attack,
     _damage_prevention,
     _damage_equal_power,
+    _replacement_doubler_lanes,
+    _damage_trigger_lanes,
+    _mass_damage_lanes,
+    _counter_place_trigger,
+    _tribal_etb_multi,
+    _typed_enters_punish,
+    _noncreature_cast_punish,
+    _tap_lanes,
+    _tap_untap_matters,
+    _dig_until,
+    _exile_until_leaves,
+    _typed_spellcast_lane,
+    _legends_historic_matters,
+    _self_blink_lane,
 )
 
 
