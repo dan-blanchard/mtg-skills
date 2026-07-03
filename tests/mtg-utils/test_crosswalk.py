@@ -3038,6 +3038,17 @@ def test_dig_until_own_library_gate():
     assert "dig_until" not in _keys("Fact or Fiction")
 
 
+def test_dig_until_excludes_their_library_mis_stamps():
+    """Phase stamps ``player: Controller`` on "EACH OPPONENT reveals cards
+    from the top of THEIR library" (Mind Grind — the [P17]/[P28]
+    Controller mis-stamp family on RevealUntil), so the digger gate alone
+    passes on opponent-mill cards live excludes. The [P8]/[P21]-precedent
+    "their library" description screen restores the boundary; all 69
+    both-members are "your library" digs (parity-verified), pinned by the
+    Hermit Druid positive above."""
+    assert "dig_until" not in _keys("Mind Grind")
+
+
 def test_exile_until_leaves_duration_gate():
     """CR 611.2b + 603.6c: both O-Ring forms carry ``UntilHostLeavesPlay``
     on the exiling unit (Banisher Priest single-trigger; Oblivion Ring's
@@ -3135,6 +3146,20 @@ def test_damage_prevention_shield_replacement_arm():
     (Furnace of Rath) never fires this lane."""
     assert ("damage_prevention", "you", "") in _idents("Palisade Giant")
     assert "damage_prevention" not in _keys("Furnace of Rath")
+
+
+def test_damage_prevention_shield_excludes_offensive_curse():
+    """Treacherous Link ("All damage that would be dealt to enchanted
+    creature is dealt to its controller instead") is an OFFENSIVE curse —
+    phase emits a bare shield_kind{Prevention} structurally identical to
+    Pariah ([P29]). The description screen keys on the SHIELDED subject:
+    "dealt to enchanted creature is dealt to" → veto; Pariah ("dealt to
+    YOU is dealt to enchanted creature instead") and Mirror Strike
+    ("dealt to YOU ... dealt to its controller instead") protect you —
+    Pariah keeps firing, Mirror Strike's non-fire is pinned (adjudicated
+    corpus scan: exactly two redirect-to-controller shields exist)."""
+    assert "damage_prevention" not in _keys("Treacherous Link")
+    assert ("damage_prevention", "you", "") in _idents("Pariah")
 
 
 def test_opponent_cast_matters_spell_cast_or_copy_mode():

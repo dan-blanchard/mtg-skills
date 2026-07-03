@@ -49855,6 +49855,147 @@
         "uncommon"
       ]
     },
+    "Mind Grind": {
+      "name": "Mind Grind",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "X",
+          "Blue",
+          "Black"
+        ],
+        "generic": 0
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Sorcery"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Each opponent reveals cards from the top of their library until they reveal X land cards, then puts all cards revealed this way into their graveyard. X can't be 0.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "RevealUntil",
+            "player": {
+              "type": "Controller"
+            },
+            "filter": {
+              "type": "Typed",
+              "type_filters": [
+                "Land"
+              ],
+              "controller": null,
+              "properties": []
+            },
+            "count": {
+              "type": "Ref",
+              "qty": {
+                "type": "Variable",
+                "name": "X"
+              }
+            },
+            "kept_destination": "Hand",
+            "rest_destination": "Library"
+          },
+          "cost": null,
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "ChangeZoneAll",
+              "origin": null,
+              "destination": "Graveyard",
+              "target": {
+                "type": "TrackedSetFiltered",
+                "id": 0,
+                "filter": {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Card"
+                  ],
+                  "controller": null,
+                  "properties": []
+                }
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false,
+            "player_scope": {
+              "type": "Opponent"
+            }
+          },
+          "duration": null,
+          "description": "Each opponent reveals cards from the top of their library until they reveal X land cards, then puts all cards revealed this way into their graveyard.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "min_x_value": 1,
+          "forward_result": false,
+          "player_scope": {
+            "type": "Opponent"
+          }
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": [
+        "Black",
+        "Blue"
+      ],
+      "color_identity": [
+        "Black",
+        "Blue"
+      ],
+      "scryfall_oracle_id": "8965ca34-5ea2-4797-9093-5a8ee02bfa43",
+      "metadata": {
+        "source_printing_ids": [
+          "671eb9e8-1a69-4570-8972-2e7de371cef4"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "GTC"
+      ],
+      "rulings": [
+        {
+          "date": "2013-01-24",
+          "text": "If an opponent\u2019s library contains fewer than X land cards, all cards from that library are revealed and put into their graveyard."
+        },
+        {
+          "date": "2013-01-24",
+          "text": "If another spell or ability instructs you to cast Mind Grind \u201cwithout paying its mana cost,\u201d you won\u2019t be able to. You must pick 0 as the value of X in the mana cost of a spell being cast \u201cwithout paying its mana cost,\u201d but the X in Mind Grind\u2019s mana cost can\u2019t be 0."
+        }
+      ],
+      "rarities": [
+        "rare"
+      ]
+    },
     "Mind Rot": {
       "name": "Mind Rot",
       "mana_cost": {
@@ -50157,6 +50298,82 @@
           "date": "2015-11-04",
           "text": "The delayed triggered ability that exiles the tokens will trigger at end of combat no matter what happens to the original creature."
         }
+      ],
+      "rarities": [
+        "uncommon"
+      ]
+    },
+    "Mirror Strike": {
+      "name": "Mirror Strike",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White"
+        ],
+        "generic": 3
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Instant"
+        ],
+        "subtypes": []
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "All combat damage that would be dealt to you this turn by target unblocked creature is dealt to its controller instead.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [
+        {
+          "event": "DamageDone",
+          "execute": null,
+          "mode": {
+            "type": "Mandatory"
+          },
+          "valid_card": null,
+          "description": "All combat damage that would be dealt to you this turn by target unblocked creature is dealt to its controller instead.",
+          "condition": null,
+          "damage_target_filter": {
+            "Player": {
+              "player": {
+                "type": "Controller"
+              }
+            }
+          },
+          "shield_kind": {
+            "Prevention": {
+              "amount": "All"
+            }
+          }
+        }
+      ],
+      "color_override": null,
+      "color_identity": [
+        "White"
+      ],
+      "scryfall_oracle_id": "184fdd23-8235-4500-b2f5-d3b0b93a8f35",
+      "metadata": {
+        "source_printing_ids": [
+          "148fbe36-b22d-44e6-9341-7f707baca49d"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "premodern": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "PCY"
       ],
       "rarities": [
         "uncommon"
@@ -54691,6 +54908,124 @@
       "rarities": [
         "rare",
         "mythic"
+      ]
+    },
+    "Pariah": {
+      "name": "Pariah",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "White"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Enchantment"
+        ],
+        "subtypes": [
+          "Aura"
+        ]
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Enchant creature\nAll damage that would be dealt to you is dealt to enchanted creature instead.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        {
+          "Enchant": {
+            "type": "Typed",
+            "type_filters": [
+              "Creature"
+            ],
+            "controller": null,
+            "properties": []
+          }
+        }
+      ],
+      "abilities": [],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [
+        {
+          "event": "DamageDone",
+          "execute": null,
+          "mode": {
+            "type": "Mandatory"
+          },
+          "valid_card": null,
+          "description": "All damage that would be dealt to you is dealt to enchanted creature instead.",
+          "condition": null,
+          "damage_target_filter": {
+            "Player": {
+              "player": {
+                "type": "Controller"
+              }
+            }
+          },
+          "shield_kind": {
+            "Prevention": {
+              "amount": "All"
+            }
+          }
+        }
+      ],
+      "color_override": null,
+      "color_identity": [
+        "White"
+      ],
+      "scryfall_oracle_id": "2c5c8250-1860-42a1-a335-071f54830d37",
+      "metadata": {
+        "source_printing_ids": [
+          "0447f9e1-792b-4200-9ef3-7cd95c326b88",
+          "079b8e9b-74ac-48c0-8c65-82d70911dd9e",
+          "1995fed6-992f-4333-afa6-63d61cfdfa00",
+          "1a94805d-9f71-4968-a297-7d93859fe79f",
+          "51b2136c-392c-436d-9263-b3236adc4a10",
+          "8c110365-493f-4995-b919-59d0f4e2092c",
+          "8f477cb8-c1f0-4a1c-9396-5e955f653888",
+          "a0d39b2d-7f85-4ac2-b002-3cea6e23a708",
+          "eb3f7e4f-57d1-4b8b-85d7-ef62ceccce93"
+        ]
+      },
+      "legalities": {
+        "brawl": "legal",
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "premodern": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "10E",
+        "7ED",
+        "CN2",
+        "OTP",
+        "PLST",
+        "PS11",
+        "SLD",
+        "USG"
+      ],
+      "rulings": [
+        {
+          "date": "2024-04-12",
+          "text": "If you control multiple Pariahs enchanting different creatures, you choose which redirection effect to apply. You can't divide damage dealt by one source or combat damage dealt by multiple creatures simultaneously. For example, if a spell would deal 6 damage to you and you control multiple Pariahs, you may have that 6 damage dealt to either of the enchanted creatures instead, but you can't choose to have 3 damage dealt to each one."
+        },
+        {
+          "date": "2024-04-12",
+          "text": "If you would be dealt combat damage, the damage dealt to the enchanted creature instead is still combat damage."
+        }
+      ],
+      "rarities": [
+        "rare"
       ]
     },
     "Passageway Seer": {
@@ -71029,6 +71364,88 @@
         "common",
         "rare",
         "mythic"
+      ]
+    },
+    "Treacherous Link": {
+      "name": "Treacherous Link",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Black"
+        ],
+        "generic": 1
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Enchantment"
+        ],
+        "subtypes": [
+          "Aura"
+        ]
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Enchant creature\nAll damage that would be dealt to enchanted creature is dealt to its controller instead.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        {
+          "Enchant": {
+            "type": "Typed",
+            "type_filters": [
+              "Creature"
+            ],
+            "controller": null,
+            "properties": []
+          }
+        }
+      ],
+      "abilities": [],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [
+        {
+          "event": "DamageDone",
+          "execute": null,
+          "mode": {
+            "type": "Mandatory"
+          },
+          "valid_card": null,
+          "description": "All damage that would be dealt to enchanted creature is dealt to its controller instead.",
+          "condition": null,
+          "shield_kind": {
+            "Prevention": {
+              "amount": "All"
+            }
+          }
+        }
+      ],
+      "color_override": null,
+      "color_identity": [
+        "Black"
+      ],
+      "scryfall_oracle_id": "b7902113-9ddf-4d81-a76a-b54b8a36c154",
+      "metadata": {
+        "source_printing_ids": [
+          "2e5f8581-411b-4403-9c3a-3cf2156f6779"
+        ]
+      },
+      "legalities": {
+        "commander": "legal",
+        "duel": "legal",
+        "legacy": "legal",
+        "oathbreaker": "legal",
+        "premodern": "legal",
+        "vintage": "legal"
+      },
+      "printings": [
+        "ULG"
+      ],
+      "rarities": [
+        "uncommon"
       ]
     },
     "Tribal Flames": {

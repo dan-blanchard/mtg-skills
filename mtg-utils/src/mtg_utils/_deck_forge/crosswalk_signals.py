@@ -5124,6 +5124,14 @@ def _damage_prevention(tree: ConceptTree) -> list[Signal]:
             and replacement_shield_kind(unit.node) == "Prevention"
         ):
             raw = getattr(unit.node, "description", None) or ""
+            # [P29]: an OFFENSIVE curse ("All damage that would be dealt to
+            # enchanted creature is dealt to its controller instead" —
+            # Treacherous Link) parses as a bare Prevention shield identical
+            # to Pariah; the shielded SUBJECT in the node's own description
+            # is the tell (adjudicated corpus scan: exactly two
+            # redirect-to-controller shields; Mirror Strike shields YOU).
+            if "dealt to enchanted creature is dealt to" in raw.lower():
+                continue
             return [Signal("damage_prevention", "you", "", raw, tree.name, "high")]
     return []
 
@@ -5596,9 +5604,20 @@ def _dig_until(tree: ConceptTree) -> list[Signal]:
     residue phase emits no dig structure for is SUPPLEMENT — logged, live's
     narrowed residue mirror stays. Scope "you".
     """
-    for c in tree.effect_concepts("reveal_until"):
-        if reveal_until_player(c.node) == "you":
-            return [Signal("dig_until", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        desc = (getattr(unit.node, "description", None) or "").lower()
+        # [P28]: phase stamps player=Controller on "each opponent reveals
+        # cards from the top of THEIR library" (Mind Grind family — the
+        # [P17] mis-stamp on RevealUntil), so the digger gate alone passes
+        # on opponent mills. All 69 both-members are "your library" digs
+        # (parity-verified); the [P8]/[P21]-precedent screen is the fix.
+        if "their library" in desc:
+            continue
+        for c in unit.iter_concepts():
+            if c.role != "effect" or c.concept != "reveal_until":
+                continue
+            if reveal_until_player(c.node) == "you":
+                return [Signal("dig_until", "you", "", c.raw, tree.name, "high")]
     return []
 
 
