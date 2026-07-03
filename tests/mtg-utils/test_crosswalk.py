@@ -4326,6 +4326,249 @@ def test_scry_surveil_matters_composite_and_replacement_extensions():
     assert "opponent_search_matters" not in ezuri
 
 
+# ── Batch 15: the second structural-remainder batch ──────────────────────────
+
+
+def test_airbend_and_earthbend_keyword_and_node_arms():
+    """CR 701.65a/701.66a: the Airbend/Earthbend keyword rows (Aang,
+    Airbending Master; Earthen Ally) and the RegisterBending node arm (Monk
+    Gyatso's keyword-less "you may airbend" rides the keyword too, but the
+    node arm covers the routing); Bitter Work is a dual-mechanic pin
+    (earthbend_makers + exhaust_makers b13, NOT exhaust_matters). The
+    keyword-gate: Avatar Aang's ElementalBend raw names "earthbend" but he
+    carries no Earthbend keyword → routed earthbend_matters (the SOLE
+    member), never earthbend_makers; Earthen Ally (keyword bearer) never
+    fires matters."""
+    assert ("airbend_makers", "you", "") in _idents("Aang, Airbending Master")
+    assert ("airbend_makers", "you", "") in _idents("Monk Gyatso")
+    assert ("airbend_makers", "you", "") in _idents("Avatar Aang")
+    assert ("earthbend_makers", "you", "") in _idents("Earthen Ally")
+    bitter = _keys("Bitter Work")
+    assert "earthbend_makers" in bitter
+    assert "exhaust_makers" in bitter
+    assert "exhaust_matters" not in bitter
+    aang = _idents("Avatar Aang")
+    assert ("earthbend_matters", "you", "") in aang
+    assert "earthbend_makers" not in _keys("Avatar Aang")
+    assert "earthbend_matters" not in _keys("Earthen Ally")
+
+
+def test_waterbend_split_and_double_fire_quirk():
+    """CR 701.67a: keyword bearers fire waterbend_makers (Spirit Water
+    Revival's additional-cast-cost form, Giant Koi, Katara); the UNgated
+    node arm fires waterbend_matters for the cross-bend payoff (Avatar
+    Aang) and the activated-cost doers whose primary effect phase dropped
+    (Giant Koi — the live double-fire quirk, ported as-is + LOGGED).
+    Polarity-from-pop pins: Katara's Waterbend ability projects clean
+    (Draw) and fires NO matters arm — the 5-member set is exact, NOT "all
+    activated-waterbend cards"; Spirit Water Revival's cast-cost form
+    fires makers only."""
+    for name in ("Spirit Water Revival", "Giant Koi", "Katara, Bending Prodigy"):
+        assert ("waterbend_makers", "you", "") in _idents(name), name
+    assert "waterbend_makers" not in _keys("Monk Gyatso")
+    assert ("waterbend_matters", "you", "") in _idents("Avatar Aang")
+    koi = _keys("Giant Koi")
+    assert "waterbend_matters" in koi
+    assert "waterbend_makers" in koi
+    assert "waterbend_matters" not in _keys("Katara, Bending Prodigy")
+    assert "waterbend_matters" not in _keys("Spirit Water Revival")
+
+
+def test_firebending_mirror_keyword_split():
+    """CR 702.189a (firebending is a TRIGGERED ability, unlike the other
+    three bends): the kept word mirror partitions by Firebending-keyword
+    presence — bearers (Fire Lord Azula, Avatar Aang) → makers; the
+    keyword-less Fire-Nation reference tail (Sozin's Comet's grant, Iroh's
+    counter-conditioned grant) → matters. The bending node arm must NOT
+    route firebend (a naive route would double-fire past the mirror)."""
+    assert ("firebending_makers", "you", "") in _idents("Fire Lord Azula")
+    assert ("firebending_makers", "you", "") in _idents("Avatar Aang")
+    assert "firebending_matters" not in _keys("Fire Lord Azula")
+    assert ("firebending_matters", "you", "") in _idents("Sozin's Comet")
+    assert ("firebending_matters", "you", "") in _idents("Iroh, Dragon of the West")
+    assert "firebending_makers" not in _keys("Sozin's Comet")
+
+
+def test_station_three_way_makers_split_and_matters_residue():
+    """CR 702.184a/702.184c: one guard mirror, 3-way makers split — the
+    Station keyword (Lumen-Class Frigate), the Spacecraft/Planet subtype
+    (typed ``tree.card_subtypes``, same card), or the charge arm (Drill Too
+    Deep) → station_makers; a bare Spacecraft reference (Tractor Beam's
+    enchant, Focus Fire's count) → station_matters. Tapestry Warden is the
+    DOCUMENTED live gap (the plural verb "stations" dodges ``\\bstation\\b``;
+    CR 702.184c's own Example names it — a candidate widen via phase's
+    CrewContribution node, pinned negative today, parity-first)."""
+    assert ("station_makers", "you", "") in _idents("Lumen-Class Frigate")
+    assert ("station_makers", "you", "") in _idents("Drill Too Deep")
+    assert "station_matters" not in _keys("Lumen-Class Frigate")
+    assert ("station_matters", "you", "") in _idents("Tractor Beam")
+    assert ("station_matters", "you", "") in _idents("Focus Fire")
+    warden = _keys("Tapestry Warden")
+    assert "station_makers" not in warden
+    assert "station_matters" not in warden
+
+
+def test_evasion_self_keyword_and_mirror_arms():
+    """CR 702.111 menace / 702.36 fear / 702.13 intimidate / 702.118 skulk
+    / 702.31 horsemanship / 702.28 shadow + 509.1b: the keyword rows
+    (Accursed Spirit's Intimidate) and the flat kept mirror (Aether
+    Figment's "can't be blocked", no evasion keyword) fire; flying is
+    DELIBERATELY soft evasion and never fires (Serra Angel)."""
+    assert ("evasion_self", "you", "") in _idents("Accursed Spirit")
+    assert ("evasion_self", "you", "") in _idents("Aether Figment")
+    assert "evasion_self" not in _keys("Serra Angel")
+
+
+def test_cant_block_grant_structural_and_gates():
+    """CR 509.1b + 101.2: the CantBlock static-def arm fires the targeted
+    grant (Blindblast — ParentTarget), the conditional team form (Barrage
+    of Boulders) and the symmetric table static (Bedlam — do NOT scope-gate
+    to opponent-only); the SELF-drawback (Arco-Flagellant — SelfRef
+    affected), the forced-attack lane (Fumiko) and the pacify shape
+    (Pacifism — split CantAttack+CantBlock over the same enchanted subject,
+    single-target removal not evasion) never fire."""
+    for name in ("Blindblast", "Barrage of Boulders", "Bedlam"):
+        assert ("cant_block_grant", "you", "") in _idents(name), name
+    assert "cant_block_grant" not in _keys("Arco-Flagellant")
+    assert "cant_block_grant" not in _keys("Fumiko the Lowblood")
+    assert "cant_block_grant" not in _keys("Pacifism")
+
+
+def test_global_ability_grant_quoted_gates():
+    """CR 113.3 / 604.3 / 613.1f: a QUOTED ability granted to your creature
+    board fires scope "any" (Cryptolith Rite, Battery Bearer); a bare
+    keyword anthem has no quote and never fires (Archetype of Imagination);
+    a single-permanent GrantTrigger nested in a trigger's execute chain is
+    not a top-level board grant (Mathas)."""
+    assert ("global_ability_grant", "any", "") in _idents("Cryptolith Rite")
+    assert ("global_ability_grant", "any", "") in _idents("Battery Bearer")
+    assert "global_ability_grant" not in _keys("Archetype of Imagination")
+    assert "global_ability_grant" not in _keys("Mathas, Fiend Seeker")
+
+
+def test_opponent_counter_grant_direction_and_kind_gates():
+    """CR 122.1 / 122.1d: a detrimental counter on an OPPONENT's permanent
+    fires (Mathas — bounty; Freeze in Place — the "tap … and put a stun
+    counter on IT" pronoun-loss recovery via the same-unit co-tap join); a
+    beneficial +1/+1 placed to enable your own removal is the WRONG
+    direction (Hunter of Eyeblights); a SELF-stun drawback has no opp
+    recipient and no co-tap (Pugnacious Hammerskull)."""
+    assert ("opponent_counter_grant", "opponents", "") in _idents(
+        "Mathas, Fiend Seeker"
+    )
+    assert ("opponent_counter_grant", "opponents", "") in _idents("Freeze in Place")
+    assert "opponent_counter_grant" not in _keys("Hunter of Eyeblights")
+    assert "opponent_counter_grant" not in _keys("Pugnacious Hammerskull")
+
+
+def test_conditional_self_protection_gates():
+    """CR 702.11 hexproof / 702.12 indestructible / 702.16 protection /
+    702.18 shroud / 702.21 ward: a CONDITIONED static granting a protective
+    keyword to ITSELF fires (Dragonlord Ojutai — Not(SourceIsTapped);
+    Fleecemane Lion — SourceIsMonstrous); intrinsic printed hexproof rides
+    the keyword array, never a conditioned grant (Sigarda)."""
+    assert ("conditional_self_protection", "you", "") in _idents("Dragonlord Ojutai")
+    assert ("conditional_self_protection", "you", "") in _idents("Fleecemane Lion")
+    assert "conditional_self_protection" not in _keys("Sigarda, Host of Herons")
+
+
+def test_sacrifice_protection_kept_mirror():
+    """CR 701.21a (the 20260619 CR maps Sacrifice → 701.21 — the live
+    t2b5-B comment's 701.16 is STALE) + 101.2: the two literal phrases fire
+    (Sigarda, Tajuru Preserver — phase parses both as Unimplemented, [P42]);
+    a stax attack-tax never contains either (Ghostly Prison)."""
+    assert ("sacrifice_protection", "you", "") in _idents("Sigarda, Host of Herons")
+    assert ("sacrifice_protection", "you", "") in _idents("Tajuru Preserver")
+    assert "sacrifice_protection" not in _keys("Ghostly Prison")
+
+
+def test_life_payment_insurance_cost_census_and_marker():
+    """CR 119.4: a repeatable "Pay N life:" ACTIVATION cost fires — the
+    structural PayLife cost leaf (Adanto Vanguard; Arco-Flagellant, the
+    historical marker case, now also structural in v0.9.0 — the internal
+    arm shift inside an unchanged union is the expected divergence); a
+    one-shot cast cost (Toxic Deluge) and effect-side life loss (Sign in
+    Blood) never fire either arm."""
+    assert ("life_payment_insurance", "you", "") in _idents("Adanto Vanguard")
+    assert ("life_payment_insurance", "you", "") in _idents("Arco-Flagellant")
+    assert "life_payment_insurance" not in _keys("Toxic Deluge")
+    assert "life_payment_insurance" not in _keys("Sign in Blood")
+
+
+def test_speed_maker_payoff_boundary():
+    """CR 702.179a (Start Your Engines! initializes speed = MAKER) vs
+    702.178a (Max Speed functions only AT speed 4 = PAYOFF): the dual-
+    keyword bearers fire BOTH lanes (Mendicant Core, Far Fortune); the
+    keyword-less speed-CHANGER fires makers only via the ChangeSpeed doer
+    (Spikeshell Harrier — the doer NEVER feeds matters); a Vehicle with no
+    speed text fires neither (Smuggler's Copter)."""
+    for name in ("Mendicant Core, Guidelight", "Far Fortune, End Boss"):
+        keys = _keys(name)
+        assert "speed_makers" in keys, name
+        assert "speed_matters" in keys, name
+    spike = _keys("Spikeshell Harrier")
+    assert "speed_makers" in spike
+    assert "speed_matters" not in spike
+    assert ("speed_matters", "you", "") in _idents("Vnwxt, Verbose Host")
+    assert "speed_makers" not in _keys("Smuggler's Copter")
+
+
+def test_exhaust_matters_trigger_mode_and_raw_anchor():
+    """CR 702.177a/702.177b: the KeywordAbilityActivated{Exhaust} trigger
+    mode (Sala, Deck Boss), the delayed-trigger-inside-activated payoff
+    (Pit Automaton — phase Unimplemented, [P44], the raw anchor) and the
+    permission static (Elvish Refueler — fires BOTH lanes: makers via the
+    b13 keyword row, matters via the anchor) fire; a card merely CARRYING
+    "Exhaust — {cost}:" uses the keyword and rides exhaust_makers only
+    (Bitter Work — the sibling b13 lane must show zero change)."""
+    assert ("exhaust_matters", "you", "") in _idents("Sala, Deck Boss")
+    assert ("exhaust_matters", "you", "") in _idents("Pit Automaton")
+    refueler = _keys("Elvish Refueler")
+    assert "exhaust_matters" in refueler
+    assert "exhaust_makers" in refueler
+    bitter = _keys("Bitter Work")
+    assert "exhaust_matters" not in bitter
+    assert "exhaust_makers" in bitter
+
+
+def test_saddle_matters_keyword_and_typed_arms():
+    """CR 702.171a: one lane, no maker/matters split — the Saddle keyword
+    (The Gitrog, Ravenous Ride — also a SaddledSource property carrier) and
+    the keyword-less BecomeSaddled granter (Kolodin) fire; Crew alone never
+    fires (Smuggler's Copter — Vehicles are not Mounts)."""
+    assert ("saddle_matters", "you", "") in _idents("The Gitrog, Ravenous Ride")
+    assert ("saddle_matters", "you", "") in _idents("Kolodin, Triumph Caster")
+    assert "saddle_matters" not in _keys("Smuggler's Copter")
+
+
+def test_suspect_matters_state_route_and_verb_boundary():
+    """CR 701.60a/701.60b (suspected is a DESIGNATION, not an ability): the
+    pure "suspected"-STATE reference fires matters — Agency Coroner (the
+    swallowed rider, [P43], via the face marker) and Airtight Alibi (the
+    Unsuspect/CantBecomeSuspected carrier); Nelly Borca's raw carries BOTH
+    forms and the verb wins → routed MAKER (polarity-from-pop pin; the
+    ported b4 suspect_makers lane must show zero change)."""
+    assert ("suspect_matters", "you", "") in _idents("Agency Coroner")
+    assert ("suspect_matters", "you", "") in _idents("Airtight Alibi")
+    nelly = _keys("Nelly Borca, Impulsive Accuser")
+    assert "suspect_matters" not in nelly
+    assert "suspect_makers" in nelly
+
+
+def test_void_warp_makers_mirror_and_void_payoff_boundary():
+    """CR 702.185a (Warp) + 207.2c (void is an ABILITY WORD — no rules
+    meaning, no phase keyword): the three mirror arms fire — the keyword
+    bearer (Starfield Vocalist "Warp {1}{U}"), the granter (Tannuk "have
+    warp {2}{R}"), and the em-dash + graveyard self-cast forms (Timeline
+    Culler "Warp—{B}" / "using its warp ability"); the Void PAYOFF
+    (Alpharael — "a spell was warped this turn") belongs to the skip-sweep
+    void_warp_matters lane and never fires makers."""
+    assert ("void_warp_makers", "you", "") in _idents("Starfield Vocalist")
+    assert ("void_warp_makers", "you", "") in _idents("Tannuk, Steadfast Second")
+    assert ("void_warp_makers", "you", "") in _idents("Timeline Culler")
+    assert "void_warp_makers" not in _keys("Alpharael, Stonechosen")
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

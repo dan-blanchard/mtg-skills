@@ -133,17 +133,32 @@ from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 # their populations from the same pinned regexes over the kept oracle.
 from mtg_utils._card_ir.project import (
     _AFFINITY_GRANT,
+    _CANT_BLOCK_GRANT_QUOTE,
+    _CANT_BLOCK_MODAL_BULLET,
+    _CANT_BLOCK_REF,
+    _CANT_BLOCK_TAX,
     _CASCADE_GRANT,
     _CHANGELING_REF,
     _CRIME_REF,
+    _EXHAUST_TRIG,
     _LIB_SEARCH_PLAYER_ACTIONS,
     _MADNESS_GRANT,
     _MASS_DEATH_REF,
     _MUTATE_COND,
+    _PAY_LIFE_REF,
+    _SINGLE_PERMANENT_GRANT_PREDS,
     _SOULBOND_REF,
+    _SUSPECT_REF,
     _TOKEN_SUBTYPE_OWN_REF,
     _UNDYING_PERSIST_GRANT,
 )
+
+# The b15 opponent_counter_grant co-tap join imports the LIVE supplement
+# tap-opp anaphora combinators (the same single-source pattern as the
+# project.py anchors above): phase loses the "tap target creature an
+# opponent controls" target to ParentTarget/DefendingPlayer, and the live
+# tap subject's 'opp' comes from exactly these anchors.
+from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
 from mtg_utils._deck_forge import signal_keys
 
 # The b12 SANCTIONED byte-identical mirror ports import the LIVE constants
@@ -156,10 +171,14 @@ from mtg_utils._deck_forge._signals_ir import (
     _BIG_HAND_MATTERS_MIRROR,
     _CONVOKE_RAW,
     _COUNTER_DISTRIBUTE_MIRROR,
+    _FIREBEND_RE,
     _KEYWORD_COUNTER_KINDS,
+    _OPP_COUNTER_BENEFICIAL,
     _PROLIFERATE_REMOVE_COST_RE,
     _SAME_TRUE_KW_RE,
     _SELF_COUNTER_GROW_MIRROR,
+    _SELF_PROTECTION_GRANT_KW,
+    _STATION_CHARGE_RE,
     _STAX_TAXES_RESIDUE_RE,
     _SYMMETRIC_STAX_RESIDUE_RE,
     _UNTAP_ATTACH_VETO,
@@ -173,6 +192,7 @@ from mtg_utils._deck_forge._signals_ir import (
 )
 from mtg_utils._deck_forge._signals_regex import (
     _COLOR_HOSER_RE,
+    _EVASION_SELF_REGEX,
     _EVERGREEN_CK,
     _MANA_TAP_RE,
     _PER_TURN_ENGINE_RE,
@@ -206,10 +226,12 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ISLAND_MATTERS_REGEX,
     KEYWORD_COUNTER_REGEX,
     PUMP_MATTERS_REGEX,
+    STATION_MATTERS_REGEX,
     SUPERFRIENDS_MATTERS_REGEX,
     THEFT_MATTERS_REGEX,
     UNSPENT_MANA_REGEX,
     VEHICLES_MATTER_REGEX,
+    VOID_WARP_MAKERS_REGEX,
 )
 
 # The Signal keys this batch derives from the typed substrate. The shadow harness
@@ -529,6 +551,35 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "coven_matters",
         "crimes_matter",
         "outlaw_matters",
+        # Batch 15 (ADR-0035 Stage 2): the second structural-remainder batch —
+        # the 7-key TLA bending cluster (per-bend lanes, never conflated — the
+        # rules-lawyer-verified CR 701.65/701.66/701.67/702.189 partition), the
+        # 2 station split keys, the 7-key grant cluster, and 6 by-value
+        # recent-set named mechanics completing ported maker/matters pairs
+        # (exhaust_makers b13, suspect_makers b4 — both sibling lanes pinned
+        # zero-change).
+        "airbend_makers",
+        "earthbend_makers",
+        "earthbend_matters",
+        "firebending_makers",
+        "firebending_matters",
+        "waterbend_makers",
+        "waterbend_matters",
+        "station_makers",
+        "station_matters",
+        "evasion_self",
+        "cant_block_grant",
+        "global_ability_grant",
+        "opponent_counter_grant",
+        "conditional_self_protection",
+        "sacrifice_protection",
+        "life_payment_insurance",
+        "speed_makers",
+        "speed_matters",
+        "exhaust_matters",
+        "saddle_matters",
+        "suspect_matters",
+        "void_warp_makers",
         # NB: damage_redirect stays KEPT (spec §G): `redirect_target` exists
         # on only 8 corpus replacements and Pariah itself parses with NO
         # redirect_target (shield Prevention only — structurally identical to
@@ -8256,6 +8307,725 @@ def _outlaw_matters_lane(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ── Batch-15 mirror constants + census sets ──────────────────────────────────
+
+# Compiled forms of the pinned shared regex sources (byte-identical by import;
+# the same IGNORECASE the live kept-detector loop compiles with).
+_STATION_GUARD_RX = re.compile(STATION_MATTERS_REGEX, re.IGNORECASE)
+_VOID_WARP_MAKERS_RX = re.compile(VOID_WARP_MAKERS_REGEX, re.IGNORECASE)
+
+# Byte-identical copy of the INLINE (unnamed) ``_IR_KEPT_DETECTORS``
+# sacrifice_protection row (the _JOHAN_MIRROR precedent — no importable name).
+# CR 701.21a (the 20260619 CR glossary maps Sacrifice → 701.21; the live
+# t2b5-B comment's "CR 701.16" is STALE) + 101.2 (can't beats can).
+_SAC_PROTECTION_MIRROR = re.compile(
+    r"can't cause you to sacrifice|can't be sacrificed", re.IGNORECASE
+)
+
+# speed_makers doer tags (CR 702.179): the keyword-less speed CHANGERS.
+# ``IncreaseSpeed`` is a dead map row at v0.9.0 (0 corpus nodes) carried
+# anyway — free and version-robust (the live projection maps all three).
+_SPEED_DOER_TAGS: frozenset[str] = frozenset(
+    {"ChangeSpeed", "StartYourEngines", "IncreaseSpeed"}
+)
+
+# Station's typed type-line discriminant (CR 702.184b — station cards are
+# Spacecraft/Planet bodies). Prefers ``tree.card_subtypes`` (phase carries
+# them as subtypes) over re-reading the bulk type_line; the shadow diff
+# showed 0 drift vs the live ``_STATION_TL_RE`` split.
+_STATION_SUBTYPES: frozenset[str] = frozenset({"Spacecraft", "Planet"})
+
+# suspect verb/state discriminators (CR 701.60a/701.60b) — the ADR-0034
+# maker/matters route the live doer-arm reroute applies to cat=='suspect'
+# raws (byte-identical inline copies of the :8105-8117 in-loop regexes).
+_SUSPECTED_STATE_RX = re.compile(r"\bsuspected\b", re.IGNORECASE)
+_SUSPECT_VERB_RX = re.compile(r"\bsuspects?\b", re.IGNORECASE)
+
+# cant_block pacify-sibling modes (CR 509.1b vs the Pacifism shape): v0.9.0
+# splits ``CantAttackOrBlock`` into siblings; a CantBlock over the SAME
+# single-attached subject as a cant-attack sibling is single-target removal.
+_PACIFY_SIBLING_MODES: frozenset[str] = frozenset({"CantAttack", "CantAttackOrBlock"})
+
+# The projection's themeable affected shapes for the CantBlock static arm
+# (project :4537-4549): a SelfRef affected (Arco-Flagellant's own drawback)
+# is NOT a grant.
+_CANT_BLOCK_THEMEABLE: frozenset[str] = frozenset({"Typed", "ParentTarget"})
+
+# global_ability_grant QUOTED-grant modification tags (CR 113.3 / 613.1f).
+_GRANT_ABILITY_MOD_TAGS: frozenset[str] = frozenset(
+    {"GrantAbility", "GrantTrigger", "GrantStaticAbility"}
+)
+
+# The batch-15 Scryfall-keyword rows (the live ``_IR_KEYWORD_MAP`` b15
+# survivors — keyword compares are lowercase; the "start your engines!"
+# bang and the "max speed" space are load-bearing). station / firebending
+# keywords are SPLIT DISCRIMINANTS inside their mirror lanes, not rows.
+_B15_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
+    (frozenset({"airbend"}), "airbend_makers"),
+    (frozenset({"earthbend"}), "earthbend_makers"),
+    (frozenset({"waterbend"}), "waterbend_makers"),
+    (
+        frozenset({"menace", "fear", "intimidate", "skulk", "horsemanship", "shadow"}),
+        "evasion_self",
+    ),
+    (frozenset({"start your engines!"}), "speed_makers"),
+    (frozenset({"max speed"}), "speed_matters"),
+    (frozenset({"saddle"}), "saddle_matters"),
+)
+
+
+def _keyword_field_signals_b15(keywords: frozenset[str], name: str) -> list[Signal]:
+    """The batch-15 Scryfall-keyword field-lookups (checklist #3 survivors).
+
+    evasion_self's six keywords: menace CR 702.111, fear 702.36, intimidate
+    702.13, skulk 702.118, horsemanship 702.31, shadow 702.28 (the live
+    comment's "skulk 702.72 / horsemanship 702.30" numbers are STALE —
+    corrected from the 20260619 CR CLI output). flying is DELIBERATELY
+    absent (soft evasion). speed: "start your engines!" initializes speed
+    and installs the per-turn increase = MAKER (CR 702.179a); "max speed"
+    only functions AT speed 4 = PAYOFF (CR 702.178a — the ADR-0034 split).
+    saddle (CR 702.171a) is ONE lane, no maker/matters split live.
+    """
+    low = {k.lower() for k in keywords}
+    return [
+        Signal(key, "you", "", "", name, "high")
+        for kws, key in _B15_KEYWORD_LANES
+        if low & kws
+    ]
+
+
+# ── Batch 15 lanes (ADR-0035 Stage 2 — second structural-remainder batch) ────
+
+
+# Base-P/T-set modification tags the projection LIFTS out of a GenericEffect
+# (→ base_pt_set) — the fixed and BOTH dynamic phase spellings, spelled out
+# (the module's `_DYNAMIC_PT_MODS` name is shadowed by a later batch-14
+# AddDynamic* redefinition, so the Set* spellings are pinned here). A
+# Waterbend-cost ability whose GenericEffect carries one projects
+# structurally and is never re-parsed (Flexible Waterbender, Katara Water
+# Tribe's Hope — pop False).
+_WB_PT_SET_MODS: frozenset[str] = frozenset(
+    {
+        "SetPower",
+        "SetToughness",
+        "SetDynamicPower",
+        "SetDynamicToughness",
+        "SetPowerDynamic",
+        "SetToughnessDynamic",
+    }
+)
+
+
+def _wb_dropped_other(c: ConceptNode) -> bool:
+    """Whether an effect node is one the PROJECTION dropped-and-re-parsed —
+    the live producer of a Waterbend-cost ability's ``bending`` Effect.
+
+    The projection re-parses a clause only when its structural read failed.
+    Two dropped-node families (the exact 4-member activated-cost residue,
+    shadow-diff-tuned to the banked pop):
+
+    * a ``GenericEffect`` whose nested statics the projection does NOT
+      lift — Giant Koi / Waterbender Ascension's ``CantBeBlocked``,
+      Invasion Submersible's become-artifact ``AddType``. A base-P/T-set
+      modification IS lifted (→ base_pt_set: Flexible Waterbender, Katara
+      Water Tribe's Hope — pop False), as is a structural node like
+      Transform (Aang, Swift Savior — pop False) or Draw (Katara, Bending
+      Prodigy — the spec's polarity pin);
+    * the owner-library TUCK (``ChangeZone`` destination Library — Watery
+      Grasp's "shuffles it into their library"), which the projection has
+      no category for.
+    """
+    if c.concept == "change_zone" and change_zone_dirs(c.node)[1] == "Library":
+        return True
+    if c.concept != OTHER or tag_of(c.node) != "GenericEffect":
+        return False
+    mods = {tag_of(m) for _sd, m in iter_mod_sites(c.node)}
+    return not (mods & _WB_PT_SET_MODS)
+
+
+def _bending_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
+    """The TLA bending node arm + the firebending mirror split (§1).
+
+    CR 701.65a airbend / 701.66a earthbend / 701.67a waterbend (keyword
+    ACTIONS) vs 702.189a firebending (a TRIGGERED ability). Each bend is a
+    SEPARATE mechanic — no unifying "bending" CR rule (the live
+    never-conflate ruling, _signals_ir :1036-1050). Keyword-bearer rows
+    ride :func:`_keyword_field_signals_b15`; this is the node arm the live
+    ``bending``-Effect arm (:8177-8191) reads, re-derived from the typed
+    v0.9.0 producers of cat=='bending':
+
+    * a ``RegisterBending`` node (49 corpus cards — every airbend/
+      earthbend maker and no others; project.py:554);
+    * an ``ElementalBend`` trigger mode (exactly 1 card — Avatar Aang's
+      cross-bend payoff; the SIDECAR-v68 marker, project.py:3098-3109);
+    * a ``Waterbend`` cost leaf on an Activated unit whose effect chain
+      carries an OTHER-concept node — the live bending Effect for these is
+      the supplement's re-parse of a clause the structural projection
+      DROPPED (Giant Koi's GenericEffect statics), so a clean structural
+      projection never re-parses and never fires (Katara's Waterbend→Draw:
+      pop False — the 5-member matters set is exact, NOT "all
+      activated-waterbend cards").
+
+    Routing is EXACTLY live's: "airbend" in raw → airbend_makers (airbend
+    has NO matters lane — the cross-bend payoff lands in makers, live's
+    firing identity); "earthbend" in raw AND keyword-less → earthbend_
+    matters (Earthen Ally carries the keyword AND a bending node — the
+    gate); "waterbend" in raw → waterbend_matters (deliberately UNgated —
+    Giant Koi double-fires makers via keyword AND matters via the node
+    arm, live's exact behavior, ported as-is + LOGGED). firebend is NOT
+    routed here (Avatar Aang's ElementalBend raw contains "firebend"; a
+    naive route would double-fire past the mirror+kw split below).
+
+    Firebending mirror: the imported live ``_FIREBEND_RE`` FLAT over the
+    kept oracle, split on the Firebending keyword — bearers (Fire Lord
+    Azula, Avatar Aang) PERFORM the attack-trigger mechanic → makers; the
+    keyword-less Fire-Nation reference tail (Sozin's Comet, Iroh) →
+    matters. makers+matters union == the old single lane (26+10 commander).
+    LOGGED, not taken: phase structures firebending GRANTS as
+    ``AddKeyword.keyword.Firebending`` and bearers as parameterized
+    keywords — a structural upgrade candidate; the reference tail keeps
+    the mirror load-bearing today (correctness-over-cardcount: the mirror
+    IS currently exact).
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+    low = {k.lower() for k in keywords}
+
+    def route(raw: str) -> None:
+        rl = raw.lower()
+        if "airbend" in rl and "airbend_makers" not in seen:
+            seen.add("airbend_makers")
+            out.append(Signal("airbend_makers", "you", "", raw, tree.name, "high"))
+        if (
+            "earthbend" in rl
+            and "earthbend" not in low
+            and "earthbend_matters" not in seen
+        ):
+            seen.add("earthbend_matters")
+            out.append(Signal("earthbend_matters", "you", "", raw, tree.name, "high"))
+        if "waterbend" in rl and "waterbend_matters" not in seen:
+            seen.add("waterbend_matters")
+            out.append(Signal("waterbend_matters", "you", "", raw, tree.name, "high"))
+
+    for unit in tree.units:
+        desc = getattr(unit.node, "description", None) or ""
+        is_bend = (
+            any(tag_of(q) == "RegisterBending" for q in iter_typed_nodes(unit.node))
+            or _trigger_mode_tag(unit) == "ElementalBend"
+        )
+        if not is_bend and unit.kind == "Activated":
+            cost = getattr(unit.node, "cost", None)
+            is_bend = any(
+                tag_of(leaf) == "Waterbend" for leaf in iter_cost_leaves(cost)
+            ) and any(_wb_dropped_other(c) for c in unit.effects)
+        if is_bend:
+            route(desc)
+    if _FIREBEND_RE.search(_kept(tree)):
+        key = "firebending_makers" if "firebending" in low else "firebending_matters"
+        out.append(Signal(key, "you", "", "", tree.name, "high"))
+    return out
+
+
+def _station_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
+    """station_makers / station_matters (§2) — CR 702.184a/702.184b: ONE
+    kept guard mirror (the pinned ``STATION_MATTERS_REGEX``), 3-way makers
+    split, both HIGH "you" — bifurcating the SAME firing keeps the split
+    set-equal (union == the old lane, 44 commander: 34 makers / 10
+    references). A card PERFORMS station when it (a) BEARS the Scryfall
+    Station keyword, (b) IS a Spacecraft/Planet body — the typed
+    ``tree.card_subtypes`` read (§0 plumbing 3; 0 drift vs the live
+    ``_STATION_TL_RE`` type-line regex), or (c) CHARGES one (the imported
+    ``_STATION_CHARGE_RE`` — Drill Too Deep); else it only NAMES Spacecraft
+    to count/destroy/gate (Focus Fire, Tractor Beam) → station_matters.
+
+    Documented live GAP (pinned negative, NOT parity): Tapestry Warden —
+    the plural verb "stations" dodges ``\\bstation\\b`` (CR 702.184c's own
+    Example names it; phase structures it as ``CrewContribution/
+    ToughnessInsteadOfPower``) — a candidate widen for a later fix batch
+    (parity-first, the Essence Symbiote precedent).
+    """
+    if not _STATION_GUARD_RX.search(_kept(tree)):
+        return []
+    low = {k.lower() for k in keywords}
+    makers = (
+        "station" in low
+        or any(s in _STATION_SUBTYPES for s in tree.card_subtypes)
+        or bool(_STATION_CHARGE_RE.search(_kept(tree)))
+    )
+    key = "station_makers" if makers else "station_matters"
+    return [Signal(key, "you", "", "", tree.name, "high")]
+
+
+def _evasion_self(tree: ConceptTree) -> list[Signal]:
+    """evasion_self mirror arm (§3) — CR 509.1b (evasion abilities as
+    blocking restrictions) + 702.14 landwalk: the imported live
+    ``_EVASION_SELF_REGEX`` FLAT over the kept oracle (no ``[^.]*`` arm, so
+    flat == per-clause). The six keyword rows (menace/fear/intimidate/
+    skulk/horsemanship/shadow — CR numbers at
+    :func:`_keyword_field_signals_b15`) ride the keyword lanes; flying is
+    DELIBERATELY absent (soft evasion). Do NOT key the ``CantBeBlocked``
+    static tag — phase hangs it under activated GenericEffects (Giant Koi)
+    and reading it would drift the 1646-row population; the mirror already
+    catches the text. Scope "you", HIGH.
+    """
+    if _EVASION_SELF_REGEX.search(_kept(tree)):
+        return [Signal("evasion_self", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _cant_block_grant(tree: ConceptTree) -> list[Signal]:
+    """cant_block_grant (§4) — CR 509.1b + 101.2: forcing blockers off
+    clears an attack path. Structural arm: a ``CantBlock``-mode static def
+    (top-level or nested under a spell's GenericEffect — Blindblast's
+    ``ParentTarget``), gated to the projection's themeable affected shapes
+    (:data:`_CANT_BLOCK_THEMEABLE` — a SelfRef affected is the
+    Arco-Flagellant SELF-drawback, pop False), minus the pacify shape (a
+    single-attached CantBlock whose cant-attack SIBLING covers the SAME
+    affected — Pacifism's split statics are single-target removal, the
+    project :2325-2374 suppression). Symmetric table statics (Bedlam) ARE
+    members — no opponent-only scope gate. Marker arms (the modal/quoted
+    tail phase drops): the SAME ``_CANT_BLOCK_REF``/``_CANT_BLOCK_TAX``
+    anchors over unit raws (make_token units excluded — a created token's
+    own "can't block" drawback is not a grant, project's
+    ``_CANT_BLOCK_CARRIERS``) and the dropped-static modal-bullet /
+    grant-quote segments over the kept oracle. Scope "you", HIGH (the lane
+    sits in ``_VOLTRON_HAS_OTHER_PLAN_COMPAT`` — a signals.py concern the
+    port does not touch).
+    """
+    ca_dicts = [
+        aff.to_dict()
+        for u in tree.units
+        if u.origin == "static" and static_mode_tag(u.node) in _PACIFY_SIBLING_MODES
+        for aff in (getattr(u.node, "affected", None),)
+        if isinstance(aff, TypedMirrorNode)
+    ]
+    for unit in tree.units:
+        for sdef in iter_static_defs(unit.node):
+            if static_mode_tag(sdef) != "CantBlock":
+                continue
+            aff = getattr(sdef, "affected", None)
+            if tag_of(aff) not in _CANT_BLOCK_THEMEABLE:
+                continue
+            single = bool(set(filter_predicates(aff)) & _PACIFY_PREDS)
+            if (
+                unit.origin == "static"
+                and single
+                and isinstance(aff, TypedMirrorNode)
+                and aff.to_dict() in ca_dicts
+            ):
+                # The Pacifism split-static pacify shape — TOP-LEVEL statics
+                # only, matching project's suppression scope (Manacles of
+                # Decay's activated "can't block this turn" over the same
+                # enchanted subject KEEPS firing — a live member).
+                continue
+            raw = getattr(sdef, "description", None) or ""
+            return [Signal("cant_block_grant", "you", "", raw, tree.name, "high")]
+    for unit in tree.units:
+        if unit.has_effect("make_token"):
+            continue
+        # A multi-ability card's TOP-LEVEL SelfRef CantBlock static (the
+        # Hobble/Ironclaw Curse/Kirtar's Desire/Spectral Grasp aura riders)
+        # projects SILENT — no effect, no carrier raw for the live marker
+        # to scan (shadow-diff-tuned, 4 over-fires). A SOLE static parse of
+        # a whole spell keeps the face text as its raw (the projection's
+        # _fill_sole_empty), so it IS scanned (Immortal Obligation — a
+        # live member).
+        if (
+            unit.origin == "static"
+            and len(tree.units) > 1
+            and any(
+                static_mode_tag(sd) == "CantBlock"
+                and tag_of(getattr(sd, "affected", None)) == "SelfRef"
+                for sd in iter_static_defs(unit.node)
+            )
+        ):
+            continue
+        raws = [getattr(unit.node, "description", None) or ""] + [
+            c.raw for c in unit.iter_concepts() if c.raw
+        ]
+        for raw in raws:
+            if _CANT_BLOCK_REF.search(raw) and not _CANT_BLOCK_TAX.search(raw):
+                return [Signal("cant_block_grant", "you", "", raw, tree.name, "high")]
+    kept = _kept(tree)
+    for pat in (_CANT_BLOCK_MODAL_BULLET, _CANT_BLOCK_GRANT_QUOTE):
+        for m in pat.finditer(kept):
+            seg = m.group(0)
+            if _CANT_BLOCK_REF.search(seg) and not _CANT_BLOCK_TAX.search(seg):
+                return [Signal("cant_block_grant", "you", "", seg, tree.name, "high")]
+    return []
+
+
+def _global_ability_grant(tree: ConceptTree) -> list[Signal]:
+    """global_ability_grant (§5) — CR 113.3 (the four ability categories) /
+    604.3 / 613.1f (Layer 6): a QUOTED activated/triggered/static ability
+    granted to your whole creature board or an all-permanents set; the
+    QUOTE (a Grant* modification carrying a structured definition) splits
+    it from a bare AddKeyword anthem (grant_keyword's lane — Archetype of
+    Imagination never fires). The FOUR project gates verbatim
+    (project.py:5997-6075): opponent-controller exclusion; the
+    single-permanent EnchantedBy/EquippedBy exclusion (without it every
+    "Enchanted creature has '…'" Aura floods in); creature-board =
+    "Creature" core type + (controller You OR an Owned predicate);
+    all-permanents = bare set (controller null, no subtypes, no
+    predicates — so "All Slivers have '…'" subtype sets stay out).
+    TOP-LEVEL statics only (the marker's own read — Mathas's nested
+    per-target GrantTrigger is not a board grant). Scope "any" (the
+    deleted SWEEP detector hard-fired "any" — live's firing identity).
+    """
+    for unit in tree.units:
+        if unit.origin != "static":
+            continue
+        sdef = unit.node
+        mods = getattr(sdef, "modifications", None) or []
+        if not any(
+            isinstance(m, TypedMirrorNode) and tag_of(m) in _GRANT_ABILITY_MOD_TAGS
+            for m in mods
+        ):
+            continue
+        aff = getattr(sdef, "affected", None)
+        tag = tag_of(aff)
+        if tag == "Typed":
+            ctrl = filter_controller(aff)
+            preds = set(filter_predicates(aff))
+            # A {Non: X} composite is a narrowing predicate in the
+            # projection (_composite_predicates), so a "Non-Spirit
+            # creatures have '…'" set is NOT a bare all-set (Clash of
+            # Realities, shadow-diff-tuned).
+            non_narrowed = bool(filter_non_types(aff))
+        elif tag == "Or":
+            # The projection's ``_merge_filters`` Or semantics: types
+            # union, controller kept only when all members agree,
+            # PREDICATES DROPPED (Callaphe's "creatures and enchantments
+            # you control", Great Divide Guide's "each land and Ally";
+            # Essence Leak's enchanted-permanent Or merges to a bare
+            # Permanent all-set — live's own firing, reproduced as-is).
+            members = [
+                s
+                for s in getattr(aff, "filters", ()) or ()
+                if isinstance(s, TypedMirrorNode)
+            ]
+            ctrls = {filter_controller(s) for s in members}
+            ctrl = next(iter(ctrls)) if len(ctrls) == 1 else None
+            preds = set()
+            non_narrowed = False
+        else:
+            continue
+        if ctrl == "Opponent":
+            continue
+        if preds & _SINGLE_PERMANENT_GRANT_PREDS:
+            continue
+        owned = any(p == "Owned" or p.startswith("Owned") for p in preds)
+        creature_board = "Creature" in filter_core_types(aff) and (
+            ctrl == "You" or owned
+        )
+        all_permanents = (
+            ctrl is None and not filter_subtypes(aff) and not preds and not non_narrowed
+        )
+        if creature_board or all_permanents:
+            raw = getattr(sdef, "description", None) or ""
+            return [Signal("global_ability_grant", "any", "", raw, tree.name, "high")]
+    return []
+
+
+def _opponent_counter_grant(tree: ConceptTree) -> list[Signal]:
+    """opponent_counter_grant (§6) — CR 122.1 / 122.1d (the stun-counter
+    untap replacement — the canonical detrimental mark): a DETRIMENTAL
+    counter placed on an OPPONENT's permanent. Per-unit join (granularity
+    a): a ``place_counter`` whose kind is NOT beneficial (the imported
+    live ``_OPP_COUNTER_BENEFICIAL`` — p1p1/shield/keyword counters HELP
+    the recipient: Hunter of Eyeblights places a +1/+1 to enable its own
+    removal, the wrong direction, pop False) AND either (A) the counter's
+    own target controller is Opponent (Mathas's bounty), or (B) kind ==
+    "stun" with a co-occurring same-unit tap of an opp-controller subject
+    (Freeze in Place's "tap … and put a stun counter on IT" — the
+    pronoun-loss recovery, the live (B) shape). Self-stun drawbacks have
+    no opp recipient and no co-tap (Pugnacious Hammerskull stuns ITSELF,
+    pop False). Scope "opponents", HIGH.
+    """
+    kept = _kept(tree)
+    for unit in tree.units:
+        # The co-tap's opp direction: the tap target's own controller, OR
+        # the supplement's tap-opp anaphora anchors over the unit raw (the
+        # SAME `_TAP_OPP_CONTROL_P`/`_EACH_PLAYER_P` combinators the live
+        # projection runs — phase loses the target to ParentTarget /
+        # DefendingPlayer on the "tap target creature an opponent controls
+        # …" chains: Snaremaster Sprite, Mjölnir, Sensational Spider-Man,
+        # Omega, Mind Spiral, Stunning Shot; shadow-diff-tuned, 6 members).
+        raw = getattr(unit.node, "description", None) or kept
+        opp_tap_here = any(
+            settap_state(c.node) == "Tap"
+            and (
+                filter_controller(getattr(c.node, "target", None)) == "Opponent"
+                or (
+                    _TAP_OPP_CONTROL_P.run(raw) is not None
+                    and _EACH_PLAYER_P.run(raw) is None
+                )
+            )
+            for c in unit.effect_concepts("tap_untap")
+        )
+        for c in unit.effect_concepts("place_counter"):
+            kind = counter_kind(c.node).lower()
+            if kind in _OPP_COUNTER_BENEFICIAL:
+                continue
+            recip_opp = filter_controller(getattr(c.node, "target", None)) == "Opponent"
+            if recip_opp or (kind == "stun" and opp_tap_here):
+                return [
+                    Signal(
+                        "opponent_counter_grant",
+                        "opponents",
+                        "",
+                        c.raw,
+                        tree.name,
+                        "high",
+                    )
+                ]
+    return []
+
+
+def _conditional_self_protection(tree: ConceptTree) -> list[Signal]:
+    """conditional_self_protection (§7) — the protective-keyword subset
+    (hexproof CR 702.11, indestructible 702.12, protection 702.16, shroud
+    702.18, ward 702.21): a top-level STATIC with a condition granting a
+    protective keyword to ITSELF. Three discriminators, matching the live
+    :8834-8849 read: (1) the def carries a condition (Dragonlord Ojutai's
+    ``Not(SourceIsTapped)``, Fleecemane Lion's ``SourceIsMonstrous``) —
+    intrinsic printed hexproof rides the keyword array, never a
+    conditioned grant (Sigarda, pop False); (2) affected SelfRef —
+    team/aura/equipment conditioned grants are other lanes; (3) an
+    ``AddKeyword`` whose name lowercases into the imported live
+    ``_SELF_PROTECTION_GRANT_KW`` — a conditional combat buff ("during
+    your turn, ~ has deathtouch/flying") stays out. Scope "you", HIGH
+    (the lane sits in the regex-side ``_VOLTRON_COMPAT_KEYS`` — a
+    signals.py concern the port does not touch).
+    """
+    for unit in tree.units:
+        if unit.origin != "static":
+            continue
+        sdef = unit.node
+        if not isinstance(getattr(sdef, "condition", None), TypedMirrorNode):
+            continue
+        # SourceOrPaired == the soulbond self-pair grant (Elgaud Shieldmate)
+        # — the projection folds it to a SelfRef subject (a live member).
+        if tag_of(getattr(sdef, "affected", None)) not in (
+            "SelfRef",
+            "SourceOrPaired",
+        ):
+            continue
+        for mod in getattr(sdef, "modifications", None) or []:
+            if not isinstance(mod, TypedMirrorNode) or tag_of(mod) != "AddKeyword":
+                continue
+            # PLAIN-string keywords only — the live projection drops the
+            # PARAMETERIZED variants ({Protection: from-X}, {Ward: cost}),
+            # so Etched Champion / Hexdrinker / Iymrith / Pristine Angel
+            # never fire live (shadow-diff-tuned, 9 over-fires). The
+            # parameterized Protection/Ward conditioned self-grant is a
+            # LOGGED candidate adjudicated widen, NOT parity.
+            kw = getattr(mod, "keyword", None)
+            if not isinstance(kw, str):
+                continue
+            if kw.lower() in _SELF_PROTECTION_GRANT_KW:
+                raw = getattr(sdef, "description", None) or ""
+                return [
+                    Signal(
+                        "conditional_self_protection",
+                        "you",
+                        "",
+                        raw,
+                        tree.name,
+                        "high",
+                    )
+                ]
+    return []
+
+
+def _sacrifice_protection(tree: ConceptTree) -> list[Signal]:
+    """sacrifice_protection (§8) — CR 701.21a (a sacrifice is the
+    controller's move; "can't cause you to sacrifice" wins by 101.2):
+    kept-mirror ONLY, the verdict RE-CONFIRMED against v0.9.0 — Sigarda
+    still parses as ``abilities/Spell.effect/Unimplemented`` ([P42],
+    SUPPLEMENT-RECOVERABLE), so the two literal phrases stay the only
+    full-coverage tell. No gate beyond the phrase pair — a stax EDICT
+    ("sacrifice a creature") never contains either (Ghostly Prison, pop
+    False). Scope "you", HIGH.
+    """
+    if _SAC_PROTECTION_MIRROR.search(_kept(tree)):
+        return [Signal("sacrifice_protection", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _life_payment_insurance(tree: ConceptTree) -> list[Signal]:
+    """life_payment_insurance (§9) — CR 119.4 (a pay-life cost subtracts
+    from the total only if life ≥ amount — a repeatable pay-life COST
+    wants lifegain insurance): (a) the structural cost census — any
+    Activated unit whose flattened cost carries a ``PayLife`` leaf
+    (unconditional; the sibling lifeloss_makers arm adds the
+    non-ramp/non-land gates, NOT this lane); (b) the marker re-derivation
+    — the imported ``_PAY_LIFE_REF`` (the ``:`` pins the ACTIVATION-cost
+    form) over the kept oracle, gated to faces with NO structural PayLife
+    leaf (the project :8527-8530 face gate; the conferred-quoted residual).
+    Arco-Flagellant NOW parses ``Activated.cost/PayLife`` in v0.9.0 — the
+    marker→structural arm shift inside an unchanged union is the expected
+    (LOGGED) divergence. A one-shot cast cost (Toxic Deluge) and
+    effect-side life loss (Sign in Blood) never fire either arm. Scope
+    "you", HIGH.
+    """
+    has_struct = False
+    for unit in tree.units:
+        if unit.kind != "Activated":
+            continue
+        cost = getattr(unit.node, "cost", None)
+        # Deep walk (not just Composite ``costs`` lists): the pay-HALF-life
+        # forms nest PayLife under ``EffectCost.effect/PayCost.cost``
+        # (Lurking Evil, Murderous Betrayal — live members whose old
+        # cost_parts carried 'paylife'; shadow-diff-tuned).
+        if cost_has_paylife(cost) or any(
+            tag_of(q) == "PayLife" for q in iter_typed_nodes(cost)
+        ):
+            has_struct = True
+            break
+    if has_struct:
+        return [Signal("life_payment_insurance", "you", "", "", tree.name, "high")]
+    if _PAY_LIFE_REF.search(_kept(tree)):
+        return [Signal("life_payment_insurance", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _speed_doer(tree: ConceptTree) -> list[Signal]:
+    """speed_makers doer arm (§10) — CR 702.179a: a keyword-less
+    speed-CHANGER PERFORMS a speed change (Spikeshell Harrier's
+    ``ChangeSpeed``, Ghirapur Grand Prix's ``StartYourEngines``-as-effect)
+    → MAKER. The keyword rows (both lanes) ride
+    :func:`_keyword_field_signals_b15`; speed_matters takes NO structural
+    arm — parity is the keyword set alone (the live migration measured
+    41==41). LOGGED, not taken: ``HasMaxSpeed`` condition/replacement
+    reads (Vnwxt) would over-fire onto max-speed CONDITION references
+    beyond the printed-keyword identity. Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) in _SPEED_DOER_TAGS:
+                return [Signal("speed_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _exhaust_matters(tree: ConceptTree) -> list[Signal]:
+    """exhaust_matters (§11) — CR 702.177a/702.177b: the exhaust PAYOFF
+    (triggers/conditions on ACTIVATING exhaust abilities; the DOER rides
+    the ported b13 exhaust_makers keyword row — Bitter Work, pop False
+    here). Two arms: (a) a trigger whose mode is
+    ``KeywordAbilityActivated`` with keyword parameter ``Exhaust`` (Sala —
+    the parameter gate keeps Outlast/other modes out: Herald of Anafenza
+    never fires); (b) the project raw anchor (``_EXHAUST_TRIG``,
+    project.py:1597-1599) over unit raws — the live marker fires
+    REGARDLESS of trigger event, reaching the
+    delayed-trigger-inside-activated payoff (Pit Automaton —
+    ``Activated.effect/Unimplemented``, [P44]) and the permission static
+    (Elvish Refueler — fires BOTH lanes: makers via keyword, matters via
+    the anchor). Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        mode = getattr(unit.node, "mode", None)
+        if (
+            isinstance(mode, MirrorVariant)
+            and mode.key == "KeywordAbilityActivated"
+            and tag_of(mode.inner) == "Exhaust"
+        ):
+            return [Signal("exhaust_matters", "you", "", "", tree.name, "high")]
+        raws = [getattr(unit.node, "description", None) or ""] + [
+            c.raw for c in unit.iter_concepts() if c.raw
+        ]
+        for raw in raws:
+            if _EXHAUST_TRIG.search(raw):
+                return [Signal("exhaust_matters", "you", "", raw, tree.name, "high")]
+    return []
+
+
+def _saddle_matters_lane(tree: ConceptTree) -> list[Signal]:
+    """saddle_matters typed arms (§12) — CR 702.171a (one lane, no
+    maker/matters split live: bearers + granters + payoffs). The keyword
+    row rides :func:`_keyword_field_signals_b15`; the typed arms cover the
+    keyword-less granters/payoffs: a ``BecomeSaddled`` node (Kolodin,
+    Alacrian Armory, Guidelight Matrix — the exact keyword-less live
+    residue) or a ``SaddledSource`` property filter (The Gitrog's
+    sacrifice rider). The ``_SADDLE_REF`` raw anchor is deliberately NOT
+    ported: the live marker is carrier-category-gated
+    (project.py:1503-1545) and the crosswalk's unit raws cannot reproduce
+    that gate — an ungated anchor over unit descriptions over-fires the
+    saddles-or-crews trigger cards live excludes (Back on Track); the
+    keyword row + typed arms already reproduce the live pop 36/36
+    (PARITY-BEFORE-VETO — the current-corpus anchor residue is empty).
+    Crew alone never fires (Smuggler's Copter — Vehicles are not Mounts).
+    Scope "you", HIGH.
+    """
+    for unit in tree.units:
+        if any(
+            tag_of(q) == "BecomeSaddled" for q in iter_typed_nodes(unit.node)
+        ) or has_filter_property(unit.node, "SaddledSource"):
+            return [Signal("saddle_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _suspect_matters_lane(tree: ConceptTree) -> list[Signal]:
+    """suspect_matters (§13) — CR 701.60a/701.60b (suspected is a
+    DESIGNATION, not an ability; the ADR-0034 boundary: the suspect VERB =
+    maker, ported b4; the pure "suspected"-STATE reference = matters).
+
+    (a) native ``Suspect`` effect nodes: route each effect raw exactly as
+    live (:8105-8117) — ``\\bsuspected\\b`` AND NOT ``\\bsuspects?\\b`` →
+    matters; verb forms stay makers (the ported b4 lane, untouched — this
+    lane NEVER emits suspect_makers, the sibling zero-change guardrail).
+    Nelly Borca's raw carries BOTH forms and the verb wins (pop False —
+    polarity-from-pop pin). (b) the marker re-derivation: when NO visible
+    suspect concept on the face, the FIRST ``_SUSPECT_REF`` match over the
+    kept oracle (project.py:6521 + the :8459-8461 face gate — ``m.group
+    (0)`` is a single word, so the route collapses to "suspected" →
+    matters / verb → nothing). Covers Agency Coroner (the swallowed rider,
+    [P43]) and Airtight Alibi (Unsuspect/``CantBecomeSuspected`` carriers
+    project no suspect concept). The ``(?! counter)`` lookahead keeps a
+    "suspect counter" out. LOGGED, not taken: the ``Suspected`` property
+    (11 nodes) — a structural upgrade candidate that would over-fire Nelly
+    today. Scope "you", HIGH.
+    """
+    if tree.has_effect("suspect"):
+        for unit in tree.units:
+            for c in unit.effect_concepts("suspect"):
+                raw = c.raw or ""
+                if _SUSPECTED_STATE_RX.search(raw) and not _SUSPECT_VERB_RX.search(raw):
+                    return [
+                        Signal("suspect_matters", "you", "", raw, tree.name, "high")
+                    ]
+        return []
+    m = _SUSPECT_REF.search(_kept(tree))
+    if m is not None:
+        g = m.group(0)
+        if _SUSPECTED_STATE_RX.search(g) and not _SUSPECT_VERB_RX.search(g):
+            return [Signal("suspect_matters", "you", "", g, tree.name, "high")]
+    return []
+
+
+def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
+    """void_warp_makers (§14) — CR 702.185a Warp (two statics while on the
+    stack: cast from hand for [cost], exile at next end step with a
+    re-cast permission; alternative-cost rules 601.2b/f-h) + CR 207.2c
+    (void is an ABILITY WORD — no rules meaning, hence no phase keyword):
+    kept-mirror ONLY, the pinned ``VOID_WARP_MAKERS_REGEX`` flat — the
+    three PERFORM/GRANT arms: keyword bearers ("Warp {1}{U}" — Starfield
+    Vocalist), granters ("have warp {2}{R}" — Tannuk), and the em-dash +
+    graveyard self-cast forms ("Warp—{B}" / "using its warp ability" —
+    Timeline Culler). The PAYOFF arm (void_warp_matters) is the batch-12
+    skip-sweep lane — NOT this batch, never absorbed (Alpharael's "a spell
+    was warped this turn" Void payoff, pop False here). LOGGED structural
+    upgrade, not taken: v0.9.0 carries parameterized ``{Warp: cost}``
+    keywords, ``variant: Warp`` cast permissions, and the structured
+    ``AddKeyword.keyword.Warp`` grant (Tannuk) — but the Scryfall array
+    under-fires the granters, so the mirror stays the parity home. Scope
+    "you", HIGH.
+    """
+    if _VOID_WARP_MAKERS_RX.search(_kept(tree)):
+        return [Signal("void_warp_makers", "you", "", "", tree.name, "high")]
+    return []
+
+
 _LANES = (
     _win_lose_game,
     _discard_makers,
@@ -8458,6 +9228,18 @@ _LANES = (
     _coven_matters_lane,
     _crimes_matter,
     _outlaw_matters_lane,
+    _evasion_self,
+    _cant_block_grant,
+    _global_ability_grant,
+    _opponent_counter_grant,
+    _conditional_self_protection,
+    _sacrifice_protection,
+    _life_payment_insurance,
+    _speed_doer,
+    _exhaust_matters,
+    _saddle_matters_lane,
+    _suspect_matters_lane,
+    _void_warp_makers,
 )
 
 
@@ -8506,6 +9288,15 @@ def extract_crosswalk_signals(
     for sig in _keyword_field_signals_b13(frozenset(keywords), tree.name):
         add(sig)
     for sig in _keyword_field_signals_b14(frozenset(keywords), tree.name):
+        add(sig)
+    for sig in _keyword_field_signals_b15(frozenset(keywords), tree.name):
+        add(sig)
+    # b15 keyword-DISCRIMINATED lanes (the bending node arm's earthbend gate
+    # and the firebending / station mirror splits read the Scryfall array,
+    # so they take ``keywords`` like the field-lookup rows above).
+    for sig in _bending_lanes(tree, frozenset(keywords)):
+        add(sig)
+    for sig in _station_lanes(tree, frozenset(keywords)):
         add(sig)
 
     # Whole-card reconciliation (granularity c): cross-open spellcast_matters LOW
