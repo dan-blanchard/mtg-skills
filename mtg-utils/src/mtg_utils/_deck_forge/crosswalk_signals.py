@@ -695,162 +695,115 @@ _PORTED_KEYS_STAGE3: frozenset[str] = frozenset(
 )
 
 _STAGE4_RESIDUAL: frozenset[str] = frozenset(
+    # ADR-0035 Stage-4 (default-ON flip): EXACTLY the keys that OWN a flag-ON
+    # deck-forge test failure — the crosswalk lane MISSES what the legacy
+    # ``old_ir_for`` serves on a TEST-COVERED card (tests pin the legacy firing;
+    # design bucket (iii) confirmed overfire=0, so a failure is a genuine crosswalk
+    # LOSS, never a gain). Derived by running the deck-forge suite with every
+    # Stage-3 key ported and collecting the ``(key, scope[, subject])`` tuples the
+    # failing assertions name (80 keys), plus three keys whose loss surfaces only
+    # once the direct owners are already residual — ``scaling_pump`` (masked in a
+    # multi-assert test by an earlier-failing key), ``token_maker`` (its crosswalk
+    # ranking pushes a land-creatures avenue past the engine's avenue cap), and
+    # ``type_matters`` (the class-tribe membership floor is go_wide-gated on the
+    # residual ``creatures_matter``, so the floor lane must ride the same
+    # ``old_ir_for`` arm). Routing ONLY these to residual (they stay in
+    # ``MIGRATED_KEYS``, so dropping them from ``PORTED_KEYS`` re-supplies them from
+    # ``extract_signals_ir(old)`` — byte-identical to flag-OFF) restores the
+    # legacy firing without retreating from any key the crosswalk serves correctly.
     {
-        "activated_ability",
         "airbend_makers",
-        "anthem_static",
         "any_counter_matters",
         "artifacts_matter",
-        "attack_matters",
         "base_pt_set",
-        "blink_flicker",
-        "blocked_matters",
-        "bounce_tempo",
-        "card_draw_engine",
         "cast_from_exile",
         "cheat_into_play",
         "clone_makers",
         "coin_flip",
         "colorless_matters",
-        "combat_buff_engine",
         "combat_damage_matters",
         "combat_damage_to_opp",
         "connive_makers",
-        "control_exchange",
         "convoke_makers",
         "cost_reduction",
-        "counter_control",
-        "counter_grants_kw",
         "creature_cast_trigger",
         "creature_etb",
         "creature_ping",
-        "creature_recursion",
         "creatures_matter",
-        "damage_doubling",
-        "damage_equal_power",
-        "damage_prevention",
         "damage_reflect",
         "damage_to_opp_matters",
-        "death_matters",
-        "debuff_makers",
         "dice_makers",
         "dies_recursion",
         "dig_until",
         "direct_damage",
-        "discard_makers",
-        "discard_matters",
         "discard_outlet",
         "discover_makers",
         "donate_makers",
         "draw_for_each",
-        "earthbend_makers",
         "earthbend_matters",
-        "edict_makers",
         "enchantments_matter",
         "end_the_turn",
         "evasion_denial",
         "exile_matters",
-        "explore_makers",
         "extra_land_drop",
         "extra_upkeep",
         "facedown_matters",
         "fight_makers",
-        "firebending_makers",
-        "firebending_matters",
-        "flash_grant",
-        "food_makers",
         "forced_attack",
-        "foretell_makers",
-        "gain_control",
         "goad_makers",
-        "graveyard_makers",
         "graveyard_matters",
         "group_hug_draw",
         "hand_disruption",
         "historic_matters",
-        "impulse_top_play",
         "keyword_grant_target",
-        "keyword_soup_makers",
-        "kill_engine",
         "land_creatures_matter",
-        "land_protection",
         "land_sacrifice_makers",
-        "land_sacrifice_matters",
         "landfall",
         "lifegain_makers",
         "lifeloss_makers",
         "low_power_matters",
-        "ltb_matters",
         "lure_makers",
         "mana_amplifier",
-        "mass_removal",
         "minus_counters_matter",
-        "modified_matters",
         "multicolor_matters",
         "oil_counter_matters",
-        "one_punch",
-        "opp_top_exile",
         "opponent_cast_matters",
         "opponent_discard",
-        "opponent_exile_makers",
         "phasing_makers",
-        "play_from_top",
-        "plus_one_makers",
         "plus_one_matters",
         "poison_makers",
-        "protection_grant",
-        "pump_makers",
         "rad_counter_makers",
         "ramp",
-        "reanimator",
         "regenerate_makers",
-        "removal",
         "ring_matters",
         "sacrifice_outlets",
         "scaling_pump",
         "second_spell_matters",
-        "self_blink",
-        "self_death_payoff",
-        "self_pump",
-        "spell_copy_makers",
-        "spellcast_matters",
         "stax_taxes",
         "suspect_makers",
         "tap_down",
-        "tap_untap_matters",
-        "tapper_engine",
         "target_player_draws",
         "team_evasion_grant",
-        "token_copy_makers",
         "token_maker",
-        "tokens_matter",
         "topdeck_selection",
         "topdeck_stack",
         "treasure_matters",
-        "tribal_etb_multi",
         "tribe_damage_trigger",
         "trigger_doubling",
         "type_matters",
-        "typed_enters_punish",
         "typed_spellcast",
-        "variable_pt",
         "voltron_makers",
         "voltron_matters",
-        "voting_makers",
-        "wants_cloning",
-        "wants_theft",
-        "waterbend_makers",
         "waterbend_matters",
-        "win_lose_game",
     }
 )
 
 # ADR-0035 Stage-4 (default-ON flip): the LIVE ported set is the Stage-3 set
-# MINUS the residual — the keys whose crosswalk lane does not reproduce the legacy
-# ``old_ir_for`` firing on test-covered cards. They remain in ``MIGRATED_KEYS``, so
-# dropping them here routes them to the ``extract_signals_ir(old)`` residual arm of
-# ``_crosswalk_merge`` (byte-identical to flag-OFF). The ~256 keys that stay are the
-# structural set the crosswalk reproduces; ``coverage_gate`` still unions them in.
+# (341) MINUS the ``_STAGE4_RESIDUAL`` failure-owning set (83) — the 258 keys the
+# crosswalk reproduces vs the legacy ``old_ir_for`` on every test-covered card. The
+# residual keys remain in ``MIGRATED_KEYS``, so dropping them here routes them to the
+# ``extract_signals_ir(old)`` residual arm of ``_crosswalk_merge`` (byte-identical to
+# flag-OFF for those keys). ``coverage_gate`` still unions the 258 in.
 PORTED_KEYS: frozenset[str] = _PORTED_KEYS_STAGE3 - _STAGE4_RESIDUAL
 
 
