@@ -585,9 +585,23 @@ def effect_reaches_player(node: TypedMirrorNode) -> bool:
             return "Player" in words  # creature/permanent typed → removal
         if tt in ("Any", "Target", "ParentTarget"):
             return True
+        # A CHOSEN / TRIGGERING player node reaches a player too — "deals X to
+        # that player" where the player was chosen (Black Vise's
+        # ``SourceChosenPlayer``) or triggered the effect (Booby Trap's
+        # ``TriggeringPlayer``). ``_scope_from_player_node`` maps neither (they
+        # are not a fixed you/opp/each scope), but both are burn recipients.
+        if tt in _CHOSEN_PLAYER_TARGETS:
+            return True
         sc = _scope_from_player_node(tgt)  # a direct player node
         return sc in ("opponents", "each", "any")
     return False
+
+
+# Player-reference target tags that name a specific chosen / triggering player —
+# a valid direct-damage recipient (CR 120.1) though not a fixed-scope node.
+_CHOSEN_PLAYER_TARGETS: frozenset[str] = frozenset(
+    {"SourceChosenPlayer", "TriggeringPlayer"}
+)
 
 
 def _type_filter_words(entries: object) -> list[str]:
@@ -1532,6 +1546,44 @@ def ref_qty_tag(node: TypedMirrorNode, field: str) -> str | None:
     if _present(q) and tag_of(q) == "Ref":
         qty = getattr(q, "qty", None)
         return tag_of(qty)
+    return None
+
+
+def ref_count_qty(node: TypedMirrorNode, field: str) -> str | None:
+    """The board-count qty tag of a ``Ref`` value, unwrapping a ``Multiply``.
+
+    A dynamic P/T modification can hide its counted-object ``Ref`` under a
+    ``Multiply`` scalar: "gets +2/+2 for each Aura attached to it" projects
+    ``Multiply(factor=2, inner=Ref(ObjectCount(...)))`` (Champion of the Flame,
+    Auramancer's Guise). :func:`ref_qty_tag` reads only a bare ``Ref``; this
+    variant unwraps the scalar first so the scaling-pump read reaches the count.
+    ``None`` when ``field`` is not a (possibly scaled) ``Ref``.
+    """
+    q = getattr(node, field, MISSING)
+    if _present(q) and tag_of(q) == "Multiply":
+        q = getattr(q, "inner", None)
+    if _present(q) and tag_of(q) == "Ref":
+        return tag_of(getattr(q, "qty", None))
+    return None
+
+
+def ref_count_filter(node: TypedMirrorNode, field: str) -> object | None:
+    """The counted-object filter inside a (``Multiply``-wrapped) ``Ref`` →
+    ``ObjectCount`` value at ``node.field``, or ``None``.
+
+    The voltron read of a dynamic self-pump ("+X/+X for each Aura/Equipment
+    attached to it" — Champion of the Flame) needs the ``AttachedToRecipient``
+    ``ObjectCount`` filter, which the value's ``Multiply`` scalar hides from
+    :func:`effect_filter` / :func:`count_operand_filter`. Returns ``None``
+    unless the value resolves to a ``Ref`` over an ``ObjectCount``.
+    """
+    q = getattr(node, field, MISSING)
+    if _present(q) and tag_of(q) == "Multiply":
+        q = getattr(q, "inner", None)
+    if _present(q) and tag_of(q) == "Ref":
+        qty = getattr(q, "qty", None)
+        if tag_of(qty) == "ObjectCount":
+            return getattr(qty, "filter", None)
     return None
 
 

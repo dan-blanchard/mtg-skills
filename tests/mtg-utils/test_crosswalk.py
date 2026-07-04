@@ -5318,6 +5318,98 @@ def test_voting_matters_trigger_event_and_effect_split():
     assert "voting_makers" in expro
 
 
+# ── Stage-2 exit-gate follow-ups: 5 node-present routing gaps (ADR-0035) ──────
+# Each closes a lane where phase parsed the data, the mirror captured a real
+# node, but the crosswalk emitted nothing and no floor recovered it. Verified
+# node-present + matching extract_signals_ir(include_membership=False) over the
+# commander-legal corpus (no net over-fire; the full-lane count moved UP only).
+
+
+def test_enchantments_matter_cast_trigger():
+    """Gap 1: a TYPED "whenever you cast an enchantment spell, <payoff>" trigger
+    (Argothian Enchantress, Enchantress's Presence). phase parses a ``cast_spell``
+    trigger whose ``valid_card`` is Enchantment-typed + a Draw payoff body; the
+    is-enchantment membership floor can't recover it (the body is a Draw). Routed
+    off the watched-spell filter's core type. CR 603.2."""
+    assert ("enchantments_matter", "you", "") in _idents("Argothian Enchantress")
+    assert ("enchantments_matter", "you", "") in _idents("Enchantress's Presence")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Clinging Darkness",  # -4/-1 aura (negative power)
+        "Chant of the Skifsang",  # -13/-0 aura
+        "Animate Dead",  # -1/-0 aura (reanimation debuff rider)
+    ],
+)
+def test_debuff_makers_static_negative_power_aura(name):
+    """Gap 2: a static AURA negative-POWER pump — ``AddPower`` value < 0 on an
+    EnchantedBy filter. The Pump-EFFECT arm reads Fixed power/toughness; a static
+    mod carries a bare-int ``value``. Keyed on the power sign to mirror the live
+    path. CR 613.4c."""
+    assert ("debuff_makers", "any", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Barbed Battlegear",  # +4/-1 combat Equipment — buff, not a -1/-1 enabler
+        "Boon of Emrakul",  # +3/-3 aura — positive power
+    ],
+)
+def test_debuff_makers_excludes_positive_power_tradeoff(name):
+    """Gap 2 guard: a +X/-Y combat Equipment/Aura has POSITIVE power (a buff whose
+    toughness downside is a tradeoff, not a -1/-1 payoff). The live path keys off
+    the power amount, so these stay out (checklist #6)."""
+    assert "debuff_makers" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Champion of the Flame", "Auramancer's Guise"],
+)
+def test_scaling_pump_and_voltron_dynamic_attached_count(name):
+    """Gap 3: a dynamic self-pump scaling on an attached-object count —
+    ``AddDynamicPower`` = ``Multiply(factor, Ref(ObjectCount(AttachedToRecipient)))``
+    ("+X/+X for each Aura/Equipment attached to it"). The Multiply scalar hid the
+    Ref from the scaling read and the AttachedToRecipient filter from the voltron
+    read; both now unwrap it. CR 107.3 / 301.5c."""
+    idents = _idents(name)
+    assert ("scaling_pump", "you", "") in idents
+    assert ("voltron_matters", "you", "") in idents
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Black Vise",  # deals X to the chosen player (SourceChosenPlayer)
+        "Booby Trap",  # deals 10 to the triggering player (TriggeringPlayer)
+    ],
+)
+def test_direct_damage_chosen_and_triggering_player(name):
+    """Gap 4: a ``DealDamage`` whose target is a CHOSEN / TRIGGERING player node
+    (``SourceChosenPlayer`` / ``TriggeringPlayer``) reaches a player — burn the
+    ``_scope_from_player_node`` map didn't recognize. CR 120.1."""
+    assert ("direct_damage", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Daring Thief",  # exchange control of a nonland permanent for an opp's
+        "Djinn of Infinite Deceits",  # exchange control of two creatures
+    ],
+)
+def test_gain_control_exchange_control(name):
+    """Gap 5: an ``ExchangeControl`` swaps your permanent for an opponent's — you
+    gain theirs (theft). phase's lossy IR maps exchangecontrol → the gain_control
+    category, but the mirror keeps the exchange_control concept, so the theft lane
+    now reads it (the routing the ``_control_exchange`` docstring anticipates).
+    CR 701.12b / 110.2."""
+    assert ("gain_control", "you", "") in _idents(name)
+
+
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 

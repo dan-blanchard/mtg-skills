@@ -100,6 +100,8 @@ from mtg_utils._card_ir.crosswalk import (
     protection_cardtype,
     pump_is_negative,
     recipient_tag,
+    ref_count_filter,
+    ref_count_qty,
     ref_qty_tag,
     replacement_damage_mod,
     replacement_event_tag,
@@ -1644,6 +1646,21 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         for c in unit.statics:
             if c.concept in ("pump", "grant_keyword", "set_pt"):
                 out.extend(_generic_board_lanes(getattr(unit.node, "affected", None)))
+    # CAST-TRIGGER doer (recall gap): "whenever you cast an artifact/enchantment
+    # spell, <payoff>" (Argothian Enchantress, Enchantress's Presence, Sythis,
+    # Mishra). Mirrors ``_signals_ir`` line ~10974 — the watched-spell filter's
+    # core type feeds the type lane, gated to a non-opponent caster (an
+    # opponent-cast punisher — Citanul Druid — is not a type deck). This is the
+    # ROUTING HOME for the enchantment/artifact-only cast watcher that
+    # ``_spellcast_matters`` deliberately excludes (the payoff body — a Draw — is
+    # never itself a type tell, so the is-enchantment membership floor misses
+    # it). CR 603.2.
+    for unit in tree.units:
+        if unit.origin != "trigger" or unit.trigger_event != "cast_spell":
+            continue
+        if trigger_caster_scope(unit.node) == "opponents":
+            continue
+        out.extend(_typed_matters_lanes(getattr(unit.node, "valid_card", None)))
     seen: set[str] = set()
     sigs: list[Signal] = []
     for lane in out:
@@ -1981,6 +1998,18 @@ def _gain_control(tree: ConceptTree) -> list[Signal]:
             if _gives_control_to_other(c.node, unit):
                 continue  # give-away — the new controller is an opponent, not you
             return [Signal("gain_control", "you", "", c.raw, tree.name, "high")]
+    # EXCHANGE-control THEFT (recall gap): an ``ExchangeControl`` swaps your
+    # permanent for an opponent's — you gain control of theirs (Daring Thief,
+    # Djinn of Infinite Deceits, Gilded Drake, Perplexing Chimera). phase's
+    # lossy IR maps ``exchangecontrol`` → the ``gain_control`` category
+    # (project.py), but the mirror keeps the ``exchange_control`` concept, so
+    # the theft lane must read it — exactly the routing the ``_control_exchange``
+    # docstring already anticipates ("live fires the 18 ExchangeControl swaps
+    # under the PORTED gain_control lane"). A land-for-land swap (Political
+    # Trickery) co-fires ``land_exchange`` (a separate lane), matching the live
+    # path. CR 701.12b / 110.2.
+    for c in tree.effect_concepts("exchange_control"):
+        return [Signal("gain_control", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
         for c in unit.statics:
             if tag_of(c.node) == "ChangeController":
@@ -2112,6 +2141,20 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
                     return [
                         Signal("voltron_matters", "you", "", c.raw, tree.name, "high")
                     ]
+    # DYNAMIC self-pump on an ATTACHED count (recall gap): "+X/+X for each
+    # Aura/Equipment attached to it" (Champion of the Flame, Auramancer's Guise)
+    # — the ``AttachedToRecipient`` ObjectCount filter the pump value scales on.
+    # The value hides under a ``Multiply`` scalar, so effect_filter /
+    # count_operand_filter (read above) never reach it; ``ref_count_filter``
+    # unwraps it. CR 301.5c.
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) not in _DYNAMIC_PT_MODS:
+                continue
+            filt = ref_count_filter(mod, "value")
+            if filt is not None and (set(filter_predicates(filt)) & _ATTACHMENT_PREDS):
+                raw = _site_raw(sdef)
+                return [Signal("voltron_matters", "you", "", raw, tree.name, "high")]
     return []
 
 
@@ -2504,6 +2547,24 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
                 and counter_kind(c.node).upper() == "M1M1"
                 and c.scope != "you"
             ):
+                fire("any", c.raw)
+        # STATIC negative-POWER pump (recall gap — the biggest silent tail): a
+        # continuous ``AddPower`` with a NEGATIVE plain-int value — the debuff
+        # Aura (Clinging Darkness -4/-1, Chant of the Skifsang -13/-0, Animate
+        # Dead -1/-0). Keyed on the POWER sign to mirror the live path, which
+        # reads the projected pump Effect's ``amount`` (the power value, scope
+        # "any"): a +X/-Y combat Equipment/Aura (Barbed Battlegear +4/-1, Boon
+        # of Emrakul +3/-3) is a BUFF whose power is positive, so it stays out
+        # (the ``AddToughness`` shrink alone is a tradeoff downside, not a -1/-1
+        # enabler). The ``Pump``-EFFECT arm above reads the ``Fixed``
+        # power/toughness sub-nodes; a STATIC mod carries a bare-int ``value``
+        # (:func:`mod_value`). A dynamic ``AddDynamicPower`` value has no int →
+        # skipped. CR 613.4c.
+        for c in unit.statics:
+            if tag_of(c.node) != "AddPower":
+                continue
+            v = mod_value(c.node)
+            if v is not None and v < 0:
                 fire("any", c.raw)
         for c in unit.statics:
             if c.concept != "set_pt" or c.scope not in ("opponents", "each"):
@@ -3773,11 +3834,15 @@ def _is_scaling_count(node: TypedMirrorNode, fields: tuple[str, ...], raw: str) 
     never is; any OTHER dynamic tag (CommanderCastFromCommandZoneCount,
     GraveyardSize, …) scales only when the node's raw names the count ("for
     each" / "equal to the number of" — Commander's Insignia).
+
+    ``ref_count_qty`` (not ``ref_qty_tag``) unwraps a ``Multiply`` scalar, so a
+    "twice the number of X" scaler (Champion of the Flame's dynamic self-pump
+    ``Multiply(2, Ref(ObjectCount))``) reads as a genuine count. CR 107.3.
     """
     low = (raw or "").lower()
     phrase = "for each" in low or "equal to the number of" in low
     for f in fields:
-        qt = ref_qty_tag(node, f)
+        qt = ref_count_qty(node, f)
         if qt is None or qt in _BARE_X_QTY_TAGS:
             continue
         if qt in _SCALING_QTY_TAGS or phrase:
