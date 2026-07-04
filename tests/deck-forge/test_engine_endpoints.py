@@ -12,8 +12,13 @@ from mtg_utils.testkit import test_card_ir
 def _wire_ir(monkeypatch, mapping: dict):
     """Wire a {oracle_id: Card} IR index into the engine for the test (ADR-0027:
     the hybrid path serves migrated keys — e.g. land_creatures_matter — only from the
-    IR, joined by oracle_id, so an engine test for a migrated avenue must supply one)."""
+    IR, joined by oracle_id, so an engine test for a migrated avenue must supply one).
+
+    ADR-0035 Stage-4: the crosswalk flag defaults ON, so ``ir_for`` reads the
+    crosswalk index first — wire BOTH indexes to the same mapping so a synthetic
+    oracle_id resolves regardless of the flag."""
     monkeypatch.setattr(_ir_lookup, "_index", lambda: mapping)
+    monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: mapping)
 
 
 CMD = {

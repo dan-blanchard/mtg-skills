@@ -48,13 +48,13 @@ def _client(monkeypatch):
     # Wire a non-None IR per fixture oracle_id so the hybrid path serves the migrated
     # partner_background key (it reads the record's `keywords`, but needs ir is not None
     # to take the IR arm). ADR-0027 hybrid dispatch, joined by oracle_id.
-    monkeypatch.setattr(
-        _ir_lookup,
-        "_index",
-        lambda: {
-            c["oracle_id"]: _bare_ir(c["oracle_id"]) for c in (PAIR_LORD, WIDE, MONO)
-        },
-    )
+    ir_index = {
+        c["oracle_id"]: _bare_ir(c["oracle_id"]) for c in (PAIR_LORD, WIDE, MONO)
+    }
+    # ADR-0035 Stage-4: the crosswalk flag defaults ON → ir_for reads the crosswalk
+    # index first; wire BOTH so the synthetic IR resolves regardless of the flag.
+    monkeypatch.setattr(_ir_lookup, "_index", lambda: ir_index)
+    monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: ir_index)
     session = DeckSession("commander")
     session.add("Pair Lord", zone="commanders")
     state = ForgeState(

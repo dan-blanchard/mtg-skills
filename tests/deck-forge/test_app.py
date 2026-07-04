@@ -152,17 +152,17 @@ def test_partner_avenue_filters_to_valid_partners(monkeypatch):
     # (color-agnostic), not the generic "any partner/background card".
     # ADR-0027 t2b4a-B: partner_background is IR-served, so wire a non-None IR for
     # Ishai's oracle_id (the hybrid path reads the record's keywords + needs an IR).
-    monkeypatch.setattr(
-        _ir_lookup,
-        "_index",
-        lambda: {
-            "oid-ishai": Card(
-                oracle_id="oid-ishai",
-                name="Ishai",
-                faces=(Face(name="Ishai", abilities=()),),
-            )
-        },
-    )
+    ishai_index = {
+        "oid-ishai": Card(
+            oracle_id="oid-ishai",
+            name="Ishai",
+            faces=(Face(name="Ishai", abilities=()),),
+        )
+    }
+    # ADR-0035 Stage-4: the crosswalk flag defaults ON → ir_for reads the crosswalk
+    # index first; wire BOTH so the synthetic IR resolves regardless of the flag.
+    monkeypatch.setattr(_ir_lookup, "_index", lambda: ishai_index)
+    monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: ishai_index)
     session = DeckSession("commander")
     session.add("Ishai, Ojutai Dragonspeaker", zone="commanders")
     client = make_client(session=session)

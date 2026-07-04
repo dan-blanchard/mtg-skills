@@ -14,8 +14,9 @@ many searches never re-reads the sidecar.
 ADR-0035 Stage-3a cutover — the crosswalk seam. This module is the chokepoint
 that feeds BOTH seams and it is where the cutover flag lives:
 
-* :func:`crosswalk_enabled` reads ``MTG_SKILLS_CROSSWALK_SIGNALS`` — **default
-  OFF**. With it OFF every path below is byte-identical to before Stage-3a.
+* :func:`crosswalk_enabled` reads ``MTG_SKILLS_CROSSWALK_SIGNALS`` — **default ON**
+  as of the Stage-4 flip. With it explicitly OFF (``"0"``/``"false"``/``"no"``/
+  ``"off"``) every path below is byte-identical to before Stage-3a (the revert path).
 * :func:`ir_for` (Seam B — the five dataclass-API consumers ``ranking`` /
   ``budgets`` / ``cut_check`` / ``metrics`` / ``bracket``) returns the
   **crosswalk-backed** :class:`Card` sidecar when the flag is ON, else the
@@ -45,12 +46,16 @@ _FLAG_ENV = "MTG_SKILLS_CROSSWALK_SIGNALS"
 
 
 def crosswalk_enabled() -> bool:
-    """True when the ADR-0035 crosswalk cutover is enabled (default OFF).
+    """True when the ADR-0035 crosswalk cutover is enabled (default ON, Stage-4).
 
-    Reads ``MTG_SKILLS_CROSSWALK_SIGNALS`` — unset / empty / ``"0"`` / ``"false"``
-    keep the pre-Stage-3a behavior. Read per call (cheap ``os.environ`` lookup) so a
-    test can flip it with ``monkeypatch.setenv`` and see it immediately."""
-    return os.environ.get(_FLAG_ENV, "").strip().lower() not in ("", "0", "false", "no")
+    Reads ``MTG_SKILLS_CROSSWALK_SIGNALS``. The Stage-4 default-ON flip inverts the
+    sense: unset / empty ⇒ ON (the new default), and only an explicit
+    ``"0"`` / ``"false"`` / ``"no"`` / ``"off"`` keeps the pre-Stage-3a legacy
+    behavior (the RETAINED revert path — flag-OFF is byte-identical to pre-flip
+    main). Read per call (cheap ``os.environ`` lookup) so a test can flip it with
+    ``monkeypatch.setenv`` / ``delenv`` and see it immediately."""
+    value = os.environ.get(_FLAG_ENV, "").strip().lower()
+    return value not in ("0", "false", "no", "off")
 
 
 # ── Seam B — the Card dataclass API resolver ──────────────────────────────────
@@ -95,11 +100,12 @@ def old_ir_for(card: dict) -> Card | None:
 def ir_for(card: dict) -> Card | None:
     """The candidate's Card IR (by ``oracle_id``), or ``None`` when unavailable.
 
-    With the Stage-3a flag ON, returns the crosswalk-backed sidecar's Card (the
-    single flip that cuts all five Seam-B consumers over together); with the flag
-    OFF — the default — returns the legacy projected sidecar's Card, byte-identical
-    to before. If the flag is ON but the crosswalk sidecar is unbuilt, degrades to
-    the legacy sidecar (never a hard crash).
+    With the crosswalk flag ON — the Stage-4 default — returns the crosswalk-backed
+    sidecar's Card (the single flip that cuts all five Seam-B consumers over
+    together); with the flag explicitly OFF (the revert path) returns the legacy
+    projected sidecar's Card, byte-identical to before. If the flag is ON but the
+    crosswalk sidecar is unbuilt, degrades to the legacy sidecar (never a hard
+    crash).
 
     ``None`` covers the cases the callers treat identically — no sidecar, an
     oracle_id absent from the index, and a record with no ``oracle_id`` (synthetic

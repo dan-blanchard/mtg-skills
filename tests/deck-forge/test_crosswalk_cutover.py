@@ -101,8 +101,12 @@ def _ported_case() -> tuple[dict, object, str]:
 
 @pytest.fixture(autouse=True)
 def _clean_flag(monkeypatch):
-    """Every test starts with the flag OFF and the memoized indexes cleared."""
-    monkeypatch.delenv(FLAG, raising=False)
+    """Every test starts with the flag explicitly OFF and the memoized indexes
+    cleared. ADR-0035 Stage-4 inverted the default to ON, so ``delenv`` no longer
+    means OFF — each test that wants the legacy (revert) path sets ``"0"`` (here for
+    the default, or explicitly in-test); the default-ON is pinned by
+    ``test_flag_defaults_on``."""
+    monkeypatch.setenv(FLAG, "0")
     il.clear_caches()
     yield
     il.clear_caches()
@@ -111,9 +115,10 @@ def _clean_flag(monkeypatch):
 # ── Step 0: the flag ────────────────────────────────────────────────────────
 
 
-def test_flag_defaults_off(monkeypatch):
+def test_flag_defaults_on(monkeypatch):
+    # ADR-0035 Stage-4 flip: unset ⇒ ON (the new default).
     monkeypatch.delenv(FLAG, raising=False)
-    assert il.crosswalk_enabled() is False
+    assert il.crosswalk_enabled() is True
 
 
 @pytest.mark.parametrize(
@@ -126,7 +131,11 @@ def test_flag_defaults_off(monkeypatch):
         ("0", False),
         ("false", False),
         ("no", False),
-        ("", False),
+        ("off", False),
+        # ADR-0035 Stage-4: empty / whitespace ⇒ ON (only the explicit negative
+        # tokens above keep the legacy revert path).
+        ("", True),
+        ("   ", True),
     ],
 )
 def test_flag_parses_env(monkeypatch, value, expected):
@@ -160,7 +169,7 @@ def test_ir_for_switches_on_flag(monkeypatch):
     monkeypatch.setattr(il, "_crosswalk_index", _returns({"o": new}))
     card = {"oracle_id": "o"}
 
-    monkeypatch.delenv(FLAG, raising=False)
+    monkeypatch.setenv(FLAG, "0")
     assert il.ir_for(card) is old  # flag OFF → legacy sidecar
     assert il.old_ir_for(card) is old
 
@@ -209,7 +218,7 @@ def test_hybrid_serves_ported_from_crosswalk(monkeypatch):
     bulk, tree, ported_key = _ported_case()
     monkeypatch.setattr(il, "tree_for", _returns(tree))
 
-    monkeypatch.delenv(FLAG, raising=False)
+    monkeypatch.setenv(FLAG, "0")
     off = {s.key for s in extract_signals_hybrid(bulk, None)}
     assert ported_key not in off  # ir=None + flag OFF → no IR/crosswalk source
 
@@ -271,7 +280,7 @@ def test_hybrid_three_way_key_partition():
 
 
 def test_producible_unions_ported_under_flag(monkeypatch):
-    monkeypatch.delenv(FLAG, raising=False)
+    monkeypatch.setenv(FLAG, "0")
     off = producible_static_keys()
     monkeypatch.setenv(FLAG, "1")
     on = producible_static_keys()
@@ -295,7 +304,7 @@ def test_gate_resolves_every_producible_key_under_flag(monkeypatch):
 def test_new_specs_are_inert_flag_off(monkeypatch):
     """The three added specs must not change the flag-OFF producible set (the keys
     are never produced by the regex path)."""
-    monkeypatch.delenv(FLAG, raising=False)
+    monkeypatch.setenv(FLAG, "0")
     off = producible_static_keys()
     assert {"amass_makers", "copy_permanent", "incubate_makers"}.isdisjoint(off)
 
@@ -313,10 +322,11 @@ def test_new_specs_are_inert_flag_off(monkeypatch):
 # extract_signals_ir(include=False)`` per card. It is partitioned into the
 # UNCONDITIONAL floor (must reproduce 100%) and the go_wide-GATED ``CLASS_TRIBES``
 # ``type_matters`` lanes (tracked against the crosswalk's own go_wide keys). The
-# go_wide gate keys are ``creatures_matter``/``attack_matters``/``anthem_static`` —
-# PORTED lanes whose crosswalk recall is < 100% by adjudication, so where the
-# crosswalk's go_wide differs from the IR's the class-tribe floor differs too (a
-# documented second-order consequence, never an unconditional-floor loss).
+# go_wide gate keys are ``creatures_matter``/``attack_matters``/``anthem_static``.
+# ADR-0035 Stage-4 routed all three into ``_STAGE4_RESIDUAL`` (served by
+# ``old_ir_for``), so the flag-ON hybrid's go_wide now matches the IR's exactly and
+# the class-tribe floor is fully reproduced — the pre-Stage-4 go_wide cascade
+# (recall < 100% while the lanes were PORTED) collapses to empty.
 _GO_WIDE_KEYS = frozenset({"creatures_matter", "attack_matters", "anthem_static"})
 
 
@@ -366,7 +376,7 @@ def _hybrid_idents(monkeypatch, bulk, tree, ir, *, flag: bool, include: bool):
     if flag:
         monkeypatch.setenv(FLAG, "1")
     else:
-        monkeypatch.delenv(FLAG, raising=False)
+        monkeypatch.setenv(FLAG, "0")
     monkeypatch.setattr(il, "tree_for", _returns(tree))
     monkeypatch.setattr(il, "_index", _returns({ir.oracle_id: ir}))
     sigs = extract_signals_hybrid(bulk, ir, include_membership=include)
@@ -472,11 +482,15 @@ def test_membership_floor_reproduced_in_flag_on_commander(monkeypatch):
     assert uncond_ok == uncond_total
     # A broad floor was actually measured — not a 3-lane toy.
     assert uncond_total > 100, f"expected a broad floor, saw {uncond_total} lanes"
-    # (b) the only misses are go_wide cascades — a bounded, documented residual (the
-    # crosswalk's PORTED go_wide recall is < 100%). Non-empty proves the cascade
-    # branch is exercised; the per-lane assert above proves every miss is legitimate.
+    # (b) every class-tribe floor lane is accounted for: reproduced, or an allowed
+    # go_wide cascade (the per-lane assert above proves each cascade is legitimate).
+    # ADR-0035 Stage-4: the go_wide keys (creatures_matter / attack_matters /
+    # anthem_static) are in ``_STAGE4_RESIDUAL`` — served by ``old_ir_for`` on the
+    # hybrid residual arm — so the flag-ON hybrid's go_wide now equals the IR's and
+    # the class-tribe floor is fully reproduced (the pre-Stage-4 cascade residual
+    # collapses to empty). Non-emptiness is therefore no longer required; the
+    # partition invariant is what guards the floor.
     assert gated_ok + len(gated_cascade) == gated_total
-    assert gated_cascade, "expected the documented go_wide-cascade residual"
 
 
 def test_membership_floor_inert_in_candidate_mode():

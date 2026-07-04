@@ -92,7 +92,10 @@ _BARE_IR_INDEX = {
 
 @pytest.fixture(autouse=True)
 def _wire_bare_ir(monkeypatch):
+    # ADR-0035 Stage-4: crosswalk flag defaults ON → ir_for reads the crosswalk
+    # index first; wire BOTH so the synthetic IR resolves regardless of the flag.
     monkeypatch.setattr(_ir_lookup, "_index", lambda: _BARE_IR_INDEX)
+    monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: _BARE_IR_INDEX)
 
 
 def _state(fmt="commander"):
@@ -208,6 +211,7 @@ def test_support_is_collection_specific_not_lane_width(monkeypatch):
         for c in by_name.values()
     }
     monkeypatch.setattr(_ir_lookup, "_index", lambda: local_ir)
+    monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: local_ir)
     state = ForgeState(
         by_name=by_name,
         search_fn=lambda **_: [],

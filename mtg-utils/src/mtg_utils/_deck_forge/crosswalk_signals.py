@@ -269,9 +269,15 @@ from mtg_utils._deck_forge._sweep_detectors import (
 from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.card_ir import Card
 
-# The Signal keys this batch derives from the typed substrate. The shadow harness
-# slices BOTH the crosswalk and the live hybrid path to exactly this set.
-PORTED_KEYS: frozenset[str] = frozenset(
+# The Signal keys the Stage-2 crosswalk PORTED from the typed substrate (the shadow
+# harness sliced BOTH the crosswalk and the live hybrid path to exactly this set).
+# ADR-0035 Stage-4 (default-ON flip) narrows the LIVE ported set below: the
+# ``_STAGE4_RESIDUAL`` keys the crosswalk lane does not reproduce vs the legacy
+# ``old_ir_for`` on test-covered cards are routed back onto the legacy
+# ``extract_signals_ir`` path (they stay in ``MIGRATED_KEYS`` so removal from
+# ``PORTED_KEYS`` auto-routes them to the residual arm of ``_crosswalk_merge`` — byte-
+# identical to flag-OFF for those keys). See ``PORTED_KEYS`` below.
+_PORTED_KEYS_STAGE3: frozenset[str] = frozenset(
     {
         # Batch 1 (already landed):
         "win_lose_game",
@@ -687,6 +693,166 @@ PORTED_KEYS: frozenset[str] = frozenset(
         # condition for superseding the KEPT verdict.
     }
 )
+
+_STAGE4_RESIDUAL: frozenset[str] = frozenset(
+    {
+        "activated_ability",
+        "airbend_makers",
+        "anthem_static",
+        "any_counter_matters",
+        "artifacts_matter",
+        "attack_matters",
+        "base_pt_set",
+        "blink_flicker",
+        "blocked_matters",
+        "bounce_tempo",
+        "card_draw_engine",
+        "cast_from_exile",
+        "cheat_into_play",
+        "clone_makers",
+        "coin_flip",
+        "colorless_matters",
+        "combat_buff_engine",
+        "combat_damage_matters",
+        "combat_damage_to_opp",
+        "connive_makers",
+        "control_exchange",
+        "convoke_makers",
+        "cost_reduction",
+        "counter_control",
+        "counter_grants_kw",
+        "creature_cast_trigger",
+        "creature_etb",
+        "creature_ping",
+        "creature_recursion",
+        "creatures_matter",
+        "damage_doubling",
+        "damage_equal_power",
+        "damage_prevention",
+        "damage_reflect",
+        "damage_to_opp_matters",
+        "death_matters",
+        "debuff_makers",
+        "dice_makers",
+        "dies_recursion",
+        "dig_until",
+        "direct_damage",
+        "discard_makers",
+        "discard_matters",
+        "discard_outlet",
+        "discover_makers",
+        "donate_makers",
+        "draw_for_each",
+        "earthbend_makers",
+        "earthbend_matters",
+        "edict_makers",
+        "enchantments_matter",
+        "end_the_turn",
+        "evasion_denial",
+        "exile_matters",
+        "explore_makers",
+        "extra_land_drop",
+        "extra_upkeep",
+        "facedown_matters",
+        "fight_makers",
+        "firebending_makers",
+        "firebending_matters",
+        "flash_grant",
+        "food_makers",
+        "forced_attack",
+        "foretell_makers",
+        "gain_control",
+        "goad_makers",
+        "graveyard_makers",
+        "graveyard_matters",
+        "group_hug_draw",
+        "hand_disruption",
+        "historic_matters",
+        "impulse_top_play",
+        "keyword_grant_target",
+        "keyword_soup_makers",
+        "kill_engine",
+        "land_creatures_matter",
+        "land_protection",
+        "land_sacrifice_makers",
+        "land_sacrifice_matters",
+        "landfall",
+        "lifegain_makers",
+        "lifeloss_makers",
+        "low_power_matters",
+        "ltb_matters",
+        "lure_makers",
+        "mana_amplifier",
+        "mass_removal",
+        "minus_counters_matter",
+        "modified_matters",
+        "multicolor_matters",
+        "oil_counter_matters",
+        "one_punch",
+        "opp_top_exile",
+        "opponent_cast_matters",
+        "opponent_discard",
+        "opponent_exile_makers",
+        "phasing_makers",
+        "play_from_top",
+        "plus_one_makers",
+        "plus_one_matters",
+        "poison_makers",
+        "protection_grant",
+        "pump_makers",
+        "rad_counter_makers",
+        "ramp",
+        "reanimator",
+        "regenerate_makers",
+        "removal",
+        "ring_matters",
+        "sacrifice_outlets",
+        "scaling_pump",
+        "second_spell_matters",
+        "self_blink",
+        "self_death_payoff",
+        "self_pump",
+        "spell_copy_makers",
+        "spellcast_matters",
+        "stax_taxes",
+        "suspect_makers",
+        "tap_down",
+        "tap_untap_matters",
+        "tapper_engine",
+        "target_player_draws",
+        "team_evasion_grant",
+        "token_copy_makers",
+        "token_maker",
+        "tokens_matter",
+        "topdeck_selection",
+        "topdeck_stack",
+        "treasure_matters",
+        "tribal_etb_multi",
+        "tribe_damage_trigger",
+        "trigger_doubling",
+        "type_matters",
+        "typed_enters_punish",
+        "typed_spellcast",
+        "variable_pt",
+        "voltron_makers",
+        "voltron_matters",
+        "voting_makers",
+        "wants_cloning",
+        "wants_theft",
+        "waterbend_makers",
+        "waterbend_matters",
+        "win_lose_game",
+    }
+)
+
+# ADR-0035 Stage-4 (default-ON flip): the LIVE ported set is the Stage-3 set
+# MINUS the residual — the keys whose crosswalk lane does not reproduce the legacy
+# ``old_ir_for`` firing on test-covered cards. They remain in ``MIGRATED_KEYS``, so
+# dropping them here routes them to the ``extract_signals_ir(old)`` residual arm of
+# ``_crosswalk_merge`` (byte-identical to flag-OFF). The ~256 keys that stay are the
+# structural set the crosswalk reproduces; ``coverage_gate`` still unions them in.
+PORTED_KEYS: frozenset[str] = _PORTED_KEYS_STAGE3 - _STAGE4_RESIDUAL
+
 
 # Cast-from-graveyard keyword family (CR 601.3 / 702.62a …) — a card that re-casts
 # ITSELF from a graveyard PERFORMS self-recursion → ``graveyard_makers`` you. A
@@ -11084,7 +11250,7 @@ _LANES = (
 def extract_crosswalk_signals(
     tree: ConceptTree,
     *,
-    keys: frozenset[str] = PORTED_KEYS,
+    keys: frozenset[str] = _PORTED_KEYS_STAGE3,
     keywords: frozenset[str] = frozenset(),
     include_membership: bool = False,
     record: dict | None = None,
@@ -11098,6 +11264,12 @@ def extract_crosswalk_signals(
     (granularity c — mirrors ``signals.py`` lines 185-188: a spell-copier wants a
     dense instant/sorcery base, so a ``spellcast_matters`` LOW is cross-opened when
     absent).
+
+    ``keys`` defaults to the FULL Stage-3 lane set (``_PORTED_KEYS_STAGE3``) — every
+    lane this batch built — so a caller validating a lane structurally sees its
+    output. The ADR-0035 Stage-4 LIVE narrowing is a HYBRID-level routing decision:
+    ``_crosswalk_merge`` passes the narrowed ``keys=PORTED_KEYS`` explicitly, so the
+    residual keys are sliced off there and re-supplied from ``old_ir_for``.
 
     ``keywords`` is the card's Scryfall keyword array (the bulk record's
     ``keywords``), the field-lookup source ``mill_makers`` gates on — it is NOT in
