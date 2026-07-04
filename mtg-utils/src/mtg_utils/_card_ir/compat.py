@@ -768,11 +768,17 @@ def compat_card(tree: ConceptTree, cov: CompatCoverage | None = None) -> Card:
     mirror-grounded convergence gate (:func:`convergence_gated_arms`) SKIPS any arm
     whose discriminator the strict L1 mirror already carries (a you-side
     land-to-graveyard trigger, a promoted sacrifice cost) but the lossy compat Card
-    under-derives, so no arm can move a consumer agree→disagree. Flag-ON only: the
-    flag-OFF path builds from ``project.py``, never this adapter. Both stages
-    preserve the L1 mirror by identity — the shared substrate-purity invariant is
-    asserted around the whole build (the (b) stage decorates the overlay; the (c)
-    stage runs strictly downstream on the Card, never touching a tree node).
+    under-derives, so no arm can move a consumer agree→disagree. Finally the
+    Stage-3b (b)-COMPLETION field-correction stage
+    (:func:`apply_field_corrections`) reuses the STRUCTURE-reading (b) supplement
+    arms on the built Card (a cheat-play marker off structured siblings, a clone
+    subject, a tap-down opponent scope), completing the compat Card's field parity
+    with the flag-OFF path; it is compat-only and provably moves 0 cards
+    agree→disagree in any consumer. Flag-ON only: the flag-OFF path builds from
+    ``project.py``, never this adapter. Every stage preserves the L1 mirror by
+    identity — the shared substrate-purity invariant is asserted around the whole
+    build (the (b) overlay stage decorates the overlay; the (c) + (b)-completion
+    stages run strictly downstream on the Card, never touching a tree node).
     """
     from mtg_utils._card_ir._substrate_purity import (
         assert_substrate_pure,
@@ -782,13 +788,16 @@ def compat_card(tree: ConceptTree, cov: CompatCoverage | None = None) -> Card:
         apply_dropped_clause_synthesis,
         convergence_gated_arms,
     )
+    from mtg_utils._card_ir.field_corrections import apply_field_corrections
 
     fingerprint = l1_identity(tree)
     card = compat_card_base(tree, cov)
     skip = convergence_gated_arms(tree, card)
     card = apply_dropped_clause_synthesis(card, tree.oracle, skip=skip)
+    card = apply_field_corrections(card, tree.oracle)
     # The (b) overlay stage rebuilds the tree object (a new ConceptTree with
-    # decorated units) but preserves each L1 node by identity; the (c) stage never
-    # touches the tree. Assert the L1 fingerprint held across the whole build.
+    # decorated units) but preserves each L1 node by identity; the (c) synthesis
+    # and (b)-completion field-correction stages never touch the tree. Assert the
+    # L1 fingerprint held across the whole build.
     assert_substrate_pure(fingerprint, tree)
     return card
