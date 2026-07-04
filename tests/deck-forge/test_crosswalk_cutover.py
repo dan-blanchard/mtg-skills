@@ -22,8 +22,9 @@ from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
 from mtg_utils._card_ir.project import project_card
 from mtg_utils._deck_forge import _ir_lookup as il
+from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._migrated_keys import MIGRATED_KEYS
-from mtg_utils._deck_forge._signals_ir import extract_signals_ir
+from mtg_utils._deck_forge._signals_ir import CLASS_TRIBES, extract_signals_ir
 from mtg_utils._deck_forge.crosswalk_signals import (
     PORTED_KEYS,
     extract_crosswalk_signals,
@@ -302,10 +303,21 @@ def test_new_specs_are_inert_flag_off(monkeypatch):
 # ── ADR-0035 Stage-3a MEMBERSHIP / cares-about FLOOR port ─────────────────────
 # The flag-ON crosswalk is membership-AGNOSTIC on the broad "commander cares about
 # X" floor (a vanilla Enchantment → enchantments_matter, an Artifact →
-# artifacts_matter, an Equipment / big body → voltron_matters). The port reproduces
-# that ``extract_signals_ir`` floor inside ``extract_crosswalk_signals`` behind a
-# keyword-only ``include_membership`` (default False). The lanes the floor touches:
-_FLOOR_LANES = frozenset({"artifacts_matter", "enchantments_matter", "voltron_matters"})
+# artifacts_matter, an Equipment / big body → voltron_matters, an own-subtype /
+# token-profile tribe → type_matters). The port reproduces that
+# ``extract_signals_ir`` floor inside ``extract_crosswalk_signals`` behind a
+# keyword-only ``include_membership`` (default False).
+#
+# The GATE below measures the WHOLE floor over EVERY key, not a hand-picked subset —
+# the floor is defined structurally as ``extract_signals_ir(include=True) minus
+# extract_signals_ir(include=False)`` per card. It is partitioned into the
+# UNCONDITIONAL floor (must reproduce 100%) and the go_wide-GATED ``CLASS_TRIBES``
+# ``type_matters`` lanes (tracked against the crosswalk's own go_wide keys). The
+# go_wide gate keys are ``creatures_matter``/``attack_matters``/``anthem_static`` —
+# PORTED lanes whose crosswalk recall is < 100% by adjudication, so where the
+# crosswalk's go_wide differs from the IR's the class-tribe floor differs too (a
+# documented second-order consequence, never an unconditional-floor loss).
+_GO_WIDE_KEYS = frozenset({"creatures_matter", "attack_matters", "anthem_static"})
 
 
 @lru_cache(maxsize=1)
@@ -346,10 +358,11 @@ def _floor_case(oid: str, faces: list[dict]):
     return bulk, tree, ir
 
 
-def _floor_lanes_hybrid(monkeypatch, bulk, tree, ir, *, flag: bool, include: bool):
-    """The floor-lane signal idents from ``extract_signals_hybrid`` with the flag
-    ON/OFF and the given ``include_membership``, wiring the crosswalk seam to the
-    fixture tree + legacy Card (as the cutover tests do)."""
+def _hybrid_idents(monkeypatch, bulk, tree, ir, *, flag: bool, include: bool):
+    """Every signal ident from ``extract_signals_hybrid`` with the flag ON/OFF and
+    the given ``include_membership``, wiring the crosswalk seam to the fixture tree +
+    legacy Card (as the cutover tests do). ALL keys — the honest gate below measures
+    the whole floor, not a hand-picked lane subset."""
     if flag:
         monkeypatch.setenv(FLAG, "1")
     else:
@@ -357,7 +370,7 @@ def _floor_lanes_hybrid(monkeypatch, bulk, tree, ir, *, flag: bool, include: boo
     monkeypatch.setattr(il, "tree_for", _returns(tree))
     monkeypatch.setattr(il, "_index", _returns({ir.oracle_id: ir}))
     sigs = extract_signals_hybrid(bulk, ir, include_membership=include)
-    return {(s.key, s.scope, s.subject) for s in sigs if s.key in _FLOOR_LANES}
+    return {(s.key, s.scope, s.subject) for s in sigs}
 
 
 def test_extract_crosswalk_signals_no_floor_by_default():
@@ -380,43 +393,90 @@ def test_extract_crosswalk_signals_no_floor_by_default():
 
 
 def test_membership_floor_reproduced_in_flag_on_commander(monkeypatch):
-    """THE GATE: every MEMBERSHIP-sourced floor lane the flag-OFF path fires in
-    commander mode (``include_membership=True``) is reproduced by the flag-ON
-    crosswalk path. "Membership-sourced" = present in ``extract_signals_ir`` with
-    the membership block ON but absent with it OFF — exactly the floor the crosswalk
-    was blind to before this port. Measured over the whole committed fixture."""
-    total = 0
-    reproduced = 0
-    missing: list[tuple[str, tuple[str, str, str]]] = []
+    """THE GATE (honest, full-floor). The membership / cares-about floor is the FULL
+    per-card delta ``extract_signals_ir(include=True)`` minus
+    ``extract_signals_ir(include=False)`` measured over EVERY key across the whole
+    committed fixture — NOT a hand-picked lane subset (the old 3-lane gate
+    self-blindly skipped ``type_matters`` and falsely reported parity). Each
+    membership-sourced lane is partitioned:
+
+      (a) the UNCONDITIONAL floor — own card-type (artifacts/enchantments),
+          own-subtype ``TRIBAL_SUBTYPES`` tribes, token-profile tribes, and every
+          non-go_wide cross-open (voltron / big_mana / kill_engine / wants_cloning /
+          blink_flicker …). This MUST reproduce 100% under the flag-ON crosswalk
+          commander path — a single loss is a real helper bug, never documented away.
+
+      (b) the go_wide-GATED ``CLASS_TRIBES`` ``type_matters`` lanes.
+          ``extract_signals_ir`` fires these only when its own go_wide (any of
+          ``creatures_matter`` / ``attack_matters`` / ``anthem_static``) is set. Those
+          three are PORTED lanes whose crosswalk recall is < 100% by adjudication, so
+          where the crosswalk's go_wide legitimately differs from the IR's, the
+          class-tribe floor differs too. A miss here is ALLOWED only when it is
+          provably a go_wide cascade: the crosswalk fired NONE of the go_wide keys
+          while the IR fired at least one.
+          Any class-tribe miss with the crosswalk go_wide still set would be a real
+          helper bug and fails the per-lane assertion below."""
+    uncond_total = uncond_ok = 0
+    gated_total = gated_ok = 0
+    gated_cascade: list[tuple[str, tuple[str, str, str]]] = []
+    unconditional_lost: list[tuple[str, tuple[str, str, str]]] = []
     for oid, faces in _faces_by_oid().items():
         built = _floor_case(oid, faces)
         if built is None:
             continue
         bulk, tree, ir = built
-        mem_on = {
+        on_all = {
             (s.key, s.scope, s.subject)
             for s in extract_signals_ir(bulk, ir, include_membership=True)
-            if s.key in _FLOOR_LANES
         }
-        mem_off = {
+        off_all = {
             (s.key, s.scope, s.subject)
             for s in extract_signals_ir(bulk, ir, include_membership=False)
-            if s.key in _FLOOR_LANES
         }
-        membership_sourced = mem_on - mem_off
+        membership_sourced = on_all - off_all
         if not membership_sourced:
             continue
-        on_cmd = _floor_lanes_hybrid(
-            monkeypatch, bulk, tree, ir, flag=True, include=True
-        )
+        on_cmd = _hybrid_idents(monkeypatch, bulk, tree, ir, flag=True, include=True)
+        ir_go_wide = {k for (k, _s, _sub) in on_all if k in _GO_WIDE_KEYS}
+        xwalk_go_wide = {k for (k, _s, _sub) in on_cmd if k in _GO_WIDE_KEYS}
         for lane in membership_sourced:
-            total += 1
-            if lane in on_cmd:
-                reproduced += 1
+            key, _scope, subject = lane
+            gated = key == signal_keys.TYPE_MATTERS and subject.lower() in CLASS_TRIBES
+            if gated:
+                gated_total += 1
+                if lane in on_cmd:
+                    gated_ok += 1
+                    continue
+                # Allowed ONLY as a go_wide cascade: the crosswalk's own go_wide
+                # lanes differ from the IR's (crosswalk fired none, IR fired one),
+                # so the class-tribe floor legitimately gates off. Any other miss
+                # (crosswalk go_wide still set) is a real bug and trips here.
+                cascade_msg = (
+                    f"CLASS_TRIBES floor lane {lane} for {bulk['name']!r} lost with "
+                    f"crosswalk go_wide={sorted(xwalk_go_wide)} vs IR go_wide="
+                    f"{sorted(ir_go_wide)} — not a go_wide cascade"
+                )
+                assert not xwalk_go_wide, cascade_msg  # crosswalk went narrow
+                assert ir_go_wide, cascade_msg  # IR went wide (why the lane fired)
+                gated_cascade.append((bulk["name"], lane))
             else:
-                missing.append((bulk["name"], lane))
-    assert total > 100, f"expected a broad membership floor, saw only {total} lanes"
-    assert reproduced == total, f"floor lanes lost under flag-ON: {missing[:20]}"
+                uncond_total += 1
+                if lane in on_cmd:
+                    uncond_ok += 1
+                else:
+                    unconditional_lost.append((bulk["name"], lane))
+    # (a) the load-bearing invariant: the unconditional floor is reproduced 100%.
+    assert not unconditional_lost, (
+        f"UNCONDITIONAL membership floor lost under flag-ON: {unconditional_lost[:20]}"
+    )
+    assert uncond_ok == uncond_total
+    # A broad floor was actually measured — not a 3-lane toy.
+    assert uncond_total > 100, f"expected a broad floor, saw {uncond_total} lanes"
+    # (b) the only misses are go_wide cascades — a bounded, documented residual (the
+    # crosswalk's PORTED go_wide recall is < 100%). Non-empty proves the cascade
+    # branch is exercised; the per-lane assert above proves every miss is legitimate.
+    assert gated_ok + len(gated_cascade) == gated_total
+    assert gated_cascade, "expected the documented go_wide-cascade residual"
 
 
 def test_membership_floor_inert_in_candidate_mode():
