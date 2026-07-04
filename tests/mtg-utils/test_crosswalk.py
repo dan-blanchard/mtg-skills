@@ -224,6 +224,22 @@ def test_land_creatures_matter_aggregation(name, should_fire):
     assert (("land_creatures_matter", "you", "") in _idents(name)) is should_fire
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Badgermole",  # first-class Animate node (earthbend — Land you control)
+        "Awakener Druid",  # threaded one-shot ("target Forest becomes a creature")
+    ],
+)
+def test_land_creatures_matter_animator_alignment(name):
+    """recall-completion b2 (ADR-0034): align the you-scoped land animator with the
+    land_protection breadth. The static-only ``_is_creature_animator`` missed the
+    first-class ``Animate`` EFFECT node (Badgermole's earthbend) and the threaded
+    one-shot animate (Awakener Druid) — both turn YOUR land into a creature, the same
+    land-creatures payoff land_protection already caught (CR 305 / 110.1)."""
+    assert ("land_creatures_matter", "you", "") in _idents(name)
+
+
 # ── granularity (c): whole-card reconciliation (spell-copy → spellcast) ────────
 
 
@@ -1341,10 +1357,38 @@ def test_count_operand_lanes_do_not_cross():
     assert "party_matters" not in tf
 
 
+@pytest.mark.parametrize(
+    ("name", "key"),
+    [
+        # recall-completion b2: the DIRECT (non-Ref) named scaler — a scaler nested
+        # under a wrapper the Ref-only count_operand_qty read missed.
+        ("Aspect of Hydra", "devotion_matters"),  # Pump.power/toughness.value.Ref
+        ("Daybreak Chimera", "devotion_matters"),  # static ModifyCost.dynamic_count
+        ("Artillery Blast", "domain_matters"),  # DealDamage.amount.Offset.inner
+        ("Allied Assault", "party_matters"),  # Pump.power/toughness.value.Ref
+        ("Ardent Electromancer", "party_matters"),  # Mana.produced.count.Ref
+    ],
+)
+def test_direct_named_scaler_payoffs(name, key):
+    """recall-completion b2 (ADR-0034): a named count-operand scaler that is NOT a
+    plain Ref on amount/count/value — nested under a Pump P/T Quantity, a DealDamage
+    Offset, a Mana produced-count, or a static ModifyCost dynamic_count — fires its
+    payoff lane structurally (CR 700.5 / 700.6 / 700.8)."""
+    assert (key, "you", "") in _idents(name)
+
+
 def test_modified_matters_payoff():
     """Chishiro places +1/+1 counters on modified creatures you control — a Modified
     filter predicate, controller you → modified_matters (CR 700.9)."""
     assert ("modified_matters", "you", "") in _idents("Chishiro, the Shattered Blade")
+
+
+def test_modified_matters_trigger_subject():
+    """recall-completion b2 (ADR-0034): a "whenever a MODIFIED creature you control
+    attacks" trigger (Arna Kennerüd) carries the Modified predicate on the trigger
+    subject (valid_card), controller you → modified_matters (CR 700.9). The
+    effect/static reads never saw a trigger subject."""
+    assert ("modified_matters", "you", "") in _idents("Arna Kennerüd, Skycaptain")
 
 
 def test_modified_matters_excludes_plain_anthem():
@@ -1359,11 +1403,27 @@ def test_multicolor_matters_anthem():
     assert ("multicolor_matters", "you", "") in _idents("Knight of New Alara")
 
 
+@pytest.mark.parametrize("name", ["Cloven Casting", "Aurora Eidolon"])
+def test_multicolor_matters_trigger_subject(name):
+    """recall-completion b2 (ADR-0034): a "whenever you cast a multicolored spell"
+    trigger (Cloven Casting, Aurora Eidolon) carries the ColorCount GE 2 predicate on
+    the trigger subject → multicolor_matters. The you-scope of an unscoped spell
+    filter comes from the trigger's own scope (CR 105.2)."""
+    assert ("multicolor_matters", "you", "") in _idents(name)
+
+
 @pytest.mark.parametrize("name", ["Forsaken Monument", "Conduit of Ruin"])
 def test_colorless_matters(name):
     """A ColorCount EQ 0 reference (Forsaken Monument's anthem; Conduit of Ruin's
     colorless tutor, unscoped) → colorless_matters you (CR 105.2)."""
     assert ("colorless_matters", "you", "") in _idents(name)
+
+
+def test_colorless_matters_trigger_subject():
+    """recall-completion b2 (ADR-0034): a "whenever you cast a colorless spell"
+    trigger (Kozilek's Sentinel) carries the ColorCount EQ 0 predicate on the trigger
+    subject → colorless_matters (CR 105.2)."""
+    assert ("colorless_matters", "you", "") in _idents("Kozilek's Sentinel")
 
 
 def test_color_lanes_do_not_cross():
@@ -2280,6 +2340,15 @@ def test_exile_matters_watcher():
     assert ("exile_matters", "you", "") in _idents("Ketramose, the New Dawn")
 
 
+def test_exile_matters_count_operand():
+    """recall-completion b2 (ADR-0034): a P/T / X scaler that COUNTS cards standing
+    in exile (Beacon Bolt — "damage equal to the instant/sorcery cards you own in
+    exile and your graveyard") carries a ZoneCardCount over the exile zone in its
+    amount → exile_matters. A structural count-operand read distinct from to:exile
+    removal / from:exile cast (CR 406.1)."""
+    assert ("exile_matters", "you", "") in _idents("Beacon Bolt")
+
+
 def test_exile_matters_excludes_self_state_and_dig_cast():
     """God-Eternal Bontu's "when this is exiled" is SELF-state (the live
     #24b boundary); Aetherworks Marvel exiles as part of a dig-cast with no
@@ -2755,6 +2824,14 @@ def test_damage_equal_power_fling_shape():
     does."""
     assert ("damage_equal_power", "you", "") in _idents("Fling")
     assert "damage_equal_power" not in _keys("Prodigal Sorcerer")
+
+
+def test_damage_equal_power_or_and_player_recipient():
+    """recall-completion b2 (ADR-0034): Brion Stoutarm throws a creature "to target
+    player or planeswalker" — a Power-qty ``Ref`` DealDamage whose recipient is an
+    ``Or`` CONTAINING a player. The ``_DEP_PLAYER_TAGS`` / Typed-Player read only saw
+    a top-level player node; the Or/And recursion now reaches it (CR 120.3)."""
+    assert ("damage_equal_power", "you", "") in _idents("Brion Stoutarm")
 
 
 # NB: land_destruction stays KEPT (the batch-8 reclassification upheld) — the

@@ -1052,6 +1052,48 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
                 ]
         if _is_creature_animator(unit):
             return [Signal("land_creatures_matter", "you", "", "", tree.name, "high")]
+        # recall-completion b2 (ADR-0034): align the you-scoped land ANIMATOR with the
+        # land_protection breadth. _is_creature_animator (static-only, Land-core-only)
+        # missed the first-class ``Animate`` EFFECT node (the earthbend family — Bumi,
+        # Badgermole: "Animate {types:[Creature], target: Land you control}") and the
+        # threaded one-shot animate ("target Forest becomes a 3/3 creature" — Awakener
+        # Druid, Kamahl). Both turn YOUR land into a creature, the same land-creatures
+        # payoff the IR fires off ``_is_land_animator``. Land-SUBTYPE targets (Forest /
+        # Swamp / Cave — Elvish Branchbender, Fendeep Summoner) are admitted, a
+        # structural catch the IR's Land-core-only ``_is_land_subject`` gate misses.
+        # The reverse animator (creatures→lands — Ashaya) and the symmetric all-lands /
+        # manland self-animate cases stay land_protection-only. CR 305 / 110.1.
+        for c in unit.iter_concepts():
+            if c.role != "effect" or tag_of(c.node) != "Animate":
+                continue
+            tgt = getattr(c.node, "target", None)
+            landish = "Land" in filter_core_types(tgt) or (
+                {t.lower() for t in filter_subtypes(tgt)} & _LAND_SUBTYPE_WORDS
+            )
+            if (
+                landish
+                and "Creature" in (getattr(c.node, "types", None) or ())
+                and filter_controller(tgt) in ("You", None)
+            ):
+                return [
+                    Signal("land_creatures_matter", "you", "", c.raw, tree.name, "high")
+                ]
+        for resolved, sdef in iter_threaded_target_statics(unit.node):
+            landish = "Land" in filter_core_types(resolved) or (
+                {t.lower() for t in filter_subtypes(resolved)} & _LAND_SUBTYPE_WORDS
+            )
+            if not landish:
+                continue
+            for _sd, mod in iter_mod_sites(sdef):
+                if (
+                    tag_of(mod) == "AddType"
+                    and getattr(mod, "core_type", None) == "Creature"
+                ):
+                    return [
+                        Signal(
+                            "land_creatures_matter", "you", "", "", tree.name, "high"
+                        )
+                    ]
     return []
 
 
@@ -3037,6 +3079,36 @@ def _count_operand_lanes(tree: ConceptTree) -> list[Signal]:
             str(getattr(qty, "kind", "")).lower() == "experience"
         ):
             fire("experience_matters", c.raw)
+    # recall-completion b2 (ADR-0034): the DIRECT (non-Ref) named scaler on an
+    # effect's PRIMARY amount. count_operand_qty above only catches a Ref DIRECTLY
+    # on amount/count/value (plus AddDynamicPower statics), so a scaler nested under
+    # a Pump.power/toughness Quantity (Aspect of Hydra), an Offset.inner (Artillery
+    # Blast's "1 plus your domain"), a Mana.produced.count (Ardent Electromancer's
+    # party mana), or a static ModifyCost.dynamic_count (Daybreak Chimera's devotion
+    # cost-reduction) is missed. The old IR reads e.amount.op=='devotion'/'party'/
+    # 'domain' — but only via a supplement ORACLE recovery ("devotion to", "your
+    # party", "basic land types"); this reads the scaler STRUCTURALLY off the
+    # substrate (ADR-0035 prefer-structural). Devotion / PartySize / BasicLandType-
+    # Count are EXCLUSIVELY count operands (CR 700.5 / 700.6 / 700.8), never filter
+    # predicates, so the deep-node walk cannot collide with a subject/target filter.
+    # Keeps the party opponent's-party gate and the domain opponent-controller gate.
+    # Chroma (phase emits it AS a Devotion node — Heartlash Cinder, Primalcrux) rides
+    # devotion_matters, a genuine catch the oracle-regex IR misses; DevotionGE gods
+    # (Nykthos, Nylea's as-long-as gate) fire too, matching the IR devotion-condition
+    # arm.
+    for unit in tree.units:
+        for node in iter_typed_nodes(unit.node):
+            st = tag_of(node)
+            if st in ("Devotion", "DevotionGE"):
+                fire("devotion_matters", "")
+            elif st == "PartySize" and (
+                tag_of(getattr(node, "player", None)) not in _OPP_PLAYER_TAGS
+            ):
+                fire("party_matters", "")
+            elif st == "BasicLandTypeCount" and (
+                getattr(node, "controller", None) != "Opponent"
+            ):
+                fire("domain_matters", "")
     return out
 
 
@@ -3068,6 +3140,23 @@ def _modified_matters(tree: ConceptTree) -> list[Signal]:
             aff is not None
             and "Modified" in filter_predicates(aff)
             and filter_controller(aff) == "You"
+        ):
+            return [Signal("modified_matters", "you", "", "", tree.name, "high")]
+    # recall-completion b2 (ADR-0034): the TRIGGER-subject Modified predicate. The
+    # effect_filter / count_operand_filter / static-affected reads above never see a
+    # trigger's watched subject, so "whenever a MODIFIED creature you control
+    # attacks / deals combat damage" (Arna Kennerüd, Kami of Celebration, One with
+    # the Kami) was missed. Reads the trigger's ``valid_card`` for a Modified
+    # predicate, controller You (a symmetric / opponent modified reference is not a
+    # your-board payoff — same gate the effect arm uses). CR 700.9.
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        vc = getattr(unit.node, "valid_card", None)
+        if (
+            vc is not None
+            and "Modified" in filter_predicates(vc)
+            and filter_controller(vc) == "You"
         ):
             return [Signal("modified_matters", "you", "", "", tree.name, "high")]
     return []
@@ -3163,6 +3252,30 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
     # per-clause, 0 miss / 0 over-fire).
     if _POWER_MATTERS_MIRROR.search(_kept(tree)):
         fire("power_matters", "")
+    # recall-completion b2 (ADR-0034): the TRIGGER-subject ColorCount build-around.
+    # handle() above reads effect / count-operand / static-affected filters but never
+    # a trigger's watched subject, so "whenever you cast a multicolored spell" (Cloven
+    # Casting, Aurora Eidolon) / "a spell that's exactly two colors" (Guildpact
+    # Paragon) and a colorless-cast / colorless-ETB trigger (Kozilek's Sentinel,
+    # Eldrazi Mimic) were missed. Reads the trigger ``valid_card``'s ColorCount, with
+    # the same you / shared gates as handle(): the spell filter of a "you cast …"
+    # trigger is unscoped, so its you-scope comes from the subject controller OR the
+    # trigger's own you-scope (``trigger_scope``). CR 105.2.
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        vc = getattr(unit.node, "valid_card", None)
+        if vc is None or tag_of(vc) is None:
+            continue
+        ctrl = filter_controller(vc)
+        you = ctrl == "You" or (ctrl is None and trigger_scope(unit.node) == "you")
+        shared = ctrl in ("You", "Any", None)  # you or an unscoped global
+        for cmp_, cnt in color_count_preds(vc):
+            if cmp_ == "EQ" and cnt == 0:
+                if shared:
+                    fire("colorless_matters", "")
+            elif you and ((cmp_ == "GE" and cnt >= 2) or (cmp_ == "EQ" and cnt >= 2)):
+                fire("multicolor_matters", "")
     return out
 
 
@@ -4925,6 +5038,47 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
         if tag_of(getattr(unit.node, "valid_card", None)) in ("SelfRef", "AttachedTo"):
             continue
         return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # recall-completion b2 (ADR-0034): the STRUCTURAL in:exile count-operand / P/T
+    # scaler — an effect whose VALUE counts cards STANDING in exile as a resource: a
+    # count-operand filter carrying ``InZone Exile`` (Kaya, Orzhov Usurper) or a
+    # ``ZoneCardCount`` over the exile zone in the amount/count/value subtree (Beacon
+    # Bolt, Ral, Izzet Viceroy — a P/T / X scaler). Distinct from ``to:exile`` removal
+    # / ``from:exile`` cast / opponent GY-hate (those read the effect's ChangeZone /
+    # target, never a count operand — so no re-conflation of the sibling exile lanes).
+    # The old IR reads ``"in:exile" in e.zones``; this reads the count STRUCTURALLY
+    # (ADR-0035 prefer-structural). CR 406.1.
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.role == "cost":
+                continue
+            cof = count_operand_filter(c.node)
+            if cof is not None and "Exile" in filter_inzone_zones(cof):
+                return [Signal("exile_matters", "you", "", c.raw, tree.name, "high")]
+            for fld in ("amount", "count", "value"):
+                sub = getattr(c.node, fld, None)
+                if sub is not None and any(
+                    tag_of(n) == "ZoneCardCount" and getattr(n, "zone", None) == "Exile"
+                    for n in iter_typed_nodes(sub)
+                ):
+                    return [
+                        Signal("exile_matters", "you", "", c.raw, tree.name, "high")
+                    ]
+    # recall-completion b2 (ADR-0034): the CONDITION count-in-exile arm — an ability
+    # gated on the NUMBER of cards standing in exile (Ketramose, the New Dawn — "can't
+    # attack or block unless there are seven or more cards in exile"): a
+    # ``ZoneCardCount`` over the exile zone inside a condition site. Distinct from a
+    # suspend / foretell source-in-exile SELF gate (that references the SOURCE's own
+    # exile state, never carries a ZoneCardCount). CR 406.1. Ketramose also carries an
+    # exile-landing trigger (the arm above), so this is currently subsumed on the
+    # corpus; kept for structural completeness matching the IR condition arm (a future
+    # count-in-exile card with no trigger stays covered).
+    for unit in tree.units:
+        for site in iter_condition_sites(unit.node):
+            if any(
+                tag_of(n) == "ZoneCardCount" and getattr(n, "zone", None) == "Exile"
+                for n in iter_typed_nodes(site)
+            ):
+                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -5790,15 +5944,35 @@ def _damage_prevention(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _dep_or_and_reaches_player(tgt: object, depth: int = 0) -> bool:
+    """A damage recipient that is an ``Or`` / ``And`` CONTAINING a player member
+    ("target creature or player" — Brion Stoutarm, Hellhole Flailer, Sarkhan the
+    Mad). ``_damage_equal_power``'s ``_DEP_PLAYER_TAGS`` / Typed-Player read only
+    saw a top-level player node, missing the disjunctive recipient that
+    ``creature_ping`` already recurses. CR 120.3."""
+    if depth > 6 or tag_of(tgt) not in ("Or", "And"):
+        return False
+    for sub in getattr(tgt, "filters", ()) or ():
+        st = tag_of(sub)
+        if st in _DEP_PLAYER_TAGS:
+            return True
+        if st == "Typed" and "Player" in filter_core_types(sub):
+            return True
+        if _dep_or_and_reaches_player(sub, depth + 1):
+            return True
+    return False
+
+
 def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
     """damage_equal_power — the Fling shape (CR 120.3 recipient rules): a
     ``DealDamage`` whose amount is a ``Ref`` over a POWER qty
     (:func:`ref_qty_tag`) reaching a PLAYER recipient — the "any target"
-    ``Any`` (Fling) or a DIRECT player node. A ``ParentTarget`` re-reference
-    is NOT accepted: it names an earlier CREATURE target ("Tap target
-    creature. ~ deals damage equal to its power to that creature" — Abyssal
-    Hunter, the bite/creature_ping shape). A fixed amount (Prodigal
-    Sorcerer) never fires. Scope "you".
+    ``Any`` (Fling), a DIRECT player node, or (recall-completion b2) an
+    ``Or`` / ``And`` recipient CONTAINING a player ("target creature or
+    player"). A ``ParentTarget`` re-reference is NOT accepted: it names an
+    earlier CREATURE target ("Tap target creature. ~ deals damage equal to
+    its power to that creature" — Abyssal Hunter, the bite/creature_ping
+    shape). A fixed amount (Prodigal Sorcerer) never fires. Scope "you".
     """
     for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
@@ -5808,8 +5982,10 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
                 continue
             tgt = getattr(c.node, "target", None)
             tt = tag_of(tgt)
-            player = tt in _DEP_PLAYER_TAGS or (
-                tt == "Typed" and "Player" in filter_core_types(tgt)
+            player = (
+                tt in _DEP_PLAYER_TAGS
+                or (tt == "Typed" and "Player" in filter_core_types(tgt))
+                or _dep_or_and_reaches_player(tgt)
             )
             if player:
                 return [
