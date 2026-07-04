@@ -947,6 +947,37 @@ def test_edict_makers_symmetric_wrath_preserved(name):
     assert ("edict_makers", "each", "") in _idents(name)
 
 
+# ── b3 recall (ADR-0034): trigger-wrapped forced-choice edicts the direct
+#    opp/each arm missed — DefendingPlayer (Annihilator) and
+#    ParentTargetController ("that permanent's controller sacrifices …").
+
+
+@pytest.mark.parametrize(
+    ("name", "scope"),
+    [
+        # Annihilator N — DefendingPlayer sacrifices N permanents of their choice
+        # (CR 702.85a), a forced player-choice sac → /opponents.
+        ("Breaker of Creation", "opponents"),
+        # "Whenever a creature dies, that creature's controller sacrifices a land
+        # of their choice" — ParentTargetController, symmetric → /each.
+        ("Burning Sands", "each"),
+    ],
+)
+def test_edict_makers_trigger_wrapped_forced_actor(name, scope):
+    """A trigger-wrapped edict whose forced actor is the DefendingPlayer
+    (Annihilator) or the ParentTargetController ("that … controller
+    sacrifices") is a real player-choice sacrifice (CR 701.21a), scoped to
+    match the live IR lane."""
+    assert ("edict_makers", scope, "") in _idents(name)
+
+
+def test_edict_makers_excludes_optional_bounce_downside():
+    """Chain of Vapor's activated "that permanent's controller MAY sacrifice a
+    land" is an OPTIONAL bounce rider, not a forced edict — the trigger-origin
+    gate on ParentTargetController keeps it silent (CR 701.21a)."""
+    assert "edict_makers" not in _keys("Chain of Vapor")
+
+
 @pytest.mark.parametrize(
     "name",
     [
@@ -2635,6 +2666,17 @@ def test_second_spell_matters_condition_arm():
     cast two or more spells this turn" is a ``YouCastSpellCountAtLeast
     count=2`` activation-restriction condition (CR 601)."""
     assert ("second_spell_matters", "you", "") in _idents("Xerex Strobe-Knight")
+
+
+def test_second_spell_matters_static_condition_arm():
+    """The static-continuous CONDITION form (b3 recall): Brightspear Zealot's
+    "+2/+0 as long as you've cast two or more spells this turn" hangs a
+    ``QuantityComparison`` over ``SpellsCastThisTurn`` (GE 2) on a
+    continuous ability — a spell-velocity payoff (CR 603.2). A "three or
+    more spells" static (Arclight Phoenix — a broader velocity lane, not
+    the second-spell counter) never fires."""
+    assert ("second_spell_matters", "you", "") in _idents("Brightspear Zealot")
+    assert "second_spell_matters" not in _keys("Arclight Phoenix")
 
 
 def test_xspell_matters_two_arms():

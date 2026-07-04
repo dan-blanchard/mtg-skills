@@ -109,6 +109,7 @@ from mtg_utils._card_ir.crosswalk import (
     reveal_until_player,
     settap_state,
     spell_count_at_least,
+    spell_velocity_static_two,
     static_mode_field,
     static_mode_tag,
     static_reveal_who,
@@ -2333,7 +2334,17 @@ def _sac_actor_scope(
     (:func:`_scoped_player_scope`) so a symmetric each-player upkeep edict (Braids,
     Smokestack) scopes /each, not /opponents; a ``You`` controller (a you-sac outlet —
     Mycoloth) or none (an unscoped/bare-self sac) → ``None`` (not an edict via this
-    arm)."""
+    arm).
+
+    b3 recall — two more forced-actor controllers, both gated on a TRIGGER origin
+    (the adjudicated "trigger-wrapped true edict" the direct opp/each arm misses):
+    ``DefendingPlayer`` (Annihilator N — CR 702.85a, the defending player
+    sacrifices N permanents of their choice: Breaker of Creation, Artisan of
+    Kozilek) → opponents; ``ParentTargetController`` ("that [dying creature]'s
+    controller sacrifices …" — Burning Sands) → each, matching the live IR scope
+    (symmetric across whoever's permanent left). The trigger gate excludes an
+    activated/spell OPTIONAL "may sacrifice a land" downside (Chain of Vapor —
+    ParentTargetController, an optional bounce rider, not an edict)."""
     ctrl = filter_controller(effect_filter(node))
     if ctrl == "ScopedPlayer":
         return _scoped_player_scope(unit)
@@ -2341,6 +2352,11 @@ def _sac_actor_scope(
         return "opponents"
     if ctrl in ("All", "EachPlayer", "Each"):
         return "each"
+    if unit is not None and getattr(unit, "origin", None) == "trigger":
+        if ctrl == "DefendingPlayer":
+            return "opponents"
+        if ctrl == "ParentTargetController":
+            return "each"
     return None
 
 
@@ -5565,11 +5581,17 @@ def _second_spell_matters(tree: ConceptTree) -> list[Signal]:
     reclassified-UP probe win: the "second spell each turn" qualifier the OLD
     projection dropped (forcing live onto a byte mirror) is a first-class
     ``constraint {NthSpellThisTurn, n}`` on the SpellCast trigger in v0.9.0
-    (Cori-Steel Cutter, n=2). Two typed arms: the trigger constraint with
-    n ≥ 2, and the CONDITION form ``YouCastSpellCountAtLeast count ≥ 2``
-    ("Activate only if you've cast two or more spells this turn" — Xerex
-    Strobe-Knight). A bare SpellCast trigger (Talrand) and the n=1
-    first-spell form (Alela, Cunning Conqueror) never fire. Scope "you".
+    (Cori-Steel Cutter, n=2). Three typed arms: the trigger constraint with
+    n ≥ 2; the activation-restriction CONDITION form
+    ``YouCastSpellCountAtLeast count ≥ 2`` ("Activate only if you've cast two or
+    more spells this turn" — Xerex Strobe-Knight); and the static-continuous
+    CONDITION form — a ``QuantityComparison`` over ``SpellsCastThisTurn`` gating
+    a P/T buff on "two or more spells this turn" (Brightspear Zealot, b3 recall —
+    :func:`spell_velocity_static_two`, the count on a continuous-ability
+    ``condition`` rather than an activation restriction). A bare SpellCast
+    trigger (Talrand), the n=1 first-spell form (Alela, Cunning Conqueror), and a
+    "three or more spells" static (Arclight Phoenix — a broader velocity lane)
+    never fire. Scope "you".
     """
     for unit in tree.units:
         if unit.origin != "trigger":
@@ -5580,7 +5602,7 @@ def _second_spell_matters(tree: ConceptTree) -> list[Signal]:
         ):
             return [Signal("second_spell_matters", "you", "", "", tree.name, "high")]
     for unit in tree.units:
-        if spell_count_at_least(unit.node) >= 2:
+        if spell_count_at_least(unit.node) >= 2 or spell_velocity_static_two(unit.node):
             return [Signal("second_spell_matters", "you", "", "", tree.name, "high")]
     return []
 

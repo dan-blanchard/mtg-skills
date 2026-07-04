@@ -1956,6 +1956,41 @@ def spell_count_at_least(root: object) -> int:
     return best
 
 
+def spell_velocity_static_two(root: object) -> bool:
+    """True when a ``QuantityComparison`` gates a payoff on "you've cast two or
+    more spells this turn" — ``lhs`` a ``Ref`` over ``SpellsCastThisTurn``
+    (``scope: Controller``), comparator ``GE`` with ``rhs == 2`` (or the
+    equivalent ``GT`` / ``rhs == 1``).
+
+    The STATIC-CONDITION form of second_spell_matters (b3 recall): Brightspear
+    Zealot's "gets +2/+0 as long as you've cast two or more spells this turn"
+    hangs the count on a continuous-ability ``condition`` — a
+    ``QuantityComparison`` — distinct from the ``YouCastSpellCountAtLeast``
+    activation restriction (:func:`spell_count_at_least`, the Xerex Strobe-Knight
+    "activate only if" form) and the ``NthSpellThisTurn`` trigger constraint
+    (:func:`trigger_constraint_tag`, the Cori-Steel Cutter "your second spell"
+    form). The threshold is pinned to exactly two-or-more so a "three or more
+    spells" velocity payoff (Arclight Phoenix — a broader lane, not the
+    second-spell counter) never fires, and the ``Controller`` scope excludes an
+    opponent-cast watcher (Captain Mar-Vell). CR 603.2.
+    """
+    for n in _iter_typed_nodes(root):
+        if tag_of(n) != "QuantityComparison":
+            continue
+        lhs = getattr(n, "lhs", None)
+        qty = getattr(lhs, "qty", None) if lhs is not None else None
+        if qty is None or tag_of(qty) != "SpellsCastThisTurn":
+            continue
+        if getattr(qty, "scope", None) != "Controller":
+            continue
+        comp = getattr(n, "comparator", None)
+        rhs = getattr(n, "rhs", None)
+        rv = getattr(rhs, "value", None) if rhs is not None else None
+        if (comp == "GE" and rv == 2) or (comp == "GT" and rv == 1):
+            return True
+    return False
+
+
 # ── Batch-11 typed accessors (replacement / damage-trigger / tap / library) ──
 
 
