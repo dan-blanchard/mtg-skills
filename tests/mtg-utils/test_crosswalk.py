@@ -37,6 +37,11 @@ from mtg_utils._card_ir.crosswalk import (
 )
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
+from mtg_utils._card_ir.overlay_corrections import (
+    _l1_nodes,
+    apply_overlay_corrections,
+    l1_bytes,
+)
 from mtg_utils._deck_forge.crosswalk_signals import (
     PORTED_KEYS,
     extract_crosswalk_signals,
@@ -5417,3 +5422,113 @@ def test_all_emitted_keys_are_in_the_ported_set():
     """The crosswalk only emits keys it claims to have ported (no leakage)."""
     for name in _cards():
         assert _keys(name) <= PORTED_KEYS
+
+
+# ── ADR-0035 Stage-3b (b) — overlay-correction stage + substrate-purity ───────
+
+
+def test_overlay_stage_never_writes_into_the_l1_substrate():
+    """The substrate-purity invariant over the WHOLE fixture: the overlay stage
+    decorates the Layer-2 concept overlay and leaves every Layer-1 phase-mirror
+    node byte-identical AND the same object.
+
+    This is the load-bearing safety property (ADR-0035): a correction that leaked
+    into the frozen substrate — or swapped a mirror node for a rebuilt one — fails
+    here loud, per card."""
+    for name in _cards():
+        tree = _tree(name)
+        before_bytes = l1_bytes(tree)
+        before_ids = [id(n) for n in _l1_nodes(tree)]
+        corrected = apply_overlay_corrections(tree)
+        # L1 byte-shape unchanged (never mutated in place) …
+        assert l1_bytes(corrected) == before_bytes, name
+        # … and every position holds the SAME object (never swapped). The stage
+        # returns the input identity when it makes no correction.
+        assert [id(n) for n in _l1_nodes(corrected)] == before_ids, name
+
+
+def _corrected_effects(name: str):
+    """The (before, after) concept-node pairs for one fixture card's effects."""
+    tree = _tree(name)
+    corrected = apply_overlay_corrections(tree)
+    pairs = []
+    for ub, ua in zip(tree.units, corrected.units, strict=True):
+        pairs.extend(zip(ub.effects, ua.effects, strict=True))
+    return pairs
+
+
+def test_overlay_dig_into_play_lands_category_on_overlay():
+    """(b) _recover_dig_into_play: a reveal-until whose kept card enters the
+    battlefield (Jalira) gets a COMPAT-only ``category='cheat_play'`` override —
+    the signal-facing ``concept`` stays ``reveal_until`` (so the dig_until signal
+    holds; the flip is compat-seam-only)."""
+    hits = [
+        a
+        for _b, a in _corrected_effects("Jalira, Master Polymorphist")
+        if a.category == "cheat_play"
+    ]
+    assert hits, "dig_into_play did not land"
+    assert all(a.concept == "reveal_until" for a in hits)
+
+
+def test_overlay_exile_removal_lands_category_and_subject():
+    """(b) _recover_exile_removal: a single-target exile swallowed into a
+    ``gain_life`` rider (Exile) gets ``category='exile'`` + a Creature subject on
+    the overlay; the ``concept`` stays ``gain_life`` (lifegain signal holds)."""
+    hits = [a for _b, a in _corrected_effects("Exile") if a.category == "exile"]
+    assert hits
+    assert hits[0].subject == ("Creature",)
+    assert hits[0].concept == "gain_life"
+
+
+def test_overlay_removal_target_subject_lands_subject():
+    """(b) _recover_removal_target_subject: a destroy whose creature target phase
+    dropped (Smite) gains a Creature subject on the overlay."""
+    hits = [
+        a
+        for b, a in _corrected_effects("Smite")
+        if a.concept == "destroy" and not b.subject and a.subject
+    ]
+    assert hits
+    assert hits[0].subject == ("Creature",)
+
+
+def test_overlay_edict_scope_lands_scope():
+    """(b) _recover_edict_scope: a ``sacrifice`` whose sacrificer scope reads the
+    controller (Dictate of Erebos) is re-scoped to ``opponents`` on the overlay."""
+    hits = [
+        a
+        for b, a in _corrected_effects("Dictate of Erebos")
+        if a.concept == "sacrifice" and b.scope != "opponents"
+    ]
+    assert hits
+    assert hits[0].scope == "opponents"
+
+
+def test_overlay_blink_returns_to_lands_marker():
+    """(b) _recover_blink_returns_to: the exile half of a self-blink (Cloudshift)
+    is stamped ``returns_to='battlefield'`` on the overlay."""
+    hits = [
+        a
+        for b, a in _corrected_effects("Cloudshift")
+        if a.returns_to and not b.returns_to
+    ]
+    assert hits
+    assert hits[0].returns_to == "battlefield"
+
+
+def test_overlay_graveyard_zones_lands_zone():
+    """(b) _recover_graveyard_zones: a bounce whose graveyard origin phase dropped
+    (Aphetto Dredging) gains ``in:graveyard`` in the overlay ``zones``."""
+    hits = [
+        a
+        for b, a in _corrected_effects("Aphetto Dredging")
+        if "in:graveyard" in a.zones and "in:graveyard" not in b.zones
+    ]
+    assert hits
+
+
+def test_overlay_stage_is_noop_when_no_arm_fires():
+    """A card no arm touches is returned by identity (cheap, allocation-free)."""
+    tree = _tree("Grizzly Bears")
+    assert apply_overlay_corrections(tree) is tree

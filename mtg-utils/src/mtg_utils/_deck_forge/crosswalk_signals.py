@@ -11118,6 +11118,14 @@ def extract_crosswalk_signals(
     ``vocab`` is the creature-subtype vocab the token-kindred cross-open validates
     against (threaded through like the hybrid).
     """
+    # ADR-0035 Stage-3b (b): run the named overlay-correction stage FIRST, so the
+    # lanes read the corrected concept overlay (a dig-into-play flipped to
+    # cheat_play, an edict re-scoped). Preserves the L1 mirror by identity
+    # (substrate-purity invariant). Flag-ON path only — the flag-OFF projection
+    # never reaches this function.
+    from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
+
+    tree = apply_overlay_corrections(tree)
     out: list[Signal] = []
     seen: set[tuple[str, str, str]] = set()
 

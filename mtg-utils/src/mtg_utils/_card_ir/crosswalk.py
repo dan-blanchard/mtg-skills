@@ -264,6 +264,27 @@ class ConceptNode:
     scope: str  # "you" | "opponents" | "each" | "any"
     subject: tuple[str, ...]  # type/subtype strings the node names ("" → empty)
     raw: str  # a grounding clause (node description / "") — not identity-bearing
+    # ── ADR-0035 Stage-3b (b) overlay-correction fields ───────────────────────
+    # Additive overlay decorations written ONLY by the named
+    # ``overlay_corrections`` stage (never by ``build_concept_tree``), so a
+    # default-constructed node carries none. They correct a field the pure
+    # substrate under-derives — a graveyard zone phase dropped, a blink
+    # return marker — WITHOUT touching the L1 mirror ``node`` (the
+    # substrate-purity invariant). ``zones`` is UNIONed onto the structurally
+    # derived zones by the compat reader; ``returns_to`` names the blink
+    # return destination ("battlefield"), read by no live consumer yet
+    # (behavior-neutral, mirroring the OLD ``_recover_blink_returns_to``).
+    #
+    # ``category`` is a COMPAT-ONLY old-IR category override (a dig re-read as
+    # ``cheat_play``, a swallowed exile as ``exile``). It is DELIBERATELY separate
+    # from ``concept``: the signal lanes read ``concept`` (a category-flip that
+    # rewrote it would silence the ``dig_until`` / ``lifegain`` signal the LIVE
+    # path — which reads oracle text, not the recovered category — still emits, a
+    # measured shadow-diff regression), while ``compat`` reads ``category``. So the
+    # flip corrects the compat consumer WITHOUT moving the Signal seam.
+    zones: tuple[str, ...] = ()
+    returns_to: str = ""
+    category: str = ""
 
 
 @dataclass(frozen=True)

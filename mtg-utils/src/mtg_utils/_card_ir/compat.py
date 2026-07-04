@@ -442,7 +442,9 @@ def _zones(cnode: ConceptNode) -> tuple[str, ...]:
 
     A ``change_zone`` concept carries phase's origin/destination directly;
     every effect's target/filter contributes its ``InZone`` predicates
-    (Raise Dead's "from your graveyard" bounce → ``in:graveyard``).
+    (Raise Dead's "from your graveyard" bounce → ``in:graveyard``). The ADR-0035
+    Stage-3b overlay ``zones`` field (a graveyard origin phase dropped) is UNIONed
+    on — an additive correction, never a structural override.
     """
     out: list[str] = []
     if cnode.concept == "change_zone":
@@ -454,6 +456,8 @@ def _zones(cnode: ConceptNode) -> tuple[str, ...]:
     filt = effect_filter(cnode.node)
     if filt is not None:
         out.extend(f"in:{z.lower()}" for z in filter_inzone_zones(filt))
+    if cnode.zones:  # additive overlay correction (Stage-3b)
+        out.extend(z for z in cnode.zones if z not in out)
     return tuple(out)
 
 
@@ -517,7 +521,15 @@ def _effect_category(cnode: ConceptNode, cov: CompatCoverage) -> str:
       measured 100% per kind; an unmeasured kind stays a miss.
     * the ``_TAG_SPLIT_CONCEPTS`` (copy_token / facedown / goad / double_pt)
       route on the phase tag, each row measured 100% decisive.
+
+    ADR-0035 Stage-3b: an overlay ``category`` override (a dig re-read as
+    ``cheat_play``, a swallowed exile as ``exile``) short-circuits first — the
+    Stage-3b (b) category-flip lands on compat WITHOUT rewriting the signal-facing
+    ``concept``.
     """
+    if cnode.category:
+        cov.ported[cnode.category] += 1
+        return cnode.category
     tag = tag_of(cnode.node) or ""
     if cnode.concept == OTHER:
         cat = _TAG_CATEGORY.get(tag)
@@ -726,7 +738,16 @@ def compat_card(tree: ConceptTree, cov: CompatCoverage | None = None) -> Card:
     ``cov`` (caller-owned, aggregatable across a corpus) tallies every effect
     node into ported / explicitly-unported buckets; pass ``None`` to discard
     the accounting.
+
+    Runs the ADR-0035 Stage-3b (b) overlay-correction stage FIRST — decorating a
+    handful of concept-node fields the pure substrate under-derives — then reads
+    the corrected overlay. Flag-ON only: the flag-OFF path builds from
+    ``project.py``, never this adapter. The stage preserves the L1 mirror by
+    identity (substrate-purity invariant).
     """
+    from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
+
+    tree = apply_overlay_corrections(tree)
     cov = cov if cov is not None else CompatCoverage()
     abilities = tuple(_ability(u, cov) for u in tree.units)
     return Card(
