@@ -1048,6 +1048,49 @@ def sidecar_path() -> Path:
     return card_ir_dir() / "card-ir.json"
 
 
+# ADR-0035 Stage-3a: the crosswalk-backed sidecar carries the SAME on-disk shape
+# (oracle_id → Card dict) as the legacy sidecar — it is produced by
+# ``compat_card(build_concept_tree(...))`` instead of ``project_card`` — so it
+# lives at a DISTINCT path with its OWN version tag. ``ir_for`` reads it under the
+# flag; the two never collide.
+CROSSWALK_SIDECAR_VERSION = 1
+
+
+def crosswalk_sidecar_path() -> Path:
+    return card_ir_dir() / "card-ir-crosswalk.json"
+
+
+def load_crosswalk_card_ir(path: str | Path | None = None) -> dict[str, Card]:
+    """Load the crosswalk-backed sidecar into an ``oracle_id`` → :class:`Card` map.
+
+    Raises ``FileNotFoundError`` when the crosswalk sidecar is absent (build it with
+    ``build-card-ir-crosswalk``) and ``ValueError`` on an on-disk version mismatch.
+    Shares the ``_MEM_CACHE`` (keyed by path) with :func:`load_card_ir`; the
+    distinct path keeps the two indexes from aliasing."""
+    p = Path(path) if path else crosswalk_sidecar_path()
+    if not p.exists():
+        raise FileNotFoundError(
+            f"Crosswalk Card IR sidecar not found at {p}. Build it with "
+            "`build-card-ir-crosswalk` (ADR-0035 Stage-3a)."
+        )
+    mtime = p.stat().st_mtime
+    key = str(p)
+    hit = _MEM_CACHE.get(key)
+    if hit is not None and hit[0] == mtime:
+        return hit[1]
+
+    payload = json.loads(p.read_text())
+    if payload.get("version") != CROSSWALK_SIDECAR_VERSION:
+        raise ValueError(
+            f"Crosswalk Card IR sidecar at {p} is version "
+            f"{payload.get('version')}, expected {CROSSWALK_SIDECAR_VERSION}. "
+            "Rebuild with `build-card-ir-crosswalk`."
+        )
+    cards = {oid: Card.from_dict(d) for oid, d in (payload.get("cards") or {}).items()}
+    _MEM_CACHE[key] = (mtime, cards)
+    return cards
+
+
 # oracle_id → Card, keyed by (path, mtime). Shared by reference; treat read-only.
 _MEM_CACHE: dict[str, tuple[float, dict[str, Card]]] = {}
 

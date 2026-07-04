@@ -39,6 +39,7 @@ import re
 from collections.abc import Callable, Sequence
 
 from mtg_utils._deck_forge import signal_keys
+from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
 from mtg_utils._deck_forge._migrated_keys import MIGRATED_KEYS
 from mtg_utils._deck_forge._signals_ir import (
     _IR_KEPT_DETECTORS,
@@ -119,6 +120,123 @@ __all__ = [
 # ── Hybrid dispatch seam (ADR-0027 strangler) ─────────────────────────────────
 
 
+def _hybrid_merge(
+    record: dict,
+    ir: Card | None,
+    regex_signals: list[Signal],
+    *,
+    vocab: frozenset[str],
+    include_membership: bool,
+    resolve_object: Callable[[str], dict | None] | None,
+) -> list[Signal] | None:
+    """Merge the non-regex signal sources into the stripped regex set.
+
+    Returns the merged ``out`` (before the shared reconciliation tail), or ``None``
+    to signal "no non-regex source ran — return the pure regex set". With the
+    Stage-3a flag OFF (default) this is byte-identical to the pre-Stage-3a code:
+    strip ``MIGRATED_KEYS`` from the regex set and re-supply them from
+    ``extract_signals_ir``."""
+    if crosswalk_enabled():
+        crosswalk_out = _crosswalk_merge(
+            record,
+            regex_signals,
+            vocab=vocab,
+            include_membership=include_membership,
+            resolve_object=resolve_object,
+        )
+        if crosswalk_out is not None:
+            return crosswalk_out
+    if ir is None or not MIGRATED_KEYS:
+        return None
+    out: list[Signal] = [s for s in regex_signals if s.key not in MIGRATED_KEYS]
+    seen = {(s.key, s.scope, s.subject) for s in out}
+    # ADR-0027 β: fold referenced objects (ADR-0025 — a ventured dungeon / meld result
+    # / the Ring) into the record the IR path reads, so a migrated kept-mirror key whose
+    # plan lives on a FOLDED object (e.g. combat_damage_to_opp from the Ring-bearer's
+    # "deals combat damage to a player" level) still fires from the IR path. The regex
+    # path folds internally above; the IR path takes the pre-folded record. No-op when
+    # no resolver / nothing folds.
+    ir_record = (
+        _fold_referenced_objects(record, resolve_object)
+        if resolve_object is not None
+        else record
+    )
+    for sig in extract_signals_ir(
+        ir_record, ir, vocab=vocab, include_membership=include_membership
+    ):
+        if sig.key not in MIGRATED_KEYS:
+            continue
+        ident = (sig.key, sig.scope, sig.subject)
+        if ident in seen:
+            continue
+        seen.add(ident)
+        out.append(sig)
+    return out
+
+
+def _crosswalk_merge(
+    record: dict,
+    regex_signals: list[Signal],
+    *,
+    vocab: frozenset[str],
+    include_membership: bool,
+    resolve_object: Callable[[str], dict | None] | None,
+) -> list[Signal] | None:
+    """The ADR-0035 Stage-3a three-way merge (flag ON). ``None`` when the concept
+    tree is unavailable so the caller degrades to the legacy IR path.
+
+    Three-way dispatch (the key-set delta is exact, NOT a clean swap):
+    ``PORTED_KEYS`` come from the typed-substrate crosswalk; the residual keys the
+    crosswalk does not reproduce (``MIGRATED_KEYS - PORTED_KEYS`` — the two permanent
+    KEPT lanes ``damage_redirect`` / ``land_destruction`` plus the unported tail)
+    stay on the legacy ``extract_signals_ir`` path; every other key stays regex. The
+    shared reconciliation tail runs once in the caller, its ``not in out_keys`` guards
+    absorbing the crosswalk's own already-applied reconciliations (single fire)."""
+    from mtg_utils._deck_forge._ir_lookup import old_ir_for, tree_for
+    from mtg_utils._deck_forge.crosswalk_signals import (
+        PORTED_KEYS,
+        extract_crosswalk_signals,
+    )
+
+    tree = tree_for(record)
+    if tree is None:
+        return None
+    residual = MIGRATED_KEYS - PORTED_KEYS
+    served = PORTED_KEYS | residual  # == PORTED_KEYS | MIGRATED_KEYS
+    out: list[Signal] = [s for s in regex_signals if s.key not in served]
+    seen = {(s.key, s.scope, s.subject) for s in out}
+
+    def _add(sig: Signal) -> None:
+        ident = (sig.key, sig.scope, sig.subject)
+        if ident in seen:
+            return
+        seen.add(ident)
+        out.append(sig)
+
+    keywords = frozenset(
+        k for k in (record.get("keywords") or []) if isinstance(k, str)
+    )
+    for sig in extract_crosswalk_signals(tree, keys=PORTED_KEYS, keywords=keywords):
+        if sig.key in PORTED_KEYS:
+            _add(sig)
+    # The residual keys keep reading the legacy project.py IR (the two permanent
+    # KEPT lanes must stay on it forever). Fetch the OLD projected Card directly —
+    # never the flag-switched ``ir_for``, which under the flag is the crosswalk Card.
+    old = old_ir_for(record)
+    if old is not None:
+        ir_record = (
+            _fold_referenced_objects(record, resolve_object)
+            if resolve_object is not None
+            else record
+        )
+        for sig in extract_signals_ir(
+            ir_record, old, vocab=vocab, include_membership=include_membership
+        ):
+            if sig.key in residual:
+                _add(sig)
+    return out
+
+
 def extract_signals_hybrid(
     record: dict,
     ir: Card | None,
@@ -145,31 +263,20 @@ def extract_signals_hybrid(
         include_membership=include_membership,
         resolve_object=resolve_object,
     )
-    if ir is None or not MIGRATED_KEYS:
-        return regex_signals
-    out: list[Signal] = [s for s in regex_signals if s.key not in MIGRATED_KEYS]
-    seen = {(s.key, s.scope, s.subject) for s in out}
-    # ADR-0027 β: fold referenced objects (ADR-0025 — a ventured dungeon / meld result
-    # / the Ring) into the record the IR path reads, so a migrated kept-mirror key whose
-    # plan lives on a FOLDED object (e.g. combat_damage_to_opp from the Ring-bearer's
-    # "deals combat damage to a player" level) still fires from the IR path. The regex
-    # path folds internally above; the IR path takes the pre-folded record. No-op when
-    # no resolver / nothing folds.
-    ir_record = (
-        _fold_referenced_objects(record, resolve_object)
-        if resolve_object is not None
-        else record
+    # Merge the non-regex signal sources into ``out`` (ADR-0035 Stage-3a routes the
+    # ported keys through the crosswalk when the flag is ON; the legacy IR path
+    # otherwise). ``None`` means "no non-regex source ran" → return the pure regex
+    # set unchanged, EXACTLY as before Stage-3a (the flag-OFF byte-identity invariant).
+    out = _hybrid_merge(
+        record,
+        ir,
+        regex_signals,
+        vocab=vocab,
+        include_membership=include_membership,
+        resolve_object=resolve_object,
     )
-    for sig in extract_signals_ir(
-        ir_record, ir, vocab=vocab, include_membership=include_membership
-    ):
-        if sig.key not in MIGRATED_KEYS:
-            continue
-        ident = (sig.key, sig.scope, sig.subject)
-        if ident in seen:
-            continue
-        seen.add(ident)
-        out.append(sig)
+    if out is None:
+        return regex_signals
     # ADR-0027 spell-copy → spellcast cross-open reconciliation: the regex
     # `extract_signals` path UNCONDITIONALLY cross-opens spellcast_matters (low) from
     # any spell_copy_makers card (a spell-copier is a spellslinger wanting a dense I/S
@@ -505,4 +612,13 @@ def producible_static_keys() -> set[str]:
     # stays guarded by the key-agreement gate (signal_specs ADR-0014). The
     # producer tables above no longer mention it, so union it back in explicitly.
     keys.update(MIGRATED_KEYS)
+    # ADR-0035 Stage-3a: when the flag is ON the crosswalk becomes a key source, so
+    # union ``PORTED_KEYS`` into the gate's coverage too (lazy import — no crosswalk
+    # machinery is pulled in on the default flag-OFF import path). This is a superset
+    # no-op today (every PORTED key is already regex- or IR-produced) but keeps the
+    # gate honest if a future PORTED key has no other producer.
+    if crosswalk_enabled():
+        from mtg_utils._deck_forge.crosswalk_signals import PORTED_KEYS
+
+        keys.update(PORTED_KEYS)
     return keys - signal_keys.SUBJECT_KEYS

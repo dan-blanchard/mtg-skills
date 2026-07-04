@@ -4376,6 +4376,29 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _ETB_DOUBLER_EXTRA,
         ),
     ),
+    # ADR-0035 Stage-3a: three crosswalk-ported maker lanes (in ``PORTED_KEYS`` but
+    # not ``MIGRATED_KEYS``) that the legacy regex path never produced, so their specs
+    # were never registered. They are produced only when the crosswalk flag is ON —
+    # these entries are inert on the default flag-OFF path (the keys are never
+    # emitted there) and exist so the key-agreement gate resolves them under the flag.
+    ("copy_permanent", "you"): _spec(
+        "Permanent copies",
+        "generic clone effects plus strong permanents worth copying",
+        {"oracle": r"becomes a copy|copy of (?:target|another|any|a|that)\b"},
+        r"becomes a copy|copy of (?:target|another|any|a|that)\b|as a copy of",
+    ),
+    ("amass_makers", "you"): _spec(
+        "Amass",
+        "amass sources plus Army / +1/+1-counter payoffs",
+        {"oracle": r"\bamass\b"},
+        r"\bamass\b|\bArmy\b|\+1/\+1 counter",
+    ),
+    ("incubate_makers", "you"): _spec(
+        "Incubate",
+        "incubate sources plus artifact-token / +1/+1-counter payoffs",
+        {"oracle": r"\bincubate\b"},
+        r"\bincubate\b|\bIncubator\b|\+1/\+1 counter",
+    ),
     ("specialize_matters", "you"): _spec(
         "Specialize",
         "specialize payoffs to swap a creature's stat/ability line "
