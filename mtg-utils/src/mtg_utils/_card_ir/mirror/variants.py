@@ -1,16 +1,17 @@
 """Closed-union arm for phase's ``Effect`` enum (ADR-0035, Stage 1).
 
 The ``Effect`` enum in phase's ``crates/engine/src/types/ability.rs`` declares
-207 variants (a cheap variant-**name** grep — names only, never the Rust field
-shapes). Of those, **189 are witnessed** in the pinned v0.9.0 ``card-data.json``
-at the canonical effect slot (``ckey == "effect"``) and **18 emit zero
-instances** (Cascade, Exploit, MiracleCast, VentureInto, …). The 18 get a
-closed-union arm: the strict loader raises loudly on their *first emission*
-rather than letting an unwitnessed variant slip in invisibly on a phase bump.
+215 variants at the v0.15.0 pin (a cheap variant-**name** grep — names only,
+never the Rust field shapes; 207 at v0.9.0 + 8 v0.15.0 additions). Of those,
+**197 are witnessed** in the pinned v0.15.0 ``card-data.json`` at the canonical
+effect slot (``ckey == "effect"``) and **18 emit zero instances** (Cascade,
+Exploit, MiracleCast, VentureInto, …). The 18 get a closed-union arm: the strict
+loader raises loudly on their *first emission* rather than letting an unwitnessed
+variant slip in invisibly on a phase bump.
 
-``EFFECT_VARIANTS`` is the full 207-name roster (the per-variant population
+``EFFECT_VARIANTS`` is the full 215-name roster (the per-variant population
 baseline seeds zeros from it). ``ZERO_INSTANCE_EFFECTS`` is the 18-name
-closed-union subset. Both are data-grounded against v0.9.0 — regenerate via
+closed-union subset. Both are data-grounded against v0.15.0 — regenerate via
 ``build-card-ir-substrate`` if the phase tag bumps.
 """
 
@@ -226,10 +227,24 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "DraftFromSpellbook",
     "ChooseOneOf",
     "Unimplemented",
+    # v0.15.0 additions (pin bump v0.9.0 → v0.15.0): 8 new Effect variants
+    # witnessed in v0.15.0 card-data (ChaosEnsues 9, EachSourceDealsDamage 7,
+    # TurnFaceDown 7, CreateDrawReplacement 3, PutChosenCounter 3, ChooseCounterKind
+    # 2, CreatePlaneswalkReplacement 1, RememberCard 1). Appended (source enum order
+    # unavailable without the v0.15.0 ability.rs); membership, not order, is what the
+    # closed-union + population baseline read.
+    "ChaosEnsues",
+    "ChooseCounterKind",
+    "CreateDrawReplacement",
+    "CreatePlaneswalkReplacement",
+    "EachSourceDealsDamage",
+    "PutChosenCounter",
+    "RememberCard",
+    "TurnFaceDown",
 )
 
-# The 18 name-known / shape-unknown variants: declared in phase's enum but with
-# ZERO instances anywhere in v0.9.0 card-data. The closed-union arm fails loud
+# The name-known / shape-unknown variants: declared in phase's enum but with
+# ZERO instances anywhere in v0.15.0 card-data. The closed-union arm fails loud
 # on their first emission (see loader.strict_load_card).
 ZERO_INSTANCE_EFFECTS: frozenset[str] = frozenset(
     {

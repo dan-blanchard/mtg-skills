@@ -1,5 +1,5 @@
 {
-  "phase_tag": "v0.9.0",
+  "phase_tag": "v0.15.0",
   "schema_version": 1,
   "cards": {
     "\"Ach! Hans, Run!\"": {
@@ -981,305 +981,6 @@
         "uncommon"
       ]
     },
-    "A Killer Among Us": {
-      "name": "A Killer Among Us",
-      "mana_cost": {
-        "type": "Cost",
-        "shards": [
-          "Green"
-        ],
-        "generic": 4
-      },
-      "card_type": {
-        "supertypes": [],
-        "core_types": [
-          "Enchantment"
-        ],
-        "subtypes": []
-      },
-      "power": null,
-      "toughness": null,
-      "loyalty": null,
-      "defense": null,
-      "oracle_text": "When this enchantment enters, create a 1/1 white Human creature token, a 1/1 blue Merfolk creature token, and a 1/1 red Goblin creature token. Then secretly choose Human, Merfolk, or Goblin.\nSacrifice this enchantment, Reveal the creature type you chose: If target attacking creature token is the chosen type, put three +1/+1 counters on it and it gains deathtouch until end of turn.",
-      "non_ability_text": null,
-      "flavor_name": null,
-      "keywords": [],
-      "abilities": [
-        {
-          "kind": "Activated",
-          "effect": {
-            "type": "PutCounter",
-            "counter_type": "P1P1",
-            "count": {
-              "type": "Fixed",
-              "value": 3
-            },
-            "target": {
-              "type": "SelfRef"
-            }
-          },
-          "cost": {
-            "type": "Composite",
-            "costs": [
-              {
-                "type": "Sacrifice",
-                "target": {
-                  "type": "SelfRef"
-                },
-                "count": 1
-              },
-              {
-                "type": "Sacrifice",
-                "target": {
-                  "type": "Typed",
-                  "type_filters": [],
-                  "controller": null,
-                  "properties": []
-                },
-                "count": 1
-              }
-            ]
-          },
-          "sub_ability": {
-            "kind": "Spell",
-            "effect": {
-              "type": "GenericEffect",
-              "static_abilities": [
-                {
-                  "mode": "Continuous",
-                  "affected": {
-                    "type": "SelfRef"
-                  },
-                  "modifications": [
-                    {
-                      "type": "AddKeyword",
-                      "keyword": "Deathtouch"
-                    }
-                  ],
-                  "condition": null,
-                  "affected_zone": null,
-                  "effect_zone": null,
-                  "active_zones": [],
-                  "characteristic_defining": false,
-                  "description": "gain deathtouch"
-                }
-              ],
-              "duration": "UntilEndOfTurn",
-              "target": null
-            },
-            "cost": null,
-            "sub_ability": null,
-            "duration": "UntilEndOfTurn",
-            "description": null,
-            "target_prompt": null,
-            "condition": null,
-            "optional_targeting": false,
-            "optional": false,
-            "forward_result": false
-          },
-          "duration": null,
-          "description": "Sacrifice ~, Reveal the creature type you chose: If target attacking creature token is the chosen type, put three +1/+1 counters on it and it gains deathtouch until end of turn.",
-          "target_prompt": null,
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "forward_result": false
-        }
-      ],
-      "triggers": [
-        {
-          "mode": "ChangesZone",
-          "execute": {
-            "kind": "Spell",
-            "effect": {
-              "type": "Token",
-              "name": "Human",
-              "power": {
-                "type": "Fixed",
-                "value": 1
-              },
-              "toughness": {
-                "type": "Fixed",
-                "value": 1
-              },
-              "types": [
-                "Creature",
-                "Human"
-              ],
-              "colors": [
-                "White"
-              ],
-              "keywords": [],
-              "tapped": false,
-              "count": {
-                "type": "Fixed",
-                "value": 1
-              },
-              "owner": {
-                "type": "Controller"
-              },
-              "enters_attacking": false
-            },
-            "cost": null,
-            "sub_ability": {
-              "kind": "Spell",
-              "effect": {
-                "type": "Token",
-                "name": "Goblin",
-                "power": {
-                  "type": "Fixed",
-                  "value": 1
-                },
-                "toughness": {
-                  "type": "Fixed",
-                  "value": 1
-                },
-                "types": [
-                  "Creature",
-                  "Goblin"
-                ],
-                "colors": [
-                  "Red"
-                ],
-                "keywords": [],
-                "tapped": false,
-                "count": {
-                  "type": "Fixed",
-                  "value": 1
-                },
-                "owner": {
-                  "type": "Controller"
-                },
-                "enters_attacking": false
-              },
-              "cost": null,
-              "sub_ability": {
-                "kind": "Spell",
-                "effect": {
-                  "type": "Choose",
-                  "choice_type": {
-                    "Labeled": {
-                      "options": [
-                        "Human",
-                        "Merfolk",
-                        "Goblin"
-                      ]
-                    }
-                  },
-                  "persist": true
-                },
-                "cost": null,
-                "sub_ability": null,
-                "duration": null,
-                "description": null,
-                "target_prompt": null,
-                "condition": null,
-                "optional_targeting": false,
-                "optional": false,
-                "forward_result": false,
-                "sub_link": "SequentialSibling"
-              },
-              "duration": null,
-              "description": "create a 1/1 red Goblin creature token",
-              "target_prompt": null,
-              "condition": null,
-              "optional_targeting": false,
-              "optional": false,
-              "forward_result": false
-            },
-            "duration": null,
-            "description": null,
-            "target_prompt": null,
-            "condition": null,
-            "optional_targeting": false,
-            "optional": false,
-            "forward_result": false
-          },
-          "valid_card": {
-            "type": "SelfRef"
-          },
-          "origin": null,
-          "destination": "Battlefield",
-          "trigger_zones": [
-            "Battlefield"
-          ],
-          "phase": null,
-          "optional": false,
-          "damage_kind": "Any",
-          "secondary": false,
-          "valid_target": null,
-          "valid_source": null,
-          "description": "When ~ enters, create a 1/1 white Human creature token, a 1/1 blue Merfolk creature token, and a 1/1 red Goblin creature token. Then secretly choose Human, Merfolk, or Goblin.",
-          "constraint": null,
-          "condition": null,
-          "batched": false
-        }
-      ],
-      "static_abilities": [],
-      "replacements": [],
-      "color_override": null,
-      "color_identity": [
-        "Green"
-      ],
-      "scryfall_oracle_id": "79d577a8-53c0-4220-bc0e-70764d72d5fd",
-      "parse_warnings": [
-        {
-          "type": "SwallowedClause",
-          "detector": "Condition_If",
-          "description": "When this enchantment enters, create a 1/1 white Human creature token, a 1/1 blue Merfolk creature token, and a 1/1 red Goblin creature toke",
-          "line_index": 0
-        }
-      ],
-      "metadata": {
-        "related_token_ids": [
-          "9ac7e305-d4ff-57c5-8aa0-d0b1272b7212",
-          "ea2f86f5-bc5a-58d4-8ae6-116f9a5981c0",
-          "f4991ff1-b597-5f15-9a8e-9724ae5ee3fe"
-        ],
-        "source_printing_ids": [
-          "2c1392c5-91a5-4e6e-803d-ed032e4d594b"
-        ]
-      },
-      "legalities": {
-        "brawl": "legal",
-        "commander": "legal",
-        "duel": "legal",
-        "historic": "legal",
-        "legacy": "legal",
-        "modern": "legal",
-        "oathbreaker": "legal",
-        "pioneer": "legal",
-        "standard": "legal",
-        "standardbrawl": "legal",
-        "timeless": "legal",
-        "vintage": "legal"
-      },
-      "printings": [
-        "MKM"
-      ],
-      "rulings": [
-        {
-          "date": "2024-02-02",
-          "text": "A Killer Among Us's last ability can target any attacking creature token, not just one of the tokens created by its first ability, and not just one of the chosen type. Only a token of the chosen type will get the bonuses, though."
-        },
-        {
-          "date": "2024-02-02",
-          "text": "If you control multiple copies of A Killer Among Us, you may choose the same or different creature types for each one. Be careful to keep track of which type is chosen for each A Killer Among Us."
-        },
-        {
-          "date": "2024-02-02",
-          "text": "Only the player who secretly chose the creature type can reveal the creature type they chose. If another player gains control of A Killer Among Us, they will be unable to activate its last ability."
-        },
-        {
-          "date": "2024-02-02",
-          "text": "There are several ways to secretly choose one of the creature types, including writing that type on a piece of paper that's kept with A Killer Among Us."
-        }
-      ],
-      "rarities": [
-        "uncommon"
-      ]
-    },
     "A Little Chat": {
       "name": "A Little Chat",
       "mana_cost": {
@@ -1943,6 +1644,133 @@
       ],
       "rarities": [
         "uncommon"
+      ]
+    },
+    "A-Earthquake Dragon": {
+      "name": "A-Earthquake Dragon",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Green"
+        ],
+        "generic": 14
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Elemental",
+          "Dragon"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 10
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 10
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "This spell costs {X} less to cast, where X is the total mana value of Dragons you control not named Earthquake Dragon.\nFlying, trample\n{2}{G}, Sacrifice a land: Return A-Earthquake Dragon from your graveyard to your hand.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        "Flying",
+        "Trample"
+      ],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "CastFromZone",
+            "target": {
+              "type": "Any"
+            },
+            "without_paying_mana_cost": false,
+            "mode": "Cast"
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "Bounce",
+            "target": {
+              "type": "SelfRef"
+            },
+            "destination": null
+          },
+          "cost": {
+            "type": "Composite",
+            "costs": [
+              {
+                "type": "Mana",
+                "cost": {
+                  "type": "Cost",
+                  "shards": [
+                    "Green"
+                  ],
+                  "generic": 2
+                }
+              },
+              {
+                "type": "Sacrifice",
+                "target": {
+                  "type": "Typed",
+                  "type_filters": [
+                    "Land"
+                  ],
+                  "controller": null,
+                  "properties": []
+                },
+                "count": 1
+              }
+            ]
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "{2}{G}, Sacrifice a land: Return ~ from your graveyard to your hand.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Green"
+      ],
+      "scryfall_oracle_id": "ec54d637-53ab-44a5-856c-6fb8bec09361",
+      "parse_warnings": [
+        {
+          "type": "SwallowedClause",
+          "detector": "DynamicQty",
+          "description": "This spell costs {X} less to cast, where X is the total mana value of Dragons you control not named Earthquake Dragon.\nFlying, trample\n{2}{G",
+          "line_index": 0
+        }
+      ],
+      "legalities": {
+        "brawl": "legal",
+        "historic": "legal"
+      },
+      "printings": [
+        "HBG"
       ]
     },
     "A-Ellywick Tumblestrum": {

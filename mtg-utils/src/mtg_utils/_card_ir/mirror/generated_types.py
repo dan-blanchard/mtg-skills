@@ -209,6 +209,12 @@ class S_ImposeAdditionalCost(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class S_Keyword(TypedMirrorNode):
+    count: int
+    options: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
 class S_ManaValue(TypedMirrorNode):
     comparator: str
     value: int
@@ -275,16 +281,31 @@ class S_Prototype(TypedMirrorNode):
 @dataclass(frozen=True)
 class S_ReduceAbilityCost(TypedMirrorNode):
     amount: int
+    exemption: str
     keyword: str
     mode: str
+    activator: U_activator = MISSING
     dynamic_count: U_dynamic_count = MISSING
     minimum_mana: int = MISSING
+
+
+@dataclass(frozen=True)
+class S_ReduceActionCost(TypedMirrorNode):
+    action: str
+    amount: int
+    mode: str
 
 
 @dataclass(frozen=True)
 class S_Reinforce(TypedMirrorNode):
     cost: U_cost
     count: int
+
+
+@dataclass(frozen=True)
+class S_RestrictLibrarySearchToTop(TypedMirrorNode):
+    count: int
+    who: str
 
 
 @dataclass(frozen=True)
@@ -456,7 +477,7 @@ class S_bracket_signals(TypedMirrorNode):
 class S_branches(TypedMirrorNode):
     condition: None
     cost: None
-    description: str
+    description: None | str
     duration: None | str
     effect: U_effect
     forward_result: bool
@@ -542,6 +563,7 @@ class S_counter_filter(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_data(TypedMirrorNode):
+    candidate_filter: U_candidate_filter = MISSING
     comparator: str = MISSING
     condition: U_condition = MISSING
     cost: U_cost = MISSING
@@ -552,6 +574,7 @@ class S_data(TypedMirrorNode):
     max_iterations: int = MISSING
     maximum: int = MISSING
     minimum: int = MISSING
+    outcome_template: S_outcome_template = MISSING
     repeatable: bool = MISSING
     stop_on_duplicate_exiled_names: bool = MISSING
     stop_on_put_to_hand: bool = MISSING
@@ -606,7 +629,7 @@ class S_definition(TypedMirrorNode):
 class S_effect(TypedMirrorNode):
     condition: None | U_condition
     cost: None
-    description: None
+    description: None | str
     duration: None | str | MirrorVariant
     effect: U_effect
     forward_result: bool
@@ -622,6 +645,7 @@ class S_effect(TypedMirrorNode):
     sub_link: str = MISSING
     target_choice_timing: str = MISSING
     target_selection_mode: U_target_selection_mode = MISSING
+    unless_pay: S_unless_pay = MISSING
 
 
 @dataclass(frozen=True)
@@ -793,6 +817,10 @@ class S_mode_abilities(TypedMirrorNode):
 @dataclass(frozen=True)
 class S_modification(TypedMirrorNode):
     kind: str
+    amount: U_amount = MISSING
+    creature_subtypes: list[object] = MISSING
+    keywords: list[MirrorVariant] = MISSING
+    mode: str = MISSING
     power: int = MISSING
     power_delta: int = MISSING
     toughness: int = MISSING
@@ -837,7 +865,22 @@ class S_or_trigger(TypedMirrorNode):
     trigger_zones: list[object]
     valid_card: U_valid_card
     valid_source: None
-    valid_target: U_valid_target
+    valid_target: None | U_valid_target
+
+
+@dataclass(frozen=True)
+class S_outcome_template(TypedMirrorNode):
+    condition: None
+    cost: None
+    description: None
+    duration: None
+    effect: U_effect
+    forward_result: bool
+    kind: str
+    optional: bool
+    optional_targeting: bool
+    sub_ability: None
+    target_prompt: None
 
 
 @dataclass(frozen=True)
@@ -859,10 +902,10 @@ class S_per_choice_effect(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_profile(TypedMirrorNode):
-    extra_core_types: list[object]
-    power: int
-    subtypes: list[object]
-    toughness: int
+    extra_core_types: list[object] = MISSING
+    power: int = MISSING
+    subtypes: list[object] = MISSING
+    toughness: int = MISSING
 
 
 @dataclass(frozen=True)
@@ -1063,6 +1106,7 @@ class S_triggers(TypedMirrorNode):
     counter_filter: S_counter_filter | MirrorVariant = MISSING
     damage_amount: list[object] = MISSING
     destination_constraint: U_destination_constraint = MISSING
+    die_result: MirrorVariant = MISSING
     expend_threshold: int = MISSING
     life_amount: list[object] = MISSING
     origin_zones: list[object] = MISSING
@@ -1470,6 +1514,12 @@ class T_Foretell__Cost(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_Foretell__SelfManaCostReduced(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SelfManaCostReduced"
+    reduction: int
+
+
+@dataclass(frozen=True)
 class T_Fortify__Cost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cost"
     generic: int
@@ -1603,6 +1653,12 @@ class T_Miracle__Cost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cost"
     generic: int
     shards: list[object]
+
+
+@dataclass(frozen=True)
+class T_Miracle__SelfManaCostReduced(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SelfManaCostReduced"
+    reduction: int
 
 
 @dataclass(frozen=True)
@@ -1994,6 +2050,19 @@ class T_activation_restrictions__RequiresCondition(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_activation_source_filter__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: str
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_activator__Controller(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Controller"
+
+
+@dataclass(frozen=True)
 class T_activator_filter__All(TypedMirrorNode):
     _tag: ClassVar[str | None] = "All"
 
@@ -2324,6 +2393,12 @@ class T_alt_ability_cost__Discard(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_alt_ability_cost__KeywordCostOfCastSpell(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "KeywordCostOfCastSpell"
+    keyword: str
+
+
+@dataclass(frozen=True)
 class T_alt_ability_cost__PayLife(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PayLife"
     amount: U_amount
@@ -2456,6 +2531,19 @@ class T_attachment__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_attacker_restriction__ParentTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentTarget"
+
+
+@dataclass(frozen=True)
+class T_attacker_restriction__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: None
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
 class T_attr__BattlefieldEntriesThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "BattlefieldEntriesThisTurn"
     filter: U_filter
@@ -2533,6 +2621,27 @@ class T_base__Sacrifice(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Sacrifice"
     count: int
     target: U_target
+
+
+@dataclass(frozen=True)
+class T_by__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: None
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_candidate_filter__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: str
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_cap__OnlyOnceEachTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OnlyOnceEachTurn"
 
 
 @dataclass(frozen=True)
@@ -2778,6 +2887,7 @@ class T_condition__CastTimingPermission(TypedMirrorNode):
 class T_condition__CastVariantPaid(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CastVariantPaid"
     variant: str
+    subject: U_subject = MISSING
 
 
 @dataclass(frozen=True)
@@ -3202,6 +3312,7 @@ class T_condition__PreviousEffectAmount(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PreviousEffectAmount"
     comparator: str
     rhs: U_rhs
+    channel: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -3253,6 +3364,11 @@ class T_condition__RevealedHasCardType(TypedMirrorNode):
     card_types: list[MirrorVariant]
     additional_filter: U_additional_filter = MISSING
     subtype_filter: U_subtype_filter = MISSING
+
+
+@dataclass(frozen=True)
+class T_condition__SharesColorWithMostCommonColorAmongPermanents(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SharesColorWithMostCommonColorAmongPermanents"
 
 
 @dataclass(frozen=True)
@@ -3420,6 +3536,7 @@ class T_condition__TargetMatchesFilter(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TargetMatchesFilter"
     filter: U_filter
     use_lki: bool
+    subject_slot: int = MISSING
 
 
 @dataclass(frozen=True)
@@ -3570,6 +3687,7 @@ class T_condition__WhenNextEvent(TypedMirrorNode):
     _tag: ClassVar[str | None] = "WhenNextEvent"
     or_trigger: None | S_or_trigger
     trigger: S_trigger
+    lifetime: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -3754,6 +3872,25 @@ class T_condition__ZoneSubtypeCardCountAtLeast(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_conditional_enter_with_counters__Fixed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Fixed"
+    value: int
+
+
+@dataclass(frozen=True)
+class T_conditional_enter_with_counters__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: None
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_conditions__AdditionalCostPaid(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AdditionalCostPaid"
+
+
+@dataclass(frozen=True)
 class T_conditions__AttackersDeclaredCount(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AttackersDeclaredCount"
     comparator: str
@@ -3811,6 +3948,12 @@ class T_conditions__ControlsType(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_conditions__CurrentPhaseIs(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CurrentPhaseIs"
+    phases: list[object]
+
+
+@dataclass(frozen=True)
 class T_conditions__DuringPlayersTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "DuringPlayersTurn"
     player: U_player
@@ -3835,9 +3978,19 @@ class T_conditions__HasCounters(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_conditions__HasObjectTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "HasObjectTarget"
+
+
+@dataclass(frozen=True)
 class T_conditions__IsPresent(TypedMirrorNode):
     _tag: ClassVar[str | None] = "IsPresent"
     filter: None | U_filter
+
+
+@dataclass(frozen=True)
+class T_conditions__IsYourTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "IsYourTurn"
 
 
 @dataclass(frozen=True)
@@ -3891,6 +4044,11 @@ class T_conditions__QuantityComparison(TypedMirrorNode):
 class T_conditions__ScopedPlayerMatches(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ScopedPlayerMatches"
     filter: U_filter
+
+
+@dataclass(frozen=True)
+class T_conditions__SourceEnteredThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SourceEnteredThisTurn"
 
 
 @dataclass(frozen=True)
@@ -3962,9 +4120,9 @@ class T_conditions__Unrecognized(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_conditions__WasCast(TypedMirrorNode):
     _tag: ClassVar[str | None] = "WasCast"
-    zone: str
     controller: str = MISSING
     owner: str = MISSING
+    zone: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -3980,6 +4138,12 @@ class T_conditions__ZoneChangeObjectMatchesFilter(TypedMirrorNode):
     destination: str
     filter: U_filter
     origin: str = MISSING
+
+
+@dataclass(frozen=True)
+class T_conditions__ZoneChangedThisWay(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ZoneChangedThisWay"
+    filter: U_filter
 
 
 @dataclass(frozen=True)
@@ -4084,6 +4248,7 @@ class T_cost__Behold(TypedMirrorNode):
     action: str
     count: int
     filter: U_filter
+    type_choice: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -4132,6 +4297,17 @@ class T_cost__Exile(TypedMirrorNode):
     count: int
     filter: None | U_filter
     zone: None | str
+
+
+@dataclass(frozen=True)
+class T_cost__ExileWithAggregate(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ExileWithAggregate"
+    comparator: str
+    filter: U_filter
+    function: str
+    property: MirrorVariant
+    value: int
+    zone: str
 
 
 @dataclass(frozen=True)
@@ -4218,7 +4394,7 @@ class T_cost__ReturnToHand(TypedMirrorNode):
 class T_cost__Reveal(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Reveal"
     count: int
-    filter: U_filter
+    filter: U_filter = MISSING
 
 
 @dataclass(frozen=True)
@@ -4618,6 +4794,11 @@ class T_damage_source_filter__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_data__Any(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Any"
+
+
+@dataclass(frozen=True)
 class T_data__Behold(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Behold"
     action: str
@@ -4686,6 +4867,11 @@ class T_data__OneOf(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_data__ParentTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentTarget"
+
+
+@dataclass(frozen=True)
 class T_data__PayLife(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PayLife"
     amount: U_amount = MISSING
@@ -4723,6 +4909,11 @@ class T_data__TapCreatures(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TapCreatures"
     filter: U_filter
     requirement: S_requirement
+
+
+@dataclass(frozen=True)
+class T_data__TriggeringSource(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TriggeringSource"
 
 
 @dataclass(frozen=True)
@@ -4877,8 +5068,8 @@ class T_dynamic_count__DistinctColorsAmongPermanents(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_dynamic_count__FilteredTrackedSetSize(TypedMirrorNode):
     _tag: ClassVar[str | None] = "FilteredTrackedSetSize"
-    caused_by: str
     filter: U_filter
+    caused_by: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -5006,6 +5197,7 @@ class T_effect__AddTargetReplacement(TypedMirrorNode):
 class T_effect__AdditionalPhase(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AdditionalPhase"
     after: str
+    attacker_restriction: None | U_attacker_restriction
     count: U_count
     followed_by: list[object]
     phase: str
@@ -5114,6 +5306,7 @@ class T_effect__BounceAll(TypedMirrorNode):
 class T_effect__CastCopyOfCard(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CastCopyOfCard"
     cost: U_cost
+    count: None | U_count
     target: U_target
 
 
@@ -5128,6 +5321,7 @@ class T_effect__CastFromZone(TypedMirrorNode):
     constraint: U_constraint = MISSING
     driver: str = MISSING
     duration: str | MirrorVariant = MISSING
+    mana_spend_permission: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -5157,7 +5351,9 @@ class T_effect__ChangeZone(TypedMirrorNode):
     origin: None | str
     owner_library: bool
     target: U_target
+    conditional_enter_with_counters: list[U_conditional_enter_with_counters] = MISSING
     enter_with_counters: list[U_enter_with_counters] = MISSING
+    enters_modified_if: U_enters_modified_if = MISSING
     enters_under: str = MISSING
     face_down_profile: S_face_down_profile = MISSING
     up_to: bool = MISSING
@@ -5178,6 +5374,11 @@ class T_effect__ChangeZoneAll(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_effect__ChaosEnsues(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChaosEnsues"
+
+
+@dataclass(frozen=True)
 class T_effect__Choose(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Choose"
     choice_type: str | MirrorVariant
@@ -5192,6 +5393,7 @@ class T_effect__ChooseAndSacrificeRest(TypedMirrorNode):
     choose_filter: U_choose_filter
     chooser_scope: str
     sacrifice_filter: U_sacrifice_filter
+    total_power_cap: U_total_power_cap = MISSING
 
 
 @dataclass(frozen=True)
@@ -5200,6 +5402,12 @@ class T_effect__ChooseAugmentAndCombineWithHost(TypedMirrorNode):
     filter: U_filter
     host: U_host
     zones: list[object]
+
+
+@dataclass(frozen=True)
+class T_effect__ChooseCounterKind(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChooseCounterKind"
+    target: U_target
 
 
 @dataclass(frozen=True)
@@ -5229,7 +5437,7 @@ class T_effect__ChooseObjectsIntoTrackedSet(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ChooseObjectsIntoTrackedSet"
     chooser: U_chooser
     filter: U_filter
-    max: None
+    max: None | int
     min: int
 
 
@@ -5353,10 +5561,22 @@ class T_effect__CreateDelayedTrigger(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_effect__CreateDrawReplacement(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CreateDrawReplacement"
+    replacement_effect: U_replacement_effect
+
+
+@dataclass(frozen=True)
 class T_effect__CreateEmblem(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CreateEmblem"
     statics: list[S_statics]
     triggers: list[S_triggers]
+
+
+@dataclass(frozen=True)
+class T_effect__CreatePlaneswalkReplacement(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CreatePlaneswalkReplacement"
+    replacement_effect: U_replacement_effect
 
 
 @dataclass(frozen=True)
@@ -5381,6 +5601,7 @@ class T_effect__DealDamage(TypedMirrorNode):
     amount: U_amount
     target: U_target
     damage_source: str = MISSING
+    excess: U_excess = MISSING
 
 
 @dataclass(frozen=True)
@@ -5482,6 +5703,14 @@ class T_effect__Draw(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__EachDealsDamageEqualToPower(TypedMirrorNode):
     _tag: ClassVar[str | None] = "EachDealsDamageEqualToPower"
+    recipient: U_recipient
+    sources: U_sources
+
+
+@dataclass(frozen=True)
+class T_effect__EachSourceDealsDamage(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EachSourceDealsDamage"
+    amount: U_amount
     recipient: U_recipient
     sources: U_sources
 
@@ -5966,6 +6195,13 @@ class T_effect__PutAtLibraryPosition(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_effect__PutChosenCounter(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PutChosenCounter"
+    count: U_count
+    target: U_target
+
+
+@dataclass(frozen=True)
 class T_effect__PutCounter(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PutCounter"
     count: U_count
@@ -6021,6 +6257,12 @@ class T_effect__Regenerate(TypedMirrorNode):
 class T_effect__RegisterBending(TypedMirrorNode):
     _tag: ClassVar[str | None] = "RegisterBending"
     kind: str
+
+
+@dataclass(frozen=True)
+class T_effect__RememberCard(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "RememberCard"
+    target: U_target
 
 
 @dataclass(frozen=True)
@@ -6323,6 +6565,13 @@ class T_effect__Tribute(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_effect__TurnFaceDown(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TurnFaceDown"
+    profile: S_profile
+    target: U_target
+
+
+@dataclass(frozen=True)
 class T_effect__TurnFaceUp(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TurnFaceUp"
     target: U_target
@@ -6360,7 +6609,9 @@ class T_effect__Vote(TypedMirrorNode):
     choices: list[object]
     per_choice_effect: list[S_per_choice_effect]
     starting_with: str
+    subject: U_subject
     tally_mode: U_tally_mode
+    visibility: U_visibility
     voter_scope: U_voter_scope
 
 
@@ -6405,6 +6656,14 @@ class T_enter_with_counters__Ref(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_enters_modified_if__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: None
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
 class T_entwine_cost__Cost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cost"
     generic: int
@@ -6412,8 +6671,18 @@ class T_entwine_cost__Cost(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_excess__TargetController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TargetController"
+
+
+@dataclass(frozen=True)
 class T_exclude__ParentObjectTargetController(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ParentObjectTargetController"
+
+
+@dataclass(frozen=True)
+class T_exclude__TriggeringPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TriggeringPlayer"
 
 
 @dataclass(frozen=True)
@@ -6610,6 +6879,11 @@ class T_filters__ExiledBySource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_filters__HasChosenName(TypedMirrorNode):
     _tag: ClassVar[str | None] = "HasChosenName"
+
+
+@dataclass(frozen=True)
+class T_filters__LastCreated(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "LastCreated"
 
 
 @dataclass(frozen=True)
@@ -7224,6 +7498,13 @@ class T_modifications__GrantAbility(TypedMirrorNode):
 class T_modifications__GrantAllActivatedAbilitiesOf(TypedMirrorNode):
     _tag: ClassVar[str | None] = "GrantAllActivatedAbilitiesOf"
     source: U_source
+    cap: U_cap = MISSING
+
+
+@dataclass(frozen=True)
+class T_modifications__GrantAllTriggeredAbilitiesOf(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "GrantAllTriggeredAbilitiesOf"
+    source: U_source
 
 
 @dataclass(frozen=True)
@@ -7256,6 +7537,12 @@ class T_modifications__RemoveKeyword(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_modifications__RemoveSupertype(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "RemoveSupertype"
+    supertype: str
+
+
+@dataclass(frozen=True)
 class T_modifications__RemoveType(TypedMirrorNode):
     _tag: ClassVar[str | None] = "RemoveType"
     core_type: str
@@ -7276,6 +7563,11 @@ class T_modifications__SetCardTypes(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_modifications__SetChosenBasicLandType(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SetChosenBasicLandType"
+
+
+@dataclass(frozen=True)
+class T_modifications__SetChosenName(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SetChosenName"
 
 
 @dataclass(frozen=True)
@@ -7539,6 +7831,19 @@ class T_payer__TriggeringSpellController(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_payer__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: None | str
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_per_player_condition__YouAttackedSourceControllerThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "YouAttackedSourceControllerThisTurn"
+
+
+@dataclass(frozen=True)
 class T_per_player_condition__YouAttackedThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "YouAttackedThisTurn"
 
@@ -7557,6 +7862,13 @@ class T_permission__ExileWithAltCost(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_permission__ExileWithEnergyCost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ExileWithEnergyCost"
+
+
+@dataclass(frozen=True)
+class T_permission__Foretold(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Foretold"
+    cost: U_cost
+    turn_foretold: int
 
 
 @dataclass(frozen=True)
@@ -7713,6 +8025,12 @@ class T_player_scope__All(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_player_scope__AllExcept(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AllExcept"
+    exclude: U_exclude
+
+
+@dataclass(frozen=True)
 class T_player_scope__ControlsCount(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ControlsCount"
     comparator: str
@@ -7744,6 +8062,11 @@ class T_player_scope__OpponentAttacked(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_player_scope__OpponentOfTriggeringPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OpponentOfTriggeringPlayer"
+
+
+@dataclass(frozen=True)
 class T_player_scope__OwnersOfCardsExiledBySource(TypedMirrorNode):
     _tag: ClassVar[str | None] = "OwnersOfCardsExiledBySource"
 
@@ -7751,6 +8074,15 @@ class T_player_scope__OwnersOfCardsExiledBySource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_player_scope__ParentObjectTargetController(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ParentObjectTargetController"
+
+
+@dataclass(frozen=True)
+class T_player_scope__PlayerAttribute(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PlayerAttribute"
+    attr: U_attr
+    comparator: str
+    relation: U_relation
+    value: U_value
 
 
 @dataclass(frozen=True)
@@ -7914,8 +8246,21 @@ class T_prop__EnteredThisTurn(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_prop__InTrackedSet(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "InTrackedSet"
+    id: int
+
+
+@dataclass(frozen=True)
 class T_prop__SameName(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SameName"
+
+
+@dataclass(frozen=True)
+class T_prop__SharesQuality(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SharesQuality"
+    quality: str
+    reference: U_reference
 
 
 @dataclass(frozen=True)
@@ -7947,6 +8292,7 @@ class T_properties__AttackedOrBlockedThisTurn(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_properties__AttackedThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AttackedThisTurn"
+    defender: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -7995,6 +8341,11 @@ class T_properties__CombatRelation(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CombatRelation"
     relation: str
     subject: str
+
+
+@dataclass(frozen=True)
+class T_properties__ConvokedSource(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ConvokedSource"
 
 
 @dataclass(frozen=True)
@@ -8156,9 +8507,22 @@ class T_properties__ManaCostIn(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_properties__ManaSymbolCount(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ManaSymbolCount"
+    color: str
+    comparator: str
+    value: int
+
+
+@dataclass(frozen=True)
 class T_properties__ManaValueParity(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ManaValueParity"
     parity: U_parity
+
+
+@dataclass(frozen=True)
+class T_properties__Modal(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Modal"
 
 
 @dataclass(frozen=True)
@@ -8352,6 +8716,12 @@ class T_properties__WithoutKeyword(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_properties__WithoutKeywordKind(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "WithoutKeywordKind"
+    value: str
+
+
+@dataclass(frozen=True)
 class T_properties__ZoneChangedThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ZoneChangedThisTurn"
     from_: str = field(metadata={"json": "from"})
@@ -8423,6 +8793,11 @@ class T_qty__AttackedThisTurn(TypedMirrorNode):
 class T_qty__BasicLandTypeCount(TypedMirrorNode):
     _tag: ClassVar[str | None] = "BasicLandTypeCount"
     controller: str
+
+
+@dataclass(frozen=True)
+class T_qty__BendTypesThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "BendTypesThisTurn"
 
 
 @dataclass(frozen=True)
@@ -8513,8 +8888,8 @@ class T_qty__DamageDealtThisTurn(TypedMirrorNode):
     source: U_source
     target: U_target
     aggregate: str = MISSING
+    channel: str = MISSING
     damage_kind: str = MISSING
-    excess_only: bool = MISSING
     group_by: str = MISSING
 
 
@@ -8768,6 +9143,12 @@ class T_qty__StartingLifeTotal(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_qty__TargetControllerCounter(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TargetControllerCounter"
+    kind: str
+
+
+@dataclass(frozen=True)
 class T_qty__TargetObjectManaValue(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TargetObjectManaValue"
     filter: U_filter
@@ -8939,6 +9320,11 @@ class T_recipient__Any(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_recipient__EachController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EachController"
+
+
+@dataclass(frozen=True)
 class T_recipient__Neighbor(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Neighbor"
     direction: U_direction
@@ -8967,6 +9353,12 @@ class T_recipient__ScopedPlayer(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_recipient__SelfRef(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SelfRef"
+
+
+@dataclass(frozen=True)
+class T_recipient__Shared(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Shared"
+    data: U_data
 
 
 @dataclass(frozen=True)
@@ -9036,6 +9428,12 @@ class T_reference__CostPaidObject(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_reference__ExiledBySource(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ExiledBySource"
+
+
+@dataclass(frozen=True)
+class T_reference__Or(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Or"
+    filters: list[U_filters]
 
 
 @dataclass(frozen=True)
@@ -9125,6 +9523,39 @@ class T_repeat_until__UntilStopConditions(TypedMirrorNode):
 class T_repeat_until__WhileCondition(TypedMirrorNode):
     _tag: ClassVar[str | None] = "WhileCondition"
     data: S_data | MirrorVariant
+
+
+@dataclass(frozen=True)
+class T_replacement_effect__ChaosEnsues(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChaosEnsues"
+
+
+@dataclass(frozen=True)
+class T_replacement_effect__DealDamage(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DealDamage"
+    amount: U_amount
+    target: U_target
+
+
+@dataclass(frozen=True)
+class T_replacement_effect__GainLife(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "GainLife"
+    amount: U_amount
+
+
+@dataclass(frozen=True)
+class T_replacement_effect__Token(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Token"
+    colors: list[U_colors]
+    count: U_count
+    enters_attacking: bool
+    keywords: list[MirrorVariant]
+    name: str
+    owner: U_owner
+    power: U_power
+    tapped: bool
+    toughness: U_toughness
+    types: list[object]
 
 
 @dataclass(frozen=True)
@@ -9392,6 +9823,11 @@ class T_source__AttachedTo(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_source__ChosenCard(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChosenCard"
+
+
+@dataclass(frozen=True)
 class T_source__ExiledBySource(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ExiledBySource"
 
@@ -9492,7 +9928,7 @@ class T_source_rider__LosesAbilities(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_sources__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: str
+    controller: None | str
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -9576,6 +10012,17 @@ class T_subject__LastRevealed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_subject__Named(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Named"
+
+
+@dataclass(frozen=True)
+class T_subject__Objects(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Objects"
+    data: S_data
+
+
+@dataclass(frozen=True)
 class T_subject__Or(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Or"
     filters: list[U_filters]
@@ -9634,9 +10081,9 @@ class T_tally_mode__PerVote(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_tally_mode__Threshold(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Threshold"
-    tie_breaker_index: int
+class T_tally_mode__TopVotes(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TopVotes"
+    data: MirrorVariant
 
 
 @dataclass(frozen=True)
@@ -9746,6 +10193,11 @@ class T_target__Player(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_target__PostReplacementDamageTarget(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PostReplacementDamageTarget"
+
+
+@dataclass(frozen=True)
+class T_target__PostReplacementDamageTargetOwner(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PostReplacementDamageTargetOwner"
 
 
 @dataclass(frozen=True)
@@ -9925,6 +10377,23 @@ class T_target_selection_mode__Random(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class T_threshold__Fixed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Fixed"
+    value: int
+
+
+@dataclass(frozen=True)
+class T_tie__AllTied(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AllTied"
+
+
+@dataclass(frozen=True)
+class T_tie__Breaker(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Breaker"
+    data: int
+
+
+@dataclass(frozen=True)
+class T_total_power_cap__Fixed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Fixed"
     value: int
 
@@ -10175,6 +10644,16 @@ class T_value__Sum(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_visibility__Open(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Open"
+
+
+@dataclass(frozen=True)
+class T_visibility__Secret(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Secret"
+
+
+@dataclass(frozen=True)
 class T_voter_scope__AllPlayers(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AllPlayers"
 
@@ -10235,7 +10714,7 @@ type U_Evoke = T_Evoke__Mana | T_Evoke__NonMana
 type U_Filter = T_Filter__Typed
 type U_Firebending = T_Firebending__Fixed | T_Firebending__Ref
 type U_Flashback = T_Flashback__Mana | T_Flashback__NonMana
-type U_Foretell = T_Foretell__Cost
+type U_Foretell = T_Foretell__Cost | T_Foretell__SelfManaCostReduced
 type U_Fortify = T_Fortify__Cost
 type U_Freerunning = T_Freerunning__Cost
 type U_Gift = T_Gift__Card | T_Gift__Food | T_Gift__TappedFish | T_Gift__Treasure
@@ -10257,7 +10736,7 @@ type U_LevelUp = T_LevelUp__Cost
 type U_Madness = T_Madness__Cost
 type U_Mayhem = T_Mayhem__Cost | T_Mayhem__SelfManaCost
 type U_Megamorph = T_Megamorph__Cost
-type U_Miracle = T_Miracle__Cost
+type U_Miracle = T_Miracle__Cost | T_Miracle__SelfManaCostReduced
 type U_Mobilize = T_Mobilize__Fixed | T_Mobilize__Ref
 type U_MoreThanMeetsTheEye = T_MoreThanMeetsTheEye__Cost
 type U_Morph = T_Morph__Cost
@@ -10328,6 +10807,8 @@ type U_activation_restrictions = (
     | T_activation_restrictions__OnlyOnceEachTurn
     | T_activation_restrictions__RequiresCondition
 )
+type U_activation_source_filter = T_activation_source_filter__Typed
+type U_activator = T_activator__Controller
 type U_activator_filter = T_activator_filter__All | T_activator_filter__Opponent
 type U_activity = (
     T_activity__ActivateAbilities
@@ -10394,7 +10875,11 @@ type U_affected_players = (
     | T_affected_players__ScopedPlayer
     | T_affected_players__TargetedPlayer
 )
-type U_alt_ability_cost = T_alt_ability_cost__Discard | T_alt_ability_cost__PayLife
+type U_alt_ability_cost = (
+    T_alt_ability_cost__Discard
+    | T_alt_ability_cost__KeywordCostOfCastSpell
+    | T_alt_ability_cost__PayLife
+)
 type U_alt_cost = T_alt_cost__PayLife
 type U_amount = (
     T_amount__ClampMin
@@ -10418,6 +10903,9 @@ type U_attachment = (
     | T_attachment__TriggeringSource
     | T_attachment__Typed
 )
+type U_attacker_restriction = (
+    T_attacker_restriction__ParentTarget | T_attacker_restriction__Typed
+)
 type U_attr = (
     T_attr__BattlefieldEntriesThisTurn
     | T_attr__CardsDrawnThisTurn
@@ -10434,6 +10922,9 @@ type U_base = (
     | T_base__PayLife
     | T_base__Sacrifice
 )
+type U_by = T_by__Typed
+type U_candidate_filter = T_candidate_filter__Typed
+type U_cap = T_cap__OnlyOnceEachTurn
 type U_card_filter = (
     T_card_filter__Any | T_card_filter__None | T_card_filter__Or | T_card_filter__Typed
 )
@@ -10559,6 +11050,7 @@ type U_condition = (
     | T_condition__RecipientHasCounters
     | T_condition__RecipientMatchesFilter
     | T_condition__RevealedHasCardType
+    | T_condition__SharesColorWithMostCommonColorAmongPermanents
     | T_condition__SolveConditionMet
     | T_condition__SourceAttachedTo
     | T_condition__SourceAttachedToCreature
@@ -10644,8 +11136,12 @@ type U_condition = (
     | T_condition__ZoneCoreTypeCardCountAtLeast
     | T_condition__ZoneSubtypeCardCountAtLeast
 )
+type U_conditional_enter_with_counters = (
+    T_conditional_enter_with_counters__Fixed | T_conditional_enter_with_counters__Typed
+)
 type U_conditions = (
-    T_conditions__AttackersDeclaredCount
+    T_conditions__AdditionalCostPaid
+    | T_conditions__AttackersDeclaredCount
     | T_conditions__CastFromZone
     | T_conditions__CastVariantPaid
     | T_conditions__CastVariantPaidPersistent
@@ -10654,11 +11150,14 @@ type U_conditions = (
     | T_conditions__ControlCount
     | T_conditions__ControllerControlsMatching
     | T_conditions__ControlsType
+    | T_conditions__CurrentPhaseIs
     | T_conditions__DuringPlayersTurn
     | T_conditions__DuringYourTurn
     | T_conditions__EffectOutcome
     | T_conditions__HasCounters
+    | T_conditions__HasObjectTarget
     | T_conditions__IsPresent
+    | T_conditions__IsYourTurn
     | T_conditions__ManaColorSpent
     | T_conditions__ManaSpentCondition
     | T_conditions__Not
@@ -10667,6 +11166,7 @@ type U_conditions = (
     | T_conditions__QuantityCheck
     | T_conditions__QuantityComparison
     | T_conditions__ScopedPlayerMatches
+    | T_conditions__SourceEnteredThisTurn
     | T_conditions__SourceInZone
     | T_conditions__SourceIsAttacking
     | T_conditions__SourceIsBlocking
@@ -10681,6 +11181,7 @@ type U_conditions = (
     | T_conditions__WasCast
     | T_conditions__YouControlSubtypeCountAtLeast
     | T_conditions__ZoneChangeObjectMatchesFilter
+    | T_conditions__ZoneChangedThisWay
 )
 type U_constraint = (
     T_constraint__AtClassLevel
@@ -10712,6 +11213,7 @@ type U_cost = (
     | T_cost__Discard
     | T_cost__EffectCost
     | T_cost__Exile
+    | T_cost__ExileWithAggregate
     | T_cost__Loyalty
     | T_cost__Mana
     | T_cost__ManaDynamic
@@ -10798,7 +11300,8 @@ type U_damage_source_filter = (
     | T_damage_source_filter__Typed
 )
 type U_data = (
-    T_data__Behold
+    T_data__Any
+    | T_data__Behold
     | T_data__Blight
     | T_data__Composite
     | T_data__Cost
@@ -10808,12 +11311,14 @@ type U_data = (
     | T_data__Exile
     | T_data__Mana
     | T_data__OneOf
+    | T_data__ParentTarget
     | T_data__PayLife
     | T_data__ReturnToHand
     | T_data__Reveal
     | T_data__Sacrifice
     | T_data__SelfManaCost
     | T_data__TapCreatures
+    | T_data__TriggeringSource
     | T_data__Unimplemented
     | T_data__Waterbend
 )
@@ -10883,9 +11388,11 @@ type U_effect = (
     | T_effect__ChangeTargets
     | T_effect__ChangeZone
     | T_effect__ChangeZoneAll
+    | T_effect__ChaosEnsues
     | T_effect__Choose
     | T_effect__ChooseAndSacrificeRest
     | T_effect__ChooseAugmentAndCombineWithHost
+    | T_effect__ChooseCounterKind
     | T_effect__ChooseDrawnThisTurnPayOrTopdeck
     | T_effect__ChooseFromZone
     | T_effect__ChooseObjectsIntoTrackedSet
@@ -10904,7 +11411,9 @@ type U_effect = (
     | T_effect__CounterAll
     | T_effect__CreateDamageReplacement
     | T_effect__CreateDelayedTrigger
+    | T_effect__CreateDrawReplacement
     | T_effect__CreateEmblem
+    | T_effect__CreatePlaneswalkReplacement
     | T_effect__DamageAll
     | T_effect__DamageEachPlayer
     | T_effect__DealDamage
@@ -10921,6 +11430,7 @@ type U_effect = (
     | T_effect__DraftFromSpellbook
     | T_effect__Draw
     | T_effect__EachDealsDamageEqualToPower
+    | T_effect__EachSourceDealsDamage
     | T_effect__Encore
     | T_effect__EndCombatPhase
     | T_effect__EndTheTurn
@@ -10992,6 +11502,7 @@ type U_effect = (
     | T_effect__Pump
     | T_effect__PumpAll
     | T_effect__PutAtLibraryPosition
+    | T_effect__PutChosenCounter
     | T_effect__PutCounter
     | T_effect__PutCounterAll
     | T_effect__PutOnTopOrBottom
@@ -11000,6 +11511,7 @@ type U_effect = (
     | T_effect__ReduceNextSpellCost
     | T_effect__Regenerate
     | T_effect__RegisterBending
+    | T_effect__RememberCard
     | T_effect__RemoveAllDamage
     | T_effect__RemoveCounter
     | T_effect__RemoveFromCombat
@@ -11040,6 +11552,7 @@ type U_effect = (
     | T_effect__Token
     | T_effect__Transform
     | T_effect__Tribute
+    | T_effect__TurnFaceDown
     | T_effect__TurnFaceUp
     | T_effect__UnattachAll
     | T_effect__Unimplemented
@@ -11055,8 +11568,10 @@ type U_enter_with_counters = (
     | T_enter_with_counters__Offset
     | T_enter_with_counters__Ref
 )
+type U_enters_modified_if = T_enters_modified_if__Typed
 type U_entwine_cost = T_entwine_cost__Cost
-type U_exclude = T_exclude__ParentObjectTargetController
+type U_excess = T_excess__TargetController
+type U_exclude = T_exclude__ParentObjectTargetController | T_exclude__TriggeringPlayer
 type U_expiry = T_expiry__EndOfTurn
 type U_exponent = T_exponent__Ref
 type U_exprs = T_exprs__Fixed | T_exprs__Multiply | T_exprs__Ref
@@ -11092,6 +11607,7 @@ type U_filters = (
     | T_filters__Controller
     | T_filters__ExiledBySource
     | T_filters__HasChosenName
+    | T_filters__LastCreated
     | T_filters__Not
     | T_filters__Or
     | T_filters__ParentTarget
@@ -11182,15 +11698,18 @@ type U_modifications = (
     | T_modifications__ChangeController
     | T_modifications__GrantAbility
     | T_modifications__GrantAllActivatedAbilitiesOf
+    | T_modifications__GrantAllTriggeredAbilitiesOf
     | T_modifications__GrantStaticAbility
     | T_modifications__GrantTrigger
     | T_modifications__RemoveAllAbilities
     | T_modifications__RemoveAllSubtypes
     | T_modifications__RemoveKeyword
+    | T_modifications__RemoveSupertype
     | T_modifications__RemoveType
     | T_modifications__SetBasicLandType
     | T_modifications__SetCardTypes
     | T_modifications__SetChosenBasicLandType
+    | T_modifications__SetChosenName
     | T_modifications__SetColor
     | T_modifications__SetDynamicPower
     | T_modifications__SetDynamicToughness
@@ -11242,14 +11761,17 @@ type U_payer = (
     | T_payer__ScopedPlayer
     | T_payer__TriggeringPlayer
     | T_payer__TriggeringSpellController
+    | T_payer__Typed
 )
 type U_per_player_condition = (
-    T_per_player_condition__YouAttackedThisTurn
+    T_per_player_condition__YouAttackedSourceControllerThisTurn
+    | T_per_player_condition__YouAttackedThisTurn
     | T_per_player_condition__YouCastSpellThisTurn
 )
 type U_permission = (
     T_permission__ExileWithAltCost
     | T_permission__ExileWithEnergyCost
+    | T_permission__Foretold
     | T_permission__PlayFromExile
     | T_permission__Plotted
 )
@@ -11281,13 +11803,16 @@ type U_player_filter = (
 )
 type U_player_scope = (
     T_player_scope__All
+    | T_player_scope__AllExcept
     | T_player_scope__ControlsCount
     | T_player_scope__DefendingPlayer
     | T_player_scope__HighestSpeed
     | T_player_scope__Opponent
     | T_player_scope__OpponentAttacked
+    | T_player_scope__OpponentOfTriggeringPlayer
     | T_player_scope__OwnersOfCardsExiledBySource
     | T_player_scope__ParentObjectTargetController
+    | T_player_scope__PlayerAttribute
     | T_player_scope__TriggeringPlayer
     | T_player_scope__VotedFor
 )
@@ -11315,7 +11840,13 @@ type U_produced = (
     | T_produced__OpponentLandColors
     | T_produced__TriggerEventManaType
 )
-type U_prop = T_prop__AttackedThisTurn | T_prop__EnteredThisTurn | T_prop__SameName
+type U_prop = (
+    T_prop__AttackedThisTurn
+    | T_prop__EnteredThisTurn
+    | T_prop__InTrackedSet
+    | T_prop__SameName
+    | T_prop__SharesQuality
+)
 type U_properties = (
     T_properties__Another
     | T_properties__AnyOf
@@ -11331,6 +11862,7 @@ type U_properties = (
     | T_properties__Cmc
     | T_properties__ColorCount
     | T_properties__CombatRelation
+    | T_properties__ConvokedSource
     | T_properties__Counters
     | T_properties__CountersPutOnThisTurn
     | T_properties__DifferentNameFrom
@@ -11359,7 +11891,9 @@ type U_properties = (
     | T_properties__IsCommander
     | T_properties__IsSaddled
     | T_properties__ManaCostIn
+    | T_properties__ManaSymbolCount
     | T_properties__ManaValueParity
+    | T_properties__Modal
     | T_properties__Modified
     | T_properties__MostPrevalentCreatureTypeIn
     | T_properties__NameMatchesAnyPermanent
@@ -11394,6 +11928,7 @@ type U_properties = (
     | T_properties__WasPlayed
     | T_properties__WithKeyword
     | T_properties__WithoutKeyword
+    | T_properties__WithoutKeywordKind
     | T_properties__ZoneChangedThisTurn
 )
 type U_props = (
@@ -11409,6 +11944,7 @@ type U_qty = (
     | T_qty__AttachmentsOnLeavingObject
     | T_qty__AttackedThisTurn
     | T_qty__BasicLandTypeCount
+    | T_qty__BendTypesThisTurn
     | T_qty__CardsDiscardedThisTurn
     | T_qty__CardsDrawnThisTurn
     | T_qty__CardsExiledBySource
@@ -11465,6 +12001,7 @@ type U_qty = (
     | T_qty__SpellsCastThisGame
     | T_qty__SpellsCastThisTurn
     | T_qty__StartingLifeTotal
+    | T_qty__TargetControllerCounter
     | T_qty__TargetObjectManaValue
     | T_qty__TargetZoneCardCount
     | T_qty__TimesCostPaidThisResolution
@@ -11498,12 +12035,14 @@ type U_quantity_modification = (
 )
 type U_recipient = (
     T_recipient__Any
+    | T_recipient__EachController
     | T_recipient__Neighbor
     | T_recipient__ParentTarget
     | T_recipient__ParentTargetController
     | T_recipient__Player
     | T_recipient__ScopedPlayer
     | T_recipient__SelfRef
+    | T_recipient__Shared
     | T_recipient__TriggeringPlayer
     | T_recipient__TriggeringSourceController
     | T_recipient__Typed
@@ -11521,6 +12060,7 @@ type U_redirect_to = (
 type U_reference = (
     T_reference__CostPaidObject
     | T_reference__ExiledBySource
+    | T_reference__Or
     | T_reference__ParentTarget
     | T_reference__SelfRef
     | T_reference__TrackedSet
@@ -11539,6 +12079,12 @@ type U_repeat_until = (
     T_repeat_until__ControllerChoice
     | T_repeat_until__UntilStopConditions
     | T_repeat_until__WhileCondition
+)
+type U_replacement_effect = (
+    T_replacement_effect__ChaosEnsues
+    | T_replacement_effect__DealDamage
+    | T_replacement_effect__GainLife
+    | T_replacement_effect__Token
 )
 type U_required_player = T_required_player__Controller | T_required_player__Typed
 type U_restriction = (
@@ -11594,6 +12140,7 @@ type U_source = (
     T_source__And
     | T_source__Any
     | T_source__AttachedTo
+    | T_source__ChosenCard
     | T_source__ExiledBySource
     | T_source__Objects
     | T_source__Or
@@ -11625,6 +12172,8 @@ type U_subject = (
     T_subject__AttackTarget
     | T_subject__Controller
     | T_subject__LastRevealed
+    | T_subject__Named
+    | T_subject__Objects
     | T_subject__Or
     | T_subject__ParentTarget
     | T_subject__SelfRef
@@ -11634,7 +12183,7 @@ type U_subject = (
 )
 type U_subtype_filter = T_subtype_filter__Or | T_subtype_filter__Typed
 type U_tag = T_tag__Backup
-type U_tally_mode = T_tally_mode__PerVote | T_tally_mode__Threshold
+type U_tally_mode = T_tally_mode__PerVote | T_tally_mode__TopVotes
 type U_target = (
     T_target__AllPlayers
     | T_target__And
@@ -11657,6 +12206,7 @@ type U_target = (
     | T_target__ParentTargetSlot
     | T_target__Player
     | T_target__PostReplacementDamageTarget
+    | T_target__PostReplacementDamageTargetOwner
     | T_target__PostReplacementSourceController
     | T_target__ScopedPlayer
     | T_target__SelfRef
@@ -11690,6 +12240,8 @@ type U_target_player = (
 )
 type U_target_selection_mode = T_target_selection_mode__Random
 type U_threshold = T_threshold__Fixed
+type U_tie = T_tie__AllTied | T_tie__Breaker
+type U_total_power_cap = T_total_power_cap__Fixed
 type U_toughness = T_toughness__Fixed | T_toughness__Quantity | T_toughness__Variable
 type U_unless_filter = T_unless_filter__Or | T_unless_filter__Typed
 type U_until = T_until__CumulativeThreshold | T_until__NextMatches
@@ -11736,6 +12288,7 @@ type U_value = (
     | T_value__Ref
     | T_value__Sum
 )
+type U_visibility = T_visibility__Open | T_visibility__Secret
 type U_voter_scope = (
     T_voter_scope__AllPlayers
     | T_voter_scope__ControllerLabels
@@ -11807,6 +12360,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("Flashback", "Mana"): T_Flashback__Mana,
     ("Flashback", "NonMana"): T_Flashback__NonMana,
     ("Foretell", "Cost"): T_Foretell__Cost,
+    ("Foretell", "SelfManaCostReduced"): T_Foretell__SelfManaCostReduced,
     ("Fortify", "Cost"): T_Fortify__Cost,
     ("Freerunning", "Cost"): T_Freerunning__Cost,
     ("Gift", "Card"): T_Gift__Card,
@@ -11830,6 +12384,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("Mayhem", "SelfManaCost"): T_Mayhem__SelfManaCost,
     ("Megamorph", "Cost"): T_Megamorph__Cost,
     ("Miracle", "Cost"): T_Miracle__Cost,
+    ("Miracle", "SelfManaCostReduced"): T_Miracle__SelfManaCostReduced,
     ("Mobilize", "Fixed"): T_Mobilize__Fixed,
     ("Mobilize", "Ref"): T_Mobilize__Ref,
     ("MoreThanMeetsTheEye", "Cost"): T_MoreThanMeetsTheEye__Cost,
@@ -11931,6 +12486,8 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
         "activation_restrictions",
         "RequiresCondition",
     ): T_activation_restrictions__RequiresCondition,
+    ("activation_source_filter", "Typed"): T_activation_source_filter__Typed,
+    ("activator", "Controller"): T_activator__Controller,
     ("activator_filter", "All"): T_activator_filter__All,
     ("activator_filter", "Opponent"): T_activator_filter__Opponent,
     ("activity", "ActivateAbilities"): T_activity__ActivateAbilities,
@@ -12045,6 +12602,10 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("affected_players", "ScopedPlayer"): T_affected_players__ScopedPlayer,
     ("affected_players", "TargetedPlayer"): T_affected_players__TargetedPlayer,
     ("alt_ability_cost", "Discard"): T_alt_ability_cost__Discard,
+    (
+        "alt_ability_cost",
+        "KeywordCostOfCastSpell",
+    ): T_alt_ability_cost__KeywordCostOfCastSpell,
     ("alt_ability_cost", "PayLife"): T_alt_ability_cost__PayLife,
     ("alt_cost", "PayLife"): T_alt_cost__PayLife,
     ("amount", "ClampMin"): T_amount__ClampMin,
@@ -12066,6 +12627,8 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("attachment", "SelfRef"): T_attachment__SelfRef,
     ("attachment", "TriggeringSource"): T_attachment__TriggeringSource,
     ("attachment", "Typed"): T_attachment__Typed,
+    ("attacker_restriction", "ParentTarget"): T_attacker_restriction__ParentTarget,
+    ("attacker_restriction", "Typed"): T_attacker_restriction__Typed,
     ("attr", "BattlefieldEntriesThisTurn"): T_attr__BattlefieldEntriesThisTurn,
     ("attr", "CardsDrawnThisTurn"): T_attr__CardsDrawnThisTurn,
     ("attr", "HandSize"): T_attr__HandSize,
@@ -12078,6 +12641,9 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("base", "OneOf"): T_base__OneOf,
     ("base", "PayLife"): T_base__PayLife,
     ("base", "Sacrifice"): T_base__Sacrifice,
+    ("by", "Typed"): T_by__Typed,
+    ("candidate_filter", "Typed"): T_candidate_filter__Typed,
+    ("cap", "OnlyOnceEachTurn"): T_cap__OnlyOnceEachTurn,
     ("card_filter", "Any"): T_card_filter__Any,
     ("card_filter", "None"): T_card_filter__None,
     ("card_filter", "Or"): T_card_filter__Or,
@@ -12272,6 +12838,10 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("condition", "RecipientHasCounters"): T_condition__RecipientHasCounters,
     ("condition", "RecipientMatchesFilter"): T_condition__RecipientMatchesFilter,
     ("condition", "RevealedHasCardType"): T_condition__RevealedHasCardType,
+    (
+        "condition",
+        "SharesColorWithMostCommonColorAmongPermanents",
+    ): T_condition__SharesColorWithMostCommonColorAmongPermanents,
     ("condition", "SolveConditionMet"): T_condition__SolveConditionMet,
     ("condition", "SourceAttachedTo"): T_condition__SourceAttachedTo,
     ("condition", "SourceAttachedToCreature"): T_condition__SourceAttachedToCreature,
@@ -12404,6 +12974,15 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
         "condition",
         "ZoneSubtypeCardCountAtLeast",
     ): T_condition__ZoneSubtypeCardCountAtLeast,
+    (
+        "conditional_enter_with_counters",
+        "Fixed",
+    ): T_conditional_enter_with_counters__Fixed,
+    (
+        "conditional_enter_with_counters",
+        "Typed",
+    ): T_conditional_enter_with_counters__Typed,
+    ("conditions", "AdditionalCostPaid"): T_conditions__AdditionalCostPaid,
     ("conditions", "AttackersDeclaredCount"): T_conditions__AttackersDeclaredCount,
     ("conditions", "CastFromZone"): T_conditions__CastFromZone,
     ("conditions", "CastVariantPaid"): T_conditions__CastVariantPaid,
@@ -12419,11 +12998,14 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
         "ControllerControlsMatching",
     ): T_conditions__ControllerControlsMatching,
     ("conditions", "ControlsType"): T_conditions__ControlsType,
+    ("conditions", "CurrentPhaseIs"): T_conditions__CurrentPhaseIs,
     ("conditions", "DuringPlayersTurn"): T_conditions__DuringPlayersTurn,
     ("conditions", "DuringYourTurn"): T_conditions__DuringYourTurn,
     ("conditions", "EffectOutcome"): T_conditions__EffectOutcome,
     ("conditions", "HasCounters"): T_conditions__HasCounters,
+    ("conditions", "HasObjectTarget"): T_conditions__HasObjectTarget,
     ("conditions", "IsPresent"): T_conditions__IsPresent,
+    ("conditions", "IsYourTurn"): T_conditions__IsYourTurn,
     ("conditions", "ManaColorSpent"): T_conditions__ManaColorSpent,
     ("conditions", "ManaSpentCondition"): T_conditions__ManaSpentCondition,
     ("conditions", "Not"): T_conditions__Not,
@@ -12432,6 +13014,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("conditions", "QuantityCheck"): T_conditions__QuantityCheck,
     ("conditions", "QuantityComparison"): T_conditions__QuantityComparison,
     ("conditions", "ScopedPlayerMatches"): T_conditions__ScopedPlayerMatches,
+    ("conditions", "SourceEnteredThisTurn"): T_conditions__SourceEnteredThisTurn,
     ("conditions", "SourceInZone"): T_conditions__SourceInZone,
     ("conditions", "SourceIsAttacking"): T_conditions__SourceIsAttacking,
     ("conditions", "SourceIsBlocking"): T_conditions__SourceIsBlocking,
@@ -12455,6 +13038,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
         "conditions",
         "ZoneChangeObjectMatchesFilter",
     ): T_conditions__ZoneChangeObjectMatchesFilter,
+    ("conditions", "ZoneChangedThisWay"): T_conditions__ZoneChangedThisWay,
     ("constraint", "AtClassLevel"): T_constraint__AtClassLevel,
     ("constraint", "DistinctCardTypes"): T_constraint__DistinctCardTypes,
     ("constraint", "EventSourceControlledBy"): T_constraint__EventSourceControlledBy,
@@ -12480,6 +13064,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("cost", "Discard"): T_cost__Discard,
     ("cost", "EffectCost"): T_cost__EffectCost,
     ("cost", "Exile"): T_cost__Exile,
+    ("cost", "ExileWithAggregate"): T_cost__ExileWithAggregate,
     ("cost", "Loyalty"): T_cost__Loyalty,
     ("cost", "Mana"): T_cost__Mana,
     ("cost", "ManaDynamic"): T_cost__ManaDynamic,
@@ -12563,6 +13148,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("damage_source_filter", "SelfRef"): T_damage_source_filter__SelfRef,
     ("damage_source_filter", "StackSpell"): T_damage_source_filter__StackSpell,
     ("damage_source_filter", "Typed"): T_damage_source_filter__Typed,
+    ("data", "Any"): T_data__Any,
     ("data", "Behold"): T_data__Behold,
     ("data", "Blight"): T_data__Blight,
     ("data", "Composite"): T_data__Composite,
@@ -12573,12 +13159,14 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("data", "Exile"): T_data__Exile,
     ("data", "Mana"): T_data__Mana,
     ("data", "OneOf"): T_data__OneOf,
+    ("data", "ParentTarget"): T_data__ParentTarget,
     ("data", "PayLife"): T_data__PayLife,
     ("data", "ReturnToHand"): T_data__ReturnToHand,
     ("data", "Reveal"): T_data__Reveal,
     ("data", "Sacrifice"): T_data__Sacrifice,
     ("data", "SelfManaCost"): T_data__SelfManaCost,
     ("data", "TapCreatures"): T_data__TapCreatures,
+    ("data", "TriggeringSource"): T_data__TriggeringSource,
     ("data", "Unimplemented"): T_data__Unimplemented,
     ("data", "Waterbend"): T_data__Waterbend,
     ("deck_copy_limit", "Unlimited"): T_deck_copy_limit__Unlimited,
@@ -12654,12 +13242,14 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("effect", "ChangeTargets"): T_effect__ChangeTargets,
     ("effect", "ChangeZone"): T_effect__ChangeZone,
     ("effect", "ChangeZoneAll"): T_effect__ChangeZoneAll,
+    ("effect", "ChaosEnsues"): T_effect__ChaosEnsues,
     ("effect", "Choose"): T_effect__Choose,
     ("effect", "ChooseAndSacrificeRest"): T_effect__ChooseAndSacrificeRest,
     (
         "effect",
         "ChooseAugmentAndCombineWithHost",
     ): T_effect__ChooseAugmentAndCombineWithHost,
+    ("effect", "ChooseCounterKind"): T_effect__ChooseCounterKind,
     (
         "effect",
         "ChooseDrawnThisTurnPayOrTopdeck",
@@ -12681,7 +13271,9 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("effect", "CounterAll"): T_effect__CounterAll,
     ("effect", "CreateDamageReplacement"): T_effect__CreateDamageReplacement,
     ("effect", "CreateDelayedTrigger"): T_effect__CreateDelayedTrigger,
+    ("effect", "CreateDrawReplacement"): T_effect__CreateDrawReplacement,
     ("effect", "CreateEmblem"): T_effect__CreateEmblem,
+    ("effect", "CreatePlaneswalkReplacement"): T_effect__CreatePlaneswalkReplacement,
     ("effect", "DamageAll"): T_effect__DamageAll,
     ("effect", "DamageEachPlayer"): T_effect__DamageEachPlayer,
     ("effect", "DealDamage"): T_effect__DealDamage,
@@ -12698,6 +13290,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("effect", "DraftFromSpellbook"): T_effect__DraftFromSpellbook,
     ("effect", "Draw"): T_effect__Draw,
     ("effect", "EachDealsDamageEqualToPower"): T_effect__EachDealsDamageEqualToPower,
+    ("effect", "EachSourceDealsDamage"): T_effect__EachSourceDealsDamage,
     ("effect", "Encore"): T_effect__Encore,
     ("effect", "EndCombatPhase"): T_effect__EndCombatPhase,
     ("effect", "EndTheTurn"): T_effect__EndTheTurn,
@@ -12775,6 +13368,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("effect", "Pump"): T_effect__Pump,
     ("effect", "PumpAll"): T_effect__PumpAll,
     ("effect", "PutAtLibraryPosition"): T_effect__PutAtLibraryPosition,
+    ("effect", "PutChosenCounter"): T_effect__PutChosenCounter,
     ("effect", "PutCounter"): T_effect__PutCounter,
     ("effect", "PutCounterAll"): T_effect__PutCounterAll,
     ("effect", "PutOnTopOrBottom"): T_effect__PutOnTopOrBottom,
@@ -12783,6 +13377,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("effect", "ReduceNextSpellCost"): T_effect__ReduceNextSpellCost,
     ("effect", "Regenerate"): T_effect__Regenerate,
     ("effect", "RegisterBending"): T_effect__RegisterBending,
+    ("effect", "RememberCard"): T_effect__RememberCard,
     ("effect", "RemoveAllDamage"): T_effect__RemoveAllDamage,
     ("effect", "RemoveCounter"): T_effect__RemoveCounter,
     ("effect", "RemoveFromCombat"): T_effect__RemoveFromCombat,
@@ -12823,6 +13418,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("effect", "Token"): T_effect__Token,
     ("effect", "Transform"): T_effect__Transform,
     ("effect", "Tribute"): T_effect__Tribute,
+    ("effect", "TurnFaceDown"): T_effect__TurnFaceDown,
     ("effect", "TurnFaceUp"): T_effect__TurnFaceUp,
     ("effect", "UnattachAll"): T_effect__UnattachAll,
     ("effect", "Unimplemented"): T_effect__Unimplemented,
@@ -12835,11 +13431,14 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("enter_with_counters", "Fixed"): T_enter_with_counters__Fixed,
     ("enter_with_counters", "Offset"): T_enter_with_counters__Offset,
     ("enter_with_counters", "Ref"): T_enter_with_counters__Ref,
+    ("enters_modified_if", "Typed"): T_enters_modified_if__Typed,
     ("entwine_cost", "Cost"): T_entwine_cost__Cost,
+    ("excess", "TargetController"): T_excess__TargetController,
     (
         "exclude",
         "ParentObjectTargetController",
     ): T_exclude__ParentObjectTargetController,
+    ("exclude", "TriggeringPlayer"): T_exclude__TriggeringPlayer,
     ("expiry", "EndOfTurn"): T_expiry__EndOfTurn,
     ("exponent", "Ref"): T_exponent__Ref,
     ("exprs", "Fixed"): T_exprs__Fixed,
@@ -12877,6 +13476,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("filters", "Controller"): T_filters__Controller,
     ("filters", "ExiledBySource"): T_filters__ExiledBySource,
     ("filters", "HasChosenName"): T_filters__HasChosenName,
+    ("filters", "LastCreated"): T_filters__LastCreated,
     ("filters", "Not"): T_filters__Not,
     ("filters", "Or"): T_filters__Or,
     ("filters", "ParentTarget"): T_filters__ParentTarget,
@@ -13000,11 +13600,16 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
         "modifications",
         "GrantAllActivatedAbilitiesOf",
     ): T_modifications__GrantAllActivatedAbilitiesOf,
+    (
+        "modifications",
+        "GrantAllTriggeredAbilitiesOf",
+    ): T_modifications__GrantAllTriggeredAbilitiesOf,
     ("modifications", "GrantStaticAbility"): T_modifications__GrantStaticAbility,
     ("modifications", "GrantTrigger"): T_modifications__GrantTrigger,
     ("modifications", "RemoveAllAbilities"): T_modifications__RemoveAllAbilities,
     ("modifications", "RemoveAllSubtypes"): T_modifications__RemoveAllSubtypes,
     ("modifications", "RemoveKeyword"): T_modifications__RemoveKeyword,
+    ("modifications", "RemoveSupertype"): T_modifications__RemoveSupertype,
     ("modifications", "RemoveType"): T_modifications__RemoveType,
     ("modifications", "SetBasicLandType"): T_modifications__SetBasicLandType,
     ("modifications", "SetCardTypes"): T_modifications__SetCardTypes,
@@ -13012,6 +13617,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
         "modifications",
         "SetChosenBasicLandType",
     ): T_modifications__SetChosenBasicLandType,
+    ("modifications", "SetChosenName"): T_modifications__SetChosenName,
     ("modifications", "SetColor"): T_modifications__SetColor,
     ("modifications", "SetDynamicPower"): T_modifications__SetDynamicPower,
     ("modifications", "SetDynamicToughness"): T_modifications__SetDynamicToughness,
@@ -13058,6 +13664,11 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("payer", "ScopedPlayer"): T_payer__ScopedPlayer,
     ("payer", "TriggeringPlayer"): T_payer__TriggeringPlayer,
     ("payer", "TriggeringSpellController"): T_payer__TriggeringSpellController,
+    ("payer", "Typed"): T_payer__Typed,
+    (
+        "per_player_condition",
+        "YouAttackedSourceControllerThisTurn",
+    ): T_per_player_condition__YouAttackedSourceControllerThisTurn,
     (
         "per_player_condition",
         "YouAttackedThisTurn",
@@ -13068,6 +13679,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ): T_per_player_condition__YouCastSpellThisTurn,
     ("permission", "ExileWithAltCost"): T_permission__ExileWithAltCost,
     ("permission", "ExileWithEnergyCost"): T_permission__ExileWithEnergyCost,
+    ("permission", "Foretold"): T_permission__Foretold,
     ("permission", "PlayFromExile"): T_permission__PlayFromExile,
     ("permission", "Plotted"): T_permission__Plotted,
     ("player", "AllPlayers"): T_player__AllPlayers,
@@ -13098,11 +13710,16 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
         "OpponentOtherThanTriggering",
     ): T_player_filter__OpponentOtherThanTriggering,
     ("player_scope", "All"): T_player_scope__All,
+    ("player_scope", "AllExcept"): T_player_scope__AllExcept,
     ("player_scope", "ControlsCount"): T_player_scope__ControlsCount,
     ("player_scope", "DefendingPlayer"): T_player_scope__DefendingPlayer,
     ("player_scope", "HighestSpeed"): T_player_scope__HighestSpeed,
     ("player_scope", "Opponent"): T_player_scope__Opponent,
     ("player_scope", "OpponentAttacked"): T_player_scope__OpponentAttacked,
+    (
+        "player_scope",
+        "OpponentOfTriggeringPlayer",
+    ): T_player_scope__OpponentOfTriggeringPlayer,
     (
         "player_scope",
         "OwnersOfCardsExiledBySource",
@@ -13111,6 +13728,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
         "player_scope",
         "ParentObjectTargetController",
     ): T_player_scope__ParentObjectTargetController,
+    ("player_scope", "PlayerAttribute"): T_player_scope__PlayerAttribute,
     ("player_scope", "TriggeringPlayer"): T_player_scope__TriggeringPlayer,
     ("player_scope", "VotedFor"): T_player_scope__VotedFor,
     ("position", "BeneathTop"): T_position__BeneathTop,
@@ -13146,7 +13764,9 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("produced", "TriggerEventManaType"): T_produced__TriggerEventManaType,
     ("prop", "AttackedThisTurn"): T_prop__AttackedThisTurn,
     ("prop", "EnteredThisTurn"): T_prop__EnteredThisTurn,
+    ("prop", "InTrackedSet"): T_prop__InTrackedSet,
     ("prop", "SameName"): T_prop__SameName,
+    ("prop", "SharesQuality"): T_prop__SharesQuality,
     ("properties", "Another"): T_properties__Another,
     ("properties", "AnyOf"): T_properties__AnyOf,
     ("properties", "AttachedToRecipient"): T_properties__AttachedToRecipient,
@@ -13164,6 +13784,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("properties", "Cmc"): T_properties__Cmc,
     ("properties", "ColorCount"): T_properties__ColorCount,
     ("properties", "CombatRelation"): T_properties__CombatRelation,
+    ("properties", "ConvokedSource"): T_properties__ConvokedSource,
     ("properties", "Counters"): T_properties__Counters,
     ("properties", "CountersPutOnThisTurn"): T_properties__CountersPutOnThisTurn,
     ("properties", "DifferentNameFrom"): T_properties__DifferentNameFrom,
@@ -13195,7 +13816,9 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("properties", "IsCommander"): T_properties__IsCommander,
     ("properties", "IsSaddled"): T_properties__IsSaddled,
     ("properties", "ManaCostIn"): T_properties__ManaCostIn,
+    ("properties", "ManaSymbolCount"): T_properties__ManaSymbolCount,
     ("properties", "ManaValueParity"): T_properties__ManaValueParity,
+    ("properties", "Modal"): T_properties__Modal,
     ("properties", "Modified"): T_properties__Modified,
     (
         "properties",
@@ -13233,6 +13856,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("properties", "WasPlayed"): T_properties__WasPlayed,
     ("properties", "WithKeyword"): T_properties__WithKeyword,
     ("properties", "WithoutKeyword"): T_properties__WithoutKeyword,
+    ("properties", "WithoutKeywordKind"): T_properties__WithoutKeywordKind,
     ("properties", "ZoneChangedThisTurn"): T_properties__ZoneChangedThisTurn,
     ("props", "AttackingAlone"): T_props__AttackingAlone,
     ("props", "BlockingAlone"): T_props__BlockingAlone,
@@ -13244,6 +13868,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("qty", "AttachmentsOnLeavingObject"): T_qty__AttachmentsOnLeavingObject,
     ("qty", "AttackedThisTurn"): T_qty__AttackedThisTurn,
     ("qty", "BasicLandTypeCount"): T_qty__BasicLandTypeCount,
+    ("qty", "BendTypesThisTurn"): T_qty__BendTypesThisTurn,
     ("qty", "CardsDiscardedThisTurn"): T_qty__CardsDiscardedThisTurn,
     ("qty", "CardsDrawnThisTurn"): T_qty__CardsDrawnThisTurn,
     ("qty", "CardsExiledBySource"): T_qty__CardsExiledBySource,
@@ -13306,6 +13931,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("qty", "SpellsCastThisGame"): T_qty__SpellsCastThisGame,
     ("qty", "SpellsCastThisTurn"): T_qty__SpellsCastThisTurn,
     ("qty", "StartingLifeTotal"): T_qty__StartingLifeTotal,
+    ("qty", "TargetControllerCounter"): T_qty__TargetControllerCounter,
     ("qty", "TargetObjectManaValue"): T_qty__TargetObjectManaValue,
     ("qty", "TargetZoneCardCount"): T_qty__TargetZoneCardCount,
     ("qty", "TimesCostPaidThisResolution"): T_qty__TimesCostPaidThisResolution,
@@ -13333,12 +13959,14 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("quantity_modification", "Prevent"): T_quantity_modification__Prevent,
     ("quantity_modification", "Times"): T_quantity_modification__Times,
     ("recipient", "Any"): T_recipient__Any,
+    ("recipient", "EachController"): T_recipient__EachController,
     ("recipient", "Neighbor"): T_recipient__Neighbor,
     ("recipient", "ParentTarget"): T_recipient__ParentTarget,
     ("recipient", "ParentTargetController"): T_recipient__ParentTargetController,
     ("recipient", "Player"): T_recipient__Player,
     ("recipient", "ScopedPlayer"): T_recipient__ScopedPlayer,
     ("recipient", "SelfRef"): T_recipient__SelfRef,
+    ("recipient", "Shared"): T_recipient__Shared,
     ("recipient", "TriggeringPlayer"): T_recipient__TriggeringPlayer,
     (
         "recipient",
@@ -13354,6 +13982,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("redirect_to", "SourceObject"): T_redirect_to__SourceObject,
     ("reference", "CostPaidObject"): T_reference__CostPaidObject,
     ("reference", "ExiledBySource"): T_reference__ExiledBySource,
+    ("reference", "Or"): T_reference__Or,
     ("reference", "ParentTarget"): T_reference__ParentTarget,
     ("reference", "SelfRef"): T_reference__SelfRef,
     ("reference", "TrackedSet"): T_reference__TrackedSet,
@@ -13369,6 +13998,10 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("repeat_until", "ControllerChoice"): T_repeat_until__ControllerChoice,
     ("repeat_until", "UntilStopConditions"): T_repeat_until__UntilStopConditions,
     ("repeat_until", "WhileCondition"): T_repeat_until__WhileCondition,
+    ("replacement_effect", "ChaosEnsues"): T_replacement_effect__ChaosEnsues,
+    ("replacement_effect", "DealDamage"): T_replacement_effect__DealDamage,
+    ("replacement_effect", "GainLife"): T_replacement_effect__GainLife,
+    ("replacement_effect", "Token"): T_replacement_effect__Token,
     ("required_player", "Controller"): T_required_player__Controller,
     ("required_player", "Typed"): T_required_player__Typed,
     (
@@ -13422,6 +14055,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("source", "And"): T_source__And,
     ("source", "Any"): T_source__Any,
     ("source", "AttachedTo"): T_source__AttachedTo,
+    ("source", "ChosenCard"): T_source__ChosenCard,
     ("source", "ExiledBySource"): T_source__ExiledBySource,
     ("source", "Objects"): T_source__Objects,
     ("source", "Or"): T_source__Or,
@@ -13453,6 +14087,8 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("subject", "AttackTarget"): T_subject__AttackTarget,
     ("subject", "Controller"): T_subject__Controller,
     ("subject", "LastRevealed"): T_subject__LastRevealed,
+    ("subject", "Named"): T_subject__Named,
+    ("subject", "Objects"): T_subject__Objects,
     ("subject", "Or"): T_subject__Or,
     ("subject", "ParentTarget"): T_subject__ParentTarget,
     ("subject", "SelfRef"): T_subject__SelfRef,
@@ -13463,7 +14099,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("subtype_filter", "Typed"): T_subtype_filter__Typed,
     ("tag", "Backup"): T_tag__Backup,
     ("tally_mode", "PerVote"): T_tally_mode__PerVote,
-    ("tally_mode", "Threshold"): T_tally_mode__Threshold,
+    ("tally_mode", "TopVotes"): T_tally_mode__TopVotes,
     ("target", "AllPlayers"): T_target__AllPlayers,
     ("target", "And"): T_target__And,
     ("target", "Any"): T_target__Any,
@@ -13485,6 +14121,10 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("target", "ParentTargetSlot"): T_target__ParentTargetSlot,
     ("target", "Player"): T_target__Player,
     ("target", "PostReplacementDamageTarget"): T_target__PostReplacementDamageTarget,
+    (
+        "target",
+        "PostReplacementDamageTargetOwner",
+    ): T_target__PostReplacementDamageTargetOwner,
     (
         "target",
         "PostReplacementSourceController",
@@ -13525,6 +14165,9 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("target_player", "Typed"): T_target_player__Typed,
     ("target_selection_mode", "Random"): T_target_selection_mode__Random,
     ("threshold", "Fixed"): T_threshold__Fixed,
+    ("tie", "AllTied"): T_tie__AllTied,
+    ("tie", "Breaker"): T_tie__Breaker,
+    ("total_power_cap", "Fixed"): T_total_power_cap__Fixed,
     ("toughness", "Fixed"): T_toughness__Fixed,
     ("toughness", "Quantity"): T_toughness__Quantity,
     ("toughness", "Variable"): T_toughness__Variable,
@@ -13566,6 +14209,8 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("value", "Offset"): T_value__Offset,
     ("value", "Ref"): T_value__Ref,
     ("value", "Sum"): T_value__Sum,
+    ("visibility", "Open"): T_visibility__Open,
+    ("visibility", "Secret"): T_visibility__Secret,
     ("voter_scope", "AllPlayers"): T_voter_scope__AllPlayers,
     ("voter_scope", "ControllerLabels"): T_voter_scope__ControllerLabels,
     ("voter_scope", "EachOpponent"): T_voter_scope__EachOpponent,
@@ -13593,6 +14238,7 @@ GENERATED_BY_CKEY: dict[str, type[TypedMirrorNode]] = {
     "GraveyardCastPermission": S_GraveyardCastPermission,
     "Impending": S_Impending,
     "ImposeAdditionalCost": S_ImposeAdditionalCost,
+    "Keyword": S_Keyword,
     "ManaValue": S_ManaValue,
     "MaxAttackersEachCombat": S_MaxAttackersEachCombat,
     "MaxUntapPerType": S_MaxUntapPerType,
@@ -13604,7 +14250,9 @@ GENERATED_BY_CKEY: dict[str, type[TypedMirrorNode]] = {
     "PerTurnDrawLimit": S_PerTurnDrawLimit,
     "Prototype": S_Prototype,
     "ReduceAbilityCost": S_ReduceAbilityCost,
+    "ReduceActionCost": S_ReduceActionCost,
     "Reinforce": S_Reinforce,
+    "RestrictLibrarySearchToTop": S_RestrictLibrarySearchToTop,
     "SpellFromZone": S_SpellFromZone,
     "SpellMatchingCostCriteria": S_SpellMatchingCostCriteria,
     "SpellTypeOrAbilityActivation": S_SpellTypeOrAbilityActivation,
@@ -13652,6 +14300,7 @@ GENERATED_BY_CKEY: dict[str, type[TypedMirrorNode]] = {
     "multi_target": S_multi_target,
     "on_decline": S_on_decline,
     "or_trigger": S_or_trigger,
+    "outcome_template": S_outcome_template,
     "per_choice_effect": S_per_choice_effect,
     "profile": S_profile,
     "replacement": S_replacement,

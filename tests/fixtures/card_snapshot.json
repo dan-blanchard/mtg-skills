@@ -1869,7 +1869,7 @@
          },
          {
           "cat": "tap",
-          "raw": "{W}: You may unattach an Equipment from a creature you control. If you do, tap that creature and it gains indestructible until end of turn."
+          "raw": "If you do, tap that creature"
          },
          {
           "cat": "grant_keyword",
@@ -1952,6 +1952,13 @@
      {
       "ab": [
        {
+        "cond": {
+         "cmp": "gt",
+         "kind": "quantitycomparison",
+         "zn": [
+          "hand"
+         ]
+        },
         "e": [
          {
           "amt": {
@@ -4497,6 +4504,17 @@
        {
         "cost": "tap",
         "e": [
+         {
+          "cat": "target_only",
+          "raw": "{T}: Target artifact creature's controller sacrifices it. That player may search their library for a noncreature artifact card, put it onto the battlefield, then shuffle.",
+          "sc": "opp",
+          "sub": {
+           "t": [
+            "Artifact",
+            "Creature"
+           ]
+          }
+         },
          {
           "amt": {
            "op": "fixed"
@@ -8781,6 +8799,11 @@
         "cost": "sacself",
         "e": [
          {
+          "cat": "choose",
+          "dur": "UntilEndOfTurn",
+          "raw": "Sacrifice ~: Target creature you control gains protection from the color of your choice until end of turn."
+         },
+         {
           "cat": "sacrifice",
           "raw": "Sacrifice ~: Target creature you control gains protection from the color of your choice until end of turn."
          }
@@ -11988,85 +12011,315 @@
        {
         "cond": {
          "cmp": "none",
-         "kind": "unrecognized"
+         "kind": "ispresent",
+         "sub": {
+          "p": [
+           "WithKeyword:Flying",
+           "InZone"
+          ],
+          "t": [
+           "Creature"
+          ]
+         },
+         "zn": [
+          "graveyard"
+         ]
         },
         "e": [
          {
           "cat": "grant_keyword",
           "ck": "flying",
-          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying. The same is true for fear, first strike, double strike, deathtouch, haste, landwalk, lifelink, protection, reach, trample, shroud, and vigilance.",
+          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying.",
           "z": [
            "in:graveyard"
           ]
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "ispresent",
+         "sub": {
+          "p": [
+           "WithKeyword:Fear",
+           "InZone"
+          ],
+          "t": [
+           "Creature"
+          ]
          },
+         "zn": [
+          "graveyard"
+         ]
+        },
+        "e": [
+         {
+          "cat": "grant_keyword",
+          "ck": "fear",
+          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying.",
+          "z": [
+           "in:graveyard"
+          ]
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "ispresent",
+         "sub": {
+          "p": [
+           "WithKeyword:FirstStrike",
+           "InZone"
+          ],
+          "t": [
+           "Creature"
+          ]
+         },
+         "zn": [
+          "graveyard"
+         ]
+        },
+        "e": [
          {
           "cat": "grant_keyword",
           "ck": "firststrike",
-          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying. The same is true for fear, first strike, double strike, deathtouch, haste, landwalk, lifelink, protection, reach, trample, shroud, and vigilance.",
+          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying.",
           "z": [
            "in:graveyard"
           ]
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "ispresent",
+         "sub": {
+          "p": [
+           "WithKeyword:DoubleStrike",
+           "InZone"
+          ],
+          "t": [
+           "Creature"
+          ]
          },
+         "zn": [
+          "graveyard"
+         ]
+        },
+        "e": [
          {
           "cat": "grant_keyword",
           "ck": "doublestrike",
-          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying. The same is true for fear, first strike, double strike, deathtouch, haste, landwalk, lifelink, protection, reach, trample, shroud, and vigilance.",
+          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying.",
           "z": [
            "in:graveyard"
           ]
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "ispresent",
+         "sub": {
+          "p": [
+           "WithKeyword:Deathtouch",
+           "InZone"
+          ],
+          "t": [
+           "Creature"
+          ]
          },
+         "zn": [
+          "graveyard"
+         ]
+        },
+        "e": [
          {
           "cat": "grant_keyword",
           "ck": "deathtouch",
-          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying. The same is true for fear, first strike, double strike, deathtouch, haste, landwalk, lifelink, protection, reach, trample, shroud, and vigilance.",
+          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying.",
           "z": [
            "in:graveyard"
           ]
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "ispresent",
+         "sub": {
+          "p": [
+           "WithKeyword:Haste",
+           "InZone"
+          ],
+          "t": [
+           "Creature"
+          ]
          },
+         "zn": [
+          "graveyard"
+         ]
+        },
+        "e": [
          {
           "cat": "grant_keyword",
           "ck": "haste",
-          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying. The same is true for fear, first strike, double strike, deathtouch, haste, landwalk, lifelink, protection, reach, trample, shroud, and vigilance.",
+          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying.",
           "z": [
            "in:graveyard"
           ]
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "ispresent",
+         "sub": {
+          "p": [
+           "WithKeyword:Lifelink",
+           "InZone"
+          ],
+          "t": [
+           "Creature"
+          ]
          },
+         "zn": [
+          "graveyard"
+         ]
+        },
+        "e": [
          {
           "cat": "grant_keyword",
           "ck": "lifelink",
-          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying. The same is true for fear, first strike, double strike, deathtouch, haste, landwalk, lifelink, protection, reach, trample, shroud, and vigilance.",
+          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying.",
           "z": [
            "in:graveyard"
           ]
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "ispresent",
+         "sub": {
+          "p": [
+           "WithKeyword:Reach",
+           "InZone"
+          ],
+          "t": [
+           "Creature"
+          ]
          },
+         "zn": [
+          "graveyard"
+         ]
+        },
+        "e": [
          {
           "cat": "grant_keyword",
           "ck": "reach",
-          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying. The same is true for fear, first strike, double strike, deathtouch, haste, landwalk, lifelink, protection, reach, trample, shroud, and vigilance.",
+          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying.",
           "z": [
            "in:graveyard"
           ]
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "ispresent",
+         "sub": {
+          "p": [
+           "WithKeyword:Trample",
+           "InZone"
+          ],
+          "t": [
+           "Creature"
+          ]
          },
+         "zn": [
+          "graveyard"
+         ]
+        },
+        "e": [
          {
           "cat": "grant_keyword",
           "ck": "trample",
-          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying. The same is true for fear, first strike, double strike, deathtouch, haste, landwalk, lifelink, protection, reach, trample, shroud, and vigilance.",
+          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying.",
           "z": [
            "in:graveyard"
           ]
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "ispresent",
+         "sub": {
+          "p": [
+           "WithKeyword:Shroud",
+           "InZone"
+          ],
+          "t": [
+           "Creature"
+          ]
          },
+         "zn": [
+          "graveyard"
+         ]
+        },
+        "e": [
          {
           "cat": "grant_keyword",
           "ck": "shroud",
-          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying. The same is true for fear, first strike, double strike, deathtouch, haste, landwalk, lifelink, protection, reach, trample, shroud, and vigilance.",
+          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying.",
           "z": [
            "in:graveyard"
           ]
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "cond": {
+         "cmp": "none",
+         "kind": "ispresent",
+         "sub": {
+          "p": [
+           "WithKeyword:Vigilance",
+           "InZone"
+          ],
+          "t": [
+           "Creature"
+          ]
          },
+         "zn": [
+          "graveyard"
+         ]
+        },
+        "e": [
          {
           "cat": "grant_keyword",
           "ck": "vigilance",
-          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying. The same is true for fear, first strike, double strike, deathtouch, haste, landwalk, lifelink, protection, reach, trample, shroud, and vigilance.",
+          "raw": "As long as a creature card with flying is in a graveyard, ~ has flying.",
           "z": [
            "in:graveyard"
           ]
@@ -12373,12 +12626,11 @@
         "e": [
          {
           "cat": "vote",
-          "raw": "Council's dilemma — Starting with you, each player votes for death or taxes. Each opponent sacrifices a creature of their choice for each death vote and discards a card for each taxes vote.",
-          "sc": "each"
+          "raw": "Council's dilemma — Starting with you, each player votes for death or taxes. Each opponent sacrifices a creature of their choice for each death vote and discards a card for each taxes vote."
          },
          {
           "amt": {
-           "op": "fixed"
+           "op": "count"
           },
           "cat": "sacrifice",
           "raw": "Council's dilemma — Starting with you, each player votes for death or taxes. Each opponent sacrifices a creature of their choice for each death vote and discards a card for each taxes vote.",
@@ -12389,6 +12641,14 @@
             "Creature"
            ]
           }
+         },
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "discard",
+          "raw": "Council's dilemma — Starting with you, each player votes for death or taxes. Each opponent sacrifices a creature of their choice for each death vote and discards a card for each taxes vote.",
+          "sc": "opp"
          }
         ],
         "k": "spell"
@@ -17387,6 +17647,9 @@
           "cat": "sacrifice",
           "raw": "When ~ enters, sacrifice another creature. You gain X life and draw X cards, where X is that creature's power.",
           "sub": {
+           "p": [
+            "Another"
+           ],
            "t": [
             "Creature"
            ]
@@ -22133,26 +22396,6 @@
     "faces": [
      {
       "ab": [
-       {
-        "e": [
-         {
-          "cat": "topdeck_select",
-          "raw": "The top card of your library has plot. The plot cost is equal to its mana cost.",
-          "sc": "you"
-         }
-        ],
-        "k": "spell"
-       },
-       {
-        "e": [
-         {
-          "cat": "topdeck_select",
-          "raw": "You may plot nonland cards from the top of your library.",
-          "sc": "you"
-         }
-        ],
-        "k": "spell"
-       },
        {
         "e": [
          {
@@ -28038,20 +28281,7 @@
          },
          {
           "cat": "tap",
-          "raw": "{1}, Sacrifice a Food: Target creature gains indestructible until end of turn. Tap it."
-         },
-         {
-          "cat": "sacrifice",
-          "raw": "{1}, Sacrifice a Food: Target creature gains indestructible until end of turn. Tap it.",
-          "sc": "you",
-          "sub": {
-           "p": [
-            "Token"
-           ],
-           "s": [
-            "Food"
-           ]
-          }
+          "raw": "Tap it"
          }
         ],
         "k": "activated"
@@ -28080,6 +28310,24 @@
         "tr": {
          "ev": "end_step"
         }
+       },
+       {
+        "e": [
+         {
+          "cat": "sacrifice",
+          "raw": "Sacrifice a Food",
+          "sc": "you",
+          "sub": {
+           "p": [
+            "Token"
+           ],
+           "s": [
+            "Food"
+           ]
+          }
+         }
+        ],
+        "k": "static"
        },
        {
         "e": [
@@ -37729,36 +37977,10 @@
          {
           "cat": "restriction",
           "raw": "Enchanted creature can't attack or block, and its activated abilities can't be activated. Its controller may exile three cards from their graveyard for that player to ignore this effect until end of turn.",
-          "sc": "opp",
-          "sub": {
-           "p": [
-            "EnchantedBy"
-           ],
-           "t": [
-            "Creature"
-           ]
-          }
+          "sc": "opp"
          }
         ],
-        "k": "static"
-       },
-       {
-        "e": [
-         {
-          "cat": "restriction",
-          "raw": "Enchanted creature can't attack or block, and its activated abilities can't be activated. Its controller may exile three cards from their graveyard for that player to ignore this effect until end of turn.",
-          "sc": "opp",
-          "sub": {
-           "p": [
-            "EnchantedBy"
-           ],
-           "t": [
-            "Creature"
-           ]
-          }
-         }
-        ],
-        "k": "static"
+        "k": "spell"
        }
       ],
       "kw": [
@@ -38529,6 +38751,7 @@
         "e": [
          {
           "cat": "lure",
+          "raw": "All creatures able to block enchanted creature do so.",
           "sub": {
            "p": [
             "EnchantedBy"
@@ -38539,7 +38762,7 @@
           }
          }
         ],
-        "k": "spell"
+        "k": "static"
        }
       ],
       "kw": [
@@ -41000,6 +41223,7 @@
          },
          {
           "cat": "tap",
+          "raw": "If the gift was promised, tap target creature an opponent controls and put a stun counter on it",
           "sub": {
            "c": "opp",
            "t": [
@@ -43641,10 +43865,18 @@
           "cat": "bounce",
           "raw": "Chapter 3",
           "sub": {
+           "c": "you",
+           "p": [
+            "HasKeywordKind:Foretell",
+            "InZone"
+           ],
            "t": [
             "Card"
            ]
-          }
+          },
+          "z": [
+           "in:graveyard"
+          ]
          }
         ],
         "k": "triggered",
@@ -47864,7 +48096,7 @@
         "e": [
          {
           "amt": {
-           "op": "count"
+           "op": "counters"
           },
           "cat": "damage",
           "raw": "Whenever ~ attacks, it deals damage to any target equal to the number of +1/+1 counters on ~."
@@ -52100,7 +52332,9 @@
           "raw": "Whenever you cast your second spell each turn, each opponent mills two cards. When one or more cards are milled this way, exile target enchantment, instant, or sorcery card with equal or lesser mana value than that spell from an opponent's graveyard. Copy the exiled card. You may cast the copy without paying its mana cost.",
           "sub": {
            "t": [
-            "Enchantment"
+            "Enchantment",
+            "Instant",
+            "Sorcery"
            ]
           },
           "z": [
@@ -61237,7 +61471,7 @@
        {
         "cond": {
          "cmp": "none",
-         "kind": "unrecognized"
+         "kind": "sourceenteredthisturn"
         },
         "e": [
          {
@@ -62047,9 +62281,22 @@
        {
         "e": [
          {
-          "cat": "reanimate",
+          "cat": "cast_from_zone",
           "raw": "Whenever ~ deals combat damage to a player, you may cast target nonland permanent card from that player's graveyard, and mana of any type can be spent to cast that spell.",
-          "sc": "opp"
+          "sc": "opp",
+          "sub": {
+           "p": [
+            "InZone",
+            "Owned:opp",
+            "NotType:Land"
+           ],
+           "t": [
+            "Permanent"
+           ]
+          },
+          "z": [
+           "in:graveyard"
+          ]
          }
         ],
         "k": "triggered",
@@ -63493,13 +63740,34 @@
      {
       "ab": [
        {
+        "cond": {
+         "cmp": "none",
+         "kind": "not",
+         "nest": [
+          {
+           "cmp": "none",
+           "kind": "or",
+           "nest": [
+            {
+             "cmp": "none",
+             "kind": "sourceisattacking"
+            },
+            {
+             "cmp": "none",
+             "kind": "sourceisblocking"
+            }
+           ]
+          }
+         ]
+        },
         "e": [
          {
           "cat": "grant_keyword",
+          "ck": "hexproof",
           "raw": "~ has hexproof unless it's attacking or blocking."
          }
         ],
-        "k": "spell"
+        "k": "static"
        }
       ],
       "n": "Tromokratis",
@@ -65531,7 +65799,15 @@
         ],
         "k": "triggered",
         "tr": {
-         "ev": "cast_spell"
+         "ev": "cast_spell",
+         "sub": {
+          "p": [
+           "WasKicked"
+          ],
+          "t": [
+           "Card"
+          ]
+         }
         }
        },
        {
@@ -66516,6 +66792,9 @@
           "raw": "[+2]: You may sacrifice another permanent. If you do, you gain 1 life and draw a card.",
           "sub": {
            "c": "you",
+           "p": [
+            "Another"
+           ],
            "t": [
             "Permanent"
            ]
@@ -69353,7 +69632,7 @@
    }
   }
  },
- "phase_tag": "v0.9.0",
+ "phase_tag": "v0.15.0",
  "schema": 1,
  "sidecar_version": 76
 }

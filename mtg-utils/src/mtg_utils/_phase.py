@@ -18,7 +18,7 @@ import urllib.request
 from functools import lru_cache
 from pathlib import Path
 
-PHASE_TAG = "v0.9.0"
+PHASE_TAG = "v0.15.0"
 PHASE_REPO = "https://github.com/phase-rs/phase"
 
 # card-data.json is byte-identical across platforms, so the linux server

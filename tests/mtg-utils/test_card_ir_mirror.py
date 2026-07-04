@@ -154,7 +154,7 @@ def _find_required(record, schema):
 
 
 def test_effect_roster_shape():
-    assert len(EFFECT_VARIANTS) == 207
+    assert len(EFFECT_VARIANTS) == 215  # v0.15.0: 207 + 8 new Effect variants
     assert len(ZERO_INSTANCE_EFFECTS) == 18
     assert set(EFFECT_VARIANTS) >= ZERO_INSTANCE_EFFECTS
     # the ADR's four named examples are in the closed-union arm
@@ -302,10 +302,10 @@ def test_losslessness_roundtrip_full_corpus():
 def test_variant_population_committed_fixture():
     pop = _fixture(POPULATION_FIXTURE)
     population = pop["population"]
-    assert len(population) == 207
+    assert len(population) == 215  # v0.15.0: 207 + 8 new Effect variants
     zeros = {n for n, c in population.items() if c == 0}
     assert zeros == set(ZERO_INSTANCE_EFFECTS)
-    assert pop["distinct_variants_observed"] == 189
+    assert pop["distinct_variants_observed"] == 197  # v0.15.0: 189 + 8
     assert pop["zero_instance_variants"] == 18
     assert pop["total_effect_nodes"] == sum(population.values())
     # the name grep must not have drifted from phase's enum
@@ -357,8 +357,8 @@ def test_generated_classes_dispatch_table():
     for ckey in schema.structs:
         assert ckey in GENERATED_BY_CKEY, f"struct {ckey!r} has no generated class"
         assert issubclass(GENERATED_BY_CKEY[ckey], TypedMirrorNode)
-    # the headline coverage number: 1478 tagged + 97 struct = 1575 classes
-    assert len(GENERATED_BY_KEY) + len(GENERATED_BY_CKEY) == 1575
+    # the headline coverage number: v0.15.0 = 1546 tagged + 101 struct = 1647 classes
+    assert len(GENERATED_BY_KEY) + len(GENERATED_BY_CKEY) == 1647
 
 
 def test_typed_instances_no_fallback_samples():

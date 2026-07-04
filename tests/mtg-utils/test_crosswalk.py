@@ -4059,16 +4059,20 @@ def test_foretell_matters_foretold_predicate_only():
 
 def test_keyword_soup_per_site_count_and_same_true_absorb():
     """CR 702: >=5 DISTINCT evergreen AddKeyword mods within ONE ability
-    site fire (Odric's 13 under one trigger execute; Cairn Wanderer's 10
-    on one static — co-fires has_changeling; Chromanticore's bestow
+    site fire (Odric's 13 under one trigger execute; Chromanticore's bestow
     static's 5); the "same is true" absorb arm catches the collapsed
     keyword-copy idiom (Urborg Scavengers); a 4-keyword equipment (Sword
     of Vengeance) and a single conditional grant (Lightwalker) never
-    fire."""
+    fire. Cairn Wanderer is a Changeling whose keywords are CONDITIONAL on
+    graveyard contents ("has flying as long as a creature with flying is in
+    a graveyard…"); at the v0.15.0 pin phase re-parses that idiom out of the
+    flat >=5-AddKeyword shape, so it fires has_changeling (it IS a changeling)
+    but no longer keyword_soup — an acceptable churn, the lane's positive
+    coverage stays on Odric/Chromanticore/Urborg."""
     assert ("keyword_soup", "you", "") in _idents("Odric, Lunarch Marshal")
     cks = _keys("Cairn Wanderer")
-    assert "keyword_soup" in cks
     assert "has_changeling" in cks
+    assert "keyword_soup" not in cks  # v0.15.0 re-parse (conditional-GY-keyword)
     assert ("keyword_soup", "you", "") in _idents("Chromanticore")
     assert ("keyword_soup", "you", "") in _idents("Urborg Scavengers")
     assert "keyword_soup" not in _keys("Sword of Vengeance")
