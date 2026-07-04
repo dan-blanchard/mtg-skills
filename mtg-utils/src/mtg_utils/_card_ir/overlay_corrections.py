@@ -12,16 +12,32 @@ Layer-1 phase mirror node.
 underlying ``ConceptNode.node`` object *by identity* — it only ``dataclasses
 .replace``\\s the overlay fields (``scope`` / ``subject`` / ``zones`` /
 ``returns_to`` / the compat-only ``category`` override).
-:func:`apply_overlay_corrections` snapshots a structural fingerprint of every L1
-node before the stage and asserts it unchanged
-after, so a correction that leaked into the frozen mirror fails loud
-(:class:`SubstratePurityError`). The committed ``TypedMirrorNode`` is frozen, so
-the invariant is provable, not merely tested.
+:func:`apply_overlay_corrections` snapshots the object-**identity** fingerprint of
+every L1 node before the stage and asserts it unchanged after, so a correction
+that swapped a mirror node for a rebuilt one — the realistic leak mode, since an
+arm would ``dataclasses.replace`` the node to write it — fails loud
+(:class:`SubstratePurityError`). The live guard is that id-check; the committed
+test pairs it with a byte-level ``to_dict`` round-trip (:func:`l1_bytes`) so
+content drift is caught too, and a dedicated negative test proves the id-check is
+not vacuous — it catches even a *byte-identical* rebuild, which the byte-check
+alone would miss. The frozen ``TypedMirrorNode`` rules out in-place mutation, so
+those checks together enforce the invariant (it is guarded + tested, not provable
+by construction alone).
 
 Gated onto the flag-ON crosswalk path only (called by ``compat_card`` and
 ``extract_crosswalk_signals``); flag-OFF (the ``project.py`` projection) never
 reaches it. ``project.py`` / ``supplement.py`` keep their ``_recover_*`` arms — the
 OLD path is untouched; these are the concept-overlay ports.
+
+Six live arms run at the current phase pin (v0.9.0): ``dig_into_play``,
+``exile_removal``, ``edict_scope``, ``removal_target_subject``, ``graveyard_zones``
+(per-effect) and ``blink_returns_to`` (per-unit). Two v0.8.0-era arms —
+``discard_unless`` (a phase draw-then-discard misparse) and ``hand_disruption``'s
+reveal→reveal_hand recategorization — were RETIRED here: both fired on zero corpus
+cards at v0.9.0 (phase fixed the draw misparse; the crosswalk ``hand_disruption``
+signal lane already reads the reveal STRUCTURALLY), and both were concept-rewrites,
+the one shape this stage deliberately avoids (a ``concept`` flip moves the Signal
+seam — see ``ConceptNode.category``).
 
 Each arm records whether the crosswalk substrate ALREADY handles the correction
 (``already_handled``) or the overlay genuinely adds it (``newly_ported``) — the
@@ -39,7 +55,6 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     change_zone_dirs,
     effect_filter,
-    filter_controller,
     filter_inzone_zones,
     tag_of,
 )
@@ -74,12 +89,15 @@ def _l1_nodes(tree: ConceptTree) -> list[TypedMirrorNode]:
 def _l1_identity(tree: ConceptTree) -> list[int]:
     """The object-identity fingerprint of every L1 node, in tree order.
 
-    The mirror node is a FROZEN dataclass — it cannot be mutated in place through
-    the normal API — so preserving every node's ``id`` is equivalent to never
-    writing into L1: an arm that (illegally) rebuilt a mirror node would land a NEW
-    object at that position and change its id. Cheap enough for the live guard on
-    every card. The committed test additionally byte-checks each node's ``to_dict``
-    round-trip (:func:`l1_bytes`) as belt-and-suspenders.
+    An arm that (illegally) rebuilt a mirror node lands a NEW object at that
+    position and changes its id — even a ``dataclasses.replace`` with no field
+    changes produces a byte-identical but distinct object — so the id-check catches
+    the node-swap leak mode that a byte comparison would MISS. The mirror node is a
+    FROZEN dataclass, so it cannot be mutated in place through the normal API;
+    with in-place mutation ruled out, a preserved id means the L1 node was neither
+    swapped nor written. Cheap enough for the live guard on every card. The
+    committed test additionally byte-checks each node's ``to_dict`` round-trip
+    (:func:`l1_bytes`) as a complementary content check.
     """
     return [id(n) for n in _l1_nodes(tree)]
 
@@ -157,7 +175,10 @@ def _arm_dig_into_play(cnode: ConceptNode) -> ConceptNode | None:
 # ``restriction`` / ``gain_life`` rider, or a bare exile left subjectless. The
 # structural StP-class exile (ChangeZone→Exile carrying its subject) is ALREADY
 # handled; only the swallow / dropped-subject residue needs the overlay, gated on
-# the whole-card oracle (the exile verb survives only in text).
+# the whole-card oracle (the exile verb survives only in text). 9 cards fire
+# corpus-wide at the v0.9.0 pin: 8 take the bare-exile subject-add; exactly ONE
+# (the card *Exile*) takes the gain_life→exile category-flip, pinned by
+# test_overlay_exile_removal_lands_category_and_subject.
 _EXILE_REMOVAL_RAW = re.compile(
     r"(exile|~) (?:up to (?:one|two|three|\w+|x) )?(?:other |another )?"
     r"target (?:[a-z]+ )*(creature|permanent|artifact|enchantment|planeswalker)",
@@ -292,41 +313,7 @@ def _arm_removal_target_subject(cnode: ConceptNode, oracle: str) -> ConceptNode 
     return replace(cnode, subject=(head,))
 
 
-# ── (b) arm 5 — hand_disruption reveal→reveal_hand + scope ─────────────────────
-# _recover_hand_disruption (the (b) half only — the reveal→reveal_hand
-# recategorization + the modal scope fix; the bucket-B synth of a whole new
-# ability is deferred to (c)). (a) a ``reveal_hand`` whose recipient controller is
-# an opponent but whose scope dropped → scope opponents (STRUCTURAL, off the
-# recipient filter); (b) a generic ``reveal`` / topdeck peek scoped to an opponent
-# whose oracle says "<player> reveals their hand" / "look at ... hand" → concept
-# reveal_hand.
-_HD_REVEAL_HAND_TEXT = re.compile(
-    r"\breveals?\b[^.]*\b(?:their|his or her)\b[^.]*\bhands?\b", re.IGNORECASE
-)
-_HD_LOOK_HAND_TEXT = re.compile(r"\blook at\b[^.]*\bhands?\b", re.IGNORECASE)
-
-
-def _recipient_is_opponent(node: TypedMirrorNode) -> bool:
-    filt = effect_filter(node)
-    return filter_controller(filt) == "Opponent" if filt is not None else False
-
-
-def _arm_hand_disruption(cnode: ConceptNode, oracle: str) -> ConceptNode | None:
-    if cnode.concept == "reveal_hand":
-        if cnode.scope != "opponents" and _recipient_is_opponent(cnode.node):
-            return replace(cnode, scope="opponents")
-        return None
-    if cnode.scope == "opponents":
-        if cnode.concept == "reveal_top" and _HD_REVEAL_HAND_TEXT.search(oracle):
-            return replace(cnode, concept="reveal_hand")
-        if cnode.concept in ("scry", "surveil", "dig") and _HD_LOOK_HAND_TEXT.search(
-            oracle
-        ):
-            return replace(cnode, concept="reveal_hand")
-    return None
-
-
-# ── (b) arm 6 — graveyard_zones (field: zones, focused slice) ──────────────────
+# ── (b) arm 5 — graveyard_zones (field: zones, focused slice) ──────────────────
 # _recover_graveyard_zones (the in:graveyard recursion-reference slice only): a
 # bounce / recursion whose graveyard-origin InZone phase dropped, surviving in the
 # oracle as a "card ... in/from ... graveyard" reference. Ported ONLY for a
@@ -369,44 +356,7 @@ def _arm_graveyard_zones(
     return replace(cnode, zones=tuple(sorted(set(cnode.zones) | {"in:graveyard"})))
 
 
-# ── (b) unit arm A — discard_unless (category-flip, per-unit) ──────────────────
-# _recover_discard_unless: phase's "draw N, then discard a card unless <alt>"
-# misparse leaves a real ``draw`` plus a DEGENERATE amount-less duplicate draw
-# whose oracle is the "discard ... unless" branch. Convert the degenerate draw to
-# a ``discard`` (scope you) so the loot lanes (discard_makers / discard_matters)
-# read structure. Per-unit: needs the sibling real draw.
-_DISCARD_UNLESS = re.compile(
-    r"discard (?:a|an|one|two|three|four|five|x|\d+) cards? unless", re.IGNORECASE
-)
-
-
-def _has_amount(node: TypedMirrorNode) -> bool:
-    for f in ("amount", "count", "value"):
-        v = getattr(node, f, MISSING)
-        if v is not MISSING and v is not None:
-            return True
-    return False
-
-
-def _arm_discard_unless_unit(
-    unit: AbilityUnit, oracle: str
-) -> tuple[ConceptNode, ...] | None:
-    draws = [c for c in unit.effects if c.concept == "draw"]
-    if len(draws) < 2 or any(c.concept == "discard" for c in unit.effects):
-        return None
-    if not _DISCARD_UNLESS.search(oracle):
-        return None
-    has_real = any(_has_amount(c.node) for c in draws)
-    degen = next((c for c in draws if not _has_amount(c.node)), None)
-    if not has_real or degen is None:
-        return None
-    return tuple(
-        replace(c, concept="discard", scope="you") if c is degen else c
-        for c in unit.effects
-    )
-
-
-# ── (b) unit arm B — blink_returns_to (field: returns_to, per-unit) ────────────
+# ── (b) unit arm — blink_returns_to (field: returns_to, per-unit) ──────────────
 # _recover_blink_returns_to: stamp ``returns_to="battlefield"`` on the EXILE half
 # of a single-target exile-and-return (a blink/flicker) so a discriminator exists.
 # STRUCTURAL: an exile-to-exile sibling paired with a same-ability return-to-
@@ -458,13 +408,9 @@ def _correct_unit(
     effects = unit.effects
     changed = False
 
-    # Per-unit arms first (they read sibling co-occurrence). Each reads the
-    # unit's effects; the second sees the first's output via the rebound unit.
-    du = _arm_discard_unless_unit(unit, oracle)
-    if du is not None:
-        effects = du
-        changed = True
-    bl = _arm_blink_returns_to_unit(replace(unit, effects=effects))
+    # Per-unit arm (reads sibling co-occurrence): stamp the blink returns_to
+    # marker off an exile/return pair within the unit.
+    bl = _arm_blink_returns_to_unit(unit)
     if bl is not None:
         effects = bl
         changed = True
@@ -478,7 +424,6 @@ def _correct_unit(
             _arm_exile_removal(tree, cur, oracle),
             _arm_edict_scope(cur, oracle),
             _arm_removal_target_subject(cur, oracle),
-            _arm_hand_disruption(cur, oracle),
             _arm_graveyard_zones(cur, oracle, single_effect=single_effect),
         ):
             if corrected is not None:

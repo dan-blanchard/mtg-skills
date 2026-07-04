@@ -24,6 +24,7 @@ that collapsed the per-ability / whole-card join structure) fails these loud.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from functools import lru_cache
 from pathlib import Path
 
@@ -38,6 +39,9 @@ from mtg_utils._card_ir.crosswalk import (
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
 from mtg_utils._card_ir.overlay_corrections import (
+    SubstratePurityError,
+    _assert_substrate_pure,
+    _l1_identity,
     _l1_nodes,
     apply_overlay_corrections,
     l1_bytes,
@@ -5445,6 +5449,37 @@ def test_overlay_stage_never_writes_into_the_l1_substrate():
         # … and every position holds the SAME object (never swapped). The stage
         # returns the input identity when it makes no correction.
         assert [id(n) for n in _l1_nodes(corrected)] == before_ids, name
+
+
+def test_substrate_purity_guard_is_not_vacuous():
+    """The guard's FAILURE path fires — proving the invariant is not silently
+    vacuous.
+
+    We simulate the exact illegal move an overlay arm could make: rebuild ONE L1
+    mirror node and land the new object at its tree position (an arm writing L1
+    would ``dataclasses.replace`` the frozen node, producing a distinct object).
+    The rebuild is field-for-field IDENTICAL, so ``l1_bytes`` — the committed
+    content check — cannot see the swap; the id-based ``_assert_substrate_pure``
+    (the live guard) MUST. If this ever stops raising, the invariant has gone
+    vacuous and every positive substrate-purity assertion is worthless."""
+    tree = _tree("Smite")
+    before = _l1_identity(tree)
+
+    unit = tree.units[0]
+    effect0 = unit.effects[0]
+    rebuilt_node = replace(effect0.node)  # byte-identical, NEW object
+    assert rebuilt_node is not effect0.node
+    assert rebuilt_node.to_dict() == effect0.node.to_dict()
+
+    leaked_effect = replace(effect0, node=rebuilt_node)
+    leaked_unit = replace(unit, effects=(leaked_effect, *unit.effects[1:]))
+    leaked_tree = replace(tree, units=(leaked_unit, *tree.units[1:]))
+
+    # The byte-check is BLIND to a byte-identical node-swap …
+    assert l1_bytes(leaked_tree) == l1_bytes(tree)
+    # … but the live id-based guard catches it. This is the load-bearing failure.
+    with pytest.raises(SubstratePurityError):
+        _assert_substrate_pure(before, leaked_tree)
 
 
 def _corrected_effects(name: str):
