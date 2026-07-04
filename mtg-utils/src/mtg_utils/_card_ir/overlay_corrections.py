@@ -49,6 +49,24 @@ from __future__ import annotations
 import re
 from dataclasses import replace
 
+# ── substrate-purity invariant (shared with dropped_clauses, ADR-0035 3b) ──────
+# Factored into ``_substrate_purity`` so bucket (b) here and bucket (c)
+# (``dropped_clauses``) enforce the SAME property from one home. Re-exported under
+# the historic private names (``__all__`` below) so the committed tests keep
+# importing them here.
+from mtg_utils._card_ir._substrate_purity import (
+    SubstratePurityError,
+    l1_bytes,
+)
+from mtg_utils._card_ir._substrate_purity import (
+    assert_substrate_pure as _assert_substrate_pure,
+)
+from mtg_utils._card_ir._substrate_purity import (
+    l1_identity as _l1_identity,
+)
+from mtg_utils._card_ir._substrate_purity import (
+    l1_nodes as _l1_nodes,
+)
 from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
@@ -60,62 +78,16 @@ from mtg_utils._card_ir.crosswalk import (
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING, TypedMirrorNode
 
-# ── substrate-purity invariant ────────────────────────────────────────────────
-
-
-class SubstratePurityError(AssertionError):
-    """Raised when the overlay stage mutated an L1 (phase-mirror) node.
-
-    The overlay may ONLY decorate the Layer-2 :class:`ConceptNode`; the frozen
-    :class:`TypedMirrorNode` substrate must round-trip byte-identically and stay
-    the same object at every tree position. A violation is a hard bug.
-    """
-
-
-def _l1_nodes(tree: ConceptTree) -> list[TypedMirrorNode]:
-    """Every Layer-1 substrate node reachable through the overlay, in tree order.
-
-    Each ability unit's own node plus every decorated concept-node's ``node``
-    (effects, costs, statics) — the exact set the overlay is forbidden to write.
-    """
-    out: list[TypedMirrorNode] = []
-    for unit in tree.units:
-        out.append(unit.node)
-        for c in (*unit.effects, *unit.costs, *unit.statics):
-            out.append(c.node)
-    return out
-
-
-def _l1_identity(tree: ConceptTree) -> list[int]:
-    """The object-identity fingerprint of every L1 node, in tree order.
-
-    An arm that (illegally) rebuilt a mirror node lands a NEW object at that
-    position and changes its id — even a ``dataclasses.replace`` with no field
-    changes produces a byte-identical but distinct object — so the id-check catches
-    the node-swap leak mode that a byte comparison would MISS. The mirror node is a
-    FROZEN dataclass, so it cannot be mutated in place through the normal API;
-    with in-place mutation ruled out, a preserved id means the L1 node was neither
-    swapped nor written. Cheap enough for the live guard on every card. The
-    committed test additionally byte-checks each node's ``to_dict`` round-trip
-    (:func:`l1_bytes`) as a complementary content check.
-    """
-    return [id(n) for n in _l1_nodes(tree)]
-
-
-def l1_bytes(tree: ConceptTree) -> list[str]:
-    """Serialized ``to_dict`` of every L1 node, in tree order (for the test)."""
-    return [repr(n.to_dict()) for n in _l1_nodes(tree)]
-
-
-def _assert_substrate_pure(before: list[int], after: ConceptTree) -> None:
-    """Assert the L1 identity fingerprint is unchanged by the stage (dev guard)."""
-    now = _l1_identity(after)
-    if now != before:
-        raise SubstratePurityError(
-            "overlay-correction stage wrote into the L1 phase-mirror substrate: "
-            f"{len(before)} nodes before, {len(now)} after"
-        )
-
+# The substrate-purity names re-exported here for the committed tests (and the
+# historic private aliases callers import from this module).
+__all__ = [
+    "SubstratePurityError",
+    "_assert_substrate_pure",
+    "_l1_identity",
+    "_l1_nodes",
+    "apply_overlay_corrections",
+    "l1_bytes",
+]
 
 # ── shared reminder-strip + oracle grounding ──────────────────────────────────
 

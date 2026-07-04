@@ -732,18 +732,13 @@ def _ability(unit: AbilityUnit, cov: CompatCoverage) -> Ability:
     )
 
 
-def compat_card(tree: ConceptTree, cov: CompatCoverage | None = None) -> Card:
-    """Build the minimal old-IR ``Card`` for one concept tree.
+def compat_card_base(tree: ConceptTree, cov: CompatCoverage | None = None) -> Card:
+    """The compat ``Card`` BEFORE the Stage-3b (c) dropped-clause synthesis stage.
 
-    ``cov`` (caller-owned, aggregatable across a corpus) tallies every effect
-    node into ported / explicitly-unported buckets; pass ``None`` to discard
-    the accounting.
-
-    Runs the ADR-0035 Stage-3b (b) overlay-correction stage FIRST — decorating a
-    handful of concept-node fields the pure substrate under-derives — then reads
-    the corrected overlay. Flag-ON only: the flag-OFF path builds from
-    ``project.py``, never this adapter. The stage preserves the L1 mirror by
-    identity (substrate-purity invariant).
+    Runs the (b) overlay-correction stage then reads the corrected overlay into
+    old-IR abilities. Split out from :func:`compat_card` so the (c) convergence
+    check can build the pre-synthesis card and observe which arms still fire (find
+    a gap) at the pin.
     """
     from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
 
@@ -755,3 +750,37 @@ def compat_card(tree: ConceptTree, cov: CompatCoverage | None = None) -> Card:
         name=tree.name,
         faces=(Face(name=tree.name, abilities=abilities),),
     )
+
+
+def compat_card(tree: ConceptTree, cov: CompatCoverage | None = None) -> Card:
+    """Build the minimal old-IR ``Card`` for one concept tree.
+
+    ``cov`` (caller-owned, aggregatable across a corpus) tallies every effect
+    node into ported / explicitly-unported buckets; pass ``None`` to discard
+    the accounting.
+
+    Runs the ADR-0035 Stage-3b (b) overlay-correction stage FIRST — decorating a
+    handful of concept-node fields the pure substrate under-derives — then reads
+    the corrected overlay (:func:`compat_card_base`), then runs the Stage-3b (c)
+    dropped-clause synthesis stage on the built Card
+    (:func:`apply_dropped_clause_synthesis`), adding old-IR structure for clauses
+    phase dropped entirely. Flag-ON only: the flag-OFF path builds from
+    ``project.py``, never this adapter. Both stages preserve the L1 mirror by
+    identity — the shared substrate-purity invariant is asserted around the whole
+    build (the (b) stage decorates the overlay; the (c) stage runs strictly
+    downstream on the Card, never touching a tree node).
+    """
+    from mtg_utils._card_ir._substrate_purity import (
+        assert_substrate_pure,
+        l1_identity,
+    )
+    from mtg_utils._card_ir.dropped_clauses import apply_dropped_clause_synthesis
+
+    fingerprint = l1_identity(tree)
+    card = compat_card_base(tree, cov)
+    card = apply_dropped_clause_synthesis(card, tree.oracle)
+    # The (b) overlay stage rebuilds the tree object (a new ConceptTree with
+    # decorated units) but preserves each L1 node by identity; the (c) stage never
+    # touches the tree. Assert the L1 fingerprint held across the whole build.
+    assert_substrate_pure(fingerprint, tree)
+    return card
