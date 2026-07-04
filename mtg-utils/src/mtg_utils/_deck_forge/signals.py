@@ -216,13 +216,22 @@ def _crosswalk_merge(
     keywords = frozenset(
         k for k in (record.get("keywords") or []) if isinstance(k, str)
     )
-    for sig in extract_crosswalk_signals(tree, keys=PORTED_KEYS, keywords=keywords):
+    # The OLD projected Card — fetched ONCE, up front: the residual keys read it
+    # below AND (ADR-0035 Stage-3a floor port) the crosswalk's membership floor reads
+    # it for its structural ``big_mana`` / ``kill_engine`` / token-kindred arms. Never
+    # the flag-switched ``ir_for`` (under the flag that is the crosswalk Card).
+    old = old_ir_for(record)
+    for sig in extract_crosswalk_signals(
+        tree,
+        keys=PORTED_KEYS,
+        keywords=keywords,
+        include_membership=include_membership,
+        record=record,
+        ir=old,
+        vocab=vocab,
+    ):
         if sig.key in PORTED_KEYS:
             _add(sig)
-    # The residual keys keep reading the legacy project.py IR (the two permanent
-    # KEPT lanes must stay on it forever). Fetch the OLD projected Card directly —
-    # never the flag-switched ``ir_for``, which under the flag is the crosswalk Card.
-    old = old_ir_for(record)
     if old is not None:
         ir_record = (
             _fold_referenced_objects(record, resolve_object)

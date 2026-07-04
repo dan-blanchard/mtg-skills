@@ -20,8 +20,10 @@ import pytest
 from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
+from mtg_utils._card_ir.project import project_card
 from mtg_utils._deck_forge import _ir_lookup as il
 from mtg_utils._deck_forge._migrated_keys import MIGRATED_KEYS
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.crosswalk_signals import (
     PORTED_KEYS,
     extract_crosswalk_signals,
@@ -295,3 +297,148 @@ def test_new_specs_are_inert_flag_off(monkeypatch):
     monkeypatch.delenv(FLAG, raising=False)
     off = producible_static_keys()
     assert {"amass_makers", "copy_permanent", "incubate_makers"}.isdisjoint(off)
+
+
+# ── ADR-0035 Stage-3a MEMBERSHIP / cares-about FLOOR port ─────────────────────
+# The flag-ON crosswalk is membership-AGNOSTIC on the broad "commander cares about
+# X" floor (a vanilla Enchantment → enchantments_matter, an Artifact →
+# artifacts_matter, an Equipment / big body → voltron_matters). The port reproduces
+# that ``extract_signals_ir`` floor inside ``extract_crosswalk_signals`` behind a
+# keyword-only ``include_membership`` (default False). The lanes the floor touches:
+_FLOOR_LANES = frozenset({"artifacts_matter", "enchantments_matter", "voltron_matters"})
+
+
+@lru_cache(maxsize=1)
+def _faces_by_oid() -> dict[str, list[dict]]:
+    """Fixture phase face-records grouped by oracle_id (``project_card`` input)."""
+    out: dict[str, list[dict]] = {}
+    for rec in _fixture_records():
+        oid = rec.get("scryfall_oracle_id")
+        if oid:
+            out.setdefault(oid, []).append(rec)
+    return out
+
+
+def _floor_case(oid: str, faces: list[dict]):
+    """Build (bulk_record, concept_tree, legacy_Card) for a fixture card, or None
+    when the phase record drifts. The bulk record's ``type_line`` is reconstructed
+    from the tree's typed supertype/type/subtype fields so the membership floor
+    reads the REAL card types (the fixture carries no Scryfall type_line)."""
+    nm = faces[0].get("name") or ""
+    try:
+        root = strict_load_card(faces[0], _schema(), name=nm)
+        tree = build_concept_tree(root, name=nm, oracle_id=oid)
+        ir = project_card(faces)
+    except Exception:  # noqa: BLE001 — skip drift/odd cards, as _ported_case does
+        return None
+    parts = list(tree.card_supertypes) + list(tree.card_types)
+    type_line = " ".join(parts)
+    if tree.card_subtypes:
+        type_line += " — " + " ".join(tree.card_subtypes)
+    bulk = {
+        "oracle_id": oid,
+        "name": nm,
+        "oracle_text": faces[0].get("oracle_text") or "",
+        "type_line": type_line,
+        "keywords": [],
+        "cmc": tree.cmc,
+    }
+    return bulk, tree, ir
+
+
+def _floor_lanes_hybrid(monkeypatch, bulk, tree, ir, *, flag: bool, include: bool):
+    """The floor-lane signal idents from ``extract_signals_hybrid`` with the flag
+    ON/OFF and the given ``include_membership``, wiring the crosswalk seam to the
+    fixture tree + legacy Card (as the cutover tests do)."""
+    if flag:
+        monkeypatch.setenv(FLAG, "1")
+    else:
+        monkeypatch.delenv(FLAG, raising=False)
+    monkeypatch.setattr(il, "tree_for", _returns(tree))
+    monkeypatch.setattr(il, "_index", _returns({ir.oracle_id: ir}))
+    sigs = extract_signals_hybrid(bulk, ir, include_membership=include)
+    return {(s.key, s.scope, s.subject) for s in sigs if s.key in _FLOOR_LANES}
+
+
+def test_extract_crosswalk_signals_no_floor_by_default():
+    """The shadow-harness contract: called WITHOUT ``include_membership`` (default
+    False), the crosswalk fires no membership floor — so every existing crosswalk
+    test / the shadow diff (which never pass the arg) stays byte-identical."""
+    oid, faces = next(iter(_faces_by_oid().items()))
+    built = _floor_case(oid, faces)
+    if built is None:  # pragma: no cover — the first card always builds in practice
+        pytest.skip("first fixture card drifts")
+    _bulk_rec, tree, ir = built
+    base = extract_crosswalk_signals(tree, keywords=frozenset())
+    # An enchantment/artifact type_line can NOT open a floor lane without the arg.
+    withrec = extract_crosswalk_signals(
+        tree, keywords=frozenset(), record=_bulk_rec, ir=ir
+    )
+    assert {(s.key, s.scope, s.subject) for s in base} == {
+        (s.key, s.scope, s.subject) for s in withrec
+    }
+
+
+def test_membership_floor_reproduced_in_flag_on_commander(monkeypatch):
+    """THE GATE: every MEMBERSHIP-sourced floor lane the flag-OFF path fires in
+    commander mode (``include_membership=True``) is reproduced by the flag-ON
+    crosswalk path. "Membership-sourced" = present in ``extract_signals_ir`` with
+    the membership block ON but absent with it OFF — exactly the floor the crosswalk
+    was blind to before this port. Measured over the whole committed fixture."""
+    total = 0
+    reproduced = 0
+    missing: list[tuple[str, tuple[str, str, str]]] = []
+    for oid, faces in _faces_by_oid().items():
+        built = _floor_case(oid, faces)
+        if built is None:
+            continue
+        bulk, tree, ir = built
+        mem_on = {
+            (s.key, s.scope, s.subject)
+            for s in extract_signals_ir(bulk, ir, include_membership=True)
+            if s.key in _FLOOR_LANES
+        }
+        mem_off = {
+            (s.key, s.scope, s.subject)
+            for s in extract_signals_ir(bulk, ir, include_membership=False)
+            if s.key in _FLOOR_LANES
+        }
+        membership_sourced = mem_on - mem_off
+        if not membership_sourced:
+            continue
+        on_cmd = _floor_lanes_hybrid(
+            monkeypatch, bulk, tree, ir, flag=True, include=True
+        )
+        for lane in membership_sourced:
+            total += 1
+            if lane in on_cmd:
+                reproduced += 1
+            else:
+                missing.append((bulk["name"], lane))
+    assert total > 100, f"expected a broad membership floor, saw only {total} lanes"
+    assert reproduced == total, f"floor lanes lost under flag-ON: {missing[:20]}"
+
+
+def test_membership_floor_inert_in_candidate_mode():
+    """Candidate mode (``include_membership=False`` — the 99) must be UNCHANGED by
+    the port: the crosswalk floor never fires, so flag-ON candidate mode adds no
+    floor lane over its own pre-port baseline. Proven structurally: with the floor
+    gated OFF, the crosswalk output is identical whether or not ``record``/``ir`` are
+    threaded."""
+    for oid, faces in _faces_by_oid().items():
+        built = _floor_case(oid, faces)
+        if built is None:
+            continue
+        bulk, tree, ir = built
+        without = extract_crosswalk_signals(tree, keywords=frozenset())
+        # include_membership defaults False → threading record/ir is a no-op.
+        threaded = extract_crosswalk_signals(
+            tree,
+            keywords=frozenset(),
+            include_membership=False,
+            record=bulk,
+            ir=ir,
+        )
+        assert [(s.key, s.scope, s.subject) for s in without] == [
+            (s.key, s.scope, s.subject) for s in threaded
+        ]

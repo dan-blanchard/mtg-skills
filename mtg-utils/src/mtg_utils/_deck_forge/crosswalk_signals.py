@@ -183,6 +183,8 @@ from mtg_utils._deck_forge._signals_ir import (
     _COUNTER_KIND_KEYS,
     _DEATH_MATTERS_MIRROR,
     _FIREBEND_RE,
+    _FLOOR_DETECTORS,
+    _IR_FLOOR_LANES,
     _KEYWORD_COUNTER_KINDS,
     _LIFEGAIN_MATTERS_MIRROR,
     _NAMED_COUNTER_KINDS,
@@ -202,6 +204,7 @@ from mtg_utils._deck_forge._signals_ir import (
     _UNTAP_ENGINE_MIRROR_LANDS,
     _UNTAP_ENGINE_MIRROR_RAW,
     _UNTAP_ENGINE_OPP_VETO,
+    _apply_membership_floor,
     _restriction_pacifies_single_creature,
 )
 from mtg_utils._deck_forge._signals_ir import (
@@ -258,6 +261,8 @@ from mtg_utils._deck_forge._sweep_detectors import (
     VOID_WARP_MAKERS_REGEX,
     VOID_WARP_MATTERS_REGEX,
 )
+from mtg_utils.card_classify import get_oracle_text
+from mtg_utils.card_ir import Card
 
 # The Signal keys this batch derives from the typed substrate. The shadow harness
 # slices BOTH the crosswalk and the live hybrid path to exactly this set.
@@ -11025,6 +11030,10 @@ def extract_crosswalk_signals(
     *,
     keys: frozenset[str] = PORTED_KEYS,
     keywords: frozenset[str] = frozenset(),
+    include_membership: bool = False,
+    record: dict | None = None,
+    ir: Card | None = None,
+    vocab: frozenset[str] = CREATURE_SUBTYPES,
 ) -> list[Signal]:
     """Run the ported crosswalk lanes over one concept tree; dedupe by ident.
 
@@ -11038,6 +11047,20 @@ def extract_crosswalk_signals(
     ``keywords``), the field-lookup source ``mill_makers`` gates on — it is NOT in
     the phase typed substrate (phase carries no ``Mill`` keyword), so the caller
     supplies it (the shadow diff from the bulk record, the tests from the fixture).
+
+    ``include_membership`` (ADR-0035 Stage-3a floor port) runs the
+    ``extract_signals_ir`` MEMBERSHIP / cares-about FLOOR — the broad LOW-conf
+    "commander cares about X" lanes that are membership-agnostic in the structural
+    crosswalk (a vanilla Pacifism opens ``enchantments_matter``, an Equipment opens
+    ``voltron_matters``, an artifact opens ``artifacts_matter``). DEFAULT FALSE so the
+    shadow harness and every existing crosswalk test (which call without the arg and
+    expect NO floor) stay green, and so candidate mode (``include_membership=False``)
+    is unchanged. When True the caller MUST supply ``record`` (the bulk record — the
+    floor's ``type_line`` / power / cmc / ``all_parts`` / keyword source) and ``ir``
+    (the OLD projected ``Card`` — the floor's structural ``big_mana`` / ``kill_engine``
+    / token-kindred reads), matching what ``extract_signals_ir`` reads byte-for-byte.
+    ``vocab`` is the creature-subtype vocab the token-kindred cross-open validates
+    against (threaded through like the hybrid).
     """
     out: list[Signal] = []
     seen: set[tuple[str, str, str]] = set()
@@ -11147,5 +11170,38 @@ def extract_crosswalk_signals(
                 token_subjects.add(sub)
     for sub in token_subjects:
         add(Signal(signal_keys.TYPE_MATTERS, "you", sub, "", tree.name, "low"))
+
+    # ── ADR-0035 Stage-3a MEMBERSHIP / cares-about FLOOR ──────────────────────────
+    # The structural lanes above are membership-AGNOSTIC (they read what a card DOES,
+    # not what it IS), so the broad "commander cares about X" floor the live
+    # ``extract_signals_ir`` fires (a vanilla enchantment → enchantments_matter, an
+    # Equipment → voltron_matters, an artifact → artifacts_matter) is lost under the
+    # flag-ON cutover. Reproduce BOTH floor mechanisms byte-parity, gated on
+    # ``include_membership`` (True only for the commander in the deck-aggregate path):
+    #   (1) the card-type / own-subtype membership block — the SHARED
+    #       ``_apply_membership_floor`` (one source with ``extract_signals_ir``, zero
+    #       drift); its residual-key firings (big_mana / cheat_from_top /
+    #       land_destruction) are dropped by ``add``'s ``keys`` slice and re-supplied
+    #       by the legacy residual path in ``_crosswalk_merge``.
+    #   (2) the ``_FLOOR_DETECTORS`` cares-about loop gated by ``_IR_FLOOR_LANES``
+    #       (imported LIVE from ``_signals_ir`` — the sanctioned single-source),
+    #       run over ``_kept(tree)``.
+    # Both fire LOW/HIGH into ``add``, whose first-wins ``(key, scope, subject)`` dedup
+    # mirrors ``extract_signals_ir``'s ``add`` — a structural HIGH already in ``out``
+    # for the same ident is never downgraded by a floor LOW.
+    if include_membership and record is not None and ir is not None:
+        name = record.get("name", "")
+
+        def _add_floor(
+            key: str, scope: str, subject: str, raw: str, conf: str = "high"
+        ) -> None:
+            add(Signal(key, scope, subject, raw, name, conf))
+
+        kept = _kept(tree)
+        for det in _FLOOR_DETECTORS:
+            if det.key in _IR_FLOOR_LANES and det.pattern.search(kept):
+                _add_floor(det.key, det.scope, "", "")
+        kept_oracle = _REMINDER_RX.sub(" ", get_oracle_text(record) or "")
+        _apply_membership_floor(record, ir, name, vocab, kept_oracle, out, _add_floor)
 
     return out

@@ -16,6 +16,7 @@ that re-export binding no longer reaches the reader after the split).
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
 from mtg_utils._card_ir.project import _DICE_TRIG
 from mtg_utils._card_ir.supplement import (
@@ -6945,6 +6946,338 @@ def _cond_counts_cards_in_exile(cond: object) -> bool:
 _KGT_SPLIT_RESIDUE_RE = re.compile(KEYWORD_GRANT_TARGET_REGEX, re.IGNORECASE)
 
 
+def _apply_membership_floor(
+    card: dict,
+    ir: Card,
+    name: str,
+    vocab: frozenset[str],
+    kept_oracle: str,
+    out: list[Signal],
+    add: Callable[..., None],
+) -> None:
+    """The card-type / own-subtype MEMBERSHIP floor (what the card IS).
+
+    Extracted from ``extract_signals_ir`` so the ADR-0035 crosswalk can reproduce
+    it BYTE-IDENTICALLY (ADR-0035 Stage-3a floor port): one source, zero drift.
+    Fires the LOW-confidence "commander cares about X" lanes derived from the own
+    card-type (Artifact -> artifacts_matter, Enchantment -> enchantments_matter),
+    the own-subtype tribal membership, the token-profile tribal cross-open, and
+    the voltron / big-body / kill-engine / clone-target cross-opens. ``add`` /
+    ``out`` are the caller's dedup surface (first HIGH structural firing wins the
+    ``(key, scope, subject)`` ident); the caller gates the call on
+    ``include_membership``.
+    """
+    type_line = (card.get("type_line") or "").lower()
+    if "artifact" in type_line:
+        add("artifacts_matter", "you", "", "", "low")
+    if "enchantment" in type_line:
+        add("enchantments_matter", "you", "", "", "low")
+    # ADR-0027 — land_destruction BYTE-IDENTICAL membership-gated kept mirror. A
+    # CREATURE COMMANDER whose own oracle says "destroy [up to N] target land(s)"
+    # (Numot, Goblin Settler, Demonic Hordes — a repeatable LD ENGINE) opens the LD
+    # support lane (more LD, own-land recursion to survive symmetric LD, land-loss
+    # punishers). Creature + include_membership gated so a one-shot LD SPELL among
+    # the 99 (Stone Rain, Armageddon) is NOT read as the deck's plan. This
+    # reproduces the deleted extract_signals cross-open EXACTLY (LAND_DESTRUCTION_
+    # REGEX over the reminder-stripped kept_oracle — same input as the regex path's
+    # reminder-stripped `text`; commander-legal: regex==mirror, 23→23, 0 miss/
+    # extra), NOT the broad `destroy`/Land structural arm (removed above — it floods
+    # +143 one-shot spells / utility lands HIGH). scope 'you', LOW confidence (the
+    # deleted producer's scope/conf — it never fed has_other_plan, so no voltron
+    # mirror is needed). CR 305.6.
+    if "creature" in type_line and _LAND_DESTRUCTION_MIRROR.search(kept_oracle):
+        add("land_destruction", "you", "", "repeatable land destruction", "low")
+    # ADR-0027 — big_mana (a COMMANDER that makes a LOT of mana wants X-spell
+    # sinks). STRUCTURAL arm: a `ramp` Effect whose v23 amount is amount.factor>1
+    # (Sol Ring {C}{C}, Gilded Lotus "three mana", Dark Ritual {B}{B}{B}) OR
+    # op=="variable" (a dynamic scaler — Selvala / Gaea's Cradle / Nykthos devotion
+    # / Cabal Coffers count). A factor==1 dork (Llanowar — "Add {G}") is exactly ONE
+    # mana and is NOT big mana (the v23 magnitude makes them distinguishable; the
+    # pre-v23 projection had amount==None). Plus a BYTE-IDENTICAL _BIG_MANA_REGEX
+    # kept mirror over kept_oracle for the under-structured "add … for each" tail
+    # (Neheb, the Eternal → amount==None). include_membership-gated, scope 'you',
+    # LOW conf — reproducing the deleted extract_signals cross-open (which fired LOW
+    # and never fed has_other_plan, so no voltron mirror is needed). CR 106.4.
+    if _is_big_mana_ir(ir) or _BIG_MANA_REGEX.search(kept_oracle):
+        add("big_mana", "you", "", "big-mana generator", "low")
+    # ADR-0027 — cheat_from_top BYTE-IDENTICAL membership-gated kept mirror. A
+    # COMMANDER that REVEALS the top card of a library AND cheats the SAME revealed
+    # card onto the battlefield (Vaevictis, Hans Eriksson, Lurking Predators) wants
+    # to STACK its top with a bomb (graveyard-to-top recursion, put-on-top effects).
+    # MIRROR-ONLY: the v24 from:top/to:battlefield zone projection is too COARSE to
+    # carry this lane's narrow scope — a structural `from:top` + `to:battlefield`
+    # arm over-fires +156 commander-legal (177 vs 24), MERGING the deliberately-
+    # separate sibling lanes (87 of the flood already fire cheat_into_play — cheat
+    # from library/HAND; 100 fire topdeck_selection — look-at-top SELECTION), AND it
+    # MISSES Vaevictis (his reveal folds into a scope-'opp' `choose` carrying no
+    # from:top). The whole lane is under-structured relative to the regex phrasing,
+    # so it rides the OR-AND of the EXACT deleted _CHEAT_TOP_REVEAL_RE +
+    # _CHEAT_TOP_ONTO_RE over the reminder-stripped kept_oracle — same input as the
+    # deleted producer's `text` (commander-legal: regex==mirror, 24->24, 0 miss/
+    # extra, incl. the DFCs Esper Origins / Jadzi / Nissa — get_oracle_text joins
+    # faces). scope 'you', LOW conf (the deleted producer's scope/conf — it never
+    # fed has_other_plan, so no voltron mirror is needed, matching the
+    # land_destruction / big_mana precedent). CR 401 / 701.20a.
+    if _CHEAT_TOP_REVEAL_RE.search(kept_oracle) and _CHEAT_TOP_ONTO_RE.search(
+        kept_oracle
+    ):
+        add("cheat_from_top", "you", "", "reveal-top cheat into play", "low")
+    # ADR-0027 — kill_engine (STRUCTURAL repeatable-frame arm + Evil-Twin mirror,
+    # membership cross-open). A creature COMMANDER that REPEATABLY destroys a
+    # creature (Visara, Diaochan, Royal Assassin, Western Paladin) is a death-
+    # engine: each kill fires on-death payoffs. _is_kill_engine_ir READS the frame
+    # phase already structures (an activated destroy-creature ability, or a
+    # recurring-trigger one — excluding board wipes [counter_kind=='all'] and a one-
+    # shot ETB / morph-flip / monstrosity / transform trigger per CR 701.37 / 707 /
+    # 701.27), RECOVERING the +48 qualified-creature kills the narrow regex missed
+    # (its literal "destroy target creature" skipped "destroy target TAPPED/WHITE/
+    # non-Demon creature"). Evil Twin rides the byte-identical
+    # _REPEATABLE_KILL_MIRROR over kept_oracle — phase folds its quoted granted
+    # ability ("{U}{B}, {T}: Destroy …") into a `clone` Effect with no destroy
+    # ability for the arm to read.
+    # creature + include_membership gated so a one-shot removal spell in the 99
+    # isn't read as the deck's plan. scope 'you', LOW confidence (the deleted
+    # producer's identity — it fired LOW and never fed has_other_plan, so NO voltron
+    # mirror is needed, matching the land_destruction / cheat_from_top precedent).
+    # CR 305.6.
+    if "creature" in type_line and (
+        _is_kill_engine_ir(ir) or _REPEATABLE_KILL_MIRROR.search(kept_oracle)
+    ):
+        add("kill_engine", "you", "", "repeatable creature destruction", "low")
+    # ADR-0027 — one_punch (STRUCTURAL ARM, membership audit). An extreme power-
+    # for-cost beater (power >= 8 AND power >= 2x its mana value: Lord of
+    # Tresserhorn 10/4, Yargle 18/6, The Ancient One 8/8 for 2, Death's Shadow
+    # 13/13, Phyrexian Dreadnought 12/12) wins by connecting ONCE for lethal, so it
+    # wants damage amplification — grant infect (power -> poison) or double strike
+    # (2x). The ratio gate excludes expensive fatties (Emrakul 15/15 for 15) that
+    # win by size, not amplification. NOT a regex at all in the deleted producer —
+    # a pure numeric gate over the SAME Scryfall fields the IR path already reads
+    # (card_pt_int(card) + card['cmc'] + type_line), so this arm reproduces the
+    # deleted extract_signals producer BYTE-IDENTICALLY (commander-legal, floor-
+    # disabled, by oracle_id: both==23, ir_only==0, regex_only==0; all 23 genuine
+    # extreme beaters). include_membership-gated (the huge body is the COMMANDER's
+    # plan, not every fatty in the 99). scope 'you', LOW confidence — the deleted
+    # producer's identity. It fired AFTER has_other_plan and never fed it (LOW conf,
+    # added post-gate), so voltron needs NO mirror / NO _VOLTRON_SILENCING_PLAN_KEYS
+    # entry (voltron_matters set unchanged, 3010 -> 3010). NOT in _IR_FLOOR_LANES
+    # (floor-mirror-dep == 0: a structural numeric gate, not an oracle floor). CR
+    # 903.10a / 702.90 (infect) / 702.4 (double strike).
+    if "creature" in type_line:
+        power = card_pt_int(card)
+        cmc = card.get("cmc") or 0
+        if power >= 8 and power >= 2 * cmc:
+            add("one_punch", "you", "", "extreme power-for-cost beater", "low")
+    # ADR-0027 — keyword_soup_makers BYTE-IDENTICAL membership-gated kept mirror.
+    # A keyword-soup commander (Odric Lunarch Marshal, Akroma Vision, Akroma's
+    # Memorial/Will, Concerted Effort, Bleeding Effect) GRANTS/SHARES many evergreen
+    # keywords across the team, so it wants creatures STACKED with keywords.
+    # MIRROR-ONLY: the structural grant_keyword-counter_kind arm (the sibling
+    # `keyword_soup` lane's shape) LOSES Akroma's Will — phase splits its modal
+    # "Choose one" grants across abilities so neither ability alone reaches >=5 cks
+    # — and over-fires onto 11 single-creature keyword-ABSORBERS (Cairn Wanderer,
+    # Rayami, Soulflayer, …) that belong to `keyword_soup`, a different archetype.
+    # So the lane rides the EXACT deleted producer (the team-grant
+    # _KEYWORD_SOUP_CONTEXT_RE AND >=5 distinct evergreen keyword WORDS) flat over
+    # the reminder-stripped kept_oracle — same input as the deleted `text`, and with
+    # no per-clause `[^.]` span the whole-text count is byte-identical
+    # (commander-legal: regex == mirror, 6 -> 6, 0 miss / 0 extra). scope 'you', LOW
+    # conf (the deleted producer's identity — it never fed has_other_plan, so no
+    # voltron mirror is needed, matching the land_destruction / big_mana /
+    # cheat_from_top precedent). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
+    # CR 702.
+    if (
+        _KEYWORD_SOUP_CONTEXT_RE.search(kept_oracle)
+        and sum(1 for rx in _EVERGREEN_KW_RE if rx.search(kept_oracle)) >= 5
+    ):
+        add("keyword_soup_makers", "you", "", kept_oracle[:160], "low")
+    # _matters sweep (wants_cloning): the two clone-TARGET membership cross-opens.
+    # These are NOT clone DOERS (the structural cat=='clone' arm = clone_makers) —
+    # they fire because the COMMANDER itself is a worth-copying target, so a clone
+    # deck WANTS to copy it. Strict membership (ADR-0031) keeps them out of
+    # clone_makers; this is the separate `wants_cloning` benefit/payoff lane (LOW
+    # conf, scope 'you'). include_membership-gated — a property of the commander,
+    # not every creature in the 99 (the deck-aggregate path passes False).
+    # (1) A LEGENDARY creature whose value is a REPEATABLE engine (a
+    # per-turn triggered ability or a non-mana tap-activated ability) is a clone
+    # target — copying it forks the engine and the copy dodges the legend rule
+    # (Obeka, Koma, Linessa). "legendary" + "creature" (not contiguous) so a
+    # Legendary ENCHANTMENT/ARTIFACT/SNOW Creature (Go-Shintai, the gods) qualifies.
+    # Matched against `kept_oracle` (the regex path's reminder-stripped `text`,
+    # byte-identical). CR 704.5j / 707.1.
+    if "legendary" in type_line and "creature" in type_line:
+        is_engine = bool(_PER_TURN_ENGINE_RE.search(kept_oracle)) or (
+            bool(_TAP_ABILITY_RE.search(kept_oracle))
+            and not (_MANA_TAP_RE.search(kept_oracle) and kept_oracle.count("{T}") == 1)
+        )
+        if is_engine:
+            add("wants_cloning", "you", "", kept_oracle[:160], "low")
+    # (2) A HIGH-CMC commander (mana value >= 5) with a strong ETB or DEATH trigger
+    # is worth COPYING — a clone re-fires the expensive ETB on a cheap body (Gyruda)
+    # or the death trigger when the copy dies (Keiga, Kokusho — sac-loop). Reuse the
+    # self-ETB / self-dies clauses (the SHORT name Scryfall prints). CR 603.6 /
+    # 707.1.
+    if (card.get("cmc") or 0) >= 5:
+        clone_clause = _self_etb_value(kept_oracle, name) or _self_dies_value(
+            kept_oracle, name
+        )
+        if clone_clause is not None:
+            add("wants_cloning", "you", "", clone_clause, "low")
+    # ADR-0027 returns_to dimension (SIDECAR v34): blink_flicker migrated. Reproduce
+    # the deleted self-ETB-value membership cross-open — a commander with a strong
+    # own ETB value (Ephemerate/Cloudshift/Conjurer's Closet fodder) opens the
+    # flicker/blink support avenue to RE-USE its own ETB (CR 603.6). Reuses the SAME
+    # `_self_etb_value` helper over kept_oracle (the deleted producer's reminder-
+    # stripped `text`, byte-identical), LOW conf, scope 'you' — a flicker package is
+    # a suggestion, not a detected on-board synergy. It fired LOW and never fed
+    # has_other_plan, so it needs no voltron mirror.
+    etb_clause = _self_etb_value(kept_oracle, name)
+    if etb_clause is not None:
+        add("blink_flicker", "you", "", etb_clause, "low")
+    # Own-subtype tribal membership (a creature's own race) + named-token
+    # tribes — a clean type_line / all_parts field-lookup. Class tribes
+    # (Soldier/Cleric) open only behind a go-wide signal; race tribes open
+    # unconditionally (CR 205.3).
+    keys_now = {s.key for s in out}
+    go_wide = bool(keys_now & {"creatures_matter", "attack_matters", "anthem_static"})
+    if "creature" in type_line and "—" in type_line:
+        for tok in type_line.split("—", 1)[1].split():
+            sub = tok.strip().lower()
+            if sub in TRIBAL_SUBTYPES or (sub in CLASS_TRIBES and go_wide):
+                add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), "", "low")
+    for part in card.get("all_parts") or []:
+        if part.get("component") != "token":
+            continue
+        tl = (part.get("type_line") or "").lower()
+        if "creature" not in tl or "—" not in tl:
+            continue
+        for tok in tl.split("—", 1)[1].split():
+            sub = tok.strip().lower()
+            if sub in CREATURE_SUBTYPES and sub != "human":
+                add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), "", "low")
+    # ADR-0027 — token_maker → type_matters cross-open (the regex
+    # `for _sub in _token_maker_subjects: add(TYPE_MATTERS, …)` at
+    # _signals_regex.py, now migrated). A commander that MAKES tribe-X creature
+    # tokens (a captured make_token kindred subject — Krenko makes Goblins, Darien
+    # Soldiers, a "create a 1/1 Human creature token" engine) wants tribe-X
+    # lords/support: its token board IS that kindred. UNION: (a) the IR make_token
+    # effects via _token_kindred_subject (the per-effect read the token_maker arm
+    # uses); (b) a BYTE-IDENTICAL kept mirror — the deleted _detect_token_maker
+    # producer per-clause over kept_oracle (the same derivation the regex
+    # `_token_maker_subjects` used) — recovers the makers phase folds into a
+    # coin_flip / transform / place_counter Effect with no token subject (Bottle
+    # of Suleiman → Djinn, Wirefly Hive → Insect, Wedding Announcement → Human).
+    # scope 'you', LOW conf. Non-creature token makers (Treasure/Clue) yield no
+    # subject and stay out. CR 111.2 / 205.3.
+    token_subjects: set[str] = set()
+    for ab in ir.all_abilities():
+        for e in ab.effects:
+            if e.category == "make_token":
+                sub = _token_kindred_subject(e.subject, vocab)
+                if sub:
+                    token_subjects.add(sub)
+    for clause in _clauses(kept_oracle):
+        for _key, sub in _detect_token_maker(clause, vocab):
+            if sub:
+                token_subjects.add(sub)
+    for sub in token_subjects:
+        add(signal_keys.TYPE_MATTERS, "you", sub, "", "low")
+
+    # ── Voltron membership (ADR-0027 — the LAST migrated key) ──────────────
+    # voltron_matters is a COMMANDER that wants to win via commander damage
+    # (CR 903.10a: 21 combat damage from one commander) by loading ONE creature
+    # (itself) with Equipment/Auras. It is a COMPOSITION OF STRUCTURAL MECHANICS,
+    # all of which now live in the IR — so it migrates here off the regex
+    # composite. The ONE sanctioned re-baseline: has_other_plan is now derived
+    # from THIS function's own `out` (every plan lane is migrated, so the IR set
+    # carries them all high-confidence) instead of the regex path's ~40
+    # byte-identical *_PLAN_MIRROR re-supplies. Where the IR lane is BROADER than
+    # the deleted regex producer (a self-death / combat-buff / cheat-into-play
+    # engine the word-list missed), the broader has_other_plan correctly SILENCES
+    # the spurious commander-damage tell on that engine — a more-correct set than
+    # the old regex's 3007. The unconditional tells (payoff, self-growth,
+    # evasion/resilience, self-protection) fire regardless; only the bare
+    # commander-damage fallback is gated on `not has_other_plan`.
+    power = card_pt_int(card)
+    kws = {k.lower() for k in (card.get("keywords") or [])}
+    # (4) self-protection (Power/Evasion/Protection triad; removal is the
+    # weakness): an unkillable body that prevents all damage to ITSELF is the
+    # ideal Equipment/Aura carrier (Cho-Manno, Gideon Blackblade). Not creature-
+    # gated, matching the deleted regex producer. CR 614.9 / 615 / 903.10a.
+    if _detect_self_damage_prevention(kept_oracle, name):
+        add("voltron_matters", "you", "", kept_oracle[:160], "low")
+    if "creature" in type_line:
+        # (4) hexproof/indestructible/shroud beater — a removal-resistant body
+        # you safely suit up (Sigarda, Uril, Geist of Saint Traft). The single
+        # most-distinguishing voltron tell (60% want the package vs 21.6% base).
+        # CR 702.11 / 702.12 / 702.18.
+        if power >= 2 and kws & {"hexproof", "indestructible", "shroud"}:
+            add(
+                "voltron_matters",
+                "you",
+                "",
+                "hexproof/indestructible beater",
+                "low",
+            )
+        # (2) the narrower _VOLTRON_EQUIP_RE word tell ("enchanted creature" /
+        # "equipped creature" singular / reconfigure / equip {} — the singular
+        # payload forms the broad ungated payoff detector above stays off). (1/7)
+        # self combat-damage growth loop (_voltron_self_pump — Mirri) and self-
+        # targeting heroic suit-up (_voltron_self_heroic — Brigone, Feather; CR
+        # 702.83). (3) self-unblockable evasion (Tromokratis). (7) land-scaling
+        # threat (Sima Yi), self-recurring threat (Akuta), and double-strike beater
+        # (Sabin — doubles every equip/aura bonus, CR 702.4).
+        if (
+            _VOLTRON_EQUIP_RE.search(kept_oracle)
+            or (power >= 2 and _voltron_self_pump(kept_oracle, name))
+            or (power >= 4 and _voltron_self_unblockable(kept_oracle, name))
+            or _voltron_self_heroic(kept_oracle, name)
+            or _voltron_land_scaler(kept_oracle, name)
+            or _voltron_self_recurs(kept_oracle, name)
+            or _voltron_double_strike_beater(card, kept_oracle)
+        ):
+            add("voltron_matters", "you", "", "likely voltron commander", "low")
+    # has_other_plan (ADR-0027 re-baseline): a high-confidence signal in THIS
+    # function's IR `out` for a NON-COMBAT RESOURCE/BOARD ENGINE (card-draw / ramp /
+    # tokens / aristocrats / graveyard / tribal-lord / removal-control …) IS another
+    # plan — a commander whose primary identity is such an engine is NOT a vanilla
+    # voltron beater, so its commander-damage tell is silenced. EXCLUDED are the
+    # voltron-COMPATIBLE lanes (_VOLTRON_HAS_OTHER_PLAN_COMPAT): a high-conf signal
+    # that is itself a Power/Evasion/Protection tell or a vanilla-body trait does
+    # NOT redirect the deck away from the single-big-threat plan, so it must not
+    # silence the fallback. Per CR: regeneration (701.19) is removal-resistance — a
+    # resilient beater is the IDEAL Equipment carrier; changeling (702.73a) is a
+    # vanilla all-creature-type body; morph/facedown (702.37a / 708) is a casting
+    # option, not an engine; self power-growth (self_pump / pump_makers) and the
+    # evasion-enabling cant_block_grant push the carrier's own damage through (the
+    # Power/Evasion legs of the triad). The voltron LOW adds above are LOW (so are
+    # skipped); an exalted body's voltron HIGH from the keyword map counts but fired
+    # voltron (moot). Background / conditional self-protection stay compat.
+    has_other_plan = any(
+        s.confidence == "high"
+        and s.key not in _GENERIC_KEYS
+        and s.key not in _VOLTRON_COMPAT_KEYS
+        and s.key not in _VOLTRON_HAS_OTHER_PLAN_COMPAT
+        and s.key not in _VOLTRON_PLAN_BROADENED
+        for s in out
+    ) or bool(_BROADENED_PLAN_MIRROR.search(kept_oracle))
+    # (base) commander-damage fallback (CR 903.10a): only when nothing else gave a
+    # strong direction and the creature is a real commander-damage threat (an
+    # evasion/resilience keyword, or power >= 2 — Isamaru is a 2/2). A 0/1
+    # themeless wall is excluded by the power floor.
+    if (
+        not has_other_plan
+        and "creature" in type_line
+        and (kws & _VOLTRON_KEYWORDS or power >= 2)
+    ):
+        add(
+            "voltron_matters",
+            "you",
+            "",
+            "commander damage (CR 903.10a)",
+            "low",
+        )
+
+
 def extract_signals_ir(
     card: dict,
     ir: Card | None,
@@ -12318,322 +12651,11 @@ def extract_signals_ir(
         if kw in card_kws:
             for key, scope in pairs:
                 add(key, scope, "", "")
-    type_line = (card.get("type_line") or "").lower()
     # Membership signals (what the card IS): own card-type and own-subtype tribal.
     # Gated on include_membership, mirroring extract_signals — the deck-aggregate
     # path passes False for the 99 so every creature's race/type doesn't flood the
-    # avenues (only the commander's membership opens a lane).
+    # avenues (only the commander's membership opens a lane). Extracted to the
+    # shared ``_apply_membership_floor`` so the ADR-0035 crosswalk reproduces it.
     if include_membership:
-        if "artifact" in type_line:
-            add("artifacts_matter", "you", "", "", "low")
-        if "enchantment" in type_line:
-            add("enchantments_matter", "you", "", "", "low")
-        # ADR-0027 — land_destruction BYTE-IDENTICAL membership-gated kept mirror. A
-        # CREATURE COMMANDER whose own oracle says "destroy [up to N] target land(s)"
-        # (Numot, Goblin Settler, Demonic Hordes — a repeatable LD ENGINE) opens the LD
-        # support lane (more LD, own-land recursion to survive symmetric LD, land-loss
-        # punishers). Creature + include_membership gated so a one-shot LD SPELL among
-        # the 99 (Stone Rain, Armageddon) is NOT read as the deck's plan. This
-        # reproduces the deleted extract_signals cross-open EXACTLY (LAND_DESTRUCTION_
-        # REGEX over the reminder-stripped kept_oracle — same input as the regex path's
-        # reminder-stripped `text`; commander-legal: regex==mirror, 23→23, 0 miss/
-        # extra), NOT the broad `destroy`/Land structural arm (removed above — it floods
-        # +143 one-shot spells / utility lands HIGH). scope 'you', LOW confidence (the
-        # deleted producer's scope/conf — it never fed has_other_plan, so no voltron
-        # mirror is needed). CR 305.6.
-        if "creature" in type_line and _LAND_DESTRUCTION_MIRROR.search(kept_oracle):
-            add("land_destruction", "you", "", "repeatable land destruction", "low")
-        # ADR-0027 — big_mana (a COMMANDER that makes a LOT of mana wants X-spell
-        # sinks). STRUCTURAL arm: a `ramp` Effect whose v23 amount is amount.factor>1
-        # (Sol Ring {C}{C}, Gilded Lotus "three mana", Dark Ritual {B}{B}{B}) OR
-        # op=="variable" (a dynamic scaler — Selvala / Gaea's Cradle / Nykthos devotion
-        # / Cabal Coffers count). A factor==1 dork (Llanowar — "Add {G}") is exactly ONE
-        # mana and is NOT big mana (the v23 magnitude makes them distinguishable; the
-        # pre-v23 projection had amount==None). Plus a BYTE-IDENTICAL _BIG_MANA_REGEX
-        # kept mirror over kept_oracle for the under-structured "add … for each" tail
-        # (Neheb, the Eternal → amount==None). include_membership-gated, scope 'you',
-        # LOW conf — reproducing the deleted extract_signals cross-open (which fired LOW
-        # and never fed has_other_plan, so no voltron mirror is needed). CR 106.4.
-        if _is_big_mana_ir(ir) or _BIG_MANA_REGEX.search(kept_oracle):
-            add("big_mana", "you", "", "big-mana generator", "low")
-        # ADR-0027 — cheat_from_top BYTE-IDENTICAL membership-gated kept mirror. A
-        # COMMANDER that REVEALS the top card of a library AND cheats the SAME revealed
-        # card onto the battlefield (Vaevictis, Hans Eriksson, Lurking Predators) wants
-        # to STACK its top with a bomb (graveyard-to-top recursion, put-on-top effects).
-        # MIRROR-ONLY: the v24 from:top/to:battlefield zone projection is too COARSE to
-        # carry this lane's narrow scope — a structural `from:top` + `to:battlefield`
-        # arm over-fires +156 commander-legal (177 vs 24), MERGING the deliberately-
-        # separate sibling lanes (87 of the flood already fire cheat_into_play — cheat
-        # from library/HAND; 100 fire topdeck_selection — look-at-top SELECTION), AND it
-        # MISSES Vaevictis (his reveal folds into a scope-'opp' `choose` carrying no
-        # from:top). The whole lane is under-structured relative to the regex phrasing,
-        # so it rides the OR-AND of the EXACT deleted _CHEAT_TOP_REVEAL_RE +
-        # _CHEAT_TOP_ONTO_RE over the reminder-stripped kept_oracle — same input as the
-        # deleted producer's `text` (commander-legal: regex==mirror, 24->24, 0 miss/
-        # extra, incl. the DFCs Esper Origins / Jadzi / Nissa — get_oracle_text joins
-        # faces). scope 'you', LOW conf (the deleted producer's scope/conf — it never
-        # fed has_other_plan, so no voltron mirror is needed, matching the
-        # land_destruction / big_mana precedent). CR 401 / 701.20a.
-        if _CHEAT_TOP_REVEAL_RE.search(kept_oracle) and _CHEAT_TOP_ONTO_RE.search(
-            kept_oracle
-        ):
-            add("cheat_from_top", "you", "", "reveal-top cheat into play", "low")
-        # ADR-0027 — kill_engine (STRUCTURAL repeatable-frame arm + Evil-Twin mirror,
-        # membership cross-open). A creature COMMANDER that REPEATABLY destroys a
-        # creature (Visara, Diaochan, Royal Assassin, Western Paladin) is a death-
-        # engine: each kill fires on-death payoffs. _is_kill_engine_ir READS the frame
-        # phase already structures (an activated destroy-creature ability, or a
-        # recurring-trigger one — excluding board wipes [counter_kind=='all'] and a one-
-        # shot ETB / morph-flip / monstrosity / transform trigger per CR 701.37 / 707 /
-        # 701.27), RECOVERING the +48 qualified-creature kills the narrow regex missed
-        # (its literal "destroy target creature" skipped "destroy target TAPPED/WHITE/
-        # non-Demon creature"). Evil Twin rides the byte-identical
-        # _REPEATABLE_KILL_MIRROR over kept_oracle — phase folds its quoted granted
-        # ability ("{U}{B}, {T}: Destroy …") into a `clone` Effect with no destroy
-        # ability for the arm to read.
-        # creature + include_membership gated so a one-shot removal spell in the 99
-        # isn't read as the deck's plan. scope 'you', LOW confidence (the deleted
-        # producer's identity — it fired LOW and never fed has_other_plan, so NO voltron
-        # mirror is needed, matching the land_destruction / cheat_from_top precedent).
-        # CR 305.6.
-        if "creature" in type_line and (
-            _is_kill_engine_ir(ir) or _REPEATABLE_KILL_MIRROR.search(kept_oracle)
-        ):
-            add("kill_engine", "you", "", "repeatable creature destruction", "low")
-        # ADR-0027 — one_punch (STRUCTURAL ARM, membership audit). An extreme power-
-        # for-cost beater (power >= 8 AND power >= 2x its mana value: Lord of
-        # Tresserhorn 10/4, Yargle 18/6, The Ancient One 8/8 for 2, Death's Shadow
-        # 13/13, Phyrexian Dreadnought 12/12) wins by connecting ONCE for lethal, so it
-        # wants damage amplification — grant infect (power -> poison) or double strike
-        # (2x). The ratio gate excludes expensive fatties (Emrakul 15/15 for 15) that
-        # win by size, not amplification. NOT a regex at all in the deleted producer —
-        # a pure numeric gate over the SAME Scryfall fields the IR path already reads
-        # (card_pt_int(card) + card['cmc'] + type_line), so this arm reproduces the
-        # deleted extract_signals producer BYTE-IDENTICALLY (commander-legal, floor-
-        # disabled, by oracle_id: both==23, ir_only==0, regex_only==0; all 23 genuine
-        # extreme beaters). include_membership-gated (the huge body is the COMMANDER's
-        # plan, not every fatty in the 99). scope 'you', LOW confidence — the deleted
-        # producer's identity. It fired AFTER has_other_plan and never fed it (LOW conf,
-        # added post-gate), so voltron needs NO mirror / NO _VOLTRON_SILENCING_PLAN_KEYS
-        # entry (voltron_matters set unchanged, 3010 -> 3010). NOT in _IR_FLOOR_LANES
-        # (floor-mirror-dep == 0: a structural numeric gate, not an oracle floor). CR
-        # 903.10a / 702.90 (infect) / 702.4 (double strike).
-        if "creature" in type_line:
-            power = card_pt_int(card)
-            cmc = card.get("cmc") or 0
-            if power >= 8 and power >= 2 * cmc:
-                add("one_punch", "you", "", "extreme power-for-cost beater", "low")
-        # ADR-0027 — keyword_soup_makers BYTE-IDENTICAL membership-gated kept mirror.
-        # A keyword-soup commander (Odric Lunarch Marshal, Akroma Vision, Akroma's
-        # Memorial/Will, Concerted Effort, Bleeding Effect) GRANTS/SHARES many evergreen
-        # keywords across the team, so it wants creatures STACKED with keywords.
-        # MIRROR-ONLY: the structural grant_keyword-counter_kind arm (the sibling
-        # `keyword_soup` lane's shape) LOSES Akroma's Will — phase splits its modal
-        # "Choose one" grants across abilities so neither ability alone reaches >=5 cks
-        # — and over-fires onto 11 single-creature keyword-ABSORBERS (Cairn Wanderer,
-        # Rayami, Soulflayer, …) that belong to `keyword_soup`, a different archetype.
-        # So the lane rides the EXACT deleted producer (the team-grant
-        # _KEYWORD_SOUP_CONTEXT_RE AND >=5 distinct evergreen keyword WORDS) flat over
-        # the reminder-stripped kept_oracle — same input as the deleted `text`, and with
-        # no per-clause `[^.]` span the whole-text count is byte-identical
-        # (commander-legal: regex == mirror, 6 -> 6, 0 miss / 0 extra). scope 'you', LOW
-        # conf (the deleted producer's identity — it never fed has_other_plan, so no
-        # voltron mirror is needed, matching the land_destruction / big_mana /
-        # cheat_from_top precedent). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
-        # CR 702.
-        if (
-            _KEYWORD_SOUP_CONTEXT_RE.search(kept_oracle)
-            and sum(1 for rx in _EVERGREEN_KW_RE if rx.search(kept_oracle)) >= 5
-        ):
-            add("keyword_soup_makers", "you", "", kept_oracle[:160], "low")
-        # _matters sweep (wants_cloning): the two clone-TARGET membership cross-opens.
-        # These are NOT clone DOERS (the structural cat=='clone' arm = clone_makers) —
-        # they fire because the COMMANDER itself is a worth-copying target, so a clone
-        # deck WANTS to copy it. Strict membership (ADR-0031) keeps them out of
-        # clone_makers; this is the separate `wants_cloning` benefit/payoff lane (LOW
-        # conf, scope 'you'). include_membership-gated — a property of the commander,
-        # not every creature in the 99 (the deck-aggregate path passes False).
-        # (1) A LEGENDARY creature whose value is a REPEATABLE engine (a
-        # per-turn triggered ability or a non-mana tap-activated ability) is a clone
-        # target — copying it forks the engine and the copy dodges the legend rule
-        # (Obeka, Koma, Linessa). "legendary" + "creature" (not contiguous) so a
-        # Legendary ENCHANTMENT/ARTIFACT/SNOW Creature (Go-Shintai, the gods) qualifies.
-        # Matched against `kept_oracle` (the regex path's reminder-stripped `text`,
-        # byte-identical). CR 704.5j / 707.1.
-        if "legendary" in type_line and "creature" in type_line:
-            is_engine = bool(_PER_TURN_ENGINE_RE.search(kept_oracle)) or (
-                bool(_TAP_ABILITY_RE.search(kept_oracle))
-                and not (
-                    _MANA_TAP_RE.search(kept_oracle) and kept_oracle.count("{T}") == 1
-                )
-            )
-            if is_engine:
-                add("wants_cloning", "you", "", kept_oracle[:160], "low")
-        # (2) A HIGH-CMC commander (mana value >= 5) with a strong ETB or DEATH trigger
-        # is worth COPYING — a clone re-fires the expensive ETB on a cheap body (Gyruda)
-        # or the death trigger when the copy dies (Keiga, Kokusho — sac-loop). Reuse the
-        # self-ETB / self-dies clauses (the SHORT name Scryfall prints). CR 603.6 /
-        # 707.1.
-        if (card.get("cmc") or 0) >= 5:
-            clone_clause = _self_etb_value(kept_oracle, name) or _self_dies_value(
-                kept_oracle, name
-            )
-            if clone_clause is not None:
-                add("wants_cloning", "you", "", clone_clause, "low")
-        # ADR-0027 returns_to dimension (SIDECAR v34): blink_flicker migrated. Reproduce
-        # the deleted self-ETB-value membership cross-open — a commander with a strong
-        # own ETB value (Ephemerate/Cloudshift/Conjurer's Closet fodder) opens the
-        # flicker/blink support avenue to RE-USE its own ETB (CR 603.6). Reuses the SAME
-        # `_self_etb_value` helper over kept_oracle (the deleted producer's reminder-
-        # stripped `text`, byte-identical), LOW conf, scope 'you' — a flicker package is
-        # a suggestion, not a detected on-board synergy. It fired LOW and never fed
-        # has_other_plan, so it needs no voltron mirror.
-        etb_clause = _self_etb_value(kept_oracle, name)
-        if etb_clause is not None:
-            add("blink_flicker", "you", "", etb_clause, "low")
-        # Own-subtype tribal membership (a creature's own race) + named-token
-        # tribes — a clean type_line / all_parts field-lookup. Class tribes
-        # (Soldier/Cleric) open only behind a go-wide signal; race tribes open
-        # unconditionally (CR 205.3).
-        keys_now = {s.key for s in out}
-        go_wide = bool(
-            keys_now & {"creatures_matter", "attack_matters", "anthem_static"}
-        )
-        if "creature" in type_line and "—" in type_line:
-            for tok in type_line.split("—", 1)[1].split():
-                sub = tok.strip().lower()
-                if sub in TRIBAL_SUBTYPES or (sub in CLASS_TRIBES and go_wide):
-                    add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), "", "low")
-        for part in card.get("all_parts") or []:
-            if part.get("component") != "token":
-                continue
-            tl = (part.get("type_line") or "").lower()
-            if "creature" not in tl or "—" not in tl:
-                continue
-            for tok in tl.split("—", 1)[1].split():
-                sub = tok.strip().lower()
-                if sub in CREATURE_SUBTYPES and sub != "human":
-                    add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), "", "low")
-        # ADR-0027 — token_maker → type_matters cross-open (the regex
-        # `for _sub in _token_maker_subjects: add(TYPE_MATTERS, …)` at
-        # _signals_regex.py, now migrated). A commander that MAKES tribe-X creature
-        # tokens (a captured make_token kindred subject — Krenko makes Goblins, Darien
-        # Soldiers, a "create a 1/1 Human creature token" engine) wants tribe-X
-        # lords/support: its token board IS that kindred. UNION: (a) the IR make_token
-        # effects via _token_kindred_subject (the per-effect read the token_maker arm
-        # uses); (b) a BYTE-IDENTICAL kept mirror — the deleted _detect_token_maker
-        # producer per-clause over kept_oracle (the same derivation the regex
-        # `_token_maker_subjects` used) — recovers the makers phase folds into a
-        # coin_flip / transform / place_counter Effect with no token subject (Bottle
-        # of Suleiman → Djinn, Wirefly Hive → Insect, Wedding Announcement → Human).
-        # scope 'you', LOW conf. Non-creature token makers (Treasure/Clue) yield no
-        # subject and stay out. CR 111.2 / 205.3.
-        token_subjects: set[str] = set()
-        for ab in ir.all_abilities():
-            for e in ab.effects:
-                if e.category == "make_token":
-                    sub = _token_kindred_subject(e.subject, vocab)
-                    if sub:
-                        token_subjects.add(sub)
-        for clause in _clauses(kept_oracle):
-            for _key, sub in _detect_token_maker(clause, vocab):
-                if sub:
-                    token_subjects.add(sub)
-        for sub in token_subjects:
-            add(signal_keys.TYPE_MATTERS, "you", sub, "", "low")
-
-        # ── Voltron membership (ADR-0027 — the LAST migrated key) ──────────────
-        # voltron_matters is a COMMANDER that wants to win via commander damage
-        # (CR 903.10a: 21 combat damage from one commander) by loading ONE creature
-        # (itself) with Equipment/Auras. It is a COMPOSITION OF STRUCTURAL MECHANICS,
-        # all of which now live in the IR — so it migrates here off the regex
-        # composite. The ONE sanctioned re-baseline: has_other_plan is now derived
-        # from THIS function's own `out` (every plan lane is migrated, so the IR set
-        # carries them all high-confidence) instead of the regex path's ~40
-        # byte-identical *_PLAN_MIRROR re-supplies. Where the IR lane is BROADER than
-        # the deleted regex producer (a self-death / combat-buff / cheat-into-play
-        # engine the word-list missed), the broader has_other_plan correctly SILENCES
-        # the spurious commander-damage tell on that engine — a more-correct set than
-        # the old regex's 3007. The unconditional tells (payoff, self-growth,
-        # evasion/resilience, self-protection) fire regardless; only the bare
-        # commander-damage fallback is gated on `not has_other_plan`.
-        power = card_pt_int(card)
-        kws = {k.lower() for k in (card.get("keywords") or [])}
-        # (4) self-protection (Power/Evasion/Protection triad; removal is the
-        # weakness): an unkillable body that prevents all damage to ITSELF is the
-        # ideal Equipment/Aura carrier (Cho-Manno, Gideon Blackblade). Not creature-
-        # gated, matching the deleted regex producer. CR 614.9 / 615 / 903.10a.
-        if _detect_self_damage_prevention(kept_oracle, name):
-            add("voltron_matters", "you", "", kept_oracle[:160], "low")
-        if "creature" in type_line:
-            # (4) hexproof/indestructible/shroud beater — a removal-resistant body
-            # you safely suit up (Sigarda, Uril, Geist of Saint Traft). The single
-            # most-distinguishing voltron tell (60% want the package vs 21.6% base).
-            # CR 702.11 / 702.12 / 702.18.
-            if power >= 2 and kws & {"hexproof", "indestructible", "shroud"}:
-                add(
-                    "voltron_matters",
-                    "you",
-                    "",
-                    "hexproof/indestructible beater",
-                    "low",
-                )
-            # (2) the narrower _VOLTRON_EQUIP_RE word tell ("enchanted creature" /
-            # "equipped creature" singular / reconfigure / equip {} — the singular
-            # payload forms the broad ungated payoff detector above stays off). (1/7)
-            # self combat-damage growth loop (_voltron_self_pump — Mirri) and self-
-            # targeting heroic suit-up (_voltron_self_heroic — Brigone, Feather; CR
-            # 702.83). (3) self-unblockable evasion (Tromokratis). (7) land-scaling
-            # threat (Sima Yi), self-recurring threat (Akuta), and double-strike beater
-            # (Sabin — doubles every equip/aura bonus, CR 702.4).
-            if (
-                _VOLTRON_EQUIP_RE.search(kept_oracle)
-                or (power >= 2 and _voltron_self_pump(kept_oracle, name))
-                or (power >= 4 and _voltron_self_unblockable(kept_oracle, name))
-                or _voltron_self_heroic(kept_oracle, name)
-                or _voltron_land_scaler(kept_oracle, name)
-                or _voltron_self_recurs(kept_oracle, name)
-                or _voltron_double_strike_beater(card, kept_oracle)
-            ):
-                add("voltron_matters", "you", "", "likely voltron commander", "low")
-        # has_other_plan (ADR-0027 re-baseline): a high-confidence signal in THIS
-        # function's IR `out` for a NON-COMBAT RESOURCE/BOARD ENGINE (card-draw / ramp /
-        # tokens / aristocrats / graveyard / tribal-lord / removal-control …) IS another
-        # plan — a commander whose primary identity is such an engine is NOT a vanilla
-        # voltron beater, so its commander-damage tell is silenced. EXCLUDED are the
-        # voltron-COMPATIBLE lanes (_VOLTRON_HAS_OTHER_PLAN_COMPAT): a high-conf signal
-        # that is itself a Power/Evasion/Protection tell or a vanilla-body trait does
-        # NOT redirect the deck away from the single-big-threat plan, so it must not
-        # silence the fallback. Per CR: regeneration (701.19) is removal-resistance — a
-        # resilient beater is the IDEAL Equipment carrier; changeling (702.73a) is a
-        # vanilla all-creature-type body; morph/facedown (702.37a / 708) is a casting
-        # option, not an engine; self power-growth (self_pump / pump_makers) and the
-        # evasion-enabling cant_block_grant push the carrier's own damage through (the
-        # Power/Evasion legs of the triad). The voltron LOW adds above are LOW (so are
-        # skipped); an exalted body's voltron HIGH from the keyword map counts but fired
-        # voltron (moot). Background / conditional self-protection stay compat.
-        has_other_plan = any(
-            s.confidence == "high"
-            and s.key not in _GENERIC_KEYS
-            and s.key not in _VOLTRON_COMPAT_KEYS
-            and s.key not in _VOLTRON_HAS_OTHER_PLAN_COMPAT
-            and s.key not in _VOLTRON_PLAN_BROADENED
-            for s in out
-        ) or bool(_BROADENED_PLAN_MIRROR.search(kept_oracle))
-        # (base) commander-damage fallback (CR 903.10a): only when nothing else gave a
-        # strong direction and the creature is a real commander-damage threat (an
-        # evasion/resilience keyword, or power >= 2 — Isamaru is a 2/2). A 0/1
-        # themeless wall is excluded by the power floor.
-        if (
-            not has_other_plan
-            and "creature" in type_line
-            and (kws & _VOLTRON_KEYWORDS or power >= 2)
-        ):
-            add(
-                "voltron_matters",
-                "you",
-                "",
-                "commander damage (CR 903.10a)",
-                "low",
-            )
+        _apply_membership_floor(card, ir, name, vocab, kept_oracle, out, add)
     return out
