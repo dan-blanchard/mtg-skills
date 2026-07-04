@@ -134,9 +134,16 @@ from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 # projection constants (project.py's _narrow_* marker sources — the same
 # b12-sanctioned single-source pattern): the marker effects those anchors
 # produce exist only in the LOSSY projection, so the crosswalk re-derives
-# their populations from the same pinned regexes over the kept oracle.
+# their populations from the same pinned regexes over the kept oracle. The
+# three pure-(a) re-categorizers among them (madness / affinity / mutate —
+# ADR-0035 Stage 3b) have been SEVERED off project.py: their reference rides
+# in the RETAINED node descriptions phase preserves, so they now read the
+# retained node (:data:`_B13_NODE_ANCHOR_LANES` over :func:`_retained_node_texts`)
+# instead of re-grepping the reconstructed oracle. The rest stay imported —
+# they compensate a (b) correction / a representation gap (soulbond / undying /
+# changeling / cascade grants phase folds into a carrier, starting-life a phrase
+# phase carries no structure for), where a retained-node read drops firings.
 from mtg_utils._card_ir.project import (
-    _AFFINITY_GRANT,
     _BECOMES_TARGET_SRC_OPP,
     _CANT_BLOCK_GRANT_QUOTE,
     _CANT_BLOCK_MODAL_BULLET,
@@ -147,9 +154,7 @@ from mtg_utils._card_ir.project import (
     _CRIME_REF,
     _EXHAUST_TRIG,
     _LIB_SEARCH_PLAYER_ACTIONS,
-    _MADNESS_GRANT,
     _MASS_DEATH_REF,
-    _MUTATE_COND,
     _PAY_LIFE_REF,
     _SINGLE_PERMANENT_GRANT_PREDS,
     _SOULBOND_REF,
@@ -7824,15 +7829,56 @@ _B13_MOD_GRANT_LANES: dict[str, str] = {
 # un-typed (each anchor is the LIVE projection marker's own pinned regex —
 # project.py's _narrow_* sources, imported single-source). Scanned FLAT over
 # the reminder-stripped kept oracle, mirroring the marker's ability-raw scan.
+# These four DEFER to the imported source (Stage 3b): they compensate a (b)
+# correction — phase folds the grant into a carrier, so the reference does NOT
+# survive in any retained node description, and a retained-node read drops
+# firings (soulbond -12 / changeling -12 / cascade -1 over the corpus).
 _B13_RAW_ANCHOR_LANES: tuple[tuple[re.Pattern[str], str], ...] = (
-    (_MADNESS_GRANT, "madness_matters"),  # Anje, Falkenrath Gorger ([P20])
-    (_AFFINITY_GRANT, "affinity_type"),  # Don & Raph / Saheeli / Mycosynthwave
     (_SOULBOND_REF, "has_soulbond"),  # Flowering Lumberknot
-    (_MUTATE_COND, "has_mutate"),  # Pollywog Symbiote
     (_UNDYING_PERSIST_GRANT, "has_undying_persist"),  # Haunted One's quoted gain
     (_CHANGELING_REF, "has_changeling"),  # Belonging, Birthing Boughs, …
     (_CASCADE_GRANT, "cascade_matters"),  # Averna / Zhulodok ([P20]) / quirks
 )
+
+# ADR-0035 Stage 3b (a) fold: the three conferred/referenced grants whose text
+# phase RETAINS on a node it preserves losslessly — an Unimplemented effect
+# (Falkenrath Gorger's "… has madness"), a typed trigger whose description
+# carries the condition (Anje's "if it has madness", Pollywog's "if it has
+# mutate"), or a typed grant static (the affinity conferrals). Their pattern is
+# OWNED here (severed off project.py) and scanned over the retained node
+# descriptions (:func:`_retained_node_texts`), NOT the reconstructed oracle.
+# Populations proven byte-identical to the whole-oracle grep over the commander
+# corpus (madness 2, affinity 8, mutate 1 — 0 lost / 0 gained).
+_MADNESS_GRANT_RE = re.compile(r"\bhas madness\b", re.IGNORECASE)
+_AFFINITY_GRANT_RE = re.compile(
+    r"\bhave affinity for|\bhas affinity for", re.IGNORECASE
+)
+_MUTATE_COND_RE = re.compile(r"\bif it has mutate\b", re.IGNORECASE)
+_B13_NODE_ANCHOR_LANES: tuple[tuple[re.Pattern[str], str], ...] = (
+    (_MADNESS_GRANT_RE, "madness_matters"),
+    (_AFFINITY_GRANT_RE, "affinity_type"),
+    (_MUTATE_COND_RE, "has_mutate"),
+)
+
+
+def _retained_node_texts(tree: ConceptTree) -> list[str]:
+    """The reminder-stripped verbatim clauses phase RETAINS on each node.
+
+    The (a) re-categorizer's node-read surface — per-ability ``description`` plus
+    each concept-node's grounding ``raw`` — as opposed to the whole reconstructed
+    face oracle (:func:`_kept`). A grant/reference that survives in a retained
+    node description is read here; one phase folded into a typed carrier (and so
+    dropped from every description) is NOT, which is exactly the (a)-vs-(b) line.
+    """
+    out: list[str] = []
+    for unit in tree.units:
+        d = getattr(unit.node, "description", None)
+        if isinstance(d, str) and d:
+            out.append(_REMINDER_RX.sub(" ", d))
+        for c in unit.iter_concepts():
+            if c.raw:
+                out.append(_REMINDER_RX.sub(" ", c.raw))
+    return out
 
 
 def _b13_conferred_grant_lanes(tree: ConceptTree) -> list[Signal]:
@@ -7852,7 +7898,11 @@ def _b13_conferred_grant_lanes(tree: ConceptTree) -> list[Signal]:
       creature type" static (CR 205.3c) → has_changeling;
     * the raw anchors (:data:`_B13_RAW_ANCHOR_LANES`) for the conferred /
       quoted residue whose grant phase folds into a carrier ([P20] family —
-      supplement-fixable, logged).
+      supplement-fixable, logged);
+    * the node anchors (:data:`_B13_NODE_ANCHOR_LANES` over
+      :func:`_retained_node_texts`) — the three pure-(a) re-categorizers
+      (madness / affinity / mutate, Stage 3b) read off the retained node
+      description rather than the reconstructed oracle.
 
     NO subject is emitted anywhere (live subject "" — affinity's "type"
     travels in serve prose only).
@@ -7904,6 +7954,12 @@ def _b13_conferred_grant_lanes(tree: ConceptTree) -> list[Signal]:
     kept = _kept(tree)
     for pat, key in _B13_RAW_ANCHOR_LANES:
         if pat.search(kept):
+            add(key, "")
+    # The (a) re-categorizers (Stage 3b): read the RETAINED node descriptions,
+    # not the reconstructed oracle (severed off project.py).
+    node_texts = _retained_node_texts(tree)
+    for pat, key in _B13_NODE_ANCHOR_LANES:
+        if any(pat.search(t) for t in node_texts):
             add(key, "")
     return out
 
