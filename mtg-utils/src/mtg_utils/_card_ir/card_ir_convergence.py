@@ -25,6 +25,20 @@ This module ships two forms (per the ADR):
   is already present = convergence) plus a gated corpus test asserting every
   currently-applied arm is still LIVE (finds a gap) and NAMING any that converged.
 
+**Retirement scope at v0.15.0 (why ``retired=[]`` is CORRECT, not unfinished).**
+The Stage-3b Measure phase proved all 49 BUILT supplement ``_recover_*`` arms are
+still LIVE at phase v0.15.0 — ``obsolete_count == 0`` among the built arms — so
+NOTHING is deleted from ``supplement.py``: an empty retired set is the RIGHT answer
+at this pin, not a TODO. Convergence is the STANDING mechanism for FUTURE pin bumps
+— when a later phase parses a clause, its arm drops to 0 firings and this check
+NAMES it retire-ready. Only three QUEUED (never-built) supplement items were fixed
+upstream and are queue cleanup, not supplement deletions: [P24] Hama Pashar typed
+room-static, [P46] playtest self-removed, [P52] Aminatou Miracle variant. Two
+QUEUED items remain REAL gaps and are kept: [P51] Tromokratis, [P43] Agency
+Coroner. The per-card convergence GATES (:func:`dropped_clauses.convergence_gated_arms`)
+are a DIFFERENT axis — a compat-seam SUPERSET guard for still-LIVE arms — not
+retirement; a gated arm stays LIVE (fires on non-converged cards).
+
 Read-only / never part of the live build path, never CI.
 """
 
@@ -34,7 +48,11 @@ from typing import TYPE_CHECKING
 
 from mtg_utils._card_ir.compat import compat_card_base
 from mtg_utils._card_ir.crosswalk import build_concept_tree
-from mtg_utils._card_ir.dropped_clauses import ARM_NAMES, synthesize_with_trace
+from mtg_utils._card_ir.dropped_clauses import (
+    ARM_NAMES,
+    convergence_gated_arms,
+    synthesize_with_trace,
+)
 from mtg_utils._card_ir.mirror import MirrorDriftError, strict_load_card
 
 if TYPE_CHECKING:
@@ -85,7 +103,8 @@ def scan_arm_firings(
             root, name=bulk.get("name", rec.get("name", "")), oracle_id=oid
         )
         base = compat_card_base(tree)
-        _card, fired = synthesize_with_trace(base, tree.oracle)
+        skip = convergence_gated_arms(tree, base)
+        _card, fired = synthesize_with_trace(base, tree.oracle, skip=skip)
         for arm in fired:
             firings[arm] = firings.get(arm, 0) + 1
     return firings, len(seen)

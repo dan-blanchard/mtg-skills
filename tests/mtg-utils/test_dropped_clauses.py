@@ -17,6 +17,7 @@ from mtg_utils._card_ir.dropped_clauses import (
     _DEFERRED_TRIGGER_ARMS,
     ARM_NAMES,
     SYNTHESIS_ARMS,
+    _sac_cost_target_is_promoted,
     apply_dropped_clause_synthesis,
     synthesize_with_trace,
 )
@@ -155,6 +156,67 @@ def test_apply_is_idempotent():
     once = apply_dropped_clause_synthesis(gap, oracle)
     twice = apply_dropped_clause_synthesis(once, oracle)
     assert twice == once
+
+
+# ── the per-card convergence gate's load-bearing discriminator ─────────────────
+
+
+def _sac_cost(*type_filters: object) -> dict:
+    """A mirror Sacrifice-cost node dict (as ``TypedMirrorNode.to_dict`` emits)."""
+    return {
+        "type": "Sacrifice",
+        "count": 1,
+        "target": {
+            "type": "Typed",
+            "controller": None,
+            "type_filters": list(type_filters),
+        },
+    }
+
+
+def test_promoted_sac_cost_discriminator():
+    """The gy_recursion gate's SUPERSET guarantee hinges on reproducing which
+    sacrifice-COST targets the old projection promotes to a real-answer veto: a core
+    Land (Whiteout) / Artifact / Enchantment, or a predefined ARTIFACT-token subtype
+    (Unshakable Tail's Clue) — but NOT a creature (Gollum) and NOT a LAND SUBTYPE
+    (Jarad's Swamp/Forest, which the old IR does NOT promote, so the stamp there is a
+    genuine improvement). These are the exact mirror shapes the four cards produce."""
+    # promoted → gate skips (would double-count the old-IR veto)
+    assert _sac_cost_target_is_promoted(_sac_cost("Land"))  # Whiteout
+    assert _sac_cost_target_is_promoted(_sac_cost("Artifact"))
+    assert _sac_cost_target_is_promoted(_sac_cost("Enchantment"))
+    assert _sac_cost_target_is_promoted(
+        _sac_cost({"Subtype": "Clue"})
+    )  # Unshakable Tail
+    assert _sac_cost_target_is_promoted(_sac_cost({"Subtype": "Treasure"}))
+    # NOT promoted → arm keeps firing (the stamp is a real improvement)
+    assert not _sac_cost_target_is_promoted(_sac_cost("Creature"))  # Gollum
+    assert not _sac_cost_target_is_promoted(_sac_cost({"Subtype": "Swamp"}))  # Jarad
+    assert not _sac_cost_target_is_promoted(_sac_cost({"Subtype": "Forest"}))  # Jarad
+    # nested under a Composite ({N}, Sacrifice X) — the common activated-cost shape
+    composite = {"type": "Composite", "costs": [{"type": "Mana"}, _sac_cost("Land")]}
+    assert _sac_cost_target_is_promoted(composite)
+    creature_composite = {
+        "type": "Composite",
+        "costs": [{"type": "Mana"}, _sac_cost("Creature")],
+    }
+    assert not _sac_cost_target_is_promoted(creature_composite)
+
+
+def test_skip_makes_an_arm_a_noop():
+    """The ``skip`` plumbing (:func:`synthesize_with_trace`) is a per-arm no-op: a
+    skipped arm neither changes the card nor counts as a firing. This is the seam the
+    mirror-grounded convergence gate rides to hold the per-card SUPERSET."""
+    gap = _card(
+        "Test Colorless Payoff",
+        (Ability(kind="static", effects=(Effect(category="other"),)),),
+    )
+    oracle = "Colorless creatures you control get +1/+1."
+    out, fired = synthesize_with_trace(
+        gap, oracle, skip=frozenset({"colorless_subject"})
+    )
+    assert "colorless_subject" not in fired
+    assert out == gap
 
 
 # ── the shared substrate-purity guard's non-vacuity (bucket-b + bucket-c home) ─

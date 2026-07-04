@@ -764,21 +764,29 @@ def compat_card(tree: ConceptTree, cov: CompatCoverage | None = None) -> Card:
     the corrected overlay (:func:`compat_card_base`), then runs the Stage-3b (c)
     dropped-clause synthesis stage on the built Card
     (:func:`apply_dropped_clause_synthesis`), adding old-IR structure for clauses
-    phase dropped entirely. Flag-ON only: the flag-OFF path builds from
-    ``project.py``, never this adapter. Both stages preserve the L1 mirror by
-    identity — the shared substrate-purity invariant is asserted around the whole
-    build (the (b) stage decorates the overlay; the (c) stage runs strictly
-    downstream on the Card, never touching a tree node).
+    phase dropped entirely. The (c) stage is a strict per-card SUPERSET: a
+    mirror-grounded convergence gate (:func:`convergence_gated_arms`) SKIPS any arm
+    whose discriminator the strict L1 mirror already carries (a you-side
+    land-to-graveyard trigger, a promoted sacrifice cost) but the lossy compat Card
+    under-derives, so no arm can move a consumer agree→disagree. Flag-ON only: the
+    flag-OFF path builds from ``project.py``, never this adapter. Both stages
+    preserve the L1 mirror by identity — the shared substrate-purity invariant is
+    asserted around the whole build (the (b) stage decorates the overlay; the (c)
+    stage runs strictly downstream on the Card, never touching a tree node).
     """
     from mtg_utils._card_ir._substrate_purity import (
         assert_substrate_pure,
         l1_identity,
     )
-    from mtg_utils._card_ir.dropped_clauses import apply_dropped_clause_synthesis
+    from mtg_utils._card_ir.dropped_clauses import (
+        apply_dropped_clause_synthesis,
+        convergence_gated_arms,
+    )
 
     fingerprint = l1_identity(tree)
     card = compat_card_base(tree, cov)
-    card = apply_dropped_clause_synthesis(card, tree.oracle)
+    skip = convergence_gated_arms(tree, card)
+    card = apply_dropped_clause_synthesis(card, tree.oracle, skip=skip)
     # The (b) overlay stage rebuilds the tree object (a new ConceptTree with
     # decorated units) but preserves each L1 node by identity; the (c) stage never
     # touches the tree. Assert the L1 fingerprint held across the whole build.
