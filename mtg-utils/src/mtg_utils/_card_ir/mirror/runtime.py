@@ -21,10 +21,36 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
+
+class _MissingType:
+    """The absent-optional-field sentinel, as a pickle-stable singleton.
+
+    A bare ``object()`` gets a fresh identity on unpickle, which silently breaks
+    every ``x is MISSING`` check on a reloaded node — so a pickled/unpickled
+    concept tree measures as all-fields-absent (``has_structural_*`` reads return
+    empty). ``__reduce__`` resolves back to the module :data:`MISSING`, so
+    ``x is MISSING`` stays true across a pickle/deepcopy boundary (corpus
+    caching). Otherwise identical to ``object()``: opaque, truthy, hashable.
+    """
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return "MISSING"
+
+    def __reduce__(self) -> tuple[Any, tuple[()]]:
+        return (_load_missing, ())
+
+
+def _load_missing() -> _MissingType:
+    """Resolve to the one module-level :data:`MISSING` on unpickle/deepcopy."""
+    return MISSING
+
+
 # Sentinel default for an absent optional field. Typed ``Any`` so the generated
 # code can use it as the default of any precisely-typed field without a type
 # error, while ``to_dict`` filters it out by identity.
-MISSING: Any = object()
+MISSING: Any = _MissingType()
 
 
 @dataclass(frozen=True)
