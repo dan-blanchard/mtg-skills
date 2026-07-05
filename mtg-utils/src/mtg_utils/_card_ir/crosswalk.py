@@ -84,6 +84,11 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "GiveControl": "give_control",  # donate (the exclusion direction)
     "Attach": "attach",  # voltron_makers (attach-other gear)
     "SearchLibrary": "tutor",  # type/subtype tutor (artifacts/voltron)
+    # ADR-0036 tutor Tier-1 fold: Teacher's Pet's bespoke Augment-combine
+    # search is phase's own library search, just under a card-specific tag
+    # rather than the generic SearchLibrary (no target_player variant exists
+    # for it — always a self search, CR 701.23).
+    "ChooseAugmentAndCombineWithHost": "tutor",
     "Investigate": "investigate",  # clue_makers (CR 701.16a) → also artifacts
     "GainEnergy": "gain_energy",  # energy_makers (CR 107.14)
     # Batch 4 (ADR-0035 Stage 2):

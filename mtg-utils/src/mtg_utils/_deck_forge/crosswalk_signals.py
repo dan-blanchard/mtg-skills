@@ -191,6 +191,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_spellcast,
+    has_structural_tutor,
     has_structural_untap_engine,
     has_trigger_draw_bleed,
     has_value_tap_ability,
@@ -241,7 +242,6 @@ from mtg_utils._deck_forge._signals_regex import (
     _EVERGREEN_CK,
     _MELD_FULLTEXT_RE,
     _REPEATABLE_KILL_RE,
-    TUTOR_MATTERS_REGEX,
     Signal,
     _detect_token_maker,
     _resolve_subject,
@@ -8459,19 +8459,42 @@ def _removal(tree: ConceptTree) -> list[Signal]:
 
 
 def _tutor_lane(tree: ConceptTree) -> list[Signal]:
-    """tutor (§3) — CR 701.23/701.23a: kept-mirror-ONLY (verdict RE-CONFIRMED
-    against v0.9.0): the pinned ``TUTOR_MATTERS_REGEX`` flat over the
-    reminder-stripped oracle. Phase keeps a ``SearchLibrary`` effect for
-    EVERY search — opponent (Bribery carries ``target_player``), symmetric,
-    composite-zone, reminder-cycle (landcycling still parses to
-    SearchLibrary) — so raw structural ≫ live; the your-library +
-    reminder-stripping precision lives in the regex. The
-    ``SearchLibrary``-without-target_player structural read stays a
-    LOGGED-adds-only candidate (PARITY-BEFORE-VETO), not ported. Scope
-    "you", HIGH.
+    """tutor (§3) — CR 701.23/701.23a: your-library search (Demonic Tutor,
+    Vampiric Tutor). A pure Tier-1 read (ADR-0036/0037 fold — the
+    ``TUTOR_MATTERS_REGEX`` kept-word mirror is RETIRED):
+
+    * **Structural (bucket-A):** :func:`has_structural_tutor` — a self
+      ``SearchLibrary``/Augment-combine search, minus the opponent-directed
+      / compensation-search / symmetric-ability / Cycling-reminder over-
+      fires phase's ``SearchLibrary`` node carries for EVERY search
+      (Bribery, Path to Exile, Weird Harvest, landcycling).
+    * **bucket-B veto (ADR-0037):** the ``synth_tutor_directed`` node — a
+      directed/symmetric search phase's structure carries NO typed marker
+      for at all (Head Games, Rootwater Thief, Oath of Lieges, Scheming
+      Symmetry — only the reminder-stripped "that/target player's library"
+      / "their library" wording reveals it). The arm never fires on a card
+      that ALSO says "your library" anywhere (Demolition Field pairs a
+      genuine self clause with an unrelated opponent compensation clause),
+      so the veto never suppresses a confirmed self search.
+    * **bucket-B rescue (ADR-0037):** the ``synth_tutor`` node — a
+      description-only self-tutor phase's ``SearchLibrary`` never
+      structurally reaches at all (an emblem-granted future search — Kaito
+      Shizuki, Garruk Unleashed, Tezzeret Artifice Master; a vote/dice-
+      table/repeat-for per-outcome body — Travel Through Caradhras,
+      Treasure Chest; a bare ``Unimplemented`` effect — Rampant Growth,
+      Mr. Wiggles, "Ach! Hans, Run!"; a self clause paired with an
+      unrelated directed sibling — Demolition Field, Tempt with Discovery,
+      I Call on the Ancient Magics).
+
+    Scope "you", HIGH.
     """
-    if TUTOR_MATTERS_REGEX.search(_kept(tree)):
+    if any(c.concept == "synth_tutor_directed" for c in tree.iter_concepts()):
+        return []
+    if has_structural_tutor(tree):
         return [Signal("tutor", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_tutor":
+            return [Signal("tutor", "you", "", "", tree.name, "high")]
     return []
 
 

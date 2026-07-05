@@ -125,6 +125,7 @@ __all__ = [
     "has_self_etb_value",
     "has_selfloss_engine",
     "has_structural_spellcast",
+    "has_structural_tutor",
     "has_structural_untap_engine",
     "has_trigger_draw_bleed",
     "has_value_tap_ability",
@@ -1889,6 +1890,215 @@ def _arm_untap_engine(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arm: tutor bucket-B (ADR-0036/0037 fold) ──────────────────────────────────
+# tutor (CR 701.23/701.23a): a deliberate YOUR-library search (Demonic Tutor,
+# Vampiric Tutor). phase keeps a ``SearchLibrary`` node for EVERY search --
+# opponent (Bribery's ``target_player``), a compensation search resolving
+# through a removed permanent's controller (Path to Exile, Assassin's Trophy --
+# ``ParentTargetController`` / ``ParentObjectTargetController``), symmetric
+# ("each player searches" -- an ability-level ``player_scope`` of All/Opponent),
+# and a Cycling/Landcycling/Typecycling reminder-granted search (the keyword's
+# reminder text expands to its own ``Activated`` unit tagged
+# ``ability_tag=Cycling`` -- a keyword reminder is not a deliberate tutor).
+# :func:`has_structural_tutor` reads all four exclusions off typed fields --
+# the entire Tier-1 structural read, shared verbatim by the ``tutor`` lane and
+# this stage's two gap gates (no drift).
+_TUTOR_DIRECTED_PLAYER_TAGS = frozenset(
+    {
+        "ParentTarget",
+        "Player",
+        "Target",
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "TriggeringPlayer",
+        "ScopedPlayer",
+        "ParentTargetController",
+        "ParentObjectTargetController",
+    }
+)
+_TUTOR_NON_SELF_ABILITY_SCOPE = frozenset(
+    {
+        "All",
+        "AllExcept",
+        "EachPlayer",
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "ParentTargetController",
+        "ParentObjectTargetController",
+    }
+)
+_TUTOR_SIBLING_RECIPIENT_CONCEPTS = frozenset(
+    {"gain_life", "lose_life", "draw", "discard"}
+)
+# A bespoke non-SearchLibrary effect tag phase uses for a still-genuine own-
+# library search (Teacher's Pet's Augment-combine); mapped to concept "tutor"
+# in the crosswalk (crosswalk.EFFECT_CONCEPTS) alongside SearchLibrary.
+_TUTOR_EFFECT_TAGS = frozenset({"SearchLibrary", "ChooseAugmentAndCombineWithHost"})
+
+
+def _tutor_ability_body(unit: AbilityUnit) -> TypedMirrorNode | None:
+    """The execute-shaped ability body carrying ``ability_tag`` /
+    ``player_scope`` -- a trigger/replacement unit wraps its real ability body
+    one level down in ``.execute`` (``AbilityUnit.node`` is the OUTER trigger/
+    replacement wrapper for those origins); an ``ability``-origin unit's own
+    node already IS that body."""
+    if unit.origin in ("trigger", "replacement"):
+        ex = getattr(unit.node, "execute", MISSING)
+        return ex if isinstance(ex, TypedMirrorNode) else None
+    return unit.node
+
+
+def _unit_is_self_tutor(unit: AbilityUnit) -> bool | None:
+    """Whether THIS unit's tutor concept(s) search YOUR OWN library (CR
+    701.23a), or ``None`` if the unit carries no tutor concept at all.
+
+    Four vetoes, all typed: (1) a Cycling/Landcycling/Typecycling reminder-
+    granted search (``ability_tag``); (2) a symmetric/opponent-scoped ability
+    (``player_scope`` on the execute body -- Old-Growth Dryads' ``Opponent``,
+    Weird Harvest's ``All``); (3) a sibling gain_life/lose_life/draw/discard
+    effect in the SAME unit naming another player (Restorative Technique's
+    "target player gains 2 life, then searches their library" -- the search
+    itself carries no recipient, inheriting the preceding effect's); (4) the
+    search's own ``target_player`` (absent/You/Controller = self; Player/
+    Target/Opponent(s)/TriggeringPlayer/ScopedPlayer/ParentTarget(Controller)
+    = directed). A unit MAY carry more than one SearchLibrary (Sadistic
+    Sacrament's directed find-and-exile chains a second, recipient-less
+    SearchLibrary for "the rest") -- if ANY search in the unit is directed,
+    the WHOLE unit is (they share one targeted-player action chain)."""
+    tutors = [
+        c
+        for c in unit.effects
+        if c.concept == "tutor" and tag_of(c.node) in _TUTOR_EFFECT_TAGS
+    ]
+    if not tutors:
+        return None
+    body = _tutor_ability_body(unit)
+    if tag_of(getattr(body, "ability_tag", None)) == "Cycling":
+        return False
+    ps_tag = tag_of(getattr(body, "player_scope", None)) if body else None
+    if ps_tag in _TUTOR_NON_SELF_ABILITY_SCOPE:
+        return False
+    for c in unit.effects:
+        if c.concept in _TUTOR_SIBLING_RECIPIENT_CONCEPTS and (
+            explicit_recipient_scope(c.node) in ("opponents", "each", "any")
+        ):
+            return False
+    saw_self = False
+    for c in tutors:
+        tp = getattr(c.node, "target_player", MISSING)
+        if tp is MISSING or tp is None:
+            saw_self = True
+            continue
+        t = tag_of(tp)
+        if t in _TUTOR_DIRECTED_PLAYER_TAGS:
+            return False
+        if t == "Typed":
+            if getattr(tp, "controller", None) in ("You", "Controller"):
+                saw_self = True
+            else:
+                return False
+            continue
+        # unknown target_player shape -- never guess either way for THIS node
+    return saw_self or None
+
+
+def has_structural_tutor(tree: ConceptTree) -> bool:
+    """A deliberate self search-your-library tutor (CR 701.23/701.23a) --
+    shared by the ``tutor`` lane (its entire Tier-1 structural read) AND this
+    stage's two gap gates. See :func:`_unit_is_self_tutor`."""
+    return any(_unit_is_self_tutor(unit) for unit in tree.units)
+
+
+# The directed/symmetric text idiom phase's structure sometimes omits
+# entirely (Head Games, Rootwater Thief, Oath of Lieges, Scheming Symmetry,
+# Deceptive Divination, Sphinx Ambassador, Thada Adel, Sadistic Sacrament's
+# second search -- no target_player, no player_scope, no sibling recipient:
+# NOTHING typed marks the direction). A genuine self-tutor always says
+# "search YOUR library" (CR 701.23a); a directed/symmetric one says "search
+# THAT/TARGET player's/opponent's library" or "search THEIR/HIS OR HER
+# library" -- the veto idiom below. Read whole-card (the historical mirror's
+# own grain) WITH an escape hatch: a card that ALSO says "your library"
+# ANYWHERE is never vetoed -- Demolition Field ("that land's controller may
+# search their library... You may search YOUR library..."), Tempt with
+# Discovery, and I Call on the Ancient Magics all pair a genuine self clause
+# with an unrelated opponent/symmetric compensation clause on the SAME card;
+# the confirmed self clause must stand regardless. Applies as a VETO to BOTH
+# the structural read above and the rescue arm below, so it is its own synth
+# node the lane checks, not folded into ``has_structural_tutor`` (which stays
+# 100%-typed, no oracle text, so the gap-gate-sharing rule holds clean).
+_TUTOR_DIRECTED_TEXT_RE = re.compile(
+    r"search(?:es)?\s+(?:that|target)\s+(?:player|opponent)(?:'s|s')?\s+library"
+    r"|search(?:es)?\s+(?:their|his or her)\s+library",
+    re.IGNORECASE,
+)
+_TUTOR_OWN_LIBRARY_CONFIRM_RE = re.compile(r"your library", re.IGNORECASE)
+
+
+def _matches_tutor_directed_idiom(oracle: str) -> bool:
+    kept = _REMINDER.sub(" ", oracle or "")
+    if _TUTOR_OWN_LIBRARY_CONFIRM_RE.search(kept):
+        return False
+    return bool(_TUTOR_DIRECTED_TEXT_RE.search(kept))
+
+
+def _arm_tutor_directed(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a veto marker when the reminder-stripped oracle reveals a
+    SearchLibrary directed at ANOTHER player or symmetric across players --
+    the residual phase leaves with no typed direction marker at all."""
+    if not any(
+        c.concept == "tutor" and tag_of(c.node) in _TUTOR_EFFECT_TAGS
+        for c in tree.iter_concepts()
+    ):
+        return None
+    if not _matches_tutor_directed_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="tutor_directed",
+        concept="synth_tutor_directed",
+        scope="opponents",
+        subject=(),
+        desc="bucket-B tutor directed/symmetric veto (no typed direction marker)",
+    )
+
+
+# The own-library idiom -- byte-identical to the deleted TUTOR_MATTERS_REGEX
+# (over the reminder-stripped whole-card oracle): a description-only self-
+# tutor phase's SearchLibrary can't structurally reach at all -- an emblem-
+# granted future search whose granted-ability text phase leaves an
+# unstructured string (Kaito Shizuki, Nissa Who Shakes the World, Garruk
+# Unleashed, Tezzeret Artifice Master, Garruk Caller of Beasts); a vote/dice-
+# table/repeat-for per-outcome body phase parses only as ``Unimplemented``
+# (Travel Through Caradhras, Clarion Ultimatum, Treasure Chest's d20 table);
+# or a bare top-level ``Unimplemented`` effect (Rampant Growth, Mr. Wiggles,
+# "Ach! Hans, Run!", Archmage Ascension's replacement).
+_TUTOR_OWN_LIBRARY_RE = re.compile(
+    r"search your library for (?:a|an|up to|one|two|three|x|that)",
+    re.IGNORECASE,
+)
+
+
+def _arm_tutor(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``tutor`` node for the description-only bucket-B tail
+    phase's SearchLibrary structure doesn't reach at all -- gap-gated by
+    ``has_structural_tutor`` (never double-counts a card Tier-1 already
+    reads) and the directed-idiom veto (SYNTH-EXCLUSION-PARITY)."""
+    if has_structural_tutor(tree):
+        return None
+    if _matches_tutor_directed_idiom(tree.oracle or ""):
+        return None
+    if not _TUTOR_OWN_LIBRARY_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="tutor",
+        concept="synth_tutor",
+        scope="you",
+        subject=(),
+        desc="bucket-B tutor (phase emits no reachable SearchLibrary node)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -1907,6 +2117,8 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("wants_cloning", _arm_wants_cloning),
     ("mass_death_payoff", _arm_mass_death_payoff),
     ("untap_engine", _arm_untap_engine),
+    ("tutor_directed", _arm_tutor_directed),
+    ("tutor", _arm_tutor),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

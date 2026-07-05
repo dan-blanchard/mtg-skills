@@ -38,6 +38,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_spellcast,
+    has_structural_tutor,
     has_structural_untap_engine,
     has_trigger_draw_bleed,
     has_value_tap_ability,
@@ -1334,3 +1335,101 @@ def test_untap_engine_lane_reads_synth_node_end_to_end():
     )
     sigs = _untap_engine(tree)
     assert any(s.key == "untap_engine" for s in sigs)
+
+
+# ── tutor fold (ADR-0036/0037) ─────────────────────────────────────────────────
+
+
+def _tutor_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _tutor_lane
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "tutor" for s in _tutor_lane(tree))
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Demonic Tutor",  # direct SearchLibrary, no target_player -- self
+        "Muddle the Mixture",  # Transmute keyword self search -- recovered
+    ],
+)
+def test_tutor_bucket_a_structural(name):
+    tree = _fixture_tree(name)
+    assert has_structural_tutor(tree) is True
+    assert _tutor_fires(name) is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Kaito Shizuki",  # emblem-granted future search, unstructured text
+        "Rampant, Growth",  # bare Unimplemented top-level effect
+        "Demolition Field",  # self search alongside a directed sibling search
+        # -- no target_player marker at all on the "you may search" node
+        # (the same phase gap as the plain rescue cases), rescued by the
+        # own-library idiom; the directed-veto's "your library" escape
+        # hatch keeps the sibling directed search from suppressing it.
+    ],
+)
+def test_tutor_bucket_b_synth(name):
+    tree = _fixture_tree(name)
+    assert has_structural_tutor(tree) is False  # genuine gap
+    from mtg_utils._card_ir.tree_synthesis import _arm_tutor
+
+    node = _arm_tutor(tree)
+    assert node is not None
+    assert node.concept == "synth_tutor"
+    assert node.scope == "you"
+    assert _tutor_fires(name) is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Bribery",  # opponent's library (target_player carries Opponent)
+        "Path to Exile",  # compensation search -- ParentTargetController
+        "Ash Barrens",  # Typecycling-reminder land search, ability_tag=Cycling
+        "Sadistic Sacrament",  # directed search, no typed direction marker
+    ],
+)
+def test_tutor_shed_overfires(name):
+    tree = _fixture_tree(name)
+    assert has_structural_tutor(tree) is False
+    assert _tutor_fires(name) is False
+
+
+def test_tutor_synth_registered():
+    assert "tutor" in SYNTHESIS_ARM_IDS
+    assert "tutor_directed" in SYNTHESIS_ARM_IDS
+
+
+def test_tutor_lane_reads_synth_node_end_to_end():
+    """Fold path, mirror-independent: a synth ``synth_tutor`` node ALONE --
+    oracle carrying no tutor idiom -- makes the ``_tutor_lane`` lane emit the
+    signal (proves the synth read is the ACTIVE Tier-1 source)."""
+    from mtg_utils._deck_forge.crosswalk_signals import _tutor_lane
+
+    synth = ConceptNode(
+        concept="synth_tutor",
+        node=SynthesizedNode(arm_id="tutor", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _tutor_lane(tree)
+    assert any(s.key == "tutor" for s in sigs)
