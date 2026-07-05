@@ -970,3 +970,106 @@ def test_type_matters_lane_reads_synth_node_end_to_end():
     )
     subs = {s.subject for s in _type_matters_lane(tree) if s.key == "type_matters"}
     assert subs == {"Goblin", "Elf"}
+
+
+# ── mass_death_payoff synth arm + Tier-1 fold (ADR-0036/0037) ─────────────────
+# The AGGREGATE board-wipe payoff (CR 700.4): a value/effect scaling with the
+# NUMBER of creatures that died this turn. Bucket-A reads the died-count in an
+# effect AMOUNT position (:func:`mass_death_amount`); the cost-reduction /
+# Unimplemented tail is a bucket-B synth. The morbid single-death conditional ("if
+# a creature died this turn" — Bone Picker, Tragic Slip) carries the SAME count in
+# a comparison operand and is death_matters, NOT this lane — the amount-vs-condition
+# boundary the fold must preserve.
+
+
+def _mass_death_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _mass_death_payoff
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "mass_death_payoff" for s in _mass_death_payoff(tree))
+
+
+def test_mass_death_synth_registered():
+    assert "mass_death_payoff" in SYNTHESIS_ARM_IDS
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Gadrak, the Crown-Scourge",  # bucket-A: Token.count amount read
+        "Body Count",  # bucket-A add: Draw.count "died under your control this turn"
+        "Blood for the Blood God!",  # bucket-B synth: cost-reduction (operand dropped)
+        "Tobias, Doomed Conqueror",  # bucket-B synth: Unimplemented tail
+    ],
+)
+def test_mass_death_lane_fires_on_recovered_members(name):
+    assert _mass_death_fires(name)
+
+
+@pytest.mark.parametrize("name", ["Bone Picker", "Tragic Slip"])
+def test_mass_death_lane_sheds_morbid_conditional(name):
+    # The morbid single-death conditional is death_matters, not mass_death: the
+    # died-count sits in a comparison operand, never an effect amount.
+    assert not _mass_death_fires(name)
+
+
+@pytest.mark.parametrize("name", ["Gadrak, the Crown-Scourge", "Body Count"])
+def test_mass_death_amount_reads_aggregate_and_gates_synth(name):
+    # The amount arm fires structurally AND suppresses the synth (the gap gate calls
+    # the SAME predicate the lane fires on — no double-count, no drift).
+    from mtg_utils._card_ir.tree_synthesis import mass_death_amount
+
+    base = _fixture_tree(name)
+    assert mass_death_amount(base) is True
+    synth = apply_tree_synthesis(base)
+    assert not any(
+        c.concept == "synth_mass_death_payoff" for c in synth.iter_concepts()
+    )
+
+
+@pytest.mark.parametrize("name", ["Bone Picker", "Tragic Slip"])
+def test_mass_death_amount_excludes_comparison_operand(name):
+    # A creatures-died count in a comparison ``lhs`` (morbid CONDITION) is NOT an
+    # amount — the boundary that keeps the lane off death_matters cards.
+    from mtg_utils._card_ir.tree_synthesis import mass_death_amount
+
+    assert mass_death_amount(_fixture_tree(name)) is False
+
+
+@pytest.mark.parametrize(
+    "name", ["Blood for the Blood God!", "Tobias, Doomed Conqueror"]
+)
+def test_mass_death_synth_fires_on_bucket_b(name):
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    assert any(c.concept == "synth_mass_death_payoff" for c in tree.iter_concepts())
+
+
+def test_mass_death_lane_reads_synth_node_end_to_end():
+    """Fold path, mirror-independent: a synth ``synth_mass_death_payoff`` node ALONE
+    — oracle carrying no aggregate idiom — makes the ``_mass_death_payoff`` lane
+    emit the signal (proves the synth read is the ACTIVE Tier-1 source)."""
+    from mtg_utils._deck_forge.crosswalk_signals import _mass_death_payoff
+
+    synth = ConceptNode(
+        concept="synth_mass_death_payoff",
+        node=SynthesizedNode(arm_id="mass_death_payoff", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _mass_death_payoff(tree)
+    assert any(s.key == "mass_death_payoff" for s in sigs)

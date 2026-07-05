@@ -38,6 +38,7 @@ input-side convergence check retires it when phase begins parsing the clause
 
 from __future__ import annotations
 
+import dataclasses
 import re
 from collections.abc import Callable, Iterator
 from dataclasses import replace
@@ -75,6 +76,15 @@ from mtg_utils._card_ir.crosswalk import (
     zone_change_count_reads,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirrorNode
+
+# The AGGREGATE mass-death regex (the ``for each`` / ``number of`` … ``died this
+# turn`` scaling shape, tight-anchored so it already excludes the morbid ``if a
+# creature died`` conditional) is relocated to projection-time (ADR-0037) via the
+# ``_arm_mass_death_payoff`` synth. Imported from the projection module — one source;
+# project.py also reads it for its own Seam-B ``mass_death`` marker (an independent
+# path this fold does not touch). No cycle: project.py imports neither this module
+# nor crosswalk_signals.
+from mtg_utils._card_ir.project import _MASS_DEATH_REF
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_regex import (
     _detect_keyword_implied_tribe,
@@ -113,6 +123,7 @@ __all__ = [
     "has_trigger_draw_bleed",
     "has_value_tap_ability",
     "is_clone_value_effect",
+    "mass_death_amount",
     "structural_type_subjects",
     "synthesize_nodes",
 ]
@@ -438,6 +449,116 @@ def _arm_death_matters(tree: ConceptTree) -> ConceptNode | None:
         scope="any",
         subject=("Creature",),
         desc="bucket-B death payoff (phase emits no typed death node)",
+    )
+
+
+# ── mass_death_payoff structural read (ADR-0036 fold — shared lane/gate source) ─
+# CR 700.4 amount-vs-condition boundary. mass_death_payoff is the AGGREGATE
+# board-wipe payoff — a value/effect that SCALES with the NUMBER of creatures that
+# died this turn ("a Treasure for each nontoken creature that died this turn" —
+# Gadrak / Mahadi; "draw a card for each creature that died under your control this
+# turn" — Body Count; "connive X, where X is the number of creatures that died" —
+# Spymaster's Vault). phase emits that count as a ``ZoneChangeCountThisTurn`` (from
+# Battlefield, to Graveyard, creature/permanent filter) wrapped in a ``Ref`` held
+# in an effect AMOUNT field (``Token.count`` / ``Draw.count`` / ``PutCounter.count``
+# / ``GainLife.amount`` / ``Connive.count`` / ``Quantity.value`` / ``Multiply.inner``
+# / ``repeat_for`` — the SCALING position).
+#
+# The MORBID single-death conditional ("if a creature died this turn" — Bone Picker,
+# Tragic Slip, the Zubera / Festerhide threshold payoffs) emits the SAME count node
+# but in a COMPARISON operand (the ``lhs`` of ``QuantityComparison`` /
+# ``QuantityCheck`` / ``OnlyIfQuantity``) — that is death_matters (the morbid CONDITION,
+# read there via :func:`creature_death_condition`), NOT this lane. Discriminating on
+# the HOLDING FIELD partitions the ~94 corpus carriers cleanly: 34 amount (aggregate
+# payoff), ~60 comparison (morbid) — a naive tag-only read over-fires on the morbid.
+# Shared by the ``_mass_death_payoff`` lane (its Tier-1 arm) and this stage's synth
+# gap gate — one source, no drift (the gap-gate-alignment invariant).
+
+# A creatures-died count in a COMPARISON operand is the morbid CONDITION, not an
+# amount; every other field the Ref sits in is a SCALING amount.
+_DIED_COUNT_COMPARISON_FIELDS = frozenset({"lhs", "rhs"})
+
+
+def _is_creature_died_count(n: object) -> bool:
+    """A ``ZoneChangeCountThisTurn`` counting creatures that died this turn.
+
+    from Battlefield, to Graveyard, filter naming Creature / Permanent (CR 700.4 —
+    only creatures die; a permanent-scoped Gravestorm count rides the same node).
+    """
+    return (
+        tag_of(n) == "ZoneChangeCountThisTurn"
+        and getattr(n, "from_", None) == "Battlefield"
+        and getattr(n, "to", None) == "Graveyard"
+        and _filter_is_creature_death(getattr(n, "filter", None))
+    )
+
+
+def _amount_died_count_under(root: object) -> bool:
+    """Whether a creatures-died count sits in an effect AMOUNT position under root.
+
+    A ``Ref`` whose ``qty`` is a creatures-died count (:func:`_is_creature_died_count`)
+    held in a field that is NOT a comparison operand
+    (:data:`_DIED_COUNT_COMPARISON_FIELDS`) — the SCALING position that makes the
+    lane an aggregate payoff rather than a morbid condition.
+    """
+
+    def walk(v: object) -> bool:
+        if isinstance(v, TypedMirrorNode):
+            for f in dataclasses.fields(v):
+                fv = getattr(v, f.name, MISSING)
+                if (
+                    isinstance(fv, TypedMirrorNode)
+                    and tag_of(fv) == "Ref"
+                    and f.name not in _DIED_COUNT_COMPARISON_FIELDS
+                    and _is_creature_died_count(getattr(fv, "qty", None))
+                ):
+                    return True
+                if walk(fv):
+                    return True
+            return False
+        if isinstance(v, MirrorVariant):
+            return walk(v.inner)
+        if isinstance(v, (list, tuple)):
+            return any(walk(x) for x in v)
+        if isinstance(v, dict):
+            return any(walk(x) for x in v.values())
+        return False
+
+    return walk(root)
+
+
+def mass_death_amount(tree: ConceptTree) -> bool:
+    """Whether phase carries the creatures-died count in an effect AMOUNT position.
+
+    The aggregate board-wipe payoff (CR 700.4). Shared by the ``_mass_death_payoff``
+    lane (as its structural Tier-1 arm) and this stage's synth gap gate so the two
+    agree on which cards phase structuralizes — one source, no drift.
+    """
+    return any(_amount_died_count_under(unit.node) for unit in tree.units)
+
+
+def _arm_mass_death_payoff(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``mass_death_payoff`` node for the bucket-B aggregate tail.
+
+    phase drops the ``died this turn`` count OPERAND for the cost-reduction form
+    ("this spell costs {N} less to cast for each creature that died this turn" —
+    Blood for the Blood God!, Death-Rattle Oni, Diregraf Rebirth) and the
+    Unimplemented tail (Tobias). This arm relocates the AGGREGATE regex to
+    projection-time, gated on :func:`mass_death_amount` (the SAME predicate the lane
+    fires on — SYNTH-EXCLUSION-PARITY: the tight ``for each`` / ``number of`` anchor
+    already excludes the morbid conditional, and the gate suppresses the synth wherever
+    phase already emits the amount, so it fires ONLY on genuine-gap cards). CR 700.4.
+    """
+    if mass_death_amount(tree):
+        return None
+    if not _MASS_DEATH_REF.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="mass_death_payoff",
+        concept="synth_mass_death_payoff",
+        scope="you",
+        subject=(),
+        desc="bucket-B aggregate death payoff (phase drops the died-count operand)",
     )
 
 
@@ -1426,6 +1547,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("spellcast_matters", _arm_spellcast_matters),
     ("type_matters", _arm_type_matters),
     ("wants_cloning", _arm_wants_cloning),
+    ("mass_death_payoff", _arm_mass_death_payoff),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

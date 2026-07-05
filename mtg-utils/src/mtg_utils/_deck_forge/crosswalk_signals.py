@@ -154,7 +154,6 @@ from mtg_utils._card_ir.project import (
     _CRIME_REF,
     _EXHAUST_TRIG,
     _LIB_SEARCH_PLAYER_ACTIONS,
-    _MASS_DEATH_REF,
     _PAY_LIFE_REF,
     _SINGLE_PERMANENT_GRANT_PREDS,
     _SOULBOND_REF,
@@ -194,6 +193,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_spellcast,
     has_trigger_draw_bleed,
     has_value_tap_ability,
+    mass_death_amount,
     structural_type_subjects,
 )
 from mtg_utils._deck_forge import signal_keys
@@ -8822,20 +8822,35 @@ def _activated_ability(tree: ConceptTree) -> list[Signal]:
 
 
 def _mass_death_payoff(tree: ConceptTree) -> list[Signal]:
-    """mass_death_payoff (§15) — CR 700.4: the AGGREGATE board-wipe payoff
-    ("for each creature that died this turn" — Gadrak), NOT the single-death
-    morbid conditional (death_matters — Bone Picker, Skirsdag; checklist
-    #4). The imported ``_MASS_DEATH_REF`` per-clause (the ``[^.]*`` span is
-    clause-local) — exact parity by construction (the live marker IS this
-    regex over face text). **Structural is a trap (probed):** the typed
-    ``ZoneChangeCountThisTurn`` operand carries 99 corpus cards, ~80 of them
-    morbid CONDITIONALS — an amount-position read stays a LOGGED assist
-    (bucket-A-adjacent: preserve-from-node possible later). Scope "you",
-    HIGH.
+    """mass_death_payoff (§15) — CR 700.4: the AGGREGATE board-wipe payoff. Tier-1.
+
+    A value/effect that SCALES with the NUMBER of creatures that died this turn
+    ("a Treasure for each nontoken creature that died this turn" — Gadrak / Mahadi,
+    "draw a card for each creature that died under your control this turn" — Body
+    Count, "connive X, where X is the number of creatures that died" — Spymaster's
+    Vault). DISTINCT from the single-death morbid conditional ("if a creature died
+    this turn" — Bone Picker, Tragic Slip), which is death_matters (checklist #4).
+
+    Two structural arms, zero oracle text / regex at lane time (ADR-0036 fold — the
+    ``_MASS_DEATH_REF`` mirror over ``_kept`` is deleted):
+
+    * :func:`mass_death_amount` — phase carries the creatures-died
+      ``ZoneChangeCountThisTurn`` in an effect AMOUNT position (a ``Ref.qty`` in a
+      ``count`` / ``amount`` / ``value`` field, NEVER a comparison ``lhs`` / ``rhs``).
+      The comparison position is the morbid CONDITION — death_matters reads it via
+      ``creature_death_condition``; this lane reads only the AMOUNT position, so the
+      amount-vs-condition boundary partitions the two lanes cleanly.
+    * the ``tree_synthesis`` bucket-B synth node (:data:`synth_mass_death_payoff`) —
+      the cost-reduction ("costs {N} less … for each creature that died this turn")
+      and Unimplemented tail phase drops the operand for.
+
+    Scope "you", HIGH.
     """
-    for cl in clauses(_kept(tree)):
-        if _MASS_DEATH_REF.search(cl):
-            return [Signal("mass_death_payoff", "you", "", cl, tree.name, "high")]
+    if mass_death_amount(tree):
+        return [Signal("mass_death_payoff", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_mass_death_payoff":
+            return [Signal("mass_death_payoff", "you", "", "", tree.name, "high")]
     return []
 
 
