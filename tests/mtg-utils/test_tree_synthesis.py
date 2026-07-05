@@ -23,8 +23,14 @@ from mtg_utils._card_ir._substrate_purity import (
 from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode, ConceptTree
 from mtg_utils._card_ir.tree_synthesis import (
     SYNTHESIS_ARM_IDS,
+    _has_structural_lifegain,
     _is_creature_death_subject,
     apply_tree_synthesis,
+    has_gain_life_amplifier,
+    has_life_gained_this_turn,
+    has_life_gained_trigger,
+    has_selfloss_engine,
+    has_trigger_draw_bleed,
     synthesize_nodes,
 )
 
@@ -223,6 +229,7 @@ def test_synthesized_node_is_tag_inert_and_provenance():
 def test_synthesis_arm_ids_registered():
     assert "death_matters" in SYNTHESIS_ARM_IDS
     assert "attack_matters" in SYNTHESIS_ARM_IDS
+    assert "lifegain_matters" in SYNTHESIS_ARM_IDS
 
 
 # ── attack_matters synth arm (ADR-0036 fold) ──────────────────────────────────
@@ -372,3 +379,165 @@ def test_death_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _death_matters(tree)
     assert any(s.key == "death_matters" for s in sigs)
+
+
+# ── lifegain_matters synth arm + Tier-1 fold (ADR-0036/0037) ──────────────────
+
+
+def test_lifegain_synth_fires_on_whenever_you_gain_gap():
+    tree = _gap_tree("Whenever you gain life, put a +1/+1 counter on this creature.")
+    fired = synthesize_nodes(tree)
+    assert [arm for arm, _ in fired] == ["lifegain_matters"]
+    _arm, node = fired[0]
+    assert node.concept == "synth_lifegain_matters"
+    assert isinstance(node.node, SynthesizedNode)
+    assert node.node.arm_id == "lifegain_matters"
+    assert node.scope == "you"
+
+
+def test_lifegain_synth_fires_on_gain_or_lose():
+    # Moonstone Harbinger / Wax-Wane Witness — the combined "gain OR lose life"
+    # trigger is still a your-lifegain payoff (triggers when you gain).
+    tree = _gap_tree(
+        "Whenever you gain or lose life during your turn, this creature gets +1/+0."
+    )
+    assert [a for a, _ in synthesize_nodes(tree)] == ["lifegain_matters"]
+
+
+def test_lifegain_synth_fires_on_gained_this_turn_text():
+    # Regna / Licia / Shanna — phase folds "gained life this turn" into untyped text.
+    tree = _gap_tree(
+        "At the beginning of each end step, if your team gained life this turn, "
+        "create two 1/1 white Warrior creature tokens."
+    )
+    assert [a for a, _ in synthesize_nodes(tree)] == ["lifegain_matters"]
+
+
+def test_lifegain_synth_noops_on_pure_source():
+    # CR 119: "whenever ~ dies, you gain 1 life" is a lifegain SOURCE (makers), not
+    # a payoff — the word order is not "whenever YOU gain life" (the death arm may
+    # still fire on the dies clause; the LIFEGAIN arm must not).
+    tree = _gap_tree("Whenever a creature dies, you gain 1 life.")
+    assert "lifegain_matters" not in [a for a, _ in synthesize_nodes(tree)]
+
+
+def test_lifegain_synth_noops_on_opponent_gain():
+    # A hoser that watches an OPPONENT's lifegain is a different lane.
+    tree = _gap_tree("Whenever an opponent gains life, that player loses 2 life.")
+    assert "lifegain_matters" not in [a for a, _ in synthesize_nodes(tree)]
+
+
+def test_lifegain_synth_noops_on_no_idiom():
+    tree = _gap_tree("Draw two cards. Each player loses 2 life.")
+    assert synthesize_nodes(tree) == ()
+    assert apply_tree_synthesis(tree) is tree
+
+
+@pytest.mark.parametrize(
+    ("name", "pred"),
+    [
+        ("Archangel of Thune", has_life_gained_trigger),  # arm a
+        ("Taborax, Hope's Demise", has_trigger_draw_bleed),  # arm b (dies)
+        ("Phyrexian Arena", has_trigger_draw_bleed),  # arm b (upkeep — added)
+        (
+            "Kothophed, Soul Hoarder",
+            has_trigger_draw_bleed,
+        ),  # arm b (other — recovered)
+        (
+            "Nikara, Lair Scavenger",
+            has_trigger_draw_bleed,
+        ),  # arm b (leaves — recovered)
+        ("Xathrid Demon", has_selfloss_engine),  # arm c
+        ("Accomplished Alchemist", has_life_gained_this_turn),  # arm d
+        ("Voracious Wurm", has_life_gained_this_turn),  # arm d (mirror-missed add)
+        ("Alhammarret's Archive", has_gain_life_amplifier),  # arm e
+    ],
+)
+def test_lifegain_structural_arms_fire_and_suppress_synth(name, pred):
+    # Each structural arm reads a typed node, so the synth gap gate no-ops (the
+    # gap-gate-alignment: _has_structural_lifegain calls these SAME predicates).
+    tree = _fixture_tree(name)
+    assert pred(tree) is True
+    assert _has_structural_lifegain(tree) is True
+    assert synthesize_nodes(tree) == ()
+    assert apply_tree_synthesis(tree) is tree
+
+
+@pytest.mark.parametrize(
+    "name", ["Sunbond", "Moonstone Harbinger", "Regna, the Redeemer"]
+)
+def test_lifegain_synth_fires_on_fixture_bucket_b(name):
+    # Granted / description-only lifegain payoffs phase emits no typed node for.
+    tree = _fixture_tree(name)
+    assert _has_structural_lifegain(tree) is False
+    assert [a for a, _ in synthesize_nodes(tree)] == ["lifegain_matters"]
+
+
+def test_lifegain_matters_lane_reads_synth_node_end_to_end():
+    """The fold path, mirror-independent: a synth ``lifegain_matters`` node ALONE —
+    oracle carrying no lifegain idiom — makes ``_lifegain_matters`` emit the signal.
+    Proves the synth read is the ACTIVE Tier-1 source once the mirror is deleted.
+    """
+    from mtg_utils._deck_forge.crosswalk_signals import _lifegain_matters
+
+    synth_cnode = ConceptNode(
+        concept="synth_lifegain_matters",
+        node=SynthesizedNode(arm_id="lifegain_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth_cnode,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _lifegain_matters(tree)
+    assert any(s.key == "lifegain_matters" for s in sigs)
+
+
+@pytest.mark.parametrize("name", ["Blood Artist", "Caustic Hound"])
+def test_lifegain_over_fires_are_shed(name):
+    """CR 119 over-fire shed (the mirror's cross-clause false positives): a pure
+    lifegain SOURCE (Blood Artist — "whenever a creature dies, you gain 1 life") is
+    ``lifegain_makers``, NOT ``lifegain_matters``; a symmetric each-player-loses
+    drain (Caustic Hound) is neither. The rewritten Tier-1 lane emits no
+    ``lifegain_matters`` for either.
+    """
+    from mtg_utils._deck_forge.crosswalk_signals import _lifegain_matters
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    assert not any(s.key == "lifegain_matters" for s in _lifegain_matters(tree))
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Kothophed, Soul Hoarder",  # trigger event "other" (permanent → graveyard)
+        "Nikara, Lair Scavenger",  # trigger event "leaves"
+        "Phyrexian Arena",  # trigger event "upkeep"
+    ],
+)
+def test_lifegain_broadened_draw_bleed_recovered(name):
+    """ADR-0036 recall-completion: a triggered draw-and-self-bleed engine on a
+    NON-dies event (Kothophed "other" / Nikara "leaves" / Phyrexian Arena "upkeep")
+    is the SAME repeated card-flow engine the dies-only read missed. The broadened
+    :func:`has_trigger_draw_bleed` reads it Tier-1, so the lane fires and the synth
+    gap gate no-ops (no double count).
+    """
+    from mtg_utils._deck_forge.crosswalk_signals import _lifegain_matters
+
+    tree = _fixture_tree(name)
+    assert has_trigger_draw_bleed(tree) is True
+    assert _has_structural_lifegain(tree) is True
+    assert synthesize_nodes(tree) == ()
+    assert any(s.key == "lifegain_matters" for s in _lifegain_matters(tree))

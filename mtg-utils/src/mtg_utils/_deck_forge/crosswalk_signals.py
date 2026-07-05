@@ -181,6 +181,11 @@ from mtg_utils._card_ir.tree_synthesis import (
     attack_raid_condition,
     creature_death_condition,
     has_attack_trigger,
+    has_gain_life_amplifier,
+    has_life_gained_this_turn,
+    has_life_gained_trigger,
+    has_selfloss_engine,
+    has_trigger_draw_bleed,
 )
 from mtg_utils._deck_forge import signal_keys
 
@@ -200,7 +205,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _FLOOR_DETECTORS,
     _IR_FLOOR_LANES,
     _KEYWORD_COUNTER_KINDS,
-    _LIFEGAIN_MATTERS_MIRROR,
     _NAMED_COUNTER_KINDS,
     _OPP_COUNTER_BENEFICIAL,
     _POWER_MATTERS_MIRROR,
@@ -1569,49 +1573,45 @@ def _is_you_sac_subject(c: object, *, cost: bool) -> bool:
     )
 
 
-def _is_upkeep_unit(unit: object) -> bool:
-    """Whether ``unit`` is a beginning-of-upkeep trigger (recurring bleed gate)."""
-    return getattr(getattr(unit, "node", None), "phase", None) == "Upkeep"
-
-
 def _lifegain_matters(tree: ConceptTree) -> list[Signal]:
-    """A life-gain payoff / significant self-life-loss engine (CR 119.3).
+    """A your-lifegain PAYOFF / significant self-life-loss engine (CR 119). Tier-1.
 
-    Mirrors ``_signals_ir`` trigger ~10417 + draw-bleed ~10430 + self-loss ~7883.
-    Three structural inputs: (a) a ``life_gained`` trigger (Archangel of Thune);
-    (b) a ``dies`` trigger whose SAME ability carries BOTH a ``draw`` AND a self
-    ``lose_life`` (the Necropotence draw-for-life engine — Taborax); (c) a
-    significant self-life-LOSS engine — a ``lose_life`` effect with EXPLICIT self
-    recipient that SCALES (dynamic amount — Dark Confidant) OR a recurring upkeep
-    bleed ≥ 2 (Xathrid Demon). A one-shot fixed "you lose 2 life" rider is NOT an
-    engine (excluded). Scope "you".
+    Five structural arms + the bucket-B synth node, zero oracle text / regex at lane
+    time (ADR-0036/0037 fold — the ``_LIFEGAIN_MATTERS_MIRROR`` is deleted). All
+    scope "you"; the shared predicates live in ``tree_synthesis`` so the lane and the
+    synth gap gate read ONE source (gap-gate-alignment, no drift):
+
+    * a native ``life_gained`` trigger (:func:`has_life_gained_trigger` — Archangel
+      of Thune, Ajani's Pridemate).
+    * a triggered draw-and-self-bleed engine (:func:`has_trigger_draw_bleed` — the
+      Phyrexian Arena / Necropotence idiom, Taborax, Kothophed; ANY trigger event,
+      the recall-completion of the mirror's dies/leaves/graveyard-only draw-bleed).
+    * a significant recurring self-life-LOSS engine (:func:`has_selfloss_engine` —
+      scaling amount / big upkeep bleed, Xathrid Demon).
+    * a "life gained this turn" typed operand/gate (:func:`has_life_gained_this_turn`
+      — Accomplished Alchemist, Angelic Accord; bucket-A the mirror missed on
+      Voracious Wurm).
+    * a CR-614 gain-life REPLACEMENT amplifier (:func:`has_gain_life_amplifier` —
+      Alhammarret's Archive, Boon Reflection; bucket-A).
+    * the ``tree_synthesis`` bucket-B synth node — the description-only / granted
+      "whenever you gain (or lose) life" trigger + "gained life this turn" text-only
+      gate phase emits no typed node for.
+
+    A pure lifegain SOURCE ("whenever ~ dies, you gain 1 life" — Blood Artist) is
+    ``lifegain_makers``, not this lane; a loose lose-life / pay-life clause and an
+    opponent-lifegain hoser are shed (the mirror's cross-clause over-fires).
     """
-    for unit in tree.units:
-        if unit.trigger_event == "life_gained":
-            return [Signal("lifegain_matters", "you", "", "", tree.name, "high")]
-    for unit in tree.units:
-        if unit.trigger_event == "dies" and unit.has_effect("draw"):
-            for c in unit.effect_concepts("lose_life"):
-                if explicit_recipient_scope(c.node) == "you":
-                    return [
-                        Signal("lifegain_matters", "you", "", "", tree.name, "high")
-                    ]
-    for unit in tree.units:
-        for c in unit.effect_concepts("lose_life"):
-            if explicit_recipient_scope(c.node) != "you":
-                continue
-            if amount_is_scaling(c.node) or (
-                _is_upkeep_unit(unit) and amount_factor(c.node) >= 2
-            ):
-                return [Signal("lifegain_matters", "you", "", c.raw, tree.name, "high")]
-    # recall-completion b1 (ADR-0035 backstop): the "gained life this turn" CONDITION
-    # + variable "life you gained this turn" scaler (Aerith, Accomplished Alchemist,
-    # Aetherflux Reservoir), and the "if you would gain life, you gain twice"
-    # amplifier/replacement (Alhammarret's Archive, Boon Reflection) — phase carries
-    # no this-turn-tracker / gain-life-replacement node. Byte-identical
-    # ``_LIFEGAIN_MATTERS_MIRROR`` over the reminder-stripped face oracle, scope "you".
-    if _LIFEGAIN_MATTERS_MIRROR.search(_kept(tree)):
+    if (
+        has_life_gained_trigger(tree)
+        or has_trigger_draw_bleed(tree)
+        or has_selfloss_engine(tree)
+        or has_life_gained_this_turn(tree)
+        or has_gain_life_amplifier(tree)
+    ):
         return [Signal("lifegain_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_lifegain_matters":
+            return [Signal("lifegain_matters", "you", "", "", tree.name, "high")]
     return []
 
 

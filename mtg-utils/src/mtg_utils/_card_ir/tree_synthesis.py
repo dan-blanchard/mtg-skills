@@ -51,12 +51,16 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    amount_factor,
+    amount_is_scaling,
     condition_tags,
     count_operand_filter,
     effect_filter,
+    explicit_recipient_scope,
     filter_controller,
     filter_predicates,
     iter_typed_nodes,
+    replacement_event_tag,
     tag_of,
     trigger_subject,
     zone_change_count_reads,
@@ -75,6 +79,11 @@ __all__ = [
     "creature_death_condition",
     "has_attack_trigger",
     "has_attacking_you_effect",
+    "has_gain_life_amplifier",
+    "has_life_gained_this_turn",
+    "has_life_gained_trigger",
+    "has_selfloss_engine",
+    "has_trigger_draw_bleed",
     "synthesize_nodes",
 ]
 
@@ -484,6 +493,194 @@ def _arm_attack_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── lifegain_matters structural reads (ADR-0036 fold — shared lane/gate source) ──
+# The Tier-1 ``_lifegain_matters`` lane fires ``lifegain_matters`` on these five
+# typed reads; this stage's gap gate (:func:`_has_structural_lifegain`) reads the
+# SAME predicates so the lane and the synth never disagree on which cards phase
+# structuralizes (the gap-gate-alignment invariant — one source, no drift). The
+# lane is a YOUR-lifegain PAYOFF / significant self-life-loss engine (CR 119.3): a
+# pure lifegain SOURCE ("whenever ~ dies, you gain 1 life" — Blood Artist) is
+# ``lifegain_makers``, not this lane, and a bare lose-life / pay-life clause and an
+# opponent-lifegain hoser are shed (a different lane).
+
+_LIFE_GAINED_THIS_TURN_TAGS: frozenset[str] = frozenset(
+    {"LifeGainedThisTurn", "YouGainedLifeThisTurn"}
+)
+
+
+def has_life_gained_trigger(tree: ConceptTree) -> bool:
+    """A native ``life_gained`` trigger — "whenever you gain life" (CR 603.2).
+
+    Archangel of Thune, Ajani's Pridemate, Well of Lost Dreams. The direct
+    structural payoff; a conferred/granted one (inside a static-granted ability,
+    phase drops the inner trigger — Sunbond) reaches the bucket-B synth instead.
+    """
+    return any(u.trigger_event == "life_gained" for u in tree.units)
+
+
+def has_trigger_draw_bleed(tree: ConceptTree) -> bool:
+    """A triggered draw-and-self-bleed engine (the Phyrexian Arena / Necropotence
+    idiom — CR 119.3).
+
+    ANY triggered ability whose SAME ability carries BOTH a ``draw`` AND an explicit-
+    self ``lose_life``: the card pays life to draw, so it wants lifegain to sustain
+    the bleed. The trigger EVENT is not restricted — an upkeep bleed (Phyrexian
+    Arena), an attack bleed (Audacious Thief), a creature-death bleed (Taborax), and
+    a general permanent-to-graveyard bleed whose event phase types ``other``
+    (Kothophed) or ``leaves`` (Nikara) are the SAME repeated card-flow engine, so all
+    fire. Gating on a *trigger* (not a one-shot spell/activated effect) keeps it to a
+    recurring engine; the ``draw`` gate keeps it to card-flow (a bare "you lose 2
+    life" rider is not a draw-bleed). Broadened from the original dies-only gate to
+    recover the event-``other`` / non-dies engines the death-only read missed
+    (ADR-0036 recall-completion).
+    """
+    for unit in tree.units:
+        if not unit.trigger_event or not unit.has_effect("draw"):
+            continue
+        for c in unit.effect_concepts("lose_life"):
+            if explicit_recipient_scope(c.node) == "you":
+                return True
+    return False
+
+
+def has_selfloss_engine(tree: ConceptTree) -> bool:
+    """A significant recurring self-life-LOSS engine (CR 119.3 — wants lifegain).
+
+    An explicit-self ``lose_life`` that SCALES (dynamic amount — Dark Confidant) OR
+    a beginning-of-upkeep bleed with factor >= 2 (Xathrid Demon). A one-shot fixed
+    "you lose 2 life" rider is NOT an engine (excluded — the mirror's broader loose
+    lose-life / pay-life / symmetric-drain matches are shed as over-fires).
+    """
+    for unit in tree.units:
+        for c in unit.effect_concepts("lose_life"):
+            if explicit_recipient_scope(c.node) != "you":
+                continue
+            up = getattr(getattr(unit, "node", None), "phase", None) == "Upkeep"
+            if amount_is_scaling(c.node) or (up and amount_factor(c.node) >= 2):
+                return True
+    return False
+
+
+def has_life_gained_this_turn(tree: ConceptTree) -> bool:
+    """A "life gained this turn" typed operand / gate (bucket-A — CR 119).
+
+    The ``LifeGainedThisTurn`` dynamic-amount / condition node (Accomplished
+    Alchemist's mana scaler, Angelic Accord's "if you gained 4 or more life this
+    turn" gate, Crested Sunmare) — a payoff that references HOW MUCH life you gained
+    this turn, analogous to death's morbid ``ZoneChangeCountThisTurn``. A genuine
+    your-lifegain payoff the ``life_gained`` trigger arm does not see.
+    """
+    return any(
+        tag_of(n) in _LIFE_GAINED_THIS_TURN_TAGS
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
+def _replacement_exec_type(node: object) -> str | None:
+    """The type of a replacement unit's executed effect (``execute.effect.type``)."""
+    d = node.to_dict() if isinstance(node, TypedMirrorNode) else {}
+    ex = d.get("execute") if isinstance(d, dict) else None
+    eff = ex.get("effect") if isinstance(ex, dict) else None
+    return eff.get("type") if isinstance(eff, dict) else None
+
+
+def has_gain_life_amplifier(tree: ConceptTree) -> bool:
+    """A CR-614 gain-life REPLACEMENT amplifier (bucket-A — "if you would gain life").
+
+    An ``origin == "replacement"`` unit whose replaced event is ``GainLife`` and
+    whose executed effect re-emits a gain (``GainLife`` — the "twice that much" /
+    "that much plus 1" amplifiers: Alhammarret's Archive, Boon Reflection, Angel of
+    Vitality, Rhox Faithmender) or converts it (``Draw`` — Lich, "draw that many
+    cards instead"). A ``LoseLife`` execute (Tainted Remedy / Rain of Gore — "if an
+    OPPONENT would gain life, they lose that much") is an anti-lifegain hoser on a
+    DIFFERENT lane, and a ``None`` / unimplemented execute (Sulfuric Vortex "can't
+    gain life", Flames of the Blood Hand "gain no life") is a hoser too — both
+    excluded by the execute gate.
+    """
+    for unit in tree.units:
+        if (
+            unit.origin == "replacement"
+            and replacement_event_tag(unit.node) == "GainLife"
+            and _replacement_exec_type(unit.node) in ("GainLife", "Draw")
+        ):
+            return True
+    return False
+
+
+def _has_structural_lifegain(tree: ConceptTree) -> bool:
+    """Whether phase ALREADY carries a typed node the Tier-1 lifegain reads see.
+
+    The synth arm fills only a genuine gap, so it no-ops when any structural
+    lifegain evidence the lane fires on exists — the SAME five predicates the lane
+    reads (:func:`has_life_gained_trigger` / :func:`has_trigger_draw_bleed` /
+    :func:`has_selfloss_engine` / :func:`has_life_gained_this_turn` /
+    :func:`has_gain_life_amplifier`), so the gate and the lane never disagree.
+    """
+    return (
+        has_life_gained_trigger(tree)
+        or has_trigger_draw_bleed(tree)
+        or has_selfloss_engine(tree)
+        or has_life_gained_this_turn(tree)
+        or has_gain_life_amplifier(tree)
+    )
+
+
+# ── arm: lifegain_matters bucket-B (ADR-0036 fold) ────────────────────────────
+# The your-lifegain payoff (CR 119) has a bucket-B tail phase emits NO typed
+# lifegain node for: a "whenever you gain life" trigger left description-only or
+# inside a granted/quoted ability ("Enchanted creature has 'whenever you gain
+# life, …'" — Sunbond, Light of Promise; emblem payoffs — Ajani, Strength of the
+# Pride) — including the "gain OR lose life" combined trigger (Moonstone Harbinger,
+# Wax-Wane Witness) — and the "gained life this turn" gate / "life you gained"
+# scaler phase folds into untyped text without a ``LifeGainedThisTurn`` node (Regna,
+# Licia, Shanna, Case of the Uneaten Feast). Read PER-CLAUSE (reminder-stripped) so
+# a match is confined to ONE clause — the cross-clause false-positive class the
+# mirror carried. The "you gain / you've gained" anchoring keeps it YOUR lifegain:
+# "whenever a PLAYER gains life" (False Cure hoser) and "whenever an OPPONENT gains
+# life" (Punishing Fire) never match.
+_LIFEGAIN_WHENEVER_RX = re.compile(
+    r"whenever you gain(?: or lose)? life", re.IGNORECASE
+)
+_LIFEGAIN_GAINED_RX = re.compile(
+    r"(?:you|your team)(?:'ve| have)? gained[^.]*life|life you gained",
+    re.IGNORECASE,
+)
+
+
+def _matches_lifegain_idiom(oracle: str) -> bool:
+    """Whether a reminder-stripped oracle carries a bucket-B lifegain payoff idiom.
+
+    Per-clause: a your-side "whenever you gain (or lose) life" trigger, or a "you('ve)
+    gained … life" / "life you gained" this-turn gate/scaler. CR 119.
+    """
+    for cl in clauses(_REMINDER.sub(" ", oracle or "")):
+        if _LIFEGAIN_WHENEVER_RX.search(cl) or _LIFEGAIN_GAINED_RX.search(cl):
+            return True
+    return False
+
+
+def _arm_lifegain_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``lifegain_matters`` node for a description-only lifegain payoff.
+
+    CR 119: fires only when phase carries no typed lifegain node
+    (:func:`_has_structural_lifegain`) and the oracle carries a genuine your-side
+    lifegain idiom (:func:`_matches_lifegain_idiom`). Scope "you" (the lane's forced
+    scope for this your-lifegain payoff).
+    """
+    if _has_structural_lifegain(tree):
+        return None
+    if not _matches_lifegain_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="lifegain_matters",
+        concept="synth_lifegain_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B lifegain payoff (phase emits no typed lifegain node)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -494,6 +691,7 @@ _Arm = Callable[[ConceptTree], "ConceptNode | None"]
 _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("death_matters", _arm_death_matters),
     ("attack_matters", _arm_attack_matters),
+    ("lifegain_matters", _arm_lifegain_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
