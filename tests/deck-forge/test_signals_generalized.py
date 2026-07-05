@@ -1251,12 +1251,21 @@ def test_self_recurring_commander_opens_voltron():
 
 def test_creatures_are_lands_is_not_untap_engine():
     # Ashaya's nontoken creatures ARE Forest lands (a pure CR 205.1a type-change);
-    # Ashaya's own ability untaps nothing itself, so it is lands_matter /
-    # land_creatures_matter synergy, NOT a genuine untap_engine member (ADR-0036
-    # Stage 5 fold adjudication — the deleted mirror's inclusion of Ashaya was a
-    # false positive; shed, not recovered).
+    # Ashaya's own ability untaps nothing itself, so the crosswalk fold sheds it as
+    # lands_matter / land_creatures_matter synergy, NOT a genuine untap_engine
+    # member (ADR-0036 Stage 5 — the deleted mirror's Ashaya inclusion was a false
+    # positive). The pure-regex path never had a creatures-are-lands untap detector,
+    # so it sheds Ashaya at both flag states. The crosswalk (flag-ON) sheds it too;
+    # the legacy flag-OFF IR path keeps the byte-identical _UNTAP_ENGINE_MIRROR_LANDS
+    # mirror, so it still fires there (the intended flag-OFF invariance).
+    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
+
     assert "untap_engine" not in _keys_real_regex("Ashaya, Soul of the Wild")
-    assert "untap_engine" not in _keys_real("Ashaya, Soul of the Wild")
+    keys = _keys_real("Ashaya, Soul of the Wild")
+    if crosswalk_enabled():
+        assert "untap_engine" not in keys
+    else:
+        assert "untap_engine" in keys
 
 
 def test_rampage_keyword_opens_blocked_matters():
