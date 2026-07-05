@@ -9764,10 +9764,8 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 _ARCANE_RX = re.compile(r"\barcane\b", re.IGNORECASE)
 _CELEBRATION_RX = re.compile(r"\bcelebration\b", re.IGNORECASE)
 _EXALTED_TEXT_RX = re.compile(r"attacks alone|\bexalted\b", re.IGNORECASE)
-_FLIP_SELF_RX = re.compile(r"\bflip this creature\b", re.IGNORECASE)
 _ISLAND_MAKERS_RX = re.compile(ISLAND_MAKERS_REGEX, re.IGNORECASE)
 _NONCOMBAT_DAMAGE_RX = re.compile(NONCOMBAT_DAMAGE_PAYOFF_REGEX, re.IGNORECASE)
-_PAGE_STUDY_RX = re.compile(r"\b(?:page|study) counters?\b", re.IGNORECASE)
 _PER_TARGET_RX = re.compile(
     r"less (?:to cast )?for each (?:of those )?target", re.IGNORECASE
 )
@@ -9955,16 +9953,27 @@ def _exalted_textual(tree: ConceptTree) -> list[Signal]:
 
 def _flip_self(tree: ConceptTree) -> list[Signal]:
     """flip_self (§7) — CR 710.1/710.2 (flip cards; live cite CORRECT): the
-    coined "flip this creature" phrase on exactly the Kamigawa flip fronts
-    (Nezumi Graverobber, Bushi Tenderfoot). Akki Lavarunner ("flip it") /
-    Erayo ("flip Erayo") defeat the anchor — pop-verified False, the
-    documented live wording GAP. [P48] LOGGED: phase parses every flip to a
-    self-identifying ``Unimplemented{name=='flip'}`` node — a typed read
-    would close the gap uniformly; parity port = the mirror (7/7). Scope
-    "you", HIGH.
+    Kamigawa flip fronts (Nezumi Graverobber, Bushi Tenderfoot). Tier-1
+    structural (ADR-0036 mirror fold): phase parses every creature-flip to a
+    self-identifying ``Unimplemented{name=='flip'}`` node — read it directly,
+    a superset of the ``\\bflip this creature\\b`` mirror that uniformly closes
+    the documented Akki Lavarunner ("flip it") / Erayo ("flip Erayo") /
+    Rune-Tail ("flip Rune-Tail") wording gap (+10 real Kamigawa flips). Gate:
+    a coin-flip card's "flip again" is ALSO an ``Unimplemented{name=='flip'}``
+    (Game of Chaos) — a card carrying a ``FlipCoin`` node is coin-flip
+    recursion, not a creature-flip, and is excluded (CR 705). Scope "you",
+    HIGH.
     """
-    if _FLIP_SELF_RX.search(_kept(tree)):
-        return [Signal("flip_self", "you", "", "", tree.name, "high")]
+    if any(
+        tag_of(n) == "FlipCoin"
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+    ):
+        return []
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "flip":
+                return [Signal("flip_self", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -10099,10 +10108,12 @@ def _named_counter_misc(tree: ConceptTree) -> list[Signal]:
     (a) EFFECT arm — a role=effect place/remove of a kind in the CLOSED
     12-kind ``_NAMED_COUNTER_KINDS`` set (imported; deliberately POSITIVE —
     time/lore/charge own their own mechanics, a negative catch-all floods).
-    Tetzimoc's ``PutCounter{counter_type: 'prey'}``. **Cost-role gate:** the
-    arm reads role=effect only — Mazemind Tome's page PutCounter rides an
-    ``EffectCost`` (COST role), so it must fire via the MIRROR, not here
-    (the live role separation; a double-home would drift the shadow diff).
+    Tetzimoc's ``PutCounter{counter_type: 'prey'}``. **Cost-role arm** (Tier-1
+    structural, ADR-0036 mirror fold): Mazemind Tome's page ``PutCounter``
+    rides an ``EffectCost`` (COST role) — the effect arm reads role=effect
+    only, so a second scan digs each cost-role concept's subtree for a
+    named-counter ``PutCounter``/``RemoveCounter`` (v0.9.0+ carries the kind
+    inside the activation cost), replacing the flat page/study text mirror.
     (b) PREDICATE arm — the broad catch-all is CORRECT on the payoff side
     (niche≠skip): a "WITH an X counter" predicate whose live-normalized
     kind token (:func:`_counter_kind_token` — the projection's own
@@ -10125,15 +10136,30 @@ def _named_counter_misc(tree: ConceptTree) -> list[Signal]:
     restriction modes (Rimescale Dragon / Temporal Distortion CantUntap) —
     while the dropped-static families stay out (Omo's AddAllLandTypes,
     Eluge's ModifyCost scaler — pop-verified False). Bomb Squad's fuse
-    predicate rides (i).
-    (c) the flat 2-word page/study mirror residue (Mazemind Tome, Pursuit
-    of Knowledge — the cost/replacement FOLD tail). LOGGED widen: v0.9.0
-    now carries the kind INSIDE the activation cost (a cost-role PutCounter
-    read candidate). All scope "you", HIGH.
+    predicate rides (i). All scope "you", HIGH. (Pursuit of Knowledge's
+    study counter is an effect-role placement caught by arm (a); Mazemind
+    Tome's page cost is caught by the cost-role arm — the page/study text
+    mirror is retired.)
     """
     for concept in ("place_counter", "remove_counter"):
         for c in tree.effect_concepts(concept):
             if counter_kind_any(c.node).lower() in _NAMED_COUNTER_KINDS:
+                return [
+                    Signal("named_counter_misc", "you", "", c.raw, tree.name, "high")
+                ]
+    # Tier-1 structural (ADR-0036 mirror fold): the page/study COST-role fold
+    # (Mazemind Tome's page ``PutCounter`` rides an ``EffectCost``; arm (a)
+    # reads role=effect only). v0.9.0+ carries the counter kind INSIDE the
+    # activation cost, so dig the cost subtrees for a named-counter
+    # ``PutCounter``/``RemoveCounter`` — replaces the flat page/study text
+    # mirror (Pursuit of Knowledge already rides arm (a)'s effect-role study).
+    for c in tree.iter_concepts():
+        if c.role != "cost":
+            continue
+        for n in iter_typed_nodes(c.node):
+            if tag_of(n) in ("PutCounter", "RemoveCounter") and (
+                counter_kind_any(n).lower() in _NAMED_COUNTER_KINDS
+            ):
                 return [
                     Signal("named_counter_misc", "you", "", c.raw, tree.name, "high")
                 ]
@@ -10172,8 +10198,6 @@ def _named_counter_misc(tree: ConceptTree) -> list[Signal]:
         mode = getattr(unit.node, "mode", None)
         if (tags & _B16_STATIC_KEPT_MODS) or (isinstance(mode, str) and not tags):
             return [Signal("named_counter_misc", "you", "", "", tree.name, "high")]
-    if _PAGE_STUDY_RX.search(_kept(tree)):
-        return [Signal("named_counter_misc", "you", "", "", tree.name, "high")]
     return []
 
 

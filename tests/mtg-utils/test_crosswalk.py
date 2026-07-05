@@ -4855,16 +4855,18 @@ def test_exalted_keyword_and_textual_arms_emit_voltron_pair():
     assert "exalted_lone_attacker" not in _keys("Silverblade Paladin")
 
 
-def test_flip_self_mirror_and_wording_gap():
-    """CR 710.1/710.2 (flip cards): the coined "flip this creature" phrase
-    fires the Kamigawa flip fronts (Nezumi Graverobber, Bushi Tenderfoot).
-    Akki Lavarunner's "flip it" wording defeats the anchor — pop False,
-    pinning parity AND documenting the [P48] Unimplemented{name=='flip'}
-    typed-read widen candidate (phase parses all flips to the same
-    self-identifying Unimplemented node)."""
+def test_flip_self_structural_closes_wording_gap():
+    """CR 710.1/710.2 (flip cards): the flip_self lane reads the typed
+    ``Unimplemented{name=='flip'}`` node phase parses every creature-flip to
+    (ADR-0036 mirror fold). Fires the Kamigawa flip fronts (Nezumi
+    Graverobber, Bushi Tenderfoot) AND uniformly closes the old
+    ``\\bflip this creature\\b`` mirror's wording gap — Akki Lavarunner
+    ("flip it") now fires where the text anchor missed it."""
     assert ("flip_self", "you", "") in _idents("Nezumi Graverobber")
     assert ("flip_self", "you", "") in _idents("Bushi Tenderfoot")
-    assert "flip_self" not in _keys("Akki Lavarunner")
+    # Gap closed: the structural read is a superset of the "flip this
+    # creature" mirror (Akki's "flip it" wording defeated the text anchor).
+    assert ("flip_self", "you", "") in _idents("Akki Lavarunner")
 
 
 def test_free_creature_payoff_etb_gate():
@@ -4935,10 +4937,11 @@ def test_named_counter_misc_three_arms_and_cost_role_gate():
     """CR 122.1 (counters are individuated by NAME): (1) the closed-12-kind
     effect arm (Tetzimoc — PutCounter ck='prey'); (2) the predicate
     else-branch catch-all ("with a fuse counter" — Bomb Squad; niche≠skip);
-    (3) the page/study mirror residue (Mazemind Tome — the parity trap: its
-    PutCounter rides the activation COST (EffectCost), so the effect arm must
-    NOT fire; the MIRROR is the home). 'time' owns suspend/vanishing (CR
-    702.62 family) and stays out (Deep-Sea Kraken)."""
+    (3) the cost-role arm (Mazemind Tome — its page PutCounter rides the
+    activation COST (EffectCost), so the effect arm skips it and the
+    structural cost-subtree scan is the home; ADR-0036 mirror fold). 'time'
+    owns suspend/vanishing (CR 702.62 family) and stays out (Deep-Sea
+    Kraken)."""
     assert ("named_counter_misc", "you", "") in _idents("Tetzimoc, Primal Death")
     assert ("named_counter_misc", "you", "") in _idents("Mazemind Tome")
     assert ("named_counter_misc", "you", "") in _idents("Bomb Squad")
