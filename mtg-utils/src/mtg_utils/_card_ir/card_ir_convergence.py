@@ -54,6 +54,7 @@ from mtg_utils._card_ir.dropped_clauses import (
     synthesize_with_trace,
 )
 from mtg_utils._card_ir.mirror import MirrorDriftError, strict_load_card
+from mtg_utils._card_ir.tree_synthesis import SYNTHESIS_ARM_IDS, synthesize_nodes
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -110,6 +111,58 @@ def scan_arm_firings(
     return firings, len(seen)
 
 
+def scan_synthesis_firings(
+    phase_records: Iterable[dict],
+    bulk_index: dict[str, dict],
+    schema: MirrorSchema,
+    *,
+    commander_only: bool = True,
+) -> tuple[dict[str, int], int]:
+    """``(firings, scanned)``: firing count per ADR-0037 ``tree_synthesis`` arm.
+
+    Parallel to :func:`scan_arm_firings` for the bucket-B synthesis arms: joins
+    each phase record to the bulk by ``oracle_id``, strict-loads it, builds the
+    concept tree, and tallies which arms synthesize a node
+    (:func:`tree_synthesis.synthesize_nodes`). An arm firing on 0 cards has
+    CONVERGED (phase now parses its clause, so the arm's gap gate trips).
+    """
+    firings: dict[str, int] = dict.fromkeys(SYNTHESIS_ARM_IDS, 0)
+    seen: set[str] = set()
+    for rec in phase_records:
+        oid = rec.get("scryfall_oracle_id")
+        if not oid or oid in seen:
+            continue
+        bulk = bulk_index.get(oid)
+        if bulk is None:
+            continue
+        if (
+            commander_only
+            and (bulk.get("legalities") or {}).get("commander") != "legal"
+        ):
+            continue
+        try:
+            root = strict_load_card(rec, schema, name=rec.get("name"))
+        except MirrorDriftError:
+            continue
+        if root is None:
+            continue
+        seen.add(oid)
+        tree = build_concept_tree(
+            root, name=bulk.get("name", rec.get("name", "")), oracle_id=oid
+        )
+        for arm_id, _node in synthesize_nodes(tree):
+            firings[arm_id] = firings.get(arm_id, 0) + 1
+    return firings, len(seen)
+
+
+def synthesis_verdicts(firings: dict[str, int]) -> dict[str, str]:
+    """``{arm: LIVE|CONVERGED}`` for the ``tree_synthesis`` arms (0 firings = done)."""
+    return {
+        arm: (CONVERGED if firings.get(arm, 0) == 0 else LIVE)
+        for arm in SYNTHESIS_ARM_IDS
+    }
+
+
 def convergence_verdicts(firings: dict[str, int]) -> dict[str, str]:
     """``{arm: LIVE|CONVERGED}`` — CONVERGED when the arm fires on 0 corpus cards."""
     return {arm: (CONVERGED if firings.get(arm, 0) == 0 else LIVE) for arm in ARM_NAMES}
@@ -139,6 +192,36 @@ def render_report(firings: dict[str, int], scanned: int) -> str:
             "These arms fire on NO corpus card: phase now parses the clause "
             "(the mirror-built card already carries the structure), so the "
             "synthesis is dead. Retire them from `dropped_clauses.SYNTHESIS_ARMS`.",
+            "",
+        ]
+        lines += [f"- {a}" for a in converged]
+    return "\n".join(lines)
+
+
+def render_synthesis_report(firings: dict[str, int], scanned: int) -> str:
+    """Markdown digest for the ADR-0037 ``tree_synthesis`` arms."""
+    verdicts = synthesis_verdicts(firings)
+    converged = [a for a in SYNTHESIS_ARM_IDS if verdicts[a] == CONVERGED]
+    lines = [
+        "# Tree-synthesis convergence check (ADR-0037)",
+        "",
+        f"Scanned **{scanned}** unique commander-legal cards. "
+        f"Synthesis arms: {len(SYNTHESIS_ARM_IDS)}; converged (retire-ready): "
+        f"{len(converged)}.",
+        "",
+        "| arm | firings | verdict |",
+        "| --- | ---: | --- |",
+    ]
+    for arm in sorted(SYNTHESIS_ARM_IDS, key=lambda a: firings.get(a, 0), reverse=True):
+        lines.append(f"| {arm} | {firings.get(arm, 0)} | {verdicts[arm]} |")
+    if converged:
+        lines += [
+            "",
+            "## CONVERGED — retire-ready at this pin",
+            "",
+            "These arms synthesize on NO corpus card: phase now parses the clause, "
+            "so the arm's gap gate trips everywhere. Retire them from "
+            "`tree_synthesis._ARMS`.",
             "",
         ]
         lines += [f"- {a}" for a in converged]
@@ -190,6 +273,9 @@ def main(argv: list[str] | None = None) -> int:
     firings, scanned = scan_arm_firings(
         phase_records, bulk_index, schema, commander_only=not args.all
     )
+    syn_firings, syn_scanned = scan_synthesis_firings(
+        phase_records, bulk_index, schema, commander_only=not args.all
+    )
     if args.json:
         print(
             json.dumps(
@@ -197,12 +283,19 @@ def main(argv: list[str] | None = None) -> int:
                     "scanned": scanned,
                     "firings": firings,
                     "verdicts": convergence_verdicts(firings),
+                    "synthesis": {
+                        "scanned": syn_scanned,
+                        "firings": syn_firings,
+                        "verdicts": synthesis_verdicts(syn_firings),
+                    },
                 },
                 indent=2,
             )
         )
     else:
         print(render_report(firings, scanned=scanned))
+        print()
+        print(render_synthesis_report(syn_firings, scanned=syn_scanned))
     return 0
 
 

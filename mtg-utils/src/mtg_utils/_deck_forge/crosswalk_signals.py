@@ -1258,6 +1258,17 @@ def _death_matters(tree: ConceptTree) -> list[Signal]:
     creature filter (the ``Or[SelfRef, Typed Creature]`` surfaces ``Creature`` past
     the self arm). Scope = the watched object's controller (Blood Artist → "any",
     Grave Pact → "you", Massacre Wurm → "opponents").
+
+    ADR-0037: the ``_DEATH_MATTERS_MIRROR`` morbid/condition backstop is RETAINED
+    (the full Tier-1 fold is a deferred blocker — see the ADR-0037 stage report),
+    and a ``synth_death_matters`` node from the ``tree_synthesis`` stage is read as
+    a THIRD source. The synth read is a strict SUBSET of the mirror (its "another
+    creature dies" gap idioms all satisfy the mirror's ``whenever``&``dies``
+    substring branch), so ``add()`` dedups it and the whole lane stays
+    byte-for-byte behavior-neutral — the synth path is EXERCISED end-to-end (stage
+    synthesizes → lane reads) while the mirror still backstops the tail. When the
+    Tier-1 fold lands, the mirror is deleted and this synth read carries the
+    bucket-B tail alone.
     """
     out: list[Signal] = []
     for unit in tree.units:
@@ -1300,6 +1311,12 @@ def _death_matters(tree: ConceptTree) -> list[Signal]:
         for cl in clauses(_kept(tree))
     ):
         out.append(Signal("death_matters", "any", "", "", tree.name, "high"))
+    # ADR-0037 bucket-B: the tree_synthesis stage's synthesized death nodes, read
+    # as a third source. A strict subset of the mirror above (deduped by add()), so
+    # the lane is behavior-neutral; this EXERCISES the synth path end-to-end.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_death_matters":
+            out.append(Signal("death_matters", "any", "", "", tree.name, "high"))
     return out
 
 
@@ -11284,8 +11301,14 @@ def extract_crosswalk_signals(
     # (substrate-purity invariant). Flag-ON path only — the flag-OFF projection
     # never reaches this function.
     from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
+    from mtg_utils._card_ir.tree_synthesis import apply_tree_synthesis
 
     tree = apply_overlay_corrections(tree)
+    # ADR-0037: ADD synthetic concept-nodes for genuine phase-parse (bucket-B) gaps
+    # the lanes read structurally (death_matters' Syr Konrad-family tail). Signal
+    # path ONLY — never in compat_card, so the Seam-B consumers + flag-OFF are
+    # invariant. Preserves the phase L1 fingerprint (substrate-purity, relaxed).
+    tree = apply_tree_synthesis(tree)
     out: list[Signal] = []
     seen: set[tuple[str, str, str]] = set()
 
