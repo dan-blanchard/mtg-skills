@@ -30076,25 +30076,6 @@
         "tr": {
          "ev": "begin_combat"
         }
-       },
-       {
-        "e": [
-         {
-          "cat": "single_target_grant",
-          "ck": "haste",
-          "raw": "gain haste",
-          "sub": {
-           "p": [
-            "EquippedBy",
-            "SingleTarget"
-           ],
-           "t": [
-            "Creature"
-           ]
-          }
-         }
-        ],
-        "k": "static"
        }
       ],
       "n": "Helm of the Host",
@@ -30958,8 +30939,20 @@
           }
          },
          {
-          "cat": "force_attack",
-          "raw": "At the beginning of combat on your turn, create a 1/1 red Goblin creature token. That token attacks this combat if able."
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "make_token",
+          "raw": "At the beginning of combat on your turn, create a 1/1 red Goblin creature token. That token attacks this combat if able.",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Goblin"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
          }
         ],
         "k": "triggered",
@@ -69632,7 +69625,7 @@
    }
   }
  },
- "phase_tag": "v0.15.0",
+ "phase_tag": "v0.16.0",
  "schema": 1,
  "sidecar_version": 76
 }

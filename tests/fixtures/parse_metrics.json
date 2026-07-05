@@ -14,17 +14,17 @@
   },
   "synergy_completeness": {
    "effects_category_other": 833,
-   "effects_total": 75968,
+   "effects_total": 75914,
    "full_pct": 98.38,
    "parse_confidence": {
     "full": 33994,
     "partial": 561
    },
-   "triggers_event_other": 1846,
+   "triggers_event_other": 1845,
    "triggers_total": 19195
   }
  },
- "phase_tag": "v0.15.0",
+ "phase_tag": "v0.16.0",
  "schema": 1,
  "sidecar_version": 76,
  "snapshot": {
@@ -42,7 +42,7 @@
   },
   "synergy_completeness": {
    "effects_category_other": 26,
-   "effects_total": 1723,
+   "effects_total": 1722,
    "full_pct": 98.62,
    "parse_confidence": {
     "full": 717,

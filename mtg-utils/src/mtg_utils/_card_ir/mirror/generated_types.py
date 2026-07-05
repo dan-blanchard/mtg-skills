@@ -1102,6 +1102,7 @@ class S_triggers(TypedMirrorNode):
     valid_source: None | U_valid_source
     valid_target: None | U_valid_target
     attack_target_filter: str = MISSING
+    clash_result: str = MISSING
     coin_flip_result: str = MISSING
     counter_filter: S_counter_filter | MirrorVariant = MISSING
     damage_amount: list[object] = MISSING
@@ -5243,6 +5244,12 @@ class T_effect__Attach(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_effect__BecomeBlocked(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "BecomeBlocked"
+    target: U_target
+
+
+@dataclass(frozen=True)
 class T_effect__BecomeCopy(TypedMirrorNode):
     _tag: ClassVar[str | None] = "BecomeCopy"
     target: U_target
@@ -8062,6 +8069,11 @@ class T_player_scope__OpponentAttacked(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_player_scope__OpponentAttackingEnchantedPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OpponentAttackingEnchantedPlayer"
+
+
+@dataclass(frozen=True)
 class T_player_scope__OpponentOfTriggeringPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "OpponentOfTriggeringPlayer"
 
@@ -10329,6 +10341,12 @@ class T_target_constraints__DifferentObjectControllers(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_target_constraints__SameZoneOwner(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SameZoneOwner"
+    zone: str
+
+
+@dataclass(frozen=True)
 class T_target_constraints__TotalManaValue(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TotalManaValue"
     comparator: str
@@ -11373,6 +11391,7 @@ type U_effect = (
     | T_effect__ApplyPerpetual
     | T_effect__AssembleContraptions
     | T_effect__Attach
+    | T_effect__BecomeBlocked
     | T_effect__BecomeCopy
     | T_effect__BecomeMonarch
     | T_effect__BecomePrepared
@@ -11809,6 +11828,7 @@ type U_player_scope = (
     | T_player_scope__HighestSpeed
     | T_player_scope__Opponent
     | T_player_scope__OpponentAttacked
+    | T_player_scope__OpponentAttackingEnchantedPlayer
     | T_player_scope__OpponentOfTriggeringPlayer
     | T_player_scope__OwnersOfCardsExiledBySource
     | T_player_scope__ParentObjectTargetController
@@ -12228,6 +12248,7 @@ type U_target_b = T_target_b__Or | T_target_b__TriggeringSource | T_target_b__Ty
 type U_target_chooser = T_target_chooser__ScopedPlayer
 type U_target_constraints = (
     T_target_constraints__DifferentObjectControllers
+    | T_target_constraints__SameZoneOwner
     | T_target_constraints__TotalManaValue
 )
 type U_target_kind = (
@@ -13227,6 +13248,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("effect", "ApplyPerpetual"): T_effect__ApplyPerpetual,
     ("effect", "AssembleContraptions"): T_effect__AssembleContraptions,
     ("effect", "Attach"): T_effect__Attach,
+    ("effect", "BecomeBlocked"): T_effect__BecomeBlocked,
     ("effect", "BecomeCopy"): T_effect__BecomeCopy,
     ("effect", "BecomeMonarch"): T_effect__BecomeMonarch,
     ("effect", "BecomePrepared"): T_effect__BecomePrepared,
@@ -13718,6 +13740,10 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
     ("player_scope", "OpponentAttacked"): T_player_scope__OpponentAttacked,
     (
         "player_scope",
+        "OpponentAttackingEnchantedPlayer",
+    ): T_player_scope__OpponentAttackingEnchantedPlayer,
+    (
+        "player_scope",
         "OpponentOfTriggeringPlayer",
     ): T_player_scope__OpponentOfTriggeringPlayer,
     (
@@ -14153,6 +14179,7 @@ GENERATED_BY_KEY: dict[tuple[str, str], type[TypedMirrorNode]] = {
         "target_constraints",
         "DifferentObjectControllers",
     ): T_target_constraints__DifferentObjectControllers,
+    ("target_constraints", "SameZoneOwner"): T_target_constraints__SameZoneOwner,
     ("target_constraints", "TotalManaValue"): T_target_constraints__TotalManaValue,
     ("target_kind", "Counters"): T_target_kind__Counters,
     ("target_kind", "LifeTotal"): T_target_kind__LifeTotal,
