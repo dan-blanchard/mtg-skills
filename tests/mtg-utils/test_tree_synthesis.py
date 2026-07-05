@@ -22,14 +22,18 @@ from mtg_utils._card_ir._substrate_purity import (
 )
 from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode, ConceptTree
 from mtg_utils._card_ir.tree_synthesis import (
+    _SPELLCAST_TRIGGER_RX,
     SYNTHESIS_ARM_IDS,
+    _arm_spellcast_matters,
     _has_structural_lifegain,
     _is_creature_death_subject,
+    _matches_spellcast_idiom,
     apply_tree_synthesis,
     has_gain_life_amplifier,
     has_life_gained_this_turn,
     has_life_gained_trigger,
     has_selfloss_engine,
+    has_structural_spellcast,
     has_trigger_draw_bleed,
     synthesize_nodes,
 )
@@ -541,3 +545,135 @@ def test_lifegain_broadened_draw_bleed_recovered(name):
     assert _has_structural_lifegain(tree) is True
     assert synthesize_nodes(tree) == ()
     assert any(s.key == "lifegain_matters" for s in _lifegain_matters(tree))
+
+
+# ── arm: spellcast_matters (ADR-0036 fold) ────────────────────────────────────
+# The you-cast (Spellslinger) payoff, CR 601.2/603.2. Two Tier-1 arms: a phase
+# typed/untyped you-cast trigger (has_structural_spellcast) and the bucket-B
+# description-only synth (_arm_spellcast_matters — emblems/sagas/granted, cost
+# reducers, recasters). Each named card below is committed to the fixture snapshot.
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Archmage Emeritus",  # magecraft compound cast-or-copy event
+        "Aetherflux Reservoir",  # untyped "whenever you cast a spell" trigger
+    ],
+)
+def test_spellcast_structural_fires(name):
+    # phase carries a typed/untyped you-cast trigger, so the Tier-1 gate reads it
+    # directly and the bucket-B synth no-ops (no double count).
+    tree = _fixture_tree(name)
+    assert has_structural_spellcast(tree) is True
+    assert synthesize_nodes(tree) == ()
+    assert apply_tree_synthesis(tree) is tree
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Goblin Electromancer",  # static cost reducer ("I&S you cast cost {1} less")
+        "Jaya, Fiery Negotiator",  # -8 emblem "cast a red I/S spell, copy it twice"
+    ],
+)
+def test_spellcast_synth_fires_on_bucket_b(name):
+    # description-only build-around phase emits no typed cast node for → bucket-B.
+    # (Jaya also carries an attack idiom on its -2, so assert membership not sole.)
+    tree = _fixture_tree(name)
+    assert has_structural_spellcast(tree) is False
+    assert "spellcast_matters" in [a for a, _ in synthesize_nodes(tree)]
+
+
+def test_spellcast_synth_recovers_jaya_color_restricted_emblem():
+    """FIX 1: Jaya, Fiery Negotiator's -8 emblem ("Whenever you cast a red instant
+    or sorcery spell, copy it twice") is a genuine I/S copy payoff (CR 601.2/603.2)
+    — the watched spell IS instant-or-sorcery-typed, "red" is merely an extra
+    restriction. The color adjective used to break the bucket-B trigger idiom.
+    """
+    tree = _fixture_tree("Jaya, Fiery Negotiator")
+    assert _matches_spellcast_idiom(tree.oracle or "") is True
+    node = _arm_spellcast_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_spellcast_matters"
+    assert node.scope == "you"
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Eidolon of the Great Revel",  # symmetric any-caster punisher (no you-scope)
+        "Alela, Artful Provocateur",  # artifact/enchantment-only carve-out → type lane
+        "Shanid, Sleepers' Scourge",  # FIX 2: "cast a legendary spell" → legends_matter
+    ],
+)
+def test_spellcast_noops(name):
+    # neither arm fires: an opponent/any-caster punisher, an
+    # artifact/enchantment-only watched spell, and a supertype-restricted
+    # (legendary) untyped trigger all route AWAY from I/S Spellslinger density.
+    tree = _fixture_tree(name)
+    assert has_structural_spellcast(tree) is False
+    assert synthesize_nodes(tree) == ()
+    assert apply_tree_synthesis(tree) is tree
+
+
+def test_spellcast_trigger_rx_color_allowed_only_before_instant_or_sorcery():
+    """FIX 1 contract: an optional color/type adjective is permitted ONLY when it
+    precedes the "instant or sorcery"/"instant and sorcery" anchor. A color-only
+    "a black spell" with no I/S anchor (Mountain Titan, the Defiler cycle) stays
+    excluded, matching the structural gate's subtype/supertype carve-out.
+    """
+    rx = _SPELLCAST_TRIGGER_RX
+    # allowed: color before the I/S anchor
+    assert rx.search("whenever you cast a red instant or sorcery spell, copy it")
+    assert rx.search("whenever you cast a black instant and sorcery spell")
+    # unchanged: bare and I/S-typed forms still match
+    assert rx.search("whenever you cast an instant or sorcery spell")
+    assert rx.search("whenever you cast a spell")
+    assert rx.search("whenever you cast a noncreature spell")
+    # excluded: color-only with NO I/S anchor (Mountain Titan / Defiler cycle)
+    assert not rx.search("whenever you cast a black spell")
+    assert not rx.search("whenever you cast a green permanent spell")
+
+
+def test_spellcast_matters_lane_reads_synth_node_end_to_end():
+    """The fold path, mirror-independent: a synth ``spellcast_matters`` node ALONE —
+    oracle carrying no spellcast idiom — makes ``_spellcast_matters`` emit the
+    signal. Proves the synth read is the ACTIVE Tier-1 source (the deleted
+    ``_detect_spellcast_matters`` mirror no longer participates).
+    """
+    from mtg_utils._deck_forge.crosswalk_signals import _spellcast_matters
+
+    synth_cnode = ConceptNode(
+        concept="synth_spellcast_matters",
+        node=SynthesizedNode(arm_id="spellcast_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth_cnode,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _spellcast_matters(tree)
+    assert any(s.key == "spellcast_matters" for s in sigs)
+
+
+def test_spellcast_matters_lane_fires_on_jaya_end_to_end():
+    # FIX 1, full lane: apply_tree_synthesis attaches the recovered synth node and
+    # the lane emits spellcast_matters for the Jaya emblem.
+    from mtg_utils._deck_forge.crosswalk_signals import _spellcast_matters
+
+    tree = apply_tree_synthesis(_fixture_tree("Jaya, Fiery Negotiator"))
+    sigs = _spellcast_matters(tree)
+    assert any(s.key == "spellcast_matters" for s in sigs)

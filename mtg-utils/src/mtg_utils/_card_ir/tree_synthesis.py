@@ -723,8 +723,10 @@ def has_structural_spellcast(tree: ConceptTree) -> bool:
       watched spell carries NO restrictive core type (empty, or the ``Card``
       wildcard used for a CMC/zone/color-agnostic gate) AND no SUBTYPE
       restriction (Aang's "Lesson spell", tribal cast triggers — a different,
-      narrower archetype signal) AND no self-target restriction
-      (:data:`_SPELLCAST_TARGET_VETO_PREDS` — Heroic).
+      narrower archetype signal) AND no SUPERTYPE restriction (Shanid's "a
+      legendary spell" — that rewards legendary permanents broadly
+      (legends_matter), not I/S Spellslinger density) AND no self-target
+      restriction (:data:`_SPELLCAST_TARGET_VETO_PREDS` — Heroic).
     """
     for unit in tree.units:
         if unit.origin != "trigger" or unit.trigger_event not in (CAST_TRIGGER_EVENTS):
@@ -744,6 +746,7 @@ def has_structural_spellcast(tree: ConceptTree) -> bool:
         if (
             cores <= {"Card"}
             and not filter_subtypes(vc)
+            and "HasSupertype" not in preds
             and not (preds & _SPELLCAST_TARGET_VETO_PREDS)
         ):
             return True
@@ -780,9 +783,19 @@ def has_structural_spellcast(tree: ConceptTree) -> bool:
 # (:func:`has_structural_spellcast`), so it never double-counts a card the
 # Tier-1 arm already reads. Read PER-CLAUSE (reminder-stripped) so a match is
 # confined to ONE clause.
+# The optional color/type-adjective word is permitted ONLY when it precedes the
+# "instant or sorcery"/"instant and sorcery" anchor — a "red instant or sorcery
+# spell" (Jaya, Fiery Negotiator's -8 emblem) is still an I/S Spellslinger
+# payoff, merely color-restricted (CR 601.2/603.2). It is deliberately NOT
+# permitted before the bare ``spell`` — a color-only "a black spell" (Mountain
+# Titan, the Defiler cycle's "black permanent spell") carries no I/S type anchor
+# and stays excluded, matching the structural gate's subtype/supertype carve-out.
 _SPELLCAST_TRIGGER_RX = re.compile(
     r"whenever you cast(?: or copy)? an? "
-    r"(?:noncreature |instant or sorcery |instant and sorcery )?spell\b"
+    r"(?:noncreature |"
+    r"(?:(?:mono|multi)?colou?red |colorless |white |blue |black |red |green )?"
+    r"(?:instant or sorcery |instant and sorcery ))?"
+    r"spell\b"
     r"(?!\s*(?:that (?:targets|shares)))",
     re.IGNORECASE,
 )
