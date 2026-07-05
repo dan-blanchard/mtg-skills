@@ -58,10 +58,14 @@ from mtg_utils._card_ir.crosswalk import (
     effect_filter,
     explicit_recipient_scope,
     filter_controller,
+    filter_core_types,
+    filter_non_types,
     filter_predicates,
+    filter_subtypes,
     iter_typed_nodes,
     replacement_event_tag,
     tag_of,
+    trigger_caster_scope,
     trigger_subject,
     zone_change_count_reads,
 )
@@ -71,6 +75,7 @@ from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 
 __all__ = [
     "ATTACK_TRIGGER_EVENTS",
+    "CAST_TRIGGER_EVENTS",
     "RAID_CONDITION_TAGS",
     "SYNTHESIS_ARM_IDS",
     "SynthesizedNode",
@@ -83,6 +88,7 @@ __all__ = [
     "has_life_gained_this_turn",
     "has_life_gained_trigger",
     "has_selfloss_engine",
+    "has_structural_spellcast",
     "has_trigger_draw_bleed",
     "synthesize_nodes",
 ]
@@ -681,6 +687,171 @@ def _arm_lifegain_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── spellcast_matters structural reads (ADR-0036 fold — shared lane/gate source) ──
+# The Tier-1 ``_spellcast_matters`` lane fires ``spellcast_matters`` on these typed
+# reads; this stage's gap gate (:func:`has_structural_spellcast`) reads the SAME
+# predicate so the lane and the synth never disagree on which cards phase
+# structuralizes (the gap-gate-alignment invariant — one source, no drift). CR
+# 601.2 (casting) / 603.2 (triggered abilities).
+
+# The compound "cast OR COPY" magecraft event (Archmage Emeritus, Storm-Kiln
+# Artist, Veyran) phase derives as a DISTINCT mode from a bare cast — read
+# structurally off ``trigger_event``, never text, exactly like
+# ``ATTACK_TRIGGER_EVENTS``.
+CAST_TRIGGER_EVENTS: frozenset[str] = frozenset({"cast_spell", "spellcastorcopy"})
+# A predicate on the watched spell that narrows it to spells TARGETING the
+# source (Heroic — CR 702.107a) — a self-target voltron/tribal-adjacent
+# mechanic, not a Spellslinger density payoff. Vetoed at both the structural
+# gate and the bucket-B text idiom.
+_SPELLCAST_TARGET_VETO_PREDS: frozenset[str] = frozenset(
+    {"Targets", "TargetsOnly", "HasSingleTarget"}
+)
+
+
+def has_structural_spellcast(tree: ConceptTree) -> bool:
+    """A phase-typed you-cast trigger this lane reads as ``spellcast_matters``.
+
+    Two families, both requiring ``trigger_caster_scope(unit.node) == "you"``
+    (CR 603.2 — a symmetric "a player casts" hoser carries no you-scope and
+    never fires either lane):
+
+    * TYPED — the watched spell is Instant/Sorcery (core type) or explicitly
+      NON-creature (``Non: Creature`` — the Prowess idiom). An
+      enchantment/artifact-ONLY watched spell is carved out to the type lane
+      (Alela) instead.
+    * UNTYPED (Aetherflux Reservoir, Extort/Increment keyword triggers) — the
+      watched spell carries NO restrictive core type (empty, or the ``Card``
+      wildcard used for a CMC/zone/color-agnostic gate) AND no SUBTYPE
+      restriction (Aang's "Lesson spell", tribal cast triggers — a different,
+      narrower archetype signal) AND no self-target restriction
+      (:data:`_SPELLCAST_TARGET_VETO_PREDS` — Heroic).
+    """
+    for unit in tree.units:
+        if unit.origin != "trigger" or unit.trigger_event not in (CAST_TRIGGER_EVENTS):
+            continue
+        if trigger_caster_scope(unit.node) != "you":
+            continue
+        vc = getattr(unit.node, "valid_card", None)
+        cores = set(filter_core_types(vc))
+        typed = bool(cores & {"Instant", "Sorcery"}) or (
+            "Creature" in filter_non_types(vc)
+        )
+        if typed:
+            if cores and cores <= {"Enchantment", "Artifact"}:
+                continue
+            return True
+        preds = set(filter_predicates(vc))
+        if (
+            cores <= {"Card"}
+            and not filter_subtypes(vc)
+            and not (preds & _SPELLCAST_TARGET_VETO_PREDS)
+        ):
+            return True
+    return False
+
+
+# ── arm: spellcast_matters bucket-B (ADR-0036 fold) ───────────────────────────
+# The you-cast Spellslinger payoff / build-around (CR 601.2/603.2) has a
+# bucket-B tail phase emits NO typed cast node for:
+#
+#   * a "whenever you cast [or copy] a[n] [noncreature|instant or sorcery|
+#     instant and sorcery] spell" trigger left DESCRIPTION-only — inside a
+#     granted/quoted ability (Prowess-granting Equipment/tokens — Black
+#     Mage's Rod, Circle of Power's Wizard token), an EMBLEM (Chandra, Torch
+#     of Defiance; Venser, the Sojourner), or a SAGA chapter (Showdown of the
+#     Skalds, Origin of Thor). The narrow insertion-word set structurally
+#     excludes a subtype/color-restricted trigger ("an Elf spell", "a black
+#     spell", "a Human creature spell") the SAME way the Tier-1 gate's
+#     subtype check does — no insertion word for those forms, so the idiom
+#     never matches — and a targeted trigger ("spell that targets/shares …"
+#     — Heroic, Folk Hero) is vetoed explicitly, matching the structural gate.
+#   * a static COST REDUCER ("instant and sorcery spells you cast cost {1}
+#     less" — Baral, Goblin Electromancer) and BUILD-AROUND / recursion
+#     granter (Lier, Kess, flashback grants, "you may cast … from your
+#     graveyard").
+#   * a RECASTER/COPIER ("you may cast / copy target instant or sorcery" —
+#     Brain in a Jar, Chancellor of the Spires).
+#   * a past-tense spell COUNT ("spells you've cast this turn" — Aetherflux
+#     Conduit's storm-count, Narset's draw-count) and the delayed "when you
+#     next cast an instant or sorcery spell this turn" copy rider (Doublecast,
+#     Chandra the Firebrand).
+#
+# Every family fires ONLY when NO structural spellcast node is present
+# (:func:`has_structural_spellcast`), so it never double-counts a card the
+# Tier-1 arm already reads. Read PER-CLAUSE (reminder-stripped) so a match is
+# confined to ONE clause.
+_SPELLCAST_TRIGGER_RX = re.compile(
+    r"whenever you cast(?: or copy)? an? "
+    r"(?:noncreature |instant or sorcery |instant and sorcery )?spell\b"
+    r"(?!\s*(?:that (?:targets|shares)))",
+    re.IGNORECASE,
+)
+_SPELLCAST_BUILDAROUND_RX = re.compile(
+    r"instants? (?:and|or) sorcer(?:y|ies)[^.]{0,50}"
+    r"(?:flashback|from (?:your |a )?graveyard|cost (?:\{|\d|less)|you may cast)",
+    re.IGNORECASE,
+)
+_SPELLCAST_RECASTER_RX = re.compile(
+    r"(?:you may cast|cast target|copy target)[^.]*"
+    r"(?:instant or sorcery|instant and sorcery)"
+    r"|instant and sorcery (?:spells? )?you (?:may )?cast",
+    re.IGNORECASE,
+)
+_SPELLCAST_COUNT_RX = re.compile(r"spells? you've cast this turn", re.IGNORECASE)
+_SPELLCAST_COST_RX = re.compile(
+    r"instant and sorcery spells? you cast cost", re.IGNORECASE
+)
+_SPELLCAST_FROMZONE_RX = re.compile(
+    r"cast an instant or sorcery spell from", re.IGNORECASE
+)
+_SPELLCAST_RIDER_RX = re.compile(
+    r"when you (?:next )?cast an instant or sorcery spell this turn",
+    re.IGNORECASE,
+)
+
+
+def _matches_spellcast_idiom(oracle: str) -> bool:
+    """Whether a reminder-stripped oracle carries a bucket-B spellcast idiom.
+
+    Per-clause: a genuine (non-subtype, non-targeted) you-cast trigger left
+    description-only, a build-around/cost-reducer, a recaster/copier, a
+    past-tense spell count, or the delayed next-cast copy rider. CR 601.2.
+    """
+    for cl in clauses(_REMINDER.sub(" ", oracle or "")):
+        if (
+            _SPELLCAST_TRIGGER_RX.search(cl)
+            or _SPELLCAST_BUILDAROUND_RX.search(cl)
+            or _SPELLCAST_RECASTER_RX.search(cl)
+            or _SPELLCAST_COUNT_RX.search(cl)
+            or _SPELLCAST_COST_RX.search(cl)
+            or _SPELLCAST_FROMZONE_RX.search(cl)
+            or _SPELLCAST_RIDER_RX.search(cl)
+        ):
+            return True
+    return False
+
+
+def _arm_spellcast_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``spellcast_matters`` node for a description-only build-around.
+
+    CR 601.2/603.2: fires only when phase carries no typed cast node
+    (:func:`has_structural_spellcast`) and the oracle carries a genuine
+    bucket-B spellcast idiom (:func:`_matches_spellcast_idiom`). Scope "you"
+    (the lane's forced scope for this you-cast payoff).
+    """
+    if has_structural_spellcast(tree):
+        return None
+    if not _matches_spellcast_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="spellcast_matters",
+        concept="synth_spellcast_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B spellcast build-around (phase emits no typed cast node)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -692,6 +863,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("death_matters", _arm_death_matters),
     ("attack_matters", _arm_attack_matters),
     ("lifegain_matters", _arm_lifegain_matters),
+    ("spellcast_matters", _arm_spellcast_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

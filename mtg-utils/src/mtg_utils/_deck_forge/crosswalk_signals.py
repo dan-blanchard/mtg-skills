@@ -185,6 +185,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_life_gained_this_turn,
     has_life_gained_trigger,
     has_selfloss_engine,
+    has_structural_spellcast,
     has_trigger_draw_bleed,
 )
 from mtg_utils._deck_forge import signal_keys
@@ -242,7 +243,6 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_keyword_implied_tribe,
     _detect_keyword_tribe,
     _detect_multi_tribe_anthem,
-    _detect_spellcast_matters,
     _detect_token_maker,
     _detect_type_matters,
     _detect_typed_gy_recursion,
@@ -1991,43 +1991,32 @@ def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
 
 def _spellcast_matters(tree: ConceptTree) -> list[Signal]:
     """spellcast_matters — the you-cast (Spellslinger) PAYOFF (CR 601.2 / 603.2).
-    recall-completion b1 (ADR-0034): the crosswalk had NO positive detector, only
-    the ``spell_copy_makers`` LOW cross-open. Two arms mirror ``_signals_ir``:
+    Tier-1 structural read (ADR-0036 fold — the ``_detect_spellcast_matters`` /
+    ``_IS_BUILDAROUND_RE`` / ``_spellcast_main_clause`` / ``_SPELLCAST_RECASTER_RE``
+    mirror is deleted). Two arms, both requiring ``trigger_caster_scope == "you"``:
 
-    * the STRUCTURAL typed ``cast_spell`` trigger (~10906): a you-cast trigger
-      (``trigger_caster_scope == "you"`` — the typed discriminator that REPLACES
-      the live ``_self_cast_oracle`` regex, per ``trigger_caster_scope`` docs) over
-      a typed-NONcreature watched subject (Instant/Sorcery core type, or a
-      ``Non: Creature`` negation) — Talrand, Guttersnipe, Young Pyromancer. An
-      enchantment/artifact-only cast watcher routes to those type lanes (excluded),
-      matching the deleted regex's carve-out.
-    * the byte-identical ``_detect_spellcast_matters`` kept mirror (~11420) run
-      PER-CLAUSE over the reminder-stripped face oracle — the UNTYPED "whenever you
-      cast a spell" (Aetherflux Reservoir) + the non-trigger glue phase gives no
-      cast node for (cost reducers Baral, build-arounds Lier/Kess, recaster/copiers,
-      cast-from-zone recursion, past-tense spell counts). Forced scope "you".
+    * :func:`has_structural_spellcast` — a TYPED (Instant/Sorcery core, or
+      ``Non: Creature`` — the Prowess idiom) or UNTYPED (Aetherflux Reservoir —
+      no restrictive core type, no subtype, no self-target restriction) you-cast
+      trigger (also the compound "cast or copy" magecraft event — Archmage
+      Emeritus, Storm-Kiln Artist, Veyran). An enchantment/artifact-only or
+      subtype/self-target-restricted watched spell routes elsewhere (excluded),
+      matching the deleted regex's carve-outs.
+    * the ``tree_synthesis`` bucket-B synth node — the description-only
+      granted/emblem/Saga cast trigger, cost reducers (Baral), build-arounds /
+      recursion granters (Lier, Kess), recaster/copiers, and past-tense spell
+      counts / the delayed next-cast copy rider phase emits no typed cast node
+      for.
 
     The symmetric "a player casts" punishers (Eidolon, Ruric Thar) carry no you
     caster-scope AND no "you cast" clause, so neither arm opens a you build-around
     (they stay ``opponent_cast_matters`` / ``noncreature_cast_punish``).
     """
-    for unit in tree.units:
-        if unit.origin != "trigger" or unit.trigger_event != "cast_spell":
-            continue
-        if trigger_caster_scope(unit.node) != "you":
-            continue
-        vc = getattr(unit.node, "valid_card", None)
-        cores = set(filter_core_types(vc))
-        typed = bool(cores & {"Instant", "Sorcery"}) or (
-            "Creature" in filter_non_types(vc)
-        )
-        if typed and not (cores and cores <= {"Enchantment", "Artifact"}):
+    if has_structural_spellcast(tree):
+        return [Signal("spellcast_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_spellcast_matters":
             return [Signal("spellcast_matters", "you", "", "", tree.name, "high")]
-    for cl in clauses(_kept(tree)):
-        if _detect_spellcast_matters(cl):
-            return [
-                Signal("spellcast_matters", "you", "", cl.strip(), tree.name, "high")
-            ]
     return []
 
 
