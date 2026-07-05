@@ -171,6 +171,14 @@ from mtg_utils._card_ir.project import (
 # opponent controls" target to ParentTarget/DefendingPlayer, and the live
 # tap subject's 'opp' comes from exactly these anchors.
 from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
+
+# The Tier-1 death_matters arms (ADR-0036/0037) share the LIVE structural reads
+# with the ``tree_synthesis`` bucket-B gap gate — one source, no drift: the morbid
+# creature-death state check and the ``CreatureDying`` trigger-doubler.
+from mtg_utils._card_ir.tree_synthesis import (
+    _double_triggers_creature_dying,
+    creature_death_condition,
+)
 from mtg_utils._deck_forge import signal_keys
 
 # The b12 SANCTIONED byte-identical mirror ports import the LIVE constants
@@ -186,7 +194,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _CONVOKE_RAW,
     _COUNTER_DISTRIBUTE_MIRROR,
     _COUNTER_KIND_KEYS,
-    _DEATH_MATTERS_MIRROR,
     _FIREBEND_RE,
     _FLOOR_DETECTORS,
     _IR_FLOOR_LANES,
@@ -1248,27 +1255,54 @@ def _is_creature_death_subject(subject: tuple[str, ...]) -> bool:
     )
 
 
+# The aristocrats death-payoff effect kinds (CR 700.4): the equipment/aura
+# AttachedTo dies-trigger arm fires ONLY when the trigger's effect EXTRACTS VALUE
+# from the equipped/enchanted creature's death — draw (Skullclamp, Bequeathal),
+# drain (Lead Pipe, Death Watch), damage (Creature Bond), a token (Elephant Guide),
+# a counter (Malefic Scythe), mill/surveil/discard card advantage. It does NOT fire
+# when the effect only RETURNS / REATTACHES / exiles the SOURCE (the ~40 resilience
+# auras — Gift of Immortality, the Zendikons, Resurrection Orb, Forebear's Blade),
+# which are a resilience lane, not aristocrats. rules-lawyer-grounded (CR 700.4 +
+# the aristocrats-payoff boundary).
+_DEATH_PAYOFF_EFFECTS: frozenset[str] = frozenset(
+    {
+        "draw",
+        "dig",
+        "reveal_until",
+        "deal_damage",
+        "lose_life",
+        "gain_life",
+        "mill",
+        "make_token",
+        "place_counter",
+        "discard",
+        "surveil",
+        "cast_from_zone",
+    }
+)
+
+
 def _death_matters(tree: ConceptTree) -> list[Signal]:
-    """Aristocrats payoff — a ``dies`` trigger watching OTHER creatures (CR 700.4).
+    """Aristocrats payoff — cares about OTHER creatures dying (CR 700.4). Tier-1.
 
-    Mirrors ``_signals_ir`` line ~10383 (``trig.event=="dies" and
-    trig.subject is not None``): a bare SelfRef "When THIS dies" carries no watched
-    subject (``trigger_subject`` empty) → it is ``self_death_payoff``, a different
-    lane, excluded here. Blood Artist / Zulaport / Midnight Reaper carry a real
-    creature filter (the ``Or[SelfRef, Typed Creature]`` surfaces ``Creature`` past
-    the self arm). Scope = the watched object's controller (Blood Artist → "any",
-    Grave Pact → "you", Massacre Wurm → "opponents").
+    Five structural arms, zero oracle text / regex at lane time (ADR-0036 fold —
+    the ``_DEATH_MATTERS_MIRROR`` is deleted):
 
-    ADR-0037: the ``_DEATH_MATTERS_MIRROR`` morbid/condition backstop is RETAINED
-    (the full Tier-1 fold is a deferred blocker — see the ADR-0037 stage report),
-    and a ``synth_death_matters`` node from the ``tree_synthesis`` stage is read as
-    a THIRD source. The synth read is a strict SUBSET of the mirror (its "another
-    creature dies" gap idioms all satisfy the mirror's ``whenever``&``dies``
-    substring branch), so ``add()`` dedups it and the whole lane stays
-    byte-for-byte behavior-neutral — the synth path is EXERCISED end-to-end (stage
-    synthesizes → lane reads) while the mirror still backstops the tail. When the
-    Tier-1 fold lands, the mirror is deleted and this synth read carries the
-    bucket-B tail alone.
+    * a battlefield ``dies`` trigger watching a real CREATURE object (Blood Artist /
+      Zulaport / Midnight Reaper — the ``Or[SelfRef, Typed Creature]`` surfaces
+      ``Creature`` past the self arm). A bare ``SelfRef`` self-death carries no
+      subject → ``self_death_payoff``, excluded. Scope = the watched object's
+      controller (Blood Artist → "any", Grave Pact → "you", Massacre Wurm →
+      "opponents").
+    * an equipment/aura ``AttachedTo`` dies-trigger whose effect is an aristocrats
+      PAYOFF (:data:`_DEATH_PAYOFF_EFFECTS`) — Skullclamp / Bequeathal / Elephant
+      Guide. Resilience auras (return/reattach the source) are shed.
+    * a morbid creature-death CONDITION (:func:`creature_death_condition`) — the "if
+      a creature died this turn" state family (Bone Picker, Mahadi, the Zubera
+      count payoffs).
+    * a ``CreatureDying`` trigger-DOUBLER (Teysa Karlov, Drivnod — CR 603.2).
+    * the ``tree_synthesis`` bucket-B synth node (the morbid / combat-damage-dies /
+      description-only other-creature death tail phase emits no typed node for).
     """
     out: list[Signal] = []
     for unit in tree.units:
@@ -1280,40 +1314,36 @@ def _death_matters(tree: ConceptTree) -> list[Signal]:
         if getattr(unit.node, "origin", None) != "Battlefield":
             continue
         subj = trigger_subject(unit.node)
-        if not subj:  # bare SelfRef self-death
-            continue
         # CR 700.4: only CREATURES die. A non-creature GY-arrival watcher (Scrapheap
-        # — artifact/enchantment) is not a death payoff, even though phase emits the
-        # same battlefield→graveyard trigger shape.
-        if not _is_creature_death_subject(subj):
-            continue
-        out.append(
-            Signal(
-                "death_matters",
-                trigger_subject_scope(unit.node),
-                "",
-                "",
-                tree.name,
-                "high",
+        # — artifact/enchantment) is not a death payoff even though phase emits the
+        # same battlefield→graveyard shape; the SelfRef self-death has no subject.
+        if subj and _is_creature_death_subject(subj):
+            out.append(
+                Signal(
+                    "death_matters",
+                    trigger_subject_scope(unit.node),
+                    "",
+                    "",
+                    tree.name,
+                    "high",
+                )
             )
-        )
-    # recall-completion b1 (ADR-0035 backstop): the morbid "if a creature died this
-    # turn" / "whenever [permanents/tokens] die" CONDITION family (Bone Picker,
-    # Skirsdag High Priest, Tragic Slip) — phase carries no structural morbid-condition
-    # node. Byte-identical to the two deleted producers run PER-CLAUSE over the
-    # reminder-stripped face oracle: ``_DEATH_MATTERS_MIRROR`` plus the two
-    # substring-AND branches ("whenever"&"dies", "dying"&"trigger"). scope "any" (the
-    # producer's forced scope; the extractor dedups vs the structural arm). CR 700.4.
-    if any(
-        _DEATH_MATTERS_MIRROR.search(cl)
-        or ("whenever" in (lc := cl.lower()) and "dies" in lc)
-        or ("dying" in lc and "trigger" in lc)
-        for cl in clauses(_kept(tree))
-    ):
+            continue
+        # equipment / aura "whenever equipped/enchanted creature dies" — the watched
+        # object is the AttachedTo host (``trigger_subject`` empty). An aristocrats
+        # payoff ONLY when the effect extracts value, not resilience (CR 700.4).
+        vc = getattr(unit.node, "valid_card", None)
+        if (
+            vc is not None
+            and tag_of(vc) == "AttachedTo"
+            and any(e.concept in _DEATH_PAYOFF_EFFECTS for e in unit.effects)
+        ):
+            out.append(Signal("death_matters", "any", "", "", tree.name, "high"))
+    # morbid creature-death condition ("if a creature died this turn") + the
+    # ``CreatureDying`` trigger-doubler. scope "any"; the extractor dedups.
+    if creature_death_condition(tree) or _double_triggers_creature_dying(tree):
         out.append(Signal("death_matters", "any", "", "", tree.name, "high"))
-    # ADR-0037 bucket-B: the tree_synthesis stage's synthesized death nodes, read
-    # as a third source. A strict subset of the mirror above (deduped by add()), so
-    # the lane is behavior-neutral; this EXERCISES the synth path end-to-end.
+    # bucket-B tail (ADR-0037): the tree_synthesis stage's synthesized death node.
     for c in tree.iter_concepts():
         if c.concept == "synth_death_matters":
             out.append(Signal("death_matters", "any", "", "", tree.name, "high"))

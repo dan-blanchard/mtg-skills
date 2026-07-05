@@ -53,6 +53,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     iter_typed_nodes,
     tag_of,
+    trigger_subject,
     zone_change_count_reads,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirrorNode
@@ -61,6 +62,7 @@ __all__ = [
     "SYNTHESIS_ARM_IDS",
     "SynthesizedNode",
     "apply_tree_synthesis",
+    "creature_death_condition",
     "synthesize_nodes",
 ]
 
@@ -85,39 +87,82 @@ def _synthetic_concept(
     )
 
 
-# ── shared oracle grounding (mirrors overlay_corrections._oracle) ─────────────
+# ── shared oracle grounding (reminder-paren strip) ────────────────────────────
 
 _REMINDER = re.compile(r"\([^)]*\)")
 
 
-def _oracle(tree: ConceptTree) -> str:
-    """The card's face oracle text, reminder-parens stripped, lowercased."""
-    return _REMINDER.sub(" ", tree.oracle or "").lower()
-
-
-# ── arm: death_matters bucket-B (ADR-0036 pilot) ──────────────────────────────
+# ── arm: death_matters bucket-B (ADR-0036 fold) ───────────────────────────────
 # The aristocrats death payoff (OTHER creatures dying, CR 700.4) has a bucket-B
 # tail phase emits NO typed death node for: the clause lives only in a trigger's
-# raw DESCRIPTION or an untyped condition. Syr Konrad ("whenever another creature
-# dies, or a creature card is put into a graveyard …") parses as ONE ``changes_zone``
-# trigger whose ``dies`` arm survives only in the description; the "creature dealt
-# damage this turn dies" combat payoffs and other description-only death triggers
-# are the same shape. This arm synthesizes a ``death_matters`` concept-node the
-# rewritten ``_death_matters`` lane reads — but ONLY when NO structural death node
-# is present (so it never double-counts a card the lane already reads Tier-1), and
-# ONLY for OTHER-creature death (CR 700.4: a bare self-death "when ~ dies" is
-# ``self_death_payoff``, a different lane — excluded here).
-_DEATH_SYNTH_RX = re.compile(
-    # "another creature dies" / "creatures die" idioms (the aristocrats payoff)
-    r"whenever (?:another|an|a) (?:nontoken |token )?"
-    r"(?:creature|permanent)[^.]*\bdies\b"
-    r"|whenever [^.]*\b(?:creatures?|permanents?|tokens?) (?:you (?:control|own) )?"
-    r"(?:leave the battlefield or )?die\b"
-    # combat-damage death payoffs ("a creature dealt damage … this turn dies")
-    r"|creature[^.]*dealt damage[^.]*this turn[^.]*\bdies\b"
-    r"|whenever a creature dealt damage[^.]*\bdies\b",
+# raw DESCRIPTION or an untyped condition. Three genuine idiom families the
+# structural Tier-1 arms miss, each read PER-CLAUSE (reminder-stripped, split on
+# ``.;\n``) so a match is confined to ONE clause — the cross-clause false-positive
+# class the mirror carried is thereby eliminated:
+#
+#   * MORBID condition — "if a creature died this turn" / "for each creature that
+#     died this turn" (Feast, Inga Rune-Eyes, the Zubera-count payoffs) that phase
+#     folds into an effect operand rather than a typed ZoneChangeCount. No
+#     "whenever" gate: "died this turn" is an unambiguous death-count idiom.
+#   * COMBAT-DAMAGE death — "whenever a creature dealt damage … this turn dies"
+#     (Scythe of the Wretched, Unscythe, Vampiric Sliver): the damaged creature's
+#     death, OTHER-creature death per CR 700.4.
+#   * OTHER-creature death — "whenever another/a … creature|permanent … dies"
+#     (Syr Konrad, Massacre Girl, Baeloth) and the subtype-tribal form ("whenever
+#     another nontoken Human you control dies" — Jerren; Tentacle — The Watcher).
+#
+# The COMBAT / OTHER / SUBTYPE families are "whenever"-gated (a persistent death
+# TRIGGER, not a one-shot "if it dies this way" rider — Cinder Cloud). Every family
+# fires ONLY when NO structural death node is present (so it never double-counts a
+# card a Tier-1 arm already reads) and ONLY for OTHER-creature death (a bare
+# self-death "when ~ dies" — no "whenever", subject "this" — matches no family, so
+# it is shed to ``self_death_payoff`` without an explicit veto). ~40 commander-legal
+# corpus cards fire this arm across the three families (the pilot's single
+# "another creature dies" idiom covered ~23).
+_DEATH_MORBID_RX = re.compile(
+    r"creatures?[^.]*\bdied\b[^.]*this turn|no creatures? died this turn",
     re.IGNORECASE,
 )
+_DEATH_COMBAT_RX = re.compile(
+    r"creature[^.]*dealt damage[^.]*this turn[^.]*\bdies\b"
+    r"|creature[^.]*dealt damage[^.]*\bdies\b[^.]*this turn",
+    re.IGNORECASE,
+)
+_DEATH_OTHER_RX = re.compile(
+    r"\b(?:another|an?|one or more) (?:\w+ ){0,4}?(?:creature|permanent)s? "
+    r"(?:you (?:control|own) |an opponent controls )?dies?\b",
+    re.IGNORECASE,
+)
+# subtype-tribal death ("another nontoken Human you control dies"); the capitalized
+# subtype anchor keeps it distinct from a card NAME (which is not lowercased here).
+_DEATH_SUBTYPE_RX = re.compile(
+    r"\b(?:another|an?) (?:nontoken |token )?[A-Z][a-z]+ "
+    r"(?:you (?:control|own) )?dies\b",
+)
+_DEATH_CLAUSE_SPLIT = re.compile(r"[.;\n]")
+
+
+def _matches_death_idiom(oracle: str) -> bool:
+    """Whether a reminder-stripped oracle carries a bucket-B death idiom (per-clause).
+
+    MORBID fires ungated ("died this turn"); the COMBAT / OTHER / SUBTYPE trigger
+    families require "whenever" in the same clause (a persistent death trigger, not
+    a one-shot removal rider). CR 700.4.
+    """
+    clauses = _DEATH_CLAUSE_SPLIT.split(_REMINDER.sub(" ", oracle or ""))
+    for cl in clauses:
+        if _DEATH_MORBID_RX.search(cl):
+            return True
+    for cl in clauses:
+        if "whenever" not in cl.lower():
+            continue
+        if (
+            _DEATH_COMBAT_RX.search(cl)
+            or _DEATH_OTHER_RX.search(cl)
+            or _DEATH_SUBTYPE_RX.search(cl)
+        ):
+            return True
+    return False
 
 
 def _iter_all_typed(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
@@ -176,43 +221,62 @@ def _filter_is_creature_death(filt: object) -> bool:
     return any(isinstance(tf, str) and tf in ("Creature", "Permanent") for tf in tfs)
 
 
-def _has_structural_death(tree: ConceptTree) -> bool:
-    """Whether phase ALREADY carries a typed node the Tier-1 death reads see.
+def creature_death_condition(tree: ConceptTree) -> bool:
+    """A morbid creature-death STATE check the ``_death_matters`` lane reads Tier-1.
 
-    The synth arm fills only a genuine gap, so it no-ops when any structural
-    death evidence exists: a battlefield ``dies`` trigger, a morbid state check
-    (``CreatureDiedThisTurn`` / creature ``ZoneChangeCountThisTurn`` to graveyard /
-    ``ZoneChangeAggregateThisTurn``), or a ``CreatureDying`` trigger-doubler.
+    The "if a creature died this turn" / "for each creature that died this turn"
+    family (Bone Picker, Mahadi, the Zubera-count payoffs): a
+    ``CreatureDiedThisTurn`` flag, a creature battlefield→graveyard
+    ``ZoneChangeCountThisTurn``, or a ``ZoneChangeAggregateThisTurn`` creature count
+    (CR 700.4). Shared by the lane (as a structural arm) and this stage's gap gate
+    so the two agree on which cards phase structuralizes — one source, no drift.
     """
-    for unit in tree.units:
-        if unit.trigger_event == "dies" and (
-            getattr(unit.node, "origin", None) == "Battlefield"
-        ):
-            return True
-    if _has_tag(tree, "CreatureDiedThisTurn"):
-        return True
-    if _has_creature_morbid(tree):
+    if _has_tag(tree, "CreatureDiedThisTurn") or _has_creature_morbid(tree):
         return True
     for n in _iter_all_typed(tree):
         if tag_of(n) == "ZoneChangeAggregateThisTurn" and (
             _filter_is_creature_death(getattr(n, "filter", None))
         ):
             return True
+    return False
+
+
+def _has_structural_death(tree: ConceptTree) -> bool:
+    """Whether phase ALREADY carries a typed node the Tier-1 death reads see.
+
+    The synth arm fills only a genuine gap, so it no-ops when any structural death
+    evidence the lane reads exists: a battlefield ``dies`` trigger watching a real
+    OBJECT (``trigger_subject`` non-empty — a bare self-death ``SelfRef`` yields no
+    subject and is NOT structural death, so a self-death card whose EFFECT carries a
+    morbid "creatures died this turn" clause still reaches the synth), a morbid
+    creature-death state check (:func:`creature_death_condition`), or a
+    ``CreatureDying`` trigger-doubler.
+    """
+    for unit in tree.units:
+        if (
+            unit.trigger_event == "dies"
+            and getattr(unit.node, "origin", None) == "Battlefield"
+            and trigger_subject(unit.node)
+        ):
+            return True
+    if creature_death_condition(tree):
+        return True
     return _double_triggers_creature_dying(tree)
 
 
 def _arm_death_matters(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``death_matters`` node for a description-only death payoff.
 
-    CR 700.4 self/other split: the synth idioms already require "another / a
-    creature(s) die(s)" or a combat-damage-dies clause — all OTHER-creature death
-    (the aristocrats lane). A bare self-death "when <this> dies" matches NONE of the
-    branches ("when" ≠ "whenever"; "this" ∉ another/an/a), so it is shed to
-    ``self_death_payoff`` without an explicit veto.
+    CR 700.4 self/other split: the synth idioms (:func:`_matches_death_idiom`)
+    require a MORBID "creature died this turn" state, a combat-damage-dies clause,
+    or a "whenever another/a creature … dies" trigger — all OTHER-creature death
+    (the aristocrats lane). A bare self-death "when <this> dies" matches NONE
+    ("when" ≠ "whenever"; "this" ∉ another/an/a; no "died this turn"), so it is shed
+    to ``self_death_payoff`` without an explicit veto.
     """
     if _has_structural_death(tree):
         return None
-    if _DEATH_SYNTH_RX.search(_oracle(tree)) is None:
+    if not _matches_death_idiom(tree.oracle or ""):
         return None
     return _synthetic_concept(
         arm_id="death_matters",
