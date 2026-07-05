@@ -363,6 +363,45 @@ reads 0. Keep them disambiguated: a 0 counter does **not** mean the drop class i
 _Avoid_: conflating the named class with the counter (the misread that made the drop class
 look already-solved).
 
+**Lane mirror** (ADR-0035 → ADR-0036):
+A crosswalk lane's regex-over-oracle-*text* read — a `clauses(oracle)` split plus
+`.search`/`.finditer`, imported from `_signals_regex` / `_sweep_detectors` — kept as a
+transitional safety net where the structural read wasn't built yet. Tier-0: blind to tree
+structure, so it carries the card-level cross-clause false-positive class. What a
+[[Mirror fold]] retires.
+_Avoid_: "byte-mirror" alone (that names the ADR-0027 signal-*equality* tactic; a lane
+mirror is the text-read it rides on), "fallback" (it is tech-debt, not a sanctioned path).
+
+**Mirror fold** (ADR-0036):
+Replacing a [[Lane mirror]] with a [[Tier-1 structural read]] of the same datum, plus
+whatever [[Fold triage|direct / bucket-A / bucket-B]] work is needed to make the typed
+field exist first. Tier-1-only: the lane never falls back to a node-`raw` regex (the
+rejected Tier-2) — when phase's parse is lacking we *supplement* it, not text-scan in the
+lane. A fold may legitimately *improve* signals (adjudicated role-aware), not only
+reproduce them.
+_Avoid_: "de-regex" (a bucket-B fold still runs regex once at the projection seam; what's
+removed is *lane-time* text-reading), "refactor" (folds are allowed to move signals).
+
+**Tier-1 structural read** (ADR-0036):
+A lane read touching only typed [[Concept-node]] fields (`subject` / `scope` / `zones` /
+`kind` / …) — zero oracle text, zero regex, at lane time. The goal state of every lane.
+Contrast Tier-0 (the [[Lane mirror]]) and the *rejected* Tier-2 (node-`raw` regex in the
+lane, refused because the plan supplements phase's parse rather than relocating regex into
+the lane).
+_Avoid_: "IR read" (the old lossy projection was also "IR"; this is specifically a
+typed-field read of the [[Concept overlay]]).
+
+**Fold triage: direct / bucket-A / bucket-B** (ADR-0036):
+The three routes a [[Lane mirror]] takes to a [[Tier-1 structural read]]: **direct** — the
+tree already carries the datum, just rewrite the lane; **bucket-A** — phase parsed the
+structure but the projection dropped it, so add a structural [[Concept overlay]] arm (no
+oracle text); **bucket-B** — a genuine phase gap, so add a projection-time [[supplement]]
+arm that regexes text *once* and emits a typed node (log the gap; retire via the
+[[Convergence check]]). Reuses the ADR-0035 [[bucket-A]] / bucket-B supplement taxonomy;
+"direct" is the no-supplement-needed case.
+_Avoid_: reading "bucket-A" as "tree already has it" (bucket-A means phase-parsed-but-
+dropped; the already-there case is *direct*).
+
 ### Roles & surfaces
 
 **Session-agent** (a.k.a. the reasoning layer):
