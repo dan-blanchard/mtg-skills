@@ -222,6 +222,122 @@ def test_synthesized_node_is_tag_inert_and_provenance():
 
 def test_synthesis_arm_ids_registered():
     assert "death_matters" in SYNTHESIS_ARM_IDS
+    assert "attack_matters" in SYNTHESIS_ARM_IDS
+
+
+# ── attack_matters synth arm (ADR-0036 fold) ──────────────────────────────────
+
+
+def test_attack_synth_fires_on_bucket_b_gap():
+    # a "whenever ~ attacks" trigger phase left description-only (the gap shape).
+    tree = _gap_tree("Whenever another creature you control attacks, draw a card.")
+    fired = synthesize_nodes(tree)
+    assert [arm for arm, _ in fired] == ["attack_matters"]
+    _arm, node = fired[0]
+    assert node.concept == "synth_attack_matters"
+    assert isinstance(node.node, SynthesizedNode)
+    assert node.node.arm_id == "attack_matters"
+    assert node.scope == "you"
+
+
+def test_attack_synth_fires_on_attacking_causes():
+    # the Isshin family (CR 508.2a/603.2) — phase emits no attack trigger.
+    tree = _gap_tree(
+        "If a creature attacking causes a triggered ability of a permanent you "
+        "control to trigger, that ability triggers an additional time."
+    )
+    assert [arm for arm, _ in synthesize_nodes(tree)] == ["attack_matters"]
+
+
+def test_attack_synth_fires_on_positive_raid_count():
+    # the untyped Raid count ("you attacked with …" — Windbrisk Heights).
+    tree = _gap_tree(
+        "You may play the exiled card if you attacked with three or more "
+        "creatures this turn."
+    )
+    assert [arm for arm, _ in synthesize_nodes(tree)] == ["attack_matters"]
+
+
+def test_attack_synth_vetoes_attacks_alone():
+    # CR 506.5 / 702.83: "attacks alone" is a single-attacker (exalted/voltron)
+    # condition, not the go-wide attack_matters lane.
+    tree = _gap_tree("Whenever this creature attacks alone, you draw a card.")
+    assert synthesize_nodes(tree) == ()
+
+
+def test_attack_synth_vetoes_defensive_attacks_you():
+    # CR 508.1a: "attacks you" watches the OPPONENT's declaration — a defensive
+    # pillowfort trigger, not an offensive attack payoff.
+    tree = _gap_tree(
+        "Whenever a creature attacks you, it gets -2/-0 until end of turn."
+    )
+    assert synthesize_nodes(tree) == ()
+
+
+def test_attack_synth_vetoes_cant_attack_hoser():
+    # CR 508.1c: a "can't attack" restriction is a hoser, not a payoff (Bloodthirster
+    # — the "already attacked this turn" clause the mirror over-fired on).
+    tree = _gap_tree(
+        "This creature can't attack a player it has already attacked this turn."
+    )
+    assert synthesize_nodes(tree) == ()
+
+
+def test_attack_synth_noops_on_negated_didnt_attack():
+    # "didn't attack this turn" is anti-attack durdle, not a payoff — the positive
+    # Raid idiom requires past-tense "you attacked".
+    tree = _gap_tree(
+        "At the beginning of your end step, if this creature didn't attack this "
+        "turn, put a +1/+1 counter on it."
+    )
+    assert synthesize_nodes(tree) == ()
+
+
+def test_attack_synth_noops_when_no_attack_idiom():
+    tree = _gap_tree("Draw two cards. You gain 2 life.")
+    assert synthesize_nodes(tree) == ()
+    assert apply_tree_synthesis(tree) is tree
+
+
+def test_attack_synth_noops_when_structural_attack_present():
+    # phase carries a typed attacks trigger (Accorder Paladin — battle cry), so the
+    # arm fills no gap and the stage returns the tree by identity.
+    tree = _fixture_tree("Accorder Paladin")
+    assert synthesize_nodes(tree) == ()
+    assert apply_tree_synthesis(tree) is tree
+
+
+def test_attack_matters_lane_reads_synth_node_end_to_end():
+    """The fold path, mirror-independent: a synth ``attack_matters`` node ALONE —
+    with an oracle carrying no attack idiom — makes ``_attack_tapped_matters`` emit
+    the signal. Proves the synth read is the ACTIVE Tier-1 source once the mirror is
+    deleted.
+    """
+    from mtg_utils._deck_forge.crosswalk_signals import _attack_tapped_matters
+
+    synth_cnode = ConceptNode(
+        concept="synth_attack_matters",
+        node=SynthesizedNode(arm_id="attack_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth_cnode,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _attack_tapped_matters(tree)
+    assert any(s.key == "attack_matters" for s in sigs)
 
 
 def test_death_matters_lane_reads_synth_node_end_to_end():

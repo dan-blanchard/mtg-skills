@@ -51,20 +51,30 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    condition_tags,
+    count_operand_filter,
+    effect_filter,
+    filter_controller,
+    filter_predicates,
     iter_typed_nodes,
     tag_of,
     trigger_subject,
     zone_change_count_reads,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirrorNode
-from mtg_utils._deck_forge._signals_regex import _resolve_subject
+from mtg_utils._deck_forge._signals_regex import _resolve_subject, clauses
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 
 __all__ = [
+    "ATTACK_TRIGGER_EVENTS",
+    "RAID_CONDITION_TAGS",
     "SYNTHESIS_ARM_IDS",
     "SynthesizedNode",
     "apply_tree_synthesis",
+    "attack_raid_condition",
     "creature_death_condition",
+    "has_attack_trigger",
+    "has_attacking_you_effect",
     "synthesize_nodes",
 ]
 
@@ -315,6 +325,165 @@ def _arm_death_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── attack_matters structural reads (ADR-0036 fold — shared lane/gate source) ──
+# The Tier-1 ``_attack_tapped_matters`` lane fires ``attack_matters`` on these typed
+# reads; this stage's gap gate (:func:`_has_structural_attack`) reads the SAME
+# predicates so the lane and the synth never disagree on which cards phase
+# structuralizes (the gap-gate-alignment invariant — one source, no drift).
+
+# Offensive attack-DECLARATION trigger events (CR 508.1a — the active player
+# chooses which of THEIR creatures attack). The compound events phase derives for
+# "enters or attacks" / "attacks and isn't blocked" / "whenever you attack with an
+# unblocked …" / "when one or more creatures attack". ``attacksorblocks`` and
+# ``attackerblocked`` are deliberately EXCLUDED: those bundle self-sacrifice
+# DRAWBACKS ("when this attacks or blocks, sacrifice it") and afflict ("becomes
+# blocked") that are not attack payoffs — the genuine "whenever ~ attacks or blocks"
+# rewards are recovered by the bucket-B synth's whenever-gate instead.
+ATTACK_TRIGGER_EVENTS: frozenset[str] = frozenset(
+    {
+        "attacks",
+        "entersorattacks",
+        "attackerunblocked",
+        "youattackunblocked",
+        "attackersdeclared",
+    }
+)
+# Positive Raid CONDITION tags ("if you attacked this turn" — CR 508.1a/508.4). The
+# ``condition`` family only; the ``prop`` / ``properties`` filter-predicate family
+# ("creatures that DIDN'T attack this turn" — anti-attack durdle) is deliberately
+# not read, so a negated non-payoff never opens the lane.
+RAID_CONDITION_TAGS: frozenset[str] = frozenset(
+    {
+        "YouAttackedThisTurn",
+        "SourceAttackedThisTurn",
+        "YouAttackedWithAtLeast",
+        "YouAttackedSourceControllerThisTurn",
+    }
+)
+
+
+def has_attack_trigger(tree: ConceptTree) -> bool:
+    """A phase-typed offensive attack-declaration trigger (CR 508.1a)."""
+    return any(
+        unit.origin == "trigger" and unit.trigger_event in ATTACK_TRIGGER_EVENTS
+        for unit in tree.units
+    )
+
+
+def attack_raid_condition(tree: ConceptTree) -> bool:
+    """A positive Raid state check ("if you attacked this turn" — CR 508.1a)."""
+    return bool(condition_tags(tree) & RAID_CONDITION_TAGS)
+
+
+def has_attacking_you_effect(tree: ConceptTree) -> bool:
+    """An effect over YOUR ``Attacking`` creatures ("attacking creatures you
+    control get +1/+0"; "for each attacking creature you control" — CR 508.1k).
+    The controller gate is load-bearing: "destroy target attacking creature"
+    (controller any) is removal, not an aggro payoff.
+    """
+    for c in tree.iter_concepts():
+        if c.role != "effect":
+            continue
+        for filt in (effect_filter(c.node), count_operand_filter(c.node)):
+            if filt is None or filter_controller(filt) != "You":
+                continue
+            if "Attacking" in filter_predicates(filt):
+                return True
+    return False
+
+
+def _has_structural_attack(tree: ConceptTree) -> bool:
+    """Whether phase ALREADY carries a typed node the Tier-1 attack reads see.
+
+    The synth arm fills only a genuine gap, so it no-ops when any structural attack
+    evidence the lane fires on exists — the SAME three predicates the lane reads
+    (:func:`has_attack_trigger` / :func:`attack_raid_condition` /
+    :func:`has_attacking_you_effect`), so the gate and the lane never disagree.
+    """
+    return (
+        has_attack_trigger(tree)
+        or attack_raid_condition(tree)
+        or has_attacking_you_effect(tree)
+    )
+
+
+# ── arm: attack_matters bucket-B (ADR-0036 fold) ──────────────────────────────
+# The combat-state payoff over YOUR creatures (CR 508) has a bucket-B tail phase
+# emits NO typed attack node for: a "whenever ~ attacks / attacks or blocks" trigger
+# left description-only (granted/quoted abilities — "creatures you control have
+# 'whenever this creature attacks …'"), the "attacking causes [extra combat
+# triggers]" family (Isshin, CR 508.2a/603.2), and the Raid count phase leaves as
+# untyped text ("you attacked with two or more creatures this turn" — Windbrisk
+# Heights, Minas Tirith). Read PER-CLAUSE (reminder-stripped) so a match is confined
+# to ONE clause — the cross-clause false-positive class the mirror carried.
+#
+# Every family fires ONLY when NO structural attack node is present
+# (:func:`_has_structural_attack`) and ONLY for a genuine your-side attack payoff.
+# The over-fire VETO sheds, per CR: "attacks alone" / exalted (CR 506.5 / 702.83a —
+# a single-attacker voltron condition, not go-wide), the DEFENSIVE "whenever a
+# creature attacks you" (CR 508.1a — watches the OPPONENT's declaration, a
+# pillowfort trigger), and the "can't attack" restriction (CR 508.1c — a hoser, not
+# a payoff). The positive Raid idiom requires past-tense "you attacked" (YOU as the
+# attacker), so "didn't attack this turn" and "each opponent who attacked" never
+# match.
+_ATTACK_ALONE_RX = re.compile(r"attacks? alone|attacking alone", re.IGNORECASE)
+_ATTACK_DEFENSIVE_RX = re.compile(
+    r"attacks? you\b|attacks a player other than you|creature attacks you"
+    r"|attacks you or a planeswalker",
+    re.IGNORECASE,
+)
+_ATTACK_CANT_RX = re.compile(r"can'?t attack", re.IGNORECASE)
+_ATTACK_MATTERS_RX = re.compile(r"attacking causes|attacked this turn", re.IGNORECASE)
+# YOU as the attacker — the positive Raid idiom (excludes "didn't attack" and the
+# defensive "each opponent who attacked").
+_ATTACK_RAID_RX = re.compile(r"\byou attacked\b", re.IGNORECASE)
+
+
+def _matches_attack_idiom(oracle: str) -> bool:
+    """Whether a reminder-stripped oracle carries a bucket-B attack payoff idiom.
+
+    Per-clause: a genuine your-side attack trigger ("whenever ~ attacks"), the
+    "attacking causes" / "attacked this turn" idioms, or a positive Raid ("you
+    attacked …"), MINUS the over-fire veto (attacks-alone / defensive / can't-attack).
+    """
+    for cl in clauses(_REMINDER.sub(" ", oracle or "")):
+        if (
+            _ATTACK_ALONE_RX.search(cl)
+            or _ATTACK_DEFENSIVE_RX.search(cl)
+            or _ATTACK_CANT_RX.search(cl)
+        ):
+            continue
+        lc = cl.lower()
+        if (
+            _ATTACK_MATTERS_RX.search(cl)
+            or _ATTACK_RAID_RX.search(cl)
+            or ("whenever" in lc and "attack" in lc)
+        ):
+            return True
+    return False
+
+
+def _arm_attack_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``attack_matters`` node for a description-only attack payoff.
+
+    CR 508: fires only when phase carries no typed attack node
+    (:func:`_has_structural_attack`) and the oracle carries a genuine your-side
+    attack idiom (:func:`_matches_attack_idiom`). Scope "you" (the lane's + serve
+    spec's scope for this combat-state payoff).
+    """
+    if _has_structural_attack(tree):
+        return None
+    if not _matches_attack_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="attack_matters",
+        concept="synth_attack_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B attack payoff (phase emits no typed attack node)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -322,7 +491,10 @@ def _arm_death_matters(tree: ConceptTree) -> ConceptNode | None:
 # clause (the synth would then duplicate a typed node the Tier-1 read already sees,
 # so its ``_has_structural_death``-style gap gate drops its firing to 0).
 _Arm = Callable[[ConceptTree], "ConceptNode | None"]
-_ARMS: tuple[tuple[str, _Arm], ...] = (("death_matters", _arm_death_matters),)
+_ARMS: tuple[tuple[str, _Arm], ...] = (
+    ("death_matters", _arm_death_matters),
+    ("attack_matters", _arm_attack_matters),
+)
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
 

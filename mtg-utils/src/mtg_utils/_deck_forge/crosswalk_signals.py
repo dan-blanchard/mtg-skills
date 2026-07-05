@@ -178,7 +178,9 @@ from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
 from mtg_utils._card_ir.tree_synthesis import (
     _double_triggers_creature_dying,
     _is_creature_death_subject,
+    attack_raid_condition,
     creature_death_condition,
+    has_attack_trigger,
 )
 from mtg_utils._deck_forge import signal_keys
 
@@ -189,7 +191,6 @@ from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
     _ABILITY_COPY_MIRROR,
     _ACTIVATED_ABILITY_DROP_EFFECTS,
-    _ATTACK_MATTERS_MIRROR,
     _BIG_HAND_MAKERS_MIRROR,
     _BIG_HAND_MATTERS_MIRROR,
     _CONVOKE_RAW,
@@ -1903,13 +1904,22 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
 
 def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
     """attack_matters / tapped_matters — a combat-state payoff over YOUR creatures
-    (CR 508.4 attacking / 301 tapped). Mirrors ``_signals_ir`` line ~8259: an effect
-    whose subject (or count operand) filter has controller you AND carries the
-    ``Attacking`` / ``Tapped`` predicate ("attacking creatures you control get
-    +1/+0"; "for each tapped creature you control"). The controller gate is
-    load-bearing — "destroy target attacking creature" (controller any) is removal,
-    not an aggro lane. Tapped is creature-gated (a tapped LAND bounce is mana, not
-    aggro).
+    (CR 508 attacking / 301 tapped). Tier-1 structural reads (ADR-0036 fold — the
+    ``_ATTACK_MATTERS_MIRROR`` is deleted):
+
+    * an offensive attack-declaration trigger (:func:`has_attack_trigger` — the typed
+      compound-event set, CR 508.1a).
+    * a positive Raid condition (:func:`attack_raid_condition` — "if you attacked this
+      turn", CR 508.1a/508.4).
+    * an effect over YOUR ``Attacking`` / ``Tapped`` creatures ("attacking creatures
+      you control get +1/+0"; "for each tapped creature you control"). The controller
+      gate is load-bearing — "destroy target attacking creature" (controller any) is
+      removal, not an aggro lane. Tapped is creature-gated.
+    * a static anthem over your tapped creatures (``tapped_matters``).
+    * the ``tree_synthesis`` bucket-B synth node — the description-only attack payoff /
+      "attacking causes" / untyped Raid-count tail phase emits no typed node for
+      (over-fires vetoed there: attacks-alone / exalted, defensive attacks-you,
+      can't-attack hosers).
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -1919,15 +1929,22 @@ def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, "you", "", raw, tree.name, "high"))
 
-    # recall-completion b1 (ADR-0034): the ``attacks`` trigger-event payoff — a
-    # "whenever ~ attacks" reward (Accorder Paladin, Adeline, Aurelia, Isshin).
-    # ``_signals_ir`` fires ``_PAYOFF_TRIGGER_KEYS["attacks"]`` unconditionally on
-    # every attacks-trigger unit, scope forced "you". The read machinery already
-    # existed (``nonhuman_attackers`` / ``tap_down`` read the same event); neither
-    # emitted ``attack_matters``. CR 508.1 / 603.2.
-    for unit in tree.units:
-        if unit.origin == "trigger" and unit.trigger_event == "attacks":
-            fire("attack_matters", "")
+    # An offensive attack-DECLARATION trigger (CR 508.1a) — a "whenever ~ attacks"
+    # reward (Accorder Paladin, Adeline, Aurelia). ADR-0036 fold: broadened from the
+    # bare ``attacks`` event to the full typed compound-event set
+    # (:data:`tree_synthesis.ATTACK_TRIGGER_EVENTS` — "enters or attacks", "attacks
+    # and isn't blocked", "whenever you attack with an unblocked …", "one or more
+    # creatures attack"), read structurally off the derived ``trigger_event`` (never
+    # oracle text). Scope forced "you". Shared with the synth gap gate so the two
+    # agree on which triggers phase structuralizes.
+    if has_attack_trigger(tree):
+        fire("attack_matters", "")
+    # A positive Raid state check ("if you attacked this turn" — CR 508.1a/508.4;
+    # Mardu Hordechief, Bellowing Saddlebrute), read off the typed ``condition``
+    # family (:func:`attack_raid_condition`), never text. The negated "creatures
+    # that DIDN'T attack this turn" filter family is deliberately not read.
+    if attack_raid_condition(tree):
+        fire("attack_matters", "")
 
     for c in tree.iter_concepts():
         if c.role != "effect":
@@ -1959,19 +1976,16 @@ def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
         ):
             fire("tapped_matters", "")
 
-    # recall-completion b1 (ADR-0035 backstop): the attack_matters raw-fold residue
-    # phase gives no clean ``attacks`` shape for — the disjunctive "enters or
-    # attacks" / "attacks or blocks" (phase → event='other'), the Raid "if you
-    # attacked this turn" condition, the AttackedThisTurn effect predicate, and
-    # "attacking causes" (Isshin). Byte-identical to the deleted producer run
-    # PER-CLAUSE over the reminder-stripped face oracle (``_ATTACK_MATTERS_MIRROR``
-    # + the substring-AND "whenever" & "attack" branch). CR 508 / 702.10.
-    if any(
-        _ATTACK_MATTERS_MIRROR.search(cl)
-        or ("whenever" in (lc := cl.lower()) and "attack" in lc)
-        for cl in clauses(_kept(tree))
-    ):
-        fire("attack_matters", "")
+    # bucket-B tail (ADR-0036/0037 fold — the ``_ATTACK_MATTERS_MIRROR`` is deleted):
+    # the ``tree_synthesis`` stage's synthesized attack node, for the description-only
+    # payoffs phase emits no typed attack node for — a "whenever ~ attacks / attacks
+    # or blocks" trigger left description-only (granted/quoted abilities), "attacking
+    # causes [extra combat]" (Isshin), and the untyped Raid count ("you attacked with
+    # two or more creatures" — Windbrisk Heights). Over-fires (attacks-alone /
+    # exalted, defensive attacks-you, can't-attack hosers) are vetoed there. CR 508.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_attack_matters":
+            fire("attack_matters", "")
     return out
 
 
