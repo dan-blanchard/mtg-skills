@@ -972,6 +972,165 @@ def test_type_matters_lane_reads_synth_node_end_to_end():
     assert subs == {"Goblin", "Elf"}
 
 
+# ── keyword_tribe fold (ADR-0036/0037 — SUBJECT-carrying, per-scope synth) ─────
+
+
+def _keyword_pairs(name):
+    """The (scope, subject) keyword-tribe pairs the folded lane emits for a fixture
+    card (over the synthesized tree — Arm B union the synth nodes)."""
+    from mtg_utils._deck_forge.crosswalk_signals import _keyword_tribe
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return {
+        (s.scope, s.subject) for s in _keyword_tribe(tree) if s.key == "keyword_tribe"
+    }
+
+
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        # bucket-A / Arm-B structural: phase carries a controller-You WithKeyword filter
+        # (anthem / count), so the lane fires WITHOUT the synth arm.
+        (
+            "Favorable Winds",
+            {"Flying"},
+        ),  # "creatures you control with flying get +1/+1"
+        ("Winged Portent", {"Flying"}),  # "for each creature you control with flying"
+        # keyword-sharing anthem (Odric grants keywords your board already has)
+        (
+            "Odric, Lunarch Marshal",
+            {
+                "Deathtouch",
+                "Flying",
+                "Haste",
+                "Hexproof",
+                "Indestructible",
+                "Lifelink",
+                "Menace",
+                "Reach",
+                "Skulk",
+                "Trample",
+                "Vigilance",
+            },
+        ),
+    ],
+)
+def test_keyword_tribe_arm_b_structural(name, subjects):
+    from mtg_utils._card_ir.tree_synthesis import (
+        _arm_keyword_tribe,
+        structural_keyword_subjects,
+    )
+
+    tree = _fixture_tree(name)
+    assert subjects <= structural_keyword_subjects(tree)  # Arm B carries them
+    assert _arm_keyword_tribe(tree) is None  # gap-gated: synth adds nothing new
+    assert _keyword_pairs(name) == {("you", s) for s in subjects}
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Isperia the Inscrutable",  # keyword TUTOR (search for a creature with flying)
+    ],
+)
+def test_keyword_tribe_bucket_b_synth(name):
+    """The SUBJECT-carrying synth recovers a keyword phase leaves keyword-less (a
+    tutor), gap-gated against Arm B (which carries none of these), scope "you"."""
+    from mtg_utils._card_ir.tree_synthesis import (
+        _arm_keyword_tribe,
+        structural_keyword_subjects,
+    )
+
+    tree = _fixture_tree(name)
+    assert structural_keyword_subjects(tree) == set()  # Arm B misses it
+    node = _arm_keyword_tribe(tree)
+    assert node is not None
+    assert node.concept == "synth_keyword_tribe"
+    assert node.scope == "you"
+    assert "Flying" in node.subject
+    assert _keyword_pairs(name) == {("you", "Flying")}
+
+
+def test_keyword_tribe_any_scope_symmetric_anthem():
+    """Inniaz carries BOTH a symmetric-anthem ("creatures with flying") AND a your-tribe
+    reference, so the lane emits Flying at scope "any" (the any-scope synth arm) AND
+    scope "you" — the two scopes stay distinct through the fold."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_keyword_tribe_any
+
+    tree = _fixture_tree("Inniaz, the Gale Force")
+    node = _arm_keyword_tribe_any(tree)
+    assert node is not None
+    assert node.scope == "any"
+    assert "Flying" in node.subject
+    assert _keyword_pairs("Inniaz, the Gale Force") == {
+        ("any", "Flying"),
+        ("you", "Flying"),
+    }
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Wind Drake",  # bare "Flying" keyword — self-granted, references no population
+        "Aerial Predation",  # "destroy target creature with flying" — anti-flyer removal
+        "Clip Wings",  # edict ("each opponent sacrifices a creature with flying")
+    ],
+)
+def test_keyword_tribe_shed_overfires(name):
+    """CR 702: a card that merely HAS a keyword, an anti-keyword removal spell, and an
+    edict targeting keyworded creatures are NOT keyword-tribe payoffs — no subject is
+    minted (the sacrifice carve-out sheds phase's spurious controller-You edict tag)."""
+    from mtg_utils._card_ir.tree_synthesis import (
+        _arm_keyword_tribe,
+        _arm_keyword_tribe_any,
+        structural_keyword_subjects,
+    )
+
+    tree = _fixture_tree(name)
+    assert structural_keyword_subjects(tree) == set()
+    assert _arm_keyword_tribe(tree) is None
+    assert _arm_keyword_tribe_any(tree) is None
+    assert _keyword_pairs(name) == set()
+
+
+def test_keyword_tribe_synth_registered():
+    assert "keyword_tribe" in SYNTHESIS_ARM_IDS
+    assert "keyword_tribe_any" in SYNTHESIS_ARM_IDS
+
+
+def test_keyword_tribe_lane_reads_synth_node_end_to_end():
+    """Fold path, mirror-independent: a synth ``synth_keyword_tribe`` node carrying a
+    keyword tuple at scope "any" — oracle carrying no keyword idiom — makes the lane
+    emit one keyword_tribe Signal per element at the node's scope."""
+    from mtg_utils._deck_forge.crosswalk_signals import _keyword_tribe
+
+    synth = ConceptNode(
+        concept="synth_keyword_tribe",
+        node=SynthesizedNode(arm_id="keyword_tribe_any", description="x"),
+        role="effect",
+        scope="any",
+        subject=("Flying", "Menace"),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    pairs = {
+        (s.scope, s.subject) for s in _keyword_tribe(tree) if s.key == "keyword_tribe"
+    }
+    assert pairs == {("any", "Flying"), ("any", "Menace")}
+
+
 # ── mass_death_payoff synth arm + Tier-1 fold (ADR-0036/0037) ─────────────────
 # The AGGREGATE board-wipe payoff (CR 700.4): a value/effect scaling with the
 # NUMBER of creatures that died this turn. Bucket-A reads the died-count in an

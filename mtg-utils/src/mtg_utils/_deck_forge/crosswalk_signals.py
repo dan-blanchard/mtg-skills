@@ -194,6 +194,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_trigger_draw_bleed,
     has_value_tap_ability,
     mass_death_amount,
+    structural_keyword_subjects,
     structural_type_subjects,
 )
 from mtg_utils._deck_forge import signal_keys
@@ -245,7 +246,6 @@ from mtg_utils._deck_forge._signals_regex import (
     _REPEATABLE_KILL_RE,
     TUTOR_MATTERS_REGEX,
     Signal,
-    _detect_keyword_tribe,
     _detect_token_maker,
     _resolve_subject,
     _type_hoser_clause,
@@ -8247,25 +8247,48 @@ def _suspend_matters(tree: ConceptTree) -> list[Signal]:
 
 
 def _keyword_tribe(tree: ConceptTree) -> list[Signal]:
-    """keyword_tribe (§D) — CR 109.3 + 702: the SUBJECT-CARRYING
-    byte-identical mirror — re-run the EXACT live producer
-    (``_detect_keyword_tribe``, imported like live does) PER-CLAUSE over
-    the reminder-stripped kept oracle, emitting the capitalized ability
-    keyword as the Signal SUBJECT (checklist #6 — the subject is
-    LOAD-BEARING; the per-subject serve spec interpolates it). NOT
-    structural: phase's WithKeyword covers ~70 but loses the tutor
-    (Isperia), play-from-top (Errant and Giada), keyword-count scalers and
-    granted-fly riders. Face-join caveat: the crosswalk runs per face
-    record; the shadow diff unions faces by oracle_id (Henrika fires from
-    the back face)."""
+    """keyword_tribe (§D, SUBJECT-CARRYING) — CR 109.3 / 702: a payoff /
+    reference that CARES about creatures WITH an ability keyword (Favorable
+    Winds' "creatures you control with flying get +1/+1"; Winged Portent's
+    "for each creature you control with flying"; Isperia's keyword tutor).
+    The captured SUBJECT (the capitalized ability keyword, vocab-gated
+    through ``_ABILITY_KEYWORDS``) is LOAD-BEARING — the per-subject serve
+    spec interpolates it. A pure Tier-1 UNION (ADR-0036/0037 fold — the
+    ``_detect_keyword_tribe`` text mirror is RETIRED to subject-carrying
+    ``tree_synthesis`` arms):
+
+    * **Arm B (structural):** the ability keyword of every controller-``You``
+      ``WithKeyword`` filter at an effect subject / count-operand / trigger
+      valid_card / static affected / condition site
+      (:func:`structural_keyword_subjects` — the SHARED source the synth's
+      per-keyword gap gate also reads), scope "you", HIGH.
+    * **bucket-B synth (ADR-0037, subject-carrying, per-scope):** the
+      ``tree_synthesis`` stage's ``synth_keyword_tribe`` nodes carry a TUPLE
+      of the keywords phase leaves keyword-less (tutor / play-from-top /
+      symmetric anthem / granted-fly) — the "you"-scope node per-keyword
+      gap-gated against Arm B, the "any"-scope node (symmetric anthems)
+      ungated. The lane emits one Signal per element at ``node.scope``.
+
+    A bare "this creature has flying" (self-granted keyword) mints no
+    subject — it references no keyworded POPULATION (CR 702). Dedupe by
+    (scope, subject)."""
     out: list[Signal] = []
-    seen: set[tuple[str, str, str]] = set()
-    for clause in clauses(_kept(tree)):
-        for key, scope, subject in _detect_keyword_tribe(clause):
-            ident = (key, scope, subject)
-            if ident not in seen:
-                seen.add(ident)
-                out.append(Signal(key, scope, subject, clause, tree.name, "high"))
+    seen: set[tuple[str, str]] = set()
+
+    def emit(scope: str, subject: str) -> None:
+        ident = (scope, subject)
+        if subject and ident not in seen:
+            seen.add(ident)
+            out.append(
+                Signal(signal_keys.KEYWORD_TRIBE, scope, subject, "", tree.name, "high")
+            )
+
+    for subject in structural_keyword_subjects(tree):
+        emit("you", subject)
+    for c in tree.iter_concepts():
+        if c.concept == "synth_keyword_tribe":
+            for subject in c.subject:
+                emit(c.scope, subject)
     return out
 
 

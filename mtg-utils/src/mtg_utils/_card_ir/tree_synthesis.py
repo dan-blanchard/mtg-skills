@@ -61,6 +61,7 @@ from mtg_utils._card_ir.crosswalk import (
     explicit_recipient_scope,
     filter_controller,
     filter_core_types,
+    filter_keywords,
     filter_non_types,
     filter_predicates,
     filter_subtypes,
@@ -87,7 +88,9 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 from mtg_utils._card_ir.project import _MASS_DEATH_REF
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_regex import (
+    _ABILITY_KEYWORDS,
     _detect_keyword_implied_tribe,
+    _detect_keyword_tribe,
     _detect_multi_tribe_anthem,
     _detect_type_matters,
     _detect_typed_gy_recursion,
@@ -124,6 +127,7 @@ __all__ = [
     "has_value_tap_ability",
     "is_clone_value_effect",
     "mass_death_amount",
+    "structural_keyword_subjects",
     "structural_type_subjects",
     "synthesize_nodes",
 ]
@@ -1199,6 +1203,151 @@ def _arm_type_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── keyword_tribe structural reads (ADR-0036 fold — shared lane/gate source) ──
+# The KEYWORD analog of type_matters (CR 109.3 / 702): a payoff/reference that CARES
+# about creatures WITH an ability keyword (Favorable Winds' "creatures you control with
+# flying get +1/+1"; Winged Portent's "for each creature you control with flying"; Odric
+# sharing keywords across your board). The SUBJECT is the capitalized ability keyword.
+# The Tier-1 ``_keyword_tribe`` lane reads TWO structural sources: the keyword of every
+# controller-``You`` ``WithKeyword`` filter phase carries at an effect subject /
+# count-operand / trigger valid_card / static affected / condition site (Arm B —
+# :func:`structural_keyword_subjects`, scope "you"), and the SUBJECT-carrying bucket-B
+# synth nodes (:func:`_arm_keyword_tribe` / :func:`_arm_keyword_tribe_any`). Like
+# type_matters the synth node holds a TUPLE of resolved keywords and the lane emits one
+# Signal per element, per-KEYWORD gap-gated against the SAME Arm-B set — one source, no
+# drift, never double-counting a keyword phase structuralizes.
+
+
+def structural_keyword_subjects(tree: ConceptTree) -> set[str]:
+    """Ability keywords of every controller-``You`` ``WithKeyword`` filter phase
+    carries at a read site the ``_keyword_tribe`` lane fires on (CR 109.3 — Arm B).
+
+    The Arm-B source SHARED by the lane AND this stage's per-keyword gap gate
+    (:func:`_arm_keyword_tribe`) — one source, no drift. Only a controller-``You``
+    filter is a your-tribe payoff (a bare / opponent-controlled ``WithKeyword`` is a
+    keyword hoser or removal target — "destroy target creature with flying" — not a
+    tribe payoff, CR 702; the mirror required a "you control" / anthem context, so we
+    require ``controller == "You"``). The ``sacrifice`` effect concept is skipped:
+    phase tags an EDICT ("each opponent sacrifices a creature with flying" — Clip
+    Wings, Pick Your Poison) with a spurious controller-``You`` target, but the
+    sacrificed creature is the opponent's — anti-flyer removal, not a your-tribe
+    payoff (the ``make_token`` carve-out precedent). Each keyword is vocab-gated
+    through ``_ABILITY_KEYWORDS`` (the precision gate — a non-keyword word yields no
+    subject) and returned capitalized.
+    """
+    out: set[str] = set()
+
+    def add_filter(filt: object) -> None:
+        if filt is None or filter_controller(filt) != "You":
+            return
+        for k in filter_keywords(filt):
+            if k.lower() in _ABILITY_KEYWORDS:
+                out.add(k.lower().capitalize())
+
+    for unit in tree.units:
+        for c in unit.effects:
+            add_filter(count_operand_filter(c.node))
+            if c.concept not in ("make_token", "sacrifice"):
+                add_filter(effect_filter(c.node))
+        if unit.origin == "trigger":
+            add_filter(getattr(unit.node, "valid_card", None))
+        if unit.origin == "static":
+            add_filter(getattr(unit.node, "affected", None))
+        for cond in iter_condition_sites(unit.node):
+            for q in iter_typed_nodes(cond):
+                if tag_of(q) == "Typed":
+                    add_filter(q)
+    return out
+
+
+# ── arm: keyword_tribe bucket-B (ADR-0036 fold — SUBJECT-carrying, per-scope) ──
+# The keyword-tribe payoff (CR 109.3 / 702) has a bucket-B tail phase leaves keyword-
+# less: a keyword TUTOR (Isperia — "search your library for a creature card with
+# flying"; phase emits no WithKeyword-bearing search filter), a play-from-top engine
+# gated on a keyword (Errant and Giada), a symmetric anthem ("creatures with flying
+# get +1/+1" — controller-less, so Arm B misses it), and granted-fly riders. The
+# pinned kept-oracle producer (:func:`_detect_keyword_tribe`, imported from
+# ``_signals_regex`` — the flag-OFF path's mirror, SHARED never re-implemented)
+# captures each keyword through the SAME ``_ABILITY_KEYWORDS`` vocab gate and carries
+# the mirror's per-clause scope
+# ("you" for your-tribe references / tutors; "any" for symmetric anthems). Two arms keep
+# the two scopes distinct (the diff keys on scope) — the "you" arm is per-keyword
+# gap-gated against :func:`structural_keyword_subjects` (Arm B, scope "you"); the "any"
+# arm has no Arm-B counterpart (Arm B only reads controller-``You``), so it fires
+# ungated. Both emit the ``synth_keyword_tribe`` concept; the lane reads ``node.scope``.
+
+
+def _keyword_tribe_pairs(oracle: str) -> set[tuple[str, str]]:
+    """Every ``(scope, keyword)`` the kept-oracle keyword-tribe producer captures, per
+    reminder-stripped clause (CR 109.3 / 702).
+
+    Reads ``oracle`` reminder-stripped and clause-split (the SAME text the flag-OFF lane
+    mirror scanned via ``_kept`` — ``_REMINDER`` matches ``crosswalk_signals``'s
+    ``_REMINDER_RX``), so this reproduces the deleted lane mirror exactly.
+    """
+    out: set[tuple[str, str]] = set()
+    for cl in clauses(_REMINDER.sub(" ", oracle or "")):
+        for _k, scope, kw in _detect_keyword_tribe(cl):
+            out.add((scope, kw))
+    return out
+
+
+def _keyword_tribe_scoped(tree: ConceptTree) -> tuple[set[str], set[str]]:
+    """``(you_keywords, any_keywords)`` for the keyword-tribe synth, gap-gated.
+
+    The "you"-scope keywords are per-keyword gap-gated against
+    :func:`structural_keyword_subjects` (the SAME Arm-B set the lane fires on, so gate
+    and lane never disagree); the "any"-scope keywords (symmetric anthems) have no Arm-B
+    counterpart and pass through ungated.
+    """
+    struct = structural_keyword_subjects(tree)
+    you: set[str] = set()
+    anyk: set[str] = set()
+    for scope, kw in _keyword_tribe_pairs(tree.oracle or ""):
+        if scope == "you":
+            if kw not in struct:
+                you.add(kw)
+        else:
+            anyk.add(kw)
+    return you, anyk
+
+
+def _arm_keyword_tribe(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a scope-``you`` ``keyword_tribe`` node for bucket-B keyword gaps.
+
+    Carries a TUPLE of ONLY the your-tribe keywords phase's ``WithKeyword`` filters
+    MISS — per-keyword gap-gated against :func:`structural_keyword_subjects` (the SAME
+    Arm-B set the lane fires on). Returns None when phase already structuralizes every
+    captured keyword.
+    """
+    you, _anyk = _keyword_tribe_scoped(tree)
+    if not you:
+        return None
+    return _synthetic_concept(
+        arm_id="keyword_tribe",
+        concept="synth_keyword_tribe",
+        scope="you",
+        subject=tuple(sorted(you)),
+        desc="bucket-B keyword-tribe payoff (phase emits no WithKeyword filter)",
+    )
+
+
+def _arm_keyword_tribe_any(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a scope-``any`` ``keyword_tribe`` node for symmetric keyword anthems
+    ("creatures with flying get +1/+1" — controller-less, so Arm B never sees it; CR
+    702). No structural counterpart exists at scope "any", so it fires ungated."""
+    _you, anyk = _keyword_tribe_scoped(tree)
+    if not anyk:
+        return None
+    return _synthetic_concept(
+        arm_id="keyword_tribe_any",
+        concept="synth_keyword_tribe",
+        scope="any",
+        subject=tuple(sorted(anyk)),
+        desc="bucket-B symmetric keyword anthem (controller-less WithKeyword)",
+    )
+
+
 # ── wants_cloning structural reads (ADR-0036 fold — shared lane/gate source) ──
 # The Tier-1 ``_wants_cloning`` lane (a LOW clone-TARGET membership heuristic — CR
 # 707.1 copy / 704.5j legend rule) reads these typed predicates; this stage's
@@ -1546,6 +1695,8 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("lifegain_matters", _arm_lifegain_matters),
     ("spellcast_matters", _arm_spellcast_matters),
     ("type_matters", _arm_type_matters),
+    ("keyword_tribe", _arm_keyword_tribe),
+    ("keyword_tribe_any", _arm_keyword_tribe_any),
     ("wants_cloning", _arm_wants_cloning),
     ("mass_death_payoff", _arm_mass_death_payoff),
 )

@@ -852,6 +852,27 @@ def filter_without_keywords(filt: object) -> tuple[str, ...]:
     return tuple(out)
 
 
+def filter_keywords(filt: object) -> tuple[str, ...]:
+    """The ability-keyword names a typed filter REQUIRES via ``WithKeyword``
+    properties ("creatures you control with flying" → ``("Flying",)``; the
+    keyword-tribe payoff population, CR 109.3 / 702). The mirror of
+    :func:`filter_without_keywords` (which reads the ``WithoutKeyword``
+    exclusion side). Recurses ``Or`` / ``And`` like the other filter reads.
+    """
+    out: list[str] = []
+    t = tag_of(filt)
+    if t == "Typed":
+        for prop in getattr(filt, "properties", ()) or ():
+            if tag_of(prop) == "WithKeyword":
+                v = getattr(prop, "value", None)
+                if isinstance(v, str):
+                    out.append(v)
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            out.extend(filter_keywords(sub))
+    return tuple(out)
+
+
 def effect_filter(node: TypedMirrorNode) -> object | None:
     """The typed FILTER node an effect names (``subject`` / ``filter`` / ``target`` /
     ``affected``), or ``None``.
