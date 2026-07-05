@@ -53,6 +53,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     amount_factor,
     amount_is_scaling,
+    change_zone_dirs,
     condition_tags,
     count_operand_filter,
     effect_filter,
@@ -63,10 +64,12 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     iter_condition_sites,
+    iter_cost_leaves,
     iter_typed_nodes,
     replacement_event_tag,
     tag_of,
     trigger_caster_scope,
+    trigger_constraint_tag,
     trigger_subject,
     zone_change_count_reads,
 )
@@ -78,6 +81,8 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_type_matters,
     _detect_typed_gy_recursion,
     _resolve_subject,
+    _self_dies_value,
+    _self_etb_value,
     clauses,
 )
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
@@ -85,6 +90,8 @@ from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 __all__ = [
     "ATTACK_TRIGGER_EVENTS",
     "CAST_TRIGGER_EVENTS",
+    "ETB_TRIGGER_EVENTS",
+    "PER_TURN_CONSTRAINT_TAGS",
     "RAID_CONDITION_TAGS",
     "SYNTHESIS_ARM_IDS",
     "SynthesizedNode",
@@ -96,9 +103,14 @@ __all__ = [
     "has_gain_life_amplifier",
     "has_life_gained_this_turn",
     "has_life_gained_trigger",
+    "has_repeatable_engine",
+    "has_self_dies_value",
+    "has_self_etb_value",
     "has_selfloss_engine",
     "has_structural_spellcast",
     "has_trigger_draw_bleed",
+    "has_value_tap_ability",
+    "is_clone_value_effect",
     "structural_type_subjects",
     "synthesize_nodes",
 ]
@@ -125,6 +137,83 @@ def _is_creature_death_subject(subject: tuple[str, ...]) -> bool:
     """
     return "Creature" in subject or any(
         _resolve_subject(w, CREATURE_SUBTYPES) for w in subject
+    )
+
+
+# ── shared death/dies VALUE-effect predicates (ADR-0036 — the neutral home) ───
+# Moved here from ``crosswalk_signals`` so the ``_death_matters`` /
+# ``_self_death_payoff`` lanes AND the ``wants_cloning`` fold read ONE source (no
+# drift), and so :func:`is_clone_value_effect` can reuse them without the
+# ``crosswalk_signals`` <-> ``tree_synthesis`` import cycle. ``crosswalk_signals``
+# imports them back.
+_DEATH_PAYOFF_EFFECTS: frozenset[str] = frozenset(
+    {
+        "draw",
+        "dig",
+        "reveal_until",
+        "deal_damage",
+        "lose_life",
+        "gain_life",
+        "mill",
+        "make_token",
+        "place_counter",
+        "discard",
+        "surveil",
+        "cast_from_zone",
+    }
+)
+
+
+def _is_death_payoff_effect(e: ConceptNode) -> bool:
+    """Whether an AttachedTo dies-trigger effect EXTRACTS VALUE (payoff, KEEP), not
+    resilience (SHED). CR 700.4.
+
+    A named payoff kind (:data:`_DEATH_PAYOFF_EFFECTS`), OR a DEPLOY ``change_zone``
+    — a ``Creature`` put onto the battlefield from hand/graveyard (Deathrender
+    deploys a NEW creature from hand on the equipped creature's death). The deploy
+    form is distinguished from the return-THE-SOURCE resilience ``change_zone``
+    (Resurrection Orb / Oathkeeper / Gift of Immortality — "return that card to the
+    battlefield", which phase emits with an EMPTY subject and origin unset) by a
+    named ``Creature`` subject moving Hand/Graveyard → Battlefield, so widening the
+    gate here recovers Deathrender without re-admitting the resilience auras.
+    """
+    if e.concept in _DEATH_PAYOFF_EFFECTS:
+        return True
+    if e.concept == "change_zone":
+        origin, dest = change_zone_dirs(e.node)
+        return (
+            dest == "Battlefield"
+            and origin in ("Hand", "Graveyard")
+            and "Creature" in e.subject
+        )
+    return False
+
+
+# A ``ChangeZone`` back to the battlefield targeting the trigger's own source (the
+# undying/persist return — Kitchen Finks) OR a shuffle-into-library protection
+# rider (Kozilek). Both are SELF-preservation, never a fork-worthy VALUE payoff, so
+# ``is_clone_value_effect`` and ``_self_death_payoff`` both shed them.
+_SELF_RETURN_TAGS: frozenset[str] = frozenset({"SelfRef", "TriggeringSource"})
+
+
+def _is_self_return_effect(c: ConceptNode) -> bool:
+    """A ``ChangeZone`` back to the battlefield targeting the trigger's own
+    source — the dies_recursion return arm (Kitchen Finks' persist), NOT a
+    death VALUE payoff."""
+    return (
+        tag_of(c.node) == "ChangeZone"
+        and getattr(c.node, "destination", None) == "Battlefield"
+        and tag_of(getattr(c.node, "target", None)) in _SELF_RETURN_TAGS
+    )
+
+
+def _is_shuffle_back_effect(c: ConceptNode) -> bool:
+    """A zone move whose destination is the LIBRARY — the "shuffle it / your
+    graveyard into its owner's library" self-protection rider (Kozilek,
+    Serra Avatar — CR 701.19b), not a death VALUE payoff."""
+    return (
+        tag_of(c.node) in ("ChangeZone", "ChangeZoneAll")
+        and getattr(c.node, "destination", None) == "Library"
     )
 
 
@@ -987,6 +1076,193 @@ def _arm_type_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── wants_cloning structural reads (ADR-0036 fold — shared lane/gate source) ──
+# The Tier-1 ``_wants_cloning`` lane (a LOW clone-TARGET membership heuristic — CR
+# 707.1 copy / 704.5j legend rule) reads these typed predicates; this stage's
+# bucket-B gap gate (:func:`_arm_wants_cloning`) reads the SAME
+# :func:`has_self_etb_value` / :func:`has_self_dies_value` so the lane and the synth
+# never disagree on which self-ETB/dies value phase structuralizes (the
+# gap-gate-alignment invariant — one source, no drift). The card-level gates
+# (Legendary+Creature, ``cmc >= 5``) stay in the lane, already structural
+# (``card_supertypes`` / ``is_type`` / ``cmc``).
+
+# Compound self-ETB trigger events phase derives ("~ enters", "~ enters or attacks"
+# — All-Seeing Arbiter, Aragorn and Arwen; the Haunt "enters or the haunted
+# creature dies" front) — read off ``trigger_event`` exactly like
+# ``CAST_TRIGGER_EVENTS`` / ``ATTACK_TRIGGER_EVENTS``.
+ETB_TRIGGER_EVENTS: frozenset[str] = frozenset(
+    {"enters", "entersorattacks", "entersorhauntedcreaturedies"}
+)
+# Per-turn-cadence trigger CONSTRAINTS phase types on a recurring value engine
+# (CR 603.2): "the first time each turn" / "once each turn" (``OncePerTurn``),
+# "your second spell each turn" (``NthSpellThisTurn`` — Alphinaud, Sevinne),
+# "your second card each turn" (``NthDrawThisTurn`` — Alandra, Blue Marvel). A
+# clone forks the per-turn value, so these mark a genuine engine.
+PER_TURN_CONSTRAINT_TAGS: frozenset[str] = frozenset(
+    {"OncePerTurn", "NthSpellThisTurn", "NthDrawThisTurn"}
+)
+# ETB card-advantage / board-impact VALUE verbs beyond the death payoff set — a
+# clone/token-copy re-fires the self-ETB, so these are the value forms a
+# high-value ETB creature wants (Solemn's tutor, Man-o'-War's bounce, Duplicant's
+# exile, Sakashima-adjacent copy). Unioned with :data:`_DEATH_PAYOFF_EFFECTS`.
+_CLONE_ETB_VALUE: frozenset[str] = frozenset(
+    {
+        "tutor",
+        "bounce",
+        "change_zone",
+        "gain_control",
+        "scry",
+        "reveal_top",
+        "reveal_hand",
+        "investigate",
+        "copy_spell",
+        "copy_token",
+        "conjure",
+        "amass",
+    }
+)
+
+
+def is_clone_value_effect(e: ConceptNode) -> bool:
+    """The shared "non-vanilla VALUE effect" predicate for the ETB and dies arms.
+
+    Reuses the death fold's :func:`_is_death_payoff_effect` (card advantage / drain
+    / tokens / counters / reanimation-deploy) unioned with the ETB-specific
+    card-advantage verbs (:data:`_CLONE_ETB_VALUE`), MINUS the two self-preservation
+    forms (:func:`_is_self_return_effect` — undying/persist return; and
+    :func:`_is_shuffle_back_effect` — shuffle-into-library protection), which are
+    resilience, not a fork-worthy clone-want (CR 700.4). One source for both arms so
+    they never drift.
+    """
+    if _is_self_return_effect(e) or _is_shuffle_back_effect(e):
+        return False
+    return _is_death_payoff_effect(e) or e.concept in _CLONE_ETB_VALUE
+
+
+def has_repeatable_engine(tree: ConceptTree) -> bool:
+    """A repeatable per-turn VALUE engine a clone would fork each turn (CR 707).
+
+    Three typed tells: a beginning-of-phase trigger (``trigger_event == "phase"`` —
+    the upkeep/end-step/combat engines phase derives, including the "at the
+    beginning of combat on your turn" form the regex mirror's ``of your combat``
+    literal missed), a trigger with a per-turn-cadence CONSTRAINT
+    (:data:`PER_TURN_CONSTRAINT_TAGS` — the "Nth thing each turn" recurring
+    engines), or an extra-turn / extra-phase generator (``extra_turn`` /
+    ``extra_phase`` — Koma, Aurelia). A "once each turn" RESTRICTION carries no such
+    typed shape, so it is correctly shed.
+    """
+    for unit in tree.units:
+        if unit.trigger_event == "phase":
+            return True
+        if unit.origin == "trigger" and (
+            trigger_constraint_tag(unit.node) in PER_TURN_CONSTRAINT_TAGS
+        ):
+            return True
+    return tree.has_effect("extra_turn") or tree.has_effect("extra_phase")
+
+
+def has_value_tap_ability(tree: ConceptTree) -> bool:
+    """An activated ability with a Tap cost whose value is MORE than mana (CR 602).
+
+    An own activated ability (``origin == "ability"``) whose cost leaves include a
+    ``Tap`` and whose effects are not solely ``ramp`` — the repeatable tap engine a
+    clone forks, minus the vanilla mana dork (a bare ``{T}: Add`` whose only effect
+    is ``ramp`` — the structural ``_MANA_TAP_RE`` carve-out). Reads the card's OWN
+    activated abilities only, so a ``{T}:`` GRANTED to other creatures
+    ("creatures you control have '{T}: …'" — Ghired, Sliv-Mizzet) is not the card's
+    engine and is correctly shed.
+    """
+    for unit in tree.units:
+        if unit.origin != "ability":
+            continue
+        cost = getattr(unit.node, "cost", None)
+        leaves = {tag_of(leaf) for leaf in iter_cost_leaves(cost)}
+        if "Tap" in leaves and any(c.concept != "ramp" for c in unit.effects):
+            return True
+    return False
+
+
+def has_self_etb_value(tree: ConceptTree) -> bool:
+    """A self-ETB VALUE trigger — a clone/token-copy re-fires it (CR 603.6).
+
+    A trigger unit whose event is a self-enters form (:data:`ETB_TRIGGER_EVENTS`)
+    watching the source itself (``valid_card`` = ``SelfRef``) with a
+    :func:`is_clone_value_effect` effect. Shared by the lane's arm 2 and this
+    stage's gap gate — one source, no drift.
+    """
+    for unit in tree.units:
+        if (
+            unit.origin == "trigger"
+            and unit.trigger_event in ETB_TRIGGER_EVENTS
+            and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+            and any(is_clone_value_effect(c) for c in unit.effects)
+        ):
+            return True
+    return False
+
+
+def has_self_dies_value(tree: ConceptTree) -> bool:
+    """A self-DIES VALUE trigger — a clone/token-copy re-fires it when it dies
+    (Kokusho, Protean Hulk — CR 700.4).
+
+    Mirrors the death fold's ``_self_death_payoff`` shape: a ``dies`` trigger
+    watching the source itself (``valid_card`` = ``SelfRef``) with a
+    :func:`is_clone_value_effect` effect (the self-return / shuffle-back resilience
+    forms are shed inside the shared predicate). Shared by the lane's arm 2 and this
+    stage's gap gate — one source, no drift.
+    """
+    for unit in tree.units:
+        if (
+            unit.origin == "trigger"
+            and unit.trigger_event == "dies"
+            and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+            and any(is_clone_value_effect(c) for c in unit.effects)
+        ):
+            return True
+    return False
+
+
+# ── arm: wants_cloning bucket-B (ADR-0036 fold) ───────────────────────────────
+# The high-value self-ETB / self-dies clone-want (arm 2, ``cmc >= 5``) has a
+# bucket-B tail phase emits NO typed value effect for: a MODAL ("choose one —")
+# or CONDITIONAL-COUNT ("for each {U}{U} spent, draw") or return-your-own ETB whose
+# body phase folds to ``other`` (Baleful Beholder, Bladecoil Serpent, Chivalrous
+# Chevalier, Draconian Gate-Bot), and the analogous dies form. The self-ETB /
+# self-dies VALUE idiom is read ONCE (the ``_signals_regex`` mirror helpers, the
+# SHARED flag-OFF defs — never re-implemented), gap-gated to
+# :func:`has_self_etb_value` / :func:`has_self_dies_value` (the SAME predicates the
+# lane fires on) so it never double-counts a card phase already structuralizes.
+# Only the ``cmc >= 5`` arm has a bucket-B tail; arm 1 (the legendary engine /
+# value-tap) is fully structural, so it has no synth.
+
+
+def _arm_wants_cloning(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``wants_cloning`` node for a description-only ETB/dies value.
+
+    CR 707/603.6: fires only for a ``cmc >= 5`` card phase leaves value-less
+    (:func:`has_self_etb_value` / :func:`has_self_dies_value` both False) whose
+    oracle carries a genuine self-ETB or self-dies VALUE idiom (``_self_etb_value``
+    / ``_self_dies_value`` over the reminder-stripped text). Scope "you", the lane's
+    forced scope.
+    """
+    if tree.cmc < 5:
+        return None
+    if has_self_etb_value(tree) or has_self_dies_value(tree):
+        return None
+    kept = _REMINDER.sub(" ", tree.oracle or "")
+    if _self_etb_value(kept, tree.name) is None and (
+        _self_dies_value(kept, tree.name) is None
+    ):
+        return None
+    return _synthetic_concept(
+        arm_id="wants_cloning",
+        concept="synth_wants_cloning",
+        scope="you",
+        subject=(),
+        desc="bucket-B clone-want (phase emits no typed self-ETB/dies value node)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -1000,6 +1276,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("lifegain_matters", _arm_lifegain_matters),
     ("spellcast_matters", _arm_spellcast_matters),
     ("type_matters", _arm_type_matters),
+    ("wants_cloning", _arm_wants_cloning),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

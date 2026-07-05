@@ -178,15 +178,22 @@ from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
 from mtg_utils._card_ir.tree_synthesis import (
     _double_triggers_creature_dying,
     _is_creature_death_subject,
+    _is_death_payoff_effect,
+    _is_self_return_effect,
+    _is_shuffle_back_effect,
     attack_raid_condition,
     creature_death_condition,
     has_attack_trigger,
     has_gain_life_amplifier,
     has_life_gained_this_turn,
     has_life_gained_trigger,
+    has_repeatable_engine,
+    has_self_dies_value,
+    has_self_etb_value,
     has_selfloss_engine,
     has_structural_spellcast,
     has_trigger_draw_bleed,
+    has_value_tap_ability,
     structural_type_subjects,
 )
 from mtg_utils._deck_forge import signal_keys
@@ -234,18 +241,13 @@ from mtg_utils._deck_forge._signals_regex import (
     _COLOR_HOSER_RE,
     _EVASION_SELF_REGEX,
     _EVERGREEN_CK,
-    _MANA_TAP_RE,
     _MELD_FULLTEXT_RE,
-    _PER_TURN_ENGINE_RE,
     _REPEATABLE_KILL_RE,
-    _TAP_ABILITY_RE,
     TUTOR_MATTERS_REGEX,
     Signal,
     _detect_keyword_tribe,
     _detect_token_maker,
     _resolve_subject,
-    _self_dies_value,
-    _self_etb_value,
     _type_hoser_clause,
     clauses,
     self_power_scale_match,
@@ -1259,49 +1261,6 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
 # resilience auras — Gift of Immortality, the Zendikons, Resurrection Orb,
 # Oathkeeper, Forebear's Blade), which are a resilience lane, not aristocrats.
 # rules-lawyer-grounded (CR 700.4 + the aristocrats-payoff boundary).
-_DEATH_PAYOFF_EFFECTS: frozenset[str] = frozenset(
-    {
-        "draw",
-        "dig",
-        "reveal_until",
-        "deal_damage",
-        "lose_life",
-        "gain_life",
-        "mill",
-        "make_token",
-        "place_counter",
-        "discard",
-        "surveil",
-        "cast_from_zone",
-    }
-)
-
-
-def _is_death_payoff_effect(e: ConceptNode) -> bool:
-    """Whether an AttachedTo dies-trigger effect EXTRACTS VALUE (payoff, KEEP), not
-    resilience (SHED). CR 700.4.
-
-    A named payoff kind (:data:`_DEATH_PAYOFF_EFFECTS`), OR a DEPLOY ``change_zone``
-    — a ``Creature`` put onto the battlefield from hand/graveyard (Deathrender
-    deploys a NEW creature from hand on the equipped creature's death). The deploy
-    form is distinguished from the return-THE-SOURCE resilience ``change_zone``
-    (Resurrection Orb / Oathkeeper / Gift of Immortality — "return that card to the
-    battlefield", which phase emits with an EMPTY subject and origin unset) by a
-    named ``Creature`` subject moving Hand/Graveyard → Battlefield, so widening the
-    gate here recovers Deathrender without re-admitting the resilience auras.
-    """
-    if e.concept in _DEATH_PAYOFF_EFFECTS:
-        return True
-    if e.concept == "change_zone":
-        origin, dest = change_zone_dirs(e.node)
-        return (
-            dest == "Battlefield"
-            and origin in ("Hand", "Graveyard")
-            and "Creature" in e.subject
-        )
-    return False
-
-
 def _death_matters(tree: ConceptTree) -> list[Signal]:
     """Aristocrats payoff — cares about OTHER creatures dying (CR 700.4). Tier-1.
 
@@ -4839,9 +4798,6 @@ _COMBAT_BUFF_EVENTS: frozenset[str] = frozenset(
 )
 # Land-to-graveyard payoff trigger events (CR 701.21a / 603.6c).
 _LAND_SAC_EVENTS: frozenset[str] = frozenset({"dies", "leaves", "sacrificed"})
-# Effect targets naming the granted trigger's own source (mirrors
-# ``crosswalk._SELF_RETURN_TARGETS`` for the self_death_payoff exclusion).
-_SELF_RETURN_TAGS: frozenset[str] = frozenset({"SelfRef", "TriggeringSource"})
 # Spell-cast keywords (CR 702 — flash 702.8, flashback 702.34, cascade
 # 702.85, …): an ``AddKeyword`` grant of one of these is a grant to a SPELL /
 # castable card, never a battlefield keyword anthem (team_buff). Normalized
@@ -4921,27 +4877,6 @@ def _opponent_draw_matters(tree: ConceptTree) -> list[Signal]:
                 Signal("opponent_draw_matters", "opponents", "", "", tree.name, "high")
             ]
     return []
-
-
-def _is_self_return_effect(c: ConceptNode) -> bool:
-    """A ``ChangeZone`` back to the battlefield targeting the trigger's own
-    source — the dies_recursion return arm (Kitchen Finks' persist), NOT a
-    death VALUE payoff."""
-    return (
-        tag_of(c.node) == "ChangeZone"
-        and getattr(c.node, "destination", None) == "Battlefield"
-        and tag_of(getattr(c.node, "target", None)) in _SELF_RETURN_TAGS
-    )
-
-
-def _is_shuffle_back_effect(c: ConceptNode) -> bool:
-    """A zone move whose destination is the LIBRARY — the "shuffle it / your
-    graveyard into its owner's library" self-protection rider (Kozilek,
-    Serra Avatar — CR 701.19b), not a death VALUE payoff."""
-    return (
-        tag_of(c.node) in ("ChangeZone", "ChangeZoneAll")
-        and getattr(c.node, "destination", None) == "Library"
-    )
 
 
 def _self_death_payoff(tree: ConceptTree) -> list[Signal]:
@@ -8622,38 +8557,33 @@ def _theft_makers_lane(tree: ConceptTree) -> list[Signal]:
 
 def _wants_cloning(tree: ConceptTree) -> list[Signal]:
     """wants_cloning (§8) — CR 707.1 / 704.5j (legend rule) / 603.6: the
-    commander-as-CLONE-TARGET benefit lane (NOT a clone doer — clone_makers
-    is ported). Two LOW membership arms, byte-identical regex gates over the
-    kept oracle + the §0 builder fields:
+    card-as-CLONE-TARGET benefit lane (NOT a clone doer — clone_makers is
+    ported). A LOW membership heuristic, Tier-1 (ADR-0036 fold — the
+    ``_PER_TURN_ENGINE_RE`` / ``_TAP_ABILITY_RE`` / ``_MANA_TAP_RE`` /
+    ``_self_etb_value`` / ``_self_dies_value`` kept-oracle mirrors are deleted).
+    Two arms, both on typed fields:
 
-    (1) a LEGENDARY CREATURE (``card_supertypes`` + ``is_type``) whose value
-    is a repeatable engine — ``_PER_TURN_ENGINE_RE`` (per-turn triggers /
-    extra-turn/phase generators — Koma) OR a tap ability that is not a pure
-    lone mana dork (``_TAP_ABILITY_RE`` minus the single-"{T}"
-    ``_MANA_TAP_RE``);
-    (2) a HIGH-CMC card (``tree.cmc >= 5``) with a strong self-ETB or
-    self-dies clause (``_self_etb_value`` / ``_self_dies_value`` — Gyruda,
-    Kokusho).
+    (1) a LEGENDARY CREATURE (``card_supertypes`` + ``is_type`` — already
+    structural) whose value is a repeatable engine
+    (:func:`has_repeatable_engine` — a per-turn / Nth-each-turn / extra-turn
+    trigger, Koma) OR a non-mana tap ability (:func:`has_value_tap_ability`);
+    (2) a HIGH-CMC card (``tree.cmc >= 5`` — already structural) with a strong
+    self-ETB (:func:`has_self_etb_value`) or self-dies
+    (:func:`has_self_dies_value`, reusing the death fold's value predicate)
+    trigger — Gyruda, Kokusho — plus the ``tree_synthesis`` bucket-B synth node
+    for the modal / conditional-count ETB tail phase leaves ``other``.
 
-    NOTE the include_membership flag asymmetry (the b12 kill_engine
-    precedent): live gates these behind ``include_membership``; the
-    crosswalk has no such flag and live pops are measured with it True, so
-    the arms run unconditionally. Scope "you", LOW.
+    The live pops are measured with ``include_membership`` True, so the arms
+    run unconditionally. Scope "you", LOW.
     """
-    kept = _kept(tree)
-    if "Legendary" in tree.card_supertypes and tree.is_type("Creature"):
-        is_engine = bool(_PER_TURN_ENGINE_RE.search(kept)) or (
-            bool(_TAP_ABILITY_RE.search(kept))
-            and not (_MANA_TAP_RE.search(kept) and kept.count("{T}") == 1)
-        )
-        if is_engine:
-            return [Signal("wants_cloning", "you", "", kept[:160], tree.name, "low")]
-    if tree.cmc >= 5:
-        clone_clause = _self_etb_value(kept, tree.name) or _self_dies_value(
-            kept, tree.name
-        )
-        if clone_clause is not None:
-            return [Signal("wants_cloning", "you", "", clone_clause, tree.name, "low")]
+    legend_creature = "Legendary" in tree.card_supertypes and tree.is_type("Creature")
+    if legend_creature and (has_repeatable_engine(tree) or has_value_tap_ability(tree)):
+        return [Signal("wants_cloning", "you", "", "", tree.name, "low")]
+    if tree.cmc >= 5 and (has_self_etb_value(tree) or has_self_dies_value(tree)):
+        return [Signal("wants_cloning", "you", "", "", tree.name, "low")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_wants_cloning":
+            return [Signal("wants_cloning", "you", "", "", tree.name, "low")]
     return []
 
 

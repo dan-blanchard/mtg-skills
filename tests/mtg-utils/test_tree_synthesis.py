@@ -32,9 +32,13 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_gain_life_amplifier,
     has_life_gained_this_turn,
     has_life_gained_trigger,
+    has_repeatable_engine,
+    has_self_dies_value,
+    has_self_etb_value,
     has_selfloss_engine,
     has_structural_spellcast,
     has_trigger_draw_bleed,
+    has_value_tap_ability,
     synthesize_nodes,
 )
 
@@ -234,6 +238,91 @@ def test_synthesis_arm_ids_registered():
     assert "death_matters" in SYNTHESIS_ARM_IDS
     assert "attack_matters" in SYNTHESIS_ARM_IDS
     assert "lifegain_matters" in SYNTHESIS_ARM_IDS
+    assert "wants_cloning" in SYNTHESIS_ARM_IDS
+
+
+# ── wants_cloning fold (ADR-0036): Tier-1 reads + bucket-B synth (Gate E) ──────
+# The LOW clone-TARGET membership heuristic (CR 707 copy / 704.5j legend rule).
+# Arm 1 (legendary creature engine / non-mana tap) + arm 2 (cmc>=5 self-ETB/dies
+# value) are structural; the bucket-B synth recovers the modal / conditional-count
+# ETB tail phase folds to ``other``. RECOVERED members FIRE; shed over-fires DON'T.
+
+
+def _wants_cloning_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _wants_cloning
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return bool(_wants_cloning(tree))
+
+
+def test_wants_cloning_arm1_repeatable_engine_fires():
+    # Koma: "At the beginning of each upkeep, create a Serpent" — a per-turn engine
+    # phase types as a ``phase`` trigger (bucket-A structural read).
+    tree = _fixture_tree("Koma, Cosmos Serpent")
+    assert has_repeatable_engine(tree)
+    assert _wants_cloning_fires("Koma, Cosmos Serpent")
+
+
+def test_wants_cloning_arm1_value_tap_fires():
+    # Krenko: "{T}: Create X 1/1 Goblins" — a non-mana tap engine (bucket-A).
+    tree = _fixture_tree("Krenko, Mob Boss")
+    assert has_value_tap_ability(tree)
+    assert _wants_cloning_fires("Krenko, Mob Boss")
+
+
+def test_wants_cloning_arm2_self_etb_value_fires():
+    # Gyruda: "When ~ enters, mill / reanimate" — a self-ETB value trigger.
+    tree = _fixture_tree("Gyruda, Doom of Depths")
+    assert has_self_etb_value(tree)
+    assert _wants_cloning_fires("Gyruda, Doom of Depths")
+
+
+def test_wants_cloning_arm2_self_dies_value_fires():
+    # Kokusho: "When ~ dies, each opponent loses 5 life" — reuses the death fold's
+    # self-dies VALUE predicate.
+    tree = _fixture_tree("Kokusho, the Evening Star")
+    assert has_self_dies_value(tree)
+    assert _wants_cloning_fires("Kokusho, the Evening Star")
+
+
+@pytest.mark.parametrize("name", ["Baleful Beholder", "Bladecoil Serpent"])
+def test_wants_cloning_synth_recovers_modal_etb(name):
+    # A modal ("choose one —") / conditional-count ("for each {U}{U} spent, draw")
+    # self-ETB whose value phase folds to ``other`` — bucket-B synth recovers it,
+    # gap-gated (no structural self-ETB value present).
+    tree = _fixture_tree(name)
+    assert not has_self_etb_value(tree)
+    assert [arm for arm, _ in synthesize_nodes(tree)] == ["wants_cloning"]
+    _arm, node = synthesize_nodes(tree)[0]
+    assert node.concept == "synth_wants_cloning"
+    assert isinstance(node.node, SynthesizedNode)
+    assert node.scope == "you"
+    assert _wants_cloning_fires(name)
+
+
+def test_wants_cloning_sheds_lone_mana_dork():
+    # Llanowar Elves: the only tap ability is "{T}: Add {G}" (effect ``ramp``), the
+    # structural mana-dork carve-out — NOT a clone-worthy value engine (CR 707).
+    tree = _fixture_tree("Llanowar Elves")
+    assert not has_value_tap_ability(tree)
+    assert not _wants_cloning_fires("Llanowar Elves")
+
+
+def test_wants_cloning_sheds_vanilla_high_cmc_fatty():
+    # Colossal Dreadmaw (cmc 6, trample, no ETB/dies value) is not a clone-want.
+    tree = _fixture_tree("Colossal Dreadmaw")
+    assert not has_self_etb_value(tree)
+    assert not has_self_dies_value(tree)
+    assert not _wants_cloning_fires("Colossal Dreadmaw")
+
+
+def test_wants_cloning_synth_gap_gate_aligned_with_lane():
+    # The bucket-B synth no-ops when a structural self-ETB/dies value is present
+    # (the gap-gate calls the SAME has_self_etb_value / has_self_dies_value the lane
+    # fires on) — Gyruda / Kokusho fire structurally, so no synth node is added.
+    for name in ("Gyruda, Doom of Depths", "Kokusho, the Evening Star"):
+        tree = _fixture_tree(name)
+        assert "wants_cloning" not in [arm for arm, _ in synthesize_nodes(tree)]
 
 
 # ── attack_matters synth arm (ADR-0036 fold) ──────────────────────────────────
