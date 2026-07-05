@@ -62,6 +62,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_non_types,
     filter_predicates,
     filter_subtypes,
+    iter_condition_sites,
     iter_typed_nodes,
     replacement_event_tag,
     tag_of,
@@ -70,7 +71,15 @@ from mtg_utils._card_ir.crosswalk import (
     zone_change_count_reads,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirrorNode
-from mtg_utils._deck_forge._signals_regex import _resolve_subject, clauses
+from mtg_utils._deck_forge import signal_keys
+from mtg_utils._deck_forge._signals_regex import (
+    _detect_keyword_implied_tribe,
+    _detect_multi_tribe_anthem,
+    _detect_type_matters,
+    _detect_typed_gy_recursion,
+    _resolve_subject,
+    clauses,
+)
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 
 __all__ = [
@@ -90,6 +99,7 @@ __all__ = [
     "has_selfloss_engine",
     "has_structural_spellcast",
     "has_trigger_draw_bleed",
+    "structural_type_subjects",
     "synthesize_nodes",
 ]
 
@@ -865,6 +875,118 @@ def _arm_spellcast_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── type_matters structural reads (ADR-0036 fold — shared lane/gate source) ──
+# The Tier-1 ``_type_matters_lane`` reads TWO structural sources: the creature
+# subtype of every non-opponent Typed filter phase carries at an effect subject /
+# count-operand / trigger valid_card / static affected / condition site (Arm B —
+# :func:`structural_type_subjects`), and the SUBJECT-carrying bucket-B synth node
+# (:func:`_arm_type_matters`). type_matters is the FIRST subject-carrying synth arm:
+# the synth node holds a TUPLE of resolved creature subtypes (Lovisa → Barbarian /
+# Warrior / Berserker), and the lane emits one Signal per element. The gap gate is
+# per-SUBJECT (the gap-gate-alignment invariant applied to subjects): the synth adds
+# only the subtypes phase's Typed filters MISS, reading the SAME Arm-B set the lane
+# fires on — one source, no drift, never double-counting a subtype phase types.
+
+
+def structural_type_subjects(tree: ConceptTree) -> set[str]:
+    """Creature subtypes of every non-opponent Typed filter phase carries at a read
+    site the ``_type_matters_lane`` fires on (CR 205.3 kindred — Arm B).
+
+    The Arm-B source SHARED by the lane AND this stage's per-subject gap gate
+    (:func:`_arm_type_matters`) — one source, no drift. A Typed filter controlled by
+    an Opponent is not a your-tribe payoff (CR 109.3) and is skipped; each subtype is
+    vocab-resolved through ``_resolve_subject`` (the ``NON_CREATURE_TOKEN`` /
+    ``CARD_TYPE_SUBJECTS`` denylist — CR 111.10 / 205.3g), so a Treasure / Clue token
+    subtype or a bare "creature" / "permanent" never mints a kindred subject.
+    """
+    out: set[str] = set()
+
+    def add_filter(filt: object) -> None:
+        if filt is None or filter_controller(filt) == "Opponent":
+            return
+        for s in filter_subtypes(filt):
+            r = _resolve_subject(s, CREATURE_SUBTYPES)
+            if r:
+                out.add(r)
+
+    for unit in tree.units:
+        for c in unit.effects:
+            add_filter(count_operand_filter(c.node))
+            if c.concept != "make_token":
+                add_filter(effect_filter(c.node))
+        if unit.origin == "trigger":
+            add_filter(getattr(unit.node, "valid_card", None))
+        if unit.origin == "static":
+            add_filter(getattr(unit.node, "affected", None))
+        for cond in iter_condition_sites(unit.node):
+            for q in iter_typed_nodes(cond):
+                if tag_of(q) == "Typed":
+                    add_filter(q)
+    return out
+
+
+# ── arm: type_matters bucket-B (ADR-0036 fold — SUBJECT-carrying) ─────────────
+# The kindred payoff (CR 205.3) has a bucket-B tail phase leaves SUBJECT-less: a
+# TYPE-GRANT ("it's a Zombie in addition to its other creature types" — phase emits a
+# type-change effect, NOT a subject-bearing Typed filter), a KEYWORD-implied tribe
+# (ninjutsu → Ninja, CR 702.49), a MULTI-TRIBE anthem/list where phase collapses the
+# list or emits no per-subtype filter (Lovisa's "each creature that's a Barbarian, a
+# Warrior, or a Berserker"; the Spider-Ham menagerie run), two-tribe heads / creature-
+# spell / tutor + comma card-lists where phase drops the subtype, and description-only
+# tribal triggers / cost-site / count / cost-reducer / tribal-tutor forms. The four
+# kept-oracle producers (imported from ``_signals_regex`` — the flag-OFF path's mirror
+# defs, SHARED never re-implemented) capture each subtype through the SAME
+# ``_resolve_subject`` vocab gate; Vehicle routes to ``vehicles_matter`` (a different
+# lane), so the TYPE_MATTERS-key filter drops it here.
+
+
+def _mirror_type_subjects(oracle: str) -> set[str]:
+    """Every creature subtype the four kept-oracle tribal producers capture, per
+    reminder-stripped clause (the bucket-B tribal idioms — CR 205.3).
+
+    Reads ``oracle`` reminder-stripped and clause-split (the SAME text the flag-OFF
+    lane mirror scanned via ``_kept`` — ``_REMINDER`` matches ``crosswalk_signals``'s
+    ``_REMINDER_RX``), so this reproduces the deleted lane mirror exactly. Only the
+    ``TYPE_MATTERS`` rows of ``_detect_typed_gy_recursion`` are taken (Vehicle →
+    ``vehicles_matter`` is a different lane).
+    """
+    subs: set[str] = set()
+    for cl in clauses(_REMINDER.sub(" ", oracle or "")):
+        for _k, s in _detect_type_matters(cl, CREATURE_SUBTYPES):
+            subs.add(s)
+        for _k, s in _detect_multi_tribe_anthem(cl, CREATURE_SUBTYPES):
+            subs.add(s)
+        for _k, s in _detect_keyword_implied_tribe(cl):
+            subs.add(s)
+        for key, _sc, s in _detect_typed_gy_recursion(cl, CREATURE_SUBTYPES):
+            if key == signal_keys.TYPE_MATTERS:
+                subs.add(s)
+    return subs
+
+
+def _arm_type_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a SUBJECT-carrying ``type_matters`` node for bucket-B tribal gaps.
+
+    CR 205.3: the four kept-oracle producers (:func:`_mirror_type_subjects`) capture
+    a kindred subtype phase leaves subject-less; the node carries a TUPLE of ONLY the
+    subtypes phase's Typed filters MISS — per-SUBJECT gap-gated against
+    :func:`structural_type_subjects` (the SAME Arm-B set the lane fires on, so gate
+    and lane never disagree). The lane emits one ``type_matters`` Signal per element
+    of ``node.subject``. Returns None when phase already structuralizes every captured
+    subtype (nothing new to add).
+    """
+    new = _mirror_type_subjects(tree.oracle or "") - structural_type_subjects(tree)
+    if not new:
+        return None
+    return _synthetic_concept(
+        arm_id="type_matters",
+        concept="synth_type_matters",
+        scope="you",
+        subject=tuple(sorted(new)),
+        desc="bucket-B tribal payoff (phase emits no subject-bearing Typed filter)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -877,6 +999,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("attack_matters", _arm_attack_matters),
     ("lifegain_matters", _arm_lifegain_matters),
     ("spellcast_matters", _arm_spellcast_matters),
+    ("type_matters", _arm_type_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

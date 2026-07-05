@@ -187,6 +187,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_selfloss_engine,
     has_structural_spellcast,
     has_trigger_draw_bleed,
+    structural_type_subjects,
 )
 from mtg_utils._deck_forge import signal_keys
 
@@ -240,12 +241,8 @@ from mtg_utils._deck_forge._signals_regex import (
     _TAP_ABILITY_RE,
     TUTOR_MATTERS_REGEX,
     Signal,
-    _detect_keyword_implied_tribe,
     _detect_keyword_tribe,
-    _detect_multi_tribe_anthem,
     _detect_token_maker,
-    _detect_type_matters,
-    _detect_typed_gy_recursion,
     _resolve_subject,
     _self_dies_value,
     _self_etb_value,
@@ -8437,19 +8434,21 @@ def _type_matters_lane(tree: ConceptTree) -> list[Signal]:
     """type_matters (§1, SUBJECT-CARRYING) — CR 205.3 / 109.3: a card that
     CARES about a creature subtype / names a kindred population; the captured
     subject (vocab-validated through ``_resolve_subject``, which carries the
-    ``NON_CREATURE_TOKEN`` denylist — CR 111.10 / 205.3g) is LOAD-BEARING.
-    A UNION, mirroring live's :11422-:11474 documentation:
+    ``NON_CREATURE_TOKEN`` denylist — CR 111.10 / 205.3g) is LOAD-BEARING. A
+    pure Tier-1 UNION (ADR-0036/0037 fold — the four kept-oracle producers'
+    text mirror is RETIRED to a subject-carrying ``tree_synthesis`` arm):
 
-    * **Arm A (byte-identical kept mirror):** the four EXACT live producers
-      (``_detect_type_matters`` + ``_detect_multi_tribe_anthem`` +
-      ``_detect_keyword_implied_tribe`` + the type_matters rows of
-      ``_detect_typed_gy_recursion``), imported and re-run PER-CLAUSE over
-      the reminder-stripped kept oracle, forced scope "you", HIGH — live
-      measured regex_only == 0 against these producers.
-    * **Arm B (structural kindred):** subtypes of every non-opponent Typed
+    * **Arm B (structural kindred):** the subtype of every non-opponent Typed
       filter at an effect subject / count-operand / trigger valid_card /
-      static affected / condition site, vocab-resolved, HIGH "you" (the
-      live ``_kindred_subjects`` reads).
+      static affected / condition site (:func:`structural_type_subjects` — the
+      SHARED source the synth's per-subject gap gate also reads), forced scope
+      "you", HIGH.
+    * **bucket-B synth (ADR-0037, subject-carrying):** the ``tree_synthesis``
+      stage's ``synth_type_matters`` node carries a TUPLE of the resolved
+      subtypes phase leaves subject-less (type-grant / keyword-implied tribe /
+      multi-tribe anthem / two-tribe & comma lists / description-only tribal),
+      per-subject gap-gated against Arm B — the lane emits one Signal per
+      element.
 
     The MEMBERSHIP arms (own type_line race/class tribes + token-profile
     subtypes, LOW) run as a granularity-c reconciliation in
@@ -8460,44 +8459,19 @@ def _type_matters_lane(tree: ConceptTree) -> list[Signal]:
     out: list[Signal] = []
     seen: set[str] = set()
 
-    def emit(subject: str, raw: str) -> None:
+    def emit(subject: str) -> None:
         if subject and subject not in seen:
             seen.add(subject)
             out.append(
-                Signal(signal_keys.TYPE_MATTERS, "you", subject, raw, tree.name, "high")
+                Signal(signal_keys.TYPE_MATTERS, "you", subject, "", tree.name, "high")
             )
 
-    vocab = CREATURE_SUBTYPES
-    for clause in clauses(_kept(tree)):
-        for _key, subject in _detect_type_matters(clause, vocab):
-            emit(subject, clause)
-        for _key, subject in _detect_multi_tribe_anthem(clause, vocab):
-            emit(subject, clause)
-        for _key, subject in _detect_keyword_implied_tribe(clause):
-            emit(subject, clause)
-        for key, _scope, subject in _detect_typed_gy_recursion(clause, vocab):
-            if key == signal_keys.TYPE_MATTERS:
-                emit(subject, clause)
-
-    def emit_filter(filt: object, raw: str) -> None:
-        if filt is None or filter_controller(filt) == "Opponent":
-            return
-        for s in filter_subtypes(filt):
-            emit(_resolve_subject(s, vocab), raw)
-
-    for unit in tree.units:
-        for c in unit.effects:
-            emit_filter(count_operand_filter(c.node), c.raw)
-            if c.concept != "make_token":
-                emit_filter(effect_filter(c.node), c.raw)
-        if unit.origin == "trigger":
-            emit_filter(getattr(unit.node, "valid_card", None), "")
-        if unit.origin == "static":
-            emit_filter(getattr(unit.node, "affected", None), "")
-        for cond in iter_condition_sites(unit.node):
-            for q in iter_typed_nodes(cond):
-                if tag_of(q) == "Typed":
-                    emit_filter(q, "")
+    for subject in structural_type_subjects(tree):
+        emit(subject)
+    for c in tree.iter_concepts():
+        if c.concept == "synth_type_matters":
+            for subject in c.subject:
+                emit(subject)
     return out
 
 

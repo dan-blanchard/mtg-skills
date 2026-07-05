@@ -472,9 +472,12 @@ def test_lifegain_structural_arms_fire_and_suppress_synth(name, pred):
 )
 def test_lifegain_synth_fires_on_fixture_bucket_b(name):
     # Granted / description-only lifegain payoffs phase emits no typed node for.
+    # Membership, not equality: a card may legitimately co-fire another synth arm
+    # (Moonstone Harbinger's "Bats you control get +1/+0" is also a type_matters
+    # bucket-B gap), so we assert the lifegain arm is AMONG the fired arms.
     tree = _fixture_tree(name)
     assert _has_structural_lifegain(tree) is False
-    assert [a for a, _ in synthesize_nodes(tree)] == ["lifegain_matters"]
+    assert "lifegain_matters" in [a for a, _ in synthesize_nodes(tree)]
 
 
 def test_lifegain_matters_lane_reads_synth_node_end_to_end():
@@ -677,3 +680,121 @@ def test_spellcast_matters_lane_fires_on_jaya_end_to_end():
     tree = apply_tree_synthesis(_fixture_tree("Jaya, Fiery Negotiator"))
     sigs = _spellcast_matters(tree)
     assert any(s.key == "spellcast_matters" for s in sigs)
+
+
+# ── type_matters fold (ADR-0036/0037 — first SUBJECT-carrying synth arm) ───────
+
+
+def _type_subjects(name):
+    """The type_matters subjects the folded lane emits for a fixture card (over
+    the synthesized tree — the real Tier-1 path: Arm B union the synth node)."""
+    from mtg_utils._deck_forge.crosswalk_signals import _type_matters_lane
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return {s.subject for s in _type_matters_lane(tree) if s.key == "type_matters"}
+
+
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        # bucket-A / Arm-B structural: phase carries a subject-bearing Typed filter
+        # (lord static / count), so the lane fires WITHOUT the synth arm.
+        ("Lord of Atlantis", {"Merfolk"}),
+        ("Goblin King", {"Goblin"}),
+        ("Lovisa Coldeyes", {"Barbarian", "Warrior", "Berserker"}),
+    ],
+)
+def test_type_matters_arm_b_structural(name, subjects):
+    from mtg_utils._card_ir.tree_synthesis import (
+        _arm_type_matters,
+        structural_type_subjects,
+    )
+
+    tree = _fixture_tree(name)
+    assert subjects <= structural_type_subjects(tree)  # Arm B carries them
+    assert _arm_type_matters(tree) is None  # gap-gated: synth adds nothing new
+    assert _type_subjects(name) == subjects
+
+
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Yuriko, the Tiger's Shadow", {"Ninja"}),  # keyword-implied (ninjutsu)
+        ("Bramblewood Paragon", {"Warrior"}),  # description-only tribal
+        ("Don Andres, the Renegade", {"Pirate"}),  # TYPE-GRANT ("is a Pirate...")
+    ],
+)
+def test_type_matters_bucket_b_synth(name, subjects):
+    """The SUBJECT-carrying synth recovers the tribal subtype phase leaves
+    subject-less, gap-gated against Arm B (which carries none of these)."""
+    from mtg_utils._card_ir.tree_synthesis import (
+        _arm_type_matters,
+        structural_type_subjects,
+    )
+
+    tree = _fixture_tree(name)
+    assert subjects & structural_type_subjects(tree) == set()  # Arm B misses it
+    node = _arm_type_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_type_matters"
+    assert set(node.subject) == subjects  # the resolved subtype(s) on the node
+    assert _type_subjects(name) == subjects  # lane emits one Signal per element
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Craterhoof Behemoth",  # generic "creatures you control" — CARD_TYPE_SUBJECTS
+        "Dockside Extortionist",  # Treasure token — NON_CREATURE_TOKEN denylist
+        "Greasefang, Okiba Boss",  # Vehicle GY-recursion routes to vehicles_matter
+    ],
+)
+def test_type_matters_shed_overfires(name):
+    """The vocab gate sheds a bare card-type noun, a NON_CREATURE_TOKEN artifact
+    subtype, and the Vehicle typed-GY-recursion (routed to vehicles_matter, a
+    different lane) — no type_matters subject is minted (zero false positives)."""
+    from mtg_utils._card_ir.tree_synthesis import (
+        _arm_type_matters,
+        structural_type_subjects,
+    )
+
+    tree = _fixture_tree(name)
+    assert structural_type_subjects(tree) == set()
+    assert _arm_type_matters(tree) is None
+    assert _type_subjects(name) == set()
+
+
+def test_type_matters_synth_registered():
+    assert "type_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_type_matters_lane_reads_synth_node_end_to_end():
+    """Fold path, mirror-independent: a synth ``synth_type_matters`` node carrying
+    a subtype tuple ALONE — oracle carrying no tribal idiom — makes the lane emit
+    one type_matters Signal per element (the deleted producers do not participate).
+    """
+    from mtg_utils._deck_forge.crosswalk_signals import _type_matters_lane
+
+    synth = ConceptNode(
+        concept="synth_type_matters",
+        node=SynthesizedNode(arm_id="type_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=("Goblin", "Elf"),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    subs = {s.subject for s in _type_matters_lane(tree) if s.key == "type_matters"}
+    assert subs == {"Goblin", "Elf"}
