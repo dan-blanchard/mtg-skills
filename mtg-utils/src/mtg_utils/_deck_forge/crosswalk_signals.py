@@ -219,8 +219,6 @@ from mtg_utils._deck_forge._signals_regex import (
     _COLOR_HOSER_RE,
     _EVASION_SELF_REGEX,
     _EVERGREEN_CK,
-    _EVERGREEN_KW_RE,
-    _KEYWORD_SOUP_CONTEXT_RE,
     _MANA_TAP_RE,
     _MELD_FULLTEXT_RE,
     _PER_TURN_ENGINE_RE,
@@ -9758,7 +9756,7 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 # (_IR_KEPT_DETECTORS / the deleted-producer patterns) — the b12 _JOHAN_MIRROR
 # precedent for rows with no importable name. Named live constants are imported
 # above (one source, zero drift): _ABILITY_COPY_MIRROR, ISLAND_MAKERS_REGEX,
-# NONCOMBAT_DAMAGE_PAYOFF_REGEX, _KEYWORD_SOUP_CONTEXT_RE + _EVERGREEN_KW_RE,
+# NONCOMBAT_DAMAGE_PAYOFF_REGEX,
 # _MELD_FULLTEXT_RE, _POWER_SCALING_RAW, _TOUGHNESS_VALUE_MIRROR,
 # _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF.
 _ARCANE_RX = re.compile(r"\barcane\b", re.IGNORECASE)
@@ -10048,25 +10046,38 @@ def _island_makers(tree: ConceptTree) -> list[Signal]:
 
 def _keyword_soup_makers(tree: ConceptTree) -> list[Signal]:
     """keyword_soup_makers (§11) — CR 122.1b (the CR's evergreen-keyword
-    inventory) + 613.1f (keyword grants apply in layer 6): the
-    byte-identical membership-gated mirror — the imported live
-    ``_KEYWORD_SOUP_CONTEXT_RE`` team-grant context AND >= 5 distinct
-    ``_EVERGREEN_KW_RE`` word hits, WHOLE-TEXT (no per-clause span). The
-    per-site structural count is rejected: Akroma's Will splits its modal
-    grants so no single site reaches 5, and the count absorbs the
-    single-creature ABSORBERS (Cairn Wanderer — the ``keyword_soup`` lane,
-    a different archetype; the context RE requires the team-grant phrasing).
+    inventory) + 613.1f (keyword grants apply in layer 6): Tier-1 structural
+    (ADR-0036 mirror fold). Count DISTINCT evergreen (``_EVERGREEN_CK``)
+    ``AddKeyword`` keyword names across ALL units whose grant is
+    TEAM-affected — the granting static def's ``affected`` filter names
+    You-controlled creatures (``iter_mod_sites`` yields ``(sdef, mod)``; the
+    per-keyword ``AddKeyword`` mod carries no ``affected``, the scope lives on
+    ``sdef``) — >= 5 fires. The CARD-LEVEL union survives the modal split a
+    per-site count fails (Akroma's Will's two arms), and the team-affected
+    gate excludes the single-creature ABSORBERS the ``keyword_soup`` lane owns
+    (Cairn Wanderer's self-grants carry ``affected: SelfRef``, not You-typed)
+    — exactly the maker/absorber split the deleted ``_KEYWORD_SOUP_CONTEXT_RE``
+    team-grant phrasing drew. Corpus-verified set-equal to the old mirror.
     Live is include_membership-gated; the crosswalk runs it unconditionally
     (live pops measured with the flag True — the b12 kill_engine precedent).
     Scope "you", **LOW** (the live producer's identity; never feeds
     voltron).
     """
-    kept = _kept(tree)
-    if (
-        _KEYWORD_SOUP_CONTEXT_RE.search(kept)
-        and sum(1 for rx in _EVERGREEN_KW_RE if rx.search(kept)) >= 5
-    ):
-        return [Signal("keyword_soup_makers", "you", "", kept[:160], tree.name, "low")]
+    names: set[str] = set()
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "AddKeyword":
+                continue
+            kw = (mod_keyword_name(mod) or "").replace(" ", "").lower()
+            if kw not in _EVERGREEN_CK:
+                continue
+            affected = getattr(sdef, "affected", None)
+            if filter_controller(affected) == "You" and (
+                "Creature" in filter_core_types(affected)
+            ):
+                names.add(kw)
+    if len(names) >= 5:
+        return [Signal("keyword_soup_makers", "you", "", "", tree.name, "low")]
     return []
 
 
