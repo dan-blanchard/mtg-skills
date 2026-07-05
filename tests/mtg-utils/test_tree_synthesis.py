@@ -38,6 +38,8 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_spellcast,
+    has_structural_stax_taxes,
+    has_structural_symmetric_stax,
     has_structural_tutor,
     has_structural_untap_engine,
     has_trigger_draw_bleed,
@@ -1433,3 +1435,138 @@ def test_tutor_lane_reads_synth_node_end_to_end():
     )
     sigs = _tutor_lane(tree)
     assert any(s.key == "tutor" for s in sigs)
+
+
+# ── stax_taxes / symmetric_stax fold (ADR-0036/0037) ───────────────────────────
+
+
+def _stax_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _stax_lanes
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    keys = {s.key for s in _stax_lanes(tree)}
+    return "stax_taxes" in keys, "symmetric_stax" in keys
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Propaganda",  # CantAttack, affected controller Opponent
+        "Stranglehold",  # CantSearchLibrary, cause Opponents
+    ],
+)
+def test_stax_taxes_bucket_a_structural(name):
+    tree = _fixture_tree(name)
+    assert has_structural_stax_taxes(tree) is True
+    stax, _sym = _stax_fires(name)
+    assert stax is True
+
+
+def test_symmetric_stax_bucket_a_structural():
+    tree = _fixture_tree("Bedlam")
+    assert has_structural_symmetric_stax(tree) is True
+    _stax, sym = _stax_fires("Bedlam")
+    assert sym is True
+
+
+def test_stax_taxes_bucket_b_synth():
+    """Platinum Angel: 'your opponents can't win the game' -- phase emits a
+    typed CantWinTheGame static (affected controller Opponent), but the
+    structural census has no arm reading that mode -- a genuine bucket-B
+    gap the deleted _STAX_TAXES_RESIDUE_RE covered; the synth relocates it."""
+    tree = _fixture_tree("Platinum Angel")
+    assert has_structural_stax_taxes(tree) is False  # genuine gap
+    from mtg_utils._card_ir.tree_synthesis import _arm_stax_taxes
+
+    node = _arm_stax_taxes(tree)
+    assert node is not None
+    assert node.concept == "synth_stax_taxes"
+    assert node.scope == "opponents"
+    stax, _sym = _stax_fires("Platinum Angel")
+    assert stax is True
+
+
+def test_symmetric_stax_bucket_b_synth():
+    """Winter Orb: 'players can't untap more than one land' -- an
+    Unimplemented player-lock idiom phase drops wholly; the deleted
+    _SYMMETRIC_STAX_RESIDUE_RE covered it, the synth relocates it."""
+    tree = _fixture_tree("Winter Orb")
+    assert has_structural_symmetric_stax(tree) is False  # genuine gap
+    from mtg_utils._card_ir.tree_synthesis import _arm_symmetric_stax
+
+    node = _arm_symmetric_stax(tree)
+    assert node is not None
+    assert node.concept == "synth_symmetric_stax"
+    assert node.scope == "each"
+    _stax, sym = _stax_fires("Winter Orb")
+    assert sym is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Pacifism",  # single-target Aura pacify (EnchantedBy) -- gate (i) veto
+        "Arrest",  # single-target Aura pacify (EnchantedBy) -- gate (i) veto
+    ],
+)
+def test_stax_shed_overfires(name):
+    from mtg_utils._card_ir.tree_synthesis import (
+        _arm_stax_taxes,
+        _arm_symmetric_stax,
+    )
+
+    tree = _fixture_tree(name)
+    assert has_structural_stax_taxes(tree) is False
+    assert has_structural_symmetric_stax(tree) is False
+    assert _arm_stax_taxes(tree) is None
+    assert _arm_symmetric_stax(tree) is None
+    stax, sym = _stax_fires(name)
+    assert stax is False
+    assert sym is False
+
+
+def test_stax_synth_registered():
+    assert "stax_taxes" in SYNTHESIS_ARM_IDS
+    assert "symmetric_stax" in SYNTHESIS_ARM_IDS
+
+
+def test_stax_lane_reads_synth_nodes_end_to_end():
+    """Fold path, mirror-independent: a synth ``synth_stax_taxes`` /
+    ``synth_symmetric_stax`` node ALONE -- oracle carrying no stax idiom --
+    makes the ``_stax_lanes`` lane emit both signals (proves the synth read
+    is the ACTIVE Tier-1 source)."""
+    from mtg_utils._deck_forge.crosswalk_signals import _stax_lanes
+
+    stax_synth = ConceptNode(
+        concept="synth_stax_taxes",
+        node=SynthesizedNode(arm_id="stax_taxes", description="x"),
+        role="effect",
+        scope="opponents",
+        subject=(),
+        raw="",
+    )
+    sym_synth = ConceptNode(
+        concept="synth_symmetric_stax",
+        node=SynthesizedNode(arm_id="symmetric_stax", description="x"),
+        role="effect",
+        scope="each",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(stax_synth, sym_synth),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _stax_lanes(tree)
+    keys = {s.key for s in sigs}
+    assert "stax_taxes" in keys
+    assert "symmetric_stax" in keys

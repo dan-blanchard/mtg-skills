@@ -68,9 +68,12 @@ from mtg_utils._card_ir.crosswalk import (
     has_filter_property,
     iter_condition_sites,
     iter_cost_leaves,
+    iter_static_defs,
     iter_typed_nodes,
+    modify_cost_mode,
     replacement_event_tag,
     settap_state,
+    static_mode_field,
     static_mode_tag,
     tag_of,
     trigger_caster_scope,
@@ -89,6 +92,11 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 # nor crosswalk_signals.
 from mtg_utils._card_ir.project import _MASS_DEATH_REF
 from mtg_utils._deck_forge import signal_keys
+from mtg_utils._deck_forge._signals_ir import (
+    _STAX_TAXES_RESIDUE_RE,
+    _SYMMETRIC_STAX_RESIDUE_RE,
+    _restriction_pacifies_single_creature,
+)
 from mtg_utils._deck_forge._signals_regex import (
     _ABILITY_KEYWORDS,
     _detect_keyword_implied_tribe,
@@ -125,6 +133,8 @@ __all__ = [
     "has_self_etb_value",
     "has_selfloss_engine",
     "has_structural_spellcast",
+    "has_structural_stax_taxes",
+    "has_structural_symmetric_stax",
     "has_structural_tutor",
     "has_structural_untap_engine",
     "has_trigger_draw_bleed",
@@ -2099,6 +2109,278 @@ def _arm_tutor(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── stax_taxes / symmetric_stax structural census (ADR-0036 fold) ─────────────
+# CR 101.2/604.1. Moved here VERBATIM from the ``_stax_lanes`` lane (minus the
+# residue-mirror tail below) so the lane AND this stage's two synth gap gates
+# read the SAME predicate -- GAP-GATE-ALIGNMENT, no drift. Pacify veto
+# (EnchantedBy/EquippedBy) is LOAD-BEARING: a single-target Aura/Equipment
+# lock (Pacifism, Arrest) opens NEITHER lane.
+_PACIFY_PREDS: frozenset[str] = frozenset({"EnchantedBy", "EquippedBy"})
+_STAX_SIMPLE_RESTRICTIONS: frozenset[str] = frozenset(
+    {
+        "CantAttack",
+        "CantBlock",
+        "CantAttackOrBlock",
+        "CantUntap",
+        "CantGainLife",
+        "MustAttack",
+        "CantPlayLand",
+        "MustBlock",
+        "BlockRestriction",
+    }
+)
+_STAX_LOCK_MODES: frozenset[str] = frozenset(
+    {
+        "CantBeActivated",
+        "CantBeCast",
+        "CantCastDuring",
+        "CantActivateDuring",
+        "PerTurnCastLimit",
+        "CantCastFrom",
+    }
+)
+
+
+def _stax_site_raw(sdef: object) -> str:
+    """A static-def site's grounding clause (its ``description``, else "")."""
+    desc = getattr(sdef, "description", None)
+    return desc if isinstance(desc, str) else ""
+
+
+def _stax_structural_walk(tree: ConceptTree) -> tuple[bool, bool, str, str]:
+    """The ENTIRE stax_taxes / symmetric_stax Tier-1 structural census.
+
+    Returns ``(stax_fired, sym_fired, stax_raw, sym_raw)``. Scope from each
+    static's OWN who/affected node:
+
+    * **plain restrictions** (CantAttack / CantBlock / CantAttackOrBlock /
+      CantUntap / CantGainLife / MustAttack / CantPlayLand / MustBlock /
+      BlockRestriction): affected controller Opponent/TargetPlayer -> stax
+      (Propaganda, Fumiko); unscoped board filter -> symmetric (Warmonger
+      Hellkite, Meekstone, Bedlam, An-Zerrin Ruins). A SelfRef affected (a
+      drawback) or an EnchantedBy/EquippedBy-predicated subject (Pacifism,
+      Arrest, the stun-Auras) opens NEITHER lane.
+    * **cost taxes** (ModifyCost{Raise}): affected Opponent -> stax (Aura of
+      Silence); a You/SelfRef direction is a self-cost quirk (skip); an
+      unscoped tax is symmetric AND co-fires stax (Sphere of Resistance).
+    * **cast/activation locks** (CantBeActivated / CantBeCast /
+      CantCastDuring / CantActivateDuring / PerTurnCastLimit / CantCastFrom):
+      ``who`` Opponents -> stax (Alhammarret, A-Teferi); ``who`` Controller
+      -> skip (Colfenor's Plans); else BOTH lanes (Stony Silence, Arcane
+      Laboratory, Karn GC, Curse of Exhaustion). The Arrest-shape lock
+      (EnchantedBy source_filter) is pacified out.
+    * **library-search locks** (CantSearchLibrary): the mode's OWN ``cause``
+      field routes direction -- Opponents -> stax (Stranglehold, Ashiok
+      Dream Render); AllPlayers -> symmetric only (Mindlock Orb).
+    * **attack ceilings** (MaxAttackersEachCombat): defender Controller ->
+      stax (Crawlspace); else symmetric (Dueling Grounds).
+    * **step skips** (SkipStep): affected Player -> symmetric (Stasis).
+    * **trigger suppression** (SuppressTriggers): symmetric (Hushbringer /
+      Torpor Orb).
+    * **hand-size reducers** (MaximumHandSize, affected Opponent): stax
+      co-fire (Gnat Miser, Jin-Gitaxias).
+    * **opponents-enter-tapped** (a Moved->Battlefield replacement whose
+      SetTapState{Tap} valid_card is NOT SelfRef): controller Opponent ->
+      stax (Authority of the Consuls, Kismet); unscoped -> symmetric (Root
+      Maze). A SelfRef valid_card ("this land enters tapped") is membership.
+
+    An untap BLESSING (Seedborn Muse's UntapsDuringEachOtherPlayersUntapStep)
+    is not in any census set.
+    """
+    stax_fired = False
+    sym_fired = False
+    stax_raw = ""
+    sym_raw = ""
+
+    def stax(raw: str) -> None:
+        nonlocal stax_fired, stax_raw
+        if not stax_fired:
+            stax_fired = True
+            stax_raw = raw
+
+    def sym(raw: str) -> None:
+        nonlocal sym_fired, sym_raw
+        if not sym_fired:
+            sym_fired = True
+            sym_raw = raw
+
+    # The census walks EVERY static def reachable from a unit (a top-level
+    # continuous ability AND the one-shot GenericEffect-nested defs a spell
+    # confers -- Falter's "creatures without flying can't block this turn" is
+    # a live symmetric member). A ParentTarget affected is a single-target
+    # combat trick / pacify (Sleep's rider, Basandra's {R} force) -- skipped.
+    for unit in tree.units:
+        defs = iter_static_defs(unit.node) if unit.origin != "replacement" else ()
+        for node in defs:
+            mt = static_mode_tag(node)
+            affected = getattr(node, "affected", None)
+            atag = tag_of(affected)
+            ctrl = filter_controller(affected)
+            raw = _stax_site_raw(node)
+            if atag in ("SelfRef", "ParentTarget"):
+                continue  # a drawback / single-target trick, never a lock
+            if mt in _STAX_SIMPLE_RESTRICTIONS:
+                if set(filter_predicates(affected)) & _PACIFY_PREDS:
+                    continue
+                if ctrl == "Opponent":
+                    stax(raw)
+                elif ctrl == "TargetPlayer":
+                    # live scopes the directed one-shot board lock (Mana
+                    # Vapors, Aggravate) "each", not "opponents" -- parity.
+                    sym(raw)
+                elif ctrl is None and atag in ("Typed", "Or", "And"):
+                    sym(raw)
+            elif mt == "ModifyCost" and modify_cost_mode(node) == "Raise":
+                if atag == "SelfRef" or ctrl == "You":
+                    continue
+                if ctrl == "Opponent":
+                    stax(raw)
+                else:
+                    sym(raw)
+                    stax(raw)
+            elif mt in _STAX_LOCK_MODES:
+                src = static_mode_field(node, "source_filter")
+                if set(filter_predicates(src)) & _PACIFY_PREDS:
+                    continue
+                if tag_of(src) == "SelfRef" or atag == "SelfRef":
+                    continue  # an Aura's own-view lock (Detainment Spell)
+                who = static_mode_field(node, "who")
+                if who == "Opponents":
+                    stax(raw)
+                elif who == "Controller":
+                    continue
+                elif who == "EnchantedCreatureController":
+                    # An enchant-player curse: live fires BOTH on the
+                    # per-turn cast limit (Curse of Exhaustion) but stax
+                    # only on the named cast-lock (Brand of Ill Omen).
+                    stax(raw)
+                    if mt == "PerTurnCastLimit":
+                        sym(raw)
+                else:
+                    sym(raw)
+                    stax(raw)
+            elif mt == "CantSearchLibrary":
+                cause = static_mode_field(node, "cause")
+                if cause == "Opponents":
+                    stax(raw)
+                elif cause == "AllPlayers":
+                    sym(raw)
+            elif mt == "MaxAttackersEachCombat":
+                if static_mode_field(node, "defender") == "Controller":
+                    stax(raw)
+                else:
+                    sym(raw)
+            elif mt == "SkipStep":
+                if atag == "Player":
+                    sym(raw)
+            elif mt == "SuppressTriggers":
+                sym(raw)
+            elif mt == "MaximumHandSize" and ctrl == "Opponent":
+                stax(raw)
+        if unit.origin == "replacement":
+            node = unit.node
+            if getattr(node, "destination_zone", None) != "Battlefield":
+                continue
+            vc = getattr(node, "valid_card", None)
+            if tag_of(vc) not in ("Typed", "Or", "And"):
+                continue  # SelfRef "this enters tapped" is membership
+            taps = any(
+                c.concept == "tap_untap"
+                and settap_state(c.node) == "Tap"
+                and tag_of(getattr(c.node, "target", None)) == "SelfRef"
+                for c in unit.effects
+            )
+            if not taps:
+                continue
+            desc = getattr(node, "description", None) or ""
+            if filter_controller(vc) == "Opponent":
+                stax(desc)
+            elif filter_controller(vc) is None:
+                sym(desc)
+
+    return stax_fired, sym_fired, stax_raw, sym_raw
+
+
+def has_structural_stax_taxes(tree: ConceptTree) -> bool:
+    """Whether the Tier-1 ``stax_taxes`` structural census fires (shared by
+    the ``_stax_lanes`` lane and the ``synth_stax_taxes`` gap gate)."""
+    return _stax_structural_walk(tree)[0]
+
+
+def has_structural_symmetric_stax(tree: ConceptTree) -> bool:
+    """Whether the Tier-1 ``symmetric_stax`` structural census fires (shared
+    by the ``_stax_lanes`` lane and the ``synth_symmetric_stax`` gap gate)."""
+    return _stax_structural_walk(tree)[1]
+
+
+# ── arm: stax_taxes / symmetric_stax bucket-B (ADR-0036/0037 fold) ───────────
+# CR 101.2/604.1. The unstructurable residue tail phase drops WHOLLY (a
+# player-lock idiom Unimplemented -- Winter Orb's "players can't untap more
+# than one land", Static Orb; a split/aftermath dropped face -- Failure //
+# Comply's "your opponents can't cast spells with the chosen name") or
+# structures with no typed field the census reads (Archfiend of Despair /
+# Platinum Angel's "opponents can't gain life" / "can't win the game",
+# Stranglehold's opponent search-lock on a body phase drops wholly).
+# Relocates the EXACT deleted _STAX_TAXES_RESIDUE_RE / _SYMMETRIC_STAX_
+# RESIDUE_RE per-clause scan (with the SAME pacify veto) to projection time,
+# gap-gated against has_structural_stax_taxes / has_structural_symmetric_stax
+# -- SYNTH-EXCLUSION-PARITY: every over-fire exclusion the regex itself
+# encodes (the `(?<!target )` single-target guard, the `(?! cast)` defer to
+# a structurally-caught CantBeCast/CantCastDuring cast-lock, the pacify veto,
+# the dropped `creatures your opponents control` / `doesn't/don't/does not
+# untap during` over-fire branches) rides along unchanged -- no new code, no
+# new drift, just relocated to gap-gated projection time.
+def _stax_residue_hits(tree: ConceptTree) -> tuple[bool, bool]:
+    """``(stax_residue, sym_residue)`` -- the deleted per-clause regex scan,
+    reminder-stripped, pacify-vetoed. One shared scan for both synth arms."""
+    stax_r = False
+    sym_r = False
+    for cl in clauses(_REMINDER.sub(" ", tree.oracle or "")):
+        if _restriction_pacifies_single_creature(cl):
+            continue
+        if _STAX_TAXES_RESIDUE_RE.search(cl):
+            stax_r = True
+        if _SYMMETRIC_STAX_RESIDUE_RE.search(cl):
+            sym_r = True
+    return stax_r, sym_r
+
+
+def _arm_stax_taxes(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``stax_taxes`` node for the description-only bucket-B
+    tail phase's static census doesn't reach at all -- gap-gated by
+    ``has_structural_stax_taxes`` (never double-counts a card Tier-1
+    already reads)."""
+    if has_structural_stax_taxes(tree):
+        return None
+    if not _stax_residue_hits(tree)[0]:
+        return None
+    return _synthetic_concept(
+        arm_id="stax_taxes",
+        concept="synth_stax_taxes",
+        scope="opponents",
+        subject=(),
+        desc="bucket-B stax tax (phase emits no typed lock/tax node)",
+    )
+
+
+def _arm_symmetric_stax(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``symmetric_stax`` node for the description-only
+    bucket-B tail phase's static census doesn't reach at all -- gap-gated
+    by ``has_structural_symmetric_stax`` (never double-counts a card
+    Tier-1 already reads)."""
+    if has_structural_symmetric_stax(tree):
+        return None
+    if not _stax_residue_hits(tree)[1]:
+        return None
+    return _synthetic_concept(
+        arm_id="symmetric_stax",
+        concept="synth_symmetric_stax",
+        scope="each",
+        subject=(),
+        desc="bucket-B symmetric stax (phase emits no typed lock node)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -2119,6 +2401,8 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("untap_engine", _arm_untap_engine),
     ("tutor_directed", _arm_tutor_directed),
     ("tutor", _arm_tutor),
+    ("stax_taxes", _arm_stax_taxes),
+    ("symmetric_stax", _arm_symmetric_stax),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
