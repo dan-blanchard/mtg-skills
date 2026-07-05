@@ -57,6 +57,8 @@ from mtg_utils._card_ir.crosswalk import (
     zone_change_count_reads,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirrorNode
+from mtg_utils._deck_forge._signals_regex import _resolve_subject
+from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 
 __all__ = [
     "SYNTHESIS_ARM_IDS",
@@ -65,6 +67,30 @@ __all__ = [
     "creature_death_condition",
     "synthesize_nodes",
 ]
+
+
+def _is_creature_death_subject(subject: tuple[str, ...]) -> bool:
+    """Whether a ``dies`` trigger's watched OBJECT is a CREATURE (CR 700.4).
+
+    "Dies" is defined only for creatures (a creature put into a graveyard from the
+    battlefield); a watcher of a non-creature graveyard-arrival (Scrapheap —
+    artifact/enchantment) is a different lane, not a death payoff. True when the
+    watched subject names ``Creature`` OR resolves to a real creature subtype
+    (Kithkin Mourncaller); a pure ``Artifact`` / ``Enchantment`` subject — or a
+    token-only subtype absent from the card-face vocab (Tentacle — The Watcher) —
+    is rejected. The subtype check routes through ``_resolve_subject`` so it shares
+    the vocab's case-folding + the card-type / non-creature-token (Treasure / Clue)
+    denylists rather than a raw membership test against the lowercased vocab.
+
+    Shared by the ``_death_matters`` lane (which imports this) and this stage's gap
+    gate (:func:`_has_structural_death`) so the two agree on which dies-triggers
+    phase structuralizes — one source, no drift. A non-vocab subtype dies-trigger
+    (Tentacle) is thereby NOT counted structural, so it reaches the SUBTYPE synth
+    arm instead of dropping through the crack.
+    """
+    return "Creature" in subject or any(
+        _resolve_subject(w, CREATURE_SUBTYPES) for w in subject
+    )
 
 
 # ── the synthetic concept-node builder ────────────────────────────────────────
@@ -246,17 +272,19 @@ def _has_structural_death(tree: ConceptTree) -> bool:
 
     The synth arm fills only a genuine gap, so it no-ops when any structural death
     evidence the lane reads exists: a battlefield ``dies`` trigger watching a real
-    OBJECT (``trigger_subject`` non-empty — a bare self-death ``SelfRef`` yields no
-    subject and is NOT structural death, so a self-death card whose EFFECT carries a
-    morbid "creatures died this turn" clause still reaches the synth), a morbid
-    creature-death state check (:func:`creature_death_condition`), or a
-    ``CreatureDying`` trigger-doubler.
+    CREATURE object (:func:`_is_creature_death_subject` — the SAME predicate the
+    lane fires on, so the gate and the lane never disagree). A bare self-death
+    ``SelfRef`` yields no subject (not structural — its morbid EFFECT clause still
+    reaches the synth), and a non-vocab subtype watcher (Tentacle — The Watcher) is
+    NOT a recognized creature, so it is also not counted structural and the SUBTYPE
+    synth arm recovers it. Also structural: a morbid creature-death state check
+    (:func:`creature_death_condition`) or a ``CreatureDying`` trigger-doubler.
     """
     for unit in tree.units:
         if (
             unit.trigger_event == "dies"
             and getattr(unit.node, "origin", None) == "Battlefield"
-            and trigger_subject(unit.node)
+            and _is_creature_death_subject(trigger_subject(unit.node))
         ):
             return True
     if creature_death_condition(tree):

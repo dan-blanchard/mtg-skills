@@ -177,6 +177,7 @@ from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
 # creature-death state check and the ``CreatureDying`` trigger-doubler.
 from mtg_utils._card_ir.tree_synthesis import (
     _double_triggers_creature_dying,
+    _is_creature_death_subject,
     creature_death_condition,
 )
 from mtg_utils._deck_forge import signal_keys
@@ -1237,33 +1238,25 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
 # ── Batch 2 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────
 
 
-def _is_creature_death_subject(subject: tuple[str, ...]) -> bool:
-    """Whether a ``dies`` trigger's watched OBJECT is a CREATURE (CR 700.4).
-
-    "Dies" is defined only for creatures (a creature put into a graveyard from the
-    battlefield); a watcher of a non-creature graveyard-arrival (Scrapheap —
-    "an artifact or enchantment is put into your graveyard from the battlefield")
-    is a different lane, NOT a death payoff. True when the watched subject names
-    ``Creature`` OR resolves to a real creature subtype (Kithkin Mourncaller — "an
-    attacking Kithkin or Elf"); a pure ``Artifact`` / ``Enchantment`` subject is
-    rejected. The subtype check routes through ``_resolve_subject`` so it shares the
-    vocab's case-folding + the card-type / non-creature-token (Treasure / Clue)
-    denylists rather than a raw membership test against the lowercased vocab.
-    """
-    return "Creature" in subject or any(
-        _resolve_subject(w, CREATURE_SUBTYPES) for w in subject
-    )
+# ``_is_creature_death_subject`` (CR 700.4 — only creatures die) is SHARED with the
+# ``tree_synthesis`` gap gate (``_has_structural_death``) so the lane and the synth
+# stage agree on which dies-triggers phase structuralizes; it lives there (one
+# source, no drift) and is imported above. A dies-trigger whose subject is NOT a
+# recognized creature (Tentacle — token-only, absent from the card-face vocab) is
+# rejected by both, so it is not falsely "covered" and reaches the SUBTYPE synth arm.
 
 
 # The aristocrats death-payoff effect kinds (CR 700.4): the equipment/aura
 # AttachedTo dies-trigger arm fires ONLY when the trigger's effect EXTRACTS VALUE
 # from the equipped/enchanted creature's death — draw (Skullclamp, Bequeathal),
 # drain (Lead Pipe, Death Watch), damage (Creature Bond), a token (Elephant Guide),
-# a counter (Malefic Scythe), mill/surveil/discard card advantage. It does NOT fire
-# when the effect only RETURNS / REATTACHES / exiles the SOURCE (the ~40 resilience
-# auras — Gift of Immortality, the Zendikons, Resurrection Orb, Forebear's Blade),
-# which are a resilience lane, not aristocrats. rules-lawyer-grounded (CR 700.4 +
-# the aristocrats-payoff boundary).
+# a counter (Malefic Scythe), mill/surveil/discard card advantage, or DEPLOY a
+# creature onto the battlefield from hand/graveyard (Deathrender — "put a creature
+# card from your hand onto the battlefield", the change_zone arm below). It does NOT
+# fire when the effect only RETURNS / REATTACHES / exiles the SOURCE (the ~40
+# resilience auras — Gift of Immortality, the Zendikons, Resurrection Orb,
+# Oathkeeper, Forebear's Blade), which are a resilience lane, not aristocrats.
+# rules-lawyer-grounded (CR 700.4 + the aristocrats-payoff boundary).
 _DEATH_PAYOFF_EFFECTS: frozenset[str] = frozenset(
     {
         "draw",
@@ -1282,6 +1275,31 @@ _DEATH_PAYOFF_EFFECTS: frozenset[str] = frozenset(
 )
 
 
+def _is_death_payoff_effect(e: ConceptNode) -> bool:
+    """Whether an AttachedTo dies-trigger effect EXTRACTS VALUE (payoff, KEEP), not
+    resilience (SHED). CR 700.4.
+
+    A named payoff kind (:data:`_DEATH_PAYOFF_EFFECTS`), OR a DEPLOY ``change_zone``
+    — a ``Creature`` put onto the battlefield from hand/graveyard (Deathrender
+    deploys a NEW creature from hand on the equipped creature's death). The deploy
+    form is distinguished from the return-THE-SOURCE resilience ``change_zone``
+    (Resurrection Orb / Oathkeeper / Gift of Immortality — "return that card to the
+    battlefield", which phase emits with an EMPTY subject and origin unset) by a
+    named ``Creature`` subject moving Hand/Graveyard → Battlefield, so widening the
+    gate here recovers Deathrender without re-admitting the resilience auras.
+    """
+    if e.concept in _DEATH_PAYOFF_EFFECTS:
+        return True
+    if e.concept == "change_zone":
+        origin, dest = change_zone_dirs(e.node)
+        return (
+            dest == "Battlefield"
+            and origin in ("Hand", "Graveyard")
+            and "Creature" in e.subject
+        )
+    return False
+
+
 def _death_matters(tree: ConceptTree) -> list[Signal]:
     """Aristocrats payoff — cares about OTHER creatures dying (CR 700.4). Tier-1.
 
@@ -1295,8 +1313,9 @@ def _death_matters(tree: ConceptTree) -> list[Signal]:
       controller (Blood Artist → "any", Grave Pact → "you", Massacre Wurm →
       "opponents").
     * an equipment/aura ``AttachedTo`` dies-trigger whose effect is an aristocrats
-      PAYOFF (:data:`_DEATH_PAYOFF_EFFECTS`) — Skullclamp / Bequeathal / Elephant
-      Guide. Resilience auras (return/reattach the source) are shed.
+      PAYOFF (:func:`_is_death_payoff_effect`) — Skullclamp / Bequeathal / Elephant
+      Guide, or a deploy-a-creature-from-hand (Deathrender). Resilience auras
+      (return/reattach the SOURCE) are shed.
     * a morbid creature-death CONDITION (:func:`creature_death_condition`) — the "if
       a creature died this turn" state family (Bone Picker, Mahadi, the Zubera
       count payoffs).
@@ -1336,7 +1355,7 @@ def _death_matters(tree: ConceptTree) -> list[Signal]:
         if (
             vc is not None
             and tag_of(vc) == "AttachedTo"
-            and any(e.concept in _DEATH_PAYOFF_EFFECTS for e in unit.effects)
+            and any(_is_death_payoff_effect(e) for e in unit.effects)
         ):
             out.append(Signal("death_matters", "any", "", "", tree.name, "high"))
     # morbid creature-death condition ("if a creature died this turn") + the
