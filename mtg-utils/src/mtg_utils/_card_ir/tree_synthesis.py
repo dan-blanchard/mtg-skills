@@ -65,10 +65,12 @@ from mtg_utils._card_ir.crosswalk import (
     filter_non_types,
     filter_predicates,
     filter_subtypes,
+    has_filter_property,
     iter_condition_sites,
     iter_cost_leaves,
     iter_typed_nodes,
     replacement_event_tag,
+    settap_state,
     static_mode_tag,
     tag_of,
     trigger_caster_scope,
@@ -123,6 +125,7 @@ __all__ = [
     "has_self_etb_value",
     "has_selfloss_engine",
     "has_structural_spellcast",
+    "has_structural_untap_engine",
     "has_trigger_draw_bleed",
     "has_value_tap_ability",
     "is_clone_value_effect",
@@ -1682,6 +1685,210 @@ def _arm_wants_cloning(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── untap_engine structural reads + bucket-B synth (ADR-0036/0037 fold) ───────
+# CR 701.26/701.26b: a DELIBERATE untap engine (Seedborn Muse, Candelabra,
+# Turnabout). The Tier-1 ``_untap_engine`` lane reads a SetTapState{Untap}
+# effect wherever phase routes it — a direct effect (Arbor Elf, Nature's
+# Chosen), the "you may tap or untap target X" Twiddle carrier (a sibling
+# ``TargetOnly`` declaring the target, threaded via ``ParentTarget`` into a
+# ``ChooseOneOf``/``mode_abilities`` branch — Twiddle, Turnabout, Elder Druid,
+# Captain of the Mists, Component Collector, Dee Kay), a GRANTED trigger (a
+# static's ``GrantTrigger`` wrapping the identical TargetOnly/ChooseOneOf
+# shape — Bear Umbra, Ghostly Touch), an activation-cost carrier (Halo
+# Fountain, Crackleburr — ``EffectCost``), or the untap-during-each-other-
+# player's-untap-step static mode (Seedborn Muse, Drumbellower, Unwinding
+# Clock, Ohabi Caleria, and the SELF-scoped form — Bender's Waterskin,
+# Endbringer). Vetoed (CR 701.26b): an OPPONENT-directed target (Provoke /
+# Spinal Embrace / Soldevi Golem / Ray of Command — anti-synergy, not an
+# engine), a ``gain_control`` sibling in the same unit (Threaten / Goatnapper
+# / Insurrection / Reins of Power — a control-steal combat trick, not a
+# deliberate untap engine), a provoke force-block sibling (untaps the
+# BLOCKER, not your board), and the single-permanent ATTACH rider (Crab Umbra
+# "untap enchanted creature" — read structurally via the target filter's
+# ``EnchantedBy``/``EquippedBy`` property, not text).
+
+# Sibling force-block tags (the provoke veto — an "untap … and block" combat
+# trick untaps the BLOCKER, not your board).
+_FORCE_BLOCK_TAGS: frozenset[str] = frozenset(
+    {"MustBlock", "ForceBlock", "MustBeBlocked", "Provoke"}
+)
+
+
+def _iter_untap_targets(
+    root: object,
+) -> Iterator[tuple[object, TypedMirrorNode]]:
+    """``(resolved_target, SetTapState_node)`` for every Untap ``SetTapState``
+    reachable from one ability/trigger/static unit's raw node, the target
+    THREADED through the effect/sub_ability/execute/branches/mode_abilities/
+    GrantTrigger chain (mirrors :func:`~mtg_utils._card_ir.crosswalk.
+    iter_threaded_target_statics`): a ``ParentTarget``-tagged branch target
+    resolves to the nearest preceding ``TargetOnly`` node's own target (the
+    dedicated target declaration for a "tap or untap" choice — NOT any other
+    effect's target, which would wrongly thread an unrelated pump spell's
+    "target creature" into an incidental "Untap it" rider — Bull's Strength,
+    Acrobatic Leap — CR 701.26b excludes those as incidental, not engines).
+    """
+    tracked: object | None = None
+    seen: set[int] = set()
+    queue: list[object] = [root]
+    while queue:
+        node = queue.pop(0)
+        if not isinstance(node, TypedMirrorNode) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        tgt = getattr(node, "target", None)
+        if (
+            tag_of(node) == "TargetOnly"
+            and isinstance(tgt, TypedMirrorNode)
+            and tag_of(tgt) in ("Typed", "Or", "And")
+        ):
+            tracked = tgt
+        if tag_of(node) == "SetTapState" and settap_state(node) == "Untap":
+            resolved = tracked if tag_of(tgt) == "ParentTarget" else tgt
+            yield resolved, node
+        for fname in ("execute", "effect", "sub_ability"):
+            child = getattr(node, fname, None)
+            if isinstance(child, TypedMirrorNode):
+                queue.append(child)
+        branches = getattr(node, "branches", None)
+        if isinstance(branches, list):
+            queue.extend(branches)
+        modes = getattr(node, "mode_abilities", None)
+        if isinstance(modes, list):
+            queue.extend(modes)
+        mods = getattr(node, "modifications", None)
+        for mod in mods if isinstance(mods, list) else ():
+            if isinstance(mod, TypedMirrorNode) and tag_of(mod) == "GrantTrigger":
+                trig = getattr(mod, "trigger", None)
+                if isinstance(trig, TypedMirrorNode):
+                    queue.append(trig)
+
+
+def _untap_target_ok(target: object) -> bool:
+    """Whether a resolved untap TARGET is a genuine engine subject (CR 701.26b):
+    not opponent-controlled, and either a real card core-type/subtype filter
+    (Candelabra "lands", Arbor Elf "Forest", Snap "up to two lands") or the
+    Crab Umbra attach rider is absent (``EnchantedBy``/``EquippedBy``)."""
+    if target is None or filter_controller(target) == "Opponent":
+        return False
+    if tag_of(target) not in ("Typed", "Or", "And"):
+        return False
+    if has_filter_property(target, "EnchantedBy") or has_filter_property(
+        target, "EquippedBy"
+    ):
+        return False
+    return bool(filter_core_types(target) or filter_subtypes(target))
+
+
+def has_structural_untap_engine(tree: ConceptTree) -> bool:
+    """A DELIBERATE untap engine phase structures (CR 701.26/701.26b).
+
+    Shared by the ``_untap_engine`` lane (its entire Tier-1 structural read)
+    AND this stage's synth gap gate — one source, no drift. Per unit: skip a
+    provoke sibling (:data:`_FORCE_BLOCK_TAGS`) or a ``gain_control`` sibling
+    (a Threaten-variant steal, not an engine — CR 701.26b), then check the
+    untap-during-each-step static mode (self or board-wide), every Untap
+    ``SetTapState`` reachable via :func:`_iter_untap_targets` (mass ``scope
+    == 'All'`` OR a real-type/subtype single target), and every activation-
+    cost ``EffectCost`` wrapping an Untap ``SetTapState`` (Halo Fountain,
+    Crackleburr).
+    """
+    for unit in tree.units:
+        if any(tag_of(c.node) in _FORCE_BLOCK_TAGS for c in unit.effects):
+            continue
+        if any(c.concept == "gain_control" for c in unit.effects):
+            continue
+        if (
+            unit.origin == "static"
+            and static_mode_tag(unit.node) == "UntapsDuringEachOtherPlayersUntapStep"
+            and filter_controller(getattr(unit.node, "affected", None)) != "Opponent"
+        ):
+            return True
+        for target, node in _iter_untap_targets(unit.node):
+            mass = tag_of(getattr(node, "scope", None)) == "All"
+            if mass or _untap_target_ok(target):
+                return True
+        for cc in unit.costs:
+            for leaf in iter_cost_leaves(cc.node):
+                if tag_of(leaf) != "EffectCost":
+                    continue
+                eff = getattr(leaf, "effect", None)
+                if not isinstance(eff, TypedMirrorNode):
+                    continue
+                if tag_of(eff) != "SetTapState" or settap_state(eff) != "Untap":
+                    continue
+                mass = tag_of(getattr(eff, "scope", None)) == "All"
+                if mass or _untap_target_ok(getattr(eff, "target", None)):
+                    return True
+    return False
+
+
+# ── arm: untap_engine bucket-B (ADR-0036/0037 fold) ───────────────────────────
+# The genuine phase-parse gap tail: a "tap or untap" choice phase folds to a
+# BARE ``Tap`` (Curse of Inertia drops the "or untap" alternative entirely), a
+# "simultaneously untap X and tap Y" swap phase folds half to
+# ``Unimplemented`` (Breaking Wave), a granted EMBLEM ability phase leaves
+# unstructured (Zariel's "untap target creature you control" emblem text), a
+# conditional "if you pay, untap all creatures" branch phase drops (Lightning
+# Runner), and a counter-gated conditional static phase leaves as a bare
+# ``Continuous`` mode with no typed payload (Quest for Renewal). Read PER-
+# CLAUSE (reminder-stripped) so a match is confined to ONE clause. The
+# engine-words idiom is the exact deleted mirror
+# (``_UNTAP_ENGINE_MIRROR_RAW`` — "untap target/another target/all/each/two/
+# up to"); the "creatures you control are lands" Ashaya idiom is NOT ported
+# (ADR-0036 adjudication: Ashaya's ability is a pure CR 205.1a type-change —
+# it untaps nothing itself; the ONE corpus carrier is lands_matter synergy,
+# not a genuine untap_engine member — shed, not recovered).
+#
+# SYNTH-EXCLUSION-PARITY: mirrors the SAME three vetoes
+# :func:`has_structural_untap_engine` applies — opponent-directed (Soldevi
+# Golem "an opponent controls", Provoke's spelled-out "target creature an
+# opponent controls"), a `gain_control` companion clause (Threaten variants),
+# and the attach rider (Crab Umbra) — so the synth never re-admits a card the
+# structural read correctly shed.
+_UNTAP_ENGINE_IDIOM_RE = re.compile(
+    r"\buntap (?:target|another target|all|each|two|up to)\b", re.IGNORECASE
+)
+_UNTAP_ENGINE_OPP_TEXT_VETO = re.compile(
+    r"you don't control|opponent controls", re.IGNORECASE
+)
+_UNTAP_ENGINE_STEAL_TEXT_VETO = re.compile(r"gain control of", re.IGNORECASE)
+_UNTAP_ENGINE_ATTACH_TEXT_VETO = re.compile(
+    r"untap (?:enchanted|equipped)\b", re.IGNORECASE
+)
+
+
+def _matches_untap_engine_idiom(oracle: str) -> bool:
+    """Whether a reminder-stripped oracle carries a bucket-B untap-engine
+    idiom, per-clause, minus the opponent/steal/attach over-fire vetoes."""
+    for cl in clauses(_REMINDER.sub(" ", oracle or "")):
+        if (
+            _UNTAP_ENGINE_OPP_TEXT_VETO.search(cl)
+            or _UNTAP_ENGINE_STEAL_TEXT_VETO.search(cl)
+            or _UNTAP_ENGINE_ATTACH_TEXT_VETO.search(cl)
+        ):
+            continue
+        if _UNTAP_ENGINE_IDIOM_RE.search(cl):
+            return True
+    return False
+
+
+def _arm_untap_engine(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``untap_engine`` node for a description-only deliberate
+    untap engine (CR 701.26/701.26b) phase leaves untap-less."""
+    if has_structural_untap_engine(tree):
+        return None
+    if not _matches_untap_engine_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="untap_engine",
+        concept="synth_untap_engine",
+        scope="you",
+        subject=(),
+        desc="bucket-B untap engine (phase emits no typed Untap node)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -1699,6 +1906,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("keyword_tribe_any", _arm_keyword_tribe_any),
     ("wants_cloning", _arm_wants_cloning),
     ("mass_death_payoff", _arm_mass_death_payoff),
+    ("untap_engine", _arm_untap_engine),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

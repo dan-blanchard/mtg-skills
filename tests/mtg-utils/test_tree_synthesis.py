@@ -38,6 +38,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_spellcast,
+    has_structural_untap_engine,
     has_trigger_draw_bleed,
     has_value_tap_ability,
     synthesize_nodes,
@@ -1232,3 +1233,104 @@ def test_mass_death_lane_reads_synth_node_end_to_end():
     )
     sigs = _mass_death_payoff(tree)
     assert any(s.key == "mass_death_payoff" for s in sigs)
+
+
+# ── untap_engine fold (ADR-0036/0037) ──────────────────────────────────────────
+
+
+def _untap_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _untap_engine
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "untap_engine" for s in _untap_engine(tree))
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Seedborn Muse",  # untap-during-each-other-player's-untap-step static
+        "Candelabra of Tawnos",  # direct SetTapState, "lands" core type, X-count
+        "Arbor Elf",  # direct SetTapState, LAND SUBTYPE (Forest) — widened read
+        "Twiddle",  # TargetOnly + ChooseOneOf carrier ("you may tap or untap")
+        "Elder Druid",  # same Twiddle-family carrier, activated ability
+        "Bear Umbra",  # GrantTrigger-nested Twiddle carrier (granted aura ability)
+        "Halo Fountain",  # EffectCost activation-cost carrier ("Untap a tapped…:")
+        "Bender's Waterskin",  # SELF-scoped untap-during-each-step static
+    ],
+)
+def test_untap_engine_bucket_a_structural(name):
+    tree = _fixture_tree(name)
+    assert has_structural_untap_engine(tree) is True
+    assert _untap_fires(name) is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Quest for Renewal",  # counter-gated conditional static, no typed payload
+        "Curse of Inertia",  # "may tap or untap" folds to a bare Tap SetTapState
+        "Zariel, Archduke of Avernus",  # granted emblem ability, unstructured
+    ],
+)
+def test_untap_engine_bucket_b_synth(name):
+    tree = _fixture_tree(name)
+    assert has_structural_untap_engine(tree) is False  # genuine gap
+    from mtg_utils._card_ir.tree_synthesis import _arm_untap_engine
+
+    node = _arm_untap_engine(tree)
+    assert node is not None
+    assert node.concept == "synth_untap_engine"
+    assert node.scope == "you"
+    assert _untap_fires(name) is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Threaten",  # untap + gain_control sibling — a steal, not an engine
+        "Soldevi Golem",  # untap TARGETS an opponent-controlled creature
+        "Ashaya, Soul of the Wild",  # CR 205.1a type-change; untaps nothing itself
+    ],
+)
+def test_untap_engine_shed_overfires(name):
+    from mtg_utils._card_ir.tree_synthesis import _arm_untap_engine
+
+    tree = _fixture_tree(name)
+    assert has_structural_untap_engine(tree) is False
+    assert _arm_untap_engine(tree) is None
+    assert _untap_fires(name) is False
+
+
+def test_untap_engine_synth_registered():
+    assert "untap_engine" in SYNTHESIS_ARM_IDS
+
+
+def test_untap_engine_lane_reads_synth_node_end_to_end():
+    """Fold path, mirror-independent: a synth ``synth_untap_engine`` node ALONE
+    — oracle carrying no untap idiom — makes the ``_untap_engine`` lane emit
+    the signal (proves the synth read is the ACTIVE Tier-1 source)."""
+    from mtg_utils._deck_forge.crosswalk_signals import _untap_engine
+
+    synth = ConceptNode(
+        concept="synth_untap_engine",
+        node=SynthesizedNode(arm_id="untap_engine", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _untap_engine(tree)
+    assert any(s.key == "untap_engine" for s in sigs)

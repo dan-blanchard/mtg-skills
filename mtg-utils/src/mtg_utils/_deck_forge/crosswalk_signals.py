@@ -191,6 +191,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_spellcast,
+    has_structural_untap_engine,
     has_trigger_draw_bleed,
     has_value_tap_ability,
     mass_death_amount,
@@ -228,10 +229,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _SYMMETRIC_STAX_RESIDUE_RE,
     _TOUGHNESS_VALUE_MIRROR,
     _TYPED_ANTHEM_MULTI_RAW,
-    _UNTAP_ATTACH_VETO,
-    _UNTAP_ENGINE_MIRROR_LANDS,
-    _UNTAP_ENGINE_MIRROR_RAW,
-    _UNTAP_ENGINE_OPP_VETO,
     _apply_membership_floor,
     _restriction_pacifies_single_creature,
 )
@@ -8350,14 +8347,6 @@ _AA_EXTRA_COST_TAGS: frozenset[str] = frozenset(
 # already in the live pop (probed 24/37/20, zero over-fire).
 _SELF_GROW_ACTION_TAGS: frozenset[str] = frozenset({"Adapt", "Monstrosity", "Renown"})
 
-# Sibling force-block tags (the provoke veto — an "untap … and block" combat
-# trick untaps the BLOCKER, not your board). Phase keyword-provoke bearers
-# carry no untap effect at all (reminder text), so this guards only the
-# explicit spelled-out forms.
-_FORCE_BLOCK_TAGS: frozenset[str] = frozenset(
-    {"MustBlock", "ForceBlock", "MustBeBlocked", "Provoke"}
-)
-
 # opponent_search_matters raw trigger modes (CR 701.23 search / shuffle).
 _OPP_SEARCH_MODES: frozenset[str] = frozenset({"SearchedLibrary", "Shuffled"})
 
@@ -8517,49 +8506,34 @@ def _proliferate_matters_lane(tree: ConceptTree) -> list[Signal]:
 
 
 def _untap_engine(tree: ConceptTree) -> list[Signal]:
-    """untap_engine (§5) — CR 701.26/701.26b: a DELIBERATE untap engine.
-    Structural arm: an effect-role ``SetTapState{state: Untap}`` (the bare
-    ``Untap`` tag is the state SUB-node, not an effect), NOT opponent-
-    directed (target controller Opponent or the imported
-    ``_UNTAP_ENGINE_OPP_VETO`` raw — Provoke / Spinal Embrace untap an ENEMY
-    permanent), NOT a provoke force-block sibling, and either the scope-All
-    mass form (Early Harvest — probed verbatim) or a Typed target filter
-    with real card types (Candelabra "Untap X target lands", Snap "Untap up
-    to two lands" — a LIVE member, polarity from the banked pop) minus the
-    attach rider (Crab Umbra "untap enchanted creature" —
-    ``_UNTAP_ATTACH_VETO`` over the unit description, since the sub-effect
-    node carries none). Mirror arm: the imported engine-words + Ashaya
-    creatures-are-lands mirrors flat with the opp veto (Seedborn Muse fires
-    HERE via "untap all" — live-verified; no
-    UntapsDuringEachOtherPlayersUntapStep static arm, it stays the stax
-    gate-iii exclusion). Scope "you", HIGH.
+    """untap_engine (§5) — CR 701.26/701.26b: a DELIBERATE untap engine
+    (Seedborn Muse, Candelabra, Turnabout). A pure Tier-1 UNION (ADR-0036/
+    0037 fold — the engine-words + Ashaya-lands text mirror is RETIRED):
+
+    * **Structural (bucket-A):** :func:`has_structural_untap_engine` — a
+      direct/Twiddle-carrier/granted-trigger/activation-cost Untap
+      ``SetTapState`` (mass ``scope == 'All'`` or a real card core-type/
+      subtype single target), OR the untap-during-each-other-player's-
+      untap-step static mode (board-wide — Seedborn Muse — or self-scoped
+      — Bender's Waterskin), minus the opponent-directed / ``gain_control``
+      Threaten-variant / provoke-sibling / attach-rider over-fires.
+    * **bucket-B synth (ADR-0037):** the ``tree_synthesis`` stage's
+      ``synth_untap_engine`` node — a "tap or untap" choice phase folds to
+      a bare Tap (Curse of Inertia), a granted emblem ability phase leaves
+      unstructured (Zariel), or a conditional untap branch phase drops
+      (Lightning Runner, Quest for Renewal) — gated against the SAME
+      structural read + vetoes (SYNTH-EXCLUSION-PARITY). Ashaya's
+      "creatures you control are lands" is NOT ported: a pure CR 205.1a
+      type-change untaps nothing itself — lands_matter synergy, not a
+      genuine untap_engine member (adjudicated shed).
+
+    Scope "you", HIGH.
     """
-    for unit in tree.units:
-        provoke = any(tag_of(c.node) in _FORCE_BLOCK_TAGS for c in unit.effects)
-        if provoke:
-            continue
-        for c in unit.effect_concepts("tap_untap"):
-            if settap_state(c.node) != "Untap":
-                continue
-            raw = c.raw or getattr(unit.node, "description", None) or ""
-            target = getattr(c.node, "target", None)
-            if filter_controller(target) == "Opponent":
-                continue
-            if _UNTAP_ENGINE_OPP_VETO.search(raw):
-                continue
-            mass = tag_of(getattr(c.node, "scope", None)) == "All"
-            typed_ok = (
-                tag_of(target) == "Typed"
-                and bool(filter_core_types(target))
-                and not _UNTAP_ATTACH_VETO.search(raw)
-            )
-            if mass or typed_ok:
-                return [Signal("untap_engine", "you", "", raw, tree.name, "high")]
-    kept = _kept(tree)
-    if not _UNTAP_ENGINE_OPP_VETO.search(kept) and (
-        _UNTAP_ENGINE_MIRROR_RAW.search(kept) or _UNTAP_ENGINE_MIRROR_LANDS.search(kept)
-    ):
+    if has_structural_untap_engine(tree):
         return [Signal("untap_engine", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_untap_engine":
+            return [Signal("untap_engine", "you", "", "", tree.name, "high")]
     return []
 
 
