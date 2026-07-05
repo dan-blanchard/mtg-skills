@@ -67,6 +67,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     iter_typed_nodes,
     replacement_event_tag,
+    static_mode_tag,
     tag_of,
     trigger_caster_scope,
     trigger_constraint_tag,
@@ -83,6 +84,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _resolve_subject,
     _self_dies_value,
     _self_etb_value,
+    _self_name_alts,
     clauses,
 )
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
@@ -1139,17 +1141,85 @@ def is_clone_value_effect(e: ConceptNode) -> bool:
     return _is_death_payoff_effect(e) or e.concept in _CLONE_ETB_VALUE
 
 
+# Per-turn CAST/PLAY-permission frequencies phase types on a recurring
+# card-advantage engine (CR 601.3e / 118.5 permission): a "once each turn, you may
+# play/cast a card from <non-hand zone>" grant. ``OncePerTurn`` is the recurring
+# cadence a clone forks; the ``Unlimited`` permissions (Bolas's Citadel, Future
+# Sight) carry no per-turn cadence and stay out of this read (they were never a
+# PER_TURN mirror hit either).
+PER_TURN_CAST_FREQS: frozenset[str] = frozenset({"OncePerTurn"})
+# Cast/play-permission static MODES phase emits for "you may play/cast a card from
+# <exile|top-of-library>" (CR 601.3e) — the ``frequency``-carrying shapes.
+_CAST_PERMISSION_MODES: frozenset[str] = frozenset(
+    {"TopOfLibraryCastPermission", "ExileCastPermission"}
+)
+
+
+def _once_per_turn_restricted(node: object) -> bool:
+    """Whether an activated-ability node carries an ``OnlyOnceEachTurn`` activation
+    restriction (CR 602.5f) — the "Activate only once each turn" cap phase types as
+    an ``activation_restrictions`` entry."""
+    ars = getattr(node, "activation_restrictions", None)
+    if not isinstance(ars, (list, tuple)):
+        return False
+    return any(tag_of(a) == "OnlyOnceEachTurn" for a in ars)
+
+
+def _has_once_per_turn_cast_engine(tree: ConceptTree) -> bool:
+    """A once-each-turn permission to CAST/PLAY a card from a zone other than hand —
+    a recurring card-ADVANTAGE engine a clone forks (Evelyn, Johann, The Fourth
+    Doctor, Maralen Fae Ascendant, Chainer, Mavinda). CR 601.3e / 707.
+
+    Three typed surfaces, all gated to the ``OncePerTurn`` cadence
+    (:data:`PER_TURN_CAST_FREQS`) so the ``Unlimited`` continuous permissions and
+    the plain per-turn RESTRICTIONS on non-advantage abilities (self-pump, tap,
+    mana, attach — CR 602.5f caps that a clone gains nothing from) stay out:
+
+    * a ``grant_cast_permission`` EFFECT whose ``permission`` sub-node has a
+      per-turn ``frequency`` (Evelyn's "once each turn, you may play a card from
+      exile" — a ``PlayFromExile`` permission);
+    * a static ability whose MODE is a cast-from-exile / cast-from-top permission
+      (:data:`_CAST_PERMISSION_MODES` via :func:`static_mode_tag`) whose inner spec
+      has a per-turn ``frequency`` (Johann / The Fourth Doctor / Maralen Fae);
+    * an own activated ability with an ``OnlyOnceEachTurn`` restriction whose effect
+      CASTS a card from a zone (``cast_from_zone`` — Chainer's graveyard recast,
+      Mavinda). A once-each-turn cap on a self-pump / mana / attach ability is NOT a
+      card-advantage engine and is deliberately not read here.
+    """
+    for unit in tree.units:
+        if unit.origin == "static" and (
+            static_mode_tag(unit.node) in _CAST_PERMISSION_MODES
+        ):
+            inner = getattr(getattr(unit.node, "mode", None), "inner", None)
+            if getattr(inner, "frequency", None) in PER_TURN_CAST_FREQS:
+                return True
+        if (
+            unit.origin == "ability"
+            and _once_per_turn_restricted(unit.node)
+            and any(c.concept == "cast_from_zone" for c in unit.effects)
+        ):
+            return True
+        for c in unit.effects:
+            if c.concept == "grant_cast_permission":
+                perm = getattr(c.node, "permission", None)
+                if getattr(perm, "frequency", None) in PER_TURN_CAST_FREQS:
+                    return True
+    return False
+
+
 def has_repeatable_engine(tree: ConceptTree) -> bool:
     """A repeatable per-turn VALUE engine a clone would fork each turn (CR 707).
 
-    Three typed tells: a beginning-of-phase trigger (``trigger_event == "phase"`` —
-    the upkeep/end-step/combat engines phase derives, including the "at the
-    beginning of combat on your turn" form the regex mirror's ``of your combat``
-    literal missed), a trigger with a per-turn-cadence CONSTRAINT
-    (:data:`PER_TURN_CONSTRAINT_TAGS` — the "Nth thing each turn" recurring
-    engines), or an extra-turn / extra-phase generator (``extra_turn`` /
-    ``extra_phase`` — Koma, Aurelia). A "once each turn" RESTRICTION carries no such
-    typed shape, so it is correctly shed.
+    Typed tells: a beginning-of-phase trigger (``trigger_event == "phase"`` — the
+    upkeep/end-step/combat engines phase derives, including the "at the beginning of
+    combat on your turn" form the regex mirror's ``of your combat`` literal missed),
+    a trigger with a per-turn-cadence CONSTRAINT (:data:`PER_TURN_CONSTRAINT_TAGS` —
+    the "Nth thing each turn" recurring engines), an extra-turn / extra-phase
+    generator (``extra_turn`` / ``extra_phase`` — Koma, Aurelia), or a
+    once-each-turn CAST/PLAY-permission card-advantage engine
+    (:func:`_has_once_per_turn_cast_engine` — Evelyn, Johann, Maralen Fae). A "once
+    each turn" RESTRICTION on a non-advantage ability (self-pump, mana dork, A-Nadu's
+    twice-a-turn TRIGGER cap) carries no such typed shape, so it is correctly shed.
     """
     for unit in tree.units:
         if unit.trigger_event == "phase":
@@ -1158,6 +1228,8 @@ def has_repeatable_engine(tree: ConceptTree) -> bool:
             trigger_constraint_tag(unit.node) in PER_TURN_CONSTRAINT_TAGS
         ):
             return True
+    if _has_once_per_turn_cast_engine(tree):
+        return True
     return tree.has_effect("extra_turn") or tree.has_effect("extra_phase")
 
 
@@ -1222,37 +1294,114 @@ def has_self_dies_value(tree: ConceptTree) -> bool:
     return False
 
 
+# ── bucket-B idiom mirrors: self-recursion exclusion + folded engine grant ────
+# The idiom-form mirror of the structural self-return / shuffle-back exclusion
+# (:func:`_is_self_return_effect` / :func:`_is_shuffle_back_effect`), for the synth's
+# raw-text value gate. The synth reads reminder-stripped oracle because phase folded
+# the VALUE to ``other`` (no typed node to read) — but the bare ``_self_dies_value``
+# regex's payoff alternation includes ``returns?``, so without this it re-admits the
+# self-return dies-recursion cards (Ojer Taq's "return it to the battlefield", the
+# God-Eternals' "put it into its owner's library", Kaya's granted "return it to its
+# owner's hand") the structural predicate correctly sheds. Gap-gate-alignment: the
+# synth's value gate must AGREE with the structural predicate, not paraphrase it
+# (CR 700.4 — a token-copy gets no benefit from its own resilience return).
+
+
+def _is_self_recursion_return(clause: str, name: str) -> bool:
+    """Whether a matched self-ETB/dies clause's payoff is a SELF-recursion — the
+    source returns / reshuffles ITSELF (resilience, SHED), not a fork-worthy clone
+    VALUE (CR 700.4). Idiom mirror of :func:`_is_self_return_effect` /
+    :func:`_is_shuffle_back_effect`: "return / put IT | this card | this creature |
+    <own name> to the battlefield | to its owner's hand | into its owner's
+    library/graveyard", or "shuffle IT into …". Name-aware for symmetry with the
+    positive helpers. A return-OTHER payoff ("return a creature you control" —
+    Chivalrous Chevalier) and destroy / draw / modal value keep firing.
+    """
+    alts = "|".join(
+        [
+            "it",
+            "this card",
+            "this creature",
+            "this permanent",
+            "~",
+            *_self_name_alts(name),
+        ]
+    )
+    pat = re.compile(
+        rf"\b(?:return|put) (?:{alts})\b[^.]*?"
+        r"(?:to the battlefield|to its owner's hand|to your hand"
+        r"|into (?:its owner's|your) (?:library|graveyard))"
+        rf"|\bshuffle (?:{alts})\b[^.]*?\binto\b",
+        re.IGNORECASE,
+    )
+    return pat.search(clause) is not None
+
+
+# A LEGENDARY creature that GRANTS ITSELF the activated abilities of exiled/owned
+# cards, usable once each turn (Mairsil the Pretender — the canonical clone-combo
+# target; a clone forks the whole once-each-turn ability suite). Phase folds this
+# static grant to ``Unimplemented`` (a genuine parse gap), so the structural
+# repeatable-engine read cannot see it — this bucket-B idiom bridges it until phase
+# parses the grant (gap-gated to ``not has_repeatable_engine`` below).
+_GRANT_ABILITIES_ONCE_RE = re.compile(
+    r"\bactivate (?:each of )?(?:those|these|the exiled|all|its) "
+    r"(?:activated )?abilit(?:y|ies)\b[^.]*?\bonce each turn\b",
+    re.IGNORECASE,
+)
+
+
 # ── arm: wants_cloning bucket-B (ADR-0036 fold) ───────────────────────────────
-# The high-value self-ETB / self-dies clone-want (arm 2, ``cmc >= 5``) has a
-# bucket-B tail phase emits NO typed value effect for: a MODAL ("choose one —")
-# or CONDITIONAL-COUNT ("for each {U}{U} spent, draw") or return-your-own ETB whose
-# body phase folds to ``other`` (Baleful Beholder, Bladecoil Serpent, Chivalrous
-# Chevalier, Draconian Gate-Bot), and the analogous dies form. The self-ETB /
-# self-dies VALUE idiom is read ONCE (the ``_signals_regex`` mirror helpers, the
-# SHARED flag-OFF defs — never re-implemented), gap-gated to
-# :func:`has_self_etb_value` / :func:`has_self_dies_value` (the SAME predicates the
-# lane fires on) so it never double-counts a card phase already structuralizes.
-# Only the ``cmc >= 5`` arm has a bucket-B tail; arm 1 (the legendary engine /
-# value-tap) is fully structural, so it has no synth.
+# Two bucket-B tails phase emits no typed value node for. (A) A LEGENDARY creature
+# whose once-each-turn activated-ability GRANT phase folds to ``Unimplemented``
+# (Mairsil) — the legendary-engine arm's bucket-B tail. (B) The ``cmc >= 5``
+# self-ETB / self-dies clone-want whose body phase folds to ``other``: a MODAL
+# ("choose one —") or CONDITIONAL-COUNT ("for each {U}{U} spent, draw") or
+# return-your-own ETB (Baleful Beholder, Bladecoil Serpent, Chivalrous Chevalier),
+# and the analogous dies form. The self-ETB / self-dies VALUE idiom is read ONCE
+# (the ``_signals_regex`` mirror helpers, the SHARED flag-OFF defs — never
+# re-implemented), gap-gated to :func:`has_self_etb_value` / :func:`has_self_dies_value`
+# (the SAME predicates the lane fires on) so it never double-counts a card phase
+# already structuralizes, and the self-recursion payoff is shed via
+# :func:`_is_self_recursion_return` (the structural exclusion's idiom mirror).
 
 
 def _arm_wants_cloning(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize a ``wants_cloning`` node for a description-only ETB/dies value.
+    """Synthesize a ``wants_cloning`` node for a description-only engine / ETB / dies
+    value phase leaves value-less (CR 707 / 603.6).
 
-    CR 707/603.6: fires only for a ``cmc >= 5`` card phase leaves value-less
-    (:func:`has_self_etb_value` / :func:`has_self_dies_value` both False) whose
-    oracle carries a genuine self-ETB or self-dies VALUE idiom (``_self_etb_value``
-    / ``_self_dies_value`` over the reminder-stripped text). Scope "you", the lane's
-    forced scope.
+    Tail A — a LEGENDARY creature whose once-each-turn activated-ability grant phase
+    folds to ``Unimplemented`` (Mairsil), gap-gated to ``not has_repeatable_engine``.
+    Tail B — a ``cmc >= 5`` card with :func:`has_self_etb_value` /
+    :func:`has_self_dies_value` both False whose oracle carries a genuine self-ETB or
+    self-dies VALUE idiom (``_self_etb_value`` / ``_self_dies_value`` over the
+    reminder-stripped text), MINUS the self-recursion payoff
+    (:func:`_is_self_recursion_return`). Scope "you", the lane's forced scope.
     """
+    if (
+        "Legendary" in tree.card_supertypes
+        and tree.is_type("Creature")
+        and not has_repeatable_engine(tree)
+        and _GRANT_ABILITIES_ONCE_RE.search(tree.oracle or "")
+    ):
+        return _synthetic_concept(
+            arm_id="wants_cloning",
+            concept="synth_wants_cloning",
+            scope="you",
+            subject=(),
+            desc="bucket-B clone-want (folded once-each-turn ability grant)",
+        )
     if tree.cmc < 5:
         return None
     if has_self_etb_value(tree) or has_self_dies_value(tree):
         return None
     kept = _REMINDER.sub(" ", tree.oracle or "")
-    if _self_etb_value(kept, tree.name) is None and (
-        _self_dies_value(kept, tree.name) is None
-    ):
+    etb = _self_etb_value(kept, tree.name)
+    dies = _self_dies_value(kept, tree.name)
+    if etb is not None and _is_self_recursion_return(etb, tree.name):
+        etb = None
+    if dies is not None and _is_self_recursion_return(dies, tree.name):
+        dies = None
+    if etb is None and dies is None:
         return None
     return _synthetic_concept(
         arm_id="wants_cloning",

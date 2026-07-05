@@ -27,6 +27,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_spellcast_matters,
     _has_structural_lifegain,
     _is_creature_death_subject,
+    _is_self_recursion_return,
     _matches_spellcast_idiom,
     apply_tree_synthesis,
     has_gain_life_amplifier,
@@ -323,6 +324,88 @@ def test_wants_cloning_synth_gap_gate_aligned_with_lane():
     for name in ("Gyruda, Doom of Depths", "Kokusho, the Evening Star"):
         tree = _fixture_tree(name)
         assert "wants_cloning" not in [arm for arm, _ in synthesize_nodes(tree)]
+
+
+# ── wants_cloning fold fix (ADR-0036): self-return exclusion + engine recovery ─
+# Fix-forward on f1c1c0c. (1) The bucket-B synth must SHED self-return dies-recursion:
+# the bare ``_self_dies_value`` regex's ``returns?`` payoff re-admitted the cards the
+# structural self-return/shuffle exclusion correctly shed (CR 700.4), so the synth's
+# raw-text value gate now routes through :func:`_is_self_recursion_return` (the idiom
+# mirror of the structural exclusion). (2) Recover the genuine once-each-turn
+# own-ability VALUE engines the repeatable-engine read dropped, without re-admitting
+# the restriction / legend-static over-fires (CR 601.3e / 602.5f).
+
+
+def test_is_self_recursion_return_idiom_precision():
+    # SHED: the source returns/reshuffles ITSELF (resilience).
+    assert _is_self_recursion_return("return it to the battlefield tapped", "Ojer Taq")
+    assert _is_self_recursion_return(
+        "you may put it into its owner's library third from the top", "God-Eternal"
+    )
+    assert _is_self_recursion_return(
+        "if he wasn't a Spirit, return this card to the battlefield", "Fang"
+    )
+    assert _is_self_recursion_return(
+        "return it to its owner's hand and create a 1/1 Spirit", "Kaya"
+    )
+    # KEEP: a return-OTHER payoff (Chivalrous Chevalier) is genuine clone value.
+    assert not _is_self_recursion_return(
+        "return a creature you control to its owner's hand", "Chivalrous Chevalier"
+    )
+    assert not _is_self_recursion_return("destroy all nonland permanents", "Child")
+
+
+def test_wants_cloning_sheds_self_return_dies_recursion():
+    # Ivory Gargoyle: "When this creature dies, return it to the battlefield ..." — a
+    # self-return (undying-style resilience). The structural has_self_dies_value sheds
+    # it (change_zone SelfRef excluded); the bucket-B synth must ALSO shed it. CR 700.4.
+    tree = _fixture_tree("Ivory Gargoyle")
+    assert not has_self_dies_value(tree)
+    assert "wants_cloning" not in [arm for arm, _ in synthesize_nodes(tree)]
+    assert not _wants_cloning_fires("Ivory Gargoyle")
+
+
+def test_wants_cloning_sheds_self_shuffle_back_dies():
+    # God-Eternal Rhonas: "When ~ dies ... put it into its owner's library third from
+    # the top" — a shuffle-back self-protection rider, not a clone value.
+    tree = _fixture_tree("God-Eternal Rhonas")
+    assert not has_self_dies_value(tree)
+    assert "wants_cloning" not in [arm for arm, _ in synthesize_nodes(tree)]
+    assert not _wants_cloning_fires("God-Eternal Rhonas")
+
+
+def test_wants_cloning_recovers_once_per_turn_cast_permission():
+    # Evelyn: "Once each turn, you may play a card from exile ..." — a recurring
+    # card-advantage engine phase types as a PlayFromExile permission with
+    # frequency=OncePerTurn; has_repeatable_engine reads it structurally (arm 1).
+    tree = _fixture_tree("Evelyn, the Covetous")
+    assert has_repeatable_engine(tree)
+    assert _wants_cloning_fires("Evelyn, the Covetous")
+
+
+def test_wants_cloning_synth_recovers_mairsil_folded_grant():
+    # Mairsil: "has all activated abilities ... activate each ... only once each turn"
+    # — the canonical clone-combo target, whose grant phase folds to Unimplemented (a
+    # genuine bucket-B parse gap the structural repeatable-engine read can't see).
+    tree = _fixture_tree("Mairsil, the Pretender")
+    assert not has_repeatable_engine(tree)
+    assert [arm for arm, _ in synthesize_nodes(tree)] == ["wants_cloning"]
+    assert _wants_cloning_fires("Mairsil, the Pretender")
+
+
+def test_wants_cloning_sheds_legend_static_cost_reducer():
+    # Bruenor Battlehammer: "you may pay {0} rather than pay the equip cost of the
+    # first equip ability you activate each turn" — a legend-rule static cost-reducer,
+    # NOT a once-each-turn card-advantage engine (CR 601.3e). Stays shed.
+    assert not has_repeatable_engine(_fixture_tree("Bruenor Battlehammer"))
+    assert not _wants_cloning_fires("Bruenor Battlehammer")
+
+
+def test_wants_cloning_genuine_bucket_b_etb_survives_exclusion():
+    # Baleful Beholder (a modal "choose one —" ETB, one of the genuine bucket-B
+    # recoveries) is unaffected by the self-return exclusion (its payoff returns
+    # nothing to itself) and keeps firing via the synth.
+    assert _wants_cloning_fires("Baleful Beholder")
 
 
 # ── attack_matters synth arm (ADR-0036 fold) ──────────────────────────────────
