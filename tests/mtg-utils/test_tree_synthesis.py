@@ -23,6 +23,7 @@ from mtg_utils._card_ir._substrate_purity import (
 from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode, ConceptTree
 from mtg_utils._card_ir.tree_synthesis import (
     SYNTHESIS_ARM_IDS,
+    _is_creature_death_subject,
     apply_tree_synthesis,
     synthesize_nodes,
 )
@@ -96,6 +97,28 @@ def test_synth_arm_noops_when_structural_death_present(name):
     tree = _fixture_tree(name)
     assert synthesize_nodes(tree) == ()
     assert apply_tree_synthesis(tree) is tree
+
+
+def test_is_creature_death_subject_rejects_token_only_subtype():
+    # The gap-gate/lane-read shared predicate (CR 700.4): a recognised creature
+    # subtype is death; a token-only subtype absent from the card-face vocab
+    # (Tentacle — The Watcher in the Water) is NOT recognised structural, so the
+    # dies-trigger falls through to the SUBTYPE synth arm instead of the crack.
+    assert _is_creature_death_subject(("Creature",))
+    assert _is_creature_death_subject(("Zombie",))
+    assert _is_creature_death_subject(("Human",))
+    assert not _is_creature_death_subject(("Tentacle",))  # token-only, non-vocab
+    assert not _is_creature_death_subject(("Clue",))  # non-creature — does not die
+
+
+def test_synth_recovers_nonvocab_subtype_death():
+    # The Watcher in the Water class: "whenever a <non-vocab creature subtype> you
+    # control dies" — the lane's creature-subject read cannot resolve the subtype,
+    # so the SUBTYPE synth arm recovers it (0 genuine members lost).
+    tree = _gap_tree(
+        "Whenever a Tentacle you control dies, each opponent loses 1 life."
+    )
+    assert [arm for arm, _ in synthesize_nodes(tree)] == ["death_matters"]
 
 
 # ── purity: the stage preserves the phase L1 fingerprint ──────────────────────
