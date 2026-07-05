@@ -402,6 +402,20 @@ arm that regexes text *once* and emits a typed node (log the gap; retire via the
 _Avoid_: reading "bucket-A" as "tree already has it" (bucket-A means phase-parsed-but-
 dropped; the already-there case is *direct*).
 
+**Tree synthesis / SynthesizedNode** (ADR-0037):
+The flag-ON Layer-2 stage (`apply_tree_synthesis`) that **adds** synthetic
+[[Concept-node]]s to the crosswalk tree for a [[Fold triage|bucket-B]] gap — a
+projection-time regex-over-oracle-text run *once* emitting a typed node the signal lane
+reads. Runs in the `extract_crosswalk_signals` path **only** (never `compat_card`), so a
+bucket-B [[Mirror fold]] moves signals and nothing else (Seam-B consumers + flag-OFF
+untouched). A synthetic node carries a `SynthesizedNode` marker (not a phase
+`TypedMirrorNode`) in its `.node` slot, tagged by arm id; the [[Concept overlay]]'s
+substrate-purity invariant relaxes to "phase L1 preserved; tagged synthetic additions
+allowed." A [[Convergence check|shrinking bridge]], not a permanent home.
+_Avoid_: "overlay" (that *decorates* existing nodes; synthesis *adds* new ones),
+"dropped-clause synthesis" alone (that lands on the compat Card / Seam B; this feeds the
+Signal lanes / Seam A).
+
 ### Roles & surfaces
 
 **Session-agent** (a.k.a. the reasoning layer):
