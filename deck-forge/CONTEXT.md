@@ -326,6 +326,10 @@ The single derivation path that maps the [[Phase-mirror substrate]]'s nodes into
 becomes a recognized [[Concept-node]] *or* an `other` concept that *carries the verbatim
 structured node* — so the unrecognized tail stays reachable as structure, never re-grepped
 text. The home the lossy `project.py` concept-derivation *relocates* into.
+_Plainly_: the **structured-read path**. "Crosswalk" is the data-management term for a table
+that maps one vocabulary to another (like ICD-9→ICD-10 medical codes); here it maps phase-rs's
+raw parse nodes to our synergy concepts (a "dies-trigger", a "draw-effect") so a [[Signal]]
+lane reads *structure* instead of grepping the card's text. Its output is the concept tree.
 _Avoid_: "projection" (it is a lossless derivation over a retained substrate, not the old
 lossy projection it replaces), "the categoriser" (it preserves tree position, see
 [[Concept-node]]).
@@ -369,6 +373,8 @@ A crosswalk lane's regex-over-oracle-*text* read — a `clauses(oracle)` split p
 transitional safety net where the structural read wasn't built yet. Tier-0: blind to tree
 structure, so it carries the card-level cross-clause false-positive class. What a
 [[Mirror fold]] retires.
+_Plainly_: a leftover **text-regex still hiding inside a signal lane** — the tech-debt a
+[[Mirror fold]] removes.
 _Avoid_: "byte-mirror" alone (that names the ADR-0027 signal-*equality* tactic; a lane
 mirror is the text-read it rides on), "fallback" (it is tech-debt, not a sanctioned path).
 
@@ -379,6 +385,8 @@ field exist first. Tier-1-only: the lane never falls back to a node-`raw` regex 
 rejected Tier-2) — when phase's parse is lacking we *supplement* it, not text-scan in the
 lane. A fold may legitimately *improve* signals (adjudicated role-aware), not only
 reproduce them.
+_Plainly_: **swap a lane's text-regex for a read of the structured tree** (adding whatever
+parse-support the tree needs first). The concrete edit this whole migration is doing.
 _Avoid_: "de-regex" (a bucket-B fold still runs regex once at the projection seam; what's
 removed is *lane-time* text-reading), "refactor" (folds are allowed to move signals).
 
@@ -412,9 +420,27 @@ untouched). A synthetic node carries a `SynthesizedNode` marker (not a phase
 `TypedMirrorNode`) in its `.node` slot, tagged by arm id; the [[Concept overlay]]'s
 substrate-purity invariant relaxes to "phase L1 preserved; tagged synthetic additions
 allowed." A [[Convergence check|shrinking bridge]], not a permanent home.
+_Plainly_: when phase-rs **can't parse a phrasing**, run the regex **once at parse time** to
+mint a typed node the lane reads — so the regex lives at the parser, not the lane, and gets
+deleted once phase learns to parse that phrasing itself.
 _Avoid_: "overlay" (that *decorates* existing nodes; synthesis *adds* new ones),
 "dropped-clause synthesis" alone (that lands on the compat Card / Seam B; this feeds the
 Signal lanes / Seam A).
+
+**Recall-completion fold (role-aware)** (ADR-0034 → ADR-0036):
+The *process* a [[Mirror fold]] runs. Before deleting a lane's regex, make the structured
+read catch every genuine card the regex caught — *completing the recall* ("recall" = the
+search-quality sense: of all cards that *should* fire the signal, the fraction we catch) —
+while judging each dropped card by its **role** (ADR-0034): a *maker*/source (Soul Warden
+*gains* life), a *matters*/payoff (Ajani's Pridemate *cares* that you gained life), or a
+*wants* target. The lane keeps the genuine payoffs, recovers the ones phase under-parses (a
+[[Fold triage|bucket-A]] read or a [[Tree synthesis|bucket-B synthesis]]), and *drops* the
+ones the regex wrongly caught (a source sitting in a payoff lane) — a drop that is a
+correctness *fix*, not a coverage loss.
+_Plainly_: rewrite the lane to read structure, making sure it still catches every card that
+*genuinely belongs* (recall) and correctly tells apart *doers* from *payoffs* (role-aware).
+_Avoid_: "refactor" (it deliberately changes which cards fire — it corrects the regex),
+"recall" in the ML retraining sense (here it is search-recall: coverage of should-fire cards).
 
 ### Roles & surfaces
 
