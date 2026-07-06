@@ -3418,6 +3418,81 @@ def _arm_counter_distribute(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arm: proliferate_matters bucket-B (ADR-0036/0037 Stage 5, T2-counters) ─────
+# CR 701.34/701.34a proliferate + CR 702.184 station + 721.1: the Myojin
+# divinity/indestructible enters-with-counter cycle and the charge/experience
+# resource-counter makers (Ezuri, Mizzix, Aether Vial). NEW this batch: probed
+# phase DOES type these as a typed counter kind — a ``place_counter`` /
+# ``remove_counter`` effect's kind (Arwen's indestructible enters-with, Aether
+# Vial's charge PutCounter), OR a ``give_player_counter`` effect's OWN
+# ``counter_kind`` field (a DIFFERENT phase field name than the permanent-side
+# ``counter_type`` — Ezuri's "you get an experience counter" GivePlayerCounter
+# node carries ``counter_kind='Experience'``, which the shared ``counter_kind``/
+# ``counter_kind_any`` helpers do not read, since those key off
+# ``counter_type``). Re-probed: 158/167 corpus fires now structural (up from
+# 144 with the added GivePlayerCounter read), 9 residue — a "Station" counter-
+# scaling reference (Inspirit, Flagship Vessel; The Eternity Elevator), a
+# choice-branch charge-counter increment (Immard's "put a charge counter on it
+# or remove one"), and a pure reference/cost tail (Ion Storm's activation cost,
+# Atreus's "for each experience counter", Dismantle's "that many... charge
+# counters") phase does not carry as a typed node this batch. Relocates the two
+# deleted mirrors verbatim, gated against the new structural read.
+_PROLIFERATE_STRUCT_KINDS: frozenset[str] = frozenset(
+    {"divinity", "indestructible", "charge", "experience"}
+)
+
+
+def has_structural_proliferate(tree: ConceptTree) -> bool:
+    """A Myojin-cycle enters-with counter or a charge/experience resource
+    counter phase types directly (permanent-side OR player-side kind field)."""
+    for c in tree.iter_concepts():
+        if c.role != "effect":
+            continue
+        if c.concept in ("place_counter", "remove_counter"):
+            kind = (counter_kind(c.node) or counter_kind_any(c.node) or "").lower()
+            if kind in _PROLIFERATE_STRUCT_KINDS:
+                return True
+        elif c.concept == "give_player_counter":
+            kind = (getattr(c.node, "counter_kind", None) or "").lower()
+            if kind in _PROLIFERATE_STRUCT_KINDS:
+                return True
+    return False
+
+
+_PROLIF_ENTERS_COUNTER_SYNTH_RX = re.compile(
+    r"enters with a(?:n)? (?:divinity|indestructible) counter", re.IGNORECASE
+)
+_PROLIF_RESOURCE_COUNTER_SYNTH_RX = re.compile(
+    r"\bcharge counter|\bexperience counter", re.IGNORECASE
+)
+
+
+def _matches_proliferate_idiom(oracle: str) -> bool:
+    kept = _REMINDER.sub(" ", oracle or "")
+    return bool(
+        _PROLIF_ENTERS_COUNTER_SYNTH_RX.search(kept)
+        or _PROLIF_RESOURCE_COUNTER_SYNTH_RX.search(kept)
+    )
+
+
+def _arm_proliferate_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``proliferate_matters`` node for the Station-reference /
+    choice-branch / pure-reference residue (the deleted
+    ``_PROLIF_ENTERS_COUNTER_MIRROR`` / ``_PROLIF_RESOURCE_COUNTER_MIRROR``
+    relocated verbatim)."""
+    if has_structural_proliferate(tree):
+        return None
+    if not _matches_proliferate_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="proliferate_matters",
+        concept="synth_proliferate_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B counter-resource reference/enters-with residue (CR 121/701.34)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3451,6 +3526,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("power_matters", _arm_power_matters),
     ("keyword_counter", _arm_keyword_counter),
     ("counter_distribute", _arm_counter_distribute),
+    ("proliferate_matters", _arm_proliferate_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

@@ -41,6 +41,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_counter_distribute,
     has_structural_keyword_counter,
     has_structural_outlaw,
+    has_structural_proliferate,
     has_structural_spellcast,
     has_structural_stax_taxes,
     has_structural_superfriends,
@@ -2530,3 +2531,94 @@ def test_counter_distribute_lane_reads_synth_node_end_to_end():
     )
     sigs = _counter_distribute(tree)
     assert any(s.key == "counter_distribute" for s in sigs)
+
+
+# ── batch T2-counters (ADR-0036/0037 Stage 5): proliferate_matters ────────────
+
+
+def _proliferate_matters_lane_fires_high(tree: ConceptTree) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _proliferate_matters_lane
+
+    return any(
+        s.key == "proliferate_matters" and s.confidence == "high"
+        for s in _proliferate_matters_lane(apply_tree_synthesis(tree))
+    )
+
+
+def test_proliferate_matters_bucket_a_structural_permanent_counter():
+    """Myojin of Cleansing Fire's divinity enters-with counter — phase types
+    the kind directly on a place_counter effect."""
+    tree = _fixture_tree("Myojin of Cleansing Fire")
+    assert has_structural_proliferate(tree) is True
+    assert _proliferate_matters_lane_fires_high(tree) is True
+
+
+def test_proliferate_matters_bucket_a_structural_player_counter():
+    """Ezuri, Claw of Progress's "you get an experience counter" — a
+    ``give_player_counter`` effect whose OWN ``counter_kind`` field (a
+    DIFFERENT phase field name than the permanent-side ``counter_type``)
+    reads Experience (NEW this batch — recovers 17 corpus cards the old
+    enters-with-anchored mirror missed, e.g. Captain Marvel's activated
+    indestructible counter)."""
+    tree = _fixture_tree("Ezuri, Claw of Progress")
+    assert has_structural_proliferate(tree) is True
+    assert _proliferate_matters_lane_fires_high(tree) is True
+
+
+def test_proliferate_matters_bucket_b_synth():
+    """Ion Storm's activation-cost reference ("remove a +1/+1 counter or a
+    charge counter") is a pure text reference phase does not type as a node
+    this batch — a genuine gap (measured: 9/167 corpus residue)."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_proliferate_matters
+
+    tree = _gap_tree(
+        "{1}{R}, Remove a +1/+1 counter or a charge counter from a permanent "
+        "you control: This enchantment deals 2 damage to any target."
+    )
+    assert has_structural_proliferate(tree) is False
+    node = _arm_proliferate_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_proliferate_matters"
+    assert node.scope == "you"
+    assert _proliferate_matters_lane_fires_high(tree) is True
+
+
+def test_proliferate_matters_no_fire_on_unrelated_card():
+    from mtg_utils._card_ir.tree_synthesis import _arm_proliferate_matters
+
+    tree = _fixture_tree("Bramblewood Paragon")
+    assert has_structural_proliferate(tree) is False
+    assert _arm_proliferate_matters(tree) is None
+    assert _proliferate_matters_lane_fires_high(tree) is False
+
+
+def test_proliferate_matters_synth_registered():
+    assert "proliferate_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_proliferate_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _proliferate_matters_lane
+
+    synth = ConceptNode(
+        concept="synth_proliferate_matters",
+        node=SynthesizedNode(arm_id="proliferate_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _proliferate_matters_lane(tree)
+    assert any(s.key == "proliferate_matters" and s.confidence == "high" for s in sigs)

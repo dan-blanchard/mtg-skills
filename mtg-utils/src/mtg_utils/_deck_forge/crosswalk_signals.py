@@ -194,6 +194,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_counter_distribute,
     has_structural_keyword_counter,
     has_structural_outlaw,
+    has_structural_proliferate,
     has_structural_spellcast,
     has_structural_superfriends,
     has_structural_theft_makers,
@@ -8108,12 +8109,6 @@ _PUMP_MAKERS_RX = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
 
 # Byte-identical copies of the INLINE (unnamed) ``_IR_KEPT_DETECTORS`` rows —
 # the _JOHAN_MIRROR precedent (no importable name exists for these).
-_PROLIF_ENTERS_COUNTER_MIRROR = re.compile(
-    r"enters with a(?:n)? (?:divinity|indestructible) counter", re.IGNORECASE
-)
-_PROLIF_RESOURCE_COUNTER_MIRROR = re.compile(
-    r"\bcharge counter|\bexperience counter", re.IGNORECASE
-)
 _FLASH_MATTERS_MIRROR = re.compile(
     r"whenever you cast (?:a |your first )?spells? "
     r"during (?:an|each|any) opponent",
@@ -8306,15 +8301,24 @@ def _tutor_lane(tree: ConceptTree) -> list[Signal]:
 
 def _proliferate_matters_lane(tree: ConceptTree) -> list[Signal]:
     """proliferate_matters (§4) — CR 701.34/701.34a proliferate + CR
-    702.184/702.184a station + 721.1. Four live producers: the `station`
-    Scryfall-keyword row rides :func:`_keyword_field_signals_b14`; here the
-    two HIGH mirrors (divinity/indestructible enters-counter — the Myojin
-    cycle; charge/experience resource counters — Ezuri, Mizzix) and the LOW
-    remove-counter-activation-cost mirror (imported
-    ``_PROLIFERATE_REMOVE_COST_RE`` — LOW so the countdown-resource cards
-    keep their voltron tell), all flat over the kept oracle (live runs them
-    flat). v0.9.0 types the counter kinds, but mirror-parity stays cheapest
-    and exact — logged, not restructured.
+    702.184/702.184a station + 721.1. The `station` Scryfall-keyword row
+    rides :func:`_keyword_field_signals_b14`; the LOW remove-counter-
+    activation-cost mirror (imported ``_PROLIFERATE_REMOVE_COST_RE`` — LOW
+    so the countdown-resource cards keep their voltron tell) stays a direct
+    text read, untouched by this fold. The HIGH arm is a Tier-1 UNION
+    (ADR-0036/0037 fold — the divinity/indestructible-enters +
+    charge/experience-resource text mirrors are RETIRED):
+
+    * **Structural:** :func:`has_structural_proliferate` — a
+      ``place_counter``/``remove_counter`` effect's kind, OR a
+      ``give_player_counter`` effect's OWN ``counter_kind`` field (Ezuri's
+      "you get an experience counter"), in {divinity, indestructible,
+      charge, experience} — the Myojin cycle, Aether Vial, Ezuri, Mizzix.
+    * **bucket-B synth:** the ``tree_synthesis`` stage's
+      ``synth_proliferate_matters`` node — the Station counter-scaling
+      reference / choice-branch increment / pure-reference residue (Ion
+      Storm, Atreus, Dismantle) phase does not type this batch, gated
+      against the same structural read.
 
     **Logged live GAP (do NOT port):** v0.9.0 carries a first-class
     "whenever you proliferate" payoff family (``PlayerPerformedAction
@@ -8323,13 +8327,17 @@ def _proliferate_matters_lane(tree: ConceptTree) -> list[Signal]:
     fix batch (the has_mutate precedent), pinned by the Ezuri negative
     fixture.
     """
-    kept = _kept(tree)
     out: list[Signal] = []
-    if _PROLIF_ENTERS_COUNTER_MIRROR.search(kept) or (
-        _PROLIF_RESOURCE_COUNTER_MIRROR.search(kept)
-    ):
+    if has_structural_proliferate(tree):
         out.append(Signal("proliferate_matters", "you", "", "", tree.name, "high"))
-    if _PROLIFERATE_REMOVE_COST_RE.search(kept):
+    else:
+        for c in tree.iter_concepts():
+            if c.concept == "synth_proliferate_matters":
+                out.append(
+                    Signal("proliferate_matters", "you", "", "", tree.name, "high")
+                )
+                break
+    if _PROLIFERATE_REMOVE_COST_RE.search(_kept(tree)):
         out.append(Signal("proliferate_matters", "you", "", "", tree.name, "low"))
     return out
 
