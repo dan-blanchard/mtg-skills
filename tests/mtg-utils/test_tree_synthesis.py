@@ -80,6 +80,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_suspend_matters,
     _arm_targeting_matters,
     _arm_token_subtype_own_ref,
+    _arm_type_change,
     _arm_unspent_mana,
     _arm_vehicles_matter,
     _arm_void_warp_makers,
@@ -126,6 +127,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_targeting_matters,
     has_structural_theft_makers,
     has_structural_tutor,
+    has_structural_type_change,
     has_structural_unspent_mana,
     has_structural_untap_engine,
     has_structural_vehicles_matter,
@@ -4883,3 +4885,41 @@ def test_targeting_matters_no_fire_on_unrelated_card():
     """Murder targets a permanent as a removal SPELL — not a becomes-target
     payoff."""
     assert _arm_targeting_matters(_fixture_tree("Murder")) is None
+
+
+# ── batch T9-finalize: GLOBAL FINALIZE, type_change ─────────────────────────
+
+
+def test_type_change_synth_registered():
+    assert "type_change" in SYNTHESIS_ARM_IDS
+
+
+def test_type_change_fires_on_baneslayer_angel():
+    """Baneslayer Angel's own "protection from Demons and from Dragons"
+    keyword line — CR 702.16/613.1d — is a BEARER keyword, not an
+    AddKeyword GRANT, so it carries no typed modification for the
+    structural read to see; real oracle text built by hand since the card
+    is not in the committed crosswalk fixture."""
+    tree = ConceptTree(
+        name="Baneslayer Angel",
+        oracle_id="x",
+        oracle=(
+            "Flying, first strike, lifelink, protection from Demons and from Dragons"
+        ),
+    )
+    node = _arm_type_change(tree)
+    assert node is not None
+    assert node.concept == "synth_type_change"
+
+
+def test_type_change_gap_gated_when_structural_present():
+    """Gor Muldrak, Amphinologist's AddKeyword{Protection{CardType:
+    Salamander}} grant is typed directly — the residue arm must not
+    double-fire."""
+    tree = _fixture_tree("Gor Muldrak, Amphinologist")
+    assert has_structural_type_change(tree)
+    assert _arm_type_change(tree) is None
+
+
+def test_type_change_no_fire_on_unrelated_card():
+    assert _arm_type_change(_fixture_tree("Llanowar Elves")) is None

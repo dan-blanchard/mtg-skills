@@ -242,7 +242,6 @@ from mtg_utils._deck_forge._signals_regex import (
     Signal,
     _detect_token_maker,
     _resolve_subject,
-    _type_hoser_clause,
     clauses,
 )
 from mtg_utils._deck_forge._subtypes import (
@@ -7361,13 +7360,16 @@ def _color_change(tree: ConceptTree) -> list[Signal]:
 
 
 def _type_change(tree: ConceptTree) -> list[Signal]:
-    """type_change (§D) — CR 702.16 + 613.1d: RECLASSIFIED structural+mirror
-    union — the type-HOSER read. Structural: an ``AddKeyword`` whose keyword
-    is ``Protection{CardType: <arg>}`` with the argument vocab-validated
-    against the creature-subtype list (Gor Muldrak's Salamanders — the
-    "phase drops the argument" note was STALE); protection from a COLOR
-    (White Knight) fails the vocab gate. Mirror: the live per-clause
-    ``protection from (\\w+)`` vocab-gated scan for parity. Scope "you".
+    """type_change (§D) — CR 702.16 + 613.1d: the type-HOSER read, Tier-1
+    (ADR-0036/0037 Stage 5 T9-finalize fold — the byte-identical mirror is
+    RETIRED to a bucket-B synth arm). Structural: an ``AddKeyword`` whose
+    keyword is ``Protection{CardType: <arg>}`` with the argument
+    vocab-validated against the creature-subtype list (Gor Muldrak's
+    Salamanders — the "phase drops the argument" note was STALE);
+    protection from a COLOR (White Knight) fails the vocab gate.
+    bucket-B synth: the ``synth_type_change`` node
+    (:func:`_arm_type_change`) for the per-clause
+    ``protection from (\\w+)`` vocab-gated residue. Scope "you".
     """
     for unit in tree.units:
         for _sdef, mod in iter_mod_sites(unit.node):
@@ -7379,8 +7381,9 @@ def _type_change(tree: ConceptTree) -> list[Signal]:
             w = arg.lower()
             if w in CREATURE_SUBTYPES or w.rstrip("s") in CREATURE_SUBTYPES:
                 return [Signal("type_change", "you", "", "", tree.name, "high")]
-    if _type_hoser_clause(_kept(tree).lower()):
-        return [Signal("type_change", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_type_change":
+            return [Signal("type_change", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -9115,8 +9118,8 @@ def _station_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
     generic ANY-counter doubler naming Spacecraft/Planet among other
     permanent types, not a station-specific charge effect — a genuine
     "cares about" support card, not a "performs station" card; adjudicated
-    improvement). makers == 34 commander, matters == 10 (9 typed + 1
-    bucket-B).
+    improvement). makers == 33 commander, matters == 11 (10 typed + 1
+    bucket-B) per the Loading Zone reclass.
 
     Documented live GAP (pinned negative, NOT parity): Tapestry Warden —
     the plural verb "stations" (CR 702.184c's own Example names it) —

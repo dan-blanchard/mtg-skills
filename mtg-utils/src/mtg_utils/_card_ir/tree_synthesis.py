@@ -81,6 +81,7 @@ from mtg_utils._card_ir.crosswalk import (
     mod_keyword_name,
     modify_cost_mode,
     node_duration,
+    protection_cardtype,
     replacement_event_tag,
     settap_state,
     static_mode_field,
@@ -137,6 +138,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _self_dies_value,
     _self_etb_value,
     _self_name_alts,
+    _type_hoser_clause,
     clauses,
     self_power_scale_match,
 )
@@ -4533,6 +4535,48 @@ def _is_self_owned_bounce_target(target: object) -> bool:
     return False
 
 
+# ── arm: type_change bucket-B (ADR-0036/0037 Stage 5, T9-finalize) ────────────
+# CR 702.16 + 613.1d: the type-HOSER read (the color_hoser analog, keyed on a
+# creature SUBTYPE instead of a color) — a commander whose payoff punishes a
+# named creature subtype ("protection from Salamanders") wants the creature-
+# TYPE-CHANGING toolbox to force every opponent's creature into that subtype.
+# The residual: the deleted ``_type_hoser_clause`` per-clause
+# "protection from (\\w+)" vocab-gated scan for the cases phase's own
+# AddKeyword{Protection{CardType}} argument read misses, relocated verbatim.
+def has_structural_type_change(tree: ConceptTree) -> bool:
+    """An ``AddKeyword`` whose keyword is ``Protection{CardType: <arg>}``
+    with the argument vocab-validated against the creature-subtype list
+    (Gor Muldrak's Salamanders); protection from a COLOR fails the gate."""
+    for unit in tree.units:
+        for _sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "AddKeyword":
+                continue
+            arg = protection_cardtype(mod)
+            if arg is None:
+                continue
+            w = arg.lower()
+            if w in CREATURE_SUBTYPES or w.rstrip("s") in CREATURE_SUBTYPES:
+                return True
+    return False
+
+
+def _arm_type_change(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``type_change`` node for the "protection from <subtype>"
+    residue (the deleted ``_type_hoser_clause`` mirror relocated verbatim),
+    gap-gated against :func:`has_structural_type_change`."""
+    if has_structural_type_change(tree):
+        return None
+    if not _type_hoser_clause(_REMINDER.sub(" ", tree.oracle or "").lower()):
+        return None
+    return _synthetic_concept(
+        arm_id="type_change",
+        concept="synth_type_change",
+        scope="you",
+        subject=(),
+        desc="bucket-B protection-from-subtype residue (CR 702.16/613.1d)",
+    )
+
+
 def has_structural_color_hoser(tree: ConceptTree) -> bool:
     """A Destroy/Counter/mass-Destroy/mass-Exile/mass-Bounce effect whose
     target (or, for Counter, an ``And``-composite member) directly names a
@@ -5772,6 +5816,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("pump_makers", _arm_pump_makers),
     ("opponent_exile_matters", _arm_opponent_exile_matters),
     ("color_hoser", _arm_color_hoser),
+    ("type_change", _arm_type_change),
     ("void_warp_makers", _arm_void_warp_makers),
     ("sacrifice_protection", _arm_sacrifice_protection),
     ("life_payment_insurance", _arm_life_payment_insurance),
