@@ -9584,12 +9584,9 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 # above (one source, zero drift):
 # _MELD_FULLTEXT_RE, _POWER_SCALING_RAW, _TOUGHNESS_VALUE_MIRROR,
 # _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF. (island_makers, ability_copy,
-# noncombat_damage_payoff were ADR-0036/0037 folded to Tier-1 structural /
-# bucket-B synth reads — see ``_island_makers``, ``_ability_copy``,
-# ``_noncombat_damage_payoff``.)
-_PER_TARGET_RX = re.compile(
-    r"less (?:to cast )?for each (?:of those )?target", re.IGNORECASE
-)
+# noncombat_damage_payoff, and per_target_payoff were ADR-0036/0037 folded to
+# Tier-1 structural / bucket-B synth reads — see ``_island_makers``,
+# ``_ability_copy``, ``_noncombat_damage_payoff``, ``_per_target_payoff``.)
 _POWER_TAP_CONFERRED_RX = re.compile(
     r"\{t\}:[^.]*(?:equal to|where x is|x is)[^.]*\bpower\b", re.IGNORECASE
 )
@@ -10177,15 +10174,18 @@ def _one_punch(tree: ConceptTree) -> list[Signal]:
 def _per_target_payoff(tree: ConceptTree) -> list[Signal]:
     """per_target_payoff (§17) — CR 601.2c (targets announced and locked as
     part of casting) + 601.2f (the locked-in total cost): Hinata's YOUR-side
-    per-target cost reduction — the kept mirror ``less (to cast )?for each
-    (of those )?target``, corpus population exactly 1. [P49] LOGGED: phase
-    parses the reduction but degrades the "for each TARGET" discriminator to
-    an ObjectCount over an EMPTY filter (only the node description carries
-    it) — SUPPLEMENT-RECOVERABLE via a Stage-3 description screen (the [P8]
-    precedent). Scope "you", HIGH.
+    per-target cost reduction, corpus population exactly 1. Tier-1
+    (ADR-0036/0037 fold — the lane-time ``_PER_TARGET_RX`` kept-oracle read
+    is RETIRED): the ``tree_synthesis`` stage's ``synth_per_target_payoff``
+    node is the lane's SOLE source (no competing Tier-1 predicate: [P49]
+    phase parses the reduction but degrades the "for each TARGET"
+    discriminator to an ``ObjectCount`` over an EMPTY filter — only the
+    node ``description`` string carries it, and a node-scoped description
+    regex is the Tier-2 waypoint ADR-0036 rejects). Scope "you", HIGH.
     """
-    if _PER_TARGET_RX.search(_kept(tree)):
-        return [Signal("per_target_payoff", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_per_target_payoff":
+            return [Signal("per_target_payoff", "you", "", "", tree.name, "high")]
     return []
 
 

@@ -54,6 +54,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_manland,
     _arm_noncombat_damage_payoff,
     _arm_opponent_exile_matters,
+    _arm_per_target_payoff,
     _arm_pump_makers,
     _arm_sacrifice_protection,
     _arm_spellcast_matters,
@@ -4017,3 +4018,32 @@ def test_noncombat_damage_payoff_lane_reads_synth_node_end_to_end():
     tree = _synth_concept_tree("synth_noncombat_damage_payoff")
     sigs = _noncombat_damage_payoff(tree)
     assert any(s.key == "noncombat_damage_payoff" for s in sigs)
+
+
+# ── per_target_payoff (full relocation, no gate; corpus population == 1) ────
+
+
+def test_per_target_payoff_synth_fires_on_hinata():
+    """Hinata, Dawn-Crowned: "Spells you cast cost {1} less to cast for each
+    target." — the corpus's sole member; [P49] phase degrades the "for each
+    TARGET" discriminator to an ObjectCount over an EMPTY filter."""
+    tree = _fixture_tree("Hinata, Dawn-Crowned")
+    node = _arm_per_target_payoff(tree)
+    assert node is not None
+    assert node.concept == "synth_per_target_payoff"
+
+
+def test_per_target_payoff_no_fire_on_unrelated_card():
+    assert _arm_per_target_payoff(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_per_target_payoff_synth_registered():
+    assert "per_target_payoff" in SYNTHESIS_ARM_IDS
+
+
+def test_per_target_payoff_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _per_target_payoff
+
+    tree = _synth_concept_tree("synth_per_target_payoff")
+    sigs = _per_target_payoff(tree)
+    assert any(s.key == "per_target_payoff" for s in sigs)

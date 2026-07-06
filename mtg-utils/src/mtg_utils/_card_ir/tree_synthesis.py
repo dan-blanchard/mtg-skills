@@ -4660,6 +4660,42 @@ def _arm_noncombat_damage_payoff(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T6-niche-b: per_target_payoff (full relocation, no gate) ─────────
+# CR 601.2c (targets announced/locked as part of casting) + 601.2f (the
+# locked-in total cost): Hinata's YOUR-side per-target cost reduction — corpus
+# population exactly 1. [P49] phase parses the ``ModifyCost`` reduction but
+# degrades the "for each TARGET" discriminator to an ``ObjectCount`` over an
+# EMPTY filter (verified against the committed Hinata fixture: both statics'
+# ``dynamic_count.filter`` carry ``type_filters=[]`` — only the node
+# ``description`` string retains "for each target", and a node-scoped
+# description regex is the Tier-2 waypoint ADR-0036 rejects) — a genuine gap,
+# no competing Tier-1 predicate. Relocates the deleted ``_PER_TARGET_RX``
+# mirror verbatim — SOLE source. Measured byte-identical (1/1, 0 drops, 0
+# adds).
+_PER_TARGET_SYNTH_RX = re.compile(
+    r"less (?:to cast )?for each (?:of those )?target", re.IGNORECASE
+)
+
+
+def _matches_per_target_idiom(oracle: str) -> bool:
+    return bool(_PER_TARGET_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_per_target_payoff(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``per_target_payoff`` node (the deleted ``_PER_TARGET_RX``
+    mirror relocated verbatim — no competing Tier-1 predicate exists, so
+    this is the lane's SOLE source)."""
+    if not _matches_per_target_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="per_target_payoff",
+        concept="synth_per_target_payoff",
+        scope="you",
+        subject=(),
+        desc="bucket-B per-target cost-reduction residue (CR 601.2c)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4715,6 +4751,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("life_payment_insurance", _arm_life_payment_insurance),
     ("ability_copy", _arm_ability_copy),
     ("noncombat_damage_payoff", _arm_noncombat_damage_payoff),
+    ("per_target_payoff", _arm_per_target_payoff),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
