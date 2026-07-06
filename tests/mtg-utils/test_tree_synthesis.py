@@ -52,6 +52,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_island_matters,
     _arm_life_payment_insurance,
     _arm_manland,
+    _arm_noncombat_damage_payoff,
     _arm_opponent_exile_matters,
     _arm_pump_makers,
     _arm_sacrifice_protection,
@@ -3977,3 +3978,42 @@ def test_ability_copy_lane_reads_synth_node_end_to_end():
     tree = _synth_concept_tree("synth_ability_copy")
     sigs = _ability_copy(tree)
     assert any(s.key == "ability_copy" for s in sigs)
+
+
+# ── noncombat_damage_payoff (full relocation, no gate) ──────────────────────
+
+
+def test_noncombat_damage_payoff_synth_fires_on_reflector():
+    """Backfire: "Whenever enchanted creature deals damage to you, this Aura
+    deals that much damage to that creature's controller." — the reflector
+    idiom ("deals that much damage to … that creature")."""
+    tree = ConceptTree(
+        name="Backfire",
+        oracle_id="x",
+        oracle=(
+            "Enchant creature\nWhenever enchanted creature deals damage to"
+            " you, this Aura deals that much damage to that creature's"
+            " controller."
+        ),
+    )
+    node = _arm_noncombat_damage_payoff(tree)
+    assert node is not None
+    assert node.concept == "synth_noncombat_damage_payoff"
+
+
+def test_noncombat_damage_payoff_no_fire_on_combat_damage_payoff():
+    """Cold-Eyed Selkie's combat-damage draw payoff is pop-verified False —
+    a COMBAT damage payoff never fires this lane."""
+    assert _arm_noncombat_damage_payoff(_fixture_tree("Cold-Eyed Selkie")) is None
+
+
+def test_noncombat_damage_payoff_synth_registered():
+    assert "noncombat_damage_payoff" in SYNTHESIS_ARM_IDS
+
+
+def test_noncombat_damage_payoff_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _noncombat_damage_payoff
+
+    tree = _synth_concept_tree("synth_noncombat_damage_payoff")
+    sigs = _noncombat_damage_payoff(tree)
+    assert any(s.key == "noncombat_damage_payoff" for s in sigs)

@@ -4618,6 +4618,48 @@ def _arm_ability_copy(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T6-niche-b: noncombat_damage_payoff (full relocation, no gate) ───
+# CR 510.1a/510.2 (the combat/noncombat damage boundary) + 702.19a (trample
+# "… is dealing noncombat damage" — the CR's literal term witness): the
+# doublers (Solphim), reflectors (Boros Reckoner, Backfire), and the "deals
+# exactly N damage" family. No competing Tier-1 predicate: the ``Double``
+# effect's ``target_kind`` enum never carries a ``"Damage"`` member (checked
+# against the corpus — only ``Counters``/``LifeTotal``/``ManaPool``/``None``
+# occur), and phase leaves the "deals exactly N damage" event-other family an
+# Unknown-mode blob (Ghyrson Starn). Relocates the deleted
+# ``NONCOMBAT_DAMAGE_PAYOFF_REGEX`` mirror verbatim — SOLE source. Measured
+# byte-identical over the commander-legal corpus (97/97, 0 drops, 0 adds).
+_NONCOMBAT_DAMAGE_SYNTH_RX = re.compile(
+    r"noncombat damage"
+    r"|deals that much damage to (?:each opponent|any target|that creature)"
+    r"|deals exactly \d+ damage"
+    r"|whenever (?:a|another) source you control deals [^.]*damage"
+    r"|deals damage equal to (?:that spell's|the exiled card's|that card's"
+    r"|that creature's) mana value",
+    re.IGNORECASE,
+)
+
+
+def _matches_noncombat_damage_idiom(oracle: str) -> bool:
+    return bool(_NONCOMBAT_DAMAGE_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_noncombat_damage_payoff(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``noncombat_damage_payoff`` node (the deleted
+    ``NONCOMBAT_DAMAGE_PAYOFF_REGEX`` mirror relocated verbatim — no
+    competing Tier-1 predicate exists, so this is the lane's SOLE
+    source)."""
+    if not _matches_noncombat_damage_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="noncombat_damage_payoff",
+        concept="synth_noncombat_damage_payoff",
+        scope="you",
+        subject=(),
+        desc="bucket-B noncombat-damage doubler/payoff residue (CR 510.2)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4672,6 +4714,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("sacrifice_protection", _arm_sacrifice_protection),
     ("life_payment_insurance", _arm_life_payment_insurance),
     ("ability_copy", _arm_ability_copy),
+    ("noncombat_damage_payoff", _arm_noncombat_damage_payoff),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

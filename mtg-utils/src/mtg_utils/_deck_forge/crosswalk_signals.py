@@ -256,7 +256,6 @@ from mtg_utils._deck_forge._subtypes import (
 )
 from mtg_utils._deck_forge._sweep_detectors import (
     ENTERED_ATTACKER_REGEX,
-    NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     STATION_MATTERS_REGEX,
     STICKERS_MATTER_REGEX,
     UNSPENT_MANA_REGEX,
@@ -9582,12 +9581,12 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 # Byte-identical inline copies of the live INLINE (unnamed) kept-detector rows
 # (_IR_KEPT_DETECTORS / the deleted-producer patterns) — the b12 _JOHAN_MIRROR
 # precedent for rows with no importable name. Named live constants are imported
-# above (one source, zero drift): NONCOMBAT_DAMAGE_PAYOFF_REGEX,
+# above (one source, zero drift):
 # _MELD_FULLTEXT_RE, _POWER_SCALING_RAW, _TOUGHNESS_VALUE_MIRROR,
-# _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF. (island_makers, ability_copy
-# were ADR-0036/0037 folded to Tier-1 structural / bucket-B synth reads — see
-# ``_island_makers``, ``_ability_copy``.)
-_NONCOMBAT_DAMAGE_RX = re.compile(NONCOMBAT_DAMAGE_PAYOFF_REGEX, re.IGNORECASE)
+# _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF. (island_makers, ability_copy,
+# noncombat_damage_payoff were ADR-0036/0037 folded to Tier-1 structural /
+# bucket-B synth reads — see ``_island_makers``, ``_ability_copy``,
+# ``_noncombat_damage_payoff``.)
 _PER_TARGET_RX = re.compile(
     r"less (?:to cast )?for each (?:of those )?target", re.IGNORECASE
 )
@@ -10100,17 +10099,21 @@ def _noncombat_damage_payoff(tree: ConceptTree) -> list[Signal]:
     510.2 set the combat/noncombat boundary; 702.19a (trample "… is dealing
     noncombat damage") is the CR's literal term witness.
 
-    The imported pinned ``NONCOMBAT_DAMAGE_PAYOFF_REGEX`` flat over the kept
-    oracle (the lone ``[^.]*`` arm never crosses a period — flat ==
-    per-clause): the doublers (Solphim), reflectors (Boros Reckoner), and
-    the "deals exactly N damage" family phase leaves an Unknown-mode blob
-    (Ghyrson Starn — known event-other flattening, not a new bug). A COMBAT
-    damage payoff never fires (Cold-Eyed Selkie, pop False). LOGGED widen:
-    v0.9.0's first-class ``combat_scope=='NoncombatOnly'`` on the
-    doubler/preventer replacements. Scope "you", HIGH.
+    Tier-1 (ADR-0036/0037 fold — the lane-time ``_NONCOMBAT_DAMAGE_RX``
+    kept-oracle read is RETIRED): the ``tree_synthesis`` stage's
+    ``synth_noncombat_damage_payoff`` node is the lane's SOLE source (no
+    competing Tier-1 predicate: the ``Double`` effect's ``target_kind``
+    never carries a ``"Damage"`` member, and phase leaves the "deals exactly
+    N damage" family an Unknown-mode blob — Ghyrson Starn, known
+    event-other flattening, not a new bug): the doublers (Solphim),
+    reflectors (Boros Reckoner). A COMBAT damage payoff never fires
+    (Cold-Eyed Selkie, pop False). LOGGED widen: v0.9.0's first-class
+    ``combat_scope=='NoncombatOnly'`` on the doubler/preventer replacements.
+    Scope "you", HIGH.
     """
-    if _NONCOMBAT_DAMAGE_RX.search(_kept(tree)):
-        return [Signal("noncombat_damage_payoff", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_noncombat_damage_payoff":
+            return [Signal("noncombat_damage_payoff", "you", "", "", tree.name, "high")]
     return []
 
 
