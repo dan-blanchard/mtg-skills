@@ -455,9 +455,13 @@ def test_attack_synth_fires_on_positive_raid_count():
 
 def test_attack_synth_vetoes_attacks_alone():
     # CR 506.5 / 702.83: "attacks alone" is a single-attacker (exalted/voltron)
-    # condition, not the go-wide attack_matters lane.
+    # condition, not the go-wide attack_matters lane. It correctly co-fires
+    # the ADR-0036 exalted_lone_attacker bucket-B arm instead (the SAME
+    # idiom is genuinely that lane's turf) — updated when that arm landed.
     tree = _gap_tree("Whenever this creature attacks alone, you draw a card.")
-    assert synthesize_nodes(tree) == ()
+    fired = dict(synthesize_nodes(tree))
+    assert "attack_matters" not in fired
+    assert "exalted_lone_attacker" in fired
 
 
 def test_attack_synth_vetoes_defensive_attacks_you():
@@ -2233,3 +2237,85 @@ def test_arcane_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _arcane_matters(tree)
     assert any(s.key == "arcane_matters" for s in sigs)
+
+
+def _exalted_textual_lane_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _exalted_textual
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    sigs = _exalted_textual(tree)
+    return any(s.key == "exalted_lone_attacker" for s in sigs)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Agents of S.H.I.E.L.D.",  # textual payoff, no own exalted keyword
+        "Emissary of Soulfire",  # "put an exalted counter" grant, no keyword
+    ],
+)
+def test_exalted_textual_bucket_b_synth(name):
+    """No competing Tier-1 predicate exists for this arm (the phase
+    SourceAttackingAlone/AttackingAlone/BlockingAlone/CombatAlone tags
+    structure an UNRELATED evasion mechanic — see the shed-overfire test
+    below), so this is the lane's SOLE source."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_exalted_lone_attacker
+
+    tree = _fixture_tree(name)
+    node = _arm_exalted_lone_attacker(tree)
+    assert node is not None
+    assert node.concept == "synth_exalted_lone_attacker"
+    assert _exalted_textual_lane_fires(name) is True
+
+
+def test_exalted_textual_shed_overfire_cant_be_blocked_alone():
+    """Dream Prowler ("can't be blocked as long as it's attacking alone")
+    is a conditional EVASION clause (CR 702.14-adjacent, evasion_self's
+    turf), NOT an exalted bonus — the phase ``SourceAttackingAlone`` tag it
+    carries is deliberately NOT read here (probed: a genuine 4-card
+    over-fire on the corpus)."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_exalted_lone_attacker
+
+    tree = _fixture_tree("Dream Prowler")
+    assert _arm_exalted_lone_attacker(tree) is None
+    assert _exalted_textual_lane_fires("Dream Prowler") is False
+
+
+def test_exalted_textual_no_fire_on_unrelated_card():
+    from mtg_utils._card_ir.tree_synthesis import _arm_exalted_lone_attacker
+
+    tree = _fixture_tree("Chaos Wand")
+    assert _arm_exalted_lone_attacker(tree) is None
+    assert _exalted_textual_lane_fires("Chaos Wand") is False
+
+
+def test_exalted_lone_attacker_synth_registered():
+    assert "exalted_lone_attacker" in SYNTHESIS_ARM_IDS
+
+
+def test_exalted_textual_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _exalted_textual
+
+    synth = ConceptNode(
+        concept="synth_exalted_lone_attacker",
+        node=SynthesizedNode(arm_id="exalted_lone_attacker", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _exalted_textual(tree)
+    assert any(s.key == "exalted_lone_attacker" for s in sigs)

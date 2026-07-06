@@ -9624,7 +9624,6 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 # NONCOMBAT_DAMAGE_PAYOFF_REGEX,
 # _MELD_FULLTEXT_RE, _POWER_SCALING_RAW, _TOUGHNESS_VALUE_MIRROR,
 # _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF.
-_EXALTED_TEXT_RX = re.compile(r"attacks alone|\bexalted\b", re.IGNORECASE)
 _ISLAND_MAKERS_RX = re.compile(ISLAND_MAKERS_REGEX, re.IGNORECASE)
 _NONCOMBAT_DAMAGE_RX = re.compile(NONCOMBAT_DAMAGE_PAYOFF_REGEX, re.IGNORECASE)
 _PER_TARGET_RX = re.compile(
@@ -9809,15 +9808,23 @@ def _cmdzone_ability(tree: ConceptTree) -> list[Signal]:
 def _exalted_textual(tree: ConceptTree) -> list[Signal]:
     """exalted_lone_attacker textual arm (§6) — CR 702.83a/702.83b + 506.5
     ("A creature attacks alone if it's the only creature declared as an
-    attacker"): the byte-identical ``attacks alone|\\bexalted\\b`` kept mirror
-    for the textual grants/payoffs ("X have exalted", Sovereigns of Lost
-    Alara's attacks-alone trigger). The keyword-bearer row rides
-    :func:`_keyword_field_signals_b16` (emitting the voltron pair); this
-    mirror is a strict superset of the bearers (every bearer carries the
+    attacker"). Tier-1 (ADR-0036 fold): reads the
+    ``synth_exalted_lone_attacker`` bucket-B node
+    (:func:`_arm_exalted_lone_attacker` in ``tree_synthesis``) for the
+    textual grants/payoffs ("X have exalted", Agents of S.H.I.E.L.D.'s
+    attacks-alone trigger). **Not** the phase ``SourceAttackingAlone`` /
+    ``AttackingAlone`` / ``BlockingAlone`` / ``CombatAlone`` tags — probed
+    and REJECTED, those structure the UNRELATED "can't be blocked while
+    attacking alone" evasion family (Dream Prowler), a genuine 4-card
+    over-fire on the corpus — so this arm has no competing structural gate,
+    the lane's SOLE source. The keyword-bearer row rides
+    :func:`_keyword_field_signals_b16` (emitting the voltron pair); the
+    synth node is a strict superset of the bearers (every bearer carries the
     word) — ``add()`` dedups. Scope "you", HIGH.
     """
-    if _EXALTED_TEXT_RX.search(_kept(tree)):
-        return [Signal("exalted_lone_attacker", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_exalted_lone_attacker":
+            return [Signal("exalted_lone_attacker", "you", "", "", tree.name, "high")]
     return []
 
 

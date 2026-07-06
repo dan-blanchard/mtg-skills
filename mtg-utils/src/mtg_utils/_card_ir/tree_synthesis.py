@@ -3221,6 +3221,42 @@ def _arm_arcane_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── exalted_lone_attacker textual tail, bucket-B (ADR-0036/0037 Stage 5) ───────
+# CR 702.83a/702.83b + 506.5 (a creature "attacks alone" if it's the only
+# declared attacker). The Scryfall-keyword bearer row already rides Tier-1
+# (:func:`_keyword_field_signals_b16`); this arm is ONLY the textual tail —
+# a card that GRANTS exalted or pays off "attacks alone" in its own prose
+# without carrying the keyword itself (Agents of S.H.I.E.L.D., Emissary of
+# Soulfire's exalted counter). **Not** the ``SourceAttackingAlone`` /
+# ``AttackingAlone`` / ``BlockingAlone`` / ``CombatAlone`` phase tags —
+# probed and REJECTED: those structure a DIFFERENT mechanic family, a
+# conditional "can't be blocked as long as it's attacking alone" EVASION
+# clause (Dream Prowler, Yuan-Ti Malison, Gutter Shortcut) that is not an
+# exalted bonus at all (CR 702.14-adjacent, the evasion_self lane's turf) —
+# reading those tags here would be a genuine 4-card over-fire on the
+# corpus, so no structural gate exists for this arm; it is the lane's SOLE
+# source (the evasion_self/theft_makers no-competing-predicate precedent).
+_EXALTED_SYNTH_RX = re.compile(r"attacks alone|\bexalted\b", re.IGNORECASE)
+
+
+def _matches_exalted_idiom(oracle: str) -> bool:
+    return bool(_EXALTED_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_exalted_lone_attacker(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``exalted_lone_attacker`` node for the textual grant /
+    payoff tail (the deleted ``_EXALTED_TEXT_RX`` relocated verbatim)."""
+    if not _matches_exalted_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="exalted_lone_attacker",
+        concept="synth_exalted_lone_attacker",
+        scope="you",
+        subject=(),
+        desc="bucket-B exalted / attacks-alone textual grant (CR 702.83a)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3250,6 +3286,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("celebration_matters", _arm_celebration_matters),
     ("outlaw_matters", _arm_outlaw_matters),
     ("arcane_matters", _arm_arcane_matters),
+    ("exalted_lone_attacker", _arm_exalted_lone_attacker),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
