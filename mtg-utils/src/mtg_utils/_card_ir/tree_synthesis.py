@@ -4041,6 +4041,46 @@ def _arm_suspend_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T4-mechanic-kw: flash_matters bucket-B (full relocation) ──────────
+# CR 702.8/702.8a, ADR-0034 branch B: ONLY the opponent-turn cast PAYOFF
+# (the bearer/grant makers live in flash_makers/flash_grant, untouched).
+# Structural is a TRAP (probed over the commander-legal corpus): phase
+# carries ``SpellCast + OnlyDuringOpponentsTurn`` for the plain form
+# (Faerie Tauntings) but drops the qualifier entirely on the "first spell"
+# form (Alela, Wavebreak Hippocamp — a bare ``NthSpellThisTurn{n:1}``,
+# indistinguishable from second_spell_matters) AND over-fires on unrelated
+# opponent-turn triggers (Gandalf of the Secret Fire, Breath of the
+# Sleepless) — 2 over-fires + 8 misses vs. the mirror's 18-card pop, so no
+# competing Tier-1 predicate exists. Relocates the deleted
+# ``_FLASH_MATTERS_MIRROR`` verbatim — SOLE source (the poison_matters/
+# island_matters no-competing-predicate precedent). Measured byte-identical
+# (18/18 union, 0 drops, 0 adds).
+_FLASH_MATTERS_SYNTH_RX = re.compile(
+    r"whenever you cast (?:a |your first )?spells? "
+    r"during (?:an|each|any) opponent",
+    re.IGNORECASE,
+)
+
+
+def _matches_flash_matters_idiom(oracle: str) -> bool:
+    return bool(_FLASH_MATTERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_flash_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``flash_matters`` node (the deleted
+    ``_FLASH_MATTERS_MIRROR`` relocated verbatim — no competing Tier-1
+    predicate exists, so this is the lane's SOLE source)."""
+    if not _matches_flash_matters_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="flash_matters",
+        concept="synth_flash_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B opponent-turn cast payoff (CR 702.8/702.8a)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4085,6 +4125,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("curse_matters", _arm_curse_matters),
     ("clue_matters", _arm_clue_matters),
     ("suspend_matters", _arm_suspend_matters),
+    ("flash_matters", _arm_flash_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

@@ -28,6 +28,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_clue_matters,
     _arm_color_change,
     _arm_curse_matters,
+    _arm_flash_matters,
     _arm_island_matters,
     _arm_manland,
     _arm_spellcast_matters,
@@ -3212,3 +3213,53 @@ def test_suspend_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _suspend_matters(tree)
     assert any(s.key == "suspend_matters" for s in sigs)
+
+
+# ── batch T4-mechanic-kw: flash_matters (full relocation, no gate) ──────────
+
+
+def test_flash_matters_bucket_b_synth_sole_source():
+    """Faerie Tauntings' "whenever you cast a spell during an opponent's
+    turn" — no competing Tier-1 predicate (structural is a probed trap),
+    so this is the lane's SOLE source."""
+    tree = _fixture_tree("Faerie Tauntings")
+    node = _arm_flash_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_flash_matters"
+    assert node.scope == "you"
+
+
+def test_flash_matters_no_fire_on_unrelated_card():
+    assert _arm_flash_matters(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_flash_matters_synth_registered():
+    assert "flash_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_flash_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _flash_matters_lane
+
+    synth = ConceptNode(
+        concept="synth_flash_matters",
+        node=SynthesizedNode(arm_id="flash_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _flash_matters_lane(tree)
+    assert any(s.key == "flash_matters" for s in sigs)

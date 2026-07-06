@@ -8142,11 +8142,8 @@ _PUMP_MAKERS_RX = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
 
 # Byte-identical copies of the INLINE (unnamed) ``_IR_KEPT_DETECTORS`` rows —
 # the _JOHAN_MIRROR precedent (no importable name exists for these).
-_FLASH_MATTERS_MIRROR = re.compile(
-    r"whenever you cast (?:a |your first )?spells? "
-    r"during (?:an|each|any) opponent",
-    re.IGNORECASE,
-)
+# (clue_matters / flash_matters were ADR-0036/0037 folded to bucket-B
+# ``tree_synthesis`` arms; see ``_arm_clue_matters`` / ``_arm_flash_matters``.)
 _OPP_EXILE_MATTERS_MIRROR = re.compile(
     r"cards? (?:your opponents own|an opponent owns)[^.]*in exile"
     r"|for each card your opponents own in exile|opponents own in exile",
@@ -8633,16 +8630,19 @@ def _self_counter_grow(tree: ConceptTree) -> list[Signal]:
 def _flash_matters_lane(tree: ConceptTree) -> list[Signal]:
     """flash_matters (§13) — CR 702.8/702.8a, ADR-0034 branch B: ONLY the
     opponent-turn cast PAYOFF (makers/grant are ported flash_makers /
-    flash_grant). Kept-mirror-ONLY. **Structural is a trap (probed):** phase
-    carries ``SpellCast + {OnlyDuringOpponentsTurn}`` for the plain form
-    (Faerie Tauntings) but DROPS the qualifier on the "first spell" form
-    (Alela, Wavebreak Hippocamp = ``NthSpellThisTurn{n:1}`` only —
-    indistinguishable from ported second_spell_matters), so the
-    OnlyDuringOpponentsTurn read stays LOGGED-adds-only (bucket-B
-    regex-bridge NOW, parser substrate LATER). Scope "you", HIGH.
+    flash_grant). **Structural is a trap (probed):** phase carries
+    ``SpellCast + {OnlyDuringOpponentsTurn}`` for the plain form (Faerie
+    Tauntings) but DROPS the qualifier on the "first spell" form (Alela,
+    Wavebreak Hippocamp = ``NthSpellThisTurn{n:1}`` only — indistinguishable
+    from ported second_spell_matters) AND over-fires on unrelated
+    opponent-turn triggers, so there is no competing Tier-1 predicate.
+    Tier-1 (ADR-0036/0037 fold): reads the ``synth_flash_matters`` bucket-B
+    node (:func:`_arm_flash_matters`) — the lane's SOLE source, zero oracle
+    text/regex at LANE time. Scope "you", HIGH.
     """
-    if _FLASH_MATTERS_MIRROR.search(_kept(tree)):
-        return [Signal("flash_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_flash_matters":
+            return [Signal("flash_matters", "you", "", "", tree.name, "high")]
     return []
 
 
