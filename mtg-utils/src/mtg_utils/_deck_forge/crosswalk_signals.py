@@ -199,6 +199,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_self_counter_grow,
     has_structural_spellcast,
     has_structural_superfriends,
+    has_structural_suspend_matters,
     has_structural_theft_makers,
     has_structural_tutor,
     has_structural_untap_engine,
@@ -7677,16 +7678,9 @@ def _vehicles_matter(tree: ConceptTree) -> list[Signal]:
 
 # ── Batch 13 lanes (ADR-0035 Stage 2): the field-lookup wholesale batch ──────
 
-# Byte-identical compiled mirrors. suspend copies the three INLINE (unnamed)
-# _IR_KEPT_DETECTORS rows (_signals_ir ~2324-2340 / ~2511-2519 — the
-# _JOHAN_MIRROR precedent for rows with no importable name). Live runs them
-# FLAT over the reminder-stripped kept oracle; so does this. (island_matters
-# / curse_matters were ADR-0036/0037 folded to bucket-B ``tree_synthesis``
-# arms; see ``_arm_island_matters`` / ``_arm_curse_matters``.)
-_SUSPEND_MATTERS_MIRROR = re.compile(
-    r"\bsuspend\b|time counter|time travel|\bvanishing\b|\bimpending\b",
-    re.IGNORECASE,
-)
+# (island_matters / suspend_matters / curse_matters were ADR-0036/0037
+# folded to bucket-B ``tree_synthesis`` arms; see ``_arm_island_matters`` /
+# ``_arm_suspend_matters`` / ``_arm_curse_matters``.)
 
 # The batch-13 Scryfall-keyword rows (lowercased-membership → lane key; every
 # row scope "you", subject ""). These ARE membership lanes — the BEARER fires
@@ -8077,14 +8071,20 @@ def _poison_matters(tree: ConceptTree) -> list[Signal]:
 
 
 def _suspend_matters(tree: ConceptTree) -> list[Signal]:
-    """suspend_matters (§D) — CR 702.62: the five-arm time-counter mirror.
-    Deliberately BROAD (live's SWEEP_LABELS breadth, ported as-is +
-    logged): fires bearers (un-parenthesized "Suspend 4—{1}{U}" survives
-    stripping), Vanishing, Impending, and every time-counter manipulator.
-    "suspended card" does NOT match ``\\bsuspend\\b`` (Clockspinning — the
-    sharpest boundary)."""
-    if _SUSPEND_MATTERS_MIRROR.search(_kept(tree)):
+    """suspend_matters (§D) — CR 702.62: deliberately BROAD (live's
+    SWEEP_LABELS breadth, ported as-is + logged) — fires bearers
+    (un-parenthesized "Suspend 4—{1}{U}" survives stripping), Vanishing,
+    Impending, and every time-counter manipulator. "suspended card" does
+    NOT match ``\\bsuspend\\b`` (Clockspinning — the sharpest boundary).
+    Tier-1 (ADR-0036/0037 fold): a ``PutCounter{counter_type=Time}``
+    structural node (CR 122.1) OR the ``synth_suspend_matters`` bucket-B
+    residue (:func:`_arm_suspend_matters`, gap-gated against the same
+    structural read) — zero oracle text/regex at LANE time."""
+    if has_structural_suspend_matters(tree):
         return [Signal("suspend_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_suspend_matters":
+            return [Signal("suspend_matters", "you", "", "", tree.name, "high")]
     return []
 
 

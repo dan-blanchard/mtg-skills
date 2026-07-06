@@ -156,6 +156,7 @@ __all__ = [
     "has_structural_spellcast",
     "has_structural_stax_taxes",
     "has_structural_superfriends",
+    "has_structural_suspend_matters",
     "has_structural_symmetric_stax",
     "has_structural_theft_makers",
     "has_structural_tutor",
@@ -3987,6 +3988,59 @@ def _arm_clue_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T4-mechanic-kw: suspend_matters bucket-B tail ──────────────────────
+# CR 702.62 (+ Vanishing/Impending/"Suspended Animation" time-counter
+# siblings, and the Doctor Who "Time Travel" mechanic the mirror's breadth
+# also covers — deliberately broad, ported as-is): the ONE structural anchor
+# phase carries is a ``PutCounter{counter_type=Time}`` node (CR 122.1),
+# which covers explicit time-counter manipulation (Jhoira's Timebug, Fury
+# Charm). The residual — reminder-surviving keyword bearers ("Suspend
+# 4—{1}{U}", "Impending 4—{2}{W}{W}"), and phase's opaque ``GenericEffect``
+# wrap of "exile it with N time counters on it. It gains suspend" (Rory
+# Williams, Delay, Epochrasite, Sibylline Soothsayer) — has no further
+# structural anchor. Relocates the deleted ``_SUSPEND_MATTERS_MIRROR``
+# verbatim, gap-gated against :func:`has_structural_suspend_matters`.
+# Measured byte-identical over the commander-legal corpus (143/143 union,
+# 0 drops, 0 adds; one PRE-EXISTING self-name-collision quirk — Impending
+# Flux, which mentions no time-counter/suspend mechanic at all — is ported
+# as-is + LOGGED, the b13 Blue Screen of Death precedent).
+_SUSPEND_MATTERS_SYNTH_RX = re.compile(
+    r"\bsuspend\b|time counter|time travel|\bvanishing\b|\bimpending\b",
+    re.IGNORECASE,
+)
+
+
+def has_structural_suspend_matters(tree: ConceptTree) -> bool:
+    """Whether phase carries a ``PutCounter{counter_type=Time}`` node — the
+    suspend_matters lane's structural arm (mirrors it exactly) — the synth
+    gap-gate."""
+    for c in tree.effect_concepts("place_counter"):
+        if counter_kind(c.node).lower() == "time":
+            return True
+    return False
+
+
+def _matches_suspend_matters_idiom(oracle: str) -> bool:
+    return bool(_SUSPEND_MATTERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_suspend_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``suspend_matters`` node for the bucket-B time-counter
+    bearer/reference residue (the deleted ``_SUSPEND_MATTERS_MIRROR``
+    relocated, gap-gated against :func:`has_structural_suspend_matters`)."""
+    if has_structural_suspend_matters(tree):
+        return None
+    if not _matches_suspend_matters_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="suspend_matters",
+        concept="synth_suspend_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B time-counter bearer/reference residue (CR 702.62)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4030,6 +4084,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("manland", _arm_manland),
     ("curse_matters", _arm_curse_matters),
     ("clue_matters", _arm_clue_matters),
+    ("suspend_matters", _arm_suspend_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

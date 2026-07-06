@@ -31,6 +31,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_island_matters,
     _arm_manland,
     _arm_spellcast_matters,
+    _arm_suspend_matters,
     _arm_vehicles_matter,
     _has_structural_lifegain,
     _is_creature_death_subject,
@@ -56,6 +57,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_spellcast,
     has_structural_stax_taxes,
     has_structural_superfriends,
+    has_structural_suspend_matters,
     has_structural_symmetric_stax,
     has_structural_theft_makers,
     has_structural_tutor,
@@ -3148,3 +3150,65 @@ def test_clue_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _clue_matters_lane(tree)
     assert any(s.key == "clue_matters" for s in sigs)
+
+
+# ── batch T4-mechanic-kw: suspend_matters ────────────────────────────────────
+
+
+def test_suspend_matters_structural_gate_true_on_time_counter_node():
+    """Ancestral Vision's Suspend 4 — a ``PutCounter{counter_type=Time}``
+    typed node, the lane's structural arm."""
+    assert has_structural_suspend_matters(_fixture_tree("Ancestral Vision"))
+    assert _arm_suspend_matters(_fixture_tree("Ancestral Vision")) is None
+
+
+def test_suspend_matters_bucket_b_synth_gap_gated():
+    """Overlord of the Mistmoors' Impending 4 — the keyword bearer survives
+    reminder-stripping as bare "Impending", but phase carries no
+    ``PutCounter{counter_type=Time}`` node for it (a genuine gap the
+    structural arm misses)."""
+    tree = _fixture_tree("Overlord of the Mistmoors")
+    assert has_structural_suspend_matters(tree) is False
+    node = _arm_suspend_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_suspend_matters"
+
+
+def test_suspend_matters_no_fire_on_suspended_card_boundary():
+    """Clockspinning's "suspended card" does NOT match ``\\bsuspend\\b`` —
+    the sharpest boundary (neither the structural gate nor the synth)."""
+    tree = _fixture_tree("Clockspinning")
+    assert has_structural_suspend_matters(tree) is False
+    assert _arm_suspend_matters(tree) is None
+
+
+def test_suspend_matters_synth_registered():
+    assert "suspend_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_suspend_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _suspend_matters
+
+    synth = ConceptNode(
+        concept="synth_suspend_matters",
+        node=SynthesizedNode(arm_id="suspend_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _suspend_matters(tree)
+    assert any(s.key == "suspend_matters" for s in sigs)
