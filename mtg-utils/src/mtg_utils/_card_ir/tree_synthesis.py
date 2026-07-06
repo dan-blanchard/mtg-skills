@@ -131,6 +131,7 @@ from mtg_utils._deck_forge._signals_ir import (
     _OPP_COUNTER_BENEFICIAL,
     _POWER_SCALING_RAW,
     _PROLIFERATE_REMOVE_COST_RE,
+    _SAME_TRUE_KW_RE,
     _STAX_TAXES_RESIDUE_RE,
     _SYMMETRIC_STAX_RESIDUE_RE,
     _TOUGHNESS_VALUE_MIRROR,
@@ -139,6 +140,7 @@ from mtg_utils._deck_forge._signals_ir import (
 from mtg_utils._deck_forge._signals_regex import (
     _ABILITY_KEYWORDS,
     _COLOR_HOSER_RE,
+    _EVERGREEN_CK,
     _MELD_FULLTEXT_RE,
     _detect_keyword_implied_tribe,
     _detect_keyword_tribe,
@@ -5995,6 +5997,60 @@ def _arm_convoke_matters(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+def _keyword_soup_unit_text(unit: AbilityUnit) -> str:
+    """The granting UNIT's own text (description + effect raws) the
+    keyword_soup ``same_true`` absorb arm reads — the deleted lane-time
+    join relocated verbatim (reimplemented here, not imported, to avoid a
+    crosswalk_signals<->tree_synthesis cycle, the ``_retained_node_texts_
+    synth`` precedent)."""
+    return " ".join(
+        [getattr(unit.node, "description", None) or ""]
+        + [c.raw for c in unit.iter_concepts() if c.raw]
+    )
+
+
+def _arm_keyword_soup_same_true(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``keyword_soup`` node for the "same is true" absorb arm
+    (CR 702, 205.1b/205.3m vs 702.111a): an evergreen ``AddKeyword`` grant
+    or a beneficial evergreen ``place_counter`` site, PLUS the live
+    ``_SAME_TRUE_KW_RE`` anchor over the SAME granting unit's own text
+    (description + effect raws — never the whole kept oracle) — the
+    deleted lane-time join relocated verbatim (Urborg Scavengers, Escaped
+    Shapeshifter; Roshan's same-true is scoped to its OWN unit so it never
+    absorbs through a different unit's menace grant)."""
+    for unit in tree.units:
+        unit_text = _keyword_soup_unit_text(unit)
+        if not _SAME_TRUE_KW_RE.search(unit_text):
+            continue
+        kinds: set[str] = set()
+        for _sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) == "AddKeyword":
+                kw = (mod_keyword_name(mod) or "").replace(" ", "").lower()
+                if kw:
+                    kinds.add(kw)
+        if kinds & _EVERGREEN_CK:
+            return _synthetic_concept(
+                arm_id="keyword_soup_same_true",
+                concept="synth_keyword_soup",
+                scope="you",
+                subject=(),
+                desc="bucket-B keyword_soup same-true absorb, keyword grant (CR 702)",
+            )
+        if any(
+            c.concept == "place_counter"
+            and (counter_kind(c.node) or "").replace(" ", "").lower() in _EVERGREEN_CK
+            for c in unit.effects
+        ):
+            return _synthetic_concept(
+                arm_id="keyword_soup_same_true",
+                concept="synth_keyword_soup",
+                scope="you",
+                subject=(),
+                desc="bucket-B keyword_soup same-true absorb, counter site (CR 702)",
+            )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -6154,6 +6210,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("snow_matters", _arm_snow_matters),
     ("targeting_matters", _arm_targeting_matters),
     ("convoke_matters", _arm_convoke_matters),
+    ("keyword_soup_same_true", _arm_keyword_soup_same_true),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

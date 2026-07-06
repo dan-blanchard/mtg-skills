@@ -210,7 +210,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _FLOOR_DETECTORS,
     _IR_FLOOR_LANES,
     _NAMED_COUNTER_KINDS,
-    _SAME_TRUE_KW_RE,
     _SELF_PROTECTION_GRANT_KW,
     _TYPED_ANTHEM_MULTI_RAW,
     _apply_membership_floor,
@@ -7927,13 +7926,12 @@ def _keyword_soup(tree: ConceptTree) -> list[Signal]:
     conferred list to one lead-keyword grant, defeating the count; Roshan's
     same-true extends an Assassin SUBTYPE grant on a different sentence and
     must not absorb through his menace unit — adjudicated b13, CR
-    205.1b/205.3m vs 702.111a)."""
+    205.1b/205.3m vs 702.111a). Tier-1 (ADR-0036/0037 T10-finalize2 fold):
+    arm (b)'s deleted lane-time ``_SAME_TRUE_KW_RE`` scan is relocated
+    verbatim to the bucket-B ``synth_keyword_soup`` node
+    (:func:`_arm_keyword_soup_same_true`) — arm (a) stays a pure typed
+    ``AddKeyword`` count, zero oracle text/regex at LANE time."""
     for unit in tree.units:
-        unit_text = " ".join(
-            [getattr(unit.node, "description", None) or ""]
-            + [c.raw for c in unit.iter_concepts() if c.raw]
-        )
-        same_true = bool(_SAME_TRUE_KW_RE.search(unit_text))
         kinds: set[str] = set()
         for _sdef, mod in iter_mod_sites(unit.node):
             if tag_of(mod) != "AddKeyword":
@@ -7943,13 +7941,8 @@ def _keyword_soup(tree: ConceptTree) -> list[Signal]:
                 kinds.add(kw)
         if len(kinds & _EVERGREEN_CK) >= 5:
             return [Signal("keyword_soup", "you", "", "", tree.name, "high")]
-        if same_true and kinds & _EVERGREEN_CK:
-            return [Signal("keyword_soup", "you", "", "", tree.name, "high")]
-        if same_true and any(
-            c.concept == "place_counter"
-            and (counter_kind(c.node) or "").replace(" ", "").lower() in _EVERGREEN_CK
-            for c in unit.effects
-        ):
+    for c in tree.iter_concepts():
+        if c.concept == "synth_keyword_soup":
             return [Signal("keyword_soup", "you", "", "", tree.name, "high")]
     return []
 

@@ -66,6 +66,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_firebending_matters,
     _arm_flash_matters,
     _arm_island_matters,
+    _arm_keyword_soup_same_true,
     _arm_kill_engine,
     _arm_legend_rule_off,
     _arm_lessons_matter,
@@ -5147,3 +5148,20 @@ def test_convoke_matters_fires_on_joyful_stormsculptor():
 
 def test_convoke_matters_no_fire_on_unrelated_card():
     assert _arm_convoke_matters(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_keyword_soup_same_true_synth_registered():
+    assert "keyword_soup_same_true" in SYNTHESIS_ARM_IDS
+
+
+def test_keyword_soup_same_true_fires_on_odric():
+    """Odric, Lunarch Marshal's "the same is true for each other creature
+    you control" absorb — the deleted lane-time ``_SAME_TRUE_KW_RE`` scan
+    over the granting unit's own text, relocated verbatim."""
+    node = _arm_keyword_soup_same_true(_fixture_tree("Odric, Lunarch Marshal"))
+    assert node is not None
+    assert node.concept == "synth_keyword_soup"
+
+
+def test_keyword_soup_same_true_no_fire_on_unrelated_card():
+    assert _arm_keyword_soup_same_true(_fixture_tree("Llanowar Elves")) is None
