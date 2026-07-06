@@ -26,6 +26,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     SYNTHESIS_ARM_IDS,
     _arm_animate_artifact,
     _arm_color_change,
+    _arm_curse_matters,
     _arm_island_matters,
     _arm_manland,
     _arm_spellcast_matters,
@@ -44,6 +45,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_selfloss_engine,
     has_structural_arcane,
     has_structural_counter_distribute,
+    has_structural_curse_matters,
     has_structural_keyword_counter,
     has_structural_manland,
     has_structural_outlaw,
@@ -3027,3 +3029,63 @@ def test_manland_land_type_change_veto():
 
 def test_manland_synth_registered():
     assert "manland" in SYNTHESIS_ARM_IDS
+
+
+# ── batch T4-mechanic-kw (ADR-0036/0037 Stage 5): curse_matters ──────────────
+
+
+def test_curse_matters_structural_gate_true_on_existing_arm():
+    """Witchbane Orb's Curse-subtype DestroyAll effect target — one of the
+    lane's two genuinely structural arms."""
+    assert has_structural_curse_matters(_fixture_tree("Witchbane Orb"))
+    assert _arm_curse_matters(_fixture_tree("Witchbane Orb")) is None
+
+
+def test_curse_matters_bucket_b_synth_gap_gated():
+    """Curse of Misfortunes' search-filter drop — the residual bare-
+    reference idiom the two structural arms miss."""
+    tree = _fixture_tree("Curse of Misfortunes")
+    assert has_structural_curse_matters(tree) is False
+    node = _arm_curse_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_curse_matters"
+
+
+def test_curse_matters_no_fire_on_membership_only():
+    """Cruel Reality IS an Aura — Curse; BEING one never fires (the live
+    :2509-2510 deferral) — neither the structural gate nor the synth."""
+    tree = _fixture_tree("Cruel Reality")
+    assert has_structural_curse_matters(tree) is False
+    assert _arm_curse_matters(tree) is None
+
+
+def test_curse_matters_synth_registered():
+    assert "curse_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_curse_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _curse_matters
+
+    synth = ConceptNode(
+        concept="synth_curse_matters",
+        node=SynthesizedNode(arm_id="curse_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _curse_matters(tree)
+    assert any(s.key == "curse_matters" for s in sigs)

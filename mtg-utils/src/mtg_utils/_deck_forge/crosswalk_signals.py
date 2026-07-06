@@ -192,6 +192,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_selfloss_engine,
     has_structural_arcane,
     has_structural_counter_distribute,
+    has_structural_curse_matters,
     has_structural_keyword_counter,
     has_structural_outlaw,
     has_structural_proliferate,
@@ -7677,19 +7678,14 @@ def _vehicles_matter(tree: ConceptTree) -> list[Signal]:
 
 # ── Batch 13 lanes (ADR-0035 Stage 2): the field-lookup wholesale batch ──────
 
-# Byte-identical compiled mirrors. suspend / curse copy the three INLINE
-# (unnamed) _IR_KEPT_DETECTORS rows (_signals_ir ~2324-2340 / ~2511-2519 —
-# the _JOHAN_MIRROR precedent for rows with no importable name). Live runs
-# them FLAT over the reminder-stripped kept oracle; so do these. (island_
-# matters was ADR-0036/0037 folded to a bucket-B ``tree_synthesis`` arm;
-# see ``_arm_island_matters``.)
+# Byte-identical compiled mirrors. suspend copies the three INLINE (unnamed)
+# _IR_KEPT_DETECTORS rows (_signals_ir ~2324-2340 / ~2511-2519 — the
+# _JOHAN_MIRROR precedent for rows with no importable name). Live runs them
+# FLAT over the reminder-stripped kept oracle; so does this. (island_matters
+# / curse_matters were ADR-0036/0037 folded to bucket-B ``tree_synthesis``
+# arms; see ``_arm_island_matters`` / ``_arm_curse_matters``.)
 _SUSPEND_MATTERS_MIRROR = re.compile(
     r"\bsuspend\b|time counter|time travel|\bvanishing\b|\bimpending\b",
-    re.IGNORECASE,
-)
-_CURSE_MATTERS_MIRROR = re.compile(
-    r"curse spells?|curses? you (?:cast|control|own)"
-    r"|(?:\ba|target|each|another|your) curse\b|curse cards?",
     re.IGNORECASE,
 )
 
@@ -7967,22 +7963,20 @@ def _convoke_matters(tree: ConceptTree) -> list[Signal]:
 def _curse_matters(tree: ConceptTree) -> list[Signal]:
     """curse_matters (§C) — CR 205.3h: a card that REFERENCES the Curse
     subtype — a trigger watching Curses (Lynde's dies filter), an effect
-    acting on a Curse subject (Witchbane Orb's DestroyAll) — plus the
-    byte-identical kept mirror for the search-filter drop (Curse of
-    Misfortunes — [P11] family, still dropped in v0.9.0) and the
-    acknowledged "a curse counter" quirk (Blue Screen of Death, not-cl).
+    acting on a Curse subject (Witchbane Orb's DestroyAll). Tier-1
+    (ADR-0036/0037 fold): the residual bare-reference idiom ("curse
+    spells", "curses you cast/control/own", the search-filter drop — Curse
+    of Misfortunes [P11]; the acknowledged "a curse counter" quirk, Blue
+    Screen of Death, not-cl) reads the ``synth_curse_matters`` bucket-B
+    node (:func:`_arm_curse_matters`), gap-gated against the SAME two
+    structural arms below — zero oracle text/regex at LANE time.
     MEMBERSHIP stays OUT: BEING an Aura — Curse (Cruel Reality) never
     fires (the live :2509-2510 deferral)."""
-    for unit in tree.units:
-        vc = getattr(unit.node, "valid_card", None)
-        if vc is not None and "Curse" in filter_subtypes(vc):
-            return [Signal("curse_matters", "you", "", "", tree.name, "high")]
-        for c in unit.effects:
-            filt = effect_filter(c.node)
-            if filt is not None and "Curse" in filter_subtypes(filt):
-                return [Signal("curse_matters", "you", "", c.raw, tree.name, "high")]
-    if _CURSE_MATTERS_MIRROR.search(_kept(tree)):
+    if has_structural_curse_matters(tree):
         return [Signal("curse_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_curse_matters":
+            return [Signal("curse_matters", "you", "", "", tree.name, "high")]
     return []
 
 
