@@ -258,7 +258,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ENTERED_ATTACKER_REGEX,
     STATION_MATTERS_REGEX,
     STICKERS_MATTER_REGEX,
-    UNSPENT_MANA_REGEX,
     VOID_WARP_MATTERS_REGEX,
 )
 from mtg_utils.card_classify import get_oracle_text
@@ -879,7 +878,6 @@ _FIXING_PRODUCED_TYPES: frozenset[str] = frozenset(
 # Compiled forms of the pinned live regex sources (byte-identical by import;
 # same IGNORECASE flag the live kept-detectors compile with).
 _ENTERED_ATTACKER_RX = re.compile(ENTERED_ATTACKER_REGEX, re.IGNORECASE)
-_UNSPENT_MANA_RX = re.compile(UNSPENT_MANA_REGEX, re.IGNORECASE)
 
 # Johan mirror: byte-identical copy of the INLINE (unnamed) ``_IR_KEPT_
 # DETECTORS`` row in ``_signals_ir`` (exert_matters ~line 2343) — a b12
@@ -6978,12 +6976,20 @@ def _life_total_set(tree: ConceptTree) -> list[Signal]:
 
 def _unspent_mana(tree: ConceptTree) -> list[Signal]:
     """unspent_mana (§B) — CR 106.4 / 500.5 (case law Kruphix: unspent mana
-    becomes colorless as steps end): RECLASSIFIED structural+mirror union —
-    the ``StepEndUnspentMana`` static mode (action Retain — Upwelling;
-    Transform — Horizon Stone, Kruphix; live's "v0.1.19 drops it" note was
-    STALE) plus the byte-identical UNSPENT_MANA_REGEX mirror for the
-    burst-rider tail (all 10 mode carriers also match the mirror — expected
-    structural-arm diff 0). Scope "you" (live's forced scope — parity).
+    becomes colorless as steps end). Tier-1 (ADR-0036/0037 fold — the
+    lane-time ``_UNSPENT_MANA_RX`` kept-oracle read is RETIRED):
+
+    * **Structural:** :func:`has_structural_unspent_mana` — the
+      ``StepEndUnspentMana`` static mode (action Retain — Upwelling;
+      Transform — Horizon Stone, Kruphix; live's "v0.1.19 drops it" note was
+      STALE).
+    * **bucket-B synth:** the ``tree_synthesis`` stage's
+      ``synth_unspent_mana`` node — the mana-burst-rider tail (Savage
+      Ventmaw, Brazen Collector) and the "loses all unspent mana" tax forms
+      (Mana Short, Power Sink) phase never structures, gated against the
+      same structural mode census.
+
+    Scope "you" (live's forced scope — parity).
     """
     for unit in tree.units:
         if (
@@ -6995,8 +7001,9 @@ def _unspent_mana(tree: ConceptTree) -> list[Signal]:
                     "unspent_mana", "you", "", _site_raw(unit.node), tree.name, "high"
                 )
             ]
-    if _UNSPENT_MANA_RX.search(_kept(tree)):
-        return [Signal("unspent_mana", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_unspent_mana":
+            return [Signal("unspent_mana", "you", "", "", tree.name, "high")]
     return []
 
 

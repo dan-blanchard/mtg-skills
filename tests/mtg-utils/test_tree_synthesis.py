@@ -60,6 +60,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_spellcast_matters,
     _arm_suspect_matters,
     _arm_suspend_matters,
+    _arm_unspent_mana,
     _arm_vehicles_matter,
     _arm_void_warp_makers,
     _has_structural_lifegain,
@@ -94,6 +95,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_symmetric_stax,
     has_structural_theft_makers,
     has_structural_tutor,
+    has_structural_unspent_mana,
     has_structural_untap_engine,
     has_structural_vehicles_matter,
     has_trigger_draw_bleed,
@@ -4047,3 +4049,52 @@ def test_per_target_payoff_lane_reads_synth_node_end_to_end():
     tree = _synth_concept_tree("synth_per_target_payoff")
     sigs = _per_target_payoff(tree)
     assert any(s.key == "per_target_payoff" for s in sigs)
+
+
+# ── unspent_mana bucket-B tail ───────────────────────────────────────────────
+
+
+def test_unspent_mana_structural_kruphix():
+    """Kruphix, God of Horizons: "If you would lose unspent mana, that mana
+    becomes colorless instead." — the structural ``StepEndUnspentMana``
+    static mode."""
+    tree = _fixture_tree("Kruphix, God of Horizons")
+    assert has_structural_unspent_mana(tree) is True
+    assert _arm_unspent_mana(tree) is None
+
+
+def test_unspent_mana_bucket_b_synth_mana_burst_rider():
+    """Brazen Collector: "Whenever this creature attacks, add {R}. Until end
+    of turn, you don't lose this mana as steps and phases end." — the
+    mana-burst-rider tail phase buries in an Unimplemented sub-ability of
+    the attack trigger, a genuine gap."""
+    tree = ConceptTree(
+        name="Brazen Collector",
+        oracle_id="x",
+        oracle=(
+            "First strike\nWhenever this creature attacks, add {R}. Until"
+            " end of turn, you don't lose this mana as steps and phases end."
+        ),
+    )
+    assert has_structural_unspent_mana(tree) is False
+    node = _arm_unspent_mana(tree)
+    assert node is not None
+    assert node.concept == "synth_unspent_mana"
+
+
+def test_unspent_mana_no_fire_on_unrelated_card():
+    tree = _fixture_tree("Llanowar Elves")
+    assert has_structural_unspent_mana(tree) is False
+    assert _arm_unspent_mana(tree) is None
+
+
+def test_unspent_mana_synth_registered():
+    assert "unspent_mana" in SYNTHESIS_ARM_IDS
+
+
+def test_unspent_mana_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _unspent_mana
+
+    tree = _synth_concept_tree("synth_unspent_mana")
+    sigs = _unspent_mana(tree)
+    assert any(s.key == "unspent_mana" for s in sigs)

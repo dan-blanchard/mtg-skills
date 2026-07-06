@@ -178,6 +178,7 @@ __all__ = [
     "has_structural_symmetric_stax",
     "has_structural_theft_makers",
     "has_structural_tutor",
+    "has_structural_unspent_mana",
     "has_structural_untap_engine",
     "has_trigger_draw_bleed",
     "has_value_tap_ability",
@@ -4696,6 +4697,57 @@ def _arm_per_target_payoff(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T6-niche-b: unspent_mana bucket-B tail ────────────────────────────
+# CR 106.4/500.5 (case law Kruphix: unspent mana becomes colorless as steps
+# end): the live structural ``StepEndUnspentMana`` static mode (Upwelling,
+# Kruphix, Horizon Stone) already binds the 10 mode-carriers. The residual:
+# the mana-BURST riders ("Until end of turn, you don't lose this mana as
+# steps and phases end" — Savage Ventmaw, Brazen Collector, Birgi) and the
+# "loses all unspent mana" tax forms (Mana Short, Power Sink, Worldpurge) —
+# phase buries the retention/loss clause in an Unimplemented sub-ability of
+# an unrelated trigger, no typed node exists. Relocates the deleted
+# ``UNSPENT_MANA_REGEX`` mirror verbatim, gap-gated against the structural
+# mode census. Measured byte-identical over the commander-legal corpus
+# (10 structural + 32 bucket-B, 0 drops, 0 adds).
+def has_structural_unspent_mana(tree: ConceptTree) -> bool:
+    """Whether ANY static unit carries the ``StepEndUnspentMana`` mode
+    (Upwelling/Kruphix/Horizon Stone's "unspent mana becomes colorless
+    instead" replacement)."""
+    return any(
+        unit.origin == "static" and static_mode_tag(unit.node) == "StepEndUnspentMana"
+        for unit in tree.units
+    )
+
+
+_UNSPENT_MANA_SYNTH_RX = re.compile(
+    r"\bunspent mana\b|don't lose unspent|lose unspent mana|\bmana burn\b"
+    r"|loses? (?:one or more )?unspent mana|don't lose (?:this |unspent )?"
+    r"(?:\w+ )?mana as (?:steps|phases|those steps)",
+    re.IGNORECASE,
+)
+
+
+def _matches_unspent_mana_idiom(oracle: str) -> bool:
+    return bool(_UNSPENT_MANA_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_unspent_mana(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``unspent_mana`` node for the mana-burst-rider / mana-
+    loss-tax bucket-B tail (the deleted ``UNSPENT_MANA_REGEX`` mirror
+    relocated, gap-gated against :func:`has_structural_unspent_mana`)."""
+    if has_structural_unspent_mana(tree):
+        return None
+    if not _matches_unspent_mana_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="unspent_mana",
+        concept="synth_unspent_mana",
+        scope="you",
+        subject=(),
+        desc="bucket-B unspent-mana burst-rider/tax residue (CR 106.4)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4752,6 +4804,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("ability_copy", _arm_ability_copy),
     ("noncombat_damage_payoff", _arm_noncombat_damage_payoff),
     ("per_target_payoff", _arm_per_target_payoff),
+    ("unspent_mana", _arm_unspent_mana),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
