@@ -8943,35 +8943,44 @@ def _bending_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
     seen: set[str] = set()
     low = {k.lower() for k in keywords}
 
-    def route(raw: str) -> None:
-        rl = raw.lower()
-        if "airbend" in rl and "airbend_makers" not in seen:
-            seen.add("airbend_makers")
-            out.append(Signal("airbend_makers", "you", "", raw, tree.name, "high"))
-        if (
-            "earthbend" in rl
-            and "earthbend" not in low
-            and "earthbend_matters" not in seen
-        ):
-            seen.add("earthbend_matters")
-            out.append(Signal("earthbend_matters", "you", "", raw, tree.name, "high"))
-        if "waterbend" in rl and "waterbend_matters" not in seen:
-            seen.add("waterbend_matters")
-            out.append(Signal("waterbend_matters", "you", "", raw, tree.name, "high"))
+    def emit(key: str, raw: str) -> None:
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal(key, "you", "", raw, tree.name, "high"))
 
+    # Tier-1 (ADR-0036/0037 T10-finalize2 GLOBAL FINALIZE-2 fold): the
+    # deleted lane-time ``route(desc)`` text scan is split into two fully
+    # structural reads — the ``RegisterBending`` node's own typed ``kind``
+    # field ("Air"/"Earth") and the Waterbend cost-leaf TAG, neither needs
+    # text — plus the ``synth_bending_cross`` bucket-B union for the
+    # ``ElementalBend`` trigger residual (:func:`_arm_bending_cross`, Avatar
+    # Aang's cross-bend payoff, which carries no per-element typed payload).
     for unit in tree.units:
         desc = getattr(unit.node, "description", None) or ""
-        is_bend = (
-            any(tag_of(q) == "RegisterBending" for q in iter_typed_nodes(unit.node))
-            or _trigger_mode_tag(unit) == "ElementalBend"
-        )
-        if not is_bend and unit.kind == "Activated":
+        for q in iter_typed_nodes(unit.node):
+            if tag_of(q) != "RegisterBending":
+                continue
+            kind = getattr(q, "kind", None)
+            if kind == "Air":
+                emit("airbend_makers", desc)
+            elif kind == "Earth" and "earthbend" not in low:
+                emit("earthbend_matters", desc)
+        if unit.kind == "Activated":
             cost = getattr(unit.node, "cost", None)
-            is_bend = any(
+            if any(
                 tag_of(leaf) == "Waterbend" for leaf in iter_cost_leaves(cost)
-            ) and any(_wb_dropped_other(c) for c in unit.effects)
-        if is_bend:
-            route(desc)
+            ) and any(_wb_dropped_other(c) for c in unit.effects):
+                emit("waterbend_matters", desc)
+    for c in tree.iter_concepts():
+        if c.concept != "synth_bending_cross":
+            continue
+        for word in c.subject:
+            if word == "airbend":
+                emit("airbend_makers", "")
+            elif word == "earthbend" and "earthbend" not in low:
+                emit("earthbend_matters", "")
+            elif word == "waterbend":
+                emit("waterbend_matters", "")
     if "firebending" in low:
         out.append(Signal("firebending_makers", "you", "", "", tree.name, "high"))
     elif has_structural_firebending_grant(tree):

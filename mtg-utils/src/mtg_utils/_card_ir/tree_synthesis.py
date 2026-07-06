@@ -6400,6 +6400,46 @@ def _arm_dig_until(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+# ── bending_cross bucket-B (ADR-0036/0037 T10-finalize2 GLOBAL FINALIZE-2) ────
+# CR 701.65a airbend / 701.66a earthbend / 701.67a waterbend: the
+# ``RegisterBending`` node's own typed ``kind`` field ("Air"/"Earth") and the
+# Waterbend cost-leaf TAG are both fully structural (no text needed — the
+# lane reads them directly). The sole residual is the ``ElementalBend``
+# TRIGGER mode (Avatar Aang's cross-bend payoff), which carries NO
+# per-element typed payload — a genuine bucket-B gap, disambiguated only by
+# which bend word(s) the trigger's own description names.
+def _bend_trigger_mode_tag(unit: AbilityUnit) -> str | None:
+    """A trigger unit's RAW phase mode tag (plain string or variant key)."""
+    mode = getattr(unit.node, "mode", None)
+    return mode if isinstance(mode, str) else tag_of(mode)
+
+
+def _arm_bending_cross(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``bending_cross`` node for the ``ElementalBend`` trigger
+    residual: a TUPLE of the bend word(s) ("airbend"/"earthbend"/
+    "waterbend") the trigger's OWN description names, structurally gated on
+    the ``ElementalBend`` mode tag itself (the mechanic must genuinely be
+    present) — the deleted lane-time per-unit text route relocated here.
+    """
+    for unit in tree.units:
+        if unit.origin != "trigger" or _bend_trigger_mode_tag(unit) != "ElementalBend":
+            continue
+        desc = (getattr(unit.node, "description", None) or "").lower()
+        found = tuple(
+            sorted({w for w in ("airbend", "earthbend", "waterbend") if w in desc})
+        )
+        if found:
+            return _synthetic_concept(
+                arm_id="bending_cross",
+                concept="synth_bending_cross",
+                scope="you",
+                subject=found,
+                desc="bucket-B ElementalBend cross-bend payoff residual "
+                "(CR 701.65a/701.66a/701.67a)",
+            )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -6490,6 +6530,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("cost_reduction", _arm_cost_reduction),
     ("damage_prevention", _arm_damage_prevention),
     ("dig_until", _arm_dig_until),
+    ("bending_cross", _arm_bending_cross),
     ("death_matters", _arm_death_matters),
     ("attack_matters", _arm_attack_matters),
     ("lifegain_matters", _arm_lifegain_matters),
