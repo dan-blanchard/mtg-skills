@@ -37,6 +37,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_dies_value,
     has_self_etb_value,
     has_selfloss_engine,
+    has_structural_outlaw,
     has_structural_spellcast,
     has_structural_stax_taxes,
     has_structural_superfriends,
@@ -2077,3 +2078,84 @@ def test_celebration_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _celebration_matters(tree)
     assert any(s.key == "celebration_matters" for s in sigs)
+
+
+def _outlaw_lane_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _outlaw_matters_lane
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    sigs = _outlaw_matters_lane(tree)
+    return any(s.key == "outlaw_matters" for s in sigs)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "At Knifepoint",  # CR 700.12 five-subtype AnyOf filter
+        "Shoot the Sheriff",  # Non-negated literal "Outlaw" pseudo-subtype
+    ],
+)
+def test_outlaw_matters_structural(name):
+    """Direct/bucket-A: a typed filter naming the outlaw group — no synth
+    node needed, ``has_structural_outlaw`` is the lane's OWN gate."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_outlaw_matters
+
+    tree = _fixture_tree(name)
+    assert has_structural_outlaw(tree) is True
+    assert _arm_outlaw_matters(tree) is None  # already structural — no-op
+    assert _outlaw_lane_fires(name) is True
+
+
+def test_outlaw_matters_bucket_b_synth():
+    """Hellspur Brute's "Affinity for outlaws" cost reducer — phase drops
+    the whole static ability (zero units for the whole card), a genuine
+    phase gap the synth arm fills."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_outlaw_matters
+
+    tree = _fixture_tree("Hellspur Brute")
+    assert has_structural_outlaw(tree) is False
+    node = _arm_outlaw_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_outlaw_matters"
+    assert _outlaw_lane_fires("Hellspur Brute") is True
+
+
+def test_outlaw_matters_no_fire_on_unrelated_card():
+    from mtg_utils._card_ir.tree_synthesis import _arm_outlaw_matters
+
+    tree = _fixture_tree("Chaos Wand")
+    assert has_structural_outlaw(tree) is False
+    assert _arm_outlaw_matters(tree) is None
+    assert _outlaw_lane_fires("Chaos Wand") is False
+
+
+def test_outlaw_matters_synth_registered():
+    assert "outlaw_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_outlaw_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _outlaw_matters_lane
+
+    synth = ConceptNode(
+        concept="synth_outlaw_matters",
+        node=SynthesizedNode(arm_id="outlaw_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _outlaw_matters_lane(tree)
+    assert any(s.key == "outlaw_matters" for s in sigs)

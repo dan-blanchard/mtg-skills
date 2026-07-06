@@ -191,6 +191,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_dies_value,
     has_self_etb_value,
     has_selfloss_engine,
+    has_structural_outlaw,
     has_structural_spellcast,
     has_structural_superfriends,
     has_structural_theft_makers,
@@ -8122,8 +8123,6 @@ _OPP_EXILE_MATTERS_MIRROR = re.compile(
     r"|for each card your opponents own in exile|opponents own in exile",
     re.IGNORECASE,
 )
-_OUTLAW_MIRROR = re.compile(r"\boutlaws?\b", re.IGNORECASE)
-
 # The signals.py wants_theft hybrid FACADE's don't-own tell (byte-identical to
 # the inline regex at signals.py's include_membership block). Live runs it over
 # the RAW oracle (get_oracle_text — NOT reminder-stripped); the crosswalk reads
@@ -8845,18 +8844,24 @@ def _crimes_matter(tree: ConceptTree) -> list[Signal]:
 
 
 def _outlaw_matters_lane(tree: ConceptTree) -> list[Signal]:
-    """outlaw_matters (§22) — CR 700.12/700.12a: kept-mirror-ONLY
-    (``\\boutlaws?\\b`` flat). Phase faithfully expands the word to the CR
-    700.12 five-subtype AnyOf filter (Olivia, Jasper Flint — probed
-    verbatim), so an exact-five-AnyOf structural read is available as a
-    LOGGED assist — but the mirror already covers the pop and the AnyOf
-    shape adds parse-dependence for zero recall today. An outlaw-TYPED
-    creature without the word (Anowon — Rogue tribal) deliberately does NOT
-    fire (the CR 700.12 membership direction the lane does not open;
-    checklist #4). Scope "you", HIGH.
+    """outlaw_matters (§22) — CR 700.12/700.12a: Tier-1 (ADR-0036 fold).
+    Direct/bucket-A: phase's typed filter naming the outlaw group — the
+    CR 700.12 five-subtype AnyOf (Olivia, Jasper Flint, At Knifepoint) OR
+    the literal "Outlaw" pseudo-subtype token phase stamps for a NEGATED
+    reference ("non-outlaw creature" — Shoot the Sheriff) —
+    :func:`has_structural_outlaw` in ``tree_synthesis``. bucket-B: the
+    residual "Affinity for outlaws" cost reducer phase drops ENTIRELY
+    (Hellspur Brute — zero units for the whole card), read off the
+    ``synth_outlaw_matters`` node (:func:`_arm_outlaw_matters`). An
+    outlaw-TYPED creature without the word or group filter (Anowon — Rogue
+    tribal) deliberately does NOT fire (the CR 700.12 membership direction
+    the lane does not open; checklist #4). Scope "you", HIGH.
     """
-    if _OUTLAW_MIRROR.search(_kept(tree)):
+    if has_structural_outlaw(tree):
         return [Signal("outlaw_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_outlaw_matters":
+            return [Signal("outlaw_matters", "you", "", "", tree.name, "high")]
     return []
 
 

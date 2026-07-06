@@ -137,6 +137,7 @@ __all__ = [
     "has_self_dies_value",
     "has_self_etb_value",
     "has_selfloss_engine",
+    "has_structural_outlaw",
     "has_structural_spellcast",
     "has_structural_stax_taxes",
     "has_structural_superfriends",
@@ -3096,6 +3097,82 @@ def _arm_celebration_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── outlaw_matters direct/bucket-A/bucket-B (ADR-0036/0037 Stage 5) ────────────
+# CR 700.12/700.12a: Assassin/Mercenary/Pirate/Rogue/Warlock are the "outlaw"
+# creature-type GROUP. Two structural shapes phase carries for a card that
+# names the group: (a) the CR 700.12 five-subtype ``AnyOf`` filter (Olivia,
+# At Knifepoint — probed live) and (b) a literal "Outlaw" PSEUDO-subtype
+# token phase stamps when the card negates the group ("non-outlaw" — Shoot
+# the Sheriff), wrapped in a ``Non``. Both are typed-filter reads, zero
+# regex. The residual bucket-B gap is an "Affinity for outlaws" cost
+# reducer (Hellspur Brute) that phase drops ENTIRELY — zero units, zero
+# typed nodes at all for the whole card — a genuine phase gap with no
+# competing structural signal.
+OUTLAW_SUBTYPES: frozenset[str] = frozenset(
+    {"Assassin", "Mercenary", "Pirate", "Rogue", "Warlock"}
+)
+
+
+def _tf_names_outlaw_group(tf: object) -> bool:
+    """Whether one ``type_filters`` entry names the outlaw PSEUDO-subtype
+    token "Outlaw" — directly or under a ``Non`` negation (Shoot the
+    Sheriff's "non-outlaw creature"). Recurses ``Non``/``AnyOf`` wrappers."""
+    if isinstance(tf, str):
+        return tf == "Outlaw"
+    if isinstance(tf, MirrorVariant):
+        if tf.key == "Subtype":
+            return tf.inner == "Outlaw"
+        if tf.key == "Non":
+            return _tf_names_outlaw_group(tf.inner)
+        if tf.key == "AnyOf" and isinstance(tf.inner, list):
+            return any(_tf_names_outlaw_group(e) for e in tf.inner)
+    return False
+
+
+def has_structural_outlaw(tree: ConceptTree) -> bool:
+    """Whether phase ALREADY carries a typed filter naming the outlaw group —
+    the CR 700.12 five-subtype ``AnyOf`` (``filter_subtypes`` reads it as a
+    flat frozenset subset of :data:`OUTLAW_SUBTYPES`, 2+ members so a lone
+    Rogue-tribal reference — Anowon — never qualifies alone) OR the literal
+    "Outlaw" pseudo-subtype token (:func:`_tf_names_outlaw_group`, recovers
+    the ``Non``-negated "non-outlaw" phrasing no ``filter_subtypes`` call
+    surfaces since it deliberately excludes ``Non`` wrappers)."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "Typed":
+                continue
+            subs = frozenset(filter_subtypes(n))
+            if subs and subs <= OUTLAW_SUBTYPES and len(subs) >= 2:
+                return True
+            for tf in getattr(n, "type_filters", ()) or ():
+                if _tf_names_outlaw_group(tf):
+                    return True
+    return False
+
+
+_OUTLAW_SYNTH_RX = re.compile(r"\boutlaws?\b", re.IGNORECASE)
+
+
+def _matches_outlaw_idiom(oracle: str) -> bool:
+    return bool(_OUTLAW_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_outlaw_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``outlaw_matters`` node for the bucket-B residue phase
+    drops entirely (Hellspur Brute's "Affinity for outlaws" — zero units)."""
+    if has_structural_outlaw(tree):
+        return None
+    if not _matches_outlaw_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="outlaw_matters",
+        concept="synth_outlaw_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B outlaw group reference (CR 700.12) phase drops",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3123,6 +3200,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("theft_makers", _arm_theft_makers),
     ("coven_matters", _arm_coven_matters),
     ("celebration_matters", _arm_celebration_matters),
+    ("outlaw_matters", _arm_outlaw_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
