@@ -118,6 +118,7 @@ from mtg_utils._deck_forge._signals_ir import (
     _POWER_SCALING_RAW,
     _STAX_TAXES_RESIDUE_RE,
     _SYMMETRIC_STAX_RESIDUE_RE,
+    _TOUGHNESS_VALUE_MIRROR,
     _restriction_pacifies_single_creature,
 )
 from mtg_utils._deck_forge._signals_regex import (
@@ -186,6 +187,7 @@ __all__ = [
     "has_structural_suspend_matters",
     "has_structural_symmetric_stax",
     "has_structural_theft_makers",
+    "has_structural_toughness_combat",
     "has_structural_tutor",
     "has_structural_unspent_mana",
     "has_structural_untap_engine",
@@ -5138,6 +5140,55 @@ def _arm_meld_pair(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T7-niche-c: toughness_combat toughness-as-value residual ─────────
+# CR 510.1a (assign-combat-damage-equal-to-POWER default the Doran statics
+# override) + 613.4c (layer 7c) + 604.3 (CDAs): STRUCTURAL — an
+# ``AssignDamageFromToughness`` modification (Doran, Assault Formation) OR a
+# Toughness-typed ``amount``/``count`` operand (Angelic Chorus, Loxodon
+# Lifechanter). The residual: the toughness-as-VALUE idiom phase folds to a
+# fixed/None operand instead of a typed Toughness ref — a token's P/T
+# (Geralf, Soul Separator), a pump-X (Tip the Scales, Snowblind), mana/cost =
+# toughness (Vhal, The Pride of Hull Clade) — relocates the deleted
+# ``_TOUGHNESS_VALUE_MIRROR`` verbatim, gap-gated. Measured over the
+# commander-legal corpus: 103 structural + 32 bucket-B, 0 drops, 0 adds.
+def has_structural_toughness_combat(tree: ConceptTree) -> bool:
+    """Whether an ``AssignDamageFromToughness`` modification exists, or a
+    Toughness-typed ``amount``/``count`` ref (``toughness_combat``'s direct
+    arm)."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "AssignDamageFromToughness":
+                return True
+            for fname in ("amount", "count"):
+                q = getattr(n, fname, None)
+                if tag_of(q) != "Ref":
+                    continue
+                qty = getattr(q, "qty", None)
+                qt = tag_of(qty)
+                if qt == "Toughness" or (
+                    qt == "Aggregate" and getattr(qty, "property", None) == "Toughness"
+                ):
+                    return True
+    return False
+
+
+def _arm_toughness_combat(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``toughness_combat`` node for the toughness-as-value
+    residual (the deleted ``_TOUGHNESS_VALUE_MIRROR`` mirror relocated,
+    gap-gated against :func:`has_structural_toughness_combat`)."""
+    if has_structural_toughness_combat(tree):
+        return None
+    if _TOUGHNESS_VALUE_MIRROR.search(_REMINDER.sub(" ", tree.oracle or "")) is None:
+        return None
+    return _synthetic_concept(
+        arm_id="toughness_combat",
+        concept="synth_toughness_combat",
+        scope="you",
+        subject=(),
+        desc="bucket-B toughness-as-value residue (CR 604.3)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -5201,6 +5252,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("power_tap_engine", _arm_power_tap_engine),
     ("starting_life_matters", _arm_starting_life_matters),
     ("meld_pair", _arm_meld_pair),
+    ("toughness_combat", _arm_toughness_combat),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

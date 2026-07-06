@@ -203,6 +203,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_superfriends,
     has_structural_suspend_matters,
     has_structural_theft_makers,
+    has_structural_toughness_combat,
     has_structural_tutor,
     has_structural_untap_engine,
     has_trigger_draw_bleed,
@@ -230,7 +231,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _SAME_TRUE_KW_RE,
     _SELF_PROTECTION_GRANT_KW,
     _STATION_CHARGE_RE,
-    _TOUGHNESS_VALUE_MIRROR,
     _TYPED_ANTHEM_MULTI_RAW,
     _apply_membership_floor,
 )
@@ -9579,12 +9579,13 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 # (_IR_KEPT_DETECTORS / the deleted-producer patterns) — the b12 _JOHAN_MIRROR
 # precedent for rows with no importable name. Named live constants are imported
 # above (one source, zero drift):
-# _TOUGHNESS_VALUE_MIRROR, _TYPED_ANTHEM_MULTI_RAW. (island_makers,
-# ability_copy, noncombat_damage_payoff, per_target_payoff, power_tap_engine,
-# starting_life_matters, and meld_pair were ADR-0036/0037 folded to Tier-1
-# structural / bucket-B synth reads — see ``_island_makers``,
-# ``_ability_copy``, ``_noncombat_damage_payoff``, ``_per_target_payoff``,
-# ``_power_tap_engine``, ``_starting_life_matters``, ``_meld_pair``.)
+# _TYPED_ANTHEM_MULTI_RAW. (island_makers, ability_copy,
+# noncombat_damage_payoff, per_target_payoff, power_tap_engine,
+# starting_life_matters, meld_pair, and toughness_combat were ADR-0036/0037
+# folded to Tier-1 structural / bucket-B synth reads — see
+# ``_island_makers``, ``_ability_copy``, ``_noncombat_damage_payoff``,
+# ``_per_target_payoff``, ``_power_tap_engine``, ``_starting_life_matters``,
+# ``_meld_pair``, ``_toughness_combat``.)
 
 # Counter-placement effect tags (the live place_counter category's producers)
 # for the ability_strip same-unit join (§2).
@@ -10227,41 +10228,30 @@ def _toughness_combat(tree: ConceptTree) -> list[Signal]:
     """toughness_combat (§20) — CR 510.1a (the assign-combat-damage-equal-
     to-POWER default the Doran statics override; the live "CR 510.1c" cite
     is STALE — 510.1c is lethal-assignment ordering) + 613.4c (layer 7c) +
-    604.3 (CDAs). Two arms, the mirror NARROWED (the live C14 shape):
+    604.3 (CDAs).
 
-    (a) STRUCTURAL — an ``AssignDamageFromToughness`` modification anywhere
-    (Doran; Assault Formation — the multi-ability face phase-static-drop is
-    fixed in v0.9.0, both probed) OR a Toughness-typed quantity in a node's
-    ``amount``/``count`` (a ``Ref{qty: Toughness}`` — Angelic Chorus; a
-    ``Ref{qty: Aggregate{property: 'Toughness'}}`` — Loxodon Lifechanter).
-    Deliberately NOT a whole-tree Toughness-tag scan: the evolve/comparison
-    predicates carry Toughness refs in ``value`` fields (Hulkling — NOT a
-    combat-toughness payoff). ``AssignNoCombatDamage`` is NOT a hit (Master
-    of Cruelties, pop-verified False — the discriminator the broad regex
-    couldn't make).
-    (b) the imported narrowed ``_TOUGHNESS_VALUE_MIRROR`` over the kept
-    oracle — the toughness-as-VALUE residue phase folds to fixed/None
-    operands (token P/T, pump-X, mana/cost = toughness). Scope "you", HIGH.
+    Tier-1 (ADR-0036/0037 fold — the lane-time ``_TOUGHNESS_VALUE_MIRROR``
+    kept-oracle read is RETIRED):
+
+    (a) STRUCTURAL — :func:`has_structural_toughness_combat` — an
+    ``AssignDamageFromToughness`` modification anywhere (Doran; Assault
+    Formation) OR a Toughness-typed quantity in a node's ``amount``/``count``
+    (a ``Ref{qty: Toughness}`` — Angelic Chorus; a ``Ref{qty:
+    Aggregate{property: 'Toughness'}}`` — Loxodon Lifechanter). Deliberately
+    NOT a whole-tree Toughness-tag scan: the evolve/comparison predicates
+    carry Toughness refs in ``value`` fields (Hulkling — NOT a combat-
+    toughness payoff). ``AssignNoCombatDamage`` is NOT a hit (Master of
+    Cruelties, pop-verified False).
+    (b) the ``tree_synthesis`` stage's ``synth_toughness_combat`` bucket-B
+    node — the toughness-as-VALUE residue phase folds to fixed/None operands
+    (token P/T, pump-X, mana/cost = toughness), gated against (a). Scope
+    "you", HIGH.
     """
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            t = tag_of(n)
-            if t == "AssignDamageFromToughness":
-                return [Signal("toughness_combat", "you", "", "", tree.name, "high")]
-            for fname in ("amount", "count"):
-                q = getattr(n, fname, None)
-                if tag_of(q) != "Ref":
-                    continue
-                qty = getattr(q, "qty", None)
-                qt = tag_of(qty)
-                if qt == "Toughness" or (
-                    qt == "Aggregate" and getattr(qty, "property", None) == "Toughness"
-                ):
-                    return [
-                        Signal("toughness_combat", "you", "", "", tree.name, "high")
-                    ]
-    if _TOUGHNESS_VALUE_MIRROR.search(_kept(tree)):
+    if has_structural_toughness_combat(tree):
         return [Signal("toughness_combat", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_toughness_combat":
+            return [Signal("toughness_combat", "you", "", "", tree.name, "high")]
     return []
 
 
