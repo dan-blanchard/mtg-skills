@@ -27,6 +27,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_animate_artifact,
     _arm_color_change,
     _arm_island_matters,
+    _arm_manland,
     _arm_spellcast_matters,
     _arm_vehicles_matter,
     _has_structural_lifegain,
@@ -44,6 +45,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_arcane,
     has_structural_counter_distribute,
     has_structural_keyword_counter,
+    has_structural_manland,
     has_structural_outlaw,
     has_structural_proliferate,
     has_structural_self_counter_grow,
@@ -2980,3 +2982,48 @@ def test_vehicles_matter_no_fire_on_plain_vehicle():
 
 def test_vehicles_matter_synth_registered():
     assert "vehicles_matter" in SYNTHESIS_ARM_IDS
+
+
+# ── batch T3-makers-type (ADR-0036/0037 Stage 5): manland ────────────────────
+
+
+def test_manland_structural_selfref_self_animate():
+    """Crawling Barrens' self-animate GenericEffect (a SelfRef-affected
+    AddType Creature on a card that IS itself a Land) — a genuine RECOVER
+    the deleted mirror missed (no "land" word precedes "becomes a 0/0
+    Elemental creature")."""
+    assert has_structural_manland(_fixture_tree("Crawling Barrens"))
+    assert _arm_manland(_fixture_tree("Crawling Barrens")) is None
+
+
+def test_manland_structural_landish_affected_genju():
+    """Genju of the Falls' Aura animates the ENCHANTED Island — a landish-
+    AFFECTED (EnchantedBy Island-subtype filter) nested static a plain
+    top-level walk misses."""
+    assert has_structural_manland(_fixture_tree("Genju of the Falls"))
+
+
+def test_manland_bucket_b_synth_gap_gated():
+    """Emergent Sequence's search-then-animate tracked chain — phase drops
+    the ParentTarget thread through the ChangeZone's "Any" forward-result
+    target, a genuine gap the structural arm can't reach."""
+    tree = _fixture_tree("Emergent Sequence")
+    assert has_structural_manland(tree) is False
+    node = _arm_manland(tree)
+    assert node is not None
+    assert node.concept == "synth_manland"
+
+
+def test_manland_land_type_change_veto():
+    """The adjudicated over-fire class: "target land becomes a Forest/
+    Plains/Island" is a land TYPE-CHANGE idiom, not an animate — the
+    accompanying "creature" word is always an unrelated self-reference
+    ("until THIS CREATURE leaves the battlefield")."""
+    for name in ("Gaea's Liege", "Graceful Antelope", "Tide Shaper"):
+        tree = _fixture_tree(name)
+        assert has_structural_manland(tree) is False
+        assert _arm_manland(tree) is None, name
+
+
+def test_manland_synth_registered():
+    assert "manland" in SYNTHESIS_ARM_IDS

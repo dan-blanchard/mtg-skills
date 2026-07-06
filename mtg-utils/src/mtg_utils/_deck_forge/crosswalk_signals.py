@@ -885,17 +885,13 @@ _FIXING_PRODUCED_TYPES: frozenset[str] = frozenset(
 _ENTERED_ATTACKER_RX = re.compile(ENTERED_ATTACKER_REGEX, re.IGNORECASE)
 _UNSPENT_MANA_RX = re.compile(UNSPENT_MANA_REGEX, re.IGNORECASE)
 
-# Johan + manland mirrors: byte-identical copies of the two INLINE (unnamed)
-# ``_IR_KEPT_DETECTORS`` rows in ``_signals_ir`` (exert_matters ~line 2343,
-# land_protection ~line 2411) — the only two b12 mirrors with no importable
-# name.
+# Johan mirror: byte-identical copy of the INLINE (unnamed) ``_IR_KEPT_
+# DETECTORS`` row in ``_signals_ir`` (exert_matters ~line 2343) — a b12
+# mirror with no importable name. (The manland sibling — land_protection
+# ~line 2411 — was ADR-0036/0037 folded to a bucket-B ``tree_synthesis``
+# arm; see ``_arm_manland``.)
 _JOHAN_MIRROR = re.compile(
     r"attacking doesn'?t cause (?:creatures|them)[^.]*to tap", re.IGNORECASE
-)
-_MANLAND_MIRROR = re.compile(
-    r"land[^.]*becomes? a[^.]*creature|lands? you control are[^.]*creatures"
-    r"|that land becomes",
-    re.IGNORECASE,
 )
 
 # Reminder-text strip — the same paren-substitution the live path applies to
@@ -7221,9 +7217,17 @@ def _land_protection(tree: ConceptTree) -> list[Signal]:
     lands wants them kept alive. Shares the b1 animator predicate widened
     past the you-gate (Living Plane — live passes ("you","any"); the
     crosswalk's controller-less scope maps to "each", so the widened tuple
-    here is ("you","any","each")), plus the byte-identical manland
-    self-animate mirror (the Restless lands — phase drops the self-animate
-    clause). Scope "you".
+    here is ("you","any","each")), plus the Tier-1 manland self-animate /
+    landish-affected structural read (ADR-0036/0037 fold — a SelfRef nested
+    static on a Land card, Restless Anchorage/Crawling Barrens; or a
+    landish-AFFECTED nested static, the Genju cycle / mass "lands become
+    creatures" anthems — a GenericEffect-nested modification a plain
+    top-level walk misses), with a bucket-B ``synth_manland`` tail (the
+    deleted ``_MANLAND_MIRROR`` relocated with an adjudicated land-
+    type-change veto) for the residual genuine members phase structures
+    too loosely to read directly (a SearchLibrary-then-animate tracked
+    chain, a mass land-to-copy effect, a fully ``Unimplemented`` ability).
+    Scope "you".
     """
     for unit in tree.units:
         if _is_protection_animator(unit):
@@ -7269,8 +7273,32 @@ def _land_protection(tree: ConceptTree) -> list[Signal]:
                         "land_protection", "you", "", _site_raw(sdef), tree.name, "high"
                     )
                 ]
-    if _MANLAND_MIRROR.search(_kept(tree)):
-        return [Signal("land_protection", "you", "", "", tree.name, "high")]
+        # The manland self-animate / landish-affected structural read (ADR-0036
+        # fold): a SelfRef nested static on a card that IS itself a Land (the
+        # "Restless" cycle, Crawling Barrens), OR a landish-AFFECTED nested
+        # static (Land core type / land-subtype word, e.g. the Genju cycle's
+        # EnchantedBy-Island filter, or a mass "lands become creatures" anthem)
+        # — a GenericEffect-nested modification :func:`_is_protection_animator`
+        # (top-level statics only) never sees.
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "AddType":
+                continue
+            if getattr(mod, "core_type", None) != "Creature":
+                continue
+            affected = getattr(sdef, "affected", None)
+            selfref_land = tag_of(affected) == "SelfRef" and tree.is_type("Land")
+            landish = "Land" in filter_core_types(affected) or (
+                {t.lower() for t in filter_subtypes(affected)} & _LAND_SUBTYPE_WORDS
+            )
+            if selfref_land or landish:
+                return [
+                    Signal(
+                        "land_protection", "you", "", _site_raw(sdef), tree.name, "high"
+                    )
+                ]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_manland":
+            return [Signal("land_protection", "you", "", "", tree.name, "high")]
     return []
 
 

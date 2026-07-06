@@ -3545,12 +3545,29 @@ def test_land_denial_pure_your_land_phaseout():
 def test_land_protection_widened_animator_and_manland_mirror():
     """CR 613.1d / 305: the b1 animator arm widened to ("you","any")
     controllers fires on the symmetric all-lands animate (Living Plane —
-    live-parity: live passes the widened tuple) and the manland
-    self-animate mirror recovers Restless Anchorage; Reality Ripple's
-    phase-out is not an animator."""
+    live-parity: live passes the widened tuple) and the Tier-1 manland
+    self-animate structural read (ADR-0036/0037 fold) recovers Restless
+    Anchorage; Reality Ripple's phase-out is not an animator."""
     assert ("land_protection", "you", "") in _idents("Living Plane")
     assert ("land_protection", "you", "") in _idents("Restless Anchorage")
     assert "land_protection" not in _keys("Reality Ripple")
+
+
+def test_land_protection_manland_structural_recovery_and_synth_tail():
+    """A genuine RECOVER the deleted mirror missed (Crawling Barrens: no
+    "land" word precedes "becomes a 0/0 Elemental creature"), a landish-
+    AFFECTED recovery (Genju of the Falls' Aura animates the ENCHANTED
+    Island), a bucket-B synth-tail genuine member (Emergent Sequence's
+    search-then-animate chain), and three adjudicated land-type-change
+    over-fires shed (Gaea's Liege, Graceful Antelope, Tide Shaper — "target
+    land becomes a Forest/Plains/Island" is a type change, not an
+    animate)."""
+    assert ("land_protection", "you", "") in _idents("Crawling Barrens")
+    assert ("land_protection", "you", "") in _idents("Genju of the Falls")
+    assert ("land_protection", "you", "") in _idents("Emergent Sequence")
+    assert "land_protection" not in _keys("Gaea's Liege")
+    assert "land_protection" not in _keys("Graceful Antelope")
+    assert "land_protection" not in _keys("Tide Shaper")
 
 
 def test_evasion_denial_ignore_landwalk_mode():

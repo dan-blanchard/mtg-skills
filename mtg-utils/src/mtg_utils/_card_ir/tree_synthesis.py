@@ -73,6 +73,7 @@ from mtg_utils._card_ir.crosswalk import (
     has_filter_property,
     iter_condition_sites,
     iter_cost_leaves,
+    iter_mod_sites,
     iter_static_defs,
     iter_typed_nodes,
     modify_cost_mode,
@@ -3758,6 +3759,113 @@ def _arm_vehicles_matter(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T3-makers-type: manland (land_protection's self-animate tail) ──────
+# CR 613.1d/305: a commander animating MANY lands wants them kept alive
+# (``_land_protection`` in crosswalk_signals.py). Two structural
+# improvements over the deleted ``_MANLAND_MIRROR``:
+#
+# * a SelfRef-affected nested static (an Activated ability's own GenericEffect
+#   — the projection does NOT lift these, per the animate_artifact/
+#   waterbend precedent) conferring ``AddType Creature`` on a card that IS
+#   itself a Land (the "Restless" self-animate manland cycle — Restless
+#   Anchorage, Crawling Barrens — the latter a genuine RECOVER the mirror
+#   MISSED: no "land" word precedes "becomes a 0/0 Elemental creature").
+# * a landish-AFFECTED (Land core type or land-subtype word, e.g. an
+#   ``EnchantedBy`` Island filter) nested static conferring ``AddType
+#   Creature`` — the Genju cycle (Aura animates the enchanted land) and the
+#   mass "all lands become creatures" anthems (Natural Affinity, Rude
+#   Awakening, Sylvan Awakening, Life and Limb, Jolrael, Thelonite Druid) a
+#   plain top-level walk misses because the modification is nested inside a
+#   spell's/activated-ability's own ``GenericEffect``.
+#
+# Both are read together (:func:`has_structural_manland`), gap-gating the
+# bucket-B text tail below. The residual genuine members phase structures too
+# loosely to read (a SearchLibrary-then-animate tracked chain — Emergent
+# Sequence, Rampaging Growth; a mass land-to-copy effect — March from Velis
+# Vel; a fully ``Unimplemented`` activated ability — Sage of the Maze) keep
+# the mirror's text idiom, with ONE adjudicated veto: "land becomes a/an
+# <basic land type>" is a land TYPE-CHANGE idiom (Gaea's Liege, Graceful
+# Antelope, Tide Shaper — "target land becomes a Forest/Plains/Island"), not
+# an animate — the accompanying "creature" word these three carry is always
+# an UNRELATED self-reference ("until THIS CREATURE leaves the battlefield"),
+# a genuine mirror over-fire class shed here (measured over the
+# commander-legal corpus: 3 dropped, 11 recovered, 0 other regressions).
+_MANLAND_SYNTH_RX = re.compile(
+    r"land[^.]*becomes? a[^.]*creature|lands? you control are[^.]*creatures"
+    r"|that land becomes",
+    re.IGNORECASE,
+)
+_MANLAND_TYPE_CHANGE_VETO_RX = re.compile(
+    r"becomes? an? (?:forest|island|swamp|mountain|plains)\b", re.IGNORECASE
+)
+_LAND_SUBTYPE_WORDS_SYNTH: frozenset[str] = frozenset(
+    {
+        "plains",
+        "island",
+        "swamp",
+        "mountain",
+        "forest",
+        "desert",
+        "gate",
+        "lair",
+        "locus",
+        "cave",
+        "mine",
+        "power-plant",
+        "sphere",
+        "tower",
+        "urza's",
+    }
+)
+
+
+def _manland_landish(affected: object) -> bool:
+    return "Land" in filter_core_types(affected) or bool(
+        {t.lower() for t in filter_subtypes(affected)} & _LAND_SUBTYPE_WORDS_SYNTH
+    )
+
+
+def has_structural_manland(tree: ConceptTree) -> bool:
+    """Whether phase already carries a typed self-animate / landish-affected
+    node the land_protection lane's manland arm sees — the synth gap-gate."""
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "AddType":
+                continue
+            if getattr(mod, "core_type", None) != "Creature":
+                continue
+            affected = getattr(sdef, "affected", None)
+            if tag_of(affected) == "SelfRef" and tree.is_type("Land"):
+                return True
+            if _manland_landish(affected):
+                return True
+    return False
+
+
+def _matches_manland_idiom(oracle: str) -> bool:
+    text = _REMINDER.sub(" ", oracle or "")
+    if not _MANLAND_SYNTH_RX.search(text):
+        return False
+    return not _MANLAND_TYPE_CHANGE_VETO_RX.search(text)
+
+
+def _arm_manland(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``manland`` node for land_protection's self-animate tail
+    (the deleted ``_MANLAND_MIRROR`` relocated, land-type-change veto
+    added, gap-gated against :func:`has_structural_manland`)."""
+    if has_structural_manland(tree):
+        return None
+    if not _matches_manland_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="manland",
+        concept="synth_manland",
+        scope="you",
+        subject=(),
+        desc="bucket-B manland self-animate residue (CR 613.1d/305)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3798,6 +3906,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("animate_artifact", _arm_animate_artifact),
     ("color_change", _arm_color_change),
     ("vehicles_matter", _arm_vehicles_matter),
+    ("manland", _arm_manland),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
