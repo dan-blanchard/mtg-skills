@@ -237,7 +237,6 @@ from mtg_utils._deck_forge._signals_ir import (
 )
 from mtg_utils._deck_forge._signals_regex import (
     _COLOR_HOSER_RE,
-    _EVASION_SELF_REGEX,
     _EVERGREEN_CK,
     _MELD_FULLTEXT_RE,
     _REPEATABLE_KILL_RE,
@@ -8906,7 +8905,26 @@ _B15_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
     (frozenset({"earthbend"}), "earthbend_makers"),
     (frozenset({"waterbend"}), "waterbend_makers"),
     (
-        frozenset({"menace", "fear", "intimidate", "skulk", "horsemanship", "shadow"}),
+        frozenset(
+            {
+                "menace",
+                "fear",
+                "intimidate",
+                "skulk",
+                "horsemanship",
+                "shadow",
+                # ADR-0036 evasion_self fold (bucket-A): the landwalk family
+                # (CR 702.14) also rides Scryfall's own keyword field — a
+                # genuine structural recovery over the deleted
+                # ``_EVASION_SELF_REGEX`` mirror's landwalk-word branch.
+                "islandwalk",
+                "swampwalk",
+                "forestwalk",
+                "mountainwalk",
+                "plainswalk",
+                "landwalk",
+            }
+        ),
         "evasion_self",
     ),
     (frozenset({"start your engines!"}), "speed_makers"),
@@ -8921,11 +8939,15 @@ def _keyword_field_signals_b15(keywords: frozenset[str], name: str) -> list[Sign
     evasion_self's six keywords: menace CR 702.111, fear 702.36, intimidate
     702.13, skulk 702.118, horsemanship 702.31, shadow 702.28 (the live
     comment's "skulk 702.72 / horsemanship 702.30" numbers are STALE —
-    corrected from the 20260619 CR CLI output). flying is DELIBERATELY
-    absent (soft evasion). speed: "start your engines!" initializes speed
-    and installs the per-turn increase = MAKER (CR 702.179a); "max speed"
-    only functions AT speed 4 = PAYOFF (CR 702.178a — the ADR-0034 split).
-    saddle (CR 702.171a) is ONE lane, no maker/matters split live.
+    corrected from the 20260619 CR CLI output), PLUS the five landwalk
+    keywords + the "landwalk" umbrella row (CR 702.14 — a genuine
+    ADR-0036 bucket-A structural recovery: 122 corpus cards carry a
+    landwalk keyword in their OWN Scryfall ``keywords`` field). flying is
+    DELIBERATELY absent (soft evasion). speed: "start your engines!"
+    initializes speed and installs the per-turn increase = MAKER (CR
+    702.179a); "max speed" only functions AT speed 4 = PAYOFF (CR 702.178a
+    — the ADR-0034 split). saddle (CR 702.171a) is ONE lane, no
+    maker/matters split live.
     """
     low = {k.lower() for k in keywords}
     return [
@@ -9098,19 +9120,26 @@ def _station_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
 
 
 def _evasion_self(tree: ConceptTree) -> list[Signal]:
-    """evasion_self mirror arm (§3) — CR 509.1b (evasion abilities as
-    blocking restrictions) + 702.14 landwalk: the imported live
-    ``_EVASION_SELF_REGEX`` FLAT over the kept oracle (no ``[^.]*`` arm, so
-    flat == per-clause). The six keyword rows (menace/fear/intimidate/
-    skulk/horsemanship/shadow — CR numbers at
-    :func:`_keyword_field_signals_b15`) ride the keyword lanes; flying is
-    DELIBERATELY absent (soft evasion). Do NOT key the ``CantBeBlocked``
-    static tag — phase hangs it under activated GenericEffects (Giant Koi)
-    and reading it would drift the 1646-row population; the mirror already
-    catches the text. Scope "you", HIGH.
+    """A card that CARRIES or GRANTS evasion (CR 509.1b evasion
+    blocking-restriction abilities + 702.14 landwalk). Tier-1: zero oracle
+    text / regex at lane time (ADR-0036 fold — ``_EVASION_SELF_REGEX`` is
+    deleted).
+
+    The six keyword rows (menace/fear/intimidate/skulk/horsemanship/shadow)
+    PLUS the five landwalk keywords (CR numbers at
+    :func:`_keyword_field_signals_b15`) ride the Scryfall keyword-field arm;
+    flying is DELIBERATELY absent (soft evasion). Do NOT key the
+    ``CantBeBlocked`` static tag structurally — phase hangs it under
+    activated GenericEffects (Giant Koi) and reading it would drift the
+    1646-row population; the ``tree_synthesis`` bucket-B arm
+    (:func:`_arm_evasion_self`) relocates the deleted mirror's can't-be-
+    blocked / unblockable / granted-keyword / granted-landwalk tail instead
+    (the hoser / keyword-tribe-reference / mode-label / evasion-denial
+    over-fires it shed are documented there). Scope "you", HIGH.
     """
-    if _EVASION_SELF_REGEX.search(_kept(tree)):
-        return [Signal("evasion_self", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_evasion_self":
+            return [Signal("evasion_self", "you", "", "", tree.name, "high")]
     return []
 
 

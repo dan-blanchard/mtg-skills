@@ -2636,6 +2636,180 @@ def _arm_superfriends_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── evasion_self bucket-B tail (ADR-0036 fold — no shared structural gate) ─────
+# evasion_self (CR 509.1b evasion blocking-restriction abilities / 702.14
+# landwalk): a card that CARRIES or GRANTS evasion. The six keyword rows
+# (menace/fear/intimidate/skulk/horsemanship/shadow) PLUS the five landwalk
+# keywords (islandwalk/swampwalk/forestwalk/mountainwalk/plainswalk/landwalk)
+# ride the Scryfall keyword-field arm (``_keyword_field_signals_b15`` — a
+# bucket-A structural recovery, this fold's own-keyword-field extension);
+# flying is DELIBERATELY absent (soft evasion). phase gets NO Tier-1 read for
+# the rest — the ``CantBeBlocked`` static tag hangs under activated
+# GenericEffects for some cards (Giant Koi), so reading it structurally would
+# drift the 1646-row population (the ``_evasion_self`` lane docstring's
+# warning) — so this arm is the lane's ONLY source for the text tail and has
+# no competing Tier-1 predicate to gap-gate against.
+#
+# Three idiom families, relocated from the deleted ``_EVASION_SELF_REGEX``:
+#
+#   * an inherent/granted "can't be blocked" / "unblockable" state (CR
+#     509.1b) — fires FLAT (no grant-verb gate): the measured corpus carries
+#     zero non-member matches for this phrase.
+#   * a granted keyword (menace/fear/intimidate/skulk/horsemanship) or
+#     landwalk word in the oracle TEXT — gated PER-CLAUSE to a genuine
+#     ACQUISITION (:func:`_evasion_clause_grants`): `gains`/`has`/`have`/
+#     `becomes`, a keyword-COUNTER, a `create`/token grant, or the "the same
+#     is true for" / "repeat this process for" / "and so on for" / "do the
+#     same for" keyword-SHARE continuation idiom (Odric, Kathril,
+#     Selective Adaptation, Super-Adaptoid). A bare REFERENCE to an existing
+#     creature's keyword is NOT a grant — measured over-fires shed this way:
+#     Borrowing the East Wind / Broken Dam / Rolling Earthquake / Trip Wire
+#     (horsemanship-hoser removal/damage/tap targeting creatures WITH/WITHOUT
+#     the keyword), J. Jonah Jameson + Tentative Connection (a bare "creature
+#     you control/a creature with menace" REFERENCE, not a grant), You Come
+#     to the Gnoll Camp ("Intimidate Them" is a mode LABEL — its actual
+#     effect is "can't block", not the CR 702.13 keyword), and Fear, Fire,
+#     Foes! (the card's OWN NAME echoed verbatim in its oracle text — a name
+#     collision, not the keyword). A NEGATED acquisition ("didn't have
+#     <keyword>" — the evasion-DENIAL idiom: Great Wall / Crevasse / Gosta
+#     Dirk / Quagmire / Undertow / Ur-Drago / Deadfall / Lord Magnus, CR
+#     702.14 denial, a separate ``_evasion_denial`` lane already covers
+#     these) is explicitly excluded by the negator-tail guard — no
+#     name-keyed denylist needed. Merfolk Assassin ("Destroy target creature
+#     with islandwalk") and Urborg / Mystic Decree ("loses"/"lose" landwalk)
+#     are anti-landwalk removal, shed by the same positive-acquisition gate.
+_EVASION_LANDWALK_WORD_RX = re.compile(
+    r"\b(?:forest|island|mountain|plains|swamp)walk\b", re.IGNORECASE
+)
+_EVASION_GRANTED_KW_RX = re.compile(
+    r"\b(?:horsemanship|menace|fear|intimidate|skulk)\b", re.IGNORECASE
+)
+_EVASION_CANT_RX = re.compile(r"can't be blocked|\bunblockable\b", re.IGNORECASE)
+_EVASION_ACQUIRE_RX = re.compile(
+    r"\bgains?\b|\bhave\b|\bhas\b|\bbecomes?\b", re.IGNORECASE
+)
+# a NEGATED acquisition ("didn't have <keyword>") is the evasion-DENIAL idiom
+# (CR 702.14), never a grant — checked as the tail of the text immediately
+# preceding the acquisition verb.
+_EVASION_NEGATOR_TAIL_RX = re.compile(
+    r"\b(?:doesn't|don't|didn't|isn't|aren't|won't|wouldn't|couldn't|"
+    r"can't|never|no longer)\s*$",
+    re.IGNORECASE,
+)
+_EVASION_GRANT_CONTINUATION_RX = re.compile(
+    r"\bthe same is true for\b|\brepeat this process for\b"
+    r"|\band so on for\b|\bdo the same for\b"
+    r"|\bfrom among\b|\byour choice of\b",
+    re.IGNORECASE,
+)
+_EVASION_GRANT_OBJECT_RX = re.compile(
+    r"\btokens?\b|\bcounters?\b|\bcreate\b", re.IGNORECASE
+)
+# a BARE ability-declaration line — the pre-templating "Snow swampwalk" /
+# "Snow forestwalk" keyword-line form (CR 702.14e) some older cards use
+# instead of a "gains"/"has" sentence (Legions of Lim-Dûl, Rime Dryad); the
+# clause IS the ability, own possession, not a reference.
+_EVASION_BARE_LANDWALK_LINE_RX = re.compile(
+    r"^\s*(?:snow\s+)?(?:forest|island|mountain|plains|swamp)walk\s*$",
+    re.IGNORECASE,
+)
+_EVASION_CLAUSE_SPLIT = re.compile(r"[.;\n]")
+
+
+def _evasion_keyword_occurrences(clause: str) -> list[re.Match[str]]:
+    """Every granted-keyword / landwalk-word match in ``clause``, position order."""
+    ms = list(_EVASION_GRANTED_KW_RX.finditer(clause))
+    ms += list(_EVASION_LANDWALK_WORD_RX.finditer(clause))
+    return sorted(ms, key=lambda m: m.start())
+
+
+def _evasion_comma_segment(clause: str, pos: int, end: int) -> str:
+    """The comma-delimited SEGMENT of ``clause`` spanning ``[pos, end)``.
+
+    A "Whenever <condition>, <effect>" template's comma is a hard boundary
+    between the trigger condition and its resulting effect (J. Jonah
+    Jameson: "a creature you control with menace attacks, create a Treasure
+    token" — the created Treasure has nothing to do with the referenced
+    menace). Confining the keyword-COUNTER / created-TOKEN check to the
+    SAME comma segment as the keyword keeps a sibling effect from leaking a
+    false grant onto a bare reference, while a "create ... tokens with
+    menace" grant (no comma between "tokens" and "menace") stays intact.
+    """
+    start = clause.rfind(",", 0, pos) + 1
+    stop = clause.find(",", end)
+    if stop == -1:
+        stop = len(clause)
+    return clause[start:stop]
+
+
+def _evasion_clause_grants(clause: str, occ: list[re.Match[str]]) -> bool:
+    """Whether ``clause`` (already known to carry ``occ``, its keyword
+    occurrences) GRANTS a keyword evasion ability — a bare landwalk ability-
+    declaration line, the keyword-SHARE / keyword-CHOICE continuation idiom
+    ("the same is true for" / "from among" / "your choice of", checked
+    whole-clause: these idioms span a long keyword list, so the grant verb
+    or counter word sits far from any one keyword's position), a keyword
+    COUNTER / created-TOKEN carrier (checked in the keyword's OWN comma
+    SEGMENT — :func:`_evasion_comma_segment` — not whole-clause, so a
+    sibling effect never leaks a false grant onto a bare reference), or a
+    non-negated CR 702 acquisition verb (``gains``/``has``/``have``/
+    ``becomes``) anywhere in the clause. A bare reference to an existing
+    creature's keyword ("target creature with horsemanship") or a NEGATED
+    acquisition ("didn't have menace" — evasion-DENIAL) is not a grant."""
+    if _EVASION_BARE_LANDWALK_LINE_RX.match(clause):
+        return True
+    if _EVASION_GRANT_CONTINUATION_RX.search(clause):
+        return True
+    for m in occ:
+        segment = _evasion_comma_segment(clause, m.start(), m.end())
+        if _EVASION_GRANT_OBJECT_RX.search(segment):
+            return True
+    for am in _EVASION_ACQUIRE_RX.finditer(clause):
+        pre = clause[: am.start()]
+        if not _EVASION_NEGATOR_TAIL_RX.search(pre):
+            return True
+    return False
+
+
+def _matches_evasion_self_idiom(oracle: str) -> bool:
+    """Whether a reminder-stripped oracle carries a bucket-B evasion_self
+    idiom (CR 509.1b / 702.14) — the deleted ``_EVASION_SELF_REGEX``
+    relocated, with the hoser / reference / denial / name-collision tail shed
+    per :func:`_evasion_clause_grants`."""
+    text = _REMINDER.sub(" ", oracle or "")
+    if _EVASION_CANT_RX.search(text):
+        return True
+    for cl in _EVASION_CLAUSE_SPLIT.split(text):
+        occ = _evasion_keyword_occurrences(cl)
+        if occ and _evasion_clause_grants(cl, occ):
+            return True
+    return False
+
+
+def _arm_evasion_self(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``evasion_self`` node for the bucket-B can't-be-blocked /
+    granted-keyword / granted-landwalk tail (CR 509.1b / 702.14).
+
+    phase carries NO Tier-1 structural read for this concept (the
+    ``CantBeBlocked`` static tag is deliberately unread — see the module
+    docstring above), so this arm is the lane's ONLY source for the text
+    tail; there is no competing Tier-1 predicate to gap-gate against. The
+    card's OWN Scryfall keyword field rides a separate structural arm
+    (``_keyword_field_signals_b15``) — firing here on the same card too is
+    harmless, since the lane dedupes identical ``evasion_self`` signals by
+    identity (ADR-0036/0037).
+    """
+    if not _matches_evasion_self_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="evasion_self",
+        concept="synth_evasion_self",
+        scope="you",
+        subject=(),
+        desc="bucket-B evasion grant (can't-be-blocked / landwalk / keyword)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -2659,6 +2833,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),
     ("superfriends_matters", _arm_superfriends_matters),
+    ("evasion_self", _arm_evasion_self),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

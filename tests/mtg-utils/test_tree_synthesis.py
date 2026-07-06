@@ -295,11 +295,15 @@ def test_wants_cloning_arm2_self_dies_value_fires():
 def test_wants_cloning_synth_recovers_modal_etb(name):
     # A modal ("choose one —") / conditional-count ("for each {U}{U} spent, draw")
     # self-ETB whose value phase folds to ``other`` — bucket-B synth recovers it,
-    # gap-gated (no structural self-ETB value present).
+    # gap-gated (no structural self-ETB value present). Baleful Beholder's "Fear
+    # Ray — Creatures you control gain menace" modal ALSO independently
+    # synthesizes evasion_self (ADR-0036 fold, a genuine grant, unrelated to
+    # this wants_cloning claim) — filter to the arm under test.
     tree = _fixture_tree(name)
     assert not has_self_etb_value(tree)
-    assert [arm for arm, _ in synthesize_nodes(tree)] == ["wants_cloning"]
-    _arm, node = synthesize_nodes(tree)[0]
+    fired = dict(synthesize_nodes(tree))
+    assert "wants_cloning" in fired
+    node = fired["wants_cloning"]
     assert node.concept == "synth_wants_cloning"
     assert isinstance(node.node, SynthesizedNode)
     assert node.scope == "you"
@@ -784,17 +788,28 @@ def test_spellcast_synth_recovers_jaya_color_restricted_emblem():
     [
         "Eidolon of the Great Revel",  # symmetric any-caster punisher (no you-scope)
         "Alela, Artful Provocateur",  # artifact/enchantment-only carve-out → type lane
-        "Shanid, Sleepers' Scourge",  # FIX 2: "cast a legendary spell" → legends_matter
     ],
 )
 def test_spellcast_noops(name):
-    # neither arm fires: an opponent/any-caster punisher, an
-    # artifact/enchantment-only watched spell, and a supertype-restricted
-    # (legendary) untyped trigger all route AWAY from I/S Spellslinger density.
+    # neither arm fires: an opponent/any-caster punisher and an
+    # artifact/enchantment-only watched spell both route AWAY from I/S
+    # Spellslinger density.
     tree = _fixture_tree(name)
     assert has_structural_spellcast(tree) is False
     assert synthesize_nodes(tree) == ()
     assert apply_tree_synthesis(tree) is tree
+
+
+def test_spellcast_noop_shanid_sleepers_scourge():
+    # FIX 2: "cast a legendary spell" is a supertype-restricted untyped
+    # trigger that routes AWAY from I/S Spellslinger density — spellcast_matters
+    # does NOT synthesize. Shanid's "Other legendary creatures you control
+    # have menace" DOES independently synthesize evasion_self (ADR-0036 fold,
+    # a genuine grant — unrelated to the spellcast claim this test makes).
+    tree = _fixture_tree("Shanid, Sleepers' Scourge")
+    assert has_structural_spellcast(tree) is False
+    assert _arm_spellcast_matters(tree) is None
+    assert [arm for arm, _ in synthesize_nodes(tree)] == ["evasion_self"]
 
 
 def test_spellcast_trigger_rx_color_allowed_only_before_instant_or_sorcery():
@@ -1669,3 +1684,152 @@ def test_superfriends_lane_reads_synth_node_end_to_end():
     )
     sigs = _superfriends_matters(tree)
     assert any(s.key == "superfriends_matters" for s in sigs)
+
+
+# ── evasion_self fold (ADR-0036/0037) ───────────────────────────────────────────
+
+
+def _evasion_kw(name: str) -> frozenset[str]:
+    import json
+    from pathlib import Path
+
+    from mtg_utils._card_ir.mirror.build import fixtures_dir
+
+    path = fixtures_dir() / "crosswalk_fixture_cards.json"
+    fix = json.loads(Path(path).read_text())
+    return frozenset(fix.get("scryfall_keywords", {}).get(name, ()))
+
+
+def _evasion_lane_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _evasion_self
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "evasion_self" for s in _evasion_self(tree))
+
+
+def _evasion_kwfield_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _keyword_field_signals_b15
+
+    return any(
+        s.key == "evasion_self"
+        for s in _keyword_field_signals_b15(_evasion_kw(name), name)
+    )
+
+
+def _evasion_end_to_end_fires(name: str) -> bool:
+    """The FULL crosswalk pipeline (lane + keyword-field arms combined) —
+    what a bucket-A-only card (no synth node) actually surfaces through
+    ``extract_crosswalk_signals``."""
+    from mtg_utils._deck_forge.crosswalk_signals import extract_crosswalk_signals
+
+    tree = _fixture_tree(name)
+    sigs = extract_crosswalk_signals(
+        tree, keys=frozenset({"evasion_self"}), keywords=_evasion_kw(name)
+    )
+    return any(s.key == "evasion_self" for s in sigs)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Barbarian General",  # own Scryfall keyword: Horsemanship
+        "Ayumi, the Last Visitor",  # own keyword: Landwalk / Legendary landwalk
+        # (ADR-0036 bucket-A extension — the generic landwalk-family umbrella,
+        # a genuine ADD over the deleted mirror, which only matched the five
+        # basic-land-type walk WORDS and never this variant).
+    ],
+)
+def test_evasion_self_bucket_a_structural(name):
+    """The card's OWN Scryfall keyword field fires the signal with NO synth
+    node needed (:func:`_keyword_field_signals_b15` — bucket-A, unchanged/
+    extended); the ``_evasion_self`` TEXT lane itself stays silent (no
+    can't-be-blocked / granted-keyword idiom survives reminder-stripping)."""
+    assert _evasion_kwfield_fires(name) is True
+    assert _evasion_end_to_end_fires(name) is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Etrata, the Silencer",  # "Etrata can't be blocked." — CR 509.1b
+        "Surrakar Marauder",  # granted intimidate-in-text (landfall trigger)
+        "Legions of Lim-Dûl",  # bare "Snow swampwalk" ability-declaration line
+    ],
+)
+def test_evasion_self_bucket_b_synth(name):
+    """A genuine can't-be-blocked / granted-keyword / bare-landwalk-line tail
+    phase carries no Tier-1 read for — the synth arm fills it."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_evasion_self
+
+    tree = _fixture_tree(name)
+    assert _evasion_kwfield_fires(name) is False  # no OWN keyword, genuine gap
+    node = _arm_evasion_self(tree)
+    assert node is not None
+    assert node.concept == "synth_evasion_self"
+    assert node.scope == "you"
+    assert _evasion_lane_fires(name) is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Great Wall",  # evasion-DENIAL ("blocked as though ... didn't have
+        # plainswalk") — CR 702.14 denial, a separate ``_evasion_denial`` lane
+        "Trip Wire",  # horsemanship-hoser removal target, not a grant
+        "J. Jonah Jameson",  # bare "creature you control with menace" REFERENCE
+        # (the Suspect grant's own "has menace" lives only in reminder text)
+    ],
+)
+def test_evasion_self_shed_overfires(name):
+    from mtg_utils._card_ir.tree_synthesis import _arm_evasion_self
+
+    tree = _fixture_tree(name)
+    assert _evasion_kwfield_fires(name) is False
+    assert _arm_evasion_self(tree) is None
+    assert _evasion_lane_fires(name) is False
+
+
+def test_evasion_self_flying_only_does_not_fire():
+    """flying is DELIBERATELY not evasion_self (soft evasion, CR 702.9)."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_evasion_self
+    from mtg_utils._deck_forge.crosswalk_signals import _evasion_self
+
+    tree = _gap_tree("Flying")
+    assert _arm_evasion_self(tree) is None
+    synth = apply_tree_synthesis(tree)
+    assert not any(s.key == "evasion_self" for s in _evasion_self(synth))
+
+
+def test_evasion_self_synth_registered():
+    assert "evasion_self" in SYNTHESIS_ARM_IDS
+
+
+def test_evasion_self_lane_reads_synth_node_end_to_end():
+    """Fold path, mirror-independent: a synth ``synth_evasion_self`` node
+    ALONE — oracle carrying no evasion idiom — makes the ``_evasion_self``
+    lane emit the signal (proves the synth read is the ACTIVE Tier-1 source)."""
+    from mtg_utils._deck_forge.crosswalk_signals import _evasion_self
+
+    synth = ConceptNode(
+        concept="synth_evasion_self",
+        node=SynthesizedNode(arm_id="evasion_self", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _evasion_self(tree)
+    assert any(s.key == "evasion_self" for s in sigs)
