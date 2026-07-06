@@ -192,6 +192,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_arcane,
+    has_structural_keyword_counter,
     has_structural_outlaw,
     has_structural_spellcast,
     has_structural_superfriends,
@@ -221,7 +222,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _FIREBEND_RE,
     _FLOOR_DETECTORS,
     _IR_FLOOR_LANES,
-    _KEYWORD_COUNTER_KINDS,
     _NAMED_COUNTER_KINDS,
     _OPP_COUNTER_BENEFICIAL,
     _POWER_SCALING_RAW,
@@ -261,7 +261,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ENTERED_ATTACKER_REGEX,
     ISLAND_MAKERS_REGEX,
     ISLAND_MATTERS_REGEX,
-    KEYWORD_COUNTER_REGEX,
     NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     PUMP_MATTERS_REGEX,
     STATION_MATTERS_REGEX,
@@ -893,7 +892,6 @@ _ANIMATE_ARTIFACT_RX = re.compile(ANIMATE_ARTIFACT_REGEX, re.IGNORECASE)
 _COLOR_CHANGE_RX = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
 _UNSPENT_MANA_RX = re.compile(UNSPENT_MANA_REGEX, re.IGNORECASE)
 _VEHICLES_MATTER_RX = re.compile(VEHICLES_MATTER_REGEX, re.IGNORECASE)
-_KEYWORD_COUNTER_RX = re.compile(KEYWORD_COUNTER_REGEX, re.IGNORECASE)
 
 # Johan + manland mirrors: byte-identical copies of the two INLINE (unnamed)
 # ``_IR_KEPT_DETECTORS`` rows in ``_signals_ir`` (exert_matters ~line 2343,
@@ -7403,26 +7401,27 @@ def _stax_lanes(tree: ConceptTree) -> list[Signal]:
 
 def _keyword_counter(tree: ConceptTree) -> list[Signal]:
     """keyword_counter (§E) — CR 122.1b: a place/remove of a counter whose
-    kind is in the live ``_KEYWORD_COUNTER_KINDS`` closed set (imported, not
-    widened — the full 122.1b list would need its own logged pass): Arwen,
-    Mortal Queen's indestructible enters-with. The counter-kind-dropped
-    choice/grant tail (Wingfold Pteron's ChooseOneOf branches phase nests
-    outside the effect chain) rides the live KEYWORD_COUNTER_REGEX mirror.
+    kind is in the closed ``_KEYWORD_COUNTER_KINDS`` set: Arwen, Mortal
+    Queen's indestructible enters-with. A pure Tier-1 UNION (ADR-0036/0037
+    fold — the ``KEYWORD_COUNTER_REGEX`` text mirror is RETIRED):
+
+    * **Structural:** :func:`has_structural_keyword_counter` — the closed-set
+      kind check phase types directly.
+    * **bucket-B synth:** the ``tree_synthesis`` stage's
+      ``synth_keyword_counter`` node — the counter-kind-dropped choice/grant
+      tail phase nests outside the effect chain (Boot Nipper's ChooseOneOf
+      branches, Luminous Broodmoth's return-with-counter rider), gated
+      against the same structural read.
+
     Gates: P1P1/loyalty/oil/shield/rad/lore route to their own ported lanes
     via the kind set; stun is NOT a 122.1b keyword counter (CR 122.1d — a
     replacement-maker, the b11 tap cluster's country). Scope "any".
     """
-    for c in tree.iter_concepts():
-        if c.role != "effect":
-            continue
-        if c.concept not in ("place_counter", "remove_counter"):
-            continue
-        kind = (counter_kind(c.node) or counter_kind_any(c.node)).lower()
-        kind = kind.replace(" ", "")  # phase's "double strike" → doublestrike
-        if kind in _KEYWORD_COUNTER_KINDS:
-            return [Signal("keyword_counter", "any", "", c.raw, tree.name, "high")]
-    if _KEYWORD_COUNTER_RX.search(_kept(tree)):
+    if has_structural_keyword_counter(tree):
         return [Signal("keyword_counter", "any", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_keyword_counter":
+            return [Signal("keyword_counter", "any", "", "", tree.name, "high")]
     return []
 
 

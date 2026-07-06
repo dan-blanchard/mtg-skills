@@ -38,6 +38,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_arcane,
+    has_structural_keyword_counter,
     has_structural_outlaw,
     has_structural_spellcast,
     has_structural_stax_taxes,
@@ -2377,3 +2378,81 @@ def test_power_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _predicate_build_around(tree)
     assert any(s.key == "power_matters" for s in sigs)
+
+
+# ── batch T2-counters (ADR-0036/0037 Stage 5): keyword_counter ────────────────
+
+
+def _keyword_counter_lane_fires(tree: ConceptTree) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _keyword_counter
+
+    return any(
+        s.key == "keyword_counter" for s in _keyword_counter(apply_tree_synthesis(tree))
+    )
+
+
+def test_keyword_counter_bucket_a_structural():
+    """Arwen, Mortal Queen's indestructible enters-with — phase types the
+    counter kind directly on a place_counter effect (CR 122.1b)."""
+    tree = _fixture_tree("Arwen, Mortal Queen")
+    assert has_structural_keyword_counter(tree) is True
+    assert _keyword_counter_lane_fires(tree) is True
+
+
+def test_keyword_counter_bucket_b_synth():
+    """Boot Nipper's counter-kind CHOICE nests outside the effect chain in a
+    ChooseOneOf branch — a genuine phase-parse gap (measured: 25/107 corpus
+    fires)."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_keyword_counter
+
+    tree = _gap_tree(
+        "This creature enters with your choice of a deathtouch counter or a "
+        "lifelink counter on it."
+    )
+    assert has_structural_keyword_counter(tree) is False
+    node = _arm_keyword_counter(tree)
+    assert node is not None
+    assert node.concept == "synth_keyword_counter"
+    assert node.scope == "any"
+    assert _keyword_counter_lane_fires(tree) is True
+
+
+def test_keyword_counter_no_fire_on_unrelated_card():
+    from mtg_utils._card_ir.tree_synthesis import _arm_keyword_counter
+
+    tree = _fixture_tree("Mycoloth")
+    assert has_structural_keyword_counter(tree) is False
+    assert _arm_keyword_counter(tree) is None
+    assert _keyword_counter_lane_fires(tree) is False
+
+
+def test_keyword_counter_synth_registered():
+    assert "keyword_counter" in SYNTHESIS_ARM_IDS
+
+
+def test_keyword_counter_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _keyword_counter
+
+    synth = ConceptNode(
+        concept="synth_keyword_counter",
+        node=SynthesizedNode(arm_id="keyword_counter", description="x"),
+        role="effect",
+        scope="any",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _keyword_counter(tree)
+    assert any(s.key == "keyword_counter" for s in sigs)

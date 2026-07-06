@@ -57,6 +57,7 @@ from mtg_utils._card_ir.crosswalk import (
     change_zone_dirs,
     condition_tags,
     count_operand_filter,
+    counter_kind,
     counter_kind_any,
     effect_filter,
     effect_owner_player_scope,
@@ -98,6 +99,7 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 from mtg_utils._card_ir.project import _MASS_DEATH_REF
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
+    _KEYWORD_COUNTER_KINDS,
     _STAX_TAXES_RESIDUE_RE,
     _SYMMETRIC_STAX_RESIDUE_RE,
     _restriction_pacifies_single_creature,
@@ -116,6 +118,7 @@ from mtg_utils._deck_forge._signals_regex import (
     clauses,
 )
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
+from mtg_utils._deck_forge._sweep_detectors import KEYWORD_COUNTER_REGEX
 
 __all__ = [
     "ATTACK_TRIGGER_EVENTS",
@@ -3300,6 +3303,56 @@ def _arm_power_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arm: keyword_counter bucket-B (ADR-0036/0037 Stage 5, batch T2-counters) ───
+# CR 122.1b: a counter that grants a keyword via layer 6 (CR 613.1f). Shared
+# structural gate with the ``_keyword_counter`` lane — one source, no drift: a
+# ``place_counter``/``remove_counter`` effect whose kind is in the CLOSED
+# ``_KEYWORD_COUNTER_KINDS`` set. The genuine residue: phase nests the actual
+# counter-kind CHOICE outside the effect chain for a ``ChooseOneOf`` branch
+# (Boot Nipper's "your choice of a deathtouch counter or a lifelink counter",
+# Owen Grady's activated "choice of a menace, trample, reach, or haste
+# counter") and a counter RIDER attached to a sibling effect (Luminous
+# Broodmoth's "return it... with a flying counter on it" riding a ChangeZone) —
+# probed: 25/107 corpus fires are this class, structurally un-reachable this
+# batch. Relocates the deleted ``KEYWORD_COUNTER_REGEX`` mirror verbatim.
+def has_structural_keyword_counter(tree: ConceptTree) -> bool:
+    """A CR 122.1b keyword-counter placement/removal phase types directly."""
+    for c in tree.iter_concepts():
+        if c.role != "effect":
+            continue
+        if c.concept not in ("place_counter", "remove_counter"):
+            continue
+        kind = (counter_kind(c.node) or counter_kind_any(c.node)).lower()
+        kind = kind.replace(" ", "")
+        if kind in _KEYWORD_COUNTER_KINDS:
+            return True
+    return False
+
+
+_KEYWORD_COUNTER_SYNTH_RX = re.compile(KEYWORD_COUNTER_REGEX, re.IGNORECASE)
+
+
+def _matches_keyword_counter_idiom(oracle: str) -> bool:
+    return bool(_KEYWORD_COUNTER_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_keyword_counter(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``keyword_counter`` node for the choice/grant tail phase
+    nests outside the effect chain (the deleted ``_KEYWORD_COUNTER_RX``
+    relocated verbatim)."""
+    if has_structural_keyword_counter(tree):
+        return None
+    if not _matches_keyword_counter_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="keyword_counter",
+        concept="synth_keyword_counter",
+        scope="any",
+        subject=(),
+        desc="bucket-B keyword-counter choice/grant tail (CR 122.1b)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3331,6 +3384,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("arcane_matters", _arm_arcane_matters),
     ("exalted_lone_attacker", _arm_exalted_lone_attacker),
     ("power_matters", _arm_power_matters),
+    ("keyword_counter", _arm_keyword_counter),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
