@@ -33,6 +33,7 @@ from mtg_utils._card_ir.mirror.generated_types import (
     T_effect__DestroyAll,
     T_effect__GenericEffect,
     T_effect__PutCounter,
+    T_effect__SetTapState,
     T_filters__StackSpell,
     T_filters__Typed,
     T_modifications__AddKeyword,
@@ -40,6 +41,7 @@ from mtg_utils._card_ir.mirror.generated_types import (
     T_modifications__AddToughness,
     T_properties__HasColor,
     T_properties__Owned,
+    T_state__Tap,
     T_target__And,
     T_target__ParentTarget,
     T_target__Typed,
@@ -69,6 +71,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_manland,
     _arm_miracle_grant,
     _arm_noncombat_damage_payoff,
+    _arm_opponent_counter_grant,
     _arm_opponent_exile_matters,
     _arm_per_target_payoff,
     _arm_proliferate_remove_cost,
@@ -114,6 +117,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_life_payment_insurance,
     has_structural_manland,
     has_structural_miracle_grant,
+    has_structural_opponent_counter_grant,
     has_structural_outlaw,
     has_structural_proliferate,
     has_structural_pump_makers,
@@ -4976,3 +4980,81 @@ def test_b13_node_anchor_fires_on_pollywog_symbiote():
 
 def test_b13_node_anchor_no_fire_on_unrelated_card():
     assert _arm_b13_node_anchor(_fixture_tree("Llanowar Elves")) is None
+
+
+# ── batch T9-finalize: GLOBAL FINALIZE, opponent_counter_grant ─────────────
+
+
+def test_opponent_counter_grant_synth_registered():
+    assert "opponent_counter_grant" in SYNTHESIS_ARM_IDS
+
+
+def test_opponent_counter_grant_fires_on_mind_spiral_cotap_anaphora():
+    """Mind Spiral-shaped: "tap target creature an opponent controls and
+    put a stun counter on it" — phase loses BOTH the tap target's AND the
+    counter's own target to ``ParentTarget`` (the pronoun "it"), so the
+    per-unit structural join (raw="") can't see the opponent direction;
+    only the whole-oracle anaphora-recovery scan (via the unit's own
+    ``description``) finds it. Hand-built (real corpus residue: Mind
+    Spiral, not in the committed crosswalk fixture) since the mechanism
+    needs actual typed place_counter/tap_untap effect nodes, not bare
+    oracle text."""
+    stun_counter = ConceptNode(
+        concept="place_counter",
+        node=T_effect__PutCounter(
+            count=T_count__Fixed(value=1),
+            counter_type="stun",
+            target=T_target__ParentTarget(),
+        ),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    tap_effect = ConceptNode(
+        concept="tap_untap",
+        node=T_effect__SetTapState(
+            scope="you", state=T_state__Tap(), target=T_target__ParentTarget()
+        ),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="ability",
+        index=0,
+        node=SynthesizedNode(
+            arm_id="_test",
+            description=(
+                "tap target creature an opponent controls and put a stun counter on it"
+            ),
+        ),
+        kind="Spell",
+        trigger_event=None,
+        effects=(tap_effect, stun_counter),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(name="Mind Spiral", oracle_id="x", oracle="x", units=(unit,))
+    assert not has_structural_opponent_counter_grant(tree)
+    node = _arm_opponent_counter_grant(tree)
+    assert node is not None
+    assert node.concept == "synth_opponent_counter_grant"
+    assert node.scope == "opponents"
+
+
+def test_opponent_counter_grant_gap_gated_when_structural_present():
+    """Mathas, Fiend Seeker's counter target controller is directly
+    Opponent — the residue arm must not double-fire."""
+    tree = _fixture_tree("Mathas, Fiend Seeker")
+    assert has_structural_opponent_counter_grant(tree)
+    assert _arm_opponent_counter_grant(tree) is None
+
+
+def test_opponent_counter_grant_no_fire_on_wrong_direction_or_self_stun():
+    """Hunter of Eyeblights places a BENEFICIAL +1/+1 counter (wrong
+    direction); Pugnacious Hammerskull stuns ITSELF (no opp recipient, no
+    co-tap) — neither fires."""
+    assert _arm_opponent_counter_grant(_fixture_tree("Hunter of Eyeblights")) is None
+    assert _arm_opponent_counter_grant(_fixture_tree("Pugnacious Hammerskull")) is None

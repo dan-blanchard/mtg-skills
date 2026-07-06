@@ -144,13 +144,10 @@ from mtg_utils._card_ir.project import (
     _counter_kind_token,
 )
 
-# The b15 opponent_counter_grant co-tap join imports the LIVE supplement
-# tap-opp anaphora combinators (the same single-source pattern as the
-# project.py anchors above): phase loses the "tap target creature an
-# opponent controls" target to ParentTarget/DefendingPlayer, and the live
-# tap subject's 'opp' comes from exactly these anchors.
-from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
-
+# The b15 opponent_counter_grant co-tap anaphora fallback (the supplement's
+# tap-opp combinators) was T9-finalize folded to the
+# ``_arm_opponent_counter_grant`` bucket-B synth arm; the combinators now
+# live in tree_synthesis.py, imported single-source from supplement.py.
 # The Tier-1 death_matters arms (ADR-0036/0037) share the LIVE structural reads
 # with the ``tree_synthesis`` bucket-B gap gate — one source, no drift: the morbid
 # creature-death state check and the ``CreatureDying`` trigger-doubler.
@@ -184,6 +181,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_keyword_counter,
     has_structural_life_payment_insurance,
     has_structural_meld_pair,
+    has_structural_opponent_counter_grant,
     has_structural_outlaw,
     has_structural_power_tap_engine,
     has_structural_proliferate,
@@ -217,7 +215,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _FLOOR_DETECTORS,
     _IR_FLOOR_LANES,
     _NAMED_COUNTER_KINDS,
-    _OPP_COUNTER_BENEFICIAL,
     _SAME_TRUE_KW_RE,
     _SELF_PROTECTION_GRANT_KW,
     _TYPED_ANTHEM_MULTI_RAW,
@@ -9254,55 +9251,31 @@ def _global_ability_grant(tree: ConceptTree) -> list[Signal]:
 def _opponent_counter_grant(tree: ConceptTree) -> list[Signal]:
     """opponent_counter_grant (§6) — CR 122.1 / 122.1d (the stun-counter
     untap replacement — the canonical detrimental mark): a DETRIMENTAL
-    counter placed on an OPPONENT's permanent. Per-unit join (granularity
-    a): a ``place_counter`` whose kind is NOT beneficial (the imported
-    live ``_OPP_COUNTER_BENEFICIAL`` — p1p1/shield/keyword counters HELP
-    the recipient: Hunter of Eyeblights places a +1/+1 to enable its own
+    counter placed on an OPPONENT's permanent. Tier-1 (ADR-0036/0037
+    Stage 5 T9-finalize fold — the co-tap anaphora whole-oracle FALLBACK
+    is RETIRED to a gap-gated bucket-B synth arm; the per-unit join
+    itself, :func:`has_structural_opponent_counter_grant`, is untouched):
+    a ``place_counter`` whose kind is NOT beneficial (the imported live
+    ``_OPP_COUNTER_BENEFICIAL`` — p1p1/shield/keyword counters HELP the
+    recipient: Hunter of Eyeblights places a +1/+1 to enable its own
     removal, the wrong direction, pop False) AND either (A) the counter's
     own target controller is Opponent (Mathas's bounty), or (B) kind ==
     "stun" with a co-occurring same-unit tap of an opp-controller subject
-    (Freeze in Place's "tap … and put a stun counter on IT" — the
-    pronoun-loss recovery, the live (B) shape). Self-stun drawbacks have
-    no opp recipient and no co-tap (Pugnacious Hammerskull stuns ITSELF,
-    pop False). Scope "opponents", HIGH.
+    read off the unit's OWN ``description``. The
+    ``synth_opponent_counter_grant`` node
+    (:func:`_arm_opponent_counter_grant`) covers the cases where that
+    field is empty and only a whole-oracle anaphora-recovery scan finds
+    the co-tap (Freeze in Place's "tap … and put a stun counter on IT" —
+    the pronoun-loss recovery). Self-stun drawbacks have no opp recipient
+    and no co-tap (Pugnacious Hammerskull stuns ITSELF, pop False). Scope
+    "opponents", HIGH.
     """
-    kept = _kept(tree)
-    for unit in tree.units:
-        # The co-tap's opp direction: the tap target's own controller, OR
-        # the supplement's tap-opp anaphora anchors over the unit raw (the
-        # SAME `_TAP_OPP_CONTROL_P`/`_EACH_PLAYER_P` combinators the live
-        # projection runs — phase loses the target to ParentTarget /
-        # DefendingPlayer on the "tap target creature an opponent controls
-        # …" chains: Snaremaster Sprite, Mjölnir, Sensational Spider-Man,
-        # Omega, Mind Spiral, Stunning Shot; shadow-diff-tuned, 6 members).
-        raw = getattr(unit.node, "description", None) or kept
-        opp_tap_here = any(
-            settap_state(c.node) == "Tap"
-            and (
-                filter_controller(getattr(c.node, "target", None)) == "Opponent"
-                or (
-                    _TAP_OPP_CONTROL_P.run(raw) is not None
-                    and _EACH_PLAYER_P.run(raw) is None
-                )
-            )
-            for c in unit.effect_concepts("tap_untap")
-        )
-        for c in unit.effect_concepts("place_counter"):
-            kind = counter_kind(c.node).lower()
-            if kind in _OPP_COUNTER_BENEFICIAL:
-                continue
-            recip_opp = filter_controller(getattr(c.node, "target", None)) == "Opponent"
-            if recip_opp or (kind == "stun" and opp_tap_here):
-                return [
-                    Signal(
-                        "opponent_counter_grant",
-                        "opponents",
-                        "",
-                        c.raw,
-                        tree.name,
-                        "high",
-                    )
-                ]
+    key = "opponent_counter_grant"
+    if has_structural_opponent_counter_grant(tree):
+        return [Signal(key, "opponents", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_opponent_counter_grant":
+            return [Signal(key, "opponents", "", "", tree.name, "high")]
     return []
 
 

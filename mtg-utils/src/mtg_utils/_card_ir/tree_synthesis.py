@@ -119,9 +119,11 @@ from mtg_utils._card_ir.project import (
     _TOKEN_SUBTYPE_OWN_REF,
     _UNDYING_PERSIST_GRANT,
 )
+from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
     _KEYWORD_COUNTER_KINDS,
+    _OPP_COUNTER_BENEFICIAL,
     _POWER_SCALING_RAW,
     _PROLIFERATE_REMOVE_COST_RE,
     _STAX_TAXES_RESIDUE_RE,
@@ -4680,6 +4682,81 @@ def _arm_b13_node_anchor(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arm: opponent_counter_grant text-fallback (ADR-0036/0037 Stage 5,
+# T9-finalize) ────────────────────────────────────────────────────────────────
+# CR 122.1/122.1d: a DETRIMENTAL counter placed on an OPPONENT's permanent —
+# per-unit join, a ``place_counter`` whose kind is not beneficial AND either
+# the counter's own target controller is Opponent, or kind == "stun" with a
+# co-occurring same-unit tap of an opp-controller subject. The co-tap's own
+# opp direction is READ off the counting unit's own ``description`` when
+# present; only when that field is EMPTY does the live lane fall back to a
+# whole-oracle scan (the anaphora-recovery combinators ``_TAP_OPP_CONTROL_P``/
+# ``_EACH_PLAYER_P`` — phase loses the target to ParentTarget/DefendingPlayer
+# on "tap target creature an opponent controls …" chains: Freeze in Place,
+# Snaremaster Sprite, Mjölnir, Sensational Spider-Man, Omega, Mind Spiral,
+# Stunning Shot). :func:`_opponent_counter_grant_fires` takes the fallback
+# text as a parameter so the SAME per-unit walk serves both the structural
+# gate (fallback="") and the arm (fallback=kept oracle) — one source, no
+# drift.
+def has_structural_opponent_counter_grant(tree: ConceptTree) -> bool:
+    """A ``place_counter`` effect (non-beneficial kind) whose OWN typed
+    target controller is directly Opponent (Mathas's bounty) — the ONLY
+    pure-typed-field read. The stun+co-tap join always requires a text
+    parse of a unit's own ``description`` (or, when empty, the whole
+    oracle) via the anaphora-recovery combinators, so it is deliberately
+    NOT included here — see :func:`_arm_opponent_counter_grant`, the
+    lane's sole source for that join."""
+    for unit in tree.units:
+        for c in unit.effect_concepts("place_counter"):
+            kind = counter_kind(c.node).lower()
+            if kind in _OPP_COUNTER_BENEFICIAL:
+                continue
+            if filter_controller(getattr(c.node, "target", None)) == "Opponent":
+                return True
+    return False
+
+
+def _arm_opponent_counter_grant(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``opponent_counter_grant`` node for the stun+co-tap
+    join (Freeze in Place / Mind Spiral's "tap … and put a stun counter on
+    IT" pronoun-loss recovery) — the deleted lane-time computation
+    relocated verbatim, gap-gated against
+    :func:`has_structural_opponent_counter_grant` (the direct-recipient
+    case that gate covers is a strict subset of this join, so re-firing
+    here would only ever duplicate it — the gate keeps the arm's role to
+    genuine residue)."""
+    if has_structural_opponent_counter_grant(tree):
+        return None
+    kept = _REMINDER.sub(" ", tree.oracle or "")
+    for unit in tree.units:
+        raw = getattr(unit.node, "description", None) or kept
+        opp_tap_here = any(
+            settap_state(c.node) == "Tap"
+            and (
+                filter_controller(getattr(c.node, "target", None)) == "Opponent"
+                or (
+                    _TAP_OPP_CONTROL_P.run(raw) is not None
+                    and _EACH_PLAYER_P.run(raw) is None
+                )
+            )
+            for c in unit.effect_concepts("tap_untap")
+        )
+        for c in unit.effect_concepts("place_counter"):
+            kind = counter_kind(c.node).lower()
+            if kind in _OPP_COUNTER_BENEFICIAL:
+                continue
+            recip_opp = filter_controller(getattr(c.node, "target", None)) == "Opponent"
+            if recip_opp or (kind == "stun" and opp_tap_here):
+                return _synthetic_concept(
+                    arm_id="opponent_counter_grant",
+                    concept="synth_opponent_counter_grant",
+                    scope="opponents",
+                    subject=(),
+                    desc="bucket-B stun+co-tap join (CR 122.1/122.1d)",
+                )
+    return None
+
+
 def has_structural_color_hoser(tree: ConceptTree) -> bool:
     """A Destroy/Counter/mass-Destroy/mass-Exile/mass-Bounce effect whose
     target (or, for Counter, an ``And``-composite member) directly names a
@@ -5922,6 +5999,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("type_change", _arm_type_change),
     ("b13_raw_anchor", _arm_b13_raw_anchor),
     ("b13_node_anchor", _arm_b13_node_anchor),
+    ("opponent_counter_grant", _arm_opponent_counter_grant),
     ("void_warp_makers", _arm_void_warp_makers),
     ("sacrifice_protection", _arm_sacrifice_protection),
     ("life_payment_insurance", _arm_life_payment_insurance),
