@@ -191,6 +191,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_counter_distribute,
     has_structural_crimes_matter,
     has_structural_curse_matters,
+    has_structural_exert_matters,
     has_structural_keyword_counter,
     has_structural_life_payment_insurance,
     has_structural_meld_pair,
@@ -870,17 +871,12 @@ _FIXING_PRODUCED_TYPES: frozenset[str] = frozenset(
 
 
 # ── Batch-12 mirror constants + census sets ──────────────────────────────────
-# (the entered_attacker ``ENTERED_ATTACKER_REGEX`` mirror was ADR-0036/0037
-# folded to a fully structural read — see ``_entered_attacker``.)
-
-# Johan mirror: byte-identical copy of the INLINE (unnamed) ``_IR_KEPT_
-# DETECTORS`` row in ``_signals_ir`` (exert_matters ~line 2343) — a b12
-# mirror with no importable name. (The manland sibling — land_protection
-# ~line 2411 — was ADR-0036/0037 folded to a bucket-B ``tree_synthesis``
-# arm; see ``_arm_manland``.)
-_JOHAN_MIRROR = re.compile(
-    r"attacking doesn'?t cause (?:creatures|them)[^.]*to tap", re.IGNORECASE
-)
+# (the entered_attacker ``ENTERED_ATTACKER_REGEX`` mirror and the Johan word
+# mirror were ADR-0036/0037 folded — entered_attacker to a fully structural
+# read (see ``_entered_attacker``), exert_matters's Johan residual to the
+# ``tree_synthesis`` stage's ``_JOHAN_MIRROR``-relocated
+# ``synth_exert_matters`` bucket-B arm. The manland sibling — land_protection
+# — was likewise folded earlier; see ``_arm_manland``.)
 
 # Reminder-text strip — the same paren-substitution the live path applies to
 # build ``kept_oracle`` (_signals_ir line ~11091).
@@ -6817,30 +6813,42 @@ def _cycling_matters(tree: ConceptTree) -> list[Signal]:
 
 def _exert_matters(tree: ConceptTree) -> list[Signal]:
     """exert_matters (§A) — CR 701.43a + 702.20b (vigilance neutralizes
-    exert's won't-untap): (a) a mass-vigilance grant onto your GENERIC
-    creature board (Always Watching — AddKeyword{Vigilance}, affected
-    Typed[Creature] controller You, no subtype scoping; Another/NonToken
-    allowed, a Counters-predicated grant is counter_grants_kw's country);
-    (b) the Johan word mirror, byte-identical. Gate #4: the Exerted trigger
-    (28 corpus, all SelfRef riders — Combat Celebrant) is MEMBERSHIP and
-    never fires. SELF-GRANT veto via the affected-tag check. Scope "you".
+    exert's won't-untap).
+
+    Tier-1 (ADR-0036/0037 fold — the lane-time ``_JOHAN_MIRROR`` kept-oracle
+    read is RETIRED):
+
+    (a) STRUCTURAL — :func:`has_structural_exert_matters` — a mass-vigilance
+    grant onto your GENERIC creature board (Always Watching —
+    AddKeyword{Vigilance}, affected Typed[Creature] controller You, no
+    subtype scoping; Another/NonToken allowed). SELF-GRANT veto via the
+    affected-tag check.
+    (b) the ``tree_synthesis`` stage's ``synth_exert_matters`` bucket-B node
+    — Johan's unique "attacking doesn't cause creatures you control to tap"
+    replacement, gated against (a). Gate #4: the Exerted trigger (28 corpus,
+    all SelfRef riders — Combat Celebrant) is MEMBERSHIP and never fires.
+    Scope "you".
     """
-    for unit in tree.units:
-        for sdef, mod in iter_mod_sites(unit.node):
-            if tag_of(mod) != "AddKeyword" or mod_keyword_name(mod) != "Vigilance":
-                continue
-            affected = getattr(sdef, "affected", None)
-            if tag_of(affected) != "Typed":
-                continue  # SelfRef / ParentTarget self- or single-grant
-            if "Creature" not in filter_core_types(affected):
-                continue
-            if filter_controller(affected) != "You" or filter_subtypes(affected):
-                continue
-            return [
-                Signal("exert_matters", "you", "", _site_raw(sdef), tree.name, "high")
-            ]
-    if _JOHAN_MIRROR.search(_kept(tree)):
-        return [Signal("exert_matters", "you", "", "", tree.name, "high")]
+    if has_structural_exert_matters(tree):
+        for unit in tree.units:
+            for sdef, mod in iter_mod_sites(unit.node):
+                if tag_of(mod) != "AddKeyword" or mod_keyword_name(mod) != "Vigilance":
+                    continue
+                affected = getattr(sdef, "affected", None)
+                if tag_of(affected) != "Typed":
+                    continue
+                if "Creature" not in filter_core_types(affected):
+                    continue
+                if filter_controller(affected) != "You" or filter_subtypes(affected):
+                    continue
+                return [
+                    Signal(
+                        "exert_matters", "you", "", _site_raw(sdef), tree.name, "high"
+                    )
+                ]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_exert_matters":
+            return [Signal("exert_matters", "you", "", "", tree.name, "high")]
     return []
 
 

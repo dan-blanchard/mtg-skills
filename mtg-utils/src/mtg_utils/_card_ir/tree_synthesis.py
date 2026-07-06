@@ -78,6 +78,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_mod_sites,
     iter_static_defs,
     iter_typed_nodes,
+    mod_keyword_name,
     modify_cost_mode,
     node_duration,
     replacement_event_tag,
@@ -175,6 +176,7 @@ __all__ = [
     "has_structural_color_hoser",
     "has_structural_crimes_matter",
     "has_structural_curse_matters",
+    "has_structural_exert_matters",
     "has_structural_kill_engine",
     "has_structural_life_payment_insurance",
     "has_structural_meld_pair",
@@ -5189,6 +5191,55 @@ def _arm_toughness_combat(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T7-niche-c: exert_matters Johan residual ──────────────────────────
+# CR 701.43a (exert) + 702.20b (vigilance neutralizes exert's won't-untap):
+# STRUCTURAL — a mass-vigilance grant onto your generic (no-subtype)
+# creature board (Always Watching). The residual: Johan's unique "attacking
+# doesn't cause creatures you control to tap this combat" replacement (a
+# conditional, once-per-combat vigilance-alike CR 702.20b never structures)
+# — the ENTIRE corpus census is the one card. Relocates the deleted
+# ``_JOHAN_MIRROR`` verbatim, gap-gated. Measured over the commander-legal
+# corpus: 1 card (Johan), no structural overlap, 0 drops, 0 adds.
+def has_structural_exert_matters(tree: ConceptTree) -> bool:
+    """Whether a mass-vigilance grant exists onto a generic (no-subtype)
+    creature-you-control filter (``exert_matters``'s direct arm)."""
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "AddKeyword" or mod_keyword_name(mod) != "Vigilance":
+                continue
+            affected = getattr(sdef, "affected", None)
+            if tag_of(affected) != "Typed":
+                continue
+            if "Creature" not in filter_core_types(affected):
+                continue
+            if filter_controller(affected) != "You" or filter_subtypes(affected):
+                continue
+            return True
+    return False
+
+
+_JOHAN_MIRROR = re.compile(
+    r"attacking doesn'?t cause (?:creatures|them)[^.]*to tap", re.IGNORECASE
+)
+
+
+def _arm_exert_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``exert_matters`` node for the Johan-only "attacking
+    doesn't cause tapping" residual (the deleted ``_JOHAN_MIRROR`` mirror
+    relocated, gap-gated against :func:`has_structural_exert_matters`)."""
+    if has_structural_exert_matters(tree):
+        return None
+    if _JOHAN_MIRROR.search(_REMINDER.sub(" ", tree.oracle or "")) is None:
+        return None
+    return _synthetic_concept(
+        arm_id="exert_matters",
+        concept="synth_exert_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B Johan attacking-doesn't-tap residue (CR 702.20b)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -5253,6 +5304,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("starting_life_matters", _arm_starting_life_matters),
     ("meld_pair", _arm_meld_pair),
     ("toughness_combat", _arm_toughness_combat),
+    ("exert_matters", _arm_exert_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
