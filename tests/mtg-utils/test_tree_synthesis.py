@@ -40,6 +40,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_flash_matters,
     _arm_island_matters,
     _arm_manland,
+    _arm_opponent_exile_matters,
     _arm_pump_makers,
     _arm_spellcast_matters,
     _arm_suspect_matters,
@@ -3521,3 +3522,53 @@ def test_pump_makers_lane_reads_synth_node_end_to_end():
     )
     sigs = _pump_makers_lane(tree)
     assert any(s.key == "pump_makers" for s in sigs)
+
+
+# ── batch T5-niche-a: opponent_exile_matters (full relocation, no gate) ────
+
+
+def test_opponent_exile_matters_bucket_b_synth_sole_source():
+    """Umbris, Fear Manifest's "gets +1/+1 for each card your opponents own
+    in exile" — phase never structures the scaling reference at all (a
+    genuine gap), so no competing Tier-1 predicate exists."""
+    tree = _fixture_tree("Umbris, Fear Manifest")
+    node = _arm_opponent_exile_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_opponent_exile_matters"
+    assert node.scope == "opponents"
+
+
+def test_opponent_exile_matters_no_fire_on_unrelated_card():
+    assert _arm_opponent_exile_matters(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_opponent_exile_matters_synth_registered():
+    assert "opponent_exile_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_opponent_exile_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _opponent_exile_matters_lane
+
+    synth = ConceptNode(
+        concept="synth_opponent_exile_matters",
+        node=SynthesizedNode(arm_id="opponent_exile_matters", description="x"),
+        role="effect",
+        scope="opponents",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _opponent_exile_matters_lane(tree)
+    assert any(s.key == "opponent_exile_matters" for s in sigs)

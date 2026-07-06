@@ -4299,6 +4299,44 @@ def _arm_pump_makers(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T5-niche-a: opponent_exile_matters (full relocation, no gate) ─────
+# CR 406.1: the REFERENCES-their-exile payoff (ADR-0034 split; the
+# graveyard-hate DOER is opponent_exile_makers). A 2-card population over the
+# whole corpus (Umbris, Fear Manifest; That Which Was Compleated, not
+# commander-legal): Umbris's own static carries the base ``AddPower{value:
+# 1}``/``AddToughness{value: 1}`` grant but phase does NOT structure the "for
+# each card your opponents own in exile" SCALING reference at all (no count
+# operand on the modification — a genuine phase-parse gap, not a dropped
+# read); no competing Tier-1 predicate exists. Relocates the deleted
+# ``_OPP_EXILE_MATTERS_MIRROR`` verbatim — SOLE source (the flash_matters/
+# suspect_matters no-competing-predicate precedent). Measured byte-identical
+# (2/2 union, 0 drops, 0 adds).
+_OPP_EXILE_MATTERS_SYNTH_RX = re.compile(
+    r"cards? (?:your opponents own|an opponent owns)[^.]*in exile"
+    r"|for each card your opponents own in exile|opponents own in exile",
+    re.IGNORECASE,
+)
+
+
+def _matches_opponent_exile_matters_idiom(oracle: str) -> bool:
+    return bool(_OPP_EXILE_MATTERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_opponent_exile_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``opponent_exile_matters`` node (the deleted
+    ``_OPP_EXILE_MATTERS_MIRROR`` relocated verbatim — no competing Tier-1
+    predicate exists, so this is the lane's SOLE source)."""
+    if not _matches_opponent_exile_matters_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="opponent_exile_matters",
+        concept="synth_opponent_exile_matters",
+        scope="opponents",
+        subject=(),
+        desc="bucket-B opponent-exile-zone reference (CR 406.1)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4347,6 +4385,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("crimes_matter", _arm_crimes_matter),
     ("suspect_matters", _arm_suspect_matters),
     ("pump_makers", _arm_pump_makers),
+    ("opponent_exile_matters", _arm_opponent_exile_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

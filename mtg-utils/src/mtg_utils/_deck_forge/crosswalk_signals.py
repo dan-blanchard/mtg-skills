@@ -8139,13 +8139,9 @@ def _keyword_tribe(tree: ConceptTree) -> list[Signal]:
 
 # Byte-identical copies of the INLINE (unnamed) ``_IR_KEPT_DETECTORS`` rows —
 # the _JOHAN_MIRROR precedent (no importable name exists for these).
-# (clue_matters / flash_matters were ADR-0036/0037 folded to bucket-B
-# ``tree_synthesis`` arms; see ``_arm_clue_matters`` / ``_arm_flash_matters``.)
-_OPP_EXILE_MATTERS_MIRROR = re.compile(
-    r"cards? (?:your opponents own|an opponent owns)[^.]*in exile"
-    r"|for each card your opponents own in exile|opponents own in exile",
-    re.IGNORECASE,
-)
+# (clue_matters / flash_matters / opponent_exile_matters were ADR-0036/0037
+# folded to bucket-B ``tree_synthesis`` arms; see ``_arm_clue_matters`` /
+# ``_arm_flash_matters`` / ``_arm_opponent_exile_matters``.)
 # The signals.py wants_theft hybrid FACADE's don't-own tell (byte-identical to
 # the inline regex at signals.py's include_membership block). Live runs it over
 # the RAW oracle (get_oracle_text — NOT reminder-stripped); the crosswalk reads
@@ -8711,15 +8707,21 @@ def _destroy_legendary(tree: ConceptTree) -> list[Signal]:
 def _opponent_exile_matters_lane(tree: ConceptTree) -> list[Signal]:
     """opponent_exile_matters (§17) — CR 406.1: the REFERENCES-their-exile
     payoff (ADR-0034 split; the graveyard-hate DOER is ported
-    opponent_exile_makers — Bojuka Bog never fires here). Kept-mirror-ONLY;
-    pop is exactly {Umbris, Fear Manifest; That Which Was Compleated} — a
-    2-card lane earns no structural arm (Umbris's count operand IS typed in
-    v0.9.0; mirror parity is total). Scope "opponents", HIGH.
+    opponent_exile_makers — Bojuka Bog never fires here). Tier-1
+    (ADR-0036/0037 fold — the ``_OPP_EXILE_MATTERS_MIRROR`` kept-mirror is
+    RETIRED): a 2-card population (Umbris, Fear Manifest; That Which Was
+    Compleated) with no competing Tier-1 predicate (Umbris's own static
+    carries the base grant but phase never structures the "for each card
+    your opponents own in exile" scaling reference at all — a genuine gap,
+    not a dropped read), so the ``tree_synthesis`` stage's
+    ``synth_opponent_exile_matters`` bucket-B node is the lane's SOLE
+    source. Scope "opponents", HIGH.
     """
-    if _OPP_EXILE_MATTERS_MIRROR.search(_kept(tree)):
-        return [
-            Signal("opponent_exile_matters", "opponents", "", "", tree.name, "high")
-        ]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_opponent_exile_matters":
+            return [
+                Signal("opponent_exile_matters", "opponents", "", "", tree.name, "high")
+            ]
     return []
 
 
