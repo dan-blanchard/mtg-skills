@@ -41,6 +41,7 @@ from mtg_utils._card_ir.mirror.generated_types import (
 from mtg_utils._card_ir.tree_synthesis import (
     _SPELLCAST_TRIGGER_RX,
     SYNTHESIS_ARM_IDS,
+    _arm_ability_copy,
     _arm_animate_artifact,
     _arm_clue_matters,
     _arm_color_change,
@@ -446,9 +447,15 @@ def test_wants_cloning_synth_recovers_mairsil_folded_grant():
     # Mairsil: "has all activated abilities ... activate each ... only once each turn"
     # — the canonical clone-combo target, whose grant phase folds to Unimplemented (a
     # genuine bucket-B parse gap the structural repeatable-engine read can't see).
+    # The SAME "has all activated abilities of" clause is also the ability_copy
+    # whole-suite-importer idiom (ADR-0036/0037 T6-niche-b fold) — a genuine
+    # second signal on the same card, not a regression.
     tree = _fixture_tree("Mairsil, the Pretender")
     assert not has_repeatable_engine(tree)
-    assert [arm for arm, _ in synthesize_nodes(tree)] == ["wants_cloning"]
+    assert sorted(arm for arm, _ in synthesize_nodes(tree)) == [
+        "ability_copy",
+        "wants_cloning",
+    ]
     assert _wants_cloning_fires("Mairsil, the Pretender")
 
 
@@ -3896,3 +3903,77 @@ def test_life_payment_insurance_lane_reads_synth_node_end_to_end():
     )
     sigs = _life_payment_insurance(tree)
     assert any(s.key == "life_payment_insurance" for s in sigs)
+
+
+# ── batch T6-niche-b ─────────────────────────────────────────────────────
+
+
+def _synth_concept_tree(concept: str) -> ConceptTree:
+    """A unit-less tree carrying ONE pre-built synthetic concept node — the
+    lane-reads-the-synth-node end-to-end shape shared by every T6-niche-b
+    lane test."""
+    synth = ConceptNode(
+        concept=concept,
+        node=SynthesizedNode(arm_id=concept, description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    return ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+
+
+# ── ability_copy (full relocation, no gate) ─────────────────────────────────
+
+
+def test_ability_copy_synth_fires_on_ability_copier():
+    """Strionic Resonator: "Copy target triggered ability you control." —
+    the canonical ability-copier."""
+    tree = _fixture_tree("Strionic Resonator")
+    node = _arm_ability_copy(tree)
+    assert node is not None
+    assert node.concept == "synth_ability_copy"
+
+
+def test_ability_copy_synth_fires_on_self_copy():
+    """Chancellor of Tales: "Whenever you cast an Adventure spell, you may
+    copy it." — the "you may copy it" self-copy idiom."""
+    tree = ConceptTree(
+        name="Chancellor of Tales",
+        oracle_id="x",
+        oracle=(
+            "Flying\nWhenever you cast an Adventure spell, you may copy it."
+            " You may choose new targets for the copy."
+        ),
+    )
+    node = _arm_ability_copy(tree)
+    assert node is not None
+    assert node.concept == "synth_ability_copy"
+
+
+def test_ability_copy_no_fire_on_unrelated_card():
+    assert _arm_ability_copy(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_ability_copy_synth_registered():
+    assert "ability_copy" in SYNTHESIS_ARM_IDS
+
+
+def test_ability_copy_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _ability_copy
+
+    tree = _synth_concept_tree("synth_ability_copy")
+    sigs = _ability_copy(tree)
+    assert any(s.key == "ability_copy" for s in sigs)

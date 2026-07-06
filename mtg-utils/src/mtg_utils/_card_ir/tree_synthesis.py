@@ -4574,6 +4574,50 @@ def _arm_life_payment_insurance(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T6-niche-b: ability_copy (full relocation, no gate) ──────────────
+# CR 707.10 ("To copy a spell, activated ability, or triggered ability means
+# to put a copy of it onto the stack …") + 113.2b: the ability-COPIERS
+# (Strionic Resonator, Lithoform Engine, Rings of Brighthearth), the "you may
+# copy it" self-copiers (Chancellor of Tales), and the whole-suite importers
+# ("has all/the activated abilities of" — Necrotic Ooze, Experiment Kraj).
+# LOGGED, not taken: v0.9.0's ``CopySpell`` Effect flattens EVERY copy target
+# (ability vs spell) into one undifferentiated category — a
+# ``category == "spell_copy"`` arm 90%-OVER-FIRES onto the spell-copy half
+# NOT in this lane (Twincast, Fork, Reiterate) while STILL MISSING the
+# ability-granters (phase parses "has all activated abilities of" as a
+# board-grant, never spell_copy) — no competing Tier-1 predicate exists.
+# Relocates the deleted ``_ABILITY_COPY_MIRROR`` verbatim — SOLE source (the
+# flash_matters/opponent_exile_matters no-competing-predicate precedent).
+# Measured byte-identical over the commander-legal corpus (56/56, 0 drops,
+# 0 adds).
+_ABILITY_COPY_SYNTH_RX = re.compile(
+    r"copy (?:that|this|the|target) "
+    r"(?:activated |triggered |activated or triggered )?ability"
+    r"|you may copy (?:it|that ability)"
+    r"|has all activated abilities of|has the activated abilities of",
+    re.IGNORECASE,
+)
+
+
+def _matches_ability_copy_idiom(oracle: str) -> bool:
+    return bool(_ABILITY_COPY_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_ability_copy(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``ability_copy`` node (the deleted
+    ``_ABILITY_COPY_MIRROR`` relocated verbatim — no competing Tier-1
+    predicate exists, so this is the lane's SOLE source)."""
+    if not _matches_ability_copy_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="ability_copy",
+        concept="synth_ability_copy",
+        scope="you",
+        subject=(),
+        desc="bucket-B ability-copy/grant residue (CR 707.10)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4627,6 +4671,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("void_warp_makers", _arm_void_warp_makers),
     ("sacrifice_protection", _arm_sacrifice_protection),
     ("life_payment_insurance", _arm_life_payment_insurance),
+    ("ability_copy", _arm_ability_copy),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

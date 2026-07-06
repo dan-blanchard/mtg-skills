@@ -216,7 +216,6 @@ from mtg_utils._deck_forge import signal_keys
 # and the private live mirrors/kind-sets from _signals_ir / _signals_regex
 # (the _resolve_subject precedent) — one source, zero drift.
 from mtg_utils._deck_forge._signals_ir import (
-    _ABILITY_COPY_MIRROR,
     _ACTIVATED_ABILITY_DROP_EFFECTS,
     _BIG_HAND_MAKERS_MIRROR,
     _BIG_HAND_MATTERS_MIRROR,
@@ -9583,11 +9582,11 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 # Byte-identical inline copies of the live INLINE (unnamed) kept-detector rows
 # (_IR_KEPT_DETECTORS / the deleted-producer patterns) — the b12 _JOHAN_MIRROR
 # precedent for rows with no importable name. Named live constants are imported
-# above (one source, zero drift): _ABILITY_COPY_MIRROR,
-# NONCOMBAT_DAMAGE_PAYOFF_REGEX,
+# above (one source, zero drift): NONCOMBAT_DAMAGE_PAYOFF_REGEX,
 # _MELD_FULLTEXT_RE, _POWER_SCALING_RAW, _TOUGHNESS_VALUE_MIRROR,
-# _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF. (island_makers was
-# ADR-0036/0037 folded to Tier-1 structural reads — see ``_island_makers``.)
+# _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF. (island_makers, ability_copy
+# were ADR-0036/0037 folded to Tier-1 structural / bucket-B synth reads — see
+# ``_island_makers``, ``_ability_copy``.)
 _NONCOMBAT_DAMAGE_RX = re.compile(NONCOMBAT_DAMAGE_PAYOFF_REGEX, re.IGNORECASE)
 _PER_TARGET_RX = re.compile(
     r"less (?:to cast )?for each (?:of those )?target", re.IGNORECASE
@@ -9652,19 +9651,23 @@ def _ability_copy(tree: ConceptTree) -> list[Signal]:
     ability is itself an ability.") + 113.2b. (The live docstrings' "CR
     706.10 / 706.2" cites are STALE — 706 is now die-rolling; corrected here.)
 
-    The imported live ``_ABILITY_COPY_MIRROR`` FLAT over the kept oracle
-    (every arm clause-local, so flat == the deleted per-clause union): the
-    ability-copiers (Strionic Resonator, Rings of Brighthearth), the "you may
-    copy it" self-copiers (Chancellor of Tales), and the whole-suite importers
-    ("has all activated abilities of" — Necrotic Ooze). NOT a structural
-    ``copy_spell`` arm: phase's CopySpell covers spell-copy too (Twincast —
-    pop-verified False, the 90% over-fire). LOGGED widen (closeout §C): the
-    v0.9.0 CopySpell.target StackAbility-vs-StackSpell discriminator +
-    GrantAllActivatedAbilitiesOf now structure this lane — a candidate
-    structural split, parity-first today. Scope "you", HIGH.
+    Tier-1 (ADR-0036/0037 fold — the lane-time ``_ABILITY_COPY_MIRROR``
+    kept-oracle read is RETIRED): the ``tree_synthesis`` stage's
+    ``synth_ability_copy`` node — the ability-copiers (Strionic Resonator,
+    Rings of Brighthearth), the "you may copy it" self-copiers (Chancellor
+    of Tales), and the whole-suite importers ("has all activated abilities
+    of" — Necrotic Ooze) — is the lane's SOLE source (no competing Tier-1
+    predicate: phase's CopySpell flattens ability-copy and spell-copy into
+    one category, so a ``category == "spell_copy"`` arm 90%-over-fires onto
+    Twincast/Fork/Reiterate — pop-verified False — while still missing the
+    ability-granters). LOGGED widen (closeout §C): the v0.9.0
+    CopySpell.target StackAbility-vs-StackSpell discriminator +
+    GrantAllActivatedAbilitiesOf, when they land, structure this lane — a
+    candidate structural split. Scope "you", HIGH.
     """
-    if _ABILITY_COPY_MIRROR.search(_kept(tree)):
-        return [Signal("ability_copy", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_ability_copy":
+            return [Signal("ability_copy", "you", "", "", tree.name, "high")]
     return []
 
 
