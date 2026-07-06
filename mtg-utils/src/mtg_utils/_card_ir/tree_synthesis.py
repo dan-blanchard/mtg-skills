@@ -108,8 +108,10 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 # keyword-less crime-condition anchor) and ``_SUSPECT_REF`` (the suspect
 # verb/state marker) — the same single-source pattern, one copy each.
 # batch T10-finalize2 also imports project.py's ``_EXHAUST_TRIG`` (the
-# exhaust-payoff raw anchor) — the same single-source pattern.
+# exhaust-payoff raw anchor) and ``_BECOMES_TARGET_SRC_OPP`` (the becomes-
+# target opponent-source residue anchor) — the same single-source pattern.
 from mtg_utils._card_ir.project import (
+    _BECOMES_TARGET_SRC_OPP,
     _CANT_BLOCK_GRANT_QUOTE,
     _CANT_BLOCK_MODAL_BULLET,
     _CANT_BLOCK_REF,
@@ -6086,6 +6088,47 @@ def _arm_exhaust_matters(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+def _becomes_target_src_opp_ctrls(trig: TypedMirrorNode) -> set[str]:
+    """The typed controller-string set under a ``BecomesTarget`` trigger's
+    ``valid_source`` — the structural half of the src-is-opp derivation,
+    extracted so the lane's structural gate and this arm's text-fallback
+    gap gate read the SAME set (no drift)."""
+    ctrls: set[str] = set()
+    vs = getattr(trig, "valid_source", None)
+    if isinstance(vs, TypedMirrorNode):
+        for node in iter_typed_nodes(vs):
+            c = getattr(node, "controller", None)
+            if isinstance(c, str) and c:
+                ctrls.add(re.sub(r"[^a-z0-9]", "", c.lower()))
+    return ctrls
+
+
+def _arm_becomes_target_src_opp(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``becomes_target_src_opp`` node for the bare
+    no-controller ``BecomesTarget`` source whose opponent-restriction
+    survives only in the trigger's OWN description (Reality Smasher /
+    Swarm Shambler / Tectonic Giant parse gap) — the live
+    ``_BECOMES_TARGET_SRC_OPP`` anchor relocated verbatim. Gap-gated:
+    skips any trigger whose ``valid_source`` already carries a typed
+    controller (the structural case the lane reads directly), so this arm
+    covers only the genuine text-only residue. CR 702.21a/108.3."""
+    for unit in tree.units:
+        if unit.trigger_event != "becomes_target":
+            continue
+        if _becomes_target_src_opp_ctrls(unit.node):
+            continue
+        desc = getattr(unit.node, "description", None)
+        if isinstance(desc, str) and _BECOMES_TARGET_SRC_OPP.search(desc):
+            return _synthetic_concept(
+                arm_id="becomes_target_src_opp",
+                concept="synth_becomes_target_src_opp",
+                scope="you",
+                subject=(),
+                desc="bucket-B becomes-target opponent-source residue (CR 702.21a)",
+            )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -6247,6 +6290,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("convoke_matters", _arm_convoke_matters),
     ("keyword_soup_same_true", _arm_keyword_soup_same_true),
     ("exhaust_matters", _arm_exhaust_matters),
+    ("becomes_target_src_opp", _arm_becomes_target_src_opp),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

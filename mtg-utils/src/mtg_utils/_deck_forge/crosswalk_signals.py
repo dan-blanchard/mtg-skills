@@ -133,7 +133,6 @@ from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 # live there, imported single-source from project.py's ``_narrow_*`` marker
 # sources.
 from mtg_utils._card_ir.project import (
-    _BECOMES_TARGET_SRC_OPP,
     _LIB_SEARCH_PLAYER_ACTIONS,
     _SINGLE_PERMANENT_GRANT_PREDS,
     _counter_kind_token,
@@ -10527,10 +10526,14 @@ def _sweep_source_is_opp(trig: TypedMirrorNode) -> bool:
     "src:opp" derivation: collect every ``controller`` string under
     ``valid_source`` (Shapers' Sanctuary / Battle Mammoth carry
     ``Or[And[StackSpell, Typed{controller: Opponent}], StackAbility]`` —
-    probed); all-Opponent → redirect. A bare no-controller source falls back
-    to the trigger's own description via the imported live
-    ``_BECOMES_TARGET_SRC_OPP`` anchor (the Reality Smasher / Swarm Shambler
-    / Tectonic Giant parse gap). CR 702.21a / 108.3.
+    probed); all-Opponent → redirect. Tier-1 (ADR-0036/0037 T10-finalize2
+    fold): PURE typed read only — a bare no-controller source (no
+    structural evidence either way) returns False here; the deleted
+    lane-time ``_BECOMES_TARGET_SRC_OPP`` text-fallback (the Reality
+    Smasher / Swarm Shambler / Tectonic Giant parse gap) is relocated
+    verbatim to the bucket-B ``synth_becomes_target_src_opp`` node
+    (:func:`_arm_becomes_target_src_opp`), read at the call site. CR
+    702.21a / 108.3.
     """
     ctrls: set[str] = set()
     vs = getattr(trig, "valid_source", None)
@@ -10539,10 +10542,7 @@ def _sweep_source_is_opp(trig: TypedMirrorNode) -> bool:
             c = getattr(node, "controller", None)
             if isinstance(c, str) and c:
                 ctrls.add(re.sub(r"[^a-z0-9]", "", c.lower()))
-    if ctrls:
-        return ctrls <= {"opponent"}
-    desc = getattr(trig, "description", None)
-    return bool(_BECOMES_TARGET_SRC_OPP.search(desc or ""))
+    return bool(ctrls) and ctrls <= {"opponent"}
 
 
 def _becomes_target_lanes(tree: ConceptTree) -> list[Signal]:
@@ -10574,7 +10574,13 @@ def _becomes_target_lanes(tree: ConceptTree) -> list[Signal]:
     * ``target_redirect`` "you" — same owner gate, opponent-restricted
       source (:func:`_sweep_source_is_opp` — Shapers' Sanctuary, Battle
       Mammoth). The v40 double-fire fix holds: Shapers' fires redirect,
-      NEVER own-payoff.
+      NEVER own-payoff. Tier-1 (ADR-0036/0037 T10-finalize2 fold):
+      ``_sweep_source_is_opp`` is now PURE typed (no text fallback); the
+      deleted lane-time text residue (Reality Smasher / Swarm Shambler /
+      Tectonic Giant's no-controller source) is relocated verbatim to the
+      bucket-B ``synth_becomes_target_src_opp`` node
+      (:func:`_arm_becomes_target_src_opp`), read here as a per-card OR
+      (the residue's pop is a strict 1-trigger-per-card census).
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -10584,13 +10590,16 @@ def _becomes_target_lanes(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, scope, "", "", tree.name, "high"))
 
+    src_opp_residue = any(
+        c.concept == "synth_becomes_target_src_opp" for c in tree.iter_concepts()
+    )
     for unit in tree.units:
         if unit.trigger_event != "becomes_target":
             continue
         add("targeting_matters", "any")
         owner = _sweep_watched_owner_scope(unit.node)
         if owner in ("you", "any"):
-            if _sweep_source_is_opp(unit.node):
+            if _sweep_source_is_opp(unit.node) or src_opp_residue:
                 add("target_redirect", "you")
             else:
                 add("target_own_payoff", "you")

@@ -54,6 +54,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_animate_artifact,
     _arm_b13_node_anchor,
     _arm_b13_raw_anchor,
+    _arm_becomes_target_src_opp,
     _arm_big_hand_makers,
     _arm_big_hand_matters,
     _arm_cant_block_grant,
@@ -5183,3 +5184,52 @@ def test_exhaust_matters_fires_on_elvish_refueler():
 
 def test_exhaust_matters_no_fire_on_unrelated_card():
     assert _arm_exhaust_matters(_fixture_tree("Llanowar Elves")) is None
+
+
+def _becomes_target_unit(*, valid_source, description):
+    import types
+
+    trig = types.SimpleNamespace(valid_source=valid_source, description=description)
+    return AbilityUnit(
+        origin="trigger",
+        index=0,
+        node=trig,
+        kind=None,
+        trigger_event="becomes_target",
+        effects=(),
+        costs=(),
+        statics=(),
+    )
+
+
+def test_becomes_target_src_opp_synth_registered():
+    assert "becomes_target_src_opp" in SYNTHESIS_ARM_IDS
+
+
+def test_becomes_target_src_opp_fires_on_bare_no_controller_source():
+    """The Reality Smasher / Swarm Shambler / Tectonic Giant parse gap: a
+    ``BecomesTarget`` trigger whose ``valid_source`` carries NO typed
+    controller (phase drops it), but whose own description names the
+    opponent-restricted source — the deleted lane-time
+    ``_BECOMES_TARGET_SRC_OPP`` text-fallback relocated verbatim."""
+    unit = _becomes_target_unit(
+        valid_source=None,
+        description=(
+            "Whenever this creature becomes the target of a spell or "
+            "ability an opponent controls, draw a card."
+        ),
+    )
+    tree = ConceptTree(name="X", oracle_id="x", oracle="x", units=(unit,))
+    node = _arm_becomes_target_src_opp(tree)
+    assert node is not None
+    assert node.concept == "synth_becomes_target_src_opp"
+
+
+def test_becomes_target_src_opp_no_fire_without_opponent_wording():
+    unit = _becomes_target_unit(
+        valid_source=None,
+        description="Whenever this creature becomes the target of a spell "
+        "or ability, draw a card.",
+    )
+    tree = ConceptTree(name="X", oracle_id="x", oracle="x", units=(unit,))
+    assert _arm_becomes_target_src_opp(tree) is None
