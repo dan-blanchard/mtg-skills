@@ -501,6 +501,44 @@ _PILLOWFORT_EXTRA = SubAvenue(
     {"oracle": _PILLOWFORT_ORACLE},
     serve=Serve(oracle=re.compile(_PILLOWFORT_ORACLE, _IC)),
 )
+# ADR-0036/0037 Stage 5 #62: a GENERIC (any-permanent) counter doubler ALSO doubles
+# LOYALTY counters — a real hook, CR 306.6 (loyalty counters are counters, CR 122.1)
+# — but it is a DECK-level archetype ADJACENCY, not a card-literal planeswalker fact
+# (a +1/+1-counter deck runs Doubling Season too), so it rides the SERVE layer as a
+# SubAvenue, never the ``superfriends_matters`` lane's strict membership (ADR-0034:
+# membership is what a card LITERALLY does). The counter_doubling LANE already
+# credits ``superfriends_matters`` membership when a doubler explicitly NAMES
+# "planeswalker" (Lae'zel, Vlaakith's Champion — the existing ``_superfriends_typed_
+# ref`` typed-filter arm) — that boundary is precise and stays untouched.
+#
+# The oracle gate requires the DOUBLING idiom ("double the number of ... counter" /
+# "put(s) twice/that-many-plus-one ... counters") co-occurring with an UNRESTRICTED
+# "permanent" object, and excludes any "+1/+1" mention — a kind-agnostic doubler that
+# happens to ALSO be typed to creatures/artifacts/lands only (Winding Constrictor,
+# Kami of Whispered Hopes) never reaches loyalty and correctly stays out. Measured
+# over the full commander-legal corpus (34,555 cards): 6 matches, ALL genuine
+# counter_doubling members, 0 false positives outside that lane — Doubling Season,
+# Vorinclex Monstrous Raider, Gilder Bairn, Aetheric Amplifier, Doc Samson (Lae'zel
+# is the 6th — already a full lane member, so serving it here is redundant-but-
+# harmless). Known miss (documented, not chased): Innkeeper's Talent's Level-3
+# ability is a genuine generic doubler, but an EARLIER clause on the same card
+# ("+1/+1 counter on target creature") trips the whole-oracle "+1/+1" exclusion —
+# a clause-scoped (not whole-card) exclusion would recover it; out of scope for a
+# serve-layer SubAvenue (advisory, human-reviewed — not membership).
+_LOYALTY_DOUBLER_ORACLE = (
+    r"(?:double the number of (?:each kind of )?counter"
+    r"|put(?:s)? (?:that many|twice that many|.{0,20}plus one)"
+    r"[^.]*(?:kinds? of )?counters?)[^.]*\bpermanent\b"
+)
+_LOYALTY_DOUBLER_EXTRA = SubAvenue(
+    "Loyalty doubling",
+    "generic (any-permanent) counter doublers, which also double loyalty counters",
+    {"oracle": _LOYALTY_DOUBLER_ORACLE},
+    serve=Serve(
+        oracle=re.compile(_LOYALTY_DOUBLER_ORACLE, _IC),
+        not_oracle=re.compile(r"\+1/\+1", _IC),
+    ),
+)
 # Damage-soak payoffs for a damage-PREVENTION commander (Oriss "{T}: prevent all damage
 # to target creature"): a wall that blocks any number of attackers (block the whole
 # team, then prevent its damage) or a redirect-to-one-body soak (Palisade Giant /
@@ -4035,7 +4073,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"planeswalkers? you control|loyalty counters?",
         serve_types=("planeswalker",),
         serve_keywords=("proliferate",),
-        extras=(_PILLOWFORT_EXTRA,),  # protect the walkers (EDHREC: 3 commanders)
+        extras=(_PILLOWFORT_EXTRA, _LOYALTY_DOUBLER_EXTRA),  # protect the walkers
+        # (EDHREC: 3 commanders) + a GENERIC (any-permanent) counter doubler, which
+        # also doubles LOYALTY — see _LOYALTY_DOUBLER_EXTRA for the ADR-0036/0037
+        # Stage 5 #62 adjudication (serve-layer adjacency, never lane membership).
     ),
     # Historic (CR 700.6) = artifact, legendary, OR Saga — all type_line tokens. The
     # serve named only the keyword; gate on the three structural categories.

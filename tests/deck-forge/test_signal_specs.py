@@ -6098,6 +6098,59 @@ def test_pillowfort_served_to_high_synergy_archetypes_only():
         assert _lane_covers(gp, _sig(key, scope)) is False, key
 
 
+def test_superfriends_serves_generic_counter_doublers_via_loyalty_extra():
+    """ADR-0036/0037 Stage 5 #62: a GENERIC (any-permanent) counter doubler ALSO
+    doubles loyalty (CR 306.6 + 122.1), a real hook the "Loyalty doubling" SubAvenue
+    serves — but as deck-level ADJACENCY (serve layer), never lane membership
+    (ADR-0034 strict membership: a +1/+1-counter deck runs Doubling Season too)."""
+    generic_doublers = [
+        (
+            "Doubling Season",
+            "If an effect would put one or more counters on a permanent you "
+            "control, it puts twice that many of those counters on that "
+            "permanent instead.",
+        ),
+        (
+            "Vorinclex, Monstrous Raider",
+            "If you would put one or more counters on a permanent or player, "
+            "put twice that many of each of those kinds of counters on that "
+            "permanent or player instead.",
+        ),
+        (
+            "Gilder Bairn",
+            "{2}{G/U}, {Q}: Double the number of each kind of counter on "
+            "target permanent.",
+        ),
+    ]
+    sig = _sig("superfriends_matters", "you")
+    for name, oracle in generic_doublers:
+        card = {"name": name, "type_line": "X", "oracle_text": oracle}
+        assert _lane_covers(card, sig), name
+    # A +1/+1-counter-SPECIFIC or creature/artifact/land-typed doubler never touches
+    # loyalty — correctly excluded (over-fire the task explicitly warns against).
+    typed_doublers = [
+        (
+            "Winding Constrictor",
+            "If one or more counters would be put on an artifact or creature "
+            "you control, that many plus one of each of those kinds of "
+            "counters are put on that permanent instead.",
+        ),
+        (
+            "Corpsejack Menace",
+            "If one or more +1/+1 counters would be put on a creature you "
+            "control, twice that many +1/+1 counters are put on it instead.",
+        ),
+        (
+            "Vorel of the Hull Clade",
+            "{G}{U}, {T}: Double the number of each kind of counter on "
+            "target artifact, creature, or land.",
+        ),
+    ]
+    for name, oracle in typed_doublers:
+        card = {"name": name, "type_line": "X", "oracle_text": oracle}
+        assert not _lane_covers(card, sig), name
+
+
 def test_token_lanes_serve_creature_anthems():
     """A token go-wide deck's tokens ARE creatures, so symmetric creature anthems pump
     them — "creatures you control get +1/+1" (Glorious Anthem, Dictate of Heliod), not
