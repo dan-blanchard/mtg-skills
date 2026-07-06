@@ -195,6 +195,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_keyword_counter,
     has_structural_life_payment_insurance,
     has_structural_outlaw,
+    has_structural_power_tap_engine,
     has_structural_proliferate,
     has_structural_pump_makers,
     has_structural_self_counter_grow,
@@ -225,7 +226,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _IR_FLOOR_LANES,
     _NAMED_COUNTER_KINDS,
     _OPP_COUNTER_BENEFICIAL,
-    _POWER_SCALING_RAW,
     _PROLIFERATE_REMOVE_COST_RE,
     _SAME_TRUE_KW_RE,
     _SELF_PROTECTION_GRANT_KW,
@@ -9557,14 +9557,12 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 # (_IR_KEPT_DETECTORS / the deleted-producer patterns) — the b12 _JOHAN_MIRROR
 # precedent for rows with no importable name. Named live constants are imported
 # above (one source, zero drift):
-# _MELD_FULLTEXT_RE, _POWER_SCALING_RAW, _TOUGHNESS_VALUE_MIRROR,
-# _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF. (island_makers, ability_copy,
-# noncombat_damage_payoff, and per_target_payoff were ADR-0036/0037 folded to
-# Tier-1 structural / bucket-B synth reads — see ``_island_makers``,
-# ``_ability_copy``, ``_noncombat_damage_payoff``, ``_per_target_payoff``.)
-_POWER_TAP_CONFERRED_RX = re.compile(
-    r"\{t\}:[^.]*(?:equal to|where x is|x is)[^.]*\bpower\b", re.IGNORECASE
-)
+# _MELD_FULLTEXT_RE, _TOUGHNESS_VALUE_MIRROR, _TYPED_ANTHEM_MULTI_RAW,
+# _STARTING_LIFE_REF. (island_makers, ability_copy, noncombat_damage_payoff,
+# per_target_payoff, and power_tap_engine were ADR-0036/0037 folded to Tier-1
+# structural / bucket-B synth reads — see ``_island_makers``,
+# ``_ability_copy``, ``_noncombat_damage_payoff``, ``_per_target_payoff``,
+# ``_power_tap_engine``.)
 
 # Counter-placement effect tags (the live place_counter category's producers)
 # for the ability_strip same-unit join (§2).
@@ -9583,10 +9581,6 @@ _ANTHEM_PUMP_MODS: frozenset[str] = frozenset(
         "AddToughnessDynamic",
     }
 )
-# Activation-cost leaf tags whose live projected cost string contains 'tap'
-# ("{T}" AND "{Q}" — the live `'tap' in ab.cost` substring matches "untap":
-# Hateflayer / Vikya are banked pop members via their Untap costs). CR 602.1.
-_B16_TAP_COST_TAGS: frozenset[str] = frozenset({"Tap", "Untap"})
 # Static modification families the OLD projection kept as subject-bearing
 # effects (pump / base-P/T-set / strip) — the named_counter_misc static
 # sub-arm's gate: an affected-filter counter pred on one of these (or on a
@@ -10167,36 +10161,25 @@ def _per_target_payoff(tree: ConceptTree) -> list[Signal]:
 def _power_tap_engine(tree: ConceptTree) -> list[Signal]:
     """power_tap_engine (§18) — CR 602.1 ("Activated abilities have a cost
     and an effect. They are written as '[Cost]: [Effect.]'"): the repeatable
-    {T} power-scaling engine. Two live arms:
+    {T} power-scaling engine.
 
-    (a) STRUCTURAL — an Activated unit whose cost carries a Tap/Untap leaf
-    (:data:`_B16_TAP_COST_TAGS` — the live ``'tap' in ab.cost`` substring
-    also matches "untap": Hateflayer / Vikya are banked members via {Q})
-    AND the imported ``_POWER_SCALING_RAW`` over the unit's raws (Marwyn's
-    ``{T}: Add {G} equal to ~'s power``).
-    (b) the conferred ``{t}:`` kept mirror for the quoted-grant / DFC-back
-    form phase folds into a carrier (Predatory Urge, Dragon Throne) — live
-    fires Predatory Urge via the MIRROR (banked pop), ported as-is; the
-    v0.9.0 granted-subtree parse is a LOGGED widen candidate.
-
-    One-shot power-scaling with NO activation cost never fires (Soul's
-    Majesty, pop False). Scope "you", HIGH.
+    Tier-1 (ADR-0036/0037 fold — the lane-time ``_POWER_SCALING_RAW`` /
+    ``_POWER_TAP_CONFERRED_RX`` kept-oracle reads are RETIRED):
+    :func:`has_structural_power_tap_engine` — an Activated tap-cost unit's
+    own effect (or a granted ability's ``GrantAbility.definition`` — the
+    conferred/DFC-back form, Predatory Urge, Dragon Throne of Tarkir) scaling
+    an ``amount``/``count`` operand off a self ``Power`` ref — PLUS the
+    ``tree_synthesis`` stage's ``synth_power_tap_engine`` bucket-B node for
+    the other-creature-power / modification-``value`` residual (Kalitas,
+    Sword of the Ages, Rabble-Rouser). One-shot power-scaling with NO
+    activation cost never fires (Soul's Majesty, pop False). Scope "you",
+    HIGH.
     """
-    for unit in tree.units:
-        if unit.kind != "Activated":
-            continue
-        cost = getattr(unit.node, "cost", None)
-        if not any(
-            tag_of(leaf) in _B16_TAP_COST_TAGS for leaf in iter_cost_leaves(cost)
-        ):
-            continue
-        raws = [getattr(unit.node, "description", None) or ""] + [
-            c.raw for c in unit.iter_concepts() if c.raw
-        ]
-        if any(_POWER_SCALING_RAW.search(r) for r in raws if r):
-            return [Signal("power_tap_engine", "you", "", "", tree.name, "high")]
-    if _POWER_TAP_CONFERRED_RX.search(_kept(tree)):
+    if has_structural_power_tap_engine(tree):
         return [Signal("power_tap_engine", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_power_tap_engine":
+            return [Signal("power_tap_engine", "you", "", "", tree.name, "high")]
     return []
 
 

@@ -114,6 +114,7 @@ from mtg_utils._card_ir.project import (
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
     _KEYWORD_COUNTER_KINDS,
+    _POWER_SCALING_RAW,
     _STAX_TAXES_RESIDUE_RE,
     _SYMMETRIC_STAX_RESIDUE_RE,
     _restriction_pacifies_single_creature,
@@ -174,6 +175,7 @@ __all__ = [
     "has_structural_kill_engine",
     "has_structural_life_payment_insurance",
     "has_structural_outlaw",
+    "has_structural_power_tap_engine",
     "has_structural_pump_makers",
     "has_structural_spellcast",
     "has_structural_stax_taxes",
@@ -4961,6 +4963,115 @@ def _arm_big_hand_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T7-niche-c: power_tap_engine (structural + bucket-B tail) ────────
+# CR 602.1 (activated abilities): the repeatable {T} power-scaling engine
+# (Karametra's Acolyte-style). STRUCTURAL — an Activated unit whose cost
+# carries a Tap/Untap leaf and whose effect's ``amount``/``count`` operand is
+# a self ``Ref(qty=Power)`` (or an ``Aggregate``-of-``Power``); OR the SAME
+# shape nested inside a ``GrantAbility.definition`` (the conferred/DFC-back
+# form — Predatory Urge, Dragon Throne of Tarkir). The residual: phase
+# captures "equal to the SACRIFICED/TAPPED/EXILED creature's power" (an
+# OTHER creature, not self) as an opaque ``Variable(name=...)`` with no typed
+# Power ref at all (Kalitas, Eye of Yawgmoth, Unerring Sling, Sword of the
+# Ages, Stitcher Geralf, Soul Separator), and the "gets +X/+X where X is
+# [that/this] creature's power" pump form (Rabble-Rouser, Nantuko Mentor,
+# Auriok Bladewarden, Dragon Throne) rides a modification's ``value`` field
+# the structural amount/count walk doesn't reach — genuine gaps. Relocates
+# the deleted ``_POWER_SCALING_RAW`` / ``_POWER_TAP_CONFERRED_RX`` mirrors
+# verbatim, gap-gated. Measured over the commander-legal corpus: 57
+# structural + 16 bucket-B, 1 genuine ADD over the old mirror (Surestrike
+# Trident: "{T}, Unattach ~: ... deals damage equal to its power" — the old
+# ``_POWER_TAP_CONFERRED_RX``'s ``\{t\}:`` anchor required the colon
+# immediately after "{T}", missing the "{T}, Unattach ...:" cost-chain
+# phrasing the structural ``GrantAbility.definition`` walk isn't anchored
+# on), 0 drops.
+_POWER_TAP_TAP_COST_TAGS: frozenset[str] = frozenset({"Tap", "Untap"})
+
+
+def _power_tap_has_tap_cost(cost: object) -> bool:
+    return any(
+        tag_of(leaf) in _POWER_TAP_TAP_COST_TAGS for leaf in iter_cost_leaves(cost)
+    )
+
+
+def _power_tap_has_power_amount(node: object) -> bool:
+    for n in iter_typed_nodes(node):
+        for fname in ("amount", "count"):
+            q = getattr(n, fname, None)
+            if tag_of(q) != "Ref":
+                continue
+            qty = getattr(q, "qty", None)
+            qt = tag_of(qty)
+            if qt == "Power" or (
+                qt == "Aggregate" and getattr(qty, "property", None) == "Power"
+            ):
+                return True
+    return False
+
+
+def has_structural_power_tap_engine(tree: ConceptTree) -> bool:
+    """Whether an Activated tap-cost unit's own effect (or a granted
+    ability's ``GrantAbility.definition``) scales an ``amount``/``count``
+    operand off a self ``Power`` (or ``Aggregate``-of-``Power``) ref."""
+    for unit in tree.units:
+        if (
+            unit.kind == "Activated"
+            and _power_tap_has_tap_cost(getattr(unit.node, "cost", None))
+            and _power_tap_has_power_amount(unit.node)
+        ):
+            return True
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "GrantAbility":
+                continue
+            d = getattr(n, "definition", None)
+            if d is None:
+                continue
+            if _power_tap_has_tap_cost(
+                getattr(d, "cost", None)
+            ) and _power_tap_has_power_amount(getattr(d, "effect", None)):
+                return True
+    return False
+
+
+_POWER_TAP_CONFERRED_RX = re.compile(
+    r"\{t\}:[^.]*(?:equal to|where x is|x is)[^.]*\bpower\b", re.IGNORECASE
+)
+
+
+def _arm_power_tap_engine(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``power_tap_engine`` node for the other-creature-power /
+    modification-``value`` residual (the deleted ``_POWER_SCALING_RAW`` /
+    ``_POWER_TAP_CONFERRED_RX`` mirrors relocated, gap-gated against
+    :func:`has_structural_power_tap_engine`)."""
+    if has_structural_power_tap_engine(tree):
+        return None
+    for unit in tree.units:
+        if unit.kind != "Activated":
+            continue
+        if not _power_tap_has_tap_cost(getattr(unit.node, "cost", None)):
+            continue
+        raws = [getattr(unit.node, "description", None) or ""] + [
+            c.raw for c in unit.iter_concepts() if c.raw
+        ]
+        if any(_POWER_SCALING_RAW.search(r) for r in raws if r):
+            return _synthetic_concept(
+                arm_id="power_tap_engine",
+                concept="synth_power_tap_engine",
+                scope="you",
+                subject=(),
+                desc="bucket-B other-power/value-field scaling residue (CR 602.1)",
+            )
+    if _POWER_TAP_CONFERRED_RX.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return _synthetic_concept(
+            arm_id="power_tap_engine",
+            concept="synth_power_tap_engine",
+            scope="you",
+            subject=(),
+            desc="bucket-B conferred power-tap residue (CR 602.1)",
+        )
+    return None
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -5021,6 +5132,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("kill_engine", _arm_kill_engine),
     ("big_hand_makers", _arm_big_hand_makers),
     ("big_hand_matters", _arm_big_hand_matters),
+    ("power_tap_engine", _arm_power_tap_engine),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

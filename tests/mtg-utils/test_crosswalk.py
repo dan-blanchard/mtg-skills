@@ -5049,13 +5049,21 @@ def test_per_target_payoff_mirror():
 
 
 def test_power_tap_engine_structural_and_conferred_arms():
-    """CR 602.1 ("[Cost]: [Effect.]"): the structural arm — an Activated unit
-    with a Tap/Untap cost leaf and a power-scaling raw (Marwyn's ``{T}: Add
-    {G} equal to ~'s power``) — and the conferred ``{t}:`` mirror for the
-    quoted-grant form phase folds into a carrier (Predatory Urge). One-shot
-    power-scaling with NO activation cost never fires (Soul's Majesty)."""
+    """CR 602.1 ("[Cost]: [Effect.]"): STRUCTURAL — an Activated tap-cost
+    unit whose effect scales an ``amount``/``count`` operand off a self
+    ``Power`` ref (Marwyn's ``{T}: Add {G} equal to ~'s power``), or the SAME
+    shape nested inside a granted ability's ``GrantAbility.definition`` (the
+    conferred/DFC-back form, Predatory Urge). One-shot power-scaling with NO
+    activation cost never fires (Soul's Majesty). Also a NET RECALL
+    IMPROVEMENT (ADR-0036/0037 fold) over the retired ``_POWER_TAP_
+    CONFERRED_RX`` mirror: Surestrike Trident's granted "{T}, Unattach
+    Surestrike Trident: This creature deals damage equal to its power..." —
+    the mirror's ``\\{t\\}:`` anchor required the colon immediately after
+    "{T}", missing the "{T}, Unattach ...:" cost-chain phrasing — now fires
+    via the structural ``GrantAbility.definition`` walk."""
     assert ("power_tap_engine", "you", "") in _idents("Marwyn, the Nurturer")
     assert ("power_tap_engine", "you", "") in _idents("Predatory Urge")
+    assert ("power_tap_engine", "you", "") in _idents("Surestrike Trident")
     assert "power_tap_engine" not in _keys("Soul's Majesty")
 
 
