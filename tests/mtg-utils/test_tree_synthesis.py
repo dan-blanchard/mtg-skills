@@ -39,6 +39,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_selfloss_engine,
     has_structural_spellcast,
     has_structural_stax_taxes,
+    has_structural_superfriends,
     has_structural_symmetric_stax,
     has_structural_tutor,
     has_structural_untap_engine,
@@ -1570,3 +1571,101 @@ def test_stax_lane_reads_synth_nodes_end_to_end():
     keys = {s.key for s in sigs}
     assert "stax_taxes" in keys
     assert "symmetric_stax" in keys
+
+
+# ── superfriends_matters fold (ADR-0036/0037) ──────────────────────────────────
+
+
+def _superfriends_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _superfriends_matters
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "superfriends_matters" for s in _superfriends_matters(tree))
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Historian of Zhalfir",  # condition-site ControlsType
+        "Arisen Gorgon",  # condition-site IsPresent
+        "Companion of the Trials",  # YouControlNamedPlaneswalker gate
+        "Chandra, Acolyte of Flame",  # loyalty-counter EFFECT, non-Opp target
+        "Sorin, Vengeful Bloodlord",  # PW-anthem static `affected` filter
+        "The Chain Veil",  # GrantExtraLoyaltyActivations
+    ],
+)
+def test_superfriends_bucket_a_structural(name):
+    tree = _fixture_tree(name)
+    assert has_structural_superfriends(tree) is True
+    assert _superfriends_fires(name) is True
+
+
+def test_superfriends_bucket_b_synth():
+    """Oath of Teferi's "activate the loyalty abilities of planeswalkers you
+    control twice each turn" is a permission ability phase leaves with no
+    typed carrier — a genuine bucket-B gap the synth idiom recovers."""
+    tree = _fixture_tree("Oath of Teferi")
+    assert has_structural_superfriends(tree) is False  # genuine gap
+    from mtg_utils._card_ir.tree_synthesis import _arm_superfriends_matters
+
+    node = _arm_superfriends_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_superfriends_matters"
+    assert node.scope == "you"
+    assert _superfriends_fires("Oath of Teferi") is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Chandra's Defeat",  # TargetMatchesFilter — removal on the spell's own target
+        "Hero's Downfall",  # a bare removal-target naming Planeswalker
+        "Jace Beleren",  # BEING a planeswalker is membership, not caring
+        "Hunter's Insight",  # generic damage-recipient event plumbing
+        "Flitterwing Nuisance",  # same event-plumbing family
+        "Chandra, Fire Artisan",  # self-only loyalty reference (no group marker)
+    ],
+)
+def test_superfriends_shed_overfires(name):
+    from mtg_utils._card_ir.tree_synthesis import _arm_superfriends_matters
+
+    tree = _fixture_tree(name)
+    assert has_structural_superfriends(tree) is False
+    assert _arm_superfriends_matters(tree) is None
+    assert _superfriends_fires(name) is False
+
+
+def test_superfriends_synth_registered():
+    assert "superfriends_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_superfriends_lane_reads_synth_node_end_to_end():
+    """Fold path, mirror-independent: a synth ``synth_superfriends_matters``
+    node ALONE — oracle carrying no superfriends idiom — makes the
+    ``_superfriends_matters`` lane emit the signal (proves the synth read is
+    the ACTIVE Tier-1 source)."""
+    from mtg_utils._deck_forge.crosswalk_signals import _superfriends_matters
+
+    synth = ConceptNode(
+        concept="synth_superfriends_matters",
+        node=SynthesizedNode(arm_id="superfriends_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _superfriends_matters(tree)
+    assert any(s.key == "superfriends_matters" for s in sigs)

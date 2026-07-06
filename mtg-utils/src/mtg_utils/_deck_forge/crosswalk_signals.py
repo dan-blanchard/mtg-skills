@@ -29,7 +29,6 @@ to it.
 from __future__ import annotations
 
 import re
-from dataclasses import fields as dc_fields
 
 from mtg_utils._card_ir.crosswalk import (
     ARTIFACT_TOKEN_SUBTYPES,
@@ -193,6 +192,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_spellcast,
+    has_structural_superfriends,
     has_structural_tutor,
     has_structural_untap_engine,
     has_trigger_draw_bleed,
@@ -265,7 +265,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     PUMP_MATTERS_REGEX,
     STATION_MATTERS_REGEX,
     STICKERS_MATTER_REGEX,
-    SUPERFRIENDS_MATTERS_REGEX,
     THEFT_MATTERS_REGEX,
     UNSPENT_MANA_REGEX,
     VEHICLES_MATTER_REGEX,
@@ -895,7 +894,6 @@ _COLOR_CHANGE_RX = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
 _UNSPENT_MANA_RX = re.compile(UNSPENT_MANA_REGEX, re.IGNORECASE)
 _VEHICLES_MATTER_RX = re.compile(VEHICLES_MATTER_REGEX, re.IGNORECASE)
 _KEYWORD_COUNTER_RX = re.compile(KEYWORD_COUNTER_REGEX, re.IGNORECASE)
-_SUPERFRIENDS_RX = re.compile(SUPERFRIENDS_MATTERS_REGEX, re.IGNORECASE)
 
 # Johan + manland mirrors: byte-identical copies of the two INLINE (unnamed)
 # ``_IR_KEPT_DETECTORS`` rows in ``_signals_ir`` (exert_matters ~line 2343,
@@ -7479,59 +7477,39 @@ def _counter_distribute(tree: ConceptTree) -> list[Signal]:
 
 
 def _superfriends_matters(tree: ConceptTree) -> list[Signal]:
-    """superfriends_matters (§F) — CR 306.5: a CONDITION-site Planeswalker
-    reference with a non-Opponent controller (Historian of Zhalfir's
-    ControlsType, Arisen Gorgon's IsPresent, the QuantityCheck family) plus
-    the typed ``YouControlNamedPlaneswalker`` activation gate (Companion of
-    the Trials — a documented add over live's projection carry). Gates: an
-    effect TARGET filter naming a Planeswalker is removal (condition sites
-    only — Hero's Downfall never fires); a ``TargetMatchesFilter`` condition
-    references the spell's own target (Chandra's Defeat — removal, skipped
-    subtree); BEING a planeswalker is membership. Loyalty-trigger /
-    GrantExtraLoyaltyActivations adds stay LOGGED, unported. Scope "you".
+    """superfriends_matters (§F) — CR 306.5: caring about the planeswalker
+    TYPE/GROUP. A pure Tier-1 UNION (ADR-0036/0037 fold — the
+    ``SUPERFRIENDS_MATTERS_REGEX`` word mirror is RETIRED):
+
+    * **Structural (bucket-A):** :func:`has_structural_superfriends` — a
+      CONDITION-site Planeswalker group-reference (Historian of Zhalfir,
+      Arisen Gorgon, Companion of the Trials), an attack-recipient trigger
+      or static defending "you or planeswalkers you control" (Blood
+      Reckoning, Archangel of Tithes, the Vow cycle), a Planeswalker-group
+      anthem/grant static (Ichormoon Gauntlet, Sorin), a battlefield dies-
+      trigger subject including Planeswalker (Carth the Lion), an
+      activate-loyalty engine (Chandra's Regulator, The Chain Veil), a
+      dynamic count/cost-reduction operand naming Planeswalker (Ajani,
+      Strength of the Pride; Tomik), or a non-Opponent loyalty-counter
+      EFFECT (Chandra, Acolyte of Flame) — minus the removal-target /
+      ``TargetMatchesFilter`` / opponent-controlled / event-plumbing
+      over-fires (Hero's Downfall, Chandra's Defeat, Eidolon of Obstruction,
+      Hunter's Insight never fire).
+    * **bucket-B synth (ADR-0037):** the ``tree_synthesis`` stage's
+      ``synth_superfriends_matters`` node — an Unimplemented anthem/engine
+      static (Shalai, Kasmina Enigma Sage), a CantAttack/CantBlock static
+      with no typed recipient payload (Onakke Oathkeeper, Assault Suit), or
+      an activate-loyalty permission ability with no typed carrier (Oath of
+      Teferi) — gated against the SAME structural read + the SAME opponent/
+      self-only/incidental vetoes (SYNTH-EXCLUSION-PARITY).
+
+    Scope "you", HIGH.
     """
-
-    def scan(node: object, depth: int) -> bool:
-        if depth > 24:
-            return False
-        if isinstance(node, MirrorVariant):
-            return scan(node.inner, depth + 1)
-        if isinstance(node, list):
-            return any(scan(e, depth + 1) for e in node)
-        if not isinstance(node, TypedMirrorNode):
-            return False
-        t = tag_of(node)
-        if t == "TargetMatchesFilter":
-            return False  # a removal condition on the spell's own target
-        if t == "WheneverEvent":
-            # an event-watcher's recipient list (Or[Player, Planeswalker] —
-            # an attacked opposing planeswalker per CR 506.2) is event
-            # plumbing, not a planeswalker reference (adjudicated b12:
-            # Hunter's Insight, Flitterwing Nuisance)
-            return False
-        if t == "YouControlNamedPlaneswalker":
-            return True
-        if (
-            t == "Typed"
-            and "Planeswalker" in filter_core_types(node)
-            and filter_controller(node) != "Opponent"
-        ):
-            return True
-        return any(scan(getattr(node, f.name), depth + 1) for f in dc_fields(node))
-
-    for unit in tree.units:
-        for site in iter_condition_sites(unit.node):
-            if scan(site, 0):
-                return [
-                    Signal("superfriends_matters", "you", "", "", tree.name, "high")
-                ]
-    # The live producer is condition-arm + the SUPERFRIENDS_MATTERS_REGEX kept
-    # WORD MIRROR (_signals_ir:1688 — the broad planeswalkers-as-a-group refs:
-    # anthems, loyalty-counter payoffs, activate-loyalty engines, PW-ability
-    # copiers). The spec cited only the condition arm; without the mirror the
-    # lane reproduced 15% — port the pinned live constant flat, byte-identical.
-    if _SUPERFRIENDS_RX.search(_kept(tree)):
+    if has_structural_superfriends(tree):
         return [Signal("superfriends_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_superfriends_matters":
+            return [Signal("superfriends_matters", "you", "", "", tree.name, "high")]
     return []
 
 

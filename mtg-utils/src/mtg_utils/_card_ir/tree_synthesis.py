@@ -57,6 +57,7 @@ from mtg_utils._card_ir.crosswalk import (
     change_zone_dirs,
     condition_tags,
     count_operand_filter,
+    counter_kind_any,
     effect_filter,
     explicit_recipient_scope,
     filter_controller,
@@ -78,7 +79,9 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
     trigger_caster_scope,
     trigger_constraint_tag,
+    trigger_scope,
     trigger_subject,
+    trigger_subject_scope,
     zone_change_count_reads,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirrorNode
@@ -134,6 +137,7 @@ __all__ = [
     "has_selfloss_engine",
     "has_structural_spellcast",
     "has_structural_stax_taxes",
+    "has_structural_superfriends",
     "has_structural_symmetric_stax",
     "has_structural_tutor",
     "has_structural_untap_engine",
@@ -2381,6 +2385,257 @@ def _arm_symmetric_stax(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── superfriends_matters structural reads (ADR-0036/0037 fold) ───────────────
+# CR 306.5: caring about the planeswalker TYPE/GROUP (anthems, loyalty-counter
+# payoffs, activate-loyalty engines, PW-ability copiers) — not merely BEING a
+# planeswalker, and not a removal spell's target filter happening to name one
+# (Hero's Downfall never fires; a ``TargetMatchesFilter`` condition on the
+# spell's own target — Chandra's Defeat — is removal, skipped subtree). Shared
+# by the ``_superfriends_matters`` lane (its entire Tier-1 structural read) and
+# this stage's synth gap gate — one source, no drift.
+_PW_ATTACK_RECIPIENTS: frozenset[str] = frozenset(
+    {"PlayerOrPlaneswalker", "OwnerOrPlaneswalker", "Planeswalker"}
+)
+_SUPERFRIENDS_COUNTER_EFFECTS: frozenset[str] = frozenset(
+    {"place_counter", "remove_counter", "move_counters", "multiply_counter"}
+)
+
+
+def _superfriends_typed_ref(node: object, depth: int = 0) -> bool:
+    """A Planeswalker group-reference at ANY site reachable from ``node``.
+
+    A ``Typed`` filter naming Planeswalker with a non-Opponent controller, OR
+    the typed ``YouControlNamedPlaneswalker`` gate (Companion of the Trials).
+    Three exclusions ride along at every depth: a ``TargetMatchesFilter``
+    condition (a removal spell's own target — Chandra's Defeat), an
+    ``UnlessPay``/``AttackTarget`` node whose ``defended``/``attacked`` +
+    ``controller`` fields resolve the "can't attack you or planeswalkers you
+    control" tax/restriction family (Archangel of Tithes, Mangara), and a
+    ``WheneverEvent`` — vetoed UNLESS its wrapped trigger carries the SAME
+    "attacks you or a planeswalker you control" recipient shape (Tamiyo Meets
+    the Story Circle's delayed trigger), so the generic damage-recipient
+    event-plumbing family (Hunter's Insight — "player or planeswalker", no
+    controller gate) stays excluded.
+    """
+    if depth > 24:
+        return False
+    if isinstance(node, MirrorVariant):
+        return _superfriends_typed_ref(node.inner, depth + 1)
+    if isinstance(node, list):
+        return any(_superfriends_typed_ref(e, depth + 1) for e in node)
+    if not isinstance(node, TypedMirrorNode):
+        return False
+    t = tag_of(node)
+    if t == "TargetMatchesFilter":
+        return False
+    if t == "WheneverEvent":
+        trig = getattr(node, "trigger", None)
+        if not isinstance(trig, TypedMirrorNode):
+            return False
+        atf = getattr(trig, "attack_target_filter", None)
+        return atf in _PW_ATTACK_RECIPIENTS and trigger_scope(trig) == "you"
+    if t == "UnlessPay" and getattr(node, "defended", None) in _PW_ATTACK_RECIPIENTS:
+        return True
+    if t == "AttackTarget" and (
+        getattr(node, "attacked", None) in _PW_ATTACK_RECIPIENTS
+        and getattr(node, "controller", None) != "Opponent"
+    ):
+        return True
+    if t == "YouControlNamedPlaneswalker":
+        return True
+    if (
+        t == "Typed"
+        and "Planeswalker" in filter_core_types(node)
+        and filter_controller(node) != "Opponent"
+    ):
+        return True
+    return any(
+        _superfriends_typed_ref(getattr(node, f.name), depth + 1)
+        for f in dataclasses.fields(node)
+    )
+
+
+def _superfriends_count_operand_ref(effect_or_static: ConceptNode) -> bool:
+    """A Planeswalker group-reference in a dynamic scaling operand.
+
+    ``amount``/``count``/``value`` (life gain, damage, mana — Ajani, Strength
+    of the Pride) or ``cost_reduction`` (Mobilized District, Tomik's
+    "Affinity for planeswalkers") holding a ``Ref`` over an ``ObjectCount``
+    whose filter names Planeswalker.
+    """
+    node = effect_or_static.node
+    for fname in ("amount", "count", "value", "cost_reduction"):
+        q = getattr(node, fname, MISSING)
+        if not isinstance(q, TypedMirrorNode) or tag_of(q) != "Ref":
+            continue
+        qty = getattr(q, "qty", None)
+        if tag_of(qty) == "ObjectCount":
+            filt = getattr(qty, "filter", None)
+            if filt is not None and _superfriends_typed_ref(filt):
+                return True
+    return False
+
+
+def has_structural_superfriends(tree: ConceptTree) -> bool:
+    """Whether the Tier-1 ``superfriends_matters`` structural union fires.
+
+    Shared by the ``_superfriends_matters`` lane and this stage's synth gap
+    gate — one source, no drift (CR 306.5):
+
+    * a CONDITION-site Planeswalker group-reference (:func:`_superfriends_
+      typed_ref` over :func:`iter_condition_sites` — Historian of Zhalfir /
+      Arisen Gorgon / Companion of the Trials).
+    * an ATTACK-RECIPIENT trigger watching YOUR side (Blood Reckoning,
+      Isperia — a unit's own ``attack_target_filter``).
+    * a static ``CantAttack``/``CantBlock`` ``attack_defended`` recipient
+      (Combat Calligrapher, the Vow cycle) or a Planeswalker-group ``affected``
+      filter (an anthem/grant static — Ichormoon Gauntlet, Sorin).
+    * a battlefield ``dies`` trigger whose subject includes Planeswalker,
+      non-opponent scope (Carth the Lion, Cruel Celebrant — CR 700.4-adjacent).
+    * a ``loyaltyabilityactivated`` trigger event (Chandra's Regulator, Keral
+      Keep Disciples) or a ``GrantExtraLoyaltyActivations`` effect anywhere
+      (The Chain Veil).
+    * a dynamic count/cost-reduction operand naming Planeswalker
+      (:func:`_superfriends_count_operand_ref`).
+    * a loyalty-counter EFFECT (not the ability's own activation cost) whose
+      target is non-Opponent (Chandra, Acolyte of Flame — "put a loyalty
+      counter on each red planeswalker you control").
+    """
+    for unit in tree.units:
+        node = unit.node
+        for site in iter_condition_sites(node):
+            if _superfriends_typed_ref(site):
+                return True
+        atf = getattr(node, "attack_target_filter", None)
+        if atf in _PW_ATTACK_RECIPIENTS and trigger_scope(node) == "you":
+            return True
+        for sdef in iter_static_defs(node):
+            if getattr(sdef, "attack_defended", None) in _PW_ATTACK_RECIPIENTS:
+                return True
+            aff = getattr(sdef, "affected", None)
+            if aff is not None and _superfriends_typed_ref(aff):
+                return True
+        if (
+            unit.trigger_event == "dies"
+            and getattr(node, "origin", None) == "Battlefield"
+            and "Planeswalker" in trigger_subject(node)
+            and trigger_subject_scope(node) != "opponents"
+        ):
+            return True
+        if unit.trigger_event == "loyaltyabilityactivated":
+            return True
+        for c in (*unit.effects, *unit.statics):
+            if _superfriends_count_operand_ref(c):
+                return True
+        for c in unit.effects:
+            if (
+                c.concept in _SUPERFRIENDS_COUNTER_EFFECTS
+                and counter_kind_any(c.node) == "LOYALTY"
+                and filter_controller(getattr(c.node, "target", None)) != "Opponent"
+            ):
+                return True
+        for n in iter_typed_nodes(node):
+            if tag_of(n) == "GrantExtraLoyaltyActivations":
+                return True
+    return False
+
+
+# ── arm: superfriends_matters bucket-B (ADR-0036/0037 fold) ──────────────────
+# The description-only tail: phase leaves several genuine idiom families
+# wholly unstructured (an Unimplemented static census failure — Shalai's "you,
+# planeswalkers you control, ... have hexproof", Kasmina, Enigma Sage's
+# "each other planeswalker you control has the loyalty abilities of ~"; a
+# CantAttack/CantBlock static with no ``attack_defended`` payload at all —
+# Onakke Oathkeeper, Promise of Loyalty, Assault Suit, Varchild; an "activate
+# loyalty abilities of planeswalkers you control" permission ability with no
+# ``GrantExtraLoyaltyActivations`` typed node — Oath of Teferi, Teferi,
+# Temporal Archmage's emblem; a replacement/tax effect scoped to "planeswalkers
+# you control" with no typed carrier — Pyromancer's Gauntlet, Kasmina,
+# Enigmatic Mentor, Lae'zel). Read PER-CLAUSE (reminder-stripped) so a match is
+# confined to ONE clause — the cross-clause false-positive class the deleted
+# whole-card ``_SUPERFRIENDS_RX.search`` mirror carried.
+#
+# SYNTH-EXCLUSION-PARITY, three vetoes over the SAME clause (adjudicated
+# b-batch): an OPPONENT-controlled planeswalker reference — "planeswalker...
+# an opponent controls" (Eidolon of Obstruction's tax, Confront the Past's
+# loyalty-drain mode) — a superfriends HOSER, not a your-payoff; a SELF-ONLY
+# loyalty reference — "loyalty counters on him/Chandra/The Aetherspark" with
+# NO group marker in the same clause (Chandra, Fire Artisan; Comet, Stellar
+# Pup; Garruk Relentless; Grand Master of Flowers; Jace, Mirror Mage; Kaito,
+# Bane of Nightmares; Kaito, Dancing Shadow; Nissa, Steward of Elements;
+# Teferi, Master of Time; The Aetherspark) — CR 306.5 "being/running itself"
+# is not caring about the GROUP, the same membership-not-caring principle the
+# condition arm applies to bare Planeswalker typing, extended to a
+# planeswalker's own loyalty total/threshold; and a generic incidental mention
+# — "activate a loyalty ability this turn" with no group marker (Repeated
+# Reverberation's copy-anything trigger) is likewise excluded (no group hook).
+# Deliberately NOT clause-lookback-joined: a 1-clause lookback recovers Elspeth
+# Conquers Death's split "Return target creature or planeswalker card... /
+# Put... a loyalty counter on it" but ALSO re-admits Kaito, Dancing Shadow's
+# unrelated prior "creatures you control" clause bleeding onto its self-only
+# "activate loyalty abilities of Kaito" clause (the SequentialSibling bleed
+# lesson) — that reintroduced over-fire outweighs the one-card recovery, so
+# Elspeth Conquers Death's recursion mode (and Forge of Heroes' commander-type
+# counter utility, which names no group marker at all) stay residual, logged.
+_SUPERFRIENDS_PWUC_RX = re.compile(r"planeswalkers? you control", re.IGNORECASE)
+_SUPERFRIENDS_LOYALTY_CTR_RX = re.compile(r"loyalty counters?", re.IGNORECASE)
+_SUPERFRIENDS_ACTIVATE_LOYALTY_RX = re.compile(
+    r"activate (?:a |one )?loyalty|one or more loyalty", re.IGNORECASE
+)
+_SUPERFRIENDS_PW_TYPE_RX = re.compile(r"planeswalker type", re.IGNORECASE)
+_SUPERFRIENDS_ABILITIES_OF_RX = re.compile(
+    r"abilit(?:y|ies) of (?:a |target |another |each )?planeswalker", re.IGNORECASE
+)
+_SUPERFRIENDS_OPPONENT_VETO_RX = re.compile(
+    r"planeswalkers?\b[\s\w]{0,15}\bopponents?\b[\s\w]{0,10}\bcontrols?\b",
+    re.IGNORECASE,
+)
+_SUPERFRIENDS_GROUP_MARKER_RX = re.compile(
+    r"you control|planeswalkers|another|each|target planeswalker"
+    r"|among|creatures? (?:and/or|or) planeswalkers?",
+    re.IGNORECASE,
+)
+
+
+def _matches_superfriends_idiom(oracle: str) -> bool:
+    """Whether a reminder-stripped oracle carries a bucket-B superfriends
+    idiom, per-clause, minus the opponent/self-only/incidental vetoes."""
+    for cl in clauses(_REMINDER.sub(" ", oracle or "")):
+        if _SUPERFRIENDS_OPPONENT_VETO_RX.search(cl):
+            continue
+        if _SUPERFRIENDS_PWUC_RX.search(cl):
+            return True
+        if _SUPERFRIENDS_ACTIVATE_LOYALTY_RX.search(
+            cl
+        ) and _SUPERFRIENDS_GROUP_MARKER_RX.search(cl):
+            return True
+        if _SUPERFRIENDS_LOYALTY_CTR_RX.search(
+            cl
+        ) and _SUPERFRIENDS_GROUP_MARKER_RX.search(cl):
+            return True
+        if _SUPERFRIENDS_PW_TYPE_RX.search(cl):
+            return True
+        if _SUPERFRIENDS_ABILITIES_OF_RX.search(cl):
+            return True
+    return False
+
+
+def _arm_superfriends_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``superfriends_matters`` node for a description-only
+    planeswalker/loyalty payoff (CR 306.5) phase leaves wholly unstructured."""
+    if has_structural_superfriends(tree):
+        return None
+    if not _matches_superfriends_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="superfriends_matters",
+        concept="synth_superfriends_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B superfriends payoff (phase emits no typed PW node)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -2403,6 +2658,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("tutor", _arm_tutor),
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),
+    ("superfriends_matters", _arm_superfriends_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
