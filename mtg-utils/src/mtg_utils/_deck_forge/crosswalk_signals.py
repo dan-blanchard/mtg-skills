@@ -155,7 +155,6 @@ from mtg_utils._card_ir.project import (
     _SINGLE_PERMANENT_GRANT_PREDS,
     _SOULBOND_REF,
     _STARTING_LIFE_REF,
-    _SUSPECT_REF,
     _TOKEN_SUBTYPE_OWN_REF,
     _UNDYING_PERSIST_GRANT,
     _counter_kind_token,
@@ -8919,11 +8918,9 @@ _SPEED_DOER_TAGS: frozenset[str] = frozenset(
 # showed 0 drift vs the live ``_STATION_TL_RE`` split.
 _STATION_SUBTYPES: frozenset[str] = frozenset({"Spacecraft", "Planet"})
 
-# suspect verb/state discriminators (CR 701.60a/701.60b) — the ADR-0034
-# maker/matters route the live doer-arm reroute applies to cat=='suspect'
-# raws (byte-identical inline copies of the :8105-8117 in-loop regexes).
-_SUSPECTED_STATE_RX = re.compile(r"\bsuspected\b", re.IGNORECASE)
-_SUSPECT_VERB_RX = re.compile(r"\bsuspects?\b", re.IGNORECASE)
+# (suspect_matters was ADR-0036/0037 folded to a bucket-B ``tree_synthesis``
+# arm; see ``_arm_suspect_matters``. The suspect verb/state discriminators
+# — CR 701.60a/701.60b — now live there.)
 
 # cant_block pacify-sibling modes (CR 509.1b vs the Pacifism shape): v0.9.0
 # splits ``CantAttackOrBlock`` into siblings; a CantBlock over the SAME
@@ -9583,37 +9580,24 @@ def _suspect_matters_lane(tree: ConceptTree) -> list[Signal]:
     """suspect_matters (§13) — CR 701.60a/701.60b (suspected is a
     DESIGNATION, not an ability; the ADR-0034 boundary: the suspect VERB =
     maker, ported b4; the pure "suspected"-STATE reference = matters).
-
-    (a) native ``Suspect`` effect nodes: route each effect raw exactly as
-    live (:8105-8117) — ``\\bsuspected\\b`` AND NOT ``\\bsuspects?\\b`` →
-    matters; verb forms stay makers (the ported b4 lane, untouched — this
-    lane NEVER emits suspect_makers, the sibling zero-change guardrail).
     Nelly Borca's raw carries BOTH forms and the verb wins (pop False —
-    polarity-from-pop pin). (b) the marker re-derivation: when NO visible
-    suspect concept on the face, the FIRST ``_SUSPECT_REF`` match over the
-    kept oracle (project.py:6521 + the :8459-8461 face gate — ``m.group
-    (0)`` is a single word, so the route collapses to "suspected" →
-    matters / verb → nothing). Covers Agency Coroner (the swallowed rider,
-    [P43]) and Airtight Alibi (Unsuspect/``CantBecomeSuspected`` carriers
-    project no suspect concept). The ``(?! counter)`` lookahead keeps a
-    "suspect counter" out. LOGGED, not taken: the ``Suspected`` property
-    (11 nodes) — a structural upgrade candidate that would over-fire Nelly
-    today. Scope "you", HIGH.
+    polarity-from-pop pin); Agency Coroner (the swallowed rider, [P43]) and
+    Airtight Alibi (Unsuspect/``CantBecomeSuspected`` carriers project no
+    suspect concept) both fire via the marker re-derivation route. LOGGED,
+    not taken: the ``Suspected`` property — a structural upgrade candidate
+    that would over-fire Nelly today.
+
+    Tier-1 (ADR-0036/0037 fold): no clean structural separation from the
+    suspect VERB exists without reading the carrying unit's own raw text,
+    so both original arms (the native-effect raw check, the
+    ``_SUSPECT_REF`` marker fallback) relocate verbatim into the
+    ``synth_suspect_matters`` bucket-B node (:func:`_arm_suspect_matters`)
+    — the lane's SOLE source, zero oracle text/regex at LANE time. Scope
+    "you", HIGH.
     """
-    if tree.has_effect("suspect"):
-        for unit in tree.units:
-            for c in unit.effect_concepts("suspect"):
-                raw = c.raw or ""
-                if _SUSPECTED_STATE_RX.search(raw) and not _SUSPECT_VERB_RX.search(raw):
-                    return [
-                        Signal("suspect_matters", "you", "", raw, tree.name, "high")
-                    ]
-        return []
-    m = _SUSPECT_REF.search(_kept(tree))
-    if m is not None:
-        g = m.group(0)
-        if _SUSPECTED_STATE_RX.search(g) and not _SUSPECT_VERB_RX.search(g):
-            return [Signal("suspect_matters", "you", "", g, tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_suspect_matters":
+            return [Signal("suspect_matters", "you", "", "", tree.name, "high")]
     return []
 
 

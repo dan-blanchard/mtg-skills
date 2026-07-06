@@ -102,7 +102,7 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 # batch T4-mechanic-kw also imports project.py's ``_CRIME_REF`` (the
 # keyword-less crime-condition anchor) and ``_SUSPECT_REF`` (the suspect
 # verb/state marker) — the same single-source pattern, one copy each.
-from mtg_utils._card_ir.project import _CRIME_REF, _MASS_DEATH_REF
+from mtg_utils._card_ir.project import _CRIME_REF, _MASS_DEATH_REF, _SUSPECT_REF
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
     _KEYWORD_COUNTER_KINDS,
@@ -4131,6 +4131,56 @@ def _arm_crimes_matter(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T4-mechanic-kw: suspect_matters bucket-B (full relocation) ────────
+# CR 701.60a/701.60b: "suspected" is a DESIGNATION, not an ability — there is
+# no clean structural separation from the suspect VERB (the ported b4
+# suspect_makers lane) without reading the carrying UNIT's own raw text
+# (Nelly Borca's raw carries BOTH forms and the verb must win — a pure
+# structural read, e.g. the ``Suspected`` property, can't discriminate that
+# and would over-fire her; LOGGED, not taken, the b13 Blue Screen of Death
+# precedent). Relocates the two deleted lane arms verbatim: (a) a native
+# ``Suspect`` effect's OWN raw (state-not-verb), (b) the ``_SUSPECT_REF``
+# marker re-derivation over the kept oracle when no native Suspect effect
+# is present. No competing Tier-1 predicate — SOLE source. Measured
+# byte-identical over the commander-legal corpus (7/7 union, 0 drops, 0
+# adds).
+_SUSPECTED_STATE_SYNTH_RX = re.compile(r"\bsuspected\b", re.IGNORECASE)
+_SUSPECT_VERB_SYNTH_RX = re.compile(r"\bsuspects?\b", re.IGNORECASE)
+
+
+def _matches_suspect_matters_idiom(tree: ConceptTree) -> bool:
+    if tree.has_effect("suspect"):
+        for unit in tree.units:
+            for c in unit.effect_concepts("suspect"):
+                raw = c.raw or ""
+                if _SUSPECTED_STATE_SYNTH_RX.search(
+                    raw
+                ) and not _SUSPECT_VERB_SYNTH_RX.search(raw):
+                    return True
+        return False
+    m = _SUSPECT_REF.search(_REMINDER.sub(" ", tree.oracle or ""))
+    if m is not None:
+        g = m.group(0)
+        if _SUSPECTED_STATE_SYNTH_RX.search(g) and not _SUSPECT_VERB_SYNTH_RX.search(g):
+            return True
+    return False
+
+
+def _arm_suspect_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``suspect_matters`` node (the deleted two-arm
+    ``suspect_matters`` lane body relocated verbatim — no competing Tier-1
+    predicate exists, so this is the lane's SOLE source)."""
+    if not _matches_suspect_matters_idiom(tree):
+        return None
+    return _synthetic_concept(
+        arm_id="suspect_matters",
+        concept="synth_suspect_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B suspected-STATE reference (CR 701.60a/701.60b)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4177,6 +4227,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("suspend_matters", _arm_suspend_matters),
     ("flash_matters", _arm_flash_matters),
     ("crimes_matter", _arm_crimes_matter),
+    ("suspect_matters", _arm_suspect_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

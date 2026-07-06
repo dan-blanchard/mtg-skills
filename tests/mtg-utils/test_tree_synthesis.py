@@ -33,6 +33,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_island_matters,
     _arm_manland,
     _arm_spellcast_matters,
+    _arm_suspect_matters,
     _arm_suspend_matters,
     _arm_vehicles_matter,
     _has_structural_lifegain,
@@ -3322,3 +3323,63 @@ def test_crimes_matter_lane_reads_synth_node_end_to_end():
     )
     sigs = _crimes_matter(tree)
     assert any(s.key == "crimes_matter" for s in sigs)
+
+
+# ── batch T4-mechanic-kw: suspect_matters (full relocation, no gate) ───────
+
+
+def test_suspect_matters_bucket_b_synth_native_effect_state_form():
+    """Agency Coroner's native Suspect effect raw carries the "suspected"
+    STATE form (not the verb) — no competing Tier-1 predicate."""
+    tree = _fixture_tree("Agency Coroner")
+    node = _arm_suspect_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_suspect_matters"
+
+
+def test_suspect_matters_bucket_b_synth_marker_fallback():
+    """Airtight Alibi's Unsuspect/``CantBecomeSuspected`` face projects no
+    visible suspect concept — the ``_SUSPECT_REF`` marker fallback route."""
+    tree = _fixture_tree("Airtight Alibi")
+    node = _arm_suspect_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_suspect_matters"
+
+
+def test_suspect_matters_no_fire_when_verb_wins():
+    """J. Jonah Jameson's "suspect up to one target creature" is the VERB
+    form only (no bare "suspected" state elsewhere) — suspect_makers
+    material, never suspect_matters (the polarity-from-pop pin)."""
+    assert _arm_suspect_matters(_fixture_tree("J. Jonah Jameson")) is None
+
+
+def test_suspect_matters_synth_registered():
+    assert "suspect_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_suspect_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _suspect_matters_lane
+
+    synth = ConceptNode(
+        concept="synth_suspect_matters",
+        node=SynthesizedNode(arm_id="suspect_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _suspect_matters_lane(tree)
+    assert any(s.key == "suspect_matters" for s in sigs)
