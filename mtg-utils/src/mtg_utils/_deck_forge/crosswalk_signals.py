@@ -193,6 +193,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_value_tap_ability,
     mass_death_amount,
     structural_keyword_subjects,
+    structural_token_maker_type_subjects,
     structural_type_subjects,
 )
 from mtg_utils._deck_forge import signal_keys
@@ -216,9 +217,7 @@ from mtg_utils._deck_forge._signals_ir import (
 from mtg_utils._deck_forge._signals_regex import (
     _EVERGREEN_CK,
     Signal,
-    _detect_token_maker,
     _resolve_subject,
-    clauses,
 )
 from mtg_utils._deck_forge._subtypes import (
     CLASS_TRIBES,
@@ -10953,12 +10952,18 @@ def extract_crosswalk_signals(
     # signal (CR 205.3);
     # (ii) token-profile subtypes — the Token effect nodes' creature-token
     # ``types`` (the b13 has_devour token-profile precedent; ``human``
-    # excluded, matching live's all_parts arm) UNION the byte-identical
-    # ``_detect_token_maker`` mirror per-clause (Krenko makes Goblins →
-    # wants Goblin lords). Live's all_parts membership can fire tokens the
-    # PHASE record doesn't name (bulk-side data) → a small live_only
-    # membership tail is a documented join artifact (the b13 island_matters
-    # precedent), NOT chased with bulk reads.
+    # excluded, matching live's all_parts arm), via the SHARED
+    # :func:`structural_token_maker_type_subjects` (the lane/gate source),
+    # UNION the ``synth_token_maker_type_subject`` bucket-B node (ADR-0036/
+    # 0037 T10-finalize2 fold — the deleted lane-time ``clauses(_kept(tree))``
+    # + ``_detect_token_maker`` per-clause scan is relocated verbatim to
+    # :func:`_arm_token_maker_type_subject`, gap-gated against the same
+    # structural set: Krenko makes Goblins → wants Goblin lords; Ghalta and
+    # Mavren's MODAL Dinosaur bullet phase's ``effect_concepts`` walk drops).
+    # Live's all_parts membership can fire tokens the PHASE record doesn't
+    # name (bulk-side data) → a small live_only membership tail is a
+    # documented join artifact (the b13 island_matters precedent), NOT
+    # chased with bulk reads.
     out_keys = {s.key for s in out}
     go_wide = bool(out_keys & {"creatures_matter", "attack_matters", "anthem_static"})
     if tree.is_type("Creature"):
@@ -10975,19 +10980,10 @@ def extract_crosswalk_signals(
                         "low",
                     )
                 )
-    token_subjects: set[str] = set()
-    for c in tree.effect_concepts("make_token"):
-        types = [t for t in getattr(c.node, "types", None) or [] if isinstance(t, str)]
-        if "Creature" not in types:
-            continue
-        for t in types:
-            sub = _resolve_subject(t, CREATURE_SUBTYPES)
-            if sub and sub.lower() != "human":
-                token_subjects.add(sub)
-    for clause in clauses(_kept(tree)):
-        for _key, sub in _detect_token_maker(clause, CREATURE_SUBTYPES):
-            if sub:
-                token_subjects.add(sub)
+    token_subjects: set[str] = set(structural_token_maker_type_subjects(tree))
+    for c in tree.iter_concepts():
+        if c.concept == "synth_token_maker_type_subject":
+            token_subjects.update(c.subject)
     for sub in token_subjects:
         add(Signal(signal_keys.TYPE_MATTERS, "you", sub, "", tree.name, "low"))
 

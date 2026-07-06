@@ -153,6 +153,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_keyword_implied_tribe,
     _detect_keyword_tribe,
     _detect_multi_tribe_anthem,
+    _detect_token_maker,
     _detect_type_matters,
     _detect_typed_gy_recursion,
     _resolve_subject,
@@ -231,6 +232,7 @@ __all__ = [
     "is_clone_value_effect",
     "mass_death_amount",
     "structural_keyword_subjects",
+    "structural_token_maker_type_subjects",
     "structural_type_subjects",
     "synthesize_nodes",
 ]
@@ -1303,6 +1305,78 @@ def _arm_type_matters(tree: ConceptTree) -> ConceptNode | None:
         scope="you",
         subject=tuple(sorted(new)),
         desc="bucket-B tribal payoff (phase emits no subject-bearing Typed filter)",
+    )
+
+
+# ── token_maker_type_subject structural read + bucket-B (ADR-0036/0037 ───────
+# T10-finalize2 fold). The type_matters MEMBERSHIP token-profile union (LOW
+# confidence, a granularity-c reconciliation in extract_crosswalk_signals,
+# distinct from the HIGH-confidence Arm-B/synth pair above): a token-MAKER's
+# creature type is a kindred-tribal tell (Krenko makes Goblins -> wants Goblin
+# lords), read from the make_token effect's own ``types`` field, "Human"
+# excluded (a vanilla Human token is not a typed-tribal signal — matches
+# live's all_parts arm). Phase's Token-effect projection is incomplete for
+# two idioms: a MODAL "choose one" ability where only one bullet's token node
+# survives the ``effect_concepts`` walk (Ghalta and Mavren's Dinosaur bullet
+# sits alongside the structurally-read Vampire bullet) and a token whose
+# creation isn't tagged ``make_token`` at all (Circuits Act's die-roll token,
+# Chalk Outline's investigate-adjacent token). The deleted lane-time
+# ``clauses(_kept(tree))`` + ``_detect_token_maker`` per-clause scan is
+# relocated here, per-subject gap-gated against the structural set
+# (SYNTH-EXCLUSION-PARITY — 82/31621 commander-legal corpus cards genuinely
+# gap; the other 2121 both-fire cards are already structural, ~34 cards'
+# regex-only "Human" addition is the deliberate exclusion, not a gap). CR
+# 205.3i (subtypes).
+
+
+def structural_token_maker_type_subjects(tree: ConceptTree) -> set[str]:
+    """Creature-token subtypes of every ``make_token`` effect's own typed
+    ``types`` field (the Arm-B source SHARED by the lane reconciliation AND
+    this stage's per-subject gap gate — one source, no drift).
+    """
+    out: set[str] = set()
+    for c in tree.effect_concepts("make_token"):
+        types = [t for t in getattr(c.node, "types", None) or [] if isinstance(t, str)]
+        if "Creature" not in types:
+            continue
+        for t in types:
+            sub = _resolve_subject(t, CREATURE_SUBTYPES)
+            if sub and sub.lower() != "human":
+                out.add(sub)
+    return out
+
+
+def _mirror_token_maker_type_subjects(oracle: str) -> set[str]:
+    """Every creature-token subtype the deleted ``_detect_token_maker``
+    per-clause mirror captured (reminder-stripped, clause-split — the SAME
+    text the flag-OFF lane mirror scanned), "Human" excluded.
+    """
+    subs: set[str] = set()
+    for cl in clauses(_REMINDER.sub(" ", oracle or "")):
+        for _key, sub in _detect_token_maker(cl, CREATURE_SUBTYPES):
+            if sub and sub.lower() != "human":
+                subs.add(sub)
+    return subs
+
+
+def _arm_token_maker_type_subject(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a SUBJECT-carrying ``token_maker_type_subject`` node for the
+    bucket-B token-profile gap: a TUPLE of ONLY the creature-token subtypes
+    the mirror finds that :func:`structural_token_maker_type_subjects` MISSES.
+    Returns None when phase already structuralizes every captured subtype.
+    """
+    new = _mirror_token_maker_type_subjects(
+        tree.oracle or ""
+    ) - structural_token_maker_type_subjects(tree)
+    if not new:
+        return None
+    return _synthetic_concept(
+        arm_id="token_maker_type_subject",
+        concept="synth_token_maker_type_subject",
+        scope="you",
+        subject=tuple(sorted(new)),
+        desc="bucket-B token-maker type subject (phase's Token effect "
+        "projection drops the creature subtype)",
     )
 
 
@@ -6595,6 +6669,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("dig_until", _arm_dig_until),
     ("bending_cross", _arm_bending_cross),
     ("bounce_tempo", _arm_bounce_tempo),
+    ("token_maker_type_subject", _arm_token_maker_type_subject),
     ("death_matters", _arm_death_matters),
     ("attack_matters", _arm_attack_matters),
     ("lifegain_matters", _arm_lifegain_matters),

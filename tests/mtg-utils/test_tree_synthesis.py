@@ -707,11 +707,17 @@ def test_lifegain_synth_fires_on_gain_or_lose():
 
 def test_lifegain_synth_fires_on_gained_this_turn_text():
     # Regna / Licia / Shanna — phase folds "gained life this turn" into untyped text.
+    # The fixture's own "create two 1/1 white Warrior creature tokens" clause also
+    # co-fires token_maker_type_subject (ADR-0036/0037 T10-finalize2) — a genuine,
+    # unrelated gap this same text happens to exercise (a bare gap tree carries no
+    # structural make_token node at all).
     tree = _gap_tree(
         "At the beginning of each end step, if your team gained life this turn, "
         "create two 1/1 white Warrior creature tokens."
     )
-    assert [a for a, _ in synthesize_nodes(tree)] == ["lifegain_matters"]
+    arms = [a for a, _ in synthesize_nodes(tree)]
+    assert "lifegain_matters" in arms
+    assert set(arms) <= {"lifegain_matters", "token_maker_type_subject"}
 
 
 def test_lifegain_synth_noops_on_pure_source():
