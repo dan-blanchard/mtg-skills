@@ -256,7 +256,6 @@ from mtg_utils._deck_forge._subtypes import (
 )
 from mtg_utils._deck_forge._sweep_detectors import (
     CLUE_MATTERS_REGEX,
-    COLOR_CHANGE_REGEX,
     ENTERED_ATTACKER_REGEX,
     ISLAND_MAKERS_REGEX,
     NONCOMBAT_DAMAGE_PAYOFF_REGEX,
@@ -886,7 +885,6 @@ _FIXING_PRODUCED_TYPES: frozenset[str] = frozenset(
 # Compiled forms of the pinned live regex sources (byte-identical by import;
 # same IGNORECASE flag the live kept-detectors compile with).
 _ENTERED_ATTACKER_RX = re.compile(ENTERED_ATTACKER_REGEX, re.IGNORECASE)
-_COLOR_CHANGE_RX = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
 _UNSPENT_MANA_RX = re.compile(UNSPENT_MANA_REGEX, re.IGNORECASE)
 _VEHICLES_MATTER_RX = re.compile(VEHICLES_MATTER_REGEX, re.IGNORECASE)
 
@@ -7322,15 +7320,19 @@ def _animate_artifact(tree: ConceptTree) -> list[Signal]:
 
 
 def _color_change(tree: ConceptTree) -> list[Signal]:
-    """color_change (§D) — CR 105.3: kept-mirror-PRIMARY (verdict upheld —
-    raw structural SetColor fires on 391 corpus cards, ~94% over-fire from
-    devoid CDAs / eternalize token colors / animate riders): the EXACT live
-    COLOR_CHANGE_REGEX (Alchor's Tomb, Distorting Lens). The AddChosenColor
-    structural assist adds 0 over the mirror — LOG only. "Becomes colorless"
-    (Ancient Kavu) is a deliberate non-match. Scope "you".
+    """color_change (§D) — CR 105.3: a color-changing effect ("becomes the
+    color of your choice"/"becomes all colors" — Alchor's Tomb, Distorting
+    Lens). Tier-1 (ADR-0036/0037 fold): reads the ``tree_synthesis``
+    bucket-B ``synth_color_change`` node (the deleted ``_COLOR_CHANGE_RX``
+    relocated verbatim — no competing Tier-1 predicate: the only structural
+    anchor, cat=='animate', fires on 391 corpus cards, ~94% over-fire from
+    devoid CDAs / eternalize token colors / animate riders, per the batch-12
+    adjudication). "Becomes colorless" (Ancient Kavu) is a deliberate
+    non-match. Scope "you".
     """
-    if _COLOR_CHANGE_RX.search(_kept(tree)):
-        return [Signal("color_change", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_color_change":
+            return [Signal("color_change", "you", "", "", tree.name, "high")]
     return []
 
 

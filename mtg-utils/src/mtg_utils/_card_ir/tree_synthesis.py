@@ -121,6 +121,7 @@ from mtg_utils._deck_forge._signals_regex import (
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge._sweep_detectors import (
     ANIMATE_ARTIFACT_REGEX,
+    COLOR_CHANGE_REGEX,
     ISLAND_MATTERS_REGEX,
     KEYWORD_COUNTER_REGEX,
 )
@@ -3665,6 +3666,34 @@ def _arm_animate_artifact(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T3-makers-type: color_change bucket-B (verbatim relocation) ────────
+# CR 105.3: "becomes the color of your choice" / "becomes all colors" (Alchor's
+# Tomb, Distorting Lens). phase parses this inconsistently (20 cards as a
+# nested AddChosenColor, 4 as a bare Unimplemented "become" — batch-12
+# adjudication); the only structural anchor (cat=='animate') over-fires ~90%
+# (man-lands / animate-land anthems, not color-changers). No competing Tier-1
+# predicate — relocates the deleted ``_COLOR_CHANGE_RX`` verbatim.
+_COLOR_CHANGE_SYNTH_RX = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
+
+
+def _matches_color_change_idiom(oracle: str) -> bool:
+    return bool(_COLOR_CHANGE_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_color_change(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``color_change`` node (the deleted ``_COLOR_CHANGE_RX``
+    relocated verbatim)."""
+    if not _matches_color_change_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="color_change",
+        concept="synth_color_change",
+        scope="you",
+        subject=(),
+        desc="bucket-B color-changing effect (CR 105.3)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3703,6 +3732,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("poison_matters", _arm_poison_matters),
     ("island_matters", _arm_island_matters),
     ("animate_artifact", _arm_animate_artifact),
+    ("color_change", _arm_color_change),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

@@ -3578,7 +3578,8 @@ def test_animate_artifact_mirror_primary():
 
 
 def test_color_change_mirror_primary():
-    """CR 105.3: the byte-identical COLOR_CHANGE_REGEX mirror fires
+    """CR 105.3: Tier-1 (ADR-0036/0037 fold — the ``COLOR_CHANGE_REGEX``
+    mirror relocated verbatim to a bucket-B ``tree_synthesis`` arm) fires
     (Alchor's Tomb, Distorting Lens); "becomes colorless" (Ancient Kavu)
     is a regex non-match and eternalize's token SetColor (Adorned Pouncer)
     never reaches the lane — the raw structural SetColor read over-fires

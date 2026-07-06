@@ -25,6 +25,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _SPELLCAST_TRIGGER_RX,
     SYNTHESIS_ARM_IDS,
     _arm_animate_artifact,
+    _arm_color_change,
     _arm_island_matters,
     _arm_spellcast_matters,
     _has_structural_lifegain,
@@ -2888,3 +2889,53 @@ def test_animate_artifact_lane_reads_synth_node_end_to_end():
     )
     sigs = _animate_artifact(tree)
     assert any(s.key == "animate_artifact" for s in sigs)
+
+
+# ── batch T3-makers-type (ADR-0036/0037 Stage 5): color_change ───────────────
+
+
+def test_color_change_bucket_b_synth():
+    """Alchor's Tomb's color-changing effect — no competing Tier-1
+    predicate (the raw ``animate`` anchor over-fires ~94%, batch-12)."""
+    tree = _fixture_tree("Alchor's Tomb")
+    node = _arm_color_change(tree)
+    assert node is not None
+    assert node.concept == "synth_color_change"
+    assert node.scope == "you"
+
+
+def test_color_change_no_fire_on_becomes_colorless():
+    """Ancient Kavu's "becomes colorless" is a deliberate non-match."""
+    assert _arm_color_change(_fixture_tree("Ancient Kavu")) is None
+
+
+def test_color_change_synth_registered():
+    assert "color_change" in SYNTHESIS_ARM_IDS
+
+
+def test_color_change_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _color_change
+
+    synth = ConceptNode(
+        concept="synth_color_change",
+        node=SynthesizedNode(arm_id="color_change", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _color_change(tree)
+    assert any(s.key == "color_change" for s in sigs)
