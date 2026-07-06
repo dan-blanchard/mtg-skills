@@ -3483,34 +3483,31 @@ def _cost_reduction(tree: ConceptTree) -> list[Signal]:
     """cost_reduction — a static spell-cost REDUCER build-around (CR 601.2f / 118.7).
     Mirrors the live ``cost_reduction`` doer: a ``static_ability`` whose ``mode`` is a
     ``ModifyCost`` of direction ``Reduce`` (Goblin Electromancer, Helm of Awakening,
-    Ruby Medallion). Two structural gates replace the live path's raw screens:
+    Ruby Medallion).
 
     * **direction** — :func:`modify_cost_mode` reads the typed ``mode``; a ``Raise``
       tax (Thalia) / ``Minimum`` floor is excluded (the live ``_COST_INCREASE`` raw
       screen);
-    * **not a self-discount** — two screens. The ``affected`` filter must NOT be
-      ``SelfRef`` — phase's canonical self-discount shape, 220/226 of the "this
-      spell costs" statics (A-Demilich). Six residual self-discounts instead
-      parse as ``Typed[Card]`` + ``spell_filter=null`` — byte-identical to the
-      symmetric Helm-of-Awakening reducer, distinguishable only by the static's
-      own ``description`` ([P8], refined 2026-07-02) — so a node-local
-      "this spell costs" description screen (the live ``_COST_SELF_DISCOUNT``
-      mirror; node-local raw precedent ``_is_scaling_count``) drops them
-      (Discontinuity, Hierophant Bio-Titan).
+    * **not a self-discount, unambiguous shape** — a ``SelfRef`` ``affected``
+      filter is phase's canonical self-discount shape (220/226 of the "this
+      spell costs" statics, A-Demilich) — Tier-1, no text.
+
+    Tier-1 (ADR-0036/0037 T10-finalize2 GLOBAL FINALIZE-2 fold): the six
+    residual self-discounts parse as a bare ``Typed[Card]`` (``spell_filter``
+    null) — byte-identical to the symmetric Helm-of-Awakening reducer,
+    distinguishable only by the static's own ``description`` ([P8], refined
+    2026-07-02) — so the deleted lane-time "this spell costs" description
+    screen is relocated verbatim to the bucket-B ``synth_cost_reduction``
+    node (:func:`_arm_cost_reduction`, which also covers the unambiguous
+    majority), read below.
 
     A flat ramp rock (no ``ModifyCost``) never reaches the gate. The activated
     "next spell you cast costs less" synth form (``reducenextspellcost`` — no native
     static node) is a documented ``live_only`` tail. Scope "you".
     """
-    for unit in tree.units:
-        if modify_cost_mode(unit.node) != "Reduce":
-            continue
-        if tag_of(getattr(unit.node, "affected", None)) == "SelfRef":
-            continue
-        desc = getattr(unit.node, "description", None) or ""
-        if "this spell costs" in desc.lower():
-            continue
-        return [Signal("cost_reduction", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_cost_reduction":
+            return [Signal("cost_reduction", "you", "", "", tree.name, "high")]
     return []
 
 

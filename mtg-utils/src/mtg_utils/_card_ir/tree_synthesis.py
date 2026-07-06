@@ -6298,6 +6298,42 @@ def _arm_recast_etb_bleed(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+# ── cost_reduction bucket-B (ADR-0036/0037 T10-finalize2 GLOBAL FINALIZE-2) ───
+# cost_reduction (CR 601.2f/118.7): a static ``ModifyCost{Reduce}`` build-around.
+# A ``SelfRef`` ``affected`` filter is the canonical self-discount shape (220/226
+# of the "this spell costs" statics, Tier-1 structural — the lane excludes it
+# directly, no text). Six residual self-discounts instead parse as a bare
+# ``Typed[Card]`` (``spell_filter`` null) — structurally BYTE-IDENTICAL to a
+# genuine symmetric reducer (Helm of Awakening), disambiguated ONLY by the
+# static's own description ([P8], refined 2026-07-02: Discontinuity,
+# Hierophant Bio-Titan). Whole decision relocated here (both branches read
+# ONLY the node's own typed fields + its own description, never a
+# cross-node/whole-oracle read) so the lane becomes a pure synth-concept read.
+def _arm_cost_reduction(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``cost_reduction`` node (CR 601.2f/118.7): a
+    ``ModifyCost{Reduce}`` static whose ``affected`` is not ``SelfRef`` and
+    whose OWN description does not carry the self-discount tell ("this spell
+    costs" — Discontinuity, Hierophant Bio-Titan's symmetric residual shape).
+    Node-own-field/description reads only, no cross-node text.
+    """
+    for unit in tree.units:
+        if modify_cost_mode(unit.node) != "Reduce":
+            continue
+        if tag_of(getattr(unit.node, "affected", None)) == "SelfRef":
+            continue
+        desc = getattr(unit.node, "description", None) or ""
+        if "this spell costs" in desc.lower():
+            continue
+        return _synthetic_concept(
+            arm_id="cost_reduction",
+            concept="synth_cost_reduction",
+            scope="you",
+            subject=(),
+            desc="bucket-B static spell-cost reducer (CR 601.2f/118.7)",
+        )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -6385,6 +6421,7 @@ def _make_sweep_arm(rx: re.Pattern[str], arm_id: str, scope: str, cr: str) -> _A
 _Arm = Callable[[ConceptTree], "ConceptNode | None"]
 _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("recast_etb_bleed", _arm_recast_etb_bleed),
+    ("cost_reduction", _arm_cost_reduction),
     ("death_matters", _arm_death_matters),
     ("attack_matters", _arm_attack_matters),
     ("lifegain_matters", _arm_lifegain_matters),
