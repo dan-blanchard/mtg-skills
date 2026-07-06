@@ -98,7 +98,11 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 # project.py also reads it for its own Seam-B ``mass_death`` marker (an independent
 # path this fold does not touch). No cycle: project.py imports neither this module
 # nor crosswalk_signals.
-from mtg_utils._card_ir.project import _MASS_DEATH_REF
+#
+# batch T4-mechanic-kw also imports project.py's ``_CRIME_REF`` (the
+# keyword-less crime-condition anchor) and ``_SUSPECT_REF`` (the suspect
+# verb/state marker) — the same single-source pattern, one copy each.
+from mtg_utils._card_ir.project import _CRIME_REF, _MASS_DEATH_REF
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
     _KEYWORD_COUNTER_KINDS,
@@ -151,6 +155,7 @@ __all__ = [
     "has_selfloss_engine",
     "has_structural_arcane",
     "has_structural_clue_matters",
+    "has_structural_crimes_matter",
     "has_structural_curse_matters",
     "has_structural_outlaw",
     "has_structural_spellcast",
@@ -4081,6 +4086,51 @@ def _arm_flash_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T4-mechanic-kw: crimes_matter bucket-B tail ────────────────────────
+# CR 700.13 + glossary "Crime": the lane's structural arm (a raw
+# ``CommitCrime`` trigger mode — ``_crimes_matter`` in
+# crosswalk_signals.py) already binds the dominant crime-PAYOFF template;
+# the residual is the keyword-less CONDITION form ("if/as long as/whenever
+# you've committed a crime", "committed a crime this turn") phase has no
+# condition kind for. Relocates the deleted ``_CRIME_REF`` search verbatim,
+# gap-gated against :func:`has_structural_crimes_matter` (the SAME trigger
+# check the lane tries first). Measured byte-identical over the
+# commander-legal corpus (27/27 union, 0 drops, 0 adds).
+def has_structural_crimes_matter(tree: ConceptTree) -> bool:
+    """Whether phase carries a raw ``CommitCrime`` trigger mode — the
+    crimes_matter lane's structural arm (mirrors it exactly) — the synth
+    gap-gate."""
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        mode = getattr(unit.node, "mode", None)
+        tag = mode if isinstance(mode, str) else tag_of(mode)
+        if tag == "CommitCrime":
+            return True
+    return False
+
+
+def _matches_crimes_matter_idiom(oracle: str) -> bool:
+    return bool(_CRIME_REF.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_crimes_matter(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``crimes_matter`` node for the bucket-B keyword-less
+    crime-condition residue (the deleted ``_CRIME_REF`` search relocated,
+    gap-gated against :func:`has_structural_crimes_matter`)."""
+    if has_structural_crimes_matter(tree):
+        return None
+    if not _matches_crimes_matter_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="crimes_matter",
+        concept="synth_crimes_matter",
+        scope="you",
+        subject=(),
+        desc="bucket-B keyword-less crime-condition residue (CR 700.13)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4126,6 +4176,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("clue_matters", _arm_clue_matters),
     ("suspend_matters", _arm_suspend_matters),
     ("flash_matters", _arm_flash_matters),
+    ("crimes_matter", _arm_crimes_matter),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

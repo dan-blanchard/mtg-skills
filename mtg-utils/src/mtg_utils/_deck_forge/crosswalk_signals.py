@@ -149,7 +149,6 @@ from mtg_utils._card_ir.project import (
     _CANT_BLOCK_TAX,
     _CASCADE_GRANT,
     _CHANGELING_REF,
-    _CRIME_REF,
     _EXHAUST_TRIG,
     _LIB_SEARCH_PLAYER_ACTIONS,
     _PAY_LIFE_REF,
@@ -192,6 +191,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_selfloss_engine,
     has_structural_arcane,
     has_structural_counter_distribute,
+    has_structural_crimes_matter,
     has_structural_curse_matters,
     has_structural_keyword_counter,
     has_structural_outlaw,
@@ -8853,21 +8853,19 @@ def _coven_matters_lane(tree: ConceptTree) -> list[Signal]:
 def _crimes_matter(tree: ConceptTree) -> list[Signal]:
     """crimes_matter (§21) — CR 700.13 + glossary "Crime": (a) trigger units
     with raw mode ``CommitCrime`` (probed: 21 corpus carriers, ALL in live,
-    0 extra); (b) the imported ``_CRIME_REF`` condition-form anchor over the
-    kept oracle, gated to trees with NO CommitCrime trigger (the exact live
-    marker gate — 21 + 7 = 28 = the whole pop). Fixability: the condition
-    form is a real phase gap ([P20]-adjacent condition-kind hole —
-    bucket B: regex-bridge NOW, parser substrate LATER). Scope "you", HIGH.
+    0 extra) — the SAME structural arm :func:`has_structural_crimes_matter`
+    checks. Tier-1 (ADR-0036/0037 fold): the keyword-less CONDITION form
+    ([P20]-adjacent condition-kind phase gap) reads the
+    ``synth_crimes_matter`` bucket-B node (:func:`_arm_crimes_matter`,
+    gap-gated against the same trigger check — the exact live marker gate,
+    21 + 7 = 28 = the whole pop) — zero oracle text/regex at LANE time.
+    Scope "you", HIGH.
     """
-    has_trigger = any(
-        u.origin == "trigger" and _trigger_mode_tag(u) == "CommitCrime"
-        for u in tree.units
-    )
-    if has_trigger:
+    if has_structural_crimes_matter(tree):
         return [Signal("crimes_matter", "you", "", "", tree.name, "high")]
-    m = _CRIME_REF.search(_kept(tree))
-    if m is not None:
-        return [Signal("crimes_matter", "you", "", m.group(0), tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_crimes_matter":
+            return [Signal("crimes_matter", "you", "", "", tree.name, "high")]
     return []
 
 

@@ -27,6 +27,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_animate_artifact,
     _arm_clue_matters,
     _arm_color_change,
+    _arm_crimes_matter,
     _arm_curse_matters,
     _arm_flash_matters,
     _arm_island_matters,
@@ -49,6 +50,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_arcane,
     has_structural_clue_matters,
     has_structural_counter_distribute,
+    has_structural_crimes_matter,
     has_structural_curse_matters,
     has_structural_keyword_counter,
     has_structural_manland,
@@ -3263,3 +3265,60 @@ def test_flash_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _flash_matters_lane(tree)
     assert any(s.key == "flash_matters" for s in sigs)
+
+
+# ── batch T4-mechanic-kw: crimes_matter ──────────────────────────────────────
+
+
+def test_crimes_matter_structural_gate_true_on_commit_crime_trigger():
+    """At Knifepoint's raw ``CommitCrime`` trigger mode — the lane's
+    structural arm."""
+    assert has_structural_crimes_matter(_fixture_tree("At Knifepoint"))
+    assert _arm_crimes_matter(_fixture_tree("At Knifepoint")) is None
+
+
+def test_crimes_matter_bucket_b_synth_gap_gated():
+    """Nimble Brigand's keyword-less crime CONDITION form ("if you've
+    committed a crime this turn") — phase has no condition kind for it, a
+    genuine gap the structural CommitCrime-trigger arm misses."""
+    tree = _fixture_tree("Nimble Brigand")
+    assert has_structural_crimes_matter(tree) is False
+    node = _arm_crimes_matter(tree)
+    assert node is not None
+    assert node.concept == "synth_crimes_matter"
+
+
+def test_crimes_matter_no_fire_on_unrelated_card():
+    assert _arm_crimes_matter(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_crimes_matter_synth_registered():
+    assert "crimes_matter" in SYNTHESIS_ARM_IDS
+
+
+def test_crimes_matter_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _crimes_matter
+
+    synth = ConceptNode(
+        concept="synth_crimes_matter",
+        node=SynthesizedNode(arm_id="crimes_matter", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _crimes_matter(tree)
+    assert any(s.key == "crimes_matter" for s in sigs)
