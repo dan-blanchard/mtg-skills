@@ -253,10 +253,6 @@ from mtg_utils._deck_forge._subtypes import (
     CREATURE_SUBTYPES,
     TRIBAL_SUBTYPES,
 )
-from mtg_utils._deck_forge._sweep_detectors import (
-    STICKERS_MATTER_REGEX,
-    VOID_WARP_MATTERS_REGEX,
-)
 from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.card_ir import Card
 
@@ -10353,27 +10349,20 @@ def _typed_anthem_multi(tree: ConceptTree) -> list[Signal]:
 
 # Byte-identical inline copies of the live kept-detector rows with NO importable
 # name (the b12 _JOHAN_MIRROR precedent — _IR_KEPT_DETECTORS rows are unnamed
-# tuple entries); the named live constants (STICKERS_MATTER_REGEX /
-# VOID_WARP_MATTERS_REGEX / _BECOMES_TARGET_SRC_OPP) are imported single-source
-# above. Every mirror runs FLAT over the reminder-stripped kept oracle — the
-# exact live application (`pat.search(kept_oracle)`).
-_ATTRACTIONS_RX = re.compile(r"\battraction\b|open an attraction", re.IGNORECASE)
-_DRAFT_SPELLBOOK_RX = re.compile(r"\bdraft a card\b|spellbook", re.IGNORECASE)
-_FREE_PLOT_RX = re.compile(r"plot cost is equal to its mana cost", re.IGNORECASE)
+# tuple entries). Every mirror runs FLAT over the reminder-stripped kept oracle —
+# the exact live application (`pat.search(kept_oracle)`).
+# (The 9 FORMAL KEPT-MIRROR rows — attractions_matter / draft_spellbook /
+# free_plot / secret_writedown / stickers_matter / tap_down_blockers /
+# timing_control / villainous_choice / void_warp_matters — were ADR-0036/0037
+# folded to bucket-B ``tree_synthesis`` arms; see ``_sweep_kept_mirrors``
+# below and the ``_SWEEP_SYNTH_ROWS`` CR-grounding table in
+# ``tree_synthesis.py`` for the per-lane structural-absence re-probe.)
 _LEGEND_RULE_OFF_RX = re.compile(r"the .legend rule. doesn't apply", re.IGNORECASE)
 _LESSONS_RX = re.compile(r"\blessons?\b", re.IGNORECASE)
 _MIRACLE_GRANT_RX = re.compile(
     r"(?:cards?|spells?) (?:in your hand )?ha(?:s|ve) miracle", re.IGNORECASE
 )
-_SECRET_WRITEDOWN_RX = re.compile(
-    r"secretly (?:write|choose|name)"
-    r"|before the game begins[^.]*(?:write|name|choose)"
-    r"|from outside the game",
-    re.IGNORECASE,
-)
 _SNOW_RX = re.compile(r"\bsnow\b", re.IGNORECASE)
-_STICKERS_RX = re.compile(STICKERS_MATTER_REGEX, re.IGNORECASE)
-_TAP_DOWN_BLOCKERS_RX = re.compile(r"can'?t be blocked unless all", re.IGNORECASE)
 _TARGETING_RESIDUE_RX = re.compile(
     r"becomes the target of a spell or ability"
     r"|whenever [^.]{0,60}?becomes? the target of|\bheroic\b"
@@ -10381,66 +10370,21 @@ _TARGETING_RESIDUE_RX = re.compile(
     r"that targets",
     re.IGNORECASE,
 )
-_TIMING_CONTROL_RX = re.compile(
-    r"cast spells (?:and activate abilities )?only during their own"
-    r"|spells? only any time they could cast a sorcery"
-    r"|can cast spells only",
-    re.IGNORECASE,
-)
-_VILLAINOUS_RX = re.compile(r"villainous choice", re.IGNORECASE)
-_VOID_WARP_MATTERS_RX = re.compile(VOID_WARP_MATTERS_REGEX, re.IGNORECASE)
 _VOTING_MATTERS_RX = re.compile(r"\bfinish(?:ed)? voting\b", re.IGNORECASE)
 
-# The 9 FORMAL KEPT-MIRROR dispositions (sweep §1/§2/§4/§11/§14/§15/§20/§21/
-# §22) — each a byte-identical mirror of the live row, scope pinned to the
-# live row's scope. Structural absences re-probed at v0.9.0 (double tag/mode
-# census + substring scan):
-#   • attractions_matter — CR 717 / 701.51 / 701.52 / 702.159. Structural ≠
-#     live in BOTH directions (26 phase-only Attraction permanents' own visit
-#     nodes = membership, gate #4; 4 live-only word references) → mirror is
-#     the producer. LOGGED widen (closeout (c) #20): an OpenAttractions read
-#     behind a NOT-self-Attraction-subtype membership veto.
-#   • draft_spellbook — DD5 (Spellbook) + CR 905.1c/905.2b (Conspiracy
-#     draft). NO Draft/Spellbook node in the census; digital vocabulary
-#     stays category='other'.
-#   • free_plot — CR 702.170. Single-card lane (Fblthp) BY DESIGN; phase
-#     parses Fblthp to MayLookAtTopOfLibrary + Ward only (both plot clauses
-#     dropped — parse-gap candidate, adjudicator-logged).
-#   • secret_writedown — CR 702.106a/b (hidden agenda) + 400.11b/108.3
-#     (outside the game). The live constant already drops the deleted
-#     "|your sideboard" companion arm — the LIVE constant is ported, and
-#     reminder-strip keeps companion reminder text out (Lutri pinned).
-#   • stickers_matter — CR 123 / 122.1. PutSticker (43) is ALL ⊆ live; the
-#     {TK}-cost / reference tail (64) is mirror-only → mirror is the
-#     producer, the PutSticker read is typed corroboration (below).
-#   • tap_down_blockers — CR 509.1c. Tromokratis's clause survives ONLY as
-#     Unrecognized condition TEXT on a 143-holder CantBeBlocked static —
-#     a "typed" read would still be a raw-text match at pop=1 (no fidelity
-#     gain). LOGGED: upgrade if a later tag types blocking requirements.
-#   • timing_control — CR 117.1a + 307.5. Phase still drops the cast-timing
-#     statics (CastTimingPermission = the flash-permission aura family;
-#     MatchesCardCastTiming = the suspend timing check; neither intersects
-#     the live 6) — the ADR-0027 β note HOLDS at v0.9.0. Scope "any".
-#   • villainous_choice — CR 701.55a-d (resolves the live "CR 701.x"). The
-#     choice action is unstructured; GrantsExtraVillainousChoice = 1 holder
-#     (The Valeyard) is corroboration, not a producer (LOGGED, closeout (c)
-#     #22).
-#   • void_warp_matters — CR 702.185 (Warp) + 207.2c (void is an ABILITY
-#     WORD). The stale-skip closeout flag CONFIRMED; sibling
-#     void_warp_makers ported b15 (its docstring reserves this lane for the
-#     sweep). The Void payoff side has NO node (only Devoid substring-hits
-#     a census scan). Both arms feed has_other_plan — porting
-#     byte-identically preserves the voltron-silence identity.
-_SWEEP_MIRROR_ROWS: tuple[tuple[re.Pattern[str], str, str], ...] = (
-    (_ATTRACTIONS_RX, "attractions_matter", "you"),
-    (_DRAFT_SPELLBOOK_RX, "draft_spellbook", "you"),
-    (_FREE_PLOT_RX, "free_plot", "you"),
-    (_SECRET_WRITEDOWN_RX, "secret_writedown", "you"),
-    (_STICKERS_RX, "stickers_matter", "you"),
-    (_TAP_DOWN_BLOCKERS_RX, "tap_down_blockers", "you"),
-    (_TIMING_CONTROL_RX, "timing_control", "any"),
-    (_VILLAINOUS_RX, "villainous_choice", "you"),
-    (_VOID_WARP_MATTERS_RX, "void_warp_matters", "you"),
+# The 9 sweep-row synth concept names (:data:`SYNTHESIS_ARM_IDS`, the
+# ``tree_synthesis._SWEEP_SYNTH_ROWS`` table) — key + scope only; the CR
+# grounding + per-lane structural-absence re-probe lives with the arms.
+_SWEEP_SYNTH_KEYS: tuple[tuple[str, str], ...] = (
+    ("attractions_matter", "you"),
+    ("draft_spellbook", "you"),
+    ("free_plot", "you"),
+    ("secret_writedown", "you"),
+    ("stickers_matter", "you"),
+    ("tap_down_blockers", "you"),
+    ("timing_control", "any"),
+    ("villainous_choice", "you"),
+    ("void_warp_matters", "you"),
 )
 
 # The etb-bleed sibling concepts recast_etb's serve arm joins on (the live
@@ -10499,18 +10443,20 @@ def _keyword_field_signals_sweep(keywords: frozenset[str], name: str) -> list[Si
 
 
 def _sweep_kept_mirrors(tree: ConceptTree) -> list[Signal]:
-    """The 9 FORMAL KEPT-MIRROR sweep dispositions (:data:`_SWEEP_MIRROR_ROWS`).
-
-    Each row is the byte-identical live constant run FLAT over the
-    reminder-stripped kept oracle — see the row-table comment above for the
-    per-lane CR grounding, the re-probed structural absences, and the LOGGED
-    (not taken) widen candidates. Diff target 0/0 per lane.
+    """The 9 FORMAL KEPT-MIRROR sweep dispositions (ADR-0036/0037 Stage 5
+    fold, Tier-1) — NONE has a competing structural read (re-probed at
+    v0.9.0: double tag/mode census + substring scan, the celebration_matters/
+    coven_matters sole-source precedent), so each is a plain bucket-B synth
+    relocation of the deleted flat mirror, gap-free. See the
+    ``_SWEEP_SYNTH_ROWS`` table in ``tree_synthesis.py`` for the per-lane
+    CR grounding + structural-absence re-probe. Zero oracle text / regex at
+    lane time — reads the synthetic ``synth_<key>`` concept node.
     """
-    kept = _kept(tree)
+    concepts = {c.concept for c in tree.iter_concepts()}
     return [
         Signal(key, scope, "", "", tree.name, "high")
-        for rx, key, scope in _SWEEP_MIRROR_ROWS
-        if rx.search(kept)
+        for key, scope in _SWEEP_SYNTH_KEYS
+        if f"synth_{key}" in concepts
     ]
 
 

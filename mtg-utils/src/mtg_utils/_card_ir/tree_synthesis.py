@@ -138,6 +138,11 @@ from mtg_utils._deck_forge._signals_regex import (
     clauses,
 )
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
+
+# batch T8-misc-sweep adds STICKERS_MATTER_REGEX/VOID_WARP_MATTERS_REGEX —
+# the LIVE pinned constants two sweep-row arms reuse verbatim (the b12
+# SANCTIONED single-source pattern) — never re-typed copies, so the arm and
+# the flag-OFF legacy mirror never drift apart.
 from mtg_utils._deck_forge._sweep_detectors import (
     ANIMATE_ARTIFACT_REGEX,
     CLUE_MATTERS_REGEX,
@@ -145,8 +150,10 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ISLAND_MATTERS_REGEX,
     KEYWORD_COUNTER_REGEX,
     PUMP_MATTERS_REGEX,
+    STICKERS_MATTER_REGEX,
     VEHICLES_MATTER_REGEX,
     VOID_WARP_MAKERS_REGEX,
+    VOID_WARP_MATTERS_REGEX,
 )
 
 __all__ = [
@@ -5362,6 +5369,84 @@ def _arm_station_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
+# Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
+# of the 9 formal kept-mirror rows has a competing structural read — each is
+# the SOLE source for its key (the celebration_matters/coven_matters
+# precedent: a plain regex relocation, no gap gate). Per-row grounding:
+#
+#   * attractions_matter — CR 717/701.51/701.52. Structural != live in BOTH
+#     directions (26 phase-only Attraction permanents' own visit nodes vs 4
+#     live-only word references) — the mirror is the producer.
+#   * draft_spellbook — DD5 (Spellbook) + CR 905.1c/905.2b (Conspiracy
+#     draft). NO Draft/Spellbook node in the census; digital vocabulary.
+#   * free_plot — CR 702.170. Single-card lane (Fblthp); phase drops the
+#     plot clause entirely.
+#   * secret_writedown — CR 702.106a/b + 400.11b/108.3.
+#   * stickers_matter — CR 123/122.1. The {TK}-cost/reference tail is
+#     mirror-only; the typed ``PutSticker`` corroboration lives separately
+#     in :func:`_stickers_structural` (a strict-subset ADD, unaffected).
+#   * tap_down_blockers — CR 509.1c. Tromokratis's clause survives ONLY as
+#     ``Unrecognized`` condition TEXT on a 1-holder ``CantBeBlocked``
+#     static (probed live) — a typed read is still a raw-text match at
+#     pop=1, no fidelity gain.
+#   * timing_control — CR 117.1a + 307.5. Phase drops the cast-timing
+#     statics (flash-permission auras, suspend timing checks).
+#   * villainous_choice — CR 701.55a-d. The choice action is unstructured.
+#   * void_warp_matters — CR 702.185 + 207.2c (void is an ability word, no
+#     rules meaning). The payoff side has no node.
+_ATTRACTIONS_SYNTH_RX = re.compile(r"\battraction\b|open an attraction", re.IGNORECASE)
+_DRAFT_SPELLBOOK_SYNTH_RX = re.compile(r"\bdraft a card\b|spellbook", re.IGNORECASE)
+_FREE_PLOT_SYNTH_RX = re.compile(r"plot cost is equal to its mana cost", re.IGNORECASE)
+_SECRET_WRITEDOWN_SYNTH_RX = re.compile(
+    r"secretly (?:write|choose|name)"
+    r"|before the game begins[^.]*(?:write|name|choose)"
+    r"|from outside the game",
+    re.IGNORECASE,
+)
+_STICKERS_SYNTH_RX = re.compile(STICKERS_MATTER_REGEX, re.IGNORECASE)
+_TAP_DOWN_BLOCKERS_SYNTH_RX = re.compile(r"can'?t be blocked unless all", re.IGNORECASE)
+_TIMING_CONTROL_SYNTH_RX = re.compile(
+    r"cast spells (?:and activate abilities )?only during their own"
+    r"|spells? only any time they could cast a sorcery"
+    r"|can cast spells only",
+    re.IGNORECASE,
+)
+_VILLAINOUS_SYNTH_RX = re.compile(r"villainous choice", re.IGNORECASE)
+_VOID_WARP_MATTERS_SYNTH_RX = re.compile(VOID_WARP_MATTERS_REGEX, re.IGNORECASE)
+
+# (regex, arm_id, concept, scope, CR desc) — one factory builds all 9 arms so
+# the shared "sole-source, no gate" shape (celebration_matters precedent)
+# isn't hand-repeated 9 times; each still gets its own registered arm_id.
+_SWEEP_SYNTH_ROWS: tuple[tuple[re.Pattern[str], str, str, str], ...] = (
+    (_ATTRACTIONS_SYNTH_RX, "attractions_matter", "you", "CR 717"),
+    (_DRAFT_SPELLBOOK_SYNTH_RX, "draft_spellbook", "you", "DD5/CR 905"),
+    (_FREE_PLOT_SYNTH_RX, "free_plot", "you", "CR 702.170"),
+    (_SECRET_WRITEDOWN_SYNTH_RX, "secret_writedown", "you", "CR 702.106"),
+    (_STICKERS_SYNTH_RX, "stickers_matter", "you", "CR 123"),
+    (_TAP_DOWN_BLOCKERS_SYNTH_RX, "tap_down_blockers", "you", "CR 509.1c"),
+    (_TIMING_CONTROL_SYNTH_RX, "timing_control", "any", "CR 117.1a"),
+    (_VILLAINOUS_SYNTH_RX, "villainous_choice", "you", "CR 701.55"),
+    (_VOID_WARP_MATTERS_SYNTH_RX, "void_warp_matters", "you", "CR 702.185"),
+)
+
+
+def _make_sweep_arm(rx: re.Pattern[str], arm_id: str, scope: str, cr: str) -> _Arm:
+    def _arm(tree: ConceptTree) -> ConceptNode | None:
+        oracle = _REMINDER.sub(" ", tree.oracle or "")
+        if not rx.search(oracle):
+            return None
+        return _synthetic_concept(
+            arm_id=arm_id,
+            concept=f"synth_{arm_id}",
+            scope=scope,
+            subject=(),
+            desc=f"bucket-B {arm_id} sweep row ({cr})",
+        )
+
+    return _arm
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -5429,6 +5514,10 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("exert_matters", _arm_exert_matters),
     ("firebending_matters", _arm_firebending_matters),
     ("station_matters", _arm_station_matters),
+    *(
+        (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
+        for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS
+    ),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

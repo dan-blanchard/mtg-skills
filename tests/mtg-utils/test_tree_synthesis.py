@@ -4557,3 +4557,75 @@ def test_station_matters_gap_gated_when_structural_present():
 
 def test_station_matters_synth_registered():
     assert "station_matters" in SYNTHESIS_ARM_IDS
+
+
+# ── batch T8-misc-sweep: the 9 sweep-row bucket-B arms ───────────────────────
+
+
+def test_sweep_synth_arms_all_registered():
+    for key in (
+        "attractions_matter",
+        "draft_spellbook",
+        "free_plot",
+        "secret_writedown",
+        "stickers_matter",
+        "tap_down_blockers",
+        "timing_control",
+        "villainous_choice",
+        "void_warp_matters",
+    ):
+        assert key in SYNTHESIS_ARM_IDS
+
+
+def test_sweep_kept_mirrors_end_to_end_fire_and_no_fire():
+    """Real per-row oracle idioms (verified against the full commander-legal
+    corpus): villainous_choice fires on the CR 701.55 phrase, timing_control
+    on the cast-timing restriction phrase; neither fires on an unrelated
+    card. Exercises the production path (``apply_tree_synthesis`` +
+    ``_sweep_kept_mirrors``), not the arm in isolation."""
+    from mtg_utils._deck_forge.crosswalk_signals import _sweep_kept_mirrors
+
+    villainous = apply_tree_synthesis(
+        ConceptTree(
+            name="Davros, Dalek Creator",
+            oracle_id="x",
+            oracle=(
+                "Menace\nAt the beginning of your end step, create a 3/3"
+                " black Dalek artifact creature token with menace if an"
+                " opponent lost 3 or more life this turn. Then each"
+                " opponent who lost 3 or more life this turn faces a"
+                " villainous choice — You draw a card, or that player"
+                " discards a card."
+            ),
+        )
+    )
+    assert any(s.key == "villainous_choice" for s in _sweep_kept_mirrors(villainous))
+
+    timing = apply_tree_synthesis(
+        ConceptTree(
+            name="City of Solitude",
+            oracle_id="x",
+            oracle=(
+                "Players can cast spells and activate abilities only"
+                " during their own turns."
+            ),
+        )
+    )
+    timing_sigs = _sweep_kept_mirrors(timing)
+    assert any(s.key == "timing_control" and s.scope == "any" for s in timing_sigs)
+
+    unrelated = apply_tree_synthesis(
+        ConceptTree(name="Chaos Wand", oracle_id="x", oracle="Do something unrelated.")
+    )
+    unrelated_keys = {s.key for s in _sweep_kept_mirrors(unrelated)}
+    assert not unrelated_keys & {
+        "attractions_matter",
+        "draft_spellbook",
+        "free_plot",
+        "secret_writedown",
+        "stickers_matter",
+        "tap_down_blockers",
+        "timing_control",
+        "villainous_choice",
+        "void_warp_matters",
+    }
