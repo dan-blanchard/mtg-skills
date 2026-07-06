@@ -3569,6 +3569,38 @@ def _arm_self_counter_grow(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arm: poison_matters bucket-B (ADR-0036/0037 Stage 5, batch T2-counters) ────
+# CR 122 + 704.5c: the "poison counter" reference/giver mirror (the ADR-0034
+# partition — infect/toxic/poisonous keyword BEARERS ride the separate
+# poison_makers lane). No competing Tier-1 predicate was probed for this
+# residual class: a poison-counter payoff reference (Corrupted's threshold
+# check) and a poison-GIVER that spells out "poison counter" instead of
+# bearing Infect (Fynn, Caress of Phyrexia) are indistinguishable from each
+# other structurally without re-opening the ADR-0034 partition, so this arm is
+# the lane's SOLE source (the evasion_self/celebration no-competing-predicate
+# precedent). Relocates the deleted ``_POISON_MATTERS_MIRROR`` verbatim.
+_POISON_MATTERS_SYNTH_RX = re.compile(r"poison counters?", re.IGNORECASE)
+
+
+def _matches_poison_matters_idiom(oracle: str) -> bool:
+    return bool(_POISON_MATTERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_poison_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``poison_matters`` node for the "poison counter" text
+    reference/giver (the deleted ``_POISON_MATTERS_MIRROR`` relocated
+    verbatim)."""
+    if not _matches_poison_matters_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="poison_matters",
+        concept="synth_poison_matters",
+        scope="opponents",
+        subject=(),
+        desc="bucket-B poison-counter reference/giver (CR 122/704.5c)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3604,6 +3636,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("counter_distribute", _arm_counter_distribute),
     ("proliferate_matters", _arm_proliferate_matters),
     ("self_counter_grow", _arm_self_counter_grow),
+    ("poison_matters", _arm_poison_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

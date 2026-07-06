@@ -2712,3 +2712,76 @@ def test_self_counter_grow_lane_reads_synth_node_end_to_end():
     )
     sigs = _self_counter_grow(tree)
     assert any(s.key == "self_counter_grow" for s in sigs)
+
+
+# ── batch T2-counters (ADR-0036/0037 Stage 5): poison_matters ─────────────────
+
+
+def _poison_matters_lane_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _poison_matters
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "poison_matters" for s in _poison_matters(tree))
+
+
+def test_poison_matters_bucket_b_synth():
+    """Caress of Phyrexia's poison-GIVER that spells out "poison counter"
+    instead of bearing Infect — no competing Tier-1 predicate (the
+    celebration/coven no-competing-predicate precedent), so this is the
+    lane's SOLE source."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_poison_matters
+
+    tree = _fixture_tree("Caress of Phyrexia")
+    node = _arm_poison_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_poison_matters"
+    assert node.scope == "opponents"
+    assert _poison_matters_lane_fires("Caress of Phyrexia") is True
+
+
+def test_poison_matters_giver_fires():
+    """Fynn, the Fangbearer's poison-giver payoff."""
+    assert _poison_matters_lane_fires("Fynn, the Fangbearer") is True
+
+
+def test_poison_matters_no_fire_on_reminder_only_infect():
+    """Glistener Elf's Infect keyword bearer — a reminder-only "poison
+    counter" mention that stays stripped; Infect bearers ride poison_makers,
+    not poison_matters (the ADR-0034 partition)."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_poison_matters
+
+    tree = _fixture_tree("Glistener Elf")
+    assert _arm_poison_matters(tree) is None
+    assert _poison_matters_lane_fires("Glistener Elf") is False
+
+
+def test_poison_matters_synth_registered():
+    assert "poison_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_poison_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _poison_matters
+
+    synth = ConceptNode(
+        concept="synth_poison_matters",
+        node=SynthesizedNode(arm_id="poison_matters", description="x"),
+        role="effect",
+        scope="opponents",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _poison_matters(tree)
+    assert any(s.key == "poison_matters" for s in sigs)

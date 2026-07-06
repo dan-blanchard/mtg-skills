@@ -7654,7 +7654,6 @@ def _vehicles_matter(tree: ConceptTree) -> list[Signal]:
 # rows with no importable name). Live runs them FLAT over the reminder-stripped
 # kept oracle; so do these.
 _ISLAND_MATTERS_RX = re.compile(ISLAND_MATTERS_REGEX, re.IGNORECASE)
-_POISON_MATTERS_MIRROR = re.compile(r"poison counters?", re.IGNORECASE)
 _SUSPEND_MATTERS_MIRROR = re.compile(
     r"\bsuspend\b|time counter|time travel|\bvanishing\b|\bimpending\b",
     re.IGNORECASE,
@@ -8031,14 +8030,19 @@ def _island_matters(tree: ConceptTree) -> list[Signal]:
 
 def _poison_matters(tree: ConceptTree) -> list[Signal]:
     """poison_matters (§D) — CR 122 + 704.5c, scope "opponents": the
-    "poison counter" reference mirror (the ADR-0034 partition: the
+    "poison counter" reference/giver (the ADR-0034 partition: the
     infect/toxic/poisonous keyword BEARERS ride poison_makers). Includes
     the poison-GIVERS that spell out "poison counter" (Fynn, Caress of
-    Phyrexia, Vraska) — live behavior, ported byte-identically; a
-    reminder-only Infect bearer (Glistener Elf) is stripped and stays
-    out."""
-    if _POISON_MATTERS_MIRROR.search(_kept(tree)):
-        return [Signal("poison_matters", "opponents", "", "", tree.name, "high")]
+    Phyrexia, Vraska); a reminder-only Infect bearer (Glistener Elf) is
+    stripped and stays out. Tier-1 (ADR-0036/0037 fold): reads the
+    ``tree_synthesis`` bucket-B ``synth_poison_matters`` node (the deleted
+    ``_POISON_MATTERS_MIRROR`` relocated verbatim) — no competing Tier-1
+    predicate exists (the celebration/coven no-competing-predicate
+    precedent), so this is the lane's SOLE source, zero oracle text/regex at
+    LANE time."""
+    for c in tree.iter_concepts():
+        if c.concept == "synth_poison_matters":
+            return [Signal("poison_matters", "opponents", "", "", tree.name, "high")]
     return []
 
 
