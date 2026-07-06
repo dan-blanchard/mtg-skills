@@ -66,12 +66,15 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_noncombat_damage_payoff,
     _arm_opponent_exile_matters,
     _arm_per_target_payoff,
+    _arm_proliferate_remove_cost,
     _arm_pump_makers,
     _arm_sacrifice_protection,
+    _arm_self_power_scale,
     _arm_spellcast_matters,
     _arm_station_matters,
     _arm_suspect_matters,
     _arm_suspend_matters,
+    _arm_token_subtype_own_ref,
     _arm_unspent_mana,
     _arm_vehicles_matter,
     _arm_void_warp_makers,
@@ -4629,3 +4632,84 @@ def test_sweep_kept_mirrors_end_to_end_fire_and_no_fire():
         "villainous_choice",
         "void_warp_matters",
     }
+
+
+# ── batch T9-finalize: 8 residual-mirror folds ──────────────────────────────
+
+
+def test_proliferate_remove_cost_synth_registered():
+    assert "proliferate_remove_cost" in SYNTHESIS_ARM_IDS
+
+
+def test_proliferate_remove_cost_fires_on_migloz():
+    """Migloz, Maze Crusher's three "Remove N oil counter(s) from Migloz:"
+    activation costs — CR 121/701.34 proliferate fuel, LOW confidence."""
+    tree = _fixture_tree("Migloz, Maze Crusher")
+    node = _arm_proliferate_remove_cost(tree)
+    assert node is not None
+    assert node.concept == "synth_proliferate_remove_cost"
+
+
+def test_proliferate_remove_cost_no_fire_on_unrelated_card():
+    assert _arm_proliferate_remove_cost(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_self_power_scale_synth_registered():
+    assert "self_power_scale" in SYNTHESIS_ARM_IDS
+
+
+def test_self_power_scale_fires_on_esper_sentinel():
+    """Esper Sentinel's "pays {X}, where X is this creature's power" — the
+    self-power-scaling cross-open (CR 122.1): such a commander wants +1/+1
+    counter sources to pump its own power."""
+    tree = ConceptTree(
+        name="Esper Sentinel",
+        oracle_id="x",
+        oracle=(
+            "Whenever an opponent casts their first noncreature spell each"
+            " turn, draw a card unless that player pays {X}, where X is"
+            " this creature's power."
+        ),
+    )
+    node = _arm_self_power_scale(tree)
+    assert node is not None
+    assert node.concept == "synth_self_power_scale"
+
+
+def test_self_power_scale_gap_gated_when_structural_present():
+    """Scavenging Ooze's structural PutCounter{P1P1, SelfRef} already opens
+    self_counter_grow — the cross-open arm must not ALSO fire (never a
+    double-count of the same concept)."""
+    tree = _fixture_tree("Scavenging Ooze")
+    assert has_structural_self_counter_grow(tree)
+    assert _arm_self_power_scale(tree) is None
+
+
+def test_self_power_scale_no_fire_on_unrelated_card():
+    assert _arm_self_power_scale(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_token_subtype_own_ref_synth_registered():
+    assert "token_subtype_own_ref" in SYNTHESIS_ARM_IDS
+
+
+def test_token_subtype_own_ref_fires_on_honored_dreyleader():
+    """Honored Dreyleader's "for each other Squirrel and/or Food you
+    control" — the shared food/clue OWN-REF cares-about idiom (CR
+    111.10b), subject-carrying with "food" (Squirrel is not a token
+    subtype the marker tracks)."""
+    tree = _fixture_tree("Honored Dreyleader")
+    node = _arm_token_subtype_own_ref(tree)
+    assert node is not None
+    assert node.concept == "synth_token_subtype_own_ref"
+    assert "food" in node.subject
+
+
+def test_token_subtype_own_ref_no_fire_on_pure_maker():
+    """Bake into a Pie only CREATES a Food — a pure maker, food_makers'
+    country, never the OWN-REF cares-about marker."""
+    assert _arm_token_subtype_own_ref(_fixture_tree("Bake into a Pie")) is None
+
+
+def test_token_subtype_own_ref_no_fire_on_unrelated_card():
+    assert _arm_token_subtype_own_ref(_fixture_tree("Llanowar Elves")) is None

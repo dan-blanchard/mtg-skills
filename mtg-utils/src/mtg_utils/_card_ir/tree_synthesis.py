@@ -112,11 +112,13 @@ from mtg_utils._card_ir.project import (
     _PAY_LIFE_REF,
     _STARTING_LIFE_REF,
     _SUSPECT_REF,
+    _TOKEN_SUBTYPE_OWN_REF,
 )
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
     _KEYWORD_COUNTER_KINDS,
     _POWER_SCALING_RAW,
+    _PROLIFERATE_REMOVE_COST_RE,
     _STAX_TAXES_RESIDUE_RE,
     _SYMMETRIC_STAX_RESIDUE_RE,
     _TOUGHNESS_VALUE_MIRROR,
@@ -136,6 +138,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _self_etb_value,
     _self_name_alts,
     clauses,
+    self_power_scale_match,
 )
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 
@@ -3543,6 +3546,29 @@ def _arm_proliferate_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arm: proliferate_matters LOW residual (ADR-0036/0037 Stage 5, T9-finalize) ─
+# CR 121/701.34: the LOW-confidence "remove a counter as an ACTIVATION COST"
+# tell (the deleted ``_PROLIFERATE_REMOVE_COST_RE`` mirror relocated
+# verbatim — spending a counter as a cost signals the deck wants MORE of it,
+# i.e. proliferate fuel: Migloz, Rasputin, Tayam / Fain / O'aka / Duchess).
+# Deliberately NOT gap-gated against has_structural_proliferate: the live
+# lane emits this as a SEPARATE LOW signal alongside (never instead of) the
+# HIGH structural/synth firing, so this arm fires independent of it.
+def _arm_proliferate_remove_cost(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a LOW-confidence ``proliferate_matters`` node for the
+    remove-counter-as-activation-cost residue (the deleted
+    ``_PROLIFERATE_REMOVE_COST_RE`` mirror relocated verbatim)."""
+    if not _PROLIFERATE_REMOVE_COST_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="proliferate_remove_cost",
+        concept="synth_proliferate_remove_cost",
+        scope="you",
+        subject=(),
+        desc="bucket-B remove-counter activation-cost residue (CR 121/701.34)",
+    )
+
+
 # ── arm: self_counter_grow bucket-B (ADR-0036/0037 Stage 5, batch T2-counters) ─
 # CR 122.1 + adapt/monstrosity/renown (CR 701.46/701.37/702.104): the
 # grow-ITSELF lane. Shared structural gate with the ``_self_counter_grow``
@@ -3616,6 +3642,38 @@ def _arm_self_counter_grow(tree: ConceptTree) -> ConceptNode | None:
         scope="you",
         subject=(),
         desc="bucket-B self-anchored +1/+1 counter residue (CR 122.1/614.12)",
+    )
+
+
+# ── arm: self_counter_grow self-power-scale residual (ADR-0036/0037 Stage 5,
+# T9-finalize) ──────────────────────────────────────────────────────────────
+# CR 122.1: the separate self-power-SCALING cross-open (the deleted direct
+# ``self_power_scale_match`` read relocated verbatim) — an effect whose
+# value scales with the SOURCE's OWN power ("equal to this creature's
+# power" — Esper Sentinel, Mona Lisa, Velomachus Lorehold). Such a commander
+# wants +1/+1 counter sources to pump its own power, so it opens
+# self_counter_grow as a low-confidence cross-open (fired here at HIGH,
+# matching the live lane's own confidence for this arm). Gap-gated against
+# BOTH upstream arms (SYNTH-EXCLUSION-PARITY): a card already covered by
+# the structural PutCounter/keyword-action read or the narrowed +1/+1 text
+# idiom never double-fires this one.
+def _arm_self_power_scale(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``self_counter_grow`` node for the self-power-scaling
+    cross-open (the deleted ``self_power_scale_match`` direct read
+    relocated verbatim)."""
+    if has_structural_self_counter_grow(tree):
+        return None
+    if _matches_self_counter_grow_idiom(tree.oracle or ""):
+        return None
+    oracle = tree.oracle or ""
+    if not self_power_scale_match(_REMINDER.sub(" ", oracle), tree.name):
+        return None
+    return _synthetic_concept(
+        arm_id="self_power_scale",
+        concept="synth_self_power_scale",
+        scope="you",
+        subject=(),
+        desc="bucket-B self-power-scaling cross-open (CR 122.1)",
     )
 
 
@@ -4024,6 +4082,60 @@ def _arm_clue_matters(tree: ConceptTree) -> ConceptNode | None:
         scope="you",
         subject=(),
         desc='bucket-B bare "clue"/"investigate" residue (CR 111.10f/701.16a)',
+    )
+
+
+# ── arm: token_subtype_own_ref, the SHARED food/clue OWN-REF residual
+# (ADR-0036/0037 Stage 5, T9-finalize) ───────────────────────────────────────
+# CR 111.10b (Food) / 701.16a+111.10f (Clue): the crosswalk's shared
+# ``_token_subtype_payoff`` helper (food_matters + clue_matters) carries a
+# THIRD arm — the ``_TOKEN_SUBTYPE_OWN_REF`` marker re-derivation ("Foods
+# you control" / "was a Food" / "is a Food") — that phase does not type at
+# all (a pure cares-about reference, not an effect). Relocated verbatim as
+# a SUBJECT-carrying node (the type_matters precedent): the node carries
+# every distinct subtype the OWN-REF idiom names, gated to subtypes this
+# FACE does not already make/sacrifice (:func:`_made_sac_token_subtypes` —
+# the SAME made/sacd exclusion the lane computes, reimplemented here rather
+# than imported to avoid a crosswalk_signals↔tree_synthesis cycle).
+def _made_sac_token_subtypes(tree: ConceptTree) -> tuple[set[str], set[str]]:
+    """(made, sacd) token subtypes this face structurally creates/spends —
+    mirrors the food/clue lane's own made/sacd computation exactly."""
+    made: set[str] = set()
+    for c in tree.effect_concepts("make_token"):
+        types = getattr(c.node, "types", None) or []
+        made |= {t.lower() for t in types if isinstance(t, str)}
+    if tree.has_effect("investigate"):
+        made.add("clue")  # Investigate IS "create a Clue token" (CR 701.16a)
+    sacd: set[str] = set()
+    for unit in tree.units:
+        sac_nodes = [c.node for c in unit.effects if tag_of(c.node) == "Sacrifice"]
+        for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
+            if tag_of(leaf) == "Sacrifice":
+                sac_nodes.append(leaf)
+        for node in sac_nodes:
+            sacd |= {s.lower() for s in filter_subtypes(getattr(node, "target", None))}
+    return made, sacd
+
+
+def _arm_token_subtype_own_ref(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a SUBJECT-carrying node for the shared food/clue OWN-REF
+    cares-about idiom (the deleted ``_TOKEN_SUBTYPE_OWN_REF`` lane-time
+    read relocated verbatim)."""
+    made, sacd = _made_sac_token_subtypes(tree)
+    kept = _REMINDER.sub(" ", tree.oracle or "")
+    subjects: set[str] = set()
+    for m in _TOKEN_SUBTYPE_OWN_REF.finditer(kept):
+        ref = next(g for g in m.groups() if g).lower()
+        if ref not in made and ref not in sacd:
+            subjects.add(ref)
+    if not subjects:
+        return None
+    return _synthetic_concept(
+        arm_id="token_subtype_own_ref",
+        concept="synth_token_subtype_own_ref",
+        scope="you",
+        subject=tuple(sorted(subjects)),
+        desc="bucket-B token-subtype own-control/state reference (CR 111.10b/701.16a)",
     )
 
 
@@ -5481,7 +5593,9 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("keyword_counter", _arm_keyword_counter),
     ("counter_distribute", _arm_counter_distribute),
     ("proliferate_matters", _arm_proliferate_matters),
+    ("proliferate_remove_cost", _arm_proliferate_remove_cost),
     ("self_counter_grow", _arm_self_counter_grow),
+    ("self_power_scale", _arm_self_power_scale),
     ("poison_matters", _arm_poison_matters),
     ("island_matters", _arm_island_matters),
     ("animate_artifact", _arm_animate_artifact),
@@ -5490,6 +5604,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("manland", _arm_manland),
     ("curse_matters", _arm_curse_matters),
     ("clue_matters", _arm_clue_matters),
+    ("token_subtype_own_ref", _arm_token_subtype_own_ref),
     ("suspend_matters", _arm_suspend_matters),
     ("flash_matters", _arm_flash_matters),
     ("crimes_matter", _arm_crimes_matter),

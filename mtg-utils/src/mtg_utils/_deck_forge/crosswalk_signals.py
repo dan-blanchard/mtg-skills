@@ -151,7 +151,6 @@ from mtg_utils._card_ir.project import (
     _LIB_SEARCH_PLAYER_ACTIONS,
     _SINGLE_PERMANENT_GRANT_PREDS,
     _SOULBOND_REF,
-    _TOKEN_SUBTYPE_OWN_REF,
     _UNDYING_PERSIST_GRANT,
     _counter_kind_token,
 )
@@ -230,7 +229,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _IR_FLOOR_LANES,
     _NAMED_COUNTER_KINDS,
     _OPP_COUNTER_BENEFICIAL,
-    _PROLIFERATE_REMOVE_COST_RE,
     _SAME_TRUE_KW_RE,
     _SELF_PROTECTION_GRANT_KW,
     _TYPED_ANTHEM_MULTI_RAW,
@@ -246,7 +244,6 @@ from mtg_utils._deck_forge._signals_regex import (
     _resolve_subject,
     _type_hoser_clause,
     clauses,
-    self_power_scale_match,
 )
 from mtg_utils._deck_forge._subtypes import (
     CLASS_TRIBES,
@@ -8318,23 +8315,25 @@ def _tutor_lane(tree: ConceptTree) -> list[Signal]:
 def _proliferate_matters_lane(tree: ConceptTree) -> list[Signal]:
     """proliferate_matters (§4) — CR 701.34/701.34a proliferate + CR
     702.184/702.184a station + 721.1. The `station` Scryfall-keyword row
-    rides :func:`_keyword_field_signals_b14`; the LOW remove-counter-
-    activation-cost mirror (imported ``_PROLIFERATE_REMOVE_COST_RE`` — LOW
-    so the countdown-resource cards keep their voltron tell) stays a direct
-    text read, untouched by this fold. The HIGH arm is a Tier-1 UNION
-    (ADR-0036/0037 fold — the divinity/indestructible-enters +
-    charge/experience-resource text mirrors are RETIRED):
+    rides :func:`_keyword_field_signals_b14`. Tier-1 (ADR-0036/0037 Stage 5
+    T9-finalize fold — the LOW remove-counter-activation-cost mirror is
+    RETIRED to a bucket-B synth arm; the divinity/indestructible-enters +
+    charge/experience-resource text mirrors were already RETIRED):
 
-    * **Structural:** :func:`has_structural_proliferate` — a
+    * **Structural (HIGH):** :func:`has_structural_proliferate` — a
       ``place_counter``/``remove_counter`` effect's kind, OR a
       ``give_player_counter`` effect's OWN ``counter_kind`` field (Ezuri's
       "you get an experience counter"), in {divinity, indestructible,
       charge, experience} — the Myojin cycle, Aether Vial, Ezuri, Mizzix.
-    * **bucket-B synth:** the ``tree_synthesis`` stage's
+    * **bucket-B synth (HIGH):** the ``tree_synthesis`` stage's
       ``synth_proliferate_matters`` node — the Station counter-scaling
       reference / choice-branch increment / pure-reference residue (Ion
       Storm, Atreus, Dismantle) phase does not type this batch, gated
       against the same structural read.
+    * **bucket-B synth (LOW):** the ``synth_proliferate_remove_cost`` node
+      (:func:`_arm_proliferate_remove_cost`) — spending a counter as an
+      ACTIVATION COST (Migloz, Rasputin, Tayam) signals proliferate fuel,
+      fired independent of (never suppressed by) the HIGH arms above.
 
     **Logged live GAP (do NOT port):** v0.9.0 carries a first-class
     "whenever you proliferate" payoff family (``PlayerPerformedAction
@@ -8353,8 +8352,10 @@ def _proliferate_matters_lane(tree: ConceptTree) -> list[Signal]:
                     Signal("proliferate_matters", "you", "", "", tree.name, "high")
                 )
                 break
-    if _PROLIFERATE_REMOVE_COST_RE.search(_kept(tree)):
-        out.append(Signal("proliferate_matters", "you", "", "", tree.name, "low"))
+    for c in tree.iter_concepts():
+        if c.concept == "synth_proliferate_remove_cost":
+            out.append(Signal("proliferate_matters", "you", "", "", tree.name, "low"))
+            break
     return out
 
 
@@ -8465,41 +8466,36 @@ def _unit_sacrifice_nodes(unit: AbilityUnit) -> list[TypedMirrorNode]:
 def _token_subtype_payoff(tree: ConceptTree, sub: str) -> list[Signal]:
     """Shared food/clue cares-about arms (§9/§10) — CR 111.10b Food /
     701.16a+111.10f Clue; one subtype-parameterized function, all "you"
-    HIGH:
+    HIGH. Tier-1 (ADR-0036/0037 Stage 5 T9-finalize fold — the
+    ``_TOKEN_SUBTYPE_OWN_REF`` lane-time read is RETIRED to a shared
+    bucket-B synth arm):
 
     (1) a ``Sacrifice`` of the subtype (effect OR cost role — Gyome probed
     verbatim; Gilded Goose's "{T}, Sacrifice a Food: Add…" is a LIVE member,
     polarity from the banked pop);
-    (2) the ``_TOKEN_SUBTYPE_OWN_REF`` marker re-derivation over the kept
-    oracle ("Foods you control" — Honored Dreyleader), gated to subtypes the
-    face does not already make/sacrifice (the live projection's made/sacd
-    dedup gate — a bare maker is <sub>_makers' country, never matters);
+    (2) the ``synth_token_subtype_own_ref`` node
+    (:func:`_arm_token_subtype_own_ref`) — the ``_TOKEN_SUBTYPE_OWN_REF``
+    marker re-derivation ("Foods you control" — Honored Dreyleader), gated
+    to subtypes the face does not already make/sacrifice (the same
+    made/sacd exclusion the arm recomputes structurally — a bare maker is
+    <sub>_makers' country, never matters);
     (3) a ``Sacrificed``-mode trigger whose ``valid_card`` names the subtype
     (Experimental Confectioner probed verbatim).
     """
     key = f"{sub.lower()}_matters"
     subl = sub.lower()
-    sacd: set[str] = set()
     for unit in tree.units:
         for node in _unit_sacrifice_nodes(unit):
             subs = {s.lower() for s in filter_subtypes(getattr(node, "target", None))}
-            sacd |= subs
             if subl in subs:
                 return [Signal(key, "you", "", "", tree.name, "high")]
         if unit.origin == "trigger" and _trigger_mode_tag(unit) == "Sacrificed":
             vc = getattr(unit.node, "valid_card", None)
             if subl in {s.lower() for s in filter_subtypes(vc)}:
                 return [Signal(key, "you", "", "", tree.name, "high")]
-    made: set[str] = set()
-    for c in tree.effect_concepts("make_token"):
-        types = getattr(c.node, "types", None) or []
-        made |= {t.lower() for t in types if isinstance(t, str)}
-    if tree.has_effect("investigate"):
-        made.add("clue")  # Investigate IS "create a Clue token" (CR 701.16a)
-    for m in _TOKEN_SUBTYPE_OWN_REF.finditer(_kept(tree)):
-        ref = next(g for g in m.groups() if g).lower()
-        if ref == subl and ref not in made and ref not in sacd:
-            return [Signal(key, "you", "", m.group(0), tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_token_subtype_own_ref" and subl in c.subject:
+            return [Signal(key, "you", "", "", tree.name, "high")]
     return []
 
 
@@ -8509,18 +8505,17 @@ def _food_matters_lane(tree: ConceptTree) -> list[Signal]:
 
 
 def _clue_matters_lane(tree: ConceptTree) -> list[Signal]:
-    """clue_matters (§10) — the three shared structural arms (sacrifice-of-
-    Clue, a Sacrificed-mode trigger naming Clue, the OWN-REF text marker —
-    :func:`_token_subtype_payoff`, untouched, shared with food_matters)
-    plus, Tier-1 (ADR-0036/0037 fold), the ``synth_clue_matters`` bucket-B
-    RESIDUE node (:func:`_arm_clue_matters` — the retired
-    ``CLUE_MATTERS_REGEX``, ``clue|investigate``) carrying the modal-vote
-    folds (Tivit), delayed triggers, token replacements and becomes-Clue
-    statics (In Too Deep). Breadth intended: bare investigate DOERS fire
-    matters too via the word (live behavior, the b13 suspend_matters
-    precedent — port as-is). Zero oracle text/regex at LANE time beyond
-    the untouched shared helper's own OWN-REF arm (out of THIS batch's
-    scope — folds when food_matters folds).
+    """clue_matters (§10) — the three shared arms (sacrifice-of-Clue, a
+    Sacrificed-mode trigger naming Clue, the ``synth_token_subtype_own_ref``
+    bucket-B marker — :func:`_token_subtype_payoff`, shared with
+    food_matters, Tier-1 since the T9-finalize fold) plus, Tier-1
+    (ADR-0036/0037 fold), the ``synth_clue_matters`` bucket-B RESIDUE node
+    (:func:`_arm_clue_matters` — the retired ``CLUE_MATTERS_REGEX``,
+    ``clue|investigate``) carrying the modal-vote folds (Tivit), delayed
+    triggers, token replacements and becomes-Clue statics (In Too Deep).
+    Breadth intended: bare investigate DOERS fire matters too via the word
+    (live behavior, the b13 suspend_matters precedent — port as-is). Zero
+    oracle text/regex at LANE time.
     """
     hits = _token_subtype_payoff(tree, "Clue")
     if hits:
@@ -8561,9 +8556,10 @@ def _pump_makers_lane(tree: ConceptTree) -> list[Signal]:
 
 def _self_counter_grow(tree: ConceptTree) -> list[Signal]:
     """self_counter_grow (§12) — CR 122.1 + the adapt/monstrosity/renown
-    keyword actions (CR 701.46 / 701.37 / 702.104): the grow-ITSELF lane. A
-    pure Tier-1 UNION (ADR-0036/0037 fold — the ``_SELF_COUNTER_GROW_MIRROR``
-    text mirror is RETIRED):
+    keyword actions (CR 701.46 / 701.37 / 702.104): the grow-ITSELF lane.
+    Tier-1 (ADR-0036/0037 fold — the ``_SELF_COUNTER_GROW_MIRROR`` text
+    mirror was already RETIRED; T9-finalize also retires the separate
+    ``self_power_scale_match`` cross-open to its own gap-gated synth arm):
 
     * **Structural:** :func:`has_structural_self_counter_grow` — an
       effect-role ``PutCounter{counter_type: P1P1, target: SelfRef}``
@@ -8577,18 +8573,18 @@ def _self_counter_grow(tree: ConceptTree) -> list[Signal]:
       ``synth_self_counter_grow`` node — the narrowed self-anchored text
       residue (the loose "on it" arm stays deliberately EXCLUDED — 103
       over-fires), gated against the same structural read.
+    * **bucket-B synth (cross-open):** the ``synth_self_power_scale`` node
+      (:func:`_arm_self_power_scale`) — the self-power-SCALING text idiom
+      ("equal to this creature's power" — Esper Sentinel), gap-gated
+      against BOTH arms above.
 
-    The separate ``self_power_scale_match`` cross-open (self-power-SCALING
-    text, not a counter placement) is untouched — out of scope for this
-    fold. Scope "you", HIGH.
+    Scope "you", HIGH.
     """
     if has_structural_self_counter_grow(tree):
         return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
-        if c.concept == "synth_self_counter_grow":
+        if c.concept in ("synth_self_counter_grow", "synth_self_power_scale"):
             return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
-    if self_power_scale_match(_kept(tree), tree.name):
-        return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
     return []
 
 
