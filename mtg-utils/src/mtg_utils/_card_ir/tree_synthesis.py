@@ -59,9 +59,11 @@ from mtg_utils._card_ir.crosswalk import (
     count_operand_filter,
     counter_kind_any,
     effect_filter,
+    effect_owner_player_scope,
     explicit_recipient_scope,
     filter_controller,
     filter_core_types,
+    filter_inzone_zones,
     filter_keywords,
     filter_non_types,
     filter_predicates,
@@ -139,6 +141,7 @@ __all__ = [
     "has_structural_stax_taxes",
     "has_structural_superfriends",
     "has_structural_symmetric_stax",
+    "has_structural_theft_makers",
     "has_structural_tutor",
     "has_structural_untap_engine",
     "has_trigger_draw_bleed",
@@ -2810,6 +2813,229 @@ def _arm_evasion_self(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── theft_makers structural read (ADR-0036/0037 Stage 5 fold) ──────────────────
+# CR DD9 heist / 613.1b: the steal-and-cast/mill/play DOER. The [P5] direction
+# trap (the lane's own reason for staying mirror-only): phase parses the SAME
+# steal family (``Heist`` / ``ExileFromTopUntil`` / a directed ``SearchLibrary``
+# / a Hand-zone ``CastFromZone`` / a triple-zone ``ChangeZoneAll``) whether the
+# card steals from an OPPONENT or digs its OWN library (impulse draw — Light Up
+# the Stage). Each read below is gated to an explicit non-controller player
+# reference, never a bare/ambiguous tag a self-effect could also carry.
+
+# Typed-filter ``controller`` STRING values meaning "not the ability's
+# controller" (an explicit opponent/targeted-player direction — CR 613.1b).
+# Shared by every theft sub-read below (one source, per GAP-GATE-ALIGNMENT).
+_THEFT_OPP_CONTROLLERS = frozenset(
+    {
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "TargetPlayer",
+        "DefendingPlayer",
+        "SourceChosenPlayer",
+    }
+)
+
+
+def _theft_typed_opponent(node: object) -> bool:
+    """Whether a ``Typed`` player/zone-owner filter names an opponent (a
+    ``controller`` string in :data:`_THEFT_OPP_CONTROLLERS`) — never a bare
+    ``You``/``None`` (the self-effect default)."""
+    return tag_of(node) == "Typed" and filter_controller(node) in _THEFT_OPP_CONTROLLERS
+
+
+# ExileFromTopUntil.player discriminator TAGS meaning "not the controller"
+# WITHOUT going through a Typed filter (combat-damage-to-a-player —
+# TriggeringPlayer; a villainous-choice per-opponent branch — ScopedPlayer;
+# ...). Deliberately EXCLUDES ParentTarget/ParentTargetController/Player/
+# Target/Any/AllPlayers — those resolve through an arbitrary chosen OBJECT or
+# a bare unscoped player and have zero genuine theft_makers member needing
+# them (the ``_directed_search_sibling`` precedent: ParentTargetController
+# routinely resolves to YOU, the ability's controller).
+_THEFT_DIG_OPP_TAGS = frozenset(
+    {
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "TriggeringPlayer",
+        "ScopedPlayer",
+        "DefendingPlayer",
+        "SourceChosenPlayer",
+    }
+)
+
+
+def _theft_heist_effect(unit: AbilityUnit) -> ConceptNode | None:
+    """A ``Heist`` effect (CR DD9 digital supplement) targeting an opponent's
+    library — Grenzo, Crooked Jailer; Polterheist; Thieving Aven."""
+    for c in unit.effects:
+        if tag_of(c.node) == "Heist" and _theft_typed_opponent(
+            getattr(c.node, "target", None)
+        ):
+            return c
+    return None
+
+
+def _theft_dig_effect(unit: AbilityUnit) -> ConceptNode | None:
+    """An ``ExileFromTopUntil`` (CR 701.20a-adjacent dig) whose DIGGER is an
+    opponent — direct (:data:`_THEFT_DIG_OPP_TAGS` / a ``Typed`` opponent
+    filter — Chaos Wand, Nicol Bolas, Umbris) or via the wrapper's
+    ``player_scope`` (:func:`effect_owner_player_scope`) broadening a
+    per-card ``Controller`` digger to "each opponent" / "each player"
+    (Dream Harvest, Tasha's Hideous Laughter, Krang & Shredder, Etali). A
+    bare ``Controller`` digger with NO opponent wrapper is the [P5] trap —
+    impulse draw (Light Up the Stage) — and never fires here.
+    """
+    for c in unit.effects:
+        if tag_of(c.node) != "ExileFromTopUntil":
+            continue
+        player = getattr(c.node, "player", None)
+        if tag_of(player) in _THEFT_DIG_OPP_TAGS or _theft_typed_opponent(player):
+            return c
+        if effect_owner_player_scope(unit.node, c.node) in ("Opponent", "All"):
+            return c
+    return None
+
+
+def _theft_tutor_effect(unit: AbilityUnit) -> ConceptNode | None:
+    """A ``SearchLibrary`` (``tutor`` concept) directed at an opponent's
+    library (Bribery, Ancient Vendetta, Dichotomancy) — a ``Typed``
+    ``target_player`` naming an opponent. A bare ``Player`` tag is
+    deliberately excluded (the Partner-with reminder text — "target player
+    may put X into their hand from their library" — names the CONTROLLER,
+    not an opponent; a card-specific-name search has no genuine theft_makers
+    member needing the bare tag).
+    """
+    for c in unit.effects:
+        if c.concept == "tutor" and _theft_typed_opponent(
+            getattr(c.node, "target_player", None)
+        ):
+            return c
+    return None
+
+
+def _theft_inanyzone_zones(filt: object) -> tuple[str, ...]:
+    """The zones named by a filter's ``InAnyZone`` property (a triple-zone
+    "graveyard, hand, and library" hate-piece search) — the ``InZone``
+    single-zone sibling of :func:`filter_inzone_zones`, which has no
+    ``InAnyZone`` case."""
+    out: list[str] = []
+    if tag_of(filt) == "Typed":
+        for prop in getattr(filt, "properties", ()) or ():
+            if tag_of(prop) == "InAnyZone":
+                out.extend(getattr(prop, "zones", ()) or ())
+    return tuple(out)
+
+
+def _theft_mass_zone_effect(unit: AbilityUnit) -> ConceptNode | None:
+    """A ``ChangeZoneAll`` exiling an opponent's graveyard+hand+library
+    (Shimian Specter, Cranial Extraction, Stain the Mind) — the "same name"
+    hate-piece family the mirror's triple-zone branch covered by text.
+    """
+    for c in unit.effects:
+        if c.concept != "change_zone" or tag_of(c.node) != "ChangeZoneAll":
+            continue
+        if getattr(c.node, "destination", None) != "Exile":
+            continue
+        target = getattr(c.node, "target", None)
+        zones = set(_theft_inanyzone_zones(target))
+        if {"Graveyard", "Hand", "Library"} <= zones and _theft_typed_opponent(target):
+            return c
+    return None
+
+
+def _theft_hand_effect(unit: AbilityUnit) -> ConceptNode | None:
+    """A ``CastFromZone`` naming the HAND zone, in a unit that separately
+    targets an opponent (Sen Triplets: "you may play lands and cast spells
+    from that player's hand this turn" — CR 613.1b, a per-turn hand steal).
+    A same-zone SELF grant (the Expertise cycle's "cast an additional spell
+    from your hand", ``controller: You``) is the direction trap and is
+    excluded on the ``CastFromZone`` node itself, not by the sibling check.
+    """
+    hand_cz: ConceptNode | None = None
+    for c in unit.effects:
+        if c.concept != "cast_from_zone":
+            continue
+        target = getattr(c.node, "target", None)
+        if "Hand" not in filter_inzone_zones(target):
+            continue
+        if filter_controller(target) == "You":
+            continue
+        hand_cz = c
+        break
+    if hand_cz is None:
+        return None
+    opp_targeted = any(
+        tag_of(c.node) == "TargetOnly"
+        and _theft_typed_opponent(getattr(c.node, "target", None))
+        for c in unit.effects
+    )
+    return hand_cz if opp_targeted else None
+
+
+def has_structural_theft_makers(tree: ConceptTree) -> bool:
+    """Whether phase ALREADY carries a typed node the theft_makers Tier-1
+    read sees — the synth gap-gate (GAP-GATE-ALIGNMENT: the SAME five
+    sub-reads the lane fires on, so the lane and the gate never disagree).
+    """
+    for unit in tree.units:
+        if (
+            _theft_heist_effect(unit) is not None
+            or _theft_dig_effect(unit) is not None
+            or _theft_tutor_effect(unit) is not None
+            or _theft_mass_zone_effect(unit) is not None
+            or _theft_hand_effect(unit) is not None
+        ):
+            return True
+    return False
+
+
+# Genuine bucket-B residue (SYNTH-EXCLUSION-PARITY-checked on the corpus): a
+# compound sentence phase drops entirely ("discard a card, then heist target
+# opponent's library" — Axavar, Impetuous Lootmonger; a "Heist!"-flavored
+# fixed-count exile — Mr. Monopoly), a "conjure" with no zone/player field at
+# all (Lae'zel, Illithid Thrall), a triple-zone search phase leaves
+# ``Unimplemented`` (Kotose, Lobotomy, Pick the Brain, Reap Intellect), and a
+# per-branch/modal "for each opponent, exile ... you may cast" whose
+# player_scope phase doesn't propagate into the branch (Seek Bolas's Counsel,
+# Ensnared by the Mara's ``ChooseOneOf`` branch). The exile-actor alternation
+# is deliberately "each/target/an OPPONENT" only — NOT "each player"/"a
+# player" — so a symmetric self-cast rider (Guff Rewrites History's "each
+# player may cast the card THEY exiled"; Possibility Storm's "that player may
+# cast" replacement, whoever cast the ORIGINAL spell) stays correctly shed:
+# both are corpus-verified NOT to match.
+_THEFT_SYNTH_RX = re.compile(
+    r"conjure a duplicate of[^.]*from an opponent's library"
+    r"|\bheist\b"
+    r"|search (?:that player|target opponent|an opponent|each opponent"
+    r"|target player)'?s? graveyard, hand,? and library"
+    r"|(?:each opponent|target opponent|an opponent)[^.]*exiles? cards from"
+    r" the top of (?:their|its) library",
+    re.IGNORECASE,
+)
+
+
+def _matches_theft_idiom(oracle: str) -> bool:
+    """Whether a reminder-stripped oracle carries a bucket-B theft idiom."""
+    return bool(_THEFT_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_theft_makers(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``theft_makers`` node for the bucket-B steal/heist tail
+    (ADR-0036/0037 Stage 5) — see :data:`_THEFT_SYNTH_RX`."""
+    if has_structural_theft_makers(tree):
+        return None
+    if not _matches_theft_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="theft_makers",
+        concept="synth_theft_makers",
+        scope="opponents",
+        subject=(),
+        desc="bucket-B theft (phase drops the steal/heist clause)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -2834,6 +3060,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("symmetric_stax", _arm_symmetric_stax),
     ("superfriends_matters", _arm_superfriends_matters),
     ("evasion_self", _arm_evasion_self),
+    ("theft_makers", _arm_theft_makers),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

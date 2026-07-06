@@ -41,6 +41,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_stax_taxes,
     has_structural_superfriends,
     has_structural_symmetric_stax,
+    has_structural_theft_makers,
     has_structural_tutor,
     has_structural_untap_engine,
     has_trigger_draw_bleed,
@@ -1833,3 +1834,121 @@ def test_evasion_self_lane_reads_synth_node_end_to_end():
     )
     sigs = _evasion_self(tree)
     assert any(s.key == "evasion_self" for s in sigs)
+
+
+# ── theft_makers fold (ADR-0036/0037 Stage 5) ───────────────────────────────────
+
+
+def _theft_lane_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _theft_makers_lane
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    sigs = _theft_makers_lane(tree)
+    return any(s.key == "theft_makers" and s.scope == "opponents" for s in sigs)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Chaos Wand",  # ExileFromTopUntil{player:Opponent} + cast_from_zone
+        "Sen Triplets",  # Hand-zone CastFromZone beside an opponent TargetOnly
+        "Grenzo, Crooked Jailer",  # Heist{target:Opponent}
+        "Ancient Vendetta",  # SearchLibrary target_player Typed(Opponent)
+        "Bribery",  # SearchLibrary opponent library (single zone, genuine ADD)
+    ],
+)
+def test_theft_makers_bucket_a_structural(name):
+    """Five Tier-1 structural arms recover the mirror's population with NO
+    synth node needed — ``has_structural_theft_makers`` is the lane's OWN
+    gate, so the two can never diverge (GAP-GATE-ALIGNMENT)."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_theft_makers
+
+    tree = _fixture_tree(name)
+    assert has_structural_theft_makers(tree) is True
+    assert _arm_theft_makers(tree) is None  # already structural — no-op
+    assert _theft_lane_fires(name) is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Axavar, Fate Thief",  # "discard a card, then heist…" — phase drops
+        # the heist clause of the compound sentence entirely
+        "Lae'zel, Illithid Thrall",  # "conjure...from an opponent's library"
+        # — Conjure carries no player/zone field at all
+        "Lobotomy",  # "search that player's graveyard, hand, and library" —
+        # phase leaves the whole clause Unimplemented
+    ],
+)
+def test_theft_makers_bucket_b_synth(name):
+    """A genuine phase-parse gap (no typed steal/heist node reachable) the
+    synth arm fills — the whole point of the ADR-0037 enabler."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_theft_makers
+
+    tree = _fixture_tree(name)
+    assert has_structural_theft_makers(tree) is False  # genuine gap
+    node = _arm_theft_makers(tree)
+    assert node is not None
+    assert node.concept == "synth_theft_makers"
+    assert node.scope == "opponents"
+    assert _theft_lane_fires(name) is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Guff Rewrites History",  # self-cast symmetric: "Each player may
+        # cast the nonland card THEY exiled" — no opponent benefit
+        "Possibility Storm",  # self-cast symmetric replacement: "a player
+        # casts a spell… that player may cast" — the ORIGINAL caster, not
+        # a directed opponent
+        "Light Up the Stage",  # the [P5] direction trap: a SELF-exile
+        # impulse draw (Controller digger, no opponent wrapper) — CR 613.1b
+        # requires an opponent zone, not your own library
+    ],
+)
+def test_theft_makers_shed_overfires(name):
+    """Cards the deleted mirror word-matched but are NOT genuine
+    steal/mill/play-from-opponents members — dropping them is the fold's
+    adjudicated IMPROVEMENT (ADR-0036), not a regression."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_theft_makers
+
+    tree = _fixture_tree(name)
+    assert has_structural_theft_makers(tree) is False
+    assert _arm_theft_makers(tree) is None
+    assert _theft_lane_fires(name) is False
+
+
+def test_theft_makers_synth_registered():
+    assert "theft_makers" in SYNTHESIS_ARM_IDS
+
+
+def test_theft_makers_lane_reads_synth_node_end_to_end():
+    """Fold path, mirror-independent: a synth ``synth_theft_makers`` node
+    ALONE — oracle carrying no theft idiom — makes the ``_theft_makers_lane``
+    emit the signal (proves the synth read is the ACTIVE Tier-1 source)."""
+    from mtg_utils._deck_forge.crosswalk_signals import _theft_makers_lane
+
+    synth = ConceptNode(
+        concept="synth_theft_makers",
+        node=SynthesizedNode(arm_id="theft_makers", description="x"),
+        role="effect",
+        scope="opponents",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _theft_makers_lane(tree)
+    assert any(s.key == "theft_makers" and s.scope == "opponents" for s in sigs)

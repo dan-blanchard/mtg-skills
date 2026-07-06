@@ -193,6 +193,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_selfloss_engine,
     has_structural_spellcast,
     has_structural_superfriends,
+    has_structural_theft_makers,
     has_structural_tutor,
     has_structural_untap_engine,
     has_trigger_draw_bleed,
@@ -264,7 +265,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     PUMP_MATTERS_REGEX,
     STATION_MATTERS_REGEX,
     STICKERS_MATTER_REGEX,
-    THEFT_MATTERS_REGEX,
     UNSPENT_MANA_REGEX,
     VEHICLES_MATTER_REGEX,
     VOID_WARP_MAKERS_REGEX,
@@ -8101,7 +8101,6 @@ def _keyword_tribe(tree: ConceptTree) -> list[Signal]:
 
 # Compiled forms of the pinned shared regex sources (byte-identical by import;
 # the same IGNORECASE the live kept-detector loop compiles with).
-_THEFT_MAKERS_RX = re.compile(THEFT_MATTERS_REGEX, re.IGNORECASE)
 _CLUE_MATTERS_RX = re.compile(CLUE_MATTERS_REGEX, re.IGNORECASE)
 _PUMP_MAKERS_RX = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
 
@@ -8370,16 +8369,29 @@ def _untap_engine(tree: ConceptTree) -> list[Signal]:
 
 def _theft_makers_lane(tree: ConceptTree) -> list[Signal]:
     """theft_makers (§6) — CR DD9 (heist, digital supplement) + CR 613.1b:
-    the steal-and-cast DOER, kept-mirror-ONLY (the pinned
-    ``THEFT_MATTERS_REGEX`` flat, scope "opponents", HIGH — the ADR-0034
-    split; the LOW wants-side is the wants_theft facade). No structural arm:
-    the v0.9.0 steal family (``ExileFromTopUntil{player: Opponent}`` etc. —
-    Chaos Wand, Dazzling Sphinx, Bismuth Mindrender) feeds this same word
-    population, and a structural read would drag in Controller-player
-    self-exile forms ([P5] direction trap).
+    the steal-and-cast/mill/play DOER, Tier-1 (ADR-0036/0037 Stage 5 fold —
+    the ``THEFT_MATTERS_REGEX`` kept-oracle mirror is deleted; the LOW
+    wants-side is the unrelated wants_theft facade). Five structural arms,
+    each gated to an explicit opponent player-scope (never a bare/ambiguous
+    tag) so the [P5] direction trap — a self-exile impulse-draw dig (Light
+    Up the Stage) reads NEAR-IDENTICALLY to an opponent steal — stays
+    correctly out (:func:`has_structural_theft_makers`): a ``Heist`` effect
+    (Grenzo, Crooked Jailer), an ``ExileFromTopUntil`` opponent dig (Chaos
+    Wand, Nicol Bolas, Umbris, Dream Harvest, Tasha's Hideous Laughter), a
+    directed ``SearchLibrary`` (Bribery, Ancient Vendetta), a triple-zone
+    ``ChangeZoneAll`` hate-piece (Cranial Extraction, Stain the Mind), or a
+    Hand-zone ``CastFromZone`` beside an opponent target (Sen Triplets). A
+    ``synth_theft_makers`` node covers the genuine bucket-B tail (a compound
+    sentence phase drops entirely — Axavar, Fate Thief's "discard a card,
+    then heist…"; a bare "conjure…from an opponent's library" — Lae'zel,
+    Illithid Thrall; a triple-zone search phase leaves ``Unimplemented`` —
+    Lobotomy). Scope "opponents", HIGH.
     """
-    if _THEFT_MAKERS_RX.search(_kept(tree)):
+    if has_structural_theft_makers(tree):
         return [Signal("theft_makers", "opponents", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_theft_makers":
+            return [Signal("theft_makers", "opponents", "", "", tree.name, "high")]
     return []
 
 
