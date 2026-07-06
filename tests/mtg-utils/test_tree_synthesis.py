@@ -102,6 +102,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _matches_spellcast_idiom,
     apply_tree_synthesis,
     has_gain_life_amplifier,
+    has_high_life_total_payoff,
     has_life_gained_this_turn,
     has_life_gained_trigger,
     has_repeatable_engine,
@@ -758,6 +759,11 @@ def test_lifegain_synth_noops_on_no_idiom():
         ("Accomplished Alchemist", has_life_gained_this_turn),  # arm d
         ("Voracious Wurm", has_life_gained_this_turn),  # arm d (mirror-missed add)
         ("Alhammarret's Archive", has_gain_life_amplifier),  # arm e
+        ("Felidar Sovereign", has_high_life_total_payoff),  # arm f (#60)
+        ("Test of Endurance", has_high_life_total_payoff),  # arm f (#60)
+        ("Divinity of Pride", has_high_life_total_payoff),  # arm f (#60)
+        ("Serra Ascendant", has_high_life_total_payoff),  # arm f (#60)
+        ("Blood Baron of Vizkopa", has_high_life_total_payoff),  # arm f (#60)
     ],
 )
 def test_lifegain_structural_arms_fire_and_suppress_synth(name, pred):

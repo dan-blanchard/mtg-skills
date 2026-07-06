@@ -381,6 +381,26 @@ def test_lifegain_matters_fires(name):
 @pytest.mark.parametrize(
     ("name", "should_fire"),
     [
+        # ADR-0036/0037 Stage 5 #60: a HIGH-life-total win-condition / static
+        # payoff (:func:`has_high_life_total_payoff`) — life as a RESOURCE,
+        # not just a one-time gain (CR 104.2 / 119.3).
+        ("Felidar Sovereign", True),  # win-the-game upkeep threshold (>= 40)
+        ("Test of Endurance", True),  # win-the-game upkeep threshold (>= 50)
+        ("Divinity of Pride", True),  # static +4/+4 as long as >= 25 life
+        ("Serra Ascendant", True),  # static pump/flying as long as >= 30 life
+        ("Blood Baron of Vizkopa", True),  # static pump/flying, opponent gate too
+        # A LOW-life ("N or less") gate is the OPPOSITE polarity — a
+        # different, near-death signal, not read here.
+        ("Convalescence", False),  # upkeep gain-life ONLY if <= 10 life
+    ],
+)
+def test_lifegain_matters_high_life_total_payoff(name, should_fire):
+    assert (("lifegain_matters", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
         ("Flickerwisp", True),  # exile + sibling return-to-battlefield
         ("Cloudshift", True),  # exile your creature, then return it
         ("Chrome Mox", False),  # exile-imprint, NEVER returns

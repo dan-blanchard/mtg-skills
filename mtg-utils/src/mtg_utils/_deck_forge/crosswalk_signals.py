@@ -154,6 +154,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     creature_death_condition,
     has_attack_trigger,
     has_gain_life_amplifier,
+    has_high_life_total_payoff,
     has_life_gained_this_turn,
     has_life_gained_trigger,
     has_repeatable_engine,
@@ -1398,7 +1399,7 @@ def _is_you_sac_subject(c: object, *, cost: bool) -> bool:
 def _lifegain_matters(tree: ConceptTree) -> list[Signal]:
     """A your-lifegain PAYOFF / significant self-life-loss engine (CR 119). Tier-1.
 
-    Five structural arms + the bucket-B synth node, zero oracle text / regex at lane
+    Six structural arms + the bucket-B synth node, zero oracle text / regex at lane
     time (ADR-0036/0037 fold — the ``_LIFEGAIN_MATTERS_MIRROR`` is deleted). All
     scope "you"; the shared predicates live in ``tree_synthesis`` so the lane and the
     synth gap gate read ONE source (gap-gate-alignment, no drift):
@@ -1415,13 +1416,22 @@ def _lifegain_matters(tree: ConceptTree) -> list[Signal]:
       Voracious Wurm).
     * a CR-614 gain-life REPLACEMENT amplifier (:func:`has_gain_life_amplifier` —
       Alhammarret's Archive, Boon Reflection; bucket-A).
+    * a HIGH-life-total win-condition / static payoff
+      (:func:`has_high_life_total_payoff` — ADR-0036/0037 Stage 5 #60: life as a
+      RESOURCE, not just a one-time gain. Felidar Sovereign / Test of Endurance's
+      "win the game" upkeep threshold — CR 104.2; the "as long as you have N or
+      more life" static pump/keyword-grant family — Divinity of Pride, Serra
+      Ascendant, Blood Baron of Vizkopa, Caduceus Staff of Hermes, Glorious
+      Enforcer's relative comparison, Path of Bravery's vs-starting-life gate).
     * the ``tree_synthesis`` bucket-B synth node — the description-only / granted
       "whenever you gain (or lose) life" trigger + "gained life this turn" text-only
       gate phase emits no typed node for.
 
     A pure lifegain SOURCE ("whenever ~ dies, you gain 1 life" — Blood Artist) is
-    ``lifegain_makers``, not this lane; a loose lose-life / pay-life clause and an
-    opponent-lifegain hoser are shed (the mirror's cross-clause over-fires).
+    ``lifegain_makers``, not this lane; a loose lose-life / pay-life clause, a
+    LOW-life ("5 or less") near-death payoff, and an opponent-lifegain hoser are
+    shed (the mirror's cross-clause over-fires; the LOW-life polarity is a
+    different signal, not read here).
     """
     if (
         has_life_gained_trigger(tree)
@@ -1429,6 +1439,7 @@ def _lifegain_matters(tree: ConceptTree) -> list[Signal]:
         or has_selfloss_engine(tree)
         or has_life_gained_this_turn(tree)
         or has_gain_life_amplifier(tree)
+        or has_high_life_total_payoff(tree)
     ):
         return [Signal("lifegain_matters", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():

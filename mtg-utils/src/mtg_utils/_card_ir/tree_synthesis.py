@@ -945,14 +945,55 @@ def has_gain_life_amplifier(tree: ConceptTree) -> bool:
     return False
 
 
+_HIGH_LIFE_COMPARATORS: frozenset[str] = frozenset({"GE", "GT"})
+
+
+def has_high_life_total_payoff(tree: ConceptTree) -> bool:
+    """A HIGH-life-total win-condition / static payoff (CR 104.2 + 119.3):
+    life as a resource, not just a one-time gain.
+
+    A ``QuantityComparison`` condition (:func:`iter_condition_sites`, the
+    big_hand_matters precedent) whose LHS reads YOUR ``LifeTotal`` (CR
+    119.1) with a GE/GT comparator (:data:`_HIGH_LIFE_COMPARATORS`) — "as
+    long as you have 25 or more life" static payoffs (Divinity of Pride,
+    Serra Ascendant, Blood Baron of Vizkopa, Caduceus Staff of Hermes), a
+    win-the-game upkeep threshold (Felidar Sovereign, Test of Endurance —
+    CR 104.2), a relative "more life than an opponent" comparison whose LHS
+    is still YOUR life (Glorious Enforcer), and the vs-starting-life gate
+    (Path of Bravery). A LOW-life threshold (LE/LT — Elderscale Wurm's OWN
+    floor-reset is a Fixed-value SET, not a QuantityComparison gate, so it
+    is untouched; a near-death "if you have 5 or less life" payoff is a
+    DIFFERENT, opposite-polarity signal, not read here) and any RHS/OTHER-
+    player LifeTotal comparand alone (Marchesa's Emissary-style "player
+    with the most life" family — the LHS gate is load-bearing) are
+    excluded.
+    """
+    for unit in tree.units:
+        for site in iter_condition_sites(unit.node):
+            for q in iter_typed_nodes(site):
+                if tag_of(q) != "QuantityComparison":
+                    continue
+                if getattr(q, "comparator", None) not in _HIGH_LIFE_COMPARATORS:
+                    continue
+                lhs = getattr(q, "lhs", None)
+                qty = getattr(lhs, "qty", None) if lhs is not None else None
+                if tag_of(qty) != "LifeTotal":
+                    continue
+                player = getattr(qty, "player", None)
+                if tag_of(player) == "Controller":
+                    return True
+    return False
+
+
 def _has_structural_lifegain(tree: ConceptTree) -> bool:
     """Whether phase ALREADY carries a typed node the Tier-1 lifegain reads see.
 
     The synth arm fills only a genuine gap, so it no-ops when any structural
-    lifegain evidence the lane fires on exists — the SAME five predicates the lane
-    reads (:func:`has_life_gained_trigger` / :func:`has_trigger_draw_bleed` /
-    :func:`has_selfloss_engine` / :func:`has_life_gained_this_turn` /
-    :func:`has_gain_life_amplifier`), so the gate and the lane never disagree.
+    lifegain evidence the lane fires on exists — the SAME six predicates the
+    lane reads (:func:`has_life_gained_trigger` / :func:`has_trigger_draw_bleed`
+    / :func:`has_selfloss_engine` / :func:`has_life_gained_this_turn` /
+    :func:`has_gain_life_amplifier` / :func:`has_high_life_total_payoff` —
+    ADR-0036/0037 Stage 5 #60), so the gate and the lane never disagree.
     """
     return (
         has_life_gained_trigger(tree)
@@ -960,6 +1001,7 @@ def _has_structural_lifegain(tree: ConceptTree) -> bool:
         or has_selfloss_engine(tree)
         or has_life_gained_this_turn(tree)
         or has_gain_life_amplifier(tree)
+        or has_high_life_total_payoff(tree)
     )
 
 
