@@ -3417,12 +3417,21 @@ def test_exert_matters_vigilance_grant_and_johan_mirror():
 
 
 def test_entered_attacker_mirror_per_clause():
-    """CR 302.6 / 603.10a: the byte-identical ENTERED_ATTACKER_REGEX mirror
-    run per-clause (Pick Up the Pace, Samut); Cradle to Grave's "destroy
-    ... that entered this turn" has no attack/combat-damage word in the
-    clause and never fires."""
+    """CR 302.6 / 603.10a: FULLY STRUCTURAL (ADR-0036/0037 fold — the
+    lane-time ``ENTERED_ATTACKER_REGEX`` per-clause read is RETIRED) — a
+    trigger whose derived event is an attack/combat-damage event carrying an
+    ``EnteredThisTurn``/``SourceEnteredThisTurn`` node anywhere in the
+    trigger (Pick Up the Pace, Samut); Cradle to Grave's "destroy ... that
+    entered this turn" has no attack/combat-damage TRIGGER and never fires.
+    The structural read is a NET RECALL IMPROVEMENT over the retired mirror:
+    "Iron Man, Master of Machines"'s "Whenever Iron Man attacks, if an
+    artifact entered the battlefield UNDER YOUR CONTROL this turn, draw a
+    card" — the mirror's phrase anchor required "entered the battlefield"
+    immediately followed by "this turn", missing the "under your control"
+    insertion — now fires via the structural read."""
     assert ("entered_attacker", "you", "") in _idents("Pick Up the Pace")
     assert ("entered_attacker", "you", "") in _idents("Samut, Vizier of Naktamun")
+    assert ("entered_attacker", "you", "") in _idents("Iron Man, Master of Machines")
     assert "entered_attacker" not in _keys("Cradle to Grave")
 
 

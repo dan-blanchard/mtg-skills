@@ -252,7 +252,6 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import (
-    ENTERED_ATTACKER_REGEX,
     STATION_MATTERS_REGEX,
     STICKERS_MATTER_REGEX,
     VOID_WARP_MATTERS_REGEX,
@@ -871,10 +870,8 @@ _FIXING_PRODUCED_TYPES: frozenset[str] = frozenset(
 
 
 # ── Batch-12 mirror constants + census sets ──────────────────────────────────
-
-# Compiled forms of the pinned live regex sources (byte-identical by import;
-# same IGNORECASE flag the live kept-detectors compile with).
-_ENTERED_ATTACKER_RX = re.compile(ENTERED_ATTACKER_REGEX, re.IGNORECASE)
+# (the entered_attacker ``ENTERED_ATTACKER_REGEX`` mirror was ADR-0036/0037
+# folded to a fully structural read — see ``_entered_attacker``.)
 
 # Johan mirror: byte-identical copy of the INLINE (unnamed) ``_IR_KEPT_
 # DETECTORS`` row in ``_signals_ir`` (exert_matters ~line 2343) — a b12
@@ -6847,16 +6844,42 @@ def _exert_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# Trigger events an attack/combat-damage context is derived from — the
+# entered_attacker structural gate (CR 302.6 / 603.10a).
+_ENTERED_ATTACKER_TRIGGER_EVENTS: frozenset[str] = frozenset(
+    {"attacks", "deals_damage"}
+)
+
+
 def _entered_attacker(tree: ConceptTree) -> list[Signal]:
-    """entered_attacker (§A) — CR 302.6 / 603.10a: kept-mirror-ONLY, the
-    EXACT live ENTERED_ATTACKER_REGEX run PER-CLAUSE over the
-    reminder-stripped oracle (Pick Up the Pace, Samut). The structural
-    EnteredThisTurn read would ADD the no-combat-word Deathleaper family —
-    PARITY-BEFORE-VETO: the mirror is the producer; the structural adds stay
-    LOGGED only. Scope "you".
+    """entered_attacker (§A) — CR 302.6 / 603.10a: a newly-entered creature
+    that attacks or deals combat damage this turn (Samut, Pick Up the Pace).
+
+    Tier-1 (ADR-0036/0037 fold — the lane-time ``ENTERED_ATTACKER_REGEX``
+    per-clause kept-oracle read is RETIRED): FULLY STRUCTURAL — a trigger
+    unit whose derived event is an attack/combat-damage event
+    (:data:`_ENTERED_ATTACKER_TRIGGER_EVENTS`) carrying an
+    ``EnteredThisTurn`` filter property (a watched OTHER creature, Pick Up
+    the Pace) or a ``SourceEnteredThisTurn`` condition (a self-referential
+    "if ~ entered this turn", Hixus, Prison Warden) anywhere in the trigger.
+    Measured over the commander-legal corpus: a NET RECALL IMPROVEMENT over
+    the old per-clause mirror (10 vs 4, 0 drops) — the mirror's exact
+    phrasing anchor missed "entered the battlefield UNDER YOUR CONTROL this
+    turn" (Iron Man, Ash Party Crasher, Waterspout Warden), verb-number
+    variants ("creatures ... attack"/"deal combat damage" vs "attacks"/
+    "deals combat damage" — Whirlwind, Goro-Goro and Satoru), and a
+    cross-clause split (Moon-Circuit Hacker's "... draw a card. If you do,
+    discard a card unless this creature entered this turn." spans two
+    sentences). Scope "you".
     """
-    if any(_ENTERED_ATTACKER_RX.search(cl) for cl in clauses(_kept(tree))):
-        return [Signal("entered_attacker", "you", "", "", tree.name, "high")]
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        if unit.trigger_event not in _ENTERED_ATTACKER_TRIGGER_EVENTS:
+            continue
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) in ("EnteredThisTurn", "SourceEnteredThisTurn"):
+                return [Signal("entered_attacker", "you", "", "", tree.name, "high")]
     return []
 
 
