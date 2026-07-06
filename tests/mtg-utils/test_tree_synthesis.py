@@ -31,6 +31,7 @@ from mtg_utils._card_ir.mirror.generated_types import (
     T_effect__GenericEffect,
     T_filters__StackSpell,
     T_filters__Typed,
+    T_modifications__AddKeyword,
     T_modifications__AddPower,
     T_modifications__AddToughness,
     T_properties__HasColor,
@@ -38,6 +39,7 @@ from mtg_utils._card_ir.mirror.generated_types import (
     T_target__And,
     T_target__Typed,
 )
+from mtg_utils._card_ir.mirror.runtime import MirrorVariant
 from mtg_utils._card_ir.tree_synthesis import (
     _SPELLCAST_TRIGGER_RX,
     SYNTHESIS_ARM_IDS,
@@ -50,6 +52,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_color_hoser,
     _arm_crimes_matter,
     _arm_curse_matters,
+    _arm_firebending_matters,
     _arm_flash_matters,
     _arm_island_matters,
     _arm_kill_engine,
@@ -86,6 +89,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_counter_distribute,
     has_structural_crimes_matter,
     has_structural_curse_matters,
+    has_structural_firebending_grant,
     has_structural_keyword_counter,
     has_structural_kill_engine,
     has_structural_life_payment_insurance,
@@ -4298,3 +4302,73 @@ def test_big_hand_lanes_reads_synth_nodes_end_to_end():
     keys = {s.key for s in sigs}
     assert "big_hand_makers" in keys
     assert "big_hand_matters" in keys
+
+
+# ── batch T8-misc-sweep: firebending_matters bucket-B ────────────────────────
+
+
+def test_firebending_matters_addkw_grant_is_structural():
+    """A non-bearer GRANT (Sozin's Comet/Iroh Dragon of the West-style:
+    "Each creature you control gains firebending N") structures as a typed
+    ``AddKeyword`` static naming Firebending — no synth needed."""
+    unit = AbilityUnit(
+        origin="phase",
+        index=0,
+        node=T_modifications__AddKeyword(
+            keyword=MirrorVariant(key="Firebending", ckey="keyword", inner=None)
+        ),
+        kind=None,
+        trigger_event=None,
+        effects=(),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="Sozin's Comet",
+        oracle_id="x",
+        oracle="Each creature you control gains firebending 5 until end of turn.",
+        units=(unit,),
+    )
+    assert has_structural_firebending_grant(tree) is True
+    assert _arm_firebending_matters(tree) is None
+
+
+def test_firebending_matters_token_grant_bucket_b_gap():
+    """Fire Nation Attacks-style: a firebending grant baked into a
+    make_token spec's own printed body — phase emits no AddKeyword for a
+    token's own ability, the genuine bucket-B tail (verified over the full
+    commander-legal corpus: exactly 4 such cards)."""
+    tree = ConceptTree(
+        name="Fire Nation Attacks",
+        oracle_id="x",
+        oracle=("Create two 2/2 red Soldier creature tokens with firebending 1."),
+        units=(),
+    )
+    assert has_structural_firebending_grant(tree) is False
+    node = _arm_firebending_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_firebending_matters"
+
+
+def test_firebending_matters_no_fire_on_self_name_reference():
+    """Firebending Lesson's own NAME contains "Firebending" — the deleted
+    flat ``_FIREBEND_RE`` mirror mis-fired on this self-reference (zero
+    mechanic relevance); the narrower ``with firebending`` bucket-B anchor
+    correctly sheds it (adjudicated over-fire, verified against the real
+    corpus)."""
+    tree = ConceptTree(
+        name="Firebending Lesson",
+        oracle_id="x",
+        oracle=(
+            "Kicker {4}\nFirebending Lesson deals 2 damage to target"
+            " creature. If this spell was kicked, it deals 5 damage to"
+            " that creature instead."
+        ),
+        units=(),
+    )
+    assert has_structural_firebending_grant(tree) is False
+    assert _arm_firebending_matters(tree) is None
+
+
+def test_firebending_matters_synth_registered():
+    assert "firebending_matters" in SYNTHESIS_ARM_IDS

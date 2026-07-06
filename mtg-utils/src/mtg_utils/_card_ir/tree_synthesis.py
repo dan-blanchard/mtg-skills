@@ -5240,6 +5240,59 @@ def _arm_exert_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── firebending_matters bucket-B (ADR-0036/0037 Stage 5 T8-misc-sweep) ─────────
+# CR 702.189a/b: Firebending is a keyword ability, printed OR granted. Bearers
+# (the card's own Scryfall keyword array carries "firebending") route
+# structurally in the crosswalk lane itself — never here, this arm never sees
+# keywords. A card GRANTING firebending to another permanent WITHOUT bearing it
+# structures as a typed ``AddKeyword`` static naming Firebending
+# (:func:`has_structural_firebending_grant` — probed live: Fire Nation Cadets/
+# Palace/Turret, Iroh Dragon of the West, Sozin's Comet — read directly, zero
+# regex). The genuine bucket-B tail is a firebending grant baked into a
+# make_token spec's OWN printed body (Fire Nation Attacks/Occupation,
+# Firebender Ascension, Cruel Administrator's raid token) — phase never emits
+# an AddKeyword for a token's own ability, so the token-creation idiom is the
+# sole surviving text dependency. The narrow ``with firebending`` anchor (vs
+# the deleted flat ``\bfirebend(?:ing|s)?\b`` mirror) deliberately drops
+# Firebending Lesson — that card's own NAME contains "Firebending"
+# ("Firebending Lesson deals 2 damage…", no mechanic relevance at all), a
+# self-reference the flat mirror mis-fired on (adjudicated over-fire, shed).
+_FIREBENDING_GRANT_TOKEN_RX = re.compile(r"with firebending\b", re.IGNORECASE)
+
+
+def has_structural_firebending_grant(tree: ConceptTree) -> bool:
+    """Whether phase carries a typed ``AddKeyword`` static naming Firebending
+    — a non-bearer GRANT (Sozin's Comet, Iroh Dragon of the West, Fire Nation
+    Cadets/Palace/Turret)."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "AddKeyword":
+                continue
+            kw = getattr(n, "keyword", None)
+            if getattr(kw, "key", None) == "Firebending":
+                return True
+    return False
+
+
+def _arm_firebending_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``firebending_matters`` node for the bucket-B firebending
+    grant baked into a token's own printed body (Fire Nation Attacks/
+    Occupation, Firebender Ascension, Cruel Administrator) — phase emits no
+    AddKeyword for a make_token spec's own ability."""
+    if has_structural_firebending_grant(tree):
+        return None
+    oracle = _REMINDER.sub(" ", tree.oracle or "")
+    if not _FIREBENDING_GRANT_TOKEN_RX.search(oracle):
+        return None
+    return _synthetic_concept(
+        arm_id="firebending_matters",
+        concept="synth_firebending_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B firebending grant baked into a token body (CR 702.189)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -5305,6 +5358,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("meld_pair", _arm_meld_pair),
     ("toughness_combat", _arm_toughness_combat),
     ("exert_matters", _arm_exert_matters),
+    ("firebending_matters", _arm_firebending_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

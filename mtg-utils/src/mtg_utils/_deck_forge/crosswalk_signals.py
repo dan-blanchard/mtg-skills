@@ -192,6 +192,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_crimes_matter,
     has_structural_curse_matters,
     has_structural_exert_matters,
+    has_structural_firebending_grant,
     has_structural_keyword_counter,
     has_structural_life_payment_insurance,
     has_structural_meld_pair,
@@ -223,7 +224,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _ACTIVATED_ABILITY_DROP_EFFECTS,
     _CONVOKE_RAW,
     _COUNTER_KIND_KEYS,
-    _FIREBEND_RE,
     _FLOOR_DETECTORS,
     _IR_FLOOR_LANES,
     _NAMED_COUNTER_KINDS,
@@ -9040,16 +9040,20 @@ def _bending_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
     routed here (Avatar Aang's ElementalBend raw contains "firebend"; a
     naive route would double-fire past the mirror+kw split below).
 
-    Firebending mirror: the imported live ``_FIREBEND_RE`` FLAT over the
-    kept oracle, split on the Firebending keyword — bearers (Fire Lord
-    Azula, Avatar Aang) PERFORM the attack-trigger mechanic → makers; the
-    keyword-less Fire-Nation reference tail (Sozin's Comet, Iroh) →
-    matters. makers+matters union == the old single lane (26+10 commander).
-    LOGGED, not taken: phase structures firebending GRANTS as
-    ``AddKeyword.keyword.Firebending`` and bearers as parameterized
-    keywords — a structural upgrade candidate; the reference tail keeps
-    the mirror load-bearing today (correctness-over-cardcount: the mirror
-    IS currently exact).
+    Firebending (ADR-0036/0037 Stage 5 fold, Tier-1): bearers (Fire Lord
+    Azula, Avatar Aang) ride the caller-supplied Scryfall keyword array
+    (structural, "firebending" in ``low``) → makers. A keyword-less GRANT
+    (Sozin's Comet, Iroh Dragon of the West, Fire Nation Cadets/Palace/
+    Turret) structures as a typed ``AddKeyword`` static naming Firebending
+    (:func:`has_structural_firebending_grant`) → matters. The residual
+    bucket-B tail — a grant baked into a make_token spec's own body (Fire
+    Nation Attacks/Occupation, Firebender Ascension, Cruel Administrator) —
+    reads the ``tree_synthesis`` ``synth_firebending_matters`` node
+    (:func:`_arm_firebending_matters`) → matters. The deleted flat
+    ``_FIREBEND_RE`` mirror double-counted Firebending Lesson (the card's
+    OWN NAME contains "Firebending", zero mechanic relevance) — the bucket-B
+    arm's narrower anchor sheds that adjudicated over-fire. makers ==
+    26 commander, matters == 9 (5 AddKeyword + 4 bucket-B).
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -9084,9 +9088,17 @@ def _bending_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
             ) and any(_wb_dropped_other(c) for c in unit.effects)
         if is_bend:
             route(desc)
-    if _FIREBEND_RE.search(_kept(tree)):
-        key = "firebending_makers" if "firebending" in low else "firebending_matters"
-        out.append(Signal(key, "you", "", "", tree.name, "high"))
+    if "firebending" in low:
+        out.append(Signal("firebending_makers", "you", "", "", tree.name, "high"))
+    elif has_structural_firebending_grant(tree):
+        out.append(Signal("firebending_matters", "you", "", "", tree.name, "high"))
+    else:
+        for c in tree.iter_concepts():
+            if c.concept == "synth_firebending_matters":
+                out.append(
+                    Signal("firebending_matters", "you", "", "", tree.name, "high")
+                )
+                break
     return out
 
 
