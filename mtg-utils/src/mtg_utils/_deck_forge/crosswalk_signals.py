@@ -169,6 +169,7 @@ from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
 # with the ``tree_synthesis`` bucket-B gap gate — one source, no drift: the morbid
 # creature-death state check and the ``CreatureDying`` trigger-doubler.
 from mtg_utils._card_ir.tree_synthesis import (
+    _KILL_ONESHOT_EVENTS,
     _PACIFY_PREDS,
     _double_triggers_creature_dying,
     _is_creature_death_subject,
@@ -241,7 +242,6 @@ from mtg_utils._deck_forge._signals_ir import (
 from mtg_utils._deck_forge._signals_regex import (
     _EVERGREEN_CK,
     _MELD_FULLTEXT_RE,
-    _REPEATABLE_KILL_RE,
     Signal,
     _detect_token_maker,
     _resolve_subject,
@@ -891,25 +891,6 @@ _JOHAN_MIRROR = re.compile(
 # Reminder-text strip — the same paren-substitution the live path applies to
 # build ``kept_oracle`` (_signals_ir line ~11091).
 _REMINDER_RX = re.compile(r"\([^)]*\)")
-
-# Trigger events that fire AT MOST ONCE per object (crosswalk event names) —
-# NOT a repeatable kill frame. Mirrors live's ``_KILL_ENGINE_ONESHOT_EVENTS``
-# {etb, ltb, dies, death, leaves, transformed, turn_face_up} + the monstrous
-# one-shot (CR 701.37b) live screens by raw.
-_KILL_ONESHOT_EVENTS: frozenset[str] = frozenset(
-    {
-        "enters",
-        "dies",
-        "leaves",
-        "changes_zone",
-        "transformed",
-        "transforms",
-        "turnedfaceup",
-        "turnfaceup",
-        "becomemonstrous",
-        "becomesmonstrous",
-    }
-)
 
 # Land subtype words the land-animate arms accept when the animated filter
 # names the land by SUBTYPE ("target Forest" — Awakener Druid). CR 205.3i.
@@ -7078,9 +7059,14 @@ def _kill_engine(tree: ConceptTree) -> list[Signal]:
     unit (Visara, Avatar of Woe, Royal Assassin's qualified "tapped
     creature") or a recurring trigger (event outside the one-shot set;
     Nekrataal's ETB destroy is out). ``DestroyAll`` wipes never fire (the
-    tag IS the mass discriminator). The Evil Twin quoted-grant fold rides
-    the byte-identical _REPEATABLE_KILL_RE mirror. LOW confidence, scope
-    "you" (the live producer's identity — never feeds has_other_plan).
+    tag IS the mass discriminator). Tier-1 (ADR-0036/0037 fold — the
+    lane-time ``_REPEATABLE_KILL_RE`` kept-oracle read is RETIRED): the
+    Evil Twin quoted-grant tail (its destroy lives inside a QUOTED granted
+    ability folded into a ``clone`` Effect, no destroy ability of its own —
+    the ONE card phase can't structure) now rides the ``tree_synthesis``
+    stage's ``synth_kill_engine`` node, gated against
+    :func:`has_structural_kill_engine`. LOW confidence, scope "you" (the
+    live producer's identity — never feeds has_other_plan).
     """
     if not tree.is_type("Creature"):
         return []
@@ -7096,8 +7082,9 @@ def _kill_engine(tree: ConceptTree) -> list[Signal]:
                 continue
             if "Creature" in filter_core_types(getattr(c.node, "target", None)):
                 return [Signal("kill_engine", "you", "", c.raw, tree.name, "low")]
-    if _REPEATABLE_KILL_RE.search(_kept(tree)):
-        return [Signal("kill_engine", "you", "", "", tree.name, "low")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_kill_engine":
+            return [Signal("kill_engine", "you", "", "", tree.name, "low")]
     return []
 
 

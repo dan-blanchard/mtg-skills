@@ -168,6 +168,7 @@ __all__ = [
     "has_structural_color_hoser",
     "has_structural_crimes_matter",
     "has_structural_curse_matters",
+    "has_structural_kill_engine",
     "has_structural_life_payment_insurance",
     "has_structural_outlaw",
     "has_structural_pump_makers",
@@ -4748,6 +4749,91 @@ def _arm_unspent_mana(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T6-niche-b: kill_engine bucket-B tail (Evil Twin) ─────────────────
+# CR 305.6/701.8 (destroy) + 707.2 (a granted quoted ability): a REPEATABLE
+# creature ``Destroy`` engine — the live structural walk (an Activated unit,
+# or a recurring trigger outside the one-shot event set, with a Creature-
+# targeted ``Destroy``) already binds 84 commander-legal cards. The sole
+# residual: Evil Twin, whose destroy ability lives inside a QUOTED granted
+# ability folded into a ``clone`` Effect (no destroy ability of its own to
+# walk) — the ONE card phase can't structure at v0.9.0. Relocates the
+# deleted ``_REPEATABLE_KILL_RE`` mirror verbatim, gap-gated against the
+# structural census (and the same whole-card ``is_type("Creature")`` gate
+# the live lane applies to BOTH arms). Measured byte-identical (84
+# structural + 1 bucket-B, 0 drops, 0 adds).
+#
+# Trigger events that fire AT MOST ONCE per object — NOT a repeatable kill
+# frame. ONE pinned source the live lane (crosswalk_signals) imports back —
+# see ``_KILL_ONESHOT_EVENTS`` there (the PAY_LIFE_REF/MASS_DEATH_REF
+# single-source precedent, just inverted direction since this module sits
+# below crosswalk_signals in the import graph).
+_KILL_ONESHOT_EVENTS: frozenset[str] = frozenset(
+    {
+        "enters",
+        "dies",
+        "leaves",
+        "changes_zone",
+        "transformed",
+        "transforms",
+        "turnedfaceup",
+        "turnfaceup",
+        "becomemonstrous",
+        "becomesmonstrous",
+    }
+)
+
+
+def has_structural_kill_engine(tree: ConceptTree) -> bool:
+    """Whether a REPEATABLE unit (an Activated ability, or a recurring
+    trigger outside the one-shot event set) carries a Creature-targeted
+    ``Destroy`` effect."""
+    if not tree.is_type("Creature"):
+        return False
+    for unit in tree.units:
+        repeatable = (unit.origin == "ability" and unit.kind == "Activated") or (
+            unit.origin == "trigger"
+            and (unit.trigger_event or "") not in _KILL_ONESHOT_EVENTS
+        )
+        if not repeatable:
+            continue
+        for c in unit.effect_concepts("destroy"):
+            if tag_of(c.node) != "Destroy":
+                continue
+            if "Creature" in filter_core_types(getattr(c.node, "target", None)):
+                return True
+    return False
+
+
+_KILL_ENGINE_SYNTH_RX = re.compile(
+    r"\{[^}]*\}[^.]*:[^.]*destroy target creature"
+    r"|(?:whenever|at the beginning of)[^.]*destroy target creature",
+    re.IGNORECASE,
+)
+
+
+def _matches_kill_engine_idiom(oracle: str) -> bool:
+    return bool(_KILL_ENGINE_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_kill_engine(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``kill_engine`` node for the Evil Twin quoted-granted-
+    ability tail (the deleted ``_REPEATABLE_KILL_RE`` mirror relocated,
+    gap-gated against :func:`has_structural_kill_engine`)."""
+    if not tree.is_type("Creature"):
+        return None
+    if has_structural_kill_engine(tree):
+        return None
+    if not _matches_kill_engine_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="kill_engine",
+        concept="synth_kill_engine",
+        scope="you",
+        subject=(),
+        desc="bucket-B quoted-granted repeatable-destroy residue (CR 707.2)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4805,6 +4891,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("noncombat_damage_payoff", _arm_noncombat_damage_payoff),
     ("per_target_payoff", _arm_per_target_payoff),
     ("unspent_mana", _arm_unspent_mana),
+    ("kill_engine", _arm_kill_engine),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

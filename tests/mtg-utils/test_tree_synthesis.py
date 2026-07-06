@@ -50,6 +50,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_curse_matters,
     _arm_flash_matters,
     _arm_island_matters,
+    _arm_kill_engine,
     _arm_life_payment_insurance,
     _arm_manland,
     _arm_noncombat_damage_payoff,
@@ -82,6 +83,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_crimes_matter,
     has_structural_curse_matters,
     has_structural_keyword_counter,
+    has_structural_kill_engine,
     has_structural_life_payment_insurance,
     has_structural_manland,
     has_structural_outlaw,
@@ -4098,3 +4100,67 @@ def test_unspent_mana_lane_reads_synth_node_end_to_end():
     tree = _synth_concept_tree("synth_unspent_mana")
     sigs = _unspent_mana(tree)
     assert any(s.key == "unspent_mana" for s in sigs)
+
+
+# ── kill_engine bucket-B tail (Evil Twin) ────────────────────────────────────
+
+
+def test_kill_engine_structural_avatar_of_woe():
+    """Avatar of Woe: "{T}: Destroy target creature. It can't be
+    regenerated." — a repeatable Activated Creature-Destroy engine."""
+    tree = _fixture_tree("Avatar of Woe")
+    assert has_structural_kill_engine(tree) is True
+    assert _arm_kill_engine(tree) is None
+
+
+def test_kill_engine_bucket_b_synth_evil_twin_quoted_grant():
+    """Evil Twin: the destroy ability lives inside a QUOTED granted ability
+    folded into a ``clone`` Effect — no destroy ability of its own to walk,
+    the ONE card phase can't structure at v0.9.0."""
+    tree = ConceptTree(
+        name="Evil Twin",
+        oracle_id="x",
+        oracle=(
+            "You may have this creature enter as a copy of any creature on"
+            ' the battlefield, except it has "{U}{B}, {T}: Destroy target'
+            ' creature with the same name as this creature."'
+        ),
+        card_types=("Creature",),
+    )
+    assert has_structural_kill_engine(tree) is False
+    node = _arm_kill_engine(tree)
+    assert node is not None
+    assert node.concept == "synth_kill_engine"
+
+
+def test_kill_engine_no_fire_on_noncreature():
+    """The whole-function ``is_type("Creature")`` gate applies to BOTH the
+    structural walk AND the bucket-B synth — a noncreature never fires
+    either, even with matching text."""
+    tree = ConceptTree(
+        name="X",
+        oracle_id="x",
+        oracle="{3}, {T}: Destroy target creature.",
+        card_types=("Artifact",),
+    )
+    assert has_structural_kill_engine(tree) is False
+    assert _arm_kill_engine(tree) is None
+
+
+def test_kill_engine_synth_registered():
+    assert "kill_engine" in SYNTHESIS_ARM_IDS
+
+
+def test_kill_engine_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _kill_engine
+
+    tree = _synth_concept_tree("synth_kill_engine")
+    tree = ConceptTree(
+        name=tree.name,
+        oracle_id=tree.oracle_id,
+        oracle=tree.oracle,
+        units=tree.units,
+        card_types=("Creature",),
+    )
+    sigs = _kill_engine(tree)
+    assert any(s.key == "kill_engine" for s in sigs)
