@@ -257,7 +257,6 @@ from mtg_utils._deck_forge._subtypes import (
 from mtg_utils._deck_forge._sweep_detectors import (
     CLUE_MATTERS_REGEX,
     ENTERED_ATTACKER_REGEX,
-    ISLAND_MAKERS_REGEX,
     NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     PUMP_MATTERS_REGEX,
     STATION_MATTERS_REGEX,
@@ -7715,6 +7714,10 @@ _B13_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
     (frozenset({"changeling"}), "has_changeling"),  # CR 702.73
     # CR 702.116 (the attack_matters co-fire rides the b3 keyword row).
     (frozenset({"myriad"}), "myriad_grant"),
+    # CR 702.14c (islandwalk evasion): the island_makers BEARER row (ADR-0036
+    # fold) — the granter/neutralizer/token-maker arms live in
+    # :func:`_island_makers` (structural ``Landwalk``/``Island`` reads).
+    (frozenset({"islandwalk"}), "island_makers"),
 )
 
 
@@ -9616,11 +9619,11 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 # Byte-identical inline copies of the live INLINE (unnamed) kept-detector rows
 # (_IR_KEPT_DETECTORS / the deleted-producer patterns) — the b12 _JOHAN_MIRROR
 # precedent for rows with no importable name. Named live constants are imported
-# above (one source, zero drift): _ABILITY_COPY_MIRROR, ISLAND_MAKERS_REGEX,
+# above (one source, zero drift): _ABILITY_COPY_MIRROR,
 # NONCOMBAT_DAMAGE_PAYOFF_REGEX,
 # _MELD_FULLTEXT_RE, _POWER_SCALING_RAW, _TOUGHNESS_VALUE_MIRROR,
-# _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF.
-_ISLAND_MAKERS_RX = re.compile(ISLAND_MAKERS_REGEX, re.IGNORECASE)
+# _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF. (island_makers was
+# ADR-0036/0037 folded to Tier-1 structural reads — see ``_island_makers``.)
 _NONCOMBAT_DAMAGE_RX = re.compile(NONCOMBAT_DAMAGE_PAYOFF_REGEX, re.IGNORECASE)
 _PER_TARGET_RX = re.compile(
     r"less (?:to cast )?for each (?:of those )?target", re.IGNORECASE
@@ -9902,20 +9905,57 @@ def _free_spell_storm(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _is_island_landwalk_kw(kw: object) -> bool:
+    """Whether a keyword value (bare string or parameterized variant) IS
+    islandwalk — the ``{"Landwalk": "Island"}`` phase shape (Thada Adel's
+    OWN ``keywords`` array) or a defensive bare-string fallback."""
+    if isinstance(kw, MirrorVariant):
+        return kw.key == "Landwalk" and kw.inner == "Island"
+    return isinstance(kw, str) and kw.lower() == "islandwalk"
+
+
 def _island_makers(tree: ConceptTree) -> list[Signal]:
     """island_makers (§10) — CR 702.14a/702.14b/702.14c (landwalk is an
     evasion ability; "can't be blocked as long as the defending player
-    controls … an Island"): the imported pinned ``ISLAND_MAKERS_REGEX``
-    (``\\bislandwalk\\b``) flat over the kept oracle — the ADR-0034 MAKER
-    arm: bearers (Thada Adel), granters (Lord of Atlantis — the Scryfall
-    array's conferred-keyword gap keeps this a word mirror) and neutralizers
-    (Mystic Decree). The Zhou Yu attack-restriction PAYOFF is the sibling
-    ``island_matters`` lane (ported b13 — zero drift). LOGGED widen: v0.9.0
-    parameterized ``{"Landwalk": "Island"}`` keywords + structured AddKeyword
-    grants. Scope "you", HIGH.
+    controls … an Island"): Tier-1 (ADR-0036/0037 fold — the
+    ``ISLAND_MAKERS_REGEX`` mirror is DELETED), the ADR-0034 MAKER union of
+    granter / neutralizer / token-maker, every arm reading the
+    ``{"Landwalk": "Island"}`` phase shape structurally. The BEARER row
+    (Thada Adel) rides the Scryfall keyword-field arm — see
+    ``_B13_KEYWORD_LANES``'s ``island_makers`` row, the same field-lookup
+    mechanism evasion_self's landwalk family already uses.
+
+    * **granter / neutralizer** — an ``AddKeyword``/``RemoveKeyword``
+      modification whose keyword is the ``Landwalk``/``Island`` variant
+      (Lord of Atlantis grants it structurally now — no more Scryfall-array
+      gap; Mystic Decree's ``RemoveKeyword`` neutralizer).
+    * **token-maker** — a ``make_token`` effect whose token profile's own
+      ``keywords`` list carries the same variant (Chasm Skulker, Coral
+      Barrier, The Sea Devils — a STRUCTURAL recovery over the mirror,
+      which never saw the token's nested keyword list).
+
+    Adjudicated mirror over-fires SHED (not bearers/granters/makers, a bare
+    REFERENCE to islandwalk creatures): the evasion-DENIAL idiom "creatures
+    with islandwalk can be blocked as though they didn't have islandwalk"
+    (Gosta Dirk, Undertow — the sibling ``evasion_denial`` lane's
+    ``IgnoreLandwalkForBlocking`` territory), a removal spell targeting
+    islandwalk creatures (Merfolk Assassin), and a symmetric-protection
+    reference (Island Sanctuary). The Zhou Yu attack-restriction PAYOFF is
+    the sibling ``island_matters`` lane. Scope "you", HIGH.
     """
-    if _ISLAND_MAKERS_RX.search(_kept(tree)):
-        return [Signal("island_makers", "you", "", "", tree.name, "high")]
+    for unit in tree.units:
+        for _sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) not in ("AddKeyword", "RemoveKeyword"):
+                continue
+            if _is_island_landwalk_kw(getattr(mod, "keyword", None)):
+                return [Signal("island_makers", "you", "", "", tree.name, "high")]
+        for c in unit.effect_concepts("make_token"):
+            kws = getattr(c.node, "keywords", None)
+            if not isinstance(kws, list):
+                continue
+            for kw in kws:
+                if _is_island_landwalk_kw(kw):
+                    return [Signal("island_makers", "you", "", "", tree.name, "high")]
     return []
 
 

@@ -4893,18 +4893,40 @@ def test_free_spell_storm_selfref_scaler_shapes():
 
 
 def test_island_makers_word_mirror_and_matters_boundary():
-    """CR 702.14b/702.14c (islandwalk is an evasion ability): the flat
-    ``\\bislandwalk\\b`` word mirror fires bearers (Thada Adel), granters
-    (Lord of Atlantis — no Scryfall keyword, the conferred-keyword gap) and
-    neutralizers (Mystic Decree). The Zhou Yu attack-restriction PAYOFF is
-    the sibling island_matters lane (ported b13, zero drift) — makers stays
-    out."""
+    """CR 702.14b/702.14c (islandwalk is an evasion ability): Tier-1
+    (ADR-0036/0037 fold — the ``ISLAND_MAKERS_REGEX`` mirror is deleted)
+    fires bearers (Thada Adel — the Scryfall keyword-field arm), granters
+    (Lord of Atlantis — a structural ``AddKeyword`` read, no more Scryfall-
+    array gap) and neutralizers (Mystic Decree — ``RemoveKeyword``). The
+    Zhou Yu attack-restriction PAYOFF is the sibling island_matters lane
+    (ported b13, zero drift) — makers stays out."""
     assert ("island_makers", "you", "") in _idents("Lord of Atlantis")
     assert ("island_makers", "you", "") in _idents("Thada Adel, Acquisitor")
     assert ("island_makers", "you", "") in _idents("Mystic Decree")
     zhou = _keys("Zhou Yu, Chief Commander")
     assert "island_makers" not in zhou
     assert "island_matters" in zhou
+
+
+def test_island_makers_token_maker_structural_recovery():
+    """A STRUCTURAL recovery over the deleted mirror: Chasm Skulker and
+    Coral Barrier make islandwalk TOKENS (the token profile's own keyword
+    list carries the ``{"Landwalk": "Island"}`` variant) — the mirror never
+    saw a token's nested keyword list."""
+    assert ("island_makers", "you", "") in _idents("Chasm Skulker")
+    assert ("island_makers", "you", "") in _idents("Coral Barrier")
+
+
+def test_island_makers_adjudicated_over_fires_shed():
+    """Four mirror over-fires shed (bare REFERENCES to islandwalk
+    creatures, not bearers/granters/makers): the evasion-DENIAL idiom
+    (Gosta Dirk, Undertow — the sibling evasion_denial lane's territory), a
+    removal spell targeting islandwalk creatures (Merfolk Assassin), and a
+    symmetric-protection reference (Island Sanctuary)."""
+    assert "island_makers" not in _keys("Gosta Dirk")
+    assert "island_makers" not in _keys("Undertow")
+    assert "island_makers" not in _keys("Merfolk Assassin")
+    assert "island_makers" not in _keys("Island Sanctuary")
 
 
 def test_keyword_soup_makers_context_and_count():
