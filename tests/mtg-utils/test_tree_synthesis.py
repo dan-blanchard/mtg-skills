@@ -37,6 +37,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_dies_value,
     has_self_etb_value,
     has_selfloss_engine,
+    has_structural_arcane,
     has_structural_outlaw,
     has_structural_spellcast,
     has_structural_stax_taxes,
@@ -2159,3 +2160,76 @@ def test_outlaw_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _outlaw_matters_lane(tree)
     assert any(s.key == "outlaw_matters" for s in sigs)
+
+
+def _arcane_lane_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _arcane_matters
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    sigs = _arcane_matters(tree)
+    return any(s.key == "arcane_matters" for s in sigs)
+
+
+def test_arcane_matters_structural():
+    """Direct: a typed filter naming the Arcane spell subtype in a cast
+    payoff (Tallowisp) — no synth node needed."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_arcane_matters
+
+    tree = _fixture_tree("Tallowisp")
+    assert has_structural_arcane(tree) is True
+    assert _arm_arcane_matters(tree) is None  # already structural — no-op
+    assert _arcane_lane_fires("Tallowisp") is True
+
+
+def test_arcane_matters_bucket_b_synth():
+    """Glacial Ray's "Splice onto Arcane" — phase drops the whole static
+    ability (zero units for the whole card), a genuine phase gap."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_arcane_matters
+
+    tree = _fixture_tree("Glacial Ray")
+    assert has_structural_arcane(tree) is False
+    node = _arm_arcane_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_arcane_matters"
+    assert _arcane_lane_fires("Glacial Ray") is True
+
+
+def test_arcane_matters_no_fire_on_unrelated_card():
+    from mtg_utils._card_ir.tree_synthesis import _arm_arcane_matters
+
+    tree = _fixture_tree("Chaos Wand")
+    assert has_structural_arcane(tree) is False
+    assert _arm_arcane_matters(tree) is None
+    assert _arcane_lane_fires("Chaos Wand") is False
+
+
+def test_arcane_matters_synth_registered():
+    assert "arcane_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_arcane_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _arcane_matters
+
+    synth = ConceptNode(
+        concept="synth_arcane_matters",
+        node=SynthesizedNode(arm_id="arcane_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _arcane_matters(tree)
+    assert any(s.key == "arcane_matters" for s in sigs)

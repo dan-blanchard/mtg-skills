@@ -137,6 +137,7 @@ __all__ = [
     "has_self_dies_value",
     "has_self_etb_value",
     "has_selfloss_engine",
+    "has_structural_arcane",
     "has_structural_outlaw",
     "has_structural_spellcast",
     "has_structural_stax_taxes",
@@ -3173,6 +3174,53 @@ def _arm_outlaw_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arcane_matters direct/bucket-B (ADR-0036/0037 Stage 5) ─────────────────────
+# CR 205.3k (Arcane is a spell type) + 702.47a (Splice onto Arcane). A payoff
+# naming Arcane spells in a cast-trigger/target filter (Tallowisp, Sideswipe)
+# structures as a ``Typed`` filter with subtype "Arcane" — read directly,
+# zero regex. Being Arcane-TYPED is NOT itself membership (probed: 66 of 95
+# corpus Arcane-typed cards carry no arcane-caring text at all — a plain
+# Arcane spell is not a payoff). The genuine bucket-B tail is "Splice onto
+# Arcane" itself: phase drops the whole static ability (zero units for
+# Glacial Ray) — the ``S_Splice`` mirror type exists but is a dead map row
+# (0 corpus nodes, the ``IncreaseSpeed`` precedent) carried anyway for when
+# phase starts emitting it.
+def has_structural_arcane(tree: ConceptTree) -> bool:
+    """Whether phase carries a typed filter naming the Arcane spell subtype
+    (a cast-trigger / target payoff — Tallowisp, Sideswipe) or a structured
+    ``Splice`` static naming Arcane (dead row today, kept for convergence)."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Typed" and "Arcane" in filter_subtypes(n):
+                return True
+            if tag_of(n) == "Splice" and getattr(n, "subtype", None) == "Arcane":
+                return True
+    return False
+
+
+_ARCANE_SYNTH_RX = re.compile(r"\barcane\b", re.IGNORECASE)
+
+
+def _matches_arcane_idiom(oracle: str) -> bool:
+    return bool(_ARCANE_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_arcane_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``arcane_matters`` node for the bucket-B "Splice onto
+    Arcane" tail phase drops entirely (Glacial Ray, Torrent of Stone, …)."""
+    if has_structural_arcane(tree):
+        return None
+    if not _matches_arcane_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="arcane_matters",
+        concept="synth_arcane_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B Splice onto Arcane (CR 702.47a) phase drops",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3201,6 +3249,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("coven_matters", _arm_coven_matters),
     ("celebration_matters", _arm_celebration_matters),
     ("outlaw_matters", _arm_outlaw_matters),
+    ("arcane_matters", _arm_arcane_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

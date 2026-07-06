@@ -191,6 +191,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_dies_value,
     has_self_etb_value,
     has_selfloss_engine,
+    has_structural_arcane,
     has_structural_outlaw,
     has_structural_spellcast,
     has_structural_superfriends,
@@ -9623,7 +9624,6 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 # NONCOMBAT_DAMAGE_PAYOFF_REGEX,
 # _MELD_FULLTEXT_RE, _POWER_SCALING_RAW, _TOUGHNESS_VALUE_MIRROR,
 # _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF.
-_ARCANE_RX = re.compile(r"\barcane\b", re.IGNORECASE)
 _EXALTED_TEXT_RX = re.compile(r"attacks alone|\bexalted\b", re.IGNORECASE)
 _ISLAND_MAKERS_RX = re.compile(ISLAND_MAKERS_REGEX, re.IGNORECASE)
 _NONCOMBAT_DAMAGE_RX = re.compile(NONCOMBAT_DAMAGE_PAYOFF_REGEX, re.IGNORECASE)
@@ -9747,15 +9747,21 @@ def _ability_strip_payoff(tree: ConceptTree) -> list[Signal]:
 
 def _arcane_matters(tree: ConceptTree) -> list[Signal]:
     """arcane_matters (§3) — CR 205.3k (Arcane is a SPELL type) + 304.3/307.3
-    + 702.47a (Splice onto Arcane): the byte-identical ``\\barcane\\b`` word
-    mirror flat over the kept oracle — payoffs (Tallowisp) + Splice spells
-    (Glacial Ray). LOGGED widen: v0.9.0 structures ``{"Subtype": "Arcane"}``
-    in cast-trigger filters (Tallowisp probed) — a candidate typed arm; the
-    word is the parity home (the Splice spells fire on the word, not a
-    filter). Scope "you", HIGH.
+    + 702.47a (Splice onto Arcane). Tier-1 (ADR-0036 fold): direct — a
+    typed filter naming the Arcane spell subtype (a payoff — Tallowisp,
+    Sideswipe), :func:`has_structural_arcane` in ``tree_synthesis``.
+    bucket-B: the residual "Splice onto Arcane" tail phase drops ENTIRELY
+    (Glacial Ray — zero units for the whole card), read off the
+    ``synth_arcane_matters`` node (:func:`_arm_arcane_matters`). Being
+    Arcane-TYPED is NOT itself membership (probed: 66 of 95 corpus
+    Arcane-typed cards carry no arcane-caring text at all). Scope "you",
+    HIGH.
     """
-    if _ARCANE_RX.search(_kept(tree)):
+    if has_structural_arcane(tree):
         return [Signal("arcane_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_arcane_matters":
+            return [Signal("arcane_matters", "you", "", "", tree.name, "high")]
     return []
 
 
