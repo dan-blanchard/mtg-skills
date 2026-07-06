@@ -102,7 +102,6 @@ from mtg_utils._card_ir.crosswalk import (
     replacement_damage_mod,
     replacement_event_tag,
     replacement_qty_mod,
-    replacement_shield_kind,
     replacement_token_owner_scope,
     reveal_until_player,
     settap_state,
@@ -6002,22 +6001,18 @@ def _damage_prevention(tree: ConceptTree) -> list[Signal]:
     hits = tree.effect_concepts("prevent_damage")
     if hits:
         return [Signal("damage_prevention", "you", "", hits[0].raw, tree.name, "high")]
-    for unit in tree.units:
-        if (
-            unit.origin == "replacement"
-            and replacement_event_tag(unit.node) == "DamageDone"
-            and replacement_shield_kind(unit.node) == "Prevention"
-        ):
-            raw = getattr(unit.node, "description", None) or ""
-            # [P29]: an OFFENSIVE curse ("All damage that would be dealt to
-            # enchanted creature is dealt to its controller instead" —
-            # Treacherous Link) parses as a bare Prevention shield identical
-            # to Pariah; the shielded SUBJECT in the node's own description
-            # is the tell (adjudicated corpus scan: exactly two
-            # redirect-to-controller shields; Mirror Strike shields YOU).
-            if "dealt to enchanted creature is dealt to" in raw.lower():
-                continue
-            return [Signal("damage_prevention", "you", "", raw, tree.name, "high")]
+    # [P29] / Tier-1 (ADR-0036/0037 T10-finalize2 GLOBAL FINALIZE-2 fold): a
+    # ``DamageDone`` REPLACEMENT with ``shield_kind {Prevention}`` (Palisade
+    # Giant family) parses identically for an OFFENSIVE curse ("All damage
+    # that would be dealt to enchanted creature is dealt to its controller
+    # instead" — Treacherous Link) — a redirect-to-controller shield, not a
+    # real prevention shield (Mirror Strike shields YOU). The deleted
+    # lane-time veto (the node's own description) is relocated verbatim to
+    # the bucket-B ``synth_damage_prevention`` node
+    # (:func:`_arm_damage_prevention`), read below.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_damage_prevention":
+            return [Signal("damage_prevention", "you", "", "", tree.name, "high")]
     return []
 
 

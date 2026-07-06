@@ -83,6 +83,7 @@ from mtg_utils._card_ir.crosswalk import (
     node_duration,
     protection_cardtype,
     replacement_event_tag,
+    replacement_shield_kind,
     settap_state,
     static_mode_field,
     static_mode_tag,
@@ -6334,6 +6335,40 @@ def _arm_cost_reduction(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+# ── damage_prevention bucket-B (ADR-0036/0037 T10-finalize2 GLOBAL FINALIZE-2) ─
+# The CR 615 prevention-shield MEMBERSHIP replacement arm ([P29]): a
+# ``DamageDone`` REPLACEMENT with ``shield_kind {Prevention}`` (the Palisade
+# Giant family) parses IDENTICALLY for an OFFENSIVE curse ("All damage that
+# would be dealt to enchanted creature is dealt to its controller instead" —
+# Treacherous Link) — a redirect-to-controller shield, not a real prevention
+# shield (Mirror Strike, which shields YOU, is the genuine member). The
+# shielded SUBJECT tell lives only in the replacement's own description
+# (adjudicated: exactly two redirect-to-controller shields in the corpus).
+def _arm_damage_prevention(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``damage_prevention`` node for the replacement-shield
+    MEMBERSHIP arm, vetoing the OFFENSIVE-curse redirect shape
+    (Treacherous Link) via the node's own description — the deleted
+    lane-time veto relocated verbatim. CR 615."""
+    for unit in tree.units:
+        if not (
+            unit.origin == "replacement"
+            and replacement_event_tag(unit.node) == "DamageDone"
+            and replacement_shield_kind(unit.node) == "Prevention"
+        ):
+            continue
+        raw = getattr(unit.node, "description", None) or ""
+        if "dealt to enchanted creature is dealt to" in raw.lower():
+            continue
+        return _synthetic_concept(
+            arm_id="damage_prevention",
+            concept="synth_damage_prevention",
+            scope="you",
+            subject=(),
+            desc="bucket-B prevention-shield replacement (CR 615)",
+        )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -6422,6 +6457,7 @@ _Arm = Callable[[ConceptTree], "ConceptNode | None"]
 _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("recast_etb_bleed", _arm_recast_etb_bleed),
     ("cost_reduction", _arm_cost_reduction),
+    ("damage_prevention", _arm_damage_prevention),
     ("death_matters", _arm_death_matters),
     ("attack_matters", _arm_attack_matters),
     ("lifegain_matters", _arm_lifegain_matters),
