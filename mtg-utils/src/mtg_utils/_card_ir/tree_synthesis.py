@@ -108,12 +108,16 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 # keyword-less crime-condition anchor) and ``_SUSPECT_REF`` (the suspect
 # verb/state marker) — the same single-source pattern, one copy each.
 from mtg_utils._card_ir.project import (
+    _CASCADE_GRANT,
+    _CHANGELING_REF,
     _CRIME_REF,
     _MASS_DEATH_REF,
     _PAY_LIFE_REF,
+    _SOULBOND_REF,
     _STARTING_LIFE_REF,
     _SUSPECT_REF,
     _TOKEN_SUBTYPE_OWN_REF,
+    _UNDYING_PERSIST_GRANT,
 )
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
@@ -4577,6 +4581,105 @@ def _arm_type_change(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arm: b13_raw_anchor, subject-carrying (ADR-0036/0037 Stage 5,
+# T9-finalize) ────────────────────────────────────────────────────────────────
+# The batch-13 keyword-LESS conferred/quoted grant residue
+# (:data:`_B13_RAW_ANCHOR_LANES` relocated verbatim): soulbond / undying-
+# persist / changeling / cascade references phase folds into a carrier, so
+# no retained-node text survives — a WHOLE-ORACLE scan is the deliberate,
+# already-adjudicated choice (a node-scoped read drops soulbond -12/
+# changeling -12/cascade -1 over the corpus, per the live comment this
+# relocates verbatim). One subject-carrying node per card (the type_matters
+# precedent) — the lane emits one Signal per matched key.
+_B13_RAW_ANCHOR_SYNTH_LANES: tuple[tuple[re.Pattern[str], str], ...] = (
+    (_SOULBOND_REF, "has_soulbond"),
+    (_UNDYING_PERSIST_GRANT, "has_undying_persist"),
+    (_CHANGELING_REF, "has_changeling"),
+    (_CASCADE_GRANT, "cascade_matters"),
+)
+
+
+def _arm_b13_raw_anchor(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a subject-carrying node for the b13 conferred/quoted
+    residue (:data:`_B13_RAW_ANCHOR_SYNTH_LANES`, the deleted
+    ``_B13_RAW_ANCHOR_LANES`` whole-oracle scan relocated verbatim)."""
+    kept = _REMINDER.sub(" ", tree.oracle or "")
+    keys = tuple(key for pat, key in _B13_RAW_ANCHOR_SYNTH_LANES if pat.search(kept))
+    if not keys:
+        return None
+    return _synthetic_concept(
+        arm_id="b13_raw_anchor",
+        concept="synth_b13_raw_anchor",
+        scope="you",
+        subject=keys,
+        desc="bucket-B conferred/quoted grant residue (soulbond/undying/"
+        "changeling/cascade)",
+    )
+
+
+# ── arm: b13_node_anchor, subject-carrying (ADR-0036/0037 Stage 5,
+# T9-finalize) ────────────────────────────────────────────────────────────────
+# ADR-0035 Stage 3b (a) re-categorizers: madness / affinity / mutate
+# references phase RETAINS on a node it preserves losslessly — an
+# Unimplemented effect's own description (Falkenrath Gorger's "… has
+# madness"), a typed trigger's own description (Anje's "if it has
+# madness", Pollywog's "if it has mutate"), or a typed grant static's own
+# description (the affinity conferrals). Scanned over the RETAINED node
+# texts (:data:`_B13_NODE_ANCHOR_SYNTH_LANES`, the deleted
+# ``_B13_NODE_ANCHOR_LANES`` / ``_retained_node_texts`` pair relocated
+# verbatim), NOT the reconstructed whole oracle — proven byte-identical to
+# the whole-oracle grep over the commander corpus (madness 2, affinity 8,
+# mutate 1 — 0 lost / 0 gained).
+_MADNESS_GRANT_SYNTH_RE = re.compile(r"\bhas madness\b", re.IGNORECASE)
+_AFFINITY_GRANT_SYNTH_RE = re.compile(
+    r"\bhave affinity for|\bhas affinity for", re.IGNORECASE
+)
+_MUTATE_COND_SYNTH_RE = re.compile(r"\bif it has mutate\b", re.IGNORECASE)
+_B13_NODE_ANCHOR_SYNTH_LANES: tuple[tuple[re.Pattern[str], str], ...] = (
+    (_MADNESS_GRANT_SYNTH_RE, "madness_matters"),
+    (_AFFINITY_GRANT_SYNTH_RE, "affinity_type"),
+    (_MUTATE_COND_SYNTH_RE, "has_mutate"),
+)
+
+
+def _retained_node_texts_synth(tree: ConceptTree) -> list[str]:
+    """The reminder-stripped verbatim clauses phase RETAINS on each node —
+    per-ability ``description`` plus each concept-node's grounding ``raw``
+    (the deleted crosswalk ``_retained_node_texts`` helper relocated
+    verbatim; reimplemented here rather than imported to avoid a
+    crosswalk_signals↔tree_synthesis cycle)."""
+    out: list[str] = []
+    for unit in tree.units:
+        d = getattr(unit.node, "description", None)
+        if isinstance(d, str) and d:
+            out.append(_REMINDER.sub(" ", d))
+        for c in unit.iter_concepts():
+            if c.raw:
+                out.append(_REMINDER.sub(" ", c.raw))
+    return out
+
+
+def _arm_b13_node_anchor(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a subject-carrying node for the three Stage-3b (a)
+    re-categorizers (:data:`_B13_NODE_ANCHOR_SYNTH_LANES`, scanned over
+    :func:`_retained_node_texts_synth`)."""
+    texts = _retained_node_texts_synth(tree)
+    keys = tuple(
+        key
+        for pat, key in _B13_NODE_ANCHOR_SYNTH_LANES
+        if any(pat.search(t) for t in texts)
+    )
+    if not keys:
+        return None
+    return _synthetic_concept(
+        arm_id="b13_node_anchor",
+        concept="synth_b13_node_anchor",
+        scope="you",
+        subject=keys,
+        desc="bucket-B Stage-3b madness/affinity/mutate re-categorizer",
+    )
+
+
 def has_structural_color_hoser(tree: ConceptTree) -> bool:
     """A Destroy/Counter/mass-Destroy/mass-Exile/mass-Bounce effect whose
     target (or, for Counter, an ``And``-composite member) directly names a
@@ -5817,6 +5920,8 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("opponent_exile_matters", _arm_opponent_exile_matters),
     ("color_hoser", _arm_color_hoser),
     ("type_change", _arm_type_change),
+    ("b13_raw_anchor", _arm_b13_raw_anchor),
+    ("b13_node_anchor", _arm_b13_node_anchor),
     ("void_warp_makers", _arm_void_warp_makers),
     ("sacrifice_protection", _arm_sacrifice_protection),
     ("life_payment_insurance", _arm_life_payment_insurance),

@@ -50,6 +50,8 @@ from mtg_utils._card_ir.tree_synthesis import (
     SYNTHESIS_ARM_IDS,
     _arm_ability_copy,
     _arm_animate_artifact,
+    _arm_b13_node_anchor,
+    _arm_b13_raw_anchor,
     _arm_big_hand_makers,
     _arm_big_hand_matters,
     _arm_clue_matters,
@@ -4923,3 +4925,54 @@ def test_type_change_gap_gated_when_structural_present():
 
 def test_type_change_no_fire_on_unrelated_card():
     assert _arm_type_change(_fixture_tree("Llanowar Elves")) is None
+
+
+# ── batch T9-finalize: GLOBAL FINALIZE, b13 conferred-grant lanes ───────────
+
+
+def test_b13_raw_anchor_synth_registered():
+    assert "b13_raw_anchor" in SYNTHESIS_ARM_IDS
+
+
+def test_b13_raw_anchor_fires_on_flowering_lumberknot():
+    """Flowering Lumberknot's soulbond reference — the grant folds into a
+    carrier phase drops entirely, so a whole-oracle scan is the sole
+    source (subject-carrying: "has_soulbond")."""
+    tree = _fixture_tree("Flowering Lumberknot")
+    node = _arm_b13_raw_anchor(tree)
+    assert node is not None
+    assert node.concept == "synth_b13_raw_anchor"
+    assert "has_soulbond" in node.subject
+
+
+def test_b13_raw_anchor_no_fire_on_unrelated_card():
+    assert _arm_b13_raw_anchor(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_b13_node_anchor_synth_registered():
+    assert "b13_node_anchor" in SYNTHESIS_ARM_IDS
+
+
+def test_b13_node_anchor_fires_on_falkenrath_gorger():
+    """Falkenrath Gorger's own "... has madness" Unimplemented-effect
+    description — the Stage-3b (a) re-categorizer, read off the RETAINED
+    node text rather than the reconstructed oracle (subject-carrying:
+    "madness_matters")."""
+    tree = _fixture_tree("Falkenrath Gorger")
+    node = _arm_b13_node_anchor(tree)
+    assert node is not None
+    assert node.concept == "synth_b13_node_anchor"
+    assert "madness_matters" in node.subject
+
+
+def test_b13_node_anchor_fires_on_pollywog_symbiote():
+    """Pollywog Symbiote's typed trigger description carrying "if it has
+    mutate" (subject-carrying: "has_mutate")."""
+    tree = _fixture_tree("Pollywog Symbiote")
+    node = _arm_b13_node_anchor(tree)
+    assert node is not None
+    assert "has_mutate" in node.subject
+
+
+def test_b13_node_anchor_no_fire_on_unrelated_card():
+    assert _arm_b13_node_anchor(_fixture_tree("Llanowar Elves")) is None
