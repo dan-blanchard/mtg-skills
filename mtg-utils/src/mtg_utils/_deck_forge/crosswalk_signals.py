@@ -5712,46 +5712,15 @@ def _bounce_tempo(tree: ConceptTree) -> list[Signal]:
     (Aphetto Dredging, Greasefang's reanimate-loop return) — a unit that
     also carries a genuine tempo bounce (Aether Helix's two-sentence pair)
     still fires, matching live. A mass bounce co-fires with the ported
-    ``mass_bounce`` (live keeps both). Scope "you".
+    ``mass_bounce`` (live keeps both). Tier-1 (ADR-0036/0037 T10-finalize2
+    GLOBAL FINALIZE-2 fold): the deleted lane-time GY-return veto (node-own
+    description, whole-card fallback) is relocated verbatim to the bucket-B
+    ``synth_bounce_tempo`` node (:func:`_arm_bounce_tempo`), read below.
+    Scope "you".
     """
-
-    def _gy(text: str) -> bool:
-        return any(
-            phrase in text
-            for phrase in (
-                "from your graveyard",
-                "from a graveyard",
-                "from their graveyard",
-                "from graveyards",
-                "from target player's graveyard",
-            )
-        )
-
-    card_desc = " ".join(
-        (getattr(u.node, "description", None) or "") for u in tree.units
-    ).lower()
-    for unit in tree.units:
-        desc = (getattr(unit.node, "description", None) or "").lower()
-        # a nested delayed-trigger unit carries no description of its own —
-        # the oracle text stayed on the parent, so fall back to the card's.
-        gy_return = _gy(desc) if desc else _gy(card_desc)
-        bounces = [
-            c
-            for c in unit.iter_concepts()
-            if c.role == "effect" and c.concept == "bounce"
-        ]
-        for c in bounces:
-            sub = effect_filter(c.node)
-            if tag_of(sub) == "SelfRef":
-                if gy_return:
-                    continue  # self GY-return — recursion, not tempo
-            elif gy_return and len(bounces) == 1 and desc:
-                continue  # the unit IS the graveyard recall
-            if "Graveyard" in filter_inzone_zones(sub):
-                continue
-            if filter_controller(sub) == "You":
-                continue
-            return [Signal("bounce_tempo", "you", "", c.raw, tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_bounce_tempo":
+            return [Signal("bounce_tempo", "you", "", "", tree.name, "high")]
     return []
 
 

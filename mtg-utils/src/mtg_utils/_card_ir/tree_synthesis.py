@@ -6440,6 +6440,69 @@ def _arm_bending_cross(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+# ── bounce_tempo bucket-B (ADR-0036/0037 T10-finalize2 GLOBAL FINALIZE-2) ─────
+# battlefield→hand bounce as tempo (CR 402.1: Boomerang, Unsummon) vs a
+# graveyard-recall/self-return (CR 404.1). Phase emits a ZONE-LESS ``Bounce``
+# for graveyard-to-hand returns ([P21] — the InZone marker is dropped), so
+# the [P8]-precedent node-local description screen restores the boundary,
+# scoped two ways: a SelfRef subject with a "from ... graveyard" description
+# is a self-return (Abzan Devotee); a targeted bounce with that description
+# is vetoed only when it's the unit's ONLY bounce (Aphetto Dredging,
+# Greasefang's reanimate-loop return) — a unit that also carries a genuine
+# tempo bounce (Aether Helix's two-sentence pair) still fires. A nested
+# delayed-trigger unit carries no description of its own (the oracle text
+# stayed on the parent), so the screen falls back to the whole-card
+# description — the genuine gap needing text, both branches read ONLY
+# description fields, never a cross-node typed lookup.
+_BOUNCE_GY_PHRASES: tuple[str, ...] = (
+    "from your graveyard",
+    "from a graveyard",
+    "from their graveyard",
+    "from graveyards",
+    "from target player's graveyard",
+)
+
+
+def _bounce_gy_phrase(text: str) -> bool:
+    return any(phrase in text for phrase in _BOUNCE_GY_PHRASES)
+
+
+def _arm_bounce_tempo(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``bounce_tempo`` node — the deleted lane-time GY-return
+    veto (node-own description, whole-card fallback for a description-less
+    nested delayed-trigger unit) relocated verbatim. CR 402.1 vs 404.1."""
+    card_desc = " ".join(
+        (getattr(u.node, "description", None) or "") for u in tree.units
+    ).lower()
+    for unit in tree.units:
+        desc = (getattr(unit.node, "description", None) or "").lower()
+        gy_return = _bounce_gy_phrase(desc) if desc else _bounce_gy_phrase(card_desc)
+        bounces = [
+            c
+            for c in unit.iter_concepts()
+            if c.role == "effect" and c.concept == "bounce"
+        ]
+        for c in bounces:
+            sub = effect_filter(c.node)
+            if tag_of(sub) == "SelfRef":
+                if gy_return:
+                    continue  # self GY-return — recursion, not tempo
+            elif gy_return and len(bounces) == 1 and desc:
+                continue  # the unit IS the graveyard recall
+            if "Graveyard" in filter_inzone_zones(sub):
+                continue
+            if filter_controller(sub) == "You":
+                continue
+            return _synthetic_concept(
+                arm_id="bounce_tempo",
+                concept="synth_bounce_tempo",
+                scope="you",
+                subject=(),
+                desc="bucket-B battlefield->hand tempo bounce (CR 402.1)",
+            )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -6531,6 +6594,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("damage_prevention", _arm_damage_prevention),
     ("dig_until", _arm_dig_until),
     ("bending_cross", _arm_bending_cross),
+    ("bounce_tempo", _arm_bounce_tempo),
     ("death_matters", _arm_death_matters),
     ("attack_matters", _arm_attack_matters),
     ("lifegain_matters", _arm_lifegain_matters),
