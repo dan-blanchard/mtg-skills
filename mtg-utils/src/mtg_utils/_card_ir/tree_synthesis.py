@@ -3068,6 +3068,34 @@ def _arm_coven_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── celebration_matters bucket-B (ADR-0036/0037 Stage 5) ───────────────────────
+# CR 207.2c: celebration is an ABILITY WORD — "no special rules meaning and no
+# individual entries in the Comprehensive Rules." There is no structured
+# rules object for phase to parse (probed: Ash, Party Crasher carries
+# "Celebration —" only in strings), so the word IS the lane by CR
+# construction — NOT a phase bug — and this arm is the lane's SOLE source
+# (no competing Tier-1 predicate, the evasion_self/theft_makers precedent).
+_CELEBRATION_SYNTH_RX = re.compile(r"\bcelebration\b", re.IGNORECASE)
+
+
+def _matches_celebration_idiom(oracle: str) -> bool:
+    return bool(_CELEBRATION_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_celebration_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``celebration_matters`` node — CR 207.2c ability word,
+    the deleted ``_CELEBRATION_RX`` relocated verbatim (ADR-0036 fold)."""
+    if not _matches_celebration_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="celebration_matters",
+        concept="synth_celebration_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B celebration ability word (CR 207.2c)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3094,6 +3122,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("evasion_self", _arm_evasion_self),
     ("theft_makers", _arm_theft_makers),
     ("coven_matters", _arm_coven_matters),
+    ("celebration_matters", _arm_celebration_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

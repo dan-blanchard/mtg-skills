@@ -9619,7 +9619,6 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 # _MELD_FULLTEXT_RE, _POWER_SCALING_RAW, _TOUGHNESS_VALUE_MIRROR,
 # _TYPED_ANTHEM_MULTI_RAW, _STARTING_LIFE_REF.
 _ARCANE_RX = re.compile(r"\barcane\b", re.IGNORECASE)
-_CELEBRATION_RX = re.compile(r"\bcelebration\b", re.IGNORECASE)
 _EXALTED_TEXT_RX = re.compile(r"attacks alone|\bexalted\b", re.IGNORECASE)
 _ISLAND_MAKERS_RX = re.compile(ISLAND_MAKERS_REGEX, re.IGNORECASE)
 _NONCOMBAT_DAMAGE_RX = re.compile(NONCOMBAT_DAMAGE_PAYOFF_REGEX, re.IGNORECASE)
@@ -9759,12 +9758,15 @@ def _celebration_matters(tree: ConceptTree) -> list[Signal]:
     """celebration_matters (§4) — CR 207.2c: celebration is an ABILITY WORD
     ("no special rules meaning and no individual entries in the Comprehensive
     Rules") — there is no structured rules object for phase to parse (probed:
-    Ash, Party Crasher carries "Celebration —" only in strings), so the word
-    mirror IS the lane, by CR construction — NOT a phase bug. Scope "you",
-    HIGH.
+    Ash, Party Crasher carries "Celebration —" only in strings), so this is
+    the lane's SOLE source — Tier-1 (ADR-0036 fold): reads the
+    ``synth_celebration_matters`` bucket-B node (:func:`_arm_celebration_matters`
+    in ``tree_synthesis``), zero oracle text / regex at LANE time. Scope
+    "you", HIGH.
     """
-    if _CELEBRATION_RX.search(_kept(tree)):
-        return [Signal("celebration_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_celebration_matters":
+            return [Signal("celebration_matters", "you", "", "", tree.name, "high")]
     return []
 
 

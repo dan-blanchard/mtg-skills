@@ -2017,3 +2017,63 @@ def test_coven_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _coven_matters_lane(tree)
     assert any(s.key == "coven_matters" for s in sigs)
+
+
+def _celebration_lane_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _celebration_matters
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    sigs = _celebration_matters(tree)
+    return any(s.key == "celebration_matters" for s in sigs)
+
+
+def test_celebration_matters_bucket_b_synth():
+    """celebration is an ABILITY WORD (CR 207.2c) — no structured rules
+    object for phase to parse, so this arm is the lane's SOLE source."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_celebration_matters
+
+    tree = _fixture_tree("Ash, Party Crasher")
+    node = _arm_celebration_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_celebration_matters"
+    assert _celebration_lane_fires("Ash, Party Crasher") is True
+
+
+def test_celebration_matters_no_fire_on_unrelated_card():
+    from mtg_utils._card_ir.tree_synthesis import _arm_celebration_matters
+
+    tree = _fixture_tree("Chaos Wand")
+    assert _arm_celebration_matters(tree) is None
+    assert _celebration_lane_fires("Chaos Wand") is False
+
+
+def test_celebration_matters_synth_registered():
+    assert "celebration_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_celebration_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _celebration_matters
+
+    synth = ConceptNode(
+        concept="synth_celebration_matters",
+        node=SynthesizedNode(arm_id="celebration_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _celebration_matters(tree)
+    assert any(s.key == "celebration_matters" for s in sigs)
