@@ -140,6 +140,7 @@ from mtg_utils._deck_forge._signals_ir import (
     _STAX_TAXES_RESIDUE_RE,
     _SYMMETRIC_STAX_RESIDUE_RE,
     _TOUGHNESS_VALUE_MIRROR,
+    _TYPED_ANTHEM_MULTI_RAW,
     _restriction_pacifies_single_creature,
 )
 from mtg_utils._deck_forge._signals_regex import (
@@ -6160,6 +6161,78 @@ def _arm_dont_own(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+# Pump modification tags projecting to the live cat=='pump' (fixed AND dynamic
+# spellings — Hancock's AddDynamicPower rides the same anthem, CR 613.4c) —
+# moved here from crosswalk_signals (the neutral-home precedent).
+_ANTHEM_PUMP_MODS: frozenset[str] = frozenset(
+    {
+        "AddPower",
+        "AddToughness",
+        "AddDynamicPower",
+        "AddDynamicToughness",
+        "AddPowerDynamic",
+        "AddToughnessDynamic",
+    }
+)
+
+
+def _typed_anthem_multi_hits(f: object) -> bool:
+    """Whether a filter targets >=2 creature subtypes — the shared
+    predicate the lane's structural read and this arm's gap gate both
+    apply (one source, no drift; reimplemented here to avoid a
+    crosswalk_signals<->tree_synthesis cycle)."""
+    return (
+        f is not None
+        and "Creature" in filter_core_types(f)
+        and len(set(filter_subtypes(f))) >= 2
+    )
+
+
+def _arm_typed_anthem_multi(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``typed_anthem_multi`` node for the RAW FALLBACK residue
+    (CR 205.3m/613.4c): a pump modification or mass ``PumpAll`` effect whose
+    typed subject filter is None (phase drops the multi-subtype list) but
+    whose own site/effect text carries the CASE-SENSITIVE
+    ``_TYPED_ANTHEM_MULTI_RAW`` anchor — the two deleted lane-time raw-
+    fallback reads relocated verbatim. Gap-gated: only reached when the
+    typed filter is absent (``_typed_anthem_multi_hits`` returns False for
+    None), so this arm never duplicates the lane's own structural hit."""
+    for unit in tree.units:
+        for sd, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) not in _ANTHEM_PUMP_MODS:
+                continue
+            aff = getattr(sd, "affected", None)
+            if aff is not None:
+                continue
+            if _TYPED_ANTHEM_MULTI_RAW.search(getattr(sd, "description", None) or ""):
+                return _synthetic_concept(
+                    arm_id="typed_anthem_multi",
+                    concept="synth_typed_anthem_multi",
+                    scope="you",
+                    subject=(),
+                    desc="bucket-B typed_anthem_multi mod-site raw fallback "
+                    "(CR 205.3m/613.4c)",
+                )
+        for c in unit.effects:
+            if tag_of(c.node) != "PumpAll":
+                continue
+            tgt = getattr(c.node, "target", None)
+            if tgt is not None:
+                continue
+            if _TYPED_ANTHEM_MULTI_RAW.search(
+                c.raw or getattr(unit.node, "description", None) or ""
+            ):
+                return _synthetic_concept(
+                    arm_id="typed_anthem_multi",
+                    concept="synth_typed_anthem_multi",
+                    scope="you",
+                    subject=(),
+                    desc="bucket-B typed_anthem_multi PumpAll raw fallback "
+                    "(CR 205.3m/613.4c)",
+                )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -6323,6 +6396,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("exhaust_matters", _arm_exhaust_matters),
     ("becomes_target_src_opp", _arm_becomes_target_src_opp),
     ("dont_own", _arm_dont_own),
+    ("typed_anthem_multi", _arm_typed_anthem_multi),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

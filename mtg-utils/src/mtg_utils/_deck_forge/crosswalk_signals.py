@@ -146,6 +146,7 @@ from mtg_utils._card_ir.project import (
 # with the ``tree_synthesis`` bucket-B gap gate — one source, no drift: the morbid
 # creature-death state check and the ``CreatureDying`` trigger-doubler.
 from mtg_utils._card_ir.tree_synthesis import (
+    _ANTHEM_PUMP_MODS,
     _KILL_ONESHOT_EVENTS,
     _double_triggers_creature_dying,
     _is_creature_death_subject,
@@ -209,7 +210,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _IR_FLOOR_LANES,
     _NAMED_COUNTER_KINDS,
     _SELF_PROTECTION_GRANT_KW,
-    _TYPED_ANTHEM_MULTI_RAW,
     _apply_membership_floor,
 )
 from mtg_utils._deck_forge._signals_ir import (
@@ -9447,18 +9447,9 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 _B16_PLACE_COUNTER_TAGS: frozenset[str] = frozenset(
     {"PutCounter", "PutCounterAll", "AddPendingETBCounters"}
 )
-# Pump modification tags projecting to the live cat=='pump' (fixed AND dynamic
-# spellings — Hancock's AddDynamicPower rides the same anthem, CR 613.4c).
-_ANTHEM_PUMP_MODS: frozenset[str] = frozenset(
-    {
-        "AddPower",
-        "AddToughness",
-        "AddDynamicPower",
-        "AddDynamicToughness",
-        "AddPowerDynamic",
-        "AddToughnessDynamic",
-    }
-)
+# (``_ANTHEM_PUMP_MODS`` moved to ``tree_synthesis`` — ADR-0036/0037
+# T10-finalize2, the ``_DEATH_PAYOFF_EFFECTS`` neutral-home precedent —
+# and imported back below.)
 # Static modification families the OLD projection kept as subject-bearing
 # effects (pump / base-P/T-set / strip) — the named_counter_misc static
 # sub-arm's gate: an affected-filter counter pred on one of these (or on a
@@ -10126,10 +10117,11 @@ def _typed_anthem_multi(tree: ConceptTree) -> list[Signal]:
     as the AnyOf equivalent), while a color-only disjunction contributes NO
     subtypes (HasColor rides properties, not type_filters — Glistening
     Deluge, pop False) and a keyword GRANT with no pump never enters
-    (Paladin Danse, pop False). RAW FALLBACK: the imported CASE-SENSITIVE
-    ``_TYPED_ANTHEM_MULTI_RAW`` (capitalized subtype tokens are load-
-    bearing — NO IGNORECASE) for any remaining subject-less pump. Scope
-    "you", HIGH.
+    (Paladin Danse, pop False). Tier-1 (ADR-0036/0037 T10-finalize2 fold):
+    the two deleted lane-time CASE-SENSITIVE ``_TYPED_ANTHEM_MULTI_RAW``
+    raw-fallback reads (for any remaining subject-less pump) are relocated
+    verbatim to the bucket-B ``synth_typed_anthem_multi`` node
+    (:func:`_arm_typed_anthem_multi`), read below. Scope "you", HIGH.
     """
 
     def _hits(f: object) -> bool:
@@ -10146,10 +10138,6 @@ def _typed_anthem_multi(tree: ConceptTree) -> list[Signal]:
             aff = getattr(sd, "affected", None)
             if _hits(aff):
                 return [Signal("typed_anthem_multi", "you", "", "", tree.name, "high")]
-            if aff is None and _TYPED_ANTHEM_MULTI_RAW.search(
-                getattr(sd, "description", None) or ""
-            ):
-                return [Signal("typed_anthem_multi", "you", "", "", tree.name, "high")]
         for c in unit.effects:
             if tag_of(c.node) != "PumpAll":
                 continue
@@ -10158,12 +10146,9 @@ def _typed_anthem_multi(tree: ConceptTree) -> list[Signal]:
                 return [
                     Signal("typed_anthem_multi", "you", "", c.raw, tree.name, "high")
                 ]
-            if tgt is None and _TYPED_ANTHEM_MULTI_RAW.search(
-                c.raw or getattr(unit.node, "description", None) or ""
-            ):
-                return [
-                    Signal("typed_anthem_multi", "you", "", c.raw, tree.name, "high")
-                ]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_typed_anthem_multi":
+            return [Signal("typed_anthem_multi", "you", "", "", tree.name, "high")]
     return []
 
 

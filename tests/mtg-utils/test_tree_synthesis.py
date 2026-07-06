@@ -92,6 +92,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_targeting_matters,
     _arm_token_subtype_own_ref,
     _arm_type_change,
+    _arm_typed_anthem_multi,
     _arm_unspent_mana,
     _arm_vehicles_matter,
     _arm_void_warp_makers,
@@ -5251,3 +5252,65 @@ def test_dont_own_fires_on_don_andres():
 
 def test_dont_own_no_fire_on_unrelated_card():
     assert _arm_dont_own(_fixture_tree("Llanowar Elves")) is None
+
+
+def _anthem_static_tree(description: str):
+    static = S_static_abilities(
+        active_zones=[],
+        affected=None,
+        affected_zone=None,
+        characteristic_defining=False,
+        condition=None,
+        description=description,
+        effect_zone=None,
+        mode="Continuous",
+        modifications=[
+            T_modifications__AddPower(value=1),
+            T_modifications__AddToughness(value=1),
+        ],
+    )
+    effect = T_effect__GenericEffect(
+        duration="UntilEndOfTurn", static_abilities=[static], target=None
+    )
+    unit = AbilityUnit(
+        origin="ability",
+        index=0,
+        node=effect,
+        kind="Spell",
+        trigger_event=None,
+        effects=(
+            ConceptNode(
+                concept="other",
+                node=effect,
+                role="effect",
+                scope="each",
+                subject=(),
+                raw="",
+            ),
+        ),
+        costs=(),
+        statics=(),
+    )
+    return ConceptTree(name="X", oracle_id="x", oracle="x", units=(unit,))
+
+
+def test_typed_anthem_multi_synth_registered():
+    assert "typed_anthem_multi" in SYNTHESIS_ARM_IDS
+
+
+def test_typed_anthem_multi_fires_on_multi_subtype_raw_fallback():
+    """A pump mod whose typed ``affected`` filter is None (phase drops the
+    multi-subtype disjunction) but whose OWN description carries the
+    case-sensitive "that's a X, a Y, or a Z" idiom — the deleted lane-time
+    ``_TYPED_ANTHEM_MULTI_RAW`` raw-fallback scan relocated verbatim."""
+    tree = _anthem_static_tree(
+        "Other creatures you control that's a Human, a Soldier, or a Warrior get +1/+1."
+    )
+    node = _arm_typed_anthem_multi(tree)
+    assert node is not None
+    assert node.concept == "synth_typed_anthem_multi"
+
+
+def test_typed_anthem_multi_no_fire_on_single_subtype_text():
+    tree = _anthem_static_tree("Other Humans you control get +1/+1.")
+    assert _arm_typed_anthem_multi(tree) is None
