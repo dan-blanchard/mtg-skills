@@ -8122,7 +8122,6 @@ _OPP_EXILE_MATTERS_MIRROR = re.compile(
     r"|for each card your opponents own in exile|opponents own in exile",
     re.IGNORECASE,
 )
-_COVEN_MIRROR = re.compile(r"\bcoven\b", re.IGNORECASE)
 _OUTLAW_MIRROR = re.compile(r"\boutlaws?\b", re.IGNORECASE)
 
 # The signals.py wants_theft hybrid FACADE's don't-own tell (byte-identical to
@@ -8807,18 +8806,20 @@ def _color_hoser(tree: ConceptTree) -> list[Signal]:
 def _coven_matters_lane(tree: ConceptTree) -> list[Signal]:
     """coven_matters (§20) — CR 207.2c (coven IS an ability word; ability
     words have no rules meaning — the word IS the mechanic's only stable
-    anchor). Kept-mirror-ONLY: ``\\bcoven\\b`` flat. Bearers fire
-    (ability-word membership IS the lane — Leinore; checklist #4).
-    **Structural is a trap (probed):** phase renders coven as generic
-    ``QuantityCheck``/``ObjectCountDistinct`` (+ one misparse — Sungold
-    Sentinel), shapes that also serve non-coven distinct-count cards
-    ([P-family generic condition fold; supplement-fixable only if a Coven
-    condition kind lands]). The Hourglass Coven fires via its own
-    name-reference in oracle text — an acknowledged quirk, ported as-is +
-    LOGGED (the b13 Blue Screen of Death precedent). Scope "you", HIGH.
+    anchor). Tier-1 (ADR-0036 fold): reads the ``synth_coven_matters``
+    bucket-B node (:func:`_arm_coven_matters` in ``tree_synthesis``) — zero
+    oracle text / regex at LANE time. **Structural is a trap (probed):**
+    phase renders coven as generic ``QuantityCheck``/``ObjectCountDistinct``
+    (+ one misparse — Sungold Sentinel), shapes that also serve non-coven
+    distinct-count cards, so there is no competing Tier-1 predicate — this
+    is the lane's SOLE source (the evasion_self/theft_makers no-gate
+    precedent). The Hourglass Coven fires via its own name-reference in
+    oracle text — an acknowledged quirk, ported as-is + LOGGED (the b13
+    Blue Screen of Death precedent). Scope "you", HIGH.
     """
-    if _COVEN_MIRROR.search(_kept(tree)):
-        return [Signal("coven_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_coven_matters":
+            return [Signal("coven_matters", "you", "", "", tree.name, "high")]
     return []
 
 

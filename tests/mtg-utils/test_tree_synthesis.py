@@ -1952,3 +1952,68 @@ def test_theft_makers_lane_reads_synth_node_end_to_end():
     )
     sigs = _theft_makers_lane(tree)
     assert any(s.key == "theft_makers" and s.scope == "opponents" for s in sigs)
+
+
+# ── batch T1-abilitywords fold (ADR-0036/0037 Stage 5) ──────────────────────────
+# coven_matters — the first of five small tail lanes in this batch.
+
+
+def _coven_lane_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _coven_matters_lane
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    sigs = _coven_matters_lane(tree)
+    return any(s.key == "coven_matters" for s in sigs)
+
+
+def test_coven_matters_bucket_b_synth():
+    """coven is an ABILITY WORD (CR 207.2c) — phase carries no typed node
+    for it (a generic QuantityCheck/ObjectCountDistinct shared by unrelated
+    distinct-count cards), so this arm is the lane's SOLE source."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_coven_matters
+
+    tree = _fixture_tree("Leinore, Autumn Sovereign")
+    node = _arm_coven_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_coven_matters"
+    assert _coven_lane_fires("Leinore, Autumn Sovereign") is True
+
+
+def test_coven_matters_no_fire_on_unrelated_card():
+    from mtg_utils._card_ir.tree_synthesis import _arm_coven_matters
+
+    tree = _fixture_tree("Chaos Wand")
+    assert _arm_coven_matters(tree) is None
+    assert _coven_lane_fires("Chaos Wand") is False
+
+
+def test_coven_matters_synth_registered():
+    assert "coven_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_coven_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _coven_matters_lane
+
+    synth = ConceptNode(
+        concept="synth_coven_matters",
+        node=SynthesizedNode(arm_id="coven_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _coven_matters_lane(tree)
+    assert any(s.key == "coven_matters" for s in sigs)

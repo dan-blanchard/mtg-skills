@@ -3036,6 +3036,38 @@ def _arm_theft_makers(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── coven_matters bucket-B (ADR-0036/0037 Stage 5, batch T1-abilitywords) ──────
+# CR 207.2c: coven is an ABILITY WORD — "no special rules meaning and no
+# individual entries in the Comprehensive Rules." phase renders the Coven
+# condition ("if you control three or more creatures with different powers")
+# as a generic ``QuantityCheck``/``ObjectCountDistinct`` shape shared by
+# unrelated distinct-count cards (probed and rejected as a lane
+# discriminator by the live docstring this fold ports) — there is no typed
+# node phase stamps for "coven" specifically, so the word IS the only anchor
+# and this arm is the lane's SOLE source (no competing Tier-1 predicate to
+# gap-gate against, the evasion_self/theft_makers precedent for an
+# unstructurable ability word).
+_COVEN_SYNTH_RX = re.compile(r"\bcoven\b", re.IGNORECASE)
+
+
+def _matches_coven_idiom(oracle: str) -> bool:
+    return bool(_COVEN_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_coven_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``coven_matters`` node — CR 207.2c ability word, the
+    deleted ``_COVEN_MIRROR`` relocated verbatim (ADR-0036 fold)."""
+    if not _matches_coven_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="coven_matters",
+        concept="synth_coven_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B coven ability word (CR 207.2c)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3061,6 +3093,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("superfriends_matters", _arm_superfriends_matters),
     ("evasion_self", _arm_evasion_self),
     ("theft_makers", _arm_theft_makers),
+    ("coven_matters", _arm_coven_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
