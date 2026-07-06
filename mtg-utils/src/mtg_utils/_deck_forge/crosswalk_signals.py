@@ -260,7 +260,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COLOR_CHANGE_REGEX,
     ENTERED_ATTACKER_REGEX,
     ISLAND_MAKERS_REGEX,
-    ISLAND_MATTERS_REGEX,
     NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     PUMP_MATTERS_REGEX,
     STATION_MATTERS_REGEX,
@@ -7647,13 +7646,12 @@ def _vehicles_matter(tree: ConceptTree) -> list[Signal]:
 
 # ── Batch 13 lanes (ADR-0035 Stage 2): the field-lookup wholesale batch ──────
 
-# Byte-identical compiled mirrors. island_matters imports the pinned shared
-# source (_sweep_detectors.ISLAND_MATTERS_REGEX — the live row's own constant);
-# poison / suspend / curse copy the three INLINE (unnamed) _IR_KEPT_DETECTORS
-# rows (_signals_ir ~2324-2340 / ~2511-2519 — the _JOHAN_MIRROR precedent for
-# rows with no importable name). Live runs them FLAT over the reminder-stripped
-# kept oracle; so do these.
-_ISLAND_MATTERS_RX = re.compile(ISLAND_MATTERS_REGEX, re.IGNORECASE)
+# Byte-identical compiled mirrors. suspend / curse copy the three INLINE
+# (unnamed) _IR_KEPT_DETECTORS rows (_signals_ir ~2324-2340 / ~2511-2519 —
+# the _JOHAN_MIRROR precedent for rows with no importable name). Live runs
+# them FLAT over the reminder-stripped kept oracle; so do these. (island_
+# matters was ADR-0036/0037 folded to a bucket-B ``tree_synthesis`` arm;
+# see ``_arm_island_matters``.)
 _SUSPEND_MATTERS_MIRROR = re.compile(
     r"\bsuspend\b|time counter|time travel|\bvanishing\b|\bimpending\b",
     re.IGNORECASE,
@@ -8018,13 +8016,17 @@ def _keyword_soup(tree: ConceptTree) -> list[Signal]:
 
 
 def _island_matters(tree: ConceptTree) -> list[Signal]:
-    """island_matters (§D) — CR 702.14c: the pinned ISLAND_MATTERS_REGEX
-    kept mirror (Dandân, the serpents, Zhou Yu — present in phase v0.9.0
-    and firing; an implement-time "absent entirely" claim was retracted by
-    the b13 adjudication). Bearers/granters of islandwalk are
-    island_MAKERS material (Segovian Leviathan never fires here)."""
-    if _ISLAND_MATTERS_RX.search(_kept(tree)):
-        return [Signal("island_matters", "you", "", "", tree.name, "high")]
+    """island_matters (§D) — CR 702.14c: the attack restriction "can't attack
+    unless defending player controls an Island" (Dandân, the serpents, Zhou
+    Yu). Tier-1 (ADR-0036/0037 fold): reads the ``tree_synthesis`` bucket-B
+    ``synth_island_matters`` node (the deleted ``_ISLAND_MATTERS_RX``
+    relocated verbatim) — no competing Tier-1 predicate exists, so this is
+    the lane's SOLE source, zero oracle text/regex at LANE time.
+    Bearers/granters of islandwalk are island_MAKERS material (Segovian
+    Leviathan never fires here)."""
+    for c in tree.iter_concepts():
+        if c.concept == "synth_island_matters":
+            return [Signal("island_matters", "you", "", "", tree.name, "high")]
     return []
 
 

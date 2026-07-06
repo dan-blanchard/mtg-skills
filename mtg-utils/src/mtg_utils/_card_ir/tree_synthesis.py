@@ -119,7 +119,10 @@ from mtg_utils._deck_forge._signals_regex import (
     clauses,
 )
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
-from mtg_utils._deck_forge._sweep_detectors import KEYWORD_COUNTER_REGEX
+from mtg_utils._deck_forge._sweep_detectors import (
+    ISLAND_MATTERS_REGEX,
+    KEYWORD_COUNTER_REGEX,
+)
 
 __all__ = [
     "ATTACK_TRIGGER_EVENTS",
@@ -3601,6 +3604,35 @@ def _arm_poison_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T3-makers-type (ADR-0036/0037 Stage 5): island_matters bucket-B ─────
+# CR 702.14c: the "can't attack unless defending player controls an Island"
+# attack-restriction payoff (Dandân, Zhou Yu). phase parses this as an
+# inconsistent mix of a raw-only condition and a dropped restriction clause —
+# no typed node the lane can read — so it has no competing Tier-1 predicate
+# (the celebration/coven/poison_matters precedent): relocates the deleted
+# ``_ISLAND_MATTERS_RX`` (the pinned ``ISLAND_MATTERS_REGEX``) verbatim.
+_ISLAND_MATTERS_SYNTH_RX = re.compile(ISLAND_MATTERS_REGEX, re.IGNORECASE)
+
+
+def _matches_island_matters_idiom(oracle: str) -> bool:
+    return bool(_ISLAND_MATTERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_island_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``island_matters`` node for the bucket-B attack-
+    restriction payoff (the deleted ``_ISLAND_MATTERS_RX`` relocated
+    verbatim)."""
+    if not _matches_island_matters_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="island_matters",
+        concept="synth_island_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B Island-control attack-restriction payoff (CR 702.14c)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3637,6 +3669,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("proliferate_matters", _arm_proliferate_matters),
     ("self_counter_grow", _arm_self_counter_grow),
     ("poison_matters", _arm_poison_matters),
+    ("island_matters", _arm_island_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
