@@ -188,6 +188,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_arcane,
+    has_structural_color_hoser,
     has_structural_counter_distribute,
     has_structural_crimes_matter,
     has_structural_curse_matters,
@@ -239,7 +240,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _LAND_SUBTYPES as _LIVE_LAND_SUBTYPES,
 )
 from mtg_utils._deck_forge._signals_regex import (
-    _COLOR_HOSER_RE,
     _EVERGREEN_CK,
     _MELD_FULLTEXT_RE,
     _REPEATABLE_KILL_RE,
@@ -8760,46 +8760,34 @@ def _opponent_search_matters(tree: ConceptTree) -> list[Signal]:
 
 
 def _color_hoser(tree: ConceptTree) -> list[Signal]:
-    """color_hoser (§19) — CR 105.2 + 613.1e-adjacent: removal keyed on a
-    SPECIFIC color. Mirror-primary (the imported live ``_COLOR_HOSER_RE``
-    flat — covers the debuff / can't-cast / protection alternations phase
-    scatters) + the structural assist: an effect-role ``Destroy`` /
-    ``Counter`` / ``ChangeZone→Exile`` whose target carries a ``HasColor``
-    property (probed: 34 direct carriers, 27 live), gated to effect role
-    (the "March of" cycle's cost-role exile never fires — effects-only read)
-    and NOT a your-graveyard subject (Kaervek's "exile … black card from
-    your graveyard" is self-recursion, [P5] direction). **Logged live GAP:**
-    two-color disjunctions (Deathmark, Celestial Purge) carry NO direct
-    HasColor and live misses them too — candidate adjudicated widen, NOT
-    parity (pinned by the Deathmark negative). Scope "you", HIGH.
+    """color_hoser (§19) — CR 105.2 + 613.1e-adjacent: removal/restriction/
+    bounce keyed on a SPECIFIC color. Tier-1 (ADR-0036/0037 fold — the
+    ``_COLOR_HOSER_RE`` kept-mirror is RETIRED):
+
+    * **Structural:** :func:`has_structural_color_hoser` — the live single-
+      target ``Destroy``/``Counter``/``ChangeZone→Exile`` direct-``HasColor``
+      carrier arm widened to the MASS forms (``DestroyAll``,
+      ``ChangeZoneAll``→Exile, ``BounceAll`` — a ``You``-controlled bounce
+      target excluded) and the ``And``-composite ``Counter`` target shape
+      (``[StackSpell, Typed{HasColor}]`` — Gainsay, Deathgrip), still gated
+      NOT a your-graveyard subject (Kaervek's self-recursion, [P5]
+      direction). **Logged GAP** (untouched by this fold): two-color
+      disjunctions (Deathmark, Celestial Purge) carry NO direct HasColor —
+      a candidate adjudicated widen, NOT parity (pinned by the Deathmark
+      negative).
+    * **bucket-B synth:** the ``tree_synthesis`` stage's ``synth_color_hoser``
+      node — the anthem-debuff ("nonblack creatures get -1/-1"), can't-cast/
+      can't-block restriction (Gibbering Hyenas's ``CantBlock`` static
+      carries the color qualifier ONLY in ``description`` — a genuine phase
+      gap), and choose-a-color residue.
+
+    Scope "you", HIGH.
     """
-    for unit in tree.units:
-        for c in unit.effects:
-            t = tag_of(c.node)
-            hosing = t in ("Destroy", "Counter") or (
-                t == "ChangeZone" and change_zone_dirs(c.node)[1] == "Exile"
-            )
-            if not hosing:
-                continue
-            target = getattr(c.node, "target", None)
-            # DIRECT carrier only: a top-level Typed filter whose OWN
-            # properties name the color. An Or-of-colors disjunction
-            # (Deathmark's green-or-white) is the logged live GAP — a
-            # recursing read would over-fire past parity.
-            if tag_of(target) != "Typed":
-                continue
-            direct = any(
-                tag_of(p) == "HasColor" for p in getattr(target, "properties", ()) or ()
-            )
-            if not direct:
-                continue
-            if "Graveyard" in filter_inzone_zones(target) and (
-                filter_controller(target) != "Opponent"
-            ):
-                continue  # your-graveyard self-recursion, not hosing
-            return [Signal("color_hoser", "you", "", c.raw, tree.name, "high")]
-    if _COLOR_HOSER_RE.search(_kept(tree)):
+    if has_structural_color_hoser(tree):
         return [Signal("color_hoser", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_color_hoser":
+            return [Signal("color_hoser", "you", "", "", tree.name, "high")]
     return []
 
 

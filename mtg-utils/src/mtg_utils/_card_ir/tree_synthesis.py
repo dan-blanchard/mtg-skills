@@ -113,6 +113,7 @@ from mtg_utils._deck_forge._signals_ir import (
 )
 from mtg_utils._deck_forge._signals_regex import (
     _ABILITY_KEYWORDS,
+    _COLOR_HOSER_RE,
     _detect_keyword_implied_tribe,
     _detect_keyword_tribe,
     _detect_multi_tribe_anthem,
@@ -157,6 +158,7 @@ __all__ = [
     "has_selfloss_engine",
     "has_structural_arcane",
     "has_structural_clue_matters",
+    "has_structural_color_hoser",
     "has_structural_crimes_matter",
     "has_structural_curse_matters",
     "has_structural_outlaw",
@@ -4337,6 +4339,109 @@ def _arm_opponent_exile_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T5-niche-a: color_hoser (bucket-A widen + bucket-B tail) ─────────
+# CR 105.2 / 613.1e: removal/restriction/bounce keyed on a NAMED color. The
+# live lane already carries a single-target (Destroy/Counter/ChangeZone-
+# Exile) structural arm; three bucket-A widenings (each a genuine phase-typed
+# shape the live arm's narrower tag set missed, probed over the commander-
+# legal corpus):
+#
+# (a) the MASS forms — ``DestroyAll`` (Anarchy), ``ChangeZoneAll`` to Exile
+#     (Martyr's Cry), ``BounceAll`` (Hibernation, Llawan) — carry the SAME
+#     direct top-level ``Typed``/``HasColor`` target the singular forms do;
+#     ``BounceAll`` additionally excludes a ``You``-controlled target (no
+#     self-bounce-synergy false read; none observed in the corpus, kept as a
+#     defensive gate).
+# (b) ``Counter`` effects phase frequently types as an ``And`` composite —
+#     ``[StackSpell, Typed{HasColor}]`` (Gainsay, Deathgrip, Lifeforce) —
+#     rather than a bare ``Typed`` target; the direct-carrier read now also
+#     descends one level into an ``And``'s member filters.
+#
+# The residual tail (the "non<color> creatures get -X/-X" anthem-debuff,
+# "can't cast/block <color>" restrictions — Gibbering Hyenas's ``CantBlock``
+# static carries the qualifier ONLY in ``description``, a genuine phase gap —
+# choose-a-color forms, and colorless-subject counterspells) has no
+# structural home; relocated verbatim as the bucket-B tail via the deleted
+# ``_COLOR_HOSER_RE`` kept-mirror, gap-gated against the widened structural
+# read. Measured over the commander-legal corpus: structural 22 -> 30, 37
+# residual cards still need the synth (mirror parity preserved, 0 drops).
+def _has_direct_has_color(target: object) -> bool:
+    if tag_of(target) == "Typed":
+        return any(
+            tag_of(p) == "HasColor" for p in getattr(target, "properties", ()) or ()
+        )
+    if tag_of(target) == "And":
+        return any(
+            _has_direct_has_color(f) for f in getattr(target, "filters", ()) or ()
+        )
+    return False
+
+
+def _is_self_owned_bounce_target(target: object) -> bool:
+    """Whether a ``BounceAll`` target names YOUR OWN permanents — either a
+    top-level ``controller: You`` or an ``Owned{controller: You}`` PROPERTY
+    (Word of Undoing's "all white Auras you own" — the ownership rides a
+    property, not the plain ``controller`` field). Either shape is a
+    self-service bounce-combo, not color hosing."""
+    if filter_controller(target) == "You":
+        return True
+    if tag_of(target) == "Typed":
+        for p in getattr(target, "properties", ()) or ():
+            if tag_of(p) == "Owned" and getattr(p, "controller", None) == "You":
+                return True
+    return False
+
+
+def has_structural_color_hoser(tree: ConceptTree) -> bool:
+    """A Destroy/Counter/mass-Destroy/mass-Exile/mass-Bounce effect whose
+    target (or, for Counter, an ``And``-composite member) directly names a
+    color via ``HasColor`` — the live single-target arm widened to the mass
+    forms and the ``And``-wrapped Counter-target shape."""
+    for unit in tree.units:
+        for c in unit.effects:
+            t = tag_of(c.node)
+            target = getattr(c.node, "target", None)
+            hosing = (
+                t in ("Destroy", "Counter", "DestroyAll")
+                or (t == "ChangeZone" and change_zone_dirs(c.node)[1] == "Exile")
+                or (
+                    t == "ChangeZoneAll"
+                    and getattr(c.node, "destination", None) == "Exile"
+                )
+                or (t == "BounceAll" and not _is_self_owned_bounce_target(target))
+            )
+            if not hosing or not _has_direct_has_color(target):
+                continue
+            if "Graveyard" in filter_inzone_zones(target) and (
+                filter_controller(target) != "Opponent"
+            ):
+                continue  # your-graveyard self-recursion, not hosing
+            return True
+    return False
+
+
+def _matches_color_hoser_idiom(oracle: str) -> bool:
+    return bool(_COLOR_HOSER_RE.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_color_hoser(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``color_hoser`` node for the anthem-debuff / can't-cast /
+    can't-block / choose-a-color residue (the deleted ``_COLOR_HOSER_RE``
+    kept-mirror relocated, gap-gated against
+    :func:`has_structural_color_hoser`)."""
+    if has_structural_color_hoser(tree):
+        return None
+    if not _matches_color_hoser_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="color_hoser",
+        concept="synth_color_hoser",
+        scope="you",
+        subject=(),
+        desc="bucket-B color-hate debuff/restriction residue (CR 105.2)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4386,6 +4491,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("suspect_matters", _arm_suspect_matters),
     ("pump_makers", _arm_pump_makers),
     ("opponent_exile_matters", _arm_opponent_exile_matters),
+    ("color_hoser", _arm_color_hoser),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
