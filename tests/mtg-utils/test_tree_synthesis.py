@@ -28,6 +28,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_color_change,
     _arm_island_matters,
     _arm_spellcast_matters,
+    _arm_vehicles_matter,
     _has_structural_lifegain,
     _is_creature_death_subject,
     _is_self_recursion_return,
@@ -53,6 +54,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_theft_makers,
     has_structural_tutor,
     has_structural_untap_engine,
+    has_structural_vehicles_matter,
     has_trigger_draw_bleed,
     has_value_tap_ability,
     synthesize_nodes,
@@ -2939,3 +2941,42 @@ def test_color_change_lane_reads_synth_node_end_to_end():
     )
     sigs = _color_change(tree)
     assert any(s.key == "color_change" for s in sigs)
+
+
+# ── batch T3-makers-type (ADR-0036/0037 Stage 5): vehicles_matter ────────────
+
+
+def test_vehicles_matter_structural_gate_true_on_existing_arms():
+    """has_structural_vehicles_matter mirrors the lane's own arms a-c —
+    Gearshift Ace's Crews trigger, Aeronaut Admiral's Vehicle-subtype
+    static."""
+    assert has_structural_vehicles_matter(_fixture_tree("Gearshift Ace"))
+    assert has_structural_vehicles_matter(_fixture_tree("Aeronaut Admiral"))
+
+
+def test_vehicles_matter_bucket_b_synth_gap_gated():
+    """Anchor to Reality's "Equipment or Vehicle card" tutor — the residual
+    crew/Vehicle idiom arms a-c miss, gated against
+    has_structural_vehicles_matter (which is False here)."""
+    tree = _fixture_tree("Anchor to Reality")
+    assert has_structural_vehicles_matter(tree) is False
+    node = _arm_vehicles_matter(tree)
+    assert node is not None
+    assert node.concept == "synth_vehicles_matter"
+
+
+def test_vehicles_matter_no_fire_when_structural_gate_true():
+    """The synth never double-covers a card arms a-c already see."""
+    assert _arm_vehicles_matter(_fixture_tree("Gearshift Ace")) is None
+
+
+def test_vehicles_matter_no_fire_on_plain_vehicle():
+    """A card that IS a Vehicle (Smuggler's Copter) never fires from its
+    own nodes — neither the structural gate nor the synth."""
+    tree = _fixture_tree("Smuggler's Copter")
+    assert has_structural_vehicles_matter(tree) is False
+    assert _arm_vehicles_matter(tree) is None
+
+
+def test_vehicles_matter_synth_registered():
+    assert "vehicles_matter" in SYNTHESIS_ARM_IDS

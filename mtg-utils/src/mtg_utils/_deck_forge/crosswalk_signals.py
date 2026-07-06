@@ -262,7 +262,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     STATION_MATTERS_REGEX,
     STICKERS_MATTER_REGEX,
     UNSPENT_MANA_REGEX,
-    VEHICLES_MATTER_REGEX,
     VOID_WARP_MAKERS_REGEX,
     VOID_WARP_MATTERS_REGEX,
 )
@@ -885,7 +884,6 @@ _FIXING_PRODUCED_TYPES: frozenset[str] = frozenset(
 # same IGNORECASE flag the live kept-detectors compile with).
 _ENTERED_ATTACKER_RX = re.compile(ENTERED_ATTACKER_REGEX, re.IGNORECASE)
 _UNSPENT_MANA_RX = re.compile(UNSPENT_MANA_REGEX, re.IGNORECASE)
-_VEHICLES_MATTER_RX = re.compile(VEHICLES_MATTER_REGEX, re.IGNORECASE)
 
 # Johan + manland mirrors: byte-identical copies of the two INLINE (unnamed)
 # ``_IR_KEPT_DETECTORS`` rows in ``_signals_ir`` (exert_matters ~line 2343,
@@ -7598,13 +7596,15 @@ def _vehicles_matter(tree: ConceptTree) -> list[Signal]:
     controller You (Aeronaut Admiral; Depala's "Each Vehicle you control" —
     a structural add over live's plural-literal miss, logged);
     (c) a graveyard→battlefield recursion over a Vehicle filter
-    (Greasefang); (d) the EXACT live VEHICLES_MATTER_REGEX mirror.
+    (Greasefang); (d) Tier-1 (ADR-0036/0037 fold): the ``tree_synthesis``
+    bucket-B ``synth_vehicles_matter`` node (the deleted
+    ``_VEHICLES_MATTER_RX`` relocated, gap-gated against the SAME arms
+    a-c — :func:`~mtg_utils._card_ir.tree_synthesis.has_structural_vehicles_matter`).
     Gate #4 membership: a card that IS a Vehicle never fires from its own
     nodes (arms a-c gated; Smuggler's Copter/Peacewalker); ``BecomesCrewed``
     with a SelfRef watcher (Ghost Ark) is not a ``crews?`` payoff — its
     mode is outside arm (a)'s set. Scope "you".
     """
-    kept = _kept(tree)
     if "Vehicle" not in tree.card_subtypes:
         for unit in tree.units:
             if unit.origin == "trigger" and unit.trigger_event in (
@@ -7641,8 +7641,9 @@ def _vehicles_matter(tree: ConceptTree) -> list[Signal]:
                     return [
                         Signal("vehicles_matter", "you", "", c.raw, tree.name, "high")
                     ]
-    if _VEHICLES_MATTER_RX.search(kept):
-        return [Signal("vehicles_matter", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_vehicles_matter":
+            return [Signal("vehicles_matter", "you", "", "", tree.name, "high")]
     return []
 
 

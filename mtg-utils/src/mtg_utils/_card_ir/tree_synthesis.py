@@ -124,6 +124,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COLOR_CHANGE_REGEX,
     ISLAND_MATTERS_REGEX,
     KEYWORD_COUNTER_REGEX,
+    VEHICLES_MATTER_REGEX,
 )
 
 __all__ = [
@@ -3694,6 +3695,69 @@ def _arm_color_change(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T3-makers-type: vehicles_matter bucket-B tail ──────────────────────
+# CR 301.7 + 702.122: the residual crew/Vehicle idiom the lane's three
+# structural arms (Crews trigger / Vehicle-subtype static / GY->battlefield
+# Vehicle recursion — ``_vehicles_matter`` in crosswalk_signals.py) miss:
+# "Vehicles you control", "mounts and vehicles", a Vehicle-artifact-token
+# maker, "becomes a vehicle" (a Vehicle GRANTER — the animated object need
+# not itself be a Vehicle already). Gap-gated against the SAME three arms
+# (SYNTH-EXCLUSION-PARITY) so this bucket-B tail never double-covers a card
+# the structural arms already see.
+_VEHICLES_MATTER_SYNTH_RX = re.compile(VEHICLES_MATTER_REGEX, re.IGNORECASE)
+
+
+def has_structural_vehicles_matter(tree: ConceptTree) -> bool:
+    """Whether phase already carries a typed node the vehicles_matter lane's
+    three structural arms see — the synth gap-gate (mirrors the lane's own
+    arms a/b/c exactly, GAP-GATE-ALIGNMENT)."""
+    if "Vehicle" in tree.card_subtypes:
+        return False
+    for unit in tree.units:
+        if unit.origin == "trigger" and unit.trigger_event in (
+            "crews",
+            "saddlesorcrews",
+        ):
+            return True
+        if unit.origin == "static":
+            affected = getattr(unit.node, "affected", None)
+            subs = {w for s in filter_subtypes(affected) for w in s.lower().split()}
+            if "vehicle" in subs and filter_controller(affected) == "You":
+                return True
+        for c in unit.effect_concepts("change_zone"):
+            origin, dest = change_zone_dirs(c.node)
+            if origin != "Graveyard" or dest != "Battlefield":
+                continue
+            tsubs = {
+                s.lower() for s in filter_subtypes(getattr(c.node, "target", None))
+            }
+            if "vehicle" in tsubs:
+                return True
+    return False
+
+
+def _matches_vehicles_matter_idiom(oracle: str) -> bool:
+    return bool(_VEHICLES_MATTER_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_vehicles_matter(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``vehicles_matter`` node for the bucket-B crew/Vehicle
+    residue (the deleted ``_VEHICLES_MATTER_RX`` relocated, gap-gated
+    against :func:`has_structural_vehicles_matter` — the SAME arms the lane
+    itself already tries first)."""
+    if has_structural_vehicles_matter(tree):
+        return None
+    if not _matches_vehicles_matter_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="vehicles_matter",
+        concept="synth_vehicles_matter",
+        scope="you",
+        subject=(),
+        desc="bucket-B Vehicle/crew residue (CR 301.7/702.122)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3733,6 +3797,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("island_matters", _arm_island_matters),
     ("animate_artifact", _arm_animate_artifact),
     ("color_change", _arm_color_change),
+    ("vehicles_matter", _arm_vehicles_matter),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

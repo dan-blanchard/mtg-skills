@@ -3778,6 +3778,14 @@ def test_vehicles_matter_arms_and_membership_gates():
     assert "vehicles_matter" not in _keys("Smuggler's Copter")
 
 
+def test_vehicles_matter_bucket_b_synth_tail():
+    """Tier-1 (ADR-0036/0037 fold): Anchor to Reality's "Equipment or
+    Vehicle card" tutor is the residual crew/Vehicle idiom arms a-c miss —
+    the deleted ``VEHICLES_MATTER_REGEX`` mirror relocated to a bucket-B
+    ``tree_synthesis`` arm, gap-gated against the same three arms."""
+    assert ("vehicles_matter", "you", "") in _idents("Anchor to Reality")
+
+
 # ── Batch 12: batch-11 adjudicated follow-ups ────────────────────────────────
 
 
