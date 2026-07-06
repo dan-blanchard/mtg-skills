@@ -151,7 +151,6 @@ from mtg_utils._card_ir.project import (
     _LIB_SEARCH_PLAYER_ACTIONS,
     _SINGLE_PERMANENT_GRANT_PREDS,
     _SOULBOND_REF,
-    _STARTING_LIFE_REF,
     _TOKEN_SUBTYPE_OWN_REF,
     _UNDYING_PERSIST_GRANT,
     _counter_kind_token,
@@ -9557,12 +9556,12 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 # (_IR_KEPT_DETECTORS / the deleted-producer patterns) — the b12 _JOHAN_MIRROR
 # precedent for rows with no importable name. Named live constants are imported
 # above (one source, zero drift):
-# _MELD_FULLTEXT_RE, _TOUGHNESS_VALUE_MIRROR, _TYPED_ANTHEM_MULTI_RAW,
-# _STARTING_LIFE_REF. (island_makers, ability_copy, noncombat_damage_payoff,
-# per_target_payoff, and power_tap_engine were ADR-0036/0037 folded to Tier-1
-# structural / bucket-B synth reads — see ``_island_makers``,
+# _MELD_FULLTEXT_RE, _TOUGHNESS_VALUE_MIRROR, _TYPED_ANTHEM_MULTI_RAW.
+# (island_makers, ability_copy, noncombat_damage_payoff, per_target_payoff,
+# power_tap_engine, and starting_life_matters were ADR-0036/0037 folded to
+# Tier-1 structural / bucket-B synth reads — see ``_island_makers``,
 # ``_ability_copy``, ``_noncombat_damage_payoff``, ``_per_target_payoff``,
-# ``_power_tap_engine``.)
+# ``_power_tap_engine``, ``_starting_life_matters``.)
 
 # Counter-placement effect tags (the live place_counter category's producers)
 # for the ability_strip same-unit join (§2).
@@ -10185,20 +10184,17 @@ def _power_tap_engine(tree: ConceptTree) -> list[Signal]:
 
 def _starting_life_matters(tree: ConceptTree) -> list[Signal]:
     """starting_life_matters (§19) — CR 103.4 ("Each player begins the game
-    with a starting life total of 20") / 103.4c (Commander: 40) — live cite
-    CORRECT. The imported live project marker source ``_STARTING_LIFE_REF``
-    (``\\bstarting life total\\b``) re-derived VERBATIM flat over the kept
-    oracle (the phrase never lives in reminder text; phase carries no
-    StartingLife structure — probed, a genuine long-logged representation
-    gap, NOT a bug). Anchored on the PHRASE, not the concept: the old broad
-    regex's "life total is greater/less" arm over-fired on unrelated
-    thresholds (Elderscale Wurm, pop-verified False). Scope "you", HIGH.
+    with a starting life total of 20") / 103.4c (Commander: 40).
+
+    Tier-1 (ADR-0036/0037 fold — the lane-time ``_STARTING_LIFE_REF``
+    kept-oracle read is RETIRED): the ``tree_synthesis`` stage's
+    ``synth_starting_life_matters`` node — phase carries no StartingLife
+    structure (probed, a genuine long-logged representation gap), so this
+    bucket-B arm is the lane's SOLE source. Scope "you", HIGH.
     """
-    m = _STARTING_LIFE_REF.search(_kept(tree))
-    if m is not None:
-        return [
-            Signal("starting_life_matters", "you", "", m.group(0), tree.name, "high")
-        ]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_starting_life_matters":
+            return [Signal("starting_life_matters", "you", "", "", tree.name, "high")]
     return []
 
 

@@ -109,6 +109,7 @@ from mtg_utils._card_ir.project import (
     _CRIME_REF,
     _MASS_DEATH_REF,
     _PAY_LIFE_REF,
+    _STARTING_LIFE_REF,
     _SUSPECT_REF,
 )
 from mtg_utils._deck_forge import signal_keys
@@ -5072,6 +5073,29 @@ def _arm_power_tap_engine(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+# ── batch T7-niche-c: starting_life_matters (bucket-B, sole source) ────────
+# CR 103.4 ("Each player begins the game with a starting life total of 20")
+# + 103.4c (Commander: 40): phase carries no StartingLife structure — a
+# genuine, long-logged representation gap (probed) — so this is the lane's
+# SOLE source, no structural competitor. Relocates the deleted
+# ``_STARTING_LIFE_REF`` mirror verbatim. Measured byte-identical over the
+# commander-legal corpus (24/24, 0 drops, 0 adds).
+def _arm_starting_life_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``starting_life_matters`` node for the "starting life
+    total" phrase (the deleted ``_STARTING_LIFE_REF`` mirror relocated — no
+    competing Tier-1 predicate exists, so this is the lane's SOLE
+    source)."""
+    if _STARTING_LIFE_REF.search(_REMINDER.sub(" ", tree.oracle or "")) is None:
+        return None
+    return _synthetic_concept(
+        arm_id="starting_life_matters",
+        concept="synth_starting_life_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B starting-life-total residue (CR 103.4)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -5133,6 +5157,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("big_hand_makers", _arm_big_hand_makers),
     ("big_hand_matters", _arm_big_hand_matters),
     ("power_tap_engine", _arm_power_tap_engine),
+    ("starting_life_matters", _arm_starting_life_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
