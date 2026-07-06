@@ -93,7 +93,6 @@ from mtg_utils._card_ir.crosswalk import (
     player_filter_tag,
     power_threshold_preds,
     produced_contribution,
-    protection_cardtype,
     pump_is_negative,
     recipient_tag,
     ref_count_filter,
@@ -145,7 +144,6 @@ from mtg_utils._card_ir.project import (
 # creature-death state check and the ``CreatureDying`` trigger-doubler.
 from mtg_utils._card_ir.tree_synthesis import (
     _ANTHEM_PUMP_MODS,
-    _KILL_ONESHOT_EVENTS,
     _double_triggers_creature_dying,
     _is_creature_death_subject,
     _is_death_payoff_effect,
@@ -163,6 +161,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_arcane,
+    has_structural_big_hand_makers,
     has_structural_big_hand_matters,
     has_structural_cant_block_grant,
     has_structural_color_hoser,
@@ -172,14 +171,20 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_exert_matters,
     has_structural_firebending_grant,
     has_structural_keyword_counter,
+    has_structural_kill_engine,
+    has_structural_legend_rule_off,
+    has_structural_lessons_matter,
     has_structural_life_payment_insurance,
+    has_structural_manland,
     has_structural_meld_pair,
+    has_structural_miracle_grant,
     has_structural_opponent_counter_grant,
     has_structural_outlaw,
     has_structural_power_tap_engine,
     has_structural_proliferate,
     has_structural_pump_makers,
     has_structural_self_counter_grow,
+    has_structural_snow_matters,
     has_structural_spellcast,
     has_structural_station_charge,
     has_structural_station_reference,
@@ -188,7 +193,9 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_theft_makers,
     has_structural_toughness_combat,
     has_structural_tutor,
+    has_structural_type_change,
     has_structural_untap_engine,
+    has_structural_vehicles_matter,
     has_trigger_draw_bleed,
     has_value_tap_ability,
     mass_death_amount,
@@ -7008,22 +7015,14 @@ def _kill_engine(tree: ConceptTree) -> list[Signal]:
     the ONE card phase can't structure) now rides the ``tree_synthesis``
     stage's ``synth_kill_engine`` node, gated against
     :func:`has_structural_kill_engine`. LOW confidence, scope "you" (the
-    live producer's identity — never feeds has_other_plan).
+    live producer's identity — never feeds has_other_plan). Read via the
+    SHARED :func:`has_structural_kill_engine` predicate itself for the
+    structural arm too (GAP-GATE-ALIGNMENT — ADR-0036/0037 Stage 5 #58
+    hardening; this used to re-derive the same repeatable-Destroy walk
+    inline, a drift risk).
     """
-    if not tree.is_type("Creature"):
-        return []
-    for unit in tree.units:
-        repeatable = (unit.origin == "ability" and unit.kind == "Activated") or (
-            unit.origin == "trigger"
-            and (unit.trigger_event or "") not in _KILL_ONESHOT_EVENTS
-        )
-        if not repeatable:
-            continue
-        for c in unit.effect_concepts("destroy"):
-            if tag_of(c.node) != "Destroy":
-                continue
-            if "Creature" in filter_core_types(getattr(c.node, "target", None)):
-                return [Signal("kill_engine", "you", "", c.raw, tree.name, "low")]
+    if has_structural_kill_engine(tree):
+        return [Signal("kill_engine", "you", "", "", tree.name, "low")]
     for c in tree.iter_concepts():
         if c.concept == "synth_kill_engine":
             return [Signal("kill_engine", "you", "", "", tree.name, "low")]
@@ -7205,29 +7204,19 @@ def _land_protection(tree: ConceptTree) -> list[Signal]:
                         "land_protection", "you", "", _site_raw(sdef), tree.name, "high"
                     )
                 ]
-        # The manland self-animate / landish-affected structural read (ADR-0036
-        # fold): a SelfRef nested static on a card that IS itself a Land (the
-        # "Restless" cycle, Crawling Barrens), OR a landish-AFFECTED nested
-        # static (Land core type / land-subtype word, e.g. the Genju cycle's
-        # EnchantedBy-Island filter, or a mass "lands become creatures" anthem)
-        # — a GenericEffect-nested modification :func:`_is_protection_animator`
-        # (top-level statics only) never sees.
-        for sdef, mod in iter_mod_sites(unit.node):
-            if tag_of(mod) != "AddType":
-                continue
-            if getattr(mod, "core_type", None) != "Creature":
-                continue
-            affected = getattr(sdef, "affected", None)
-            selfref_land = tag_of(affected) == "SelfRef" and tree.is_type("Land")
-            landish = "Land" in filter_core_types(affected) or (
-                {t.lower() for t in filter_subtypes(affected)} & _LAND_SUBTYPE_WORDS
-            )
-            if selfref_land or landish:
-                return [
-                    Signal(
-                        "land_protection", "you", "", _site_raw(sdef), tree.name, "high"
-                    )
-                ]
+    # The manland self-animate / landish-affected structural read (ADR-0036
+    # fold): a SelfRef nested static on a card that IS itself a Land (the
+    # "Restless" cycle, Crawling Barrens), OR a landish-AFFECTED nested
+    # static (Land core type / land-subtype word, e.g. the Genju cycle's
+    # EnchantedBy-Island filter, or a mass "lands become creatures" anthem)
+    # — a GenericEffect-nested modification :func:`_is_protection_animator`
+    # (top-level statics only) never sees. Read via the SHARED
+    # :func:`has_structural_manland` predicate (GAP-GATE-ALIGNMENT — the
+    # same source the ``synth_manland`` gap gate reads; ADR-0036/0037 Stage
+    # 5 #58 hardening — this used to re-derive the check inline against a
+    # separately-defined ``_LAND_SUBTYPE_WORDS`` copy, a drift risk).
+    if has_structural_manland(tree):
+        return [Signal("land_protection", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_manland":
             return [Signal("land_protection", "you", "", "", tree.name, "high")]
@@ -7303,18 +7292,14 @@ def _type_change(tree: ConceptTree) -> list[Signal]:
     protection from a COLOR (White Knight) fails the vocab gate.
     bucket-B synth: the ``synth_type_change`` node
     (:func:`_arm_type_change`) for the per-clause
-    ``protection from (\\w+)`` vocab-gated residue. Scope "you".
+    ``protection from (\\w+)`` vocab-gated residue. Scope "you". Read via
+    the SHARED :func:`has_structural_type_change` predicate (GAP-GATE-
+    ALIGNMENT — the same source the ``synth_type_change`` gap gate reads;
+    ADR-0036/0037 Stage 5 #58 hardening — this used to re-derive the same
+    ``AddKeyword``/vocab walk inline, a drift risk).
     """
-    for unit in tree.units:
-        for _sdef, mod in iter_mod_sites(unit.node):
-            if tag_of(mod) != "AddKeyword":
-                continue
-            arg = protection_cardtype(mod)
-            if arg is None:
-                continue
-            w = arg.lower()
-            if w in CREATURE_SUBTYPES or w.rstrip("s") in CREATURE_SUBTYPES:
-                return [Signal("type_change", "you", "", "", tree.name, "high")]
+    if has_structural_type_change(tree):
+        return [Signal("type_change", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_type_change":
             return [Signal("type_change", "you", "", "", tree.name, "high")]
@@ -7521,13 +7506,13 @@ def _big_hand_lanes(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, "you", "", raw, tree.name, "high"))
 
-    for unit in tree.units:
-        if unit.origin == "static":
-            mt = static_mode_tag(unit.node)
-            if mt in ("NoMaximumHandSize", "MaximumHandSize"):
-                fire("big_hand_makers", _site_raw(unit.node))
-        for c in unit.effect_concepts("no_max_handsize"):
-            fire("big_hand_makers", c.raw)
+    # makers SITE gate (:func:`has_structural_big_hand_makers` — a shared
+    # source with the ``tree_synthesis`` gap gate, ADR-0036/0037 Stage 5
+    # #58 hardening; this used to re-derive the same NoMaximumHandSize/
+    # MaximumHandSize static-mode + no_max_handsize walk inline, a drift
+    # risk).
+    if has_structural_big_hand_makers(tree):
+        fire("big_hand_makers", "")
     # matters SITE gate (:func:`has_structural_big_hand_matters` — a shared
     # source with the ``tree_synthesis`` gap gate, ADR-0036 fold): only a
     # CONDITION threshold (Akki Underling) or a dynamic-P/T modification
@@ -7562,44 +7547,13 @@ def _vehicles_matter(tree: ConceptTree) -> list[Signal]:
     Gate #4 membership: a card that IS a Vehicle never fires from its own
     nodes (arms a-c gated; Smuggler's Copter/Peacewalker); ``BecomesCrewed``
     with a SelfRef watcher (Ghost Ark) is not a ``crews?`` payoff — its
-    mode is outside arm (a)'s set. Scope "you".
+    mode is outside arm (a)'s set. Scope "you". Read via the SHARED
+    :func:`has_structural_vehicles_matter` predicate for arms a-c
+    (GAP-GATE-ALIGNMENT — ADR-0036/0037 Stage 5 #58 hardening; this used
+    to re-derive the same three-arm walk inline, a drift risk).
     """
-    if "Vehicle" not in tree.card_subtypes:
-        for unit in tree.units:
-            if unit.origin == "trigger" and unit.trigger_event in (
-                "crews",
-                "saddlesorcrews",
-            ):
-                return [Signal("vehicles_matter", "you", "", "", tree.name, "high")]
-            if unit.origin == "static":
-                affected = getattr(unit.node, "affected", None)
-                # Word-token match: phase emits Depala's subject as the
-                # multi-word subtype wart ``{Subtype: "Each Vehicle"}`` —
-                # the probed v0.9.0 shape, so the gate matches the
-                # ``vehicle`` TOKEN, not the raw string.
-                subs = {w for s in filter_subtypes(affected) for w in s.lower().split()}
-                if "vehicle" in subs and filter_controller(affected) == "You":
-                    return [
-                        Signal(
-                            "vehicles_matter",
-                            "you",
-                            "",
-                            _site_raw(unit.node),
-                            tree.name,
-                            "high",
-                        )
-                    ]
-            for c in unit.effect_concepts("change_zone"):
-                origin, dest = change_zone_dirs(c.node)
-                if origin != "Graveyard" or dest != "Battlefield":
-                    continue
-                tsubs = {
-                    s.lower() for s in filter_subtypes(getattr(c.node, "target", None))
-                }
-                if "vehicle" in tsubs:
-                    return [
-                        Signal("vehicles_matter", "you", "", c.raw, tree.name, "high")
-                    ]
+    if has_structural_vehicles_matter(tree):
+        return [Signal("vehicles_matter", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_vehicles_matter":
             return [Signal("vehicles_matter", "you", "", "", tree.name, "high")]
@@ -10231,12 +10185,12 @@ def _legend_rule_off(tree: ConceptTree) -> list[Signal]:
     (:func:`_arm_legend_rule_off`) for the 4-card residue phase keeps
     textual (the Yamazaki family, Syr Joshua and Syr Saxon, The Herald of
     Numot — parse-gap candidate, adjudicator-logged). Scope "you", HIGH.
+    Read via the SHARED :func:`has_structural_legend_rule_off` predicate
+    (GAP-GATE-ALIGNMENT — ADR-0036/0037 Stage 5 #58 hardening; this used
+    to re-derive the same static-mode check inline, a drift risk).
     """
-    for unit in tree.units:
-        if unit.origin == "static" and (
-            static_mode_tag(unit.node) == "LegendRuleDoesntApply"
-        ):
-            return [Signal("legend_rule_off", "you", "", "", tree.name, "high")]
+    if has_structural_legend_rule_off(tree):
+        return [Signal("legend_rule_off", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_legend_rule_off":
             return [Signal("legend_rule_off", "you", "", "", tree.name, "high")]
@@ -10255,12 +10209,13 @@ def _lessons_matter(tree: ConceptTree) -> list[Signal]:
     Learn DOERS never fire ("Lesson" only in stripped reminder text — both
     arms naturally exclude; the lane must NOT read ``Learn`` nodes), and a
     Lesson CARD whose own oracle never says "lesson" stays out
-    (Environmental Sciences). Scope "you", HIGH.
+    (Environmental Sciences). Scope "you", HIGH. Read via the SHARED
+    :func:`has_structural_lessons_matter` predicate (GAP-GATE-ALIGNMENT —
+    ADR-0036/0037 Stage 5 #58 hardening; this used to re-derive the same
+    Lesson-subtype filter walk inline, a drift risk).
     """
-    for unit in tree.units:
-        for node in iter_typed_nodes(unit.node):
-            if any(s.lower() == "lesson" for s in filter_subtypes(node)):
-                return [Signal("lessons_matter", "you", "", "", tree.name, "high")]
+    if has_structural_lessons_matter(tree):
+        return [Signal("lessons_matter", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_lessons_matter":
             return [Signal("lessons_matter", "you", "", "", tree.name, "high")]
@@ -10301,12 +10256,13 @@ def _miracle_grant(tree: ConceptTree) -> list[Signal]:
     Gate #4 membership: the 18 intrinsic ``Miracle {cost}`` bearers
     (Bonfire of the Damned, …) never fire — the AddKeyword walk reads
     GRANTS, not own keywords, and a keyword line doesn't match the grant
-    phrasing. Scope "you", HIGH.
+    phrasing. Scope "you", HIGH. Read via the SHARED
+    :func:`has_structural_miracle_grant` predicate (GAP-GATE-ALIGNMENT —
+    ADR-0036/0037 Stage 5 #58 hardening; this used to re-derive the same
+    ``AddKeyword{Miracle}`` walk inline, a drift risk).
     """
-    for unit in tree.units:
-        for _sdef, mod in iter_mod_sites(unit.node):
-            if tag_of(mod) == "AddKeyword" and mod_keyword_name(mod) == "Miracle":
-                return [Signal("miracle_grant", "you", "", "", tree.name, "high")]
+    if has_structural_miracle_grant(tree):
+        return [Signal("miracle_grant", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_miracle_grant":
             return [Signal("miracle_grant", "you", "", "", tree.name, "high")]
@@ -10370,14 +10326,13 @@ def _snow_matters(tree: ConceptTree) -> list[Signal]:
 
     Gate #4 membership: a Snow-SUPERTYPE card itself never fires off its
     type line (parity: live reads oracle only — NO card_supertypes read;
-    Boreal Druid pinned). Scope "you", HIGH.
+    Boreal Druid pinned). Scope "you", HIGH. Read via the SHARED
+    :func:`has_structural_snow_matters` predicate (GAP-GATE-ALIGNMENT —
+    ADR-0036/0037 Stage 5 #58 hardening; this used to re-derive the same
+    two-arm walk inline, a drift risk).
     """
-    for unit in tree.units:
-        if has_filter_property(unit.node, "HasSupertype", "Snow"):
-            return [Signal("snow_matters", "you", "", "", tree.name, "high")]
-        for node in iter_typed_nodes(unit.node):
-            if tag_of(node) == "YouControlSnowPermanentCountAtLeast":
-                return [Signal("snow_matters", "you", "", "", tree.name, "high")]
+    if has_structural_snow_matters(tree):
+        return [Signal("snow_matters", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_snow_matters":
             return [Signal("snow_matters", "you", "", "", tree.name, "high")]
