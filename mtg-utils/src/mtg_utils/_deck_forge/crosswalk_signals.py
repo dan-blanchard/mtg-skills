@@ -224,7 +224,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _KEYWORD_COUNTER_KINDS,
     _NAMED_COUNTER_KINDS,
     _OPP_COUNTER_BENEFICIAL,
-    _POWER_MATTERS_MIRROR,
     _POWER_SCALING_RAW,
     _PROLIFERATE_REMOVE_COST_RE,
     _SAME_TRUE_KW_RE,
@@ -3427,14 +3426,17 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
                     for stat, cmp_, _v in power_threshold_preds(n)
                 ):
                     fire("power_matters", "")
-    # recall-completion b1 (ADR-0035 backstop): the "greatest/total/combined power of
-    # creatures you control" AGGREGATE scaler (Ghalta, Rishkar's Expertise, The Great
-    # Henge) — phase folds the threshold into an empty-predicate board_count carrier,
-    # so it is not cleanly structural this batch. Byte-identical
-    # ``_POWER_MATTERS_MIRROR`` over the reminder-stripped face oracle (flat ==
-    # per-clause, 0 miss / 0 over-fire).
-    if _POWER_MATTERS_MIRROR.search(_kept(tree)):
-        fire("power_matters", "")
+    # recall-completion b1 (ADR-0035 backstop, folded to Tier-1 ADR-0036/0037):
+    # the "greatest/total/combined power of creatures you control" AGGREGATE
+    # scaler (Ghalta, Rishkar's Expertise, The Great Henge) + the Formidable
+    # ability word — phase folds the threshold into an empty-predicate
+    # board_count carrier, so no structural datum distinguishes it; the
+    # ``tree_synthesis`` bucket-B ``synth_power_matters`` node (the deleted
+    # ``_POWER_MATTERS_MIRROR`` relocated verbatim) is the residual source.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_power_matters":
+            fire("power_matters", "")
+            break
     # recall-completion b2 (ADR-0034): the TRIGGER-subject ColorCount build-around.
     # handle() above reads effect / count-operand / static-affected filters but never
     # a trigger's watched subject, so "whenever you cast a multicolored spell" (Cloven

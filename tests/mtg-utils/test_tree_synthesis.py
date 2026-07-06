@@ -2319,3 +2319,61 @@ def test_exalted_textual_lane_reads_synth_node_end_to_end():
     )
     sigs = _exalted_textual(tree)
     assert any(s.key == "exalted_lone_attacker" for s in sigs)
+
+
+# ── batch T2-counters (ADR-0036/0037 Stage 5): power_matters ──────────────────
+
+
+def test_power_matters_bucket_b_aggregate_synth():
+    """The Formidable ability word / aggregate power scaler (CR 208/207.2c) —
+    phase folds the threshold into an empty-predicate board_count carrier, so
+    no structural datum distinguishes it; this arm is the residual source."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_power_matters
+
+    tree = _gap_tree(
+        "Formidable — At the beginning of combat on your turn, if creatures "
+        "you control have total power 8 or greater, target creature gains "
+        "flying until end of turn."
+    )
+    node = _arm_power_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_power_matters"
+    assert node.scope == "you"
+
+
+def test_power_matters_no_fire_on_unrelated_text():
+    from mtg_utils._card_ir.tree_synthesis import _arm_power_matters
+
+    assert _arm_power_matters(_gap_tree("Draw a card.")) is None
+
+
+def test_power_matters_synth_registered():
+    assert "power_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_power_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _predicate_build_around
+
+    synth = ConceptNode(
+        concept="synth_power_matters",
+        node=SynthesizedNode(arm_id="power_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _predicate_build_around(tree)
+    assert any(s.key == "power_matters" for s in sigs)

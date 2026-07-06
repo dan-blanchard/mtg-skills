@@ -3257,6 +3257,49 @@ def _arm_exalted_lone_attacker(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arm: power_matters bucket-B (ADR-0036/0037 Stage 5, batch T2-counters) ─────
+# The Tier-1 structural read (``_signals_ir._predicate_build_around_lanes`` /
+# the ``_power_lanes`` crosswalk lane) reads a FIXED ``PtComparison`` on Power at
+# an effect/count-operand/condition site. The genuine residue: the AGGREGATE
+# "total/greatest/combined power of creatures you control" scaler (Ghalta, The
+# Great Henge, Rishkar's Expertise) and the Formidable ability word (CR 207.2c)
+# — phase folds the threshold into an EMPTY-predicate board_count carrier, so no
+# typed field distinguishes it from an unrelated empty-predicate count. Probed:
+# no structural datum separates them this batch (ADR-0035 backstop already
+# established this as the narrow un-structurable tail — 102/102 commander-legal
+# reproduce, 0 miss/0 over-fire), so this arm is the residual source, additive
+# with the structural Arm B (the caller's ``fire()`` dedups by key). CR 208.
+_POWER_AGGREGATE_SYNTH_RX = re.compile(
+    r"(?:total|greatest|combined) power of creatures you control"
+    r"|creature spells? you cast with power \d+ or (?:greater|more)"
+    r"|if you control [^.]*?with power \d+ or (?:greater|more)"
+    r"|creature with power \d+ or (?:greater|more) enters"
+    r" the battlefield under your control"
+    r"|(?:total|greatest) power among (?:other )?creatures you control"
+    r"|\bformidable\b",
+    re.IGNORECASE,
+)
+
+
+def _matches_power_aggregate_idiom(oracle: str) -> bool:
+    return bool(_POWER_AGGREGATE_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_power_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``power_matters`` node for the aggregate power-scaler /
+    Formidable tail (the deleted ``_POWER_MATTERS_MIRROR`` relocated
+    verbatim)."""
+    if not _matches_power_aggregate_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="power_matters",
+        concept="synth_power_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B power aggregate scaler / Formidable (CR 208/207.2c)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3287,6 +3330,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("outlaw_matters", _arm_outlaw_matters),
     ("arcane_matters", _arm_arcane_matters),
     ("exalted_lone_attacker", _arm_exalted_lone_attacker),
+    ("power_matters", _arm_power_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
