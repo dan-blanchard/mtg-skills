@@ -776,6 +776,17 @@ def test_lifegain_structural_arms_fire_and_suppress_synth(name, pred):
     assert apply_tree_synthesis(tree) is tree
 
 
+def test_high_life_payoff_excludes_low_survival_floor():
+    # #60 precision: a FIXED life threshold below _MIN_HIGH_LIFE_THRESHOLD is a
+    # survival FLOOR, not a high-life payoff. Elderscale Wurm reads as a genuine
+    # QuantityComparison(LifeTotal, Controller, GE 7) but gaining life past 7 does
+    # nothing for it, so has_high_life_total_payoff must NOT fire (and neither the
+    # lane's structural-lifegain gate).
+    tree = _fixture_tree("Elderscale Wurm")
+    assert has_high_life_total_payoff(tree) is False
+    assert _has_structural_lifegain(tree) is False
+
+
 @pytest.mark.parametrize(
     "name", ["Sunbond", "Moonstone Harbinger", "Regna, the Redeemer"]
 )

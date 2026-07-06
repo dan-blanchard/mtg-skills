@@ -946,6 +946,15 @@ def has_gain_life_amplifier(tree: ConceptTree) -> bool:
 
 
 _HIGH_LIFE_COMPARATORS: frozenset[str] = frozenset({"GE", "GT"})
+# A FIXED life threshold must clear this floor to count as a "high life" payoff.
+# The corpus splits cleanly: the lone low outlier is Elderscale Wurm's "7 or more
+# life" damage-prevention FLOOR (a survival shield — gaining life past 7 does
+# nothing, so it is NOT a lifegain payoff), while every genuine payoff sits at 25+
+# (Divinity of Pride 25 … Bilbo 111). 15 is the wide-margin gap between them.
+# Relative gates (RHS is a Ref, e.g. "≥ your starting life" — Path of Bravery,
+# Glorious Enforcer) are a deliberate-high condition regardless of number and are
+# kept unconditionally.
+_MIN_HIGH_LIFE_THRESHOLD = 15
 
 
 def has_high_life_total_payoff(tree: ConceptTree) -> bool:
@@ -960,13 +969,15 @@ def has_high_life_total_payoff(tree: ConceptTree) -> bool:
     win-the-game upkeep threshold (Felidar Sovereign, Test of Endurance —
     CR 104.2), a relative "more life than an opponent" comparison whose LHS
     is still YOUR life (Glorious Enforcer), and the vs-starting-life gate
-    (Path of Bravery). A LOW-life threshold (LE/LT — Elderscale Wurm's OWN
-    floor-reset is a Fixed-value SET, not a QuantityComparison gate, so it
-    is untouched; a near-death "if you have 5 or less life" payoff is a
-    DIFFERENT, opposite-polarity signal, not read here) and any RHS/OTHER-
-    player LifeTotal comparand alone (Marchesa's Emissary-style "player
-    with the most life" family — the LHS gate is load-bearing) are
-    excluded.
+    (Path of Bravery). A FIXED threshold BELOW :data:`_MIN_HIGH_LIFE_
+    THRESHOLD` is excluded as a survival FLOOR, not a high-life payoff —
+    Elderscale Wurm ("7 or more life" gating damage prevention) reads as a
+    genuine ``QuantityComparison`` GE 7 but gaining life past 7 does nothing
+    for it, so it is not a lifegain payoff; a near-death "if you have 5 or
+    less life" payoff is a DIFFERENT, opposite-polarity signal (LE/LT), not
+    read here. Any RHS/OTHER-player LifeTotal comparand alone (Marchesa's
+    Emissary-style "player with the most life" family — the LHS gate is
+    load-bearing) is excluded.
     """
     for unit in tree.units:
         for site in iter_condition_sites(unit.node):
@@ -980,8 +991,16 @@ def has_high_life_total_payoff(tree: ConceptTree) -> bool:
                 if tag_of(qty) != "LifeTotal":
                     continue
                 player = getattr(qty, "player", None)
-                if tag_of(player) == "Controller":
-                    return True
+                if tag_of(player) != "Controller":
+                    continue
+                # A fixed threshold must clear the "high" floor; a relative
+                # (Ref) gate is a deliberate-high condition, kept as-is.
+                rhs = getattr(q, "rhs", None)
+                if tag_of(rhs) == "Fixed":
+                    val = getattr(rhs, "value", None)
+                    if isinstance(val, int) and val < _MIN_HIGH_LIFE_THRESHOLD:
+                        continue
+                return True
     return False
 
 
