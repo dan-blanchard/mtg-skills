@@ -43,6 +43,8 @@ from mtg_utils._card_ir.tree_synthesis import (
     SYNTHESIS_ARM_IDS,
     _arm_ability_copy,
     _arm_animate_artifact,
+    _arm_big_hand_makers,
+    _arm_big_hand_matters,
     _arm_clue_matters,
     _arm_color_change,
     _arm_color_hoser,
@@ -77,6 +79,8 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_arcane,
+    has_structural_big_hand_makers,
+    has_structural_big_hand_matters,
     has_structural_clue_matters,
     has_structural_color_hoser,
     has_structural_counter_distribute,
@@ -4164,3 +4168,133 @@ def test_kill_engine_lane_reads_synth_node_end_to_end():
     )
     sigs = _kill_engine(tree)
     assert any(s.key == "kill_engine" for s in sigs)
+
+
+# ── big_hand_makers / big_hand_matters bucket-B tail ────────────────────────
+
+
+def test_big_hand_makers_structural_cursed_rack():
+    """Cursed Rack: "The chosen player's maximum hand size is four." — the
+    structural ``MaximumHandSize`` static mode (the live REDUCER-in-lane
+    parity quirk, kept as-is)."""
+    tree = _fixture_tree("Cursed Rack")
+    assert has_structural_big_hand_makers(tree) is True
+    assert _arm_big_hand_makers(tree) is None
+
+
+def test_big_hand_makers_bucket_b_synth_ancient_silver_dragon():
+    """Ancient Silver Dragon: "You have no maximum hand size for the rest of
+    the game." — a ONE-SHOT effect-granted no-max-hand-size the structural
+    static-mode / ``no_max_handsize`` effect-concept walk doesn't reach."""
+    tree = ConceptTree(
+        name="Ancient Silver Dragon",
+        oracle_id="x",
+        oracle=(
+            "Flying\nWhenever this creature deals combat damage to a player,"
+            " roll a d20. Draw cards equal to the result. You have no"
+            " maximum hand size for the rest of the game."
+        ),
+    )
+    assert has_structural_big_hand_makers(tree) is False
+    node = _arm_big_hand_makers(tree)
+    assert node is not None
+    assert node.concept == "synth_big_hand_makers"
+
+
+def test_big_hand_makers_no_fire_on_unrelated_card():
+    tree = _fixture_tree("Llanowar Elves")
+    assert has_structural_big_hand_makers(tree) is False
+    assert _arm_big_hand_makers(tree) is None
+
+
+def test_big_hand_makers_synth_registered():
+    assert "big_hand_makers" in SYNTHESIS_ARM_IDS
+
+
+def test_big_hand_matters_structural_akki_underling_condition():
+    """Akki Underling: "As long as you have seven or more cards in hand,
+    this creature gets +2/+1 and has first strike." — the GE-7 condition
+    threshold arm."""
+    tree = _fixture_tree("Akki Underling")
+    assert has_structural_big_hand_matters(tree) is True
+    assert _arm_big_hand_matters(tree) is None
+
+
+def test_big_hand_matters_structural_maro_dynamic_pt():
+    """Maro: "Maro's power and toughness are each equal to the number of
+    cards in your hand." — the ``SetDynamicPower``/``SetDynamicToughness``
+    CDA pair the ADR-0036 fold recovers as a Tier-1 structural read (the
+    prior lane-local ``_DYNAMIC_PT_MODS`` name was shadowed by a later
+    batch-14 redefinition — see ``_WB_PT_SET_MODS``'s same-shape note — so
+    this card rode the mirror exclusively pre-fold; NOW a genuine
+    structural hit, not a regression)."""
+    tree = _fixture_tree("Maro")
+    assert has_structural_big_hand_matters(tree) is True
+    assert _arm_big_hand_matters(tree) is None
+
+
+def test_big_hand_matters_bucket_b_synth_castle_locthwain():
+    """Castle Locthwain: "Draw a card, then you lose life equal to the
+    number of cards in your hand." — a full-grip TEXT reference outside any
+    QuantityComparison/dynamic-P/T node shape, a genuine gap."""
+    tree = ConceptTree(
+        name="Castle Locthwain",
+        oracle_id="x",
+        oracle=(
+            "This land enters tapped unless you control a Swamp.\n{T}: Add"
+            " {B}.\n{1}{B}{B}, {T}: Draw a card, then you lose life equal to"
+            " the number of cards in your hand."
+        ),
+    )
+    assert has_structural_big_hand_matters(tree) is False
+    node = _arm_big_hand_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_big_hand_matters"
+
+
+def test_big_hand_matters_no_fire_on_unrelated_card():
+    tree = _fixture_tree("Llanowar Elves")
+    assert has_structural_big_hand_matters(tree) is False
+    assert _arm_big_hand_matters(tree) is None
+
+
+def test_big_hand_matters_synth_registered():
+    assert "big_hand_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_big_hand_lanes_reads_synth_nodes_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _big_hand_lanes
+
+    makers_synth = ConceptNode(
+        concept="synth_big_hand_makers",
+        node=SynthesizedNode(arm_id="big_hand_makers", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    matters_synth = ConceptNode(
+        concept="synth_big_hand_matters",
+        node=SynthesizedNode(arm_id="big_hand_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(makers_synth, matters_synth),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _big_hand_lanes(tree)
+    keys = {s.key for s in sigs}
+    assert "big_hand_makers" in keys
+    assert "big_hand_matters" in keys

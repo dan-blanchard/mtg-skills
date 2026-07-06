@@ -71,6 +71,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_non_types,
     filter_predicates,
     filter_subtypes,
+    hand_size_scopes,
     has_filter_property,
     iter_condition_sites,
     iter_cost_leaves,
@@ -164,6 +165,8 @@ __all__ = [
     "has_self_etb_value",
     "has_selfloss_engine",
     "has_structural_arcane",
+    "has_structural_big_hand_makers",
+    "has_structural_big_hand_matters",
     "has_structural_clue_matters",
     "has_structural_color_hoser",
     "has_structural_crimes_matter",
@@ -4834,6 +4837,130 @@ def _arm_kill_engine(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T6-niche-b: big_hand_makers / big_hand_matters bucket-B tail ──────
+# CR 402.2: the live structural walk already binds the ``NoMaximumHandSize``/
+# ``MaximumHandSize`` static mode + the ``no_max_handsize`` effect concept
+# (makers half), and the hand-size ``QuantityComparison`` condition (GE/GT,
+# threshold >= 4) + the dynamic-P/T hand-size mod (matters half). The
+# residual on EACH half rides the byte-identical live mirror (no competing
+# Tier-1 predicate for either): makers' "maximum hand size" REDUCER phrasing
+# the structural static-mode walk doesn't independently reach on every face,
+# and matters' "N or more cards in hand" / "equal to … cards in your hand"
+# phrasing outside a QuantityComparison/dynamic-P/T node shape (Body of
+# Knowledge fires BOTH halves — the live pair's parity). Relocates the two
+# deleted mirrors verbatim, gap-gated against each half's own structural
+# predicate. Measured byte-identical over the commander-legal corpus
+# (makers 57/57, matters 90/90, 0 drops, 0 adds each — the matters recall
+# includes 18 Maro-shaped ``SetDynamicPower``/``SetDynamicToughness`` CDA
+# cards NOW read structurally: the lane-local ``_DYNAMIC_PT_MODS`` name in
+# crosswalk_signals was shadowed by a LATER batch-14 redefinition — see
+# ``_WB_PT_SET_MODS``'s identical shadowing note — so these cards rode the
+# mirror exclusively pre-fold; this fold's ``_BIG_HAND_DYNAMIC_PT_MODS``
+# pins the correct Set* spellings, recovering the structural read).
+def has_structural_big_hand_makers(tree: ConceptTree) -> bool:
+    """Whether a static's mode is ``NoMaximumHandSize``/``MaximumHandSize``,
+    or a ``no_max_handsize`` effect concept exists."""
+    for unit in tree.units:
+        if unit.origin == "static":
+            mt = static_mode_tag(unit.node)
+            if mt in ("NoMaximumHandSize", "MaximumHandSize"):
+                return True
+        if unit.effect_concepts("no_max_handsize"):
+            return True
+    return False
+
+
+# Dynamic P/T modification tags (both phase spellings — Maro's
+# ``SetDynamicPower`` pair and Titania's Song's ``SetPowerDynamic`` pair):
+# the big_hand_matters CDA site. ONE pinned source the live lane
+# (crosswalk_signals) reuses byte-identically for its own inline walk.
+_BIG_HAND_DYNAMIC_PT_MODS: frozenset[str] = frozenset(
+    {
+        "SetDynamicPower",
+        "SetDynamicToughness",
+        "SetPowerDynamic",
+        "SetToughnessDynamic",
+    }
+)
+
+
+def has_structural_big_hand_matters(tree: ConceptTree) -> bool:
+    """Whether a YOUR-hand-size ``QuantityComparison`` condition (GE/GT,
+    threshold >= 4) or a hand-size-scoped dynamic-P/T modification exists."""
+    for unit in tree.units:
+        for site in iter_condition_sites(unit.node):
+            for q in iter_typed_nodes(site):
+                if tag_of(q) != "QuantityComparison":
+                    continue
+                lhs = getattr(q, "lhs", None)
+                if "you" not in hand_size_scopes(lhs):
+                    continue
+                if getattr(q, "comparator", None) not in ("GE", "GT"):
+                    continue
+                rhs = getattr(q, "rhs", None)
+                val = getattr(rhs, "value", None) if tag_of(rhs) == "Fixed" else None
+                if isinstance(val, int) and val >= 4:
+                    return True
+        for _sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) in _BIG_HAND_DYNAMIC_PT_MODS and "you" in hand_size_scopes(
+                mod
+            ):
+                return True
+    return False
+
+
+_BIG_HAND_MAKERS_SYNTH_RX = re.compile(
+    r"no maximum hand size|maximum hand size", re.IGNORECASE
+)
+_BIG_HAND_MATTERS_SYNTH_RX = re.compile(
+    r"(?:five|six|seven|eight) or more cards in (?:your )?hand"
+    r"|(?:equal to|number of) [^.]*cards in your hand",
+    re.IGNORECASE,
+)
+
+
+def _matches_big_hand_makers_idiom(oracle: str) -> bool:
+    return bool(_BIG_HAND_MAKERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _matches_big_hand_matters_idiom(oracle: str) -> bool:
+    return bool(_BIG_HAND_MATTERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_big_hand_makers(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``big_hand_makers`` node for the "maximum hand size"
+    residual (the deleted ``_BIG_HAND_MAKERS_MIRROR`` relocated, gap-gated
+    against :func:`has_structural_big_hand_makers`)."""
+    if has_structural_big_hand_makers(tree):
+        return None
+    if not _matches_big_hand_makers_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="big_hand_makers",
+        concept="synth_big_hand_makers",
+        scope="you",
+        subject=(),
+        desc="bucket-B no-max/maximum-hand-size residue (CR 402.2)",
+    )
+
+
+def _arm_big_hand_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``big_hand_matters`` node for the full-grip-reference
+    residual (the deleted ``_BIG_HAND_MATTERS_MIRROR`` relocated, gap-gated
+    against :func:`has_structural_big_hand_matters`)."""
+    if has_structural_big_hand_matters(tree):
+        return None
+    if not _matches_big_hand_matters_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="big_hand_matters",
+        concept="synth_big_hand_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B full-grip-reference residue (CR 402.2)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4892,6 +5019,8 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("per_target_payoff", _arm_per_target_payoff),
     ("unspent_mana", _arm_unspent_mana),
     ("kill_engine", _arm_kill_engine),
+    ("big_hand_makers", _arm_big_hand_makers),
+    ("big_hand_matters", _arm_big_hand_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

@@ -70,7 +70,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     filter_without_keywords,
-    hand_size_scopes,
     has_filter_property,
     is_dies_return_trigger,
     iter_condition_sites,
@@ -188,6 +187,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_arcane,
+    has_structural_big_hand_matters,
     has_structural_color_hoser,
     has_structural_counter_distribute,
     has_structural_crimes_matter,
@@ -218,8 +218,6 @@ from mtg_utils._deck_forge import signal_keys
 # (the _resolve_subject precedent) — one source, zero drift.
 from mtg_utils._deck_forge._signals_ir import (
     _ACTIVATED_ABILITY_DROP_EFFECTS,
-    _BIG_HAND_MAKERS_MIRROR,
-    _BIG_HAND_MATTERS_MIRROR,
     _CONVOKE_RAW,
     _COUNTER_KIND_KEYS,
     _FIREBEND_RE,
@@ -911,18 +909,6 @@ _LAND_SUBTYPE_WORDS: frozenset[str] = frozenset(
         "sphere",
         "tower",
         "urza's",
-    }
-)
-
-# Dynamic P/T modification tags (both phase spellings — Maro's
-# ``SetDynamicPower`` pair and Titania's Song's ``SetPowerDynamic`` pair):
-# the big_hand_matters CDA site.
-_DYNAMIC_PT_MODS: frozenset[str] = frozenset(
-    {
-        "SetDynamicPower",
-        "SetDynamicToughness",
-        "SetPowerDynamic",
-        "SetToughnessDynamic",
     }
 )
 
@@ -7546,17 +7532,24 @@ def _commander_matters(tree: ConceptTree) -> list[Signal]:
 
 
 def _big_hand_lanes(tree: ConceptTree) -> list[Signal]:
-    """big_hand_makers + big_hand_matters (§F) — CR 402.2, one shared walk:
+    """big_hand_makers + big_hand_matters (§F) — CR 402.2, one shared walk.
+    Tier-1 (ADR-0036/0037 fold — the lane-time ``_BIG_HAND_MAKERS_MIRROR`` /
+    ``_BIG_HAND_MATTERS_MIRROR`` kept-oracle reads are RETIRED):
 
-    * **makers** — the ``NoMaximumHandSize`` static mode (Reliquary Tower,
-      Kruphix) or effect node, the ``MaximumHandSize{SetTo/AdjustedBy}``
-      family (Cursed Rack, Gnat Miser, Jin-Gitaxias — live's mirror keeps
-      the REDUCERS in the lane; the parity quirk is kept and logged for a
-      future lane split), plus the byte-identical maker mirror.
-    * **matters** — a ``HandSize``-family qty operand reading YOUR hand
-      ([P5] gate — Maro's dynamic-P/T pair, Akki Underling's threshold
-      condition; an opponent-hand count is vetoed), plus the byte-identical
-      matters mirror (Body of Knowledge fires BOTH halves).
+    * **makers** — :func:`has_structural_big_hand_makers`'s walk inline
+      (the ``NoMaximumHandSize`` static mode — Reliquary Tower, Kruphix —
+      or effect node, the ``MaximumHandSize{SetTo/AdjustedBy}`` family —
+      Cursed Rack, Gnat Miser, Jin-Gitaxias — live's mirror keeps the
+      REDUCERS in the lane; the parity quirk is kept and logged for a
+      future lane split) plus the ``tree_synthesis`` stage's
+      ``synth_big_hand_makers`` node for the bucket-B "maximum hand size"
+      residual, gated against the same structural predicate.
+    * **matters** — :func:`has_structural_big_hand_matters`'s walk inline
+      (a ``HandSize``-family qty operand reading YOUR hand — [P5] gate,
+      Maro's dynamic-P/T pair, Akki Underling's threshold condition; an
+      opponent-hand count is vetoed) plus the ``tree_synthesis`` stage's
+      ``synth_big_hand_matters`` node for the bucket-B full-grip-reference
+      residual (Body of Knowledge fires BOTH halves).
 
     Both scope "you" (the live pair's identity).
     """
@@ -7568,7 +7561,6 @@ def _big_hand_lanes(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, "you", "", raw, tree.name, "high"))
 
-    kept = _kept(tree)
     for unit in tree.units:
         if unit.origin == "static":
             mt = static_mode_tag(unit.node)
@@ -7576,33 +7568,22 @@ def _big_hand_lanes(tree: ConceptTree) -> list[Signal]:
                 fire("big_hand_makers", _site_raw(unit.node))
         for c in unit.effect_concepts("no_max_handsize"):
             fire("big_hand_makers", c.raw)
-        # matters SITE gate: only a CONDITION threshold (Akki Underling)
-        # or a dynamic-P/T modification value (Maro) is a grip PAYOFF — a
-        # raw count ref ("discard your hand" = Discard{count: HandSize})
-        # is not, and the hellbent family (HandSize EQ 0 — Bloodhall
-        # Priest) is the OPPOSITE payoff, so the condition arm requires a
-        # GE/GT comparison against a full-grip bar (>= 4 — the live
-        # mirror's "five or more" family, Akki's GE 7).
-        for site in iter_condition_sites(unit.node):
-            for q in iter_typed_nodes(site):
-                if tag_of(q) != "QuantityComparison":
-                    continue
-                lhs = getattr(q, "lhs", None)
-                if "you" not in hand_size_scopes(lhs):
-                    continue
-                if getattr(q, "comparator", None) not in ("GE", "GT"):
-                    continue
-                rhs = getattr(q, "rhs", None)
-                val = getattr(rhs, "value", None) if tag_of(rhs) == "Fixed" else None
-                if isinstance(val, int) and val >= 4:
-                    fire("big_hand_matters", "")
-        for _sdef, mod in iter_mod_sites(unit.node):
-            if tag_of(mod) in _DYNAMIC_PT_MODS and "you" in hand_size_scopes(mod):
-                fire("big_hand_matters", "")
-    if _BIG_HAND_MAKERS_MIRROR.search(kept):
-        fire("big_hand_makers", "")
-    if _BIG_HAND_MATTERS_MIRROR.search(kept):
+    # matters SITE gate (:func:`has_structural_big_hand_matters` — a shared
+    # source with the ``tree_synthesis`` gap gate, ADR-0036 fold): only a
+    # CONDITION threshold (Akki Underling) or a dynamic-P/T modification
+    # value (Maro's ``SetDynamicPower``/``SetDynamicToughness`` CDA pair) is
+    # a grip PAYOFF — a raw count ref ("discard your hand" =
+    # Discard{count: HandSize}) is not, and the hellbent family (HandSize EQ
+    # 0 — Bloodhall Priest) is the OPPOSITE payoff, so the condition arm
+    # requires a GE/GT comparison against a full-grip bar (>= 4 — the live
+    # mirror's "five or more" family, Akki's GE 7).
+    if has_structural_big_hand_matters(tree):
         fire("big_hand_matters", "")
+    for c in tree.iter_concepts():
+        if c.concept == "synth_big_hand_makers":
+            fire("big_hand_makers", "")
+        elif c.concept == "synth_big_hand_matters":
+            fire("big_hand_matters", "")
     return out
 
 
