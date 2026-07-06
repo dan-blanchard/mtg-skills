@@ -88,7 +88,6 @@ from mtg_utils._card_ir.crosswalk import (
     mod_value,
     modify_cost_mode,
     modify_cost_spell_filter,
-    node_duration,
     node_lure_mode,
     permission_tag,
     player_counter_kind,
@@ -195,6 +194,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_keyword_counter,
     has_structural_outlaw,
     has_structural_proliferate,
+    has_structural_pump_makers,
     has_structural_self_counter_grow,
     has_structural_spellcast,
     has_structural_superfriends,
@@ -258,7 +258,6 @@ from mtg_utils._deck_forge._subtypes import (
 from mtg_utils._deck_forge._sweep_detectors import (
     ENTERED_ATTACKER_REGEX,
     NONCOMBAT_DAMAGE_PAYOFF_REGEX,
-    PUMP_MATTERS_REGEX,
     STATION_MATTERS_REGEX,
     STICKERS_MATTER_REGEX,
     UNSPENT_MANA_REGEX,
@@ -8135,9 +8134,8 @@ def _keyword_tribe(tree: ConceptTree) -> list[Signal]:
 
 # ── Batch-14 mirror constants + census sets ──────────────────────────────────
 
-# Compiled forms of the pinned shared regex sources (byte-identical by import;
-# the same IGNORECASE the live kept-detector loop compiles with).
-_PUMP_MAKERS_RX = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
+# (pump_makers's ``_PUMP_MAKERS_RX`` kept-mirror was ADR-0036/0037 folded to
+# Tier-1 — see ``has_structural_pump_makers`` / ``_arm_pump_makers``.)
 
 # Byte-identical copies of the INLINE (unnamed) ``_IR_KEPT_DETECTORS`` rows —
 # the _JOHAN_MIRROR precedent (no importable name exists for these).
@@ -8541,55 +8539,29 @@ def _clue_matters_lane(tree: ConceptTree) -> list[Signal]:
 
 def _pump_makers_lane(tree: ConceptTree) -> list[Signal]:
     """pump_makers (§11) — CR 611.2c: the duration-scoped combat-trick BUFF.
-    Structural arm: an effect-role ``Pump``/``PumpAll`` whose unit (or
-    trigger execute wrapper, or the node itself) carries a duration (Giant
-    Growth's ``UntilEndOfTurn`` rides the ability node — probed verbatim) +
-    a positive fixed power (``power: {Fixed, value>0}``) or a "+" in the
-    grounding raw when the amount is dynamic + the firebreathing veto (an
-    Activated unit whose Pump target is SelfRef/absent — Shivan Dragon
-    probed verbatim; ported self_pump's country). Statics never fire (no
-    duration — Glorious Anthem / Ascendant Evincar). Mirror: the pinned
-    ``PUMP_MATTERS_REGEX`` flat. Scope "you", HIGH.
+    Tier-1 (ADR-0036/0037 fold — the ``_PUMP_MAKERS_RX`` kept-mirror is
+    RETIRED):
+
+    * **Structural:** :func:`has_structural_pump_makers` — a duration-scoped
+      ``Pump``/``PumpAll`` effect with a positive fixed power OR toughness
+      (widened from power-only — Affa Guard Hound's "+0/+3"), a "+"-grounded
+      dynamic amount, or a nested ``GenericEffect``/``Continuous``-static
+      ``AddPower``/``AddToughness`` grant (Adamant Will, Cavalier of Flame's
+      team pump) — the firebreathing self-buff excluded via the
+      ``SelfRef``-affected veto (Clickslither, Shivan Dragon — self_pump's
+      country).
+    * **bucket-B synth:** the ``tree_synthesis`` stage's
+      ``synth_pump_makers`` node — the X-based/dynamic-amount residue
+      (Kessig Wolf Run's "+X/+0", Liliana of the Dark Realms's "+X/+X") with
+      no raw text to ground a positive/negative dynamic-amount tell.
+
+    Scope "you", HIGH.
     """
-    for unit in tree.units:
-        if not any(c.concept == "pump" for c in unit.effects):
-            continue
-        # The duration rides WHICHEVER wrapper phase hung the buff on — the
-        # ability node (Giant Growth), the trigger execute, or a nested
-        # sub-ability wrapper ("Untap target creature. It gets +2/+2 …" —
-        # Act of Heroism chains the Pump behind the untap). Shadow-diff-
-        # tuned: the unit-node-only draft left the nested-wrapper triggered
-        # tricks behind (PARITY-BEFORE-VETO).
-        dur_unit = any(
-            node_duration(n) is not None for n in iter_typed_nodes(unit.node)
-        )
-        for c in unit.effect_concepts("pump"):
-            if not (dur_unit or node_duration(c.node)):
-                continue
-            if unit.kind == "Activated" and tag_of(getattr(c.node, "target", None)) in (
-                None,
-                "SelfRef",
-            ):
-                continue  # the firebreathing self-pump veto
-            p = getattr(c.node, "power", None)
-            raw = c.raw or getattr(unit.node, "description", None) or ""
-            # Positive gate (shadow-diff-tuned twice): a FIXED positive
-            # amount, or a "+" grounding for a dynamic/absent amount —
-            # but a DYNAMIC amount aimed at SELF ("gets +1/+0 for each
-            # attacking creature" — Akroan Hoplite, Erratic Cyclops) is a
-            # self-scaler, not a trick buffing ANOTHER creature (live's
-            # amount-None fallback never fired those; ported self_pump /
-            # scaling_pump country).
-            dynamic_ok = "+" in raw and (
-                p is None or tag_of(getattr(c.node, "target", None)) != "SelfRef"
-            )
-            positive = (tag_of(p) == "Fixed" and (getattr(p, "value", 0) or 0) > 0) or (
-                tag_of(p) != "Fixed" and dynamic_ok
-            )
-            if positive:
-                return [Signal("pump_makers", "you", "", raw, tree.name, "high")]
-    if _PUMP_MAKERS_RX.search(_kept(tree)):
+    if has_structural_pump_makers(tree):
         return [Signal("pump_makers", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_pump_makers":
+            return [Signal("pump_makers", "you", "", "", tree.name, "high")]
     return []
 
 

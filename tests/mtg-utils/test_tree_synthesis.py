@@ -21,6 +21,14 @@ from mtg_utils._card_ir._substrate_purity import (
     l1_nodes,
 )
 from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode, ConceptTree
+from mtg_utils._card_ir.mirror.generated_types import (
+    S_static_abilities,
+    T_affected__SelfRef,
+    T_affected__Typed,
+    T_effect__GenericEffect,
+    T_modifications__AddPower,
+    T_modifications__AddToughness,
+)
 from mtg_utils._card_ir.tree_synthesis import (
     _SPELLCAST_TRIGGER_RX,
     SYNTHESIS_ARM_IDS,
@@ -32,6 +40,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_flash_matters,
     _arm_island_matters,
     _arm_manland,
+    _arm_pump_makers,
     _arm_spellcast_matters,
     _arm_suspect_matters,
     _arm_suspend_matters,
@@ -57,6 +66,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_manland,
     has_structural_outlaw,
     has_structural_proliferate,
+    has_structural_pump_makers,
     has_structural_self_counter_grow,
     has_structural_spellcast,
     has_structural_stax_taxes,
@@ -3383,3 +3393,131 @@ def test_suspect_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _suspect_matters_lane(tree)
     assert any(s.key == "suspect_matters" for s in sigs)
+
+
+# ── batch T5-niche-a: pump_makers (bucket-A widen + bucket-B tail) ─────────
+
+
+def _pump_static_tree(affected):
+    """A GenericEffect wrapping a nested Continuous static AddPower/
+    AddToughness grant — the phase shape a temporary team/targeted buff
+    ("Creatures you control get +2/+2 until end of turn") renders as,
+    distinct from a top-level Pump/PumpAll effect tag."""
+    static = S_static_abilities(
+        active_zones=[],
+        affected=affected,
+        affected_zone=None,
+        characteristic_defining=False,
+        condition=None,
+        description="get +2/+2",
+        effect_zone=None,
+        mode="Continuous",
+        modifications=[
+            T_modifications__AddPower(value=2),
+            T_modifications__AddToughness(value=2),
+        ],
+    )
+    effect = T_effect__GenericEffect(
+        duration="UntilEndOfTurn", static_abilities=[static], target=None
+    )
+    unit = AbilityUnit(
+        origin="ability",
+        index=0,
+        node=effect,
+        kind="Spell",
+        trigger_event=None,
+        effects=(
+            ConceptNode(
+                concept="other",
+                node=effect,
+                role="effect",
+                scope="each",
+                subject=(),
+                raw="",
+            ),
+        ),
+        costs=(),
+        statics=(),
+    )
+    return ConceptTree(name="X", oracle_id="x", oracle="X", units=(unit,))
+
+
+def test_pump_makers_structural_arm_giant_growth():
+    """Giant Growth's direct ``Pump`` effect (Fixed +3/+3) — the live
+    effects-role structural arm."""
+    assert has_structural_pump_makers(_fixture_tree("Giant Growth")) is True
+
+
+def test_pump_makers_bucket_a_nested_static_team_buff():
+    """A "Creatures you control get +2/+2 until end of turn"-shaped card:
+    phase renders the temporary team buff as a ``GenericEffect`` wrapping a
+    nested ``Continuous`` static (Adamant Will / Cavalier of Flame's real
+    shape) rather than a top-level ``Pump``/``PumpAll`` tag — the SAME
+    mechanic, a different phase shape (ADR-0036/0037 bucket-A widen)."""
+    tree = _pump_static_tree(
+        T_affected__Typed(controller="You", properties=[], type_filters=[])
+    )
+    assert has_structural_pump_makers(tree) is True
+
+
+def test_pump_makers_self_buff_veto_not_structural():
+    """A SelfRef-affected nested static (Clickslither / Crazed Armodon's
+    firebreathing self-buff shape) is self_pump's country, NOT
+    pump_makers."""
+    tree = _pump_static_tree(T_affected__SelfRef())
+    assert has_structural_pump_makers(tree) is False
+
+
+def test_pump_makers_no_fire_on_unrelated_card():
+    assert has_structural_pump_makers(_fixture_tree("Llanowar Elves")) is False
+    assert _arm_pump_makers(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_pump_makers_bucket_b_synth_dynamic_amount_residue():
+    """Kessig Wolf Run-shaped "Target creature gets +X/+0 … until end of
+    turn" — a dynamic/X amount with no raw text to ground a positive/
+    negative tell; the deleted ``PUMP_MATTERS_REGEX`` kept-mirror relocated,
+    gap-gated against :func:`has_structural_pump_makers`."""
+    tree = ConceptTree(
+        name="X",
+        oracle_id="x",
+        oracle="{X}{R}{G}: Target creature gets +X/+0 and gains trample "
+        "until end of turn.",
+        units=(),
+    )
+    assert has_structural_pump_makers(tree) is False
+    node = _arm_pump_makers(tree)
+    assert node is not None
+    assert node.concept == "synth_pump_makers"
+
+
+def test_pump_makers_synth_registered():
+    assert "pump_makers" in SYNTHESIS_ARM_IDS
+
+
+def test_pump_makers_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _pump_makers_lane
+
+    synth = ConceptNode(
+        concept="synth_pump_makers",
+        node=SynthesizedNode(arm_id="pump_makers", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _pump_makers_lane(tree)
+    assert any(s.key == "pump_makers" for s in sigs)

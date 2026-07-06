@@ -77,6 +77,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_typed_nodes,
     modify_cost_mode,
+    node_duration,
     replacement_event_tag,
     settap_state,
     static_mode_field,
@@ -130,6 +131,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COLOR_CHANGE_REGEX,
     ISLAND_MATTERS_REGEX,
     KEYWORD_COUNTER_REGEX,
+    PUMP_MATTERS_REGEX,
     VEHICLES_MATTER_REGEX,
 )
 
@@ -158,6 +160,7 @@ __all__ = [
     "has_structural_crimes_matter",
     "has_structural_curse_matters",
     "has_structural_outlaw",
+    "has_structural_pump_makers",
     "has_structural_spellcast",
     "has_structural_stax_taxes",
     "has_structural_superfriends",
@@ -4181,6 +4184,121 @@ def _arm_suspect_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T5-niche-a: pump_makers (bucket-A widen + bucket-B tail) ──────────
+# CR 611.2c: the duration-scoped combat-trick BUFF. Two bucket-A widenings over
+# the live effect-role ``Pump``/``PumpAll`` arm PLUS one bucket-B residue arm
+# (the deleted ``PUMP_MATTERS_REGEX`` kept-mirror relocated), together closing
+# the mirror-only gap from 344 -> 0 cards (measured, commander-legal corpus):
+#
+# (a) the FIXED positive gate widens to ALSO accept a positive ``toughness``
+#     value (not power alone) — a "+0/+3" trick (Affa Guard Hound) is still a
+#     genuine buff; checking power only silently dropped every +0/+N card.
+# (b) phase frequently renders a temporary team/targeted buff as a
+#     ``GenericEffect`` wrapping a nested ``Continuous`` static whose
+#     ``modifications`` carry ``AddPower``/``AddToughness`` (Adamant Will,
+#     Cavalier of Flame's "Creatures you control get +1/+0…") rather than a
+#     top-level ``Pump``/``PumpAll`` effect tag — the SAME mechanic, a
+#     different phase shape. Gated the SAME way: the unit (or a nested
+#     wrapper) must carry a duration, and a static whose ``affected`` is
+#     ``SelfRef`` is the firebreathing/self-buff veto (Clickslither,
+#     Crazed Armodon — self_pump's country, not this lane); a
+#     ``ParentTarget`` (the ability's own external target — Ajani Steadfast)
+#     or a direct ``Typed`` filter (a "creatures you control" mass buff) both
+#     count. Positive-value gate mirrors (a).
+#
+# The residual 77-card tail (X-based dynamic amounts with no raw text to
+# ground a "+" check — Kessig Wolf Run's "+X/+0", Liliana of the Dark
+# Realms's "+X/+X", Onward's "+X/+0 where X is its power") has no clean
+# structural amount read (phase's dynamic ``power``/``toughness`` carries no
+# positive/negative tell); relocated verbatim as the bucket-B tail, gap-gated
+# against (a)+(b) — genuinely new fires from (a)/(b) all carry an explicit
+# "until end of turn"/"end of combat" duration phrase (probed: 0 exceptions
+# over the commander-legal corpus), so this stays additive, not a widen-risk.
+def _pump_fixed_value(node: object) -> int | None:
+    return getattr(node, "value", 0) or 0 if tag_of(node) == "Fixed" else None
+
+
+def has_structural_pump_makers(tree: ConceptTree) -> bool:
+    """A duration-scoped ``Pump``/``PumpAll`` effect with a positive fixed
+    power OR toughness (widened from power-only), a "+"-grounded dynamic
+    amount, OR a nested ``GenericEffect``/``Continuous``-static
+    ``AddPower``/``AddToughness`` grant (the firebreathing self-buff
+    excluded via the ``SelfRef``-affected veto)."""
+    for unit in tree.units:
+        if any(c.concept == "pump" for c in unit.effects):
+            dur_unit = any(
+                node_duration(n) is not None for n in iter_typed_nodes(unit.node)
+            )
+            for c in unit.effect_concepts("pump"):
+                if not (dur_unit or node_duration(c.node)):
+                    continue
+                target_tag = tag_of(getattr(c.node, "target", None))
+                if unit.kind == "Activated" and target_tag in (None, "SelfRef"):
+                    continue  # firebreathing self-pump veto
+                p = getattr(c.node, "power", None)
+                t = getattr(c.node, "toughness", None)
+                raw = c.raw or getattr(unit.node, "description", None) or ""
+                pv, tv = _pump_fixed_value(p), _pump_fixed_value(t)
+                has_plus = "+" in raw and target_tag != "SelfRef"
+                # Power and toughness are gated INDEPENDENTLY (widened from
+                # power-only): a Fixed amount decides on its OWN sign, a
+                # dynamic/absent amount falls back to the shared "+"-grounded
+                # tell — so a dynamic power + Fixed-zero toughness ("+1/+0"
+                # scaling, Asari Captain) fires off power alone, and a
+                # Fixed-zero power + Fixed toughness ("+0/+3", Affa Guard
+                # Hound) fires off toughness alone.
+                power_ok = (pv is not None and pv > 0) or (pv is None and has_plus)
+                tough_ok = (tv is not None and tv > 0) or (tv is None and has_plus)
+                if power_ok or tough_ok:
+                    return True
+        dur_unit = any(
+            node_duration(n) is not None for n in iter_typed_nodes(unit.node)
+        )
+        if not dur_unit:
+            continue
+        for node in iter_typed_nodes(unit.node):
+            if tag_of(node) != "GenericEffect":
+                continue
+            for st in getattr(node, "static_abilities", None) or ():
+                if tag_of(getattr(st, "affected", None)) == "SelfRef":
+                    continue  # firebreathing / self-buff veto
+                mods = getattr(st, "modifications", None) or ()
+                vals = (
+                    getattr(m, "value", None)
+                    for m in mods
+                    if tag_of(m) in ("AddPower", "AddToughness")
+                )
+                if any(isinstance(v, int) and v > 0 for v in vals):
+                    return True
+    return False
+
+
+_PUMP_MAKERS_SYNTH_RX = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
+
+
+def _matches_pump_makers_idiom(oracle: str) -> bool:
+    return bool(_PUMP_MAKERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_pump_makers(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``pump_makers`` node for the X-based/dynamic-amount
+    residue (the deleted ``PUMP_MATTERS_REGEX`` kept-mirror relocated,
+    gap-gated against :func:`has_structural_pump_makers` — Kessig Wolf
+    Run's "+X/+0", Liliana of the Dark Realms's "+X/+X", no raw text to
+    ground a positive/negative dynamic-amount tell)."""
+    if has_structural_pump_makers(tree):
+        return None
+    if not _matches_pump_makers_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="pump_makers",
+        concept="synth_pump_makers",
+        scope="you",
+        subject=(),
+        desc="bucket-B dynamic/X-amount combat-trick residue (CR 611.2c)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4228,6 +4346,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("flash_matters", _arm_flash_matters),
     ("crimes_matter", _arm_crimes_matter),
     ("suspect_matters", _arm_suspect_matters),
+    ("pump_makers", _arm_pump_makers),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
