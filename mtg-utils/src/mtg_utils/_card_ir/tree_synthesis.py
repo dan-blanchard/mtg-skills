@@ -108,6 +108,10 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 # keyword-less crime-condition anchor) and ``_SUSPECT_REF`` (the suspect
 # verb/state marker) — the same single-source pattern, one copy each.
 from mtg_utils._card_ir.project import (
+    _CANT_BLOCK_GRANT_QUOTE,
+    _CANT_BLOCK_MODAL_BULLET,
+    _CANT_BLOCK_REF,
+    _CANT_BLOCK_TAX,
     _CASCADE_GRANT,
     _CHANGELING_REF,
     _CRIME_REF,
@@ -4757,6 +4761,103 @@ def _arm_opponent_counter_grant(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+# ── arm: cant_block_grant residue (ADR-0036/0037 Stage 5, T9-finalize) ────────
+# CR 509.1b + 101.2: forcing blockers off clears an attack path. The typed
+# structural gate (:func:`has_structural_cant_block_grant`) — a ``CantBlock``
+# static def (top-level or nested under a spell's GenericEffect), gated to
+# the themeable affected shapes, minus the Pacifism single-target-removal
+# shape — covers most members. The two residual marker passes phase drops
+# the grant for ENTIRELY (no typed CantBlock static at all) are relocated
+# verbatim: (1) a per-unit node-scoped scan of the unit's own
+# ``description``/concept raws (make_token units excluded — a created
+# token's own drawback is not a grant; a multi-ability card's SILENT
+# top-level SelfRef static excluded — no carrier raw survives), and (2) a
+# whole-oracle scan for the dropped-static modal-bullet / quoted-grant
+# segments.
+_PACIFY_SIBLING_MODES: frozenset[str] = frozenset({"CantAttack", "CantAttackOrBlock"})
+_CANT_BLOCK_THEMEABLE: frozenset[str] = frozenset({"Typed", "ParentTarget"})
+
+
+def has_structural_cant_block_grant(tree: ConceptTree) -> bool:
+    """A ``CantBlock``-mode static def with a themeable affected shape,
+    minus the Pacifism single-target-removal sibling shape — the lane's
+    ONLY pure-typed-field read; the two marker passes always require a
+    text scan, so they are NOT included here (:func:`_arm_cant_block_grant`
+    is the lane's sole source for those)."""
+    ca_dicts = [
+        aff.to_dict()
+        for u in tree.units
+        if u.origin == "static" and static_mode_tag(u.node) in _PACIFY_SIBLING_MODES
+        for aff in (getattr(u.node, "affected", None),)
+        if isinstance(aff, TypedMirrorNode)
+    ]
+    for unit in tree.units:
+        for sdef in iter_static_defs(unit.node):
+            if static_mode_tag(sdef) != "CantBlock":
+                continue
+            aff = getattr(sdef, "affected", None)
+            if tag_of(aff) not in _CANT_BLOCK_THEMEABLE:
+                continue
+            single = bool(set(filter_predicates(aff)) & _PACIFY_PREDS)
+            if (
+                unit.origin == "static"
+                and single
+                and isinstance(aff, TypedMirrorNode)
+                and aff.to_dict() in ca_dicts
+            ):
+                continue
+            return True
+    return False
+
+
+def _arm_cant_block_grant(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``cant_block_grant`` node for the two marker-pass
+    residues (the deleted per-unit raw scan + whole-oracle modal-bullet/
+    quote scan relocated verbatim), gap-gated against
+    :func:`has_structural_cant_block_grant`."""
+    if has_structural_cant_block_grant(tree):
+        return None
+    for unit in tree.units:
+        if unit.has_effect("make_token"):
+            continue
+        if (
+            unit.origin == "static"
+            and len(tree.units) > 1
+            and any(
+                static_mode_tag(sd) == "CantBlock"
+                and tag_of(getattr(sd, "affected", None)) == "SelfRef"
+                for sd in iter_static_defs(unit.node)
+            )
+        ):
+            continue
+        raws = [getattr(unit.node, "description", None) or ""] + [
+            c.raw for c in unit.iter_concepts() if c.raw
+        ]
+        for raw in raws:
+            if _CANT_BLOCK_REF.search(raw) and not _CANT_BLOCK_TAX.search(raw):
+                return _synthetic_concept(
+                    arm_id="cant_block_grant",
+                    concept="synth_cant_block_grant",
+                    scope="you",
+                    subject=(),
+                    desc="bucket-B per-unit raw cant-block grant residue (CR 509.1b)",
+                )
+    kept = _REMINDER.sub(" ", tree.oracle or "")
+    for pat in (_CANT_BLOCK_MODAL_BULLET, _CANT_BLOCK_GRANT_QUOTE):
+        for m in pat.finditer(kept):
+            seg = m.group(0)
+            if _CANT_BLOCK_REF.search(seg) and not _CANT_BLOCK_TAX.search(seg):
+                return _synthetic_concept(
+                    arm_id="cant_block_grant",
+                    concept="synth_cant_block_grant",
+                    scope="you",
+                    subject=(),
+                    desc="bucket-B dropped-static modal/quote cant-block "
+                    "residue (CR 509.1b)",
+                )
+    return None
+
+
 def has_structural_color_hoser(tree: ConceptTree) -> bool:
     """A Destroy/Counter/mass-Destroy/mass-Exile/mass-Bounce effect whose
     target (or, for Counter, an ``And``-composite member) directly names a
@@ -6000,6 +6101,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("b13_raw_anchor", _arm_b13_raw_anchor),
     ("b13_node_anchor", _arm_b13_node_anchor),
     ("opponent_counter_grant", _arm_opponent_counter_grant),
+    ("cant_block_grant", _arm_cant_block_grant),
     ("void_warp_makers", _arm_void_warp_makers),
     ("sacrifice_protection", _arm_sacrifice_protection),
     ("life_payment_insurance", _arm_life_payment_insurance),

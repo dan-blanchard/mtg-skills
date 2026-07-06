@@ -56,6 +56,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_b13_raw_anchor,
     _arm_big_hand_makers,
     _arm_big_hand_matters,
+    _arm_cant_block_grant,
     _arm_clue_matters,
     _arm_color_change,
     _arm_color_hoser,
@@ -104,6 +105,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_arcane,
     has_structural_big_hand_makers,
     has_structural_big_hand_matters,
+    has_structural_cant_block_grant,
     has_structural_clue_matters,
     has_structural_color_hoser,
     has_structural_counter_distribute,
@@ -5058,3 +5060,69 @@ def test_opponent_counter_grant_no_fire_on_wrong_direction_or_self_stun():
     co-tap) — neither fires."""
     assert _arm_opponent_counter_grant(_fixture_tree("Hunter of Eyeblights")) is None
     assert _arm_opponent_counter_grant(_fixture_tree("Pugnacious Hammerskull")) is None
+
+
+# ── batch T9-finalize: GLOBAL FINALIZE, cant_block_grant ────────────────────
+
+
+def test_cant_block_grant_synth_registered():
+    assert "cant_block_grant" in SYNTHESIS_ARM_IDS
+
+
+def test_cant_block_grant_fires_on_sole_static_raw_residue():
+    """Immortal Obligation-shaped: a SOLE static ability whose own
+    ``description`` carries the full face text (the projection's
+    ``_fill_sole_empty``) — "that creature ... can't block creatures you
+    control" matches the per-unit raw marker with no typed CantBlock
+    static anywhere (``modifications=[]``); real oracle text built by
+    hand since the card is not in the committed crosswalk fixture."""
+    unit = AbilityUnit(
+        origin="static",
+        index=0,
+        node=S_static_abilities(
+            active_zones=[],
+            affected=None,
+            affected_zone=None,
+            characteristic_defining=False,
+            condition=None,
+            description=(
+                "Return target creature card from an opponent's graveyard"
+                " to the battlefield under their control with a duty"
+                " counter on it. For as long as that creature has a duty"
+                " counter on it, it is goaded, can't attack you or a"
+                " permanent you control, and can't block creatures you"
+                " control."
+            ),
+            effect_zone=None,
+            mode="Unrecognized",
+            modifications=[],
+        ),
+        kind="static",
+        trigger_event=None,
+        effects=(),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="Immortal Obligation", oracle_id="x", oracle="x", units=(unit,)
+    )
+    assert not has_structural_cant_block_grant(tree)
+    node = _arm_cant_block_grant(tree)
+    assert node is not None
+    assert node.concept == "synth_cant_block_grant"
+
+
+def test_cant_block_grant_gap_gated_when_structural_present():
+    """Blindblast's typed CantBlock static is directly parsed — the
+    residue arm must not double-fire."""
+    tree = _fixture_tree("Blindblast")
+    assert has_structural_cant_block_grant(tree)
+    assert _arm_cant_block_grant(tree) is None
+
+
+def test_cant_block_grant_no_fire_on_self_drawback_or_pacify_shape():
+    """Arco-Flagellant's SELF-drawback (SelfRef affected) and Pacifism's
+    split CantAttack+CantBlock pacify shape (single-target removal, not a
+    grant) never fire."""
+    assert _arm_cant_block_grant(_fixture_tree("Arco-Flagellant")) is None
+    assert _arm_cant_block_grant(_fixture_tree("Pacifism")) is None

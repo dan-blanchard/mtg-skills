@@ -134,10 +134,6 @@ from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 # sources.
 from mtg_utils._card_ir.project import (
     _BECOMES_TARGET_SRC_OPP,
-    _CANT_BLOCK_GRANT_QUOTE,
-    _CANT_BLOCK_MODAL_BULLET,
-    _CANT_BLOCK_REF,
-    _CANT_BLOCK_TAX,
     _EXHAUST_TRIG,
     _LIB_SEARCH_PLAYER_ACTIONS,
     _SINGLE_PERMANENT_GRANT_PREDS,
@@ -153,7 +149,6 @@ from mtg_utils._card_ir.project import (
 # creature-death state check and the ``CreatureDying`` trigger-doubler.
 from mtg_utils._card_ir.tree_synthesis import (
     _KILL_ONESHOT_EVENTS,
-    _PACIFY_PREDS,
     _double_triggers_creature_dying,
     _is_creature_death_subject,
     _is_death_payoff_effect,
@@ -172,6 +167,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_selfloss_engine,
     has_structural_arcane,
     has_structural_big_hand_matters,
+    has_structural_cant_block_grant,
     has_structural_color_hoser,
     has_structural_counter_distribute,
     has_structural_crimes_matter,
@@ -8802,17 +8798,10 @@ _STATION_SUBTYPES: frozenset[str] = frozenset({"Spacecraft", "Planet"})
 
 # (suspect_matters was ADR-0036/0037 folded to a bucket-B ``tree_synthesis``
 # arm; see ``_arm_suspect_matters``. The suspect verb/state discriminators
-# — CR 701.60a/701.60b — now live there.)
-
-# cant_block pacify-sibling modes (CR 509.1b vs the Pacifism shape): v0.9.0
-# splits ``CantAttackOrBlock`` into siblings; a CantBlock over the SAME
-# single-attached subject as a cant-attack sibling is single-target removal.
-_PACIFY_SIBLING_MODES: frozenset[str] = frozenset({"CantAttack", "CantAttackOrBlock"})
-
-# The projection's themeable affected shapes for the CantBlock static arm
-# (project :4537-4549): a SelfRef affected (Arco-Flagellant's own drawback)
-# is NOT a grant.
-_CANT_BLOCK_THEMEABLE: frozenset[str] = frozenset({"Typed", "ParentTarget"})
+# — CR 701.60a/701.60b — now live there. cant_block_grant was T9-finalize
+# folded the same way; ``_PACIFY_SIBLING_MODES`` / ``_CANT_BLOCK_THEMEABLE``
+# now live in ``tree_synthesis.py`` alongside ``has_structural_cant_block_
+# grant``.)
 
 # global_ability_grant QUOTED-grant modification tags (CR 113.3 / 613.1f).
 _GRANT_ABILITY_MOD_TAGS: frozenset[str] = frozenset(
@@ -9096,83 +9085,29 @@ def _evasion_self(tree: ConceptTree) -> list[Signal]:
 
 def _cant_block_grant(tree: ConceptTree) -> list[Signal]:
     """cant_block_grant (§4) — CR 509.1b + 101.2: forcing blockers off
-    clears an attack path. Structural arm: a ``CantBlock``-mode static def
-    (top-level or nested under a spell's GenericEffect — Blindblast's
-    ``ParentTarget``), gated to the projection's themeable affected shapes
-    (:data:`_CANT_BLOCK_THEMEABLE` — a SelfRef affected is the
+    clears an attack path. Tier-1 (ADR-0036/0037 Stage 5 T9-finalize fold
+    — both marker passes are RETIRED to a gap-gated bucket-B synth arm).
+    Structural: a ``CantBlock``-mode static def (top-level or nested under
+    a spell's GenericEffect — Blindblast's ``ParentTarget``), gated to the
+    projection's themeable affected shapes (a SelfRef affected is the
     Arco-Flagellant SELF-drawback, pop False), minus the pacify shape (a
     single-attached CantBlock whose cant-attack SIBLING covers the SAME
     affected — Pacifism's split statics are single-target removal, the
     project :2325-2374 suppression). Symmetric table statics (Bedlam) ARE
-    members — no opponent-only scope gate. Marker arms (the modal/quoted
-    tail phase drops): the SAME ``_CANT_BLOCK_REF``/``_CANT_BLOCK_TAX``
-    anchors over unit raws (make_token units excluded — a created token's
-    own "can't block" drawback is not a grant, project's
-    ``_CANT_BLOCK_CARRIERS``) and the dropped-static modal-bullet /
-    grant-quote segments over the kept oracle. Scope "you", HIGH (the lane
-    sits in ``_VOLTRON_HAS_OTHER_PLAN_COMPAT`` — a signals.py concern the
-    port does not touch).
+    members — no opponent-only scope gate. The ``synth_cant_block_grant``
+    node (:func:`_arm_cant_block_grant`) covers the two marker passes phase
+    drops the grant for ENTIRELY: a per-unit raw scan (make_token units
+    excluded — a created token's own "can't block" drawback is not a
+    grant, project's ``_CANT_BLOCK_CARRIERS``) and the dropped-static
+    modal-bullet / grant-quote segments over the whole oracle. Scope
+    "you", HIGH (the lane sits in ``_VOLTRON_HAS_OTHER_PLAN_COMPAT`` — a
+    signals.py concern the port does not touch).
     """
-    ca_dicts = [
-        aff.to_dict()
-        for u in tree.units
-        if u.origin == "static" and static_mode_tag(u.node) in _PACIFY_SIBLING_MODES
-        for aff in (getattr(u.node, "affected", None),)
-        if isinstance(aff, TypedMirrorNode)
-    ]
-    for unit in tree.units:
-        for sdef in iter_static_defs(unit.node):
-            if static_mode_tag(sdef) != "CantBlock":
-                continue
-            aff = getattr(sdef, "affected", None)
-            if tag_of(aff) not in _CANT_BLOCK_THEMEABLE:
-                continue
-            single = bool(set(filter_predicates(aff)) & _PACIFY_PREDS)
-            if (
-                unit.origin == "static"
-                and single
-                and isinstance(aff, TypedMirrorNode)
-                and aff.to_dict() in ca_dicts
-            ):
-                # The Pacifism split-static pacify shape — TOP-LEVEL statics
-                # only, matching project's suppression scope (Manacles of
-                # Decay's activated "can't block this turn" over the same
-                # enchanted subject KEEPS firing — a live member).
-                continue
-            raw = getattr(sdef, "description", None) or ""
-            return [Signal("cant_block_grant", "you", "", raw, tree.name, "high")]
-    for unit in tree.units:
-        if unit.has_effect("make_token"):
-            continue
-        # A multi-ability card's TOP-LEVEL SelfRef CantBlock static (the
-        # Hobble/Ironclaw Curse/Kirtar's Desire/Spectral Grasp aura riders)
-        # projects SILENT — no effect, no carrier raw for the live marker
-        # to scan (shadow-diff-tuned, 4 over-fires). A SOLE static parse of
-        # a whole spell keeps the face text as its raw (the projection's
-        # _fill_sole_empty), so it IS scanned (Immortal Obligation — a
-        # live member).
-        if (
-            unit.origin == "static"
-            and len(tree.units) > 1
-            and any(
-                static_mode_tag(sd) == "CantBlock"
-                and tag_of(getattr(sd, "affected", None)) == "SelfRef"
-                for sd in iter_static_defs(unit.node)
-            )
-        ):
-            continue
-        raws = [getattr(unit.node, "description", None) or ""] + [
-            c.raw for c in unit.iter_concepts() if c.raw
-        ]
-        for raw in raws:
-            if _CANT_BLOCK_REF.search(raw) and not _CANT_BLOCK_TAX.search(raw):
-                return [Signal("cant_block_grant", "you", "", raw, tree.name, "high")]
-    kept = _kept(tree)
-    for pat in (_CANT_BLOCK_MODAL_BULLET, _CANT_BLOCK_GRANT_QUOTE):
-        for m in pat.finditer(kept):
-            seg = m.group(0)
-            if _CANT_BLOCK_REF.search(seg) and not _CANT_BLOCK_TAX.search(seg):
-                return [Signal("cant_block_grant", "you", "", seg, tree.name, "high")]
+    if has_structural_cant_block_grant(tree):
+        return [Signal("cant_block_grant", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_cant_block_grant":
+            return [Signal("cant_block_grant", "you", "", "", tree.name, "high")]
     return []
 
 
