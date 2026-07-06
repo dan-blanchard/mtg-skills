@@ -61,8 +61,11 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_flash_matters,
     _arm_island_matters,
     _arm_kill_engine,
+    _arm_legend_rule_off,
+    _arm_lessons_matter,
     _arm_life_payment_insurance,
     _arm_manland,
+    _arm_miracle_grant,
     _arm_noncombat_damage_payoff,
     _arm_opponent_exile_matters,
     _arm_per_target_payoff,
@@ -70,10 +73,12 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_pump_makers,
     _arm_sacrifice_protection,
     _arm_self_power_scale,
+    _arm_snow_matters,
     _arm_spellcast_matters,
     _arm_station_matters,
     _arm_suspect_matters,
     _arm_suspend_matters,
+    _arm_targeting_matters,
     _arm_token_subtype_own_ref,
     _arm_unspent_mana,
     _arm_vehicles_matter,
@@ -101,12 +106,16 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_firebending_grant,
     has_structural_keyword_counter,
     has_structural_kill_engine,
+    has_structural_legend_rule_off,
+    has_structural_lessons_matter,
     has_structural_life_payment_insurance,
     has_structural_manland,
+    has_structural_miracle_grant,
     has_structural_outlaw,
     has_structural_proliferate,
     has_structural_pump_makers,
     has_structural_self_counter_grow,
+    has_structural_snow_matters,
     has_structural_spellcast,
     has_structural_station_charge,
     has_structural_station_reference,
@@ -114,6 +123,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_superfriends,
     has_structural_suspend_matters,
     has_structural_symmetric_stax,
+    has_structural_targeting_matters,
     has_structural_theft_makers,
     has_structural_tutor,
     has_structural_unspent_mana,
@@ -4713,3 +4723,163 @@ def test_token_subtype_own_ref_no_fire_on_pure_maker():
 
 def test_token_subtype_own_ref_no_fire_on_unrelated_card():
     assert _arm_token_subtype_own_ref(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_legend_rule_off_synth_registered():
+    assert "legend_rule_off" in SYNTHESIS_ARM_IDS
+
+
+def test_legend_rule_off_fires_on_brothers_yamazaki():
+    """Brothers Yamazaki's bounded "the 'legend rule' doesn't apply"
+    residue (CR 704.5j) — phase keeps only their +2/+2 static, so the
+    condition text itself is the only surviving tell."""
+    tree = _fixture_tree("Brothers Yamazaki")
+    node = _arm_legend_rule_off(tree)
+    assert node is not None
+    assert node.concept == "synth_legend_rule_off"
+
+
+def test_legend_rule_off_gap_gated_when_structural_present():
+    """Mirror Gallery's LegendRuleDoesntApply static mode is typed
+    directly — the residue arm must not double-fire."""
+    tree = _fixture_tree("Mirror Gallery")
+    assert has_structural_legend_rule_off(tree)
+    assert _arm_legend_rule_off(tree) is None
+
+
+def test_legend_rule_off_no_fire_on_unrelated_card():
+    assert _arm_legend_rule_off(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_lessons_matter_synth_registered():
+    assert "lessons_matter" in SYNTHESIS_ARM_IDS
+
+
+def test_lessons_matter_fires_on_twenty_lessons():
+    """Twenty Lessons's "Cast a random Lesson spell" — the bare "lesson"
+    word residue (CR 701.48) — no typed Lesson-subtype filter on the card
+    itself."""
+    tree = _fixture_tree("Twenty Lessons")
+    node = _arm_lessons_matter(tree)
+    assert node is not None
+    assert node.concept == "synth_lessons_matter"
+
+
+def test_lessons_matter_gap_gated_when_structural_present():
+    """Uncle Iroh's {"Subtype": "Lesson"} cost-reducer filter is typed
+    directly — the residue arm must not double-fire."""
+    tree = _fixture_tree("Uncle Iroh")
+    assert has_structural_lessons_matter(tree)
+    assert _arm_lessons_matter(tree) is None
+
+
+def test_lessons_matter_no_fire_on_unrelated_card():
+    assert _arm_lessons_matter(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_miracle_grant_synth_registered():
+    assert "miracle_grant" in SYNTHESIS_ARM_IDS
+
+
+def test_miracle_grant_fires_on_folded_grant_residue():
+    """Topdeck the Halls's "Decorated cards in your hand have miracle {S}"
+    — the folded-grant residue (CR 702.94) real oracle text, built by hand
+    since the card is not in the committed crosswalk fixture (it predates
+    v0.9.0's own parse of this exact grant shape in some builds)."""
+    tree = ConceptTree(
+        name="Topdeck the Halls",
+        oracle_id="x",
+        oracle=(
+            "Decorated cards in your hand have miracle {S}. (Decorated"
+            " cards include premiums, promos, and cards with alternate"
+            " frames or art.)\nAt the beginning of your upkeep, if you"
+            " control twelve or more decorated permanents, you win the"
+            " game."
+        ),
+    )
+    node = _arm_miracle_grant(tree)
+    assert node is not None
+    assert node.concept == "synth_miracle_grant"
+
+
+def test_miracle_grant_gap_gated_when_structural_present():
+    """Aminatou, Veil Piercer's AddKeyword{Miracle} grant is typed
+    directly — the residue arm must not double-fire."""
+    tree = _fixture_tree("Aminatou, Veil Piercer")
+    assert has_structural_miracle_grant(tree)
+    assert _arm_miracle_grant(tree) is None
+
+
+def test_miracle_grant_no_fire_on_intrinsic_bearer():
+    """Bonfire of the Damned's own "Miracle {cost}" keyword line is an
+    intrinsic BEARER, not a grant — must never fire."""
+    assert _arm_miracle_grant(_fixture_tree("Bonfire of the Damned")) is None
+
+
+def test_snow_matters_synth_registered():
+    assert "snow_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_snow_matters_fires_on_draugr_necromancer():
+    """Draugr Necromancer's "spend mana from snow sources" — the bare
+    "snow" word residue (CR 205.4), real oracle text built by hand (not in
+    the committed crosswalk fixture): no typed HasSupertype:Snow filter or
+    YouControlSnowPermanentCountAtLeast condition anywhere on the card, so
+    the residue mirror is the sole producer."""
+    tree = ConceptTree(
+        name="Draugr Necromancer",
+        oracle_id="x",
+        oracle=(
+            "If a nontoken creature an opponent controls would die, exile"
+            " that card with an ice counter on it instead.\nYou may cast"
+            " spells from among cards in exile your opponents own with"
+            " ice counters on them, and you may spend mana from snow"
+            " sources as though it were mana of any color to cast those"
+            " spells."
+        ),
+    )
+    node = _arm_snow_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_snow_matters"
+
+
+def test_snow_matters_gap_gated_when_structural_present():
+    """Rimewind Taskmage's YouControlSnowPermanentCountAtLeast condition is
+    typed directly — the residue arm must not double-fire."""
+    tree = _fixture_tree("Rimewind Taskmage")
+    assert has_structural_snow_matters(tree)
+    assert _arm_snow_matters(tree) is None
+
+
+def test_snow_matters_no_fire_on_unrelated_card():
+    assert _arm_snow_matters(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_targeting_matters_synth_registered():
+    assert "targeting_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_targeting_matters_fires_on_akroan_crusader():
+    """Akroan Crusader's Heroic ability word — "whenever you cast a spell
+    that targets this creature" — phase emits no native becomes_target
+    trigger for the ability-word form (CR 207.2c), the granted/quoted/
+    heroic residue."""
+    tree = _fixture_tree("Akroan Crusader")
+    node = _arm_targeting_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_targeting_matters"
+    assert node.scope == "any"
+
+
+def test_targeting_matters_gap_gated_when_structural_present():
+    """Willbreaker carries a native becomes_target trigger unit directly —
+    the residue arm must not double-fire."""
+    tree = _fixture_tree("Willbreaker")
+    assert has_structural_targeting_matters(tree)
+    assert _arm_targeting_matters(tree) is None
+
+
+def test_targeting_matters_no_fire_on_unrelated_card():
+    """Murder targets a permanent as a removal SPELL — not a becomes-target
+    payoff."""
+    assert _arm_targeting_matters(_fixture_tree("Murder")) is None

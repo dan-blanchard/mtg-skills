@@ -5481,6 +5481,166 @@ def _arm_station_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── T9-finalize bucket-B: 5 sweep-closeout structural+residue UNION folds ─────
+# Each of these five lanes was already a Tier-1 structural read UNION a
+# byte-identical residue mirror; T9-finalize relocates the residue mirror
+# into a gap-gated synth arm so the union itself becomes lane-time-text-free.
+
+_LEGEND_RULE_OFF_SYNTH_RX = re.compile(
+    r"the .legend rule. doesn't apply", re.IGNORECASE
+)
+_LESSONS_SYNTH_RX = re.compile(r"\blessons?\b", re.IGNORECASE)
+_MIRACLE_GRANT_SYNTH_RX = re.compile(
+    r"(?:cards?|spells?) (?:in your hand )?ha(?:s|ve) miracle", re.IGNORECASE
+)
+_SNOW_SYNTH_RX = re.compile(r"\bsnow\b", re.IGNORECASE)
+_TARGETING_RESIDUE_SYNTH_RX = re.compile(
+    r"becomes the target of a spell or ability"
+    r"|whenever [^.]{0,60}?becomes? the target of|\bheroic\b"
+    r"|whenever you cast (?:an instant or sorcery spell |a spell )?"
+    r"that targets",
+    re.IGNORECASE,
+)
+
+
+def has_structural_legend_rule_off(tree: ConceptTree) -> bool:
+    """CR 704.5j: a ``LegendRuleDoesntApply`` static mode phase types
+    directly (the unbounded AND the Cadric-style bounded forms)."""
+    return any(
+        unit.origin == "static"
+        and static_mode_tag(unit.node) == "LegendRuleDoesntApply"
+        for unit in tree.units
+    )
+
+
+def _arm_legend_rule_off(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``legend_rule_off`` node for the 4-card residue phase
+    keeps textual (the Yamazaki family, Syr Joshua/Syr Saxon, The Herald
+    of Numot) — the deleted ``_LEGEND_RULE_OFF_RX`` mirror relocated
+    verbatim, gap-gated against :func:`has_structural_legend_rule_off`."""
+    if has_structural_legend_rule_off(tree):
+        return None
+    if not _LEGEND_RULE_OFF_SYNTH_RX.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="legend_rule_off",
+        concept="synth_legend_rule_off",
+        scope="you",
+        subject=(),
+        desc="bucket-B legend-rule-off residue (CR 704.5j)",
+    )
+
+
+def has_structural_lessons_matter(tree: ConceptTree) -> bool:
+    """CR 701.48: a ``{"Subtype": "Lesson"}`` filter anywhere on the card
+    (Uncle Iroh's ModifyCost spell_filter, Aang's state-check)."""
+    for unit in tree.units:
+        for node in iter_typed_nodes(unit.node):
+            if any(s.lower() == "lesson" for s in filter_subtypes(node)):
+                return True
+    return False
+
+
+def _arm_lessons_matter(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``lessons_matter`` node for the 7-card bare "lesson(s)"
+    word residue (Twenty Lessons, …) — the deleted ``_LESSONS_RX`` mirror
+    relocated verbatim, gap-gated against
+    :func:`has_structural_lessons_matter`."""
+    if has_structural_lessons_matter(tree):
+        return None
+    if not _LESSONS_SYNTH_RX.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="lessons_matter",
+        concept="synth_lessons_matter",
+        scope="you",
+        subject=(),
+        desc="bucket-B bare lesson(s) word residue (CR 701.48)",
+    )
+
+
+def has_structural_miracle_grant(tree: ConceptTree) -> bool:
+    """CR 702.94: an ``AddKeyword{Miracle}`` modification walk (Lorehold,
+    the Historian; Molecule Man)."""
+    for unit in tree.units:
+        for _sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) == "AddKeyword" and mod_keyword_name(mod) == "Miracle":
+                return True
+    return False
+
+
+def _arm_miracle_grant(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``miracle_grant`` node for the folded-grant residue
+    (Aminatou, Veil Piercer; Topdeck the Halls) — the deleted
+    ``_MIRACLE_GRANT_RX`` mirror relocated verbatim, gap-gated against
+    :func:`has_structural_miracle_grant`."""
+    if has_structural_miracle_grant(tree):
+        return None
+    if not _MIRACLE_GRANT_SYNTH_RX.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="miracle_grant",
+        concept="synth_miracle_grant",
+        scope="you",
+        subject=(),
+        desc="bucket-B folded-Miracle-grant residue (CR 702.94)",
+    )
+
+
+def has_structural_snow_matters(tree: ConceptTree) -> bool:
+    """CR 205.4: a ``{HasSupertype: Snow}`` filter property, OR a
+    ``YouControlSnowPermanentCountAtLeast`` condition."""
+    for unit in tree.units:
+        if has_filter_property(unit.node, "HasSupertype", "Snow"):
+            return True
+        for node in iter_typed_nodes(unit.node):
+            if tag_of(node) == "YouControlSnowPermanentCountAtLeast":
+                return True
+    return False
+
+
+def _arm_snow_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``snow_matters`` node for the bare "snow" word residue
+    (snow-mana payoffs / prose references phase leaves textual) — the
+    deleted ``_SNOW_RX`` mirror relocated verbatim, gap-gated against
+    :func:`has_structural_snow_matters`."""
+    if has_structural_snow_matters(tree):
+        return None
+    if not _SNOW_SYNTH_RX.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="snow_matters",
+        concept="synth_snow_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B bare snow-word residue (CR 205.4)",
+    )
+
+
+def has_structural_targeting_matters(tree: ConceptTree) -> bool:
+    """CR 702.21a: ANY native ``becomes_target`` trigger unit."""
+    return any(unit.trigger_event == "becomes_target" for unit in tree.units)
+
+
+def _arm_targeting_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``targeting_matters`` node for the granted/quoted/
+    player-targeted forms phase emits no native trigger for (Kira / Opaline
+    Sliver / Dormant Gomazoa / heroic) — the deleted ``_TARGETING_RESIDUE_RX``
+    mirror relocated verbatim, gap-gated against
+    :func:`has_structural_targeting_matters`."""
+    if has_structural_targeting_matters(tree):
+        return None
+    if not _TARGETING_RESIDUE_SYNTH_RX.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="targeting_matters",
+        concept="synth_targeting_matters",
+        scope="any",
+        subject=(),
+        desc="bucket-B granted/quoted/heroic becomes-target residue (CR 702.21a)",
+    )
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -5629,6 +5789,11 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("exert_matters", _arm_exert_matters),
     ("firebending_matters", _arm_firebending_matters),
     ("station_matters", _arm_station_matters),
+    ("legend_rule_off", _arm_legend_rule_off),
+    ("lessons_matter", _arm_lessons_matter),
+    ("miracle_grant", _arm_miracle_grant),
+    ("snow_matters", _arm_snow_matters),
+    ("targeting_matters", _arm_targeting_matters),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

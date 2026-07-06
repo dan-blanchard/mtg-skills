@@ -10352,20 +10352,13 @@ def _typed_anthem_multi(tree: ConceptTree) -> list[Signal]:
 # timing_control / villainous_choice / void_warp_matters — were ADR-0036/0037
 # folded to bucket-B ``tree_synthesis`` arms; see ``_sweep_kept_mirrors``
 # below and the ``_SWEEP_SYNTH_ROWS`` CR-grounding table in
-# ``tree_synthesis.py`` for the per-lane structural-absence re-probe.)
-_LEGEND_RULE_OFF_RX = re.compile(r"the .legend rule. doesn't apply", re.IGNORECASE)
-_LESSONS_RX = re.compile(r"\blessons?\b", re.IGNORECASE)
-_MIRACLE_GRANT_RX = re.compile(
-    r"(?:cards?|spells?) (?:in your hand )?ha(?:s|ve) miracle", re.IGNORECASE
-)
-_SNOW_RX = re.compile(r"\bsnow\b", re.IGNORECASE)
-_TARGETING_RESIDUE_RX = re.compile(
-    r"becomes the target of a spell or ability"
-    r"|whenever [^.]{0,60}?becomes? the target of|\bheroic\b"
-    r"|whenever you cast (?:an instant or sorcery spell |a spell )?"
-    r"that targets",
-    re.IGNORECASE,
-)
+# ``tree_synthesis.py`` for the per-lane structural-absence re-probe. The 5
+# structural+residue UNION lanes below them — legend_rule_off / lessons_matter
+# / miracle_grant / snow_matters / targeting_matters — were T9-finalize folded
+# the same way; their regex defs now live in ``tree_synthesis.py`` as
+# ``_LEGEND_RULE_OFF_SYNTH_RX`` / ``_LESSONS_SYNTH_RX`` /
+# ``_MIRACLE_GRANT_SYNTH_RX`` / ``_SNOW_SYNTH_RX`` /
+# ``_TARGETING_RESIDUE_SYNTH_RX``.)
 _VOTING_MATTERS_RX = re.compile(r"\bfinish(?:ed)? voting\b", re.IGNORECASE)
 
 # The 9 sweep-row synth concept names (:data:`SYNTHESIS_ARM_IDS`, the
@@ -10476,18 +10469,21 @@ def _legend_rule_off(tree: ConceptTree) -> list[Signal]:
     """legend_rule_off (sweep §5) — CR 704.5j: the ``LegendRuleDoesntApply``
     static mode (9 holders, ALL ⊆ live 13 — v0.9.0 now structures the
     BOUNDED forms too: Cadric / Sliver Gravemother / Spider-Verse, so the
-    β "bounded is DROPPED entirely" note is STALE) UNION the byte-identical
-    mirror for the 4-card residue phase keeps textual (the Yamazaki family,
-    Syr Joshua and Syr Saxon, The Herald of Numot — parse-gap candidate,
-    adjudicator-logged). Scope "you", HIGH.
+    β "bounded is DROPPED entirely" note is STALE), Tier-1 UNION
+    (ADR-0036/0037 Stage 5 T9-finalize fold — the byte-identical mirror is
+    RETIRED to a bucket-B synth arm) the ``synth_legend_rule_off`` node
+    (:func:`_arm_legend_rule_off`) for the 4-card residue phase keeps
+    textual (the Yamazaki family, Syr Joshua and Syr Saxon, The Herald of
+    Numot — parse-gap candidate, adjudicator-logged). Scope "you", HIGH.
     """
     for unit in tree.units:
         if unit.origin == "static" and (
             static_mode_tag(unit.node) == "LegendRuleDoesntApply"
         ):
             return [Signal("legend_rule_off", "you", "", "", tree.name, "high")]
-    if _LEGEND_RULE_OFF_RX.search(_kept(tree)):
-        return [Signal("legend_rule_off", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_legend_rule_off":
+            return [Signal("legend_rule_off", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -10495,20 +10491,23 @@ def _lessons_matter(tree: ConceptTree) -> list[Signal]:
     """lessons_matter (sweep §6) — CR 701.48 (Learn — "add a Lesson card to
     their hand from outside the game"; Lesson is the subtype the mechanic
     names): a ``{"Subtype": "Lesson"}`` filter anywhere on the card (Uncle
-    Iroh's ModifyCost spell_filter probed; 24 holders ALL ⊆ live 31) UNION
-    the byte-identical ``\\blessons?\\b`` mirror for the 7-card word residue
-    (Twenty Lessons, …). Gate #4 membership: the 21 STX Learn DOERS never
-    fire ("Lesson" only in stripped reminder text — both arms naturally
-    exclude; the lane must NOT read ``Learn`` nodes), and a Lesson CARD
-    whose own oracle never says "lesson" stays out (Environmental
-    Sciences). Scope "you", HIGH.
+    Iroh's ModifyCost spell_filter probed; 24 holders ALL ⊆ live 31),
+    Tier-1 UNION (ADR-0036/0037 Stage 5 T9-finalize fold — the byte-
+    identical mirror is RETIRED to a bucket-B synth arm) the
+    ``synth_lessons_matter`` node (:func:`_arm_lessons_matter`) for the
+    7-card word residue (Twenty Lessons, …). Gate #4 membership: the 21 STX
+    Learn DOERS never fire ("Lesson" only in stripped reminder text — both
+    arms naturally exclude; the lane must NOT read ``Learn`` nodes), and a
+    Lesson CARD whose own oracle never says "lesson" stays out
+    (Environmental Sciences). Scope "you", HIGH.
     """
     for unit in tree.units:
         for node in iter_typed_nodes(unit.node):
             if any(s.lower() == "lesson" for s in filter_subtypes(node)):
                 return [Signal("lessons_matter", "you", "", "", tree.name, "high")]
-    if _LESSONS_RX.search(_kept(tree)):
-        return [Signal("lessons_matter", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_lessons_matter":
+            return [Signal("lessons_matter", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -10538,20 +10537,23 @@ def _lose_unless_hand(tree: ConceptTree) -> list[Signal]:
 def _miracle_grant(tree: ConceptTree) -> list[Signal]:
     """miracle_grant (sweep §8) — CR 702.94 (Miracle): the ``AddKeyword{
     Miracle}`` modification walk (the b13 _B13_MOD_GRANT_LANES precedent —
-    Lorehold, the Historian; Molecule Man; both ⊆ live 4) UNION the
-    byte-identical mirror for the folded grants (Aminatou, Veil Piercer;
-    Topdeck the Halls — parse-gap candidate, adjudicator-logged). Gate #4
-    membership: the 18 intrinsic ``Miracle {cost}`` bearers (Bonfire of the
-    Damned, …) never fire — the AddKeyword walk reads GRANTS, not own
-    keywords, and a keyword line doesn't match the grant phrasing. Scope
-    "you", HIGH.
+    Lorehold, the Historian; Molecule Man; both ⊆ live 4), Tier-1 UNION
+    (ADR-0036/0037 Stage 5 T9-finalize fold — the byte-identical mirror is
+    RETIRED to a bucket-B synth arm) the ``synth_miracle_grant`` node
+    (:func:`_arm_miracle_grant`) for the folded grants (Aminatou, Veil
+    Piercer; Topdeck the Halls — parse-gap candidate, adjudicator-logged).
+    Gate #4 membership: the 18 intrinsic ``Miracle {cost}`` bearers
+    (Bonfire of the Damned, …) never fire — the AddKeyword walk reads
+    GRANTS, not own keywords, and a keyword line doesn't match the grant
+    phrasing. Scope "you", HIGH.
     """
     for unit in tree.units:
         for _sdef, mod in iter_mod_sites(unit.node):
             if tag_of(mod) == "AddKeyword" and mod_keyword_name(mod) == "Miracle":
                 return [Signal("miracle_grant", "you", "", "", tree.name, "high")]
-    if _MIRACLE_GRANT_RX.search(_kept(tree)):
-        return [Signal("miracle_grant", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_miracle_grant":
+            return [Signal("miracle_grant", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -10622,9 +10624,11 @@ def _seek_matters(tree: ConceptTree) -> list[Signal]:
 
 def _snow_matters(tree: ConceptTree) -> list[Signal]:
     """snow_matters (sweep §13) — CR 205.4 (Snow is a real supertype — the
-    live comment itself calls the old skip wrong): two typed reads UNION
-    the byte-identical ``\\bsnow\\b`` mirror (the producer — snow-mana
-    payoffs and prose references phase leaves textual):
+    live comment itself calls the old skip wrong): two typed reads, Tier-1
+    UNION (ADR-0036/0037 Stage 5 T9-finalize fold — the byte-identical
+    ``\\bsnow\\b`` mirror is RETIRED to a bucket-B synth arm) the
+    ``synth_snow_matters`` node (:func:`_arm_snow_matters`, the producer —
+    snow-mana payoffs and prose references phase leaves textual):
 
     * a ``{HasSupertype: Snow}`` filter property on any subject filter
       (52 holders, 48 ⊆ live; the 3 outliers are documented DFC name-join
@@ -10642,8 +10646,9 @@ def _snow_matters(tree: ConceptTree) -> list[Signal]:
         for node in iter_typed_nodes(unit.node):
             if tag_of(node) == "YouControlSnowPermanentCountAtLeast":
                 return [Signal("snow_matters", "you", "", "", tree.name, "high")]
-    if _SNOW_RX.search(_kept(tree)):
-        return [Signal("snow_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_snow_matters":
+            return [Signal("snow_matters", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -10721,12 +10726,15 @@ def _becomes_target_lanes(tree: ConceptTree) -> list[Signal]:
     gate — never zone-tag re-derivation):
 
     * ``targeting_matters`` "any" — EVERY becomes_target trigger (the broad
-      lane; Willbreaker's opponent-creature subject counts too), UNION the
-      byte-identical residue mirror for the granted/quoted/player-targeted
-      forms phase emits no native trigger for (Kira / Opaline Sliver /
-      Dormant Gomazoa / heroic). LOGGED widen (closeout (c) #21): a
-      GrantTrigger{BecomesTarget} deep-grant read — v0.9.0 structures
-      Kira's grant, but PARITY-BEFORE-VETO keeps the mirror the producer.
+      lane; Willbreaker's opponent-creature subject counts too), Tier-1
+      UNION (ADR-0036/0037 Stage 5 T9-finalize fold — the byte-identical
+      residue mirror is RETIRED to a bucket-B synth arm) the
+      ``synth_targeting_matters`` node (:func:`_arm_targeting_matters`) for
+      the granted/quoted/player-targeted forms phase emits no native
+      trigger for (Kira / Opaline Sliver / Dormant Gomazoa / heroic).
+      LOGGED widen (closeout (c) #21): a GrantTrigger{BecomesTarget}
+      deep-grant read — v0.9.0 structures Kira's grant, but
+      PARITY-BEFORE-VETO keeps the synth arm the producer.
     * ``target_own_payoff`` "you" — the creature is yours/any
       (:func:`_sweep_watched_owner_scope` ∈ {you, any} — Willbreaker / Shay
       Cormac's opp-subject excluded) and the source is NOT
@@ -10754,8 +10762,11 @@ def _becomes_target_lanes(tree: ConceptTree) -> list[Signal]:
                 add("target_redirect", "you")
             else:
                 add("target_own_payoff", "you")
-    if "targeting_matters" not in seen and _TARGETING_RESIDUE_RX.search(_kept(tree)):
-        add("targeting_matters", "any")
+    if "targeting_matters" not in seen:
+        for c in tree.iter_concepts():
+            if c.concept == "synth_targeting_matters":
+                add("targeting_matters", "any")
+                break
     return out
 
 
