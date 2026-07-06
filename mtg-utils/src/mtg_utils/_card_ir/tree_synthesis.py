@@ -6233,6 +6233,71 @@ def _arm_typed_anthem_multi(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+# The etb-bleed sibling concepts recast_etb's serve arm joins on (the live
+# categories {discard, lose_life, sacrifice} — crosswalk concept names) —
+# moved here from crosswalk_signals (the neutral-home precedent).
+_RECAST_BLEED_CONCEPTS: frozenset[str] = frozenset(
+    {"discard", "lose_life", "sacrifice"}
+)
+# The verb-anchored bleed clause for the two shapes phase carries the text
+# AWAY from a first-class bleed effect node: a for-each clause dropped to
+# ``Unimplemented`` (Bladecoil Serpent — read off that node's own raw), and a
+# GRANT-flattened bleed (Lurking Spinecrawler, The Bus Runner) — read off
+# the unit's own description with a deep bleed-TAG node as the structural
+# anchor (the granted execute's Sacrifice/Discard/LoseLife).
+_RECAST_UNIMPL_BLEED_RX = re.compile(
+    r"each opponent (?:discards?|loses|sacrifices?)", re.IGNORECASE
+)
+_RECAST_BLEED_TAGS: frozenset[str] = frozenset({"Discard", "LoseLife", "Sacrifice"})
+
+
+def _arm_recast_etb_bleed(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``recast_etb`` node for the SERVE arm (CR 702.190/
+    118.9): an enters-trigger unit whose text (description + modal
+    ``mode_descriptions``) names "each opponent" AND whose sibling effects
+    resolve the bleed one of three ways — a native bleed concept
+    (discard/lose_life/sacrifice), an ``Unimplemented`` node whose OWN raw
+    carries the verb-anchored ``_RECAST_UNIMPL_BLEED_RX`` phrase, or a
+    GRANT-flattened bleed (the same phrase on the unit's own text PLUS a
+    deep bleed-TAG node under the same unit) — the deleted lane-time join
+    relocated verbatim (Burglar Rat, Skirmish Rhino, Baleful Beholder,
+    Skemfar Shadowsage, Bladecoil Serpent, Lurking Spinecrawler, The Bus
+    Runner). Phase tags only the trigger's CONTROLLER scope, never the
+    effect's recipient, so the "each opponent" recipient tell has no
+    structural substitute — a genuine bucket-B gap, no competing Tier-1
+    predicate. The unit join (etb + bleed in the SAME ability) stays the
+    anti-goodstuff point (Wood Elves never fires)."""
+    for unit in tree.units:
+        if unit.trigger_event != "enters":
+            continue
+        parts = [getattr(unit.node, "description", None)]
+        for node in iter_typed_nodes(unit.node):
+            mds = getattr(node, "mode_descriptions", None)
+            if isinstance(mds, list):
+                parts.extend(m for m in mds if isinstance(m, str))
+        text = " ".join(p for p in parts if isinstance(p, str))
+        if "each opponent" not in text.lower():
+            continue
+        native = any(c.concept in _RECAST_BLEED_CONCEPTS for c in unit.effects)
+        unimpl = any(
+            tag_of(c.node) == "Unimplemented"
+            and _RECAST_UNIMPL_BLEED_RX.search(c.raw or "")
+            for c in unit.effects
+        )
+        granted = _RECAST_UNIMPL_BLEED_RX.search(text) and any(
+            tag_of(n) in _RECAST_BLEED_TAGS for n in iter_typed_nodes(unit.node)
+        )
+        if native or unimpl or granted:
+            return _synthetic_concept(
+                arm_id="recast_etb_bleed",
+                concept="synth_recast_etb",
+                scope="you",
+                subject=(),
+                desc="bucket-B recast_etb each-opponent bleed serve (CR 702.190/118.9)",
+            )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -6319,6 +6384,7 @@ def _make_sweep_arm(rx: re.Pattern[str], arm_id: str, scope: str, cr: str) -> _A
 # so its ``_has_structural_death``-style gap gate drops its firing to 0).
 _Arm = Callable[[ConceptTree], "ConceptNode | None"]
 _ARMS: tuple[tuple[str, _Arm], ...] = (
+    ("recast_etb_bleed", _arm_recast_etb_bleed),
     ("death_matters", _arm_death_matters),
     ("attack_matters", _arm_attack_matters),
     ("lifegain_matters", _arm_lifegain_matters),

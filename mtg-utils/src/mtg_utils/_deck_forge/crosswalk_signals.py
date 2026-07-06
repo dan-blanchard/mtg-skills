@@ -10187,26 +10187,6 @@ _SWEEP_SYNTH_KEYS: tuple[tuple[str, str], ...] = (
     ("void_warp_matters", "you"),
 )
 
-# The etb-bleed sibling concepts recast_etb's serve arm joins on (the live
-# categories {discard, lose_life, sacrifice} — crosswalk concept names).
-_RECAST_BLEED_CONCEPTS: frozenset[str] = frozenset(
-    {"discard", "lose_life", "sacrifice"}
-)
-# The verb-anchored bleed clause for the two shapes phase carries the text
-# AWAY from a first-class bleed effect node (the live path reaches both
-# through the old projection's flattening, which stamps a bleed CATEGORY
-# effect whose raw carries the phrase): a for-each clause dropped to
-# ``Unimplemented`` (Bladecoil Serpent — read off that node's own raw, the
-# b13 node's-own-raw sanction), and a GRANT-flattened bleed (Lurking
-# Spinecrawler's perpetual "When you cast this spell, each opponent
-# sacrifices…"; The Bus Runner's granted token ability) — read off the
-# unit's own description with a deep bleed-TAG node as the structural
-# anchor (the granted execute's Sacrifice/Discard/LoseLife).
-_RECAST_UNIMPL_BLEED_RX = re.compile(
-    r"each opponent (?:discards?|loses|sacrifices?)", re.IGNORECASE
-)
-_RECAST_BLEED_TAGS: frozenset[str] = frozenset({"Discard", "LoseLife", "Sacrifice"})
-
 # Sweep Scryfall-keyword field-lookups (checklist #3 survivors — both rows
 # MUST read the caller-supplied Scryfall array, not phase keywords):
 #   • power-up → powerup_matters (CR 702.193 — a one-time activated ability,
@@ -10375,43 +10355,19 @@ def _recast_etb_bleed(tree: ConceptTree) -> list[Signal]:
     whose trigger text names "each opponent" (Burglar Rat "each opponent
     discards", Skirmish Rhino "each opponent loses 2 life"). Phase tags the
     controller scope, not the recipient (Burglar Rat's Discard decorates
-    scope 'you' — probed), so the opponent bleed is recovered from the
-    trigger's own description — the b13 raw-anchor precedent (a node's OWN
-    raw), mirroring the live per-effect raw recovery. A MODAL etb bleed
-    ("choose one — • Each opponent sacrifices an enchantment" — Baleful
-    Beholder, Skemfar Shadowsage) carries the phrase on the unit's
-    ``modal.mode_descriptions`` instead, so those strings join the scan
-    (same unit node — still its own raw); a for-each bleed phase drops to
-    ``Unimplemented`` (Bladecoil Serpent) is read off that node's own raw;
-    a GRANT-flattened bleed (Lurking Spinecrawler, The Bus Runner — live
-    fires via the old projection's grant flattening) requires the
-    verb-anchored phrase (:data:`_RECAST_UNIMPL_BLEED_RX`) in the unit's
-    own text PLUS a deep bleed-TAG node under the same unit. The unit join
-    (etb + bleed in the SAME ability) is the lane's anti-goodstuff point —
-    a value etb (Wood Elves) never fires. The Sneak keyword arm (a) rides
+    scope 'you' — probed), so the opponent bleed has no competing Tier-1
+    predicate — ADR-0036/0037 Stage 5 fold: the deleted lane-time
+    ``_RECAST_UNIMPL_BLEED_RX`` scan (unit description + modal
+    ``mode_descriptions`` + a for-each ``Unimplemented`` node's own raw +
+    a GRANT-flattened bleed anchor) is relocated verbatim to the bucket-B
+    ``synth_recast_etb`` node (:func:`_arm_recast_etb_bleed`), read below —
+    zero oracle text/regex at lane time. The unit join (etb + bleed in the
+    SAME ability) is the lane's anti-goodstuff point — a value etb (Wood
+    Elves) never fires. The Sneak keyword arm (a) rides
     :data:`_SWEEP_KEYWORD_LANES`. Scope "you", HIGH.
     """
-    for unit in tree.units:
-        if unit.trigger_event != "enters":
-            continue
-        parts = [getattr(unit.node, "description", None)]
-        for node in iter_typed_nodes(unit.node):
-            mds = getattr(node, "mode_descriptions", None)
-            if isinstance(mds, list):
-                parts.extend(m for m in mds if isinstance(m, str))
-        text = " ".join(p for p in parts if isinstance(p, str))
-        if "each opponent" not in text.lower():
-            continue
-        native = any(c.concept in _RECAST_BLEED_CONCEPTS for c in unit.effects)
-        unimpl = any(
-            tag_of(c.node) == "Unimplemented"
-            and _RECAST_UNIMPL_BLEED_RX.search(c.raw or "")
-            for c in unit.effects
-        )
-        granted = _RECAST_UNIMPL_BLEED_RX.search(text) and any(
-            tag_of(n) in _RECAST_BLEED_TAGS for n in iter_typed_nodes(unit.node)
-        )
-        if native or unimpl or granted:
+    for c in tree.iter_concepts():
+        if c.concept == "synth_recast_etb":
             return [Signal("recast_etb", "you", "", "", tree.name, "high")]
     return []
 
