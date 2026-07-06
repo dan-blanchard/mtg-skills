@@ -38,6 +38,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_arcane,
+    has_structural_counter_distribute,
     has_structural_keyword_counter,
     has_structural_outlaw,
     has_structural_spellcast,
@@ -2456,3 +2457,76 @@ def test_keyword_counter_lane_reads_synth_node_end_to_end():
     )
     sigs = _keyword_counter(tree)
     assert any(s.key == "keyword_counter" for s in sigs)
+
+
+# ── batch T2-counters (ADR-0036/0037 Stage 5): counter_distribute ─────────────
+
+
+def _counter_distribute_lane_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _counter_distribute
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "counter_distribute" for s in _counter_distribute(tree))
+
+
+def test_counter_distribute_bucket_a_structural():
+    """Cathars' Crusade's mass ``PutCounterAll`` of kind P1P1 (CR 115.7f)."""
+    tree = _fixture_tree("Cathars' Crusade")
+    assert has_structural_counter_distribute(tree) is True
+    assert _counter_distribute_lane_fires("Cathars' Crusade") is True
+
+
+def test_counter_distribute_bucket_b_synth():
+    """Bramblewood Paragon's "enters with an additional +1/+1 counter" group
+    buff phase types identically to an unrelated single-target pump — a
+    genuine gap (ADR-0027 #24, re-confirmed this batch: 163/383 residue)."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_counter_distribute
+
+    tree = _fixture_tree("Bramblewood Paragon")
+    assert has_structural_counter_distribute(tree) is False
+    node = _arm_counter_distribute(tree)
+    assert node is not None
+    assert node.concept == "synth_counter_distribute"
+    assert node.scope == "you"
+    assert _counter_distribute_lane_fires("Bramblewood Paragon") is True
+
+
+def test_counter_distribute_no_fire_on_unrelated_card():
+    from mtg_utils._card_ir.tree_synthesis import _arm_counter_distribute
+
+    tree = _fixture_tree("Scavenging Ooze")
+    assert has_structural_counter_distribute(tree) is False
+    assert _arm_counter_distribute(tree) is None
+    assert _counter_distribute_lane_fires("Scavenging Ooze") is False
+
+
+def test_counter_distribute_synth_registered():
+    assert "counter_distribute" in SYNTHESIS_ARM_IDS
+
+
+def test_counter_distribute_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _counter_distribute
+
+    synth = ConceptNode(
+        concept="synth_counter_distribute",
+        node=SynthesizedNode(arm_id="counter_distribute", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _counter_distribute(tree)
+    assert any(s.key == "counter_distribute" for s in sigs)

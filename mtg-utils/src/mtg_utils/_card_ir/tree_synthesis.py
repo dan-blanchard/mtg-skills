@@ -59,6 +59,7 @@ from mtg_utils._card_ir.crosswalk import (
     count_operand_filter,
     counter_kind,
     counter_kind_any,
+    distribute_counter_kind,
     effect_filter,
     effect_owner_player_scope,
     explicit_recipient_scope,
@@ -3353,6 +3354,70 @@ def _arm_keyword_counter(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arm: counter_distribute bucket-B (ADR-0036/0037 Stage 5, batch T2-counters)─
+# CR 115.7f + 601.2d, the board-wide +1/+1 spread. Shared structural gate with
+# the ``_counter_distribute`` lane — one source: a ``PutCounterAll`` of kind
+# P1P1, OR a typed ``distribute``-marked P1P1 ``PutCounter`` controlled by You.
+# ADR-0027 #24 re-confirmed (re-probed this batch: 220 structural / 163
+# mirror-only residue) that the DISTRIBUTE-AMONG / "each of" / support-N /
+# enters-with-additional forms carry the IDENTICAL single-target
+# ``place_counter(P1P1, Creature/you)`` shape as an unrelated single-target
+# pump (Verdurous Gearhulk vs Snakeskin Veil) — genuinely un-structurable this
+# batch. Relocates the deleted NARROWED ``_COUNTER_DISTRIBUTE_MIRROR`` verbatim
+# (per-clause — the plain self-enters arm stays excluded, self_counter_grow's
+# turf).
+def has_structural_counter_distribute(tree: ConceptTree) -> bool:
+    """A CR 115.7f board-wide +1/+1 spread phase types directly."""
+    for c in tree.effect_concepts("place_counter"):
+        kind = counter_kind(c.node).upper()
+        if tag_of(c.node) == "PutCounterAll" and kind == "P1P1":
+            return True
+        if distribute_counter_kind(c.node) == "P1P1":
+            tgt = getattr(c.node, "target", None)
+            if filter_controller(tgt) == "You":
+                return True
+    return False
+
+
+_COUNTER_DISTRIBUTE_SYNTH_RX = re.compile(
+    r"put (?:a|one|two|\d+|x) \+1/\+1 counters? on each (?:other )?creature you control"
+    r"|distribute [^.]{0,30}?\+1/\+1 counters"
+    r"|put (?:a |one or more |the same number[^.]*?)\+1/\+1 counters? on each of"
+    r"|(?:enters? with|enter with) (?:a|an|one|two|three|x|\d+) additional "
+    r"\+1/\+1 counters? on"
+    r"|enters with that many additional"
+    r"|\bsupport (?:x|\d+)\b",
+    re.IGNORECASE,
+)
+
+
+def _matches_counter_distribute_idiom(oracle: str) -> bool:
+    for cl in clauses(_REMINDER.sub(" ", oracle or "")):
+        if _COUNTER_DISTRIBUTE_SYNTH_RX.search(cl):
+            return True
+    return False
+
+
+def _arm_counter_distribute(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``counter_distribute`` node for the distribute-among /
+    support-N / enters-with-additional residue (the deleted
+    ``_COUNTER_DISTRIBUTE_MIRROR`` relocated verbatim)."""
+    if has_structural_counter_distribute(tree):
+        return None
+    if not _matches_counter_distribute_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="counter_distribute",
+        concept="synth_counter_distribute",
+        scope="you",
+        subject=(),
+        desc=(
+            "bucket-B distribute/support/enters-with-additional +1/+1 "
+            "residue (CR 122.1/122.6/614.12/702.105)"
+        ),
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3385,6 +3450,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("exalted_lone_attacker", _arm_exalted_lone_attacker),
     ("power_matters", _arm_power_matters),
     ("keyword_counter", _arm_keyword_counter),
+    ("counter_distribute", _arm_counter_distribute),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

@@ -54,7 +54,6 @@ from mtg_utils._card_ir.crosswalk import (
     damage_filter_scope,
     damage_recipient_is_player,
     discard_recipient_scope,
-    distribute_counter_kind,
     double_target_kind,
     double_triggers_cause_core_types,
     effect_filter,
@@ -192,6 +191,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_arcane,
+    has_structural_counter_distribute,
     has_structural_keyword_counter,
     has_structural_outlaw,
     has_structural_spellcast,
@@ -217,7 +217,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _BIG_HAND_MAKERS_MIRROR,
     _BIG_HAND_MATTERS_MIRROR,
     _CONVOKE_RAW,
-    _COUNTER_DISTRIBUTE_MIRROR,
     _COUNTER_KIND_KEYS,
     _FIREBEND_RE,
     _FLOOR_DETECTORS,
@@ -7453,28 +7452,28 @@ def _counter_grants_kw(tree: ConceptTree) -> list[Signal]:
 
 def _counter_distribute(tree: ConceptTree) -> list[Signal]:
     """counter_distribute (§E) — CR 115.7f + 601.2d, the board-wide +1/+1
-    spread: (a) a mass ``PutCounterAll`` of kind P1P1 onto your creatures
-    (Cathars' Crusade); (b) the typed ``distribute`` marker v0.9.0 DOES
-    carry on the distribute-among PutCounter (Verdurous Gearhulk — the
-    spec's "[P-fold]" claim was STALE; measured, the marker is present);
-    (c) the EXACT live _COUNTER_DISTRIBUTE_MIRROR per-clause
-    (enters-with-ADDITIONAL — Bramblewood Paragon; support N). The plain
-    self-enters arm stays deliberately DROPPED (Endless One / Triskelion →
-    self_counter_grow); a lore/loyalty PutCounterAll (Satsuki) fails the
-    kind gate. Scope "you".
+    spread. A pure Tier-1 UNION (ADR-0036/0037 fold — the
+    ``_COUNTER_DISTRIBUTE_MIRROR`` text mirror is RETIRED):
+
+    * **Structural:** :func:`has_structural_counter_distribute` — a mass
+      ``PutCounterAll`` of kind P1P1 onto your creatures (Cathars' Crusade),
+      or the typed ``distribute`` marker on a controller-You P1P1 PutCounter
+      (Verdurous Gearhulk).
+    * **bucket-B synth:** the ``tree_synthesis`` stage's
+      ``synth_counter_distribute`` node — the distribute-among / "each of" /
+      support-N / enters-with-additional residue (Bramblewood Paragon) phase
+      types identically to an unrelated single-target pump, gated against
+      the same structural read.
+
+    The plain self-enters arm stays deliberately EXCLUDED (Endless One /
+    Triskelion → self_counter_grow); a lore/loyalty PutCounterAll (Satsuki)
+    fails the kind gate. Scope "you".
     """
-    for c in tree.effect_concepts("place_counter"):
-        kind = counter_kind(c.node).upper()
-        if tag_of(c.node) == "PutCounterAll" and kind == "P1P1":
-            return [Signal("counter_distribute", "you", "", c.raw, tree.name, "high")]
-        if distribute_counter_kind(c.node) == "P1P1":
-            tgt = getattr(c.node, "target", None)
-            if filter_controller(tgt) == "You":
-                return [
-                    Signal("counter_distribute", "you", "", c.raw, tree.name, "high")
-                ]
-    if any(_COUNTER_DISTRIBUTE_MIRROR.search(cl) for cl in clauses(_kept(tree))):
+    if has_structural_counter_distribute(tree):
         return [Signal("counter_distribute", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_counter_distribute":
+            return [Signal("counter_distribute", "you", "", "", tree.name, "high")]
     return []
 
 
