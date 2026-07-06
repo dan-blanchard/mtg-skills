@@ -56,6 +56,7 @@ from mtg_utils._card_ir.crosswalk import (
     amount_is_scaling,
     change_zone_dirs,
     condition_tags,
+    cost_has_paylife,
     count_operand_filter,
     counter_kind,
     counter_kind_any,
@@ -103,7 +104,12 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 # batch T4-mechanic-kw also imports project.py's ``_CRIME_REF`` (the
 # keyword-less crime-condition anchor) and ``_SUSPECT_REF`` (the suspect
 # verb/state marker) — the same single-source pattern, one copy each.
-from mtg_utils._card_ir.project import _CRIME_REF, _MASS_DEATH_REF, _SUSPECT_REF
+from mtg_utils._card_ir.project import (
+    _CRIME_REF,
+    _MASS_DEATH_REF,
+    _PAY_LIFE_REF,
+    _SUSPECT_REF,
+)
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
     _KEYWORD_COUNTER_KINDS,
@@ -162,6 +168,7 @@ __all__ = [
     "has_structural_color_hoser",
     "has_structural_crimes_matter",
     "has_structural_curse_matters",
+    "has_structural_life_payment_insurance",
     "has_structural_outlaw",
     "has_structural_pump_makers",
     "has_structural_spellcast",
@@ -4515,6 +4522,58 @@ def _arm_sacrifice_protection(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T5-niche-a: life_payment_insurance (bucket-B tail) ───────────────
+# CR 119.4 (a pay-life cost subtracts from the total only if life >= amount —
+# a repeatable pay-life COST wants lifegain insurance): the live structural
+# cost census (any Activated unit's flattened cost carrying a ``PayLife``
+# leaf) already binds the card's OWN activated ability. The residual: a
+# GRANT form — a static's granted-ability STRING ("Other Caves you control
+# have '{T}, Pay 1 life: …'" — Forgotten Monument; "Enchanted land has
+# '{T}, Pay 1 life: …'" — Underworld Connections) phase never structures (an
+# ``AddAbility``-style text payload, not a typed Activated/PayLife leaf on
+# THIS card) — a genuine gap, not a dropped read. Relocates the deleted
+# ``_PAY_LIFE_REF`` marker re-derivation, gap-gated against the structural
+# cost census (the project.py :8527-8530 face gate this shares — the SAME
+# marker feeds an independent Seam-B path there, untouched). Measured
+# byte-identical over the commander-legal corpus (155/155 union, 0 drops).
+def has_structural_life_payment_insurance(tree: ConceptTree) -> bool:
+    """Whether ANY Activated unit's flattened cost carries a ``PayLife``
+    leaf (a deep walk, not just the top-level ``Composite`` costs list —
+    the pay-HALF-life forms nest it under ``EffectCost.effect/PayCost.cost``,
+    Lurking Evil / Murderous Betrayal)."""
+    for unit in tree.units:
+        if unit.kind != "Activated":
+            continue
+        cost = getattr(unit.node, "cost", None)
+        if cost_has_paylife(cost) or any(
+            tag_of(q) == "PayLife" for q in iter_typed_nodes(cost)
+        ):
+            return True
+    return False
+
+
+def _matches_life_payment_insurance_idiom(oracle: str) -> bool:
+    return bool(_PAY_LIFE_REF.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_life_payment_insurance(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``life_payment_insurance`` node for the granted-ability
+    ("Other Caves have '…Pay N life:…'") residue (the deleted
+    ``_PAY_LIFE_REF`` marker relocated, gap-gated against
+    :func:`has_structural_life_payment_insurance`)."""
+    if has_structural_life_payment_insurance(tree):
+        return None
+    if not _matches_life_payment_insurance_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="life_payment_insurance",
+        concept="synth_life_payment_insurance",
+        scope="you",
+        subject=(),
+        desc="bucket-B granted pay-life-cost-ability residue (CR 119.4)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4567,6 +4626,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("color_hoser", _arm_color_hoser),
     ("void_warp_makers", _arm_void_warp_makers),
     ("sacrifice_protection", _arm_sacrifice_protection),
+    ("life_payment_insurance", _arm_life_payment_insurance),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

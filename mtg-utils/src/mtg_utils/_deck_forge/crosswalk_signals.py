@@ -150,7 +150,6 @@ from mtg_utils._card_ir.project import (
     _CHANGELING_REF,
     _EXHAUST_TRIG,
     _LIB_SEARCH_PLAYER_ACTIONS,
-    _PAY_LIFE_REF,
     _SINGLE_PERMANENT_GRANT_PREDS,
     _SOULBOND_REF,
     _STARTING_LIFE_REF,
@@ -193,6 +192,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_crimes_matter,
     has_structural_curse_matters,
     has_structural_keyword_counter,
+    has_structural_life_payment_insurance,
     has_structural_outlaw,
     has_structural_proliferate,
     has_structural_pump_makers,
@@ -9427,37 +9427,30 @@ def _sacrifice_protection(tree: ConceptTree) -> list[Signal]:
 def _life_payment_insurance(tree: ConceptTree) -> list[Signal]:
     """life_payment_insurance (§9) — CR 119.4 (a pay-life cost subtracts
     from the total only if life ≥ amount — a repeatable pay-life COST
-    wants lifegain insurance): (a) the structural cost census — any
-    Activated unit whose flattened cost carries a ``PayLife`` leaf
-    (unconditional; the sibling lifeloss_makers arm adds the
-    non-ramp/non-land gates, NOT this lane); (b) the marker re-derivation
-    — the imported ``_PAY_LIFE_REF`` (the ``:`` pins the ACTIVATION-cost
-    form) over the kept oracle, gated to faces with NO structural PayLife
-    leaf (the project :8527-8530 face gate; the conferred-quoted residual).
-    Arco-Flagellant NOW parses ``Activated.cost/PayLife`` in v0.9.0 — the
-    marker→structural arm shift inside an unchanged union is the expected
-    (LOGGED) divergence. A one-shot cast cost (Toxic Deluge) and
-    effect-side life loss (Sign in Blood) never fire either arm. Scope
-    "you", HIGH.
+    wants lifegain insurance). Tier-1 (ADR-0036/0037 fold — the lane-time
+    ``_PAY_LIFE_REF`` kept-oracle read is RETIRED):
+
+    * **Structural:** :func:`has_structural_life_payment_insurance` — the
+      cost census, any Activated unit whose flattened cost carries a
+      ``PayLife`` leaf (unconditional; the sibling lifeloss_makers arm adds
+      the non-ramp/non-land gates, NOT this lane).
+    * **bucket-B synth:** the ``tree_synthesis`` stage's
+      ``synth_life_payment_insurance`` node — the granted-ability text
+      residue ("Other Caves have '…Pay N life:…'" — Forgotten Monument)
+      phase never structures onto THIS card (an ``AddAbility`` text
+      payload, not a typed leaf), gated against the same structural cost
+      census. Arco-Flagellant NOW parses ``Activated.cost/PayLife`` at
+      v0.9.0 — the marker→structural arm shift inside an unchanged union is
+      the expected (LOGGED) divergence.
+
+    A one-shot cast cost (Toxic Deluge) and effect-side life loss (Sign in
+    Blood) never fire either arm. Scope "you", HIGH.
     """
-    has_struct = False
-    for unit in tree.units:
-        if unit.kind != "Activated":
-            continue
-        cost = getattr(unit.node, "cost", None)
-        # Deep walk (not just Composite ``costs`` lists): the pay-HALF-life
-        # forms nest PayLife under ``EffectCost.effect/PayCost.cost``
-        # (Lurking Evil, Murderous Betrayal — live members whose old
-        # cost_parts carried 'paylife'; shadow-diff-tuned).
-        if cost_has_paylife(cost) or any(
-            tag_of(q) == "PayLife" for q in iter_typed_nodes(cost)
-        ):
-            has_struct = True
-            break
-    if has_struct:
+    if has_structural_life_payment_insurance(tree):
         return [Signal("life_payment_insurance", "you", "", "", tree.name, "high")]
-    if _PAY_LIFE_REF.search(_kept(tree)):
-        return [Signal("life_payment_insurance", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_life_payment_insurance":
+            return [Signal("life_payment_insurance", "you", "", "", tree.name, "high")]
     return []
 
 

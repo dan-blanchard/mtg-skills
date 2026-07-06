@@ -49,6 +49,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_curse_matters,
     _arm_flash_matters,
     _arm_island_matters,
+    _arm_life_payment_insurance,
     _arm_manland,
     _arm_opponent_exile_matters,
     _arm_pump_makers,
@@ -77,6 +78,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_crimes_matter,
     has_structural_curse_matters,
     has_structural_keyword_counter,
+    has_structural_life_payment_insurance,
     has_structural_manland,
     has_structural_outlaw,
     has_structural_proliferate,
@@ -3825,3 +3827,72 @@ def test_sacrifice_protection_lane_reads_synth_node_end_to_end():
     )
     sigs = _sacrifice_protection(tree)
     assert any(s.key == "sacrifice_protection" for s in sigs)
+
+
+# ── batch T5-niche-a: life_payment_insurance (bucket-B tail) ────────────────
+
+
+def test_life_payment_insurance_structural_arco_flagellant():
+    """Arco-Flagellant NOW parses ``Activated.cost/PayLife`` at v0.9.0 — a
+    genuine structural cost-census fire."""
+    tree = _fixture_tree("Arco-Flagellant")
+    assert has_structural_life_payment_insurance(tree) is True
+    assert _arm_life_payment_insurance(tree) is None
+
+
+def test_life_payment_insurance_bucket_b_synth_granted_ability_residue():
+    """Forgotten Monument-shaped "Other Caves you control have '{T}, Pay 1
+    life: Add one mana of any color.'" — the granted-ability TEXT payload
+    phase never structures onto THIS card (no typed PayLife leaf of its
+    own), a genuine gap."""
+    tree = ConceptTree(
+        name="X",
+        oracle_id="x",
+        oracle=(
+            'Other Caves you control have "{T}, Pay 1 life: Add one mana of any color."'
+        ),
+        units=(),
+    )
+    assert has_structural_life_payment_insurance(tree) is False
+    node = _arm_life_payment_insurance(tree)
+    assert node is not None
+    assert node.concept == "synth_life_payment_insurance"
+
+
+def test_life_payment_insurance_no_fire_on_unrelated_card():
+    assert (
+        has_structural_life_payment_insurance(_fixture_tree("Llanowar Elves")) is False
+    )
+    assert _arm_life_payment_insurance(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_life_payment_insurance_synth_registered():
+    assert "life_payment_insurance" in SYNTHESIS_ARM_IDS
+
+
+def test_life_payment_insurance_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _life_payment_insurance
+
+    synth = ConceptNode(
+        concept="synth_life_payment_insurance",
+        node=SynthesizedNode(arm_id="life_payment_insurance", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _life_payment_insurance(tree)
+    assert any(s.key == "life_payment_insurance" for s in sigs)
