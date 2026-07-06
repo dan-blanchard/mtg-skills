@@ -134,7 +134,6 @@ from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 # sources.
 from mtg_utils._card_ir.project import (
     _BECOMES_TARGET_SRC_OPP,
-    _EXHAUST_TRIG,
     _LIB_SEARCH_PLAYER_ACTIONS,
     _SINGLE_PERMANENT_GRANT_PREDS,
     _counter_kind_token,
@@ -9341,7 +9340,11 @@ def _exhaust_matters(tree: ConceptTree) -> list[Signal]:
     delayed-trigger-inside-activated payoff (Pit Automaton —
     ``Activated.effect/Unimplemented``, [P44]) and the permission static
     (Elvish Refueler — fires BOTH lanes: makers via keyword, matters via
-    the anchor). Scope "you", HIGH.
+    the anchor). Tier-1 (ADR-0036/0037 T10-finalize2 fold): arm (b)'s
+    deleted lane-time ``_EXHAUST_TRIG`` scan is relocated verbatim to the
+    bucket-B ``synth_exhaust_matters`` node (:func:`_arm_exhaust_matters`);
+    arm (a) stays a pure typed mode/keyword-parameter read, zero oracle
+    text/regex at LANE time. Scope "you", HIGH.
     """
     for unit in tree.units:
         mode = getattr(unit.node, "mode", None)
@@ -9351,12 +9354,9 @@ def _exhaust_matters(tree: ConceptTree) -> list[Signal]:
             and tag_of(mode.inner) == "Exhaust"
         ):
             return [Signal("exhaust_matters", "you", "", "", tree.name, "high")]
-        raws = [getattr(unit.node, "description", None) or ""] + [
-            c.raw for c in unit.iter_concepts() if c.raw
-        ]
-        for raw in raws:
-            if _EXHAUST_TRIG.search(raw):
-                return [Signal("exhaust_matters", "you", "", raw, tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_exhaust_matters":
+            return [Signal("exhaust_matters", "you", "", "", tree.name, "high")]
     return []
 
 

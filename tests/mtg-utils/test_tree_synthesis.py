@@ -63,6 +63,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_convoke_matters,
     _arm_crimes_matter,
     _arm_curse_matters,
+    _arm_exhaust_matters,
     _arm_firebending_matters,
     _arm_flash_matters,
     _arm_island_matters,
@@ -5165,3 +5166,20 @@ def test_keyword_soup_same_true_fires_on_odric():
 
 def test_keyword_soup_same_true_no_fire_on_unrelated_card():
     assert _arm_keyword_soup_same_true(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_exhaust_matters_synth_registered():
+    assert "exhaust_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_exhaust_matters_fires_on_elvish_refueler():
+    """Elvish Refueler's exhaust-permission static carries no
+    ``KeywordAbilityActivated{Exhaust}`` trigger mode — the deleted
+    lane-time ``_EXHAUST_TRIG`` raw-anchor scan relocated verbatim."""
+    node = _arm_exhaust_matters(_fixture_tree("Elvish Refueler"))
+    assert node is not None
+    assert node.concept == "synth_exhaust_matters"
+
+
+def test_exhaust_matters_no_fire_on_unrelated_card():
+    assert _arm_exhaust_matters(_fixture_tree("Llanowar Elves")) is None

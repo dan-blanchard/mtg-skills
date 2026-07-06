@@ -107,6 +107,8 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 # batch T4-mechanic-kw also imports project.py's ``_CRIME_REF`` (the
 # keyword-less crime-condition anchor) and ``_SUSPECT_REF`` (the suspect
 # verb/state marker) — the same single-source pattern, one copy each.
+# batch T10-finalize2 also imports project.py's ``_EXHAUST_TRIG`` (the
+# exhaust-payoff raw anchor) — the same single-source pattern.
 from mtg_utils._card_ir.project import (
     _CANT_BLOCK_GRANT_QUOTE,
     _CANT_BLOCK_MODAL_BULLET,
@@ -115,6 +117,7 @@ from mtg_utils._card_ir.project import (
     _CASCADE_GRANT,
     _CHANGELING_REF,
     _CRIME_REF,
+    _EXHAUST_TRIG,
     _MASS_DEATH_REF,
     _PAY_LIFE_REF,
     _SOULBOND_REF,
@@ -6051,6 +6054,38 @@ def _arm_keyword_soup_same_true(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+def _arm_exhaust_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``exhaust_matters`` node for the project raw-anchor
+    arm (CR 702.177a/b): the live ``_EXHAUST_TRIG`` marker over a unit's
+    own description/effect raws, firing REGARDLESS of trigger event (Pit
+    Automaton's delayed-trigger-inside-activated payoff; Elvish Refueler's
+    permission static) — the deleted lane-time scan relocated verbatim.
+    Gap-gated against the pure-typed ``KeywordAbilityActivated{Exhaust}``
+    trigger read the lane keeps Tier-1 (so this arm never duplicates
+    Sala)."""
+    for unit in tree.units:
+        mode = getattr(unit.node, "mode", None)
+        if (
+            isinstance(mode, MirrorVariant)
+            and mode.key == "KeywordAbilityActivated"
+            and tag_of(mode.inner) == "Exhaust"
+        ):
+            continue
+        raws = [getattr(unit.node, "description", None) or ""] + [
+            c.raw for c in unit.iter_concepts() if c.raw
+        ]
+        for raw in raws:
+            if _EXHAUST_TRIG.search(raw):
+                return _synthetic_concept(
+                    arm_id="exhaust_matters",
+                    concept="synth_exhaust_matters",
+                    scope="you",
+                    subject=(),
+                    desc="bucket-B exhaust_matters raw-anchor payoff (CR 702.177)",
+                )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -6211,6 +6246,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("targeting_matters", _arm_targeting_matters),
     ("convoke_matters", _arm_convoke_matters),
     ("keyword_soup_same_true", _arm_keyword_soup_same_true),
+    ("exhaust_matters", _arm_exhaust_matters),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS
