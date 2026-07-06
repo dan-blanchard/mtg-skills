@@ -52,6 +52,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_manland,
     _arm_opponent_exile_matters,
     _arm_pump_makers,
+    _arm_sacrifice_protection,
     _arm_spellcast_matters,
     _arm_suspect_matters,
     _arm_suspend_matters,
@@ -3774,3 +3775,53 @@ def test_void_warp_makers_lane_reads_synth_node_end_to_end():
     )
     sigs = _void_warp_makers(tree)
     assert any(s.key == "void_warp_makers" for s in sigs)
+
+
+# ── batch T5-niche-a: sacrifice_protection (full relocation, no gate) ──────
+
+
+def test_sacrifice_protection_bucket_b_synth_sole_source():
+    """Sigarda, Host of Herons's "can't be sacrificed" — phase parses the
+    ability as ``Unimplemented`` ([P42]), so no competing Tier-1 predicate
+    exists; the two literal phrases stay the only full-coverage tell."""
+    tree = _fixture_tree("Sigarda, Host of Herons")
+    node = _arm_sacrifice_protection(tree)
+    assert node is not None
+    assert node.concept == "synth_sacrifice_protection"
+    assert node.scope == "you"
+
+
+def test_sacrifice_protection_no_fire_on_unrelated_card():
+    assert _arm_sacrifice_protection(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_sacrifice_protection_synth_registered():
+    assert "sacrifice_protection" in SYNTHESIS_ARM_IDS
+
+
+def test_sacrifice_protection_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _sacrifice_protection
+
+    synth = ConceptNode(
+        concept="synth_sacrifice_protection",
+        node=SynthesizedNode(arm_id="sacrifice_protection", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _sacrifice_protection(tree)
+    assert any(s.key == "sacrifice_protection" for s in sigs)

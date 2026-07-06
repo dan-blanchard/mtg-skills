@@ -8859,13 +8859,8 @@ def _outlaw_matters_lane(tree: ConceptTree) -> list[Signal]:
 # folded to Tier-1 — see ``_arm_void_warp_makers``.)
 _STATION_GUARD_RX = re.compile(STATION_MATTERS_REGEX, re.IGNORECASE)
 
-# Byte-identical copy of the INLINE (unnamed) ``_IR_KEPT_DETECTORS``
-# sacrifice_protection row (the _JOHAN_MIRROR precedent — no importable name).
-# CR 701.21a (the 20260619 CR glossary maps Sacrifice → 701.21; the live
-# t2b5-B comment's "CR 701.16" is STALE) + 101.2 (can't beats can).
-_SAC_PROTECTION_MIRROR = re.compile(
-    r"can't cause you to sacrifice|can't be sacrificed", re.IGNORECASE
-)
+# (sacrifice_protection's ``_SAC_PROTECTION_MIRROR`` kept-mirror was
+# ADR-0036/0037 folded to Tier-1 — see ``_arm_sacrifice_protection``.)
 
 # speed_makers doer tags (CR 702.179): the keyword-less speed CHANGERS.
 # ``IncreaseSpeed`` is a dead map row at v0.9.0 (0 corpus nodes) carried
@@ -9413,16 +9408,19 @@ def _conditional_self_protection(tree: ConceptTree) -> list[Signal]:
 
 def _sacrifice_protection(tree: ConceptTree) -> list[Signal]:
     """sacrifice_protection (§8) — CR 701.21a (a sacrifice is the
-    controller's move; "can't cause you to sacrifice" wins by 101.2):
-    kept-mirror ONLY, the verdict RE-CONFIRMED against v0.9.0 — Sigarda
-    still parses as ``abilities/Spell.effect/Unimplemented`` ([P42],
-    SUPPLEMENT-RECOVERABLE), so the two literal phrases stay the only
-    full-coverage tell. No gate beyond the phrase pair — a stax EDICT
-    ("sacrifice a creature") never contains either (Ghostly Prison, pop
-    False). Scope "you", HIGH.
+    controller's move; "can't cause you to sacrifice" wins by 101.2). Tier-1
+    (ADR-0036/0037 fold — the ``_SAC_PROTECTION_MIRROR`` kept-mirror is
+    RETIRED): the verdict RE-CONFIRMED against v0.9.0 — Sigarda still parses
+    as ``abilities/Spell.effect/Unimplemented`` ([P42], SUPPLEMENT-
+    RECOVERABLE), so the two literal phrases stay the only full-coverage
+    tell and there is no competing Tier-1 predicate — the ``tree_synthesis``
+    stage's ``synth_sacrifice_protection`` node is the lane's SOLE source. A
+    stax EDICT ("sacrifice a creature") never contains either phrase
+    (Ghostly Prison, pop False). Scope "you", HIGH.
     """
-    if _SAC_PROTECTION_MIRROR.search(_kept(tree)):
-        return [Signal("sacrifice_protection", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_sacrifice_protection":
+            return [Signal("sacrifice_protection", "you", "", "", tree.name, "high")]
     return []
 
 

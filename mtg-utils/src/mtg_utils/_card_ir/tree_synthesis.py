@@ -4480,6 +4480,41 @@ def _arm_void_warp_makers(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T5-niche-a: sacrifice_protection (full relocation, no gate) ──────
+# CR 701.21a (a sacrifice is the controller's move; "can't cause you to
+# sacrifice" wins by 101.2): the verdict RE-CONFIRMED against v0.9.0 —
+# Sigarda still parses as ``abilities/Spell.effect/Unimplemented`` ([P42],
+# SUPPLEMENT-RECOVERABLE), so the two literal phrases stay the only
+# full-coverage tell; no competing Tier-1 predicate exists. Relocates the
+# deleted (inline, no importable name) ``_SAC_PROTECTION_MIRROR`` verbatim —
+# SOLE source (the flash_matters/opponent_exile_matters no-competing-
+# predicate precedent). Measured byte-identical.
+_SAC_PROTECTION_SYNTH_RX = re.compile(
+    r"can't cause you to sacrifice|can't be sacrificed", re.IGNORECASE
+)
+
+
+def _matches_sacrifice_protection_idiom(oracle: str) -> bool:
+    return bool(_SAC_PROTECTION_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_sacrifice_protection(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``sacrifice_protection`` node (the deleted
+    ``_SAC_PROTECTION_MIRROR`` relocated verbatim — no competing Tier-1
+    predicate exists, so this is the lane's SOLE source)."""
+    if not _matches_sacrifice_protection_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="sacrifice_protection",
+        concept="synth_sacrifice_protection",
+        scope="you",
+        subject=(),
+        desc=(
+            "bucket-B can't-be-sacrificed / can't-cause-sacrifice residue (CR 701.21a)"
+        ),
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4531,6 +4566,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("opponent_exile_matters", _arm_opponent_exile_matters),
     ("color_hoser", _arm_color_hoser),
     ("void_warp_makers", _arm_void_warp_makers),
+    ("sacrifice_protection", _arm_sacrifice_protection),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
