@@ -256,7 +256,6 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import (
-    CLUE_MATTERS_REGEX,
     ENTERED_ATTACKER_REGEX,
     NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     PUMP_MATTERS_REGEX,
@@ -8139,7 +8138,6 @@ def _keyword_tribe(tree: ConceptTree) -> list[Signal]:
 
 # Compiled forms of the pinned shared regex sources (byte-identical by import;
 # the same IGNORECASE the live kept-detector loop compiles with).
-_CLUE_MATTERS_RX = re.compile(CLUE_MATTERS_REGEX, re.IGNORECASE)
 _PUMP_MAKERS_RX = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
 
 # Byte-identical copies of the INLINE (unnamed) ``_IR_KEPT_DETECTORS`` rows —
@@ -8523,18 +8521,25 @@ def _food_matters_lane(tree: ConceptTree) -> list[Signal]:
 
 
 def _clue_matters_lane(tree: ConceptTree) -> list[Signal]:
-    """clue_matters (§10) — the three shared structural arms plus the kept
-    RESIDUE mirror (``CLUE_MATTERS_REGEX`` — ``clue|investigate``) carrying
-    the modal-vote folds (Tivit), delayed triggers, token replacements and
-    becomes-Clue statics (In Too Deep). Breadth intended: bare investigate
-    DOERS fire matters too via the word (live behavior, the b13
-    suspend_matters precedent — port as-is).
+    """clue_matters (§10) — the three shared structural arms (sacrifice-of-
+    Clue, a Sacrificed-mode trigger naming Clue, the OWN-REF text marker —
+    :func:`_token_subtype_payoff`, untouched, shared with food_matters)
+    plus, Tier-1 (ADR-0036/0037 fold), the ``synth_clue_matters`` bucket-B
+    RESIDUE node (:func:`_arm_clue_matters` — the retired
+    ``CLUE_MATTERS_REGEX``, ``clue|investigate``) carrying the modal-vote
+    folds (Tivit), delayed triggers, token replacements and becomes-Clue
+    statics (In Too Deep). Breadth intended: bare investigate DOERS fire
+    matters too via the word (live behavior, the b13 suspend_matters
+    precedent — port as-is). Zero oracle text/regex at LANE time beyond
+    the untouched shared helper's own OWN-REF arm (out of THIS batch's
+    scope — folds when food_matters folds).
     """
     hits = _token_subtype_payoff(tree, "Clue")
     if hits:
         return hits
-    if _CLUE_MATTERS_RX.search(_kept(tree)):
-        return [Signal("clue_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_clue_matters":
+            return [Signal("clue_matters", "you", "", "", tree.name, "high")]
     return []
 
 

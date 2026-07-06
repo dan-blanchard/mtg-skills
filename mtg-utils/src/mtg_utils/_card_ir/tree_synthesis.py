@@ -122,6 +122,7 @@ from mtg_utils._deck_forge._signals_regex import (
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge._sweep_detectors import (
     ANIMATE_ARTIFACT_REGEX,
+    CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
     ISLAND_MATTERS_REGEX,
     KEYWORD_COUNTER_REGEX,
@@ -149,6 +150,7 @@ __all__ = [
     "has_self_etb_value",
     "has_selfloss_engine",
     "has_structural_arcane",
+    "has_structural_clue_matters",
     "has_structural_curse_matters",
     "has_structural_outlaw",
     "has_structural_spellcast",
@@ -3921,6 +3923,70 @@ def _arm_curse_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T4-mechanic-kw: clue_matters bucket-B tail ─────────────────────────
+# CR 111.10f/701.16a: the lane's shared food/clue structural helper
+# (``_token_subtype_payoff`` in crosswalk_signals.py) opens on a Sacrifice-
+# of-Clue effect/cost or a Sacrificed-mode trigger naming Clue — those two
+# arms are reimplemented here (GAP-GATE-ALIGNMENT). The helper's OWN third
+# arm (the ``_TOKEN_SUBTYPE_OWN_REF`` text marker) is untouched: it is
+# SHARED with food_matters, a lane out of THIS batch's scope, so it is not
+# folded today (tracked for when food_matters folds). The residual THIS arm
+# covers is the bare "clue"/"investigate" word (modal-vote folds — Tivit;
+# delayed triggers; token replacements; becomes-Clue statics — In Too
+# Deep) — breadth intentional (the b13 suspend_matters precedent, port
+# as-is). Relocates the deleted ``_CLUE_MATTERS_RX`` verbatim. The lane
+# itself still tries the FULL shared helper (all three arms) FIRST,
+# unchanged, so a card the OWN-REF arm alone covers short-circuits before
+# ever reading this synth node — no double-count despite the narrower gate.
+# Measured byte-identical over the commander-legal corpus (164/164 union,
+# 0 drops, 0 adds).
+_CLUE_MATTERS_SYNTH_RX = re.compile(CLUE_MATTERS_REGEX, re.IGNORECASE)
+
+
+def has_structural_clue_matters(tree: ConceptTree) -> bool:
+    """Whether phase carries a typed Sacrifice-of-Clue / Sacrificed-Clue
+    node — the two genuinely structural arms the shared food/clue helper
+    opens for "Clue" (mirrors them exactly) — the synth gap-gate."""
+    for unit in tree.units:
+        sac_nodes = [c.node for c in unit.effects if tag_of(c.node) == "Sacrifice"]
+        for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
+            if tag_of(leaf) == "Sacrifice":
+                sac_nodes.append(leaf)
+        for node in sac_nodes:
+            subs = {s.lower() for s in filter_subtypes(getattr(node, "target", None))}
+            if "clue" in subs:
+                return True
+        if unit.origin == "trigger":
+            mode = getattr(unit.node, "mode", None)
+            tag = mode if isinstance(mode, str) else tag_of(mode)
+            if tag == "Sacrificed":
+                vc = getattr(unit.node, "valid_card", None)
+                if "clue" in {s.lower() for s in filter_subtypes(vc)}:
+                    return True
+    return False
+
+
+def _matches_clue_matters_idiom(oracle: str) -> bool:
+    return bool(_CLUE_MATTERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_clue_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``clue_matters`` node for the bucket-B bare
+    "clue"/"investigate" word residue (the deleted ``_CLUE_MATTERS_RX``
+    relocated, gap-gated against :func:`has_structural_clue_matters`)."""
+    if has_structural_clue_matters(tree):
+        return None
+    if not _matches_clue_matters_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="clue_matters",
+        concept="synth_clue_matters",
+        scope="you",
+        subject=(),
+        desc='bucket-B bare "clue"/"investigate" residue (CR 111.10f/701.16a)',
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3963,6 +4029,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("vehicles_matter", _arm_vehicles_matter),
     ("manland", _arm_manland),
     ("curse_matters", _arm_curse_matters),
+    ("clue_matters", _arm_clue_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

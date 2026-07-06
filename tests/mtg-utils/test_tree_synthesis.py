@@ -25,6 +25,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _SPELLCAST_TRIGGER_RX,
     SYNTHESIS_ARM_IDS,
     _arm_animate_artifact,
+    _arm_clue_matters,
     _arm_color_change,
     _arm_curse_matters,
     _arm_island_matters,
@@ -44,6 +45,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_arcane,
+    has_structural_clue_matters,
     has_structural_counter_distribute,
     has_structural_curse_matters,
     has_structural_keyword_counter,
@@ -3089,3 +3091,60 @@ def test_curse_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _curse_matters(tree)
     assert any(s.key == "curse_matters" for s in sigs)
+
+
+# ── batch T4-mechanic-kw: clue_matters ───────────────────────────────────────
+
+
+def test_clue_matters_structural_gate_true_on_existing_arm():
+    """Tireless Tracker's "Whenever you sacrifice a Clue" — a Sacrificed-
+    mode trigger naming Clue, one of the shared food/clue helper's two
+    genuinely structural arms (reimplemented by
+    :func:`has_structural_clue_matters`); the synth never double-covers
+    it."""
+    tree = _fixture_tree("Tireless Tracker")
+    assert has_structural_clue_matters(tree) is True
+    assert _arm_clue_matters(tree) is None
+
+
+def test_clue_matters_bucket_b_synth_gap_gated():
+    """Bygone Bishop's bare "investigate" residue (a cast-trigger, not a
+    sacrifice/Sacrificed-mode node) — the residual the two structural arms
+    of the shared helper miss."""
+    tree = _fixture_tree("Bygone Bishop")
+    assert has_structural_clue_matters(tree) is False
+    node = _arm_clue_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_clue_matters"
+
+
+def test_clue_matters_synth_registered():
+    assert "clue_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_clue_matters_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _clue_matters_lane
+
+    synth = ConceptNode(
+        concept="synth_clue_matters",
+        node=SynthesizedNode(arm_id="clue_matters", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _clue_matters_lane(tree)
+    assert any(s.key == "clue_matters" for s in sigs)
