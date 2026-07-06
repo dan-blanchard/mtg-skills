@@ -103,7 +103,6 @@ from mtg_utils._card_ir.crosswalk import (
     replacement_event_tag,
     replacement_qty_mod,
     replacement_token_owner_scope,
-    reveal_until_player,
     settap_state,
     spell_count_at_least,
     spell_velocity_static_two,
@@ -6540,20 +6539,17 @@ def _dig_until(tree: ConceptTree) -> list[Signal]:
     residue phase emits no dig structure for is SUPPLEMENT — logged, live's
     narrowed residue mirror stays. Scope "you".
     """
-    for unit in tree.units:
-        desc = (getattr(unit.node, "description", None) or "").lower()
-        # [P28]: phase stamps player=Controller on "each opponent reveals
-        # cards from the top of THEIR library" (Mind Grind family — the
-        # [P17] mis-stamp on RevealUntil), so the digger gate alone passes
-        # on opponent mills. All 69 both-members are "your library" digs
-        # (parity-verified); the [P8]/[P21]-precedent screen is the fix.
-        if "their library" in desc:
-            continue
-        for c in unit.iter_concepts():
-            if c.role != "effect" or c.concept != "reveal_until":
-                continue
-            if reveal_until_player(c.node) == "you":
-                return [Signal("dig_until", "you", "", c.raw, tree.name, "high")]
+    # [P28]: phase stamps player=Controller on "each opponent reveals cards
+    # from the top of THEIR library" (Mind Grind family — the [P17]
+    # mis-stamp on RevealUntil), so the digger gate alone passes on
+    # opponent mills. All 69 both-members are "your library" digs
+    # (parity-verified). Tier-1 (ADR-0036/0037 T10-finalize2 GLOBAL
+    # FINALIZE-2 fold): the deleted lane-time "their library" veto (the
+    # [P8]/[P21]-precedent screen) is relocated verbatim to the bucket-B
+    # ``synth_dig_until`` node (:func:`_arm_dig_until`), read below.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_dig_until":
+            return [Signal("dig_until", "you", "", "", tree.name, "high")]
     return []
 
 

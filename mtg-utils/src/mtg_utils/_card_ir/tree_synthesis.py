@@ -84,6 +84,7 @@ from mtg_utils._card_ir.crosswalk import (
     protection_cardtype,
     replacement_event_tag,
     replacement_shield_kind,
+    reveal_until_player,
     settap_state,
     static_mode_field,
     static_mode_tag,
@@ -6369,6 +6370,36 @@ def _arm_damage_prevention(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+# ── dig_until bucket-B (ADR-0036/0037 T10-finalize2 GLOBAL FINALIZE-2) ────────
+# The reveal-until-a-condition deep dig (CR 701.20a): a ``RevealUntil`` effect
+# whose ``player`` is Controller (Hermit Druid, 90/115 corpus). [P28]: phase
+# mis-stamps ``player=Controller`` on "each opponent reveals cards from the
+# top of THEIR library" (Mind Grind family), so the digger-field gate alone
+# passes on opponent mills; the "their library" tell lives only in the
+# unit's own description ([P8]/[P21]-precedent screen — the fix).
+def _arm_dig_until(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``dig_until`` node, vetoing the [P28] opponent-mill
+    mis-stamp ("their library" in the unit's own description) via the
+    node's own text — the deleted lane-time screen relocated verbatim.
+    CR 701.20a."""
+    for unit in tree.units:
+        desc = (getattr(unit.node, "description", None) or "").lower()
+        if "their library" in desc:
+            continue
+        for c in unit.iter_concepts():
+            if c.role != "effect" or c.concept != "reveal_until":
+                continue
+            if reveal_until_player(c.node) == "you":
+                return _synthetic_concept(
+                    arm_id="dig_until",
+                    concept="synth_dig_until",
+                    scope="you",
+                    subject=(),
+                    desc="bucket-B reveal-until-a-condition dig (CR 701.20a)",
+                )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -6458,6 +6489,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("recast_etb_bleed", _arm_recast_etb_bleed),
     ("cost_reduction", _arm_cost_reduction),
     ("damage_prevention", _arm_damage_prevention),
+    ("dig_until", _arm_dig_until),
     ("death_matters", _arm_death_matters),
     ("attack_matters", _arm_attack_matters),
     ("lifegain_matters", _arm_lifegain_matters),
