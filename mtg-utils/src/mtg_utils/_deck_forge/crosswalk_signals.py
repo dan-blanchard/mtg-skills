@@ -195,6 +195,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_keyword_counter,
     has_structural_outlaw,
     has_structural_proliferate,
+    has_structural_self_counter_grow,
     has_structural_spellcast,
     has_structural_superfriends,
     has_structural_theft_makers,
@@ -227,7 +228,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _POWER_SCALING_RAW,
     _PROLIFERATE_REMOVE_COST_RE,
     _SAME_TRUE_KW_RE,
-    _SELF_COUNTER_GROW_MIRROR,
     _SELF_PROTECTION_GRANT_KW,
     _STATION_CHARGE_RE,
     _TOUGHNESS_VALUE_MIRROR,
@@ -8143,11 +8143,6 @@ _AA_EXTRA_COST_TAGS: frozenset[str] = frozenset(
     {"Sacrifice", "Discard", "Exile", "PayLife", "RemoveCounter"}
 )
 
-# self_counter_grow keyword-action tags (CR 701.46 adapt / 701.37 monstrosity
-# / 702.104 renown): first-class v0.9.0 effect nodes; every corpus carrier is
-# already in the live pop (probed 24/37/20, zero over-fire).
-_SELF_GROW_ACTION_TAGS: frozenset[str] = frozenset({"Adapt", "Monstrosity", "Renown"})
-
 # opponent_search_matters raw trigger modes (CR 701.23 search / shuffle).
 _OPP_SEARCH_MODES: frozenset[str] = frozenset({"SearchedLibrary", "Shuffled"})
 
@@ -8564,49 +8559,33 @@ def _pump_makers_lane(tree: ConceptTree) -> list[Signal]:
 
 def _self_counter_grow(tree: ConceptTree) -> list[Signal]:
     """self_counter_grow (§12) — CR 122.1 + the adapt/monstrosity/renown
-    keyword actions (CR 701.46 / 701.37 / 702.104): the grow-ITSELF lane.
+    keyword actions (CR 701.46 / 701.37 / 702.104): the grow-ITSELF lane. A
+    pure Tier-1 UNION (ADR-0036/0037 fold — the ``_SELF_COUNTER_GROW_MIRROR``
+    text mirror is RETIRED):
 
-    (a) effect-role ``PutCounter{counter_type: P1P1, target: SelfRef}``
-    (Scavenging Ooze probed verbatim); replacement-origin units additionally
-    require the replacement's ``valid_card`` SelfRef so "each other creature
-    enters with…" board grants (Master Biomancer) stay out — the probed ±97
-    role/replacement residue gate; ``PutCounterAll`` board spreads are
-    ported counter_distribute's country (tag gate).
-    (b) ``tag_of`` ∈ {Adapt, Monstrosity, Renown} effect nodes (Arbor
-    Colossus probed verbatim).
-    (c) the imported NARROWED ``_SELF_COUNTER_GROW_MIRROR`` per-clause (the
-    loose "on it" arm stays deliberately dropped — 103 over-fires) +
-    ``self_power_scale_match``. Scope "you", HIGH.
+    * **Structural:** :func:`has_structural_self_counter_grow` — an
+      effect-role ``PutCounter{counter_type: P1P1, target: SelfRef}``
+      (Scavenging Ooze), a replacement-origin unit additionally requiring
+      the replacement's OWN ``valid_card`` SelfRef so "each other creature
+      enters with…" board grants (Master Biomancer) stay out (and a Devour
+      chain vetoed by a sibling ``sacrifice`` effect — Mycoloth); OR
+      ``tag_of`` ∈ {Adapt, Monstrosity, Renown} (Arbor Colossus).
+      ``PutCounterAll`` board spreads stay counter_distribute's country.
+    * **bucket-B synth:** the ``tree_synthesis`` stage's
+      ``synth_self_counter_grow`` node — the narrowed self-anchored text
+      residue (the loose "on it" arm stays deliberately EXCLUDED — 103
+      over-fires), gated against the same structural read.
+
+    The separate ``self_power_scale_match`` cross-open (self-power-SCALING
+    text, not a counter placement) is untouched — out of scope for this
+    fold. Scope "you", HIGH.
     """
-    for unit in tree.units:
-        for c in unit.effect_concepts("place_counter"):
-            if tag_of(c.node) != "PutCounter":
-                continue
-            if counter_kind(c.node) != "P1P1":
-                continue
-            if tag_of(getattr(c.node, "target", None)) != "SelfRef":
-                continue
-            if unit.origin == "replacement":
-                if tag_of(getattr(unit.node, "valid_card", None)) != "SelfRef":
-                    continue
-                # Devour veto (CR 702.82a — shadow-diff-tuned): the devour
-                # enters-with replacement chains a Sacrifice ahead of its
-                # SelfRef PutCounter (Mycoloth probed verbatim). The
-                # counters mirror a one-shot cast-time sacrifice — ported
-                # has_devour's country, and live uniformly no-fires the
-                # family (the un-vetoed draft added 20 devour cw-onlys).
-                if any(s.concept == "sacrifice" for s in unit.effects):
-                    continue
-            return [Signal("self_counter_grow", "you", "", c.raw, tree.name, "high")]
-        for c in unit.effects:
-            if tag_of(c.node) in _SELF_GROW_ACTION_TAGS:
-                return [
-                    Signal("self_counter_grow", "you", "", c.raw, tree.name, "high")
-                ]
-    kept = _kept(tree)
-    if any(
-        _SELF_COUNTER_GROW_MIRROR.search(cl) for cl in clauses(kept)
-    ) or self_power_scale_match(kept, tree.name):
+    if has_structural_self_counter_grow(tree):
+        return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_self_counter_grow":
+            return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
+    if self_power_scale_match(_kept(tree), tree.name):
         return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
     return []
 

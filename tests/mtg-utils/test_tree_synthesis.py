@@ -42,6 +42,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_keyword_counter,
     has_structural_outlaw,
     has_structural_proliferate,
+    has_structural_self_counter_grow,
     has_structural_spellcast,
     has_structural_stax_taxes,
     has_structural_superfriends,
@@ -580,10 +581,14 @@ def test_death_matters_lane_reads_synth_node_end_to_end():
 
 
 def test_lifegain_synth_fires_on_whenever_you_gain_gap():
+    # (ADR-0036/0037 self_counter_grow fold): this text ALSO genuinely puts a
+    # +1/+1 counter on the source itself, so the self_counter_grow bucket-B
+    # arm co-fires — the evasion_self/exalted_lone_attacker precedent for a
+    # new arm legitimately widening a shared-text assertion.
     tree = _gap_tree("Whenever you gain life, put a +1/+1 counter on this creature.")
-    fired = synthesize_nodes(tree)
-    assert [arm for arm, _ in fired] == ["lifegain_matters"]
-    _arm, node = fired[0]
+    fired = dict(synthesize_nodes(tree))
+    assert set(fired) == {"lifegain_matters", "self_counter_grow"}
+    node = fired["lifegain_matters"]
     assert node.concept == "synth_lifegain_matters"
     assert isinstance(node.node, SynthesizedNode)
     assert node.node.arm_id == "lifegain_matters"
@@ -2622,3 +2627,88 @@ def test_proliferate_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _proliferate_matters_lane(tree)
     assert any(s.key == "proliferate_matters" and s.confidence == "high" for s in sigs)
+
+
+# ── batch T2-counters (ADR-0036/0037 Stage 5): self_counter_grow ──────────────
+
+
+def _self_counter_grow_lane_fires(name: str) -> bool:
+    from mtg_utils._deck_forge.crosswalk_signals import _self_counter_grow
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "self_counter_grow" for s in _self_counter_grow(tree))
+
+
+def test_self_counter_grow_bucket_a_structural():
+    """Scavenging Ooze's self-anchored ``PutCounter{P1P1, SelfRef}`` (CR
+    122.1)."""
+    tree = _fixture_tree("Scavenging Ooze")
+    assert has_structural_self_counter_grow(tree) is True
+    assert _self_counter_grow_lane_fires("Scavenging Ooze") is True
+
+
+def test_self_counter_grow_bucket_a_structural_monstrosity():
+    """Arbor Colossus's Monstrosity keyword action (CR 701.37)."""
+    tree = _fixture_tree("Arbor Colossus")
+    assert has_structural_self_counter_grow(tree) is True
+    assert _self_counter_grow_lane_fires("Arbor Colossus") is True
+
+
+def test_self_counter_grow_bucket_b_synth():
+    """Sunbond's granted "put that many +1/+1 counters on this creature"
+    ability lives only in a granted-ability STRING (Enchant creature's
+    GrantAbility payload) — phase carries no typed PutCounter node for it, a
+    genuine gap (measured: 21/1555 mirror-clause residue, 103 over-fires
+    excluded via the narrowed idiom)."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_self_counter_grow
+
+    tree = _fixture_tree("Sunbond")
+    assert has_structural_self_counter_grow(tree) is False
+    node = _arm_self_counter_grow(tree)
+    assert node is not None
+    assert node.concept == "synth_self_counter_grow"
+    assert node.scope == "you"
+    assert _self_counter_grow_lane_fires("Sunbond") is True
+
+
+def test_self_counter_grow_no_fire_on_unrelated_card():
+    """Bramblewood Paragon's board-wide "on it" grant is counter_distribute's
+    turf, NOT self_counter_grow's (the loose "on it" arm stays excluded)."""
+    from mtg_utils._card_ir.tree_synthesis import _arm_self_counter_grow
+
+    tree = _fixture_tree("Bramblewood Paragon")
+    assert has_structural_self_counter_grow(tree) is False
+    assert _arm_self_counter_grow(tree) is None
+    assert _self_counter_grow_lane_fires("Bramblewood Paragon") is False
+
+
+def test_self_counter_grow_synth_registered():
+    assert "self_counter_grow" in SYNTHESIS_ARM_IDS
+
+
+def test_self_counter_grow_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _self_counter_grow
+
+    synth = ConceptNode(
+        concept="synth_self_counter_grow",
+        node=SynthesizedNode(arm_id="self_counter_grow", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _self_counter_grow(tree)
+    assert any(s.key == "self_counter_grow" for s in sigs)

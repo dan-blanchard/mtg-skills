@@ -3493,6 +3493,82 @@ def _arm_proliferate_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arm: self_counter_grow bucket-B (ADR-0036/0037 Stage 5, batch T2-counters) ─
+# CR 122.1 + adapt/monstrosity/renown (CR 701.46/701.37/702.104): the
+# grow-ITSELF lane. Shared structural gate with the ``_self_counter_grow``
+# lane — one source: an effect-role ``PutCounter{P1P1, SelfRef}`` (a
+# replacement-origin unit additionally requiring the replacement's own SelfRef
+# valid_card, so board grants like Master Biomancer stay out; a Devour chain
+# vetoed by a sibling ``sacrifice`` effect, Mycoloth), OR an Adapt/Monstrosity/
+# Renown effect tag. The genuine residue: the narrowed self-anchored text
+# idiom ("on him/her/itself/this creature") phase leaves un-typed — re-probed
+# this batch at 1458 structural / 21 mirror-clause residue (the loose "on it"
+# arm stays EXCLUDED — it 100%-over-fired onto other-creature placements per
+# ``test_counter_distribute_is_board_wide_only``'s sibling gate, so relocating
+# it verbatim carries zero NEW over-fire risk). The separate
+# ``self_power_scale_match`` cross-open (a self-power-SCALING tell, NOT a
+# counter placement — Esper Sentinel, Dreadhorde Arcanist) is OUT OF SCOPE for
+# this fold: it is not the named mirror, stays a direct text read in the lane,
+# unchanged.
+_SELF_GROW_ACTION_TAGS: frozenset[str] = frozenset({"Adapt", "Monstrosity", "Renown"})
+
+
+def has_structural_self_counter_grow(tree: ConceptTree) -> bool:
+    """A CR 122.1 self-anchored +1/+1 grow, or an Adapt/Monstrosity/Renown
+    keyword action, phase types directly."""
+    for unit in tree.units:
+        for c in unit.effect_concepts("place_counter"):
+            if tag_of(c.node) != "PutCounter":
+                continue
+            if counter_kind(c.node) != "P1P1":
+                continue
+            if tag_of(getattr(c.node, "target", None)) != "SelfRef":
+                continue
+            if unit.origin == "replacement":
+                if tag_of(getattr(unit.node, "valid_card", None)) != "SelfRef":
+                    continue
+                if any(s.concept == "sacrifice" for s in unit.effects):
+                    continue
+            return True
+        for c in unit.effects:
+            if tag_of(c.node) in _SELF_GROW_ACTION_TAGS:
+                return True
+    return False
+
+
+_SELF_COUNTER_GROW_SYNTH_RX = re.compile(
+    r"enters with (?:x|\d+|a|an|one|two|three) \+1/\+1 counters? on "
+    r"(?:him|her|itself|this)"
+    r"|put (?:a|one|two|three|x|\d+) \+1/\+1 counters? on "
+    r"(?:him|her|itself|this creature)\b"
+    r"|put that many \+1/\+1 counters? on (?:him|her|itself|this creature)",
+    re.IGNORECASE,
+)
+
+
+def _matches_self_counter_grow_idiom(oracle: str) -> bool:
+    for cl in clauses(_REMINDER.sub(" ", oracle or "")):
+        if _SELF_COUNTER_GROW_SYNTH_RX.search(cl):
+            return True
+    return False
+
+
+def _arm_self_counter_grow(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``self_counter_grow`` node for the self-anchored +1/+1
+    residue (the deleted ``_SELF_COUNTER_GROW_MIRROR`` relocated verbatim)."""
+    if has_structural_self_counter_grow(tree):
+        return None
+    if not _matches_self_counter_grow_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="self_counter_grow",
+        concept="synth_self_counter_grow",
+        scope="you",
+        subject=(),
+        desc="bucket-B self-anchored +1/+1 counter residue (CR 122.1/614.12)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3527,6 +3603,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("keyword_counter", _arm_keyword_counter),
     ("counter_distribute", _arm_counter_distribute),
     ("proliferate_matters", _arm_proliferate_matters),
+    ("self_counter_grow", _arm_self_counter_grow),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
