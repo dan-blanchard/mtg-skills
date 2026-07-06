@@ -5293,6 +5293,75 @@ def _arm_firebending_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── station_matters bucket-B (ADR-0036/0037 Stage 5 T8-misc-sweep) ─────────────
+# CR 702.184a/b: a permanent naming Spacecraft/Planet (a removal/count spell
+# targeting or referencing the type) structures as a typed ``Typed`` filter
+# naming the subtype (:func:`has_structural_station_reference` — Focus Fire,
+# Gravkill, Beyond the Quiet, Embrace Oblivion, Invasive Maneuvers, Pulsar
+# Squadron Ace, Scrounge for Eternity, Thaumaton Torpedo — 8/9 of the live
+# non-bearer "matters" set, probed live). A card CHARGING one (putting charge
+# counters on a Spacecraft/Planet target — Drill Too Deep, Systems Override)
+# structures as a ``PutCounter`` node with ``counter_type == "charge"``
+# co-occurring, in the SAME ability unit, with a ``Typed`` filter naming the
+# subtype (:func:`has_structural_station_charge` — Systems Override guards its
+# PutCounter behind a sibling ``TargetMatchesFilter`` condition rather than the
+# PutCounter's own target, so the read is unit-scoped, not target-nested). The
+# genuine bucket-B tail is Tractor Beam's own printed "Enchant creature or
+# Spacecraft" restriction — phase drops the Aura's enchant-target subtype
+# entirely (widens to bare ``Permanent``), a single-card lane (the free_plot
+# Fblthp precedent).
+_STATION_SUBTYPES: frozenset[str] = frozenset({"Spacecraft", "Planet"})
+_STATION_ENCHANT_GAP_RX = re.compile(
+    r"\benchant\b[^.\n]*\b(?:spacecraft|planet)\b", re.IGNORECASE
+)
+
+
+def has_structural_station_reference(tree: ConceptTree) -> bool:
+    """Whether phase carries a typed filter naming the Spacecraft/Planet
+    subtype anywhere (a removal/count spell payoff)."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Typed" and set(filter_subtypes(n)) & _STATION_SUBTYPES:
+                return True
+    return False
+
+
+def has_structural_station_charge(tree: ConceptTree) -> bool:
+    """Whether ONE ability unit carries both a charge-counter ``PutCounter``
+    and a typed filter naming Spacecraft/Planet — unit-scoped so an unrelated
+    charge ability elsewhere on the same card never co-fires."""
+    for unit in tree.units:
+        has_charge = False
+        has_subtype = False
+        for n in iter_typed_nodes(unit.node):
+            t = tag_of(n)
+            if t == "PutCounter" and getattr(n, "counter_type", None) == "charge":
+                has_charge = True
+            elif t == "Typed" and set(filter_subtypes(n)) & _STATION_SUBTYPES:
+                has_subtype = True
+        if has_charge and has_subtype:
+            return True
+    return False
+
+
+def _arm_station_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``station_matters`` node for the bucket-B enchant-target
+    gap (Tractor Beam) — phase drops the Aura's own "or Spacecraft"
+    restriction entirely."""
+    if has_structural_station_reference(tree) or has_structural_station_charge(tree):
+        return None
+    oracle = _REMINDER.sub(" ", tree.oracle or "")
+    if not _STATION_ENCHANT_GAP_RX.search(oracle):
+        return None
+    return _synthetic_concept(
+        arm_id="station_matters",
+        concept="synth_station_matters",
+        scope="you",
+        subject=(),
+        desc="bucket-B Aura enchant-target Spacecraft restriction (CR 702.184)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -5359,6 +5428,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("toughness_combat", _arm_toughness_combat),
     ("exert_matters", _arm_exert_matters),
     ("firebending_matters", _arm_firebending_matters),
+    ("station_matters", _arm_station_matters),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

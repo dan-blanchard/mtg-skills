@@ -23,12 +23,16 @@ from mtg_utils._card_ir._substrate_purity import (
 from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode, ConceptTree
 from mtg_utils._card_ir.mirror.generated_types import (
     S_static_abilities,
+    S_sub_ability,
     T_affected__SelfRef,
     T_affected__Typed,
+    T_condition__TargetMatchesFilter,
+    T_count__Fixed,
     T_effect__BounceAll,
     T_effect__Counter,
     T_effect__DestroyAll,
     T_effect__GenericEffect,
+    T_effect__PutCounter,
     T_filters__StackSpell,
     T_filters__Typed,
     T_modifications__AddKeyword,
@@ -37,6 +41,7 @@ from mtg_utils._card_ir.mirror.generated_types import (
     T_properties__HasColor,
     T_properties__Owned,
     T_target__And,
+    T_target__ParentTarget,
     T_target__Typed,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
@@ -64,6 +69,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_pump_makers,
     _arm_sacrifice_protection,
     _arm_spellcast_matters,
+    _arm_station_matters,
     _arm_suspect_matters,
     _arm_suspend_matters,
     _arm_unspent_mana,
@@ -99,6 +105,8 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_pump_makers,
     has_structural_self_counter_grow,
     has_structural_spellcast,
+    has_structural_station_charge,
+    has_structural_station_reference,
     has_structural_stax_taxes,
     has_structural_superfriends,
     has_structural_suspend_matters,
@@ -4372,3 +4380,180 @@ def test_firebending_matters_no_fire_on_self_name_reference():
 
 def test_firebending_matters_synth_registered():
     assert "firebending_matters" in SYNTHESIS_ARM_IDS
+
+
+# ── batch T8-misc-sweep: station_matters bucket-B + structural charge ───────
+
+
+def _spacecraft_typed_filter() -> T_target__Typed:
+    return T_target__Typed(
+        controller="You",
+        properties=[],
+        type_filters=[
+            MirrorVariant(key="Subtype", ckey="type_filters", inner="Spacecraft")
+        ],
+    )
+
+
+def test_station_reference_structural_on_typed_spacecraft_filter():
+    """Focus Fire/Gravkill-style: a removal/count spell TARGETING
+    Spacecraft/Planet structures as a typed filter naming the subtype."""
+    unit = AbilityUnit(
+        origin="phase",
+        index=0,
+        node=_spacecraft_typed_filter(),
+        kind=None,
+        trigger_event=None,
+        effects=(),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="Gravkill",
+        oracle_id="x",
+        oracle="Exile target creature or Spacecraft.",
+        units=(unit,),
+    )
+    assert has_structural_station_reference(tree) is True
+    assert has_structural_station_charge(tree) is False
+
+
+def test_station_charge_structural_when_nested_in_putcounter_target():
+    """Drill Too Deep-style: a charge-counter ``PutCounter`` whose OWN
+    target names Spacecraft/Planet."""
+    unit = AbilityUnit(
+        origin="phase",
+        index=0,
+        node=T_effect__PutCounter(
+            count=T_count__Fixed(value=5),
+            counter_type="charge",
+            target=_spacecraft_typed_filter(),
+        ),
+        kind=None,
+        trigger_event=None,
+        effects=(),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(name="Drill Too Deep", oracle_id="x", oracle="x", units=(unit,))
+    assert has_structural_station_charge(tree) is True
+
+
+def test_station_charge_structural_when_sibling_condition_gated():
+    """Systems Override-style: the ``PutCounter`` targets ``ParentTarget``
+    and a SIBLING ``TargetMatchesFilter`` condition (not the PutCounter's
+    own target) carries the Spacecraft naming — the unit-scoped read (not
+    target-nested) is required to recover this shape."""
+    node = S_sub_ability(
+        condition=T_condition__TargetMatchesFilter(
+            filter=_spacecraft_typed_filter(), use_lki=False
+        ),
+        cost=None,
+        description=None,
+        duration=None,
+        effect=T_effect__PutCounter(
+            count=T_count__Fixed(value=10),
+            counter_type="charge",
+            target=T_target__ParentTarget(),
+        ),
+        forward_result=False,
+        kind="Spell",
+        optional=False,
+        optional_targeting=False,
+        sub_ability=None,
+        target_prompt=None,
+    )
+    unit = AbilityUnit(
+        origin="phase",
+        index=0,
+        node=node,
+        kind=None,
+        trigger_event=None,
+        effects=(),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="Systems Override", oracle_id="x", oracle="x", units=(unit,)
+    )
+    assert has_structural_station_charge(tree) is True
+
+
+def test_station_charge_does_not_fire_on_cross_unit_charge_and_reference():
+    """An unrelated charge-counter ability in ONE unit plus a Spacecraft
+    reference in a DIFFERENT unit must NOT co-fire — the unit-scoped read
+    is deliberately not whole-card, so an unrelated charge ability
+    elsewhere on the same card never falsely co-occurs."""
+    charge_unit = AbilityUnit(
+        origin="phase",
+        index=0,
+        node=T_effect__PutCounter(
+            count=T_count__Fixed(value=1),
+            counter_type="charge",
+            target=T_target__ParentTarget(),
+        ),
+        kind=None,
+        trigger_event=None,
+        effects=(),
+        costs=(),
+        statics=(),
+    )
+    reference_unit = AbilityUnit(
+        origin="phase",
+        index=1,
+        node=_spacecraft_typed_filter(),
+        kind=None,
+        trigger_event=None,
+        effects=(),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="x", units=(charge_unit, reference_unit)
+    )
+    assert has_structural_station_charge(tree) is False
+    assert has_structural_station_reference(tree) is True
+
+
+def test_station_matters_bucket_b_enchant_target_gap():
+    """Tractor Beam-style: the Aura's own printed "Enchant creature or
+    Spacecraft" restriction — phase drops the enchant-target subtype
+    entirely (widens to bare ``Permanent``), the single-card bucket-B
+    tail."""
+    tree = ConceptTree(
+        name="Tractor Beam",
+        oracle_id="x",
+        oracle="Enchant creature or Spacecraft",
+        units=(),
+    )
+    assert has_structural_station_reference(tree) is False
+    assert has_structural_station_charge(tree) is False
+    node = _arm_station_matters(tree)
+    assert node is not None
+    assert node.concept == "synth_station_matters"
+
+
+def test_station_matters_gap_gated_when_structural_present():
+    """The bucket-B arm must not double-fire when a structural reference
+    already exists on the tree (SYNTH-EXCLUSION-PARITY)."""
+    unit = AbilityUnit(
+        origin="phase",
+        index=0,
+        node=_spacecraft_typed_filter(),
+        kind=None,
+        trigger_event=None,
+        effects=(),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X",
+        oracle_id="x",
+        oracle="Enchant creature or Spacecraft",
+        units=(unit,),
+    )
+    assert _arm_station_matters(tree) is None
+
+
+def test_station_matters_synth_registered():
+    assert "station_matters" in SYNTHESIS_ARM_IDS

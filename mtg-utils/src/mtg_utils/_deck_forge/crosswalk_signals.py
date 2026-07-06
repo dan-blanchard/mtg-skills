@@ -202,6 +202,8 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_pump_makers,
     has_structural_self_counter_grow,
     has_structural_spellcast,
+    has_structural_station_charge,
+    has_structural_station_reference,
     has_structural_superfriends,
     has_structural_suspend_matters,
     has_structural_theft_makers,
@@ -231,7 +233,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _PROLIFERATE_REMOVE_COST_RE,
     _SAME_TRUE_KW_RE,
     _SELF_PROTECTION_GRANT_KW,
-    _STATION_CHARGE_RE,
     _TYPED_ANTHEM_MULTI_RAW,
     _apply_membership_floor,
 )
@@ -253,7 +254,6 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import (
-    STATION_MATTERS_REGEX,
     STICKERS_MATTER_REGEX,
     VOID_WARP_MATTERS_REGEX,
 )
@@ -8859,8 +8859,9 @@ def _outlaw_matters_lane(tree: ConceptTree) -> list[Signal]:
 # Compiled forms of the pinned shared regex sources (byte-identical by import;
 # the same IGNORECASE the live kept-detector loop compiles with).
 # (void_warp_makers's ``_VOID_WARP_MAKERS_RX`` kept-mirror was ADR-0036/0037
-# folded to Tier-1 — see ``_arm_void_warp_makers``.)
-_STATION_GUARD_RX = re.compile(STATION_MATTERS_REGEX, re.IGNORECASE)
+# folded to Tier-1 — see ``_arm_void_warp_makers``. station's
+# ``_STATION_GUARD_RX``/``_STATION_CHARGE_RE`` kept-mirrors were ADR-0036/0037
+# folded to Tier-1 — see ``_station_lanes`` + ``_arm_station_matters``.)
 
 # (sacrifice_protection's ``_SAC_PROTECTION_MIRROR`` kept-mirror was
 # ADR-0036/0037 folded to Tier-1 — see ``_arm_sacrifice_protection``.)
@@ -9103,33 +9104,49 @@ def _bending_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
 
 
 def _station_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
-    """station_makers / station_matters (§2) — CR 702.184a/702.184b: ONE
-    kept guard mirror (the pinned ``STATION_MATTERS_REGEX``), 3-way makers
-    split, both HIGH "you" — bifurcating the SAME firing keeps the split
-    set-equal (union == the old lane, 44 commander: 34 makers / 10
-    references). A card PERFORMS station when it (a) BEARS the Scryfall
-    Station keyword, (b) IS a Spacecraft/Planet body — the typed
-    ``tree.card_subtypes`` read (§0 plumbing 3; 0 drift vs the live
-    ``_STATION_TL_RE`` type-line regex), or (c) CHARGES one (the imported
-    ``_STATION_CHARGE_RE`` — Drill Too Deep); else it only NAMES Spacecraft
-    to count/destroy/gate (Focus Fire, Tractor Beam) → station_matters.
+    """station_makers / station_matters (§2, ADR-0036/0037 Stage 5 fold,
+    Tier-1) — CR 702.184a/702.184b. A card PERFORMS station when it (a)
+    BEARS the Scryfall Station keyword, (b) IS a Spacecraft/Planet body —
+    the typed ``tree.card_subtypes`` read, or (c) CHARGES one — a typed
+    ``PutCounter`` charge-counter node co-occurring, in the SAME ability
+    unit, with a typed filter naming Spacecraft/Planet
+    (:func:`has_structural_station_charge` — Drill Too Deep, Systems
+    Override) → station_makers. Else it NAMES Spacecraft/Planet to
+    count/destroy/gate — a typed filter read
+    (:func:`has_structural_station_reference` — Focus Fire, Gravkill,
+    8/9 of the live non-bearer set) → station_matters. The residual
+    bucket-B tail — Tractor Beam's own printed "Enchant creature or
+    Spacecraft" restriction, which phase drops entirely — reads the
+    ``tree_synthesis`` ``synth_station_matters`` node
+    (:func:`_arm_station_matters`) → station_matters. Loading Zone
+    RECLASSIFIES makers → matters vs the deleted flat mirror (it's a
+    generic ANY-counter doubler naming Spacecraft/Planet among other
+    permanent types, not a station-specific charge effect — a genuine
+    "cares about" support card, not a "performs station" card; adjudicated
+    improvement). makers == 34 commander, matters == 10 (9 typed + 1
+    bucket-B).
 
     Documented live GAP (pinned negative, NOT parity): Tapestry Warden —
-    the plural verb "stations" dodges ``\\bstation\\b`` (CR 702.184c's own
-    Example names it; phase structures it as ``CrewContribution/
-    ToughnessInsteadOfPower``) — a candidate widen for a later fix batch
-    (parity-first, the Essence Symbiote precedent).
+    the plural verb "stations" (CR 702.184c's own Example names it) —
+    phase structures it as ``CrewContribution/ToughnessInsteadOfPower``,
+    no Spacecraft/Planet typed filter anywhere on the card — a candidate
+    widen for a later fix batch (parity-first, the Essence Symbiote
+    precedent).
     """
-    if not _STATION_GUARD_RX.search(_kept(tree)):
-        return []
     low = {k.lower() for k in keywords}
     makers = (
         "station" in low
         or any(s in _STATION_SUBTYPES for s in tree.card_subtypes)
-        or bool(_STATION_CHARGE_RE.search(_kept(tree)))
+        or has_structural_station_charge(tree)
     )
-    key = "station_makers" if makers else "station_matters"
-    return [Signal(key, "you", "", "", tree.name, "high")]
+    if makers:
+        return [Signal("station_makers", "you", "", "", tree.name, "high")]
+    if has_structural_station_reference(tree):
+        return [Signal("station_matters", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_station_matters":
+            return [Signal("station_matters", "you", "", "", tree.name, "high")]
+    return []
 
 
 def _evasion_self(tree: ConceptTree) -> list[Signal]:
