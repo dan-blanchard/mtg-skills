@@ -123,6 +123,7 @@ from mtg_utils._deck_forge._signals_ir import (
 from mtg_utils._deck_forge._signals_regex import (
     _ABILITY_KEYWORDS,
     _COLOR_HOSER_RE,
+    _MELD_FULLTEXT_RE,
     _detect_keyword_implied_tribe,
     _detect_keyword_tribe,
     _detect_multi_tribe_anthem,
@@ -175,6 +176,7 @@ __all__ = [
     "has_structural_curse_matters",
     "has_structural_kill_engine",
     "has_structural_life_payment_insurance",
+    "has_structural_meld_pair",
     "has_structural_outlaw",
     "has_structural_power_tap_engine",
     "has_structural_pump_makers",
@@ -5096,6 +5098,46 @@ def _arm_starting_life_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T7-niche-c: meld_pair (structural + bucket-B tail) ───────────────
+# CR 701.42a/701.42b (meld pairs) + 712.1: STRUCTURAL — a ``Meld`` effect
+# node anywhere in the tree (phase structures the trigger-front's own Meld
+# node — Gisela, Graf Rat — 2/14 commander-legal partners). The residual:
+# the partner-side info that lives ONLY in reminder text ("(Melds with
+# X.)"), which reminder-STRIPPING would lose — phase never structures the
+# back piece's own Meld node (Brisela names no partner) — a long-logged
+# genuine gap. Relocates the deleted ``_MELD_FULLTEXT_RE`` mirror verbatim
+# over the UN-stripped oracle, gap-gated. Measured over the commander-legal
+# corpus: 2 structural + 12 bucket-B, 0 drops, 0 adds (byte-identical
+# union).
+def has_structural_meld_pair(tree: ConceptTree) -> bool:
+    """Whether a ``Meld`` effect node exists anywhere in the tree (the
+    trigger-front's own meld — Gisela, Graf Rat)."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Meld":
+                return True
+    return False
+
+
+def _arm_meld_pair(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``meld_pair`` node for the reminder-text-only partner
+    residual (the deleted ``_MELD_FULLTEXT_RE`` mirror relocated over the
+    UN-stripped oracle, gap-gated against :func:`has_structural_meld_pair`)."""
+    if not tree.name:
+        return None
+    if has_structural_meld_pair(tree):
+        return None
+    if _MELD_FULLTEXT_RE.search(tree.oracle or "") is None:
+        return None
+    return _synthetic_concept(
+        arm_id="meld_pair",
+        concept="synth_meld_pair",
+        scope="you",
+        subject=(),
+        desc="bucket-B meld reminder-text partner residue (CR 701.42a)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -5158,6 +5200,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("big_hand_matters", _arm_big_hand_matters),
     ("power_tap_engine", _arm_power_tap_engine),
     ("starting_life_matters", _arm_starting_life_matters),
+    ("meld_pair", _arm_meld_pair),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

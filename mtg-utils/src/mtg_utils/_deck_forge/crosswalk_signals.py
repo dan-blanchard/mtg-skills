@@ -193,6 +193,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_curse_matters,
     has_structural_keyword_counter,
     has_structural_life_payment_insurance,
+    has_structural_meld_pair,
     has_structural_outlaw,
     has_structural_power_tap_engine,
     has_structural_proliferate,
@@ -238,7 +239,6 @@ from mtg_utils._deck_forge._signals_ir import (
 )
 from mtg_utils._deck_forge._signals_regex import (
     _EVERGREEN_CK,
-    _MELD_FULLTEXT_RE,
     Signal,
     _detect_token_maker,
     _resolve_subject,
@@ -9579,12 +9579,12 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
 # (_IR_KEPT_DETECTORS / the deleted-producer patterns) — the b12 _JOHAN_MIRROR
 # precedent for rows with no importable name. Named live constants are imported
 # above (one source, zero drift):
-# _MELD_FULLTEXT_RE, _TOUGHNESS_VALUE_MIRROR, _TYPED_ANTHEM_MULTI_RAW.
-# (island_makers, ability_copy, noncombat_damage_payoff, per_target_payoff,
-# power_tap_engine, and starting_life_matters were ADR-0036/0037 folded to
-# Tier-1 structural / bucket-B synth reads — see ``_island_makers``,
+# _TOUGHNESS_VALUE_MIRROR, _TYPED_ANTHEM_MULTI_RAW. (island_makers,
+# ability_copy, noncombat_damage_payoff, per_target_payoff, power_tap_engine,
+# starting_life_matters, and meld_pair were ADR-0036/0037 folded to Tier-1
+# structural / bucket-B synth reads — see ``_island_makers``,
 # ``_ability_copy``, ``_noncombat_damage_payoff``, ``_per_target_payoff``,
-# ``_power_tap_engine``, ``_starting_life_matters``.)
+# ``_power_tap_engine``, ``_starting_life_matters``, ``_meld_pair``.)
 
 # Counter-placement effect tags (the live place_counter category's producers)
 # for the ability_strip same-unit join (§2).
@@ -9953,30 +9953,32 @@ def _keyword_soup_makers(tree: ConceptTree) -> list[Signal]:
 def _meld_pair(tree: ConceptTree) -> list[Signal]:
     """meld_pair (§12, SUBJECT-carrying — signal_keys.MELD_PAIR) — CR
     701.42a/701.42b (meld pairs; "See rule 712, 'Double-Faced Cards.'") +
-    201.4e + 712.1 (live cite CORRECT).
+    201.4e + 712.1.
 
-    The batch's ONE raw-oracle mirror: the imported live
-    ``_MELD_FULLTEXT_RE`` over the **UN-stripped** oracle — the back piece's
-    meld info lives ONLY in reminder text ("(Melds with X.)"), which
-    reminder-stripping would lose. Subject = THIS card's name (the partner
-    names it back; the subject-spec branch serves exactly the one partner),
-    gated ``if name``. Bucket-B: phase drops 12/14 partners (only the
-    trigger-fronts Gisela + Graf Rats carry a Meld node; the RESULT face —
-    Brisela — names no partner, pop False) — long-logged, NOT a new bug
-    entry. Scope "you", HIGH.
+    Tier-1 (ADR-0036/0037 fold — the lane-time ``_MELD_FULLTEXT_RE``
+    UN-stripped-oracle read is RETIRED):
+
+    (a) STRUCTURAL — :func:`has_structural_meld_pair` — a ``Meld`` effect
+    node anywhere in the tree (the trigger-front's own meld — Gisela, Graf
+    Rat).
+    (b) the ``tree_synthesis`` stage's ``synth_meld_pair`` bucket-B node —
+    the reminder-text-only partner residual ("(Melds with X.)") for the
+    other 12/14 commander-legal partners phase never structures (the RESULT
+    face — Brisela — names no partner), gated against (a).
+
+    Subject = THIS card's name (the partner names it back; the subject-spec
+    branch serves exactly the one partner), gated ``if name``. Scope "you",
+    HIGH.
     """
-    raw = tree.oracle or ""
-    if tree.name and _MELD_FULLTEXT_RE.search(raw):
-        return [
-            Signal(
-                signal_keys.MELD_PAIR,
-                "you",
-                tree.name,
-                raw[:160],
-                tree.name,
-                "high",
-            )
-        ]
+    if not tree.name:
+        return []
+    if has_structural_meld_pair(tree):
+        return [Signal(signal_keys.MELD_PAIR, "you", tree.name, "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_meld_pair":
+            return [
+                Signal(signal_keys.MELD_PAIR, "you", tree.name, "", tree.name, "high")
+            ]
     return []
 
 
