@@ -206,7 +206,6 @@ from mtg_utils._deck_forge import signal_keys
 # (the _resolve_subject precedent) — one source, zero drift.
 from mtg_utils._deck_forge._signals_ir import (
     _ACTIVATED_ABILITY_DROP_EFFECTS,
-    _CONVOKE_RAW,
     _COUNTER_KIND_KEYS,
     _FLOOR_DETECTORS,
     _IR_FLOOR_LANES,
@@ -7855,19 +7854,19 @@ def _boast_matters(tree: ConceptTree) -> list[Signal]:
 
 def _convoke_matters(tree: ConceptTree) -> list[Signal]:
     """convoke_matters (§C) — CR 702.51: a cast-spell TRIGGER whose sentence
-    carries "convoke" (the live in-loop arm's _CONVOKE_RAW over the
-    consequence raws; the qualifier survives only in the description, phase
-    tags a bare cast trigger). Pop = exactly 3 (Joyful Stormsculptor, Kasla,
-    Saint Traft and Rem Karolus). Boundary (checklist #4b): bearers (Chord
-    of Calling) ride convoke_makers; the CastWithKeyword{Convoke} granter
-    (Chief Engineer) rides the b9 spell_keyword_grant — neither is routed
-    here."""
-    for unit in tree.units:
-        if unit.trigger_event != "cast_spell":
-            continue
-        desc = getattr(unit.node, "description", None)
-        if isinstance(desc, str) and _CONVOKE_RAW.search(desc):
-            return [Signal("convoke_matters", "you", "", desc, tree.name, "high")]
+    carries "convoke" (the qualifier survives only in the description,
+    phase tags a bare cast trigger). Pop = exactly 3 (Joyful Stormsculptor,
+    Kasla, Saint Traft and Rem Karolus). Tier-1 (ADR-0036/0037 T10-finalize2
+    fold): the deleted lane-time ``_CONVOKE_RAW`` scan is relocated
+    verbatim to the bucket-B ``synth_convoke_matters`` node
+    (:func:`_arm_convoke_matters`) — no competing structural predicate
+    exists, so this is the lane's SOLE source, zero oracle text/regex at
+    LANE time. Boundary (checklist #4b): bearers (Chord of Calling) ride
+    convoke_makers; the CastWithKeyword{Convoke} granter (Chief Engineer)
+    rides the b9 spell_keyword_grant — neither is routed here."""
+    for c in tree.iter_concepts():
+        if c.concept == "synth_convoke_matters":
+            return [Signal("convoke_matters", "you", "", "", tree.name, "high")]
     return []
 
 

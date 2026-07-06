@@ -126,6 +126,7 @@ from mtg_utils._card_ir.project import (
 from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
+    _CONVOKE_RAW,
     _KEYWORD_COUNTER_KINDS,
     _OPP_COUNTER_BENEFICIAL,
     _POWER_SCALING_RAW,
@@ -5966,6 +5967,34 @@ def _arm_targeting_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── T10-finalize2 bucket-B: 8 small tail lanes (ADR-0036/0037 Stage 5) ────────
+
+
+def _arm_convoke_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``convoke_matters`` node for the cast-spell trigger
+    whose convoke qualifier survives only in the trigger's OWN description
+    (phase tags a bare cast trigger with no convoke marker) — the deleted
+    lane-time ``_CONVOKE_RAW`` scan relocated verbatim. CR 702.51. No
+    competing Tier-1 predicate exists (the curse_matters/poison_matters
+    no-competing-structural-read precedent), so this is the lane's SOLE
+    source, gated only on the unit being a cast_spell trigger — matching
+    the deleted lane's own gate exactly (pop == 3: Joyful Stormsculptor,
+    Kasla, Saint Traft and Rem Karolus)."""
+    for unit in tree.units:
+        if unit.trigger_event != "cast_spell":
+            continue
+        desc = getattr(unit.node, "description", None)
+        if isinstance(desc, str) and _CONVOKE_RAW.search(desc):
+            return _synthetic_concept(
+                arm_id="convoke_matters",
+                concept="synth_convoke_matters",
+                scope="you",
+                subject=(),
+                desc="bucket-B convoke_matters cast-trigger qualifier (CR 702.51)",
+            )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -6124,6 +6153,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("miracle_grant", _arm_miracle_grant),
     ("snow_matters", _arm_snow_matters),
     ("targeting_matters", _arm_targeting_matters),
+    ("convoke_matters", _arm_convoke_matters),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

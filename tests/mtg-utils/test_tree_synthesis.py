@@ -60,6 +60,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_clue_matters,
     _arm_color_change,
     _arm_color_hoser,
+    _arm_convoke_matters,
     _arm_crimes_matter,
     _arm_curse_matters,
     _arm_firebending_matters,
@@ -5126,3 +5127,23 @@ def test_cant_block_grant_no_fire_on_self_drawback_or_pacify_shape():
     grant) never fire."""
     assert _arm_cant_block_grant(_fixture_tree("Arco-Flagellant")) is None
     assert _arm_cant_block_grant(_fixture_tree("Pacifism")) is None
+
+
+# ── batch T10-finalize2: 8 small tail lanes (ADR-0036/0037 Stage 5) ────────
+
+
+def test_convoke_matters_synth_registered():
+    assert "convoke_matters" in SYNTHESIS_ARM_IDS
+
+
+def test_convoke_matters_fires_on_joyful_stormsculptor():
+    """Joyful Stormsculptor's cast-spell trigger names "convoke" only in
+    its own description (phase tags a bare cast trigger) — the deleted
+    lane-time ``_CONVOKE_RAW`` scan relocated verbatim."""
+    node = _arm_convoke_matters(_fixture_tree("Joyful Stormsculptor"))
+    assert node is not None
+    assert node.concept == "synth_convoke_matters"
+
+
+def test_convoke_matters_no_fire_on_unrelated_card():
+    assert _arm_convoke_matters(_fixture_tree("Llanowar Elves")) is None
