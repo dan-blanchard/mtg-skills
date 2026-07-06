@@ -8052,15 +8052,10 @@ def _keyword_tribe(tree: ConceptTree) -> list[Signal]:
 # (clue_matters / flash_matters / opponent_exile_matters were ADR-0036/0037
 # folded to bucket-B ``tree_synthesis`` arms; see ``_arm_clue_matters`` /
 # ``_arm_flash_matters`` / ``_arm_opponent_exile_matters``.)
-# The signals.py wants_theft hybrid FACADE's don't-own tell (byte-identical to
-# the inline regex at signals.py's include_membership block). Live runs it over
-# the RAW oracle (get_oracle_text — NOT reminder-stripped); the crosswalk reads
-# ``tree.oracle`` unstripped for byte-parity. Phase oracle_text occasionally
-# differs from bulk oracle in whitespace/name-substitution — shadow-diff data,
-# logged not normalized.
-_DONT_OWN_RX = re.compile(
-    r"you (?:cast|control|own)?[^.]{0,25}?(?:do not|don't) own", re.IGNORECASE
-)
+# (The signals.py wants_theft hybrid FACADE's don't-own tell was
+# ADR-0036/0037 T10-finalize2 folded to a bucket-B ``tree_synthesis`` arm —
+# see ``_arm_dont_own``; the gain_control/wants_theft reconciliation below
+# reads its ``synth_dont_own`` node, zero oracle text/regex at LANE time.)
 
 # activated_ability cost census (b14 §14 — CR 602.1): phase COST-leaf tags.
 # Tap/Untap = the {T}/{Q} branch (overrides an extra cost, like live's
@@ -11026,15 +11021,18 @@ def extract_crosswalk_signals(
 
     # b14 §7 — the wants_theft hybrid-FACADE reconciliation (CR 800.4a; the
     # spell_copy precedent above): a battlefield-steal (gain_control in the
-    # MERGED out keys) or a "don't own" payoff tell over the RAW oracle opens
-    # the LOW wants_theft benefit lane; a dont_own tell with NO structural
+    # MERGED out keys) or a "don't own" payoff tell opens the LOW
+    # wants_theft benefit lane; a dont_own tell with NO structural
     # gain_control also restores the facade's LOW gain_control half.
     # include_membership flag asymmetry noted at _wants_cloning — live gates
     # this behind include_membership, the crosswalk runs it unconditionally
     # (live pops measured with the flag True; the b12 kill_engine precedent).
+    # Tier-1 (ADR-0036/0037 T10-finalize2 fold): the deleted lane-time
+    # ``_DONT_OWN_RX`` whole-oracle scan is relocated verbatim to the
+    # bucket-B ``synth_dont_own`` node (:func:`_arm_dont_own`), read here.
     out_keys = {s.key for s in out}
     gc_now = "gain_control" in out_keys
-    dont_own = _DONT_OWN_RX.search(tree.oracle or "")
+    dont_own = any(c.concept == "synth_dont_own" for c in tree.iter_concepts())
     if (gc_now or dont_own) and "wants_theft" not in out_keys:
         add(Signal("wants_theft", "opponents", "", "", tree.name, "low"))
     if dont_own and not gc_now:

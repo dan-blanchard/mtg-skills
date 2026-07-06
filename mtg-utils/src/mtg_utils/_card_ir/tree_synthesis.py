@@ -6129,6 +6129,37 @@ def _arm_becomes_target_src_opp(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+# The wants_theft/gain_control hybrid-FACADE "don't own" tell (CR 800.4a) —
+# moved here from crosswalk_signals (the _DEATH_PAYOFF_EFFECTS neutral-home
+# precedent: crosswalk_signals only ever imports FROM tree_synthesis, never
+# the reverse). Runs over the RAW oracle (NOT reminder-stripped — byte-
+# parity with the deleted reconciliation-body read; phase oracle_text
+# occasionally differs from bulk oracle in whitespace/name-substitution,
+# shadow-diff data, logged not normalized).
+_DONT_OWN_RX = re.compile(
+    r"you (?:cast|control|own)?[^.]{0,25}?(?:do not|don't) own", re.IGNORECASE
+)
+
+
+def _arm_dont_own(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``dont_own`` node for the wants_theft/gain_control
+    hybrid-facade "don't own" tell (CR 800.4a) — the live ``_DONT_OWN_RX``
+    whole-oracle scan relocated verbatim (byte-parity: the RAW oracle,
+    NOT reminder-stripped, matching the deleted reconciliation-body
+    read). No competing Tier-1 predicate exists for this specific tell —
+    it is the reconciliation's SOLE source, unchanged from the deleted
+    read."""
+    if _DONT_OWN_RX.search(tree.oracle or ""):
+        return _synthetic_concept(
+            arm_id="dont_own",
+            concept="synth_dont_own",
+            scope="opponents",
+            subject=(),
+            desc="bucket-B wants_theft/gain_control don't-own tell (CR 800.4a)",
+        )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -6291,6 +6322,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("keyword_soup_same_true", _arm_keyword_soup_same_true),
     ("exhaust_matters", _arm_exhaust_matters),
     ("becomes_target_src_opp", _arm_becomes_target_src_opp),
+    ("dont_own", _arm_dont_own),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

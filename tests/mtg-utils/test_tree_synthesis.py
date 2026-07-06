@@ -64,6 +64,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_convoke_matters,
     _arm_crimes_matter,
     _arm_curse_matters,
+    _arm_dont_own,
     _arm_exhaust_matters,
     _arm_firebending_matters,
     _arm_flash_matters,
@@ -5233,3 +5234,20 @@ def test_becomes_target_src_opp_no_fire_without_opponent_wording():
     )
     tree = ConceptTree(name="X", oracle_id="x", oracle="x", units=(unit,))
     assert _arm_becomes_target_src_opp(tree) is None
+
+
+def test_dont_own_synth_registered():
+    assert "dont_own" in SYNTHESIS_ARM_IDS
+
+
+def test_dont_own_fires_on_don_andres():
+    """Don Andres, the Renegade's "gain control of ... for as long as you
+    don't own it" tell — the deleted lane-time whole-oracle
+    ``_DONT_OWN_RX`` scan relocated verbatim."""
+    node = _arm_dont_own(_fixture_tree("Don Andres, the Renegade"))
+    assert node is not None
+    assert node.concept == "synth_dont_own"
+
+
+def test_dont_own_no_fire_on_unrelated_card():
+    assert _arm_dont_own(_fixture_tree("Llanowar Elves")) is None
