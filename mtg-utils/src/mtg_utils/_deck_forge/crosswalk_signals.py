@@ -261,7 +261,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
     STATION_MATTERS_REGEX,
     STICKERS_MATTER_REGEX,
     UNSPENT_MANA_REGEX,
-    VOID_WARP_MAKERS_REGEX,
     VOID_WARP_MATTERS_REGEX,
 )
 from mtg_utils.card_classify import get_oracle_text
@@ -8856,8 +8855,9 @@ def _outlaw_matters_lane(tree: ConceptTree) -> list[Signal]:
 
 # Compiled forms of the pinned shared regex sources (byte-identical by import;
 # the same IGNORECASE the live kept-detector loop compiles with).
+# (void_warp_makers's ``_VOID_WARP_MAKERS_RX`` kept-mirror was ADR-0036/0037
+# folded to Tier-1 — see ``_arm_void_warp_makers``.)
 _STATION_GUARD_RX = re.compile(STATION_MATTERS_REGEX, re.IGNORECASE)
-_VOID_WARP_MAKERS_RX = re.compile(VOID_WARP_MAKERS_REGEX, re.IGNORECASE)
 
 # Byte-identical copy of the INLINE (unnamed) ``_IR_KEPT_DETECTORS``
 # sacrifice_protection row (the _JOHAN_MIRROR precedent — no importable name).
@@ -9567,22 +9567,23 @@ def _void_warp_makers(tree: ConceptTree) -> list[Signal]:
     """void_warp_makers (§14) — CR 702.185a Warp (two statics while on the
     stack: cast from hand for [cost], exile at next end step with a
     re-cast permission; alternative-cost rules 601.2b/f-h) + CR 207.2c
-    (void is an ABILITY WORD — no rules meaning, hence no phase keyword):
-    kept-mirror ONLY, the pinned ``VOID_WARP_MAKERS_REGEX`` flat — the
-    three PERFORM/GRANT arms: keyword bearers ("Warp {1}{U}" — Starfield
-    Vocalist), granters ("have warp {2}{R}" — Tannuk), and the em-dash +
-    graveyard self-cast forms ("Warp—{B}" / "using its warp ability" —
-    Timeline Culler). The PAYOFF arm (void_warp_matters) is the batch-12
+    (void is an ABILITY WORD — no rules meaning, hence no phase keyword).
+    Tier-1 (ADR-0036/0037 fold — the ``_VOID_WARP_MAKERS_RX`` kept-mirror is
+    RETIRED): the three PERFORM/GRANT forms (keyword bearers — "Warp {1}{U}"
+    — Starfield Vocalist; granters — "have warp {2}{R}" — Tannuk; the
+    em-dash + graveyard self-cast forms — "Warp—{B}" / "using its warp
+    ability" — Timeline Culler) have no competing Tier-1 predicate (v0.9.0's
+    parameterized ``{Warp: cost}`` keyword array under-fires the granters,
+    and a synth arm sees only the tree, never the Scryfall keyword array
+    that WOULD need a second keyword-blind gap-check), so the
+    ``tree_synthesis`` stage's ``synth_void_warp_makers`` node is the
+    lane's SOLE source. The PAYOFF arm (void_warp_matters) is the batch-12
     skip-sweep lane — NOT this batch, never absorbed (Alpharael's "a spell
-    was warped this turn" Void payoff, pop False here). LOGGED structural
-    upgrade, not taken: v0.9.0 carries parameterized ``{Warp: cost}``
-    keywords, ``variant: Warp`` cast permissions, and the structured
-    ``AddKeyword.keyword.Warp`` grant (Tannuk) — but the Scryfall array
-    under-fires the granters, so the mirror stays the parity home. Scope
-    "you", HIGH.
+    was warped this turn" Void payoff, pop False here). Scope "you", HIGH.
     """
-    if _VOID_WARP_MAKERS_RX.search(_kept(tree)):
-        return [Signal("void_warp_makers", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_void_warp_makers":
+            return [Signal("void_warp_makers", "you", "", "", tree.name, "high")]
     return []
 
 

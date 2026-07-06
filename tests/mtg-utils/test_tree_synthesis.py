@@ -56,6 +56,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_suspect_matters,
     _arm_suspend_matters,
     _arm_vehicles_matter,
+    _arm_void_warp_makers,
     _has_structural_lifegain,
     _is_creature_death_subject,
     _is_self_recursion_return,
@@ -3715,3 +3716,61 @@ def test_color_hoser_lane_reads_synth_node_end_to_end():
     )
     sigs = _color_hoser(tree)
     assert any(s.key == "color_hoser" for s in sigs)
+
+
+# ── batch T5-niche-a: void_warp_makers (full relocation, no gate) ──────────
+
+
+def test_void_warp_makers_bucket_b_synth_keyword_bearer():
+    """Starfield Vocalist's "Warp {1}{U}" keyword bearer — no competing
+    Tier-1 predicate (the Scryfall keyword array under-fires the granters,
+    so it can't reproduce the full population either)."""
+    tree = _fixture_tree("Starfield Vocalist")
+    node = _arm_void_warp_makers(tree)
+    assert node is not None
+    assert node.concept == "synth_void_warp_makers"
+    assert node.scope == "you"
+
+
+def test_void_warp_makers_bucket_b_synth_emdash_form():
+    """Timeline Culler's em-dash "Warp—{B}" / graveyard self-cast form."""
+    tree = _fixture_tree("Timeline Culler")
+    node = _arm_void_warp_makers(tree)
+    assert node is not None
+    assert node.concept == "synth_void_warp_makers"
+
+
+def test_void_warp_makers_no_fire_on_unrelated_card():
+    assert _arm_void_warp_makers(_fixture_tree("Llanowar Elves")) is None
+
+
+def test_void_warp_makers_synth_registered():
+    assert "void_warp_makers" in SYNTHESIS_ARM_IDS
+
+
+def test_void_warp_makers_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _void_warp_makers
+
+    synth = ConceptNode(
+        concept="synth_void_warp_makers",
+        node=SynthesizedNode(arm_id="void_warp_makers", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _void_warp_makers(tree)
+    assert any(s.key == "void_warp_makers" for s in sigs)

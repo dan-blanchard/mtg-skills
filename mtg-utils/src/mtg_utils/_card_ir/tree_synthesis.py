@@ -134,6 +134,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     KEYWORD_COUNTER_REGEX,
     PUMP_MATTERS_REGEX,
     VEHICLES_MATTER_REGEX,
+    VOID_WARP_MAKERS_REGEX,
 )
 
 __all__ = [
@@ -4442,6 +4443,43 @@ def _arm_color_hoser(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T5-niche-a: void_warp_makers (full relocation, no gate) ──────────
+# CR 702.185a Warp (two statics while on the stack: cast from hand for
+# [cost], exile at next end step with a re-cast permission) + CR 207.2c
+# (void is an ABILITY WORD — no rules meaning, no phase keyword): the three
+# PERFORM/GRANT arms (keyword bearers, granters, em-dash/graveyard self-cast
+# forms). LOGGED, not taken: v0.9.0 carries a parameterized ``{Warp: cost}``
+# keyword array, a ``variant: Warp`` cast permission, and the structured
+# ``AddKeyword.keyword.Warp`` grant — but the Scryfall keyword array
+# UNDER-FIRES the granters (Tannuk-shaped "have warp" text carries no card-
+# level Warp keyword), so no competing Tier-1 predicate reproduces the full
+# population without a second, keyword-blind gap-check this stage cannot run
+# (synth arms see only the tree, never the Scryfall keyword array). Relocates
+# the deleted ``_VOID_WARP_MAKERS_RX`` verbatim — SOLE source (the
+# flash_matters/opponent_exile_matters no-competing-predicate precedent).
+# Measured byte-identical (33/33 union, 0 drops, 0 adds).
+_VOID_WARP_MAKERS_SYNTH_RX = re.compile(VOID_WARP_MAKERS_REGEX, re.IGNORECASE)
+
+
+def _matches_void_warp_makers_idiom(oracle: str) -> bool:
+    return bool(_VOID_WARP_MAKERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_void_warp_makers(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``void_warp_makers`` node (the deleted
+    ``_VOID_WARP_MAKERS_RX`` relocated verbatim — no competing Tier-1
+    predicate exists, so this is the lane's SOLE source)."""
+    if not _matches_void_warp_makers_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="void_warp_makers",
+        concept="synth_void_warp_makers",
+        scope="you",
+        subject=(),
+        desc="bucket-B Warp keyword bearer/grant/recast residue (CR 702.185a)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -4492,6 +4530,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("pump_makers", _arm_pump_makers),
     ("opponent_exile_matters", _arm_opponent_exile_matters),
     ("color_hoser", _arm_color_hoser),
+    ("void_warp_makers", _arm_void_warp_makers),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
