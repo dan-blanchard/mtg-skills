@@ -120,6 +120,7 @@ from mtg_utils._deck_forge._signals_regex import (
 )
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge._sweep_detectors import (
+    ANIMATE_ARTIFACT_REGEX,
     ISLAND_MATTERS_REGEX,
     KEYWORD_COUNTER_REGEX,
 )
@@ -3633,6 +3634,37 @@ def _arm_island_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── batch T3-makers-type: animate_artifact bucket-B (verbatim relocation) ────
+# CR 613.1d + 702.122b: "artifacts become creatures" (Karn Silver Golem, March
+# of the Machines, Vehicle-crew animation). phase parses this THREE
+# inconsistent ways (batch-12 adjudication, ``_sweep_detectors.
+# ANIMATE_ARTIFACT_REGEX`` module docstring) — no clean structural
+# separation from generic become/type-conferral exists (a raw ``animate``
+# arm fires on ZERO commander-legal cards; a base_pt_set/AddType-over-
+# Artifact arm either 90%-over-fires or loses 48 core animators) — so this
+# has no competing Tier-1 predicate and relocates the deleted
+# ``_ANIMATE_ARTIFACT_RX`` verbatim.
+_ANIMATE_ARTIFACT_SYNTH_RX = re.compile(ANIMATE_ARTIFACT_REGEX, re.IGNORECASE)
+
+
+def _matches_animate_artifact_idiom(oracle: str) -> bool:
+    return bool(_ANIMATE_ARTIFACT_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+
+
+def _arm_animate_artifact(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``animate_artifact`` node (the deleted
+    ``_ANIMATE_ARTIFACT_RX`` relocated verbatim)."""
+    if not _matches_animate_artifact_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="animate_artifact",
+        concept="synth_animate_artifact",
+        scope="you",
+        subject=(),
+        desc="bucket-B artifact-becomes-creature (CR 613.1d/702.122b)",
+    )
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 # Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
@@ -3670,6 +3702,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("self_counter_grow", _arm_self_counter_grow),
     ("poison_matters", _arm_poison_matters),
     ("island_matters", _arm_island_matters),
+    ("animate_artifact", _arm_animate_artifact),
 )
 
 SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)

@@ -3566,10 +3566,11 @@ def test_evasion_denial_ignore_landwalk_mode():
 
 
 def test_animate_artifact_mirror_primary():
-    """CR 613.1d + 702.122b: the byte-identical ANIMATE_ARTIFACT_REGEX
-    mirror fires (Karn, Silver Golem; Titania's Song); a bare
-    becomes-an-artifact type conferral (Liquimetal Coating, Mycosynth
-    Lattice) never fires."""
+    """CR 613.1d + 702.122b: Tier-1 (ADR-0036/0037 fold — the
+    ``ANIMATE_ARTIFACT_REGEX`` mirror relocated verbatim to a bucket-B
+    ``tree_synthesis`` arm, no competing Tier-1 predicate) fires (Karn,
+    Silver Golem; Titania's Song); a bare becomes-an-artifact type
+    conferral (Liquimetal Coating, Mycosynth Lattice) never fires."""
     assert ("animate_artifact", "you", "") in _idents("Karn, Silver Golem")
     assert ("animate_artifact", "you", "") in _idents("Titania's Song")
     assert "animate_artifact" not in _keys("Liquimetal Coating")

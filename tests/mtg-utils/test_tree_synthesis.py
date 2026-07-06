@@ -24,6 +24,7 @@ from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode, ConceptTree
 from mtg_utils._card_ir.tree_synthesis import (
     _SPELLCAST_TRIGGER_RX,
     SYNTHESIS_ARM_IDS,
+    _arm_animate_artifact,
     _arm_island_matters,
     _arm_spellcast_matters,
     _has_structural_lifegain,
@@ -2837,3 +2838,53 @@ def test_island_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _island_matters(tree)
     assert any(s.key == "island_matters" for s in sigs)
+
+
+# ── batch T3-makers-type (ADR-0036/0037 Stage 5): animate_artifact ───────────
+
+
+def test_animate_artifact_bucket_b_synth():
+    """Karn, Silver Golem's artifact-becomes-creature grant — no competing
+    Tier-1 predicate (the batch-12 adjudication)."""
+    tree = _fixture_tree("Karn, Silver Golem")
+    node = _arm_animate_artifact(tree)
+    assert node is not None
+    assert node.concept == "synth_animate_artifact"
+    assert node.scope == "you"
+
+
+def test_animate_artifact_no_fire_on_bare_type_conferral():
+    """Liquimetal Coating's becomes-an-artifact conferral is a non-match."""
+    assert _arm_animate_artifact(_fixture_tree("Liquimetal Coating")) is None
+
+
+def test_animate_artifact_synth_registered():
+    assert "animate_artifact" in SYNTHESIS_ARM_IDS
+
+
+def test_animate_artifact_lane_reads_synth_node_end_to_end():
+    from mtg_utils._deck_forge.crosswalk_signals import _animate_artifact
+
+    synth = ConceptNode(
+        concept="synth_animate_artifact",
+        node=SynthesizedNode(arm_id="animate_artifact", description="x"),
+        role="effect",
+        scope="you",
+        subject=(),
+        raw="",
+    )
+    unit = AbilityUnit(
+        origin="synth",
+        index=0,
+        node=SynthesizedNode(arm_id="_unit", description="u"),
+        kind=None,
+        trigger_event=None,
+        effects=(synth,),
+        costs=(),
+        statics=(),
+    )
+    tree = ConceptTree(
+        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
+    )
+    sigs = _animate_artifact(tree)
+    assert any(s.key == "animate_artifact" for s in sigs)
