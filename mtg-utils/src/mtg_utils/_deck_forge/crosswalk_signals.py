@@ -2958,6 +2958,33 @@ def _daynight_makers(tree: ConceptTree) -> list[Signal]:
     return _whole_card_maker(tree, "set_daynight", "daynight_makers", "you")
 
 
+# ADR-0038 deferral sweep unit 2: Perch Protection's "If the gift was
+# promised, all permanents you control phase out, and until your next
+# turn, ..." conditional clause is a NO-RESIDUE gap — phase drops the
+# WHOLE segment (no PhaseOut node, no Unimplemented raw carrying the text
+# anywhere in the tree; the surrounding CantGainLife/CantLoseLife/
+# Protection statics parse fine on their own). Last-resort raw-oracle-text
+# idiom match (CR 702.26a's "phase(s) in/out" verb — the SAME idiom
+# ALLOWLIST["phasing"]/_THEN_PHASING already trust structurally), a
+# reference-arm-style text fallback (ADR-0038) tried only after BOTH
+# structural arms above miss. Corpus-verified (65 commander-legal matches):
+# every OTHER match is already a "both" member via an existing structural
+# arm (cw_only=0 pre-fix), so this fallback is reachable ONLY for the one
+# genuine no-residue card — it never second-guesses an already-decided
+# card. A "can't phase out" DENIAL (Spatial Binding) also matches the bare
+# idiom, but legacy's OWN project.py is equally permissive there (fires
+# phasing_makers on ANY "phase out" mention regardless of negation) and
+# Spatial Binding already fires via an existing structural arm, so no
+# negation guard is needed — this fallback is never the deciding vote for
+# a denial-only card in the current corpus. Matched against :func:`_kept`
+# (the reminder-stripped oracle), NOT the raw ``tree.oracle`` — the CR
+# 702.26a REMINDER text itself carries the identical "phases in or out"
+# idiom on every card that merely GRANTS the Phasing keyword to something
+# else (Cloak of Invisibility, Shimmer, Teferi's Curse — corpus-caught:
+# these 3 flipped cw_only before the strip), never a genuine doer.
+_PHASING_TEXT_RE = re.compile(r"\bphase(?:s)?\s+(?:in|out)\b", re.IGNORECASE)
+
+
 def _phasing_makers(tree: ConceptTree) -> list[Signal]:
     """phasing_makers — a ``PhaseOut`` / ``PhaseIn`` DOER (CR 702.26). Matching the
     live ``phasing`` doer, this is a BLANKET maker (scope "you") that does NOT split
@@ -2976,6 +3003,14 @@ def _phasing_makers(tree: ConceptTree) -> list[Signal]:
     phase's own native ``PhaseOut``/``PhaseIn`` TRIGGER MODE (normalizes to
     trigger_event "phaseout"/"phasein" — the CR 702.26e "phases out" EVENT a
     permanent's own leaves-play watcher fires on, not text).
+
+    ADR-0038 deferral sweep unit 2: a coin-flip MODAL branch (Frenetic
+    Efreet: "Flip a coin. If you win the flip, ~ phases out.") carries its
+    PhaseOut effect NESTED inside the ``FlipCoin`` node's own ``win_effect``/
+    ``lose_effect`` sub-ability — never a top-level unit effect, so
+    ``tree.effect_concepts`` (a per-unit walk) never reaches it.
+    :func:`iter_typed_nodes`'s generic deep walk does (the same descent
+    precedent as the hand_disruption GrantAbility-nested RevealHand read).
     """
     hits = _whole_card_maker(tree, "phasing", "phasing_makers", "you")
     if hits:
@@ -2983,6 +3018,16 @@ def _phasing_makers(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if unit.origin == "trigger" and unit.trigger_event in ("phaseout", "phasein"):
             return [Signal("phasing_makers", "you", "", "", tree.name, "high")]
+        for c in unit.iter_concepts():
+            if c.role != "effect" or tag_of(c.node) != "FlipCoin":
+                continue
+            for n in iter_typed_nodes(c.node):
+                if tag_of(n) in ("PhaseOut", "PhaseIn"):
+                    return [
+                        Signal("phasing_makers", "you", "", c.raw, tree.name, "high")
+                    ]
+    if _PHASING_TEXT_RE.search(_kept(tree)):
+        return [Signal("phasing_makers", "you", "", "", tree.name, "high")]
     return []
 
 
