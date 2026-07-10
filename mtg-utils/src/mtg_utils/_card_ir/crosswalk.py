@@ -1290,21 +1290,47 @@ def modify_cost_mode(static_node: TypedMirrorNode) -> str | None:
     return None
 
 
+# Dynamically-bound player-reference tags a ``GiveControl.recipient`` carries
+# that :func:`_scope_from_player_node` doesn't resolve (that resolver is
+# shared by 13 OTHER call sites — a corpus-wide behavior change is out of
+# THIS key's scope, so the mapping is local to :func:`control_recipient_scope`
+# only). All three are "that player" back-references bound by the ability's
+# OWN context, never "you" — CR 110.2 lets control pass to any other player:
+#   * ``ScopedPlayer`` — "each player's upkeep, THAT PLAYER gains control"
+#     (Alexios, Risky Move's hot-potato cycle) — symmetric, "each".
+#   * ``TriggeringPlayer`` — "whenever X deals damage to/is triggered by A
+#     PLAYER, THAT PLAYER gains control" (Blim, Drooling Ogre, Kain) — the
+#     triggering player is context-dependent, "any".
+#   * ``ParentTargetController`` — "choose a/another player. THAT PLAYER
+#     gains control" (Discerning Financier, Goblin Festival) — the chosen
+#     player, "any".
+_DONATE_RECIPIENT_SCOPES: dict[str, str] = {
+    "ScopedPlayer": "each",
+    "TriggeringPlayer": "any",
+    "ParentTargetController": "any",
+}
+
+
 def control_recipient_scope(node: TypedMirrorNode) -> str | None:
     """The scope of a control-change effect's ``recipient`` (who GAINS control), or
     ``None`` when the node carries no recipient.
 
     A ``GiveControl`` (CR 110.2) hands a permanent YOU control to ``recipient`` — a
-    targeted player (``Player`` → ``"any"`` — Donate, Bazaar Trader) or an explicit
-    opponent (``Typed controller=Opponent`` → ``"opponents"`` — Harmless Offering).
-    The ``donate_makers`` give-away gate (checklist #2) reads the ``recipient`` node
-    directly — NOT :func:`explicit_recipient_scope`, which reads the donated
-    permanent's own ``target`` filter first and mis-returns ``"you"``. Reading the
-    recipient SPECIFICALLY isolates the beneficiary the OLD lossy IR dropped.
+    targeted player (``Player`` → ``"any"`` — Donate, Bazaar Trader), an explicit
+    opponent (``Typed controller=Opponent`` → ``"opponents"`` — Harmless Offering),
+    or a dynamically-bound "that player" back-reference (:data:`_DONATE_RECIPIENT_
+    SCOPES`). The ``donate_makers`` give-away gate (checklist #2) reads the
+    ``recipient`` node directly — NOT :func:`explicit_recipient_scope`, which reads
+    the donated permanent's own ``target`` filter first and mis-returns ``"you"``.
+    Reading the recipient SPECIFICALLY isolates the beneficiary the OLD lossy IR
+    dropped.
     """
     rcp = getattr(node, "recipient", MISSING)
     if not _present(rcp):
         return None
+    t = tag_of(rcp)
+    if t in _DONATE_RECIPIENT_SCOPES:
+        return _DONATE_RECIPIENT_SCOPES[t]
     return _scope_from_player_node(rcp)
 
 

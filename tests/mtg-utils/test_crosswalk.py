@@ -1821,6 +1821,113 @@ def test_donate_makers_excludes_control_reset():
     assert "donate_makers" not in _keys("Brooding Saurian")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Alexios, Deimos of Kosmos",  # ScopedPlayer: "each player's upkeep, that
+        # player gains control of Alexios"
+        "Risky Move",  # ScopedPlayer: "each player's upkeep, that player gains
+        # control of this enchantment"
+        "Blim, Comedic Genius",  # TriggeringPlayer: combat damage → "that player
+        # gains control of target permanent you control"
+        "Kain, Traitorous Dragoon",  # TriggeringPlayer: combat damage → "that
+        # player gains control of Kain"
+        "Drooling Ogre",  # TriggeringPlayer: "whenever a player casts an
+        # artifact spell, that player gains control of this creature"
+        "Discerning Financier",  # ParentTargetController: "Choose another
+        # player. That player gains control of target Treasure you control"
+        "Goblin Festival",  # ParentTargetController: "choose one of your
+        # opponents. That player gains control of this enchantment"
+    ],
+)
+def test_donate_makers_dynamic_recipient_recovers(name):
+    """ADR-0038 recovery: phase's ``ScopedPlayer`` / ``TriggeringPlayer`` /
+    ``ParentTargetController`` recipient tags are all "that player" back-
+    references :func:`_scope_from_player_node` doesn't resolve --
+    :func:`control_recipient_scope`'s local ``_DONATE_RECIPIENT_SCOPES``
+    mapping closes the gap (CR 110.2)."""
+    assert ("donate_makers", "you", "") in _idents(name)
+
+
+def test_donate_makers_mass_self_give_away_via_theft_tag():
+    """Sky Swallower's "target opponent gains control of all other
+    permanents you control" is phase's ``GainControlAll`` THEFT tag, but
+    the beneficiary is a non-you player and the target is YOUR OWN board
+    (controller='You') — the SAME give-away direction as a native
+    GiveControl, mirroring the first ``_gives_control_to_other`` branch
+    (CR 110.2)."""
+    assert ("donate_makers", "you", "") in _idents("Sky Swallower")
+
+
+def test_donate_makers_excludes_owned_control_reset_via_theft_tag():
+    """Herald of Leshrac's "each player gains control of each land they own
+    that you control" carries an ``Owned`` target predicate — a
+    control-RESET to the original OWNER (CR 110.2a), not a give-away, even
+    though it's shaped like Sky Swallower's mass GainControlAll."""
+    assert "donate_makers" not in _keys("Herald of Leshrac")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Crag Saurian",  # "that source's controller gains control"
+        "Contested War Zone",  # "that creature's controller gains control"
+        "Starke of Rath",  # "That permanent's controller gains control"
+        "Fractured Loyalty",  # "that spell or ability's controller gains control"
+        "Act of Authority",  # "its controller gains control"
+    ],
+)
+def test_donate_makers_excludes_revenge_idiom(name):
+    """ADR-0034 shed: the "'s controller gains/gain control" idiom hands
+    control to whoever's SOURCE damaged/destroyed/targeted the permanent —
+    a consequence of an OPPONENT's own action, never a deliberate gift.
+    Live's own ``_DONATE_RAW`` deliberately excludes this phrasing (it
+    lives only in the SEPARATE gain_control theft-exclusion regex,
+    ``_GIVE_CONTROL_AWAY``); recovering it wholesale via
+    ``_gives_control_to_other`` pulled these 5 cards in as false positives
+    (corpus-measured, not assumed) — :data:`_CONTROL_REVENGE_RE` excludes
+    them, matching legacy's narrower scope."""
+    assert "donate_makers" not in _keys(name)
+
+
+def test_donate_makers_excludes_ambiguous_clash_control_flip():
+    """ADR-0034 shed: Captivating Glance's clash-based control swap targets
+    "enchanted creature" — an unrestricted Aura target, not guaranteed to
+    be something YOU control. The winning/losing branches are symmetric
+    (either player could gain it), so this is not a clean "you give away
+    YOUR OWN permanent" doer."""
+    assert "donate_makers" not in _keys("Captivating Glance")
+
+
+def test_donate_makers_excludes_granted_revenge_tax():
+    """ADR-0034 shed: Custody Battle's granted "at the beginning of YOUR
+    upkeep, target opponent gains control of this creature unless YOU
+    sacrifice a land" is scoped relative to the ENCHANTED creature's OWN
+    controller (whoever that is), not necessarily the Aura's caster —
+    mechanically a tax-or-lose-it THREAT typically cast on an opponent's
+    creature, not a self-donate."""
+    assert "donate_makers" not in _keys("Custody Battle")
+
+
+def test_donate_makers_recovers_regex_gap_intervening_clause():
+    """Coveted Jewel's "that player draws three cards and gains control of
+    this artifact" is a genuine donate (CR 110.2), but legacy's own
+    ``_DONATE_RAW`` regex requires "that player" IMMEDIATELY followed by
+    "gains control of" — the intervening "draws three cards and" clause
+    defeats the literal match. The structural read has no such adjacency
+    requirement, closing a genuine legacy RECALL gap (not an over-fire)."""
+    assert ("donate_makers", "you", "") in _idents("Coveted Jewel")
+
+
+def test_donate_makers_recovers_subjunctive_gain_form():
+    """Assault Suit's "you may have that player gain control of equipped
+    creature" uses the subjunctive "gain" (no trailing "s") after "may
+    have" — legacy's ``_DONATE_RAW`` regex requires the indicative "gains
+    control of" and misses this surface variation. The structural read
+    (typed recipient + scope) is form-agnostic."""
+    assert ("donate_makers", "you", "") in _idents("Assault Suit")
+
+
 @pytest.mark.parametrize("name", ["Call the Crash", "Current Curriculum"])
 def test_conjure_makers_structural(name):
     """A Conjure effect → conjure_makers you (DD2 / DD5)."""

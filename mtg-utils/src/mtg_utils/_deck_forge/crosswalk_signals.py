@@ -708,7 +708,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "dig_until",
         "direct_damage",
         "discard_outlet",
-        "donate_makers",
         "draw_for_each",
         "earthbend_matters",
         "enchantments_matter",
@@ -3605,20 +3604,75 @@ def _cost_reduction(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# The "'s controller gains/gain control" REVENGE idiom (CR 110.2): control
+# passes to whoever's SOURCE damaged/destroyed/targeted the permanent (Crag
+# Saurian's "that source's controller", Contested War Zone's "that
+# creature's controller", Starke of Rath's "that permanent's controller",
+# Fractured Loyalty's "that spell or ability's controller", Act of
+# Authority's "its controller") — a consequence of an OPPONENT's own
+# action, never a deliberate gift. Mirrors live's OWN text-anchored split:
+# ``_DONATE_RAW`` (donate_makers) deliberately excludes this phrasing,
+# which lives only in ``_GIVE_CONTROL_AWAY`` (the SEPARATE gain_control
+# theft-exclusion regex).
+_CONTROL_REVENGE_RE = re.compile(
+    r"\b(?:\w+'s|its|their) controller (?:gains?|gain) control\b", re.IGNORECASE
+)
+
+
 def _donate_makers(tree: ConceptTree) -> list[Signal]:
     """donate_makers — give a permanent YOU control to ANOTHER player (CR 110.2).
     Mirrors the live ``donate_makers`` doer (which folds the recipient from raw
     because the OLD lossy IR dropped it): a ``GiveControl`` effect whose ``recipient``
     is a non-you player (Donate, Bazaar Trader, Harmless Offering) — the give-away
     direction read STRUCTURALLY off the recipient node (checklist #2,
-    :func:`control_recipient_scope`). Theft (``GainControl`` / ``GainControlAll`` →
-    ``gain_control``) and a control-RESET ("each player gains control of permanents
-    they own" — Brooding Saurian, a ``GainControlAll``) are a different concept,
-    never read here. Scope "you" (the controller performs the gift).
+    :func:`control_recipient_scope`, which ALSO resolves the three dynamically-bound
+    "that player" recipient shapes phase emits for a triggered/chosen give-away —
+    Blim's/Kain's/Drooling Ogre's combat-damage-or-cast TriggeringPlayer, Alexios's/
+    Risky Move's each-upkeep-cycle ScopedPlayer, Discerning Financier's/Goblin
+    Festival's choose-a-player ParentTargetController). Those same three tags ALSO
+    carry the textually-DIFFERENT "'s controller gains/gain control" REVENGE idiom
+    (Crag Saurian's "that source's controller", Contested War Zone's "that
+    creature's controller", Starke of Rath's "that permanent's controller",
+    Fractured Loyalty's "that spell or ability's controller", Act of Authority's
+    "its controller") — the CONTROLLER of a damage-source/destroyed-target/targeting-
+    spell, never a CHOSEN player, and live's own ``_DONATE_RAW`` deliberately
+    excludes this idiom (it lives only in the theft-lane's broader exclusion regex,
+    ``_GIVE_CONTROL_AWAY``) — :data:`_CONTROL_REVENGE_RE` mirrors that exclusion so
+    the structural read draws the SAME line live's narrower text anchor draws. A
+    ``GainControl`` / ``GainControlAll`` whose beneficiary is a non-you player is the
+    SAME give-away direction under phase's THEFT tag, but ONLY the narrow mass-self-
+    give-away shape (Sky Swallower's "target opponent gains control of all other
+    permanents you control" — mirrors the FIRST of ``_gives_control_to_other``'s
+    three branches, the ``GainControlAll`` + controller='You' one), EXCLUDING an
+    ``Owned`` target predicate (Herald of Leshrac's "each player gains control of
+    each land they own that you control" is a control-RESET to the original OWNER,
+    not a give-away — CR 110.2a, the SAME exclusion ``_gain_control`` applies). The
+    other two ``_gives_control_to_other`` branches ("an opponent gains control of
+    it/this" — Fateful Handoff, Rogue Skycaptain, Wishclaw Talisman; "each player
+    gains control …" — Order of Succession, Scrambleverse, Aminatou) are corpus-
+    measured OVER-broad for THIS key: reusing them wholesale pulled in control-
+    RESET cards (Brooding Saurian, Homeward Path) and cards whose gained object was
+    never "your board" in the mass-give-away sense. Deliberately narrower than
+    ``_gain_control``'s own exclusion set. Scope "you" (the controller performs the
+    gift).
     """
-    for c in tree.effect_concepts("give_control"):
-        if control_recipient_scope(c.node) in _GIVE_AWAY_SCOPES:
+    for unit in tree.units:
+        for c in unit.effect_concepts("give_control"):
+            if control_recipient_scope(c.node) not in _GIVE_AWAY_SCOPES:
+                continue
+            unit_desc = getattr(unit.node, "description", "") or ""
+            if _CONTROL_REVENGE_RE.search(unit_desc):
+                continue  # "'s controller gains control" — a revenge idiom, not a gift
             return [Signal("donate_makers", "you", "", c.raw, tree.name, "high")]
+    for c in tree.effect_concepts("gain_control"):
+        if tag_of(c.node) == "GainControlAll":
+            sub = effect_filter(c.node)
+            if (
+                sub is not None
+                and filter_controller(sub) == "You"
+                and "Owned" not in filter_predicates(sub)
+            ):
+                return [Signal("donate_makers", "you", "", c.raw, tree.name, "high")]
     return []
 
 
