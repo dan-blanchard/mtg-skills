@@ -59,6 +59,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_big_hand_matters,
     _arm_cant_block_grant,
     _arm_clue_matters,
+    _arm_coin_flip_payoff,
     _arm_color_change,
     _arm_color_hoser,
     _arm_convoke_matters,
@@ -118,6 +119,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_big_hand_matters,
     has_structural_cant_block_grant,
     has_structural_clue_matters,
+    has_structural_coin_flip,
     has_structural_color_hoser,
     has_structural_counter_distribute,
     has_structural_crimes_matter,
@@ -1753,6 +1755,53 @@ def test_dice_makers_reroll_only_synth():
 
 def test_dice_makers_synth_registered():
     assert "dice_makers" in SYNTHESIS_ARM_IDS
+
+
+# ── coin_flip payoff synthesis + nested-grant structural gate (W2) ─────────
+# Frenetic Sliver's granted flip-coin ability carries a REAL nested FlipCoin
+# node under GrantAbility -- has_structural_coin_flip's nested fallback
+# (has_nested_flip_coin) reaches it, so NEITHER needs synthesis. Chance
+# Encounter's/Karplusan Minotaur's "Whenever you win/lose a coin flip" payoff
+# trigger carries NO FlipCoin node at all (a dropped trigger condition) --
+# the genuine no-residue gap the synthesis arm fills (CR 705.2).
+
+
+def _coin_flip_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _coin_flip
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "coin_flip" for s in _coin_flip(tree))
+
+
+def test_coin_flip_nested_grant_no_double():
+    """Frenetic Sliver's die/coin flip is nested inside its GrantAbility
+    definition -- the nested fallback covers it, so the synthesis arm
+    no-ops."""
+    tree = _fixture_tree("Frenetic Sliver")
+    assert has_structural_coin_flip(tree) is True
+    assert _arm_coin_flip_payoff(tree) is None
+    assert _coin_flip_fires("Frenetic Sliver") is True
+
+
+def test_coin_flip_payoff_synth():
+    tree = _fixture_tree("Chance Encounter")
+    assert has_structural_coin_flip(tree) is False  # genuine gap
+    node = _arm_coin_flip_payoff(tree)
+    assert node is not None
+    assert node.concept == "flip_coin"  # the REAL concept, no synth_* marker
+    assert node.scope == "you"
+    assert _coin_flip_fires("Chance Encounter") is True
+
+
+def test_coin_flip_payoff_synth_win_and_lose():
+    tree = _fixture_tree("Karplusan Minotaur")
+    assert has_structural_coin_flip(tree) is False  # genuine gap
+    assert _arm_coin_flip_payoff(tree) is not None
+    assert _coin_flip_fires("Karplusan Minotaur") is True
+
+
+def test_coin_flip_payoff_synth_registered():
+    assert "coin_flip_payoff" in SYNTHESIS_ARM_IDS
 
 
 # ── multicolor_matters cares-about reference residual (ADR-0038 W1) ────────────

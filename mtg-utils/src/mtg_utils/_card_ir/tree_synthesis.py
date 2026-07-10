@@ -85,6 +85,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     hand_size_scopes,
     has_filter_property,
+    has_nested_flip_coin,
     has_nested_roll_die,
     iter_condition_sites,
     iter_cost_leaves,
@@ -2546,6 +2547,57 @@ def _arm_dice_makers(tree: ConceptTree) -> ConceptNode | None:
         scope="you",
         subject=(),
         desc="reroll-only die action phase leaves unstructured (Monitor Monitor)",
+    )
+
+
+# coin-flip WIN/LOSE payoff trigger idiom (CR 705.2): "Whenever you win/lose
+# a coin flip, ..." (Chance Encounter, Karplusan Minotaur). phase flattens
+# this trigger CONDITION to event='other', keeping only the consequence
+# effect (place_counter / deal_damage) — the coin-flip reference survives
+# ONLY in the whole-card oracle, never as a FlipCoin node (no player
+# instructs a flip; the card just cares when ONE happens). NO-residue class
+# (ADR-0038 amendment class 2). Mirrors the OLD-IR ``_COIN_FLIP_TRIG``
+# marker regex byte-for-byte (verbatim extraction discipline) — both the
+# doer AND this payoff feed the SAME legacy "coin_flip" category
+# (``_sweep_detectors`` labels the key "coin-flip payoffs plus
+# flip-fixing"), so this arm closes the gap the crosswalk's narrower
+# doer-only read left.
+_COIN_FLIP_PAYOFF_RE = re.compile(
+    r"\b(?:win|lose)s? (?:a|the) (?:coin )?flip\b", re.IGNORECASE
+)
+
+
+def has_structural_coin_flip(tree: ConceptTree) -> bool:
+    """The coin_flip TYPED gate: a native ``flip_coin`` concept-node
+    (flat OR ADR-0038-recovered) anywhere, OR a ``FlipCoin`` tag nested
+    inside a unit's granted-ability substructure the flat per-unit
+    concept walk never surfaces (Frenetic Sliver). Shared verbatim with
+    the ``_coin_flip`` lane and this arm's gap gate below."""
+    if tree.effect_concepts("flip_coin"):
+        return True
+    return any(has_nested_flip_coin(u.node) for u in tree.units)
+
+
+def _arm_coin_flip_payoff(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``flip_coin`` node for the "win/lose a coin flip"
+    PAYOFF trigger phase flattens to ``event='other'`` (Chance Encounter,
+    Karplusan Minotaur's cumulative-upkeep flip + win/lose damage
+    triggers), leaving the condition wholly unstructured. Gap-gated on
+    :func:`has_structural_coin_flip` so a card the typed/nested/recovered
+    read already covers never doubles. Emits the REAL "flip_coin" concept,
+    so the ``_coin_flip`` lane reads it via its ordinary typed
+    ``effect_concepts("flip_coin")`` walk — no lane special-case. CR
+    705.2."""
+    if has_structural_coin_flip(tree):
+        return None
+    if not _COIN_FLIP_PAYOFF_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="coin_flip_payoff",
+        concept="flip_coin",
+        scope="you",
+        subject=(),
+        desc="win/lose-a-coin-flip trigger phase leaves unstructured",
     )
 
 
@@ -7053,6 +7105,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("suspect_makers", _arm_suspect_makers),
     ("group_hug_draw", _arm_group_hug_draw),
     ("dice_makers", _arm_dice_makers),
+    ("coin_flip_payoff", _arm_coin_flip_payoff),
     ("multicolor_matters", _arm_multicolor_matters),
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),

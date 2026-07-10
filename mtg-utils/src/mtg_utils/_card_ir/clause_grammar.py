@@ -531,6 +531,19 @@ STATIC_TOKENS: tuple[tuple[re.Pattern[str], str], ...] = (
         ),
         "evasion_denial",
     ),
+    # coin-flip idiom (CR 705.1/705.3): "flip a coin", "flip one or more
+    # coins", "those coins come up heads" (a flip-FIXING static — Edgar,
+    # King of Figaro's "Two-Headed Coin", Molten Sentry's modal ETB flip).
+    # Both land in an Unimplemented node the imperative verb grammar's
+    # SIMPLE_VERB table has no "flip" arm for (a flip-fixing static never
+    # itself instructs a plain flip the way "draw"/"destroy" do — CR
+    # 705.3 lets the static OVERRIDE the actual coin-flip result). Mirrors
+    # the OLD-IR ``_COIN`` static-pattern regex byte-for-byte (verbatim
+    # extraction discipline, ADR-0038) so the two paths draw the same line.
+    (
+        re.compile(r"\bflips?\b[^.]{0,18}\bcoins?\b", re.IGNORECASE),
+        "coin_flip",
+    ),
 )
 
 

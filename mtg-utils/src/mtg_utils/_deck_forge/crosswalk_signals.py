@@ -71,6 +71,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     filter_without_keywords,
     has_filter_property,
+    has_nested_flip_coin,
     is_damage_reflect_trigger_def,
     is_dies_return_trigger,
     iter_condition_sites,
@@ -690,7 +691,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "cast_from_exile",
         "cheat_into_play",
         "clone_makers",
-        "coin_flip",
         "colorless_matters",
         "combat_damage_matters",
         "combat_damage_to_opp",
@@ -3443,12 +3443,30 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
 
 def _coin_flip(tree: ConceptTree) -> list[Signal]:
     """coin_flip — a ``FlipCoin`` / ``FlipCoins`` / ``FlipCoinUntilLose`` DOER (CR
-    705.1). The card instructs a coin flip (Krark, the Thumbless). A die roll
-    (``RollDie`` → ``dice_makers``, CR 706) is a SEPARATE lane — kept split. Scope
+    705.1), OR a flip-FIXING static (CR 705.3 — "the first time you flip ...,
+    those coins come up heads and you win those flips", Edgar, King of
+    Figaro's "Two-Headed Coin"; both land as an Unimplemented node the ADR-
+    0038 clause-grammar STATIC_TOKENS recovery re-decorates to the native
+    "flip_coin" concept, so this read covers them with no special-case).
+    Mirrors the legacy category's own conflated scope (``_sweep_detectors``
+    labels it "coin-flip payoffs plus flip-fixing"; ``project.
+    _narrow_trigger_other_refs`` folds the "win/lose a coin flip" trigger
+    condition and the doer into the SAME ``coin_flip`` category) — the
+    win/lose-a-flip PAYOFF trigger phase flattens to ``event='other'`` is a
+    separate no-residue class covered by
+    ``tree_synthesis._arm_coin_flip_payoff``, ALSO emitting the real
+    "flip_coin" concept. A ``FlipCoin`` buried inside a GRANTED activated
+    ability's definition (Frenetic Sliver's "All Slivers have '{0}: ... flip
+    a coin ...'") is never its own concept node — the structural fallback
+    below (:func:`has_nested_flip_coin`) reaches it. A die roll (``RollDie``
+    → ``dice_makers``, CR 706) is a SEPARATE lane — kept split. Scope
     ``you``.
     """
     for c in tree.effect_concepts("flip_coin"):
         return [Signal("coin_flip", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        if has_nested_flip_coin(unit.node):
+            return [Signal("coin_flip", "you", "", "", tree.name, "high")]
     return []
 
 

@@ -1336,6 +1336,50 @@ def test_dice_makers_reroll_only_synthesis():
     assert ("dice_makers", "you", "") in _idents("Monitor Monitor")
 
 
+def test_coin_flip_recovers_flip_fixing_static():
+    """ADR-0038 recovery: Edgar, King of Figaro's "Two-Headed Coin — The
+    first time you flip one or more coins each turn, those coins come up
+    heads and you win those flips." lands as an Unimplemented node with no
+    SIMPLE_VERB "flip" arm; the shared grammar's STATIC_TOKENS "coin_flip"
+    row re-decorates it to the native "flip_coin" concept (CR 705.3)."""
+    assert ("coin_flip", "you", "") in _idents("Edgar, King of Figaro")
+
+
+def test_coin_flip_recovers_modal_etb_flip():
+    """ADR-0038 recovery: Molten Sentry's "As ~ enters, flip a coin. If the
+    coin comes up heads, ..." lands as an Unimplemented node; the STATIC_
+    TOKENS "coin_flip" row re-decorates it (CR 705.1)."""
+    assert ("coin_flip", "you", "") in _idents("Molten Sentry")
+
+
+def test_coin_flip_nested_granted_ability():
+    """Frenetic Sliver's "All Slivers have '{0}: ... flip a coin ...'"
+    carries a REAL nested ``FlipCoin`` node inside the ``GrantAbility``
+    definition — not surfaced as its own flat concept-node (the grant
+    decorates as one opaque node). The structural nested fallback
+    (:func:`has_nested_flip_coin`) reaches it (CR 705.1)."""
+    assert ("coin_flip", "you", "") in _idents("Frenetic Sliver")
+
+
+def test_coin_flip_payoff_synthesis_win_loss_trigger():
+    """Stage-A synthesis (ADR-0037/0038): Chance Encounter's "Whenever you
+    win a coin flip, put a luck counter..." trigger CONDITION phase
+    flattens to event='other', leaving no FlipCoin node at all. Legacy's
+    own ``coin_flip`` category conflates doer + this payoff
+    (``_sweep_detectors`` labels it "coin-flip payoffs plus flip-fixing"),
+    so ``tree_synthesis._arm_coin_flip_payoff`` fills the gap from
+    ``tree.oracle``, emitting the REAL "flip_coin" concept (CR 705.2)."""
+    assert ("coin_flip", "you", "") in _idents("Chance Encounter")
+
+
+def test_coin_flip_payoff_synthesis_win_and_lose_triggers():
+    """Karplusan Minotaur's cumulative-upkeep "Flip a coin" cost payment
+    leaves no residue at all, but its "Whenever you win/lose a coin flip,
+    ~ deals 1 damage..." payoff triggers are caught by the SAME synthesis
+    arm as Chance Encounter (CR 705.2)."""
+    assert ("coin_flip", "you", "") in _idents("Karplusan Minotaur")
+
+
 @pytest.mark.parametrize("name", ["Act on Impulse", "Aloe Alchemist"])
 def test_cast_from_exile_structural_permission(name):
     """A ``GrantCastingPermission`` whose permission is ``PlayFromExile`` (Act on

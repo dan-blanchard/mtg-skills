@@ -263,3 +263,45 @@ def test_dice_trig_shaped_roll_not_recovered():
     assert node.concept == OTHER
     assert node.recovered_by == ""
     assert tag_of(node.node) == "Unimplemented"
+
+
+# ── W2 coin_flip (static-token flip-fixing/modal recovery) ─────────────────
+
+
+def test_static_token_matches_coin_flip_idiom():
+    from mtg_utils._card_ir.clause_grammar import static_token
+
+    assert static_token("flip a coin") == "coin_flip"
+    assert (
+        static_token(
+            "The first time you flip one or more coins each turn, those "
+            "coins come up heads and you win those flips."
+        )
+        == "coin_flip"
+    )
+
+
+def test_coin_flip_promoted_via_production_allowlist_static():
+    """Edgar, King of Figaro's "Two-Headed Coin" flip-fixing static lands
+    as an Unimplemented effect (no SIMPLE_VERB "flip" arm exists); the
+    production ALLOWLIST's "coin_flip" token entry (matched via
+    ``static_token``, NOT the imperative-verb grammar) re-decorates it to
+    the native "flip_coin" concept (CR 705.3)."""
+    tree = _fixture_tree("Edgar, King of Figaro")
+    nodes = tree.effect_concepts("flip_coin")
+    assert len(nodes) == 1
+    assert nodes[0].concept == "flip_coin"
+    assert nodes[0].recovered_by == "coin_flip"
+    assert tag_of(nodes[0].node) == "Unimplemented"
+
+
+def test_coin_flip_promoted_via_production_allowlist_modal():
+    """Molten Sentry's modal ETB flip ("As ~ enters, flip a coin. ...")
+    lands as an Unimplemented effect; the same ALLOWLIST row recovers it
+    (CR 705.1)."""
+    tree = _fixture_tree("Molten Sentry")
+    nodes = tree.effect_concepts("flip_coin")
+    assert len(nodes) == 1
+    assert nodes[0].concept == "flip_coin"
+    assert nodes[0].recovered_by == "coin_flip"
+    assert tag_of(nodes[0].node) == "Unimplemented"

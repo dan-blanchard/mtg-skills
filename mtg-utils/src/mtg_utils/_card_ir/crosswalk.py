@@ -1962,6 +1962,19 @@ def has_nested_roll_die(node: object) -> bool:
     return any(tag_of(n) == "RollDie" for n in _iter_typed_nodes(node))
 
 
+def has_nested_flip_coin(node: object) -> bool:
+    """Whether a ``FlipCoin`` tag (CR 705.1) is reachable ANYWHERE under
+    ``node`` — a coin flip buried inside a granted activated ability's
+    ``GrantAbility.definition`` (Frenetic Sliver's "All Slivers have
+    '{0}: ... flip a coin ...'") that the flat per-unit concept-node walk
+    never surfaces as its own node (the concept node IS the GrantAbility
+    modification itself, carrying no ``flip_coin``-mapped tag of its own).
+    The ``coin_flip`` lane's structural fallback, the
+    :func:`has_nested_roll_die` sibling.
+    """
+    return any(tag_of(n) == "FlipCoin" for n in _iter_typed_nodes(node))
+
+
 # ``DamageReceived``-shaped trigger DEFS carry a "reflection" execute tag
 # (CR 120.3): ``DealDamage`` (a single target) or ``DamageAll`` (Arcbond's
 # "each other creature and each player"). ``DamageEachPlayer`` is excluded —

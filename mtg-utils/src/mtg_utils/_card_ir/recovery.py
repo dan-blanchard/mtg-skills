@@ -75,6 +75,17 @@ ALLOWLIST: dict[str, TokenRule] = {
     # grammar's "roll_die" token re-decorates it so the dice_makers lane's
     # typed effect_concepts("roll_die") read (CR 706) sees it directly.
     "roll_die": TokenRule(concept="roll_die", category="roll_die"),
+    # coin-flip idiom (CR 705.1/705.3): "flip a coin" (Molten Sentry's modal
+    # ETB flip) / a flip-fixing static ("Two-Headed Coin — the first time
+    # you flip ..., those coins come up heads and you win those flips" —
+    # Edgar, King of Figaro). Matched via clause_grammar.static_token (the
+    # STATIC_TOKENS table, mirroring the OLD-IR ``_COIN`` regex), not the
+    # imperative-verb grammar (a flip-fixing static never itself instructs
+    # a plain "flip" the way SIMPLE_VERB's other rows do). Maps to the
+    # native FlipCoin/FlipCoins tags' own concept ("flip_coin") so the
+    # coin_flip lane's ordinary ``effect_concepts("flip_coin")`` read
+    # covers the recovered node with no special-case.
+    "coin_flip": TokenRule(concept="flip_coin", category="coin_flip"),
 }
 
 
