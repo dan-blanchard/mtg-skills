@@ -1600,15 +1600,50 @@ def test_clone_makers_backref_recovery_arms(name):
     assert ("clone_makers", "you", "") in _idents(name)
 
 
-def test_clone_makers_unrecovered_parser_gap():
-    """Blade of Shared Souls (ADR-0038 W3 batch 3, deferred — CR 707.2): "you
-    may have that creature become a copy of another target creature you
-    control" phase-parses as an ``Unimplemented`` clause (``name='have'``), so
-    NO ``BecomeCopy`` concept exists to classify at all — a genuine phase-parser
-    gap, not a crosswalk-accessor gap. clone_makers stays residual (not
-    promoted) for exactly this class of card; a fresh corpus re-measure is
-    required before promotion."""
-    assert "clone_makers" not in _keys("Blade of Shared Souls")
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 4 (CR 707.2 general copy-effect rule / CR 707.5
+        # "enters ... as a copy" become-a-copy-as-it-enters rule): all five are
+        # phase static-parser failures that emit NO ``BecomeCopy`` node at
+        # all — a ``Static pattern matched but line failed static parser``
+        # or bare ``unknown`` Unimplemented clause, never a mis-typed node
+        # ``_clone_copied_words`` could descend into. The bucket-B
+        # ``_clone_text_idiom`` per-clause text scan (:func:`_copy_clone`'s
+        # last-resort fallback) reads the idiom straight off the reminder-
+        # stripped face oracle.
+        "Vesuvan Shapeshifter",
+        "Shapeshifter's Marrow",
+        "Essence of the Wild",
+        "Metamorphic Alteration",
+        "The Fourteenth Doctor",
+        # Blade of Shared Souls (CR 707.2): "you may have that creature
+        # become a copy of another target creature you control" phase-parses
+        # as an ``Unimplemented`` clause (``name='have'``) — same bucket-B
+        # class as the five above; corpus re-measure (2026-07) confirms 0
+        # genuine clone_makers members lost, so this card is no longer a
+        # deferred parser gap.
+        "Blade of Shared Souls",
+        # Ludevic, Necrogenius's TRANSFORM back face: "As this creature
+        # transforms into Olag, Ludevic's Hubris, it becomes a copy of a
+        # creature card exiled with it..." has no BecomeCopy node ANYWHERE
+        # on the back face (a bare ``unknown`` Unimplemented Spell-kind
+        # ability, not even a static) — the text idiom is the only signal.
+        "Olag, Ludevic's Hubris",
+    ],
+)
+def test_clone_makers_text_idiom_bridge(name):
+    assert ("clone_makers", "you", "") in _idents(name)
+
+
+def test_clone_makers_text_idiom_beyond_legacy_gain():
+    """Dinosaur Headdress (Paleontologist's Pick-Axe's craft-transform back
+    face): "Equipped creature is a copy of the last chosen card" is a
+    genuine CR 707.2 clone effect the legacy regex-mirror never covered
+    either (corpus-verified 2026-07: legacy ``old_ir_for`` also misses this
+    card) — an adjudicated crosswalk-only GAIN via the same text-idiom
+    bridge, not an over-fire class."""
+    assert ("clone_makers", "you", "") in _idents("Dinosaur Headdress")
 
 
 @pytest.mark.parametrize("name", ["Twincast", "Mirror Match"])
@@ -1616,6 +1651,27 @@ def test_clone_makers_excludes_spell_and_token_copy(name):
     """A spell-copy (Twincast) and a token-copy (Mirror Match — a
     ``CopyTokenBlockingAttacker``) are NOT creature clones (Dan's clone-vs-token-copy
     boundary, CR 707.1)."""
+    assert "clone_makers" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 4 — the text-idiom bridge's per-CLAUSE exclusion
+        # gates (boundary lesson (iii)): "create a TOKEN that's a copy of ~"
+        # is the token_copy_makers structural surface (``CopyTokenOf``), a
+        # different lane entirely, and must NOT also fire clone_makers.
+        "Dance of Many",
+        "Splitting Slime",
+        "Dual Nature",
+        "Theoretical Duplication",
+        # Echoing Deeps copies a LAND card, not a Permanent/Creature — the
+        # idiom's "land card" per-clause exclusion (legacy agrees this
+        # isn't clone_makers).
+        "Echoing Deeps",
+    ],
+)
+def test_clone_makers_text_idiom_excludes_token_and_land_copy(name):
     assert "clone_makers" not in _keys(name)
 
 

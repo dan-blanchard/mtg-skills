@@ -786,7 +786,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "base_pt_set",
         "cast_from_exile",
         "cheat_into_play",
-        "clone_makers",
         "combat_damage_matters",
         "combat_damage_to_opp",
         "creature_etb",
@@ -842,6 +841,19 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
 # reads every face record per oracle_id and the hybrid unions their signals, so the
 # front face's tree is read regardless of ordering. Fixing the READ (not a lane
 # change) closes the gap; see ``_ir_lookup.trees_for`` for the mechanism.
+# ADR-0038 W3 batch 4 (2026-07-10): clone_makers PROMOTED. The 7 remaining
+# live_only members were ALL phase static-parser failures emitting no
+# ``BecomeCopy`` node (Blade of Shared Souls / Essence of the Wild /
+# Metamorphic Alteration / The Fourteenth Doctor / Vesuvan Shapeshifter —
+# ``Unimplemented`` "static_structure"/"unknown" clauses; Ludevic,
+# Necrogenius's transform back face has no BecomeCopy node anywhere). A
+# bucket-B per-clause text-idiom bridge (CR 707.2/707.5, ``_clone_text_idiom``
+# in :func:`_copy_clone`) reads the become-a-copy-of clause straight off the
+# reminder-stripped face oracle when no structural node fired, gated against
+# the token_copy_makers and land-copy false-positive classes. Corpus
+# re-measure (2026-07): live_only 0/130, one adjudicated beyond-legacy gain
+# (Dinosaur Headdress — a genuine CR 707.2 clone effect legacy's regex mirror
+# never covered either).
 PORTED_KEYS: frozenset[str] = _PORTED_KEYS_STAGE3 - _STAGE4_RESIDUAL
 
 
@@ -3541,6 +3553,54 @@ def _clone_copied_words(
     return _clone_words_from_raw(tree.oracle)
 
 
+# ADR-0038 W3 batch 4 (clone_makers) — bucket-B text-idiom bridge for phase
+# static-parser failures that emit NO ``BecomeCopy`` node at all (not even a
+# mis-typed one ``_clone_copied_words`` could descend into): Blade of Shared
+# Souls / Essence of the Wild / Metamorphic Alteration / The Fourteenth
+# Doctor / Vesuvan Shapeshifter are phase ``Unimplemented`` "have X become a
+# copy" clauses; Ludevic, Necrogenius has no BecomeCopy node anywhere on
+# either face. CR 707.2 (the general copy-effect rule) and 707.5 ("enters
+# the battlefield 'as a copy'... becomes a copy as it enters") both describe
+# the SAME become-a-copy-of relationship regardless of which surface verb
+# the card prints, so a single per-clause text scan for the idiom stands in
+# for the missing node. Two per-CLAUSE exclusions (boundary lesson (iii) —
+# scoped to the period-delimited clause, never the whole tree/card):
+# "token" (the much larger ``token_copy_makers`` "create a token that's a
+# copy of ~" family — Dance of Many, Splitting Slime, Dual Nature, … — is a
+# different structural surface with its own ``CopyTokenOf`` node and stays
+# on that lane) and "land card" (Echoing Deeps copies a LAND, not a
+# Permanent/Creature; legacy agrees this isn't clone_makers). Corpus-verified
+# (2026-07) against every commander-legal card matching the idiom: the only
+# card beyond the 7 known live_only members this arm also reaches is
+# Paleontologist's Pick-Axe // Dinosaur Headdress ("Equipped creature is a
+# copy of the last chosen card") — a genuine CR 707.2 clone effect legacy's
+# regex never covered either, so it's an adjudicated GAIN, not an over-fire.
+_CLONE_BECOME_COPY_RX = re.compile(
+    r"\b(?:becomes?|is|are|enters?)\b[^.]{0,80}\bcopy of\b[^.]{0,60}"
+    r"\b(?:creature|card)\b",
+    re.IGNORECASE,
+)
+_CLONE_TOKEN_EXCLUDE_RX = re.compile(r"\btoken\b", re.IGNORECASE)
+_CLONE_LAND_EXCLUDE_RX = re.compile(r"\bland card\b", re.IGNORECASE)
+
+
+def _clone_text_idiom(tree: ConceptTree) -> str | None:
+    """The become-a-copy-of clause text, per-clause gated (CR 707.2/707.5).
+
+    Returns the matching clause (stripped) as the signal's ``raw``, or
+    ``None`` if no clause in this face survives the token/land exclusions
+    and matches the idiom.
+    """
+    for clause in _kept(tree).split("."):
+        if _CLONE_TOKEN_EXCLUDE_RX.search(clause):
+            continue
+        if _CLONE_LAND_EXCLUDE_RX.search(clause):
+            continue
+        if _CLONE_BECOME_COPY_RX.search(clause):
+            return clause.strip()
+    return None
+
+
 def _copy_clone(tree: ConceptTree) -> list[Signal]:
     """copy_permanent / clone_makers / token_copy_makers — the copy cluster (CR 707 /
     701.36). Three structural surfaces (Dan's clone-vs-token-copy boundary):
@@ -3611,6 +3671,10 @@ def _copy_clone(tree: ConceptTree) -> list[Signal]:
             if c.concept == "copy_token" and tag_of(tgt) == "SelfRef":
                 continue  # a copy of THIS card (Embalm / Eternalize / Squad / Myriad)
             fire("token_copy_makers", c.raw)
+    if "clone_makers" not in seen:
+        idiom = _clone_text_idiom(tree)
+        if idiom is not None:
+            fire("clone_makers", idiom)
     return out
 
 
