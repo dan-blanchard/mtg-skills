@@ -1890,6 +1890,30 @@ def cast_with_keyword_name(static_node: TypedMirrorNode) -> str | None:
     return None
 
 
+def granted_next_spell_keyword(node: object) -> str | None:
+    """The keyword name a ``GrantNextSpellAbility`` effect confers on the
+    NEXT spell a player casts this turn, or ``None`` — Wand of the
+    Worldsoul's "The next spell you cast this turn has convoke." (a
+    ONE-SHOT ability grant, distinct from :func:`cast_with_keyword_name`'s
+    always-on static form). ``modifier`` carries a ``HasKeyword`` node
+    whose own ``keyword`` field is the same bare-string/variant shape
+    :func:`mod_keyword_name` reads (CR 702.51 / 601.3e).
+    """
+    if not isinstance(node, TypedMirrorNode) or tag_of(node) != "GrantNextSpellAbility":
+        return None
+    modifier = getattr(node, "modifier", MISSING)
+    if not (isinstance(modifier, TypedMirrorNode) and tag_of(modifier) == "HasKeyword"):
+        return None
+    kw = getattr(modifier, "keyword", None)
+    if isinstance(kw, str):
+        return kw
+    if isinstance(kw, MirrorVariant):
+        return kw.key
+    if isinstance(kw, TypedMirrorNode):
+        return tag_of(kw)
+    return None
+
+
 def _variant_field(inner: object, field: str) -> object:
     """One named field of a variant's INNER payload, across both loads.
 

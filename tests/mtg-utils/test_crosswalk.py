@@ -2119,11 +2119,40 @@ def test_convoke_makers_keyword(name):
     assert ("convoke_makers", "you", "") in _idents(name)
 
 
-def test_convoke_makers_excludes_granter():
-    """Chief Engineer GRANTS convoke ("spells you cast have convoke") and carries no
-    Convoke keyword → the keyword lane does not fire (the granter is a documented
-    live_only tail)."""
-    assert "convoke_makers" not in _keys("Chief Engineer")
+def test_convoke_makers_recovers_static_granter():
+    """Corrected classification (ADR-0037/0038 W1 batch-3, replaces the old
+    ``test_convoke_makers_excludes_granter``): Chief Engineer GRANTS
+    convoke ("Artifact spells you cast have convoke.") via a typed
+    ``CastWithKeyword`` static — a real structural read
+    (:func:`cast_with_keyword_name`), not a Scryfall keyword-field lookup
+    (Chief Engineer carries no ``Convoke`` keyword itself). CR 702.51: the
+    grant lets YOUR creatures help pay for those spells, the same "convoke
+    doer" capability the keyword-BEARER form represents — legacy's own
+    corpus detection already conflates both roles under one key, so the
+    old "excludes_granter" assertion was pinning a residual GAP, not an
+    intended exclusion. The prior corpus-vs-legacy diff confirmed all 9
+    live_only granter cards (Chief Engineer among them) are genuine
+    convoke_makers members."""
+    assert ("convoke_makers", "you", "") in _idents("Chief Engineer")
+
+
+def test_convoke_makers_recovers_next_spell_grant():
+    """Wand of the Worldsoul's "{T}: The next spell you cast this turn has
+    convoke." is a ONE-SHOT ``GrantNextSpellAbility`` effect — a DIFFERENT
+    typed shape than the always-on ``CastWithKeyword`` static (Chief
+    Engineer) but the SAME CR 702.51 granter capability, read via
+    :func:`granted_next_spell_keyword`."""
+    assert ("convoke_makers", "you", "") in _idents("Wand of the Worldsoul")
+
+
+def test_convoke_makers_recovers_dfc_face_granter():
+    """Eirdu, Carrier of Dawn // Isilu, Carrier of Twilight's front face
+    ("Creature spells you cast have convoke.") carries the SAME
+    ``CastWithKeyword`` static shape as Chief Engineer — the DFC/split
+    granter tail (Dazzling Theater, Caetus, Sea Tyrant of Segovia) that
+    production's front-face-selection happens to resolve to the
+    convoke-bearing half in every corpus case."""
+    assert ("convoke_makers", "you", "") in _idents("Eirdu, Carrier of Dawn")
 
 
 @pytest.mark.parametrize("name", ["Storm-Kiln Artist", "Archmage Emeritus"])

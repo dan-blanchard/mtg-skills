@@ -70,6 +70,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     filter_without_keywords,
+    granted_next_spell_keyword,
     has_filter_property,
     has_nested_connive,
     has_nested_flip_coin,
@@ -699,7 +700,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "colorless_matters",
         "combat_damage_matters",
         "combat_damage_to_opp",
-        "convoke_makers",
         "cost_reduction",
         "creature_cast_trigger",
         "creature_etb",
@@ -3830,8 +3830,9 @@ def _keyword_field_signals_b7(keywords: frozenset[str], name: str) -> list[Signa
       ability maker, ``_IR_KEYWORD_MAP["exhaust"]``);
     * ``convoke`` → ``convoke_makers`` you (CR 702.51 — the BEARER of convoke; the
       "spells you cast have convoke" GRANTER (Chief Engineer — no ``Convoke``
-      keyword) fires the live lane from a separate grant detector, a documented
-      ``live_only`` tail);
+      keyword) is a SEPARATE typed read, ``_spell_keyword_grant``'s convoke arm
+      (ADR-0037/0038 W1 batch-3) — both roles feed the SAME key, matching legacy's
+      own conflated detection);
     * ``magecraft`` → ``magecraft_matters`` you (CR 207.2c — an ability WORD; the
       "whenever you cast or copy" trigger lives in stripped reminder text, so the
       Scryfall ``Magecraft`` keyword is the only reachable anchor. A plain
@@ -5460,25 +5461,32 @@ def _norm_kw(kw: str) -> str:
 
 
 def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
-    """spell_keyword_grant (+ flash_grant / flash_makers) — grants a keyword
-    to spells / castable cards (CR 702.8 flash, 702.34 flashback, 601.3e).
-    Two typed arms:
+    """spell_keyword_grant (+ flash_grant / flash_makers / convoke_makers)
+    — grants a keyword to spells / castable cards (CR 702.8 flash, 702.34
+    flashback, 702.51 convoke, 601.3e). Three typed arms:
 
     * a ``CastWithKeyword`` STATIC ("you may cast spells as though they had
       flash" — Leyline of Anticipation; "<class> spells you cast have
-      <keyword>" — Chief Engineer), read via
+      <keyword>" — Chief Engineer's convoke grant), read via
       :func:`cast_with_keyword_name`;
     * an ``AddKeyword`` modification whose keyword is a SPELL-CAST keyword
       (:data:`_SPELL_GRANT_KEYWORDS` — Snapcaster Mage's targeted Flashback
       grant); the curated set is the spell-vs-battlefield discriminator (an
-      evergreen grant is team_buff territory, checklist #3).
+      evergreen grant is team_buff territory, checklist #3);
+    * a ``GrantNextSpellAbility`` effect ("the next spell you cast this
+      turn has convoke" — Wand of the Worldsoul), a ONE-SHOT ability grant
+      distinct from the always-on static form, read via
+      :func:`granted_next_spell_keyword`.
 
-    Gate #2: beneficiary you — the affected filter must not name an
+    Gate #2: beneficiary you — the affected filter/player must not name an
     opponent. A Flash grant additionally opens flash_grant + flash_makers
-    (the live structural ``cast_with_keyword{flash}`` pair); a PRINTED
-    keyword bearer (Faithless Looting's own Flashback) carries no grant node
-    and never fires. A conditional printed SELF-flash ("~ has flash as long
-    as you control a Merfolk" — Crashing Tide) parses as ``AddKeyword`` with
+    (the live structural ``cast_with_keyword{flash}`` pair); a Convoke
+    grant additionally opens convoke_makers (CR 702.51 — the GRANTER form;
+    a card's OWN printed convoke keyword is the separate ``_keyword_field_
+    signals_b7`` field-lookup). A PRINTED keyword bearer (Faithless
+    Looting's own Flashback) carries no grant node and never fires. A
+    conditional printed SELF-flash ("~ has flash as long as you control a
+    Merfolk" — Crashing Tide) parses as ``AddKeyword`` with
     ``affected=SelfRef``: the card grants only ITSELF castability (CR
     702.8a), not your spells — the SelfRef veto keeps all three keys out.
     """
@@ -5490,28 +5498,43 @@ def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, "you", "", raw, tree.name, "high"))
 
-    def grant(kw: str, affected: object, raw: str) -> None:
-        if tag_of(affected) == "SelfRef":
-            return  # a self-grant is castability of this card, not an engine
-        if filter_controller(affected) == "Opponent":
-            return  # a grant to the opponent's spells is not your engine
+    def grant(kw: str, raw: str) -> None:
         fire("spell_keyword_grant", raw)
         if _norm_kw(kw) == "flash":
             fire("flash_grant", raw)
             fire("flash_makers", raw)
+        elif _norm_kw(kw) == "convoke":
+            fire("convoke_makers", raw)
 
     for unit in tree.units:
         if unit.origin == "static":
             kw = cast_with_keyword_name(unit.node)
-            if kw is not None:
-                grant(kw, getattr(unit.node, "affected", None), "")
+            affected = getattr(unit.node, "affected", None)
+            if (
+                kw is not None
+                and tag_of(affected) != "SelfRef"
+                and filter_controller(affected) != "Opponent"
+            ):
+                grant(kw, "")
         for sdef, mod in iter_mod_sites(unit.node):
             if tag_of(mod) != "AddKeyword":
                 continue
             kw = mod_keyword_name(mod)
             if kw is None or _norm_kw(kw) not in _SPELL_GRANT_KEYWORDS:
                 continue
-            grant(kw, getattr(sdef, "affected", None), _site_raw(sdef))
+            affected = getattr(sdef, "affected", None)
+            if tag_of(affected) == "SelfRef":
+                continue  # a self-grant is castability of this card, not an engine
+            if filter_controller(affected) == "Opponent":
+                continue  # a grant to the opponent's spells is not your engine
+            grant(kw, _site_raw(sdef))
+        for n in iter_typed_nodes(unit.node):
+            kw = granted_next_spell_keyword(n)
+            if kw is None:
+                continue
+            if tag_of(getattr(n, "player", None)) == "Opponent":
+                continue  # a grant to an opponent's next spell is not your engine
+            grant(kw, "")
     return out
 
 
