@@ -750,7 +750,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "topdeck_selection",
         "topdeck_stack",
         "tribe_damage_trigger",
-        "trigger_doubling",
         "type_matters",
         "typed_spellcast",
         "voltron_makers",
@@ -6005,6 +6004,20 @@ def _variable_pt(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# trigger-doubling GRANT idiom (CR 603.2): "<abilities> trigger(s) an
+# additional time" — Dungeon Delver's "Room abilities of dungeons you own
+# trigger an additional time", The Masamune's "that ability triggers an
+# additional time". Requires "trigger(s)" itself in the clause (not just "an
+# additional time" alone) so a REPLACEMENT effect using the same "an
+# additional time" phrase for an unrelated repeated ACTION — CR 701.55c's
+# villainous-choice replacement / CR 701.38d's multi-vote replacement (The
+# Valeyard: "they face that choice an additional time" / "you may vote an
+# additional time", neither containing the word "trigger") — never matches.
+_TRIGGER_DOUBLING_GRANT_RE = re.compile(
+    r"\btriggers?\b.*\ban additional time\b", re.IGNORECASE | re.DOTALL
+)
+
+
 def _trigger_doubling(tree: ConceptTree) -> list[Signal]:
     """trigger_doubling — the trigger-doubling engine (grounded by
     Panharmonicon's 2021-03-19 ruling; ``rules-lookup --grep`` finds no
@@ -6014,11 +6027,27 @@ def _trigger_doubling(tree: ConceptTree) -> list[Signal]:
     replacement nodes, NOT DoubleTriggers) are split lanes and never fire.
     The creature-ETB cause co-fires ``creature_etb`` via
     :func:`_etb_trigger_lanes` arm 2. Scope "you".
+
+    Stage-A recovery (ADR-0038): a GRANTED doubler whose own quoted
+    definition text carries the doubling clause (Dungeon Delver's Commander-
+    creature grant, The Masamune's Equip grant) lands as a
+    ``GrantStaticAbility`` / ``GrantTrigger`` node phase doesn't decompose
+    further (no ``DoubleTriggers`` mode node exists to read) — a genuine
+    STRUCTURAL gap, read directly off the grant node's own raw via
+    :data:`_TRIGGER_DOUBLING_GRANT_RE` (CR 603.2).
     """
     for unit in tree.units:
         for sdef in iter_static_defs(unit.node):
             if static_mode_tag(sdef) == "DoubleTriggers":
                 return [Signal("trigger_doubling", "you", "", "", tree.name, "high")]
+        for c in unit.iter_concepts():
+            if (
+                c.concept == OTHER
+                and tag_of(c.node) in ("GrantStaticAbility", "GrantTrigger")
+                and c.raw
+                and _TRIGGER_DOUBLING_GRANT_RE.search(c.raw)
+            ):
+                return [Signal("trigger_doubling", "you", "", c.raw, tree.name, "high")]
     return []
 
 

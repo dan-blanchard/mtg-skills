@@ -2966,6 +2966,36 @@ def test_trigger_doubling_excludes_replacement_doublers():
     assert "trigger_doubling" not in _keys("Doubling Season")
 
 
+def test_trigger_doubling_granted_static_recovery():
+    """Stage-A recovery (ADR-0038): Dungeon Delver's "Commander creatures
+    you own have 'Room abilities of dungeons you own trigger an additional
+    time.'" lands as a ``GrantStaticAbility`` node phase doesn't decompose
+    further (no ``DoubleTriggers`` mode exists to read) — read structurally
+    off the grant's own raw text (CR 603.2)."""
+    assert ("trigger_doubling", "you", "") in _idents("Dungeon Delver")
+
+
+def test_trigger_doubling_granted_trigger_recovery():
+    """The Masamune's Equip grant ("Equipped creature has 'If a creature
+    dying causes a triggered ability of this creature or an emblem you own
+    to trigger, that ability triggers an additional time.'") lands as a
+    ``GrantStaticAbility`` node — the SAME structural read as Dungeon
+    Delver, just granted via Equip instead of a Commander-creature anthem."""
+    assert ("trigger_doubling", "you", "") in _idents("The Masamune")
+
+
+def test_trigger_doubling_excludes_replacement_action_repeaters():
+    """ADR-0034 shed: The Valeyard's "they face that choice an additional
+    time" (a villainous-choice REPLACEMENT, CR 701.55c) and "you may vote an
+    additional time" (a multi-vote REPLACEMENT, CR 701.38d) share the "an
+    additional time" phrase with CR 603.2 trigger-doubling but neither
+    clause contains the word "trigger" — a REPEATED ACTION, never a
+    triggered-ability doubler. The old-IR's own broad ``\\ban additional
+    time\\b`` fallback regex over-fires here; the crosswalk's tighter
+    ``trigger(s) ... an additional time`` idiom correctly excludes it."""
+    assert "trigger_doubling" not in _keys("The Valeyard")
+
+
 @pytest.mark.parametrize("name", ["Warmonger Hellkite", "Juggernaut"])
 def test_forced_attack_static_mode(name):
     """CR 508.1d: a ``MustAttack`` static fires scope "any" — the table-wide
