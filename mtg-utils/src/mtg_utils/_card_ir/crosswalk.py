@@ -2207,6 +2207,31 @@ def iter_nested_trigger_defs(node: object) -> Iterator[TypedMirrorNode]:
                         yield trig
 
 
+# ADR-0038 W3 batch 2 unit 2 — the typed_spellcast lane's shared nested-mode
+# descent. A tribal cast-cost-modifier static (CR 601.2f / 702.2's
+# keyword-spell grants: Freerunning, Prowl, Cascade, "costs {N} less") can
+# live at three tree positions phase carries with the SAME ``S_static_
+# abilities``/``S_definition`` field shape (``.mode`` / ``.affected``):
+# top-level (the plain Banneret family — Ballyrush Banneret), nested inside
+# a ``GrantStaticAbility`` modification's ``.definition`` (Acolyte of
+# Bahamut's "Commander creatures you own have '... Dragon spell ... costs
+# {2} less ...'"), or nested inside a created TOKEN's own
+# ``static_abilities`` list (The Eleventh Hour's Human token granting
+# "Doctor spells you cast cost {1} less"). One predicate over
+# :func:`_iter_typed_nodes`'s deep walk covers all three tree positions.
+def iter_nested_spellcast_static_modes(node: object) -> Iterator[TypedMirrorNode]:
+    """Every node reachable under ``node`` whose ``.mode`` field is a
+    ``CastWithKeyword`` or ``ModifyCost`` variant — the typed_spellcast
+    lane's structural source (see module note above)."""
+    for n in _iter_typed_nodes(node):
+        mode = getattr(n, "mode", MISSING)
+        if isinstance(mode, MirrorVariant) and mode.key in (
+            "CastWithKeyword",
+            "ModifyCost",
+        ):
+            yield n
+
+
 def has_nested_connive(node: object) -> bool:
     """Whether a ``Connive`` tag (CR 701.50a) is reachable inside a nested
     trigger definition under ``node`` — :func:`iter_nested_trigger_defs`'s

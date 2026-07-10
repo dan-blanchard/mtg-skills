@@ -4328,6 +4328,119 @@ def test_typed_spellcast_you_cast_discriminator():
     assert "typed_spellcast" not in _keys("Beast Whisperer")
 
 
+# ADR-0038 W3 batch 2 unit 2 — the typed_spellcast CastWithKeyword arm (CR
+# 601.3e's cast-keyword grant is a cast payoff same as a cost discount):
+# top-level (Ezio's Freerunning, Hunting Velociraptor's Prowl, The First
+# Sliver's Cascade, and the "you may cast X spells as though they had
+# flash" family) and the SAME arm reads BOTH tree positions via
+# iter_nested_spellcast_static_modes -- a GrantStaticAbility.definition
+# nesting (Acolyte of Bahamut) and a created token's own static_abilities
+# nesting (The Eleventh Hour).
+@pytest.mark.parametrize(
+    ("name", "subject"),
+    [
+        ("Ezio Auditore da Firenze", "Assassin"),
+        ("Hunting Velociraptor", "Dinosaur"),
+        ("The First Sliver", "Sliver"),
+        ("Ashling, the Limitless", "Elemental"),
+        ("Blur of Heroism", "Hero"),
+        ("Breath of the Sleepless", "Spirit"),
+        ("Mai and Zuko", "Ally"),
+        ("Rattlechains", "Spirit"),
+        ("Renari, Merchant of Marvels", "Dragon"),
+        ("Singer of Swift Rivers", "Merfolk"),
+        ("Whirlwing Stormbrood", "Dragon"),
+    ],
+)
+def test_typed_spellcast_cast_with_keyword_arm(name, subject):
+    assert ("typed_spellcast", "you", subject) in _idents(name)
+
+
+def test_typed_spellcast_nested_grant_descent():
+    """The GrantStaticAbility.definition nesting (Acolyte of Bahamut's
+    "Commander creatures you own have '... Dragon spell ... costs {2}
+    less ...'") and the created-token static_abilities nesting (The
+    Eleventh Hour's Human token granting "Doctor spells you cast cost {1}
+    less") both fire via the SAME deep-walk arm as the top-level static
+    form. CR 601.2f."""
+    assert ("typed_spellcast", "you", "Dragon") in _idents("Acolyte of Bahamut")
+    assert ("typed_spellcast", "you", "Doctor") in _idents("The Eleventh Hour")
+
+
+def test_typed_spellcast_reduce_next_spell_cost_arm():
+    """Invasion of the Giants' Saga chapter III ("The next Giant spell you
+    cast this turn costs {2} less to cast") is a ONE-SHOT
+    ``ReduceNextSpellCost`` effect, a distinct typed node from the
+    persistent ``ModifyCost`` static. CR 601.2f / 714."""
+    assert ("typed_spellcast", "you", "Giant") in _idents("Invasion of the Giants")
+
+
+def test_typed_spellcast_replicate_grant_text_idiom():
+    """ "Each <Subtype> spell you cast has replicate" (Hatchery Sliver, Ian
+    Chesterton's "Each Saga spell you cast has replicate") phase's static
+    parser cannot express -- a last-resort text idiom over the Unimplemented
+    residue's own parse-failure description, corpus-verified singleton per
+    subject (the third corpus hit, Djinn Illuminatus's "sorcery", is not a
+    creature-subtype vocab word and silently drops). CR 601.2f / 702."""
+    assert ("typed_spellcast", "you", "Sliver") in _idents("Hatchery Sliver")
+    assert ("typed_spellcast", "you", "Saga") in _idents("Ian Chesterton")
+
+
+def test_typed_spellcast_alt_cost_text_idiom():
+    """Kentaro, the Smiling Cat's "You may pay {X} rather than pay the mana
+    cost for Samurai spells you cast" is an alternative-cost PayCost effect
+    with NO subject field at all (phase drops "for Samurai spells you cast"
+    entirely) -- last-resort whole-card text idiom, corpus-verified
+    singleton (the only "for <word> spells you cast" hit across the whole
+    commander-legal bulk corpus that resolves to a real creature-subtype
+    vocab word). CR 601.2f."""
+    assert ("typed_spellcast", "you", "Samurai") in _idents("Kentaro, the Smiling Cat")
+
+
+# ADR-0038 W3 batch 2 unit 2 — beyond-legacy gains: the SECOND subtype in an
+# "X spells and Y spells you cast cost {N} less" list (the legacy regex's
+# `\b([A-Za-z]+?)s? spells? you cast\b` pattern only anchors on the word
+# IMMEDIATELY preceding "you cast" -- an incidental verb-adjacency gap, not
+# a deliberate single-subtype policy: `filter_subtypes` already recurses
+# Or/And filters and reads every subtype), and the full "outlaw" group
+# (Assassin/Mercenary/Pirate/Rogue/Warlock, CR 702.136) a valid_card/
+# affected AnyOf filter decomposes into per-subtype signals.
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Ballyrush Banneret", {"Kithkin", "Soldier"}),
+        ("Bosk Banneret", {"Treefolk", "Shaman"}),
+        ("Brighthearth Banneret", {"Elemental", "Warrior"}),
+        ("Frogtosser Banneret", {"Goblin", "Rogue"}),
+        ("Stonybrook Banneret", {"Merfolk", "Wizard"}),
+        ("Herald of War", {"Angel", "Human"}),
+        (
+            "The Destined Warrior",
+            {"Cleric", "Rogue", "Warrior", "Wizard"},
+        ),
+        (
+            "Discreet Retreat",
+            {"Assassin", "Mercenary", "Pirate", "Rogue", "Warlock"},
+        ),
+        (
+            "Double Down",
+            {"Assassin", "Mercenary", "Pirate", "Rogue", "Warlock"},
+        ),
+    ],
+)
+def test_typed_spellcast_multi_subtype_beyond_legacy_gain(name, subjects):
+    got = {s for k, _sc, s in _idents(name) if k == "typed_spellcast"}
+    assert subjects <= got
+
+
+def test_typed_spellcast_eldrazi_trigger_gain():
+    """Emrakul's Influence's "Whenever you cast an Eldrazi creature spell
+    with mana value 7 or greater, draw two cards" fires via the pre-existing
+    cast_spell trigger arm -- a genuine beyond-legacy recall gain (CR
+    109.3 / 601.2 / 603.2)."""
+    assert ("typed_spellcast", "you", "Eldrazi") in _idents("Emrakul's Influence")
+
+
 def test_legends_matter_filter_property():
     """CR 205.4d: Reki's ``HasSupertype: Legendary`` watched-spell filter
     fires; being legendary ITSELF (Ruric Thar — no Legendary-referencing

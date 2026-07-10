@@ -86,6 +86,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     iter_deep_target_grants,
     iter_mod_sites,
+    iter_nested_spellcast_static_modes,
     iter_nested_trigger_defs,
     iter_single_target_grants,
     iter_static_defs,
@@ -742,7 +743,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "topdeck_stack",
         "tribe_damage_trigger",
         "type_matters",
-        "typed_spellcast",
         "voltron_makers",
         "voltron_matters",
     }
@@ -7487,6 +7487,39 @@ def _exile_until_leaves(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ADR-0038 W3 batch 2 unit 2 — the typed_spellcast replicate-grant residue.
+# "Each <Subtype> spell you cast has replicate" (Hatchery Sliver, Ian
+# Chesterton's "Each Saga spell you cast has replicate") phase's static
+# parser cannot express (an Unimplemented ``static_structure`` residue whose
+# OWN description carries the parse-failure diagnostic wrapper, verbatim
+# oracle text included) — a last-resort text idiom over that description,
+# scoped to the exact "spell(s) you cast has/have replicate" tail so it
+# never fires on an unrelated Unimplemented residue. Corpus-verified: the
+# whole commander-legal bulk corpus has exactly 3 hits (Hatchery Sliver ->
+# Sliver, Ian Chesterton -> Saga, Djinn Illuminatus -> "sorcery" — the third
+# is not a creature-subtype vocab word so it silently drops via
+# ``_resolve_subject``, never a false subject). CR 601.2f / 702.
+_REPLICATE_GRANT_RX = re.compile(
+    r"\b([A-Za-z]+?)s? spells? you cast has? replicate", re.IGNORECASE
+)
+
+# ADR-0038 W3 batch 2 unit 2 — the typed_spellcast alt-cost residue. Kentaro,
+# the Smiling Cat's "You may pay {X} rather than pay the mana cost for
+# Samurai spells you cast, where X is that spell's mana value" is an
+# alternative-cost ``PayCost`` effect whose node carries NO subject field at
+# all — phase drops the "for <Subtype> spells you cast" qualifier entirely
+# (the effect is indistinguishable from an unrestricted X-cost grant). No
+# structural node exists to recover; last-resort whole-card text idiom, read
+# ONCE over the reminder-stripped kept oracle (not per-node). Corpus-
+# verified: the whole commander-legal bulk corpus has exactly one card whose
+# "for <word> spells you cast" resolves to a real creature-subtype vocab
+# word (Kentaro -> Samurai); the other hits ("a", "permanent", "Rune") are
+# not creature subtypes and silently drop via ``_resolve_subject``. CR 601.2f.
+_ALT_COST_SPELLCAST_RX = re.compile(
+    r"\bfor ([A-Za-z]+?)s? spells? you cast\b", re.IGNORECASE
+)
+
+
 def _typed_spellcast_lane(tree: ConceptTree) -> list[Signal]:
     """typed_spellcast (§F, SUBJECT-BEARING) — the tribal cast payoff
     (CR 603.2 + 102.2): a ``SpellCast`` trigger whose watched-spell filter
@@ -7505,6 +7538,27 @@ def _typed_spellcast_lane(tree: ConceptTree) -> list[Signal]:
     cost-modification static's typed ``spell_filter`` subtypes
     (vocab-validated), gated to a ``Reduce`` direction and YOUR cards
     (``affected`` controller You; a SelfRef self-discount never fires).
+
+    ADR-0038 W3 batch 2 unit 2: the SAME static read also covers a
+    ``CastWithKeyword`` mode ("<Subtype> spells you cast have <keyword>" —
+    Ezio Auditore da Firenze's Freerunning grant, Hunting Velociraptor's
+    Prowl grant, The First Sliver's Cascade grant; CR 601.3e's cast-keyword
+    grant is a cast payoff same as a cost discount), and both modes are now
+    read via :func:`iter_nested_spellcast_static_modes`'s deep walk so a
+    nested grant — a ``GrantStaticAbility`` modification's ``.definition``
+    (Acolyte of Bahamut's "Commander creatures you own have '... Dragon
+    spell ... costs {2} less ...'") or a created token's own
+    ``static_abilities`` (The Eleventh Hour's Human token granting "Doctor
+    spells you cast cost {1} less") — fires exactly like the top-level form.
+
+    ADR-0038 W3 batch 2 unit 2 also adds a ``ReduceNextSpellCost`` effect
+    arm — a ONE-SHOT "the next <Subtype> spell you cast this turn costs {N}
+    less" (Invasion of the Giants' Saga chapter III), a distinct typed
+    effect from the persistent ``ModifyCost`` static (no ongoing "affected"
+    filter — a Saga chapter is inherently its controller's own effect, CR
+    714, so no direction gate is needed). Same cast-cost-discount payoff,
+    CR 601.2f.
+
     Scope "you", subject = the subtype.
     """
     out: list[Signal] = []
@@ -7519,21 +7573,39 @@ def _typed_spellcast_lane(tree: ConceptTree) -> list[Signal]:
             )
 
     for unit in tree.units:
-        if unit.origin == "trigger" and unit.trigger_event == "cast_spell":
-            if trigger_caster_scope(unit.node) != "you":
-                continue
+        if (
+            unit.origin == "trigger"
+            and unit.trigger_event == "cast_spell"
+            and trigger_caster_scope(unit.node) == "you"
+        ):
             for s in filter_subtypes(getattr(unit.node, "valid_card", None)):
                 emit(s)
-        elif unit.origin == "static":
-            if modify_cost_mode(unit.node) != "Reduce":
-                continue
-            affected = getattr(unit.node, "affected", None)
+        for n in iter_nested_spellcast_static_modes(unit.node):
+            affected = getattr(n, "affected", None)
             if tag_of(affected) == "SelfRef":
                 continue  # a self-discount (A-Demilich) is not a cast payoff
             if filter_controller(affected) != "You":
                 continue  # the "you cast" coupling (checklist #6)
-            for s in filter_subtypes(modify_cost_spell_filter(unit.node)):
-                emit(s)
+            mode = getattr(n, "mode", None)
+            if isinstance(mode, MirrorVariant) and mode.key == "CastWithKeyword":
+                for s in filter_subtypes(affected):
+                    emit(s)
+            elif modify_cost_mode(n) == "Reduce":
+                for s in filter_subtypes(modify_cost_spell_filter(n)):
+                    emit(s)
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "ReduceNextSpellCost":
+                for s in filter_subtypes(getattr(n, "spell_filter", None)):
+                    emit(s)
+            elif tag_of(n) == "Unimplemented":
+                desc = getattr(n, "description", None)
+                if isinstance(desc, str):
+                    m = _REPLICATE_GRANT_RX.search(desc)
+                    if m:
+                        emit(m.group(1))
+    m = _ALT_COST_SPELLCAST_RX.search(_kept(tree))
+    if m:
+        emit(m.group(1))
     return out
 
 
