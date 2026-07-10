@@ -921,6 +921,40 @@ def test_goad_makers_structural_and_keyword():
     assert ("goad_makers", "opponents", "") in _idents("Disrupt Decorum")
 
 
+def test_goad_makers_single_target_force_bridge():
+    """ADR-0038 W3 batch 3: ``_GOAD_STYLE_FORCE`` (CR 701.15b) lifts a
+    single-target "target creature ... attacks ... if able" compulsion to
+    goad_makers even when phase types it as a bare ``Unimplemented``
+    clause, not a dedicated Goad effect — Alluring Siren."""
+    assert ("goad_makers", "opponents", "") in _idents("Alluring Siren")
+
+
+def test_goad_makers_reward_bridge():
+    """ADR-0038 W3 batch 3: ``_GOAD_REWARD_REF`` (CR 701.15b's "attacks a
+    player other than ..." redirect) lifts the goad REWARD/payoff idiom —
+    Gahiji, Honored One rewards a creature attacking one of your
+    opponents."""
+    assert ("goad_makers", "opponents", "") in _idents("Gahiji, Honored One")
+
+
+def test_goad_makers_granted_combo_not_forceblock():
+    """ADR-0038 W3 batch 3: Boros Battleshaper's GRANTED "up to one target
+    creature attacks or blocks this combat if able" (an AddStaticMode
+    MustAttack+MustBlock combo) is textually indistinguishable from the
+    ForceBlock idiom's "block(s) it/that <noun>" shape but carries no
+    ForceBlock tag — a genuine goad_makers member, not excluded."""
+    assert ("goad_makers", "opponents", "") in _idents("Boros Battleshaper")
+
+
+def test_goad_makers_excludes_force_block():
+    """ADR-0038 W3 batch 3 (CR 509.1c): Avalanche Tusker's "attacks,
+    target creature ... blocks it this combat if able" is a dedicated
+    ForceBlock provoke effect, not goad — the ForceBlock-shaped clause
+    ("blocks it") must not fire goad_makers via the
+    ``_GOAD_STYLE_FORCE`` text bridge."""
+    assert "goad_makers" not in _keys("Avalanche Tusker")
+
+
 def test_regenerate_makers_fires():
     assert ("regenerate_makers", "you", "") in _idents("River Boa")
 
@@ -1161,6 +1195,22 @@ def test_lure_makers_fires():
     # Academic Dispute's single-target ForceBlock is a provoke-style effect, not the
     # all-creatures-must-block lure mode — must NOT fire.
     assert "lure_makers" not in _keys("Academic Dispute")
+
+
+def test_lure_makers_must_be_blocked_idiom():
+    """ADR-0038 W3 batch 3 (CR 509.1c/h): the "must be blocked ... if
+    able" bucket-B idiom (``_LURE_MUST``, imported single-source from
+    project.py's own card-level marker recovery) — Canopy Stalker's
+    intrinsic "This creature must be blocked if able" phase drops to a
+    bare Unimplemented clause."""
+    assert ("lure_makers", "you", "") in _idents("Canopy Stalker")
+
+
+def test_lure_makers_able_to_block_idiom():
+    """ADR-0038 W3 batch 3 (CR 509.1c/h): the "able to block ... do so"
+    bucket-B idiom (``_LURE_ABLE``) — Talruum Piper's "All creatures with
+    flying able to block this creature do so."."""
+    assert ("lure_makers", "you", "") in _idents("Talruum Piper")
 
 
 def test_copy_permanent_and_clone():
@@ -4189,6 +4239,120 @@ def test_forced_attack_excludes_goad():
     """Goad is a distinct typed tag (CR 701.15a) — Disrupt Decorum stays in
     goad_makers, never forced_attack."""
     assert "forced_attack" not in _keys("Disrupt Decorum")
+
+
+def test_forced_attack_structural_no_affected():
+    """ADR-0038 W3 batch 3: a bare self-compulsion with NO ``affected``
+    node at all (Kookus — "attacks this turn if able" flattened into a
+    separate damage-punisher effect by legacy's regex cascade, but phase
+    still structures a genuine MustAttack static) is a real forced_attack
+    member — a beyond-legacy gain, CR 508.1d."""
+    assert ("forced_attack", "any", "") in _idents("Kookus")
+
+
+def test_forced_attack_excludes_self_must_attack_or_block():
+    """ADR-0038 W3 batch 3 (CR 508.1d + CR 509.1c): Iron Golem / Khârn the
+    Betrayer's OWN "attacks or blocks each combat if able" is a COMBINED
+    self MustAttack+MustBlock static — legacy's project.py classifies this
+    ``restriction``, never ``force_attack`` (two genuinely different CR
+    rules, not one lane). Must NOT fire, structurally or via the text
+    fallback."""
+    assert "forced_attack" not in _keys("Iron Golem")
+    assert "forced_attack" not in _keys("Khârn the Betrayer")
+
+
+def test_forced_attack_grants_combo_not_excluded():
+    """ADR-0038 W3 batch 3: Boros Battleshaper's GRANTED "up to one target
+    creature attacks or blocks this combat if able" (an ``AddStaticMode``
+    MustAttack+MustBlock combo delivered via a trigger to a TARGET,
+    ``affected`` = ParentTarget, not SelfRef) is NOT the self-combo
+    restriction above — legacy fires force_attack for it (the structural
+    restriction override is project.py's card-level static reader only)."""
+    assert ("forced_attack", "any", "") in _idents("Boros Battleshaper")
+
+
+def test_forced_attack_excludes_last_created_token():
+    """ADR-0038 W3 batch 3: Legion Warboss's MustAttack static affects
+    ``LastCreated`` — the freshly-created Goblin token, not the card's own
+    engine (phase's tags are position-relative post-producer-effect). Must
+    NOT fire forced_attack for the card."""
+    assert "forced_attack" not in _keys("Legion Warboss")
+
+
+def test_forced_attack_text_idiom_fallback():
+    """ADR-0038 W3 batch 3 (CR 508.1d): the bucket-B "attacks ... if able"
+    text idiom (``_FORCE_ATTACK``, imported single-source from
+    supplement.py's own clause-grammar recovery) — Ekundu Cyclops's "If a
+    creature you control attacks, this creature also attacks if able"
+    phase drops to a bare Unimplemented clause."""
+    assert ("forced_attack", "any", "") in _idents("Ekundu Cyclops")
+
+
+def test_forced_attack_nearest_opponent_idiom():
+    """ADR-0038 W3 batch 3 (CR 508.1c): the "attack only the nearest
+    opponent" directional-restriction idiom (``_FORCE_ATTACK_REF``,
+    imported single-source from project.py's own card-level marker
+    recovery) — Mystic Barrier."""
+    assert ("forced_attack", "any", "") in _idents("Mystic Barrier")
+
+
+def test_forced_attack_punisher_idiom():
+    """ADR-0038 W3 batch 3 (CR 508.1d's requirement family): the "didn't
+    attack this turn" PUNISHER idiom, scope "you" — Erg Raiders. Phase
+    carries no node for a punishment triggered off a creature's PAST
+    inaction (only the ``AttackedThisTurn`` state-check property)."""
+    assert ("forced_attack", "you", "") in _idents("Erg Raiders")
+
+
+def test_forced_attack_excludes_force_block():
+    """ADR-0038 W3 batch 3 (CR 509.1c): Avalanche Tusker's "Whenever ~
+    attacks, target creature ... blocks it this combat if able" is a
+    dedicated ForceBlock provoke effect — "attacks" is only the trigger
+    condition, "if able" binds to "blocks", not "attacks". Must NOT fire
+    forced_attack."""
+    assert "forced_attack" not in _keys("Avalanche Tusker")
+
+
+def test_forced_attack_per_clause_force_block_gate():
+    """ADR-0038 W3 batch 3: Magnetic Web carries BOTH a real team
+    compulsion ("all creatures with magnet counters on them attack if
+    able") AND a SEPARATE ForceBlock trigger ("... block that creature
+    this turn if able") in the SAME card — the ForceBlock exclusion must
+    be scoped per-CLAUSE, not whole-tree, or the real compulsion would be
+    wrongly suppressed too."""
+    assert ("forced_attack", "any", "") in _idents("Magnetic Web")
+
+
+def test_forced_attack_excludes_force_block_named_referent():
+    """ADR-0038 W3 batch 3 (CR 509.1c): Tolsimir, Midnight's Light's
+    "target creature an opponent controls blocks THAT WOLF this combat if
+    able" is the SAME ForceBlock idiom with a named-subtype back-reference
+    instead of "that creature" — the exclusion pattern must generalize
+    (any noun after "that"), not just the literal word "creature"."""
+    assert "forced_attack" not in _keys("Tolsimir, Midnight's Light")
+
+
+def test_forced_attack_excludes_created_token_compulsion():
+    """ADR-0038 W3 batch 3: Furygale Flocking's created tokens "that
+    attack that opponent this turn if able" carry the compulsion on a
+    FRESH TOKEN, not the card's own engine — the SAME LastCreated-style
+    exclusion the structural MustAttack arm applies, ported to the text
+    idiom (Legion Warboss precedent). Must NOT fire forced_attack."""
+    assert "forced_attack" not in _keys("Furygale Flocking")
+
+
+def test_forced_attack_beyond_legacy_gains():
+    """ADR-0038 W3 batch 3 (CR 508.1d): three MORE beyond-legacy gains
+    legacy's per-effect-category-early-wins cascade masks (the whole
+    ability resolves to an earlier-matching category before the
+    compulsion tail ever reaches recovery) — Illusionist's Gambit
+    ("restriction" swallows the additional-combat compulsion), Sizzling
+    Soloist ("cant_block" swallows the single-target opponent compulsion),
+    The Brothers' War (a Saga chapter's "Choose two target players" leads
+    the sentence)."""
+    assert ("forced_attack", "any", "") in _idents("Illusionist's Gambit")
+    assert ("forced_attack", "any", "") in _idents("Sizzling Soloist")
+    assert ("forced_attack", "any", "") in _idents("The Brothers' War")
 
 
 @pytest.mark.parametrize("name", ["Fog", "Story Circle"])

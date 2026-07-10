@@ -146,10 +146,22 @@ from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 # live there, imported single-source from project.py's ``_narrow_*`` marker
 # sources.
 from mtg_utils._card_ir.project import (
+    _FORCE_ATTACK_REF,
+    _GOAD_REWARD_REF,
     _LIB_SEARCH_PLAYER_ACTIONS,
+    _LURE_ABLE,
+    _LURE_MUST,
     _SINGLE_PERMANENT_GRANT_PREDS,
     _counter_kind_token,
 )
+
+# W3 batch-3 (ADR-0038, combat-coercion cluster): the per-effect "attacks …
+# if able" clause grammar (CR 508.1d) that supplement.py's
+# ``_recover_static_pattern`` uses to reclassify a bucket-B Unimplemented
+# clause — imported single-source (never re-typed) so the crosswalk's
+# ``_kept(tree)`` text-idiom fallback reproduces the SAME clause the legacy
+# recovery grammar already tokenizes, no new grammar/verb/arm added.
+from mtg_utils._card_ir.supplement import _FORCE_ATTACK
 
 # The b15 opponent_counter_grant co-tap anaphora fallback (the supplement's
 # tap-opp combinators) was T9-finalize folded to the
@@ -234,6 +246,7 @@ from mtg_utils._deck_forge._signals_ir import (
     _ACTIVATED_ABILITY_DROP_EFFECTS,
     _COUNTER_KIND_KEYS,
     _FLOOR_DETECTORS,
+    _GOAD_STYLE_FORCE,
     _IR_FLOOR_LANES,
     _NAMED_COUNTER_KINDS,
     _SELF_PROTECTION_GRANT_KW,
@@ -697,6 +710,17 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # ``MIGRATED_KEYS``, so dropping them from ``PORTED_KEYS`` re-supplies them from
     # ``extract_signals_ir(old)`` — byte-identical to flag-OFF) restores the
     # legacy firing without retreating from any key the crosswalk serves correctly.
+    #
+    # ADR-0038 W3 batch 3 (combat-coercion cluster): ``forced_attack`` and
+    # ``goad_makers`` PROMOTED (0 genuine members lost vs a live corpus
+    # re-measure; the ForceBlock/created-token/self-combo false-positive
+    # classes excluded, the beyond-legacy gains CR-grounded + pinned).
+    # ``lure_makers`` stays residual — the ``_LURE_ABLE``/``_LURE_MUST``
+    # bucket-B fallback recovers 49 of 50 live-only cards, but Destined //
+    # Lead's Aftermath back face ("Lead") has NO phase card-data record at
+    # all (a substrate-level gap, not a clause-grammar one — the same root
+    # cause already documented on ``fight_makers``'s Aftermath survivor),
+    # so one genuine loss remains and the promotion gate holds it back.
     {
         "any_counter_matters",
         "artifacts_matter",
@@ -716,8 +740,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "enchantments_matter",
         "exile_matters",
         "facedown_matters",
-        "forced_attack",
-        "goad_makers",
         "graveyard_matters",
         "keyword_grant_target",
         "land_creatures_matter",
@@ -881,6 +903,67 @@ _LAND_SUBTYPE_WORDS: frozenset[str] = frozenset(
 def _kept(tree: ConceptTree) -> str:
     """The reminder-stripped face oracle — the b12 mirror ports' scan text."""
     return _REMINDER_RX.sub(" ", tree.oracle or "")
+
+
+# W3 batch-3 (ADR-0038, combat-coercion cluster) — the shared discriminator
+# for the "attacks … if able" family of bucket-B text idioms
+# (forced_attack's ``_FORCE_ATTACK``/``_FORCE_ATTACK_REF``, goad_makers'
+# ``_GOAD_STYLE_FORCE``): a raw whole-face ``_kept(tree)`` scan can't tell a
+# genuine self/team/targeted attack compulsion apart from two false-positive
+# classes, both excluded PER-CLAUSE (the period-delimited sentence
+# containing the match — a card can genuinely carry a real compulsion AND
+# an unrelated excluded clause in DIFFERENT abilities, Magnetic Web's own
+# "attack if able" team force + its SEPARATE "block that creature … if
+# able" ForceBlock trigger, so a whole-tree/whole-card gate over-excludes):
+#
+# * ForceBlock — "Whenever ~ attacks, target creature … blocks it this
+#   combat if able" (Avalanche Tusker, Fighter Class, Grappling Hook,
+#   Impetuous Devils, Tower Above, Magnetic Web's 2nd trigger, Tolsimir's
+#   "blocks that Wolf") is CR 509.1c's provoke-style force-a-BLOCK, a
+#   narrower mechanic legacy keeps out of forced_attack/goad_makers
+#   entirely — "attacks" here is only the TRIGGER condition; the compelled
+#   action is "block(s) it/that <noun>/…", always a pronoun/demonstrative
+#   back-reference to the ATTACKER, never the disjunctive same-subject
+#   "attacks OR blocks" of a genuine compulsion (Boros Battleshaper's
+#   GRANTED AddStaticMode MustAttack+MustBlock combo, Iron Golem's OWN
+#   combo — legacy DOES fire force_attack for the former, the
+#   ``self_combo`` structural check below excludes the latter). Detected by
+#   "block(s) it/that <noun>/them/him/her" in the SAME clause as the match.
+# * Created-token — "create … tokens … that attack … if able" (Furygale
+#   Flocking) is the SAME LastCreated-style exclusion the structural
+#   MustAttack arm applies (the compulsion belongs to a fresh token, not
+#   the card's own engine — the Legion Warboss / Howlsquad Heavy
+#   precedent). Detected by a "token(s)" word anywhere in the same clause.
+_FORCE_BLOCK_SHAPE_RX = re.compile(
+    r"\bblocks?\s+(?:it\b|that \w+\b|them\b|him\b|her\b)", re.IGNORECASE
+)
+_TOKEN_WORD_RX = re.compile(r"\btokens?\b", re.IGNORECASE)
+
+
+def _sentence_span(text: str, start: int, end: int) -> str:
+    """The period-delimited clause containing ``text[start:end]``."""
+    prev = text.rfind(".", 0, start)
+    nxt = text.find(".", end)
+    lo = prev + 1 if prev != -1 else 0
+    hi = nxt if nxt != -1 else len(text)
+    return text[lo:hi]
+
+
+def _attack_compulsion_hit(kept: str, *patterns: re.Pattern[str]) -> bool:
+    """True when one of ``patterns`` matches a genuine attack compulsion
+    clause in ``kept`` — excludes the ForceBlock and created-token false
+    positives (see the module comment above), gated per-CLAUSE so an
+    unrelated excluded clause elsewhere on the same card never suppresses a
+    real compulsion."""
+    for rx in patterns:
+        m = rx.search(kept)
+        if m is None:
+            continue
+        span = _sentence_span(kept, m.start(), m.end())
+        if _FORCE_BLOCK_SHAPE_RX.search(span) or _TOKEN_WORD_RX.search(span):
+            continue
+        return True
+    return False
 
 
 def _win_lose_game(tree: ConceptTree) -> list[Signal]:
@@ -2309,11 +2392,35 @@ def _fight_makers(tree: ConceptTree) -> list[Signal]:
 def _goad_makers(tree: ConceptTree) -> list[Signal]:
     """goad_makers — a goad DOER (CR 701.15a). A ``Goad`` / ``GoadAll`` effect
     (Disrupt Decorum, Bloodthirster). Pure political force directed AT opponents →
-    scope "opponents". The ``force_attack``→goad single-target bridge
-    (``_GOAD_STYLE_FORCE``) stays a ``live_only`` survivor.
+    scope "opponents".
+
+    Two W3 batch-3 (ADR-0038) bucket-B text-idiom bridges, both imported
+    single-source (no new grammar) and read off ``_kept(tree)`` — phase
+    carries no dedicated node for either surface, only the raw clause:
+
+    * ``_GOAD_STYLE_FORCE`` (CR 701.15b) — the force_attack→goad
+      single-target bridge ("target creature … attacks … if able" —
+      Alluring Siren, Boiling Blood, Basandra's activated form): a targeted
+      compulsion is the goad mechanic's doer even when phase types it as a
+      generic ``ForceAttack``/Unimplemented clause, not a dedicated Goad
+      effect. Gated per-clause by :func:`_attack_compulsion_hit` — the SAME
+      ForceBlock false positive :func:`_forced_attack` excludes (Avalanche
+      Tusker's "attacks, target creature … blocks it … if able" is CR
+      509.1c provoke, not goad).
+    * ``_GOAD_REWARD_REF`` (CR 701.15b's "attacks a player other than …"
+      redirect) — the goad REWARD/payoff idiom ("whenever a(nother) player
+      attacks one of your opponents …" — Gahiji, Breena, Frontier
+      Warmonger, Kazuul): a card that REWARDS a goaded-style redirect wants
+      goad effects, so it rides the same key (legacy's
+      ``_DOER_EFFECT_KEYS["goad_all"] -> ("goad_makers", "opponents")``).
     """
     for c in tree.effect_concepts("goad"):
         return [Signal("goad_makers", "opponents", "", c.raw, tree.name, "high")]
+    kept = _kept(tree)
+    if _attack_compulsion_hit(kept, _GOAD_STYLE_FORCE):
+        return [Signal("goad_makers", "opponents", "", "", tree.name, "high")]
+    if _GOAD_REWARD_REF.search(kept):
+        return [Signal("goad_makers", "opponents", "", "", tree.name, "high")]
     return []
 
 
@@ -2687,11 +2794,23 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
 
 
 def _lure_makers(tree: ConceptTree) -> list[Signal]:
-    """lure_makers — a forced-block / lure requirement (CR 509.1c). A
+    """lure_makers — a forced-block / lure requirement (CR 509.1c/h). A
     ``MustBeBlockedByAll`` / ``MustBeBlocked`` static mode (Lure, Nemesis Mask),
     conferred via an ``AddStaticMode`` modification (:func:`node_lure_mode`). A
     single-target ``ForceBlock`` (Academic Dispute) is a narrower provoke-style effect
     that does NOT carry the mode, correctly excluded. Scope "you".
+
+    Bucket-B fallback (W3 batch-3, ADR-0038): phase swallows the requirement
+    into a compound pump/grant clause (Indrik Umbra, Revenge of the Hunted),
+    drops it into a conditional static (Seton's Desire, Stone-Tongue
+    Basilisk), folds an equip rider ("must be blocked by a Dalek/Eldrazi if
+    able" — Ace's Baseball Bat, Slayer's Cleaver), or buries it in a modal
+    bullet (Glorfindel) — a full-residue Unimplemented clause the SAME two
+    idioms project.py's own card-level marker recovery already tokenizes,
+    imported single-source (no new grammar): "able to block … do so"
+    (:data:`_LURE_ABLE`, force ALL able blockers) and "must be blocked [by
+    <type>] if able" (:data:`_LURE_MUST`, force a block on the attacker).
+    Read off ``_kept(tree)`` when no structural node fired.
     """
     for unit in tree.units:
         if node_lure_mode(unit.node):
@@ -2699,6 +2818,9 @@ def _lure_makers(tree: ConceptTree) -> list[Signal]:
         for c in unit.iter_concepts():
             if node_lure_mode(c.node):
                 return [Signal("lure_makers", "you", "", c.raw, tree.name, "high")]
+    kept = _kept(tree)
+    if _LURE_ABLE.search(kept) or _LURE_MUST.search(kept):
+        return [Signal("lure_makers", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -6820,25 +6942,103 @@ def _trigger_doubling(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# W3 batch-3 (ADR-0038): the "didn't attack this turn" PUNISHER idiom (Erg
+# Raiders, Kratos, Angel's Trumpet, Season of the Witch) — CR 508.1d's
+# requirement family covers the compulsion-to-attack theme legacy folds this
+# punisher into (forced_attack), but phase carries NO node for a punishment
+# triggered off a creature's PAST inaction (only the `AttackedThisTurn`
+# state-check property, never a dedicated effect/static tag) — a genuine
+# bucket-B gap. Byte-identical to the ``_IR_KEPT_DETECTORS`` inline pattern
+# in ``_signals_ir`` (no separate importable constant there to reuse single-
+# source), so this is a local last-resort ``_kept(tree)`` idiom, not a new
+# grammar arm. Scope "you" (self/team punishment, matching legacy).
+_FORCED_ATTACK_PUNISH_RX = re.compile(r"didn't attack this turn", re.IGNORECASE)
+
+
 def _forced_attack(tree: ConceptTree) -> list[Signal]:
-    """forced_attack — the attack compulsion (CR 508.1d). Two typed arms
+    """forced_attack — the attack compulsion (CR 508.1d). Structural arms
     mirroring the live ``force_attack`` category's two phase sources: a
     static def whose mode is ``MustAttack`` (Warmonger Hellkite's table-wide
     force; Juggernaut's SelfRef drawback stays IN to match live — the
     supplement recovers self/team statics), and the one-shot ``ForceAttack``
     EFFECT ("target creature … attacks … if able" — Alluring Siren). Goad is
     a distinct tag (Disrupt Decorum → ``goad_makers``, ported b4) and never
-    fires. Scope "any" (live — a symmetric/table force, not a you-only
-    payoff).
+    fires.
+
+    The MustAttack static is EXCLUDED when (a) its ``affected`` subject is
+    ``LastCreated`` — a granted compulsion on a JUST-CREATED token
+    (Legion Warboss's Goblin, Howlsquad Heavy's Goblin), not the card's OWN
+    engine (phase's tags are position-relative post-producer-effect; the b3
+    landmine lesson: never fold a nested grant's compulsion into the card's
+    own lane), or (b) it and a sibling ``MustBlock`` mode BOTH affect the
+    card ITSELF (``affected`` absent or ``SelfRef``) — Iron Golem / Khârn
+    the Betrayer / Relentless Raptor's OWN "attacks or blocks each combat if
+    able" is a COMBINED CR 508.1d + CR 509.1c compulsion legacy's own
+    structural project.py classifies ``restriction``, never
+    ``force_attack``. A GRANTED combo delivered to a target via a trigger's
+    ``AddStaticMode`` (Boros Battleshaper's "up to one target creature
+    attacks or blocks … if able", ``affected`` = ``ParentTarget``) is NOT
+    excluded — legacy fires ``force_attack`` for it (the structural
+    restriction override is project.py's card-level static reader only; a
+    granted mode falls to the SAME text-level ``_FORCE_ATTACK`` regex
+    Boros's own raw satisfies).
+
+    Bucket-B fallback (no structural node at all — a full-residue
+    Unimplemented clause): the SAME "attacks … if able" clause grammar
+    supplement.py's recovery already tokenizes (``_FORCE_ATTACK``, imported
+    single-source) OR the "attack only the nearest opponent" directional
+    restriction (CR 508.1c) project.py's own card-level marker recovers
+    (``_FORCE_ATTACK_REF``, imported single-source) — read off
+    ``_kept(tree)`` when no structural "any" signal already fired, the
+    card carries no self-combo restriction, and no ForceBlock-shaped clause
+    competes (:func:`_attack_compulsion_hit`, per-clause — Magnetic Web
+    carries BOTH a real team compulsion and a separate ForceBlock trigger,
+    so the ForceBlock exclusion can't be a whole-tree gate). Scope "any"
+    (live — a symmetric/table force, not a you-only payoff).
+
+    A SEPARATE, independently-firing punisher idiom
+    (:data:`_FORCED_ATTACK_PUNISH_RX`) covers the "didn't attack this turn"
+    penalty family, scope "you".
     """
+    out: list[Signal] = []
+    seen_any = False
+    # Whole-TREE self-combo scan (Iron Golem/Khârn/Relentless Raptor split
+    # their MustAttack and MustBlock modes across TWO SEPARATE static
+    # abilities — two units, not one — so the combo check can't be scoped
+    # per-unit; it must union every self-affecting mode across the card).
+    all_self_modes: set[str | None] = set()
+    for unit in tree.units:
+        for s in iter_static_defs(unit.node):
+            a = getattr(s, "affected", None)
+            if a is None or tag_of(a) == "SelfRef":
+                all_self_modes.add(static_mode_tag(s))
+    self_combo = "MustAttack" in all_self_modes and "MustBlock" in all_self_modes
     for unit in tree.units:
         for sdef in iter_static_defs(unit.node):
-            if static_mode_tag(sdef) == "MustAttack":
-                return [Signal("forced_attack", "any", "", "", tree.name, "high")]
+            if static_mode_tag(sdef) != "MustAttack":
+                continue
+            affected = getattr(sdef, "affected", None)
+            aff_tag = tag_of(affected) if affected is not None else None
+            if aff_tag == "LastCreated":
+                continue
+            if aff_tag in (None, "SelfRef") and self_combo:
+                continue
+            out.append(Signal("forced_attack", "any", "", "", tree.name, "high"))
+            seen_any = True
         for c in unit.effects:
             if tag_of(c.node) == "ForceAttack":
-                return [Signal("forced_attack", "any", "", c.raw, tree.name, "high")]
-    return []
+                out.append(Signal("forced_attack", "any", "", c.raw, tree.name, "high"))
+                seen_any = True
+    kept = _kept(tree)
+    if (
+        not seen_any
+        and not self_combo
+        and _attack_compulsion_hit(kept, _FORCE_ATTACK, _FORCE_ATTACK_REF)
+    ):
+        out.append(Signal("forced_attack", "any", "", "", tree.name, "high"))
+    if _FORCED_ATTACK_PUNISH_RX.search(kept):
+        out.append(Signal("forced_attack", "you", "", "", tree.name, "high"))
+    return out
 
 
 def _damage_prevention(tree: ConceptTree) -> list[Signal]:
