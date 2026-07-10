@@ -1870,14 +1870,20 @@ def filter_owned_controller(filt: object) -> str | None:
 # ── Batch-9 typed accessors (death / library-top / grant cluster) ────────────
 
 # Effect targets that name the granted-trigger's OWN source object: the bare
-# ``SelfRef`` (an undying/persist expansion — Young Wolf), the granted-quote
-# ``TriggeringSource`` (Feign Death's "return IT to the battlefield"), and
-# ``ParentTarget`` (ADR-0038 W3 batch 2: a ``CreateDelayedTrigger`` wrapper's
-# OWN inner ChangeZone targets the delayed ability's parent — the SAME dying
-# object, one level down — Loyal Cathar's "return it to the battlefield
-# transformed AT THE BEGINNING OF THE NEXT END STEP").
-_SELF_RETURN_TARGETS: frozenset[str] = frozenset(
-    {"SelfRef", "TriggeringSource", "ParentTarget"}
+# ``SelfRef`` (an undying/persist expansion — Young Wolf) and the granted-quote
+# ``TriggeringSource`` (Feign Death's "return IT to the battlefield").
+# ``ParentTarget`` is deliberately NOT here: it binds to the nearest ancestor
+# that produced an object, which is the dying self only when no card-producer
+# effect precedes it (Accursed Witch, Loyal Cathar) — after a producer it
+# names the produced card (Matter Reshaper's revealed top card).
+# :func:`is_dies_return_trigger` handles it explicitly with producer tracking.
+_SELF_RETURN_TARGETS: frozenset[str] = frozenset({"SelfRef", "TriggeringSource"})
+
+# Effects that introduce a NEW card object into a dies trigger's chain — a
+# back-reference after one of these names the produced card, not the dying
+# self (CR 702.93a/702.79a's "return it" is the dying object itself).
+_CARD_PRODUCER_TAGS: frozenset[str] = frozenset(
+    {"RevealTop", "Dig", "TurnFaceUp", "Search"}
 )
 
 # ADR-0038 W3 batch 2: the dies-return trigger's OWN watcher — a bare
@@ -1929,28 +1935,55 @@ def is_dies_return_trigger(trig: object) -> bool:
     execute = getattr(trig, "execute", MISSING)
     if not isinstance(execute, TypedMirrorNode):
         return False
+    # Phase's back-reference tags are POSITION-relative, so two shapes name a
+    # NON-self object with a tag that elsewhere means the dying self
+    # (verification catch on the W3-batch-2 unit-3 widening, corpus-diagnosed;
+    # the lane's contract is CR 702.93a/702.79a's "return IT to the
+    # battlefield" — the SAME object that died, per 603.6c's
+    # leaves-the-battlefield reference — never a DIFFERENT card):
+    #   * ``ParentTarget`` binds to the nearest ancestor that produced an
+    #     object. With NO card-producer effect earlier in the chain, that
+    #     ancestor is the trigger itself → the dying self (Accursed Witch's
+    #     "return it … attached to target opponent"; Loyal Cathar's
+    #     delayed-trigger "return it at the beginning of the next end
+    #     step"). AFTER a producer (``RevealTop`` — Matter Reshaper's "put
+    #     THAT CARD onto the battlefield"), it names the produced card —
+    #     dies-VALUE, cheat_into_play's business, not recursion.
+    #   * ``TriggeringSource`` next to a ``TurnFaceUp`` sibling is phase's
+    #     loose back-ref to the face-down IMPRINTED card being turned up
+    #     (Clone Shell, Summoner's Egg — the returned object never died).
+    #     A ``Dig``/exile producer marks the same imprint indirection.
+    delayed_ids: set[int] = set()
     for cn in _walk_effect_chain(execute):
-        if not is_self_return_change_zone(cn.node):
+        if tag_of(cn.node) == "CreateDelayedTrigger":
+            delayed_ids.update(id(x.node) for x in _walk_effect_chain(cn.node))
+    producer_seen = False
+    for cn in _walk_effect_chain(execute):
+        node = cn.node
+        tag = tag_of(node)
+        if tag in _CARD_PRODUCER_TAGS:
+            producer_seen = True
             continue
-        if player_chosen and getattr(cn.node, "enters_under", None) != "You":
+        if tag != "ChangeZone":
+            continue
+        if getattr(node, "destination", None) != "Battlefield":
+            # a dies→exile leg is NOT a producer: the phoenix class exiles
+            # the dying SELF before returning it (Lamplight Phoenix) — the
+            # later self-return must keep matching.
+            continue
+        target = tag_of(getattr(node, "target", None))
+        in_delayed = id(node) in delayed_ids
+        if target == "ParentTarget":
+            if producer_seen and not in_delayed:
+                continue  # binds to the produced card — not the dying self
+        elif target not in _SELF_RETURN_TARGETS:
+            continue
+        if producer_seen and target == "TriggeringSource" and not in_delayed:
+            continue  # imprint return — the face-down card, not the self
+        if player_chosen and getattr(node, "enters_under", None) != "You":
             continue  # hot-potato — the return goes to the CHOSEN player
         return True
     return False
-
-
-def is_self_return_change_zone(node: object) -> bool:
-    """Whether ``node`` is a ``ChangeZone`` back to the Battlefield targeting
-    the SAME object (:data:`_SELF_RETURN_TARGETS`) — the shared "return it
-    to the battlefield" leaf both :func:`is_dies_return_trigger` and the
-    dies_recursion lane's replacement-redirect arm
-    (:func:`~mtg_utils._deck_forge.crosswalk_signals._has_exile_then_return_replacement`
-    — Darigaaz Reincarnated's exile-then-return phoenix analog) read.
-    """
-    return (
-        tag_of(node) == "ChangeZone"
-        and getattr(node, "destination", None) == "Battlefield"
-        and tag_of(getattr(node, "target", None)) in _SELF_RETURN_TARGETS
-    )
 
 
 def mod_keyword_name(mod: TypedMirrorNode) -> str | None:

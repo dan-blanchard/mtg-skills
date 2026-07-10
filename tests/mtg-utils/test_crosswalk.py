@@ -3139,19 +3139,18 @@ def test_dies_recursion_aura_equipment_attached_to_arm(name):
 # full oracle text instead of a keyword): a plain conditional return
 # (Old-Growth Troll, Reborn Hero, Wave of Rats, Tenacious Dead, Retched
 # Wretch, Unstoppable Slasher, Infernal Vessel, Princess Yue), a Phoenix-
-# style modal branch (Bogardan Phoenix, Lamplight Phoenix), an
-# imprint-then-reveal indirection (Clone Shell, Summoner's Egg), a
+# style modal branch (Bogardan Phoenix, Lamplight Phoenix), a
 # same-type-share condition (Fang Roku's Companion, Otherworldly Escort),
 # a self-transforming Aura-Land loop (Harold and Bob, Earth Village
 # Ruffians' land-creature analog), an exile-then-reattach (Lucius the
-# Eternal), a top-of-library reveal (Matter Reshaper), and a
-# delayed-trigger return AT THE BEGINNING OF THE NEXT END STEP (Loyal
-# Cathar — the ``ParentTarget`` one-level-down arm, distinct from Young
-# Wolf's immediate ``TriggeringSource`` return); a player-chosen attach
-# point that still returns under YOUR OWN control (Accursed Witch's
-# "attached to target opponent", ``enters_under: You``) stays included —
-# only an ambiguous/opponent-owned return excludes (the sibling
-# hot-potato test below).
+# Eternal), and a delayed-trigger return AT THE BEGINNING OF THE NEXT END
+# STEP (Loyal Cathar — a flat ``ParentTarget`` with NO producer effect
+# preceding it, so it binds to the trigger's own source); a player-chosen
+# attach point that still returns under YOUR OWN control (Accursed
+# Witch's "attached to target opponent", ``enters_under: You`` — also a
+# no-producer flat ``ParentTarget``) stays included — only an
+# ambiguous/opponent-owned return excludes (the sibling hot-potato test
+# below).
 @pytest.mark.parametrize(
     "name",
     [
@@ -3165,14 +3164,11 @@ def test_dies_recursion_aura_equipment_attached_to_arm(name):
         "Princess Yue",
         "Bogardan Phoenix",
         "Lamplight Phoenix",
-        "Clone Shell",
-        "Summoner's Egg",
         "Fang, Roku's Companion",
         "Otherworldly Escort",
         "Harold and Bob, First Numens",
         "Earth Village Ruffians",
         "Lucius the Eternal",
-        "Matter Reshaper",
         "Loyal Cathar",
         "Accursed Witch",
         "Nine-Lives Familiar",
@@ -3180,6 +3176,23 @@ def test_dies_recursion_aura_equipment_attached_to_arm(name):
 )
 def test_dies_recursion_own_dies_self_return_arm(name):
     assert ("dies_recursion", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Matter Reshaper", "Clone Shell", "Summoner's Egg"])
+def test_dies_recursion_excludes_dies_value_of_another_card(name):
+    """The lane's contract is CR 702.93a/702.79a's "return IT to the
+    battlefield" — the SAME object that died (CR 603.6c's
+    leaves-the-battlefield reference). A dies trigger that puts a
+    DIFFERENT card onto the battlefield is dies-VALUE, not recursion:
+    Matter Reshaper's revealed top card (phase back-refs it
+    ``ParentTarget`` AFTER a ``RevealTop`` producer — the produced card,
+    not the dying self) and Clone Shell / Summoner's Egg's face-down
+    imprinted card (``TriggeringSource`` next to a ``TurnFaceUp``
+    producer). Adjudication override of the W3-batch-2 unit-3 widening,
+    which pinned these three as members — conflating two inherently
+    different properties (a repeatable death-loop body vs one-shot
+    cheat-into-play advantage)."""
+    assert "dies_recursion" not in _keys(name)
 
 
 # ADR-0038 W3 batch 2 unit 3 — the "Enduring" cycle (Bloomburrow):

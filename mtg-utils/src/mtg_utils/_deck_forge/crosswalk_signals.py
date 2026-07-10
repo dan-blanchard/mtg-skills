@@ -83,7 +83,6 @@ from mtg_utils._card_ir.crosswalk import (
     is_damage_reflect_trigger_def,
     is_dies_return_trigger,
     is_opponent_cast_trigger_def,
-    is_self_return_change_zone,
     iter_condition_sites,
     iter_cost_leaves,
     iter_deep_target_grants,
@@ -5355,7 +5354,17 @@ def _has_exile_then_return_replacement(tree: ConceptTree) -> bool:
                 ):
                     has_exile_redirect = True
         for c in unit.effects:
-            if is_self_return_change_zone(c.node):
+            # ParentTarget accepted HERE (unlike the dies-trigger predicate's
+            # producer-tracked read): Darigaaz's counter-driven upkeep return
+            # ("return it to the battlefield") binds ParentTarget to its own
+            # trigger's source, and this arm is already gated on the
+            # co-occurring self-exile replacement — corpus-singleton, so the
+            # wider target set cannot over-fire.
+            if tag_of(c.node) == "ChangeZone" and (
+                getattr(c.node, "destination", None) == "Battlefield"
+                and tag_of(getattr(c.node, "target", None))
+                in ("SelfRef", "TriggeringSource", "ParentTarget")
+            ):
                 has_delayed_return = True
     return has_exile_redirect and has_delayed_return
 
