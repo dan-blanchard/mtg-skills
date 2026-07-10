@@ -1041,6 +1041,44 @@ def counter_pred_kinds(filt: object) -> tuple[str, ...]:
     return tuple(out)
 
 
+def oil_counter_kind_refs(root: object) -> tuple[str, ...]:
+    """Every "oil" counter reference reachable ANYWHERE under ``root``
+    (deep walk) — the structural-read sibling of :func:`counter_pred_kinds`
+    for a counter-kind reference phase buries inside a scaling operand
+    (Kuldotha Cackler's ``Pump.power`` Ref->ObjectCount), a cost-reduction
+    ``dynamic_count`` (Cinderslash Ravager's ``ModifyCost``), a sub-
+    ability's gating ``QuantityCheck`` (Oil-Gorger Troll's conditional
+    draw), or a static's OWN ``condition`` (Armored Scrapgorger / Ichor
+    Synthesizer's "as long as it has N oil counters" self-check) — none of
+    which the flat per-concept-node walk reaches (that node IS the
+    AddPower/AddToughness modification, never its containing static, whose
+    ``condition``/``affected`` fields live one level up).
+
+    Two typed shapes, kind-filtered to "oil" only (this key's ADR-0038
+    batch-2 scope — ki/shield/rad stay on :func:`counter_pred_kinds`'s
+    narrower flat read until their own corpus measurement widens them):
+    a ``Typed`` filter's ``Counters`` property (controller-gated — an
+    Opponent-controlled filter is excluded, checklist #6), OR a
+    ``HasCounters`` CONDITION (always self-referencing to the ability's
+    own permanent, so no controller gate applies). CR 122.1.
+    """
+    out: list[str] = []
+    for n in _iter_typed_nodes(root):
+        t = tag_of(n)
+        if t == "Typed":
+            if getattr(n, "controller", None) == "Opponent":
+                continue
+            out.extend(k for k in counter_pred_kinds(n) if k.lower() == "oil")
+        elif t == "HasCounters":
+            counters = getattr(n, "counters", None)
+            if (
+                tag_of(counters) == "OfType"
+                and getattr(counters, "data", None) == "oil"
+            ):
+                out.append("oil")
+    return tuple(out)
+
+
 def color_count_preds(filt: object) -> tuple[tuple[str, int], ...]:
     """The ``(comparator, count)`` pairs of a filter's ``ColorCount`` predicates.
 

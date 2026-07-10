@@ -91,6 +91,7 @@ from mtg_utils._card_ir.crosswalk import (
     modify_cost_mode,
     modify_cost_spell_filter,
     node_lure_mode,
+    oil_counter_kind_refs,
     permission_tag,
     player_counter_kind,
     player_filter_tag,
@@ -729,7 +730,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "lure_makers",
         "mana_amplifier",
         "minus_counters_matter",
-        "oil_counter_matters",
         "opponent_cast_matters",
         "opponent_discard",
         "phasing_makers",
@@ -3113,19 +3113,25 @@ _OPP_PLAYER_TAGS: frozenset[str] = frozenset({"Opponent", "Opponents", "EachOppo
 
 
 def _counter_kind_lanes(tree: ConceptTree) -> list[Signal]:
-    """oil / ki / shield counter lanes (CR 122.1). Two structural arms:
+    """oil / ki / shield counter lanes (CR 122.1). Three structural arms:
 
     * **MAKER** — a ``place_counter`` (``PutCounter`` / ``PutCounterAll``) whose
       ``counter_type`` is an off-+1/+1 ported kind (oil / ki / shield), mirroring
       ``plus_one_makers`` / ``minus_counters_matter``. The card PERFORMS the
       placement (Glistener Seer's oil, Petalmane Baku's ki, Boon of Safety's
       shield). The kind discriminates — a +1/+1 / loyalty placement never fires.
-    * **MATTERS** — a non-cost subject / count-operand filter carrying a
+    * **MATTERS (flat)** — a non-cost subject / count-operand filter carrying a
       ``Counters`` predicate of a ported kind (Urabrask's Anointer scales off "oil
       counters on creatures you control"). Routed via :data:`_COUNTER_PRED_LANES`,
       controller-gated against an opponent filter (checklist #6). Only oil has a
       structural payoff filter in v0.9.0; ki / shield payoffs are cost-side and
       stay ``live_only``.
+    * **MATTERS (deep, oil only)** — :func:`oil_counter_kind_refs`'s whole-unit
+      deep walk (ADR-0038 batch-2), for an oil reference phase buries below the
+      flat concept-node level (Armored Scrapgorger / Ichor Synthesizer's static
+      ``condition``, Ichorplate Golem's static ``affected``, Kuldotha Cackler's
+      scaling Pump, Cinderslash Ravager's cost-reduction, Oil-Gorger Troll's
+      gating sub-ability). ki / shield stay on the flat read only.
     """
     out: list[Signal] = []
     seen: set[tuple[str, str]] = set()
@@ -3149,6 +3155,9 @@ def _counter_kind_lanes(tree: ConceptTree) -> list[Signal]:
                 lane = _COUNTER_PRED_LANES.get(kind.lower())
                 if lane:
                     fire(lane[0], lane[1], c.raw)
+    for unit in tree.units:
+        if oil_counter_kind_refs(unit.node):
+            fire("oil_counter_matters", "you", "")
     return out
 
 

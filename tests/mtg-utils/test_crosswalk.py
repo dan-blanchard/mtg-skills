@@ -1470,6 +1470,49 @@ def test_oil_maker_is_not_an_oil_payoff():
     assert "oil_counter_matters" not in _keys("Glistener Seer")
 
 
+def test_oil_counter_matters_deep_static_condition():
+    """Armored Scrapgorger's / Ichor Synthesizer's "as long as it has N oil
+    counters on it, it gets +X/+Y" is a self-referencing static whose
+    ``HasCounters`` CONDITION lives on the containing static's OWN node —
+    the concept node IS the AddPower/AddToughness modification, never its
+    container, so the flat per-concept-node walk never reaches it.
+    :func:`oil_counter_kind_refs`'s whole-unit deep walk does (CR 122.1)."""
+    assert ("oil_counter_matters", "you", "") in _idents("Armored Scrapgorger")
+    assert ("oil_counter_matters", "you", "") in _idents("Ichor Synthesizer")
+
+
+def test_oil_counter_matters_deep_static_affected():
+    """Ichorplate Golem's "Creatures you control with oil counters on them
+    get +1/+1" carries its ``Counters`` predicate on the static's OWN
+    ``affected`` field, not on the AddPower/AddToughness concept node the
+    flat walk decorates (CR 122.1)."""
+    assert ("oil_counter_matters", "you", "") in _idents("Ichorplate Golem")
+
+
+def test_oil_counter_matters_deep_scaling_pump():
+    """Kuldotha Cackler's "it gets +X/+0 ... where X is the number of
+    permanents you control with oil counters on them" buries the
+    Counters-OfType-oil filter inside the Pump effect's ``power`` Ref->
+    ObjectCount scaling operand — a nesting depth :func:`count_operand_
+    filter`'s field-name check (amount/count/value) doesn't reach (CR
+    122.1)."""
+    assert ("oil_counter_matters", "you", "") in _idents("Kuldotha Cackler")
+
+
+def test_oil_counter_matters_deep_cost_reduction():
+    """Cinderslash Ravager's "costs {1} less to cast for each permanent you
+    control with oil counters on it" buries the filter inside a
+    ``ModifyCost``'s ``dynamic_count`` field (CR 122.1)."""
+    assert ("oil_counter_matters", "you", "") in _idents("Cinderslash Ravager")
+
+
+def test_oil_counter_matters_deep_gating_subability():
+    """Oil-Gorger Troll's "if you control a permanent with an oil counter
+    on it, draw a card" buries the filter inside a chained sub-ability's
+    ``QuantityCheck`` gating condition (CR 122.1)."""
+    assert ("oil_counter_matters", "you", "") in _idents("Oil-Gorger Troll")
+
+
 def test_rad_counter_makers_scope_opponents():
     """A rad-counter giver (Tato Farmer) fires rad_counter_makers — fixed scope
     opponents, a mill-and-bleed kill clock (CR 728), read off GivePlayerCounter."""
