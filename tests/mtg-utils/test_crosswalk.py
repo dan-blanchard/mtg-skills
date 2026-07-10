@@ -1279,6 +1279,47 @@ def test_ring_tempters_and_matters_split():
     assert "ring_tempters" not in _keys("Sauron, the Necromancer")
 
 
+def test_ring_matters_trigger_event_payoff():
+    """ADR-0038 W1 batch-4: a top-level trigger whose event is
+    ``RingTemptsYou`` (CR 701.54d "Whenever the Ring tempts you") is a
+    payoff for ANY tempt, including one from a DIFFERENT card — Nazgûl
+    fires BOTH ring_tempters (its own ETB tempt) AND ring_matters (its
+    "Whenever the Ring tempts you, put a +1/+1 counter on each Wraith"
+    payoff trigger)."""
+    assert ("ring_tempters", "you", "") in _idents("Nazgûl")
+    assert ("ring_matters", "you", "") in _idents("Nazgûl")
+
+
+def test_ring_matters_ring_bearer_text_fallback():
+    """A whole-card "Ring-bearer" reference the flat condition-tag walk
+    doesn't reach — mirrors legacy's own raw-text discriminator (a
+    SANCTIONED byte-identical mirror for this half): Call of the Ring's
+    "whenever you choose a creature as your Ring-bearer" (no IsRingBearer
+    condition node) and Dúnedain Rangers' "if you don't control a
+    Ring-bearer" (a gating condition on the maker's OWN tempt trigger,
+    not a separate payoff clause — still fires per legacy's own broad
+    match, CR 701.54)."""
+    assert ("ring_matters", "you", "") in _idents("Call of the Ring")
+    assert ("ring_matters", "you", "") in _idents("Dúnedain Rangers")
+
+
+def test_ring_matters_improvements_over_legacy_text_bug():
+    """Two genuine crosswalk-side improvements (not shed): Ringwraiths'
+    "When the Ring tempts you, return this card from your graveyard" is
+    the SAME payoff shape as Nazgûl's, but legacy's own raw-text check
+    requires the literal word "whenever" (it misses "When ...") — a
+    legacy text-matching bug, not a deliberate doer/payoff distinction.
+    One Ring to Rule Them All's Saga chapter I ("The Ring tempts you,
+    then each player mills cards equal to your Ring-bearer's power")
+    scales off the Ring-bearer's power — an unambiguous payoff legacy
+    misses because phase splits the tempt and the mill into separate
+    effect nodes, so neither one's own raw carries both "ring tempts
+    you" and "ring-bearer" together; the whole-card scan reads them
+    regardless of how phase split the clause."""
+    assert ("ring_matters", "you", "") in _idents("Ringwraiths")
+    assert ("ring_matters", "you", "") in _idents("One Ring to Rule Them All")
+
+
 def test_amass_makers_new_lane():
     """An ``Amass`` effect (Aven Eternal) fires the new amass_makers lane (CR
     701.47)."""

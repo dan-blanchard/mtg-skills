@@ -736,7 +736,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "poison_makers",
         "ramp",
         "regenerate_makers",
-        "ring_matters",
         "sacrifice_outlets",
         "scaling_pump",
         "second_spell_matters",
@@ -2869,19 +2868,53 @@ def _venture(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+_RING_BEARER_REF = re.compile(r"\bring-bearer\b", re.IGNORECASE)
+
+
 def _ring(tree: ConceptTree) -> list[Signal]:
     """ring_tempters / ring_matters — The Ring Tempts You (CR 701.54).
 
     MAKER: a ``RingTemptsYou`` effect (the card performs the tempt — Boromir,
-    Warden of the Tower) → ``ring_tempters`` (the live maker key). MATTERS: an
-    ``IsRingBearer`` payoff condition (Sauron, the Necromancer — a buried
-    Ring-bearer reference with NO tempt trigger, which the typed condition recovers
-    STRUCTURALLY where the live path needed a raw "ring-bearer" marker). Both scope
-    "you".
+    Warden of the Tower) → ``ring_tempters`` (the live maker key). MATTERS,
+    three structural shapes:
+
+    * an ``IsRingBearer`` payoff condition (Sauron, the Necromancer — a
+      buried Ring-bearer reference with NO tempt trigger, which the typed
+      condition recovers STRUCTURALLY where the live path needed a raw
+      "ring-bearer" marker);
+    * a top-level trigger whose event is ``RingTemptsYou`` (CR 701.54d
+      "Whenever the Ring tempts you" — Aragorn, Company Leader; Faramir,
+      Field Commander; Galadriel of Lothlórien; Gandalf, Friend of the
+      Shire; Nazgûl; Sauron, the Dark Lord; Sméagol, Helpful Guide — a
+      payoff for ANY tempt, including one from a DIFFERENT card, not just
+      the card's own maker trigger);
+    * a whole-card "Ring-bearer" reference the flat condition-tag walk
+      doesn't reach (Call of the Ring's "whenever you choose a creature
+      as your Ring-bearer"; Dúnedain Rangers' "if you don't control a
+      Ring-bearer" tempt-gating condition; Frodo Baggins / Frodo,
+      Adventurous Hobbit's "is your Ring-bearer" static-mode condition
+      with no decorated concept node; Galadriel, Elven-Queen's "put a
+      +1/+1 counter on your Ring-bearer" — a mode-only static/vote-branch
+      shape the typed condition walk misses). Mirrors legacy's own
+      raw-text discriminator (project.py's ring split: a ``ring_tempt``
+      marker whose raw contains "whenever the ring tempts you" or
+      "ring-bearer" routes to ring_matters) — a SANCTIONED byte-identical
+      mirror for the "ring-bearer" half (the trigger-event half above is
+      the honest structural upgrade: legacy's own text match requires the
+      literal word "whenever", so it MISSES a "When the Ring tempts you,
+      ..." phrasing — Ringwraiths — a genuine crosswalk improvement, not
+      shed).
+
+    Both scope "you".
     """
     out: list[Signal] = []
     out += _whole_card_maker(tree, "ring_tempt", "ring_tempters", "you")
-    if condition_tags(tree) & _RING_CONDITIONS:
+    matters = (
+        bool(condition_tags(tree) & _RING_CONDITIONS)
+        or any(unit.trigger_event == "ringtemptsyou" for unit in tree.units)
+        or bool(_RING_BEARER_REF.search(_kept(tree)))
+    )
+    if matters:
         out.append(Signal("ring_matters", "you", "", "", tree.name, "high"))
     return out
 
