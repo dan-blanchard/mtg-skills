@@ -79,6 +79,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_life_payment_insurance,
     _arm_manland,
     _arm_miracle_grant,
+    _arm_multicolor_matters,
     _arm_noncombat_damage_payoff,
     _arm_opponent_counter_grant,
     _arm_opponent_exile_matters,
@@ -131,6 +132,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_life_payment_insurance,
     has_structural_manland,
     has_structural_miracle_grant,
+    has_structural_multicolor_matters,
     has_structural_opponent_counter_grant,
     has_structural_outlaw,
     has_structural_proliferate,
@@ -1751,6 +1753,74 @@ def test_dice_makers_reroll_only_synth():
 
 def test_dice_makers_synth_registered():
     assert "dice_makers" in SYNTHESIS_ARM_IDS
+
+
+# ── multicolor_matters cares-about reference residual (ADR-0038 W1) ────────────
+# Fallaji Wayfarer's "Multicolored spells you cast have convoke." grants a
+# keyword via a CastWithKeyword static whose affected filter carries NO
+# ColorCount predicate at all -- phase drops the "multicolored" qualifier
+# entirely, keeping it only in the static's description. Niv-Mizzet Reborn's
+# "For each color pair, choose a card that's exactly those colors from among
+# them" lands as an Unimplemented effect whose parseable verb ("choose")
+# lives after the "for each color pair" prefix the grammar peels and
+# discards -- the cares-about content never reaches the recovered concept.
+
+
+def _multicolor_matters_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _predicate_build_around
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "multicolor_matters" for s in _predicate_build_around(tree))
+
+
+def test_multicolor_matters_typed_gate_no_double():
+    """Knight of New Alara already has a typed ColorCount GE 2 predicate --
+    the structural gate covers it, so the synthesis arm no-ops."""
+    tree = _fixture_tree("Knight of New Alara")
+    assert has_structural_multicolor_matters(tree) is True
+    assert _arm_multicolor_matters(tree) is None
+    assert _multicolor_matters_fires("Knight of New Alara") is True
+
+
+def test_multicolor_matters_mana_restriction_no_double():
+    """Obsidian Obelisk's mana restriction is structural -- the gate covers
+    it, so the synthesis arm no-ops."""
+    tree = _fixture_tree("Obsidian Obelisk")
+    assert has_structural_multicolor_matters(tree) is True
+    assert _arm_multicolor_matters(tree) is None
+    assert _multicolor_matters_fires("Obsidian Obelisk") is True
+
+
+def test_multicolor_matters_excludes_plain_card():
+    """Divination has no multicolor cares-about reference at all -- neither
+    the typed gate nor the idiom regex fires."""
+    tree = _fixture_tree("Divination")
+    assert has_structural_multicolor_matters(tree) is False
+    assert _arm_multicolor_matters(tree) is None
+    assert _multicolor_matters_fires("Divination") is False
+
+
+def test_multicolor_matters_dropped_predicate_synth():
+    tree = _fixture_tree("Fallaji Wayfarer")
+    assert has_structural_multicolor_matters(tree) is False  # genuine gap
+    node = _arm_multicolor_matters(tree)
+    assert node is not None
+    assert node.concept == "multicolor_matters"  # the REAL concept
+    assert node.scope == "you"
+    assert _multicolor_matters_fires("Fallaji Wayfarer") is True
+
+
+def test_multicolor_matters_color_pair_prefix_synth():
+    tree = _fixture_tree("Niv-Mizzet Reborn")
+    assert has_structural_multicolor_matters(tree) is False  # genuine gap
+    node = _arm_multicolor_matters(tree)
+    assert node is not None
+    assert node.concept == "multicolor_matters"
+    assert _multicolor_matters_fires("Niv-Mizzet Reborn") is True
+
+
+def test_multicolor_matters_synth_registered():
+    assert "multicolor_matters" in SYNTHESIS_ARM_IDS
 
 
 # ── stax_taxes / symmetric_stax fold (ADR-0036/0037) ───────────────────────────

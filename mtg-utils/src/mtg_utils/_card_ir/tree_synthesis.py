@@ -66,6 +66,7 @@ from mtg_utils._card_ir.crosswalk import (
     amount_factor,
     amount_is_scaling,
     change_zone_dirs,
+    color_count_preds,
     condition_tags,
     cost_has_paylife,
     count_operand_filter,
@@ -90,6 +91,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_mod_sites,
     iter_static_defs,
     iter_typed_nodes,
+    mana_restricted_to_multicolored,
     mod_keyword_name,
     modify_cost_mode,
     node_duration,
@@ -228,6 +230,7 @@ __all__ = [
     "has_structural_kill_engine",
     "has_structural_life_payment_insurance",
     "has_structural_meld_pair",
+    "has_structural_multicolor_matters",
     "has_structural_outlaw",
     "has_structural_power_tap_engine",
     "has_structural_pump_makers",
@@ -2543,6 +2546,96 @@ def _arm_dice_makers(tree: ConceptTree) -> ConceptNode | None:
         scope="you",
         subject=(),
         desc="reroll-only die action phase leaves unstructured (Monitor Monitor)",
+    )
+
+
+def _has_multicolor_count_pred(filt: object) -> bool:
+    """Whether ``filt`` carries a ``ColorCount`` ``GE``/``EQ`` >= 2
+    predicate, controller You (CR 105.2) — the shared discriminant both
+    :func:`has_structural_multicolor_matters` and the
+    ``_predicate_build_around`` lane's multicolor arm apply."""
+    if filter_controller(filt) != "You":
+        return False
+    return any(
+        (cmp_ == "GE" and cnt >= 2) or (cmp_ == "EQ" and cnt >= 2)
+        for cmp_, cnt in color_count_preds(filt)
+    )
+
+
+def has_structural_multicolor_matters(tree: ConceptTree) -> bool:
+    """The multicolor_matters TYPED gate (CR 105.2): a ``ColorCount``
+    GE/EQ >= 2 predicate on an effect / count-operand / static-affected /
+    trigger-subject filter (Knight of New Alara), OR a ``Mana`` effect's
+    ``SpellType: Multicolored`` spend restriction (Obsidian Obelisk).
+    Mirrors the checks ``crosswalk_signals._predicate_build_around``'s
+    multicolor arm runs, so the color-pair-reference synthesis arm below
+    never fires on a card the typed read already covers."""
+    for c in tree.iter_concepts():
+        if c.role == "cost":
+            continue
+        if mana_restricted_to_multicolored(c.node):
+            return True
+        for filt in (effect_filter(c.node), count_operand_filter(c.node)):
+            if filt is not None and _has_multicolor_count_pred(filt):
+                return True
+    for unit in tree.units:
+        if unit.statics:
+            aff = getattr(unit.node, "affected", None)
+            if aff is not None and _has_multicolor_count_pred(aff):
+                return True
+        if unit.origin != "trigger":
+            continue
+        vc = getattr(unit.node, "valid_card", None)
+        if vc is None or tag_of(vc) is None:
+            continue
+        ctrl = filter_controller(vc)
+        you = ctrl == "You" or (ctrl is None and trigger_scope(unit.node) == "you")
+        if you and any(
+            (cmp_ == "GE" and cnt >= 2) or (cmp_ == "EQ" and cnt >= 2)
+            for cmp_, cnt in color_count_preds(vc)
+        ):
+            return True
+    return False
+
+
+# multicolor cares-about REFERENCE idiom phase drops the "multicolored"
+# qualifier from entirely (Fallaji Wayfarer's granted-keyword affected filter
+# carries no ColorCount predicate at all — the word survives only in the
+# static's description) or parks on an Unimplemented node whose PARSEABLE
+# verb ("choose") discards the "for each color pair" prefix that carries the
+# actual cares-about content (Niv-Mizzet Reborn). Mirrors the deleted
+# _signals_ir word-mirror's "for each color pair" / "exactly those colors" /
+# "multicolored (creature/permanent/spell)s? you" alternatives verbatim (the
+# "cast a multicolored" alternative is intentionally OMITTED — that idiom is
+# now covered STRUCTURALLY by has_structural_multicolor_matters's Mana-
+# restriction arm, so the synthesis fallback never needs it). CR 105.2.
+_MULTICOLOR_REFERENCE_RE = re.compile(
+    r"for each color pair|exactly those colors"
+    r"|multicolored (?:creature|permanent|spell)s? you",
+    re.IGNORECASE,
+)
+
+
+def _arm_multicolor_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a multicolor_matters REFERENCE node for the cares-about
+    idiom phase leaves unstructured (Fallaji Wayfarer's dropped-predicate
+    grant, Niv-Mizzet Reborn's discarded "for each color pair" prefix).
+    Gap-gated on :func:`has_structural_multicolor_matters` so a card the
+    typed read already covers never doubles. Emits the REAL
+    "multicolor_matters" concept directly (ADR-0038 retired the ``synth_*``
+    marker namespace) — this key has no dedicated verb (it's a reference,
+    not an effect), so the lane reads the synthesized node by its concept
+    NAME rather than through a typed ``effect_concepts()`` walk."""
+    if has_structural_multicolor_matters(tree):
+        return None
+    if not _MULTICOLOR_REFERENCE_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="multicolor_matters",
+        concept="multicolor_matters",
+        scope="you",
+        subject=(),
+        desc="multicolor cares-about reference phase leaves unstructured",
     )
 
 
@@ -6960,6 +7053,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("suspect_makers", _arm_suspect_makers),
     ("group_hug_draw", _arm_group_hug_draw),
     ("dice_makers", _arm_dice_makers),
+    ("multicolor_matters", _arm_multicolor_matters),
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),
     ("superfriends_matters", _arm_superfriends_matters),

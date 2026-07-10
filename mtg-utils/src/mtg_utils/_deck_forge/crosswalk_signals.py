@@ -83,6 +83,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     lifeloss_recipient_scope,
     mana_replacement_multiplier,
+    mana_restricted_to_multicolored,
     mana_restrictions,
     mod_keyword_name,
     mod_value,
@@ -728,7 +729,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "lure_makers",
         "mana_amplifier",
         "minus_counters_matter",
-        "multicolor_matters",
         "oil_counter_matters",
         "opponent_cast_matters",
         "opponent_discard",
@@ -3366,6 +3366,26 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if unit.statics:
             handle(getattr(unit.node, "affected", None), "")
+
+    # multicolor_matters structural arm: a Mana effect's SpellType==Multicolored
+    # spend restriction ("Spend this mana only to cast a multicolored spell" —
+    # Obsidian Obelisk, Pillar of the Paruns). CR 105.2c.
+    for c in tree.iter_concepts():
+        if mana_restricted_to_multicolored(c.node):
+            fire("multicolor_matters", c.raw)
+            break
+    # Stage-A recovery (ADR-0038): the multicolor cares-about REFERENCE idiom
+    # phase drops the "multicolored" qualifier from entirely (Fallaji
+    # Wayfarer's granted-keyword affected filter) or discards on an
+    # Unimplemented node's parseable-verb prefix (Niv-Mizzet Reborn's "for
+    # each color pair"). tree_synthesis._arm_multicolor_matters fills the gap
+    # from tree.oracle, gated on has_structural_multicolor_matters (the SAME
+    # typed read the checks above run) — read here by concept NAME, mirroring
+    # the synth_power_matters precedent below.
+    for c in tree.iter_concepts():
+        if c.concept == "multicolor_matters":
+            fire("multicolor_matters", c.raw)
+            break
 
     # recall-completion b1 (ADR-0034): the Ferocious/Formidable power-threshold
     # CONDITION ("as long as you control a creature with power 4 or greater" —

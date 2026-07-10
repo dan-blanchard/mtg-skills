@@ -2029,6 +2029,24 @@ def is_damage_reflect_trigger_def(node: object) -> bool:
     return tag_of(getattr(execute, "effect", None)) in _DAMAGE_REFLECT_EXECUTE_TAGS
 
 
+def mana_restricted_to_multicolored(node: object) -> bool:
+    """Whether a ``Mana`` effect's ``restrictions`` carry a
+    ``SpellType: Multicolored`` entry (CR 105.2c) — "Spend this mana only
+    to cast a multicolored spell" (Obsidian Obelisk, Pillar of the
+    Paruns)."""
+    if tag_of(node) != "Mana":
+        return False
+    restrictions = getattr(node, "restrictions", MISSING)
+    if not (_present(restrictions) and isinstance(restrictions, list)):
+        return False
+    return any(
+        isinstance(r, MirrorVariant)
+        and r.key == "SpellType"
+        and r.inner == "Multicolored"
+        for r in restrictions
+    )
+
+
 def iter_threaded_target_statics(
     ability_like: object,
 ) -> Iterator[tuple[object, TypedMirrorNode]]:

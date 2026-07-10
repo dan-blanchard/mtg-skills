@@ -1543,6 +1543,35 @@ def test_multicolor_matters_trigger_subject(name):
     assert ("multicolor_matters", "you", "") in _idents(name)
 
 
+@pytest.mark.parametrize("name", ["Obsidian Obelisk", "Pillar of the Paruns"])
+def test_multicolor_matters_mana_restriction(name):
+    """A ``Mana`` effect's ``SpellType: Multicolored`` spend restriction
+    ("Spend this mana only to cast a multicolored spell" — Obsidian
+    Obelisk, Pillar of the Paruns) is a structural multicolor build-around
+    (CR 105.2c)."""
+    assert ("multicolor_matters", "you", "") in _idents(name)
+
+
+def test_multicolor_matters_dropped_predicate_synthesis():
+    """Stage-A synthesis (ADR-0037/0038): Fallaji Wayfarer's "Multicolored
+    spells you cast have convoke." grants a keyword via a ``CastWithKeyword``
+    static whose ``affected`` filter carries NO ``ColorCount`` predicate at
+    all — phase drops the "multicolored" qualifier entirely, keeping it only
+    in the static's description. ``tree_synthesis._arm_multicolor_matters``
+    fills the gap from ``tree.oracle`` (CR 105.2)."""
+    assert ("multicolor_matters", "you", "") in _idents("Fallaji Wayfarer")
+
+
+def test_multicolor_matters_color_pair_prefix_synthesis():
+    """Stage-A synthesis (ADR-0037/0038): Niv-Mizzet Reborn's "For each
+    color pair, choose a card that's exactly those colors from among them"
+    lands as an Unimplemented effect whose PARSEABLE verb ("choose") lives
+    after the "for each color pair" prefix the grammar peels and discards
+    — the cares-about content never reaches the recovered concept. The
+    synthesis arm reads ``tree.oracle`` directly instead (CR 105.2)."""
+    assert ("multicolor_matters", "you", "") in _idents("Niv-Mizzet Reborn")
+
+
 @pytest.mark.parametrize("name", ["Forsaken Monument", "Conduit of Ruin"])
 def test_colorless_matters(name):
     """A ColorCount EQ 0 reference (Forsaken Monument's anthem; Conduit of Ruin's
