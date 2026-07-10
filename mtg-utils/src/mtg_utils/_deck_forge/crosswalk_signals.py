@@ -2846,19 +2846,17 @@ def _discover_makers(tree: ConceptTree) -> list[Signal]:
     """discover_makers — a ``Discover N`` DOER (CR 701.57). Read STRUCTURALLY off the
     typed ``Discover`` effect (Geological Appraiser; the keyword-LESS re-trigger
     "whenever you discover, discover again" also carries a second ``Discover``
-    effect). A discover-PAYOFF trigger with no ``Discover`` effect is a separate
-    lane (out of batch). Scope "you".
+    effect — the inner Unimplemented "discover again" action re-decorates to
+    concept="discover" via the ADR-0038 clause-grammar recovery ALLOWLIST). A
+    "Discover N" granted via a static's ``GrantAbility`` text (Swashbuckler's
+    Whip) is never its own concept node at all (folded into the grant's raw
+    text) — ``tree_synthesis._arm_discover_makers`` fills that irreducible
+    no-node gap, ALSO emitting the real "discover" concept, so this single
+    structural read covers both without a marker special-case. A discover-
+    PAYOFF trigger with no ``Discover`` effect is a separate lane (out of
+    batch). Scope "you".
     """
-    out = _whole_card_maker(tree, "discover", "discover_makers", "you")
-    if out:
-        return out
-    # Stage-A recovery: the ``synth_discover_makers`` bucket-B node — an
-    # Unimplemented "discover again / discover N" ACTION phase leaves unstructured
-    # (Curator of Sun's Creation's re-trigger), gap-gated on no typed Discover.
-    for c in tree.iter_concepts():
-        if c.concept == "synth_discover_makers":
-            return [Signal("discover_makers", "you", "", "", tree.name, "high")]
-    return []
+    return _whole_card_maker(tree, "discover", "discover_makers", "you")
 
 
 def _daynight_makers(tree: ConceptTree) -> list[Signal]:

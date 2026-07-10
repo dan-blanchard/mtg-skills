@@ -39,7 +39,15 @@ class TokenRule:
 
 # ADR-0038 token allowlist — grows per-key with corpus measurement + pinned
 # tests; empty at introduction (behavior-neutral).
-ALLOWLIST: dict[str, TokenRule] = {}
+ALLOWLIST: dict[str, TokenRule] = {
+    # discover ACTION idiom (CR 701.57): "discover N" / "discover again". A
+    # re-trigger ("whenever you discover, discover again for the same value"
+    # — Curator of Sun's Creation) leaves the inner discover ACTION as an
+    # Unimplemented effect phase doesn't structure; the grammar's "discover"
+    # token re-decorates it so the typed effect_concepts("discover") read
+    # (the discover_makers lane's structural arm) sees it directly.
+    "discover": TokenRule(concept="discover", category="discover"),
+}
 
 
 def _recover(c: ConceptNode, table: dict[str, TokenRule]) -> ConceptNode | None:

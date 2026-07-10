@@ -144,3 +144,22 @@ def test_already_recovered_not_rerecovered():
     # a second pass over the same (already recovered) tree is a no-op.
     twice = apply_unimplemented_recovery(once, table)
     assert twice is once
+
+
+# ── ADR-0038 per-key allowlist promotions (production ALLOWLIST, not a
+# hand-built table) — #72 discover_makers ─────────────────────────────────
+
+
+def test_discover_makers_promoted_via_production_allowlist():
+    """Curator of Sun's Creation's re-trigger ("discover again for the same
+    value") lands as an Unimplemented effect; the production ALLOWLIST's
+    "discover" token entry re-decorates it in place (concept="discover",
+    recovered_by="discover") so the discover_makers lane's typed
+    ``effect_concepts("discover")`` structural read sees it directly — no
+    tree_synthesis marker arm needed."""
+    tree = _fixture_tree("Curator of Sun's Creation")
+    nodes = tree.effect_concepts("discover")
+    assert len(nodes) == 1
+    assert nodes[0].concept == "discover"
+    assert nodes[0].recovered_by == "discover"
+    assert tag_of(nodes[0].node) == "Unimplemented"

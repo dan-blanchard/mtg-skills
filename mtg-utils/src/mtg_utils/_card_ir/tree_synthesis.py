@@ -2333,30 +2333,38 @@ def _arm_tutor(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
-# discover ACTION idiom (CR 701.57): "discover N" / "discover again". A re-trigger
-# ("whenever you discover, discover again for the same value" — Curator of Sun's
-# Creation) leaves the inner discover ACTION as an ``Unimplemented`` effect phase
-# doesn't structure, so the typed ``effect_concepts("discover")`` read misses it. A
-# payoff-only REFERENCE ("whenever you discover, draw") never matches — the idiom
-# requires discover followed by a count / "again".
+# discover ACTION idiom (CR 701.57): "discover N" / "discover again". The
+# re-trigger case ("whenever you discover, discover again for the same value"
+# — Curator of Sun's Creation) leaves the inner discover ACTION as an
+# ``Unimplemented`` EFFECT-role node, which ADR-0038 clause-grammar recovery
+# (mtg_utils._card_ir.recovery.ALLOWLIST) now re-decorates in place — no synth
+# needed there. This arm is the irreducible remainder (ADR-0037/0038): a
+# "Discover N" granted via a static ability's ``GrantAbility`` text (Swash-
+# buckler's Whip's equip-granted "{8}, {T}: Discover 10.") is NEVER its own
+# concept node at all — phase folds the whole granted-ability clause into the
+# ``GrantAbility`` static's raw grounding text, so there is no Unimplemented
+# node for recovery to re-decorate. Gap-gated on NO typed ``discover`` effect
+# (which now also excludes the recovery-promoted Curator case, so the two
+# mechanisms never double-fire the same card).
 _DISCOVER_ACTION_RE = re.compile(r"\bdiscover (?:again|\d+|x)\b", re.IGNORECASE)
 
 
 def _arm_discover_makers(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize a ``discover`` maker node for the Unimplemented discover-again/N
-    ACTION phase leaves unstructured. Gap-gated on NO typed ``Discover`` effect (a
-    keyword bearer — Geological Appraiser — is already Tier-1), so the synth fills
-    only the genuine parse gap (the re-trigger / description-only action)."""
+    """Synthesize a ``discover`` maker node for the no-node discover grant
+    (Swashbuckler's Whip: "Discover N" embedded in a granted-ability's raw
+    text). Gap-gated on NO typed ``discover`` effect (a keyword bearer —
+    Geological Appraiser — is already Tier-1; Curator of Sun's Creation is
+    now recovery-promoted), so this only fills the genuine no-node gap."""
     if any(True for _ in tree.effect_concepts("discover")):
         return None
     if not _DISCOVER_ACTION_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
         return None
     return _synthetic_concept(
         arm_id="discover_makers",
-        concept="synth_discover_makers",
+        concept="discover",
         scope="you",
         subject=(),
-        desc="bucket-B discover (Unimplemented discover-again/N action)",
+        desc="bucket-B discover (no-node grant, e.g. Swashbuckler's Whip)",
     )
 
 

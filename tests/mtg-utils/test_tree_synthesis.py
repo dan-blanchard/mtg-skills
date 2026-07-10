@@ -64,6 +64,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_convoke_matters,
     _arm_crimes_matter,
     _arm_curse_matters,
+    _arm_discover_makers,
     _arm_dont_own,
     _arm_exhaust_matters,
     _arm_firebending_matters,
@@ -1590,6 +1591,41 @@ def test_tutor_lane_reads_synth_node_end_to_end():
     )
     sigs = _tutor_lane(tree)
     assert any(s.key == "tutor" for s in sigs)
+
+
+# ── discover_makers no-node residual (ADR-0038 #72) ────────────────────────────
+# Curator of Sun's Creation's re-trigger promoted to allowlisted grammar
+# recovery (test_recovery.py); this arm is the irreducible remainder -- a
+# "Discover N" folded into a static's GrantAbility raw text with no separate
+# concept node at all (Swashbuckler's Whip), so re-decoration can't reach it.
+
+
+def _discover_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _discover_makers
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "discover_makers" for s in _discover_makers(tree))
+
+
+def test_discover_makers_bucket_a_structural():
+    tree = _fixture_tree("Curator of Sun's Creation")
+    assert any(True for _ in tree.effect_concepts("discover"))  # recovered
+    assert _arm_discover_makers(tree) is None  # gap gate: already covered
+    assert _discover_fires("Curator of Sun's Creation") is True
+
+
+def test_discover_makers_no_node_synth():
+    tree = _fixture_tree("Swashbuckler's Whip")
+    assert not any(True for _ in tree.effect_concepts("discover"))  # genuine gap
+    node = _arm_discover_makers(tree)
+    assert node is not None
+    assert node.concept == "discover"  # the REAL concept, no synth_* marker
+    assert node.scope == "you"
+    assert _discover_fires("Swashbuckler's Whip") is True
+
+
+def test_discover_makers_synth_registered():
+    assert "discover_makers" in SYNTHESIS_ARM_IDS
 
 
 # ── stax_taxes / symmetric_stax fold (ADR-0036/0037) ───────────────────────────
