@@ -29,7 +29,13 @@ from mtg_utils._sidecar import atomic_write_json
 
 def _group_by_oracle_id(data: object) -> dict[str, list[dict]]:
     """Group phase face-records by ``scryfall_oracle_id`` (insertion order kept,
-    so a DFC's front face precedes its back face as listed in card-data.json)."""
+    so a DFC's front face precedes its back face as listed in card-data.json).
+
+    Known-bad records upstream stamps with the WRONG card's oracle_id are
+    dropped here (``_phase.is_impostor_record``, task #78) — this is the one
+    grouping seam every consumer shares (both sidecar builders and the
+    production ``_ir_lookup._phase_record_index``), so the impostor's parse
+    can never ride an oracle_id join onto the real card."""
     if isinstance(data, dict):
         records: list = list(data.values())
     elif isinstance(data, list):
@@ -41,7 +47,7 @@ def _group_by_oracle_id(data: object) -> dict[str, list[dict]]:
         if not isinstance(rec, dict):
             continue
         oid = rec.get("scryfall_oracle_id")
-        if isinstance(oid, str) and oid:
+        if isinstance(oid, str) and oid and not _phase.is_impostor_record(rec):
             groups.setdefault(oid, []).append(rec)
     return groups
 

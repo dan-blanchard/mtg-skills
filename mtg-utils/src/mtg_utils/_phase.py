@@ -330,6 +330,44 @@ def _card_data_path() -> Path:
     return cache_dir() / "card-data" / f"card-data-{PHASE_TAG}.json"
 
 
+# Known-bad card-data records: phase stamps a DIFFERENT card's parse with this
+# oracle_id. The only member at v0.20.0 (full-corpus census 2026-07-10, task
+# #78): bulk carries TWO distinct cards named "Fast // Furious" — 62411ced
+# (J21/MH2, commander-legal, discard-draw / damage) and 298a6369 (playtest,
+# not_legal, haste-unblockable / Fuse) — and phase's name-keyed corpus emits
+# the PLAYTEST card's "Fast" half stamped with the LEGAL card's oracle_id, so
+# every oracle_id join serves the impostor's abilities off the real card.
+# Keyed by (scryfall_oracle_id, exact oracle_text) so the entry self-retires
+# the moment upstream fixes the join (nothing matches → no-op). A general
+# text-mismatch gate was rejected: the same census found 8 other phase records
+# whose text differs from bulk only by oracle-errata drift (same card,
+# retemplated wording — e.g. Thran Turbine, Elven Farsight) that such a gate
+# would wrongly drop.
+_IMPOSTOR_RECORDS: frozenset[tuple[str, str]] = frozenset(
+    {
+        (
+            "62411ced-843e-4b63-bdf6-dafb2ac27047",
+            "Target creature gains haste until end of turn. It can't be "
+            "blocked this turn except by Vehicles or by creatures with "
+            "haste.\nFuse (You may cast one or both halves of this card "
+            "from your hand.)",
+        ),
+    }
+)
+
+
+def is_impostor_record(rec: dict) -> bool:
+    """True when ``rec`` is a known-bad card-data record (see
+    :data:`_IMPOSTOR_RECORDS`) — a parse of a DIFFERENT card stamped with this
+    oracle_id upstream. Every ingestion site that groups card-data records by
+    ``scryfall_oracle_id`` must drop these (single seam:
+    ``_card_ir.build._group_by_oracle_id``)."""
+    return (
+        rec.get("scryfall_oracle_id") or "",
+        rec.get("oracle_text") or "",
+    ) in _IMPOSTOR_RECORDS
+
+
 def ensure_card_data() -> Path:
     """Return a local ``card-data.json`` for ``PHASE_TAG``, downloading if absent.
 

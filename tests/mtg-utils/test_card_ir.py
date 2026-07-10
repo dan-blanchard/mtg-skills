@@ -2555,6 +2555,56 @@ def test_dfc_faces_grouped_by_oracle_id(tmp_path):
     assert card.keywords == ("Flying", "Haste")
 
 
+def test_impostor_record_dropped_at_the_grouping_seam(tmp_path):
+    """Task #78: phase's v0.20.0 card-data stamps the PLAYTEST "Fast //
+    Furious" card's "Fast" half with the commander-LEGAL card's oracle_id
+    (bulk holds two distinct cards with that name), so an oracle_id join
+    serves the impostor's haste/unblockable parse off the real discard-draw
+    card. ``_group_by_oracle_id`` — the one grouping seam shared by both
+    sidecar builders and ``_ir_lookup._phase_record_index`` — must drop the
+    known impostor record (keyed by oracle_id + exact oracle_text, so the
+    entry self-retires when upstream fixes the join) while keeping the real
+    half untouched."""
+    import json
+
+    from mtg_utils._card_ir.build import build_sidecar
+    from mtg_utils._card_ir.load import clear_memory_cache, load_card_ir
+
+    oid = "62411ced-843e-4b63-bdf6-dafb2ac27047"
+    real = {
+        "name": "Fast",
+        "scryfall_oracle_id": oid,
+        "card_type": {},
+        "oracle_text": "Discard a card, then draw two cards.",
+    }
+    impostor = {
+        "name": "Fast",
+        "scryfall_oracle_id": oid,
+        "card_type": {},
+        "oracle_text": (
+            "Target creature gains haste until end of turn. It can't be "
+            "blocked this turn except by Vehicles or by creatures with "
+            "haste.\nFuse (You may cast one or both halves of this card "
+            "from your hand.)"
+        ),
+    }
+    cdp = tmp_path / "cd.json"
+    cdp.write_text(json.dumps({"fast": real, "fast-impostor": impostor}))
+    out = tmp_path / "ir.json"
+    build_sidecar(card_data_path=cdp, out_path=out)
+
+    clear_memory_cache()
+    card = load_card_ir(out)[oid]
+    assert len(card.faces) == 1  # the impostor never became a second face
+    # the same text under a DIFFERENT oracle_id is NOT an impostor — the key
+    # is the (oid, text) pair, never the text alone
+    from mtg_utils._phase import is_impostor_record
+
+    assert is_impostor_record(impostor)
+    assert not is_impostor_record(real)
+    assert not is_impostor_record({**impostor, "scryfall_oracle_id": "other"})
+
+
 # ── token-subtype maker recovery (ADR-0027) ───────────────────────────────────
 def _maker_subtypes(ability: Ability) -> set[str]:
     return {
