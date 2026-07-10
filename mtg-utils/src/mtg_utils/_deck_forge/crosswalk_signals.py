@@ -753,7 +753,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "token_maker",
         "topdeck_selection",
         "topdeck_stack",
-        "treasure_matters",
         "tribe_damage_trigger",
         "trigger_doubling",
         "type_matters",
@@ -4266,6 +4265,17 @@ def _resource_token_matters(tree: ConceptTree) -> list[Signal]:
             if tag_of(leaf) != "Sacrifice":
                 continue
             for st in filter_subtypes(getattr(leaf, "target", None)):
+                key = _SAC_TOKEN_MATTERS.get(st.lower())
+                if key:
+                    fire(key, "")
+    # Stage-A recovery: the ``synth_token_subtype_own_ref`` bucket-B marker (a
+    # "cares about Treasure/Blood without making it" own-ref — Evereth's "if the
+    # sacrificed permanent was a Treasure"), the SAME arm the parallel food/clue
+    # lane (:func:`_token_subtype_payoff`) already reads. The synth is gated to
+    # subtypes the face does not itself make/sacrifice, so a pure maker stays out.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_token_subtype_own_ref":
+            for st in c.subject:
                 key = _SAC_TOKEN_MATTERS.get(st.lower())
                 if key:
                     fire(key, "")
