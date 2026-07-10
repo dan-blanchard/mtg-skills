@@ -2139,6 +2139,24 @@ def is_opponent_cast_trigger_def(trig: object) -> bool:
     )
 
 
+def is_creature_cast_trigger_def(trig: object) -> bool:
+    """Whether a trigger DEFINITION node — a top-level trigger unit's own
+    ``.node`` OR a nested def from :func:`iter_nested_trigger_defs` — is CR
+    701.5a/603.2's creature-spell cast payoff shape: a ``SpellCast`` mode
+    whose watched-spell filter carries the Creature core type. One
+    predicate for both tree positions (the creature_cast_trigger lane's own
+    top-level read, reused unchanged on the nested shape — Garruk, Caller
+    of Beasts's -7 emblem, Blink's Alien Angel token grant). Scope-blind by
+    design (an opponent-cast watcher and a self-cast watcher both count —
+    the lane hard-emits scope "any").
+    """
+    if not isinstance(trig, TypedMirrorNode):
+        return False
+    if _trigger_event(trig) != "cast_spell":
+        return False
+    return "Creature" in filter_core_types(getattr(trig, "valid_card", None))
+
+
 # ``DamageReceived``-shaped trigger DEFS carry a "reflection" execute tag
 # (CR 120.3): ``DealDamage`` (a single target) or ``DamageAll`` (Arcbond's
 # "each other creature and each player"). ``DamageEachPlayer`` is excluded —

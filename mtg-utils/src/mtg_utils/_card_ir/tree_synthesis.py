@@ -88,6 +88,7 @@ from mtg_utils._card_ir.crosswalk import (
     has_nested_connive,
     has_nested_flip_coin,
     has_nested_roll_die,
+    is_creature_cast_trigger_def,
     is_opponent_cast_trigger_def,
     iter_condition_sites,
     iter_cost_leaves,
@@ -2698,6 +2699,66 @@ def _arm_opponent_cast_matters(tree: ConceptTree) -> ConceptNode | None:
         scope="opponents",
         subject=(),
         desc="soulbond-granted opponent-cast trigger phase drops entirely",
+    )
+
+
+# "Whenever you cast a[n ...] creature spell" idiom (CR 701.5a / 603.2) —
+# the no-residue class most creature_cast_trigger gap cards fall into:
+# phase re-templates "whenever you cast a creature spell, that creature
+# enters with X counters" as a REPLACEMENT effect on the entering creature
+# (a ``valid_card``-filtered ``Moved``/``ChangeZone`` replacement, several
+# with a ``SwallowedClause`` parse warning dropping the "cast" qualifier
+# down to a bare self-only shape) rather than a genuine ``SpellCast``
+# trigger unit or a ``CreateDelayedTrigger`` condition (Glimpse of
+# Nature's "this turn" one-shot) — neither shape the flat trigger-unit
+# walk nor the granted-trigger descent reaches. The word boundary directly
+# before "creature" keeps a NONcreature-spell mention ("cast a noncreature
+# spell") from matching (no ``\b`` exists inside "noncreature").
+_CREATURE_CAST_RE = re.compile(
+    r"\bwhenever you cast (?:a|an)\b.{0,40}?\bcreature spell\b", re.IGNORECASE
+)
+
+
+def has_structural_creature_cast_trigger(tree: ConceptTree) -> bool:
+    """The creature_cast_trigger TYPED gate: :func:`is_creature_cast_trigger_def`
+    applied at a top-level trigger unit's own node OR a nested trigger def
+    :func:`iter_nested_trigger_defs` reaches inside a GRANTED-ability
+    construct (Garruk, Caller of Beasts's -7 emblem, Blink's Alien Angel
+    token grant). Shared verbatim with the ``_creature_cast_trigger`` lane
+    and this arm's gap gate below."""
+    for unit in tree.units:
+        if unit.origin == "trigger" and is_creature_cast_trigger_def(unit.node):
+            return True
+        if any(
+            is_creature_cast_trigger_def(t) for t in iter_nested_trigger_defs(unit.node)
+        ):
+            return True
+    return False
+
+
+def _arm_creature_cast_trigger(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``creature_cast`` marker for the "whenever you cast a
+    creature spell" idiom phase re-templates as a replacement effect / a
+    delayed-trigger condition rather than a readable trigger definition
+    (Boreal Outrider, Communal Brewing, Kozilek's Return, Runadi, Behemoth
+    Caller, Volo, Itinerant Scholar, Wildgrowth Archaic, Glimpse of
+    Nature) — a no-residue class 2 gap (ADR-0038 amendment). Gap-gated on
+    :func:`has_structural_creature_cast_trigger` so a typed/nested card
+    never doubles. This key's underlying read is TRIGGER-unit-based, not
+    ``effect_concepts``-based, matching opponent_cast_matters's mechanism
+    — ``creature_cast`` is this arm's dedicated synthesis-only marker,
+    read by the lane's explicit ``isinstance(c.node, SynthesizedNode)``
+    check. CR 701.5a / 603.2."""
+    if has_structural_creature_cast_trigger(tree):
+        return None
+    if not _CREATURE_CAST_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="creature_cast_trigger",
+        concept="creature_cast",
+        scope="any",
+        subject=(),
+        desc="creature-spell-cast trigger phase re-templates unreadably",
     )
 
 
@@ -7415,6 +7476,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("typed_anthem_multi", _arm_typed_anthem_multi),
     ("connive_makers", _arm_connive_makers),
     ("opponent_cast_matters", _arm_opponent_cast_matters),
+    ("creature_cast_trigger", _arm_creature_cast_trigger),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

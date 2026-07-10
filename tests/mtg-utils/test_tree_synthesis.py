@@ -64,6 +64,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_color_hoser,
     _arm_connive_makers,
     _arm_convoke_matters,
+    _arm_creature_cast_trigger,
     _arm_crimes_matter,
     _arm_curse_matters,
     _arm_dice_makers,
@@ -128,6 +129,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_color_hoser,
     has_structural_connive_makers,
     has_structural_counter_distribute,
+    has_structural_creature_cast_trigger,
     has_structural_crimes_matter,
     has_structural_curse_matters,
     has_structural_dice_makers,
@@ -1928,6 +1930,72 @@ def test_opponent_cast_matters_soulbond_no_residue_synth():
 
 def test_opponent_cast_matters_synth_registered():
     assert "opponent_cast_matters" in SYNTHESIS_ARM_IDS
+
+
+# ── creature_cast_trigger nested-grant structural gate + no-residue
+# synthesis (ADR-0037/0038 W1 batch-3) ──────────────────────────────────
+# Garruk, Caller of Beasts's -7 emblem and Blink's Alien Angel token grant
+# BOTH carry a REAL nested creature-cast SpellCast trigger def (the SAME
+# CreateEmblem.triggers / GrantTrigger shapes opponent_cast_matters
+# reuses) -- has_structural_creature_cast_trigger's nested fallback covers
+# both, so NEITHER needs synthesis. The remaining gap cards all carry the
+# "whenever you cast a[n] ... creature spell" idiom as an unreadable
+# replacement / delayed-trigger shape -- the genuine no-residue gap the
+# synthesis arm fills (CR 701.5a).
+
+
+def _creature_cast_trigger_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _creature_cast_trigger
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "creature_cast_trigger" for s in _creature_cast_trigger(tree))
+
+
+def test_creature_cast_trigger_nested_emblem_no_double():
+    """Garruk's creature-cast trigger is nested inside his -7 ultimate's
+    CreateEmblem.triggers list -- the nested fallback covers it, so the
+    synthesis arm no-ops."""
+    tree = _fixture_tree("Garruk, Caller of Beasts")
+    assert has_structural_creature_cast_trigger(tree) is True
+    assert _arm_creature_cast_trigger(tree) is None
+    assert _creature_cast_trigger_fires("Garruk, Caller of Beasts") is True
+
+
+def test_creature_cast_trigger_nested_token_grant_no_double():
+    """Blink's creature-cast trigger is nested inside the Alien Angel
+    token's own GrantTrigger, itself inside the Chapter II/IV trigger's
+    Token effect -- the nested fallback still reaches it (a deep field
+    walk regardless of container depth), so the synthesis arm no-ops."""
+    tree = _fixture_tree("Blink")
+    assert has_structural_creature_cast_trigger(tree) is True
+    assert _arm_creature_cast_trigger(tree) is None
+    assert _creature_cast_trigger_fires("Blink") is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Boreal Outrider",
+        "Communal Brewing",
+        "Kozilek's Return",
+        "Runadi, Behemoth Caller",
+        "Volo, Itinerant Scholar",
+        "Wildgrowth Archaic",
+        "Glimpse of Nature",
+    ],
+)
+def test_creature_cast_trigger_no_residue_synth(name):
+    tree = _fixture_tree(name)
+    assert has_structural_creature_cast_trigger(tree) is False  # genuine gap
+    node = _arm_creature_cast_trigger(tree)
+    assert node is not None
+    assert node.concept == "creature_cast"  # this arm's marker, not effect_concepts
+    assert node.scope == "any"
+    assert _creature_cast_trigger_fires(name) is True
+
+
+def test_creature_cast_trigger_synth_registered():
+    assert "creature_cast_trigger" in SYNTHESIS_ARM_IDS
 
 
 # ── extra_land_drop idiom-bridge synthesis (W2) ─────────────────────────────

@@ -3083,6 +3083,63 @@ def test_creature_cast_trigger_type_gate():
     assert "creature_cast_trigger" not in _keys("Kambal, Consul of Allocation")
 
 
+def test_creature_cast_trigger_nested_emblem():
+    """Garruk, Caller of Beasts's -7 ultimate "You get an emblem with
+    'Whenever you cast a creature spell, ...'" carries the trigger def in
+    a ``CreateEmblem`` effect's ``triggers`` list — the shared
+    granted-trigger descent's ``CreateEmblem`` shape (ADR-0037/0038 W1
+    batch-3, CR 701.5a)."""
+    assert ("creature_cast_trigger", "any", "") in _idents("Garruk, Caller of Beasts")
+
+
+def test_creature_cast_trigger_nested_token_grant():
+    """Blink's Saga Chapter II/IV creates an Alien Angel token whose OWN
+    static grants "Whenever an opponent casts a creature spell, ~ isn't a
+    creature ..." — a ``GrantTrigger`` nested inside the Token effect
+    inside the Chapter trigger's execute chain. Scope-blind by design
+    (creature_cast_trigger hard-emits "any" regardless of who casts)."""
+    assert ("creature_cast_trigger", "any", "") in _idents("Blink")
+
+
+def test_creature_cast_trigger_nested_emblem_bonus_recall():
+    """Ajani, Sleeper Agent's -6 emblem "Whenever you cast a creature or
+    planeswalker spell, target opponent gets two poison counters." is the
+    SAME CreateEmblem.triggers shape as Garruk — a genuine recall-
+    completion the structural descent reaches beyond the residual
+    live_only set (legacy's regex-based detection never structured this
+    quoted emblem text at all, so it's a NEW crosswalk-only hit, not a
+    role-mismatched over-fire — the Or-filter's Creature arm is a real
+    creature-spell watch per CR 701.5a)."""
+    assert ("creature_cast_trigger", "any", "") in _idents("Ajani, Sleeper Agent")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Boreal Outrider",
+        "Communal Brewing",
+        "Kozilek's Return",
+        "Runadi, Behemoth Caller",
+        "Volo, Itinerant Scholar",
+        "Wildgrowth Archaic",
+        "Glimpse of Nature",
+    ],
+)
+def test_creature_cast_trigger_no_residue_synthesis(name):
+    """Stage-A synthesis (ADR-0037/0038): "whenever you cast a[n] ...
+    creature spell" phase re-templates as a REPLACEMENT effect on the
+    entering creature (Boreal Outrider's SwallowedClause self-only
+    collapse; Communal Brewing / Runadi / Wildgrowth Archaic's
+    correctly-filtered replacement) or a ``CreateDelayedTrigger`` condition
+    (Kozilek's Return's Eldrazi+CMC filter; Glimpse of Nature's "this
+    turn" one-shot), or drops into a garbage placeholder node entirely
+    (Volo's token-grant quote parse) — no shape the flat trigger-unit walk
+    or the granted-trigger descent reaches.
+    ``tree_synthesis._arm_creature_cast_trigger`` fills the gap from
+    ``tree.oracle`` directly (CR 701.5a)."""
+    assert ("creature_cast_trigger", "any", "") in _idents(name)
+
+
 def test_opponent_cast_matters_recipient_gate():
     """Kambal's cast-player recipient (``valid_target Typed controller
     Opponent`` — checklist #5) fires scope "opponents"; the symmetric "a

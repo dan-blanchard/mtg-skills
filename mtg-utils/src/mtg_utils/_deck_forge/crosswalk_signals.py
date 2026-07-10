@@ -74,6 +74,7 @@ from mtg_utils._card_ir.crosswalk import (
     has_filter_property,
     has_nested_connive,
     has_nested_flip_coin,
+    is_creature_cast_trigger_def,
     is_damage_reflect_trigger_def,
     is_dies_return_trigger,
     is_opponent_cast_trigger_def,
@@ -701,7 +702,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "combat_damage_matters",
         "combat_damage_to_opp",
         "cost_reduction",
-        "creature_cast_trigger",
         "creature_etb",
         "creature_ping",
         "creatures_matter",
@@ -5770,15 +5770,42 @@ def _creature_cast_trigger(tree: ConceptTree) -> list[Signal]:
     Creature core type (Beast Whisperer). An instant/sorcery watcher (Talrand
     → spellcast_matters) and a NONcreature watcher (Kambal — the ``{Non:
     Creature}`` entry is dropped by the negation-aware type read) never fire.
+
+    :func:`is_creature_cast_trigger_def` is this SAME predicate, applied at
+    TWO tree positions (ADR-0037/0038 W1 batch-3, reusing the shared
+    granted-trigger descent): a top-level trigger unit's own node, and a
+    NESTED trigger definition :func:`iter_nested_trigger_defs` reaches
+    inside a GRANTED-ability construct — Garruk, Caller of Beasts's -7
+    emblem (``CreateEmblem.triggers``), Blink's Alien Angel token grant (a
+    ``GrantTrigger`` nested inside the Chapter II/IV Token effect). The
+    remaining gap cards (Boreal Outrider, Communal Brewing, Kozilek's
+    Return, Runadi, Behemoth Caller, Volo, Itinerant Scholar, Wildgrowth
+    Archaic, Glimpse of Nature) all carry the "whenever you cast a[n] ...
+    creature spell" idiom as a REPLACEMENT unit's ``valid_card`` (an
+    approximated "the cast creature enters with counters" rewrite, several
+    with a phase ``SwallowedClause`` parse warning) or a
+    ``CreateDelayedTrigger`` condition — no shape the flat trigger-unit
+    walk (or the granted-trigger descent) reaches — so
+    ``tree_synthesis._arm_creature_cast_trigger`` fills those from
+    ``tree.oracle`` directly via a synthetic ``creature_cast`` marker (this
+    key's underlying read is trigger-unit-based, not
+    ``effect_concepts``-based, matching opponent_cast_matters's mechanism).
     Scope "any" (the live hard-emit).
     """
     for unit in tree.units:
-        if unit.origin == "trigger" and unit.trigger_event == "cast_spell":
-            vc = getattr(unit.node, "valid_card", None)
-            if "Creature" in filter_core_types(vc):
+        if unit.origin == "trigger" and is_creature_cast_trigger_def(unit.node):
+            return [Signal("creature_cast_trigger", "any", "", "", tree.name, "high")]
+    for unit in tree.units:
+        for trig in iter_nested_trigger_defs(unit.node):
+            if is_creature_cast_trigger_def(trig):
                 return [
                     Signal("creature_cast_trigger", "any", "", "", tree.name, "high")
                 ]
+    for c in tree.effect_concepts("creature_cast"):
+        if isinstance(c.node, SynthesizedNode):
+            return [
+                Signal("creature_cast_trigger", "any", "", c.raw, tree.name, "high")
+            ]
     return []
 
 
