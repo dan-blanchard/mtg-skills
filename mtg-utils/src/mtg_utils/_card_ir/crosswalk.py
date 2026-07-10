@@ -290,6 +290,11 @@ class ConceptNode:
     zones: tuple[str, ...] = ()
     returns_to: str = ""
     category: str = ""
+    # ADR-0038 recovery provenance — the clause-grammar token that recovered
+    # this node's decoration (written ONLY by the recovery stage; "" means
+    # decorated straight from the typed substrate). Per-rule corpus fire
+    # counts over this field are the bridge-remaining metric.
+    recovered_by: str = ""
 
 
 @dataclass(frozen=True)
@@ -2838,7 +2843,7 @@ def build_concept_tree(
         )
 
     oracle = getattr(root, "oracle_text", None)
-    return ConceptTree(
+    tree = ConceptTree(
         name=nm,
         oracle_id=oid,
         units=tuple(units),
@@ -2850,3 +2855,11 @@ def build_concept_tree(
         has_printed_cost=has_printed_cost,
         oracle=oracle if isinstance(oracle, str) else "",
     )
+    # ADR-0038 — substrate-wide Unimplemented recovery runs INSIDE the tree
+    # build so every consumer (signal lanes, compat projection, convergence +
+    # diff harnesses) sees recovered decorations; downstream
+    # ``apply_overlay_corrections`` stays curated-wins (it runs later and
+    # overwrites on conflict). No-op while the allowlist is empty.
+    from mtg_utils._card_ir.recovery import apply_unimplemented_recovery
+
+    return apply_unimplemented_recovery(tree)
