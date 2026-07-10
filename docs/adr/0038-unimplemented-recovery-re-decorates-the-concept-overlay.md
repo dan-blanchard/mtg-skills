@@ -102,6 +102,33 @@ grammar rules and deleted.
   supplement for *all* consumers; a signals-only recovery leaves every
   residual card a compat regression and blocks retiring the old path.
 
+## Amendment (2026-07-10): residue classes
+
+Execution surfaced that "an Unimplemented clause" is three cases, not one,
+and only the first is this ADR's mechanism:
+
+1. **Full residue** — an Unimplemented node whose raw text carries the
+   clause → re-decorate (this ADR). Examples: discover-again (token already
+   in the grammar), evasion-denial (first static-token row), end-the-turn
+   (grammar growth; the shared core moves legacy too, so that commit
+   carries the old-IR sidecar/snapshot regen and a legacy-diff
+   adjudication).
+2. **No residue** — phase dropped the clause without a node (the
+   "suspect it" rider). Nothing exists to re-decorate; the key stays an
+   ADR-0037 synthesis arm, but emits the **real** concept so lanes read it
+   through their typed arm.
+3. **Partial residue** — a node exists but phase consumed the datum the
+   lane needs (Grothama's "each player" subject survives only in the card
+   oracle). Synthesis with real vocabulary (concept + the missing
+   decoration), never a fabricated re-decoration — recovery must not write
+   a datum the clause text does not contain.
+
+The `synth_*` marker namespace retires across all three classes. Corpus
+classification of the residual keys additionally showed most gap cards
+carry **no parseable residue**: the bulk of the remaining off-regex work is
+structural lane reads plus ADR-0034 role-aware adjudication, with the
+clause grammar recovering a real but bounded slice.
+
 ## Consequences
 
 - Residual-key recovery stops accreting per-key regex arms + lane
