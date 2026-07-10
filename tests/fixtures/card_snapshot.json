@@ -1164,7 +1164,7 @@
         },
         "e": [
          {
-          "cat": "bounce",
+          "cat": "reanimate",
           "raw": "At the beginning of your end step, if you gained life this turn, return target creature card from your graveyard to your hand. If you gained 7 or more life this turn, return that card to the battlefield instead.",
           "sub": {
            "c": "you",
@@ -1176,6 +1176,8 @@
            ]
           },
           "z": [
+           "from:graveyard",
+           "to:hand",
            "in:graveyard"
           ]
          },
@@ -3459,6 +3461,18 @@
         "k": "activated"
        },
        {
+        "cond": {
+         "cmp": "none",
+         "kind": "eventobjectmatchesfilter",
+         "sub": {
+          "p": [
+           "HasKeywordKind:Madness"
+          ],
+          "t": [
+           "Card"
+          ]
+         }
+        },
         "e": [
          {
           "cat": "untap",
@@ -3473,9 +3487,7 @@
         "k": "triggered",
         "tr": {
          "ev": "discarded",
-         "sc": "you",
          "sub": {
-          "c": "you",
           "t": [
            "Card"
           ]
@@ -3546,16 +3558,6 @@
        {
         "e": [
          {
-          "cat": "reveal_hand",
-          "raw": "As ~ enters, look at an opponent's hand, then choose any card name.",
-          "sc": "opp"
-         }
-        ],
-        "k": "spell"
-       },
-       {
-        "e": [
-         {
           "cat": "restriction",
           "raw": "Spells your opponents cast with the chosen name cost {2} more to cast.",
           "sc": "opp",
@@ -3565,6 +3567,16 @@
             "Card"
            ]
           }
+         }
+        ],
+        "k": "static"
+       },
+       {
+        "e": [
+         {
+          "cat": "reveal_hand",
+          "raw": "Vigilance\nAs this creature enters, look at an opponent's hand, then choose any card name.\nSpells your opponents cast with the chosen name cost {2} more to cast.\nActivated abilities of sources with the chosen name cost {2} more to activate unless they're mana abilities.",
+          "sc": "opp"
          }
         ],
         "k": "static"
@@ -4699,7 +4711,8 @@
            ]
           },
           "z": [
-           "in:graveyard"
+           "from:graveyard",
+           "to:hand"
           ]
          }
         ],
@@ -6177,6 +6190,8 @@
            ]
           },
           "z": [
+           "from:graveyard",
+           "to:hand",
            "in:graveyard"
           ]
          }
@@ -11222,6 +11237,9 @@
        {
         "e": [
          {
+          "amt": {
+           "op": "fixed"
+          },
           "cat": "skip_step",
           "raw": "When ~ is turned face up, each opponent skips their next untap step.",
           "sc": "opp"
@@ -17304,17 +17322,10 @@
          "cmp": "ge",
          "kind": "quantitycomparison",
          "sub": {
-          "c": "you",
-          "p": [
-           "InZone"
-          ],
           "t": [
            "Creature"
           ]
-         },
-         "zn": [
-          "battlefield"
-         ]
+         }
         },
         "cost": "tap",
         "e": [
@@ -29299,9 +29310,7 @@
         "k": "triggered",
         "tr": {
          "ev": "discarded",
-         "sc": "you",
          "sub": {
-          "c": "you",
           "t": [
            "Creature"
           ]
@@ -33997,7 +34006,7 @@
         ],
         "k": "triggered",
         "tr": {
-         "ev": "blocks",
+         "ev": "other",
          "sc": "you"
         }
        },
@@ -35185,8 +35194,7 @@
           "sub": {
            "c": "you",
            "p": [
-            "Token",
-            "HasAnyAttachmentOf:Aura|Equipment"
+            "Token"
            ],
            "t": [
             "Creature"
@@ -40643,7 +40651,6 @@
          "ev": "discarded",
          "sc": "opp",
          "sub": {
-          "c": "opp",
           "t": [
            "Card"
           ]
@@ -41726,7 +41733,12 @@
         ],
         "k": "triggered",
         "tr": {
-         "ev": "discarded"
+         "ev": "discarded",
+         "sub": {
+          "t": [
+           "Artifact"
+          ]
+         }
         }
        }
       ],
@@ -43855,21 +43867,20 @@
        {
         "e": [
          {
+          "cat": "mana_restriction",
+          "raw": "Spend this mana only to foretell cards or cast spells that have foretell"
+         },
+         {
           "cat": "bounce",
-          "raw": "Chapter 3",
-          "sub": {
-           "c": "you",
-           "p": [
-            "HasKeywordKind:Foretell",
-            "InZone"
-           ],
-           "t": [
-            "Card"
-           ]
-          },
+          "raw": "Return target card with foretell from your graveyard to your hand",
           "z": [
            "in:graveyard"
           ]
+         },
+         {
+          "cat": "foretell",
+          "raw": "Spend this mana only to foretell cards or cast spells that have foretell",
+          "sc": "you"
          }
         ],
         "k": "triggered",
@@ -47833,6 +47844,18 @@
      {
       "ab": [
        {
+        "cond": {
+         "cmp": "none",
+         "kind": "eventobjectmatchesfilter",
+         "sub": {
+          "p": [
+           "HasKeywordKind:Mutate"
+          ],
+          "t": [
+           "Card"
+          ]
+         }
+        },
         "e": [
          {
           "amt": {
@@ -47840,6 +47863,14 @@
           },
           "cat": "draw",
           "craw": "Whenever you cast a creature spell, if it has mutate, draw a card",
+          "raw": "Whenever you cast a creature spell, if it has mutate, draw a card, then discard a card.",
+          "sc": "you"
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "discard",
           "raw": "Whenever you cast a creature spell, if it has mutate, draw a card, then discard a card.",
           "sc": "you"
          },
@@ -49073,6 +49104,16 @@
      {
       "ab": [
        {
+        "cond": {
+         "cmp": "none",
+         "kind": "not",
+         "nest": [
+          {
+           "cmp": "none",
+           "kind": "mincoattackers"
+          }
+         ]
+        },
         "e": [
          {
           "cat": "grant_keyword",
@@ -50126,6 +50167,8 @@
            ]
           },
           "z": [
+           "from:graveyard",
+           "to:hand",
            "in:graveyard"
           ]
          }
@@ -51205,6 +51248,16 @@
      {
       "ab": [
        {
+        "cond": {
+         "cmp": "none",
+         "kind": "not",
+         "nest": [
+          {
+           "cmp": "none",
+           "kind": "mincoattackers"
+          }
+         ]
+        },
         "e": [
          {
           "amt": {
@@ -51670,6 +51723,8 @@
            ]
           },
           "z": [
+           "from:graveyard",
+           "to:hand",
            "in:graveyard"
           ]
          }
@@ -55802,7 +55857,8 @@
         "e": [
          {
           "cat": "extra_combats",
-          "raw": "At the beginning of each of your postcombat main phases, there is an additional beginning phase after this phase."
+          "raw": "At the beginning of each of your postcombat main phases, there is an additional beginning phase after this phase.",
+          "sc": "you"
          }
         ],
         "k": "triggered",
@@ -56469,7 +56525,9 @@
          "ev": "cast_spell",
          "sub": {
           "s": [
-           "Aura"
+           "Aura",
+           "Equipment",
+           "Vehicle"
           ]
          }
         }
@@ -59523,6 +59581,8 @@
            ]
           },
           "z": [
+           "from:graveyard",
+           "to:hand",
            "in:graveyard"
           ]
          }
@@ -61081,6 +61141,8 @@
            ]
           },
           "z": [
+           "from:graveyard",
+           "to:hand",
            "in:graveyard"
           ]
          }
@@ -63927,18 +63989,13 @@
          "cmp": "ge",
          "kind": "quantitycomparison",
          "sub": {
-          "c": "you",
           "p": [
-           "InZone",
            "NotType:Land"
           ],
           "t": [
            "Permanent"
           ]
-         },
-         "zn": [
-          "battlefield"
-         ]
+         }
         },
         "e": [
          {
@@ -66150,7 +66207,7 @@
         "e": [
          {
           "amt": {
-           "op": "fixed"
+           "op": "count"
           },
           "cat": "exile",
           "raw": "Target opponent exiles the top X cards of their library. You may cast any number of spells with mana value X or less from among them without paying their mana costs.",
@@ -69625,7 +69682,7 @@
    }
   }
  },
- "phase_tag": "v0.16.0",
+ "phase_tag": "v0.20.0",
  "schema": 1,
  "sidecar_version": 76
 }

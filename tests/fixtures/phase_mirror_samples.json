@@ -1,5 +1,5 @@
 {
-  "phase_tag": "v0.16.0",
+  "phase_tag": "v0.20.0",
   "schema_version": 1,
   "cards": {
     "\"Ach! Hans, Run!\"": {
@@ -1706,11 +1706,16 @@
         {
           "kind": "Activated",
           "effect": {
-            "type": "Bounce",
+            "type": "ChangeZone",
+            "origin": "Graveyard",
+            "destination": "Hand",
             "target": {
               "type": "SelfRef"
             },
-            "destination": null
+            "owner_library": false,
+            "enter_transformed": false,
+            "enter_tapped": false,
+            "enters_attacking": false
           },
           "cost": {
             "type": "Composite",
@@ -1746,6 +1751,7 @@
           "condition": null,
           "optional_targeting": false,
           "optional": false,
+          "target_choice_timing": "Resolution",
           "forward_result": false
         }
       ],
