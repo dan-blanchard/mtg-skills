@@ -2333,6 +2333,33 @@ def _arm_tutor(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# discover ACTION idiom (CR 701.57): "discover N" / "discover again". A re-trigger
+# ("whenever you discover, discover again for the same value" — Curator of Sun's
+# Creation) leaves the inner discover ACTION as an ``Unimplemented`` effect phase
+# doesn't structure, so the typed ``effect_concepts("discover")`` read misses it. A
+# payoff-only REFERENCE ("whenever you discover, draw") never matches — the idiom
+# requires discover followed by a count / "again".
+_DISCOVER_ACTION_RE = re.compile(r"\bdiscover (?:again|\d+|x)\b", re.IGNORECASE)
+
+
+def _arm_discover_makers(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``discover`` maker node for the Unimplemented discover-again/N
+    ACTION phase leaves unstructured. Gap-gated on NO typed ``Discover`` effect (a
+    keyword bearer — Geological Appraiser — is already Tier-1), so the synth fills
+    only the genuine parse gap (the re-trigger / description-only action)."""
+    if any(True for _ in tree.effect_concepts("discover")):
+        return None
+    if not _DISCOVER_ACTION_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="discover_makers",
+        concept="synth_discover_makers",
+        scope="you",
+        subject=(),
+        desc="bucket-B discover (Unimplemented discover-again/N action)",
+    )
+
+
 # ── stax_taxes / symmetric_stax structural census (ADR-0036 fold) ─────────────
 # CR 101.2/604.1. Moved here VERBATIM from the ``_stax_lanes`` lane (minus the
 # residue-mirror tail below) so the lane AND this stage's two synth gap gates
@@ -6743,6 +6770,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("untap_engine", _arm_untap_engine),
     ("tutor_directed", _arm_tutor_directed),
     ("tutor", _arm_tutor),
+    ("discover_makers", _arm_discover_makers),
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),
     ("superfriends_matters", _arm_superfriends_matters),

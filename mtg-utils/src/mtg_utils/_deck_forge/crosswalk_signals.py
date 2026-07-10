@@ -703,7 +703,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "dig_until",
         "direct_damage",
         "discard_outlet",
-        "discover_makers",
         "donate_makers",
         "draw_for_each",
         "earthbend_matters",
@@ -2848,7 +2847,16 @@ def _discover_makers(tree: ConceptTree) -> list[Signal]:
     effect). A discover-PAYOFF trigger with no ``Discover`` effect is a separate
     lane (out of batch). Scope "you".
     """
-    return _whole_card_maker(tree, "discover", "discover_makers", "you")
+    out = _whole_card_maker(tree, "discover", "discover_makers", "you")
+    if out:
+        return out
+    # Stage-A recovery: the ``synth_discover_makers`` bucket-B node — an
+    # Unimplemented "discover again / discover N" ACTION phase leaves unstructured
+    # (Curator of Sun's Creation's re-trigger), gap-gated on no typed Discover.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_discover_makers":
+            return [Signal("discover_makers", "you", "", "", tree.name, "high")]
+    return []
 
 
 def _daynight_makers(tree: ConceptTree) -> list[Signal]:
