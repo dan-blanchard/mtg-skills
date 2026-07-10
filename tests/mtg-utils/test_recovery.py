@@ -305,3 +305,32 @@ def test_coin_flip_promoted_via_production_allowlist_modal():
     assert nodes[0].concept == "flip_coin"
     assert nodes[0].recovered_by == "coin_flip"
     assert tag_of(nodes[0].node) == "Unimplemented"
+
+
+# ── W1 batch-4 stax_taxes (opponent cast-lock dynamic-threshold recovery) ──
+
+
+def test_static_token_matches_stax_cast_lock_idiom():
+    from mtg_utils._card_ir.clause_grammar import static_token
+
+    assert static_token("Each opponent can't cast noncreature spells") == (
+        "stax_cast_lock"
+    )
+    assert static_token("your opponents can't cast spells") == "stax_cast_lock"
+
+
+def test_stax_taxes_promoted_via_production_allowlist():
+    """Lavinia, Azorius Renegade's "Each opponent can't cast noncreature
+    spells with mana value greater than the number of lands that player
+    controls" is a DYNAMIC-threshold restriction phase's own static
+    parser can't build, leaving an Unimplemented parse-failure residue;
+    the production ALLOWLIST's "stax_cast_lock" token entry (matched via
+    ``static_token``, since neither ``parse_clause`` nor ``scan_clause``
+    finds an imperative verb in a "can't X" clause) re-decorates it
+    straight to the REAL "stax_taxes" concept -- no synth_* marker."""
+    tree = _fixture_tree("Lavinia, Azorius Renegade")
+    nodes = tree.effect_concepts("stax_taxes")
+    assert len(nodes) == 1
+    assert nodes[0].concept == "stax_taxes"
+    assert nodes[0].recovered_by == "stax_cast_lock"
+    assert tag_of(nodes[0].node) == "Unimplemented"

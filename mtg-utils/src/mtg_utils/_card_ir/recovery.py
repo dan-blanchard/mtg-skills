@@ -86,6 +86,13 @@ ALLOWLIST: dict[str, TokenRule] = {
     # coin_flip lane's ordinary ``effect_concepts("flip_coin")`` read
     # covers the recovered node with no special-case.
     "coin_flip": TokenRule(concept="flip_coin", category="coin_flip"),
+    # opponent cast-lock idiom (CR 601.3/604.1): "each opponent can't cast
+    # noncreature spells with mana value greater than ..." (Lavinia,
+    # Azorius Renegade) -- maps straight to the REAL "stax_taxes" concept
+    # so the ordinary stax lane's iter_concepts() read covers the
+    # recovered node with no special-casing (ADR-0038: the synth_* marker
+    # namespace retires; a recovered node earns its real concept name).
+    "stax_cast_lock": TokenRule(concept="stax_taxes", category="restriction"),
 }
 
 

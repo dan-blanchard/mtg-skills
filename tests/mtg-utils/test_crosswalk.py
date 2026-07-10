@@ -4326,6 +4326,74 @@ def test_stax_pacify_and_untap_blessing_vetoes():
         assert "symmetric_stax" not in ks, name
 
 
+def test_stax_taxes_add_restriction_prohibit_activity():
+    """ADR-0038 W1 batch-4: a one-shot ``AddRestriction`` effect (Silence's
+    "your opponents can't cast spells this turn") carries WHOM it hobbles
+    on ``restriction.affected_players`` -- a DIFFERENT shape than the
+    continuous static census (no ``affected``/``modifications`` pair, so
+    :func:`iter_static_defs` never yields it). OpponentsOfSourceController
+    -> stax. CR 604.1 / 720."""
+    assert ("stax_taxes", "opponents", "") in _idents("Silence")
+
+
+def test_stax_taxes_createemblem_nested_static():
+    """Narset Transcendent's ultimate grants an emblem carrying a nested
+    CantBeCast{who: Opponents} static under ``CreateEmblem.statics`` --
+    :func:`iter_static_defs` gained "statics" to its field-walk so the
+    emblem's granted lock reads structurally (the only field in the
+    schema shaped this way, so the extension is safe and narrow)."""
+    assert ("stax_taxes", "opponents", "") in _idents("Narset Transcendent")
+
+
+def test_stax_taxes_target_opponent_controller_value():
+    """A filter names its controller "TargetOpponent" for "target opponent
+    controls" (Exhaustion's CantUntap) -- the SAME opponent-directed lock
+    as the bare "Opponent" value (Propaganda's "an opponent controls"),
+    CR 604.1."""
+    assert ("stax_taxes", "opponents", "") in _idents("Exhaustion")
+
+
+def test_stax_taxes_reduce_ability_cost_opponent_scoped():
+    """Eidolon of Obstruction's "loyalty abilities of planeswalkers your
+    opponents control cost {1} more to activate" is a KEYWORD-scoped cost
+    tax (``ReduceAbilityCost{mode: Raise}``) -- the ``ModifyCost{Raise}``
+    sibling for a named-ability-kind cost raise, explicitly opponent-
+    controller-gated. CR 601.2f."""
+    assert ("stax_taxes", "opponents", "") in _idents("Eidolon of Obstruction")
+
+
+def test_stax_taxes_reduce_ability_cost_unscoped_excluded():
+    """An UNSCOPED ``ReduceAbilityCost{Raise}`` (Suppression Field's bare
+    "activated abilities cost {2} more to activate unless they're mana
+    abilities", ctrl None) does NOT co-fire stax_taxes -- unlike
+    ModifyCost{Raise}'s unscoped-tax co-fire (Sphere of Resistance), this
+    mode requires an explicit opponent controller (measured cw_only
+    over-fire; a single-target Aura cost tax like Oppressive Rays' carries
+    no controller tag either and is excluded by the same narrow gate)."""
+    assert "stax_taxes" not in _keys("Suppression Field")
+
+
+def test_stax_taxes_grammar_recovery_dynamic_threshold():
+    """Lavinia, Azorius Renegade's "Each opponent can't cast noncreature
+    spells with mana value greater than the number of lands that player
+    controls" is a DYNAMIC-threshold restriction phase's own static parser
+    can't build, leaving an Unimplemented parse-failure residue. The
+    ADR-0038 clause-grammar STATIC_TOKENS "opponents? can't cast" idiom
+    re-decorates it straight to the real "stax_taxes" concept (no
+    synth_* marker)."""
+    assert ("stax_taxes", "opponents", "") in _idents("Lavinia, Azorius Renegade")
+
+
+def test_stax_taxes_punisher_third_party_possessive():
+    """A SelfRef combat restriction ("~ can't attack or block unless an
+    opponent has eight or more cards in THEIR graveyard" -- Relic Golem)
+    is normally a self-drawback, not a lock on opponents -- but its own
+    clause names a third party's zone, mirroring old-IR's broad
+    third-party-possessive scope repair (supplement._BROAD_THIRD_PARTY)
+    byte-for-byte."""
+    assert ("stax_taxes", "opponents", "") in _idents("Relic Golem")
+
+
 def test_keyword_counter_kind_gate_and_mirror():
     """CR 122.1b: a place/remove of a counter whose kind is in the live
     _KEYWORD_COUNTER_KINDS closed set fires scope "any" (Arwen, Mortal

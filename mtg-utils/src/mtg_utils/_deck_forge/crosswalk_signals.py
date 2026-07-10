@@ -741,7 +741,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "sacrifice_outlets",
         "scaling_pump",
         "second_spell_matters",
-        "stax_taxes",
         "tap_down",
         "target_player_draws",
         "team_evasion_grant",
@@ -7658,9 +7657,13 @@ def _stax_lanes(tree: ConceptTree) -> list[Signal]:
         seen.add("symmetric_stax")
         out.append(Signal("symmetric_stax", "each", "", sym_raw, tree.name, "high"))
     for c in tree.iter_concepts():
-        if c.concept == "synth_stax_taxes" and "stax_taxes" not in seen:
+        # "stax_taxes" (not just the synth_ marker) is the ADR-0038
+        # clause-grammar recovery's real-concept token (Lavinia's
+        # dynamic-threshold cast lock -- recovery.ALLOWLIST's
+        # "stax_cast_lock" rule re-decorates straight to this concept).
+        if c.concept in ("synth_stax_taxes", "stax_taxes") and "stax_taxes" not in seen:
             seen.add("stax_taxes")
-            out.append(Signal("stax_taxes", "opponents", "", "", tree.name, "high"))
+            out.append(Signal("stax_taxes", "opponents", "", c.raw, tree.name, "high"))
         elif c.concept == "synth_symmetric_stax" and "symmetric_stax" not in seen:
             seen.add("symmetric_stax")
             out.append(Signal("symmetric_stax", "each", "", "", tree.name, "high"))

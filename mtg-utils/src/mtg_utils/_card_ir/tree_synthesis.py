@@ -3020,6 +3020,37 @@ _STAX_LOCK_MODES: frozenset[str] = frozenset(
         "CantCastFrom",
     }
 )
+# A filter's controller reads "Opponent" for "an opponent controls" but
+# "TargetOpponent" for "target opponent controls" (Exhaustion, Icebreaker
+# Kraken) -- both name the same opponent-directed lock, CR 604.1.
+_OPPONENT_CTRL: frozenset[str] = frozenset({"Opponent", "TargetOpponent"})
+# A SelfRef combat restriction ("This creature can't attack/block ...") is
+# normally a drawback, never a lock on opponents. But when its own CONDITION
+# clause names a THIRD PARTY's zone ("...unless an opponent has eight or
+# more cards in THEIR graveyard" -- Relic Golem; "...unless defending player
+# has seven or more cards in THEIR graveyard" -- Vantress Gargoyle) it is a
+# "punisher" whose usefulness is gated on an opponent's resource. Mirrors
+# old-IR's own broad third-party-possessive scope repair
+# (supplement._BROAD_THIRD_PARTY, applied post-structural-projection to any
+# unscoped restriction) byte-for-byte so the crosswalk draws the same line.
+_THIRD_PARTY_POSSESSIVE_RE = re.compile(
+    r"that player's (?:graveyard|hand|library)"
+    r"|each opponent's (?:graveyard|hand|library)"
+    r"|target opponent's (?:graveyard|hand|library)"
+    r"|their (?:graveyard|hand|library)\b",
+    re.IGNORECASE,
+)
+# ADR-0038 AddRestriction (a one-shot ProhibitActivity effect -- Silence's
+# "your opponents can't cast spells this turn", Permission Denied, Mandate
+# of Peace, Sphinx's Decree, Lavinia's ETB-scoped granted lock, Ranger-
+# Captain of Eos's sacrifice ability) carries WHOM it hobbles on
+# ``restriction.affected_players``, a DIFFERENT shape than the continuous
+# static census above (no ``affected``/``modifications`` pair, so
+# :func:`iter_static_defs` never yields it) -- mirrors old-IR's
+# ``project._add_restriction_scope``. CR 604.1 / 720.
+_ADD_RESTRICTION_STAX: frozenset[str] = frozenset(
+    {"OpponentsOfSourceController", "TargetedPlayer"}
+)
 
 
 def _stax_site_raw(sdef: object) -> str:
@@ -3064,6 +3095,15 @@ def _stax_structural_walk(tree: ConceptTree) -> tuple[bool, bool, str, str]:
       SetTapState{Tap} valid_card is NOT SelfRef): controller Opponent ->
       stax (Authority of the Consuls, Kismet); unscoped -> symmetric (Root
       Maze). A SelfRef valid_card ("this land enters tapped") is membership.
+    * **one-shot cast/activate locks** (a role=effect ``AddRestriction``
+      whose ``restriction`` is ``ProhibitActivity`` -- Silence, Permission
+      Denied, Mandate of Peace, Sphinx's Decree): ``affected_players``
+      OpponentsOfSourceController/TargetedPlayer -> stax; AllPlayers ->
+      symmetric.
+    * **punisher combat restrictions** (a SelfRef CantAttack/CantBlock/
+      CantAttackOrBlock whose own clause names a third party's zone --
+      Relic Golem, Vantress Gargoyle): stax (the ADR-0038
+      third-party-possessive mirror).
 
     An untap BLESSING (Seedborn Muse's UntapsDuringEachOtherPlayersUntapStep)
     is not in any census set.
@@ -3091,6 +3131,17 @@ def _stax_structural_walk(tree: ConceptTree) -> tuple[bool, bool, str, str]:
     # a live symmetric member). A ParentTarget affected is a single-target
     # combat trick / pacify (Sleep's rider, Basandra's {R} force) -- skipped.
     for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) != "AddRestriction":
+                continue
+            restr = getattr(c.node, "restriction", None)
+            if tag_of(restr) != "ProhibitActivity":
+                continue
+            ap = tag_of(getattr(restr, "affected_players", None))
+            if ap in _ADD_RESTRICTION_STAX:
+                stax(c.raw)
+            elif ap == "AllPlayers":
+                sym(c.raw)
         defs = iter_static_defs(unit.node) if unit.origin != "replacement" else ()
         for node in defs:
             mt = static_mode_tag(node)
@@ -3099,11 +3150,17 @@ def _stax_structural_walk(tree: ConceptTree) -> tuple[bool, bool, str, str]:
             ctrl = filter_controller(affected)
             raw = _stax_site_raw(node)
             if atag in ("SelfRef", "ParentTarget"):
+                if (
+                    atag == "SelfRef"
+                    and mt in _STAX_SIMPLE_RESTRICTIONS
+                    and _THIRD_PARTY_POSSESSIVE_RE.search(raw)
+                ):
+                    stax(raw)
                 continue  # a drawback / single-target trick, never a lock
             if mt in _STAX_SIMPLE_RESTRICTIONS:
                 if set(filter_predicates(affected)) & _PACIFY_PREDS:
                     continue
-                if ctrl == "Opponent":
+                if ctrl in _OPPONENT_CTRL:
                     stax(raw)
                 elif ctrl == "TargetPlayer":
                     # live scopes the directed one-shot board lock (Mana
@@ -3114,11 +3171,29 @@ def _stax_structural_walk(tree: ConceptTree) -> tuple[bool, bool, str, str]:
             elif mt == "ModifyCost" and modify_cost_mode(node) == "Raise":
                 if atag == "SelfRef" or ctrl == "You":
                     continue
-                if ctrl == "Opponent":
+                if ctrl in _OPPONENT_CTRL:
                     stax(raw)
                 else:
                     sym(raw)
                     stax(raw)
+            elif (
+                mt == "ReduceAbilityCost"
+                and static_mode_field(node, "mode") == "Raise"
+                and ctrl in _OPPONENT_CTRL
+            ):
+                # A keyword-scoped cost tax explicitly naming an opponent
+                # (Eidolon of Obstruction's "loyalty abilities of
+                # planeswalkers YOUR OPPONENTS control cost {1} more") --
+                # the ModifyCost{Raise} sibling for a NAMED-ability-kind
+                # cost raise. Unlike ModifyCost{Raise}, an unscoped one
+                # (Suppression Field's "activated abilities cost {2}
+                # more", Skyseer's Chariot's chosen-name tax) does NOT
+                # co-fire here -- measured cw_only over-fires, and a
+                # single-target Aura tax (Oppressive Rays' "activated
+                # abilities of ENCHANTED creature cost {3} more") has no
+                # controller tag at all, so the same narrow gate excludes
+                # it without a separate pacify check. CR 601.2f.
+                stax(raw)
             elif mt in _STAX_LOCK_MODES:
                 src = static_mode_field(node, "source_filter")
                 if set(filter_predicates(src)) & _PACIFY_PREDS:

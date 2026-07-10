@@ -1991,7 +1991,9 @@ def iter_static_defs(root: object) -> Iterator[TypedMirrorNode]:
     Yields the unit node itself when it IS a def (a top-level continuous
     ability — Warmonger Hellkite's "All creatures attack each combat if able")
     plus every def inside a nested ``GenericEffect.static_abilities`` list (the
-    one-shot conferred form). The modification-less MODE statics
+    one-shot conferred form) or a ``CreateEmblem.statics`` list (an emblem's
+    granted continuous ability — Narset Transcendent's "Your opponents can't
+    cast noncreature spells" ultimate). The modification-less MODE statics
     (``MustAttack`` / ``DoubleTriggers`` / ``CantBeCountered``) never surface
     through :func:`iter_mod_sites` (no modifications to pair with), so the
     mode-read lanes walk defs directly via :func:`static_mode_tag`.
@@ -2006,7 +2008,12 @@ def iter_static_defs(root: object) -> Iterator[TypedMirrorNode]:
         seen.add(id(node))
         if _is_static_def(node):
             yield node
-        for fname in (*_EFFECT_CHILD_FIELDS, "mode_abilities", "static_abilities"):
+        for fname in (
+            *_EFFECT_CHILD_FIELDS,
+            "mode_abilities",
+            "static_abilities",
+            "statics",
+        ):
             child = getattr(node, fname, MISSING)
             if isinstance(child, TypedMirrorNode):
                 stack.append(child)

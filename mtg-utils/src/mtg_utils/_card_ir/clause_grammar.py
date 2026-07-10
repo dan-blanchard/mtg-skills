@@ -544,6 +544,17 @@ STATIC_TOKENS: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"\bflips?\b[^.]{0,18}\bcoins?\b", re.IGNORECASE),
         "coin_flip",
     ),
+    # opponent cast-lock idiom (CR 601.3/604.1): "each opponent can't cast
+    # ..." (Lavinia, Azorius Renegade) -- a dynamic-threshold restriction
+    # ("... with mana value greater than the number of lands that player
+    # controls") phase's own static parser can't build, leaving an
+    # Unimplemented parse-failure residue the typed AddRestriction read
+    # never reaches. Mirrors the OLD-IR supplement._CANT + third-party
+    # scope-repair idiom for this exact "opponent can't cast" phrasing.
+    (
+        re.compile(r"\bopponents? can'?t cast\b", re.IGNORECASE),
+        "stax_cast_lock",
+    ),
 )
 
 

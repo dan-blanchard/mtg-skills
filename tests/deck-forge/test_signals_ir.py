@@ -1685,12 +1685,28 @@ def test_myrel_opponent_cast_lock_recovers_restriction():
     assert "stax_taxes" in _skeys(test_signals("Myrel, Shield of Argive"))
 
 
-def test_failure_comply_split_face_castlock_stays_mirror_residue():
+def test_failure_comply_split_face_castlock_is_a_known_crosswalk_gap():
     """Failure // Comply: the Comply aftermath face ('your opponents can't cast spells
     with the chosen name') is a split face phase emits NO record for, so the build-time
-    supplement can't see it. It stays covered by the narrow residue mirror — the
-    genuinely-unstructurable tail the `(?! cast)` narrowing deliberately keeps."""
-    assert "stax_taxes" in _skeys(test_signals("Failure // Comply"))
+    supplement can't see it. Under the OLD (pre-ADR-0038-W1-batch-4) regime, stax_taxes
+    stayed on ``_STAGE4_RESIDUAL`` so this card kept firing via the legacy narrow
+    residue mirror REGARDLESS of the crosswalk flag. ADR-0038 W1 batch-4 promoted
+    stax_taxes off residual (the crosswalk now covers 99.6% of the corpus
+    structurally — AddRestriction/ProhibitActivity, a CreateEmblem-nested static, a
+    punisher third-party-possessive mirror, a clause-grammar recovery); with the
+    crosswalk ENABLED it is now EXCLUSIVELY authoritative for this key, including
+    for this one remaining DFC/split-card gap (``_ir_lookup.tree_for`` indexes ONE
+    phase record per oracle_id — task #74, "DFC face-union fix", is the tracked
+    fix). Flag-OFF still runs the un-gated legacy ``extract_signals_ir`` path,
+    which still finds it via the residue mirror — a documented crosswalk miss when
+    ON, not a silent regression either way."""
+    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
+
+    keys = _skeys(test_signals("Failure // Comply"))
+    if crosswalk_enabled():
+        assert "stax_taxes" not in keys
+    else:
+        assert "stax_taxes" in keys
 
 
 def test_symmetric_untap_lock_is_symmetric_only():
