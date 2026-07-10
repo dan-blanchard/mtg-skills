@@ -692,7 +692,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # ``extract_signals_ir(old)`` — byte-identical to flag-OFF) restores the
     # legacy firing without retreating from any key the crosswalk serves correctly.
     {
-        "airbend_makers",
         "any_counter_matters",
         "artifacts_matter",
         "base_pt_set",
@@ -712,7 +711,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "direct_damage",
         "discard_outlet",
         "draw_for_each",
-        "earthbend_matters",
         "enchantments_matter",
         "exile_matters",
         "facedown_matters",
@@ -750,7 +748,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "typed_spellcast",
         "voltron_makers",
         "voltron_matters",
-        "waterbend_matters",
     }
 )
 
@@ -765,10 +762,18 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
 # promoting the key. lifegain_makers stays residual for now: the remaining ~95 are
 # granted/nested gain-life sources (Ajani's loyalty ability, Animal Boneyard /
 # Darkheart Sliver granted abilities) needing the granted-ability walk, plus a few
-# opponent-lifegain over-fires. The airbend/earthbend/waterbend keys are also
-# promotable-in-principle (corpus live_only=0) but blocked by a test-snapshot gap:
-# their representative Avatar Aang (a DFC) fires via a BACK-FACE bending Effect the
-# committed snapshot's tree omits.
+# opponent-lifegain over-fires.
+# ADR-0035/0038 task #74 (2026-07-10): airbend_makers / earthbend_matters /
+# waterbend_matters PROMOTED. They were corpus live_only=0 all along but blocked by a
+# DFC face-drop bug, not a lane gap: ``_ir_lookup`` indexed only ONE phase record per
+# oracle_id (first-record-wins), and Avatar Aang's cross-bend payoff (the
+# ``RegisterBending`` / ``ElementalBend`` nodes these three lanes read) lives on the
+# FRONT face ("Avatar Aang"), while phase's dict-key ordering ("aang, master of
+# elements" < "avatar aang") put the back face first — silently dropping the front
+# face's tree, and with it the only node these lanes had to read. ``trees_for`` now
+# reads every face record per oracle_id and the hybrid unions their signals, so the
+# front face's tree is read regardless of ordering. Fixing the READ (not a lane
+# change) closes the gap; see ``_ir_lookup.trees_for`` for the mechanism.
 PORTED_KEYS: frozenset[str] = _PORTED_KEYS_STAGE3 - _STAGE4_RESIDUAL
 
 

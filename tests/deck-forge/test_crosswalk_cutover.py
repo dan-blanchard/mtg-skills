@@ -211,6 +211,65 @@ def test_trees_for_builds_and_memoizes(monkeypatch):
     assert oid in il._TREES_MEMO  # memoized
 
 
+# ── DFC face-union (ADR-0035/0038 task #74) ─────────────────────────────────
+_AANG_OID = "b4872bac-5822-4c35-9b73-38c4e3ffa477"
+_BEND_KEYS = frozenset(
+    {"airbend_makers", "earthbend_matters", "waterbend_matters", "firebending_makers"}
+)
+
+
+def test_trees_for_returns_every_face_for_a_dfc(monkeypatch):
+    """Avatar Aang // Aang, Master of Elements share one oracle_id across two phase
+    records (a DFC); ``trees_for`` must return BOTH, not first-record-wins — the
+    task #74 bug (a first-record-wins index dropped whichever face iterated second,
+    silently starving any lane whose only node lives on that face)."""
+    recs = tuple(
+        r for r in _fixture_records() if r.get("scryfall_oracle_id") == _AANG_OID
+    )
+    assert len(recs) == 2, "fixture must carry both Avatar Aang faces"
+    monkeypatch.setattr(il, "_phase_record_index", _returns({_AANG_OID: recs}))
+    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
+    trees = il.trees_for({"oracle_id": _AANG_OID})
+    assert {t.name for t in trees} == {"Avatar Aang", "Aang, Master of Elements"}
+
+
+def test_avatar_aang_union_fires_all_four_bend_keys(monkeypatch):
+    """The production seam (``extract_signals_hybrid``, flag ON): Avatar Aang's
+    ElementalBend / RegisterBending nodes live on the FRONT face only, but a
+    first-record-wins tree resolver could pick the BACK face first (phase's own
+    dict-key ordering sorts "aang, master of elements" before "avatar aang") and
+    silently drop them. The union of both faces' trees must fire all three bend
+    lanes plus the keyword-sourced firebending_makers — the whole card's bend
+    profile, regardless of which face happened to be read first."""
+    recs = tuple(
+        r for r in _fixture_records() if r.get("scryfall_oracle_id") == _AANG_OID
+    )
+    bulk = {
+        "oracle_id": _AANG_OID,
+        "name": "Avatar Aang // Aang, Master of Elements",
+        "oracle_text": "\n".join(r.get("oracle_text") or "" for r in recs),
+        "type_line": "Legendary Creature — Human Avatar Ally",
+        "keywords": ["Flying", "Firebending"],
+    }
+    monkeypatch.setattr(il, "_phase_record_index", _returns({_AANG_OID: recs}))
+    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
+    monkeypatch.setenv(FLAG, "1")
+    keys = {s.key for s in extract_signals_hybrid(bulk, None)}
+    assert keys >= _BEND_KEYS
+
+
+def test_avatar_aang_regression_no_fire_control(monkeypatch):
+    """A no-bend card stays silent on all four keys through the same union path —
+    the fix doesn't turn the bend lanes into a blanket floor."""
+    bulk, tree, _key = _ported_case()
+    if tree.oracle_id == _AANG_OID:
+        pytest.skip("ported-case card is Avatar Aang itself")
+    monkeypatch.setattr(il, "trees_for", _returns((tree,)))
+    monkeypatch.setenv(FLAG, "1")
+    keys = {s.key for s in extract_signals_hybrid(bulk, None)}
+    assert not (_BEND_KEYS & keys)
+
+
 # ── Step 3: hybrid three-way dispatch ────────────────────────────────────────
 
 
