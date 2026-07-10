@@ -2,7 +2,7 @@
 
 The PRIME invariant lives in the existing suites: with the flag OFF (the default)
 every other test passes UNCHANGED. These tests pin the *new* behavior — the flag
-itself, the ``ir_for`` Seam-B switch, the ``tree_for`` resolver, and the hybrid's
+itself, the ``ir_for`` Seam-B switch, the ``trees_for`` resolver, and the hybrid's
 three-way Seam-A dispatch — and prove flag-OFF isolation (the crosswalk path is
 never consulted). CI-safe: the concept trees come from the committed
 ``crosswalk_fixture_cards.json`` phase records + the committed mirror schema, with
@@ -146,14 +146,14 @@ def test_flag_parses_env(monkeypatch, value, expected):
 # ── flag-OFF isolation (the prime-invariant guard) ───────────────────────────
 
 
-def test_flag_off_never_consults_tree_for(monkeypatch):
+def test_flag_off_never_consults_trees_for(monkeypatch):
     """With the flag OFF the hybrid must not touch the crosswalk seam at all —
-    a tree_for that raises proves the path is dead when the flag is off."""
+    a trees_for that raises proves the path is dead when the flag is off."""
 
     def _boom(_card):
-        raise AssertionError("tree_for must not be called with the flag OFF")
+        raise AssertionError("trees_for must not be called with the flag OFF")
 
-    monkeypatch.setattr(il, "tree_for", _boom)
+    monkeypatch.setattr(il, "trees_for", _boom)
     bulk, _tree, _key = _ported_case()
     # ir=None, flag OFF → pure regex path, no crosswalk, no crash.
     extract_signals_hybrid(bulk, None)
@@ -186,29 +186,29 @@ def test_ir_for_degrades_when_crosswalk_sidecar_missing(monkeypatch):
     assert il.ir_for({"oracle_id": "o"}) is old  # ON but no sidecar → legacy
 
 
-# ── Step 3: tree_for resolver ────────────────────────────────────────────────
+# ── Step 3: trees_for resolver ───────────────────────────────────────────────
 
 
-def test_tree_for_degrades_without_phase_data(monkeypatch):
+def test_trees_for_degrades_without_phase_data(monkeypatch):
     monkeypatch.setattr(il, "_phase_record_index", _returns(None))
-    assert il.tree_for({"oracle_id": "x"}) is None
+    assert il.trees_for({"oracle_id": "x"}) == ()
 
 
-def test_tree_for_none_without_oracle_id():
-    assert il.tree_for({"name": "no oid"}) is None
+def test_trees_for_none_without_oracle_id():
+    assert il.trees_for({"name": "no oid"}) == ()
 
 
-def test_tree_for_builds_and_memoizes(monkeypatch):
+def test_trees_for_builds_and_memoizes(monkeypatch):
     bulk, _tree, _key = _ported_case()
     oid = bulk["oracle_id"]
     # Feed the resolver our fixture record + schema directly.
     rec = next(r for r in _fixture_records() if r.get("scryfall_oracle_id") == oid)
-    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: rec}))
+    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: (rec,)}))
     monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
-    got = il.tree_for(bulk)
-    assert got is not None
-    assert got.oracle_id == oid
-    assert oid in il._TREE_MEMO  # memoized
+    got = il.trees_for(bulk)
+    assert got != ()
+    assert got[0].oracle_id == oid
+    assert oid in il._TREES_MEMO  # memoized
 
 
 # ── Step 3: hybrid three-way dispatch ────────────────────────────────────────
@@ -216,7 +216,7 @@ def test_tree_for_builds_and_memoizes(monkeypatch):
 
 def test_hybrid_serves_ported_from_crosswalk(monkeypatch):
     bulk, tree, ported_key = _ported_case()
-    monkeypatch.setattr(il, "tree_for", _returns(tree))
+    monkeypatch.setattr(il, "trees_for", _returns((tree,)))
 
     monkeypatch.setenv(FLAG, "0")
     off = {s.key for s in extract_signals_hybrid(bulk, None)}
@@ -228,9 +228,9 @@ def test_hybrid_serves_ported_from_crosswalk(monkeypatch):
 
 
 def test_hybrid_falls_back_when_tree_unavailable(monkeypatch):
-    """Flag ON but tree_for → None degrades to the legacy path (ir param honored)."""
+    """Flag ON but trees_for → () degrades to the legacy path (ir param honored)."""
     bulk, _tree, ported_key = _ported_case()
-    monkeypatch.setattr(il, "tree_for", _returns(None))
+    monkeypatch.setattr(il, "trees_for", _returns(()))
     monkeypatch.setenv(FLAG, "1")
     on = {s.key for s in extract_signals_hybrid(bulk, None)}
     assert ported_key not in on  # no tree, ir=None → regex only
@@ -241,7 +241,7 @@ def test_hybrid_residual_keys_consult_old_ir(monkeypatch):
     the crosswalk merge must fetch ``old_ir_for``, never the flag-switched
     ``ir_for`` (which under the flag is the crosswalk Card)."""
     bulk, tree, _key = _ported_case()
-    monkeypatch.setattr(il, "tree_for", _returns(tree))
+    monkeypatch.setattr(il, "trees_for", _returns((tree,)))
     calls: list[dict] = []
 
     def _spy(card):
@@ -257,7 +257,7 @@ def test_hybrid_reconciliation_single_fire(monkeypatch):
     """No duplicate (key, scope, subject) survives the shared reconciliation tail,
     even though the crosswalk applies its own reconciliations before the merge."""
     bulk, tree, _key = _ported_case()
-    monkeypatch.setattr(il, "tree_for", _returns(tree))
+    monkeypatch.setattr(il, "trees_for", _returns((tree,)))
     monkeypatch.setenv(FLAG, "1")
     sigs = extract_signals_hybrid(bulk, None)
     idents = [(s.key, s.scope, s.subject) for s in sigs]
@@ -377,7 +377,7 @@ def _hybrid_idents(monkeypatch, bulk, tree, ir, *, flag: bool, include: bool):
         monkeypatch.setenv(FLAG, "1")
     else:
         monkeypatch.setenv(FLAG, "0")
-    monkeypatch.setattr(il, "tree_for", _returns(tree))
+    monkeypatch.setattr(il, "trees_for", _returns((tree,)))
     monkeypatch.setattr(il, "_index", _returns({ir.oracle_id: ir}))
     sigs = extract_signals_hybrid(bulk, ir, include_membership=include)
     return {(s.key, s.scope, s.subject) for s in sigs}

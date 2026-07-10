@@ -92,21 +92,25 @@ def build_crosswalk_sidecar(
     """Build the crosswalk-backed sidecar (ADR-0035 Stage-3a); return (path, stats).
 
     The Stage-1 twin of :func:`build_sidecar`: it swaps ``project_card`` for
-    ``compat_card(build_concept_tree(strict_load_card(rec, schema)))`` so the
-    on-disk ``Card`` shape is unchanged but its fields come from the typed
+    ``compat_card(build_concept_tree(strict_load_card(rec, schema)))`` per face,
+    so the on-disk ``Card`` shape is unchanged but its fields come from the typed
     phase-mirror substrate + Layer-2 concept overlay. Writes to
     :func:`crosswalk_sidecar_path` with :data:`CROSSWALK_SIDECAR_VERSION`, keeping
     it disjoint from the legacy sidecar.
 
-    One record per oracle_id (the front face — the crosswalk reads a single typed
-    root, matching the Stage-2 consumer-diff harness); a DFC back face sharing the
-    oracle_id is dropped. A record that drifts from the committed schema is skipped
-    and tallied (``MirrorDriftError``) rather than aborting the whole build.
+    ONE Card per oracle_id, but every face record contributes its own compat
+    ``Face`` (ADR-0035/0038 task #74) — the emitted ``faces`` tuple concatenates
+    the per-face compat faces in ``records`` order, mirroring the legacy
+    multi-face ``Card`` shape ``project_card(records)`` already builds. A face
+    that drifts from the committed schema is skipped and tallied
+    (``MirrorDriftError``) rather than aborting the whole build; an oracle_id
+    where EVERY face drifts is dropped entirely (also tallied).
     """
     from mtg_utils._card_ir.compat import CompatCoverage, compat_card
     from mtg_utils._card_ir.crosswalk import build_concept_tree
     from mtg_utils._card_ir.mirror import MirrorDriftError, strict_load_card
     from mtg_utils._card_ir.mirror.build import load_committed_schema
+    from mtg_utils.card_ir import Card
 
     if card_data_path:
         cdp = Path(card_data_path)
@@ -122,18 +126,24 @@ def build_crosswalk_sidecar(
     cards: dict[str, dict] = {}
     drift = 0
     for oid, records in groups.items():
-        rec = records[0]
-        nm = rec.get("name") or ""
-        try:
-            root = strict_load_card(rec, schema, name=nm)
-        except MirrorDriftError:
-            drift += 1
+        faces = []
+        for rec in records:
+            nm = rec.get("name") or ""
+            try:
+                root = strict_load_card(rec, schema, name=nm)
+            except MirrorDriftError:
+                drift += 1
+                continue
+            if root is None:
+                drift += 1
+                continue
+            tree = build_concept_tree(root, name=nm, oracle_id=oid)
+            faces.extend(compat_card(tree, cov).faces)
+        if not faces:
             continue
-        if root is None:
-            drift += 1
-            continue
-        tree = build_concept_tree(root, name=nm, oracle_id=oid)
-        cards[oid] = compat_card(tree, cov).to_dict()
+        name = records[0].get("name") or ""
+        card = Card(oracle_id=oid, name=name, faces=tuple(faces))
+        cards[oid] = card.to_dict()
 
     out = Path(out_path) if out_path else crosswalk_sidecar_path()
     atomic_write_json(

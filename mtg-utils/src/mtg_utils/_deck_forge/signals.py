@@ -191,15 +191,21 @@ def _crosswalk_merge(
     KEPT lanes ``damage_redirect`` / ``land_destruction`` plus the unported tail)
     stay on the legacy ``extract_signals_ir`` path; every other key stays regex. The
     shared reconciliation tail runs once in the caller, its ``not in out_keys`` guards
-    absorbing the crosswalk's own already-applied reconciliations (single fire)."""
-    from mtg_utils._deck_forge._ir_lookup import old_ir_for, tree_for
+    absorbing the crosswalk's own already-applied reconciliations (single fire).
+
+    A DFC / split card shares one ``oracle_id`` across faces; ``trees_for`` returns
+    one concept tree per phase face record, and the crosswalk lanes run over EACH
+    tree, unioned by ``(key, scope, subject)`` (ADR-0035/0038 task #74) — never a
+    merged multi-face tree, which would corrupt card-level reads like ``is_type`` /
+    cmc that only make sense per-face."""
+    from mtg_utils._deck_forge._ir_lookup import old_ir_for, trees_for
     from mtg_utils._deck_forge.crosswalk_signals import (
         PORTED_KEYS,
         extract_crosswalk_signals,
     )
 
-    tree = tree_for(record)
-    if tree is None:
+    trees = trees_for(record)
+    if not trees:
         return None
     residual = MIGRATED_KEYS - PORTED_KEYS
     served = PORTED_KEYS | residual  # == PORTED_KEYS | MIGRATED_KEYS
@@ -221,17 +227,18 @@ def _crosswalk_merge(
     # it for its structural ``big_mana`` / ``kill_engine`` / token-kindred arms. Never
     # the flag-switched ``ir_for`` (under the flag that is the crosswalk Card).
     old = old_ir_for(record)
-    for sig in extract_crosswalk_signals(
-        tree,
-        keys=PORTED_KEYS,
-        keywords=keywords,
-        include_membership=include_membership,
-        record=record,
-        ir=old,
-        vocab=vocab,
-    ):
-        if sig.key in PORTED_KEYS:
-            _add(sig)
+    for tree in trees:
+        for sig in extract_crosswalk_signals(
+            tree,
+            keys=PORTED_KEYS,
+            keywords=keywords,
+            include_membership=include_membership,
+            record=record,
+            ir=old,
+            vocab=vocab,
+        ):
+            if sig.key in PORTED_KEYS:
+                _add(sig)
     if old is not None:
         ir_record = (
             _fold_referenced_objects(record, resolve_object)

@@ -21,10 +21,14 @@ that feeds BOTH seams and it is where the cutover flag lives:
   ``budgets`` / ``cut_check`` / ``metrics`` / ``bracket``) returns the
   **crosswalk-backed** :class:`Card` sidecar when the flag is ON, else the
   legacy projected sidecar (:func:`old_ir_for`).
-* :func:`tree_for` (Seam A — the hybrid signal dispatch) resolves a record to
-  its Layer-2 concept tree, built lazily from phase's ``card-data.json`` + the
+* :func:`trees_for` (Seam A — the hybrid signal dispatch) resolves a record to
+  its Layer-2 concept trees, ONE PER PHASE FACE RECORD (a DFC / split card
+  shares one ``oracle_id`` across faces, each face a separate phase record —
+  ADR-0035/0038 task #74), built lazily from phase's ``card-data.json`` + the
   committed mirror schema, keyed by ``oracle_id`` (cache-parallel to ir_for).
-"""
+  Callers union signals across the returned trees; nothing merges the trees
+  themselves (a merged multi-face tree would corrupt card-level reads like
+  ``is_type`` / cmc that only make sense per-face)."""
 
 from __future__ import annotations
 
@@ -121,33 +125,27 @@ def ir_for(card: dict) -> Card | None:
 
 
 @functools.cache
-def _phase_record_index() -> dict[str, dict] | None:
-    """oracle_id → the first phase ``card-data.json`` record (front face wins),
-    loaded once per process. ``None`` when phase card-data is unavailable so
-    :func:`tree_for` degrades. The DFC back face shares the oracle_id and is
-    dropped here (the crosswalk currently reads the front face — matching the
-    Stage-2 consumer-diff harness)."""
+def _phase_record_index() -> dict[str, tuple[dict, ...]] | None:
+    """oracle_id → ALL phase ``card-data.json`` records sharing it (insertion
+    order, so a DFC's front face precedes its back face), loaded once per
+    process. ``None`` when phase card-data is unavailable so :func:`trees_for`
+    degrades. Reuses :func:`~mtg_utils._card_ir.build._group_by_oracle_id` — the
+    same grouping the sidecar builders use — so a DFC / split card's faces are
+    never silently dropped here (ADR-0035/0038 task #74; a first-record-wins
+    index previously dropped whichever face iterated second, e.g. Avatar
+    Aang's front face when phase's dict keys sort its back face first)."""
     from mtg_utils import _phase
+    from mtg_utils._card_ir.build import _group_by_oracle_id
 
     try:
         cdp = _phase.ensure_card_data()
         data = json.loads(cdp.read_text())
     except (FileNotFoundError, RuntimeError, OSError, ValueError):
         return None
-    if isinstance(data, dict):
-        records: list = list(data.values())
-    elif isinstance(data, list):
-        records = data
-    else:
+    groups = _group_by_oracle_id(data)
+    if not groups:
         return None
-    index: dict[str, dict] = {}
-    for rec in records:
-        if not isinstance(rec, dict):
-            continue
-        oid = rec.get("scryfall_oracle_id")
-        if isinstance(oid, str) and oid and oid not in index:
-            index[oid] = rec
-    return index
+    return {oid: tuple(recs) for oid, recs in groups.items()}
 
 
 @functools.cache
@@ -162,10 +160,11 @@ def _committed_schema() -> MirrorSchema | None:
         return None
 
 
-# oracle_id → ConceptTree | None. Built lazily on first request per card so a
-# flag-ON tune never strict-loads the whole corpus up front (the Stage-4 overlay
-# cache supersedes this). Cleared alongside the memoized indexes in tests.
-_TREE_MEMO: dict[str, ConceptTree | None] = {}
+# oracle_id → the tuple of per-face ConceptTrees (empty when unresolvable).
+# Built lazily on first request per card so a flag-ON tune never strict-loads
+# the whole corpus up front (the Stage-4 overlay cache supersedes this).
+# Cleared alongside the memoized indexes in tests.
+_TREES_MEMO: dict[str, tuple[ConceptTree, ...]] = {}
 
 
 def clear_caches() -> None:
@@ -177,43 +176,51 @@ def clear_caches() -> None:
         clear = getattr(fn, "cache_clear", None)
         if clear is not None:
             clear()
-    _TREE_MEMO.clear()
+    _TREES_MEMO.clear()
 
 
-def tree_for(card: dict) -> ConceptTree | None:
-    """The candidate's Layer-2 concept tree by ``oracle_id``, or ``None``.
+def trees_for(card: dict) -> tuple[ConceptTree, ...]:
+    """The candidate's Layer-2 concept trees by ``oracle_id`` — one per phase
+    face record, empty when unavailable.
 
-    Built lazily: the phase record for the oracle_id is strict-loaded against the
-    committed mirror schema and run through ``build_concept_tree``, then memoized.
-    ``None`` covers no oracle_id, no phase record / schema, and schema drift — each
-    degrading the hybrid to the legacy IR path for the crosswalk-served keys."""
+    A DFC / split card shares one ``oracle_id`` across its faces, and phase
+    emits one ``card-data.json`` record per face; each face is strict-loaded
+    against the committed mirror schema and run through ``build_concept_tree``
+    independently — NEVER merged into one tree (a merged tree would corrupt
+    card-level reads like ``is_type`` / cmc that only make sense per-face).
+    Callers union the per-tree signals instead (ADR-0035/0038 task #74; the
+    same per-face-union-of-signals shape ``crosswalk_diff.py`` already
+    measures the corpus against). Built lazily then memoized as a tuple. An
+    empty tuple covers no oracle_id, no phase record / schema, and every face
+    drifting from the committed schema — each degrading the hybrid to the
+    legacy IR path for the crosswalk-served keys."""
     oid = card.get("oracle_id") or ""
     if not oid:
-        return None
-    if oid in _TREE_MEMO:
-        return _TREE_MEMO[oid]
+        return ()
+    if oid in _TREES_MEMO:
+        return _TREES_MEMO[oid]
     index = _phase_record_index()
     schema = _committed_schema()
     if index is None or schema is None:
-        _TREE_MEMO[oid] = None
-        return None
-    rec = index.get(oid)
-    if rec is None:
-        _TREE_MEMO[oid] = None
-        return None
+        _TREES_MEMO[oid] = ()
+        return ()
+    recs = index.get(oid)
+    if not recs:
+        _TREES_MEMO[oid] = ()
+        return ()
     from mtg_utils._card_ir.crosswalk import build_concept_tree
     from mtg_utils._card_ir.mirror import MirrorDriftError, strict_load_card
 
-    nm = rec.get("name") or ""
-    tree: ConceptTree | None
-    try:
-        root = strict_load_card(rec, schema, name=nm)
-        tree = (
-            build_concept_tree(root, name=nm, oracle_id=oid)
-            if root is not None
-            else None
-        )
-    except MirrorDriftError:
-        tree = None
-    _TREE_MEMO[oid] = tree
-    return tree
+    trees: list[ConceptTree] = []
+    for rec in recs:
+        nm = rec.get("name") or ""
+        try:
+            root = strict_load_card(rec, schema, name=nm)
+        except MirrorDriftError:
+            continue
+        if root is None:
+            continue
+        trees.append(build_concept_tree(root, name=nm, oracle_id=oid))
+    out = tuple(trees)
+    _TREES_MEMO[oid] = out
+    return out

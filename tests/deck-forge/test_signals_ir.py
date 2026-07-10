@@ -1687,19 +1687,25 @@ def test_myrel_opponent_cast_lock_recovers_restriction():
 
 def test_failure_comply_split_face_castlock_is_a_known_crosswalk_gap():
     """Failure // Comply: the Comply aftermath face ('your opponents can't cast spells
-    with the chosen name') is a split face phase emits NO record for, so the build-time
-    supplement can't see it. Under the OLD (pre-ADR-0038-W1-batch-4) regime, stax_taxes
-    stayed on ``_STAGE4_RESIDUAL`` so this card kept firing via the legacy narrow
-    residue mirror REGARDLESS of the crosswalk flag. ADR-0038 W1 batch-4 promoted
-    stax_taxes off residual (the crosswalk now covers 99.6% of the corpus
-    structurally — AddRestriction/ProhibitActivity, a CreateEmblem-nested static, a
-    punisher third-party-possessive mirror, a clause-grammar recovery); with the
-    crosswalk ENABLED it is now EXCLUSIVELY authoritative for this key, including
-    for this one remaining DFC/split-card gap (``_ir_lookup.tree_for`` indexes ONE
-    phase record per oracle_id — task #74, "DFC face-union fix", is the tracked
-    fix). Flag-OFF still runs the un-gated legacy ``extract_signals_ir`` path,
-    which still finds it via the residue mirror — a documented crosswalk miss when
-    ON, not a silent regression either way."""
+    with the chosen name') is a split face phase emits NO RECORD FOR AT ALL — confirmed
+    empirically (task #74): phase's ``card-data.json`` has exactly one entry keyed
+    ``"failure"`` (carrying the split card's shared ``scryfall_oracle_id``) and none
+    keyed ``"comply"`` anywhere in the corpus, so the build-time supplement can't see
+    it. This is DIFFERENT from the DFC face-drop task #74 otherwise fixed (a DFC's
+    back face DOES have its own phase record, sharing the oracle_id, that a
+    first-record-wins index dropped — ``_ir_lookup.trees_for`` now reads every face
+    record per oracle_id and unions their signals); here there is no second record to
+    read, so no join-key change can recover it — an upstream phase parse gap, deferred.
+    Under the OLD (pre-ADR-0038-W1-batch-4) regime, stax_taxes stayed on
+    ``_STAGE4_RESIDUAL`` so this card kept firing via the legacy narrow residue mirror
+    REGARDLESS of the crosswalk flag. ADR-0038 W1 batch-4 promoted stax_taxes off
+    residual (the crosswalk now covers 99.6% of the corpus structurally —
+    AddRestriction/ProhibitActivity, a CreateEmblem-nested static, a punisher
+    third-party-possessive mirror, a clause-grammar recovery); with the crosswalk
+    ENABLED it is now EXCLUSIVELY authoritative for this key, including for this one
+    remaining split-card gap. Flag-OFF still runs the un-gated legacy
+    ``extract_signals_ir`` path, which still finds it via the residue mirror — a
+    documented crosswalk miss when ON, not a silent regression either way."""
     from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
 
     keys = _skeys(test_signals("Failure // Comply"))
