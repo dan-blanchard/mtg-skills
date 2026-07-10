@@ -2316,6 +2316,29 @@ def test_group_hug_draw_excludes_controller_draw():
     assert "group_hug_draw" not in _keys("Divination")
 
 
+def test_group_hug_draw_excludes_scoped_player_each_draw():
+    """Howling Mine's each-player Phase-trigger Draw carries the
+    ``ScopedPlayer`` recipient — that's card_draw_engine's each-arm
+    (CR 121.1), NOT the group-hug gift; ``ScopedPlayer`` is deliberately
+    absent from ``_EACH_DRAW_RECIPIENTS``."""
+    assert "group_hug_draw" not in _keys("Howling Mine")
+
+
+def test_group_hug_draw_dropped_subject_synthesis():
+    """Stage-A recovery (ADR-0037/0038): Grothama, All-Devouring's
+    leaves-the-battlefield trigger ("each player draws cards equal to the
+    damage dealt to ~ this turn by sources they control") lands in phase as
+    an Unimplemented effect whose own raw text is just the damage-count
+    clause — the "each player" SUBJECT is consumed by phase's own parse and
+    survives only in the whole-card oracle, so re-decoration (which reads
+    the clause's own text) can't reach it.
+    ``tree_synthesis._arm_group_hug_draw`` fills the gap from
+    ``tree.oracle`` instead, emitting the REAL "draw" concept with
+    ``scope="each"`` (ADR-0037/0038, no ``synth_*`` marker), read by the
+    lane's synthesized-node branch."""
+    assert ("group_hug_draw", "each", "") in _idents("Grothama, All-Devouring")
+
+
 def test_target_player_draws_directed():
     """Bloodgift Demon's Draw carries the typed ``Player`` recipient (a
     directed/forced draw, CR 121.1) → target_player_draws any."""

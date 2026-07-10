@@ -144,6 +144,8 @@ from mtg_utils._card_ir.project import (
 # creature-death state check and the ``CreatureDying`` trigger-doubler.
 from mtg_utils._card_ir.tree_synthesis import (
     _ANTHEM_PUMP_MODS,
+    _EACH_DRAW_RECIPIENTS,
+    SynthesizedNode,
     _double_triggers_creature_dying,
     _is_creature_death_subject,
     _is_death_payoff_effect,
@@ -714,7 +716,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "forced_attack",
         "goad_makers",
         "graveyard_matters",
-        "group_hug_draw",
         "hand_disruption",
         "historic_matters",
         "keyword_grant_target",
@@ -4695,12 +4696,11 @@ _LAND_SUBTYPES: frozenset[str] = frozenset(
         "town",
     }
 )
-# Draw recipients naming EVERY player (CR 121.1) — the group_hug_draw
-# direction. ``ScopedPlayer`` is deliberately ABSENT: an each-player Phase
-# trigger's "that player draws" (Howling Mine) is the card_draw_engine
-# each-arm, and the live path routes it to target_player_draws, not the
-# group-hug gift.
-_EACH_DRAW_RECIPIENTS: frozenset[str] = frozenset({"Each", "AllPlayers", "EachPlayer"})
+# ``_EACH_DRAW_RECIPIENTS`` (the group_hug_draw direction — ``ScopedPlayer``
+# deliberately ABSENT, Howling Mine's each-player Phase trigger routes to
+# card_draw_engine / target_player_draws instead) moved to tree_synthesis.py
+# so :func:`has_structural_group_hug_draw` and this lane share ONE source
+# (imported above).
 # Draw recipients naming a DIRECTED single player (CR 121.1) — the
 # target_player_draws forced-draw direction (Bloodgift Demon's ``Player``).
 _TARGETED_DRAW_TAGS: frozenset[str] = frozenset({"Player", "ParentTarget", "Target"})
@@ -4957,12 +4957,28 @@ def _group_hug_draw(tree: ConceptTree) -> list[Signal]:
     draws a card" (Temple Bell — the ``player_scope: All`` wrapper on the
     ability that owns the Draw; an explicit each-player recipient). A
     controller-only draw (Divination) never fires. Scope "each".
+
+    Stage-A recovery (ADR-0037/0038): Grothama, All-Devouring's
+    leaves-the-battlefield damage-scaled draw drops its "each player" subject
+    when phase leaves the clause Unimplemented — the subject survives ONLY in
+    the whole-card oracle, so ``tree_synthesis._arm_group_hug_draw`` fills the
+    gap from there, gated on the SAME typed read this lane runs
+    (``has_structural_group_hug_draw``). It emits the REAL "draw" concept
+    with ``scope="each"`` directly (no ``synth_*`` marker), so the second
+    loop below reads it through the ordinary typed
+    ``effect_concepts("draw")`` walk — keyed off the :class:`SynthesizedNode`
+    identity so a live ``ScopedPlayer`` ("that player draws" — Howling Mine)
+    never widens into group-hug territory via this branch either.
     """
     for unit in tree.units:
         for c in unit.effect_concepts("draw"):
             if recipient_tag(c.node) in _EACH_DRAW_RECIPIENTS or (
                 effect_owner_player_scope(unit.node, c.node) == "All"
             ):
+                return [Signal("group_hug_draw", "each", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for c in unit.effect_concepts("draw"):
+            if c.scope == "each" and isinstance(c.node, SynthesizedNode):
                 return [Signal("group_hug_draw", "each", "", c.raw, tree.name, "high")]
     return []
 

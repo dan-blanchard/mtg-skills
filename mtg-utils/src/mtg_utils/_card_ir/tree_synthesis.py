@@ -93,6 +93,7 @@ from mtg_utils._card_ir.crosswalk import (
     modify_cost_mode,
     node_duration,
     protection_cardtype,
+    recipient_tag,
     replacement_event_tag,
     replacement_shield_kind,
     reveal_until_player,
@@ -2424,6 +2425,73 @@ def _arm_suspect_makers(tree: ConceptTree) -> ConceptNode | None:
         scope="you",
         subject=(),
         desc="bucket-B suspect (dropped suspect-it action rider)",
+    )
+
+
+# Draw recipients naming EVERY player (CR 121.1) — the group_hug_draw
+# direction. ``ScopedPlayer`` is deliberately ABSENT: an each-player Phase
+# trigger's "that player draws" (Howling Mine) is the card_draw_engine
+# each-arm, not the group-hug gift. Lives here (not in crosswalk_signals.py)
+# so :func:`has_structural_group_hug_draw` and the ``_group_hug_draw`` lane
+# share ONE source — imported back by crosswalk_signals.py.
+_EACH_DRAW_RECIPIENTS: frozenset[str] = frozenset({"Each", "AllPlayers", "EachPlayer"})
+
+
+def has_structural_group_hug_draw(tree: ConceptTree) -> bool:
+    """The group_hug_draw TYPED gate (CR 121.1): a ``Draw`` whose recipient is
+    every player — an explicit ``_EACH_DRAW_RECIPIENTS`` tag (Temple Bell), or
+    a ``player_scope: All`` wrapper on the ability that owns the Draw. Shared
+    verbatim with the ``_group_hug_draw`` lane (the gap-gate ALIGNMENT the
+    death_matters lesson demands) so the synthesis arm below never fires on a
+    card the typed read already covers, and never drifts from what the lane
+    itself considers structural."""
+    for unit in tree.units:
+        for c in unit.effect_concepts("draw"):
+            if recipient_tag(c.node) in _EACH_DRAW_RECIPIENTS or (
+                effect_owner_player_scope(unit.node, c.node) == "All"
+            ):
+                return True
+    return False
+
+
+# each-player draw idiom (CR 121.1 "each player"; CR 102.1 — "each player"
+# includes you). Grothama, All-Devouring's leaves-the-battlefield trigger
+# ("each player draws cards equal to the damage dealt to ~ this turn by
+# sources they control") lands in phase as an Unimplemented effect whose OWN
+# raw text is just the damage-count clause — phase's own prefix parse
+# consumes the "each player" SUBJECT before handing the remainder to the
+# Unimplemented tag, so the subject survives ONLY in the whole-card oracle.
+# ADR-0038 re-decoration reads the clause's own raw text, so it has no scope
+# datum here to honestly write — this is the PARTIAL-residue class, and it
+# stays a synthesis arm (ADR-0037) reading ``tree.oracle`` instead. The
+# "who does" branch covers the symmetric-wheel idiom (Step Between Worlds /
+# Turtles in Time — "Each player who does draws seven cards").
+_GROUP_HUG_DRAW_RE = re.compile(
+    r"\beach player (?:who does |may )?draws?\b", re.IGNORECASE
+)
+
+
+def _arm_group_hug_draw(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an each-player ``draw`` node for the group-hug gift phase
+    leaves unstructured (Grothama's dropped each-player subject). Gap-gated
+    on :func:`has_structural_group_hug_draw` — the SAME typed read the
+    ``_group_hug_draw`` lane runs — so a card the typed gate already covers
+    never doubles, and ``ScopedPlayer`` ("that player draws" — Howling Mine)
+    stays routed to card_draw_engine, never widening into group-hug
+    territory. Emits the REAL "draw" concept with ``scope="each"`` (ADR-0038
+    retired the ``synth_*`` marker namespace), so the lane reads it via its
+    own typed ``effect_concepts("draw")`` walk, keyed off the synthesized
+    node identity — no lane special-case beyond that one extra branch."""
+    if has_structural_group_hug_draw(tree):
+        return None
+    if not _GROUP_HUG_DRAW_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="group_hug_draw",
+        concept="draw",
+        scope="each",
+        subject=(),
+        desc="each-player draw phase left unstructured (dropped subject — Grothama)",
     )
 
 
@@ -6839,6 +6907,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("tutor", _arm_tutor),
     ("discover_makers", _arm_discover_makers),
     ("suspect_makers", _arm_suspect_makers),
+    ("group_hug_draw", _arm_group_hug_draw),
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),
     ("superfriends_matters", _arm_superfriends_matters),

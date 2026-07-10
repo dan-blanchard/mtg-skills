@@ -69,6 +69,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_exhaust_matters,
     _arm_firebending_matters,
     _arm_flash_matters,
+    _arm_group_hug_draw,
     _arm_island_matters,
     _arm_keyword_soup_same_true,
     _arm_kill_engine,
@@ -120,6 +121,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_crimes_matter,
     has_structural_curse_matters,
     has_structural_firebending_grant,
+    has_structural_group_hug_draw,
     has_structural_keyword_counter,
     has_structural_kill_engine,
     has_structural_legend_rule_off,
@@ -1626,6 +1628,57 @@ def test_discover_makers_no_node_synth():
 
 def test_discover_makers_synth_registered():
     assert "discover_makers" in SYNTHESIS_ARM_IDS
+
+
+# ── group_hug_draw dropped-subject residual (ADR-0038 #73) ─────────────────────
+# Grothama, All-Devouring's leaves-the-battlefield trigger ("each player draws
+# cards equal to the damage dealt to ~ this turn by sources they control") lands
+# in phase as an Unimplemented effect whose OWN raw text is just the damage-count
+# clause -- phase's own prefix parse consumes the "each player" SUBJECT before
+# handing the remainder to the Unimplemented tag, so the subject survives ONLY in
+# the whole-card oracle. Re-decoration (ADR-0038) reads the clause's own raw
+# text, so it has no scope datum here to honestly write -- the PARTIAL-residue
+# class, which stays a synthesis arm (ADR-0037) reading ``tree.oracle`` instead.
+
+
+def _group_hug_draw_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _group_hug_draw
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "group_hug_draw" for s in _group_hug_draw(tree))
+
+
+def test_group_hug_draw_typed_gate_no_double():
+    """Temple Bell already has a typed ``player_scope: All`` Draw -- the
+    structural gate covers it, so the synthesis arm no-ops."""
+    tree = _fixture_tree("Temple Bell")
+    assert has_structural_group_hug_draw(tree) is True
+    assert _arm_group_hug_draw(tree) is None
+    assert _group_hug_draw_fires("Temple Bell") is True  # via the typed arm
+
+
+def test_group_hug_draw_scoped_player_never_widens():
+    """Howling Mine's each-player Phase Draw is ``ScopedPlayer`` -- the
+    typed gate correctly excludes it (routes to card_draw_engine instead),
+    and the idiom regex never fires either (no "each player draws" text)."""
+    tree = _fixture_tree("Howling Mine")
+    assert has_structural_group_hug_draw(tree) is False
+    assert _arm_group_hug_draw(tree) is None
+    assert _group_hug_draw_fires("Howling Mine") is False
+
+
+def test_group_hug_draw_dropped_subject_synth():
+    tree = _fixture_tree("Grothama, All-Devouring")
+    assert has_structural_group_hug_draw(tree) is False  # genuine gap
+    node = _arm_group_hug_draw(tree)
+    assert node is not None
+    assert node.concept == "draw"  # the REAL concept, no synth_* marker
+    assert node.scope == "each"
+    assert _group_hug_draw_fires("Grothama, All-Devouring") is True
+
+
+def test_group_hug_draw_synth_registered():
+    assert "group_hug_draw" in SYNTHESIS_ARM_IDS
 
 
 # ── stax_taxes / symmetric_stax fold (ADR-0036/0037) ───────────────────────────
