@@ -4829,6 +4829,18 @@ def test_suspect_matters_state_route_and_verb_boundary():
     assert "suspect_makers" in nelly
 
 
+def test_suspect_makers_dropped_rider_synthesis():
+    """CR 701.60a — Case of the Stashed Skeleton's "create a 2/1 black
+    Skeleton creature token and suspect it" rider: phase emits NO residue
+    node for the "suspect it" action at all (only the Token effect
+    survives), so re-decoration (ADR-0038) can't reach it and
+    ``tree_synthesis._arm_suspect_makers`` fills the gap — emitting the
+    REAL "suspect" concept (ADR-0037/0038), read by the SAME typed
+    ``effect_concepts("suspect")`` arm Nelly Borca's first-class Suspect
+    effect uses, no marker special-case in the lane."""
+    assert "suspect_makers" in _keys("Case of the Stashed Skeleton")
+
+
 def test_void_warp_makers_mirror_and_void_payoff_boundary():
     """CR 702.185a (Warp) + 207.2c (void is an ABILITY WORD — no rules
     meaning, no phase keyword): the three mirror arms fire — the keyword

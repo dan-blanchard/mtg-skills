@@ -34,6 +34,17 @@ as a tagged synthetic node.
 **Convergence-tracked.** Each arm is keyed by id (:data:`SYNTHESIS_ARM_IDS`) so the
 input-side convergence check retires it when phase begins parsing the clause
 (ADR-0035 shrinking bridge). A synthesis arm is a bridge, not a permanent home.
+
+**ADR-0038 retired the ``synth_*`` marker namespace.** A genuine dropped-rider
+gap — phase emits NO residue node at all for the clause (``suspect_makers``'s
+Case of the Stashed Skeleton: the "suspect it" rider vanishes from the token-
+creation effect entirely) — stays a synthesis arm per ADR-0037 (re-decoration
+has no node to re-decorate). But the arm now emits the REAL concept name
+(``"suspect"``, not ``"synth_suspect_makers"``), so the lane reads it through
+its ordinary typed ``effect_concepts(...)`` arm — no ``synth_<key>`` marker
+special-case in the lane at all. Only a card whose Unimplemented clause DOES
+survive as a node is eligible for the other ADR-0038 mechanism instead
+(:mod:`recovery`'s re-decoration, keyed off an allowlisted grammar token).
 """
 
 from __future__ import annotations
@@ -2433,15 +2444,20 @@ _SUSPECT_ACTION_RE = re.compile(r"\bsuspect\b(?!ed)", re.IGNORECASE)
 
 def _arm_suspect_makers(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``suspect`` maker node for the suspect ACTION phase drops when
-    it rides a token creation. Gap-gated on NO typed ``Suspect`` effect (Nelly
-    Borca's first-class suspect stays Tier-1)."""
+    it rides a token creation (Case of the Stashed Skeleton — phase emits NO
+    residue node at all, so ADR-0038 re-decoration recovery can't reach it; this
+    dropped-rider gap stays a synthesis arm per ADR-0037). Gap-gated on NO typed
+    ``Suspect`` effect (Nelly Borca's first-class suspect stays Tier-1). Emits
+    the REAL "suspect" concept (ADR-0038 retired the synth_* marker namespace),
+    so the ``_suspect_makers`` lane's typed ``effect_concepts("suspect")`` read
+    sees it directly, no marker special-case needed."""
     if any(True for _ in tree.effect_concepts("suspect")):
         return None
     if not _SUSPECT_ACTION_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
         return None
     return _synthetic_concept(
         arm_id="suspect_makers",
-        concept="synth_suspect_makers",
+        concept="suspect",
         scope="you",
         subject=(),
         desc="bucket-B suspect (dropped suspect-it action rider)",

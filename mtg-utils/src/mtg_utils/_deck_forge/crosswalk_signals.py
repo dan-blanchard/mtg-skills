@@ -2707,18 +2707,16 @@ def _explore_makers(tree: ConceptTree) -> list[Signal]:
 
 def _suspect_makers(tree: ConceptTree) -> list[Signal]:
     """suspect_makers — a suspect DOER (CR 701.60a). A ``Suspect`` effect (Nelly
-    Borca, Case of the Stashed Skeleton). A ``Suspected`` PROPERTY reference (the
-    payoff — "whenever a suspected creature …") is a distinct phase tag, never an
-    ``Suspect`` effect, so it is correctly excluded. Scope "you".
+    Borca; Case of the Stashed Skeleton's dropped "suspect it" token-creation
+    rider — phase emits NO residue node at all for it, so a
+    ``tree_synthesis._arm_suspect_makers`` synth node fills the gap, emitting
+    the REAL "suspect" concept per ADR-0037/0038, no marker special-case
+    needed here). A ``Suspected`` PROPERTY reference (the payoff — "whenever a
+    suspected creature …") is a distinct phase tag, never a ``Suspect``
+    effect, so it is correctly excluded. Scope "you".
     """
     for c in tree.effect_concepts("suspect"):
         return [Signal("suspect_makers", "you", "", c.raw, tree.name, "high")]
-    # Stage-A recovery (CR 701.60a): the ``synth_suspect_makers`` bucket-B node —
-    # a "suspect it" action rider phase drops off a token creation (Case of the
-    # Stashed Skeleton), gap-gated on no typed Suspect.
-    for c in tree.iter_concepts():
-        if c.concept == "synth_suspect_makers":
-            return [Signal("suspect_makers", "you", "", "", tree.name, "high")]
     return []
 
 
