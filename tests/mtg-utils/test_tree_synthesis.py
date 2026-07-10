@@ -62,6 +62,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_coin_flip_payoff,
     _arm_color_change,
     _arm_color_hoser,
+    _arm_connive_makers,
     _arm_convoke_matters,
     _arm_crimes_matter,
     _arm_curse_matters,
@@ -124,6 +125,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_clue_matters,
     has_structural_coin_flip,
     has_structural_color_hoser,
+    has_structural_connive_makers,
     has_structural_counter_distribute,
     has_structural_crimes_matter,
     has_structural_curse_matters,
@@ -1806,6 +1808,71 @@ def test_coin_flip_payoff_synth_win_and_lose():
 
 def test_coin_flip_payoff_synth_registered():
     assert "coin_flip_payoff" in SYNTHESIS_ARM_IDS
+
+
+# ── connive_makers nested-grant structural gate + no-residue synthesis
+# (ADR-0037/0038 W1 batch-3) ─────────────────────────────────────────────
+# Security Bypass's/Copycrook's granted "it connives" trigger carries a REAL
+# nested Connive node under a GrantTrigger modification (a static ability's
+# modifications list; a BecomeCopy replacement's additional_modifications
+# list, respectively) -- has_structural_connive_makers's nested fallback
+# (has_nested_connive / iter_nested_trigger_defs) reaches both, so NEITHER
+# needs synthesis. Unstable Experiment's "then up to one target creature you
+# control connives" clause carries NO Connive node at all (phase parses only
+# the Draw half, sub_ability=None) -- the genuine no-residue gap the
+# synthesis arm fills (CR 701.50a).
+
+
+def _connive_makers_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _connive_makers
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "connive_makers" for s in _connive_makers(tree))
+
+
+def test_connive_makers_nested_grant_static_no_double():
+    """Security Bypass's connive is nested inside its static ability's
+    GrantTrigger modification -- the nested fallback covers it, so the
+    synthesis arm no-ops."""
+    tree = _fixture_tree("Security Bypass")
+    assert has_structural_connive_makers(tree) is True
+    assert _arm_connive_makers(tree) is None
+    assert _connive_makers_fires("Security Bypass") is True
+
+
+def test_connive_makers_nested_grant_replacement_no_double():
+    """Copycrook's connive is nested inside its BecomeCopy replacement's
+    additional_modifications GrantTrigger -- the SAME nested fallback
+    (a different tree position: a replacement unit, not a static) covers
+    it, so the synthesis arm no-ops."""
+    tree = _fixture_tree("Copycrook")
+    assert has_structural_connive_makers(tree) is True
+    assert _arm_connive_makers(tree) is None
+    assert _connive_makers_fires("Copycrook") is True
+
+
+def test_connive_makers_no_residue_synth():
+    tree = _fixture_tree("Unstable Experiment")
+    assert has_structural_connive_makers(tree) is False  # genuine gap
+    node = _arm_connive_makers(tree)
+    assert node is not None
+    assert node.concept == "connive"  # the REAL concept, no synth_* marker
+    assert node.scope == "you"
+    assert _connive_makers_fires("Unstable Experiment") is True
+
+
+def test_connive_makers_excludes_state_payoff_no_synth():
+    """Glorious Purpose's "Whenever a creature you control connives, ..."
+    is a connive-STATE payoff, not a "target ... connives" doer clause --
+    neither the typed gate nor the doer-idiom regex fires (CR 701.50a)."""
+    tree = _fixture_tree("Glorious Purpose")
+    assert has_structural_connive_makers(tree) is False
+    assert _arm_connive_makers(tree) is None
+    assert _connive_makers_fires("Glorious Purpose") is False
+
+
+def test_connive_makers_synth_registered():
+    assert "connive_makers" in SYNTHESIS_ARM_IDS
 
 
 # ── extra_land_drop idiom-bridge synthesis (W2) ─────────────────────────────

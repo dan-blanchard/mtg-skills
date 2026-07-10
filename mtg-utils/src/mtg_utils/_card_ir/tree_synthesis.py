@@ -85,6 +85,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     hand_size_scopes,
     has_filter_property,
+    has_nested_connive,
     has_nested_flip_coin,
     has_nested_roll_die,
     iter_condition_sites,
@@ -2598,6 +2599,50 @@ def _arm_coin_flip_payoff(tree: ConceptTree) -> ConceptNode | None:
         scope="you",
         subject=(),
         desc="win/lose-a-coin-flip trigger phase leaves unstructured",
+    )
+
+
+# Direct connive-DOER idiom requiring the word "target" ahead of "connives"
+# in the same clause (Unstable Experiment: "up to one target creature you
+# control connives") — the doer/payoff discriminator. A pure connive-STATE
+# payoff clause ("Whenever a creature you control connives, ...") never
+# contains "target" ahead of "connives" (CR 701.50a — connive is an
+# instruction TO a permanent; a payoff merely watches for it elsewhere),
+# so Glorious Purpose / Iron Monger, Sadistic Tycoon never match.
+_CONNIVE_DOER_RE = re.compile(r"\btarget\b[^.]*\bconnives\b", re.IGNORECASE)
+
+
+def has_structural_connive_makers(tree: ConceptTree) -> bool:
+    """The connive_makers TYPED gate: a native ``connive`` concept-node
+    (flat OR ADR-0038-recovered) anywhere, OR a ``Connive`` tag nested
+    inside a unit's granted-trigger substructure the flat per-unit concept
+    walk never surfaces (Security Bypass, Copycrook). Shared verbatim with
+    the ``_connive_makers`` lane and this arm's gap gate below."""
+    if tree.effect_concepts("connive"):
+        return True
+    return any(has_nested_connive(u.node) for u in tree.units)
+
+
+def _arm_connive_makers(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``connive`` node for Unstable Experiment's "Target
+    player draws a card, then up to one target creature you control
+    connives" — phase parses only the ``Draw`` half; the "then ... target
+    creature ... connives" clause survives as no node at all (``sub_ability
+    = None``), a no-residue class 2 gap (ADR-0038 amendment). Gap-gated on
+    :func:`has_structural_connive_makers` so a typed/nested card never
+    doubles. Emits the REAL "connive" concept, so the ``_connive_makers``
+    lane reads it via its ordinary typed ``effect_concepts("connive")``
+    walk — no lane special-case. CR 701.50a."""
+    if has_structural_connive_makers(tree):
+        return None
+    if not _CONNIVE_DOER_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="connive_makers",
+        concept="connive",
+        scope="you",
+        subject=(),
+        desc="target-creature-connives clause phase drops entirely",
     )
 
 
@@ -7313,6 +7358,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("becomes_target_src_opp", _arm_becomes_target_src_opp),
     ("dont_own", _arm_dont_own),
     ("typed_anthem_multi", _arm_typed_anthem_multi),
+    ("connive_makers", _arm_connive_makers),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

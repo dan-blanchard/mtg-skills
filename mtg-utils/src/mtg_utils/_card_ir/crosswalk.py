@@ -2039,6 +2039,82 @@ def has_nested_flip_coin(node: object) -> bool:
     return any(tag_of(n) == "FlipCoin" for n in _iter_typed_nodes(node))
 
 
+# ── ADR-0037/0038 W1 batch-3 — the granted-trigger shared descent ────────────
+# ``connive_makers`` and ``opponent_cast_matters`` share one gap shape: the
+# card's real trigger lives NESTED inside a GRANTED-ability construct the
+# flat per-unit ``AbilityUnit`` walk never surfaces as its own unit. Two
+# corpus-verified shapes carry a trigger DEFINITION this way (a node with the
+# same ``S_trigger``/``S_triggers`` field shape as a top-level trigger unit's
+# own ``.node``, so any predicate written for a top-level trigger — e.g.
+# :func:`is_dies_return_trigger`'s sibling — applies unchanged):
+#
+# * a ``GrantTrigger`` modification's ``trigger`` field — a static ability's
+#   granted triggered ability (Security Bypass's Aura grant, Hunting
+#   Grounds's Threshold grant, Copycrook's copy-exception grant, Blink's
+#   Alien Angel token grant);
+# * a ``CreateEmblem`` effect's ``triggers`` list (Jace, Unraveler of
+#   Secrets's -8 ultimate, Garruk, Caller of Beasts's -7 ultimate).
+#
+# Deliberately NOT walked: bare ``GrantAbility`` (no corpus card in this
+# batch wires a TRIGGER through it — only activated/static abilities) and
+# soulbond (Thundering Mightmare's soulbond-paired grant carries NO node at
+# all — ``modifications: []`` — a no-residue synthesis case, not a
+# structural one; see ``tree_synthesis.has_structural_opponent_cast_matters``).
+def iter_nested_trigger_defs(node: object) -> Iterator[TypedMirrorNode]:
+    """Every trigger DEFINITION node reachable under ``node`` via a
+    ``GrantTrigger``/``CreateEmblem`` granted-ability shape (see module note
+    above). The connive_makers / opponent_cast_matters shared descent — each
+    lane applies its own predicate to the yielded nested trigger defs, the
+    same predicate it already applies to a top-level trigger unit's node.
+    """
+    for n in _iter_typed_nodes(node):
+        t = tag_of(n)
+        if t == "GrantTrigger":
+            trig = getattr(n, "trigger", None)
+            if isinstance(trig, TypedMirrorNode):
+                yield trig
+        elif t == "CreateEmblem":
+            trigs = getattr(n, "triggers", MISSING)
+            if _present(trigs) and isinstance(trigs, list):
+                for trig in trigs:
+                    if isinstance(trig, TypedMirrorNode):
+                        yield trig
+
+
+def has_nested_connive(node: object) -> bool:
+    """Whether a ``Connive`` tag (CR 701.50a) is reachable inside a nested
+    trigger definition under ``node`` — :func:`iter_nested_trigger_defs`'s
+    Security Bypass ("Enchanted creature has '... it connives.'") / Copycrook
+    (the copy-exception grant) shape, a granted "it connives" trigger the
+    flat per-unit concept-node walk never surfaces as its own node. The
+    connive_makers lane's structural fallback.
+    """
+    return any(
+        tag_of(m) == "Connive"
+        for trig in iter_nested_trigger_defs(node)
+        for m in _iter_typed_nodes(trig)
+    )
+
+
+def is_opponent_cast_trigger_def(trig: object) -> bool:
+    """Whether a trigger DEFINITION node — a top-level trigger unit's own
+    ``.node`` OR a nested def from :func:`iter_nested_trigger_defs` — is CR
+    102.2/102.3's opponent-cast punisher shape: a ``SpellCast`` /
+    ``SpellCastOrCopy`` mode whose recipient names an opponent. One
+    predicate for both tree positions (the opponent_cast_matters lane's own
+    top-level read, reused unchanged on the nested shape — Hunting Grounds's
+    Threshold grant, Jace's -8 emblem, Blink's Alien Angel token grant).
+    """
+    if not isinstance(trig, TypedMirrorNode):
+        return False
+    if _trigger_event(trig) not in ("cast_spell", "spellcastorcopy"):
+        return False
+    vt = getattr(trig, "valid_target", None)
+    return tag_of(vt) in ("Opponent", "Opponents", "EachOpponent") or (
+        tag_of(vt) == "Typed" and filter_controller(vt) == "Opponent"
+    )
+
+
 # ``DamageReceived``-shaped trigger DEFS carry a "reflection" execute tag
 # (CR 120.3): ``DealDamage`` (a single target) or ``DamageAll`` (Arcbond's
 # "each other creature and each player"). ``DamageEachPlayer`` is excluded —

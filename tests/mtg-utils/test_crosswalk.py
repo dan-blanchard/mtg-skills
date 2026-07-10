@@ -1380,6 +1380,50 @@ def test_coin_flip_payoff_synthesis_win_and_lose_triggers():
     assert ("coin_flip", "you", "") in _idents("Karplusan Minotaur")
 
 
+def test_connive_makers_nested_granted_trigger_aura():
+    """Security Bypass's "Enchanted creature has 'Whenever this creature
+    deals combat damage to a player, it connives.'" carries a REAL nested
+    ``Connive`` node inside the static ability's ``GrantTrigger``
+    modification — not surfaced as its own flat concept-node (the grant
+    decorates as one opaque node). The ``iter_nested_trigger_defs`` shared
+    descent (:func:`has_nested_connive`) reaches it (CR 701.50a)."""
+    assert ("connive_makers", "you", "") in _idents("Security Bypass")
+
+
+def test_connive_makers_nested_granted_trigger_copy_exception():
+    """Copycrook's "You may have this creature enter as a copy of any
+    creature ..., except it has 'Whenever this creature attacks, it
+    connives.'" carries the SAME nested ``GrantTrigger``/``Connive`` shape
+    as Security Bypass, but buried inside a ``BecomeCopy`` replacement's
+    ``additional_modifications`` rather than a static's ``modifications``
+    — the shared descent walks both (CR 701.50a)."""
+    assert ("connive_makers", "you", "") in _idents("Copycrook")
+
+
+def test_connive_makers_no_residue_synthesis():
+    """Stage-A synthesis (ADR-0037/0038): Unstable Experiment's "Target
+    player draws a card, then up to one target creature you control
+    connives." — phase parses only the ``Draw`` half; the "then ... target
+    creature ... connives" clause drops entirely (``sub_ability = None``,
+    no node at all). ``tree_synthesis._arm_connive_makers`` fills the gap
+    from ``tree.oracle``, emitting the REAL "connive" concept (CR
+    701.50a)."""
+    assert ("connive_makers", "you", "") in _idents("Unstable Experiment")
+
+
+@pytest.mark.parametrize("name", ["Glorious Purpose", "Iron Monger, Sadistic Tycoon"])
+def test_connive_makers_excludes_connive_state_payoff(name):
+    """ADR-0034 shed: "Whenever a creature you control connives, ..." is a
+    connive-STATE PAYOFF watching for OTHER creatures' connive action, not
+    an instruction TO a permanent (CR 701.50a: "Certain spells and
+    abilities instruct a permanent to connive"). Legacy's Scryfall
+    ``connive`` keyword-field lookup over-fires on both cards (the keyword
+    tags any card that MENTIONS the mechanic, doer or payoff alike); the
+    structural read stays doer-only by construction, so connive_makers
+    correctly never fires here — the payoff belongs to a separate key."""
+    assert "connive_makers" not in _keys(name)
+
+
 @pytest.mark.parametrize("name", ["Act on Impulse", "Aloe Alchemist"])
 def test_cast_from_exile_structural_permission(name):
     """A ``GrantCastingPermission`` whose permission is ``PlayFromExile`` (Act on

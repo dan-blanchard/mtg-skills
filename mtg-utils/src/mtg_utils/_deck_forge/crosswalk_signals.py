@@ -71,6 +71,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     filter_without_keywords,
     has_filter_property,
+    has_nested_connive,
     has_nested_flip_coin,
     is_damage_reflect_trigger_def,
     is_dies_return_trigger,
@@ -696,7 +697,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "colorless_matters",
         "combat_damage_matters",
         "combat_damage_to_opp",
-        "connive_makers",
         "convoke_makers",
         "cost_reduction",
         "creature_cast_trigger",
@@ -2680,13 +2680,32 @@ def _copy_clone(tree: ConceptTree) -> list[Signal]:
 
 
 def _connive_makers(tree: ConceptTree) -> list[Signal]:
-    """connive_makers — a connive DOER (CR 701.50a). A ``Connive`` effect (Shipwreck
-    Sifters, Old Rutstein; the granted Aura form — Security Bypass — also carries a
-    structural ``Connive`` effect, so no keyword field-lookup is needed). A pure
-    connive-STATE payoff is a different lane. Scope "you".
+    """connive_makers — a connive DOER (CR 701.50a). A ``Connive`` effect
+    (Shipwreck Sifters, Old Rutstein) reads through the ordinary flat
+    ``effect_concepts`` walk — including an ADR-0038 no-residue synthesis
+    hit (``tree_synthesis._arm_connive_makers``, Unstable Experiment's
+    "target creature you control connives" clause, which phase drops
+    entirely with no node at all). A ``Connive`` tag buried inside a
+    GRANTED trigger (Security Bypass's Aura grant "Enchanted creature has
+    '... it connives.'", Copycrook's copy-exception grant) is never its
+    own concept node — :func:`has_nested_connive` (the
+    ``iter_nested_trigger_defs`` shared descent, ADR-0037/0038 W1 batch-3)
+    reaches it.
+
+    A pure connive-STATE PAYOFF ("whenever a creature you control connives,
+    ..." — Glorious Purpose, Iron Monger, Sadistic Tycoon) is a SEPARATE key
+    (CR 701.50a: connive is an instruction TO a permanent; a card merely
+    watching for that instruction elsewhere is not the doer) — Scryfall's
+    ``connive`` keyword field tags both roles, which is why legacy's
+    keyword-field lookup over-fires on the payoff pair; this structural
+    read stays doer-only by construction (no keyword-field fallback).
+    Scope "you".
     """
     for c in tree.effect_concepts("connive"):
         return [Signal("connive_makers", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        if has_nested_connive(unit.node):
+            return [Signal("connive_makers", "you", "", "", tree.name, "high")]
     return []
 
 
