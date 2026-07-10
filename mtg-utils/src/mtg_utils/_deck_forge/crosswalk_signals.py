@@ -707,7 +707,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "draw_for_each",
         "earthbend_matters",
         "enchantments_matter",
-        "evasion_denial",
         "exile_matters",
         "extra_land_drop",
         "extra_upkeep",
@@ -7296,6 +7295,12 @@ def _evasion_denial(tree: ConceptTree) -> list[Signal]:
                     "high",
                 )
             ]
+    # Stage-A recovery: the ``synth_evasion_denial`` bucket-B node — an anti-evasion
+    # static phase left Unimplemented (Staff of the Ages), gap-gated on no typed
+    # IgnoreLandwalkForBlocking static.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_evasion_denial":
+            return [Signal("evasion_denial", "opponents", "", "", tree.name, "high")]
     return []
 
 
