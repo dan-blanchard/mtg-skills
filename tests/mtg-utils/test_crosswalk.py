@@ -4875,6 +4875,23 @@ def test_tap_down_per_opponent_multi_target_and_no_residue_fallback():
     assert ("tap_down", "opponents", "") in _idents("Omega, Heartless Evolution")
 
 
+def test_tap_down_skip_next_step_detriment_directed_targeting():
+    """ADR-0038 deferral sweep unit 5 (Dan's detriment-directed-targeting
+    principle, 2026-07-10): Yosei, the Morning Star's "target player skips
+    their next untap step" is a bare targeted-player ``SkipNextStep``
+    recipient (tag ``Player``, not one of the existing Opponent/
+    DefendingPlayer/TriggeringPlayer-in-attack-trigger arms) — opponent-
+    directed for signal purposes via ``detriment_directed_scope`` even
+    though CR 603.3d lets the controller legally target themself. Avizoa's
+    "You skip your next untap step" as a self-paid activation COST for a
+    pump (``target=Controller()``) is the no-fire control: a genuinely
+    self-directed, non-detrimental-in-context shape that
+    ``detriment_directed_scope`` correctly reads as "you", never
+    "opponents"."""
+    assert ("tap_down", "opponents", "") in _idents("Yosei, the Morning Star")
+    assert "tap_down" not in _keys("Avizoa")
+
+
 def test_tap_down_casting_restriction_oracle_fallback():
     """ADR-0037/0038 W3: Delirium's "Cast this spell only during an
     opponent's turn" restriction is a card-level ``casting_restrictions``

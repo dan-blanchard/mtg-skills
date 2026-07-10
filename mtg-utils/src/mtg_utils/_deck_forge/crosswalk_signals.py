@@ -7309,6 +7309,21 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                 # attack/damage-trigger unit, the same b11 discipline as
                 # SetTapState's TargetPlayer arm above (Shisato's "deals
                 # combat damage to a player, THAT PLAYER skips ...").
+                #
+                # ADR-0038 deferral sweep unit 5 (Dan's detriment-directed-
+                # targeting principle): a bare targeted-player recipient
+                # (Yosei, the Morning Star: "target player skips their next
+                # untap step") is opponent-directed for SIGNAL purposes even
+                # though CR 603.3d lets the controller legally target
+                # themself — :func:`detriment_directed_scope` reads the
+                # node's own recipient fields the same way this arm already
+                # reads ``ttag`` (a targeted Player/Target tag -> "opponents",
+                # a Controller/SelfRef/You tag -> "you"). The genuinely
+                # beneficial self-target shape (Avizoa: "You skip your next
+                # untap step" as an activation COST for a pump — no-fire
+                # control) reads ``target=Controller()`` -> "you", correctly
+                # excluded; ``detriment_directed_scope`` is additive here
+                # (it never returns "opponents" for that shape).
                 step = getattr(c.node, "step", None)
                 if tag_of(step) != "Step" or getattr(step, "data", None) != "Untap":
                     continue
@@ -7323,6 +7338,7 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                         and unit.origin == "trigger"
                         and unit.trigger_event in ("attacks", "deals_damage")
                     )
+                    or detriment_directed_scope(c.node) == "opponents"
                 ):
                     fire("tap_down", "opponents", c.raw)
         for sdef in iter_static_defs(unit.node):
