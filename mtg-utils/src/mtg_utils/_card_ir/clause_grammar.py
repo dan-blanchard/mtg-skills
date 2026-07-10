@@ -335,6 +335,34 @@ _SIMPLE_VERB = comb.alt(
     comb.value("goad", comb.keyword({"goad", "goads"})),
     comb.value("scry", comb.keyword({"scry", "scries"})),
     comb.value("surveil", comb.keyword({"surveil", "surveils"})),
+    # "reveal(s) {their/his or her/its} hand" (CR 402.3's disclosure family) —
+    # the IMPERATIVE action idiom (Alhammarret, High Arbiter: "each opponent
+    # reveals their hand. You choose the name of a nonland card revealed this
+    # way." — a two-sentence blob phase parks whole as ONE Unimplemented
+    # node, no other residue at all), distinct from the bare "reveal" verb
+    # below (which would wrongly claim an unrelated "reveal the top card of
+    # your library" as a hand-reveal). Third-person only ("their"/"his or
+    # her"/"its") — "your hand" (self) never matches, same third-person-only
+    # gate as the STATIC "hand_revealed" idiom (STATIC_TOKENS) this mirrors
+    # for the IMPERATIVE form. Tried BEFORE the bare "reveal" arm so the
+    # fuller phrase wins when both would match. Named "reveal_hand" (not a
+    # new synonym) so the OLD-IR supplement path — which uses the grammar
+    # TOKEN itself as the ``Effect.category`` verbatim (``_recover_by_verb``,
+    # no allowlist gate there) — lands on the SAME category its own
+    # ``_recover_hand_disruption`` post-pass already produces for the
+    # opp-scoped ``reveal`` case (test_supplement_strips_prefixes_before_
+    # verb_dispatch), rather than inventing a category neither IR path
+    # recognizes.
+    comb.value(
+        "reveal_hand",
+        comb.seq3(
+            comb.keyword({"reveal", "reveals"}),
+            comb.alt(
+                comb.keyword({"their", "its"}), comb.phrase({"his"}, {"or"}, {"her"})
+            ),
+            comb.keyword({"hand", "hands"}),
+        ),
+    ),
     comb.value("reveal", comb.keyword({"reveal", "reveals"})),
     comb.value("roll_die", comb.keyword({"roll", "rolls"})),  # "roll a d20", dice
     comb.value("pay_cost", comb.keyword({"pay"})),  # "Pay 3 life", "pay {2}{R}" (cost)

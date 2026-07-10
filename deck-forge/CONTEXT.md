@@ -442,6 +442,24 @@ _Plainly_: rewrite the lane to read structure, making sure it still catches ever
 _Avoid_: "refactor" (it deliberately changes which cards fire — it corrects the regex),
 "recall" in the ML retraining sense (here it is search-recall: coverage of should-fire cards).
 
+**Detriment-directed targeting** (Dan, 2026-07-10; ADR-0038 deferral sweep):
+A "target player" / "target creature's controller" recipient on an unambiguously
+DETRIMENTAL effect (skip-untap/tap-down, life loss, discard/reveal-strip, sacrifice) is
+OPPONENT-DIRECTED for deck-building SIGNAL purposes, even though CR 603.3d lets the
+ability's controller legally target themself. This is a deck-building read of *intent*,
+not a rules claim — nobody builds a deck around "target player skips their next untap
+step" hoping to target themselves. `detriment_directed_scope` (`crosswalk.py`, beside
+`lifeloss_recipient_scope` / `discard_recipient_scope`, the two ad-hoc precedents this
+generalizes) is the shared predicate. "Each player" stays a DIFFERENT, symmetric signal
+class (`"each"`) — never folded into `"opponents"`, because a symmetric effect really
+does hit you too. A beneficial self-target COMBO shape (a card that *wants* its own
+detriment — e.g. a sacrifice outlet that wants to sacrifice itself) is its own structural
+pattern read elsewhere; it is never a reason to mute this mainline targeted-detriment read.
+_Avoid_: "opponent scope" alone (doesn't capture that the source is a *targeted* recipient,
+not an explicit "opponent" tag — the principle is what makes a bare `Target`/`Player` tag
+opponent-directed by inference), treating CR 603.3d as contradicted (it isn't — this is a
+signal-layer convention sitting on top of legal targeting, not a rules dispute).
+
 ### Roles & surfaces
 
 **Session-agent** (a.k.a. the reasoning layer):

@@ -53,6 +53,7 @@ from mtg_utils._card_ir.crosswalk import (
     counter_pred_kinds,
     damage_filter_scope,
     damage_recipient_is_player,
+    detriment_directed_scope,
     discard_recipient_scope,
     double_target_kind,
     double_triggers_cause_core_types,
@@ -718,15 +719,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "forced_attack",
         "goad_makers",
         "graveyard_matters",
-        # Re-added after the W3-batch-1 promote (a1c94262) was adjudicated
-        # premature: 3 GENUINE members are still legacy-only (Alhammarret's
-        # reveal+name-lock, Psychotic Episode's reveal+strip-to-bottom,
-        # Thoughtcutter Agent's repeatable reveal engine). The batch's
-        # recovery arms stay (11 cards recovered); the key promotes when
-        # those 3 recover. Friendly Fire (incidental reveal for a damage
-        # roulette) and Wild Evocation (symmetric forced-play) are shed-able
-        # per ADR-0034 once the key re-promotes.
-        "hand_disruption",
         "keyword_grant_target",
         "land_creatures_matter",
         "land_sacrifice_makers",
@@ -5755,6 +5747,18 @@ def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+# ADR-0038 deferral sweep unit 4: the specific missing fact a detriment-
+# directed LoseLife/RevealTop node's own fields never carry — "reveals
+# {their/his or her/its} hand" (third-person only, matching the grammar's
+# own "reveal_hand_action" gate — "your hand" is a self-reveal, never this
+# lane). Matched against :func:`_kept` (reminder-stripped), gated to a
+# NARROW compound-effect confirmation (Thoughtcutter Agent, Psychotic
+# Episode), never a bare reveal-adjacent scan.
+_REVEALS_HAND_TEXT_RE = re.compile(
+    r"reveals?\s+(?:their|his or her|its)\s+hands?\b", re.IGNORECASE
+)
+
+
 def _hand_disruption(tree: ConceptTree) -> list[Signal]:
     """hand_disruption — opponent hand reveal/peek (CR 402.3: "a player
     can't look at the cards in another player's hand"). Two typed arms:
@@ -5783,24 +5787,54 @@ def _hand_disruption(tree: ConceptTree) -> list[Signal]:
     ``CreateEmblem``, a ``GrantAbility``'s ``definition`` field needs the
     fully generic walk).
 
+    ADR-0038 deferral sweep unit 4 (Dan's detriment-directed-targeting
+    principle — see :func:`~mtg_utils._card_ir.crosswalk.
+    detriment_directed_scope`): two more no-residue/unbound shapes closed:
+
+    * Friendly Fire's "target creature's controller reveals a card at
+      random from their hand" — the possessive binding between a
+      TARGETED creature and "that player" lives only in prose; phase
+      structures a bare ``RevealHand{target: Any}`` with no player field
+      connecting it to the creature target at all. Structural precondition
+      (never text-matched, corpus-verified unique shape): a
+      ``RevealHand{target: Any}`` in a unit whose FIRST effect is a
+      ``TargetOnly`` naming a Creature — the possessive CR 109.5
+      back-reference the shape itself establishes.
+    * Thoughtcutter Agent ("Target player loses 1 life and reveals their
+      hand") / Psychotic Episode ("Target player reveals their hand and
+      the top card of their library...") — phase structures only the
+      OTHER half of the compound ("loses 1 life" / "the top card"); the
+      hand-reveal half leaves no node of its own at all. A detriment-
+      directed ``LoseLife``/``RevealTop`` recipient (opponent-directed by
+      :func:`detriment_directed_scope`) COMBINED with the ability's own
+      text confirming the specific missing fact ("reveals {their/his or
+      her/its} hand") — the same text-confirms-after-structural-
+      confirmation discipline as ``_tap_lanes``'s
+      ``_OPPONENT_CONTROLS_TAP_RE`` — recovers both without opening the
+      lane to any bare reveal-adjacent text (corpus-verified: every OTHER
+      commander-legal match is an already-firing Thoughtseize-style
+      discard spell, so this arm is never the deciding vote for them).
+
     Scope "opponents" (the live lane's).
     """
     for unit in tree.units:
         for c in unit.effects:
             if c.concept == "reveal_hand" and c.recovered_by:
-                # ADR-0037/0038 W3: a grammar-recovered "plays with
-                # {their/its} hand revealed" clause (Sen Triplets,
-                # Stromgald Spy) — the recovered node's ``.node`` is still
-                # the phase Unimplemented wrapper (no ``target`` field of
-                # its own), so trust the recovery unconditionally (the
-                # STATIC_TOKENS regex's third-person-only gate already
-                # excludes a self-reveal).
+                # ADR-0037/0038 W3 + ADR-0038 deferral sweep unit 4: a
+                # grammar-recovered "plays with {their/its} hand revealed"
+                # STATIC clause (Sen Triplets, Stromgald Spy) or the
+                # IMPERATIVE "reveal(s) {their/his or her/its} hand" ACTION
+                # idiom (Alhammarret, High Arbiter) — the recovered node's
+                # ``.node`` is still the phase Unimplemented wrapper (no
+                # ``target`` field of its own), so trust the recovery
+                # unconditionally (the grammar's third-person-only gate
+                # already excludes a self-reveal).
                 return [
                     Signal("hand_disruption", "opponents", "", c.raw, tree.name, "high")
                 ]
-            if tag_of(c.node) != "RevealHand":
-                continue
-            if _reveal_names_other_player(c.node, unit.node):
+            if tag_of(c.node) == "RevealHand" and _reveal_names_other_player(
+                c.node, unit.node
+            ):
                 return [
                     Signal("hand_disruption", "opponents", "", c.raw, tree.name, "high")
                 ]
@@ -5814,6 +5848,36 @@ def _hand_disruption(tree: ConceptTree) -> list[Signal]:
                     return [
                         Signal(
                             "hand_disruption", "opponents", "", "", tree.name, "high"
+                        )
+                    ]
+        # Friendly Fire's "target creature's controller reveals ..." shape.
+        if unit.effects and tag_of(unit.effects[0].node) == "TargetOnly":
+            first_filt = effect_filter(unit.effects[0].node)
+            if first_filt is not None and "Creature" in filter_core_types(first_filt):
+                for c in unit.effects:
+                    if (
+                        tag_of(c.node) == "RevealHand"
+                        and tag_of(getattr(c.node, "target", None)) == "Any"
+                    ):
+                        return [
+                            Signal(
+                                "hand_disruption",
+                                "opponents",
+                                "",
+                                c.raw,
+                                tree.name,
+                                "high",
+                            )
+                        ]
+        # Thoughtcutter Agent / Psychotic Episode's dropped hand-reveal half.
+        if _REVEALS_HAND_TEXT_RE.search(_kept(tree)):
+            for c in unit.effects:
+                if tag_of(c.node) in ("LoseLife", "RevealTop") and (
+                    detriment_directed_scope(c.node) == "opponents"
+                ):
+                    return [
+                        Signal(
+                            "hand_disruption", "opponents", "", c.raw, tree.name, "high"
                         )
                     ]
     return []

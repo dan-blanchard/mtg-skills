@@ -544,6 +544,68 @@ def lifeloss_recipient_scope(node: TypedMirrorNode) -> str | None:
     return None
 
 
+# The union of every "names a player other than the controller" tag family
+# independently rediscovered by :func:`lifeloss_recipient_scope`
+# (``_DIRECTED_PLAYER_TAGS``) and :func:`discard_recipient_scope`
+# (``_DISCARD_OPP_TAGS``, defined further below), plus the explicit
+# opponent/defending-player tags (CR 506.2 — the b11 tap_down precedent).
+_DETRIMENT_DIRECTED_TAGS: frozenset[str] = _DIRECTED_PLAYER_TAGS | frozenset(
+    {
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "DefendingPlayer",
+        "TargetPlayer",
+        "TargetOpponent",
+    }
+)
+
+
+def detriment_directed_scope(node: TypedMirrorNode) -> str | None:
+    """The DIRECTION of an unambiguously DETRIMENTAL effect from its recipient
+    node — Dan's **detriment-directed-targeting** principle (2026-07-10):
+    a "target player" / "target creature's controller" recipient on an
+    unambiguously detrimental effect (skip-untap/tap-down, life loss,
+    discard/reveal-strip, sacrifice — grows per consumer, never assume
+    beyond what's measured) is OPPONENT-DIRECTED for deck-building SIGNAL
+    purposes. CR 603.3d's targeting freedom (a spell/ability's controller
+    may legally target themself) is acknowledged, never contradicted —
+    this is a deck-building read of intent, not a rules claim about legal
+    targets. "each player" stays a DIFFERENT, symmetric signal class
+    (``"each"``), never folded into ``"opponents"``; a beneficial
+    self-target COMBO shape (a card that WANTS its own detriment) is its
+    own structural pattern elsewhere, never a reason to mute this mainline
+    read.
+
+    Generalizes the identical ad-hoc dispatch independently grown by
+    :func:`lifeloss_recipient_scope` and :func:`discard_recipient_scope`
+    into one reusable predicate for NEW consumers (tap_down's
+    ``SkipNextStep``, hand_disruption's ``RevealHand``) — those two keep
+    their own bespoke tag sets (a few extra structural-recipient tags each
+    doesn't share), so this is additive, not a replacement.
+
+    Returns ``"you"`` for a controller/self recipient, ``"each"`` for a
+    symmetric all-player recipient, ``"opponents"`` for everything else
+    present (an explicit opponent tag OR a targeted/relative recipient),
+    ``None`` when the node carries NO recipient field at all (the caller
+    falls back to the wrapper ``player_scope``). See
+    ``deck-forge/CONTEXT.md``'s "Detriment-directed targeting" entry.
+    """
+    for fname in _SCOPE_FIELDS:
+        sub = getattr(node, fname, MISSING)
+        if not _present(sub) or tag_of(sub) is None:
+            continue
+        if tag_of(sub) in _DETRIMENT_DIRECTED_TAGS:
+            return "opponents"
+        sc = _scope_from_player_node(sub)
+        if sc == "you":
+            return "you"
+        if sc == "each":
+            return "each"
+        return "opponents"
+    return None
+
+
 def trigger_constraint_tag(trig: TypedMirrorNode) -> str | None:
     """The discriminator tag of a trigger's ``constraint`` node, or ``None``.
 

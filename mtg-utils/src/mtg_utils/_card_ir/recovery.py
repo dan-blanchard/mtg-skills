@@ -132,6 +132,18 @@ ALLOWLIST: dict[str, TokenRule] = {
     # TOKENS regex's third-person-only gate already establishes the
     # digger is NOT you).
     "hand_revealed": TokenRule(concept="reveal_hand", category="hand_disruption"),
+    # ADR-0038 deferral sweep unit 4: the IMPERATIVE "reveal(s) {their/his
+    # or her/its} hand" ACTION idiom (Alhammarret, High Arbiter: "each
+    # opponent reveals their hand. You choose the name of a nonland card
+    # revealed this way." — a two-sentence blob phase parks whole as ONE
+    # Unimplemented node, no other residue). Maps to the same
+    # "reveal_hand" concept as the STATIC hand_revealed idiom above so the
+    # hand_disruption lane's existing ``concept == "reveal_hand"`` arm
+    # covers it with no special-case; the recovered node's ``.node``
+    # carries no target field of its own to re-check, so the lane trusts
+    # a recovered node unconditionally (the grammar's third-person-only
+    # gate already establishes the digger is NOT you).
+    "reveal_hand": TokenRule(concept="reveal_hand", category="hand_disruption"),
 }
 
 
