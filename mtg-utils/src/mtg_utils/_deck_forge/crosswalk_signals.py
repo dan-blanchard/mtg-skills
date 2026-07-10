@@ -718,7 +718,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "forced_attack",
         "goad_makers",
         "graveyard_matters",
-        "hand_disruption",
         "keyword_grant_target",
         "land_creatures_matter",
         "land_sacrifice_makers",
@@ -5676,32 +5675,71 @@ def _hand_disruption(tree: ConceptTree) -> list[Signal]:
     * a ``RevealHand`` EFFECT whose recipient EXPLICITLY names another
       player (Duress — ``Typed controller=Opponent``; Addle — a targeted
       ``Player``; checklist #5). A self-reveal (Goblin Secret Agent —
-      ``Controller``) never fires; nor does a bare ``Any`` target — phase
-      uses ``Any`` for the revealed CARDS of a "reveal … cards from your
-      hand" SELF-reveal (Manabond, Cursed Scroll, Brine Seer), so ``Any``
-      carries no player evidence — never guess;
+      ``Controller``) never fires; nor does a bare ``Any`` target UNLESS
+      the OWNING wrapper's ``player_scope`` is symmetric-or-wider
+      (Kamahl's Summons / Noxious Vapors — "each player reveals their
+      hand": ``Any`` there is the CARD selection, not the player, same as
+      the self-reveal case, but a genuine "each player" wrapper scope
+      still counts — ADR-0037/0038 W3, mirroring phasing_makers'
+      blanket-not-split precedent: the key's scope is hardcoded
+      "opponents" regardless of symmetry);
     * the ``RevealHand`` STATIC mode ("your opponents play with their hands
       revealed" — Telepathy; the symmetric Zur's Weirding reaches their
       hands too), via :func:`static_reveal_who`.
+
+    ADR-0037/0038 W3: a ``RevealHand`` buried inside a GRANTED activated
+    ability (Dementia Sliver's tribal static: "All Slivers have '{T}:
+    Choose a card name. Target opponent reveals a card at random from
+    their hand...'") is never its own top-level unit — reached via
+    :func:`iter_typed_nodes`'s generic deep walk (unlike
+    ``iter_nested_trigger_defs``, which only covers ``GrantTrigger``/
+    ``CreateEmblem``, a ``GrantAbility``'s ``definition`` field needs the
+    fully generic walk).
 
     Scope "opponents" (the live lane's).
     """
     for unit in tree.units:
         for c in unit.effects:
+            if c.concept == "reveal_hand" and c.recovered_by:
+                # ADR-0037/0038 W3: a grammar-recovered "plays with
+                # {their/its} hand revealed" clause (Sen Triplets,
+                # Stromgald Spy) — the recovered node's ``.node`` is still
+                # the phase Unimplemented wrapper (no ``target`` field of
+                # its own), so trust the recovery unconditionally (the
+                # STATIC_TOKENS regex's third-person-only gate already
+                # excludes a self-reveal).
+                return [
+                    Signal("hand_disruption", "opponents", "", c.raw, tree.name, "high")
+                ]
             if tag_of(c.node) != "RevealHand":
                 continue
-            if _reveal_names_other_player(c.node):
+            if _reveal_names_other_player(c.node, unit.node):
                 return [
                     Signal("hand_disruption", "opponents", "", c.raw, tree.name, "high")
                 ]
         if unit.origin == "static" and static_reveal_who(unit.node) in _REVEAL_WHO_OPP:
             return [Signal("hand_disruption", "opponents", "", "", tree.name, "high")]
+        if unit.origin == "static":
+            for n in iter_typed_nodes(unit.node):
+                if tag_of(n) == "RevealHand" and _reveal_names_other_player(
+                    n, unit.node
+                ):
+                    return [
+                        Signal(
+                            "hand_disruption", "opponents", "", "", tree.name, "high"
+                        )
+                    ]
     return []
 
 
 # RevealHand recipient tags that EXPLICITLY name another player (CR 402.3).
-# ``Any`` is deliberately absent — phase's self-reveal ("reveal any number of
-# cards from your hand") carries a bare ``Any`` CARDS target, not a player.
+# ``Any`` / ``ScopedPlayer`` are deliberately absent — phase's self-reveal
+# ("reveal any number of cards from your hand") carries a bare ``Any`` CARDS
+# target, not a player, and ``ScopedPlayer`` defers to the wrapper's OWN
+# player_scope (read separately — see ``_reveal_names_other_player``'s
+# ``unit_node`` arm). ``DefendingPlayer`` (Port Inspector, Zara) is
+# opponent-directed BY RULE (CR 506.2 — the b11 tap_down precedent), same as
+# ``EachOpponent``.
 _REVEAL_PLAYER_TAGS: frozenset[str] = frozenset(
     {
         "Player",
@@ -5715,17 +5753,52 @@ _REVEAL_PLAYER_TAGS: frozenset[str] = frozenset(
         "Each",
         "AllPlayers",
         "EachPlayer",
+        "DefendingPlayer",
     }
+)
+# player_scope tags on the OWNING wrapper that make an ambiguous ``Any``/
+# ``ScopedPlayer`` RevealHand recipient count as opponent-directed — a
+# symmetric "each player reveals" wrapper scope (Kamahl's Summons, Noxious
+# Vapors) still discloses opponents' hands, matching the key's hardcoded
+# "opponents" scope regardless of symmetry; an explicit "Opponent"/
+# "Opponents" wrapper scope (Valki, God of Lies: "each opponent reveals
+# their hand" — player_scope carries the "for each opponent" edict, the
+# RevealHand's OWN target reads bare ``Any``) is unambiguous.
+_REVEAL_SCOPE_WRAPPER_TAGS: frozenset[str] = frozenset(
+    {"All", "AllPlayers", "Each", "Opponent", "Opponents", "EachOpponent"}
 )
 
 
-def _reveal_names_other_player(node: TypedMirrorNode) -> bool:
+def _reveal_names_other_player(node: TypedMirrorNode, unit_node: object = None) -> bool:
     """Whether a ``RevealHand`` effect's recipient names ANOTHER player —
-    an explicit player tag or an opponent-controlled ``Typed`` filter."""
+    an explicit player tag, an opponent-controlled ``Typed`` filter, a
+    ``ChosenPlayer`` backreference to a SIBLING ``Choose{choice_type:
+    Opponent}`` in the same unit (Anointed Peacekeeper, Arachne, Sorcerous
+    Spyglass: "look at an opponent's hand, then choose …"), or an
+    ambiguous ``Any``/``ScopedPlayer`` recipient whose OWNING wrapper's
+    ``player_scope`` is symmetric-or-wider (:data:`_REVEAL_SCOPE_WRAPPER_
+    TAGS`). ``unit_node`` is optional — omitting it skips the ChosenPlayer/
+    player_scope arms (the STATIC-mode nested-descent call site has no
+    single owning unit to scope a wrapper lookup to)."""
     t = recipient_tag(node)
     if t in _REVEAL_PLAYER_TAGS:
         return True
-    return t == "Typed" and filter_controller(effect_filter(node)) == "Opponent"
+    if t == "Typed":
+        filt = effect_filter(node)
+        if filter_controller(filt) == "Opponent":
+            return True
+        raw_ctrl = getattr(filt, "controller", None)
+        is_chosen_player = (
+            isinstance(raw_ctrl, MirrorVariant) and raw_ctrl.key == "ChosenPlayer"
+        )
+        if unit_node is not None and is_chosen_player:
+            return any(
+                tag_of(n) == "Choose" and getattr(n, "choice_type", None) == "Opponent"
+                for n in iter_typed_nodes(unit_node)
+            )
+    if unit_node is not None and t in ("Any", "ScopedPlayer"):
+        return effect_owner_player_scope(unit_node, node) in _REVEAL_SCOPE_WRAPPER_TAGS
+    return False
 
 
 # ── Batch 10 lanes (ADR-0035 Stage 2) ────────────────────────────────────────

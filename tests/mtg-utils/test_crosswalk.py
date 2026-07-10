@@ -3111,6 +3111,56 @@ def test_hand_disruption_excludes_self_reveal(name):
     assert "hand_disruption" not in _keys(name)
 
 
+def test_hand_disruption_defending_player_recipient():
+    """ADR-0037/0038 W3: ``DefendingPlayer`` (Port Inspector: "look at
+    defending player's hand") is opponent-directed BY RULE (CR 506.2 — the
+    b11 tap_down precedent), joining the always-fire recipient set."""
+    assert ("hand_disruption", "opponents", "") in _idents("Port Inspector")
+
+
+def test_hand_disruption_chosen_player_backreference():
+    """ADR-0037/0038 W3: a ``ChosenPlayer`` recipient backreference
+    resolves to whichever player a SIBLING ``Choose{choice_type:
+    Opponent}`` in the same unit selected (Anointed Peacekeeper: "look at
+    an opponent's hand, then choose any card name" — a CR 614/616
+    replacement effect chaining Choose -> RevealHand)."""
+    assert ("hand_disruption", "opponents", "") in _idents("Anointed Peacekeeper")
+
+
+def test_hand_disruption_wrapper_player_scope_fallback():
+    """ADR-0037/0038 W3: an ambiguous bare ``Any`` RevealHand recipient
+    (indistinguishable from a self-reveal by ITS OWN target field) is
+    opponent-directed when the OWNING wrapper's ``player_scope`` is
+    symmetric-or-wider (Kamahl's Summons: "each player reveals ... from
+    their hand" — player_scope All) or explicitly opponent-scoped (Valki,
+    God of Lies: "each opponent reveals their hand" — player_scope
+    Opponent, carrying the "for each opponent" edict the RevealHand's OWN
+    target never does)."""
+    assert ("hand_disruption", "opponents", "") in _idents("Kamahl's Summons")
+    assert ("hand_disruption", "opponents", "") in _idents("Valki, God of Lies")
+
+
+def test_hand_disruption_nested_grant_descent():
+    """ADR-0037/0038 W3: a ``RevealHand`` buried inside a GRANTED activated
+    ability (Dementia Sliver's tribal static: "All Slivers have '{T}:
+    Choose a card name. Target opponent reveals a card at random from
+    their hand...'") is never its own top-level unit — reached via
+    :func:`iter_typed_nodes`'s generic deep walk over the static's
+    ``GrantAbility.definition`` field."""
+    assert ("hand_disruption", "opponents", "") in _idents("Dementia Sliver")
+
+
+def test_hand_disruption_hand_revealed_grammar_recovery():
+    """ADR-0037/0038 W3: "have defending player play with their hand
+    revealed" (Stromgald Spy) is a genuine Unimplemented residue the
+    shared clause grammar's third-person-only "hand revealed" static
+    idiom recovers to the native RevealHand static mode's own
+    ``reveal_hand`` concept — the lane trusts a recovered node
+    unconditionally (``ConceptNode.recovered_by``) since the recovered
+    ``.node`` carries no target field of its own to re-check."""
+    assert ("hand_disruption", "opponents", "") in _idents("Stromgald Spy")
+
+
 # ── batch 9: the three adjudicated batch-8 follow-up fixes ────────────────────
 
 

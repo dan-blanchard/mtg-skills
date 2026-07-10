@@ -590,6 +590,22 @@ STATIC_TOKENS: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"\bopponents? can'?t cast\b", re.IGNORECASE),
         "stax_cast_lock",
     ),
+    # hand-revealed idiom (CR 402.3's disclosure family): "plays with
+    # {their/its} hand revealed" (Sen Triplets' "can't cast spells ... and
+    # plays with their hand revealed" restriction fragment, Stromgald
+    # Spy's granted "have defending player play with their hand
+    # revealed") — a THIRD-PERSON continuous reveal phase's own static
+    # parser leaves Unimplemented (Sen Triplets: split across TWO
+    # Unimplemented fragments by its own "This turn, that player can't
+    # cast ... OR activate abilities" disjunction). "your hand revealed"
+    # (self) never matches — third-person only.
+    (
+        re.compile(
+            r"\bplays? with (?:their|its|his or her) hand revealed\b",
+            re.IGNORECASE,
+        ),
+        "hand_revealed",
+    ),
 )
 
 

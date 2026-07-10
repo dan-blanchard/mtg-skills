@@ -122,6 +122,16 @@ ALLOWLIST: dict[str, TokenRule] = {
     # ``tree.effect_concepts("phasing")`` read covers the recovered node
     # with no special-case.
     "phasing": TokenRule(concept="phasing", category="phasing"),
+    # hand-revealed idiom (CR 402.3's disclosure family): "plays with
+    # {their/its} hand revealed" (Sen Triplets, Stromgald Spy). Maps to
+    # the native RevealHand static mode's own concept ("reveal_hand") so
+    # the hand_disruption lane's static arm covers it — the recovered
+    # node's own ``.node`` carries no target field to re-check (it is
+    # still the phase Unimplemented wrapper), so the lane trusts a
+    # recovered node unconditionally via ``recovered_by`` (the STATIC_
+    # TOKENS regex's third-person-only gate already establishes the
+    # digger is NOT you).
+    "hand_revealed": TokenRule(concept="reveal_hand", category="hand_disruption"),
 }
 
 
