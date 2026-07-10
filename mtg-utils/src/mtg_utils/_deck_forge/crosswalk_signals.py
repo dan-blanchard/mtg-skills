@@ -3628,18 +3628,16 @@ def _initiative(tree: ConceptTree) -> list[Signal]:
 def _end_the_turn(tree: ConceptTree) -> list[Signal]:
     """end_the_turn — an ``EndTheTurn`` DOER (CR 724): expedite the rest of the turn,
     exiling whatever is on the stack (Time Stop, Sundial of the Infinite). Mirrors
-    the live ``_DOER_EFFECT_KEYS["end_the_turn"]`` doer. Distinct from ``ExtraTurn``
-    (``extra_turns`` — Time Warp) and an ``EndCombatPhase`` fog: different effect
-    tags, never read here. Scope "you" (the build-around marker the live forces).
+    the live ``_DOER_EFFECT_KEYS["end_the_turn"]`` doer. Obeka's player-scoped grant
+    ("The player whose turn it is may end the turn") is ADR-0038 recovery-promoted:
+    a real Unimplemented EFFECT-role node the shared clause grammar re-decorates to
+    concept="end_the_turn" via ``recovery.ALLOWLIST``, so this single typed read
+    covers both. Distinct from ``ExtraTurn`` (``extra_turns`` — Time Warp) and an
+    ``EndCombatPhase`` fog: different effect tags, never read here. Scope "you"
+    (the build-around marker the live forces).
     """
     for c in tree.effect_concepts("end_the_turn"):
         return [Signal("end_the_turn", "you", "", c.raw, tree.name, "high")]
-    # Stage-A recovery: the ``synth_end_the_turn`` bucket-B node — an Unimplemented
-    # "end the turn" action phase leaves unstructured (Obeka), gap-gated on no typed
-    # EndTheTurn.
-    for c in tree.iter_concepts():
-        if c.concept == "synth_end_the_turn":
-            return [Signal("end_the_turn", "you", "", "", tree.name, "high")]
     return []
 
 

@@ -59,6 +59,13 @@ ALLOWLIST: dict[str, TokenRule] = {
     # clause_grammar.static_token (the STATIC_TOKENS table), not the
     # imperative-verb grammar.
     "evasion_denial": TokenRule(concept="evasion_denial", category="evasion_denial"),
+    # end-the-turn ACTION idiom (CR 724): "(may) end the turn" — expedite
+    # the rest of the turn. Obeka's player-scoped grant ("The player whose
+    # turn it is may end the turn") leaves an Unimplemented effect phase
+    # doesn't structure; the shared grammar's "the player whose turn it is "
+    # subject peel + "end the turn" verb tag re-decorates it so the typed
+    # effect_concepts("end_the_turn") read sees it directly.
+    "end_the_turn": TokenRule(concept="end_the_turn", category="end_the_turn"),
 }
 
 

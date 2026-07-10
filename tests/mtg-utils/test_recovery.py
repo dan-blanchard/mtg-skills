@@ -200,3 +200,28 @@ def test_evasion_denial_promoted_via_production_allowlist():
     assert nodes[0].recovered_by == "evasion_denial"
     assert nodes[0].role == "effect"
     assert tag_of(nodes[0].node) == "Unimplemented"
+
+
+# ── #72 end_the_turn (shared-grammar player-subject + verb) ────────────────
+
+
+def test_parse_clause_matches_end_the_turn_player_grant():
+    from mtg_utils._card_ir.clause_grammar import parse_clause
+
+    assert (
+        parse_clause("The player whose turn it is may end the turn") == "end_the_turn"
+    )
+
+
+def test_end_the_turn_promoted_via_production_allowlist():
+    """Obeka's activated-ability grant ("The player whose turn it is may
+    end the turn") lands as an Unimplemented effect; the production
+    ALLOWLIST's "end_the_turn" token entry (the "the player whose turn it
+    is " subject peel + "end the turn" verb tag, both new shared-grammar
+    rows) re-decorates it in place."""
+    tree = _fixture_tree("Obeka, Brute Chronologist")
+    nodes = tree.effect_concepts("end_the_turn")
+    assert len(nodes) == 1
+    assert nodes[0].concept == "end_the_turn"
+    assert nodes[0].recovered_by == "end_the_turn"
+    assert tag_of(nodes[0].node) == "Unimplemented"

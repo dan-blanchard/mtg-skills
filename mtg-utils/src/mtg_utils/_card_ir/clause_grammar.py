@@ -160,6 +160,11 @@ _PLAYER_PREFIX = comb.value(
         comb.tag("you and target player each "),
         comb.tag("you and target opponent each "),
         comb.tag("that source's controller "),
+        # CR 724 (end the turn) — Obeka's activated-ability grant reads "The
+        # player whose turn it is may end the turn." Peeling this subject
+        # lands dispatch on "may end the turn", which the connective prefix
+        # then strips to "end the turn" for the verb table.
+        comb.tag("the player whose turn it is "),
         comb.tag("target player "),
         comb.tag("target opponent "),
         comb.tag("target creature "),
@@ -438,6 +443,12 @@ _VERB = comb.alt(
     comb.value("enters_tapped", comb.tag("enters tapped")),
     comb.value("enters_tapped", comb.tag("enter tapped")),
     comb.value("enters_tapped", comb.tag("enters the battlefield tapped")),
+    # "end the turn" (CR 724) — the expedite-the-turn ACTION (Obeka's grant,
+    # after the player-subject + "may " prefixes peel). "until end of turn, "
+    # / "at the end of the turn" are a DURATION prefix (different text, a
+    # trailing comma, peeled long before dispatch reaches the verb table) so
+    # neither shadows nor is shadowed by this arm.
+    comb.value("end_the_turn", comb.tag("end the turn")),
     _ADD_MANA,
     _PUT,
     _CREATE,
@@ -472,7 +483,7 @@ _VERB_PRESENT = re.compile(
     r"|shuffles?|loses?|reveals?|proliferates?|returns?|conjures?|chooses?"
     r"|goads?|rolls?|prevents?|enters?|enter|moves?|plays?|casts?|removes?"
     r"|fights?|switch|switches|adds?|foretells?|adapts?|crews?|stations?|soulshift"
-    r"|regenerates?|converts?)\b",
+    r"|regenerates?|converts?|ends?)\b",
     re.IGNORECASE,
 )
 

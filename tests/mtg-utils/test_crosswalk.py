@@ -1728,6 +1728,15 @@ def test_end_the_turn_excludes_extra_turn():
     assert "end_the_turn" not in _keys("Time Warp")
 
 
+def test_end_the_turn_recovery_promoted():
+    """CR 724 — Obeka's player-scoped grant ("The player whose turn it is
+    may end the turn") is an Unimplemented effect the ADR-0038 shared
+    clause grammar re-decorates (a new player-subject peel + verb tag), so
+    the SAME typed read Time Stop/Sundial of the Infinite use fires here
+    too, no marker special-case."""
+    assert ("end_the_turn", "you", "") in _idents("Obeka, Brute Chronologist")
+
+
 @pytest.mark.parametrize(
     "name", ["Bojuka Bog", "Angel of Finality", "Author of Shadows"]
 )
