@@ -1291,6 +1291,40 @@ def test_phasing_makers_combat_phase_noun_no_fire():
     assert "phasing_makers" not in _keys("Trench Behemoth")
 
 
+@pytest.mark.parametrize("name", ["Equipoise", "Spectral Adversary"])
+def test_phasing_makers_then_compound_clause_grammar_recovery(name):
+    """ADR-0038 deferral sweep: a COMPOUND "..., then ... phase(s) out"
+    clause anchors ``parse_clause`` on its leading verb (Equipoise —
+    choose; Spectral Adversary — put counters), a real match that would
+    short-circuit dispatch before the phasing idiom is ever seen; the
+    ``_THEN_PHASING`` grammar arm (tried first) recognizes the CR 702.26a
+    idiom in the literal-"then" continuation instead."""
+    assert ("phasing_makers", "you", "") in _idents(name)
+
+
+def test_phasing_makers_flip_coin_branch_descent():
+    """ADR-0038 deferral sweep: Frenetic Efreet's ``PhaseOut`` lives NESTED
+    inside the ``FlipCoin`` node's ``win_effect`` branch — never a
+    top-level unit effect, so the per-unit ``effect_concepts`` walk misses
+    it; :func:`iter_typed_nodes`'s generic deep walk reaches it (CR
+    702.26, the Dementia Sliver grant-descent precedent)."""
+    assert ("phasing_makers", "you", "") in _idents("Frenetic Efreet")
+
+
+def test_phasing_makers_no_residue_text_fallback():
+    """ADR-0038 deferral sweep: phase drops Perch Protection's WHOLE "if
+    the gift was promised, all permanents you control phase out" segment —
+    no ``PhaseOut`` node, no Unimplemented raw anywhere in the tree — so
+    the last-resort CR 702.26a idiom match over the reminder-stripped
+    oracle (:func:`_kept`) is the only read that can reach it. The
+    reminder strip is load-bearing: a card that merely GRANTS the Phasing
+    keyword carries the identical "phases in or out" idiom in its CR
+    702.26a REMINDER text (Cloak of Invisibility), and legacy never fires
+    granters."""
+    assert ("phasing_makers", "you", "") in _idents("Perch Protection")
+    assert "phasing_makers" not in _keys("Cloak of Invisibility")
+
+
 def test_voting_makers_allplayers_gate_excludes_friend_or_foe():
     """A council/dilemma vote (Coercive Portal — ``voter_scope: AllPlayers``) fires
     voting_makers /each (CR 701.38); phase OVER-TAGS Battlebond "choose friend or
@@ -3202,6 +3236,58 @@ def test_hand_disruption_hand_revealed_grammar_recovery():
     unconditionally (``ConceptNode.recovered_by``) since the recovered
     ``.node`` carries no target field of its own to re-check."""
     assert ("hand_disruption", "opponents", "") in _idents("Stromgald Spy")
+
+
+def test_hand_disruption_imperative_reveal_hand_grammar_recovery():
+    """ADR-0038 deferral sweep: Alhammarret's "each opponent reveals their
+    hand. You choose the name of a nonland card ..." two-sentence blob is
+    a genuine Unimplemented residue with no other structure; the
+    imperative third-person "reveal(s) {their} hand" grammar arm (token
+    ``reveal_hand``, mirroring the STATIC "hand revealed" idiom's
+    third-person-only gate) recovers it (CR 402.3)."""
+    assert ("hand_disruption", "opponents", "") in _idents("Alhammarret, High Arbiter")
+
+
+def test_hand_disruption_target_creature_controller_shape():
+    """ADR-0038 deferral sweep: Friendly Fire's "target creature's
+    controller reveals a card at random from their hand" binds the reveal
+    to the targeted creature's controller only in PROSE — phase structures
+    a bare ``RevealHand{Any}`` with no player linkage; the corpus-unique
+    TargetOnly{Creature}-first-effect + RevealHand{Any} shape is the
+    structural read."""
+    assert ("hand_disruption", "opponents", "") in _idents("Friendly Fire")
+
+
+@pytest.mark.parametrize("name", ["Thoughtcutter Agent", "Psychotic Episode"])
+def test_hand_disruption_detriment_directed_text_confirmation(name):
+    """ADR-0038 deferral sweep (detriment-directed targeting, Dan
+    2026-07-10): phase structures only the OTHER half of the compound
+    (Thoughtcutter Agent's ``LoseLife``; Psychotic Episode's
+    ``RevealTop``) — the hand-reveal half leaves no node at all. A
+    detriment-directed recipient (:func:`detriment_directed_scope` ==
+    "opponents"; CR 603.3d's targeting freedom acknowledged, not
+    contradicted) COMBINED with the ability's own text confirming the
+    specific missing "reveals their hand" fact fires the lane."""
+    assert ("hand_disruption", "opponents", "") in _idents(name)
+
+
+def test_hand_disruption_each_player_symmetric_shed():
+    """ADR-0038 deferral sweep: Wild Evocation ("at the beginning of EACH
+    PLAYER'S upkeep, that player reveals a card at random ...") is the
+    each-player SYMMETRIC class — an adjudicated legacy over-fire SHED.
+    "Each player" is never folded into "opponents"; it is the
+    detriment-directed principle's own stated boundary (its RevealHand
+    target is ``ScopedPlayer``, a per-iteration trigger variable)."""
+    assert "hand_disruption" not in _keys("Wild Evocation")
+
+
+def test_hand_disruption_controller_backreference_recall_gain():
+    """ADR-0038 deferral sweep: Lay Bare's "Counter target spell. Look at
+    its controller's hand." back-references the countered spell's
+    controller — legacy's regex misses the backreference, an adjudicated
+    beyond-legacy RECALL GAIN over the same look-at-hand class legacy
+    already fires (Peek, Glasses of Urza)."""
+    assert ("hand_disruption", "opponents", "") in _idents("Lay Bare")
 
 
 # ── batch 9: the three adjudicated batch-8 follow-up fixes ────────────────────
