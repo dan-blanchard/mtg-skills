@@ -1614,6 +1614,29 @@ def test_player_counter_makers_do_not_cross():
     assert "rad_counter_makers" not in _keys("Mizzix of the Izmagnus")
 
 
+def test_rad_counter_makers_whole_card_residue():
+    """ADR-0038 W1 batch-4: most rad clauses land as an Unimplemented "get
+    ... rad counters" effect the shared clause grammar's KIND-BLIND
+    "get(s) ... counter(s)" token can't safely recover (it also matches
+    +1/+1 / ki / oil / shield / poison / energy). Legacy's OWN detection
+    is a whole-card raw-text fallback (project._RAD_REF, ANY direction,
+    scope "opponents", gated to no structural rad effect) — mirrored
+    byte-for-byte: Contaminated Drink's "you get half X rad counters",
+    Feral Ghoul's trigger-carried "each opponent gets a number of rad
+    counters", Harold and Bob, First Numens' clause buried inside a
+    granted quoted ability text with NO node of any kind, and Survivor's
+    Med Kit's OPPOSITE direction ("Target player loses all rad
+    counters") all fire — legacy's fallback doesn't discriminate
+    give vs. lose. CR 122.1i / 728."""
+    for name in (
+        "Contaminated Drink",
+        "Feral Ghoul",
+        "Harold and Bob, First Numens",
+        "Survivor's Med Kit",
+    ):
+        assert ("rad_counter_makers", "opponents", "") in _idents(name), name
+
+
 def test_experience_matters_scaler():
     """Ezuri scales a +1/+1 placement by experience counters (Ref.qty=PlayerCounter
     kind=Experience) → experience_matters you (CR 122.1)."""

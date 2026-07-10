@@ -734,7 +734,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "phasing_makers",
         "plus_one_matters",
         "poison_makers",
-        "rad_counter_makers",
         "ramp",
         "regenerate_makers",
         "ring_matters",
@@ -3208,13 +3207,49 @@ def _counter_kind_lanes(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+_RAD_REF = re.compile(r"\brad counters?\b", re.IGNORECASE)
+
+
+def _has_native_rad_counter(tree: ConceptTree) -> bool:
+    """Whether a NATIVE rad-kind counter source already fires structurally
+    (a ``GivePlayerCounter`` OR a ``PutCounter`` typed to "rad") — the
+    ADR-0038 whole-card residue mirror's gate, mirroring old-IR's own
+    ``has_rad`` check (``project.py``'s ``_RAD_REF`` face marker)."""
+    for c in tree.effect_concepts("give_player_counter"):
+        if player_counter_kind(c.node).lower() == "rad":
+            return True
+    for c in tree.effect_concepts("place_counter"):
+        if counter_kind(c.node).upper() == "RAD":
+            return True
+    return False
+
+
 def _player_counter_makers(tree: ConceptTree) -> list[Signal]:
     """rad_counter_makers / experience_makers — a ``GivePlayerCounter`` DOER (CR
-    122.1 / 728). The card gives a player a rad (a mill-and-bleed kill clock,
-    fixed scope ``opponents``) or an experience counter (a personal resource,
-    scope ``you``) — read off the typed ``counter_kind``, the kind the OLD lossy
-    IR split into per-kind effect categories. Tato Farmer → rad; Mizzix / Ezuri →
-    experience. The poison giver routes to its own ``poison_makers`` lane.
+    122.1i / 728) OR a rad-counter clause phase mangles/drops entirely (a
+    whole-card residue mirror). The card gives a player a rad (a
+    mill-and-bleed kill clock, fixed scope ``opponents``) or an experience
+    counter (a personal resource, scope ``you``) — read off the typed
+    ``counter_kind``, the kind the OLD lossy IR split into per-kind effect
+    categories. Tato Farmer → rad; Mizzix / Ezuri → experience. The poison
+    giver routes to its own ``poison_makers`` lane.
+
+    ADR-0038 W1 batch-4: most rad clauses land as an Unimplemented "get ...
+    rad counters" effect (Contaminated Drink, Feral Ghoul, Mariposa
+    Military Base, Nuclear Fallout, Nuka-Nuke Launcher, Struggle for
+    Project Purity, Vexing Radgull), inside a granted quoted ability text
+    with no node at all (Harold and Bob, First Numens), or on the OTHER
+    direction entirely ("loses all rad counters" — Survivor's Med Kit).
+    The shared clause grammar's generic "get(s) ... counter(s)" token is
+    KIND-BLIND (it also matches +1/+1, ki, oil, shield, poison, energy —
+    recovering it to a concrete concept would misroute every OTHER
+    counter kind sharing that idiom), so this is NOT a
+    :data:`recovery.ALLOWLIST` case. Legacy's OWN detection for this key
+    is likewise a WHOLE-CARD raw-text fallback (``project._RAD_REF``,
+    scope "opponents", gated to cards with no structural rad effect, ANY
+    direction) — mirrored byte-for-byte here (a SANCTIONED byte-identical
+    mirror port, like the stax census / entered_attacker lanes) rather
+    than widened into the shared grammar.
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -3223,6 +3258,12 @@ def _player_counter_makers(tree: ConceptTree) -> list[Signal]:
         if lane and lane[0] not in seen:
             seen.add(lane[0])
             out.append(Signal(lane[0], lane[1], "", c.raw, tree.name, "high"))
+    if (
+        "rad_counter_makers" not in seen
+        and not _has_native_rad_counter(tree)
+        and _RAD_REF.search(_kept(tree))
+    ):
+        out.append(Signal("rad_counter_makers", "opponents", "", "", tree.name, "high"))
     return out
 
 
