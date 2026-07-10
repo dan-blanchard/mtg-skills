@@ -220,6 +220,12 @@ EFFECT_CONCEPTS: dict[str, str] = {
     # and the dig_until lane's structural arm cover BOTH tags with no lane
     # change (~25-card corpus recovery, ADR-0037/0038 W3).
     "ExileFromTopUntil": "reveal_until",
+    # ``SkipNextStep`` (a phase v0.20 addition — ADR-0037/0038 W3; the tap_down
+    # docstring's "no SkipStep node in v0.9.0" note is now STALE) is the
+    # "skips their next untap step" tempo-skip (Brine Elemental, Shisato) —
+    # a DISTINCT effect from ``SetTapState``, read via its own ``step``/
+    # ``target`` fields by the tap_down lane's dedicated arm below.
+    "SkipNextStep": "skip_next_step",
     "Double": "double_quantity",  # counter_doubling arm b (CR 122.1)
     "MultiplyCounter": "multiply_counter",  # counter_doubling arm c
     # Batch 12 (ADR-0035 Stage 2) — the life-total / control-exchange
@@ -2630,6 +2636,50 @@ def _find_owner_wrapper(
                 if r is not None:
                     return r
     return None
+
+
+def effect_owner_raw(root: object, effect_node: object) -> str:
+    """The ``description`` grounding clause on the wrapper that DIRECTLY owns
+    ``effect_node`` (mirrors :func:`effect_owner_duration`'s walk, but reads
+    the CLAUSE text instead of the duration tag) — the isolated single-clause
+    text a ``ParentTarget``/``TrackedSet`` backreference's real target
+    filter is described by, one level closer than the unit's own top-level
+    description (which spans every sibling clause and so cannot
+    disambiguate WHICH one names an opponent — Mind Spiral / Snaremaster
+    Sprite / Stunning Shot / Crashing Wave's stun-counter tail: "tap target
+    creature an opponent controls and put a stun counter on it" lives on
+    the wrapper owning the ``SetTapState``, not on a sibling "you control"
+    clause elsewhere in the same ability). ``""`` when the owner is
+    unresolvable or carries no description of its own.
+    """
+    owner = _find_owner_wrapper(root, effect_node, 0, set())
+    return _node_raw(owner) if owner is not None else ""
+
+
+def effect_owner_targets_per_opponent(root: object, effect_node: object) -> bool:
+    """Whether the wrapper that DIRECTLY owns ``effect_node`` carries a
+    ``multi_target`` count that scales by opponent count — phase's
+    structural form of "for each opponent, <single-target effect>" (Juvenile
+    Mist Dragon: ``multi_target.max`` is a ``PlayerCount`` qty filtered to
+    ``Opponent``). This is a DIFFERENT tell from the effect's own target
+    filter's ``controller`` (which reads the loop's bound iteration
+    variable, e.g. ``TargetPlayer`` — ambiguous on its own); the wrapper's
+    per-opponent CARDINALITY is unambiguous. CR 506.4's "each opponent"
+    multiplayer default.
+    """
+    owner = _find_owner_wrapper(root, effect_node, 0, set())
+    if owner is None:
+        return False
+    mt = getattr(owner, "multi_target", MISSING)
+    if not isinstance(mt, TypedMirrorNode):
+        return False
+    mx = getattr(mt, "max", None)
+    if not isinstance(mx, TypedMirrorNode) or tag_of(mx) != "Ref":
+        return False
+    qty = getattr(mx, "qty", None)
+    if not isinstance(qty, TypedMirrorNode) or tag_of(qty) != "PlayerCount":
+        return False
+    return tag_of(getattr(qty, "filter", None)) == "Opponent"
 
 
 def effect_owner_duration(root: object, effect_node: object) -> str | None:

@@ -59,6 +59,8 @@ from mtg_utils._card_ir.crosswalk import (
     effect_filter,
     effect_owner_duration,
     effect_owner_player_scope,
+    effect_owner_raw,
+    effect_owner_targets_per_opponent,
     effect_reaches_player,
     entered_this_turn_filters,
     explicit_recipient_scope,
@@ -736,7 +738,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "sacrifice_outlets",
         "scaling_pump",
         "second_spell_matters",
-        "tap_down",
         "target_player_draws",
         "team_evasion_grant",
         "token_maker",
@@ -6816,6 +6817,69 @@ def _noncreature_cast_punish(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ADR-0037/0038 W3: the tap_down ParentTarget/TrackedSet clause-level
+# fallback — "that player controls" (an anaphoric back-reference to an
+# opponent named earlier in the SAME isolated clause) or an explicit
+# "opponent(s) control(s)" phrase. Read via :func:`effect_owner_raw` (the
+# DIRECT owning wrapper's own clause, never the unit's whole multi-clause
+# description — see the call site), and only ever consulted AFTER a genuine
+# Tap effect is already structurally confirmed, so this never broadens which
+# cards carry a tap — only which DIRECTION an already-confirmed tap
+# resolves to.
+_OPPONENT_CONTROLS_TAP_RE = re.compile(
+    r"\bthat player controls\b|\b(?:that |an |your )?opponents? controls?\b",
+    re.IGNORECASE,
+)
+# ADR-0037/0038 W3: the tap_down trigger-phase mis-stamp idiom — "on each
+# opponent's turn" — deliberately narrower than ``_OPPONENT_CONTROLS_TAP_RE``
+# (see the call site for why "each player's" must NOT match).
+_OPPONENTS_TURN_RE = re.compile(r"\bopponent'?s turn\b", re.IGNORECASE)
+# ADR-0037/0038 W3 no-residue class: "for each opponent, tap ... THAT
+# OPPONENT controls" (Omega, Heartless Evolution) — phase drops the
+# per-opponent loop structure entirely, so only a whole-card, tightly-scoped
+# idiom match recovers it (see the call site).
+_FOR_EACH_OPPONENT_TAP_RE = re.compile(
+    r"\bfor each opponent\b[^.]*\btap\b[^.]*\bopponent controls\b", re.IGNORECASE
+)
+_TAP_WORD_RE = re.compile(r"\btaps?\b", re.IGNORECASE)
+
+
+def _tap_sentence(text: str) -> str:
+    """The sentence(s) naming "tap" from a multi-sentence clause — isolates
+    a compound description's OWN tap clause from an unrelated SIBLING
+    clause naming a different creature's controller (Coordinated
+    Clobbering: "Tap ... you control. They deal damage ... an opponent
+    controls." — only the FIRST sentence is the tap's own; a period-joined
+    compound is common when the tap is the OUTERMOST effect in its ability,
+    so its "owner" per :func:`effect_owner_raw` is the whole multi-sentence
+    text, not an isolated nested clause). Returns ``text`` unchanged when no
+    sentence names "tap" (nothing to narrow)."""
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    hits = [s for s in sentences if _TAP_WORD_RE.search(s)]
+    return " ".join(hits) if hits else text
+
+
+def _tap_owner_text(tree: ConceptTree, unit: AbilityUnit, node: object) -> str:
+    """The text source for the tap_down clause-level fallback: the DIRECT
+    owning wrapper's own raw (:func:`effect_owner_raw`); when THAT is empty
+    AND the unit's own top-level description is ALSO empty (Delirium: a
+    single-ability spell whose "Cast this spell only during an opponent's
+    turn" restriction is a card-level ``casting_restrictions`` field with
+    no ability/wrapper description anywhere to carry it), falls all the way
+    to the whole-card oracle text. Deliberately NOT a fallback when the
+    unit's OWN description is merely non-empty but unrelated (Dread
+    Cacodemon, Nihiloor: a real but DIFFERENT compound-sentence description
+    exists — falling through past it to the card level would risk pulling
+    in an unrelated sibling ability's text on a MULTI-ability card; a
+    single-ability spell has no such sibling to confuse it with)."""
+    raw = effect_owner_raw(unit.node, node)
+    if raw:
+        return raw
+    if getattr(unit.node, "description", None):
+        return ""
+    return tree.oracle or ""
+
+
 def _tap_lanes(tree: ConceptTree) -> list[Signal]:
     """tap_down + tapper_engine — the CR 701.26a tap-doer pair, one shared
     effect walk (a tap-as-COST emits no ``SetTapState`` effect — Prodigal
@@ -6835,10 +6899,20 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
       nested static ``mode: CantUntap``). Self-taps (SelfRef) and untap
       engines (state Untap) never fire. Scope "any".
 
-    Logged SUPPLEMENT tails (live-documented, phase-confirmed): the
-    anaphoric "tap target creature that player controls"; the "skips their
-    next untap step" tempo-skip (no SkipStep node in v0.9.0); the aura/morph
-    untap-lock statics.
+    ADR-0037/0038 W3: ``TargetOpponent`` joins the always-opponent controller
+    set; a no-residue text fallback (:data:`_OPPONENT_CONTROLS_TAP_RE`, run
+    only AFTER a Tap effect is already structurally confirmed) recovers three
+    shapes the effect's own ``target`` field never carries the digger on — a
+    ``controller: You``/``TriggeringPlayer`` mis-stamp bound to an opponent
+    named earlier in the clause, a ``controller: null`` "for each opponent"
+    loop phase drops entirely, and a ``ParentTarget`` sub-effect whose real
+    target filter lives on an earlier SequentialSibling. ``SkipNextStep{step:
+    Untap}`` (a phase v0.20 addition superseding the old "no SkipStep node in
+    v0.9.0" note) recovers the "skips their next untap step" tempo-skip
+    structurally.
+
+    Logged SUPPLEMENT tail (live-documented, phase-confirmed): the
+    aura/morph untap-lock statics.
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -6856,9 +6930,11 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                 if settap_state(c.node) != "Tap":
                     continue
                 tgt = getattr(c.node, "target", None)
-                if tag_of(tgt) not in ("Typed", "Or", "And"):
-                    continue  # SelfRef self-tap / no real target
-                fire("tapper_engine", "any", c.raw)
+                ttag = tag_of(tgt)
+                if ttag == "SelfRef":
+                    continue  # self-tap, no real target
+                if ttag in ("Typed", "Or", "And"):
+                    fire("tapper_engine", "any", c.raw)
                 ctrl = filter_controller(tgt)
                 # b11 follow-up (b), adjudicated: DefendingPlayer is
                 # opponent-directed BY RULE (CR 506.2 — the defending player
@@ -6868,14 +6944,140 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                 # Moradin's Myriad rider — ~25 of 44 live_only recovered);
                 # the one-shot/activated TargetPlayer sweeps (Sleep,
                 # Dawnglare Invoker) are the genuine supplement tail.
-                if ctrl in ("Opponent", "DefendingPlayer") or (
-                    ctrl == "TargetPlayer"
-                    and unit.origin == "trigger"
-                    and unit.trigger_event in ("attacks", "deals_damage")
+                # ADR-0037/0038 W3: ``TargetOpponent`` (a "target opponent"
+                # PLAYER already chosen, "tap all creatures TARGET OPPONENT
+                # controls" — Assassin Gauntlet, Tempest Caller, Dovin's -9,
+                # Kiora Bests the Sea God's Dragons chapter) is unambiguously
+                # opponent-directed by its own tag, joining Opponent
+                # unconditionally like DefendingPlayer.
+                # ADR-0037/0038 W3 follow-up: ``TriggeringPlayer``/``You``
+                # join when the trigger's OWN watched-object filter is
+                # itself opponent-scoped (War's Toll: "whenever AN OPPONENT
+                # taps a land for mana, tap all lands THAT PLAYER
+                # controls"; Mana Web: "whenever a land AN OPPONENT
+                # controls is tapped for mana, tap all lands THAT PLAYER
+                # controls" — a ``controller: You`` mis-stamp on the SAME
+                # idiom) — ``valid_card.controller == "Opponent"`` on the
+                # SAME trigger unit means the bound "that player"/"you" IS
+                # that opponent by definition, never a bare "any player"
+                # watcher.
+                if (
+                    ctrl in ("Opponent", "DefendingPlayer", "TargetOpponent")
+                    or (
+                        ctrl == "TargetPlayer"
+                        and unit.origin == "trigger"
+                        and unit.trigger_event in ("attacks", "deals_damage")
+                    )
+                    or (
+                        ctrl in ("TriggeringPlayer", "You")
+                        and unit.origin == "trigger"
+                        and filter_controller(getattr(unit.node, "valid_card", None))
+                        == "Opponent"
+                    )
                 ):
+                    fire("tap_down", "opponents", c.raw)
+                elif _OPPONENT_CONTROLS_TAP_RE.search(
+                    _tap_sentence(_tap_owner_text(tree, unit, c.node))
+                ):
+                    # ADR-0037/0038 W3: a ``ParentTarget``/``TrackedSet``
+                    # sub-effect whose REAL target filter lives on an
+                    # earlier SIBLING in the SequentialSibling chain, never
+                    # on this node (Mind Spiral, Snaremaster Sprite,
+                    # Stunning Shot, Crashing Wave's stun-counter tail —
+                    # "tap target creature an opponent controls and put a
+                    # stun counter on it"). Read via the DIRECT owning
+                    # wrapper's OWN isolated clause text
+                    # (:func:`effect_owner_raw`), narrowed to the sentence
+                    # actually naming "tap" (:func:`_tap_sentence`) —
+                    # Coordinated Clobbering / Spirit Flare's OUTERMOST tap
+                    # effect has NO nested wrapper of its own, so its
+                    # "owner" is the whole multi-sentence ability
+                    # ("Tap ... you control. They deal damage ... an
+                    # opponent controls.") — the sentence split is what
+                    # keeps that SIBLING clause's opponent reference from
+                    # over-firing tap_down on a self-targeted tap
+                    # (corpus-verified: an unsplit owner-raw match
+                    # over-fired on both).
+                    fire("tap_down", "opponents", c.raw)
+                elif ctrl == "TargetPlayer" and effect_owner_targets_per_opponent(
+                    unit.node, c.node
+                ):
+                    # ADR-0037/0038 W3: a "for each opponent, tap up to one
+                    # target creature THAT PLAYER controls" loop (Juvenile
+                    # Mist Dragon) — the ``TargetPlayer`` bound variable is
+                    # ambiguous alone (b11's own docstring above), but the
+                    # WRAPPER's ``multi_target.max`` scaling by opponent
+                    # COUNT (``PlayerCount`` qty filtered to ``Opponent``)
+                    # is unambiguous: CR 506.4's "each opponent" default.
+                    fire("tap_down", "opponents", c.raw)
+                elif ctrl is None and _FOR_EACH_OPPONENT_TAP_RE.search(
+                    tree.oracle or ""
+                ):
+                    # ADR-0037/0038 W3 no-residue class: "for each
+                    # opponent, tap up to one target permanent THAT
+                    # OPPONENT controls" (Omega, Heartless Evolution's Wave
+                    # Cannon) — phase drops the per-opponent loop structure
+                    # ENTIRELY (``controller: null``, ``multi_target: Fixed
+                    # (1)``, no ``repeat_for`` — the SAME SwallowedClause-
+                    # class parser gap dig_until's own no-residue fallback
+                    # recovers), so no per-unit field survives to read.
+                    # Whole-card, gated on the rare, specific "for each
+                    # opponent … tap … opponent controls" idiom (never a
+                    # bare "opponent controls" — no cross-clause
+                    # misattribution risk).
+                    fire("tap_down", "opponents", c.raw)
+                elif ctrl == "You" and _OPPONENTS_TURN_RE.search(
+                    getattr(unit.node, "description", None) or ""
+                ):
+                    # ADR-0037/0038 W3: phase mis-stamps ``controller: You``
+                    # on "at the beginning of combat on each OPPONENT'S
+                    # TURN, tap target creature that player controls"
+                    # (Citadel Siege's Dragons mode, Sentinel of the
+                    # Eternal Watch) — the SAME per-iteration-variable
+                    # mis-stamp class as RevealUntil's [P28] "their
+                    # library" bug. Deliberately NARROWER than the
+                    # ``_OPPONENT_CONTROLS_TAP_RE`` clause-level check above
+                    # (requires the literal "opponent's turn", never "each
+                    # PLAYER's turn/step") — Angel's Trumpet / Monsoon's
+                    # genuinely SYMMETRIC "each player's end step, tap ...
+                    # that player controls" must NOT fire (corpus-verified:
+                    # an unscoped "that player controls" match alone
+                    # over-fired on both).
                     fire("tap_down", "opponents", c.raw)
             elif c.concept == "detain":
                 fire("tap_down", "opponents", c.raw)
+            elif c.concept == "skip_next_step":
+                # ADR-0037/0038 W3: ``SkipNextStep{step: Untap}`` (a phase
+                # v0.20 addition — CR 502.3's "kept from untapping" family)
+                # is a DISTINCT effect from SetTapState — "each opponent
+                # skips their next untap step" (Brine Elemental, Shisato,
+                # Whispering Hunter). Opponent-directed via EITHER the
+                # effect's own ``target`` tag or the owning wrapper's
+                # ``player_scope`` actor (Brine Elemental's TurnFaceUp
+                # trigger carries the "each opponent" edict on the WRAPPER,
+                # target itself reads Controller — the per-opponent
+                # iteration variable, mirroring
+                # effect_owner_player_scope's own Nihiloor precedent). A
+                # bare TriggeringPlayer target joins ONLY under an
+                # attack/damage-trigger unit, the same b11 discipline as
+                # SetTapState's TargetPlayer arm above (Shisato's "deals
+                # combat damage to a player, THAT PLAYER skips ...").
+                step = getattr(c.node, "step", None)
+                if tag_of(step) != "Step" or getattr(step, "data", None) != "Untap":
+                    continue
+                tgt = getattr(c.node, "target", None)
+                ttag = tag_of(tgt)
+                owner_scope = effect_owner_player_scope(unit.node, c.node)
+                if (
+                    ttag in ("Opponent", "Opponents", "EachOpponent", "DefendingPlayer")
+                    or owner_scope in ("Opponent", "Opponents", "EachOpponent")
+                    or (
+                        ttag == "TriggeringPlayer"
+                        and unit.origin == "trigger"
+                        and unit.trigger_event in ("attacks", "deals_damage")
+                    )
+                ):
+                    fire("tap_down", "opponents", c.raw)
         for sdef in iter_static_defs(unit.node):
             if static_mode_tag(sdef) == "CantUntap":
                 fire("tapper_engine", "any", _site_raw(sdef))

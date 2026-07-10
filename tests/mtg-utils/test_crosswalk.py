@@ -4709,6 +4709,79 @@ def test_tap_down_defending_player_and_gated_target_player():
     assert "tap_down" not in _keys("Dawnglare Invoker")
 
 
+def test_tap_down_target_opponent_and_skip_next_step():
+    """ADR-0037/0038 W3: ``TargetOpponent`` ("tap all creatures TARGET
+    OPPONENT controls" — Assassin Gauntlet) joins the always-opponent set
+    unconditionally; ``SkipNextStep{step: Untap}`` (a phase v0.20 addition,
+    CR 502.3) is a DISTINCT effect from SetTapState — "each opponent skips
+    their next untap step" (Brine Elemental) fires via the wrapper's own
+    ``player_scope`` actor, not the effect's own ``target`` (which reads
+    Controller, the per-opponent iteration variable)."""
+    assert ("tap_down", "opponents", "") in _idents("Assassin Gauntlet")
+    assert ("tap_down", "opponents", "") in _idents("Brine Elemental")
+
+
+def test_tap_down_opponents_turn_mis_stamp():
+    """ADR-0037/0038 W3: phase mis-stamps ``controller: You`` on "at the
+    beginning of combat on each OPPONENT'S TURN, tap target creature that
+    player controls" (Citadel Siege's Dragons chapter — the SAME
+    per-iteration-variable mis-stamp class as RevealUntil's [P28] "their
+    library" bug), recovered via the unit's own raw text."""
+    assert ("tap_down", "opponents", "") in _idents("Citadel Siege")
+
+
+def test_tap_down_parent_target_clause_fallback_and_self_tap_no_fire():
+    """ADR-0037/0038 W3: a ``ParentTarget`` sub-effect whose real target
+    filter lives on an earlier SIBLING in the SequentialSibling chain
+    ("tap target creature an opponent controls and put a stun counter on
+    it" — Mind Spiral) is read via the DIRECT owning wrapper's own
+    ISOLATED clause text, narrowed to the sentence naming "tap". Dread
+    Cacodemon's "destroy all creatures your opponents control, then tap
+    all OTHER creatures YOU control" must NOT fire — the tap's own
+    controller is You and its DIRECT owning wrapper carries no isolated
+    clause text of its own, so the unrelated sibling "opponents control"
+    phrase (attributable to the destroy, not the tap) is never consulted
+    (a corpus-verified over-fire class this sentence-isolation fixes)."""
+    assert ("tap_down", "opponents", "") in _idents("Mind Spiral")
+    assert "tap_down" not in _keys("Dread Cacodemon")
+
+
+def test_tap_down_triggering_player_opponent_scoped_watcher():
+    """ADR-0037/0038 W3: a trigger whose OWN watched-object filter is
+    opponent-scoped (Mana Web: "whenever a land AN OPPONENT controls is
+    tapped for mana, tap all lands THAT PLAYER controls" — a
+    ``controller: You`` mis-stamp on the SAME idiom War's Toll's
+    ``TriggeringPlayer`` carries structurally) fires via
+    ``valid_card.controller == "Opponent"`` on the trigger unit — the
+    bound "you"/"that player" IS that opponent by definition."""
+    assert ("tap_down", "opponents", "") in _idents("Mana Web")
+
+
+def test_tap_down_per_opponent_multi_target_and_no_residue_fallback():
+    """ADR-0037/0038 W3: a "for each opponent, tap up to one target
+    creature THAT PLAYER controls" loop reads structurally two ways —
+    Juvenile Mist Dragon's wrapper carries a real ``multi_target.max``
+    scaled by opponent COUNT (``PlayerCount`` qty filtered to
+    ``Opponent`` — CR 506.4's "each opponent" default), while Omega,
+    Heartless Evolution's Wave Cannon drops the per-opponent loop
+    structure ENTIRELY (a genuine no-residue class phase's own parser
+    swallows — the SAME class dig_until's own no-residue fallback
+    recovers), caught only by the tightly-scoped whole-card idiom match."""
+    assert ("tap_down", "opponents", "") in _idents("Juvenile Mist Dragon")
+    assert ("tap_down", "opponents", "") in _idents("Omega, Heartless Evolution")
+
+
+def test_tap_down_casting_restriction_oracle_fallback():
+    """ADR-0037/0038 W3: Delirium's "Cast this spell only during an
+    opponent's turn" restriction is a card-level ``casting_restrictions``
+    field with no ability/wrapper description anywhere to carry it — the
+    ``controller: You`` mis-stamped "Tap target creature that player
+    controls" clause is recovered via the LAST-RESORT whole-card oracle
+    fallback (single-ability spell, so no sibling-clause misattribution
+    risk — see ``_tap_owner_text``)."""
+    assert ("tap_down", "opponents", "") in _idents("Delirium")
+
+
 # ── Batch 13: §A pure Scryfall-keyword field-lookups ─────────────────────────
 
 
