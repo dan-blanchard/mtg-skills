@@ -2411,6 +2411,83 @@ def test_mana_amplifier_excludes_single_land_ramp_aura():
     assert "mana_amplifier" not in _keys("Wild Growth")
 
 
+# ADR-0038 W3 batch 2 unit 1 — the ``TriggerEventManaType`` produced-tag arm
+# ("add one mana of any type that [land/permanent] produced" — CR 106.4 /
+# 605): a DISTINCT typed shape from the ``Additional``-contribution arm
+# (Crypt Ghast) above, since ``contribution`` is unset on this variant.
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Mirari's Wake",  # land tap -> match-type doubler
+        "Zendikar Resurgent",  # land tap -> match-type doubler
+        "Vorinclex, Voice of Hunger",  # land tap -> match-type doubler
+        "Nikya of the Old Ways",  # land tap -> match-type doubler
+        "Kinnan, Bonder Prodigy",  # NONLAND permanent tap
+        "Roxanne, Starfall Savant",  # artifact TOKEN tap
+        "Sasaya's Essence",  # per-other-namesake-land scaling variant
+    ],
+)
+def test_mana_amplifier_trigger_event_mana_type(name):
+    """The TapsForMana trigger's ``Mana`` effect ``produced`` tag
+    ``TriggerEventManaType`` is a doubler regardless of the watched
+    producer's card type (land / nonland permanent / token) — CR 106.4."""
+    assert ("mana_amplifier", "you", "") in _idents(name)
+
+
+def test_mana_amplifier_double_mana_pool():
+    """Doubling Cube's "{3}, {T}: Double the amount of each type of unspent
+    mana you have" is a whole-card ``double_quantity`` (``Double`` effect,
+    any origin — CR 106.4) whose ``target_kind`` is ``ManaPool``, mirroring
+    the sibling ``life_total_set`` / counter-doubling ``Double`` reads."""
+    assert ("mana_amplifier", "you", "") in _idents("Doubling Cube")
+
+
+def test_mana_amplifier_dork_support_word_mirror():
+    """Raggadragga, Goreguts Boss's "Each creature you control with a mana
+    ability gets +2/+2" is a filtered team-pump (CR 605) phase's static
+    parser cannot express (Unimplemented residue, no filter node to recover
+    structurally) — last-resort word mirror, corpus-verified singleton
+    (the only commander-legal card with the literal singular phrase "with a
+    mana ability"; Power Sink's "lands with mana abilities" is the plural,
+    unrelated tax-effect form)."""
+    assert ("mana_amplifier", "you", "") in _idents("Raggadragga, Goreguts Boss")
+
+
+# ADR-0038 W3 batch 2 unit 1 — beyond-legacy gains: SYMMETRIC "whenever a
+# player taps a land for mana, that player adds one mana of any type that
+# land produced" doublers. The legacy regex's ``add (?:an additional|...)``
+# alternation requires the literal imperative "add", so third-person "adds"
+# (the "that player adds" phrasing every symmetric doubler uses) never
+# matched — an incidental legacy gap, not a deliberate any-vs-you policy
+# (Gauntlet of Might / Gauntlet of Power / Vernal Bloom / Nyxbloom Ancient
+# are the SAME symmetric-or-controller-scoped shape and were already
+# pre-existing crosswalk-only gains before this batch). CR 106.4 doublers
+# are doublers regardless of who benefits; the signal's "you" scope (matching
+# every other mana_amplifier arm) reads "you get build-around value from
+# having this doubler in play", not "only you benefit".
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Mana Flare",
+        "Heartbeat of Spring",
+        "Dictate of Karametra",
+        "Zhur-Taa Ancient",
+        "Lavaleaper",  # basic lands only, still the same produced tag
+        "Overabundance",  # doubler + self-damage rider, doubler arm alone gates
+        "Winter's Night",  # doubler + opponent no-untap rider
+        "Barbflare Gremlin",  # doubler conditional on Barbflare being tapped
+        "Gauntlet of Might",  # pre-existing (Additional-contribution arm)
+        "Gauntlet of Power",  # pre-existing (Additional-contribution arm)
+        "Vernal Bloom",  # pre-existing (Additional-contribution arm)
+        "Nyxbloom Ancient",  # pre-existing (Multiply x3 replacement arm)
+    ],
+)
+def test_mana_amplifier_symmetric_beyond_legacy_gain(name):
+    """Symmetric / any-controller mana doublers fire mana_amplifier — a
+    genuine beyond-legacy recall gain, not an over-fire (CR 106.4)."""
+    assert ("mana_amplifier", "you", "") in _idents(name)
+
+
 @pytest.mark.parametrize(
     ("name", "should_fire"),
     [

@@ -726,7 +726,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "lifeloss_makers",
         "low_power_matters",
         "lure_makers",
-        "mana_amplifier",
         "minus_counters_matter",
         "opponent_discard",
         "plus_one_matters",
@@ -4257,9 +4256,17 @@ def _is_scaling_count(node: TypedMirrorNode, fields: tuple[str, ...], raw: str) 
     return False
 
 
+# ADR-0038 W3 batch 2 — the mana_amplifier dork-support word mirror (the
+# EXACT deleted live ``_MANA_DORK_SUPPORT_MIRROR`` regex, CR 605.1). See the
+# "Last-resort word mirror" note on ``_mana_amplifier`` for the corpus-
+# uniqueness verification (Raggadragga, Goreguts Boss only).
+_MANA_DORK_SUPPORT_RX = re.compile(
+    r"creatures?[^.]*\bwith a mana abilit", re.IGNORECASE
+)
+
+
 def _mana_amplifier(tree: ConceptTree) -> list[Signal]:
-    """mana_amplifier — a mana DOUBLER (CR 106.4 / 605.1 / 614.1). Two typed
-    arms:
+    """mana_amplifier — a mana DOUBLER (CR 106.4 / 605 / 614.1). Four arms:
 
     * a ``ProduceMana`` REPLACEMENT whose ``mana_modification`` is a
       ``Multiply`` ("it produces twice/three times as much … instead" — Mana
@@ -4274,10 +4281,37 @@ def _mana_amplifier(tree: ConceptTree) -> list[Signal]:
       ``Typed`` CLASS of permanents (every Swamp / every Mountain — Gauntlet
       of Might); a single ENCHANTED land's tap (``AttachedTo`` — Wild Growth,
       Utopia Sprawl) is a ramp Aura, not a doubling engine.
+    * (ADR-0038 W3 batch 2) the SAME ``TapsForMana`` TRIGGER whose ``Mana``
+      effect's ``produced`` is tagged ``TriggerEventManaType`` — "add one
+      mana of any type that [land/permanent] produced" (Mirari's Wake,
+      Zendikar Resurgent, Vorinclex, Nikya of the Old Ways, Kinnan, Bonder
+      Prodigy, Roxanne, Starfall Savant, Sasaya's Essence). This is a
+      DISTINCT typed shape from the ``Additional``-contribution arm above
+      (``contribution`` is unset on this variant — the doubling is carried
+      by the "matches what was produced" tag itself, not a contribution
+      marker), so it needs its own check rather than widening
+      ``produced_contribution``'s single string comparison.
+    * (ADR-0038 W3 batch 2) a whole-card ``double_quantity`` concept (any
+      ``Double`` effect, any origin — CR 106.4) whose ``target_kind`` is
+      ``ManaPool`` (Doubling Cube's "{3}, {T}: Double the amount of each
+      type of unspent mana you have" activated ability) — mirrors the
+      sibling ``life_total_set`` / counter-doubling ``Double{target_kind}``
+      reads (``double_target_kind``), just for the mana-pool target.
+
+    Last-resort word mirror (ADR-0038 W3 batch 2, the Perch Protection
+    precedent): Raggadragga, Goreguts Boss's "Each creature you control with
+    a mana ability gets +2/+2" is a filtered team-pump whose filter
+    ("with a mana ability" — CR 605) phase's static parser cannot express
+    (it lands as a role=effect ``Unimplemented`` residue with no
+    filter-shaped node to recover structurally; the pump target has no
+    subject at all). Corpus-verified singleton: the whole commander-legal
+    bulk corpus has exactly one card with the literal singular phrase
+    "with a mana ability" (grepped 2026-07 — Power Sink's "lands with mana
+    abilities" is the plural form and an unrelated tax effect, so this
+    idiom is never the deciding vote for an over-fire class).
 
     The generic ramp lane keeps co-firing where applicable (additive, matching
-    the live path). Doubling Cube's "double the amount of unspent mana" stays
-    a ``live_only`` residue. Scope "you".
+    the live path). Scope "you".
     """
     for unit in tree.units:
         if unit.origin == "replacement":
@@ -4291,10 +4325,19 @@ def _mana_amplifier(tree: ConceptTree) -> list[Signal]:
             if tag_of(getattr(unit.node, "valid_card", None)) != "Typed":
                 continue  # AttachedTo single-land Aura — ramp, not a doubler
             for c in unit.effect_concepts("ramp"):
-                if produced_contribution(c.node) == "Additional":
+                produced = getattr(c.node, "produced", None)
+                if (
+                    produced_contribution(c.node) == "Additional"
+                    or tag_of(produced) == "TriggerEventManaType"
+                ):
                     return [
                         Signal("mana_amplifier", "you", "", c.raw, tree.name, "high")
                     ]
+    for c in tree.effect_concepts("double_quantity"):
+        if double_target_kind(c.node) == "ManaPool":
+            return [Signal("mana_amplifier", "you", "", c.raw, tree.name, "high")]
+    if _MANA_DORK_SUPPORT_RX.search(_kept(tree)):
+        return [Signal("mana_amplifier", "you", "", "", tree.name, "high")]
     return []
 
 
