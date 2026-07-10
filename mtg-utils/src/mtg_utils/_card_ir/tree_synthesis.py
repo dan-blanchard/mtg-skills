@@ -3037,6 +3037,111 @@ def _arm_multicolor_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ADR-0038 deferral sweep unit 6: colorless_matters — phase DROPS the
+# "colorless" qualifier off a cast-restriction / cost-reduction / counter-
+# target the SAME way it drops "multicolored" (Ghostfire Blade's "if it
+# targets a colorless creature" cost_reduction subject=None, Ugin the
+# Ineffable's "Colorless spells you cast cost {2} less" cost_reduction
+# subject=None, Consign to Memory's "Counter target colorless spell" whose
+# counter_spell subject is a bare Card Filter with no color predicate) —
+# the OLD-IR's own ``supplement._recover_colorless_subject`` (SIDECAR #24e)
+# already carries this exact idiom; ported here VERBATIM as a bucket-B
+# reference-idiom synthesis arm, mirroring _arm_multicolor_matters's shape.
+def _has_colorless_count_pred(filt: object) -> bool:
+    """Whether ``filt`` carries a ``ColorCount`` ``EQ 0`` predicate,
+    controller You OR unscoped (CR 105.2) — mirrors
+    ``crosswalk_signals._predicate_build_around``'s "shared" colorless gate
+    (a colorless reference is commonly unscoped -- Ancient Stirrings'
+    "reveal cards until you reveal a colorless card")."""
+    if filter_controller(filt) not in ("You", "Any", None):
+        return False
+    return any(cmp_ == "EQ" and cnt == 0 for cmp_, cnt in color_count_preds(filt))
+
+
+def has_structural_colorless_matters(tree: ConceptTree) -> bool:
+    """The colorless_matters TYPED gate (CR 105.2): a ``ColorCount`` EQ 0
+    predicate on an effect / count-operand / static-affected / trigger-
+    subject filter, OR a condition-site ColorCount EQ 0 (Dominator Drone).
+    Mirrors every check ``crosswalk_signals._predicate_build_around``'s
+    colorless arm runs (including the condition-site + cost-role reads),
+    so the reference-idiom synthesis arm below never doubles on a card the
+    typed read already covers."""
+    for c in tree.iter_concepts():
+        if c.role == "cost":
+            for leaf in iter_cost_leaves(c.node):
+                filt = effect_filter(leaf)
+                if filt is not None and any(
+                    cmp_ == "EQ" and cnt == 0 for cmp_, cnt in color_count_preds(filt)
+                ):
+                    return True
+            continue
+        for filt in (effect_filter(c.node), count_operand_filter(c.node)):
+            if filt is not None and _has_colorless_count_pred(filt):
+                return True
+    for unit in tree.units:
+        if unit.statics:
+            aff = getattr(unit.node, "affected", None)
+            if aff is not None and _has_colorless_count_pred(aff):
+                return True
+        for site in iter_condition_sites(unit.node):
+            for n in iter_typed_nodes(site):
+                ctrl = filter_controller(n)
+                if ctrl in ("You", "ScopedPlayer") and any(
+                    cmp_ == "EQ" and cnt == 0 for cmp_, cnt in color_count_preds(n)
+                ):
+                    return True
+        if unit.origin != "trigger":
+            continue
+        vc = getattr(unit.node, "valid_card", None)
+        if vc is None or tag_of(vc) is None:
+            continue
+        # unlike multicolor (you-scoped only), colorless reads "shared"
+        # (You/Any/None) — an unscoped colorless-cast trigger still counts
+        # (mirrors the crosswalk lane's own "shared" gate).
+        if filter_controller(vc) in ("You", "Any", None) and any(
+            cmp_ == "EQ" and cnt == 0 for cmp_, cnt in color_count_preds(vc)
+        ):
+            return True
+    return False
+
+
+# colorless cares-about REFERENCE idiom — the whole-word two-slot scan
+# behind the OLD-IR's ``supplement._COLORLESS_REF`` (SIDECAR #24e), ported
+# verbatim as a char-regex (this stage's arms are all char-regex over
+# ``tree.oracle``, unlike the word-combinator OLD-IR path): "colorless
+# creature(s)/spell(s)/permanent(s)" — stricter than a bare substring match
+# ("colorless spellbomb" must NOT fire) via the `\b` word boundaries. CR
+# 105.2c.
+_COLORLESS_REFERENCE_RE = re.compile(
+    r"\bcolorless (?:creature|creatures|spell|spells|permanent|permanents)\b",
+    re.IGNORECASE,
+)
+
+
+def _arm_colorless_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a colorless_matters REFERENCE node for the cares-about
+    idiom phase leaves unstructured (Ghostfire Blade / Ugin the Ineffable's
+    dropped-predicate cost_reduction, Consign to Memory's colorless-blind
+    counter_spell subject). Gap-gated on
+    :func:`has_structural_colorless_matters` so a card the typed read
+    already covers never doubles. Emits the REAL "colorless_matters"
+    concept directly (ADR-0038 retired the ``synth_*`` marker namespace)
+    — this key has no dedicated verb (it's a reference, not an effect), so
+    the lane reads the synthesized node by its concept NAME rather than
+    through a typed ``effect_concepts()`` walk."""
+    if has_structural_colorless_matters(tree):
+        return None
+    if not _COLORLESS_REFERENCE_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="colorless_matters",
+        concept="colorless_matters",
+        scope="you",
+        subject=(),
+        desc="colorless cares-about reference phase leaves unstructured",
+    )
+
+
 # ── stax_taxes / symmetric_stax structural census (ADR-0036 fold) ─────────────
 # CR 101.2/604.1. Moved here VERBATIM from the ``_stax_lanes`` lane (minus the
 # residue-mirror tail below) so the lane AND this stage's two synth gap gates
@@ -7586,6 +7691,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("extra_land_drop", _arm_extra_land_drop),
     ("historic_matters", _arm_historic_matters),
     ("multicolor_matters", _arm_multicolor_matters),
+    ("colorless_matters", _arm_colorless_matters),
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),
     ("superfriends_matters", _arm_superfriends_matters),

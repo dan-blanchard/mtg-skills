@@ -1880,6 +1880,27 @@ def test_colorless_matters_condition_site():
     assert ("colorless_matters", "you", "") in _idents("Dust Stalker")
 
 
+def test_colorless_matters_reference_idiom_synthesis():
+    """ADR-0038 deferral sweep unit 6: phase drops the "colorless"
+    qualifier off a cast-restriction/cost-reduction entirely (Herald of
+    Kozilek: "Colorless spells you cast cost {1} less to cast" —
+    ``cost_reduction`` carries no ``ColorCount`` predicate at all), the
+    SAME class of gap ``_arm_multicolor_matters`` already closes for
+    multicolor. ``tree_synthesis._arm_colorless_matters`` (ported
+    verbatim from the OLD-IR's own
+    ``supplement._recover_colorless_subject``, SIDECAR #24e) synthesizes
+    the REFERENCE node from ``tree.oracle``, gated on
+    ``has_structural_colorless_matters`` so a card the typed read already
+    covers never doubles. Grizzled Angler // Grisly Anglerfish's front
+    face ("if there is a colorless creature card in your graveyard,
+    transform this creature") is the DFC case — the synthesis arm reads
+    THIS face's own ``tree.oracle`` (fixture keyed by the single-face
+    name, matching how phase's own card-data.json stores DFC faces as
+    separate records). CR 105.2c."""
+    assert ("colorless_matters", "you", "") in _idents("Herald of Kozilek")
+    assert ("colorless_matters", "you", "") in _idents("Grizzled Angler")
+
+
 def test_power_matters_high():
     """Shaman of the Great Hunt scales off creatures you control with power 4 or
     greater — a fixed PtComparison Power GE, controller you → power_matters."""

@@ -701,7 +701,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "cast_from_exile",
         "cheat_into_play",
         "clone_makers",
-        "colorless_matters",
         "combat_damage_matters",
         "combat_damage_to_opp",
         "cost_reduction",
@@ -3606,6 +3605,18 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
     for c in tree.iter_concepts():
         if c.concept == "multicolor_matters":
             fire("multicolor_matters", c.raw)
+            break
+    # ADR-0038 deferral sweep unit 6: the colorless cares-about REFERENCE
+    # idiom phase drops the "colorless" qualifier from entirely (Ghostfire
+    # Blade / Ugin the Ineffable's dropped-predicate cost_reduction,
+    # Consign to Memory's colorless-blind counter_spell subject).
+    # tree_synthesis._arm_colorless_matters fills the gap from tree.oracle,
+    # gated on has_structural_colorless_matters (the SAME typed read the
+    # checks above run) — read here by concept NAME, mirroring the
+    # multicolor_matters precedent directly above.
+    for c in tree.iter_concepts():
+        if c.concept == "colorless_matters":
+            fire("colorless_matters", c.raw)
             break
 
     # recall-completion b1 (ADR-0034): the Ferocious/Formidable power-threshold
