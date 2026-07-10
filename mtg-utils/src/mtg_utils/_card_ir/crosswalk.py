@@ -1541,6 +1541,14 @@ def damage_recipient_is_player(vt: object) -> bool:
         if not cores:
             return True
         return "Player" in cores or "Planeswalker" in cores
+    if t == "Or":
+        # ADR-0038 W3 batch 2 unit 6: "deals combat damage to a player or
+        # planeswalker/battle" (Flitterwing Nuisance, Zurgo and Ojutai)
+        # reaches a player in the Player branch even though the OTHER
+        # branch is object-typed; ANY reachable branch is enough.
+        return any(
+            damage_recipient_is_player(f) for f in getattr(vt, "filters", ()) or ()
+        )
     return False
 
 

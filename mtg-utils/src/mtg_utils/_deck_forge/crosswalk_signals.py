@@ -741,7 +741,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "token_maker",
         "topdeck_selection",
         "topdeck_stack",
-        "tribe_damage_trigger",
         "type_matters",
         "voltron_makers",
         "voltron_matters",
@@ -6985,17 +6984,21 @@ def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
 def _is_tribe_damage_source(vs: object) -> bool:
     """Whether a damage trigger's ``valid_source`` is a YOUR-controlled
     creature POPULATION (CR 510.1b): a Typed/Or filter with controller You
-    and either the Creature core type (Coastal Piracy) or a vocab-validated
-    creature subtype (Seshiro's Snakes; the AnyOf outlaw unions recurse). A
-    ``SelfRef`` source (Hypnotic Specter — a single doer) is not a
-    population."""
+    and either the Creature core type (Coastal Piracy) or ANY subtype
+    (Seshiro's Snakes; the AnyOf outlaw unions recurse). ADR-0038 W3 batch
+    2 unit 6: ANY subtype, not just a CREATURE_SUBTYPES vocab hit — only a
+    CREATURE can deal combat damage (CR 510.1a), so a source filtered by a
+    non-creature-core subtype (Vehicle — Edward Kenway's "a Vehicle you
+    control deals combat damage") is STILL a creature at the moment combat
+    damage is dealt (an animated/crewed Vehicle). A ``SelfRef`` source
+    (Hypnotic Specter — a single doer) is not a population."""
     if tag_of(vs) not in ("Typed", "Or", "And"):
         return False
     if filter_controller(vs) != "You":
         return False
     if "Creature" in filter_core_types(vs):
         return True
-    return any(_resolve_subject(s, CREATURE_SUBTYPES) for s in filter_subtypes(vs))
+    return bool(filter_subtypes(vs))
 
 
 def _damage_trigger_lanes(tree: ConceptTree) -> list[Signal]:
@@ -7032,6 +7035,18 @@ def _damage_trigger_lanes(tree: ConceptTree) -> list[Signal]:
     phase's own mode derivation (an ``Unknown``-mode wrapper). Read via
     :func:`is_damage_reflect_trigger_def` over EVERY unit's deep node walk,
     gated on the flat arm above not already firing (CR 120.3).
+
+    ADR-0038 W3 batch 2 unit 6: ``tribe_damage_trigger`` ALSO reads
+    :func:`damage_to_player_trigger_kind`'s validated (event + recipient)
+    gate + :func:`_is_tribe_damage_source` over a nested trigger def, two
+    tree positions the flat top-level walk never reaches: a Background's
+    ``GrantTrigger`` (Feywild Visitor's "Commander creatures you own have
+    '… deal combat damage to a player, you create a token'") and a
+    planeswalker loyalty ability's ``CreateDelayedTrigger.condition``
+    (Dovin's "[+1]: Until end of turn, whenever a creature you control
+    deals combat damage to a player, put a loyalty counter" —
+    :func:`iter_delayed_trigger_condition_defs`, the Subira/low_power_
+    matters precedent).
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -7041,35 +7056,45 @@ def _damage_trigger_lanes(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, scope, "", "", tree.name, "high"))
 
-    for unit in tree.units:
-        if unit.origin != "trigger":
-            continue
-        if unit.trigger_event == "damage_received" and unit.has_effect("deal_damage"):
-            fire("damage_reflect", "you")
-        if unit.trigger_event != "deals_damage":
-            continue
-        node = unit.node
-        vt = getattr(node, "valid_target", None)
-        vs = getattr(node, "valid_source", None)
-        if (
-            tag_of(vt) == "Controller"
-            and tag_of(vs) == "Typed"
-            and filter_controller(vs) == "Opponent"
-        ):
-            fire("damage_to_you_punish", "opponents")
-        if (
-            trigger_damage_kind(node) == "CombatOnly"
-            and tag_of(vt) == "Typed"
-            and "Creature" in filter_core_types(vt)
-            and "Player" not in filter_core_types(vt)
-        ):
-            fire("combat_damage_to_creature", "any")
-        if (
-            vt is not None
-            and damage_recipient_is_player(vt)
-            and _is_tribe_damage_source(vs)
+    def fire_tribe_if_match(trig: object) -> None:
+        if damage_to_player_trigger_kind(trig) is not None and _is_tribe_damage_source(
+            getattr(trig, "valid_source", None)
         ):
             fire("tribe_damage_trigger", "you")
+
+    for unit in tree.units:
+        if unit.origin == "trigger":
+            if unit.trigger_event == "damage_received" and unit.has_effect(
+                "deal_damage"
+            ):
+                fire("damage_reflect", "you")
+            if unit.trigger_event == "deals_damage":
+                node = unit.node
+                vt = getattr(node, "valid_target", None)
+                vs = getattr(node, "valid_source", None)
+                if (
+                    tag_of(vt) == "Controller"
+                    and tag_of(vs) == "Typed"
+                    and filter_controller(vs) == "Opponent"
+                ):
+                    fire("damage_to_you_punish", "opponents")
+                if (
+                    trigger_damage_kind(node) == "CombatOnly"
+                    and tag_of(vt) == "Typed"
+                    and "Creature" in filter_core_types(vt)
+                    and "Player" not in filter_core_types(vt)
+                ):
+                    fire("combat_damage_to_creature", "any")
+                if (
+                    vt is not None
+                    and damage_recipient_is_player(vt)
+                    and _is_tribe_damage_source(vs)
+                ):
+                    fire("tribe_damage_trigger", "you")
+        for trig in iter_nested_trigger_defs(unit.node):
+            fire_tribe_if_match(trig)
+        for trig in iter_delayed_trigger_condition_defs(unit.node):
+            fire_tribe_if_match(trig)
     if "damage_reflect" not in seen:
         for unit in tree.units:
             if any(

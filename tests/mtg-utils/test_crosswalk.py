@@ -4394,6 +4394,75 @@ def test_tribe_damage_trigger_population_gate():
     assert "tribe_damage_trigger" not in _keys("Serpentine Basilisk")
 
 
+# ADR-0038 W3 batch 2 unit 6 — the tribe_damage_trigger nested granted-
+# trigger / delayed-trigger-condition arm (damage_to_player_trigger_kind +
+# _is_tribe_damage_source, the SAME two-tree-position walk damage_to_opp_
+# matters uses): a Background's GrantTrigger (Feywild Visitor), a
+# planeswalker loyalty ability's CreateDelayedTrigger.condition (Dovin,
+# Jace Cunning Castaway, Kaito Shizuki, Vraska Golgari Queen), a Saga
+# chapter (The Girl in the Fireplace), and an activated-ability delayed
+# trigger (Killian's Confidence, Surge to Victory, Thunderblade Charge,
+# Flitterwing Nuisance, Subira's second ability).
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Feywild Visitor",
+        "Popular Entertainer",
+        "Dovin, Grand Arbiter",
+        "Jace, Cunning Castaway",
+        "Kaito Shizuki",
+        "Vraska, Golgari Queen",
+        "The Girl in the Fireplace",
+        "Killian's Confidence",
+        "Surge to Victory",
+        "Thunderblade Charge",
+        "Flitterwing Nuisance",
+        "Subira, Tulzidi Caravanner",
+    ],
+)
+def test_tribe_damage_trigger_nested_grant_and_delayed_arm(name):
+    assert ("tribe_damage_trigger", "you", "") in _idents(name)
+
+
+# ADR-0038 W3 batch 2 unit 6 — the _is_tribe_damage_source ANY-subtype
+# widening (CR 510.1a: only a creature can deal combat damage, so a
+# source filter naming a non-creature-core subtype like Vehicle is STILL
+# a creature at the moment it connects — the population is animated/
+# crewed). Edward Kenway / Setzer / The Thanos-Copter / The Omenkeel all
+# watch "a Vehicle you control deals combat damage"; Adéwalé / Aphelia /
+# Mistway Spy / Zurgo and Ojutai watch a tribal subtype (Assassin/Pirate/
+# Gorgon/Dragon); Cosima's back face (The Omenkeel) is the DFC case.
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Edward Kenway",
+        "Setzer, Wandering Gambler",
+        "The Thanos-Copter",
+        "The Omenkeel",
+        "Adéwalé, Breaker of Chains",
+        "Aphelia, Viper Whisperer",
+        "Mistway Spy",
+        "Zurgo and Ojutai",
+    ],
+)
+def test_tribe_damage_trigger_any_subtype_source_arm(name):
+    assert ("tribe_damage_trigger", "you", "") in _idents(name)
+
+
+def test_tribe_damage_trigger_or_recipient_arm():
+    """The damage_recipient_is_player Or-recursion (CR 510.1c): "deals
+    combat damage to a player or planeswalker/battle" reaches a player in
+    the Player branch of the Or filter even though the OTHER branch is
+    object-typed (Zagras / Hooded Blightfang / Vraska Swarm's Eminence /
+    The Raven's Warning — beyond-legacy gains, legacy fires nothing
+    tribe_damage_trigger-related for these; a genuine recall gain, not an
+    over-fire)."""
+    assert ("tribe_damage_trigger", "you", "") in _idents("Zagras, Thief of Heartbeats")
+    assert ("tribe_damage_trigger", "you", "") in _idents("Hooded Blightfang")
+    assert ("tribe_damage_trigger", "you", "") in _idents("Vraska, Swarm's Eminence")
+    assert ("tribe_damage_trigger", "you", "") in _idents("The Raven's Warning")
+
+
 def test_batched_combat_damage_mode_joins_the_event_read():
     """b10 follow-up (d): the ``DamageDoneOnceByController`` batched mode
     ("whenever one or more Rogues you control deal combat damage to a
