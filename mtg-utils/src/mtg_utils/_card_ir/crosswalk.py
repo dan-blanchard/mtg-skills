@@ -2252,6 +2252,30 @@ def iter_nested_trigger_defs(node: object) -> Iterator[TypedMirrorNode]:
                         yield trig
 
 
+# ADR-0038 W3 batch 2 unit 5 — a NARROW sibling of
+# :func:`iter_nested_trigger_defs`, scoped separately (not folded into
+# that shared helper — it feeds 4 OTHER already-promoted lanes this batch
+# must not perturb) for the ``CreateDelayedTrigger.condition.trigger``
+# watcher shape (:func:`is_damage_reflect_trigger_def`'s module note):
+# Subira, Tulzidi Caravanner's "Until end of turn, whenever a creature you
+# control with power 2 or less deals combat damage to a player, draw a
+# card" — the delayed ability's WATCHER trigger def, not co-located with
+# its top-level activated-ability unit.
+def iter_delayed_trigger_condition_defs(node: object) -> Iterator[TypedMirrorNode]:
+    """Every trigger DEFINITION node reachable under ``node`` via a
+    ``CreateDelayedTrigger`` effect's ``condition {WheneverEvent: trigger}``
+    watcher field."""
+    for n in _iter_typed_nodes(node):
+        if tag_of(n) != "CreateDelayedTrigger":
+            continue
+        cond = getattr(n, "condition", MISSING)
+        if not (isinstance(cond, TypedMirrorNode) and tag_of(cond) == "WheneverEvent"):
+            continue
+        trig = getattr(cond, "trigger", MISSING)
+        if isinstance(trig, TypedMirrorNode):
+            yield trig
+
+
 # ADR-0038 W3 batch 2 unit 2 — the typed_spellcast lane's shared nested-mode
 # descent. A tribal cast-cost-modifier static (CR 601.2f / 702.2's
 # keyword-spell grants: Freerunning, Prowl, Cascade, "costs {N} less") can

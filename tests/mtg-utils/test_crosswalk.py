@@ -1961,6 +1961,80 @@ def test_power_removal_target_not_a_build_around():
     assert "power_matters" not in _keys("Big Game Hunter")
 
 
+# ADR-0038 W3 batch 2 unit 5 — the low_power_matters (and sibling power_
+# matters/multicolor_matters/colorless_matters/vanilla_matters) shared
+# _predicate_build_around widening: a trigger's OWN watched-subject filter
+# ("whenever a creature you control with power N or less enters/attacks" —
+# Ezuri, Claw of Progress, Cavalcade of Calamity) was never read at all
+# (iter_concepts only surfaces role=effect/cost/static concepts, never a
+# trigger's bare valid_card). CR 208.1 / 207.2c.
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Cavalcade of Calamity",
+        "Ezuri, Claw of Progress",
+        "Irreverent Gremlin",
+        "MacCready, Lamplight Mayor",
+        "Marketwatch Phantom",
+        "Mentor of the Meek",
+        "Neighborhood Guardian",
+        "Overseer of Vault 76",
+        "Raid Bombardment",
+        "Saradoc, Master of Buckland",
+        "Serra Redeemer",
+        "Shirei, Shizo's Caretaker",
+        "Snarling Gorehound",
+        "Vicious Clown",
+        "Welcoming Vampire",
+        "Wispdrinker Vampire",
+    ],
+)
+def test_low_power_matters_trigger_subject_arm(name):
+    assert ("low_power_matters", "you", "") in _idents(name)
+
+
+def test_low_power_matters_unconditional_static_arm():
+    """Delney, Streetwise Lookout's CantBeBlockedBy/DoubleTriggers modes
+    carry no ``modifications`` list — their OWN static concept-decoration
+    is empty (the previous ``if unit.statics`` gate skipped them) — but
+    ``.affected`` still gates a real power-N build-around. CR 208.1."""
+    assert ("low_power_matters", "you", "") in _idents("Delney, Streetwise Lookout")
+
+
+def test_low_power_matters_nested_generic_effect_static_arm():
+    """Merry-Go-Round's Attraction Visit ("Creatures you control with power
+    2 or less gain horsemanship until end of turn") nests its static
+    INSIDE the trigger's one-shot ``GenericEffect.static_abilities`` —
+    :func:`iter_static_defs`'s def-level walk (the :func:`iter_mod_sites`
+    sibling) reaches it regardless of unit origin. CR 208.1."""
+    assert ("low_power_matters", "you", "") in _idents("Merry-Go-Round")
+
+
+def test_low_power_matters_ability_target_and_delayed_trigger_arm():
+    """Subira, Tulzidi Caravanner's first ability carries the PtComparison
+    on the ACTIVATED ABILITY's own ``target`` field (not the nested
+    CantBeBlocked static's bare ``ParentTarget`` affected); the second
+    ability's delayed trigger carries it on
+    ``CreateDelayedTrigger.condition.trigger.valid_source`` — the Boros
+    Reckoner/damage-reflect nesting precedent
+    (:func:`iter_delayed_trigger_condition_defs`). CR 208.1."""
+    assert ("low_power_matters", "you", "") in _idents("Subira, Tulzidi Caravanner")
+
+
+def test_predicate_build_around_sibling_lane_bonus_gains():
+    """The SAME shared widening also closes gaps in the already-promoted
+    sibling lanes (unaffected by residual status, proven correct by this
+    batch): Threefold Signal's "Each spell you cast that's exactly three
+    colors has replicate" (a mode-only CastWithKeyword static, no
+    modifications list) -> multicolor_matters; Mycoid Shepherd / Challenger
+    Troll's trigger/static power-4+-or-greater watchers -> power_matters.
+    Zero regression verified: colorless_matters and vanilla_matters stay
+    byte-identical to the pre-widening corpus census."""
+    assert ("multicolor_matters", "you", "") in _idents("Threefold Signal")
+    assert ("power_matters", "you", "") in _idents("Mycoid Shepherd")
+    assert ("power_matters", "you", "") in _idents("Challenger Troll")
+
+
 @pytest.mark.parametrize("name", ["Muraganda Petroglyphs", "Ruxa, Patient Professor"])
 def test_vanilla_matters(name):
     """A HasNoAbilities payoff (Muraganda's symmetric anthem; Ruxa's you-controlled

@@ -87,6 +87,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_condition_sites,
     iter_cost_leaves,
     iter_deep_target_grants,
+    iter_delayed_trigger_condition_defs,
     iter_mod_sites,
     iter_nested_spellcast_static_modes,
     iter_nested_trigger_defs,
@@ -725,7 +726,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "landfall",
         "lifegain_makers",
         "lifeloss_makers",
-        "low_power_matters",
         "lure_makers",
         "minus_counters_matter",
         "opponent_discard",
@@ -3583,8 +3583,39 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
         handle(effect_filter(c.node), c.raw)
         handle(count_operand_filter(c.node), c.raw)
     for unit in tree.units:
-        if unit.statics:
-            handle(getattr(unit.node, "affected", None), "")
+        # ADR-0038 W3 batch 2 unit 5: every static-ability DEF reachable
+        # from this unit (top-level OR nested inside a one-shot
+        # ``GenericEffect.static_abilities`` — Merry-Go-Round's Attraction
+        # Visit granting horsemanship "until end of turn"; the
+        # :func:`iter_mod_sites` sibling walk, but def-level not mod-level
+        # since a mode-only static like Delney's CantBeBlockedBy carries no
+        # ``modifications`` list to pair with).
+        for defn in iter_static_defs(unit.node):
+            handle(getattr(defn, "affected", None), "")
+        if unit.origin == "trigger":
+            # The trigger's OWN watched-subject filter ("whenever a
+            # creature you control with power N or less enters/attacks" —
+            # Ezuri, Cavalcade of Calamity) is a build-around exactly like
+            # an effect/static filter; ``iter_concepts`` never surfaces a
+            # trigger's ``valid_card`` as a role=effect/cost/static concept
+            # of its own, so it needs this dedicated read.
+            handle(getattr(unit.node, "valid_card", None), "")
+        elif unit.origin == "ability":
+            # An activated ability's OWN top-level ``target`` (Subira,
+            # Tulzidi Caravanner's "Another target creature with power 2 or
+            # less can't be blocked" — the PtComparison lives on the
+            # ability's target, not the nested CantBeBlocked static's bare
+            # ParentTarget ``affected``).
+            handle(getattr(unit.node, "target", None), "")
+        for trig in iter_delayed_trigger_condition_defs(unit.node):
+            # A CreateDelayedTrigger's OWN watcher (Subira's second
+            # ability: "Until end of turn, whenever a creature you control
+            # with power 2 or less deals combat damage …" — the filter
+            # lives on the delayed trigger's ``valid_source``, a Boros
+            # Reckoner/damage-reflect-precedent nesting, not co-located
+            # with the top-level activated-ability unit).
+            handle(getattr(trig, "valid_card", None), "")
+            handle(getattr(trig, "valid_source", None), "")
 
     # multicolor_matters structural arm: a Mana effect's SpellType==Multicolored
     # spend restriction ("Spend this mana only to cast a multicolored spell" —
