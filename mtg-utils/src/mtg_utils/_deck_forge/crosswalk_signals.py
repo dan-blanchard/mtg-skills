@@ -709,7 +709,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "enchantments_matter",
         "exile_matters",
         "extra_land_drop",
-        "extra_upkeep",
         "facedown_matters",
         "fight_makers",
         "forced_attack",
@@ -5282,7 +5281,15 @@ def _extra_upkeep_end(tree: ConceptTree) -> list[Signal]:
     seen: set[str] = set()
     for c in tree.effect_concepts("extra_phase"):
         kind = additional_phase_kind(c.node)
-        key = {"upkeep": "extra_upkeep", "end": "extra_end_step"}.get(kind)
+        # Stage-A recovery: an additional BEGINNING phase (phase v0.20 emits its
+        # first step, "untap") CONTAINS an upkeep step, so it re-triggers upkeep
+        # payoffs (Sphinx of the Second Sun — CR 501.1). Decompose "untap" ->
+        # extra_upkeep.
+        key = {
+            "upkeep": "extra_upkeep",
+            "untap": "extra_upkeep",
+            "end": "extra_end_step",
+        }.get(kind)
         if key and key not in seen:
             seen.add(key)
             out.append(Signal(key, "you", "", c.raw, tree.name, "high"))
