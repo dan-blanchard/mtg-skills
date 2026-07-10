@@ -204,7 +204,10 @@ def _crosswalk_merge(
         extract_crosswalk_signals,
     )
 
-    trees = trees_for(record)
+    # ADR-0038 W2c: `record` is already the bulk record — thread it as `bulk`
+    # so `trees_for` can synthesize text-only trees for phase-missing faces
+    # (aftermath second halves, one split gap) off the bulk face text.
+    trees = trees_for(record, bulk=record)
     if not trees:
         return None
     residual = MIGRATED_KEYS - PORTED_KEYS
