@@ -323,6 +323,20 @@ def test_lifegain_makers_fires(name):
     assert ("lifegain_makers", "you", "") in _idents(name)
 
 
+def test_own_lifelink_keyword_fires_lifegain_makers():
+    # ADR-0035 Stage-A recall (+325 corpus): the card's OWN printed lifelink
+    # keyword opens lifegain_makers via the keyword path (mirrors
+    # _signals_ir._IR_KEYWORD_MAP["lifelink"]) — the _lifegain_makers typed lane
+    # reads only gain_life effects + GRANTED lifelink, so a vanilla-lifelink
+    # creature (no grant node) needed this keyword row.
+    from mtg_utils._deck_forge.crosswalk_signals import _keyword_field_signals
+
+    sigs = _keyword_field_signals(frozenset({"Lifelink"}), "Aerial Responder")
+    assert ("lifegain_makers", "you", "") in {(s.key, s.scope, s.subject) for s in sigs}
+    # a non-lifegain evergreen keyword does not open the lane
+    assert not _keyword_field_signals(frozenset({"Flying"}), "Bird")
+
+
 def test_reanimator_is_creature_gated():
     # Sheoldred IS a creature returning creatures GY→battlefield.
     assert ("reanimator", "you", "") in _idents("Sheoldred, Whispering One")

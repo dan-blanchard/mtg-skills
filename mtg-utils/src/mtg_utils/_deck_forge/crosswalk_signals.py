@@ -770,6 +770,15 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
 # residual keys remain in ``MIGRATED_KEYS``, so dropping them here routes them to the
 # ``extract_signals_ir(old)`` residual arm of ``_crosswalk_merge`` (byte-identical to
 # flag-OFF for those keys). ``coverage_gate`` still unions the 258 in.
+# ADR-0035 Stage-A (2026-07-09): the own-lifelink keyword row below recovers +325 of
+# lifegain_makers' residual gap (corpus live_only 420 → 95), banked toward eventually
+# promoting the key. lifegain_makers stays residual for now: the remaining ~95 are
+# granted/nested gain-life sources (Ajani's loyalty ability, Animal Boneyard /
+# Darkheart Sliver granted abilities) needing the granted-ability walk, plus a few
+# opponent-lifegain over-fires. The airbend/earthbend/waterbend keys are also
+# promotable-in-principle (corpus live_only=0) but blocked by a test-snapshot gap:
+# their representative Avatar Aang (a DFC) fires via a BACK-FACE bending Effect the
+# committed snapshot's tree omits.
 PORTED_KEYS: frozenset[str] = _PORTED_KEYS_STAGE3 - _STAGE4_RESIDUAL
 
 
@@ -3041,6 +3050,14 @@ def _keyword_field_signals(keywords: frozenset[str], name: str) -> list[Signal]:
     # no prowess row existed in the crosswalk keyword tables.
     if "prowess" in low:
         out.append(Signal("spellcast_matters", "you", "", "", name, "high"))
+    # recall-completion (ADR-0034/0035 Stage-A): the OWN printed lifelink keyword
+    # marks a lifegain SOURCE — a lifelink bearer gains life in combat (CR
+    # 702.15b), the MAKER arm. Mirrors ``_signals_ir._IR_KEYWORD_MAP["lifelink"]``
+    # → ``lifegain_makers`` you. The ``_lifegain_makers`` typed lane reads only a
+    # ``gain_life`` effect + a GRANTED ``AddKeyword(Lifelink)``, so a vanilla-
+    # lifelink creature (no grant node) was the residual ``live_only`` gap.
+    if "lifelink" in low:
+        out.append(Signal("lifegain_makers", "you", "", "", name, "high"))
     return out
 
 
