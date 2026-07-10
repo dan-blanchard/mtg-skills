@@ -4156,6 +4156,36 @@ def test_team_evasion_grant_generic_team_gate():
     assert "team_evasion_grant" not in _keys("Concordant Crossroads")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 3: the BROADER team_evasion_grant forms — a
+        # byte-identical port of live's own SANCTIONED kept-oracle mirror
+        # (``_IR_KEPT_DETECTORS``), deliberately broader than the narrow
+        # structural ``_is_team_creature_grant`` gate (subtype/color/power/
+        # equipped-qualified + ONE-SHOT grants + the "can't be blocked"
+        # AddStaticMode idiom, which carries no AddKeyword concept mapping
+        # of its own). CR 702.9/702.13/702.28/702.31/702.36/702.111/
+        # 702.118/509.1b (evasion ability definition).
+        "Galerider Sliver",  # tribal: Sliver creatures you control have flying
+        "Deepchannel Mentor",  # color: Blue creatures you control can't be blocked
+        "Anikthea, Hand of Erebos",  # core-type: Other enchantment creatures
+        "Delney, Streetwise Lookout",  # power-qualified can't-be-blocked
+        "Dread Charge",  # one-shot color-qualified can't-be-blocked
+        "Agility Bobblehead",  # one-shot activated-ability can't-be-blocked
+        "Dalakos, Crafter of Wonders",  # Equipped-qualified team grant
+    ],
+)
+def test_team_evasion_grant_broader_kept_mirror(name):
+    """ADR-0038 W3 batch 3: team_evasion_grant's kept-oracle mirror recovers
+    the tribal/color/core-type/power/equipped/one-shot/can't-be-blocked
+    forms the narrow structural gate above deliberately excludes (that gate
+    stays scoped to the fully-generic continuous team anthem). Verified
+    against the real Card IR this session; each card's phase record is
+    pinned in ``crosswalk_fixture_cards.json``."""
+    assert ("team_evasion_grant", "you", "") in _idents(name)
+
+
 def test_aura_equip_kw_grant_subgroup_gate():
     """Rashel's "Auras you control have exalted" (Subtype Aura + controller
     You) fires; the name-scoped controller-null Equipment cycle (Shield of

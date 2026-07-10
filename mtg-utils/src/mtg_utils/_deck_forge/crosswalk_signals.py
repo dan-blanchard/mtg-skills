@@ -757,7 +757,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "scaling_pump",
         "second_spell_matters",
         "target_player_draws",
-        "team_evasion_grant",
         "token_maker",
         "topdeck_selection",
         "topdeck_stack",
@@ -6271,6 +6270,31 @@ def _reveal_names_other_player(node: TypedMirrorNode, unit_node: object = None) 
 _TEAM_EVASION_KW: frozenset[str] = frozenset(
     {"flying", "intimidate", "shadow", "horsemanship", "fear", "menace", "skulk"}
 )
+# ADR-0038 W3 batch-3 — the BROADER team_evasion_grant forms (live's own
+# SANCTIONED kept-oracle mirror, byte-identical port, ``_IR_KEPT_DETECTORS``):
+# a tribal- (Galerider Sliver), color- (Deepchannel Mentor), core-type- (
+# Anikthea's "Other enchantment creatures"; Cyberdrive Awakener's "Other
+# artifact creatures"), power- (Delney), or Equipped-qualified (Dalakos)
+# team grant, plus any ONE-SHOT ("gain … until end of turn" — Dread Charge,
+# Driven // Despair, Agility Bobblehead, Glaring Spotlight) grant of an
+# evasion keyword OR the "can't be blocked" static mode (CR 509.1b defines
+# this as an evasion ability; phase structures it as an ``AddStaticMode``
+# {CantBeBlockedExceptBy}, a DIFFERENT modification tag from ``AddKeyword``
+# with no concept mapping of its own — Dread Charge, Delney, Agility
+# Bobblehead, Glaring Spotlight all reach team_evasion_grant ONLY through
+# this word idiom). The live structural gate above (``team and kw in
+# _TEAM_EVASION_KW``) deliberately excludes ALL of these (the subtype/
+# predicate/one-shot exclusions are what keep the flood out of the OTHER
+# lanes reading the SAME mod-site loop); this is a SEPARATE whole-card scan,
+# not a narrowing of that gate. CR 702.9/702.13/702.28/702.31/702.36/
+# 702.111/702.118/509.1b.
+_TEAM_EVASION_GRANT_RX = re.compile(
+    r"(?:other |attacking )?creatures you control (?:gain|have)\b"
+    r"[^.]{0,40}?\b(?:menace|fear|intimidate|shadow|horsemanship|skulk"
+    r"|flying|can't be blocked)\b"
+    r"|(?:other |attacking )?creatures you control[^.]*can't be blocked",
+    re.IGNORECASE,
+)
 # Protective keywords (live ``_PROTECTION_GRANT_KW`` — CR 702.11 hexproof /
 # 702.12 indestructible / 702.16 protection / 702.18 shroud / 702.21 ward).
 _PROTECTIVE_GRANT_KW: frozenset[str] = frozenset(
@@ -6800,6 +6824,8 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
             suit_up = set(preds) & _SUIT_UP_PREDS and cores & {"Creature", "Permanent"}
             if kw in _PROTECTIVE_GRANT_KW and (team or your_perms or suit_up):
                 fire("protection_grant", "you", raw)
+    if _TEAM_EVASION_GRANT_RX.search(_kept(tree)):
+        fire("team_evasion_grant", "you", "")
     return out
 
 
