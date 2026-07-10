@@ -742,7 +742,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "scaling_pump",
         "second_spell_matters",
         "stax_taxes",
-        "suspect_makers",
         "tap_down",
         "target_player_draws",
         "team_evasion_grant",
@@ -2714,6 +2713,12 @@ def _suspect_makers(tree: ConceptTree) -> list[Signal]:
     """
     for c in tree.effect_concepts("suspect"):
         return [Signal("suspect_makers", "you", "", c.raw, tree.name, "high")]
+    # Stage-A recovery (CR 701.60a): the ``synth_suspect_makers`` bucket-B node —
+    # a "suspect it" action rider phase drops off a token creation (Case of the
+    # Stashed Skeleton), gap-gated on no typed Suspect.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_suspect_makers":
+            return [Signal("suspect_makers", "you", "", "", tree.name, "high")]
     return []
 
 

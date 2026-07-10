@@ -2414,6 +2414,32 @@ def _arm_evasion_denial(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# suspect ACTION idiom (CR 701.60a — "instruct a player to suspect a creature"):
+# the "suspect it/target/a creature" verb. When it rides a token-creation rider
+# ("create a Skeleton and suspect it" — Case of the Stashed Skeleton) phase drops
+# the Suspect effect, so the typed ``effect_concepts("suspect")`` read misses it.
+# "suspected" (CR 701.60b — the DESIGNATION, a payoff reference) never matches
+# (the negative lookahead), keeping the doer/payoff split.
+_SUSPECT_ACTION_RE = re.compile(r"\bsuspect\b(?!ed)", re.IGNORECASE)
+
+
+def _arm_suspect_makers(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``suspect`` maker node for the suspect ACTION phase drops when
+    it rides a token creation. Gap-gated on NO typed ``Suspect`` effect (Nelly
+    Borca's first-class suspect stays Tier-1)."""
+    if any(True for _ in tree.effect_concepts("suspect")):
+        return None
+    if not _SUSPECT_ACTION_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="suspect_makers",
+        concept="synth_suspect_makers",
+        scope="you",
+        subject=(),
+        desc="bucket-B suspect (dropped suspect-it action rider)",
+    )
+
+
 # ── stax_taxes / symmetric_stax structural census (ADR-0036 fold) ─────────────
 # CR 101.2/604.1. Moved here VERBATIM from the ``_stax_lanes`` lane (minus the
 # residue-mirror tail below) so the lane AND this stage's two synth gap gates
@@ -6827,6 +6853,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("discover_makers", _arm_discover_makers),
     ("end_the_turn", _arm_end_the_turn),
     ("evasion_denial", _arm_evasion_denial),
+    ("suspect_makers", _arm_suspect_makers),
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),
     ("superfriends_matters", _arm_superfriends_matters),
