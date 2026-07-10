@@ -1259,6 +1259,38 @@ def test_phasing_makers_blanket_both_directions(name):
     assert ("phasing_makers", "you", "") in _idents(name)
 
 
+def test_phasing_makers_keyword_field_lookup():
+    """ADR-0037/0038 W3: the printed Phasing KEYWORD (CR 702.26a) carries NO
+    effect node at all — Breezekeeper is keywords=["Flying", "Phasing"] with
+    zero abilities/triggers/statics, so the structural ``PhaseOut``/
+    ``PhaseIn`` effect-node read never reaches it; a keyword-field lookup
+    does."""
+    assert ("phasing_makers", "you", "") in _idents("Breezekeeper")
+
+
+def test_phasing_makers_grammar_recovery_and_trigger_mode_payoff():
+    """ADR-0037/0038 W3: Dream Fighter's "~ and that creature phase out" is a
+    genuine Unimplemented residue the shared clause grammar's "phase(s)
+    in/out" verb idiom recovers to the native ``phasing`` concept (CR
+    702.26a). The War Doctor's "Whenever one or more other permanents phase
+    out, put a time counter on ~" is a WATCHER, not a doer — legacy's OWN
+    project.py deliberately treats this as phasing_makers too (a "phasing
+    payoff marker"), reproduced via phase's native ``PhaseOut`` TRIGGER
+    MODE (normalizes trigger_event to "phaseout")."""
+    assert ("phasing_makers", "you", "") in _idents("Dream Fighter")
+    assert ("phasing_makers", "you", "") in _idents("The War Doctor")
+
+
+def test_phasing_makers_combat_phase_noun_no_fire():
+    """ADR-0037/0038 W3: "attacks during its controller's next combat PHASE"
+    (Trench Behemoth) is a phase-of-the-TURN noun, never the CR 702.26a
+    "phase(s) in/out" verb idiom — the grammar's phasing token requires the
+    immediate next word be "in"/"out" precisely to keep this OFF (a
+    corpus-verified over-fire class a bare "phase" keyword match once
+    caught)."""
+    assert "phasing_makers" not in _keys("Trench Behemoth")
+
+
 def test_voting_makers_allplayers_gate_excludes_friend_or_foe():
     """A council/dilemma vote (Coercive Portal — ``voter_scope: AllPlayers``) fires
     voting_makers /each (CR 701.38); phase OVER-TAGS Battlebond "choose friend or

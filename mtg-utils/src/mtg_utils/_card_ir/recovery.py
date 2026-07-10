@@ -115,6 +115,13 @@ ALLOWLIST: dict[str, TokenRule] = {
     # field), so the lane trusts a recovered node unconditionally (see
     # ``tree_synthesis._arm_dig_until``'s ``c.recovered_by`` branch).
     "dig_until": TokenRule(concept="reveal_until", category="dig_until"),
+    # phasing ACTION idiom (CR 702.26a): "phase(s) out" / "phase(s) in" as an
+    # imperative instruction (Dream Fighter, Spectral Adversary, The Phasing
+    # of Zhalfir) — maps to the native PhaseOut/PhaseIn tags' own concept
+    # ("phasing") so the phasing_makers lane's ordinary
+    # ``tree.effect_concepts("phasing")`` read covers the recovered node
+    # with no special-case.
+    "phasing": TokenRule(concept="phasing", category="phasing"),
 }
 
 

@@ -730,7 +730,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "mana_amplifier",
         "minus_counters_matter",
         "opponent_discard",
-        "phasing_makers",
         "plus_one_matters",
         "poison_makers",
         "ramp",
@@ -2959,8 +2958,24 @@ def _phasing_makers(tree: ConceptTree) -> list[Signal]:
     both fire. The direction split checklist gate (#6) is moot because the live
     target lane is a single undirected key; collapsing the two directions matches
     it. Scope "you".
+
+    ADR-0037/0038 W3: legacy's OWN project.py deliberately appends a "phasing
+    payoff marker" to ANY trigger whose raw mentions "phase out" even when its
+    own event categorization is 'other' (test_trigger_other_phasing_payoff_
+    marker) — a WATCHER of phasing (The War Doctor: "Whenever one or more
+    other permanents phase out, put a time counter on ~") counts as
+    phasing_makers too, not just an active doer. Mirrored structurally via
+    phase's own native ``PhaseOut``/``PhaseIn`` TRIGGER MODE (normalizes to
+    trigger_event "phaseout"/"phasein" — the CR 702.26e "phases out" EVENT a
+    permanent's own leaves-play watcher fires on, not text).
     """
-    return _whole_card_maker(tree, "phasing", "phasing_makers", "you")
+    hits = _whole_card_maker(tree, "phasing", "phasing_makers", "you")
+    if hits:
+        return hits
+    for unit in tree.units:
+        if unit.origin == "trigger" and unit.trigger_event in ("phaseout", "phasein"):
+            return [Signal("phasing_makers", "you", "", "", tree.name, "high")]
+    return []
 
 
 def _voting_makers(tree: ConceptTree) -> list[Signal]:
@@ -3158,6 +3173,14 @@ def _keyword_field_signals(keywords: frozenset[str], name: str) -> list[Signal]:
     # lifelink creature (no grant node) was the residual ``live_only`` gap.
     if "lifelink" in low:
         out.append(Signal("lifegain_makers", "you", "", "", name, "high"))
+    # ADR-0037/0038 W3: the printed Phasing KEYWORD (CR 702.26a) carries NO
+    # effect node at all — phase emits it purely as a keyword-array entry
+    # (Breezekeeper: keywords=["Flying", "Phasing"], zero abilities/
+    # triggers/statics) — so the structural ``_phasing_makers`` lane's
+    # ``PhaseOut``/``PhaseIn`` effect-node read never reaches it. Mirrors
+    # ``_signals_ir``'s own keyword-field route for this exact keyword.
+    if "phasing" in low:
+        out.append(Signal("phasing_makers", "you", "", "", name, "high"))
     return out
 
 

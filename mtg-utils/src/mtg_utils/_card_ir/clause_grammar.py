@@ -333,6 +333,20 @@ _SIMPLE_VERB = comb.alt(
     # battlefield from hand: a put-into-play cheat. The effect is in the reminder
     # (stripped), so map the keyword name itself.
     comb.value("cheat_play", comb.keyword({"ninjutsu"})),
+    # Phasing ACTION idiom (CR 702.26a) — "phase(s) out" / "phase(s) in" as an
+    # imperative INSTRUCTION (Dream Fighter's combat trigger, Spectral
+    # Adversary's ETB, The Phasing of Zhalfir's Saga chapter), distinct from
+    # the printed Phasing KEYWORD (a pure keyword-array field-lookup, no
+    # effect node at all — see ``_keyword_field_signals``'s own row). The
+    # bare word "phase" is NOT itself the tell — "combat phase" / "main
+    # phase" (a NOUN, Fatespinner / Trench Behemoth) would over-fire the
+    # ``scan_clause`` positional scan otherwise (corpus-verified); requiring
+    # the immediate next word be "in"/"out" is the CR 702.26a verb idiom
+    # itself, never a phase-of-the-turn reference.
+    comb.value(
+        "phasing",
+        comb.seq2(comb.keyword({"phase", "phases"}), comb.keyword({"in", "out"})),
+    ),
     # Keyword abilities that survived as leading text — a closed CR vocabulary mapped
     # to the mechanic each one IS (generalizes to any card with the keyword).
     # Devour (CR 702.82): sacrifice creatures as it enters, ENTER WITH +1/+1
@@ -504,7 +518,7 @@ _VERB_PRESENT = re.compile(
     r"|shuffles?|loses?|reveals?|proliferates?|returns?|conjures?|chooses?"
     r"|goads?|rolls?|prevents?|enters?|enter|moves?|plays?|casts?|removes?"
     r"|fights?|switch|switches|adds?|foretells?|adapts?|crews?|stations?|soulshift"
-    r"|regenerates?|converts?|ends?)\b",
+    r"|regenerates?|converts?|ends?|phases?)\b",
     re.IGNORECASE,
 )
 
