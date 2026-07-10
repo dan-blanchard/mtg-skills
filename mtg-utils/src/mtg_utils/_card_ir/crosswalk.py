@@ -1962,6 +1962,73 @@ def has_nested_roll_die(node: object) -> bool:
     return any(tag_of(n) == "RollDie" for n in _iter_typed_nodes(node))
 
 
+# ``DamageReceived``-shaped trigger DEFS carry a "reflection" execute tag
+# (CR 120.3): ``DealDamage`` (a single target) or ``DamageAll`` (Arcbond's
+# "each other creature and each player"). ``DamageEachPlayer`` is excluded —
+# a distinct "everyone loses life together" edict, not a reflection.
+_DAMAGE_REFLECT_EXECUTE_TAGS: frozenset[str] = frozenset({"DealDamage", "DamageAll"})
+
+
+def _is_damage_received_mode(mode: object) -> bool:
+    """Whether a trigger def's ``mode`` field is CR 120.3's "is dealt
+    damage" watcher — the native ``DamageReceived`` tag (Boros Reckoner) OR
+    phase's own ``Unknown``-mode fallback wrapping the raw phrase (Donna
+    Noble's compound "~ or a creature it's paired with" subject defeats
+    phase's mode derivation)."""
+    return mode == "DamageReceived" or (
+        isinstance(mode, MirrorVariant)
+        and mode.key == "Unknown"
+        and isinstance(mode.inner, str)
+        and "dealt damage" in mode.inner.lower()
+    )
+
+
+def is_damage_reflect_trigger_def(node: object) -> bool:
+    """Whether ``node`` is CR 120.3 damage-reflection: "whenever [it] is
+    dealt damage, it deals that much damage to X", in either of the two
+    shapes phase carries it in:
+
+    * A trigger DEF whose OWN ``mode``/``execute`` are co-located — a
+      top-level trigger unit's own node (Donna Noble; the SAME shape
+      Boros Reckoner's native top-level form already reads) or a static's
+      ``GrantTrigger`` modification's ``trigger`` field (Spiteful Sliver's
+      tribal grant).
+    * A ``CreateDelayedTrigger`` EFFECT node, whose watcher (``mode``) lives
+      on ``condition.trigger`` and whose resulting ability lives on a
+      SIBLING ``effect`` field, not co-located with the watcher (Arcbond's
+      targeted "whenever THAT creature is dealt damage, it deals that much
+      damage to each other creature and each player" — a delayed trigger
+      the spell creates, not a trigger the permanent itself carries).
+
+    Reads ``mode``/``execute`` directly — bypassing :func:`_trigger_event`'s
+    normalization (which folds the ``Unknown``-mode case to ``"other"``) —
+    so the SAME predicate applies at any nesting depth via
+    :func:`_iter_typed_nodes`'s deep walk.
+    """
+    if not isinstance(node, TypedMirrorNode):
+        return False
+    if tag_of(node) == "CreateDelayedTrigger":
+        cond = getattr(node, "condition", MISSING)
+        if not (isinstance(cond, TypedMirrorNode) and tag_of(cond) == "WheneverEvent"):
+            return False
+        trig = getattr(cond, "trigger", MISSING)
+        if not (
+            isinstance(trig, TypedMirrorNode)
+            and _is_damage_received_mode(getattr(trig, "mode", MISSING))
+        ):
+            return False
+        wrapper = getattr(node, "effect", MISSING)
+        if not isinstance(wrapper, TypedMirrorNode):
+            return False
+        return tag_of(getattr(wrapper, "effect", None)) in _DAMAGE_REFLECT_EXECUTE_TAGS
+    if not _is_damage_received_mode(getattr(node, "mode", MISSING)):
+        return False
+    execute = getattr(node, "execute", MISSING)
+    if not isinstance(execute, TypedMirrorNode):
+        return False
+    return tag_of(getattr(execute, "effect", None)) in _DAMAGE_REFLECT_EXECUTE_TAGS
+
+
 def iter_threaded_target_statics(
     ability_like: object,
 ) -> Iterator[tuple[object, TypedMirrorNode]]:

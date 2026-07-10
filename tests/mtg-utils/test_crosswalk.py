@@ -3205,6 +3205,39 @@ def test_damage_reflect_co_occurrence():
     assert "damage_reflect" not in _keys("Michiko Konda, Truth Seeker")
 
 
+def test_damage_reflect_delayed_trigger_recovery():
+    """Stage-A recovery (ADR-0038): Arcbond's "Choose target creature.
+    Whenever that creature is dealt damage this turn, it deals that much
+    damage to each other creature and each player." creates a delayed
+    trigger via ``CreateDelayedTrigger`` — the watcher (``DamageReceived``
+    mode) lives on ``condition.trigger``, the resulting ``DamageAll``
+    effect on a SIBLING ``effect`` field, never co-located the way a
+    top-level trigger unit is. Read via the deep-walk fallback (CR 120.3)."""
+    assert ("damage_reflect", "you", "") in _idents("Arcbond")
+
+
+def test_damage_reflect_compound_subject_recovery():
+    """Stage-A recovery (ADR-0038): Donna Noble's "Whenever ~ or a creature
+    it's paired with is dealt damage, ~ deals that much damage to target
+    opponent." carries a compound subject ("~ OR a creature it's paired
+    with") that defeats phase's own trigger-mode derivation — the trigger's
+    ``mode`` decorates as an ``Unknown`` variant wrapping the raw "is dealt
+    damage" phrase rather than the native ``DamageReceived`` tag. Read
+    directly off ``mode``/``execute``, bypassing the lossy
+    ``_trigger_event`` normalization (CR 120.3)."""
+    assert ("damage_reflect", "you", "") in _idents("Donna Noble")
+
+
+def test_damage_reflect_granted_trigger_recovery():
+    """Stage-A recovery (ADR-0038): Spiteful Sliver's "Sliver creatures you
+    control have 'Whenever ~ is dealt damage, it deals that much damage to
+    target player or planeswalker.'" lands as a ``GrantTrigger``
+    modification on a static — the SAME ``mode``/``execute``-co-located
+    shape a top-level trigger uses, just nested one level inside the
+    grant (CR 120.3)."""
+    assert ("damage_reflect", "you", "") in _idents("Spiteful Sliver")
+
+
 def test_damage_to_you_punish_direction_gates():
     """CR 603.2 + 102.2/102.3: Michiko's DamageDone + valid_target
     {Controller} + Opponent-controlled valid_source fires (the live "no

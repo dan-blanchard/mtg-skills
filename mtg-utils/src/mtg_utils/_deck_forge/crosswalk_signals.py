@@ -71,6 +71,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     filter_without_keywords,
     has_filter_property,
+    is_damage_reflect_trigger_def,
     is_dies_return_trigger,
     iter_condition_sites,
     iter_cost_leaves,
@@ -699,7 +700,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "creature_etb",
         "creature_ping",
         "creatures_matter",
-        "damage_reflect",
         "damage_to_opp_matters",
         "dies_recursion",
         "dig_until",
@@ -6304,6 +6304,16 @@ def _damage_trigger_lanes(tree: ConceptTree) -> list[Signal]:
       CombatOnly and Any damage kinds, live reads both; the batched
       ``DamageDoneOnceByController`` mode — Anowon — joins via the shared
       ``deals_damage`` event). Scope "you", bare key (live).
+
+    Stage-A recovery (ADR-0038): a DamageReceived-shaped trigger def not
+    surfaced as its own top-level ``trigger`` unit — nested inside a spell's
+    ``CreateDelayedTrigger`` (Arcbond's targeted "whenever THAT creature is
+    dealt damage" reflector) or a static's ``GrantTrigger`` modification
+    (Spiteful Sliver's tribal grant) — or a top-level trigger whose compound
+    subject ("~ or a creature it's paired with" — Donna Noble) defeats
+    phase's own mode derivation (an ``Unknown``-mode wrapper). Read via
+    :func:`is_damage_reflect_trigger_def` over EVERY unit's deep node walk,
+    gated on the flat arm above not already firing (CR 120.3).
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -6342,6 +6352,13 @@ def _damage_trigger_lanes(tree: ConceptTree) -> list[Signal]:
             and _is_tribe_damage_source(vs)
         ):
             fire("tribe_damage_trigger", "you")
+    if "damage_reflect" not in seen:
+        for unit in tree.units:
+            if any(
+                is_damage_reflect_trigger_def(n) for n in iter_typed_nodes(unit.node)
+            ):
+                fire("damage_reflect", "you")
+                break
     return out
 
 
