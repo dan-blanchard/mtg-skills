@@ -3734,12 +3734,98 @@ def test_scaling_pump_pumpall_quantity_unwrap_gain(name):
 
 
 @pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 4 (PROMOTED): the single-target ``Pump`` tag
+        # (Goblin Piledriver's "+2/+0 ... for each other attacking Goblin")
+        # is the SAME CR 107.3 / 613.4c board-count scaler as a mass
+        # ``PumpAll`` — these are the 5 originally-live_only cards this
+        # key's promotion recovers, one per required-widening reason.
+        "Embiggen",  # ObjectTypelineComponentCount widening (target's own
+        # supertype/type/subtype count — CR 205.1)
+        "Gold Rush",  # Typed target, ObjectCount (Treasures) — already-
+        # accepted qty tag, needed only the Pump-tag admit
+        "Gran Pulse Ochu",  # ZoneCardCount widening (own graveyard)
+        "Ral's Staticaster",  # ZoneCardCount widening (own hand)
+        "Sunbathing Rootwalla",  # SelfRef, BasicLandTypeCount (Domain) —
+        # already-accepted qty tag, needed only the Pump-tag admit
+    ],
+)
+def test_scaling_pump_single_target_recovered(name):
+    """ADR-0038 W3 batch 4 (CR 107.3, 613.4c): re-admitting the single-
+    target ``Pump`` tag (alongside ``PumpAll``) in ``_pump_scaling_lanes``,
+    plus widening ``_SCALING_QTY_TAGS`` with ``ZoneCardCount`` and
+    ``ObjectTypelineComponentCount``, recovers every one of the 5 genuine
+    legacy-recognized members this key was residual over. 0 genuine members
+    lost vs a live corpus re-measure this session."""
+    assert ("scaling_pump", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 4 — representative BEYOND-LEGACY gains, one per
+        # accepted single-target-Pump sub-shape (every sub-shape in the
+        # ~130-card corpus was read + classified this session; the target
+        # tag never gates ``scaling_pump`` — see docstring).
+        "Goblin Piledriver",  # SelfRef firebreather, tribal ObjectCount
+        "Herald of Amity",  # Typed target-creature grant, Aura ObjectCount
+        "General Marhault Elsdragon",  # TriggeringSource team-enabler
+        # ("whenever a creature you control becomes blocked, IT gets...")
+        "Growth Cycle",  # ParentTarget same-object chain ("Target creature
+        # gets +3/+3... It gets an additional +2/+2 for each...")
+        "Dark Salvation",  # phase mis-tags ``target=Player`` (the pump's
+        # qty scope is "that player['s Zombies]", not the actual target
+        # creature) — the lane never gates on ``target``, so this still
+        # fires correctly regardless of the position-relative mistag.
+        "Bonehoard",  # ZoneCardCount widening via the mod-site path (all
+        # graveyards' creature cards) — a Living Weapon Equipment's own
+        # continuous ``AddDynamicPower``/``AddDynamicToughness``.
+        "Knight of the Reliquary",  # ZoneCardCount widening (own graveyard
+        # land cards), a creature's own static self-pump.
+        "Wight of Precinct Six",  # ZoneCardCount widening (opponents'
+        # graveyards' creature cards).
+    ],
+)
+def test_scaling_pump_single_target_subshapes(name):
+    """ADR-0038 W3 batch 4: every single-target-Pump sub-shape (by phase's
+    ``target`` tag: SelfRef / Typed / TriggeringSource / ParentTarget /
+    Player) fires ``scaling_pump`` — no card-count/target-type veto
+    separates a genuine class here (tried and rejected this session; the
+    boundary is the qty TAG, not the counted population or the target
+    shape). CR 107.3, 613.4c."""
+    assert ("scaling_pump", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Giant Growth",  # single-target Pump, FIXED +3/+3 — Typed target,
+        # no qty tag at all; never scales regardless of the tag widening.
+        "Mana-Charged Dragon",  # single-target Pump, SelfRef target, bare-X
+        # ("mana paid this way" — Variable) qty; a cost/choice echo stays
+        # excluded even for a single-target Pump (split-lane #4).
+    ],
+)
+def test_scaling_pump_single_target_still_excludes_non_scaling(name):
+    """ADR-0038 W3 batch 4 guard: admitting the single-target ``Pump`` tag
+    does not admit a FIXED pump or a bare-X cost-echo — ``_is_scaling_count``
+    still gates both (CR 107.3)."""
+    assert "scaling_pump" not in _keys(name)
+
+
+@pytest.mark.parametrize(
     ("name", "should_fire"),
     [
         ("Commander's Insignia", True),  # creatures YOU control team anthem
         ("Craterhoof Behemoth", True),  # one-shot team scaling anthem
         ("Coat of Arms", False),  # symmetric "each creature" — controller any
         ("Shivan Dragon", False),  # single-target self pump
+        # ADR-0038 W3 batch 4: a genuine scaling single-target Pump is
+        # NEVER a count_anthem, however it scales — that stays PumpAll-only
+        # (checklist #6, re-confirmed post the single-target Pump admit).
+        ("Goblin Piledriver", False),
+        ("Herald of Amity", False),
     ],
 )
 def test_count_anthem_team_subject_gate(name, should_fire):

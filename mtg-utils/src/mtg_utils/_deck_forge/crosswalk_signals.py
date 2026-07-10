@@ -780,6 +780,16 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # Saga/Class/sticker-sheet level-up shapes) needing more investigation
     # than this batch's time budget allowed; see the ADR-0038 W3 batch 4
     # session notes for the card list and per-card triage.
+    #
+    # ADR-0038 W3 batch 4: ``scaling_pump`` PROMOTED — the single-target
+    # ``Pump`` tag is now admitted alongside ``PumpAll`` in
+    # ``_pump_scaling_lanes`` (CR 107.3 / 613.4c; see that function's
+    # docstring), plus two widened ``_SCALING_QTY_TAGS`` entries
+    # (``ZoneCardCount``, ``ObjectTypelineComponentCount``). 0 genuine
+    # members lost vs a live corpus re-measure (Embiggen, Gold Rush, Gran
+    # Pulse Ochu, Ral's Staticaster, Sunbathing Rootwalla all recovered);
+    # the beyond-legacy gains (~182-card corpus diff, every sub-shape by
+    # target tag corpus-verified) are CR-grounded + pinned.
     {
         "artifacts_matter",
         "base_pt_set",
@@ -805,7 +815,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "plus_one_matters",
         "ramp",
         "sacrifice_outlets",
-        "scaling_pump",
         "target_player_draws",
         "token_maker",
         "topdeck_selection",
@@ -5523,6 +5532,20 @@ _SCALING_QTY_TAGS: frozenset[str] = frozenset(
         # construction (CR 107.3) — the same category as a bare count, just a
         # MAX instead of a COUNT of the same population.
         "Aggregate",
+        # ADR-0038 W3 batch-4 (single-target Pump adjudication) — a ZONE card
+        # count ("for each card in your graveyard/hand/library" — Gran Pulse
+        # Ochu, Ral's Staticaster, Bonehoard, Knight of the Reliquary) is the
+        # SAME board-state-scaler category as ``ObjectCount``, just counting a
+        # zone's contents instead of the battlefield; CR 107.3 draws no
+        # distinction between the two populations.
+        "ZoneCardCount",
+        # A TARGET OBJECT's own typeline-component count ("+1/+1 for each
+        # supertype, card type, and subtype it has" — Embiggen) is still a
+        # value "defined by the text of th[e] ability" per CR 107.3 — the
+        # counted quantity is the target's own characteristics rather than a
+        # population, but it is exactly as dynamic/non-fixed as any other
+        # accepted tag (CR 205.1 types are a countable game quantity).
+        "ObjectTypelineComponentCount",
     }
 )
 # Ref-qty tags that are a bare X / cost-derived magnitude (CR 107.3) — NEVER a
@@ -6179,9 +6202,10 @@ def _anthem_static(tree: ConceptTree) -> list[Signal]:
 
 def _pump_scaling_lanes(tree: ConceptTree) -> list[Signal]:
     """scaling_pump / count_anthem — a +X/+X that SCALES with a board count
-    (CR 107.3 / 613.4b). Two typed surfaces:
+    (CR 107.3 / 613.4c). Two typed surfaces:
 
-    * a mass ``PumpAll`` whose power/toughness is a scaling ``Ref``;
+    * a mass ``PumpAll`` OR single-target ``Pump`` whose power/toughness is a
+      scaling ``Ref``;
     * a dynamic P/T modification site (``AddDynamicPower`` — Craterhoof's
       nested one-shot static, Commander's Insignia's continuous anthem) whose
       ``value`` scales; the ``Set*`` forms are */* CDA bodies, excluded.
@@ -6192,6 +6216,24 @@ def _pump_scaling_lanes(tree: ConceptTree) -> list[Signal]:
     Arms) or single-target firebreathing stays scaling_pump-or-nothing
     (checklist #6). Bare-X pumps (a "-X/-X" activation — ``Variable``) never
     scale (split-lane #4). Both scope "you".
+
+    ADR-0038 W3 batch-4 — the single-target ``Pump`` class (Goblin
+    Piledriver's SelfRef self-buff, Herald of Amity's Typed-target grant,
+    General Marhault Elsdragon's TriggeringSource team-enabler) is a genuine
+    scaling_pump member by the SAME CR 107.3 / 613.4c contract as a mass
+    ``PumpAll``: a "+X/+0 ... for each other attacking Goblin" one-shot
+    buff on a single creature scales exactly like a board anthem, it just
+    lands on one object instead of every object a filter names. The lane's
+    typed target (SelfRef / Typed / TriggeringSource / ParentTarget /
+    Player) never gates ``scaling_pump`` — a mass anthem and a firebreather
+    are the SAME "does the amount scale" question, and phase's own
+    ``target`` tagging is a positional artifact of the effect shape (a
+    scoped "-1/-1 for each Zombie THAT PLAYER controls" pump still tags
+    ``target=Player`` on Dark Salvation even though the actual object
+    receiving the pump is a target creature) — never the deciding signal
+    here. ``count_anthem`` stays PumpAll-only: a single-target Pump, however
+    it scales, is never a "creatures you control" anthem subject (checklist
+    #6).
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -6208,20 +6250,29 @@ def _pump_scaling_lanes(tree: ConceptTree) -> list[Signal]:
         # ``T_power__Fixed(value=int)`` for a literal. This was previously
         # silently under-served (Alistair, Cloudkill, Jazal Goldmane —
         # ``PumpAll.power = Quantity(Ref(…))`` fell through the un-peeled
-        # ``ref_count_qty`` check as if fixed). single-target ``Pump``
-        # (Embiggen, Gold Rush, Gran Pulse Ochu, Ral's Staticaster,
-        # Sunbathing Rootwalla — genuine legacy-recognized recall gaps) is
-        # DELIBERATELY still excluded here: legacy's Card IR has a much
-        # BROADER blind spot for single-target dynamic ``Pump`` than this
-        # batch's scope (~130 corpus cards, e.g. Herald of Amity's "for
-        # each Aura you control" — non-creature-population, still a legacy
-        # miss), so admitting the tag at all reopens far more than these 5
-        # named cards; deferred as its own wave (see `deferred`).
-        if tag_of(c.node) == "PumpAll" and _is_scaling_count(
+        # ``ref_count_qty`` check as if fixed).
+        #
+        # ADR-0038 W3 batch-4: single-target ``Pump`` is now ADMITTED
+        # alongside ``PumpAll`` (see docstring) — re-corpus-verified this
+        # session across the full ~130-card single-target dynamic-Pump
+        # class (every sub-shape by target tag: SelfRef firebreathers,
+        # Typed target-creature grants, TriggeringSource team-enablers,
+        # ParentTarget same-object chains, and the one Player-mistagged
+        # Dark Salvation) plus 2 widened ``_SCALING_QTY_TAGS`` entries
+        # (``ZoneCardCount``, ``ObjectTypelineComponentCount``) needed to
+        # recover Gran Pulse Ochu / Ral's Staticaster (graveyard/hand zone
+        # counts) and Embiggen (target's own typeline-component count) —
+        # the 3 of the 5 originally-missing cards whose qty tag wasn't yet
+        # in the accepted set. No card-count veto (a creature-population
+        # split was tried and does not separate a genuine class); the tag
+        # itself is the boundary. CR 107.3, 613.4c.
+        if tag_of(c.node) in ("PumpAll", "Pump") and _is_scaling_count(
             c.node, ("power", "toughness"), c.raw
         ):
             fire("scaling_pump", c.raw)
-            if _is_generic_creature_filter(effect_filter(c.node)):
+            if tag_of(c.node) == "PumpAll" and _is_generic_creature_filter(
+                effect_filter(c.node)
+            ):
                 fire("count_anthem", c.raw)
 
     def scan_mod_sites(root: object) -> None:
