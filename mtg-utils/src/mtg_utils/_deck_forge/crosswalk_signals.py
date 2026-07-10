@@ -161,7 +161,12 @@ from mtg_utils._card_ir.project import (
 # clause — imported single-source (never re-typed) so the crosswalk's
 # ``_kept(tree)`` text-idiom fallback reproduces the SAME clause the legacy
 # recovery grammar already tokenizes, no new grammar/verb/arm added.
-from mtg_utils._card_ir.supplement import _FORCE_ATTACK
+#
+# ADR-0038 W3 batch 3 — clone_makers back-reference recovery reuses the
+# legacy ``_recover_clone_subjects`` text-scan (CR 707.2's copied-type word
+# right after "copy of") single-source from the OLD projection's own
+# supplement pass, rather than re-deriving an equivalent regex here.
+from mtg_utils._card_ir.supplement import _FORCE_ATTACK, _copied_type_from_text
 
 # The b15 opponent_counter_grant co-tap anaphora fallback (the supplement's
 # tap-opp combinators) was T9-finalize folded to the
@@ -2014,18 +2019,88 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ADR-0038 W3 batch 3 — the P/T-modifying node tags any_counter_matters' pump
+# arm gates on: the FIXED forms (``Pump``/``PumpAll`` effects, ``AddPower``/
+# ``AddToughness`` static mods — mapped to ``concept="pump"`` by
+# ``EFFECT_CONCEPTS``/``_MOD_CONCEPTS``) AND the DYNAMIC forms
+# (``AddDynamicPower``/``AddDynamicToughness`` — "+X/+X where X is …", Kyler /
+# Luxior's counter-scaled anthem) which decorate as ``concept="other"`` since
+# ``_MOD_CONCEPTS`` maps only the fixed pair. Read off the node's own tag, never
+# ``concept``, so both forms are covered.
+_PT_PUMP_TAGS: frozenset[str] = frozenset(
+    {
+        "Pump",
+        "PumpAll",
+        "AddPower",
+        "AddToughness",
+        "AddDynamicPower",
+        "AddDynamicToughness",
+    }
+)
+
+
 def _any_counter_matters(tree: ConceptTree) -> list[Signal]:
-    """any_counter_matters — a kind-AGNOSTIC counter PAYOFF (CR 122.1). The structural
-    arm only (``_signals_ir`` ~9694 arm b): a subject / count-operand filter carrying
-    a ``Counters`` predicate of the kind-agnostic ``Any`` form ("for each counter on
-    ~", "a permanent with a counter on it"). The amount-raw "counter"-discriminator
-    arm (a) is a documented ``live_only`` raw-fold (phase drops the counted-object).
-    Scope "you".
+    """any_counter_matters — a kind-AGNOSTIC counter PAYOFF (CR 122.1). Two structural
+    arms mirror the legacy ``_signals_ir`` taxonomy exactly (ADR-0038 W3 batch 3):
+
+    * arm (b), a subject / count-operand FILTER carrying a ``Counters`` predicate of
+      the kind-agnostic ``Any`` form ("a permanent with a counter on it");
+    * arm (a), a PUMP effect's dynamic count-operand QTY node
+      (:func:`count_operand_qty`, ``CountersOn`` / ``CountersOnObjects``) whose
+      ``counter_type`` is anything OTHER than ``P1P1`` — the legacy pump-scaling
+      arm's own taxonomy (``_signals_ir`` ~10018, gated ``e.category=="pump"``:
+      "+1/+1 counter" text routes to ``plus_one_matters``; every OTHER named kind
+      (charge/soul/oil/growth/plague/valor/quest/blood/spore/feather/lore/strife/
+      scream/acorn/rev/time/unity/fellowship/…) or a kind-agnostic count ("for
+      each counter on ~" — Kyler) is NOT re-split into per-kind lanes here; it
+      fans into this catch-all the same way legacy's raw-text gate does (a card
+      can ALSO carry its own dedicated named-kind lane elsewhere — additive, not
+      exclusive). The PUMP gate (the node's own tag — ``Pump``/``PumpAll``, or a
+      ``AddPower``/``AddToughness``/``AddDynamicPower``/``AddDynamicToughness``
+      static mod; NOT ``concept`` — the dynamic static forms decorate as
+      ``concept="other"``, only ``_MOD_CONCEPTS`` maps the FIXED forms) matters: a
+      non-pump effect that merely happens to scale by a counter count (draw /
+      damage / mill / life-gain / token-count "for each charge counter on this
+      artifact") is a DIFFERENT lane entirely and must NOT fire here — legacy's
+      own gate excludes it too. CR 122.1.
     """
+    for unit in tree.units:
+        # A mass STATIC restriction/grant whose OWN ``affected`` names the
+        # counter-bearing filter directly (Rishkar's "each creature you control
+        # with a counter on it has …"; Nils's "each creature with one or more
+        # counters on it can't attack …") lives on the whole-unit static
+        # wrapper, never a per-modification concept (ADR-0038 W3 batch 3).
+        if unit.origin == "static":
+            filt = effect_filter(unit.node)
+            if (
+                filt is not None
+                and filter_controller(filt) != "Opponent"
+                and "Any" in counter_pred_kinds(filt)
+            ):
+                return [Signal("any_counter_matters", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.role == "cost":
             continue
-        for filt in (effect_filter(c.node), count_operand_filter(c.node)):
+        if tag_of(c.node) in _PT_PUMP_TAGS:
+            q = count_operand_qty(c.node)
+            if q is not None and tag_of(q) in ("CountersOn", "CountersOnObjects"):
+                kind = str(getattr(q, "counter_type", "") or "").upper()
+                if kind != "P1P1":
+                    return [
+                        Signal(
+                            "any_counter_matters", "you", "", c.raw, tree.name, "high"
+                        )
+                    ]
+        filters = [effect_filter(c.node), count_operand_filter(c.node)]
+        # A one-shot conferred grant ("Each creature you control with a counter
+        # on it gains flying" — Baxter; "…has hexproof and indestructible" —
+        # Bulwark Ox) carries its OWN filter on a NESTED static def's
+        # ``affected``, never the wrapping ``GenericEffect``'s own fields
+        # (:func:`effect_filter` reads only the top-level node) — descend via
+        # :func:`iter_static_defs` (ADR-0038 W3 batch 3).
+        for stdef in iter_static_defs(c.node):
+            filters.append(getattr(stdef, "affected", None))
+        for filt in filters:
             if filt is None or filter_controller(filt) == "Opponent":
                 continue
             if "Any" in counter_pred_kinds(filt):
@@ -2978,14 +3053,114 @@ def _lure_makers(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ADR-0038 W3 batch 3 — a BecomeCopy ``target`` naming a BACK-REFERENCE (no filter
+# of its own) points at whatever object this SAME ability already selected — Dimir
+# Doppelganger's exiled creature card (``ParentTarget``), Curie's exiled artifact
+# creature (``TrackedSet``), The Ever-Changing 'Dane's sacrificed creature
+# (``CostPaidObject``), The Everflowing Well's triggering object
+# (``TriggeringSource``), The Mimeoplasm's exiled card (``ExiledCardByIndex``).
+# ``SelfRef`` (Permeating Mass, The Flood of Mars — "becomes a copy of ~") instead
+# names the ability's OWN host card, no lookup needed. A core-type word literally
+# named in a clause's own text — never a whole-card scan — is the LAST-RESORT read
+# for a sibling selector phase leaves Unimplemented (Kaya, Spirits' Justice's
+# "choose a CREATURE CARD from among them"; Valki's "Choose a CREATURE CARD exiled
+# with Valki").
+_CLONE_TYPE_WORD_RE = re.compile(
+    r"\b(creature|artifact|enchantment|planeswalker|land|permanent)\b",
+    re.IGNORECASE,
+)
+
+
+def _clone_words_from_raw(raw: str) -> tuple[str, ...]:
+    out: list[str] = []
+    for w in _CLONE_TYPE_WORD_RE.findall(raw or ""):
+        title = w.title()
+        if title not in out:
+            out.append(title)
+    return tuple(out)
+
+
+def _clone_copied_words(
+    tree: ConceptTree, unit: AbilityUnit, node: TypedMirrorNode
+) -> tuple[str, ...]:
+    """The copied permanent's type/subtype words for a ``BecomeCopy`` effect (CR
+    707.2) — the same recovery chain the legacy ``_recover_clone_subjects``
+    (project.py) runs, ported onto the mirror tree instead of re-derived, plus two
+    arms the legacy fallback never needed (a real mirror tree exposes the sibling
+    NODES the legacy text-only recovery couldn't): a direct ``Typed``/``Or``/``And``
+    filter on ``target`` names the type outright (Clone, Spark Double). A back-
+    reference target instead recovers it, in order: (1) THIS SAME unit's other
+    concept's own structured subject words — the producing selector's type (Dimir
+    Doppelganger's Exile-target Creature filter, Brudiclad's created-token types,
+    Curie's exiled-artifact-creature cost); (2) for a trigger-origin unit with no
+    such sibling, the trigger's OWN watched-object filter (Sarkhan, Soul Aflame's "a
+    Dragon you control enters", Lazav's "a creature card is put into an opponent's
+    graveyard" — the copy has no sibling EFFECT to borrow from, the type lives on
+    the trigger node itself); (3) the clause's own "copy of <type>" text (Cytoshape,
+    Cemetery Puca — the printed reminder already names the type); (4) a core-type
+    word ANYWHERE in this SAME unit's own generated description (Vesuvan Drifter,
+    The Mimeoplasm — "If you reveal a CREATURE card this way, ~ becomes a copy of
+    THAT CARD"; the qualifier precedes "copy of" instead of following it, so the
+    narrower "copy of <type>" text-scan misses it, but the type word is still
+    THIS unit's own, never a whole-card scan); (5) a core-type word literally
+    named in a sibling's own raw clause text (:func:`_clone_words_from_raw` — Kaya,
+    Spirits' Justice / Valki's "choose a CREATURE CARD"); (6) the true last resort,
+    a core-type word ANYWHERE in the whole-card oracle (Volatile Chimera — the
+    "creature cards you drafted" qualifier lives on a WHOLLY SEPARATE deckbuilding
+    ability, cross-unit) — safe only because it is gated behind a real structural
+    ``BecomeCopy`` node already existing (never widens WHICH cards fire, only
+    WHICH type they fire as).
+    """
+    sub = effect_filter(node)
+    words = (filter_core_types(sub) + filter_subtypes(sub)) if sub is not None else ()
+    if words:
+        return words
+    ttag = tag_of(getattr(node, "target", None))
+    if ttag == "SelfRef":
+        return tree.card_types + tree.card_subtypes
+    for oc in unit.iter_concepts():
+        if oc.node is node or not oc.subject:
+            continue
+        # A bare "Card" filter ("exile A CARD", no type restriction) carries no
+        # permanent-type info — skip it so a later, more specific tier (the
+        # unit's own description text) gets a chance (Lazav, Familiar Stranger).
+        sib_words = tuple(w for w in oc.subject if w != "Card")
+        if sib_words:
+            return sib_words
+    if unit.origin == "trigger":
+        trig_words = trigger_subject(unit.node)
+        if trig_words:
+            return trig_words
+    unit_desc = getattr(unit.node, "description", "") or ""
+    recovered = _copied_type_from_text(unit_desc)
+    if recovered is not None:
+        return recovered.card_types
+    found = _clone_words_from_raw(unit_desc)
+    if found:
+        return found
+    for oc in unit.iter_concepts():
+        if oc.node is node:
+            continue
+        found = _clone_words_from_raw(oc.raw)
+        if found:
+            return found
+    return _clone_words_from_raw(tree.oracle)
+
+
 def _copy_clone(tree: ConceptTree) -> list[Signal]:
     """copy_permanent / clone_makers / token_copy_makers — the copy cluster (CR 707 /
     701.36). Three structural surfaces (Dan's clone-vs-token-copy boundary):
 
-    * a ``BecomeCopy`` effect — the copied filter (its ``target``) drives the lane: a
-      generic ``Permanent`` copy (Crystalline Resonance) fans to ``copy_permanent`` +
-      ``clone_makers``; a ``Creature`` core type or a resolved creature SUBTYPE
-      (Sunfrill Imitator's Dinosaur) → ``clone_makers``;
+    * a ``BecomeCopy`` effect — the copied type (:func:`_clone_copied_words`) drives
+      the lane: a generic ``Permanent`` copy (Crystalline Resonance) fans to
+      ``copy_permanent`` + ``clone_makers``; a ``Creature`` core type or a resolved
+      creature SUBTYPE (Sunfrill Imitator's Dinosaur) → ``clone_makers``. A
+      ``BecomeCopy`` BURIED inside a granted ability's own quoted definition
+      (Shameless Charlatan — "Commander creatures you own have '{2}{U}: This
+      creature becomes a copy of another target creature.'") carries no top-level
+      unit effect at all, so the unit's own already-decorated ``GrantAbility``
+      static concept is descended one level (``.definition.effect`` — O(1), never a
+      full tree walk) to catch it too;
     * a ``CopyTokenOf`` / ``CopyTokenBlockingAttacker`` / ``Populate`` effect →
       ``token_copy_makers``. The Embalm / Eternalize / … reminder self-copies carry a
       ``SelfRef`` target (a copy of THIS card, not a copy-others payoff — Adorned
@@ -3002,17 +3177,36 @@ def _copy_clone(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, "you", "", raw, tree.name, "high"))
 
-    for c in tree.effect_concepts("become_copy"):
-        sub = effect_filter(c.node)
-        cores = filter_core_types(sub) if sub is not None else ()
-        if "Permanent" in cores:
-            fire("copy_permanent", c.raw)
-            fire("clone_makers", c.raw)
-        if "Creature" in cores:
-            fire("clone_makers", c.raw)
-        subtypes = filter_subtypes(sub) if sub is not None else ()
-        if any(_resolve_subject(w, CREATURE_SUBTYPES) for w in subtypes):
-            fire("clone_makers", c.raw)
+    for unit in tree.units:
+        found_nodes: set[int] = set()
+        become_copies: list[tuple[TypedMirrorNode, str]] = []
+        for c in unit.effect_concepts("become_copy"):
+            found_nodes.add(id(c.node))
+            become_copies.append((c.node, c.raw))
+        for sc in unit.statics:
+            if tag_of(sc.node) != "GrantAbility":
+                continue
+            definition = getattr(sc.node, "definition", None)
+            geffect = (
+                getattr(definition, "effect", None) if definition is not None else None
+            )
+            if (
+                isinstance(geffect, TypedMirrorNode)
+                and tag_of(geffect) == "BecomeCopy"
+                and id(geffect) not in found_nodes
+            ):
+                found_nodes.add(id(geffect))
+                gdesc = getattr(definition, "description", "") or ""
+                become_copies.append((geffect, gdesc))
+        for node, raw in become_copies:
+            words = _clone_copied_words(tree, unit, node)
+            if "Permanent" in words:
+                fire("copy_permanent", raw)
+                fire("clone_makers", raw)
+            if "Creature" in words:
+                fire("clone_makers", raw)
+            if any(_resolve_subject(w, CREATURE_SUBTYPES) for w in words):
+                fire("clone_makers", raw)
     for unit in tree.units:
         for c in unit.effects:
             if c.concept not in ("copy_token", "populate"):
@@ -6904,22 +7098,60 @@ def _combat_damage_lanes(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+# ADR-0038 W3 batch 3 — a real phase-parser gap the other three typed arms can't
+# reach: a ``ModifyCost`` static ability's ordinal-count qualifier carries NO
+# structured field at all (Highspire Bell-Ringer, Uthros Psionicist, Monk Class,
+# Alisaie Leveilleur, Raging Battle Mouse — "The second spell you cast each turn
+# costs {N} less to cast" projects to a bare cost-reduction static with
+# ``condition=None``), and an ETB trigger's ordinal condition is dropped entirely
+# too (Codespell Cleric — "if it was the second spell you cast this turn" leaves
+# the trigger's own ``condition``/``execute.condition`` both ``None``). The
+# qualifier survives ONLY in that ONE node's own generated ``description`` — never
+# the whole-card oracle — so this scan can never cross-contaminate with an
+# UNRELATED ability's "cast two or more spells LAST turn" elsewhere on the same
+# card (the Innistrad werewolf day/night transform condition — Afflicted
+# Deserter, Call of the Full Moon — and the opponent-scoped "if an opponent cast
+# two or more spells this turn" cost-discount, Ertai's Scorn, CR 712 excluded by
+# :func:`spell_velocity_static_two`'s own Controller-scope gate): both use
+# DIFFERENT wording ("cast two or more spells" bare, third-person "casts their",
+# or "last turn") that this narrower "<ordinal> spell YOU CAST (each|this) turn"
+# phrasing never matches. CR 601.
+_SECOND_SPELL_NODE_TEXT = re.compile(
+    r"(?:second|third|fourth|fifth) spell you cast (?:each|this) turn"
+    r"|was the (?:second|third|fourth|fifth) spell you cast this turn",
+    re.IGNORECASE,
+)
+
+
+def _second_spell_node_text(unit: AbilityUnit) -> bool:
+    """Whether THIS unit's own node ``description`` names the second-spell
+    ordinal qualifier (:data:`_SECOND_SPELL_NODE_TEXT`), gated to a
+    ``ModifyCost`` mode for a static-origin unit (never an unrelated static)."""
+    if unit.origin == "static" and static_mode_tag(unit.node) != "ModifyCost":
+        return False
+    desc = getattr(unit.node, "description", "") or ""
+    return bool(_SECOND_SPELL_NODE_TEXT.search(desc))
+
+
 def _second_spell_matters(tree: ConceptTree) -> list[Signal]:
     """second_spell_matters — the spell-velocity payoff (CR 603.2), the
     reclassified-UP probe win: the "second spell each turn" qualifier the OLD
     projection dropped (forcing live onto a byte mirror) is a first-class
     ``constraint {NthSpellThisTurn, n}`` on the SpellCast trigger in v0.9.0
-    (Cori-Steel Cutter, n=2). Three typed arms: the trigger constraint with
-    n ≥ 2; the activation-restriction CONDITION form
-    ``YouCastSpellCountAtLeast count ≥ 2`` ("Activate only if you've cast two or
-    more spells this turn" — Xerex Strobe-Knight); and the static-continuous
-    CONDITION form — a ``QuantityComparison`` over ``SpellsCastThisTurn`` gating
-    a P/T buff on "two or more spells this turn" (Brightspear Zealot, b3 recall —
-    :func:`spell_velocity_static_two`, the count on a continuous-ability
-    ``condition`` rather than an activation restriction). A bare SpellCast
-    trigger (Talrand), the n=1 first-spell form (Alela, Cunning Conqueror), and a
-    "three or more spells" static (Arclight Phoenix — a broader velocity lane)
-    never fire. Scope "you".
+    (Cori-Steel Cutter, n=2). Four arms: the trigger constraint with n ≥ 2;
+    the activation-restriction CONDITION form ``YouCastSpellCountAtLeast
+    count ≥ 2`` ("Activate only if you've cast two or more spells this turn" —
+    Xerex Strobe-Knight); the static/replacement-CONDITION form — a
+    ``QuantityComparison``/``OnlyIfQuantity`` over ``SpellsCastThisTurn`` gating a
+    payoff on "two or more spells this turn" (Brightspear Zealot, b3 recall;
+    Effortless Master's ETB counters, ADR-0038 W3 batch 3 — both share the
+    identical comparator/lhs/rhs shape, :func:`spell_velocity_static_two`); and the
+    per-node text bridge (:func:`_second_spell_node_text`) for the two real
+    phase-parser gaps a ``ModifyCost`` static's dropped qualifier and an ETB
+    trigger's dropped ordinal condition leave with no typed field to read. A bare
+    SpellCast trigger (Talrand), the n=1 first-spell form (Alela, Cunning
+    Conqueror), and a "three or more spells" static (Arclight Phoenix — a
+    broader velocity lane) never fire. Scope "you".
     """
     for unit in tree.units:
         if unit.origin != "trigger":
@@ -6931,6 +7163,9 @@ def _second_spell_matters(tree: ConceptTree) -> list[Signal]:
             return [Signal("second_spell_matters", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         if spell_count_at_least(unit.node) >= 2 or spell_velocity_static_two(unit.node):
+            return [Signal("second_spell_matters", "you", "", "", tree.name, "high")]
+    for unit in tree.units:
+        if _second_spell_node_text(unit):
             return [Signal("second_spell_matters", "you", "", "", tree.name, "high")]
     return []
 

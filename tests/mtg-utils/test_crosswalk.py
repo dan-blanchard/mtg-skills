@@ -732,6 +732,58 @@ def test_any_counter_matters_predicate_arm():
 
 
 @pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 3 — the PUMP arm's dynamic count-operand QTY node
+        # (CR 122.1): Luxior's ``AddDynamicPower(value=Ref(qty=CountersOn))``
+        # (kind-agnostic, "for each counter on it") and Withering Hex's
+        # scaled-Multiply debuff form (``AddDynamicPower(value=Multiply(factor=-1,
+        # inner=Ref(qty=CountersOn(counter_type='plague'))))`` — a NAMED kind,
+        # still routes here since its raw isn't "+1/+1 counter" text).
+        "Luxior, Giada's Gift",
+        "Withering Hex",
+    ],
+)
+def test_any_counter_matters_pump_qty_arm(name):
+    assert ("any_counter_matters", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 3 — a mass STATIC restriction/grant whose OWN
+        # ``affected`` names the counter-bearing filter directly (CR 122.1):
+        # Rishkar's "each creature you control with a counter on it has …"
+        # (a whole-unit static, not a per-modification concept).
+        "Rishkar, Peema Renegade",
+        # Nils's "each creature with one or more counters on it can't attack
+        # you …" — the SAME whole-unit static shape, a restriction not a grant.
+        "Nils, Discipline Enforcer",
+        # A one-shot conferred grant nested inside a ``GenericEffect``'s OWN
+        # ``static_abilities`` (Baxter's keyword-flying grant; Bulwark Ox's
+        # hexproof/indestructible grant) — descended via ``iter_static_defs``.
+        "Baxter, Fly in the Ointment",
+        "Bulwark Ox",
+    ],
+)
+def test_any_counter_matters_static_descent_arms(name):
+    assert ("any_counter_matters", "you", "") in _idents(name)
+
+
+def test_any_counter_matters_beyond_legacy_gain():
+    """Perrie, the Pulverizer (ADR-0038 W3 batch 3, CR 122.1): a genuine
+    counter-count pump ("+X/+X, where X is the number of different kinds of
+    counters among permanents you control") the legacy ``old_ir_for`` MISSES —
+    its own raw-text slice for this effect is 'gain trample and gets +X/+X'
+    (the "where X is …" explanation clause lives elsewhere), so legacy's
+    ``"counter" in raw.lower()`` gate never matches. The crosswalk reads the
+    STRUCTURED ``CountersOnObjects`` qty node instead — a beyond-legacy gain,
+    not an over-fire (never test-pinned against the legacy arm since it never
+    fired there)."""
+    assert ("any_counter_matters", "you", "") in _idents("Perrie, the Pulverizer")
+
+
+@pytest.mark.parametrize(
     ("name", "should_fire"),
     [
         ("Control Magic", True),  # ChangeController static — theft
@@ -1326,6 +1378,80 @@ def test_copy_permanent_and_clone():
 @pytest.mark.parametrize("name", ["Clone", "Spark Double"])
 def test_clone_makers_fires(name):
     assert ("clone_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 3 (CR 707.2) — a BecomeCopy back-reference target
+        # recovered via THIS SAME unit's other concept's own structured subject
+        # words: Dimir Doppelganger's Exile-target Creature filter
+        # (``ParentTarget``); Brudiclad's created-token types (a bare
+        # ``ParentTarget`` whose sibling ``make_token`` carries the type);
+        # Curie's exiled-artifact-creature cost (``TrackedSet``, recovered via
+        # the clause's own "copy of <type>" text since the top-level Composite
+        # cost carries no top-level filter).
+        "Dimir Doppelganger",
+        "Brudiclad, Telchor Engineer",
+        "Curie, Emergent Intelligence",
+        # The clause's own "copy of <type>" text (Cytoshape's sibling "choose a
+        # nonlegendary creature" clause carries no filter at all, but the
+        # BecomeCopy's OWN unit description literally says "copy of that
+        # CREATURE").
+        "Cytoshape",
+        # The trigger's OWN watched-object filter, read via
+        # :func:`~mtg_utils._card_ir.crosswalk.trigger_subject` when the copy has
+        # no sibling EFFECT to borrow from (Sarkhan's "a Dragon you control
+        # enters" trigger).
+        "Sarkhan, Soul Aflame",
+        # A sibling STRUCTURED filter takes priority over the whole-unit "copy
+        # of <type>" text scan — Dermotaxi's tap-cost Creature filter recovers
+        # the RIGHT answer where the text scan would find the WRONG one (the
+        # "except it's a Vehicle artifact in addition to its other types" rider
+        # falls inside the text-scan's 60-char window and would misclassify the
+        # copy as Artifact).
+        "Dermotaxi",
+        # A core-type word literally named in a sibling's own raw clause text
+        # (Kaya's Unimplemented "choose a CREATURE CARD from among them" — no
+        # structured filter, no "copy of <type>" text, only the sibling's own
+        # raw wording).
+        "Kaya, Spirits' Justice",
+        # A core-type word ANYWHERE in this SAME unit's own description, when
+        # the qualifier PRECEDES "copy of" instead of following it (Vesuvan
+        # Drifter's "If you reveal a CREATURE card this way, ~ becomes a copy
+        # of THAT CARD").
+        "Vesuvan Drifter",
+        # A BecomeCopy BURIED inside a granted ability's own quoted definition
+        # (Shameless Charlatan — "Commander creatures you own have '{2}{U}:
+        # This creature becomes a copy of another target creature.'"), reached
+        # by descending the unit's own ``GrantAbility`` static concept.
+        "Shameless Charlatan",
+        # A bare "Card" sibling filter (no permanent-type info) is excluded so
+        # a LATER, more specific tier gets a chance — Lazav, Familiar
+        # Stranger's "exile A CARD from a graveyard" sibling would otherwise
+        # mask the unit description's own "If a CREATURE card was exiled".
+        "Lazav, Familiar Stranger",
+        # The true last resort: a core-type word ANYWHERE in the whole-card
+        # oracle, reached only when every unit-scoped tier fails (Volatile
+        # Chimera — the "creature cards you drafted" qualifier lives on a
+        # WHOLLY SEPARATE deckbuilding ability, cross-unit). Safe because it is
+        # gated behind a real structural ``BecomeCopy`` node already existing.
+        "Volatile Chimera",
+    ],
+)
+def test_clone_makers_backref_recovery_arms(name):
+    assert ("clone_makers", "you", "") in _idents(name)
+
+
+def test_clone_makers_unrecovered_parser_gap():
+    """Blade of Shared Souls (ADR-0038 W3 batch 3, deferred — CR 707.2): "you
+    may have that creature become a copy of another target creature you
+    control" phase-parses as an ``Unimplemented`` clause (``name='have'``), so
+    NO ``BecomeCopy`` concept exists to classify at all — a genuine phase-parser
+    gap, not a crosswalk-accessor gap. clone_makers stays residual (not
+    promoted) for exactly this class of card; a fresh corpus re-measure is
+    required before promotion."""
+    assert "clone_makers" not in _keys("Blade of Shared Souls")
 
 
 @pytest.mark.parametrize("name", ["Twincast", "Mirror Match"])
@@ -4215,6 +4341,52 @@ def test_second_spell_matters_static_condition_arm():
     the second-spell counter) never fires."""
     assert ("second_spell_matters", "you", "") in _idents("Brightspear Zealot")
     assert "second_spell_matters" not in _keys("Arclight Phoenix")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 3 (CR 603.2) — the OnlyIfQuantity replacement-
+        # condition variant :func:`~mtg_utils._card_ir.crosswalk.
+        # spell_velocity_static_two` now also accepts (identical comparator/
+        # lhs/rhs shape to QuantityComparison): Effortless Master's ETB
+        # "enters with two +1/+1 counters if you've cast two or more spells
+        # this turn".
+        "Effortless Master",
+        # The per-node text bridge (:func:`~mtg_utils._deck_forge.
+        # crosswalk_signals._second_spell_node_text`) for a ``ModifyCost``
+        # static whose ordinal-count qualifier carries NO structured field at
+        # all ("The second spell you cast each turn costs {N} less to cast").
+        "Alisaie Leveilleur",
+        "Highspire Bell-Ringer",
+        "Monk Class",
+        "Uthros Psionicist",
+        "Raging Battle Mouse",
+        # The SAME text bridge for an ETB trigger whose ordinal condition is
+        # dropped entirely (Codespell Cleric — "if it was the second spell you
+        # cast this turn").
+        "Codespell Cleric",
+    ],
+)
+def test_second_spell_matters_node_text_bridge(name):
+    assert ("second_spell_matters", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Ertai's Scorn", "Call of the Full Moon"])
+def test_second_spell_matters_excludes_unrelated_two_spells_text(name):
+    """Two legacy over-fires the ``"cast two or more spells"`` bare-text regex
+    catches but which are NOT the spell-velocity build-around (ADJUDICATED
+    SHEDS, ADR-0038 W3 batch 3): Ertai's Scorn's cost reduction counts the
+    OPPONENT's spell count (``SpellsCastThisTurn scope=Opponents``), excluded by
+    :func:`~mtg_utils._card_ir.crosswalk.spell_velocity_static_two`'s own
+    Controller-scope gate (a documented b3 design boundary, not this session's
+    call); Call of the Full Moon's "if a player cast two or more spells LAST
+    turn" is the Innistrad werewolf day/night TRANSFORM condition (CR 603.4
+    intervening-if + CR 712 Transform) — a normal triggered ability with an
+    unrelated mechanic that merely shares the word "spells", never a spell-
+    velocity payoff. The narrower "<ordinal> spell YOU CAST (each|this) turn"
+    node-text bridge never matches either card's actual wording."""
+    assert "second_spell_matters" not in _keys(name)
 
 
 def test_xspell_matters_two_arms():

@@ -1233,12 +1233,20 @@ def count_operand_qty(node: TypedMirrorNode) -> object | None:
     ``value`` (``Ref.qty`` — the same path :func:`count_operand_filter` reads, but
     returning the qty itself rather than its ``ObjectCount`` filter), and a direct
     ``dynamic_count`` on a static P/T modification (``AddDynamicPower`` — "+X/+X where
-    X is your devotion"). Returns the qty node so a lane can read its discriminator
-    tag (:func:`tag_of`) plus its ``controller`` / ``player`` / ``kind`` fields.
+    X is your devotion"). A scaled multiplier ("-1/-1 for each EACH of N counters" —
+    Withering Hex, Toxrill's ``AddDynamicPower(value=Multiply(factor, inner=Ref(qty=
+    …)))``) wraps the ``Ref`` one level deeper under ``Multiply.inner``; unwrapped the
+    same way (ADR-0038 W3 batch 3). Returns the qty node so a lane can read its
+    discriminator tag (:func:`tag_of`) plus its ``controller`` / ``player`` / ``kind``
+    fields.
     """
     for fname in ("amount", "count", "value"):
         q = getattr(node, fname, MISSING)
-        if _present(q) and tag_of(q) == "Ref":
+        if not _present(q):
+            continue
+        if tag_of(q) == "Multiply":
+            q = getattr(q, "inner", None)
+        if tag_of(q) == "Ref":
             qty = getattr(q, "qty", None)
             if isinstance(qty, TypedMirrorNode):
                 return qty
@@ -2623,10 +2631,12 @@ def spell_count_at_least(root: object) -> int:
 
 
 def spell_velocity_static_two(root: object) -> bool:
-    """True when a ``QuantityComparison`` gates a payoff on "you've cast two or
-    more spells this turn" — ``lhs`` a ``Ref`` over ``SpellsCastThisTurn``
-    (``scope: Controller``), comparator ``GE`` with ``rhs == 2`` (or the
-    equivalent ``GT`` / ``rhs == 1``).
+    """True when a ``QuantityComparison`` (or the ``OnlyIfQuantity`` replacement-
+    condition variant sharing the identical comparator/lhs/rhs shape — Effortless
+    Master's ETB "enters with two +1/+1 counters if you've cast two or more spells
+    this turn") gates a payoff on "you've cast two or more spells this turn" —
+    ``lhs`` a ``Ref`` over ``SpellsCastThisTurn`` (``scope: Controller``), comparator
+    ``GE`` with ``rhs == 2`` (or the equivalent ``GT`` / ``rhs == 1``).
 
     The STATIC-CONDITION form of second_spell_matters (b3 recall): Brightspear
     Zealot's "gets +2/+0 as long as you've cast two or more spells this turn"
@@ -2641,7 +2651,7 @@ def spell_velocity_static_two(root: object) -> bool:
     opponent-cast watcher (Captain Mar-Vell). CR 603.2.
     """
     for n in _iter_typed_nodes(root):
-        if tag_of(n) != "QuantityComparison":
+        if tag_of(n) not in ("QuantityComparison", "OnlyIfQuantity"):
             continue
         lhs = getattr(n, "lhs", None)
         qty = getattr(lhs, "qty", None) if lhs is not None else None
