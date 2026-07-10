@@ -163,3 +163,40 @@ def test_discover_makers_promoted_via_production_allowlist():
     assert nodes[0].concept == "discover"
     assert nodes[0].recovered_by == "discover"
     assert tag_of(nodes[0].node) == "Unimplemented"
+
+
+# ── #72 evasion_denial (static-token recovery) ─────────────────────────────
+
+
+def test_static_token_matches_evasion_denial_idiom():
+    from mtg_utils._card_ir.clause_grammar import static_token
+
+    raw = (
+        "Static pattern matched but line failed static parser: Creatures "
+        "with landwalk abilities can be blocked as though they didn't have "
+        "those abilities."
+    )
+    assert static_token(raw) == "evasion_denial"
+
+
+def test_static_token_none_for_unrecognized_static():
+    from mtg_utils._card_ir.clause_grammar import static_token
+
+    assert static_token("Static pattern matched but line failed: gibberish") is None
+
+
+def test_evasion_denial_promoted_via_production_allowlist():
+    """Staff of the Ages's own static parser fails on "Creatures with
+    landwalk abilities can be blocked as though they didn't have those
+    abilities.", leaving an Unimplemented parse-failure residue that is
+    STILL role=effect (not role=static); the production ALLOWLIST's
+    "evasion_denial" token entry (matched via
+    clause_grammar.static_token, parse_clause/scan_clause both miss it)
+    re-decorates it in place."""
+    tree = _fixture_tree("Staff of the Ages")
+    nodes = tree.effect_concepts("evasion_denial")
+    assert len(nodes) == 1
+    assert nodes[0].concept == "evasion_denial"
+    assert nodes[0].recovered_by == "evasion_denial"
+    assert nodes[0].role == "effect"
+    assert tag_of(nodes[0].node) == "Unimplemented"

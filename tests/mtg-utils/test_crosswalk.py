@@ -3622,6 +3622,18 @@ def test_evasion_denial_ignore_landwalk_mode():
     assert "evasion_denial" not in _keys("Pacifism")
 
 
+def test_evasion_denial_static_parse_failure_recovery():
+    """CR 509.1b/702.14 — Staff of the Ages's own static parser fails
+    ("Creatures with landwalk abilities can be blocked as though they
+    didn't have those abilities."), leaving an Unimplemented parse-failure
+    residue that is STILL role=effect; the ADR-0038
+    clause_grammar.STATIC_TOKENS row recovers it to concept="evasion_denial"
+    via recovery.ALLOWLIST, so the SAME typed read the clean
+    IgnoreLandwalkForBlocking statics use (Great Wall, Crevasse) picks it
+    up — no marker special-case."""
+    assert "evasion_denial" in _keys("Staff of the Ages")
+
+
 # ── Batch 12: §D mirror-parity lanes ─────────────────────────────────────────
 
 

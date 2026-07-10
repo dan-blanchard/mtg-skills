@@ -492,3 +492,43 @@ def scan_clause(text: str) -> str | None:
         if r is not None:
             return r[0]
     return None
+
+
+# ── static-line grammar (the STATIC-clause analog of parse_clause) ────────────
+# A static names the AFFECTED set BEFORE its verb (an anthem, a restriction, an
+# ability grant), so — unlike the imperative verb grammar above, which is a
+# cursor-anchored parse — static-line recovery is a DISCRIMINANT: does the
+# clause (after stripping phase's diagnostic prefix) contain a recognized
+# static idiom ANYWHERE. ``STATIC_TOKENS`` is an ordered table of (compiled
+# pattern, token) rows, first match wins; ``static_token`` is its pure lookup
+# fn, the static-line sibling of ``parse_clause``/``scan_clause``. Today wired
+# crosswalk-side only (:mod:`recovery`'s ``_recover`` tries it as the third
+# fallback); the supplement's ``_recover_static_pattern`` arms migrate INTO
+# this shared table per-key later, same strangler discipline as the effect-
+# verb grammar (no legacy behavior change from adding a row here alone).
+STATIC_TOKENS: tuple[tuple[re.Pattern[str], str], ...] = (
+    # evasion-denial idiom (CR 509.1b/702.14): "can be blocked as though
+    # it/they didn't have [landwalk/those abilities]" — an anti-evasion
+    # static (Staff of the Ages) whose grant phase leaves an Unimplemented
+    # parse-failure residue the typed IgnoreLandwalkForBlocking static read
+    # never reaches. "can't be blocked" (an evasion GRANT) never matches —
+    # the idiom is "CAN be blocked as though".
+    (
+        re.compile(
+            r"\bcan be blocked as though (?:it|they) did(?:n'?t| not) have\b",
+            re.IGNORECASE,
+        ),
+        "evasion_denial",
+    ),
+)
+
+
+def static_token(text: str) -> str | None:
+    """Match a STATIC clause (after stripping phase's diagnostic prefix)
+    against :data:`STATIC_TOKENS`, first row wins. Returns the matched
+    token, or None when no known static idiom is present."""
+    s = _FAILED_PREFIX.sub("", text).strip()
+    for pattern, token in STATIC_TOKENS:
+        if pattern.search(s):
+            return token
+    return None

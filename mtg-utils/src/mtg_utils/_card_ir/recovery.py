@@ -3,8 +3,12 @@
 Re-decorates ``concept == "other"`` :class:`~mtg_utils._card_ir.crosswalk.
 ConceptNode`\\ s whose ``.node`` is phase's ``T_effect__Unimplemented`` via the
 shared clause grammar (:func:`~mtg_utils._card_ir.clause_grammar.parse_clause`,
-falling back to :func:`~mtg_utils._card_ir.clause_grammar.scan_clause`),
-admitting only allowlisted tokens (:data:`ALLOWLIST`).
+falling back to :func:`~mtg_utils._card_ir.clause_grammar.scan_clause`, falling
+back to :func:`~mtg_utils._card_ir.clause_grammar.static_token` for a STATIC
+idiom phase's own static parser failed on but still parked in a role=effect
+Unimplemented node — Staff of the Ages's "Static pattern matched but line
+failed static parser: …" diagnostic wrapper), admitting only allowlisted
+tokens (:data:`ALLOWLIST`).
 
 Re-decoration keeps the SAME ``.node`` object, so substrate purity (object
 identity of phase L1 nodes) holds by construction — this stage only ever
@@ -24,7 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 
 from mtg_utils._card_ir._substrate_purity import assert_substrate_pure, l1_identity
-from mtg_utils._card_ir.clause_grammar import parse_clause, scan_clause
+from mtg_utils._card_ir.clause_grammar import parse_clause, scan_clause, static_token
 from mtg_utils._card_ir.crosswalk import OTHER, ConceptNode, ConceptTree, tag_of
 
 
@@ -47,6 +51,14 @@ ALLOWLIST: dict[str, TokenRule] = {
     # token re-decorates it so the typed effect_concepts("discover") read
     # (the discover_makers lane's structural arm) sees it directly.
     "discover": TokenRule(concept="discover", category="discover"),
+    # evasion-denial idiom (CR 509.1b/702.14): "can be blocked as though
+    # it/they didn't have [landwalk/those abilities]" — an anti-evasion
+    # static (Staff of the Ages) whose own static parser fails, leaving an
+    # Unimplemented parse-failure residue (still role=effect) the typed
+    # IgnoreLandwalkForBlocking static read never reaches. Matched via
+    # clause_grammar.static_token (the STATIC_TOKENS table), not the
+    # imperative-verb grammar.
+    "evasion_denial": TokenRule(concept="evasion_denial", category="evasion_denial"),
 }
 
 
@@ -57,7 +69,7 @@ def _recover(c: ConceptNode, table: dict[str, TokenRule]) -> ConceptNode | None:
         return None
     if not c.raw:
         return None
-    token = parse_clause(c.raw) or scan_clause(c.raw)
+    token = parse_clause(c.raw) or scan_clause(c.raw) or static_token(c.raw)
     if token is None or token not in table:
         return None
     rule = table[token]
@@ -77,8 +89,12 @@ def apply_unimplemented_recovery(
     ``tree`` via the shared clause grammar, admitting only ``allowlist``
     tokens (:data:`ALLOWLIST` by default).
 
-    Effects-role ONLY for now — the grammar parses imperative EFFECT clauses;
-    static-line recovery (costs/statics) migrates later, per-key. Returns the
+    Scans ``unit.effects`` (role=effect) ONLY — a genuine cost/static
+    ConceptNode (``unit.costs`` / ``unit.statics``) is never re-decorated;
+    that migrates later, per-key. A STATIC-shaped clause CAN still be
+    recovered today when phase parks it in a role=effect Unimplemented node
+    (its own static parser having failed — Staff of the Ages), via
+    :func:`~mtg_utils._card_ir.clause_grammar.static_token`. Returns the
     SAME ``tree`` object (identity) when nothing changed (the empty-allowlist
     fast path this commit ships behavior-neutral).
     """

@@ -2404,33 +2404,13 @@ def _arm_end_the_turn(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
-# evasion-denial idiom (CR 509.1b/702.14): "can be blocked as though it/they
-# didn't have [landwalk/those abilities]" — an anti-evasion static (Staff of the
-# Ages) whose grant phase leaves an ``Unimplemented`` parse-failure residue the
-# typed ``IgnoreLandwalkForBlocking`` static read never reaches. "can't be blocked"
-# (an evasion GRANT) never matches — the idiom is "CAN be blocked as though".
-_EVASION_DENIAL_RE = re.compile(
-    r"\bcan be blocked as though (?:it|they) did(?:n'?t| not) have\b", re.IGNORECASE
-)
-
-
-def _arm_evasion_denial(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize an ``evasion_denial`` node for the anti-evasion static phase
-    leaves Unimplemented (Staff of the Ages). Gap-gated on no typed
-    ``IgnoreLandwalkForBlocking`` static (the 8 clean landwalk-denial cards stay
-    Tier-1)."""
-    for unit in tree.units:
-        if static_mode_tag(unit.node) == "IgnoreLandwalkForBlocking":
-            return None
-    if not _EVASION_DENIAL_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
-        return None
-    return _synthetic_concept(
-        arm_id="evasion_denial",
-        concept="synth_evasion_denial",
-        scope="opponents",
-        subject=(),
-        desc="bucket-B evasion_denial (Unimplemented anti-evasion static)",
-    )
+# evasion_denial (CR 509.1b/702.14 "can be blocked as though it/they didn't
+# have [landwalk/those abilities]") moved to ADR-0038 static-token recovery
+# (mtg_utils._card_ir.clause_grammar.STATIC_TOKENS +
+# mtg_utils._card_ir.recovery.ALLOWLIST) — Staff of the Ages's own static
+# parser fails, but the resulting Unimplemented residue is STILL role=effect,
+# so re-decoration reaches it there; the typed ``effect_concepts
+# ("evasion_denial")`` read sees it directly. No marker arm needed.
 
 
 # suspect ACTION idiom (CR 701.60a — "instruct a player to suspect a creature"):
@@ -6876,7 +6856,6 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("tutor", _arm_tutor),
     ("discover_makers", _arm_discover_makers),
     ("end_the_turn", _arm_end_the_turn),
-    ("evasion_denial", _arm_evasion_denial),
     ("suspect_makers", _arm_suspect_makers),
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),

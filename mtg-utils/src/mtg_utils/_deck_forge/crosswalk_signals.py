@@ -7284,9 +7284,12 @@ def _land_protection(tree: ConceptTree) -> list[Signal]:
 def _evasion_denial(tree: ConceptTree) -> list[Signal]:
     """evasion_denial (§C) — CR 702.14: the ``IgnoreLandwalkForBlocking``
     static mode (Great Wall's plainswalk, Crevasse's mountainwalk — 9 corpus
-    statics on 8 cards). The Staff of the Ages conferral residue is
-    SUPPLEMENT-FIXABLE (the grant survives in the carrier's oracle), logged.
-    Scope "opponents" (live).
+    statics on 8 cards). Staff of the Ages's conferral is ADR-0038
+    recovery-promoted: its own static parser fails, leaving an Unimplemented
+    parse-failure residue (still role=effect) the ``clause_grammar.
+    static_token`` STATIC_TOKENS row re-decorates to concept="evasion_denial"
+    via ``recovery.ALLOWLIST``, so this single typed read covers both the
+    clean static and the recovered one. Scope "opponents" (live).
     """
     for unit in tree.units:
         if (
@@ -7303,12 +7306,8 @@ def _evasion_denial(tree: ConceptTree) -> list[Signal]:
                     "high",
                 )
             ]
-    # Stage-A recovery: the ``synth_evasion_denial`` bucket-B node — an anti-evasion
-    # static phase left Unimplemented (Staff of the Ages), gap-gated on no typed
-    # IgnoreLandwalkForBlocking static.
-    for c in tree.iter_concepts():
-        if c.concept == "synth_evasion_denial":
-            return [Signal("evasion_denial", "opponents", "", "", tree.name, "high")]
+    for c in tree.effect_concepts("evasion_denial"):
+        return [Signal("evasion_denial", "opponents", "", c.raw, tree.name, "high")]
     return []
 
 
