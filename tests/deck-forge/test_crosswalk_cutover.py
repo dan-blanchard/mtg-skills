@@ -233,6 +233,142 @@ def test_trees_for_returns_every_face_for_a_dfc(monkeypatch):
     assert {t.name for t in trees} == {"Avatar Aang", "Aang, Master of Elements"}
 
 
+# ── ADR-0038 W2c: text-only face trees ──────────────────────────────────────
+# phase emits NO record at all for some multi-face halves (every aftermath
+# second half corpus-wide, one two-face split gap — the refined census in
+# ``_ir_lookup``'s module comment). ``trees_for`` fills that with one
+# zero-unit ConceptTree per phase-missing face, built off the bulk (MTGJSON)
+# record's own ``card_faces`` text, ONLY when the caller threads ``bulk=``.
+
+
+def _synthetic_bulk(
+    oid: str, first_name: str, first_oracle: str, *, second_face: dict | None
+) -> dict:
+    """A minimal two-face bulk record: face 0 matches the real phase record
+    (``first_name`` / ``first_oracle``), face 1 is whatever the caller wants
+    (a phase-missing face, or ``None`` to omit the second face entirely)."""
+    faces = [
+        {
+            "name": first_name,
+            "oracle_text": first_oracle,
+            "type_line": "Creature — Goblin",
+        }
+    ]
+    if second_face is not None:
+        faces.append(second_face)
+    return {
+        "oracle_id": oid,
+        "name": f"{first_name} // ???",
+        "layout": "aftermath",
+        "cmc": 3.0,
+        "card_faces": faces,
+    }
+
+
+def test_text_only_tree_added_for_a_phase_missing_face(monkeypatch):
+    """A bulk face with no name-matched phase record among the oid's group
+    becomes an extra zero-unit ConceptTree carrying its own bulk oracle
+    text, ONLY when the caller supplies ``bulk=``."""
+    rec = next(
+        r for r in _fixture_records() if r.get("name") == '"Name Sticker" Goblin'
+    )
+    oid = rec["scryfall_oracle_id"]
+    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: (rec,)}))
+    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
+    bulk = _synthetic_bulk(
+        oid,
+        '"Name Sticker" Goblin',
+        rec["oracle_text"],
+        second_face={
+            "name": "Fabricated Ghost Face",
+            "oracle_text": "Draw a card, then discard a card.",
+            "type_line": "Sorcery",
+            "mana_cost": "{1}{U}",
+        },
+    )
+
+    # No ``bulk=`` → phase-record trees only (the pre-W2c shape, unchanged).
+    trees_no_bulk = il.trees_for({"oracle_id": oid})
+    assert {t.name for t in trees_no_bulk} == {'"Name Sticker" Goblin'}
+
+    il.clear_caches()
+    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: (rec,)}))
+    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
+    trees = il.trees_for({"oracle_id": oid}, bulk=bulk)
+    names = {t.name for t in trees}
+    assert names == {'"Name Sticker" Goblin', "Fabricated Ghost Face"}
+    ghost = next(t for t in trees if t.name == "Fabricated Ghost Face")
+    assert ghost.units == ()  # no typed substrate — an honest empty
+    assert ghost.oracle == "Draw a card, then discard a card."
+    assert ghost.card_types == ("Sorcery",)
+    assert ghost.cmc == 2  # {1}{U}
+    assert ghost.has_printed_cost is True
+
+
+def test_vanilla_single_face_bulk_yields_no_text_only_tree(monkeypatch):
+    """A ``bulk`` record with no (or a single) ``card_faces`` entry never
+    synthesizes a text-only tree — the ``len(faces) != 2`` gate."""
+    rec = next(
+        r for r in _fixture_records() if r.get("name") == '"Name Sticker" Goblin'
+    )
+    oid = rec["scryfall_oracle_id"]
+    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: (rec,)}))
+    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
+    vanilla_bulk = {"oracle_id": oid, "name": '"Name Sticker" Goblin', "cmc": 3.0}
+    trees = il.trees_for({"oracle_id": oid}, bulk=vanilla_bulk)
+    assert {t.name for t in trees} == {'"Name Sticker" Goblin'}
+
+
+def test_empty_oracle_phase_missing_face_yields_no_tree(monkeypatch):
+    """A phase-missing face with blank ``oracle_text`` carries nothing to
+    read, so it is skipped rather than synthesizing an empty tree."""
+    rec = next(
+        r for r in _fixture_records() if r.get("name") == '"Name Sticker" Goblin'
+    )
+    oid = rec["scryfall_oracle_id"]
+    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: (rec,)}))
+    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
+    bulk = _synthetic_bulk(
+        oid,
+        '"Name Sticker" Goblin',
+        rec["oracle_text"],
+        second_face={"name": "Blank Face", "oracle_text": "", "type_line": "Land"},
+    )
+    trees = il.trees_for({"oracle_id": oid}, bulk=bulk)
+    assert {t.name for t in trees} == {'"Name Sticker" Goblin'}
+
+
+def test_three_way_split_excluded_from_text_only_synthesis(monkeypatch):
+    """A 3+-face record (the Un-set funny-layout "Smelt // Herd // Saw"
+    shape) is excluded outright — real tournament Magic never has more than
+    two faces on a split/aftermath/adventure/transform/modal_dfc card, so
+    ``len(card_faces) != 2`` is the defer-not-hack gate (see the module
+    comment above ``_TEXT_ONLY_EXCLUDED_LAYOUTS`` in ``_ir_lookup``)."""
+    rec = next(
+        r for r in _fixture_records() if r.get("name") == '"Name Sticker" Goblin'
+    )
+    oid = rec["scryfall_oracle_id"]
+    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: (rec,)}))
+    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
+    bulk = {
+        "oracle_id": oid,
+        "name": '"Name Sticker" Goblin // B // C',
+        "layout": "split",
+        "cmc": 3.0,
+        "card_faces": [
+            {
+                "name": '"Name Sticker" Goblin',
+                "oracle_text": rec["oracle_text"],
+                "type_line": "Creature — Goblin",
+            },
+            {"name": "B", "oracle_text": "Some effect.", "type_line": "Instant"},
+            {"name": "C", "oracle_text": "Another effect.", "type_line": "Instant"},
+        ],
+    }
+    trees = il.trees_for({"oracle_id": oid}, bulk=bulk)
+    assert {t.name for t in trees} == {'"Name Sticker" Goblin'}
+
+
 def test_avatar_aang_union_fires_all_four_bend_keys(monkeypatch):
     """The production seam (``extract_signals_hybrid``, flag ON): Avatar Aang's
     ElementalBend / RegisterBending nodes live on the FRONT face only, but a

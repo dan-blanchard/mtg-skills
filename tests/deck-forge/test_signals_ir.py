@@ -1685,7 +1685,7 @@ def test_myrel_opponent_cast_lock_recovers_restriction():
     assert "stax_taxes" in _skeys(test_signals("Myrel, Shield of Argive"))
 
 
-def test_failure_comply_split_face_castlock_is_a_known_crosswalk_gap():
+def test_failure_comply_split_face_castlock_fires():
     """Failure // Comply: the Comply aftermath face ('your opponents can't cast spells
     with the chosen name') is a split face phase emits NO RECORD FOR AT ALL — confirmed
     empirically (task #74): phase's ``card-data.json`` has exactly one entry keyed
@@ -1694,25 +1694,26 @@ def test_failure_comply_split_face_castlock_is_a_known_crosswalk_gap():
     it. This is DIFFERENT from the DFC face-drop task #74 otherwise fixed (a DFC's
     back face DOES have its own phase record, sharing the oracle_id, that a
     first-record-wins index dropped — ``_ir_lookup.trees_for`` now reads every face
-    record per oracle_id and unions their signals); here there is no second record to
-    read, so no join-key change can recover it — an upstream phase parse gap, deferred.
-    Under the OLD (pre-ADR-0038-W1-batch-4) regime, stax_taxes stayed on
-    ``_STAGE4_RESIDUAL`` so this card kept firing via the legacy narrow residue mirror
-    REGARDLESS of the crosswalk flag. ADR-0038 W1 batch-4 promoted stax_taxes off
-    residual (the crosswalk now covers 99.6% of the corpus structurally —
-    AddRestriction/ProhibitActivity, a CreateEmblem-nested static, a punisher
-    third-party-possessive mirror, a clause-grammar recovery); with the crosswalk
-    ENABLED it is now EXCLUSIVELY authoritative for this key, including for this one
-    remaining split-card gap. Flag-OFF still runs the un-gated legacy
-    ``extract_signals_ir`` path, which still finds it via the residue mirror — a
-    documented crosswalk miss when ON, not a silent regression either way."""
+    record per oracle_id and unions their signals); here there is no second phase
+    record to read.
+
+    ADR-0038 W2c closes this specific gap: ``trees_for`` now also synthesizes a
+    zero-unit TEXT-ONLY tree per phase-missing face, off the bulk (MTGJSON) record's
+    own ``card_faces`` text — the bulk record is the text source of record when
+    phase never parses the face at all. Comply's text-only tree's whole-card
+    ``oracle`` field carries "...your opponents can't cast spells with the chosen
+    name", which the EXISTING ``_stax_lanes`` bucket-B residue scan
+    (``_STAX_TAXES_RESIDUE_RE``, unchanged) reads directly — no new stax machinery,
+    just a tree for it to read now. DOCUMENTED REPLACEMENT of the prior
+    ``..._is_a_known_crosswalk_gap`` test (same precedent as the Planar Genesis /
+    ADR-0037 promotions): flag ON now FIRES stax_taxes structurally, matching
+    flag-OFF's legacy residue-mirror behavior, so both paths agree."""
     from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
 
     keys = _skeys(test_signals("Failure // Comply"))
-    if crosswalk_enabled():
-        assert "stax_taxes" not in keys
-    else:
-        assert "stax_taxes" in keys
+    assert "stax_taxes" in keys, (
+        f"crosswalk_enabled={crosswalk_enabled()}, keys={sorted(keys)}"
+    )
 
 
 def test_symmetric_untap_lock_is_symmetric_only():

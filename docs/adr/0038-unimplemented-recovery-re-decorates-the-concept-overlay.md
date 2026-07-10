@@ -143,3 +143,67 @@ clause grammar recovering a real but bounded slice.
 - The 5 effect-like marker arms from the interim bridge must be re-expressed
   and their `synth_*` lane reads deleted, key promotions and pinned tests
   intact, before the per-key grind resumes on the new mechanism.
+
+## Amendment (2026-07-10): text-only face trees (W2c)
+
+Execution surfaced a FOURTH residue class this ADR's re-decoration mechanism
+cannot reach: phase emits **no record at all** — not even a drifted or
+Unimplemented one — for some multi-face card halves, so there is no
+`ConceptNode` to re-decorate in the first place. A refined census (every
+bulk record with `card_faces` whose oracle_id DOES have a phase group,
+casefolded-name-joined against that group) found this is corpus-wide for
+the `aftermath` layout (96/96 second halves — Failure // Comply's "Comply"
+face, Prepare // Fight's "Fight" face) plus exactly one two-face `split`
+gap ("Furious", off the commander/brawl-legal "Fast // Furious"); adventure,
+transform, modal_dfc, flip, and prepare are FULLY covered by phase (0
+missing faces each) — the original crude substring probe's much larger
+per-layout numbers were false positives from imprecise text matching.
+
+**The bulk (MTGJSON) record is the text source of record for a phase-missing
+face.** `_ir_lookup.trees_for` now synthesizes one additional **zero-unit
+ConceptTree** per phase-missing face when its production caller threads the
+bulk record in: `units=()` (no typed substrate exists, so every unit-scoped
+structural lane sees an honest empty, never a fabricated parse), `oracle` set
+to the bulk face's text verbatim, `card_types`/`card_subtypes`/
+`card_supertypes`/`cmc`/`power` parsed from the bulk face's own type_line /
+mana_cost / power. `extract_crosswalk_signals` already runs
+`apply_overlay_corrections` + `apply_tree_synthesis` over every tree it is
+handed, not only phase-built ones, so a text-only tree's `oracle` field feeds
+the SAME b12 byte-mirror lanes and `tree_synthesis` bucket-B arms a
+phase-built tree's would — no new stax/fight/etc. machinery, just a tree for
+the existing text-reading arms to see. This closes `_arm_fight_makers`'s and
+`_stax_lanes`' own documented gap notes on Prepare // Fight and Failure //
+Comply (both now fire structurally instead of staying an upstream parse gap).
+
+Scope, defer-not-hack: real tournament Magic never has more than two card
+faces on a split/aftermath/adventure/transform/modal_dfc card, so
+`len(card_faces) != 2` is the exclusion gate for the Unglued/Unstable/
+Unfinity three-/five-way joke splits ("Smelt // Herd // Saw", "Who // What
+// When // Where // Why") the same casefolded-name join would otherwise
+flag — a structural gate, not a name/layout special-case. `art_series` /
+`double_faced_token` / `reversible_card` are excluded by layout name (none
+is a real two-face gameplay split). Whole-oid-missing cards (phase has no
+group at all for the oracle_id — a handful of recent `flip`-mechanic cards,
+one Un-set-only "Fast // Furious" printing) stay OUT of scope: the whole
+card already degrades to the legacy IR path via `trees_for`'s existing empty
+return, a broader gap than "one face missing from an otherwise-known card."
+
+Corpus quantification (PORTED_KEYS, all affected cards): only 5 of 97
+affected card names actually gain a NEW signal from their text-only face
+(most aftermath second halves' text is either redundant with what the front
+face / Scryfall keywords already surface, or doesn't match any lane's
+pattern) — `fight_makers` (Prepare // Fight), `stax_taxes` (Failure //
+Comply), plus `pump_makers` / `evasion_self` / `spellcast_matters` on one
+further card apiece. Every gain matches `extract_signals_ir` (legacy)
+ground truth exactly — zero beyond-legacy adjudications needed.
+
+The Seam-B compat sidecar (`build_crosswalk_sidecar`) is NOT threaded with
+text-only faces: it has no bulk-record dependency today (it reads only
+phase's `card-data.json`), and no Seam-B consumer (`ranking` / `budgets` /
+`cut_check` / `metrics` / `bracket`) reads `Card.faces` directly — all five
+go through `Card.all_abilities()`, which already only ever saw the phase
+face(s) that exist. A phase-missing face contributing zero structured
+abilities to Seam-B is unchanged pre- and post-W2c behavior, not a
+regression this task introduces; threading bulk data into the sidecar
+builder (a new load-time dependency on the full bulk corpus, joined by name)
+is deferred until a Seam-B consumer diff shows it matters.

@@ -64,3 +64,15 @@ irreducible remainder of synthesis after effect clauses moved to the recovery
 stage.
 _Avoid_: "marker arm" (the retired interim pattern where effect clauses also
 got synthesized markers).
+
+**Text-only face tree**:
+A zero-unit `ConceptTree` for a multi-face card half phase never emits ANY
+record for at all (no node to recover — a fourth residue class the recovery
+stage can't reach). Built from the bulk (MTGJSON) record's own `card_faces`
+text: `units=()`, `oracle` set to the bulk face text verbatim. Carries no
+typed substrate, so it feeds only the b12 byte-mirror lanes and
+`tree_synthesis`'s bucket-B arms that read `tree.oracle` directly — never a
+structural (unit-scoped) lane, which has nothing to read on an empty tree.
+_Avoid_: "synthesized tree" (nothing is synthesized — the whole tree is
+untyped bulk text, not a decorated phase node), "phase tree" (there is no
+phase record behind it at all).
