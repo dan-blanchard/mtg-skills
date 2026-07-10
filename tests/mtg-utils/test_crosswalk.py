@@ -1368,6 +1368,40 @@ def test_lure_makers_able_to_block_idiom():
     assert ("lure_makers", "you", "") in _idents("Talruum Piper")
 
 
+def test_lure_makers_fires_on_the_lead_text_only_face_tree():
+    """Destined // Lead — the Aftermath back half "Lead" has NO phase record
+    (phase never emits aftermath second halves), so production coverage comes
+    from the W2c text-only face tree ``trees_for`` synthesizes off the bulk
+    face (task #76). This was the single card that blocked lure_makers'
+    promotion in W3 batch 3: the wave's measurement harness predated
+    ``trees_for`` and never saw the synthesized face. Reconstruct the tree
+    via the production constructor and assert the ``_LURE_ABLE`` idiom reads
+    it — "all creatures able to block ... do so" is a blocking requirement
+    (CR 509.1c: "effects that say a creature must block")."""
+    from mtg_utils._deck_forge._ir_lookup import _text_only_tree
+
+    face = {
+        "name": "Lead",
+        "mana_cost": "{3}{G}",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Aftermath (Cast this spell only from your graveyard. "
+            "Then exile it.)\n"
+            "All creatures able to block target creature this turn do so."
+        ),
+    }
+    tree = _text_only_tree(
+        face, {"cmc": 6.0}, oracle_id="7ebde396-6672-491a-a6ce-1de49b12379b"
+    )
+    assert tree is not None
+    assert tree.units == ()  # zero typed substrate — text idioms only
+    idents = {
+        (s.key, s.scope, s.subject)
+        for s in extract_crosswalk_signals(tree, keywords=frozenset())
+    }
+    assert ("lure_makers", "you", "") in idents
+
+
 def test_copy_permanent_and_clone():
     # Crystalline Resonance copies a Permanent → copy_permanent + clone_makers.
     idents = _idents("Crystalline Resonance")

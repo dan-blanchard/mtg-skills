@@ -716,16 +716,16 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # ``extract_signals_ir(old)`` — byte-identical to flag-OFF) restores the
     # legacy firing without retreating from any key the crosswalk serves correctly.
     #
-    # ADR-0038 W3 batch 3 (combat-coercion cluster): ``forced_attack`` and
-    # ``goad_makers`` PROMOTED (0 genuine members lost vs a live corpus
-    # re-measure; the ForceBlock/created-token/self-combo false-positive
-    # classes excluded, the beyond-legacy gains CR-grounded + pinned).
-    # ``lure_makers`` stays residual — the ``_LURE_ABLE``/``_LURE_MUST``
-    # bucket-B fallback recovers 49 of 50 live-only cards, but Destined //
-    # Lead's Aftermath back face ("Lead") has NO phase card-data record at
-    # all (a substrate-level gap, not a clause-grammar one — the same root
-    # cause already documented on ``fight_makers``'s Aftermath survivor),
-    # so one genuine loss remains and the promotion gate holds it back.
+    # ADR-0038 W3 batch 3 (combat-coercion cluster): ``forced_attack``,
+    # ``goad_makers``, and ``lure_makers`` PROMOTED (0 genuine members lost
+    # vs a live corpus re-measure; the ForceBlock/created-token/self-combo
+    # false-positive classes excluded, the beyond-legacy gains CR-grounded +
+    # pinned). ``lure_makers``'s last apparent gap — Destined // Lead's
+    # Aftermath back face ("Lead"), which phase never emits — is closed by
+    # the W2c text-only face tree ``trees_for`` synthesizes off the bulk
+    # face (task #76): the ``_LURE_ABLE`` idiom reads the synthesized
+    # tree's oracle text, so production parity is exact (the wave's own
+    # measurement harness predated ``trees_for`` and couldn't see it).
     {
         "any_counter_matters",
         "artifacts_matter",
@@ -752,7 +752,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "landfall",
         "lifegain_makers",
         "lifeloss_makers",
-        "lure_makers",
         "minus_counters_matter",
         "opponent_discard",
         "plus_one_matters",
