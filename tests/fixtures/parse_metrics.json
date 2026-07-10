@@ -28,7 +28,7 @@
  "schema": 1,
  "sidecar_version": 76,
  "snapshot": {
-  "cards": 733,
+  "cards": 732,
   "feed_phase_readiness": {
    "bucket_a_masking": 0,
    "bucket_b_genuine_gap": 12,
@@ -42,14 +42,14 @@
   },
   "synergy_completeness": {
    "effects_category_other": 26,
-   "effects_total": 1750,
-   "full_pct": 98.64,
+   "effects_total": 1749,
+   "full_pct": 98.63,
    "parse_confidence": {
-    "full": 723,
+    "full": 722,
     "partial": 10
    },
-   "triggers_event_other": 46,
-   "triggers_total": 504
+   "triggers_event_other": 45,
+   "triggers_total": 503
   }
  }
 }

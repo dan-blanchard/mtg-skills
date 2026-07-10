@@ -12,9 +12,10 @@ real IR). A mismatch fails loudly with the card + the differing signals so the m
 field list is expanded rather than a lossy slice silently shipped.
 
 Modes:
-  * default — scan the test tree for ``test_card("…")`` / ``test_card_ir("…")`` /
-    ``test_signals("…")`` literals (usage-derived; the snapshot only holds cards a
-    test actually asks for).
+  * default — AST-scan the test tree for ``test_card`` / ``test_card_ir`` /
+    ``test_signals`` usage: direct string-literal calls, parametrize columns that
+    feed such a call through a bare variable, and ``_REAL_CASES`` name tables
+    (usage-derived; the snapshot only holds cards a test actually asks for).
   * ``--names "A,B"`` / ``--names-file PATH`` — an explicit name list (additive to the
     scan unless ``--no-scan``).
 """
@@ -22,8 +23,8 @@ Modes:
 from __future__ import annotations
 
 import argparse
+import ast
 import json
-import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -68,22 +69,140 @@ _FACE_FIELDS = (
     "colors",
 )
 
-# Direct literal calls: ``test_card("Sol Ring")`` / ``test_card_ir(...)`` /
-# ``test_signals(...)`` plus the per-suite real-card wrapper family that forwards a
-# name into those helpers (``_ks_real("Atraxa, …")``, ``_keys_real_regex(…)``,
-# ``_by_key_real(…)`` — the name literal sits on the wrapper, not on ``test_signals``).
-# Two string alternates so a name's internal apostrophe (``Atraxa, Praetors' Voice``,
-# ``Be'lakor``) inside a double-quoted literal isn't truncated at that apostrophe.
-_USAGE_RE = re.compile(
-    r"""\b(?:test_(?:card|card_ir|signals)"""
-    r"""|_(?:keys|ks|ksub|by_key)_real(?:_regex)?"""
-    r"""|_real_full|_real)"""  # test_signals.py wrappers (longer alt first)
-    r"""\(\s*(?:"([^"]+)"|'([^']+)')"""
+# The snapshot-feeding helper family: the testkit helpers themselves plus the
+# per-suite real-card wrappers that forward a name into them (``_ks_real("Atraxa,
+# …")``, ``_keys_real_regex(…)`` — the name literal sits on the wrapper, not on
+# ``test_signals``). The scan is AST-based (see ``_scan_module``), so apostrophes
+# in names, comments mentioning ``test_card("…")``, and parametrize tables all
+# behave correctly — a regex scan mis-handled all three.
+_HELPER_NAMES = frozenset(
+    {
+        "test_card",
+        "test_card_ir",
+        "test_signals",
+        "_keys_real",
+        "_ks_real",
+        "_ksub_real",
+        "_by_key_real",
+        "_keys_real_regex",
+        "_ks_real_regex",
+        "_ksub_real_regex",
+        "_by_key_real_regex",
+        "_real_full",
+        "_real",
+    }
 )
-# The parametrized convention: a ``_REAL_CASES: dict[str, str] = { "key": "Name", … }``
-# name table (mapping migrated key → representative card NAME). Capture each value.
-_REAL_CASES_BLOCK_RE = re.compile(r"_REAL_CASES\b[^=]*=\s*\{(.*?)\n\}", re.DOTALL)
-_NAME_TABLE_VALUE_RE = re.compile(r'^\s*"[^"]+":\s*"([^"]+)",?\s*$', re.MULTILINE)
+
+
+def _helper_call_name(call: ast.Call) -> str | None:
+    """The called helper's bare name, when the call targets the helper family."""
+    func = call.func
+    name = None
+    if isinstance(func, ast.Name):
+        name = func.id
+    elif isinstance(func, ast.Attribute):
+        name = func.attr
+    return name if name in _HELPER_NAMES else None
+
+
+def _parametrize_argnames(node: ast.expr) -> list[str]:
+    """The argname list of a ``pytest.mark.parametrize`` first argument — either
+    the comma-string form (``"name,wanted"``) or a tuple/list of strings."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return [a.strip() for a in node.value.split(",")]
+    if isinstance(node, (ast.Tuple, ast.List)):
+        return [
+            e.value
+            for e in node.elts
+            if isinstance(e, ast.Constant) and isinstance(e.value, str)
+        ]
+    return []
+
+
+def _parametrize_rows(node: ast.expr) -> list[tuple]:
+    """The literal rows of a ``parametrize`` argvalues list, each normalized to a
+    tuple (scalars become 1-tuples; ``pytest.param(...)`` rows contribute their
+    positional args; non-literal rows are skipped)."""
+    if not isinstance(node, (ast.Tuple, ast.List)):
+        return []
+    rows: list[tuple] = []
+    for elt in node.elts:
+        target = elt
+        if (
+            isinstance(elt, ast.Call)
+            and isinstance(elt.func, ast.Attribute)
+            and elt.func.attr == "param"
+        ):
+            target = ast.Tuple(elts=list(elt.args), ctx=ast.Load())
+        try:
+            value = ast.literal_eval(target)
+        except ValueError:
+            continue
+        rows.append(value if isinstance(value, tuple) else (value,))
+    return rows
+
+
+def _parametrized_helper_names(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    """Card names flowing into a helper call through a ``parametrize`` column: when
+    the test body calls ``test_card(name)`` with a bare variable and ``name`` is a
+    parametrize argname, harvest exactly that column's string values — so a
+    parametrized name table feeds the snapshot the same way a literal call does."""
+    fed = {
+        call.args[0].id
+        for call in ast.walk(fn)
+        if isinstance(call, ast.Call)
+        and _helper_call_name(call)
+        and call.args
+        and isinstance(call.args[0], ast.Name)
+    }
+    if not fed:
+        return set()
+    names: set[str] = set()
+    for dec in fn.decorator_list:
+        if not (
+            isinstance(dec, ast.Call)
+            and isinstance(dec.func, ast.Attribute)
+            and dec.func.attr == "parametrize"
+            and len(dec.args) >= 2
+        ):
+            continue
+        argnames = _parametrize_argnames(dec.args[0])
+        rows = _parametrize_rows(dec.args[1])
+        for var in fed.intersection(argnames):
+            col = argnames.index(var)
+            names.update(
+                row[col] for row in rows if col < len(row) and isinstance(row[col], str)
+            )
+    return names
+
+
+def _scan_module(text: str) -> set[str]:
+    """Every card name a test module asks the testkit for: direct helper-call
+    literals, parametrize columns feeding a helper call, and ``_REAL_CASES``
+    key→name table values."""
+    names: set[str] = set()
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return names
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and _helper_call_name(node) and node.args:
+            arg = node.args[0]
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                names.add(arg.value)
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            if any(
+                isinstance(t, ast.Name) and t.id == "_REAL_CASES" for t in targets
+            ) and isinstance(node.value, ast.Dict):
+                names.update(
+                    v.value
+                    for v in node.value.values
+                    if isinstance(v, ast.Constant) and isinstance(v.value, str)
+                )
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            names.update(_parametrized_helper_names(node))
+    return names
 
 
 def _minimal(card: dict) -> dict:
@@ -96,19 +215,16 @@ def _minimal(card: dict) -> dict:
 
 
 def _scan_names(test_dirs: list[Path]) -> set[str]:
-    """Usage-derived names: direct ``test_card(...)`` literals + every value in a
-    ``_REAL_CASES`` key→name table. So adding a row to that table (and re-running)
-    grows the snapshot with no external name list."""
+    """Usage-derived names: direct ``test_card(...)`` literals, parametrize
+    columns feeding a helper call, and every value in a ``_REAL_CASES`` key→name
+    table. So adding a parametrize row (and re-running) grows the snapshot with
+    no external name list."""
     names: set[str] = set()
     for d in test_dirs:
         if not d.exists():
             continue
         for py in d.rglob("test_*.py"):
-            text = py.read_text(encoding="utf-8")
-            # Each match is a (double-quoted, single-quoted) group pair; one is empty.
-            names.update(g for m in _USAGE_RE.findall(text) for g in m if g)
-            for block in _REAL_CASES_BLOCK_RE.findall(text):
-                names.update(_NAME_TABLE_VALUE_RE.findall(block))
+            names.update(_scan_module(py.read_text(encoding="utf-8")))
     return names
 
 

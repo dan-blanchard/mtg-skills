@@ -182,20 +182,20 @@ class TestTypeTokenFilter:
     def test_subtype_token_matches_its_tribe(self):
         assert self._matches_type(test_card("Marrow-Gnawer"), "rat")  # Rat Rogue
 
-    def test_subtype_never_matches_as_substring_of_another_type(self):
-        # Direct test_card(...) literals (not a parametrize name table) so the
-        # snapshot scanner sees every name this test depends on.
-        assert not self._matches_type(test_card("Daring Saboteur"), "rat")  # Pirate
-        assert not self._matches_type(
-            test_card("Angrath, the Flame-Chained"),
-            "rat",  # Planeswalker — Angrath
-        )
-        assert not self._matches_type(test_card("Divination"), "orc")  # Sorcery
-        assert not self._matches_type(test_card("Mountain"), "mount")  # Mountain
-        assert not self._matches_type(
-            test_card("Invasion of Gobakhan // Lightshield Array"),
-            "bat",  # Battle
-        )
+    @pytest.mark.parametrize(
+        ("name", "wanted"),
+        [
+            ("Daring Saboteur", "rat"),  # Creature — Human Pirate
+            ("Angrath, the Flame-Chained", "rat"),  # Planeswalker — Angrath
+            ("Divination", "orc"),  # Sorcery
+            ("Mountain", "mount"),  # Basic Land — Mountain (Mount is a real type)
+            ("Invasion of Gobakhan // Lightshield Array", "bat"),  # Battle — Siege
+        ],
+    )
+    def test_subtype_never_matches_as_substring_of_another_type(self, name, wanted):
+        # The snapshot scanner traces the `name` parametrize column into the
+        # test_card(name) call below, so each row's card joins the snapshot.
+        assert not self._matches_type(test_card(name), wanted)
 
     def test_multiword_type_phrase_still_matches(self):
         assert self._matches_type(test_card("Mountain"), "basic land")
