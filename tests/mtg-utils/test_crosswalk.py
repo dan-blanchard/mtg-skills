@@ -925,6 +925,55 @@ def test_regenerate_makers_fires():
     assert ("regenerate_makers", "you", "") in _idents("River Boa")
 
 
+# ADR-0038 W3 batch 2 unit 7 — the regenerate_makers GrantAbility deep-walk
+# arm (CR 701.19a): a GRANTED "'{cost}: Regenerate this creature/permanent'"
+# at any nesting depth — a tribal lord static (the Sliver cycle), an Aura's
+# static, a spell's one-shot GenericEffect grant, a conditional static, or
+# an animated land.
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Clot Sliver",
+        "Crypt Sliver",
+        "Poultice Sliver",
+        "Sedge Sliver",
+        "Consecrated by Blood",
+        "Molting Snakeskin",
+        "Savage Silhouette",
+        "Skeletal Grimace",
+        "Drudge Spell",
+        "Gobhobbler Rats",
+        "Life Matrix",
+        "Resuscitate",
+        "Run Wild",
+        "Skeletonize",
+        "Spawning Pool",
+        "Villainous Ogre",
+        "Zombie Master",
+    ],
+)
+def test_regenerate_makers_grant_ability_arm(name):
+    assert ("regenerate_makers", "you", "") in _idents(name)
+
+
+def test_regenerate_makers_last_resort_word_mirror():
+    """Last-resort mirror (checked only when the structural arms find
+    nothing), corpus-verified safe as a FALLBACK ONLY (267 of ~268
+    non-"can't"-excluded commander-legal "regenerate" hits already fire
+    the structural arms): a kicker-conditional ETB grant whose execute
+    chain silently drops the granted-ability tail with no node at all
+    (Anavolver, Degavolver), a compound "become <color>, gets +X/+Y, and
+    gains <ability>" Unimplemented residue (Defiling Tears), and a
+    multi-conditional static whose trailing conjunct folds into an
+    Unrecognized condition-text tail (Tribal Golem). Pongify's "can't be
+    regenerated" (the INVERSE — CR 701.19a note) never fires."""
+    assert ("regenerate_makers", "you", "") in _idents("Anavolver")
+    assert ("regenerate_makers", "you", "") in _idents("Degavolver")
+    assert ("regenerate_makers", "you", "") in _idents("Defiling Tears")
+    assert ("regenerate_makers", "you", "") in _idents("Tribal Golem")
+    assert "regenerate_makers" not in _keys("Pongify")
+
+
 @pytest.mark.parametrize(
     ("name", "scope"),
     [

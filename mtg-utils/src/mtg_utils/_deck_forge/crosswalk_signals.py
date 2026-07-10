@@ -732,7 +732,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "plus_one_matters",
         "poison_makers",
         "ramp",
-        "regenerate_makers",
         "sacrifice_outlets",
         "scaling_pump",
         "second_spell_matters",
@@ -2319,14 +2318,58 @@ def _goad_makers(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ADR-0038 W3 batch 2 unit 7 — the regenerate_makers last-resort mirror
+# (see the "Last-resort fallback" note on ``_regenerate_makers``).
+_REGENERATE_WORD_RX = re.compile(r"\bregenerate", re.IGNORECASE)
+_CANT_REGENERATE_RX = re.compile(r"can't[^.]{0,30}regenerate", re.IGNORECASE)
+
+
 def _regenerate_makers(tree: ConceptTree) -> list[Signal]:
     """regenerate_makers — a regeneration shield (CR 701.19a). A ``Regenerate`` effect
     (River Boa, Troll Ascetic). A "can't be regenerated" clause is the INVERSE (a flag
     on a ``Destroy``, NOT a ``Regenerate`` effect — Pongify), so it never reaches here.
-    Scope "you".
+
+    ADR-0038 W3 batch 2 unit 7: a GRANTED "'{cost}: Regenerate this
+    creature/permanent'" — a ``GrantAbility`` modification whose
+    ``definition.effect`` is a ``Regenerate`` — at ANY nesting depth
+    (:func:`iter_typed_nodes`'s generic deep walk): a tribal lord static
+    (Clot Sliver's "All Slivers have …"), an Aura's static (Trollhide's
+    "Enchanted creature … has …"), a spell's one-shot GenericEffect grant
+    (Resuscitate's "creatures you control gain … until end of turn"), a
+    conditional static (Villainous Ogre's "as long as you control a
+    Demon"), or an animated land (Spawning Pool). The bearer's OWN
+    top-level ``Regenerate`` effect (River Boa) stays covered by the
+    existing ``effect_concepts`` read.
+
+    Last-resort fallback (checked only when the structural arms above find
+    nothing): a bare "regenerate" mirror over the reminder-stripped
+    oracle, excluding the "can't … regenerate" inverse (Pongify). Covers
+    the residue phase drops entirely with no GrantAbility node at all —
+    a kicker-conditional ETB grant whose execute chain captures only the
+    counter half, silently dropping the "and with '{cost}: Regenerate …'"
+    tail (Anavolver, Degavolver), a compound "become <color>, gets +X/+Y,
+    and gains <ability>" clause phase can't parse (Defiling Tears — an
+    Unimplemented residue with no typed Regenerate node), and a
+    multi-conditional static whose trailing conjunct phase folds into an
+    ``Unrecognized`` condition-text tail (Tribal Golem). Corpus-verified
+    safe as a FALLBACK ONLY: nearly every "regenerate"-bearing
+    commander-legal card already fires the structural arms above (267 of
+    ~268 non-"can't"-excluded corpus hits), so this mirror only ever
+    reaches the residual tail, never overrides a structural miss into a
+    wrong key. Scope "you".
     """
     for c in tree.effect_concepts("regenerate"):
         return [Signal("regenerate_makers", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "GrantAbility":
+                continue
+            definition = getattr(n, "definition", None)
+            if tag_of(getattr(definition, "effect", None)) == "Regenerate":
+                return [Signal("regenerate_makers", "you", "", "", tree.name, "high")]
+    kept = _kept(tree)
+    if _REGENERATE_WORD_RX.search(kept) and not _CANT_REGENERATE_RX.search(kept):
+        return [Signal("regenerate_makers", "you", "", "", tree.name, "high")]
     return []
 
 
