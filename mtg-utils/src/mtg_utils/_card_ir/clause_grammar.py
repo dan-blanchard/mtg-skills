@@ -224,6 +224,28 @@ _PREFIX = comb.preceded(
     ),
 )
 
+# A compound "<primary instruction>, then <object> phase(s) in/out" clause
+# (Equipoise: "choose a land ..., then the chosen permanents phase out";
+# Spectral Adversary: "put ... counters ..., then ... phase out"): CR
+# 702.26a's phasing idiom, chained via "then" as a SECOND, independent
+# instruction, sits entirely outside the reach of the leading verb's own
+# arm below — ``choose``'s bare keyword match and ``_PUT``'s
+# take_until("counter") both stop consuming once THEIR OWN (real, but
+# incomplete) object completes, leaving this "then" tail unconsumed and
+# unexamined by the cursor-anchored dispatch. Tried FIRST (before every
+# other verb arm) so the chained phasing idiom wins. Requires the
+# immediate next word after "phase(s)" be "in"/"out" — the CR 702.26a verb
+# idiom itself, same guard as the bare phasing arm below (never a
+# phase-of-the-turn reference); gated on the literal word "then" so a
+# clause with no compound tail is entirely unaffected.
+_THEN_PHASING = comb.value(
+    "phasing",
+    comb.seq3(
+        comb.find_word({"then"}),
+        comb.find_word({"phase", "phases"}),
+        comb.keyword({"in", "out"}),
+    ),
+)
 # Verb arms that need a look-ahead discriminant (a sub-parse), built from combinators:
 # "deal [N] damage" (amount between verb and noun); create-a-copy vs token; return-to-
 # battlefield (reanimate) vs to-hand/owner/top (bounce); "add … mana"; "put … counter".
@@ -383,6 +405,7 @@ _SIMPLE_VERB = comb.alt(
 )
 # Multi-word verb phrases (order: most specific first).
 _VERB = comb.alt(
+    _THEN_PHASING,
     _DEAL_DAMAGE,
     comb.value("gain_life", comb.tag("gain life")),
     comb.value("lose_life", comb.tag("lose life")),
@@ -526,14 +549,37 @@ _VERB_PRESENT = re.compile(
 def scan_clause(text: str) -> str | None:
     """Last-resort word-by-word scan for the clause's primary verb, for a
     clause whose subject hides the verb a few words in. Returns the matched
-    category, or None when no known verb is present."""
+    category, or None when no known verb is present.
+
+    The scan window is capped at 23 words (was 22) — corpus-measured
+    (``category == "other"`` raws where ``parse_clause`` finds nothing at
+    the anchor, i.e. the population this scan actually serves, over the
+    full committed sidecar via the grammar_digest_dump differential): the
+    genuinely-recoverable first-verb tail this scan should widen for
+    (Equipoise's own clause included) turned out to be reachable via
+    ``_THEN_PHASING`` at the ``parse_clause`` anchor instead, needing no
+    cap change at all — a wider cap's ONLY verified-safe gain past 22 is
+    two words (23), and even that gain lands solely on non-commander-legal
+    Un-set jokes (Nerf War, sAnS mERcY). Word 24 is where a PRE-EXISTING,
+    unrelated defect (the bare ``keyword({"look"})`` -> ``topdeck_select``
+    arm — over-broad for ANY "look" occurrence, not just "look at the top
+    N") starts mis-firing on real commander-legal cards (Focused
+    Funambulist's "...does this look balanced?..." has nothing to do with
+    a library peek); fixing THAT arm to require "top" nearby flips well
+    over a hundred (raw, category) pairs corpus-wide (most cards using
+    "look at target ... hand", themselves currently mis-typed
+    ``topdeck_select`` by the SAME pre-existing bug) — real, but a
+    separate defect with its own blast radius, out of scope for this
+    grammar-core pass. 23 is the corpus-verified safe boundary; a wider
+    cap is a follow-up, not a "raise it more" tweak of this fix.
+    """
     s = _FAILED_PREFIX.sub("", text).strip()
     peeled = _PREFIX_PEEL.parse(s)
     body = peeled[1].strip() if peeled is not None else s
     if not _VERB_PRESENT.search(body):
         return None
     words = body.split()
-    for i in range(1, min(len(words), 22)):
+    for i in range(1, min(len(words), 23)):
         r = _VERB.parse(" ".join(words[i:]))
         if r is not None:
             return r[0]
