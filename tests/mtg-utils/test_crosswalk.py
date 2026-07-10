@@ -3015,6 +3015,78 @@ def test_scaling_pump_gate(name, should_fire):
 
 
 @pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 3: an Aggregate (Max) qty tag — "the greatest
+        # <property> among <population>" is a board-state-driven scaler by
+        # construction (CR 107.3), the same category as a bare count.
+        "Carrion Grub",  # +X/+0, greatest power among graveyard creatures
+        "Emissary Escort",  # +X/+0, greatest mana value among other artifacts
+        # A Sum of TWO separate board counts (Ref(ObjectCount) +
+        # Ref(ZoneCardCount)) — ``ref_count_qty`` never reaches a ``Sum``'s
+        # per-expr list; checked per-expr, any scaling member qualifies.
+        "Cid, Timeless Artificer",
+        "Desmond Miles",
+        # A count condition too complex for phase to structure at all
+        # (CR 107.3) degrades the modification to a flat literal ``value``
+        # indistinguishable, node-shape-wise, from a genuine fixed anthem —
+        # the node's OWN description ("for each"/"equal to the number of")
+        # is the only surviving residue.
+        "Strata Scythe",  # for each land w/ the same name as the exiled card
+        "Nyxathid",  # -1/-1 for each card in the chosen player's hand
+        # A token's own self-pump nested two hops deep through a granted
+        # ability (``GrantAbility``/``GrantStaticAbility``.definition) —
+        # ``iter_mod_sites`` never descends into a modification's OWN
+        # ``definition`` field; re-rooted via the generic deep walk (the
+        # same ``GrantAbility.definition`` descent
+        # ``has_structural_power_tap_engine`` establishes).
+        "Urza's Saga",  # Saga chapter grants a Construct-token pump ability
+        "Sound the Call",  # token's own GrantStaticAbility pump
+        "Iron Man Armor",  # becomes-a-creature GrantStaticAbility pump
+        "Dollhouse of Horrors",  # CopyTokenOf additional_modifications
+        # An Aggregate value on a plain (non-Pump/PumpAll) AddDynamicPower
+        # continuous mod (a Living Weapon Equipment's own stat line).
+        "Tangleweave Armor",  # greatest mana value among your commanders
+        # Minn's created Illusion token's OWN static (reached directly,
+        # no GrantAbility hop — the plain nested-static_abilities path).
+        "Minn, Wily Illusionist",
+    ],
+)
+def test_scaling_pump_recovered_dynamic_shapes(name):
+    """ADR-0038 W3 batch 3 (CR 107.3 / 613.4c): scaling_pump recovers the
+    Aggregate/Sum/GrantAbility-nested/degraded-literal dynamic P/T shapes
+    the base ``ref_count_qty``/tag-set gate missed. Verified against the
+    real Card IR this session; each card's phase record is pinned in
+    ``crosswalk_fixture_cards.json``."""
+    assert ("scaling_pump", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 3 — a ``PumpAll`` mass anthem whose power/
+        # toughness is ``Quantity``-wrapped (``T_power__Quantity(value=
+        # Ref(...))``) was previously silently under-served: the base gate
+        # read ``ref_count_qty`` directly on the unwrapped field, which
+        # never matched a ``Quantity`` node, so a genuine board-count mass
+        # anthem read as if fixed. Adjudicated GAIN beyond the legacy Card
+        # IR (``old_ir_for``'s separate, lossier pipeline structurally
+        # drops the "pump" effect's ``amount`` for these entirely — CR
+        # 107.3 confirms each is a genuine board-count scaler regardless).
+        "Alistair, the Brigadier",  # +X/+X, historic permanents you control
+        "Cloudkill",  # -X/-X, greatest mana value of a commander you own
+        "Jazal Goldmane",  # attacking creatures +X/+X, # of attackers
+    ],
+)
+def test_scaling_pump_pumpall_quantity_unwrap_gain(name):
+    """ADR-0038 W3 batch 3: the ``PumpAll`` ``Quantity``-unwrap fix (CR
+    107.3) is an adjudicated GAIN beyond the legacy Card IR's own blind
+    spot for these mass-anthem shapes — verified structurally correct
+    against the real Card IR this session."""
+    assert ("scaling_pump", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
     ("name", "should_fire"),
     [
         ("Commander's Insignia", True),  # creatures YOU control team anthem

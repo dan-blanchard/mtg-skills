@@ -4473,6 +4473,13 @@ _SCALING_QTY_TAGS: frozenset[str] = frozenset(
         "PartySize",
         "BasicLandTypeCount",
         "PlayerCounter",
+        # ADR-0038 W3 batch-3 — a MAX/MIN aggregate over a filtered population
+        # ("+X/+0, where X is the greatest power among creature cards in your
+        # graveyard" — Carrion Grub, Coram; "greatest mana value among other
+        # artifacts" — Emissary Escort) is a board-state-driven scaler by
+        # construction (CR 107.3) — the same category as a bare count, just a
+        # MAX instead of a COUNT of the same population.
+        "Aggregate",
     }
 )
 # Ref-qty tags that are a bare X / cost-derived magnitude (CR 107.3) — NEVER a
@@ -4578,6 +4585,42 @@ _PT_COUNTER_KINDS: frozenset[str] = frozenset({"P1P1", "M1M1"})
 _DYNAMIC_PT_MODS: frozenset[str] = frozenset({"AddDynamicPower", "AddDynamicToughness"})
 
 
+def _sum_expr_qty(expr: object) -> str | None:
+    """The qty tag of one ``Sum.exprs`` entry, unwrapping a ``Multiply``
+    scalar the same way :func:`ref_count_qty` does for a bare field.
+
+    A dynamic value combining TWO separate board counts ("+1/+0 for each
+    other Assassin you control and each Assassin card in your graveyard" —
+    Desmond Miles, Cid) projects ``Sum(exprs=[Ref(ObjectCount), Ref(
+    ZoneCardCount)])`` — a tag ``ref_count_qty`` never reaches (it only
+    unwraps a bare/``Multiply``-scaled ``Ref``, not a ``Sum``'s per-expr
+    list). CR 107.3.
+    """
+    e = expr
+    if tag_of(e) == "Multiply":
+        e = getattr(e, "inner", None)
+    if tag_of(e) == "Ref":
+        return tag_of(getattr(e, "qty", None))
+    return None
+
+
+def _field_qty(node: TypedMirrorNode, field: str) -> str | None:
+    """The board-count qty tag of ``node.field``, peeling a ``Quantity``
+    wrapper (a single-target ``Pump``/``PumpAll``'s ``power``/``toughness``
+    is ``U_power``/``U_toughness`` — ``T_power__Quantity(value=…)`` for a
+    dynamic value, ``T_power__Fixed(value=int)`` for a literal — a DIFFERENT
+    top-level shape from a dynamic-mod site's bare ``value`` field, which
+    ``ref_count_qty`` already handles) before delegating to
+    :func:`ref_count_qty`'s ``Multiply``/``Ref`` unwrap. A ``Fixed`` value
+    peels to an ``int``, which fails the ``Ref`` check and correctly yields
+    ``None`` (no false scale on a literal +2/+2). CR 107.3.
+    """
+    v = getattr(node, field, None)
+    if isinstance(v, TypedMirrorNode) and tag_of(v) == "Quantity":
+        return ref_count_qty(v, "value")
+    return ref_count_qty(node, field)
+
+
 def _is_scaling_count(node: TypedMirrorNode, fields: tuple[str, ...], raw: str) -> bool:
     """Whether one of ``node``'s ``fields`` is a genuine BOARD-COUNT scaler
     ("for each <X>", CR 107.3), not a bare X-spell whose X is the cast cost.
@@ -4589,15 +4632,41 @@ def _is_scaling_count(node: TypedMirrorNode, fields: tuple[str, ...], raw: str) 
     GraveyardSize, …) scales only when the node's raw names the count ("for
     each" / "equal to the number of" — Commander's Insignia).
 
-    ``ref_count_qty`` (not ``ref_qty_tag``) unwraps a ``Multiply`` scalar, so a
-    "twice the number of X" scaler (Champion of the Flame's dynamic self-pump
-    ``Multiply(2, Ref(ObjectCount))``) reads as a genuine count. CR 107.3.
+    :func:`_field_qty` (not ``ref_qty_tag``) unwraps a ``Quantity`` wrapper
+    then a ``Multiply`` scalar, so a "twice the number of X" scaler
+    (Champion of the Flame's dynamic self-pump ``Multiply(2,
+    Ref(ObjectCount))``) and a ``PumpAll`` mass anthem whose power/toughness
+    is ``Quantity``-wrapped (Alistair, Jazal Goldmane — ``PumpAll.power =
+    Quantity(Ref(…))``, previously silently missed) both read as a genuine
+    count. A ``Sum`` of two board counts (Desmond Miles, Cid —
+    :func:`_sum_expr_qty`) is checked per-expr, ANY scaling member
+    qualifying the whole value.
+
+    A complex COUNT CONDITION phase can't structure at all (Strata Scythe —
+    "for each land on the battlefield with the SAME NAME AS the exiled card";
+    Nyxathid — "-1/-1 for each card in the CHOSEN PLAYER'S hand") degrades
+    the modification to a flat literal ``value`` (``AddPower(value=1)``,
+    indistinguishable node-shape-wise from a genuine fixed anthem) — so
+    ``qt is None`` does NOT short-circuit before the ``phrase`` check; the
+    node's OWN ``raw`` (its ``description`` — never a sibling's, never the
+    whole card's) is the only surviving residue and is authoritative when
+    the structural qty is absent. A genuinely fixed anthem with no "for
+    each" wording still fails ``phrase`` and stays excluded. CR 107.3.
     """
     low = (raw or "").lower()
     phrase = "for each" in low or "equal to the number of" in low
     for f in fields:
-        qt = ref_count_qty(node, f)
-        if qt is None or qt in _BARE_X_QTY_TAGS:
+        val = getattr(node, f, None)
+        if tag_of(val) == "Sum":
+            for expr in getattr(val, "exprs", None) or []:
+                qt = _sum_expr_qty(expr)
+                if qt in _BARE_X_QTY_TAGS:
+                    continue
+                if qt in _SCALING_QTY_TAGS or phrase:
+                    return True
+            continue
+        qt = _field_qty(node, f)
+        if qt in _BARE_X_QTY_TAGS:
             continue
         if qt in _SCALING_QTY_TAGS or phrase:
             return True
@@ -5090,15 +5159,40 @@ def _pump_scaling_lanes(tree: ConceptTree) -> list[Signal]:
             out.append(Signal(key, "you", "", raw, tree.name, "high"))
 
     for c in tree.effect_concepts("pump"):
+        # ADR-0038 W3 batch-3: ``PumpAll``'s ``power``/``toughness`` is
+        # ``U_power``/``U_toughness`` — ``T_power__Quantity(value=…)`` for a
+        # genuine dynamic scale (a wrapper :func:`_field_qty` now peels),
+        # ``T_power__Fixed(value=int)`` for a literal. This was previously
+        # silently under-served (Alistair, Cloudkill, Jazal Goldmane —
+        # ``PumpAll.power = Quantity(Ref(…))`` fell through the un-peeled
+        # ``ref_count_qty`` check as if fixed). single-target ``Pump``
+        # (Embiggen, Gold Rush, Gran Pulse Ochu, Ral's Staticaster,
+        # Sunbathing Rootwalla — genuine legacy-recognized recall gaps) is
+        # DELIBERATELY still excluded here: legacy's Card IR has a much
+        # BROADER blind spot for single-target dynamic ``Pump`` than this
+        # batch's scope (~130 corpus cards, e.g. Herald of Amity's "for
+        # each Aura you control" — non-creature-population, still a legacy
+        # miss), so admitting the tag at all reopens far more than these 5
+        # named cards; deferred as its own wave (see `deferred`).
         if tag_of(c.node) == "PumpAll" and _is_scaling_count(
             c.node, ("power", "toughness"), c.raw
         ):
             fire("scaling_pump", c.raw)
             if _is_generic_creature_filter(effect_filter(c.node)):
                 fire("count_anthem", c.raw)
-    for unit in tree.units:
-        for sdef, mod in iter_mod_sites(unit.node):
-            if tag_of(mod) not in _DYNAMIC_PT_MODS:
+
+    def scan_mod_sites(root: object) -> None:
+        for sdef, mod in iter_mod_sites(root):
+            # A count condition too complex for phase to structure at all
+            # (Strata Scythe — "for each land … with the SAME NAME AS the
+            # exiled card"; Nyxathid — "for each card in the CHOSEN
+            # PLAYER'S hand") degrades to a plain fixed ``AddPower``/
+            # ``AddToughness`` (the SAME tag a genuine fixed anthem carries)
+            # rather than ``AddDynamicPower``/``AddDynamicToughness`` — so
+            # this admits BOTH tag families; ``_is_scaling_count``'s
+            # ``phrase`` fallback (the node's OWN description) is what still
+            # excludes a real fixed anthem with no "for each" wording.
+            if tag_of(mod) not in _DYNAMIC_PT_MODS | {"AddPower", "AddToughness"}:
                 continue
             raw = _site_raw(sdef)
             if not _is_scaling_count(mod, ("value",), raw):
@@ -5106,6 +5200,29 @@ def _pump_scaling_lanes(tree: ConceptTree) -> list[Signal]:
             fire("scaling_pump", raw)
             if _is_generic_creature_filter(getattr(sdef, "affected", None)):
                 fire("count_anthem", raw)
+
+    for unit in tree.units:
+        scan_mod_sites(unit.node)
+        # A token's OWN self-pump can live TWO hops deep — a Saga chapter /
+        # activated-ability's ``GrantAbility``/``GrantStaticAbility``
+        # MODIFICATION wraps a granted ability whose ``definition`` (or
+        # ``definition.effect``) is the ``Token`` that carries the dynamic
+        # pump (Urza's Saga Chapter II: "gain '{2}, {T}: Create a …
+        # Construct … with {this token pump}'"; Sound the Call's granted
+        # ``GrantStaticAbility`` directly wraps the pump modifications).
+        # ``iter_mod_sites`` never descends into a modification's OWN
+        # ``definition`` field (by design — a modification is a LEAF, not a
+        # further traversal root), so each grant tag found via the generic
+        # deep walk (:func:`iter_typed_nodes`, :data:`_GRANT_ABILITY_MOD_TAGS`)
+        # re-roots a FRESH ``iter_mod_sites`` scan at its ``definition`` (the
+        # same ``GrantAbility.definition`` descent
+        # :func:`has_structural_power_tap_engine` establishes).
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) not in _GRANT_ABILITY_MOD_TAGS:
+                continue
+            d = getattr(n, "definition", None)
+            if d is not None:
+                scan_mod_sites(d)
     return out
 
 
