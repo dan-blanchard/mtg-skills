@@ -2025,7 +2025,6 @@ def test_mana_amplifier_excludes_single_land_ramp_aura():
     [
         ("Burgeoning", True),  # put a land from HAND onto the battlefield
         ("Elvish Rejuvenator", True),  # Dig destination Battlefield, Land
-        ("Planar Genesis", False),  # Dig destination HAND — card selection
         ("Sneak Attack", False),  # a CREATURE cheat → cheat_into_play
     ],
 )
@@ -2033,6 +2032,44 @@ def test_extra_land_drop_zone_and_type_gates(name, should_fire):
     """extra_land_drop fires on a land PUT into play (CR 305.9 — a put, not a
     play); a dig-to-hand and a creature cheat stay out (checklist #2/#4)."""
     assert (("extra_land_drop", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Aminatou's Augury",  # synth: land put buried in an exile_top raw
+        "Averna, the Chaos Bloom",  # synth: cascade reanimate, no Land filter
+        "Journey to the Lost City",  # synth: dropped d20-branch put
+        "Bonny Pall, Clearcutter",  # synth: "hand or graveyard" disjunction
+        "Dread Tiller",  # synth: "hand or graveyard" disjunction
+        "Riveteers Confluence",  # synth: modal "hand or graveyard" disjunction
+    ],
+)
+def test_extra_land_drop_idiom_bridge_synthesis(name):
+    """ADR-0037/0038 synthesis: the YOUR "put a land card from your hand/
+    among them/among those cards/among the exiled cards ... onto the
+    battlefield" idiom (CR 305.9/720) phase leaves wholly or partially
+    unstructured — a cascade-from-exile reanimate with no Land filter
+    (Averna), a land put buried inside an exile/dropped-branch raw
+    (Aminatou's Augury, Journey to the Lost City), or a "from hand OR
+    graveyard" disjunction that defeats phase's controller pin on an
+    otherwise-typed ChangeZone (Bonny Pall, Dread Tiller, Riveteers
+    Confluence — controller=None, no InZone property).
+    ``tree_synthesis._arm_extra_land_drop`` mirrors the OLD-IR
+    ``_recover_extra_land_drop`` idiom-scan byte-for-byte."""
+    assert ("extra_land_drop", "you", "") in _idents(name)
+
+
+def test_extra_land_drop_planar_genesis_now_fires():
+    """Planar Genesis's own typed Dig is destination=Hand (a card-
+    selection effect, correctly excluded by the structural arm), but its
+    "you may put a land card from among them onto the battlefield tapped"
+    modal branch is a GENUINE extra land drop (CR 305.9) legacy's own
+    regex-bridge already recognized — the idiom-bridge synthesis arm now
+    recovers it too (a corrected classification, not a new over-fire: this
+    key's corpus crosswalk-vs-old-IR measurement went from live_only=7 to
+    live_only=0 with Planar Genesis in the "both" set)."""
+    assert ("extra_land_drop", "you", "") in _idents("Planar Genesis")
 
 
 @pytest.mark.parametrize(

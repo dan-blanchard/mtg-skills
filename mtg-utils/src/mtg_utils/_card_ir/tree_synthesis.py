@@ -2601,6 +2601,98 @@ def _arm_coin_flip_payoff(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+def _land_only_filter(filt: object) -> bool:
+    """A filter whose CORE types are Land and nothing else (the ramp-vs-
+    cheat carve-out, CR 305). Shared verbatim with the ``_extra_land_drop``
+    lane (moved here alongside its structural gate)."""
+    cores = set(filter_core_types(filt))
+    return bool(cores) and cores <= {"Land"}
+
+
+def has_structural_extra_land_drop(tree: ConceptTree) -> bool:
+    """The extra_land_drop TYPED gate (CR 305.2/116.2a/305.9): a land PUT
+    onto the battlefield bypassing the land-per-turn limit. Two structural
+    shapes, shared verbatim with the ``_extra_land_drop`` lane (gap-gate-
+    alignment) so the idiom-bridge synthesis arm below never fires on a
+    card the typed read already covers:
+
+    * a ``ChangeZone`` Hand->Battlefield whose moved subject is Land-only,
+      controller you (Burgeoning's "put a land card from your hand onto
+      the battlefield");
+    * a ``Dig`` whose destination is Battlefield with a Land filter
+      (Elvish Rejuvenator's look-at-top-five put).
+    """
+    for unit in tree.units:
+        for c in unit.effect_concepts("change_zone"):
+            origin, dest = change_zone_dirs(c.node)
+            sub = effect_filter(c.node)
+            if (
+                tag_of(c.node) == "ChangeZone"
+                and origin == "Hand"
+                and dest == "Battlefield"
+                and _land_only_filter(sub)
+                and filter_controller(sub) == "You"
+            ):
+                return True
+        for c in unit.effect_concepts("dig"):
+            if getattr(c.node, "destination", None) == "Battlefield" and (
+                "Land" in filter_core_types(getattr(c.node, "filter", None))
+            ):
+                return True
+    return False
+
+
+# YOUR land-into-play PUT idiom (CR 305.9/720): "you may put a/up to N land
+# card(s) from your hand|among them|among those cards|among the exiled
+# cards ... onto the battlefield". phase folds this off a typed ChangeZone/
+# Dig read a variety of ways: a cascade-from-exile reanimate (Averna) or a
+# dig-into-play buried inside an exile/topdeck_select raw (Aminatou's
+# Augury, Planar Genesis) leave it as a role=effect Unimplemented node with
+# NO Land filter data (the ADR-0038 clause-grammar recovery would mis-tag
+# these "reanimate"/"cast_from_zone" — concepts this lane doesn't read, so
+# re-decoration alone can't close them), a dropped d20-branch put (Journey
+# to the Lost City), or a "from hand OR graveyard" disjunction that defeats
+# phase's controller pin on an otherwise-typed ChangeZone (Bonny Pall,
+# Dread Tiller, Riveteers Confluence — controller=None, no InZone
+# property). NO structured controller='You'+Land carrier survives any of
+# these; the datum lives only in the whole-card oracle. Mirrors the
+# OLD-IR ``_EXTRA_LAND_DROP_PUT_P``/``_recover_extra_land_drop`` idiom-scan
+# byte-for-byte (verbatim extraction discipline).
+_EXTRA_LAND_DROP_PUT_RE = re.compile(
+    r"\byou may put (?:a |up to \w+ )?lands?\s+cards?\s+from\s+"
+    r"(?:your hand|among them|among those cards|among the exiled cards)"
+    r"\b.*\bonto the battlefield\b",
+    re.IGNORECASE,
+)
+
+
+def _arm_extra_land_drop(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an "extra_land_drop" node for the YOUR land-into-play PUT
+    idiom phase leaves wholly or partially unstructured. Gap-gated on
+    :func:`has_structural_extra_land_drop` so a card the typed read already
+    covers never doubles. Matched PER LINE (a modal/table card's bullets
+    are '\\n'-delimited in the oracle; scanning the whole joined string
+    risks a non-greedy match bridging into an unrelated later ability's
+    own "onto the battlefield"). Emits its own concept
+    ("extra_land_drop" — the mechanic name itself; no native effect/static
+    tag is generic enough to reuse, since the lost datum is the
+    Land+you-controller PAIRING, not a dispatchable verb), so the lane
+    reads it via one added branch. CR 305.9/720."""
+    if has_structural_extra_land_drop(tree):
+        return None
+    kept = _REMINDER.sub(" ", tree.oracle or "")
+    for line in kept.splitlines():
+        if _EXTRA_LAND_DROP_PUT_RE.search(line):
+            return _synthetic_concept(
+                arm_id="extra_land_drop",
+                concept="extra_land_drop",
+                scope="you",
+                subject=(),
+                desc="land-into-play put phase leaves unstructured",
+            )
+    return None
+
+
 def _has_multicolor_count_pred(filt: object) -> bool:
     """Whether ``filt`` carries a ``ColorCount`` ``GE``/``EQ`` >= 2
     predicate, controller You (CR 105.2) — the shared discriminant both
@@ -7106,6 +7198,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("group_hug_draw", _arm_group_hug_draw),
     ("dice_makers", _arm_dice_makers),
     ("coin_flip_payoff", _arm_coin_flip_payoff),
+    ("extra_land_drop", _arm_extra_land_drop),
     ("multicolor_matters", _arm_multicolor_matters),
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),

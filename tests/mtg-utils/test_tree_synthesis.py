@@ -69,6 +69,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_discover_makers,
     _arm_dont_own,
     _arm_exhaust_matters,
+    _arm_extra_land_drop,
     _arm_firebending_matters,
     _arm_flash_matters,
     _arm_group_hug_draw,
@@ -125,6 +126,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_crimes_matter,
     has_structural_curse_matters,
     has_structural_dice_makers,
+    has_structural_extra_land_drop,
     has_structural_firebending_grant,
     has_structural_group_hug_draw,
     has_structural_keyword_counter,
@@ -1802,6 +1804,67 @@ def test_coin_flip_payoff_synth_win_and_lose():
 
 def test_coin_flip_payoff_synth_registered():
     assert "coin_flip_payoff" in SYNTHESIS_ARM_IDS
+
+
+# ── extra_land_drop idiom-bridge synthesis (W2) ─────────────────────────────
+# Burgeoning / Elvish Rejuvenator carry a REAL typed ChangeZone/Dig land put --
+# has_structural_extra_land_drop covers both, so NEITHER needs synthesis.
+# Averna's cascade-from-exile reanimate carries NO Land filter data at all; the
+# "hand or graveyard" disjunction cards (Bonny Pall, Dread Tiller, Riveteers
+# Confluence) carry a REAL ChangeZone but with controller=None (the disjunction
+# defeats phase's controller pin) -- has_structural_extra_land_drop requires
+# controller=='You' exactly, so these stay a genuine gap too.
+
+
+def _extra_land_drop_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _extra_land_drop
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "extra_land_drop" for s in _extra_land_drop(tree))
+
+
+def test_extra_land_drop_typed_gate_no_double():
+    """Burgeoning already has a typed ChangeZone land put -- the structural
+    gate covers it, so the synthesis arm no-ops."""
+    tree = _fixture_tree("Burgeoning")
+    assert has_structural_extra_land_drop(tree) is True
+    assert _arm_extra_land_drop(tree) is None
+    assert _extra_land_drop_fires("Burgeoning") is True
+
+
+def test_extra_land_drop_dig_gate_no_double():
+    """Elvish Rejuvenator already has a typed Dig->Battlefield Land filter
+    -- the structural gate covers it, so the synthesis arm no-ops."""
+    tree = _fixture_tree("Elvish Rejuvenator")
+    assert has_structural_extra_land_drop(tree) is True
+    assert _arm_extra_land_drop(tree) is None
+    assert _extra_land_drop_fires("Elvish Rejuvenator") is True
+
+
+def test_extra_land_drop_cascade_reanimate_synth():
+    tree = _fixture_tree("Averna, the Chaos Bloom")
+    assert has_structural_extra_land_drop(tree) is False  # genuine gap
+    node = _arm_extra_land_drop(tree)
+    assert node is not None
+    assert node.concept == "extra_land_drop"
+    assert node.scope == "you"
+    assert _extra_land_drop_fires("Averna, the Chaos Bloom") is True
+
+
+def test_extra_land_drop_hand_or_graveyard_disjunction_synth():
+    """A "from your hand or graveyard" ChangeZone carries controller=None
+    (the disjunction defeats phase's single-zone controller pin) --
+    has_structural_extra_land_drop's strict controller=='You' gate leaves
+    it a genuine gap the synthesis arm fills from the whole-card oracle."""
+    for name in ("Bonny Pall, Clearcutter", "Dread Tiller", "Riveteers Confluence"):
+        tree = _fixture_tree(name)
+        assert has_structural_extra_land_drop(tree) is False, name
+        assert _arm_extra_land_drop(tree) is not None, name
+        assert _extra_land_drop_fires(name) is True, name
+
+
+def test_extra_land_drop_synth_registered():
+    assert "extra_land_drop" in SYNTHESIS_ARM_IDS
 
 
 # ── multicolor_matters cares-about reference residual (ADR-0038 W1) ────────────

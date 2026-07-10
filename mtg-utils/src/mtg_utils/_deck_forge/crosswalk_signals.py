@@ -177,6 +177,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_curse_matters,
     has_structural_dice_makers,
     has_structural_exert_matters,
+    has_structural_extra_land_drop,
     has_structural_firebending_grant,
     has_structural_keyword_counter,
     has_structural_kill_engine,
@@ -712,7 +713,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "earthbend_matters",
         "enchantments_matter",
         "exile_matters",
-        "extra_land_drop",
         "facedown_matters",
         "fight_makers",
         "forced_attack",
@@ -4004,46 +4004,34 @@ def _mana_amplifier(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _land_only_filter(filt: object) -> bool:
-    """A filter whose CORE types are Land and nothing else (the ramp-vs-cheat
-    carve-out, CR 305)."""
-    cores = set(filter_core_types(filt))
-    return bool(cores) and cores <= {"Land"}
-
-
 def _extra_land_drop(tree: ConceptTree) -> list[Signal]:
     """extra_land_drop — a land PUT onto the battlefield (CR 305.2 / 116.2a /
     305.9: a put is not a play, so it bypasses the land-per-turn limit). Two
-    typed arms mirroring the live structural pair:
+    typed arms mirroring the live structural pair (:func:`has_structural_
+    extra_land_drop`, moved to tree_synthesis.py so it shares ONE source with
+    the idiom-bridge synthesis arm below):
 
     * a ``ChangeZone`` Hand→Battlefield whose moved subject is Land-only,
       controller you (Burgeoning's "put a land card from your hand onto the
-      battlefield"); the "from hand OR graveyard" controller-any recovery
-      stays ``live_only`` (checklist #6 keeps the you-gate);
+      battlefield");
     * a ``Dig`` whose ``destination`` is Battlefield with a Land filter
       (Elvish Rejuvenator's look-at-top-five put) — the ``to:hand`` dig
       (Planar Genesis) is card selection, NOT a land drop (checklist #2).
 
-    The extra-land STATIC (Exploration's "play an additional land") is a
-    different mechanic the live lane also excludes. Scope "you".
+    A card whose land-into-play PUT phase leaves wholly/partially
+    unstructured (Aminatou's Augury, Averna, Journey to the Lost City,
+    Planar Genesis's own gap, plus the "from hand OR graveyard"
+    controller-any disjunction — Bonny Pall, Dread Tiller, Riveteers
+    Confluence) is covered by ``tree_synthesis._arm_extra_land_drop``'s
+    idiom bridge, ALSO read here via its "extra_land_drop" concept — no
+    lane special-case. The extra-land STATIC (Exploration's "play an
+    additional land") is a different mechanic this lane also excludes.
+    Scope "you".
     """
-    for unit in tree.units:
-        for c in unit.effect_concepts("change_zone"):
-            origin, dest = change_zone_dirs(c.node)
-            sub = effect_filter(c.node)
-            if (
-                tag_of(c.node) == "ChangeZone"
-                and origin == "Hand"
-                and dest == "Battlefield"
-                and _land_only_filter(sub)
-                and filter_controller(sub) == "You"
-            ):
-                return [Signal("extra_land_drop", "you", "", c.raw, tree.name, "high")]
-        for c in unit.effect_concepts("dig"):
-            if getattr(c.node, "destination", None) == "Battlefield" and (
-                "Land" in filter_core_types(getattr(c.node, "filter", None))
-            ):
-                return [Signal("extra_land_drop", "you", "", c.raw, tree.name, "high")]
+    if has_structural_extra_land_drop(tree):
+        return [Signal("extra_land_drop", "you", "", "", tree.name, "high")]
+    for c in tree.effect_concepts("extra_land_drop"):
+        return [Signal("extra_land_drop", "you", "", c.raw, tree.name, "high")]
     return []
 
 
