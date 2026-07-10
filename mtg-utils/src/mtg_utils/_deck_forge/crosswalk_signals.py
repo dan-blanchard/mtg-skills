@@ -53,6 +53,7 @@ from mtg_utils._card_ir.crosswalk import (
     counter_pred_kinds,
     damage_filter_scope,
     damage_recipient_is_player,
+    damage_to_player_trigger_kind,
     detriment_directed_scope,
     discard_recipient_scope,
     double_target_kind,
@@ -709,7 +710,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "creature_etb",
         "creature_ping",
         "creatures_matter",
-        "damage_to_opp_matters",
         "direct_damage",
         "discard_outlet",
         "draw_for_each",
@@ -6324,6 +6324,21 @@ def _opponent_cast_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ADR-0038 W3 batch 2 unit 4 — a SANCTIONED byte-identical mirror of the
+# deleted ``DAMAGE_TO_OPP_MATTERS_REGEX`` (``_sweep_detectors.py``): "when
+# (ever) … deals (noncombat) damage to a player/opponent". Non-greedy across
+# the WHOLE sentence, so it also matches a LATER "~ deals damage to that
+# player" clause inside a combat-damage trigger's own effect (Sword of War
+# and Peace) — a genuine textual signal (an ADDITIONAL damage effect the
+# trigger causes), not a mis-fire. CR 119.3 / 510.1c.
+_DAMAGE_TO_OPP_MATTERS_MIRROR = re.compile(
+    r"\bwhen(?:ever)?\b[^.]*?\bdeals (?:noncombat )?damage to "
+    r"(?:a player|an opponent|one of your opponents|each opponent"
+    r"|target opponent|that player|a player or planeswalker)\b",
+    re.IGNORECASE,
+)
+
+
 def _combat_damage_lanes(tree: ConceptTree) -> list[Signal]:
     """combat_damage_matters + damage_to_opp_matters — the damage-connect
     payoffs, split by the trigger's typed ``damage_kind`` (checklist #5 — the
@@ -6335,28 +6350,57 @@ def _combat_damage_lanes(tree: ConceptTree) -> list[Signal]:
     * ``damage_to_opp_matters`` — the ANY-damage connect ("deals damage to an
       opponent" — Hypnotic Specter; CR 120.3), same player-reach read.
 
+    ADR-0038 W3 batch 2 unit 4: :func:`damage_to_player_trigger_kind` is one
+    predicate over BOTH a top-level trigger unit's own node AND a nested
+    granted-trigger def (:func:`iter_nested_trigger_defs` — the
+    opponent_cast_matters/connive precedent), so a damage-connect payoff
+    granted through a static (Snake Umbra's Aura, Talon of Pain's own
+    static, Sword of War and Peace's Equipment, Stormbreath Dragon's
+    monstrosity-granted static) fires exactly like the top-level form
+    (Hypnotic Specter).
+
+    ADR-0038 W3 batch 2 unit 4: a SANCTIONED byte-identical mirror
+    (:data:`_DAMAGE_TO_OPP_MATTERS_MIRROR`, ported unchanged from the
+    deleted ``DAMAGE_TO_OPP_MATTERS_REGEX``) covers the tail phase can't
+    structure as a ``deals_damage`` trigger at all: an ETB/attack/other-
+    event trigger whose OWN effect ALSO deals damage to a player within the
+    SAME sentence (Sword of War and Peace's combat-damage trigger causes a
+    SEPARATE "~ deals damage to that player" effect the regex's non-greedy
+    span reaches past the non-matching "combat damage" clause; Talon of
+    Pain's Unknown-mode trigger phase never types as ``deals_damage``), and
+    a direct ETB/ability damage BURST with no reactive trigger shape at all
+    (Fanatic of Mogis, Gruesome Scourger, Meria's Outrider). Fallback-only
+    (checked when the structural arm found nothing) — never overrides a
+    structural miss into a wrong key.
+
     Both hard-scope "opponents" (live). Co-fires with the ported
     ``combat_damage_to_opp`` where live does — distinct keys, the diff slices
     per key.
     """
     out: list[Signal] = []
     seen: set[str] = set()
-    for unit in tree.units:
-        if unit.origin != "trigger" or unit.trigger_event != "deals_damage":
-            continue
-        vt = getattr(unit.node, "valid_target", None)
-        if vt is None or not damage_recipient_is_player(vt):
-            continue
-        if filter_subtypes(vt):
-            continue  # a SUBTYPE-carrying recipient is an object ("deals
-            # damage to a Dinosaur" — Dinosaur Hunter), never a player
-        kind = trigger_damage_kind(unit.node)
+
+    def emit(kind: str | None) -> None:
+        if kind is None:
+            return
         key = (
             "combat_damage_matters" if kind == "CombatOnly" else "damage_to_opp_matters"
         )
         if key not in seen:
             seen.add(key)
             out.append(Signal(key, "opponents", "", "", tree.name, "high"))
+
+    for unit in tree.units:
+        if unit.origin == "trigger":
+            emit(damage_to_player_trigger_kind(unit.node))
+        for trig in iter_nested_trigger_defs(unit.node):
+            emit(damage_to_player_trigger_kind(trig))
+    if "damage_to_opp_matters" not in seen and _DAMAGE_TO_OPP_MATTERS_MIRROR.search(
+        _kept(tree)
+    ):
+        out.append(
+            Signal("damage_to_opp_matters", "opponents", "", "", tree.name, "high")
+        )
     return out
 
 

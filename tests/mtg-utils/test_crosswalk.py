@@ -3759,6 +3759,74 @@ def test_damage_to_opp_matters_any_kind():
     assert "damage_to_opp_matters" not in _keys("Coastal Piracy")
 
 
+# ADR-0038 W3 batch 2 unit 4 — the damage_to_opp_matters nested granted-
+# trigger arm (damage_to_player_trigger_kind, one predicate over BOTH a
+# top-level trigger and a nested GrantTrigger def — the opponent_cast_
+# matters/connive precedent): a damage-connect payoff granted through an
+# Aura (Snake Umbra, Helm of the Ghastlord), a card's own static
+# (Serpent Generator's token grant), or a planeswalker ultimate emblem
+# (Vraska, Scheming Gorgon).
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Snake Umbra",
+        "Helm of the Ghastlord",
+        "Serpent Generator",
+        "Vraska, Scheming Gorgon",
+    ],
+)
+def test_damage_to_opp_matters_nested_grant_arm(name):
+    assert ("damage_to_opp_matters", "opponents", "") in _idents(name)
+
+
+# ADR-0038 W3 batch 2 unit 4 — a SANCTIONED byte-identical mirror of the
+# deleted DAMAGE_TO_OPP_MATTERS_REGEX (CR 119.3/510.1c): covers the tail
+# phase can't structure as a ``deals_damage`` trigger — an Unknown-mode
+# trigger (Talon of Pain), a combat-damage trigger whose OWN effect ALSO
+# deals damage to the same player in a LATER clause the non-greedy regex
+# span reaches (Sword of War and Peace), and a direct ETB/ability damage
+# BURST with no reactive trigger shape at all (Fanatic of Mogis, Gruesome
+# Scourger, Meria's Outrider, Sycorax Commander's villainous choice,
+# Emberwilde Captain's monarch-punish, Magebane Lizard's noncreature-cast
+# punisher, Bloodfeather Phoenix's cast-payoff, Asgardian Inspiration's
+# noncombat-damage payoff, Arm with Aether's grant, Sorcerer Class's Class
+# level, Stormbreath Dragon's monstrosity trigger, Tandem Lookout's
+# soulbond grant, Vraska Swarm's Eminence's counter payoff).
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Talon of Pain",
+        "Sword of War and Peace",
+        "Fanatic of Mogis",
+        "Gruesome Scourger",
+        "Meria's Outrider",
+        "Sycorax Commander",
+        "Emberwilde Captain",
+        "Magebane Lizard",
+        "Bloodfeather Phoenix",
+        "Asgardian Inspiration",
+        "Arm with Aether",
+        "Sorcerer Class",
+        "Stormbreath Dragon",
+        "Tandem Lookout",
+        "Vraska, Swarm's Eminence",
+    ],
+)
+def test_damage_to_opp_matters_mirror_fallback(name):
+    assert ("damage_to_opp_matters", "opponents", "") in _idents(name)
+
+
+def test_damage_to_opp_matters_planeswalker_recipient_beyond_legacy_gain():
+    """Hooded Blightfang's "Whenever a creature you control with deathtouch
+    deals damage to a planeswalker, destroy that planeswalker" reaches a
+    Planeswalker recipient — the SAME player-or-planeswalker reach
+    combat_damage_matters already treats as "opponents" (Coastal Piracy's
+    own docstring), read here via the nested tribal-source connect trigger.
+    A genuine beyond-legacy recall gain (CR 120.3 / 510.1b), not an
+    over-fire — legacy fires nothing damage-related for this card."""
+    assert ("damage_to_opp_matters", "opponents", "") in _idents("Hooded Blightfang")
+
+
 def test_second_spell_matters_constraint_arm():
     """The probe win (CR 603.2): Cori-Steel Cutter's SpellCast trigger
     carries ``constraint {NthSpellThisTurn, n: 2}`` — a clean structural

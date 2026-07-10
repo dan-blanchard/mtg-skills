@@ -2329,6 +2329,32 @@ def is_creature_cast_trigger_def(trig: object) -> bool:
     return "Creature" in filter_core_types(getattr(trig, "valid_card", None))
 
 
+def damage_to_player_trigger_kind(trig: object) -> str | None:
+    """Whether a trigger DEFINITION node — a top-level trigger unit's own
+    ``.node`` OR a nested def from :func:`iter_nested_trigger_defs` — is CR
+    119.3/510.1b's damage-connect payoff shape: a ``DamageDone`` mode whose
+    recipient (:func:`damage_recipient_is_player`) reaches a player, no
+    SUBTYPE-carrying recipient (an object, not a player). ``None`` when not
+    this shape; else the typed ``damage_kind`` (``"CombatOnly"`` routes
+    combat_damage_matters, anything else damage_to_opp_matters — the SAME
+    split :func:`~mtg_utils._deck_forge.crosswalk_signals._combat_damage_lanes`
+    applies at its top-level read, now shared with the granted-ability
+    nested position (Snake Umbra's Aura grant, Talon of Pain's static
+    grant, Sword of War and Peace's Equipment grant, Stormbreath Dragon's
+    monstrosity grant).
+    """
+    if not isinstance(trig, TypedMirrorNode):
+        return None
+    if _trigger_event(trig) != "deals_damage":
+        return None
+    vt = getattr(trig, "valid_target", None)
+    if vt is None or not damage_recipient_is_player(vt):
+        return None
+    if filter_subtypes(vt):
+        return None  # a SUBTYPE-carrying recipient is an object, not a player
+    return trigger_damage_kind(trig)
+
+
 # ``DamageReceived``-shaped trigger DEFS carry a "reflection" execute tag
 # (CR 120.3): ``DealDamage`` (a single target) or ``DamageAll`` (Arcbond's
 # "each other creature and each player"). ``DamageEachPlayer`` is excluded —
