@@ -25,6 +25,10 @@ relevant context and only edit terms inside it.
   gate / HydratedDeck vocabulary, plus the deterministic Tune
   vocabulary (Spine / Engine card / Filler / Shape / Efficiency /
   Focus / Template deviation / Commander fit).
+- [mtg-utils](./mtg-utils/CONTEXT.md) — the shared `mtg_utils`
+  package. Owns the Card IR vocabulary (Concept overlay / Substrate
+  purity / Recovery stage / Re-decoration / Clause grammar / Token
+  allowlist / Reference arm).
 
 ## Architecture decisions
 
@@ -36,7 +40,7 @@ rules-lawyer integration model in deck-strat) are recorded there.
 
 ## Pending
 
-The other skills (deck-wizard, rules-lawyer, mtg-utils) don't yet have
+The other skills (deck-wizard, rules-lawyer) don't yet have
 CONTEXT.md files. Add them lazily when an architecture conversation
 surfaces a term that the skill's prose doesn't already pin down.
 
