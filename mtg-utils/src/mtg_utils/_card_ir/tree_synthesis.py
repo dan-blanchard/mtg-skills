@@ -2360,6 +2360,31 @@ def _arm_discover_makers(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# end-the-turn ACTION idiom (CR 724): "(may) end the turn" — expedite/exile the
+# rest of the turn. The player-scoped grant (Obeka — "the player whose turn it is
+# may end the turn") lands as an ``Unimplemented`` effect phase doesn't structure,
+# so the typed ``effect_concepts("end_the_turn")`` read misses it. "end the turn"
+# (with "the") never matches "until end of turn" / "at the end of the turn".
+_END_THE_TURN_RE = re.compile(r"\bends? the turn\b", re.IGNORECASE)
+
+
+def _arm_end_the_turn(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``end_the_turn`` node for the Unimplemented "end the turn"
+    ACTION phase leaves unstructured (Obeka's player-scoped grant). Gap-gated on
+    NO typed ``EndTheTurn`` effect (Time Stop is already Tier-1)."""
+    if any(True for _ in tree.effect_concepts("end_the_turn")):
+        return None
+    if not _END_THE_TURN_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="end_the_turn",
+        concept="synth_end_the_turn",
+        scope="you",
+        subject=(),
+        desc="bucket-B end_the_turn (Unimplemented end-the-turn action)",
+    )
+
+
 # ── stax_taxes / symmetric_stax structural census (ADR-0036 fold) ─────────────
 # CR 101.2/604.1. Moved here VERBATIM from the ``_stax_lanes`` lane (minus the
 # residue-mirror tail below) so the lane AND this stage's two synth gap gates
@@ -6771,6 +6796,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("tutor_directed", _arm_tutor_directed),
     ("tutor", _arm_tutor),
     ("discover_makers", _arm_discover_makers),
+    ("end_the_turn", _arm_end_the_turn),
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),
     ("superfriends_matters", _arm_superfriends_matters),

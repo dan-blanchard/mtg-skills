@@ -707,7 +707,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "draw_for_each",
         "earthbend_matters",
         "enchantments_matter",
-        "end_the_turn",
         "evasion_denial",
         "exile_matters",
         "extra_land_drop",
@@ -3636,6 +3635,12 @@ def _end_the_turn(tree: ConceptTree) -> list[Signal]:
     """
     for c in tree.effect_concepts("end_the_turn"):
         return [Signal("end_the_turn", "you", "", c.raw, tree.name, "high")]
+    # Stage-A recovery: the ``synth_end_the_turn`` bucket-B node — an Unimplemented
+    # "end the turn" action phase leaves unstructured (Obeka), gap-gated on no typed
+    # EndTheTurn.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_end_the_turn":
+            return [Signal("end_the_turn", "you", "", "", tree.name, "high")]
     return []
 
 
