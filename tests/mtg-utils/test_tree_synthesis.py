@@ -64,6 +64,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_convoke_matters,
     _arm_crimes_matter,
     _arm_curse_matters,
+    _arm_dice_makers,
     _arm_discover_makers,
     _arm_dont_own,
     _arm_exhaust_matters,
@@ -120,6 +121,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_counter_distribute,
     has_structural_crimes_matter,
     has_structural_curse_matters,
+    has_structural_dice_makers,
     has_structural_firebending_grant,
     has_structural_group_hug_draw,
     has_structural_keyword_counter,
@@ -1679,6 +1681,76 @@ def test_group_hug_draw_dropped_subject_synth():
 
 def test_group_hug_draw_synth_registered():
     assert "group_hug_draw" in SYNTHESIS_ARM_IDS
+
+
+# ── dice_makers structural fallback + reroll residual (ADR-0038 W1) ────────────
+# Clay Golem's "{6}, Roll a d8: Monstrosity X" and Captain Rex Nebula's "Crash
+# Land" grant BOTH carry a real nested ``RollDie`` node (a Composite cost's
+# EffectCost; a GrantAbility definition's chained sub_ability) the flat per-unit
+# concept-node walk never surfaces as its own node -- has_structural_dice_makers's
+# nested fallback (has_nested_roll_die) reaches both, so NEITHER needs synthesis.
+# Monitor Monitor's reroll-only doer ("pay {1} to reroll one or more dice you
+# rolled") carries NO RollDie node anywhere (CR 706.8b: rerolling a stored result
+# IS rolling that die again) -- the genuine no-residue gap the synthesis arm fills.
+
+
+def _dice_makers_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _dice_makers
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "dice_makers" for s in _dice_makers(tree))
+
+
+def test_dice_makers_typed_gate_no_double():
+    """Adorable Kitten already has a typed ``RollDie`` effect -- the
+    structural gate covers it, so the synthesis arm no-ops."""
+    tree = _fixture_tree("Adorable Kitten")
+    assert has_structural_dice_makers(tree) is True
+    assert _arm_dice_makers(tree) is None
+    assert _dice_makers_fires("Adorable Kitten") is True
+
+
+def test_dice_makers_nested_cost_no_double():
+    """Clay Golem's die roll is nested inside its Composite cost's
+    EffectCost -- has_structural_dice_makers's nested fallback covers it,
+    so the synthesis arm no-ops."""
+    tree = _fixture_tree("Clay Golem")
+    assert has_structural_dice_makers(tree) is True
+    assert _arm_dice_makers(tree) is None
+    assert _dice_makers_fires("Clay Golem") is True
+
+
+def test_dice_makers_nested_grant_no_double():
+    """Captain Rex Nebula's die roll is nested inside its GrantAbility
+    definition's chained sub_ability -- the nested fallback covers it, so
+    the synthesis arm no-ops."""
+    tree = _fixture_tree("Captain Rex Nebula")
+    assert has_structural_dice_makers(tree) is True
+    assert _arm_dice_makers(tree) is None
+    assert _dice_makers_fires("Captain Rex Nebula") is True
+
+
+def test_dice_makers_excludes_plain_reroll_reference():
+    """Divination has no die roll at all -- neither the typed gate nor the
+    reroll idiom regex fires."""
+    tree = _fixture_tree("Divination")
+    assert has_structural_dice_makers(tree) is False
+    assert _arm_dice_makers(tree) is None
+    assert _dice_makers_fires("Divination") is False
+
+
+def test_dice_makers_reroll_only_synth():
+    tree = _fixture_tree("Monitor Monitor")
+    assert has_structural_dice_makers(tree) is False  # genuine gap
+    node = _arm_dice_makers(tree)
+    assert node is not None
+    assert node.concept == "roll_die"  # the REAL concept, no synth_* marker
+    assert node.scope == "you"
+    assert _dice_makers_fires("Monitor Monitor") is True
+
+
+def test_dice_makers_synth_registered():
+    assert "dice_makers" in SYNTHESIS_ARM_IDS
 
 
 # ── stax_taxes / symmetric_stax fold (ADR-0036/0037) ───────────────────────────

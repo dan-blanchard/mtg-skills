@@ -127,6 +127,10 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "Cloak": "facedown",  # facedown_makers (CR 701.58 / 708)
     "TurnFaceUp": "turn_face_up",  # facedown_matters payoff (out of this batch)
     "RollDie": "roll_die",  # dice_makers (CR 706)
+    # Attractions "roll to visit" (CR 701.52a: "roll a six-sided die …") is a
+    # DISTINCT phase tag from RollDie (no shared die-count/sides fields) but
+    # the SAME CR 706 die-roll action — Command Performance.
+    "RollToVisitAttractions": "roll_die",  # dice_makers (CR 701.52a / 706)
     # ``GrantCastingPermission`` carries a ``permission`` sub-node (PlayFromExile /
     # Plotted) — the cast_from_exile build-around the live path kept as a
     # byte-identical word-mirror. Read structurally via :func:`permission_tag`.
@@ -1941,6 +1945,21 @@ def _iter_typed_nodes(root: object) -> Iterator[TypedMirrorNode]:
             stack.append(node.inner)
         elif isinstance(node, list):
             stack.extend(node)
+
+
+def has_nested_roll_die(node: object) -> bool:
+    """Whether a ``RollDie`` tag (CR 706) is reachable ANYWHERE under
+    ``node`` — a die roll buried inside a ``Composite`` cost's
+    ``EffectCost`` (Clay Golem's "{6}, Roll a d8: Monstrosity X") or a
+    granted quoted ability's chained ``sub_ability`` (Captain Rex Nebula's
+    "Crash Land — … roll a six-sided die …" grant) that the flat per-unit
+    concept-node walk never surfaces as its own node (both cards' OWN
+    top-level nodes decorate ``other`` with no grounding raw). The
+    dice_makers lane's structural fallback; :func:`_iter_typed_nodes`'s
+    deep field-walk reaches the nested node regardless of which container
+    (cost / static / granted-ability chain) carries it.
+    """
+    return any(tag_of(n) == "RollDie" for n in _iter_typed_nodes(node))
 
 
 def iter_threaded_target_statics(

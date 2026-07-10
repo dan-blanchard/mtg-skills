@@ -84,6 +84,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     hand_size_scopes,
     has_filter_property,
+    has_nested_roll_die,
     iter_condition_sites,
     iter_cost_leaves,
     iter_mod_sites,
@@ -222,6 +223,7 @@ __all__ = [
     "has_structural_color_hoser",
     "has_structural_crimes_matter",
     "has_structural_curse_matters",
+    "has_structural_dice_makers",
     "has_structural_exert_matters",
     "has_structural_kill_engine",
     "has_structural_life_payment_insurance",
@@ -2492,6 +2494,55 @@ def _arm_group_hug_draw(tree: ConceptTree) -> ConceptNode | None:
         scope="each",
         subject=(),
         desc="each-player draw phase left unstructured (dropped subject — Grothama)",
+    )
+
+
+# dice_makers TYPED gate (CR 706): a first-class ``roll_die`` concept-node
+# (RollDie / RollToVisitAttractions, flat) OR a ``RollDie`` tag nested inside
+# a unit's cost/granted-ability substructure the flat per-unit concept walk
+# never surfaces as its own node (Clay Golem's Monstrosity cost roll, Captain
+# Rex Nebula's Crash Land grant). Lives here (not in crosswalk_signals.py) so
+# :func:`has_structural_dice_makers` and the ``_dice_makers`` lane share ONE
+# source — imported back by crosswalk_signals.py.
+def has_structural_dice_makers(tree: ConceptTree) -> bool:
+    """Whether the card has a structural (typed, flat OR nested) die-roll
+    node anywhere — the dice_makers TYPED gate. Shared verbatim with the
+    ``_dice_makers`` lane and the reroll-only synthesis arm's gap gate below."""
+    if tree.effect_concepts("roll_die"):
+        return True
+    return any(has_nested_roll_die(u.node) for u in tree.units)
+
+
+# reroll-only die ACTION idiom (CR 706.8b: "To reroll one or more stored
+# results … roll one of the kind of die noted for each of them" — rerolling
+# IS rolling that die again). Monitor Monitor's "Once each turn, you may pay
+# {1} to reroll one or more dice you rolled." lands in phase as an
+# Unimplemented effect with NO RollDie node anywhere (nested OR flat) — a
+# genuine no-residue gap (ADR-0038 amendment class 2), unlike Clay Golem /
+# Captain Rex Nebula above (which DO carry a nested RollDie the structural
+# gate already reaches). Mirrors the old-IR ``_DICE_REF`` reroll branch.
+_DICE_REROLL_RE = re.compile(
+    r"\breroll (?:any|a|that|one or more) (?:die|dice)\b", re.IGNORECASE
+)
+
+
+def _arm_dice_makers(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``roll_die`` node for the reroll-only doer phase leaves
+    wholly unstructured (Monitor Monitor, CR 706.8b). Gap-gated on
+    :func:`has_structural_dice_makers` so a card the typed/nested read
+    already covers never doubles. Emits the REAL "roll_die" concept, so the
+    ``_dice_makers`` lane reads it via its ordinary typed
+    ``effect_concepts("roll_die")`` walk — no lane special-case."""
+    if has_structural_dice_makers(tree):
+        return None
+    if not _DICE_REROLL_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="dice_makers",
+        concept="roll_die",
+        scope="you",
+        subject=(),
+        desc="reroll-only die action phase leaves unstructured (Monitor Monitor)",
     )
 
 
@@ -6908,6 +6959,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("discover_makers", _arm_discover_makers),
     ("suspect_makers", _arm_suspect_makers),
     ("group_hug_draw", _arm_group_hug_draw),
+    ("dice_makers", _arm_dice_makers),
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),
     ("superfriends_matters", _arm_superfriends_matters),

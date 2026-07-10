@@ -30,6 +30,7 @@ from dataclasses import dataclass, replace
 from mtg_utils._card_ir._substrate_purity import assert_substrate_pure, l1_identity
 from mtg_utils._card_ir.clause_grammar import parse_clause, scan_clause, static_token
 from mtg_utils._card_ir.crosswalk import OTHER, ConceptNode, ConceptTree, tag_of
+from mtg_utils._card_ir.project import _DICE_TRIG
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,14 @@ ALLOWLIST: dict[str, TokenRule] = {
     # subject peel + "end the turn" verb tag re-decorates it so the typed
     # effect_concepts("end_the_turn") read sees it directly.
     "end_the_turn": TokenRule(concept="end_the_turn", category="end_the_turn"),
+    # roll-a-die ACTION idiom (CR 706): "roll a d20", "roll two d8 and choose
+    # one result", "roll the planar die". A spell/cost-form die roll ("the
+    # *Endeavor cycle", Six-Sided Die, Danse Macabre's sacrifice-then-roll)
+    # leaves the roll itself as an Unimplemented effect phase doesn't
+    # structure (the consequence that follows often DOES parse) — the
+    # grammar's "roll_die" token re-decorates it so the dice_makers lane's
+    # typed effect_concepts("roll_die") read (CR 706) sees it directly.
+    "roll_die": TokenRule(concept="roll_die", category="roll_die"),
 }
 
 
@@ -78,6 +87,18 @@ def _recover(c: ConceptNode, table: dict[str, TokenRule]) -> ConceptNode | None:
         return None
     token = parse_clause(c.raw) or scan_clause(c.raw) or static_token(c.raw)
     if token is None or token not in table:
+        return None
+    # roll_die's grammar token is a broad "roll(s)" verb match that ALSO
+    # matches a die-roll REFERENCE — a replacement's "would roll ...,
+    # instead roll ..." modifier (Pixie Guide) or an "after/whenever you
+    # roll ..." payoff timing clause (Xenosquirrels) — not an instruction
+    # to roll (CR 706's dice_makers DOER). ``_DICE_TRIG`` is the OLD-IR's
+    # own doer/payoff discriminator for this exact ambiguity
+    # (project._narrow_mechanic_refs's "doer loop" reroutes a matching
+    # cat=='roll_die' raw to dice_matters, never dice_makers); reused
+    # verbatim so the crosswalk draws the identical line rather than
+    # widening a reference-only card into a maker.
+    if token == "roll_die" and _DICE_TRIG.search(c.raw):
         return None
     rule = table[token]
     return replace(

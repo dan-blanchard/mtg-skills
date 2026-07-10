@@ -171,6 +171,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_counter_distribute,
     has_structural_crimes_matter,
     has_structural_curse_matters,
+    has_structural_dice_makers,
     has_structural_exert_matters,
     has_structural_firebending_grant,
     has_structural_keyword_counter,
@@ -700,7 +701,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "creatures_matter",
         "damage_reflect",
         "damage_to_opp_matters",
-        "dice_makers",
         "dies_recursion",
         "dig_until",
         "direct_damage",
@@ -2936,8 +2936,19 @@ def _dice_makers(tree: ConceptTree) -> list[Signal]:
     """dice_makers — a ``RollDie`` DOER (CR 706): the card instructs a die roll
     (Adorable Kitten, the d20 Dungeons & Dragons engines). A "whenever you roll"
     PAYOFF trigger is a separate lane (out of batch). Scope "you".
+
+    Stage-A recovery (ADR-0038): :func:`has_structural_dice_makers` widens
+    the flat ``roll_die`` concept-node read (RollDie / RollToVisitAttractions,
+    "the *Endeavor cycle", Command Performance) with a nested-tag fallback
+    (Clay Golem's Monstrosity cost roll, Captain Rex Nebula's Crash Land
+    grant) and the reroll-only synthesis arm (Monitor Monitor, CR 706.8b) —
+    ONE shared gate, so this lane never special-cases any of the three.
     """
-    return _whole_card_maker(tree, "roll_die", "dice_makers", "you")
+    if not has_structural_dice_makers(tree):
+        return []
+    for c in tree.effect_concepts("roll_die"):
+        return [Signal("dice_makers", "you", "", c.raw, tree.name, "high")]
+    return [Signal("dice_makers", "you", "", "", tree.name, "high")]
 
 
 def _cast_from_exile(tree: ConceptTree) -> list[Signal]:

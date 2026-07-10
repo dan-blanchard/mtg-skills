@@ -1279,6 +1279,63 @@ def test_dice_makers_fires():
     assert ("dice_makers", "you", "") in _idents("Adorable Kitten")
 
 
+def test_dice_makers_recovers_spell_form_roll():
+    """ADR-0038 recovery: "Roll two d6 and choose one result" lands in phase
+    as an Unimplemented effect (the SPELL/COST form of a die roll, distinct
+    from the native ``RollDie`` doer node); the shared grammar's "roll_die"
+    token re-decorates it so dice_makers fires (CR 706)."""
+    assert ("dice_makers", "you", "") in _idents("Valiant Endeavor")
+
+
+def test_dice_makers_fires_roll_to_visit_attractions():
+    """Command Performance's "Roll to visit your Attractions" is phase's
+    ``RollToVisitAttractions`` tag — a DISTINCT node from ``RollDie`` but the
+    same CR 706 die-roll action per CR 701.52a ("roll a six-sided die …");
+    the concept-map maps it straight to "roll_die"."""
+    assert ("dice_makers", "you", "") in _idents("Command Performance")
+
+
+def test_dice_makers_nested_composite_cost():
+    """Clay Golem's "{6}, Roll a d8: Monstrosity X" carries a REAL nested
+    ``RollDie`` node inside its ``Composite`` cost's ``EffectCost`` — not
+    surfaced as its own flat concept-node (the cost decorates as one opaque
+    ``Composite`` node). ``has_structural_dice_makers``'s nested fallback
+    (:func:`has_nested_roll_die`) reaches it (CR 706)."""
+    assert ("dice_makers", "you", "") in _idents("Clay Golem")
+
+
+def test_dice_makers_nested_granted_ability():
+    """Captain Rex Nebula's "Crash Land" grant carries a REAL nested
+    ``RollDie`` node inside the ``GrantAbility`` definition's chained
+    ``sub_ability`` — not surfaced as its own flat concept-node (the grant
+    decorates as one opaque node with no raw). The structural nested
+    fallback reaches it (CR 706)."""
+    assert ("dice_makers", "you", "") in _idents("Captain Rex Nebula")
+
+
+def test_dice_makers_excludes_dice_reference_shape():
+    """ADR-0034 shed: Pixie Guide's "Grant an Advantage — If you would roll
+    one or more dice, instead roll that many dice plus one and ignore the
+    lowest roll." is a REPLACEMENT modifying an EXISTING/future roll, not an
+    instruction to roll — the grammar's cursor-anchored parse lands on the
+    "instead roll" remainder, matching the SAME dice-REFERENCE shape the
+    old-IR's ``_DICE_TRIG`` discriminator routes to dice_matters (never
+    dice_makers). The recovery guard reuses ``_DICE_TRIG`` verbatim so this
+    stays unrecovered (CR 706, CR 614 replacement effects)."""
+    assert "dice_makers" not in _keys("Pixie Guide")
+
+
+def test_dice_makers_reroll_only_synthesis():
+    """Stage-A synthesis (ADR-0037/0038): Monitor Monitor's "Once each turn,
+    you may pay {1} to reroll one or more dice you rolled." carries NO
+    ``RollDie`` node anywhere (nested or flat) — a genuine no-residue gap.
+    CR 706.8b: rerolling a stored result IS rolling that die again
+    ("roll one of the kind of die noted for each of them"), so
+    ``tree_synthesis._arm_dice_makers`` fills the gap from ``tree.oracle``,
+    emitting the REAL "roll_die" concept."""
+    assert ("dice_makers", "you", "") in _idents("Monitor Monitor")
+
+
 @pytest.mark.parametrize("name", ["Act on Impulse", "Aloe Alchemist"])
 def test_cast_from_exile_structural_permission(name):
     """A ``GrantCastingPermission`` whose permission is ``PlayFromExile`` (Act on

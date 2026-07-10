@@ -225,3 +225,41 @@ def test_end_the_turn_promoted_via_production_allowlist():
     assert nodes[0].concept == "end_the_turn"
     assert nodes[0].recovered_by == "end_the_turn"
     assert tag_of(nodes[0].node) == "Unimplemented"
+
+
+# ── W1 dice_makers (roll_die spell/cost-form recovery) ─────────────────────
+
+
+def test_parse_clause_matches_roll_die_spell_form():
+    from mtg_utils._card_ir.clause_grammar import parse_clause
+
+    assert parse_clause("Roll two d6 and choose one result") == "roll_die"
+
+
+def test_dice_makers_promoted_via_production_allowlist():
+    """Valiant Endeavor's "Roll two d6 and choose one result" is the SPELL
+    form of a die roll (distinct from the native ``RollDie`` doer node) and
+    lands as an Unimplemented effect; the production ALLOWLIST's "roll_die"
+    token entry re-decorates it in place (CR 706)."""
+    tree = _fixture_tree("Valiant Endeavor")
+    nodes = tree.effect_concepts("roll_die")
+    assert len(nodes) == 1
+    assert nodes[0].concept == "roll_die"
+    assert nodes[0].recovered_by == "roll_die"
+    assert tag_of(nodes[0].node) == "Unimplemented"
+
+
+def test_dice_trig_shaped_roll_not_recovered():
+    """Pixie Guide's "If you would roll one or more dice, instead roll that
+    many dice plus one and ignore the lowest roll." parses to "roll_die" too
+    (the cursor lands on the "instead roll" remainder) but its raw ALSO
+    matches ``_DICE_TRIG`` (the old-IR's doer/payoff discriminator: a
+    dice-roll REFERENCE, not an instruction to roll — CR 706 / CR 614) — the
+    production ALLOWLIST's roll_die guard leaves it unrecovered rather than
+    conflating a replacement modifier with a maker."""
+    tree = _fixture_tree("Pixie Guide")
+    assert tree.effect_concepts("roll_die") == ()
+    node = tree.units[0].effects[0]
+    assert node.concept == OTHER
+    assert node.recovered_by == ""
+    assert tag_of(node.node) == "Unimplemented"
