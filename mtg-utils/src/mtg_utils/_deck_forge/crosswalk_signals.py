@@ -7341,6 +7341,18 @@ _FOR_EACH_OPPONENT_TAP_RE = re.compile(
     r"\bfor each opponent\b[^.]*\btap\b[^.]*\bopponent controls\b", re.IGNORECASE
 )
 _TAP_WORD_RE = re.compile(r"\btaps?\b", re.IGNORECASE)
+# ADR-0038 W3 batch 2 unit 8 (tap_down follow-up): Unhinged Beast Hunt's
+# Stickers-mechanic ability ("Whenever ~ attacks, tap each creature an
+# opponent controls with the same power and/or same toughness as ~")
+# defeats phase's parser entirely (an Unimplemented "unknown"-name residue
+# — the {TK} placeholder-pip Stickers syntax, not a normal clause phase's
+# grammar ever tokenizes), so no SetTapState node exists anywhere in the
+# tree to read structurally. Last-resort whole-card text idiom,
+# corpus-verified singleton (the only commander-legal card with this exact
+# phrase).
+_TAP_EACH_OPPONENT_CREATURE_RE = re.compile(
+    r"tap each creature an opponent controls", re.IGNORECASE
+)
 
 
 def _tap_sentence(text: str) -> str:
@@ -7412,6 +7424,27 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
 
     Logged SUPPLEMENT tail (live-documented, phase-confirmed): the
     aura/morph untap-lock statics.
+
+    ADR-0038 W3 batch 2 unit 8 (the tap_down measured-residual follow-up
+    the SkipNextStep-only Yosei fix deliberately did not touch): a
+    corpus-verified singleton text idiom
+    (:data:`_TAP_EACH_OPPONENT_CREATURE_RE`) recovers Unhinged Beast
+    Hunt's Stickers-mechanic "tap each creature an opponent controls with
+    the same power and/or same toughness" — a genuine ``Unimplemented``
+    parse failure (the {TK} placeholder-pip Stickers syntax defeats
+    phase's grammar entirely, no SetTapState node anywhere in the tree).
+    Two adjudicated SHEDS deliberately left non-firing (legacy over-fires,
+    verified NOT structural gaps): Invasion of New Phyrexia // Teferi
+    Akosa of Zhalfir's loyalty -3 ("Tap any number of untapped creatures
+    YOU CONTROL...") taps YOUR OWN creatures as a cost for an unrelated
+    removal effect — legacy's category-based read credits ANY "tap"
+    effect to tap_down regardless of direction, a miscredit this typed
+    ``controller: You`` gate already correctly excludes. Two cards were
+    ALREADY firing correctly before this follow-up (kept, no fix needed,
+    pinned for the first time): Icingdeath, Frost Tyrant's death-trigger
+    Equipment-token grant (the GrantTrigger-in-a-created-Token arm
+    above) and Kang Dynasty's Saga chapters (the "for each opponent" arm
+    above).
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -7617,6 +7650,8 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                 tctrl = filter_controller(getattr(tnode, "target", None))
                 if tctrl in ("Opponent", "DefendingPlayer", "TargetPlayer"):
                     fire("tap_down", "opponents", "")
+    if "tap_down" not in seen and _TAP_EACH_OPPONENT_CREATURE_RE.search(_kept(tree)):
+        fire("tap_down", "opponents", "")
     return out
 
 

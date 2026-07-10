@@ -5618,6 +5618,56 @@ def test_tap_down_casting_restriction_oracle_fallback():
     assert ("tap_down", "opponents", "") in _idents("Delirium")
 
 
+# ADR-0038 W3 batch 2 unit 8 (the tap_down measured-residual follow-up):
+# two ALREADY-correct cw_only gains, newly pinned (both were already firing
+# before this batch, via precedents documented at their own arm's call
+# site — Icingdeath via the GrantTrigger-in-a-created-Token arm, Kang
+# Dynasty via the "for each opponent, tap ... TargetPlayer controls"
+# multi_target arm), a genuine last-resort recovery, and an adjudicated
+# shed.
+def test_tap_down_grant_trigger_in_created_token():
+    """Icingdeath, Frost Tyrant's death trigger creates an Equipment token
+    whose OWN static_abilities nests a GrantTrigger ("whenever equipped
+    creature attacks, tap target creature defending player controls") —
+    the SAME GrantTrigger-in-Attacks-trigger arm Grasp of the Hieromancer
+    already reads, just three levels deeper (Token.static_abilities ->
+    GrantTrigger.trigger.execute.effect)."""
+    assert ("tap_down", "opponents", "") in _idents("Icingdeath, Frost Tyrant")
+
+
+def test_tap_down_saga_chapter_per_opponent_target_player():
+    """Kang Dynasty's Saga chapters I/II ("For each opponent, tap up to
+    one target creature that player controls") carry the SetTapState's
+    TargetPlayer controller with a multi_target.max scaled by opponent
+    COUNT (PlayerCount{filter: Opponent}) — the same per-opponent
+    multi_target arm Juvenile Mist Dragon already reads."""
+    assert ("tap_down", "opponents", "") in _idents("Kang Dynasty")
+
+
+def test_tap_down_stickers_mechanic_text_idiom():
+    """Unhinged Beast Hunt's Stickers-mechanic ability ("Whenever ~
+    attacks, tap each creature an opponent controls with the same power
+    and/or same toughness as ~") defeats phase's parser entirely (an
+    Unimplemented "unknown"-name residue — the {TK} placeholder-pip
+    syntax, no SetTapState node anywhere in the tree) — last-resort
+    whole-card text idiom, corpus-verified singleton (the only
+    commander-legal card with this exact phrase)."""
+    assert ("tap_down", "opponents", "") in _idents("Unhinged Beast Hunt")
+
+
+def test_tap_down_excludes_self_targeted_tap_as_removal_cost():
+    """Teferi Akosa of Zhalfir's loyalty -3 ("Tap any number of untapped
+    creatures YOU CONTROL. When you do, shuffle target nonland permanent
+    an opponent controls...") taps YOUR OWN creatures as a COST enabling
+    an unrelated removal effect (the shuffled permanent, not the tapped
+    creatures, is opponent-controlled) — the typed ``controller: You``
+    gate on the SetTapState's own target already correctly excludes this;
+    legacy's category-based "any tap effect credits tap_down regardless
+    of direction" read is a miscredit, adjudicated as a SHED (not a
+    genuine gap)."""
+    assert "tap_down" not in _keys("Teferi Akosa of Zhalfir")
+
+
 # ── Batch 13: §A pure Scryfall-keyword field-lookups ─────────────────────────
 
 
