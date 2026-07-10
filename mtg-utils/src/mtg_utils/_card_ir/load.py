@@ -857,7 +857,7 @@ from mtg_utils.card_ir import Card
 #   `top:opp` exile tag drops the exile's ACTOR ("exile the top card OF an opponent" vs
 #   "an opponent EXILES their own top": ingest / symmetric self-mill / target-opp-mill
 #   all collapse to one shape), so admitting it would flood 25 non-members / force a
-#   taxonomy call; its oracle-phrasing mirror stays. CR 305.9 / 121 / 406.
+#   taxonomy call; its oracle-phrasing mirror stays. CR 305.4 / 121 / 406.
 # v61 — #24m F1 base_pt_set SETTER recovery (correction, no new lane).
 #   supplement._recover_dynamic_base_pt_set re-synthesizes a base_pt_set node (scope
 #   any, subject None, amount variable — a build-around SET, never a debuff mass shrink)

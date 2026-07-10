@@ -1173,7 +1173,7 @@ def project_card(records: list[dict]) -> Card:
     # (ingest — Benthic Infiltrator; symmetric self-mill — Omen Machine) and
     # "target opponent exiles the top X" (Oona) — admitting top:opp would flood 25 non-
     # members / require a forbidden taxonomy call, so its mirror (the oracle-phrasing
-    # discriminator) stays. CR 305.9 / 121 / 406.
+    # discriminator) stays. CR 305.4 / 121 / 406.
     card = _recover_extra_land_drop(card, _oracle)
     card = _recover_group_hug_draw_scope(card)
     # ROOT C (vote/modal OUTCOME) is now read natively in _collect_effects by

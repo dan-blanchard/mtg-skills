@@ -2364,7 +2364,7 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # extra_land_drop arm in extract_signals_ir reads structurally. The
     # supplement detect is the EXACT deleted source-restricted regex, so the recovered
     # set is byte-identical and the symmetric "each player may put … from their hand"
-    # group ramp (Kynaios, Hypergenesis, Tempting Wurm) never matches. CR 305.9.
+    # group ramp (Kynaios, Hypergenesis, Tempting Wurm) never matches. CR 305.4.
     # ADR-0027 exile_until_leaves Saga tail — _is_exile_until_leaves recovers the
     # one-ability inline form (raw phrase) and the two-ability O-Ring form
     # structurally, but a SAGA CHAPTER exile collapses its per-effect raw to a
@@ -4882,7 +4882,7 @@ _LAND_EXCHANGE_RAW = re.compile(r"exchange control of[^.]*\bland\b", re.IGNORECA
 # EXCLUDE the symmetric group-hug forms (Show and Tell / Braids / Kynaios /
 # Hypergenesis / Tempting Wurm: "each player / that player / each opponent may put"),
 # which the YOUR-anchored deleted regex never matched (they are group ramp, not your
-# extra land drop). CR 305.9.
+# extra land drop). CR 305.4.
 _EXTRA_LAND_DROP_YOU_RAW = re.compile(
     r"you may put (?:a |any number of )?lands? card", re.IGNORECASE
 )
@@ -9279,7 +9279,7 @@ def extract_signals_ir(
             # dig-to-HAND form (Planar Genesis: zones=('to:hand',)), which is card
             # selection, not a land drop. This is the dig variant of the same put-into-
             # play engine the deleted regex's "you may put a land … onto the
-            # battlefield" arm captured. CR 305.9.
+            # battlefield" arm captured. CR 305.4.
             if (
                 cat == "topdeck_select"
                 and isinstance(e.subject, Filter)

@@ -4059,7 +4059,7 @@ def _mana_amplifier(tree: ConceptTree) -> list[Signal]:
 
 def _extra_land_drop(tree: ConceptTree) -> list[Signal]:
     """extra_land_drop — a land PUT onto the battlefield (CR 305.2 / 116.2a /
-    305.9: a put is not a play, so it bypasses the land-per-turn limit). Two
+    305.4: a put is not a play, so it bypasses the land-per-turn limit). Two
     typed arms mirroring the live structural pair (:func:`has_structural_
     extra_land_drop`, moved to tree_synthesis.py so it shares ONE source with
     the idiom-bridge synthesis arm below):

@@ -4522,10 +4522,10 @@ def _recover_topdeck_stack_self(card: Card, oracle: str) -> Card:
 #     cards|among the exiled cards … onto the battlefield"), so the recovered set is
 #     byte-identical to the deleted mirror and the symmetric "each player may put …
 #     from their hand" group ramp (Kynaios, Hypergenesis, Tempting Wurm) never matches
-#     (it lacks the YOUR "you may put"). The whole mirror retires. CR 305.9 / 720.
+#     (it lacks the YOUR "you may put"). The whole mirror retires. CR 305.4 / 720.
 # #24e P3 parser-substrate: the YOUR land-into-play put reads STRUCTURE. The optional
 # quantity is "a" or "up to <word>"; the source is one of four fixed phrases; the gap
-# gap to "onto the battlefield" → bounded_scan. CR 305.9 / 720.
+# gap to "onto the battlefield" → bounded_scan. CR 305.4 / 720.
 _EXTRA_LAND_DROP_PUT_P = comb.seq(
     comb.phrase({"you"}, {"may"}, {"put"}),
     comb.opt(

@@ -2610,7 +2610,7 @@ def _land_only_filter(filt: object) -> bool:
 
 
 def has_structural_extra_land_drop(tree: ConceptTree) -> bool:
-    """The extra_land_drop TYPED gate (CR 305.2/116.2a/305.9): a land PUT
+    """The extra_land_drop TYPED gate (CR 305.2/116.2a/305.4): a land PUT
     onto the battlefield bypassing the land-per-turn limit. Two structural
     shapes, shared verbatim with the ``_extra_land_drop`` lane (gap-gate-
     alignment) so the idiom-bridge synthesis arm below never fires on a
@@ -2642,7 +2642,7 @@ def has_structural_extra_land_drop(tree: ConceptTree) -> bool:
     return False
 
 
-# YOUR land-into-play PUT idiom (CR 305.9/720): "you may put a/up to N land
+# YOUR land-into-play PUT idiom (CR 305.4/720): "you may put a/up to N land
 # card(s) from your hand|among them|among those cards|among the exiled
 # cards ... onto the battlefield". phase folds this off a typed ChangeZone/
 # Dig read a variety of ways: a cascade-from-exile reanimate (Averna) or a
@@ -2677,7 +2677,7 @@ def _arm_extra_land_drop(tree: ConceptTree) -> ConceptNode | None:
     ("extra_land_drop" — the mechanic name itself; no native effect/static
     tag is generic enough to reuse, since the lost datum is the
     Land+you-controller PAIRING, not a dispatchable verb), so the lane
-    reads it via one added branch. CR 305.9/720."""
+    reads it via one added branch. CR 305.4/720."""
     if has_structural_extra_land_drop(tree):
         return None
     kept = _REMINDER.sub(" ", tree.oracle or "")

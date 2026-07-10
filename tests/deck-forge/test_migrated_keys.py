@@ -1485,7 +1485,7 @@ def test_extra_land_drop_recovered_cascade_reanimate_averna():
     exiled cards onto the battlefield" is the YOUR land-into-play put phase mis-types as
     a `reanimate` Effect (off cat=='cheat_play'). supplement._recover_extra_land_drop
     appends a canonical cheat_play Land (controller='you') Effect the extra_land_drop arm
-    reads; the whole signals mirror is deleted. CR 305.9."""
+    reads; the whole signals mirror is deleted. CR 305.4."""
     ir = test_card_ir("Averna, the Chaos Bloom")
     assert any(
         e.category == "cheat_play"
@@ -1505,7 +1505,7 @@ def test_extra_land_drop_recovered_empty_raw_modal_confluence():
     graveyard onto the battlefield" reaches phase as a cheat_play Land controller='any'
     with an EMPTY raw (the "or graveyard" disjunction defeats the YOUR pin), which the
     arm's controller=='you' gate misses. The supplement's joined-oracle recovery appends
-    a controller='you' cheat_play Land so the arm fires. CR 305.9."""
+    a controller='you' cheat_play Land so the arm fires. CR 305.4."""
     card = test_card("Riveteers Confluence")
     ir = test_card_ir("Riveteers Confluence")
     assert "extra_land_drop" in {s.key for s in extract_signals_hybrid(card, ir)}
