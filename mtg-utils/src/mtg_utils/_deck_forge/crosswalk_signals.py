@@ -718,6 +718,15 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "forced_attack",
         "goad_makers",
         "graveyard_matters",
+        # Re-added after the W3-batch-1 promote (a1c94262) was adjudicated
+        # premature: 3 GENUINE members are still legacy-only (Alhammarret's
+        # reveal+name-lock, Psychotic Episode's reveal+strip-to-bottom,
+        # Thoughtcutter Agent's repeatable reveal engine). The batch's
+        # recovery arms stay (11 cards recovered); the key promotes when
+        # those 3 recover. Friendly Fire (incidental reveal for a damage
+        # roulette) and Wild Evocation (symmetric forced-play) are shed-able
+        # per ADR-0034 once the key re-promotes.
+        "hand_disruption",
         "keyword_grant_target",
         "land_creatures_matter",
         "land_sacrifice_makers",
