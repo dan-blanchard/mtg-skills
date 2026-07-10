@@ -82,6 +82,7 @@ from mtg_utils._card_ir.crosswalk import (
     is_damage_reflect_trigger_def,
     is_dies_return_trigger,
     is_opponent_cast_trigger_def,
+    is_self_return_change_zone,
     iter_condition_sites,
     iter_cost_leaves,
     iter_deep_target_grants,
@@ -709,7 +710,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "creature_ping",
         "creatures_matter",
         "damage_to_opp_matters",
-        "dies_recursion",
         "direct_damage",
         "discard_outlet",
         "draw_for_each",
@@ -5203,19 +5203,38 @@ def _self_death_payoff(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+_DIES_RECURSION_GRANT_KEYWORDS: frozenset[str] = frozenset({"Persist", "Undying"})
+
+
 def _dies_recursion(tree: ConceptTree) -> list[Signal]:
     """dies_recursion — SELF-recursion on death (CR 702.93a undying /
     702.79a persist: "when this permanent is put into a graveyard from the
-    battlefield, … return it to the battlefield"). Fully structural, two
-    arms sharing one predicate (:func:`is_dies_return_trigger`):
+    battlefield, … return it to the battlefield"). Fully structural, three
+    arms sharing :func:`iter_mod_sites`' tree-preserving mod-site walk:
 
     * the card's OWN dies-return trigger — phase expands undying (Young
       Wolf) and persist (Kitchen Finks) to exactly this shape, so the
       keyword bearers read structurally (memory: mirror=backup — prefer the
       structural shape over a keyword field-lookup);
     * the GRANT form — a ``GrantTrigger`` modification whose granted trigger
-      is that same dies-return shape (Feign Death), reached tree-preservingly
-      through :func:`iter_mod_sites`.
+      is that same dies-return shape (Feign Death);
+    * (ADR-0038 W3 batch 2 unit 3) an ``AddKeyword`` modification granting
+      ``Persist``/``Undying`` to ANY target, at ANY nesting depth
+      (:func:`iter_typed_nodes`'s generic deep walk — not
+      :func:`iter_mod_sites`'s curated one-hop walk, since a doubly-nested
+      grant needs to reach INSIDE a granted trigger's own execute chain:
+      Haunted One's "Commander creatures … have '… gain undying …'" nests
+      the ``AddKeyword`` inside a ``GrantStaticAbility``'s granted
+      ``GrantTrigger``'s pump sub-ability): self (Rattleblaze Scarecrow's
+      conditional static, Endling's activated self-grant), another
+      creature (Cauldron Haze, Antler Skulkin, Rhys the Evermore's ETB
+      grant), or a typed filter (Mikaeus the Unhallowed's "other
+      creatures … have undying", Haunted One) — the keyword ITSELF is CR
+      702.93a/702.79a's dies-return ability, so granting it (to anyone) is
+      dies-recursion tech regardless of the grant's own trigger/static/
+      activated-ability shape. Mirrors the sibling ``has_undying_persist``
+      membership lane's ``_B13_MOD_GRANT_LANES`` walk — proven safe over
+      the corpus for these two keyword names.
 
     The destination gate (Battlefield) keeps a dies→hand return out; a
     GY→battlefield reanimate of OTHERS (Reanimate) has no SelfRef dies
@@ -5229,7 +5248,43 @@ def _dies_recursion(tree: ConceptTree) -> list[Signal]:
                 getattr(mod, "trigger", None)
             ):
                 return [Signal("dies_recursion", "you", "", "", tree.name, "high")]
+        for n in iter_typed_nodes(unit.node):
+            if (
+                tag_of(n) == "AddKeyword"
+                and mod_keyword_name(n) in _DIES_RECURSION_GRANT_KEYWORDS
+            ):
+                return [Signal("dies_recursion", "you", "", "", tree.name, "high")]
+    if _has_exile_then_return_replacement(tree):
+        return [Signal("dies_recursion", "you", "", "", tree.name, "high")]
     return []
+
+
+def _has_exile_then_return_replacement(tree: ConceptTree) -> bool:
+    """Darigaaz Reincarnated's phoenix-analog (CR 614.1/700.4): "If ~ would
+    die, instead exile it with three egg counters on it" (a REPLACEMENT
+    redirect, not a dies TRIGGER — so :func:`is_dies_return_trigger` never
+    reaches it) + a SEPARATE later counter-driven upkeep trigger that
+    eventually returns it to the battlefield once the counters are gone.
+    Corpus-narrow (grepped 2026-07: exactly 2 commander-legal cards carry
+    "egg counter" — Xira, the Golden Sting does not pair a self-exile
+    replacement with a self-return, so this predicate is a clean singleton
+    match, not a broad idiom)."""
+    has_exile_redirect = False
+    has_delayed_return = False
+    for unit in tree.units:
+        if unit.origin == "replacement" and (
+            tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+        ):
+            for c in unit.effects:
+                if tag_of(c.node) == "ChangeZone" and (
+                    getattr(c.node, "destination", None) == "Exile"
+                    and getattr(c.node, "enter_with_counters", None)
+                ):
+                    has_exile_redirect = True
+        for c in unit.effects:
+            if is_self_return_change_zone(c.node):
+                has_delayed_return = True
+    return has_exile_redirect and has_delayed_return
 
 
 def _creature_recursion(tree: ConceptTree) -> list[Signal]:

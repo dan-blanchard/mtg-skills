@@ -1862,9 +1862,22 @@ def filter_owned_controller(filt: object) -> str | None:
 # ── Batch-9 typed accessors (death / library-top / grant cluster) ────────────
 
 # Effect targets that name the granted-trigger's OWN source object: the bare
-# ``SelfRef`` (an undying/persist expansion — Young Wolf) and the granted-quote
-# ``TriggeringSource`` (Feign Death's "return IT to the battlefield").
-_SELF_RETURN_TARGETS: frozenset[str] = frozenset({"SelfRef", "TriggeringSource"})
+# ``SelfRef`` (an undying/persist expansion — Young Wolf), the granted-quote
+# ``TriggeringSource`` (Feign Death's "return IT to the battlefield"), and
+# ``ParentTarget`` (ADR-0038 W3 batch 2: a ``CreateDelayedTrigger`` wrapper's
+# OWN inner ChangeZone targets the delayed ability's parent — the SAME dying
+# object, one level down — Loyal Cathar's "return it to the battlefield
+# transformed AT THE BEGINNING OF THE NEXT END STEP").
+_SELF_RETURN_TARGETS: frozenset[str] = frozenset(
+    {"SelfRef", "TriggeringSource", "ParentTarget"}
+)
+
+# ADR-0038 W3 batch 2: the dies-return trigger's OWN watcher — a bare
+# ``SelfRef`` (Young Wolf) or an Aura's ``AttachedTo`` ("enchanted creature
+# dies" — Changing Loyalty, Fungal Fortitude, Journey to Eternity: the Aura
+# grants the ENCHANTED creature dies-recursion, so the Aura itself is the
+# dies_recursion card).
+_DIES_RETURN_WATCHER_TAGS: frozenset[str] = frozenset({"SelfRef", "AttachedTo"})
 
 
 def is_dies_return_trigger(trig: object) -> bool:
@@ -1873,31 +1886,63 @@ def is_dies_return_trigger(trig: object) -> bool:
     battlefield".
 
     Reads the trigger's OWN typed shape — a dies event (``ChangesZone``
-    Battlefield→Graveyard) watching ``SelfRef``, whose ``execute`` chain
-    carries a ``ChangeZone`` back to the Battlefield targeting the same object
-    (``SelfRef`` / ``TriggeringSource``). Works on a card's own trigger unit
-    (Young Wolf — undying parses to exactly this) AND on the granted trigger
-    inside a ``GrantTrigger`` modification (Feign Death), so the
-    dies_recursion lane walks both tree positions with one predicate. A
-    dies→HAND return is NOT this shape (the destination gate).
+    Battlefield→Graveyard) watching ``SelfRef`` or an Aura's ``AttachedTo``
+    (:data:`_DIES_RETURN_WATCHER_TAGS`), whose ``execute`` chain carries a
+    ``ChangeZone`` back to the Battlefield targeting the same object
+    (:data:`_SELF_RETURN_TARGETS` — directly, or one level down inside a
+    ``CreateDelayedTrigger`` wrapper, which :func:`_walk_effect_chain`
+    already descends into). Works on a card's own trigger unit (Young Wolf
+    — undying parses to exactly this) AND on the granted trigger inside a
+    ``GrantTrigger`` modification (Feign Death), so the dies_recursion lane
+    walks both tree positions with one predicate. A dies→HAND return is NOT
+    this shape (the destination gate).
+
+    A ``valid_target`` naming a ``Player`` on the dies trigger ITSELF marks
+    a player CHOICE somewhere in the ability (Accursed Witch's "return it
+    … attached to TARGET OPPONENT" still returns it under YOUR control —
+    only the attach point is chosen; Endless Whispers's "choose target
+    opponent. That player puts this card … onto the battlefield UNDER
+    THEIR CONTROL" hands the returned object itself to that opponent). The
+    discriminator is the matched ChangeZone's own ``enters_under``: when a
+    player was chosen, the return is only accepted if it explicitly says
+    ``"You"`` — an ambiguous/opponent-owned return (Endless Whispers'
+    ``enters_under`` is unset; legacy never fires dies_recursion there
+    either) is excluded. Cards with NO player choice keep the plain
+    self-return match (``enters_under`` unset defaults to CR 401.3's owner,
+    always safe there since no OTHER player was ever named).
     """
     if not isinstance(trig, TypedMirrorNode):
         return False
     if _trigger_event(trig) != "dies":
         return False
-    if tag_of(getattr(trig, "valid_card", None)) != "SelfRef":
+    if tag_of(getattr(trig, "valid_card", None)) not in _DIES_RETURN_WATCHER_TAGS:
         return False
+    player_chosen = tag_of(getattr(trig, "valid_target", None)) == "Player"
     execute = getattr(trig, "execute", MISSING)
     if not isinstance(execute, TypedMirrorNode):
         return False
     for cn in _walk_effect_chain(execute):
-        if tag_of(cn.node) != "ChangeZone":
+        if not is_self_return_change_zone(cn.node):
             continue
-        if getattr(cn.node, "destination", None) == "Battlefield" and (
-            tag_of(getattr(cn.node, "target", None)) in _SELF_RETURN_TARGETS
-        ):
-            return True
+        if player_chosen and getattr(cn.node, "enters_under", None) != "You":
+            continue  # hot-potato — the return goes to the CHOSEN player
+        return True
     return False
+
+
+def is_self_return_change_zone(node: object) -> bool:
+    """Whether ``node`` is a ``ChangeZone`` back to the Battlefield targeting
+    the SAME object (:data:`_SELF_RETURN_TARGETS`) — the shared "return it
+    to the battlefield" leaf both :func:`is_dies_return_trigger` and the
+    dies_recursion lane's replacement-redirect arm
+    (:func:`~mtg_utils._deck_forge.crosswalk_signals._has_exile_then_return_replacement`
+    — Darigaaz Reincarnated's exile-then-return phoenix analog) read.
+    """
+    return (
+        tag_of(node) == "ChangeZone"
+        and getattr(node, "destination", None) == "Battlefield"
+        and tag_of(getattr(node, "target", None)) in _SELF_RETURN_TARGETS
+    )
 
 
 def mod_keyword_name(mod: TypedMirrorNode) -> str | None:

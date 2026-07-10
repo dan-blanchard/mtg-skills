@@ -2941,6 +2941,164 @@ def test_dies_recursion_excludes_value_payoff_and_reanimate():
     assert "dies_recursion" not in _keys("Reanimate")
 
 
+# ADR-0038 W3 batch 2 unit 3 — the dies_recursion AddKeyword{Persist/
+# Undying} arm (CR 702.93a/702.79a): the keyword ITSELF is the dies-return
+# ability, so granting it — to self (activated/conditional-static), another
+# creature (an ETB/spell grant), or a typed filter (a team-wide "other
+# creatures have undying" lord) — is dies-recursion tech regardless of the
+# grant's own trigger/static/activated shape or nesting depth (Haunted
+# One's grant nests TWICE: GrantStaticAbility -> GrantTrigger -> pump
+# sub-ability's AddKeyword).
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Antler Skulkin",  # activated, grants to a TARGET creature
+        "Cauldron Haze",  # spell, grants to any number of targets
+        "Cauldron of Souls",  # activated, grants to any number of targets
+        "Dusk Legion Sergeant",  # activated, grants to a typed filter
+        "Endling",  # activated, self-grant
+        "Isilu, Carrier of Twilight",  # static, typed-filter grant
+        "Mikaeus, the Unhallowed",  # static, "other creatures … have undying"
+        "Rattleblaze Scarecrow",  # conditional static self-grant
+        "Rhys, the Evermore",  # ETB trigger, grants to a target
+        "Undying Evil",  # instant, grants to a target
+        "Wingrattle Scarecrow",  # conditional static self-grant
+        "Haunted One",  # doubly-nested commander grant
+    ],
+)
+def test_dies_recursion_add_keyword_grant_arm(name):
+    assert ("dies_recursion", "you", "") in _idents(name)
+
+
+# ADR-0038 W3 batch 2 unit 3 — the dies_recursion Aura/Equipment AttachedTo
+# watcher arm: "When enchanted/equipped creature dies, return it/this card
+# to the battlefield" widens the trigger's own watcher from a bare
+# ``SelfRef`` to an Aura's ``AttachedTo`` (CR 303.4c) — the Aura/Equipment
+# GRANTS the attached creature (or itself) dies-recursion, so the
+# Aura/Equipment card is the dies_recursion member.
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Changing Loyalty",  # returns the enchanted CREATURE
+        "Fungal Fortitude",  # returns the enchanted CREATURE, tapped
+        "Journey to Eternity",  # returns the creature, then flips itself
+        "Abduction",  # returns the enchanted creature (control-theft Aura)
+        "Avatar Destiny",  # returns the enchanted creature
+        "False Demise",  # returns the ENCHANTED CARD (Aura self-return)
+        "Fool's Demise",  # returns the ENCHANTED CARD
+        "Ghoulish Impetus",  # returns the ENCHANTED CARD
+        "Gift of Immortality",  # returns the ENCHANTED CARD
+        "Infectious Rage",  # returns the ENCHANTED CARD
+        "Kaya's Ghostform",  # dies OR exile, returns the ENCHANTED CARD
+        "Minion's Return",  # returns the ENCHANTED CARD
+        "Necrogen Communion",  # returns the ENCHANTED CARD
+        "Necrotic Plague",  # returns the ENCHANTED CARD to a new host
+        "Next of Kin",  # returns the ENCHANTED CARD
+        "Oathkeeper, Takeno's Daisho",  # Equipment: equipped creature dies
+        "Radiant Grace",  # returns the ENCHANTED CARD, flips itself
+        "Reins of the Vinesteed",  # returns the ENCHANTED CARD
+        "Resurrection Orb",  # Equipment: equipped creature dies
+        "Screams from Within",  # returns the ENCHANTED CARD
+        "Shade's Form",  # returns the ENCHANTED CARD
+        "Skin Invasion",  # returns the ENCHANTED CARD, flips itself
+        "Takklemaggot",  # returns the ENCHANTED CARD to a new host
+        "Unhallowed Pact",  # returns the ENCHANTED CARD
+        "Unholy Indenture",  # returns the ENCHANTED CARD with a counter
+    ],
+)
+def test_dies_recursion_aura_equipment_attached_to_arm(name):
+    assert ("dies_recursion", "you", "") in _idents(name)
+
+
+# ADR-0038 W3 batch 2 unit 3 — the dies_recursion own-dies self-return arm
+# (a creature's OWN dies trigger, no keyword — the SAME "return it to the
+# battlefield" shape Young Wolf's undying expands to, just spelled out in
+# full oracle text instead of a keyword): a plain conditional return
+# (Old-Growth Troll, Reborn Hero, Wave of Rats, Tenacious Dead, Retched
+# Wretch, Unstoppable Slasher, Infernal Vessel, Princess Yue), a Phoenix-
+# style modal branch (Bogardan Phoenix, Lamplight Phoenix), an
+# imprint-then-reveal indirection (Clone Shell, Summoner's Egg), a
+# same-type-share condition (Fang Roku's Companion, Otherworldly Escort),
+# a self-transforming Aura-Land loop (Harold and Bob, Earth Village
+# Ruffians' land-creature analog), an exile-then-reattach (Lucius the
+# Eternal), a top-of-library reveal (Matter Reshaper), and a
+# delayed-trigger return AT THE BEGINNING OF THE NEXT END STEP (Loyal
+# Cathar — the ``ParentTarget`` one-level-down arm, distinct from Young
+# Wolf's immediate ``TriggeringSource`` return); a player-chosen attach
+# point that still returns under YOUR OWN control (Accursed Witch's
+# "attached to target opponent", ``enters_under: You``) stays included —
+# only an ambiguous/opponent-owned return excludes (the sibling
+# hot-potato test below).
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Old-Growth Troll",
+        "Reborn Hero",
+        "Wave of Rats",
+        "Tenacious Dead",
+        "Retched Wretch",
+        "Unstoppable Slasher",
+        "Infernal Vessel",
+        "Princess Yue",
+        "Bogardan Phoenix",
+        "Lamplight Phoenix",
+        "Clone Shell",
+        "Summoner's Egg",
+        "Fang, Roku's Companion",
+        "Otherworldly Escort",
+        "Harold and Bob, First Numens",
+        "Earth Village Ruffians",
+        "Lucius the Eternal",
+        "Matter Reshaper",
+        "Loyal Cathar",
+        "Accursed Witch",
+        "Nine-Lives Familiar",
+    ],
+)
+def test_dies_recursion_own_dies_self_return_arm(name):
+    assert ("dies_recursion", "you", "") in _idents(name)
+
+
+# ADR-0038 W3 batch 2 unit 3 — the "Enduring" cycle (Bloomburrow):
+# "Enchantment Creature — <Animal> Glimmer" bodies whose dies trigger
+# returns as a NON-creature enchantment. Own-dies self-return, listed
+# separately only because the whole cycle shares one design (CR 700.4).
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Enduring Courage",
+        "Enduring Curiosity",
+        "Enduring Innocence",
+        "Enduring Tenacity",
+        "Enduring Vitality",
+    ],
+)
+def test_dies_recursion_enduring_cycle(name):
+    assert ("dies_recursion", "you", "") in _idents(name)
+
+
+def test_dies_recursion_replacement_then_delayed_return():
+    """Darigaaz Reincarnated's "If ~ would die, instead exile it with three
+    egg counters on it" (a REPLACEMENT redirect, CR 614.1 — not a dies
+    TRIGGER) + a separate later counter-driven upkeep trigger that
+    eventually returns it to the battlefield is a phoenix analog of CR
+    702.93a/79a's self-return, read via the DEDICATED replacement+delayed-
+    return arm (:func:`_has_exile_then_return_replacement`)."""
+    assert ("dies_recursion", "you", "") in _idents("Darigaaz Reincarnated")
+
+
+def test_dies_recursion_excludes_hot_potato_return():
+    """Endless Whispers's "choose target opponent. That player puts this
+    card … onto the battlefield UNDER THEIR CONTROL" hands the returned
+    object to the CHOSEN opponent (``enters_under`` unset, not "You") — a
+    hot-potato give-away, not personal recursion value; legacy never fires
+    dies_recursion here either. The discriminator: a player-chosen dies
+    trigger is excluded UNLESS the matched return explicitly says
+    ``enters_under: "You"`` (Accursed Witch's sibling test keeps that
+    case)."""
+    assert "dies_recursion" not in _keys("Endless Whispers")
+
+
 @pytest.mark.parametrize(
     "name", ["Alesha, Who Smiles at Death", "Reanimate", "Soul Salvage"]
 )
