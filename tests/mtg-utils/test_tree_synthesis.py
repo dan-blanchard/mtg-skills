@@ -73,6 +73,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_firebending_matters,
     _arm_flash_matters,
     _arm_group_hug_draw,
+    _arm_historic_matters,
     _arm_island_matters,
     _arm_keyword_soup_same_true,
     _arm_kill_engine,
@@ -107,6 +108,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _is_self_recursion_return,
     _matches_spellcast_idiom,
     apply_tree_synthesis,
+    has_filter_property,
     has_gain_life_amplifier,
     has_high_life_total_payoff,
     has_life_gained_this_turn,
@@ -1865,6 +1867,57 @@ def test_extra_land_drop_hand_or_graveyard_disjunction_synth():
 
 def test_extra_land_drop_synth_registered():
     assert "extra_land_drop" in SYNTHESIS_ARM_IDS
+
+
+# ── historic_matters bare-word bridge synthesis (W2) ────────────────────────
+# Jhoira / Reki carry a REAL typed Historic/HasSupertype filter property --
+# the has_filter_property gate covers them, so NEITHER needs synthesis. Six
+# residue shapes ALL drop the Historic qualifier entirely (CR 700.10): a
+# LeavesBattlefield condition, an activation cost, a ModifyCost affected
+# filter, an Affinity cost reduction, a multi-clause Unimplemented, and an
+# Unrecognized static condition.
+
+
+def _historic_matters_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _legends_historic_matters
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "historic_matters" for s in _legends_historic_matters(tree))
+
+
+def test_historic_matters_typed_gate_no_double():
+    """Jhoira, Weatherlight Captain already carries a typed Historic filter
+    property -- the structural gate covers it, so the synthesis arm
+    no-ops."""
+    tree = _fixture_tree("Jhoira, Weatherlight Captain")
+    assert any(has_filter_property(u.node, "Historic") for u in tree.units)
+    assert _arm_historic_matters(tree) is None
+    assert _historic_matters_fires("Jhoira, Weatherlight Captain") is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Curator's Ward",
+        "Sanctum Spirit",
+        "Jhoira's Familiar",
+        "Banish to Another Universe",
+        "The Eighth Doctor",
+        "Havi, the All-Father",
+    ],
+)
+def test_historic_matters_bare_word_synth(name):
+    tree = _fixture_tree(name)
+    assert not any(has_filter_property(u.node, "Historic") for u in tree.units)
+    node = _arm_historic_matters(tree)
+    assert node is not None
+    assert node.concept == "historic_ref"  # the mechanic itself, no synth_* marker
+    assert node.scope == "you"
+    assert _historic_matters_fires(name) is True
+
+
+def test_historic_matters_synth_registered():
+    assert "historic_matters" in SYNTHESIS_ARM_IDS
 
 
 # ── multicolor_matters cares-about reference residual (ADR-0038 W1) ────────────

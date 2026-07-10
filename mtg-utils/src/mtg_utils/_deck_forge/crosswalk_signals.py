@@ -719,7 +719,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "goad_makers",
         "graveyard_matters",
         "hand_disruption",
-        "historic_matters",
         "keyword_grant_target",
         "land_creatures_matter",
         "land_sacrifice_makers",
@@ -6778,6 +6777,11 @@ def _legends_historic_matters(tree: ConceptTree) -> list[Signal]:
     * ``historic_matters`` — any filter carrying the ``Historic`` property
       (Jhoira — CR 700.6: "legendary supertype, the artifact card type, or
       the Saga subtype"). A Legendary-only filter (Reki) does not cross-fire.
+      A card whose Historic qualifier phase drops entirely (Curator's Ward,
+      Sanctum Spirit, Jhoira's Familiar, Banish to Another Universe, The
+      Eighth Doctor, Havi, the All-Father — CR 700.10) is covered by
+      ``tree_synthesis._arm_historic_matters``'s bare-word bridge, ALSO read
+      here via its "historic_ref" concept — no lane special-case.
 
     Both scope "you" (live).
     """
@@ -6786,7 +6790,9 @@ def _legends_historic_matters(tree: ConceptTree) -> list[Signal]:
         has_filter_property(u.node, "HasSupertype", "Legendary") for u in tree.units
     ):
         out.append(Signal("legends_matter", "you", "", "", tree.name, "high"))
-    if any(has_filter_property(u.node, "Historic") for u in tree.units):
+    if any(has_filter_property(u.node, "Historic") for u in tree.units) or (
+        tree.effect_concepts("historic_ref")
+    ):
         out.append(Signal("historic_matters", "you", "", "", tree.name, "high"))
     return out
 

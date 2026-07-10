@@ -3631,6 +3631,28 @@ def test_historic_matters_filter_property():
     assert "historic_matters" not in _keys("Reki, the History of Kamigawa")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Curator's Ward",  # LeavesBattlefield "if it was historic" condition
+        "Sanctum Spirit",  # activation cost "Discard a historic card"
+        "Jhoira's Familiar",  # ModifyCost affected drops the Historic filter
+        "Banish to Another Universe",  # Affinity for historic permanents
+        "The Eighth Doctor",  # multi-clause Unimplemented, no Historic node
+        "Havi, the All-Father",  # Unrecognized static condition, raw text only
+    ],
+)
+def test_historic_matters_bare_word_bridge_synthesis(name):
+    """ADR-0037/0038 synthesis: CR 700.10 defines historic (artifact,
+    legendary, Saga), but phase drops the qualifier ENTIRELY for these six
+    shapes — no typed Historic filter property survives anywhere in the
+    tree, only the bare word in the whole-card oracle.
+    ``tree_synthesis._arm_historic_matters`` mirrors the OLD-IR
+    ``_recover_historic_subject``/``_HISTORIC_REF`` bare-word fallback
+    byte-for-byte."""
+    assert ("historic_matters", "you", "") in _idents(name)
+
+
 def test_self_blink_chain_join():
     """CR 611.2b (contrast 603.6c): Aetherling's ChangeZone SelfRef→Exile +
     the delayed ParentTarget return in the SAME unit fires (live is

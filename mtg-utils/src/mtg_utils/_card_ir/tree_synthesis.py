@@ -2693,6 +2693,52 @@ def _arm_extra_land_drop(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+# historic bare-word reference (CR 700.10: "an object is historic if it's
+# an artifact, a legendary [permanent], and/or a Saga"). Multiple residue
+# shapes lose the Historic qualifier entirely: a cast-restriction/cost-
+# reduction filter phase collapses to an untyped Card filter (Jhoira's
+# Familiar's ModifyCost "affected"), a LeavesBattlefield trigger's own "if
+# it was historic" condition left unstructured (Curator's Ward), an
+# activation cost "Discard a historic card" collapsed to a bare Discard
+# cost with no filter (Sanctum Spirit), an Affinity-for-historic cost
+# reduction with no cost-reduction node at all (Banish to Another
+# Universe), a multi-clause Unimplemented "play a historic land or cast a
+# historic permanent spell" (The Eighth Doctor — parseable as
+# ``cast_from_zone`` via the shared verb grammar, but that concept isn't
+# what THIS lane reads, so the ALLOWLIST recovery wouldn't close the gap
+# either way), or an ``Unrecognized`` static CONDITION carrying the raw
+# clause text (Havi's "four or more historic cards in your graveyard").
+# NO structured Historic/NotHistoric carrier survives any of these; the
+# reference lives only in the whole-card oracle. NO-residue class (ADR-
+# 0038 amendment class 2). Mirrors the OLD-IR ``_HISTORIC_REF``/
+# ``_recover_historic_subject`` bare-word fallback byte-for-byte
+# (verbatim extraction discipline).
+_HISTORIC_REF_RE = re.compile(r"\bhistoric\b", re.IGNORECASE)
+
+
+def _arm_historic_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a bare "historic" REFERENCE for a card whose Historic
+    predicate phase drops entirely (no typed Historic filter property
+    anywhere). Gap-gated on the SAME ``has_filter_property(..., "Historic")``
+    scan the ``_legends_historic_matters`` lane runs, so a card the typed
+    read already covers never doubles. A cares-about REFERENCE, not an
+    effect clause (ADR-0037's irreducible tree_synthesis remainder) — the
+    concept name IS the mechanic ("historic_ref"), no native Historic
+    effect/static tag exists to reuse (the property is a filter QUALIFIER,
+    never its own node). CR 700.6/700.10."""
+    if any(has_filter_property(u.node, "Historic") for u in tree.units):
+        return None
+    if not _HISTORIC_REF_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="historic_matters",
+        concept="historic_ref",
+        scope="you",
+        subject=(),
+        desc="historic reference phase drops entirely (bare-word bridge)",
+    )
+
+
 def _has_multicolor_count_pred(filt: object) -> bool:
     """Whether ``filt`` carries a ``ColorCount`` ``GE``/``EQ`` >= 2
     predicate, controller You (CR 105.2) — the shared discriminant both
@@ -7199,6 +7245,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("dice_makers", _arm_dice_makers),
     ("coin_flip_payoff", _arm_coin_flip_payoff),
     ("extra_land_drop", _arm_extra_land_drop),
+    ("historic_matters", _arm_historic_matters),
     ("multicolor_matters", _arm_multicolor_matters),
     ("stax_taxes", _arm_stax_taxes),
     ("symmetric_stax", _arm_symmetric_stax),
