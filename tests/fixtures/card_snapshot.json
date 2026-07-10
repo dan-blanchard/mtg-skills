@@ -3163,6 +3163,146 @@
     "type_line": "Artifact"
    }
   },
+  "Angrath, the Flame-Chained": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "discard",
+          "raw": "[+1]: Each opponent discards a card and loses 2 life.",
+          "sc": "opp"
+         },
+         {
+          "amt": {
+           "f": 2,
+           "op": "fixed"
+          },
+          "cat": "lose_life",
+          "raw": "[+1]: Each opponent discards a card and loses 2 life."
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "gain_control",
+          "dur": "UntilEndOfTurn",
+          "raw": "[−3]: Gain control of target creature until end of turn. Untap it. It gains haste until end of turn. Sacrifice it at the beginning of the next end step if it has mana value 3 or less.",
+          "sub": {
+           "t": [
+            "Creature"
+           ]
+          }
+         },
+         {
+          "cat": "untap",
+          "raw": "[−3]: Gain control of target creature until end of turn. Untap it. It gains haste until end of turn. Sacrifice it at the beginning of the next end step if it has mana value 3 or less."
+         },
+         {
+          "cat": "grant_keyword",
+          "ck": "haste",
+          "raw": "gain haste"
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "sacrifice",
+          "raw": "[−3]: Gain control of target creature until end of turn. Untap it. It gains haste until end of turn. Sacrifice it at the beginning of the next end step if it has mana value 3 or less."
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "count"
+          },
+          "cat": "lose_life",
+          "raw": "[−8]: Each opponent loses life equal to the number of cards in their graveyard.",
+          "sc": "opp",
+          "z": [
+           "in:graveyard"
+          ]
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "single_target_grant",
+          "ck": "haste",
+          "raw": "gain haste",
+          "sub": {
+           "p": [
+            "SingleTarget"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Angrath, the Flame-Chained",
+      "tl": "Legendary Planeswalker — Angrath"
+     }
+    ],
+    "n": "Angrath, the Flame-Chained",
+    "oid": "092ceffb-1ee4-452c-b15e-5b79267d42a6"
+   },
+   "scryfall": {
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "R"
+    ],
+    "colors": [
+     "B",
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}{R}",
+    "name": "Angrath, the Flame-Chained",
+    "oracle_id": "092ceffb-1ee4-452c-b15e-5b79267d42a6",
+    "oracle_text": "[+1]: Each opponent discards a card and loses 2 life.\n[−3]: Gain control of target creature until end of turn. Untap it. It gains haste until end of turn. Sacrifice it at the beginning of the next end step if it has mana value 3 or less.\n[−8]: Each opponent loses life equal to the number of cards in their graveyard.",
+    "type_line": "Legendary Planeswalker — Angrath"
+   }
+  },
   "Anhelo, the Painter": {
    "ir": {
     "faces": [
@@ -16086,6 +16226,98 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Legendary Creature — Human Knight"
+   }
+  },
+  "Daring Saboteur": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "genericmana,mana",
+        "e": [
+         {
+          "cat": "restriction",
+          "raw": "{2}{U}: ~ can't be blocked this turn."
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "draw",
+          "craw": "Whenever ~ deals combat damage to a player, you may draw a card.",
+          "raw": "Whenever ~ deals combat damage to a player, you may draw a card. If you do, discard a card.",
+          "sc": "you"
+         },
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "discard",
+          "raw": "Whenever ~ deals combat damage to a player, you may draw a card. If you do, discard a card.",
+          "sc": "you"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "combat_damage",
+         "rc": [
+          "player"
+         ]
+        }
+       }
+      ],
+      "n": "Daring Saboteur",
+      "tl": "Creature — Human Pirate"
+     }
+    ],
+    "n": "Daring Saboteur",
+    "oid": "d36f64a0-53f7-4c56-9f40-a7927a5c2608"
+   },
+   "scryfall": {
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Daring Saboteur",
+    "oracle_id": "d36f64a0-53f7-4c56-9f40-a7927a5c2608",
+    "oracle_text": "{2}{U}: This creature can't be blocked this turn.\nWhenever this creature deals combat damage to a player, you may draw a card. If you do, discard a card.",
+    "power": "2",
+    "toughness": "1",
+    "type_line": "Creature — Human Pirate"
    }
   },
   "Dark Betrayal": {
@@ -31662,6 +31894,226 @@
     "type_line": "Enchantment"
    }
   },
+  "Invasion of Gobakhan // Lightshield Array": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "e": [
+         {
+          "cat": "reveal_hand",
+          "raw": "When this Siege enters, look at target opponent's hand. You may exile a nonland card from it. For as long as that card remains exiled, its owner may play it. A spell cast this way costs {2} more to cast.",
+          "sc": "opp",
+          "sub": {
+           "c": "opp"
+          }
+         },
+         {
+          "cat": "exile",
+          "raw": "When this Siege enters, look at target opponent's hand. You may exile a nonland card from it. For as long as that card remains exiled, its owner may play it. A spell cast this way costs {2} more to cast.",
+          "sc": "opp",
+          "sub": {
+           "p": [
+            "NotType:Land"
+           ],
+           "t": [
+            "Card"
+           ]
+          },
+          "z": [
+           "to:exile"
+          ]
+         },
+         {
+          "cat": "cast_from_zone",
+          "raw": "When this Siege enters, look at target opponent's hand. You may exile a nonland card from it. For as long as that card remains exiled, its owner may play it. A spell cast this way costs {2} more to cast.",
+          "sc": "opp"
+         },
+         {
+          "cat": "reveal_hand",
+          "raw": "When this Siege enters, look at target opponent's hand. You may exile a nonland card from it. For as long as that card remains exiled, its owner may play it. A spell cast this way costs {2} more to cast.",
+          "sc": "opp"
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "etb",
+         "sc": "you",
+         "z": [
+          "to:battlefield"
+         ]
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "exile",
+          "raw": "CR 310.11b: When the last defense counter is removed from this Siege, exile it, then you may cast it transformed without paying its mana cost.",
+          "z": [
+           "from:battlefield",
+           "to:exile"
+          ]
+         },
+         {
+          "cat": "cast_from_zone",
+          "raw": "CR 310.11b: When the last defense counter is removed from this Siege, exile it, then you may cast it transformed without paying its mana cost."
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "other",
+         "sc": "you"
+        }
+       }
+      ],
+      "n": "Invasion of Gobakhan",
+      "tl": "Battle — Siege"
+     },
+     {
+      "ab": [
+       {
+        "cost": "sacself",
+        "e": [
+         {
+          "cat": "grant_keyword",
+          "ck": "hexproof",
+          "raw": "gain hexproof and indestructible",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Creature"
+           ]
+          }
+         },
+         {
+          "cat": "grant_keyword",
+          "ck": "indestructible",
+          "raw": "gain hexproof and indestructible",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "place_counter",
+          "ck": "p1p1",
+          "raw": "At the beginning of your end step, put a +1/+1 counter on each creature that attacked this turn.",
+          "sub": {
+           "p": [
+            "AttackedThisTurn",
+            "MassEach"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "triggered",
+        "tr": {
+         "ev": "end_step"
+        }
+       },
+       {
+        "e": [
+         {
+          "cat": "grant_keyword",
+          "ck": "mass_grant",
+          "raw": "Creatures you control gain hexproof",
+          "sc": "you",
+          "sub": {
+           "c": "you",
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Lightshield Array",
+      "tl": "Enchantment"
+     }
+    ],
+    "n": "Invasion of Gobakhan",
+    "oid": "86c32a56-3272-4738-b0b3-a8aa49a17ce4"
+   },
+   "scryfall": {
+    "card_faces": [
+     {
+      "colors": [
+       "W"
+      ],
+      "keywords": [
+       "Transform"
+      ],
+      "mana_cost": "{1}{W}",
+      "name": "Invasion of Gobakhan",
+      "oracle_text": "(As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)\nWhen this Siege enters, look at target opponent's hand. You may exile a nonland card from it. For as long as that card remains exiled, its owner may play it. A spell cast this way costs {2} more to cast.",
+      "type_line": "Battle — Siege"
+     },
+     {
+      "colors": [
+       "W"
+      ],
+      "keywords": [
+       "Transform"
+      ],
+      "mana_cost": "",
+      "name": "Lightshield Array",
+      "oracle_text": "At the beginning of your end step, put a +1/+1 counter on each creature that attacked this turn.\nSacrifice this enchantment: Creatures you control gain hexproof and indestructible until end of turn.",
+      "type_line": "Enchantment"
+     }
+    ],
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "keywords": [
+     "Transform"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Invasion of Gobakhan // Lightshield Array",
+    "oracle_id": "86c32a56-3272-4738-b0b3-a8aa49a17ce4",
+    "type_line": "Battle — Siege // Enchantment"
+   }
+  },
   "Invasion of the Giants": {
    "ir": {
     "faces": [
@@ -40067,6 +40519,115 @@
     "type_line": "Creature — Elemental"
    }
   },
+  "Marrow-Gnawer": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "sacrifice,tap",
+        "e": [
+         {
+          "amt": {
+           "op": "count",
+           "sub": {
+            "c": "you",
+            "s": [
+             "Rat"
+            ]
+           }
+          },
+          "cat": "make_token",
+          "raw": "{T}, Sacrifice a Rat: Create X 1/1 black Rat creature tokens, where X is the number of Rats you control.",
+          "sc": "you",
+          "sub": {
+           "s": [
+            "Rat"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "activated"
+       },
+       {
+        "e": [
+         {
+          "cat": "grant_keyword",
+          "ck": "fear",
+          "raw": "All Rats have fear.",
+          "sub": {
+           "s": [
+            "Rat"
+           ],
+           "t": [
+            "Creature"
+           ]
+          }
+         }
+        ],
+        "k": "static"
+       }
+      ],
+      "n": "Marrow-Gnawer",
+      "tl": "Legendary Creature — Rat Rogue"
+     }
+    ],
+    "n": "Marrow-Gnawer",
+    "oid": "2b934761-5720-477b-94b7-d1d91dc581a6"
+   },
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "209d3f3e-a41e-4d9b-a9bd-50d11e89b5ea",
+      "name": "Rat",
+      "oracle_id": "7c753b68-b519-43ba-9c58-4902f4850626",
+      "type_line": "Token Creature — Rat"
+     }
+    ],
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}{B}",
+    "name": "Marrow-Gnawer",
+    "oracle_id": "2b934761-5720-477b-94b7-d1d91dc581a6",
+    "oracle_text": "All Rats have fear.\n{T}, Sacrifice a Rat: Create X 1/1 black Rat creature tokens, where X is the number of Rats you control.",
+    "power": "2",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Rat Rogue"
+   }
+  },
   "Marwyn, the Nurturer": {
    "ir": {
     "faces": [
@@ -40355,7 +40916,6 @@
           "cat": "blink",
           "ck": "all",
           "raw": "Exile all creatures you control, then reveal cards from the top of your library until you reveal that many creature cards. Put all creature cards revealed this way onto the battlefield, then shuffle the rest of the revealed cards into your library.",
-          "rt": "battlefield",
           "sub": {
            "c": "you",
            "t": [
@@ -40367,21 +40927,15 @@
           ]
          },
          {
-          "cat": "exile",
-          "raw": "Exile all creatures you control, then reveal cards from the top of your library until you reveal that many creature cards. Put all creature cards revealed this way onto the battlefield, then shuffle the rest of the revealed cards into your library.",
-          "z": [
-           "from:top",
-           "top:you"
-          ]
+          "cat": "dig_until",
+          "raw": "Exile all creatures you control, then reveal cards from the top of your library until you reveal that many creature cards. Put all creature cards revealed this way onto the battlefield, then shuffle the rest of the revealed cards into your library."
          },
          {
-          "cat": "exile",
+          "cat": "dig_until",
           "ck": "all",
           "raw": "Exile all creatures you control, then reveal cards from the top of your library until you reveal that many creature cards. Put all creature cards revealed this way onto the battlefield, then shuffle the rest of the revealed cards into your library.",
           "z": [
-           "from:top",
-           "to:battlefield",
-           "top:you"
+           "to:battlefield"
           ]
          },
          {
@@ -42694,6 +43248,72 @@
     "oracle_id": "8bd2af55-5a48-4300-a893-ae6cd548db24",
     "oracle_text": "Whenever a creature is put into your graveyard from the battlefield, put that card on top of your library.",
     "type_line": "Enchantment"
+   }
+  },
+  "Mountain": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "tap",
+        "e": [
+         {
+          "amt": {
+           "op": "fixed"
+          },
+          "cat": "ramp",
+          "mk": "basic"
+         }
+        ],
+        "k": "activated"
+       }
+      ],
+      "n": "Mountain",
+      "tl": "Basic Land — Mountain"
+     }
+    ],
+    "n": "Mountain",
+    "oid": "a3fb7228-e76b-4e96-a40e-20b5fed75685"
+   },
+   "scryfall": {
+    "cmc": 0.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Mountain",
+    "oracle_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+    "oracle_text": "({T}: Add {R}.)",
+    "produced_mana": [
+     "R"
+    ],
+    "type_line": "Basic Land — Mountain"
    }
   },
   "Muraganda Petroglyphs": {
@@ -46315,6 +46935,80 @@
     "oracle_id": "3a05904d-5439-446d-a2a1-1475c9c7371d",
     "oracle_text": "{R}, {T}: Look at the top eight cards of your library. Exile four of them at random, then put the rest on top of your library in any order.",
     "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Orc"
+   }
+  },
+  "Orcish Lumberjack": {
+   "ir": {
+    "faces": [
+     {
+      "ab": [
+       {
+        "cost": "sacrifice,tap",
+        "e": [
+         {
+          "amt": {
+           "f": 3,
+           "op": "fixed"
+          },
+          "cat": "ramp",
+          "mk": "fixing",
+          "raw": "{T}, Sacrifice a Forest: Add three mana in any combination of {R} and/or {G}."
+         }
+        ],
+        "k": "activated"
+       }
+      ],
+      "n": "Orcish Lumberjack",
+      "tl": "Creature — Orc"
+     }
+    ],
+    "n": "Orcish Lumberjack",
+    "oid": "383e3fe4-8558-4561-8632-6eadb5d5963c"
+   },
+   "scryfall": {
+    "cmc": 1.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Orcish Lumberjack",
+    "oracle_id": "383e3fe4-8558-4561-8632-6eadb5d5963c",
+    "oracle_text": "{T}, Sacrifice a Forest: Add three mana in any combination of {R} and/or {G}.",
+    "power": "1",
+    "produced_mana": [
+     "G",
+     "R"
+    ],
     "toughness": "1",
     "type_line": "Creature — Orc"
    }

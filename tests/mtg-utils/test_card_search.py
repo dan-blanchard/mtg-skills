@@ -14,6 +14,7 @@ from mtg_utils.card_search import (
     main,
     search_cards,
 )
+from mtg_utils.testkit import test_card
 
 
 def _make_card(
@@ -157,6 +158,52 @@ class TestMatchesFilters:
             price_min=None,
             price_max=None,
         )
+
+
+class TestTypeTokenFilter:
+    """The type filter matches whole type-line TOKENS, never substrings of
+    another type (CR 205.3 — each subtype is its own word). The substring
+    behavior served Pirates on a 'rat' filter ("pi[rat]e"), every Sorcery on
+    'orc' ("s[orc]ery"), and every Mountain on 'mount' (the Bloomburrow Mount
+    type) — user-reported via the deck-forge Rat tribal lane."""
+
+    def _matches_type(self, card, type_lower):
+        return _matches_filters(
+            card,
+            allowed_colors=None,
+            oracle_re=None,
+            type_lower=type_lower,
+            cmc_min=None,
+            cmc_max=None,
+            price_min=None,
+            price_max=None,
+        )
+
+    def test_subtype_token_matches_its_tribe(self):
+        assert self._matches_type(test_card("Marrow-Gnawer"), "rat")  # Rat Rogue
+
+    def test_subtype_never_matches_as_substring_of_another_type(self):
+        # Direct test_card(...) literals (not a parametrize name table) so the
+        # snapshot scanner sees every name this test depends on.
+        assert not self._matches_type(test_card("Daring Saboteur"), "rat")  # Pirate
+        assert not self._matches_type(
+            test_card("Angrath, the Flame-Chained"),
+            "rat",  # Planeswalker — Angrath
+        )
+        assert not self._matches_type(test_card("Divination"), "orc")  # Sorcery
+        assert not self._matches_type(test_card("Mountain"), "mount")  # Mountain
+        assert not self._matches_type(
+            test_card("Invasion of Gobakhan // Lightshield Array"),
+            "bat",  # Battle
+        )
+
+    def test_multiword_type_phrase_still_matches(self):
+        assert self._matches_type(test_card("Mountain"), "basic land")
+
+    def test_or_tuple_matches_any_token(self):
+        ox = test_card("Bulwark Ox")  # Creature — Ox Mount
+        assert self._matches_type(ox, ("fox", "mount"))
+        assert not self._matches_type(ox, ("fox", "goat"))
 
     def test_rejects_reversible_card_layout(self):
         # Secret Lair "reversible" novelty reprints (e.g. Krark, the Thumbless //

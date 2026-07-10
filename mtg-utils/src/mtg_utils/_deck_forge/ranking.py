@@ -36,6 +36,7 @@ from mtg_utils.card_classify import (
     extract_price,
     get_oracle_text,
     is_ramp,
+    type_line_has,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Filter
 
@@ -327,7 +328,7 @@ def _avenue_predicates(
     Two classification regimes, matching how each was authored:
       - explicit structured ``serve``: the SAME precise OR-predicate the spec
         serves on (a cantrip by TYPE, a prowess creature by KEYWORD).
-      - bare ``search`` fragment (legacy): oracle regex AND card_type substring,
+      - bare ``search`` fragment (legacy): oracle regex AND card_type token,
         so an avenue scoped to ``card_type='Land'`` won't credit a non-land clone
         that merely matches the oracle regex."""
     out: list[tuple[str, Callable[[dict], bool], re.Pattern[str] | None]] = []
@@ -359,7 +360,7 @@ def _search_and(
     regex: re.Pattern[str] | None, card_type: str
 ) -> Callable[[dict], bool]:
     """A card serves the avenue only if it satisfies BOTH the avenue's oracle
-    regex and its card_type substring (mirrors how the card_search FIND ANDs
+    regex and its card_type token (mirrors how the card_search FIND ANDs
     them)."""
 
     def predicate(card: dict) -> bool:
@@ -367,9 +368,10 @@ def _search_and(
             regex is None or regex.search(get_oracle_text(card) or "") is not None
         )
         # Transform-aware: match card_type against the FRONT face (what you play),
-        # so a transform DFC's back-face type can't credit it.
+        # so a transform DFC's back-face type can't credit it. Word-boundary
+        # token, never a substring ('rat' must not credit a Pirate).
         type_line = classifying_type_line(card).lower()
-        type_ok = not card_type or card_type in type_line
+        type_ok = not card_type or type_line_has(type_line, card_type)
         return oracle_ok and type_ok
 
     return predicate

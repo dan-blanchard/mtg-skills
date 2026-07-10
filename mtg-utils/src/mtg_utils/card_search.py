@@ -18,6 +18,7 @@ from mtg_utils.card_classify import (
     extract_price,
     get_oracle_text,
     is_commander,
+    type_line_has,
 )
 from mtg_utils.format_config import FORMAT_CONFIGS, is_arena_format
 from mtg_utils.theme_presets import PRESETS, Preset, get_preset
@@ -89,7 +90,7 @@ def _matches_filters(
     if type_lower is not None:
         _tl = (card.get("type_line") or "").lower()
         _wanted = (type_lower,) if isinstance(type_lower, str) else type_lower
-        if not any(w in _tl for w in _wanted):
+        if not any(type_line_has(_tl, w) for w in _wanted):
             return False
 
     if name_substr is not None and _norm_name(name_substr) not in _norm_name(
@@ -233,7 +234,7 @@ def search_cards(
         type_lower: str | tuple[str, ...] | None = None
     elif isinstance(card_type, str):
         type_lower = card_type.lower()
-    else:  # an OR of type-line substrings — a card matches if ANY is present
+    else:  # an OR of type-line tokens — a card matches if ANY is present
         type_lower = tuple(t.lower() for t in card_type)
     name_lower = name.lower() if name else None
 

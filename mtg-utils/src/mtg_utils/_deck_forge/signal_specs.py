@@ -72,6 +72,7 @@ from mtg_utils.card_classify import (
     card_pt_int,
     classifying_type_line,
     get_oracle_text,
+    type_line_has,
 )
 
 if TYPE_CHECKING:
@@ -130,8 +131,9 @@ class Serve:
       - ``oracle``: a regex on oracle text (the only signal for effects that truly
         live in prose — e.g. magecraft, an ability word with no rules meaning, CR
         207.2c),
-      - ``types``: type-line words (lowercased substring, mirroring ``card_search``'s
-        ``card_type``) — ``{"instant", "sorcery"}`` is the gate the bare ``draw a
+      - ``types``: type-line words (lowercased whole-token match, mirroring
+        ``card_search``'s ``card_type`` — never a substring: 'rat' is not a
+        Pirate) — ``{"instant", "sorcery"}`` is the gate the bare ``draw a
         card`` regex was missing,
       - ``keywords``: authoritative Scryfall ``keywords`` (prowess, flying, …) —
         exact, never regex-guessed out of prose.
@@ -186,8 +188,10 @@ class Serve:
         # Transform-aware: classify by the FRONT face (what you play), so a transform
         # DFC's back-face type can't satisfy a ``types`` (card_type) serve — the same
         # leak that surfaced a Saga-front // Land-back card as a creature-land.
+        # Word-boundary tokens, never substrings: a 'rat' tribal serve must not
+        # match every Pirate ("pi[rat]e"), nor 'orc' every Sorcery.
         type_line = classifying_type_line(card).lower()
-        if self.types and any(t in type_line for t in self.types):
+        if self.types and any(type_line_has(type_line, t) for t in self.types):
             return True
         if self.keywords:
             card_kw = {k.lower() for k in (card.get("keywords") or [])}
@@ -6396,7 +6400,7 @@ def _subject_spec(signal: Signal) -> SignalSpec:
     is_type_tribal = signal.key == signal_keys.TYPE_MATTERS
     # Synonym-GROUP tribes (sea monsters): a member type's serve covers the WHOLE group,
     # by type-line AND by the group-naming payoff oracle (Whelming Wave). card_search's
-    # card_type is substring-only (no OR), so each OTHER member gets its own search
+    # card_type is single-token-only (no OR), so each OTHER member gets its own search
     # sub-avenue to pull its bodies; the widened serve credits them all.
     group = _tribal_group(subj) if is_type_tribal else None
     members = sorted(group) if group else [subj.lower()]

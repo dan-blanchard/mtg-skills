@@ -19,7 +19,7 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.testkit import test_card_ir
+from mtg_utils.testkit import test_card, test_card_ir
 
 
 def _sig(key, scope="you"):
@@ -937,6 +937,33 @@ def test_arcane_matters_serves_arcane_subtype_spells():
         "oracle_text": "Lightning Bolt deals 3 damage to any target.",
     }
     assert serves(lightning_bolt, sig) is False
+
+
+def test_tribal_serve_matches_type_tokens_never_substrings():
+    # A tribal lane's type serve matches whole type-line TOKENS (CR 205.3 —
+    # each subtype is its own word), never substrings of another type. The
+    # substring behavior served every Pirate on the Rat lane ("pi[rat]e") and
+    # every Mountain on a Mount lane — user-reported from the deck-forge UI.
+    # Real snapshot records.
+    rat_sig = Signal(
+        key="type_matters", scope="you", subject="Rat", text="", source="c"
+    )
+    assert serves(test_card("Marrow-Gnawer"), rat_sig) is True
+    assert serves(test_card("Daring Saboteur"), rat_sig) is False  # Pirate
+    # planeswalker type line "Legendary Planeswalker — Angrath" contains 'rat'
+    assert serves(test_card("Angrath, the Flame-Chained"), rat_sig) is False
+
+    mount_sig = Signal(
+        key="type_matters", scope="you", subject="Mount", text="", source="c"
+    )
+    assert serves(test_card("Bulwark Ox"), mount_sig) is True  # Ox Mount
+    assert serves(test_card("Mountain"), mount_sig) is False
+
+    orc_sig = Signal(
+        key="type_matters", scope="you", subject="Orc", text="", source="c"
+    )
+    assert serves(test_card("Orcish Lumberjack"), orc_sig) is True
+    assert serves(test_card("Divination"), orc_sig) is False  # "s[orc]ery"
 
 
 def test_enlist_matters_serves_enlisters_and_stayback_fodder():
