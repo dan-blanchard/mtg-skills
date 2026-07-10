@@ -72,6 +72,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_dont_own,
     _arm_exhaust_matters,
     _arm_extra_land_drop,
+    _arm_fight_makers,
     _arm_firebending_matters,
     _arm_flash_matters,
     _arm_group_hug_draw,
@@ -134,6 +135,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_curse_matters,
     has_structural_dice_makers,
     has_structural_extra_land_drop,
+    has_structural_fight_makers,
     has_structural_firebending_grant,
     has_structural_group_hug_draw,
     has_structural_keyword_counter,
@@ -1695,6 +1697,60 @@ def test_group_hug_draw_dropped_subject_synth():
 
 def test_group_hug_draw_synth_registered():
     assert "group_hug_draw" in SYNTHESIS_ARM_IDS
+
+
+# ── fight_makers structural fallback + no-residue synthesis (ADR-0038 W1) ──────
+# Cherished Hatchling / Kiora, Master of the Depths / Aggressive Biomancy all
+# carry a real nested ``Fight`` tag (a GrantTrigger, a CreateEmblem, a token-copy
+# exception clause) the flat per-unit concept-node walk never surfaces as its
+# own node -- has_structural_fight_makers's nested fallback (has_nested_fight)
+# reaches all three, so NONE needs synthesis. Tolsimir, Friend to Wolves and
+# Tunnel of Love carry NO Fight node of any kind (phase drops the clause
+# wholly) -- the genuine gap the synth arm covers.
+
+
+def test_fight_makers_typed_gate_no_double():
+    """Prey Upon already has a typed top-level ``Fight`` effect -- the
+    structural gate covers it, so the synthesis arm no-ops."""
+    tree = _fixture_tree("Prey Upon")
+    assert has_structural_fight_makers(tree) is True
+    assert _arm_fight_makers(tree) is None
+
+
+def test_fight_makers_nested_grant_no_double():
+    """A ``Fight`` tag nested inside a GrantTrigger/CreateEmblem/token-copy
+    exception clause -- or, for Tunnel of Love, a ``ParentTarget``-scoped
+    Fight buried inside the "Otherwise" branch of a chained sub_ability
+    the flat per-unit concept-node walk never surfaces as its own node --
+    is a structural hit, so the synthesis arm no-ops for all four
+    shapes."""
+    for name in (
+        "Cherished Hatchling",
+        "Kiora, Master of the Depths",
+        "Aggressive Biomancy",
+        "Tunnel of Love",
+    ):
+        tree = _fixture_tree(name)
+        assert has_structural_fight_makers(tree) is True, name
+        assert _arm_fight_makers(tree) is None, name
+
+
+def test_fight_makers_dropped_clause_synth():
+    """Tolsimir, Friend to Wolves' "that creature fights up to one target
+    creature you don't control" -- the trigger's own ``execute`` is a bare
+    ``GainLife``, no ``sub_ability`` chain at all, so phase drops the
+    fight clause WHOLLY (no node of any kind, unlike Tunnel of Love's
+    buried-but-real Fight node) -- the genuine gap the synth arm covers."""
+    tree = _fixture_tree("Tolsimir, Friend to Wolves")
+    assert has_structural_fight_makers(tree) is False  # genuine gap
+    node = _arm_fight_makers(tree)
+    assert node is not None
+    assert node.concept == "fight"  # the REAL concept, no synth_* marker
+    assert node.scope == "you"
+
+
+def test_fight_makers_synth_registered():
+    assert "fight_makers" in SYNTHESIS_ARM_IDS
 
 
 # ── dice_makers structural fallback + reroll residual (ADR-0038 W1) ────────────

@@ -2070,6 +2070,22 @@ def has_nested_flip_coin(node: object) -> bool:
     return any(tag_of(n) == "FlipCoin" for n in _iter_typed_nodes(node))
 
 
+def has_nested_fight(node: object) -> bool:
+    """Whether a ``Fight`` tag (CR 701.12) is reachable ANYWHERE under
+    ``node`` — a fight buried inside a granted trigger (Cherished
+    Hatchling's cast-a-Dinosaur grant, Grothama's "Other creatures have
+    '... it fights Grothama.'"), a granted activated ability (Setessan
+    Tactics' "gain '{T}: ... fights ...'"), a ``CreateEmblem`` (Kiora,
+    Master of the Depths' -8), or a token-copy EXCEPTION clause
+    (Aggressive Biomancy / Mythos of Illuna's "... except they have
+    'When this token enters, ... it fights ...'") — none of which the
+    flat per-unit concept-node walk ever surfaces as its own node. The
+    ``fight_makers`` lane's structural fallback, the
+    :func:`has_nested_roll_die` sibling.
+    """
+    return any(tag_of(n) == "Fight" for n in _iter_typed_nodes(node))
+
+
 # ── ADR-0037/0038 W1 batch-3 — the granted-trigger shared descent ────────────
 # ``connive_makers`` and ``opponent_cast_matters`` share one gap shape: the
 # card's real trigger lives NESTED inside a GRANTED-ability construct the

@@ -73,6 +73,7 @@ from mtg_utils._card_ir.crosswalk import (
     granted_next_spell_keyword,
     has_filter_property,
     has_nested_connive,
+    has_nested_fight,
     has_nested_flip_coin,
     is_creature_cast_trigger_def,
     is_damage_reflect_trigger_def,
@@ -715,7 +716,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "enchantments_matter",
         "exile_matters",
         "facedown_matters",
-        "fight_makers",
         "forced_attack",
         "goad_makers",
         "graveyard_matters",
@@ -2270,12 +2270,42 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
 
 
 def _fight_makers(tree: ConceptTree) -> list[Signal]:
-    """fight_makers — a fight / bite DOER (CR 701.14a). Any ``Fight`` effect (Prey
-    Upon, Ulvenwald Tracker). Scope "you" (the lane convention). The Aftermath DFC
-    back-face fallback phase never projects stays a ``live_only`` byte-mirror.
-    """
+    """fight_makers — a fight DOER (CR 701.12 -- the shared 701.14a "each
+    other" wording is the OLD number). Three structural arms, then a
+    whole-card residue fallback:
+
+    * **typed (flat)** — a top-level ``Fight`` effect (Prey Upon, Ulvenwald
+      Tracker).
+    * **allowlisted residue** — an Unimplemented "~ fights ..." clause the
+      grammar's "fight" ``SIMPLE_VERB`` token recovers (Gimli, Mournful
+      Avenger's third-resolution rider; Summon: Magus Sisters' "Fight!"
+      modal bullet), via :data:`recovery.ALLOWLIST`.
+    * **nested (granted)** — a ``Fight`` tag buried inside a GRANTED
+      trigger (Cherished Hatchling, Grothama's "Other creatures have"),
+      a granted activated ability (Setessan Tactics), a ``CreateEmblem``
+      (Kiora, Master of the Depths), a token-copy exception clause
+      (Aggressive Biomancy, Mythos of Illuna), or a chained sub_ability's
+      "Otherwise" branch (Tunnel of Love's "the chosen creatures fight
+      each other", a ``ParentTarget``-scoped Fight the flat concept-node
+      walk never surfaces) — :func:`has_nested_fight`.
+    * **whole-card residue (no node at all)** — a fight clause phase drops
+      WHOLLY (Tolsimir's "that creature fights up to one target creature"
+      — the trigger's ``execute`` is a bare ``GainLife``, no sub_ability
+      chain at all) reads ``tree_synthesis._arm_fight_makers``'s
+      synthesized "fight" node (the legacy ``_FIGHT_RAW`` mirror
+      relocated to gap-gated projection time, emitting the REAL concept
+      per ADR-0038 — no synth_* marker, so the typed
+      ``effect_concepts("fight")`` read above already covers it) — also
+      the Aftermath-DFC single-face fallback, though a genuine SPLIT-card
+      second half (Prepare // Fight) needs task #74's face union first;
+      ``tree.oracle`` is single-face.
+
+    Scope "you" (the lane convention)."""
     for c in tree.effect_concepts("fight"):
         return [Signal("fight_makers", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        if has_nested_fight(unit.node):
+            return [Signal("fight_makers", "you", "", "", tree.name, "high")]
     return []
 
 

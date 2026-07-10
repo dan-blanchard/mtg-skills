@@ -86,6 +86,7 @@ from mtg_utils._card_ir.crosswalk import (
     hand_size_scopes,
     has_filter_property,
     has_nested_connive,
+    has_nested_fight,
     has_nested_flip_coin,
     has_nested_roll_die,
     is_creature_cast_trigger_def,
@@ -154,6 +155,7 @@ from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
     _CONVOKE_RAW,
+    _FIGHT_RAW,
     _KEYWORD_COUNTER_KINDS,
     _OPP_COUNTER_BENEFICIAL,
     _POWER_SCALING_RAW,
@@ -2759,6 +2761,51 @@ def _arm_creature_cast_trigger(tree: ConceptTree) -> ConceptNode | None:
         scope="any",
         subject=(),
         desc="creature-spell-cast trigger phase re-templates unreadably",
+    )
+
+
+def has_structural_fight_makers(tree: ConceptTree) -> bool:
+    """The fight_makers TYPED gate (CR 701.12): a flat top-level ``Fight``
+    effect OR a ``Fight`` tag :func:`has_nested_fight` reaches inside a
+    GRANTED-ability construct (a trigger grant, an activated-ability
+    grant, a ``CreateEmblem``, a token-copy exception clause). Shared
+    verbatim with the ``_fight_makers`` lane and this arm's gap gate
+    below."""
+    for unit in tree.units:
+        if unit.has_effect("fight") or has_nested_fight(unit.node):
+            return True
+    return False
+
+
+def _arm_fight_makers(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``fight`` node for a fight clause phase drops WHOLLY,
+    no node of any kind (Tolsimir, Friend to Wolves's "that creature
+    fights up to one target creature you don't control" -- the trigger's
+    ``execute`` is a bare ``GainLife``, no ``sub_ability`` chain at all)
+    -- a no-residue class 2 gap (ADR-0038 amendment; Tunnel of Love's
+    "Otherwise, the chosen creatures fight each other" LOOKED like the
+    same shape but turned out to carry a real, buried ``Fight`` node --
+    :func:`has_structural_fight_makers`'s nested fallback already covers
+    it). Relocates the legacy ``_FIGHT_RAW`` face-level fallback
+    (originally written for the Aftermath-DFC single-face drop, Prepare
+    // Fight) to gap-gated projection time, emitting the REAL "fight"
+    concept (ADR-0038 retires the synth_* marker namespace) so the
+    lane's ordinary ``effect_concepts("fight")`` read covers it with no
+    special-case. Gap-gated on :func:`has_structural_fight_makers` so a
+    typed/nested card never doubles. A genuine SPLIT-card second half
+    (the "Fight" face itself) still needs task #74's face union --
+    ``tree.oracle`` is single-face, so it never reaches this card at
+    all. CR 701.12."""
+    if has_structural_fight_makers(tree):
+        return None
+    if not _FIGHT_RAW.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="fight_makers",
+        concept="fight",
+        scope="you",
+        subject=(),
+        desc="fight clause phase drops wholly (no node of any kind)",
     )
 
 
@@ -7552,6 +7599,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("connive_makers", _arm_connive_makers),
     ("opponent_cast_matters", _arm_opponent_cast_matters),
     ("creature_cast_trigger", _arm_creature_cast_trigger),
+    ("fight_makers", _arm_fight_makers),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

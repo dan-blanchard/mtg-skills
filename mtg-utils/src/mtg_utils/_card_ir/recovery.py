@@ -93,6 +93,14 @@ ALLOWLIST: dict[str, TokenRule] = {
     # recovered node with no special-casing (ADR-0038: the synth_* marker
     # namespace retires; a recovered node earns its real concept name).
     "stax_cast_lock": TokenRule(concept="stax_taxes", category="restriction"),
+    # fight ACTION idiom (CR 701.12): "~ fights up to one target creature"
+    # (Gimli, Mournful Avenger's third-resolution rider) / a Saga modal
+    # bullet ("Fight! — ~ fights up to one target creature an opponent
+    # controls" — Summon: Magus Sisters). Maps to the native Fight tag's
+    # own concept ("fight") so the fight_makers lane's ordinary
+    # effect_concepts("fight") read covers the recovered node with no
+    # special-case.
+    "fight": TokenRule(concept="fight", category="fight"),
 }
 
 

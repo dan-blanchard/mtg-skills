@@ -334,3 +334,27 @@ def test_stax_taxes_promoted_via_production_allowlist():
     assert nodes[0].concept == "stax_taxes"
     assert nodes[0].recovered_by == "stax_cast_lock"
     assert tag_of(nodes[0].node) == "Unimplemented"
+
+
+# ── W1 batch-4 fight_makers (third-resolution / modal-bullet recovery) ─────
+
+
+def test_parse_clause_matches_fight_verb():
+    from mtg_utils._card_ir.clause_grammar import parse_clause
+
+    assert parse_clause("~ fights up to one target creature") == "fight"
+    assert parse_clause("This creature fights another target creature") == "fight"
+
+
+def test_fight_makers_promoted_via_production_allowlist():
+    """Gimli, Mournful Avenger's third-resolution rider ("When this
+    ability resolves for the third time this turn, ~ fights up to one
+    target creature you don't control.") lands as an Unimplemented
+    effect; the production ALLOWLIST's "fight" token entry re-decorates
+    it in place to the native "fight" concept (CR 701.12)."""
+    tree = _fixture_tree("Gimli, Mournful Avenger")
+    nodes = tree.effect_concepts("fight")
+    assert len(nodes) == 1
+    assert nodes[0].concept == "fight"
+    assert nodes[0].recovered_by == "fight"
+    assert tag_of(nodes[0].node) == "Unimplemented"

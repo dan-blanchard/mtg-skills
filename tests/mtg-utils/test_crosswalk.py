@@ -878,6 +878,44 @@ def test_fight_makers_fires():
     assert "fight_makers" not in _keys("Lightning Bolt")
 
 
+def test_fight_makers_allowlisted_residue():
+    """ADR-0038 W1 batch-4: Gimli, Mournful Avenger's third-resolution
+    rider ("When this ability resolves for the third time this turn, ~
+    fights up to one target creature you don't control.") lands as an
+    Unimplemented effect the grammar's "fight" SIMPLE_VERB token
+    re-decorates to the native "fight" concept (CR 701.12)."""
+    assert ("fight_makers", "you", "") in _idents("Gimli, Mournful Avenger")
+
+
+def test_fight_makers_nested_granted():
+    """A ``Fight`` tag buried inside a GRANTED-ability construct (or a
+    chained sub_ability's "Otherwise" branch) the flat per-unit
+    concept-node walk never surfaces as its own node: Cherished
+    Hatchling's cast-a-Dinosaur GrantTrigger, Kiora, Master of the
+    Depths' -8 CreateEmblem, Aggressive Biomancy's token-copy exception
+    clause, Tunnel of Love's "Otherwise, the chosen creatures fight each
+    other" (a ``ParentTarget``-scoped Fight). :func:`has_nested_fight`
+    reaches all four shapes."""
+    for name in (
+        "Cherished Hatchling",
+        "Kiora, Master of the Depths",
+        "Aggressive Biomancy",
+        "Tunnel of Love",
+    ):
+        assert ("fight_makers", "you", "") in _idents(name), name
+
+
+def test_fight_makers_whole_card_residue_no_node():
+    """Tolsimir, Friend to Wolves' "that creature fights up to one target
+    creature you don't control" -- the trigger's own ``execute`` is a
+    bare ``GainLife``, no ``sub_ability`` chain at all, so phase drops
+    the fight clause WHOLLY (no node of any kind, ADR-0038 no-residue
+    class 2). ``tree_synthesis._arm_fight_makers`` relocates the legacy
+    ``_FIGHT_RAW`` face-level mirror to gap-gated projection time,
+    emitting the real "fight" concept."""
+    assert ("fight_makers", "you", "") in _idents("Tolsimir, Friend to Wolves")
+
+
 def test_goad_makers_structural_and_keyword():
     # Disrupt Decorum carries a GoadAll effect AND the Scryfall Goad keyword.
     assert ("goad_makers", "opponents", "") in _idents("Disrupt Decorum")
