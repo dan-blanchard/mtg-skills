@@ -707,7 +707,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "creatures_matter",
         "damage_to_opp_matters",
         "dies_recursion",
-        "dig_until",
         "direct_damage",
         "discard_outlet",
         "draw_for_each",

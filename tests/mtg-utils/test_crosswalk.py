@@ -3966,6 +3966,54 @@ def test_dig_until_excludes_their_library_mis_stamps():
     assert "dig_until" not in _keys("Mind Grind")
 
 
+def test_dig_until_exile_from_top_until_tag():
+    """CR 701.13 + 701.20a: ``ExileFromTopUntil`` is phase's EXILE-side
+    sibling of ``RevealUntil`` — the same dig-until-a-condition shape,
+    just to Exile instead of staying revealed (Demonlord Belzenlok: "exile
+    cards from the top of your library until you exile a nonland card").
+    The TAG_MAP maps it to the SAME ``reveal_until`` concept as RevealUntil
+    (ADR-0037/0038 W3), so the lane's structural arm covers it with no
+    special-case (:func:`reveal_until_player` reads ``.player`` generically
+    off either tag)."""
+    assert ("dig_until", "you", "") in _idents("Demonlord Belzenlok")
+
+
+def test_dig_until_nested_grant_descent():
+    """A GRANTED trigger (Time Lord Regeneration's "gains ... 'When this
+    creature dies, reveal cards from the top of your library until you
+    reveal a Time Lord creature card...'") carries its own RevealUntil
+    execute effect that is never its own top-level concept node — the
+    connive_makers / opponent_cast_matters shared descent
+    (``iter_nested_trigger_defs``) reaches it (ADR-0037/0038 W3). CR
+    701.20a."""
+    assert ("dig_until", "you", "") in _idents("Time Lord Regeneration")
+
+
+def test_dig_until_unimplemented_grammar_recovery():
+    """Mass Polymorph's "reveal cards from the top of your library until
+    you reveal that many creature cards" is a genuine Unimplemented
+    residue (phase's own reveal-until parser doesn't structure a
+    COUNT-tracked "that many" stop condition) — the shared clause
+    grammar's ``dig_until`` token re-decorates it to the real
+    ``reveal_until`` concept (ADR-0038 / ADR-0037/0038 W3), which the lane
+    trusts unconditionally via ``ConceptNode.recovered_by`` (the grammar's
+    "your library" ... "until" gate already establishes the digger is
+    YOU). CR 701.20a."""
+    assert ("dig_until", "you", "") in _idents("Mass Polymorph")
+
+
+def test_dig_until_no_residue_multi_card_fallback():
+    """Invasion of Alara's ETB "exile cards from the top of your library
+    until you exile TWO nonland cards with mana value 4 or less" defeats
+    phase's own ExileFromTopUntil DynamicQty parser — it degrades to a
+    bare single-card ``ChangeZone`` with NO Unimplemented node surviving
+    to re-decorate (a genuine ADR-0038-amendment "no residue" class 2
+    gap). The whole-card oracle-text fallback
+    (``_DIG_UNTIL_NO_RESIDUE_RE``) recovers it structurally (ADR-0037/0038
+    W3). CR 701.13/701.20a."""
+    assert ("dig_until", "you", "") in _idents("Invasion of Alara")
+
+
 def test_exile_until_leaves_duration_gate():
     """CR 611.2b + 603.6c: both O-Ring forms carry ``UntilHostLeavesPlay``
     on the exiling unit (Banisher Priest single-trigger; Oblivion Ring's

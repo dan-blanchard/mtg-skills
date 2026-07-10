@@ -209,6 +209,17 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "SetTapState": "tap_untap",  # tap_down / tapper_engine (CR 701.26a)
     "Detain": "detain",  # tap_down's detain arm (CR 701.35)
     "RevealUntil": "reveal_until",  # dig_until (CR 701.20a)
+    # ``ExileFromTopUntil`` is phase's EXILE-side sibling of ``RevealUntil`` —
+    # the SAME dig-until-a-condition shape (CR 701.13 + 701.20a idiom), just
+    # to Exile instead of staying revealed-in-place (Demonlord Belzenlok:
+    # "exile cards from the top of your library until you exile a nonland
+    # card"). The OLD-IR ``project.py`` category map already folds both tags
+    # to one ``dig_until`` category (``"revealuntil"``/``"exilefromtopuntil"``
+    # -> ``dig_until``); this mirrors that verbatim so the crosswalk's
+    # digger-field read (:func:`reveal_until_player`, generic on ``.player``)
+    # and the dig_until lane's structural arm cover BOTH tags with no lane
+    # change (~25-card corpus recovery, ADR-0037/0038 W3).
+    "ExileFromTopUntil": "reveal_until",
     "Double": "double_quantity",  # counter_doubling arm b (CR 122.1)
     "MultiplyCounter": "multiply_counter",  # counter_doubling arm c
     # Batch 12 (ADR-0035 Stage 2) — the life-total / control-exchange

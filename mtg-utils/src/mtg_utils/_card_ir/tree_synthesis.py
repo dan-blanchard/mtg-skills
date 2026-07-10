@@ -7291,11 +7291,26 @@ def _arm_damage_prevention(tree: ConceptTree) -> ConceptNode | None:
 # top of THEIR library" (Mind Grind family), so the digger-field gate alone
 # passes on opponent mills; the "their library" tell lives only in the
 # unit's own description ([P8]/[P21]-precedent screen — the fix).
+_DIG_UNTIL_NO_RESIDUE_RE = re.compile(
+    r"\b(?:exile|reveal)s? cards? from the top of your library until you "
+    r"(?:exile|reveal)s?\b",
+    re.IGNORECASE,
+)
+
+
 def _arm_dig_until(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``dig_until`` node, vetoing the [P28] opponent-mill
     mis-stamp ("their library" in the unit's own description) via the
     node's own text — the deleted lane-time screen relocated verbatim.
-    CR 701.20a."""
+    CR 701.20a.
+
+    ADR-0037/0038 W3: a GRANTED trigger (Shifting Shadow's upkeep-destroy
+    grant, Time Lord Regeneration's dies-grant) carries its own
+    ``RevealUntil`` execute effect that is never surfaced as its own
+    top-level concept node — the connive_makers / opponent_cast_matters
+    shared descent (:func:`iter_nested_trigger_defs`) reaches it; the SAME
+    :func:`reveal_until_player` digger read applies to the nested def's
+    execute effect unchanged."""
     for unit in tree.units:
         desc = (getattr(unit.node, "description", None) or "").lower()
         if "their library" in desc:
@@ -7303,7 +7318,14 @@ def _arm_dig_until(tree: ConceptTree) -> ConceptNode | None:
         for c in unit.iter_concepts():
             if c.role != "effect" or c.concept != "reveal_until":
                 continue
-            if reveal_until_player(c.node) == "you":
+            # ADR-0038 recovery.py's "dig_until" grammar token already
+            # requires "your library" ... "until" in the clause text (the
+            # same digger-is-you fact a typed node's own ``player`` field
+            # carries) — trust it unconditionally rather than reading
+            # ``.player`` off the recovered node's ``.node``, which is
+            # still the phase Unimplemented wrapper (no ``player`` field
+            # of its own).
+            if c.recovered_by or reveal_until_player(c.node) == "you":
                 return _synthetic_concept(
                     arm_id="dig_until",
                     concept="synth_dig_until",
@@ -7311,6 +7333,40 @@ def _arm_dig_until(tree: ConceptTree) -> ConceptNode | None:
                     subject=(),
                     desc="bucket-B reveal-until-a-condition dig (CR 701.20a)",
                 )
+        for trig in iter_nested_trigger_defs(unit.node):
+            # Deep-walk (not just ``trig.execute.effect``) — the RevealUntil
+            # effect may sit a few ``sub_ability`` links deep in the
+            # trigger's own SequentialSibling chain (Shifting Shadow: the
+            # granted trigger's FIRST effect is "destroy this creature",
+            # the RevealUntil is its ``sub_ability``).
+            for effect in iter_typed_nodes(trig):
+                if tag_of(effect) not in ("RevealUntil", "ExileFromTopUntil"):
+                    continue
+                if reveal_until_player(effect) == "you":
+                    return _synthetic_concept(
+                        arm_id="dig_until",
+                        concept="synth_dig_until",
+                        scope="you",
+                        subject=(),
+                        desc="bucket-B GRANTED reveal-until dig (CR 701.20a)",
+                    )
+    # ADR-0037/0038 W3 no-residue class (ADR-0038 amendment class 2): a
+    # multi-card threshold ("until you exile TWO nonland cards", "until you
+    # exile X permanent cards") defeats phase's own ExileFromTopUntil
+    # DynamicQty parser — it degrades the whole trigger to a bare
+    # single-card ChangeZone(Library->Exile) with a SwallowedClause parse
+    # warning, dropping the until-loop ENTIRELY (Invasion of Alara's ETB,
+    # Auspicious Starrix's mutate trigger). No Unimplemented node survives
+    # to re-decorate, so this is a whole-card oracle-text fallback, gated
+    # to run only after every structural arm above has already missed.
+    if _DIG_UNTIL_NO_RESIDUE_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return _synthetic_concept(
+            arm_id="dig_until",
+            concept="synth_dig_until",
+            scope="you",
+            subject=(),
+            desc="bucket-B no-residue multi-card dig (phase DynamicQty gap)",
+        )
     return None
 
 

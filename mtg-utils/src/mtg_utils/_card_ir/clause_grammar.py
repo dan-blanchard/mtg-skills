@@ -274,6 +274,26 @@ _PUT = comb.preceded(
         comb.value("bounce", comb.take_until("into your hand")),
     ),
 )
+# "reveal/exile cards from the top of your library until …" — the reveal-or-
+# exile-until-a-condition dig idiom (CR 701.13 Exile + 701.20a Reveal; phase's
+# OWN typed ``RevealUntil``/``ExileFromTopUntil`` tags share this exact text
+# shape when its OWN parser parks the clause Unimplemented instead — Mass
+# Polymorph / Synthetic Destiny / Push Your Luck's plain "reveal … until …",
+# Unpredictable Cyclone's replacement-wrapped "instead exile … until …"). The
+# "your library" gate keeps an opponent/other-owner dig off this arm (the
+# same direction the typed path's ``reveal_until_player`` reads off the
+# node's own ``player`` field); "until" keeps a plain single reveal
+# (``RevealTop``'s own tag) from ever reaching this arm. Tried BEFORE
+# ``_SIMPLE_VERB``'s bare "exile"/"reveal" tokens (below) so the fuller
+# pattern wins when both would match.
+_DIG_UNTIL = comb.value(
+    "dig_until",
+    comb.seq3(
+        comb.keyword({"exile", "exiles", "reveal", "reveals"}),
+        comb.take_until("your library"),
+        comb.seq2(comb.tag("your library"), comb.take_until("until")),
+    ),
+)
 
 # Single-word imperative verbs (word-boundary-safe via `keyword`, so "draw" doesn't
 # fire on "drawback"); plural/3rd-person forms included for triggered phrasings.
@@ -454,6 +474,7 @@ _VERB = comb.alt(
     _CREATE,
     _RETURN,
     _LOSE,
+    _DIG_UNTIL,
     _SIMPLE_VERB,
 )
 # An effect clause: zero or more leading prefixes, whitespace, then the verb.

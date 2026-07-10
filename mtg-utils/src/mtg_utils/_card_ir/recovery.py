@@ -101,6 +101,20 @@ ALLOWLIST: dict[str, TokenRule] = {
     # effect_concepts("fight") read covers the recovered node with no
     # special-case.
     "fight": TokenRule(concept="fight", category="fight"),
+    # reveal/exile-until-a-condition dig idiom (CR 701.13/701.20a): "reveal
+    # cards from the top of your library until you reveal ..." (Mass
+    # Polymorph, Synthetic Destiny) / "Reveal cards from the top of your
+    # library until you decide to stop" (Push Your Luck) / a
+    # replacement-wrapped "instead exile cards from the top of your library
+    # until ..." (Unpredictable Cyclone). Maps to the native RevealUntil /
+    # ExileFromTopUntil tags' own concept ("reveal_until") so the
+    # dig_until lane's ordinary structural arm covers the recovered node
+    # with no special-case — the grammar's "your library"-gated match
+    # already establishes the digger is YOU (the same direction the typed
+    # path's ``reveal_until_player`` reads off the node's own ``player``
+    # field), so the lane trusts a recovered node unconditionally (see
+    # ``tree_synthesis._arm_dig_until``'s ``c.recovered_by`` branch).
+    "dig_until": TokenRule(concept="reveal_until", category="dig_until"),
 }
 
 
