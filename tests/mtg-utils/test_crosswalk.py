@@ -788,6 +788,109 @@ def test_voltron_makers_attach_other_vs_self(name, should_fire):
 
 @pytest.mark.parametrize(
     "name",
+    [
+        # ADR-0038 W3 batch 3 — the unattach maker idiom (CR 701.3d): a
+        # structural ``Unattach`` cost (bare, self-unattach-as-a-COST idiom
+        # — "{T}, Unattach ~: <effect>") nested inside a granted ability's
+        # ``GrantAbility.definition``.
+        "Leonin Bola",
+        # a structural ``UnattachAll`` EFFECT whose ``attachment`` is NOT
+        # SelfRef (stripping gear from an opponent's/any creature — the
+        # Reconfigure self-toggle exclusion, CR 702.151j, does not apply).
+        "Disarm",
+        # the ``Attach`` gear resolved by a SIBLING effect in the SAME unit
+        # (phase's ``ParentTarget``/``TriggeringSource`` back-reference is
+        # POSITION-relative): a ``gain_control`` effect whose OWN ``target``
+        # is directly ``Typed(Equipment)``.
+        "Ogre Geargrabber",
+        # …or a sibling ``TargetOnly`` node's own ``target`` directly
+        # ``Typed(Equipment)`` (Stolen Uniform's two-target chain).
+        "Stolen Uniform",
+        # a ``ChangeZone`` reanimating an Aura/Equipment CARD onto the
+        # battlefield (CR 303.4c/301.5c require such a card enter attached
+        # — a fully STRUCTURAL tell via the target's own subtype, no text
+        # idiom needed).
+        "Hakim, Loreweaver",
+        "One Last Job",  # a Spree mode with NO ability-level description at all
+        # the SAME reanimate-with-attach idiom, but this card's ChangeZone
+        # target is an UNRESOLVED back-reference (multi-hop) — the
+        # LAST-RESORT per-ability description scan, gated on a Battlefield
+        # ChangeZone existing in the SAME unit (never whole-card).
+        "Unfinished Business",
+        # the "aura/equipment you control becomes attached" trigger idiom:
+        # phase has no structural trigger EVENT for this at all (an
+        # unresolved ``mode=Unknown`` MirrorVariant) — the unit's own
+        # description is the sole residue.
+        "Siona, Captain of the Pyleas",
+        "Eriette, the Beguiler",
+        # a residual clause phase drops entirely into an ``Unimplemented``
+        # node's OWN description (one clause, never cross-clause bleed).
+        "Akiri, Fearless Voyager",  # "unattach an Equipment from a creature..."
+        "Reckless Crew",  # "...you may attach an Equipment you control to it"
+        "Liberated Livestock",  # the REVERSED "aura ... attached" word order
+    ],
+)
+def test_voltron_makers_recovered_mechanisms(name):
+    """ADR-0038 W3 batch 3 (CR 301.5/303.4/701.3d): voltron_makers recovers
+    the unattach-maker / sibling-gear-attach / reanimate-with-attach /
+    becomes-attached / Unimplemented-residue mechanisms the base structural
+    gate above misses. Verified against the real Card IR this session; each
+    card's phase record is pinned in ``crosswalk_fixture_cards.json``."""
+    assert ("voltron_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 3 — adjudicated SHEDS: legacy's own
+        # ``VOLTRON_MAKER_REGEX`` over-fires on these via its bare
+        # "(return|put)…aura…attached" branch, but NONE of the three
+        # perform the CR 701.3a Attach action (take an Aura/Equipment/
+        # Fortification and put it onto an object) — verified this session.
+        "Animal Friend",  # COUNTS existing attachments (a payoff), no attach action
+        "Portal of Sanctuary",  # a Bounce (return to hand), never an attach
+        "Seedling Charm",  # a Bounce (return an Aura to its owner's hand)
+    ],
+)
+def test_voltron_makers_sheds_no_attach_action(name):
+    """ADR-0038 W3 batch 3 (CR 701.3a): a card whose text superficially
+    matches the legacy "aura … attached" word idiom but performs no CR
+    701.3a Attach action (a count of existing attachments, or a bounce)
+    correctly does NOT open voltron_makers — an adjudicated shed of a
+    legacy over-fire."""
+    assert "voltron_makers" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 3 — adjudicated GAINS beyond the legacy Card
+        # IR: ``Fumble``'s ``GainControlAll`` (Aura/Equipment subtype +
+        # ``AttachedToRecipient``) then ``AttachAll`` to another creature
+        # is the SAME "steal gear and reattach" pattern as Ogre Geargrabber
+        # (CR 301.5/303.4/720), just as a MASS form legacy's own regex
+        # doesn't recognize (`AttachAll` is a distinct phase tag from the
+        # `Attach`/`attach` word regex branches). ``Auriok Survivors``'
+        # ChangeZone-onto-battlefield Equipment reanimation is the SAME
+        # structural tell as Hakim/One Last Job, just missed by legacy's
+        # own ``VOLTRON_MAKER_REGEX`` (its "attach [target/all/…]
+        # equipment/aura" branch requires the literal word "attach"
+        # immediately, which "you may return target Equipment card... If
+        # you do, you may attach it" does not satisfy at the right
+        # position).
+        "Fumble",
+        "Auriok Survivors",
+    ],
+)
+def test_voltron_makers_structural_gains_beyond_legacy(name):
+    """ADR-0038 W3 batch 3: a genuine CR 301.5/303.4/720 gear-attach action
+    legacy's own regex/structural detector misses entirely — verified
+    structurally correct against the real Card IR this session."""
+    assert ("voltron_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
     ["Sram, Senior Edificer", "Reyav, Master Smith"],  # cast-spell / attachment-state
 )
 def test_voltron_matters_payoff(name):

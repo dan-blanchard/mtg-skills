@@ -761,7 +761,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "topdeck_selection",
         "topdeck_stack",
         "type_matters",
-        "voltron_makers",
         "voltron_matters",
     }
 )
@@ -2196,14 +2195,119 @@ def _energy_makers(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _voltron_maker_unit_gear_attach(unit: AbilityUnit) -> bool:
+    """Whether THIS unit performs a gear-attach whose target gear is named by a
+    SIBLING effect rather than the ``Attach`` node's own ``attachment`` field.
+
+    phase's back-reference tags are POSITION-relative (a ``ParentTarget`` /
+    ``TriggeringSource`` ``attachment`` resolves to whatever an earlier
+    sibling EFFECT in the SAME unit targeted — Ogre Geargrabber's "gain
+    control of target Equipment … Attach it to this creature" [the
+    ``GainControl`` node's own ``target`` is directly ``Typed(Equipment)``],
+    Stolen Uniform's "Choose target creature … and target Equipment … Attach
+    it" [a sibling ``TargetOnly`` node's own ``target`` is directly
+    ``Typed(Equipment)``]). Narrowly scoped to avoid the Hammer of Nazahn /
+    Ajani's Chosen / Sigarda's Aid over-fire class: (1) the ``Attach``'s own
+    ``attachment`` must itself be an unresolved back-reference (never fires
+    when ``attachment`` is absent — a self-attach — or already a direct
+    Typed filter, both handled by the base arm above); (2) the resolving
+    filter must be READ DIRECTLY off a ``TargetOnly``/``gain_control``
+    sibling's own ``target`` field (never a deeper multi-hop resolution,
+    never a ``static`` modification's ``affected`` filter — Hammer of
+    Nazahn's unrelated "Equipment you control have hexproof" static is what
+    the multi-hop-free gate excludes). CR 301.5 / 303.4 / 720 (gain control).
+    """
+    attach_unresolved = False
+    for c in unit.effects:
+        if c.concept != "attach":
+            continue
+        att = getattr(c.node, "attachment", None)
+        if att is not None and tag_of(att) in ("ParentTarget", "TriggeringSource"):
+            attach_unresolved = True
+    if not attach_unresolved:
+        return False
+    for c in unit.effects:
+        if c.concept != "gain_control" and tag_of(c.node) != "TargetOnly":
+            continue
+        tgt = getattr(c.node, "target", None)
+        if tgt is not None and (
+            {s.lower() for s in filter_subtypes(tgt)} & _VOLTRON_SUBTYPES
+        ):
+            return True
+    return False
+
+
+# The reanimate-with-attach idiom (CR 303.4 / 111.7): "return/put … Aura …
+# attached" — Unfinished Business's multi-target Aura/Equipment return has an
+# UNRESOLVED (non-Typed) ``ChangeZone.target`` back-reference, so it can't
+# ride the primary structural check below; this is a LAST-RESORT per-ability
+# description scan (never whole-card — no SequentialSibling bleed), gated to
+# a unit that ALSO carries a real ``ChangeZone`` effect whose ``destination``
+# is "Battlefield" (a genuine put/return-INTO-play, never a bounce). That
+# gate is what keeps Portal of Sanctuary ("Return target creature … and each
+# Aura attached to it to their owners' hands" — a Bounce, no Battlefield
+# ChangeZone) and Seedling Charm ("Return target Aura attached to a creature
+# to its owner's hand" — same) OUT: both match the bare text idiom but
+# neither reanimates anything onto the battlefield.
+_VOLTRON_REANIMATE_ATTACH_RX = re.compile(
+    r"(?:return|put)[^.]*\baura\b[^.]*\battached\b", re.IGNORECASE
+)
+# The "becomes attached" trigger idiom (CR 301.5 / 303.4): phase has no
+# structural trigger event for "an Aura/Equipment you control becomes
+# attached to X" (Eriette, Siona) — its ``mode`` decorates as an unresolved
+# ``MirrorVariant(key='Unknown', ...)`` carrying only the raw clause. Scoped
+# to the SAME idiom (never whole-card).
+_VOLTRON_BECOMES_ATTACHED_RX = re.compile(
+    r"\b(?:aura|equipment) you control becomes attached\b", re.IGNORECASE
+)
+# The unattach maker idiom (CR 701.3d): a card that performs the unattach
+# ACTION itself, either a structural ``Unattach``/``UnattachAll`` node
+# (Disarm, Fulgent Distraction) or the word surviving only in a granted-
+# ability / activated-ability / Unimplemented-residue description (Leonin
+# Bola, Blinding Powder, Heartseeker, Razor Boomerang, Shuriken, Surestrike
+# Trident, Sunforger, Elbrus, Toralf's Hammer, Akiri, Carry Away — every one
+# of these has "unattach" verbatim in SOME node's own ``description``, never
+# a cross-clause bleed since each node's description is that node's own
+# grounding text). "unattach" is unambiguous CR 701.3d vocabulary — no other
+# mechanic uses the word — so an unscoped-by-role scan is safe. EXCLUDED: a
+# structural ``UnattachAll`` whose ``attachment`` is ``SelfRef`` — a
+# Reconfigure creature's own "attach OR unattach [itself]" toolbox mode
+# (Acquisition Octopus, Armguard Familiar, …, CR 702.151j) is a self-toggle,
+# never a gear-fetch maker (the same self-attach exclusion as Bonesplitter's
+# equip). Its "unattach" word lives ONLY inside the Reconfigure reminder
+# PARENTHETICAL, which never reaches a ``description`` field here, so the
+# exclusion is purely the structural ``SelfRef`` gate.
+_UNATTACH_RX = re.compile(r"\bunattach\b", re.IGNORECASE)
+# A residual attach-gear clause phase drops entirely into an ``Unimplemented``
+# node (Reckless Crew / Goldwardens' Gambit: "For each of those tokens, you
+# may attach an Equipment you control to it"; Liberated Livestock: "…you may
+# put an Aura card from your hand and/or graveyard onto the battlefield
+# attached to it" — the reversed "aura … attached" word order, so BOTH
+# orderings are checked) — scoped to that node's OWN description (one
+# clause), never the ability's full text.
+_UNIMPLEMENTED_ATTACH_GEAR_RX = re.compile(
+    r"\battach\b[^.]*\b(?:equipment|aura)\b"
+    r"|(?:return|put)[^.]*\baura\b[^.]*\battached\b",
+    re.IGNORECASE,
+)
+
+
 def _voltron_makers(tree: ConceptTree) -> list[Signal]:
     """voltron_makers — gear-attaching / Equipment-Aura tutor (CR 301.5 / 303.4 /
-    701.23). Mirrors ``_signals_regex._detect_voltron_maker_ir``: (a) an ``Attach``
-    effect moving ANOTHER typed Equipment/Aura onto a creature (the ``attachment``
-    field is a separate typed gear, NOT absent — Kor Outfitter, Balan), scope not
-    opponent; (b) a ``SearchLibrary`` whose searched filter SUBTYPE is Equipment/Aura
-    (Stoneforge Mystic, Godo, Three Dreams). Self-attach (Bonesplitter's equip —
-    ``attachment`` absent) is the payload, not a maker. Scope "you".
+    701.23 / 701.3d). Mirrors ``_signals_regex._detect_voltron_maker_ir``: (a) an
+    ``Attach`` effect moving ANOTHER typed Equipment/Aura onto a creature (the
+    ``attachment`` field is a separate typed gear, NOT absent — Kor Outfitter,
+    Balan), scope not opponent; (b) a ``SearchLibrary`` whose searched filter
+    SUBTYPE is Equipment/Aura (Stoneforge Mystic, Godo, Three Dreams); (c) an
+    ``Attach`` whose gear is named by a SIBLING effect in the same unit
+    (:func:`_voltron_maker_unit_gear_attach` — Ogre Geargrabber, Stolen Uniform);
+    (d) the unattach maker idiom (Leonin Bola, Sunforger, Disarm, …); (e) the
+    reanimate-with-attach / becomes-attached last-resort idioms (Hakim, Eriette,
+    …), both corpus-verified against the known Portal of Sanctuary / Seedling
+    Charm / Animal Friend over-fire class (bounce / payoff text that superficially
+    matches "aura … attached" but performs no attach action). Self-attach
+    (Bonesplitter's equip — ``attachment`` absent) is the payload, not a maker.
+    Scope "you".
     """
     for c in tree.effect_concepts("attach"):
         if c.scope == "opponents":
@@ -2219,6 +2323,57 @@ def _voltron_makers(tree: ConceptTree) -> list[Signal]:
             {s.lower() for s in filter_subtypes(sub)} & _VOLTRON_SUBTYPES
         ):
             return [Signal("voltron_makers", "you", "", c.raw, tree.name, "high")]
+    # A ``ChangeZone`` reanimating an Aura/Equipment CARD onto the battlefield
+    # (Hakim, Iridescent Drake, Storm Herald, Mantle of the Ancients, Nomad
+    # Mythmaker, One Last Job, Academy Researchers, Danitha, Holy Avenger,
+    # Evershrike, Forum Filibuster): CR 303.4c / 301.5c REQUIRE such a card to
+    # enter attached to something (an unattached Aura/Equipment is a state-
+    # based sacrifice, CR 704.5n/704.5m) — so this is a fully STRUCTURAL tell
+    # (the target's own subtype), no text idiom needed, and it's what covers
+    # One Last Job's Spree mode (whose ability carries no ``description`` at
+    # all to text-scan). Never fires on a Bounce (Portal of Sanctuary,
+    # Seedling Charm stay excluded — they return TO HAND, not onto the
+    # battlefield).
+    for c in tree.effect_concepts("change_zone"):
+        if c.scope == "opponents":
+            continue
+        if getattr(c.node, "destination", None) != "Battlefield":
+            continue
+        tgt = getattr(c.node, "target", None)
+        if tgt is not None and (
+            {s.lower() for s in filter_subtypes(tgt)} & _VOLTRON_SUBTYPES
+        ):
+            return [Signal("voltron_makers", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        if _voltron_maker_unit_gear_attach(unit):
+            return [Signal("voltron_makers", "you", "", "", tree.name, "high")]
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unattach":
+                return [Signal("voltron_makers", "you", "", "", tree.name, "high")]
+            if tag_of(n) == "UnattachAll":
+                att = getattr(n, "attachment", None)
+                if att is None or tag_of(att) != "SelfRef":
+                    return [Signal("voltron_makers", "you", "", "", tree.name, "high")]
+            desc = getattr(n, "description", None)
+            if not isinstance(desc, str):
+                continue
+            if _UNATTACH_RX.search(desc):
+                return [Signal("voltron_makers", "you", "", desc, tree.name, "high")]
+            if tag_of(n) == "Unimplemented" and _UNIMPLEMENTED_ATTACH_GEAR_RX.search(
+                desc
+            ):
+                return [Signal("voltron_makers", "you", "", desc, tree.name, "high")]
+            if _VOLTRON_BECOMES_ATTACHED_RX.search(desc):
+                return [Signal("voltron_makers", "you", "", desc, tree.name, "high")]
+        if any(
+            c.concept == "change_zone"
+            and getattr(c.node, "destination", None) == "Battlefield"
+            for c in unit.effects
+        ):
+            desc = getattr(unit.node, "description", None)
+            if isinstance(desc, str) and _VOLTRON_REANIMATE_ATTACH_RX.search(desc):
+                return [Signal("voltron_makers", "you", "", desc, tree.name, "high")]
     return []
 
 
