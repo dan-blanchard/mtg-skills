@@ -1858,6 +1858,28 @@ def test_color_lanes_do_not_cross():
     assert "multicolor_matters" not in _keys("Forsaken Monument")
 
 
+def test_colorless_matters_cost_role_sacrifice():
+    """ADR-0037/0038 W3: a COST-role colorless filter is still a genuine
+    cares-about hook (Barrage Tyrant: "{2}{R}, Sacrifice another
+    colorless creature: …" — a narrow colorless_matters-ONLY exception to
+    the cost-role skip; the cost node itself is a ``Composite`` bundling
+    Mana + Sacrifice, so :func:`iter_cost_leaves` recurses to the
+    Sacrifice leaf carrying the ``ColorCount EQ 0`` target filter). CR
+    105.2."""
+    assert ("colorless_matters", "you", "") in _idents("Barrage Tyrant")
+
+
+def test_colorless_matters_condition_site():
+    """ADR-0037/0038 W3: the colorless-count CONDITION sibling of the
+    existing Power-threshold condition-site read — "if you control
+    another colorless creature" (Dominator Drone's ETB, filter controller
+    ``ScopedPlayer`` under an ``Opponent`` player_scope wrapper) / "as
+    long as you control no other colorless creatures" (Dust Stalker's
+    end-step bounce, filter controller ``You``). CR 105.2 / 208.1."""
+    assert ("colorless_matters", "you", "") in _idents("Dominator Drone")
+    assert ("colorless_matters", "you", "") in _idents("Dust Stalker")
+
+
 def test_power_matters_high():
     """Shaman of the Great Hunt scales off creatures you control with power 4 or
     greater — a fixed PtComparison Power GE, controller you → power_matters."""

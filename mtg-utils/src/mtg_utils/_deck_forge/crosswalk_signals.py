@@ -3517,6 +3517,24 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
 
     for c in tree.iter_concepts():
         if c.role == "cost":
+            # ADR-0037/0038 W3: a COST-role colorless filter is still a
+            # genuine cares-about hook (Barrage Tyrant: "Sacrifice
+            # ANOTHER colorless creature" as an activation cost) — narrow
+            # exception, colorless_matters ONLY (multicolor/power/vanilla
+            # stay cost-role-excluded per the original checklist gate: an
+            # unrelated "sacrifice a creature" cost must not open EVERY
+            # creature-type-matters lane, but a color-FILTERED sac cost
+            # is unambiguously a colorless build-around). The cost NODE
+            # itself is often a ``Composite`` bundling Mana + Sacrifice —
+            # :func:`iter_cost_leaves` recurses ``costs`` lists to the
+            # Sacrifice leaf that actually carries the ``target`` filter.
+            for leaf in iter_cost_leaves(c.node):
+                filt = effect_filter(leaf)
+                if filt is not None and any(
+                    cmp_ == "EQ" and cnt == 0 for cmp_, cnt in color_count_preds(filt)
+                ):
+                    fire("colorless_matters", c.raw)
+                    break
             continue
         handle(effect_filter(c.node), c.raw)
         handle(count_operand_filter(c.node), c.raw)
@@ -3553,13 +3571,28 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         for site in iter_condition_sites(unit.node):
             for n in iter_typed_nodes(site):
-                if filter_controller(n) != "You":
-                    continue
-                if any(
+                ctrl = filter_controller(n)
+                if ctrl == "You" and any(
                     stat == "Power" and cmp_ in ("GE", "GT")
                     for stat, cmp_, _v in power_threshold_preds(n)
                 ):
                     fire("power_matters", "")
+                # ADR-0037/0038 W3: the colorless-count CONDITION sibling —
+                # "as long as you control another colorless creature"
+                # (Dust Stalker, Eldrazi Aggressor) / "if you control
+                # another colorless creature" (Dominator Drone). The
+                # SAME condition-site machinery, ColorCount EQ 0 instead
+                # of a Power threshold. ``ScopedPlayer`` joins ``You`` —
+                # a condition binds to the ABILITY's own controller by
+                # default (Dominator Drone's condition sits under an
+                # ``Opponent`` player_scope for its LoseLife EFFECT, but
+                # phase still resolves the CONDITION's own filter
+                # controller contextually, never to the literal
+                # opponent CR 208.1 would require "you control").
+                if ctrl in ("You", "ScopedPlayer") and any(
+                    cmp_ == "EQ" and cnt == 0 for cmp_, cnt in color_count_preds(n)
+                ):
+                    fire("colorless_matters", "")
     # recall-completion b1 (ADR-0035 backstop, folded to Tier-1 ADR-0036/0037):
     # the "greatest/total/combined power of creatures you control" AGGREGATE
     # scaler (Ghalta, Rishkar's Expertise, The Great Henge) + the Formidable
