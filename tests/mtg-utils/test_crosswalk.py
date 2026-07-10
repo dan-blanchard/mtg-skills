@@ -3069,6 +3069,45 @@ def test_opponent_cast_matters_recipient_gate():
     assert "opponent_cast_matters" not in _keys("Beast Whisperer")
 
 
+def test_opponent_cast_matters_nested_static_grant():
+    """Hunting Grounds's Threshold-gated static grants "Whenever an
+    opponent casts a spell, ..." — a REAL nested ``SpellCast`` trigger def
+    inside the static ability's ``GrantTrigger`` modification, not
+    surfaced as its own flat trigger unit. The ``iter_nested_trigger_defs``
+    shared descent (:func:`is_opponent_cast_trigger_def`, ADR-0037/0038 W1
+    batch-3) reaches it (CR 102.2/102.3)."""
+    assert ("opponent_cast_matters", "opponents", "") in _idents("Hunting Grounds")
+
+
+def test_opponent_cast_matters_nested_emblem_trigger():
+    """Jace, Unraveler of Secrets's -8 ultimate "You get an emblem with
+    'Whenever an opponent casts their first spell each turn, counter that
+    spell.'" carries the trigger def in a ``CreateEmblem`` effect's
+    ``triggers`` list — the shared descent's SECOND shape (CR 102.2/102.3;
+    CR 605.4)."""
+    assert (
+        "opponent_cast_matters",
+        "opponents",
+        "",
+    ) in _idents("Jace, Unraveler of Secrets")
+
+
+def test_opponent_cast_matters_soulbond_no_residue_synthesis():
+    """Stage-A synthesis (ADR-0037/0038): Thundering Mightmare's
+    soulbond-paired "Whenever an opponent casts a spell, put a +1/+1
+    counter on this creature" carries NO node at all — the static's
+    ``SourceIsPaired`` condition parses, but ``modifications`` is a
+    genuinely EMPTY list (phase drops the granted trigger text entirely,
+    not even an Unimplemented placeholder). ``tree_synthesis.
+    _arm_opponent_cast_matters`` fills the gap from ``tree.oracle`` (CR
+    102.2/102.3)."""
+    assert (
+        "opponent_cast_matters",
+        "opponents",
+        "",
+    ) in _idents("Thundering Mightmare")
+
+
 def test_combat_damage_matters_kind_and_recipient():
     """CR 510.1b: Coastal Piracy's CombatOnly player-connect fires
     combat_damage_matters; a creature recipient (Serpentine Basilisk) and

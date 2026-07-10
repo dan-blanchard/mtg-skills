@@ -88,9 +88,11 @@ from mtg_utils._card_ir.crosswalk import (
     has_nested_connive,
     has_nested_flip_coin,
     has_nested_roll_die,
+    is_opponent_cast_trigger_def,
     iter_condition_sites,
     iter_cost_leaves,
     iter_mod_sites,
+    iter_nested_trigger_defs,
     iter_static_defs,
     iter_typed_nodes,
     mana_restricted_to_multicolored,
@@ -2643,6 +2645,59 @@ def _arm_connive_makers(tree: ConceptTree) -> ConceptNode | None:
         scope="you",
         subject=(),
         desc="target-creature-connives clause phase drops entirely",
+    )
+
+
+# "Whenever an opponent casts a[n ...] spell" idiom (CR 102.2/102.3 +
+# 603.2) — the no-residue class Thundering Mightmare's soulbond-paired
+# grant falls into (its ``SourceIsPaired`` static's ``modifications`` is
+# a genuinely EMPTY list; phase drops the granted trigger text with no
+# node at all, not even an Unimplemented one).
+_OPPONENT_CAST_PAYOFF_RE = re.compile(r"\bwhenever an opponent casts\b", re.IGNORECASE)
+
+
+def has_structural_opponent_cast_matters(tree: ConceptTree) -> bool:
+    """The opponent_cast_matters TYPED gate: :func:`is_opponent_cast_trigger_def`
+    applied at a top-level trigger unit's own node OR a nested trigger def
+    :func:`iter_nested_trigger_defs` reaches inside a GRANTED-ability
+    construct (Hunting Grounds's Threshold static grant, Jace, Unraveler
+    of Secrets's -8 emblem, Blink's Alien Angel token grant). Shared
+    verbatim with the ``_opponent_cast_matters`` lane and this arm's gap
+    gate below."""
+    for unit in tree.units:
+        if unit.origin == "trigger" and is_opponent_cast_trigger_def(unit.node):
+            return True
+        if any(
+            is_opponent_cast_trigger_def(t) for t in iter_nested_trigger_defs(unit.node)
+        ):
+            return True
+    return False
+
+
+def _arm_opponent_cast_matters(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``opponent_cast`` marker for Thundering Mightmare's
+    soulbond-paired "Whenever an opponent casts a spell, put a +1/+1
+    counter on this creature" — phase's ``SourceIsPaired`` static drops
+    the granted trigger text ENTIRELY (``modifications = []``, no node of
+    any kind), a no-residue class 2 gap (ADR-0038 amendment). Gap-gated
+    on :func:`has_structural_opponent_cast_matters` so a typed/nested
+    card never doubles. This key's underlying read is TRIGGER-unit-based
+    (not ``effect_concepts``-based like connive/coin_flip/dice), so there
+    is no natural "real" phase concept name for a bare trigger shape —
+    ``opponent_cast`` is this arm's dedicated marker, read by the lane's
+    explicit ``isinstance(c.node, SynthesizedNode)`` check (the
+    group_hug_draw precedent for a synthesis-only marker name). CR
+    102.2/102.3."""
+    if has_structural_opponent_cast_matters(tree):
+        return None
+    if not _OPPONENT_CAST_PAYOFF_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="opponent_cast_matters",
+        concept="opponent_cast",
+        scope="opponents",
+        subject=(),
+        desc="soulbond-granted opponent-cast trigger phase drops entirely",
     )
 
 
@@ -7359,6 +7414,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("dont_own", _arm_dont_own),
     ("typed_anthem_multi", _arm_typed_anthem_multi),
     ("connive_makers", _arm_connive_makers),
+    ("opponent_cast_matters", _arm_opponent_cast_matters),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

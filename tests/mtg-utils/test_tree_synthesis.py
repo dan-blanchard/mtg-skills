@@ -85,6 +85,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_miracle_grant,
     _arm_multicolor_matters,
     _arm_noncombat_damage_payoff,
+    _arm_opponent_cast_matters,
     _arm_opponent_counter_grant,
     _arm_opponent_exile_matters,
     _arm_per_target_payoff,
@@ -141,6 +142,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_manland,
     has_structural_miracle_grant,
     has_structural_multicolor_matters,
+    has_structural_opponent_cast_matters,
     has_structural_opponent_counter_grant,
     has_structural_outlaw,
     has_structural_proliferate,
@@ -1873,6 +1875,59 @@ def test_connive_makers_excludes_state_payoff_no_synth():
 
 def test_connive_makers_synth_registered():
     assert "connive_makers" in SYNTHESIS_ARM_IDS
+
+
+# ── opponent_cast_matters nested-grant structural gate + no-residue
+# synthesis (ADR-0037/0038 W1 batch-3) ──────────────────────────────────
+# Hunting Grounds's Threshold-gated static grant and Jace, Unraveler of
+# Secrets's -8 emblem BOTH carry a REAL nested opponent-scoped SpellCast
+# trigger def (a GrantTrigger modification's trigger field; a CreateEmblem
+# effect's triggers list, respectively) -- has_structural_opponent_cast_
+# matters's nested fallback (iter_nested_trigger_defs +
+# is_opponent_cast_trigger_def) reaches both, so NEITHER needs synthesis.
+# Thundering Mightmare's soulbond-paired grant carries NO node at all
+# (modifications=[]) -- the genuine no-residue gap the synthesis arm fills
+# (CR 102.2/102.3).
+
+
+def _opponent_cast_matters_fires(name):
+    from mtg_utils._deck_forge.crosswalk_signals import _opponent_cast_matters
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    return any(s.key == "opponent_cast_matters" for s in _opponent_cast_matters(tree))
+
+
+def test_opponent_cast_matters_nested_static_grant_no_double():
+    """Hunting Grounds's opponent-cast trigger is nested inside its static
+    ability's GrantTrigger modification -- the nested fallback covers it,
+    so the synthesis arm no-ops."""
+    tree = _fixture_tree("Hunting Grounds")
+    assert has_structural_opponent_cast_matters(tree) is True
+    assert _arm_opponent_cast_matters(tree) is None
+    assert _opponent_cast_matters_fires("Hunting Grounds") is True
+
+
+def test_opponent_cast_matters_nested_emblem_no_double():
+    """Jace, Unraveler of Secrets's opponent-cast trigger is nested inside
+    its -8 ultimate's CreateEmblem.triggers list -- the nested fallback
+    covers it, so the synthesis arm no-ops."""
+    tree = _fixture_tree("Jace, Unraveler of Secrets")
+    assert has_structural_opponent_cast_matters(tree) is True
+    assert _arm_opponent_cast_matters(tree) is None
+    assert _opponent_cast_matters_fires("Jace, Unraveler of Secrets") is True
+
+
+def test_opponent_cast_matters_soulbond_no_residue_synth():
+    tree = _fixture_tree("Thundering Mightmare")
+    assert has_structural_opponent_cast_matters(tree) is False  # genuine gap
+    node = _arm_opponent_cast_matters(tree)
+    assert node is not None
+    assert node.scope == "opponents"
+    assert _opponent_cast_matters_fires("Thundering Mightmare") is True
+
+
+def test_opponent_cast_matters_synth_registered():
+    assert "opponent_cast_matters" in SYNTHESIS_ARM_IDS
 
 
 # ── extra_land_drop idiom-bridge synthesis (W2) ─────────────────────────────

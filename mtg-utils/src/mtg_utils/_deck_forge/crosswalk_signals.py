@@ -75,10 +75,12 @@ from mtg_utils._card_ir.crosswalk import (
     has_nested_flip_coin,
     is_damage_reflect_trigger_def,
     is_dies_return_trigger,
+    is_opponent_cast_trigger_def,
     iter_condition_sites,
     iter_cost_leaves,
     iter_deep_target_grants,
     iter_mod_sites,
+    iter_nested_trigger_defs,
     iter_single_target_grants,
     iter_static_defs,
     iter_threaded_target_statics,
@@ -728,7 +730,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "lure_makers",
         "mana_amplifier",
         "minus_counters_matter",
-        "opponent_cast_matters",
         "opponent_discard",
         "phasing_makers",
         "plus_one_matters",
@@ -5769,21 +5770,42 @@ def _opponent_cast_matters(tree: ConceptTree) -> list[Signal]:
     ``SpellCastOrCopy`` mode ("whenever [a player] casts or copies …", 33
     corpus — b10 follow-up e) joins the same read: its opponent-scoped
     ``valid_target`` fires, its Controller-scoped form (Archmage Emeritus)
-    stays out on the same gate. Scope "opponents".
+    stays out on the same gate.
+
+    :func:`is_opponent_cast_trigger_def` is this SAME predicate, applied at
+    TWO tree positions (ADR-0037/0038 W1 batch-3): a top-level trigger
+    unit's own node, and a NESTED trigger definition
+    :func:`iter_nested_trigger_defs` reaches inside a GRANTED-ability
+    construct the flat per-unit walk never surfaces as its own unit —
+    Hunting Grounds's Threshold-gated static grant, Jace, Unraveler of
+    Secrets's -8 emblem (``CreateEmblem.triggers``), Blink's Alien Angel
+    token grant. Thundering Mightmare's soulbond-paired grant carries NO
+    node at all (``modifications: []``, a no-residue class-2 gap) — a
+    synthetic ``opponent_cast`` marker from
+    ``tree_synthesis._arm_opponent_cast_matters`` fills that one (this key's
+    underlying read is trigger-unit-based, not ``effect_concepts``-based,
+    so the marker needs its own explicit check, unlike a lane that already
+    reads via ``effect_concepts``). Scope "opponents".
     """
     for unit in tree.units:
-        if unit.origin != "trigger" or unit.trigger_event not in (
-            "cast_spell",
-            "spellcastorcopy",
-        ):
-            continue
-        vt = getattr(unit.node, "valid_target", None)
-        opp = tag_of(vt) in ("Opponent", "Opponents", "EachOpponent") or (
-            tag_of(vt) == "Typed" and filter_controller(vt) == "Opponent"
-        )
-        if opp:
+        if unit.origin == "trigger" and is_opponent_cast_trigger_def(unit.node):
             return [
                 Signal("opponent_cast_matters", "opponents", "", "", tree.name, "high")
+            ]
+    for unit in tree.units:
+        for trig in iter_nested_trigger_defs(unit.node):
+            if is_opponent_cast_trigger_def(trig):
+                return [
+                    Signal(
+                        "opponent_cast_matters", "opponents", "", "", tree.name, "high"
+                    )
+                ]
+    for c in tree.effect_concepts("opponent_cast"):
+        if isinstance(c.node, SynthesizedNode):
+            return [
+                Signal(
+                    "opponent_cast_matters", "opponents", "", c.raw, tree.name, "high"
+                )
             ]
     return []
 
