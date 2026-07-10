@@ -726,6 +726,31 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # face (task #76): the ``_LURE_ABLE`` idiom reads the synthesized
     # tree's oracle text, so production parity is exact (the wave's own
     # measurement harness predated ``trees_for`` and couldn't see it).
+    #
+    # ADR-0038 W3 batch 4 (combat-damage cluster): ``poison_makers``
+    # PROMOTED (146 both / 0 live_only vs a live corpus re-measure — up
+    # from a 63-card gap). Two structural gaps closed: (1) a direct
+    # ``GivePlayerCounter(poison)`` DOER with no infect/toxic/poisonous
+    # keyword at all (Pit Scorpion, Marsh Viper — joined
+    # ``_PLAYER_COUNTER_MAKER``); (2) a poison GivePlayerCounter buried
+    # inside a CreateToken/CreateEmblem's OWN granted-ability definition
+    # (Serpent Generator, Ajani Sleeper Agent — a deep ``iter_typed_nodes``
+    # walk). Plus a SANCTIONED whole-card word-mirror
+    # (``_POISON_WORD_MIRROR``) for the keyword GRANTERS a bearer-only
+    # keyword-array read misses (Corrupted Conscience "has infect", Snake
+    # Cult Initiation "has poisonous 3"). One adjudicated GAIN: Ajani's
+    # emblem giver (legacy's OLD IR projects the whole "You get an emblem
+    # with ..." clause as one opaque, undecomposed effect — verified via
+    # ``old_ir_for``, no nested GivePlayerCounter survives — so legacy can
+    # never see into it; CR 114.1/122.1). ``combat_damage_matters``,
+    # ``combat_damage_to_opp``, and ``creature_ping`` gained substantial
+    # structural recovery this batch too (nested/delayed trigger descent,
+    # an Unknown-mode description fallback, a planeswalker-only exclusion,
+    # and a doer-based creature_ping widening) but still carry a diverse
+    # residual tail (TK-templated placeholder cards, bare quoted-static
+    # grants with no CreateDelayedTrigger/GrantTrigger node at all, DFC
+    # blank-oracle records) — NOT promoted this batch; see the W3 batch 4
+    # session notes.
     {
         "any_counter_matters",
         "artifacts_matter",
@@ -755,7 +780,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "minus_counters_matter",
         "opponent_discard",
         "plus_one_matters",
-        "poison_makers",
         "ramp",
         "sacrifice_outlets",
         "scaling_pump",
@@ -3553,25 +3577,76 @@ def _suspect_makers(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _combat_damage_to_opp_fires(node: object) -> bool:
+    """Whether trigger DEFINITION ``node`` is combat_damage_to_opp's exact shape:
+    :func:`damage_to_player_trigger_kind` confirms ``CombatOnly`` AND the
+    recipient reaches an ACTUAL player, not merely a planeswalker (CR 102.1 — a
+    planeswalker is not a player). Zagras, Thief of Heartbeats's "Whenever a
+    creature you control deals combat damage to a PLANESWALKER, destroy that
+    planeswalker" satisfies ``combat_damage_matters`` (CR 510.1b's
+    player-OR-planeswalker read, shared with ``damage_recipient_is_player``'s
+    broader gate) but not this PLAYER-specific lane — legacy's own
+    recipient-tuple read requires "player" in the recipient tuple, not merely
+    "planeswalker" (CR 510.1c). Also accepts the
+    :func:`_unknown_mode_combat_damage_to_player` Unknown-mode fallback
+    (Kang Dynasty's Saga-granted delayed trigger) — that mirror only ever
+    matches an explicit "... to a player" phrasing, so it never needs the
+    planeswalker exclusion itself.
+    """
+    kind = damage_to_player_trigger_kind(node)
+    if kind is None and _unknown_mode_combat_damage_to_player(node):
+        return True
+    if kind != "CombatOnly":
+        return False
+    vt = getattr(node, "valid_target", None)
+    if tag_of(vt) == "Typed":
+        cores = filter_core_types(vt)
+        if cores and "Player" not in cores and "Planeswalker" in cores:
+            return False
+    return True
+
+
 def _combat_damage_to_opp(tree: ConceptTree) -> list[Signal]:
     """combat_damage_to_opp — a "deals combat damage to a player" trigger (CR 510.1c).
     A ``DamageDone`` trigger whose ``damage_kind`` is ``CombatOnly`` AND whose
     recipient (``valid_target``) reaches a PLAYER (Coastal Piracy, Bident of Thassa).
     A creature recipient (Ohran Viper's first trigger) is ``combat_damage_to_creature``
-    (a different lane); a non-combat "deals damage" trigger never reaches here. The
-    quoted-in-an-activated-ability text-fold residue stays ``live_only``. Scope
+    (a different lane); a planeswalker-ONLY recipient (Zagras) is
+    ``combat_damage_matters`` only (see :func:`_combat_damage_to_opp_fires`); a
+    non-combat "deals damage" trigger never reaches here.
+
+    ADR-0038 W3 batch 4 (combat-damage cluster): shares :func:`damage_to_player_
+    trigger_kind`'s three-position descent with ``_combat_damage_lanes`` — a
+    top-level trigger unit's own node, a ``GrantTrigger``/``CreateEmblem``
+    granted def (:func:`iter_nested_trigger_defs` — Sokrates's "target
+    creature gains" quote, Fire Giant's Fury's pump-target grant), and a
+    ``CreateDelayedTrigger`` watcher def (:func:`iter_delayed_trigger_condition_
+    defs` — Subira, Tulzidi Caravanner's "Until end of turn, whenever a
+    creature you control ... deals combat damage to a player, draw a card").
+    The bare top-level-only read left every granted/delayed form
+    ``live_only`` (the sibling ``combat_damage_matters``/``damage_to_opp_
+    matters`` lanes already had this descent; this lane didn't). Scope
     "opponents".
     """
     for unit in tree.units:
-        node = unit.node
-        if unit.trigger_event != "deals_damage":
-            continue
-        if getattr(node, "damage_kind", None) != "CombatOnly":
-            continue
-        if damage_recipient_is_player(getattr(node, "valid_target", None)):
+        if unit.origin == "trigger" and _combat_damage_to_opp_fires(unit.node):
             return [
                 Signal("combat_damage_to_opp", "opponents", "", "", tree.name, "high")
             ]
+        for trig in iter_nested_trigger_defs(unit.node):
+            if _combat_damage_to_opp_fires(trig):
+                return [
+                    Signal(
+                        "combat_damage_to_opp", "opponents", "", "", tree.name, "high"
+                    )
+                ]
+        for trig in iter_delayed_trigger_condition_defs(unit.node):
+            if _combat_damage_to_opp_fires(trig):
+                return [
+                    Signal(
+                        "combat_damage_to_opp", "opponents", "", "", tree.name, "high"
+                    )
+                ]
     return []
 
 
@@ -3942,10 +4017,12 @@ def _keyword_field_signals_b5(keywords: frozenset[str], name: str) -> list[Signa
 
     Reading the STRUCTURED keyword array (not oracle text) makes the lanes immune to
     the name / ability-word collisions the deleted regex floors suffered (a card
-    naming the mechanic only in its title can never carry the keyword). The poison
-    GRANTERS ("gains infect") and the structural ``GivePlayerCounter:poison`` givers
-    phase carries off the keyword array are a documented ``live_only`` residue
-    (checklist #6).
+    naming the mechanic only in its title can never carry the keyword). ADR-0038
+    W3 batch 4: the poison GRANTERS ("gains infect") and the structural
+    ``GivePlayerCounter:poison`` givers phase carries off the keyword array are
+    now recovered — the former by ``_player_counter_makers``'s
+    ``_POISON_WORD_MIRROR`` whole-card fallback, the latter by its
+    ``_PLAYER_COUNTER_MAKER["poison"]`` row.
     """
     out: list[Signal] = []
     low = {k.lower() for k in keywords}
@@ -4037,11 +4114,18 @@ _COUNTER_PRED_LANES: dict[str, tuple[str, str]] = {
 # GivePlayerCounter ``counter_kind`` (lower-cased) → its player-resource MAKER
 # lane + the FIXED lane scope (CR 122.1 / 728). rad lands on opponents (a kill
 # clock — the live ``_PLAYER_COUNTER_KEYS`` scopes it ``opponents`` regardless of
-# the giver's recipient); experience is a personal resource (scope ``you``). The
-# poison giver is ported elsewhere (the ``poison_makers`` keyword lane).
+# the giver's recipient); experience is a personal resource (scope ``you``).
+# ADR-0038 W3 batch 4 (combat-damage cluster): the poison giver ALSO belongs
+# here — a direct ``GivePlayerCounter(poison)`` DOER (Pit Scorpion, Marsh
+# Viper, Decimator Web, Caress of Phyrexia, Vraska's Fall — "that player gets
+# N poison counters" with NO infect/toxic/poisonous keyword at all) is a
+# poison_makers member the keyword-array arm (``_keyword_field_signals_b5``)
+# can't reach (CR 120.3b / 104.3d — poison counters, no static ability
+# involved). Fixed scope ``opponents`` (a kill clock, same as rad).
 _PLAYER_COUNTER_MAKER: dict[str, tuple[str, str]] = {
     "rad": ("rad_counter_makers", "opponents"),
     "experience": ("experience_makers", "you"),
+    "poison": ("poison_makers", "opponents"),
 }
 # Player-reference tags naming an opponent — the only direction that takes a
 # party/poison-style count off YOUR resource (CR 700.8 — "your party").
@@ -4098,6 +4182,17 @@ def _counter_kind_lanes(tree: ConceptTree) -> list[Signal]:
 
 
 _RAD_REF = re.compile(r"\brad counters?\b", re.IGNORECASE)
+# ADR-0038 W3 batch 4 — a SANCTIONED byte-identical mirror of legacy's
+# whole-card poison_makers word regex (``_signals_ir``'s
+# ``_IR_KEPT_DETECTORS`` "poison_makers" row): the keyword-array arm
+# (``_keyword_field_signals_b5``) only sees infect/toxic/poisonous on the
+# BEARER's own Scryfall keyword list, missing every GRANTED occurrence —
+# an Aura/anthem/static that gives the word to ANOTHER creature (Snake Cult
+# Initiation "has poisonous 3", Virulent Sliver "have poisonous 1",
+# Corrupted Conscience / Phyresis "has infect", Triumph of the Hordes
+# "gain ... infect", token-definition grants inside a CreateToken's own
+# ability text — Basilica Shepherd's toxic Mites). CR 702.90/702.70/702.164.
+_POISON_WORD_MIRROR = re.compile(r"\bpoisonous\b|\btoxic\b|\binfect\b", re.IGNORECASE)
 
 
 def _has_native_rad_counter(tree: ConceptTree) -> bool:
@@ -4115,14 +4210,17 @@ def _has_native_rad_counter(tree: ConceptTree) -> bool:
 
 
 def _player_counter_makers(tree: ConceptTree) -> list[Signal]:
-    """rad_counter_makers / experience_makers — a ``GivePlayerCounter`` DOER (CR
-    122.1i / 728) OR a rad-counter clause phase mangles/drops entirely (a
-    whole-card residue mirror). The card gives a player a rad (a
-    mill-and-bleed kill clock, fixed scope ``opponents``) or an experience
-    counter (a personal resource, scope ``you``) — read off the typed
+    """rad_counter_makers / experience_makers / poison_makers — a
+    ``GivePlayerCounter`` DOER (CR 122.1i / 728 / 120.3b) OR a rad-counter
+    clause phase mangles/drops entirely (a whole-card residue mirror). The
+    card gives a player a rad (a mill-and-bleed kill clock, fixed scope
+    ``opponents``), an experience counter (a personal resource, scope
+    ``you``), or a poison counter (ADR-0038 W3 batch 4 — Pit Scorpion, Marsh
+    Viper, Decimator Web: a direct "gets a poison counter" giver with no
+    infect/toxic/poisonous keyword at all, joining the keyword-bearer arm in
+    ``poison_makers``, scope ``opponents``) — read off the typed
     ``counter_kind``, the kind the OLD lossy IR split into per-kind effect
-    categories. Tato Farmer → rad; Mizzix / Ezuri → experience. The poison
-    giver routes to its own ``poison_makers`` lane.
+    categories. Tato Farmer → rad; Mizzix / Ezuri → experience.
 
     ADR-0038 W1 batch-4: most rad clauses land as an Unimplemented "get ...
     rad counters" effect (Contaminated Drink, Feral Ghoul, Mariposa
@@ -4154,6 +4252,38 @@ def _player_counter_makers(tree: ConceptTree) -> list[Signal]:
         and _RAD_REF.search(_kept(tree))
     ):
         out.append(Signal("rad_counter_makers", "opponents", "", "", tree.name, "high"))
+    # ADR-0038 W3 batch 4 — a poison GivePlayerCounter buried inside a
+    # CreateToken's OWN granted-ability definition (Serpent Generator:
+    # "Create a ... token. It has 'Whenever this creature deals damage to
+    # a player, that player gets a poison counter.'"). The top-level
+    # ``effect_concepts`` walk only sees the CreateToken effect itself,
+    # never the created token's own nested ability tree; a deep walk
+    # (:func:`iter_typed_nodes`) reaches it (CR 111.7 — a token's copiable
+    # values include its printed abilities). The SAME deep walk also
+    # reaches a poison giver buried inside a ``CreateEmblem``'s granted
+    # trigger (Ajani, Sleeper Agent's ultimate: "You get an emblem with
+    # 'Whenever you cast a creature or planeswalker spell, target
+    # opponent gets two poison counters.'" — CR 114.1). This is an
+    # ADJUDICATED GAIN over legacy: the OLD lossy IR projects the whole
+    # "You get an emblem with ..." clause as ONE opaque ``emblem``-
+    # category effect with no further decomposition at all (verified via
+    # ``old_ir_for`` — no ``GivePlayerCounter`` sub-effect survives), so
+    # legacy's poison_makers can never see into it; the crosswalk's
+    # structural deep walk is strictly more precise (CR 122.1 / 114.1).
+    if "poison_makers" not in seen:
+        for unit in tree.units:
+            if any(
+                tag_of(n) == "GivePlayerCounter"
+                and player_counter_kind(n).lower() == "poison"
+                for n in iter_typed_nodes(unit.node)
+            ):
+                seen.add("poison_makers")
+                out.append(
+                    Signal("poison_makers", "opponents", "", "", tree.name, "high")
+                )
+                break
+    if "poison_makers" not in seen and _POISON_WORD_MIRROR.search(_kept(tree)):
+        out.append(Signal("poison_makers", "opponents", "", "", tree.name, "high"))
     return out
 
 
@@ -7306,6 +7436,39 @@ _DAMAGE_TO_OPP_MATTERS_MIRROR = re.compile(
     r"|target opponent|that player|a player or planeswalker)\b",
     re.IGNORECASE,
 )
+# ADR-0038 W3 batch 4 — a phase-parser gap distinct from the mirror above: a
+# GRANTED/DELAYED trigger def (a pump-attached ``CreateDelayedTrigger``, a
+# Saga-granted watcher) whose ``mode`` phase leaves ``MirrorVariant(key=
+# "Unknown")`` entirely (Fire Giant's Fury's "Whenever it deals combat
+# damage to a player this turn, exile ..."; Kang Dynasty's "whenever any of
+# those creatures deals combat damage to a player, draw a card" — both
+# verified via direct node inspection: mode.key=="Unknown", damage_kind
+# left the generic "Any", so :func:`damage_to_player_trigger_kind` bails on
+# the event-tag check before it ever reaches the recipient). phase DOES
+# keep the clause on that ONE node's own ``description`` field, so this is
+# a per-node structural read (never a whole-card scan): CR 510.1b/c.
+_UNKNOWN_MODE_COMBAT_DAMAGE_TO_PLAYER = re.compile(
+    r"deals combat damage to (?:a player|target player|that player"
+    r"|an opponent|each opponent|target opponent|one of your opponents"
+    r"|a player or planeswalker|target player or planeswalker)\b",
+    re.IGNORECASE,
+)
+
+
+def _unknown_mode_combat_damage_to_player(trig: object) -> bool:
+    """Whether trigger DEFINITION ``trig`` is an Unknown-mode node whose OWN
+    ``description`` field confirms the "deals combat damage to a player"
+    shape phase couldn't classify structurally at all (see module note
+    above). Read ONLY when :func:`damage_to_player_trigger_kind` already
+    returned ``None`` for this exact node — never overrides a structural
+    miss into a wrong kind, matching the existing whole-card mirrors'
+    fallback-only contract in this module.
+    """
+    mode = getattr(trig, "mode", None)
+    if not (isinstance(mode, MirrorVariant) and mode.key == "Unknown"):
+        return False
+    desc = getattr(trig, "description", "") or ""
+    return _UNKNOWN_MODE_COMBAT_DAMAGE_TO_PLAYER.search(desc) is not None
 
 
 def _combat_damage_lanes(tree: ConceptTree) -> list[Signal]:
@@ -7327,6 +7490,15 @@ def _combat_damage_lanes(tree: ConceptTree) -> list[Signal]:
     static, Sword of War and Peace's Equipment, Stormbreath Dragon's
     monstrosity-granted static) fires exactly like the top-level form
     (Hypnotic Specter).
+
+    ADR-0038 W3 batch 4 (combat-damage cluster): a third descent position —
+    :func:`iter_delayed_trigger_condition_defs` — reaches a
+    ``CreateDelayedTrigger`` watcher def (Subira, Tulzidi Caravanner's
+    "Until end of turn, whenever a creature you control ... deals combat
+    damage to a player, draw a card"; Fire Giant's Fury, Hunter's Insight's
+    "whenever that creature deals combat damage to a player [or
+    planeswalker] this turn" one-shot pumps), the SAME watcher shape 4 other
+    already-promoted lanes already read.
 
     ADR-0038 W3 batch 2 unit 4: a SANCTIONED byte-identical mirror
     (:data:`_DAMAGE_TO_OPP_MATTERS_MIRROR`, ported unchanged from the
@@ -7363,7 +7535,15 @@ def _combat_damage_lanes(tree: ConceptTree) -> list[Signal]:
         if unit.origin == "trigger":
             emit(damage_to_player_trigger_kind(unit.node))
         for trig in iter_nested_trigger_defs(unit.node):
-            emit(damage_to_player_trigger_kind(trig))
+            kind = damage_to_player_trigger_kind(trig)
+            if kind is None and _unknown_mode_combat_damage_to_player(trig):
+                kind = "CombatOnly"
+            emit(kind)
+        for trig in iter_delayed_trigger_condition_defs(unit.node):
+            kind = damage_to_player_trigger_kind(trig)
+            if kind is None and _unknown_mode_combat_damage_to_player(trig):
+                kind = "CombatOnly"
+            emit(kind)
     if "damage_to_opp_matters" not in seen and _DAMAGE_TO_OPP_MATTERS_MIRROR.search(
         _kept(tree)
     ):
@@ -8165,6 +8345,32 @@ def _damage_trigger_lanes(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+# ADR-0038 W3 batch 4 (combat-damage cluster) — creature_ping's power-as-
+# damage DOER discriminators, SANCTIONED byte-identical mirrors of legacy's
+# own raw-text confirmation (``_signals_ir``'s power-as-damage cluster).
+# The structural anchor (a ``DealDamage`` whose amount is a POWER-scaled
+# ``Ref``) only fires today when the RECIPIENT is independently typed as a
+# Creature (Ram Through). Legacy's actual discriminator is the DOER, not
+# the recipient: "a creature deals damage equal to ITS OWN power" fires
+# creature_ping regardless of WHO the damage reaches (a Fling-style "the
+# sacrificed creature's power" names a DIFFERENT object's power and never
+# matches these phrasings, so it correctly stays out — that shape is
+# damage_equal_power only, already ported separately). CR 120.3.
+_POWER_SELF_RECIP = re.compile(r"to itself|deals damage to itself", re.IGNORECASE)
+_POWER_ITS_OWN_DOER = re.compile(r"deals damage equal to its power", re.IGNORECASE)
+# The power-DOUBLING form ("equal to TWICE its power" — Polliwallop, Cut
+# Propulsion, Animist's Might): phase folds the doubling into
+# ``Multiply(factor, Ref(Power))`` (unwrapped by ``ref_count_qty``),
+# dropping the "power" op the bare anchor reads. Gated by this DOER-confirm
+# so a "twice the NUMBER of <X>" multiply burn (a different scaling
+# quantity — Price of Progress) never enters.
+_POWER_MULT_DOER = re.compile(
+    r"(?:deals damage (?:to itself )?equal to (?:twice |\w+ times )?its power"
+    r"|to itself equal to its power)",
+    re.IGNORECASE,
+)
+
+
 def _unit_is_repeatable(unit: AbilityUnit) -> bool:
     """The aoe_ping repeatable gate (mirrors live): an Activated ability whose
     cost leaves include Tap or Mana and do NOT include a Sacrifice
@@ -8198,9 +8404,40 @@ def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
       One-shot sweeps (Pyroclasm — Spell kind) are mass_removal country.
       Scope "you".
     * ``creature_ping`` — a ``DealDamage`` whose amount is a POWER-scaled
-      ``Ref`` reaching a Creature-cored target (Ram Through; CR 120.3).
-      Fixed amounts (Prodigal Sorcerer) and player recipients (Fling — the
-      ported ``damage_equal_power``) never fire. Scope "you".
+      ``Ref`` (Ram Through) OR a doubled ``Multiply(Ref(Power))``
+      (Polliwallop; CR 120.3). Structurally reaching a Creature-cored
+      target fires outright; ADR-0038 W3 batch 4 widens the DOER side —
+      the recipient may be ANY other shape (``ParentTarget``/``SelfRef``/
+      ``TriggeringSource`` back-references, ``Any``, a player/planeswalker
+      reach) as long as the clause text confirms the DOER deals ITS OWN
+      power (:data:`_POWER_SELF_RECIP` "to itself" — Wave of Reckoning;
+      :data:`_POWER_ITS_OWN_DOER` "deals damage equal to its power" —
+      Abyssal Hunter, Ghitu Fire-Eater, Form of the Dinosaur). Reads the
+      per-effect raw when phase carries one; falls back to the
+      reminder-stripped whole-face oracle when phase drops it to an empty
+      per-effect raw (a Saga chapter / loyalty-ability quote — The Akroan
+      War, Garruk Relentless, The Bears of Littjara, Judgment of
+      Alexander's ``TriggeringSource`` clause) — the SAME empty-raw
+      fallback shape :func:`_damage_equal_power`'s sibling arms use
+      elsewhere in this module, gated behind the structural power-damage
+      anchor so it never runs as a free scan. Fixed amounts (Prodigal
+      Sorcerer) and a DIFFERENT object's power (Fling's "the sacrificed
+      creature's power" — the ported ``damage_equal_power``, may co-fire
+      when the recipient also reaches a player) never fire. Scope "you".
+
+      ADR-0038 W3 batch 4 adjudicated GAIN: Delirium ("Tap target
+      creature that player controls. That creature deals damage equal to
+      its power to the player.") is a genuine CR 120.3 doer-based
+      creature_ping member — a creature legitimately deals damage equal
+      to ITS OWN power, matching the exact shape legacy itself counts on
+      Garruk Relentless / Alpha Brawl / Beastie Beatdown / Wisecrack
+      (a doer creature reflexively burning a DIFFERENT recipient still
+      counts). Legacy misses it only because its own empty-raw oracle
+      fallback (``_CREATURE_PING_ORACLE``) is narrower than its
+      raw-meaningful branch and Delirium's per-effect raw happens to be
+      empty in the OLD projection — a legacy fallback-regex gap, not a
+      principled exclusion; corpus-verified as the lane's only over-vs-
+      legacy delta (see ``test_crosswalk.py``).
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -8222,12 +8459,27 @@ def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
                 tgt = getattr(c.node, "target", None)
                 if "Creature" in filter_core_types(tgt):
                     fire("aoe_ping", "you", c.raw)
-            if t == "DealDamage" and ref_qty_tag(c.node, "amount") == "Power":
-                tgt = getattr(c.node, "target", None)
-                if tag_of(tgt) in ("Typed", "Or", "And") and (
-                    "Creature" in filter_core_types(tgt)
-                ):
-                    fire("creature_ping", "you", c.raw)
+            if t == "DealDamage":
+                amt_tag = ref_qty_tag(c.node, "amount")
+                mult_tag = (
+                    None if amt_tag == "Power" else (ref_count_qty(c.node, "amount"))
+                )
+                if amt_tag == "Power" or mult_tag == "Power":
+                    tgt = getattr(c.node, "target", None)
+                    recip_creature = tag_of(tgt) in ("Typed", "Or", "And") and (
+                        "Creature" in filter_core_types(tgt)
+                    )
+                    raw = c.raw or ""
+                    src = raw if raw.strip() else _kept(tree)
+                    mult_confirmed = amt_tag == "Power" or (
+                        _POWER_MULT_DOER.search(src) is not None
+                    )
+                    if mult_confirmed and (
+                        recip_creature
+                        or _POWER_SELF_RECIP.search(src)
+                        or _POWER_ITS_OWN_DOER.search(src)
+                    ):
+                        fire("creature_ping", "you", raw)
     return out
 
 

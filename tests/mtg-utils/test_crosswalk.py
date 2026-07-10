@@ -2068,6 +2068,41 @@ def test_poison_makers_excludes_corrupted_payoff():
     assert "poison_makers" not in _keys("Apostle of Invasion")
 
 
+@pytest.mark.parametrize("name", ["Pit Scorpion", "Marsh Viper"])
+def test_poison_makers_direct_give_player_counter(name):
+    """ADR-0038 W3 batch 4: a direct ``GivePlayerCounter(poison)`` DOER with NO
+    infect/toxic/poisonous keyword at all ("that player gets a poison
+    counter") — the keyword-array arm can't reach it; ``_PLAYER_COUNTER_
+    MAKER["poison"]`` does (CR 120.3b / 104.3d)."""
+    assert ("poison_makers", "opponents", "") in _idents(name)
+
+
+def test_poison_makers_word_mirror_granted_keyword():
+    """Corrupted Conscience GRANTS infect to the enchanted creature ("Enchanted
+    creature has infect") — a different object than the Aura's own Scryfall
+    keyword array, so the keyword-bearer arm misses it; the whole-card
+    ``_POISON_WORD_MIRROR`` (a SANCTIONED byte-identical mirror of legacy's own
+    poison_makers word regex) recovers it (CR 702.90)."""
+    assert ("poison_makers", "opponents", "") in _idents("Corrupted Conscience")
+
+
+@pytest.mark.parametrize("name", ["Serpent Generator", "Ajani, Sleeper Agent"])
+def test_poison_makers_nested_giver_in_created_object(name):
+    """A poison ``GivePlayerCounter`` buried inside a CreateToken's own token
+    definition (Serpent Generator's Snake token: "Whenever this creature
+    deals damage to a player, that player gets a poison counter.") or a
+    CreateEmblem's granted trigger (Ajani, Sleeper Agent's ultimate emblem:
+    "target opponent gets two poison counters.") — the top-level
+    ``effect_concepts`` walk only sees the CreateToken/CreateEmblem effect
+    itself; :func:`iter_typed_nodes`'s deep walk reaches the nested giver
+    (CR 111.7 token copiable values / CR 114.1 emblems). Ajani is an
+    ADJUDICATED GAIN over legacy: the OLD lossy IR projects "You get an
+    emblem with ..." as one opaque, undecomposed ``emblem``-category effect
+    (verified via ``old_ir_for`` — no nested ``GivePlayerCounter`` survives),
+    so legacy's poison_makers can never see into it."""
+    assert ("poison_makers", "opponents", "") in _idents(name)
+
+
 def test_keyword_field_lookup_immune_to_name_collision():
     """The keyword field-lookups read the STRUCTURED array — a card carrying none of
     the batch-5 keywords (Lightning Bolt) can never fire foretell/cascade/suspend/
@@ -5206,6 +5241,35 @@ def test_batched_combat_damage_mode_joins_the_event_read():
     assert ("tribe_damage_trigger", "you", "") in idents
 
 
+def test_combat_damage_to_opp_excludes_planeswalker_only_recipient():
+    """CR 102.1: a planeswalker is not a player. Zagras, Thief of Heartbeats's
+    "Whenever a creature you control deals combat damage to a PLANESWALKER,
+    destroy that planeswalker" satisfies ``combat_damage_matters`` (CR
+    510.1b's player-OR-planeswalker read) but not this PLAYER-specific lane
+    (CR 510.1c)."""
+    idents = _idents("Zagras, Thief of Heartbeats")
+    assert ("combat_damage_matters", "opponents", "") in idents
+    assert "combat_damage_to_opp" not in {k for k, _s, _su in idents}
+
+
+@pytest.mark.parametrize("name", ["Fire Giant's Fury", "Kang Dynasty"])
+def test_combat_damage_unknown_mode_description_fallback(name):
+    """ADR-0038 W3 batch 4: a GRANTED/DELAYED combat-damage trigger def whose
+    ``mode`` phase leaves ``MirrorVariant(key="Unknown")`` entirely (Fire
+    Giant's Fury's pump-attached delayed trigger "Whenever it deals combat
+    damage to a player this turn, exile ..."; Kang Dynasty's Saga-granted
+    watcher "whenever any of those creatures deals combat damage to a
+    player, draw a card") — verified via direct node inspection
+    (mode.key=="Unknown", damage_kind left the generic "Any"), so
+    ``damage_to_player_trigger_kind`` bails on the event-tag check before it
+    ever reaches the recipient. The node's OWN ``description`` field still
+    carries the clause; :func:`_unknown_mode_combat_damage_to_player` reads
+    it structurally (per-node, never a whole-card scan; CR 510.1b/c)."""
+    idents = _idents(name)
+    assert ("combat_damage_matters", "opponents", "") in idents
+    assert ("combat_damage_to_opp", "opponents", "") in idents
+
+
 @pytest.mark.parametrize(
     ("name", "should_fire"),
     [
@@ -5235,6 +5299,34 @@ def test_creature_ping_power_scaled_gate():
     target fires; a fixed-amount pinger (Prodigal Sorcerer) never does."""
     assert ("creature_ping", "you", "") in _idents("Ram Through")
     assert "creature_ping" not in _keys("Prodigal Sorcerer")
+
+
+@pytest.mark.parametrize("name", ["Abyssal Hunter", "Wave of Reckoning"])
+def test_creature_ping_doer_widening_non_creature_recipient(name):
+    """ADR-0038 W3 batch 4: creature_ping's real discriminator is the DOER,
+    not the recipient — "a creature deals damage equal to ITS OWN power"
+    fires regardless of who it reaches. Abyssal Hunter's recipient is a
+    ``ParentTarget`` back-reference ("Tap target creature. This creature
+    deals damage equal to its power to that creature"); Wave of Reckoning's
+    is a self-fight ("Each creature deals damage to itself equal to its
+    power" — CR 120.3). Neither is a structurally Creature-typed ``target``,
+    so both need the widened raw-text confirmation
+    (:data:`_POWER_SELF_RECIP` / :data:`_POWER_ITS_OWN_DOER`)."""
+    assert ("creature_ping", "you", "") in _idents(name)
+
+
+def test_creature_ping_adjudicated_gain_delirium():
+    """ADJUDICATED GAIN over legacy: Delirium ("Tap target creature that
+    player controls. That creature deals damage equal to its power to the
+    player.") is a genuine CR 120.3 doer-based creature_ping member — a
+    creature dealing damage equal to ITS OWN power, the exact shape legacy
+    itself counts on Garruk Relentless / Alpha Brawl / Wisecrack (a doer
+    creature reflexively burning a DIFFERENT recipient still counts).
+    Legacy misses it only because its own empty-raw oracle fallback
+    (``_CREATURE_PING_ORACLE``) is narrower than its raw-meaningful branch,
+    and Delirium's per-effect raw happens to be empty in the OLD
+    projection — a legacy fallback-regex gap, not a principled exclusion."""
+    assert ("creature_ping", "you", "") in _idents("Delirium")
 
 
 # ── Batch 11: counter / ETB / cast trigger-event cluster (§C) ────────────────
