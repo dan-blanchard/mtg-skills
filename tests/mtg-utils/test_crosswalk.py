@@ -4619,6 +4619,42 @@ def test_draw_for_each_vote_per_choice_descent():
     assert ("draw_for_each", "you", "") in _idents("Truth or Consequences")
 
 
+def test_draw_for_each_fires_on_text_only_face_tree():
+    """ADR-0038 W5b tail: Mouth // Feed's Aftermath back half "Feed" —
+    "Draw a card for each creature you control with power 3 or greater."
+    — has NO phase record at all (phase never emits aftermath second
+    halves), so ``tree.units == ()`` (task #76's text-only face tree, the
+    SAME shape ``lure_makers``'s Destined // Lead pin covers). No typed
+    Draw node exists for the unit-based arms to walk, so this lane's
+    OWN ``_DRAW_FOR_EACH_PHRASE_RE`` clause-scoped text gate — already
+    trusted as a fallback when a typed Draw node's wrapper carries no
+    grounding raw — runs over the whole (units-empty) face text instead.
+    CR 121.1/107.3."""
+    from mtg_utils._deck_forge._ir_lookup import _text_only_tree
+
+    face = {
+        "name": "Feed",
+        "mana_cost": "{2}{G}",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Aftermath (Cast this spell only from your graveyard. "
+            "Then exile it.)\n"
+            "Draw a card for each creature you control with power 3 "
+            "or greater."
+        ),
+    }
+    tree = _text_only_tree(
+        face, {"cmc": 5.0}, oracle_id="1b6c1f5d-2b1e-4f3a-9c1e-9f6b8e3d2a11"
+    )
+    assert tree is not None
+    assert tree.units == ()  # zero typed substrate — text idioms only
+    idents = {
+        (s.key, s.scope, s.subject)
+        for s in extract_crosswalk_signals(tree, keywords=frozenset())
+    }
+    assert ("draw_for_each", "you", "") in idents
+
+
 def test_recovered_draw_seam_guard_rejects_non_draw_senses():
     """The _NON_DRAW_SENSE seam guard (the exact trap that got the first
     "draw" row trimmed): Divine Intervention's "the game is a draw" is a

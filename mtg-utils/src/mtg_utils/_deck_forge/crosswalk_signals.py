@@ -9247,25 +9247,37 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
     session, still residual). CR 107.3 / 603.7 (delayed triggered
     abilities) / 701.38 (Vote) — verified via rules-lookup this session.
 
-    STILL NOT PROMOTED — 3 genuine live_only remain, none adjudicable as
-    sheds (all three ARE real draw_for_each cards, just structurally
+    ADR-0038 W5b tail closes Mouth // Feed's "Feed" back-half (Aftermath):
+    phase emits a MATCHED but EMPTY (``units=0``) record for this face
+    (its top-level ``oracle_text`` is ``None``, the normal Scryfall/
+    MTGJSON DFC shape), so the W2c text-only-face fallback (task #76)
+    never synthesizes a substitute TREE (its gate is "no name-matched
+    phase record", not "an empty one") — but the ``ConceptTree`` it DOES
+    produce still carries the real face text on ``tree.oracle`` ("Draw a
+    card for each creature you control with power 3 or greater."). A
+    units-empty fallback below reads that text through the SAME
+    ``_DRAW_FOR_EACH_PHRASE_RE`` clause-scoped gate the structural arm's
+    own text fallback already trusts, scoped strictly to ``not
+    tree.units`` so a typed face's structural miss never silently falls
+    back to a blind whole-oracle scan. Aclazotz, Deepest Betrayal shares
+    Mouth // Feed's blank top-level ``oracle_text`` but is NOT a
+    units-empty case (3 real typed units on its front face) — its "for
+    each opponent who can't, you draw a card" is the SAME per-opponent-
+    modal shape as Refurbished Familiar, so the fallback correctly does
+    not fire for it.
+
+    STILL NOT PROMOTED — 2 genuine live_only remain, neither adjudicable
+    as a shed (both ARE real draw_for_each cards, just structurally
     unreachable): Vivien's Stampede (above); Nexus Mentality's "Remove all
     counters from target nonland permanent you control. Draw a card for
     each counter removed this way." (a plain ``sub_ability`` chain with NO
     owner text anywhere either — the SAME no-raw-text gap, not a Vote
-    node); Mouth // Feed's "Feed" back-half (Aftermath) — phase emits a
-    MATCHED but EMPTY (``units=0``) record for this face, so the W2c
-    text-only-face fallback (task #76) never synthesizes a substitute
-    tree (its gate is "no name-matched phase record", not "an empty one")
-    even though the bulk oracle text is present and well-formed ("Draw a
-    card for each creature you control with power 3 or greater.") — a
-    shared ``_ir_lookup.trees_for``/``_text_only_trees`` widening, corpus-
-    wide blast radius across EVERY key, out of scope this session. Two of
-    the cw_only gains this batch (Peer Past the Veil / Lucid Dreams's
-    "draw X cards, where X is the number of card types among cards in
-    your graveyard") are genuine beyond-legacy recalls — legacy's regex
-    only recognizes "for each"/"equal to the number of" wording, missing
-    "where X is the number of", a narrower net than the CR 107.3 concept.
+    node). Two of the cw_only gains this batch (Peer Past the Veil / Lucid
+    Dreams's "draw X cards, where X is the number of card types among
+    cards in your graveyard") are genuine beyond-legacy recalls — legacy's
+    regex only recognizes "for each"/"equal to the number of" wording,
+    missing "where X is the number of", a narrower net than the CR 107.3
+    concept.
     """
 
     def scaling(node: TypedMirrorNode, owner: object) -> bool:
@@ -9325,6 +9337,18 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
                         return [
                             Signal("draw_for_each", "you", "", "", tree.name, "high")
                         ]
+    # ADR-0038 W5b tail: a TEXT-ONLY face tree (task #76 — the bulk oracle
+    # is the source of record for a face phase's card-data.json never
+    # parsed at all, e.g. Mouth // Feed's Aftermath back half) carries
+    # ``tree.units == ()`` — zero typed nodes, so the loop above never
+    # runs. ``tree.oracle`` still holds the real text ("Draw a card for
+    # each creature you control with power 3 or greater."), so the SAME
+    # ``_DRAW_FOR_EACH_PHRASE_RE`` clause-scoped gate the structural
+    # arm's own text fallback already trusts is the ONLY possible read —
+    # scoped to the units-empty case so a typed face's structural miss
+    # never silently falls back to a blind whole-oracle scan.
+    if not tree.units and _DRAW_FOR_EACH_PHRASE_RE.search(_kept(tree)):
+        return [Signal("draw_for_each", "you", "", "", tree.name, "high")]
     return []
 
 
