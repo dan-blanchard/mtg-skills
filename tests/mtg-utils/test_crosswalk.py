@@ -2082,6 +2082,181 @@ def test_voltron_matters_sheds_commander_damage_fallback(name):
     assert "voltron_matters" not in _keys(name)
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W6 endgame — additional representatives of the 62-card
+        # commander-damage MEMBERSHIP-fallback shed class (see
+        # test_voltron_matters_sheds_commander_damage_fallback for the
+        # original 4 Unfinity mandatory sheds). Every one of these fires
+        # the legacy bare "no other plan + power>=2" fallback (CR 903.10a)
+        # with NO other voltron_matters arm; the crosswalk correctly never
+        # implements that fallback. Sliver-heavy because a tribal-lord
+        # ability isn't itself a high-confidence "other plan" signal in
+        # legacy's own IR-arm set. Verified this session against the real
+        # Card IR.
+        "Lymph Sliver",
+        "Armor Sliver",
+        "Ward Sliver",
+        "Notion Thief",
+        "Bogardan Hellkite",
+        "Changeling Titan",
+        "Ayumi, the Last Visitor",
+    ],
+)
+def test_voltron_matters_sheds_commander_damage_fallback_w6(name):
+    """ADR-0038 W6 endgame: further representatives of the mass commander-
+    damage MEMBERSHIP-fallback shed class, corpus-verified against the real
+    Card IR this session. CR 903.10a."""
+    assert "voltron_matters" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W6 endgame — a trigger DEFINITION phase couldn't
+        # structure AT ALL (an ``Unknown`` ``mode`` MirrorVariant carrying
+        # only the raw clause, no reachable ``valid_card``/``condition``)
+        # but whose own preserved ``description`` carries the SAME voltron
+        # attachment-STATE tell the structural gate reads off a typed
+        # filter elsewhere (Kassandra, Eagle Bearer: "Whenever a creature
+        # you control with a legendary Equipment attached to it deals
+        # combat damage to a player, draw a card" — the SAME Unknown-mode
+        # node the combat-damage lanes already recover via
+        # ``_unknown_mode_combat_damage_to_player``, extended here to
+        # voltron_matters via ``_unknown_mode_voltron_attachment``). CR
+        # 301.5c/303.4b.
+        "Kassandra, Eagle Bearer",
+        # a modal mode's own effect (a fully-structured CastFromZone, NOT
+        # an Unimplemented) carrying a mana-value CONSTRAINT scaled on the
+        # greatest mana value among Equipment — a ``Ref`` over an
+        # ``Aggregate`` qty, which ``ref_count_filter`` doesn't cover (it
+        # only unwraps ``ObjectCount``). Tetsuo, Imperial Champion: "cast
+        # an instant or sorcery spell from your hand with mana value less
+        # than or equal to the greatest mana value among Equipment
+        # attached to it." CR 107.3/301.5c.
+        "Tetsuo, Imperial Champion",
+        # a mana ability's own ``restrictions`` list scoping the produced
+        # mana to Equipment spells / an equip-ability activation (Ronin,
+        # Shadow Stalker: "Spend this mana only to cast Equipment spells or
+        # activate equip abilities") — correctly-parsed but previously
+        # unread by the cost-REDUCER arms above. CR 106.6.
+        "Ronin, Shadow Stalker",
+    ],
+)
+def test_voltron_matters_recovered_mechanisms_w6(name):
+    """ADR-0038 W6 endgame: voltron_matters recovers an Unknown-mode
+    trigger's own text residue, a modal mode's Aggregate mana-value
+    constraint, and a mana ability's Equipment-scoped restriction — three
+    mechanisms the W5 tail characterized as genuine residual gaps
+    (Kassandra's "trigger mode=Unknown", Tetsuo's "Aggregate-qty gap",
+    Ronin's "nested mana-restriction-variant gap") that turned out to be
+    closable off EXISTING typed nodes, corpus-verified this session (all
+    three read ONLY the one node's own structured/preserved field, never a
+    whole-card scan)."""
+    assert ("voltron_matters", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W6 endgame — the SAME mana-restriction mechanism above,
+        # on a non-creature LAND (proves the arm is unconditional, not
+        # creature-gated) and on a card that already fired voltron_matters
+        # via a DIFFERENT arm (proves the new arm is additive, not a
+        # regression risk). Corpus-verified: legacy never fires Tournament
+        # Grounds (a land carries no commander-damage fallback), so this is
+        # a genuine BREADTH gain (on-theme, not an over-fire) rather than a
+        # live_only closure. CR 106.6.
+        "Tournament Grounds",
+        "Freya Crescent",
+    ],
+)
+def test_voltron_matters_mana_restriction_breadth_w6(name):
+    """ADR-0038 W6 endgame: the mana-restriction arm fires on a land with
+    no creature body (Tournament Grounds) and stays additive on a card
+    that already carried voltron_matters via another arm (Freya
+    Crescent's own equip-ability restriction). CR 106.6."""
+    assert ("voltron_matters", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W6 endgame — adjudicated SHEDS: legacy's bare
+        # ``VOLTRON_PAYOFF_REGEX`` "equipment attached to it" word tell
+        # fires on these, but neither is a build-around PAYOFF — both are
+        # REMOVAL/theft effects that reference an opponent's attacking
+        # creature's Equipment as a side effect of the removal, not a
+        # "this deck cares about MY gear" tell. Soul Nova exiles the
+        # attacking creature AND all Equipment attached to it (CR 301.5c);
+        # Shackles of Treachery steals a creature and grants it a one-turn
+        # "destroy attached Equipment on damage" trigger (temporary
+        # theft-and-punish, CR 105.1/711). Verified this session against
+        # the real Card IR: neither's Equipment-target filter carries a
+        # reachable attachment-STATE predicate (phase's typed target is a
+        # bare Equipment-subtype filter with no linkage to the removed/
+        # stolen creature) — moot regardless, since even a linked shape
+        # would be a REMOVAL target, not a payoff.
+        "Soul Nova",
+        "Shackles of Treachery",
+    ],
+)
+def test_voltron_matters_sheds_removal_target_reference(name):
+    """ADR-0038 W6 endgame: a REMOVAL/theft spell that references an
+    opponent's attacking creature's Equipment as a side effect of the
+    removal is not a voltron PAYOFF — correctly does not open
+    voltron_matters. Adjudicated sheds of a legacy over-fire (CR 301.5c)."""
+    assert "voltron_matters" not in _keys(name)
+
+
+def test_voltron_matters_residual_dropped_clauses():
+    """ADR-0038 W6 endgame — genuine residual (defer, no clause_grammar.py
+    change this wave, per ADR-0039): four cards whose phase parse silently
+    DROPS the exact clause voltron_matters needs, with zero recoverable
+    residue anywhere in the tree (verified via direct node inspection this
+    session, not just a diff count):
+
+    * Warchanter Skald — the trigger's own ``condition`` field is ``None``;
+      "if it's enchanted or equipped" survives ONLY inside the trigger's
+      whole-clause ``description`` string, indistinguishable from a
+      genuinely-absent condition on any other trigger (CR 301.5c).
+    * Judgment Bolt — "and X damage to that creature's controller, where X
+      is the number of Equipment you control" is dropped in its entirety;
+      the single ``S_abilities`` unit carries only the base 5-damage
+      effect, no second recipient/scaling node anywhere (CR 107.3).
+    * Forge Anew — the "pay {0} rather than the equip cost" clause parses
+      as a bare unlinked ``PayCost`` effect with no reachable Equipment/
+      equip-keyword tag tying it to the granted timing permission
+      (CR 601.2f).
+    * Animal Friend — the granted trigger's ``PutCounter`` effect count is
+      ``T_count__Fixed(value=1)``; "for each Aura and Equipment attached to
+      ~ other than ~" is dropped from the count entirely, not merely
+      un-descended-into (CR 107.3/301.5c).
+
+    Each is a genuine phase grammar gap (the count/condition-building rule
+    for this exact clause shape), not a crosswalk_signals.py detector gap —
+    closing it needs a phase-mirror grammar change, which is out of scope
+    for a single-wave session per the recipe's "no clause_grammar.py
+    changes" rule. Ledgered here as the W6 bridge-ledger input."""
+    for name in ("Warchanter Skald", "Judgment Bolt", "Forge Anew", "Animal Friend"):
+        assert "voltron_matters" not in _keys(name)
+
+
+def test_voltron_matters_residual_dropped_scaling():
+    """ADR-0038 W6 endgame — genuine residual (defer): Sage's Reverie's
+    "draw a card for each Aura you control that's attached to a creature" /
+    "Enchanted creature gets +1/+1 for each Aura you control that's
+    attached to a creature" both parse as FIXED values (``T_count__Fixed
+    (value=1)`` on the Draw, ``AddPower(value=1)``/``AddToughness(value=1)``
+    on the static) — the "for each Aura ... attached" scaling clause is
+    dropped from BOTH sites entirely, with no dynamic Ref/Aggregate operand
+    anywhere in the tree to read. A genuine phase grammar gap (CR
+    107.3/301.5c), deferred per ADR-0039 (no clause_grammar.py change this
+    wave)."""
+    assert "voltron_matters" not in _keys("Sage's Reverie")
+
+
 # ── Batch-3 over-fire regressions (rules-lawyer adjudicated; ADR-0035) ─────────
 # Three blocking crosswalk-only over-fires the Stage-2 shadow diff surfaced:
 #   1. gain_control fired on GIVE-AWAY / chaos control changes (CR 110.2 / 603.10d —

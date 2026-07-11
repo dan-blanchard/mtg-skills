@@ -1375,27 +1375,43 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         # type_matters PROMOTED (ADR-0038 W5 tails) — see the crosswalk lane's
         # own docstring for the corpus history + the fully-adjudicated shed
         # class (the legacy _board_count_markers artifact).
-        # ADR-0038 W5 tails (2026-07-11): voltron_matters NOT YET PROMOTED —
-        # live_only cut from 108 to 82 (equip/reconfigure/fortify ability-
-        # cost reducers, cast-cost reducers, ``SourceIsEquipped``/
-        # ``Unrecognized``-residue conditions, a trigger CONDITION's own
-        # filter, the ability's OWN ``cost_reduction`` count, bare-count
-        # damage scaling, and a static's ``affected`` filter — all CR
-        # 301.5c/303.4b/601.2f/702.6c/702.8a, corpus-verified + pinned).
-        # 62 of the 82 are the adjudicated commander-damage MEMBERSHIP-
+        # ADR-0038 W6 endgame (2026-07-11): voltron_matters STILL NOT
+        # PROMOTED — live_only cut from 82 (W5 tails) to 79. Three of the
+        # W5 tail's "genuine residual" cards turned out to be closable off
+        # EXISTING typed nodes, corpus-verified this session (all pinned in
+        # ``test_voltron_matters_recovered_mechanisms_w6`` /
+        # ``test_voltron_matters_mana_restriction_breadth_w6``):
+        #   * Kassandra, Eagle Bearer — an Unknown-mode trigger's own
+        #     preserved ``description`` carries the attachment tell
+        #     (``_unknown_mode_voltron_attachment``, mirroring the combat-
+        #     damage lanes' established ``_unknown_mode_*`` fallback idiom).
+        #   * Tetsuo, Imperial Champion — a modal mode's fully-structured
+        #     effect carries a mana-value CONSTRAINT scaled on a ``Ref``
+        #     over an ``Aggregate`` qty (``ref_count_filter`` only unwraps
+        #     ``ObjectCount``, so this needed its own reader,
+        #     ``_voltron_modal_aggregate_tell``).
+        #   * Ronin, Shadow Stalker — a mana ability's own ``restrictions``
+        #     list scopes the mana to Equipment spells / equip activation
+        #     (``_mana_restriction_equip_tell``, CR 106.6); this also
+        #     stands up an on-theme BREADTH gain on Tournament Grounds (a
+        #     land, no creature body — legacy never fires it either).
+        # 62 of the 79 are the adjudicated commander-damage MEMBERSHIP-
         # fallback shed (mandatory: Big Winner / Croakid Amphibonaut /
-        # Grabby Tabby / Scared Stiff, pinned) + 10 more attach-action /
-        # housekeeping over-fire sheds (also pinned) — but a genuine
-        # 10-card residual remains: phase-parse losses with NO recoverable
-        # residue (Kassandra's trigger mode=Unknown, Warchanter Skald's
+        # Grabby Tabby / Scared Stiff + 7 more W6 representatives, pinned)
+        # + 10 attach-action/housekeeping sheds + 2 removal/theft-target
+        # sheds (Soul Nova, Shackles of Treachery — an opponent's attacking
+        # creature's Equipment referenced as a REMOVAL side effect, not a
+        # payoff) — a genuine 7-card residual remains, all confirmed via
+        # direct node inspection to be phase-parse losses with NO
+        # recoverable residue anywhere in the tree (Warchanter Skald's
         # dropped condition, Judgment Bolt's dropped second-recipient
-        # scaling, Forge Anew's unlinked alternative-cost PayCost, Soul
-        # Nova/Shackles of Treachery's attachment-predicate-less Equipment
-        # targets), an ``Aggregate``-qty gap (Tetsuo), a nested-GrantTrigger
-        # descent gap (Animal Friend — ``iter_concepts()`` doesn't descend
-        # into a granted ability's own nested effects), and a nested
-        # mana-restriction-variant gap (Ronin, Shadow Stalker). Landfall
-        # rule not met (live_only != exactly the shed set) — stays residual.
+        # scaling, Forge Anew's unlinked alternative-cost PayCost, Animal
+        # Friend's and Sage's Reverie's dropped dynamic-count scaling —
+        # see ``test_voltron_matters_residual_dropped_clauses`` /
+        # ``test_voltron_matters_residual_dropped_scaling``). Landfall rule
+        # not met (live_only != exactly the shed set) — stays residual;
+        # ledgered for the ADR-0039 bridge phase (needs a phase-mirror
+        # grammar change, out of scope for a detector-only wave).
         "voltron_matters",
     }
 )
@@ -5547,6 +5563,98 @@ def _voltron_equip_style_keyword(mod: TypedMirrorNode) -> bool:
     }
 
 
+# ADR-0038 W6 endgame — last-resort per-node text reads for two structural
+# parse failures the ``_voltron_matters`` gate above otherwise misses
+# entirely (never a whole-card scan; each reads ONLY the one node's own
+# preserved raw field, mirroring the module's established ``_unknown_mode_*``
+# family — see ``_unknown_mode_creature_etb`` / ``_unknown_mode_combat_
+# damage_to_player`` for the same fallback-only contract).
+_UNKNOWN_MODE_VOLTRON_ATTACHMENT_RE = re.compile(
+    r"\b(?:equipment|auras?)\b[^.]{0,60}\battached\b"
+    r"|\battached\b[^.]{0,60}\b(?:equipment|auras?)\b",
+    re.IGNORECASE,
+)
+
+
+def _unknown_mode_voltron_attachment(trig: object) -> bool:
+    """Whether trigger DEFINITION ``trig`` is an Unknown-mode node whose OWN
+    ``description`` field confirms an attachment-STATE PAYOFF phase
+    couldn't structure at all (Kassandra, Eagle Bearer: "Whenever a
+    creature you control with a legendary Equipment attached to it deals
+    combat damage to a player, draw a card" — ``mode`` is a bare
+    ``Unknown`` MirrorVariant carrying only the raw clause and
+    ``valid_card`` is ``None``, so the structural attachment-predicate scan
+    above never reaches it). Read ONLY when this exact node's own mode
+    failed to structure — never a whole-card scan. CR 301.5c/303.4b.
+    """
+    mode = getattr(trig, "mode", None)
+    if not (isinstance(mode, MirrorVariant) and mode.key == "Unknown"):
+        return False
+    desc = getattr(trig, "description", "") or ""
+    return _UNKNOWN_MODE_VOLTRON_ATTACHMENT_RE.search(desc) is not None
+
+
+def _mana_restriction_equip_tell(effect: object) -> bool:
+    """Whether a ``Mana`` effect's own ``restrictions`` list scopes the
+    produced mana to Equipment/Aura spells or an equip/reconfigure/fortify
+    activation (Freya Crescent, Codsworth Handy Helper, Tournament Grounds,
+    Ronin, Shadow Stalker — "Spend this mana only to cast an Equipment
+    spell or activate an equip ability") — a genuine "this resource exists
+    to fund gear" build-around tell distinct from the ability-cost /
+    cast-cost REDUCERS already read above. CR 106.6 (mana that restricts
+    how it can be spent). ``SpellType``'s own payload is a free-text label
+    ("Aura And/or Equipment", "Knight or Equipment"), not a structured
+    filter, so this reads it as node-scoped residue text (word-boundary,
+    case-insensitive) — the SAME per-node last-resort idiom as the
+    Unrecognized-condition text read below, never a whole-card scan.
+    """
+    restrictions = getattr(effect, "restrictions", None)
+    stack: list[object] = list(restrictions) if isinstance(restrictions, list) else []
+    while stack:
+        r = stack.pop()
+        if not isinstance(r, MirrorVariant):
+            continue
+        if r.key == "Any" and isinstance(r.inner, list):
+            stack.extend(r.inner)
+        elif r.key == "SpellType" and isinstance(r.inner, str):
+            if re.search(r"\b(?:equipment|auras?)\b", r.inner, re.IGNORECASE):
+                return True
+        elif r.key == "ActivateTagged" and tag_of(r.inner) == "Equip":
+            return True
+    return False
+
+
+def _voltron_modal_aggregate_tell(node: object) -> bool:
+    """A trigger/ability's own MODAL mode whose effect carries a mana-value
+    CONSTRAINT scaled on the greatest mana value among Equipment/Aura
+    (Tetsuo, Imperial Champion: "cast an instant or sorcery spell ... with
+    mana value less than or equal to the greatest mana value among
+    Equipment attached to it") — a ``Ref`` over an ``Aggregate`` qty,
+    which :func:`ref_count_filter` doesn't cover (it only unwraps
+    ``ObjectCount``). Read ONLY off ``execute.mode_abilities`` — a mode's
+    own EFFECT, never a whole-card scan. CR 107.3/301.5c."""
+    execute = getattr(node, "execute", None)
+    modes = getattr(execute, "mode_abilities", None)
+    if not isinstance(modes, list):
+        return False
+    for m in modes:
+        eff = getattr(m, "effect", None)
+        constraint = getattr(eff, "constraint", None)
+        data = getattr(constraint, "data", None)
+        value = getattr(data, "value", None) if data is not None else None
+        if tag_of(value) != "Ref":
+            continue
+        qty = getattr(value, "qty", None)
+        if tag_of(qty) != "Aggregate":
+            continue
+        filt = getattr(qty, "filter", None)
+        if filt is not None and (
+            {s.lower() for s in filter_subtypes(filt)} & _VOLTRON_SUBTYPES
+        ):
+            return True
+    return False
+
+
 def _voltron_matters(tree: ConceptTree) -> list[Signal]:
     """voltron_matters — an Aura/Equipment PAYOFF build-around (CR 301.5c / 303).
     Mirrors ``_signals_regex._detect_voltron_payoff_ir``: (a) a ``cast_spell`` trigger
@@ -5579,6 +5687,23 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
             vc = getattr(unit.node, "valid_card", None)
             if {s.lower() for s in filter_subtypes(vc)} & _VOLTRON_SUBTYPES:
                 return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        # a trigger whose MODE itself failed to structure at all (Kassandra,
+        # Eagle Bearer's "creature ... with a legendary Equipment attached to
+        # it deals combat damage" — mode=Unknown, valid_card=None). CR
+        # 301.5c/303.4b.
+        if _unknown_mode_voltron_attachment(unit.node):
+            return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        # a Mana effect's own restrictions scoping the produced mana to
+        # Equipment/Aura spells or an equip/reconfigure/fortify activation
+        # (Freya Crescent, Codsworth, Tournament Grounds, Ronin, Shadow
+        # Stalker). CR 106.6.
+        eff = getattr(unit.node, "effect", None)
+        if tag_of(eff) == "Mana" and _mana_restriction_equip_tell(eff):
+            return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        # a modal mode's own effect scaled on the greatest Equipment/Aura
+        # mana value (Tetsuo, Imperial Champion). CR 107.3/301.5c.
+        if _voltron_modal_aggregate_tell(unit.node):
+            return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
         # an attachment-STATE watched subject ("enchanted or equipped creature you
         # control attacks" — Reyav) carries the predicate on the trigger's valid_card.
         for fname in ("valid_card", "valid_source"):
