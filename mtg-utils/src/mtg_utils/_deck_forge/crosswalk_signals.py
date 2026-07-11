@@ -34,6 +34,7 @@ from dataclasses import fields
 
 from mtg_utils._card_ir.crosswalk import (
     ARTIFACT_TOKEN_SUBTYPES,
+    EFFECT_CONCEPTS,
     OTHER,
     AbilityUnit,
     ConceptNode,
@@ -98,6 +99,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_threaded_target_statics,
     iter_typed_nodes,
+    lifeloss_recipient_is_degraded_typed,
     lifeloss_recipient_scope,
     mana_replacement_multiplier,
     mana_restricted_to_multicolored,
@@ -5585,9 +5587,19 @@ def _lifeloss_scope(
     whole-card per-clause text idiom (:func:`_lifeloss_text_scope`, ``text_skip``
     claiming the Nth node's own clause in oracle order) is the final read; a bare
     self-loss with no wrapper actor and no text marker (Agent Venom, Dark
-    Confidant) stays ``you``."""
+    Confidant) stays ``you``. An ``"each"`` recipient read backed ONLY by a
+    completely uninformative ``Typed`` filter (ADR-0038 W5b —
+    :func:`lifeloss_recipient_is_degraded_typed`) is DISTRUSTED and falls
+    through to the wrapper/text chain instead: phase degrades a condition- or
+    optional-wrapped "each opponent loses N life" to this exact empty shape
+    (Baba Lysaga, Night Witch; Vohar, Vodalian Desecrator; Faerie Tauntings),
+    losing the "opponent" distinction an UNCONDITIONAL "each opponent loses"
+    never loses (that shape carries no recipient field at all, resolved via
+    the wrapper/text fallback already)."""
     rs = lifeloss_recipient_scope(node)
-    if rs is not None:
+    if rs is not None and not (
+        rs == "each" and lifeloss_recipient_is_degraded_typed(node)
+    ):
         return rs, False
     owner = effect_owner_player_scope(getattr(unit, "node", None), node)
     if owner in _EDICT_ACTORS:
@@ -5613,6 +5625,62 @@ def _lifeloss_self_paid_cost(node: TypedMirrorNode) -> bool:
     return any(tag_of(n) == "PayLife" for n in iter_typed_nodes(cost))
 
 
+def _unit_has_non_ramp_effect(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` carries a non-ramp payoff ANYWHERE in its tree (CR
+    119.4's painland exclusion), not just at its own top-level
+    ``unit.effects`` — a paylife cost buried in a GRANTED trigger's
+    ``unless_pay`` (Vile Consumption's "sacrifice this creature unless you
+    pay 1 life", Morgul-Knife Wound's "exile ~ unless you pay 2 life") lives
+    on a STATIC-origin unit whose OWN top-level ``unit.effects`` is empty
+    (the grant modification itself is the only role=effect/static concept at
+    THIS unit's surface — the granted trigger's Sacrifice/ChangeZone payoff
+    is reachable only by walking INTO the grant, same blind spot the
+    granted-ability LoseLife descent above already walks past). A unit-wide
+    ``EFFECT_CONCEPTS`` tag scan (rather than the top-level ``unit.effects``
+    concept-node list) reaches the granted payoff regardless of nesting
+    depth; still excludes a painland-shaped grant whose ONLY reachable
+    effect tag maps to ``ramp`` (Lithoform Blight's granted "Pay 1 life: Add
+    one mana of any color" — the sibling ``{T}: Add {C}`` grant is ALSO
+    ``ramp``, so the whole unit maps to ramp-only and stays excluded)."""
+    if any(e.concept != "ramp" for e in unit.effects):
+        return True
+    for n in iter_typed_nodes(unit.node):
+        concept = EFFECT_CONCEPTS.get(tag_of(n))
+        if concept is not None and concept != "ramp":
+            return True
+    return False
+
+
+def _granted_ability_paylife(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` GRANTS another permanent an activated ability whose
+    OWN cost pays life (CR 118.8/119.4) — Underworld Connections's "Enchanted
+    land has '{T}, Pay 1 life: Draw a card.'", Hibernation Sliver's "All
+    Slivers have 'Pay 2 life: Return this permanent to its owner's hand.'".
+    A ``GrantAbility.definition`` carries no ``payer`` field of its own (the
+    payer is implicitly whoever controls the granted-to permanent, matching
+    the OLD-IR ``life_payment`` marker's unconditional-``you`` convention
+    this arm mirrors) — so this reads the definition's cost directly via
+    :func:`cost_has_paylife` rather than :func:`_lifeloss_self_paid_cost`
+    (which requires a ``payer`` field the definition doesn't have). Excludes
+    a granted ability whose OWN effect is ``ramp`` (Lithoform Blight's
+    granted painland "Add one mana of any color") — the exclusion reads the
+    SAME definition's ``effect`` field, not the whole unit, so a card mixing
+    a ramp grant with an unrelated non-ramp grant elsewhere still correctly
+    excludes the ramp one specifically."""
+    for n in iter_typed_nodes(unit.node):
+        if tag_of(n) != "GrantAbility":
+            continue
+        definition = getattr(n, "definition", None)
+        if definition is None:
+            continue
+        if not cost_has_paylife(getattr(definition, "cost", None)):
+            continue
+        eff_concept = EFFECT_CONCEPTS.get(tag_of(getattr(definition, "effect", None)))
+        if eff_concept != "ramp":
+            return True
+    return False
+
+
 def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
     """lifeloss_makers — the card PERFORMS life loss (CR 119.3). (a) a ``LoseLife``
     effect, scope-split self/drain — including one nested inside a GRANTED
@@ -5630,11 +5698,23 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
     Composite, or an ``unless_pay.cost`` / optional ``PayCost`` effect deep in a
     trigger chain whose OWN ``payer`` resolves to the controller — see
     :func:`_lifeloss_self_paid_cost`; a non-controller payer is a TAX on someone
-    else, not this card's own life payment). The cost arm is gated HARD against
-    the lane's land trap: a Land card (Horizon Canopy's ``Pay 1 life: draw``) is
-    excluded (CR 118.8), and a paylife ability whose only effect is mana fixing
-    (``ramp``) is a painland, excluded by the non-ramp gate. Combat damage (CR
-    120) is a sibling category that never tags ``LoseLife``.
+    else, not this card's own life payment); (c) a GRANTED activated ability
+    whose OWN cost pays life (Underworld Connections's "Enchanted land has
+    '{T}, Pay 1 life: Draw a card.'", Hibernation Sliver's "All Slivers have
+    'Pay 2 life: Return this permanent to its owner's hand.'") — see
+    :func:`_granted_ability_paylife`, mirroring the OLD-IR ``life_payment``
+    marker's unconditional-``you`` convention for a grant phase structures
+    cleanly but the flat top-level cost/effect scan never reaches (ADR-0038
+    W5b). The cost arms are gated HARD against the lane's land trap: a Land
+    card (Horizon Canopy's ``Pay 1 life: draw``) is excluded (CR 118.8), and a
+    paylife ability whose only reachable effect is mana fixing (``ramp``) is a
+    painland, excluded by the non-ramp gate — :func:`_unit_has_non_ramp_effect`
+    widens that gate to a unit-WIDE tag scan (not just top-level
+    ``unit.effects``) so a paylife ``unless_pay`` nested in a granted trigger
+    (Vile Consumption, Morgul-Knife Wound — a STATIC-origin unit whose own
+    top-level ``unit.effects`` is empty) still resolves its granted payoff's
+    ramp-ness correctly (ADR-0038 W5b). Combat damage (CR 120) is a sibling
+    category that never tags ``LoseLife``.
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -5676,8 +5756,9 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
             paylife = any(cost_has_paylife(cc.node) for cc in unit.costs) or any(
                 _lifeloss_self_paid_cost(n) for n in iter_typed_nodes(unit.node)
             )
-            non_ramp = any(e.concept != "ramp" for e in unit.effects)
-            if paylife and non_ramp:
+            if (paylife and _unit_has_non_ramp_effect(unit)) or (
+                _granted_ability_paylife(unit)
+            ):
                 fire("you", "")
     return out
 

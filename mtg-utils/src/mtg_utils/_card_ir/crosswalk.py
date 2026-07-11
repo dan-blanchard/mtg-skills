@@ -555,6 +555,42 @@ def lifeloss_recipient_scope(node: TypedMirrorNode) -> str | None:
     return None
 
 
+def lifeloss_recipient_is_degraded_typed(node: TypedMirrorNode) -> bool:
+    """Whether :func:`lifeloss_recipient_scope`'s ``"each"`` read for ``node``
+    rests on a COMPLETELY uninformative ``Typed`` recipient filter
+    (``controller=None``, no ``properties``, no ``type_filters`` — ADR-0038
+    W5b). A genuine each/all-player ``LoseLife`` never reaches phase's
+    ``Typed`` branch at all (its recipient field is MISSING entirely, the
+    each-scope living on the wrapping ability's ``player_scope`` instead —
+    corpus-verified across 43 unconditional "each opponent loses" instances,
+    all ``target=MISSING``); this exact empty shape is instead phase's
+    degraded structuring of "each opponent loses N life" when the clause
+    sits under a CONDITION or optional "you may have" wrapper (Baba Lysaga,
+    Night Witch's "If there were three or more card types ..., each opponent
+    loses 3 life"; Vohar, Vodalian Desecrator's "If you discarded ..., each
+    opponent loses 1 life"; Faerie Tauntings' "you may have each opponent
+    lose 1 life") — corpus-verified narrow (9 of 252 Typed-recipient
+    instances, ALL under this exact ``(None, (), ())`` shape). The lane
+    calling this should treat an ``"each"`` read backed by this shape as
+    UNRESOLVED and fall through to its own text-based disambiguation rather
+    than trust the shared :func:`_scope_from_player_node` Typed-filter
+    default (which stays ``"each"`` for every OTHER caller — this function
+    changes no existing caller's behavior, it only lets the lifeloss lane
+    distrust its own already-narrow recipient read for this one shape)."""
+    for fname in _SCOPE_FIELDS:
+        sub = getattr(node, fname, MISSING)
+        if not _present(sub) or tag_of(sub) is None:
+            continue
+        if tag_of(sub) != "Typed":
+            return False
+        return (
+            getattr(sub, "controller", None) is None
+            and not (getattr(sub, "properties", None) or None)
+            and not (getattr(sub, "type_filters", None) or None)
+        )
+    return False
+
+
 # The union of every "names a player other than the controller" tag family
 # independently rediscovered by :func:`lifeloss_recipient_scope`
 # (``_DIRECTED_PLAYER_TAGS``) and :func:`discard_recipient_scope`

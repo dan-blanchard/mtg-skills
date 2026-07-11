@@ -2194,6 +2194,96 @@ def test_lifeloss_makers_excludes_lost_this_turn_condition(name):
     assert "lifeloss_makers" not in _keys(name)
 
 
+# ── ADR-0038 W5b (lifeloss_makers tail grind) ───────────────────────────────
+# Verified CR: 119.3 (life loss / who loses), 119.4 (paying life IS a cost),
+# 118.8 (an additional cost), 614 (replacement effects).
+
+
+@pytest.mark.parametrize(
+    ("name", "scope"),
+    [
+        # a GRANTED activated ability's OWN cost pays life — a shape a flat
+        # top-level unit.costs/unit.effects scan never reaches (the grant
+        # IS the only role=static concept at this unit's surface; the
+        # granted ability's own cost/effect live a level deeper, inside
+        # GrantAbility.definition). Mirrors the OLD-IR life_payment marker's
+        # unconditional-you convention.
+        ("Underworld Connections", "you"),  # "{T}, Pay 1 life: Draw a
+        # card." granted to the enchanted land
+        ("Hibernation Sliver", "you"),  # "Pay 2 life: Return this
+        # permanent to its owner's hand." granted to all Slivers
+    ],
+)
+def test_lifeloss_makers_granted_ability_paylife(name, scope):
+    assert ("lifeloss_makers", scope, "") in _idents(name)
+
+
+def test_lifeloss_makers_granted_ability_paylife_excludes_ramp():
+    """Lithoform Blight grants the enchanted land TWO abilities — a plain
+    "{T}: Add {C}" and a painland "{T}, Pay 1 life: Add one mana of any
+    color." Both map to the ``ramp`` concept, so the granted-paylife arm's
+    LOCAL non-ramp check (reading the SAME GrantAbility.definition's own
+    effect, not the whole unit) correctly excludes it — the painland trap
+    (CR 118.8), same principle as the top-level Horizon Canopy exclusion."""
+    assert "lifeloss_makers" not in _keys("Lithoform Blight")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # a paylife ``unless_pay`` nested in a GRANTED trigger — the
+        # wrapper IS found by the existing deep walk (payer=Controller,
+        # PayLife in its cost), but the OLD non-ramp gate read only
+        # unit.effects (empty for a STATIC-origin unit whose only role=
+        # static concept is the grant itself); the granted payoff
+        # (Sacrifice / ChangeZone) is reachable only by walking INTO the
+        # grant, so the gate now scans the WHOLE unit's EFFECT_CONCEPTS
+        # tags instead of just its top-level unit.effects.
+        "Vile Consumption",  # "sacrifice this creature unless you pay 1
+        # life" granted to all creatures
+        "Morgul-Knife Wound",  # "exile this creature unless you pay 2
+        # life" granted to the enchanted creature
+    ],
+)
+def test_lifeloss_makers_granted_unless_pay_non_ramp_gate(name):
+    assert ("lifeloss_makers", "you", "") in _idents(name)
+
+
+def test_lifeloss_makers_withercrown_deferred_gap():
+    """Withercrown's granted trigger ("you lose 1 life unless you sacrifice
+    this creature") collapses to ONE Unimplemented residue nested under
+    unit.statics (GrantTrigger.trigger.execute.effect) — OUTSIDE
+    ``apply_unimplemented_recovery``'s unit.effects-only scan (recovery.py's
+    own docstring: "a genuine cost/static ConceptNode is never
+    re-decorated; that migrates later, per-key"). A genuine, already-known
+    phase-structuring gap, not a shed class — stays unrecovered this wave."""
+    assert "lifeloss_makers" not in _keys("Withercrown")
+
+
+@pytest.mark.parametrize(
+    ("name", "scope"),
+    [
+        # phase degrades a CONDITION- or optional-"you may have"-wrapped
+        # "each opponent loses N life" to a completely uninformative Typed
+        # recipient filter (controller=None, no properties, no
+        # type_filters) — the SAME shared _scope_from_player_node Typed
+        # branch that correctly returns "each" for every OTHER caller
+        # would misread this specific narrow shape as "each" too. The lane
+        # distrusts an "each" read backed by this exact shape
+        # (lifeloss_recipient_is_degraded_typed) and falls through to its
+        # own text-based disambiguation, which correctly resolves
+        # "opponents" from the raw "each opponent" text.
+        ("Baba Lysaga, Night Witch", "opponents"),
+        ("Vohar, Vodalian Desecrator", "opponents"),
+        ("Faerie Tauntings", "opponents"),
+    ],
+)
+def test_lifeloss_makers_degraded_typed_each_opponent(name, scope):
+    idents = _idents(name)
+    assert ("lifeloss_makers", scope, "") in idents
+    assert ("lifeloss_makers", "each", "") not in idents
+
+
 @pytest.mark.parametrize("name", ["Braids, Cabal Minion", "Smokestack"])
 def test_edict_makers_symmetric_upkeep_scoped_each(name):
     """A triggered "at the beginning of each player's upkeep, that player sacrifices"
