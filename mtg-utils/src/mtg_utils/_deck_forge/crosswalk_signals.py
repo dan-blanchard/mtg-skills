@@ -1251,27 +1251,96 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "base_pt_set",
         "cheat_into_play",
         "creatures_matter",
-        # ADR-0038 W5 tails (2026-07-11): direct_damage NOT YET PROMOTED —
-        # live_only cut from 158 to 130 via the recovery.ALLOWLIST "damage"
-        # row (a computed-amount DealDamage/DamageAll/DamageEachPlayer
-        # clause phase drops entirely — Soulblast's sacrifice tally,
-        # Mjölnir Storm Hammer's per-tapped-creature count, Iron Mastiff's
-        # d20 table) + a lane-level raw-text direction gate
-        # (``_RECOVERED_DAMAGE_REACH`` — a recovered node carries no typed
-        # ``target``). 28 of the 29 corpus-overlapping "damage"-token
-        # residues closed (Whipkeeper correctly joins the shed class
-        # instead — bare "target creature" recipient); 4 more beyond-legacy
-        # gains (Enchanter's Bane / Searing Rays / Spiteful Repossession /
-        # Rumbling Aftershocks — legacy's own regex mirror misses them
-        # entirely). A genuine tail remains: phase SILENTLY DROPS a second
-        # damage-to-controller clause when the amount is computed (Judgment
-        # Bolt / Liquid Fire / Synchronized Spellcraft / Cruel Sadist — no
-        # residue node survives AT ALL, confirmed via direct tree dump —
-        # needs phase parser work, not a recovery row) and loses "target
-        # player" upstream of the Unimplemented tail on at least one card
-        # (Vexing Arcanix's RevealTop reads ``player=Controller()`` instead
-        # of the targeted player). Landfall rule not met (live_only != the
-        # shed set) — stays residual. CR 120.1/120.3 verified this session.
+        # ADR-0038 W6 endgame (2026-07-11): direct_damage NOT YET PROMOTED —
+        # full decomposition of the 130-member live_only tail (re-measured
+        # fresh, no drift from the W5-tails commit). One genuine gain
+        # landed this session (:func:`~mtg_utils._card_ir.crosswalk.
+        # effect_reaches_player`'s ``DamageAll`` branch now also checks
+        # ``.target`` via the SAME :func:`_damage_target_reaches_player`
+        # discriminator ``DealDamage`` already uses, not just
+        # ``.player_filter`` — Aurelia, the Law Above's "deals 3 damage to
+        # each of your opponents" and 14 more corpus-wide serialize their
+        # recipient into ``target`` with no ``player_filter`` at all;
+        # full-corpus scan: 253 commander-legal ``DamageAll`` nodes with no
+        # ``player_filter``, 238 correctly STILL excluded — Pyroclasm-
+        # shaped creature-typed sweeps — 15 gain, CR 120.1). The remaining
+        # 129 decompose EXACTLY into two adjudicated shed classes plus two
+        # deferred gap classes — no unaccounted residue:
+        #
+        #   * 93 join the PRE-EXISTING creature/battle-only shed (CR
+        #     120.1 — a creature/permanent/battle-typed recipient is
+        #     removal, not burn) or the PRE-EXISTING bare-``Controller``
+        #     "to you" self-damage shed (both already pinned from W4 —
+        #     Voltaic Visionary, Torture Chamber) — including 6 the naive
+        #     top-level scan misses but the production
+        #     ``has_nested_damage_reaching_player`` fallback already
+        #     excludes correctly (Pathway Arrows / Shuriken / Freewind
+        #     Equenaut / Lavamancer's Skill / Quilled Sliver / Archery
+        #     Training grant a CREATURE-only tap ability, never a player-
+        #     reaching one) and Embrose, Dean of Shadow's "that creature"
+        #     ``ParentTarget`` correctly resolving to its OWN sibling
+        #     creature target (not a player), same discipline as the W4
+        #     Aggressive Sabotage precedent.
+        #   * 16 are a damage DOUBLER (CR 614.1 replacement — Isengard
+        #     Unleashed, The Flame of Keld, Goblin Goliath, Neriv, Rankle
+        #     and Torbran, Desperate Gambit, Impulsive Maneuvers), a
+        #     damage-MATTERS trigger CONDITION reading someone else's
+        #     damage rather than dealing its own (The Red Terror, Night
+        #     Dealings, Tamanoa, Stick, Fearless Mentor, Quest for Pure
+        #     Flame, Taii Wakeen, Perfect Shot, Lightning, Army of One), or
+        #     a damage-PREVENTION effect (CR 615.1 — Charm Peddler, Samite
+        #     Blessing deal no damage of their own at all) — three
+        #     categorically different, already-separate lanes per this
+        #     function's own docstring ("Damage DOUBLERS are a separate
+        #     lane"); NEWLY negative-pinned this session (not previously
+        #     tested).
+        #   * 16 are a DROPPED CLAUSE: phase's typed tree carries NO
+        #     residue node for the damage effect AT ALL (confirmed via
+        #     direct tree dump, not just an unrecognized ``Unimplemented``)
+        #     — the pre-existing 4 (Judgment Bolt / Liquid Fire /
+        #     Synchronized Spellcraft / Cruel Sadist's second damage-to-
+        #     controller clause) plus Vexing Arcanix's separate upstream
+        #     bug (RevealTop reads ``player=Controller()`` instead of the
+        #     targeted player) plus 11 NEW same-shape instances found this
+        #     session: a trailing damage clause after an unrelated earlier
+        #     effect in the SAME sentence (Flames of the Blood Hand's
+        #     "gain no life" replacement swallows the whole card; Valakut
+        #     Exploration's "then ~ deals that much damage to each
+        #     opponent" after a ChangeZone; Avatar Aang's 5-effect
+        #     conjunction drops the trailing "deals 4 damage to each
+        #     opponent"; Insult // Injury's Aftermath face), a granted-
+        #     ability body too complex for the grant-definition parse
+        #     (Karn, Living Legacy's emblem; Captain Rex Nebula's Crash
+        #     Land rider — RollDie/Sacrifice chain present, the FINAL "it
+        #     deals that much damage" step absent), a whole-clause
+        #     Unimplemented whose DOMINANT verb token is "create" not
+        #     "damage" so the make_token recovery never sees the nested
+        #     token-ability text (Maestros Diabolist / Pugnacious
+        #     Pugilist's "tapped and attacking" Devil token — contrast
+        #     Dance with Devils's simpler, un-triggered, already-working
+        #     phrasing), and two standalone drops (Kaboom!, Ellie,
+        #     Vengeful Hunter, Keranos, God of Storms). Needs phase parser
+        #     work, not a recovery row — bridge-ledger input, ADR-0039.
+        #   * 4 are a STRUCTURAL boundary the conservative ``ParentTarget``
+        #     design (this module's own documented Fiery-Impulse-collision
+        #     caution) can't safely resolve without a corpus-wide
+        #     widening risk: Curse of Shaken Faith's "Enchant player" +
+        #     "deals 2 damage to them" — the Aura's OWN enchant-target
+        #     type lives NOWHERE in the phase tree (a bare zero-field
+        #     ``AttachedTo`` marker, no player/creature distinction to
+        #     read); Sin Prodder's "that player" back-reference resolves
+        #     only through an ``optional_for='AnyOpponent'`` STRING value
+        #     on a sibling node, a shape ``_unit_has_player_target``'s
+        #     ``_SCOPE_FIELDS`` scan doesn't cover; Goblin Barrage /
+        #     Unstable Footing's kicker-conditional "if kicked, deals N
+        #     damage to target player or planeswalker" tags its OWN NEW
+        #     target as ``ParentTarget`` (not a genuine back-reference —
+        #     phase re-uses the tag for a modal-additional-target shape
+        #     too), and with no sibling player target to resolve against,
+        #     conservatively excluded. Bridge-ledger input, ADR-0039.
+        #
+        # Landfall rule not met (129 != 0) — stays residual. CR
+        # 120.1/120.3/614.1/615.1 verified this session.
         "direct_damage",
         "draw_for_each",
         "exile_matters",

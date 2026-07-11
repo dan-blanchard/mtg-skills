@@ -12885,6 +12885,58 @@ def test_direct_damage_beyond_legacy_gain_recovered_node():
     assert ("direct_damage", "you", "") in _idents("Rumbling Aftershocks")
 
 
+# ── ADR-0038 W6 endgame: direct_damage (DamageAll.target reach + sheds) ──────
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Aurelia, the Law Above",  # "deals 3 damage to each of your opponents"
+        "Chandra, the Firebrand",  # a +1 loyalty deals damage to any target
+    ],
+)
+def test_direct_damage_damage_all_target_reach(name):
+    """(a) a ``DamageAll`` effect with NO ``player_filter`` can still reach a
+    player through its ``target`` field, via the SAME
+    :func:`~mtg_utils._card_ir.crosswalk._damage_target_reaches_player`
+    discriminator ``DealDamage`` already uses (CR 120.1). Full-corpus scan:
+    253 commander-legal ``DamageAll`` nodes carry no ``player_filter``; 238
+    are Pyroclasm-shaped creature-typed sweeps (stay excluded — non-empty
+    ``type_filters``, no "Player" word) and 15 are a multi-target burn spell
+    or "each of your opponents" ability that serializes its recipient into
+    ``target`` instead (this pair)."""
+    assert ("direct_damage", "you", "") in _idents(name)
+
+
+def test_direct_damage_excludes_creature_typed_damage_all_shed():
+    """The SAME ``DamageAll.target`` reach carefully does NOT widen the
+    Pyroclasm-shaped creature-only sweep: a non-empty ``type_filters``
+    without the word "Player" stays removal, not burn (CR 120.1)."""
+    assert "direct_damage" not in _keys("Pyroclasm")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Isengard Unleashed",  # damage DOUBLER (CR 614.1 replacement effect)
+        "The Red Terror",  # damage-MATTERS trigger CONDITION, not its own effect
+        "Charm Peddler",  # damage PREVENTION effect (CR 615.1) — deals none
+    ],
+)
+def test_direct_damage_excludes_doubler_matters_prevention_shed(name):
+    """MANDATORY SHED (ADR-0038 W6 endgame): a damage DOUBLER ("if a source
+    you control would deal damage ... it deals double/triple that damage
+    instead" — a CR 614.1 replacement effect), a damage-MATTERS trigger
+    reading someone ELSE's damage as its trigger CONDITION rather than
+    dealing its own (CR 603.2), and a damage-PREVENTION effect (CR 615.1 —
+    deals no damage at all) are three categorically different, already-
+    separate lanes from ``direct_damage`` per this module's own docstring
+    ("Damage DOUBLERS are a separate lane"). None of the three has a
+    ``DealDamage``/``DamageAll``/``DamageEachPlayer`` effect of ITS OWN
+    reaching a player."""
+    assert "direct_damage" not in _keys(name)
+
+
 # ── ADR-0038 W4 giant: enchantments_matter (structural arms + verified CR) ───
 
 

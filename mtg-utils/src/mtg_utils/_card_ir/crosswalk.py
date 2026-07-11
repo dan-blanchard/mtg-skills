@@ -726,7 +726,19 @@ def effect_reaches_player(node: TypedMirrorNode, root: object | None = None) -> 
 
     * ``DamageEachPlayer`` always hits players.
     * ``DamageAll`` hits players iff it carries a ``player_filter`` (Pestilence pings
-      creatures AND each player; Pyroclasm-as-``DamageAll`` has none).
+      creatures AND each player; Pyroclasm-as-``DamageAll`` has none) OR its
+      ``target`` reaches one via the SAME :func:`_damage_target_reaches_player`
+      discriminator ``DealDamage`` uses (ADR-0038 W6 endgame: a multi-target
+      "any number of target creatures and/or players" burn spell — Firestorm,
+      Meteor Blast, Comet Storm — and a "deals N damage to each of your
+      opponents" ability with no fixed permanent-type restriction — Aurelia,
+      the Law Above, Chandra planeswalkers — both serialize their recipient
+      into ``target`` rather than ``player_filter``; a creature-only sweep
+      (Pyroclasm's own ``target=Typed(type_filters=['Creature'])``) stays
+      excluded via the SAME non-empty-filter/no-"Player"-word rule that
+      excludes creature-only ``DealDamage``. Full-corpus scan: 253 commander-
+      legal ``DamageAll`` nodes with no ``player_filter``, 238 correctly stay
+      excluded (creature-typed sweeps), 15 gain — CR 120.1).
     * ``DealDamage`` defers to :func:`_damage_target_reaches_player` on its
       ``target`` (empty when absent, per the pre-existing gate). ``root`` —
       the enclosing ability unit's node, when the caller has it — resolves a
@@ -737,7 +749,12 @@ def effect_reaches_player(node: TypedMirrorNode, root: object | None = None) -> 
     if t == "DamageEachPlayer":
         return True
     if t == "DamageAll":
-        return _present(getattr(node, "player_filter", MISSING))
+        if _present(getattr(node, "player_filter", MISSING)):
+            return True
+        tgt = getattr(node, "target", MISSING)
+        if not _present(tgt):
+            return False
+        return _damage_target_reaches_player(tgt, root)
     if t == "DealDamage":
         tgt = getattr(node, "target", MISSING)
         if not _present(tgt):
