@@ -6730,6 +6730,128 @@ def test_creature_etb_entered_this_turn_arm():
     assert "creature_etb" not in _keys("Ash, Party Crasher")
 
 
+# ── ADR-0038 W3 batch 6 (draw-etb-tokens cluster): creature_etb PROMOTED ────
+
+
+def test_creature_etb_nested_grant_descent():
+    """Arm 4: a ``CreateEmblem``/``GrantTrigger`` nested creature-ETB def
+    fires via :func:`is_creature_etb_trigger_def` applied to
+    :func:`iter_nested_trigger_defs`'s yield — Kiora, Master of the Depths's
+    -8 emblem ("Whenever a creature you control enters, you may have it
+    fight target creature") and Nurturing Presence's Aura grant (Enchanted
+    creature has "Whenever a creature you control enters, ~ gets +1/+1
+    ..."). CR 603.6a."""
+    assert ("creature_etb", "you", "") in _idents("Kiora, Master of the Depths")
+    assert ("creature_etb", "you", "") in _idents("Nurturing Presence")
+
+
+def test_creature_etb_delayed_trigger_descent():
+    """Arm 5: a ``CreateDelayedTrigger``'s ``WheneverEvent`` watcher fires
+    via :func:`iter_delayed_trigger_condition_defs` — First Day of Class
+    (an Instant installing a temporary "whenever a creature you control
+    enters this turn" watcher, not itself a top-level trigger unit).
+    CR 603.6a / 603.2."""
+    assert ("creature_etb", "you", "") in _idents("First Day of Class")
+
+
+def test_creature_etb_entersorattacks_widening():
+    """The compound ``entersorattacks`` event (Kindred Discovery's
+    "Whenever a creature you control of the chosen type enters or attacks,
+    draw a card") folds into :func:`is_creature_etb_trigger_def` — CR 603.2
+    (one trigger condition naming two alternative events; the predicate
+    only asserts the entering half applies)."""
+    assert ("creature_etb", "you", "") in _idents("Kindred Discovery")
+
+
+def test_creature_etb_unknown_mode_description_fallback():
+    """Arm 6: :func:`_unknown_mode_creature_etb` reads an Unknown-mode
+    trigger's OWN ``description`` when phase's typed ``valid_card`` parse
+    can't represent the filter — Symmetry Matrix's "power equal to its
+    toughness" filter defeats structural parse and falls back to
+    ``mode.key == "Unknown"``. CR 603.6a."""
+    assert ("creature_etb", "you", "") in _idents("Symmetry Matrix")
+
+
+def test_creature_etb_unimplemented_ability_fallback():
+    """Arm 7: :func:`_unimplemented_ability_creature_etb` reads a WHOLE-
+    ability Unimplemented node's own description — the Stickers family's
+    ``{TK}``-templated line (Familiar Beeble Mascot: "Whenever a creature
+    enters under your control, creatures you control get +1/+1 until end
+    of turn"). Full-corpus re-measure: exactly 3 Stickers cards fire,
+    nothing else. CR 603.6a."""
+    assert ("creature_etb", "you", "") in _idents("Familiar Beeble Mascot")
+
+
+def test_creature_etb_soulbond_graft_gain():
+    """cw_only gain (pre-existing top-level Arm 1, verified this batch): CR
+    702.95a's Soulbond and CR 702.58a's Graft each parse as TWO trigger
+    units — the SelfRef "when this creature enters, pair/graft" half
+    (excluded, ETB value on itself) and a "whenever ANOTHER creature you
+    control enters" half with a Creature-typed ``valid_card`` that fires
+    normally (Silverblade Paladin, Cytoplast Root-Kin)."""
+    assert ("creature_etb", "you", "") in _idents("Silverblade Paladin")
+    assert ("creature_etb", "you", "") in _idents("Cytoplast Root-Kin")
+
+
+def test_creature_etb_shed_cast_trigger_counter_modifier():
+    """Adjudicated SHED (class 1): "whenever you cast a creature spell,
+    that creature enters with N additional counters" (Boreal Outrider) is a
+    CAST-triggered replacement of how the permanent enters (CR 614.12), not
+    an ENTERS-event trigger — ``creature_cast_trigger``'s own docstring
+    already names this card as ITS gap, confirming the lane boundary."""
+    assert "creature_etb" not in _keys("Boreal Outrider")
+
+
+def test_creature_etb_shed_combat_damage_recency_condition():
+    """Adjudicated SHED (class 2): a combat-damage trigger merely
+    CONDITIONED on "that creature entered this turn" (Samut, Vizier of
+    Naktamun) is watching combat damage (CR 510.1b), not entering — the
+    recency check is a condition on an unrelated trigger, not an ETB
+    payoff."""
+    assert "creature_etb" not in _keys("Samut, Vizier of Naktamun")
+
+
+def test_creature_etb_shed_cross_clause_regex_bleed():
+    """Adjudicated SHED (class 3): legacy's whole-card regex mirror spans
+    an unrelated "a"/"creature"/"enter[s]" across a newline-joined,
+    period-less span of UNRELATED ability lines (Kitnap's Gift reminder
+    "a card" + "Enchant creature" + "this Aura enters" bleeding together)
+    — never a real creature-ETB trigger. The per-node description arms
+    (Arms 6/7) don't reproduce this because each node's description is
+    scoped to ONE ability, never blended with a sibling's text."""
+    assert "creature_etb" not in _keys("Kitnap")
+
+
+def test_creature_etb_shed_noncreature_doubler():
+    """Adjudicated SHED (class 4): the ``DOUBLER`` regex fires on a
+    LAND-entering trigger doubler with no Creature filter at all (Traveling
+    Chocobo: "If a land or Bird you control entering ... triggers an
+    additional time") — CR 603.6a requires the watched event's filter
+    include the Creature core type; Arm 2's structural
+    ``double_triggers_cause_core_types`` gate correctly excludes it."""
+    assert "creature_etb" not in _keys("Traveling Chocobo")
+
+
+def test_creature_etb_shed_selfref_own_targeting_filter():
+    """Adjudicated SHED (class 5): Sweet-Gum Recluse's SelfRef "When this
+    creature enters, put counters on ... target creatures that entered this
+    turn" — the ONLY "creature ... enter" match is its OWN targeting
+    restriction, not a payoff engine watching OTHER creatures enter;
+    consistent with the SelfRef-exclusion design (Elvish Visionary)."""
+    assert "creature_etb" not in _keys("Sweet-Gum Recluse")
+
+
+def test_creature_etb_delayed_had_enter_arm():
+    """Arm 8: :func:`_delayed_had_enter_creature_etb` reads a trigger's own
+    description for the legacy ``_ETB_HAD_RE`` idiom regardless of mode —
+    Ephara, God of the Polis's upkeep-gated "if you had another creature
+    enter ... last turn, draw a card" has no ``etb`` event at all in
+    phase's model (an upkeep-phase trigger with a historical qty
+    condition), so no structural arm can ever reach it. Full-corpus
+    re-measure: only Ephara's own description matches."""
+    assert ("creature_etb", "you", "") in _idents("Ephara, God of the Polis")
+
+
 def test_damage_prevention_shield_replacement_arm():
     """Follow-up (c): the CR 615 prevention-shield MEMBERSHIP via typed
     ``shield_kind {Prevention}`` on a DamageDone replacement (Palisade

@@ -2402,6 +2402,32 @@ def is_creature_cast_trigger_def(trig: object) -> bool:
     return "Creature" in filter_core_types(getattr(trig, "valid_card", None))
 
 
+def is_creature_etb_trigger_def(trig: object) -> bool:
+    """Whether a trigger DEFINITION node — a top-level trigger unit's own
+    ``.node`` OR a nested def from :func:`iter_nested_trigger_defs` /
+    :func:`iter_delayed_trigger_condition_defs` — is CR 603.6a's creature-ETB
+    payoff shape: a ``ChangesZone``/``ChangesZoneAll`` mode landing on the
+    battlefield (``_trigger_event`` normalizes both to ``"enters"``) whose
+    watched-object filter carries the Creature core type, OR the compound
+    ``entersorattacks`` event (Kindred Discovery's "enters or attacks" —
+    still genuinely an ETB payoff for the enters half; CR 603.2's "whenever"
+    condition names two alternative events, and this predicate only asserts
+    the entering one applies). One predicate for FOUR tree positions
+    (mirroring :func:`is_creature_cast_trigger_def`'s shared-descent
+    precedent): a top-level trigger unit, a ``GrantTrigger``/``CreateEmblem``
+    nested def (Nurturing Presence's Aura grant; Kiora/Huatli/Mila's
+    emblems), and a ``CreateDelayedTrigger``'s ``WheneverEvent`` watcher
+    (First Day of Class/Rite of Harmony/Theoretical Duplication's "this
+    turn" delayed trigger — an Instant/Sorcery installing a temporary ETB
+    watcher, not itself an enters event).
+    """
+    if not isinstance(trig, TypedMirrorNode):
+        return False
+    if _trigger_event(trig) not in ("enters", "entersorattacks"):
+        return False
+    return "Creature" in filter_core_types(getattr(trig, "valid_card", None))
+
+
 def damage_to_player_trigger_kind(trig: object) -> str | None:
     """Whether a trigger DEFINITION node — a top-level trigger unit's own
     ``.node`` OR a nested def from :func:`iter_nested_trigger_defs` — is CR

@@ -80,6 +80,7 @@ from mtg_utils._card_ir.crosswalk import (
     has_nested_fight,
     has_nested_flip_coin,
     is_creature_cast_trigger_def,
+    is_creature_etb_trigger_def,
     is_damage_reflect_trigger_def,
     is_dies_return_trigger,
     is_opponent_cast_trigger_def,
@@ -279,8 +280,10 @@ from mtg_utils._deck_forge._signals_ir import (
     _LAND_SUBTYPES as _LIVE_LAND_SUBTYPES,
 )
 from mtg_utils._deck_forge._signals_regex import (
+    _ETB_HAD_RE,
     _EVERGREEN_CK,
     Signal,
+    _creature_etb_clause,
     _resolve_subject,
 )
 from mtg_utils._deck_forge._subtypes import (
@@ -849,13 +852,30 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # shed set IS the 0-genuine-lost gate; re-measured at HEAD before the
     # flip. The 12 cw_only gains (Wandering Troubadour, Restore, Hazezon,
     # Soul of Windgrace, ...) were batch-4-adjudicated and pinned.
+    #
+    # ADR-0038 W3 batch 6 (draw-etb-tokens cluster): ``creature_etb``
+    # PROMOTED — corpus re-measure 338 both / 0 genuine live_only (37 raw
+    # live_only, all adjudicated sheds; see ``_etb_trigger_lanes``'s
+    # docstring for the full per-class breakdown) / 46 cw_only (Soulbond/
+    # Graft granted-ability bodies CR 702.95a/702.58a + the pre-existing
+    # EnteredThisTurn Arm 3 gains, all CR-grounded). Eight arms total: the
+    # three pre-existing (top-level trigger + DoubleTriggers +
+    # EnteredThisTurn) plus five new this batch — a nested
+    # ``GrantTrigger``/``CreateEmblem`` descent and a
+    # ``CreateDelayedTrigger`` descent (both riding the EXISTING shared
+    # iterators ``creature_cast_trigger``/``opponent_cast_matters`` already
+    # use), a compound ``entersorattacks`` event widening, an Unknown-mode
+    # per-trigger description fallback, an Unimplemented-whole-ability
+    # per-unit description fallback for the Stickers family, and a
+    # mode-agnostic ``_ETB_HAD_RE`` per-trigger description fallback for
+    # Ephara's condition-less delayed payoff (no ``etb`` event exists in
+    # phase's model for a structural arm to ever reach). CR 603.6a.
     {
         "artifacts_matter",
         "base_pt_set",
         "cheat_into_play",
         "combat_damage_matters",
         "combat_damage_to_opp",
-        "creature_etb",
         "creature_ping",
         "creatures_matter",
         "direct_damage",
@@ -8442,29 +8462,171 @@ _DEP_PLAYER_TAGS: frozenset[str] = frozenset(
 )
 
 
+def _unknown_mode_creature_etb(trig: object) -> str | None:
+    """Whether trigger DEFINITION ``trig`` is an Unknown-mode node whose OWN
+    ``description`` field confirms CR 603.6a's creature-ETB payoff shape
+    phase couldn't classify structurally at all — a filter phase's typed
+    ``valid_card`` parse doesn't cover (Symmetry Matrix's power-equals-
+    toughness filter, Gladewalker Ritualist's named-self filter, Bess, Soul
+    Nourisher's base-power-and-toughness-1/1 filter all fall back to an
+    ``Unknown`` mode carrying only the raw description). Read ONLY when the
+    structural predicate (:func:`is_creature_etb_trigger_def`) already
+    missed this exact node — never overrides a structural hit, matching
+    ``_unknown_mode_combat_damage_to_player``'s fallback-only contract.
+    Reuses the legacy ``_creature_etb_clause`` two-scope regex VERBATIM but
+    scoped to this ONE trigger's own description — never blended with a
+    sibling ability's text the way the whole-card kept-mirror is, so the
+    cross-clause bleed the whole-card mirror is prone to (Kitnap,
+    Scrapshooter, Callidus Assassin — an unrelated "a card"/"a copy of any
+    creature" elsewhere on the card coincidentally completing the regex)
+    can't happen here.
+    """
+    mode = getattr(trig, "mode", None)
+    if not (isinstance(mode, MirrorVariant) and mode.key == "Unknown"):
+        return None
+    desc = getattr(trig, "description", "") or ""
+    return _creature_etb_clause(desc.lower())
+
+
+def _unimplemented_ability_creature_etb(node: object) -> str | None:
+    """Whether an ``origin == "ability"`` unit's node is a WHOLE-ability
+    ``Unimplemented`` effect (phase parsed none of it — not even a trigger
+    mode) whose OWN ``description`` confirms CR 603.6a's creature-ETB shape:
+    the Stickers-card family (Familiar Beeble Mascot, Cool Fluffy Loxodon,
+    Geek Lotus Warrior — each ``{TK}``-templated sticker line is its own
+    isolated ability unit, so the per-unit description is never blended
+    with a sibling line the way a whole-card mirror would be). Corpus
+    re-measured across all 31622 commander-legal joined cards: exactly
+    these 3 fire and nothing else — the ``{TK}`` template marker plus the
+    Unimplemented-whole-ability gate makes this safe without a Stickers-
+    specific allowlist.
+    """
+    eff = getattr(node, "effect", None)
+    if eff is None or tag_of(eff) != "Unimplemented":
+        return None
+    desc = getattr(node, "description", "") or ""
+    return _creature_etb_clause(desc.lower())
+
+
+def _delayed_had_enter_creature_etb(trig: object) -> bool:
+    """Whether a trigger DEFINITION's own ``description`` matches the
+    legacy ``_ETB_HAD_RE`` delayed-payoff idiom: "at the beginning of
+    upkeep, if you HAD a creature enter the battlefield ... last turn, …"
+    (Ephara, God of the Polis). Unlike :func:`_unknown_mode_creature_etb`
+    this is NOT gated on an Unknown mode — phase correctly classifies
+    Ephara's trigger as a ``phase``-event (upkeep) trigger, not a
+    ``ChangesZone``/enters event at all, so there's no ``etb`` event for a
+    structural arm to ever reach (ADR-0027 β's original rationale for
+    riding the whole-card kept-mirror here). Scoped per-unit like the other
+    fallback arms — full-corpus re-measure confirms only Ephara's own
+    description matches this specific idiom, so it's safe unconditional on
+    ``mode`` (commander-legal corpus: 1 hit, 0 collateral).
+    """
+    desc = getattr(trig, "description", "") or ""
+    return _ETB_HAD_RE.search(desc.lower()) is not None
+
+
 def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
     """creature_etb + permanent_etb — the ETB-payoff pair (CR 603.6a: "Whenever
     a [type] enters, …"). One shared trigger walk:
 
-    * ``creature_etb`` — an ``enters`` trigger whose watched-object filter has
-      the Creature core type (Soul Warden). Scope from the filter's controller
-      (checklist #5 — the trigger's OWN ``valid_card`` node): null/You → "you",
-      Opponent → "opponents" (the punisher row). A SelfRef watcher (Elvish
-      Visionary's enters-draw) is ETB *value on itself*, not a payoff ENGINE —
-      never fires. **Arm 2** (the known-lossy-case improvement over live, which
-      NEUTRALIZED its structural arm and rides a byte mirror): a
-      ``DoubleTriggers`` static whose cause is an ``EntersBattlefield`` whose
-      core types include Creature — or are EMPTY, the any-permanent form that
-      subsumes creatures (Panharmonicon / Yarok / Elesh Norn, per
-      Panharmonicon's 2021-03-19 ruling). **Arm 3** (b10 follow-up b): the
-      "if a creature entered the battlefield under your control this turn"
-      CONDITION family carries a typed ``EnteredThisTurn`` qty whose filter
-      names the population (Bellowing Elk — Creature core, controller You;
-      the batch-10 "no phase condition node" comment was STALE for this
-      slice). The Celebration nonland-permanent forms (Ash, Party Crasher)
-      and the filterless self-check (Cactuar) fail the Creature/You gates
-      (measured live parity); Ephara HERSELF still parses condition-less —
-      that residue stays SUPPLEMENT, logged.
+    * ``creature_etb`` — an ``enters``/``entersorattacks`` trigger whose
+      watched-object filter has the Creature core type (Soul Warden), via
+      :func:`is_creature_etb_trigger_def`. Scope from the filter's
+      controller (checklist #5 — the trigger's OWN ``valid_card`` node):
+      null/You → "you", Opponent → "opponents" (the punisher row). A SelfRef
+      watcher (Elvish Visionary's enters-draw) is ETB *value on itself*, not
+      a payoff ENGINE — never fires. **Arm 2** (the known-lossy-case
+      improvement over live, which NEUTRALIZED its structural arm and rides
+      a byte mirror): a ``DoubleTriggers`` static whose cause is an
+      ``EntersBattlefield`` whose core types include Creature — or are
+      EMPTY, the any-permanent form that subsumes creatures (Panharmonicon /
+      Yarok / Elesh Norn, per Panharmonicon's 2021-03-19 ruling). **Arm 3**
+      (b10 follow-up b): the "if a creature entered the battlefield under
+      your control this turn" CONDITION family carries a typed
+      ``EnteredThisTurn`` qty whose filter names the population (Bellowing
+      Elk — Creature core, controller You; the batch-10 "no phase condition
+      node" comment was STALE for this slice). The Celebration nonland-
+      permanent forms (Ash, Party Crasher) and the filterless self-check
+      (Cactuar) fail the Creature/You gates (measured live parity); Ephara
+      HERSELF still parses condition-less as an ``EnteredThisTurn`` qty (no
+      such node at all) — recovered a different way this batch, **Arm 8**
+      below.
+
+      ADR-0038 W3 batch 6 (draw-etb-tokens cluster): five more arms, all
+      reusing :func:`iter_nested_trigger_defs` /
+      :func:`iter_delayed_trigger_condition_defs`'s shared granted-trigger
+      descent (the SAME two iterators ``creature_cast_trigger`` /
+      ``opponent_cast_matters`` already ride) rather than growing a new
+      walk: **Arm 4** a ``GrantTrigger``/``CreateEmblem`` nested creature-ETB
+      def (Nurturing Presence's Aura grant; Kiora/Huatli/Mila's -7/-8
+      emblems), **Arm 5** a ``CreateDelayedTrigger``'s ``WheneverEvent``
+      watcher (First Day of Class / Rite of Harmony / Theoretical
+      Duplication's "this turn" delayed trigger — an Instant/Sorcery
+      installing a temporary ETB watcher, not itself a top-level trigger
+      unit), **Arm 6** :func:`_unknown_mode_creature_etb`'s per-node
+      description fallback for the three filters phase's ``valid_card``
+      parse can't structurally represent at all (Symmetry Matrix,
+      Gladewalker Ritualist, Bess Soul Nourisher), and **Arm 7**
+      :func:`_unimplemented_ability_creature_etb`'s per-unit description
+      fallback for a WHOLE-ability ``Unimplemented`` node (the Stickers
+      family's ``{TK}``-templated lines — Familiar Beeble Mascot, Cool
+      Fluffy Loxodon, Geek Lotus Warrior; full-corpus re-measure: exactly
+      these 3 fire, nothing else), and **Arm 8**
+      :func:`_delayed_had_enter_creature_etb`'s per-trigger description
+      fallback for the legacy ``_ETB_HAD_RE`` delayed-payoff idiom (Ephara,
+      God of the Polis's condition-less upkeep check — phase models it as
+      a ``phase``-event trigger with no ``etb`` event at all, so no
+      structural arm can ever reach it; unconditional on ``mode`` since
+      full-corpus re-measure shows only Ephara's own description matches).
+      Also widened: the
+      compound ``entersorattacks`` event (Kindred Discovery) folds into
+      :func:`is_creature_etb_trigger_def` directly (CR 603.2 — one trigger
+      condition naming two alternative events; the predicate only asserts
+      the entering half). The Soulbond/Graft granted-ability bodies
+      (CR 702.95a/702.58a) parse as TWO top-level trigger units each — the
+      SelfRef "when this creature enters, pair/graft" half (excluded, ETB
+      value on itself) and a second "whenever ANOTHER creature you control
+      enters" half with a Creature-typed ``valid_card`` — so they already
+      fire via the EXISTING top-level Arm 1 (:func:`is_creature_etb_trigger_def`
+      applied to ``unit.node`` directly), no new code; verified as
+      CR-grounded cw_only gains this batch (not previously adjudicated).
+
+      NOT recovered (adjudicated SHEDS — legacy over-fires this lane never
+      reproduces): (1) a "when you cast a creature spell, that creature
+      enters with N additional counters" idiom (Boreal Outrider, Communal
+      Brewing, Jade Orb of Dragonkind, Chocobo Camp, Yuna, Grand Summoner,
+      Runadi, Behemoth Caller, Torgal, A Fine Hound, Wildgrowth Archaic,
+      Long List of the Ents, Summon: Fenrir, Kumano Faces Kakkazan) is a
+      CAST-triggered replacement of how the permanent enters (CR 614.12),
+      not an ENTERS-event trigger — ``creature_cast_trigger``'s own
+      docstring already names these as ITS gap, confirming the lane
+      boundary; (2) a combat-damage/attacks trigger merely CONDITIONED on
+      "that creature entered this turn" (Samut, Vizier of Naktamun,
+      Goro-Goro and Satoru, Pick Up the Pace, Whirlwind, Killer Cyclone,
+      Hixus, Prison Warden, Park Heights Pegasus, Redoubled Stormsinger) —
+      the watched EVENT is combat damage/attacking (CR 510.1b/508.1), not
+      entering; legacy's whole-clause regex can't tell a trigger's OWN
+      event from a same-clause CONDITION and fires on the "creature ...
+      entered" substring regardless; (3) legacy's ``[^.]*``-spanning regex
+      bleeding an unrelated "a"/"creature"/"enter[s]" across a
+      newline-joined but period-less span of UNRELATED ability lines
+      (Kitnap, Scrapshooter, Callidus Assassin, Cherished Hatchling,
+      Crafty Cutpurse, Lictor, Call the Mountain Chocobo, Choco-Comet,
+      Chocobo Racetrack, Gysahl Greens, Sidequest: Raise a Chocobo,
+      Summon: Fat Chocobo, Ka-Zar of the Savage Land, The Prydwen, Steel
+      Flagship, Paleontologist's Pick-Axe) — verified per-card via the match
+      SPAN, never a real creature-ETB trigger; (4) the ``DOUBLER`` regex
+      firing on a LAND/ARTIFACT/legendary-permanent trigger-doubler with no
+      Creature filter at all (Traveling Chocobo, Ancient Greenwarden,
+      Gandalf the White) — CR 603.6a requires the watched event's filter
+      include the Creature core type, which these lack; (5) Sweet-Gum
+      Recluse's SelfRef "when this creature enters" whose ONLY "a/another/
+      each creature ... enter" match is its OWN targeting filter ("any
+      number of target creatures that entered this turn") — a targeting
+      restriction, not a payoff engine, consistent with the SelfRef
+      exclusion. All corpus re-measured 0 genuine members lost — live_only
+      after this batch is exactly this adjudicated shed set. CR 603.6a.
     * ``permanent_etb`` — the GENERIC permanent-ETB engine: a Permanent-cored
       watcher with controller You (Amareth; checklist #6 — an opp-scoped
       permanent-ETB punisher is excluded, mirroring live).
@@ -8477,15 +8639,30 @@ def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
             seen.add(key + scope)
             out.append(Signal(key, scope, "", "", tree.name, "high"))
 
+    def fire_etb_from(trig: object) -> None:
+        ctrl = filter_controller(getattr(trig, "valid_card", None))
+        fire("creature_etb", "opponents" if ctrl == "Opponent" else "you")
+
     for unit in tree.units:
-        if unit.origin == "trigger" and unit.trigger_event == "enters":
-            vc = getattr(unit.node, "valid_card", None)
-            cores = filter_core_types(vc)
-            if "Creature" in cores:
-                ctrl = filter_controller(vc)
-                fire("creature_etb", "opponents" if ctrl == "Opponent" else "you")
-            elif "Permanent" in cores and filter_controller(vc) == "You":
-                fire("permanent_etb", "you")
+        if unit.origin == "trigger":
+            if is_creature_etb_trigger_def(unit.node):
+                fire_etb_from(unit.node)
+            elif unit.trigger_event == "enters":
+                vc = getattr(unit.node, "valid_card", None)
+                if "Permanent" in filter_core_types(vc) and (
+                    filter_controller(vc) == "You"
+                ):
+                    fire("permanent_etb", "you")
+            else:
+                scope = _unknown_mode_creature_etb(unit.node)
+                if scope is not None:
+                    fire("creature_etb", scope)
+                elif _delayed_had_enter_creature_etb(unit.node):
+                    fire("creature_etb", "you")
+        elif unit.origin == "ability":
+            scope = _unimplemented_ability_creature_etb(unit.node)
+            if scope is not None:
+                fire("creature_etb", scope)
         if unit.origin == "static":
             dt_cores = double_triggers_cause_core_types(unit.node)
             if dt_cores is not None and (not dt_cores or "Creature" in dt_cores):
@@ -8495,6 +8672,12 @@ def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
                 filter_controller(filt) == "You"
             ):
                 fire("creature_etb", "you")
+        for trig in iter_nested_trigger_defs(unit.node):
+            if is_creature_etb_trigger_def(trig):
+                fire_etb_from(trig)
+        for trig in iter_delayed_trigger_condition_defs(unit.node):
+            if is_creature_etb_trigger_def(trig):
+                fire_etb_from(trig)
     return out
 
 
