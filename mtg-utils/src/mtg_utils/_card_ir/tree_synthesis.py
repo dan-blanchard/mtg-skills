@@ -100,9 +100,11 @@ from mtg_utils._card_ir.crosswalk import (
     mana_restricted_to_multicolored,
     mod_keyword_name,
     modify_cost_mode,
+    modify_cost_spell_filter,
     node_duration,
     protection_cardtype,
     recipient_tag,
+    ref_count_filter,
     replacement_event_tag,
     replacement_shield_kind,
     reveal_until_player,
@@ -1315,6 +1317,60 @@ def structural_type_subjects(tree: ConceptTree) -> set[str]:
     at all. ``iter_static_defs`` walks to the real def (cycle-safe, yields the
     unit node itself when IT is a def, so a top-level static ability is still
     covered — a strict superset of the old gate, never a narrowing).
+
+    ADR-0038 W5 tails: also reads ``unit.costs`` (role=cost) the SAME way as
+    ``unit.effects`` — an "as an additional cost to cast this spell,
+    sacrifice a Goblin" (Goblin Grenade, Goblin Barrage, Fodder Launch) or
+    "you may sacrifice any number of Spirits" (Devouring Greed/Rage) additional
+    cost carries its subtype on the ``Sacrifice`` cost node's own ``target``
+    filter (``effect_filter`` reads ``target`` — CR 601.2h "locked in" costs /
+    701.21 sacrifice), which the old effects-only scan never reached (a
+    cost-shaped node, not an effect). Mirrors legacy's ``_kindred_subjects(
+    e.subject, vocab)`` read, which never distinguished cost- from
+    effect-shaped Effects in the old IR's flat ``ab.effects`` walk.
+
+    Also scans each static-def's own ``modifications`` list for a nested
+    COUNT-OPERAND filter (``count_operand_filter`` — the SAME "value" field
+    name the modification tag uses, e.g. ``AddDynamicPower.value``): "gets
+    +1/+1 for each Dwarf, Equipment, and/or Vehicle you control" (Bearded
+    Axe) carries its ``Or``-of-subtypes filter (``filter_subtypes`` already
+    recurses ``Or``/``And``) on the leaf modification's OWN value, not the
+    static-def's ``affected`` field (which stays the GENERIC "equipped
+    creature" — CR 301.5c).
+
+    Two more nested-descent sites (ADR-0038 W5 tails), both reusing shared
+    helpers rather than re-implementing them:
+    a **GrantAbility**'s own ``.definition.effect`` (:func:`effect_filter`
+    over each ``iter_typed_nodes``-reached ``GrantAbility`` node, the SAME
+    idiom :func:`has_structural_power_tap_engine` uses) — "Equipped
+    creature has '{T}: ~ deals 1 damage to any target' and '{T}: ~ deals 3
+    damage to target Werewolf creature.'" (Wolfhunter's Quiver) carries its
+    tribal subject on the SECOND granted ability's own target, not on the
+    static's ``affected`` (the generic "equipped creature" anchor, CR
+    301.5c) or its top-level ``modifications`` (the grant tag itself
+    carries no filter field);
+    a **ModifyCost** static mode's ``spell_filter``
+    (:func:`modify_cost_spell_filter` — the SAME shared reader
+    ``_typed_spellcast``'s static arm already uses for a single-tribe cost
+    reducer): "Cleric, Rogue, Warrior, and Wizard spells you cast cost {1}
+    less to cast." (The Destined Warrior) carries its FOUR-tribe ``Or``
+    list here, not on ``affected`` (a bare Card-type filter with no
+    subtype at all — CR 601.2f).
+
+    Safe by construction: ``add_filter`` only ever adds a SUBTYPED filter
+    (empty-subtype hits produce nothing), so none of these three additions
+    can open the generic go-wide membership floor's false-positive class
+    (CR 205.3/613.4c).
+
+    The effects/costs count-operand read also tries :func:`ref_count_filter`
+    (a STRICT superset of :func:`count_operand_filter` — it additionally
+    unwraps a ``Multiply``-scaled ``amount``/``count``/``value``): "This
+    creature enters with two +1/+1 counters on it for each other nontoken
+    Human you control." (Hamlet Vanguard) carries its Human subtype on a
+    ``PutCounter`` whose ``count`` is ``Multiply(factor=2, inner=Ref(
+    ObjectCount(filter=Typed(Subtype:Human))))`` — the bare ``Ref`` tag
+    check in :func:`count_operand_filter` never unwraps the "twice that
+    many" scalar, so this doubled-count kindred subject was missed.
     """
     out: set[str] = set()
 
@@ -1326,15 +1382,34 @@ def structural_type_subjects(tree: ConceptTree) -> set[str]:
             if r:
                 out.add(r)
 
+    def add_ref_count_filter(node: TypedMirrorNode) -> None:
+        for fname in ("amount", "count", "value"):
+            add_filter(ref_count_filter(node, fname))
+
     for unit in tree.units:
         for c in unit.effects:
             add_filter(count_operand_filter(c.node))
+            add_ref_count_filter(c.node)
             if c.concept != "make_token":
                 add_filter(effect_filter(c.node))
+        for c in unit.costs:
+            add_filter(count_operand_filter(c.node))
+            add_ref_count_filter(c.node)
+            add_filter(effect_filter(c.node))
         if unit.origin == "trigger":
             add_filter(getattr(unit.node, "valid_card", None))
         for static_def in iter_static_defs(unit.node):
             add_filter(getattr(static_def, "affected", None))
+            add_filter(modify_cost_spell_filter(static_def))
+            for mod in getattr(static_def, "modifications", None) or ():
+                add_filter(count_operand_filter(mod))
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "GrantAbility":
+                continue
+            d = getattr(n, "definition", None)
+            eff = getattr(d, "effect", None) if d is not None else None
+            if isinstance(eff, TypedMirrorNode):
+                add_filter(effect_filter(eff))
         for cond in iter_condition_sites(unit.node):
             for q in iter_typed_nodes(cond):
                 if tag_of(q) == "Typed":

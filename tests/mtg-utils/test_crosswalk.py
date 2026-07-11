@@ -9187,6 +9187,120 @@ def test_type_matters_gates_no_subject_no_signal():
     assert ("type_matters", "you", "Bird") in goose
 
 
+def test_type_matters_cost_scan_sacrifice_a_tribe():
+    """ADR-0038 W5: Goblin Grenade's "As an additional cost to cast this
+    spell, sacrifice a Goblin." carries its subtype on the ``Sacrifice``
+    COST node's own ``target`` filter — a cost-shaped node ``unit.costs``
+    now scans the SAME way as ``unit.effects`` (CR 601.2h / 701.21).
+    HIGH confidence (a subject-carrying structural read, not the LOW
+    go-wide membership floor)."""
+    idents = _idents("Goblin Grenade")
+    assert ("type_matters", "you", "Goblin") in idents
+    assert _confidences("Goblin Grenade", "type_matters") == {"high"}
+
+
+def test_type_matters_go_wide_combat_keyword_exert():
+    """ADR-0038 W5: Ahn-Crop Crasher's "You may exert this creature as it
+    attacks..." carries no board-state Typed filter at all (its target
+    can't block THIS turn, scope any) — neither the count-operand nor the
+    static-def go-wide arms can reach it. The printed Exert keyword (CR
+    701.43) is the only anchor, mirroring legacy's ``_IR_KEYWORD_MAP``
+    combat-keyword block (which routes exert straight to
+    ``attack_matters``): Ahn-Crop Crasher's own class tribe (Warrior)
+    surfaces LOW alongside its unconditional race tribe (Minotaur)."""
+    idents = _idents("Ahn-Crop Crasher")
+    assert ("type_matters", "you", "Minotaur") in idents
+    assert ("type_matters", "you", "Warrior") in idents
+    assert _confidences("Ahn-Crop Crasher", "type_matters") == {"low"}
+
+
+def test_type_matters_go_wide_combat_keyword_bushido():
+    """ADR-0038 W5: Sokenzan Spellblade's printed Bushido keyword (CR
+    702.45) opens the SAME combat-keyword go-wide tell as exert — its
+    class tribes (Samurai/Shaman — one of which rides TRIBAL_SUBTYPES'
+    unconditional race-tribe arm, the other CLASS_TRIBES' go-wide gate)
+    surface alongside its own race tribe (Ogre)."""
+    idents = _idents("Sokenzan Spellblade")
+    assert ("type_matters", "you", "Ogre") in idents
+    assert ("type_matters", "you", "Samurai") in idents
+    assert ("type_matters", "you", "Shaman") in idents
+
+
+def test_type_matters_go_wide_rampage_shed_not_ported():
+    """ADR-0038 W5: Elvish Berserker's Rampage 1 ("...it gets +1/+1... for
+    each creature blocking it") is a DELIBERATE shed, not a gap — legacy's
+    go-wide firing for this class traces to old-IR's ``_board_count_
+    markers``/``_is_generic_board_filter`` (project.py), which forces
+    controller "you" on ANY own-board count operand REGARDLESS of
+    restricting properties (its own docstring: "controller you/unspecified
+    passes"), so a creatures-BLOCKING-it count (``BlockingSource``,
+    controller=None in the REAL phase substrate) is wrongly treated as a
+    "creatures you control" care. This is the SAME "bare 'creature'
+    mention count, not a structural cares-about read" floor
+    ``_creatures_matter``'s own docstring already adjudicates as
+    live_only, NOT ported, for the identical reason (CR 702.23/604.3).
+    Elvish Berserker's own RACE tribe (Elf, TRIBAL_SUBTYPES) still
+    surfaces unconditionally; its CLASS tribe (Berserker) must NOT."""
+    idents = _idents("Elvish Berserker")
+    assert ("type_matters", "you", "Elf") in idents
+    assert ("type_matters", "you", "Berserker") not in idents
+
+
+def test_type_matters_static_def_modification_count_operand_or_subtypes():
+    """ADR-0038 W5: Bearded Axe's "Equipped creature gets +1/+1 for each
+    Dwarf, Equipment, and/or Vehicle you control." carries its ``Or``-of-
+    subtypes filter on the leaf ``AddDynamicPower`` MODIFICATION's own
+    ``value`` field, not the static-def's ``affected`` (the generic
+    "equipped creature" anchor, CR 301.5c) — ``structural_type_subjects``
+    now scans each static-def's ``modifications`` list with the SAME
+    ``count_operand_filter`` read the top-level effect scan uses."""
+    idents = _idents("Bearded Axe")
+    assert ("type_matters", "you", "Dwarf") in idents
+    assert _confidences("Bearded Axe", "type_matters") == {"high"}
+
+
+def test_type_matters_nested_grant_ability_definition_target():
+    """ADR-0038 W5: Wolfhunter's Quiver's second granted ability ("{T}: ~
+    deals 3 damage to target Werewolf creature.") carries its subtype on
+    the GRANTED ability's OWN ``target`` field, buried inside
+    ``GrantAbility.definition.effect`` — the static-def's own ``affected``
+    stays the generic "equipped creature" anchor (CR 301.5c) and the
+    top-level ``modifications`` list carries no filter of its own.
+    ``structural_type_subjects`` reads it via :func:`effect_filter` over
+    each ``iter_typed_nodes``-reached ``GrantAbility`` node's
+    ``definition.effect`` (the SAME idiom
+    :func:`has_structural_power_tap_engine` already uses)."""
+    idents = _idents("Wolfhunter's Quiver")
+    assert ("type_matters", "you", "Werewolf") in idents
+    assert _confidences("Wolfhunter's Quiver", "type_matters") == {"high"}
+
+
+def test_type_matters_modify_cost_spell_filter_multi_tribe():
+    """ADR-0038 W5: The Destined Warrior's "Cleric, Rogue, Warrior, and
+    Wizard spells you cast cost {1} less to cast." carries its FOUR-tribe
+    ``Or`` list on the ``ModifyCost`` static mode's own ``spell_filter``
+    (:func:`modify_cost_spell_filter` — the SAME shared reader
+    ``_typed_spellcast``'s static arm already uses), not on ``affected``
+    (a bare Card-type filter with no subtype — CR 601.2f)."""
+    idents = _idents("The Destined Warrior")
+    for sub in ("Cleric", "Rogue", "Warrior", "Wizard"):
+        assert ("type_matters", "you", sub) in idents, sub
+
+
+def test_type_matters_ref_count_filter_multiply_wrapped():
+    """ADR-0038 W5: Hamlet Vanguard's "This creature enters with two +1/+1
+    counters on it for each other nontoken Human you control." carries its
+    Human subtype on a ``PutCounter`` whose ``count`` is ``Multiply(
+    factor=2, inner=Ref(ObjectCount(filter=Typed(Subtype:Human))))`` — the
+    bare ``Ref`` tag check in ``count_operand_filter`` never unwraps the
+    "twice that many" scalar; ``structural_type_subjects`` now also tries
+    :func:`ref_count_filter` (a strict superset). HIGH confidence (a
+    subject-carrying structural read)."""
+    idents = _idents("Hamlet Vanguard")
+    assert ("type_matters", "you", "Human") in idents
+    assert _confidences("Hamlet Vanguard", "type_matters") == {"high"}
+
+
 def test_removal_destroy_and_damage_arms():
     """CR 701.8a: single-target destroy (Hero's Downfall) and burn (Flame
     Slash) of a permanent fire; the mass forms (Wrath of God — DestroyAll,

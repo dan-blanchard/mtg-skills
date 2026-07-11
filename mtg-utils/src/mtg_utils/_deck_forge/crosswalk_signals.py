@@ -298,6 +298,7 @@ from mtg_utils._deck_forge._signals_ir import (
     _NAMED_COUNTER_KINDS,
     _SELF_PROTECTION_GRANT_KW,
     _apply_membership_floor,
+    extract_signals_ir,
 )
 from mtg_utils._deck_forge._signals_ir import (
     _LAND_SUBTYPES as _LIVE_LAND_SUBTYPES,
@@ -1146,7 +1147,9 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "sacrifice_outlets",
         "target_player_draws",
         "token_maker",
-        "type_matters",
+        # type_matters PROMOTED (ADR-0038 W5 tails) — see the crosswalk lane's
+        # own docstring for the corpus history + the fully-adjudicated shed
+        # class (the legacy _board_count_markers artifact).
         # ADR-0038 W5 tails (2026-07-11): voltron_matters NOT YET PROMOTED —
         # live_only cut from 108 to 82 (equip/reconfigure/fortify ability-
         # cost reducers, cast-cost reducers, ``SourceIsEquipped``/
@@ -1309,6 +1312,60 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
 # spot-verified as genuine CR 205.3 tribal reads (Sedris's own-type-line
 # floor riding the graveyard-wide unearth grant, Grey Knight Paragon's
 # conditional-exile Demon reference), no over-fire pattern found.
+# ADR-0038 W5 tails (2026-07-11): type_matters PROMOTED. Corpus re-measure
+# (176 -> 78 -> 0 genuine-gap live_only across this session's arms): five
+# structural additions to :func:`structural_type_subjects` (Arm B) —
+# ``unit.costs`` scanned the SAME way as ``unit.effects`` (a sacrifice-a-
+# <tribe> ADDITIONAL COST — Goblin Grenade, Goblin Barrage, Fodder Launch,
+# Devouring Greed/Rage, CR 601.2h/701.21), each static-def's own
+# ``modifications`` list re-scanned for a nested COUNT-OPERAND filter
+# (Bearded Axe's "for each Dwarf, Equipment, and/or Vehicle you control" —
+# an ``Or``-of-subtypes on the leaf modification's ``value``, not the
+# static's generic ``affected``), a ``ModifyCost`` static's own
+# ``spell_filter`` (:func:`modify_cost_spell_filter`, reused verbatim from
+# the ``typed_spellcast`` arm — The Destined Warrior's four-tribe cost
+# reducer), and a ``GrantAbility.definition.effect`` descent (the SAME
+# ``iter_typed_nodes`` idiom :func:`has_structural_power_tap_engine`
+# already uses — Wolfhunter's Quiver's second granted ability's OWN
+# target). Plus one new :func:`_type_matters_go_wide` arm: a combat
+# KEYWORD tell (:data:`_TYPE_MATTERS_GOWIDE_KEYWORDS` — battle cry /
+# battalion / melee / exert / bushido / annihilator / flanking / frenzy,
+# each verified via rules-lookup this session) mirroring legacy's
+# ``_IR_KEYWORD_MAP`` combat block, which routes the SAME keyword set to
+# ``attack_matters`` — a vanilla-keyword body (Ahn-Crop Crasher, Glory-
+# Bound Initiate, Sokenzan Spellblade) carries its attack condition in
+# reminder text with no board-state Typed filter for any structural arm
+# to read. A FIRST ATTEMPT at a sixth go-wide arm (a bare ``iter_typed_
+# nodes`` scan for ANY generic creature-you filter anywhere in a unit)
+# was REVERTED — corpus-verified to jump cw_only 267 -> 853 by matching
+# ordinary SINGLE-TARGET filters ("target creature you control gains
+# lifelink" — Alabaster Mage) that satisfy ``_is_generic_creature_filter``
+# exactly as well as a genuine population count, since that gate checks
+# only core-type/subtype/controller, never target-vs-population shape.
+# The remaining 78 live_only members (post-fix) are ALL ADJUDICATED
+# SHEDS, one homogeneous class, root-caused to source: legacy's old-IR
+# ``_board_count_markers``/``_is_generic_board_filter`` (project.py)
+# fabricates a synthetic "board_count" ability with a bare ``Filter
+# (Creature, controller="you")`` for ANY own-board ``ObjectCount``/
+# ``Aggregate`` operand phase's raw parse carries, and that helper's OWN
+# docstring admits the imprecision: "controller you/unspecified passes"
+# — so a REAL "creatures BLOCKING it" population (Rampage — CR 702.23;
+# phase's actual structural filter carries ``BlockingSource`` with
+# ``controller=None``, verified this session) or a REAL "creatures
+# sacrificed to Devour" cost count (CR 702.82) gets mis-attributed as a
+# "creatures you control" care regardless. This is the IDENTICAL "bare
+# 'creature' mention count, not a structural cares-about read" floor
+# :func:`_creatures_matter`'s own docstring already adjudicates as
+# live_only / not-ported for the SAME reason — Formidable-style total-
+# power conditions (Owlbear Shepherd, Surrak, Atarka Beastbreaker) and
+# tapped-creature-count conditions (Frontline War-Rager, Sunstar
+# Chaplain) verified this session to ride the IDENTICAL fabricated
+# ability (their REAL structural ``ability.condition`` never reaches a
+# bare-Creature-typed lane at all, per ``_signals_ir`` line ~10476's own
+# "skip the generic Creature/Permanent gates" comment). Negative-pinned
+# (Elvish Berserker: Elf race tribe fires, Berserker class tribe does
+# not). 0 regressions: full mtg-utils + deck-forge (all three
+# MTG_SKILLS_CROSSWALK_SIGNALS states) suites green.
 # ADR-0038 W4 giant (2026-07-11): topdeck_selection PROMOTED. Corpus
 # re-measure: live_only 440 -> 4 (both 1136 -> 1572), all four ADJUDICATED
 # SHEDS — genuine legacy ``old_ir_for`` false positives (Arjun, the
@@ -3446,20 +3503,79 @@ _TYPE_MATTERS_GOWIDE_MOD_TAGS: frozenset[str] = frozenset(
     {"AddPower", "AddToughness", "AddKeyword", "SetPower", "SetToughness"}
 )
 
+# ADR-0038 W5 tails: the combat-keyword block legacy's ``_IR_KEYWORD_MAP``
+# routes straight to ``attack_matters`` (battle cry / battalion / melee /
+# exert / bushido / annihilator / flanking / frenzy — CR 702.91/702.44/
+# 702.121/701.43/702.45/702.86/702.25/702.68, each verified via
+# rules-lookup this session), read here as an independent go-wide tell:
+# the crosswalk's OWN ``attack_matters`` lane is a structural trigger/
+# count read (CR 508) that never reaches for the bare PRINTED keyword, so
+# it stays absent from ``out_keys`` for a vanilla keyword body (Ahn-Crop
+# Crasher, Glory-Bound Initiate) even though legacy opens go-wide on the
+# keyword alone (each keyword's own reminder text carries an attack
+# condition phase never structuralizes into a Typed filter).
+# Deliberately EXCLUDES ``rampage`` (CR 702.23) — it is NOT in legacy's
+# own ``_IR_KEYWORD_MAP`` either; every Rampage-only live_only card's
+# legacy firing traces to a SYNTHETIC old-IR artifact, not this keyword
+# route (see :func:`_type_matters_go_wide`'s docstring for the full
+# adjudication). Verified this session: phase's Rampage trigger carries a
+# ``BlockingSource`` Typed filter with ``controller=None``, never "You".
+_TYPE_MATTERS_GOWIDE_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "battle cry",
+        "battalion",
+        "melee",
+        "exert",
+        "bushido",
+        "annihilator",
+        "flanking",
+        "frenzy",
+    }
+)
 
-def _type_matters_go_wide(tree: ConceptTree, out_keys: set[str]) -> bool:
+# ADR-0038 W5: legacy's go-wide gate keys (matches the deck-forge cutover
+# gate's own ``_GO_WIDE_KEYS``, test_crosswalk_cutover.py) — arm (vi)'s
+# floor-exact reproduction target.
+_GO_WIDE_LEGACY_KEYS: frozenset[str] = frozenset(
+    {"creatures_matter", "attack_matters", "anthem_static"}
+)
+
+
+def _type_matters_go_wide(
+    tree: ConceptTree,
+    keywords: frozenset[str] = frozenset(),
+    *,
+    include_membership: bool = False,
+    record: dict | None = None,
+    ir: Card | None = None,
+    vocab: frozenset[str] = CREATURE_SUBTYPES,
+) -> bool:
     """Is this card ALSO a generic (non-tribal) creatures payoff, so a CLASS
     tribe (Warrior/Cleric/... — ``CLASS_TRIBES``) is worth noting alongside a
     RACE tribe (CR 205.3)? The class-tribe MEMBERSHIP floor's go-wide gate
-    (the b14 §1 arm C reconciliation in ``extract_crosswalk_signals``) —
-    THREE arms, matching legacy ``_signals_ir``'s breadth (line ~7141), which
-    is WIDER than the crosswalk's own PORTED ``creatures_matter`` /
-    ``attack_matters`` / ``anthem_static`` lanes (``creatures_matter`` stays
-    Stage-4 RESIDUAL, so its lane is deliberately narrower — see
-    :func:`_creatures_matter`'s docstring):
+    (the b14 §1 arm C reconciliation in ``extract_crosswalk_signals``) — SIX
+    arms. Arms (i)-(v) are the STRUCTURAL, CR-grounded best-effort test (runs
+    regardless of ``include_membership``); arm (vi) is a FLOOR-exact
+    reproduction of legacy's OWN go-wide computation, available only when
+    ``include_membership`` is True and the caller supplies ``record``/``ir``
+    (the shadow-harness "candidate mode is inert" contract —
+    ``test_membership_floor_inert_in_candidate_mode`` — threading
+    ``record``/``ir`` alone with ``include_membership=False`` must be a
+    no-op) — mirrors every other membership-floor arm in this file, e.g.
+    :func:`_apply_membership_floor` — a byte-parity
+    kept-mirror layered UNDER the structural read, never instead of it):
 
-    (i) ``creatures_matter`` / ``attack_matters`` / ``anthem_static`` already
-    in the MERGED out-key set (the fast path);
+    (i) ``creatures_matter`` / ``attack_matters`` / ``anthem_static`` fire
+    STRUCTURALLY — calling each lane function directly (:func:`_creatures_
+    matter` / :func:`_attack_tapped_matters` / :func:`_anthem_static`), NOT
+    an ``out_keys`` intersection — ``creatures_matter``/``anthem_static``
+    stay Stage-4 RESIDUAL, so the production hybrid path calls
+    ``extract_crosswalk_signals`` with ``keys=PORTED_KEYS`` (excluding
+    them); ``add()`` filters a residual key's Signal out of ``out`` before
+    it ever reaches ``out_keys``, so a bare ``out_keys & {...}`` fast path
+    is DEAD in production (Battery Bearer's Artificer class tribe — found
+    via the deck-forge cutover gate,
+    ``test_membership_floor_reproduced_in_flag_on_commander``);
     (ii) a creature-type TOKEN MAKER (a captured kindred subject —
     :func:`structural_token_maker_type_subjects`): Krenko/Bear's Companion/
     Talrand-class — a typed-creature-token engine is itself a go-wide
@@ -3477,13 +3593,56 @@ def _type_matters_go_wide(tree: ConceptTree, out_keys: set[str]) -> bool:
     the GENERIC (no-subtype) own-board creature filter — Raff, Weatherlight
     Stalwart's granted pump; Selesnya Guildmage's activated-cost team pump;
     Leonin Armorguard's ETB pump — origin-agnostic, unlike
-    ``_creatures_matter``'s own ``unit.statics``-only scan (ADR-0038 W4).
+    ``_creatures_matter``'s own ``unit.statics``-only scan (ADR-0038 W4);
+    (v) ADR-0038 W5 tails — a combat KEYWORD tell
+    (:data:`_TYPE_MATTERS_GOWIDE_KEYWORDS` — battle cry / battalion / melee /
+    exert / bushido / annihilator / flanking / frenzy, CR 702.91/702.44/
+    702.121/701.43/702.45/702.86/702.25/702.68): each carries its own attack
+    condition in stripped reminder text that never structuralizes into a
+    Typed filter at all (a bare "you may exert this creature as it attacks"
+    has no board-state reference to read — arm (iii)/(iv) can't reach it),
+    so the printed keyword is the only anchor (mirrors legacy's
+    ``_IR_KEYWORD_MAP`` combat block, which routes the SAME keyword set
+    straight to ``attack_matters`` — Ahn-Crop Crasher, Glory-Bound
+    Initiate). Rampage is deliberately EXCLUDED from this table (unlike
+    the 8 keywords above, it is NOT in legacy's ``_IR_KEYWORD_MAP`` either);
+    (vi) FLOOR-exact reproduction (only when ``include_membership`` and
+    ``record``/``ir`` are all supplied):
+    legacy's OWN ``creatures_matter``/``attack_matters``/``anthem_static``
+    firing, via a direct :func:`extract_signals_ir` call. Structurally,
+    arms (i)-(v) alone leave a genuinely diverse tail unreached — Rampage's
+    "for each creature blocking it" (CR 702.23), Devour's sacrifice count
+    (CR 702.82), Formidable-style total-power conditions (Owlbear
+    Shepherd), tapped-creature-count conditions (Frontline War-Rager), and
+    a nested "when you do" mass-untap consequence (Combat Celebrant's
+    exert payoff) ALL trace to old-IR's supplement fabricating a SYNTHETIC
+    "static board_count" ability (subject/amount = a bare ``Filter
+    (Creature, controller="you")``) whenever the oracle carries ANY
+    own-board count/condition operand phase's raw parse exposes,
+    regardless of the REAL population (verified this session: Elvish
+    Berserker's Rampage trigger's REAL phase filter carries
+    ``BlockingSource`` with ``controller=None``, never "You" — the
+    fabricated ability hallucinates "you" anyway). This is EXACTLY the
+    "bare 'creature' mention count, not a structural cares-about read"
+    floor :func:`_creatures_matter`'s own docstring already adjudicates as
+    a live_only mirror for the crosswalk's OWN standalone
+    ``creatures_matter`` key — but the type_matters class-tribe MEMBERSHIP
+    floor is, BY DEFINITION, a byte-parity reproduction of legacy's floor
+    (not a "more correct than legacy" structural claim), so arm (vi)
+    intentionally reproduces the SAME artifact here, one layer up, exactly
+    as every other floor arm in this file does for its own lane. LOW
+    confidence throughout — this never upgrades a genuine HIGH Arm-B
+    subject read (:func:`structural_type_subjects`).
 
     Never changes what ``creatures_matter`` itself SERVES (that key stays
     residual and is re-supplied from ``old_ir_for`` regardless) — a pure
     internal widening of THIS reconciliation's go-wide test. CR 205.3/604.3.
     """
-    if out_keys & {"creatures_matter", "attack_matters", "anthem_static"}:
+    if (
+        _creatures_matter(tree)
+        or any(s.key == "attack_matters" for s in _attack_tapped_matters(tree))
+        or _anthem_static(tree)
+    ):
         return True
     if structural_token_maker_type_subjects(tree):
         return True
@@ -3497,6 +3656,12 @@ def _type_matters_go_wide(tree: ConceptTree, out_keys: set[str]) -> bool:
                 continue
             if _is_generic_creature_filter(getattr(static_def, "affected", None)):
                 return True
+    if {k.lower() for k in keywords} & _TYPE_MATTERS_GOWIDE_KEYWORDS:
+        return True
+    if include_membership and record is not None and ir is not None:
+        legacy = extract_signals_ir(record, ir, vocab=vocab, include_membership=False)
+        if any(s.key in _GO_WIDE_LEGACY_KEYS for s in legacy):
+            return True
     return False
 
 
@@ -17708,8 +17873,9 @@ def extract_crosswalk_signals(
         add(Signal("gain_control", "you", "", "", tree.name, "low"))
 
     # b14 §1 arm C — the type_matters MEMBERSHIP reconciliation (LOW; runs
-    # AFTER the lane loop so the class-tribe go_wide gate reads the MERGED
-    # out keys and a HIGH lane firing wins the ident dedupe):
+    # AFTER the lane loop so a HIGH lane firing wins the ident dedupe — the
+    # class-tribe go_wide gate itself calls its constituent lanes directly,
+    # ADR-0038 W5, not the (dead-in-production) accumulated out-key set):
     # (i) own type_line subtype — race tribes (TRIBAL_SUBTYPES) fire
     # unconditionally, class tribes (CLASS_TRIBES) only behind a go-wide
     # signal (CR 205.3);
@@ -17727,8 +17893,14 @@ def extract_crosswalk_signals(
     # name (bulk-side data) → a small live_only membership tail is a
     # documented join artifact (the b13 island_matters precedent), NOT
     # chased with bulk reads.
-    out_keys = {s.key for s in out}
-    go_wide = _type_matters_go_wide(tree, out_keys)
+    go_wide = _type_matters_go_wide(
+        tree,
+        keywords,
+        include_membership=include_membership,
+        record=record,
+        ir=ir,
+        vocab=vocab,
+    )
     if tree.is_type("Creature"):
         for st in tree.card_subtypes:
             sl = st.lower()
