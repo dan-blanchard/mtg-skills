@@ -7134,6 +7134,117 @@ def test_target_player_draws_excludes_trailing_unattributed_draw_bleed():
     assert "target_player_draws" not in _keys("Cleansing Wildfire")
 
 
+# ── ADR-0038 W5 tails: target_player_draws (95 → 75 live_only; NOT YET ──────
+# PROMOTED — a Saga-chapter / modal-choice / vote / granted-ability-text
+# residual class stays structurally unreachable, see the key's docstring
+# for the full accounting). CR 121.1 throughout.
+
+
+def test_target_player_draws_paired_scoped_player_idiom():
+    """A ``ScopedPlayer`` recipient IS admitted when the SAME unit also owns
+    an ``OriginalController``-tagged Draw — the "you and target
+    opponent/that player each draw" idiom (phase splits it into TWO
+    sibling Draw nodes, one per side). An UNPAIRED ``ScopedPlayer`` (no
+    ``OriginalController`` sibling — Academy Loremaster's lone
+    each-player-draw-step node, pinned above) stays group_hug_draw
+    territory."""
+    for name in (
+        "Intellectual Offering",
+        "Tenuous Truce",
+        "Diviner Spirit",
+        "Xyris, the Writhing Storm",
+        "Black Widow, Intel Expert",
+        "Sergeant John Benton",
+    ):
+        assert ("target_player_draws", "any", "") in _idents(name), name
+
+
+def test_target_player_draws_any_recipient_tag():
+    """``Any`` is admitted unconditionally (:data:`_TARGETED_DRAW_TAGS`) — the
+    "you and X each draw" idiom's COLLAPSED single-node form phase uses
+    instead of the paired ``OriginalController``/``ScopedPlayer`` shape
+    above. Corpus-verified as the ONLY tag used for a ``Draw`` recipient
+    across the whole commander-legal corpus (6 hits, all this idiom)."""
+    for name in (
+        "Karazikar, the Eye Tyrant",
+        "Zurzoth, Chaos Rider",
+        "Nelly Borca, Impulsive Accuser",
+        "Cait, Cage Brawler",
+        "Splinter, Aging Champion",
+    ):
+        assert ("target_player_draws", "any", "") in _idents(name), name
+
+
+def test_target_player_draws_recovered_directed_residue():
+    """A RECOVERED "draw" residue (recovery.py's ALLOWLIST token row) is
+    admitted when its own truncated raw clause carries a direction word
+    adjacent to "draws" with no "if"/"unless" boundary crossed — Forget's
+    "draws as many cards as they discarded this way", Soldevi Sentry's
+    "that player may draw a card"."""
+    assert ("target_player_draws", "any", "") in _idents("Forget")
+    assert ("target_player_draws", "any", "") in _idents("Soldevi Sentry")
+
+
+def test_target_player_draws_recovered_residue_excludes_conditional_backref():
+    """Faramir, Prince of Ithilien's "you draw a card if they didn't attack
+    you that turn" names "they" as the subject of a CONDITION clause, not
+    the drawer (the drawer is plainly "you", stated earlier in the SAME
+    clause) — the "if"/"unless" boundary guard keeps it out."""
+    assert "target_player_draws" not in _keys("Faramir, Prince of Ithilien")
+
+
+def test_target_player_draws_recovered_residue_excludes_each_player_owner_scope():
+    """A recovered "draw" residue whose owning unit carries
+    ``player_scope: All`` (Grothama, All-Devouring's damage-scaled
+    leaves-trigger) is the group_hug_draw synthesis arm's OWN territory,
+    never a directed gift — the ``effect_owner_player_scope(...) == "All"``
+    guard keeps it out regardless of stray direction pronouns in the raw
+    ("sources they controlled" is a backref to the damage-dealers, not the
+    drawer)."""
+    assert "target_player_draws" not in _keys("Grothama, All-Devouring")
+    assert ("group_hug_draw", "each", "") in _idents("Grothama, All-Devouring")
+
+
+def test_target_player_draws_possessive_controller_phrase():
+    """A ``\\w+'s (?:controller|owner)`` phrase alternative admits the
+    OBJECT-possessive spelling of the same-clause attribution — "That
+    creature's controller draws X cards" (Nin, the Pain Artist; Nessian
+    Boar), "That spell's controller may draw a card" (Vex)."""
+    assert ("target_player_draws", "any", "") in _idents("Nin, the Pain Artist")
+    assert ("target_player_draws", "any", "") in _idents("Nessian Boar")
+    assert ("target_player_draws", "any", "") in _idents("Vex")
+
+
+def test_target_player_draws_bare_opponent_and_participle_player_phrases():
+    """A bare ``(?:an|each) opponent`` alternative (no "target" prefix)
+    admits Baleful Mastery's "an opponent draws a card" (a
+    ``ChosenPlayer``-controller ``Typed`` node). A
+    ``(?:that|the) (?:\\w+ )?player`` alternative admits a
+    PARTICIPLE-modified back-reference — Breena, the Demagogue's "that
+    attacking player draws a card", Norn's Decree's "the attacking player
+    draws a card" (``TriggeringSourceController``)."""
+    assert ("target_player_draws", "any", "") in _idents("Baleful Mastery")
+    assert ("target_player_draws", "any", "") in _idents("Breena, the Demagogue")
+    assert ("target_player_draws", "any", "") in _idents("Norn's Decree")
+
+
+def test_target_player_draws_choose_player_phrase():
+    """A standalone ``choose ... player ... draws`` alternative admits a
+    SEQUENTIAL-choice recipient — Gluntch, the Bestower's "Choose a second
+    player to draw a card." (a ``ChosenPlayer``-controller ``Typed`` node,
+    the same structural shape as Baleful Mastery's opponent filter, just
+    phrased as an explicit choice)."""
+    assert ("target_player_draws", "any", "") in _idents("Gluntch, the Bestower")
+
+
+def test_target_player_draws_parent_target_owner_tag():
+    """``ParentTargetOwner`` (the OWNER, not controller, of a previously
+    targeted object) joins :data:`_TARGETED_DRAW_WIDENED_TAGS` — Oft-Nabbed
+    Goat's "its owner draws that many cards" (CR 121.1/608.2h, the
+    object-chain analog of ``ParentTargetController``)."""
+    assert ("target_player_draws", "any", "") in _idents("Oft-Nabbed Goat")
+
+
 # ── Batch 11: replacement-doubler cluster (§A) ────────────────────────────────
 
 

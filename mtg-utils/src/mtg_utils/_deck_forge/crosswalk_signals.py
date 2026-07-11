@@ -9703,8 +9703,24 @@ _LAND_SUBTYPES: frozenset[str] = frozenset(
 # instance is the "you AND target opponent EACH draw" idiom's OWN-caster
 # half (Secret Rendezvous's SECOND Draw node — "you" back-referenced as
 # the spell's original controller, not a directed target at all; the
-# SIBLING ``Typed(Opponent)`` Draw is what actually fires).
-_TARGETED_DRAW_TAGS: frozenset[str] = frozenset({"Player", "ParentTarget", "Target"})
+# SIBLING ``Typed(Opponent)`` Draw is what actually fires). ADR-0038 W5
+# tails: ``Any`` admitted unconditionally too — the "you and X each draw"
+# multi-recipient idiom's COLLAPSED single-node form (Karazikar, the Eye
+# Tyrant's "you and the attacking player each draw", Zurzoth's "you and
+# those players", Nelly Borca's "you and the controller of those
+# creatures", Cait's "you and defending player", Splinter's "you and
+# another target player") — phase folds the whole multi-player set into
+# ONE ``Draw`` node tagged ``Any`` rather than the paired OriginalController
+# / ScopedPlayer shape below. Corpus-verified exhaustively (the ONLY tag
+# used for a ``Draw`` node's recipient, whole commander-legal corpus): 6
+# hits, all this same directed multi-recipient idiom, 0 exceptions — no
+# phrase gate needed (several of the 6 don't even contain the phrase
+# gate's word list — "the attacking player"/"those players"/"defending
+# player" — so gating would UNDER-fire the very class it exists to admit).
+# CR 121.1.
+_TARGETED_DRAW_TAGS: frozenset[str] = frozenset(
+    {"Player", "ParentTarget", "Target", "Any"}
+)
 # ADR-0038 W3 batch 6 — the THREE widened tags above (``Typed``,
 # ``ParentTargetController``, ``TriggeringPlayer``) are NOT unconditional
 # like the original three: a phase templating quirk bleeds a PRECEDING
@@ -9718,14 +9734,59 @@ _TARGETED_DRAW_TAGS: frozenset[str] = frozenset({"Player", "ParentTarget", "Targ
 # below (Call to Heel's "Its controller draws a card." — SAME clause —
 # still fires correctly; the bled cards' bare "Draw a card." clause has no
 # such wording and correctly stays out).
+# ADR-0038 W5 tails: two more widened tags, SAME phrase-gate treatment —
+# ``ParentTargetOwner`` (the OWNER, not controller, of a previously targeted
+# object — Oft-Nabbed Goat's "its owner draws that many cards", Apple of
+# Eden, Isu Relic's "its owner draws a card"; corpus-verified 4 hits total,
+# the other 2 — Oblation, Deadly Cover-Up — carry a comma between the
+# direction word and "draws" the phrase gate doesn't cross, a known,
+# deferred limitation, not a new one) and ``TriggeringSourceController`` (the
+# controller of the trigger's SOURCE permanent — Norn's Decree's "the
+# attacking player draws a card", the object-chain analog of
+# ``TriggeringPlayer``'s direct-player read).
 _TARGETED_DRAW_WIDENED_TAGS: frozenset[str] = frozenset(
-    {"Typed", "ParentTargetController", "TriggeringPlayer"}
+    {
+        "Typed",
+        "ParentTargetController",
+        "TriggeringPlayer",
+        "ParentTargetOwner",
+        "TriggeringSourceController",
+    }
 )
+# ADR-0038 W5 tails: two more alternatives. A ``\w+'s (?:controller|owner)``
+# alternative admits the OBJECT-possessive phrasing the original
+# ``(?:its|their|that|the) controller`` word list missed — "That creature's
+# controller draws X cards" (Nin, the Pain Artist; Nessian Boar's "that
+# creature's controller draws a card"), "That spell's controller may draw a
+# card" (Vex) — the SAME same-clause-attribution semantic (CR 121.1/608.2h),
+# just with the possessed noun spelled out instead of elided to a bare
+# pronoun. A bare ``(?:an|each) opponent`` alternative (no "target" prefix
+# required) admits Baleful Mastery's "an opponent draws a card" (a
+# ``ChosenPlayer``-controller ``Typed`` node — a genuine player filter, unlike
+# Herigast, Erupting Nullkite's card-property ``Typed`` node reusing the same
+# tag for an unrelated hand-size reference, which the phrase gate correctly
+# keeps excluded since its clause names no opponent at all). A
+# ``that (?:\w+ )?player``/``the (?:\w+ )?player`` alternative admits a
+# PARTICIPLE-modified back-reference — Breena, the Demagogue's "that
+# attacking player draws a card", Norn's Decree's "the attacking player
+# draws a card" (``TriggeringSourceController``) — the bare "that
+# player"/"the player" word list missed the adjective in between. A
+# standalone ``choose ... player ... draws`` alternative admits a
+# SEQUENTIAL-choice recipient (Gluntch, the Bestower's "Choose a second
+# player to draw a card." — a ``ChosenPlayer``-controller ``Typed`` node,
+# the SAME structural shape as Baleful Mastery's "an opponent draws" but
+# phrased as an explicit choice instead of an opponent filter); corpus-
+# verified as the ONLY ``Typed``-tag draw whose clause contains this
+# "choose ... player ... draws" shape.
 _TARGET_PLAYER_DRAW_PHRASE_RE = re.compile(
-    r"\b(?:target (?:player|opponent)s?|(?:its|their|that|the) (?:controller|owner)s?"
-    r"|that player|they)\b[^.,;]*?\bdraws?\b"
-    r"|\bdraws?\b[^.,;]*?\b(?:target (?:player|opponent)s?|(?:its|their|that|the) "
-    r"(?:controller|owner)s?|that player|they)\b",
+    r"\b(?:target (?:player|opponent)s?|(?:an|each) opponents?"
+    r"|(?:its|their|that|the) (?:controller|owner)s?"
+    r"|\w+'s (?:controller|owner)s?|(?:that|the) (?:\w+ )?player|they)\b"
+    r"[^.,;]*?\bdraws?\b"
+    r"|\bdraws?\b[^.,;]*?\b(?:target (?:player|opponent)s?|(?:an|each) opponents?"
+    r"|(?:its|their|that|the) (?:controller|owner)s?|\w+'s (?:controller|owner)s?"
+    r"|(?:that|the) (?:\w+ )?player|they)\b"
+    r"|\bchoose\b[^.,;]*?\bplayer\b[^.,;]*?\bdraws?\b",
     re.IGNORECASE,
 )
 # Combat-frame trigger events (CR 508 / 509.3a) — the combat_buff_engine
@@ -10072,6 +10133,53 @@ def _group_hug_draw(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _unit_has_originalcontroller_draw(unit: AbilityUnit) -> bool:
+    """True when ``unit`` owns a ``Draw`` effect recipient-tagged
+    ``OriginalController`` — the "you" half of a paired "you and [target
+    opponent/that player] each draw" idiom sharing ONE unit with a
+    ``ScopedPlayer`` sibling Draw (see the ``ScopedPlayer`` branch inside
+    :func:`_target_player_draws`)."""
+    return any(
+        recipient_tag(c.node) == "OriginalController"
+        for c in unit.effect_concepts("draw")
+    )
+
+
+# ADR-0038 W5 tails: a RECOVERED "draw" residue (recovery.py's ALLOWLIST
+# token row) keeps the Unimplemented wrapper as ``.node`` — no typed
+# recipient, so the clause's own words are the only direction carrier, same
+# precedent as ``discard_outlet``'s ``_RECOVERED_OPP_DISCARD_RE`` (inverted
+# polarity: THIS lane wants the directed-AWAY-from-you class). Reuses
+# :data:`_TARGET_PLAYER_DRAW_PHRASE_RE`'s direction-word list but additionally
+# refuses to cross an "if"/"unless" boundary between the verb and the
+# direction word — Faramir, Prince of Ithilien's "you draw a card if they
+# didn't attack you" names "they" as the subject of a CONDITION clause, not
+# the drawer (the drawer is plainly "you", stated earlier in the SAME
+# clause); Forget's "draws as many cards as they discarded this way" and
+# Soldevi Sentry's "that player may draw a card" carry no such conditional
+# boundary and correctly match. CR 121.1.
+_RECOVERED_DRAW_DIRECTED_RE = re.compile(
+    r"\b(?:target (?:player|opponent)s?|(?:its|their|that|the) (?:controller|owner)s?"
+    r"|\w+'s (?:controller|owner)s?|that player|they)\b"
+    r"(?:(?!\bif\b|\bunless\b)[^.,;])*?\bdraws?\b"
+    r"|\bdraws?\b(?:(?!\bif\b|\bunless\b)[^.,;])*?\b(?:target (?:player|opponent)s?"
+    r"|(?:its|their|that|the) (?:controller|owner)s?|\w+'s (?:controller|owner)s?"
+    r"|that player|they)\b",
+    re.IGNORECASE,
+)
+# A recovered "draw" residue whose diagnostic wrapper names phase's OWN
+# replacement parser ("Replacement pattern matched but line failed
+# replacement parser: ..." — Alms Collector's "instead you and that player
+# each draw a card" symmetric draw-cap) is a rules REWRITE phase merely
+# failed to structure, not a forced gift — the SAME exclusion the typed
+# ``unit.origin == "replacement"`` check applies below, extended to a
+# residue whose own origin field reads "ability" (the failed-parse fallback)
+# because the diagnostic prefix itself says what it is.
+_RECOVERED_DRAW_REPLACEMENT_RE = re.compile(
+    r"^\s*replacement pattern matched", re.IGNORECASE
+)
+
+
 def _target_player_draws(tree: ConceptTree) -> list[Signal]:
     """target_player_draws — a DIRECTED / forced draw (CR 121.1): "target
     player draws a card" (Bloodgift Demon — the typed ``Player`` recipient).
@@ -10085,8 +10193,7 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
     each player's draw step, that player may draw" — Academy Loremaster) is
     a GROUP draw distributed by an each-player trigger, not a directed gift
     — batch-9 adjudicated OUT (group-draw territory; the live routing of it
-    here is the documented divergence), enforced by ``ScopedPlayer``'s
-    absence from :data:`_TARGETED_DRAW_TAGS`. Scope "any".
+    here is the documented divergence). Scope "any".
 
     ADR-0038 W3 batch 6 (draw-etb-tokens cluster): three more recipient
     tags admitted (:data:`_TARGETED_DRAW_WIDENED_TAGS`) — ``Typed`` (a
@@ -10104,13 +10211,55 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
     Wildfire, Geomancer's Gambit); the phrase gate keeps the genuine
     same-clause "Its controller draws"/"target player draws"/"they draw"
     hits and excludes the bled ones. CR 121.1.
+
+    ADR-0038 W5 tails, two more admissions:
+
+    * a ``ScopedPlayer`` recipient IS admitted when the SAME unit also owns
+      an ``OriginalController``-tagged Draw (:func:`_unit_has_originalcontroller_
+      draw`) — the "you and target opponent/that player each draw" idiom
+      (Intellectual Offering, Tenuous Truce, Diviner Spirit, Xyris, the
+      Writhing Storm, Black Widow, Intel Expert, Sergeant John Benton): phase
+      splits this into TWO sibling Draw nodes sharing one unit, one
+      ``OriginalController`` (the you-side, never counted — CR
+      121.1/608.2h's directed-AT-ANOTHER-player sense excludes it) and one
+      ``ScopedPlayer`` (the SAME-unit paired player — a genuine directed
+      gift). An UNPAIRED ``ScopedPlayer`` (no ``OriginalController`` sibling
+      — Howling Mine's lone each-player-draw-step node) stays group_hug_draw
+      territory; corpus-verified across the full commander-legal
+      ``ScopedPlayer``-draw population: 17 unpaired (all "each player"/"each
+      opponent" phase triggers) vs. 6 paired (all this idiom), 0 exceptions
+      either way;
+    * a RECOVERED "draw" residue (:data:`_RECOVERED_DRAW_DIRECTED_RE` — Forget,
+      Soldevi Sentry) — guarded against the replacement-diagnostic residue
+      (:data:`_RECOVERED_DRAW_REPLACEMENT_RE`) and the symmetric each-player
+      residue (``effect_owner_player_scope(...) == "All"`` — Grothama,
+      All-Devouring's damage-scaled leaves-trigger, group_hug_draw's own
+      synthesis-arm territory per its docstring).
     """
     for unit in tree.units:
         if unit.origin == "replacement":
             continue
         for c in unit.effect_concepts("draw"):
+            if c.recovered_by == "draw":
+                if _RECOVERED_DRAW_REPLACEMENT_RE.search(c.raw or ""):
+                    continue
+                if effect_owner_player_scope(unit.node, c.node) == "All":
+                    continue  # each-player group draw, group_hug territory
+                if _RECOVERED_DRAW_DIRECTED_RE.search((c.raw or "").lower()):
+                    return [
+                        Signal(
+                            "target_player_draws", "any", "", c.raw, tree.name, "high"
+                        )
+                    ]
+                continue
             rt = recipient_tag(c.node)
             if rt == "ScopedPlayer":
+                if _unit_has_originalcontroller_draw(unit):
+                    return [
+                        Signal(
+                            "target_player_draws", "any", "", c.raw, tree.name, "high"
+                        )
+                    ]
                 continue  # each-player group draw — never a directed gift
             if rt in _TARGETED_DRAW_TAGS:
                 return [
