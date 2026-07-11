@@ -6449,6 +6449,84 @@ def test_combat_damage_unknown_mode_description_fallback(name):
 
 
 @pytest.mark.parametrize(
+    "name",
+    [
+        "Predators' Hour",  # AddKeyword-modification quote (menace + "Whenever
+        # ~ deals combat damage to a player, exile ..." baked into the
+        # description, no GrantTrigger node at all)
+        "Sokrates, Athenian Teacher",  # activated-ability-granted
+        # AddTargetReplacement quote ("if ~ would deal combat damage to a
+        # player, prevent that damage. ...")
+        "Steel Hellkite",  # passive "was dealt combat damage by ~ this
+        # turn" reference inside an unrelated {X} activated ability's
+        # target filter -- no trigger/replacement node names it at all
+        "Trendy Circus Pirate",  # Unfinity Sticker Sheet TK-template: the
+        # {TK} mana cost defeats phase's cost parser entirely, collapsing
+        # the WHOLE triggered line to one opaque Unimplemented residue
+    ],
+)
+def test_combat_damage_bare_quoted_grant_text_fallback(name):
+    """ADR-0038 W3 batch 6: no typed trigger def (top-level/nested/delayed)
+    reaches any of these -- :func:`~mtg_utils._card_ir.supplement.
+    combat_damage_recipients_from_text` (reused verbatim, single-source from
+    the OLD projection's own synthetic ``combat_damage`` trigger recovery)
+    reads the FACE's own oracle as a last resort. CR 510.1b/510.1c/510.2."""
+    idents = _idents(name)
+    assert ("combat_damage_matters", "opponents", "") in idents
+    assert ("combat_damage_to_opp", "opponents", "") in idents
+
+
+@pytest.mark.parametrize("name", ["Kassandra, Eagle Bearer", "Spawning Kraken"])
+def test_combat_damage_matters_top_level_unknown_mode_text_fallback(name):
+    """ADR-0038 W3 batch 6: a TOP-LEVEL trigger unit whose ``mode`` phase
+    leaves ``Unknown`` (Kassandra's Equipment-gated "Whenever a creature you
+    control with a legendary Equipment attached to it deals combat damage to
+    a player, draw a card"; Spawning Kraken's tribal "Whenever a Kraken,
+    Leviathan, Octopus, or Serpent you control deals combat damage to a
+    player, create ..." whose ``Unimplemented`` execute chain defeats the
+    typed kind read) already fired ``combat_damage_to_opp`` via
+    :func:`_unknown_mode_combat_damage_to_player` (that fallback was already
+    wired into :func:`_combat_damage_to_opp_fires` for ANY node, including a
+    bare top-level unit) but NOT ``combat_damage_matters`` -- the sibling
+    lane's top-level ``emit(damage_to_player_trigger_kind(unit.node))`` call
+    never tried the Unknown-mode fallback at all. Recovered via the SAME
+    text-recovery fallback as the bare-quoted-grant class above (CR
+    510.1b/510.1c)."""
+    idents = _idents(name)
+    assert ("combat_damage_matters", "opponents", "") in idents
+    assert ("combat_damage_to_opp", "opponents", "") in idents
+
+
+def test_combat_damage_matters_dfc_face_oracle_not_bulk_top_level():
+    """ADR-0038 W3 batch 6: Optimus Prime's front-face DFC record carries no
+    top-level ``oracle_text`` (blank/None at the bulk level) -- the delayed
+    "When that creature deals combat damage to a player this turn, convert
+    ~" clause is buried as a ``SequentialSibling`` Unimplemented sub-ability
+    of the "Autobot Leader" back face's OWN attack trigger, readable only
+    off THAT face's own ``tree.oracle`` (never the blank bulk field). CR
+    510.1b/510.1c."""
+    idents = _idents("Optimus Prime, Autobot Leader")
+    assert ("combat_damage_matters", "opponents", "") in idents
+    assert ("combat_damage_to_opp", "opponents", "") in idents
+
+
+@pytest.mark.parametrize("name", ["Raphael, the Nightwatcher", "Blade Historian"])
+def test_combat_damage_to_opp_double_strike_grant_low_confidence(name):
+    """ADR-0038 W3 batch 6: a LOW-confidence heuristic -- "Attacking
+    creatures you control have double strike" makes attackers connect with
+    a player TWICE, a combat-damage-to-player payoff whose oracle never
+    says "combat damage" at all (:data:`COMBAT_DAMAGE_TO_OPP_DS_GRANT_
+    REGEX`, reused verbatim from the deleted legacy producer -- Raphael,
+    Blade Historian, Berserkers' Onslaught, a disjoint corpus-bounded
+    3-card class). ``combat_damage_matters`` does NOT fire for this class
+    (legacy's own producer only ever adds ``combat_damage_to_opp``). CR
+    510.1c."""
+    idents = _idents(name)
+    assert ("combat_damage_to_opp", "opponents", "") in idents
+    assert "combat_damage_matters" not in {k for k, _s, _su in idents}
+
+
+@pytest.mark.parametrize(
     ("name", "should_fire"),
     [
         ("Pestilence", True),  # DamageAll + player_filter All
@@ -6505,6 +6583,97 @@ def test_creature_ping_adjudicated_gain_delirium():
     and Delirium's per-effect raw happens to be empty in the OLD
     projection — a legacy fallback-regex gap, not a principled exclusion."""
     assert ("creature_ping", "you", "") in _idents("Delirium")
+
+
+@pytest.mark.parametrize("name", ["Waltz of Rage", "Heartfire Hero"])
+def test_creature_ping_damage_all_each_player_tag_widening(name):
+    """ADR-0038 W3 batch 6: the anchor read only ``DealDamage``-tagged
+    nodes; a "target creature you control deals damage equal to its power
+    to each other creature" idiom (Waltz of Rage) types as ``DamageAll``
+    (``damage_source='Target'`` -- the SOURCE dealing the damage is
+    explicitly the earlier ``TargetOnly`` target), and a "when ~ dies, it
+    deals damage equal to its power to each opponent" idiom (Heartfire
+    Hero) types as ``DamageEachPlayer``. Both already decorate as the
+    ``deal_damage`` CONCEPT (the crosswalk's tag->concept table maps all
+    three DealDamage/DamageAll/DamageEachPlayer tags to it) but the lane's
+    OWN per-node tag filter excluded anything but ``DealDamage``. CR 120.3.
+    """
+    assert ("creature_ping", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Burning Anger", "Brawl"])
+def test_creature_ping_nested_grant_deep_walk(name):
+    """ADR-0038 W3 batch 6: a DealDamage/DamageAll node buried inside a
+    GRANTED ability's OWN definition (an Aura's "Enchanted creature has
+    '{T}: This creature deals damage equal to its power to any target.'" —
+    Burning Anger; a static's "all creatures gain '{T}: This creature deals
+    damage equal to its power to target creature.'" — Brawl) is reachable
+    ONLY via a deep :func:`~mtg_utils._card_ir.crosswalk.iter_typed_nodes`
+    walk — no unit's own ``effects`` tuple carries it (the granting
+    static's own effect chain IS the grant modification, not the granted
+    ability's inner effects). No per-node ``raw`` exists at this depth, so
+    the doer-confirm reads the reminder-stripped whole-face oracle
+    directly. CR 120.3."""
+    assert ("creature_ping", "you", "") in _idents(name)
+
+
+def test_creature_ping_parent_target_recipient_text_confirm():
+    """ADR-0038 W3 batch 6: Lie in Wait ("Return target creature card from
+    your graveyard to your hand. ~ deals damage equal to THAT CARD's power
+    to target creature.") sources its power from a DIFFERENT object (the
+    returned card, ``qty.scope=Demonstrative``) — the doer-confirm text
+    patterns (:data:`_POWER_ITS_OWN_DOER` "its power", :data:`_POWER_SELF_
+    RECIP` "to itself") never match "that card's power". The recipient IS
+    structurally Creature-typed per CR 120.3, but phase's ``target`` field
+    is a bare ``ParentTarget`` back-reference with no Filter to read —
+    legacy's OWN structural read fires creature_ping off a Creature
+    recipient ALONE, so :data:`_POWER_RECIP_CREATURE_TEXT`'s strict
+    "power to target creature" anchor recovers it as a recipient-side text
+    confirm (never a bare "to <n> creature" scan — see the constant's own
+    over-fire-reverted docstring). CR 120.3."""
+    assert ("creature_ping", "you", "") in _idents("Lie in Wait")
+
+
+@pytest.mark.parametrize("name", ["Cut Propulsion", "Betrayal at the Vault"])
+def test_creature_ping_multiply_and_empty_type_filters(name):
+    """ADR-0038 W3 batch 6: Cut Propulsion's conditional "it deals TWICE
+    THAT MUCH damage to itself instead" (flying branch) doubles an
+    ``EventContextAmount`` anaphoric reference, not a bare ``Power`` ref —
+    phase never separately models the un-doubled base clause, so the
+    Multiply anchor widens to admit ``EventContextAmount`` too, gated
+    behind the SAME :data:`_POWER_MULT_DOER` "power" text confirm (CR
+    120.3). Betrayal at the Vault's DamageAll recipient
+    ("each of two other target creatures") carries an EMPTY
+    ``type_filters`` list (no Creature core type to read structurally) —
+    it falls through to the SAME :data:`_POWER_SELF_RECIP`/
+    :data:`_POWER_ITS_OWN_DOER` doer-confirm text arm every non-creature-
+    typed recipient already uses ("Target creature you control deals
+    damage equal to ITS POWER" — CR 120.3)."""
+    assert ("creature_ping", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Osseous Sticktwister", "Storm, Queen of Wakanda", "Lukka, Wayward Bonder"],
+)
+def test_creature_ping_adjudicated_gains_narrow_legacy_fallback(name):
+    """ADJUDICATED GAINS over legacy (the SAME class as the already-ported
+    Delirium precedent — a legacy fallback-regex gap, not a principled
+    exclusion): Osseous Sticktwister's "... this creature deals damage
+    equal to its power to each opponent who didn't sacrifice a permanent"
+    never matches legacy's ``_CREATURE_PING_ORACLE`` (which requires a bare
+    "to (another )?target" tail, not "to each opponent who..."); Storm,
+    Queen of Wakanda's "Storm deals damage equal to HER power to that
+    creature" uses a pronoun legacy's ``_POWER_ITS_OWN_DOER``-style regex
+    never covers (only literal "its power"); Lukka's ultimate emblem
+    ("Whenever a creature you control enters, it deals damage equal to its
+    power to ANY TARGET") -- legacy's oracle-fallback regex's "to
+    (?:another )?target" alt requires the bare word "target" immediately,
+    never "any target". All three are genuine CR 120.3 doer-based
+    creature_ping members (a creature/object dealing damage equal to its
+    OWN power) the structural read now reaches; corpus-verified as this
+    batch's only over-vs-legacy delta alongside Delirium."""
+    assert ("creature_ping", "you", "") in _idents(name)
 
 
 # ── Batch 11: counter / ETB / cast trigger-event cluster (§C) ────────────────

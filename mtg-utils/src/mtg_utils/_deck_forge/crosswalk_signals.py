@@ -178,11 +178,23 @@ from mtg_utils._card_ir.project import (
 # top-stack (Scroll Rack) and an opponent-library tuck (Cruel Fate, Sealed
 # Fate) are byte-identical nodes; the self/opponent split lives only in
 # oracle text.
+#
+# ADR-0038 W3 batch 6 (combat-trio) — combat_damage_matters/combat_damage_to_opp's
+# bare-quoted-grant residual tail (a trigger QUOTED inside an activated ability
+# / one-shot grant, a "would deal combat damage" REPLACEMENT, or the passive
+# "was dealt combat damage by" reference — Predators' Hour, Sokrates, Steel
+# Hellkite, the Unfinity Sticker Sheet TK-templates) reuses the legacy
+# ``combat_damage_recipients_from_text`` recipient-recovery scan verbatim,
+# single-source from the OLD projection's own supplement pass (public
+# specifically for this kind of reuse per its own docstring) — the SAME
+# synthetic-trigger recovery ``old_ir_for`` itself runs when phase leaves the
+# combat-damage connect wholly unstructured. CR 510.1b/510.1c/510.2/615.
 from mtg_utils._card_ir.supplement import (
     _CAST_FROM_EXILE_P,
     _FORCE_ATTACK,
     _copied_type_from_text,
     _topdeck_stack_self,
+    combat_damage_recipients_from_text,
 )
 
 # The b15 opponent_counter_grant co-tap anaphora fallback (the supplement's
@@ -300,7 +312,17 @@ from mtg_utils._deck_forge._subtypes import (
 # TOPDECK_STACK_SWEEP_REGEX verbatim, single-source from ``_sweep_detectors``
 # (a sibling ``_deck_forge`` module, no import cycle) — narrower than the
 # self-anchor scan on purpose (see ``_topdeck_stack``'s docstring).
-from mtg_utils._deck_forge._sweep_detectors import TOPDECK_STACK_SWEEP_REGEX
+#
+# ADR-0038 W3 batch 6 (combat-trio) — combat_damage_matters/combat_damage_to_opp's
+# bare-quoted-grant residual tail (Predators' Hour, Sokrates, Steel Hellkite's
+# passive "was dealt combat damage by" filter, the Unfinity Sticker Sheet
+# templates) reuses the legacy ``COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX`` LOW-
+# confidence double-strike-grant mirror verbatim (Raphael/Blade Historian/
+# Berserkers' Onslaught — a disjoint, corpus-bounded 3-card class).
+from mtg_utils._deck_forge._sweep_detectors import (
+    COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
+    TOPDECK_STACK_SWEEP_REGEX,
+)
 from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.card_ir import Card
 
@@ -916,13 +938,40 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # Overgrown Zealot/Tin Street Gossip's mana restrictions, Oblivious
     # Bookworm's broad condition). live_only == exactly the 33-card shed
     # set IS the 0-genuine-lost gate.
+    #
+    # ADR-0038 W3 batch 6 (combat-trio): ``combat_damage_matters`` and
+    # ``combat_damage_to_opp`` PROMOTED (0 genuine members lost vs a live
+    # corpus re-measure — 28/27 live_only -> 0/0). A whole-face text
+    # fallback (:func:`~mtg_utils._card_ir.supplement.
+    # combat_damage_recipients_from_text`, reused verbatim, single-source
+    # from the OLD projection's own synthetic ``combat_damage`` trigger
+    # recovery) closes the bare-quoted-grant / replacement / passive-
+    # reference tail (Predators' Hour, Sokrates, Steel Hellkite, the
+    # Unfinity Sticker Sheet TK-templates, the Optimus Prime DFC face) for
+    # BOTH lanes; ``combat_damage_to_opp`` additionally gains a LOW-
+    # confidence double-strike-grant mirror (Raphael, Blade Historian,
+    # Berserkers' Onslaught — CR 510.1b/510.1c/510.2/615.
+    # ``creature_ping`` PROMOTED (0 genuine members lost — 36 -> 0
+    # live_only): the anchor widened from ``DealDamage``-only to also read
+    # ``DamageAll``/``DamageEachPlayer`` (both already decorate as the
+    # ``deal_damage`` concept, only the lane's own per-node tag filter
+    # excluded them — Waltz of Rage, Heartfire Hero), a deep
+    # ``iter_typed_nodes`` walk reaches a granted ability's OWN buried
+    # DealDamage/DamageAll (Burning Anger, Brawl), a strict "power to
+    # target creature" recipient-text confirm recovers a ParentTarget
+    # back-reference recipient when the doer's power comes from a
+    # DIFFERENT object (Lie in Wait, Dead Reckoning), and the Multiply
+    # anchor admits an ``EventContextAmount`` inner qty (Cut Propulsion's
+    # anaphoric "twice that much"), all CR 120.3. Three adjudicated GAINS
+    # (Osseous Sticktwister, Storm Queen of Wakanda, Lukka's ultimate
+    # emblem) join the already-ported Delirium precedent — legacy's own
+    # oracle-fallback regex is narrower than the structural read in each
+    # case (a pronoun, an "any target" tail, a qualifying relative clause),
+    # not a principled exclusion.
     {
         "artifacts_matter",
         "base_pt_set",
         "cheat_into_play",
-        "combat_damage_matters",
-        "combat_damage_to_opp",
-        "creature_ping",
         "creatures_matter",
         "direct_damage",
         "discard_outlet",
@@ -4144,6 +4193,22 @@ def _combat_damage_to_opp(tree: ConceptTree) -> list[Signal]:
     ``live_only`` (the sibling ``combat_damage_matters``/``damage_to_opp_
     matters`` lanes already had this descent; this lane didn't). Scope
     "opponents".
+
+    ADR-0038 W3 batch 6: two fallbacks for the tail no typed trigger def
+    reaches at all — a bare quoted grant (Sokrates's activated-ability-
+    granted replacement, Predators' Hour's AddKeyword-modification quote,
+    Steel Hellkite's passive "was dealt combat damage by ~" activated-
+    ability filter, the Unfinity Sticker Sheet TK-templates whose {TK} mana
+    cost defeats phase's cost parser entirely, leaving the WHOLE triggered
+    line as one opaque Unimplemented residue): :func:`combat_damage_
+    recipients_from_text` over the FACE's own oracle (never the bulk
+    top-level field — a DFC's real per-face text, recovering Optimus
+    Prime's "Autobot Leader" face). And a LOW-confidence double-strike-
+    grant heuristic (:data:`COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX` — Raphael,
+    Blade Historian, Berserkers' Onslaught grant attacking creatures double
+    strike, connecting with a player TWICE; a disjoint, corpus-bounded
+    3-card class whose oracle never says "combat damage" at all). Both
+    fallback-only — never override a structural miss into a wrong key.
     """
     for unit in tree.units:
         if unit.origin == "trigger" and _combat_damage_to_opp_fires(unit.node):
@@ -4164,6 +4229,10 @@ def _combat_damage_to_opp(tree: ConceptTree) -> list[Signal]:
                         "combat_damage_to_opp", "opponents", "", "", tree.name, "high"
                     )
                 ]
+    if "player" in combat_damage_recipients_from_text(tree.oracle):
+        return [Signal("combat_damage_to_opp", "opponents", "", "", tree.name, "high")]
+    if re.search(COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX, _kept(tree), re.IGNORECASE):
+        return [Signal("combat_damage_to_opp", "opponents", "", "", tree.name, "low")]
     return []
 
 
@@ -9257,6 +9326,18 @@ def _combat_damage_lanes(tree: ConceptTree) -> list[Signal]:
     Both hard-scope "opponents" (live). Co-fires with the ported
     ``combat_damage_to_opp`` where live does — distinct keys, the diff slices
     per key.
+
+    ADR-0038 W3 batch 6: ``combat_damage_matters`` gains the SAME bare-
+    quoted-grant fallback ``combat_damage_to_opp`` needed (Sokrates,
+    Predators' Hour, the Unfinity Sticker Sheet TK-templates, Kassandra's
+    Equipment-gated granted quote, Spawning Kraken's tribal Unknown-mode
+    top-level trigger whose own ``description`` names the connect but whose
+    ``Unimplemented`` execute chain defeats the typed kind read) —
+    :func:`combat_damage_recipients_from_text` over the FACE's own oracle,
+    fallback-only, fired only when NO structural arm reached
+    ``combat_damage_matters`` on this tree (never overrides a genuine
+    structural miss — e.g. a creature-only or damage_to_opp_matters-only
+    read stays that way).
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -9289,6 +9370,12 @@ def _combat_damage_lanes(tree: ConceptTree) -> list[Signal]:
     ):
         out.append(
             Signal("damage_to_opp_matters", "opponents", "", "", tree.name, "high")
+        )
+    if "combat_damage_matters" not in seen and "player" in (
+        combat_damage_recipients_from_text(tree.oracle)
+    ):
+        out.append(
+            Signal("combat_damage_matters", "opponents", "", "", tree.name, "high")
         )
     return out
 
@@ -10348,6 +10435,28 @@ _POWER_MULT_DOER = re.compile(
     r"|to itself equal to its power)",
     re.IGNORECASE,
 )
+# ADR-0038 W3 batch 6 — the RECIPIENT-side text confirm for a back-reference
+# recipient tag (``ParentTarget``/``TriggeringSource``/``SelfRef``/``Any``)
+# whose underlying Filter type phase drops: "power to target creature" (Lie
+# in Wait, Dead Reckoning — the power SOURCE is a graveyard/library CARD's
+# power, "that card's power", not the doer's own, so :data:`_POWER_ITS_OWN_
+# DOER` never matches; legacy's OWN structural read fires creature_ping off
+# the RECIPIENT alone when it is Creature-typed, regardless of whose power
+# scales the damage — recipient-is-a-creature is the primary discriminator,
+# doer-confirm is only the fallback for a non-creature-typed recipient).
+# Anchored strictly to "power to <recipient>" (never a bare "to <n> creature"
+# scan) — a Fling-style "damage equal to THAT CREATURE'S power to <player>"
+# (Heart-Piercer Manticore/Grab the Reins's "to any target", Meglonoth/
+# Agonizing Demise/Cinder Cloud/Boros Fury-Shield's "to that creature's
+# CONTROLLER", Unnatural Hunger's "to that player") has NOTHING creature-
+# shaped directly after "power" — a looser "damage ... to X creature" scan
+# wrongly matched the "to" inside "equal TO THAT CREATURE'S power" itself
+# (corpus-verified over-fire when tried, reverted to this anchor). CR 120.3
+# (any object dealing power-scaled damage that connects with a creature is
+# a creature_ping member).
+_POWER_RECIP_CREATURE_TEXT = re.compile(
+    r"power to (?:target|another target|that) creature\b", re.IGNORECASE
+)
 
 
 def _unit_is_repeatable(unit: AbilityUnit) -> bool:
@@ -10365,6 +10474,53 @@ def _unit_is_repeatable(unit: AbilityUnit) -> bool:
         mode = getattr(unit.node, "mode", None)
         return mode in ("Phase", "SpellCast")
     return False
+
+
+def _creature_ping_fires(node: TypedMirrorNode, raw: str, tree: ConceptTree) -> bool:
+    """Whether a DealDamage/DamageAll/DamageEachPlayer ``node`` is
+    ``creature_ping``'s exact shape (CR 120.3 — a creature dealing damage
+    equal to ITS OWN power, OR any power-scaled damage that connects with a
+    creature): a POWER-quantified ``amount`` (or a doubled
+    ``Multiply(Ref(Power))``, confirmed via :data:`_POWER_MULT_DOER``) whose
+    recipient reaches a Creature (structurally, OR — a back-reference
+    recipient tag like ``ParentTarget`` whose Filter type phase drops —
+    via :data:`_POWER_RECIP_CREATURE_TEXT`'s "to target creature" text
+    confirm, Lie in Wait/Dead Reckoning's "that CARD's power" doer), OR
+    whose clause text confirms a self-recip (:data:`_POWER_SELF_RECIP` "to
+    itself") or its-own-power doer (:data:`_POWER_ITS_OWN_DOER` "deals
+    damage equal to its power"). ``raw`` is the per-node text when the
+    caller has one (a top-level effect); pass ``""`` for a deep-walked node
+    with none — the confirm then reads the reminder-stripped whole-face
+    oracle, the SAME empty-raw fallback shape every sibling arm in this
+    module already uses.
+
+    ADR-0038 W3 batch 6: the Multiply anchor also admits an
+    ``EventContextAmount`` inner qty (Cut Propulsion's "it deals TWICE
+    THAT MUCH damage to itself instead" — the doubled quantity anaphorically
+    re-references an earlier, phase-uncaptured "equal to its power" clause
+    rather than wrapping a bare ``Power`` ref) — gated the SAME as the
+    ``Power``-inner Multiply case behind :data:`_POWER_MULT_DOER`'s literal
+    "power" text confirm, so a non-power "twice that much" doubler (a fixed
+    burn amount) never enters.
+    """
+    amt_tag = ref_qty_tag(node, "amount")
+    mult_tag = None if amt_tag == "Power" else ref_count_qty(node, "amount")
+    if amt_tag != "Power" and mult_tag not in ("Power", "EventContextAmount"):
+        return False
+    tgt = getattr(node, "target", None)
+    tgt_tag = tag_of(tgt)
+    recip_creature = tgt_tag in ("Typed", "Or", "And") and (
+        "Creature" in filter_core_types(tgt)
+    )
+    src = raw if raw.strip() else _kept(tree)
+    if not recip_creature and tgt_tag not in ("Typed", "Or", "And"):
+        recip_creature = _POWER_RECIP_CREATURE_TEXT.search(src) is not None
+    mult_confirmed = amt_tag == "Power" or _POWER_MULT_DOER.search(src) is not None
+    return mult_confirmed and (
+        recip_creature
+        or _POWER_SELF_RECIP.search(src) is not None
+        or _POWER_ITS_OWN_DOER.search(src) is not None
+    )
 
 
 def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
@@ -10426,6 +10582,7 @@ def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, scope, "", raw, tree.name, "high"))
 
+    creature_ping_nodes: list[object] = []
     for unit in tree.units:
         repeatable = _unit_is_repeatable(unit)
         for c in unit.effect_concepts("deal_damage"):
@@ -10438,27 +10595,40 @@ def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
                 tgt = getattr(c.node, "target", None)
                 if "Creature" in filter_core_types(tgt):
                     fire("aoe_ping", "you", c.raw)
-            if t == "DealDamage":
-                amt_tag = ref_qty_tag(c.node, "amount")
-                mult_tag = (
-                    None if amt_tag == "Power" else (ref_count_qty(c.node, "amount"))
-                )
-                if amt_tag == "Power" or mult_tag == "Power":
-                    tgt = getattr(c.node, "target", None)
-                    recip_creature = tag_of(tgt) in ("Typed", "Or", "And") and (
-                        "Creature" in filter_core_types(tgt)
-                    )
-                    raw = c.raw or ""
-                    src = raw if raw.strip() else _kept(tree)
-                    mult_confirmed = amt_tag == "Power" or (
-                        _POWER_MULT_DOER.search(src) is not None
-                    )
-                    if mult_confirmed and (
-                        recip_creature
-                        or _POWER_SELF_RECIP.search(src)
-                        or _POWER_ITS_OWN_DOER.search(src)
-                    ):
-                        fire("creature_ping", "you", raw)
+            if t in ("DealDamage", "DamageAll", "DamageEachPlayer"):
+                creature_ping_nodes.append(c.node)
+                if _creature_ping_fires(c.node, c.raw or "", tree):
+                    fire("creature_ping", "you", c.raw or "")
+    # ADR-0038 W3 batch 6: a SECOND, DEEP pass over every unit's node reaches
+    # a DealDamage/DamageAll/DamageEachPlayer node buried inside a GRANTED
+    # ability's OWN definition (GrantAbility/GrantStaticAbility/
+    # AddTargetReplacement — "gains '{T}: This creature deals damage equal
+    # to its power to target creature.'", Burning Anger, Sinstriker's Will,
+    # Brawl, Dead Before Sunrise, Commando Raid, Predatory Urge, Surestrike
+    # Trident's Equipment grant), a node NO unit's own ``effects`` tuple
+    # carries (the granting static/spell's own effect chain is the GRANT
+    # modification, not the granted ability's inner effects — a DIFFERENT
+    # node than the flat pass above reaches). No per-node ``raw`` exists at
+    # this depth (only ability/trigger/static WRAPPER nodes carry
+    # ``description``, never a bare effect leaf), so the doer-confirm reads
+    # the reminder-stripped whole-face oracle directly — gated behind the
+    # SAME structural Power-quantity anchor as the flat pass, never a free
+    # scan. ``creature_ping`` only (``symmetric_damage_each``/``aoe_ping``
+    # stay flat-pass-only — unaffected, no regression risk).
+    if "creature_ping" not in seen:
+        seen_ids = {id(n) for n in creature_ping_nodes}
+        for unit in tree.units:
+            for n in iter_typed_nodes(unit.node):
+                if id(n) in seen_ids:
+                    continue
+                if tag_of(n) not in ("DealDamage", "DamageAll", "DamageEachPlayer"):
+                    continue
+                seen_ids.add(id(n))
+                if _creature_ping_fires(n, "", tree):
+                    fire("creature_ping", "you", "")
+                    break
+            if "creature_ping" in seen:
+                break
     return out
 
 
