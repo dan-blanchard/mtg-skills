@@ -144,6 +144,26 @@ ALLOWLIST: dict[str, TokenRule] = {
     # a recovered node unconditionally (the grammar's third-person-only
     # gate already establishes the digger is NOT you).
     "reveal_hand": TokenRule(concept="reveal_hand", category="hand_disruption"),
+    # ADR-0038 W4 giants (lifeloss_makers): the life-LOSS ACTION idiom (CR
+    # 119.3): "[Target player/opponent] loses N life" / "you lose life equal
+    # to X" as the clause's OWN main verb — a computed-amount loss ("Target
+    # opponent loses 5 life unless..." — Remorseless Punishment; "loses life
+    # equal to the difference between..." — Jaws of Defeat; "loses 2 life and
+    # you gain 2 life" inside a conditional — Knights of the Black Rose;
+    # "loses life equal to the number of creatures attacking them" — Within
+    # Range; "loses life equal to the damage already dealt" — Final
+    # Punishment) or an "unless"-guarded drain (Remorseless Punishment) leaves
+    # the whole clause as an Unimplemented residue phase's own amount-ref
+    # grammar can't structure. Distinct from a "lost life this turn"
+    # CONDITION reference (Savage Gorger, Rakdos, Lord of Riots) — that shape
+    # phase parses into its OWN typed consequence node (PlaceCounter,
+    # Surveil, cost-reduction, …) with a condition wrapper, never an
+    # Unimplemented residue, so it never reaches this table (verified:
+    # ADR-0038 W4 giants corpus check, 0 false hits). Maps to the native
+    # LoseLife tag's own concept ("lose_life") so the lane's ordinary
+    # ``effect_concepts("lose_life")`` read covers the recovered node with no
+    # special-case.
+    "lose_life": TokenRule(concept="lose_life", category="lose_life"),
 }
 
 

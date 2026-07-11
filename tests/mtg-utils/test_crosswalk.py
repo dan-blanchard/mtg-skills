@@ -1820,6 +1820,92 @@ def test_lifeloss_makers_self_loss_preserved():
     assert ("lifeloss_makers", "you", "") in _idents("Agent Venom")
 
 
+# ── ADR-0038 W4 giants (lifeloss_makers residual grind) ────────────────────
+# Verified CR: 119.3 (loss adjusts the life total), 119.4 (paying life IS a
+# cost but causes that much life loss), 118.3b / 118.8 (paying life / an
+# additional cost).
+
+
+@pytest.mark.parametrize(
+    ("name", "scope"),
+    [
+        # a GRANTED ability's own quoted definition carries a real LoseLife
+        # leaf a top-level unit.effects/.statics scan never flattens — an
+        # iter_typed_nodes deep walk of the WHOLE unit finds it either way.
+        ("Caustic Tar", "opponents"),  # "Enchanted land has '{T}: Target
+        # player loses 3 life.'" — GrantAbility.definition.effect
+        ("Pillory of the Sleepless", "you"),  # granted self-loss upkeep
+        # trigger (GrantTrigger.trigger.execute.effect)
+    ],
+)
+def test_lifeloss_makers_granted_ability_descent(name, scope):
+    assert ("lifeloss_makers", scope, "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # a pay-life COST reachable only via a deep walk (not the top-level
+        # unit.costs Composite scan): Gallowbraid's cumulative-upkeep
+        # unless_pay.cost (payer=Controller); Wand of Denial's optional
+        # "you may pay 2 life. If you do, ..." trigger-body PayCost effect
+        # (payer=Controller).
+        "Gallowbraid",
+        "Wand of Denial",
+    ],
+)
+def test_lifeloss_makers_deep_paylife_self_payer(name):
+    assert ("lifeloss_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # a "unless [someone else] pays life" cost is a TAX the card imposes
+        # on another player, not this card's own life payment — the payer
+        # tag (ParentTargetController) is rejected by
+        # _lifeloss_self_paid_cost's Controller/SelfRef/You gate.
+        "Vectis Dominator",  # "unless its controller pays 2 life"
+        "Killing Wave",  # "unless they pay X life" (each creature's
+        # controller, not the caster)
+    ],
+)
+def test_lifeloss_makers_excludes_non_controller_payer(name):
+    assert "lifeloss_makers" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    ("name", "scope"),
+    [
+        # an Unimplemented "X loses N life [equal to ...]" residue phase's
+        # own amount-ref grammar can't structure, recovered via the shared
+        # clause_grammar "lose_life" token (ADR-0038 Unimplemented recovery
+        # ALLOWLIST — recovery.py, no grammar growth).
+        ("Final Punishment", "opponents"),
+        ("Jaws of Defeat", "opponents"),
+    ],
+)
+def test_lifeloss_makers_unimplemented_recovery(name, scope):
+    assert ("lifeloss_makers", scope, "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # a "lost life this turn" CONDITION/reference (a WATCHER — the card
+        # cares whether life was lost, it doesn't itself perform the loss,
+        # CR 119.3) is a lifeloss_matters payoff, never lifeloss_makers —
+        # phase structures the consequence as its OWN typed node (PlaceCounter
+        # here) with a condition wrapper, so it never even reaches an
+        # Unimplemented residue this lane could misread.
+        "Savage Gorger",
+        "Rakdos, Lord of Riots",
+    ],
+)
+def test_lifeloss_makers_excludes_lost_this_turn_condition(name):
+    assert "lifeloss_makers" not in _keys(name)
+
+
 @pytest.mark.parametrize("name", ["Braids, Cabal Minion", "Smokestack"])
 def test_edict_makers_symmetric_upkeep_scoped_each(name):
     """A triggered "at the beginning of each player's upkeep, that player sacrifices"

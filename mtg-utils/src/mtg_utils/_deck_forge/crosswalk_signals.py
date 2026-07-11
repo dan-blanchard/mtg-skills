@@ -4743,9 +4743,80 @@ def _regenerate_makers(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _lifeloss_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str:
+# ADR-0038 W4 giants — a LAST-RESORT scope read off the CARD's own
+# reminder-stripped oracle text, per-clause gated (boundary lesson iii — never
+# whole-tree), for a ``LoseLife`` node that carries NO recipient field of its
+# own AND no wrapper-owner edict actor: "Target player loses 1 life for each
+# tapped artifact THEY control" (Burden of Greed), "that player loses 1 life
+# for each artifact they control" (Emissary of Despair), "Target opponent
+# loses 1 life for each attacking creature YOU control" (Foul-Tongue Shriek),
+# a die-roll-table branch ("1—9 | Each opponent loses 2 life" — Herald of
+# Hadar) — the recipient lives ONLY inside the amount's nested count filter (a
+# sub-field neither :func:`lifeloss_recipient_scope` nor
+# :func:`effect_owner_player_scope` reads) or inside a per-branch clause the
+# OWNING unit's top-level ``description`` never repeats; the count filter's OWN
+# controller is unreliable as a stand-in (Foul-Tongue Shriek's count filter
+# names YOU, the caster, not the opponent who loses). Dan's
+# detriment-directed-targeting convention (the same principle
+# :func:`detriment_directed_scope` encodes elsewhere): an explicit "target/that
+# opponent" or "target/that player" subject on an unambiguously detrimental
+# effect (life loss, CR 119.3) reads opponent-directed for deck-building signal
+# purposes; a clause opening with a bare "You" is a genuine self-loss. Scans
+# the WHOLE card (not just the owning unit) because a nested LoseLife (a
+# die-roll/modal branch) has no clause text of its own reachable from the
+# node — the first LOSE-clause match wins, a narrow risk only for the rare
+# card mixing a genuine self-loss AND an unresolved drain in different
+# abilities.
+_LIFELOSS_OPPONENT_TEXT_RX = re.compile(
+    r"\b(?:target opponent|each opponent|that opponent|an opponent"
+    r"|target player|that player)\b",
+    re.IGNORECASE,
+)
+_LIFELOSS_SELF_TEXT_RX = re.compile(r"^\s*you\b", re.IGNORECASE)
+_LIFELOSS_CLAUSE_RX = re.compile(r"\bloses?\b[^.|\n]*\blife\b", re.IGNORECASE)
+
+
+def _lifeloss_text_scope(tree: ConceptTree, skip: int = 0) -> str | None:
+    """The last-resort whole-card, per-clause scope fallback (see module
+    comment above ``_LIFELOSS_OPPONENT_TEXT_RX``), or ``None`` when fewer than
+    ``skip + 1`` clauses carry a self/opponent-directed marker.
+
+    ``skip`` disambiguates a card with TWO structurally-unresolved LoseLife
+    nodes of genuinely DIFFERENT scope (Feed the Infection: "you lose 3 life"
+    self + a separate Corrupted rider "each opponent … loses 3 life" drain) —
+    :func:`_lifeloss_makers` counts how many prior nodes already fell through
+    to this fallback on the SAME tree and passes that count, so each node
+    claims the NEXT unclaimed matching clause in oracle order rather than
+    every node racing to the first."""
+    kept = _kept(tree)
+    seen = 0
+    for clause in re.split(r"[.\n|]", kept):
+        if not _LIFELOSS_CLAUSE_RX.search(clause):
+            continue
+        stripped = clause.strip()
+        if _LIFELOSS_SELF_TEXT_RX.match(stripped):
+            resolved = "you"
+        elif _LIFELOSS_OPPONENT_TEXT_RX.search(stripped):
+            resolved = "opponents"
+        else:
+            continue
+        if seen == skip:
+            return resolved
+        seen += 1
+    return None
+
+
+def _lifeloss_scope(
+    unit: AbilityUnit, node: TypedMirrorNode, tree: ConceptTree, text_skip: int = 0
+) -> tuple[str, bool]:
     """The lifeloss-maker scope split (CR 119.3): a self-loss ("you lose N") → you; a
     drain ("each opponent / its controller / that player loses N") → opponents.
+    Returns ``(scope, used_text_fallback)`` — the caller advances its running
+    ``text_skip`` counter for EVERY node regardless of the second element (a
+    structurally-resolved node still occupies its OWN clause's position in
+    oracle order — Feed the Infection's first "you lose 3 life", target=
+    Controller — so a LATER node's text search must skip past it); the flag
+    is informational only.
 
     Direction comes from the ``LoseLife`` node's RECIPIENT, read structurally
     (:func:`lifeloss_recipient_scope`) — NOT from ``trigger_scope``, which phase
@@ -4753,40 +4824,101 @@ def _lifeloss_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str:
     of the Dross, Ashenmoor Liege — phase bug [P5]). When the node carries no
     recipient (Gray Merchant — the "each opponent loses" lives as ``player_scope`` on
     the trigger wrapper), reads the wrapper actor that OWNS this effect
-    (:func:`effect_owner_player_scope`); a bare self-loss with no wrapper actor (Agent
-    Venom, Dark Confidant) stays ``you``."""
+    (:func:`effect_owner_player_scope`); when that ALSO carries nothing, the
+    whole-card per-clause text idiom (:func:`_lifeloss_text_scope`, ``text_skip``
+    claiming the Nth node's own clause in oracle order) is the final read; a bare
+    self-loss with no wrapper actor and no text marker (Agent Venom, Dark
+    Confidant) stays ``you``."""
     rs = lifeloss_recipient_scope(node)
     if rs is not None:
-        return rs
+        return rs, False
     owner = effect_owner_player_scope(getattr(unit, "node", None), node)
     if owner in _EDICT_ACTORS:
-        return "opponents"
-    return "you"
+        return "opponents", False
+    text_scope = _lifeloss_text_scope(tree, skip=text_skip)
+    if text_scope is not None:
+        return text_scope, True
+    return "you", True
+
+
+def _lifeloss_self_paid_cost(node: TypedMirrorNode) -> bool:
+    """Whether a ``payer``/``cost``-bearing wrapper (an ``unless_pay`` site, or a
+    ``PayCost`` effect) is paid by the CONTROLLER, with a ``PayLife`` leaf
+    anywhere in its cost sub-tree (CR 119.4). Rejects a non-controller payer —
+    Vectis Dominator / Killing Wave's ``ParentTargetController`` ("unless ITS
+    CONTROLLER pays"), Cleansing's ``AllPlayers`` ("unless ANY PLAYER pays"),
+    Tyrannize's targeted ``Player`` ("unless THEY pay") — those cards TAX
+    someone else; the card itself doesn't pay/lose life."""
+    payer = getattr(node, "payer", None)
+    if tag_of(payer) not in ("Controller", "SelfRef", "You"):
+        return False
+    cost = getattr(node, "cost", None)
+    return any(tag_of(n) == "PayLife" for n in iter_typed_nodes(cost))
 
 
 def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
     """lifeloss_makers — the card PERFORMS life loss (CR 119.3). (a) a ``LoseLife``
-    effect, scope-split self/drain; (b) a pay-life ACTIVATION COST that buys a
-    non-ramp effect (Erebos's ``Pay 2 life`` → draw) — the card pays/loses life. The
-    cost arm is gated HARD against the lane's land trap: a Land card (Horizon Canopy's
-    ``Pay 1 life: draw``) is excluded (CR 118.8), and a paylife ability whose only
-    effect is mana fixing (``ramp``) is a painland, excluded by the non-ramp gate.
-    Combat damage (CR 120) is a sibling category that never tags ``LoseLife``.
+    effect, scope-split self/drain — including one nested inside a GRANTED
+    ability/trigger a top-level ``unit.effects``/``.statics`` scan never flattens
+    (Caustic Tar / Claim of Erebos / Relic Bane's "Enchanted X has '…Target player
+    loses N life.'"; Pillory of the Sleepless's granted self-loss upkeep trigger) —
+    an ``iter_typed_nodes`` deep walk of the WHOLE unit finds the ``LoseLife`` leaf
+    either way, and :func:`_lifeloss_scope` reads its recipient the same way
+    regardless of nesting depth; (b) a pay-life COST that buys a non-ramp effect
+    (Erebos, Bleak-Hearted's ``Pay 2 life`` → draw; Gallowbraid's cumulative-upkeep
+    ``unless_pay``; Wand of Denial / Shessra's optional "you may pay N life. If you
+    do, …" trigger body) — CR 119.4: paying life IS a cost, but it causes the payer
+    to lose that much life, so the card pays/loses life regardless of which
+    sub-field nests the ``PayLife`` leaf (a top-level Activated ``unit.costs``
+    Composite, or an ``unless_pay.cost`` / optional ``PayCost`` effect deep in a
+    trigger chain whose OWN ``payer`` resolves to the controller — see
+    :func:`_lifeloss_self_paid_cost`; a non-controller payer is a TAX on someone
+    else, not this card's own life payment). The cost arm is gated HARD against
+    the lane's land trap: a Land card (Horizon Canopy's ``Pay 1 life: draw``) is
+    excluded (CR 118.8), and a paylife ability whose only effect is mana fixing
+    (``ramp``) is a painland, excluded by the non-ramp gate. Combat damage (CR
+    120) is a sibling category that never tags ``LoseLife``.
     """
     out: list[Signal] = []
     seen: set[str] = set()
+    text_skip = 0
 
     def fire(scope: str, raw: str) -> None:
         if scope not in seen:
             seen.add(scope)
             out.append(Signal("lifeloss_makers", scope, "", raw, tree.name, "high"))
 
+    def scoped_fire(unit: AbilityUnit, node: TypedMirrorNode, raw: str) -> None:
+        # ``text_skip`` advances for EVERY LoseLife node processed, not just
+        # ones that end up USING the text fallback: a structurally-resolved
+        # node (Feed the Infection's first "you lose 3 life", target=
+        # Controller) still consumes its OWN clause's position in oracle
+        # order, so a LATER node's text-fallback search must skip past it —
+        # otherwise the later node's search restarts at clause 0 and
+        # re-matches the EARLIER (already-claimed) clause instead of its own.
+        nonlocal text_skip
+        scope, _used_text = _lifeloss_scope(unit, node, tree, text_skip)
+        text_skip += 1
+        fire(scope, raw)
+
     for unit in tree.units:
+        top_level_ids = set()
         for c in unit.effect_concepts("lose_life"):
-            fire(_lifeloss_scope(unit, c.node), c.raw)
+            top_level_ids.add(id(c.node))
+            scoped_fire(unit, c.node, c.raw)
+        for n in iter_typed_nodes(unit.node):
+            # Skip a node already handled via the top-level concept read above
+            # — a LoseLife reachable BOTH through ``unit.effect_concepts``
+            # AND this deep walk (the ordinary, non-nested case) must not be
+            # scored twice, which would falsely advance ``text_skip`` and
+            # steal the NEXT card's clause for a phantom second node.
+            if tag_of(n) == "LoseLife" and id(n) not in top_level_ids:
+                scoped_fire(unit, n, "")
     if not tree.is_type("Land"):
         for unit in tree.units:
-            paylife = any(cost_has_paylife(cc.node) for cc in unit.costs)
+            paylife = any(cost_has_paylife(cc.node) for cc in unit.costs) or any(
+                _lifeloss_self_paid_cost(n) for n in iter_typed_nodes(unit.node)
+            )
             non_ramp = any(e.concept != "ramp" for e in unit.effects)
             if paylife and non_ramp:
                 fire("you", "")
