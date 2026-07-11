@@ -178,6 +178,19 @@ ALLOWLIST: dict[str, TokenRule] = {
     # enchantments_matter / every make_token-reading lane's ordinary
     # effect_concepts read covers the recovered node with no special-case.
     "make_token": TokenRule(concept="make_token", category="make_token"),
+    # ADR-0038 post-giants main-session batch: the discard ACTION idiom
+    # (CR 701.8a): "discard a card unless <condition>" — the giants-wave
+    # discard_outlet agent's ONLY remaining class (Timeline Inquiry,
+    # Waterbending Lesson, Tainted Indulgence, Oblivious Bookworm,
+    # Wonderscape Sage: a period-separated "Draw N cards. Then discard a
+    # card unless ..." tail phase parks whole as one Unimplemented
+    # residue). Corpus census at introduction: 22 residues tokenize to
+    # "discard"; several are OPPONENT-directed ("each opponent discards" —
+    # Bladecoil Serpent; "Target player discards" — Tainted Specter), and
+    # a recovered node carries NO typed target — so every lane reading
+    # recovered discard nodes MUST direction-gate on the raw (the
+    # recovered-node raw-read precedent), never trust scope alone.
+    "discard": TokenRule(concept="discard", category="discard"),
 }
 
 

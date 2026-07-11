@@ -1113,13 +1113,26 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # Harmonic Convergence symmetric reset) — the landfall gate rule.
     # artifacts_matter also gained (Circuits Act, Yawgmoth Merfolk Soul —
     # its tail is now 8) but keeps its genuinely diverse residual.
+    #
+    # ADR-0038 post-giants main-session batch: ``discard_outlet`` PROMOTED
+    # — the giants agent's ONLY remaining class (the period-split "Then
+    # discard a card unless <cond>" tail, 5 cards) is recovered by the
+    # "discard" ALLOWLIST row; the lane's recovered-node DIRECTION gate
+    # (``_RECOVERED_OPP_DISCARD_RE``, a raw reject-list) keeps the
+    # opponent-directed / protection residues out (Nebuchadnezzar's
+    # subject-truncated imperative, Bladecoil's "each opponent", Tamiyo's
+    # "can't cause you to"), negative-pinned. Final live_only=0; the
+    # recovered path's four genuine additions (Breakthrough, Circling
+    # Vultures, Noxious Vapors' symmetric wheel, Azra's team loot) ride
+    # the already-adjudicated cw_only gain classes. Free rider:
+    # opponent_discard's gap fell 77→33 (recovered opponent-directed
+    # discards now reach its own arm) — banked, key stays residual.
     {
         "artifacts_matter",
         "base_pt_set",
         "cheat_into_play",
         "creatures_matter",
         "direct_damage",
-        "discard_outlet",
         "draw_for_each",
         "exile_matters",
         "graveyard_matters",
@@ -7913,6 +7926,18 @@ def _iter_discard_cost_nodes(root: object) -> Iterator[TypedMirrorNode]:
             stack.extend(node)
 
 
+# Recovered-discard direction gate (see the recovered_by branch inside
+# _discard_outlet): a recovered node's raw is a TRUNCATED clause, so an
+# opponent-directed discard can LOOK imperative ("discard all cards with
+# that name revealed this way" — the "Target opponent reveals ..." subject
+# lives in a different clause). These residues carry tell-tale
+# subject/backref words; a genuine self-loot clause carries none of them.
+_RECOVERED_OPP_DISCARD_RE = re.compile(
+    r"\b(?:target (?:player|opponent)|each opponent|that player|the player"
+    r"|its controller|their hand|revealed this way|spliced|can't)\b"
+)
+
+
 def _discard_outlet(tree: ConceptTree) -> list[Signal]:
     """discard_outlet — a SELF-loot / symmetric discard outlet (CR 701.9):
     fuel for YOUR graveyard (Faithless Looting; Dark Deal's each-player
@@ -7963,6 +7988,25 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
                 continue
             owner = effect_owner_player_scope(getattr(unit, "node", None), c.node)
             if owner in _OPP_DISCARD_ACTORS:
+                continue
+            # A RECOVERED discard node (ADR-0038 post-giants batch) keeps
+            # the Unimplemented wrapper as ``.node`` — no typed recipient,
+            # so both gates above pass trivially and the clause's own
+            # words are the only direction carrier. Reject the
+            # opponent-directed / protection residues (census: 22
+            # recovered discards; "Target player discards" — Tainted
+            # Specter, "each opponent discards" — Bladecoil Serpent,
+            # subject-truncated backrefs like Nebuchadnezzar's "discard
+            # all cards with that name revealed this way", Tamiyo's
+            # "can't cause you to discard" protection). What remains is
+            # the self-loot class (CR 701.8a): the period-split "Then
+            # discard a card unless <cond>" tail (Timeline Inquiry class)
+            # + bare self imperatives (Breakthrough) + the symmetric
+            # each-player wheel (Noxious Vapors — the Dark Deal
+            # precedent: a wheel hits you too).
+            if c.recovered_by == "discard" and _RECOVERED_OPP_DISCARD_RE.search(
+                (c.raw or "").lower()
+            ):
                 continue
             return [Signal("discard_outlet", "you", "", c.raw, tree.name, "high")]
         for n in _iter_discard_cost_nodes(unit.node):

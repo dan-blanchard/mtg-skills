@@ -4163,25 +4163,51 @@ def test_discard_outlet_additional_generic_walk_gains():
     assert ("discard_outlet", "you", "") in _idents("Flubs, the Fool")
 
 
-def test_discard_outlet_cross_sentence_unless_residue():
-    """Documented residue (ADR-0038 W4 giants, NOT ported): "Draw N cards.
-    Then discard a card unless <condition>." phrased as TWO sentences
-    (Timeline Inquiry) parks the ENTIRE "discard … unless" tail as one
-    whole-clause ``Unimplemented`` residue with no typed ``Discard`` node
-    anywhere — and :data:`_clauses` splits at the very period between
-    "cards." and "Then discard", so the kept-mirror regex (which can
-    bridge at most ONE period within a single scanned clause) never sees
-    both halves together. The SAME idiom phrased as one comma-joined
-    clause ("draw a card, then discard a card unless …" — Katara, Seeking
-    Revenge) DOES fire, since ``_clauses`` never splits on a bare comma.
-    Legacy's ``project.py`` IR reads this card differently (a flat
-    non-typed-mirror translator) and still extracts the discard past the
-    "unless" rider; the crosswalk's precise typed parser correctly
-    recognizes the conditional's complexity and punts — a genuine,
-    narrow, single-class recall gap left OUT this session (key stays
-    ``_STAGE4_RESIDUAL``)."""
-    assert "discard_outlet" not in _keys("Timeline Inquiry")
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Timeline Inquiry",
+        "Tainted Indulgence",
+        "Waterbending Lesson",
+        "Wonderscape Sage",
+        "Oblivious Bookworm",
+        "Breakthrough",
+    ],
+)
+def test_discard_outlet_recovered_self_loot(name):
+    """ADR-0038 post-giants batch (CR 701.8a, verified via rules-lookup
+    this session): the giants wave's last discard_outlet class — "Draw N
+    cards. Then discard a card unless <condition>." phrased as TWO
+    sentences parks the whole tail as one Unimplemented residue — is now
+    recovered by the "discard" ALLOWLIST row; the lane's recovered-node
+    direction gate (raw reject-list) admits the bare self imperative.
+    Breakthrough's "discard the rest" is the plain one-sentence sibling.
+    These also fire discard_makers (a draw + discard in the same unit is
+    the loot contract) — a beyond-legacy gain class on that promoted
+    lane, adjudicated genuine."""
+    assert ("discard_outlet", "you", "") in _idents(name)
     assert ("discard_outlet", "you", "") in _idents("Katara, Seeking Revenge")
+
+
+@pytest.mark.parametrize("name", ["Nebuchadnezzar", "Bladecoil Serpent"])
+def test_discard_outlet_recovered_direction_gate_excludes_opponent(name):
+    """The recovered-node direction gate (ADR-0038 post-giants batch): a
+    recovered discard's raw is a TRUNCATED clause, so an opponent-directed
+    discard can LOOK imperative — Nebuchadnezzar's "discard all cards with
+    that name revealed this way" lost its "Target opponent reveals ..."
+    subject to the clause split; Bladecoil Serpent's "each opponent
+    discards a card" carries it inline. Neither is a self-loot outlet
+    (CR 701.8a's discard actor is the affected player, not you)."""
+    assert "discard_outlet" not in _keys(name)
+
+
+def test_discard_outlet_recovered_symmetric_wheel_included():
+    """Noxious Vapors ("Each player ... discards all other nonland
+    cards") through the recovered path: a SYMMETRIC discard hits you too
+    — the Dark Deal wheel precedent — so it IS an outlet (and an
+    opponent_discard member, both)."""
+    idents = _idents("Noxious Vapors")
+    assert ("discard_outlet", "you", "") in idents
 
 
 @pytest.mark.parametrize(

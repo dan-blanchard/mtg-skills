@@ -415,14 +415,14 @@ def test_wants_cloning_arm2_self_dies_value_fires():
     assert _wants_cloning_fires("Kokusho, the Evening Star")
 
 
-@pytest.mark.parametrize("name", ["Baleful Beholder", "Bladecoil Serpent"])
+@pytest.mark.parametrize("name", ["Baleful Beholder"])
 def test_wants_cloning_synth_recovers_modal_etb(name):
-    # A modal ("choose one —") / conditional-count ("for each {U}{U} spent, draw")
-    # self-ETB whose value phase folds to ``other`` — bucket-B synth recovers it,
-    # gap-gated (no structural self-ETB value present). Baleful Beholder's "Fear
-    # Ray — Creatures you control gain menace" modal ALSO independently
-    # synthesizes evasion_self (ADR-0036 fold, a genuine grant, unrelated to
-    # this wants_cloning claim) — filter to the arm under test.
+    # A modal ("choose one —") self-ETB whose value phase folds to ``other``
+    # — bucket-B synth recovers it, gap-gated (no structural self-ETB value
+    # present). Baleful Beholder's "Fear Ray — Creatures you control gain
+    # menace" modal ALSO independently synthesizes evasion_self (ADR-0036
+    # fold, a genuine grant, unrelated to this wants_cloning claim) —
+    # filter to the arm under test.
     tree = _fixture_tree(name)
     assert not has_self_etb_value(tree)
     fired = dict(synthesize_nodes(tree))
@@ -430,8 +430,24 @@ def test_wants_cloning_synth_recovers_modal_etb(name):
     node = fired["wants_cloning"]
     assert node.concept == "synth_wants_cloning"
     assert isinstance(node.node, SynthesizedNode)
-    assert node.scope == "you"
-    assert _wants_cloning_fires(name)
+
+
+def test_wants_cloning_bladecoil_graduated_to_structural_arm():
+    """ADR-0038 post-giants batch: Bladecoil Serpent's conditional-count
+    self-ETB ("for each {B}{B} spent to cast it, each opponent discards a
+    card") previously reached wants_cloning only via the bucket-B synth
+    marker — the whole clause was an Unimplemented residue. The "discard"
+    recovery ALLOWLIST row now re-decorates it, so the STRUCTURAL arm-2
+    read (``has_self_etb_value``) sees a clone-value ETB directly and the
+    gap-gated synth arm correctly stands down — the ADR-0038 direction:
+    a marker retires the moment a real read covers its card. Membership
+    verdict unchanged (the prior adjudication that a modal/conditional
+    self-ETB is clone-worthy value stands)."""
+    tree = _fixture_tree("Bladecoil Serpent")
+    assert has_self_etb_value(tree)
+    fired = dict(synthesize_nodes(tree))
+    assert "wants_cloning" not in fired  # gap gate closed — synth stands down
+    assert _wants_cloning_fires("Bladecoil Serpent")
 
 
 def test_wants_cloning_sheds_lone_mana_dork():
