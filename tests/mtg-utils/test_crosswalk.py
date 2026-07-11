@@ -1469,6 +1469,93 @@ def test_plus_one_matters_modify_cost_spell_filter_targets_arm():
     assert ("plus_one_matters", "you", "") in _idents("Titanic Brawl")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W6 endgame — a P1P1 self-count THRESHOLD condition rides
+        # ``QuantityCheck`` (CR 122.1), a DIFFERENT node shape from the
+        # HasCounters/IsPresent condition leaves the W5 tails arm already
+        # reads: ``lhs`` is a ``Ref`` wrapping a ``CountersOn`` qty (the SAME
+        # qty tag the pump-scaling arm reads off an effect's count operand,
+        # here riding a condition's comparison operand instead). Incubation
+        # Druid's activated-ability sub_ability condition ("If this creature
+        # has a +1/+1 counter on it, add three mana instead") hits the
+        # ``ConditionInstead``-WRAPPED shape (CR 601.2f "instead" variant —
+        # unwrapped locally, not via the shared ``_condition_leaves`` helper,
+        # since the corpus's 101 ConditionInstead-wrapping-QuantityCheck
+        # instances span many unrelated conditions); Dual-Sun Technique and
+        # Oblivion's Hunger hit the BARE (unwrapped) ``QuantityCheck`` shape.
+        # Non-P1P1 kinds (depletion/lore/quest/soul/time/landmark/omen/point
+        # — a full corpus scan) correctly gate out via the ``counter_type``
+        # check.
+        "Incubation Druid",
+        "Dual-Sun Technique",
+        "Oblivion's Hunger",
+    ],
+)
+def test_plus_one_matters_quantity_check_condition_arm(name):
+    assert ("plus_one_matters", "you", "") in _idents(name)
+
+
+def test_plus_one_matters_target_has_keyword_instead_text_fallback():
+    """Bring Low (CR 601.2f / 122.1): "~ deals 3 damage to target creature.
+    If that creature has a +1/+1 counter on it, ~ deals 5 damage to it
+    instead" decorates the condition as ``TargetHasKeywordInstead`` whose
+    ``keyword`` field is an ``Unknown``-tagged raw-text residue ("a +1/+1
+    counter on it") rather than a real keyword — a gap-marker text fallback
+    narrowly scoped to the ``Unknown`` variant (a NAMED keyword — Flying,
+    Infect, Toxic — never reaches this branch; the corpus's 14
+    TargetHasKeywordInstead instances split 3 P1P1-text / 3 named-keyword /
+    8 unrelated power-toughness-comparison text, so the ``_P1P1_COND_TEXT_RX``
+    gate is load-bearing, not redundant)."""
+    assert ("plus_one_matters", "you", "") in _idents("Bring Low")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W6 endgame — NOT ported: the CDA "power greater than its
+        # base power" text idiom legacy's ``_P1P1_HAVE_REF`` regex treats as
+        # a +1/+1-counter proxy. CR 208.4b: "power greater than base power"
+        # is a comparison against the LAYER-applied current value, true for
+        # ANY power-increasing effect (a temporary pump spell, a static
+        # anthem, Evolve) — a +1/+1 counter is only ONE of several possible
+        # causes, so the state itself carries no counter KIND (CR 122.1) and
+        # is not a genuine counter reference at all. Deliberately
+        # negative-pinned across all three corpus members.
+        "Baird, Argivian Recruiter",
+        "Kutzil, Malamet Exemplar",
+        "Ms. Marvel, Elastic Ally",
+    ],
+)
+def test_plus_one_matters_excludes_power_greater_than_base_power_cda(name):
+    assert "plus_one_matters" not in _keys(name)
+
+
+def test_plus_one_matters_excludes_no_counters_eq0_predicate():
+    """Hindervines (CR 122.1): "Prevent all combat damage ... by creatures
+    with NO +1/+1 counters on them" carries a P1P1 predicate with the EQ-0
+    "no counters" comparator — the INVERSE of a counter-caring payoff (an
+    absence punisher, not a build-around). :func:`counter_pred_kinds`
+    deliberately excludes the EQ-0 form corpus-wide (shared by every counter
+    lane, not just this one) — deliberately negative-pinned."""
+    assert "plus_one_matters" not in _keys("Hindervines")
+
+
+def test_plus_one_matters_excludes_valid_source_any_kind_reference():
+    """Yathan Tombguard (CR 122.1 / 603.2): "Whenever a creature you control
+    with a counter on it deals combat damage to a player, ..." rides a
+    ``deals_damage`` trigger's ``valid_source`` field (the damage SOURCE'S
+    own watched filter) — a DIFFERENT field from the ``counter_added`` /
+    ``dies``-style triggers' ``valid_card`` the existing kind-agnostic-HAVE
+    exclusion (test_plus_one_matters_excludes_kind_agnostic_have_reference)
+    already covers. The Counters predicate here is explicit ``Any`` kind, so
+    it's the SAME shed class (a kind-agnostic reference is not a +1/+1
+    payoff), just a structurally distinct node shape — deliberately
+    negative-pinned as a second representative."""
+    assert "plus_one_matters" not in _keys("Yathan Tombguard")
+
+
 def test_any_counter_matters_predicate_arm():
     assert ("any_counter_matters", "you", "") in _idents("Concord with the Kami")
 

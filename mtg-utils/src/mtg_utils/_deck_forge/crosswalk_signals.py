@@ -4559,21 +4559,81 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
       creature you control ANYWHERE; Titanic Brawl cares specifically about
       the spell's OWN target) — CR 601.2f.
 
-    A genuinely diverse residual tail remains beyond these classes (an
-    ``Unknown``-tagged ``sub_ability`` idiom for "if X has a counter, do Y
-    instead" — Bring Low; a condition phase drops entirely inside a
-    ``GenericEffect`` wrapper — Dual-Sun Technique; a spell's additional-cost
-    ``RemoveCounter`` COUNT scaling its OWN mana discount via
-    ``dynamic_count=PreviousEffectAmount`` — Hierophant Bio-Titan, ambiguous
-    whether the removed counters are even P1P1-typed on that field; a
-    two-level ``Unimplemented`` chain phase drops entirely for a "count X,
-    then use X" clause — Rumbling Ruin, Deepwood Denizen's cost-reduction
-    clause; CDA "power greater than its base power" text idioms with no
-    counter node at all — Baird, Kutzil, Ms. Marvel; a P1P1 predicate with
-    the EQ-0 "no counters" comparator, which the shared
-    :func:`counter_pred_kinds` helper deliberately excludes corpus-wide —
-    Hindervines) — banked as a recall gain per ADR-0038 step 5 rather than
-    force-fit; the key stays residual.
+    ADR-0038 W6 endgame batch adds two more arms and completes the shed-class
+    adjudication (2026-07 re-measure: live_only 300 pre-batch, 296
+    post-batch — 4 cards recovered, corpus-verified genuine):
+
+    * **``QuantityCheck`` self-count condition** — a P1P1 THRESHOLD condition
+      ("if it has a +1/+1 counter on it") sometimes rides ``QuantityCheck``
+      (``lhs`` a ``Ref`` wrapping a ``CountersOn`` qty) rather than
+      ``HasCounters``/``IsPresent`` — Incubation Druid's activated-ability
+      sub_ability condition, Dual-Sun Technique / Oblivion's Hunger's spell
+      sub_ability condition. Sometimes wrapped in a ``ConditionInstead`` (CR
+      601.2f "instead" variant — Incubation Druid), unwrapped LOCALLY (not
+      via the shared ``_condition_leaves`` helper — the corpus's 101
+      ConditionInstead-wrapping-QuantityCheck instances span many unrelated
+      conditions, a shared-helper widening would need its own full-corpus
+      check). 11 commander-legal cards carry a P1P1-gated QuantityCheck
+      condition corpus-wide (5 Theros Ordeals + Ayara's Oathsworn already
+      fire via another arm on the same tree); non-P1P1 kinds (depletion/
+      lore/quest/soul/time/landmark/omen/point) correctly gate out via the
+      ``counter_type`` check. CR 122.1.
+    * **``TargetHasKeywordInstead`` gap-marker text fallback** — Bring Low's
+      "if that creature has a +1/+1 counter on it, ~ deals 5 damage instead"
+      (CR 601.2f) decorates as ``TargetHasKeywordInstead`` whose ``keyword``
+      field is an ``Unknown``-tagged raw-text residue rather than a real
+      keyword. Narrowly scoped to the ``Unknown`` variant matching
+      ``_P1P1_COND_TEXT_RX`` — the corpus's 14 TargetHasKeywordInstead
+      instances split 3 P1P1-text / 3 named-keyword (Flying/Infect/Toxic,
+      correctly excluded) / 8 unrelated power-toughness-comparison text.
+
+    live_only now decomposes EXACTLY into adjudicated, CR-grounded,
+    negative-pinned shed classes plus a small genuinely-unclosed tail (the
+    key stays residual — no force-fit past a genuine gap):
+
+    * **~246 cards — counter_added TRIGGER, kind other than P1P1** (Saga/Plan/
+      hour/M1M1/kindless placement triggers, CR 122.1 vs CR 714.2b) — the
+      original bullet-1 class above.
+    * **~40 cards — a counter-kind reference whose kind is anything other
+      than P1P1** (CR 122.1): a kind-agnostic (``Any``) OR named-non-P1P1
+      HAVE reference on ANY of the structurally distinct sites legacy's
+      whole-card-text ``_P1P1_HAVE_REF`` regex is blind to which field
+      carries it — a trigger's ``valid_card`` (The Swarmlord), a
+      ``deals_damage``/``attacks`` trigger's ``valid_source`` (Yathan
+      Tombguard), a replacement's ``damage_source_filter`` (Raphael, the
+      Muscle), a static's ``ControlsType`` condition (Delta Bloodflies), OR
+      a kind-agnostic/named-non-P1P1 ``RemoveCounter`` activation COST
+      whose card ALSO happens to mention "+1/+1 counter" elsewhere (Scholar
+      of New Horizons, The Duke Rebel Sentry — legacy's Shape-5 cost arm is
+      gated on the WHOLE CARD's oracle text, not the specific ability, so a
+      kind-agnostic sink co-occurring with an unrelated P1P1 placement
+      over-fires). Generalizes (and supersedes) the original bullet-2 class
+      and the "26-card maker/matters conflation" class documented in the W5
+      tails batch — both are instances of the SAME kind-mismatch principle.
+    * **3 cards — CDA "power greater than its base power" text idiom, no
+      counter node at all** (Baird, Kutzil, Ms. Marvel): CR 208.4b — "power
+      greater than base power" is a layer-applied CURRENT-vs-BASE
+      comparison true for ANY power-increasing effect (temporary pump,
+      static anthem, Evolve), not specific to +1/+1 counters; the state
+      carries no counter KIND (CR 122.1), so legacy's regex heuristic is a
+      genuine over-fire, not a counter reference.
+    * **1 card — EQ-0 "no counters" predicate** (Hindervines): the inverse of
+      a counter-caring payoff; :func:`counter_pred_kinds` deliberately
+      excludes it corpus-wide (shared by every counter lane).
+    * **6 cards — genuinely unclosed (deferred, not shed)**: Rock Hydra /
+      Winged Hive Tyrant / Rumbling Ruin / Deepwood Denizen's clauses decorate
+      as ``Unimplemented`` (phase's static parser drops the whole
+      conditional/counting clause — Unimplemented residue, ADR-0039 ledger
+      candidate); Hierophant Bio-Titan's ``ModifyCost.dynamic_count=
+      PreviousEffectAmount`` cost-reduction scaler carries NO counter-kind
+      field at all (phase's own encoding drops which counter kind was
+      removed — a dropped clause, not reachable by any accessor); Tetravus's
+      "remove any number of +1/+1 counters … create tokens" is a P1P1
+      ``RemoveCounter`` EFFECT (not an activation COST — the existing Shape-5
+      arm only reads ``unit.node.cost``) with no condition/filter gating it —
+      a dropped clause (an accessor extending the cost-leaf walk to
+      trigger/ability EFFECT chains would close it, deferred rather than
+      risking a shared-descent change this batch).
 
     The raw-``"+1/+1 counter"`` idiom arms stay ``live_only`` raw-fold mirrors. Scope
     "you".
@@ -4647,6 +4707,72 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
                                     "",
                                     tree.name,
                                     "high",
+                                )
+                            ]
+                elif ctag in ("QuantityCheck", "ConditionInstead"):
+                    # ADR-0038 W6 endgame — a P1P1 self-count THRESHOLD
+                    # condition rides ``QuantityCheck`` (Incubation Druid's
+                    # activated-ability sub_ability condition, Oblivion's
+                    # Hunger / Dual-Sun Technique's spell sub_ability
+                    # condition — "If it has a +1/+1 counter on it, …"),
+                    # sometimes wrapped in a ``ConditionInstead`` ("instead"
+                    # variant, CR 601.2f) that the existing HasCounters/
+                    # IsPresent leaves never reach. Corpus-verified: the
+                    # ``CountersOn`` qty gate is a DIFFERENT node shape from
+                    # the pump-scaling qty operand this key already reads
+                    # (``count_operand_qty``) — this one lives under a
+                    # condition's ``lhs``/``rhs`` Ref, not an effect's count.
+                    # 11 commander-legal cards carry a P1P1-gated
+                    # QuantityCheck condition (5 Theros Ordeals, Ayara's
+                    # Oathsworn, Incubation Druid, Dual-Sun Technique,
+                    # Oblivion's Hunger — the rest already fire via another
+                    # arm on the same tree); non-P1P1 kinds (depletion/lore/
+                    # quest/soul/time/landmark/omen/point) correctly gate
+                    # out. CR 122.1.
+                    qc = cond
+                    if ctag == "ConditionInstead":
+                        qc = getattr(cond, "inner", None)
+                    if tag_of(qc) == "QuantityCheck":
+                        for side in (
+                            getattr(qc, "lhs", None),
+                            getattr(qc, "rhs", None),
+                        ):
+                            if tag_of(side) != "Ref":
+                                continue
+                            qty = getattr(side, "qty", None)
+                            if tag_of(qty) != "CountersOn":
+                                continue
+                            kind = str(getattr(qty, "counter_type", "") or "")
+                            if kind.upper() == "P1P1":
+                                return [
+                                    Signal(
+                                        "plus_one_matters",
+                                        "you",
+                                        "",
+                                        "",
+                                        tree.name,
+                                        "high",
+                                    )
+                                ]
+                elif ctag == "TargetHasKeywordInstead":
+                    # ADR-0038 W6 endgame — a "if that creature has X
+                    # instead" modal (CR 601.2f) whose keyword is a raw-text
+                    # residue (Bring Low: "If that creature has a +1/+1
+                    # counter on it, ~ deals 5 damage to it instead").
+                    # Narrowly scoped to the ``Unknown``-tagged text field,
+                    # matching the same ``_P1P1_COND_TEXT_RX`` gap-marker
+                    # gate as the Pipsqueak/Skarrgan fallback above — a
+                    # NAMED keyword (Flying, Infect, Toxic) never reaches
+                    # here (the corpus's 14 TargetHasKeywordInstead
+                    # instances split 3 P1P1-text / 3 named-keyword / 8
+                    # unrelated power-toughness-comparison text).
+                    kw = getattr(cond, "keyword", None)
+                    if isinstance(kw, MirrorVariant) and kw.key == "Unknown":
+                        text = str(kw.inner or "")
+                        if _P1P1_COND_TEXT_RX.search(text):
+                            return [
+                                Signal(
+                                    "plus_one_matters", "you", "", "", tree.name, "high"
                                 )
                             ]
         # ADR-0038 W5 tails — a ModifyCost static whose spell_filter names
