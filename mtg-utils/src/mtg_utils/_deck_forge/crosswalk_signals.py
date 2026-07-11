@@ -1136,6 +1136,61 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # opponent_discard's gap fell 77→33 (recovered opponent-directed
     # discards now reach its own arm) — banked, key stays residual.
     #
+    # ADR-0038 W5 tails (2026-07-11): ``artifacts_matter`` NOT YET
+    # PROMOTED — corpus re-measure 5006 both / 4 live_only (down from 8).
+    # Four structural/local-read fixes: a BATTLEFIELD-sourced library-
+    # bounce (Rebuking Ceremony, CR 401.4, distinct from the existing GY-
+    # recursion arm's CR 400.7); ``SearchOutsideGame`` (the Wish idiom, CR
+    # 108.3) read LOCALLY by its own typed tag (never routed through the
+    # shared ``tutor`` CONCEPT_MAP — that would incorrectly open the
+    # dedicated tutor lane for every Wish card too); a ``ChooseOneOf``-
+    # wrapped sac (Nimble Hobbit's "sacrifice a Food or pay {2}{W}" —
+    # ``_walk_effect_chain`` collapses the whole modal branch to one
+    # opaque concept, so a deep scan finds the Sacrifice inside directly);
+    # a ``become_copy`` type-restricted target read (Spirit of
+    # Resilience's "become a copy of an artifact or creature card", CR
+    # 707 — an ordinary Clone's bare Creature-only target stays silent by
+    # construction). Two cards ADJUDICATED AS SHEDS this batch (negative-
+    # pinned): Catch // Release's "Release" half and Braids, Cabal
+    # Minion's upkeep trigger are SYMMETRIC EDICTS (CR 701.21a — every
+    # player sacrifices their OWN choice, not a fodder outlet), the exact
+    # same class the enchantments_matter sibling already sheds for the
+    # first of these two cards. The remaining 2 live_only are GENUINE
+    # unclosed gaps, not sheds: Bello, Bard of the Brambles is a
+    # confirmed phase STATIC-PARSER FAILURE (its whole ability parks as
+    # an ``Unimplemented`` node named "static_structure" with a "Static
+    # pattern matched but line failed static parser" diagnostic — no
+    # residue to recover from, needs upstream phase work); Dargo, the
+    # Shipwrecker's "As an additional cost to cast this spell, you may
+    # sacrifice any number of artifacts and/or creatures" is a genuine
+    # ``build_concept_tree`` root-cause bug — ``_spell_additional_cost_
+    # concepts`` computes the Sacrifice cost concept correctly but the
+    # merge loop only attaches it to an EXISTING Spell-kind ``S_abilities``
+    # entry, and Dargo has NONE (its only ability is a Static cost-
+    # reduction rider) — so the additional_cost is silently dropped for
+    # any card with this exact shape. 241-card corpus census (every
+    # commander-legal card with a root additional_cost and no Spell-kind
+    # ability) confirms this is NOT Dargo-specific, but fixing it means
+    # synthesizing a carrier AbilityUnit for build_concept_tree itself — a
+    # foundational, corpus-wide crosswalk.py change needing the SAME full
+    # ALL-KEY diff rigor as a recovery ALLOWLIST row, which this batch's
+    # time budget didn't cover. Landfall rule not met (2 genuine gaps
+    # remain, not sheds) — key stays residual.
+    #
+    # ADR-0038 W5 tails (2026-07-11): ``base_pt_set`` NOT YET PROMOTED —
+    # 218 both / 13 live_only (down from 20) via a deep GenericEffect/
+    # CreateEmblem descent, a ``TriggeringSource`` accept-list addition,
+    # and a matched-quantity narrowing of the copy-stats exclusion; see
+    # :func:`_base_pt_set`'s own docstring for the full mechanism list and
+    # the still-residual 13-card tail.
+    #
+    # ADR-0038 W5 tails (2026-07-11): ``draw_for_each`` NOT YET PROMOTED —
+    # 210 both / 3 live_only (down from 16) via a reversed-order phrase
+    # alternative (object-gated to exclude a back-reference false match)
+    # plus a ``CreateDelayedTrigger``/``Vote`` per-choice descent; see
+    # :func:`_draw_for_each`'s own docstring for the full mechanism list
+    # and the still-residual 3-card tail (all genuine gaps, no sheds).
+    #
     # ADR-0038 W5 tails (2026-07-11): opponent_discard NOT YET PROMOTED —
     # re-measured at 77 live_only (the 33 estimate in the prior note was
     # the giants agent's own-arm PREDICTION, not a re-measurement; this
@@ -3248,7 +3303,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         out.extend(_typed_matters_lanes(count_operand_filter(node)))
         if c.role != "effect":
             continue
-        if c.concept in ("tutor", "dig"):
+        if c.concept in ("tutor", "dig") or tag_of(node) == "SearchOutsideGame":
             # ADR-0038 W4 giant: ``dig`` ("look at the top N cards …, put
             # an artifact card into your hand/battlefield" — Commune with
             # Beavers, Forging the Anchor, Kayla's Reconstruction) is the
@@ -3257,6 +3312,34 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             # phase distinguishes the two only by whether the whole
             # library is searched vs a fixed top-N window. Both read the
             # SAME NO-subtype-restricted-filter gate.
+            #
+            # ADR-0038 W5 tails: ``SearchOutsideGame`` (the Wish idiom, CR
+            # 108.3 — a card brought into the game from outside it —
+            # "You may reveal an artifact or enchantment card you own from
+            # outside the game and put it into your hand" — Golden Wish)
+            # is the SAME type-restricted-search shape again, over a THIRD
+            # zone (outside the game, not library/top-N) — read LOCALLY
+            # here by its own typed tag (never routed through the
+            # ``tutor`` CONCEPT_MAP, which would also open the dedicated
+            # ``tutor`` SIGNAL lane for every Wish card — CR 701.23's
+            # "search your library" is a distinct action from the Wish
+            # idiom, so conflating the two concepts would be a genuine
+            # membership error for that OTHER lane, not just an
+            # artifacts_matter widening).
+            sub = effect_filter(node)
+            if sub is not None and not filter_subtypes(sub):
+                out.extend(_typed_matters_lanes(sub))
+        if c.concept == "become_copy":
+            # ADR-0038 W5 tails: a self-transform that becomes a copy of a
+            # TYPE-RESTRICTED card (Spirit of Resilience's "you may have
+            # this creature become a copy of an artifact or creature card
+            # from among those cards" — target = Or[Artifact, Creature]) is
+            # the SAME type-restricted-search-target shape as tutor/dig
+            # (CR 707 copy effects, layered over CR 701.23's philosophy) —
+            # an ORDINARY Clone's "becomes a copy of TARGET CREATURE" (a
+            # single bland Creature-only filter) stays silent by
+            # construction (``_typed_matters_lanes`` only fires on an
+            # Artifact/Enchantment CORE type, never bare Creature).
             sub = effect_filter(node)
             if sub is not None and not filter_subtypes(sub):
                 out.extend(_typed_matters_lanes(sub))
@@ -3314,11 +3397,40 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         # fires no core type at all.
         if c.concept == "change_zone":
             origin, dest = change_zone_dirs(node)
-            if origin == "Graveyard" and dest in (
+            gy_recursion = origin == "Graveyard" and dest in (
                 "Battlefield",
                 "Hand",
                 "Library",
-            ):
+            )
+            # ADR-0038 W5 tails: a BATTLEFIELD-sourced library-bounce ("put
+            # target artifacts on top of their owners' libraries" —
+            # Rebuking Ceremony) is a DIFFERENT CR provision (401.4's
+            # library-position "tuck" removal, not graveyard recursion)
+            # but the SAME broad "cares about the Artifact type" tell (an
+            # artifact-hate spell targeting the type specifically, same as
+            # the graveyard-recursion arm's philosophy — CR 301). A
+            # targeted spell's origin is ``None`` (wherever the object
+            # currently is, implicitly the battlefield for a permanent-
+            # only filter) or explicit ``Battlefield``; ``Graveyard``
+            # origin is excluded here — that shape is ALREADY ``gy_
+            # recursion`` above (a genuinely different CR 400.7 recursion
+            # idiom, not double-counted). MANDATORY EXCLUSION: gated to
+            # the TARGETED ``ChangeZone`` tag only, never ``ChangeZoneAll``
+            # — Harmonic Convergence's "Put ALL enchantments on top of
+            # their owners' libraries" is the SAME MASS/symmetric-reset
+            # shed the enchantments_matter sibling already adjudicates (CR
+            # 205.2, no controller restriction at all — a board-wide reset
+            # affecting every player equally, never a "my deck wants this
+            # type" build-around, same philosophy as the TYPE-DIES doer's
+            # symmetric-punisher exclusion elsewhere in this lane); a
+            # TARGETED tuck (a specific chosen count) is a genuine
+            # build-around tell a mass reset is not.
+            bf_library_bounce = (
+                tag_of(node) == "ChangeZone"
+                and origin in (None, "Battlefield")
+                and dest == "Library"
+            )
+            if gy_recursion or bf_library_bounce:
                 out.extend(_type_recursion_lanes(effect_filter(node)))
         # The library-TOP/BOTTOM sibling of the same recursion shape
         # ("put target artifact card from a graveyard on the bottom/top of
@@ -3383,6 +3495,42 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
                 out.append("artifacts_matter")
             if "Enchantment" in cores:
                 out.append("enchantments_matter")
+        # ADR-0038 W5 tails: a ``ChooseOneOf``-wrapped sac ("you may
+        # sacrifice a Food or pay {2}{W}" — Nimble Hobbit) is an ORDINARY
+        # resolution-time effect branch (CR 701.21a — the sacrifice still
+        # just moves a permanent the controller controls to their
+        # graveyard, same rule as any other Sacrifice), not an activation
+        # cost, so ``_walk_effect_chain`` collapses the whole
+        # ``ChooseOneOf`` to one opaque ``other`` concept — the unit's own
+        # ``effects`` list never decomposes into per-branch concepts the
+        # way ``unit.costs``/``unit.statics`` do. Deep-scan for a
+        # ``Sacrifice`` inside any branch directly; the SAME edict/
+        # controller/core-type gates apply (a branch is just as capable of
+        # naming an opponent-directed or Permanent-list sac as a top-level
+        # effect).
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "ChooseOneOf":
+                continue
+            for branch in getattr(n, "branches", None) or ():
+                beff = getattr(branch, "effect", None)
+                if not isinstance(beff, TypedMirrorNode) or tag_of(beff) != "Sacrifice":
+                    continue
+                if _sac_is_edict(unit, beff):
+                    continue
+                sub = effect_filter(beff)
+                if sub is None:
+                    continue
+                ctrl = filter_controller(sub)
+                if ctrl is not None and ctrl != "You":
+                    continue
+                cores = filter_core_types(sub)
+                if "Permanent" in cores:
+                    continue
+                types = cores + filter_subtypes(sub)
+                if _is_artifact_token_types(types):
+                    out.append("artifacts_matter")
+                if "Enchantment" in cores:
+                    out.append("enchantments_matter")
     # SAC-COST PAYOFF — an artifact/enchantment sac paid as a COST: a bare
     # activated-ability cost (Atog, Priest of Yawgmoth), a Composite-wrapped
     # cost leaf (Shattergang Brothers' "{2}{R}, Sacrifice an artifact:"), or a
@@ -8932,8 +9080,35 @@ def _group_mana(tree: ConceptTree) -> list[Signal]:
 # "draw(s)" and the scaling phrase must share one comma/period/semicolon-
 # delimited clause, so a sibling cost-reduction or life-gain rider on the
 # SAME multi-clause ability text never bleeds in.
+#
+# ADR-0038 W5 tails: a SECOND alternative admits the REVERSED word order —
+# "for each ~, ... draw(s) [up to N] a/the card(s)" (Tempt with Bunnies'
+# "For each opponent who does, you draw a card ..."; Braids, Arisen
+# Nightmare's "For each opponent who doesn't, ... you draw a card"; Seize
+# the Spotlight's "For each player who chose fortune, you draw a card
+# ..."; Nahiri's Lithoforming's "For each land sacrificed this way, draw a
+# card."; Culmination of Studies' "For each blue card exiled this way,
+# draw a card."; Refurbished Familiar's "For each opponent who can't, you
+# draw a card."; Hollow Marauder's "For each of those opponents who didn't
+# discard ..., draw a card."; Mob Verdict's "For each vote you received,
+# draw a card."). The FORWARD form (Grim Flowering's "Draw a card for each
+# creature ...") stays comma/period/semicolon-scoped (unchanged). The
+# REVERSED form must cross the SINGLE internal comma every "For each X,
+# <main clause>" idiom carries (CR grammar puts the conditional ahead of
+# the main clause) — only period/semicolon (a genuine sentence boundary)
+# stop it. ``draws?`` is further REQUIRED to be immediately followed by a
+# "card(s)" object (optionally "up to N"/"a/the") — Truce/Temporary
+# Truce's "For each card less than two a player draws this way, that
+# player gains 2 life." would otherwise false-match on "draws" as a BACK-
+# REFERENCE to an EARLIER already-resolved Fixed(2) draw (feeding a LIFE
+# GAIN, not a new scaling draw); "draws this way" fails the object check
+# and correctly stays excluded (corpus-verified: this object gate was the
+# ONLY false-positive class the reversed alternative introduced, 0 others
+# across the full corpus).
 _DRAW_FOR_EACH_PHRASE_RE = re.compile(
-    r"draws?\b[^.,;]*?(?:for each|equal to the number of)", re.IGNORECASE
+    r"draws?\b[^.,;]*?(?:for each|equal to the number of)"
+    r"|for each\b[^.;]*?draws?\s+(?:up to \d+\s+)?(?:an?\s+|the\s+)?cards?\b",
+    re.IGNORECASE,
 )
 
 # ADR-0038 W3 batch 6 — draw_for_each-SCOPED qty tags (LOCAL to this lane,
@@ -9042,21 +9217,51 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
     excludes the "that many" idiom (:data:`_DRAW_FOR_EACH_TRACKED_TAGS`'s
     own comment has the full corpus citations).
 
-    NOT YET RECOVERED (still residual — genuine structural gaps, not
-    adjudicated sheds): the remaining 17 live_only members are a "for each
-    qualifying opponent/object, draw ONE card" REPEATED-application shape
-    phase projects as a batch/modal wrapper around a ``Draw(count=Fixed
-    (1))`` rather than a single Draw with a computed count — several
-    distinct sub-shapes (``ParentTargetController`` recipient off a batch
-    ``ChangeZoneAll`` — Martyr's Cry, King Solomon's Frogs; a per-opponent
-    modal "for each opponent who does/chooses X" branch — Tempt with
-    Bunnies, Master of Ceremonies, Seize the Spotlight; a
-    ``T_qty__VoteCount`` — Truth or Consequences; two blank-oracle DFC
-    faces needing investigation — Mouth // Feed, Aclazotz, Deepest
-    Betrayal). Each needs its OWN per-shape predicate (no single unifying
-    tag the way the tracked-count widening had) — deferred to a follow-up
-    batch; see the session notes for the full per-card triage. Two of the
-    15 cw_only gains this batch (Peer Past the Veil / Lucid Dreams's
+    ADR-0038 W5 tails (2026-07-11, corpus re-measure at fresh HEAD: 210
+    both / 3 live_only, down from 16): three fixes. (1)
+    :data:`_DRAW_FOR_EACH_PHRASE_RE` admits a SECOND alternative — the
+    REVERSED word order "for each X, ... draw(s) a card" (Tempt with
+    Bunnies, Braids Arisen Nightmare, Mob Verdict's "For each vote you
+    received, draw a card.", Hollow Marauder, Bladecoil Serpent, Mutalith
+    Vortex Beast), which crosses the SINGLE internal comma the "for each
+    X, <main clause>" idiom carries but REQUIRES ``draws?`` to be
+    immediately followed by a "card(s)" object — Truce/Temporary Truce's
+    "For each card less than two a player draws this way, that player
+    gains 2 life." would otherwise false-match on "draws" as a BACK-
+    REFERENCE to an EARLIER already-resolved Fixed(2) draw, not a new
+    scaling instruction; this was the ONE false-positive class the
+    reversed alternative introduced, corpus-verified. (2)/(3) a
+    ``CreateDelayedTrigger``'s own ``.effect.effect`` and a ``Vote``'s
+    ``per_choice_effect[i].effect`` are BOTH separate branches
+    ``effect_concepts`` never reaches (same shape as the GrantTrigger
+    descent above) — the Vote descent closes Truth or Consequences ("You
+    draw cards equal to the number of truth votes." — reachable via the
+    existing FORWARD phrase on the owning unit's top-level description,
+    once the node itself is found); the CreateDelayedTrigger descent is
+    structural-only this batch (Vivien's Stampede's "draw a card for each
+    player who was dealt combat damage this turn" carries NO raw text
+    ANYWHERE in its tree — the delayed trigger's own description, its
+    wrapped trigger's description, AND the ``S_effect`` wrapper's
+    description are all ``None`` — confirmed via direct tree dump; needs
+    a card-level ``_kept(tree)`` last-resort read, out of scope this
+    session, still residual). CR 107.3 / 603.7 (delayed triggered
+    abilities) / 701.38 (Vote) — verified via rules-lookup this session.
+
+    STILL NOT PROMOTED — 3 genuine live_only remain, none adjudicable as
+    sheds (all three ARE real draw_for_each cards, just structurally
+    unreachable): Vivien's Stampede (above); Nexus Mentality's "Remove all
+    counters from target nonland permanent you control. Draw a card for
+    each counter removed this way." (a plain ``sub_ability`` chain with NO
+    owner text anywhere either — the SAME no-raw-text gap, not a Vote
+    node); Mouth // Feed's "Feed" back-half (Aftermath) — phase emits a
+    MATCHED but EMPTY (``units=0``) record for this face, so the W2c
+    text-only-face fallback (task #76) never synthesizes a substitute
+    tree (its gate is "no name-matched phase record", not "an empty one")
+    even though the bulk oracle text is present and well-formed ("Draw a
+    card for each creature you control with power 3 or greater.") — a
+    shared ``_ir_lookup.trees_for``/``_text_only_trees`` widening, corpus-
+    wide blast radius across EVERY key, out of scope this session. Two of
+    the cw_only gains this batch (Peer Past the Veil / Lucid Dreams's
     "draw X cards, where X is the number of card types among cards in
     your graveyard") are genuine beyond-legacy recalls — legacy's regex
     only recognizes "for each"/"equal to the number of" wording, missing
@@ -9090,6 +9295,36 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
                     continue
                 if scaling(m, execute):
                     return [Signal("draw_for_each", "you", "", "", tree.name, "high")]
+        # ADR-0038 W5 tails: a ``CreateDelayedTrigger``'s own ``.effect``
+        # (an ``S_effect`` wrapper, "At the beginning of the next main
+        # phase this turn, draw a card for each player who was dealt
+        # combat damage this turn" — Vivien's Stampede) and a ``Vote``'s
+        # per-choice branches (``per_choice_effect[i].effect`` — "You draw
+        # cards equal to the number of truth votes." — Truth or
+        # Consequences) are BOTH separate branches ``effect_concepts``
+        # never reaches (same shape as the GrantTrigger descent above —
+        # neither field is in the ability's own top-level effect chain).
+        # CR 603.7 (delayed triggered abilities) / 701.38 (Vote).
+        for n in iter_typed_nodes(unit.node):
+            tag = tag_of(n)
+            if tag == "CreateDelayedTrigger":
+                inner = getattr(n, "effect", None)
+                draw = getattr(inner, "effect", None) if inner is not None else None
+                if (
+                    isinstance(draw, TypedMirrorNode)
+                    and tag_of(draw) == "Draw"
+                    and scaling(draw, unit.node)
+                ):
+                    return [Signal("draw_for_each", "you", "", "", tree.name, "high")]
+            elif tag == "Vote":
+                for pce in getattr(n, "per_choice_effect", None) or []:
+                    draw = getattr(pce, "effect", None)
+                    if not isinstance(draw, TypedMirrorNode) or tag_of(draw) != "Draw":
+                        continue
+                    if scaling(draw, unit.node):
+                        return [
+                            Signal("draw_for_each", "you", "", "", tree.name, "high")
+                        ]
     return []
 
 

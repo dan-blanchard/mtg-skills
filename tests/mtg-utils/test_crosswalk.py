@@ -4577,6 +4577,48 @@ def test_recovered_draw_reaches_draw_lanes():
     assert ("card_draw_engine", "you", "") in kum
 
 
+# ── ADR-0038 W5 tails: draw_for_each reversed-order phrase + deep descent ──
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Tempt with Bunnies",  # "For each opponent who does, you draw a card"
+        "Braids, Arisen Nightmare",  # "For each opponent who doesn't, ... draw a card"
+        "Mob Verdict",  # "For each vote you received, draw a card."
+        "Hollow Marauder",  # "For each of those opponents who didn't ..., draw a card."
+        "Bladecoil Serpent",  # "for each {U}{U} spent to cast it, draw a card."
+        "Mutalith Vortex Beast",  # "For each flip you win, draw a card."
+    ],
+)
+def test_draw_for_each_reversed_phrase_order(name):
+    """The per-opponent modal "for each X, ... draw(s) a card" idiom puts
+    the conditional AHEAD of the main clause (CR grammar) — the REVERSED
+    word order the FORWARD-only phrase gate missed. Each of these carries
+    a Fixed(1) Draw node with no scaling qty tag of its own; the raw text
+    lives on the enclosing unit's own top-level description (the widened
+    fallback), not a per-node wrapper. CR 107.3."""
+    assert ("draw_for_each", "you", "") in _idents(name)
+
+
+def test_draw_for_each_reversed_phrase_requires_card_object():
+    """MANDATORY EXCLUSION: Truce's "For each card less than two a player
+    draws this way, that player gains 2 life." would false-match the bare
+    reversed alternative on "draws" as a BACK-REFERENCE to the EARLIER
+    already-resolved Fixed(2) draw (feeding a LIFE GAIN, not a new scaling
+    draw) — the object gate (``draws?`` must be immediately followed by a
+    "card(s)" object) correctly excludes it; "draws this way" fails."""
+    assert "draw_for_each" not in _keys("Truce")
+
+
+def test_draw_for_each_vote_per_choice_descent():
+    """Truth or Consequences' "You draw cards equal to the number of truth
+    votes." lives on ``Vote.per_choice_effect[i].effect`` — a SEPARATE
+    branch ``effect_concepts`` never reaches (same shape as the
+    GrantTrigger descent above). CR 701.38 (Vote) / 107.3."""
+    assert ("draw_for_each", "you", "") in _idents("Truth or Consequences")
+
+
 def test_recovered_draw_seam_guard_rejects_non_draw_senses():
     """The _NON_DRAW_SENSE seam guard (the exact trap that got the first
     "draw" row trimmed): Divine Intervention's "the game is a draw" is a
@@ -11876,6 +11918,70 @@ def test_artifacts_matter_excludes_symmetric_death_punisher():
     "my deck wants artifacts" build-around. The TYPE-DIES doer requires an
     explicit YOUR-controlled watched subject; a symmetric one is excluded."""
     assert "artifacts_matter" not in _keys("Disciple of the Vault")
+
+
+# ── ADR-0038 W5 tails: artifacts_matter deep descent + local type reads ──
+
+
+def test_artifacts_matter_battlefield_library_bounce():
+    """Rebuking Ceremony's "Put two target artifacts on top of their
+    owners' libraries." is a BATTLEFIELD-sourced library-position tuck (CR
+    401.4), not graveyard recursion (CR 400.7) — a DIFFERENT provision
+    from the existing GY-recursion arm but the SAME broad "cares about the
+    Artifact type" tell (CR 301). The origin is ``None`` (a targeted
+    spell's implicit battlefield source), not ``Graveyard``."""
+    assert ("artifacts_matter", "you", "") in _idents("Rebuking Ceremony")
+
+
+def test_artifacts_matter_search_outside_game():
+    """Golden Wish's "You may reveal an artifact or enchantment card you
+    own from outside the game and put it into your hand." is the Wish
+    idiom (CR 108.3) — the SAME type-restricted-search-target shape as
+    tutor/dig, read locally by its own ``SearchOutsideGame`` typed tag
+    (never routed through the shared ``tutor`` CONCEPT_MAP, which would
+    also wrongly open the dedicated tutor SIGNAL lane for every Wish
+    card — CR 701.23's "search your library" is a distinct action)."""
+    idents = _idents("Golden Wish")
+    assert ("artifacts_matter", "you", "") in idents
+    assert ("enchantments_matter", "you", "") in idents
+    assert "tutor" not in _keys("Golden Wish")
+
+
+def test_artifacts_matter_choose_one_of_wrapped_sac():
+    """Nimble Hobbit's "Whenever ~ attacks, you may sacrifice a Food or pay
+    {2}{W}." is a modal ``ChooseOneOf`` EFFECT branch (CR 701.21a — the
+    sacrifice itself is an ordinary move-to-graveyard, no different rule
+    for being inside a choice) ``_walk_effect_chain`` collapses to one
+    opaque concept — a deep scan finds the Food-subtype (CR 205.3g)
+    Sacrifice inside the branch directly."""
+    assert ("artifacts_matter", "you", "") in _idents("Nimble Hobbit")
+
+
+def test_artifacts_matter_become_copy_type_restricted_target():
+    """Spirit of Resilience's "you may have this creature become a copy of
+    an artifact or creature card from among those cards" is a TYPE-
+    RESTRICTED copy-target (CR 707), the SAME shape as tutor/dig/
+    SearchOutsideGame — an ORDINARY Clone's "becomes a copy of target
+    creature" (a single bland Creature-only filter) stays silent by
+    construction (the type-matters lane only fires on an Artifact/
+    Enchantment CORE type, never bare Creature)."""
+    assert ("artifacts_matter", "you", "") in _idents("Spirit of Resilience")
+    assert "artifacts_matter" not in _keys("Clone")
+
+
+def test_artifacts_matter_excludes_symmetric_edict_sheds():
+    """MANDATORY SHEDS (ADR-0038 W5 tails adjudication, matching the
+    enchantments_matter sibling's identical exclusion of the SAME two
+    cards): "Each player sacrifices an artifact, a creature, an
+    enchantment, a land, and a planeswalker of their choice." (Catch //
+    Release's "Release" half) and "At the beginning of each player's
+    upkeep, that player sacrifices an artifact, creature, or land of
+    their choice." (Braids, Cabal Minion) are SYMMETRIC EDICTS (CR
+    701.21a) — every player (or the upkeep's own ScopedPlayer, not just
+    You) sacrifices their OWN choice, never a "my deck wants artifacts"
+    fodder outlet; ``_sac_is_edict`` correctly rejects both."""
+    assert "artifacts_matter" not in _keys("Catch // Release")
+    assert "artifacts_matter" not in _keys("Braids, Cabal Minion")
 
 
 # ── ADR-0038 W4 giant: direct_damage (structural arms + verified CR) ─────────
