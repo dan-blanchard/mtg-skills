@@ -4509,6 +4509,85 @@ def test_exile_matters_excludes_bare_choose_from_zone_pile_staging():
     assert "exile_matters" not in _keys("Steam Augury")
 
 
+@pytest.mark.parametrize("name", ["Psychomancer", "Laelia, the Blade Reforged"])
+def test_exile_matters_trigger_watcher_baseline_population(name):
+    """ADR-0038 W3 batch 6: the pre-existing trigger-watcher arm (a
+    ``ChangesZone`` destination-Exile trigger over a NON-self subject) was
+    already firing correctly on a ~10-card population the legacy regex never
+    recognized (cw_only, unpinned since batch 5). Investigated this session
+    (per-card CR reading, not dismissed as noise): Psychomancer's "put into a
+    graveyard from the battlefield OR is put into exile from the battlefield"
+    hybrid dies/exile watcher and Laelia's "one or more cards are put into
+    exile from your library and/or your graveyard" both explicitly watch
+    cards landing in exile as a build-around resource — CR 406.1. No code
+    change was needed; this pins the population so it stops silently
+    depending on an un-tested arm."""
+    assert ("exile_matters", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Altaïr Ibn-La'Ahad",
+        "Livio, Oathsworn Sentinel",
+    ],
+)
+def test_exile_matters_counter_gated_persistent_pile_arm(name):
+    """ADR-0038 W3 batch 6 — the "exiled with a [named] counter"
+    persistent-pile arm: a per-card-unique counter kind (Altaïr's "memory"
+    counter, Livio's "aegis" counter) tracks a maker-populated exile pile the
+    SAME way Gorex's ``ExiledBySource`` does, but structured as a plain
+    ``Typed`` filter carrying BOTH an ``InZone{zone: Exile}`` property AND a
+    ``Counters`` property (of ANY non-"time" kind), reached anywhere in the
+    unit's subtree — not just a ``ChooseFromZone``. Altaïr's is on a
+    ``CopyTokenOf.source_filter``; Livio's is on the SAME ``ChangeZoneAll``
+    filter that cheat_into_play excludes it from (Livio is genuinely
+    exile_matters even though it's NOT cheat_into_play — a temporary-exile
+    removal-and-release still cares about its own tracked exile pile). CR
+    406.1."""
+    assert ("exile_matters", "you", "") in _idents(name)
+
+
+def test_exile_matters_excludes_suspend_time_counter_reuse():
+    """ADR-0038 W3 batch 6 shed: phase structures Suspend's "target permanent
+    or suspended card [with a time counter]" the SAME way the counter-gated
+    persistent-pile arm reads (a suspended card IS structurally in exile with
+    a time counter, CR 702.62a) even though Timecrafting's oracle text never
+    says "exile" at all. Corpus census (2026-07): every commander-legal "time
+    counter on a suspended card" hit shares this shape (Shivan Sand-Mage,
+    Fury Charm, Timebender, Clockspinning, Rose Tyler, Amy Pond) — the
+    suspend-mechanic's own generic counter manipulation, not an
+    exile-as-resource build-around. Gated on ``counter_type == 'time'``: the
+    ONLY counter kind reused this way in the corpus."""
+    assert "exile_matters" not in _keys("Timecrafting")
+
+
+def test_exile_matters_remove_counter_from_exiled_card_arm():
+    """ADR-0038 W3 batch 6: Mari, the Killing Quill's granted ability
+    ("remove a hit counter from a card that player owns in exile") is a
+    ``RemoveCounter`` whose OWN ``target`` filter carries
+    ``InZone{zone: Exile}`` — the counter kind lives on the effect's
+    ``counter_type`` field here, not a filter ``Counters`` property, so the
+    persistent-pile arm (which reads filter properties) misses it; a direct
+    field read closes the gap. Same "time" counter Suspend-reuse exclusion
+    applies (verified against the same corpus). CR 406.1."""
+    assert ("exile_matters", "you", "") in _idents("Mari, the Killing Quill")
+
+
+def test_exile_matters_static_exiled_by_source_arm():
+    """ADR-0038 W3 batch 6: Lumbering Battlement's "gets +2/+2 for each card
+    exiled WITH IT" counts its OWN maker-populated pile via a static
+    ``ObjectCount`` filter carrying ``ExiledBySource`` (not ``InZone{Exile}``)
+    — the batch 5 static P/T-scaler arm only read the InZone shape; widened
+    to also accept the ExiledBySource shape (the SAME predicate Gorex's
+    triggered arm already reads). CR 406.1 / 613.4c."""
+    assert (
+        "exile_matters",
+        "you",
+        "",
+    ) in _idents("Lumbering Battlement")
+
+
 @pytest.mark.parametrize("name", ["Whirler Virtuoso", "Aetherworks Marvel"])
 def test_energy_matters_pay_energy_sink(name):
     """A ``PayEnergy`` cost leaf buying a non-mana effect is the energy SINK
@@ -4856,6 +4935,97 @@ def test_cheat_into_play_excludes_reanimation_and_ambiguous_tutor_pairing(name):
       ONE tutor per unit — an ambiguous multi-tutor pairing never fires.
     """
     assert "cheat_into_play" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name", ["Arbiter of the Ideal", "Hew the Entwood", "Pyxis of Pandemonium"]
+)
+def test_cheat_into_play_batch5_cw_only_baseline_gains(name):
+    """ADR-0038 W3 batch 6 — three cw_only cards flagged "pending closer
+    review" at the end of batch 5, investigated this session and confirmed
+    LEGIT gains (the existing arms already fire correctly; the legacy regex
+    simply never recognized them, so they were never pinned):
+
+    * Arbiter of the Ideal — the batch 5 fix (e) RevealedHasCardType arm
+      (Inspired trigger: reveal top, "if it's an artifact, creature, or land
+      card, you may put it onto the battlefield" — CR 400.7).
+    * Hew the Entwood — the batch 5 fix (c) ChangeZoneAll arm reading the
+      nonland-card type filter (``Typed(['Card', Non(Land)])``).
+    * Pyxis of Pandemonium — the SAME ChangeZoneAll arm on the symmetric
+      "each player turns face up all cards they own exiled with this
+      artifact, then puts all permanent cards among them onto the
+      battlefield" idiom.
+    """
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Boneyard Parley", "Rejoin the Fight"])
+def test_cheat_into_play_excludes_graveyard_intermediate_pile(name):
+    """ADR-0038 W3 batch 6 sheds — two more graveyard-sourced reanimation
+    shapes the ChangeZoneAll/origin=None arm needed to exclude, both
+    "pending closer review" at the end of batch 5:
+
+    * Boneyard Parley — "Exile up to five target creature cards from
+      graveyards... Put all cards from the pile of your choice onto the
+      battlefield under your control." An EARLIER ``ChangeZone`` leaves
+      ``origin=None`` (untracked) but its OWN target filter carries the
+      ``InZone: Graveyard`` evidence instead of a tracked origin — the
+      sibling scan now reads that filter too (checklist #2; CR 400.1).
+    * Rejoin the Fight — "Mill three cards... each opponent chooses a
+      creature card in your graveyard... Return each card chosen this way to
+      the battlefield under your control." Reanimates via a direct
+      ``ChooseFromZone{zone: Graveyard}`` selector, no ``ChangeZone`` at all
+      — the sibling scan also excludes on that shape.
+    """
+    assert "cheat_into_play" not in _keys(name)
+
+
+def test_cheat_into_play_excludes_counter_gated_removal_release():
+    """ADR-0038 W3 batch 6 shed: Livio, Oathsworn Sentinel's "Return all
+    exiled cards with aegis counters on them to the battlefield under their
+    owners' control" reads the SAME ChangeZoneAll shape as Warp World, but
+    its filter carries a ``Counters`` property (an "exiled WITH a counter"
+    persistent-pile marker) sourced from a TARGETED battlefield creature
+    (its own earlier activated ability exiles "another target creature") and
+    explicitly returns it to its OWNER, not the caster — a temporary-exile
+    REMOVAL effect (Banisher-Priest class), not a cheat build-around (CR
+    610.3c — a returned object defaults to its owner's control absent an
+    explicit transfer). A 2026-07 corpus census found Livio is the SOLE
+    Counters-bearing filter in the ChangeZoneAll{Battlefield, origin: None}
+    population — Warp World / Over the Top / Manabond / Tezzeret, Master of
+    the Bridge / Pyxis of Pandemonium all carry EMPTY filter properties, so
+    the narrow Counters-presence gate leaves every other gain untouched."""
+    assert "cheat_into_play" not in _keys("Livio, Oathsworn Sentinel")
+
+
+def test_cheat_into_play_target_matches_filter_reveal_arm():
+    """ADR-0038 W3 batch 6 widens the fix (e) reveal-then-put condition tag
+    accepted: a ``TargetMatchesFilter`` on the SAME reveal-producing chain is
+    the SAME "if it's a permanent/creature/land card" check phase sometimes
+    structures as a target-match instead of ``RevealedHasCardType`` — Chaos
+    Warp: "reveals the top card...If it's a permanent card, they put it onto
+    the battlefield." Corpus census: every other commander-legal
+    ``TargetMatchesFilter`` hit on a reveal-producing unit is this exact
+    idiom (Aid from the Cowl, Skirk Drill Sergeant, N'Yami-Class Mother
+    Ship, Bison Whistle). CR 400.7."""
+    assert ("cheat_into_play", "you", "") in _idents("Chaos Warp")
+
+
+def test_cheat_into_play_excludes_dies_recursion_chain_order():
+    """ADR-0038 W3 batch 6 shed: the TargetMatchesFilter widening exposed a
+    latent looseness in the existing TriggeringSource+turn_face_up carve-out
+    (originally written for Clone Shell / Summoner's Egg's imprint cycle,
+    which chains ``turn_face_up`` FIRST then the ``change_zone`` put). Yarus,
+    Roar of the Old Gods's "Whenever a face-down creature you control DIES,
+    return it to the battlefield... if it's a permanent card, then turn it
+    face up" chains the ``change_zone`` FIRST — the put's ``TriggeringSource``
+    there is the ORIGINAL dies-trigger subject (the just-died creature
+    itself, CR 700.4), not a forwarded turn_face_up result — dies_recursion,
+    not a cheat (checklist #2). ``unit.effects`` preserves the linear
+    sub_ability chain order (verified 2026-07), so requiring the
+    turn_face_up's index precede the change_zone's index is a precise,
+    zero-guess fix that leaves Clone Shell / Summoner's Egg untouched."""
+    assert "cheat_into_play" not in _keys("Yarus, Roar of the Old Gods")
 
 
 # ── batch 10: trigger-event / effect-tag / grant / P/T / static-mode ─────────

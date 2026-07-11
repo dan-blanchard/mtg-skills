@@ -6699,6 +6699,45 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
 
     A Graveyard origin is reanimation (a different lane, checklist #2). Scope
     "you".
+
+    ADR-0038 W3 batch 6 widens the ChangeZoneAll/origin=None reanimation
+    exclusion two more ways (both zero-guess, CR 400.1 / 400.3 / 610.3c):
+
+    * **exile-as-graveyard-workaround, target-filter form** — Boneyard
+      Parley's "Exile up to five target creature cards from graveyards...
+      Put all cards from the pile of your choice onto the battlefield"
+      ALSO exiles a graveyard-standing pile first, but (unlike Living
+      Death's tracked ``origin='Graveyard'``) the EARLIER ``ChangeZone``
+      leaves ``origin=None`` and carries the ``InZone: Graveyard`` evidence
+      on its own TARGET filter instead — the sibling scan now reads that
+      filter too, not just the origin field;
+    * **direct graveyard ChooseFromZone** — Rejoin the Fight's "Mill three
+      cards... each opponent chooses a creature card in your graveyard...
+      Return each card chosen this way to the battlefield" reanimates via a
+      ``ChooseFromZone{zone: Graveyard}`` selector, no ``ChangeZone`` at
+      all — the sibling scan also excludes on that shape.
+
+    A THIRD gate closes a distinct false-positive class: Livio, Oathsworn
+    Sentinel's "Return all exiled cards with aegis counters on them to the
+    battlefield under their owners' control" reads the SAME ChangeZoneAll
+    shape as Warp World, but its filter carries a ``Counters`` property (an
+    "exiled WITH a counter" persistent-pile marker — the SAME structural
+    signature the exile_matters lane's "exiled with ~" arm reads) sourced
+    from a TARGETED battlefield creature (its own EARLIER activated ability
+    exiles "another target creature", not a hand/library/graveyard/reveal
+    source) that explicitly returns to its OWNER, not the caster — a
+    temporary-exile REMOVAL effect (Banisher-Priest class), not a cheat
+    build-around; no "you" benefit at all (CR 610.3c — a returned object
+    defaults to its owner's control absent an explicit transfer). A
+    Counters-gated filter is a NARROW, corpus-verified tell (2026-07 census
+    of every commander-legal ``ChangeZoneAll{Battlefield, origin: None}``:
+    Livio is the SOLE Counters-bearing filter in the population — Warp
+    World / Over the Top / Manabond / Tezzeret, Master of the Bridge / Pyxis
+    of Pandemonium all carry EMPTY filter properties, so gating narrowly on
+    Counters-presence (rather than a blanket "prove you-benefit" rule, which
+    regressed those five in an earlier attempt this session) leaves every
+    other gain untouched — still zero-guess: a Counters-gated pile that DOES
+    explicitly return under "you" stays included.
     """
     for unit in tree.units:
         if unit.kind == "BeginGame":
@@ -6714,16 +6753,20 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
             # revealed permanent cards onto the battlefield" idiom — Warp
             # World, Over the Top) is reveal-sourced with an UNTRACKED origin
             # (None), not "Hand"/"Library" like a tracked search/discard — so
-            # it additionally accepts None, GATED on two mass-REANIMATION
-            # tells (checklist #2; CR 400.7 / 700.4) phase leaves origin=None
-            # for too: the target filter carrying an ``InZone: Graveyard``
+            # it additionally accepts None, GATED on mass-REANIMATION tells
+            # (checklist #2; CR 400.1 / 400.3) phase leaves origin=None for
+            # too: the target filter carrying an ``InZone: Graveyard``
             # property (Faith's Reward / Second Sunrise read a
-            # Graveyard-standing pile DIRECTLY), and an EARLIER
-            # Graveyard-origin zone change in the SAME unit (Living Death /
-            # Scrap Mastery exile their graveyard FIRST, then put the
-            # just-exiled pile onto the battlefield — the exile is a rules
-            # workaround for the symmetric wording, not a genuine cheat
-            # build-around; both are the classic EDH "reanimator" cards).
+            # Graveyard-standing pile DIRECTLY), an EARLIER Graveyard-origin
+            # zone change in the SAME unit (Living Death / Scrap Mastery
+            # exile their graveyard FIRST, then put the just-exiled pile
+            # onto the battlefield), an earlier untracked-origin ``exile``
+            # whose OWN target filter carries the Graveyard evidence instead
+            # (batch 6 — Boneyard Parley), or an earlier direct
+            # ``ChooseFromZone{zone: Graveyard}`` selector (batch 6 — Rejoin
+            # the Fight) — the exile is a rules workaround for the symmetric
+            # wording / an intermediate staging step, not a genuine cheat
+            # build-around; all four are the classic EDH "reanimator" shape.
             if node_tag == "ChangeZoneAll" and origin is None:
                 if "Graveyard" in filter_inzone_zones(effect_filter(c.node)):
                     continue
@@ -6732,6 +6775,31 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                     for other in unit.effects
                     if other.concept == "change_zone"
                 ):
+                    continue
+                if any(
+                    tag_of(other.node) == "ChangeZone"
+                    and getattr(other.node, "destination", None) == "Exile"
+                    and "Graveyard" in filter_inzone_zones(effect_filter(other.node))
+                    for other in unit.effects
+                ):
+                    continue
+                if any(
+                    tag_of(other.node) == "ChooseFromZone"
+                    and getattr(other.node, "zone", None) == "Graveyard"
+                    for other in unit.effects
+                ):
+                    continue
+                # Batch 6 — the Livio "temporary-exile removal" gate: a
+                # Counters-gated filter (an "exiled WITH a counter"
+                # persistent pile) that does NOT explicitly return under
+                # "you" is a targeted removal-and-release, not a cheat (CR
+                # 610.3c — defaults to the OWNER's control). Narrow: only
+                # bites when the filter itself carries a Counters property.
+                own_filter = effect_filter(c.node)
+                own_props = getattr(own_filter, "properties", None) or []
+                has_counters_gate = any(tag_of(p) == "Counters" for p in own_props)
+                enters_under = getattr(c.node, "enters_under", None)
+                if has_counters_gate and enters_under != "You":
                     continue
                 allowed_origins: tuple[str | None, ...] = (None,)
             else:
@@ -6808,27 +6876,68 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
         # it onto the battlefield" — the back-reference names the
         # just-revealed card in this position, CR 701.36c; landmine #7i —
         # corpus-verified card-by-card against the two named imprint cards,
-        # not a blanket TriggeringSource read).
+        # not a blanket TriggeringSource read). Batch 6 widens the condition
+        # tag accepted: a ``TargetMatchesFilter`` on the SAME reveal-then-put
+        # chain is the SAME "if it's a permanent/creature/land card" check
+        # phase sometimes structures as a target-match instead of a
+        # ``RevealedHasCardType`` (Chaos Warp — "reveals the top card...If
+        # it's a permanent card, they put it onto the battlefield"); corpus
+        # census (2026-07, every commander-legal reveal-producing unit with a
+        # Battlefield-destined ParentTarget/SelfRef/TriggeringSource put):
+        # every ``TargetMatchesFilter`` hit besides Yarus (see below) is this
+        # exact reveal-then-put idiom (Aid from the Cowl, Skirk Drill
+        # Sergeant, N'Yami-Class Mother Ship, Bison Whistle) — no unrelated
+        # reuse, so the same reveal-producer + type-evidence gate is
+        # sufficient (still zero-guess: a subtype-only match like Bison
+        # Whistle's "Bison card" still never fires, no core type evidence).
+        # Yarus, Roar of the Old Gods closes a DISTINCT false-positive the
+        # widening exposed in the TriggeringSource+turn_face_up carve-out
+        # itself: "Whenever a face-down creature you control DIES, return it
+        # to the battlefield... if it's a permanent card, then turn it face
+        # up" is dies_recursion (checklist #2 — CR 700.4), not a cheat. The
+        # ORIGINAL carve-out required merely "a turn_face_up somewhere in the
+        # unit" — too loose: landmine #7i's back-reference is
+        # POSITION-relative, so what matters is CHAIN ORDER, not presence.
+        # Clone Shell / Summoner's Egg chain ``turn_face_up`` FIRST, then the
+        # ``change_zone`` (the put reads the JUST-turned-face-up imprinted
+        # card via the forwarded ``TriggeringSource``); Yarus chains the
+        # ``change_zone`` FIRST (returning the just-DIED creature itself),
+        # THEN turns it face up — the put's ``TriggeringSource`` there is the
+        # ORIGINAL dies-trigger subject, not a forwarded turn_face_up result.
+        # ``unit.effects`` preserves the linear sub_ability chain order
+        # (verified 2026-07), so requiring the turn_face_up's index precede
+        # the change_zone's index is a precise, zero-guess chain-order read.
         if any(
             c.concept in ("reveal_top", "reveal_until", "dig", "turn_face_up")
             for c in unit.effects
         ):
-            has_turn_face_up = any(c.concept == "turn_face_up" for c in unit.effects)
-            for c in unit.effects:
+            effects_list = list(unit.effects)
+            turn_face_up_idx = next(
+                (i for i, c in enumerate(effects_list) if c.concept == "turn_face_up"),
+                None,
+            )
+            for idx, c in enumerate(effects_list):
                 if c.concept != "change_zone":
                     continue
                 if getattr(c.node, "destination", None) != "Battlefield":
                     continue
                 tgt = getattr(c.node, "target", None)
                 tgt_tag = tag_of(tgt)
+                turn_face_up_precedes = (
+                    turn_face_up_idx is not None and turn_face_up_idx < idx
+                )
                 if tgt_tag not in ("ParentTarget", "SelfRef") and not (
-                    tgt_tag == "TriggeringSource" and has_turn_face_up
+                    tgt_tag == "TriggeringSource" and turn_face_up_precedes
                 ):
                     continue
                 for cond in iter_condition_sites(unit.node):
-                    if tag_of(cond) != "RevealedHasCardType":
+                    cond_tag = tag_of(cond)
+                    if cond_tag == "RevealedHasCardType":
+                        types = set(getattr(cond, "card_types", None) or [])
+                    elif cond_tag == "TargetMatchesFilter":
+                        types = set(filter_core_types(getattr(cond, "filter", None)))
+                    else:
                         continue
-                    types = set(getattr(cond, "card_types", None) or [])
                     if not types or types <= {"Land"}:
                         continue  # no type evidence / a land put — never guess
                     return [
@@ -7730,6 +7839,12 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
     # carrying ``InZone{zone: Exile}`` (Cosmogoyf's "number of cards you own
     # in exile" — a plain card-count, not type-restricted). A direct deep
     # scan of the static node's own subtree reaches both. CR 406.1 / 613.4c.
+    #
+    # ADR-0038 W3 batch 6 widens a THIRD shape: ``ObjectCount`` over a filter
+    # carrying ``ExiledBySource`` instead of ``InZone{Exile}`` — Lumbering
+    # Battlement's "gets +2/+2 for each card exiled WITH IT" counts its OWN
+    # maker-populated pile the same way Gorex's ChooseFromZone arm does, but
+    # as a static P/T-scaler rather than a triggered choice.
     for unit in tree.units:
         if unit.origin != "static":
             continue
@@ -7737,7 +7852,13 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
             (tag_of(n) == "ZoneCardCount" and getattr(n, "zone", None) == "Exile")
             or (
                 tag_of(n) == "ObjectCount"
-                and "Exile" in filter_inzone_zones(getattr(n, "filter", None))
+                and (
+                    "Exile" in filter_inzone_zones(getattr(n, "filter", None))
+                    or any(
+                        tag_of(x) == "ExiledBySource"
+                        for x in iter_typed_nodes(getattr(n, "filter", None))
+                    )
+                )
             )
             for n in iter_typed_nodes(unit.node)
         ):
@@ -7761,6 +7882,69 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
                 and tag_of(getattr(c.node, "filter", None)) == "ExiledBySource"
             ):
                 return [Signal("exile_matters", "you", "", c.raw, tree.name, "high")]
+    # ADR-0038 W3 batch 6 — the "exiled with a [named] counter" persistent-
+    # pile arm: a per-card-unique counter kind (Altaïr Ibn-La'Ahad's
+    # "memory" counter, Karn Scion of Urza's "silver" counter, Lara Croft's
+    # "discovery" counter) tracks a maker-populated exile pile the SAME way
+    # Gorex's ``ExiledBySource`` does, but structured as a plain ``Typed``
+    # filter carrying BOTH an ``InZone{zone: Exile}`` property AND a
+    # ``Counters`` property (of ANY kind) — reached anywhere in the unit's
+    # subtree (``CopyTokenOf.source_filter``, a ``ChangeZoneAll.target``
+    # filter, etc.), not just a ``ChooseFromZone``. Gated OFF the "time"
+    # counter kind specifically: phase structures Suspend's "target
+    # permanent or suspended card [with a time counter]" the SAME way
+    # (a suspended card IS structurally in exile with a time counter, CR
+    # 702.62a) even though the card's OWN oracle text never says "exile" at
+    # all (Shivan Sand-Mage, Fury Charm, Timebender, Timecrafting,
+    # Clockspinning, Rose Tyler, Amy Pond — every commander-legal "time
+    # counter on a suspended card" hit in the 2026-07 corpus census) — that
+    # population is the suspend-mechanic's own generic counter manipulation,
+    # not an exile-as-resource build-around; excluding it is zero-guess
+    # (every non-"time" counter kind in the census names a card-specific
+    # exile-pile mechanic). CR 406.1.
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "Typed":
+                continue
+            props = getattr(n, "properties", None) or []
+            has_exile = any(
+                tag_of(p) == "InZone" and getattr(p, "zone", None) == "Exile"
+                for p in props
+            )
+            if not has_exile:
+                continue
+            for p in props:
+                if tag_of(p) != "Counters":
+                    continue
+                kind_node = getattr(p, "counters", None)
+                kind = getattr(kind_node, "data", None)
+                if kind == "time":
+                    continue  # the Suspend-mechanic reuse — never guess
+                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # ADR-0038 W3 batch 6 — the RemoveCounter-from-an-exiled-card arm: Mari,
+    # the Killing Quill's granted ability ("remove a hit counter from a card
+    # that player owns in exile") is a ``RemoveCounter`` whose OWN ``target``
+    # filter carries ``InZone{zone: Exile}`` — the counter kind lives on the
+    # effect's ``counter_type`` field here, not a filter ``Counters``
+    # property, so the persistent-pile arm above (which reads filter
+    # properties) misses it; a direct field read closes the gap. Same
+    # Suspend-mechanic reuse risk and the same fix: exclude ``counter_type
+    # == 'time'`` (Shivan Sand-Mage / Fury Charm / Timebender / Timecrafting
+    # ALSO use ``RemoveCounter`` targeting a filter that carries InZone
+    # {Exile} as part of the "permanent OR suspended card" Or-filter, but
+    # every one of them removes a "time" counter specifically — Alaundo the
+    # Seer, a home-brewed suspend-alike that also uses "time" counters on
+    # its own exiled cards, is excluded by the SAME gate for the SAME
+    # reason: CR 702.62a's own counter kind, not an exile-pile
+    # build-around). CR 406.1.
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "RemoveCounter":
+                continue
+            if getattr(n, "counter_type", None) == "time":
+                continue  # the Suspend-mechanic reuse — never guess
+            if "Exile" in filter_inzone_zones(getattr(n, "target", None)):
+                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     return []
 
 
