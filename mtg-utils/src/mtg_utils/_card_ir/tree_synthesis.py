@@ -7319,7 +7319,8 @@ def _arm_recast_etb_bleed(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
-# ── cost_reduction bucket-B (ADR-0036/0037 T10-finalize2 GLOBAL FINALIZE-2) ───
+# ── cost_reduction bucket-B (ADR-0036/0037 T10-finalize2 GLOBAL FINALIZE-2;
+# ADR-0038 W3 batch 4 widened the walk — see below) ──────────────────────────
 # cost_reduction (CR 601.2f/118.7): a static ``ModifyCost{Reduce}`` build-around.
 # A ``SelfRef`` ``affected`` filter is the canonical self-discount shape (220/226
 # of the "this spell costs" statics, Tier-1 structural — the lane excludes it
@@ -7330,28 +7331,137 @@ def _arm_recast_etb_bleed(tree: ConceptTree) -> ConceptNode | None:
 # Hierophant Bio-Titan). Whole decision relocated here (both branches read
 # ONLY the node's own typed fields + its own description, never a
 # cross-node/whole-oracle read) so the lane becomes a pure synth-concept read.
+#
+# ADR-0038 W3 batch 4 (cost_reduction gap close, corpus live_only 62 -> 0):
+# widened from a top-level-unit-only scan to a full ``iter_typed_nodes`` deep
+# walk over EACH unit, three additions, each still a node-own-field read:
+#
+#   1. ``ReduceAbilityCost{Reduce}`` (a DISTINCT static mode from
+#      ``ModifyCost`` — v0.20.0 gave ACTIVATED-ABILITY cost reducers their own
+#      typed mode; Training Grounds/Heartstone's team creature-ability
+#      discount, Boom Scholar's "other permanents", Fervent Champion/Cloud's
+#      "Equip abilities that target ~", Silver-Fur Master's Ninjutsu,
+#      Fluctuator's Cycling). Same direction + SelfRef + description gates as
+#      ``ModifyCost``. CR 601.2f/118.7 covers ability-activation costs too
+#      (118.7's "cost of a spell, activated ability, or other effect").
+#   2. The deep walk ALSO reaches a ``ModifyCost``/``ReduceAbilityCost`` node
+#      nested inside a ``GrantStaticAbility.definition`` (Ballad of the Black
+#      Flag's Saga chapter IV grants ITSELF a temporary reducer static; Urza,
+#      Planeswalker's [+2] does the same) — the granted static's OWN
+#      ``affected``/``description`` are read exactly like a top-level one, no
+#      new logic, just reachability.
+#   3. An ``Unimplemented`` node (phase gave up parsing the clause outright —
+#      Will Kenrith's donor "spells that player casts cost {2} less", Cheering
+#      Fanatic's chosen-name reducer, Ghostfire Blade/Cosmos Charger/Professor
+#      Hojo/Tezzeret's "Static pattern matched but line failed static parser"
+#      residue, the "next spell/instant/sorcery you cast" idiom on Elminster/
+#      Kaza/Maelstrom Muse/Commander Liara Portyr/Urianger Augurelt) whose OWN
+#      ``description`` carries a genuine "cost(s) ... less" reduction and
+#      neither a self-discount nor a cost-increase tell — the SAME three
+#      textual gates the deleted ``_COST_REDUCER_MIRROR`` used, relocated to a
+#      single node's own field (never cross-node/whole-oracle). CR 601.2f/118.7.
+_COST_LESS_REDUCER_RE = re.compile(r'\bcosts?\b[^."]{0,40}?\bless\b', re.IGNORECASE)
+# The self-discount tell — extended (ADR-0038 W3 batch 4) with "that/the copy
+# costs" (God-Eternal Kefnet: "copy that card ... That copy costs {2} less to
+# cast" — a ONE-SHOT discount on a single already-created object, the same
+# non-build-around shape as "this spell costs", not a persistent CLASS
+# reducer; pop-verified False against legacy). CR 601.2f (a genuine
+# cost_reduction build-around discounts a CLASS of spells/abilities, not one
+# anaphoric single-use copy).
+_COST_SELF_DISCOUNT_RE = re.compile(
+    r"\bthis spell costs\b|\bthis ability costs\b|\bthis costs\b"
+    r"|\b(?:that|the) copy costs\b",
+    re.IGNORECASE,
+)
+_COST_INCREASE_RE = re.compile(
+    r"\bcost(?:s)?[^.\"]{0,30}?\b(?:more|an additional)\b|would cost less than",
+    re.IGNORECASE,
+)
+# The impulse/free-cast comparator idiom ("cast the exiled card WITHOUT
+# PAYING its mana cost if that spell's mana value is 8 OR LESS" — Breaching
+# Dragonstorm, Solstice Revelations, Ryan Sinclair, Rashmi and Ragavan, Pin
+# Collection's "ticket cost X or less ... without paying that sticker's
+# ticket cost", Bre of Clan Stoutarm): the "cost"/"less" tokens both appear,
+# but "less" is a THRESHOLD on the exiled card's mana VALUE, never a
+# reduction of what you pay — pop-verified False against legacy (8-card
+# corpus over-fire, ADR-0038 W3 batch 4). "It costs ... this way" (Uvilda,
+# Dean of Perfection's "It costs {4} less to cast this way" granted
+# ability — SINGULAR "it", the SAME one-shot-object-discount family as
+# "that copy costs" above, a delayed/impulse cast of ONE already-exiled
+# card) is excluded too, but NARROWLY: the pronoun must be "it", not a
+# CLASS noun — "Spells you cast this way cost {2} less to cast" (Urianger
+# Augurelt's Play Arcanum, a genuine persistent build-around over every
+# card exiled with it) does NOT match and correctly still fires.
+_COST_FREE_CAST_RE = re.compile(
+    r"without paying|\bit costs?\b[^.\"]*?\bthis way\b",
+    re.IGNORECASE,
+)
+
+
+def _cost_reducer_node_ok(desc: str) -> bool:
+    """Whether a node's OWN description is a genuine "costs ... less"
+    reduction (not a self-discount, not a cost-increase, not a free-cast
+    mana-value comparator). The gates the deleted ``_COST_REDUCER_MIRROR``
+    applied, node-scoped, plus the ADR-0038 W3 batch 4 free-cast exclusion."""
+    return bool(
+        desc
+        and _COST_LESS_REDUCER_RE.search(desc)
+        and not _COST_SELF_DISCOUNT_RE.search(desc)
+        and not _COST_INCREASE_RE.search(desc)
+        and not _COST_FREE_CAST_RE.search(desc)
+    )
+
+
 def _arm_cost_reduction(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``cost_reduction`` node (CR 601.2f/118.7): a
-    ``ModifyCost{Reduce}`` static whose ``affected`` is not ``SelfRef`` and
-    whose OWN description does not carry the self-discount tell ("this spell
-    costs" — Discontinuity, Hierophant Bio-Titan's symmetric residual shape).
+    ``ModifyCost{Reduce}`` OR ``ReduceAbilityCost{Reduce}`` static ANYWHERE
+    under a unit (including nested inside a ``GrantStaticAbility.definition``)
+    whose ``affected`` is not ``SelfRef`` and whose OWN description does not
+    carry the self-discount tell ("this spell/ability costs" — Discontinuity,
+    Hierophant Bio-Titan's symmetric residual shape); falling back to ANY
+    node (typically ``Unimplemented`` — phase gave up parsing the clause —
+    but also a malformed ``CreateEmblem``/``GrantStaticAbility`` static whose
+    OWN description embeds the raw clause, Saheeli Filigree Master's -4
+    emblem) whose OWN description is a genuine "costs ... less" reducer.
     Node-own-field/description reads only, no cross-node text.
     """
     for unit in tree.units:
-        if modify_cost_mode(unit.node) != "Reduce":
-            continue
-        if tag_of(getattr(unit.node, "affected", None)) == "SelfRef":
-            continue
-        desc = getattr(unit.node, "description", None) or ""
-        if "this spell costs" in desc.lower():
-            continue
-        return _synthetic_concept(
-            arm_id="cost_reduction",
-            concept="synth_cost_reduction",
-            scope="you",
-            subject=(),
-            desc="bucket-B static spell-cost reducer (CR 601.2f/118.7)",
-        )
+        for node in iter_typed_nodes(unit.node):
+            mt = static_mode_tag(node)
+            if mt == "ModifyCost":
+                inner_mode = modify_cost_mode(node)
+            elif mt == "ReduceAbilityCost":
+                inner_mode = static_mode_field(node, "mode")
+            else:
+                continue
+            if inner_mode != "Reduce":
+                continue
+            if tag_of(getattr(node, "affected", None)) == "SelfRef":
+                continue
+            desc = (getattr(node, "description", None) or "").lower()
+            if "this spell costs" in desc or "this ability costs" in desc:
+                continue
+            return _synthetic_concept(
+                arm_id="cost_reduction",
+                concept="synth_cost_reduction",
+                scope="you",
+                subject=(),
+                desc="bucket-B static spell/ability-cost reducer (CR 601.2f/118.7)",
+            )
+    for unit in tree.units:
+        for node in iter_typed_nodes(unit.node):
+            desc = getattr(node, "description", None)
+            if not isinstance(desc, str):
+                continue
+            if _cost_reducer_node_ok(desc):
+                return _synthetic_concept(
+                    arm_id="cost_reduction",
+                    concept="synth_cost_reduction",
+                    scope="you",
+                    subject=(),
+                    desc="bucket-B Unimplemented cost-reducer residue "
+                    "(CR 601.2f/118.7)",
+                )
     return None
 
 

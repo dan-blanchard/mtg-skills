@@ -249,6 +249,8 @@ from mtg_utils._deck_forge import signal_keys
 # (the _resolve_subject precedent) — one source, zero drift.
 from mtg_utils._deck_forge._signals_ir import (
     _ACTIVATED_ABILITY_DROP_EFFECTS,
+    _BASE_PT_ANIMATE_HOOK,
+    _BASE_PT_RAW_HOOK,
     _COUNTER_KIND_KEYS,
     _FLOOR_DETECTORS,
     _GOAD_STYLE_FORCE,
@@ -751,6 +753,33 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # grants with no CreateDelayedTrigger/GrantTrigger node at all, DFC
     # blank-oracle records) — NOT promoted this batch; see the W3 batch 4
     # session notes.
+    #
+    # ADR-0038 W3 batch 4 (pt-counters-grants cluster): ``cost_reduction``,
+    # ``minus_counters_matter``, and ``keyword_grant_target`` PROMOTED (0
+    # genuine members lost vs a live corpus re-measure). ``cost_reduction``
+    # widened ``_arm_cost_reduction`` to also read ``ReduceAbilityCost{Reduce}``
+    # (a v0.20.0 typed mode distinct from ``ModifyCost`` — CR 601.2f/118.7
+    # covers activated-ability costs too), a nested ``GrantStaticAbility.
+    # definition`` reducer, and ANY node's own description as an Unimplemented-
+    # residue fallback, plus a final whole-tree kept-mirror for the zero-node
+    # residuals (Henzie "Toolbox" Torre, Catalyst Stone); the self-discount
+    # veto is now card-level (a multi-sentence rider's "It also costs ...
+    # less" continuation inherits it) and a free-cast/impulse-discount
+    # exclusion added. ``minus_counters_matter`` added a cost-embedded
+    # ``PutCounter`` walk (Devoted Druid), an ``enter_with_counters`` M1M1
+    # read (the Persist family's v0.20.0 substrate shape), and the legacy's
+    # own "-1/-1 counter" kept-mirror for the cares-about residue (Vizier of
+    # Remedies, Soul-Scar Mage, Necroskitter). ``keyword_grant_target``
+    # extended the threaded-target walk to trigger-origin units (Conquering
+    # Manticore's "gain control ... It gains haste" idiom) and added a
+    # kept-mirror fallback (the deleted SWEEP regex) for phase-parse-loss
+    # residues and the split/aftermath back-half (Onward // Victory).
+    # ``base_pt_set`` stays residual — 21 corpus gaps remain (Circle of the
+    # Moon Druid's CDA-like conditional self-transform, "become equal to
+    # that creature's power" idioms mixed with genuine scalar members,
+    # Saga/Class/sticker-sheet level-up shapes) needing more investigation
+    # than this batch's time budget allowed; see the ADR-0038 W3 batch 4
+    # session notes for the card list and per-card triage.
     {
         "any_counter_matters",
         "artifacts_matter",
@@ -760,7 +789,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "clone_makers",
         "combat_damage_matters",
         "combat_damage_to_opp",
-        "cost_reduction",
         "creature_etb",
         "creature_ping",
         "creatures_matter",
@@ -771,13 +799,11 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "exile_matters",
         "facedown_matters",
         "graveyard_matters",
-        "keyword_grant_target",
         "land_creatures_matter",
         "land_sacrifice_makers",
         "landfall",
         "lifegain_makers",
         "lifeloss_makers",
-        "minus_counters_matter",
         "opponent_discard",
         "plus_one_matters",
         "ramp",
@@ -2213,19 +2239,88 @@ def _any_counter_makers(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+_MINUS_COUNTER_KEPT_RX = re.compile(r"-1/-1 counter", re.IGNORECASE)
+
+
 def _minus_counters_matter(tree: ConceptTree) -> list[Signal]:
     """minus_counters_matter — a -1/-1 counter PLACEMENT maker (CR 122.1 / 122.6 /
-    702.90 wither). Mirrors ``_signals_ir`` ``_COUNTER_KIND_KEYS['m1m1']`` on the
-    ``place_counter`` maker arm: a ``PutCounter`` / ``PutCounterAll`` whose
-    ``counter_type`` is ``M1M1`` (Hapatra, Blight Mamba). The kind gate is the whole
-    discriminator vs +1/+1 (split-lane principle). persist/wither keyword arms stay
-    keyword-derived (out of this typed arm). Scope "you".
+    702.80 wither) PLUS the legacy's "-1/-1 counter" kept-mirror for the
+    remove/cost/ward/replacement payoffs phase leaves textual (the same
+    two-arm identity ``_signals_ir``'s ``_COUNTER_KIND_KEYS['m1m1']`` +
+    ``_IR_KEPT_DETECTORS`` mirror carries — ADR-0027/ADR-0038 batch 4).
+
+    Three structural arms, each a genuine "you place/receive a -1/-1
+    counter" tell, before the text fallback:
+
+    * a ``PutCounter``/``PutCounterAll`` whose ``counter_type`` is ``M1M1``
+      (Hapatra, Blight Mamba) — checked first via ``effect_concepts`` (the
+      unit's own payoff chain), then via a full node walk so a
+      COST-embedded placement (Devoted Druid's "Put a -1/-1 counter on
+      this creature: Untap this creature" — the ``PutCounter`` lives in the
+      ability's own ``EffectCost``, invisible to ``effect_concepts`` which
+      reads only the payoff chain) still fires. CR 601.2b (effect costs).
+    * a ``ChangeZone`` with an ``M1M1`` entry in ``enter_with_counters`` —
+      the Persist family's "return it to the battlefield ... with a -1/-1
+      counter on it" (Kitchen Finks, Rendclaw Trow). The legacy project.py
+      adapter modeled this as a discrete ``PutCounter`` Effect; v0.20.0's
+      mirror instead carries it as a field on the re-entry ``ChangeZone`` —
+      a substrate SHAPE change, not a lane gap. Persist's OWN reminder text
+      is ENTIRELY parenthetical (the keyword's full explanation), so the
+      kept-mirror below can't reach it (reminder-stripped) — this
+      structural read is the only path to these cards. CR 122.6 / 702.79a.
+
+    The kept-mirror text fallback (the deleted regex's exact "-1/-1
+    counter" substring, over the reminder-stripped face oracle) recovers
+    the CARES-ABOUT residue phase leaves scattered and unstructured: a
+    counter-quantity REPLACEMENT (Vizier of Remedies' "-1/-1 counters minus
+    one are put on it instead" — CR 122.1/614), a damage-as-counters
+    REPLACEMENT (Soul-Scar Mage, CR 702.80 wither's non-keyword cousin), a
+    ``counter_added`` PAYOFF trigger (Nest of Scarabs), a filter PREDICATE
+    querying for the counter (Necroskitter's "-1/-1 counter on it" valid_card
+    filter), a REMOVAL ability (Hapatra's Mark, Woeleecher), and a static
+    restriction (Melira, Sylvok Outcast's "can't have -1/-1 counters put on
+    them"). Since it's a substring match, cards where the ONLY occurrence is
+    inside Persist/Wither's OWN reminder parens never reach it (correctly —
+    those fire via the structural arms above instead, so there's no
+    double-count concern). Scope "you" (the legacy's hard-forced scope for
+    every arm, regardless of who the counter lands on).
     """
     for c in tree.effect_concepts("place_counter"):
         if counter_kind(c.node).upper() == "M1M1":
             return [
                 Signal("minus_counters_matter", "you", "", c.raw, tree.name, "high")
             ]
+    for unit in tree.units:
+        for node in iter_typed_nodes(unit.node):
+            t = tag_of(node)
+            if t in ("PutCounter", "PutCounterAll"):
+                if counter_kind(node).upper() == "M1M1":
+                    return [
+                        Signal(
+                            "minus_counters_matter", "you", "", "", tree.name, "high"
+                        )
+                    ]
+            elif t == "ChangeZone":
+                ewc = getattr(node, "enter_with_counters", None)
+                if isinstance(ewc, list):
+                    for pair in ewc:
+                        if (
+                            isinstance(pair, (list, tuple))
+                            and pair
+                            and str(pair[0]).upper() == "M1M1"
+                        ):
+                            return [
+                                Signal(
+                                    "minus_counters_matter",
+                                    "you",
+                                    "",
+                                    "",
+                                    tree.name,
+                                    "high",
+                                )
+                            ]
+    if _MINUS_COUNTER_KEPT_RX.search(_kept(tree)):
+        return [Signal("minus_counters_matter", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -4758,6 +4853,27 @@ def _extra_combats(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# cost_reduction kept-mirror (ADR-0038 W3 batch 4) — the same three textual
+# gates :func:`mtg_utils._card_ir.tree_synthesis._cost_reducer_node_ok`
+# applies node-scoped, duplicated here per-clause over the whole reminder-
+# stripped face oracle for the residual cards with NO node at all (see
+# :func:`_cost_reduction`'s docstring).
+_COST_LESS_KEPT_RX = re.compile(r'\bcosts?\b[^."]{0,40}?\bless\b', re.IGNORECASE)
+_COST_SELF_DISCOUNT_KEPT_RX = re.compile(
+    r"\bthis spell costs\b|\bthis ability costs\b|\bthis costs\b"
+    r"|\b(?:that|the) copy costs\b",
+    re.IGNORECASE,
+)
+_COST_INCREASE_KEPT_RX = re.compile(
+    r"\bcost(?:s)?[^.\"]{0,30}?\b(?:more|an additional)\b|would cost less than",
+    re.IGNORECASE,
+)
+_COST_FREE_CAST_KEPT_RX = re.compile(
+    r"without paying|\bit costs?\b[^.\"]*?\bthis way\b",
+    re.IGNORECASE,
+)
+
+
 def _cost_reduction(tree: ConceptTree) -> list[Signal]:
     """cost_reduction — a static spell-cost REDUCER build-around (CR 601.2f / 118.7).
     Mirrors the live ``cost_reduction`` doer: a ``static_ability`` whose ``mode`` is a
@@ -4780,12 +4896,48 @@ def _cost_reduction(tree: ConceptTree) -> list[Signal]:
     node (:func:`_arm_cost_reduction`, which also covers the unambiguous
     majority), read below.
 
-    A flat ramp rock (no ``ModifyCost``) never reaches the gate. The activated
-    "next spell you cast costs less" synth form (``reducenextspellcost`` — no native
-    static node) is a documented ``live_only`` tail. Scope "you".
+    A flat ramp rock (no ``ModifyCost``) never reaches the gate.
+
+    ADR-0038 W3 batch 4: a final kept-mirror text fallback closes the last
+    corpus residuals phase drops with NO node at all anywhere in the tree —
+    not even an ``Unimplemented`` placeholder (:func:`_arm_cost_reduction`'s
+    node-scoped scan has nothing to read) — Henzie "Toolbox" Torre's second
+    sentence ("Blitz costs you pay cost {1} less ...") is entirely absent
+    from phase's record, and a Saga chapter collapses to a bare "Chapter N"
+    raw (Invasion of the Giants' chapter III reducer, Catalyst Stone's
+    "Flashback costs you pay cost {2} less"). Same three gates as the
+    bucket-B node scan (genuine "cost(s) ... less", not a self/copy
+    discount, not an increase) PLUS the free-cast exclusion (Bre of Clan
+    Stoutarm/Rashmi and Ragavan/Breaching Dragonstorm's "cast ... without
+    paying its mana cost if ... mana value is N or less" idiom pop-verified
+    False — the comparator "less" never denotes a reduction), scanned
+    per-CLAUSE (period-delimited) over the reminder-stripped face oracle so
+    an unrelated clause on the same card never silences/fires past its own
+    boundary (the Magnetic-Web per-clause lesson) — EXCEPT the self-discount
+    tell, which is a CARD-LEVEL veto, not per-clause: a multi-sentence
+    self-discount rider (Geistlight Snare — "This spell costs {1} less to
+    cast if you control a Spirit. It ALSO costs {1} less to cast if you
+    control an enchantment.") only names "this spell costs" in its FIRST
+    sentence; the continuation anaphora ("It also costs ... less") is the
+    SAME rider, not an unrelated clause, so it must inherit the veto rather
+    than slip through a per-clause scan blind to the earlier "this spell".
+    Scope "you".
     """
     for c in tree.iter_concepts():
         if c.concept == "synth_cost_reduction":
+            return [Signal("cost_reduction", "you", "", "", tree.name, "high")]
+    kept = _kept(tree)
+    if _COST_SELF_DISCOUNT_KEPT_RX.search(kept):
+        return []  # a self-discount rider anywhere on the card poisons every
+        # "It (also) costs ... less" continuation clause too
+    for raw_clause in kept.split("."):
+        clause = raw_clause.strip()
+        if (
+            clause
+            and _COST_LESS_KEPT_RX.search(clause)
+            and not _COST_INCREASE_KEPT_RX.search(clause)
+            and not _COST_FREE_CAST_KEPT_RX.search(clause)
+        ):
             return [Signal("cost_reduction", "you", "", "", tree.name, "high")]
     return []
 
@@ -7166,6 +7318,17 @@ _TEAM_EVASION_GRANT_RX = re.compile(
     r"|(?:other |attacking )?creatures you control[^.]*can't be blocked",
     re.IGNORECASE,
 )
+# The deleted SWEEP detector's exact single-target keyword-grant regex
+# (``_sweep_detectors.KEYWORD_GRANT_TARGET_REGEX``), reused verbatim
+# (ADR-0038 W3 batch 4) as the split/aftermath back-half text-only-tree
+# residue read below — single source, zero drift.
+_KEYWORD_GRANT_TARGET_KEPT_RX = re.compile(
+    r"target creature (?:you control )?(?:gains?|gets [+\-][0-9x]/[+\-][0-9x] "
+    r"and gains?) (?:deathtouch|trample|flying|menace|vigilance|double strike"
+    r"|first strike|lifelink|haste|hexproof|indestructible|protection|reach"
+    r"|ward|shroud)",
+    re.IGNORECASE,
+)
 # Protective keywords (live ``_PROTECTION_GRANT_KW`` — CR 702.11 hexproof /
 # 702.12 indestructible / 702.16 protection / 702.18 shroud / 702.21 ward).
 _PROTECTIVE_GRANT_KW: frozenset[str] = frozenset(
@@ -7213,10 +7376,6 @@ _DEP_PLAYER_TAGS: frozenset[str] = frozenset(
         "EachPlayer",
     }
 )
-# Mass land/artifact animator core types the base-P/T-set lane carves out
-# (Living Plane / March of the Machines — those are land_creatures_matter /
-# animate_artifact themes, live ``_signals_ir`` base_pt_set history).
-_BASE_PT_ANIMATE_CORES: frozenset[str] = frozenset({"Land", "Artifact"})
 
 
 def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
@@ -7753,7 +7912,19 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
 
     for unit in tree.units:
         grants = list(iter_deep_target_grants(unit.node))
-        if unit.origin == "ability":
+        if unit.origin in ("ability", "trigger"):
+            # ADR-0038 W3 batch 4: the threaded-target walk ALSO covers a
+            # TRIGGER's own "gain control of target creature ... Untap that
+            # creature. It gains haste" idiom (Conquering Manticore, every
+            # Equipment's "attach it to target creature. That creature gains
+            # X" ETB idiom, Hidden Footblade/Squire's Lightblade) — the SAME
+            # tracked-target thread as the ability form (Snakeskin Veil,
+            # Jump), just riding a GainControl/Attach producer effect first
+            # instead of a plain instant. iter_threaded_target_statics
+            # already resolves it (a GenericEffect's OWN target is
+            # ParentTarget, threaded back to the GainControl/Attach's Typed
+            # target) — this was a caller-side origin gate, not a missing
+            # accessor. CR 613.1f (layer 6, ability-adding effects).
             grants.extend(iter_single_target_grants(unit.node))
         for resolved, mod in grants:
             if "Creature" not in filter_core_types(resolved):
@@ -7788,24 +7959,84 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
                 fire("protection_grant", "you", raw)
     if _TEAM_EVASION_GRANT_RX.search(_kept(tree)):
         fire("team_evasion_grant", "you", "")
+    # ADR-0038 W3 batch 4 — the split/aftermath BACK-HALF grant residue: phase
+    # emits no record for a split/aftermath back face at all (Onward //
+    # Victory's "Victory" — "Target creature gains double strike until end
+    # of turn" — Claim // Fame's "Fame"), so this card's ONLY tree for that
+    # face is the ADR-0038 W2c text-only tree (originally ``units=()`` — no
+    # node to structurally walk — every arm above sees nothing; NOTE:
+    # ``extract_crosswalk_signals`` runs ``apply_tree_synthesis`` on every
+    # tree BEFORE any lane sees it, which appends a synthetic bucket-B unit
+    # even to a text-only tree, so gating on ``not tree.units`` is WRONG by
+    # the time this lane runs — gate on "not fired yet" via ``seen`` instead,
+    # keyed to THIS key specifically (a sibling grant like team_evasion_grant
+    # firing first must never suppress it)). Read it off the tree's own
+    # ``oracle`` (verbatim bulk face text) via the deleted SWEEP detector's
+    # exact regex, the legacy's own residue path for this identical gap
+    # (``_KGT_SPLIT_RESIDUE_RE`` in ``_signals_ir``). CR 613.1f (layer 6,
+    # ability-adding effects).
+    if "keyword_grant_target" not in seen and _KEYWORD_GRANT_TARGET_KEPT_RX.search(
+        _kept(tree)
+    ):
+        fire("keyword_grant_target", "you", "")
     return out
 
 
 def _base_pt_set(tree: ConceptTree) -> list[Signal]:
-    """base_pt_set — the fixed base-P/T-SET toolbox (CR 613.4b; 613.4d for the
-    switch form): a mod site carrying BOTH ``SetPower`` and ``SetToughness``
-    (Polymorphist's Jest — the "becomes a 1/1" neutralize), or a ``SwitchPT``
-    effect (Merfolk Thaumaturgist). Per-site subject RESOLUTION (granularity
-    b): a nested site whose affected is ``ParentTarget`` resolves through the
-    owning ``GenericEffect``'s target — THE over-fire gates ride the resolved
-    filter: a Land/Artifact-cored subject is a MASS/TARGET ANIMATOR (Living
-    Plane, Animate Land — the land_creatures_matter / animate_artifact
-    themes), and a SelfRef / subject-less site is a SELF-transform ("~
-    becomes a 3/3 Angel" — Angel's Tomb, man-lands; the batch-9 SelfRef
-    lesson), both carved out. The SwitchPT arm applies the same SelfRef veto
-    (Aquamoeba's self-switch is a P/T trick, not the toolbox). Additive
-    pumps (Giant Growth — layer 7c) are distinct tags. The dynamic
-    set-equal-to form is :func:`_variable_pt`. Scope "any" (live).
+    """base_pt_set — the fixed base-P/T-SET toolbox (CR 613.4b's "and/or" —
+    613.4d for the switch form): a mod site carrying ``SetPower`` and/or
+    ``SetToughness`` (Polymorphist's Jest's PAIR — the "becomes a 1/1"
+    neutralize; Singing Tree/Withercrown's SINGLE "has base power 0"), or a
+    ``SwitchPT`` effect (Merfolk Thaumaturgist). Per-site subject RESOLUTION
+    (granularity b): a nested site whose affected is ``ParentTarget`` resolves
+    through the
+    owning ``GenericEffect``'s target.
+
+    ADR-0038 W3 batch 4 (corpus re-measure): membership is TEXT-HOOK driven,
+    not subject-core-type driven — legacy's arm is the SetPower+SetToughness
+    pair OR'd with exactly two text hooks over the site's OWN description,
+    with NO separate core-type/subtype exclusion at all: ``_BASE_PT_RAW_HOOK``
+    (a literal "base power"/"base toughness" — Figure of Destiny's level-up
+    cycle, Circle of the Moon Druid's Bear Form, Evolved Sleeper, ALSO the
+    fixed-toolbox removal spells — Lignify, Ovinize) or
+    ``_BASE_PT_ANIMATE_HOOK`` ("N/N ... in addition to its other types" —
+    Riddleform, Tezzeret's Touch, Ensoul Artifact, Zoetic Glyph). A prior cut
+    tried a core-type carve-out (Land/Artifact excluded unconditionally) —
+    corpus-verified WRONG in BOTH directions: it dropped genuine ARTIFACT-
+    target members that DO name a hook (Tezzeret's Touch/Ensoul Artifact/
+    Zoetic Glyph's "creature with base power and toughness N/N in addition
+    to its other types" enchant-artifact reducers), and (when applied
+    unconditionally to a bare SelfRef with no text screen at all) added +169
+    cw_only man-lands/Angel's Tomb self-animates ("This land/artifact
+    becomes a 2/1 ... creature ... It's still a land/artifact" — names
+    NEITHER hook). The land/artifact MASS-animators (Living Plane, Animate
+    Land) are excluded ENTIRELY BY the hooks' absence in their own text ("are
+    1/1 creatures" matches neither phrase) — no additional gate needed. An
+    unresolvable ParentTarget with no other tag (Cyclone Sire's sibling-land
+    target) has no positive subject evidence and never fires regardless of
+    text.
+
+    Two further node-scoped screens the hook alone can't discriminate: a
+    DYNAMIC pair (``SetPowerDynamic``/``SetToughnessDynamic``) whose value
+    Refs ANOTHER object's OWN Power/Toughness (Eldrazi Mimic/Shape Stealer's
+    "become equal to that creature's power and toughness", Amplifire's
+    "twice that card's power") is a COPY-STATS idiom, not the toolbox's
+    SCALAR dynamic form (Trench Gorger's exiled-card count, Aettir and
+    Priwen's life total) — :func:`refs_other_object_stats` excludes it even
+    though the raw text still names "base power"/"base toughness" literally.
+    A site gated "as long as ~ ISN'T on the battlefield" (Grist, the Hunger
+    Tide's off-battlefield creature flavor, a Commander-eligibility marker)
+    is excluded too — CR 613's layers apply to a permanent ON the
+    battlefield, so an off-battlefield-only P/T set is never a genuine
+    on-battlefield build-around.
+
+    The SwitchPT arm keeps its own SelfRef veto (Aquamoeba's self-switch is
+    a P/T trick, not the toolbox — ``switch_pt`` has no legacy counterpart
+    at all, a pre-existing beyond-legacy CR-613.4d gain, unaffected by this
+    fix). Additive pumps (Giant Growth — layer 7c) are distinct tags. The
+    dynamic set-equal-to-a-SCALAR form is also read by :func:`_variable_pt`
+    for the CDA (``characteristic_defining``) shape (Tarmogoyf); this lane
+    only reads the non-CDA continuous-effect shape. Scope "any" (live).
     """
 
     def mod_tags(st: object) -> set[str]:
@@ -7814,13 +8045,64 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
             return set()
         return {tag_of(m) or "" for m in stm}
 
-    sites: list[tuple[object, set[str]]] = []
+    def site_text(st: object) -> str:
+        desc = getattr(st, "description", None)
+        return desc if isinstance(desc, str) else ""
+
+    def refs_other_object_stats(st: object) -> bool:
+        """Whether a ``SetPowerDynamic``/``SetToughnessDynamic`` value
+        ultimately Refs another object's OWN ``Power``/``Toughness`` (a
+        "become equal to THAT CREATURE's power/toughness" copy-stats idiom —
+        Eldrazi Mimic, Shape Stealer, Amplifire's "twice that card's power")
+        — corpus-verified NOT a legacy base_pt_set member, distinct from a
+        SCALAR dynamic value (a card count/life total/devotion — Trench
+        Gorger, Aettir and Priwen), which IS the toolbox's dynamic form.
+        """
+        stm = getattr(st, "modifications", None)
+        if not isinstance(stm, list):
+            return False
+        for m in stm:
+            if tag_of(m) not in ("SetPowerDynamic", "SetToughnessDynamic"):
+                continue
+            val = getattr(m, "value", None)
+            for node in iter_typed_nodes(val):
+                if tag_of(node) == "Ref" and tag_of(getattr(node, "qty", None)) in (
+                    "Power",
+                    "Toughness",
+                ):
+                    return True
+        return False
+
+    def off_battlefield_gated(st: object) -> bool:
+        """Whether a site's OWN ``condition`` is "as long as ~ ISN'T on the
+        battlefield" (Grist, the Hunger Tide's off-battlefield creature
+        flavor, a Commander-eligibility marker, not a genuine on-battlefield
+        base-P/T build-around — CR 613's layers apply to a permanent ON the
+        battlefield; pop-verified False against legacy)."""
+        cond = getattr(st, "condition", None)
+        if tag_of(cond) != "Not":
+            return False
+        inner = getattr(cond, "condition", None)
+        return (
+            tag_of(inner) == "SourceInZone"
+            and getattr(inner, "zone", None) == "Battlefield"
+        )
+
+    sites: list[tuple[object, set[str], str, bool, bool]] = []
     for unit in tree.units:
         if unit.origin == "static":
             # raw modification tags (not the set_pt concept slice) so the
             # dynamic pair on a top-level static (Aettir and Priwen)
             # surfaces alongside SetPower/SetToughness.
-            sites.append((getattr(unit.node, "affected", None), mod_tags(unit.node)))
+            sites.append(
+                (
+                    getattr(unit.node, "affected", None),
+                    mod_tags(unit.node),
+                    site_text(unit.node),
+                    refs_other_object_stats(unit.node),
+                    off_battlefield_gated(unit.node),
+                )
+            )
         # Filter-affected nested statics (Polymorphist's Jest — the affected
         # IS the population) read directly; ParentTarget-affected ones
         # resolve through the THREADED target walk (Ovinize's local target,
@@ -7832,30 +8114,55 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
             for st in nested if isinstance(nested, list) else []:
                 affected = getattr(st, "affected", None)
                 if tag_of(affected) != "ParentTarget":
-                    sites.append((affected, mod_tags(st)))
+                    sites.append(
+                        (
+                            affected,
+                            mod_tags(st),
+                            site_text(st),
+                            refs_other_object_stats(st),
+                            off_battlefield_gated(st),
+                        )
+                    )
         for resolved, st in iter_threaded_target_statics(unit.node):
-            sites.append((resolved, mod_tags(st)))
-    for resolved, mods in sites:
+            sites.append(
+                (
+                    resolved,
+                    mod_tags(st),
+                    site_text(st),
+                    refs_other_object_stats(st),
+                    off_battlefield_gated(st),
+                )
+            )
+    for resolved, mods, text, other_stats, off_bf in sites:
         # Fixed pair (Polymorphist's Jest) OR the DYNAMIC base-P/T-set pair
         # (b10 follow-up f): ``SetPowerDynamic`` + ``SetToughnessDynamic``
         # ("base power and toughness X/X" — Biomass Mutation; "…each equal
         # to your life total" — Aettir and Priwen). Distinct from the
         # ``SetDynamicPower`` CDA tags (:func:`_variable_pt` — Tarmogoyf).
+        # ADR-0038 W3 batch 4: a SINGLE fixed stat (``SetPower`` XOR
+        # ``SetToughness`` alone — Singing Tree/Island of Wak-Wak's "has base
+        # power 0", Withercrown's "has base power 0") ALSO fires — CR
+        # 613.4b's "and/or" explicitly covers a power-only or toughness-only
+        # set, and corpus-verified these ARE legacy members (a prior cut
+        # required BOTH stats, dropping every power-only/toughness-only
+        # setter).
+        if off_bf:
+            continue
         if not (
-            {"SetPower", "SetToughness"} <= mods
-            or {"SetPowerDynamic", "SetToughnessDynamic"} <= mods
+            mods & {"SetPower", "SetToughness"}
+            or ({"SetPowerDynamic", "SetToughnessDynamic"} <= mods and not other_stats)
         ):
             continue
-        if tag_of(resolved) not in ("Typed", "Or", "And"):
-            continue  # SelfRef self-transform, or an unresolvable ParentTarget
-            # ("It becomes a 0/0 Elemental" over a SIBLING land target —
-            # Cyclone Sire): no positive subject evidence, never fire
-        if set(filter_core_types(resolved)) & _BASE_PT_ANIMATE_CORES:
-            continue  # the land/artifact animator carve-out
-        if {s.lower() for s in filter_subtypes(resolved)} & _LAND_SUBTYPES:
-            continue  # a land-SUBTYPE subject ("enchanted Mountain becomes
-            # a 7/7" — Awaken the Ancient) is the same animator family
-        return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
+        rtag = tag_of(resolved)
+        if rtag not in ("SelfRef", "Typed", "Or", "And"):
+            continue  # an unresolvable ParentTarget ("It becomes a 0/0
+            # Elemental" over a SIBLING land target — Cyclone Sire): no
+            # positive subject evidence, never fire
+        if _BASE_PT_RAW_HOOK.search(text) or _BASE_PT_ANIMATE_HOOK.search(text):
+            return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
+        # neither hook fires — a land/artifact MASS/SELF-animator (Living
+        # Plane, Animate Land, Angel's Tomb, man-lands) says neither phrase,
+        # correctly excluded by TEXT alone (matching legacy exactly)
     for c in tree.effect_concepts("switch_pt"):
         tgt = getattr(c.node, "target", None)
         if tgt is None or tag_of(tgt) == "SelfRef":

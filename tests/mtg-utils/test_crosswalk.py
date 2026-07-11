@@ -793,6 +793,35 @@ def test_minus_counters_matter_kind_gate(name, should_fire):
     assert (("minus_counters_matter", "you", "") in _idents(name)) is should_fire
 
 
+def test_minus_counters_matter_cost_embedded_placement():
+    """ADR-0038 W3 batch 4: Devoted Druid's "Put a -1/-1 counter on this
+    creature: Untap this creature" places the ``PutCounter`` inside the
+    ability's OWN ``EffectCost``, invisible to ``effect_concepts`` (which
+    reads only the payoff chain) — a full node walk over the unit still
+    finds it. CR 601.2b (effect costs) / 122.1."""
+    assert ("minus_counters_matter", "you", "") in _idents("Devoted Druid")
+
+
+def test_minus_counters_matter_persist_enter_with_counters():
+    """ADR-0038 W3 batch 4: Kitchen Finks' Persist ("return it to the
+    battlefield ... with a -1/-1 counter on it") carries the M1M1 entry on
+    the re-entry ``ChangeZone``'s ``enter_with_counters`` field in v0.20.0's
+    mirror — a substrate SHAPE change from the legacy adapter's discrete
+    ``PutCounter`` Effect, not a lane gap. Persist's OWN reminder text is
+    entirely parenthetical, so only this structural read reaches it (the
+    kept-mirror text fallback can't — reminder-stripped). CR 122.6/702.79a."""
+    assert ("minus_counters_matter", "you", "") in _idents("Kitchen Finks")
+
+
+def test_minus_counters_matter_kept_mirror_replacement_dampener():
+    """ADR-0038 W3 batch 4: Vizier of Remedies' "-1/-1 counters minus one
+    are put on it instead" is a counter-quantity REPLACEMENT (CR 614), not a
+    ``PutCounter`` placement itself — recovered by the legacy's own
+    "-1/-1 counter" kept-mirror text fallback (the CARES-ABOUT residue,
+    matching the ``_signals_ir`` two-arm identity). CR 122.1/614."""
+    assert ("minus_counters_matter", "you", "") in _idents("Vizier of Remedies")
+
+
 @pytest.mark.parametrize("name", ["Inspiring Call", "Bioshift"])
 def test_plus_one_matters_structural_arms(name):
     assert ("plus_one_matters", "you", "") in _idents(name)
@@ -2620,6 +2649,62 @@ def test_cost_reduction_excludes_residual_self_discount(name):
 def test_cost_reduction_excludes_ramp_rock():
     """A flat ramp rock (Sol Ring) carries no ModifyCost static → no cost_reduction."""
     assert "cost_reduction" not in _keys("Sol Ring")
+
+
+@pytest.mark.parametrize("name", ["Training Grounds", "Fervent Champion"])
+def test_cost_reduction_reduce_ability_cost(name):
+    """ADR-0038 W3 batch 4: a ``ReduceAbilityCost{Reduce}`` static (a
+    v0.20.0 typed mode DISTINCT from ``ModifyCost`` — CR 601.2f/118.7 covers
+    activated-ability costs too) → cost_reduction you. Training Grounds
+    (generic creatures-you-control team reducer, ``affected=Typed``) and
+    Fervent Champion (a keyword-scoped "Equip abilities that target ~"
+    reducer, ``affected=None`` — the reduction rides ``keyword``+``activator``
+    fields, not a filter)."""
+    assert ("cost_reduction", "you", "") in _idents(name)
+
+
+def test_cost_reduction_any_node_description_residue():
+    """Ghostfire Blade's "~'s equip ability costs {2} less to activate if it
+    targets a colorless creature" fails phase's static parser entirely
+    (an ``Unimplemented`` node, "Static pattern matched but line failed
+    static parser") — read off that node's OWN description via the SAME
+    three textual gates (genuine reducer, not a self-discount, not an
+    increase) the deleted ``_COST_REDUCER_MIRROR`` applied, node-scoped
+    (ADR-0038 W3 batch 4). CR 601.2f/118.7."""
+    assert ("cost_reduction", "you", "") in _idents("Ghostfire Blade")
+
+
+def test_cost_reduction_whole_tree_kept_mirror_fallback():
+    """Henzie "Toolbox" Torre's second sentence ("Blitz costs you pay cost
+    {1} less for each time you've cast your commander from the command zone
+    this game") has NO node at all anywhere in phase's record — not even an
+    Unimplemented placeholder. The final kept-mirror text fallback (the SAME
+    three gates, scanned per-clause over the reminder-stripped face oracle)
+    is the only path to it (ADR-0038 W3 batch 4). CR 601.2f/118.7."""
+    assert ("cost_reduction", "you", "") in _idents('Henzie "Toolbox" Torre')
+
+
+def test_cost_reduction_excludes_multi_sentence_self_discount():
+    """Geistlight Snare: "This spell costs {1} less to cast if you control a
+    Spirit. It also costs {1} less to cast if you control an enchantment."
+    — the self-discount tell only names "this spell costs" in the FIRST
+    sentence; the "It also costs ... less" continuation is the SAME rider,
+    not an unrelated clause, so the kept-mirror fallback's self-discount
+    veto is CARD-LEVEL (searches the whole reminder-stripped oracle), not
+    per-clause — otherwise the second sentence would slip through and
+    false-fire (ADR-0038 W3 batch 4; the structural arm ALSO independently
+    excludes it via ``affected=SelfRef``)."""
+    assert "cost_reduction" not in _keys("Geistlight Snare")
+
+
+def test_cost_reduction_named_keyword_cost_beyond_legacy_gain():
+    """ADR-0038 W3 batch 4 adjudicated GAIN (beyond legacy's narrow 6-keyword
+    closed list — blitz/cycling/kicker/flashback/escape/ninjutsu): Warbringer's
+    "Dash costs you pay cost {2} less" is a genuine CR 601.2f/118.7 alternative-
+    cost reducer (Dash IS an alternative cost, CR 702.109) even though legacy's
+    OLD arm never recognized it. Pinned as an intentional beyond-legacy
+    precision widening, not a shed."""
+    assert ("cost_reduction", "you", "") in _idents("Warbringer")
 
 
 @pytest.mark.parametrize("name", ["Donate", "Bazaar Trader", "Harmless Offering"])
@@ -4637,6 +4722,61 @@ def test_keyword_grant_target_excludes_team_anthem():
     assert "keyword_grant_target" not in _keys("Akroma's Memorial")
 
 
+def test_keyword_grant_target_trigger_threaded_target():
+    """ADR-0038 W3 batch 4: the threaded-target walk (``It gains X`` idiom)
+    now runs for TRIGGER-origin units too, not just abilities — Conquering
+    Manticore's ETB "gain control of target creature ... Untap that
+    creature. It gains haste" threads the GainControl's Typed target through
+    the Untap/GenericEffect chain to the ParentTarget-affected haste static
+    (the SAME shape as the ability-form idiom, just riding a GainControl
+    producer effect first). Was a caller-side origin gate (``iter_
+    single_target_grants`` only ran for ``unit.origin == "ability"``), not a
+    missing accessor. CR 613.1f."""
+    assert ("keyword_grant_target", "you", "") in _idents("Conquering Manticore")
+
+
+@pytest.mark.parametrize(
+    "name", ["Chariot of the Sun", "Infuse with Vitality", "Balloon Stand"]
+)
+def test_keyword_grant_target_kept_mirror_fallback(name):
+    """ADR-0038 W3 batch 4: three phase-parse-loss residues with NO
+    AddKeyword node anywhere for the grant — Chariot of the Sun's "gains
+    flying and has base toughness 1" drops the AddKeyword modification
+    silently (only SetToughness survives); Infuse with Vitality's "gains
+    deathtouch and \"...\"" and Balloon Stand's modal Visit branch are both
+    entirely ``Unimplemented``/unparsed. Recovered by the deleted SWEEP
+    detector's exact regex, scanned whenever keyword_grant_target hasn't
+    already fired structurally (the legacy's own residue path). CR 613.1f."""
+    assert ("keyword_grant_target", "you", "") in _idents(name)
+
+
+def test_keyword_grant_target_kept_mirror_protection_choice():
+    """ADR-0038 W3 batch 4: Giver of Runes' "Another target creature you
+    control gains protection from colorless or from the color of your
+    choice" is a modal ``ChooseOneOf`` the flat/deep threaded-target walks
+    don't descend into (widening the SHARED ``iter_threaded_target_statics``
+    helper to follow ``ChooseOneOf.branches`` corpus-verified WRONG — it
+    over-fired on 6 "target creature gains your choice of KEYWORD1 or
+    KEYWORD2" modal cards legacy does NOT recognize, e.g. Apostle's
+    Blessing/Angelic Intervention/Practiced Offense). The kept-mirror text
+    fallback recovers Giver of Runes narrowly (its literal "target creature
+    you control gains protection" prefix) without that structural widening
+    or its over-fire. CR 613.1f."""
+    assert ("keyword_grant_target", "you", "") in _idents("Giver of Runes")
+
+
+def test_keyword_grant_target_reanimate_with_haste_beyond_legacy_gain():
+    """ADR-0038 W3 batch 4 adjudicated GAIN: Yggdrasil, Rebirth Engine's
+    "Put a creature card exiled with Yggdrasil onto the battlefield under
+    your control. It gains haste until end of turn." is a genuine CR
+    613.1f single-target keyword grant to the just-reanimated creature (the
+    threaded-target walk already covered this ability-origin shape before
+    this batch); legacy's OLD arm never recognized the exile-zone target
+    filter. Pinned as an intentional beyond-legacy precision gain, not a
+    shed."""
+    assert ("keyword_grant_target", "you", "") in _idents("Yggdrasil, Rebirth Engine")
+
+
 def test_protection_grant_arms():
     """CR 702.16a/702.11a: Gods Willing's parameterized ``{Protection: …}``
     variant (the KEY is the keyword name) and Snakeskin Veil's hexproof
@@ -4716,9 +4856,61 @@ def test_base_pt_set_set_and_switch_arms():
 def test_base_pt_set_animate_carve_out():
     """THE over-fire gate (live history): the mass land animator (Living
     Plane — a Land-cored affected filter) is a land_creatures_matter theme,
-    never base_pt_set; a flat pump (Giant Growth) has no Set mods."""
+    never base_pt_set; a flat pump (Giant Growth) has no Set mods. ADR-0038
+    W3 batch 4: the carve-out is TEXT-driven (Living Plane's "are 1/1
+    creatures" names neither ``_BASE_PT_RAW_HOOK`` nor
+    ``_BASE_PT_ANIMATE_HOOK``), not a core-type/subtype gate — see
+    ``test_base_pt_set_self_transform_hooks`` for the SelfRef/artifact-target
+    members a core-type gate previously dropped."""
     assert "base_pt_set" not in _keys("Living Plane")
     assert "base_pt_set" not in _keys("Giant Growth")
+
+
+@pytest.mark.parametrize("name", ["Figure of Destiny", "Singing Tree"])
+def test_base_pt_set_self_transform_hooks(name):
+    """ADR-0038 W3 batch 4 (corpus re-measure): membership is TEXT-HOOK
+    driven (``_BASE_PT_RAW_HOOK`` — a literal "base power"/"base toughness"),
+    not subject-core-type driven — a prior cut blanket-excluded EVERY
+    SelfRef site (Angel's Tomb/man-lands' carve-out), which also wrongly
+    dropped Figure of Destiny's self-level-up cycle ("becomes a Kithkin
+    Spirit with base power and toughness 2/2"). Singing Tree's "has base
+    power 0" is a SINGLE stat (SetPower alone, no SetToughness) — CR
+    613.4b's "and/or" covers it; a prior cut required BOTH stats present."""
+    assert ("base_pt_set", "any", "") in _idents(name)
+
+
+def test_base_pt_set_artifact_target_animate_hook():
+    """ADR-0038 W3 batch 4: Ensoul Artifact's "Enchanted artifact is a
+    creature with base power and toughness N/N in addition to its other
+    types" is a TARGETED (not self) Artifact-cored site that DOES name a
+    hook (both RAW and ANIMATE) — a prior cut's blanket Land/Artifact
+    core-type exclusion dropped it too, conflating it with the TEXT-
+    excluded mass animators (Living Plane, which names neither hook).
+    CR 613.4b."""
+    assert ("base_pt_set", "any", "") in _idents("Ensoul Artifact")
+    assert ("base_pt_set", "any", "") in _idents("Riddleform")
+
+
+def test_base_pt_set_excludes_object_stats_reference():
+    """ADR-0038 W3 batch 4: Eldrazi Mimic's "change this creature's base
+    power and toughness to that creature's power and toughness" is a
+    DYNAMIC pair whose value Refs ANOTHER object's OWN Power/Toughness — a
+    copy-stats idiom, not the toolbox's SCALAR dynamic form (Trench
+    Gorger's exiled-card count DOES fire). The raw text still literally
+    names "base power"/"base toughness", so the hook alone can't
+    discriminate — pop-verified False against legacy."""
+    assert "base_pt_set" not in _keys("Eldrazi Mimic")
+    assert ("base_pt_set", "any", "") in _idents("Trench Gorger")
+
+
+def test_base_pt_set_excludes_off_battlefield_gate():
+    """ADR-0038 W3 batch 4: Grist, the Hunger Tide's "As long as ~ isn't on
+    the battlefield, it's a 1/1 Insect creature in addition to its other
+    types" (a Commander-eligibility marker) is gated by a condition negating
+    on-battlefield presence — CR 613's layers apply to a permanent ON the
+    battlefield, so an off-battlefield-only P/T set is never a genuine
+    build-around; pop-verified False against legacy."""
+    assert "base_pt_set" not in _keys("Grist, the Hunger Tide")
 
 
 def test_variable_pt_cda_gate():
