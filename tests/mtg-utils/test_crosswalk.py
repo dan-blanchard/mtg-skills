@@ -918,6 +918,86 @@ def test_sacrifice_outlets_token_predicate_effect_arm():
     assert ("sacrifice_outlets", "you", "") in _idents("Chitterspitter")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Lord of the Pit",  # "sacrifice a creature other than ~" — bare imperative
+        "Disciple of Bolas",  # "sacrifice another creature" — ETB effect
+    ],
+)
+def test_sacrifice_outlets_unset_controller_defaults_to_you(name):
+    """ADR-0038 W6 endgame — the DOMINANT residual class: a Sacrifice EFFECT
+    whose target carries NO ``controller`` tag at all now defaults to you
+    (CR 109.5 — "you"/"your" means an object's controller; Magic's
+    templating omits an explicit "you" subject on a bare imperative
+    addressed to the ability's own controller)."""
+    assert ("sacrifice_outlets", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Witch-king, Bringer of Ruin",  # "defending player sacrifices ..."
+        "Labyrinth Raptor",  # "defending player sacrifices ..."
+    ],
+)
+def test_sacrifice_outlets_unset_controller_other_actor_excluded(name):
+    """ADR-0038 W6 endgame: phase leaves the ``controller`` tag EQUALLY
+    unset for "defending player sacrifices a creature" as it does for a
+    genuine bare-imperative self-sac (see
+    :func:`test_sacrifice_outlets_unset_controller_defaults_to_you`) — a
+    naive unset-to-you default over-fires here. The clause-head
+    disambiguator (:func:`~mtg_utils._deck_forge.crosswalk_signals.
+    _sac_effect_names_other_actor`) reads the owning ability's OWN
+    templated text and heads the sacrifice clause with "defending player,"
+    a non-controller actor (CR 701.21a — a player may only sacrifice a
+    permanent THEY control)."""
+    assert "sacrifice_outlets" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Nicol Bolas, Planeswalker",  # "-9: ... discards ..., then sacrifices ..."
+        "Undercity Plague",  # "Target player loses..., discards..., sacrifices..."
+    ],
+)
+def test_sacrifice_outlets_unset_controller_compound_predicate_excluded(name):
+    """ADR-0038 W6 endgame: a compound predicate shares ONE subject across
+    several comma-joined verbs — "That player or that planeswalker's
+    controller discards seven cards, then sacrifices seven permanents"
+    (Nicol Bolas) and "Target player loses 1 life, discards a card, then
+    sacrifices a permanent" (Undercity Plague) both put real distance
+    between the actor and "sacrifices". A first-attempt proximity-window
+    probe missed both and over-fired; the clause-head test
+    (:func:`~mtg_utils._deck_forge.crosswalk_signals._sac_effect_names_
+    other_actor`) correctly heads the WHOLE sentence, not just the words
+    immediately before "sacrifices" (CR 701.21a)."""
+    assert "sacrifice_outlets" not in _keys(name)
+
+
+def test_sacrifice_outlets_granted_activated_cost():
+    """ADR-0038 W6 endgame: Lunarch Mantle's Aura grants an enchanted
+    creature "Sacrifice a permanent: This creature gains flying" — a
+    GRANTED activated ability whose OWN cost carries a non-land Sacrifice
+    leaf. A COST is always paid by the ACTIVATOR (CR 602.1a); for a granted
+    ability that's whoever controls the recipient permanent, which deck-
+    signal purposes treat as "you" (a beneficial Aura is overwhelmingly
+    attached to your own creature)."""
+    assert ("sacrifice_outlets", "you", "") in _idents("Lunarch Mantle")
+
+
+def test_sacrifice_outlets_ward_cost_excluded():
+    """ADR-0038 W6 endgame: Mishra, Tamer of Mak Fawa's granted "Ward—
+    Sacrifice a permanent" is a Ward cost — phase's ``tag_of`` collapses
+    ``T_Ward__Sacrifice`` to the SAME ``"Sacrifice"`` string as a regular
+    cost leaf, but a Ward cost is paid by the OPPONENT who targeted the
+    warded permanent (CR 702.21a: "counter that spell or ability unless
+    THAT PLAYER pays [cost]"), never the ability's own controller — the
+    granted-cost descent excludes it by CLASS NAME, not tag."""
+    assert "sacrifice_outlets" not in _keys("Mishra, Tamer of Mak Fawa")
+
+
 def test_death_matters_not_fired_by_noncreature_arrival():
     """Scrapheap watches an artifact/enchantment put into the graveyard from the
     battlefield — only CREATURES "die" (CR 700.4), so it must not fire."""

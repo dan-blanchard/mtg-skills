@@ -1282,6 +1282,39 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "opponent_discard",
         "plus_one_matters",
         "ramp",
+        # ADR-0038 W6 endgame (2026-07): live_only cut 275 -> 191 via two
+        # genuine adjudicated arms (:func:`_sacrifice_outlets`'s own
+        # docstring) — the unset-controller "you" default (CR 109.5,
+        # clause-head disambiguated, ~85 cards, MANDATORY-SHED-safe: Last
+        # Voyage of the _____ verified pinned excluded) and the
+        # GrantAbility-cost descent (~6 cards). ~141 of the remaining 191
+        # are TESTED sheds (land_sacrifice_makers territory ~107, the
+        # Grave-Pact edict-mislabel class ~18, bare-self/subject-dropped
+        # ~14, TargetPlayer/ScopedPlayer edicts, "any player" ambiguity).
+        # Landfall rule NOT yet met — two GENUINE gap classes remain,
+        # bridge-ledger input for a later phase (ADR-0039): (1) ~39 cards
+        # where phase's typed tree carries NO Sacrifice node ANYWHERE —
+        # confirmed via direct tree dump — because the Spell ability's own
+        # ``cost`` field is ``None`` for an ALTERNATIVE cost ("rather than
+        # pay this spell's mana cost" — Salvage Titan, Delraich, the Flare
+        # cycle; Flashback/Morph/Buyback sac costs — Dread Return, Cabal
+        # Therapy, Gift of Doom), plus three narrower parser gaps inside
+        # the same bucket: Exploit is not decomposed into any triggered-
+        # ability node at all (Silumgar Scavenger), Devour sits as a bare
+        # keyword tag on a CREATED TOKEN's own definition with no expanded
+        # Sacrifice semantics (Dragon Broodmother; Thromok's OWN Devour is
+        # at least reachable as an ``Unimplemented`` node whose description
+        # literally starts "Devour N" — a narrow last-resort keyword-text
+        # arm was NOT added this session, kept out of scope), and a
+        # Casualty keyword GRANTED onto ANOTHER spell rather than the
+        # bearer's own keyword array (Anhelo, the Painter; Silverquill, the
+        # Disputant). (2) ~6 cards carrying a wrapper-scoped symmetric
+        # ``ParentTargetController`` sac ("for each creature, its
+        # controller sacrifices" — Fade Away, Tainted Aether, Phyrexian
+        # Obliterator, Maarika, Brutal Gladiator) — a genuine structural
+        # read exists but was risk-deferred pre-W6 (widens the edict-owner
+        # gate beyond that session's corpus-verification budget); W6
+        # re-confirmed the deferral rather than re-litigating it blind.
         "sacrifice_outlets",
         "target_player_draws",
         # ADR-0038 W5c (2026-07-11): token_maker NOT YET PROMOTED — live_only
@@ -2803,22 +2836,50 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     wrapper/controller read here correctly does not). A bare-self ("sacrifice
     this/it") or Land-only sac (:data:`_LAND_SUBTYPES`) is excluded too; the
     bare-self / subject-dropped raw fallback stays a documented residue (see
-    the recall-completion b1 note below). A sac EFFECT whose target carries
-    NO ``controller`` tag AT ALL (neither ``You`` nor an edict actor) stays OUT
-    of :func:`_is_you_sac_subject` (which requires ``controller == "You"``
-    exactly) even though CR 701.21a's silent default would often read it as
-    you-sac — this is DELIBERATE: an unset controller is genuinely AMBIGUOUS
-    in the substrate, not a safe you-default. Two shapes share it: Last
-    Voyage of the _____'s "sacrifice enchanted creature" (an ``EnchantedBy``
-    target, a forced Aura-death consequence, not a discretionary outlet —
-    MANDATORY SHED, recorded session adjudication) and Thalia and The Gitrog
-    Monster / Harvester Troll's sibling "sacrifice a creature or land" (a
-    genuine you-sac phase simply never tags — probed a "default unset-
-    controller to implicitly you" arm this session and it ALSO +10
-    false-fired on "defending player sacrifices" / "that player sacrifices"
-    shapes phase leaves EQUALLY uncontrolled — Witch-king Bringer of Ruin,
-    Nefarox, Labyrinth Raptor, Gisa's Favorite Shovel — so the arm was
-    reverted; the genuine gain stays a documented residue). Scope "you".
+    the recall-completion b1 note below).
+
+    ADR-0038 W6 endgame — the unset-controller class (Lord of the Pit,
+    Disciple of Bolas, Desecration Elemental: the DOMINANT residual class
+    this wave, ~80 cards). A sac EFFECT whose target carries NO ``controller``
+    tag at all (neither ``You`` nor an edict actor) now DEFAULTS to you
+    (CR 109.5 — "you"/"your" on an object means its controller; Magic's
+    templating omits an explicit "you" subject on a bare imperative
+    addressed to the ability's own controller) UNLESS the owning unit's own
+    templated text heads the sacrifice clause with a non-controller actor
+    (:func:`_sac_effect_names_other_actor` — "defending player sacrifices",
+    "each opponent sacrifices", "any player may sacrifice" — Witch-king
+    Bringer of Ruin, Nefarox, Labyrinth Raptor, Prowling Pangolin, Brain
+    Gorgers). A prior probe defaulted blindly and reverted after a +10
+    over-fire on exactly those third-party shapes (phase leaves their
+    ``controller`` EQUALLY unset); the clause-head disambiguator is what
+    makes the default safe — see :func:`_sac_effect_names_other_actor`'s own
+    docstring for the compound-predicate corpus misses (Nicol Bolas
+    Planeswalker, Undercity Plague) a naive proximity window hit first. Two
+    shapes remain OUT even with the default: Last Voyage of the _____'s
+    "sacrifice enchanted creature" (an ``EnchantedBy`` target, a forced
+    Aura-death consequence, not a discretionary outlet — MANDATORY SHED,
+    recorded session adjudication) carries a present, non-land, non-Token
+    subject (``type_filters=['Creature']`` alongside the ``EnchantedBy``
+    predicate — :func:`_sac_subject_present` returns ``True``) and an
+    unset controller with NO other-actor phrase in its text either, so a
+    blind unset-to-you default DOES fire on it — :func:`_is_you_sac_subject`
+    carries an explicit ``EnchantedBy``-predicate guard alongside the
+    other-actor check, catching a TRACKED REFERENCE to a specific object as
+    a fundamentally different shape from a freely-chosen "a creature"; "any
+    player may sacrifice" (Prowling Pangolin, Brain Gorgers) is caught by
+    the clause-head test (neither you nor an opponent specifically — a true
+    coin-flip actor, correctly excluded).
+
+    ADR-0038 W6 endgame — a GRANTED activated-ability outlet
+    (:func:`_sac_outlet_granted_cost` — Lunarch Mantle, Fallen Ideal, Street
+    Urchin, Clan Crafter, Animal Boneyard, Consecrated by Blood: an Aura /
+    Equipment / static ``GrantAbility`` whose granted ability's OWN
+    activation cost is a non-land, non-Ward Sacrifice leaf). A ``GrantTrigger``-
+    conferred sac (a curse-shaped TRIGGERED grant — "Enchanted creature has
+    'At the beginning of your upkeep, sacrifice a creature.'" — Wayward
+    Angel, Cultist of the Absolute, Inevitable End) is a DIFFERENT wrapper
+    tag and stays OUT, deliberately: that shape is overwhelmingly an
+    opponent-facing curse, not a self-outlet. Scope "you".
     """
     for unit in tree.units:
         if unit.trigger_event in ("sacrificed", "exploited"):
@@ -2841,7 +2902,7 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
         for c in unit.effects:
             if (
                 c.concept == "sacrifice"
-                and _is_you_sac_subject(c, cost=False)
+                and _is_you_sac_subject(c, cost=False, unit=unit)
                 and not _sac_is_edict(unit, c.node)
             ):
                 return [
@@ -2849,6 +2910,8 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
                 ]
     m = _CAST_ADD_SAC_RX.search(_kept(tree))
     if m and not _cast_add_sac_clause_is_land_only(m.group(1)):
+        return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
+    if _sac_outlet_granted_cost(tree):
         return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
     # recall-completion b1: the subject-dropped / modal you-sac raw fallback
     # (_SAC_OUTLET_RAW) is DELIBERATELY NOT ported. The IR gates it PER-EFFECT
@@ -2862,19 +2925,62 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     # ``ParentTargetController`` sac ("for each creature, its controller
     # sacrifices" — Fade Away, Tainted Aether, Maarika, Brutal Gladiator) —
     # a genuine structural read exists but risks widening the edict-owner
-    # gate beyond corpus-verification budget; a "Grant"-conferred sac
-    # ability (Animal Boneyard's enchanted-land grant, Lunarch Mantle,
-    # Fallen Ideal — the GRANTED ability's activator is whoever controls
-    # the enchanted/equipped permanent, not necessarily this ability's
-    # controller — the SAME "unset controller is genuinely ambiguous"
-    # adjudication above applies) and the Casualty-GRANT shape (Anhelo, the
-    # Painter's "has casualty 2" on ANOTHER spell, not its own keyword
-    # array) similarly deferred; a phase parse gap where a cost quantifier
-    # shape ("up to three permanents", "one or more artifacts" — Baba
-    # Lysaga, Radiant Lotus) decorates a wholly EMPTY target filter (no
-    # type info recoverable structurally) stays residue too — see the
-    # ADR-0038 W4 giants / W5 tails session reports.
+    # gate beyond corpus-verification budget; a ``GrantTrigger``-conferred
+    # sac (a TRIGGERED, not activated, granted ability — "Enchanted creature
+    # has 'At the beginning of your upkeep, sacrifice a creature.'" —
+    # Wayward Angel, Cultist of the Absolute, Inevitable End: this shape is
+    # overwhelmingly a CURSE Aura meant for an OPPONENT's creature, not a
+    # self-outlet, so :func:`_sac_outlet_granted_cost` deliberately scopes
+    # to ``GrantAbility`` — an ACTIVATED grant — only) and the Casualty-GRANT
+    # shape (Anhelo, the Painter's "has casualty 2" on ANOTHER spell, not
+    # its own keyword array) similarly deferred; a phase parse gap where a
+    # cost quantifier shape ("up to three permanents", "one or more
+    # artifacts" — Baba Lysaga, Radiant Lotus) decorates a wholly EMPTY
+    # target filter (no type info recoverable structurally) stays residue
+    # too — see the ADR-0038 W4 giants / W5 tails session reports.
     return []
+
+
+def _sac_outlet_granted_cost(tree: ConceptTree) -> bool:
+    """Whether TREE grants (via ``GrantAbility``) an ACTIVATED ability whose
+    OWN activation cost carries a non-land, non-Ward Sacrifice leaf (ADR-0038
+    W6 endgame — Lunarch Mantle "Sacrifice a permanent: gains flying",
+    Fallen Ideal, Street Urchin, Clan Crafter, Animal Boneyard, Consecrated
+    by Blood).
+
+    A COST is always paid by the ability's ACTIVATOR (CR 602.1a) — for a
+    GRANTED activated ability that's whoever controls the permanent it's
+    granted to. Deck-signal purposes treat that as "you": a beneficial
+    Aura/Equipment/static granting a NEW activated outlet is overwhelmingly
+    attached to your OWN permanent (unlike a curse-shaped TRIGGERED grant —
+    see the caller's docstring), so the same CR 109.5 "you" convention
+    applies in practice. :func:`iter_typed_nodes` reaches the granted
+    ability's ``.definition.cost`` even though it sits behind a field
+    outside the fixed unit/effect walk (the same generic-descent precedent
+    ``opponent_discard``'s Mindlash Sliver read and the discard/draw
+    GrantAbility arms use elsewhere in this module).
+
+    A ``Ward`` cost (Mishra, Tamer of Mak Fawa's "Ward—Sacrifice a
+    permanent") is EXCLUDED by class name, not tag — phase's ``tag_of``
+    collapses ``T_Ward__Sacrifice`` to the SAME ``"Sacrifice"`` string as a
+    regular cost leaf, but a Ward cost is paid by the OPPONENT who targeted
+    the warded permanent (CR 702.21a: "counter that spell or ability unless
+    THAT PLAYER pays [cost]"), never the ability's own controller.
+    """
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "GrantAbility":
+                continue
+            defn = getattr(n, "definition", None)
+            cost = getattr(defn, "cost", None)
+            for leaf in iter_cost_leaves(cost):
+                if (
+                    tag_of(leaf) == "Sacrifice"
+                    and not type(leaf).__name__.startswith("T_Ward__")
+                    and _sac_leaf_is_you_outlet(leaf)
+                ):
+                    return True
+    return False
 
 
 # player_scope actor tags that are NOT the ability's controller (an edict makes
@@ -2903,16 +3009,96 @@ def _sac_is_edict(unit: AbilityUnit, sac_node: TypedMirrorNode) -> bool:
     )
 
 
-def _is_you_sac_subject(c: object, *, cost: bool) -> bool:
+# ADR-0038 W6 endgame: a Sacrifice EFFECT whose target filter carries NO
+# ``controller`` tag at all (``None`` — Lord of the Pit, Disciple of Bolas,
+# Desecration Elemental, the dominant live_only class this wave) is
+# genuinely ambiguous in phase's own structure — CR 109.5 defines "you" as
+# an object's controller and Magic's templating omits an explicit "you"
+# subject on a bare imperative addressed to the ability's own controller
+# ("sacrifice a creature", no actor named — self, CR 109.5) while ALWAYS
+# spelling out a THIRD-PARTY subject at the head of its own clause when
+# someone else is meant ("defending player sacrifices", "each opponent
+# sacrifices", "any player may sacrifice" — Witch-king Bringer of Ruin,
+# Nefarox, Labyrinth Raptor, Prowling Pangolin, Brain Gorgers). Phase
+# leaves the target ``controller`` EQUALLY unset for both shapes (probed:
+# Labyrinth Raptor's "defending player sacrifices" carries the identical
+# ``controller=None`` as Lord of the Pit's bare "sacrifice a creature"), so
+# a blind unset-to-you default over-fires on the third-party shapes (a
+# prior W5 probe hit exactly this and reverted). :func:`_sac_effect_names_
+# other_actor` reads the owning unit's ``description`` (verified populated
+# with the FULL multi-clause ability text on the outer trigger/activated
+# node, even when the Sacrifice sits on a nested ``sub_ability`` — Lord of
+# the Pit, Disciple of Bolas), isolates the SENTENCE naming "sacrific-",
+# strips a leading dependent/trigger clause ("Whenever ~ attacks," / "When
+# ~ enters,") and an activated-ability cost prefix ("{4}, {T}, Sacrifice
+# ~:"), and checks whether the REMAINING main clause's own SUBJECT (its
+# leading words) is a non-controller actor. A clause-HEAD test (not a bare
+# proximity window) is required because Magic's compound predicates share
+# one subject across several comma-joined verbs — "Target player loses 1
+# life, discards a card, then sacrifices a permanent" and "That player or
+# that planeswalker's controller discards seven cards, then sacrifices
+# seven permanents" (Undercity Plague, Nicol Bolas Planeswalker) both put
+# real distance between the actor and "sacrifices"; a first-attempt
+# proximity-window probe missed both and over-fired. The clause-head test
+# also correctly REJECTS a later, unrelated clause naming an opponent
+# (Lord of Tresserhorn's "you sacrifice two creatures, and target opponent
+# draws two cards" — "target opponent" heads its OWN clause after "and",
+# not the sacrifice clause). Corpus-verified against the full
+# unset-controller class: 79/81 default to you, exactly the 2 "any player
+# may sacrifice" cards (Prowling Pangolin, Brain Gorgers — neither you nor
+# an opponent specifically, a true coin-flip actor) exclude.
+_SAC_DEPENDENT_CLAUSE_RX = re.compile(
+    r"^(when|whenever|at the beginning of|if|as|before|during)\b",
+    re.IGNORECASE,
+)
+_SAC_OTHER_ACTOR_HEAD_RX = re.compile(
+    r"^\s*(defending player|that player|target player|target opponent|"
+    r"each opponent|another player|its controller|their controller|"
+    r"a player other than you|any player|each player|an opponent|"
+    r"that planeswalker.s controller)\b",
+    re.IGNORECASE,
+)
+
+
+def _sac_effect_names_other_actor(unit: AbilityUnit) -> bool:
+    """Whether UNIT's own templated ability text HEADS the sacrifice clause
+    with a non-controller actor (:data:`_SAC_OTHER_ACTOR_HEAD_RX`, after
+    stripping a leading dependent clause / activated-ability cost prefix) —
+    the CR 109.5 "you" default does NOT apply (ADR-0038 W6 endgame).
+    """
+    desc = getattr(getattr(unit, "node", None), "description", "") or ""
+    for sentence in re.split(r"(?<=[.!?])\s+", desc):
+        if "sacrific" not in sentence.lower():
+            continue
+        clause = sentence
+        while _SAC_DEPENDENT_CLAUSE_RX.match(clause) and "," in clause:
+            clause = clause.split(",", 1)[1]
+        if ":" in clause and not _SAC_DEPENDENT_CLAUSE_RX.match(clause.strip()):
+            clause = clause.rsplit(":", 1)[-1]
+        if _SAC_OTHER_ACTOR_HEAD_RX.match(clause):
+            return True
+    return False
+
+
+def _is_you_sac_subject(
+    c: object, *, cost: bool, unit: AbilityUnit | None = None
+) -> bool:
     """Whether a ``sacrifice`` concept-node is a YOU-sac outlet (not an edict).
 
     The sacrificed subject must be present and not land-only (a bare-self / land sac
     is a different lane — :func:`_sac_subject_present`, reading the TARGET filter
     directly rather than the pre-flattened ``c.subject`` tuple). For an EFFECT
     (``cost=False``) the sacrificed filter's ``controller`` must be explicitly
-    ``You`` — a ``null``/``TargetPlayer``/``ScopedPlayer`` controller is another
-    player sacrificing (an edict). A COST is always paid by the controller, so its
-    subject controller is not consulted.
+    ``You``, OR unset with no other-actor phrase in the owning ``unit``'s own text
+    (:func:`_sac_effect_names_other_actor`, ADR-0038 W6 endgame — CR 109.5) — a
+    ``TargetPlayer``/``ScopedPlayer`` controller, an unset controller whose text
+    DOES name another actor, or an unset controller on an ``EnchantedBy``-tracked
+    subject (Last Voyage of the _____'s "sacrifice enchanted creature" — a forced
+    Aura-death consequence per CR 303.4b, not a discretionary outlet; a tracked
+    REFERENCE to a specific object is a fundamentally different shape than a
+    freely-chosen "a creature", so the ``you`` default does not extend to it,
+    MANDATORY SHED) is edict/non-outlet territory. A COST is always paid by the
+    controller, so its subject controller is not consulted.
 
     ADR-0038 W5 tails bugfix: the land exclusion now reads the CR 205.3i subtype
     vocabulary too (:data:`_LAND_SUBTYPES`), not just the bare core type ``Land`` —
@@ -2932,7 +3118,16 @@ def _is_you_sac_subject(c: object, *, cost: bool) -> bool:
         return False
     if cost:
         return True
-    return filter_controller(target) == "You"
+    ctrl = filter_controller(target)
+    if ctrl == "You":
+        return True
+    if (
+        ctrl is None
+        and unit is not None
+        and "EnchantedBy" not in filter_predicates(target)
+    ):
+        return not _sac_effect_names_other_actor(unit)
+    return False
 
 
 def _lifegain_matters(tree: ConceptTree) -> list[Signal]:
