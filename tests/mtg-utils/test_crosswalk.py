@@ -787,6 +787,52 @@ def test_sacrifice_outlets_land_only_excluded(name):
     assert "sacrifice_outlets" not in _keys(name)
 
 
+def test_sacrifice_outlets_land_subtype_effect_arm_excluded():
+    """ADR-0038 W5 tails bugfix: a land-SUBTYPE-only ``Sacrifice`` EFFECT
+    ("sacrifice a Swamp" — Akuta, Born of Ash's upkeep trigger) previously
+    slipped past the effect arm's exclusion, which only tested the bare
+    core-type tuple ``("Land",)`` and never the CR 205.3i subtype
+    vocabulary (:data:`~mtg_utils._deck_forge.crosswalk_signals._LAND_SUBTYPES`)
+    the cost-leaf arm already read. Both arms now share ONE subject-presence
+    read (:func:`~mtg_utils._deck_forge.crosswalk_signals._sac_subject_present`),
+    so a Swamp-only sacrifice stays ``land_sacrifice_makers`` territory here
+    too (CR 701.21a — a player may only sacrifice a permanent they control;
+    the LAND-subtype scoping is a lane boundary, not a rules distinction)."""
+    assert "sacrifice_outlets" not in _keys("Akuta, Born of Ash")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Hardened Tactician",  # "{1}, Sacrifice a token: Draw a card."
+        "Rat King, Pale Piper",  # "{2}, Sacrifice a token: Draw a card."
+    ],
+)
+def test_sacrifice_outlets_token_predicate_cost_leaf(name):
+    """ADR-0038 W5 tails: a ``Token`` PREDICATE-only sacrifice subject
+    ("sacrifice a token") carries NO core type or subtype word —
+    :func:`~mtg_utils._card_ir.crosswalk.filter_core_types` /
+    :func:`~mtg_utils._card_ir.crosswalk.filter_subtypes` only read a
+    filter's ``type_filters``, never its ``properties`` predicate list
+    where phase tags ``Token`` — so it previously fell through the ``not
+    core and not sub`` empty-subject gate in the Composite cost-leaf walk.
+    A token IS a permanent (CR 111.1) and a cost is always paid by the
+    activator (CR 602.1a), so this is unambiguously a you-sac outlet."""
+    assert ("sacrifice_outlets", "you", "") in _idents(name)
+
+
+def test_sacrifice_outlets_token_predicate_effect_arm():
+    """ADR-0038 W5 tails: the SAME ``Token``-predicate gap
+    (:func:`test_sacrifice_outlets_token_predicate_cost_leaf`) also hit the
+    EFFECT arm — Chitterspitter's "you may sacrifice a token" trigger
+    carries an explicit ``controller: You`` on a Token-predicate-only
+    filter; :func:`~mtg_utils._deck_forge.crosswalk_signals._is_you_sac_subject`
+    now reads the shared :func:`~mtg_utils._deck_forge.crosswalk_signals._sac_subject_present`
+    helper instead of the pre-flattened ``c.subject`` tuple, so this fires
+    too (CR 111.1, CR 701.21a)."""
+    assert ("sacrifice_outlets", "you", "") in _idents("Chitterspitter")
+
+
 def test_death_matters_not_fired_by_noncreature_arrival():
     """Scrapheap watches an artifact/enchantment put into the graveyard from the
     battlefield — only CREATURES "die" (CR 700.4), so it must not fire."""

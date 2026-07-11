@@ -2319,27 +2319,41 @@ def _landfall(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _sac_leaf_is_you_outlet(leaf: TypedMirrorNode) -> bool:
-    """Whether a cost-position ``Sacrifice`` LEAF (:func:`iter_cost_leaves`) is a
-    you-sac outlet: a present, non-land(-subtype) subject.
+def _sac_subject_present(tgt: object) -> bool:
+    """Whether a sacrifice target filter names a present, non-land(-subtype)
+    subject — shared by the cost-leaf arm and the effect arm (ADR-0038 W5
+    tails).
 
-    A COST is ALWAYS paid by the activator (CR 602.1a — "activation cost must
-    be paid by the player who is activating it"), so no controller/edict read
-    applies here, unlike the EFFECT arm below. The land exclusion reads BOTH
-    the bare core type (``Land``) and the CR 205.3i subtype vocabulary
-    (:data:`_LAND_SUBTYPES`) — Alpine Guide / Landslide / The First Eruption's
-    "sacrifice a Mountain" stays ``land_sacrifice_makers`` territory, not
-    widened here (a NEW arm, so this precision costs nothing the old exact
-    ``("Land",)`` tuple check already had).
+    Reads BOTH the bare core type (``Land``) and the CR 205.3i subtype
+    vocabulary (:data:`_LAND_SUBTYPES`) — Alpine Guide / Landslide / The
+    First Eruption's "sacrifice a Mountain" stays ``land_sacrifice_makers``
+    territory. A ``Token`` PREDICATE-only subject ("sacrifice a token" —
+    Hardened Tactician, Rat King, Pale Piper; CR 111.1 tokens are
+    permanents) is ALSO a present subject even though it carries no core
+    type or subtype word — :func:`filter_core_types` /
+    :func:`filter_subtypes` only read ``type_filters``, never the
+    ``properties`` predicate list, so a bare ``{Token}`` filter previously
+    fell through the ``not core and not sub`` empty-subject gate.
     """
-    tgt = getattr(leaf, "target", None)
     core = filter_core_types(tgt)
     sub = filter_subtypes(tgt)
     if not core and not sub:
-        return False
+        return "Token" in filter_predicates(tgt)
     non_land_core = [w for w in core if w != "Land"]
     non_land_sub = [w for w in sub if w.lower() not in _LAND_SUBTYPES]
     return bool(non_land_core or non_land_sub)
+
+
+def _sac_leaf_is_you_outlet(leaf: TypedMirrorNode) -> bool:
+    """Whether a cost-position ``Sacrifice`` LEAF (:func:`iter_cost_leaves`) is a
+    you-sac outlet: a present, non-land(-subtype) subject
+    (:func:`_sac_subject_present`).
+
+    A COST is ALWAYS paid by the activator (CR 602.1a — "activation cost must
+    be paid by the player who is activating it"), so no controller/edict read
+    applies here, unlike the EFFECT arm below.
+    """
+    return _sac_subject_present(getattr(leaf, "target", None))
 
 
 # ADR-0038 W4 giants: "As an additional cost to cast this spell, sacrifice
@@ -2433,6 +2447,22 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     NO node for at all (probed: Bone Splinters' Spell ability's ``cost`` is
     ``None``).
 
+    ADR-0038 W5 tails: the cost-leaf and effect-subject arms now share ONE
+    subject-presence read, :func:`_sac_subject_present`, fixing two gaps.
+    (1) A land-SUBTYPE-only sacrifice ("sacrifice a Swamp" — Akuta, Born of
+    Ash) previously slipped past the EFFECT arm's exclusion, which only
+    tested the bare core type tuple ``("Land",)`` — the cost-leaf arm
+    already read :data:`_LAND_SUBTYPES`, the effect arm did not; both now
+    share the one land check. (2) A ``Token`` PREDICATE-only subject
+    ("sacrifice a token" — Hardened Tactician, Rat King Pale Piper,
+    Fountainport, Chitterspitter, Glimmer Bairn, Combine Chrysalis, Izoni)
+    carries no core type or subtype word (:func:`filter_core_types` /
+    :func:`filter_subtypes` only read ``type_filters``; ``Token`` lives in
+    the filter's ``properties`` list), so it previously fell through the
+    ``not core and not sub`` empty-subject gate on BOTH arms — a real
+    outlet either way a token comes from a permanent you control (CR
+    111.1, CR 701.21a).
+
     An effect that makes ANOTHER player sacrifice (``TargetPlayer`` — Diabolic
     Edict; ``null``/each — Barter in Blood, Fleshbag Marauder; ``ScopedPlayer``
     — Sheoldred; a wrapper ``player_scope`` naming Opponent/All/Each — Grave
@@ -2500,15 +2530,22 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     # + an oracle-clause match over-fires (+11 crosswalk_only: Braids, Serendib Djinn,
     # Phyrexian War Beast — "sacrifice unless" downsides and upkeep saccers), so it
     # stays a documented ``live_only`` residue (ADR-0035 convergence tail). CR
-    # 701.16 / 701.21. Also documented residue this session: a wrapper-scoped
-    # symmetric ``ParentTargetController`` sac ("for each creature, its
-    # controller sacrifices" — Fade Away, Tainted Aether) — a genuine
-    # structural read exists but risks widening the edict-owner gate beyond
-    # this session's corpus-verification budget; a "Grant"-conferred sac
-    # ability (Animal Boneyard's enchanted-land grant) and the Casualty-GRANT
-    # shape (Anhelo, the Painter's "has casualty 2" on ANOTHER spell, not its
-    # own keyword array) similarly deferred — see the ADR-0038 W4 giants
-    # session report.
+    # 701.16 / 701.21. Also documented residue: a wrapper-scoped symmetric
+    # ``ParentTargetController`` sac ("for each creature, its controller
+    # sacrifices" — Fade Away, Tainted Aether, Maarika, Brutal Gladiator) —
+    # a genuine structural read exists but risks widening the edict-owner
+    # gate beyond corpus-verification budget; a "Grant"-conferred sac
+    # ability (Animal Boneyard's enchanted-land grant, Lunarch Mantle,
+    # Fallen Ideal — the GRANTED ability's activator is whoever controls
+    # the enchanted/equipped permanent, not necessarily this ability's
+    # controller — the SAME "unset controller is genuinely ambiguous"
+    # adjudication above applies) and the Casualty-GRANT shape (Anhelo, the
+    # Painter's "has casualty 2" on ANOTHER spell, not its own keyword
+    # array) similarly deferred; a phase parse gap where a cost quantifier
+    # shape ("up to three permanents", "one or more artifacts" — Baba
+    # Lysaga, Radiant Lotus) decorates a wholly EMPTY target filter (no
+    # type info recoverable structurally) stays residue too — see the
+    # ADR-0038 W4 giants / W5 tails session reports.
     return []
 
 
@@ -2541,11 +2578,20 @@ def _sac_is_edict(unit: AbilityUnit, sac_node: TypedMirrorNode) -> bool:
 def _is_you_sac_subject(c: object, *, cost: bool) -> bool:
     """Whether a ``sacrifice`` concept-node is a YOU-sac outlet (not an edict).
 
-    The sacrificed subject must be present and not Land-only (a bare-self / land sac
-    is a different lane). For an EFFECT (``cost=False``) the sacrificed filter's
-    ``controller`` must be explicitly ``You`` — a ``null``/``TargetPlayer``/
-    ``ScopedPlayer`` controller is another player sacrificing (an edict). A COST is
-    always paid by the controller, so its subject controller is not consulted.
+    The sacrificed subject must be present and not land-only (a bare-self / land sac
+    is a different lane — :func:`_sac_subject_present`, reading the TARGET filter
+    directly rather than the pre-flattened ``c.subject`` tuple). For an EFFECT
+    (``cost=False``) the sacrificed filter's ``controller`` must be explicitly
+    ``You`` — a ``null``/``TargetPlayer``/``ScopedPlayer`` controller is another
+    player sacrificing (an edict). A COST is always paid by the controller, so its
+    subject controller is not consulted.
+
+    ADR-0038 W5 tails bugfix: the land exclusion now reads the CR 205.3i subtype
+    vocabulary too (:data:`_LAND_SUBTYPES`), not just the bare core type ``Land`` —
+    the OLD ``subj == ("Land",)`` check let a land-SUBTYPE-only sacrifice ("sacrifice
+    a Swamp" — Akuta, Born of Ash) slip through as a false ``sacrifice_outlets``
+    fire (land_sacrifice_makers territory, CR 701.21a); the cost-leaf arm already
+    carried this precision (:func:`_sac_leaf_is_you_outlet`), the effect arm did not.
 
     ADR-0038 W4 giants bugfix: the controller read uses :func:`filter_controller`
     (recurses ``Or``/``And``) rather than a bare ``getattr`` gated to ``tag_of ==
@@ -2553,12 +2599,11 @@ def _is_you_sac_subject(c: object, *, cost: bool) -> bool:
     Boilerbilges Ripper) is an ``Or`` filter at the top, so the OLD inline check
     always returned ``False`` even when a sub-arm carried ``controller: You``.
     """
-    subj = tuple(getattr(c, "subject", ()))
-    if not subj or subj == ("Land",):
+    target = getattr(getattr(c, "node", None), "target", None)
+    if not _sac_subject_present(target):
         return False
     if cost:
         return True
-    target = getattr(getattr(c, "node", None), "target", None)
     return filter_controller(target) == "You"
 
 
