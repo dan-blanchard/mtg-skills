@@ -166,10 +166,22 @@ from mtg_utils._card_ir.project import (
 # legacy ``_recover_clone_subjects`` text-scan (CR 707.2's copied-type word
 # right after "copy of") single-source from the OLD projection's own
 # supplement pass, rather than re-deriving an equivalent regex here.
+#
+# ADR-0038 W3 batch 4 (draw-etb-tokens cluster) — topdeck_stack's
+# back-reference (ParentTarget/TrackedSet/ExiledBySource/untyped-Or) direction
+# disambiguation reuses the legacy ``_topdeck_stack_self`` self-anchor scan
+# ("on top of your library" / "top of your library in any order") verbatim,
+# single-source from the OLD projection's own supplement pass — the SAME
+# idiom legacy's own comment documents as necessary because phase's
+# PutAtLibraryPosition/Dig carry NO library-owner field at all, so a self
+# top-stack (Scroll Rack) and an opponent-library tuck (Cruel Fate, Sealed
+# Fate) are byte-identical nodes; the self/opponent split lives only in
+# oracle text.
 from mtg_utils._card_ir.supplement import (
     _CAST_FROM_EXILE_P,
     _FORCE_ATTACK,
     _copied_type_from_text,
+    _topdeck_stack_self,
 )
 
 # The b15 opponent_counter_grant co-tap anaphora fallback (the supplement's
@@ -276,6 +288,15 @@ from mtg_utils._deck_forge._subtypes import (
     CREATURE_SUBTYPES,
     TRIBAL_SUBTYPES,
 )
+
+# ADR-0038 W3 batch 4 — topdeck_stack's fallback for an idiom with NO
+# topdeck_stack node at all (Leashling/Penance/Hidden Retreat's
+# activation-cost put; Munda, Ambush Leader's/Diabolic Vision's modal
+# reveal-then-place ``Dig``) reuses the legacy kept-mirror
+# TOPDECK_STACK_SWEEP_REGEX verbatim, single-source from ``_sweep_detectors``
+# (a sibling ``_deck_forge`` module, no import cycle) — narrower than the
+# self-anchor scan on purpose (see ``_topdeck_stack``'s docstring).
+from mtg_utils._deck_forge._sweep_detectors import TOPDECK_STACK_SWEEP_REGEX
 from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.card_ir import Card
 
@@ -794,6 +815,29 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # Pulse Ochu, Ral's Staticaster, Sunbathing Rootwalla all recovered);
     # the beyond-legacy gains (~182-card corpus diff, every sub-shape by
     # target tag corpus-verified) are CR-grounded + pinned.
+    #
+    # ADR-0038 W3 batch 4 (draw-etb-tokens cluster, worker w3b4e):
+    # ``topdeck_stack`` PROMOTED (0 genuine members lost vs a live corpus
+    # re-measure card-by-card against ``old_ir_for``): a nested-grant
+    # descent (``GrantAbility``/``GrantTrigger``/``GrantStaticAbility``
+    # ``.definition``, mirroring ``_self_pump``'s sibling scan — Scion of
+    # Halaster), a ``ParentTarget``/``TrackedSet``/``ExiledBySource``
+    # back-reference widening gated by the legacy
+    # ``supplement._topdeck_stack_self`` self-anchor scan (reused verbatim
+    # — the SAME disambiguation legacy needs, since phase's Dig /
+    # PutAtLibraryPosition carry no library-OWNER field, so a self
+    # top-stack and an opponent-library tuck are structurally
+    # byte-identical), and the legacy ``_sweep_detectors.
+    # TOPDECK_STACK_SWEEP_REGEX`` kept mirror run card-level (reused
+    # verbatim, unchanged) for the two idioms with NO topdeck_stack node at
+    # all (Leashling/Penance/Hidden Retreat's activation-cost put; Munda,
+    # Ambush Leader's/Diabolic Vision's modal reveal-then-place ``Dig``).
+    # A REPLACEMENT-origin unit is excluded (Library of Leng — legacy's
+    # project.py never walks ``card.replacements`` for this concept,
+    # verified via ``old_ir_for``) and the nested-grant descent is
+    # deliberately scoped to the three grant tags, never a blanket
+    # ``iter_typed_nodes`` walk (Loathsome Troll's modal ``RollDie`` result
+    # put — corpus-verified over-fire when tried, reverted). CR 401.4.
     {
         "artifacts_matter",
         "base_pt_set",
@@ -821,7 +865,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "target_player_draws",
         "token_maker",
         "topdeck_selection",
-        "topdeck_stack",
         "type_matters",
         "voltron_matters",
     }
@@ -5651,6 +5694,18 @@ _SCALING_QTY_TAGS: frozenset[str] = frozenset(
         # SAME board-state-scaler category as ``ObjectCount``, just counting a
         # zone's contents instead of the battlefield; CR 107.3 draws no
         # distinction between the two populations.
+        #
+        # NOTE (ADR-0038 W3 batch 4, draw-etb-tokens cluster, rebase note):
+        # this makes ``ZoneCardCount`` UNCONDITIONALLY scaling for every
+        # ``_is_scaling_count`` caller, including ``draw_for_each``. Verified
+        # against the draw_for_each corpus at rebase time — no card pairs a
+        # bare-X *draw* cast magnitude with ``ZoneCardCount`` (the bare-X
+        # "draw N where N is..." shapes in the corpus, e.g. Lucid Dreams, are
+        # tagged ``DistinctCardTypes``/``Variable``, never ``ZoneCardCount``),
+        # so the landmine the original comment warned about does not fire
+        # for this tag; see ``_draw_for_each``'s own docstring for the
+        # narrower ``_DRAW_FOR_EACH_PHRASE_RE`` fallback that still covers
+        # tags NOT admitted here.
         "ZoneCardCount",
         # A TARGET OBJECT's own typeline-component count ("+1/+1 for each
         # supertype, card type, and subtype it has" — Embiggen) is still a
@@ -5985,6 +6040,16 @@ def _group_mana(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ADR-0038 W3 batch 4 (draw-etb-tokens cluster) — draw_for_each's LOCAL
+# clause-scoped phrase fallback (see ``_draw_for_each``'s docstring):
+# "draw(s)" and the scaling phrase must share one comma/period/semicolon-
+# delimited clause, so a sibling cost-reduction or life-gain rider on the
+# SAME multi-clause ability text never bleeds in.
+_DRAW_FOR_EACH_PHRASE_RE = re.compile(
+    r"draws?\b[^.,;]*?(?:for each|equal to the number of)", re.IGNORECASE
+)
+
+
 def _draw_for_each(tree: ConceptTree) -> list[Signal]:
     """draw_for_each — a draw SCALING with a board count (CR 120 / 107.3):
     "draw a card for each creature you control" (Shamanic Revelation). The
@@ -5992,11 +6057,58 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
     sharing an ability with a for-each rider (Tamiyo's Logbook — the for-each
     lives on ``cost_reduction``, not the draw) carries ``Fixed`` and never
     fires; a bare X-draw (Braingeyser — ``Ref → Variable``) is the cast cost,
-    not a board scale (split-lane #4). Scope "you".
+    not a board scale (split-lane #4).
+
+    ADR-0038 W3 batch 4 (draw-etb-tokens cluster): the structural qty-tag
+    arm is unchanged (``c.raw`` stays the Draw node's OWN text, almost
+    always "" — never widened, so :func:`_is_scaling_count`'s generic
+    ``phrase`` fallback here keeps behaving exactly as every OTHER
+    ``_is_scaling_count`` caller, e.g. ``scaling_pump``, expects). A
+    SEPARATE, LOCAL, narrowly-scoped phrase check
+    (:data:`_DRAW_FOR_EACH_PHRASE_RE`) covers the genuine remaining gap: a
+    "for each"/"equal to the number of" clause that names the DRAW itself
+    but whose qty tag isn't (yet) an unconditional ``_SCALING_QTY_TAGS``
+    entry. The regex requires "draw(s)" and the phrase to share ONE
+    comma/period/semicolon-delimited clause (:func:`effect_owner_raw`'s
+    direct-wrapper text, never a sibling's) — Grim Flowering's "Draw a
+    card for each creature card in your graveyard." matches (no punctuation
+    between); an ability-level cost-reduction rider sharing the SAME
+    description (Tamiyo's Logbook, Deepwood Denizen — "Draw a card. This
+    ability costs {1} less to activate for each ...") does NOT, because the
+    period stops the search before "for each" is reached; nor does a
+    sibling life-gain rider on the SAME sentence (Union of the Third Path
+    — "Draw a card, then you gain life equal to the number of cards in
+    your hand." — the comma stops it).
+
+    Nested-grant descent (mechanism b — the ``_GRANT_ABILITY_MOD_TAGS``
+    ``.definition`` precedent :func:`_self_pump`'s sibling scan
+    establishes): a granted TRIGGER's own draw also fires (Blitzball
+    Stadium's "Go for the Goal!" grants a creature "whenever ~ deals
+    combat damage to a player, draw a card for each kind of counter on
+    it" — the Draw lives under ``GrantTrigger.trigger.execute.effect``,
+    not the granting unit's own effect chain). Scope "you".
     """
-    for c in tree.effect_concepts("draw"):
-        if _is_scaling_count(c.node, ("count", "amount"), c.raw):
-            return [Signal("draw_for_each", "you", "", c.raw, tree.name, "high")]
+
+    def scaling(node: TypedMirrorNode, owner: object) -> bool:
+        if _is_scaling_count(node, ("count", "amount"), ""):
+            return True
+        raw = effect_owner_raw(owner, node)
+        return bool(raw) and bool(_DRAW_FOR_EACH_PHRASE_RE.search(raw))
+
+    for unit in tree.units:
+        for c in unit.effect_concepts("draw"):
+            if scaling(c.node, unit.node):
+                return [Signal("draw_for_each", "you", "", c.raw, tree.name, "high")]
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) not in _GRANT_ABILITY_MOD_TAGS:
+                continue
+            trig = getattr(n, "trigger", None)
+            execute = getattr(trig, "execute", None) if trig is not None else None
+            for m in iter_typed_nodes(execute) if execute is not None else ():
+                if tag_of(m) != "Draw":
+                    continue
+                if scaling(m, execute):
+                    return [Signal("draw_for_each", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -7365,38 +7477,124 @@ def _topdeck_selection(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+_TOPDECK_STACK_SWEEP_RE = re.compile(TOPDECK_STACK_SWEEP_REGEX, re.IGNORECASE)
+
+
 def _topdeck_stack(tree: ConceptTree) -> list[Signal]:
     """topdeck_stack — stack the top of YOUR library (CR 401.4): a
     ``PutAtLibraryPosition`` whose ``position`` is ``Top`` (Brainstorm's
     hand-to-top; Sensei's Divining Top's SelfRef top) or the
     ``PutOnTopOrBottom`` choice form, over YOUR object (filter controller
-    You / ``SelfRef``) — or over a ``TrackedSet`` fed by a SAME-unit
-    Controller ``Dig`` (batch-9 adjudicated: Ancestral Knowledge's "look at
-    the top ten … put the rest back on top" — the tracked set IS your dug
-    top-of-library, granularity a). The owner gate keeps the bounce-to-top
-    REMOVAL out (Griptide — controller None), mirroring the live
-    controller=='you' gate; the position gate keeps the ``NthFromTop``
+    You / ``SelfRef``). The position gate keeps the ``NthFromTop``
     precise-insertion removal (Chronostutter) and the ``Bottom`` cleanup
-    (Aethermage's Touch) out. Scope "you".
+    (Aethermage's Touch) out.
+
+    ADR-0038 W3 batch 4 (draw-etb-tokens cluster), two widening arms,
+    corpus-verified card-by-card against ``old_ir_for`` (never assumed):
+
+    * **Nested-grant descent** (mechanism b — the ``_GRANT_ABILITY_MOD_TAGS``
+      ``.definition`` precedent :func:`_self_pump`'s sibling scan already
+      establishes): a ``GrantAbility``/``GrantTrigger``/``GrantStaticAbility``
+      modification's OWN ``.definition`` sub-tree is scanned for a nested
+      ``PutAtLibraryPosition``/``PutOnTopOrBottom`` (Scion of Halaster's
+      Background grants Commander creatures a "look at the top two, one to
+      graveyard, other back on top" replacement — the put node lives under
+      ``GrantAbility.definition.sub_ability``). Deliberately NOT a blanket
+      ``iter_typed_nodes(unit.node)`` descent: that ALSO reaches a modal
+      ``RollDie`` result's own put-on-top branch (Loathsome Troll's
+      graveyard-recursion die-roll outcome), which legacy's project.py never
+      walks for this concept — corpus-verified as a genuine crosswalk-only
+      over-fire when tried, reverted.
+    * **Back-reference widening + self-anchor confirmation**: a
+      ``ParentTarget``/``TrackedSet``/``ExiledBySource``/controller-less
+      ``Or`` target is accepted when the OWNING ability's own clause text
+      (falling back to the whole-card oracle on a single-ability card) names
+      the self anchor via :func:`_topdeck_stack_self` — the legacy
+      ``supplement._recover_topdeck_stack_self`` idiom, reused verbatim. This
+      is the SAME disambiguation legacy itself needs: phase's Dig /
+      PutAtLibraryPosition carry NO library-OWNER field at all, so a self
+      top-stack (Scroll Rack's ``ExiledBySource``; Doomsday's tutor-fed
+      ``TrackedSet``; Mirror of Fate's exile-fed ``TrackedSet``; Nael, Avizoa
+      Aeronaut / Thassa's Oracle / Slimefoot's Survey's dug ``ParentTarget``;
+      Mortuary's dies-trigger ``ParentTarget``; Triumph of Saint Katherine's
+      ``ExileTop``-fed ``ParentTarget``) and an opponent-library tuck (Cruel
+      Fate, Sealed Fate — "put ... on top of THAT PLAYER's library",
+      structurally byte-identical Dig/TrackedSet nodes) are indistinguishable
+      without it. A REPLACEMENT-origin unit is excluded from this arm —
+      legacy's project.py never walks ``card.replacements`` for this concept
+      at all (Library of Leng's discard-to-top replacement carries no
+      topdeck_stack Effect in ``old_ir_for``, verified), so admitting it here
+      would be a beyond-legacy claim this batch does not adjudicate. CR
+      401.4 vests the effect in whoever the ability names as the library's
+      owner, never the digger.
+
+    An idiom with NO topdeck_stack node at all — a "put a card from your
+    hand on top of your library" ACTIVATION COST (Leashling, Penance, Hidden
+    Retreat) or a modal reveal-then-place ``Dig`` phase doesn't fully
+    structure (Munda, Ambush Leader's Rally; Diabolic Vision) — needs the
+    legacy kept-mirror itself: ``_sweep_detectors.TOPDECK_STACK_SWEEP_REGEX``
+    run FLAT over the reminder-stripped whole-card oracle (card-level, not
+    unit/node-gated — the SAME scope legacy's own mirror runs at), reused
+    single-source. Deliberately the NARROW sweep, not the broad self-anchor:
+    the self-anchor scan would ALSO over-admit a "look at N, may put one
+    back on top" selection idiom with no put node at all (Telling Time,
+    Silhana Wayfinder, Sage of Days, Gurmag Nightwatch, Devourer of Destiny,
+    Fertile Thicket, Planar Atlas, Gutless Plunderer — all corpus-verified
+    to carry NO topdeck_stack Effect in ``old_ir_for``; that idiom is
+    topdeck_selection's territory, not topdeck_stack's). Scope "you".
     """
     for unit in tree.units:
-        own_dig = any(
-            tag_of(c.node) == "Dig"
-            and tag_of(getattr(c.node, "player", None)) == "Controller"
-            for c in unit.effects
-        )
-        for c in unit.effect_concepts("put_library_position"):
-            if tag_of(c.node) == "PutAtLibraryPosition" and (
-                tag_of(getattr(c.node, "position", None)) != "Top"
+        if unit.origin == "replacement":
+            continue
+        put_nodes = [c.node for c in unit.effect_concepts("put_library_position")]
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) not in _GRANT_ABILITY_MOD_TAGS:
+                continue
+            d = getattr(n, "definition", None)
+            if d is None:
+                continue
+            put_nodes += [
+                m
+                for m in iter_typed_nodes(d)
+                if tag_of(m) in ("PutAtLibraryPosition", "PutOnTopOrBottom")
+            ]
+
+        def self_anchor(unit: AbilityUnit = unit) -> bool:
+            text = getattr(unit.node, "description", None) or tree.oracle or ""
+            return _topdeck_stack_self(text)
+
+        for node in put_nodes:
+            if tag_of(node) == "PutAtLibraryPosition" and (
+                tag_of(getattr(node, "position", None)) != "Top"
             ):
                 continue
-            tgt = getattr(c.node, "target", None)
+            tgt = getattr(node, "target", None)
+            ttag = tag_of(tgt)
+            if ttag == "SelfRef" or filter_controller(tgt) == "You":
+                return [Signal("topdeck_stack", "you", "", "", tree.name, "high")]
             if (
-                tag_of(tgt) == "SelfRef"
-                or filter_controller(tgt) == "You"
-                or (tag_of(tgt) == "TrackedSet" and own_dig)
+                ttag
+                in (
+                    "ParentTarget",
+                    "TrackedSet",
+                    "ExiledBySource",
+                    "Or",
+                )
+                and self_anchor()
             ):
-                return [Signal("topdeck_stack", "you", "", c.raw, tree.name, "high")]
+                return [Signal("topdeck_stack", "you", "", "", tree.name, "high")]
+
+    # Legacy kept-mirror, reused verbatim (CARD-level, not unit/node-gated —
+    # mirrors ``_signals_ir``'s own ``TOPDECK_STACK_SWEEP_REGEX`` producer
+    # exactly, run flat over the reminder-stripped whole-card oracle):
+    # recovers the two idioms phase drops structurally with no residue at
+    # all — a "put a card from your hand on top of your library" ACTIVATION
+    # COST (Leashling, Penance, Hidden Retreat: no Dig/put node whatsoever)
+    # and a modal reveal-then-place ``Dig`` with no separate put node
+    # (Munda, Ambush Leader's Rally).
+    stripped = re.sub(r"\([^)]*\)", " ", tree.oracle or "")
+    if _TOPDECK_STACK_SWEEP_RE.search(stripped):
+        return [Signal("topdeck_stack", "you", "", "", tree.name, "high")]
     return []
 
 

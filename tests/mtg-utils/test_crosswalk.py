@@ -5752,6 +5752,73 @@ def test_topdeck_stack_tracked_set_needs_own_dig():
     assert "topdeck_stack" not in _keys("Griptide")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Nael, Avizoa Aeronaut",  # Dig(Controller)-fed ParentTarget
+        "Scroll Rack",  # exile-from-hand-fed ExiledBySource
+        "Mirror of Fate",  # ChangeZoneAll(Library)-fed TrackedSet
+        "Mortuary",  # dies-trigger's own ParentTarget (no Dig at all)
+        "Munda, Ambush Leader",  # Dig-only, no put node — sweep mirror
+        "Leashling",  # activation-cost put, no Dig/put node — sweep mirror
+    ],
+)
+def test_topdeck_stack_back_reference_widening(name):
+    """ADR-0038 W3 batch 4 (draw-etb-tokens cluster): the back-reference
+    widening (ParentTarget/TrackedSet/ExiledBySource + self-anchor "on top
+    of your library" confirmation) and the legacy kept-mirror
+    (``TOPDECK_STACK_SWEEP_REGEX``, card-level) recover the corpus-verified
+    live_only set (CR 401.4) with zero genuine members lost."""
+    assert ("topdeck_stack", "you", "") in _idents(name)
+
+
+def test_topdeck_stack_nested_grant_descent():
+    """Scion of Halaster's Background grants Commander creatures a
+    replacement draw ("look at the top two ... other back on top") whose
+    ``PutAtLibraryPosition`` lives inside ``GrantAbility.definition.
+    sub_ability`` — the SAME ``.definition`` descent precedent
+    :func:`_self_pump`'s sibling scan establishes for a granted mod site
+    (CR 401.4)."""
+    assert ("topdeck_stack", "you", "") in _idents("Scion of Halaster")
+
+
+def test_topdeck_stack_opponent_library_excluded():
+    """Cruel Fate's "target opponent's library" Dig carries a
+    ``player=Controller`` field (the DIGGER, never the library owner —
+    phase has no library-owner field at all) feeding a structurally
+    byte-identical TrackedSet to a self top-stack; the self-anchor text
+    check ("on top of YOUR library") correctly excludes it since the
+    clause names "that player's library" instead (CR 401.4)."""
+    assert "topdeck_stack" not in _keys("Cruel Fate")
+
+
+def test_topdeck_stack_replacement_origin_excluded():
+    """Library of Leng's discard-to-top REPLACEMENT ("you may put it on
+    top of your library instead") is excluded — legacy's project.py never
+    walks ``card.replacements`` for this concept at all (verified: no
+    topdeck_stack Effect in ``old_ir_for``), so admitting it here would be
+    an un-adjudicated beyond-legacy claim."""
+    assert "topdeck_stack" not in _keys("Library of Leng")
+
+
+def test_topdeck_stack_selection_idiom_excluded():
+    """Telling Time's "look at 3, one to hand / one on top / one on
+    bottom" is a Dig-only selection idiom with no separate put node and no
+    sweep-mirror match ("on top of your library" but not "... in any
+    order") — topdeck_selection's territory, not topdeck_stack's."""
+    assert "topdeck_stack" not in _keys("Telling Time")
+
+
+def test_topdeck_stack_nested_rolldie_result_excluded():
+    """Loathsome Troll's graveyard-recursion d20 result ("1-9 | Put this
+    card on top of your library") lives inside a modal ``RollDie.results``
+    branch — the nested-grant descent is scoped to
+    ``GrantAbility``/``GrantTrigger``/``GrantStaticAbility`` only, never a
+    blanket deep walk, so this stays out (legacy's project.py doesn't walk
+    it either)."""
+    assert "topdeck_stack" not in _keys("Loathsome Troll")
+
+
 def test_target_player_draws_excludes_scoped_player_group_draw():
     """Fix (d): Academy Loremaster's "that player may draw" under an
     each-player draw-step trigger is a ``ScopedPlayer`` GROUP draw — the
