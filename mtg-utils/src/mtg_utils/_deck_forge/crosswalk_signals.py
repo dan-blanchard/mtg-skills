@@ -1385,6 +1385,20 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         # gate beyond that session's corpus-verification budget); W6
         # re-confirmed the deferral rather than re-litigating it blind.
         "sacrifice_outlets",
+        # ADR-0038 W6 endgame (2026-07-11): target_player_draws NOT YET
+        # PROMOTED — live_only cut from 75 to 70 (2 new admissions: the
+        # OriginalController/Controller-paired idiom widened to EVERY
+        # widened tag, a Vote per_choice_effect paired descent). Landfall
+        # rule NOT yet met — 6 genuine "dropped clause" gaps remain,
+        # bridge-ledger input for a later phase (ADR-0039): Fatal Lore,
+        # Season of the Burrow, Ertai Resurrected, Balor (a modal Draw
+        # with no self-tagged sibling AND no reachable clause text
+        # anywhere in the typed tree), Thief of Existence (a granted
+        # ability's directed-draw text lives ONLY inside a quoted string,
+        # no typed Draw node exists for it at all), The Wedding of River
+        # Song ("target opponent does the same" — an ellipsis phase never
+        # structures into a second typed Draw node). See the key's own
+        # docstring for the full corpus accounting.
         "target_player_draws",
         # ADR-0038 W5c (2026-07-11): token_maker NOT YET PROMOTED — live_only
         # cut from 111 (post-W5b) to 86, on top of the W5b nested-descent /
@@ -12048,16 +12062,62 @@ def _group_hug_draw(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+_SELF_DRAW_RECIPIENT_TAGS: frozenset[str] = frozenset(
+    {"OriginalController", "Controller"}
+)
+
+
 def _unit_has_originalcontroller_draw(unit: AbilityUnit) -> bool:
     """True when ``unit`` owns a ``Draw`` effect recipient-tagged
-    ``OriginalController`` — the "you" half of a paired "you and [target
-    opponent/that player] each draw" idiom sharing ONE unit with a
-    ``ScopedPlayer`` sibling Draw (see the ``ScopedPlayer`` branch inside
-    :func:`_target_player_draws`)."""
+    ``OriginalController`` OR ``Controller`` — the "you" half of a paired
+    "you and [target opponent/that player] each draw" idiom sharing ONE
+    unit with a ``ScopedPlayer``/widened-tag sibling Draw (see
+    :func:`_target_player_draws`). ``OriginalController`` is the SPELL's
+    own controller (survives a copy); ``Controller`` is the ordinary
+    current-ability-controller tag most self-cantrips carry (Legend of
+    Yangchen's "target opponent draws three cards. If you do, draw three
+    cards." pairs ``Typed``/``Controller`` rather than
+    ``OriginalController``/``Typed``). ADR-0038 W6 endgame corpus-verified
+    the ``Controller`` addition separately from the original
+    ``OriginalController`` citation on the ``ScopedPlayer`` branch's own
+    docstring: 7 total commander-legal ``Controller``-paired Draw hits
+    (Arcane Denial, Dream Fracture — a ``ParentTargetController`` Draw and
+    a SEPARATE textually-grounded "Draw a card." sentence, both already
+    admitted independently via their own real clause text; Ms.
+    Bumbleflower, Sphinx of Enlightenment — a ``Typed`` Draw with its own
+    real clause text, already admitted independently; Pendant of
+    Prosperity — an unconditionally-admitted ``Any`` Draw; Willie Lumpkin,
+    Postman — a ``TriggeringPlayer`` Draw with its own real clause text,
+    already admitted independently; The Legend of Yangchen — the ONE
+    genuinely NEW admission, a Saga chapter's synthetic-description gap
+    identical to the ``OriginalController`` cases), 0 exceptions — every
+    hit is a genuine directed-draw pairing, most already reachable via
+    their own text and this addition changes nothing for them; only
+    Legend of Yangchen newly closes."""
     return any(
-        recipient_tag(c.node) == "OriginalController"
+        recipient_tag(c.node) in _SELF_DRAW_RECIPIENT_TAGS
         for c in unit.effect_concepts("draw")
     )
+
+
+def _pce_has_paired_draw(pce: object) -> bool:
+    """True when a ``Vote`` ``per_choice_effect`` branch (CR 701.38) owns
+    BOTH a self-tagged Draw (:data:`_SELF_DRAW_RECIPIENT_TAGS`) and a
+    ``ScopedPlayer``/widened/basic-tagged Draw among its own typed nodes —
+    the SAME "you and X each draw" idiom nested one level deeper behind a
+    vote outcome (Master of Ceremonies's "secrets" branch), scoped strictly
+    to ``pce``'s own subtree so a SIBLING branch's unrelated Draw (the
+    "money"/"friends" Token branches, or another vote's own self-payoff)
+    never bleeds in. ADR-0038 W6 endgame corpus-verified: 8 total
+    commander-legal ``Vote``-branch Draw hits, 7 are a bare
+    ``Controller``-tagged self-payoff for winning a "Will of the council"
+    vote (correctly unpaired — no sibling directed Draw in the same
+    branch), only Master of Ceremonies pairs, 0 false positives."""
+    tags = [recipient_tag(n) for n in iter_typed_nodes(pce) if tag_of(n) == "Draw"]
+    if not any(t in _SELF_DRAW_RECIPIENT_TAGS for t in tags):
+        return False
+    others = {"ScopedPlayer"} | _TARGETED_DRAW_TAGS | _TARGETED_DRAW_WIDENED_TAGS
+    return any(t in others for t in tags)
 
 
 # ADR-0038 W5 tails: a RECOVERED "draw" residue (recovery.py's ALLOWLIST
@@ -12150,6 +12210,83 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
       residue (``effect_owner_player_scope(...) == "All"`` — Grothama,
       All-Devouring's damage-scaled leaves-trigger, group_hug_draw's own
       synthesis-arm territory per its docstring).
+
+    ADR-0038 W6 endgame, two more admissions (corpus re-measure at fresh
+    HEAD: 178 both / 75 live_only, down from there):
+
+    * the self-paired admission (:func:`_unit_has_originalcontroller_draw`)
+      widens on TWO axes at once: (1) from ``ScopedPlayer``-only to EVERY
+      :data:`_TARGETED_DRAW_WIDENED_TAGS` member too — a ``Typed``
+      (opponent-filter) sibling paired with a self-tagged Draw in the SAME
+      unit is the identical "you and target opponent each draw" idiom,
+      just phase-tagged with the opponent-FILTER shape instead of the
+      bare-player shape; (2) the self half now also accepts the ordinary
+      ``Controller`` tag, not just ``OriginalController``
+      (:data:`_SELF_DRAW_RECIPIENT_TAGS` — Legend of Yangchen's "You may
+      have target opponent draw three cards. If you do, draw three cards."
+      pairs ``Typed``/``Controller``, not ``OriginalController``/``Typed``).
+      Fall of the First Civilization's Saga chapter I, Love Song of Night
+      and Day's Saga chapter I, Your Temple Is Under Attack's "Strike a
+      Deal" mode, and Legend of Yangchen's Saga chapter II all carry NO
+      reachable clause text anywhere in the typed tree for the widened-tag
+      phrase gate to read (a Saga chapter's ``unit.node.description`` is a
+      synthetic structural label — "Chapter 1" — never the chapter's real
+      English; :func:`~mtg_utils._card_ir.crosswalk.effect_owner_raw`
+      confirms empty too), so the phrase gate can never fire for them —
+      but the PAIRING itself is independent of any text. Corpus
+      re-verified for BOTH widenings together: 23 total commander-legal
+      self-paired Draw hits (6 ``ScopedPlayer``/``OriginalController`` —
+      the original citation — + 10 widened-tag/``OriginalController`` + 7
+      */``Controller``), ALL twenty-three are the same "you and X each
+      draw" (or, for Legend of Yangchen, "have X draw, then you draw")
+      idiom, 0 exceptions — safe to bypass the phrase gate whenever the
+      pairing itself is present, same discipline as the original
+      ``ScopedPlayer`` admission. The other six ``Controller``-paired hits
+      (Arcane Denial, Dream Fracture, Ms. Bumbleflower, Sphinx of
+      Enlightenment, Pendant of Prosperity, Willie Lumpkin) were already
+      admitted independently via their own real clause text or an
+      unconditional tag, so this widening changes nothing for them — only
+      Legend of Yangchen newly closes;
+    * a ``Vote`` ``per_choice_effect`` branch (CR 701.38) carrying BOTH a
+      self-tagged Draw and a ``ScopedPlayer``/widened/basic-tagged Draw
+      side by side (:func:`_pce_has_paired_draw`) — the SAME paired idiom
+      nested one level deeper behind a vote outcome (Master of Ceremonies:
+      "For each player who chose secrets, you and that player each draw a
+      card." — a ``per_choice_effect[i]`` branch phase never surfaces
+      through ``effect_concepts`` at all, the identical unreached-branch
+      shape draw_for_each's own ``Vote`` descent closes for a different
+      lane). Corpus-verified: 8 total commander-legal ``Vote``-branch Draw
+      hits; 7 are a bare ``Controller``-tagged self-draw payoff for
+      winning a "Will of the council" vote (Plea for Power, Coercive
+      Portal, Galadriel Elven-Queen, Sail into the West, Khorvath's Fury,
+      Seize the Spotlight, Truth or Consequences — correctly NOT paired,
+      so this admission never touches them); only Master of Ceremonies
+      pairs ``OriginalController`` with ``ScopedPlayer``, 0 false
+      positives. CR 121.1 / 701.38.
+
+    STILL NOT PROMOTABLE AS A GAP-FREE CLOSE — 6 genuine live_only remain,
+    each a "dropped clause" (CR 121.1's directed-draw text lives NOWHERE in
+    the typed tree — ``unit.node.description`` is ``None`` or a synthetic
+    structural label and :func:`effect_owner_raw` is empty too — the same
+    failure mode as the paired/Vote cases above, but with NO self-tagged
+    Draw sibling anywhere in the SAME branch to pair against): Fatal Lore
+    and Season of the Burrow (a modal/per-{P}-mode ``ParentTargetController``
+    Draw with no unit-level OR owner-level text at all); Ertai Resurrected
+    and Balor (an ``S_modal``/``S_mode_abilities`` Draw whose unit
+    description is a synthetic trigger-condition label — "When ~ enters" /
+    "Whenever ~ attacks" — never the mode's own English); Thief of
+    Existence (the granted ability's "target opponent draws a card" text
+    lives ONLY inside a quoted string on an unrelated effect's
+    ``description`` field — no typed ``Draw`` node exists ANYWHERE in the
+    tree for it to reach, confirmed via direct tree dump); The Wedding of
+    River Song ("Then target opponent does the same" — an ellipsis
+    repeat-for-another-player phase never structures into a second typed
+    ``Draw`` node at all, only the original "you" draw survives). None are
+    fixable without either a ``clause_grammar.py`` change (grammar-blocked
+    this wave per ADR-0039) or an unsafe whole-oracle text fallback that
+    would reintroduce the Price-of-Freedom bleed the phrase gate was built
+    to prevent — ledgered for the post-deletion grammar sprint, not forced
+    through.
     """
     for unit in tree.units:
         if unit.origin == "replacement":
@@ -12181,6 +12318,19 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
                     Signal("target_player_draws", "any", "", c.raw, tree.name, "high")
                 ]
             if rt in _TARGETED_DRAW_WIDENED_TAGS:
+                # ADR-0038 W6 endgame: the paired idiom bypasses the phrase
+                # gate entirely (Fall of the First Civilization, Love Song
+                # of Night and Day, Your Temple Is Under Attack — a Saga
+                # chapter/modal-mode unit whose OWN description is a
+                # synthetic structural label, never the real English the
+                # phrase gate needs; the pairing itself is text-independent
+                # and already corpus-verified safe).
+                if _unit_has_originalcontroller_draw(unit):
+                    return [
+                        Signal(
+                            "target_player_draws", "any", "", c.raw, tree.name, "high"
+                        )
+                    ]
                 desc = getattr(unit.node, "description", None) or ""
                 if any(
                     _TARGET_PLAYER_DRAW_PHRASE_RE.search(cl.lower())
@@ -12190,6 +12340,22 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
                         Signal(
                             "target_player_draws", "any", "", c.raw, tree.name, "high"
                         )
+                    ]
+        # ADR-0038 W6 endgame: a ``Vote`` ``per_choice_effect`` branch (CR
+        # 701.38) is a separate typed subtree ``effect_concepts`` never
+        # walks into (the SAME unreached-branch shape draw_for_each's own
+        # Vote descent closes) — Master of Ceremonies's "For each player
+        # who chose secrets, you and that player each draw a card."
+        # Scoped to the branch's OWN subtree (:func:`_pce_has_paired_draw`)
+        # so a sibling branch's unrelated Draw/Token effect never bleeds
+        # in.
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "Vote":
+                continue
+            for pce in getattr(n, "per_choice_effect", None) or ():
+                if _pce_has_paired_draw(pce):
+                    return [
+                        Signal("target_player_draws", "any", "", "", tree.name, "high")
                     ]
     return []
 

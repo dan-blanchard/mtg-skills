@@ -8573,6 +8573,129 @@ def test_target_player_draws_parent_target_owner_tag():
     assert ("target_player_draws", "any", "") in _idents("Oft-Nabbed Goat")
 
 
+# ── ADR-0038 W6 endgame: target_player_draws (75 → 70 live_only; STILL NOT ──
+# PROMOTED — 6 genuine "dropped clause" gaps remain, see the key's docstring
+# for the full accounting). CR 121.1 / 701.38 throughout.
+
+
+def test_target_player_draws_paired_widened_tag_idiom_no_text():
+    """The paired admission bypasses the phrase gate entirely when the SAME
+    unit owns a self-tagged Draw — Fall of the First Civilization and Love
+    Song of Night and Day's Saga chapter I ("You and target opponent each
+    draw two cards.") and Your Temple Is Under Attack's "Strike a Deal"
+    mode all carry a synthetic/absent ``unit.node.description`` ("Chapter
+    1", or nothing at all) the phrase gate can never match — the pairing
+    itself proves directedness independent of any text."""
+    for name in (
+        "Fall of the First Civilization",
+        "Love Song of Night and Day",
+        "Your Temple Is Under Attack",
+    ):
+        assert ("target_player_draws", "any", "") in _idents(name), name
+
+
+def test_target_player_draws_paired_controller_tag_idiom():
+    """The self half of the pairing now also accepts the ordinary
+    ``Controller`` tag, not just ``OriginalController`` — The Legend of
+    Yangchen's "You may have target opponent draw three cards. If you do,
+    draw three cards." pairs ``Typed``/``Controller`` (a Saga chapter II
+    with the same synthetic-description gap as the cases above)."""
+    assert ("target_player_draws", "any", "") in _idents("The Legend of Yangchen")
+
+
+def test_target_player_draws_vote_per_choice_paired_descent():
+    """A ``Vote`` ``per_choice_effect`` branch (CR 701.38) carrying BOTH a
+    self-tagged Draw and a ``ScopedPlayer`` Draw is the SAME paired idiom
+    nested one level deeper behind a vote outcome — Master of Ceremonies's
+    "For each player who chose secrets, you and that player each draw a
+    card." lives on a branch ``effect_concepts`` never reaches at all."""
+    assert ("target_player_draws", "any", "") in _idents("Master of Ceremonies")
+
+
+def test_target_player_draws_excludes_each_opponent_scoped_player_group():
+    """An ``each opponent's draw step`` ``ScopedPlayer`` trigger (Malignant
+    Growth) is the SAME unpaired-group territory as the ``each player``
+    case (Academy Loremaster, pinned above) — no ``OriginalController``/
+    ``Controller`` sibling, so it stays group_hug_draw territory, not a
+    directed gift. Rites of Flourishing is the SAME each-player-draw-step
+    idiom for completeness."""
+    assert "target_player_draws" not in _keys("Malignant Growth")
+    assert "target_player_draws" not in _keys("Rites of Flourishing")
+
+
+def test_target_player_draws_excludes_replacement_symmetric_draw_cap():
+    """Alms Collector's "instead you and that player each draw a card" is a
+    REPLACEMENT rewrite (CR 614), not a forced gift — replacement units are
+    skipped regardless of the paired wording inside them (same discipline
+    as :func:`test_target_player_draws_excludes_replacement_tax`)."""
+    assert "target_player_draws" not in _keys("Alms Collector")
+
+
+def test_target_player_draws_excludes_may_have_you_draw_idiom():
+    """ "Target opponent may have you draw a card" (Bane, Lord of Darkness;
+    Combustible Gearhulk) names the OPPONENT as the CHOOSER, not the
+    recipient — the drawer is still "you" (CR 121.1's recipient reads the
+    ``Draw`` node's own target, not the ``may``-grant's chooser), so this
+    stays a self-cantrip, never a directed gift."""
+    assert "target_player_draws" not in _keys("Bane, Lord of Darkness")
+    assert "target_player_draws" not in _keys("Combustible Gearhulk")
+
+
+def test_target_player_draws_excludes_bled_leadership_vacuum():
+    """Leadership Vacuum's trailing, textually-unattributed "Draw a card."
+    sentence defaults to the caster (CR 608.2h) — the SAME bleed exclusion
+    as :func:`test_target_player_draws_excludes_trailing_unattributed_draw_
+    bleed`, just off a "Target player returns each commander..." lead-in
+    instead of a "controller may" one."""
+    assert "target_player_draws" not in _keys("Leadership Vacuum")
+
+
+def test_target_player_draws_excludes_recovered_each_and_self_branches():
+    """Mathise, Surge Channeler's d20 table recovers TWO "draw" residues —
+    "Each player draws a card." (group, no directed-recipient word) and
+    "You draw a card." (self, no directed-recipient word) — neither
+    matches :data:`_RECOVERED_DRAW_DIRECTED_RE`'s word list, so both
+    correctly stay out."""
+    assert "target_player_draws" not in _keys("Mathise, Surge Channeler")
+
+
+def test_target_player_draws_excludes_unreached_modal_no_text():
+    """Fatal Lore, Season of the Burrow, Ertai Resurrected, and Balor each
+    carry a modal ``ParentTargetController``/``Typed`` Draw with NO
+    self-tagged sibling to pair against AND no reachable clause text
+    anywhere in the typed tree (``unit.node.description`` is ``None`` or a
+    synthetic trigger-condition label like "Whenever ~ attacks") — a
+    genuine "dropped clause" gap, not fixable without a
+    ``clause_grammar.py`` change (grammar-blocked this wave, ADR-0039)."""
+    for name in ("Fatal Lore", "Season of the Burrow", "Ertai Resurrected", "Balor"):
+        assert "target_player_draws" not in _keys(name), name
+
+
+def test_target_player_draws_excludes_unreachable_granted_ability_text():
+    """Thief of Existence's granted "target opponent draws a card" text
+    lives ONLY inside a quoted string on an unrelated effect's
+    ``description`` field — no typed ``Draw`` node exists anywhere in the
+    tree for any arm to reach."""
+    assert "target_player_draws" not in _keys("Thief of Existence")
+
+
+def test_target_player_draws_excludes_does_the_same_ellipsis():
+    """The Wedding of River Song's "Then target opponent does the same" is
+    an ellipsis repeat-for-another-player phase never structures into a
+    second typed ``Draw`` node — only the original "you draw two cards"
+    survives structurally."""
+    assert "target_player_draws" not in _keys("The Wedding of River Song")
+
+
+def test_target_player_draws_excludes_vote_council_self_payoff():
+    """Vault 11: Voter's Dilemma's "if no creature got votes, each player
+    draws a card" is a GROUP outcome (``All`` player_scope), not a Vote
+    ``per_choice_effect`` branch at all — stays out via the SAME
+    absent-text path as the modal cases above (no reachable clause text,
+    no self-tagged pairing sibling)."""
+    assert "target_player_draws" not in _keys("Vault 11: Voter's Dilemma")
+
+
 # ── Batch 11: replacement-doubler cluster (§A) ────────────────────────────────
 
 
