@@ -1129,6 +1129,62 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # the already-adjudicated cw_only gain classes. Free rider:
     # opponent_discard's gap fell 77→33 (recovered opponent-directed
     # discards now reach its own arm) — banked, key stays residual.
+    #
+    # ADR-0038 W5 tails (2026-07-11): opponent_discard NOT YET PROMOTED —
+    # re-measured at 77 live_only (the 33 estimate in the prior note was
+    # the giants agent's own-arm PREDICTION, not a re-measurement; this
+    # session's actual number at fresh HEAD was 77). ONE structural gap
+    # closed: a discard buried under a ``GrantAbility.definition``
+    # (Mindlash Sliver) or a ``Vote`` ``per_choice_effect`` branch
+    # (Capital Punishment, Sail into the West) is not on the unit's own
+    # direct effect chain, so ``effect_concepts`` never reached it —
+    # :func:`iter_typed_nodes`'s deep walk now finds the buried node, and
+    # its DIRECT wrapper's own ``player_scope`` resolves via the new
+    # lane-local :func:`_nested_owner_player_scope` (CR 613.1f/701.38 —
+    # kept lane-local rather than widening the shared
+    # ``effect_owner_player_scope``, which backs discard_outlet/
+    # group_hug_draw/opponent_cast_matters too). A dual "each"+"opponents"
+    # emission for a symmetric wheel was TRIED and REVERTED: it broke the
+    # pre-existing adjudicated ``test_opponent_discard_wheel_wrapper_
+    # is_each`` pin, which already decided the legacy kept-mirror's
+    # redundant "opponents" duplicate for an "each"-scoped wheel is a
+    # MIRROR OVER-FIRE, not a second genuine signal (``spec_for``'s
+    # (key)-only fallback already resolves an ``each``-scoped signal to
+    # the ``("opponent_discard","opponents")`` spec, so the "invisible to
+    # every consumer" premise for dual-emitting was false) — see the
+    # GRADUATION RULE, never suppress an existing correct pin.
+    #
+    # live_only fell 77→68 with the GrantAbility/Vote descent fix alone.
+    # Of the 68, ~44 are THIS SAME already-adjudicated wheel-mirror-
+    # duplicate shed (Wheel of Fortune, Dark Deal, Mindslicer, Windfall,
+    # Magus of the Wheel, Memory Jar, Magus of the Jar, Reforge the Soul,
+    # Liliana of the Veil, Rankle, … — every "each player discards"
+    # wheel legacy's kept mirror ALSO tags "opponents" for). FIVE more
+    # are the Cephalid-Looter loot shape (:func:`_is_target_player_loot`)
+    # — Compulsive Research (already pinned pre-session) / Laquatus's
+    # Creativity / Steal the Show / Collective Defiance / Lumengrid Augur
+    # all have a discard AND a sibling draw naming the SAME single
+    # targeted player; legacy's inclusion of 4 of the 5 (never Cephalid
+    # Looter/Broker themselves, which the SAME veto correctly excludes in
+    # legacy too) is driven by incidental "that player discards"
+    # REGEX-MIRROR phrasing adjacency, not a principled distinction — CR
+    # 701.9/701.8a, negative-pinned (Laquatus's Creativity this session).
+    # The remaining ~19 are GENUINELY diverse, un-closed structural gaps:
+    # damage-CONNECT specters with no Discard node at all (Fungal
+    # Shambler, Bladecoil Serpent); a delayed-trigger wheel whose
+    # CreateDelayedTrigger wrapper carries no player_scope of its own
+    # (Memory Jar / Magus of the Jar's OWN discard, distinct from their
+    # both-matching "each player exiles..." ChangeZoneAll arm); a
+    # REPLACEMENT effect chain (Words of Waste, Breathstealer's Crypt); a
+    # reveal-then-discard back-reference (Nebuchadnezzar, Dementia
+    # Sliver); a past-tense "discarded this turn" punisher condition
+    # (Tinybones); a ``Choose(choice_type='Opponent')`` value pick
+    # disconnected from the later Discard's mis-tagged ``Controller``
+    # target (Fervent Mastery); two empty-text Aftermath DFC records
+    # (Consign // Oblivion, Driven // Despair); plus Jagged Poppet/Hint
+    # of Insanity/Tainted Specter/Yawgmoth Merfolk Soul/Remorseless
+    # Punishment/Mindculling/Azula, each its own shape — banked, not
+    # force-fit this session. Key stays residual.
     {
         "artifacts_matter",
         "base_pt_set",
@@ -7467,6 +7523,55 @@ def _coin_flip(tree: ConceptTree) -> list[Signal]:
 _SYMMETRIC_DISCARD_WATCH_RX = re.compile(r"\ba player discards\b", re.IGNORECASE)
 
 
+def _nested_owner_player_scope(root: object, target: object) -> str | None:
+    """The ``player_scope`` actor tag on the wrapper whose OWN ``.effect``
+    field IS ``target``, found by a GENERIC depth-first walk of every
+    dataclass field / list / variant payload reachable from ``root`` —
+    unlike :func:`effect_owner_player_scope`, which only follows the
+    fixed ``effect``/``sub_ability``/``execute``/``mode_abilities`` chain
+    (:data:`_EFFECT_CHILD_FIELDS` in ``_card_ir.crosswalk``).
+
+    ADR-0038 W5 tails: a discard nested under a ``GrantAbility``'s
+    ``definition`` (Mindlash Sliver: "All Slivers have '{1}, Sacrifice ~:
+    Each player discards a card.'" — the owning wrapper is
+    ``modifications[i].definition``) or under a ``Vote``'s
+    ``per_choice_effect`` branch (Capital Punishment's "Each opponent
+    ... discards a card for each taxes vote", Sail into the West's "each
+    player may discard their hand" — the owning wrapper is
+    ``effect.per_choice_effect[i]``) sits behind a field neither on that
+    fixed chain, so the shared helper returns ``None`` for both. Kept
+    LANE-LOCAL rather than widening the shared helper: that helper backs
+    several OTHER lanes (``discard_outlet``, ``group_hug_draw``, the
+    ``opponent_cast_matters`` grant descent) a blanket widening would
+    need a full-corpus sibling check across, per the ADR-0038 shared-
+    helper-widening landmine — this walk only ever runs from
+    ``_opponent_discard``. CR 613.1f (a static ability's Layer 6
+    ability-granting continuous effect) / 701.38 (Vote).
+    """
+    seen: set[int] = set()
+    stack: list[object] = [root]
+    while stack:
+        node = stack.pop()
+        if id(node) in seen:
+            continue
+        seen.add(id(node))
+        if isinstance(node, TypedMirrorNode):
+            if getattr(node, "effect", None) is target:
+                ps = getattr(node, "player_scope", None)
+                if isinstance(ps, TypedMirrorNode):
+                    return tag_of(ps)
+                if isinstance(ps, MirrorVariant):
+                    return ps.key
+                return ps if isinstance(ps, str) else None
+            for f in fields(node):
+                stack.append(getattr(node, f.name))
+        elif isinstance(node, MirrorVariant):
+            stack.append(node.inner)
+        elif isinstance(node, list):
+            stack.extend(node)
+    return None
+
+
 def _opponent_discard(tree: ConceptTree) -> list[Signal]:
     """opponent_discard — a forced OPPONENT discard / hand attack (CR 701.9). A
     ``Discard`` effect whose recipient is a targeted / opponent player ("target
@@ -7490,41 +7595,84 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
     (:data:`_OPP_DISCARD_ACTORS`) is the per-opponent edict (``opponents``).
     Only consulted when the node's own recipient did NOT already resolve —
     never overrides a genuine you/each/opponents read. CR 701.9 / 102.2.
+
+    ADR-0038 W5 tails: the discard-effect node is not always a direct
+    per-unit surface concept (:meth:`AbilityUnit.effect_concepts` — a
+    granularity-a per-ability sibling read). A discard GRANTED via a
+    tribal ``GrantAbility`` (Mindlash Sliver: "All Slivers have '{1},
+    Sacrifice ~: Each player discards a card.'") lives under
+    ``GrantAbility.definition.effect``, and a discard inside one ``Vote``
+    branch (Sail into the West's "each player may discard their hand and
+    draw seven", Capital Punishment's "Each opponent ... discards a card
+    for each taxes vote") lives under a ``per_choice_effect`` wrapper —
+    neither is the unit's own direct effect chain, so ``effect_concepts``
+    never reaches them. :func:`iter_typed_nodes`'s generic deep walk does
+    (the same descent precedent as ``phasing_makers``'s coin-flip branch
+    read and ``hand_disruption``'s GrantAbility-nested RevealHand read).
+    The DIRECT wrapper that owns each buried node still carries its OWN
+    ``player_scope`` (``S_definition``/``S_per_choice_effect``), but
+    neither field is on :func:`effect_owner_player_scope`'s fixed
+    effect/sub_ability/execute/mode_abilities chain, so that shared
+    reader returns ``None`` for both — :func:`_nested_owner_player_scope`
+    (a lane-local generic walk, kept OUT of the shared helper per the
+    ADR-0038 shared-helper-widening landmine) resolves it instead. CR
+    701.9 / 613.1f / 701.38.
     """
     out: list[Signal] = []
     seen: set[str] = set()
+
+    def fire(node: TypedMirrorNode, raw: str, unit: AbilityUnit) -> None:
+        # ADR-0038 W4 giants — the ``DiscardCard`` reveal-and-choose arm's
+        # ``target=ParentTarget`` is POSITION-relative (checklist
+        # #7i/landmine): after a player-facing ``RevealHand``
+        # (Thoughtseize) it names the REVEALED PLAYER, but after a
+        # card-facing producer — ``RevealTop`` (Sindbad, Fa'adiyah
+        # Seer's "draw and reveal it. If it isn't a land, discard it"),
+        # Dig/Search — it names the PRODUCED CARD instead. Corpus-
+        # verified 89/92: every genuine hand-attack DiscardCard shares
+        # its unit with a sibling ``reveal_hand`` concept; the 3 that
+        # don't are self-loot card-filters (Sindbad, Fa'adiyah Seer) or
+        # a Replacement whose "that player" already resolves elsewhere
+        # (Breathstealer's Crypt). Gate on the sibling to keep the
+        # DiscardCard arm from reading a card-reference as a player.
+        if type(node).__name__ == "T_effect__DiscardCard" and not unit.has_effect(
+            "reveal_hand"
+        ):
+            return
+        sc = discard_recipient_scope(node)
+        if sc not in ("opponents", "each"):
+            owner = effect_owner_player_scope(getattr(unit, "node", None), node)
+            if owner is None:
+                owner = _nested_owner_player_scope(getattr(unit, "node", None), node)
+            if owner == "All":
+                sc = "each"
+            elif owner in _OPP_DISCARD_ACTORS:
+                sc = "opponents"
+        if sc not in ("opponents", "each"):
+            return
+        if _is_target_player_loot(unit, node):
+            return
+        if sc in seen:
+            return
+        seen.add(sc)
+        out.append(Signal("opponent_discard", sc, "", raw, tree.name, "high"))
+
     for unit in tree.units:
+        seen_ids: set[int] = set()
         for c in unit.effect_concepts("discard"):
-            # ADR-0038 W4 giants — the ``DiscardCard`` reveal-and-choose arm's
-            # ``target=ParentTarget`` is POSITION-relative (checklist
-            # #7i/landmine): after a player-facing ``RevealHand``
-            # (Thoughtseize) it names the REVEALED PLAYER, but after a
-            # card-facing producer — ``RevealTop`` (Sindbad, Fa'adiyah
-            # Seer's "draw and reveal it. If it isn't a land, discard it"),
-            # Dig/Search — it names the PRODUCED CARD instead. Corpus-
-            # verified 89/92: every genuine hand-attack DiscardCard shares
-            # its unit with a sibling ``reveal_hand`` concept; the 3 that
-            # don't are self-loot card-filters (Sindbad, Fa'adiyah Seer) or
-            # a Replacement whose "that player" already resolves elsewhere
-            # (Breathstealer's Crypt). Gate on the sibling to keep the
-            # DiscardCard arm from reading a card-reference as a player.
-            if type(c.node).__name__ == "T_effect__DiscardCard" and not unit.has_effect(
-                "reveal_hand"
-            ):
-                continue
-            sc = discard_recipient_scope(c.node)
-            if sc not in ("opponents", "each"):
-                owner = effect_owner_player_scope(getattr(unit, "node", None), c.node)
-                if owner == "All":
-                    sc = "each"
-                elif owner in _OPP_DISCARD_ACTORS:
-                    sc = "opponents"
-            if sc not in ("opponents", "each") or sc in seen:
-                continue
-            if _is_target_player_loot(unit, c):
-                continue
-            seen.add(sc)
-            out.append(Signal("opponent_discard", sc, "", c.raw, tree.name, "high"))
+            seen_ids.add(id(c.node))
+            fire(c.node, c.raw, unit)
+        if getattr(unit, "node", None) is not None:
+            for n in iter_typed_nodes(unit.node):
+                if id(n) in seen_ids:
+                    continue
+                if type(n).__name__ not in (
+                    "T_effect__Discard",
+                    "T_effect__DiscardCard",
+                ):
+                    continue
+                seen_ids.add(id(n))
+                fire(n, getattr(n, "description", "") or "", unit)
         # Batch 9 — the PUNISHER trigger arm: "whenever an opponent discards
         # a card, …" (Megrim, Liliana's Caress). phase watches the discarder
         # on the trigger's ``valid_card`` controller (Megrim — Opponent) or
@@ -7550,7 +7698,7 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
 _TARGETED_PLAYER_TAGS: frozenset[str] = frozenset({"ParentTarget", "Player", "Target"})
 
 
-def _is_target_player_loot(unit: AbilityUnit, discard: ConceptNode) -> bool:
+def _is_target_player_loot(unit: AbilityUnit, discard: TypedMirrorNode) -> bool:
     """Whether a discard is a "target player draws, then discards" LOOT, not a hand
     attack (CR 701.9 / 701.8a).
 
@@ -7563,8 +7711,13 @@ def _is_target_player_loot(unit: AbilityUnit, discard: ConceptNode) -> bool:
     single targeted player; a one-sided attack with no draw (Mind Rot, Blightning)
     and a wheel whose draw is for YOU while an opponent discards (Cruel Ultimatum —
     draw recipient ``Controller``) are correctly NOT loots.
+
+    ``discard`` is the verbatim typed node (ADR-0038 W5 tails: the caller may
+    hand this a buried ``iter_typed_nodes`` find with no owning
+    :class:`ConceptNode` wrapper at all, so this reads the raw node
+    directly, not ``.node``).
     """
-    if recipient_tag(discard.node) not in _TARGETED_PLAYER_TAGS:
+    if recipient_tag(discard) not in _TARGETED_PLAYER_TAGS:
         return False
     return any(
         recipient_tag(d.node) in _TARGETED_PLAYER_TAGS

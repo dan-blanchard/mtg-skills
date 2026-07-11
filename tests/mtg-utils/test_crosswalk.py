@@ -3646,6 +3646,77 @@ def test_opponent_discard_excludes_same_target_draw_then_discard():
     assert "opponent_discard" not in _keys("Compulsive Research")
 
 
+def test_opponent_discard_excludes_laquatus_creativity():
+    """ADR-0038 W5 tails: Laquatus's Creativity's "target player draws
+    cards equal to the number of cards in their hand, then discards that
+    many cards" is the SAME Cephalid-Looter loot shape as Compulsive
+    Research — the discard's ``ParentTarget`` recipient and the sibling
+    draw's ``Player`` recipient name the SAME single targeted player, so
+    :func:`_is_target_player_loot` excludes it too (CR 701.9 / 701.8a).
+    Legacy's inclusion of this card (but not Cephalid Looter, whose
+    near-identical "target player draws a card, then discards a card"
+    phrasing is structurally the same shape) is driven by the deleted
+    kept-word mirror's incidental phrase adjacency, not a principled
+    distinction — Laquatus's own text has no "that player discards"
+    substring for the mirror to match on either, so this is purely a
+    same-shape structural exclusion, no text quirk in play."""
+    assert "opponent_discard" not in _keys("Laquatus's Creativity")
+
+
+def test_opponent_discard_vote_per_choice_effect_opponent():
+    """ADR-0038 W5 tails: Capital Punishment's "Each opponent ...
+    discards a card for each taxes vote" lives under a ``Vote``
+    ``per_choice_effect`` branch, not the unit's own direct effect chain
+    — :func:`iter_typed_nodes`'s deep walk finds the buried ``Discard``
+    node, and the branch's OWN ``player_scope: Opponent`` (found by the
+    lane-local :func:`_nested_owner_player_scope`, since neither
+    ``per_choice_effect`` nor a Vote branch's own wrapper is on the
+    shared :func:`effect_owner_player_scope`'s fixed effect/sub_ability/
+    execute/mode_abilities chain) resolves the per-opponent edict
+    scope. CR 701.9 / 701.38 (Vote)."""
+    assert ("opponent_discard", "opponents", "") in _idents("Capital Punishment")
+
+
+def test_opponent_discard_vote_per_choice_effect_each():
+    """ADR-0038 W5 tails: Sail into the West's "each player may discard
+    their hand and draw seven cards" Vote branch carries ``player_scope:
+    All`` on its OWN ``per_choice_effect`` wrapper — the SAME
+    :func:`_nested_owner_player_scope` descent resolves the symmetric
+    wheel scope ``each``, matching the Wheel-of-Fortune wrapper-fallback
+    precedent one level deeper (behind a Vote, not a bare ability). CR
+    701.9 / 701.38."""
+    assert ("opponent_discard", "each", "") in _idents("Sail into the West")
+
+
+def test_opponent_discard_grant_ability_definition_wheel():
+    """ADR-0038 W5 tails: Mindlash Sliver's granted "{1}, Sacrifice ~:
+    Each player discards a card." lives under a static's ``GrantAbility.
+    definition`` — a field :func:`effect_owner_player_scope`'s fixed
+    chain never reaches either (the same gap Capital Punishment's Vote
+    branch hits). :func:`_nested_owner_player_scope` resolves the
+    granted ability's OWN ``player_scope: All`` to the symmetric ``each``
+    wheel scope. CR 701.9 / 613.1f (Layer 6 ability-granting continuous
+    effect)."""
+    assert ("opponent_discard", "each", "") in _idents("Mindlash Sliver")
+
+
+def test_opponent_discard_team_scoped_grant_stays_each_no_opponents():
+    """ADR-0038 W5 tails: Azra Bladeseeker's clause-grammar-recovered
+    "each player on your TEAM may discard a card" (phase drops the whole
+    clause to an ``Unimplemented`` residue re-decorated via the
+    ``discard`` ALLOWLIST row) carries no typed player field of its own
+    — the owner fallback reads the ability's ``player_scope: All`` and
+    resolves ``each``, matching legacy's own recovered-node read. A
+    "your team" restriction is 2HG-scoped and never reaches a true
+    opponent (CR 102.2 defines "opponent" against every OTHER player),
+    so this stays the SAME single ``each`` identity a genuine
+    "each player" wheel gets — no separate "opponents" identity is
+    manufactured for it."""
+    idents = _idents("Azra Bladeseeker")
+    assert ("opponent_discard", "each", "") in idents
+    assert ("opponent_discard", "opponents", "") not in idents
+
+
 # ── batch 7: phase / control / terminal-effect cluster + keyword survivors ────
 
 
