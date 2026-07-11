@@ -3263,6 +3263,30 @@ def _cost_concepts(ability: TypedMirrorNode) -> tuple[ConceptNode, ...]:
     return (cn,) if cn is not None else ()
 
 
+def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode, ...]:
+    """Role=cost concepts from the card's ``additional_cost`` (CR 601.2b) — a
+    spell-level "as an additional cost to cast this spell, sacrifice/discard/pay
+    ..." clause the ability-unit walk never reaches (it lives on the root, not
+    inside any ``S_abilities.cost``). ``additional_cost`` wraps its payload as
+    Required/Optional/Choice/Kicker; :func:`iter_typed_nodes` deep-walks past
+    that wrapper (and a Choice's alternative-cost list) to decorate every
+    concrete cost leaf reached (Sacrifice — Costly Plunder, Trash for Treasure,
+    Kuldotha Rebirth; a Choice arm — Bone Shards' "sacrifice a creature or
+    discard a card").
+    """
+    ac = getattr(root, "additional_cost", MISSING)
+    if not isinstance(ac, TypedMirrorNode):
+        return ()
+    out: list[ConceptNode] = []
+    for n in iter_typed_nodes(ac):
+        if n is ac:
+            continue
+        cn = _decorate_effect(n, "cost")
+        if cn is not None and cn.concept != OTHER:
+            out.append(cn)
+    return tuple(out)
+
+
 # Modification tag → a coarse static-concept the land/anthem lanes read.
 _MOD_CONCEPTS: dict[str, str] = {
     "AddPower": "pump",
@@ -3406,19 +3430,28 @@ def build_concept_tree(
         power = v if isinstance(v, int) else None
     units: list[AbilityUnit] = []
 
+    # A spell-level ``additional_cost`` (CR 601.2b) rides the ROOT, not any
+    # ability's own ``cost`` — merge its cost concepts onto every Spell-kind
+    # ability unit so the existing per-unit ``costs`` walk sees it (Costly
+    # Plunder, Trash for Treasure, Kuldotha Rebirth).
+    spell_ac_costs = _spell_additional_cost_concepts(root)
     abilities = getattr(root, "abilities", ()) or ()
     for i, ab in enumerate(abilities):
         if not isinstance(ab, TypedMirrorNode):
             continue
+        kind = getattr(ab, "kind", None)
+        costs = _cost_concepts(ab)
+        if kind == "Spell" and spell_ac_costs:
+            costs = costs + spell_ac_costs
         units.append(
             AbilityUnit(
                 origin="ability",
                 index=i,
                 node=ab,
-                kind=getattr(ab, "kind", None),
+                kind=kind,
                 trigger_event=None,
                 effects=tuple(_walk_effect_chain(ab)),
-                costs=_cost_concepts(ab),
+                costs=costs,
                 statics=_nested_static_concepts(ab),
             )
         )

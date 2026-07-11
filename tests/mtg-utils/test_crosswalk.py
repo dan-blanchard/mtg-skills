@@ -9985,3 +9985,74 @@ def test_graveyard_matters_excludes_exclusion_clause():
     otherwise false-positive on it; ``_GY_EXCLUSION_CLAUSE_RE`` drops the
     clause before the mirror runs."""
     assert "graveyard_matters" not in _keys('"Name Sticker" Goblin')
+
+
+# ── ADR-0038 W4 giant: artifacts_matter (structural arms + verified CR) ──────
+
+
+def test_artifacts_matter_sac_cost_bare():
+    """SAC-COST payoff, bare activated-ability cost: Atog's "Sacrifice an
+    artifact: ~ gets +2/+2" is a ``T_cost__Sacrifice`` on the ability's OWN
+    ``cost`` field (role=cost), not an effect — a COST is always paid by the
+    activator (CR 601.2b / 602.2), so no opponent/edict gate applies here,
+    unlike the effect-sac arm."""
+    assert ("artifacts_matter", "you", "") in _idents("Atog")
+
+
+def test_artifacts_matter_spell_additional_cost_sacrifice():
+    """SAC-COST payoff, spell-level ``additional_cost``: Costly Plunder's "As
+    an additional cost to cast this spell, sacrifice an artifact or
+    creature" rides the card ROOT's ``additional_cost`` (CR 601.2b), a tree
+    position no ability unit's own ``cost`` field reaches — merged onto the
+    Spell-kind unit's ``costs`` by ``build_concept_tree`` so the existing
+    per-unit cost walk sees it."""
+    assert ("artifacts_matter", "you", "") in _idents("Costly Plunder")
+
+
+def test_artifacts_matter_condition_type_gate():
+    """CONDITION type-gate doer: Dhund Operative's "As long as you control an
+    artifact, ~ gets +1/+0 and has deathtouch" is an ``IsPresent`` condition
+    on the static ability (CR 603.2 — a continuously-checked static
+    condition) whose filter names Artifact in its core types."""
+    assert ("artifacts_matter", "you", "") in _idents("Dhund Operative")
+
+
+def test_artifacts_matter_investigate_keyword():
+    """Investigate (CR 701.16) IS "create a Clue token", a colorless
+    ARTIFACT (CR 205.3g). Thraben Inspector's investigate keyword-action
+    carries no structured ``make_token`` subject (the Clue subtype lives
+    only in unstructured reminder text), so the Scryfall keyword-array
+    field-lookup is the structural anchor."""
+    assert ("artifacts_matter", "you", "") in _idents("Thraben Inspector")
+
+
+def test_artifacts_matter_excludes_bargain_optional_alt_cost():
+    """MANDATORY SHED (ADR-0038 W4 session adjudication): Ice Out's Bargain
+    keyword ("you may sacrifice an artifact, enchantment, or token as you
+    cast this spell") is an OPTIONAL additional cost whose target Or-filter
+    ALSO carries the catch-all ``Permanent`` core type (a Token-typed
+    Permanent filter, CR 702.166a) — a generic alt-cost, not an
+    artifacts/enchantments build-around. The Permanent-in-list gate on the
+    SAC-COST arm drops it."""
+    assert "artifacts_matter" not in _keys("Ice Out")
+
+
+def test_artifacts_matter_excludes_manland_self_animate():
+    """MANDATORY SHED (ADR-0038 W4 session adjudication): Blinkmoth Nexus's
+    "{1}: ~ becomes a 1/1 Blinkmoth artifact creature … It's still a land"
+    is a SELF-animate manland, not a build-around type-grant — legacy's own
+    ``_BECOMES_TYPE_RE`` mirror never matches it either (the P/T digits
+    between "becomes a" and "artifact" break the anchor), a byte-identical
+    exclusion this port preserves (CR 205.1b)."""
+    assert "artifacts_matter" not in _keys("Blinkmoth Nexus")
+
+
+def test_artifacts_matter_excludes_symmetric_death_punisher():
+    """MANDATORY SHED (ADR-0038 W4 session adjudication): Disciple of the
+    Vault's "Whenever AN artifact is put into a graveyard from the
+    battlefield, …" is a SYMMETRIC watcher (no ``controller: You`` on its
+    ``valid_card``) that profits off ANY artifact dying, including an
+    opponent's own removal (CR 700.4) — an artifact-death PUNISHER, not a
+    "my deck wants artifacts" build-around. The TYPE-DIES doer requires an
+    explicit YOUR-controlled watched subject; a symmetric one is excluded."""
+    assert "artifacts_matter" not in _keys("Disciple of the Vault")

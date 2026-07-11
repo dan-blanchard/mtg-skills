@@ -147,12 +147,14 @@ from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 # live there, imported single-source from project.py's ``_narrow_*`` marker
 # sources.
 from mtg_utils._card_ir.project import (
+    _BECOMES_TYPE_RE,
     _FORCE_ATTACK_REF,
     _GOAD_REWARD_REF,
     _LIB_SEARCH_PLAYER_ACTIONS,
     _LURE_ABLE,
     _LURE_MUST,
     _SINGLE_PERMANENT_GRANT_PREDS,
+    _TOKEN_SUBTYPE_OWN_REF,
     _counter_kind_token,
 )
 
@@ -278,6 +280,7 @@ from mtg_utils._deck_forge import signal_keys
 # (the _resolve_subject precedent) — one source, zero drift.
 from mtg_utils._deck_forge._signals_ir import (
     _ACTIVATED_ABILITY_DROP_EFFECTS,
+    _ARTIFACTS_MATTER_MIRROR,
     _BASE_PT_ANIMATE_HOOK,
     _BASE_PT_RAW_HOOK,
     _COUNTER_KIND_KEYS,
@@ -2580,7 +2583,15 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         out.extend(_typed_matters_lanes(count_operand_filter(node)))
         if c.role != "effect":
             continue
-        if c.concept == "tutor":
+        if c.concept in ("tutor", "dig"):
+            # ADR-0038 W4 giant: ``dig`` ("look at the top N cards …, put
+            # an artifact card into your hand/battlefield" — Commune with
+            # Beavers, Forging the Anchor, Kayla's Reconstruction) is the
+            # SAME type-restricted-library-search shape as ``tutor``
+            # (CR 701.23), just not a literal "search your library" —
+            # phase distinguishes the two only by whether the whole
+            # library is searched vs a fixed top-N window. Both read the
+            # SAME NO-subtype-restricted-filter gate.
             sub = effect_filter(node)
             if sub is not None and not filter_subtypes(sub):
                 out.extend(_typed_matters_lanes(sub))
@@ -2590,12 +2601,85 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
                 out.append("artifacts_matter")
             if "Enchantment" in types:
                 out.append("enchantments_matter")
+        # COPY-TOKEN doer (ADR-0038 W4 giant): "create a token that's a
+        # copy of target artifact/creature" (Molten Duplication, Echo
+        # Storm, Saheeli's Artistry). A copy token's creator is its owner
+        # and it enters under that player's control (CR 111.2) regardless
+        # of who controls the copied source, so — unlike ``make_token`` —
+        # this concept is NOT scope-gated: ``CopyTokenOf``'s ``c.scope``
+        # reflects the copied OBJECT's controller (often "any"/"each" for
+        # a "target artifact" with no controller restriction), not the
+        # token's recipient, which is always you (the caster).
+        if c.concept == "copy_token":
+            types = c.subject
+            if _is_artifact_token_types(types):
+                out.append("artifacts_matter")
+            if "Enchantment" in types:
+                out.append("enchantments_matter")
+        # TYPE-RECURSION doer (ADR-0038 W4 giant): a graveyard recursion
+        # (reanimate / GY→hand bounce / GY→library) whose target is
+        # FILTERED to the card type — single ("return target artifact
+        # card" — Refurbish) or mass ("return all enchantment cards" —
+        # Replenish); a composite ("artifact or creature card" — Argivian
+        # Find, Open the Vaults) fires both. Mirrors ``_signals_ir``'s
+        # ``_type_recursion_lanes`` (CR 115.1/115.10 — the discriminator is
+        # the TYPE, not mass-vs-single). ANY graveyard qualifies (Beacon of
+        # Unrest's "a graveyard" — no explicit controller); the exclusion
+        # is an opponent-owned filter (``_typed_matters_lanes``' own
+        # Opponent gate), never a generic-target recursion ("return target
+        # card" — Regrowth) which fires no core type at all.
+        if c.concept == "change_zone":
+            origin, dest = change_zone_dirs(node)
+            if origin == "Graveyard" and dest in (
+                "Battlefield",
+                "Hand",
+                "Library",
+            ):
+                out.extend(_typed_matters_lanes(effect_filter(node)))
+        # The library-TOP/BOTTOM sibling of the same recursion shape
+        # ("put target artifact card from a graveyard on the bottom/top of
+        # its owner's library" — Keeper of the Cadence, Dukhara Scavenger)
+        # is a SEPARATE ``PutAtLibraryPosition`` typed node, not a
+        # ``ChangeZone`` — no ``origin`` field of its own, so the "from a
+        # graveyard" gate reads the target filter's ``InZone: Graveyard``
+        # property instead (CR 400.7).
+        if c.concept == "put_library_position":
+            filt = effect_filter(node)
+            if "Graveyard" in filter_inzone_zones(filt):
+                out.extend(_typed_matters_lanes(filt))
+        # A third recursion sibling: casting the card DIRECTLY from the
+        # graveyard ("you may cast target artifact, instant, or sorcery
+        # card … from your graveyard without paying its mana cost" —
+        # Victor Timely) is a ``CastFromZone`` typed node — same
+        # ``InZone: Graveyard`` property gate as the library-position arm
+        # above (neither carries a ``ChangeZone``-style bare ``origin``).
+        if c.concept == "cast_from_zone":
+            filt = effect_filter(node)
+            if "Graveyard" in filter_inzone_zones(filt):
+                out.extend(_typed_matters_lanes(filt))
     # SAC PAYOFF — your-fodder artifact/enchantment sac (Atog-style). Per-unit so the
     # edict guard applies: "each opponent sacrifices an artifact/enchantment" (Tribute
     # to the Wild, Mire in Misery, Vile Mutilator) is an EDICT phase mislabels with a
     # you-controlled subject; ``_sac_is_edict`` (per-effect player_scope, incl. modal
-    # arms) rejects it (CR 701.21a). The sac subject must be genuinely you-controlled;
-    # the Permanent-symmetric-list gate (CR 702.166a) drops the Bargain alt-cost.
+    # arms) rejects it (CR 701.21a). The Permanent-symmetric-list gate (CR 702.166a)
+    # drops the Bargain alt-cost.
+    #
+    # ADR-0038 W4 giant bugfix: the subject-controller gate ACCEPTS
+    # ``None`` (not just explicit "You") — mirrors ``_signals_ir``'s own
+    # gate for this arm (``esub.controller != "opp"``, not ``== "you"``).
+    # "Sacrifice any number of artifacts, creatures, and/or lands" (an
+    # implicit-you self-sac cost/effect, no "target"/other-player wording —
+    # Reprocess, Nyssa of Traken, Malevolent Witchkite, Lich-Knights'
+    # Conquest) carries ``controller: None`` on the sacrificed filter, not
+    # "You"; ``_sac_is_edict``'s wrapper player_scope read is the edict
+    # guard, so a bare-None subject here is a genuine self-sac, not an
+    # under-caught edict. The gate still REJECTS any explicit non-You
+    # controller, not just "Opponent" — "target opponent sacrifices a
+    # nontoken artifact of their choice" (Balor, Rootcast Apprenticeship)
+    # tags the filter controller ``TargetPlayer`` (a chosen/targeted
+    # player, CR 701.21a's edict-target), which ``_sac_is_edict``'s modal
+    # wrapper-scope read does not catch on these two — a bare exclusion of
+    # "Opponent" alone would leak the edict through.
     for unit in tree.units:
         for c in unit.effects:
             if c.concept != "sacrifice" or c.scope == "opponents":
@@ -2603,7 +2687,10 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             if _sac_is_edict(unit, c.node):
                 continue
             sub = effect_filter(c.node)
-            if sub is None or filter_controller(sub) != "You":
+            if sub is None:
+                continue
+            ctrl = filter_controller(sub)
+            if ctrl is not None and ctrl != "You":
                 continue
             cores = filter_core_types(sub)
             if "Permanent" in cores:
@@ -2612,11 +2699,69 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
                 out.append("artifacts_matter")
             if "Enchantment" in cores:
                 out.append("enchantments_matter")
+    # SAC-COST PAYOFF — an artifact/enchantment sac paid as a COST: a bare
+    # activated-ability cost (Atog, Priest of Yawgmoth), a Composite-wrapped
+    # cost leaf (Shattergang Brothers' "{2}{R}, Sacrifice an artifact:"), or a
+    # spell's ``additional_cost`` (merged onto the Spell unit's ``costs`` by
+    # ``build_concept_tree`` — Costly Plunder, Trash for Treasure, Kuldotha
+    # Rebirth). A COST is always paid by the ACTIVATOR (CR 601.2b / 602.2), so
+    # no opponent/edict gate applies here, unlike the effect arm above. The
+    # Permanent-in-list gate still drops the OPTIONAL Bargain alt-cost (CR
+    # 702.166a — Ice Out's "sacrifice an artifact, enchantment, or token").
+    for unit in tree.units:
+        leaves = [c.node for c in unit.costs if c.concept == "sacrifice"] + [
+            leaf
+            for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
+            if tag_of(leaf) == "Sacrifice"
+        ]
+        for leaf in leaves:
+            filt = effect_filter(leaf)
+            cores = filter_core_types(filt)
+            if "Permanent" in cores:
+                continue
+            if _is_artifact_token_types(cores + filter_subtypes(filt)):
+                out.append("artifacts_matter")
+            if "Enchantment" in cores:
+                out.append("enchantments_matter")
     # generic-board static anthem/grant (Padeem) — read the static's affected filter
     for unit in tree.units:
         for c in unit.statics:
             if c.concept in ("pump", "grant_keyword", "set_pt"):
                 out.extend(_generic_board_lanes(getattr(unit.node, "affected", None)))
+    # BECOMES-TYPE doer (ADR-0038 W4 giant) — a SANCTIONED byte-identical
+    # port of legacy's ``_BECOMES_TYPE_RE`` (the LIVE constant, imported
+    # not re-typed): a "becomes a/an artifact" type-grant (Relic's Roar's
+    # "target artifact or creature becomes a Dinosaur artifact creature";
+    # Captain Rex Nebula's Vehicle animate). phase drops the granted type
+    # to an ``AddType`` mod carrying no back-link to the ORIGINAL clause
+    # shape the regex discriminates on (a lone-target "becomes a/an
+    # <adj>* artifact" vs a plural/no-article board grant — "Vehicles you
+    # control BECOME artifact creatures" — or a self-animate manland whose
+    # own P/T digits between "becomes a" and "artifact" break the anchor —
+    # Blinkmoth Nexus's "becomes a 1/1 … artifact creature" — deliberately
+    # excluded, matching legacy exactly). Run PER-CLAUSE over
+    # ``_kept(tree)`` like the main mirror. A "becomes a COPY of" (True
+    # Polymorph, Absorbing Man) is a clone effect, not a type-grant —
+    # legacy's ``e.category not in (make_token, clone)`` guard excludes
+    # it structurally; the per-clause text scan has no category to read,
+    # so it excludes on the "copy" word instead (never the deciding vote
+    # for a real type-grant clause, which never says "copy"). CR 205.1b.
+    for cl in _clauses(_kept(tree)):
+        bt_m = _BECOMES_TYPE_RE.search(cl)
+        if bt_m and "copy" not in bt_m.group(0).lower():
+            out.append(_TYPE_MATTERS_LANE[bt_m.group(1).capitalize()])
+    # TOKEN-SUBTYPE cares-about reference (ADR-0038 W4 giant) — a
+    # SANCTIONED byte-identical port of legacy's ``_TOKEN_SUBTYPE_OWN_REF``
+    # (the LIVE constant): a cares-about mention of a named artifact-token
+    # subtype WITHOUT making/sacrificing it — "Foods you control" (Hobbit's
+    # Sting, Rent Is Due, Honored Dreyleader), "Treasures you control"
+    # become (Vihaan) — a count operand / anthem subject phase carries no
+    # structural filter for (the subtype rides bare prose, not a Filter
+    # node). Blood/Clue/Food/Treasure are ALL artifact tokens (CR 205.3g),
+    # so any match feeds artifacts_matter directly (no enchantment
+    # counterpart — none of the four are ever enchantments).
+    if any(_TOKEN_SUBTYPE_OWN_REF.search(cl) for cl in _clauses(_kept(tree))):
+        out.append("artifacts_matter")
     # CAST-TRIGGER doer (recall gap): "whenever you cast an artifact/enchantment
     # spell, <payoff>" (Argothian Enchantress, Enchantress's Presence, Sythis,
     # Mishra). Mirrors ``_signals_ir`` line ~10974 — the watched-spell filter's
@@ -2632,6 +2777,105 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         if trigger_caster_scope(unit.node) == "opponents":
             continue
         out.extend(_typed_matters_lanes(getattr(unit.node, "valid_card", None)))
+    # SACRIFICE-TRIGGER payoff DOER (ADR-0038 W4 giant): "whenever you
+    # sacrifice a Clue/Food/artifact, <payoff>" (Graf Mole, Curious
+    # Cadaver, Jenny Flint's "Clue or Food"). The same trigger-own-subject
+    # read as the CAST-TRIGGER doer above, but Artifact-token SUBTYPES
+    # (Clue/Food/Treasure/… CR 205.3g) carry an EMPTY core-type list, so
+    # this checks core+subtype words together (mirrors the ``copy_token``/
+    # ``make_token`` arms), not the core-only ``_typed_matters_lanes``
+    # gate. Excludes an opponent-scoped watched sac (not your build-around).
+    # CR 701.16 (Sacrifice) / 603.2.
+    for unit in tree.units:
+        if unit.trigger_event != "sacrificed":
+            continue
+        vc = getattr(unit.node, "valid_card", None)
+        if vc is None or filter_controller(vc) == "Opponent":
+            continue
+        words = filter_core_types(vc) + filter_subtypes(vc)
+        if _is_artifact_token_types(words):
+            out.append("artifacts_matter")
+        if "Enchantment" in words:
+            out.append("enchantments_matter")
+    # CONDITION type-gate DOER (ADR-0038 W4 giant): a static/triggered
+    # ability's "as long as you control an artifact/enchantment, …" gate
+    # (``IsPresent`` / ``ControlsType``) or a threshold count ("… two or
+    # more artifacts" — ``QuantityComparison``/``QuantityCheck`` over an
+    # ``ObjectCount`` ref). Mirrors ``_signals_ir``'s condition-gate arm
+    # (``cond.kind in controlstype/quantitycomparison/quantitycheck/
+    # ispresent``) — ANY comparator direction counts (a "control NO
+    # artifacts" floor punisher — Glimmervoid's sac trigger — still wants
+    # an artifacts deck, same as a "two or more" threshold gate).
+    # ``iter_condition_sites`` reaches both a unit's own ``condition`` and
+    # its ``activation_restrictions`` entries. CR 603.2 (static abilities
+    # with a continuously-checked condition).
+    for unit in tree.units:
+        for cond in iter_condition_sites(unit.node):
+            tag = tag_of(cond)
+            if tag in ("IsPresent", "ControlsType"):
+                out.extend(_typed_matters_lanes(getattr(cond, "filter", None)))
+            elif tag in ("QuantityComparison", "QuantityCheck"):
+                lhs = getattr(cond, "lhs", None)
+                if tag_of(lhs) == "Ref":
+                    qty = getattr(lhs, "qty", None)
+                    # ObjectCount ("two or more artifacts") and
+                    # ZoneChangeCountThisTurn ("an artifact was put into a
+                    # graveyard from the battlefield this turn" — Ichor
+                    # Shade) share the SAME ``filter`` field shape.
+                    if tag_of(qty) in ("ObjectCount", "ZoneChangeCountThisTurn"):
+                        out.extend(_typed_matters_lanes(getattr(qty, "filter", None)))
+    # TYPE-ETB doer (ADR-0038 W4 giant): "whenever an artifact/creature/
+    # enchantment enters, <payoff>" (Era of Innovation, Confusion in the
+    # Ranks — a SYMMETRIC any-player watcher, not gated to you). Reads
+    # the trigger's OWN ``valid_card`` watched-subject filter, the same
+    # shape the CAST-TRIGGER doer below reads for a cast event. CR 603.2.
+    #
+    # TYPE-DIES doer, narrower: "…dies/is put into a graveyard from the
+    # battlefield, <payoff>" fires ONLY for a YOUR-controlled watched
+    # subject (Pia's Revolution, Seer of Stolen Sight's "artifacts and/or
+    # creatures you control"). Unlike the ETB doer, a SYMMETRIC death
+    # watcher ("whenever AN artifact is put into a graveyard from the
+    # battlefield" — Disciple of the Vault, Fangren Marauder, Molder
+    # Beast) is an ARTIFACT-DEATH PUNISHER that profits off ANY artifact
+    # dying, including an opponent's own removal — not a "my deck wants
+    # artifacts" build-around, so it's deliberately excluded (mirrors
+    # legacy, which routes these to a different death-payoff lane, not
+    # artifacts_matter). CR 700.4.
+    for unit in tree.units:
+        if unit.trigger_event == "enters":
+            out.extend(_typed_matters_lanes(getattr(unit.node, "valid_card", None)))
+        elif unit.trigger_event == "dies":
+            vc = getattr(unit.node, "valid_card", None)
+            if filter_controller(vc) == "You":
+                out.extend(_typed_matters_lanes(vc))
+    # ADR-0038 W4 giant — a SANCTIONED byte-identical port of legacy's
+    # ``_ARTIFACTS_MATTER_MIRROR`` (the LIVE constant, imported not re-typed):
+    # phase carries no clean structural shape for this oracle-idiom family —
+    # Affinity/Improvise/Metalcraft keyword payoffs (CR 702.41/702.126/207.2c),
+    # artifact tutors and graveyard recursion, "abilities of artifacts",
+    # "becomes an artifact" — so the legacy per-clause reminder-stripped-
+    # oracle scan is the last-resort mechanism. Corpus-verified in the legacy
+    # path (regex_only==22, ALL affinity-for-non-artifact over-fire, 0
+    # genuine recall lost by the narrowed `affinity for artifacts` branch).
+    # Run PER-CLAUSE over ``_kept(tree)`` to match the legacy clause loop.
+    if any(_ARTIFACTS_MATTER_MIRROR.search(cl) for cl in _clauses(_kept(tree))):
+        out.append("artifacts_matter")
+    # AFFINITY-FOR-EQUIPMENT doer (ADR-0038 W4 giant): Equipment IS an
+    # Artifact subtype (CR 301.5), so "Affinity for Equipment" (Nahiri,
+    # Forged in Fury; Goldwardens' Gambit; Oxidda Finisher; Rebel Salvo) is
+    # a genuine artifact-count cost reducer — phase's own raw keyword node
+    # tags it with the implied ``Artifact`` core type alongside the
+    # ``Equipment`` subtype (mirrors legacy's ``_affinity_improvise_
+    # markers``), but that raw ``root.keywords`` array isn't in the typed
+    # substrate's unit walk. The narrowed mirror above deliberately keeps
+    # `affinity for artifacts` (not bare ``\baffinity\b``) to drop the 22
+    # affinity-for-non-artifact over-fires (Icebreaker Kraken's snow
+    # affinity, Argivian Phalanx's creature affinity) — this is the ONE
+    # additional affinity spelling that IS an artifact tell, checked
+    # separately so the mirror stays byte-identical to the live constant.
+    # CR 702.41a / 301.5.
+    if "affinity for equipment" in _kept(tree).lower():
+        out.append("artifacts_matter")
     seen: set[str] = set()
     sigs: list[Signal] = []
     for lane in out:
@@ -14743,6 +14987,23 @@ def _keyword_field_signals_b16(keywords: frozenset[str], name: str) -> list[Sign
     return []
 
 
+def _keyword_field_signals_w4g(keywords: frozenset[str], name: str) -> list[Signal]:
+    """ADR-0038 W4 giant — Investigate (CR 701.27) IS "create a Clue token", a
+    colorless ARTIFACT (CR 205.3g). phase tags the keyword but drops the Clue
+    subtype off the ``make_token`` subject (the keyword-action's reminder
+    text isn't structured — Declaration in Stone, No Witnesses, Fateful
+    Absence all carry ``make_token`` subject=None or no make_token node at
+    all for a modal/rider investigate), so the keyword array is the
+    structural anchor. Mirrors ``_signals_ir._IR_KEYWORD_MAP["investigate"]``
+    byte-identically (``artifacts_matter`` you, high). The dedicated
+    ``clue_matters`` lane reads investigate off its own path; this opens
+    ``artifacts_matter``, which has no other tell for these.
+    """
+    if "investigate" in {k.lower() for k in keywords}:
+        return [Signal("artifacts_matter", "you", "", "", name, "high")]
+    return []
+
+
 def _ability_copy(tree: ConceptTree) -> list[Signal]:
     """ability_copy (§1) — CR 707.10 ("To copy a spell, activated ability, or
     triggered ability means to put a copy of it onto the stack; … A copy of an
@@ -16218,6 +16479,8 @@ def extract_crosswalk_signals(
     for sig in _keyword_field_signals_b15(frozenset(keywords), tree.name):
         add(sig)
     for sig in _keyword_field_signals_b16(frozenset(keywords), tree.name):
+        add(sig)
+    for sig in _keyword_field_signals_w4g(frozenset(keywords), tree.name):
         add(sig)
     for sig in _keyword_field_signals_sweep(frozenset(keywords), tree.name):
         add(sig)
