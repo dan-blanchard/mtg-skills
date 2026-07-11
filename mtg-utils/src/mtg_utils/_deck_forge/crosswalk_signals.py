@@ -1021,6 +1021,47 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # control" one-shot effects with no P/T/keyword modification at all,
     # …). No single mechanism closes (b) — banking the recall gain per
     # ADR-0038 step 5 rather than force-fitting a promotion.
+    #
+    # ADR-0038 W4 giant-key batch: ``plus_one_matters`` STAYS residual —
+    # substantial recall gain (a live corpus re-measure: both 118 -> 296,
+    # live_only 485 -> 307, cw_only 2 -> 23, all 23 corpus-verified genuine
+    # beyond-legacy gains — Battlefront Krushok / Thoughtbound Phantasm /
+    # a DFC front-face RemoveCounter cost / Skyclave Sentinel's second-clause
+    # payoff / the Unleash CantBlock idiom, each a real legacy structured-
+    # parse gap, not a crosswalk over-fire), but the gate is NOT met — the
+    # tail doesn't decompose into a small adjudicated set. Five new arms
+    # mirror ``_any_counter_matters``'s whole-unit descents gated to P1P1
+    # instead of Any (:func:`_plus_one_matters`'s own docstring — CR 122.1):
+    # a mass STATIC ``affected`` filter (Outlast tribal anthems), a
+    # counter-HAVE TRIGGER's ``valid_card`` filter (Marchesa the Black Rose),
+    # a nested ``iter_static_defs`` conferred-grant descent, a ``HasCounters``
+    # whole-unit static CONDITION (Lightwalker's self-referencing "as long as
+    # it has a +1/+1 counter" idiom, CR 604.2), and a P1P1-kind
+    # ``RemoveCounter`` activation COST (Triskelion/Walking Ballista's
+    # counter-sink outlet, CR 118.7). :func:`trigger_counter_filter`
+    # (``_card_ir/crosswalk.py``) is ALSO widened to read a THRESHOLD-less
+    # ``counter_filter``'s ``MirrorVariant`` collapse (Fathom Mage / Enduring
+    # Scalelord / Knighted Myr — a mirror-runtime loading artifact, not a
+    # new grammar arm). Two DISTINCT legacy over-fire mechanisms are
+    # deliberately NOT reproduced (both corpus-verified noise, not a
+    # genuine +1/+1-specific cares-about read — see the docstring's "NOT
+    # ported" section): (1) legacy's ``_PAYOFF_TRIGGER_KEYS["counter_added"]``
+    # row fires UNCONDITIONALLY on every ``counter_added`` trigger with no
+    # kind gate (~249 raw live_only — 171 Saga lore-counter chapters + 74
+    # M1M1/kindless kind-agnostic triggers + 4 more via (2)); (2) legacy's
+    # per-ability ``project._narrow_counter_refs`` regex carries a
+    # kind-agnostic "with/has a counter on it" alternative that double-tags
+    # cards the esub arm already correctly routes to any_counter_matters
+    # (The Swarmlord, Cleopatra Exiled Pharaoh, Puca's Covenant, Metropolis
+    # Angel). The remaining ~58-card tail is genuinely diverse (an
+    # ``Unknown``-tagged ``sub_ability`` idiom for "if X has a counter, do Y
+    # instead" — Bring Low; a condition phase drops entirely inside a
+    # ``GenericEffect`` wrapper — Dual-Sun Technique; a deeply-nested
+    # ``ModifyCost``/``spell_filter``/``Targets`` cost-reduction shape —
+    # Titanic Brawl; CDA "power greater than its base power" text idioms
+    # with no counter node at all — Baird, Kutzil, Ms. Marvel) — each would
+    # need its own arm + corpus verification. Banking the recall gain per
+    # ADR-0038 step 5 rather than force-fitting a promotion.
     {
         "artifacts_matter",
         "base_pt_set",
@@ -3363,6 +3404,81 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
     * a ``CountersOn`` count-operand of kind ``P1P1`` ("~ for each +1/+1 counter on
       it" — Mycoloth) — ``_signals_ir``'s ``e.amount.op == "counters"`` (IR:7666).
 
+    ADR-0038 W4 giant batch adds the ``any_counter_matters`` sibling's whole-unit
+    descents, gated to ``P1P1`` instead of ``Any`` (:func:`_any_counter_matters`'s
+    own docstring — CR 122.1):
+
+    * a mass STATIC grant/restriction whose OWN ``affected`` names a P1P1-bearing
+      filter directly (Outlast's tribal anthem idiom — "Each creature you control
+      with a +1/+1 counter on it has flying," Abzan Falconer / Ainok Bond-Kin /
+      Tuskguard Captain), read off the whole static UNIT wrapper, never a
+      per-modification concept.
+    * a counter-HAVE TRIGGER — "whenever a creature you control with a +1/+1
+      counter on it dies/attacks" (Marchesa the Black Rose, Cleopatra Exiled
+      Pharaoh, Gladehart Cavalry, Meltstrider Eulogist) — the predicate rides the
+      TRIGGER's own watched-object filter (``valid_card``), never an effect/static
+      filter.
+    * a nested static-def descent (:func:`iter_static_defs`) for a one-shot
+      conferred grant buried inside a wrapping effect ("Each creature you control
+      with a +1/+1 counter on it gains hexproof" riding a ``GenericEffect``).
+    * a ``HasCounters`` whole-unit static CONDITION of kind P1P1 — the
+      self-referencing "~ has flying as long as it has a +1/+1 counter on it"
+      idiom (Lightwalker, Baloth Pup, Sigiled Contender, Ainok Artillerist):
+      the condition rides ``SelfRef``, never a subject/count-operand filter, so
+      none of the filter-reading arms above can reach it. CR 604.2 (a static
+      ability's continuous effect applies only while its condition holds).
+    * a ``RemoveCounter`` activation COST of kind P1P1 (mirrors
+      ``_counter_manipulation``'s ``iter_cost_leaves`` walk) — "Remove a +1/+1
+      counter from ~: …" (Triskelion, Walking Ballista, Crystalline Crawler) is a
+      +1/+1 counter sink/outlet, the SAME engine ``_signals_ir``'s Shape 5
+      (~10597) reads off the cost. CR 118.7.
+
+    :func:`trigger_counter_filter` (``_card_ir/crosswalk.py``) is widened
+    alongside this batch: a THRESHOLD-less ``counter_filter`` (no Saga chapter
+    number — a bare "whenever a +1/+1 counter is put on ~" trigger, Fathom Mage
+    / Enduring Scalelord / Knighted Myr) loads the mirror runtime's untagged
+    single-field collapse (``MirrorVariant``) instead of the full struct; both
+    encodings are now read so the existing ``counter_added`` arm above actually
+    reaches the P1P1-specific placement-trigger family.
+
+    NOT ported — two DISTINCT legacy over-fire mechanisms, both corpus-verified,
+    neither a genuine +1/+1-specific cares-about read (CR 122.1 defines a
+    counter as KIND-carrying; a kind-agnostic reference belongs to
+    ``any_counter_matters``, not here — the "Boundary" split this key
+    deliberately preserves):
+
+    * a ``counter_added`` TRIGGER whose kind is anything OTHER than P1P1
+      (lore/Saga chapters, plan/Case, hour, or a bare M1M1/kindless "whenever a
+      counter is put on ~" trigger — Nest of Scarabs, Hapatra). Legacy's OWN
+      ``_PAYOFF_TRIGGER_KEYS["counter_added"]`` row (``_signals_ir`` ~10852)
+      fires plus_one_matters UNCONDITIONALLY on every ``counter_added`` trigger
+      event with NO kind gate at all (unlike the sibling
+      ``counter_place_trigger`` row two lines below it, which DOES exclude
+      Sagas) — a Saga's lore-counter chapter ability has nothing to do with
+      +1/+1 counters; Nest of Scarabs / Hapatra fire off a -1/-1-counter
+      trigger. Deliberately NOT reproduced.
+    * a kind-AGNOSTIC "with/has a counter on it" reference whose OWN structural
+      predicate kind is explicitly ``Any`` (The Swarmlord, Cleopatra Exiled
+      Pharaoh, Puca's Covenant, Metropolis Angel — CR 122.1's kind carries the
+      distinction). Legacy's per-ABILITY ``project._narrow_counter_refs``
+      regex (``_P1P1_HAVE_REF``, distinct from the face-level
+      ``_P1P1_HAVE_FACE`` this lane does NOT import) carries a kind-agnostic
+      final alternative (``\\bwith (?:a )?counters? on (?:it|them|him|her)\\b``)
+      despite the function's "+1/+1-counter ref recovery" framing — it fires
+      on ANY ability with no structured placement of its own, regardless of
+      the referenced kind, double-tagging cards the esub arm already correctly
+      routes to any_counter_matters via the SAME ``Any``-kind predicate.
+      Deliberately NOT reproduced.
+
+    A genuinely diverse residual tail remains beyond these two classes (an
+    ``Unknown``-tagged ``sub_ability`` idiom for "if X has a counter, do Y
+    instead" — Bring Low; a condition phase drops entirely inside a
+    ``GenericEffect`` wrapper — Dual-Sun Technique; a deeply-nested
+    ``ModifyCost``/``spell_filter``/``Targets`` cost-reduction shape — Titanic
+    Brawl; CDA "power greater than its base power" text idioms with no counter
+    node at all — Baird, Kutzil, Ms. Marvel) — banked as a recall gain per
+    ADR-0038 step 5 rather than force-fit; the key stays residual.
+
     The raw-``"+1/+1 counter"`` idiom arms stay ``live_only`` raw-fold mirrors. Scope
     "you".
     """
@@ -3373,6 +3489,34 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
             and trigger_counter_filter(unit.node)[0].upper() == "P1P1"
         ):
             return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
+        if unit.origin == "static":
+            filt = effect_filter(unit.node)
+            if (
+                filt is not None
+                and filter_controller(filt) != "Opponent"
+                and "P1P1" in counter_pred_kinds(filt)
+            ):
+                return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
+        if unit.origin == "trigger":
+            vc = getattr(unit.node, "valid_card", None)
+            if (
+                vc is not None
+                and filter_controller(vc) != "Opponent"
+                and "P1P1" in counter_pred_kinds(vc)
+            ):
+                return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
+        if unit.origin == "static":
+            cond = getattr(unit.node, "condition", None)
+            if tag_of(cond) == "HasCounters":
+                counters = getattr(cond, "counters", None)
+                kind = str(getattr(counters, "data", "") or "").upper()
+                if kind == "P1P1":
+                    return [
+                        Signal("plus_one_matters", "you", "", "", tree.name, "high")
+                    ]
+        for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
+            if tag_of(leaf) == "RemoveCounter" and counter_kind_any(leaf) == "P1P1":
+                return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
     for c in tree.effect_concepts("move_counters"):
         if counter_kind(c.node).upper() == "P1P1":
             return [Signal("plus_one_matters", "you", "", c.raw, tree.name, "high")]
@@ -3386,7 +3530,10 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
             and str(getattr(q, "counter_type", "")).upper() == "P1P1"
         ):
             return [Signal("plus_one_matters", "you", "", c.raw, tree.name, "high")]
-        for filt in (effect_filter(c.node), count_operand_filter(c.node)):
+        filters = [effect_filter(c.node), count_operand_filter(c.node)]
+        for stdef in iter_static_defs(c.node):
+            filters.append(getattr(stdef, "affected", None))
+        for filt in filters:
             if filt is None or filter_controller(filt) == "Opponent":
                 continue
             if "P1P1" in counter_pred_kinds(filt):

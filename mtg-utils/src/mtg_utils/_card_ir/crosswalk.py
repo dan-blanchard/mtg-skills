@@ -2922,9 +2922,23 @@ def trigger_counter_filter(trig: TypedMirrorNode) -> tuple[str, int]:
     The typed Saga gate: 723 of the 798 CounterAdded triggers are Saga
     chapters, and the ``lore`` counter_type is a CLEANER discriminator than
     live's type_line sniff.
+
+    ADR-0038 W4 giant batch: a THRESHOLD-less filter (no chapter number —
+    a bare "whenever a +1/+1 counter is put on ~" trigger, Fathom Mage /
+    Enduring Scalelord / Knighted Myr) loads the mirror runtime's untagged
+    single-field collapse (:class:`MirrorVariant`, ``key="counter_type"``)
+    instead of the full ``counter_filter`` struct — the struct shape only
+    survives loading when a SECOND field (``threshold``) is also present.
+    Both encodings are read here so the P1P1-specific placement-trigger arm
+    (``_plus_one_matters``) and the Saga gate see the SAME kind regardless
+    of which shape a given filter loaded as.
     """
     cf = getattr(trig, "counter_filter", MISSING)
     if not _present(cf):
+        return ("", 0)
+    if isinstance(cf, MirrorVariant):
+        if cf.key == "counter_type" and isinstance(cf.inner, str):
+            return (cf.inner, 0)
         return ("", 0)
     ct = getattr(cf, "counter_type", None)
     th = getattr(cf, "threshold", None)

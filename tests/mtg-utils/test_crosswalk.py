@@ -1100,6 +1100,91 @@ def test_plus_one_matters_structural_arms(name):
     assert ("plus_one_matters", "you", "") in _idents(name)
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W4 giant batch (CR 122.1) — a mass STATIC grant whose OWN
+        # ``affected`` names a P1P1-bearing filter directly (Outlast's tribal
+        # anthem idiom, mirrors ``_any_counter_matters``'s Rishkar arm gated
+        # to P1P1 instead of Any).
+        "Abzan Falconer",
+    ],
+)
+def test_plus_one_matters_static_affected_arm(name):
+    assert ("plus_one_matters", "you", "") in _idents(name)
+
+
+def test_plus_one_matters_trigger_valid_card_arm():
+    """Marchesa, the Black Rose (CR 122.1 / 603.2): "whenever a creature you
+    control with a +1/+1 counter on it dies" rides the DIES trigger's own
+    ``valid_card`` filter — mirrors ``_any_counter_matters``'s counter-HAVE
+    trigger arm, gated to P1P1 instead of Any."""
+    assert ("plus_one_matters", "you", "") in _idents("Marchesa, the Black Rose")
+
+
+def test_plus_one_matters_has_counters_condition_arm():
+    """Lightwalker (CR 604.2): "~ has flying as long as it has a +1/+1
+    counter on it" is a whole-unit static CONDITION (``HasCounters``) riding
+    ``SelfRef`` — no subject/count-operand filter exists for the other arms
+    to read."""
+    assert ("plus_one_matters", "you", "") in _idents("Lightwalker")
+
+
+@pytest.mark.parametrize("name", ["Triskelion", "Walking Ballista"])
+def test_plus_one_matters_removecounter_cost_arm(name):
+    """Triskelion / Walking Ballista (CR 118.7): "Remove a +1/+1 counter
+    from ~: …" is a P1P1-kind ``RemoveCounter`` activation COST — a +1/+1
+    counter sink/outlet, mirrors ``_counter_manipulation``'s
+    ``iter_cost_leaves`` walk."""
+    assert ("plus_one_matters", "you", "") in _idents(name)
+
+
+def test_plus_one_matters_mirrorvariant_counter_filter_arm():
+    """Fathom Mage (CR 122.1 / 603.2): "Whenever a +1/+1 counter is put on
+    ~, you may draw a card" is a THRESHOLD-less ``counter_added`` trigger —
+    no Saga chapter number, so the mirror runtime loads its ``counter_filter``
+    as an untagged single-field ``MirrorVariant`` rather than the full
+    struct. :func:`trigger_counter_filter` (``_card_ir/crosswalk.py``) reads
+    both encodings."""
+    assert ("plus_one_matters", "you", "") in _idents("Fathom Mage")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W4 giant batch — NOT ported: a ``counter_added`` trigger
+        # whose kind is anything OTHER than P1P1. Legacy's OWN
+        # ``_PAYOFF_TRIGGER_KEYS["counter_added"]`` row fires plus_one_matters
+        # UNCONDITIONALLY on every ``counter_added`` trigger with NO kind
+        # gate — a Saga's lore-counter chapter has nothing to do with +1/+1
+        # counters (CR 714.2b vs 122.1); Nest of Scarabs / Hapatra fire off a
+        # -1/-1-counter trigger (CR 122.1 kind carries the distinction).
+        # Deliberately negative-pinned.
+        "The War in Heaven",
+        "Nest of Scarabs",
+        "Hapatra, Vizier of Poisons",
+    ],
+)
+def test_plus_one_matters_excludes_non_p1p1_counter_added_trigger(name):
+    assert "plus_one_matters" not in _keys(name)
+
+
+def test_plus_one_matters_excludes_kind_agnostic_have_reference():
+    """The Swarmlord (CR 122.1): "whenever a creature you control with a
+    counter on it dies" carries an explicit ``Any``-kind Counters predicate
+    on its DIES trigger's ``valid_card`` (the SAME structural node
+    ``any_counter_matters`` correctly reads via
+    ``test_any_counter_matters_trigger_valid_card_arm``) — legacy's
+    per-ability ``project._narrow_counter_refs`` regex (``_P1P1_HAVE_REF``)
+    carries a kind-agnostic "with/has a counter on it" alternative despite
+    its "+1/+1-counter ref recovery" framing, double-tagging plus_one_matters
+    even though the referenced kind is explicitly Any. Deliberately
+    negative-pinned — a kind-agnostic reference belongs to
+    any_counter_matters, not here."""
+    assert "plus_one_matters" not in _keys("The Swarmlord")
+    assert ("any_counter_matters", "you", "") in _idents("The Swarmlord")
+
+
 def test_any_counter_matters_predicate_arm():
     assert ("any_counter_matters", "you", "") in _idents("Concord with the Kami")
 
