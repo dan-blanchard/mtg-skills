@@ -9726,3 +9726,57 @@ def test_overlay_stage_is_noop_when_no_arm_fires():
     """A card no arm touches is returned by identity (cheap, allocation-free)."""
     tree = _tree("Grizzly Bears")
     assert apply_overlay_corrections(tree) is tree
+
+
+# ── ADR-0038 W4 giant: graveyard_matters (structural arms + verified CR) ─────
+
+
+def test_graveyard_matters_from_graveyard_target_filter():
+    """Effect target/origin-in-graveyard arm: Gravedigger's ETB reads a
+    ``ChangeZone`` whose target filter carries ``InZone: Graveyard`` +
+    ``controller: You`` (CR 400.7 — the graveyard is a player's zone)."""
+    assert ("graveyard_matters", "you", "") in _idents("Gravedigger")
+
+
+def test_graveyard_matters_opponent_owned_graveyard():
+    """The ``Owned`` property (not the top-level ``controller`` field, which
+    describes the reanimation DESTINATION) names an opponent's graveyard —
+    Ashen Powder's "creature card from an opponent's graveyard" (CR 400.7)."""
+    assert ("graveyard_matters", "opponents", "") in _idents("Ashen Powder")
+
+
+def test_graveyard_matters_delirium_condition():
+    """Delirium (CR 400.7 zone + a card-types-among-graveyard-cards count):
+    Grim Flayer's static P/T bonus is gated on a ``DistinctCardTypes``
+    condition over a graveyard ``Zone`` source."""
+    assert ("graveyard_matters", "you", "") in _idents("Grim Flayer")
+
+
+def test_graveyard_matters_morbid_count_operand():
+    """Morbid ("if a creature died this turn") keys off
+    ``ZoneChangeCountThisTurn`` with ``to: Graveyard`` — CR 700.4's "dies" IS
+    a battlefield→graveyard zone change. Scavenging Ghoul's counter-per-death
+    effect amount reads it directly (not via a condition)."""
+    assert ("graveyard_matters", "you", "") in _idents("Scavenging Ghoul")
+
+
+def test_graveyard_matters_last_resort_mirror_recovery():
+    """The LAST-RESORT byte-mirror recovers a genuine "cares about your
+    graveyard" reference the typed substrate carries no node for at all — an
+    Unfinity sticker idiom (Clandestine Chameleon's "abilities of ... cards
+    in your graveyard", Roxi's power keyed partly on "cards in your graveyard
+    with an art sticker") parks as an ``Unimplemented`` static-parse residue
+    with no allowlisted grammar token (CR 400.7 / 404). ADR-0038 W4 session
+    adjudication: both are genuine members."""
+    assert ("graveyard_matters", "you", "") in _idents("Clandestine Chameleon")
+    assert ("graveyard_matters", "you", "") in _idents("Roxi, Publicist to the Stars")
+
+
+def test_graveyard_matters_excludes_exclusion_clause():
+    """MANDATORY SHED (ADR-0038 W4 session adjudication): '"Name Sticker"
+    Goblin's only "graveyard" mention is an EXCLUSION clause ("enters from
+    anywhere OTHER THAN a graveyard or exile", CR 400.7 zones) — not a
+    payoff. The byte-mirror's own per-clause bare-mention rule would
+    otherwise false-positive on it; ``_GY_EXCLUSION_CLAUSE_RE`` drops the
+    clause before the mirror runs."""
+    assert "graveyard_matters" not in _keys('"Name Sticker" Goblin')

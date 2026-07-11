@@ -297,6 +297,7 @@ from mtg_utils._deck_forge._signals_regex import (
     Signal,
     _clauses,
     _creature_etb_clause,
+    _graveyard_matters_clauses,
     _resolve_subject,
 )
 from mtg_utils._deck_forge._subtypes import (
@@ -3325,29 +3326,291 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
     return out
 
 
-def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
-    """graveyard_matters — the cares-about PAYOFF (CR 404 / 701.17a). The cleanly
-    typed arm: a trigger watching cards ENTERING a graveyard from a non-battlefield
-    zone, or LEAVING a graveyard (Syr Konrad-class), read off the trigger's typed
-    ``origin`` / ``destination``. The battlefield→graveyard ``dies`` movement is a
-    death payoff (a different lane), excluded. The dredge / delve / scavenge keyword
-    payoffs ride a keyword field-lookup. The count-operand-over-cards-in-a-graveyard
-    arm + the delirium/threshold CONDITION arm depend on zone tags the substrate does
-    not expose uniformly, so a LOW reproduce rate here is EXPECTED (documented
-    ``live_only`` residue), not a gap.
+# ADR-0038 W4 giant (graveyard_matters): '"Name Sticker" Goblin' is the ONE
+# commander-legal card whose only "graveyard" mention is an EXCLUSION clause
+# ("enters from anywhere OTHER THAN a graveyard or exile", CR 400.7 zones) —
+# not a payoff. Dropped PER-CLAUSE (boundary lesson iii) before the Arm-6
+# byte-mirror runs, so a genuine co-mentioned payoff clause elsewhere on a
+# future card would still fire. Mandatory shed (ADR-0038 W4 session
+# adjudication).
+_GY_EXCLUSION_CLAUSE_RE = re.compile(r"other than a graveyard")
+
+# ADR-0038 W4 giant (graveyard_matters): the opponent-owned-graveyard tell
+# legacy's OWN raw-text zone recovery reads (byte-identical to the deleted
+# ``_GY_OPP`` producer, _signals_ir.py). Phase sometimes DROPS the
+# ownership qualifier entirely off a graveyard-target filter it otherwise
+# parses identically to a self-graveyard reference (Scion of Darkness /
+# Ink-Eyes, Servant of Oni / Sepulchral Primordial's "target creature card
+# from THAT PLAYER's graveyard" carries the SAME bare
+# ``{controller: None}`` typed filter shape as Reya Dawnbringer's "…from
+# YOUR graveyard") — an unrecoverable phase-parse gap this text veto
+# patches at the unit-description granularity (CR 400.7).
+_GY_OPP_RE = re.compile(
+    r"\b(?:opponent'?s?|their|each (?:player|opponent)'?s?|that player'?s?"
+    r"|target (?:player|opponent)'?s?) graveyard\b",
+    re.IGNORECASE,
+)
+
+
+def _gy_player_scope(player_tag: str | None) -> str | None:
+    """The you/opponents/ambiguous read of a count operand's player-scope
+    tag. ``Opponent`` -> 'opponents'; ``None``/``Controller``/``All`` (no
+    explicit owner, or an explicit "all graveyards" — Mortivore) -> the
+    self-graveyard default 'you'; any OTHER tag (``ScopedPlayer`` —
+    Angrath, the Flame-Chained's "[-8]: each opponent loses life equal to
+    the number of cards in THEIR graveyard", scoped by the ability's own
+    ``player_scope: Opponent``, not this operand; ``TargetPlayer``) is a
+    genuinely AMBIGUOUS owner this narrow structural read can't resolve on
+    its own -> ``None``, deferring to the byte-mirror's clause-text scope
+    resolution.
     """
+    if player_tag == "Opponent":
+        return "opponents"
+    if player_tag in (None, "Controller", "All"):
+        return "you"
+    return None
+
+
+def _gy_count_ref_scope(node: object) -> str | None:
+    """The player scope of a graveyard-zone COUNT/THRESHOLD operand tag
+    (``ZoneCardCount`` / ``GraveyardSize`` / ``DistinctCardTypes`` /
+    ``ZoneCardCountAtLeast`` / ``ZoneChangeCountThisTurn``), or ``None``
+    when ``node`` isn't one or its zone isn't ``Graveyard``.
+    Delve/threshold/delirium/"X = cards in a graveyard" key off one of the
+    first four (CR 400.7): a dynamic P/T scaler (Mortivore, Splinterfright
+    — ``SetDynamicPower``/``…Toughness`` ``value``), a scaling effect
+    amount (Ancestor's Chosen's ``GainLife``), a Delirium condition
+    (``DistinctCardTypes`` over a graveyard ``Zone`` source — Grim
+    Flayer), or a Threshold activation/condition gate
+    (``ZoneCardCountAtLeast`` / a bare ``GraveyardSize`` comparison —
+    Nantuko Monastery, Mindwhisker). Morbid ("if a creature died this
+    turn") keys off ``ZoneChangeCountThisTurn`` with ``to: Graveyard``
+    (CR 700.4's "dies" IS a battlefield→graveyard move — Scavenging
+    Ghoul, Morkrut Banshee) — carries no scope/player field, always
+    'you' (the state is board-wide, but the payoff is the controller's).
+    An explicit ``Opponent`` scope/player on the other four routes to
+    'opponents' (GY-hate count); else the self-graveyard default 'you'
+    (``ZoneCardCountAtLeast`` carries no scope field at all — CR
+    Threshold templating is always about YOUR graveyard).
+    """
+    t = tag_of(node)
+    if t == "ZoneCardCount":
+        if getattr(node, "zone", None) != "Graveyard":
+            return None
+        return _gy_player_scope(getattr(node, "scope", None))
+    if t == "GraveyardSize":
+        return _gy_player_scope(tag_of(getattr(node, "player", None)))
+    if t == "DistinctCardTypes":
+        src = getattr(node, "source", None)
+        if tag_of(src) != "Zone" or getattr(src, "zone", None) != "Graveyard":
+            return None
+        return _gy_player_scope(getattr(src, "scope", None))
+    if t == "ZoneCardCountAtLeast":
+        if getattr(node, "zone", None) != "Graveyard":
+            return None
+        return "you"
+    if t == "ZoneChangeCountThisTurn":
+        if getattr(node, "to", None) != "Graveyard":
+            return None
+        return "you"
+    return None
+
+
+def _gy_filter_scope(filt: object) -> str | None:
+    """The graveyard-ownership scope of a target/count filter (CR 400.7),
+    or ``None`` when no scope can be read off it structurally. A
+    graveyard-restricted filter names its owner via the ``Owned`` property
+    (Ashen Powder, Puppeteer Clique, Agadeem Occultist all carry
+    ``Owned: Opponent`` — the "from an opponent's graveyard" tell), NOT the
+    top-level ``controller`` field (which for many of these is ``None`` —
+    "under YOUR control" describes the DESTINATION, not the graveyard's
+    owner); ``controller`` is the fallback for a filter with no ``Owned``
+    property (Reya Dawnbringer's ``controller: You``). An ``Owned`` value
+    OTHER than You/Opponent (``TargetPlayer`` — Krosan Reclamation's
+    "target player['s graveyard]"; ``ScopedPlayer`` — Exhume's "each
+    player['s graveyard]") is a genuinely AMBIGUOUS owner no explicit scope
+    can be read off structurally — returns ``None``, deferring to the
+    LAST-RESORT byte-mirror's own clause-text scope resolution. A filter
+    with NEITHER an ``Owned`` property NOR a ``controller`` at all defaults
+    to the self-graveyard 'you' (Reito Lantern/Phyrexian Archivist's bare
+    "target card from a graveyard", no possessive) — UNLESS the filter is
+    an ``Or``/``And`` compound (Pulse of Murasa's "creature OR land card
+    from a graveyard"): legacy's own zone-tag recovery doesn't reach a
+    compound filter's implicit ownership, so a compound filter with no
+    EXPLICIT owner also returns ``None`` here, matching that gap rather
+    than manufacturing a 'you' legacy never emits.
+    """
+    owned = filter_owned_controller(filt)
+    if owned == "Opponent":
+        return "opponents"
+    if owned == "You":
+        return "you"
+    if owned is not None:
+        return None
+    ctrl = filter_controller(filt)
+    if ctrl == "Opponent":
+        return "opponents"
+    if ctrl == "You":
+        return "you"
+    return "you" if tag_of(filt) == "Typed" else None
+
+
+def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
+    """graveyard_matters — the cares-about PAYOFF (CR 404 / 701.17a). Six
+    arms, structural-first:
+
+    * **trigger zone-movement** — a trigger watching cards ENTERING a
+      graveyard from a non-battlefield zone, or LEAVING a graveyard
+      (Syr Konrad-class), read off the trigger's typed ``origin`` /
+      ``destination``. The battlefield→graveyard ``dies`` movement is a
+      death payoff (a different lane), excluded.
+    * **trigger subject-in-graveyard** — a trigger whose own watched
+      SUBJECT is restricted IN a graveyard ("whenever a card in your
+      graveyard is turned face up" — Veteran Ghoulcaller), read off the
+      trigger node's own filter.
+    * **effect target/origin in a graveyard** — any effect (reanimate,
+      recursion, a copy/return/cast/count TARGET restricted to a
+      graveyard — Reya Dawnbringer, Gravedigger, Surgical Extraction,
+      Daring Waverider's ``cast_from_zone``) EXCEPT a ``ChangeZone``/
+      ``ChangeZoneAll`` whose destination is Exile — a graveyard-hate
+      exile or blink stays ``graveyard_makers`` only (CR 406.2), never
+      this lane.
+    * **graveyard-fuel activation cost** — "Exile this card from your
+      graveyard: …" (Seasoned Pyromancer's 2nd ability, Renew) — a
+      typed ``Exile`` cost leaf whose zone is Graveyard (CR 702.66a's
+      delve idiom, generalized to any activation cost).
+    * **graveyard-zone count/threshold operand** — :func:`_gy_count_ref_scope`
+      over every typed node reachable from the unit (an effect amount, a
+      static P/T scaler, or a condition/activation-restriction gate).
+    * **LAST RESORT — the byte-identical deleted-producer per-clause
+      mirror** (:func:`_graveyard_matters_clauses`) over the
+      reminder-stripped oracle, for the broad "graveyard"-word narrative
+      mention the typed substrate carries no node for at all (Unfinity
+      sticker idioms — Clandestine Chameleon, Roxi, Publicist to the
+      Stars — park as ``Unimplemented`` residue with no allowlisted
+      grammar token). '"Name Sticker" Goblin's exclusion clause is
+      dropped per-clause first (mandatory shed, see
+      :data:`_GY_EXCLUSION_CLAUSE_RE`).
+
+    The dredge / delve / scavenge keyword payoffs ride the shared
+    ``_keyword_field_signals`` field-lookup (CR 702.52a / 702.66a),
+    upstream of this function.
+    """
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(scope: str, raw: str) -> None:
+        if scope not in seen:
+            seen.add(scope)
+            out.append(Signal("graveyard_matters", scope, "", raw, tree.name, "high"))
+
     for unit in tree.units:
-        if unit.origin != "trigger":
-            continue
         node = unit.node
-        origin = getattr(node, "origin", None)
-        dest = getattr(node, "destination", None)
-        gy_arrival = dest == "Graveyard" and origin not in ("Battlefield", None)
-        gy_departure = origin == "Graveyard"
-        if gy_arrival or gy_departure:
-            sc = _gy_scope(trigger_subject_scope(node))
-            return [Signal("graveyard_matters", sc, "", "", tree.name, "high")]
-    return []
+        if unit.origin == "trigger":
+            origin = getattr(node, "origin", None)
+            dest = getattr(node, "destination", None)
+            gy_arrival = dest == "Graveyard" and origin not in ("Battlefield", None)
+            gy_departure = origin == "Graveyard"
+            if gy_arrival or gy_departure:
+                fire(_gy_scope(trigger_subject_scope(node)), "")
+            subj = effect_filter(node)
+            if subj is not None and "Graveyard" in filter_inzone_zones(subj):
+                fire(_gy_scope(trigger_subject_scope(node)), "")
+
+        for c in unit.effects:
+            enode = c.node
+            if tag_of(enode) in ("ChangeZone", "ChangeZoneAll"):
+                _, dest = change_zone_dirs(enode)
+                if dest == "Exile":
+                    continue
+            filt = effect_filter(enode)
+            # A GENUINE target/origin-in-graveyard read is ALWAYS carried on
+            # a TARGET FILTER's ``InZone`` property (Reya Dawnbringer,
+            # Gravedigger, Extract from Darkness all carry one) — a bare
+            # ``SelfRef`` target (Unearth/Fatestitcher's own "return THIS
+            # card" self-recursion, no search involved) carries no filter to
+            # read, so it correctly stays OUT (that keyword rides
+            # ``graveyard_makers`` only, never this lane — matching the
+            # keyword-table split).
+            if filt is None or "Graveyard" not in filter_inzone_zones(filt):
+                continue
+            sc = _gy_filter_scope(filt)
+            if sc == "you" and _GY_OPP_RE.search(
+                getattr(node, "description", "") or ""
+            ):
+                sc = "opponents"
+            if sc is not None:
+                fire(sc, c.raw)
+
+        for c in unit.costs:
+            for leaf in iter_cost_leaves(c.node):
+                if (
+                    tag_of(leaf) == "Exile"
+                    and getattr(leaf, "zone", None) == "Graveyard"
+                ):
+                    fire("you", "")
+
+        # A graveyard-zone count operand on a DIRECT effect/static's own
+        # amount-bearing field (Scavenging Ghoul's ``PutCounter.count`` =
+        # Ref(ZoneChangeCountThisTurn); Ancestor's Chosen's
+        # ``GainLife.amount``; Mortivore/Splinterfright's
+        # ``SetDynamicPower.value``). Checked on the node's OWN field only —
+        # NOT the whole ability subtree — so a value-SELECTOR nested under
+        # a sibling effect (Brimstone Volley/Life Goes On's Morbid
+        # "instead" alternate value) never reaches this arm.
+        for c in (*unit.effects, *unit.statics):
+            for fname in ("amount", "count", "value"):
+                q = getattr(c.node, fname, None)
+                if tag_of(q) != "Ref":
+                    continue
+                sc = _gy_count_ref_scope(getattr(q, "qty", None))
+                if sc is not None:
+                    fire(sc, c.raw)
+
+        # A graveyard-zone count/threshold tag GATING this unit (Threshold/
+        # Delirium/Morbid CONDITION — Grim Flayer, Nantuko Monastery,
+        # Mindwhisker, Descend upon the Sinful) — the unit's OWN top-level
+        # ``condition`` / ``activation_restrictions`` field, un-nested (so a
+        # sibling sub-ability's alternate-value "instead" condition never
+        # reaches this arm either, nor does a REPLACEMENT effect's own
+        # ``OnlyIfQuantity`` Morbid gate — Festerhide Boar's "enters with
+        # two +1/+1 counters if a creature died this turn" is a
+        # ``replacement`` unit; legacy's condition-zone arm reads only
+        # ``Ability.condition``, which a replacement effect never carries).
+        # ALWAYS also fires 'you' — legacy's condition-zone arm carries no
+        # opponent branch at all (a STATE CHECK over an opponent's
+        # graveyard still enables YOUR OWN payoff — Jace's Phantasm's
+        # "+4/+4 as long as an opponent has ten or more cards in their
+        # graveyard" fires BOTH 'you' (forced) and 'opponents' (the
+        # field's own scope)). A cost-REDUCTION static (``ModifyCost`` —
+        # Bone Picker's "costs {3} less … if a creature died this turn")
+        # or an evasion-GRANT static (``CanAttackWithDefender`` —
+        # Expedition Lookout) is excluded: legacy doesn't treat either as
+        # a graveyard "cares-about" gate, only the field's own scope.
+        if unit.origin != "replacement" and static_mode_tag(node) not in (
+            "ModifyCost",
+            "CanAttackWithDefender",
+        ):
+            ars = getattr(node, "activation_restrictions", None)
+            cond = getattr(node, "condition", None)
+            for site in (ars, cond):
+                for n in iter_typed_nodes(site):
+                    sc = _gy_count_ref_scope(n)
+                    if sc is not None:
+                        fire("you", "")
+                        fire(sc, "")
+
+    mirror_clauses = [
+        cl
+        for cl in _clauses(_kept(tree))
+        if not _GY_EXCLUSION_CLAUSE_RE.search(cl.lower())
+    ]
+    for _gy_key, _gy_scope_v in _graveyard_matters_clauses(
+        " ".join(mirror_clauses), tree.name
+    ):
+        fire(_gy_scope_v, "")
+
+    return out
 
 
 def _fight_makers(tree: ConceptTree) -> list[Signal]:
