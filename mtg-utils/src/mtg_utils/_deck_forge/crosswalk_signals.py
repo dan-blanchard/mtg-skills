@@ -1146,6 +1146,27 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "target_player_draws",
         "token_maker",
         "type_matters",
+        # ADR-0038 W5 tails (2026-07-11): voltron_matters NOT YET PROMOTED —
+        # live_only cut from 108 to 82 (equip/reconfigure/fortify ability-
+        # cost reducers, cast-cost reducers, ``SourceIsEquipped``/
+        # ``Unrecognized``-residue conditions, a trigger CONDITION's own
+        # filter, the ability's OWN ``cost_reduction`` count, bare-count
+        # damage scaling, and a static's ``affected`` filter — all CR
+        # 301.5c/303.4b/601.2f/702.6c/702.8a, corpus-verified + pinned).
+        # 62 of the 82 are the adjudicated commander-damage MEMBERSHIP-
+        # fallback shed (mandatory: Big Winner / Croakid Amphibonaut /
+        # Grabby Tabby / Scared Stiff, pinned) + 10 more attach-action /
+        # housekeeping over-fire sheds (also pinned) — but a genuine
+        # 10-card residual remains: phase-parse losses with NO recoverable
+        # residue (Kassandra's trigger mode=Unknown, Warchanter Skald's
+        # dropped condition, Judgment Bolt's dropped second-recipient
+        # scaling, Forge Anew's unlinked alternative-cost PayCost, Soul
+        # Nova/Shackles of Treachery's attachment-predicate-less Equipment
+        # targets), an ``Aggregate``-qty gap (Tetsuo), a nested-GrantTrigger
+        # descent gap (Animal Friend — ``iter_concepts()`` doesn't descend
+        # into a granted ability's own nested effects), and a nested
+        # mana-restriction-variant gap (Ronin, Shadow Stalker). Landfall
+        # rule not met (live_only != exactly the shed set) — stays residual.
         "voltron_matters",
     }
 )
@@ -1376,8 +1397,36 @@ _VOLTRON_SUBTYPES: frozenset[str] = frozenset({"aura", "equipment", "role"})
 # Attachment-STATE predicate tags (CR 301.5c / 303). Mirrors
 # ``_signals_regex._ATTACHMENT_PREDICATES``.
 _ATTACHMENT_PREDS: frozenset[str] = frozenset(
-    {"AttachedToRecipient", "HasAnyAttachmentOf"}
+    {"AttachedToRecipient", "HasAnyAttachmentOf", "HasAttachment"}
 )
+
+# EquippedBy / EnchantedBy mark BOTH an Equipment/Aura's OWN self-referential
+# payload ("Equipped creature gets +X/+X" — every Equipment ever printed) AND
+# a genuine SEPARATE collective payoff ("Each equipped creature and Equipment
+# you control gains deathtouch" — Hemlock Vial; "Equipped creatures you
+# control gain indestructible" — Resistance Reunited). The two are gated by
+# the CARD'S OWN type: a card that is itself an Equipment/Aura using its own
+# EquippedBy/EnchantedBy static is the payload (excluded, CR 301.5c/303.4b);
+# a non-Equipment/non-Aura card using the SAME tag is a real build-around.
+_SELF_PAYLOAD_SUBTYPE: dict[str, str] = {
+    "EquippedBy": "equipment",
+    "EnchantedBy": "aura",
+}
+
+
+def _voltron_collective_preds(filt: object, self_subtypes: frozenset[str]) -> set[str]:
+    """Attachment-STATE predicate tags on ``filt`` that count as a voltron_
+    matters tell: the unconditional set (:data:`_ATTACHMENT_PREDS`) plus an
+    EquippedBy/EnchantedBy predicate gated OFF when the tree's own card is
+    the matching Equipment/Aura (the self-payload exclusion)."""
+    out: set[str] = set()
+    for p in filter_predicates(filt):
+        if p in _ATTACHMENT_PREDS or (
+            p in _SELF_PAYLOAD_SUBTYPE and _SELF_PAYLOAD_SUBTYPE[p] not in self_subtypes
+        ):
+            out.add(p)
+    return out
+
 
 # Core-type → matters lane. A composite (Artifact AND/OR Enchantment) subject fires
 # BOTH. Mirrors ``_signals_ir._TYPE_MATTERS_LANE`` for this batch's two types.
@@ -4282,15 +4331,47 @@ def _voltron_makers(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _voltron_equip_style_keyword(mod: TypedMirrorNode) -> bool:
+    """True if an ``AddKeyword`` modification grants Equip/Reconfigure/Fortify
+    (CR 702.6 / 702.151 / 702.19c) — an attach-mechanic keyword conferred onto
+    a creature that doesn't natively carry one (Nahiri, Storm of Stone grants
+    a cost-reduced Equip). ``mod_keyword_name`` normalizes both the plain and
+    the parameterized (cost-carrying) grant shapes."""
+    name = mod_keyword_name(mod)
+    return isinstance(name, str) and name.lower() in {
+        "equip",
+        "reconfigure",
+        "fortify",
+    }
+
+
 def _voltron_matters(tree: ConceptTree) -> list[Signal]:
     """voltron_matters — an Aura/Equipment PAYOFF build-around (CR 301.5c / 303).
     Mirrors ``_signals_regex._detect_voltron_payoff_ir``: (a) a ``cast_spell`` trigger
     whose watched subject SUBTYPE is Equipment/Aura (Sram, Kor Spiritdancer); (b) an
     attachment-STATE predicate (``AttachedToRecipient`` / ``HasAnyAttachmentOf`` — "for
     each Aura attached to it", "enchanted or equipped creatures" — Reyav, Koll) on any
-    effect / count-operand subject. NOT the bare subtype on an effect subject (covers
-    Aura hate), NOT an ``EquippedBy`` payload-pump. Scope "you".
+    effect / count-operand / trigger-CONDITION subject (a ``dies``-if-``enchanted or
+    equipped`` gate — Koll — carries the predicate on the trigger's
+    ``condition.filter``, not ``valid_card``); (c) an Equip/Reconfigure/
+    Fortify ability-cost reducer (CR 702.6c "equip abilities you activate
+    cost {1} less" — Bureau Headmaster, Fervent Champion, Éowyn; or a
+    granted cost-reduced Equip keyword — Nahiri, Storm of Stone);
+    (d) a cast-cost reducer whose ``spell_filter`` is Equipment/Aura (CR 601.2f — "Aura
+    spells you cast cost {1} less" — Transcendent Envoy, Bureau Headmaster) or a
+    ``CastWithKeyword`` grant (Flash) to Aura/Equipment spells (CR 702.8a — Sigarda's
+    Aid); (e) the ability's OWN activation ``cost_reduction`` scaling on an Equipment/
+    Aura COUNT (Plate Armor's equip cost, "{1} less for each OTHER Equipment you
+    control"); (f) a ``SourceIsEquipped`` self-referential CONDITION (CR 301.5c — "as
+    long as ~ is equipped" gating a static/ability — Patriot, Cloud, Auriok
+    Steelshaper); (g) an effect's damage/count operand scaled on a bare Equipment/Aura
+    COUNT ("deals damage … equal to the number of Equipment you control" — Armed
+    Response, Slash of Light; a genuine "cares how much gear I have" tell, distinct
+    from a bare subtype on a TARGET/effect subject, which stays excluded — that covers
+    Aura hate / an Equipment's own "Equipped creature gets +X/+X" ``EquippedBy``
+    payload-pump). Scope "you".
     """
+    self_subtypes = frozenset(s.lower() for s in tree.card_subtypes)
     for unit in tree.units:
         if unit.trigger_event == "cast_spell":
             vc = getattr(unit.node, "valid_card", None)
@@ -4300,12 +4381,92 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
         # control attacks" — Reyav) carries the predicate on the trigger's valid_card.
         for fname in ("valid_card", "valid_source"):
             wf = getattr(unit.node, fname, None)
-            if wf is not None and set(filter_predicates(wf)) & _ATTACHMENT_PREDS:
+            if wf is not None and _voltron_collective_preds(wf, self_subtypes):
+                return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        # a trigger CONDITION's own filter ("dies, if it was enchanted or
+        # equipped" — Koll): the predicate rides condition.filter, not
+        # valid_card/valid_source (which only carry the DIES subject's own
+        # NonToken/Another gate). CR 301.5c.
+        cond = getattr(unit.node, "condition", None)
+        cond_filt = getattr(cond, "filter", None) if cond is not None else None
+        if cond_filt is not None and _voltron_collective_preds(
+            cond_filt, self_subtypes
+        ):
+            return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        # a self-referential "as long as ~ is equipped" CONDITION gating a
+        # static/ability (Patriot, Cloud, Auriok Steelshaper) — CR 301.5c.
+        if tag_of(cond) == "SourceIsEquipped":
+            return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        # a condition phase couldn't structure but preserved as raw residue
+        # (``Unrecognized`` — Enkira's "~ is equipped, it [must be blocked]"):
+        # last-resort text scan for the SAME self-referential "is equipped" /
+        # "is enchanted" tell (d), narrow to the two literal phrases. CR 301.5c.
+        if tag_of(cond) == "Unrecognized":
+            ctext = (getattr(cond, "text", "") or "").lower()
+            if "is equipped" in ctext or "is enchanted" in ctext:
+                return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        # cast-cost / equip-ability-cost reducers (CR 601.2f / 702.6c): a
+        # ``ModifyCost`` static whose spell_filter is Equipment/Aura (Bureau
+        # Headmaster, Transcendent Envoy, Cid), a ``ReduceAbilityCost`` static
+        # keyed on equip/reconfigure/fortify (Fervent Champion, Éowyn), or a
+        # ``CastWithKeyword`` (Flash) grant to Aura/Equipment spells (Sigarda's
+        # Aid, CR 702.8a).
+        if modify_cost_mode(unit.node) == "Reduce":
+            spell_filt = modify_cost_spell_filter(unit.node)
+            if spell_filt is not None and (
+                {s.lower() for s in filter_subtypes(spell_filt)} & _VOLTRON_SUBTYPES
+            ):
+                return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        if static_mode_tag(unit.node) == "ReduceAbilityCost":
+            kw = static_mode_field(unit.node, "keyword")
+            if isinstance(kw, str) and kw.lower() in {
+                "equip",
+                "reconfigure",
+                "fortify",
+            }:
+                return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        if static_mode_tag(unit.node) == "CastWithKeyword":
+            cwk_filt = effect_filter(unit.node)
+            if cwk_filt is not None and (
+                {s.lower() for s in filter_subtypes(cwk_filt)} & _VOLTRON_SUBTYPES
+            ):
+                return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        # a granted Equip/Reconfigure/Fortify keyword (Nahiri, Storm of Stone);
+        # a static's own ``affected`` filter carrying the attachment-STATE
+        # predicate (Hemlock Vial, Blacksmith's Talent, Resistance Reunited) —
+        # ``unit.iter_concepts()`` yields the MODIFICATION as the concept
+        # node, not the static def that actually carries ``affected``, so
+        # this needs the (static_def, mod) pair ``iter_mod_sites`` yields.
+        for sdef, mod in iter_mod_sites(unit.node):
+            if _voltron_equip_style_keyword(mod):
+                return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+            aff = getattr(sdef, "affected", None)
+            if aff is not None and _voltron_collective_preds(aff, self_subtypes):
+                return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
+        # the ability's OWN activation cost_reduction scaling on an Equipment/
+        # Aura COUNT (Plate Armor: "costs {1} less for each other Equipment
+        # you control"). CR 601.2f.
+        cred = getattr(unit.node, "cost_reduction", None)
+        if cred is not None:
+            cred_filt = ref_count_filter(cred, "count")
+            if cred_filt is not None and (
+                {s.lower() for s in filter_subtypes(cred_filt)} & _VOLTRON_SUBTYPES
+            ):
                 return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
         for c in unit.iter_concepts():
             for filt in (effect_filter(c.node), count_operand_filter(c.node)):
-                if filt is not None and (
-                    set(filter_predicates(filt)) & _ATTACHMENT_PREDS
+                if filt is not None and _voltron_collective_preds(filt, self_subtypes):
+                    return [
+                        Signal("voltron_matters", "you", "", c.raw, tree.name, "high")
+                    ]
+            # a damage/count operand scaled on a bare Equipment/Aura COUNT
+            # ("deals damage equal to the number of Equipment you control" —
+            # Armed Response; a Sum of two counts — Slash of Light). Distinct
+            # from a bare subtype on a TARGET/effect subject (Aura hate /
+            # EquippedBy payload), which stays excluded.
+            for scale_filt in _voltron_count_filters(c.node):
+                if {s.lower() for s in filter_subtypes(scale_filt)} & (
+                    _VOLTRON_SUBTYPES
                 ):
                     return [
                         Signal("voltron_matters", "you", "", c.raw, tree.name, "high")
@@ -4325,6 +4486,32 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
                 raw = _site_raw(sdef)
                 return [Signal("voltron_matters", "you", "", raw, tree.name, "high")]
     return []
+
+
+def _voltron_count_filters(node: TypedMirrorNode) -> list[object]:
+    """Every ``ObjectCount`` FILTER an effect's damage/count operand scales on,
+    including a top-level ``Sum`` of two Refs (Slash of Light: "the number of
+    creatures you control PLUS the number of Equipment you control") in
+    addition to the direct / ``Multiply``-wrapped single-Ref form (Armed
+    Response; "TWICE the number of Equipment you control" — Nahiri, Heir of
+    the Ancients) ``ref_count_filter`` already reads. CR 107.3."""
+    filts: list[object] = []
+    for fname in ("amount", "count", "value"):
+        f = ref_count_filter(node, fname)
+        if f is not None:
+            filts.append(f)
+        val = getattr(node, fname, None)
+        if tag_of(val) != "Sum":
+            continue
+        for expr in getattr(val, "exprs", None) or ():
+            if tag_of(expr) != "Ref":
+                continue
+            qty = getattr(expr, "qty", None)
+            if tag_of(qty) == "ObjectCount":
+                sf = getattr(qty, "filter", None)
+                if sf is not None:
+                    filts.append(sf)
+    return filts
 
 
 # ── Batch 4 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────

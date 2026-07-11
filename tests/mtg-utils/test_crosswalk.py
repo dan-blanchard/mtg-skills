@@ -1503,6 +1503,134 @@ def test_voltron_matters_payoff(name):
     assert ("voltron_matters", "you", "") in _idents(name)
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W5 tails — equip/reconfigure/fortify-ability cost reducers
+        # (CR 702.6c / 601.2f): a ``ReduceAbilityCost`` static keyed on
+        # ``equip`` (Bureau Headmaster, Fervent Champion, Éowyn) or a
+        # granted cost-reduced Equip keyword (Nahiri, Storm of Stone).
+        "Bureau Headmaster",
+        "Fervent Champion",
+        "Éowyn, Lady of Rohan",
+        "Nahiri, Storm of Stone",
+        # a ``SourceIsEquipped`` self-referential CONDITION gating a static
+        # (CR 301.5c "as long as ~ is equipped" — Patriot, Auriok
+        # Steelshaper, Cloud's double-trigger, Cloud's double strike).
+        "Patriot, Young Avenger",
+        "Auriok Steelshaper",
+        "Cloud, Midgar Mercenary",
+        "Cloud, Planet's Champion",
+        # a cast-cost reducer whose spell_filter is Equipment/Aura (CR
+        # 601.2f — Transcendent Envoy's Aura discount, Cid's Equipment/
+        # Vehicle discount) or a granted Flash to Aura/Equipment spells
+        # (CR 702.8a — Sigarda's Aid).
+        "Transcendent Envoy",
+        "Cid, Freeflier Pilot",
+        "Sigarda's Aid",
+        # the ability's OWN activation cost_reduction scaling on an
+        # Equipment COUNT (Plate Armor's equip cost, CR 601.2f).
+        "Plate Armor",
+        # an attachment-STATE predicate on a trigger's CONDITION filter,
+        # not valid_card/valid_source (Koll's dies-if-enchanted-or-equipped
+        # gate, CR 301.5c/303.4b).
+        "Koll, the Forgemaster",
+        # a damage/count operand scaled on a bare Equipment COUNT — a
+        # genuine "cares how much gear I have" tell, distinct from a bare
+        # subtype on a TARGET/effect subject (Armed Response direct Ref;
+        # Slash of Light's Sum of two counts; Nahiri, Heir of the
+        # Ancients' Multiply-wrapped "twice the number of"). CR 107.3.
+        "Armed Response",
+        "Slash of Light",
+        "Nahiri, Heir of the Ancients",
+        # an ``Unrecognized``-condition text residue carrying the SAME
+        # self-referential "is equipped" tell phase couldn't structure
+        # (Enkira's "~ is equipped, it must be blocked"). CR 301.5c.
+        "Enkira, Hostile Scavenger",
+        # a static's own ``affected`` filter carrying the attachment-STATE
+        # predicate — read off the (static_def, mod) pair, since
+        # ``iter_concepts()`` yields the MODIFICATION as the concept node,
+        # not the static def that carries ``affected`` (Hemlock Vial's
+        # "each equipped creature", Blacksmith's Talent's ``HasAttachment``
+        # anthem, Resistance Reunited's EquippedBy grant — all on a card
+        # that is NOT itself an Equipment/Aura, so the self-payload
+        # exclusion doesn't apply). CR 301.5c/303.4b.
+        "Hemlock Vial",
+        "Blacksmith's Talent",
+        "Resistance Reunited",
+    ],
+)
+def test_voltron_matters_recovered_mechanisms(name):
+    """ADR-0038 W5 tails: voltron_matters recovers the equip/cast cost-
+    reduction, SourceIsEquipped condition, trigger-condition-filter,
+    ability cost_reduction, bare-count-scaling, and Unrecognized-residue /
+    static-affected mechanisms the base structural gate misses. Each card's
+    phase record is pinned in ``crosswalk_fixture_cards.json``."""
+    assert ("voltron_matters", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W5 tails — adjudicated SHEDS: legacy's own
+        # ``VOLTRON_PAYOFF_REGEX`` over-fires on these via its bare
+        # ``equipment you control`` / ``equipped creature`` substring
+        # branches, but NONE of them carry a genuine PAYOFF (a "cares
+        # about attached gear" tell) — every one is either a voltron_
+        # makers-only attach ACTION (CR 701.3a — the card PERFORMS the
+        # attaching, it doesn't reward being attached) or a housekeeping
+        # clause (Benevolent Blessing's "doesn't remove" carve-out is a
+        # protection-timing clarification, CR 702.16e, not a build-around).
+        # Verified this session against the real Card IR.
+        "Hammer of Nazahn",  # ETB attach trigger only, no separate payoff
+        "Battlefield Improvisation",  # "you may attach…Equipment…to it"
+        "Nahiri, the Lithomancer",  # "[+2]: …attach an Equipment…to it"
+        "Unexpected Request",  # "you may attach an Equipment…to that creature"
+        "Armed and Armored",  # "Attach any number of Equipment…to it"
+        "Super-Soldier Serum",  # attach-on-attack trigger, self Aura payload
+        "Goldwardens' Gambit",  # per-token attach (Unimplemented residue)
+        "Inventory Management",  # repeat-attach for each Aura/Equipment owned
+        "Resolute Strike",  # "…you may attach an Equipment…to it"
+        "Benevolent Blessing",  # protection carve-out, not a payoff
+    ],
+)
+def test_voltron_matters_sheds_attach_action_or_housekeeping(name):
+    """ADR-0038 W5 tails (CR 701.3a / 301.5c): a card whose text superficially
+    matches the legacy "equipment/aura you control … attached" word idiom but
+    performs no genuine payoff — either an attach ACTION (voltron_makers
+    territory) or a non-build-around housekeeping clause — correctly does NOT
+    open voltron_matters. Adjudicated sheds of a legacy over-fire."""
+    assert "voltron_matters" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W5 tails — MANDATORY SHEDS (session-adjudicated): four
+        # Unfinity "Guest" creatures whose ONLY conditional-keyword text
+        # ("This creature has X as long as you control a stickered
+        # permanent") has nothing to do with Equipment/Aura attachment.
+        # Legacy's voltron_matters fires these ONLY via the LOW-confidence
+        # bare "commander damage (CR 903.10a)" membership fallback — a
+        # completely different notion ("is this creature a good body to
+        # put gear on") than the crosswalk's structural PAYOFF gate
+        # ("does this card care about attached gear"). The crosswalk never
+        # implements that fallback, so these correctly stay off the lane.
+        "Big Winner",
+        "Croakid Amphibonaut",
+        "Grabby Tabby",
+        "Scared Stiff",
+    ],
+)
+def test_voltron_matters_sheds_commander_damage_fallback(name):
+    """ADR-0038 W5 tails: the legacy IR's bare commander-damage MEMBERSHIP
+    fallback (power>=2, no other plan, CR 903.10a) is a different notion
+    from voltron_matters' structural "cares about attached gear" PAYOFF gate
+    — the crosswalk correctly never fires it. Mandatory sheds, adjudicated
+    this session."""
+    assert "voltron_matters" not in _keys(name)
+
+
 # ── Batch-3 over-fire regressions (rules-lawyer adjudicated; ADR-0035) ─────────
 # Three blocking crosswalk-only over-fires the Stage-2 shadow diff surfaced:
 #   1. gain_control fired on GIVE-AWAY / chaos control changes (CR 110.2 / 603.10d —
