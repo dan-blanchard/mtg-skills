@@ -789,6 +789,60 @@ def test_creatures_matter_generic_gate(name, should_fire):
 
 
 @pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        # ADR-0038 W4 giant-key batch: team-anthem arm widened from
+        # static-origin-only ``unit.statics`` to a whole-unit
+        # ``iter_static_defs`` descent, so a ONE-SHOT GenericEffect-nested
+        # (Overrun) or CreateEmblem-nested (Capitoline Triad) static def
+        # fires the SAME arm as a permanent static-origin anthem — CR
+        # 611.2c (the resolving effect's affected set is fixed when it
+        # begins), 613.4c layer 7c.
+        ("Overrun", True),  # GenericEffect-nested AddPower/AddToughness
+        ("The Capitoline Triad", True),  # CreateEmblem-nested SetPower/SetToughness
+        # A scaling continuous anthem (AddDynamicPower/AddDynamicToughness,
+        # not the fixed Add* pair) rides the same static-def arm — CR 107.3.
+        ("Call for Unity", True),
+        # GrantAbility/GrantTrigger — granting a whole new ability is the
+        # same team-payoff shape as granting a bare keyword (CR 113.10).
+        ("Lightning Volley", True),
+        # A plain top-level PumpAll role=effect (no nested static def at
+        # all — the whole effect IS the modification) over the generic
+        # filter — CR 611.2c/613.4c.
+        ("Warrior's Honor", True),
+        ("Fortify", True),
+        # A scaling Pump/PumpAll whose magnitude rides ``power``/
+        # ``toughness`` (not ``amount``/``count``/``value``) — CR 107.3.
+        ("Might of the Masses", True),
+        # A Multiply-scaled count operand (2x life for each creature) —
+        # CR 107.3.
+        ("Peach Garden Oath", True),
+        # A Mana effect's count nested one level deeper on ``produced`` —
+        # CR 107.3.
+        ("Circle of Dreams Druid", True),
+        # SHEDS — corpus-adjudicated, deliberately NOT ported this batch:
+        # the LOW regex floor (any creature-token maker) is a bare mention
+        # count, not a structural cares-about read (Siege-Gang Commander).
+        ("Siege-Gang Commander", False),
+        # A SUBTYPE-restricted anthem (Dragon-only) fails the no-subtype
+        # gate — type_matters territory, not this lane (CR 604.1 scopes a
+        # static ability's own wording; "Other Dragon creatures" names a
+        # subtype, not the generic population).
+        ("Karrthus, Tyrant of Jund", False),
+        # A SYMMETRIC "on the battlefield" count (any controller) fails the
+        # "You" controller gate — a genuinely broader population than
+        # "creatures you control" (ADR-0038 boundary lesson (ii)).
+        ("Blasphemous Act", False),
+        # A "creatures BLOCKING it" count (Rampage) — a different subject
+        # entirely, not "creatures you control".
+        ("Craw Giant", False),
+    ],
+)
+def test_creatures_matter_w4_giant_batch(name, should_fire):
+    assert (("creatures_matter", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
     ("name", "ident", "should_fire"),
     [
         ("Padeem, Consul of Innovation", ("artifacts_matter", "you", ""), True),

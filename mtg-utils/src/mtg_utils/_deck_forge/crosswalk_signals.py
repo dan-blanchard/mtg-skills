@@ -969,6 +969,54 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # oracle-fallback regex is narrower than the structural read in each
     # case (a pronoun, an "any target" tail, a qualifying relative clause),
     # not a principled exclusion.
+    #
+    # ADR-0038 W4 giant-key batch: ``creatures_matter`` STAYS residual —
+    # substantial recall gain (a live corpus re-measure: both 603 -> 1193,
+    # live_only 3184 -> 2594, no new cw_only over-fires beyond the existing
+    # pre-batch predicate-blind-filter anomaly class), but the gate is NOT
+    # met — the tail doesn't decompose into a small adjudicated set. The
+    # ``_creatures_matter`` arm widened from 2 shapes to 5, all sharing the
+    # SAME ``_is_generic_creature_filter`` gate: (1) a ``Multiply``-scaled or
+    # ``Mana``-nested count operand (Peach Garden Oath, Circle of Dreams
+    # Druid/Battle Hymn — CR 107.3), (2) a scaling ``Pump``/``PumpAll``'s
+    # ``power``/``toughness`` Ref site (Might of the Masses, CR 107.3), (3)
+    # a whole-unit ``iter_static_defs`` descent so a ONE-SHOT
+    # ``GenericEffect``-nested or ``CreateEmblem``-nested static def fires
+    # the team-anthem arm same as a static-origin unit (Overrun, Capitoline
+    # Triad, Call for Unity's scaling ``AddDynamicPower``/
+    # ``AddDynamicToughness`` — CR 611.2c/613.4c), (4)
+    # ``GrantAbility``/``GrantTrigger`` mod tags joining ``AddKeyword`` in
+    # the same arm (Lightning Volley, Kira, Phenax — CR 113.10), (5) a plain
+    # top-level ``PumpAll`` role=effect with no nested static def at all
+    # (Warrior's Honor, Fortify — CR 611.2c/613.4c). ~590 corpus cards
+    # recovered this batch (all 5 arms pinned in ``test_crosswalk.py`` —
+    # ``test_creatures_matter_w4_giant_batch``). The GIANT remaining tail
+    # (~2594 live_only) decomposes into: (a) ~2160 the pre-existing
+    # docstring already names and this batch corpus-reconfirmed — legacy's
+    # LOW regex floor fires on ANY creature-token maker (Siege-Gang
+    # Commander, Mobilization) purely because the oracle text mentions
+    # "creature token", not a structural cares-about read (negative-pinned:
+    # Siege-Gang Commander) — deliberately NOT ported; (b) a genuinely
+    # diverse ~430-card tail spanning MANY small, structurally UNRELATED
+    # shapes that would each need its own arm + corpus verification: Devour
+    # ETB counters (Bloodspore Thrinax, ~20), Rampage/"blocked by" combat
+    # counts (Craw Giant, ~24 — different SUBJECT, "creatures blocking it"
+    # not "creatures you control", negative-pinned), symmetric "on the
+    # battlefield" any-controller counts (Blasphemous Act, Coat of Arms,
+    # ~10 — fails the "You" gate by design, negative-pinned), named-card
+    # self-counts (Relentless Rats, ~15), "greatest power among creatures
+    # you control" Aggregate/Max reads (Rishkar's Expertise, ~21 —
+    # structurally a MAX function, not an ObjectCount, needs its own
+    # operand-extraction arm), attacking-creature counts (Klauth, ~35 —
+    # different subject again), conditional gates ("if you control a
+    # creature with power 5+", Chronicler of Heroes, ~24 — a boolean
+    # Condition node, not a count/anthem shape at all), and a genuinely
+    # heterogeneous ~284-card residue (subtype/face-down/color-restricted
+    # anthems correctly excluded by the no-subtype-or-predicate gate,
+    # single-target aura token-granters, generic "untap all creatures you
+    # control" one-shot effects with no P/T/keyword modification at all,
+    # …). No single mechanism closes (b) — banking the recall gain per
+    # ADR-0038 step 5 rather than force-fitting a promotion.
     {
         "artifacts_matter",
         "base_pt_set",
@@ -2422,29 +2470,145 @@ def _is_generic_creature_filter(filt: object) -> bool:
     )
 
 
+# Modification tags the ``creatures_matter`` team-anthem arm treats as a payoff
+# over the ``affected`` filter — mirrors ``_MOD_CONCEPTS``' pump/set_pt/
+# grant_keyword coarse buckets (CR 613.4c layer-7 P/T + CR 702.1 keyword
+# abilities) plus the two SCALING P/T mod tags (``_DYNAMIC_PT_MODS`` below,
+# at line ~6023 — module-level forward reference, safe at call time) a
+# continuous counter-scaled anthem uses instead of the fixed ``Add*`` pair
+# (Call for Unity's "+1/+1 for each unity counter" — CR 107.3/613.4c), plus
+# ``GrantAbility``/``GrantTrigger`` — granting your creatures a whole new
+# ability (Lightning Volley's "have '{T}: deal 1 damage'", Kira's granted
+# spell-fizzle trigger) is the same team-payoff shape as granting a bare
+# keyword, just carrying a nested ability def instead of a keyword string
+# (CR 113.10 — "an effect that adds an ability will state that the object
+# 'gains' or 'has' that ability"; verified via rules-lookup).
+_CREATURES_MATTER_MOD_TAGS = frozenset(
+    {
+        "AddPower",
+        "AddToughness",
+        "SetPower",
+        "SetToughness",
+        "AddKeyword",
+        "AddDynamicPower",
+        "AddDynamicToughness",
+        "GrantAbility",
+        "GrantTrigger",
+    }
+)
+
+
+def _pump_scaling_creature_filter(node: object) -> object | None:
+    """The FILTER feeding a ``Pump``/``PumpAll`` node's scaling ``power``/
+    ``toughness`` operand (CR 107.3), unwrapping a ``Quantity`` wrapper the
+    same way :func:`_field_qty` does.
+
+    :func:`count_operand_filter` only reads ``amount``/``count``/``value`` —
+    a scaling Pump's dynamic magnitude lives on ``power``/``toughness``
+    instead (Might of the Masses: ``Pump(power=Quantity(Ref(ObjectCount(
+    filter=...))))``), so that shared helper never sees it. Scoped to this
+    lane rather than widening the shared helper (ADR-0038 landmine: a
+    shared-helper widening needs a full-corpus sibling check this lane
+    doesn't have budget for).
+    """
+    for fname in ("power", "toughness"):
+        v = getattr(node, fname, None)
+        if isinstance(v, TypedMirrorNode) and tag_of(v) == "Quantity":
+            v = getattr(v, "value", None)
+        if tag_of(v) != "Ref":
+            continue
+        qty = getattr(v, "qty", None)
+        if tag_of(qty) == "ObjectCount":
+            filt = getattr(qty, "filter", None)
+            if filt is not None:
+                return filt
+    return None
+
+
+def _creature_count_operand_filter(node: TypedMirrorNode) -> object | None:
+    """A generic-creature-count operand :func:`count_operand_filter` misses:
+    a ``Multiply``-scaled ``amount``/``count``/``value`` (Peach Garden Oath's
+    "gain 2 life for each creature you control" — ``GainLife(amount=Multiply(
+    factor=2, inner=Ref(ObjectCount(...))))``, via the shared
+    :func:`ref_count_filter`), or a ``Mana`` effect's count nested one level
+    deeper on ``produced`` (Circle of Dreams Druid / Battle Hymn's "Add X for
+    each creature you control" — ``Mana(produced=AnyOneColor(count=Ref(
+    ObjectCount(...))))``). CR 107.3.
+    """
+    for fname in ("amount", "count", "value"):
+        filt = ref_count_filter(node, fname)
+        if filt is not None:
+            return filt
+    produced = getattr(node, "produced", None)
+    if isinstance(produced, TypedMirrorNode):
+        filt = ref_count_filter(produced, "count")
+        if filt is not None:
+            return filt
+    return None
+
+
 def _creatures_matter(tree: ConceptTree) -> list[Signal]:
     """creatures_matter — a go-wide payoff scaling with / antheming the GENERIC
-    creature population you control (CR 604.3). Mirrors ``_signals_ir`` line ~7686:
+    creature population you control (CR 604.1 static ability; CR 611.1 the
+    continuous effect it or a resolving spell generates). Mirrors
+    ``_signals_ir`` line ~7686. ADR-0038 W4 giant-key batch widened the arm
+    from two shapes to five, all sharing the SAME :func:`_is_generic_creature_
+    filter` gate:
 
     * a **count operand** that is a generic creature count (Craterhoof's +X/+X, a
-      "for each creature you control" value);
-    * a **team anthem** — a top-level pump / grant-keyword / set-P/T static over the
-      generic own-board creature set (Intangible-Virtue-class team buff).
+      "for each creature you control" value) — the standard ``amount``/``count``/
+      ``value`` site (:func:`count_operand_filter`), a ``Multiply``-scaled or
+      ``Mana``-nested count site (:func:`_creature_count_operand_filter` — Peach
+      Garden Oath's lifegain, Circle of Dreams Druid / Battle Hymn's ramp), or a
+      scaling ``Pump``/``PumpAll``'s ``power``/``toughness`` site (Might of the
+      Masses — :func:`_pump_scaling_creature_filter`), all CR 107.3 / 613.4c;
+    * a **team anthem** — a pump / set-P/T / keyword-or-ability-grant static-
+      ability DEF over the generic own-board creature set (Intangible-Virtue-
+      class continuous team buff), read via :func:`iter_static_defs` so a
+      top-level ``static``-origin unit (the DEF is the unit's own node) and a
+      ONE-SHOT ``GenericEffect``-nested or ``CreateEmblem``-nested DEF
+      (Overrun's granted "until end of turn" trample, Capitoline Triad's
+      emblem, Lightning Volley's granted ability — CR 611.2c "the set of
+      objects [a resolving effect] affects is determined when that continuous
+      effect begins", 113.10 ability-grant) share one arm;
+    * a **fixed team pump spell/trigger** — a plain (non-``GenericEffect``-
+      wrapped) ``PumpAll`` role=effect over the generic filter (Warrior's Honor,
+      Fortify: "Creatures you control get +N/+N until end of turn" IS the whole
+      effect, no nested static def to descend into — CR 611.2c/613.4c).
 
     A SUBTYPE filter (Goblin King's "other Goblins") fails the no-subtype gate (it is
     ``type_matters``). A single-target removal/buff (controller any) never reaches
-    here. The LOW regex floor (token-maker → creatures_matter) stays a ``live_only``
-    mirror, not ported.
+    here. A SYMMETRIC "on the battlefield" count (Blasphemous Act's per-creature
+    cost reduction, Coat of Arms' shared-type count) fails the "You" controller
+    gate — a genuinely different, broader population than "creatures you control"
+    (:func:`_is_generic_creature_filter`'s own controller=="You" gate; ADR-0038
+    boundary lesson (ii): never fold two inherently different properties into one
+    lane). A "creatures BLOCKING it" / "creatures attacking you" count (Rampage,
+    Blessed Reversal) fails the same gate for the same reason — a different
+    subject, not "creatures you control". The LOW regex floor (token-maker,
+    Devour's sacrifice count → creatures_matter) stays a ``live_only`` mirror,
+    not ported (ADR-0038 W4: corpus-verified — legacy's floor is a bare
+    "creature" mention count, not a structural cares-about read).
     """
     for c in tree.iter_concepts():
-        if _is_generic_creature_filter(count_operand_filter(c.node)):
+        if (
+            _is_generic_creature_filter(count_operand_filter(c.node))
+            or _is_generic_creature_filter(_pump_scaling_creature_filter(c.node))
+            or _is_generic_creature_filter(_creature_count_operand_filter(c.node))
+        ):
             return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
-        for c in unit.statics:
-            if c.concept in ("pump", "grant_keyword", "set_pt") and (
-                _is_generic_creature_filter(getattr(unit.node, "affected", None))
-            ):
-                return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
+        for sdef in iter_static_defs(unit.node):
+            mods = getattr(sdef, "modifications", None) or ()
+            if not any(tag_of(m) in _CREATURES_MATTER_MOD_TAGS for m in mods):
+                continue
+            if _is_generic_creature_filter(getattr(sdef, "affected", None)):
+                return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
+    for c in tree.effect_concepts("pump"):
+        if tag_of(c.node) == "PumpAll" and _is_generic_creature_filter(
+            effect_filter(c.node)
+        ):
+            return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
     return []
 
 
