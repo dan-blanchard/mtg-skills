@@ -4475,6 +4475,40 @@ def test_exile_matters_excludes_self_state_and_dig_cast():
     assert "exile_matters" not in _keys("Kaya's Ghostform")
 
 
+@pytest.mark.parametrize("name", ["Crackling Drake", "Cosmogoyf"])
+def test_exile_matters_static_pt_scaler_arm(name):
+    """ADR-0038 W3 batch 5: a characteristic-defining P/T-setting static
+    ability carries its exile-zone count operand inside ``modifications``,
+    not on an ``amount``/``count``/``value`` effect field — STATIC units
+    never populate ``unit.effects`` at all, so the existing count-operand arm
+    never reaches it. A direct deep scan of the static node's subtree finds
+    either shape: Crackling Drake's ``ZoneCardCount{zone: Exile}``
+    ("total number of instant and sorcery cards you own in exile and in your
+    graveyard") or Cosmogoyf's plain ``ObjectCount`` over an
+    ``InZone{zone: Exile}``-filtered card count ("number of cards you own in
+    exile"). CR 406.1 / 613.4c."""
+    assert ("exile_matters", "you", "") in _idents(name)
+
+
+def test_exile_matters_exiled_with_source_arm():
+    """ADR-0038 W3 batch 5: Gorex's "choose a card at random exiled with
+    Gorex" reads directly from the standing exile pile a MAKER put there
+    earlier — a ``ChooseFromZone{zone: Exile, filter: ExiledBySource}``. CR
+    406.1."""
+    assert ("exile_matters", "you", "") in _idents("Gorex, the Tombshell")
+
+
+def test_exile_matters_excludes_bare_choose_from_zone_pile_staging():
+    """ADR-0038 W3 batch 5 shed: phase emits a BARE
+    ``ChooseFromZone{zone: Exile, filter: MISSING}`` as an internal staging
+    detail for "look at the top N, separate into piles, choose one" effects
+    (Steam Augury) — the piles sit in exile as an implementation artifact,
+    never named "exile" in the oracle text at all. Corpus census found 71
+    such cards; the ``filter: ExiledBySource`` gate (Gorex, above) is the
+    load-bearing discriminant that keeps this lane from flooding on them."""
+    assert "exile_matters" not in _keys("Steam Augury")
+
+
 @pytest.mark.parametrize("name", ["Whirler Virtuoso", "Aetherworks Marvel"])
 def test_energy_matters_pay_energy_sink(name):
     """A ``PayEnergy`` cost leaf buying a non-mana effect is the energy SINK

@@ -7511,6 +7511,48 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
                 for n in iter_typed_nodes(site)
             ):
                 return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # ADR-0038 W3 batch 5 — the STATIC P/T-scaler arm: a characteristic-defining
+    # ``SetDynamicPower``/``SetDynamicToughness`` (or any static modification)
+    # carries its exile-zone count operand inside ``modifications``, not on an
+    # ``amount``/``count``/``value`` field the effect-role loop above reads —
+    # static units never populate ``unit.effects`` at all. Two count-operand
+    # shapes both count the exile zone: ``ZoneCardCount{zone: Exile}``
+    # (Crackling Drake's "total number of instant and sorcery cards you own
+    # in exile and in your graveyard") and ``ObjectCount`` over a filter
+    # carrying ``InZone{zone: Exile}`` (Cosmogoyf's "number of cards you own
+    # in exile" — a plain card-count, not type-restricted). A direct deep
+    # scan of the static node's own subtree reaches both. CR 406.1 / 613.4c.
+    for unit in tree.units:
+        if unit.origin != "static":
+            continue
+        if any(
+            (tag_of(n) == "ZoneCardCount" and getattr(n, "zone", None) == "Exile")
+            or (
+                tag_of(n) == "ObjectCount"
+                and "Exile" in filter_inzone_zones(getattr(n, "filter", None))
+            )
+            for n in iter_typed_nodes(unit.node)
+        ):
+            return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # ADR-0038 W3 batch 5 — the "exiled with ~" persistent-pile arm: a
+    # ``ChooseFromZone{zone: Exile, filter: ExiledBySource}`` (Gorex's
+    # "choose a card at random exiled with Gorex") reads directly from the
+    # standing exile pile a MAKER put there earlier as a resource. The
+    # ``filter`` gate is load-bearing: phase ALSO emits a bare
+    # ``ChooseFromZone{zone: Exile, filter: MISSING}`` as an internal staging
+    # detail for "look at the top N, separate into piles, choose one" effects
+    # (Steam Augury, Gifts Ungiven, Intuition) — the piles sit in exile as an
+    # implementation artifact, never named "exile" in the oracle text at all,
+    # so a bare zone match massively over-fires (71-card corpus check). CR
+    # 406.1.
+    for unit in tree.units:
+        for c in unit.effects:
+            if (
+                getattr(c.node, "zone", None) == "Exile"
+                and tag_of(c.node) == "ChooseFromZone"
+                and tag_of(getattr(c.node, "filter", None)) == "ExiledBySource"
+            ):
+                return [Signal("exile_matters", "you", "", c.raw, tree.name, "high")]
     return []
 
 
