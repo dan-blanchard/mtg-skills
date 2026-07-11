@@ -335,13 +335,14 @@ def test_token_maker_empty_types_mirror_fallback():
     token-profile membership reconciliation already uses (ADR-0036/0037
     T10-finalize2), literal-gated on "create ... creature token(s)" so a
     non-creature (Treasure/Clue) empty-typed token never wrongly fires. A
-    THIRD-person "creates?" widening (Elephant Resurgence's "Each player
-    creates ...") was tried and REVERTED — ``_TOKEN_MAKER_PATTERN`` is the
-    SAME pattern legacy's own kept-mirror scans on every clause, so
-    widening it widened legacy's OWN ground truth to opponent-directed
-    "Its controller creates ..." clauses too (a corpus-wide re-measurement
-    showed live_only INCREASE, not shrink) — third-person empty-types gaps
-    stay part of the documented residual tail."""
+    THIRD-person "creates?" widening on the SHARED ``_TOKEN_MAKER_PATTERN``
+    was tried and REVERTED in this pass — that pattern is the SAME one
+    legacy's own kept-mirror scans on every clause, so widening it widened
+    legacy's OWN ground truth to opponent-directed "Its controller
+    creates ..." clauses too (a corpus-wide re-measurement showed live_only
+    INCREASE, not shrink). ADR-0038 W5c closes the symmetric case via a
+    LOCAL, lane-only regex instead (:func:`test_token_maker_each_player_
+    creates_widening`) — the shared pattern itself stays unwidened."""
     assert ("token_maker", "you", "Myr") in _idents("Brudiclad, Telchor Engineer")
 
 
@@ -354,6 +355,34 @@ def test_token_maker_excludes_token_copy_boundary():
     token-COPY clause because phase never nests one there (corpus-verified).
     """
     assert "token_maker" not in _keys("Rite of Replication")
+
+
+def test_token_maker_recovered_node_unconditional_mirror():
+    """ADR-0038 W5c: the byte-identical kept mirror (``_detect_token_maker``)
+    now runs UNCONDITIONALLY per clause, closing the recovered-node tail
+    with NO OTHER structural make_token anchor on the card — a whole-clause
+    Unimplemented residue (Consuming Blob's "create a green Ooze creature
+    token with '...'") decorates with an EMPTY types tuple via the
+    ``make_token`` recovery row, but W5b's ``need_mirror`` flag only trips
+    when the SAME per-unit loop iterates at least one node, so a LONE
+    empty-types node with no sibling stayed gap-only under that gate. CR
+    701.7/111.2."""
+    assert ("token_maker", "you", "Ooze") in _idents("Consuming Blob")
+
+
+def test_token_maker_each_player_creates_widening():
+    """ADR-0038 W5c: a LOCAL "each player creates" regex (CR 111.2 — you're
+    one of the "each player"s, so you get a token too), scoped to
+    ``_token_maker`` only — never the SHARED ``_TOKEN_MAKER_PATTERN`` W5b's
+    reverted attempt widened (see :func:`test_token_maker_empty_types_
+    mirror_fallback`). Catches the inflected third-person "creates"
+    (Elephant Resurgence: "Each player creates a green Elephant creature
+    token."). Deliberately excludes an "other than target player" qualifier
+    (Death by Dragons: "Each player other than target player creates a 5/5
+    red Dragon creature token with flying." — the excluded player could be
+    YOU, so it is not symmetric)."""
+    assert ("token_maker", "you", "Elephant") in _idents("Elephant Resurgence")
+    assert "token_maker" not in _keys("Death by Dragons")
     assert ("token_copy_makers", "you", "") in _idents("Rite of Replication")
 
 
