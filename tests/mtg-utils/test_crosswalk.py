@@ -361,6 +361,127 @@ def test_own_lifelink_keyword_fires_lifegain_makers():
     assert not _keyword_field_signals(frozenset({"Flying"}), "Bird")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 4 (CR 119.3) — a GainLife effect buried ANYWHERE
+        # under a unit, reached via the has_nested_roll_die / has_nested_
+        # flip_coin / has_nested_fight precedent (one iter_typed_nodes deep
+        # walk, no per-container code): a GrantTrigger on an Aura's OWN
+        # enchanted permanent (Farmstead — "Enchanted land has 'At the
+        # beginning of your upkeep, you may pay {W}{W}. If you do, you gain
+        # 1 life.'"), a GrantAbility activated ability on an Aura (Ephara's
+        # Radiance — "Enchanted creature has '{1}{W}, {T}: You gain 3
+        # life.'") or granted to EVERY permanent of a type (Victual Sliver
+        # — "All Slivers have '{2}, Sacrifice this permanent: You gain 4
+        # life.'"), and the SAME GrantTrigger buried a level DEEPER still
+        # inside a created TOKEN's own static_abilities (Send in the Pest
+        # — "create a ... Pest ... token with 'Whenever ~ attacks, you gain
+        # 1 life.'").
+        "Farmstead",
+        "Ephara's Radiance",
+        "Victual Sliver",
+        "Send in the Pest",
+    ],
+)
+def test_lifegain_makers_nested_grant_arm(name):
+    assert ("lifegain_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 4 (CR 119.3) — the bucket-B text-idiom bridge
+        # (arms 1-3 above find NOTHING — no GainLife node anywhere): Drain
+        # Life's capped-lifegain formula ("gain life equal to the damage
+        # dealt, but not more life than ...") and Soul Burn's sibling both
+        # phase-parse as a bare Unimplemented "gain" clause; Predator's
+        # Rapport's "gain life equal to that creature's power plus its
+        # toughness" the same; Necravolver's kicker-BRANCHED granted
+        # trigger ("with 'Whenever ~ deals damage, you gain that much
+        # life.'") fails to structure as a clean GrantTrigger because the
+        # grant itself is conditional on which kicker was paid.
+        "Drain Life",
+        "Soul Burn",
+        "Predator's Rapport",
+        "Necravolver",
+    ],
+)
+def test_lifegain_makers_text_idiom_bridge(name):
+    assert ("lifegain_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 4 — the text-idiom bridge's per-CLAUSE exclusion
+        # (boundary lesson (iii)): "Whenever you gain life, <payoff>" is the
+        # ubiquitous lifegain_MATTERS trigger CONDITION (a card that CARES
+        # about gaining life, not a SOURCE of it) — phase parses the
+        # WheneverEvent condition itself perfectly structurally, so this is
+        # a precision gate, not a parser-gap workaround. Covers the "gain OR
+        # LOSE life" variant (Wax-Wane Witness) and the "for the first time
+        # each turn" variant (Deathless Knight), neither of which put a
+        # comma immediately after "life" in the SAME shape as a genuine
+        # source clause.
+        "Ajani's Pridemate",
+        "Sanguine Bond",
+        "Wax-Wane Witness",
+        "Deathless Knight",
+    ],
+)
+def test_lifegain_makers_excludes_lifegain_matters_trigger_condition(name):
+    assert "lifegain_makers" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 4 (CR 119.3) — ADJUDICATED SHEDS. Legacy's OLD
+        # IR mis-projects EVERY "target opponent gains N life" / "each
+        # OTHER player gains N life" effect's scope as "any" (a genuine
+        # scope-derivation bug in the retired project.py pipeline, verified
+        # this session via old_ir_for), so legacy's own scope in
+        # ("you","any") gate incorrectly admits an OPPONENT-benefit
+        # drawback/alt-cost as a lifegain SOURCE. The crosswalk reads
+        # phase's ACTUAL structured player field (Typed controller=
+        # "Opponent", or an "Another" player property) and correctly
+        # excludes all of them — none is a genuine lifegain_makers member.
+        "Fiery Justice",
+        "Invigorate",
+        "Phelddagrif",
+        "Soldevi Steam Beast",
+        "Armistice",
+        "Reverent Silence",
+        "Questing Phelddagrif",
+        # Flames of the Blood Hand is a lifegain PREVENTION shield ("that
+        # player gains no life instead"), never a source at all.
+        "Flames of the Blood Hand",
+    ],
+)
+def test_lifegain_makers_excludes_opponent_benefit_gain(name):
+    assert "lifegain_makers" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 4 (CR 119.3) — beyond-legacy GAINS legacy misses
+        # (its own gain_life scope-derivation gap, same root cause as the
+        # opponent-benefit sheds above, but these targets are genuinely
+        # "you"/"any"/symmetric-team benefits, not opponent-only):
+        # Restorative Technique's "Target player gains 2 life" (an
+        # unrestricted targeted gain — could target yourself); Explore the
+        # Vastlands's "Each player gains 3 life" (symmetric team gain — you
+        # gain too).
+        "Restorative Technique",
+        "Explore the Vastlands",
+    ],
+)
+def test_lifegain_makers_beyond_legacy_gain(name):
+    assert ("lifegain_makers", "you", "") in _idents(name)
+
+
 def test_reanimator_is_creature_gated():
     # Sheoldred IS a creature returning creatures GY→battlefield.
     assert ("reanimator", "you", "") in _idents("Sheoldred, Whispering One")

@@ -800,7 +800,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "land_creatures_matter",
         "land_sacrifice_makers",
         "landfall",
-        "lifegain_makers",
         "lifeloss_makers",
         "opponent_discard",
         "plus_one_matters",
@@ -889,6 +888,31 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
 # Ascendant) phase parses as a bare Unknown-mode trigger with no count
 # qualifier — the SAME class the legacy IR's own byte-mirror fires for
 # (pinned in test_signals_effect_axes.py::test_spell_count_storm_widen).
+# ADR-0038 W3 batch 4 (2026-07-10): lifegain_makers PROMOTED (corpus
+# live_only 95 → 0, ADR-0035 Stage-A's banked +325 recall now fully closed
+# out). Two new structural arms plus one text-idiom bridge: (a) a GainLife
+# effect buried ANYWHERE under a unit — a GrantTrigger/GrantAbility's own
+# quoted definition, or the SAME grant a level deeper inside a created
+# token's own static_abilities (the Pest-token family) — via one
+# iter_typed_nodes deep walk (the has_nested_roll_die/has_nested_flip_coin/
+# has_nested_fight precedent), gated on the found node's OWN player field
+# (an explicit Opponent controller or "Another" property excluded); (b) a
+# per-clause "you gain ... life" text-idiom bridge for cards phase's static
+# parser drops entirely (Drain Life's capped formula, Soul Burn/Predator's
+# Rapport/Discerning Taste's "life equal to ~" scalers, Necravolver's
+# kicker-branched grant), itself gated against the ubiquitous "Whenever you
+# gain life, <payoff>" lifegain_MATTERS trigger condition (a card that
+# CARES about gaining life, never a source — Ajani's Pridemate, Sanguine
+# Bond, ~65 more). The 8 remaining live_only members are ADJUDICATED SHEDS:
+# legacy's OLD IR mis-projects every "target opponent gains N life" /
+# "each OTHER player gains N life" effect's scope as "any" (a genuine
+# scope-derivation bug in the retired project.py pipeline, verified this
+# session), so its own scope-gate incorrectly admits an opponent-benefit
+# drawback as a lifegain SOURCE; the crosswalk reads phase's ACTUAL
+# structured player field and correctly excludes all of them. Two
+# adjudicated beyond-legacy gains (Restorative Technique, Explore the
+# Vastlands — genuinely "you"/symmetric-team benefits legacy's same scope
+# bug drops). CR 119.3 verified via rules-lookup this session.
 PORTED_KEYS: frozenset[str] = _PORTED_KEYS_STAGE3 - _STAGE4_RESIDUAL
 
 
@@ -1463,6 +1487,62 @@ def _extra_turns(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ADR-0038 W3 batch 4 — the lifegain_makers bucket-B text-idiom bridge (last
+# resort, arms 1-3 above already found nothing): a genuine "you gain N life"
+# / "you gain life equal to ~" clause phase fails to structurally parse at
+# ALL (no GainLife node anywhere — a bare ``Unimplemented`` "gain"/
+# "static_structure" clause, or a replacement/loyalty-ability shape the
+# static parser drops entirely: Drain Life's capped-lifegain formula, Soul
+# Burn / Predator's Rapport / Discerning Taste / Shadowgrange Archfiend /
+# War Report / Song of Inspiration's "life equal to ~" scalers, Ajani /
+# Serra Paragon / Fasting / Life of Toshiro Umezawa's loyalty/Saga-chapter/
+# replacement shapes, Necravolver / Rakavolver's kicker-branched granted
+# trigger). Requires "you" DIRECTLY followed by "gain(s)" (never "you MAY
+# HAVE an opponent gain" — Invigorate, Reverent Silence — nor "target
+# opponent gains" / "that player gains" alone — Fiery Justice, Soldevi Steam
+# Beast, Armistice, the Phelddagrifs — none of which put "you" immediately
+# before "gain"), so the SAME opponent-benefit exclusion arm-3 applies
+# structurally falls out of the wording itself, no extra scope check needed.
+# Per-CLAUSE (period-delimited, boundary lesson (iii)) so an unrelated
+# opponent-benefit clause elsewhere on the same card never leaks in. CR
+# 119.3.
+#
+# A SECOND exclusion, found corpus-verifying this arm: the ubiquitous
+# lifegain_MATTERS trigger condition "Whenever you gain life, <payoff>"
+# (Ajani's Pridemate, Sanguine Bond, ~65 more — plus "gain OR LOSE life",
+# Wax-Wane Witness/Vampire Scrivener, and "gain life FOR THE FIRST TIME
+# each turn", Deathless Knight/Vanguard Seraph) is a bare "gain life" with
+# NO amount between "gain" and "life" — phase parses the WheneverEvent
+# condition itself perfectly structurally; it's the PAYOFF lane
+# (lifegain_matters), never a lifegain SOURCE, and must not co-fire here.
+# Not clause-start-anchored (a preceding keyword line with no period —
+# "Flying\nWhenever you gain life, …" — or a preceding UNRELATED trigger
+# joined by "and" — "When MACH-1 enters and whenever you gain life, …" —
+# both keep the idiom out of clause-head position). A genuine source clause
+# never puts "whenever/when you (may) gain(s) (or lose) life" immediately
+# before a comma (Necravolver's "Whenever this creature deals damage, you
+# gain that much life" puts an unrelated event between "whenever" and "you
+# gain", so it's unaffected; "you gain 2 life." / "you gain life equal to
+# ~" never have a comma right after "life").
+_LIFEGAIN_TEXT_RX = re.compile(
+    r"\byou (?:may )?gains?\b[^.]{0,80}\blife\b", re.IGNORECASE
+)
+_LIFEGAIN_MATTERS_TRIGGER_RX = re.compile(
+    r"(?:whenever|when)\s+you\s+(?:may\s+)?gains?(?:\s+or\s+lose)?\s+life[^,]{0,60},",
+    re.IGNORECASE,
+)
+
+
+def _lifegain_text_idiom(tree: ConceptTree) -> str | None:
+    """The "you gain ... life" clause text, per-clause gated (CR 119.3)."""
+    for clause in _kept(tree).split("."):
+        if _LIFEGAIN_MATTERS_TRIGGER_RX.search(clause):
+            continue
+        if _LIFEGAIN_TEXT_RX.search(clause):
+            return clause.strip()
+    return None
+
+
 def _lifegain_makers(tree: ConceptTree) -> list[Signal]:
     """A life-gain SOURCE — a ``gain_life`` effect, or a granted ``lifelink``.
 
@@ -1471,6 +1551,29 @@ def _lifegain_makers(tree: ConceptTree) -> list[Signal]:
     grant (Basilisk Collar, Talus Paladin, Vault of the Archangel — CR 702.15b), the
     grantee NOT opponent-only. The card's OWN printed lifelink keyword rides the
     keyword path (out of this typed-effect arm). Scope "you".
+
+    ADR-0038 W3 batch 4 — a THIRD arm: a ``GainLife`` effect buried ANYWHERE
+    inside a unit's tree — a GRANTED ability's own quoted definition
+    (``GrantTrigger``/``GrantAbility``), reachable a level deeper still
+    inside a created TOKEN's own ``static_abilities``, or a die-roll /
+    coin-flip modal branch — that the flat per-unit concept-node walk never
+    surfaces as its own node (the ``has_nested_roll_die`` /
+    ``has_nested_flip_coin`` / ``has_nested_fight`` precedent: one
+    :func:`~mtg_utils._card_ir.crosswalk.iter_typed_nodes` deep walk reaches
+    every container shape uniformly, no per-container-type code). Two source
+    families this recovers: a granted trigger/activated ability on an Aura/
+    Equipment's OWN enchanted/equipped permanent (Farmstead, Ephara's
+    Radiance, Sugar Coat, Victual Sliver — "Enchanted/Equipped X has '...
+    you gain N life'"), and the SAME grant buried inside a created token's
+    own ability text (the Pest-token family — Send in the Pest, Pest
+    Summoning, Professor of Zoomancy). Each found node's OWN ``player``
+    field is inspected (not just presence) — an explicit ``Typed`` player
+    with ``controller == "Opponent"`` (Fiery Justice, Invigorate, Soldevi
+    Steam Beast, Armistice) or an "Another" player property (Reverent
+    Silence's "each OTHER player gains life") is a drawback/alt-cost/
+    opponent-benefit GainLife, never this deck's own life-gain source, and
+    is excluded — corpus-verified as the only two opponent-reaching shapes
+    among 1724 GainLife nodes commander-wide. CR 119.3 / 603.6.
     """
     for c in tree.effect_concepts("gain_life"):
         if c.scope in ("you", "any"):
@@ -1483,6 +1586,21 @@ def _lifegain_makers(tree: ConceptTree) -> list[Signal]:
                 and c.scope != "opponents"
             ):
                 return [Signal("lifegain_makers", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "GainLife":
+                continue
+            player = getattr(n, "player", None)
+            if tag_of(player) == "Typed":
+                if getattr(player, "controller", None) == "Opponent":
+                    continue
+                props = getattr(player, "properties", None) or []
+                if any(tag_of(p) == "Another" for p in props):
+                    continue
+            return [Signal("lifegain_makers", "you", "", "", tree.name, "high")]
+    idiom = _lifegain_text_idiom(tree)
+    if idiom is not None:
+        return [Signal("lifegain_makers", "you", "", idiom, tree.name, "high")]
     return []
 
 
