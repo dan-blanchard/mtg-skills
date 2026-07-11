@@ -166,7 +166,11 @@ from mtg_utils._card_ir.project import (
 # legacy ``_recover_clone_subjects`` text-scan (CR 707.2's copied-type word
 # right after "copy of") single-source from the OLD projection's own
 # supplement pass, rather than re-deriving an equivalent regex here.
-from mtg_utils._card_ir.supplement import _FORCE_ATTACK, _copied_type_from_text
+from mtg_utils._card_ir.supplement import (
+    _CAST_FROM_EXILE_P,
+    _FORCE_ATTACK,
+    _copied_type_from_text,
+)
 
 # The b15 opponent_counter_grant co-tap anaphora fallback (the supplement's
 # tap-opp combinators) was T9-finalize folded to the
@@ -793,7 +797,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     {
         "artifacts_matter",
         "base_pt_set",
-        "cast_from_exile",
         "cheat_into_play",
         "combat_damage_matters",
         "combat_damage_to_opp",
@@ -4349,25 +4352,135 @@ def _dice_makers(tree: ConceptTree) -> list[Signal]:
     return [Signal("dice_makers", "you", "", "", tree.name, "high")]
 
 
-def _cast_from_exile(tree: ConceptTree) -> list[Signal]:
-    """cast_from_exile — a play/cast-FROM-EXILE build-around (CR 116 / 601.3b /
-    702.170). Reads the ``GrantCastingPermission`` effect's ``permission`` node
-    STRUCTURALLY (:func:`permission_tag`): ``PlayFromExile`` (impulse exile-and-play
-    — Act on Impulse, Abbot of Keral Keep) or ``Plotted`` (plot — Aloe Alchemist).
-    This is the batch's marquee fidelity gain — the live path kept a byte-identical
-    word-mirror because the OLD lossy IR dropped the from-exile zone off the cast.
-    Keyword cast-from-exile mechanics (foretell / suspend) are kept OUT of this lane
-    (they have their own maker field-lookups), avoiding double counting; the
-    self-recast cards phase represents without a ``GrantCastingPermission`` (Eternal
-    Scourge) stay a documented ``live_only`` residue. A plain ``Exile`` removal
-    (Banisher Priest, Path to Exile) carries no permission → no fire. Scope "you".
+def _cast_from_exile_zone_evidence(node: object) -> bool:
+    """A structural producer that actually deposits a card IN EXILE (CR 406.1) —
+    the gate that separates a genuine cast-from-exile permission from phase's
+    reuse of the SAME ``PlayFromExile`` permission tag for a cast-from-GRAVEYARD
+    ability (CR 702.34's Flashback governs that zone; Skyclave Shade "you may
+    cast it from your graveyard", Ark of Hunger / Tablet of Discovery "Mill a
+    card [destination: Graveyard]. You may play that card"). Four typed shapes:
+    ``ExileTop`` (its whole point is exile — Abbot of Keral Keep), ``ChangeZone``
+    / ``ChangeZoneAll`` with ``destination == "Exile"`` (Campus Renovation's
+    recursion-then-exile, Hex Magic), ``Dig`` with ``destination == "Exile"``
+    (Gonti, Thief of Sanity), and an ``EffectCost`` wrapping any of the above
+    (Primordial Mist pays its OWN exile as the activation cost).
+    ``ExileFromTopUntil`` (Territorial Bruntar, Tibalt's Trickery, Black Widow's
+    dig-until) is exile BY DEFINITION (the node name), so it isn't gated here —
+    :func:`_cast_from_exile_unit_evidence` treats it as always-true alongside
+    this predicate.
     """
+    tag = tag_of(node)
+    if tag == "ExileTop":
+        return True
+    if tag in ("ChangeZone", "ChangeZoneAll"):
+        return getattr(node, "destination", None) == "Exile"
+    if tag == "Dig":
+        return getattr(node, "destination", None) == "Exile"
+    if tag == "EffectCost":
+        return _cast_from_exile_zone_evidence(getattr(node, "effect", None))
+    return False
+
+
+def _cast_from_exile_unit_evidence(unit: AbilityUnit) -> bool:
+    """Does this UNIT carry exile-zone evidence usable by a
+    ``grant_cast_permission`` it contains? Costs always count (paid before the
+    grant). Effects only count up to and including the unit's OWN grant (a
+    ``ChangeZone{Exile}`` appearing AFTER the grant is a post-hoc redirect —
+    Mission Briefing's "if that spell would be put into your graveyard, exile
+    it instead" describes the SPELL'S FATE after casting FROM THE GRAVEYARD,
+    not its source zone, so it does not count). A unit with no grant of its
+    own (Muse Vessel's exile-into-the-artifact ability, read by a SEPARATE
+    activated ability's grant) scans its full effect list.
+    """
+    for c in unit.costs:
+        if _cast_from_exile_zone_evidence(c.node) or tag_of(c.node) == (
+            "ExileFromTopUntil"
+        ):
+            return True
+    effs = list(unit.effects)
+    grant_idx = next(
+        (i for i, c in enumerate(effs) if c.concept == "grant_cast_permission"),
+        None,
+    )
+    scan = effs if grant_idx is None else effs[: grant_idx + 1]
+    return any(
+        _cast_from_exile_zone_evidence(c.node) or tag_of(c.node) == "ExileFromTopUntil"
+        for c in scan
+    )
+
+
+def _cast_from_exile(tree: ConceptTree) -> list[Signal]:
+    """cast_from_exile — a play/cast-FROM-EXILE build-around (CR 406.1 / 601.2 /
+    601.3 / 702.170d). Reads the ``GrantCastingPermission`` effect's
+    ``permission`` node STRUCTURALLY (:func:`permission_tag`): ``PlayFromExile``
+    (impulse exile-and-play — Act on Impulse, Abbot of Keral Keep) or
+    ``Plotted`` (plot — Aloe Alchemist, unconditional: CR 702.170d's exile is
+    inherent to activating Plot itself, and phase's ``description`` for a
+    keyword-ability unit is the templated short form with no reminder text to
+    corpus-check against). This is the batch's marquee fidelity gain — the live
+    path kept a byte-identical word-mirror because the OLD lossy IR dropped the
+    from-exile zone off the cast.
+
+    ``PlayFromExile`` additionally requires :func:`_cast_from_exile_unit_evidence`
+    on SOME unit of this face (corpus census, 2026-07: phase emits the SAME
+    ``PlayFromExile`` tag for a handful of cast-from-GRAVEYARD abilities that
+    happen to use the same "you may cast/play it [later]" shape — a real
+    zone-fidelity gap in the substrate, not something clause-grammar growth can
+    fix from here; CR 702.34 Flashback governs that zone, not CR 406). Named,
+    corpus-verified sheds (6, all commander-legal, 2026-07 census): Ark of
+    Hunger / Tablet of Discovery (``Mill`` destination Graveyard, no exile
+    anywhere), Skyclave Shade / Hildibrand Manderville / Mosswood Dreadknight
+    ("you may cast it from your graveyard as an Adventure" — a dies-rider
+    distinct from the standard exile-based Adventure recast, which phase
+    doesn't represent as a grant node at all on either face), Mission Briefing
+    (chooses a graveyard card to cast; the ``ChangeZone{Exile}`` sibling is a
+    POST-cast redirect, not the source).
+
+    Keyword cast-from-exile mechanics (foretell / suspend) are kept OUT of this
+    lane (they have their own maker field-lookups), avoiding double counting;
+    a plain ``Exile`` removal (Banisher Priest, Path to Exile) carries no
+    permission → no fire.
+
+    TEXT-IDIOM FALLBACK (bucket-d, reminder-stripped kept idiom): a self-cast
+    permission phase represents via a bare ``CastFromZone`` effect carrying NO
+    zone at all (Eternal Scourge, Misthollow Griffin), a payoff Trigger with
+    ``spell_cast_origin: NotEquals(Hand)`` (Vega's "cast a spell from anywhere
+    other than your hand" — deliberately NOT read as its own structural arm:
+    ``CastFromZone`` is a GENERIC any-zone cast-permission node phase reuses
+    for graveyard-cast grants too — Yawgmoth's Will, Snapcaster Mage, Torrential
+    Gearhulk — so treating its bare presence as evidence would flood the lane
+    with graveyard recursion), or a dropped-zone static (Squee's "from your
+    graveyard or from exile" collapses to ``active_zones=['Graveyard']``,
+    losing the exile branch entirely — a genuine phase information-loss gap,
+    not fixable without clause-grammar growth from here). Reuses
+    :func:`mtg_utils._card_ir.supplement._CAST_FROM_EXILE_P` — the SAME
+    six-armed word-grammar the OLD projection's
+    ``_recover_cast_from_exile_zone`` already runs against this exact oracle
+    text (not a new grammar; corpus census, 2026-07: matches all 60
+    commander-legal live_only cards, ZERO of the 6 named sheds above). CR
+    601.3b / 702.143.
+    """
+    grant: ConceptNode | None = None
     for unit in tree.units:
         for c in unit.effects:
             if c.concept != "grant_cast_permission":
                 continue
-            if permission_tag(c.node) in _CAST_FROM_EXILE_PERMS:
+            tag = permission_tag(c.node)
+            if tag not in _CAST_FROM_EXILE_PERMS:
+                continue
+            if tag == "Plotted":
                 return [Signal("cast_from_exile", "you", "", c.raw, tree.name, "high")]
+            grant = grant or c
+    if grant is not None and any(
+        _cast_from_exile_unit_evidence(unit) for unit in tree.units
+    ):
+        return [Signal("cast_from_exile", "you", "", grant.raw, tree.name, "high")]
+    stripped = re.sub(r"\([^)]*\)", " ", tree.oracle or "")
+    low = stripped.lower()
+    if (
+        "exile" in low or "plot" in low or "anywhere other than your hand" in low
+    ) and _CAST_FROM_EXILE_P.run(stripped) is not None:
+        return [Signal("cast_from_exile", "you", "", "", tree.name, "high")]
     return []
 
 

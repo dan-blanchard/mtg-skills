@@ -2343,6 +2343,85 @@ def test_cast_from_exile_excludes_plain_exile_removal():
 
 
 @pytest.mark.parametrize(
+    "name",
+    ["Gonti, Lord of Luxury", "Territorial Bruntar"],
+)
+def test_cast_from_exile_dig_and_reveal_until_evidence(name):
+    """ADR-0038 W3 batch 5: a ``PlayFromExile`` grant reads exile-zone
+    evidence from a ``Dig`` effect with ``destination == "Exile"`` (Gonti's
+    "look at the top four... exile one of them face down") or an
+    ``ExileFromTopUntil`` node (Territorial Bruntar's "exile cards from the
+    top of your library until you exile a nonland card") preceding it in the
+    SAME unit — :func:`_cast_from_exile_unit_evidence`. CR 406.1 / 601.2."""
+    assert ("cast_from_exile", "you", "") in _idents(name)
+
+
+def test_cast_from_exile_cost_evidence():
+    """ADR-0038 W3 batch 5: Primordial Mist's activated ability pays its OWN
+    exile as the COST (``EffectCost`` wrapping a ``ChangeZone{destination:
+    Exile}``) — "Exile a face-down permanent you control face up: You may
+    play that card this turn." Cost-role evidence counts (paid before the
+    grant resolves). CR 406.1 / 601.2."""
+    assert ("cast_from_exile", "you", "") in _idents("Primordial Mist")
+
+
+def test_cast_from_exile_cross_unit_evidence():
+    """ADR-0038 W3 batch 5: Muse Vessel splits exile-then-cast across TWO
+    activated abilities — "{3}, {T}: Target player exiles a card from their
+    hand." (a ``ChangeZone{Exile}`` with no grant of its own) and "{1}:
+    Choose a card exiled with ~. You may play that card this turn." (the
+    grant, with no local exile producer). :func:`_cast_from_exile` scans
+    every unit of the FACE, not just the grant's own unit, so the artifact's
+    shared exile pool still counts. CR 406.1 / 601.2."""
+    assert ("cast_from_exile", "you", "") in _idents("Muse Vessel")
+
+
+@pytest.mark.parametrize("name", ["Vega, the Watcher", "Misthollow Griffin"])
+def test_cast_from_exile_text_idiom_fallback(name):
+    """ADR-0038 W3 batch 5 — bucket-d text-idiom fallback: Vega's payoff
+    Trigger carries ``spell_cast_origin: NotEquals(Hand)`` with NO exile
+    zone attached structurally ("Whenever you cast a spell from anywhere
+    other than your hand, draw a card."), and Misthollow Griffin's self-cast
+    permission is a bare ``CastFromZone`` effect with no zone at all
+    ("You may cast this card from exile."). Both are read via
+    :func:`mtg_utils._card_ir.supplement._CAST_FROM_EXILE_P` against
+    ``tree.oracle`` — the SAME word-grammar the OLD projection's
+    ``_recover_cast_from_exile_zone`` already ran against this exact text
+    (not new grammar growth). Deliberately NOT read as a bare
+    ``CastFromZone``-presence structural arm: that node is reused for
+    graveyard-cast grants too (Yawgmoth's Will, Snapcaster Mage) and would
+    flood the lane. CR 406.1 / 601.3b."""
+    assert ("cast_from_exile", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Ark of Hunger", "Skyclave Shade", "Mission Briefing"],
+)
+def test_cast_from_exile_excludes_graveyard_sourced_grants(name):
+    """ADR-0038 W3 batch 5 sheds — phase emits the SAME ``PlayFromExile``
+    permission tag for a handful of cast-from-GRAVEYARD abilities that share
+    the "you may cast/play it [later]" shape as a genuine exile grant, a
+    real zone-fidelity gap in the substrate (not fixable from here without
+    clause-grammar growth; CR 702.34 Flashback governs the graveyard zone,
+    not CR 406):
+
+    * Ark of Hunger — ``{T}: Mill a card. You may play that card this
+      turn.`` (``Mill`` destination Graveyard, no exile anywhere).
+    * Skyclave Shade — ``...if this card is in your graveyard and it's your
+      turn, you may cast it from your graveyard this turn.`` (a dies-rider
+      cast-from-graveyard permission, textually named "graveyard").
+    * Mission Briefing — ``Surveil 2, then choose an instant or sorcery card
+      in your graveyard. You may cast it this turn. If that spell would be
+      put into your graveyard, exile it instead.`` — the ``ChangeZone{Exile}``
+      sibling is a POST-cast redirect (it appears AFTER the grant in the
+      unit's effect order), not the source zone; the card the grant lets you
+      cast is chosen FROM the graveyard.
+    """
+    assert "cast_from_exile" not in _keys(name)
+
+
+@pytest.mark.parametrize(
     ("name", "key"),
     [
         ("Behold the Multiverse", "foretell_makers"),
