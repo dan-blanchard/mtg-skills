@@ -1099,6 +1099,45 @@ def test_creatures_matter_w5_tails_batch(name, should_fire):
 
 
 @pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        # ADR-0038 W6 endgame: an ``Aggregate`` (Max Power) count operand —
+        # "X is the greatest power among creatures you control" — reads the
+        # exact GENERIC population a summed count operand does, via a
+        # max/min reduction instead of a sum (CR 107.3 computed value; CR
+        # 208.1 power characteristic).
+        ("Monstrous Onslaught", True),  # DealDamage amount
+        ("Rishkar's Expertise", True),  # Draw count
+        ("Essence Harvest", True),  # GainLife/LoseLife amount
+        ("Peema Aether-Seer", True),  # GainEnergy amount
+        # A self-referential base-power CDA ("~'s power is equal to the
+        # greatest mana value among creatures you control" — a
+        # SetDynamicPower STATIC modification, role=="static") reads the
+        # SAME generic-filter Aggregate shape but computes the permanent's
+        # OWN characteristic (CR 613.4b), not a payoff distributed to the
+        # team — the role=="effect" gate excludes it, mirroring the
+        # team-anthem arm's own self-referential-CDA exclusion.
+        ("Towering Gibbon", False),
+        # SHEDS — corpus-adjudicated, deliberately NOT ported (the same LOW
+        # regex floor / different-subject classes W4/W5 already
+        # established, re-pinned here with fresh representatives):
+        # a "creatures ATTACKING you" count (Blessed Reversal) is a
+        # different subject, not "creatures you control" — same boundary as
+        # Craw Giant's blocking count.
+        ("Blessed Reversal", False),
+        # Devour's sacrifice count (CR 702.82a/614.1c: "you may sacrifice
+        # any number of creatures" feeding an ETB counter placement) is
+        # grouped with the LOW regex floor, not a structural "creatures you
+        # control" cares-about read — the sacrificed creatures are a
+        # DIFFERENT (self-consuming) population, not the board.
+        ("Bloodspore Thrinax", False),
+    ],
+)
+def test_creatures_matter_w6_endgame_batch(name, should_fire):
+    assert (("creatures_matter", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
     ("name", "ident", "should_fire"),
     [
         ("Padeem, Consul of Innovation", ("artifacts_matter", "you", ""), True),

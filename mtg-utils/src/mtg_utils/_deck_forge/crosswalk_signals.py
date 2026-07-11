@@ -3861,6 +3861,57 @@ def _creature_count_operand_filter(node: TypedMirrorNode) -> object | None:
     return None
 
 
+def _aggregate_creature_filter(node: TypedMirrorNode) -> object | None:
+    """A generic-creature ``Aggregate`` operand (Max/Min over Power/Toughness)
+    :func:`count_operand_filter` / :func:`_creature_count_operand_filter`
+    both miss: an ``amount``/``count``/``value`` ``Ref`` whose ``qty`` is an
+    ``Aggregate`` (Monstrous Onslaught's "deals X damage ... where X is the
+    greatest power among creatures you control", Rishkar's Expertise's "draw
+    cards equal to the greatest power among creatures you control", Essence
+    Harvest, Peema Aether-Seer's "get {E} equal to the greatest power among
+    creatures you control") — ``Ref(qty=Aggregate(filter=Typed(controller=
+    'You', type_filters=['Creature']), function='Max', property='Power'))``.
+    A "greatest power AMONG creatures you control" reads the exact GENERIC
+    population an anthem/count scaler does, just via a max/min reduction
+    instead of a sum (CR 107.3 computed value; CR 208.1 power/toughness
+    characteristic) — scoped as its OWN lane-local helper (not a widening of
+    the SHARED :func:`ref_count_filter`, which many other lanes reuse and
+    which the ADR-0038 landmine requires a full-corpus sibling check to
+    widen) so this fix cannot perturb any other consumer. A "creature
+    BLOCKING it" / "creature attacking you" Aggregate (none observed in the
+    corpus at introduction — Craw Giant / Blessed Reversal's own board
+    counts use plain ``ObjectCount`` with ``controller=None`` + a
+    ``BlockingSource``/``Attacking`` predicate, not ``Aggregate``) would
+    still fail the SAME :func:`_is_generic_creature_filter` controller=="You"
+    gate the caller applies, so the boundary holds by construction even if
+    such a card exists. Distinct from a CONDITION-shaped "if you control the
+    creature with the greatest power" gate (Triumph of Cruelty/Ferocity) —
+    that is a boolean existence check wrapping a DIFFERENT effect entirely,
+    not a value operand, and is NOT read here (deferred as its own,
+    un-adjudicated shape).
+
+    The CALLER gates this helper to ``c.role == "effect"`` — a
+    self-referential base-power CDA (Towering Gibbon / Dodgy Jalopy:
+    "~'s power is equal to the greatest mana value among creatures you
+    control", a ``SetDynamicPower`` STATIC modification, ``role ==
+    "static"``) reads the SAME generic-filter Aggregate shape but computes
+    the permanent's OWN characteristic (CR 613.4b), not a payoff distributed
+    to the team — corpus-verified regression at introduction (2 cw_only
+    over-fires) fixed by the role gate, mirroring the team-anthem arm's own
+    self-referential-CDA exclusion (this docstring, two paragraphs up) for
+    the STATIC-role shape the affected-filter check alone cannot reach here.
+    """
+    for fname in ("amount", "count", "value"):
+        q = getattr(node, fname, None)
+        if isinstance(q, TypedMirrorNode) and tag_of(q) == "Ref":
+            qty = getattr(q, "qty", None)
+            if tag_of(qty) == "Aggregate":
+                filt = getattr(qty, "filter", None)
+                if filt is not None:
+                    return filt
+    return None
+
+
 def _mass_untap_creature_filter(unit: object) -> object | None:
     """The TARGET filter of a mass (``scope == 'All'``) Untap ``SetTapState``
     reachable from one unit's node, threaded through the same
@@ -3891,16 +3942,20 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
     continuous effect it or a resolving spell generates). Mirrors
     ``_signals_ir`` line ~7686. ADR-0038 W4 giant-key batch widened the arm
     from two shapes to five; ADR-0038 W5 tails added a sixth and widened the
-    team-anthem mod-tag set, all sharing the SAME
+    team-anthem mod-tag set; ADR-0038 W6 endgame added the ``Aggregate``
+    (Max/Min) count-operand shape below, all sharing the SAME
     :func:`_is_generic_creature_filter` gate:
 
     * a **count operand** that is a generic creature count (Craterhoof's +X/+X, a
       "for each creature you control" value) — the standard ``amount``/``count``/
       ``value`` site (:func:`count_operand_filter`), a ``Multiply``-scaled or
       ``Mana``-nested count site (:func:`_creature_count_operand_filter` — Peach
-      Garden Oath's lifegain, Circle of Dreams Druid / Battle Hymn's ramp), or a
-      scaling ``Pump``/``PumpAll``'s ``power``/``toughness`` site (Might of the
-      Masses — :func:`_pump_scaling_creature_filter`), all CR 107.3 / 613.4c;
+      Garden Oath's lifegain, Circle of Dreams Druid / Battle Hymn's ramp), an
+      ``Aggregate`` (Max/Min Power/Toughness) site (:func:`_aggregate_creature_filter`
+      — Monstrous Onslaught / Rishkar's Expertise / Essence Harvest / Peema
+      Aether-Seer's "the greatest power among creatures you control" — CR 208.1),
+      or a scaling ``Pump``/``PumpAll``'s ``power``/``toughness`` site (Might of
+      the Masses — :func:`_pump_scaling_creature_filter`), all CR 107.3 / 613.4c;
     * a **team anthem** — a pump / set-P/T / keyword-or-ability-grant static-
       ability DEF over the generic own-board creature set (Intangible-Virtue-
       class continuous team buff), read via :func:`iter_static_defs` so a
@@ -3941,6 +3996,10 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
             _is_generic_creature_filter(count_operand_filter(c.node))
             or _is_generic_creature_filter(_pump_scaling_creature_filter(c.node))
             or _is_generic_creature_filter(_creature_count_operand_filter(c.node))
+            or (
+                c.role == "effect"
+                and _is_generic_creature_filter(_aggregate_creature_filter(c.node))
+            )
         ):
             return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
