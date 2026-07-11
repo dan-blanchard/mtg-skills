@@ -3886,6 +3886,16 @@ def _minus_counters_matter(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ADR-0038 W5 tails — the narrow gap-marker text fallback inside
+# ``_plus_one_matters``: a P1P1 self-condition phase decorates as a typed
+# marker with NO captured payload (``Not(Unrecognized(text=…))`` — Pipsqueak,
+# Rebel Strongarm; an empty ``RequiresCondition`` — Skarrgan Hellkite). Read
+# ONLY off the same unit's own description/text field, never the whole-card
+# raw; a full commander-legal corpus census found exactly these 2 cards (3
+# printings), zero false positives.
+_P1P1_COND_TEXT_RX = re.compile(r"\+1/\+1 counter", re.IGNORECASE)
+
+
 def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
     """plus_one_matters — a +1/+1 counter PAYOFF (CR 122.1). The structural arms
     (``_signals_ir`` ~8556 / ~8278): a ``move_counters`` whose kind is ``P1P1`` (a
@@ -3969,14 +3979,76 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
       routes to any_counter_matters via the SAME ``Any``-kind predicate.
       Deliberately NOT reproduced.
 
-    A genuinely diverse residual tail remains beyond these two classes (an
+    ADR-0038 W5 tails batch adds four more arms, each closing a genuinely
+    distinct residual class the previous batch banked (2026-07 re-measure:
+    live_only 307 pre-batch, 300 post-batch — 7 cards recovered, corpus-
+    verified genuine — of which 225 are the counter_added-kind-other
+    Saga/Plan class above, 26 are a THIRD adjudicated shed class — legacy's
+    maker/matters CONFLATION: a pure ``PutCounter`` P1P1 placement with NO
+    cares-about text of its own (Scholar of New Horizons's "enters with a
+    +1/+1 counter" + a kind-agnostic removal outlet, The Duke Rebel
+    Sentry's "enters with … / Remove a counter … Put a +1/+1 counter on
+    another target") — already correctly routed to the sibling
+    ``plus_one_makers`` lane instead (CR 122.1: making counters is not
+    caring about them); mirrors the ``any_counter_matters``/
+    ``any_counter_makers`` split ADR-0038 W4 already established. The
+    remainder decomposes as documented below):
+
+    * **self-ref CONDITION, any unit** — the ``HasCounters`` self-ref arm
+      above was gated to ``unit.origin == "static"`` only; a P1P1-specific
+      "if it has a +1/+1 counter on it" condition also rides a TRIGGER's own
+      ``.condition`` (Sarulf Realm Eater's upkeep sac-outlet, Ingenious
+      Prodigy's upkeep draw-outlet — CR 603.4's intervening-``if``) or an
+      ``IsPresent``-tagged static condition instead of ``HasCounters``
+      (Prehistoric Turtlesaurus's "costs {1} less to cast if you control a
+      creature with a +1/+1 counter on it" — CR 604.2 / 601.2f). Both read
+      through the shared :func:`iter_condition_sites` / ``_condition_leaves``
+      descent (the same site-and-leaf walk ``_artifacts_enchantments_matter``
+      already uses), so a unit's ``condition`` field AND its
+      ``activation_restrictions`` entries are both covered, any origin.
+    * **gap-marker text fallback, narrowly scoped** — two cards' P1P1
+      self-condition never reaches phase's typed grammar at all: Pipsqueak,
+      Rebel Strongarm's "can't attack alone unless he has a +1/+1 counter on
+      him" decorates as ``Not(Unrecognized(text=…))`` (a raw parse residue,
+      not a real condition node), and Skarrgan Hellkite's "Activate only if
+      ~ has a +1/+1 counter on it" decorates as an EMPTY
+      ``RequiresCondition`` (``data.inner is None`` — CR 602.5, the marker
+      names a restriction phase couldn't structure). Both are read via a
+      TEXT fallback narrowly scoped to the SAME unit's own
+      ``description``/``Unrecognized.text`` field (never the whole-card
+      raw) — a corpus census over every commander-legal card found exactly
+      these 2 (3 printings), zero false positives.
+    * **``CounterAddedThisTurn`` qty, sibling of ``CountersOn``** — "create a
+      token for each +1/+1 counter you've put on creatures under your
+      control this turn" (Iridescent Hornbeetle) is a DIFFERENT qty node
+      (a THIS-TURN placement tally, not a live board-state count) whose kind
+      rides a nested ``counters.data`` field rather than ``CountersOn``'s
+      bare ``counter_type`` string; widened to accept either tag/field
+      shape, both gated to P1P1.
+    * **``ModifyCost``/``spell_filter``/``Targets``/``Counters`` descent** —
+      Titanic Brawl's "costs {1} less to cast if it TARGETS a creature you
+      control with a +1/+1 counter on it" nests the P1P1 predicate inside
+      the spell_filter's OWN ``Targets`` property (:func:`
+      modify_cost_spell_filter`), a shape distinct from Prehistoric
+      Turtlesaurus's top-level ``condition`` (that card cares about a
+      creature you control ANYWHERE; Titanic Brawl cares specifically about
+      the spell's OWN target) — CR 601.2f.
+
+    A genuinely diverse residual tail remains beyond these classes (an
     ``Unknown``-tagged ``sub_ability`` idiom for "if X has a counter, do Y
     instead" — Bring Low; a condition phase drops entirely inside a
-    ``GenericEffect`` wrapper — Dual-Sun Technique; a deeply-nested
-    ``ModifyCost``/``spell_filter``/``Targets`` cost-reduction shape — Titanic
-    Brawl; CDA "power greater than its base power" text idioms with no counter
-    node at all — Baird, Kutzil, Ms. Marvel) — banked as a recall gain per
-    ADR-0038 step 5 rather than force-fit; the key stays residual.
+    ``GenericEffect`` wrapper — Dual-Sun Technique; a spell's additional-cost
+    ``RemoveCounter`` COUNT scaling its OWN mana discount via
+    ``dynamic_count=PreviousEffectAmount`` — Hierophant Bio-Titan, ambiguous
+    whether the removed counters are even P1P1-typed on that field; a
+    two-level ``Unimplemented`` chain phase drops entirely for a "count X,
+    then use X" clause — Rumbling Ruin, Deepwood Denizen's cost-reduction
+    clause; CDA "power greater than its base power" text idioms with no
+    counter node at all — Baird, Kutzil, Ms. Marvel; a P1P1 predicate with
+    the EQ-0 "no counters" comparator, which the shared
+    :func:`counter_pred_kinds` helper deliberately excludes corpus-wide —
+    Hindervines) — banked as a recall gain per ADR-0038 step 5 rather than
+    force-fit; the key stays residual.
 
     The raw-``"+1/+1 counter"`` idiom arms stay ``live_only`` raw-fold mirrors. Scope
     "you".
@@ -4004,15 +4076,73 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
                 and "P1P1" in counter_pred_kinds(vc)
             ):
                 return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
+        # ADR-0038 W5 tails — self-ref CONDITION, any unit origin (Sarulf
+        # Realm Eater / Ingenious Prodigy's trigger-own HasCounters, CR
+        # 603.4; Prehistoric Turtlesaurus's static IsPresent, CR 604.2 /
+        # 601.2f), plus the two gap-marker text fallbacks (Pipsqueak's
+        # Not(Unrecognized), Skarrgan Hellkite's empty RequiresCondition,
+        # CR 602.5), each scoped to the SAME unit's own site/description.
+        for site in iter_condition_sites(unit.node):
+            for cond in _condition_leaves(site):
+                ctag = tag_of(cond)
+                if ctag == "HasCounters":
+                    counters = getattr(cond, "counters", None)
+                    kind = str(getattr(counters, "data", "") or "").upper()
+                    if kind == "P1P1":
+                        return [
+                            Signal("plus_one_matters", "you", "", "", tree.name, "high")
+                        ]
+                elif ctag == "IsPresent":
+                    filt = getattr(cond, "filter", None)
+                    if (
+                        filt is not None
+                        and filter_controller(filt) != "Opponent"
+                        and "P1P1" in counter_pred_kinds(filt)
+                    ):
+                        return [
+                            Signal("plus_one_matters", "you", "", "", tree.name, "high")
+                        ]
+                elif ctag == "Unrecognized":
+                    text = str(getattr(cond, "text", "") or "")
+                    if _P1P1_COND_TEXT_RX.search(text):
+                        return [
+                            Signal("plus_one_matters", "you", "", "", tree.name, "high")
+                        ]
+                elif ctag == "RequiresCondition":
+                    data = getattr(cond, "data", None)
+                    inner = data.inner if isinstance(data, MirrorVariant) else data
+                    if inner is None:
+                        desc = str(getattr(unit.node, "description", "") or "")
+                        if _P1P1_COND_TEXT_RX.search(desc):
+                            return [
+                                Signal(
+                                    "plus_one_matters",
+                                    "you",
+                                    "",
+                                    "",
+                                    tree.name,
+                                    "high",
+                                )
+                            ]
+        # ADR-0038 W5 tails — a ModifyCost static whose spell_filter names
+        # the SPELL'S OWN TARGET as P1P1-counter-bearing (Titanic Brawl, CR
+        # 601.2f), distinct from the top-level condition arm above (that
+        # cares about a creature ANYWHERE, this cares about the target).
         if unit.origin == "static":
-            cond = getattr(unit.node, "condition", None)
-            if tag_of(cond) == "HasCounters":
-                counters = getattr(cond, "counters", None)
-                kind = str(getattr(counters, "data", "") or "").upper()
-                if kind == "P1P1":
-                    return [
-                        Signal("plus_one_matters", "you", "", "", tree.name, "high")
-                    ]
+            spell_filt = modify_cost_spell_filter(unit.node)
+            if spell_filt is not None:
+                for prop in getattr(spell_filt, "properties", ()) or ():
+                    if tag_of(prop) != "Targets":
+                        continue
+                    nested = getattr(prop, "filter", None)
+                    if (
+                        nested is not None
+                        and filter_controller(nested) != "Opponent"
+                        and "P1P1" in counter_pred_kinds(nested)
+                    ):
+                        return [
+                            Signal("plus_one_matters", "you", "", "", tree.name, "high")
+                        ]
         for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
             if tag_of(leaf) == "RemoveCounter" and counter_kind_any(leaf) == "P1P1":
                 return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
@@ -4023,11 +4153,20 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
         if c.role == "cost":
             continue
         q = count_operand_qty(c.node)
-        if (
-            q is not None
-            and tag_of(q) == "CountersOn"
-            and str(getattr(q, "counter_type", "")).upper() == "P1P1"
-        ):
+        # ADR-0038 W5 tails — ``CounterAddedThisTurn`` (Iridescent
+        # Hornbeetle's "for each +1/+1 counter you've put on creatures
+        # under your control this turn") is a DIFFERENT qty shape than
+        # ``CountersOn`` — the kind rides a nested ``counters.data`` field
+        # (a ``Counters`` predicate object), not a bare ``counter_type``
+        # string — but is still a P1P1-specific this-turn placement tally.
+        qtag = tag_of(q)
+        p1p1_qty = False
+        if q is not None and qtag == "CountersOn":
+            p1p1_qty = str(getattr(q, "counter_type", "")).upper() == "P1P1"
+        elif q is not None and qtag == "CounterAddedThisTurn":
+            counters = getattr(q, "counters", None)
+            p1p1_qty = str(getattr(counters, "data", "") or "").upper() == "P1P1"
+        if p1p1_qty:
             return [Signal("plus_one_matters", "you", "", c.raw, tree.name, "high")]
         filters = [effect_filter(c.node), count_operand_filter(c.node)]
         for stdef in iter_static_defs(c.node):

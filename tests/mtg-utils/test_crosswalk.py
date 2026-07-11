@@ -1212,6 +1212,93 @@ def test_plus_one_matters_excludes_kind_agnostic_have_reference():
     assert ("any_counter_matters", "you", "") in _idents("The Swarmlord")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W5 tails (CR 603.4, intervening "if"): a TRIGGER's own
+        # ``HasCounters(P1P1)`` condition — the static-only HasCounters arm
+        # (test_plus_one_matters_has_counters_condition_arm, Lightwalker)
+        # widened to read off ANY unit origin via the shared
+        # ``iter_condition_sites``/``_condition_leaves`` descent, so a
+        # trigger's own upkeep-condition self-reference reaches it too.
+        "Sarulf, Realm Eater",
+        "Ingenious Prodigy",
+    ],
+)
+def test_plus_one_matters_trigger_own_has_counters_condition_arm(name):
+    assert ("plus_one_matters", "you", "") in _idents(name)
+
+
+def test_plus_one_matters_static_is_present_condition_arm():
+    """Prehistoric Turtlesaurus (CR 604.2 / 601.2f): "This spell costs {1}
+    less to cast if you control a creature with a +1/+1 counter on it" rides
+    an ``IsPresent`` static CONDITION (not ``HasCounters``) — the SAME
+    condition-site descent, widened to also read the ``IsPresent`` tag."""
+    assert ("plus_one_matters", "you", "") in _idents("Prehistoric Turtlesaurus")
+
+
+def test_plus_one_matters_static_cant_attack_has_counters_condition():
+    """Slumbering Dragon (CR 604.2): "This creature can't attack or block
+    unless it has five or more +1/+1 counters on it" is a static CantAttack
+    restriction gated by a ``HasCounters(P1P1)`` condition — a genuine
+    beyond-legacy gain (a live corpus re-measure shows crosswalk-only, not
+    reproduced by legacy's regex)."""
+    assert ("plus_one_matters", "you", "") in _idents("Slumbering Dragon")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W5 tails — a gap-marker TEXT fallback narrowly scoped to
+        # the SAME unit's own description/text field (never the whole-card
+        # raw): Pipsqueak's condition decorates as ``Not(Unrecognized(text=
+        # …))`` (a raw parse residue, CR 122.1's kind carried only in the
+        # text); Skarrgan Hellkite's "Activate only if ~ has a +1/+1 counter
+        # on it" decorates as an EMPTY ``RequiresCondition`` (CR 602.5, no
+        # captured payload). A full commander-legal corpus census found
+        # exactly these 2 cards (3 printings) matching the marker+text gate.
+        "Pipsqueak, Rebel Strongarm",
+        "Skarrgan Hellkite",
+    ],
+)
+def test_plus_one_matters_gap_marker_text_fallback(name):
+    assert ("plus_one_matters", "you", "") in _idents(name)
+
+
+def test_plus_one_matters_counter_added_this_turn_qty_arm():
+    """Iridescent Hornbeetle (CR 122.1): "create a token for each +1/+1
+    counter you've put on creatures under your control this turn" is a
+    ``CounterAddedThisTurn`` qty node — a THIS-TURN placement tally, a
+    sibling of the ``CountersOn`` live-board-state count the existing arm
+    reads, but with the kind riding a nested ``counters.data`` field
+    instead of a bare ``counter_type`` string."""
+    assert ("plus_one_matters", "you", "") in _idents("Iridescent Hornbeetle")
+
+
+def test_plus_one_matters_excludes_maker_only_conflation():
+    """Scholar of New Horizons (CR 122.1): "This creature enters with a
+    +1/+1 counter on it" is a pure P1P1 PLACEMENT — no cares-about text of
+    its own (its OTHER ability's "Remove a counter from a permanent you
+    control" cost is kind-agnostic Any, not P1P1-specific). Legacy's
+    conflated plus_one_matters fires on ANY p1p1 placement; the crosswalk
+    correctly splits maker from matters (mirrors the ADR-0038 W4
+    any_counter_matters/any_counter_makers split) — deliberately
+    negative-pinned. ``plus_one_makers`` fires instead."""
+    assert "plus_one_matters" not in _keys("Scholar of New Horizons")
+    assert ("plus_one_makers", "you", "") in _idents("Scholar of New Horizons")
+
+
+def test_plus_one_matters_modify_cost_spell_filter_targets_arm():
+    """Titanic Brawl (CR 601.2f): "This spell costs {1} less to cast if it
+    TARGETS a creature you control with a +1/+1 counter on it" nests the
+    P1P1 predicate inside a ``ModifyCost`` static's ``spell_filter`` OWN
+    ``Targets`` property — distinct from Prehistoric Turtlesaurus's
+    top-level ``IsPresent`` condition (that card cares about a creature you
+    control anywhere; this one cares specifically about the spell's own
+    target)."""
+    assert ("plus_one_matters", "you", "") in _idents("Titanic Brawl")
+
+
 def test_any_counter_matters_predicate_arm():
     assert ("any_counter_matters", "you", "") in _idents("Concord with the Kami")
 
