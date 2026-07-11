@@ -5815,6 +5815,168 @@ def test_exile_matters_static_exiled_by_source_arm():
     ) in _idents("Lumbering Battlement")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Ruin Processor",
+        "Oblivion Sower",
+        "Rootcoil Creeper",
+    ],
+)
+def test_exile_matters_general_target_arm_change_zone(name):
+    """ADR-0038 W5 tails: ANY effect (any origin) whose OWN
+    ``target``/``filter`` field is a fresh ``Typed`` selection filter
+    carrying ``InZone{zone: Exile}`` references a card STANDING in exile as
+    a resource, regardless of what the effect then DOES with it — Ruin
+    Processor's trigger sends it to a graveyard ("put a card an opponent
+    owns from exile into that player's graveyard"), Oblivion Sower's trigger
+    puts it onto the battlefield instead, Rootcoil Creeper's activated
+    ability returns it to hand. All three are a ``ChangeZone`` whose
+    ``target`` is the Typed+InZone shape — distinct from the
+    ``ParentTarget``/``TrackedSet`` blink tell (Flickerwisp / Ephemerate /
+    Banisher Priest track ONE already-known object, never re-select via a
+    fresh filter). CR 406.1."""
+    assert ("exile_matters", "you", "") in _idents(name)
+
+
+def test_exile_matters_general_target_arm_cast_from_zone():
+    """ADR-0038 W5 tails: Tasha, the Witch Queen's -3 ("cast a spell from
+    among cards in exile with page counters on them") is a ``CastFromZone``
+    whose ``target`` is the SAME Typed+InZone{Exile} shape the ChangeZone
+    arm reads — a persistent-pile cast engine, not a one-shot Suspend/
+    Foretell self-cast (those target ``SelfRef``/``ParentTarget``, never a
+    fresh selection filter). CR 406.1."""
+    assert ("exile_matters", "you", "") in _idents("Tasha, the Witch Queen")
+
+
+def test_exile_matters_general_target_arm_modal_bounce_and_bury():
+    """ADR-0038 W5 tails: Sentinel of Lost Lore's ETB is modal — mode 1
+    (``Bounce``) returns a card you own in exile with an Adventure to hand;
+    mode 2 (``PutAtLibraryPosition``) buries an opponent's exiled Adventure
+    card. Both targets are the same Typed+InZone{Exile} shape; the third
+    mode (graveyard exile) is unrelated. CR 406.1."""
+    assert ("exile_matters", "you", "") in _idents("Sentinel of Lost Lore")
+
+
+def test_exile_matters_general_target_arm_aggregate():
+    """ADR-0038 W5 tails: Ulamog, the Defiler's ETB replacement ("enters with
+    a number of +1/+1 counters on it equal to the greatest mana value among
+    cards in exile") is a ``PutCounter`` whose count is an ``Aggregate`` qty
+    with its OWN ``filter`` carrying InZone{Exile} — a third count-operand
+    shape (alongside ZoneCardCount / ObjectCount) the general target/filter
+    scan reaches for free since ``Aggregate.filter`` is also a
+    ``filter``-named field (Ashiok, Wicked Manipulator's -7 shares the exact
+    same shape — CR 406.1 / 613.4c)."""
+    assert ("exile_matters", "you", "") in _idents("Ulamog, the Defiler")
+
+
+def test_exile_matters_general_target_arm_excludes_suspend_reuse_widened():
+    """ADR-0038 W5 tails regression guard: Rose Tyler's "put a time counter
+    on it for each suspended card you own" sums an ``ObjectCount`` whose
+    filter carries BOTH ``InZone{Exile}`` and ``Counters: time`` — the
+    identical Suspend-mechanic-reuse shape
+    ``test_exile_matters_excludes_suspend_time_counter_reuse`` already
+    excludes via the counter-gated-pile arm. The broader general
+    target/filter scan and the widened ZoneCardCount/ObjectCount deep scan
+    (below) MUST apply the SAME "time" gate or they silently re-admit her
+    (caught + fixed this session: an early draft of the widened deep scan
+    omitted the gate). CR 406.1 / 702.62a."""
+    assert "exile_matters" not in _keys("Rose Tyler")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Crypt Incursion",
+        "March of Otherworldly Light",
+    ],
+)
+def test_exile_matters_filtered_tracked_set_size_exiled(name):
+    """ADR-0038 W5 tails: a ``FilteredTrackedSetSize`` qty whose
+    ``caused_by`` field is ``'Exiled'`` counts the cards an EARLIER effect
+    in the SAME resolution chain just exiled — Crypt Incursion's "gain 3
+    life for each card exiled this way", March of Otherworldly Light's
+    "costs {2} less to cast for each card exiled this way". ``caused_by``
+    also carries Destroyed/Sacrificed/Discarded/Milled for OTHER
+    zone-change payoffs (2026-07 census); gated narrowly to ``'Exiled'``.
+    supplement.py's deleted regex intentionally kept this whole population
+    as real exile_matters members. CR 406.1."""
+    assert ("exile_matters", "you", "") in _idents(name)
+
+
+def test_exile_matters_exiled_from_hand_this_resolution():
+    """ADR-0038 W5 tails: the "hate a card name" cycle (The Stone Brain /
+    Unmoored Ego / Lost Legacy / Necromentia / Deadly Cover-Up / The End /
+    Test of Talents) pays its victim off with a bare
+    ``ExiledFromHandThisResolution`` qty node — no fields at all. 2026-07
+    corpus census: exactly these 7 commander-legal cards, zero false
+    positives. CR 406.1."""
+    assert ("exile_matters", "you", "") in _idents("The Stone Brain")
+
+
+def test_exile_matters_search_outside_game_face_up_exile():
+    """ADR-0038 W5 tails: Karn, the Great Creator's -2 ("reveal an artifact
+    card you own from outside the game or choose a face-up artifact card
+    you own in exile") is a ``SearchOutsideGame`` whose ``source_pool`` is
+    ``SideboardAndFaceUpExile`` — the ONLY ``source_pool`` variant the
+    substrate carries, so tagging it is zero-guess. CR 406.1."""
+    assert ("exile_matters", "you", "") in _idents("Karn, the Great Creator")
+
+
+def test_exile_matters_static_affected_cast_from_exile_keyword_grant():
+    """ADR-0038 W5 tails: Wild-Magic Sorcerer's "The first spell you cast
+    from exile each turn has cascade" is a STATIC ability whose OWN
+    ``affected`` scope is a Typed filter carrying InZone{Exile} — a keyword
+    grant restricted to spells cast FROM the exile zone (a build-around
+    that wants an ongoing exile pile to cast from). 2026-07 census: exactly
+    4 commander-legal cards (also Party Thrasher / Hoarding Broodlord /
+    Rassilon, the War President). CR 406.1 / 613.4c."""
+    assert ("exile_matters", "you", "") in _idents("Wild-Magic Sorcerer")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Howling Galefang",
+        "Dreadlight Monstrosity",
+    ],
+)
+def test_exile_matters_gap_marker_text_fallback(name):
+    """ADR-0038 W5 tails: gap-marker text fallback, narrowly scoped (the
+    SAME precedent ``plus_one_matters`` established for Pipsqueak / Skarrgan
+    Hellkite, CR 602.5). Howling Galefang's "has haste as long as you own a
+    card in exile that has an Adventure" decorates as
+    ``Unrecognized(text=…)`` (a raw parse residue); Dreadlight Monstrosity's
+    "Activate only if you own a card in exile" decorates as an EMPTY
+    ``RequiresCondition`` (``data.inner is None``) with no text of its own,
+    so the fallback reads the SAME unit's own ``description`` field
+    instead. A 2026-07 corpus census of "owns? a card in exile" across
+    every commander-legal card found exactly these two (plus Warden of the
+    Beyond), zero false positives. CR 406.1."""
+    assert ("exile_matters", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Serpentine Curve",
+        "Niko Defies Destiny",
+    ],
+)
+def test_exile_matters_widened_deep_scan_wrapped_count(name):
+    """ADR-0038 W5 tails: a Token/PutCounter-style effect's OWN scaling
+    count can nest a ZoneCardCount/ObjectCount UNDER a wrapper field
+    (Serpentine Curve's "put X +1/+1 counters on it, where X is … cards you
+    own in exile" nests a ``ZoneCardCount`` under ``enter_with_counters``,
+    which the amount/count/value-scoped count-operand arm never reaches) or
+    inside a scaling operator (Niko Defies Destiny's "gain 2 life for each
+    foretold card you own in exile" nests an ``ObjectCount`` under
+    ``Multiply`` instead of sitting bare on ``amount``). A full per-effect
+    subtree scan (mirroring the STATIC arm's own deep scan) reaches both
+    shapes regardless of nesting depth or field name. CR 406.1."""
+    assert ("exile_matters", "you", "") in _idents(name)
+
+
 @pytest.mark.parametrize("name", ["Whirler Virtuoso", "Aetherworks Marvel"])
 def test_energy_matters_pay_energy_sink(name):
     """A ``PayEnergy`` cost leaf buying a non-mana effect is the energy SINK

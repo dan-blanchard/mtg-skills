@@ -11525,6 +11525,30 @@ def _land_sacrifice_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ADR-0038 W5 tails — the gap-marker text-fallback anchor for the
+# "you/an opponent own(s) a card in exile" self-condition (Howling Galefang
+# / Warden of the Beyond / Dreadlight Monstrosity — see the arm below).
+_EXILE_OWNS_COND_TEXT_RX = re.compile(r"owns? a card in exile")
+
+
+def _exile_matters_time_counter_reuse(filt: object) -> bool:
+    """Whether a ``Typed`` filter's OWN ``Counters`` property names the
+    "time" counter kind — the Suspend-mechanic-reuse tell (CR 702.62a) the
+    exile_matters lane excludes corpus-wide (Timecrafting / Shivan
+    Sand-Mage / Fury Charm / Timebender / Clockspinning / Rose Tyler / Amy
+    Pond all structure a suspended card as "InZone: Exile" + "Counters:
+    time" the SAME way a genuine exiled-with-counter pile does)."""
+    if tag_of(filt) != "Typed":
+        return False
+    for prop in getattr(filt, "properties", None) or []:
+        if tag_of(prop) != "Counters":
+            continue
+        kind_node = getattr(prop, "counters", None)
+        if getattr(kind_node, "data", None) == "time":
+            return True
+    return False
+
+
 def _exile_matters(tree: ConceptTree) -> list[Signal]:
     """exile_matters — exile-as-resource payoff (CR 406.1): a trigger
     watching cards LAND in exile (``ChangesZone`` destination Exile) whose
@@ -11703,6 +11727,174 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
                 continue  # the Suspend-mechanic reuse — never guess
             if "Exile" in filter_inzone_zones(getattr(n, "target", None)):
                 return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # ADR-0038 W5 tails — the "for each card exiled this way" count arm: a
+    # ``FilteredTrackedSetSize`` qty whose ``caused_by`` field is
+    # ``'Exiled'`` counts the cards an EARLIER effect in the SAME
+    # resolution chain just exiled — the scaling payoff
+    # supplement.py's deleted regex intentionally kept as a real
+    # exile_matters member (Crypt Incursion's "gain 3 life for each card
+    # exiled this way", the March cycle's "costs {2} less to cast for each
+    # card exiled this way", Titania's Command / Kaya, Geist Hunter's -6 /
+    # Haunting Echoes / Honor the Fallen / Necromancer's Covenant / Grime
+    # Gorger / Hour of Eternity / Quintorius Kand / Suffer the Past /
+    # Mizzix's Mastery / Heartless Conscription / Reap Intellect).
+    # ``caused_by`` also carries Destroyed/Sacrificed/Discarded/Milled for
+    # OTHER zone-change payoffs (2026-07 corpus census: 57 Exiled / 30
+    # Destroyed / 19 Sacrificed / 13 Discarded / 5 Milled) — gated narrowly
+    # to ``'Exiled'``. CR 406.1.
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if (
+                tag_of(n) == "FilteredTrackedSetSize"
+                and getattr(n, "caused_by", None) == "Exiled"
+            ):
+                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # ADR-0038 W5 tails — the "draw a card for each card exiled from your
+    # hand this way" arm: the "hate a card name" cycle (The Stone Brain /
+    # Unmoored Ego / Lost Legacy / Necromentia / Deadly Cover-Up / The End
+    # / Test of Talents) pays its victim off with a bare
+    # ``ExiledFromHandThisResolution`` qty — a dedicated node with no
+    # fields at all. 2026-07 corpus census: exactly these 7 commander-legal
+    # cards, zero false positives. CR 406.1.
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "ExiledFromHandThisResolution":
+                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # ADR-0038 W5 tails — the companion-adjacent "face-up exile" search arm:
+    # Karn, the Great Creator's -2 / Coax from the Blind Eternities read a
+    # ``SearchOutsideGame`` whose ``source_pool`` is
+    # ``SideboardAndFaceUpExile`` — the ONLY ``source_pool`` variant the
+    # substrate carries (2026-07 census), so tagging it is zero-guess. CR
+    # 406.1.
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if (
+                tag_of(n) == "SearchOutsideGame"
+                and tag_of(getattr(n, "source_pool", None)) == "SideboardAndFaceUpExile"
+            ):
+                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # ADR-0038 W5 tails — the "spells you cast from exile gain keyword X"
+    # arm: a STATIC ability whose OWN ``affected`` scope is a Typed filter
+    # carrying InZone{Exile} (Wild-Magic Sorcerer's cascade grant, Party
+    # Thrasher / Hoarding Broodlord's convoke grant, Rassilon, the War
+    # President's conspire grant) restricts a keyword grant to spells CAST
+    # FROM the exile zone — a build-around that wants an ongoing exile pile
+    # to cast from, not a one-shot cast enabler. 2026-07 census: exactly
+    # these 4 commander-legal cards carry this shape. CR 406.1 / 613.4c.
+    for unit in tree.units:
+        if unit.origin != "static":
+            continue
+        aff = getattr(unit.node, "affected", None)
+        if aff is not None and "Exile" in filter_inzone_zones(aff):
+            return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # ADR-0038 W5 tails — gap-marker text fallback, narrowly scoped (the
+    # SAME precedent ``plus_one_matters`` established for Pipsqueak /
+    # Skarrgan Hellkite, CR 602.5): three cards' "you/an opponent own(s) a
+    # card in exile" self-condition never reaches phase's typed grammar at
+    # all. Howling Galefang / Warden of the Beyond decorate as
+    # ``Unrecognized(text=…)`` (a raw parse residue); Dreadlight
+    # Monstrosity's activation restriction decorates as an EMPTY
+    # ``RequiresCondition`` (``data.inner is None``) with no text of its
+    # own, so the fallback reads the SAME unit's own ``description`` field
+    # instead. A 2026-07 corpus census of "owns? a card in exile" across
+    # every commander-legal card found exactly these 3, zero false
+    # positives. CR 406.1.
+    for unit in tree.units:
+        for site in iter_condition_sites(unit.node):
+            for cond in _condition_leaves(site):
+                ctag = tag_of(cond)
+                if ctag == "Unrecognized":
+                    text = str(getattr(cond, "text", "") or "")
+                    if _EXILE_OWNS_COND_TEXT_RX.search(text):
+                        return [
+                            Signal("exile_matters", "you", "", "", tree.name, "high")
+                        ]
+                elif ctag == "RequiresCondition":
+                    data = getattr(cond, "data", None)
+                    inner = data.inner if isinstance(data, MirrorVariant) else data
+                    if inner is None:
+                        desc = str(getattr(unit.node, "description", "") or "")
+                        if _EXILE_OWNS_COND_TEXT_RX.search(desc):
+                            return [
+                                Signal(
+                                    "exile_matters", "you", "", "", tree.name, "high"
+                                )
+                            ]
+    # ADR-0038 W5 tails — a Token/PutCounter-style effect's OWN scaling
+    # count nests a ZoneCardCount/ObjectCount UNDER a wrapper field
+    # (``enter_with_counters`` — Serpentine Curve / Slime Against
+    # Humanity's "put X +1/+1 counters on it, where X is … cards you own in
+    # exile") the amount/count/value-scoped scan above never reaches, and
+    # an ``ObjectCount`` can also be WRAPPED inside a scaling operator
+    # (Niko Defies Destiny's "gain 2 life for each foretold card you own in
+    # exile" nests it under ``Multiply``) instead of sitting bare on
+    # ``amount``. A full per-effect subtree scan (mirroring the STATIC
+    # arm's own deep scan above) reaches both shapes regardless of nesting
+    # depth or field name. The SAME "time" counter Suspend-mechanic-reuse
+    # gate applies (Rose Tyler's "put a time counter on it for each
+    # suspended card you own" sums an ``ObjectCount`` whose filter carries
+    # BOTH ``InZone{Exile}`` and ``Counters: time`` — the identical
+    # Suspend-reuse shape the other arms exclude; without the SAME gate
+    # here this deep scan would silently re-admit her). CR 406.1.
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.role == "cost":
+                continue
+            for n in iter_typed_nodes(c.node):
+                if tag_of(n) == "ZoneCardCount" and getattr(n, "zone", None) == "Exile":
+                    return [
+                        Signal("exile_matters", "you", "", c.raw, tree.name, "high")
+                    ]
+                if tag_of(n) == "ObjectCount":
+                    filt = getattr(n, "filter", None)
+                    if filt is None or _exile_matters_time_counter_reuse(filt):
+                        continue
+                    if "Exile" in filter_inzone_zones(filt) or any(
+                        tag_of(x) == "ExiledBySource" for x in iter_typed_nodes(filt)
+                    ):
+                        return [
+                            Signal("exile_matters", "you", "", c.raw, tree.name, "high")
+                        ]
+    # ADR-0038 W5 tails — the GENERAL exile-standing-target arm: ANY effect
+    # (any origin) whose OWN ``target``/``filter`` field is a FRESH
+    # ``Typed`` selection filter carrying ``InZone{zone: Exile}``
+    # references a card STANDING in exile as a resource, regardless of
+    # what the effect then DOES with it — send it to a graveyard (the
+    # Eldrazi Processor cycle: Ruin Processor / Murk Strider / Ulamog's
+    # Reclaimer / Mind Raker / Wasteland Strangler; Oblivion Sower puts it
+    # onto the battlefield instead), cast it (Tasha, the Witch Queen's -3 /
+    # Goliath Daydreamer / Draugr Necromancer / Boiling Rock Rioter /
+    # Knowledge Pool / The Dragon-Kami Reborn — a ``CastFromZone`` whose
+    # target is the SAME Typed+InZone shape), return it to hand (Rootcoil
+    # Creeper's flashback-only recall; Sentinel of Lost Lore's first mode),
+    # bury it (Sentinel's second mode, ``PutAtLibraryPosition``), or
+    # aggregate a property across the whole pile (Ashiok, Wicked
+    # Manipulator's -7 / Ulamog, the Defiler's ETB replacement — an
+    # ``Aggregate`` qty whose OWN ``filter`` carries the same InZone
+    # shape). The ``ParentTarget``/``TrackedSet``/``SelfRef`` blink tell
+    # (Flickerwisp / Ephemerate / Banisher Priest all track ONE
+    # already-known object through their OWN return step via those tags,
+    # never re-select via a fresh Typed filter) stays excluded because
+    # those tags are never ``"Typed"`` — 2026-07 census of every
+    # commander-legal Typed target/filter carrying InZone{Exile}: 38 hits,
+    # every one a genuine standing-exile-pile reference. The SAME "time"
+    # counter Suspend-mechanic-reuse gate the arms above use is re-applied
+    # here so this broader, later-checked arm can never re-admit Alaundo
+    # the Seer / Rose Tyler / Amy Pond. CR 406.1.
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "RemoveCounter" and getattr(n, "counter_type", None) == (
+                "time"
+            ):
+                continue
+            for fname in ("target", "filter"):
+                filt = getattr(n, fname, None)
+                if tag_of(filt) != "Typed":
+                    continue
+                if _exile_matters_time_counter_reuse(filt):
+                    continue
+                if "Exile" in filter_inzone_zones(filt):
+                    return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     return []
 
 
