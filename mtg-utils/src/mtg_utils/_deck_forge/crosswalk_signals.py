@@ -838,6 +838,17 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # deliberately scoped to the three grant tags, never a blanket
     # ``iter_typed_nodes`` walk (Loathsome Troll's modal ``RollDie`` result
     # put — corpus-verified over-fire when tried, reverted). CR 401.4.
+    #
+    # ADR-0038 W3 batch 5 follow-up: ``landfall`` PROMOTED by the
+    # orchestrating session's verification pass — the W3 batch 4 lands
+    # agent left it residual at live_only=1, but that 1 is its OWN
+    # adjudicated, negative-pinned shed (Tameshi, Reality Architect: the
+    # land moves battlefield→hand as a cost and the graveyard return
+    # targets only artifact/enchantment, never a land entering — CR 305.1,
+    # re-verified via rules-lookup at promotion). live_only = exactly the
+    # shed set IS the 0-genuine-lost gate; re-measured at HEAD before the
+    # flip. The 12 cw_only gains (Wandering Troubadour, Restore, Hazezon,
+    # Soul of Windgrace, ...) were batch-4-adjudicated and pinned.
     {
         "artifacts_matter",
         "base_pt_set",
@@ -856,7 +867,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "graveyard_matters",
         "land_creatures_matter",
         "land_sacrifice_makers",
-        "landfall",
         "lifeloss_makers",
         "opponent_discard",
         "plus_one_matters",
