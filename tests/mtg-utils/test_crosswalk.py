@@ -7342,6 +7342,72 @@ def test_base_pt_set_animate_effect_shape():
     assert ("base_pt_set", "any", "") in _idents("Belligerent Yearling")
 
 
+# ── ADR-0038 W5 tails: base_pt_set deep GenericEffect/CreateEmblem descent ──
+
+
+def test_base_pt_set_modal_mode_ability_descent():
+    """Storvald, Frost Giant Jarl's "Whenever ~ enters or attacks, choose
+    one or both — Target creature has base power and toughness 7/7 ... /
+    Target creature has base power and toughness 1/1 ..." — each MODAL
+    mode's own ``S_mode_abilities.effect`` (a ``GenericEffect``) carries its
+    OWN ``target`` field, self-contained per mode; the nested static's
+    ``ParentTarget`` resolves through THAT mode's target, not the outer
+    trigger's (which carries none). CR 613.4b / 700.2 (modal choice)."""
+    assert ("base_pt_set", "any", "") in _idents("Storvald, Frost Giant Jarl")
+
+
+def test_base_pt_set_create_emblem_statics_descent():
+    """The Capitoline Triad's activated ability grants an emblem with
+    "Creatures you control have base power and toughness 9/9" — a
+    continuous ability living directly on ``CreateEmblem.statics``, no
+    target/ParentTarget involved at all. CR 613.4b / 114.2 (emblems)."""
+    assert ("base_pt_set", "any", "") in _idents("The Capitoline Triad")
+
+
+def test_base_pt_set_create_emblem_trigger_descent():
+    """Tezzeret the Schemer's -7 emblem grants a TRIGGERED ability ("At the
+    beginning of combat on your turn, target artifact you control becomes
+    an artifact creature with base power and toughness 5/5") — the
+    ``GenericEffect`` lives under ``CreateEmblem.triggers[i].execute.
+    effect``, arbitrarily deeper than the unit's own top-level effect
+    chain the OLD single-level arm read. CR 613.4b / 114.2."""
+    assert ("base_pt_set", "any", "") in _idents("Tezzeret the Schemer")
+
+
+def test_base_pt_set_triggering_source_resolves():
+    """Creepy Puppeteer's "you may have THAT creature's base power and
+    toughness become 4/3" back-references the OTHER attacker from the SAME
+    trigger event (``TriggeringSource``, CR 603.2) — a definite,
+    resolvable subject, same footing as a SelfRef/Typed target."""
+    assert ("base_pt_set", "any", "") in _idents("Creepy Puppeteer")
+
+
+def test_base_pt_set_mismatched_scalar_reuse_not_excluded():
+    """Sita Varma's "have the base power and toughness of each other
+    creature you control become equal to Sita Varma's power" sets BOTH
+    ``SetPowerDynamic`` AND ``SetToughnessDynamic`` to a Ref of the SAME
+    ``qty=Power`` (never ``Toughness``) — a mismatched-quantity SCALAR
+    reuse (CR 613.4b), not the full-identity "become a copy of that
+    creature's power AND toughness" idiom :func:`refs_other_object_stats`
+    excludes (see ``test_base_pt_set_excludes_object_stats_reference``,
+    unaffected — Eldrazi Mimic's pair IS matched: Power->Power AND
+    Toughness->Toughness). Legacy's own regex-based
+    ``_recover_dynamic_base_pt_set`` (arm 6) names Sita Varma as a worked
+    example of this exact idiom."""
+    assert ("base_pt_set", "any", "") in _idents("Sita Varma, Masked Racer")
+
+
+def test_base_pt_set_granted_ability_definition_descent():
+    """Gigantoplasm's BecomeCopy-quoted granted ACTIVATED ability ("{X}: ~
+    has base power and toughness X/X") carries its ``SetPowerDynamic``/
+    ``SetToughnessDynamic`` pair on ``BecomeCopy.additional_modifications``'
+    ``GrantAbility.definition.effect`` (a ``GenericEffect`` with
+    ``affected=SelfRef``) — reached only by the deep ``iter_typed_nodes``
+    descent, not the unit's own direct effect chain. CR 613.4b / 707
+    (copy effects)."""
+    assert ("base_pt_set", "any", "") in _idents("Gigantoplasm")
+
+
 def test_variable_pt_cda_gate():
     """CR 604.3 / 613.4a: Tarmogoyf's ``characteristic_defining`` static with
     ``SetDynamicPower`` fires scope "any"; a fixed-number set (Polymorphist's

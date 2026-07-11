@@ -13448,6 +13448,69 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
     ``TargetOnly`` — Captain Rex Nebula; REPLACEMENT-origin type-overrides
     — Displaced Dinosaurs, Shadow Puppeteers, Sauron Dino Devotee, Ultron)
     — see the ADR-0038 W3 batch 6 session notes for the per-card triage.
+
+    ADR-0038 W5 tails: the sites-loop now does a DEEP ``iter_typed_nodes``
+    scan for every ``GenericEffect``/``CreateEmblem`` reachable from a
+    unit's node, not just the unit's own top-level effect chain — a
+    ``GenericEffect`` can be nested arbitrarily deep: a MODAL mode's own
+    effect (Storvald's "choose one or both — Target creature has base
+    power and toughness 7/7 .../1/1..." — each mode's ``S_mode_abilities.
+    effect`` carries its OWN ``target`` field, self-contained per mode), an
+    emblem's granted TRIGGERED ability's effect (Tezzeret the Schemer's -7:
+    ``CreateEmblem.triggers[i].execute.effect``), or a granted ACTIVATED
+    ability's effect (Gigantoplasm's BecomeCopy-quoted "{X}: ~ has base
+    power and toughness X/X" — ``BecomeCopy.additional_modifications``'
+    ``GrantAbility.definition.effect``). Each found ``GenericEffect``
+    resolves its OWN nested static's ``ParentTarget`` through THAT SAME
+    ``GenericEffect``'s ``target`` field (self-contained — a modal mode /
+    emblem ability / granted ability owns its target independently of the
+    enclosing unit, distinct from :func:`iter_threaded_target_statics`'s
+    cross-clause "It becomes ..." back-reference, which threads a target
+    from an EARLIER sibling effect in the SAME ability chain). A
+    ``CreateEmblem``'s own ``.statics`` (Capitoline Triad's "Creatures you
+    control have base power and toughness 9/9" — a continuous ability
+    living directly on the emblem, no target involved at all) is read the
+    same way as a top-level unit static. The resolved-tag accept-list also
+    admits ``TriggeringSource`` (Creepy Puppeteer's "you may have THAT
+    creature's [the just-attacked-with creature's] base power and
+    toughness become 4/3" — a definite, resolvable subject, CR 603.2's
+    "that permanent" back-reference to the trigger event).
+
+    :func:`refs_other_object_stats` is narrowed to a MATCHED-quantity
+    check: a genuine full-identity "become a copy of that creature's power
+    AND toughness" idiom (Eldrazi Mimic, Shape Stealer, Amplifire) sets
+    ``SetPowerDynamic`` to a ``Ref(qty=Power)`` of the other object AND
+    ``SetToughnessDynamic`` to a ``Ref(qty=Toughness)`` of the SAME kind —
+    verified corpus-wide, all three name-checked cards carry this exact
+    matched pair. A MISMATCHED reuse — BOTH stats set to the SAME single
+    Ref (Sita Varma's "have the base power and toughness of each other
+    creature you control become equal to Sita Varma's power": both
+    ``SetPowerDynamic`` AND ``SetToughnessDynamic`` Ref ``qty=Power``, never
+    ``Toughness``) — is a genuine SCALAR set (CR 613.4b), not a full-
+    identity copy; the prior ANY-Ref-to-Power/Toughness check over-excluded
+    it. Legacy's own regex-based ``_recover_dynamic_base_pt_set`` (arm 6,
+    "base power [and toughness] ... become") confirms Sita Varma is a
+    named example — a pure text-hook synthesis with no copy-stats
+    discrimination at all, so the crosswalk's narrower matched-qty gate is
+    the more precise structural read of the SAME membership rule.
+
+    STILL not promoted — a genuinely diverse tail remains after this
+    batch's recovery: two more mass "have X become Y" idioms park as a
+    whole-clause ``Unimplemented`` residue phase's own grammar can't
+    structure at all (Unruly Krasis, Tanazir Quandrix — needs a NEW
+    ``clause_grammar.py`` static token, out of scope this session, same
+    class as Circle of the Moon Druid's "is a Bear with base power and
+    toughness 4/2" whole-ability residue); a ``BecomeCopy`` with no
+    ``additional_modifications`` field AT ALL (Mindlink Mech's "it's 4/3"
+    override — phase drops the P/T-override clause with no residue node
+    anywhere, confirmed via direct tree dump — needs phase parser work);
+    the sticker-sheet TK-placeholder shape (Cool Fluffy Loxodon, Ambassador
+    Blorpityblorpboop); an ``AddPower``/``AddToughness`` pair (Goddric); a
+    CDA-like mana-value scalar (Captain Rex Nebula); REPLACEMENT-origin
+    type-overrides (Displaced Dinosaurs, Shadow Puppeteers, Sauron Dino
+    Devotee, Ultron); Candlekeep Inspiration's exile/graveyard-count
+    scalar. Landfall rule not met (live_only != the shed set) — key stays
+    residual.
     Scope "any" (live).
     """
 
@@ -13461,29 +13524,47 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
         desc = getattr(st, "description", None)
         return desc if isinstance(desc, str) else ""
 
+    def _refs_qty(value: object, qty: str) -> bool:
+        for node in iter_typed_nodes(value):
+            if tag_of(node) == "Ref" and tag_of(getattr(node, "qty", None)) == qty:
+                return True
+        return False
+
     def refs_other_object_stats(st: object) -> bool:
-        """Whether a ``SetPowerDynamic``/``SetToughnessDynamic`` value
-        ultimately Refs another object's OWN ``Power``/``Toughness`` (a
-        "become equal to THAT CREATURE's power/toughness" copy-stats idiom —
-        Eldrazi Mimic, Shape Stealer, Amplifire's "twice that card's power")
-        — corpus-verified NOT a legacy base_pt_set member, distinct from a
-        SCALAR dynamic value (a card count/life total/devotion — Trench
-        Gorger, Aettir and Priwen), which IS the toolbox's dynamic form.
+        """Whether a ``SetPowerDynamic``/``SetToughnessDynamic`` PAIR is a
+        full-identity "become a copy of that creature's power AND
+        toughness" idiom (Eldrazi Mimic, Shape Stealer, Amplifire's "twice
+        that card's power [and toughness]") — corpus-verified NOT a legacy
+        base_pt_set member, distinct from a SCALAR dynamic value (a card
+        count/life total/devotion — Trench Gorger, Aettir and Priwen; or a
+        single scalar REUSED for both stats — Sita Varma's "base power and
+        toughness ... become equal to Sita Varma's power", both fields Ref
+        the SAME ``qty=Power``, never ``Toughness``), which IS the
+        toolbox's dynamic form.
+
+        ADR-0038 W5 tails: narrowed to a MATCHED-quantity check —
+        ``SetPowerDynamic`` Refs the OTHER object's OWN ``Power`` AND
+        ``SetToughnessDynamic`` Refs its OWN ``Toughness`` (the genuine
+        full-identity copy). A mismatch (both stats Ref the SAME single
+        quantity, as Sita Varma's does) is a scalar set, not excluded — the
+        prior ANY-Ref-to-Power/Toughness check over-excluded it (corpus-
+        verified via all three name-checked exclusion cases, which DO carry
+        the matched pair, and Sita Varma, which does not).
         """
         stm = getattr(st, "modifications", None)
         if not isinstance(stm, list):
             return False
+        p_refs_power = t_refs_toughness = False
+        has_p = has_t = False
         for m in stm:
-            if tag_of(m) not in ("SetPowerDynamic", "SetToughnessDynamic"):
-                continue
-            val = getattr(m, "value", None)
-            for node in iter_typed_nodes(val):
-                if tag_of(node) == "Ref" and tag_of(getattr(node, "qty", None)) in (
-                    "Power",
-                    "Toughness",
-                ):
-                    return True
-        return False
+            tag = tag_of(m)
+            if tag == "SetPowerDynamic":
+                has_p = True
+                p_refs_power = _refs_qty(getattr(m, "value", None), "Power")
+            elif tag == "SetToughnessDynamic":
+                has_t = True
+                t_refs_toughness = _refs_qty(getattr(m, "value", None), "Toughness")
+        return has_p and has_t and p_refs_power and t_refs_toughness
 
     def off_battlefield_gated(st: object) -> bool:
         """Whether a site's OWN ``condition`` is "as long as ~ ISN'T on the
@@ -13515,26 +13596,59 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
                     off_battlefield_gated(unit.node),
                 )
             )
-        # Filter-affected nested statics (Polymorphist's Jest — the affected
-        # IS the population) read directly; ParentTarget-affected ones
-        # resolve through the THREADED target walk (Ovinize's local target,
-        # Cyclone Sire's sibling land target).
-        for c in unit.effects:
-            if tag_of(c.node) != "GenericEffect":
+        # DEEP GenericEffect/CreateEmblem descent (ADR-0038 W5 tails): a
+        # GenericEffect can nest arbitrarily deep — a modal mode's own
+        # effect (Storvald), an emblem's granted TRIGGERED ability's effect
+        # (Tezzeret the Schemer's -7, ``CreateEmblem.triggers[i].execute.
+        # effect``), a granted ACTIVATED ability's effect (Gigantoplasm's
+        # BecomeCopy-quoted "{X}: ~ has base power and toughness X/X",
+        # ``BecomeCopy.additional_modifications``' ``GrantAbility.
+        # definition.effect``) — never just the unit's own top-level effect
+        # chain (Polymorphist's Jest — the affected IS the population, a
+        # direct filter, not ParentTarget). Each found GenericEffect
+        # resolves its OWN nested static's ParentTarget through THAT SAME
+        # GenericEffect's ``target`` (self-contained — distinct from the
+        # cross-sibling THREADED walk below, which resolves an EARLIER
+        # effect's target for a same-ability "It becomes ..." back-
+        # reference — Ovinize's local target, Cyclone Sire's sibling land
+        # target; a GenericEffect with no target of its own here correctly
+        # yields no site, leaving those cases to the threaded walk).
+        for ge in iter_typed_nodes(unit.node):
+            if tag_of(ge) != "GenericEffect":
                 continue
-            nested = getattr(c.node, "static_abilities", None)
+            own_target = getattr(ge, "target", None)
+            nested = getattr(ge, "static_abilities", None)
             for st in nested if isinstance(nested, list) else []:
                 affected = getattr(st, "affected", None)
-                if tag_of(affected) != "ParentTarget":
-                    sites.append(
-                        (
-                            affected,
-                            mod_tags(st),
-                            site_text(st),
-                            refs_other_object_stats(st),
-                            off_battlefield_gated(st),
-                        )
+                resolved = (
+                    own_target if tag_of(affected) == "ParentTarget" else affected
+                )
+                sites.append(
+                    (
+                        resolved,
+                        mod_tags(st),
+                        site_text(st),
+                        refs_other_object_stats(st),
+                        off_battlefield_gated(st),
                     )
+                )
+        # ``CreateEmblem``'s own ``.statics`` (Capitoline Triad's "Creatures
+        # you control have base power and toughness 9/9") — a continuous
+        # ability living directly on the emblem, no target/ParentTarget
+        # involved at all; read the same as a top-level unit static.
+        for ce in iter_typed_nodes(unit.node):
+            if tag_of(ce) != "CreateEmblem":
+                continue
+            for st in getattr(ce, "statics", None) or []:
+                sites.append(
+                    (
+                        getattr(st, "affected", None),
+                        mod_tags(st),
+                        site_text(st),
+                        refs_other_object_stats(st),
+                        off_battlefield_gated(st),
+                    )
+                )
         for resolved, st in iter_threaded_target_statics(unit.node):
             sites.append(
                 (
@@ -13566,7 +13680,12 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
         ):
             continue
         rtag = tag_of(resolved)
-        if rtag not in ("SelfRef", "Typed", "Or", "And"):
+        # ADR-0038 W5 tails: ``TriggeringSource`` (Creepy Puppeteer's "you
+        # may have THAT creature's base power and toughness become 4/3" —
+        # "that creature" back-references the OTHER attacker from the SAME
+        # trigger event, CR 603.2) is a definite, resolvable subject, same
+        # footing as a SelfRef/Typed target.
+        if rtag not in ("SelfRef", "Typed", "Or", "And", "TriggeringSource"):
             continue  # an unresolvable ParentTarget ("It becomes a 0/0
             # Elemental" over a SIBLING land target — Cyclone Sire): no
             # positive subject evidence, never fire
