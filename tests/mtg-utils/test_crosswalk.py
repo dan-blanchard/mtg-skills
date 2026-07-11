@@ -11181,14 +11181,155 @@ def test_graveyard_matters_last_resort_mirror_recovery():
     assert ("graveyard_matters", "you", "") in _idents("Roxi, Publicist to the Stars")
 
 
-def test_graveyard_matters_excludes_exclusion_clause():
-    """MANDATORY SHED (ADR-0038 W4 session adjudication): '"Name Sticker"
-    Goblin's only "graveyard" mention is an EXCLUSION clause ("enters from
-    anywhere OTHER THAN a graveyard or exile", CR 400.7 zones) — not a
-    payoff. The byte-mirror's own per-clause bare-mention rule would
-    otherwise false-positive on it; ``_GY_EXCLUSION_CLAUSE_RE`` drops the
-    clause before the mirror runs."""
-    assert "graveyard_matters" not in _keys('"Name Sticker" Goblin')
+def test_graveyard_matters_exclusion_clause_reversal():
+    """ADR-0038 W5b RE-ADJUDICATION: the W4 giant's own per-clause exclusion
+    of '"Name Sticker" Goblin's "enters from anywhere OTHER THAN a graveyard
+    or exile" clause (``_GY_EXCLUSION_CLAUSE_RE``) was an UNVERIFIED
+    judgment call. A fresh corpus measure shows legacy's real mirror
+    invocation (``_signals_ir.py``'s call to ``_graveyard_matters_clauses``
+    over the WHOLE ``kept_oracle``, no exclusion filter) DOES fire
+    ``('graveyard_matters', 'you')`` for this card — confirmed directly
+    against ``extract_signals_ir`` over the real card. CR 400.7: a card
+    whose own ETB trigger is gated on NOT arriving from a graveyard still
+    mechanically references the zone. The exclusion is removed."""
+    assert ("graveyard_matters", "you", "") in _idents('"Name Sticker" Goblin')
+
+
+# ── ADR-0038 W5b tails: graveyard_matters (structural arms + verified CR) ────
+
+
+def test_graveyard_matters_trigger_arrival_from_anywhere():
+    """Trigger zone-movement arm, ``origin is None`` case (CR 400.7 / 700.4):
+    Kozilek, Butcher of Truth's "is put into a graveyard from ANYWHERE"
+    trigger carries an explicitly unrestricted origin (``None``) — the
+    OPPOSITE of a plain "dies" trigger's explicit ``origin='Battlefield'``.
+    Only the explicit-battlefield shape is excluded; ``None`` is
+    unrestricted and thus includes a battlefield-to-graveyard move too."""
+    assert ("graveyard_matters", "you", "") in _idents("Kozilek, Butcher of Truth")
+
+
+def test_graveyard_matters_trigger_arrival_enchanted_graveyard():
+    """The same origin-is-None arrival read on a non-"from anywhere"-worded
+    trigger: Tezzeret's Touch's "when enchanted artifact is put into a
+    graveyard" carries no explicit origin qualifier either (CR 400.7)."""
+    assert ("graveyard_matters", "you", "") in _idents("Tezzeret's Touch")
+
+
+def test_graveyard_matters_craft_materials_graveyard_fuel():
+    """Graveyard-fuel activation cost arm, Craft materials (CR 702.167a):
+    Ore-Rich Stalactite's ``Craft with four or more red instant and/or
+    sorcery cards`` cost is an ``ExileMaterials`` leaf whose ``materials``
+    filter names graveyard cards as valid crafting fuel — the SAME
+    ``InZone`` shape a target filter carries."""
+    assert ("graveyard_matters", "you", "") in _idents(
+        "Ore-Rich Stalactite // Cosmium Catalyst"
+    )
+
+
+def test_graveyard_matters_static_scaler_forces_you():
+    """A static P/T-scaling count operand ALWAYS ALSO forces 'you' (CR
+    400.7): Wight of Precinct Six's "+1/+1 for each creature card in your
+    OPPONENTS' graveyards" fires BOTH the field's own 'opponents' scope
+    AND a forced 'you' — a static's continuous value never reaches
+    legacy's per-effect zone-tagging pass, so its raw fallback separately,
+    unconditionally fires 'you' for a P/T scaler. Also proves the
+    ``ZoneCardCount.scope`` PLURAL-form fix (``'Opponents'``, not
+    ``'Opponent'`` — distinct from ``GraveyardSize.player``'s singular
+    nested tag)."""
+    idents = _idents("Wight of Precinct Six")
+    assert ("graveyard_matters", "you", "") in idents
+    assert ("graveyard_matters", "opponents", "") in idents
+
+
+def test_graveyard_matters_static_scaler_offset_unwrap():
+    """The static count-operand read unwraps an ``Offset`` scalar wrapper
+    (CR 400.7): Nighthawk Scavenger's "power is equal to 1 PLUS the number
+    of card types among cards in your opponents' graveyards" wraps its
+    ``DistinctCardTypes`` ``Ref`` in an ``Offset(offset=1)`` for the
+    "1 plus …" phrasing — :func:`_gy_unwrap_scalar` reaches through it."""
+    idents = _idents("Nighthawk Scavenger")
+    assert ("graveyard_matters", "you", "") in idents
+    assert ("graveyard_matters", "opponents", "") in idents
+
+
+def test_graveyard_matters_effect_multiply_unwrap():
+    """The effect count-operand read unwraps a ``Multiply`` scalar wrapper
+    (CR 700.4 — "dies" is a battlefield→graveyard zone change): Silent-Chant
+    Zubera's "gain 2 life FOR EACH Zubera that died this turn" wraps its
+    ``ZoneChangeCountThisTurn`` ``Ref`` in a ``Multiply(factor=2, …)``."""
+    assert ("graveyard_matters", "you", "") in _idents("Silent-Chant Zubera")
+
+
+def test_graveyard_matters_count_marker_condition_deep_scan():
+    """``_graveyard_count_markers`` deep-scan fallback (CR 400.1): Avatar of
+    Woe's ModifyCost condition ("if there are ten or more creature cards
+    total in all graveyards, this spell costs {6} less") carries a genuine
+    ``ZoneCardCount`` the condition-gate arm structurally excludes for
+    ModifyCost statics — the deep-scan fallback (gated on no earlier arm
+    having fired) reaches it via a different, ungated site."""
+    assert ("graveyard_matters", "you", "") in _idents("Avatar of Woe")
+
+
+def test_graveyard_matters_count_marker_oracle_phrase_fallback():
+    """``_graveyard_count_markers`` deep-scan fallback, oracle-regex branch
+    (CR 400.1): the Shrine cycle's "X is the number of cards in ALL
+    GRAVEYARDS with the same name as that spell" strands the count in a
+    free-text ``Variable`` qty with no typed count node at all —
+    :data:`_GY_COUNT_PHRASE_RE` recovers it over the whole face oracle."""
+    assert ("graveyard_matters", "you", "") in _idents("Aven Shrine")
+
+
+def test_graveyard_matters_count_marker_gated_by_target_zone_count():
+    """The oracle-regex fallback stays silent when a ``TargetZoneCardCount``
+    (target-dependent, unresolvable owner — CR 400.7) is present anywhere,
+    even though it can't itself resolve a scope: Eldritch Pact's "X is the
+    number of cards in THEIR graveyard" is covered by the same real count
+    node the mirrored old IR's own per-effect zone-tagging also reaches,
+    so the fallback must not ALSO force an unwanted 'you'."""
+    idents = _idents("Eldritch Pact")
+    assert ("graveyard_matters", "you", "") not in idents
+    assert ("graveyard_matters", "opponents", "") in idents
+
+
+def test_graveyard_matters_count_marker_gated_by_scoped_player():
+    """The oracle-regex fallback also stays silent for a ``ScopedPlayer``-
+    owned ``ZoneCardCount`` (Into the Story's ModifyCost "if an opponent
+    has seven or more cards in their graveyard" — CR 400.7): a REAL count
+    node this narrow structural read can't resolve to a concrete scope on
+    its own, but which the mirrored old IR's ``has_struct`` gate ALSO
+    reaches — a single 'opponents' fire (the field's own scope), never
+    ALSO a forced 'you' (unlike a genuine ``Ability.condition`` raw
+    zone-tag elsewhere)."""
+    idents = _idents("Into the Story")
+    assert ("graveyard_matters", "opponents", "") in idents
+    assert ("graveyard_matters", "you", "") not in idents
+
+
+def test_graveyard_matters_modifycost_morbid_excluded():
+    """Bone Picker's ModifyCost condition is the Morbid
+    ``ZoneChangeCountThisTurn`` marker ("if a creature died this turn") —
+    carries no literal "graveyard" word, and the old IR this lane mirrors
+    never surfaces an ability object for it at all (CR 700.4 dies; not a
+    graveyard-count reference the way Avatar of Woe's literal "in all
+    graveyards" is)."""
+    assert "graveyard_matters" not in _keys("Bone Picker")
+
+
+def test_graveyard_matters_canattackwithdefender_via_marker_only():
+    """Expedition Lookout's ``CanAttackWithDefender`` condition
+    (GraveyardSize, player=Opponent) is excluded from the CONDITION-GATE
+    arm (the old IR this lane mirrors never builds an ``Ability``/
+    ``.condition`` object for that static-mode there), but the SEPARATE
+    ``_graveyard_count_markers`` deep-scan fallback below reaches the SAME
+    node via a raw whole-record walk that legacy's own marker producer
+    ALSO performs regardless of ability kind — confirmed against a direct
+    ``extract_signals_ir`` run: legacy DOES fire
+    ``('graveyard_matters', 'opponents')`` for this card, via its
+    ``board_count`` marker (scope='opp'), never a forced 'you' (CR
+    400.7)."""
+    idents = _idents("Expedition Lookout")
+    assert ("graveyard_matters", "opponents", "") in idents
+    assert ("graveyard_matters", "you", "") not in idents
 
 
 # ── ADR-0038 W4 giant: artifacts_matter (structural arms + verified CR) ──────

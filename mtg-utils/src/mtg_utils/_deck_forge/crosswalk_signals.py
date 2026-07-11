@@ -5085,15 +5085,6 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
     return out
 
 
-# ADR-0038 W4 giant (graveyard_matters): '"Name Sticker" Goblin' is the ONE
-# commander-legal card whose only "graveyard" mention is an EXCLUSION clause
-# ("enters from anywhere OTHER THAN a graveyard or exile", CR 400.7 zones) —
-# not a payoff. Dropped PER-CLAUSE (boundary lesson iii) before the Arm-6
-# byte-mirror runs, so a genuine co-mentioned payoff clause elsewhere on a
-# future card would still fire. Mandatory shed (ADR-0038 W4 session
-# adjudication).
-_GY_EXCLUSION_CLAUSE_RE = re.compile(r"other than a graveyard")
-
 # ADR-0038 W4 giant (graveyard_matters): the opponent-owned-graveyard tell
 # legacy's OWN raw-text zone recovery reads (byte-identical to the deleted
 # ``_GY_OPP`` producer, _signals_ir.py). Phase sometimes DROPS the
@@ -5110,24 +5101,59 @@ _GY_OPP_RE = re.compile(
     re.IGNORECASE,
 )
 
+# ADR-0038 W5b — byte-identical to the deleted ``_graveyard_count_markers``
+# producer's own oracle-fallback anchor (``_card_ir/project.py``): the
+# ALL-GRAVEYARDS count idiom (CR 400.1 — the value scales with the
+# graveyard population), NOT a recursion ("return a card from your
+# graveyard" has no "number of"). The leading "number of" can be preceded
+# by "equal to the" / "plus the" / "one plus the"; an intervening "named
+# X" / type clause (creature cards, cards named Y) is allowed before
+# "in … graveyard".
+_GY_COUNT_PHRASE_RE = re.compile(
+    r"\bnumber of\b[^.]*?\bcards?\b[^.]*?\bin (?:all|your|their|its owner's|each "
+    r"player'?s?|a|the)? ?graveyards?\b"
+    r"|\b(?:ten|two|three|four|five|six|seven|eight|nine|\d+) or more [^.]*?cards?"
+    r"[^.]*?\bin (?:all|your|their|each player'?s?|a|the)? ?graveyards?\b",
+    re.IGNORECASE,
+)
+
 
 def _gy_player_scope(player_tag: str | None) -> str | None:
     """The you/opponents/ambiguous read of a count operand's player-scope
-    tag. ``Opponent`` -> 'opponents'; ``None``/``Controller``/``All`` (no
-    explicit owner, or an explicit "all graveyards" — Mortivore) -> the
-    self-graveyard default 'you'; any OTHER tag (``ScopedPlayer`` —
-    Angrath, the Flame-Chained's "[-8]: each opponent loses life equal to
-    the number of cards in THEIR graveyard", scoped by the ability's own
+    tag. ``Opponent``/``Opponents`` -> 'opponents' (``GraveyardSize.player``
+    carries a nested singular ``Opponent`` tag read via :func:`tag_of`;
+    ``ZoneCardCount.scope`` / ``DistinctCardTypes``'s ``Zone.scope`` carry
+    the PLURAL bare string ``'Opponents'`` — Wight of Precinct Six,
+    Consuming Aberration, Nighthawk Scavenger, Detritivore all use the
+    plural form); ``None``/``Controller``/``All`` (no explicit owner, or
+    an explicit "all graveyards" — Mortivore) -> the self-graveyard
+    default 'you'; any OTHER tag (``ScopedPlayer`` — Angrath, the
+    Flame-Chained's "[-8]: each opponent loses life equal to the number
+    of cards in THEIR graveyard", scoped by the ability's own
     ``player_scope: Opponent``, not this operand; ``TargetPlayer``) is a
     genuinely AMBIGUOUS owner this narrow structural read can't resolve on
     its own -> ``None``, deferring to the byte-mirror's clause-text scope
     resolution.
     """
-    if player_tag == "Opponent":
+    if player_tag in ("Opponent", "Opponents"):
         return "opponents"
     if player_tag in (None, "Controller", "All"):
         return "you"
     return None
+
+
+def _gy_unwrap_scalar(node: object) -> object:
+    """Unwraps a scaling-scalar wrapper (``Offset`` — Nighthawk Scavenger's
+    "1 plus the number of card types…"; ``Multiply`` — Silent-Chant
+    Zubera's "2 life for each Zubera that died") down to the ``Ref`` it
+    wraps, so a count-operand arm can read the SAME ``Ref`` shape
+    regardless of whether the value carries a flat modifier. Returns
+    ``node`` unchanged when it isn't one of these two wrapper tags
+    (already a bare ``Ref``, or unrelated)."""
+    t = tag_of(node)
+    if t in ("Offset", "Multiply"):
+        return getattr(node, "inner", None)
+    return node
 
 
 def _gy_count_ref_scope(node: object) -> str | None:
@@ -5215,14 +5241,17 @@ def _gy_filter_scope(filt: object) -> str | None:
 
 
 def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
-    """graveyard_matters — the cares-about PAYOFF (CR 404 / 701.17a). Six
+    """graveyard_matters — the cares-about PAYOFF (CR 404 / 701.17a). Nine
     arms, structural-first:
 
     * **trigger zone-movement** — a trigger watching cards ENTERING a
-      graveyard from a non-battlefield zone, or LEAVING a graveyard
-      (Syr Konrad-class), read off the trigger's typed ``origin`` /
-      ``destination``. The battlefield→graveyard ``dies`` movement is a
-      death payoff (a different lane), excluded.
+      graveyard from a non-battlefield zone (including an EXPLICITLY
+      unrestricted "from anywhere" arrival, ``origin is None`` — Kozilek,
+      Tezzeret's Touch), or LEAVING a graveyard (Syr Konrad-class), read
+      off the trigger's typed ``origin`` / ``destination``. Only the
+      EXPLICIT battlefield→graveyard ``dies`` movement
+      (``origin == 'Battlefield'``) is a death payoff (a different
+      lane), excluded (CR 700.4).
     * **trigger subject-in-graveyard** — a trigger whose own watched
       SUBJECT is restricted IN a graveyard ("whenever a card in your
       graveyard is turned face up" — Veteran Ghoulcaller), read off the
@@ -5235,21 +5264,48 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
       exile or blink stays ``graveyard_makers`` only (CR 406.2), never
       this lane.
     * **graveyard-fuel activation cost** — "Exile this card from your
-      graveyard: …" (Seasoned Pyromancer's 2nd ability, Renew) — a
-      typed ``Exile`` cost leaf whose zone is Graveyard (CR 702.66a's
-      delve idiom, generalized to any activation cost).
+      graveyard: …" (Seasoned Pyromancer's 2nd ability, Renew) — a typed
+      ``Exile`` cost leaf whose zone is Graveyard (CR 702.66a's delve
+      idiom, generalized to any activation cost); OR a Craft
+      ``ExileMaterials`` cost (CR 702.167a) whose ``materials`` filter
+      names a graveyard card as valid fuel (Ore-Rich Stalactite, Tetzin,
+      Braided Net).
     * **graveyard-zone count/threshold operand** — :func:`_gy_count_ref_scope`
-      over every typed node reachable from the unit (an effect amount, a
-      static P/T scaler, or a condition/activation-restriction gate).
+      over an effect's own amount/count/value field (never forces 'you'
+      on its own); the SAME read over a static's P/T-scaling
+      ``modifications`` field ALWAYS ALSO forces 'you' (a static value
+      never reaches the legacy per-effect zone-tagging pass this lane
+      mirrors, so its raw fallback separately, unconditionally fires
+      'you' even for an opponents'-graveyard scaler — Wight of Precinct
+      Six, Consuming Aberration, Nighthawk Scavenger, Detritivore); a
+      condition/activation-restriction gate ALSO always forces 'you'
+      (Grim Flayer, Nantuko Monastery) — a cost-REDUCTION
+      (``ModifyCost``) or evasion-GRANT (``CanAttackWithDefender``)
+      static is excluded here (the mirrored old IR never builds a
+      ``Condition`` object for either static-mode at all).
+    * **``_graveyard_count_markers`` deep-scan fallback** (CR 400.1) —
+      GATED on no earlier arm having fired anything for this card: a
+      genuine typed count node (``ZoneCardCount``/``GraveyardSize``/
+      ``DistinctCardTypes``/``ZoneCardCountAtLeast``) reachable ANYWHERE
+      on the card, even a site the condition-gate arm above structurally
+      excludes (Avatar of Woe's ModifyCost condition resolves 'you';
+      Expedition Lookout's CanAttackWithDefender condition resolves
+      'opponents'), fires its OWN resolved scope; failing that,
+      :data:`_GY_COUNT_PHRASE_RE` over the whole face oracle — the
+      Shrine cycle's "X is the number of cards in all graveyards with
+      the same name as that spell" strands the count in a free-text
+      ``Variable`` with no typed node at all — fires 'you'.
     * **LAST RESORT — the byte-identical deleted-producer per-clause
       mirror** (:func:`_graveyard_matters_clauses`) over the
       reminder-stripped oracle, for the broad "graveyard"-word narrative
       mention the typed substrate carries no node for at all (Unfinity
       sticker idioms — Clandestine Chameleon, Roxi, Publicist to the
       Stars — park as ``Unimplemented`` residue with no allowlisted
-      grammar token). '"Name Sticker" Goblin's exclusion clause is
-      dropped per-clause first (mandatory shed, see
-      :data:`_GY_EXCLUSION_CLAUSE_RE`).
+      grammar token). No per-clause exclusion for '"Name Sticker"
+      Goblin's "enters from anywhere OTHER THAN a graveyard or exile"
+      idiom (ADR-0038 W5b re-adjudication, corpus-verified): legacy's
+      own mirror invocation carries no such filter and DOES fire
+      ``you`` for it.
 
     The dredge / delve / scavenge keyword payoffs ride the shared
     ``_keyword_field_signals`` field-lookup (CR 702.52a / 702.66a),
@@ -5268,7 +5324,18 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
         if unit.origin == "trigger":
             origin = getattr(node, "origin", None)
             dest = getattr(node, "destination", None)
-            gy_arrival = dest == "Graveyard" and origin not in ("Battlefield", None)
+            # ADR-0038 W5b: ``origin is None`` is phase's shape for an
+            # EXPLICITLY unrestricted "from anywhere" arrival (Kozilek /
+            # Ulamog's "is put into a graveyard from anywhere", Tezzeret's
+            # Touch's "enchanted artifact is put into a graveyard" — no
+            # origin qualifier at all) — the OPPOSITE of a plain "dies"
+            # trigger, which phase tags with an EXPLICIT
+            # ``origin='Battlefield'`` (Silent-Chant Zubera; CR 700.4). Only
+            # the explicit-battlefield shape is a pure death payoff (a
+            # different lane), excluded here; ``origin is None`` is
+            # unrestricted and thus INCLUDES a battlefield-to-graveyard
+            # move, so it stays in (CR 400.7).
+            gy_arrival = dest == "Graveyard" and origin != "Battlefield"
             gy_departure = origin == "Graveyard"
             if gy_arrival or gy_departure:
                 fire(_gy_scope(trigger_subject_scope(node)), "")
@@ -5308,22 +5375,66 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
                     and getattr(leaf, "zone", None) == "Graveyard"
                 ):
                     fire("you", "")
+                # ADR-0038 W5b (CR 702.167a) — Craft: "Craft with
+                # [materials] [cost]" means "…, Exile [materials] from
+                # among permanents you control and/or cards in your
+                # graveyard: Return this card to the battlefield
+                # transformed…". phase models this as an
+                # ``ExileMaterials`` cost whose ``materials`` is a filter
+                # tree (an Or-of-Ors on Ore-Rich Stalactite / Tetzin,
+                # Gnome Champion) — the SAME ``InZone`` shape
+                # ``filter_inzone_zones`` already reads for a target
+                # filter. A materials filter naming a graveyard card as
+                # valid crafting fuel is a genuine graveyard-fuel
+                # activation cost, the same lane the bare ``Exile`` leaf
+                # above covers for delve/escape/Renew; a Craft whose
+                # materials are battlefield-only never reaches this arm.
+                elif tag_of(leaf) == "ExileMaterials":
+                    mats = getattr(leaf, "materials", None)
+                    if "Graveyard" in filter_inzone_zones(mats):
+                        fire("you", "")
 
-        # A graveyard-zone count operand on a DIRECT effect/static's own
+        # A graveyard-zone count operand on a DIRECT effect's own
         # amount-bearing field (Scavenging Ghoul's ``PutCounter.count`` =
         # Ref(ZoneChangeCountThisTurn); Ancestor's Chosen's
-        # ``GainLife.amount``; Mortivore/Splinterfright's
-        # ``SetDynamicPower.value``). Checked on the node's OWN field only —
-        # NOT the whole ability subtree — so a value-SELECTOR nested under
-        # a sibling effect (Brimstone Volley/Life Goes On's Morbid
-        # "instead" alternate value) never reaches this arm.
-        for c in (*unit.effects, *unit.statics):
+        # ``GainLife.amount``; Silent-Chant Zubera's ``GainLife.amount`` =
+        # Multiply(2, Ref(ZoneChangeCountThisTurn)) — unwrapped by
+        # :func:`_gy_unwrap_scalar`). Checked on the node's OWN field
+        # only — NOT the whole ability subtree — so a value-SELECTOR
+        # nested under a sibling effect (Brimstone Volley/Life Goes On's
+        # Morbid "instead" alternate value) never reaches this arm.
+        for c in unit.effects:
             for fname in ("amount", "count", "value"):
-                q = getattr(c.node, fname, None)
+                q = _gy_unwrap_scalar(getattr(c.node, fname, None))
                 if tag_of(q) != "Ref":
                     continue
                 sc = _gy_count_ref_scope(getattr(q, "qty", None))
                 if sc is not None:
+                    fire(sc, c.raw)
+
+        # ADR-0038 W5b — the SAME count-operand read, over a STATIC's own
+        # P/T-scaling ``modifications`` field (Mortivore/Splinterfright's
+        # ``SetDynamicPower.value``; Wight of Precinct Six's
+        # ``AddDynamicPower.value``; Consuming Aberration / Detritivore's
+        # opponents'-graveyard scalers; Nighthawk Scavenger's
+        # ``SetDynamicPower.value`` = Offset(1, Ref(DistinctCardTypes))
+        # for the "1 plus …" phrasing — unwrapped). ALWAYS ALSO fires
+        # 'you' — a static ability's continuous P/T value never reaches
+        # legacy's per-effect zone-tagging pass at all (only an EFFECT's
+        # amount/count/value keys are scanned, never a static
+        # MODIFICATION's), so legacy's own raw graveyard-mention fallback
+        # separately, unconditionally fires 'you' for a P/T scaler — even
+        # an opponents'-graveyard one (Wight / Consuming Aberration /
+        # Nighthawk / Detritivore all fire BOTH 'you' (forced) and
+        # 'opponents' (the field's own scope) in legacy). CR 400.7.
+        for c in unit.statics:
+            for fname in ("amount", "count", "value"):
+                q = _gy_unwrap_scalar(getattr(c.node, fname, None))
+                if tag_of(q) != "Ref":
+                    continue
+                sc = _gy_count_ref_scope(getattr(q, "qty", None))
+                if sc is not None:
+                    fire("you", "")
                     fire(sc, c.raw)
 
         # A graveyard-zone count/threshold tag GATING this unit (Threshold/
@@ -5344,8 +5455,23 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
         # field's own scope)). A cost-REDUCTION static (``ModifyCost`` —
         # Bone Picker's "costs {3} less … if a creature died this turn")
         # or an evasion-GRANT static (``CanAttackWithDefender`` —
-        # Expedition Lookout) is excluded: legacy doesn't treat either as
-        # a graveyard "cares-about" gate, only the field's own scope.
+        # Expedition Lookout) is excluded from THIS arm specifically: the
+        # old IR this lane mirrors never builds an ``Ability``/
+        # ``.condition`` object for either static-mode at all (a
+        # structural blind spot in the mirrored substrate, not a
+        # content-based exclusion). Bone Picker's Morbid marker carries no
+        # literal "graveyard" word, so it never fires graveyard_matters at
+        # all — but Expedition Lookout's condition DOES carry a genuine
+        # graveyard count (``GraveyardSize``), which legacy's SEPARATE
+        # ``_graveyard_count_markers`` raw deep-scan (unlike this arm,
+        # gated on no PRECEDING ``.condition`` object rather than on the
+        # static's kind) still reaches directly — verified against a
+        # direct ``extract_signals_ir`` run: legacy fires
+        # ``('graveyard_matters', 'opponents')`` for it, via the SAME
+        # marker single-scope read the deep-scan arm below reproduces.
+        # Avatar of Woe's ModifyCost gate over a LITERAL graveyard-count
+        # ("ten or more creature cards total in all graveyards") resolves
+        # 'you' (not 'opponents') through that identical deep-scan arm.
         if unit.origin != "replacement" and static_mode_tag(node) not in (
             "ModifyCost",
             "CanAttackWithDefender",
@@ -5359,13 +5485,89 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
                         fire("you", "")
                         fire(sc, "")
 
-    mirror_clauses = [
-        cl
-        for cl in _clauses(_kept(tree))
-        if not _GY_EXCLUSION_CLAUSE_RE.search(cl.lower())
-    ]
+    # ADR-0038 W5b — the deleted ``_graveyard_count_markers`` producer's
+    # raw fallback (CR 400.1): a count/cost gate over "cards … in all
+    # graveyards" phase left stranded with NO typed count node the
+    # arms above can reach at all — the Shrine cycle's "X is the number
+    # of cards in all graveyards with the same name as that spell"
+    # strands the count in a free-text ``Variable`` qty (no InZone node
+    # to read); Avatar of Woe's ModifyCost / Expedition Lookout's
+    # CanAttackWithDefender conditions carry a genuine ``ZoneCardCount``/
+    # ``GraveyardSize`` the condition-gate arm above structurally
+    # excludes for BOTH static-modes (matching the old IR's own blind
+    # spot for that arm specifically) — this deep-scan walks the WHOLE
+    # unit node (not gated on static-mode at all), matching the
+    # producer's own raw-record walk, so it still reaches both: Avatar
+    # of Woe resolves 'you' (``scope='All'``), Expedition Lookout
+    # resolves 'opponents' (``player=Opponent``) — a single scope each,
+    # verified against a direct ``extract_signals_ir`` run for both. GATED
+    # on ``not seen`` (mirrors the producer's own
+    # ``has_struct`` gate — it returns NOTHING when any OTHER effect on
+    # the card already carries an in:graveyard zone tag, i.e. when an
+    # earlier arm in this function already fired): Into the Story's
+    # GraveyardSize(player=Opponent) ModifyCost condition resolves
+    # 'opponents' ONLY here (a single scope, matching the producer's
+    # own ``_graveyard_count_player`` read) — never ALSO 'you', unlike
+    # the unconditional double-fire a genuine ``Ability.condition`` raw
+    # zone-tag carries in the arm above. A card whose graveyard
+    # reference the earlier arms already covered (Geth, Lord of the
+    # Vault's Owned=Opponent target filter) never reaches this one.
+    # The oracle-regex fallback additionally requires ``not gy_covered``
+    # (no count-SHAPED node anywhere at all, resolved or not):
+    # ``TargetZoneCardCount`` (Eldritch Pact / Riverchurn Monument's "X
+    # is the number of cards in THEIR graveyard", target-dependent —
+    # unresolvable here, CR 400.7) and a ``ScopedPlayer``-owned
+    # ``ZoneCardCount`` (Angrath, the Flame-Chained's "-8", scoped by
+    # the ability's own player_scope, not this operand — genuinely
+    # ambiguous) both carry a REAL count node the mirrored old IR's own
+    # per-effect zone-tagging ALSO reaches (``has_struct`` — matching
+    # the producer's actual gate, not just its narrower typed
+    # discriminator), so the oracle fallback must stay silent for them
+    # too, even though neither resolves a concrete scope on its own.
+    if not seen:
+        gy_scope: str | None = None
+        gy_covered = False
+        for u2 in tree.units:
+            for n in iter_typed_nodes(u2.node):
+                if tag_of(n) not in (
+                    "ZoneCardCount",
+                    "GraveyardSize",
+                    "DistinctCardTypes",
+                    "ZoneCardCountAtLeast",
+                    "TargetZoneCardCount",
+                ):
+                    continue
+                gy_covered = True
+                sc = _gy_count_ref_scope(n)
+                if sc == "opponents":
+                    gy_scope = "opponents"
+                    break
+                if sc == "you" and gy_scope is None:
+                    gy_scope = "you"
+            if gy_scope == "opponents":
+                break
+        if (
+            gy_scope is None
+            and not gy_covered
+            and _GY_COUNT_PHRASE_RE.search(tree.oracle or "")
+        ):
+            gy_scope = "you"
+        if gy_scope is not None:
+            fire(gy_scope, "")
+
+    # ADR-0038 W5b (session re-adjudication, corpus-verified): the W4
+    # giant's own per-clause exclusion of '"Name Sticker" Goblin's
+    # "enters from anywhere OTHER THAN a graveyard or exile" clause was
+    # an UNVERIFIED judgment call — legacy's actual mirror invocation
+    # (``_signals_ir.py``'s call to :func:`_graveyard_matters_clauses`)
+    # passes the WHOLE ``kept_oracle`` with no such exclusion filter at
+    # all, and a direct run of ``extract_signals_ir`` over the real card
+    # confirms legacy DOES fire ``('graveyard_matters', 'you')`` for it
+    # (CR 400.7: a card whose own ETB trigger is gated on NOT arriving
+    # from a graveyard still mechanically references the zone). No
+    # exclusion filter, matching legacy byte-for-byte.
     for _gy_key, _gy_scope_v in _graveyard_matters_clauses(
-        " ".join(mirror_clauses), tree.name
+        " ".join(_clauses(_kept(tree))), tree.name
     ):
         fire(_gy_scope_v, "")
 
