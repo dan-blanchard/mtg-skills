@@ -781,7 +781,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # than this batch's time budget allowed; see the ADR-0038 W3 batch 4
     # session notes for the card list and per-card triage.
     {
-        "any_counter_matters",
         "artifacts_matter",
         "base_pt_set",
         "cast_from_exile",
@@ -854,6 +853,25 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
 # re-measure (2026-07): live_only 0/130, one adjudicated beyond-legacy gain
 # (Dinosaur Headdress — a genuine CR 707.2 clone effect legacy's regex mirror
 # never covered either).
+# ADR-0038 W3 batch 4 (2026-07-10): any_counter_matters PROMOTED. The 8
+# live_only members split into two structural gaps: (1) a counter-HAVE
+# TRIGGER whose Counters predicate rides the trigger's own ``valid_card``
+# filter, never an effect/static filter (The Swarmlord, Cleopatra, Puca's
+# Covenant, Skyboon Evangelist, Metropolis Angel); (2) a PLAYER-counter scale
+# (``PlayerCounter`` qty node, distinct from the permanent-scoped
+# ``CountersOn``/``CountersOnObjects``) for Poison specifically (Mycosynth
+# Fiend, Vishgraz) — gated to exclude Experience, which owns its own
+# dedicated lane (experience_matters, ADR-0034); and a granted-token static
+# def whose "for each <kind> counter" scale phase drops to a fixed P/T value
+# two levels deep (Moira Brown, Guide Author), recovered via a bucket-B text
+# idiom gated on ``count_operand_qty`` finding nothing (CR 122.1). Root-caused
+# the 5 unrooted cw_only members this session: Cathedral Acolyte / Innkeeper's
+# Talent / Iroh / Matt Murdock / Michelangelo's "each creature you control
+# with a counter on it has/gains <keyword>" shape is a GrantStaticAbility the
+# old IR's marker-synthesis simplifies to a bare ``Creature`` filter (dropping
+# the Counters predicate) — legacy's regex fallback also never matches
+# (requires the bare PLURAL "creatures you control gain/have" phrase with no
+# intervening modifier clause). Adjudicated beyond-legacy gains, pinned.
 PORTED_KEYS: frozenset[str] = _PORTED_KEYS_STAGE3 - _STAGE4_RESIDUAL
 
 
@@ -2403,6 +2421,20 @@ _PT_PUMP_TAGS: frozenset[str] = frozenset(
     }
 )
 
+# ADR-0038 W3 batch 4 — Moira Brown, Guide Author's granted TOKEN ability
+# ("Equipped creature gets +1/+1 for each quest counter among permanents you
+# control") buries a genuine dynamic scale two levels deep (trigger →
+# make_token effect → the token's OWN static_abilities), and phase's parse of
+# that buried def drops the "for each quest counter" scale to a FIXED
+# ``AddPower(value=1)``/``AddToughness(value=1)`` pair — :func:`count_operand_qty`
+# finds no ``Ref``/``dynamic_count`` to read. A bucket-B text-idiom fallback on
+# the def's OWN ``description`` (never the whole tree/card) recovers it,
+# excluding "+1/+1 counter" wording (that scale already routes to
+# plus_one_matters via the SAME def shape elsewhere). CR 122.1.
+_ANY_COUNTER_SCALE_TEXT_RX = re.compile(
+    r"for each(?:(?!\+1/\+1)[^.]){0,40}\bcounter\b", re.IGNORECASE
+)
+
 
 def _any_counter_matters(tree: ConceptTree) -> list[Signal]:
     """any_counter_matters — a kind-AGNOSTIC counter PAYOFF (CR 122.1). Two structural
@@ -2443,14 +2475,75 @@ def _any_counter_matters(tree: ConceptTree) -> list[Signal]:
                 and "Any" in counter_pred_kinds(filt)
             ):
                 return [Signal("any_counter_matters", "you", "", "", tree.name, "high")]
+        # ADR-0038 W3 batch 4 — a counter-HAVE TRIGGER: "whenever a creature you
+        # control with a counter on it dies/attacks" (The Swarmlord, Cleopatra,
+        # Exiled Pharaoh, Puca's Covenant, Skyboon Evangelist, Metropolis
+        # Angel). The Counters predicate rides the TRIGGER's own watched-object
+        # filter (``valid_card`` — CR 603.2's intervening-if object), never an
+        # effect/static filter, mirroring legacy's ``trig.subject`` arm
+        # (``_signals_ir`` ~10693).
+        if unit.origin == "trigger":
+            vc = getattr(unit.node, "valid_card", None)
+            if (
+                vc is not None
+                and filter_controller(vc) != "Opponent"
+                and "Any" in counter_pred_kinds(vc)
+            ):
+                return [Signal("any_counter_matters", "you", "", "", tree.name, "high")]
+        # A granted-TOKEN static def whose "for each <kind> counter" scale
+        # phase dropped to a fixed P/T value (Moira Brown — see
+        # ``_ANY_COUNTER_SCALE_TEXT_RX`` above). Skip the unit's OWN top-level
+        # def (``sd is unit.node``) — a real ``Ref``-carrying scale there is
+        # already read by the ``tree.iter_concepts()`` pass below; re-reading
+        # it here via text would double-fire on (and never exclude) the
+        # dedicated-lane Experience scale (Kalemne, Kelsien, Minthara, Azula).
+        # Gate per-modification on :func:`count_operand_qty` finding NOTHING
+        # (the genuine buried-parse-drop signature) so a nested def that DOES
+        # carry a proper structured scale is left to its own accessor.
+        for sd in iter_static_defs(unit.node):
+            if sd is unit.node:
+                continue
+            mods = getattr(sd, "modifications", None)
+            if not isinstance(mods, list) or not any(
+                isinstance(m, TypedMirrorNode)
+                and tag_of(m) in _PT_PUMP_TAGS
+                and count_operand_qty(m) is None
+                for m in mods
+            ):
+                continue
+            desc = getattr(sd, "description", "") or ""
+            if _ANY_COUNTER_SCALE_TEXT_RX.search(desc):
+                return [
+                    Signal("any_counter_matters", "you", "", desc, tree.name, "high")
+                ]
     for c in tree.iter_concepts():
         if c.role == "cost":
             continue
         if tag_of(c.node) in _PT_PUMP_TAGS:
             q = count_operand_qty(c.node)
-            if q is not None and tag_of(q) in ("CountersOn", "CountersOnObjects"):
+            qtag = tag_of(q) if q is not None else None
+            # ADR-0038 W3 batch 4 — a PLAYER-counter scale ("gets +1/+1 for
+            # each poison counter your opponents have" — Mycosynth Fiend,
+            # Vishgraz, the Doomhive) is a distinct qty node
+            # (``PlayerCounter``, ``kind`` field) from the permanent-scoped
+            # ``CountersOn``/``CountersOnObjects`` (``counter_type`` field);
+            # same kind-agnostic-catch-all taxonomy, different node shape.
+            if q is not None and qtag in ("CountersOn", "CountersOnObjects"):
                 kind = str(getattr(q, "counter_type", "") or "").upper()
                 if kind != "P1P1":
+                    return [
+                        Signal(
+                            "any_counter_matters", "you", "", c.raw, tree.name, "high"
+                        )
+                    ]
+            elif q is not None and qtag == "PlayerCounter":
+                # Experience carries its OWN dedicated lane (experience_matters,
+                # ADR-0034 — Kalemne, Kelsien, Minthara, Azula) and is EXCLUDED
+                # here exactly like P1P1 is above; the corpus's only other
+                # PlayerCounter kind is Poison, which legacy DOES route through
+                # this kind-agnostic catch-all.
+                kind = str(getattr(q, "kind", "") or "").upper()
+                if kind not in ("P1P1", "EXPERIENCE"):
                     return [
                         Signal(
                             "any_counter_matters", "you", "", c.raw, tree.name, "high"

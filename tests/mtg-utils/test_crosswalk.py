@@ -884,6 +884,102 @@ def test_any_counter_matters_beyond_legacy_gain():
 
 
 @pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 4 (CR 122.1 / 603.2) — a counter-HAVE TRIGGER:
+        # "whenever a creature you control with a counter on it dies" (The
+        # Swarmlord, Puca's Covenant) / "... attacks" (Skyboon Evangelist) /
+        # "... with counters on it dies" (Cleopatra) / "attack with one or
+        # more creatures with counters on them" (Metropolis Angel). The
+        # Counters:Any predicate rides the TRIGGER's own watched-object
+        # filter (``valid_card``), never an effect/static filter.
+        "The Swarmlord",
+        "Cleopatra, Exiled Pharaoh",
+        "Puca's Covenant",
+        "Skyboon Evangelist",
+        "Metropolis Angel",
+    ],
+)
+def test_any_counter_matters_trigger_valid_card_arm(name):
+    assert ("any_counter_matters", "you", "") in _idents(name)
+
+
+def test_any_counter_matters_player_counter_poison_arm():
+    """Mycosynth Fiend / Vishgraz, the Doomhive ("gets +1/+1 for each poison
+    counter your opponents have", CR 122.1): the player-counter scale is a
+    distinct qty node (``PlayerCounter``, ``kind`` field) from the
+    permanent-scoped ``CountersOn``/``CountersOnObjects`` (``counter_type``
+    field). Legacy fires any_counter_matters for Poison specifically."""
+    assert ("any_counter_matters", "you", "") in _idents("Mycosynth Fiend")
+    assert ("any_counter_matters", "you", "") in _idents("Vishgraz, the Doomhive")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 4 — Experience carries its OWN dedicated lane
+        # (experience_matters, ADR-0034) and must NOT also open
+        # any_counter_matters via the PlayerCounter qty arm above — the
+        # corpus's only other PlayerCounter kind (Poison) legitimately does.
+        "Kalemne, Disciple of Iroas",
+        "Kelsien, the Plague",
+        "Minthara, Merciless Soul",
+        "Azula, Ruthless Firebender",
+    ],
+)
+def test_any_counter_matters_excludes_experience_counter(name):
+    assert "any_counter_matters" not in _keys(name)
+
+
+def test_any_counter_matters_buried_token_static_text_idiom():
+    """Moira Brown, Guide Author (CR 122.1): the granted token's OWN static
+    ability ("Equipped creature gets +1/+1 for each quest counter among
+    permanents you control") is buried two levels deep (trigger → make_token
+    effect → the token's own static_abilities), and phase's parse of that
+    buried def drops the "for each quest counter" scale to a FIXED
+    ``AddPower(value=1)``/``AddToughness(value=1)`` pair — no ``Ref``/
+    ``dynamic_count`` for :func:`count_operand_qty` to read. A bucket-B
+    text-idiom fallback on the def's own ``description`` (gated on
+    count_operand_qty finding NOTHING, so a genuine structured scale is never
+    double-read) recovers it."""
+    assert ("any_counter_matters", "you", "") in _idents("Moira Brown, Guide Author")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # ADR-0038 W3 batch 4 (CR 122.1) — beyond-legacy GAINS. All four share
+        # the "each creature you control with a counter on it has/gains
+        # <keyword>" static shape, which the crosswalk already reads
+        # structurally via the SAME whole-unit static ``affected`` arm that
+        # fires for Rishkar/Nils. Legacy MISSES this class: its
+        # ``_mass_creature_grant_marker`` regex fallback requires the bare
+        # PLURAL phrase "creatures you control" immediately followed by
+        # gain/have (project.py's ``_BARE_CREATURES_YOU_CONTROL`` anchor) —
+        # "each creature you control WITH A COUNTER ON IT has ward {1}" is
+        # singular AND carries an intervening modifier clause, so the regex
+        # never matches, and the OLD IR's structured keyword-grant markers
+        # (``_mass_creature_grant_marker`` / ``_global_ability_grant_markers``)
+        # synthesize a BARE ``Creature`` filter for the grant target,
+        # dropping the Counters predicate entirely — legacy never had a path
+        # to see it. Root-caused this session (2026-07): Rishkar/Nils fire
+        # because THEIR phase parse is a Boost/GenericEffect with a real
+        # structured Counters-predicate subject the old IR's effect-subject
+        # read (``_signals_ir`` ~8591) already covers; these four are
+        # GrantStaticAbility shapes the old IR's marker-synthesis simplifies
+        # away. A genuine crosswalk improvement, not an over-fire.
+        "Cathedral Acolyte",
+        "Innkeeper's Talent",
+        "Iroh, Dragon of the West",
+        "Matt Murdock, Justice Seeker",
+        "Michelangelo, Mutant BFF",
+    ],
+)
+def test_any_counter_matters_keyword_grant_beyond_legacy_gain(name):
+    assert ("any_counter_matters", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
     ("name", "should_fire"),
     [
         ("Control Magic", True),  # ChangeController static — theft
