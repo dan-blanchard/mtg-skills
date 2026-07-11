@@ -941,6 +941,33 @@ def test_creatures_matter_w4_giant_batch(name, should_fire):
 
 
 @pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        # ADR-0038 W5 tails: mass untap ("untap all creatures you control")
+        # is a board-wide pseudo-vigilance payoff, the same team-payoff
+        # shape as an anthem — CR 701.26/701.26b.
+        ("Vitalize", True),  # top-level ability, no trigger wrapper
+        ("Aurelia, the Warleader", True),  # attack-trigger-nested
+        # "untap ALL OTHER creatures you control" — the ``Another`` filter
+        # property lives outside type_filters/subtypes, so it doesn't
+        # perturb the generic-filter gate.
+        ("Combat Celebrant", True),
+        # A SINGLE-target untap-as-cost ("untap A tapped creature you
+        # control") is scope='Single', not 'All' — never reaches the mass
+        # gate, stays a utility cost, not a go-wide payoff.
+        ("Halo Fountain", False),
+        # The DYNAMIC base-P/T-set pair (SetPowerDynamic/SetToughnessDynamic
+        # — "creatures you control have base power and toughness X/X") rides
+        # the SAME team-anthem arm as the fixed Set*/Add* pairs — CR 613.4b.
+        ("Biomass Mutation", True),
+        ("Mirror Entity", True),
+    ],
+)
+def test_creatures_matter_w5_tails_batch(name, should_fire):
+    assert (("creatures_matter", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
     ("name", "ident", "should_fire"),
     [
         ("Padeem, Consul of Innovation", ("artifacts_matter", "you", ""), True),

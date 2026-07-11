@@ -221,6 +221,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _is_death_payoff_effect,
     _is_self_return_effect,
     _is_shuffle_back_effect,
+    _iter_untap_targets,
     _stax_structural_walk,
     attack_raid_condition,
     creature_death_condition,
@@ -3256,7 +3257,21 @@ def _is_generic_creature_filter(filt: object) -> bool:
 # spell-fizzle trigger) is the same team-payoff shape as granting a bare
 # keyword, just carrying a nested ability def instead of a keyword string
 # (CR 113.10 — "an effect that adds an ability will state that the object
-# 'gains' or 'has' that ability"; verified via rules-lookup).
+# 'gains' or 'has' that ability"; verified via rules-lookup), plus
+# ``SetPowerDynamic``/``SetToughnessDynamic`` — the SET-to-a-dynamic-value
+# pair (Biomass Mutation's "have base power and toughness X/X", CR 613.4b
+# "effects that refer to the BASE power and/or toughness ... apply in this
+# layer") a team-wide base-P/T rewrite uses instead of the fixed ``Set*``
+# pair. ADR-0038 W5 tails: these two tags map to ``base_pt_set`` only
+# 77%/79% corpus-wide (``compat._MOD_TAG_CATEGORY`` comment — under the 90%
+# auto-map bar), so they are NOT added to the general mapping; scoped here
+# behind the SAME ``_is_generic_creature_filter`` gate a corpus scan
+# confirmed is clean — every corpus hit with a generic "you"/no-subtype
+# ``affected`` filter is a genuine team anthem (Biomass Mutation, Mirror
+# Entity, Jolrael, Sita Varma, Dollmaker's Shop), and every non-generic hit
+# is a self-referential CDA (March of the Machines, Animate Artifact) that
+# ``_is_generic_creature_filter`` already excludes on ``controller``/core-
+# type grounds — the ambiguity lives entirely outside this gate.
 _CREATURES_MATTER_MOD_TAGS = frozenset(
     {
         "AddPower",
@@ -3266,6 +3281,8 @@ _CREATURES_MATTER_MOD_TAGS = frozenset(
         "AddKeyword",
         "AddDynamicPower",
         "AddDynamicToughness",
+        "SetPowerDynamic",
+        "SetToughnessDynamic",
         "GrantAbility",
         "GrantTrigger",
     }
@@ -3321,13 +3338,38 @@ def _creature_count_operand_filter(node: TypedMirrorNode) -> object | None:
     return None
 
 
+def _mass_untap_creature_filter(unit: object) -> object | None:
+    """The TARGET filter of a mass (``scope == 'All'``) Untap ``SetTapState``
+    reachable from one unit's node, threaded through the same
+    effect/sub_ability/execute/branches/mode_abilities/GrantTrigger chain
+    :func:`has_structural_untap_engine` walks (:func:`_iter_untap_targets`).
+    "Untap ALL creatures you control" (Vitalize, Aurelia's attack trigger,
+    Reins of Power's own-side clause, Ahn-Crop Champion / Combat Celebrant's
+    exert-untap of "all OTHER creatures you control" — the ``Another``
+    filter property lives outside ``type_filters``/subtypes so it doesn't
+    perturb :func:`_is_generic_creature_filter`'s read) is a board-wide
+    pseudo-vigilance payoff over the GENERIC creature population, same shape
+    as a team anthem — CR 701.26/701.26b. A SINGLE-target untap ("untap
+    target creature you control") never reaches here: the mass gate
+    (``scope == 'All'``) is load-bearing, mirroring the OLD-IR's own
+    ``counter_kind == "all"`` tell (:mod:`_card_ir.project`'s
+    ``settapstate`` projection comment — "the `scope` rides in counter_kind
+    so a MASS untap ... is distinguishable from a single-target untap").
+    """
+    for target, node in _iter_untap_targets(unit):
+        if tag_of(getattr(node, "scope", None)) == "All":
+            return target
+    return None
+
+
 def _creatures_matter(tree: ConceptTree) -> list[Signal]:
     """creatures_matter — a go-wide payoff scaling with / antheming the GENERIC
     creature population you control (CR 604.1 static ability; CR 611.1 the
     continuous effect it or a resolving spell generates). Mirrors
     ``_signals_ir`` line ~7686. ADR-0038 W4 giant-key batch widened the arm
-    from two shapes to five, all sharing the SAME :func:`_is_generic_creature_
-    filter` gate:
+    from two shapes to five; ADR-0038 W5 tails added a sixth and widened the
+    team-anthem mod-tag set, all sharing the SAME
+    :func:`_is_generic_creature_filter` gate:
 
     * a **count operand** that is a generic creature count (Craterhoof's +X/+X, a
       "for each creature you control" value) — the standard ``amount``/``count``/
@@ -3342,13 +3384,20 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
       top-level ``static``-origin unit (the DEF is the unit's own node) and a
       ONE-SHOT ``GenericEffect``-nested or ``CreateEmblem``-nested DEF
       (Overrun's granted "until end of turn" trample, Capitoline Triad's
-      emblem, Lightning Volley's granted ability — CR 611.2c "the set of
-      objects [a resolving effect] affects is determined when that continuous
-      effect begins", 113.10 ability-grant) share one arm;
+      emblem, Lightning Volley's granted ability, Biomass Mutation's
+      ``SetPowerDynamic``/``SetToughnessDynamic`` base-P/T rewrite — CR
+      611.2c "the set of objects [a resolving effect] affects is determined
+      when that continuous effect begins", 613.4b, 113.10 ability-grant)
+      share one arm;
     * a **fixed team pump spell/trigger** — a plain (non-``GenericEffect``-
       wrapped) ``PumpAll`` role=effect over the generic filter (Warrior's Honor,
       Fortify: "Creatures you control get +N/+N until end of turn" IS the whole
-      effect, no nested static def to descend into — CR 611.2c/613.4c).
+      effect, no nested static def to descend into — CR 611.2c/613.4c);
+    * a **mass untap** — "untap all creatures you control"
+      (:func:`_mass_untap_creature_filter` — Vitalize, Aurelia, the
+      Warleader's attack trigger, Ahn-Crop Champion's exert-untap of "all
+      OTHER creatures you control" — CR 701.26/701.26b), the board-wide
+      pseudo-vigilance sibling of a team anthem.
 
     A SUBTYPE filter (Goblin King's "other Goblins") fails the no-subtype gate (it is
     ``type_matters``). A single-target removal/buff (controller any) never reaches
@@ -3383,6 +3432,9 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
             effect_filter(c.node)
         ):
             return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        if _is_generic_creature_filter(_mass_untap_creature_filter(unit.node)):
+            return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     return []
 
 
