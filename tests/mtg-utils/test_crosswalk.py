@@ -10577,3 +10577,107 @@ def test_direct_damage_excludes_bare_self_damage_shed(name):
     regex mirror's recipient-blind ``{T}:``/bare-``to you`` fallback wrongly
     includes both (measured live_only, not reproduced)."""
     assert "direct_damage" not in _keys(name)
+
+
+# ── ADR-0038 W4 giant: enchantments_matter (structural arms + verified CR) ───
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Ironclad Slayer",  # "return target Aura or Equipment card ... to your hand"
+        "Retether",  # "Return each Aura card from your graveyard to the battlefield"
+        "Iridescent Drake",  # "put target Aura card from a graveyard onto the bfield"
+    ],
+)
+def test_enchantments_matter_aura_subtype_recursion(name):
+    """AURA-SUBTYPE RECURSION fallback (:func:`_type_recursion_lanes`): a
+    graveyard-recursion target filtered to the SUBTYPE ``Aura`` (not the
+    core type ``Enchantment``) carries ``card_types=()`` in phase's typed
+    filter — ``_typed_matters_lanes`` alone returns nothing, so the
+    recursion arms (``change_zone`` / ``put_library_position`` /
+    ``cast_from_zone``) need the Aura-subtype fallback. CR 303.4: Aura is
+    an Enchantment subtype, so a subtype-only recursion target still opens
+    a LOOSE ``enchantments_matter`` member."""
+    assert ("enchantments_matter", "you", "") in _idents(name)
+
+
+def test_enchantments_matter_and_condition_descent():
+    """AND-CONDITION LEAF descent (:func:`_condition_leaves`): "if you
+    control an artifact and an enchantment" (When We Were Young, Okiba
+    Salvage, Banishing Slash) types as ONE ``T_condition__And`` wrapping
+    TWO ``QuantityCheck`` leaves (one per type) — the flat ``tag_of``
+    switch on the condition-gate arm can't read a compound tag directly,
+    so it needs to descend to the leaves first. CR 603.4 (the "intervening
+    if" / conditional-ability check applies per stated condition)."""
+    assert ("enchantments_matter", "you", "") in _idents("When We Were Young")
+    assert ("enchantments_matter", "you", "") in _idents("Okiba Salvage")
+    assert ("enchantments_matter", "you", "") in _idents("Banishing Slash")
+
+
+def test_enchantments_matter_graveyard_recursion_mirror():
+    """``_ENCHANTMENTS_MATTER_MIRROR`` port (the artifacts-sibling regex
+    mirror, byte-identical from ``_signals_ir``): "Return ... target
+    enchantment card ... from your graveyard to your hand" (Reconstruct
+    History) is a MODAL multi-type recursion phase structures as several
+    SEPARATE single-target effects, not one type-filtered node the
+    structural recursion arm reads — the last-resort per-clause mirror
+    catches it (CR 115.1/400.7 — a modal "up to one target X card" clause
+    per type)."""
+    assert ("enchantments_matter", "you", "") in _idents("Reconstruct History")
+
+
+def test_enchantments_matter_constellation_mirror():
+    """``_ENCHANTMENTS_MATTER_MIRROR`` port: "Whenever a creature or
+    enchantment you control enters this turn, draw a card" (Rite of
+    Harmony) is a constellation-style ETB trigger on an INSTANT (a
+    Flashback spell payoff, not a permanent's own triggered ability) —
+    phase structures it, but past this key's structural arm reach; the
+    mirror catches it (CR 603.2 — triggered abilities)."""
+    assert ("enchantments_matter", "you", "") in _idents("Rite of Harmony")
+
+
+def test_enchantments_matter_affinity_keyword_line():
+    """AFFINITY-FOR-ENCHANTMENTS doer (the enchantment sibling of the
+    existing AFFINITY-FOR-EQUIPMENT arm): "Affinity for enchantments"
+    (Brine Giant) is a bare KEYWORD LINE — the reminder text carrying "for
+    each enchantment you control" is stripped by ``_kept`` (parenthetical),
+    so the ``you control`` regex branch never sees it, and phase's raw
+    keyword node isn't in the typed substrate's unit walk. CR 702.41a
+    ("Affinity for [text]" means "costs {1} less ... for each [text] you
+    control")."""
+    assert ("enchantments_matter", "you", "") in _idents("Brine Giant")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Gaius van Baelsar",  # "Each player sacrifices ... an enchantment of choice"
+        "Pick Your Poison",  # "Each opponent sacrifices ... an enchantment of choice"
+        "Simplify",  # "Each player sacrifices an enchantment of their choice"
+    ],
+)
+def test_enchantments_matter_excludes_enchantment_edict_shed(name):
+    """MANDATORY SHED (ADR-0038 W4 session adjudication): "Each
+    player/opponent sacrifices an enchantment of their choice" is an EDICT
+    — the SACRIFICER is a DIFFERENT player than the one who ends up with
+    fewer enchantments, so this is removal/disruption, not a "my deck
+    wants enchantments" build-around (CR 701.21a — a player can only
+    sacrifice a permanent THEY control; an edict's mislabeled
+    ``controller: You`` target filter is the SAME shape
+    ``_sac_is_edict`` already rejects for the artifacts sibling —
+    Baleful Beholder's "Each opponent sacrifices an enchantment")."""
+    assert "enchantments_matter" not in _keys(name)
+
+
+def test_enchantments_matter_excludes_symmetric_library_reset_shed():
+    """MANDATORY SHED (ADR-0038 W4 session adjudication): Harmonic
+    Convergence's "Put all enchantments on top of their owners' libraries"
+    is a SYMMETRIC reset (the target filter's ``controller`` is unset —
+    it moves YOUR enchantments AND every opponent's) — a hate/answer
+    effect for an enchantment-heavy table, not a "my deck wants
+    enchantments" build-around (CR 205.2 defines Enchantment as the
+    affected card type; the symmetric-controller exclusion mirrors the
+    artifacts sibling's TYPE-DIES doer, which excludes a symmetric
+    "any artifact dies" punisher the same way)."""
+    assert "enchantments_matter" not in _keys("Harmonic Convergence")

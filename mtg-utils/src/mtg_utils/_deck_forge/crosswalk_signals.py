@@ -290,6 +290,7 @@ from mtg_utils._deck_forge._signals_ir import (
     _BASE_PT_ANIMATE_HOOK,
     _BASE_PT_RAW_HOOK,
     _COUNTER_KIND_KEYS,
+    _ENCHANTMENTS_MATTER_MIRROR,
     _FLOOR_DETECTORS,
     _GOAD_STYLE_FORCE,
     _IR_FLOOR_LANES,
@@ -1068,6 +1069,36 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # with no counter node at all — Baird, Kutzil, Ms. Marvel) — each would
     # need its own arm + corpus verification. Banking the recall gain per
     # ADR-0038 step 5 rather than force-fitting a promotion.
+    #
+    # ADR-0038 W4 giant session (enchantments_matter): a large residual gap
+    # (40 live_only vs 3840 both) collapsed to 6 (both 3874) via four
+    # structural fixes, all corpus-verified: (1) an Aura-SUBTYPE recursion
+    # fallback on the three graveyard-recursion arms (:func:`
+    # _type_recursion_lanes`, CR 205.3/303.4 — "return target Aura card"
+    # carries no Enchantment core type); (2) an And/Or condition-leaf
+    # descent (:func:`_condition_leaves`, CR 603.4 — "if you control an
+    # artifact AND an enchantment" types as one compound condition wrapping
+    # two leaf checks); (3) the ``_ENCHANTMENTS_MATTER_MIRROR`` byte-mirror
+    # port (the enchantment sibling of the already-ported
+    # ``_ARTIFACTS_MATTER_MIRROR``, never previously wired in); (4) an
+    # AFFINITY-FOR-ENCHANTMENTS keyword-line check (the enchantment sibling
+    # of the existing AFFINITY-FOR-EQUIPMENT arm). The remaining 6:
+    # 4 "each player/opponent sacrifices an enchantment of their choice"
+    # EDICTS (Gaius van Baelsar, Pick Your Poison, Simplify, Catch //
+    # Release — CR 701.21a, the same shape ``_sac_is_edict`` already
+    # rejects) and 1 symmetric library-position reset (Harmonic
+    # Convergence's "put all enchantments on top of their owners'
+    # libraries" — CR 205.2, no ``controller: You`` gate) are ADJUDICATED
+    # SHEDS (mandatory negative pins added), not genuine recall. The 6th —
+    # Smoke Spirits' Aid's "For each of up to X target creatures, create a
+    # red Aura enchantment token …" — is a GENUINE gap phase parses as a
+    # residue ``Unimplemented`` node (the "for each … create" wrapper);
+    # recovering it needs either ``clause_grammar.py`` growth (forbidden
+    # this session) or a ``make_token`` recovery-ALLOWLIST entry, which is
+    # a corpus-wide shared-helper widening (affects every lane reading the
+    # ``make_token`` concept, not just this one) too broad to verify safely
+    # for a single card this session. Banking the recall gain per ADR-0038
+    # step 5 rather than force-fitting a promotion.
     {
         "artifacts_matter",
         "base_pt_set",
@@ -2673,6 +2704,60 @@ def _generic_board_lanes(filt: object) -> list[str]:
     return [lane for ct, lane in _TYPE_MATTERS_LANE.items() if ct in cores]
 
 
+def _type_recursion_lanes(filt: object) -> list[str]:
+    """The GY-recursion sibling of :func:`_typed_matters_lanes`, ADDING the
+    Aura-SUBTYPE fallback (ADR-0038 W4 giant, byte-mirrors
+    ``_signals_ir._type_recursion_lanes``): "return target Aura card from
+    your graveyard to your hand" (Ironclad Slayer), "return each Aura card
+    …" (Retether), "put target Aura card … onto the battlefield" (Iridescent
+    Drake) filter on the SUBTYPE ``Aura``, not the core type ``Enchantment``
+    — phase's recursion target filter carries ``card_types=()`` for a bare
+    subtype-named card ("Aura or Equipment card"), so
+    :func:`_typed_matters_lanes` alone returns nothing. CR 205.3 / 303.4:
+    Aura is an Enchantment subtype, so a subtype-only recursion target still
+    opens a LOOSE ``enchantments_matter`` member — but ONLY when no broader
+    CORE-type lane already fired (a composite "artifact or enchantment card"
+    target names ``Enchantment`` directly and needs no fallback), and only
+    for a non-opponent-controlled filter (the same exclusion
+    ``_typed_matters_lanes`` applies to the core-type read).
+    """
+    lanes = _typed_matters_lanes(filt)
+    if lanes:
+        return lanes
+    if filt is None or filter_controller(filt) == "Opponent":
+        return []
+    if any(s.lower() == "aura" for s in filter_subtypes(filt)):
+        return ["enchantments_matter"]
+    return []
+
+
+def _condition_leaves(cond: object) -> list[object]:
+    """Flatten an And/Or/Not condition tree to its LEAF condition nodes
+    (ADR-0038 W4 giant, deep descent). "If you control an artifact and an
+    enchantment" (When We Were Young, Okiba Salvage, Banishing Slash) types
+    as a single ``T_condition__And`` wrapping TWO ``QuantityCheck`` leaves
+    (one per type), not one compound tag the flat ``tag_of`` switch in
+    :func:`_artifacts_enchantments_matter` can read directly. CR 608.2b: a
+    natural-language "and"/"or" join is structurally a conjunction/
+    disjunction of independently-true-or-false checks, so unwrapping to the
+    leaves is lossless — an Or's members are each still a standalone
+    condition, the SAME shape a bare (non-compound) condition site already
+    is. A ``Not``-wrapped leaf is kept (not dropped): mirrors legacy's
+    ANY-comparator-direction philosophy (a "control NO artifacts" floor
+    punisher still wants an artifacts deck).
+    """
+    tag = tag_of(cond)
+    if tag in ("And", "Or"):
+        out: list[object] = []
+        for sub in getattr(cond, "conditions", ()) or ():
+            out.extend(_condition_leaves(sub))
+        return out
+    if tag == "Not":
+        inner = getattr(cond, "condition", None)
+        return _condition_leaves(inner) if inner is not None else []
+    return [cond]
+
+
 def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     """artifacts_matter / enchantments_matter — the broad type-payoff lanes (CR 301 /
     303). Mirrors ``_signals_ir`` six structural arms over the typed substrate:
@@ -2737,11 +2822,14 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         # Replenish); a composite ("artifact or creature card" — Argivian
         # Find, Open the Vaults) fires both. Mirrors ``_signals_ir``'s
         # ``_type_recursion_lanes`` (CR 115.1/115.10 — the discriminator is
-        # the TYPE, not mass-vs-single). ANY graveyard qualifies (Beacon of
-        # Unrest's "a graveyard" — no explicit controller); the exclusion
-        # is an opponent-owned filter (``_typed_matters_lanes``' own
-        # Opponent gate), never a generic-target recursion ("return target
-        # card" — Regrowth) which fires no core type at all.
+        # the TYPE, not mass-vs-single), INCLUDING its Aura-subtype
+        # fallback (:func:`_type_recursion_lanes` above — "return target
+        # Aura card" — Ironclad Slayer, Retether — CR 205.3/303.4). ANY
+        # graveyard qualifies (Beacon of Unrest's "a graveyard" — no
+        # explicit controller); the exclusion is an opponent-owned filter
+        # (``_typed_matters_lanes``' own Opponent gate), never a
+        # generic-target recursion ("return target card" — Regrowth) which
+        # fires no core type at all.
         if c.concept == "change_zone":
             origin, dest = change_zone_dirs(node)
             if origin == "Graveyard" and dest in (
@@ -2749,7 +2837,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
                 "Hand",
                 "Library",
             ):
-                out.extend(_typed_matters_lanes(effect_filter(node)))
+                out.extend(_type_recursion_lanes(effect_filter(node)))
         # The library-TOP/BOTTOM sibling of the same recursion shape
         # ("put target artifact card from a graveyard on the bottom/top of
         # its owner's library" — Keeper of the Cadence, Dukhara Scavenger)
@@ -2760,7 +2848,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         if c.concept == "put_library_position":
             filt = effect_filter(node)
             if "Graveyard" in filter_inzone_zones(filt):
-                out.extend(_typed_matters_lanes(filt))
+                out.extend(_type_recursion_lanes(filt))
         # A third recursion sibling: casting the card DIRECTLY from the
         # graveyard ("you may cast target artifact, instant, or sorcery
         # card … from your graveyard without paying its mana cost" —
@@ -2770,7 +2858,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         if c.concept == "cast_from_zone":
             filt = effect_filter(node)
             if "Graveyard" in filter_inzone_zones(filt):
-                out.extend(_typed_matters_lanes(filt))
+                out.extend(_type_recursion_lanes(filt))
     # SAC PAYOFF — your-fodder artifact/enchantment sac (Atog-style). Per-unit so the
     # edict guard applies: "each opponent sacrifices an artifact/enchantment" (Tribute
     # to the Wild, Mire in Misery, Vile Mutilator) is an EDICT phase mislabels with a
@@ -2921,23 +3009,33 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # artifacts" floor punisher — Glimmervoid's sac trigger — still wants
     # an artifacts deck, same as a "two or more" threshold gate).
     # ``iter_condition_sites`` reaches both a unit's own ``condition`` and
-    # its ``activation_restrictions`` entries. CR 603.2 (static abilities
-    # with a continuously-checked condition).
+    # its ``activation_restrictions`` entries; :func:`_condition_leaves`
+    # (ADR-0038 W4 giant) then descends any And/Or compound to its leaf
+    # checks — "if you control an artifact AND an enchantment" (When We
+    # Were Young, Okiba Salvage, Banishing Slash) types as ONE
+    # ``T_condition__And`` wrapping two ``QuantityCheck`` leaves, which the
+    # flat tag switch below can't read without the descent. CR 603.2
+    # (static abilities with a continuously-checked condition) / 608.2b
+    # (compound conditions read leaf-by-leaf).
     for unit in tree.units:
-        for cond in iter_condition_sites(unit.node):
-            tag = tag_of(cond)
-            if tag in ("IsPresent", "ControlsType"):
-                out.extend(_typed_matters_lanes(getattr(cond, "filter", None)))
-            elif tag in ("QuantityComparison", "QuantityCheck"):
-                lhs = getattr(cond, "lhs", None)
-                if tag_of(lhs) == "Ref":
-                    qty = getattr(lhs, "qty", None)
-                    # ObjectCount ("two or more artifacts") and
-                    # ZoneChangeCountThisTurn ("an artifact was put into a
-                    # graveyard from the battlefield this turn" — Ichor
-                    # Shade) share the SAME ``filter`` field shape.
-                    if tag_of(qty) in ("ObjectCount", "ZoneChangeCountThisTurn"):
-                        out.extend(_typed_matters_lanes(getattr(qty, "filter", None)))
+        for site in iter_condition_sites(unit.node):
+            for cond in _condition_leaves(site):
+                tag = tag_of(cond)
+                if tag in ("IsPresent", "ControlsType"):
+                    out.extend(_typed_matters_lanes(getattr(cond, "filter", None)))
+                elif tag in ("QuantityComparison", "QuantityCheck"):
+                    lhs = getattr(cond, "lhs", None)
+                    if tag_of(lhs) == "Ref":
+                        qty = getattr(lhs, "qty", None)
+                        # ObjectCount ("two or more artifacts") and
+                        # ZoneChangeCountThisTurn ("an artifact was put into
+                        # a graveyard from the battlefield this turn" —
+                        # Ichor Shade) share the SAME ``filter`` field
+                        # shape.
+                        if tag_of(qty) in ("ObjectCount", "ZoneChangeCountThisTurn"):
+                            out.extend(
+                                _typed_matters_lanes(getattr(qty, "filter", None))
+                            )
     # TYPE-ETB doer (ADR-0038 W4 giant): "whenever an artifact/creature/
     # enchantment enters, <payoff>" (Era of Innovation, Confusion in the
     # Ranks — a SYMMETRIC any-player watcher, not gated to you). Reads
@@ -2974,6 +3072,20 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # Run PER-CLAUSE over ``_kept(tree)`` to match the legacy clause loop.
     if any(_ARTIFACTS_MATTER_MIRROR.search(cl) for cl in _clauses(_kept(tree))):
         out.append("artifacts_matter")
+    # ADR-0038 W4 giant — a SANCTIONED byte-identical port of legacy's
+    # ``_ENCHANTMENTS_MATTER_MIRROR`` (the LIVE constant, imported not
+    # re-typed): the enchantment sibling of the artifacts mirror above. phase
+    # carries no clean structural shape for this oracle-idiom family either —
+    # enchantment tutors / graveyard recursion phrased as "enchantment card"
+    # (Auramancer), "enchantment card in your hand" miracle-grants (Aminatou),
+    # Role-token makers (Roles are Aura enchantments, CR 303.7), constellation
+    # ("whenever an enchantment enters"), and enchantress cast triggers — so
+    # the legacy per-clause reminder-stripped-oracle scan is the last-resort
+    # mechanism, same as the artifacts sibling. Corpus-verified in the legacy
+    # path (regex_only EMPTY after the mirror — 0 genuine recall lost). Run
+    # PER-CLAUSE over ``_kept(tree)`` to match the legacy clause loop.
+    if any(_ENCHANTMENTS_MATTER_MIRROR.search(cl) for cl in _clauses(_kept(tree))):
+        out.append("enchantments_matter")
     # AFFINITY-FOR-EQUIPMENT doer (ADR-0038 W4 giant): Equipment IS an
     # Artifact subtype (CR 301.5), so "Affinity for Equipment" (Nahiri,
     # Forged in Fury; Goldwardens' Gambit; Oxidda Finisher; Rebel Salvo) is
@@ -2990,6 +3102,21 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # CR 702.41a / 301.5.
     if "affinity for equipment" in _kept(tree).lower():
         out.append("artifacts_matter")
+    # AFFINITY-FOR-ENCHANTMENTS doer (ADR-0038 W4 giant): "Affinity for
+    # enchantments" (Brine Giant) is a bare KEYWORD LINE, not a
+    # ``you control`` phrase — the reminder text carrying "for each
+    # enchantment you control" is stripped by ``_kept`` (parenthetical), so
+    # ``_ENCHANTMENTS_MATTER_MIRROR``'s ``\benchantments? you control\b``
+    # branch never sees it, unlike the sibling ``_ARTIFACTS_MATTER_MIRROR``
+    # which bakes an explicit ``affinity for artifacts`` alternation in
+    # (ARTIFACTS_MATTER_REGEX) — ENCHANTMENTS_MATTER_REGEX carries no such
+    # branch. legacy fires this structurally (its own projector turns the
+    # bare ``Affinity`` keyword into a synthetic count-operand effect), but
+    # phase's raw keyword node isn't in the typed substrate's unit walk —
+    # same gap the AFFINITY-FOR-EQUIPMENT arm above papers over for
+    # artifacts. CR 702.41a / 303.
+    if "affinity for enchantments" in _kept(tree).lower():
+        out.append("enchantments_matter")
     seen: set[str] = set()
     sigs: list[Signal] = []
     for lane in out:
