@@ -10107,12 +10107,42 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
     (e) reveal-producer gate; (l) the planeswalker "you get an emblem
     with...search your library...put it onto the battlefield" idiom is
     read via the SAME ``iter_nested_trigger_defs`` descent every other
-    granted-ability lane uses. Post-fix: both=373, live_only=54 (many
-    further distinct shapes — planeswalker loot engines with a swallowed
+    granted-ability lane uses. Post-fix: both=373, live_only=54.
+
+    ADR-0038 W5b adds a sibling nested-descent pair
+    (:func:`_nested_grant_reveal_or_hand_put`, called alongside
+    :func:`_nested_emblem_tutor_put` at the bottom of this function): a
+    ``GrantTrigger``/``CreateEmblem`` granted trigger's OWN raw chain
+    carrying a ``RevealUntil{kept_destination: Battlefield}`` (Shifting
+    Shadow, Time Lord Regeneration) or a Hand-origin ``ChangeZone
+    {Battlefield}`` (Hunting Grounds, Summoner's Grimoire) — the SAME two
+    shapes the top-level arms already read, just nested inside a granted
+    ability's construct (CR 603.1 / 400.7). Narrowly gated to origin
+    ``'Hand'`` for the ChangeZone half: a 2026-07 corpus census of every
+    commander-legal nested-granted-trigger chain found a large
+    self-reanimation class (Feign Death, Undying Malice, Rekindling
+    Phoenix, Liliana, Waker of the Dead, …) riding the SAME outer shape,
+    but every one carries either an explicit ``origin: 'Graveyard'`` or an
+    untyped, subject-less filter (a back-reference to the just-died/
+    exiled creature, not a type search) — so gating the origin allow-list
+    to ``'Hand'`` alone (Library-origin nested ChangeZone is already the
+    SearchLibrary+ChangeZone tutor pair :func:`_nested_emblem_tutor_put`
+    reads) plus the existing never-guess type-evidence gate excludes the
+    whole reanimation class with zero extra carve-outs, verified corpus-
+    wide (0 false hits). Post-fix: both=377, live_only=50 — the remaining
+    50 are genuinely diverse: planeswalker loot engines with a swallowed
     "or" condition, several Unimplemented parse-failure residues needing
     clause-grammar growth this session explicitly avoided, position-
-    relative reveal/put idioms with no recoverable type evidence — beyond
-    this session's budget). Key stays in _STAGE4_RESIDUAL.
+    relative reveal/put idioms with no recoverable type evidence, a phase
+    ``kept_destination`` mis-parse (Chaos Mutation — upstream candidate,
+    not coded around), a genuine no-type-evidence SELF-put shed shape
+    ("put THIS card from your hand onto the battlefield", a self-reference
+    with no core/subtype filter at all rather than a type search — Talon
+    Gates of Madara, Gaea's Touch; both correctly never-guess, confirmed
+    ``cores=()`` at their ChangeZone node), and modal reveal-choice idioms
+    whose type check lives inside a swallowed Unimplemented clause
+    (Selective Adaptation, Guild Feud) — beyond this session's budget. Key
+    stays in _STAGE4_RESIDUAL.
     """
     for unit in tree.units:
         if unit.kind == "BeginGame":
@@ -10454,7 +10484,81 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if _nested_emblem_tutor_put(unit):
             return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
+    # ADR-0038 W5b — a NESTED ``GrantTrigger`` (a static ability granting a
+    # triggered ability, CR 603.1 — Shifting Shadow's Aura "At the
+    # beginning of your upkeep, destroy this creature. Reveal cards...put
+    # that card onto the battlefield...", Hunting Grounds's Threshold
+    # "Whenever an opponent casts a spell, you may put a creature card
+    # from your hand onto the battlefield.") carries the SAME reveal-until
+    # / hand-put shapes the top-level arms above already read, just on the
+    # UN-flattened granted-trigger chain (:func:`iter_nested_trigger_defs`,
+    # the same descent :func:`_nested_emblem_tutor_put` uses for the tutor
+    # shape). A 2026-07 corpus census of every commander-legal nested
+    # granted-trigger chain found the SAME reanimation contamination risk
+    # the top-level arm's Graveyard carve-out already guards (Feign Death /
+    # Undying Malice / Rekindling Phoenix / Liliana, Waker of the Dead
+    # class "return this creature to the battlefield" self-reanimation) —
+    # every one of those carries origin ``'Graveyard'`` OR an untyped,
+    # subject-less ``ChangeZone`` (no core/subtype filter at all, since the
+    # reanimated card is a back-reference to the JUST-exiled/died creature,
+    # not a type search), so the SAME never-guess type-evidence gate
+    # already excludes them with no extra carve-out needed — verified: 0
+    # false hits across the full census when gated to (Hand-origin ChangeZone
+    # WITH type evidence) / (Battlefield-kept RevealUntil WITH type
+    # evidence). CR 400.7.
+    for unit in tree.units:
+        if _nested_grant_reveal_or_hand_put(unit):
+            return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
     return []
+
+
+def _nested_grant_reveal_or_hand_put(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` grants a trigger (:func:`iter_nested_trigger_defs`)
+    whose OWN raw effect chain carries a ``RevealUntil{kept_destination:
+    Battlefield}`` (Shifting Shadow) or a ``ChangeZone{Battlefield,
+    origin: Hand}`` (Hunting Grounds, Summoner's Grimoire) — the nested
+    sibling of fix (d)'s top-level RevealUntil arm and the main arm's
+    Hand-origin ChangeZone read, applied to the granted trigger's own
+    chain. Library-origin nested ChangeZone stays out of scope here — that
+    shape is the SearchLibrary+ChangeZone tutor pair
+    :func:`_nested_emblem_tutor_put` already reads (Tezzeret, Artifice
+    Master; Garruk, Unleashed); a Graveyard-origin nested ChangeZone is
+    reanimation (checklist #2) and is never admitted by this narrower
+    origin allow-list. Same land carve-out / never-guess type-evidence
+    gate (core, else subtype) as every other arm.
+    """
+    for trig in iter_nested_trigger_defs(unit.node):
+        execute = getattr(trig, "execute", None)
+        node = execute
+        while node is not None:
+            eff = getattr(node, "effect", None)
+            if isinstance(eff, TypedMirrorNode):
+                t = tag_of(eff)
+                if t == "RevealUntil" and (
+                    getattr(eff, "kept_destination", None) == "Battlefield"
+                ):
+                    filt = effect_filter(eff)
+                    cores = set(filter_core_types(filt))
+                    if cores and not cores <= {"Land"}:
+                        return True
+                    if not cores:
+                        subs = {s.lower() for s in filter_subtypes(filt)}
+                        if subs and not subs & _LAND_SUBTYPES:
+                            return True
+                elif (
+                    t == "ChangeZone"
+                    and getattr(eff, "destination", None) == "Battlefield"
+                    and getattr(eff, "origin", None) == "Hand"
+                ):
+                    cores = set(_change_zone_all_cores(eff))
+                    if cores and not cores <= {"Land"}:
+                        return True
+                    if not cores:
+                        subs = {s.lower() for s in filter_subtypes(effect_filter(eff))}
+                        if subs and not subs & _LAND_SUBTYPES:
+                            return True
+            node = getattr(node, "sub_ability", None)
+    return False
 
 
 def _nested_emblem_tutor_put(unit: AbilityUnit) -> bool:

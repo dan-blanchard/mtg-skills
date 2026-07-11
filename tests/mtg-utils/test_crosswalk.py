@@ -6734,6 +6734,67 @@ def test_cheat_into_play_w5_conditional_gain_baseline(name):
     assert ("cheat_into_play", "you", "") in _idents(name)
 
 
+def test_cheat_into_play_nested_grant_trigger_reveal_until_arm():
+    """ADR-0038 W5b gain: Shifting Shadow's Aura grants (via ``GrantTrigger``,
+    CR 113.6) "At the beginning of your upkeep, destroy this creature.
+    Reveal cards from the top of your library until you reveal a creature
+    card. Put that card onto the battlefield and attach Shifting Shadow to
+    it..." — the SAME ``RevealUntil{kept_destination: Battlefield}`` shape
+    fix (d) already reads at the top level (CR 400.7), just nested inside
+    the granted trigger's own raw effect chain
+    (:func:`iter_nested_trigger_defs`) rather than a flat
+    ``unit.effects`` ConceptNode. A 2026-07 corpus census of every
+    commander-legal nested-granted-trigger chain found this is the ONLY
+    ``RevealUntil{Battlefield}`` hit besides Time Lord Regeneration
+    (below); both carry a Creature core."""
+    assert ("cheat_into_play", "you", "") in _idents("Shifting Shadow")
+
+
+def test_cheat_into_play_nested_grant_trigger_reveal_until_time_lord():
+    """ADR-0038 W5b gain: Time Lord Regeneration's "target Time Lord you
+    control gains 'When this creature dies, reveal cards from the top of
+    your library until you reveal a Time Lord creature card. Put that card
+    onto the battlefield...'" — the granted delayed dies-trigger carries a
+    nested ``RevealUntil{kept_destination: Battlefield}`` with a Time Lord
+    subtype-and-Creature-core filter, read by the same nested descent as
+    Shifting Shadow (CR 400.7)."""
+    assert ("cheat_into_play", "you", "") in _idents("Time Lord Regeneration")
+
+
+@pytest.mark.parametrize("name", ["Hunting Grounds", "Summoner's Grimoire"])
+def test_cheat_into_play_nested_grant_trigger_hand_put_arm(name):
+    """ADR-0038 W5b gain: a nested ``GrantTrigger``'s own ``ChangeZone
+    {Battlefield, origin: Hand}`` is the SAME hand-put shape the top-level
+    arm already admits (CR 400.7) — Hunting Grounds's Threshold grant
+    ("Whenever an opponent casts a spell, you may put a creature card
+    from your hand onto the battlefield") and Summoner's Grimoire's
+    Equipment grant ("Whenever this creature attacks, you may put a
+    creature card from your hand onto the battlefield..."), both read via
+    the SAME nested descent as the RevealUntil arm above. Narrowly gated
+    to origin ``'Hand'`` — a nested ``'Library'`` origin is already the
+    SearchLibrary+ChangeZone tutor pair :func:`_nested_emblem_tutor_put`
+    reads (Tezzeret, Artifice Master; Garruk, Unleashed), and a nested
+    ``'Graveyard'`` origin is reanimation (checklist #2), never admitted
+    here."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+def test_cheat_into_play_nested_grant_trigger_excludes_reanimation():
+    """ADR-0038 W5b shed guard: a 2026-07 census of every commander-legal
+    nested-``GrantTrigger``/``CreateEmblem`` chain carrying a
+    Battlefield-destined ``ChangeZone`` found a large "return this
+    creature to the battlefield" self-reanimation class (Feign Death,
+    Undying Malice, Rekindling Phoenix, Liliana, Waker of the Dead,
+    Archpriest of Shadows, Guardian Scalelord, and more) — every one
+    carries EITHER an explicit ``origin: 'Graveyard'`` (excluded by the
+    Hand-only origin allow-list) OR an untyped, subject-less
+    ``ChangeZone`` with no core/subtype filter at all (a back-reference to
+    the just-exiled/died creature, not a type search — excluded by the
+    never-guess type-evidence gate). Verified zero false hits: this arm
+    never fires for Feign Death."""
+    assert "cheat_into_play" not in _keys("Feign Death")
+
+
 # ── batch 10: trigger-event / effect-tag / grant / P/T / static-mode ─────────
 
 
