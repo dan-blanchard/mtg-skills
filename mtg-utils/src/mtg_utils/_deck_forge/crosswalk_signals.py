@@ -6544,6 +6544,37 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
       Elvish Rejuvenator's land put in extra_land_drop, and a no-filter dig
       (filter ``Any``) has no type evidence — never guess.
 
+    ADR-0038 W3 batch 5 widens four more shapes, all typed / zero-guess:
+
+    * **ChangeZoneAll** (fix c) — the SYMMETRIC "each player puts revealed
+      permanent cards onto the battlefield" idiom (Warp World, Over the Top)
+      rides ``ChangeZoneAll``, not ``ChangeZone`` — same effect family (both
+      share the ``destination`` / ``target`` shape), just multi-object;
+    * **the RevealUntil arm** (fix d) — a ``RevealUntil`` whose
+      ``kept_destination`` is Battlefield IS the reveal-until-a-match-then-put
+      engine (Polymorph, Jalira, Audacious Reshapers — CR 701.15); the same
+      core/subtype type-evidence gate as the ChangeZone arm (never guess);
+    * **the RevealedHasCardType-conditioned put** (fix e) — Call of the Wild
+      ("Reveal the top card. If it's a creature card, put it onto the
+      battlefield.") and the imprint-then-reveal cycle (Clone Shell,
+      Summoner's Egg — CR 400.7, extending the dies_recursion boundary
+      adjudication) structure the type check as a typed ``Condition``
+      (``RevealedHasCardType{card_types}``) on the SAME sub-ability as a
+      ``ChangeZone{Battlefield}`` targeting ``ParentTarget``/``SelfRef`` (the
+      revealed/turned-up card), not as a filter ON the ChangeZone itself —
+      :func:`iter_condition_sites` reaches the nested condition the flat
+      effect walk misses;
+    * **the named-tutor arm** (fix f) — a ``SearchLibrary`` naming a SPECIFIC
+      card (a ``Named`` filter property) carries NO type_filters at all (CR
+      201.4 — a name isn't a type), so the existing core/subtype fallbacks
+      both come up empty for the "Herald" cycle (Angel's Herald et al.),
+      Kassandra/Shaun & Rebecca's named-companion tutors, and self-tutors
+      (Llanowar Sentinel, Elvish Clancaller). Corpus census (2026-07, every
+      commander-legal named+coreless tutor paired with a ``ChangeZone
+      {Battlefield}``): zero target a land — every hit names a creature —
+      so a Named property alone is sufficient type evidence for THIS narrow
+      shape (still zero-guess for every other coreless case).
+
     A Graveyard origin is reanimation (a different lane, checklist #2). Scope
     "you".
     """
@@ -6551,12 +6582,48 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
         if unit.kind == "BeginGame":
             continue
         for c in unit.effect_concepts("change_zone"):
-            if tag_of(c.node) != "ChangeZone":
+            node_tag = tag_of(c.node)
+            if node_tag not in ("ChangeZone", "ChangeZoneAll"):
                 continue
             origin, dest = change_zone_dirs(c.node)
-            if dest != "Battlefield" or origin not in ("Hand", "Library"):
+            if dest != "Battlefield":
                 continue
-            cores = set(filter_core_types(effect_filter(c.node)))
+            # Fix (c): ChangeZoneAll (the SYMMETRIC "each player puts
+            # revealed permanent cards onto the battlefield" idiom — Warp
+            # World, Over the Top) is reveal-sourced with an UNTRACKED origin
+            # (None), not "Hand"/"Library" like a tracked search/discard — so
+            # it additionally accepts None, GATED on two mass-REANIMATION
+            # tells (checklist #2; CR 400.7 / 700.4) phase leaves origin=None
+            # for too: the target filter carrying an ``InZone: Graveyard``
+            # property (Faith's Reward / Second Sunrise read a
+            # Graveyard-standing pile DIRECTLY), and an EARLIER
+            # Graveyard-origin zone change in the SAME unit (Living Death /
+            # Scrap Mastery exile their graveyard FIRST, then put the
+            # just-exiled pile onto the battlefield — the exile is a rules
+            # workaround for the symmetric wording, not a genuine cheat
+            # build-around; both are the classic EDH "reanimator" cards).
+            if node_tag == "ChangeZoneAll" and origin is None:
+                if "Graveyard" in filter_inzone_zones(effect_filter(c.node)):
+                    continue
+                if any(
+                    change_zone_dirs(other.node)[0] == "Graveyard"
+                    for other in unit.effects
+                    if other.concept == "change_zone"
+                ):
+                    continue
+                allowed_origins: tuple[str | None, ...] = (None,)
+            else:
+                allowed_origins = ("Hand", "Library")
+            if origin not in allowed_origins:
+                # Fix (f): a named tutor with no type evidence still pairs
+                # with a target-less put (origin untracked — Kassandra's
+                # ANY-zone search) — the Kassandra / Shaun & Rebecca shape.
+                if _sibling_named_tutor_no_core(unit):
+                    return [
+                        Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")
+                    ]
+                continue
+            cores = set(_change_zone_all_cores(c.node))
             if not cores:
                 cores = _sibling_selector_cores(unit)
             if not cores:
@@ -6566,6 +6633,16 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                 if not subs:
                     subs = {s.lower() for s in _sibling_selector_subtypes(unit)}
                 if not subs or subs & _LAND_SUBTYPES:
+                    # Fix (f): a Library-origin named tutor with no type
+                    # evidence at all — the "Herald" cycle / Llanowar
+                    # Sentinel / self-tutor shape (origin IS tracked here,
+                    # unlike Kassandra's ANY-zone search above).
+                    if _sibling_named_tutor_no_core(unit):
+                        return [
+                            Signal(
+                                "cheat_into_play", "you", "", c.raw, tree.name, "high"
+                            )
+                        ]
                     continue  # no type evidence / a land put — never guess
             elif cores <= {"Land"}:
                 continue  # land carve-out (ramp, not a cheat)
@@ -6581,7 +6658,104 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
             if not cores or cores <= {"Land"}:
                 continue  # land put (extra_land_drop) / no evidence — no guess
             return [Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")]
+        # Fix (d): the RevealUntil→Battlefield arm.
+        for c in unit.effects:
+            if c.concept != "reveal_until":
+                continue
+            if getattr(c.node, "kept_destination", None) != "Battlefield":
+                continue
+            filt = getattr(c.node, "filter", None)
+            cores = set(filter_core_types(filt))
+            if not cores:
+                subs = {s.lower() for s in filter_subtypes(filt)}
+                if not subs or subs & _LAND_SUBTYPES:
+                    continue  # no type evidence / a land put — never guess
+            elif cores <= {"Land"}:
+                continue
+            return [Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")]
+        # Fix (e): the RevealedHasCardType-conditioned put — gated to a unit
+        # that actually REVEALS/imprints a card (reveal_top / reveal_until /
+        # dig / turn_face_up). ``RevealedHasCardType`` is reused by phase for
+        # an unrelated "is the TARGETED card an artifact creature" check too
+        # (Brilliance Unleashed's graveyard reanimation target) — a bare
+        # condition match with no reveal producer is that lane, not this one;
+        # a Graveyard-sourced return stays reanimation (checklist #2).
+        # ``TriggeringSource`` is accepted ONLY here, immediately following a
+        # ``turn_face_up`` in the SAME sub-ability chain (Clone Shell /
+        # Summoner's Egg's imprint cycle: "turn the exiled card face up... put
+        # it onto the battlefield" — the back-reference names the
+        # just-revealed card in this position, CR 701.36c; landmine #7i —
+        # corpus-verified card-by-card against the two named imprint cards,
+        # not a blanket TriggeringSource read).
+        if any(
+            c.concept in ("reveal_top", "reveal_until", "dig", "turn_face_up")
+            for c in unit.effects
+        ):
+            has_turn_face_up = any(c.concept == "turn_face_up" for c in unit.effects)
+            for c in unit.effects:
+                if c.concept != "change_zone":
+                    continue
+                if getattr(c.node, "destination", None) != "Battlefield":
+                    continue
+                tgt = getattr(c.node, "target", None)
+                tgt_tag = tag_of(tgt)
+                if tgt_tag not in ("ParentTarget", "SelfRef") and not (
+                    tgt_tag == "TriggeringSource" and has_turn_face_up
+                ):
+                    continue
+                for cond in iter_condition_sites(unit.node):
+                    if tag_of(cond) != "RevealedHasCardType":
+                        continue
+                    types = set(getattr(cond, "card_types", None) or [])
+                    if not types or types <= {"Land"}:
+                        continue  # no type evidence / a land put — never guess
+                    return [
+                        Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")
+                    ]
     return []
+
+
+def _change_zone_all_cores(node: TypedMirrorNode) -> tuple[str, ...]:
+    """The CORE types a ``ChangeZone`` / ``ChangeZoneAll`` effect names.
+
+    :func:`effect_filter` reads a plain ``Typed``/``Or``/``And`` filter off
+    ``node.target``, but a ``ChangeZoneAll``'s ``target`` is often a
+    ``TrackedSetFiltered`` wrapper (Warp World, Over the Top — "each player
+    puts all artifact, creature, and land cards revealed this way onto the
+    battlefield") carrying the REAL filter one level deeper, on its OWN
+    ``.filter`` attribute. Falls back to that nested filter when the direct
+    read comes up empty.
+    """
+    cores = filter_core_types(effect_filter(node))
+    if cores:
+        return cores
+    tgt = getattr(node, "target", None)
+    if tag_of(tgt) == "TrackedSetFiltered":
+        cores = filter_core_types(getattr(tgt, "filter", None))
+    return cores
+
+
+def _sibling_named_tutor_no_core(unit: AbilityUnit) -> bool:
+    """Fix (f): does this unit carry EXACTLY ONE ``SearchLibrary``, naming a
+    SPECIFIC card with NO type_filters at all (a ``Named`` filter property
+    and no core types) — the "Herald" cycle / Llanowar Sentinel / Kassandra
+    shape the existing sibling-core fallback can't read (a name isn't a
+    type). Gated to a SINGLE tutor: a unit with two-plus tutor calls (Verdant
+    Crescendo's land search + a SEPARATE named search that goes to hand, not
+    the battlefield) can't be reliably paired to whichever ``ChangeZone`` the
+    caller found — phase leaves no tracked link between a specific tutor and
+    its own put, and a second modal search's ``ChangeZone`` sometimes carries
+    a mis-tagged ``destination`` (Verdant Crescendo's hand-bound second search
+    parses ``destination: Battlefield`` — a phase-side gap, not fixable from
+    here); one tutor per unit is unambiguous."""
+    tutors = [c for c in unit.effects if c.concept == "tutor"]
+    if len(tutors) != 1:
+        return False
+    filt = effect_filter(tutors[0].node)
+    if filter_core_types(filt):
+        return False
+    props = getattr(filt, "properties", None) or []
+    return any(tag_of(p) == "Named" for p in props)
 
 
 def _sibling_selector_cores(unit: AbilityUnit) -> set[str]:

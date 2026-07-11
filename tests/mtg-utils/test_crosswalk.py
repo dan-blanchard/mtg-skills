@@ -4749,6 +4749,81 @@ def test_cheat_into_play_settle_stays_out():
     assert "cheat_into_play" not in _keys("Settle the Wreckage")
 
 
+@pytest.mark.parametrize("name", ["Polymorph", "Jalira, Master Polymorphist"])
+def test_cheat_into_play_reveal_until_arm(name):
+    """ADR-0038 W3 batch 5 fix (d): a ``RevealUntil`` whose
+    ``kept_destination`` is Battlefield IS the reveal-until-a-match-then-put
+    engine (CR 701.15) — Polymorph destroys a creature then reveals until a
+    creature card is found and puts it onto the battlefield; Jalira's
+    activated ability does the same with a nonlegendary-creature filter."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+def test_cheat_into_play_change_zone_all_arm():
+    """ADR-0038 W3 batch 5 fix (c): Warp World's symmetric "each player
+    puts all artifact, creature, and land cards revealed this way onto the
+    battlefield" rides ``ChangeZoneAll`` with an UNTRACKED (None) origin and
+    its real type filter one level deeper on a ``TrackedSetFiltered``
+    target — :func:`_change_zone_all_cores` digs the nested filter the
+    direct ``effect_filter`` read misses. CR 400.7."""
+    assert ("cheat_into_play", "you", "") in _idents("Warp World")
+
+
+@pytest.mark.parametrize("name", ["Call of the Wild", "Clone Shell"])
+def test_cheat_into_play_revealed_has_card_type_arm(name):
+    """ADR-0038 W3 batch 5 fix (e): the type check rides a typed
+    ``RevealedHasCardType`` CONDITION on the sub-ability, not a filter on the
+    ``ChangeZone`` itself — :func:`iter_condition_sites` reaches it.
+    Call of the Wild: "Reveal the top card. If it's a creature card, put it
+    onto the battlefield." (``ParentTarget``). Clone Shell: the imprint
+    cycle's "turn the exiled card face up... put it onto the battlefield"
+    (``TriggeringSource``, gated to a unit with a ``turn_face_up`` producer —
+    landmine #7i). CR 400.7 / 701.36c."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Angel's Herald", "Llanowar Sentinel"])
+def test_cheat_into_play_named_tutor_arm(name):
+    """ADR-0038 W3 batch 5 fix (f): a ``SearchLibrary`` naming a SPECIFIC
+    card carries NO type_filters at all (CR 201.4 — a name isn't a type), so
+    the sibling-core / sibling-subtype fallbacks both come up empty. Corpus
+    census (2026-07): every commander-legal single-tutor, named,
+    coreless unit paired with a ``ChangeZone{Battlefield}`` names a
+    creature, never a land — a Named property alone is sufficient type
+    evidence for this narrow (single-tutor) shape."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Living Death", "Faith's Reward", "Verdant Crescendo"],
+)
+def test_cheat_into_play_excludes_reanimation_and_ambiguous_tutor_pairing(name):
+    """ADR-0038 W3 batch 5 sheds — three distinct false-positive risks the
+    ChangeZoneAll/named-tutor widenings introduced, each closed by a
+    targeted structural gate rather than reverting the widening:
+
+    * Living Death — "Each player exiles all creature cards from their
+      graveyard... puts all cards they exiled this way onto the
+      battlefield." The classic EDH "reanimator" card: exile is a rules
+      workaround for the symmetric wording, not a cheat build-around. An
+      EARLIER Graveyard-origin zone change in the same unit excludes it
+      (checklist #2; CR 400.7 / 700.4).
+    * Faith's Reward — "Return to the battlefield all permanent cards in
+      your graveyard that were put there from the battlefield this turn."
+      Origin is left untracked (None) but the target filter carries an
+      ``InZone: Graveyard`` property directly — excluded on that.
+    * Verdant Crescendo — "Search your library for a basic land card and
+      put it onto the battlefield tapped. Search your library and graveyard
+      for a card named Nissa... reveal it, put it into your hand" — TWO
+      tutor calls in one unit; phase mis-tags the SECOND search's
+      ChangeZone destination as Battlefield even though the card text puts
+      it into hand. :func:`_sibling_named_tutor_no_core` requires EXACTLY
+      ONE tutor per unit — an ambiguous multi-tutor pairing never fires.
+    """
+    assert "cheat_into_play" not in _keys(name)
+
+
 # ── batch 10: trigger-event / effect-tag / grant / P/T / static-mode ─────────
 
 
