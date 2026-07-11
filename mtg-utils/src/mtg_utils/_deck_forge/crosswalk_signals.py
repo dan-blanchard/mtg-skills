@@ -94,6 +94,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_delayed_trigger_condition_defs,
     iter_mod_sites,
     iter_nested_spellcast_static_modes,
+    iter_nested_token_effects,
     iter_nested_trigger_defs,
     iter_single_target_grants,
     iter_static_defs,
@@ -224,6 +225,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _is_self_return_effect,
     _is_shuffle_back_effect,
     _iter_untap_targets,
+    _mirror_token_maker_type_subjects,
     _stax_structural_walk,
     attack_raid_condition,
     creature_death_condition,
@@ -1225,6 +1227,69 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "ramp",
         "sacrifice_outlets",
         "target_player_draws",
+        # ADR-0038 W5b (2026-07-11): token_maker NOT YET PROMOTED — live_only
+        # cut from 183 to (post-fix) a genuinely diverse residual via three
+        # additions: (1) :func:`iter_nested_token_effects` — a make_token
+        # buried inside a GrantStaticAbility/GrantTrigger definition
+        # (Presence of Gond's Aura grant, Veteran Soldier's "Commander
+        # creatures you own have '...'" grant), a CreateEmblem (Kiora, the
+        # Crashing Wave's -5), a Saga chapter (Urza's Saga), or a dice-roll/
+        # coin-flip modal branch (Swarming Goblins) — none of which the flat
+        # per-unit walk surfaces; (2) the ``IRREGULAR_SINGULAR["detective"]``
+        # fix (``_subtypes.py``) — the blanket ``endswith("ve")`` stemming
+        # rule mis-derived the already-singular "Detective" as "detectif"
+        # (the "Wolves" -> "Wolf" pattern misapplied), silently dropping
+        # every Detective-token subject; (3) the EMPTY-TYPES mirror fallback
+        # (:func:`_mirror_token_maker_type_subjects`, the SAME bucket-B
+        # source ``type_matters``'s token-profile reconciliation already
+        # uses) for a MODAL bullet or die-roll/investigate-adjacent token
+        # phase carries with no ``types`` at all (Brudiclad, Telchor
+        # Engineer). A ``create`` -> ``creates?`` ``_TOKEN_MAKER_PATTERN``
+        # widening (for Elephant Resurgence's THIRD-person "Each player
+        # creates ...") was TRIED and REVERTED: the pattern is the SAME one
+        # legacy's own kept-mirror scans on every clause with zero direction
+        # awareness, so widening it also widened legacy's OWN ground truth
+        # to opponent-directed "Its controller creates ..." clauses —
+        # corpus-wide live_only went UP (111 -> 136), not down.
+        # 76+ live_only cards are the CRITICAL BOUNDARY shed (CR 707):
+        # "create a token that's a copy of ..." is ``token_copy_makers``
+        # (a separate, PROMOTED concept — ``CopyTokenOf``/``Populate``/
+        # ``BecomeCopy``), never token_maker; corpus-verified neither arm
+        # here ever reads a ``Token`` tag off a token-COPY clause.
+        # Varchild's War-Riders (CR 111.2: "Have an opponent create ..." —
+        # the token's owner is whoever creates it, not you) is a second,
+        # single-card shed. A genuine tail remains: (a) 8 DFC/split cards
+        # whose token-maker text lives on a face ``old_ir_for``'s legacy
+        # sidecar resolves differently than ``trees_for``'s per-face union
+        # (Fable of the Mirror-Breaker, Never // Return, …) — an
+        # ``old_ir_for`` face-join quirk, not a crosswalk gap; (b) a
+        # deeply-NESTED Unimplemented residue under a ``FlipCoins``/
+        # ``RollDie`` branch's own ``win_effect``/``lose_effect`` field
+        # (Goblin Traprunner's "flip three coins. For each flip you win,
+        # create...") — the substrate-wide recovery stage
+        # (``apply_unimplemented_recovery``) only re-decorates ``unit.
+        # effects``, never a field this deep, so the residue is never even
+        # a ConceptNode; closing it needs a recovery-stage reach extension
+        # (broader blast radius, deferred); (c) a handful of named-token /
+        # self-reference ("~" — the token shares a subtype with the SOURCE
+        # permanent's own type, e.g. Knight of the New Coalition) shapes
+        # whose LAST-token-word selection disagrees with legacy's
+        # algorithm; (d) the THIRD-person empty-types class (Elephant
+        # Resurgence's "Each player creates ...", Gor Muldrak's "...
+        # creates a ...", Soul of Emancipation's "Its controller creates
+        # a ...") the mirror fallback deliberately does NOT resolve (see
+        # the ``creates?`` revert note above — the shared regex has no
+        # direction awareness, so widening it over-fires legacy itself,
+        # including the opponent-directed "Its controller creates" shape).
+        # A pre-existing, UNRELATED cw_only bug also surfaced (not fixed
+        # here, wrong blast radius for a single-key pass): ``_scope_from_
+        # player_node`` has no case for ``ParentTargetController`` (only the
+        # narrower ``ParentTarget``), so :func:`_effect_scope` mis-defaults
+        # a removal-with-compensation spell's "Its controller creates a ...
+        # token" (Pongify, Beast Within, Generous Gift, ~50 cards) to scope
+        # "you" — the token usually goes to whoever you TARGETED, not you.
+        # Landfall rule not met (live_only != the shed set) — stays
+        # residual. CR 111.2/205.3i/701.7/707 verified this session.
         "token_maker",
         # type_matters PROMOTED (ADR-0038 W5 tails) — see the crosswalk lane's
         # own docstring for the corpus history + the fully-adjudicated shed
@@ -1747,15 +1812,48 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
     Mirrors ``_signals_ir`` line ~8072: a ``make_token`` effect scoped you/each
     whose token is a creature → ``token_maker`` with the vocab-resolved subtype
     subject ("" when none resolves). The owner-scope gate drops opponent-gift
-    tokens (Hunted Dragon). Reads the token's ``types`` from the typed node, never
-    oracle text.
+    tokens (Hunted Dragon). Reads the token's ``types`` from the typed node —
+    EXCEPT the two raw-text fallbacks below, both already corpus-verified
+    single-source with ``type_matters``'s token-profile membership
+    reconciliation (ADR-0036/0037 T10-finalize2, :func:`structural_token_maker_
+    type_subjects` / :func:`_mirror_token_maker_type_subjects`):
+
+    * NESTED descent (:func:`iter_nested_token_effects`, ADR-0038 W5b): a
+      make_token effect buried inside a granted static/triggered ability
+      (Presence of Gond's Aura grant, "Commander creatures you own have
+      '...'" — Veteran Soldier), a ``CreateEmblem`` (Kiora, the Crashing
+      Wave's -5 Kraken emblem), a Saga chapter (Urza's Saga's chapter II),
+      or a dice-roll/coin-flip modal branch (Swarming Goblins, Bottle of
+      Suleiman) — none of which the flat per-unit walk surfaces as its own
+      unit-level effect. Corpus-verified no false hit off a token-COPY
+      clause (CR 707: ``CopyTokenOf``/``Populate``/``BecomeCopy`` never
+      nest a ``Token`` tag of their own, so the ``token_copy_makers``
+      boundary holds).
+    * EMPTY-TYPES mirror fallback: phase's ``Token`` effect carries NO
+      ``types`` at all for a MODAL bullet where only one bullet's node
+      survives the walk (Ghalta and Mavren's Dinosaur bullet) or a token
+      whose creation rides a die-roll/investigate-adjacent shape (Circuits
+      Act, Chalk Outline). An empty tuple is ambiguous on its own (it could
+      be a non-creature Treasure/Clue token instead), so it is resolved
+      ONLY via the literal-gated ``create ... creature token(s)`` per-clause
+      mirror (never a bare "creature token" REFERENCE elsewhere on the
+      card) — a card whose empty-typed maker isn't a genuine creature token
+      contributes no subject and fires nothing, matching the structural
+      arm's own "Creature not in types → skip" precision. CR 111.2/205.3i.
     """
     seen: set[str] = set()
     out: list[Signal] = []
-    for concept in tree.effect_concepts("make_token"):
+    concepts = list(tree.effect_concepts("make_token"))
+    for unit in tree.units:
+        concepts.extend(iter_nested_token_effects(unit.node))
+    need_mirror = False
+    for concept in concepts:
         if concept.scope not in _YOU_EACH:
             continue
         types = concept.subject
+        if not types:
+            need_mirror = True
+            continue
         if "Creature" not in types:
             continue
         subject = ""
@@ -1772,6 +1870,14 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
                 signal_keys.TOKEN_MAKER, "you", subject, concept.raw, tree.name, "high"
             )
         )
+    if need_mirror:
+        for subject in sorted(_mirror_token_maker_type_subjects(tree.oracle or "")):
+            if subject in seen:
+                continue
+            seen.add(subject)
+            out.append(
+                Signal(signal_keys.TOKEN_MAKER, "you", subject, "", tree.name, "high")
+            )
     return out
 
 

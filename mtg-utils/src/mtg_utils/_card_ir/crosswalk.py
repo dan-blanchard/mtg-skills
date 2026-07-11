@@ -2422,6 +2422,33 @@ def has_nested_fight(node: object) -> bool:
     return any(tag_of(n) == "Fight" for n in _iter_typed_nodes(node))
 
 
+def iter_nested_token_effects(node: object) -> Iterator[ConceptNode]:
+    """Every ``Token`` effect (CR 701.7 Create) reachable ANYWHERE under
+    ``node`` — a token-maker buried inside a granted static/triggered
+    ability (Presence of Gond's Aura grant, Squirrel Nest / Spawning
+    Grounds / Leafdrake Roost's land-animator grants, "Commander creatures
+    you own have '...'" — Veteran Soldier / Feywild Visitor), a
+    ``CreateEmblem`` (Kiora, the Crashing Wave's -5 Kraken emblem), a Saga
+    chapter (Urza's Saga's chapter II), or a dice-roll/coin-flip modal
+    branch (Swarming Goblins, Bottle of Suleiman) — none of which the flat
+    per-unit ``AbilityUnit`` walk ever surfaces as its own unit-level
+    effect. Decorated the same way a top-level effect is
+    (:func:`_decorate_effect`), so ``token_maker``'s existing scope/subject
+    reads apply unchanged (CR 111.2: no explicit recipient field on the
+    granted definition defaults to the activator, "you"). The
+    :func:`has_nested_fight` / :func:`iter_nested_trigger_defs` sibling —
+    corpus-verified no false hit off a token-COPY clause (``CopyTokenOf`` /
+    ``Populate`` / ``BecomeCopy`` never nest a ``Token`` tag of their own,
+    so the ``token_copy_makers`` boundary holds, CR 707).
+    """
+    for n in _iter_typed_nodes(node):
+        if tag_of(n) != "Token":
+            continue
+        decorated = _decorate_effect(n, role="effect")
+        if decorated is not None:
+            yield decorated
+
+
 # ── ADR-0037/0038 W1 batch-3 — the granted-trigger shared descent ────────────
 # ``connive_makers`` and ``opponent_cast_matters`` share one gap shape: the
 # card's real trigger lives NESTED inside a GRANTED-ability construct the

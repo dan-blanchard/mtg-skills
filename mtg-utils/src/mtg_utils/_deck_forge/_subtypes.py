@@ -132,6 +132,14 @@ IRREGULAR_SINGULAR: dict[str, str] = {
     "fungi": "fungus",
     "djinn": "djinn",
     "efreet": "efreet",
+    # ADR-0038 W5b (token_maker): "detective" is already singular, but the
+    # blanket ``endswith("ve")`` rule below mis-stems it as if it were a
+    # "-ives"-style plural ("Wolves" -> "Wolf"), corrupting it to
+    # "detectif" — silently dropping every Detective-token subject
+    # (Sophia, Dogged Detective; Museum Nightwatch; Chalk Outline; …).
+    # Pinning the identity mapping here (checked BEFORE the "ve" rule)
+    # short-circuits the mis-stem, matching the "djinn"/"efreet" precedent.
+    "detective": "detective",
     "sphinxes": "sphinx",
     "sphinx": "sphinx",
     "homunculi": "homunculus",

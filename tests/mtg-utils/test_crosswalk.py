@@ -301,6 +301,62 @@ def test_token_maker_subject_resolution():
     assert ("token_maker", "you", "Insect") in _idents("The Locust God")
 
 
+def test_token_maker_nested_descent():
+    """ADR-0038 W5b: :func:`iter_nested_token_effects` reaches a make_token
+    effect buried inside a granted static/triggered ability the flat per-unit
+    walk never surfaces as its own unit-level effect — a GrantStaticAbility
+    definition (Presence of Gond's Aura grant: "Enchanted creature has '{T}:
+    Create a 1/1 green Elf Warrior creature token.'"; Veteran Soldier's
+    "Commander creatures you own have '...for each opponent, create a 1/1
+    white Soldier creature token...'") and a CreateEmblem (Kiora, the Crashing
+    Wave's -5: "You get an emblem with '...create a 9/9 blue Kraken creature
+    token.'"). CR 111.2/205.3i."""
+    assert ("token_maker", "you", "Warrior") in _idents("Presence of Gond")
+    assert ("token_maker", "you", "Soldier") in _idents("Veteran Soldier")
+    assert ("token_maker", "you", "Kraken") in _idents("Kiora, the Crashing Wave")
+
+
+def test_token_maker_detective_singularize_fix():
+    """ADR-0038 W5b: ``detective`` is already singular, but the blanket
+    ``endswith("ve")`` stemming rule in ``_singularize`` mis-derived it as
+    "detectif" (matching the "Wolves" -> "Wolf" plural pattern), silently
+    dropping the subject for every Detective-token maker (Museum Nightwatch:
+    "When this creature dies, create a 2/2 white and blue Detective creature
+    token."). Fixed via an ``IRREGULAR_SINGULAR`` identity-mapping exception
+    (the "djinn"/"efreet" precedent)."""
+    assert ("token_maker", "you", "Detective") in _idents("Museum Nightwatch")
+
+
+def test_token_maker_empty_types_mirror_fallback():
+    """ADR-0038 W5b: phase's ``Token`` effect carries NO ``types`` at all for
+    Brudiclad, Telchor Engineer's own triggered maker ("create a 2/1 blue
+    Phyrexian Myr artifact creature token") — resolved via the SAME bucket-B
+    ``_mirror_token_maker_type_subjects`` mirror ``type_matters``'s
+    token-profile membership reconciliation already uses (ADR-0036/0037
+    T10-finalize2), literal-gated on "create ... creature token(s)" so a
+    non-creature (Treasure/Clue) empty-typed token never wrongly fires. A
+    THIRD-person "creates?" widening (Elephant Resurgence's "Each player
+    creates ...") was tried and REVERTED — ``_TOKEN_MAKER_PATTERN`` is the
+    SAME pattern legacy's own kept-mirror scans on every clause, so
+    widening it widened legacy's OWN ground truth to opponent-directed
+    "Its controller creates ..." clauses too (a corpus-wide re-measurement
+    showed live_only INCREASE, not shrink) — third-person empty-types gaps
+    stay part of the documented residual tail."""
+    assert ("token_maker", "you", "Myr") in _idents("Brudiclad, Telchor Engineer")
+
+
+def test_token_maker_excludes_token_copy_boundary():
+    """CRITICAL BOUNDARY (CR 707): "create a token that's a copy of ..."
+    (Rite of Replication) is ``token_copy_makers`` (a separate, already-
+    PROMOTED concept — ``CopyTokenOf``/``Populate``/``BecomeCopy``), never
+    ``token_maker`` — neither the structural nor the nested-descent arm
+    (:func:`iter_nested_token_effects`) reads a ``Token`` tag off a
+    token-COPY clause because phase never nests one there (corpus-verified).
+    """
+    assert "token_maker" not in _keys("Rite of Replication")
+    assert ("token_copy_makers", "you", "") in _idents("Rite of Replication")
+
+
 @pytest.mark.parametrize(
     ("name", "should_fire"),
     [

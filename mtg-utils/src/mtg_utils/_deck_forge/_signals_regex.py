@@ -932,6 +932,19 @@ _TWO_TRIBE_TUTOR_RE = re.compile(
 # token_maker: capture the LAST creature subtype before "creature token(s)",
 # preferring a real subtype over the card-type word "artifact"
 # ("Thopter artifact creature token" → Thopter).
+#
+# ADR-0038 W5b: a "creates?" widening (matching third-person "Each player
+# CREATES a ... token") was TRIED and REVERTED — this pattern is the SAME
+# one legacy's own kept-mirror re-run (``_signals_ir``'s byte-identical
+# ``_detect_token_maker`` recall) scans on every oracle clause with ZERO
+# direction awareness, so widening it also widened LEGACY's own ground
+# truth to every third-person "creates" clause regardless of WHO creates
+# the token — a directed "Its controller creates ..." (Soul of
+# Emancipation) is exactly as reachable as a symmetric "Each player
+# creates ..." (Elephant Resurgence), and the corpus-wide re-measurement
+# showed live_only INCREASE (111 -> 136), not shrink. Left "create "
+# (first/second-person only) — Elephant Resurgence-shaped third-person
+# empty-types gaps stay part of the documented residual tail.
 _TOKEN_MAKER_PATTERN = re.compile(r"create [^.]*?\bcreature tokens?\b", re.IGNORECASE)
 _TOKEN_SUBJECT_WORDS = re.compile(r"\b([A-Z][a-z]+)\b")
 
