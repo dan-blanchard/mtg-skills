@@ -5790,6 +5790,18 @@ def test_base_pt_set_excludes_off_battlefield_gate():
     assert "base_pt_set" not in _keys("Grist, the Hunger Tide")
 
 
+def test_base_pt_set_animate_effect_shape():
+    """ADR-0038 W3 batch 6: Belligerent Yearling's "you may have ~'s base
+    power become equal to that creature's power" trigger carries its base
+    ``power`` as a DIRECT field on a top-level ``Animate`` effect — never
+    decomposed into a SetPower modification at all, a distinct node shape
+    from the sites-loop's SetPower/SetToughness pair. A power-ONLY set
+    equal to ANOTHER object's power (not a full Eldrazi-Mimic-style
+    power+toughness identity copy) still qualifies — CR 613.4b's
+    "and/or"."""
+    assert ("base_pt_set", "any", "") in _idents("Belligerent Yearling")
+
+
 def test_variable_pt_cda_gate():
     """CR 604.3 / 613.4a: Tarmogoyf's ``characteristic_defining`` static with
     ``SetDynamicPower`` fires scope "any"; a fixed-number set (Polymorphist's

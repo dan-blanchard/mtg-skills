@@ -808,7 +808,11 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # that creature's power" idioms mixed with genuine scalar members,
     # Saga/Class/sticker-sheet level-up shapes) needing more investigation
     # than this batch's time budget allowed; see the ADR-0038 W3 batch 4
-    # session notes for the card list and per-card triage.
+    # session notes for the card list and per-card triage. ADR-0038 W3
+    # batch 6 closed 1 of the 21 (Belligerent Yearling, the ``Animate``
+    # top-level-effect shape — see :func:`_base_pt_set`'s docstring); the
+    # other 20 need the modal/CreateEmblem/BecomeCopy/sticker/Unimplemented-
+    # residue investment batch 4 already flagged. Still residual.
     #
     # ADR-0038 W3 batch 4: ``scaling_pump`` PROMOTED — the single-target
     # ``Pump`` tag is now admitted alongside ``PumpAll`` in
@@ -9627,7 +9631,33 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
     fix). Additive pumps (Giant Growth — layer 7c) are distinct tags. The
     dynamic set-equal-to-a-SCALAR form is also read by :func:`_variable_pt`
     for the CDA (``characteristic_defining``) shape (Tarmogoyf); this lane
-    only reads the non-CDA continuous-effect shape. Scope "any" (live).
+    only reads the non-CDA continuous-effect shape.
+
+    ADR-0038 W3 batch 6: a fourth site shape — the ``Animate`` top-level
+    EFFECT (Belligerent Yearling's "you may have ~'s base power become
+    equal to that creature's power" trigger) carries its base ``power``/
+    ``toughness`` as DIRECT fields, never decomposed into a SetPower/
+    SetToughness modification pair at all, so the sites-loop above never
+    sees it. :func:`_animate_refs_other_object_stats` mirrors
+    ``refs_other_object_stats`` but requires BOTH stats to Ref another
+    object before excluding (a power-ONLY set-equal-to-another-object's-
+    power, like Belligerent Yearling, is corpus-verified a genuine legacy
+    member — CR 613.4b's "and/or"). Corpus-verified 0 new cw_only. Still
+    residual — the corpus re-measure surfaced further shapes this batch's
+    time budget didn't reach (modal ``mode_abilities`` — Storvald, Sita
+    Varma; nested ``CreateEmblem.statics``/``.triggers`` — Capitoline
+    Triad, Tezzeret the Schemer; a quoted granted ability inside
+    ``BecomeCopy`` — Gigantoplasm, Mindlink Mech; an ``Unimplemented``
+    residue whose OWN text names the hook — Tanazir Quandrix, Unruly
+    Krasis, Circle of the Moon Druid, Candlekeep Inspiration; the sticker-
+    sheet TK-placeholder shape — Cool Fluffy Loxodon, Ambassador
+    Blorpityblorpboop; an ``AddPower``/``AddToughness`` PAIR phase chose
+    over a literal Set for a type-changing override — Goddric, Cloaked
+    Reveler; a CDA-like mana-value scalar under a non-``static``
+    ``TargetOnly`` — Captain Rex Nebula; REPLACEMENT-origin type-overrides
+    — Displaced Dinosaurs, Shadow Puppeteers, Sauron Dino Devotee, Ultron)
+    — see the ADR-0038 W3 batch 6 session notes for the per-card triage.
+    Scope "any" (live).
     """
 
     def mod_tags(st: object) -> set[str]:
@@ -9759,7 +9789,58 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
         if tgt is None or tag_of(tgt) == "SelfRef":
             continue  # self-switch — a P/T trick on itself
         return [Signal("base_pt_set", "any", "", c.raw, tree.name, "high")]
+    # ADR-0038 W3 batch 6: the ``Animate`` top-level EFFECT (a "becomes a
+    # Type with base power and toughness N/N" idiom phase does NOT
+    # decompose into a SetPower/SetToughness modification pair — the base
+    # stats are direct ``power``/``toughness`` fields on the Animate node
+    # itself). Distinct node shape, same CR 613.4b membership rule.
+    for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) != "Animate":
+                continue
+            anim = c.node
+            power = getattr(anim, "power", None)
+            toughness = getattr(anim, "toughness", None)
+            if power is None and toughness is None:
+                continue  # a type-only animate (no base-stat set at all)
+            if _animate_refs_other_object_stats(anim):
+                continue
+            tgt = getattr(anim, "target", None)
+            ttag = tag_of(tgt)
+            if ttag not in (None, "None", "SelfRef", "Typed", "Or", "And"):
+                continue
+            text = getattr(unit.node, "description", "") or ""
+            if _BASE_PT_RAW_HOOK.search(text) or _BASE_PT_ANIMATE_HOOK.search(text):
+                return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
     return []
+
+
+def _animate_refs_other_object_stats(anim: object) -> bool:
+    """Whether an ``Animate`` effect's ``power`` AND ``toughness`` are BOTH
+    set via a value that Refs an external object's OWN Power/Toughness (an
+    Eldrazi Mimic/Shape Stealer-style full-identity copy — excluded, same
+    as :func:`_base_pt_set`'s modification-form ``refs_other_object_stats``
+    check). A SINGLE-stat set that Refs another object (Belligerent
+    Yearling's "this creature's base power become equal to THAT
+    creature's power" — power only, toughness untouched) is NOT excluded;
+    CR 613.4b's "and/or" covers a power-only or toughness-only set.
+    """
+    power = getattr(anim, "power", None)
+    toughness = getattr(anim, "toughness", None)
+    if power is None or toughness is None:
+        return False
+
+    def _refs(val_wrap: object) -> bool:
+        val = getattr(val_wrap, "value", None)
+        for node in iter_typed_nodes(val):
+            if tag_of(node) == "Ref" and tag_of(getattr(node, "qty", None)) in (
+                "Power",
+                "Toughness",
+            ):
+                return True
+        return False
+
+    return _refs(power) and _refs(toughness)
 
 
 def _variable_pt(tree: ConceptTree) -> list[Signal]:
