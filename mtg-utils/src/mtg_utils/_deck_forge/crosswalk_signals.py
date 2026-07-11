@@ -10788,8 +10788,37 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                 # cores/subs type-evidence gate (unchanged) still declines
                 # to guess on the no-evidence ones (Retraced Image,
                 # Eladamri's ambiguous hand-or-library reveal).
+                #
+                # ADR-0038 W6 endgame — the SAME untracked-origin trust
+                # extends to a ``dig``/``reveal_top``/``exile_top`` sibling
+                # (Call to the Kindred's tribal ``Dig``, Lord of the Void's
+                # ``ExileTop``, Lonis's opponent-library ``RevealTop``,
+                # Anzrag's Rampage's artifact-count ``ExileTop``): these
+                # producers ALSO populate a library/exile-top TrackedSet the
+                # ChangeZone's own ``target=TrackedSetFiltered`` names by
+                # its OWN core type (read by :func:`_change_zone_all_cores`
+                # below — never borrowed from the sibling), so admitting
+                # ``None`` here only ever lets the DOWNSTREAM cores read
+                # proceed; it never manufactures type evidence on its own.
+                # Corpus-verified narrow (2026-07 census of every
+                # commander-legal ``dig``/``reveal_top``/``exile_top`` +
+                # ChangeZone{Battlefield, origin: None} pair, 63 hits):
+                # Zimone's Experiment's land-only ``TrackedSetFiltered``
+                # still excludes via the unchanged ``cores <= {"Land"}``
+                # gate below; Sword of Hearth and Home / Cold Storage /
+                # Parallax Wave class self-blinks never reach this branch
+                # at all (a bare back-reference target carries no filter,
+                # so cores/subs both stay empty and the never-guess gate
+                # holds).
+                _untracked_producers = (
+                    "tutor",
+                    "reveal_hand",
+                    "dig",
+                    "reveal_top",
+                    "exile_top",
+                )
                 if origin is None and any(
-                    c.concept in ("tutor", "reveal_hand") for c in unit.effects
+                    c.concept in _untracked_producers for c in unit.effects
                 ):
                     allowed_origins = ("Hand", "Library", None)
             if origin not in allowed_origins:
@@ -10872,11 +10901,22 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
             elif cores <= {"Land"}:
                 continue  # land put (extra_land_drop) / no evidence — no guess
             return [Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")]
-        # Fix (d): the RevealUntil→Battlefield arm.
+        # Fix (d): the RevealUntil→Battlefield arm. ADR-0038 W6 endgame
+        # widens the destination read to ALSO accept ``kept_optional_to ==
+        # "Battlefield"`` — phase's typed field for the "you may put that
+        # card onto the battlefield [otherwise it stays with the rest]"
+        # OPTIONAL idiom (Hei Bai's Shrine dig, Songbirds' Blessing's Aura
+        # dig, Genesis Storm's nonland-permanent dig): the default
+        # ``kept_destination`` there is "Hand"/"Library" (where the card
+        # goes if you DON'T exercise the option), while the real put site is
+        # the separate ``kept_optional_to`` field fix (d) never read. Same
+        # never-guess core/subtype type-evidence gate either way.
         for c in unit.effects:
             if c.concept != "reveal_until":
                 continue
-            if getattr(c.node, "kept_destination", None) != "Battlefield":
+            kept_to = getattr(c.node, "kept_destination", None)
+            kept_optional_to = getattr(c.node, "kept_optional_to", None)
+            if kept_to != "Battlefield" and kept_optional_to != "Battlefield":
                 continue
             filt = getattr(c.node, "filter", None)
             cores = set(filter_core_types(filt))
@@ -10985,6 +11025,7 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                     return [
                         Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")
                     ]
+                found_condition_evidence = False
                 for cond in iter_condition_sites(unit.node):
                     cond_tag = tag_of(cond)
                     if cond_tag == "RevealedHasCardType":
@@ -10993,11 +11034,45 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                         types = set(filter_core_types(getattr(cond, "filter", None)))
                     else:
                         continue
+                    found_condition_evidence = True
                     if not types or types <= {"Land"}:
                         continue  # no type evidence / a land put — never guess
                     return [
                         Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")
                     ]
+                # ADR-0038 W6 endgame — when the chain carries NO type-
+                # checking condition at all (Whiskervale Forerunner's
+                # "if it's your turn" is a TIMING gate, not a type gate;
+                # Break Out's "if that card has mana value 2 or less" is
+                # swallowed with no residue), the SAME reveal-producer's OWN
+                # filter (:func:`_reveal_producer_cores` /
+                # :func:`_reveal_producer_subtypes` — the ``dig``/
+                # ``reveal_top``/``exile_top`` counterpart of
+                # :func:`_sibling_selector_cores`) is still real type
+                # evidence. Only tried when the condition walk found NOTHING
+                # type-shaped (never overrides an explicit land-only
+                # condition that already declined to guess).
+                if not found_condition_evidence:
+                    cores = _reveal_producer_cores(unit)
+                    if cores and not cores <= {"Land"}:
+                        return [
+                            Signal(
+                                "cheat_into_play", "you", "", c.raw, tree.name, "high"
+                            )
+                        ]
+                    if not cores:
+                        subs = {s.lower() for s in _reveal_producer_subtypes(unit)}
+                        if subs and not subs & _LAND_SUBTYPES:
+                            return [
+                                Signal(
+                                    "cheat_into_play",
+                                    "you",
+                                    "",
+                                    c.raw,
+                                    tree.name,
+                                    "high",
+                                )
+                            ]
     # ADR-0038 W5 tails — the planeswalker "you get an emblem with 'At the
     # beginning of your end step, search your library for a [type] card,
     # put it onto the battlefield, then shuffle'" idiom (Tezzeret, Artifice
@@ -11159,27 +11234,49 @@ def _change_zone_all_cores(node: TypedMirrorNode) -> tuple[str, ...]:
     return cores
 
 
+def _filter_all_named(filt: object) -> bool:
+    """Whether every leaf of ``filt`` (recursing ``Or``/``And``) is a
+    ``Typed`` filter carrying a ``Named`` property and no core types.
+
+    ADR-0038 W6 endgame generalization of fix (f)'s single-filter check to
+    an Or-of-named-alternatives (Agency Outfitter's "search... for a card
+    named Magnifying Glass and/or a card named Thinking Cap" —
+    ``Or[Typed(Named='magnifying glass'), Typed(Named='thinking cap')]``,
+    neither branch carrying a core type of its own). Requires EVERY branch
+    to be Named (never trusts a mixed Or with a bare/core-typed branch
+    alongside a Named one — that branch carries its own real type evidence
+    or none at all, which the ordinary core/subtype gate already reads).
+    """
+    t = tag_of(filt)
+    if t == "Typed":
+        if filter_core_types(filt):
+            return False
+        props = getattr(filt, "properties", None) or []
+        return any(tag_of(p) == "Named" for p in props)
+    if t in ("Or", "And"):
+        subs = getattr(filt, "filters", None) or []
+        return bool(subs) and all(_filter_all_named(sub) for sub in subs)
+    return False
+
+
 def _sibling_named_tutor_no_core(unit: AbilityUnit) -> bool:
     """Fix (f): does this unit carry EXACTLY ONE ``SearchLibrary``, naming a
-    SPECIFIC card with NO type_filters at all (a ``Named`` filter property
-    and no core types) — the "Herald" cycle / Llanowar Sentinel / Kassandra
-    shape the existing sibling-core fallback can't read (a name isn't a
-    type). Gated to a SINGLE tutor: a unit with two-plus tutor calls (Verdant
-    Crescendo's land search + a SEPARATE named search that goes to hand, not
-    the battlefield) can't be reliably paired to whichever ``ChangeZone`` the
-    caller found — phase leaves no tracked link between a specific tutor and
-    its own put, and a second modal search's ``ChangeZone`` sometimes carries
-    a mis-tagged ``destination`` (Verdant Crescendo's hand-bound second search
-    parses ``destination: Battlefield`` — a phase-side gap, not fixable from
-    here); one tutor per unit is unambiguous."""
+    SPECIFIC card (or an Or of specific cards) with NO type_filters at all
+    (:func:`_filter_all_named`) — the "Herald" cycle / Llanowar Sentinel /
+    Kassandra / Agency Outfitter shape the existing sibling-core fallback
+    can't read (a name isn't a type). Gated to a SINGLE tutor: a unit with
+    two-plus tutor calls (Verdant Crescendo's land search + a SEPARATE named
+    search that goes to hand, not the battlefield) can't be reliably paired
+    to whichever ``ChangeZone`` the caller found — phase leaves no tracked
+    link between a specific tutor and its own put, and a second modal
+    search's ``ChangeZone`` sometimes carries a mis-tagged ``destination``
+    (Verdant Crescendo's hand-bound second search parses ``destination:
+    Battlefield`` — a phase-side gap, not fixable from here); one tutor per
+    unit is unambiguous."""
     tutors = [c for c in unit.effects if c.concept == "tutor"]
     if len(tutors) != 1:
         return False
-    filt = effect_filter(tutors[0].node)
-    if filter_core_types(filt):
-        return False
-    props = getattr(filt, "properties", None) or []
-    return any(tag_of(p) == "Named" for p in props)
+    return _filter_all_named(effect_filter(tutors[0].node))
 
 
 def _sibling_exile_producer_cores(unit: AbilityUnit) -> set[str]:
@@ -11248,6 +11345,35 @@ def _sibling_selector_subtypes(unit: AbilityUnit) -> set[str]:
     subs: set[str] = set()
     for c in unit.effects:
         if c.concept in ("tutor", "dig"):
+            subs |= set(filter_subtypes(effect_filter(c.node)))
+    return subs
+
+
+# ADR-0038 W6 endgame — the ``dig``/``reveal_top``/``exile_top`` counterpart
+# of :func:`_sibling_selector_cores` / :func:`_sibling_selector_subtypes`,
+# used ONLY by the fix-(e) reveal-producer walk (Whiskervale Forerunner's
+# own-turn-gated ``Dig``, Break Out's swallowed mv-condition ``Dig``): when
+# no ``RevealedHasCardType``/``TargetMatchesFilter`` condition survives on
+# the chain, the SAME reveal producer that gates entry into that walk
+# already carries real type evidence on its own filter — reading it here
+# (rather than widening the shared tutor/dig-only helper, which the MAIN
+# ChangeZone arm also calls) keeps the blast radius to fix (e) alone.
+def _reveal_producer_cores(unit: AbilityUnit) -> set[str]:
+    """The CORE types a sibling ``dig``/``reveal_top``/``exile_top``
+    producer names on its own filter."""
+    cores: set[str] = set()
+    for c in unit.effects:
+        if c.concept in ("dig", "reveal_top", "exile_top"):
+            cores |= set(filter_core_types(effect_filter(c.node)))
+    return cores
+
+
+def _reveal_producer_subtypes(unit: AbilityUnit) -> set[str]:
+    """The SUBTYPE words a sibling ``dig``/``reveal_top``/``exile_top``
+    producer names on its own filter."""
+    subs: set[str] = set()
+    for c in unit.effects:
+        if c.concept in ("dig", "reveal_top", "exile_top"):
             subs |= set(filter_subtypes(effect_filter(c.node)))
     return subs
 

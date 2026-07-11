@@ -7212,6 +7212,178 @@ def test_cheat_into_play_nested_grant_trigger_excludes_reanimation():
     assert "cheat_into_play" not in _keys("Feign Death")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Call to the Kindred",
+        "Lord of the Void",
+        "Lonis, Cryptozoologist",
+        "Anzrag's Rampage",
+    ],
+)
+def test_cheat_into_play_untracked_origin_extends_to_dig_reveal_exile_top(name):
+    """ADR-0038 W6 endgame gain: the SAME untracked-origin (``origin: None``)
+    trust the tutor/reveal_hand widening already gives (W5 tails) extends to
+    a ``dig``/``reveal_top``/``exile_top`` sibling — each of these ALSO
+    populates a library/exile-top ``TrackedSet`` the ChangeZone's own
+    ``target=TrackedSetFiltered`` names by its OWN core type
+    (:func:`_change_zone_all_cores`), never a type borrowed from the
+    sibling:
+
+    * Call to the Kindred — a tribal ``Dig`` sibling; the put's own
+      ``TrackedSetFiltered`` filter carries ``SharesQuality{CreatureType}``
+      + a Creature core.
+    * Lord of the Void — an ``ExileTop`` sibling; the put's own
+      ``TrackedSetFiltered`` carries a bare Creature core.
+    * Lonis, Cryptozoologist — a ``RevealTop`` sibling (an OPPONENT's
+      library, control is orthogonal per CR 400.7); the put's own
+      ``TrackedSetFiltered`` carries ``Cmc<=X`` + a nonland-Permanent core.
+    * Anzrag's Rampage — an ``ExileTop`` sibling; the put's own
+      ``TrackedSetFiltered`` carries ``And[Creature, ExiledBySource]``.
+
+    Corpus-verified narrow (2026-07 census of every commander-legal
+    ``dig``/``reveal_top``/``exile_top`` + ChangeZone{Battlefield, origin:
+    None} pair, 63 hits): the land-only / self-blink shapes this widening
+    could otherwise catch stay excluded downstream (see the shed guard
+    below). CR 400.7."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+def test_cheat_into_play_untracked_origin_widening_excludes_land_only():
+    """ADR-0038 W6 endgame shed guard: the dig/reveal_top/exile_top origin
+    widening above does NOT resurrect a land-only put as a cheat. Zimone's
+    Experiment's "Put all land cards revealed this way onto the
+    battlefield tapped and put all creature cards revealed this way into
+    your hand" carries a ``Dig`` sibling (now admitted by the widening)
+    feeding a ``ChangeZoneAll{Battlefield, origin: None, target:
+    TrackedSetFiltered{filter: Typed(['Land'])}}`` — the SAME
+    ``cores <= {"Land"}`` gate every other arm uses still excludes it
+    (extra_land_drop's territory, not a cheat; the SEPARATE Hand-destined
+    ChangeZoneAll for the creature half is not a battlefield put at all).
+    """
+    assert "cheat_into_play" not in _keys("Zimone's Experiment")
+
+
+@pytest.mark.parametrize("name", ["Whiskervale Forerunner", "Break Out"])
+def test_cheat_into_play_reveal_producer_own_filter_fallback(name):
+    """ADR-0038 W6 endgame gain: when the fix-(e) reveal-producer chain
+    carries NO ``RevealedHasCardType``/``TargetMatchesFilter`` condition at
+    all — Whiskervale Forerunner's own gate is ``IsYourTurn()`` (a TIMING
+    condition, not a type check); Break Out's "if that card has mana value
+    2 or less" is swallowed with no residue — the SAME sibling ``Dig``
+    that gates entry into the walk already carries real type evidence on
+    its OWN filter (Creature core, cmc-limited but that doesn't change the
+    core read), read via :func:`_reveal_producer_cores` /
+    :func:`_reveal_producer_subtypes` (the dig/reveal_top/exile_top
+    counterpart of :func:`_sibling_selector_cores`). Only tried when the
+    condition walk found nothing type-shaped, so an explicit land-only
+    condition elsewhere is never overridden. CR 400.7."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name", ["Hei Bai, Forest Guardian", "Songbirds' Blessing", "Genesis Storm"]
+)
+def test_cheat_into_play_kept_optional_to_battlefield_arm(name):
+    """ADR-0038 W6 endgame gain: fix (d)'s RevealUntil destination read
+    widens to ALSO accept phase's typed ``kept_optional_to == "Battlefield"``
+    field (alongside the existing ``kept_destination == "Battlefield"``
+    check) — the "you may put that card onto the battlefield [otherwise it
+    stays with the rest]" OPTIONAL-put idiom, where ``kept_destination``
+    itself carries the DEFAULT (non-optional) resting place:
+
+    * Hei Bai, Forest Guardian — ``kept_destination: 'Library'``,
+      ``kept_optional_to: 'Battlefield'``, a Shrine-subtype filter.
+    * Songbirds' Blessing — ``kept_destination: 'Hand'``,
+      ``kept_optional_to: 'Battlefield'``, an Aura-subtype filter.
+    * Genesis Storm — ``kept_destination: 'Library'``,
+      ``kept_optional_to: 'Battlefield'``, a nonland-Permanent core filter.
+
+    Same never-guess core/subtype type-evidence gate either way (a
+    land-only ``kept_optional_to`` filter still never fires). CR 400.7."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+def test_cheat_into_play_named_tutor_or_widening():
+    """ADR-0038 W6 endgame gain: fix (f)'s named-tutor-with-no-core check
+    (:func:`_sibling_named_tutor_no_core`) generalizes to an ``Or`` of
+    named alternatives via :func:`_filter_all_named` — Agency Outfitter's
+    "search your graveyard, hand and/or library for a card named
+    Magnifying Glass and/or a card named Thinking Cap and put them onto
+    the battlefield" carries ``Or[Typed(Named='magnifying glass'),
+    Typed(Named='thinking cap')]``, neither branch carrying a core type of
+    its own — the SAME "a name isn't a type" reasoning as the single-Named
+    case (CR 201.4), just requiring EVERY Or branch to be Named (a mixed
+    Or with a bare/core-typed branch is never trusted here)."""
+    assert ("cheat_into_play", "you", "") in _idents("Agency Outfitter")
+
+
+def test_cheat_into_play_untracked_origin_widening_bonus_gain():
+    """ADR-0038 W6 endgame bonus gain (surfaced by the exile_top origin
+    widening, NOT in the original 50 live_only sample — legacy misses it
+    too): Xenagos, the Reveler's "[-6]: Exile the top seven cards of your
+    library. You may put any number of creature and/or land cards from
+    among them onto the battlefield" carries ``ChangeZone{Battlefield,
+    origin: None, target: TrackedSetFiltered{filter: Or[Typed(Creature),
+    Typed(Land)]}}`` — an ``exile_top`` sibling (now admitted by the
+    origin widening) feeding a put whose OWN target filter names BOTH
+    Creature and Land directly (unlike Archdruid's Charm's phase-collapsed
+    modal, there is no swallowed "otherwise" branch here — the card
+    genuinely, unconditionally allows creature cards too), so
+    ``cores = {"Creature", "Land"}`` is not ``<= {"Land"}`` and the arm
+    fires — the SAME multi-type Bribery-class reasoning Eternal Dominion's
+    "artifact, creature, enchantment, or land" carve-out already
+    established. CR 400.7."""
+    assert ("cheat_into_play", "you", "") in _idents("Xenagos, the Reveler")
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Talon Gates of Madara", "Boreas Charger", "Campus Renovation"],
+)
+def test_cheat_into_play_w6_endgame_shed_classes(name):
+    """ADR-0038 W6 endgame sheds: three distinct legacy over-fires, none
+    touching the widenings above (each correctly excludes on its own
+    established gate):
+
+    * Talon Gates of Madara — "{4}: Put this card from your hand onto the
+      battlefield" is a LAND (Land — Gate) putting ITSELF via a bare
+      ``SelfRef`` target — no core/subtype filter at all (a self-reference,
+      not a type search — the genuine no-type-evidence self-put shape;
+      Urban Retreat and Zareth San's "Put this card from your hand onto
+      the battlefield" activated ability share the identical ``SelfRef``
+      shape, unpinned here for brevity).
+    * Boreas Charger — "Search your library for a number of Plains cards...
+      put one of them onto the battlefield tapped" is a LAND search+put
+      (extra_land_drop's territory, CR 205.3i); phase additionally drops
+      the Plains subtype to an untyped filter, but the verdict (land, not a
+      cheat) holds either way.
+    * Campus Renovation — "Return...an artifact or enchantment card from
+      your graveyard to the battlefield" is reanimation (``origin:
+      'Graveyard'``, checklist #2, CR 400.7), NOT this lane; the card's
+      separate "Exile the top two cards...you may play those cards" is an
+      impulse-draw CAST permission (``GrantCastingPermission``), not a
+      "without casting" put either (CR 601 — playing the card still uses
+      normal casting/playing rules).
+    """
+    assert "cheat_into_play" not in _keys(name)
+
+
+def test_cheat_into_play_warp_granting_is_not_a_cheat():
+    """ADR-0038 W6 endgame shed: Tannuk, Steadfast Second's "Artifact cards
+    and red creature cards in your hand have warp {2}{R}" is a legacy
+    over-fire on a THEMATIC membership hunch (the deleted live-path
+    detector's own comment: "a commander handing out warp is a cheat deck
+    wanting fat creatures + cheat enablers"), not a mechanical match.
+    CR 702.185a: Warp is an alternative CAST cost ("You may cast this card
+    from your hand by paying [cost] rather than its mana cost") — the card
+    still goes on the stack and is CAST, the opposite of CR 110.2/400.7's
+    "put onto the battlefield WITHOUT casting it." No ``ChangeZone``/
+    ``RevealUntil``/tutor node exists anywhere in Tannuk's tree; the
+    warp grant is a pure static ``AddKeyword`` modification."""
+    assert "cheat_into_play" not in _keys("Tannuk, Steadfast Second")
+
+
 # ── batch 10: trigger-event / effect-tag / grant / P/T / static-mode ─────────
 
 
