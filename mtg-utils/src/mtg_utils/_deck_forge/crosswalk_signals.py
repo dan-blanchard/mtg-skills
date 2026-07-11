@@ -9802,6 +9802,29 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
     regressed those five in an earlier attempt this session) leaves every
     other gain untouched — still zero-guess: a Counters-gated pile that DOES
     explicitly return under "you" stays included.
+
+    ADR-0038 W5 tails (77 live_only at session start) adds SIX more typed,
+    zero-guess arms (each detailed inline at its own site below): (g) a
+    same-unit ``tutor``/``reveal_hand`` sibling is search-and-put evidence
+    even when the put's own origin is untracked (None), gated to reject a
+    sibling tutor's Land-mixed-with-nonland filter unless the put carries
+    an explicit ``enters_under: You``; (h) the Dig arm gains the SAME
+    subtype-only fallback fix (a) already gives the ChangeZone arm; (i) a
+    ``ChangeZoneAll{Battlefield, origin: Exile}`` with a bare, untyped
+    ``TrackedSet`` target reads its type evidence off the SAME unit's
+    earlier LIBRARY-sourced exile producer, narrowly excluding a self-blink
+    shape (Sword of Hearth and Home) that shares the outer node shape; (j)
+    ``ExileFromTopUntil`` (mutate's exile-until-match idiom, CR 702.140a)
+    reads its ``NextMatches`` condition; (k) ``exile_top`` joins the fix
+    (e) reveal-producer gate; (l) the planeswalker "you get an emblem
+    with...search your library...put it onto the battlefield" idiom is
+    read via the SAME ``iter_nested_trigger_defs`` descent every other
+    granted-ability lane uses. Post-fix: both=373, live_only=54 (many
+    further distinct shapes — planeswalker loot engines with a swallowed
+    "or" condition, several Unimplemented parse-failure residues needing
+    clause-grammar growth this session explicitly avoided, position-
+    relative reveal/put idioms with no recoverable type evidence — beyond
+    this session's budget). Key stays in _STAGE4_RESIDUAL.
     """
     for unit in tree.units:
         if unit.kind == "BeginGame":
@@ -9866,8 +9889,62 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                 if has_counters_gate and enters_under != "You":
                     continue
                 allowed_origins: tuple[str | None, ...] = (None,)
+            elif (
+                node_tag == "ChangeZoneAll"
+                and origin == "Exile"
+                and tag_of(getattr(c.node, "target", None)) == "TrackedSet"
+            ):
+                # ADR-0038 W5 tails — a ChangeZoneAll{Battlefield, origin:
+                # Exile} whose target is a BARE TrackedSet (no filter of its
+                # own) is the "reveal/dig/search a pile, exile it, then put
+                # the whole pile onto the battlefield" idiom (Indomitable
+                # Creativity, Dubious Challenge, Thunderous Debut — CR
+                # 400.7), reading its type evidence off the SAME unit's
+                # earlier exile-populating producer (see
+                # :func:`_sibling_exile_producer_cores`). Narrowly gated to
+                # the bare ``TrackedSet`` tag: a filtered/marker target
+                # (``TrackedSetFiltered``, ``ExiledBySource``, an ``And``
+                # combining them) is the DIFFERENT persistent-pile /
+                # self-blink shape (Livio's Counters-gated removal-and-
+                # release, Cold Storage's self-protect blink, Parallax
+                # Wave's delayed-trigger flicker) this widening never
+                # touches — those either fall through to the existing
+                # Counters gate above or stay excluded (no code path
+                # reaches them via this ``elif``, since it requires the
+                # EXACT ``TrackedSet`` tag).
+                allowed_origins = ("Exile",)
             else:
                 allowed_origins = ("Hand", "Library")
+                # ADR-0038 W5 tails — a plain ChangeZone{Battlefield} whose
+                # origin is untracked (None) is STILL the search-and-put
+                # idiom when the SAME unit carries a sibling ``tutor``
+                # (SearchLibrary — Finale of Devastation, Boonweaver Giant,
+                # Runed Crown, Vision Quest: "search your library[, hand,
+                # graveyard] for X and put it onto the battlefield") or
+                # ``reveal_hand`` (Zara, Treacherous Urge, Wild Evocation:
+                # "look at/reveal [a] hand... put a card from it onto the
+                # battlefield") producer — phase leaves the put's origin
+                # untracked for these idioms far more often than "Hand"/
+                # "Library" (only Bribery-shaped single-zone searches carry
+                # a tracked origin). Multi-zone tutors (source_zones
+                # touching Graveyard ALONGSIDE Hand/Library) stay included
+                # here too — CR 400.7 makes no distinction by source zone;
+                # a PURE graveyard-only return is a different shape
+                # (ChangeZone{origin: Graveyard} directly, the reanimation
+                # lane, checklist #2) that this widening never touches
+                # (origin is still gated to None, never 'Graveyard').
+                # Corpus census (2026-07, every commander-legal same-unit
+                # tutor/reveal_hand + ChangeZone{Battlefield, origin: None}
+                # pair): 46 tutor hits, 5 reveal_hand hits, zero pure-
+                # graveyard-only tutors among them (every Graveyard-touching
+                # one also searches Hand and/or Library) — the downstream
+                # cores/subs type-evidence gate (unchanged) still declines
+                # to guess on the no-evidence ones (Retraced Image,
+                # Eladamri's ambiguous hand-or-library reveal).
+                if origin is None and any(
+                    c.concept in ("tutor", "reveal_hand") for c in unit.effects
+                ):
+                    allowed_origins = ("Hand", "Library", None)
             if origin not in allowed_origins:
                 # Fix (f): a named tutor with no type evidence still pairs
                 # with a target-less put (origin untracked — Kassandra's
@@ -9878,8 +9955,32 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                     ]
                 continue
             cores = set(_change_zone_all_cores(c.node))
+            if not cores and node_tag == "ChangeZoneAll" and origin == "Exile":
+                cores = _sibling_exile_producer_cores(unit)
             if not cores:
                 cores = _sibling_selector_cores(unit)
+                # ADR-0038 W5 tails — a sibling tutor's filter MIXING Land
+                # with a non-Land core (Archdruid's Charm: "search for a
+                # creature OR LAND card... put it onto the battlefield
+                # TAPPED if it's a land card. Otherwise, put it into your
+                # hand.") is a MODAL type-conditional the substrate
+                # collapsed onto ONE unconditional ChangeZone — phase drops
+                # the "otherwise hand" branch entirely, so the mixed set
+                # can't be trusted as "this exact set enters the
+                # battlefield" (never guess). Require the stronger
+                # ``enters_under: You`` marker (an EXPLICIT "under your
+                # control" grant) to trust a mixed set — Eternal Dominion's
+                # genuine unconditional multi-type Bribery-class cheat
+                # ("Search target opponent's library for an artifact,
+                # creature, enchantment, or land card. Put that card onto
+                # the battlefield under your control.") carries it; the
+                # modal-collapse shape never does.
+                if (
+                    "Land" in cores
+                    and len(cores) > 1
+                    and getattr(c.node, "enters_under", None) != "You"
+                ):
+                    cores = set()
             if not cores:
                 # Fix (a): subtype-only type evidence (cores empty on both the
                 # effect's own filter and the sibling selector).
@@ -9904,12 +10005,24 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                 continue  # another player's compensation fetch, not yours
             return [Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")]
         # Fix (b): the non-land Dig→Battlefield arm (mirrors _extra_land_drop's
-        # dig arm with the complementary type gate).
+        # dig arm with the complementary type gate). ADR-0038 W5 tails adds
+        # the SAME subtype-only fallback fix (a) already gives the ChangeZone
+        # arm: a Dig filter naming ONLY a subtype (Armored Skyhunter's Aura-
+        # or-Equipment cheat, Gilgamesh's Equipment-only, Nine-Fingers
+        # Keene's Gate, Nick Fury's Hero/Equipment/Vehicle) carries no CORE
+        # type at all (CR 205.3 — a subtype isn't a core type), so the
+        # core-only read came up empty and never guessed; the subtype read
+        # is still zero-guess (a land-subtype filter is still excluded).
         for c in unit.effect_concepts("dig"):
             if getattr(c.node, "destination", None) != "Battlefield":
                 continue
-            cores = set(filter_core_types(getattr(c.node, "filter", None)))
-            if not cores or cores <= {"Land"}:
+            filt = getattr(c.node, "filter", None)
+            cores = set(filter_core_types(filt))
+            if not cores:
+                subs = {s.lower() for s in filter_subtypes(filt)}
+                if not subs or subs & _LAND_SUBTYPES:
+                    continue  # no type evidence / a land put — never guess
+            elif cores <= {"Land"}:
                 continue  # land put (extra_land_drop) / no evidence — no guess
             return [Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")]
         # Fix (d): the RevealUntil→Battlefield arm.
@@ -9971,10 +10084,14 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
         # ``unit.effects`` preserves the linear sub_ability chain order
         # (verified 2026-07), so requiring the turn_face_up's index precede
         # the change_zone's index is a precise, zero-guess chain-order read.
-        if any(
-            c.concept in ("reveal_top", "reveal_until", "dig", "turn_face_up")
-            for c in unit.effects
-        ):
+        _reveal_producers = (
+            "reveal_top",
+            "reveal_until",
+            "dig",
+            "turn_face_up",
+            "exile_top",
+        )
+        if any(c.concept in _reveal_producers for c in unit.effects):
             effects_list = list(unit.effects)
             turn_face_up_idx = next(
                 (i for i, c in enumerate(effects_list) if c.concept == "turn_face_up"),
@@ -9994,6 +10111,33 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                     tgt_tag == "TriggeringSource" and turn_face_up_precedes
                 ):
                     continue
+                # ADR-0038 W5 tails — ``ExileFromTopUntil`` (phase's mutate
+                # "exile cards from the top of your library until you
+                # exile a [type] card" idiom — Illuna, Apex of Wishes'
+                # "Whenever this creature mutates, exile cards from the top
+                # of your library until you exile a nonland permanent
+                # card. Put that card onto the battlefield or into your
+                # hand" — CR 702.140a) carries its OWN type evidence on a
+                # ``NextMatches`` condition wrapping its ``until`` field,
+                # not as a separate unit-level Condition site the
+                # ``RevealedHasCardType`` / ``TargetMatchesFilter`` walk
+                # below finds (crosswalk.py already maps the phase tag to
+                # the ``reveal_until`` concept, so it already satisfies the
+                # producer gate above — only the type-evidence SITE
+                # differs).
+                until_types: set[str] = set()
+                for sib in unit.effects:
+                    if tag_of(sib.node) != "ExileFromTopUntil":
+                        continue
+                    until = getattr(sib.node, "until", None)
+                    if tag_of(until) == "NextMatches":
+                        until_types |= set(
+                            filter_core_types(getattr(until, "filter", None))
+                        )
+                if until_types and not until_types <= {"Land"}:
+                    return [
+                        Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")
+                    ]
                 for cond in iter_condition_sites(unit.node):
                     cond_tag = tag_of(cond)
                     if cond_tag == "RevealedHasCardType":
@@ -10007,7 +10151,71 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                     return [
                         Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")
                     ]
+    # ADR-0038 W5 tails — the planeswalker "you get an emblem with 'At the
+    # beginning of your end step, search your library for a [type] card,
+    # put it onto the battlefield, then shuffle'" idiom (Tezzeret, Artifice
+    # Master; Garruk, Unleashed; Kaito Shizuki — CR 400.7 / 121.4a): the
+    # SAME search-and-put pair the main ChangeZone arm above already reads,
+    # just nested inside the emblem's OWN granted trigger definition
+    # (``CreateEmblem.triggers[].execute`` / a linear ``S_execute`` →
+    # ``S_sub_ability`` chain of raw phase effect nodes, not a flat
+    # ``unit.effects`` ConceptNode list) — reached via the SAME
+    # ``iter_nested_trigger_defs`` shared descent every other
+    # granted-ability lane uses (module note above :func:`iter_nested_
+    # trigger_defs`).
+    for unit in tree.units:
+        if _nested_emblem_tutor_put(unit):
+            return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
     return []
+
+
+def _nested_emblem_tutor_put(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` grants an emblem/trigger whose OWN raw effect chain
+    is a SearchLibrary immediately (before any further Battlefield-destined
+    ChangeZone) followed by a ChangeZone{Battlefield} — the nested sibling
+    of the main arm's tutor + ``ChangeZone{Battlefield, origin: None}``
+    widening, applied to the UN-flattened ``S_execute``/``S_sub_ability``
+    chain a granted trigger definition carries (see :func:`iter_nested_
+    trigger_defs`). Same land carve-out / never-guess type-evidence gate as
+    the main arm, read off the SearchLibrary's own filter (core, else
+    subtype) since these raw nodes never route through :func:`effect_
+    concepts`.
+    """
+    for trig in iter_nested_trigger_defs(unit.node):
+        execute = getattr(trig, "execute", None)
+        chain: list[TypedMirrorNode] = []
+        node = execute
+        while node is not None:
+            eff = getattr(node, "effect", None)
+            if isinstance(eff, TypedMirrorNode):
+                chain.append(eff)
+            node = getattr(node, "sub_ability", None)
+        tutor_cores: set[str] = set()
+        tutor_subs: set[str] = set()
+        found_tutor = False
+        for eff in chain:
+            t = tag_of(eff)
+            if t == "SearchLibrary":
+                found_tutor = True
+                filt = effect_filter(eff)
+                tutor_cores |= set(filter_core_types(filt))
+                tutor_subs |= set(filter_subtypes(filt))
+            elif (
+                found_tutor
+                and t == "ChangeZone"
+                and getattr(eff, "destination", None) == "Battlefield"
+            ):
+                cores = set(_change_zone_all_cores(eff)) or tutor_cores
+                if cores:
+                    if not cores <= {"Land"}:
+                        return True
+                    continue
+                subs = {s.lower() for s in filter_subtypes(effect_filter(eff))}
+                if not subs:
+                    subs = tutor_subs
+                if subs and not subs & _LAND_SUBTYPES:
+                    return True
+    return False
 
 
 def _change_zone_all_cores(node: TypedMirrorNode) -> tuple[str, ...]:
@@ -10051,6 +10259,55 @@ def _sibling_named_tutor_no_core(unit: AbilityUnit) -> bool:
         return False
     props = getattr(filt, "properties", None) or []
     return any(tag_of(p) == "Named" for p in props)
+
+
+def _sibling_exile_producer_cores(unit: AbilityUnit) -> set[str]:
+    """ADR-0038 W5 tails — type evidence for a ``ChangeZoneAll{Battlefield,
+    origin: Exile}`` whose own target is a bare, untyped ``TrackedSet``: the
+    SAME unit's earlier LIBRARY-sourced exile step that populated the pile
+    (Indomitable Creativity's ``RevealUntil{kept_destination: Exile}``,
+    Thunderous Debut's ``Dig`` whose own filter carries the type, Dubious
+    Challenge's ``ChangeZone{destination: Exile}`` chained after a ``Dig``).
+
+    A bare ``'Card'`` core type — every card in the game, so zero real
+    restriction — is EXCLUDED (Auspicious Starrix's mutate "exile... X
+    PERMANENT cards" projects as an untyped ``Card`` filter, an upstream
+    parse degradation; never guess on it).
+
+    The ``ChangeZone{destination: Exile}`` arm is gated to a LIBRARY-sourced
+    exile: either its own ``origin`` is ``'Library'`` (a direct search-and-
+    exile, Auspicious Starrix's shape) or the unit ALSO carries a ``dig`` /
+    ``reveal_until`` sibling (Dubious Challenge's "look at the top ten
+    cards... exile up to two creature cards from among them" — the exile's
+    own origin is untracked, but the preceding ``Dig`` proves it's a
+    library-top pile). Un-gated, this arm would also catch Sword of Hearth
+    and Home's "exile equipped creature [already on the battlefield], then
+    return it... under its owner's control" self-blink (origin=None, no
+    dig/reveal_until sibling, the exiled object is an EXISTING permanent,
+    not a fresh library pile) — corpus-verified narrow (2026-07 census of
+    every commander-legal ``ChangeZoneAll{Battlefield, origin: Exile,
+    target: TrackedSet}``): only Indomitable Creativity / Dubious Challenge
+    / Thunderous Debut / Auspicious Starrix match this whole arm, and
+    Starrix's cores still come up empty via the 'Card' exclusion.
+    """
+    has_reveal_producer = any(
+        c.concept in ("reveal_until", "dig") for c in unit.effects
+    )
+    cores: set[str] = set()
+    for c in unit.effects:
+        if c.concept == "dig" or (
+            c.concept == "reveal_until"
+            and getattr(c.node, "kept_destination", None) == "Exile"
+        ):
+            cores |= set(filter_core_types(effect_filter(c.node)))
+        elif (
+            c.concept == "change_zone"
+            and tag_of(c.node) == "ChangeZone"
+            and getattr(c.node, "destination", None) == "Exile"
+            and (getattr(c.node, "origin", None) == "Library" or has_reveal_producer)
+        ):
+            cores |= set(_change_zone_all_cores(c.node))
+    return cores - {"Card"}
 
 
 def _sibling_selector_cores(unit: AbilityUnit) -> set[str]:

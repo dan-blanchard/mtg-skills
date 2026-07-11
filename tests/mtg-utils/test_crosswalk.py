@@ -6339,6 +6339,168 @@ def test_cheat_into_play_excludes_dies_recursion_chain_order():
     assert "cheat_into_play" not in _keys("Yarus, Roar of the Old Gods")
 
 
+@pytest.mark.parametrize("name", ["Finale of Devastation", "Boonweaver Giant"])
+def test_cheat_into_play_tutor_untracked_origin_arm(name):
+    """ADR-0038 W5 tails gain: a same-unit ``tutor`` (SearchLibrary) sibling
+    is STILL search-and-put type evidence when the put's own ``ChangeZone``
+    origin is untracked (None) rather than "Library" — phase leaves origin
+    untracked for this idiom far more often than tracked (CR 400.7). Finale
+    of Devastation's single-zone ``Library``/``Graveyard`` tutor names
+    Creature directly; Boonweaver Giant's THREE-zone
+    (Graveyard/Hand/Library) Aura tutor stays included too — CR 400.7 makes
+    no distinction by source zone, and a 2026-07 corpus census found no
+    Graveyard-touching tutor among the 46 same-unit hits searches Graveyard
+    ALONE (every one also searches Hand and/or Library), so this widening
+    never collides with the pure-graveyard reanimation lane."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Zara, Renegade Recruiter", "Treacherous Urge"])
+def test_cheat_into_play_reveal_hand_untracked_origin_arm(name):
+    """ADR-0038 W5 tails gain: the SAME untracked-origin widening also
+    covers a same-unit ``reveal_hand`` sibling — Zara's "look at defending
+    player's hand... put a creature card from it onto the battlefield under
+    your control" and Treacherous Urge's "target opponent reveals their
+    hand. You may put a creature card from it onto the battlefield under
+    your control" (CR 400.7 — the hand is simply another zone the cheat
+    reads from, same as the library). A 2026-07 census found only 5
+    same-unit tutor/reveal_hand + ``ChangeZone{Battlefield, origin: None}``
+    hits total off reveal_hand, all genuine (the 2 lacking type evidence —
+    Retraced Image's name-match, Eladamri's ambiguous hand-or-library
+    reveal — correctly stay excluded, never guessed)."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Armored Skyhunter", "Gilgamesh, Master-at-Arms"])
+def test_cheat_into_play_dig_subtype_only_arm(name):
+    """ADR-0038 W5 tails gain: the fix (a) subtype-only type-evidence
+    fallback (already given to the ChangeZone arm) now ALSO covers the Dig
+    arm — Armored Skyhunter's "look at the top six cards... put an Aura or
+    Equipment card from among them onto the battlefield" and Gilgamesh's
+    Equipment-only dig carry no CORE type at all (CR 205.3 — a subtype
+    isn't a core type), so the core-only read came up empty and never
+    guessed until this fallback."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+def test_cheat_into_play_dig_subtype_land_subtype_stays_out():
+    """ADR-0038 W5 tails shed guard: Nine-Fingers Keene's "you may put a
+    Gate card from among them onto the battlefield" is EXCLUDED by the new
+    Dig subtype fallback, not a gap in it — ``Gate`` is itself a LAND
+    subtype (CR 205.3i — Gate is a land type), so this is genuine land ramp
+    (extra_land_drop), not a cheat build-around; the existing
+    ``_LAND_SUBTYPES`` gate correctly declines to fire."""
+    assert "cheat_into_play" not in _keys("Nine-Fingers Keene")
+
+
+@pytest.mark.parametrize("name", ["Indomitable Creativity", "Dubious Challenge"])
+def test_cheat_into_play_exile_origin_tracked_set_arm(name):
+    """ADR-0038 W5 tails gain: a ``ChangeZoneAll{Battlefield, origin: Exile}``
+    whose own target is a BARE, untyped ``TrackedSet`` reads its type
+    evidence off the SAME unit's earlier LIBRARY-sourced exile-populating
+    producer (CR 400.7) — Indomitable Creativity's
+    ``RevealUntil{kept_destination: Exile}`` filter directly, Dubious
+    Challenge's ``ChangeZone{destination: Exile}`` chained after a ``Dig``
+    (the Dig sibling proves the exile step is library-top, not a blink of
+    an existing permanent)."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+def test_cheat_into_play_exile_origin_arm_excludes_self_blink():
+    """ADR-0038 W5 tails shed guard: Sword of Hearth and Home's "exile
+    equipped creature, then return it to the battlefield under its owner's
+    control" ALSO carries a ``ChangeZoneAll{Battlefield, origin: Exile,
+    target: TrackedSet}`` shape, but its exile step targets an EXISTING
+    battlefield permanent (a self-blink, origin untracked, no dig/
+    reveal_until sibling proving a library-top pile) — CR 610.3c defaults
+    the return to the OWNER's control, and this is retriggering the
+    creature's own ETB value, not a cheat build-around. The producer gate
+    (origin: Library OR a same-unit dig/reveal_until sibling) correctly
+    excludes it."""
+    assert "cheat_into_play" not in _keys("Sword of Hearth and Home")
+
+
+def test_cheat_into_play_mixed_land_tutor_requires_enters_under():
+    """ADR-0038 W5 tails shed guard: Archdruid's Charm's "Search your
+    library for a creature or land card... Put it onto the battlefield
+    tapped if it's a land card. Otherwise, put it into your hand" collapses
+    onto ONE unconditional ``ChangeZone`` — phase drops the "otherwise
+    hand" branch entirely, so the mixed Or(Creature, Land) tutor filter
+    can't be trusted as "this exact set enters the battlefield" (never
+    guess). Eternal Dominion's genuine unconditional multi-type
+    Bribery-class cheat ("Search target opponent's library for an
+    artifact, creature, enchantment, or land card. Put that card onto the
+    battlefield under your control.") carries the stronger ``enters_under:
+    You`` marker and stays included — the gate requires it only when the
+    sibling tutor's core set MIXES Land with a non-Land type."""
+    assert "cheat_into_play" not in _keys("Archdruid's Charm")
+    assert ("cheat_into_play", "you", "") in _idents("Eternal Dominion")
+
+
+def test_cheat_into_play_mutate_exile_from_top_until_arm():
+    """ADR-0038 W5 tails gain: Illuna, Apex of Wishes's "Whenever this
+    creature mutates, exile cards from the top of your library until you
+    exile a nonland permanent card. Put that card onto the battlefield or
+    into your hand" (CR 702.140a — mutate) rides phase's
+    ``ExileFromTopUntil`` node (already mapped to the ``reveal_until``
+    concept), whose type evidence lives on a ``NextMatches`` condition
+    wrapping its ``until`` field — a different SITE than ``RevealUntil``'s
+    ``kept_destination``/``filter`` pair the existing fix (d) arm reads."""
+    assert ("cheat_into_play", "you", "") in _idents("Illuna, Apex of Wishes")
+
+
+def test_cheat_into_play_exile_top_producer_arm():
+    """ADR-0038 W5 tails gain: ``exile_top`` joins the fix (e) reveal-
+    producer tuple — Primal Surge's "Exile the top card of your library. If
+    it's a permanent card, you may put it onto the battlefield" (CR 400.7)
+    carries its type check as a ``TargetMatchesFilter{Permanent}``
+    condition on the SAME chain, exactly the shape fix (e) already reads
+    for ``reveal_top``/``reveal_until``/``dig``/``turn_face_up`` producers —
+    ``exile_top`` was simply missing from the producer gate."""
+    assert ("cheat_into_play", "you", "") in _idents("Primal Surge")
+
+
+@pytest.mark.parametrize("name", ["Tezzeret, Artifice Master", "Garruk, Unleashed"])
+def test_cheat_into_play_nested_emblem_tutor_put_arm(name):
+    """ADR-0038 W5 tails gain: the planeswalker "you get an emblem with 'At
+    the beginning of your end step, search your library for a [type] card,
+    put it onto the battlefield, then shuffle'" idiom (CR 400.7 / 121.4a —
+    an emblem is not a card, so its granted ability is read straight off
+    the ``CreateEmblem`` construct) is the SAME search-and-put pair the
+    main tutor arm reads, just nested inside the emblem's own granted
+    trigger definition (``CreateEmblem.triggers[].execute`` — the linear
+    raw ``S_execute``/``S_sub_ability`` phase chain, not a flat
+    ``unit.effects`` ConceptNode list), reached via the SAME
+    ``iter_nested_trigger_defs`` shared descent every other granted-ability
+    lane already uses."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name", ["From Father to Son", "The Five Doctors", "The Hunger Tide Rises"]
+)
+def test_cheat_into_play_w5_conditional_gain_baseline(name):
+    """ADR-0038 W5 tails gain: three MORE cw_only cards surfaced by the
+    tutor-widening investigation, confirmed LEGIT gains (existing arms fire
+    correctly; legacy's regex simply never recognized the phrasing):
+
+    * From Father to Son — "Search your library for a Vehicle card...put
+      it into your hand. If this spell was cast from a graveyard, put that
+      card onto the battlefield instead" — a ``ConditionInstead{
+      CastFromZone: Graveyard}`` gates the SAME tutor+put pair (CR 400.7
+      applies regardless of the triggering condition).
+    * The Five Doctors — "...put them into your hand. If this spell was
+      kicked, put those cards onto the battlefield instead" — an
+      ``AdditionalCostPaid`` (kicker) condition gates it; its Doctor-subtype
+      tutor filter carries no core type, needing the subtype fallback too.
+    * The Hunger Tide Rises — Saga chapter IV: "Search your library and/or
+      graveyard for a creature card...and put it onto the battlefield" —
+      unconditional, single Creature core; legacy's regex apparently misses
+      the Saga chapter-ability phrasing entirely.
+    """
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
 # ── batch 10: trigger-event / effect-tag / grant / P/T / static-mode ─────────
 
 
