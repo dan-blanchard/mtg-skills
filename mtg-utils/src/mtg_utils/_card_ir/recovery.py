@@ -164,6 +164,20 @@ ALLOWLIST: dict[str, TokenRule] = {
     # ``effect_concepts("lose_life")`` read covers the recovered node with no
     # special-case.
     "lose_life": TokenRule(concept="lose_life", category="lose_life"),
+    # ADR-0038 post-giants main-session batch: the token-creation ACTION
+    # idiom (CR 701.7 "Create" keyword action; CR 111.2 token ownership;
+    # CR 205.3g predefined artifact-token subtypes): "create a red Aura
+    # enchantment token named ... attached to that creature" (Smoke
+    # Spirits' Aid — the whole for-each-target clause parks as ONE
+    # Unimplemented residue; phase's token grammar can't structure the
+    # named-Aura-attached shape). The grammar's "create" verb row already
+    # discriminates create-a-COPY (the "clone" token, ahead of this row in
+    # _VERB order) so a token-copy clause never lands here — the
+    # token_copy_makers boundary holds by grammar order. Maps to the
+    # native Token tag's own concept ("make_token") so token_maker /
+    # enchantments_matter / every make_token-reading lane's ordinary
+    # effect_concepts read covers the recovered node with no special-case.
+    "make_token": TokenRule(concept="make_token", category="make_token"),
 }
 
 

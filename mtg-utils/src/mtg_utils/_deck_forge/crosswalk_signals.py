@@ -1099,6 +1099,20 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # ``make_token`` concept, not just this one) too broad to verify safely
     # for a single card this session. Banking the recall gain per ADR-0038
     # step 5 rather than force-fitting a promotion.
+    #
+    # ADR-0038 post-giants main-session batch: ``enchantments_matter``
+    # PROMOTED — the orchestrating session added exactly that
+    # ``make_token`` ALLOWLIST row with the full-corpus verification the
+    # giant agent asked for (blast radius: 38 recovered nodes, 2 changed
+    # cards corpus-wide before the lane branch — Tobias/Soul of
+    # Emancipation, both adjudicated genuine — plus the recovered-node
+    # raw-read branch in _artifacts_enchantments_matter, CR 701.7/111.2/
+    # 205.3g rules-lookup-verified). Smoke Spirits' Aid recovered + pinned;
+    # final live_only == exactly the five adjudicated, negative-pinned
+    # sheds (Gaius/Pick Your Poison/Simplify/Catch // Release edicts +
+    # Harmonic Convergence symmetric reset) — the landfall gate rule.
+    # artifacts_matter also gained (Circuits Act, Yawgmoth Merfolk Soul —
+    # its tail is now 8) but keeps its genuinely diverse residual.
     {
         "artifacts_matter",
         "base_pt_set",
@@ -1107,7 +1121,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "direct_damage",
         "discard_outlet",
         "draw_for_each",
-        "enchantments_matter",
         "exile_matters",
         "graveyard_matters",
         "land_creatures_matter",
@@ -2679,6 +2692,21 @@ def _typed_matters_lanes(filt: object) -> list[str]:
     return [lane for ct, lane in _TYPE_MATTERS_LANE.items() if ct in cores]
 
 
+# Recovered make_token raw reads (see the recovered-node fallback inside
+# _artifacts_enchantments_matter): the type word must sit in the SAME
+# create-clause as the "token" noun ([^.]* keeps it inside one sentence),
+# mirroring the typed arm's vocabulary — the Artifact card-type word or a
+# predefined artifact-token subtype (CR 205.3g), and the Enchantment
+# card-type word (covers "Aura enchantment token" / "enchantment creature
+# token" phrasings).
+_RECOVERED_ARTIFACT_TOKEN_RE = re.compile(
+    r"\b(?:artifact|"
+    + "|".join(sorted(ARTIFACT_TOKEN_SUBTYPES))
+    + r")\b[^.]*\btokens?\b"
+)
+_RECOVERED_ENCHANT_TOKEN_RE = re.compile(r"\benchantment\b[^.]*\btokens?\b")
+
+
 def _is_artifact_token_types(types: tuple[str, ...]) -> bool:
     """Whether a token's ``types`` name an Artifact — the Artifact card-type OR a
     predefined artifact-token subtype (Treasure/Clue/Food/… CR 205.3g), which phase
@@ -2800,6 +2828,22 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
                 out.append("artifacts_matter")
             if "Enchantment" in types:
                 out.append("enchantments_matter")
+            # Recovered-node fallback (ADR-0038 post-giants batch): a
+            # make_token recovered off an Unimplemented residue keeps the
+            # phase wrapper as its ``.node`` — no typed token subject to
+            # read — so the create-clause's own type words are the only
+            # carrier (the dig_until / hand_revealed recovered-node
+            # precedent). Corpus census at introduction: 38 recovered
+            # make_token nodes total; the artifact/enchantment hits are
+            # all genuine (Smoke Spirits' Aid's named-Aura shape, Circuits
+            # Act / Yawgmoth Merfolk Soul's Clown Robots, the Treasure /
+            # Food resource-token class — CR 111.4/205.3g).
+            if not types and c.recovered_by == "make_token" and c.raw:
+                low = c.raw.lower()
+                if _RECOVERED_ARTIFACT_TOKEN_RE.search(low):
+                    out.append("artifacts_matter")
+                if _RECOVERED_ENCHANT_TOKEN_RE.search(low):
+                    out.append("enchantments_matter")
         # COPY-TOKEN doer (ADR-0038 W4 giant): "create a token that's a
         # copy of target artifact/creature" (Molten Duplication, Echo
         # Storm, Saheeli's Artistry). A copy token's creator is its owner

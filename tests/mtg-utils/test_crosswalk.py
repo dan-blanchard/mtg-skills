@@ -10767,3 +10767,31 @@ def test_enchantments_matter_excludes_symmetric_library_reset_shed():
     artifacts sibling's TYPE-DIES doer, which excludes a symmetric
     "any artifact dies" punisher the same way)."""
     assert "enchantments_matter" not in _keys("Harmonic Convergence")
+
+
+@pytest.mark.parametrize(
+    ("name", "lane"),
+    [
+        # The named-Aura-attached shape phase's token grammar can't
+        # structure — the whole for-each-target clause parks as ONE
+        # Unimplemented residue; the make_token ALLOWLIST row recovers it
+        # and the raw-read branch sees "Aura enchantment token". This was
+        # enchantments_matter's LAST genuine gap at promotion.
+        ("Smoke Spirits' Aid", "enchantments_matter"),
+        # "create a white and black Spirit enchantment creature token" —
+        # same recovered shape, plain enchantment-creature wording.
+        ("Daxos the Returned", "enchantments_matter"),
+        # "For each different result, create a 1/1 white Clown Robot
+        # artifact creature token" — a RollDie modal bullet phase parks as
+        # Unimplemented; the artifact word routes the artifacts sibling.
+        ("Circuits Act", "artifacts_matter"),
+    ],
+)
+def test_recovered_make_token_type_words_route_matter_lanes(name, lane):
+    """ADR-0038 post-giants batch (CR 111.2 "create" / 205.3g predefined
+    artifact-token subtypes, verified via rules-lookup this session): a
+    ``make_token`` node recovered off an Unimplemented residue keeps the
+    phase wrapper as its ``.node`` (no typed token subject), so the
+    artifacts/enchantments lane reads the create-clause's own type words
+    — the dig_until / hand_revealed recovered-node precedent."""
+    assert (lane, "you", "") in _idents(name)
