@@ -1999,19 +1999,148 @@ def _landfall(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _sac_leaf_is_you_outlet(leaf: TypedMirrorNode) -> bool:
+    """Whether a cost-position ``Sacrifice`` LEAF (:func:`iter_cost_leaves`) is a
+    you-sac outlet: a present, non-land(-subtype) subject.
+
+    A COST is ALWAYS paid by the activator (CR 602.1a — "activation cost must
+    be paid by the player who is activating it"), so no controller/edict read
+    applies here, unlike the EFFECT arm below. The land exclusion reads BOTH
+    the bare core type (``Land``) and the CR 205.3i subtype vocabulary
+    (:data:`_LAND_SUBTYPES`) — Alpine Guide / Landslide / The First Eruption's
+    "sacrifice a Mountain" stays ``land_sacrifice_makers`` territory, not
+    widened here (a NEW arm, so this precision costs nothing the old exact
+    ``("Land",)`` tuple check already had).
+    """
+    tgt = getattr(leaf, "target", None)
+    core = filter_core_types(tgt)
+    sub = filter_subtypes(tgt)
+    if not core and not sub:
+        return False
+    non_land_core = [w for w in core if w != "Land"]
+    non_land_sub = [w for w in sub if w.lower() not in _LAND_SUBTYPES]
+    return bool(non_land_core or non_land_sub)
+
+
+# ADR-0038 W4 giants: "As an additional cost to cast this spell, sacrifice
+# <subject>." (CR 601.2f) is phase's cleanest structural gap in this key —
+# probed byte-for-byte on Bone Splinters / Abjure: the Spell ability's own
+# ``cost`` field is ``None``, no Sacrifice node exists ANYWHERE in the typed
+# tree for the additional cost (the mana cost lives outside ``abilities``
+# entirely). A last-resort ``tree.oracle`` idiom over the templated Oracle
+# boilerplate (last-resort tier — :func:`_sacrifice_outlets`'s docstring
+# tracked this exact gap as documented residue before this session). The
+# clause is isolated to the SAME sentence (``[^.]*?`` never crosses a
+# period) so a LATER sentence's unrelated "sacrifice" (Feed the Cycle's
+# forage reminder, a different paragraph) never bleeds in; the land-only
+# exclusion mirrors the leaf/effect arms above (Tectonic Split's "sacrifice
+# half the lands you control" stays out).
+_CAST_ADD_SAC_RX = re.compile(
+    r"as an additional cost to cast this spell,[^.]*?\bsacrifice\s+([^.]*)\.",
+    re.IGNORECASE,
+)
+# The captured subject clause is land-only when EVERY word in it is a
+# quantifier / article / "land(s)" / "you control" / "rounded up" filler word
+# — a token-set test (not a phrase regex) so "sacrifice a land." / "sacrifice
+# five lands." / "sacrifice X lands." / "sacrifice half the lands you
+# control, rounded up." (Crop Rotation, Harrow, Gaea's Balance, Devastating
+# Summons, Tectonic Split) all match while "a creature or land" (mixed —
+# Merciless Resolve) and anything naming a non-land type keeps a real word
+# outside this set and stays IN (fires).
+_CAST_ADD_SAC_LAND_ONLY_WORDS: frozenset[str] = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "half",
+        "all",
+        "x",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+        "ten",
+        "rounded",
+        "up",
+        "down",
+        "you",
+        "control",
+        "land",
+        "lands",
+    }
+)
+
+
+def _cast_add_sac_clause_is_land_only(clause: str) -> bool:
+    words = re.findall(r"[a-zA-Z]+", clause.lower())
+    return bool(words) and all(w in _CAST_ADD_SAC_LAND_ONLY_WORDS for w in words)
+
+
 def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     """A sac outlet / sac payoff (Ashnod's Altar, Mortician Beetle — CR 701.21).
 
-    Mirrors ``_signals_ir`` triggers ~10472/10483 + effect outlet ~9226. Three
+    Mirrors ``_signals_ir`` triggers ~10472/10483 + effect outlet ~9226. Five
     inputs: (a) a ``sacrificed`` trigger (you sacrifice → reward); (b) an
     ``exploited`` trigger (CR 702.110); (c) a YOU-sac outlet — an activation COST
     (the cost IS the outlet, paid by the controller — Viscera Seer, Ashnod's Altar,
-    Spawning Pit) OR a ``Sacrifice`` EFFECT whose sacrificed subject is explicitly
-    YOU-controlled (Greven, Cabal Therapist). An effect that makes ANOTHER player
-    sacrifice (``TargetPlayer`` — Diabolic Edict; ``null``/each — Barter in Blood,
-    Fleshbag Marauder; ``ScopedPlayer`` — Sheoldred) is an edict → ``edict_makers``,
-    excluded. A bare-self ("sacrifice this") or Land-only sac is excluded too. Scope
-    "you".
+    Spawning Pit), including a Sacrifice leaf folded into a Composite/OneOf
+    activation cost (:func:`_sac_leaf_is_you_outlet`, ADR-0038 W4 giants —
+    Siege-Gang Commander's "{1}{R}, Sacrifice a Goblin:"; the DOMINANT gap
+    this key carried — phase decorates a Composite cost as ONE opaque
+    concept, never surfacing the nested Sacrifice leaf the top-level
+    ``unit.costs`` walk reads). A trigger's ``unless_pay`` alternative
+    (Cosmic Larva's land-only "sacrifice X unless you sacrifice a land" —
+    ``land_sacrifice_makers`` territory) is DELIBERATELY NOT read here: the
+    SAME node shape also carries "deals damage unless THAT PLAYER
+    sacrifices" (Tomb Blade, Demanding Dragon) — the alt-cost payer there is
+    the effect's TARGET, not this ability's controller, and CR 602.1a's
+    "paid by the activator" default does not extend to an ``unless``
+    escape-hatch on a non-activated ability; probed +17 crosswalk_only
+    over-fires when tried, reverted this session. (d) a
+    ``Sacrifice`` EFFECT whose sacrificed subject is explicitly YOU-controlled
+    (Greven, Cabal Therapist — :func:`_is_you_sac_subject`'s controller read
+    now recurses ``Or``/``And`` filters via :func:`filter_controller` rather
+    than a bare-``Typed``-only ``getattr``, ADR-0038 W4 giants bugfix —
+    Boilerbilges Ripper's "another creature or enchantment"); (e)
+    the "additional cost to cast" text idiom (:data:`_CAST_ADD_SAC_RX`) and
+    the Casualty / Bargain keyword rows (CR 702.153a / 702.166a — see
+    :data:`_SWEEP_KEYWORD_LANES`), the two shapes phase's typed tree carries
+    NO node for at all (probed: Bone Splinters' Spell ability's ``cost`` is
+    ``None``).
+
+    An effect that makes ANOTHER player sacrifice (``TargetPlayer`` — Diabolic
+    Edict; ``null``/each — Barter in Blood, Fleshbag Marauder; ``ScopedPlayer``
+    — Sheoldred; a wrapper ``player_scope`` naming Opponent/All/Each — Grave
+    Pact, Dictate of Erebos, Baleful Beholder's modal mode arm, and the wider
+    modal-charm family: Sheoldred's Edict, Kaya's Guile, Riveteers Charm,
+    Umbral Juke — CR 701.21a) is an edict → ``edict_makers``, excluded (a
+    legacy-IR over-fire class this session adjudicated as a SHED: the old
+    flat-parsed IR mis-scopes several of these modal "each opponent
+    sacrifices" arms to "any", firing sacrifice_outlets where the structural
+    wrapper/controller read here correctly does not). A bare-self ("sacrifice
+    this/it") or Land-only sac (:data:`_LAND_SUBTYPES`) is excluded too; the
+    bare-self / subject-dropped raw fallback stays a documented residue (see
+    the recall-completion b1 note below). A sac EFFECT whose target carries
+    NO ``controller`` tag AT ALL (neither ``You`` nor an edict actor) stays OUT
+    of :func:`_is_you_sac_subject` (which requires ``controller == "You"``
+    exactly) even though CR 701.21a's silent default would often read it as
+    you-sac — this is DELIBERATE: an unset controller is genuinely AMBIGUOUS
+    in the substrate, not a safe you-default. Two shapes share it: Last
+    Voyage of the _____'s "sacrifice enchanted creature" (an ``EnchantedBy``
+    target, a forced Aura-death consequence, not a discretionary outlet —
+    MANDATORY SHED, recorded session adjudication) and Thalia and The Gitrog
+    Monster / Harvester Troll's sibling "sacrifice a creature or land" (a
+    genuine you-sac phase simply never tags — probed a "default unset-
+    controller to implicitly you" arm this session and it ALSO +10
+    false-fired on "defending player sacrifices" / "that player sacrifices"
+    shapes phase leaves EQUALLY uncontrolled — Witch-king Bringer of Ruin,
+    Nefarox, Labyrinth Raptor, Gisa's Favorite Shovel — so the arm was
+    reverted; the genuine gain stays a documented residue). Scope "you".
     """
     for unit in tree.units:
         if unit.trigger_event in ("sacrificed", "exploited"):
@@ -2023,6 +2152,9 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
                 return [
                     Signal("sacrifice_outlets", "you", "", c.raw, tree.name, "high")
                 ]
+        for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
+            if tag_of(leaf) == "Sacrifice" and _sac_leaf_is_you_outlet(leaf):
+                return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
         # An EFFECT-role sac is an edict UNLESS its subject is explicitly you AND
         # the sac's OWN ability wrapper does not name a non-controller actor (the
         # per-effect player_scope guard catches the "each opponent sacrifices" edicts
@@ -2037,6 +2169,9 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
                 return [
                     Signal("sacrifice_outlets", "you", "", c.raw, tree.name, "high")
                 ]
+    m = _CAST_ADD_SAC_RX.search(_kept(tree))
+    if m and not _cast_add_sac_clause_is_land_only(m.group(1)):
+        return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
     # recall-completion b1: the subject-dropped / modal you-sac raw fallback
     # (_SAC_OUTLET_RAW) is DELIBERATELY NOT ported. The IR gates it PER-EFFECT
     # (``cat in (sacrifice, choose)`` AND the SAME effect's ``e.raw`` matches), but
@@ -2044,9 +2179,16 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     # subject-dropped sacrifice). A card-level gate (has a sacrifice/choose concept)
     # + an oracle-clause match over-fires (+11 crosswalk_only: Braids, Serendib Djinn,
     # Phyrexian War Beast — "sacrifice unless" downsides and upkeep saccers), so it
-    # stays a documented ``live_only`` residue (ADR-0035 convergence tail). The
-    # additional-cost-to-CAST sacrifice (Abjure) likewise does not surface a typed
-    # sacrifice node this batch. CR 701.16 / 701.21.
+    # stays a documented ``live_only`` residue (ADR-0035 convergence tail). CR
+    # 701.16 / 701.21. Also documented residue this session: a wrapper-scoped
+    # symmetric ``ParentTargetController`` sac ("for each creature, its
+    # controller sacrifices" — Fade Away, Tainted Aether) — a genuine
+    # structural read exists but risks widening the edict-owner gate beyond
+    # this session's corpus-verification budget; a "Grant"-conferred sac
+    # ability (Animal Boneyard's enchanted-land grant) and the Casualty-GRANT
+    # shape (Anhelo, the Painter's "has casualty 2" on ANOTHER spell, not its
+    # own keyword array) similarly deferred — see the ADR-0038 W4 giants
+    # session report.
     return []
 
 
@@ -2084,6 +2226,12 @@ def _is_you_sac_subject(c: object, *, cost: bool) -> bool:
     ``controller`` must be explicitly ``You`` — a ``null``/``TargetPlayer``/
     ``ScopedPlayer`` controller is another player sacrificing (an edict). A COST is
     always paid by the controller, so its subject controller is not consulted.
+
+    ADR-0038 W4 giants bugfix: the controller read uses :func:`filter_controller`
+    (recurses ``Or``/``And``) rather than a bare ``getattr`` gated to ``tag_of ==
+    "Typed"`` — a multi-type target ("another creature OR enchantment" —
+    Boilerbilges Ripper) is an ``Or`` filter at the top, so the OLD inline check
+    always returned ``False`` even when a sub-arm carried ``controller: You``.
     """
     subj = tuple(getattr(c, "subject", ()))
     if not subj or subj == ("Land",):
@@ -2091,11 +2239,7 @@ def _is_you_sac_subject(c: object, *, cost: bool) -> bool:
     if cost:
         return True
     target = getattr(getattr(c, "node", None), "target", None)
-    return (
-        getattr(target, "controller", None) == "You"
-        if tag_of(target) == "Typed"
-        else False
-    )
+    return filter_controller(target) == "You"
 
 
 def _lifegain_matters(tree: ConceptTree) -> list[Signal]:
@@ -15219,9 +15363,19 @@ _SWEEP_SYNTH_KEYS: tuple[tuple[str, str], ...] = (
 #     b13 already ports alt_cost_keyword off the same keyword and its
 #     comment leaves recast_etb to this sweep. The keyword drops the old
 #     `\bsneak\b` over-fires (Cheatyface, Lightfoot Rogue).
+#   • casualty / bargain → sacrifice_outlets (ADR-0038 W4 giants; CR
+#     702.153a / 702.166a — both keywords ARE "As an additional cost to
+#     cast this spell, you may sacrifice a <creature/artifact/enchantment/
+#     token>", the exact you-sac-cost shape phase's typed tree carries NO
+#     node for at all — Light 'Em Up / Xander's Pact's Casualty, High Fae
+#     Negotiator / Johann's Stopgap's Bargain). The GRANTED form (Anhelo,
+#     the Painter's "the first spell you cast each turn has casualty 2" —
+#     the keyword lives on the GRANT, not this card's own array) is NOT
+#     covered by this row; deferred (see the ADR-0038 W4 giants report).
 _SWEEP_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
     (frozenset({"power-up"}), "powerup_matters"),
     (frozenset({"sneak"}), "recast_etb"),
+    (frozenset({"casualty", "bargain"}), "sacrifice_outlets"),
 )
 
 

@@ -689,6 +689,104 @@ def test_sacrifice_outlets_self_sac_preserved():
     assert ("sacrifice_outlets", "you", "") in _idents("Mycoloth")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Siege-Gang Commander",  # "{1}{R}, Sacrifice a Goblin:" Composite cost
+        "Vampiric Rites",  # "{1}{B}, Sacrifice a creature:" Composite cost
+    ],
+)
+def test_sacrifice_outlets_composite_cost_leaf(name):
+    """ADR-0038 W4 giants: a ``Sacrifice`` cost folded into a Composite
+    activation cost (mana + sacrifice) decorates as ONE opaque concept at
+    the top level — :func:`iter_cost_leaves` walks the Composite/OneOf
+    nesting to surface the individual Sacrifice leaf (CR 602.1a — a cost is
+    always paid by the activator, so no edict/controller read applies)."""
+    assert ("sacrifice_outlets", "you", "") in _idents(name)
+
+
+def test_sacrifice_outlets_or_filter_controller_recurses():
+    """Boilerbilges Ripper's "you may sacrifice another creature OR
+    enchantment" is an ``Or`` filter at the target's top level; the
+    controller ``You`` tag lives on a SUB-arm, not the ``Or`` wrapper
+    itself. ADR-0038 W4 giants bugfix: the controller read now recurses
+    ``Or``/``And`` via :func:`~mtg_utils._card_ir.crosswalk.filter_controller`
+    (the OLD bare ``tag_of(target) == "Typed"`` gate always returned False
+    for a multi-type target, even when a sub-arm named ``You``)."""
+    assert ("sacrifice_outlets", "you", "") in _idents("Boilerbilges Ripper")
+
+
+def test_sacrifice_outlets_cast_additional_cost_text_idiom():
+    """ "As an additional cost to cast this spell, sacrifice a creature."
+    (Goremand, CR 601.2f) surfaces NO typed Sacrifice node anywhere in
+    phase's tree for a Spell ability (probed byte-for-byte: the ability's
+    own ``cost`` field is ``None`` — the mana cost lives outside
+    ``abilities`` entirely). A last-resort ``tree.oracle`` text idiom is
+    the ONLY available source (ADR-0038 W4 giants)."""
+    assert ("sacrifice_outlets", "you", "") in _idents("Goremand")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Light 'Em Up",  # Casualty 2 (CR 702.153a)
+        "High Fae Negotiator",  # Bargain (CR 702.166a)
+    ],
+)
+def test_sacrifice_outlets_casualty_bargain_keyword(name):
+    """Casualty / Bargain are BOTH "As an additional cost to cast this
+    spell, you may sacrifice a <creature/artifact/enchantment/token>" (CR
+    702.153a / 702.166a) — phase's typed tree carries no node for either
+    keyword's cost at all, so the Scryfall keyword array is the only
+    structured source (:data:`_SWEEP_KEYWORD_LANES` row, ADR-0038 W4
+    giants)."""
+    assert ("sacrifice_outlets", "you", "") in _idents(name)
+
+
+def test_sacrifice_outlets_mandatory_shed_last_voyage():
+    """MANDATORY SHED (recorded session adjudication, ADR-0038 W4 giants):
+    "When this Aura leaves the battlefield, sacrifice enchanted creature."
+    — Last Voyage of the _____'s sacrificed subject carries an
+    ``EnchantedBy`` predicate and NO ``controller`` tag; it is a forced
+    Aura-death consequence (CR 303.4b), not a discretionary outlet, and
+    must never fire ``sacrifice_outlets``."""
+    assert "sacrifice_outlets" not in _keys("Last Voyage of the _____")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Sheoldred's Edict",  # modal "Each opponent sacrifices a ..." charm
+        "Tomb Blade",  # "unless THAT PLAYER sacrifices" damage-avoidance
+    ],
+)
+def test_sacrifice_outlets_shed_opponent_directed(name):
+    """A modal "each opponent sacrifices" charm (Sheoldred's Edict) and an
+    "unless that player sacrifices" damage-avoidance clause (Tomb Blade,
+    the alt-cost payer is the effect's TARGET, not this ability's
+    controller) are OPPONENT-directed, not you-sac outlets — the legacy
+    flat-parsed IR mis-scopes both to "any" and over-fires; this session
+    adjudicated the class a SHED (CR 701.21a)."""
+    assert "sacrifice_outlets" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Tectonic Split",  # "sacrifice half the lands you control" (cast cost)
+        "Infernal Denizen",  # "sacrifice two Swamps" (Composite cost leaf)
+    ],
+)
+def test_sacrifice_outlets_land_only_excluded(name):
+    """A land-only sacrifice subject — whether the bare core type ``Land``
+    or an ALL-:data:`~mtg_utils._deck_forge.crosswalk_signals._LAND_SUBTYPES`
+    subtype list (Swamp, Mountain, ...) — stays ``land_sacrifice_makers``
+    territory (CR 701.21), never ``sacrifice_outlets``, across BOTH the
+    additional-cost-to-cast text idiom and the Composite cost-leaf arm
+    (ADR-0038 W4 giants)."""
+    assert "sacrifice_outlets" not in _keys(name)
+
+
 def test_death_matters_not_fired_by_noncreature_arrival():
     """Scrapheap watches an artifact/enchantment put into the graveyard from the
     battlefield — only CREATURES "die" (CR 700.4), so it must not fire."""
