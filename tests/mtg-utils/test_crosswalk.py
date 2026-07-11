@@ -6038,6 +6038,36 @@ def test_target_player_draws_excludes_scoped_player_group_draw():
     assert ("card_draw_engine", "each", "") in _idents("Academy Loremaster")
 
 
+# ── ADR-0038 W3 batch 6 (draw-etb-tokens cluster): target_player_draws ──────
+# widening (158 both / 95 live_only, down from 145 — NOT YET PROMOTED, see
+# ``_target_player_draws``'s docstring for the phrase-gate rationale).
+
+
+def test_target_player_draws_widened_recipient_tags():
+    """:data:`_TARGETED_DRAW_WIDENED_TAGS` — Lord of Tresserhorn's
+    ``Typed(Opponent)`` ("target opponent draws two cards"), Call to
+    Heel's ``ParentTargetController`` ("Its controller draws a card" off
+    a bounced creature), Curse of Chaos's ``TriggeringPlayer`` (the
+    attacking player draws), each verified same-clause via
+    :data:`_TARGET_PLAYER_DRAW_PHRASE_RE`. CR 121.1."""
+    assert ("target_player_draws", "any", "") in _idents("Lord of Tresserhorn")
+    assert ("target_player_draws", "any", "") in _idents("Call to Heel")
+    assert ("target_player_draws", "any", "") in _idents("Curse of Chaos")
+
+
+def test_target_player_draws_excludes_trailing_unattributed_draw_bleed():
+    """The phrase gate excludes a phase templating quirk: "Destroy target
+    land. Its controller may search their library ... Draw a card." tags
+    the trailing, textually-unattributed "Draw a card." sentence
+    ``ParentTargetController`` even though that sentence never names a
+    controller (CR 608.2h — an unattributed effect defaults to the
+    caster, not the earlier clause's target). Price of Freedom / Cleansing
+    Wildfire's own draw clause has no player-reference wording, so the
+    same-clause phrase check correctly excludes it."""
+    assert "target_player_draws" not in _keys("Price of Freedom")
+    assert "target_player_draws" not in _keys("Cleansing Wildfire")
+
+
 # ── Batch 11: replacement-doubler cluster (§A) ────────────────────────────────
 
 

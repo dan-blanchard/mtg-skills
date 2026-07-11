@@ -283,6 +283,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _ETB_HAD_RE,
     _EVERGREEN_CK,
     Signal,
+    _clauses,
     _creature_etb_clause,
     _resolve_subject,
 )
@@ -7276,7 +7277,50 @@ _LAND_SUBTYPES: frozenset[str] = frozenset(
 # (imported above).
 # Draw recipients naming a DIRECTED single player (CR 121.1) — the
 # target_player_draws forced-draw direction (Bloodgift Demon's ``Player``).
+# ADR-0038 W3 batch 6 (draw-etb-tokens cluster) widened three tags, all
+# corpus-verified DIRECTED-at-one-player shapes (never a group/"each
+# player" distribution, which stays routed to group_hug_draw per the
+# ScopedPlayer exclusion below): ``Typed`` — a player FILTER recipient
+# whose controller names ``Opponent`` (Lord of Tresserhorn, Communal
+# Brewing, Sphinx of Enlightenment's "target opponent draws" — phase
+# models "target/each opponent" as a Typed player filter, not a bare
+# ``Target``/``Player`` tag); ``ParentTargetController`` — the controller
+# of a PREVIOUSLY TARGETED object draws (Call to Heel's "Its controller
+# draws a card" off a bounced creature, Gwafa Hazid's stolen-creature
+# controller, Acolyte Hybrid's destroyed-artifact controller — CR
+# 121.1/608.2h, the object-chain analog of a direct player target);
+# ``TriggeringPlayer`` — the SPECIFIC player who performed the watched
+# action draws (Curse of Chaos's attacking player), a single determined
+# player exactly like a direct target, not a distributed group. Corpus-
+# verified: ``OriginalController`` is DELIBERATELY absent — every corpus
+# instance is the "you AND target opponent EACH draw" idiom's OWN-caster
+# half (Secret Rendezvous's SECOND Draw node — "you" back-referenced as
+# the spell's original controller, not a directed target at all; the
+# SIBLING ``Typed(Opponent)`` Draw is what actually fires).
 _TARGETED_DRAW_TAGS: frozenset[str] = frozenset({"Player", "ParentTarget", "Target"})
+# ADR-0038 W3 batch 6 — the THREE widened tags above (``Typed``,
+# ``ParentTargetController``, ``TriggeringPlayer``) are NOT unconditional
+# like the original three: a phase templating quirk bleeds a PRECEDING
+# clause's "target X. Its controller may Y." recipient onto a FOLLOWING,
+# textually-unattributed "Draw a card." sentence that per CR 608.2h
+# actually defaults to the caster (Price of Freedom, Cleansing Wildfire,
+# Geomancer's Gambit all structurally tag their trailing "Draw a card."
+# ``ParentTargetController`` even though the SENTENCE never says
+# "controller"). These three need the draw's OWN clause to explicitly
+# name a player reference, gated by :data:`_TARGET_PLAYER_DRAW_PHRASE_RE`
+# below (Call to Heel's "Its controller draws a card." — SAME clause —
+# still fires correctly; the bled cards' bare "Draw a card." clause has no
+# such wording and correctly stays out).
+_TARGETED_DRAW_WIDENED_TAGS: frozenset[str] = frozenset(
+    {"Typed", "ParentTargetController", "TriggeringPlayer"}
+)
+_TARGET_PLAYER_DRAW_PHRASE_RE = re.compile(
+    r"\b(?:target (?:player|opponent)s?|(?:its|their|that|the) (?:controller|owner)s?"
+    r"|that player|they)\b[^.,;]*?\bdraws?\b"
+    r"|\bdraws?\b[^.,;]*?\b(?:target (?:player|opponent)s?|(?:its|their|that|the) "
+    r"(?:controller|owner)s?|that player|they)\b",
+    re.IGNORECASE,
+)
 # Combat-frame trigger events (CR 508 / 509.3a) — the combat_buff_engine
 # anchor. ``deals_damage`` is DELIBERATELY absent so Renown / the separate
 # self_counter_grow shapes don't over-fire (mirrors the live exclusion).
@@ -7636,6 +7680,23 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
     — batch-9 adjudicated OUT (group-draw territory; the live routing of it
     here is the documented divergence), enforced by ``ScopedPlayer``'s
     absence from :data:`_TARGETED_DRAW_TAGS`. Scope "any".
+
+    ADR-0038 W3 batch 6 (draw-etb-tokens cluster): three more recipient
+    tags admitted (:data:`_TARGETED_DRAW_WIDENED_TAGS`) — ``Typed`` (a
+    player FILTER recipient naming ``Opponent`` — "target/each opponent
+    draws", Lord of Tresserhorn), ``ParentTargetController`` (the
+    controller of a previously targeted OBJECT — "its controller draws a
+    card", Call to Heel), ``TriggeringPlayer`` (the specific player who
+    performed the watched action — Curse of Chaos's attacking player).
+    Unlike the original three, these are gated behind
+    :data:`_TARGET_PLAYER_DRAW_PHRASE_RE` (the draw's OWN clause, off the
+    owning unit's description) — a phase templating quirk bleeds a
+    PRECEDING "target X. Its controller may Y." clause's recipient onto a
+    FOLLOWING, textually-unattributed "Draw a card." sentence that per CR
+    608.2h actually defaults to the caster (Price of Freedom, Cleansing
+    Wildfire, Geomancer's Gambit); the phrase gate keeps the genuine
+    same-clause "Its controller draws"/"target player draws"/"they draw"
+    hits and excludes the bled ones. CR 121.1.
     """
     for unit in tree.units:
         if unit.origin == "replacement":
@@ -7648,6 +7709,17 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
                 return [
                     Signal("target_player_draws", "any", "", c.raw, tree.name, "high")
                 ]
+            if rt in _TARGETED_DRAW_WIDENED_TAGS:
+                desc = getattr(unit.node, "description", None) or ""
+                if any(
+                    _TARGET_PLAYER_DRAW_PHRASE_RE.search(cl.lower())
+                    for cl in _clauses(desc)
+                ):
+                    return [
+                        Signal(
+                            "target_player_draws", "any", "", c.raw, tree.name, "high"
+                        )
+                    ]
     return []
 
 
