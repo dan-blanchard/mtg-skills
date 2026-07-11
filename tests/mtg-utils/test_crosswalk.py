@@ -4677,6 +4677,80 @@ def test_topdeck_selection_excludes_search_reveal():
     assert "topdeck_selection" not in _keys("Auditore Ambush")
 
 
+# ADR-0038 W4 giant (topdeck_selection promotion): five widened/new arms +
+# the raw-bleed bucket-B idiom, each pinned against a fixture-built tree.
+# CR citations verified via rules-lookup this session (701.13a exile /
+# 701.17 mill / 701.20a reveal / 701.22a scry / 701.25a surveil / 401.1
+# library-zone ownership / 401.5 look-at-top statics).
+
+
+def test_topdeck_selection_exile_top_impulse():
+    """Urza, Lord High Artificer's "exile the top card" impulse-draw activation
+    is an ``ExileTop(player=Controller)`` doer (CR 701.13a) — a shape the
+    deleted SWEEP regex's "look at"/"reveal" alternatives never covered."""
+    assert ("topdeck_selection", "you", "") in _idents("Urza, Lord High Artificer")
+
+
+def test_topdeck_selection_reveal_until_dig():
+    """Hermit Druid's "reveal cards from the top of your library until you
+    reveal a nonland card" is a ``RevealUntil`` dig-until (CR 701.20a) whose
+    digger (:func:`reveal_until_player`) resolves "you"."""
+    assert ("topdeck_selection", "you", "") in _idents("Hermit Druid")
+
+
+def test_topdeck_selection_may_look_at_top_static():
+    """Bolas's Citadel's "You may look at the top card of your library any
+    time" is a ``MayLookAtTopOfLibrary`` static mode (CR 401.5) — the
+    deleted SWEEP regex's "top N cards" grammar can't express a bare "top
+    card" with no count word, so this whole class was legacy-uncovered."""
+    assert ("topdeck_selection", "you", "") in _idents("Bolas's Citadel")
+
+
+def test_topdeck_selection_mill_then_battlefield():
+    """Eivor, Wolf-Kissed's "mill that many cards. You may put a ... card
+    from among them onto the battlefield" is a Mill + ChangeZone(Battlefield,
+    TrackedSetFiltered) back-reference (CR 701.17 mill / 401.1)."""
+    assert ("topdeck_selection", "you", "") in _idents("Eivor, Wolf-Kissed")
+
+
+def test_topdeck_selection_manifest_bucket_b():
+    """Whisperwood Elemental's granted "manifest the top card of your
+    library" (CR 701.40) has no Scry/Surveil/Dig/RevealTop/ExileTop node at
+    all — the bucket-B verb+top-phrase text idiom is the only way in."""
+    assert ("topdeck_selection", "you", "") in _idents("Whisperwood Elemental")
+
+
+def test_topdeck_selection_exile_top_activated_cost_bucket_b():
+    """Arc-Slogger's "Exile the top ten cards of your library: ~ deals 2
+    damage ..." activation cost folds into a bare ``Unimplemented`` cost
+    node (no ExileTop) — the bucket-B text idiom (CR 701.13a) recovers it."""
+    assert ("topdeck_selection", "you", "") in _idents("Arc-Slogger")
+
+
+def test_topdeck_selection_excludes_opponent_library_exile_top():
+    """Gonti, Lord of Luxury digs a TARGET OPPONENT's library with
+    ``Dig(player=Controller)`` — the node's ``player`` field names who
+    PERFORMS the dig, never whose library it is (CR 401.1); the raw-text
+    owner veto (:func:`_topdeck_owner_ok`) is load-bearing here."""
+    assert "topdeck_selection" not in _keys("Gonti, Lord of Luxury")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Arjun, the Shifting Flame",  # bottom-of-library, not top (legacy bug)
+        "Winter, Cynical Opportunist",  # unrelated Delirium clause bleed
+        "Ecological Appreciation",  # tutor-and-reveal, no "top" text at all
+    ],
+)
+def test_topdeck_selection_adjudicated_sheds(name):
+    """Three genuine legacy ``old_ir_for`` false positives this session's
+    corpus re-measure found and deliberately does NOT reproduce (ADR-0038
+    W4 giant batch, live_only 440 -> 4, all adjudicated) — none is a real
+    top-of-library curation instance."""
+    assert "topdeck_selection" not in _keys(name)
+
+
 @pytest.mark.parametrize("name", ["Brainstorm", "Sensei's Divining Top"])
 def test_topdeck_stack_fires(name):
     """topdeck_stack fires the hand-to-top put (Brainstorm — filter

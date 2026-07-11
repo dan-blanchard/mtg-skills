@@ -120,6 +120,7 @@ from mtg_utils._card_ir.crosswalk import (
     replacement_event_tag,
     replacement_qty_mod,
     replacement_token_owner_scope,
+    reveal_until_player,
     settap_state,
     spell_count_at_least,
     spell_velocity_static_two,
@@ -195,6 +196,8 @@ from mtg_utils._card_ir.project import (
 from mtg_utils._card_ir.supplement import (
     _CAST_FROM_EXILE_P,
     _FORCE_ATTACK,
+    _TOPDECK_OTHER_ZONE,
+    _TOPDECK_YOUR_LIBRARY,
     _copied_type_from_text,
     _topdeck_stack_self,
     combat_damage_recipients_from_text,
@@ -1082,7 +1085,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "sacrifice_outlets",
         "target_player_draws",
         "token_maker",
-        "topdeck_selection",
         "type_matters",
         "voltron_matters",
     }
@@ -1225,6 +1227,50 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
 # spot-verified as genuine CR 205.3 tribal reads (Sedris's own-type-line
 # floor riding the graveyard-wide unearth grant, Grey Knight Paragon's
 # conditional-exile Demon reference), no over-fire pattern found.
+# ADR-0038 W4 giant (2026-07-11): topdeck_selection PROMOTED. Corpus
+# re-measure: live_only 440 -> 4 (both 1136 -> 1572), all four ADJUDICATED
+# SHEDS — genuine legacy ``old_ir_for`` false positives (Arjun, the
+# Shifting Flame / Mindmoil's bottom-of-library wheel effect
+# mis-classified by the retired pipeline's raw-regex category map; Winter,
+# Cynical Opportunist's plain mill trigger caught only by the deleted SWEEP
+# mirror's context-blind "put ... onto the battlefield" alternative
+# matching its UNRELATED Delirium clause; Ecological Appreciation's
+# tutor-and-reveal effect getting a stray zone tag with no "top" wording at
+# all) — see :func:`_topdeck_selection`'s docstring for the full per-class
+# breakdown and CR citations (verified via rules-lookup this session:
+# 701.22a scry, 701.25a surveil, 701.20a reveal, 701.13a exile, 701.17
+# mill, 701.40 manifest, 401.1 library-zone ownership, 401.5 look-at-top
+# statics). Five widened/new arms beyond the pre-existing Scry/Surveil/
+# Dig/RevealTop quartet: ``ExileTop`` (impulse-draw exile), ``RevealUntil``/
+# ``ExileFromTopUntil`` (dig-until, via the existing
+# :func:`reveal_until_player`), a ``MayLookAtTopOfLibrary`` static-mode arm
+# (Bolas's Citadel, Elsha of the Infinite — a whole class legacy's regex
+# never covered, since it requires "top card" with NO count word, a shape
+# the deleted SWEEP pattern's grammar can't express), a structural
+# mill-then-cheat-to-battlefield arm (Mill + TrackedSet/TrackedSetFiltered
+# to Battlefield — gated STRICTLY on Battlefield, since the sibling
+# "mill N, put a card from among them into your HAND" cantrip family,
+# ~50 corpus cards, is corpus-verified to never fire in legacy at all), and
+# a two-condition bucket-B text idiom (a selection verb + a top-of-library
+# phrase, both anywhere in the same unit — never a single adjacency regex,
+# mirroring legacy's own whole-ability raw-bleed C8 mechanism) that closes
+# a whole "manifest the top card of your library" family and an
+# "exile the top card(s) of your library: <effect>" activated-cost family
+# phase's static parser drops into bare ``Unimplemented`` nodes. A new
+# owner-boundary gate (:func:`_topdeck_owner_ok`, reusing
+# ``supplement._TOPDECK_YOUR_LIBRARY``/``_TOPDECK_OTHER_ZONE`` verbatim,
+# plus a local ``_TOPDECK_EACH_PLAYER_ZONE`` supplement for the
+# "each player's library" symmetric-reveal shape those two constants'
+# existing callers never needed) keeps the structural Dig/RevealTop/
+# ExileTop arm from firing on an opponent-library dig whose ``player``
+# field is structurally indistinguishable from a self dig (Gonti, Lord of
+# Luxury; Selvala, Explorer Returned; Etali, Primal Storm). cw_only rose
+# 52 -> 120, but this is overwhelmingly BEYOND-LEGACY RECALL, not
+# over-fire: spot-verified via a per-card arm-attribution script, the vast
+# majority are the same three new mechanism classes (MayLookAtTopOfLibrary,
+# ExileTop/RevealTop activated-cost engines, the Manifest family) firing on
+# genuine build-around staples the deleted SWEEP regex's narrower grammar
+# never matched.
 PORTED_KEYS: frozenset[str] = _PORTED_KEYS_STAGE3 - _STAGE4_RESIDUAL
 
 
@@ -8943,42 +8989,259 @@ def _activated_draw(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+_TOPDECK_SELECTION_TARGET_TAGS: frozenset[str] = frozenset(
+    {"Dig", "RevealTop", "ExileTop"}
+)
+
+# ADR-0038 W4 giant batch — the residual bucket-B text idiom, TWO independent
+# per-UNIT conditions (never a single adjacency-bound regex — legacy's own
+# C8 owner-tag mechanism works the SAME way: it tags an "exile"/"reveal"
+# category effect with ``top:you`` whenever the WHOLE ability's raw contains
+# a top-of-library phrase ANYWHERE, not necessarily next to the triggering
+# verb — Doomsday's "exile the rest" gets ``top:you`` from a LATER, separate
+# sentence "Put the chosen cards on top of your library"):
+#
+# (1) a SELECTION-shaped verb (exile / reveal / look at / manifest — CR
+#     701.13a/701.20a/401.5/701.40) appears anywhere in the unit's own text;
+# (2) a top-of-library phrase (:data:`_TOPDECK_SELECTION_TOP_RX`) appears
+#     anywhere in the SAME unit's text, self-referential ("your"/"THIS
+#     card's" library, never "their"/"target opponent's").
+#
+# Both required, gating out a bare "put ... on top of your library" alone
+# with NO selection verb anywhere in the ability (Aminatou, the
+# Fateshifter's "+1: Draw a card, then put a card from your hand on top of
+# your library" — a pure topdeck_STACK tuck, CR 401.4, never a look/reveal/
+# exile). "put" itself is deliberately NOT a selection verb — Winter,
+# Cynical Opportunist's plain "mill three cards" trigger has neither "top"
+# nor "library" in its OWN unit text at all (its Delirium ability's "exile
+# ... graveyard ... put a permanent card from among them onto the
+# battlefield" carries the verb but no top-of-library phrase), so it stays
+# correctly excluded under this same two-condition gate — closing the
+# deleted SWEEP mirror's context-blind false-positive class without any
+# extra bookkeeping.
+_TOPDECK_SELECTION_VERB_RX = re.compile(
+    r"\b(?:exile|exiles|reveal|reveals|look at|looks at|manifest|manifests)\b",
+    re.IGNORECASE,
+)
+_TOPDECK_SELECTION_TOP_RX = re.compile(
+    r"\btop\b[^.]{0,20}\bof your library\b|\bfrom the top of your library\b",
+    re.IGNORECASE,
+)
+
+
+# ``_TOPDECK_OTHER_ZONE`` (reused verbatim from supplement.py) has no "each
+# player's library" alternative — a corpus-only gap this session found (its
+# consumers all pre-date the symmetric-reveal cross-open cluster): Etali,
+# Primal Storm / Pako, Arcane Retriever / Share the Spoils all read "exile
+# the top card of EACH PLAYER's library", a symmetric multi-library effect,
+# not the controller's own curation. LOCAL supplement (not a mutation of the
+# shared constant — other reusers of ``_TOPDECK_OTHER_ZONE`` stay untouched).
+_TOPDECK_EACH_PLAYER_ZONE = re.compile(
+    r"\beach player'?s? (?:library|hand)\b", re.IGNORECASE
+)
+
+
+def _topdeck_owner_ok(text: str) -> bool:
+    """True unless the unit's own text names a DIFFERENT player's library
+    (``_TOPDECK_OTHER_ZONE``, plus the local ``_TOPDECK_EACH_PLAYER_ZONE``
+    supplement) without also naming the controller's own
+    (``_TOPDECK_YOUR_LIBRARY`` takes precedence — mirrors
+    ``supplement._top_library_owner``'s ordering, CR 401.1). Reused verbatim
+    single-source: phase's ``Dig``/``RevealTop``/``ExileTop`` ``player``
+    field names who PERFORMS the look, never whose library it is (Gonti's
+    ``Dig(player=Controller)`` digs a TARGETED OPPONENT's library — the
+    node alone can't tell; the raw still can)."""
+    if _TOPDECK_YOUR_LIBRARY.search(text):
+        return True
+    return not (
+        _TOPDECK_OTHER_ZONE.search(text) or _TOPDECK_EACH_PLAYER_ZONE.search(text)
+    )
+
+
 def _topdeck_selection(tree: ConceptTree) -> list[Signal]:
-    """topdeck_selection — OWN-library top curation (CR 701.22 scry / 701.25
-    surveil / 401.1). Four first-class hooks: ``Scry`` / ``Surveil`` (the
-    player is always the implicit controller — zero opponent over-fire), a
-    ``Dig`` whose ``player`` is Controller and whose destination is NOT the
-    battlefield (Sensei's Divining Top — a dig-to-battlefield is the
-    cheat/ramp put, fix b), and a ``RevealTop`` whose ``player`` is
-    Controller. Gate #5: the library OWNER is the boundary — an opponent
-    peek (Orcish Spy — ``player: Player``) never fires. The RevealTop arm
-    additionally vetoes a SAME-unit ``SearchLibrary`` sibling: phase
-    mislabels a tutor's found-card reveal ("searches their library …
-    reveals it" — Auditore Ambush) as ``RevealTop(Controller)``
-    (phase_parse_bug — a found-card reveal is not a top reveal, CR 701.23).
+    """topdeck_selection — OWN-library top curation (CR 701.22a scry /
+    701.25a surveil / 701.20a reveal / 701.13a exile / 701.17 mill / 701.40
+    manifest / 401.1 library-zone ownership / 401.5 "look at the top card
+    of your library" statics). Deep-walked (:func:`iter_typed_nodes`
+    recurses into a GRANTED ability's own ``.definition`` sub-tree for free
+    — Oracle's Insight's enchant-granted Scry, Tocasia's granted Surveil,
+    Candlestick's granted attack-trigger Surveil):
+
+    * ``Scry`` / ``Surveil`` — always self (CR 701.22a/701.25a name no
+      other-player variant, zero owner ambiguity).
+    * ``Dig`` whose ``player`` is Controller and whose destination is NOT
+      the battlefield (Sensei's Divining Top — a dig-to-battlefield is the
+      cheat/ramp put, a different lane), ``RevealTop`` whose ``player`` is
+      Controller (vetoing a SAME-unit ``SearchLibrary`` sibling — phase
+      mislabels a tutor's found-card reveal as ``RevealTop(Controller)``,
+      CR 701.23a search vs 701.20a reveal), and ``ExileTop`` whose
+      ``player`` is Controller (Abbot of Keral Keep's impulse-draw exile,
+      CR 701.13a). All three additionally gate on :func:`_topdeck_owner_ok`
+      — the node's ``player`` field names who PERFORMS the dig/reveal/
+      exile, never whose LIBRARY it targets (CR 401.1), so a raw-text
+      owner check is load-bearing (Gonti, Lord of Luxury digs a TARGET
+      OPPONENT's library with ``player=Controller``; Selvala's "each
+      player reveals the top card of THEIR library" is symmetric, not a
+      your-library curation build; Etali, Primal Storm / Pako, Arcane
+      Retriever's "top card of EACH PLAYER's library" is the same
+      symmetric shape under different wording, closed by the local
+      :data:`_TOPDECK_EACH_PLAYER_ZONE` supplement).
+    * ``RevealUntil`` / ``ExileFromTopUntil`` (CR 701.20a reveal / 701.13a
+      exile, the "until" dig idiom) whose digger
+      (:func:`reveal_until_player`) resolves "you" (Hermit Druid's
+      own-library dig; Demonlord Belzenlok's exile-side sibling).
+    * a static ability whose ``mode`` is ``MayLookAtTopOfLibrary`` ("You may
+      look at the top card of your library any time" — Vizier of the
+      Menagerie, One with the Multiverse, Korlessa, The Fourth Doctor,
+      Bolas's Citadel, Elsha of the Infinite), controller-gated (CR 401.5,
+      "some effects ... say that a player may look at the top card of
+      their library").
+    * **mill-then-cheat-to-battlefield** (CR 701.17 mill + 401.1 library
+      zone) — a ``Mill`` effect co-occurring (same unit) with a
+      ``ChangeZone`` to Battlefield whose target is a
+      ``TrackedSet``/``TrackedSetFiltered`` back-reference re-consuming the
+      milled group (Eivor, Wolf-Kissed; Rampant Frogantua; Mole Module;
+      Bind to Life — "mill N, put a card from among them onto the
+      battlefield"). The Battlefield-destination gate is load-bearing, not
+      cosmetic — mirrors the deleted SWEEP regex's own literal "...onto the
+      battlefield" tail: the ~50-card "mill N, put a card from among them
+      INTO YOUR HAND" cantrip family (Ravenous Gigamole, Ainok Wayfarer,
+      Cache Grab, …) is corpus-verified to NOT fire in legacy at all (a
+      genuine mill-to-hand card-advantage engine is not topdeck curation
+      per legacy's own boundary) — gating on Battlefield keeps that whole
+      family correctly excluded. A bare mill with no re-consumption
+      (Stitcher's Supplier) does NOT fire either way — the back-reference
+      is the anchor, mirroring the ``topdeck_stack`` precedent's own
+      TrackedSet disambiguation one level up.
+    * bucket-B text idiom (last resort, arms above found nothing) — TWO
+      independent conditions over the UNIT's joined text (every reachable
+      node's own ``description`` plus every modal's ``mode_descriptions``,
+      so a straddling Ao-the-Dawn-Sky-style modal branch or a
+      Doomsday-style multi-sentence ability still joins): a SELECTION verb
+      (:data:`_TOPDECK_SELECTION_VERB_RX` — exile/reveal/look at/manifest,
+      CR 701.13a/701.20a/401.5/701.40) present ANYWHERE, and a
+      top-of-library phrase (:data:`_TOPDECK_SELECTION_TOP_RX`) present
+      ANYWHERE, in the SAME unit — mirroring legacy's own C8 owner-tag
+      mechanism, which tags an exile/reveal-category effect with
+      ``top:you`` off the WHOLE ability's raw text, not just the clause
+      touching that specific effect (Doomsday's "exile the rest" effect
+      gets ``top:you`` from a LATER, separate sentence "Put the chosen
+      cards on top of your library"). Closes the residual tail phase's
+      static/effect parser drops into an ``Unimplemented`` (Ao, the Dawn
+      Sky's modal branch, read off the PARENT ``S_modal.mode_descriptions``
+      when the per-mode-ability ``description`` is bare ``None`` —
+      Silverback Elder; Aladdin's Lamp's replace-a-draw dig; Scion of
+      Halaster's granted replacement-effect clause), a whole "manifest the
+      top card of your library" family phase's static parser never
+      structures at all (CR 701.40 — Primordial Mist, Omarthis, Ugin's
+      Mastery, Temur War Shaman, Whisperwood Elemental, Mastery of the
+      Unseen, Soul Summons, Qarsi High Priest, Sultai Emissary, Fierce
+      Invocation, Arashin War Beast, Formless Nurturing, Wildcall, Ethereal
+      Ambush, Soul-Strike Technique, Guardian of the Forgotten, Cryptic
+      Pursuit), an "exile the top card(s) of your library: <effect>"
+      activated-cost family phase folds into a bare ``Unimplemented`` cost
+      (Royal Herbalist, Seasoned Tactician, Storm Elemental, Thought Lash,
+      Phyrexian Devourer, Whirling Catapult, Arc-Slogger), AND the raw-bleed
+      class (Doomsday, Mirror of Fate, Once and Future, Stillness in
+      Motion, Paramecia Coloniex, Flitting Guerrilla — a graveyard-sourced
+      "put ... on top of your library" clause co-occurring with an "exile"
+      clause in the SAME multi-effect ability; CR 401.4 makes this
+      topdeck_STACK's own territory when read narrowly, but legacy's real
+      corpus behavior treats the whole ability as one curation unit, and a
+      Doomsday pile is exactly the kind of top-of-library build-around
+      this key exists to catch). The two-condition (never single-regex)
+      design is what keeps Aminatou, the Fateshifter's "+1: Draw a card,
+      then put a card from your hand on top of your library" OUT — no
+      selection verb anywhere in that ability at all, a pure tuck, CR
+      401.4.
+
+    ADR-0038 W4 giant batch: corpus re-measure live_only 440 -> 4, all four
+    ADJUDICATED SHEDS (genuine legacy ``old_ir_for`` false positives, never
+    chased): Arjun, the Shifting Flame / Mindmoil's "put the cards in your
+    hand on the BOTTOM of your library ... then draw" wheel effect
+    mis-classifies as the retired ``project.py`` pipeline's
+    ``topdeck_select`` category — bottom-of-library, not top ("bottom"
+    never matches :data:`_TOPDECK_SELECTION_TOP_RX`'s literal "top"), a
+    genuine scope/category bug (the same class ``lifegain_makers`` found
+    and excluded); Winter, Cynical Opportunist's plain "mill three cards"
+    trigger has neither "top" nor "library" anywhere in its OWN unit text
+    (its separate Delirium ability's "exile ... graveyard ... put a
+    permanent card from among them onto the battlefield" carries the verb
+    but no top-of-library phrase at all — "graveyard", never "library") —
+    it fires in legacy only because the deleted ``TOPDECK_SELECTION_REGEX``
+    SWEEP mirror's context-blind fourth alternative (``put [^.]*from among
+    them onto the battlefield``) matches that wholly UNRELATED clause,
+    where "them" is graveyard-exiled cards, never milled library cards;
+    Ecological Appreciation's tutor-and-reveal effect ("Search your library
+    and graveyard for ... reveal them ...") gets a stray
+    ``from:top``/``top:you`` zone tag from the SAME retired pipeline's
+    ``reveal``-category default, even though nothing in its text says "top"
+    at all — a genuine legacy zone-derivation bug, not a real
+    top-of-library curation instance.
     Scope "you".
     """
     for unit in tree.units:
         has_search = any(tag_of(c.node) == "SearchLibrary" for c in unit.effects)
-        for c in unit.effects:
-            t = tag_of(c.node)
+        nodes = list(iter_typed_nodes(unit.node))
+        tags_here = {tag_of(n) for n in nodes}
+        unit_text = _REMINDER_RX.sub(" ", getattr(unit.node, "description", None) or "")
+        for n in nodes:
+            t = tag_of(n)
             if t in ("Scry", "Surveil"):
+                return [Signal("topdeck_selection", "you", "", "", tree.name, "high")]
+            if t in _TOPDECK_SELECTION_TARGET_TAGS:
+                player = tag_of(getattr(n, "player", None))
+                if player != "Controller":
+                    continue
+                if t == "Dig" and getattr(n, "destination", None) == "Battlefield":
+                    continue
+                if t == "RevealTop" and has_search:
+                    continue
+                if not _topdeck_owner_ok(unit_text):
+                    continue
+                return [Signal("topdeck_selection", "you", "", "", tree.name, "high")]
+        for c in unit.effect_concepts("reveal_until"):
+            if reveal_until_player(c.node) == "you":
                 return [
                     Signal("topdeck_selection", "you", "", c.raw, tree.name, "high")
                 ]
-            player = tag_of(getattr(c.node, "player", None))
-            if (
-                t == "Dig"
-                and player == "Controller"
-                and (getattr(c.node, "destination", None) != "Battlefield")
-            ):
-                return [
-                    Signal("topdeck_selection", "you", "", c.raw, tree.name, "high")
-                ]
-            if t == "RevealTop" and player == "Controller" and not has_search:
-                return [
-                    Signal("topdeck_selection", "you", "", c.raw, tree.name, "high")
-                ]
+        if unit.origin == "static" and (
+            getattr(unit.node, "mode", None) == "MayLookAtTopOfLibrary"
+        ):
+            aff = getattr(unit.node, "affected", None)
+            if getattr(aff, "controller", None) in ("You", None):
+                return [Signal("topdeck_selection", "you", "", "", tree.name, "high")]
+        if "Mill" in tags_here and any(
+            tag_of(n) == "ChangeZone"
+            and getattr(n, "destination", None) == "Battlefield"
+            and tag_of(getattr(n, "target", None))
+            in ("TrackedSet", "TrackedSetFiltered")
+            for n in nodes
+        ):
+            return [Signal("topdeck_selection", "you", "", "", tree.name, "high")]
+        # Bucket-B: the joined text of every node's own ``description`` PLUS
+        # every modal's ``mode_descriptions`` (a per-mode text sometimes
+        # lives on the PARENT ``S_modal`` rather than each
+        # ``mode_abilities[i].description`` — Silverback Elder's "Look at
+        # the top five cards of your library..." mode carries a bare
+        # ``None`` per-mode description; the modal's own list is the only
+        # place the text survives). Joined, not scanned per-node, so the
+        # two conditions can straddle sibling clauses within one ability
+        # (Doomsday's "exile the rest" + a LATER "Put the chosen cards on
+        # top of your library" sentence — the exact cross-clause reach
+        # legacy's own whole-ability-raw C8 tag has).
+        parts = [unit_text]
+        for n in nodes:
+            d = getattr(n, "description", None)
+            if d:
+                parts.append(_REMINDER_RX.sub(" ", d))
+            for mdesc in getattr(n, "mode_descriptions", None) or ():
+                parts.append(_REMINDER_RX.sub(" ", mdesc))
+        corpus = " ".join(parts)
+        if _TOPDECK_SELECTION_VERB_RX.search(
+            corpus
+        ) and _TOPDECK_SELECTION_TOP_RX.search(corpus):
+            return [Signal("topdeck_selection", "you", "", "", tree.name, "high")]
     return []
 
 
