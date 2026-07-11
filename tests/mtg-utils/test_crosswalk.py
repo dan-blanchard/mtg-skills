@@ -4692,6 +4692,90 @@ def test_facedown_matters_turn_face_up_effect():
     assert "facedown_matters" not in _keys("Cloudform")
 
 
+# ── ADR-0038 W3 batch 6 (facedown_matters promotion) ───────────────────────
+# The batch-5 zones agent proved the legacy population is scope-mismatched:
+# a plain morph/manifest/cloak MAKER with no genuine payoff fires the legacy
+# ``_matters`` lane purely because its OLD-IR per-face keyword tuple drops
+# the keyword for a non-mana morph cost (Gathan Raiders "Morph—Discard a
+# card" keywords=() vs Krosan Colossus "Morph {4}{U}" keywords=('Morph',)) —
+# an artifact of that projection quirk, not a principled cares-about
+# boundary (CR 702.37a: Morph is the cast-as-2/2 ability; the maker never
+# references an EXISTING face-down object). live_only re-measured at HEAD:
+# every one of the 61 legacy-only cards is either this maker-idiom shed
+# (33, negative-pinned below) or a genuine structural gap now closed (28
+# recovered) — live_only == exactly the shed set, the promotion gate.
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Ixidron",  # mass turn-face-down + face-down-count read (CR 613)
+        "Nosy Goblin",  # Destroy target w/ FaceDown property (CR 708.2)
+        "Kadena, Slinking Sorcerer",  # ETB draw on a face-down creature
+        "Karlov Watchdog",  # static mode CantBeTurnedFaceUp (CR 708.3)
+        "Paranormal Analyst",  # trigger_event manifestdread (CR 701.62)
+        "Smoke Teller",  # Unimplemented{name=look} "target face-down..."
+        "Exiled Doomsayer",  # morph-cost tax (CR 702.37a)
+    ],
+)
+def test_facedown_matters_recovered_structural(name):
+    """Genuine face-down PAYOFF/reference cards the batch-6 structural arms
+    (FaceDown-typed marker deep scan, ``manifestdread``/``turnfaceup``
+    trigger events, ``EnchantedIsFaceDown``/``CantBeTurnedFaceUp`` typed
+    modes, and the ``look``/``turn``-named Unimplemented residue reads)
+    recover — none of these fire via the last-resort text fallback."""
+    assert ("facedown_matters", "you", "") in _idents(name)
+
+
+def test_facedown_matters_enchanted_is_facedown_condition():
+    """Unable to Scream's static carries a typed ``EnchantedIsFaceDown``
+    condition ("as long as enchanted creature is face down, it can't be
+    turned face up") — the lock references an EXTERNAL face-down state,
+    not its own maker action (CR 708.2)."""
+    assert ("facedown_matters", "you", "") in _idents("Unable to Scream")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Gathan Raiders",  # plain Morph maker, non-mana cost (CR 702.37a)
+        "Whisperwood Elemental",  # plain Manifest maker (CR 701.62 sibling)
+        "Gift of Doom",  # self "as ~ is turned face up" morph rider only
+    ],
+)
+def test_facedown_matters_excludes_plain_maker(name):
+    """A plain morph/manifest MAKER with no reference to an EXTERNAL
+    face-down object never fires facedown_matters — it belongs to
+    facedown_makers only (CR 702.37a / 701.62). The legacy population's
+    firing on these was the ``_recover_facedown`` regex catching the
+    maker's own reminder text, not a genuine payoff; adjudicated shed."""
+    assert "facedown_matters" not in _keys(name)
+
+
+def test_facedown_matters_excludes_name_collision():
+    """Cloak and Dagger, Entwined has NO face-down reference in its oracle
+    text at all (deathtouch/lifelink + a hand-reveal ETB) — the legacy
+    population's firing here was purely a regex name-collision on its own
+    "Cloak" name fragment, not a mechanic reference. Adjudicated shed."""
+    assert "facedown_matters" not in _keys("Cloak and Dagger, Entwined")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Primal Whisperer",  # "+2/+2 for each face-down creature" count
+        "Cyber Conversion",  # "Turn target creature face down" (CR 708.1)
+        "Oblivious Bookworm",  # broad "entered ... face down / turned ...
+        # face up this turn" condition, not self-referential
+    ],
+)
+def test_facedown_matters_beyond_legacy_gain(name):
+    """Genuine facedown_matters cards the legacy regex never covered (no
+    "turn ... face up" phrasing in its allowlist for a "turn X face down"
+    removal effect, or a bare count/condition read) — beyond-legacy gains,
+    CR-grounded (CR 613 count, 708.1 turn-face-down, 708.2/708.3
+    condition)."""
+    assert ("facedown_matters", "you", "") in _idents(name)
+
+
 @pytest.mark.parametrize(
     ("name", "extra_flash"),
     [

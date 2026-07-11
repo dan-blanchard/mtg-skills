@@ -871,6 +871,47 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # mode-agnostic ``_ETB_HAD_RE`` per-trigger description fallback for
     # Ephara's condition-less delayed payoff (no ``etb`` event exists in
     # phase's model for a structural arm to ever reach). CR 603.6a.
+    #
+    # ADR-0038 W3 batch 6 (facedown-and-basept cluster): ``facedown_matters``
+    # PROMOTED. The batch-5 zones agent proved the legacy population is
+    # SCOPE-MISMATCHED — a plain morph/manifest/cloak MAKER with no genuine
+    # payoff fires the legacy ``_matters`` lane purely because the OLD IR's
+    # per-face keyword tuple drops the keyword for a non-mana morph cost
+    # (Gathan Raiders "Morph—Discard a card" keywords=() vs Krosan Colossus
+    # "Morph {4}{U}" keywords=('Morph',)) — an artifact of that projection
+    # quirk, not a principled cares-about boundary (CR 702.37a: Morph is
+    # the cast-as-2/2 ability; a plain maker never references an EXISTING
+    # face-down object). Re-measured at HEAD: 61 live_only, 3 cw_only. 33
+    # of the 61 are this maker-idiom shed (Gathan Raiders/Whisperwood
+    # Elemental/Gift of Doom's own "as ~ is turned face up" morph rider/
+    # Cloak and Dagger, Entwined's pure regex name-collision — negative-
+    # pinned) and 28 are genuine structural gaps now closed: a FaceDown-
+    # typed marker deep scan (Nosy Goblin's ``Destroy`` target, Etrata's
+    # granted-ability ``affected``, Kadena's face-down-ETB draw, Ixidron,
+    # Veiled Ascension, Tunnel Tipster, Cryptic Pursuit, Dream Chisel,
+    # Obscuring Aether, Primordial Mist, Found Footage, Keeper of the Lens,
+    # Panoptic Projektor, Lumbering Laundry), a ``manifestdread`` trigger
+    # event (Paranormal Analyst — CR 701.62, reactive to the ACTION, not
+    # the making of it), typed ``EnchantedIsFaceDown`` condition (Unable to
+    # Scream) and static ``mode == "CantBeTurnedFaceUp"`` (Karlov Watchdog),
+    # and a ``look``/``turn``-named ``Unimplemented`` residue read (Smoke
+    # Teller/Aven Soulgazer, Showstopping Surprise/Backslide, Exiled
+    # Doomsayer's morph-cost tax), plus a unit-scoped last-resort text hook
+    # (Qarsi Deceiver, Revealing Wind, Lens of Clarity, Spy Network,
+    # Illusionary Mask) gated by a maker-idiom exclusion regex (reminder-
+    # completion / "exile ... face-down pile" gambit / self ETB-parity
+    # rider / a bare "is turned face up" duplicate-decomposition fragment)
+    # — corpus-verified at the FULL commander-legal corpus (not just the
+    # 61) to guard against the batch-5 naive-port explosion (3→126
+    # cw_only); this port's corpus cw_only is 11 (3 pre-existing baseline
+    # anomalies — Fear of Impostors/Unwanted Remake/Unidentified Hovership,
+    # the ManifestDread-on-OPPONENT arm, unrelated to this batch — plus 8
+    # genuine beyond-legacy gains: Primal Whisperer's face-down-creature
+    # count, Cyber Conversion/Illithid Harvester's "turn X face down"
+    # removal the legacy regex allowlist never covered, Creeping Peeper/
+    # Overgrown Zealot/Tin Street Gossip's mana restrictions, Oblivious
+    # Bookworm's broad condition). live_only == exactly the 33-card shed
+    # set IS the 0-genuine-lost gate.
     {
         "artifacts_matter",
         "base_pt_set",
@@ -884,7 +925,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "draw_for_each",
         "enchantments_matter",
         "exile_matters",
-        "facedown_matters",
         "graveyard_matters",
         "land_creatures_matter",
         "land_sacrifice_makers",
@@ -8224,20 +8264,137 @@ def _extra_upkeep_end(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+def _facedown_has_marker(node: object) -> bool:
+    """Whether ANY typed node under ``node`` carries the ``FaceDown``
+    predicate tag (a target/affected filter's ``properties``) or a
+    ``Subtype: Face-down`` type-filter word — the structural read of
+    legacy's ``_is_facedown_subject`` (Nosy Goblin's ``Destroy`` target,
+    Etrata's granted-ability ``affected``, Kadena's ETB ``valid_card``).
+    """
+    for n in iter_typed_nodes(node):
+        if tag_of(n) == "FaceDown":
+            return True
+        if "Face-down" in filter_subtypes(n):
+            return True
+    return False
+
+
+# ADR-0038 W3 batch 6: the maker-vs-payoff boundary regexes. A morph/
+# manifest/cloak/disguise MAKER's own reminder text and ETB-parity rider
+# ("Turn it face up any time for its mana cost" / "As ~ enters or is
+# turned face up, ...") ALWAYS names "face down"/"face up" too — batch 5
+# proved the legacy population's naive text-idiom port conflates the two,
+# exploding cw_only 3→126. ``_FACEDOWN_MAKER_IDIOM_RX`` excludes every
+# maker-only idiom this corpus surfaced (reminder-completion, the
+# "exile ... face-down pile" gambit mechanic and its "turn ... face up"
+# follow-through, the self-referential turn-up rider, the ETB-parity
+# "enters or is turned face up" template, and a bare "is turned face up"
+# fragment phase sometimes double-decomposes into its own tiny ability
+# unit alongside the full sentence). CR 702.37a/c (morph), 702.152/153
+# (disguise), 701.62 (manifest dread).
+_FACEDOWN_MAKER_IDIOM_RX = re.compile(
+    r"face up any time for its"
+    r"|\bpile\b"
+    r"|exiled with (?:this|~|itself)"
+    r"|as (?:this .{0,20}|~) ?(?:is|becomes) turned face up"
+    r"|(?:as|when) (?:this .{0,30}|~) enters,? or is turned face up"
+    r"|^(?:or |and )?is turned face up\.?$",
+    re.IGNORECASE,
+)
+# A genuine cares-about reference: "face-down creature(s)"/"face-down
+# permanent(s)" (either word order) or a "turn(ed) ... face up" clause —
+# legacy's own ``_FACEDOWN_WORD`` + ``_FACEDOWN_NOUN`` shape, narrowed to
+# require the noun so a hidden-info "exile ... face down" idiom (Scroll
+# Rack, Bottled Cloister, hideaway lands — a CR 701 mechanic, NOT CR 708)
+# never qualifies (CR 701 vs 708 boundary, corpus-verified).
+_FACEDOWN_REF_HOOK_RX = re.compile(
+    r"face[- ]down .{0,3}(?:creature|permanent)s?"
+    r"|(?:creature|permanent)s? .{0,3}(?:is |are |that.s )?face[- ]down"
+    r"|turn(?:ed)? .{0,20}face up",
+    re.IGNORECASE,
+)
+
+
+def _facedown_node_descriptions(node: object) -> list[str]:
+    return [
+        d
+        for n in iter_typed_nodes(node)
+        if isinstance((d := getattr(n, "description", None)), str) and d
+    ]
+
+
 def _facedown_matters(tree: ConceptTree) -> list[Signal]:
-    """facedown_matters — the face-down PAYOFF (CR 708.1). Three typed hooks:
-    a ``TurnFaceUp`` EFFECT (the turner references existing face-down
-    permanents — Break Open), the ``TurnFaceUp`` TRIGGER mode ("when this
-    is turned face up" morph payoffs — CR 708.3: the event arises only from
-    a face-down permanent turning up), and the first-class ``ManifestDread``
-    node (batch-9 adjudicated: Abhorrent Oculus — CR 701.55, manifest dread
-    both MAKES the face-down 2/2 and selects for the face-down theme, so
-    live fires maker + matters together; the tag read keeps the plain
-    Manifest/Cloak DOERS, which share the ``facedown`` concept, out of the
-    payoff arm). Scope "you".
+    """facedown_matters — the face-down PAYOFF (CR 708.1). Structural hooks,
+    widest to narrowest:
+
+    * a ``TurnFaceUp`` EFFECT (the turner references existing face-down
+      permanents — Break Open) or TRIGGER mode ("when this is turned face
+      up" — CR 708.3), or the first-class ``ManifestDread`` node (CR
+      701.62 — Abhorrent Oculus both MAKES the face-down 2/2 and selects
+      for the theme, so maker + matters fire together);
+    * a ``manifestdread`` TRIGGER EVENT — "whenever you manifest dread"
+      (Paranormal Analyst) is reactive to the ACTION, not the making of it;
+    * a ``FaceDown``-typed target/affected/trigger-subject filter anywhere
+      in the unit (:func:`_facedown_has_marker` — Nosy Goblin's ``Destroy``
+      target, Etrata's face-down-creatures grant, Kadena's face-down-ETB
+      draw, Veiled Ascension, Tunnel Tipster, Cryptic Pursuit, Dream
+      Chisel, Obscuring Aether, Ixidron, Primordial Mist);
+    * an ``EnchantedIsFaceDown`` typed CONDITION (Unable to Scream's "as
+      long as enchanted creature is face down, it can't be turned face
+      up" lock) or a static ``mode == "CantBeTurnedFaceUp"`` (Karlov
+      Watchdog);
+    * an ``Unimplemented`` residue whose own ``name`` is phase's ``look``
+      or ``turn`` discriminator AND whose description names "face" —
+      narrower than a bare text scan (Smoke Teller/Aven Soulgazer's
+      "look at target face-down creature", Showstopping Surprise/
+      Backslide/Cyber Conversion/Illithid Harvester's "turn ... face
+      down/up"), or an Unimplemented ``static_structure`` residue naming
+      a morph-cost tax (Exiled Doomsayer);
+    * LAST RESORT: any node's own description matching
+      :data:`_FACEDOWN_REF_HOOK_RX` (a genuine "face-down creature(s)"/
+      "face-down permanent(s)" reference or a "turn(ed) ... face up"
+      clause — Qarsi Deceiver, Revealing Wind, Lens of Clarity, Spy
+      Network, Illusionary Mask's bespoke "it's turned face up"), gated
+      UNIT-WIDE (not per-node) by :data:`_FACEDOWN_MAKER_IDIOM_RX` — if
+      any description in the SAME unit is a maker-only idiom, the whole
+      unit is maker territory, so a sibling node's truncated echo of the
+      same clause can't slip past the exclusion in isolation.
+
+    Deliberately NOT a bare "face down"/keyword match (a plain morph/
+    manifest/cloak/disguise MAKER's own reminder text and ETB-parity
+    rider always names the mechanic too — batch 5's naive port exploded
+    cw_only 3→126 on exactly this conflation; see
+    :data:`_FACEDOWN_MAKER_IDIOM_RX`). Scope "you"/"any" per hook.
     """
     for unit in tree.units:
-        if unit.trigger_event == "turnfaceup":
+        if unit.trigger_event in ("turnfaceup", "manifestdread"):
+            return [Signal("facedown_matters", "you", "", "", tree.name, "high")]
+        if _facedown_has_marker(unit.node):
+            return [Signal("facedown_matters", "you", "", "", tree.name, "high")]
+        descs = _facedown_node_descriptions(unit.node)
+        unit_is_maker_idiom = any(_FACEDOWN_MAKER_IDIOM_RX.search(d) for d in descs)
+        for n in iter_typed_nodes(unit.node):
+            t = tag_of(n)
+            if t == "EnchantedIsFaceDown":
+                return [Signal("facedown_matters", "you", "", "", tree.name, "high")]
+            if t == "Unimplemented":
+                name = getattr(n, "name", None)
+                desc = getattr(n, "description", "") or ""
+                if (
+                    name in ("look", "turn")
+                    and "face" in desc.lower()
+                    and not unit_is_maker_idiom
+                ):
+                    return [
+                        Signal("facedown_matters", "you", "", desc, tree.name, "high")
+                    ]
+                if name == "static_structure" and re.search(
+                    r"morph costs? cost", desc, re.IGNORECASE
+                ):
+                    return [
+                        Signal("facedown_matters", "you", "", desc, tree.name, "high")
+                    ]
+        if getattr(unit.node, "mode", None) == "CantBeTurnedFaceUp":
             return [Signal("facedown_matters", "you", "", "", tree.name, "high")]
     hits = tree.effect_concepts("turn_face_up")
     if hits:
@@ -8245,6 +8402,13 @@ def _facedown_matters(tree: ConceptTree) -> list[Signal]:
     for c in tree.effect_concepts("facedown"):
         if tag_of(c.node) == "ManifestDread":
             return [Signal("facedown_matters", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        descs = _facedown_node_descriptions(unit.node)
+        if any(_FACEDOWN_MAKER_IDIOM_RX.search(d) for d in descs):
+            continue
+        for desc in descs:
+            if _FACEDOWN_REF_HOOK_RX.search(desc):
+                return [Signal("facedown_matters", "you", "", desc, tree.name, "high")]
     return []
 
 
