@@ -11119,6 +11119,128 @@ def test_direct_damage_excludes_bare_self_damage_shed(name):
     assert "direct_damage" not in _keys(name)
 
 
+# ── ADR-0038 W5 tails: direct_damage (recovery.ALLOWLIST "damage" row) ───────
+#
+# Re-measured in a fresh worktree at the W4-giants HEAD: joined=31622, both
+# 1157->1534, live_only 535->158 (unchanged from W4's own measurement — no
+# drift). The diverse ~67-member Unimplemented-residue tail W4 banked as
+# genuinely unrecoverable (computed damage amounts phase drops the WHOLE
+# clause for) splits into two sub-classes on closer read: 85 corpus-wide
+# residues tokenize to the shared clause grammar's pre-existing "damage" verb
+# token (``deal[s] ... damage``) — 29 overlap direct_damage's own residual
+# tail. Recovering those needs a recovery.ALLOWLIST row (not a NEW grammar
+# verb — "damage" was already wired into ``_VERB`` for a different consumer)
+# plus a LANE-level raw-text direction gate (a recovered node carries no
+# typed ``target`` field): CR 120.1 "any target" / "each opponent" / "that
+# player" / "defending player" / "target player" all reach; a bare "to you"
+# stays the incidental self-damage exclusion (Iron Mastiff's own 1-9 d20 row
+# never matches alone — its 10-19/20 sibling rows still fire the unit); a
+# bare "target creature" (Whipkeeper) correctly stays excluded, joining the
+# pre-existing creature-only shed class rather than closing a gap.
+#
+# Full-corpus ALL-KEYS before/after diff (recovery.ALLOWLIST with vs without
+# the "damage" row): 32 changed cards, every gain scoped to ``direct_damage``
+# except two adjudicated, benign side effects verified NOT to regress any
+# pinned test (``include_membership``-gated, off by default in ``_idents``):
+# (1) Crimson Honor Guard / Deathforge Shaman lose the STILL-residual
+# ``voltron_matters`` key's OWN already-adjudicated "commander-damage
+# MEMBERSHIP-fallback shed" fallback tell (see that key's own
+# ``_STAGE4_RESIDUAL`` comment) — a genuine correction: once the card's
+# damage effect is correctly read as its OWN burn plan, the generic
+# commander-damage voltron guess correctly backs off; (2) Deathforge Shaman /
+# Voracious Dragon gain ``wants_cloning`` LOW (a PROMOTED, production key) —
+# their now-visible ETB damage effect correctly satisfies
+# ``has_self_etb_value``'s "valuable ETB" test, a genuine improvement.
+#
+# Measured after the row: both 1534->1562, live_only 158->130 (28 closed —
+# the 29-card overlap minus Whipkeeper, which correctly joins the shed class
+# instead), crosswalk_only 119->123 (+4 genuine beyond-legacy gains: legacy's
+# OWN oracle-text regex mirror, independent of this clause grammar, misses
+# Enchanter's Bane / Searing Rays / Spiteful Repossession / Rumbling
+# Aftershocks entirely). live_only STILL != exactly the shed class (Judgment
+# Bolt / Liquid Fire / Synchronized Spellcraft / Cruel Sadist's second
+# damage-to-controller clause is SILENTLY DROPPED by phase — no residue node
+# at all, confirmed via direct tree dump, needs phase parser work; Vexing
+# Arcanix's "target player" itself is lost upstream of the Unimplemented
+# tail, RevealTop reads ``player=Controller()`` instead) — key stays
+# RESIDUAL. CR 120.1 / 120.3 verified via rules-lookup this session.
+
+
+def test_damage_recovery_row_closes_computed_amount_tail():
+    """Soulblast's "deals damage to any target equal to the total power of
+    the sacrificed creatures" (CR 120.1) — a total-power sacrifice tally
+    phase's own amount grammar can't structure — lands as an Unimplemented
+    residue the recovery.ALLOWLIST "damage" row re-decorates to
+    "deal_damage"; the raw residue's "any target" phrase satisfies
+    ``_RECOVERED_DAMAGE_REACH``."""
+    assert ("direct_damage", "you", "") in _idents("Soulblast")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Mjölnir, Storm Hammer",  # "each opponent equal to the number of..."
+        "Crimson Honor Guard",  # "unless"-guarded "to that player"
+        "Curse Artifact",  # "unless"-guarded "to that player"
+        "Deathforge Shaman",  # kicker-scaled "target player or planeswalker"
+    ],
+)
+def test_direct_damage_recovered_reach_words(name):
+    """The recovered-node raw-read direction gate (no typed ``target`` field
+    survives a computed-amount Unimplemented residue): "each opponent" /
+    "that player" / "target player or planeswalker" all satisfy
+    ``_RECOVERED_DAMAGE_REACH`` (CR 120.1). An "unless" guard on the damage
+    (Crimson Honor Guard / Curse Artifact) doesn't change the recipient —
+    still a genuine burn source, just a punisher/upkeep-tax shape."""
+    assert ("direct_damage", "you", "") in _idents(name)
+
+
+def test_direct_damage_recovered_modal_table_defending_and_opponent_reach():
+    """Iron Mastiff's d20 modal table has THREE separate damage rows in ONE
+    triggered ability: "1-9: ... to you" (self, correctly excluded — the
+    incidental self-damage exclusion applies to a recovered node too),
+    "10-19: ... to defending player", "20: ... to each opponent". The unit
+    fires on the FIRST matching concept-node; the "defending player"/"each
+    opponent" sibling rows reach even though the "to you" row alone would
+    not (CR 506.4c defending player)."""
+    assert ("direct_damage", "you", "") in _idents("Iron Mastiff")
+
+
+def test_direct_damage_recovered_creature_only_stays_excluded():
+    """Whipkeeper's "deals damage to target creature equal to the damage
+    already dealt to it" (CR 120.1) recovers to "deal_damage" (the amount is
+    a computed reference phase drops) but its recipient phrase is bare
+    "target creature" — no player-reach word — so ``_RECOVERED_DAMAGE_REACH``
+    correctly excludes it. Joins the pre-existing creature-only tap-ability
+    shed class rather than closing a genuine gap."""
+    assert "direct_damage" not in _keys("Whipkeeper")
+
+
+def test_direct_damage_recovery_false_senses_excluded():
+    """Illusionary Mask's face-up-replacement clause LIST ("assigns or deals
+    damage, is dealt damage, or becomes tapped" — CR 707.4a) and Skyway
+    Robber's Escape rider (a granted trigger's quoted CONDITION mentioning
+    "deals combat damage to a player", CR 510.1c — a categorically different
+    mechanism than a spell/ability's own damage effect) are BOTH rejected at
+    the recovery seam (``_NON_DAMAGE_SENSE``) — neither is a CR 120.1
+    direct-damage EFFECT."""
+    assert "direct_damage" not in _keys("Illusionary Mask")
+    assert "direct_damage" not in _keys("Skyway Robber")
+
+
+def test_direct_damage_beyond_legacy_gain_recovered_node():
+    """Enchanter's Bane ("target enchantment deals damage equal to its mana
+    value to its controller unless that player sacrifices it") and Rumbling
+    Aftershocks ("deal damage to any target equal to the number of times
+    that spell was kicked") are BEYOND-legacy gains: legacy's OWN oracle-
+    text regex mirror (``_signals_ir._DIRECT_DAMAGE_MIRROR``, independent of
+    this shared clause grammar) misses both entirely — the crosswalk's
+    structural read is now MORE correct than legacy for this class, not
+    merely reproducing it (CR 120.1)."""
+    assert ("direct_damage", "you", "") in _idents("Enchanter's Bane")
+    assert ("direct_damage", "you", "") in _idents("Rumbling Aftershocks")
+
+
 # ── ADR-0038 W4 giant: enchantments_matter (structural arms + verified CR) ───
 
 

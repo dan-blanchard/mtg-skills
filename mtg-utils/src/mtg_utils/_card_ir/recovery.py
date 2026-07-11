@@ -206,10 +206,50 @@ ALLOWLIST: dict[str, TokenRule] = {
     # draw for the OTHER player), so lanes reading recovered draw nodes
     # must direction-gate on the raw, same as "discard".
     "draw": TokenRule(concept="draw", category="draw"),
+    # ADR-0038 W5 tails (direct_damage): the deal-damage ACTION idiom (CR
+    # 120.1/120.3): "deal[s] damage ... equal to <computed amount> ..." —
+    # an amount phase's own ``Ref``/``Qty`` grammar can't structure at all
+    # (a total-power sacrifice tally — Soulblast, Burn at the Stake; a
+    # per-thing count — Mjölnir Storm Hammer, Molten Psyche, Fateful
+    # Tempest; a modal/table row inside one triggered ability — Iron
+    # Mastiff's d20 chart) leaves the WHOLE clause as an Unimplemented
+    # residue (unlike the ``lose_life``/``draw`` rows above, a computed
+    # ``DealDamage`` amount is common enough that phase drops the clause
+    # entirely rather than parking a partial typed node — corpus census at
+    # introduction: 85 residues tokenize to "damage" corpus-wide, 29
+    # overlap direct_damage's residual tail). Maps to the native
+    # ``DealDamage``/``DamageAll``/``DamageEachPlayer`` tags' own concept
+    # ("deal_damage") so ``direct_damage``'s ordinary
+    # ``effect_concepts("deal_damage")`` read reaches the recovered node —
+    # but a recovered node carries NO typed ``target`` field
+    # (:func:`~mtg_utils._card_ir.crosswalk.effect_reaches_player` needs
+    # one), so the LANE direction-gates on the raw residue text itself (the
+    # recovered-node raw-read precedent — same discipline as "discard" /
+    # "draw" above), never trusting scope alone. The OTHER four
+    # ``deal_damage`` consumers (``damage_equal_power``, the combat-trio's
+    # ``creature_ping``/``symmetric_damage_each``/``aoe_ping``,
+    # ``typed_enters_punish``, ``removal``) all gate on
+    # ``tag_of(c.node) == "DealDamage"``/``"DamageAll"``/``"DamageEachPlayer"``
+    # first, so a recovered ``Unimplemented`` node (tag never matches) is a
+    # silent no-op for them — verified via the full-corpus ALL-KEY diff, 0
+    # changed idents outside ``direct_damage``.
+    "damage": TokenRule(concept="deal_damage", category="damage"),
 }
 
 
 _NON_DRAW_SENSE = re.compile(r"\bgame is a draw\b|\bdraw step\b", re.IGNORECASE)
+# "damage"'s grammar token also matches two NON-burn-effect senses: a
+# face-up REPLACEMENT clause that merely LISTS "deals damage" among several
+# conditions a face-down creature would trigger (Illusionary Mask's "...
+# assigns or deals damage, is dealt damage, or becomes tapped" — CR 707.4a
+# turning-face-up, no independent damage effect at all) and a granted
+# TRIGGERED ability's quoted CONDITION ("escapes with '... deals combat
+# damage to a player, you may ...'" — Skyway Robber's Escape rider, both
+# parsers failing on the same line). Neither is a CR 120.1 direct-damage
+# EFFECT; reject at the seam so no lane ever sees them (corpus census: 2 of
+# 85 "damage"-token residues, both non-commander-relevant to any migrated
+# key today — rejected on principle, not measured harm).
+_NON_DAMAGE_SENSE = re.compile(r"\bturned face up\b|\bcombat damage\b", re.IGNORECASE)
 
 
 def _recover(c: ConceptNode, table: dict[str, TokenRule]) -> ConceptNode | None:
@@ -241,6 +281,11 @@ def _recover(c: ConceptNode, table: dict[str, TokenRule]) -> ConceptNode | None:
     # draw step" — Elfhame Sanctuary, Well of Knowledge). Neither is a
     # CR 121.1 card draw; reject at the seam so no lane ever sees them.
     if token == "draw" and _NON_DRAW_SENSE.search(c.raw):
+        return None
+    # "damage"'s grammar token also matches a face-up-replacement LIST sense
+    # and a granted-ability's quoted combat-damage CONDITION — neither is a
+    # CR 120.1 direct-damage effect (see ``_NON_DAMAGE_SENSE``'s docstring).
+    if token == "damage" and _NON_DAMAGE_SENSE.search(c.raw):
         return None
     rule = table[token]
     return replace(

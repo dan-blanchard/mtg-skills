@@ -358,3 +358,57 @@ def test_fight_makers_promoted_via_production_allowlist():
     assert nodes[0].concept == "fight"
     assert nodes[0].recovered_by == "fight"
     assert tag_of(nodes[0].node) == "Unimplemented"
+
+
+# ── ADR-0038 W5 tails "damage" (computed-amount deal-damage recovery) ──────
+
+
+def test_parse_clause_matches_damage_verb():
+    from mtg_utils._card_ir.clause_grammar import parse_clause
+
+    assert parse_clause("deal damage to any target equal to X") == "damage"
+    assert (
+        parse_clause("deals 4 damage to that player unless they control a commander")
+        == "damage"
+    )
+
+
+def test_direct_damage_promoted_via_production_allowlist():
+    """Soulblast's "deals damage to any target equal to the total power of
+    the sacrificed creatures" (CR 120.1) is a computed-amount ``DealDamage``
+    phase's own ``Ref``/``Qty`` grammar can't structure at all, leaving the
+    WHOLE clause as an Unimplemented residue; the production ALLOWLIST's
+    "damage" token entry re-decorates it in place to the native
+    "deal_damage" concept — no typed ``target`` field survives, so
+    ``direct_damage`` direction-gates on the raw (see
+    ``crosswalk_signals._RECOVERED_DAMAGE_REACH``)."""
+    tree = _fixture_tree("Soulblast")
+    nodes = tree.effect_concepts("deal_damage")
+    assert len(nodes) == 1
+    assert nodes[0].concept == "deal_damage"
+    assert nodes[0].recovered_by == "damage"
+    assert tag_of(nodes[0].node) == "Unimplemented"
+
+
+def test_damage_recovery_rejects_face_up_replacement_sense():
+    """Illusionary Mask's face-down replacement clause LISTS "assigns or
+    deals damage, is dealt damage, or becomes tapped" among several
+    conditions a face-down creature would trigger (CR 707.4a turning face
+    up) — not an independent damage EFFECT. The ``_NON_DAMAGE_SENSE`` seam
+    guard rejects it; the node stays concept=="other", never re-decorated."""
+    tree = _fixture_tree("Illusionary Mask")
+    assert tree.effect_concepts("deal_damage") == ()
+    other_raws = [c.raw for c in tree.iter_concepts() if c.concept == OTHER]
+    assert any("turned face up" in (r or "") for r in other_raws)
+
+
+def test_damage_recovery_rejects_combat_damage_condition_sense():
+    """Skyway Robber's Escape rider grants a NEW triggered ability whose
+    quoted CONDITION mentions "deals combat damage to a player" — a
+    trigger-condition description, not a ``DealDamage`` EFFECT (CR 510.1c
+    combat damage is a categorically different mechanism than a spell/
+    ability's own damage effect). The ``_NON_DAMAGE_SENSE`` seam guard
+    rejects it (both parsers already failed on this line, so it survives as
+    an ``Unimplemented`` residue either way)."""
+    tree = _fixture_tree("Skyway Robber")
+    assert tree.effect_concepts("deal_damage") == ()

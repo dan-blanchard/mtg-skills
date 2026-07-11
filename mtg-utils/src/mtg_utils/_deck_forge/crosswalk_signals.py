@@ -1134,6 +1134,27 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "base_pt_set",
         "cheat_into_play",
         "creatures_matter",
+        # ADR-0038 W5 tails (2026-07-11): direct_damage NOT YET PROMOTED —
+        # live_only cut from 158 to 130 via the recovery.ALLOWLIST "damage"
+        # row (a computed-amount DealDamage/DamageAll/DamageEachPlayer
+        # clause phase drops entirely — Soulblast's sacrifice tally,
+        # Mjölnir Storm Hammer's per-tapped-creature count, Iron Mastiff's
+        # d20 table) + a lane-level raw-text direction gate
+        # (``_RECOVERED_DAMAGE_REACH`` — a recovered node carries no typed
+        # ``target``). 28 of the 29 corpus-overlapping "damage"-token
+        # residues closed (Whipkeeper correctly joins the shed class
+        # instead — bare "target creature" recipient); 4 more beyond-legacy
+        # gains (Enchanter's Bane / Searing Rays / Spiteful Repossession /
+        # Rumbling Aftershocks — legacy's own regex mirror misses them
+        # entirely). A genuine tail remains: phase SILENTLY DROPS a second
+        # damage-to-controller clause when the amount is computed (Judgment
+        # Bolt / Liquid Fire / Synchronized Spellcraft / Cruel Sadist — no
+        # residue node survives AT ALL, confirmed via direct tree dump —
+        # needs phase parser work, not a recovery row) and loses "target
+        # player" upstream of the Unimplemented tail on at least one card
+        # (Vexing Arcanix's RevealTop reads ``player=Controller()`` instead
+        # of the targeted player). Landfall rule not met (live_only != the
+        # shed set) — stays residual. CR 120.1/120.3 verified this session.
         "direct_damage",
         "draw_for_each",
         "exile_matters",
@@ -2163,6 +2184,30 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ADR-0038 W5 tails (direct_damage): a recovery.ALLOWLIST "damage" node (a
+# computed-amount DealDamage/DamageAll/DamageEachPlayer clause phase drops
+# entirely — Soulblast's sacrifice-tally, Mjölnir Storm Hammer's per-tapped-
+# creature count, Iron Mastiff's d20 chart row) carries NO typed ``target``
+# field (:func:`effect_reaches_player` needs one) — the raw residue clause
+# is truncated ("deal damage to any target equal to ...", "~ deals 4 damage
+# to that player unless ..."), so direction is a reject-list scan over the
+# tell-tale recipient words themselves, same discipline as recovered
+# "discard"/"draw" nodes elsewhere. Corpus-verified (29 of 85 corpus-wide
+# "damage"-token residues overlap direct_damage's residual tail; every
+# member's own recipient phrase matches one of these words OR is bare
+# "target creature" — Whipkeeper, correctly NOT matched, stays excluded
+# alongside the pre-existing creature-only shed class). "to you" alone is
+# deliberately NOT a match — the same incidental-self-damage exclusion as
+# the typed path's bare ``Controller`` (Iron Mastiff's own "1-9: deals
+# damage ... to you" row stays unmatched; its "defending player"/"each
+# opponent" sibling rows still fire the unit).
+_RECOVERED_DAMAGE_REACH = re.compile(
+    r"\bany (?:other )?target\b|\beach opponent\b|\bthat player\b"
+    r"|\bdefending player\b|\btarget player\b",
+    re.IGNORECASE,
+)
+
+
 def _direct_damage(tree: ConceptTree) -> list[Signal]:
     """Burn that reaches a PLAYER (Fanatic of Mogis, Lightning Bolt — CR 120.1).
 
@@ -2192,9 +2237,20 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     earlier clause) only resolves against ITS OWN ability's sibling targets
     (Aggressive Sabotage's "Target player discards ... deals 3 damage to
     that player" vs. Fiery Impulse's "target creature ... deals 3 instead").
+
+    ADR-0038 W5 tails: a recovered "damage" node (see
+    :data:`_RECOVERED_DAMAGE_REACH`) direction-gates on the raw clause text
+    instead of ``effect_reaches_player`` — a recovered node's ``.node`` is
+    still the bare ``Unimplemented`` wrapper, no typed recipient to read.
     """
     for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
+            if c.recovered_by == "damage":
+                if _RECOVERED_DAMAGE_REACH.search(c.raw or ""):
+                    return [
+                        Signal("direct_damage", "you", "", c.raw, tree.name, "high")
+                    ]
+                continue
             if effect_reaches_player(c.node, unit.node):
                 return [Signal("direct_damage", "you", "", c.raw, tree.name, "high")]
         if has_nested_damage_reaching_player(unit.node):
