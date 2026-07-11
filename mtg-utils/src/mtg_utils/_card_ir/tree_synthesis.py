@@ -1304,6 +1304,17 @@ def structural_type_subjects(tree: ConceptTree) -> set[str]:
     vocab-resolved through ``_resolve_subject`` (the ``NON_CREATURE_TOKEN`` /
     ``CARD_TYPE_SUBJECTS`` denylist — CR 111.10 / 205.3g), so a Treasure / Clue token
     subtype or a bare "creature" / "permanent" never mints a kindred subject.
+
+    ADR-0038 W4: the static-def read is :func:`iter_static_defs`, not a bare
+    ``unit.origin == "static"`` gate — a temporary "until end of turn" anthem
+    a TRIGGER's effect confers (``GenericEffect.static_abilities`` — "When you
+    cycle this card, Wizard creatures gain flying until end of turn.") nests
+    its ``affected`` Typed filter on the INNER static-ability def, not on the
+    trigger unit's own node, and the decorated concept's anchor is the leaf
+    modification (``AddKeyword``/``AddPower``), which carries no filter field
+    at all. ``iter_static_defs`` walks to the real def (cycle-safe, yields the
+    unit node itself when IT is a def, so a top-level static ability is still
+    covered — a strict superset of the old gate, never a narrowing).
     """
     out: set[str] = set()
 
@@ -1322,8 +1333,8 @@ def structural_type_subjects(tree: ConceptTree) -> set[str]:
                 add_filter(effect_filter(c.node))
         if unit.origin == "trigger":
             add_filter(getattr(unit.node, "valid_card", None))
-        if unit.origin == "static":
-            add_filter(getattr(unit.node, "affected", None))
+        for static_def in iter_static_defs(unit.node):
+            add_filter(getattr(static_def, "affected", None))
         for cond in iter_condition_sites(unit.node):
             for q in iter_typed_nodes(cond):
                 if tag_of(q) == "Typed":

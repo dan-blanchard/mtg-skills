@@ -8433,9 +8433,62 @@ def test_type_matters_mirror_subjects_are_load_bearing():
 def test_type_matters_structural_count_and_token_cross_open():
     """Krenko fires Goblin HIGH via the typed count operand
     (Ref→ObjectCount filter, the structural arm) AND the token cross-open
-    (a LOW that dedupes under the HIGH ident)."""
-    assert ("type_matters", "you", "Goblin") in _idents("Krenko, Mob Boss")
-    assert _confidences("Krenko, Mob Boss", "type_matters") == {"high"}
+    (a LOW that dedupes under the HIGH ident). ADR-0038 W4: Krenko's own
+    Goblin-token engine is ALSO a go-wide creature payoff
+    (``structural_token_maker_type_subjects`` → ``_type_matters_go_wide``),
+    so its OTHER own-type-line class tribe (Warrior — CLASS_TRIBES) now
+    surfaces too, LOW, matching legacy's own cross-open (CR 205.3)."""
+    idents = _idents("Krenko, Mob Boss")
+    assert ("type_matters", "you", "Goblin") in idents
+    assert ("type_matters", "you", "Warrior") in idents
+    assert _confidences("Krenko, Mob Boss", "type_matters") == {"high", "low"}
+
+
+def test_type_matters_nested_trigger_static_def_arm_b():
+    """ADR-0038 W4: Gempalm Sorcerer's "When you cycle this card, Wizard
+    creatures gain flying until end of turn." nests its Typed(Wizard)
+    ``affected`` filter on a static-ability DEF buried inside the
+    TRIGGER's own ``GenericEffect.static_abilities`` — the decorated
+    concept's node anchor is the leaf ``AddKeyword`` modification, which
+    carries no filter field at all. ``structural_type_subjects`` now walks
+    :func:`iter_static_defs` (cycle-safe deep descent) instead of a bare
+    ``unit.origin == "static"`` gate, so this HIGH structural Arm-B read
+    fires (CR 205.3)."""
+    idents = _idents("Gempalm Sorcerer")
+    assert ("type_matters", "you", "Wizard") in idents
+    assert _confidences("Gempalm Sorcerer", "type_matters") == {"high"}
+
+
+def test_type_matters_go_wide_static_def_pump_any_origin():
+    """ADR-0038 W4: Balmor, Battlemage Captain's "Whenever you cast an
+    instant or sorcery spell, creatures you control get +1/+0 and gain
+    trample until end of turn." is a TRIGGER-conferred team anthem (a
+    pump + grant_keyword static DEF nested in the trigger's own effect,
+    not a top-level continuous ability) over the GENERIC creature filter.
+    ``_type_matters_go_wide`` reads it via :func:`iter_static_defs`
+    (origin-agnostic, unlike ``_creatures_matter``'s own
+    ``unit.statics``-only scan, which stays narrower since
+    ``creatures_matter`` is Stage-4 RESIDUAL) — Balmor's own class tribe
+    (Wizard — CLASS_TRIBES) now surfaces LOW alongside its unconditional
+    race tribe (Bird — TRIBAL_SUBTYPES). CR 205.3/613.4."""
+    idents = _idents("Balmor, Battlemage Captain")
+    assert ("type_matters", "you", "Bird") in idents
+    assert ("type_matters", "you", "Wizard") in idents
+    assert _confidences("Balmor, Battlemage Captain", "type_matters") == {"low"}
+
+
+def test_type_matters_go_wide_token_maker_cross_open_doomed_traveler():
+    """ADR-0038 W4: Doomed Traveler's "When ~ dies, create a 1/1 white
+    Spirit creature token." makes a Spirit token — a creature-type token
+    MAKER (:func:`structural_token_maker_type_subjects`) is itself a
+    go-wide creature payoff (mirrors legacy ``_signals_ir``'s line ~11394
+    "token-maker -> creatures_matter" cross-open, CR 111.2/205.3), so
+    Doomed Traveler's own class tribe (Soldier — CLASS_TRIBES) now
+    surfaces LOW alongside its token-profile membership (Spirit)."""
+    idents = _idents("Doomed Traveler")
+    assert ("type_matters", "you", "Soldier") in idents
+    assert ("type_matters", "you", "Spirit") in idents
+    assert _confidences("Doomed Traveler", "type_matters") == {"low"}
 
 
 def test_type_matters_gates_no_subject_no_signal():

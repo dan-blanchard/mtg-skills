@@ -1141,6 +1141,45 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
 # adjudicated beyond-legacy gains (Restorative Technique, Explore the
 # Vastlands — genuinely "you"/symmetric-team benefits legacy's same scope
 # bug drops). CR 119.3 verified via rules-lookup this session.
+# ADR-0038 W4 giants (2026-07-11): type_matters banked a MAJOR gap reduction
+# (corpus live_only 550 -> 176, both 18777 -> 19151) but stays residual — a
+# genuinely diverse tail remains (Rampage self-buffs, mass-untap, MAX-operand
+# scalers, sacrifice-a-<tribe> additional-cost filters, Formidable condition
+# checks, nested GrantAbility.definition targets), each needing its own
+# arm/adjudication pass this session's budget didn't cover. Two structural
+# fixes, both reused by :func:`structural_type_subjects` (Arm B) AND the new
+# :func:`_type_matters_go_wide` gate:
+# (1) ``structural_type_subjects`` now reads :func:`iter_static_defs`
+# instead of a bare ``unit.origin == "static"`` gate — a TRIGGER-conferred
+# temporary anthem ("When you cycle this card, Wizard creatures gain flying
+# until end of turn." — Gempalm Sorcerer) nests its Typed ``affected``
+# filter on a static-ability DEF buried inside the trigger's own
+# ``GenericEffect.static_abilities``, not on the trigger's own node; the
+# decorated concept's anchor is the leaf modification (``AddKeyword``),
+# which carries no filter field at all. A strict superset of the old gate
+# (never a narrowing) — recovers Gempalm Sorcerer / Captain America,
+# Unbowed / Kaito's Pursuit -class nested subtype references. CR 205.3.
+# (2) the class-tribe MEMBERSHIP floor's go-wide gate is now
+# :func:`_type_matters_go_wide`, not a bare ``out_keys`` intersection — the
+# crosswalk's OWN ``creatures_matter``/``attack_matters``/``anthem_static``
+# lanes are narrower than legacy ``_signals_ir``'s go-wide breadth
+# (``creatures_matter`` stays Stage-4 RESIDUAL, so its signals never reach
+# ``out_keys`` at all — ``add()`` filters them by ``keys`` before they
+# land). Three widened arms: a creature-type TOKEN MAKER cross-open
+# (mirrors legacy's line ~11394 LOW arm — Krenko/Bear's Companion/Doomed
+# Traveler-class, CR 111.2), a count-operand generic-filter scan (mirrors
+# ``_creatures_matter``'s own first arm, unfiltered by ``keys``), and a
+# pump/grant_keyword/set_pt static-DEF scan via ``iter_static_defs``
+# (origin-agnostic, unlike ``_creatures_matter``'s ``unit.statics``-only
+# scan — Balmor, Battlemage Captain/Selesnya Guildmage-class triggered/
+# activated team anthems). Never changes what ``creatures_matter`` itself
+# SERVES (still re-supplied from ``old_ir_for`` while residual) — a pure
+# internal widening of the type_matters reconciliation's own go-wide test.
+# CR 205.3/613.4. 0 regressions: full mtg-utils + deck-forge (all three
+# MTG_SKILLS_CROSSWALK_SIGNALS states) suites green; +9 cw_only gains
+# spot-verified as genuine CR 205.3 tribal reads (Sedris's own-type-line
+# floor riding the graveyard-wide unearth grant, Grey Knight Paragon's
+# conditional-exile Demon reference), no over-fire pattern found.
 PORTED_KEYS: frozenset[str] = _PORTED_KEYS_STAGE3 - _STAGE4_RESIDUAL
 
 
@@ -2754,6 +2793,68 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
         ):
             return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
     return []
+
+
+# Modification tags that mirror the pump / grant_keyword / set_pt CONCEPTS
+# ``_MOD_CONCEPTS`` (``crosswalk.py``) decorates a static-ability def's
+# ``modifications`` into — the ADD_TYPE tag is deliberately excluded (a
+# different concept, not a go-wide anthem shape).
+_TYPE_MATTERS_GOWIDE_MOD_TAGS: frozenset[str] = frozenset(
+    {"AddPower", "AddToughness", "AddKeyword", "SetPower", "SetToughness"}
+)
+
+
+def _type_matters_go_wide(tree: ConceptTree, out_keys: set[str]) -> bool:
+    """Is this card ALSO a generic (non-tribal) creatures payoff, so a CLASS
+    tribe (Warrior/Cleric/... — ``CLASS_TRIBES``) is worth noting alongside a
+    RACE tribe (CR 205.3)? The class-tribe MEMBERSHIP floor's go-wide gate
+    (the b14 §1 arm C reconciliation in ``extract_crosswalk_signals``) —
+    THREE arms, matching legacy ``_signals_ir``'s breadth (line ~7141), which
+    is WIDER than the crosswalk's own PORTED ``creatures_matter`` /
+    ``attack_matters`` / ``anthem_static`` lanes (``creatures_matter`` stays
+    Stage-4 RESIDUAL, so its lane is deliberately narrower — see
+    :func:`_creatures_matter`'s docstring):
+
+    (i) ``creatures_matter`` / ``attack_matters`` / ``anthem_static`` already
+    in the MERGED out-key set (the fast path);
+    (ii) a creature-type TOKEN MAKER (a captured kindred subject —
+    :func:`structural_token_maker_type_subjects`): Krenko/Bear's Companion/
+    Talrand-class — a typed-creature-token engine is itself a go-wide
+    creature payoff (mirrors legacy's line ~11394 "token-maker →
+    creatures_matter" cross-open, the LOW-conf arm the ported
+    ``_creatures_matter`` lane deliberately excludes — ADR-0038 W4);
+    (iii) a **count operand** that is a generic creature count (Circle of
+    Dreams Druid's "Add {G} for each creature you control") — mirrors
+    ``_creatures_matter``'s own first arm exactly, applied here unfiltered
+    by ``keys`` (ADR-0038 W4);
+    (iv) a pump / grant_keyword / set_pt static-ability DEF
+    (:func:`iter_static_defs` — reaches a temporary "until end of turn"
+    static a TRIGGER's own effect confers, e.g. Gempalm Sorcerer's cycling
+    anthem, not just a top-level continuous ability) whose ``affected`` is
+    the GENERIC (no-subtype) own-board creature filter — Raff, Weatherlight
+    Stalwart's granted pump; Selesnya Guildmage's activated-cost team pump;
+    Leonin Armorguard's ETB pump — origin-agnostic, unlike
+    ``_creatures_matter``'s own ``unit.statics``-only scan (ADR-0038 W4).
+
+    Never changes what ``creatures_matter`` itself SERVES (that key stays
+    residual and is re-supplied from ``old_ir_for`` regardless) — a pure
+    internal widening of THIS reconciliation's go-wide test. CR 205.3/604.3.
+    """
+    if out_keys & {"creatures_matter", "attack_matters", "anthem_static"}:
+        return True
+    if structural_token_maker_type_subjects(tree):
+        return True
+    for c in tree.iter_concepts():
+        if _is_generic_creature_filter(count_operand_filter(c.node)):
+            return True
+    for unit in tree.units:
+        for static_def in iter_static_defs(unit.node):
+            mods = getattr(static_def, "modifications", None) or []
+            if not any(tag_of(m) in _TYPE_MATTERS_GOWIDE_MOD_TAGS for m in mods):
+                continue
+            if _is_generic_creature_filter(getattr(static_def, "affected", None)):
+                return True
+    return False
 
 
 def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
@@ -16174,7 +16275,7 @@ def extract_crosswalk_signals(
     # documented join artifact (the b13 island_matters precedent), NOT
     # chased with bulk reads.
     out_keys = {s.key for s in out}
-    go_wide = bool(out_keys & {"creatures_matter", "attack_matters", "anthem_static"})
+    go_wide = _type_matters_go_wide(tree, out_keys)
     if tree.is_type("Creature"):
         for st in tree.card_subtypes:
             sl = st.lower()
