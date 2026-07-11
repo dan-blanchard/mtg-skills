@@ -77,6 +77,7 @@ from mtg_utils._card_ir.crosswalk import (
     granted_next_spell_keyword,
     has_filter_property,
     has_nested_connive,
+    has_nested_damage_reaching_player,
     has_nested_fight,
     has_nested_flip_coin,
     is_creature_cast_trigger_def,
@@ -1914,13 +1915,36 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     Mirrors ``_signals_ir`` line ~8237 (``cat=="damage"`` + ``_ir_damage_reaches_
     player``). Structural: a ``DealDamage`` / ``DamageEachPlayer`` / ``DamageAll``
     effect whose recipient reaches a player (``effect_reaches_player`` — each/opp
-    player, or "any target", NOT a creature/permanent-only bite, NOT incidental
-    self-damage). Damage DOUBLERS are a separate lane. Scope "you" (the burn
-    controller).
+    player, "any target"/"any other target", "target player or planeswalker" (an
+    ``Or`` alternation), "target opponent" (an empty-``type_filters`` ``Typed``
+    scoped by ``controller``), "that player" (``ScopedPlayer``), "that creature's/
+    permanent's controller" (``ParentTargetController``, CR 102.1), or "defending
+    player" (``DefendingPlayer``, CR 506.4c) — NOT a creature/permanent-only bite,
+    NOT incidental self-damage ("deals N damage to you" — a bare ``Controller``).
+    Damage DOUBLERS are a separate lane. Scope "you" (the burn controller).
+
+    ADR-0038 W4 giants: a structural fallback (:func:`has_nested_damage_
+    reaching_player`, the ``has_nested_fight`` precedent) recovers a damage
+    effect buried inside a GRANTED activated/static ability's ``.definition``
+    or a ``CreateToken`` token-ability definition — none of which the flat
+    per-unit ``effect_concepts`` walk surfaces as its own top-level concept
+    (Barbed Field's Aura-granted "{T}: ... deals 1 damage to any target.",
+    Acidic Sliver's lord-granted Sliver ability, Dance with Devils's token
+    "When this token dies, it deals 1 damage to any target").
+
+    Walked per-UNIT (not the whole-card ``tree.effect_concepts`` union) so
+    ``effect_reaches_player`` can pass the owning ability as ``root`` — a
+    bare ``ParentTarget`` recipient (a modal "instead" amendment quoting an
+    earlier clause) only resolves against ITS OWN ability's sibling targets
+    (Aggressive Sabotage's "Target player discards ... deals 3 damage to
+    that player" vs. Fiery Impulse's "target creature ... deals 3 instead").
     """
-    for c in tree.effect_concepts("deal_damage"):
-        if effect_reaches_player(c.node):
-            return [Signal("direct_damage", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for c in unit.effect_concepts("deal_damage"):
+            if effect_reaches_player(c.node, unit.node):
+                return [Signal("direct_damage", "you", "", c.raw, tree.name, "high")]
+        if has_nested_damage_reaching_player(unit.node):
+            return [Signal("direct_damage", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -11611,7 +11635,7 @@ def _typed_enters_punish(tree: ConceptTree) -> list[Signal]:
         if filter_controller(getattr(unit.node, "valid_card", None)) != "You":
             continue
         for c in unit.effect_concepts("deal_damage"):
-            if not effect_reaches_player(c.node):
+            if not effect_reaches_player(c.node, unit.node):
                 continue
             t = tag_of(c.node)
             if t in ("DamageEachPlayer", "DamageAll"):

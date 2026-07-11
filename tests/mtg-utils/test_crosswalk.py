@@ -10056,3 +10056,132 @@ def test_artifacts_matter_excludes_symmetric_death_punisher():
     "my deck wants artifacts" build-around. The TYPE-DIES doer requires an
     explicit YOUR-controlled watched subject; a symmetric one is excluded."""
     assert "artifacts_matter" not in _keys("Disciple of the Vault")
+
+
+# ── ADR-0038 W4 giant: direct_damage (structural arms + verified CR) ─────────
+#
+# Census over the full commander-legal corpus (535 live_only, both=1157)
+# decomposed into few structural classes, mechanism (a)/(b) per class:
+#
+#   * an ``Or`` target alternation ("target player or planeswalker" — CR
+#     115.4's post-2020 template) the old scope arm never recursed into;
+#   * a ``Typed`` target with EMPTY ``type_filters`` — phase's bare shape for
+#     BOTH a controller-scoped player ("target opponent") and a fully
+#     unrestricted recipient ("any other target"); only a POSITIVE type word
+#     ever excludes;
+#   * three bare zero-field player-designator marker tags the old scope arm
+#     didn't recognize at all: ``ScopedPlayer`` ("that player" — a
+#     per-player-loop back-reference), ``ParentTargetController`` ("that
+#     permanent's/land's controller" — a controller is always a player, CR
+#     102.1 / 109.5), ``DefendingPlayer`` ("defending player" — the attacked
+#     player, CR 506.2);
+#   * a damage effect buried inside a GRANTED activated/static ability's
+#     ``.definition`` (a Sliver lord grant, an Aura-granted tap ability) the
+#     flat per-unit ``effect_concepts`` walk never surfaces as its own
+#     top-level concept — :func:`has_nested_damage_reaching_player`, the
+#     ``has_nested_fight`` precedent (ADR-0038 W3 batch 3).
+#
+# MANDATORY SHED (ADR-0038 W4 session adjudication): the LEGACY regex mirror
+# (``_signals_ir._DIRECT_DAMAGE_MIRROR``) carries a recipient-BLIND fallback
+# clause (``\{t\}[^.]*?:[^.]*?deals? (?:\d+|x) damage``) meant to catch a
+# tap-ability burn spell whose recipient parsing failed — but it fires on
+# ANY ``{T}:``-costed damage ability regardless of recipient, over-firing on
+# pure creature-removal tap abilities (Arashi, the Sky Asunder — "target
+# creature with flying"; Ballista Squad — "target attacking or blocking
+# creature", an ``Or`` of two Attacking/Blocking-typed alternatives, same
+# bug) and the bare self-damage "deals N damage to you" drawback (Voltaic
+# Visionary, Torture Chamber — a painland-style cost, CR 120.1's "an object
+# that deals damage" excludes the controller unless explicitly targeted).
+# Corpus audit: 88 live_only members are this exact class (66 ``Typed``, 22
+# ``Or``-of-Attacking/Blocking) + 3 more are the self-damage variant — every
+# one read structurally NOT-player-reaching; none is a genuine burn source.
+# The key stays RESIDUAL this session (a diverse Unimplemented-residue tail
+# remains — computed/complex damage amounts phase drops entirely, CR
+# citations in the deferred report) but every structural class below is
+# settled.
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Lava Axe",  # "target player or planeswalker" — an Or(Player, Typed)
+        "Aragorn, the Uniter",  # "target opponent" — Typed(tf=[], controller='Opponent')
+        "Self-Destruct",  # "any other target" — Typed(tf=[], controller=None)
+    ],
+)
+def test_direct_damage_or_and_empty_typed_reach(name):
+    """(a) ``Or``-target recursion + empty-``type_filters`` ``Typed`` reach
+    (CR 115.4 / 120.1): neither shape was readable by the pre-existing
+    ``effect_reaches_player`` gate, which only recognized a NON-empty
+    ``type_filters`` carrying the literal word "Player"."""
+    assert ("direct_damage", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Ancient Runes",  # "that player" (per-player-loop) — ScopedPlayer
+        "Ankh of Mishra",  # "that land's controller" — ParentTargetController
+        "Falkenrath Perforator",  # "defending player" — DefendingPlayer
+    ],
+)
+def test_direct_damage_bare_player_designator_marker_tags(name):
+    """(a) three zero-field player-designator marker tags (CR 102.1 / 109.5
+    controller-is-a-player; CR 506.2 defending player) the pre-existing scope
+    arm didn't recognize at all."""
+    assert ("direct_damage", "you", "") in _idents(name)
+
+
+def test_direct_damage_nested_granted_ability():
+    """(b) a damage effect buried inside an Aura-granted activated ability's
+    ``GrantAbility.definition`` (Barbed Field's "Enchanted land has '{T}:
+    ... deals 1 damage to any target.'") — :func:`has_nested_damage_
+    reaching_player`, the ``has_nested_fight`` structural-fallback
+    precedent."""
+    assert ("direct_damage", "you", "") in _idents("Barbed Field")
+
+
+def test_direct_damage_parent_target_sibling_aware():
+    """A bare ``ParentTarget`` recipient is POSITION-relative (phase's
+    back-reference tags bind to whatever earlier clause in the SAME ability
+    produced the target) — ambiguous read alone, since a modal "instead"
+    amendment quoting an earlier "target creature" carries the identical
+    tag. Aggressive Sabotage's "Target player discards two cards. If this
+    spell was kicked, it deals 3 damage to that player." resolves it by
+    checking whether the SAME ability establishes an explicit player target
+    elsewhere (:func:`_unit_has_player_target`) — it does (the Discard's own
+    "target player"), so the ``ParentTarget`` damage recipient reaches."""
+    assert ("direct_damage", "you", "") in _idents("Aggressive Sabotage")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Arashi, the Sky Asunder",  # {T}: ... target creature with flying — removal
+        "Ballista Squad",  # {T}: ... target attacking or blocking creature — removal
+    ],
+)
+def test_direct_damage_excludes_tap_ability_creature_only_shed(name):
+    """MANDATORY SHED: the legacy ``{T}:``-costed damage regex fallback is
+    recipient-BLIND and over-fires on pure creature removal (CR 120.1 — a
+    creature/permanent-only recipient never reaches a player). The
+    structural read correctly excludes both; the old regex mirror wrongly
+    includes them (measured live_only, not reproduced)."""
+    assert "direct_damage" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Voltaic Visionary",  # "{T}: ... deals 2 damage to you" — self, Controller
+        "Torture Chamber",  # "deals damage to you" self + "target creature" removal
+    ],
+)
+def test_direct_damage_excludes_bare_self_damage_shed(name):
+    """MANDATORY SHED: a bare ``Controller`` recipient (the SOURCE's OWN
+    controller — "deals N damage to you") is the incidental self-damage
+    drawback, CR 120.1 — distinct from ``ParentTargetController``, which
+    names a DIFFERENT (targeted/tracked) object's controller. The legacy
+    regex mirror's recipient-blind ``{T}:``/bare-``to you`` fallback wrongly
+    includes both (measured live_only, not reproduced)."""
+    assert "direct_damage" not in _keys(name)
