@@ -249,6 +249,30 @@ def test_land_creatures_matter_animator_alignment(name):
     assert ("land_creatures_matter", "you", "") in _idents(name)
 
 
+# ADR-0038 W3 batch 4 (lands-and-ramp cluster): the mass-static / threaded
+# search-chain animator additions. Verified CR: 305.7 ("setting a land's
+# subtype doesn't add or remove any card types [such as creature]"),
+# 110.1 (permanent), 305 / 110.1 (land + creature generally).
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Rude Awakening",  # Entwine mode: mass static, affected controller='You'
+        "Rampaging Growth",  # ParentTarget-threaded search-then-animate chain
+    ],
+)
+def test_land_creatures_matter_mass_and_threaded_search_animate(name):
+    assert ("land_creatures_matter", "you", "") in _idents(name)
+
+
+def test_land_creatures_matter_excludes_land_type_only_change():
+    """Dryad of the Ilysian Grove: "Lands you control are every basic land type
+    in addition to their other types" changes land SUBTYPE only — no Creature
+    type is ever added (CR 305.7). Not a land-creatures anthem/animator, even
+    though the card's OTHER ability ("play an additional land") legitimately
+    fires ``landfall``."""
+    assert "land_creatures_matter" not in _keys("Dryad of the Ilysian Grove")
+
+
 # ── granularity (c): whole-card reconciliation (spell-copy → spellcast) ────────
 
 
@@ -451,6 +475,24 @@ def test_ramp_land_base_vs_accel_fixing(name, should_fire):
     assert (("ramp", "you", "") in _idents(name)) is should_fire
 
 
+# ADR-0038 W3 batch 4 (lands-and-ramp cluster): the GRANTED mana ability
+# descent (mechanism (b) — a GrantAbility.definition precedent). Verified CR:
+# 106.1 (mana), 605.1a (mana ability definition), 305 (land base split).
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Joiner Adept",  # "Lands you control have '{T}: Add one mana of any
+        # color.'" — LAND recipient, FIXING (any color) -> fire
+        "Citanul Hierophants",  # "Creatures you control have '{T}: Add {G}.'"
+        # — nonland recipient -> fire unconditionally
+        "Awakening Zone",  # a CREATED TOKEN's own nested granted mana ability
+        # ("It has 'Sacrifice this token: Add {C}.'")
+    ],
+)
+def test_ramp_granted_mana_ability_descent(name):
+    assert ("ramp", "you", "") in _idents(name)
+
+
 # ── Batch-2 over-fire regressions (rules-lawyer adjudicated; ADR-0035) ─────────
 # The systemic root: phase's ``{Non: X}`` negation wrapper was flattened to its
 # POSITIVE inner type word, so a "nonland permanent" satisfied ``"Land" in subject``
@@ -472,6 +514,35 @@ def test_landfall_not_fired_by_nonland_permanent(name):
 def test_real_landfall_still_fires_after_non_fix():
     """A genuine "a land enters" trigger (positive ``Land``) is unaffected."""
     assert ("landfall", "you", "") in _idents("Lotus Cobra")
+
+
+# ── ADR-0038 W3 batch 4 (lands-and-ramp cluster): landfall's enabler tail ──────
+# Verified CR: 207.2c (landfall ability word), 305.1/305.2/305.4 (land-play
+# rules), 400.7 (zone-change identity), 603.6a (enters-the-battlefield trigger).
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Searing Blaze",  # "Landfall — if you had a land enter ... this turn"
+        "Crucible of Worlds",  # GraveyardCastPermission mode, affected=Land
+        "Exploration",  # MayPlayAdditionalLand static mode
+        "Gysahl Greens",  # created token's OWN nested land-ETB GrantTrigger
+        "Splendid Reclamation",  # change_zone Graveyard->Battlefield, Land subject
+    ],
+)
+def test_landfall_enabler_tail_structural_arms(name):
+    assert ("landfall", "you", "") in _idents(name)
+
+
+def test_landfall_excludes_colon_bridged_shed():
+    """Tameshi, Reality Architect: "Return a land you control to its owner's
+    hand: Return target artifact or enchantment card ... from your graveyard
+    to the battlefield" — the land BOUNCES to hand as an activation cost; the
+    graveyard->battlefield return targets only artifact/enchantment, never
+    land (CR 305.1). An adjudicated legacy over-fire (the old regex's
+    colon-bridge), not a genuine landfall enabler."""
+    assert "landfall" not in _keys("Tameshi, Reality Architect")
 
 
 def test_reanimator_not_fired_by_noncreature_return():
@@ -1210,6 +1281,29 @@ def test_land_sacrifice_makers_fires():
     assert ("land_sacrifice_makers", "you", "") in _idents("Zuran Orb")
     # Ashnod's Altar sacrifices a CREATURE, not a land → sacrifice_outlets, not this.
     assert "land_sacrifice_makers" not in _keys("Ashnod's Altar")
+
+
+# ADR-0038 W3 batch 4 (lands-and-ramp cluster): a Sacrifice cost LEAF phase
+# buries where the per-ability concept walk never surfaces it. Verified CR:
+# 701.21 (sacrifice), 400.7 (zone-change identity).
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Soldevi Sage",  # "{T}, Sacrifice two lands:" — a Composite cost leaf
+        "Cosmic Larva",  # "sacrifice this unless you sacrifice two lands" —
+        # the alternative cost lives on the trigger's own unless_pay.cost
+    ],
+)
+def test_land_sacrifice_makers_composite_and_unless_pay(name):
+    assert ("land_sacrifice_makers", "you", "") in _idents(name)
+
+
+def test_land_sacrifice_makers_excludes_land_dies_watcher():
+    """Dingus Egg: "Whenever a land is put into a graveyard from the
+    battlefield, ~ deals 2 damage to that land's controller" watches a land
+    DYING by ANY means (destroy, sacrifice, or otherwise) — a payoff/punisher,
+    not the actor performing a sacrifice (CR 701.21)."""
+    assert "land_sacrifice_makers" not in _keys("Dingus Egg")
 
 
 # ── batch-4 over-fire fixes (3 rules-lawyer-adjudicated scope gates, ADR-0035) ──

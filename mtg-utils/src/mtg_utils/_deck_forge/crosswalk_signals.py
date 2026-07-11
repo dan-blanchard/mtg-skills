@@ -1105,13 +1105,37 @@ def _has_land_and_creature(subject: tuple[str, ...]) -> bool:
 def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
     """A land-creatures build — anthem over Land+Creature, or a land-animator.
 
-    Mirrors ``_signals_ir`` line ~7720. Two arms read off the typed substrate:
+    Mirrors ``_signals_ir`` line ~7720, plus two ADR-0038 W3 batch 4 additions
+    that close the residual mass/threaded-search animate gap. Arms read off the
+    typed substrate:
 
     * **anthem** — a pump / grant-keyword / set-P/T modification (static) OR a
       ``make_token`` effect whose subject is a dual Land+Creature (Sylvan Advocate,
       Jyoti).
-    * **animator** — a static ability turning a Land subject into a creature
-      (Living Plane), via :func:`_is_creature_animator` (granularity b).
+    * **animator (static)** — a static ability turning a Land subject into a
+      creature (Living Plane — excluded, see below), via
+      :func:`_is_creature_animator` (granularity b).
+    * **animator (Animate effect / threaded target)** — a first-class ``Animate``
+      effect or a ``ParentTarget``-threaded static (Badgermole, Awakener Druid).
+    * **animator (mass static / threaded search-chain)** — a MASS animate static
+      def (:func:`iter_static_defs`) whose ``affected`` is YOU-controlled Land, or
+      a ParentTarget-threaded chain whose SAME unit also tutors/moves a Land-only
+      card (Rude Awakening's Entwine mode, Life // Death's "Life" face,
+      Rampaging Growth's search-then-animate).
+
+    Deliberately EXCLUDED (adjudicated legacy over-fires / design boundary, CR
+    grounded): manland self-animate and the reverse animator (creatures→lands —
+    Ashaya) stay ``land_protection``-only (a utility land-into-creature isn't a
+    build-around "theme" the way an anthem/maker is); a SYMMETRIC/any-controller
+    mass animate (Natural Affinity, Living Plane) is the same non-build-around
+    case, one level up; a land TYPE/subtype change with no Creature type added
+    (Dryad of the Ilysian Grove, Celestial Dawn, Realmwright, Leyline of the
+    Guildpact, Gaea's Liege's own land-type ability — CR 305.7: "Setting a land's
+    subtype doesn't add or remove any card types") is a different mechanic
+    entirely; a REMOVAL spell whose target filter merely NAMES a land creature
+    (Consuming Sinkhole, Bumi Bash) is not an anthem/animator; a disjunctive
+    copy-target filter that lists Land and Creature as ALTERNATIVES, not a dual
+    type (Relm's Sketching) is not a dual Land+Creature subject.
     """
     for unit in tree.units:
         for concept in unit.statics:
@@ -1186,6 +1210,55 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
                             "land_creatures_matter", "you", "", "", tree.name, "high"
                         )
                     ]
+        # ADR-0038 W3 batch 4 (lands-and-ramp cluster): a MASS animate static def
+        # (:func:`iter_static_defs` — reachable via a nested ``GenericEffect``
+        # anywhere in the unit, not just the threaded-ParentTarget shape above)
+        # whose ``affected`` filter is YOU-controlled Land/land-subtype and whose
+        # modifications add Creature (Rude Awakening's Entwine mode, Life //
+        # Death's "Life" face). Controller MUST be "You" STRICTLY (not None) —
+        # a symmetric/any-controller mass animate (Natural Affinity, Living
+        # Plane) is the land_protection-only case the comment above already
+        # scopes out; admitting None here would re-conflate them (corpus-
+        # verified: Natural Affinity's ``affected`` controller is None, so it
+        # correctly stays excluded). CR 305 / 110.1.
+        for sdef in iter_static_defs(unit.node):
+            mods = getattr(sdef, "modifications", None)
+            if not any(
+                tag_of(m) == "AddType" and getattr(m, "core_type", None) == "Creature"
+                for m in (mods or [])
+            ):
+                continue
+            aff = getattr(sdef, "affected", None)
+            if tag_of(aff) == "ParentTarget":
+                # ADR-0038 W3 batch 4: a threaded search-then-animate chain
+                # iter_threaded_target_statics doesn't trace (the "real"
+                # target lives on a SearchLibrary/tutor's own filter, not a
+                # `.target` field — Rampaging Growth's "search for a basic
+                # land, put it onto the battlefield, ... that land becomes a
+                # creature"). Same-unit co-occurrence of a Land-only
+                # tutor/change_zone concept is the structural anchor.
+                if any(
+                    "Land" in c.subject
+                    for c in unit.iter_concepts()
+                    if c.concept in ("tutor", "change_zone")
+                ):
+                    return [
+                        Signal(
+                            "land_creatures_matter", "you", "", "", tree.name, "high"
+                        )
+                    ]
+                continue
+            if tag_of(aff) not in ("Typed", "Or", "And"):
+                continue
+            if filter_controller(aff) != "You":
+                continue
+            landish = "Land" in filter_core_types(aff) or (
+                {t.lower() for t in filter_subtypes(aff)} & _LAND_SUBTYPE_WORDS
+            )
+            if landish:
+                return [
+                    Signal("land_creatures_matter", "you", "", "", tree.name, "high")
+                ]
     return []
 
 
@@ -1366,16 +1439,119 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _landfall(tree: ConceptTree) -> list[Signal]:
-    """A land entering as a trigger (Lotus Cobra, Tireless Tracker — CR 305 / 603.6e).
+_LANDFALL_STATIC_LAND_DROP_MODES = frozenset(
+    {"MayPlayAdditionalLand", "AdditionalLandDrop"}
+)
 
-    Mirrors ``_signals_ir`` line ~10750 (``ev=="etb" and "Land" in tsubs``): an
-    enters trigger whose watched subject names ``Land``. Scope "you" (forced). The
-    ability-word-condition / extra-land-static / land-recursion forms are a known
-    ``live_only`` mirror tail. CR 207.2c (landfall = flavor ability word).
+# ADR-0038 W3 batch 4 (lands-and-ramp cluster): the "play lands from your
+# graveyard" enabler (Crucible of Worlds, Ramunap Excavator — CR 305.1) is a
+# ``GraveyardCastPermission`` static MODE whose ``affected`` filter names
+# Land. ``TopOfLibraryCastPermission`` (Oracle of Mul Daya, Augur of Autumn —
+# "play lands from the top of your library") is DELIBERATELY excluded: the
+# legacy ``LANDFALL_REGEX`` has no top-of-library branch at all (corpus-
+# verified — including it over-fired 8 commander-legal cards with no
+# graveyard-recursion angle, e.g. Augur of Autumn, The Fourth Doctor).
+_LANDFALL_GY_PERMISSION_MODES = frozenset({"GraveyardCastPermission"})
+
+# Last-resort word idioms (mechanism preference (d)): the residue phase's
+# typed substrate leaves wholly unstructured. PER-CLAUSE scoped (period /
+# colon / newline-delimited) so an unrelated sibling clause's "enters" or "a
+# land" never cross-bleeds into this one (Caged Sun's own-ETB "As this
+# artifact enters" bleeding into its SEPARATE "a land's ability" clause;
+# Tameshi, Reality Architect's colon-joined "Return a land you control to
+# its owner's hand: Return target artifact ... from your graveyard to the
+# battlefield" bleeding the bounce-to-hand "land" into the artifact/
+# enchantment recursion clause — an adjudicated SHED, CR 305.1: the land
+# never goes from graveyard to battlefield here, it goes hand<->battlefield
+# as an activation cost). Corpus-verified over the full commander-legal
+# sweep: zero residual live_only beyond the Tameshi shed, zero new
+# over-fires. CR 207.2c.
+_LANDFALL_CLAUSE_RX = re.compile(r"(?<=[.!?:])\s+|\n+")
+_LANDFALL_ETB_WORD_RX = re.compile(r"whenever a land.*enter", re.IGNORECASE | re.DOTALL)
+_LANDFALL_GY_RETURN_WORD_RX = re.compile(
+    r"\breturn\b[^.:]*\bland\b[^.:]*from your graveyard to the battlefield",
+    re.IGNORECASE,
+)
+
+
+def _landfall_clauses(tree: ConceptTree) -> list[str]:
+    """The card's own face oracle split into period/colon/newline clauses."""
+    kept = _REMINDER_RX.sub(" ", tree.oracle or "")
+    return _LANDFALL_CLAUSE_RX.split(kept)
+
+
+def _landfall(tree: ConceptTree) -> list[Signal]:
+    """A land ENTERING, or an enabler that fuels repeat land drops (Lotus Cobra,
+    Crucible of Worlds, Exploration — CR 207.2c / 305.1 / 305.2 / 305.4 / 400.7 /
+    603.6a). Six structural arms + a PER-CLAUSE last-resort word-idiom tail (no
+    live_only beyond one adjudicated shed, corpus-verified):
+
+    * a battlefield ``enters`` trigger watching a Land object (the ability-word
+      "Landfall" payoff itself — Lotus Cobra, Tireless Tracker; CR 603.6a);
+    * an ``EnteredThisTurn`` QTY CONDITION naming Land + you (the "Landfall — if
+      you had a land enter the battlefield ... this turn" spell-mode gate —
+      Searing Blaze, Groundswell, Rest for the Weary, Mysteries of the Deep, Tomb
+      Hex, Wandering Troubadour — CR 207.2c);
+    * a NESTED trigger def (:func:`iter_nested_trigger_defs` — a granted/token/
+      emblem ability, mechanism (b)) whose derived shape is a battlefield-bound
+      Land watcher (Ka-Zar's Zabu token, Gysahl Greens' Bird, Nissa's emblem —
+      the created/granted PERMANENT carries its own landfall payoff, CR 603.6a);
+    * a static/one-shot ``MayPlayAdditionalLand`` / ``AdditionalLandDrop`` MODE
+      anywhere in the unit (Exploration, Azusa's "two additional lands", Kiora's
+      one-shot loyalty grant, Sword of Forge and Frontier's equipment trigger —
+      CR 305.2);
+    * a ``GraveyardCastPermission`` MODE whose ``affected`` filter names Land
+      (Crucible of Worlds, Ramunap Excavator, Hazezon's Desert-only variant,
+      Zask/Yawgmoth's Agenda's "lands AND spells" conjunctions the legacy
+      contiguous-phrase regex missed — beyond-legacy gains, CR 305.1);
+    * a ``change_zone`` Graveyard→Battlefield effect naming Land (Splendid
+      Reclamation, Titania; also catches the "put" (not "return") and
+      "their"/generic-graveyard phrasings the legacy verb-locked regex missed —
+      Restore, Soul of Windgrace, Fall of the Thran, Waking the Trolls,
+      Realmbreaker, Wreck and Rebuild, Planar Birth — beyond-legacy gains, CR
+      305.4 / 400.7).
+
+    The last-resort tail catches the pure-text residue: The Lost and the
+    Damned's compound OR-trigger (phase drops the Land branch's own filter
+    onto an untyped ``zone_change_clauses`` list this substrate doesn't read),
+    Invader Parasite's "same name as the exiled card" comparison (an Unknown
+    trigger mode phase's grammar cannot classify at all), and Werewolf
+    Lightning Mage's Un-set Stickers gimmick (phase can't parse its {TK}
+    placeholder text, but the raw oracle still literally says "Landfall —
+    Whenever a land enters"). Scope "you" (forced, matching every arm above).
     """
     for unit in tree.units:
         if unit.trigger_event == "enters" and "Land" in trigger_subject(unit.node):
+            return [Signal("landfall", "you", "", "", tree.name, "high")]
+    for unit in tree.units:
+        for f in entered_this_turn_filters(unit.node):
+            if "Land" in filter_core_types(f) and filter_controller(f) == "You":
+                return [Signal("landfall", "you", "", "", tree.name, "high")]
+    for unit in tree.units:
+        for trig in iter_nested_trigger_defs(unit.node):
+            if (
+                getattr(trig, "mode", None) == "ChangesZone"
+                and getattr(trig, "destination", None) == "Battlefield"
+                and "Land" in trigger_subject(trig)
+            ):
+                return [Signal("landfall", "you", "", "", tree.name, "high")]
+    for unit in tree.units:
+        nodes = [c.node for c in unit.iter_concepts()]
+        if unit.origin == "static":
+            nodes.append(unit.node)
+        for node in nodes:
+            if static_mode_tag(node) in _LANDFALL_STATIC_LAND_DROP_MODES:
+                return [Signal("landfall", "you", "", "", tree.name, "high")]
+            if static_mode_tag(node) in _LANDFALL_GY_PERMISSION_MODES and (
+                "Land" in filter_core_types(getattr(node, "affected", None))
+            ):
+                return [Signal("landfall", "you", "", "", tree.name, "high")]
+    for c in tree.effect_concepts("change_zone"):
+        origin, dest = change_zone_dirs(c.node)
+        if origin == "Graveyard" and dest == "Battlefield" and "Land" in c.subject:
+            return [Signal("landfall", "you", "", "", tree.name, "high")]
+    for cl in _landfall_clauses(tree):
+        if _LANDFALL_ETB_WORD_RX.search(cl) or _LANDFALL_GY_RETURN_WORD_RX.search(cl):
             return [Signal("landfall", "you", "", "", tree.name, "high")]
     return []
 
@@ -1635,6 +1811,40 @@ def _mana_fixing(node: object) -> bool:
     return isinstance(colors, list) and len(set(colors)) >= 2
 
 
+def _granted_mana_defs(
+    tree: ConceptTree,
+) -> list[tuple[object, object]]:
+    """``(ability_def, recipient_filter)`` for every GRANTED mana ability
+    reachable anywhere in the tree — a ``GrantAbility`` modification (CR
+    605.1a / 702) inside a static def :func:`iter_static_defs` reaches,
+    whose ``definition`` is itself a mana ability (``is_mana_ability``).
+    Covers three tree positions with ONE walk (mirrors the b12 nested-mode
+    descent precedent): a top-level static's granted keyword-ability text
+    (Joiner Adept's "Lands you control have '{T}: Add …'", Rishkar's
+    counter-conferred grant), a CREATED TOKEN's own ``static_abilities``
+    (Awakening Zone / every Eldrazi Scion-Spawn maker's "It has 'Sacrifice
+    this token: Add {C}.'" — :func:`iter_static_defs` already deep-walks a
+    ``Token`` effect node's nested list), and a granted ability nested
+    inside ANOTHER modification's chain. ``recipient_filter`` is the
+    granting static's ``affected`` field — ``None``/``SelfRef`` for a
+    self-referential grant (the token grants itself the ability), a
+    ``Typed``/``Or``/``And`` filter naming who else receives it (Citanul
+    Hierophants' "Creatures you control", Joiner Adept's "Lands you
+    control").
+    """
+    out: list[tuple[object, object]] = []
+    for unit in tree.units:
+        for sdef in iter_static_defs(unit.node):
+            aff = getattr(sdef, "affected", None)
+            for m in getattr(sdef, "modifications", None) or []:
+                if tag_of(m) != "GrantAbility":
+                    continue
+                d = getattr(m, "definition", None)
+                if d is not None and getattr(d, "is_mana_ability", None) is True:
+                    out.append((d, aff))
+    return out
+
+
 def _ramp(tree: ConceptTree) -> list[Signal]:
     """Mana acceleration (Sol Ring, Command Tower — CR 106.1 / 605.1a / 305).
 
@@ -1643,11 +1853,36 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
     basic-equivalent single-color / single-{C} tap is the MANA BASE (not ramp), but
     a land whose ramp is ACCELERATION (factor>1 / variable) OR FIXING (multi-color /
     any-color / any-type) IS ramp → fire. Scope "you".
+
+    ADR-0038 W3 batch 4 (lands-and-ramp cluster): a GRANTED mana ability
+    (:func:`_granted_mana_defs` — the dominant residual shape, ~150 corpus
+    cards) applies the SAME land/nonland split to the RECIPIENT the grant
+    names, not the granting card's own type: a nonland recipient (creatures,
+    tokens, artifacts, permanents) is always acceleration, matching the
+    top-level nonland-doer rule (Citanul Hierophants, Manaweft Sliver, Jaheira,
+    every Eldrazi Scion/Spawn token maker); a LAND recipient (Joiner Adept,
+    Nexos, Toxicrene) needs the same accel/fixing gate the card's-own-land
+    branch above applies. A bare top-level ``GrantAbility`` with no
+    ``S_static_abilities`` wrapper (an Aura's "Enchanted land has …" —
+    New Horizons, Abundant Growth, Gift of Paradise, Paradise Mantle, Custody
+    Battle) carries no ``affected`` field at all — the recipient lives on the
+    Aura's own enchant-type restriction, a tree position this substrate has no
+    accessor for yet; a known ``live_only`` residue, not reproduced here.
     """
     is_land = tree.is_type("Land")
     for c in tree.effect_concepts("ramp"):
         if not is_land or _mana_accel(c.node) or _mana_fixing(c.node):
             return [Signal("ramp", "you", "", c.raw, tree.name, "high")]
+    for d, aff in _granted_mana_defs(tree):
+        eff = getattr(d, "effect", None)
+        if tag_of(aff) in ("Typed", "Or", "And"):
+            landish = "Land" in filter_core_types(aff) or (
+                {t.lower() for t in filter_subtypes(aff)} & _LAND_SUBTYPE_WORDS
+            )
+        else:
+            landish = False
+        if not landish or _mana_accel(eff) or _mana_fixing(eff):
+            return [Signal("ramp", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -2932,12 +3167,35 @@ def _land_sacrifice_makers(tree: ConceptTree) -> list[Signal]:
     sacrifices a land" — Smallpox, Death Cloud — counts, you sac too). The Land-only
     branch ``sacrifice_outlets`` deliberately EXCLUDES
     (:func:`_is_you_sac_subject` returns False on a ``("Land",)`` subject), so it is a
-    clean complement; a mixed "creature or land" sac (Reprocess) is
-    ``sacrifice_outlets``, not this. An OPPONENT land-edict (land destruction —
-    Yawning Fissure "each opponent sacrifices a land", Din of the Fireherd "target
-    opponent ... sacrifices a land") is NOT a self engine and is gated out by
-    :func:`_sac_targets_opponent`, working around phase's [P1]/[P3] direction
-    mislabels.
+    clean complement; a mixed "creature or land" sac (Reprocess, Larval Scoutlander's
+    "sacrifice a land OR Lander") is ``sacrifice_outlets``, not this. An OPPONENT
+    land-edict (land destruction — Yawning Fissure "each opponent sacrifices a land",
+    Din of the Fireherd "target opponent ... sacrifices a land") is NOT a self engine
+    and is gated out by :func:`_sac_targets_opponent`, working around phase's
+    [P1]/[P3] direction mislabels.
+
+    Two ADR-0038 W3 batch 4 additions read a Sacrifice-cost LEAF phase buries where
+    the top-level per-ability concept walk never surfaces it:
+
+    * a ``Sacrifice`` cost folded into a ``Composite`` activation cost (Tap +
+      Sacrifice, Mana + Tap + Sacrifice — Soldevi Sage, Dust Bowl, Copper-Leaf
+      Angel's X-cost sac, Excavator): the Composite wrapper decorates as ONE
+      opaque concept, never surfacing the individual Sacrifice leaf.
+      :func:`iter_cost_leaves` walks the same Composite/OneOf nesting
+      :func:`cost_has_paylife` already reads. A COST is always paid by the
+      ACTIVATOR, so no opponent gate applies here (unlike the effect arm above).
+    * a trigger's ``unless_pay`` alternative cost (the "sacrifice PERMANENT
+      unless you sacrifice a land" upkeep-tax shape — Cosmic Larva, The Gitrog
+      Monster, Territorial Dispute, Bog Elemental, Scythe Tiger, Jokulmorder):
+      the alternative cost lives on the trigger's own ``unless_pay.cost``, a
+      tree position the per-ability effects/costs walk never reaches.
+
+    Deliberately EXCLUDED (adjudicated legacy over-fires, CR 701.21 / 400.7): a
+    "land is put into a graveyard from the battlefield" TRIGGER (Dingus Egg, Akki
+    Raider, Centaur Vinecrasher) watches the land DYING by ANY means (destroy,
+    sacrifice, or otherwise) — it is a payoff/punisher, not the actor performing a
+    sacrifice; "whenever you sacrifice a land" (Scouring Swarm) is the PAYOFF side
+    of the SAME sac (``land_sacrifice_matters``), not the engine performing it.
     """
     for unit in tree.units:
         for c in (*unit.effects, *unit.costs):
@@ -2950,6 +3208,24 @@ def _land_sacrifice_makers(tree: ConceptTree) -> list[Signal]:
                 return [
                     Signal("land_sacrifice_makers", "you", "", c.raw, tree.name, "high")
                 ]
+        for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
+            if tag_of(leaf) == "Sacrifice" and filter_core_types(
+                getattr(leaf, "target", None)
+            ) == ("Land",):
+                return [
+                    Signal("land_sacrifice_makers", "you", "", "", tree.name, "high")
+                ]
+        unless_pay = getattr(unit.node, "unless_pay", None)
+        if unless_pay is not None:
+            for leaf in iter_cost_leaves(getattr(unless_pay, "cost", None)):
+                if tag_of(leaf) == "Sacrifice" and filter_core_types(
+                    getattr(leaf, "target", None)
+                ) == ("Land",):
+                    return [
+                        Signal(
+                            "land_sacrifice_makers", "you", "", "", tree.name, "high"
+                        )
+                    ]
     return []
 
 
