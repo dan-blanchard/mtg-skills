@@ -6079,6 +6079,46 @@ _DRAW_FOR_EACH_PHRASE_RE = re.compile(
     r"draws?\b[^.,;]*?(?:for each|equal to the number of)", re.IGNORECASE
 )
 
+# ADR-0038 W3 batch 6 — draw_for_each-SCOPED qty tags (LOCAL to this lane,
+# NOT the shared ``_SCALING_QTY_TAGS``/``_BARE_X_QTY_TAGS`` every OTHER
+# ``_is_scaling_count`` caller reads — a shared-constant widening would hit
+# scaling_pump too, corpus-verified to add 30+ ``FilteredTrackedSetSize``
+# Pump/PumpAll cards there, an unaudited blast radius this batch's time
+# budget doesn't cover). Every tag here is a delayed/tracked count of
+# something that happened AS A RESULT of a preceding clause in the SAME
+# ability ("draw a card for each X [discarded/destroyed/exiled/…] this
+# way" — Syphon Mind, Reprocess, Decree of Pain, Change of Fortune) or a
+# population count (``PlayerCount`` — Inspired Sphinx's "for each
+# opponent"), self-evidently a board-defined value (CR 107.3) with no
+# non-scaling reading, so no text-phrase gate is needed.
+# ``EventContextAmount``/``PreviousEffectAmount`` are DELIBERATELY ABSENT
+# here (unlike an early draft of this set) — corpus re-measure showed they
+# are AMBIGUOUS between two idioms that share the SAME tag: "draw a card
+# for each card drawn this way" (Struggle for Project Purity — genuine
+# draw_for_each) and "whenever ~ deals combat damage to a player, draw
+# that many cards" (Cold-Eyed Selkie, Robe of the Archmagi, a damage-scaled
+# draw ENGINE, not a board-count scale — legacy does NOT tag these
+# draw_for_each, confirmed live). The tag alone can't discriminate; both
+# stay on the EXISTING ``_DRAW_FOR_EACH_PHRASE_RE`` text gate below
+# (widened to also read the unit's own top-level description when the
+# closer wrapper carries none — see :func:`_draw_for_each`'s ``scaling``
+# closure) — "for each"/"equal to the number of" wording correctly keeps
+# the genuine members and excludes the "that many" engines.
+_DRAW_FOR_EACH_TRACKED_TAGS: frozenset[str] = frozenset(
+    {
+        "FilteredTrackedSetSize",
+        "ZoneChangeCountThisTurn",
+        "TrackedSetSize",
+        "ExiledFromHandThisResolution",
+        "CardsDiscardedThisTurn",
+        "PlayerCount",
+        "ObjectColorCount",
+        "DistinctColorsAmongPermanents",
+        "DistinctCardTypes",
+        "HandSize",
+    }
+)
+
 
 def _draw_for_each(tree: ConceptTree) -> list[Signal]:
     """draw_for_each — a draw SCALING with a board count (CR 120 / 107.3):
@@ -6117,12 +6157,66 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
     combat damage to a player, draw a card for each kind of counter on
     it" — the Draw lives under ``GrantTrigger.trigger.execute.effect``,
     not the granting unit's own effect chain). Scope "you".
+
+    ADR-0038 W3 batch 6 (draw-etb-tokens cluster, NOT YET PROMOTED — see
+    below): corpus re-measure 196 both / 17 live_only (down from 74) / 15
+    cw_only. Two widenings: (1) :data:`_DRAW_FOR_EACH_TRACKED_TAGS`, a
+    LOCAL (draw_for_each-only, never the shared ``_SCALING_QTY_TAGS``) qty
+    set for tags that are UNAMBIGUOUSLY a delayed/tracked count of
+    something that happened as a result of a preceding clause in the SAME
+    ability (Syphon Mind's ``FilteredTrackedSetSize`` "for each card
+    discarded this way", Change of Fortune's ``CardsDiscardedThisTurn``,
+    Inspired Sphinx's ``PlayerCount`` "for each opponent") — no text gate
+    needed, corpus-verified no ambiguous member. (2) the phrase-fallback
+    now ALSO reads the owning UNIT's own top-level ``description`` when
+    the closer wrapper (:func:`effect_owner_raw`) carries none — recovers
+    a Draw nested in a ``sub_ability`` chain (Syphon Mind's "Each other
+    player discards a card. You draw a card for each card discarded this
+    way." lives on the OUTER Discard unit, the Draw itself on an
+    ``S_sub_ability`` with no description of its own). Both widenings
+    STAY OFF ``EventContextAmount``/``PreviousEffectAmount`` — corpus
+    re-measure showed these two tags are AMBIGUOUS between "draw a card
+    for each card drawn this way" (genuine) and "whenever ~ deals combat
+    damage to a player, draw that many cards" (Cold-Eyed Selkie, Robe of
+    the Archmagi — a damage-scaled draw ENGINE legacy does NOT tag
+    draw_for_each); the tag alone can't discriminate the two, so both stay
+    gated on the (widened) ``_DRAW_FOR_EACH_PHRASE_RE`` text check, which
+    correctly keeps the "for each"/"equal to the number of" wording and
+    excludes the "that many" idiom (:data:`_DRAW_FOR_EACH_TRACKED_TAGS`'s
+    own comment has the full corpus citations).
+
+    NOT YET RECOVERED (still residual — genuine structural gaps, not
+    adjudicated sheds): the remaining 17 live_only members are a "for each
+    qualifying opponent/object, draw ONE card" REPEATED-application shape
+    phase projects as a batch/modal wrapper around a ``Draw(count=Fixed
+    (1))`` rather than a single Draw with a computed count — several
+    distinct sub-shapes (``ParentTargetController`` recipient off a batch
+    ``ChangeZoneAll`` — Martyr's Cry, King Solomon's Frogs; a per-opponent
+    modal "for each opponent who does/chooses X" branch — Tempt with
+    Bunnies, Master of Ceremonies, Seize the Spotlight; a
+    ``T_qty__VoteCount`` — Truth or Consequences; two blank-oracle DFC
+    faces needing investigation — Mouth // Feed, Aclazotz, Deepest
+    Betrayal). Each needs its OWN per-shape predicate (no single unifying
+    tag the way the tracked-count widening had) — deferred to a follow-up
+    batch; see the session notes for the full per-card triage. Two of the
+    15 cw_only gains this batch (Peer Past the Veil / Lucid Dreams's
+    "draw X cards, where X is the number of card types among cards in
+    your graveyard") are genuine beyond-legacy recalls — legacy's regex
+    only recognizes "for each"/"equal to the number of" wording, missing
+    "where X is the number of", a narrower net than the CR 107.3 concept.
     """
 
     def scaling(node: TypedMirrorNode, owner: object) -> bool:
         if _is_scaling_count(node, ("count", "amount"), ""):
             return True
-        raw = effect_owner_raw(owner, node)
+        if any(
+            _field_qty(node, f) in _DRAW_FOR_EACH_TRACKED_TAGS
+            for f in ("count", "amount")
+        ):
+            return True
+        raw = effect_owner_raw(owner, node) or (
+            getattr(owner, "description", None) or ""
+        )
         return bool(raw) and bool(_DRAW_FOR_EACH_PHRASE_RE.search(raw))
 
     for unit in tree.units:

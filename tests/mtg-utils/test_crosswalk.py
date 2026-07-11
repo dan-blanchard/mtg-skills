@@ -3572,6 +3572,46 @@ def test_draw_for_each_scaling_gate(name, should_fire):
     assert (("draw_for_each", "you", "") in _idents(name)) is should_fire
 
 
+# ── ADR-0038 W3 batch 6 (draw-etb-tokens cluster): draw_for_each widening ──
+# (196 both / 17 live_only, down from 74 — NOT YET PROMOTED, see
+# ``_draw_for_each``'s docstring for the full per-shape triage of what's
+# still residual.)
+
+
+def test_draw_for_each_local_tracked_count_tags():
+    """:data:`_DRAW_FOR_EACH_TRACKED_TAGS` admits an UNAMBIGUOUS delayed/
+    tracked count with no text gate — Syphon Mind's
+    ``FilteredTrackedSetSize`` ("You draw a card for each card discarded
+    this way" — the Draw itself lives on a description-less
+    ``sub_ability``, recovered via the widened owning-UNIT description
+    fallback), Change of Fortune's ``CardsDiscardedThisTurn``, Inspired
+    Sphinx's ``PlayerCount`` ("for each opponent"). CR 107.3."""
+    assert ("draw_for_each", "you", "") in _idents("Syphon Mind")
+    assert ("draw_for_each", "you", "") in _idents("Change of Fortune")
+    assert ("draw_for_each", "you", "") in _idents("Inspired Sphinx")
+
+
+def test_draw_for_each_excludes_that_many_engine():
+    """``EventContextAmount``/``PreviousEffectAmount`` are DELIBERATELY
+    absent from :data:`_DRAW_FOR_EACH_TRACKED_TAGS` — Cold-Eyed Selkie's
+    "Whenever this creature deals combat damage to a player, you may draw
+    that many cards" shares the SAME qty tag as a genuine draw_for_each
+    member (Struggle for Project Purity's "for each card drawn this way")
+    but is a damage-scaled draw ENGINE, not a board-count scale; legacy
+    does not tag it draw_for_each and the phrase gate (no "for each"/
+    "equal to the number of" wording) correctly keeps it out."""
+    assert "draw_for_each" not in _keys("Cold-Eyed Selkie")
+
+
+def test_draw_for_each_where_x_is_phrasing_gain():
+    """Beyond-legacy gain: Peer Past the Veil's "draw X cards, where X is
+    the number of card types among cards in your graveyard" is a genuine
+    CR 107.3 board-count scale legacy's regex misses — the deleted
+    producer only recognized "for each"/"equal to the number of" wording,
+    not "where X is the number of"."""
+    assert ("draw_for_each", "you", "") in _idents("Peer Past the Veil")
+
+
 @pytest.mark.parametrize(
     ("name", "should_fire"),
     [
