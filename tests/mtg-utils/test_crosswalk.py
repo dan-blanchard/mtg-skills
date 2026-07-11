@@ -3866,6 +3866,149 @@ def test_discard_outlet_direction_gates(name, should_fire):
 
 
 @pytest.mark.parametrize(
+    "name",
+    [
+        "Seismic Assault",  # bare top-level cost ("Discard a land card:")
+        "Insolent Neonate",  # Composite leaf ("Discard a card, Sacrifice...")
+        "Oriss, Samite Guardian",  # Grandeur "Discard another card named ~:"
+    ],
+)
+def test_discard_outlet_cost_position_dominant_gap(name):
+    """ADR-0038 W4 giants: the DOMINANT gap this key carried — "Discard a
+    card: <effect>" is a COST, never surfacing through
+    :meth:`AbilityUnit.effect_concepts` at all. :func:`_iter_discard_cost_nodes`
+    finds a bare top-level ``Discard`` cost (Seismic Assault) and a leaf
+    folded into a Composite activation cost (Insolent Neonate's
+    "Discard a card, Sacrifice this creature:", Oriss's Grandeur
+    "Discard another card named ~:" — phase parks the "named X" filter it
+    can't structure as a SIBLING ``Unimplemented`` cost leaf, leaving the
+    Discard leaf itself intact) equally (CR 602.1a — a cost is always paid
+    by the activator)."""
+    assert ("discard_outlet", "you", "") in _idents(name)
+
+
+def test_discard_outlet_granted_ability_descent():
+    """A GRANTED "Discard a card:" ability's own cost lives inside a
+    static's ``GrantAbility.definition`` — invisible to the grantor's own
+    top-level ``unit.costs`` walk. Hollowhead Sliver ("Sliver creatures you
+    control have '{T}, Discard a card: Draw a card.'") and Mindlash Sliver
+    ("All Slivers have '..., Sacrifice this permanent: Each player
+    discards a card.'" — a granted SYMMETRIC wheel, the SAME "hits you too"
+    reasoning as Dark Deal) both surface via the deep descent."""
+    assert ("discard_outlet", "you", "") in _idents("Hollowhead Sliver")
+    assert ("discard_outlet", "you", "") in _idents("Mindlash Sliver")
+
+
+def test_discard_outlet_else_ability_effect_descent():
+    """An EFFECT-position discard phase nests past
+    ``effect_concepts``'s ``_EFFECT_CHILD_FIELDS`` reach — The Destined
+    Thief's "draw a card, then discard a card. If you have a full party,
+    instead draw three cards." models the base discard as a conditional
+    REPLACEMENT's ``sub_ability.else_ability.effect`` (the "instead" arm
+    replaces it with a bigger draw). The deep descent reaches it; CR
+    701.8a."""
+    assert ("discard_outlet", "you", "") in _idents("The Destined Thief")
+
+
+def test_discard_outlet_alt_cast_cost_kept_mirror():
+    """ "As an additional cost to cast this spell, discard …" surfaces NO
+    typed ``Discard`` node anywhere in phase's tree for a Spell ability
+    (the Spell's own ``cost`` field is ``None`` — mirrors
+    ``_CAST_ADD_SAC_RX``'s documented sacrifice_outlets gap). The
+    byte-identical deleted SWEEP regex, run per-clause over the kept
+    oracle, recovers both Devastating Dreams ("discard X cards at
+    random") and Kaervek's Spite ("discard your hand") — CR 601.2f."""
+    assert ("discard_outlet", "you", "") in _idents("Devastating Dreams")
+    assert ("discard_outlet", "you", "") in _idents("Kaervek's Spite")
+
+
+def test_discard_outlet_self_ref_cycling_excluded():
+    """A ``self_ref`` COST leaf ("Discard THIS card:") is Cycling /
+    Eternalize / Unearth-style alt-cost fodder, not an outlet — mirrors the
+    old IR's cost-part split ("discardself" vs "discard") that keeps a
+    pure-cycling card OUT. Krosan Tusker carries ONLY a cycling ability
+    (``self_ref=True`` on its Discard cost leaf), so it must NOT fire."""
+    assert "discard_outlet" not in _keys("Krosan Tusker")
+
+
+def test_discard_outlet_wheel_effect_fidelity_gain():
+    """Beyond-legacy gain: Wheel of Fortune's "Each player discards their
+    hand, then draws seven cards" is a genuine symmetric wheel (CR
+    701.8a — it hits YOU too, the exact "Dark Deal" shape this lane's own
+    docstring names). The legacy flat-parsed IR's opponent-raw veto regex
+    over-broadly matches the literal words "each"+"player"+"discards"
+    (intended only for a mis-scoped "each OPPONENT discards" ETB) and
+    incorrectly excludes it; the structural
+    :func:`effect_owner_player_scope` read here correctly does NOT veto a
+    symmetric ``All`` actor, so this fires where legacy doesn't (adjudicated
+    a fidelity gain this session, left uncorrected)."""
+    assert ("discard_outlet", "you", "") in _idents("Wheel of Fortune")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Torment of Hailfire",  # unless_pay: "unless that player discards"
+        "K'un-Lun Warrior",  # ChooseOneOf branches: ambiguous chooser
+        "Mox Diamond",  # replacement MayCost decline-cost, not an outlet
+    ],
+)
+def test_discard_outlet_skip_fields_shed(name):
+    """MANDATORY SHED (recorded session adjudication, ADR-0038 W4 giants):
+    :data:`_DISCARD_OUTLET_SKIP_FIELDS` (``unless_pay`` / ``branches`` /
+    ``per_choice_effect`` / ``mode``) keeps three DIFFERENT-payer /
+    ambiguous-chooser / non-discretionary shapes out, matching legacy
+    (which reads none of them either): Torment of Hailfire's "each
+    opponent loses 3 life unless that player discards" alt-cost payer is
+    the effect's TARGET, not this ability's controller (the SAME
+    ``unless_pay`` shape sacrifice_outlets deliberately excludes); K'un-Lun
+    Warrior's "you may discard a card or sacrifice an artifact" modal
+    ``ChooseOneOf`` shares its exact node shape with Osseous Sticktwister's
+    "each opponent may sacrifice OR discard" (an opponent chooser
+    :func:`effect_owner_player_scope` can't reach through — both stay out
+    rather than risk the +60 crosswalk_only over-fire probed this session);
+    Mox Diamond's "you may discard a land instead" is a replacement's
+    decline-cost, not a discretionary value engine (CR 602.1a / 603.6)."""
+    assert "discard_outlet" not in _keys(name)
+
+
+def test_discard_outlet_additional_generic_walk_gains():
+    """The deep descent finds a ``Discard`` cost/effect node reachable
+    through ANY untagged field, not just the specific shapes named above
+    — two more beyond-legacy gains this session left uncorrected: The
+    Infamous Cruelclaw's "cast that card by discarding a card rather than
+    paying its mana cost" (an alternative CASTING cost, CR 601.2b, living
+    on its own ``alt_ability_cost`` field — unambiguously paid by the
+    caster) and Flubs, the Fool's "draw a card if you have no cards in
+    hand. Otherwise, discard a card." (the SAME conditional-replacement
+    ``else_ability`` shape as The Destined Thief, a second corpus
+    instance)."""
+    assert ("discard_outlet", "you", "") in _idents("The Infamous Cruelclaw")
+    assert ("discard_outlet", "you", "") in _idents("Flubs, the Fool")
+
+
+def test_discard_outlet_cross_sentence_unless_residue():
+    """Documented residue (ADR-0038 W4 giants, NOT ported): "Draw N cards.
+    Then discard a card unless <condition>." phrased as TWO sentences
+    (Timeline Inquiry) parks the ENTIRE "discard … unless" tail as one
+    whole-clause ``Unimplemented`` residue with no typed ``Discard`` node
+    anywhere — and :data:`_clauses` splits at the very period between
+    "cards." and "Then discard", so the kept-mirror regex (which can
+    bridge at most ONE period within a single scanned clause) never sees
+    both halves together. The SAME idiom phrased as one comma-joined
+    clause ("draw a card, then discard a card unless …" — Katara, Seeking
+    Revenge) DOES fire, since ``_clauses`` never splits on a bare comma.
+    Legacy's ``project.py`` IR reads this card differently (a flat
+    non-typed-mirror translator) and still extracts the discard past the
+    "unless" rider; the crosswalk's precise typed parser correctly
+    recognizes the conditional's complexity and punts — a genuine,
+    narrow, single-class recall gap left OUT this session (key stays
+    ``_STAGE4_RESIDUAL``)."""
+    assert "discard_outlet" not in _keys("Timeline Inquiry")
+    assert ("discard_outlet", "you", "") in _idents("Katara, Seeking Revenge")
+
+
+@pytest.mark.parametrize(
     ("name", "should_fire"),
     [
         ("Wrath of God", True),  # DestroyAll creatures

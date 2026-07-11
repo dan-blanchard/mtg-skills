@@ -29,6 +29,8 @@ to it.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
+from dataclasses import fields
 
 from mtg_utils._card_ir.crosswalk import (
     ARTIFACT_TOKEN_SUBTYPES,
@@ -329,6 +331,7 @@ from mtg_utils._deck_forge._subtypes import (
 # Berserkers' Onslaught — a disjoint, corpus-bounded 3-card class).
 from mtg_utils._deck_forge._sweep_detectors import (
     COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
+    DISCARD_OUTLET_REGEX,
     TOPDECK_STACK_SWEEP_REGEX,
 )
 from mtg_utils.card_classify import get_oracle_text
@@ -7483,6 +7486,78 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ADR-0038 W4 giants — the discard_outlet KEPT MIRROR. The byte-identical
+# deleted SWEEP regex (_sweep_detectors.DISCARD_OUTLET_REGEX), run PER-
+# CLAUSE over the reminder-stripped kept oracle (its "draw … then discard"
+# arms span a sentence over the whole oracle, so — like self_blink /
+# impulse_top_play in the old IR — it MUST scan clauses, not flat text).
+# Recovers what the structural + cost-descent arms below still can't reach:
+# an "as an additional cost to cast this spell, discard …" (Devastating
+# Dreams, Kaervek's Spite — the Spell ability's own ``cost`` field is
+# ``None`` for an additional cast cost, mirroring ``_CAST_ADD_SAC_RX``'s
+# documented sacrifice_outlets gap: no Discard node exists ANYWHERE in the
+# typed tree for it), and a cross-clause "draw N cards. Then discard a
+# card unless …" whose "unless" rider phase parks as a whole-clause
+# ``Unimplemented`` residue with NO typed Discard node at all (Timeline
+# Inquiry, Katara, Seeking Revenge, Waterbending Lesson, Tainted
+# Indulgence). None of the regex's arms mention "opponent"/"target" (CR
+# 701.8a's forced-attack family never phrases as a self-referential
+# "discard …:" cost or a "draw … then discard" sequence), so the opp-
+# hand-attack cards stay out of this arm exactly as they did in the
+# deleted SWEEP era.
+_DISCARD_OUTLET_SWEEP_RE = re.compile(DISCARD_OUTLET_REGEX, re.IGNORECASE)
+
+# Fields the discard_outlet cost/effect descent does NOT walk through — every
+# one is a DIFFERENT-payer or ambiguous-chooser shape corpus-verified to
+# over-fire when read structurally (probed this session, +60 crosswalk_only):
+# ``unless_pay`` (Torment of Hailfire's "each opponent loses 3 life unless
+# that player discards", Reality Smasher's "unless its controller discards" —
+# the SAME shape sacrifice_outlets deliberately excludes, since CR 602.1a's
+# "paid by the activator" default does not extend past an ``unless`` escape
+# hatch whose payer may be a DIFFERENT player; even a self-paid one
+# — Balduvian Horde's "sacrifice it unless you discard" — stays out to match
+# legacy, which reads none of this shape either); ``branches``/
+# ``per_choice_effect`` (a ``ChooseOneOf`` modal's alternatives — K'un-Lun
+# Warrior's "you may discard a card or sacrifice a Room" is a genuine
+# self-outlet, but Osseous Sticktwister's "each opponent may sacrifice a
+# permanent or discard a card" is the SAME branch shape with an opponent
+# chooser :func:`effect_owner_player_scope` can't reach through — the modal
+# wrapper's ``player_scope`` lives OUTSIDE ``_EFFECT_CHILD_FIELDS``'s reach,
+# so the two can't be told apart structurally without new machinery; both
+# stay out, matching legacy, which reads neither); ``mode`` (Mox Diamond's
+# replacement ``MayCost`` alternative — "you may discard a land instead" is
+# a REPLACEMENT's decline-cost, not a discretionary value engine, and legacy
+# doesn't read it either).
+_DISCARD_OUTLET_SKIP_FIELDS: frozenset[str] = frozenset(
+    {"unless_pay", "branches", "per_choice_effect", "mode"}
+)
+
+
+def _iter_discard_cost_nodes(root: object) -> Iterator[TypedMirrorNode]:
+    """Deep walk collecting every ``Discard``-tagged node reachable from
+    ``root``, skipping :data:`_DISCARD_OUTLET_SKIP_FIELDS` subtrees. Mirrors
+    :func:`~mtg_utils._card_ir.crosswalk.iter_typed_nodes`'s generic
+    field/variant/list walk exactly, narrowed for this one lane."""
+    seen: set[int] = set()
+    stack: list[object] = [root]
+    while stack:
+        node = stack.pop()
+        if id(node) in seen:
+            continue
+        seen.add(id(node))
+        if isinstance(node, TypedMirrorNode):
+            if tag_of(node) == "Discard":
+                yield node
+            for f in fields(node):
+                if f.name in _DISCARD_OUTLET_SKIP_FIELDS:
+                    continue
+                stack.append(getattr(node, f.name))
+        elif isinstance(node, MirrorVariant):
+            stack.append(node.inner)
+        elif isinstance(node, list):
+            stack.extend(node)
+
+
 def _discard_outlet(tree: ConceptTree) -> list[Signal]:
     """discard_outlet — a SELF-loot / symmetric discard outlet (CR 701.9):
     fuel for YOUR graveyard (Faithless Looting; Dark Deal's each-player
@@ -7499,6 +7574,32 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
       the live path's two raw/oracle veto regexes. A symmetric ``All`` actor
       (Dark Deal) is NOT vetoed — the wheel hits you too.
 
+    ADR-0038 W4 giants — the DOMINANT gap this key carried was cost-position:
+    "Discard a card: <effect>" (Seismic Assault, the Spellshaper cycle) never
+    surfaces through :meth:`AbilityUnit.effect_concepts` at all (a COST, not
+    an effect). A single deep :func:`_iter_discard_cost_nodes` descent over
+    the unit's own node finds EVERY ``Discard``-tagged node reachable from
+    it — a bare top-level cost (Seismic Assault), a leaf folded into a
+    Composite/OneOf activation cost (Insolent Neonate's "Discard a card,
+    Sacrifice this creature:", the Grandeur "Discard another card named
+    ~:" cost — Oriss, Korlash, Tarox Bladewing), a GRANTED "Discard a
+    card:" ability's own cost living inside a static's
+    ``GrantAbility.definition`` (Tin Street Market, Prophetic Ravings,
+    Hollowhead Sliver's tribal grant), AND an EFFECT-position discard
+    phase nests past ``effect_concepts``'s ``_EFFECT_CHILD_FIELDS`` reach —
+    a conditional-replacement's ``sub_ability.else_ability.effect`` (The
+    Destined Thief's "draw a card, then discard a card. If you have a
+    full party, instead draw three cards.") — one generic walk, same two
+    gates as the structural arm above (a cost leaf carries no recipient
+    field, so :func:`discard_recipient_scope` trivially reads ``None`` and
+    passes; CR 602.1a's "paid by the activator" default needs no
+    controller check here, matching :func:`_sac_leaf_is_you_outlet`'s same
+    reasoning for sacrifice_outlets). The walk skips
+    :data:`_DISCARD_OUTLET_SKIP_FIELDS` — ``unless_pay``/``branches``/
+    ``per_choice_effect``/``mode`` alternative-payer and ambiguous-chooser
+    shapes corpus-verified to over-fire when read this deeply (+60
+    crosswalk_only, reverted this session; see that constant's docstring).
+
     Scope "you" (the lane convention — it fuels the controller's engine).
     """
     for unit in tree.units:
@@ -7509,6 +7610,23 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
             if owner in _OPP_DISCARD_ACTORS:
                 continue
             return [Signal("discard_outlet", "you", "", c.raw, tree.name, "high")]
+        for n in _iter_discard_cost_nodes(unit.node):
+            # A ``self_ref`` COST leaf ("Discard THIS card:") is Cycling /
+            # Eternalize / Unearth-style alt-cost fodder, not an outlet —
+            # mirrors the old IR's cost-part split ("discardself" vs
+            # "discard") that keeps a pure-cycling card (Krosan Tusker) OUT
+            # (an effect-position Discard node carries no ``self_ref``
+            # field at all, so this is a no-op there).
+            if getattr(n, "self_ref", False):
+                continue
+            if discard_recipient_scope(n) not in ("you", "each", None):
+                continue
+            owner = effect_owner_player_scope(unit.node, n)
+            if owner in _OPP_DISCARD_ACTORS:
+                continue
+            return [Signal("discard_outlet", "you", "", "", tree.name, "high")]
+    if any(_DISCARD_OUTLET_SWEEP_RE.search(cl) for cl in _clauses(_kept(tree))):
+        return [Signal("discard_outlet", "you", "", "", tree.name, "high")]
     return []
 
 
