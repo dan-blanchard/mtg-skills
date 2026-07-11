@@ -6495,6 +6495,18 @@ def _coin_flip(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# A SYMMETRIC "whenever a player discards a card" watcher (Confessor, Spirit
+# Cairn, Telekinetic Bonds): phase's ``Discarded`` trigger leaves BOTH
+# ``valid_card.controller`` and ``valid_target`` unset for this idiom — the
+# identical shape a genuinely SELF-only "whenever you discard" watcher
+# (Archfiend of Ifnir) also carries, so no typed field distinguishes them
+# (:func:`trigger_subject_scope` reads "any" for both). A per-unit
+# reminder-stripped ``description`` text check is the only discriminator —
+# scoped to the SAME trigger unit :func:`_discard_watch_is_opponent` already
+# gated on "discarded", never a whole-card scan. CR 701.9 / 102.2.
+_SYMMETRIC_DISCARD_WATCH_RX = re.compile(r"\ba player discards\b", re.IGNORECASE)
+
+
 def _opponent_discard(tree: ConceptTree) -> list[Signal]:
     """opponent_discard — a forced OPPONENT discard / hand attack (CR 701.9). A
     ``Discard`` effect whose recipient is a targeted / opponent player ("target
@@ -6503,12 +6515,50 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
     discard's OWN recipient node (:func:`discard_recipient_scope`), NOT phase's
     mis-scoped trigger scope ([P5]). A you-scoped self-loot ("draw, then discard"
     — Faithless Looting) is the ported ``discard_makers`` lane, NOT this one.
+
+    ADR-0038 W4 giants — the WHEEL wrapper fallback: phase tags "each player
+    discards their hand" (Wheel of Fortune) and "each opponent discards a
+    card" (Burglar Rat, Herald of Anguish) with the discard's OWN recipient
+    as plain ``Controller`` (the per-iteration actor of an ability-level
+    ``player_scope`` loop, not a real self-target) — :func:`discard_
+    recipient_scope` reads that as "you" and the effect is skipped. The
+    wrapper actor that OWNS this discard (:func:`effect_owner_player_scope`
+    — the same reader ``discard_outlet``'s Dark-Deal-is-not-vetoed check and
+    ``group_hug_draw``'s Temple-Bell arm use) disambiguates: ``All`` is the
+    symmetric wheel (``each`` — mirrors :func:`discard_recipient_scope`'s
+    own Each/AllPlayers/EachPlayer mapping); an opponent-shaped actor
+    (:data:`_OPP_DISCARD_ACTORS`) is the per-opponent edict (``opponents``).
+    Only consulted when the node's own recipient did NOT already resolve —
+    never overrides a genuine you/each/opponents read. CR 701.9 / 102.2.
     """
     out: list[Signal] = []
     seen: set[str] = set()
     for unit in tree.units:
         for c in unit.effect_concepts("discard"):
+            # ADR-0038 W4 giants — the ``DiscardCard`` reveal-and-choose arm's
+            # ``target=ParentTarget`` is POSITION-relative (checklist
+            # #7i/landmine): after a player-facing ``RevealHand``
+            # (Thoughtseize) it names the REVEALED PLAYER, but after a
+            # card-facing producer — ``RevealTop`` (Sindbad, Fa'adiyah
+            # Seer's "draw and reveal it. If it isn't a land, discard it"),
+            # Dig/Search — it names the PRODUCED CARD instead. Corpus-
+            # verified 89/92: every genuine hand-attack DiscardCard shares
+            # its unit with a sibling ``reveal_hand`` concept; the 3 that
+            # don't are self-loot card-filters (Sindbad, Fa'adiyah Seer) or
+            # a Replacement whose "that player" already resolves elsewhere
+            # (Breathstealer's Crypt). Gate on the sibling to keep the
+            # DiscardCard arm from reading a card-reference as a player.
+            if type(c.node).__name__ == "T_effect__DiscardCard" and not unit.has_effect(
+                "reveal_hand"
+            ):
+                continue
             sc = discard_recipient_scope(c.node)
+            if sc not in ("opponents", "each"):
+                owner = effect_owner_player_scope(getattr(unit, "node", None), c.node)
+                if owner == "All":
+                    sc = "each"
+                elif owner in _OPP_DISCARD_ACTORS:
+                    sc = "opponents"
             if sc not in ("opponents", "each") or sc in seen:
                 continue
             if _is_target_player_loot(unit, c):
@@ -6522,11 +6572,13 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
         # ``discard_matters`` lane (checklist #5 — the discarder scope is
         # read off the trigger's own recipient nodes, never the mislabeled
         # trigger_scope). CR 701.8a / 102.2.
-        if (
-            unit.trigger_event == "discarded"
-            and _discard_watch_is_opponent(unit)
-            and "opponents" not in seen
-        ):
+        is_punisher_watch = unit.trigger_event == "discarded" and (
+            _discard_watch_is_opponent(unit)
+            or _SYMMETRIC_DISCARD_WATCH_RX.search(
+                getattr(unit.node, "description", "") or ""
+            )
+        )
+        if is_punisher_watch and "opponents" not in seen:
             seen.add("opponents")
             out.append(
                 Signal("opponent_discard", "opponents", "", "", tree.name, "high")

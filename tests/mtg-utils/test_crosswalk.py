@@ -3182,6 +3182,96 @@ def test_opponent_discard_excludes_target_player_loot():
     assert "opponent_discard" not in _keys("Cephalid Looter")
 
 
+# ── ADR-0038 W4 giants: opponent_discard wheel-wrapper + reveal-choose arms ──
+
+
+def test_opponent_discard_wheel_wrapper_is_each():
+    """Wheel of Fortune's own discard node ("Each player discards their
+    hand, then draws seven cards.") tags its recipient plain ``Controller``
+    — the per-iteration actor of the ability-level ``player_scope: All``
+    loop, not a real self-target. :func:`discard_recipient_scope` alone
+    reads that as "you" and skips it; the wrapper-actor fallback
+    (:func:`effect_owner_player_scope` == "All") resolves it to the
+    symmetric ``each`` (CR 701.9 — the wheel hits every player, including
+    opponents). The extra "opponents"-scope duplicate the LEGACY kept-word
+    mirror emits for this same wheel effect is a mirror over-fire, not a
+    second genuine signal — it stays absent."""
+    idents = _idents("Wheel of Fortune")
+    assert ("opponent_discard", "each", "") in idents
+    assert ("opponent_discard", "opponents", "") not in idents
+
+
+def test_opponent_discard_wheel_wrapper_per_opponent_edict():
+    """Burglar Rat's "each opponent discards a card" ETB carries the SAME
+    plain-``Controller`` recipient shape as the symmetric wheel, but its
+    wrapper actor is ``Opponent`` (:data:`_OPP_DISCARD_ACTORS`), not
+    ``All`` — the per-opponent edict resolves to ``opponents``, disjoint
+    from the symmetric-wheel ``each`` arm above. CR 701.9 / 102.2."""
+    assert ("opponent_discard", "opponents", "") in _idents("Burglar Rat")
+
+
+def test_opponent_discard_reveal_choose_discard_that_card():
+    """Thoughtseize's "reveal hand, choose a card, THAT player discards
+    THAT card" resolves through phase's ``DiscardCard`` tag (count=1,
+    target=ParentTarget — the just-identified player from the sibling
+    ``RevealHand``), distinct from a self-count ``Discard`` ("discards N
+    cards"). Folding ``DiscardCard`` into the same "discard" concept
+    (crosswalk.py ``EFFECT_CONCEPTS``) surfaces the entire reveal-and-
+    choose hand-attack family (Duress, Inquisition of Kozilek, Coercion)
+    through the existing recipient-scope read. CR 701.9 / 701.9a."""
+    assert ("opponent_discard", "opponents", "") in _idents("Thoughtseize")
+
+
+def test_opponent_discard_discardcard_excludes_card_reference():
+    """Sindbad's "draw a card and reveal it. If it isn't a land card,
+    discard it" ALSO carries a ``DiscardCard target=ParentTarget`` node —
+    but here ``ParentTarget`` back-references the just-REVEALED CARD (a
+    ``RevealTop`` producer, landmine #7i: phase back-reference tags are
+    POSITION-relative), never a player. The sibling-``reveal_hand`` gate
+    (only a player-facing ``RevealHand`` legitimizes a DiscardCard's
+    ParentTarget as a player) keeps this self card-filter OUT — it is
+    NOT a hand attack."""
+    assert "opponent_discard" not in _keys("Sindbad")
+
+
+def test_opponent_discard_symmetric_watcher():
+    """Spirit Cairn's "whenever A PLAYER discards a card, you may pay {W}…"
+    watches EITHER player (phase leaves both ``valid_card.controller`` and
+    ``valid_target`` unset — the identical shape a genuinely self-only
+    watcher like Archfiend of Ifnir's cycling trigger also carries, so no
+    typed field distinguishes them). The per-unit reminder-stripped
+    ``description`` text check (:data:`_SYMMETRIC_DISCARD_WATCH_RX`) is
+    the sole discriminator; it fires opponent_discard ALONGSIDE
+    discard_matters (a symmetric watcher pays off both self- and
+    opponent-discards — CR 701.9 / 102.2), matching the design precedent
+    already set for this card in the retained kept-word mirror's tail."""
+    idents = _idents("Spirit Cairn")
+    assert ("opponent_discard", "opponents", "") in idents
+    assert ("discard_matters", "you", "") in idents
+
+
+def test_opponent_discard_excludes_self_only_watcher():
+    """Archfiend of Ifnir's "whenever you cycle or discard a card" is
+    SELF-only (CR 702.29a) — the identical unscoped typed shape Spirit
+    Cairn's symmetric watcher carries, but its description text never
+    matches ``\\ba player discards\\b``, so the text-mirror fallback
+    correctly leaves it out of opponent_discard (discard_matters only)."""
+    idents = _idents("Archfiend of Ifnir")
+    assert "opponent_discard" not in {k for k, _s, _su in idents}
+    assert ("discard_matters", "you", "") in idents
+
+
+def test_opponent_discard_excludes_same_target_draw_then_discard():
+    """Compulsive Research's "target player draws three cards. Then that
+    player discards two cards unless they discard a land card" tags its
+    discard recipient ``ParentTarget`` with a sibling draw naming the SAME
+    targeted ``Player`` — the identical Cephalid-Looter loot shape
+    (:func:`_is_target_player_loot`): the controller can point this at
+    themselves to filter cards, so it is not treated as a forced
+    opponent-only hand attack, matching Cephalid Looter's precedent."""
+    assert "opponent_discard" not in _keys("Compulsive Research")
+
+
 # ── batch 7: phase / control / terminal-effect cluster + keyword survivors ────
 
 

@@ -54,6 +54,17 @@ from mtg_utils._card_ir.mirror.runtime import (
 EFFECT_CONCEPTS: dict[str, str] = {
     "Draw": "draw",
     "Discard": "discard",
+    # ADR-0038 W4 giants (opponent_discard) — "discard THAT card" after a
+    # reveal-and-choose (Thoughtseize, Duress, Inquisition of Kozilek): phase
+    # tags the FOLLOW-UP discard of an already-identified card ``DiscardCard``
+    # (count=1, target=ParentTarget) distinctly from a self-count ``Discard``
+    # ("discards N cards"). Corpus-verified 92/92 commander-legal instances
+    # carry ``target=ParentTarget`` — never Controller/self — so folding it
+    # into the SAME "discard" concept is safe for every sibling lane that
+    # reads ``effect_concepts("discard")``: ``discard_makers``/
+    # ``discard_outlet`` both gate on scope you/each (ParentTarget resolves
+    # "any"/"opponents", never you/each — CR 701.9), so neither over-fires.
+    "DiscardCard": "discard",
     "Token": "make_token",
     "CopySpell": "copy_spell",
     "WinTheGame": "win_game",
