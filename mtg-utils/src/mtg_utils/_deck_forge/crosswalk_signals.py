@@ -807,7 +807,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "ramp",
         "sacrifice_outlets",
         "scaling_pump",
-        "second_spell_matters",
         "target_player_draws",
         "token_maker",
         "topdeck_selection",
@@ -872,6 +871,24 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
 # the Counters predicate) — legacy's regex fallback also never matches
 # (requires the bare PLURAL "creatures you control gain/have" phrase with no
 # intervening modifier clause). Adjudicated beyond-legacy gains, pinned.
+# ADR-0038 W3 batch 4 (2026-07-10): second_spell_matters PROMOTED. The 34
+# live_only members are ALL ADJUDICATED SHEDS — legacy's regex mirror
+# (_SECOND_SPELL_MIRROR) carries a bare, unscoped "cast two or more spells"
+# alternative that over-fires on the ~32-card Innistrad werewolf transform
+# family ("if a player cast two or more spells LAST turn, transform this
+# creature", CR 603.4 intervening-if + CR 712) plus Call of the Full Moon
+# (same condition, already adjudicated batch 3) and Ertai's Scorn (opponent-
+# scoped discount, already adjudicated batch 3) — none is a genuine spell-
+# velocity build-around. The crosswalk excludes the werewolf class on TWO
+# independent structural grounds (spell_velocity_static_two's qty-type gate
+# requires SpellsCastThisTurn, not the werewolves' SpellsCastLastTurn; the
+# node-text bridge requires "you cast" or an ordinal word, neither present in
+# the werewolves' own description). Also widened the node-text bridge with a
+# THIRD phrasing (CR 601) for a kind-agnostic, ANY-PLAYER ordinal count
+# ("Whenever the fourth spell of a turn is cast" — Erayo, Soratami
+# Ascendant) phase parses as a bare Unknown-mode trigger with no count
+# qualifier — the SAME class the legacy IR's own byte-mirror fires for
+# (pinned in test_signals_effect_axes.py::test_spell_count_storm_widen).
 PORTED_KEYS: frozenset[str] = _PORTED_KEYS_STAGE3 - _STAGE4_RESIDUAL
 
 
@@ -7887,9 +7904,23 @@ def _combat_damage_lanes(tree: ConceptTree) -> list[Signal]:
 # DIFFERENT wording ("cast two or more spells" bare, third-person "casts their",
 # or "last turn") that this narrower "<ordinal> spell YOU CAST (each|this) turn"
 # phrasing never matches. CR 601.
+#
+# ADR-0038 W3 batch 4 — a THIRD phrasing this same per-node text bridge also
+# covers: a kind-agnostic, ANY-PLAYER ordinal count of the turn's spells
+# ("Whenever the fourth spell of a turn is cast" — Erayo, Soratami Ascendant)
+# projects to a bare ``cast_spell`` trigger with no count qualifier at all —
+# identical in shape to a plain magecraft trigger, so no structural arm can
+# discriminate it (test_signals_effect_axes.py::test_spell_count_storm_widen
+# pins the legacy IR's OWN byte-mirror firing this exact same way, CR 601).
+# "of (a|each|that) turn IS CAST" (passive, no "you") is distinct enough from
+# the werewolf day/night transform condition ("cast two or more spells LAST
+# turn", CR 712) and Ertai's Scorn's opponent-scoped discount ("if an
+# opponent cast two or more spells THIS turn") that neither can cross-match —
+# both lack an ordinal word entirely.
 _SECOND_SPELL_NODE_TEXT = re.compile(
     r"(?:second|third|fourth|fifth) spell you cast (?:each|this) turn"
-    r"|was the (?:second|third|fourth|fifth) spell you cast this turn",
+    r"|was the (?:second|third|fourth|fifth) spell you cast this turn"
+    r"|(?:second|third|fourth|fifth) spell of (?:a|each|that) turn is cast",
     re.IGNORECASE,
 )
 

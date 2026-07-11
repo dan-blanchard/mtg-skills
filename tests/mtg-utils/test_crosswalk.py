@@ -4772,6 +4772,22 @@ def test_second_spell_matters_node_text_bridge(name):
     assert ("second_spell_matters", "you", "") in _idents(name)
 
 
+def test_second_spell_matters_ordinal_any_player_text_bridge():
+    """Erayo, Soratami Ascendant (CR 601 casting spells): "Whenever the
+    fourth spell of a turn is cast, flip Erayo" is a kind-agnostic,
+    ANY-PLAYER ordinal count phase parses as a bare ``Unknown``-mode trigger
+    with no count qualifier at all — identical in shape to a plain
+    spellcast trigger. The SAME per-node text bridge as the "you cast"
+    forms above now also matches "of (a|each|that) turn is cast" (passive,
+    no "you"), distinct enough from the werewolf transform condition and
+    Ertai's Scorn's opponent-scoped discount that neither cross-matches
+    (both lack an ordinal word). The legacy IR's own byte-mirror
+    (``_SECOND_SPELL_MIRROR`` in ``_signals_ir.py``) fires the SAME way —
+    pinned in ``tests/deck-forge/test_signals_effect_axes.py::
+    test_spell_count_storm_widen``."""
+    assert ("second_spell_matters", "you", "") in _idents("Erayo, Soratami Ascendant")
+
+
 @pytest.mark.parametrize("name", ["Ertai's Scorn", "Call of the Full Moon"])
 def test_second_spell_matters_excludes_unrelated_two_spells_text(name):
     """Two legacy over-fires the ``"cast two or more spells"`` bare-text regex
@@ -4786,6 +4802,26 @@ def test_second_spell_matters_excludes_unrelated_two_spells_text(name):
     unrelated mechanic that merely shares the word "spells", never a spell-
     velocity payoff. The narrower "<ordinal> spell YOU CAST (each|this) turn"
     node-text bridge never matches either card's actual wording."""
+    assert "second_spell_matters" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name", ["Werewolf Ransacker", "Krallenhorde Howler", "Howlpack Alpha"]
+)
+def test_second_spell_matters_excludes_werewolf_transform_class(name):
+    """ADR-0038 W3 batch 4 — re-verified representatives of the ~32-card
+    Innistrad werewolf TRANSFORM-back-face class (CR 603.4 intervening-if +
+    CR 712 Transform), same ADJUDICATED-SHED family as Call of the Full
+    Moon above: "At the beginning of each upkeep, if a player cast two or
+    more spells last turn, transform this creature." Legacy's bare
+    ``"cast two or more spells"`` regex over-fires on all ~32; the crosswalk
+    correctly excludes them on TWO independent grounds, not just wording
+    luck: (1) the condition's qty node is ``SpellsCastLastTurn``, not
+    :func:`~mtg_utils._card_ir.crosswalk.spell_velocity_static_two`'s
+    required ``SpellsCastThisTurn``; (2) the werewolf's OWN generated
+    description never contains "you cast" or an ordinal word, so
+    ``_second_spell_node_text`` doesn't match either. A genuine crosswalk
+    precision gain over the legacy byte mirror, not an over-fire risk."""
     assert "second_spell_matters" not in _keys(name)
 
 
