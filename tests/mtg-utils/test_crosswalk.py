@@ -4025,6 +4025,32 @@ def test_draw_for_each_where_x_is_phrasing_gain():
     assert ("draw_for_each", "you", "") in _idents("Peer Past the Veil")
 
 
+def test_recovered_draw_reaches_draw_lanes():
+    """ADR-0038 post-giants batch (CR 121.1, verified via rules-lookup
+    this session): the "draw" recovery ALLOWLIST row — a computed-amount
+    draw phase parks as one Unimplemented residue. Curse of Surveillance's
+    "draw cards equal to the number of Curses attached to that player"
+    (the class the salvage-trimmed first attempt at this row targeted) now
+    reaches both the engine and the for-each lanes; Kumena's Awakening's
+    each-player upkeep draw reaches the engine + group-hug reads. Blast
+    radius at introduction: 6 changed cards corpus-wide, all adjudicated
+    genuine; the Bladecoil/Grothama boundary pins that trimmed the first
+    attempt hold (the seam guard + lane gates draw the line)."""
+    idents = _idents("Curse of Surveillance")
+    assert ("card_draw_engine", "you", "") in idents
+    assert ("draw_for_each", "you", "") in idents
+    kum = _idents("Kumena's Awakening")
+    assert ("card_draw_engine", "you", "") in kum
+
+
+def test_recovered_draw_seam_guard_rejects_non_draw_senses():
+    """The _NON_DRAW_SENSE seam guard (the exact trap that got the first
+    "draw" row trimmed): Divine Intervention's "the game is a draw" is a
+    game-result noun, not a CR 121.1 card draw — the recovery seam rejects
+    it before any lane can see it, so the card fires NO draw lane."""
+    assert not {k for k in _keys("Divine Intervention") if "draw" in k}
+
+
 @pytest.mark.parametrize(
     ("name", "should_fire"),
     [

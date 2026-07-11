@@ -1701,13 +1701,19 @@ def test_group_hug_draw_scoped_player_never_widens():
     assert _group_hug_draw_fires("Howling Mine") is False
 
 
-def test_group_hug_draw_dropped_subject_synth():
+def test_group_hug_draw_grothama_graduated_to_structural_read():
+    """ADR-0038 post-giants batch: Grothama's "draw cards equal to the
+    amount of damage dealt to ~ this turn by sources they controlled"
+    previously reached group_hug_draw only via the real-concept synthesis
+    arm (the whole clause was an Unimplemented residue). The "draw"
+    recovery ALLOWLIST row now re-decorates it, so the STRUCTURAL read
+    (``has_structural_group_hug_draw``) covers it directly and the
+    gap-gated synthesis arm correctly stands down — a marker/synthesis
+    path retires the moment a real read covers its card. Membership
+    verdict unchanged."""
     tree = _fixture_tree("Grothama, All-Devouring")
-    assert has_structural_group_hug_draw(tree) is False  # genuine gap
-    node = _arm_group_hug_draw(tree)
-    assert node is not None
-    assert node.concept == "draw"  # the REAL concept, no synth_* marker
-    assert node.scope == "each"
+    assert has_structural_group_hug_draw(tree) is True
+    assert _arm_group_hug_draw(tree) is None  # gap gate closed
     assert _group_hug_draw_fires("Grothama, All-Devouring") is True
 
 

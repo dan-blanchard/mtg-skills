@@ -25,6 +25,7 @@ See ``mtg-utils/CONTEXT.md`` for the **Recovery stage** / **Re-decoration** /
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, replace
 
 from mtg_utils._card_ir._substrate_purity import assert_substrate_pure, l1_identity
@@ -191,7 +192,24 @@ ALLOWLIST: dict[str, TokenRule] = {
     # recovered discard nodes MUST direction-gate on the raw (the
     # recovered-node raw-read precedent), never trust scope alone.
     "discard": TokenRule(concept="discard", category="discard"),
+    # ADR-0038 post-giants main-session batch: the card-draw ACTION idiom
+    # (CR 121.1): "draw cards equal to <computed amount>" / "For each
+    # <thing>, draw a card" — amount-computed or per-thing draws phase's
+    # own grammar can't structure (Curse of Surveillance, Arcane Endeavor,
+    # Mob Verdict, Skull Raid; census: 29 residues tokenize to "draw").
+    # A salvaged first attempt at this row was TRIMMED for flipping two
+    # pinned boundary tests; the difference here is the seam guard below
+    # (the two NON-draw senses: "the game is a draw" — Divine
+    # Intervention — and "draw step" timing references — Elfhame
+    # Sanctuary) plus lane-level recipient gates verified by the all-key
+    # corpus diff. Recipient hazards are real (Forget / Soldevi Sentry
+    # draw for the OTHER player), so lanes reading recovered draw nodes
+    # must direction-gate on the raw, same as "discard".
+    "draw": TokenRule(concept="draw", category="draw"),
 }
+
+
+_NON_DRAW_SENSE = re.compile(r"\bgame is a draw\b|\bdraw step\b", re.IGNORECASE)
 
 
 def _recover(c: ConceptNode, table: dict[str, TokenRule]) -> ConceptNode | None:
@@ -215,6 +233,14 @@ def _recover(c: ConceptNode, table: dict[str, TokenRule]) -> ConceptNode | None:
     # verbatim so the crosswalk draws the identical line rather than
     # widening a reference-only card into a maker.
     if token == "roll_die" and _DICE_TRIG.search(c.raw):
+        return None
+    # "draw"'s grammar token also matches two NON-draw senses (the exact
+    # trap that got a first attempt at this row trimmed): the game-result
+    # noun ("The game is a draw" — Divine Intervention, Celestial
+    # Convergence) and the turn-structure timing reference ("during their
+    # draw step" — Elfhame Sanctuary, Well of Knowledge). Neither is a
+    # CR 121.1 card draw; reject at the seam so no lane ever sees them.
+    if token == "draw" and _NON_DRAW_SENSE.search(c.raw):
         return None
     rule = table[token]
     return replace(
