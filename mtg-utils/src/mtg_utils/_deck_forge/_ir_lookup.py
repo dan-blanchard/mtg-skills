@@ -50,6 +50,8 @@ from typing import TYPE_CHECKING
 from mtg_utils.card_ir import Card
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from mtg_utils._card_ir.crosswalk import ConceptTree
     from mtg_utils._card_ir.mirror.schema import MirrorSchema
 
@@ -347,6 +349,53 @@ def _text_only_trees(
     return out
 
 
+def build_trees(
+    oid: str, recs: Sequence[dict], bulk: dict | None = None
+) -> tuple[ConceptTree, ...]:
+    """The per-face ``ConceptTree`` tuple for ``oid`` from EXPLICIT phase face
+    records — pure (no caching, no ``_phase_record_index`` / ``ensure_card_data``
+    I/O beyond the always-committed mirror schema fixture).
+
+    :func:`trees_for` wraps this with the production oid→records lookup +
+    memo; :mod:`mtg_utils.testkit` calls it directly against the committed
+    snapshot's stored raw phase records (ADR-0039 task #80 step 5), so a
+    signal test builds the SAME trees production would with zero
+    ``_phase.ensure_card_data`` dependency (no phase cache / network in CI).
+    See :func:`trees_for` for the per-face / ``bulk`` W2c contract this
+    mirrors exactly."""
+    schema = _committed_schema()
+    if schema is None:
+        return ()
+    from mtg_utils._card_ir.crosswalk import build_concept_tree
+    from mtg_utils._card_ir.mirror import MirrorDriftError, strict_load_card
+
+    trees: list[ConceptTree] = []
+    for rec in recs:
+        nm = rec.get("name") or ""
+        try:
+            root = strict_load_card(rec, schema, name=nm)
+        except MirrorDriftError:
+            continue
+        if root is None:
+            continue
+        trees.append(build_concept_tree(root, name=nm, oracle_id=oid))
+    if bulk is not None:
+        trees.extend(_text_only_trees(bulk, tuple(recs), oracle_id=oid))
+    return tuple(trees)
+
+
+def seed_trees(oid: str, trees: tuple[ConceptTree, ...]) -> None:
+    """Pre-populate the trees memo for ``oid`` (testkit only).
+
+    :func:`trees_for` checks ``_TREES_MEMO`` BEFORE touching
+    ``_phase_record_index`` / ``_phase.ensure_card_data`` — so a caller that
+    seeds the memo first makes every downstream ``trees_for`` call (the
+    production ``_crosswalk_merge`` path included) CI-safe: no phase cache,
+    no network, byte-identical trees to what production would build from a
+    live phase install. ``mtg_utils.testkit.test_signals`` is the one caller."""
+    _TREES_MEMO[oid] = trees
+
+
 def trees_for(card: dict, bulk: dict | None = None) -> tuple[ConceptTree, ...]:
     """The candidate's Layer-2 concept trees by ``oracle_id`` — one per phase
     face record (plus ADR-0038 W2c text-only trees, see below), empty when
@@ -359,7 +408,9 @@ def trees_for(card: dict, bulk: dict | None = None) -> tuple[ConceptTree, ...]:
     card-level reads like ``is_type`` / cmc that only make sense per-face).
     Callers union the per-tree signals instead (ADR-0035/0038 task #74; the
     same per-face-union-of-signals shape ``crosswalk_diff.py`` already
-    measures the corpus against). Built lazily then memoized as a tuple. An
+    measures the corpus against). Built lazily then memoized as a tuple (see
+    :func:`build_trees` for the pure per-oid construction; :func:`seed_trees`
+    lets a caller pre-populate the memo — CI-safe, no phase cache needed). An
     empty tuple covers no oracle_id, no phase record / schema, and every face
     drifting from the committed schema — each degrading the hybrid to the
     legacy IR path for the crosswalk-served keys.
@@ -381,29 +432,13 @@ def trees_for(card: dict, bulk: dict | None = None) -> tuple[ConceptTree, ...]:
     if oid in _TREES_MEMO:
         return _TREES_MEMO[oid]
     index = _phase_record_index()
-    schema = _committed_schema()
-    if index is None or schema is None:
+    if index is None:
         _TREES_MEMO[oid] = ()
         return ()
     recs = index.get(oid)
     if not recs:
         _TREES_MEMO[oid] = ()
         return ()
-    from mtg_utils._card_ir.crosswalk import build_concept_tree
-    from mtg_utils._card_ir.mirror import MirrorDriftError, strict_load_card
-
-    trees: list[ConceptTree] = []
-    for rec in recs:
-        nm = rec.get("name") or ""
-        try:
-            root = strict_load_card(rec, schema, name=nm)
-        except MirrorDriftError:
-            continue
-        if root is None:
-            continue
-        trees.append(build_concept_tree(root, name=nm, oracle_id=oid))
-    if bulk is not None:
-        trees.extend(_text_only_trees(bulk, recs, oracle_id=oid))
-    out = tuple(trees)
+    out = build_trees(oid, recs, bulk=bulk)
     _TREES_MEMO[oid] = out
     return out

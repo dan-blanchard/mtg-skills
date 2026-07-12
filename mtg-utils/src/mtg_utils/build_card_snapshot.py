@@ -1,21 +1,30 @@
 """Build the committed test snapshot (``tests/fixtures/card_snapshot.json``).
 
-Gated like ``download-bulk`` / ``build-card-ir``: needs the local Scryfall bulk AND a
-built Card IR sidecar, and is NEVER run in CI (CI consumes the committed snapshot
-offline). It collects the card names the tests reference via the ``mtg_utils.testkit``
-helpers, resolves each to its GAMEPLAY printing, and emits, per card, a minimal
-Scryfall record plus the REAL projected IR (a verbatim sidecar slice).
+Gated like ``download-bulk`` / ``build-card-ir-crosswalk``: needs the local MTGJSON
+bulk AND phase's ``card-data.json`` (auto-fetched from the pinned release tarball —
+no cargo), and is NEVER run in CI (CI consumes the committed snapshot offline). It
+collects the card names the tests reference via the ``mtg_utils.testkit`` helpers,
+resolves each to its GAMEPLAY printing, and emits, per card, a minimal Scryfall
+record plus its RAW phase face records (ADR-0039 task #80 step 5) — exactly the
+records ``mtg_utils._deck_forge._ir_lookup.trees_for`` strict-loads in production, so
+``testkit`` builds the SAME ``ConceptTree`` / compat ``Card`` on demand with **no**
+phase cache / network in CI. This replaces the pre-step-5 shape (a single baked
+``project_card`` IR slice per card): the crosswalk world derives its IR from the
+typed substrate at read time, not at snapshot-build time, so the snapshot only needs
+to carry the INPUT (phase's own parse) rather than a stale baked OUTPUT.
 
 Self-validation (the field-completeness guard): for every card it asserts the signals
-of the MINIMAL record equal the signals of the FULL bulk record (both over the same
-real IR). A mismatch fails loudly with the card + the differing signals so the minimal
-field list is expanded rather than a lossy slice silently shipped.
+of the MINIMAL record equal the signals of the FULL bulk record (both over the SAME
+seeded concept trees, via the production ``extract_signals_hybrid``). A mismatch
+fails loudly with the card + the differing signals so the minimal field list is
+expanded rather than a lossy slice silently shipped.
 
 Modes:
   * default — AST-scan the test tree for ``test_card`` / ``test_card_ir`` /
-    ``test_signals`` usage: direct string-literal calls, parametrize columns that
-    feed such a call through a bare variable, and ``_REAL_CASES`` name tables
-    (usage-derived; the snapshot only holds cards a test actually asks for).
+    ``test_legacy_card_ir`` / ``test_signals`` usage: direct string-literal calls,
+    parametrize columns that feed such a call through a bare variable, and
+    ``_REAL_CASES`` name tables (usage-derived; the snapshot only holds cards a
+    test actually asks for).
   * ``--names "A,B"`` / ``--names-file PATH`` — an explicit name list (additive to the
     scan unless ``--no-scan``).
 """
@@ -28,10 +37,17 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
-from mtg_utils._card_ir.load import SIDECAR_VERSION, load_card_ir
+from mtg_utils._card_ir.build import _group_by_oracle_id
+from mtg_utils._card_ir.load import (
+    CROSSWALK_SIDECAR_VERSION,
+    SIDECAR_VERSION,
+    load_card_ir,
+)
 from mtg_utils._card_ir.metrics import compute_parse_metrics
+from mtg_utils._card_ir.project import project_card
+from mtg_utils._deck_forge._ir_lookup import build_trees, seed_trees
 from mtg_utils._deck_forge.signals import extract_signals_hybrid
-from mtg_utils._phase import PHASE_TAG
+from mtg_utils._phase import PHASE_TAG, ensure_card_data
 from mtg_utils.bulk_loader import default_bulk_path, load_bulk_cards
 from mtg_utils.names import normalize_card_name
 from mtg_utils.testkit import SCHEMA_VERSION, snapshot_path
@@ -79,6 +95,7 @@ _HELPER_NAMES = frozenset(
     {
         "test_card",
         "test_card_ir",
+        "test_legacy_card_ir",
         "test_signals",
         "_keys_real",
         "_ks_real",
@@ -228,10 +245,10 @@ def _scan_names(test_dirs: list[Path]) -> set[str]:
     return names
 
 
-def _index_by_name(bulk: list[dict], ir: dict) -> dict[str, dict]:
-    """normalized name → the GAMEPLAY printing (oracle_id in the sidecar; DFC front
-    faces keyed too; art_series / reversible dups are skipped because their oracle_id
-    is absent from the sidecar)."""
+def _index_by_name(bulk: list[dict], groups: dict[str, list[dict]]) -> dict[str, dict]:
+    """normalized name → the GAMEPLAY printing (oracle_id has >=1 phase face
+    record; DFC front faces keyed too; art_series / reversible dups are skipped
+    because their oracle_id is absent from phase's card-data.json)."""
     by_name: dict[str, list[dict]] = defaultdict(list)
     for c in bulk:
         nm = c.get("name")
@@ -242,47 +259,58 @@ def _index_by_name(bulk: list[dict], ir: dict) -> dict[str, dict]:
             by_name[normalize_card_name(nm.split(" // ")[0])].append(c)
     resolved: dict[str, dict] = {}
     for key, printings in by_name.items():
-        pick = next((c for c in printings if c.get("oracle_id") in ir), None)
+        pick = next((c for c in printings if c.get("oracle_id") in groups), None)
         if pick is not None:
             resolved[key] = pick
     return resolved
 
 
 def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path, dict]:
-    ir = load_card_ir()
+    cdp = ensure_card_data()
+    phase_data = json.loads(cdp.read_text())
+    groups = _group_by_oracle_id(phase_data)
+
     bulk_path = default_bulk_path()
     if bulk_path is None:
         raise SystemExit(
-            "No Scryfall bulk found. Run `download-bulk` first (this gated script "
-            "needs the local bulk + a built Card IR sidecar)."
+            "No MTGJSON bulk found. Run `download-mtgjson` first (this gated "
+            "script needs the local bulk + phase's card-data.json)."
         )
     bulk = load_bulk_cards(bulk_path)
-    index = _index_by_name(bulk, ir)
+    index = _index_by_name(bulk, groups)
 
     cards: dict[str, dict] = {}
-    snapshot_ir: dict = {}  # oid -> Card, for the snapshot field-coverage metric
+    snapshot_legacy_ir: dict = {}  # name -> project_card(records), metrics only
     unresolved: list[str] = []
-    no_ir: list[str] = []
+    no_phase_records: list[str] = []
     lossy: list[str] = []
     for name in sorted(names):
         rec = index.get(normalize_card_name(name))
         if rec is None:
             unresolved.append(name)
             continue
-        oid = rec.get("oracle_id")
-        card_ir = ir.get(oid)
-        if card_ir is None:  # pragma: no cover — index already gates on sidecar
-            no_ir.append(name)
+        oid = rec.get("oracle_id") or ""
+        phase_records = groups.get(oid)
+        if not phase_records:  # pragma: no cover — index already gates on this
+            no_phase_records.append(name)
             continue
-        ir_dict = card_ir.to_dict()
+        # Build the REAL concept trees once (against the FULL bulk record, so a
+        # W2c text-only face — a bulk ``card_faces`` entry phase has no matching
+        # record for — is captured too) and seed the trees memo so BOTH the full-
+        # and minimal-record signal calls below (and every downstream test) reuse
+        # this exact tree set — the same lazy-build-once contract production's
+        # ``trees_for`` gives a live process.
+        seed_trees(oid, build_trees(oid, phase_records, bulk=rec))
         minimal = _minimal(rec)
-        # Field-completeness guard: the slice must lose no signal vs the full record.
+        # Field-completeness guard: the slice must lose no signal vs the full
+        # record, over the SAME seeded trees (``ir=None`` — the crosswalk merge
+        # never reads it; only the legacy fallback would, and both calls agree by
+        # construction since neither exercises it here).
         full_sigs = {
-            (s.key, s.scope, s.subject) for s in extract_signals_hybrid(rec, card_ir)
+            (s.key, s.scope, s.subject) for s in extract_signals_hybrid(rec, None)
         }
         mini_sigs = {
-            (s.key, s.scope, s.subject)
-            for s in extract_signals_hybrid(minimal, card_ir)
+            (s.key, s.scope, s.subject) for s in extract_signals_hybrid(minimal, None)
         }
         if full_sigs != mini_sigs:
             lossy.append(
@@ -290,8 +318,8 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
                 f"only-mini={mini_sigs - full_sigs}"
             )
             continue
-        cards[name] = {"scryfall": minimal, "ir": ir_dict}
-        snapshot_ir[oid] = card_ir
+        cards[name] = {"scryfall": minimal, "phase_records": list(phase_records)}
+        snapshot_legacy_ir[name] = project_card(phase_records)
 
     if lossy:
         raise SystemExit(
@@ -302,7 +330,7 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
     out = out_path or snapshot_path()
     payload = {
         "schema": SCHEMA_VERSION,
-        "sidecar_version": SIDECAR_VERSION,
+        "crosswalk_sidecar_version": CROSSWALK_SIDECAR_VERSION,
         "phase_tag": PHASE_TAG,
         "cards": cards,
     }
@@ -311,9 +339,14 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
         json.dumps(payload, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    # ADR-0032 parse-completeness metric: the committed full-corpus drift-watch
-    # (regenerated in this same gated step) + the snapshot field-coverage the CI
-    # assertion (test_parse_metrics) recomputes offline from card_snapshot.json.
+    # ADR-0032 parse-completeness metric (LEGACY-pipeline health — the flag-OFF
+    # revert path's own drift-watch; unaffected by the crosswalk snapshot-shape
+    # repoint above). full_corpus needs the whole legacy sidecar; the "snapshot"
+    # cut is recomputed here — and offline in CI by test_parse_metrics — as
+    # ``project_card`` over each snapshotted card's OWN stored phase_records, so
+    # both computations share one source of truth with no baked legacy sidecar
+    # slice in the committed JSON.
+    full_corpus_ir = load_card_ir()
     metrics_path = out.parent / "parse_metrics.json"
     metrics_path.write_text(
         json.dumps(
@@ -321,8 +354,8 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
                 "schema": SCHEMA_VERSION,
                 "sidecar_version": SIDECAR_VERSION,
                 "phase_tag": PHASE_TAG,
-                "full_corpus": compute_parse_metrics(ir),
-                "snapshot": compute_parse_metrics(snapshot_ir),
+                "full_corpus": compute_parse_metrics(full_corpus_ir),
+                "snapshot": compute_parse_metrics(snapshot_legacy_ir),
             },
             ensure_ascii=False,
             indent=1,
@@ -336,7 +369,7 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
         "cards": len(cards),
         "requested": len(names),
         "unresolved": unresolved,
-        "no_ir": no_ir,
+        "no_phase_records": no_phase_records,
         "bytes": out.stat().st_size,
         "metrics_path": str(metrics_path),
     }
@@ -345,7 +378,10 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Build the committed test card snapshot (Scryfall + real IR)."
+        description=(
+            "Build the committed test card snapshot (Scryfall + raw phase "
+            "face records)."
+        )
     )
     parser.add_argument(
         "--names", default="", help="Comma-separated card names (additive to the scan)."
@@ -386,12 +422,13 @@ def main(argv: list[str] | None = None) -> int:
     kb = stats["bytes"] / 1024
     print(
         f"Wrote {stats['cards']}/{stats['requested']} cards to {out} "
-        f"({kb:.0f} KB, sidecar v{SIDECAR_VERSION}, phase {PHASE_TAG})."
+        f"({kb:.0f} KB, crosswalk sidecar v{CROSSWALK_SIDECAR_VERSION}, "
+        f"phase {PHASE_TAG})."
     )
     if stats["unresolved"]:
         print(f"  unresolved (no gameplay printing): {stats['unresolved']}")
-    if stats["no_ir"]:
-        print(f"  resolved but no IR: {stats['no_ir']}")
+    if stats["no_phase_records"]:
+        print(f"  resolved but no phase records: {stats['no_phase_records']}")
     return 0
 
 

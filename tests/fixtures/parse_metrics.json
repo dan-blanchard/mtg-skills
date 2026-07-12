@@ -13,22 +13,22 @@
    "recovered_nodes": 178
   },
   "synergy_completeness": {
-   "effects_category_other": 832,
-   "effects_total": 75926,
+   "effects_category_other": 828,
+   "effects_total": 75921,
    "full_pct": 98.38,
    "parse_confidence": {
-    "full": 33995,
-    "partial": 561
+    "full": 33997,
+    "partial": 559
    },
    "triggers_event_other": 1899,
    "triggers_total": 19196
   }
  },
  "phase_tag": "v0.20.0",
- "schema": 1,
+ "schema": 2,
  "sidecar_version": 76,
  "snapshot": {
-  "cards": 732,
+  "cards": 731,
   "feed_phase_readiness": {
    "bucket_a_masking": 0,
    "bucket_b_genuine_gap": 12,
@@ -42,14 +42,14 @@
   },
   "synergy_completeness": {
    "effects_category_other": 26,
-   "effects_total": 1749,
+   "effects_total": 1748,
    "full_pct": 98.63,
    "parse_confidence": {
-    "full": 722,
+    "full": 721,
     "partial": 10
    },
    "triggers_event_other": 45,
-   "triggers_total": 503
+   "triggers_total": 502
   }
  }
 }

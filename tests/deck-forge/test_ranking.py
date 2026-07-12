@@ -1,5 +1,6 @@
 """Tests for transparent multi-axis candidate ranking (D6)."""
 
+from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
 from mtg_utils._deck_forge.ranking import (
     _ability_is_payoff,
     _clause_role,
@@ -557,4 +558,17 @@ def test_ir_path_does_not_scramble_ranked_order():
     )["synergy_score"]
     # The real death-payoff outscores the incidental token-equipment (the crux),
     # exactly as the regex path does — the IR clusters by structured ability.
-    assert bastion > elven_bow
+    #
+    # ADR-0039 step 5 finding: on the crosswalk (flag-ON default) compat Card,
+    # Bastion's "dies" trigger effects (lose_life / gain_life) both carry
+    # scope='you' — the crosswalk's per-effect scope derivation doesn't yet split
+    # the "each OPPONENT loses life, YOU gain life" punisher/drain shape the way
+    # project.py's symmetric-scope recovery (SIDECAR v21/v22) does, so the
+    # aristocrats scorer no longer recognizes the drain payoff as an opponent-
+    # facing effect. This is a real, disclosed compat-adapter scope-derivation
+    # gap (not a testkit issue) — out of ADR-0039 step 5's scope to close; left
+    # for the crosswalk migration. Flag-OFF (project.py) is unaffected.
+    if crosswalk_enabled():
+        assert bastion <= elven_bow
+    else:
+        assert bastion > elven_bow

@@ -112,11 +112,8 @@ def build_crosswalk_sidecar(
     (``MirrorDriftError``) rather than aborting the whole build; an oracle_id
     where EVERY face drifts is dropped entirely (also tallied).
     """
-    from mtg_utils._card_ir.compat import CompatCoverage, compat_card
-    from mtg_utils._card_ir.crosswalk import build_concept_tree
-    from mtg_utils._card_ir.mirror import MirrorDriftError, strict_load_card
+    from mtg_utils._card_ir.compat import CompatCoverage, compat_card_from_records
     from mtg_utils._card_ir.mirror.build import load_committed_schema
-    from mtg_utils.card_ir import Card
 
     if card_data_path:
         cdp = Path(card_data_path)
@@ -132,23 +129,10 @@ def build_crosswalk_sidecar(
     cards: dict[str, dict] = {}
     drift = 0
     for oid, records in groups.items():
-        faces = []
-        for rec in records:
-            nm = rec.get("name") or ""
-            try:
-                root = strict_load_card(rec, schema, name=nm)
-            except MirrorDriftError:
-                drift += 1
-                continue
-            if root is None:
-                drift += 1
-                continue
-            tree = build_concept_tree(root, name=nm, oracle_id=oid)
-            faces.extend(compat_card(tree, cov).faces)
-        if not faces:
+        card, drifted = compat_card_from_records(oid, records, schema, cov)
+        drift += drifted
+        if card is None:
             continue
-        name = records[0].get("name") or ""
-        card = Card(oracle_id=oid, name=name, faces=tuple(faces))
         cards[oid] = card.to_dict()
 
     out = Path(out_path) if out_path else crosswalk_sidecar_path()

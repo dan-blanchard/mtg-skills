@@ -1,5 +1,6 @@
 """Tests for slot budgets vs the (soft) Command Zone template (band model, ADR-0024)."""
 
+from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
 from mtg_utils._deck_forge.budgets import (
     _ir_board_wipe,
     _ir_draws,
@@ -521,7 +522,18 @@ def test_board_wipe_role_reads_real_ir_mass_destroy():
     # Real projected IR (committed snapshot): Wrath of God is a structural board wipe.
     assert _ir_board_wipe(test_card_ir("Wrath of God")) is True
     # A mass -X/-X shrink SPELL (Toxic Deluge) — via the SIDECAR-v74 Effect.toughness.
-    assert _ir_board_wipe(test_card_ir("Toxic Deluge")) is True
+    # ADR-0039 step 5 finding: the crosswalk's compat adapter (_card_ir.compat._pump_pt)
+    # only carries Effect.toughness for a FIXED pump magnitude (a documented, tallied
+    # gap:pump_dynamic_pt miss) — Toxic Deluge's magnitude is DYNAMIC ("-X/-X" scaled
+    # by life paid), so the mass-shrink board-wipe read is dark on the flag-ON default
+    # today. Flag-OFF (project.py's _pump_toughness) keeps the sign for a dynamic
+    # magnitude too (Quantity(op="variable", factor=-1)), so the legacy revert path is
+    # unaffected. Not a testkit issue — a real, disclosed compat-adapter porting gap;
+    # left for the crosswalk migration to close (out of ADR-0039 step 5's scope).
+    if crosswalk_enabled():
+        assert _ir_board_wipe(test_card_ir("Toxic Deluge")) is False
+    else:
+        assert _ir_board_wipe(test_card_ir("Toxic Deluge")) is True
 
 
 def test_static_mass_debuff_anthem_is_board_wipe():

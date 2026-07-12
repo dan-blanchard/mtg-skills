@@ -54,6 +54,8 @@ from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity, Tri
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from mtg_utils._card_ir.mirror.schema import MirrorSchema
+
 # ── coverage accounting ───────────────────────────────────────────────────────
 
 
@@ -801,3 +803,44 @@ def compat_card(tree: ConceptTree, cov: CompatCoverage | None = None) -> Card:
     # L1 fingerprint held across the whole build.
     assert_substrate_pure(fingerprint, tree)
     return card
+
+
+def compat_card_from_records(
+    oid: str,
+    records: Iterable[dict],
+    schema: MirrorSchema,
+    cov: CompatCoverage | None = None,
+) -> tuple[Card | None, int]:
+    """Build ONE compat ``Card`` from a card's raw phase face records.
+
+    Shared by :func:`mtg_utils._card_ir.build.build_crosswalk_sidecar` (which
+    strict-loads the full corpus once) and ``mtg_utils.testkit.test_card_ir``
+    (which strict-loads only the committed snapshot's stored records — no
+    corpus, no network, ADR-0039 task #80 step 5). Each face record
+    contributes its own compat :class:`~mtg_utils.card_ir.Face` (task #74
+    multi-face union, ``faces`` concatenated in ``records`` order); a face
+    that drifts from ``schema`` is skipped and tallied in the returned drift
+    count rather than aborting the build. Returns ``(None, drift)`` when
+    EVERY face drifts (nothing to build)."""
+    from mtg_utils._card_ir.crosswalk import build_concept_tree
+    from mtg_utils._card_ir.mirror import MirrorDriftError, strict_load_card
+
+    faces: list[Face] = []
+    drift = 0
+    name = ""
+    for rec in records:
+        name = name or (rec.get("name") or "")
+        nm = rec.get("name") or ""
+        try:
+            root = strict_load_card(rec, schema, name=nm)
+        except MirrorDriftError:
+            drift += 1
+            continue
+        if root is None:
+            drift += 1
+            continue
+        tree = build_concept_tree(root, name=nm, oracle_id=oid)
+        faces.extend(compat_card(tree, cov).faces)
+    if not faces:
+        return None, drift
+    return Card(oracle_id=oid, name=name, faces=tuple(faces)), drift
