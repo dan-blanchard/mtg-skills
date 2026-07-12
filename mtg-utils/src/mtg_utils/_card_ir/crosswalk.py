@@ -403,6 +403,17 @@ class ConceptTree:
     # stax residues, …) — those lanes strip reminder parens and re-run the
     # EXACT live constants; every structural lane stays a typed read.
     oracle: str = ""
+    # ADR-0039 W8 (deepening-start-minimal, the b16 precedent): the CR 100.2a
+    # deck copy-limit relaxation ("A deck can have any number of cards named
+    # X" / "up to N cards named X" — Relentless Rats, Hare Apparent, Seven
+    # Dwarves). Read off ``root.deck_copy_limit`` (``Unlimited`` or ``UpTo``
+    # with a bound >= 2 — ``UpTo:1``, Vazal's Megalegendary, RESTRICTS to one
+    # copy and is excluded), the SAME phase field the old-IR
+    # ``card_ir._allows_many_copies`` reads off the raw record. copy_limit is
+    # the only consumer today; a card-level bool (not a per-unit concept) since
+    # the field is a whole-card deck-construction property, not tied to any
+    # one ability.
+    many_copies: bool = False
 
     def is_type(self, core: str) -> bool:
         """Whether the card itself has core type ``core`` (Creature / Land / …).
@@ -3764,6 +3775,17 @@ def build_concept_tree(
     if isinstance(pw, TypedMirrorNode) and tag_of(pw) == "Fixed":
         v = getattr(pw, "value", None)
         power = v if isinstance(v, int) else None
+    # ADR-0039 W8: CR 100.2a copy-limit relaxation, read off the typed
+    # ``deck_copy_limit`` union (mirrors old-IR ``card_ir._allows_many_copies``).
+    dcl = getattr(root, "deck_copy_limit", None)
+    many_copies = False
+    if isinstance(dcl, TypedMirrorNode):
+        dcl_tag = tag_of(dcl)
+        if dcl_tag == "Unlimited":
+            many_copies = True
+        elif dcl_tag == "UpTo":
+            dcl_data = getattr(dcl, "data", None)
+            many_copies = isinstance(dcl_data, int) and dcl_data >= 2
     units: list[AbilityUnit] = []
 
     # A spell-level ``additional_cost`` (CR 601.2b) rides the ROOT, not any
@@ -3967,6 +3989,7 @@ def build_concept_tree(
         power=power,
         has_printed_cost=has_printed_cost,
         oracle=oracle if isinstance(oracle, str) else "",
+        many_copies=many_copies,
     )
     # ADR-0038 — substrate-wide Unimplemented recovery runs INSIDE the tree
     # build so every consumer (signal lanes, compat projection, convergence +

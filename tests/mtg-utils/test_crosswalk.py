@@ -15089,3 +15089,82 @@ def test_recovered_make_token_type_words_route_matter_lanes(name, lane):
     artifacts/enchantments lane reads the create-clause's own type words
     — the dig_until / hand_revealed recovered-node precedent."""
     assert (lane, "you", "") in _idents(name)
+
+
+# ── ADR-0039 W8 (KEPT-twelve wave) — copy_limit / base_power_matters /
+# damage_redirect PROMOTED off the legacy IR arm ─────────────────────────────
+
+
+def test_copy_limit_fires_unlimited():
+    """CR 100.2a: Relentless Rats' "A deck can have any number of cards
+    named Relentless Rats" is phase's ``deck_copy_limit: Unlimited`` —
+    read off the new :attr:`ConceptTree.many_copies` typed field."""
+    assert ("copy_limit", "you", "") in _idents("Relentless Rats")
+
+
+def test_copy_limit_fires_upto_at_least_two():
+    """Shadowborn Apostle's "up to seven cards named Shadowborn Apostle" is
+    ``deck_copy_limit: UpTo(7)`` — >= 2, so ``many_copies`` is True (the
+    ``UpTo:1`` RESTRICTS-to-one-copy shape, Vazal's Megalegendary, is
+    excluded by construction, verified in ``card_ir._allows_many_copies``'s
+    OWN docstring)."""
+    assert ("copy_limit", "you", "") in _idents("Shadowborn Apostle")
+
+
+def test_base_power_matters_structural_reference():
+    """CR 613.4b sentence 2 (verified via rules-lookup this session): Rapid
+    Augmenter's "another creature you control with base power 1" is a typed
+    ``PtComparison(scope='Base')`` node in phase v0.20.0 — the graduation
+    off the old IR's regex-recovered ``BasePtRef`` marker."""
+    assert ("base_power_matters", "you", "") in _idents("Rapid Augmenter")
+
+
+def test_base_power_matters_excludes_current_power_scope():
+    """Colossal Majesty's "a creature with power 4 or greater" is
+    ``scope='Current'`` — the lane must NOT fire on it (that's
+    power_matters territory, CR 208.1)."""
+    assert "base_power_matters" not in _keys("Colossal Majesty")
+
+
+def test_base_power_matters_conjunctive_bridge_duskana():
+    """The ``duskana_bess_base_pt_and_toughness_ref`` ledgered bridge: phase
+    drops the CONJUNCTIVE "base power and toughness 2/2" reference form
+    (Duskana's ETB draw-per) with zero trace — no PtComparison node at all,
+    unlike the single-stat form Rapid Augmenter carries structurally."""
+    assert ("base_power_matters", "you", "") in _idents("Duskana, the Rage Mother")
+
+
+def test_base_power_matters_conjunctive_bridge_bess():
+    """The same conjunctive-drop bridge, Bess's counter-per-ETB trigger
+    ("one or more other creatures you control with base power and
+    toughness 1/1")."""
+    assert ("base_power_matters", "you", "") in _idents("Bess, Soul Nourisher")
+
+
+def test_base_power_matters_structural_gain_angelic_aberration():
+    """Beyond-legacy structural gain (ADR-0039 W8, adjudicated genuine): the
+    typed scope='Base' read also catches "sacrifice any number of creatures
+    each with base power or toughness 1 or less" — a real CR 613.4b
+    base-P/T-reference SELECTION (for a sacrifice cost), the SAME idiom
+    class as the live members, just a cost-side selection instead of a
+    reward-side one. The old IR's whole-oracle "creature(s) you control/own
+    with base power/toughness" anchor MISSES it (no "you control/own"
+    between "creatures" and "with" here — "creatures each with...")."""
+    assert ("base_power_matters", "you", "") in _idents("Angelic Aberration")
+
+
+def test_damage_redirect_arm_a_self_prevention():
+    """The b12 byte-identical mirror, ARM A (``_detect_self_damage_
+    prevention``): Cho-Manno's "Prevent all damage that would be dealt to
+    Cho-Manno" — the name-aware self-shield idiom (CR 615), a settled KEPT
+    (spec §G — the typed ``redirect_target`` field exists on only 8 corpus
+    replacements and this card carries none)."""
+    assert ("damage_redirect", "you", "") in _idents("Cho-Manno, Revolutionary")
+
+
+def test_damage_redirect_arm_b_redirect_clause():
+    """The b12 byte-identical mirror, ARM B (``_DAMAGE_REDIRECT_MIRROR``):
+    Nomads en-Kor's "The next 1 damage that would be dealt to this creature
+    this turn is dealt to target creature you control instead" — the
+    genuine CR 614.9 redirection-effect idiom."""
+    assert ("damage_redirect", "you", "") in _idents("Nomads en-Kor")

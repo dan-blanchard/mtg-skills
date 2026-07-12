@@ -119,6 +119,12 @@ extra_draw_step, free_cast, ki_counter_matters, kicked_spell_matters,
 land_destruction, named_synergy. Outside the `_STAGE4_RESIDUAL` ledger, so
 the grind's residual count understates the legacy-served surface by exactly
 this set; they promote by ADDITION to the ported set, not removal from the
-residual one.
+residual one. ADR-0039 W8 PROMOTED 4 of the twelve — cheat_from_top (already
+byte-identical via the shared `_apply_membership_floor`, a pure key-slice
+change), copy_limit (a new `ConceptTree.many_copies` typed field), and
+base_power_matters / damage_redirect (a graduated `PtComparison.scope`
+structural read + a ledgered bridge, and a b12 byte-identical mirror,
+respectively) — all 0 genuine members lost, 2 adjudicated-genuine cw_only
+gains (a DFC face-name join fix, a base-P/T-reference sacrifice cost).
 _Avoid_: "residuals" (residuals are tracked; these were invisible to that
 ledger until 2026-07-11).

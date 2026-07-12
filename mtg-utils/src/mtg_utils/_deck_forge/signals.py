@@ -187,9 +187,10 @@ def _crosswalk_merge(
 
     Three-way dispatch (the key-set delta is exact, NOT a clean swap):
     ``PORTED_KEYS`` come from the typed-substrate crosswalk; the residual keys the
-    crosswalk does not reproduce (``MIGRATED_KEYS - PORTED_KEYS`` — the two permanent
-    KEPT lanes ``damage_redirect`` / ``land_destruction`` plus the unported tail)
-    stay on the legacy ``extract_signals_ir`` path; every other key stays regex. The
+    crosswalk does not reproduce (``MIGRATED_KEYS - PORTED_KEYS`` — the permanent
+    KEPT lane ``land_destruction`` plus the unported tail; ``damage_redirect``
+    PROMOTED ADR-0039 W8 as a b12 byte-identical crosswalk mirror) stay on the
+    legacy ``extract_signals_ir`` path; every other key stays regex. The
     shared reconciliation tail runs once in the caller, its ``not in out_keys`` guards
     absorbing the crosswalk's own already-applied reconciliations (single fire).
 

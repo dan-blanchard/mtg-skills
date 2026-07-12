@@ -462,11 +462,13 @@ def test_hybrid_reconciliation_single_fire(monkeypatch):
 def test_hybrid_three_way_key_partition():
     """The Seam-A split is a three-way partition, not a clean swap: PORTED and the
     residual set are disjoint and their union is the served (stripped-from-regex)
-    set. The two permanent KEPT lanes are in the residual set (never the crosswalk)."""
+    set. The permanent KEPT lane (``land_destruction``) is in the residual set
+    (never the crosswalk); ``damage_redirect`` PROMOTED ADR-0039 W8 (a b12
+    byte-identical crosswalk mirror), so it now lives in PORTED, not residual."""
     residual = MIGRATED_KEYS - PORTED_KEYS
     assert residual, "the residual set must be non-empty (do not delete the IR path)"
-    assert "damage_redirect" in residual
     assert "land_destruction" in residual
+    assert "damage_redirect" in PORTED_KEYS
     assert PORTED_KEYS.isdisjoint(residual)
     assert (PORTED_KEYS | residual) == (PORTED_KEYS | MIGRATED_KEYS)
 

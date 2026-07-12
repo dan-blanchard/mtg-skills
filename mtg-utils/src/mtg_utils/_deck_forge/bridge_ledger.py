@@ -58,6 +58,7 @@ from mtg_utils._card_ir.crosswalk import (
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING
 from mtg_utils._card_ir.project import _KEYWORD_COST_SAC, _PITCH_SAC
+from mtg_utils._card_ir.supplement import _BASE_POWER_REF, _anchored
 
 if TYPE_CHECKING:  # pragma: no cover
     from mtg_utils._card_ir.crosswalk import ConceptTree
@@ -1207,6 +1208,42 @@ def _base_pt_becomecopy_no_mods_gap(tree: ConceptTree) -> bool:
 
 def _base_pt_becomecopy_no_mods_match(tree: ConceptTree) -> bool:
     return bool(_BASE_PT_BECOMECOPY_PT_RX.search(tree.oracle))
+
+
+# ── Duskana / Bess → base_power_matters (ADR-0039 W8) ────────────────────────
+# CR 613.4b sentence 2: a base-power/toughness REFERENCE payoff ("creature(s)
+# you control with base power N" — distinct from base_pt_set's SETTER form).
+# phase v0.20.0's typed ``PtComparison`` node carries a ``scope`` field
+# (``'Base'`` vs ``'Current'``) that the base_power_matters lane reads
+# directly for 4 of the live set's 6 members (Rapid Augmenter, Sword of the
+# Squeak, Zinnia — Valley's Voice, Primo, the Unbounded — a genuine
+# graduation off the old IR's regex recovery). The remaining 2 members name
+# a CONJUNCTIVE "base power AND toughness N/N" reference (as opposed to the
+# single-stat "base power N" / "base toughness N" the typed node structures
+# fine) — phase's clause grammar drops this conjunction form with ZERO
+# trace: no ``PtComparison`` node, not even an ``Unimplemented`` residue.
+# Reuses ``supplement.py``'s OWN ``_BASE_POWER_REF`` combinator scan
+# verbatim (not a re-derived pattern) — the SAME anchor the old IR's
+# ``_recover_base_power_ref`` uses — so the blast radius matches the old
+# recovery byte-for-byte (12 hits corpus-wide match the 6-token phrase, of
+# which 4 are already structurally covered by the typed scope='Base' read
+# and correctly stand this bridge down via the gap).
+def _duskana_bess_gap(tree: ConceptTree) -> bool:
+    """No typed ``PtComparison(scope='Base')`` node reachable anywhere —
+    self-retiring the day phase's grammar structures the conjunctive 'base
+    power and toughness N/N' reference form (the 4 single-stat siblings
+    already carry this node and correctly stand the bridge down)."""
+    return not any(
+        tag_of(n) == "PtComparison" and getattr(n, "scope", None) == "Base"
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
+def _duskana_bess_match(tree: ConceptTree) -> bool:
+    return _anchored(
+        re.sub(r"\([^)]*\)", " ", tree.oracle or ""), "with base", _BASE_POWER_REF
+    )
 
 
 # ── Katilda / Old-Growth Troll / Tazri → ramp ─────────────────────────────────
@@ -3839,6 +3876,36 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Tetravus",),
             gap=_tetravus_gap,
             match=_tetravus_match,
+        ),
+        Bridge(
+            bridge_id="duskana_bess_base_pt_and_toughness_ref",
+            key="base_power_matters",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82) / phase bump: the "
+                "clause grammar structures the single-stat 'base power N' / "
+                "'base toughness N' reference form as a typed "
+                "PtComparison(scope='Base') node (re-verified this session "
+                "— Rapid Augmenter, Sword of the Squeak, Zinnia, Valley's "
+                "Voice, Primo, the Unbounded all carry it) but drops the "
+                "CONJUNCTIVE 'base power and toughness N/N' reference form "
+                "with zero trace — retires on a grammar verb / phase bump "
+                "that emits the same scope='Base' node (or a pair of them) "
+                "for the conjunction"
+            ),
+            census=(
+                "2 hits / 31,622 commander-legal (Duskana, the Rage Mother; "
+                "Bess, Soul Nourisher — the 6-token "
+                "'creature(s) you control/own with base power/toughness' "
+                "phrase scan, reused verbatim from "
+                "supplement._recover_base_power_ref, matches 6 "
+                "commander-legal cards total; the other 4 already carry "
+                "the typed scope='Base' node and correctly stand this "
+                "bridge down via the gap), phase v0.20.0, 2026-07-12"
+            ),
+            pins=("Duskana, the Rage Mother", "Bess, Soul Nourisher"),
+            gap=_duskana_bess_gap,
+            match=_duskana_bess_match,
         ),
     )
 }

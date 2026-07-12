@@ -296,6 +296,7 @@ from mtg_utils._deck_forge._signals_ir import (
     _BASE_PT_ANIMATE_HOOK,
     _BASE_PT_RAW_HOOK,
     _COUNTER_KIND_KEYS,
+    _DAMAGE_REDIRECT_MIRROR,
     _ENCHANTMENTS_MATTER_MIRROR,
     _FLOOR_DETECTORS,
     _GOAD_STYLE_FORCE,
@@ -315,6 +316,7 @@ from mtg_utils._deck_forge._signals_regex import (
     Signal,
     _clauses,
     _creature_etb_clause,
+    _detect_self_damage_prevention,
     _detect_token_maker,
     _graveyard_matters_clauses,
     _resolve_subject,
@@ -759,11 +761,33 @@ _PORTED_KEYS_STAGE3: frozenset[str] = frozenset(
         "villainous_choice",
         "void_warp_matters",
         "voting_matters",
-        # NB: damage_redirect stays KEPT (spec §G): `redirect_target` exists
-        # on only 8 corpus replacements and Pariah itself parses with NO
-        # redirect_target (shield Prevention only — structurally identical to
-        # a pure prevention shield). SUPPLEMENT-RECOVERABLE ("is dealt to [X]
-        # instead" carries the signal); the live word mirrors stay.
+        # ADR-0039 W8 (KEPT-twelve wave) — the 4 Stage-2 KEPT keys PROMOTED
+        # this session (0 live-only diff on a fresh commander-legal
+        # re-measure, phase v0.20.0, 2026-07-12):
+        #   • cheat_from_top — ALREADY byte-identical: the include_membership
+        #     floor's ``_apply_membership_floor`` is single-source with
+        #     legacy (imported live from ``_signals_ir``), so promoting is a
+        #     pure key-slice change — the crosswalk was already computing it
+        #     identically and throwing it away.
+        #   • copy_limit — NEW structural arm (:func:`_copy_limit`) reading
+        #     the typed ``deck_copy_limit`` field (a new
+        #     :attr:`~mtg_utils._card_ir.crosswalk.ConceptTree.many_copies`
+        #     deepening — the b16 precedent).
+        #   • base_power_matters — GRADUATED off the old IR's regex recovery
+        #     (:func:`_base_power_matters`): phase v0.20.0's typed
+        #     ``PtComparison`` node now carries a ``scope`` field
+        #     (``'Base'`` vs ``'Current'``) the old lossy projection threw
+        #     away, so the lane reads it directly (the graduation rule).
+        #   • damage_redirect — a settled KEPT (spec §G: `redirect_target`
+        #     exists on only 8 corpus replacements, Pariah itself parses with
+        #     NO redirect_target), re-verified this wave and ported as the
+        #     b12 SANCTIONED byte-identical mirror (:func:`_damage_redirect`)
+        #     — both legacy arms (self-shield + redirect-clause) reused
+        #     verbatim, single-source from ``_signals_ir`` / `_signals_regex``.
+        "cheat_from_top",
+        "copy_limit",
+        "base_power_matters",
+        "damage_redirect",
         # NB: land_destruction stays KEPT (batch-8 reclassification upheld):
         # the membership-gated structural arm reproduces the live 23-card set
         # 23/23 but adds 2 non-byte-identical extras (Goblin Grenadiers,
@@ -17062,6 +17086,99 @@ def _damage_prevention(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _damage_redirect(tree: ConceptTree) -> list[Signal]:
+    """damage_redirect (ADR-0039 W8) — CR 614.9 / 615: a card that PROTECTS by
+    preventing/redirecting damage dealt to itself, or REDIRECTS damage to a
+    different recipient ("... is dealt to [X] instead").
+
+    The typed ``S_replacements.redirect_target`` field exists on only 8
+    corpus replacements and Pariah itself parses with NO ``redirect_target``
+    (a pure ``shield_kind: Prevention`` — CR 615, structurally identical to a
+    plain shield; see :func:`_damage_prevention`'s docstring) — the lane's own
+    KEPT rationale (settled, re-verified this wave). BOTH legacy arms ride a
+    byte-identical b12 mirror over ``_kept(tree)`` (the DISJOINT-arm shape:
+    commander-legal corpus overlap == 0, since phase's structural categories
+    ~90%-over-fire either way — damage_prevention 396 vs 44, redirect/
+    damage_replace(ment) 224 vs 25):
+
+    * ARM A — NAME-AWARE self-prevention/self-redirect
+      (:func:`_detect_self_damage_prevention`, the self_blink name-aware
+      precedent): Cho-Manno, Uncle Istvan, the Phantom +1/+1-counter shield
+      cycle — an unkillable body that prevents/redirects damage dealt TO
+      ITSELF (the ideal Equipment/Aura carrier), matching legacy's OWN
+      lane-membership shape (Cho-Manno's actual text is pure prevention, no
+      "instead" — legacy serves it here regardless, so this lane mirrors
+      that verbatim rather than second-guessing legacy's naming).
+    * ARM B — the REDIRECT clause (``_DAMAGE_REDIRECT_MIRROR``, single-source
+      from ``_signals_ir``): en-Kor / Reflect Damage / Nova Pentacle /
+      Captain's Maneuver's "... is dealt to [X] instead" idiom.
+
+    Scope "you" (the deleted producers' forced scope). CR 614.9 / 615.
+    """
+    kept = _kept(tree)
+    if _detect_self_damage_prevention(kept, tree.name):
+        return [Signal("damage_redirect", "you", "", "", tree.name, "high")]
+    if _DAMAGE_REDIRECT_MIRROR.search(kept):
+        return [Signal("damage_redirect", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _base_power_matters(tree: ConceptTree) -> list[Signal]:
+    """base_power_matters (ADR-0039 W8) — CR 613.4b sentence 2: an effect that
+    REFERS to a creature's BASE power/toughness ("creatures you control with
+    base power N" — Rapid Augmenter's haste grant, Sword of the Squeak's
+    equip scale, Zinnia's go-wide pump, Primo's combat trigger). Distinct
+    from base_pt_set (sentence 1, a SETTER) — a reference rewards creatures
+    by their base P/T, it sets nothing.
+
+    The OLD lossy IR (``_recover_base_power_ref``) had to REGEX-recover this:
+    phase's ``PtComparison`` predicate collapsed to a base-BLIND string, so a
+    structural read would have massively over-fired onto the 323/330
+    CURRENT-power references (power_matters territory) it couldn't tell
+    apart. GRADUATION (the graduation rule — a substrate improvement stands
+    a gap-gated arm down): phase v0.20.0's typed ``PtComparison`` node now
+    carries a ``scope`` field (``'Base'`` vs ``'Current'``, re-verified this
+    session against Rapid Augmenter/Zinnia/Primo — all ``'Base'`` — and
+    Colossal Majesty/Ruby, Daring Tracker/Heir of the Wilds — all
+    ``'Current'``) the OLD IR's string predicate threw away. Reads the typed
+    field directly: any ``PtComparison`` node reachable anywhere in the tree
+    with ``scope == 'Base'``. Scope "you" (the deleted producer's forced
+    scope, matching the OLD IR's ``add("base_power_matters", "you", ...)``).
+
+    The ``duskana_bess_base_pt_and_toughness_ref`` ledgered bridge
+    (:mod:`~mtg_utils._deck_forge.bridge_ledger`) closes the 2 remaining live
+    members: a CONJUNCTIVE "base power and toughness N/N" reference (Duskana,
+    Bess) phase's clause grammar drops with zero trace — no typed node at
+    all, unlike the single-stat form this arm reads structurally. CR 613.4b.
+    """
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "PtComparison" and getattr(n, "scope", None) == "Base":
+                return [Signal("base_power_matters", "you", "", "", tree.name, "high")]
+    if bridge_fires("duskana_bess_base_pt_and_toughness_ref", tree):
+        return [Signal("base_power_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _copy_limit(tree: ConceptTree) -> list[Signal]:
+    """copy_limit (ADR-0039 W8) — CR 100.2a: the deck-construction relaxation
+    "A deck can have any number of cards named X" / "up to N cards named X"
+    (Relentless Rats, Hare Apparent, Seven Dwarves, Shadowborn Apostle,
+    Dragon's Approach, Persistent Petitioners, Nazgûl, Rat Colony, Slime
+    Against Humanity, Tempest Hawk, Templar Knight, Cid). Read structurally
+    off :attr:`ConceptTree.many_copies` (the typed ``deck_copy_limit`` field —
+    ``Unlimited`` or ``UpTo`` with a bound >= 2; ``UpTo:1`` RESTRICTS to one
+    copy and is excluded), the SAME field the old-IR ``ir.many_copies``
+    (``card_ir._allows_many_copies``) reads off the raw record — a genuinely
+    DIFFERENT deck concern than ``named_synergy`` (a swarm-of-one-name, not a
+    named-partner reference). Scope "you" (the deleted producer's forced
+    scope). CR 100.2a.
+    """
+    if tree.many_copies:
+        return [Signal("copy_limit", "you", "", "", tree.name, "high")]
+    return []
+
+
 def _dep_or_and_reaches_player(tgt: object, depth: int = 0) -> bool:
     """A damage recipient that is an ``Or`` / ``And`` CONTAINING a player member
     ("target creature or player" — Brion Stoutarm, Hellhole Flailer, Sarkhan the
@@ -22421,6 +22538,10 @@ _LANES = (
     _becomes_target_lanes,
     _theft_protection,
     _voting_matters,
+    # ADR-0039 W8 (KEPT-twelve wave):
+    _damage_redirect,
+    _base_power_matters,
+    _copy_limit,
 )
 
 
@@ -22608,9 +22729,10 @@ def extract_crosswalk_signals(
     # ``include_membership`` (True only for the commander in the deck-aggregate path):
     #   (1) the card-type / own-subtype membership block — the SHARED
     #       ``_apply_membership_floor`` (one source with ``extract_signals_ir``, zero
-    #       drift); its residual-key firings (big_mana / cheat_from_top /
-    #       land_destruction) are dropped by ``add``'s ``keys`` slice and re-supplied
-    #       by the legacy residual path in ``_crosswalk_merge``.
+    #       drift); its residual-key firings (big_mana / land_destruction) are dropped
+    #       by ``add``'s ``keys`` slice and re-supplied by the legacy residual path in
+    #       ``_crosswalk_merge`` (``cheat_from_top`` PROMOTED ADR-0039 W8 — same
+    #       single-source function, now let through the slice unchanged).
     #   (2) the ``_FLOOR_DETECTORS`` cares-about loop gated by ``_IR_FLOOR_LANES``
     #       (imported LIVE from ``_signals_ir`` — the sanctioned single-source),
     #       run over ``_kept(tree)``.
