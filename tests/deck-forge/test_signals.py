@@ -883,14 +883,28 @@ def test_land_enter_punisher_opens_burn_lane():
 
 
 def test_source_deals_damage_opens_burn():
-    # The Red Terror: "whenever a red source you control deals damage …" — a damage-
-    # matters commander who wants to deal lots of damage (burn). ADR-0027: direct_damage
-    # migrated to the Card IR; "source you control deals damage" is a damage-matters
-    # payoff (not a `damage` Effect), so it fires from the byte-identical
-    # _DIRECT_DAMAGE_MIRROR (hybrid path), not the deleted regex.
-    # Real The Red Terror (snapshot): "a red source you control deals damage" is a
-    # damage-matters payoff.
-    assert ("direct_damage", "you") in _real("The Red Terror")
+    # The Red Terror: "whenever a red source you control deals damage … put a +1/+1
+    # counter on The Red Terror" — a damage-MATTERS trigger CONDITION (CR 603.2)
+    # reading someone ELSE's damage, not a direct_damage EFFECT of its own (the same
+    # doubler/matters/prevention shed the crosswalk lane's own docstring documents —
+    # "Damage DOUBLERS are a separate lane"). ADR-0039 W7 endgame PROMOTED
+    # direct_damage off the legacy hybrid fallback: the pre-promotion legacy
+    # _DIRECT_DAMAGE_MIRROR's "whenever a source you control deals damage"
+    # alternative was a GENUINE OVER-FIRE (already MANDATORY-SHED-pinned on the
+    # crosswalk path — see test_crosswalk.py's
+    # test_direct_damage_excludes_doubler_matters_prevention_shed). Flag-OFF
+    # stays byte-identical to the pre-promotion legacy behavior (the RETAINED
+    # revert path), so this assertion is flag-state-dependent by design (the
+    # Sygg / lifeloss_makers precedent above) — NOT a "every other test passes
+    # unchanged" violation. The real payoff lanes fire regardless: its OWN
+    # +1/+1 counter growth (self_counter_grow) and its counter-placement
+    # ability (plus_one_makers).
+    idents = _real("The Red Terror")
+    if crosswalk_enabled():
+        assert ("direct_damage", "you") not in idents
+    else:
+        assert ("direct_damage", "you") in idents
+    assert ("self_counter_grow", "you") in idents
 
 
 def test_self_power_scaling_opens_counters():

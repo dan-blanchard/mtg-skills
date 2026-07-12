@@ -857,11 +857,23 @@ def _unit_has_player_target(root: object) -> bool:
     within the SAME ability (Aggressive Sabotage's "Target player discards
     two cards. If this spell was kicked, it deals 3 damage to that player.";
     Blood Oath's "Target opponent reveals their hand. ... deals 3 damage to
-    that player ..."; Curse of Shaken Faith's "Enchant player" + "... deals 2
-    damage to them"). Scans every ``_SCOPE_FIELDS`` slot on every typed node
+    that player ..."). Scans every ``_SCOPE_FIELDS`` slot on every typed node
     reachable under ``root`` (:func:`_iter_typed_nodes`) — cost/target/static
     fields alike, since the producer can be a non-damage effect (Discard,
     RevealHand) or the ability's own enchant/attach target.
+
+    ADR-0039 W7: also recognizes a bare ``optional_for`` STRING marker
+    ("AnyOpponent" / "AnyPlayer") a sibling node carries — phase's "may have
+    you <effect>" optional-choice shape (Sin Prodder's "Any opponent may
+    have you put that card into your graveyard. If a player does, ~ deals
+    damage to that player...") names the CHOOSING player only as this raw
+    string, never a typed player node, so it never populates any
+    ``_SCOPE_FIELDS`` slot. Corpus-verified: 26 commander-legal nodes carry
+    ``optional_for`` (18 ``AnyPlayer`` / 8 ``AnyOpponent``), and Sin Prodder
+    is the ONLY one whose ``direct_damage`` membership actually turns on
+    this read — every other hit is already served via its own explicit
+    typed target. A bare string always names a player (never a creature/
+    permanent), so no further discrimination is needed.
     """
     for n in _iter_typed_nodes(root):
         for fname in _SCOPE_FIELDS:
@@ -872,7 +884,15 @@ def _unit_has_player_target(root: object) -> bool:
                 and _damage_target_reaches_player(sub)
             ):
                 return True
+        opt = getattr(n, "optional_for", MISSING)
+        if _present(opt) and opt in _OPTIONAL_FOR_PLAYER_VALUES:
+            return True
     return False
+
+
+# The two observed string values of a bare ``optional_for`` marker (a raw
+# str field, never a typed player node) — both always name a player.
+_OPTIONAL_FOR_PLAYER_VALUES = frozenset({"AnyOpponent", "AnyPlayer"})
 
 
 def has_nested_damage_reaching_player(node: object) -> bool:

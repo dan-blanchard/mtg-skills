@@ -46,6 +46,7 @@ from typing import TYPE_CHECKING
 
 from mtg_utils._card_ir.crosswalk import (
     effect_filter,
+    effect_reaches_player,
     filter_core_types,
     filter_subtypes,
     iter_typed_nodes,
@@ -701,6 +702,278 @@ def _cheat_synthetic_destiny_match(tree: ConceptTree) -> bool:
     )
 
 
+# ── direct_damage — shared gap for the whole dropped-clause/upstream-parse-
+# failure residual (ADR-0039 W7 endgame) ─────────────────────────────────────
+# No ``DealDamage``/``DamageAll``/``DamageEachPlayer`` node ANYWHERE in the
+# tree structurally reaches a player (the lane's own ``effect_reaches_player``
+# / ``has_nested_damage_reaching_player`` checks both already missed, or the
+# tree carries no such node at all — including a phase-missing face with ZERO
+# units, Insult // Injury's Aftermath back half). Self-retiring PER CARD: the
+# day phase decomposes any one idiom below into a typed damage node whose
+# recipient resolves, this shared gap goes False for THAT card specifically
+# (``effect_reaches_player`` finds it and returns early) while staying True
+# for every other card still missing its own structure — the
+# ``_no_typed_sacrifice_node`` precedent, same shared-broad-gap /
+# narrow-per-bridge-match shape.
+def _no_player_reaching_damage_node(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) in (
+                "DealDamage",
+                "DamageAll",
+                "DamageEachPlayer",
+            ) and effect_reaches_player(n, unit.node):
+                return False
+    return True
+
+
+# (1) "deals N damage to target creature and X damage to that creature's/
+# permanent's controller" (Judgment Bolt, Liquid Fire, Synchronized
+# Spellcraft; CR 102.1 — a controller is a player) — phase structures ONLY
+# the first (creature) clause; the second (controller-damage) clause carries
+# NO node anywhere, typed or ``Unimplemented``. Reuses the exact wording
+# legacy's OWN ``_DIRECT_DAMAGE_MIRROR`` alternative anchors on.
+_DMG_CREATURE_CONTROLLER_RX = re.compile(
+    r"(?:\d+|x) damage to (?:that creature's|that permanent's) controller",
+    re.IGNORECASE,
+)
+
+
+def _dmg_creature_controller_match(tree: ConceptTree) -> bool:
+    return bool(_DMG_CREATURE_CONTROLLER_RX.search(tree.oracle or ""))
+
+
+# (2) Vexing Arcanix's "... they put it into their graveyard and ~ deals 2
+# damage to them" — the trailing damage clause is dropped after an
+# ``Unimplemented(name='otherwise')`` residue; a SEPARATE upstream bug also
+# misreads the earlier ``RevealTop.player`` as ``Controller()`` instead of
+# the activated ability's OWN targeted player (out of THIS bridge's scope —
+# the damage recipient text alone is what direct_damage needs).
+_VEXING_ARCANIX_RX = re.compile(
+    r"put(?:s)? it into their graveyard and [^.]*deals? \d+ damage to them",
+    re.IGNORECASE,
+)
+
+
+def _vexing_arcanix_match(tree: ConceptTree) -> bool:
+    return bool(_VEXING_ARCANIX_RX.search(tree.oracle or ""))
+
+
+# (3) Curse of Shaken Faith's "Enchant player" + "... this Aura deals 2
+# damage to them" (CR 303.4c) — the Aura's OWN enchant-target TYPE (player,
+# vs. creature/permanent) lives nowhere in the tree: ``AttachedTo`` is a bare
+# zero-field marker tag shared by every enchant-restriction, so the sibling
+# ``ParentTarget`` damage recipient can never structurally resolve. Corpus-
+# verified: of 42 commander-legal "Enchant player" Auras, only this one both
+# matches the idiom AND still lacks a typed reach (Curse of the Pierced
+# Heart's structurally-identical-looking "that player" is ALREADY a typed
+# ``Or[TriggeringPlayer, Typed[Planeswalker]]`` target, not a bare
+# ``ParentTarget`` — genuinely different phase output, no bridge needed).
+_CURSE_SHAKEN_FAITH_RX = re.compile(
+    r"^enchant player\b.*\bdeals? \d+ damage to (?:them|that player)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _curse_shaken_faith_match(tree: ConceptTree) -> bool:
+    return bool(_CURSE_SHAKEN_FAITH_RX.search(tree.oracle or ""))
+
+
+# (4) Flames of the Blood Hand's HEADLINE sentence — "~ deals 4 damage to
+# target player or planeswalker." — is dropped WHOLESALE; the only surviving
+# unit is the THIRD sentence's "gains no life instead" replacement effect
+# (an ``Unimplemented`` under an ``S_replacements`` wrapper). Unlike the
+# trailing-clause idioms below, the missing clause here is the FIRST
+# sentence, not a tail.
+_FLAMES_BLOOD_HAND_RX = re.compile(
+    r"deals \d+ damage to target player or planeswalker\. the damage "
+    r"can't be prevented",
+    re.IGNORECASE,
+)
+
+
+def _flames_blood_hand_match(tree: ConceptTree) -> bool:
+    return bool(_FLAMES_BLOOD_HAND_RX.search(tree.oracle or ""))
+
+
+# (5) Valakut Exploration's "... put them into their owner's graveyard, then
+# this enchantment deals that much damage to each opponent" — the trailing
+# damage clause after the ``ChangeZone`` (graveyard) effect in the SAME
+# sentence is dropped; the wrapping unit's OWN ``description`` field still
+# carries the full English sentence (verified via tree dump), but
+# ``execute.effect`` decomposes only the graveyard half.
+_VALAKUT_EXPLORATION_RX = re.compile(
+    r"put them into their owner's graveyard, then [^.]*deals? that much "
+    r"damage to each opponent",
+    re.IGNORECASE,
+)
+
+
+def _valakut_exploration_match(tree: ConceptTree) -> bool:
+    return bool(_VALAKUT_EXPLORATION_RX.search(tree.oracle or ""))
+
+
+# (6) Avatar Aang // Aang, Master of Elements's transform trigger is a FIVE-
+# effect conjunction (gain life, draw, put counters, deal damage) chained via
+# ``SequentialSibling``; phase's chain terminates after the FOURTH effect
+# (``PutCounter``, ``sub_ability=None``) — the fifth conjunct, "he deals 4
+# damage to each opponent," carries no node at all.
+_AVATAR_AANG_RX = re.compile(
+    r"put four \+1/\+1 counters on \w+, and \w+ deals \d+ damage to "
+    r"each opponent",
+    re.IGNORECASE,
+)
+
+
+def _avatar_aang_match(tree: ConceptTree) -> bool:
+    return bool(_AVATAR_AANG_RX.search(tree.oracle or ""))
+
+
+# (7) Insult // Injury's Aftermath back face ("Injury deals 2 damage to
+# target creature and 2 damage to target player or planeswalker") gets ZERO
+# units in its ``ConceptTree`` — neither phase's own parse nor the W2c
+# text-only fallback structures this face at all (the shared gap trivially
+# holds: an empty ``tree.units`` loop never finds a reaching node).
+_INSULT_INJURY_RX = re.compile(
+    r"injury deals \d+ damage to target creature and \d+ damage to "
+    r"target player or planeswalker",
+    re.IGNORECASE,
+)
+
+
+def _insult_injury_match(tree: ConceptTree) -> bool:
+    return bool(_INSULT_INJURY_RX.search(tree.oracle or ""))
+
+
+# (8) Karn, Living Legacy's [-7] emblem — "You get an emblem with 'Tap an
+# untapped artifact you control: This emblem deals 1 damage to any
+# target.'" — parks the WHOLE granted activated ability as an opaque
+# ``CreateEmblem.statics[].description`` string (the ``sac_emblem_
+# activated_cost`` precedent, a Sacrifice-costed sibling of this same
+# opaque-emblem-body shape).
+_KARN_LIVING_LEGACY_RX = re.compile(
+    r'emblem with\s*"[^".]*:[^".]*deals? \d+ damage to any target',
+    re.IGNORECASE,
+)
+
+
+def _karn_living_legacy_match(tree: ConceptTree) -> bool:
+    return bool(_KARN_LIVING_LEGACY_RX.search(tree.oracle or ""))
+
+
+# (9) Captain Rex Nebula's granted "Crash Land" trigger — "Whenever ~ deals
+# damage, roll a six-sided die. If the result is equal to ~'s mana value,
+# sacrifice ~, then it deals that much damage to any target." — decomposes
+# into a REAL typed chain (``Unimplemented('crash')`` -> ``RollDie`` ->
+# ``Sacrifice``) but the chain's OWN ``sub_ability`` terminates at
+# ``Sacrifice`` (``sub_ability=None``); the FINAL "it deals that much damage"
+# step carries no node.
+_CAPTAIN_REX_NEBULA_RX = re.compile(
+    r"roll a six-sided die\. if the result is equal to [^.]*mana value, "
+    r"sacrifice [^,.]*, then it deals that much damage to any target",
+    re.IGNORECASE,
+)
+
+
+def _captain_rex_nebula_match(tree: ConceptTree) -> bool:
+    return bool(_CAPTAIN_REX_NEBULA_RX.search(tree.oracle or ""))
+
+
+# (10) Maestros Diabolist / Pugnacious Pugilist's "create a tapped and
+# attacking 1/1 red Devil creature token with 'When this token dies, it
+# deals 1 damage to any target.'" — the WHOLE clause is one
+# ``Unimplemented(name='create', ...)`` residue whose DOMINANT verb token is
+# "create," so the make_token recovery ALLOWLIST never descends into the
+# quoted granted-ability text to find the nested damage clause (contrast
+# Dance with Devils's simpler, un-triggered phrasing, which IS structured).
+_DEVIL_TOKEN_QUOTED_GRANT_RX = re.compile(
+    r"create a tapped and attacking 1/1 red devil creature token with "
+    r'"when [^"]*dies, it deals \d+ damage to any target',
+    re.IGNORECASE,
+)
+
+
+def _devil_token_quoted_grant_match(tree: ConceptTree) -> bool:
+    return bool(_DEVIL_TOKEN_QUOTED_GRANT_RX.search(tree.oracle or ""))
+
+
+# (11) Ellie, Vengeful Hunter's "Pay 2 life, Sacrifice another creature: ~
+# deals 2 damage to target player and gains indestructible until end of
+# turn." — the WHOLE ability collapses into a single ``GenericEffect``
+# wrapping only the keyword-grant half (``AddKeyword(Indestructible)``) as a
+# typed static-ability modification; the damage half is dropped entirely,
+# not even as an ``Unimplemented`` residue.
+_ELLIE_VENGEFUL_HUNTER_RX = re.compile(
+    r"deals \d+ damage to target player and gains indestructible",
+    re.IGNORECASE,
+)
+
+
+def _ellie_vengeful_hunter_match(tree: ConceptTree) -> bool:
+    return bool(_ELLIE_VENGEFUL_HUNTER_RX.search(tree.oracle or ""))
+
+
+# (12) Keranos, God of Storms's three-sentence reveal-and-punish ability
+# fails OUR effect-sentence parser wholesale: "Effect sentence candidate but
+# line failed effect parser: Reveal the first card you draw ... Keranos
+# deals 3 damage to any target." — an ``Unimplemented(name='effect_
+# structure')`` diagnostic residue (our own clause grammar's frontier, not
+# phase's — task #82 names the eventual multi-trigger-sentence verb).
+_KERANOS_RX = re.compile(
+    r"whenever you reveal a nonland card this way, [^.]*deals \d+ "
+    r"damage to any target",
+    re.IGNORECASE,
+)
+
+
+def _keranos_match(tree: ConceptTree) -> bool:
+    return bool(_KERANOS_RX.search(tree.oracle or ""))
+
+
+# (13) Kaboom!'s "For each of them, reveal cards ... until you reveal a
+# nonland card, ~ deals damage equal to that card's mana value to that
+# player or planeswalker, then you put the revealed cards on the bottom..."
+# — the top-level ``TargetOnly(target=Player())`` DOES structurally choose
+# the "target players or planeswalkers," but the trailing damage clause
+# after the ``RevealUntil`` sub-ability chain (``sub_ability=None``) is
+# dropped entirely — no node ties the computed mana-value amount back to
+# that established target.
+_KABOOM_RX = re.compile(
+    r"deals damage equal to that card's mana value to that player or "
+    r"planeswalker",
+    re.IGNORECASE,
+)
+
+
+def _kaboom_match(tree: ConceptTree) -> bool:
+    return bool(_KABOOM_RX.search(tree.oracle or ""))
+
+
+# (14) Goblin Barrage / Unstable Footing's KICKER-MODE bonus target — "If
+# this spell was kicked, it (also) deals N damage to target player or
+# planeswalker" (CR 702.33d — "if a player chooses to pay a kicker cost...
+# that spell has been kicked") — is a BRAND NEW target choice the kicked
+# mode introduces, not a genuine back-reference; phase tags it ``ParentTarget``
+# anyway (the SAME bare marker Aggressive Sabotage's genuine back-reference
+# uses), and with no sibling player-reaching field in the SAME unit (Goblin
+# Barrage's base mode targets ``Typed(Creature)`` only; Unstable Footing's
+# base effect has no target at all), ``_unit_has_player_target`` correctly
+# can't resolve it — this module's own documented Fiery-Impulse-collision
+# caution (a "deals N instead" modal amendment quoting an EARLIER creature
+# target carries the identical tag) forbids loosening that resolution
+# generically. Corpus-verified: exactly these 2 cards match the idiom
+# corpus-wide.
+_KICKER_PTPLANESWALKER_RX = re.compile(
+    r"kicked,? it (?:also )?deals \d+ damage to target player or "
+    r"planeswalker",
+    re.IGNORECASE,
+)
+
+
+def _kicker_ptplayer_match(tree: ConceptTree) -> bool:
+    return bool(_KICKER_PTPLANESWALKER_RX.search(tree.oracle or ""))
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -1162,6 +1435,345 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Synthetic Destiny",),
             gap=_cheat_synthetic_destiny_gap,
             match=_cheat_synthetic_destiny_match,
+        ),
+        Bridge(
+            bridge_id="dmg_creature_and_controller_dropped",
+            key="direct_damage",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a burn "
+                "spell's compound 'deals N damage to target creature AND X "
+                "damage to that creature's/permanent's controller' clause "
+                "(CR 102.1) structures only the first (creature) half — the "
+                "controller-damage half carries no node anywhere, typed or "
+                "Unimplemented. Retires on a phase bump that decomposes the "
+                "second conjunct (task #82's compound-damage-clause verb)"
+            ),
+            census=(
+                "3 hits / 31,622 commander-legal, no-player-reaching-damage-"
+                "node subset scanned via legacy's OWN _DIRECT_DAMAGE_MIRROR "
+                "controller-damage alternative wording (45 corpus siblings "
+                "matching the same wording — Unlicensed Disintegration, "
+                "Lash Out, etc. — are ALREADY served via a real typed "
+                "Or[Typed(Creature), ParentTargetController] target, no "
+                "bridge needed), phase v0.20.0, 2026-07-11"
+            ),
+            pins=("Judgment Bolt", "Liquid Fire", "Synchronized Spellcraft"),
+            gap=_no_player_reaching_damage_node,
+            match=_dmg_creature_controller_match,
+        ),
+        Bridge(
+            bridge_id="vexing_arcanix_reveal_misread_damage_drop",
+            key="direct_damage",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): Vexing "
+                "Arcanix's 'Otherwise, they put it into their graveyard "
+                "and ~ deals 2 damage to them' trailing damage clause is "
+                "dropped after an Unimplemented('otherwise') residue (a "
+                "SEPARATE upstream bug also misreads the earlier RevealTop's "
+                "player as Controller() instead of the activated ability's "
+                "own targeted player — out of THIS bridge's scope). Retires "
+                "on a phase bump that structures the 'otherwise' branch's "
+                "own damage clause"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (Vexing Arcanix, a "
+                "singleton idiom), phase v0.20.0, 2026-07-11"
+            ),
+            pins=("Vexing Arcanix",),
+            gap=_no_player_reaching_damage_node,
+            match=_vexing_arcanix_match,
+        ),
+        Bridge(
+            bridge_id="curse_shaken_faith_enchant_player_them",
+            key="direct_damage",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the Aura "
+                "target-restriction line (CR 303.4c — 'Enchant player' vs. "
+                "'Enchant creature/permanent') is not preserved on the "
+                "AttachedTo marker node — a bare zero-field tag with no "
+                "type field — so a sibling bare ParentTarget damage "
+                "recipient can't structurally resolve back to a player. "
+                "Retires on a phase bump that adds an enchant-type field to "
+                "AttachedTo (or splits it into typed variants, matching "
+                "Curse of the Pierced Heart's already-structural "
+                "Or[TriggeringPlayer, Typed(Planeswalker)] shape)"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal ('enchant player' cards "
+                "scanned: 42 total; only Curse of Shaken Faith both matches "
+                "the damage-clause idiom AND still lacks a typed reach — "
+                "Curse of the Pierced Heart's structurally-identical-"
+                "looking clause is ALREADY typed, the other 40 'enchant "
+                "player' Curses have non-damage payoffs), phase v0.20.0, "
+                "2026-07-11"
+            ),
+            pins=("Curse of Shaken Faith",),
+            gap=_no_player_reaching_damage_node,
+            match=_curse_shaken_faith_match,
+        ),
+        Bridge(
+            bridge_id="flames_blood_hand_headline_clause_drop",
+            key="direct_damage",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): Flames of "
+                "the Blood Hand's HEADLINE sentence ('~ deals 4 damage to "
+                "target player or planeswalker.') is dropped wholesale — "
+                "only the third sentence's 'gains no life instead' "
+                "replacement survives as a unit. Retires on a phase bump "
+                "that structures the first sentence alongside the "
+                "replacement it currently emits alone"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (Flames of the Blood Hand, "
+                "a singleton idiom), phase v0.20.0, 2026-07-11"
+            ),
+            pins=("Flames of the Blood Hand",),
+            gap=_no_player_reaching_damage_node,
+            match=_flames_blood_hand_match,
+        ),
+        Bridge(
+            bridge_id="valakut_exploration_trailing_clause_drop",
+            key="direct_damage",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "trailing 'then ~ deals that much damage to each opponent' "
+                "clause after a ChangeZone(Graveyard) effect in the SAME "
+                "sentence is dropped from execute.effect even though the "
+                "wrapping unit's own description field still carries the "
+                "full sentence text. Retires on a phase bump that "
+                "decomposes a second SequentialSibling-chained effect "
+                "sharing one sentence (task #82)"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (Valakut Exploration, a "
+                "singleton idiom), phase v0.20.0, 2026-07-11"
+            ),
+            pins=("Valakut Exploration",),
+            gap=_no_player_reaching_damage_node,
+            match=_valakut_exploration_match,
+        ),
+        Bridge(
+            bridge_id="avatar_aang_conjunction_tail_drop",
+            key="direct_damage",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a FIVE-"
+                "effect SequentialSibling conjunction (gain life, draw, put "
+                "counters, deal damage) terminates after the FOURTH effect "
+                "(PutCounter, sub_ability=None) — the fifth conjunct 'he "
+                "deals 4 damage to each opponent' carries no node. Retires "
+                "on a phase bump that extends the chain depth for this "
+                "shape"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (Avatar Aang // Aang, "
+                "Master of Elements, a singleton idiom), phase v0.20.0, "
+                "2026-07-11"
+            ),
+            pins=("Aang, Master of Elements",),
+            gap=_no_player_reaching_damage_node,
+            match=_avatar_aang_match,
+        ),
+        Bridge(
+            bridge_id="insult_injury_aftermath_face_unparsed",
+            key="direct_damage",
+            kind="missing_face",
+            todo=(
+                "upstream phase-rs / W2c report candidate (Dan posts): "
+                "Insult // Injury's Aftermath back face ('Injury deals 2 "
+                "damage to target creature and 2 damage to target player or "
+                "planeswalker') gets ZERO units in its ConceptTree — "
+                "neither phase's own parse nor the W2c text-only fallback "
+                "structures this face at all. Retires when either path "
+                "produces at least one unit for this face's text"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (Insult // Injury, a "
+                "singleton idiom — the only zero-unit Aftermath back face "
+                "carrying a direct-damage clause), phase v0.20.0, "
+                "2026-07-11"
+            ),
+            pins=("Insult // Injury",),
+            gap=_no_player_reaching_damage_node,
+            match=_insult_injury_match,
+        ),
+        Bridge(
+            bridge_id="karn_living_legacy_emblem_tap_cost_damage",
+            key="direct_damage",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): "
+                "CreateEmblem's granted-ability text parks entirely as an "
+                "opaque S_statics.description string — no typed activated-"
+                "ability-with-cost structure survives for the emblem's OWN "
+                "granted tap-cost damage outlet (the sac_emblem_activated_"
+                "cost bridge's Sacrifice-costed sibling shape). Retires on "
+                "a phase bump that decomposes an emblem's granted ability "
+                "the way a GrantAbility's granted ability already is"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal, no-player-reaching-damage-"
+                "node subset scanned for a comma/colon-cost-prefixed "
+                "'deals N damage to any target' inside an emblem's quoted "
+                "granted text (Koth of the Hammer's structurally-identical-"
+                "looking emblem is ALREADY served — its Mountain-static "
+                "grant resolves via a different, already-structural path), "
+                "phase v0.20.0, 2026-07-11"
+            ),
+            pins=("Karn, Living Legacy",),
+            gap=_no_player_reaching_damage_node,
+            match=_karn_living_legacy_match,
+        ),
+        Bridge(
+            bridge_id="captain_rex_nebula_crash_land_final_step_drop",
+            key="direct_damage",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "granted 'Crash Land' trigger decomposes into a REAL typed "
+                "chain (Unimplemented('crash') -> RollDie -> Sacrifice) but "
+                "the chain's own sub_ability terminates at Sacrifice "
+                "(sub_ability=None) — the FINAL 'it deals that much damage "
+                "to any target' step carries no node. Retires on a phase "
+                "bump that extends this chain one more link"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (Captain Rex Nebula, a "
+                "singleton idiom), phase v0.20.0, 2026-07-11"
+            ),
+            pins=("Captain Rex Nebula",),
+            gap=_no_player_reaching_damage_node,
+            match=_captain_rex_nebula_match,
+        ),
+        Bridge(
+            bridge_id="devil_token_quoted_grant_dominant_verb_create",
+            key="direct_damage",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): an Unimplemented-"
+                "residue recovery verb for a token-creation clause whose "
+                "quoted granted-ability text carries a NESTED damage clause "
+                "(create a tapped and attacking 1/1 red Devil creature "
+                "token whose quoted death trigger deals 1 damage to any "
+                "target) — the whole clause's dominant verb token is "
+                "create, so the make_token recovery ALLOWLIST never "
+                "descends into the quoted text. Retires when the node "
+                "decomposes into a typed CreateToken + nested granted-"
+                "ability DealDamage read (Dance with Devils's simpler, "
+                "un-triggered phrasing already works structurally)"
+            ),
+            census=(
+                "2 hits / 31,622 commander-legal, no-player-reaching-"
+                "damage-node subset scanned for the exact Devil-token "
+                "quoted-grant idiom (Maestros Diabolist, Pugnacious "
+                "Pugilist), phase v0.20.0, 2026-07-11"
+            ),
+            pins=("Maestros Diabolist", "Pugnacious Pugilist"),
+            gap=_no_player_reaching_damage_node,
+            match=_devil_token_quoted_grant_match,
+        ),
+        Bridge(
+            bridge_id="ellie_vengeful_hunter_damage_half_dropped",
+            key="direct_damage",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): 'Pay 2 "
+                "life, Sacrifice another creature: ~ deals 2 damage to "
+                "target player and gains indestructible until end of turn.' "
+                "collapses into a single GenericEffect carrying ONLY the "
+                "keyword-grant half (AddKeyword(Indestructible)) as a typed "
+                "static-ability modification; the damage half is dropped "
+                "entirely, not even as an Unimplemented residue. Retires on "
+                "a phase bump that structures both halves of this compound "
+                "activated-ability effect"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (Ellie, Vengeful Hunter, a "
+                "singleton idiom), phase v0.20.0, 2026-07-11"
+            ),
+            pins=("Ellie, Vengeful Hunter",),
+            gap=_no_player_reaching_damage_node,
+            match=_ellie_vengeful_hunter_match,
+        ),
+        Bridge(
+            bridge_id="keranos_effect_structure_parse_failure",
+            key="direct_damage",
+            kind="upstream_parse_failure",
+            todo=(
+                "post-deletion grammar sprint (task #82): Keranos, God of "
+                "Storms's three-sentence reveal-and-punish ability fails "
+                "OUR OWN effect-sentence parser wholesale — an "
+                "Unimplemented(name='effect_structure', description="
+                "'Effect sentence candidate but line failed effect parser: "
+                "...') diagnostic residue (our own clause grammar's "
+                "frontier, not phase's). Retires when the multi-trigger-"
+                "sentence verb this diagnostic names gets built"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (Keranos, God of Storms, a "
+                "singleton idiom), phase v0.20.0, 2026-07-11"
+            ),
+            pins=("Keranos, God of Storms",),
+            gap=_no_player_reaching_damage_node,
+            match=_keranos_match,
+        ),
+        Bridge(
+            bridge_id="kaboom_trailing_clause_drop",
+            key="direct_damage",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the top-"
+                "level TargetOnly(target=Player()) DOES structurally choose "
+                "'target players or planeswalkers,' but the trailing "
+                "'~ deals damage equal to that card's mana value to that "
+                "player or planeswalker' clause after the RevealUntil sub-"
+                "ability chain (sub_ability=None) is dropped entirely — no "
+                "node ties the computed mana-value amount back to the "
+                "established target. Retires on a phase bump that extends "
+                "the chain past RevealUntil"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (Kaboom!, a singleton "
+                "idiom), phase v0.20.0, 2026-07-11"
+            ),
+            pins=("Kaboom!",),
+            gap=_no_player_reaching_damage_node,
+            match=_kaboom_match,
+        ),
+        Bridge(
+            bridge_id="kicker_ptplayer_modal_new_target",
+            key="direct_damage",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a kicker-"
+                "mode's own NEW 'target player or planeswalker' choice (CR "
+                "702.33d — not a back-reference) is tagged ParentTarget, the "
+                "same bare marker used for a genuine back-reference "
+                "(Aggressive Sabotage) — with no typed Or[Player, "
+                "Planeswalker] discriminator preserved; phase's "
+                "SequentialSibling kicker-mode grammar collapses both "
+                "shapes into the identical tag. Retires on a phase bump "
+                "that gives the kicked-mode's own target its own typed "
+                "shape (matching Curse of the Pierced Heart's already-"
+                "structural Or[TriggeringPlayer, Typed(Planeswalker)])"
+            ),
+            census=(
+                "2 hits / 31,622 commander-legal ('kicked, it (also) deals "
+                "N damage to target player or planeswalker' idiom scanned "
+                "corpus-wide: Goblin Barrage, Unstable Footing — both a "
+                "FRESH kicker-mode target, CR 702.33d, not the Aggressive "
+                "Sabotage back-reference shape this module's ParentTarget "
+                "resolution already serves correctly), phase v0.20.0, "
+                "2026-07-11"
+            ),
+            pins=("Goblin Barrage", "Unstable Footing"),
+            gap=_no_player_reaching_damage_node,
+            match=_kicker_ptplayer_match,
         ),
     )
 }

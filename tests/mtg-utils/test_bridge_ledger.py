@@ -12,7 +12,9 @@ keeps every bridge visible until it retires:
   changed under the pattern (pattern rot) → fix the read, don't widen it.
 
 Runs CI-safe off the committed ``crosswalk_fixture_cards.json`` slice, like
-``test_crosswalk.py``.
+``test_crosswalk.py``. A pin whose face has no phase record at all (a
+``missing_face`` bridge) lives in the fixture's ``text_only_faces`` section
+instead of ``cards`` (ADR-0039 W7) — see :func:`_tree`.
 """
 
 import json
@@ -43,6 +45,22 @@ def _schema():
 
 
 def _tree(name: str) -> ConceptTree:
+    # ADR-0039 W7: a bridge pin whose face has NO phase record at all (the
+    # missing_face kind — Insult // Injury's Aftermath back half) lives in
+    # the fixture's separate ``text_only_faces`` section instead of
+    # ``cards`` (a real ``strict_load_card``-able record would misrepresent
+    # the shape — there is nothing for phase to have emitted). Build it via
+    # the SAME W2c text-only path production uses.
+    text_only_faces = _fixture().get("text_only_faces", {})
+    if name in text_only_faces:
+        from mtg_utils._deck_forge._ir_lookup import _text_only_tree
+
+        entry = text_only_faces[name]
+        tree = _text_only_tree(
+            entry["_text_only_face"], {}, oracle_id=entry["_oracle_id"]
+        )
+        assert tree is not None
+        return tree
     rec = _fixture()["cards"][name]
     root = strict_load_card(rec, _schema(), name=name)
     return build_concept_tree(root, name=name)
@@ -75,6 +93,7 @@ def test_ledger_hygiene():
     at least one fixture-resident pin, a known kind, and an id key that
     matches the row."""
     cards = _fixture()["cards"]
+    text_only_faces = _fixture().get("text_only_faces", {})
     for bridge_id, b in BRIDGES.items():
         assert bridge_id == b.bridge_id
         assert b.kind in BRIDGE_KINDS, f"{bridge_id}: unknown kind {b.kind!r}"
@@ -82,4 +101,6 @@ def test_ledger_hygiene():
         assert b.census.strip(), f"{bridge_id}: empty census"
         assert b.pins, f"{bridge_id}: no convergence pins"
         for pin in b.pins:
-            assert pin in cards, f"{bridge_id}: pin {pin!r} not in fixture"
+            assert pin in cards or pin in text_only_faces, (
+                f"{bridge_id}: pin {pin!r} not in fixture"
+            )

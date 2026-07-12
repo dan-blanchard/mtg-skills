@@ -13829,6 +13829,7 @@ def test_direct_damage_parent_target_sibling_aware():
     [
         "Arashi, the Sky Asunder",  # {T}: ... target creature with flying — removal
         "Ballista Squad",  # {T}: ... target attacking or blocking creature — removal
+        "Cruel Sadist",  # {2}{B},{T}: ... deals X damage to target creature — removal
     ],
 )
 def test_direct_damage_excludes_tap_ability_creature_only_shed(name):
@@ -13836,7 +13837,17 @@ def test_direct_damage_excludes_tap_ability_creature_only_shed(name):
     recipient-BLIND and over-fires on pure creature removal (CR 120.1 — a
     creature/permanent-only recipient never reaches a player). The
     structural read correctly excludes both; the old regex mirror wrongly
-    includes them (measured live_only, not reproduced)."""
+    includes them (measured live_only, not reproduced).
+
+    ADR-0039 W7: Cruel Sadist ('{2}{B}, {T}, Remove X +1/+1 counters from
+    this creature: It deals X damage to target creature.') is a
+    NEWLY-VERIFIED instance this session — its full printed oracle text has
+    NO player-reaching clause at all (no "that creature's controller"
+    rider, unlike Judgment Bolt's superficially-similar template), yet
+    legacy's ``_DIRECT_DAMAGE_MIRROR`` fires anyway with an EMPTY raw quote
+    via the same recipient-blind ``{T}:...deals damage`` alternative — a
+    legacy ground-truth over-fire, not a genuine dropped clause, confirmed
+    by direct comparison against the card's real text."""
     assert "direct_damage" not in _keys(name)
 
 
@@ -14029,6 +14040,199 @@ def test_direct_damage_excludes_doubler_matters_prevention_shed(name):
     ``DealDamage``/``DamageAll``/``DamageEachPlayer`` effect of ITS OWN
     reaching a player."""
     assert "direct_damage" not in _keys(name)
+
+
+# ── ADR-0039 W7 endgame: direct_damage (PROMOTED — real gain + 14 bridges) ───
+
+
+def test_direct_damage_sin_prodder_optional_for_player_marker():
+    """REAL STRUCTURAL GAIN (not a bridge): Sin Prodder's "Any opponent may
+    have you put that card into your graveyard. If a player does, ~ deals
+    damage to that player..." names the CHOOSING player only via a bare
+    ``optional_for='AnyOpponent'`` STRING marker on the ChangeZone sub-
+    ability — no ``_SCOPE_FIELDS`` slot carries it.
+    :func:`~mtg_utils._card_ir.crosswalk._unit_has_player_target`'s
+    ``optional_for`` widening (corpus-verified: 26 commander-legal hits, 18
+    ``AnyPlayer`` / 8 ``AnyOpponent``, Sin Prodder the ONLY one whose
+    ``direct_damage`` membership turns on it) resolves the sibling bare
+    ``ParentTarget`` damage recipient back to that player. CR 102.1 (a
+    controller/chooser is always a player)."""
+    assert ("direct_damage", "you", "") in _idents("Sin Prodder")
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Judgment Bolt", "Liquid Fire", "Synchronized Spellcraft"],
+)
+def test_direct_damage_bridge_creature_and_controller_dropped(name):
+    """BRIDGE ``dmg_creature_and_controller_dropped``: "deals N damage to
+    target creature and X damage to that creature's controller" (CR 102.1
+    — a controller is a player) — phase structures only the creature half;
+    the controller-damage half carries no node anywhere. 3 hits corpus-wide
+    (of 48 cards sharing the wording, 45 are ALREADY served via a real
+    typed target — no bridge needed for those)."""
+    assert ("direct_damage", "you", "") in _idents(name)
+
+
+def test_direct_damage_bridge_vexing_arcanix_reveal_misread_damage_drop():
+    """BRIDGE ``vexing_arcanix_reveal_misread_damage_drop``: "... they put
+    it into their graveyard and ~ deals 2 damage to them" — the trailing
+    damage clause is dropped after an ``Unimplemented(name='otherwise')``
+    residue (CR 120.1)."""
+    assert ("direct_damage", "you", "") in _idents("Vexing Arcanix")
+
+
+def test_direct_damage_bridge_curse_shaken_faith_enchant_player_them():
+    """BRIDGE ``curse_shaken_faith_enchant_player_them``: "Enchant player" +
+    "... this Aura deals 2 damage to them" (CR 303.4c) — the Aura's OWN
+    enchant-target TYPE lives nowhere in the tree (``AttachedTo`` is a bare
+    zero-field marker), so the sibling ``ParentTarget`` damage recipient
+    can never structurally resolve. Curse of the Pierced Heart's
+    structurally-identical-looking clause stays UNaffected — it's already a
+    typed ``Or[TriggeringPlayer, Typed(Planeswalker)]`` target, no bridge
+    needed."""
+    assert ("direct_damage", "you", "") in _idents("Curse of Shaken Faith")
+    assert ("direct_damage", "you", "") in _idents("Curse of the Pierced Heart")
+
+
+def test_direct_damage_bridge_flames_blood_hand_headline_clause_drop():
+    """BRIDGE ``flames_blood_hand_headline_clause_drop``: the HEADLINE
+    sentence "~ deals 4 damage to target player or planeswalker." is
+    dropped wholesale — only the third sentence's replacement effect
+    survives as a unit (CR 120.1)."""
+    assert ("direct_damage", "you", "") in _idents("Flames of the Blood Hand")
+
+
+def test_direct_damage_bridge_valakut_exploration_trailing_clause_drop():
+    """BRIDGE ``valakut_exploration_trailing_clause_drop``: "... put them
+    into their owner's graveyard, then ~ deals that much damage to each
+    opponent" — the trailing damage clause after a ``ChangeZone`` effect in
+    the SAME sentence is dropped from ``execute.effect`` (CR 120.1)."""
+    assert ("direct_damage", "you", "") in _idents("Valakut Exploration")
+
+
+def test_direct_damage_bridge_avatar_aang_conjunction_tail_drop():
+    """BRIDGE ``avatar_aang_conjunction_tail_drop``: a FIVE-effect
+    ``SequentialSibling`` conjunction (gain life, draw, put counters, deal
+    damage) terminates after the FOURTH effect — the fifth conjunct "he
+    deals 4 damage to each opponent" carries no node (CR 120.1). Pinned via
+    the transformed back face's own fixture key ("Aang, Master of
+    Elements") — the front face ("Avatar Aang") carries neither this
+    trigger nor the damage clause."""
+    assert ("direct_damage", "you", "") in _idents("Aang, Master of Elements")
+
+
+def test_direct_damage_bridge_insult_injury_aftermath_face_unparsed():
+    """BRIDGE ``insult_injury_aftermath_face_unparsed``: Insult // Injury's
+    Aftermath back face ("Injury deals 2 damage to target creature and 2
+    damage to target player or planeswalker") gets ZERO units in its
+    ``ConceptTree`` — neither phase's own parse nor the W2c text-only
+    fallback structures this face at all (the ``lure_makers`` "Lead"
+    precedent's zero-typed-substrate shape, CR 120.1)."""
+    from mtg_utils._deck_forge._ir_lookup import _text_only_tree
+
+    face = {
+        "name": "Injury",
+        "mana_cost": "{2}{R}",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Aftermath (Cast this spell only from your graveyard. "
+            "Then exile it.)\n"
+            "Injury deals 2 damage to target creature and 2 damage to "
+            "target player or planeswalker."
+        ),
+    }
+    tree = _text_only_tree(
+        face, {"cmc": 3.0}, oracle_id="47543892-4d60-4c6b-a6a4-69b9172af01e"
+    )
+    assert tree is not None
+    assert tree.units == ()  # zero typed substrate — text idioms only
+    idents = {
+        (s.key, s.scope, s.subject)
+        for s in extract_crosswalk_signals(tree, keywords=frozenset())
+    }
+    assert ("direct_damage", "you", "") in idents
+
+
+def test_direct_damage_bridge_karn_living_legacy_emblem_tap_cost_damage():
+    """BRIDGE ``karn_living_legacy_emblem_tap_cost_damage``: the [-7]
+    emblem's granted "Tap an untapped artifact you control: This emblem
+    deals 1 damage to any target." is parked entirely as an opaque
+    ``CreateEmblem.statics[].description`` string (the ``sac_emblem_
+    activated_cost`` bridge's Sacrifice-costed sibling shape, CR 120.1).
+    Koth of the Hammer's structurally-identical-looking emblem stays
+    UNaffected — its Mountain-static grant is already served via a
+    different, already-structural path."""
+    assert ("direct_damage", "you", "") in _idents("Karn, Living Legacy")
+
+
+def test_direct_damage_bridge_captain_rex_nebula_crash_land_final_step_drop():
+    """BRIDGE ``captain_rex_nebula_crash_land_final_step_drop``: the
+    granted "Crash Land" trigger decomposes into a REAL typed chain
+    (``Unimplemented('crash')`` -> ``RollDie`` -> ``Sacrifice``) whose own
+    ``sub_ability`` terminates at ``Sacrifice`` — the final "it deals that
+    much damage to any target" step carries no node (CR 120.1)."""
+    assert ("direct_damage", "you", "") in _idents("Captain Rex Nebula")
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Maestros Diabolist", "Pugnacious Pugilist"],
+)
+def test_direct_damage_bridge_devil_token_quoted_grant(name):
+    """BRIDGE ``devil_token_quoted_grant_dominant_verb_create``: "create a
+    tapped and attacking 1/1 red Devil creature token with 'When this
+    token dies, it deals 1 damage to any target.'" is ONE ``Unimplemented
+    (name='create', ...)`` residue whose dominant verb token is "create,"
+    so the make_token recovery ALLOWLIST never descends into the quoted
+    granted-ability text (contrast Dance with Devils's simpler,
+    un-triggered phrasing, which IS structured). CR 120.1."""
+    assert ("direct_damage", "you", "") in _idents(name)
+
+
+def test_direct_damage_bridge_ellie_vengeful_hunter_damage_half_dropped():
+    """BRIDGE ``ellie_vengeful_hunter_damage_half_dropped``: "Pay 2 life,
+    Sacrifice another creature: ~ deals 2 damage to target player and gains
+    indestructible until end of turn." collapses into a single
+    ``GenericEffect`` carrying ONLY the keyword-grant half
+    (``AddKeyword(Indestructible)``) as a typed static-ability
+    modification; the damage half is dropped entirely (CR 120.1)."""
+    assert ("direct_damage", "you", "") in _idents("Ellie, Vengeful Hunter")
+
+
+def test_direct_damage_bridge_keranos_effect_structure_parse_failure():
+    """BRIDGE ``keranos_effect_structure_parse_failure``: Keranos, God of
+    Storms's three-sentence reveal-and-punish ability fails OUR OWN
+    effect-sentence parser wholesale — an ``Unimplemented(name=
+    'effect_structure', ...)`` diagnostic residue (our own clause
+    grammar's frontier, not phase's; CR 120.1)."""
+    assert ("direct_damage", "you", "") in _idents("Keranos, God of Storms")
+
+
+def test_direct_damage_bridge_kaboom_trailing_clause_drop():
+    """BRIDGE ``kaboom_trailing_clause_drop``: the top-level
+    ``TargetOnly(target=Player())`` DOES structurally choose "target
+    players or planeswalkers," but the trailing "~ deals damage equal to
+    that card's mana value to that player or planeswalker" clause after the
+    ``RevealUntil`` sub-ability chain is dropped entirely — no node ties
+    the computed amount back to the established target (CR 120.1)."""
+    assert ("direct_damage", "you", "") in _idents("Kaboom!")
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Goblin Barrage", "Unstable Footing"],
+)
+def test_direct_damage_bridge_kicker_ptplayer_modal_new_target(name):
+    """BRIDGE ``kicker_ptplayer_modal_new_target``: a kicker-mode's own NEW
+    "target player or planeswalker" choice (CR 702.33d — "if a player
+    chooses to pay a kicker cost... that spell has been kicked"; not a
+    back-reference) is tagged ``ParentTarget``, the SAME bare marker a
+    genuine back-reference (Aggressive Sabotage) uses — with no sibling
+    player-reaching field in the SAME unit, ``_unit_has_player_target``
+    correctly can't resolve it (this module's own documented Fiery-
+    Impulse-collision caution)."""
+    assert ("direct_damage", "you", "") in _idents(name)
 
 
 # ── ADR-0038 W4 giant: enchantments_matter (structural arms + verified CR) ───
