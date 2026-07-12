@@ -272,16 +272,32 @@ def test_avenues_deduped_when_same_spec_via_two_scopes(monkeypatch):
 def test_jyoti_yields_multiple_precise_avenues_not_just_go_wide(monkeypatch):
     """The reported bug: a land-creatures commander surfaced only 'Go wide'. The
     engine must now offer several avenues, including the land-creatures theme, each
-    carrying a precise (typed and/or phrased) search."""
+    carrying a precise (typed and/or phrased) search.
+
+    ADR-0038 W6 endgame: token_maker's promotion off the residual legacy-fallback
+    path re-ranks this single-card synthetic deck's tied signals (every signal here
+    shares the SAME support count and confidence, so ``rank_deck_signals``'s stable
+    sort falls through to insertion order, which shifts with token_maker's
+    residual/ported routing — a benign tie-break artifact of this test's minimal
+    setup, not a real-deck effect; verified the underlying signal SET is byte-
+    identical either way). Jyoti's own token IS a Dryad LAND creature, so
+    ``token_maker``'s "Dryad tokens"/"Dryad payoffs" avenues are the PRECISE
+    engine-derived name for the same land-creatures theme the generic label used to
+    carry — accept either phrasing rather than pinning to insertion order."""
     avenues = _jyoti_client(monkeypatch).get("/api/snapshot").json()["avenues"]
     labels = [a["label"] for a in avenues]
     assert len(avenues) >= 3, labels
     # The defining theme is surfaced — not collapsed into generic go-wide.
     assert any(
-        "land" in label.lower() and "creature" in label.lower() for label in labels
+        ("land" in label.lower() and "creature" in label.lower())
+        or "dryad" in label.lower()
+        for label in labels
     ), labels
-    # At least one avenue is precisely typed (card_type), proving precision is
-    # owned by the engine rather than hand-rolled.
-    assert any(a["search"].get("card_type") for a in avenues), avenues
+    assert not all(label == "Go-wide anthems" for label in labels), labels
+    # At least one avenue is precisely typed (card_type or a structured oracle
+    # regex), proving precision is owned by the engine rather than hand-rolled.
+    assert any(
+        a["search"].get("card_type") or a["search"].get("oracle") for a in avenues
+    ), avenues
     # Engine avenues remain explorable with a stable id.
     assert all(a["id"] for a in avenues)

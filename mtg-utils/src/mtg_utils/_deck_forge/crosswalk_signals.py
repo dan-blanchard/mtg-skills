@@ -1342,9 +1342,32 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         # Landfall rule not met (129 != 0) — stays residual. CR
         # 120.1/120.3/614.1/615.1 verified this session.
         "direct_damage",
-        "draw_for_each",
+        # draw_for_each PROMOTED (ADR-0038 W6 endgame) — the final 2
+        # live_only closed this session: a card-level ``_kept(tree)``
+        # last-resort read for Vivien's Stampede's raw-text-free delayed
+        # trigger, and a RemoveCounter->Draw ``PreviousEffectAmount``
+        # positive gate for Nexus Mentality. See :func:`_draw_for_each`'s
+        # own docstring for the corpus history.
         "exile_matters",
-        "graveyard_matters",
+        # graveyard_matters PROMOTED (ADR-0038 W6 endgame) — 31 live_only
+        # -> 0: a genuine ``ChooseFromZone`` GAIN (Dawnbreak Reclaimer)
+        # plus a single unified LEGACY OVER-FIRE shed thesis covering the
+        # rest (CR 404.1): legacy's ``_gy_scope`` resolves graveyard
+        # ownership from either the carrying effect's own recipient/actor
+        # SCOPE or a crude "opponent's/target player's graveyard" text
+        # regex applied over the WHOLE ability's raw — both imprecise
+        # proxies that over-fire whenever a SIBLING effect with no
+        # graveyard interaction of its own inherits the tag via
+        # raw-sharing (15 cards — Necromancer's Covenant, Klaw, Cathartic
+        # Parting, …), an effect's own recipient direction differs from
+        # the graveyard it actually references (Cavalier of Flame,
+        # Urborg Justice), or a bare/compound no-owner filter hits
+        # legacy's unconditional "else -> you" catchall the crosswalk's
+        # ``_gy_filter_scope`` correctly declines to guess (Keeper of the
+        # Cadence, matching the pre-existing Pulse of Murasa precedent) —
+        # plus the pre-existing 15-card MDFC Disturb-back-face scope
+        # quirk (documented functionally inert since 29d095dc). See
+        # :func:`_graveyard_matters`'s own docstring for the arm history.
         "land_creatures_matter",
         "land_sacrifice_makers",
         "lifeloss_makers",
@@ -1400,61 +1423,19 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         # structures into a second typed Draw node). See the key's own
         # docstring for the full corpus accounting.
         "target_player_draws",
-        # ADR-0038 W5c (2026-07-11): token_maker NOT YET PROMOTED — live_only
-        # cut from 111 (post-W5b) to 86, on top of the W5b nested-descent /
-        # Detective-stemming / empty-types-mirror fixes, via two further
-        # additions in ``_token_maker`` (both scoped strictly to THIS lane,
-        # never touching the SHARED ``_TOKEN_MAKER_PATTERN``/
-        # ``_detect_token_maker`` W5b tried and reverted widening those):
-        # (1) the byte-identical kept mirror (``_signals_ir`` line ~11840's
-        # own producer) now runs UNCONDITIONALLY per clause, not gated
-        # behind an empty-types structural hit — closes the recovered-node
-        # tail with NO OTHER structural make_token anchor on the card at all
-        # (Helm of Kaldra, Consuming Blob, Kalitas, Bloodchief of Ghet: a
-        # whole-clause Unimplemented residue decorates with an EMPTY types
-        # tuple, but ``need_mirror`` only trips when the SAME loop iterates
-        # at least one node — a lone empty-types node stays gap-only under
-        # W5b's own gate reasoning, corpus-verified via direct diff); a
-        # regex that only matches the LITERAL imperative "create " can never
-        # reproduce the copy-token dual-fire (CR 707.1 — no "creature
-        # token(s)" substring exists in "create a token that's a copy of
-        # target creature") or the Populate reminder (stripped before the
-        # clause scan runs). (2) a LOCAL "each player creates" regex (CR
-        # 111.2 — you're one of the "each player"s too), deliberately never
-        # "each opponent"/"its controller" and excluding an "other than
-        # target player" qualifier (Death by Dragons — the ONLY corpus
-        # instance, where the excluded player could be you) — closes
-        # Elephant Resurgence + Gor Muldrak, Amphinologist without the W5b
-        # regression (local scoping means legacy's OWN ground truth never
-        # moves, so corpus-wide live_only can only fall, verified 111->86
-        # with ZERO new cw_only beyond W5b's pre-existing 77).
-        # 85 of the 86 remaining live_only cards are the CRITICAL BOUNDARY
-        # shed (CR 707.1/111.2, Dan's clone-vs-token-copy boundary): "create
-        # a token that's a copy of ..." / Populate is ``token_copy_makers``
-        # (a separate, PROMOTED concept), never token_maker — corpus-
-        # verified per-card via a live-cw set diff that EVERY blank-subject
-        # live_only ident traces to a copy/Populate face on that same card
-        # (Cackling Counterpart, Fable of the Mirror-Breaker // Reflection
-        # of Kiki-Jiki's Kiki-Jiki dual-fire face, Mirrorhall Mimic //
-        # Ghastly Mimicry, Runo Stromkirk // Krothuss, Mirror Room //
-        # Fractured Realm, Repudiate // Replicate, Inspired Skypainter //
-        # Maestro's Gift, …) — no oracle-text pattern proxy needed, the
-        # diff is exact. ONE genuine gap remains: Soul of Emancipation's
-        # "For each of those permanents, its controller creates a 3/3 white
-        # Angel creature token" — the SAME pre-existing, EXPLICITLY
-        # out-of-scope ``_scope_from_player_node``/``ParentTargetController``
-        # gap the W5b commit already surfaced (Pongify / Beast Within /
-        # Generous Gift, ~50 cards, fire "you" via the OPPOSITE bug — a
-        # directed "Its controller creates" clause defaults to "you" when a
-        # Token node IS reachable; Soul of Emancipation's isn't reachable at
-        # all, so it fires neither way) — closing it needs the SAME
-        # ``_effect_scope``/``ParentTargetController`` fix across the WHOLE
-        # crosswalk, not a token_maker-local patch (wrong blast radius for a
-        # single-key pass, per W5b's own note). Landfall rule not met
-        # (live_only != the shed set, 1 genuine gap remains) — stays
-        # residual. CR 111.2/111.10/205.3i/701.7/706.2/707.1 verified this
-        # session.
-        "token_maker",
+        # token_maker PROMOTED (ADR-0038 W6 endgame) — the 86-card
+        # live_only set is EXACTLY two adjudicated shed classes: the
+        # 85-card copy/Populate boundary (CR 707.1/111.2 — that's
+        # ``token_copy_makers``, a separate, already-promoted concept)
+        # plus Soul of Emancipation's multi-target "for each of those
+        # permanents, its controller creates ..." legacy scope-resolution
+        # bug (the SAME "unset-controller defaults to you" pattern
+        # already adjudicated elsewhere this wave — Pongify / Beast
+        # Within / Generous Gift's SINGLE-target case resolves the
+        # directed scope correctly in old_ir_for, confirmed via direct
+        # inspection; only the multi-target for-each idiom loses the
+        # per-permanent controller reference). See :func:`_token_maker`'s
+        # own docstring for the arm history.
         # type_matters PROMOTED (ADR-0038 W5 tails) — see the crosswalk lane's
         # own docstring for the corpus history + the fully-adjudicated shed
         # class (the legacy _board_count_markers artifact).
@@ -6244,6 +6225,25 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
                 _, dest = change_zone_dirs(enode)
                 if dest == "Exile":
                     continue
+            # ADR-0038 W6 endgame: a ``ChooseFromZone`` reading a graveyard
+            # (Dawnbreak Reclaimer's "choose a creature card in an
+            # opponent's graveyard, then that player chooses a creature
+            # card in your graveyard") carries its zone on its OWN
+            # top-level ``zone``/``zone_owner`` fields, not inside a
+            # ``.filter``/``.target`` sub-node ``effect_filter`` reads (its
+            # own ``.filter`` is a bare type-only filter with no ``InZone``
+            # property at all) — an UNAMBIGUOUS owner tag (``Opponent`` —
+            # the SAME ``_gy_player_scope`` mapper the count-operand arms
+            # already use), so this reads cleanly with no text-fallback
+            # needed. CR 404.1.
+            if (
+                tag_of(enode) == "ChooseFromZone"
+                and getattr(enode, "zone", None) == "Graveyard"
+            ):
+                sc = _gy_player_scope(getattr(enode, "zone_owner", None))
+                if sc is not None:
+                    fire(sc, c.raw)
+                continue
             filt = effect_filter(enode)
             # A GENUINE target/origin-in-graveyard read is ALWAYS carried on
             # a TARGET FILTER's ``InZone`` property (Reya Dawnbringer,
@@ -10172,12 +10172,32 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
             if tag == "CreateDelayedTrigger":
                 inner = getattr(n, "effect", None)
                 draw = getattr(inner, "effect", None) if inner is not None else None
-                if (
-                    isinstance(draw, TypedMirrorNode)
-                    and tag_of(draw) == "Draw"
-                    and scaling(draw, unit.node)
-                ):
-                    return [Signal("draw_for_each", "you", "", "", tree.name, "high")]
+                if isinstance(draw, TypedMirrorNode) and tag_of(draw) == "Draw":
+                    if scaling(draw, unit.node):
+                        return [
+                            Signal("draw_for_each", "you", "", "", tree.name, "high")
+                        ]
+                    # ADR-0038 W6 endgame: Vivien's Stampede's delayed-
+                    # trigger Draw carries NO raw text ANYWHERE in its
+                    # tree — the delayed trigger's own description, its
+                    # wrapped trigger's description, AND the ``S_effect``
+                    # wrapper's description are all ``None`` (confirmed
+                    # via direct tree dump), so ``scaling``'s two raw-text
+                    # reads both come up empty and the structural qty-tag
+                    # check finds nothing either (a bare ``Fixed(1)``
+                    # count). The card-level ``_kept(tree)`` last-resort
+                    # read is the ONLY possible text source — gated
+                    # STRICTLY to this structurally-confirmed
+                    # CreateDelayedTrigger-wraps-an-unscaled-Draw shape
+                    # (never a blind whole-oracle scan for a card that
+                    # doesn't carry one), so a card with an UNRELATED
+                    # "for each"/"equal to" clause elsewhere never
+                    # false-fires through this arm. CR 603.7 (delayed
+                    # triggered abilities) / 107.3 (scaling values).
+                    if _DRAW_FOR_EACH_PHRASE_RE.search(_kept(tree)):
+                        return [
+                            Signal("draw_for_each", "you", "", "", tree.name, "high")
+                        ]
             elif tag == "Vote":
                 for pce in getattr(n, "per_choice_effect", None) or []:
                     draw = getattr(pce, "effect", None)
@@ -10187,6 +10207,36 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
                         return [
                             Signal("draw_for_each", "you", "", "", tree.name, "high")
                         ]
+        # ADR-0038 W6 endgame: a Draw's ``count`` reading
+        # ``Ref(PreviousEffectAmount)`` stays OFF the shared
+        # ``_DRAW_FOR_EACH_TRACKED_TAGS`` set (Windfall / Jace's Archivist
+        # / Whispering Madness's "draws cards equal to the GREATEST number
+        # ... discarded" wheel effect ALSO carries this exact tag, off a
+        # symmetric per-player Discard->Draw chain, and is NOT a
+        # draw_for_each build-around — legacy fires nothing for it
+        # either), but a Draw IMMEDIATELY chained (``SequentialSibling``,
+        # unrolled into this unit's own ``effects`` tuple) right after a
+        # ``RemoveCounter`` in the SAME unit is unambiguously "draw a card
+        # for each counter removed this way" (Nexus Mentality's "Remove
+        # all counters from target nonland permanent you control... Draw
+        # a card for each counter removed this way." — no raw text
+        # anywhere on this modal bullet's own nodes to satisfy
+        # ``scaling``'s text gate, the SAME no-owner-text shape as
+        # Vivien's Stampede above, just a plain ``sub_ability`` chain
+        # rather than a delayed trigger). A POSITIVE gate on the
+        # PRECEDING sibling's own tag (``RemoveCounter``, never a bare
+        # "reached via PreviousEffectAmount") never reaches the
+        # Discard-wheel shape, whose preceding sibling is a ``Discard``.
+        # CR 121.1 (counters) / 107.3 (scaling values).
+        effs = unit.effects
+        for i, c in enumerate(effs):
+            if i == 0 or tag_of(c.node) != "Draw":
+                continue
+            if tag_of(effs[i - 1].node) != "RemoveCounter":
+                continue
+            qty = getattr(getattr(c.node, "count", None), "qty", None)
+            if tag_of(qty) == "PreviousEffectAmount":
+                return [Signal("draw_for_each", "you", "", "", tree.name, "high")]
     # ADR-0038 W5b tail: a TEXT-ONLY face tree (task #76 — the bulk oracle
     # is the source of record for a face phase's card-data.json never
     # parsed at all, e.g. Mouth // Feed's Aftermath back half) carries

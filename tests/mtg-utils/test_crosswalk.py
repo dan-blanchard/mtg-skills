@@ -386,6 +386,53 @@ def test_token_maker_each_player_creates_widening():
     assert ("token_copy_makers", "you", "") in _idents("Rite of Replication")
 
 
+def test_token_maker_copy_populate_boundary_shed():
+    """ADR-0038 W6 endgame: the 85-card copy/Populate BOUNDARY shed (CR
+    707.1/111.2, Dan's clone-vs-token-copy boundary) — "create a token
+    that's a copy of..." / Populate is ``token_copy_makers`` (promoted),
+    never ``token_maker``, on 3 further representatives beyond the
+    existing Rite of Replication pin (a corpus-wide live-vs-crosswalk
+    set-diff confirms every blank-subject token_maker live_only ident on
+    the corpus traces to a copy/Populate face on that same card — no
+    oracle-text pattern proxy needed, the diff is exact)."""
+    for name in ("Cackling Counterpart", "Trostani, Selesnya's Voice", "Mirror Match"):
+        assert "token_maker" not in _keys(name)
+        assert ("token_copy_makers", "you", "") in _idents(name)
+
+
+def test_token_maker_directed_controller_grant_shed():
+    """ADR-0038 W6 endgame: Soul of Emancipation's "For each of those
+    permanents, its controller creates a 3/3 white Angel creature token
+    with flying" is legacy's SOLE remaining genuine-looking live_only
+    gap — but it is a legacy over-fire, not a real member.
+
+    Legacy's old-IR structural arm resolves a SINGLE-target "Its
+    controller creates ..." token grant correctly to the DIRECTED
+    ``opp`` scope (Pongify / Beast Within / Generous Gift all resolve
+    ``scope='opp'`` in old_ir_for, verified this session — CR 111.2's
+    "the player who creates a token is its owner" ties the token to the
+    DESTROYED PERMANENT's controller, not the caster), so those never
+    open a token_maker "you" signal via the structural arm (they DO
+    over-fire 'you' via a SEPARATE default-scope bug already tracked as
+    cw_only, out of scope here). But for Soul of Emancipation's
+    MULTI-target "for each of those [up to three destroyed permanents],
+    its controller creates ..." construct, the SAME old-IR resolver
+    loses the per-permanent controller reference entirely and defaults
+    to scope='you' (confirmed via direct ``old_ir_for`` inspection) —
+    the SAME "unset-controller defaults to you" bug pattern already
+    adjudicated as a mandatory shed elsewhere in this wave
+    (sacrifice_outlets' CR 109.5 unset-controller default), just
+    manifesting through the multi-target for-each idiom instead of a
+    bare imperative. The token genuinely goes to WHOEVER's permanent got
+    destroyed (usually an opponent's, sometimes your own) — a directed
+    gift, never a reliable "you" token-maker build-around — matching
+    this lane's own established design boundary that a directed "its
+    controller creates" grant is deliberately excluded from the "you"
+    signal (see :func:`test_token_maker_each_player_creates_widening`'s
+    docstring). CR 111.2/109.5."""
+    assert "token_maker" not in _keys("Soul of Emancipation")
+
+
 @pytest.mark.parametrize(
     ("name", "should_fire"),
     [
@@ -5199,6 +5246,44 @@ def test_draw_for_each_fires_on_text_only_face_tree():
         for s in extract_crosswalk_signals(tree, keywords=frozenset())
     }
     assert ("draw_for_each", "you", "") in idents
+
+
+# ── ADR-0038 W6 endgame: the final two live_only closures (0 remain) ────────
+
+
+def test_draw_for_each_delayed_trigger_kept_fallback():
+    """Vivien's Stampede's delayed-trigger Draw ("At the beginning of the
+    next main phase this turn, draw a card for each player who was dealt
+    combat damage this turn") carries NO raw text ANYWHERE in its tree —
+    the ``CreateDelayedTrigger``'s own ``.effect`` wrapper, its wrapped
+    trigger's description, and the inner ``S_effect`` wrapper are all
+    ``None`` (confirmed via direct tree dump), so neither of
+    ``scaling``'s two raw-text reads nor the structural qty-tag check
+    finds anything (a bare ``Fixed(1)`` Draw). The card-level
+    ``_kept(tree)`` last-resort read — gated STRICTLY to a structurally-
+    confirmed CreateDelayedTrigger-wraps-an-unscaled-Draw shape, never a
+    blind whole-oracle scan — is the only text source that can close it.
+    CR 603.7 (delayed triggered abilities) / 107.3."""
+    assert ("draw_for_each", "you", "") in _idents("Vivien's Stampede")
+
+
+def test_draw_for_each_removecounter_previouseffectamount_positive_gate():
+    """Nexus Mentality's "Remove all counters from target nonland
+    permanent you control. Draw a card for each counter removed this
+    way." is a plain ``sub_ability`` chain with no raw text on either
+    node either — the SAME no-owner-text gap as Vivien's Stampede, just
+    a bare ``sub_ability`` instead of a delayed trigger. A Draw whose
+    ``count`` reads ``Ref(PreviousEffectAmount)`` stays OFF the shared
+    ``_DRAW_FOR_EACH_TRACKED_TAGS`` set in general (Windfall's "draws
+    cards equal to the GREATEST number ... discarded" wheel effect
+    carries the exact same tag off a symmetric per-player Discard->Draw
+    chain and is NOT a draw_for_each build-around — verified live,
+    neither system fires it) — the POSITIVE gate on the immediately
+    PRECEDING sibling's own tag (``RemoveCounter``) never reaches that
+    Discard-wheel shape, whose preceding sibling is a ``Discard``. CR
+    121.1 (counters) / 107.3 (scaling values)."""
+    assert ("draw_for_each", "you", "") in _idents("Nexus Mentality")
+    assert "draw_for_each" not in _keys("Windfall")
 
 
 def test_recovered_draw_seam_guard_rejects_non_draw_senses():
@@ -12785,6 +12870,103 @@ def test_graveyard_matters_canattackwithdefender_via_marker_only():
     idents = _idents("Expedition Lookout")
     assert ("graveyard_matters", "opponents", "") in idents
     assert ("graveyard_matters", "you", "") not in idents
+
+
+# ── ADR-0038 W6 endgame: graveyard_matters landfall (31 -> 0 live_only) ─────
+
+
+def test_graveyard_matters_choose_from_zone_gain():
+    """GAIN: Dawnbreak Reclaimer's "choose a creature card in an
+    opponent's graveyard" is a ``ChooseFromZone`` node whose zone/owner
+    live on its OWN top-level ``zone``/``zone_owner`` fields, not inside
+    a ``.filter``/``.target`` sub-node ``effect_filter`` reads (its own
+    ``.filter`` is a bare type-only filter with no ``InZone`` property at
+    all) — an UNAMBIGUOUS ``Opponent`` owner tag, closed via the SAME
+    ``_gy_player_scope`` mapper the count-operand arms already use. CR
+    404.1."""
+    idents = _idents("Dawnbreak Reclaimer")
+    assert ("graveyard_matters", "opponents", "") in idents
+    assert ("graveyard_matters", "you", "") in idents
+
+
+def test_graveyard_matters_sibling_zone_tag_bleed_shed():
+    """SHED (LEGACY over-fire): Necromancer's Covenant's "exile all
+    creature cards from target player's graveyard, then create a 2/2
+    black Zombie creature token for each card exiled this way" has TWO
+    effects sharing one ``e.raw`` in legacy's old IR — the exile (a
+    genuine graveyard read, correctly excluded here per CR 406.2's own
+    GY-hate carve-out) and the make_token (which has NOTHING
+    graveyard-related on its own node). Legacy's ``_gy_scope`` tags
+    graveyard_matters at the WHOLE-ABILITY-RAW granularity, so the
+    make_token effect inherits the exile sibling's ``in:graveyard`` zone
+    tag and fires its OWN structural scope ('opponents', from targeting
+    an opponent's graveyard) as a graveyard_matters signal it has no
+    actual connection to. The crosswalk's per-EFFECT, filter-grounded
+    reads correctly decline to manufacture this — Necromancer's Covenant
+    still fires token_maker (Zombie) correctly, just not the
+    mis-attributed graveyard_matters 'opponents'. CR 404.1 (a
+    graveyard is a SPECIFIC player's own discard pile, independent of
+    which sibling effect on the same ability references it)."""
+    idents = _idents("Necromancer's Covenant")
+    assert ("graveyard_matters", "opponents", "") not in idents
+    assert ("token_maker", "you", "Zombie") in idents
+
+
+def test_graveyard_matters_recipient_owner_conflation_shed():
+    """SHED (LEGACY over-fire): Cavalier of Flame's dies trigger ("it
+    deals X damage to each opponent ..., where X is the number of land
+    cards in YOUR graveyard") explicitly references YOUR OWN graveyard
+    as the count source, but the damage EFFECT's own recipient is
+    opponent-directed — legacy's ``_gy_scope`` shortcuts on the
+    effect's own recipient/actor scope (``e.scope in ('opp','each')``)
+    BEFORE checking the raw text for an explicit "your graveyard" tell,
+    so it fires 'opponents' even though CR 404.1 ties the referenced
+    graveyard to a SPECIFIC player (you) independent of who the damage
+    hits. The crosswalk's structural count-operand read correctly
+    resolves 'you' from the filter's own (absent) ownership and never
+    manufactures the conflated 'opponents'."""
+    idents = _idents("Cavalier of Flame")
+    assert ("graveyard_matters", "you", "") in idents
+    assert ("graveyard_matters", "opponents", "") not in idents
+
+
+def test_graveyard_matters_ambiguous_owner_catchall_shed():
+    """SHED (LEGACY over-fire): Keeper of the Cadence's "{3}: Put target
+    artifact, instant, or sorcery card from a graveyard on the bottom of
+    its owner's library" names a graveyard with NO explicit owner AT
+    ALL (a compound Or-of-three-types filter). Legacy's ``_gy_scope``
+    has no "ambiguous" state — it unconditionally defaults to 'you' for
+    ANY unresolved effect that reaches its ``in:graveyard`` zone gate,
+    a guess the crosswalk's ``_gy_filter_scope`` deliberately declines
+    for a compound filter with no explicit ``Owned``/``controller``
+    (the SAME precedent already established for Pulse of Murasa /
+    Exhume — a bare "from a graveyard" reference names NEITHER player,
+    so it is genuinely ambiguous, not a self-default). The card still
+    fires the byte-mirror's broad 'any' read (no
+    ``('graveyard_matters','any')`` serve avenue exists, so this is
+    inert either way) — never the manufactured 'you'. CR 404.1."""
+    idents = _idents("Keeper of the Cadence")
+    assert ("graveyard_matters", "any", "") in idents
+    assert ("graveyard_matters", "you", "") not in idents
+
+
+@pytest.mark.parametrize(
+    "name", ["Luminous Phantom", "Generous Soul", "Chapel Shieldgeist"]
+)
+def test_graveyard_matters_mdfc_disturb_scope_quirk_shed(name):
+    """SHED (documented functionally inert since 29d095dc): a
+    Disturb-backed MDFC back face's self-replacement ("If ~ would be put
+    into a graveyard from anywhere, exile it instead") is a genuine
+    self-referential CR 404.1 zone interaction (the destination it
+    replaces is the card's OWN owner's graveyard) — the crosswalk's
+    PER-FACE read resolves it to 'you' (the SelfRef target defaults to
+    the card's own controller). Legacy's WHOLE-CARD-JOINED mirror
+    instead resolves 'any' for the same construct (a joined-face
+    scope-computation artifact, not a genuine opponent/any-player
+    reading — no ``('graveyard_matters','any')`` serve avenue exists,
+    so the divergence carries zero functional consequence). 3
+    representatives beyond the original commit's own precedent."""
+    assert ("graveyard_matters", "you", "") in _idents(name)
 
 
 # ── ADR-0038 W4 giant: artifacts_matter (structural arms + verified CR) ──────
