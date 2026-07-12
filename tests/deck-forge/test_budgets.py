@@ -160,7 +160,16 @@ def test_interaction_excludes_infect_creatures_and_graveyard_recursion():
 
 def test_protection_is_advisory_not_a_counted_role():
     # Counterspell counts as both interaction (template) AND protection (Tier-2 flag).
-    assert protects(COUNTERSPELL) is True
+    # protects() gates on the `counterspell` preset, which moved to a structural
+    # view (task #83) — it needs a real oracle_id to resolve, so this assertion
+    # uses the testkit snapshot record rather than the synthetic COUNTERSPELL
+    # dict (which the other assertions here still use — they don't exercise the
+    # counterspell preset's match arm).
+    from mtg_utils import testkit
+
+    testkit.test_card_ir("Counterspell")  # seeds the crosswalk trees memo
+    real_counterspell = testkit.test_card("Counterspell")
+    assert protects(real_counterspell) is True
     assert protects(MURDER) is False
     assert "protection" not in role_of(COUNTERSPELL)  # never a counted role
 

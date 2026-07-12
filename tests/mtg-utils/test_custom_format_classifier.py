@@ -104,6 +104,10 @@ def _hcard(
 
 class TestPrecomputeMetadata:
     def test_classifies_each_card_and_tags_archetypes(self):
+        # The archetype-tagging demo card uses ``extra-turns`` (still a regex
+        # preset) rather than ``counterspell`` (moved to a structural view,
+        # task #83) — a structural-view preset needs a real oracle_id to
+        # resolve, which these synthetic hydrated dicts never carry.
         hydrated = [
             _hcard(
                 "Mountain",
@@ -121,15 +125,15 @@ class TestPrecomputeMetadata:
                 color_identity=["U"],
             ),
             _hcard(
-                "Counterspell",
-                mana_cost="{U}{U}",
+                "Time Walk",
+                mana_cost="{1}{U}",
                 cmc=2,
-                type_line="Instant",
-                oracle="Counter target spell.",
+                type_line="Sorcery",
+                oracle="Take an extra turn after this one.",
                 color_identity=["U"],
             ),
         ]
-        meta = precompute_metadata(hydrated, presets=["counterspell"])
+        meta = precompute_metadata(hydrated, presets=["extra-turns"])
         assert len(meta) == 3
 
         # Mountain
@@ -145,10 +149,10 @@ class TestPrecomputeMetadata:
         assert meta[1].is_land is False
         assert meta[1].library_effect in (LibraryEffect.NONE, LibraryEffect.REORDER)
 
-        # Counterspell — matches the counterspell preset.
+        # Time Walk — matches the extra-turns preset.
         assert meta[2].is_land is False
         assert meta[2].library_effect == LibraryEffect.NONE
-        assert "counterspell" in meta[2].archetype_matches
+        assert "extra-turns" in meta[2].archetype_matches
 
     def test_unknown_preset_raises(self):
         with pytest.raises(KeyError):

@@ -227,21 +227,26 @@ class TestLegacyTopLevelLocation:
 
 class TestMergeMemberPresets:
     def test_merged_preset_or_matches_any_member(self):
+        # ``reanimate`` moved to a structural view (task #83) so it needs a
+        # real oracle_id to resolve — ``graveyard-return`` (still regex)
+        # exercises the SAME "merge ORs across two regex members" behavior
+        # with a synthetic card, so this test stays decoupled from the
+        # structural-view snapshot fixtures.
         from mtg_utils._archetype_resolver import merge_member_presets
         from mtg_utils.theme_presets import PRESETS
 
         merged = merge_member_presets(
             "graveyard",
-            ("reanimate", "self-mill"),
+            ("graveyard-return", "self-mill"),
         )
 
         # The merged preset's `matches` returns True if EITHER constituent
         # preset's matchers fire on a card.
-        # Reanimate match: a generic reanimate spell.
-        reanimate_card = {
-            "name": "Reanimate",
+        # graveyard-return match: a generic grave-to-hand recursion spell.
+        graveyard_return_card = {
+            "name": "Regrowth",
             "type_line": "Sorcery",
-            "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
+            "oracle_text": "Return target card from your graveyard to your hand.",
         }
         # Self-mill match: a self-mill card (oracle uses the preset's pattern).
         self_mill_card = {
@@ -259,20 +264,20 @@ class TestMergeMemberPresets:
         }
 
         # Sanity-check the constituents match individually.
-        assert PRESETS["reanimate"].matches(reanimate_card)
+        assert PRESETS["graveyard-return"].matches(graveyard_return_card)
         assert PRESETS["self-mill"].matches(self_mill_card)
-        assert not PRESETS["reanimate"].matches(bystander)
+        assert not PRESETS["graveyard-return"].matches(bystander)
         assert not PRESETS["self-mill"].matches(bystander)
 
         # Merged preset matches both kinds, doesn't match the bystander.
-        assert merged.matches(reanimate_card)
+        assert merged.matches(graveyard_return_card)
         assert merged.matches(self_mill_card)
         assert not merged.matches(bystander)
 
     def test_merged_preset_name_matches_group_name(self):
         from mtg_utils._archetype_resolver import merge_member_presets
 
-        merged = merge_member_presets("graveyard", ("reanimate", "self-mill"))
+        merged = merge_member_presets("graveyard", ("graveyard-return", "self-mill"))
         assert merged.name == "graveyard"
 
     def test_unknown_member_raises(self):

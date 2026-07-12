@@ -1056,6 +1056,33 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # Top-of-library manipulation: scry + surveil keywords, plus "look/reveal/
     # exile the top" non-keyword phrasings. Handles both singular ("the top
     # card") and plural ("the top four cards") forms.
+    # Structural view (task #83): signal key `topdeck_selection` — OWN-
+    # library top curation (CR 701.22a scry / 701.25a surveil / 701.20a
+    # reveal / 701.13a exile / 701.17 mill / 401.5 look-at-top statics). See
+    # `_deck_forge.crosswalk_signals._topdeck_selection` — already unions in
+    # most of the old regex's territory via typed Dig/RevealTop/ExileTop/
+    # MayLookAtTopOfLibrary reads, plus the "reveal from the top until you
+    # find X" dig-until idiom the old regex never phrase-matched (a genuine
+    # gain: Abundant Harvest, Ajani's +1). `keywords=("Scry", "Surveil")`
+    # stays as a belt-and-suspenders union (the landfall precedent):
+    # verified via a live investigation that a CONDITIONAL scry rider
+    # (Bane's Contingency — "if that spell targets a commander you control,
+    # instead counter that spell, scry 2, then draw a card") carries `Scry`
+    # in its Scryfall keyword array but produces no typed Scry node in
+    # phase's parse of the modal branch, so the structural arm alone misses
+    # it — the raw keyword-array fact recovers it at zero cost. Residue
+    # (scoping census, ~179 preset-only / ~208 candidate-only over the
+    # corpus): preset-only is dominated by opponent-DIRECTED top effects
+    # ("exile the top three cards of TARGET OPPONENT's library" — Ashiok,
+    # Nightmare Weaver — routes to the disjoint `opp_top_exile` lane, not
+    # your-own-library curation) and symmetric "look at the top of TARGET
+    # PLAYER's library" riders on cards whose primary archetype lies
+    # elsewhere (Architects of Will routes to `blink_flicker`/
+    # `voltron_matters`); candidate-only is the genuine dig-until gain
+    # above. Scope-noise, not a concept gap — the view's `topdeck_selection`
+    # key is deliberately "YOUR library, top curation" per its own CR
+    # grounding, and opponent-directed exile is correctly a different
+    # archetype.
     Preset(
         name="top-manipulation",
         description=(
@@ -1063,11 +1090,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "exiles cards from the top of the library."
         ),
         keywords=("Scry", "Surveil"),
-        patterns=_rx(
-            r"look at the top (?:card\b|" + _COUNT + r" cards?)",
-            r"reveal the top (?:card\b|" + _COUNT + r" cards?)",
-            r"exile the top (?:card\b|" + _COUNT + r" cards?)",
-        ),
+        signal_keys=("topdeck_selection",),
         should_match=(
             "Preordain",
             "Thought Erasure",
@@ -1106,12 +1129,27 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         # its oracle reveals top 5 but returns them to the library.
         should_not_match=("Lightning Bolt", "Counterspell", "Contingency Plan"),
     ),
-    # Counter target <spell|ability>. Does NOT match "+1/+1 counter" because
-    # "counter target" is a specific phrase.
+    # Counterspell (task #83 structural-view conversion). ``counter_control``
+    # is the stack counterspell (CR 701.6a): a Counter/CounterAll effect
+    # whose target is a StackSpell (Counterspell, Mana Leak, Remand,
+    # Sinister Sabotage) — see
+    # ``_deck_forge.crosswalk_signals._counter_control``. Structurally
+    # DISJOINT from the OTHER meaning of "counter" (+1/+1 counters) and from
+    # "can't be countered" permission statics, so the view carries none of
+    # the old regex's theoretical false-positive surface on those. 10
+    # preset-only residue (scoping census): "counter target activated/
+    # triggered ability" phrasings (Rule of Law-adjacent, Voidslime-style
+    # "counter target activated or triggered ability") — the lane's own
+    # target read is a StackSpell only, so a spell that counters an
+    # ABILITY instead of a SPELL genuinely never fires here; a narrower,
+    # more precise scope than the old "spell|ability" regex alternation,
+    # not a regression (deferred — a lane widen to add an ability-target
+    # arm needs its own corpus-diff + CR-citation bar, out of scope for a
+    # view conversion).
     Preset(
         name="counterspell",
-        description="Counters a target spell or ability.",
-        patterns=_rx(r"counter target .*\b(spell|ability)\b"),
+        description="Counters a target spell (CR 701.6a — the stack counterspell).",
+        signal_keys=("counter_control",),
         should_match=("Counterspell", "Mana Leak", "Remand", "Sinister Sabotage"),
         should_not_match=("Lightning Bolt", "Llanowar Elves"),
     ),
@@ -1377,24 +1415,54 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         should_match=("Unsummon", "Boomerang"),
         should_not_match=("Lightning Bolt", "Unnatural Restoration"),
     ),
-    # Targeted discard — opponent discards card(s).
+    # Targeted discard — opponent discards card(s) (task #83 structural-view
+    # conversion). Union of `opponent_discard` (CR 701.9 — a forced
+    # OPPONENT discard, direction read off the discard effect's OWN
+    # recipient: targeted/opponent player or a symmetric each-player wheel)
+    # and `hand_disruption` (CR 402.3 — the Thoughtseize-style reveal-and-
+    # choose family: reveal the opponent's hand, then discard a chosen
+    # card). See `_deck_forge.crosswalk_signals._opponent_discard` /
+    # `._hand_disruption`. 2 preset-only residue (scoping census): Collective
+    # Defiance / Steal the Show ("Target player discards all/any number of
+    # cards, then draws that many cards") — the old regex fired on the bare
+    # word "discards", but the card's actual effect is a symmetric hand
+    # FILTER for a targeted player (rummage — you can target yourself too,
+    # net card count unchanged), not a punisher-style forced-discard hand
+    # attack; the crosswalk correctly routes it to `card_draw_engine` /
+    # `target_player_draws` instead — a regex-over-catch shed, signals are
+    # more correct here.
     Preset(
         name="discard",
         description="Forces a target player or opponent to discard cards.",
-        patterns=_rx(
-            r"target (?:opponent|player) (?:discards|reveals (?:their|his/her) hand)",
-            r"each (?:player|opponent) discards",
-        ),
+        signal_keys=("opponent_discard", "hand_disruption"),
         should_match=(),  # fixture cards added if Thoughtseize etc. exist in test data
         should_not_match=("Lightning Bolt",),
     ),
-    # Tutors — search your library for a card.
+    # Tutors — search your library for a card (task #83 structural-view
+    # conversion). Signal key `tutor` (CR 701.23/701.23a — your-library
+    # search). `tutor` INCLUDES basic-land ramp fetch (Sakura-Tribe Elder,
+    # Cultivate both fire it), so the old regex's should_match fixtures
+    # don't flip. See `_deck_forge.crosswalk_signals._tutor_lane` — the lane
+    # has an ADJUDICATED VETO (ADR-0037, `synth_tutor_directed`) for a
+    # directed/symmetric search ("target opponent's library" — Head Games;
+    # "each player searches their library" — Oath of Lieges): searching
+    # SOMEONE ELSE's library, or a symmetric search that reaches everyone,
+    # is a fundamentally different card (opponent-directed disruption, not
+    # a self-tutor) even though the old preset's `search (?:your|target
+    # opponent's|a) library` regex explicitly widened to catch the
+    # opponent-directed phrasing too. 121 preset-only residue (scoping
+    # census) is this veto's territory: every preset-only card the census
+    # sampled is a directed/symmetric search the tutor lane deliberately
+    # excludes by design — an adjudicated exclusion (cite the lane's own
+    # veto comment), not a preset-noise catch the old regex correctly
+    # avoided nor a genuine capability loss for the SELF-tutor concept this
+    # preset is named for.
     Preset(
         name="tutors",
         description=(
             "Searches your library for a card (BANNED in shared-library format)."
         ),
-        patterns=_rx(r"\bsearch (?:your|target opponent's|a) library\b"),
+        signal_keys=("tutor",),
         should_match=("Sakura-Tribe Elder", "Cultivate"),
         should_not_match=("Lightning Bolt", "Llanowar Elves"),
     ),
@@ -1488,35 +1556,85 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         should_match=("Viscera Seer", "Ashnod's Altar"),
         should_not_match=("Lightning Bolt", "Llanowar Elves"),
     ),
-    # Burn: direct damage to creature or player.
+    # Burn: direct damage to creature or player (task #83 structural-view
+    # conversion). Union of `direct_damage` (CR 120.1 — a DealDamage /
+    # DamageEachPlayer / DamageAll effect that reaches a PLAYER — Lightning
+    # Bolt, Fanatic of Mogis) and `removal` (CR 701.8/701.8a — includes its
+    # DealDamage-to-a-permanent arm, so a creature-only bolt like Shock is
+    # covered too). See `_deck_forge.crosswalk_signals._direct_damage` /
+    # `._removal`. 6 preset-only residue (scoping census: Arc Spitter,
+    # Lavamancer's Skill, Pathway Arrows, Showstopper, Shuriken, Tyrant's
+    # Familiar) — every one is a "deals N damage to target creature" ability
+    # GRANTED onto another permanent (an Equipment's "equipped creature has
+    # '{cost}: deals N damage...'", an Aura's "enchanted creature has...", a
+    # Lieutenant-conditional granted attack trigger) rather than the card's
+    # OWN direct effect; `_removal`'s per-unit `effect_concepts` walk (unlike
+    # `direct_damage`'s player-reaching arm, which already recovers a
+    # GRANTED damage effect via `has_nested_damage_reaching_player`) does not
+    # descend into a granted ability's body for a permanent-targeted damage
+    # effect. A genuine, narrow gap (6 of 1274, recall 0.995) — deferred, not
+    # fixed here: extending `_removal`'s granted-ability descent is a lane
+    # change with its own corpus-diff + CR-citation bar, out of scope for a
+    # view conversion.
     Preset(
         name="burn",
         description=(
             "Deals direct damage to a creature, player, planeswalker, or any target."
         ),
-        patterns=_rx(
-            r"deals? "
-            + _COUNT
-            + r" damage to (?:any target|target creature|target player|"
-            r"target (?:opponent|planeswalker)|target (?:creature, player,|"
-            r"creature or player))"
-        ),
+        signal_keys=("direct_damage", "removal"),
         should_match=("Lightning Bolt",),
         should_not_match=("Counterspell", "Llanowar Elves"),
     ),
     # Reanimate-to-battlefield: the classic "put target creature card from a
-    # graveyard onto the battlefield" effect.
+    # graveyard onto the battlefield" effect. Structural view (task #83):
+    # union of `creature_recursion` (CR 700.4/401.4/404 — a Graveyard→
+    # Battlefield ChangeZone over a Creature-cored filter, controller-gated
+    # so an opponent's-graveyard-ONLY pull reads as graveyard hate rather
+    # than your loop) and `reanimator` (CR 700.4/603.6e — the creature-
+    # PERMANENT that itself has a GY→battlefield ChangeZone, the archetype
+    # card rather than the spell). See `_deck_forge.crosswalk_signals.
+    # _creature_recursion` / `._reanimator`.
+    #
+    # DEFERRED residue (17 preset-only, scoping census; NOT fixed here — a
+    # lane change or substrate fix is out of scope for a view conversion),
+    # two distinct classes, verified against phase's own parse (not just
+    # the crosswalk read):
+    #
+    # 1. ADJUDICATED EXCLUSION (the lane's own Gate #6 — "subject
+    #    controller != Opponent... an opponents'-graveyard-ONLY pull is
+    #    graveyard hate, not your loop"): Agadeem Occultist, Ashen Powder,
+    #    Gruesome Encore, Immortal Obligation, Macabre Mockery, Nurgle's
+    #    Conscription, Puppeteer Clique all target "a creature card from AN
+    #    OPPONENT'S graveyard" — a design choice already made by the lane,
+    #    not a bug this conversion introduces.
+    # 2. GENUINE SUBSTRATE GAP (phase-rs's parse itself, confirmed via the
+    #    raw card-data.json records, not a crosswalk-lane miss): Animate
+    #    Dead / Necromancy structure the return as an Aura's "return
+    #    ENCHANTED creature card to the battlefield" (an enchanted-permanent
+    #    reference, not a typed Creature `SearchLibrary`/`ChangeZone` filter
+    #    the lane's subject test reads) — CR 303.4g aura-attach idiom, no
+    #    existing crosswalk lane helper reads this shape yet. Can't Stay
+    #    Away / Heroic Return are worse: phase's own record has an EMPTY
+    #    `abilities` array for the card — the primary "Return target
+    #    creature card from your graveyard to the battlefield" effect isn't
+    #    parsed into ANY node at all (only the attached "if it enters this
+    #    way" replacement survives), a parser-level swallow on the
+    #    template-plus-replacement-clause idiom. Aerith, Last Ancient /
+    #    Doctor Jane Foster / Karai, Future of the Foot have a genuinely
+    #    conditional destination (return to hand, UNLESS a condition —
+    #    lifegain, sneak cost — then to the battlefield instead); Liliana,
+    #    Waker of the Dead's is emblem-granted. None of these have a
+    #    reachable typed node a bounded concept predicate could reuse
+    #    without hand-rolling new text detection, which the standing rule
+    #    forbids — genuinely deferred to a future substrate/lane task, not
+    #    silently dropped.
     Preset(
         name="reanimate",
         description=(
             "Puts a creature card from a graveyard onto the battlefield "
             "(reanimator-style, not just grave-to-hand)."
         ),
-        patterns=_rx(
-            r"(?:put|return) target creature card.*graveyard.*"
-            r"(?:onto|to) the battlefield",
-            r"return enchanted creature card.*to the battlefield",
-        ),
+        signal_keys=("creature_recursion", "reanimator"),
         should_match=("Reanimate",),
         should_not_match=("Lightning Bolt", "Counterspell", "Regrowth"),
     ),
@@ -2024,6 +2142,25 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         should_not_match=("Lightning Bolt",),
     ),
     # ── Firebending (combat-triggered red mana) ──
+    #
+    # Structural view (task #83): signal keys `firebending_makers` (the
+    # keyword-bearer — the lane reads the caller-supplied Scryfall keyword
+    # array directly, same fact the `keywords=("Firebending",)` arm below
+    # would test) + `firebending_matters` (a keyword-less GRANT of
+    # Firebending — Sozin's Comet, Iroh, Fire Nation Palace/Cadets/Turret —
+    # via `has_structural_firebending_grant` plus a bucket-B
+    # `synth_firebending_matters` tail for grants baked into a make_token
+    # spec's own body). See `_deck_forge.crosswalk_signals._bending_lanes`.
+    # `keywords=("Firebending",)` stays as a belt-and-suspenders union (the
+    # landfall precedent): a card with no oracle_id/phase parse degrades the
+    # signal_keys arm to empty exactly like every other regex/keyword arm
+    # does on a field it can't read, so keeping the raw keyword-array test
+    # costs nothing and covers that corner. 1 preset-only residue (per the
+    # lane's own docstring): Firebending Lesson — the card's OWN NAME
+    # contains "Firebending" with zero mechanic relevance; the lane's
+    # narrower structural anchor already sheds this over-catch the deleted
+    # flat regex used to double-count, so this is a regex-over-catch shed,
+    # not a loss.
     Preset(
         name="firebending",
         description=(
@@ -2032,11 +2169,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "crossover mechanic."
         ),
         keywords=("Firebending",),
-        # Also match the grant/token cards that reference firebending in oracle without
-        # bearing the keyword (Sozin's Comet, Iroh, Fire Nation Palace). "firebending"
-        # is a CR-702.189 keyword term, so it never appears as incidental flavor; the
-        # word in card NAMES (Firebending Lesson) isn't in the oracle, so no FP.
-        patterns=_rx(r"\bfirebending\b"),
+        signal_keys=("firebending_makers", "firebending_matters"),
         should_match=("Mai and Zuko", "Sozin's Comet"),
         should_not_match=("Lightning Bolt",),
     ),
@@ -2056,14 +2189,26 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         should_match=("Time Walk", "Temporal Manipulation", "Nexus of Fate"),
         should_not_match=("Lightning Bolt", "Llanowar Elves"),
     ),
+    # DEFERRED single-card gap (task #83, not fixed here — a substrate/phase-
+    # parse fix is out of scope for a view conversion): Illusionist's Gambit
+    # ("Remove all attacking creatures from combat and untap them. After this
+    # phase, there is an additional combat phase. Each of those creatures
+    # attacks that combat if able...") is a genuine extra-combat effect, but
+    # phase-rs's OWN parse records a ``SwallowedClause`` warning on this
+    # sentence and never emits an ``AdditionalPhase`` node for it at all —
+    # verified via the raw card-data.json record — so the ``extra_combats``
+    # signal has nothing structural to read. 1 card of 45 (recall 0.978).
     Preset(
         name="extra-combats",
         description=(
-            "Additional combat phase. Aggravated Assault, Seize the Day, "
-            "Waves of Aggression — the pillar of Aurelia / Godo / Isshin "
-            "commander archetypes and multi-combat 60-card lists."
+            "Additional combat phase (CR 505/506). Aggravated Assault, "
+            "Seize the Day, Waves of Aggression — the pillar of Aurelia / "
+            "Godo / Isshin commander archetypes and multi-combat 60-card "
+            "lists. Structural view (task #83): signal key `extra_combats` "
+            "— an AdditionalPhase effect whose phase is a combat phase (see "
+            "`_deck_forge.crosswalk_signals._extra_combats`)."
         ),
-        patterns=_rx(r"additional combat phase"),
+        signal_keys=("extra_combats",),
         should_match=("Aggravated Assault", "Seize the Day", "Waves of Aggression"),
         should_not_match=("Lightning Bolt", "Serra Angel"),
     ),
