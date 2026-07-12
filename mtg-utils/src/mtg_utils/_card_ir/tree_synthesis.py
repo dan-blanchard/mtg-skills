@@ -2900,6 +2900,62 @@ def _arm_fight_makers(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── creatures_matter grammar-sprint stragglers (ADR-0039 task #82, post-
+# deletion grammar sprint) ─────────────────────────────────────────────────
+# Three ledgered ADR-0039 W8-finisher bridges (bridge_ledger.py) close via
+# the SAME sole-source sweep-row shape the T8-misc-sweep rows below use --
+# each is a whole-clause phase drop (a role=effect ``Unimplemented`` node
+# with ZERO typed substructure beneath it, not even a nested count/target
+# field) for a genuinely distinct creatures_matter idiom, corpus-bound to
+# exactly its one pinned card (re-verified 2026-07-12, phase v0.20.0,
+# 105,561 commander-legal Unimplemented nodes scanned):
+#
+#   * excess_count -- Superior Numbers' "deals damage ... equal to the
+#     number of creatures you control in excess of the number of creatures
+#     target opponent controls" (CR 107.3 computed value). The nearest
+#     typed phase concept is a ``count.Difference{left, right}`` comparator
+#     (22 corpus occurrences elsewhere) over two ``Ref``/``ObjectCount``
+#     creature-count operands, the LEFT one a generic creatures-you-control
+#     population -- the same shape every other "for each creature you
+#     control" scaler feeds :func:`count_operand_filter`.
+#   * diff_counters -- Sovereign Okinec Ahau's attack-triggered "for each
+#     creature you control with power greater than that creature's base
+#     power, put a number of +1/+1 counters on that creature equal to the
+#     difference" (CR 122.1 counters, 613.4b base power reference). The
+#     nearest typed phase concept is a per-object ``PutCounter`` distributed
+#     over a generic creatures-you-control filter -- the ``PutCounterAll``
+#     sibling shape :data:`_CREATURES_MATTER_MOD_TAGS` already reads for a
+#     FIXED per-creature amount; here the amount is a per-object computed
+#     difference instead.
+#   * faceup_grant -- Whisperwood Elemental's activated "Sacrifice ~: Until
+#     end of turn, face-up nontoken creatures you control gain '...'" (CR
+#     113.10 ability grant, 702.164 manifest). The nearest typed phase
+#     concept is a ``GrantAbility`` static def over a face-up/nontoken-
+#     filtered team -- the SAME team-anthem shape the buried/Or-wrapped
+#     ``_iter_creatures_matter_static_defs`` descent already reads for every
+#     OTHER granted-ability team anthem.
+#
+# All three are gap-gated for free by the sweep-row's own sole-source
+# philosophy (celebration_matters precedent): the SAME regex that corpus-
+# verified census=1 in bridge_ledger.py anchors each row here too, so
+# widening past its pin would be an explicit, auditable regex change, not
+# silent drift.
+_CREATURES_MATTER_EXCESS_COUNT_SYNTH_RX = re.compile(
+    r"deals? damage to target creature equal to the number of creatures "
+    r"you control in excess of the number of creatures target opponent "
+    r"controls",
+    re.IGNORECASE,
+)
+_CREATURES_MATTER_DIFF_COUNTERS_SYNTH_RX = re.compile(
+    r"for each creature you control with power greater than that "
+    r"creature's base power, put a number of \+1/\+1 counters",
+    re.IGNORECASE,
+)
+_CREATURES_MATTER_FACEUP_GRANT_SYNTH_RX = re.compile(
+    r"face-up nontoken creatures you control gain", re.IGNORECASE
+)
+
+
 def _land_only_filter(filt: object) -> bool:
     """A filter whose CORE types are Land and nothing else (the ramp-vs-
     cheat carve-out, CR 305). Shared verbatim with the ``_extra_land_drop``
@@ -8104,6 +8160,24 @@ _SWEEP_SYNTH_ROWS: tuple[tuple[re.Pattern[str], str, str, str], ...] = (
     (_TIMING_CONTROL_SYNTH_RX, "timing_control", "any", "CR 117.1a"),
     (_VILLAINOUS_SYNTH_RX, "villainous_choice", "you", "CR 701.55"),
     (_VOID_WARP_MATTERS_SYNTH_RX, "void_warp_matters", "you", "CR 702.185"),
+    (
+        _CREATURES_MATTER_EXCESS_COUNT_SYNTH_RX,
+        "creatures_matter_excess_count",
+        "you",
+        "CR 107.3",
+    ),
+    (
+        _CREATURES_MATTER_DIFF_COUNTERS_SYNTH_RX,
+        "creatures_matter_diff_counters",
+        "you",
+        "CR 122.1/613.4b",
+    ),
+    (
+        _CREATURES_MATTER_FACEUP_GRANT_SYNTH_RX,
+        "creatures_matter_faceup_grant",
+        "you",
+        "CR 113.10/702.164",
+    ),
 )
 
 

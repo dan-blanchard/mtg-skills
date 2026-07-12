@@ -2064,70 +2064,16 @@ def _lightning_runner_match(tree: ConceptTree) -> bool:
     return bool(_LIGHTNING_RUNNER_UNTAP_RX.search(tree.oracle or ""))
 
 
-# (2) Superior Numbers' "deals damage ... equal to the number of creatures
-# you control IN EXCESS OF the number of creatures target opponent
-# controls" (CR 107.3 computed value) — the recovery stage tags the
-# ability's own ``Unimplemented`` effect concept "deal_damage" (the
-# DOMINANT-verb allowlist), but the excess/subtraction comparator itself
-# is not a typed count operand anywhere.
-_SUPERIOR_NUMBERS_RX = re.compile(
-    r"deals? damage to target creature equal to the number of creatures "
-    r"you control in excess of the number of creatures target opponent "
-    r"controls",
-    re.IGNORECASE,
-)
-
-
-def _superior_numbers_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _unimplemented_descs_anywhere(tree))
-
-
-def _superior_numbers_match(tree: ConceptTree) -> bool:
-    return any(
-        _SUPERIOR_NUMBERS_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
-    )
-
-
-# (3) Sovereign Okinec Ahau's "for each creature you control with power
-# greater than that creature's base power, put a number of +1/+1 counters
-# on that creature equal to the difference" (CR 122.1) — an attack-
-# triggered per-creature distribution our clause grammar has no token for
-# (the whole effect parks as one ``Unimplemented(name='for')`` residue).
-_SOVEREIGN_OKINEC_AHAU_RX = re.compile(
-    r"for each creature you control with power greater than that "
-    r"creature's base power, put a number of \+1/\+1 counters",
-    re.IGNORECASE,
-)
-
-
-def _sovereign_okinec_ahau_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _unimplemented_descs_anywhere(tree))
-
-
-def _sovereign_okinec_ahau_match(tree: ConceptTree) -> bool:
-    return any(
-        _SOVEREIGN_OKINEC_AHAU_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
-    )
-
-
-# (4) Whisperwood Elemental's "Sacrifice this creature: Until end of turn,
-# FACE-UP NONTOKEN CREATURES YOU CONTROL gain '...'" — the mass keyword-
-# ability grant is dropped WHOLESALE, parked as an
-# ``Unimplemented(name='face-up')`` residue on the activated ability's own
-# effect (CR 113.10 ability grant, 702.164 manifest).
-_WHISPERWOOD_ELEMENTAL_RX = re.compile(
-    r"face-up nontoken creatures you control gain", re.IGNORECASE
-)
-
-
-def _whisperwood_elemental_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _unimplemented_descs_anywhere(tree))
-
-
-def _whisperwood_elemental_match(tree: ConceptTree) -> bool:
-    return any(
-        _WHISPERWOOD_ELEMENTAL_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
-    )
+# (2)-(4) Superior Numbers' excess-count comparator, Sovereign Okinec
+# Ahau's per-creature counter distribution, and Whisperwood Elemental's
+# face-up team-grant residue RETIRED (ADR-0039 task #82, post-deletion
+# grammar sprint): each now decomposes into a typed
+# ``tree_synthesis`` sweep-row node (the "creatures_matter grammar-sprint
+# stragglers" section in ``tree_synthesis.py``) instead of a text-anchored
+# bridge — same three pins, now firing structurally via
+# ``synth_creatures_matter_excess_count`` /
+# ``synth_creatures_matter_diff_counters`` /
+# ``synth_creatures_matter_faceup_grant``.
 
 
 # (5) Duskana, the Rage Mother's ETB "draw a card for each creature you
@@ -3700,70 +3646,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Lightning Runner",),
             gap=_lightning_runner_gap,
             match=_lightning_runner_match,
-        ),
-        Bridge(
-            bridge_id="superior_numbers_excess_count_unimplemented",
-            key="creatures_matter",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a clause-"
-                "grammar verb for an 'X in excess of Y' subtraction "
-                "comparator between two creature counts (recovery.py's "
-                "Unimplemented-recovery-stage ALLOWLIST already tags the "
-                "residue's DOMINANT verb 'deal_damage' — the comparator "
-                "itself is the gap) — retires when the node decomposes "
-                "into a typed damage-amount count operand"
-            ),
-            census=(
-                "1 hit / 105,561 commander-legal Unimplemented nodes "
-                "matching the excess-count idiom, phase v0.20.0, "
-                "2026-07-12"
-            ),
-            pins=("Superior Numbers",),
-            gap=_superior_numbers_gap,
-            match=_superior_numbers_match,
-        ),
-        Bridge(
-            bridge_id="sovereign_okinec_ahau_per_creature_diff_counters",
-            key="creatures_matter",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a clause-"
-                "grammar verb for a per-creature 'put a number of "
-                "counters equal to the difference' distribution over an "
-                "attack trigger — retires when the node decomposes into "
-                "a typed PutCounter-over-filter effect"
-            ),
-            census=(
-                "1 hit / 105,561 commander-legal Unimplemented nodes "
-                "matching the per-creature-difference idiom, phase "
-                "v0.20.0, 2026-07-12"
-            ),
-            pins=("Sovereign Okinec Ahau",),
-            gap=_sovereign_okinec_ahau_gap,
-            match=_sovereign_okinec_ahau_match,
-        ),
-        Bridge(
-            bridge_id="whisperwood_elemental_faceup_grant_unimplemented",
-            key="creatures_matter",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a clause-"
-                "grammar verb for a 'face-up nontoken creatures you "
-                "control gain <granted trigger>' mass ability grant "
-                "(recovery.py's Unimplemented-recovery-stage ALLOWLIST "
-                "has no 'face-up' entry yet) — retires when the node "
-                "decomposes into a typed GrantTrigger over the "
-                "face-up/nontoken-filtered team"
-            ),
-            census=(
-                "1 hit / 105,561 commander-legal Unimplemented nodes "
-                "matching the face-up team-grant idiom, phase v0.20.0, "
-                "2026-07-12"
-            ),
-            pins=("Whisperwood Elemental",),
-            gap=_whisperwood_elemental_gap,
-            match=_whisperwood_elemental_match,
         ),
         Bridge(
             bridge_id="duskana_draw_per_base_pt_creature_dropped",

@@ -5638,17 +5638,25 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
       107.3 — a "modified creatures" population reads as generic the
       same way a power-threshold filter does).
 
-    Eight ADR-0039 ledgered bridges (bridge_ledger.py, the
-    ``creatures_matter`` section) close the residual grammar-straggler /
-    dropped-clause / mis-scoped-grant tail — Lightning Runner's absence-
-    proof "untap all creatures you control" (CR 701.26), Superior
-    Numbers' excess-count comparator, Sovereign Okinec Ahau's per-
-    creature counter distribution, Whisperwood Elemental's face-up team-
-    grant residue, Duskana's dropped per-base-2/2 draw count, Moku's mis-
-    scoped SelfRef haste grant, Siege Behemoth's empty-modifications
-    static, and Candlekeep Inspiration's mass base-P/T-setter residue
-    (sharing its gap/match with the ``base_pt_set`` sibling row, CR
-    613.4b).
+    Five ADR-0039 ledgered bridges (bridge_ledger.py, the
+    ``creatures_matter`` section) close the residual dropped-clause /
+    mis-scoped-grant tail — Lightning Runner's absence-proof "untap all
+    creatures you control" (CR 701.26), Duskana's dropped per-base-2/2
+    draw count, Moku's mis-scoped SelfRef haste grant, Siege Behemoth's
+    empty-modifications static, and Candlekeep Inspiration's mass
+    base-P/T-setter residue (sharing its gap/match with the
+    ``base_pt_set`` sibling row, CR 613.4b).
+
+    ADR-0039 task #82 (post-deletion grammar sprint) retired three
+    grammar-straggler bridges into a typed ``tree_synthesis`` sweep row
+    (the "creatures_matter grammar-sprint stragglers" section in
+    ``tree_synthesis.py``) instead — Superior Numbers' excess-count
+    comparator (CR 107.3), Sovereign Okinec Ahau's per-creature counter
+    distribution (CR 122.1/613.4b), and Whisperwood Elemental's face-up
+    team-grant residue (CR 113.10/702.164). Same three pins, now firing
+    via ``synth_creatures_matter_excess_count`` /
+    ``synth_creatures_matter_diff_counters`` /
+    ``synth_creatures_matter_faceup_grant`` above instead of a bridge.
 
     The remaining true residue stays an adjudicated shed, NOT ported —
     cost-reduction's OWN dynamic/scaled condition (CR 601.2f, the Avatar
@@ -5721,14 +5729,26 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
             return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
         if _creatures_matter_formidable_condition(unit.node):
             return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
+    # ADR-0039 task #82 grammar sprint: three former ledgered bridges
+    # (Superior Numbers' excess-count comparator, Sovereign Okinec Ahau's
+    # per-creature counter difference, Whisperwood Elemental's face-up
+    # team-grant) now read a bucket-B ``tree_synthesis`` sweep row instead
+    # of a text-anchored bridge — see the "creatures_matter grammar-sprint
+    # stragglers" section in ``tree_synthesis.py`` for the CR citations +
+    # node-shape rationale. Retired from bridge_ledger.py; the membership
+    # is unchanged (same three pins, now firing structurally).
+    for c in tree.iter_concepts():
+        if c.concept in (
+            "synth_creatures_matter_excess_count",
+            "synth_creatures_matter_diff_counters",
+            "synth_creatures_matter_faceup_grant",
+        ):
+            return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     # ADR-0039 W8 finisher — the last of the 53-card true-gap tail:
     # ledgered bridges (bridge_ledger.py, docstring there for the full
     # corpus accounting).
     for bridge_id in (
         "lightning_runner_untap_all_dropped",
-        "superior_numbers_excess_count_unimplemented",
-        "sovereign_okinec_ahau_per_creature_diff_counters",
-        "whisperwood_elemental_faceup_grant_unimplemented",
         "duskana_draw_per_base_pt_creature_dropped",
         "moku_haste_grant_misscoped_selfref",
         "siege_behemoth_unblocked_assign_empty_mods",
