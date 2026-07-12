@@ -13420,16 +13420,23 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
             return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
         if _cheat_reveal_until_you_enters_put(unit):
             return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
+    # ADR-0039 grammar sprint (task #82) — the tree-synthesis closer for the
+    # three retired grammar-straggler bridges (former bridge_ledger.py rows
+    # ``cheat_player_prefix_battlefield_put`` / ``cheat_choose_from_among_
+    # graveyard_origin`` / ``cheat_synthetic_destiny_delayed_reveal``): each
+    # tree_synthesis arm ports the bridge's own verbatim regex onto a
+    # SHARED marker concept (tree_synthesis.py), so membership is provably
+    # unchanged — a structural read of the synthesized node, not a widened
+    # text match.
+    if tree.has_effect("synth_cheat_reveal_or_put_battlefield"):
+        return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
     # ADR-0039 W7 ledgered bridges — the residual grammar-straggler /
     # dropped-clause / upstream-parse-failure bucket (bridge_ledger.py rows,
     # docstring there for the full corpus accounting):
     for bridge_id in (
-        "cheat_player_prefix_battlefield_put",
         "cheat_dropped_clause_zero_residue",
         "cheat_kept_destination_hand_misparse",
-        "cheat_choose_from_among_graveyard_origin",
         "cheat_modal_mode_unsupported_qualifier",
-        "cheat_synthetic_destiny_delayed_reveal",
     ):
         if bridge_fires(bridge_id, tree):
             return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]

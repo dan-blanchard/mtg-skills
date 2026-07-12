@@ -7902,6 +7902,142 @@ def _arm_bounce_tempo(tree: ConceptTree) -> ConceptNode | None:
     return None
 
 
+# ── cheat_into_play grammar-sprint closers (ADR-0039 task #82) ─────────────────
+# Three residual bridge_ledger.py rows (cheat_into_play's LAST grammar
+# stragglers) each swallow a "put ... onto the battlefield" chain into an
+# Unimplemented residue phase's clause grammar can't yet structure: a leading
+# player-referent clause ahead of the real imperative, a "choose ... from
+# among them" selection step paired with a phase-mistagged Graveyard origin
+# on its sibling put, and a delayed-trigger reveal-until node recovered to
+# concept ``reveal_until`` but missing a typed ``kept_destination``. All three
+# are corpus-verified narrow (bridge_ledger.py's own census, phase v0.20.0,
+# 2026-07-11); each arm below PORTS the exact verbatim regex the retired
+# bridge used (not a new, wider pattern) so membership is provably unchanged
+# — a synthesis arm, not a widened one. One shared marker concept
+# (``synth_cheat_reveal_or_put_battlefield``) since all three feed the SAME
+# terminal ``cheat_into_play`` read (CR 110.2/400.7) and no other lane needs
+# to distinguish them.
+_CHEAT_PLAYER_PREFIX_SYNTH_RX = re.compile(
+    r"^(?:"
+    r"for each of those \w+, (?:its controller|you may put)|"
+    r"who (?:received no votes may put|"
+    r"sacrificed a permanent this way reveals|"
+    r"shuffled a nontoken creature into their library this way reveals)|"
+    r"you do the same with the top three cards of your library"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _arm_cheat_player_prefix_battlefield_put(tree: ConceptTree) -> ConceptNode | None:
+    """A leading referent/relative-clause ahead of the real imperative
+    ("its controller reveals...", "who received no votes may put...", "you
+    do the same with...") defeats phase's clause grammar, parking the WHOLE
+    clause as an ``Unimplemented`` residue (Divergent Transformations,
+    Círdan the Shipwright, Vaevictis Asmadi the Dire, Collision of Realms,
+    Guild Feud, Liberated Livestock). Tree-wide "onto the battlefield" gate
+    excludes Soul of Emancipation's same leading shape (a token maker, no
+    battlefield put at all — CR 110.2/400.7). bridge_ledger.py's retired
+    ``cheat_player_prefix_battlefield_put`` row."""
+    if "onto the battlefield" not in (tree.oracle or "").lower():
+        return None
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "Unimplemented":
+                continue
+            desc = getattr(n, "description", "") or ""
+            if _CHEAT_PLAYER_PREFIX_SYNTH_RX.search(desc):
+                return _synthetic_concept(
+                    arm_id="cheat_player_prefix_battlefield_put",
+                    concept="synth_cheat_reveal_or_put_battlefield",
+                    scope="you",
+                    subject=(),
+                    desc="leading player-referent clause swallows a "
+                    "battlefield put (CR 110.2/400.7)",
+                )
+    return None
+
+
+def _arm_cheat_choose_from_among_graveyard_origin(
+    tree: ConceptTree,
+) -> ConceptNode | None:
+    """A swallowed "choose a [type] card from among them" selection step
+    (Unimplemented, description containing "from among them") whose sibling
+    Battlefield put carries ``origin: 'Graveyard'`` — a phase-side origin
+    MIS-TAG (the real source is the just-revealed LIBRARY pile, CR 400.7
+    zones don't reorder themselves), which the typed ``cheat_into_play``
+    reanimation carve-out correctly-but-wrongly excludes (Animal Magnetism,
+    Selective Adaptation). bridge_ledger.py's retired
+    ``cheat_choose_from_among_graveyard_origin`` row (its own census: the
+    ONLY two commander-legal cards pairing this Unimplemented shape with a
+    Graveyard-origin Battlefield ChangeZone in the same tree — Guided
+    Passage / Manifold Insights / Kaya's Spirit's Justice / Capricious
+    Hellraiser / Green Sun's Twilight share the "choose... from among them"
+    shape but carry no Battlefield-destined node at all)."""
+    has_choose = any(
+        "choose" in desc.lower() and "from among them" in desc.lower()
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+        if tag_of(n) == "Unimplemented"
+        for desc in (getattr(n, "description", "") or "",)
+    )
+    if not has_choose:
+        return None
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if (
+                tag_of(n) in ("ChangeZone", "ChangeZoneAll")
+                and getattr(n, "destination", None) == "Battlefield"
+                and getattr(n, "origin", None) == "Graveyard"
+            ):
+                return _synthetic_concept(
+                    arm_id="cheat_choose_from_among_graveyard_origin",
+                    concept="synth_cheat_reveal_or_put_battlefield",
+                    scope="you",
+                    subject=(),
+                    desc="choose-from-among-them selection paired with a "
+                    "phase-mistagged Graveyard-origin battlefield put "
+                    "(CR 400.7)",
+                )
+    return None
+
+
+_CHEAT_SYNTHETIC_DESTINY_SYNTH_RX = re.compile(
+    r"reveal cards from the top of your library until you reveal that "
+    r"many creature cards, put all creature cards revealed this way onto "
+    r"the battlefield",
+    re.IGNORECASE,
+)
+
+
+def _arm_cheat_synthetic_destiny_delayed_reveal(
+    tree: ConceptTree,
+) -> ConceptNode | None:
+    """Synthetic Destiny's delayed-trigger reveal-until node: the recovery
+    stage already re-decorates this ``Unimplemented`` node with concept
+    ``reveal_until`` (its raw text names the idiom), but the raw ``.node``
+    itself carries no typed ``kept_destination`` field, so the typed
+    ``cheat_into_play`` RevealUntil arm can never read a destination off
+    it. Anchored to the card's own verbatim idiom (corpus-verified sole
+    hit). bridge_ledger.py's retired
+    ``cheat_synthetic_destiny_delayed_reveal`` row."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "Unimplemented" or getattr(n, "name", None) != "reveal":
+                continue
+            desc = getattr(n, "description", "") or ""
+            if _CHEAT_SYNTHETIC_DESTINY_SYNTH_RX.search(desc):
+                return _synthetic_concept(
+                    arm_id="cheat_synthetic_destiny_delayed_reveal",
+                    concept="synth_cheat_reveal_or_put_battlefield",
+                    scope="you",
+                    subject=(),
+                    desc="delayed-trigger reveal-until node has no typed "
+                    "kept_destination field (CR 701.20a)",
+                )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -7994,6 +8130,15 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("dig_until", _arm_dig_until),
     ("bending_cross", _arm_bending_cross),
     ("bounce_tempo", _arm_bounce_tempo),
+    ("cheat_player_prefix_battlefield_put", _arm_cheat_player_prefix_battlefield_put),
+    (
+        "cheat_choose_from_among_graveyard_origin",
+        _arm_cheat_choose_from_among_graveyard_origin,
+    ),
+    (
+        "cheat_synthetic_destiny_delayed_reveal",
+        _arm_cheat_synthetic_destiny_delayed_reveal,
+    ),
     ("token_maker_type_subject", _arm_token_maker_type_subject),
     ("death_matters", _arm_death_matters),
     ("attack_matters", _arm_attack_matters),
