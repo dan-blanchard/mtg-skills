@@ -1664,6 +1664,49 @@ def test_creatures_matter_w7_bridges_batch(name, should_fire):
 
 
 @pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        # ADR-0039 W8 reclassification (creatures_matter RECLASSIFY +
+        # ADJUDICATE ONLY — no new arm this session; see
+        # /Users/danblanchard/.claude/jobs/097c2256/tmp/
+        # w8_creatures_reclass/family_map.json for the full residual
+        # decomposition). A full :func:`iter_typed_nodes` corpus re-walk
+        # (no curated field list) over the whole live_only=2404 set
+        # confirmed these SHEDS are wider corpus classes than their W4-W7
+        # single-representative pins showed — reinforcing pins, same
+        # gates, no code change:
+        #
+        # a SUBTYPE-restricted "have" grant (Sliver-lord template) —
+        # the SAME shape as Karrthus's "Other Dragon creatures you
+        # control have haste" (CR 205.3, type_matters territory); a
+        # corpus scan found ~40 more Sliver-lord-class cards riding this
+        # exact idiom in the residual alone.
+        ("Capricious Sliver", False),
+        # a graveyard-population Aggregate (Max Power) feeding a
+        # self-referential dynamic P/T (CR 400.2 — graveyard is a
+        # different public zone than the battlefield "creatures you
+        # control" default population) — the SAME InZone guard that
+        # excludes Wire Surgeons' graveyard-recursion static.
+        ("Carrion Grub", False),
+        # a single/multi-TARGET keyword grant ("target creature YOU
+        # control gains indestructible" / kicked "any number of target
+        # creatures you control") — CR 115.1: a spell TARGET is a
+        # preselected object, not a population filter read off
+        # amount/count/value/affected; this is voltron/keyword_grant_
+        # target territory (a removal-adjacent protection spell), not a
+        # go-wide payoff, even though the controller reads "You" (the
+        # existing docstring's "single-target removal/buff (controller
+        # ANY)" note undersold this — a You-scoped single/multi-target
+        # grant fails the SAME way, for a different reason: TARGET
+        # context, not population context).
+        ("Divine Resilience", False),
+    ],
+)
+def test_creatures_matter_w8_reclass_batch(name, should_fire):
+    assert (("creatures_matter", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
     ("name", "ident", "should_fire"),
     [
         ("Padeem, Consul of Innovation", ("artifacts_matter", "you", ""), True),

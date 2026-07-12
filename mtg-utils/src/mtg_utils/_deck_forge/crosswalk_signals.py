@@ -5017,6 +5017,37 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
       Chronicler of Heroes / the Ferocious ability word / Epic Struggle's
       "if you control twenty or more creatures, you win"), excluding a
       cost-reduction's own condition (that function's own docstring).
+
+    ADR-0039 W8 reclassification (RECLASSIFY + ADJUDICATE ONLY — no new
+    arm landed this session): a full :func:`iter_typed_nodes` corpus
+    re-walk (no curated field list, so no node path is missed) over the
+    WHOLE live_only=2404 set found the W7 "162 heterogeneous" residue
+    collapses to 30 once every node path is actually read — the other
+    132 were already-adjudicated shed shapes (token-maker/blocking-
+    attacking/symmetric/devour/tribal) a field-limited scan simply
+    missed. Of the 30 true residue: ~9 are cost-reduction (CR 601.2f,
+    the SAME shed philosophy as :func:`_creatures_matter_condition_
+    filter`'s ``ModifyCost`` exclusion — some ride an ACTIVATED
+    ability's own cost reduction, a node shape that carries no
+    ``static_mode_tag`` at all, so widening the count-operand read here
+    would ALSO need widening that exclusion, not just the field
+    coverage); ~4 are self-referential CDAs (Ancient Ooze / Moon-Vigil
+    Adherents' own dynamic P/T, the Towering Gibbon precedent); ~3 are
+    zone-scoped (graveyard, CR 400.2, the Wire Surgeons precedent); the
+    remainder are GENUINE structural gaps needing a NEW arm, not a
+    widening of this one: a ``DoublePTAll`` team pump (Unnatural Growth
+    / Double Trouble / God-Eternal Rhonas — a different typed node than
+    ``PumpAll``), a ``PutCounterAll`` mass +1/+1-counter grant (Ajani
+    Goldmane), a handful of count operands living behind an unread
+    field wrapper (``UpTo.max`` — Harvest Season; ``quantity`` —
+    Fettergeist; ``amount_dynamic`` — Shield of the Avatar), an
+    ``Or``-wrapped affected filter (Silkguard's "Auras, Equipment, and
+    modified creatures you control" — the generic-filter gate doesn't
+    descend into ``Or``/``And`` branches), and a count operand buried
+    inside a ``FlipCoin`` win-branch (Goblin Lyre). Full per-family node
+    dumps + closing-mechanism recommendations: /Users/danblanchard/
+    .claude/jobs/097c2256/tmp/w8_creatures_reclass/family_map.json. Key
+    stays residual.
     """
     for c in tree.iter_concepts():
         if (
