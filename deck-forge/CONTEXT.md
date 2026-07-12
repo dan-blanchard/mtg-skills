@@ -277,31 +277,30 @@ tables, so it can't lag). The successor to a hand-typed coverage list.
 _Avoid_: "validation", "check" (too generic).
 
 **Card IR**:
-The per-face structured parse of a card — `Filter` / `Quantity` / `Effect` / `Trigger` /
-`Ability` / `Face` / `Card` (`card_ir.py`) — that deck-forge's detection reasons over
-instead of re-grepping oracle text. Projected once from phase-rs's parser output by a
-deterministic *forge projection* (`_card_ir/project.py`) plus a combinator-parser
-*supplement* (`_card_ir/supplement.py`) that fills phase's gaps, then cached to an
-`oracle_id`-keyed sidecar. Unlike a regex it binds the *operand* a card scales with
-(Craterhoof's "for each creature you control") and the *scope* of an effect (Tinybones
-reanimates only from opponents' graveyards), so a [[Signal key]] becomes a derived query
-over structure rather than a substring match. The substrate of the regex→IR cutover
-(ADR-0027). **Evolving (ADR-0035):** the *lossy* projection is being replaced by a
-lossless [[Phase-mirror substrate]] + a derived [[Concept overlay]] — the term "Card IR"
-will name that layered whole, not the single closed-vocab projection.
+The layered structured parse deck-forge's detection reasons over instead of re-grepping
+oracle text: the [[Phase-mirror substrate]] + the derived [[Concept overlay]], plus the
+compat `Card` dataclasses (`card_ir.py` — `Filter` / `Quantity` / `Effect` / `Trigger` /
+`Ability` / `Face` / `Card`) built FROM the concept trees for the dataclass-API
+consumers and cached to an `oracle_id`-keyed sidecar. Unlike a regex it binds the
+*operand* a card scales with (Craterhoof's "for each creature you control") and the
+*scope* of an effect (Tinybones reanimates only from opponents' graveyards), so a
+[[Signal key]] becomes a derived query over structure rather than a substring match.
+Historically one *lossy* projection (`_card_ir/project.py` + the supplement envelope,
+ADR-0027); ADR-0035 layered it and ADR-0039 deleted the projection, so "Card IR" now
+names the layered whole.
 _Avoid_: "phase IR" (phase provides the structural substrate; the Card IR is *our*
-payoff/scope-shaped projection of it), "the parser" (the projection consumes phase's
-parse, it is not itself a card parser).
+payoff/scope-shaped reading of it), "the projection" (the lossy projection is deleted;
+the overlay is a lossless derivation).
 
-**parse_confidence**:
-The per-card completeness of its [[Card IR]] — `full` when no clause fell through to a
-generic "other" category, `partial` otherwise — derived from phase warnings + supplement
-coverage. The detection-substrate health metric (~100% `full` over commander-legal cards),
-and the value the signal `coverage_gate` reads after the cutover's A4 step (replacing the
-regex blind-spot heuristics). Not a per-firing accuracy score: a fully-parsed card can
-still feed an over-broad lane, which is a downstream gating concern, not a parse gap.
-_Avoid_: "accuracy" (it measures parse completeness, not whether a lane fires correctly),
-"coverage" alone (collides with `coverage_gate`'s blind-spot sense).
+**parse_confidence** (historical):
+The legacy projection's per-card completeness field — `full` when no clause fell through
+to a generic "other" category, `partial` otherwise, derived from phase warnings +
+supplement coverage. Its derivation died with the projection (ADR-0039 step 7): the
+compat `Card` leaves the field at its default `full`, and substrate-level drift is
+watched by the committed `phase_variant_population.json` instead. The term survives
+only in old adjudication notes.
+_Avoid_: citing it as a live health metric (it no longer measures anything), "coverage"
+alone (collides with `coverage_gate`'s blind-spot sense).
 
 **Phase-mirror substrate** (a.k.a. Layer 1; ADR-0035):
 A codegen'd typed mirror of phase's emitted `card-data.json`, **inferred from the data**
@@ -325,7 +324,8 @@ The single derivation path that maps the [[Phase-mirror substrate]]'s nodes into
 ~80-concept synergy vocabulary a [[Signal key]] queries. **Totally lossless:** every node
 becomes a recognized [[Concept-node]] *or* an `other` concept that *carries the verbatim
 structured node* — so the unrecognized tail stays reachable as structure, never re-grepped
-text. The home the lossy `project.py` concept-derivation *relocates* into.
+text. The home the lossy `project.py` concept-derivation *relocated* into — and, since
+ADR-0039, the ONLY serving path (the regex bag and the projected-Card path are deleted).
 _Plainly_: the **structured-read path**. "Crosswalk" is the data-management term for a table
 that maps one vocabulary to another (like ICD-9→ICD-10 medical codes); here it maps phase-rs's
 raw parse nodes to our synergy concepts (a "dies-trigger", a "draw-effect") so a [[Signal]]
@@ -361,22 +361,27 @@ _Avoid_: "the Signal seam" (singular — it elides the four non-Signal consumers
 
 **bucket-A vs `bucket_a_masking`** (ADR-0035):
 **bucket-A** is the silent sub-field *drop* inside an already-categorised node (the
-re-surfacing-ledger bug class the [[Phase-mirror substrate]] eliminates). The committed
-`bucket_a_masking` *counter* measures a *different* thing — regex-masking recoveries — and
-reads 0. Keep them disambiguated: a 0 counter does **not** mean the drop class is absent.
+re-surfacing-ledger bug class the [[Phase-mirror substrate]] eliminates). The
+`bucket_a_masking` *counter* measured a *different* thing — regex-masking recoveries —
+and read 0; it was retired with `parse_metrics.json` (ADR-0039 step 7). Keep them
+disambiguated in old notes: a 0 counter never meant the drop class was absent.
 _Avoid_: conflating the named class with the counter (the misread that made the drop class
 look already-solved).
 
-**Lane mirror** (ADR-0035 → ADR-0036):
+**Lane mirror** (ADR-0035 → ADR-0036; historical):
 A crosswalk lane's regex-over-oracle-*text* read — a `clauses(oracle)` split plus
 `.search`/`.finditer`, imported from `_signals_regex` / `_sweep_detectors` — kept as a
 transitional safety net where the structural read wasn't built yet. Tier-0: blind to tree
-structure, so it carries the card-level cross-clause false-positive class. What a
-[[Mirror fold]] retires.
-_Plainly_: a leftover **text-regex still hiding inside a signal lane** — the tech-debt a
-[[Mirror fold]] removes.
+structure, so it carried the card-level cross-clause false-positive class. What a
+[[Mirror fold]] retired. The fold era ended with ADR-0039; the surviving, sanctioned
+text reads are the gap-gated, self-retiring **ledgered bridges** (see
+`mtg-utils/CONTEXT.md`) — opposite scope and lifecycle to a mirror.
+_Plainly_: a leftover **text-regex hiding inside a signal lane** — the tech-debt a
+[[Mirror fold]] removed.
 _Avoid_: "byte-mirror" alone (that names the ADR-0027 signal-*equality* tactic; a lane
-mirror is the text-read it rides on), "fallback" (it is tech-debt, not a sanctioned path).
+mirror is the text-read it rides on), "fallback" (it was tech-debt, not a sanctioned
+path), calling a ledgered bridge a mirror (a bridge is enumerated, gap-gated, and
+scheduled to die).
 
 **Mirror fold** (ADR-0036):
 Replacing a [[Lane mirror]] with a [[Tier-1 structural read]] of the same datum, plus
@@ -411,12 +416,12 @@ _Avoid_: reading "bucket-A" as "tree already has it" (bucket-A means phase-parse
 dropped; the already-there case is *direct*).
 
 **Tree synthesis / SynthesizedNode** (ADR-0037):
-The flag-ON Layer-2 stage (`apply_tree_synthesis`) that **adds** synthetic
+The Layer-2 stage (`apply_tree_synthesis`) that **adds** synthetic
 [[Concept-node]]s to the crosswalk tree for a [[Fold triage|bucket-B]] gap — a
 projection-time regex-over-oracle-text run *once* emitting a typed node the signal lane
 reads. Runs in the `extract_crosswalk_signals` path **only** (never `compat_card`), so a
-bucket-B [[Mirror fold]] moves signals and nothing else (Seam-B consumers + flag-OFF
-untouched). A synthetic node carries a `SynthesizedNode` marker (not a phase
+bucket-B [[Mirror fold]] moves signals and nothing else (Seam-B consumers untouched). A
+synthetic node carries a `SynthesizedNode` marker (not a phase
 `TypedMirrorNode`) in its `.node` slot, tagged by arm id; the [[Concept overlay]]'s
 substrate-purity invariant relaxes to "phase L1 preserved; tagged synthetic additions
 allowed." A [[Convergence check|shrinking bridge]], not a permanent home.

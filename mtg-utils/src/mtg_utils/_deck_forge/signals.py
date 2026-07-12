@@ -9,24 +9,15 @@ a card that benefits from an opponent's graveyard yields ``graveyard_matters`` s
 yields ``type_matters`` with ``subject="Goblin"`` (never collapsed into a generic
 "creatures matter").
 
-Three tiers, all keyless and precision-gated:
-
-  1. **Baseline detectors** — the original substring/regex bag (creature_etb,
-     graveyard_matters, …). Subject-free.
-  2. **Parametric subject detectors** — ``type_matters`` / ``token_maker`` /
-     ``typed_spellcast`` capture the subtype noun, singularize it, and validate it
-     against the harvested creature-subtype vocabulary (``_subtypes``). An
-     unresolvable capture emits nothing (silent drop = the safe failure mode), so
-     clones / "Plant creature" / card-type words never become junk subjects.
-  3. **Structural-anchor floor detectors + theme_presets reuse** — whole archetypes
-     the baseline was blind to (treasure / artifacts / enchantments / tokens / stax),
-     each requiring a ``X you control`` / ``for each X`` / ``whenever … enters`` /
-     ``opponents can't`` anchor; plus a curated subset of ``theme_presets`` (blink /
-     mill / goad / proliferate / magecraft / extra-combats / extra-turns).
-
-One narrow structural scope rule (combat-damage-to-a-player + "that player's <zone>"
-→ opponents) deterministically fixes the Tinybones bug without the broad
-possessive→opponents rule that would misfire on self-blink/self-bounce cards.
+Production extraction is crosswalk-only (ADR-0035/0039): ``extract_signals_hybrid``
+resolves the card's per-face Layer-2 concept trees (``_ir_lookup.trees_for``), runs
+``crosswalk_signals.extract_crosswalk_signals`` over each (sliced to
+``PORTED_KEYS``), unions by ``(key, scope, subject)``, and applies ONE merge-level
+membership floor across all faces. The regex bag
+(``_signals_regex.extract_signals``) and the projected Card-IR path
+(``_signals_ir.extract_signals_ir``) are never called here anymore — they survive
+as test probes, as the home of ``Signal`` + the shared parsing primitives, and
+(for the regex path) as ``rank_deck_signals``' ``ir_for=None`` degradation.
 
 ``coverage_gate`` reports the extractor's own blind spots (zero-signal / only-generic
 / scope-uncertain) so the session-agent (M3, ADR-0009) can scope the residual tail
@@ -102,7 +93,7 @@ __all__ = [
 ]
 
 
-# ── Hybrid dispatch seam (ADR-0035/0039 — the crosswalk-native merge) ─────────
+# ── Crosswalk serving seam (ADR-0035/0039 — the crosswalk-native merge) ───────
 
 
 def extract_signals_hybrid(

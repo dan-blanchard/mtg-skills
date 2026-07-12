@@ -19,8 +19,9 @@ call target: many tests probe the structural-detection engine itself against
 synthetic Card-IR fixtures that carry no real ``oracle_id`` (so they can never
 resolve a crosswalk tree), plus ``_apply_membership_floor`` and the Group-C
 constants this module owns are still imported by ``crosswalk_signals.py``.
-Left in place rather than rehomed — step 7 decides whether this module dies,
-shrinks to just those shared pieces, or stays as the test-only engine probe.
+That is the settled disposition (steps 7-8): the module stays as the tests'
+direct engine probe + the shared floor/Group-C source; ``extract_signals_ir``
+itself never runs in production serving.
 """
 
 from __future__ import annotations

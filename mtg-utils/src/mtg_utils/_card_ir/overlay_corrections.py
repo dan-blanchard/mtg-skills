@@ -24,10 +24,11 @@ alone would miss. The frozen ``TypedMirrorNode`` rules out in-place mutation, so
 those checks together enforce the invariant (it is guarded + tested, not provable
 by construction alone).
 
-Gated onto the flag-ON crosswalk path only (called by ``compat_card`` and
-``extract_crosswalk_signals``); flag-OFF (the ``project.py`` projection) never
-reaches it. ``project.py`` / ``supplement.py`` keep their ``_recover_*`` arms — the
-OLD path is untouched; these are the concept-overlay ports.
+Called by ``compat_card`` and ``extract_crosswalk_signals`` — since the ADR-0039
+cutover, the only build paths there are. These arms are the concept-overlay
+ports of the supplement's ``_recover_*`` originals (their legacy ``project.py``
+orchestrator died in step 7; ``supplement.py`` keeps the arms the compat stages
+still reuse).
 
 Six live arms run at the current phase pin (v0.9.0): ``dig_into_play``,
 ``exile_removal``, ``edict_scope``, ``removal_target_subject``, ``graveyard_zones``

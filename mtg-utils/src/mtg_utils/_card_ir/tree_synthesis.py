@@ -20,9 +20,8 @@ description), NOT phase substrate.
 **Signal-path-only.** :func:`apply_tree_synthesis` runs AFTER
 :func:`overlay_corrections.apply_overlay_corrections` in the
 ``extract_crosswalk_signals`` path ONLY — never in ``compat_card``. So the compat
-Card, the five Seam-B consumer views, and the flag-OFF projection are all
-unaffected: a bucket-B fold moves *signals* and nothing else (the signal-diff is
-the whole gate).
+Card and the five Seam-B consumer views are unaffected: a bucket-B fold moves
+*signals* and nothing else (the signal-diff is the whole gate).
 
 **The purity invariant relaxes, precisely (see :mod:`_substrate_purity`).** It
 changes from "the L1 node fingerprint is unchanged" to "every *phase* L1 node
@@ -8000,8 +7999,9 @@ def synthesize_nodes(tree: ConceptTree) -> tuple[tuple[str, ConceptNode], ...]:
 def apply_tree_synthesis(tree: ConceptTree) -> ConceptTree:
     """Add synthetic concept-nodes for genuine phase-parse (bucket-B) gaps.
 
-    A flag-ON Layer-2 stage (signal-path only). Runs each registered arm once over
-    the tree; every synthetic :class:`ConceptNode` it emits is collected into ONE
+    A Layer-2 stage on the signal path only (never ``compat_card``). Runs each
+    registered arm once over the tree; every synthetic :class:`ConceptNode` it
+    emits is collected into ONE
     new synthetic :class:`AbilityUnit` appended to the tree, so the phase units are
     left by identity. The synthetic unit's own ``node`` and its effect nodes are
     :class:`SynthesizedNode` markers, which :func:`_substrate_purity.l1_nodes`

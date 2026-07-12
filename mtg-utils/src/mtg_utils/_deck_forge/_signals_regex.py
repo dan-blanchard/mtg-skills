@@ -8,26 +8,21 @@ primitives from here; this module never imports the IR path (acyclic). Split
 out of ``signals.py`` (behavior-neutral, 2026-06-21) to cut per-edit token cost.
 ``signals`` re-exports the public names.
 
-ADR-0027 A4 (cutover, 2026-06-26): the regex path is **no longer "destined for
-deletion"** — it is now the legitimate, non-dead residue. The incremental
-migration already removed every deletable producer (``_DETECTORS`` and
-``_PRESET_REGEX_SIGNALS`` are empty; the producer-table residues that remain
-feed BOTH paths), so there is nothing left to delete here behavior-neutrally.
-What stays is load-bearing:
+ADR-0039 task #80 step 6 removed the last production call: production serving
+is crosswalk-only (``signals.extract_signals_hybrid`` never runs
+``extract_signals``). The module survives for exactly three reasons:
 
-  * ``extract_signals`` still produces ``voltron_matters`` — a *composite*
-    gate-metric (commander-damage membership silenced by ``has_other_plan``)
-    whose plan inputs are themselves already IR-served. ``extract_signals_hybrid``
-    strips every ``MIGRATED_KEYS`` emission from the regex output and re-supplies
-    it from the IR, so the surviving migrated-key emissions are harmless residue.
-  * The ~57 helpers/constants :mod:`_signals_ir` imports from here are re-run as
-    BYTE-IDENTICAL kept-mirrors of the IR re-supply (deleting them = gate drift).
-  * The ``*_PLAN_MIRROR`` regexes + ``has_other_plan`` helpers feed the regex-side
-    voltron silencing that the hybrid reconciliation depends on.
+  * it owns ``Signal`` and the shared parsing primitives, and the helper
+    regexes/constants that ``_signals_ir``, ``crosswalk_signals``,
+    ``tree_synthesis``, and ``bridge_ledger`` import — single-source, so a
+    byte-mirror lane and the historical defs it mirrors can never drift apart;
+  * ``rank_deck_signals`` with ``ir_for=None`` (the deterministic tuner's
+    no-sidecar path) degrades to ``extract_signals`` rather than crashing —
+    the one place it still executes;
+  * the tests probe ``extract_signals`` directly as the historical baseline.
 
-This module is retired only when ``voltron_matters`` itself migrates off the
-regex path — tracked as the deferred voltron-migration work item (task #18),
-held behind the structural-audit backlog. Until then: do not delete from here.
+Do not grow it: a new lane reads the concept tree (``crosswalk_signals``),
+never a fresh regex here.
 """
 
 from __future__ import annotations

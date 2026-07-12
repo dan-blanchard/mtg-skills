@@ -105,3 +105,56 @@ keeping the old path alive.
   the forcing function that keeps "transitional" from becoming permanent.
 - Keys still carrying unadjudicated live_only members when deletion reaches
   step 5 go to Dan explicitly before their serving path is removed.
+
+## Amendment (2026-07-12): execution complete
+
+Task #80 ran the plan to the end; every step landed green on main:
+
+| Step | Commit | What landed |
+|---|---|---|
+| 1+2 | 4011de82 | unwired diff harnesses dropped; crosswalk text idioms rehomed |
+| 3 | 9442fa0d | membership floor reads the crosswalk tree; merge drops `old_ir_for` |
+| 4 | 1b5e606e | crosswalk sidecar is the production build; `ir_for` stops degrading |
+| 5 | 7ec5a413 | snapshot v2 (raw phase face records); testkit on the crosswalk |
+| 5.5 | 72762730 | compat fidelity pass (pump magnitude, drain/target/mass scope) |
+| 6 | 5e57d585 | legacy serving arm + regex floor deleted; cutover flag retired |
+| 7 | 779a64ff | builder deleted: `project.py`, `build_sidecar`/`build-card-ir`, legacy sidecar loader, ADR-0032 parse metrics |
+| 8 | (this commit) | docs sweep |
+
+**Final bar.** Step 6's corpus re-measure came in at exactly 75 card-level
+changes: 6 recoveries from moving the membership floor to the merge level
+(DFC faces previously floor-checked in isolation) and 69 adjudicated
+`voltron_matters` sheds (legacy false positives, adjudicated per ADR-0034
+role rules — sheds, not losses). Step 7 measured zero corpus change: the
+builder deletion removed code no serving path still reached.
+
+**Deviations from the written plan — survivors, with reasons.** "Delete
+serving" did not mean deleting the two old extractor modules wholesale:
+
+- `_signals_regex` survives as the home of `Signal` + the shared parsing
+  primitives (imported by `_signals_ir`, `crosswalk_signals`,
+  `tree_synthesis`, and the bridge ledger), as the tests' historical-baseline
+  probe, and as `rank_deck_signals`' `ir_for=None` degradation — the one
+  place `extract_signals` still executes.
+- `_signals_ir.extract_signals_ir` survives as the tests' direct
+  structural-engine probe (synthetic fixtures with no `oracle_id` can never
+  resolve a crosswalk tree); its `_apply_membership_floor` and Group-C
+  constants are imported by `crosswalk_signals` and do serve.
+- The old `Card` dataclasses (`card_ir.py`) and `_card_ir/compat.py` were
+  never deletion targets: they are Seam B — the five dataclass-API consumers
+  read a compat `Card` now built FROM the crosswalk trees.
+
+Neither module is a serving path; `extract_signals_hybrid` is crosswalk-only.
+
+**Open tombstone (1).** Darksteel Garrison's `tap_untap_matters`: the
+Unknown-mode becomes-tapped recovery was a `project.py`-only supplement arm
+and died with the builder; the crosswalk has no equivalent yet. Pinned as a
+textual tombstone in `tests/deck-forge/test_migrated_keys.py` (flip to a
+positive pin when the recovery is ported).
+
+**Follow-ups.** (1) The post-deletion **grammar sprint** this ADR's Decision
+3 schedules: land clause-grammar verbs cheaply now that the double ceremony
+is gone, auto-retiring the 77 ledgered bridges in
+`_deck_forge/bridge_ledger.py` via their gap-gates. (2) The **preset
+conversion**: retiring `theme_presets`' regex matchers in favor of
+structural reads (the ADR-0027 Milestone-C tail).

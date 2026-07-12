@@ -1,7 +1,7 @@
 """Console-script entry for ``build-card-ir-crosswalk`` (ADR-0035, Stage-3a).
 
-Thin wrapper over the crosswalk-backed sidecar builder — the flag-ON backend for
-``ir_for``. Gated dev step, never CI.
+Thin wrapper over the crosswalk-backed sidecar builder — the ONE production
+backend for ``ir_for`` (ADR-0039). Gated dev step, never CI.
 """
 
 from __future__ import annotations

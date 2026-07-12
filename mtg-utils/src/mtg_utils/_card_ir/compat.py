@@ -931,9 +931,9 @@ def compat_card(tree: ConceptTree, cov: CompatCoverage | None = None) -> Card:
     (:func:`apply_field_corrections`) reuses the STRUCTURE-reading (b) supplement
     arms on the built Card (a cheat-play marker off structured siblings, a clone
     subject, a tap-down opponent scope), completing the compat Card's field parity
-    with the flag-OFF path; it is compat-only and provably moves 0 cards
-    agree→disagree in any consumer. Flag-ON only: the flag-OFF path builds from
-    ``project.py``, never this adapter. Every stage preserves the L1 mirror by
+    with the legacy ``project.py`` projection (deleted in ADR-0039 step 7 — this
+    adapter is now the only Card build); it is compat-only and provably moves 0
+    cards agree→disagree in any consumer. Every stage preserves the L1 mirror by
     identity — the shared substrate-purity invariant is asserted around the whole
     build (the (b) overlay stage decorates the overlay; the (c) + (b)-completion
     stages run strictly downstream on the Card, never touching a tree node).

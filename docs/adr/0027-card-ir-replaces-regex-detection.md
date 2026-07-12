@@ -86,3 +86,17 @@ retained to tune the detectors and collaborate, then complete removal gated on a
   requires closing the *creative-novelty* (Gate 2) delta — promoting any pattern
   the session dreams that `signal_specs` lacks into the deterministic core — which
   is measured during the intermediary, not assumed.
+
+## Status (2026-07-12): strangler completed via ADR-0035/0039
+
+The migration this ADR started finished under a changed substrate: the lossy
+projection it named was replaced by the ADR-0035 phase-mirror + concept
+overlay, and ADR-0039 then deleted the legacy path entirely (regex serving,
+the projected-Card path, `project.py`, `build-card-ir`). The regex byte-mirror
+safety-net era is over — the mirrors were the transitional tactic, not the
+goal — and the surviving text reads are the enumerated, gap-gated ledgered
+bridges of `bridge_ledger.py`. The real-card fixture regime this ADR's
+adjudication discipline produced lives on: fixtures now serve through the
+crosswalk snapshot (`card_snapshot.json` schema 2, raw phase face records;
+`testkit` builds real concept trees in CI). The Iron-Law adjudication rules
+and the staged agent-retirement north star still stand.

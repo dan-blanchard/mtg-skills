@@ -60,9 +60,9 @@ def fixtures_dir() -> Path:
 def _write_fixture(path: Path, data: object) -> None:
     """Atomically write a committed JSON fixture WITH a trailing newline.
 
-    Matches the repo's other committed fixtures (``parse_metrics.json`` etc.) so
-    the ``end-of-file-fixer`` commit hook leaves it untouched and a rebuild is
-    byte-stable.
+    Matches the repo's other committed fixtures (``phase_variant_population.json``
+    etc.) so the ``end-of-file-fixer`` commit hook leaves it untouched and a
+    rebuild is byte-stable.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"

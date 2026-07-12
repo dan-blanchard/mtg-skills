@@ -160,3 +160,16 @@ A three-layer model, a three-way-decomposed supplement, and a two-layer cache.
 - ADR-0028 remains the only sanctioned "feed phase" path: each (c) supplement
   arm's long-term home is upstreamed phase grammar; the convergence check
   *measures* that bridge shrinking.
+
+## Amendment (2026-07-12): strangler complete
+
+The staged migration this ADR specified is done. ADR-0039 deleted the legacy
+path end to end (per-step commits in its completion amendment): `project.py`
+and the lossy projection are gone, the Stage-4 `MTG_SKILLS_CROSSWALK_SIGNALS`
+flag is retired, and the crosswalk — substrate + concept overlay + the
+Layer-3 lanes in `crosswalk_signals.py` — is the only serving path on both
+seams (`Signal` via `extract_signals_hybrid`; the dataclass API via the
+compat `Card` built from the trees). The residual/KEPT key ledgers are
+collapsed into one flat `PORTED_KEYS`. What remains of the old vocabulary is
+history in comments and this file, plus the gap-gated ledgered bridges
+awaiting the ADR-0039 grammar sprint.

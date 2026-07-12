@@ -126,7 +126,7 @@ def _committed_schema() -> MirrorSchema | None:
 
 
 # oracle_id → the tuple of per-face ConceptTrees (empty when unresolvable).
-# Built lazily on first request per card so a flag-ON tune never strict-loads
+# Built lazily on first request per card so a tune never strict-loads
 # the whole corpus up front (the Stage-4 overlay cache supersedes this).
 # Cleared alongside the memoized indexes in tests.
 _TREES_MEMO: dict[str, tuple[ConceptTree, ...]] = {}

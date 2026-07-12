@@ -21,16 +21,16 @@ overlay+synthesis path left the mirror untouched).
 **Faithful reuse, not reimplementation.** ADR-0035 sanctions oracle-grounding for
 a GENUINE drop ("oracle-grounded ONLY for a genuine drop"), which is exactly what
 these arms are. Rather than re-derive 29 bespoke oracle recoveries structurally
-(there is no structure to read — phase dropped it), the stage OWNS the flag-ON
-application of the proven supplement arms, in ``project_card``'s post-supplement
-order, so the flag-ON compat card gains the SAME dropped-clause structure the
-flag-OFF ``project.py`` path carries. The supplement arms themselves stay in
-``supplement.py`` (the flag-OFF path still calls them); Stage 4 retires that path.
+(there is no structure to read — phase dropped it), the stage OWNS the
+application of the proven supplement arms, in the deleted ``project_card``'s
+post-supplement order, so the compat card gains the SAME dropped-clause
+structure the legacy ``project.py`` path carried. The supplement arms
+themselves stay in ``supplement.py`` (this stage and ``field_corrections`` are
+their surviving consumers; the legacy path died in ADR-0039 step 7).
 
-**Flag-ON only.** Reached solely through ``compat_card`` (the five dataclass-API
-consumers ``ranking`` / ``budgets`` / ``cut_check`` / ``metrics`` / ``bracket``);
-the flag-OFF ``project.py`` projection builds the same structure natively and
-never reaches here. The Signal lanes read the tree, not the compat Card, so a
+**Compat-seam only.** Reached solely through ``compat_card`` (the five
+dataclass-API consumers ``ranking`` / ``budgets`` / ``cut_check`` / ``metrics``
+/ ``bracket``). The Signal lanes read the tree, not the compat Card, so a
 dropped clause that maps to old-IR Card structure does not feed them — the signal
 path is unchanged by this stage (signal-diff holds by construction); tree-node
 synthesis for the few (c) clauses a Signal lane could read is a follow-on.
@@ -125,8 +125,8 @@ _CardArm = Callable[["Card", str], "Card"]
 # * ``_DEFERRED_RAW_ARMS`` — becomes_tap_untap / modal_mass_exile / discard_unless
 #   read a per-EFFECT ``raw`` the compat card leaves empty (the substrate carries
 #   ``description`` on only a few nodes), so they can never fire on this seam (0 /
-#   0 / 1 firings) and would give a FALSE convergence reading. They belong to the
-#   flag-OFF path until the compat effects carry per-node raws.
+#   0 / 1 firings) and would give a FALSE convergence reading. They stay dormant
+#   until the compat effects carry per-node raws.
 #
 # Both families need a structural reimplementation that reads the tree directly
 # (the Stage-3b follow-on) rather than a naive card-level reuse.
@@ -158,7 +158,8 @@ SYNTHESIS_ARMS: tuple[tuple[str, _CardArm], ...] = (
 
 # The trigger-synthesizing (c) arms deferred off the compat seam (see the note on
 # ``SYNTHESIS_ARMS``): LIVE at v0.15.0 but need a structural reimplementation to
-# port safely, so the flag-OFF ``project.py`` path remains their only home.
+# port safely. Their legacy ``project.py`` home died in ADR-0039 step 7, so they
+# are dormant until that structural tree read lands.
 _DEFERRED_TRIGGER_ARMS: tuple[str, ...] = (
     "combat_damage_recipients",
     "damage_to_opp",
@@ -178,7 +179,7 @@ ARM_NAMES: tuple[str, ...] = tuple(name for name, _ in SYNTHESIS_ARMS)
 
 # ── per-card convergence gates (ADR-0035 Stage-3b c) ──────────────────────────
 #
-# An arm's supplement guard decides IDEMPOTENCE for the flag-OFF ``project.py``
+# An arm's supplement guard decided IDEMPOTENCE for the legacy ``project.py``
 # card by reading discriminators phase parsed onto the RECORD. A few of those
 # discriminators — a trigger subject's controller, a sacrifice COST's typed
 # target — survive on the strict Layer-1 MIRROR but are UNDER-derived by the
@@ -327,11 +328,11 @@ def convergence_gated_arms(tree: ConceptTree, card: Card) -> frozenset[str]:
 def apply_dropped_clause_synthesis(
     card: Card, oracle: str, *, skip: frozenset[str] = frozenset()
 ) -> Card:
-    """Synthesize every dropped (c) clause onto the compat ``card`` (flag-ON only).
+    """Synthesize every dropped (c) clause onto the compat ``card``.
 
     Runs the bucket-(c) arms over ``card`` in ``project_card``'s order, threading
     the card through so a later arm sees an earlier arm's synthesis (mirroring the
-    flag-OFF chain). ``oracle`` is the card's whole face oracle text (the drop's
+    legacy chain). ``oracle`` is the card's whole face oracle text (the drop's
     only surviving evidence). ``skip`` names the arms a mirror-grounded convergence
     gate found already-satisfied on this card (:func:`convergence_gated_arms`), so
     the synthesis is a strict per-card SUPERSET (it may move a consumer

@@ -83,3 +83,17 @@ someone noticing the diff; B is blind to anything off the biased, usage-derived 
 - The upstream-to-phase contribution path (ADR-0028, the 6 documented gap classes) is the
   *only* sanctioned "feed phase" mechanism; any future engine-consumability is explicitly
   out of the committed scope.
+
+## Status (2026-07-12): parse metrics retired with the legacy builder
+
+`parse_metrics.json` and `compute_parse_metrics` measured the *legacy
+projection's* own bookkeeping (`parse_confidence`, the recovery footprint, the
+bucket-A/B masking split) and died with that builder in ADR-0039 step 7
+(commit 779a64ff) — there is no truthful crosswalk-level equivalent, because
+the lossless substrate retains every phase field by construction (ADR-0035),
+which discharges the bucket-A debt this ADR named. The substrate-level
+drift-watch survives as the committed `phase_variant_population.json`
+(per-variant node counts over phase's raw discriminator tags — catches a node
+relocating between two both-valid variants that strict-load can't see). The
+pull-based posture itself stands: a new lane reads the node, never a fresh
+regex.

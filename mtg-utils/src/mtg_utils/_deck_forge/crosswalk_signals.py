@@ -1,29 +1,19 @@
 """Layer-3 ``Signal`` lanes derived from the Layer-2 concept overlay (ADR-0035).
 
-The first ported concept batch. Each lane reads the tree-preserving concept
-overlay (``_card_ir.crosswalk.ConceptTree``) — typed reads only, no oracle re-grep
-— and emits the frozen ``Signal(key, scope, subject)`` contract, mirroring the live
-``_deck_forge._signals_ir`` arm closely enough that the shadow diff reproduces it
-(or improves on a known lossy case). **Shadow-only / additive**: production
-detection (``signals.py`` / ``_signals_ir.py``) is untouched; this runs alongside
-for the diff.
+THE production serving path (ADR-0039 task #80 step 6):
+``signals.extract_signals_hybrid`` runs ``extract_crosswalk_signals`` over each
+of a card's per-face concept trees (``_card_ir.crosswalk.ConceptTree``) and
+unions the results — no regex or projected-Card path backs it up anymore. Each
+lane emits the frozen ``Signal(key, scope, subject)`` contract from typed reads
+wherever the substrate carries the datum; the remaining oracle-text reads are
+enumerated and gap-gated (the ledgered bridges of ``bridge_ledger`` plus a small
+kept-mirror tier), awaiting the post-deletion grammar sprint.
 
-The batch spans every concept kind the framework must prove:
-
-* ``win_lose_game`` — a terminal **effect category** (whole-card scan, scope "any").
-* ``discard_makers`` — a **join-dependent** maker: a ``draw`` + ``discard`` effect
-  in the SAME ability unit (granularity *a*; never across abilities, never a cost).
-* ``spell_copy_makers`` — a structural **effect**, plus the whole-card
-  ``spellcast_matters`` reconciliation (granularity *c*).
-* ``token_maker`` — a structural effect that is **subject-bearing** (the token's
-  creature subtype, vocab-validated).
-* ``draw_matters`` — a **trigger event** (Drawn), scope-discriminated.
-* ``land_creatures_matter`` — a **per-ability aggregation** of a Land(+Creature)
-  subject with a pump/animate modification (granularity *b*; the animate-land
-  split-subject).
-
-``PORTED_KEYS`` is the batch's Signal-key set — the shadow diff slices both paths
-to it.
+``PORTED_KEYS`` (below) is the served-key set. The per-key comments throughout
+this module are the migration's adjudication record — shed/gain verdicts and
+corpus measurements taken against the now-deleted legacy paths
+(``old_ir_for`` / ``extract_signals_ir`` / the regex bag). They are history,
+kept verbatim.
 """
 
 from __future__ import annotations
@@ -23319,16 +23309,15 @@ def extract_crosswalk_signals(
     # ADR-0035 Stage-3b (b): run the named overlay-correction stage FIRST, so the
     # lanes read the corrected concept overlay (a dig-into-play flipped to
     # cheat_play, an edict re-scoped). Preserves the L1 mirror by identity
-    # (substrate-purity invariant). Flag-ON path only — the flag-OFF projection
-    # never reaches this function.
+    # (substrate-purity invariant).
     from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
     from mtg_utils._card_ir.tree_synthesis import apply_tree_synthesis
 
     tree = apply_overlay_corrections(tree)
     # ADR-0037: ADD synthetic concept-nodes for genuine phase-parse (bucket-B) gaps
     # the lanes read structurally (death_matters' Syr Konrad-family tail). Signal
-    # path ONLY — never in compat_card, so the Seam-B consumers + flag-OFF are
-    # invariant. Preserves the phase L1 fingerprint (substrate-purity, relaxed).
+    # path ONLY — never in compat_card, so the Seam-B consumers are invariant.
+    # Preserves the phase L1 fingerprint (substrate-purity, relaxed).
     tree = apply_tree_synthesis(tree)
     out: list[Signal] = []
     seen: set[tuple[str, str, str]] = set()

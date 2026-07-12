@@ -4423,9 +4423,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # ADR-0035 Stage-3a: three crosswalk-ported maker lanes (in ``PORTED_KEYS`` but
     # not ``MIGRATED_KEYS``) that the legacy regex path never produced, so their specs
-    # were never registered. They are produced only when the crosswalk flag is ON —
-    # these entries are inert on the default flag-OFF path (the keys are never
-    # emitted there) and exist so the key-agreement gate resolves them under the flag.
+    # were never registered. Added so the key-agreement gate resolves them; since the
+    # ADR-0039 cutover (crosswalk-only serving, flag retired) they serve
+    # unconditionally like every other spec.
     ("copy_permanent", "you"): _spec(
         "Permanent copies",
         "generic clone effects plus strong permanents worth copying",

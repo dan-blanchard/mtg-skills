@@ -5,8 +5,8 @@ overlay that decorates ``scope`` / ``subject`` / ``zones`` / ``returns_to`` and
 feeds BOTH the Signal lanes and the compat Card). This module is the (b)-
 COMPLETION seam — the exact mirror of bucket (c)'s :mod:`dropped_clauses`: it
 REUSES the supplement's ``_recover_*`` FIELD-correction arms DIRECTLY on the
-already-built compat :class:`Card`, so the flag-ON compat Card gains the SAME
-field corrections the flag-OFF ``project.py`` path carried. Reuse-on-compat is
+already-built compat :class:`Card`, so the crosswalk compat Card gains the SAME
+field corrections the legacy ``project.py`` path carried. Reuse-on-compat is
 SIMPLER than a tree reimplementation and is the pattern ADR-0035 Stage-3b (c)
 established. ADR-0039 step 7 deleted ``project.py``; the two ability-level arms
 it defined (``_recover_clone_subjects`` / ``_recover_cheat_into_play_source``)
@@ -54,13 +54,13 @@ The ported arms are append-only / structurally idempotent, so no convergence gat
 is needed (unlike bucket (c)'s two cost/controller-discriminated arms).
 
 The remaining LIVE (b) arms are DEFERRED off this seam (:data:`_DEFERRED_RAW_ARMS`
-+ :data:`_DEFERRED_UNDERDERIVED_ARMS`) with their blocker named — they belong to
-the flag-OFF path until the compat Card carries the field their guard reads (a
-Stage-4 follow-on: per-node ``raw`` population + richer ``trigger`` /
-``counter_kind`` derivation). Their SIGNAL-facing purpose (scaling_pump,
-dig_until, play_from_top, recursion, edict, removal, …) is already reproduced by
-the crosswalk's STRUCTURAL Signal lanes; only their compat-Card FIELD awaits the
-richer compat derivation.
++ :data:`_DEFERRED_UNDERDERIVED_ARMS`) with their blocker named — dormant (their
+legacy ``project.py`` home is deleted, ADR-0039 step 7) until the compat Card
+carries the field their guard reads (a post-deletion follow-on: per-node ``raw``
+population + richer ``trigger`` / ``counter_kind`` derivation). Their
+SIGNAL-facing purpose (scaling_pump, dig_until, play_from_top, recursion, edict,
+removal, …) is already reproduced by the crosswalk's STRUCTURAL Signal lanes;
+only their compat-Card FIELD awaits the richer compat derivation.
 """
 
 from __future__ import annotations
@@ -388,11 +388,11 @@ def _map_abilities(card: Card, arm: _AbilityArm) -> Card:
 
 
 def apply_field_corrections(card: Card, oracle: str) -> Card:
-    """Reuse the (b) FIELD-correction arms on the compat ``card`` (flag-ON only).
+    """Reuse the (b) FIELD-correction arms on the compat ``card``.
 
     Runs the ported ability-level arms (mapped over every face's abilities) then
     the card-level arms, threading the card through so a later arm sees an earlier
-    arm's correction — mirroring the flag-OFF ``project.py`` chain. ``oracle`` is
+    arm's correction — mirroring the deleted ``project.py`` chain. ``oracle`` is
     the card's whole face oracle text (the card-level arms' grounding when a
     per-effect ``raw`` is absent). Each arm is append-only / structurally
     idempotent and pure; a card needing no correction is returned by identity.
