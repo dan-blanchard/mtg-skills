@@ -142,8 +142,10 @@ from mtg_utils._card_ir.text_idioms import (
     _CHANGELING_REF,
     _CRIME_REF,
     _EXHAUST_TRIG,
+    _KEYWORD_COST_SAC,
     _MASS_DEATH_REF,
     _PAY_LIFE_REF,
+    _PITCH_SAC,
     _SOULBOND_REF,
     _STARTING_LIFE_REF,
     _SUSPECT_REF,
@@ -6092,6 +6094,119 @@ def _arm_sacrifice_protection(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── ADR-0039 task #82 grammar sprint — sacrifice_outlets dropped-cost /
+# grammar-straggler bridges (bridge_ledger.py's ``sac_alt_cost_pitch`` /
+# ``sac_keyword_cost`` / ``sac_etb_self_sac_unimplemented`` rows). Three
+# genuinely-dropped Sacrifice-COST idioms — a CR 118.9 alternative-cost
+# pitch ("you may sacrifice ... rather than pay this spell's mana cost"),
+# a CR 702.34/702.37 keyword's OWN alternative cost ("Flashback—Sacrifice
+# three creatures"), and Devour's un-keyworded written-out sibling (CR
+# 614.12/701.21a — "As this creature enters, sacrifice any number of
+# creatures ...") — where phase's typed tree carries NO Sacrifice node
+# anywhere for the clause. Gated on the SAME "no typed Sacrifice node
+# reachable anywhere on this tree" absence proof the ledgered bridges
+# shared (:func:`_tree_has_sacrifice_node`) — a card that already carries a
+# REAL Sacrifice node elsewhere (an edict, a different cost) is already
+# served structurally, and these arms correctly decline (Flare of Malice's
+# edict Sacrifice node; Worthy Cause's existing ``_CAST_ADD_SAC_RX`` fire
+# stays a harmless redundant re-fire, signal dedupe absorbs it). One shared
+# marker concept (``synth_sac_outlet_dropped_cost``) — the lane
+# (``crosswalk_signals._sacrifice_outlets``) reads it structurally with no
+# per-idiom special-casing, all three idioms resolving to the SAME "you"
+# sac-cost outlet (CR 602.1a — a cost is always paid by the activator).
+def _tree_has_sacrifice_node(tree: ConceptTree) -> bool:
+    """Whether TREE carries a typed ``Sacrifice`` node anywhere — the shared
+    gap for the three arms below (mirrors
+    ``bridge_ledger._no_typed_sacrifice_node`` exactly)."""
+    return any(
+        tag_of(n) == "Sacrifice"
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
+def _arm_sac_alt_cost_pitch(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``synth_sac_outlet_dropped_cost`` node for a CR 118.9
+    alternative-cost pitch ("You may sacrifice three artifacts rather than
+    pay this spell's mana cost." — Salvage Titan; CR 118.9). Reuses
+    legacy's OWN ``_PITCH_SAC`` regex verbatim (relocated to
+    ``text_idioms``, not re-derived) — its own ``_SAC_COUNT`` / ``_SAC_TYPE``
+    vocabulary already excludes a land-only pitch ("sacrifice two
+    Mountains" — Fireblast, ``land_sacrifice_makers`` territory) and a
+    count word it doesn't carry (Hand of Emrakul's "sacrifice four Eldrazi
+    Spawn")."""
+    if _tree_has_sacrifice_node(tree):
+        return None
+    kept = _REMINDER.sub(" ", tree.oracle or "")
+    if not _PITCH_SAC.search(kept):
+        return None
+    return _synthetic_concept(
+        arm_id="sac_alt_cost_pitch",
+        concept="synth_sac_outlet_dropped_cost",
+        scope="you",
+        subject=(),
+        desc="bucket-B CR 118.9 alternative-cost sacrifice pitch (spell cost dropped)",
+    )
+
+
+def _arm_sac_keyword_cost(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``synth_sac_outlet_dropped_cost`` node for a keyworded
+    alternative-cost sacrifice ("Flashback—Sacrifice three creatures." —
+    Dread Return; "Morph—Sacrifice another creature." — Gift of Doom; CR
+    702.34a / 702.37a). Reuses legacy's ``_KEYWORD_COST_SAC`` verbatim
+    (relocated to ``text_idioms``) — the same land-type exclusion applies
+    (Walk the Aeons' "Buyback—Sacrifice three Islands" stays unmatched)."""
+    if _tree_has_sacrifice_node(tree):
+        return None
+    kept = _REMINDER.sub(" ", tree.oracle or "")
+    if not _KEYWORD_COST_SAC.search(kept):
+        return None
+    return _synthetic_concept(
+        arm_id="sac_keyword_cost",
+        concept="synth_sac_outlet_dropped_cost",
+        scope="you",
+        subject=(),
+        desc="bucket-B CR 702.34/702.37 keyword alternative-cost sacrifice (dropped)",
+    )
+
+
+# Devour's un-keyworded sibling: a written-out (non-keyword) self-sac ETB
+# parked as a bare ``Unimplemented`` residue ("As this creature enters,
+# sacrifice any number of creatures. This creature's power becomes the
+# total power of those creatures..." — Dracoplasm; CR 614.12 — a
+# replacement effect that modifies how the permanent enters the
+# battlefield, the same rule Devour itself is templated under; CR 701.21a
+# for the sacrifice action). Anchored on the residue NODE (not raw whole-
+# card oracle) so the read stays precise the same way the ledgered bridge
+# did.
+_SAC_ETB_UNIMPL_RX = re.compile(
+    r"as [^.]*enters[^.]*,\s*sacrifice any number of creatures", re.IGNORECASE
+)
+
+
+def _arm_sac_etb_self_sac(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``synth_sac_outlet_dropped_cost`` node for the written-
+    out (un-keyworded) Devour-sibling ETB self-sac idiom (Dracoplasm)."""
+    if _tree_has_sacrifice_node(tree):
+        return None
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented" and _SAC_ETB_UNIMPL_RX.search(
+                getattr(n, "description", "") or ""
+            ):
+                return _synthetic_concept(
+                    arm_id="sac_etb_self_sac_unimplemented",
+                    concept="synth_sac_outlet_dropped_cost",
+                    scope="you",
+                    subject=(),
+                    desc=(
+                        "bucket-B written-out ETB self-sac Devour sibling "
+                        "(CR 614.12/701.21a)"
+                    ),
+                )
+    return None
+
+
 # ── batch T5-niche-a: life_payment_insurance (bucket-B tail) ───────────────
 # CR 119.4 (a pay-life cost subtracts from the total only if life >= amount —
 # a repeatable pay-life COST wants lifegain insurance): the live structural
@@ -7941,6 +8056,9 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("cant_block_grant", _arm_cant_block_grant),
     ("void_warp_makers", _arm_void_warp_makers),
     ("sacrifice_protection", _arm_sacrifice_protection),
+    ("sac_alt_cost_pitch", _arm_sac_alt_cost_pitch),
+    ("sac_keyword_cost", _arm_sac_keyword_cost),
+    ("sac_etb_self_sac_unimplemented", _arm_sac_etb_self_sac),
     ("life_payment_insurance", _arm_life_payment_insurance),
     ("ability_copy", _arm_ability_copy),
     ("noncombat_damage_payoff", _arm_noncombat_damage_payoff),

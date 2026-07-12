@@ -1750,14 +1750,16 @@ PORTED_KEYS: frozenset[str] = frozenset(
 # :data:`_SWEEP_KEYWORD_LANES` row (Silumgar Scavenger) and a
 # created-token Devour read (:func:`_has_created_token_devour` —
 # Dragon Broodmother's typed ``MirrorVariant(key='Devour')`` on
-# the Token effect's own keywords list); (3) six ADR-0039 ledgered
+# the Token effect's own keywords list); (3) two ADR-0039 ledgered
 # bridges for the residual NO-typed-Sacrifice-node bucket
-# (bridge_ledger.py: ``sac_alt_cost_pitch``, ``sac_keyword_cost``,
-# ``sac_casualty_granted_onto_other_spell``,
-# ``sac_devour_unimplemented``, ``sac_etb_self_sac_unimplemented``,
-# ``sac_emblem_activated_cost`` — 17 cards, legacy-parity by
-# construction via project.py's own ``_PITCH_SAC``/
-# ``_KEYWORD_COST_SAC`` regexes). See :func:`_sacrifice_outlets`'s
+# (bridge_ledger.py: ``sac_casualty_granted_onto_other_spell``,
+# ``sac_emblem_activated_cost``). ADR-0039 task #82 grammar sprint
+# graduated the other three OFF the ledger onto typed
+# ``tree_synthesis`` marker-node reads (``sac_alt_cost_pitch`` /
+# ``sac_keyword_cost`` / ``sac_etb_self_sac_unimplemented``), and
+# Devour on the card's own body joined the Scryfall-keyword sweep
+# alongside Casualty/Bargain/Exploit (formerly
+# ``sac_devour_unimplemented``). See :func:`_sacrifice_outlets`'s
 # own docstring for the full arm history.
 # target_player_draws PROMOTED (ADR-0039 W7, 2026-07-12) —
 # landfall rule met: 183 both / 70 live_only -> 0 genuine gaps.
@@ -3421,20 +3423,34 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     Phyrexian Obliterator, Fade Away, Maarika, Funeral March, Vengeful
     Strangler // Strangling Grasp) and stays excluded when the same unit
     anchors the parent to an explicit non-you actor (Liliana of the Veil's
-    -6, Michiko Konda). (2) Two real structural reads: Exploit joins
+    -6, Michiko Konda). (2) Three real structural reads: Exploit/Devour join
     Casualty/Bargain's keyword-array lane (:data:`_SWEEP_KEYWORD_LANES`,
-    Silumgar Scavenger) and a created-token Devour read
-    (:func:`_has_created_token_devour`, Dragon Broodmother's typed
-    ``MirrorVariant(key='Devour')``). (3) Six ledgered bridges
+    Silumgar Scavenger / Thromok the Insatiable) and a created-token Devour
+    read (:func:`_has_created_token_devour`, Dragon Broodmother's typed
+    ``MirrorVariant(key='Devour')``). (3) Two remaining ledgered bridges
     (``bridge_ledger.py``) close the residual NO-typed-Sacrifice-node-
-    anywhere bucket: ``sac_alt_cost_pitch`` / ``sac_keyword_cost`` reuse
-    legacy's OWN ``project.py`` regexes verbatim (legacy parity by
-    construction); ``sac_casualty_granted_onto_other_spell`` covers the
-    Anhelo/Silverquill GRANT shape; ``sac_devour_unimplemented`` /
-    ``sac_etb_self_sac_unimplemented`` / ``sac_emblem_activated_cost`` cover
-    Thromok, Dracoplasm, and Ob Nixilis of the Black Oath's emblem — each an
-    ``Unimplemented``/opaque-description residue, gap-gated so a future
-    phase bump or grammar verb (task #82) retires the row automatically.
+    anywhere bucket: ``sac_casualty_granted_onto_other_spell`` covers the
+    Anhelo/Silverquill GRANT shape; ``sac_emblem_activated_cost`` covers Ob
+    Nixilis of the Black Oath's emblem — an opaque-description residue,
+    gap-gated so a future phase bump or grammar verb retires the row
+    automatically.
+
+    ADR-0039 task #82 grammar sprint — three more graduated OFF the ledger.
+    A CR 118.9 alternative-cost pitch ("you may sacrifice ... rather than
+    pay this spell's mana cost" — Salvage Titan), a keyworded alternative
+    cost whose own cost is a Sacrifice leaf ("Flashback—Sacrifice three
+    creatures" — Dread Return; CR 702.34a/702.37a), and Devour's
+    un-keyworded written-out ETB sibling (Dracoplasm; CR 614.12/701.21a)
+    now synthesize a typed ``synth_sac_outlet_dropped_cost`` marker node
+    (``tree_synthesis``'s ``sac_alt_cost_pitch`` / ``sac_keyword_cost`` /
+    ``sac_etb_self_sac_unimplemented`` arms — the regex runs ONCE at
+    synthesis, gated on the SAME no-typed-Sacrifice-node absence proof the
+    ledgered bridges shared), and the lane reads it structurally below —
+    no ``bridge_ledger`` involvement, no per-idiom lane special-casing.
+    Devour ON THE CARD'S OWN BODY (as opposed to a created token's) simply
+    joins the Scryfall-keyword sweep alongside Casualty/Bargain/Exploit,
+    since the keyword itself is the structured source (Thromok the
+    Insatiable — formerly the ``sac_devour_unimplemented`` bridge).
     """
     for unit in tree.units:
         if unit.trigger_event in ("sacrificed", "exploited"):
@@ -3470,15 +3486,25 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
         return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
     if _has_created_token_devour(tree):
         return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
+    # ADR-0039 task #82 grammar sprint — the CR 118.9 alt-cost pitch / CR
+    # 702.34/702.37 keyword alt-cost / Devour's un-keyworded ETB sibling
+    # dropped-cost idioms now synthesize a typed marker node
+    # (``tree_synthesis``'s ``sac_alt_cost_pitch`` / ``sac_keyword_cost`` /
+    # ``sac_etb_self_sac_unimplemented`` arms) the lane reads structurally —
+    # graduated OFF the ledgered-bridge mechanism (formerly three
+    # bridge_ledger rows; see the module's own git history for the retired
+    # text). Devour ON THE CARD'S OWN BODY (Thromok the Insatiable) is a
+    # separate graduation: it joins the Casualty/Bargain/Exploit Scryfall-
+    # keyword sweep (:data:`_SWEEP_KEYWORD_LANES`) instead, since the
+    # keyword itself IS the structured source, same as those three.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_sac_outlet_dropped_cost":
+            return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
     # ADR-0039 W7 ledgered bridges — the NO-typed-Sacrifice-node residual
     # bucket (dropped clauses / grammar stragglers; bridge_ledger.py rows,
     # docstring there for the full corpus accounting):
     for bridge_id in (
-        "sac_alt_cost_pitch",
-        "sac_keyword_cost",
         "sac_casualty_granted_onto_other_spell",
-        "sac_devour_unimplemented",
-        "sac_etb_self_sac_unimplemented",
         "sac_emblem_activated_cost",
     ):
         if bridge_fires(bridge_id, tree):
@@ -3569,7 +3595,10 @@ def _has_created_token_devour(tree: ConceptTree) -> bool:
     ONLY commander-legal created-token Devour instance is Dragon
     Broodmother (phase v0.20.0, 2026-07-11); Thromok the Insatiable's
     Devour is on its OWN body, parked as an ``Unimplemented`` residue
-    instead — see the ``sac_devour_unimplemented`` ledgered bridge.
+    instead, and its OWN printed Scryfall keyword array carries "Devour"
+    regardless — the ``devour`` row in :data:`_SWEEP_KEYWORD_LANES` covers
+    it (ADR-0039 task #82, formerly the ``sac_devour_unimplemented``
+    ledgered bridge).
     """
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
@@ -22581,10 +22610,26 @@ _SWEEP_SYNTH_KEYS: tuple[tuple[str, str], ...] = (
 #     each turn has casualty 2" — the keyword lives on the GRANT, not this
 #     card's own array) is NOT covered by this row — see the
 #     ``casualty_granted_onto_other_spell`` ledgered bridge instead.
+#   • devour → sacrifice_outlets (ADR-0039 task #82 grammar sprint; CR
+#     702.82a — "As this creature enters, you may sacrifice any number of
+#     creatures. This creature enters with N +1/+1 counters ..."). ALWAYS
+#     a you-sac ETB cost, unconditionally, for EVERY Devour card — the
+#     SAME shape as Casualty/Bargain/Exploit above. The 23 OTHER
+#     commander-legal Devour creatures (Mycoloth, Skullmulcher, Bloodspore
+#     Thrinax, ...) already carry a typed Sacrifice cost node for their own
+#     Devour and already fire this key structurally — this row is additive
+#     there (dedupe absorbs it, the Ashad-precedent harmless re-fire) and
+#     closes the ONE genuine gap (Thromok the Insatiable, whose own Devour
+#     parks as a bare ``Unimplemented`` residue — graduated OFF the
+#     ``sac_devour_unimplemented`` ledgered bridge). A CREATED TOKEN's OWN
+#     Devour (Dragon Broodmother) is a DIFFERENT card-level keyword array —
+#     Dragon Broodmother's own printed keywords never include Devour, so
+#     this row does not double-cover :func:`_has_created_token_devour`'s
+#     typed ``MirrorVariant`` read.
 _SWEEP_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
     (frozenset({"power-up"}), "powerup_matters"),
     (frozenset({"sneak"}), "recast_etb"),
-    (frozenset({"casualty", "bargain", "exploit"}), "sacrifice_outlets"),
+    (frozenset({"casualty", "bargain", "exploit", "devour"}), "sacrifice_outlets"),
 )
 
 
