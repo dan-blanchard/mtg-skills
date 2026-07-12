@@ -1156,6 +1156,35 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # Creature/permanent removal — copied from cube_balance._REMOVAL_PATTERNS.
     # Intentionally generous: catches hard and soft removal both. Used by
     # cube-balance for its removal density metric.
+    #
+    # task #83 structural-view conversion: DEFERRED, not converted. The 9-key
+    # union (removal + exile_removal + mass_removal + mass_bounce +
+    # counter_control + direct_damage + bounce_tempo + fight_makers +
+    # debuff_makers) recalls 0.81, but session diligence (corpus diff,
+    # commander-legal by oracle_id) found two GENUINE, SIZEABLE, confirmed
+    # structural gaps beyond the already-adjudicated sheds (pacify auras ->
+    # enchantments_matter, library-tuck -> no removal-family key, land
+    # destruction -> land_destruction — all correct, signals-more-correct
+    # routing): (1) ~35 corpus-wide "target creature gets -X/-X" DYNAMIC-X
+    # single-target removal spells (Death Wind, Sickening Shoal, Flunk,
+    # Induce Despair, Slice from the Shadows, ...) get ZERO removal-family
+    # signal — `debuff_makers`'s `pump_is_negative(c.node)` gate (CR 613.4c)
+    # only recognizes a FIXED negative P/T value, never a Variable/Quantity
+    # dynamic one (mirrors the mass_removal dynamic-X fix, ADR-0035 task #83
+    # chunk-A, but that fix was scoped to the MASS PumpAll arm only — the
+    # single-target debuff_makers arm was never touched); (2) a "target
+    # [combat-state/color]-qualified creature" Destroy (Smite's "target
+    # blocked creature", Assassin's Blade's "target nonblack attacking
+    # creature") loses its `Creature` type_filter entirely in phase's typed
+    # target node (`type_filters=[]`, verified via `_ir_lookup.trees_for` —
+    # only the extra property survives), so `_removal`'s `_perm_subject`
+    # gate never sees a permanent-type match even though the Destroy/
+    # Creature semantics are unambiguous in the oracle text — a likely
+    # broader phase-parse gap (any "target [qualifier] creature" removal
+    # spell) not yet corpus-measured. Both are lane changes (crosswalk_
+    # signals.py / phase-parse fixes) needing the full corpus-diff + CR-
+    # citation bar — out of scope for a view conversion; fix the lane first,
+    # then re-attempt this conversion.
     Preset(
         name="removal",
         description=(
@@ -1216,28 +1245,41 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # Board wipe — subset of removal that hits all/many creatures.
     Preset(
         name="board-wipe",
-        description="Destroys or damages all creatures (board-wide removal).",
-        patterns=_rx(
-            # Qualified mass destroy: "destroy all [non-Dragon/Dragon/tapped/…]
-            # creatures" (Crux of Fate, Wakening Sun's Avatar). Qualifier bounded to
-            # <=3 words so "Destroy all artifacts, then a player sacrifices a creature"
-            # can't false-match across clauses.
-            r"\b(?:destroy|exile) all (?:[\w-]+ ){0,3}creatures?\b",
-            r"\b(?:destroy|exile) all (?:[\w-]+ ){0,3}nonland\b",
-            # "Destroy/exile each ... creature/nonland" (Culling Ritual).
-            r"\b(?:destroy|exile) each (?:[\w-]+ ){0,3}(?:creature|nonland)\b",
-            r"\bdeals? " + _COUNT + r" damage to each creature",
-            # Mass -X/-X shrink that kills the board (Drown in Sorrow, Toxic Deluge,
-            # Mutilate). Allow X for the variable form; require a toughness reduction
-            # (-N/-[1-9] or -X) so a power-only debuff ("-2/-0", Ivory Charm) stays out.
-            r"\ball creatures get -(?:\d+|x)/-(?:[1-9]|x)\b",
-            # One-sided mass shrink (Massacre Wurm: opponents' creatures get -2/-2).
-            r"\bcreatures (?:your opponents|you don't) control get "
-            r"-(?:\d+|x)/-(?:[1-9]|x)\b",
-            # Symmetric mass sacrifice = a wipe (Tragic Arrogance, Winnowing, Bringer
-            # of the Last Gift).
-            r"\beach player sacrifices all\b",
+        description=(
+            "Destroys or damages all creatures (board-wide removal) — "
+            "task #83 structural-view conversion: signal keys "
+            "`mass_removal` (DestroyAll / mass-exile / DamageAll / a "
+            "SYMMETRIC negative-toughness PumpAll, FIXED or dynamic-X — CR "
+            "115.10 / 701.8 / 701.21a / 406.1 — plus a "
+            "ChooseAndSacrificeRest sweep, Tragic Arrogance/Cataclysm) + "
+            "`symmetric_damage_each` (DamageAll/DamageEachPlayer, the "
+            "burn-side twin). mass_removal deliberately EXCLUDES an "
+            "opponent-scoped one-sided shrink (Massacre Wurm, Cower in "
+            "Fear: 'creatures your opponents control get -N/-N') — a real "
+            "deck-building distinction between a SYMMETRIC sweep and a "
+            "one-sided punisher (adjudicated, not a gap; see "
+            "`_mass_removal`'s own docstring) — so Massacre Wurm moves to "
+            "should_not_match here. Recall 0.86 vs the old regex; the "
+            "large majority of the 75 preset-only cards are this same "
+            "one-sided-debuff family (Doomwake Giant, Elesh Norn, Ethereal "
+            "Absolution, ...) plus graveyard-hate mass-exile ('exile all "
+            "creature cards from a graveyard' — Crypt Incursion, Honor the "
+            "Fallen — a different mechanic, not a battlefield wipe), both "
+            "correct sheds. DEFERRED narrow residual (not fixed here — a "
+            "lane change, out of scope for a view conversion): 6 symmetric "
+            "'All creatures get -X/-X' wipes whose X is a COMPUTED value "
+            "(Cloudkill: negative of a commander's mana value; also Deluge "
+            "of Doom, Planar Despair, Kagemaro First to Suffer, Ichor "
+            "Explosion, Terisiare's Devastation) carry the toughness "
+            "reduction as a `Quantity`/`Multiply(factor=-1, ...)` node, "
+            "not the `Variable('-X')` shape `_negative_pt_field` reads (the "
+            "Toxic Deluge dynamic-X fix, ADR-0035 task #83 chunk-A) — that "
+            "helper's own docstring assumed 'no corpus mass-debuff "
+            "representative' for the Quantity shape, which this residue "
+            "corrects. 6 cards of 543 (recall 0.989) — the view is still "
+            "correct to ship; these are the residual tail."
         ),
+        signal_keys=("mass_removal", "symmetric_damage_each"),
         should_match=(
             "Wrath of God",
             "Farewell",
@@ -1246,9 +1288,13 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Toxic Deluge",
             "Crux of Fate",
             "Culling Ritual",
+        ),
+        should_not_match=(
+            "Lightning Bolt",
+            "Swords to Plowshares",
+            "Ivory Charm",
             "Massacre Wurm",
         ),
-        should_not_match=("Lightning Bolt", "Swords to Plowshares", "Ivory Charm"),
     ),
     # ── Type-specific removal ──
     #
@@ -1403,15 +1449,38 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="bounce",
         description=(
-            "Returns a target creature, nonland permanent, or permanent "
-            "to its owner's hand."
+            "Returns a target creature, nonland permanent, or permanent to "
+            "its owner's hand (CR 402.1) — task #83 structural-view "
+            "conversion: signal keys `bounce_tempo` (single-target "
+            "battlefield->hand, self-bounce/GY-recall vetoed — CR 402.1 vs "
+            "404.1) + `mass_bounce` (board-wide). Recall 0.87 vs the old "
+            "regex; 30 preset-only, near all a deliberate self-bounce "
+            "('return target permanent YOU CONTROL' — a protection idiom, "
+            "not tempo) or GY-card-recursion ('return target ... CARD from "
+            "a graveyard') the old regex's own comment already meant to "
+            "exclude but its negative lookahead missed on 'creature OR "
+            "land card' phrasings (Awaken the Honored Dead). "
+            "DEFERRED narrow residual (not fixed here — a lane change, out "
+            "of scope for a view conversion): Aether Helix's genuine "
+            "'return target permanent to hand' tempo bounce is wrongly "
+            "GY-veto'd because its sibling graveyard-return effect tags as "
+            "`change_zone`, not `bounce` — the veto's `len(bounces) == 1` "
+            "guard (`_card_ir/tree_synthesis.py::_arm_bounce_tempo`) treats "
+            "the ONE `bounce`-tagged node as if it were the unit's sole "
+            "(self-referential) GY return, when it's really the OTHER "
+            "sentence's untagged pair; Alchemist's Retrieval's Cleave "
+            "alternate mode (which drops the '[you control]' restriction) "
+            "isn't modeled separately, so its base parse reads as a vetoed "
+            "self-bounce; Whirlpool Whelm's Clash-then-bounce composite "
+            "gets no `bounce` concept node at all; Banishing Knack / "
+            "Retraction Helix grant another creature a bounce-activated "
+            "ability ('target creature gains \"{T}: Return...\"') and the "
+            "granted ability's effect isn't walked (the same GrantAbility-"
+            "descent gap the sacrifice-outlet conversion's Rakdos Riteknife "
+            "note names). 5 cards of 231 (recall 0.978) — the view is "
+            "still correct to ship; these are the residual tail."
         ),
-        patterns=_rx(
-            # Battlefield bounce only: a "target permanent CARD from your graveyard"
-            # (graveyard recursion, Unnatural Restoration) is not bounce.
-            r"return target (?:creature|nonland permanent|permanent)"
-            r"\b(?!\s+card\b).*\b(?:to|into) .*\bhand\b",
-        ),
+        signal_keys=("bounce_tempo", "mass_bounce"),
         should_match=("Unsummon", "Boomerang"),
         should_not_match=("Lightning Bolt", "Unnatural Restoration"),
     ),
@@ -1476,14 +1545,32 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="tokens",
         description=(
-            "Creates one or more creature tokens. Covers the broad family "
-            "of keywords that create creature tokens: Embalm and "
-            "Eternalize (Zombie copies from graveyard), Populate (copy "
-            "your own token), Amass (Zombie Army), Offspring (1/1 copy), "
-            "Manifest and Cloak (face-down 2/2), Incubate (Incubator "
-            "transform token), Fabricate (Servos), Afterlife (Spirits "
-            "on death), Mobilize (attacking Warriors), Encore (attacking "
-            "copies), Myriad (combat token copies)."
+            "Creates one or more creature tokens — task #83 structural-view "
+            "conversion: the `token_maker` signal key (a CreateToken effect) "
+            "UNION the broad family of keywords that create tokens as part "
+            "of their OWN keyword template rather than a separately-tagged "
+            "effect (`token_maker` doesn't fire on the keyword alone): "
+            "Embalm and Eternalize (Zombie copies from graveyard), Populate "
+            "(copy your own token), Amass (Zombie Army), Offspring (1/1 "
+            "copy), Manifest and Cloak (face-down 2/2), Incubate (Incubator "
+            "transform token), Fabricate (Servos), Afterlife (Spirits on "
+            "death), Mobilize (attacking Warriors), Encore (attacking "
+            "copies), Myriad (combat token copies), Endure (CR 702.62 — "
+            "counters OR a Spirit token, a genuine possible-token maker). "
+            "Corpus diff vs the old regex (commander-legal, by oracle_id): "
+            "18 preset-only before the Endure keyword closed 10 of them "
+            "(a modal 'put counters or make a Spirit token' cycle); the "
+            "remaining 8 are a small, named residual, not fixed here (a "
+            "lane change, out of scope for a view conversion) — Afterlife "
+            "Insurance / Infantry Shield TEMPORARILY GRANT the Afterlife / "
+            "Mobilize keyword to a creature ('creatures you control gain "
+            "afterlife 1 until end of turn') rather than printing it, so "
+            "the keyword-array check (which reads the CARD's own printed "
+            "keywords) never fires; the other 6 use the `Gift` keyword's "
+            "token-flavored variant ('Gift a tapped Fish') — `Gift` itself "
+            "is too coarse to union (most Gift cards gift a card, life, or "
+            "something else, never a token), so the token-specific Gift "
+            "cards stay a narrow, acceptable residual."
         ),
         keywords=(
             "Embalm",
@@ -1499,8 +1586,9 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Mobilize",
             "Encore",
             "Myriad",
+            "Endure",
         ),
-        patterns=_rx(r"create (?:a|an|" + _COUNT + r").*\bcreature token"),
+        signal_keys=("token_maker",),
         should_match=(
             "Omen of the Sun",
             "Blade Splicer",
@@ -1697,17 +1785,29 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="lifegain",
         description=(
-            "Gains life OR triggers when you gain life (lifegain-matters). "
-            "Includes the Secrets of Strixhaven `Infusion` payoff whose "
-            "trigger is 'if you gained life this turn, <bonus>'."
+            "Gains life OR triggers when you gain life (lifegain-matters) — "
+            "task #83 structural-view conversion: signal keys "
+            "`lifegain_makers` (a gain-life EFFECT) + `lifegain_matters` "
+            "(a your-lifegain PAYOFF, including the Secrets of Strixhaven "
+            "`Infusion` 'if you gained life this turn' idiom and a "
+            "recurring self-life-loss engine read as the same 'life as a "
+            "resource' archetype — Ad Nauseam, Phyrexian Arena cousins) "
+            "UNION the printed `Lifelink` keyword (a keyword-only lifelink "
+            "grant the effect lane doesn't independently derive). "
+            "Corpus diff vs the old regex (commander-legal, by oracle_id): "
+            "183 preset-only, ALL correctly shed — 173 are old-regex "
+            "reminder-text false positives (a Food/Clue/Ninjutsu token's "
+            "OWN 'You gain 3 life' explainer text, or a granted/modal "
+            "'lifelink' mention unrelated to the card's own effect) or "
+            "self-only 'this Aura has lifelink' static grants; the "
+            "remaining 10 (Armistice, Fiery Justice, Phelddagrif, ...) are "
+            "OPPONENT-directed lifegain (group-hug 'target opponent gains "
+            "N life') — a different scope than lifegain_makers' `you` "
+            "read, correctly excluded (same shed pattern as the removal "
+            "preset's Condemn/Chaos Warp exclusions)."
         ),
-        keywords=("Infusion",),
-        patterns=_rx(
-            r"\bgains? " + _COUNT + r" life\b",
-            r"\bgain life equal to\b",
-            r"\bwhenever you gain life\b",
-            r"\blifelink\b",  # catches e.g. "target creature gains lifelink"
-        ),
+        keywords=("Lifelink",),
+        signal_keys=("lifegain_makers", "lifegain_matters"),
         should_match=("Thragtusk", "Lightning Helix", "Efflorescence"),
         should_not_match=("Lightning Bolt", "Counterspell"),
     ),
@@ -1715,6 +1815,35 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # creatures with +1/+1 counters. Covers the classic counters-matter
     # archetype (Simic, Abzan, Hardened Scales, etc.). Excludes other
     # counter types (loyalty, charge, time, etc.) by anchoring on the
+    #
+    # task #83 structural-view conversion: DEFERRED, not converted. Adding
+    # `self_counter_grow` + `counter_distribute` + the `Mentor` (CR 702.134)
+    # / `Explore` (CR 701.44) keywords the scoping pass named cuts the old-
+    # regex residue from 585 to 379 preset-only cards (commander-legal, by
+    # oracle_id), but session diligence found this residue is NOT a single
+    # small tail — it splits into at least FOUR distinct, corpus-confirmed
+    # structural gaps, none fixable from the preset side: (1) an ETB "enters
+    # with N +1/+1 counters" template (Cogwork Grinder, Naya Soulbeast,
+    # Lupine Harbingers, Worldheart Phoenix, Undead Sprinter, ...); (2) the
+    # Kamigawa "Fractal" token+counter cycle ("Create a 0/0 ... Fractal
+    # token. Put X +1/+1 counters on it." — Body of Research, Leyline
+    # Invocation, Manifestation Sage, Sequence Engine, ...); (3) a GRANTED
+    # keyword/triggered ability placing counters (Warrior's Resolve grants
+    # Training; Dionus grants Elves a tap-trigger; Fungus Sliver / Tempered
+    # Sliver grant Slivers a damage-trigger; Power Fist / Strength of Will
+    # grant an Equip/pump trigger) — the granted ability's own effect isn't
+    # walked, the same GrantAbility-descent gap named in the bounce/edict/
+    # extra-turns deferrals; (4) a planeswalker LOYALTY ability directly
+    # placing counters (Jared Carthalion's -3, Elspeth Resplendent's +1) —
+    # loyalty-ability effects aren't walked either. A ~52-card manual sample
+    # of the 110-card "genuine top-level +1/+1 mention, no known-shed
+    # pattern" bucket confirmed roughly 75% are real misses across these four
+    # categories (the rest are legitimate different-archetype exclusions:
+    # counter_doubling, reanimation-with-a-bonus-counter, cost-reduction-by-
+    # counter-count, opponent-directed). All four are lane changes (multiple
+    # independent crosswalk_signals.py / tree_synthesis.py descent fixes)
+    # needing the full corpus-diff + CR-citation bar per fix — out of scope
+    # for a view conversion; fix the lanes first, then re-attempt.
     # literal "+1/+1" token.
     Preset(
         name="plus-one-counters",
@@ -1987,18 +2116,32 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="edict",
         description=(
-            "Forced-sacrifice effects. Defender chooses which permanent "
-            "to sacrifice (a kind of removal that bypasses hexproof/"
-            "indestructible). Covers the Annihilator keyword + 'target/"
-            "each player sacrifices a <type>' regex."
+            "Forced-sacrifice effects. Defender chooses which permanent to "
+            "sacrifice (a kind of removal that bypasses hexproof/"
+            "indestructible) — task #83 structural-view conversion: the "
+            "`edict_makers` signal key (a forced player-sacrifice of ANY "
+            "type, CR 701.21a) UNION the printed `Annihilator` keyword (a "
+            "forced-sacrifice-on-attack that the effect lane doesn't "
+            "independently derive). Recall 0.945 vs the old regex; 10 "
+            "preset-only, ALL the same named, deferred (not fixed here — a "
+            "lane change, out of scope for a view conversion) structural "
+            "gap: the sacrifice clause is embedded inside a CONDITIONAL / "
+            "MODAL / vote / dice-roll branch phase doesn't decorate as a "
+            "typed `edict_makers`-recognized effect at the unit's top "
+            "level — a Council's-dilemma vote (Capital Punishment, "
+            "Tyrant's Choice), an 'unless that player sacrifices' cost-"
+            "alternative (Demanding Dragon, Indulgent Tormentor), a "
+            "dice-roll modal (Earth-Cult Elemental, Myrkul's Edict), or an "
+            "ETB 'you may choose' branch (Lurking Spinecrawler). The same "
+            "root cause the extra-turns preset's deferred residue names "
+            "(a Time Warp effect nested inside a vote/dice/conditional "
+            "branch is likewise undecorated) — a shared, well-understood "
+            "crosswalk limitation, not several unrelated bugs. 10 cards of "
+            "183 (recall 0.945) — the view is still correct to ship; these "
+            "are the residual tail."
         ),
         keywords=("Annihilator",),
-        patterns=_rx(
-            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
-            r"\s+sacrifices?\s+"
-            r"(?:a|an|\d+|one|two|three|four|five)?\s*"
-            r"(?:creature|permanent|artifact|land|enchantment|planeswalker)",
-        ),
+        signal_keys=("edict_makers",),
         should_match=("Diabolic Edict",),
         should_not_match=("Lightning Bolt", "Wrath of God", "Vindicate"),
     ),
@@ -2100,17 +2243,35 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="land-animation",
         description=(
-            "Turns a land into a creature. Covers manland cards via "
-            "regex (Treetop Village, Celestial Colonnade, Mutavault, "
-            "Creeping Tar Pit, etc.) and the Earthbend keyword from "
-            "the Avatar crossover (CR 701.66)."
+            "Turns a land into a creature — task #83 structural-view "
+            "conversion: the concept is DELIBERATELY SPLIT across three "
+            "signal keys (see each lane's own exclusion comment): "
+            "`land_protection` (self-animating manlands — Mutavault, "
+            "Treetop Village, the Restless cycle — deliberately NOT in "
+            "land_creatures_matter; also carries reverse-animators like "
+            "Ashaya, hence prec ~0.66 for this composite) + "
+            "`land_creatures_matter` (anthem/maker land-creature builds) + "
+            "`earthbend_makers` (the Avatar-crossover Earthbend keyword, "
+            "CR 701.66, prec 1.00) UNION the printed `Earthbend` and "
+            "`Awaken` (CR 702.113 — turns a land you control into a "
+            "creature, the alternative-cost Battle for Zendikar mechanic; "
+            "the whole 15-card Awaken cycle was the entire preset-only "
+            "residue before this union) keywords. Recall 0.88 vs the old "
+            "regex; the remaining 3 preset-only (Gaea's Liege, Graceful "
+            "Antelope, Tide Shaper) are confirmed old-regex false "
+            "positives — each says '...until THIS CREATURE leaves the "
+            "battlefield' (a duration clause referencing the ABILITY's OWN "
+            "source, a creature), which the old regex's lazy "
+            "'land...becomes a[^.]*?creature' pattern matched even though "
+            "the land becomes a Forest/Island/Plains (a land TYPE change, "
+            "CR 305.1), never a creature. Signals correctly exclude these; "
+            "0 genuine losses."
         ),
-        keywords=("Earthbend",),
-        patterns=_rx(
-            # Matches self-animating lands ("this land becomes a creature")
-            # and targeted land-animation ("target land becomes a creature").
-            r"(?:this|target) land [^.]*?becomes? a[^.]*?\bcreature\b",
-            r"land (?:you control )?becomes? a[^.]*?\bcreature\b",
+        keywords=("Earthbend", "Awaken"),
+        signal_keys=(
+            "land_protection",
+            "land_creatures_matter",
+            "earthbend_makers",
         ),
         should_match=("Mutavault", "Treetop Village"),
         should_not_match=("Lightning Bolt", "Counterspell", "Sinkhole"),
@@ -2177,6 +2338,29 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # Extra-turn / extra-combat / extra-upkeep payoffs that commander
     # archetypes (Obeka, Aurelia, Godo, Isshin, Narset) are built around.
     # These are not keyword abilities — pure oracle-text regex.
+    #
+    # extra-turns task #83 structural-view conversion: DEFERRED, not
+    # converted. The `extra_turns` signal key (an ExtraTurn effect, CR
+    # 500.7) recalls 0.80, but session diligence (oracle-text read of all 9
+    # preset-only cards, plus a direct `_ir_lookup.trees_for` inspection)
+    # confirmed EVERY ONE is a genuine "take an extra turn after this one"
+    # grant the crosswalk emits ZERO signal for — not a scope/precision
+    # boundary, a real recall gap: Chance for Glory's whole 3-sentence body
+    # collapses into ONE `grant_keyword` STATIC unit (the resolve-time
+    # ExtraTurn effect never gets decorated as its own node); Ichormoon
+    # Gauntlet's extra-turn lives inside a GRANTED planeswalker loyalty
+    # ability's quoted text (the same GrantAbility-descent gap the bounce/
+    # edict/plus-one-counters deferrals name); Stitch in Time / Ral Zarek /
+    # Plea for Power / Expropriate / Piece It Together nest the grant inside
+    # a flip-coin / vote / loyalty / intensity CONDITIONAL branch phase
+    # doesn't decorate as a typed top-level effect (the same conditional-
+    # descent gap the edict deferral names, at a different lane). Per Dan's
+    # 2026-07-12 directive: inspect the residue before accepting, and STOP
+    # rather than silently shed genuine cards. This is a lane change
+    # (crosswalk_signals.py / tree_synthesis.py effect-chain descent into
+    # conditionals + GrantAbility) needing the full corpus-diff + CR-
+    # citation bar — out of scope for a view conversion; fix the lane
+    # first, then re-attempt this conversion.
     Preset(
         name="extra-turns",
         description=(

@@ -8,7 +8,7 @@ from mtg_utils._deck_forge.budgets import (
     slot_budgets,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity
-from mtg_utils.testkit import test_card_ir
+from mtg_utils.testkit import test_card, test_card_ir
 
 FOREST = {
     "name": "Forest",
@@ -37,11 +37,14 @@ DIVINATION = {
     "type_line": "Sorcery",
     "oracle_text": "Draw two cards.",
 }
-WRATH = {
-    "name": "Wrath of God",
-    "type_line": "Sorcery",
-    "oracle_text": "Destroy all creatures. They can't be regenerated.",
-}
+# task #83: board-wipe is now a structural view over the crosswalk `mass_removal`
+# signal (theme_presets.py), which needs a real `oracle_id` to resolve (see
+# `_signal_keys_for`) — a hand-typed dict with no oracle_id can no longer be
+# classified via the preset fallback `_matches_preset` reads in `role_of` /
+# `slot_budgets`. Seed the crosswalk trees memo (test_card_ir, CI-safe via the
+# committed snapshot) before pulling the real minimal Scryfall record.
+test_card_ir("Wrath of God")
+WRATH = test_card("Wrath of God")
 FLESHBAG = {
     "name": "Fleshbag Marauder",
     "type_line": "Creature — Zombie Warrior",
