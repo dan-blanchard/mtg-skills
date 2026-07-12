@@ -52,6 +52,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     tag_of,
 )
+from mtg_utils._card_ir.mirror.runtime import MISSING
 from mtg_utils._card_ir.project import _KEYWORD_COST_SAC, _PITCH_SAC
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -974,6 +975,236 @@ def _kicker_ptplayer_match(tree: ConceptTree) -> bool:
     return bool(_KICKER_PTPLANESWALKER_RX.search(tree.oracle or ""))
 
 
+# ── base_pt_set residual class (ADR-0039 W7 endgame) ─────────────────────
+# Six bridges close the final base_pt_set stragglers left after this
+# session's three structural closers (a ``LastCreated`` resolved-tag
+# accept, an empty-nested-description unit-level fallback, and a modal
+# ``mode_abilities`` threaded-target walk — see
+# :func:`~mtg_utils._deck_forge.crosswalk_signals._base_pt_set` and
+# :func:`~mtg_utils._deck_forge.crosswalk_signals.
+# _iter_base_pt_modal_threaded_statics`). Each census below is corpus-bound
+# to EXACTLY its enumerated pins (re-verified 2026-07-11, phase v0.20.0,
+# 31,622 commander-legal cards) — no blast-radius slop.
+def _unimplemented_descs_anywhere(tree: ConceptTree) -> Iterator[str]:
+    """Every ``Unimplemented`` node's description reachable ANYWHERE in the
+    tree (unlike :func:`_unimplemented_effect_descs`, this is NOT scoped to
+    ``unit.effects`` — a base_pt_set residue can be nested under a STATIC
+    unit or a granted-ability chain, outside ``apply_unimplemented_
+    recovery``'s scan scope, per the mtg-utils/CONTEXT.md landmine)."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented":
+                yield getattr(n, "description", "") or ""
+
+
+# (1) A "have <subject>'s base power [and toughness] ... become <value>"
+# idiom — a scalar/copy re-assignment phase's clause grammar can't
+# structure at all (Ambassador Blorpityblorpboop's sticker-power scalar,
+# Tanazir Quandrix/Unruly Krasis's "become equal to ~'s power" copy —
+# CR 613.4b), parking the WHOLE clause as an ``Unimplemented`` residue that
+# survives WITH the hook text intact. Census: 3/31,622 commander-legal
+# (exactly the 3 pins; Arni Brokenbrow's "change ~'s base power to 1 plus
+# ..." and Curie, Emergent Intelligence's "draw cards equal to its base
+# power" — both matched by the whole-oracle raw-hook substring but neither
+# by this "have ... become" verb anchor, and neither is a legacy
+# base_pt_set member — verified via ``extract_signals_ir`` directly).
+_BASE_PT_HAVE_BECOME_RX = re.compile(
+    r"\bhave\b.*?\bbase power\b.*?\bbecome\b", re.IGNORECASE
+)
+
+
+def _base_pt_have_become_match(tree: ConceptTree) -> bool:
+    return any(
+        _BASE_PT_HAVE_BECOME_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
+    )
+
+
+# (2) An "is a(n) <Type> with base power and toughness N/N" fixed-value
+# type-change idiom (Circle of the Moon Druid's "Bear Form — During your
+# turn, ~ is a Bear with base power and toughness 4/2" — CR 613.4b), parked
+# as a whole-clause ``Unimplemented`` residue (the conditional "During your
+# turn" framing is the grammar frontier this bridge's TODO names). Census:
+# 1/31,622 commander-legal (exactly the 1 pin; Halfdane's "change ~'s base
+# power and toughness to the power and toughness of ..." and Brine Hag's
+# "change the base power and toughness of all creatures ... to 0/2" both
+# fail the "is a(n) ... with base power and toughness N/N" anchor).
+_BASE_PT_IS_A_TYPE_WITH_RX = re.compile(
+    r"\bis an? [^.]*\bwith base power and toughness \d+/\d+\b", re.IGNORECASE
+)
+
+
+def _base_pt_is_a_type_with_match(tree: ConceptTree) -> bool:
+    return any(
+        _BASE_PT_IS_A_TYPE_WITH_RX.search(d)
+        for d in _unimplemented_descs_anywhere(tree)
+    )
+
+
+# (3) A mass "creatures you control have base power and toughness X/X,
+# where X is ..." scalar (Candlekeep Inspiration — CR 613.4b), parked as a
+# whole-clause ``Unimplemented`` residue (the "where X is the number of
+# cards you own in exile and in your graveyard that are instant cards, are
+# sorcery cards, and/or have an Adventure" scalar definition is the grammar
+# frontier). Census: 1/31,622 commander-legal (exactly the 1 pin).
+_BASE_PT_MASS_WHERE_X_RX = re.compile(
+    r"\bhave base power and toughness [A-Za-z]/[A-Za-z]\b", re.IGNORECASE
+)
+
+
+def _base_pt_mass_where_x_match(tree: ConceptTree) -> bool:
+    return any(
+        _BASE_PT_MASS_WHERE_X_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
+    )
+
+
+# (4) A Stickers-templated ability whose cost is an un-parseable ``{TK}``
+# placeholder (Cool Fluffy Loxodon's "{TK}{TK}{TK}{TK}{TK} — Whenever a
+# creature enters under your control, ~ becomes a 13/13 Eldrazi creature in
+# addition to its other types until end of turn" — Unfinity's sticker-sheet
+# templating, CR 713) — phase's cost grammar has no ``{TK}`` token at all,
+# parking the WHOLE ability (cost AND effect) as an opaque ``Unimplemented``
+# residue, unlike the other three bridges above where only the base-P/T
+# CLAUSE fails. Census: 1/31,622 commander-legal (exactly the 1 pin — the
+# ONLY {TK}-costed ability corpus-wide whose residue ALSO names the animate
+# hook; other Stickers cards' {TK} abilities don't touch base P/T at all).
+_BASE_PT_TK_ANIMATE_RX = re.compile(
+    r"\{TK\}[^.]*\d+/\d+[^.]*\bin addition to its other types\b", re.IGNORECASE
+)
+
+
+def _base_pt_tk_animate_match(tree: ConceptTree) -> bool:
+    return any(
+        _BASE_PT_TK_ANIMATE_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
+    )
+
+
+# (5) A DYNAMIC "base power and toughness each equal to <mana value | X>"
+# scalar-set clause phase drops ENTIRELY from the site's own modifications
+# (Captain Rex Nebula's mana-value CDA-like scalar, Fractalize's "X plus 1"
+# scalar — CR 613.4b) — the site's own ``description`` DOES carry the hook
+# text (unlike bridges 1-4's whole-clause drop), and the target resolves
+# fine, but no ``SetPowerDynamic``/``SetToughnessDynamic`` modification
+# node exists anywhere on that site for phase to have dropped a residue
+# for. Self-retiring PER SITE: the day phase decomposes the "each equal to"
+# scalar into a typed SetDynamic pair at that exact site, this predicate
+# goes False on that card AND the main lane's existing dynamic-pair arm
+# picks it up structurally with zero further edits. Census: 2/31,622
+# commander-legal (exactly the 2 pins).
+_BASE_PT_EACH_EQUAL_TO_RX = re.compile(
+    r"base power and toughness each equal to\b", re.IGNORECASE
+)
+
+
+def _base_pt_each_equal_to_dropped(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for ge in iter_typed_nodes(unit.node):
+            if tag_of(ge) != "GenericEffect":
+                continue
+            for st in getattr(ge, "static_abilities", None) or []:
+                desc = getattr(st, "description", "") or ""
+                if not _BASE_PT_EACH_EQUAL_TO_RX.search(desc):
+                    continue
+                mods = {tag_of(m) for m in (getattr(st, "modifications", None) or [])}
+                if not (
+                    mods
+                    & {
+                        "SetPower",
+                        "SetToughness",
+                        "SetPowerDynamic",
+                        "SetToughnessDynamic",
+                    }
+                ):
+                    return True
+    return False
+
+
+# (6) A fixed-value "is a <Type> with base power and toughness N/N, <extra
+# granted keyword/ability>" type-change site phase MIS-decomposes as an
+# ``AddPower``/``AddToughness`` PAIR (Goddric, Cloaked Reveler's Celebration
+# static — phase apparently attributes the SIBLING granted "{R}: Dragons
+# you control get +1/+0" activated ability's OWN pump amounts onto this
+# static's modifications instead of a ``SetPower``/``SetToughness`` pair
+# for the "is a Dragon with base power and toughness 4/4" clause itself —
+# CR 613.4b/CR 613.1f). The site's own ``description`` DOES carry the hook
+# text and the correct SelfRef subject; only the modification TAGS are
+# wrong. Gap is a tree-wide absence proof (mirrors :func:`_no_typed_
+# sacrifice_node`): Burden of Proof ALSO carries an AddPower/AddToughness-
+# only site whose description happens to span BOTH its conditional
+# branches' text, but its "Otherwise, it has base power and toughness 1/1"
+# branch DOES have a genuine SetPower/SetToughness pair elsewhere in the
+# SAME tree, so the tree-wide gap correctly stands this bridge down there
+# (verified: ``extract_signals_ir`` fires True for Burden of Proof via that
+# EXISTING structural pair, no bridge needed). Census: 2/31,622
+# commander-legal pattern-matched, 1 after the tree-wide gap exclusion
+# (exactly the 1 pin).
+def _base_pt_no_typed_set_anywhere(tree: ConceptTree) -> bool:
+    return not any(
+        tag_of(n)
+        in ("SetPower", "SetToughness", "SetPowerDynamic", "SetToughnessDynamic")
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
+_BASE_PT_ADDPT_RAW_HOOK_RX = re.compile(r"base power|base toughness", re.IGNORECASE)
+_BASE_PT_ADDPT_ANIMATE_HOOK_RX = re.compile(
+    r"\d+/\d+[^.]*\bin addition to its other types\b", re.IGNORECASE
+)
+
+
+def _base_pt_addpt_misattributed_match(tree: ConceptTree) -> bool:
+    sts: list[object] = []
+    for unit in tree.units:
+        if unit.origin == "static":
+            sts.append(unit.node)
+        for ge in iter_typed_nodes(unit.node):
+            if tag_of(ge) == "GenericEffect":
+                sts.extend(getattr(ge, "static_abilities", None) or [])
+    for st in sts:
+        mods = {tag_of(m) for m in (getattr(st, "modifications", None) or [])}
+        if mods != {"AddPower", "AddToughness"}:
+            continue
+        desc = getattr(st, "description", "") or ""
+        if _BASE_PT_ADDPT_RAW_HOOK_RX.search(
+            desc
+        ) or _BASE_PT_ADDPT_ANIMATE_HOOK_RX.search(desc):
+            return True
+    return False
+
+
+# (7) A ``BecomeCopy`` "except it's N/N" fixed P/T override with NO
+# ``additional_modifications`` field AT ALL (Mindlink Mech's "becomes a
+# copy of target nonlegendary creature ..., except it's 4/3, ..." — CR
+# 707.2/707.9) — ZERO trace anywhere in the tree for the override, same
+# absence-proof shape as the Degavolver/Zuko/keyword-dropped bridges above.
+# The standard clone-SHELL idiom ("becomes a copy of X, except it's 0/0
+# and has this ability" — Mimeoplasm, Revered One) shares the identical
+# missing-additional_modifications gap but is corpus-verified NOT a legacy
+# base_pt_set member (``extract_signals_ir`` returns False for it) — the
+# ``(?!0/0\b)`` negative lookahead excludes that shell idiom by construction
+# rather than re-deriving legacy's own clone-shell carve-out. Census:
+# 2/31,622 commander-legal pattern-matched before the 0/0 exclusion, 1 after
+# (exactly the 1 pin).
+_BASE_PT_BECOMECOPY_PT_RX = re.compile(
+    r"becomes a copy of[^.]*except it'?s (?!0/0\b)\d+/\d+", re.IGNORECASE
+)
+
+
+def _base_pt_becomecopy_no_mods_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "BecomeCopy":
+                continue
+            addl = getattr(n, "additional_modifications", MISSING)
+            if addl is MISSING or addl in (None, []):
+                return True
+    return False
+
+
+def _base_pt_becomecopy_no_mods_match(tree: ConceptTree) -> bool:
+    return bool(_BASE_PT_BECOMECOPY_PT_RX.search(tree.oracle))
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -1774,6 +2005,189 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Goblin Barrage", "Unstable Footing"),
             gap=_no_player_reaching_damage_node,
             match=_kicker_ptplayer_match,
+        ),
+        Bridge(
+            bridge_id="base_pt_have_become_residue",
+            key="base_pt_set",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a clause-grammar "
+                "verb for the 'have <subject>'s base power [and toughness] "
+                "... become <value>' scalar/copy re-assignment idiom — "
+                "retires when the node decomposes into a typed SetPower/"
+                "SetPowerDynamic (and toughness sibling) pair the way the "
+                "matched-quantity copy-stats arm already reads structurally"
+            ),
+            census=(
+                "3 hits / 31,622 commander-legal Unimplemented residues "
+                "matching the 'have ... base power ... become' verb anchor, "
+                "phase v0.20.0, 2026-07-11 (exactly the 3 pins; Arni "
+                "Brokenbrow's 'change ~'s base power to 1 plus ...' and "
+                "Curie, Emergent Intelligence's 'draw cards equal to its "
+                "base power' both carry the bare raw-hook substring but "
+                "neither the 'have ... become' verb shape, and neither "
+                "fires under legacy's own extract_signals_ir — verified "
+                "directly)"
+            ),
+            pins=(
+                "Ambassador Blorpityblorpboop",
+                "Tanazir Quandrix",
+                "Unruly Krasis",
+            ),
+            gap=_base_pt_have_become_match,
+            match=_base_pt_have_become_match,
+        ),
+        Bridge(
+            bridge_id="base_pt_is_a_type_with_residue",
+            key="base_pt_set",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a clause-grammar "
+                "verb for a conditionally-gated 'is a(n) <Type> with base "
+                "power and toughness N/N' fixed type-change idiom (the "
+                "'During your turn' framing is the frontier — an "
+                "unconditional sibling shape already decomposes into "
+                "typed SetPower/SetToughness/AddType nodes, see Displaced "
+                "Dinosaurs/Sauron/Ultron this same session) — retires when "
+                "the conditional wrapper decomposes too"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal Unimplemented residues "
+                "matching the 'is a(n) ... with base power and toughness "
+                "N/N' anchor, phase v0.20.0, 2026-07-11 (exactly the 1 pin; "
+                "Halfdane's 'change ~'s base power and toughness to the "
+                "power and toughness of ...' and Brine Hag's 'change the "
+                "base power and toughness of all creatures ... to 0/2' "
+                "both fail the anchor)"
+            ),
+            pins=("Circle of the Moon Druid",),
+            gap=_base_pt_is_a_type_with_match,
+            match=_base_pt_is_a_type_with_match,
+        ),
+        Bridge(
+            bridge_id="base_pt_mass_where_x_residue",
+            key="base_pt_set",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a clause-grammar "
+                "verb for a mass 'creatures you control have base power "
+                "and toughness X/X, where X is <scalar definition>' idiom "
+                "— retires when the node decomposes into a typed "
+                "SetPowerDynamic/SetToughnessDynamic pair over a "
+                "board-wide affected filter"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal Unimplemented residues "
+                "matching 'have base power and toughness X/X', phase "
+                "v0.20.0, 2026-07-11 (exactly the 1 pin)"
+            ),
+            pins=("Candlekeep Inspiration",),
+            gap=_base_pt_mass_where_x_match,
+            match=_base_pt_mass_where_x_match,
+        ),
+        Bridge(
+            bridge_id="base_pt_tk_sticker_parse_failure",
+            key="base_pt_set",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the cost "
+                "grammar has no token for Unfinity's Stickers '{TK}' "
+                "placeholder cost, so the WHOLE ability (cost AND effect) "
+                "parks as an opaque Unimplemented residue — retires on a "
+                "phase bump that parses (or explicitly stubs) the {TK} "
+                "cost token"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal Unimplemented residues "
+                "whose description contains both a '{TK}' cost token and "
+                "the animate hook, phase v0.20.0, 2026-07-11 (exactly the "
+                "1 pin — the only {TK}-costed ability corpus-wide whose "
+                "text also names a base-P/T animate hook)"
+            ),
+            pins=("Cool Fluffy Loxodon",),
+            gap=_base_pt_tk_animate_match,
+            match=_base_pt_tk_animate_match,
+        ),
+        Bridge(
+            bridge_id="base_pt_each_equal_to_dropped",
+            key="base_pt_set",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a DYNAMIC "
+                "'base power and toughness each equal to <mana value | X>' "
+                "scalar-set clause is dropped from the site's own "
+                "modifications entirely (the site's own description DOES "
+                "carry the hook text and the target resolves fine — only "
+                "the SetPowerDynamic/SetToughnessDynamic pair itself is "
+                "missing) — retires on a phase bump that decomposes the "
+                "'each equal to' scalar the way a 'become equal to your "
+                "life total' scalar already does (Aettir and Priwen)"
+            ),
+            census=(
+                "2 hits / 31,622 commander-legal GenericEffect static "
+                "sites whose OWN description matches 'base power and "
+                "toughness each equal to' with no SetPower*/SetToughness* "
+                "modification present, phase v0.20.0, 2026-07-11 (exactly "
+                "the 2 pins)"
+            ),
+            pins=("Captain Rex Nebula", "Fractalize"),
+            gap=_base_pt_each_equal_to_dropped,
+            match=_base_pt_each_equal_to_dropped,
+        ),
+        Bridge(
+            bridge_id="base_pt_addpt_misattributed_typechange",
+            key="base_pt_set",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a fixed "
+                "'is a <Type> with base power and toughness N/N, <granted "
+                "activated ability>' static mis-decomposes as an "
+                "AddPower/AddToughness pair carrying the SIBLING granted "
+                "ability's OWN pump amounts instead of a SetPower/"
+                "SetToughness pair for the type-change clause itself — "
+                "retires on a phase bump that emits the correct Set pair "
+                "at this site"
+            ),
+            census=(
+                "2 hits / 31,622 commander-legal AddPower+AddToughness-"
+                "only static sites whose description names the raw/animate "
+                "hook, phase v0.20.0, 2026-07-11; 1 after the tree-wide "
+                "no-typed-Set-anywhere gap (Burden of Proof's OTHER "
+                "conditional branch DOES carry a genuine SetPower/"
+                "SetToughness pair elsewhere in the same tree, correctly "
+                "excluded — verified against legacy's own True fire there "
+                "via the EXISTING structural pair, no bridge needed) — "
+                "exactly the 1 remaining pin"
+            ),
+            pins=("Goddric, Cloaked Reveler",),
+            gap=_base_pt_no_typed_set_anywhere,
+            match=_base_pt_addpt_misattributed_match,
+        ),
+        Bridge(
+            bridge_id="base_pt_becomecopy_no_pt_override",
+            key="base_pt_set",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a "
+                "BecomeCopy 'except it's N/N' fixed P/T override drops "
+                "with ZERO trace (no additional_modifications field at "
+                "all, confirmed via direct tree dump) — retires on a phase "
+                "bump that structures the 'except it's N/N' override "
+                "clause into BecomeCopy.additional_modifications"
+            ),
+            census=(
+                "2 hits / 31,622 commander-legal BecomeCopy nodes with no "
+                "additional_modifications whose oracle text matches "
+                "'becomes a copy of ... except it's N/N', phase v0.20.0, "
+                "2026-07-11; 1 after excluding the standard clone-SHELL "
+                "idiom ('... except it's 0/0 and has this ability' — "
+                "Mimeoplasm, Revered One — corpus-verified NOT a legacy "
+                "base_pt_set member via extract_signals_ir directly) — "
+                "exactly the 1 remaining pin"
+            ),
+            pins=("Mindlink Mech",),
+            gap=_base_pt_becomecopy_no_mods_gap,
+            match=_base_pt_becomecopy_no_mods_match,
         ),
     )
 }

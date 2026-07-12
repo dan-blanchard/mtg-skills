@@ -8936,6 +8936,126 @@ def test_base_pt_set_granted_ability_definition_descent():
     assert ("base_pt_set", "any", "") in _idents("Gigantoplasm")
 
 
+# ── ADR-0039 W7 endgame: base_pt_set structural closers (0 live_only) ──────
+
+
+def test_base_pt_set_lastcreated_resolves():
+    """Ultron, Artificial Malevolence's "create a token that's a copy of
+    it. If the token isn't a creature, IT becomes a 2/2 Robot Villain
+    creature in addition to its other types" — "the token"/"it"
+    back-references the object the SAME ability just created via
+    ``CopyTokenOf`` (``LastCreated``, CR 701.7a's create action combined
+    with CR 608.2h's "the object as it exists" resolution rule) — a
+    definite, resolvable subject, same footing as ``TriggeringSource``."""
+    assert ("base_pt_set", "any", "") in _idents("Ultron, Artificial Malevolence")
+
+
+def test_base_pt_set_empty_nested_description_falls_back_to_unit():
+    """Displaced Dinosaurs' REPLACEMENT-origin static ("becomes a 7/7
+    Dinosaur creature in addition to its other types") carries a typed
+    SetPower/SetToughness pair whose OWN nested ``description`` is empty —
+    the hook text lives only on the ENCLOSING unit's top-level
+    description. CR 614.12 / 701.21a."""
+    assert ("base_pt_set", "any", "") in _idents("Displaced Dinosaurs")
+
+
+def test_base_pt_set_modal_doubly_nested_parent_target():
+    """Sauron, Dino Devotee's "Turn People into Dinosaurs" mode ("Put a
+    saurian counter on another target creature. It's a green Dinosaur with
+    base power and toughness 5/5 for as long as it has a saurian counter
+    on it.") nests a ``GenericEffect`` inside a MODAL mode's OWN
+    ``sub_ability`` chain whose ``target`` field is ITSELF an unresolved
+    ``ParentTarget`` — :func:`_iter_base_pt_modal_threaded_statics` threads
+    the mode's own ``PutCounter`` target down instead. CR 613.4b / 700.2
+    (modal target declaration)."""
+    assert ("base_pt_set", "any", "") in _idents("Sauron, Dino Devotee")
+
+
+# ── ADR-0039 W7 endgame: base_pt_set ledgered bridges (bridge_ledger.py;
+# convergence coverage lives in test_bridge_ledger.py — these are
+# membership pins only) ─────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Ambassador Blorpityblorpboop",  # "have ~'s base power become equal to..."
+        "Tanazir Quandrix",  # "have ... become equal to ~'s power and toughness"
+        "Unruly Krasis",  # "have ... become X/X"
+    ],
+)
+def test_base_pt_set_bridge_have_become_residue(name):
+    assert ("base_pt_set", "any", "") in _idents(name)
+
+
+def test_base_pt_set_bridge_is_a_type_with_residue():
+    """Circle of the Moon Druid's "Bear Form — During your turn, ~ is a
+    Bear with base power and toughness 4/2." parks as a whole-clause
+    ``Unimplemented`` residue (the conditional "During your turn" framing
+    is the grammar frontier)."""
+    assert ("base_pt_set", "any", "") in _idents("Circle of the Moon Druid")
+
+
+def test_base_pt_set_bridge_mass_where_x_residue():
+    """Candlekeep Inspiration's "creatures you control have base power and
+    toughness X/X, where X is the number of cards you own in exile and in
+    your graveyard ..." parks as a whole-clause ``Unimplemented``
+    residue."""
+    assert ("base_pt_set", "any", "") in _idents("Candlekeep Inspiration")
+
+
+def test_base_pt_set_bridge_tk_sticker_parse_failure():
+    """Cool Fluffy Loxodon's Unfinity Stickers "{TK}{TK}{TK}{TK}{TK} —
+    Whenever a creature enters under your control, ~ becomes a 13/13
+    Eldrazi creature in addition to its other types until end of turn"
+    parks the WHOLE ability (cost and effect) as an opaque
+    ``Unimplemented`` residue — phase's cost grammar has no ``{TK}``
+    token."""
+    assert ("base_pt_set", "any", "") in _idents("Cool Fluffy Loxodon")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Captain Rex Nebula",  # "... each equal to its mana value"
+        "Fractalize",  # "... each equal to X plus 1"
+    ],
+)
+def test_base_pt_set_bridge_each_equal_to_dropped(name):
+    """A DYNAMIC "base power and toughness each equal to <mana value | X>"
+    scalar-set clause is dropped from the site's own modifications
+    entirely — the site's own description DOES carry the hook text and
+    the target resolves fine, but no SetPowerDynamic/SetToughnessDynamic
+    node exists anywhere on that site."""
+    assert ("base_pt_set", "any", "") in _idents(name)
+
+
+def test_base_pt_set_bridge_addpt_misattributed_typechange():
+    """Goddric, Cloaked Reveler's Celebration static ("~ is a Dragon with
+    base power and toughness 4/4, flying, and '{R}: Dragons you control
+    get +1/+0 ...'") mis-decomposes as an AddPower/AddToughness pair
+    carrying the SIBLING granted activated ability's OWN pump amounts
+    instead of a SetPower/SetToughness pair for the type-change clause
+    itself."""
+    assert ("base_pt_set", "any", "") in _idents("Goddric, Cloaked Reveler")
+
+
+def test_base_pt_set_bridge_becomecopy_no_pt_override():
+    """Mindlink Mech's "becomes a copy of target nonlegendary creature ...,
+    except it's 4/3, ..." BecomeCopy override drops with ZERO trace (no
+    additional_modifications field at all)."""
+    assert ("base_pt_set", "any", "") in _idents("Mindlink Mech")
+
+
+def test_base_pt_set_bridge_becomecopy_excludes_clone_shell():
+    """The standard clone-SHELL idiom ("becomes a copy of X, except it's
+    0/0 and has this ability") shares the identical missing-
+    additional_modifications gap as Mindlink Mech but is NOT a legacy
+    base_pt_set member — the bridge's ``(?!0/0)`` negative lookahead
+    excludes it by construction."""
+    assert "base_pt_set" not in _keys("Mimeoplasm, Revered One")
+
+
 def test_variable_pt_cda_gate():
     """CR 604.3 / 613.4a: Tarmogoyf's ``characteristic_defining`` static with
     ``SetDynamicPower`` fires scope "any"; a fixed-number set (Polymorphist's

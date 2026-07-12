@@ -847,16 +847,10 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # Manticore's "gain control ... It gains haste" idiom) and added a
     # kept-mirror fallback (the deleted SWEEP regex) for phase-parse-loss
     # residues and the split/aftermath back-half (Onward // Victory).
-    # ``base_pt_set`` stays residual — 21 corpus gaps remain (Circle of the
-    # Moon Druid's CDA-like conditional self-transform, "become equal to
-    # that creature's power" idioms mixed with genuine scalar members,
-    # Saga/Class/sticker-sheet level-up shapes) needing more investigation
-    # than this batch's time budget allowed; see the ADR-0038 W3 batch 4
-    # session notes for the card list and per-card triage. ADR-0038 W3
-    # batch 6 closed 1 of the 21 (Belligerent Yearling, the ``Animate``
-    # top-level-effect shape — see :func:`_base_pt_set`'s docstring); the
-    # other 20 need the modal/CreateEmblem/BecomeCopy/sticker/Unimplemented-
-    # residue investment batch 4 already flagged. Still residual.
+    # ``base_pt_set`` — see its own PROMOTED comment further down this
+    # frozenset (ADR-0039 W7 endgame) for the final arm history; the
+    # interim W3 batch 4/6 notes that used to sit here (21 corpus gaps,
+    # Belligerent Yearling closing 1 of them) are superseded.
     #
     # ADR-0038 W3 batch 4: ``scaling_pump`` PROMOTED — the single-target
     # ``Pump`` tag is now admitted alongside ``PumpAll`` in
@@ -1357,7 +1351,34 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         # live_only == exactly the two adjudicated, negative-pinned
         # symmetric-edict sheds (Braids, Cabal Minion; Catch // Release —
         # CR 701.21a): the landfall rule. both=5008 / cw_only=18 unchanged.
-        "base_pt_set",
+        # base_pt_set PROMOTED (ADR-0039 W7 endgame, 2026-07-11) — landfall
+        # rule met: both 218 -> 231, live_only 13 -> 0, cw_only=13 unchanged
+        # (the pre-existing switch_pt beyond-legacy gains — CR 613.4d,
+        # documented in :func:`_base_pt_set`'s own docstring, unaffected).
+        # Three structural closers (crosswalk_signals.py): (1) a
+        # ``LastCreated`` resolved-tag accept (Ultron, Artificial
+        # Malevolence's created-token back-reference, CR 701.7a/608.2h);
+        # (2) an empty-nested-description fallback to the enclosing unit's
+        # own description (Displaced Dinosaurs' REPLACEMENT-origin static,
+        # CR 614.12); (3) :func:`_iter_base_pt_modal_threaded_statics`, a
+        # per-key modal ``mode_abilities`` threaded-target walk mirroring
+        # ``_iter_untap_targets``'s established pattern (Sauron, Dino
+        # Devotee's doubly-nested ``ParentTarget`` inside a modal mode's
+        # own sub-ability chain, CR 700.2). Seven ADR-0039 ledgered bridges
+        # (bridge_ledger.py) close the residual whole-clause-grammar and
+        # dropped-clause tail: ``base_pt_have_become_residue`` (Ambassador
+        # Blorpityblorpboop, Tanazir Quandrix, Unruly Krasis),
+        # ``base_pt_is_a_type_with_residue`` (Circle of the Moon Druid),
+        # ``base_pt_mass_where_x_residue`` (Candlekeep Inspiration),
+        # ``base_pt_tk_sticker_parse_failure`` (Cool Fluffy Loxodon),
+        # ``base_pt_each_equal_to_dropped`` (Captain Rex Nebula,
+        # Fractalize), ``base_pt_addpt_misattributed_typechange`` (Goddric,
+        # Cloaked Reveler), ``base_pt_becomecopy_no_pt_override`` (Mindlink
+        # Mech — the standard "except it's 0/0 and has this ability"
+        # clone-shell idiom, Mimeoplasm, Revered One, is corpus-verified
+        # NOT a legacy member and stays excluded via a negative lookahead).
+        # CR 613.4b throughout. See :func:`_base_pt_set`'s own docstring
+        # for the full arm history.
         # cheat_into_play PROMOTED (ADR-0039 W7, 2026-07-12) — landfall
         # rule met: live_only 40 -> 0 accounted for, every remaining
         # live_only card is a TESTED, CR-grounded adjudicated shed (a
@@ -15671,6 +15692,56 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+def _iter_base_pt_modal_threaded_statics(
+    root: object,
+) -> Iterator[tuple[object, object]]:
+    """``(resolved_target, static_def)`` pairs for a base-P/T-set static
+    nested inside a MODAL mode's OWN sub-ability chain (Sauron, Dino
+    Devotee's "Turn People into Dinosaurs" mode: ``PutCounter``'s own
+    ``target`` — "another target creature", CR 700.2's per-mode target
+    declaration — threads through that SAME mode's ``sub_ability`` chain to
+    the nested ``GenericEffect``'s ``ParentTarget``-affected static, "It's a
+    green Dinosaur with base power and toughness 5/5 for as long as it has
+    a saurian counter"). :func:`iter_threaded_target_statics` doesn't reach
+    this: it walks ``effect``/``sub_ability``/``execute`` but has no
+    ``mode_abilities`` hop, so a doubly-nested ``ParentTarget`` (the mode's
+    inner ``GenericEffect.target`` is ITSELF an unresolved ``ParentTarget``,
+    referring to the mode's OWN top-level target one level further up, not
+    a sibling of the ``GenericEffect``) never resolves via the main sites
+    loop's single-level ``own_target`` read.
+
+    Mirrors ``_iter_untap_targets``' established effect/sub_ability/
+    execute/mode_abilities walk (:mod:`_card_ir.tree_synthesis`, the
+    precedent for a per-key modal hop) rather than widening the SHARED
+    ``iter_threaded_target_statics`` utility itself — no other lane needs
+    the modal hop yet, and a shared-helper widening needs the full-corpus
+    sibling check this session's time budget keeps scoped to base_pt_set's
+    own call site.
+    """
+    tracked: object | None = None
+    seen: set[int] = set()
+    queue: list[object] = [root]
+    while queue:
+        node = queue.pop(0)
+        if not isinstance(node, TypedMirrorNode) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        tgt = getattr(node, "target", None)
+        if isinstance(tgt, TypedMirrorNode) and tag_of(tgt) in ("Typed", "Or", "And"):
+            tracked = tgt
+        if tag_of(node) == "GenericEffect" and tracked is not None:
+            for st in getattr(node, "static_abilities", None) or []:
+                if tag_of(getattr(st, "affected", None)) == "ParentTarget":
+                    yield tracked, st
+        for fname in ("execute", "effect", "sub_ability"):
+            child = getattr(node, fname, None)
+            if isinstance(child, TypedMirrorNode):
+                queue.append(child)
+        modes = getattr(node, "mode_abilities", None)
+        if isinstance(modes, list):
+            queue.extend(modes)
+
+
 def _base_pt_set(tree: ConceptTree) -> list[Signal]:
     """base_pt_set — the fixed base-P/T-SET toolbox (CR 613.4b's "and/or" —
     613.4d for the switch form): a mod site carrying ``SetPower`` and/or
@@ -15916,6 +15987,18 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
         # reference — Ovinize's local target, Cyclone Sire's sibling land
         # target; a GenericEffect with no target of its own here correctly
         # yields no site, leaving those cases to the threaded walk).
+        #
+        # ADR-0039 W7 endgame: a nested static's OWN ``description`` is
+        # sometimes empty (Displaced Dinosaurs' REPLACEMENT-origin static —
+        # the hook text "becomes a 7/7 Dinosaur creature in addition to its
+        # other types" lives only on the ENCLOSING unit's top-level
+        # description, CR 614.12/701.21a; the nested static def itself
+        # carries the typed SetPower/SetToughness pair with no text of its
+        # own). ``site_text(st) or site_text(unit.node)`` falls back to the
+        # unit's own description ONLY when the site's own text is empty —
+        # never overrides a site that already carries its own text, so a
+        # multi-static unit with one hook-naming site and one unrelated site
+        # can't cross-clause-bleed the hook onto the unrelated site.
         for ge in iter_typed_nodes(unit.node):
             if tag_of(ge) != "GenericEffect":
                 continue
@@ -15930,11 +16013,27 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
                     (
                         resolved,
                         mod_tags(st),
-                        site_text(st),
+                        site_text(st) or site_text(unit.node),
                         refs_other_object_stats(st),
                         off_battlefield_gated(st),
                     )
                 )
+        # ADR-0039 W7 endgame: a MODAL mode's own sub-ability chain (Sauron,
+        # Dino Devotee — see :func:`_iter_base_pt_modal_threaded_statics`),
+        # where the GenericEffect descent above finds the SAME nested
+        # static but can't resolve its DOUBLY-nested ParentTarget (the
+        # mode's own inner target is itself unresolved) — this walker
+        # threads the mode's OWN declared target down instead.
+        for resolved, st in _iter_base_pt_modal_threaded_statics(unit.node):
+            sites.append(
+                (
+                    resolved,
+                    mod_tags(st),
+                    site_text(st) or site_text(unit.node),
+                    refs_other_object_stats(st),
+                    off_battlefield_gated(st),
+                )
+            )
         # ``CreateEmblem``'s own ``.statics`` (Capitoline Triad's "Creatures
         # you control have base power and toughness 9/9") — a continuous
         # ability living directly on the emblem, no target/ParentTarget
@@ -15988,7 +16087,23 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
         # "that creature" back-references the OTHER attacker from the SAME
         # trigger event, CR 603.2) is a definite, resolvable subject, same
         # footing as a SelfRef/Typed target.
-        if rtag not in ("SelfRef", "Typed", "Or", "And", "TriggeringSource"):
+        # ADR-0039 W7 endgame: ``LastCreated`` (Ultron, Artificial
+        # Malevolence's "create a token that's a copy of it. If the token
+        # isn't a creature, IT becomes a 2/2 Robot Villain creature ..." —
+        # "the token"/"it" back-references the object the SAME ability just
+        # created via ``CopyTokenOf``, CR 701.7a's create action combined
+        # with CR 608.2h's "the object as it exists" resolution rule) is
+        # equally definite and resolvable — the same footing as
+        # ``TriggeringSource``, just anchored to a create-token step instead
+        # of a trigger event.
+        if rtag not in (
+            "SelfRef",
+            "Typed",
+            "Or",
+            "And",
+            "TriggeringSource",
+            "LastCreated",
+        ):
             continue  # an unresolvable ParentTarget ("It becomes a 0/0
             # Elemental" over a SIBLING land target — Cyclone Sire): no
             # positive subject evidence, never fire
@@ -16025,6 +16140,22 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
             text = getattr(unit.node, "description", "") or ""
             if _BASE_PT_RAW_HOOK.search(text) or _BASE_PT_ANIMATE_HOOK.search(text):
                 return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
+    # ADR-0039 W7 endgame ledgered bridges — the final residual stragglers
+    # (whole-clause grammar residues, a dropped dynamic-scalar site, a
+    # mis-decomposed AddPower/AddToughness site, a BecomeCopy P/T override
+    # with zero trace; bridge_ledger.py rows, docstring there for the full
+    # corpus accounting):
+    for bridge_id in (
+        "base_pt_have_become_residue",
+        "base_pt_is_a_type_with_residue",
+        "base_pt_mass_where_x_residue",
+        "base_pt_tk_sticker_parse_failure",
+        "base_pt_each_equal_to_dropped",
+        "base_pt_addpt_misattributed_typechange",
+        "base_pt_becomecopy_no_pt_override",
+    ):
+        if bridge_fires(bridge_id, tree):
+            return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
     return []
 
 
