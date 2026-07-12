@@ -142,7 +142,6 @@ def _hybrid_merge(
             regex_signals,
             vocab=vocab,
             include_membership=include_membership,
-            resolve_object=resolve_object,
         )
         if crosswalk_out is not None:
             return crosswalk_out
@@ -180,29 +179,28 @@ def _crosswalk_merge(
     *,
     vocab: frozenset[str],
     include_membership: bool,
-    resolve_object: Callable[[str], dict | None] | None,
 ) -> list[Signal] | None:
-    """The ADR-0035 Stage-3a three-way merge (flag ON). ``None`` when the concept
-    tree is unavailable so the caller degrades to the legacy IR path.
+    """The ADR-0035 Stage-3a merge (flag ON). ``None`` when the concept tree is
+    unavailable so the caller degrades to the legacy IR path.
 
-    Three-way dispatch (the key-set delta is exact, NOT a clean swap):
-    ``PORTED_KEYS`` come from the typed-substrate crosswalk; the residual keys the
-    crosswalk does not reproduce (``MIGRATED_KEYS - PORTED_KEYS`` — the unported
-    tail only; ADR-0039 W8 promoted all 12 Stage-2 KEPT keys off this list —
-    ``cheat_from_top`` / ``copy_limit`` / ``base_power_matters`` / ``damage_redirect``
-    / ``excess_damage`` / ``extra_draw_step`` / ``free_cast`` /
-    ``kicked_spell_matters`` / ``ki_counter_matters`` / ``land_destruction`` /
-    ``big_mana`` / ``named_synergy`` — so no permanent KEPT lane remains) stay on
-    the legacy ``extract_signals_ir`` path; every other key stays regex. The
-    shared reconciliation tail runs once in the caller, its ``not in out_keys`` guards
-    absorbing the crosswalk's own already-applied reconciliations (single fire).
+    ``PORTED_KEYS`` come from the typed-substrate crosswalk; every other key
+    stays regex. ``MIGRATED_KEYS - PORTED_KEYS`` (the old "residual" tail the
+    crosswalk did not yet reproduce) is EMPTY as of ADR-0039 W8 — every
+    migrated key graduated to a crosswalk-native lane, so this merge no longer
+    falls back to the legacy ``extract_signals_ir`` / ``old_ir_for`` path at
+    all (ADR-0039 task #80 step 3: the membership floor's own former ``old``
+    dependency was rewired to read the concept tree directly — see
+    ``extract_crosswalk_signals``' ``include_membership`` docstring). The
+    shared reconciliation tail runs once in the caller, its ``not in out_keys``
+    guards absorbing the crosswalk's own already-applied reconciliations
+    (single fire).
 
     A DFC / split card shares one ``oracle_id`` across faces; ``trees_for`` returns
     one concept tree per phase face record, and the crosswalk lanes run over EACH
     tree, unioned by ``(key, scope, subject)`` (ADR-0035/0038 task #74) — never a
     merged multi-face tree, which would corrupt card-level reads like ``is_type`` /
     cmc that only make sense per-face."""
-    from mtg_utils._deck_forge._ir_lookup import old_ir_for, trees_for
+    from mtg_utils._deck_forge._ir_lookup import trees_for
     from mtg_utils._deck_forge.crosswalk_signals import (
         PORTED_KEYS,
         extract_crosswalk_signals,
@@ -214,9 +212,7 @@ def _crosswalk_merge(
     trees = trees_for(record, bulk=record)
     if not trees:
         return None
-    residual = MIGRATED_KEYS - PORTED_KEYS
-    served = PORTED_KEYS | residual  # == PORTED_KEYS | MIGRATED_KEYS
-    out: list[Signal] = [s for s in regex_signals if s.key not in served]
+    out: list[Signal] = [s for s in regex_signals if s.key not in PORTED_KEYS]
     seen = {(s.key, s.scope, s.subject) for s in out}
 
     def _add(sig: Signal) -> None:
@@ -229,11 +225,6 @@ def _crosswalk_merge(
     keywords = frozenset(
         k for k in (record.get("keywords") or []) if isinstance(k, str)
     )
-    # The OLD projected Card — fetched ONCE, up front: the residual keys read it
-    # below AND (ADR-0035 Stage-3a floor port) the crosswalk's membership floor reads
-    # it for its structural ``big_mana`` / ``kill_engine`` / token-kindred arms. Never
-    # the flag-switched ``ir_for`` (under the flag that is the crosswalk Card).
-    old = old_ir_for(record)
     for tree in trees:
         for sig in extract_crosswalk_signals(
             tree,
@@ -241,21 +232,9 @@ def _crosswalk_merge(
             keywords=keywords,
             include_membership=include_membership,
             record=record,
-            ir=old,
             vocab=vocab,
         ):
             if sig.key in PORTED_KEYS:
-                _add(sig)
-    if old is not None:
-        ir_record = (
-            _fold_referenced_objects(record, resolve_object)
-            if resolve_object is not None
-            else record
-        )
-        for sig in extract_signals_ir(
-            ir_record, old, vocab=vocab, include_membership=include_membership
-        ):
-            if sig.key in residual:
                 _add(sig)
     return out
 

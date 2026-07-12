@@ -21,12 +21,21 @@ from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
 from mtg_utils._card_ir.project import project_card
+from mtg_utils._card_ir.tree_synthesis import has_structural_kill_engine
 from mtg_utils._deck_forge import _ir_lookup as il
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._migrated_keys import MIGRATED_KEYS
-from mtg_utils._deck_forge._signals_ir import CLASS_TRIBES, extract_signals_ir
+from mtg_utils._deck_forge._signals_ir import (
+    CLASS_TRIBES,
+    _is_big_mana_ir,
+    _is_kill_engine_ir,
+    extract_signals_ir,
+)
+from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge.crosswalk_signals import (
     PORTED_KEYS,
+    _floor_token_maker_subjects,
+    _is_big_mana_tree,
     extract_crosswalk_signals,
 )
 from mtg_utils._deck_forge.signals import (
@@ -431,10 +440,15 @@ def test_hybrid_falls_back_when_tree_unavailable(monkeypatch):
     assert ported_key not in on  # no tree, ir=None → regex only
 
 
-def test_hybrid_residual_keys_consult_old_ir(monkeypatch):
-    """The 12 residual keys (MIGRATED not in PORTED) stay on the legacy IR path:
-    the crosswalk merge must fetch ``old_ir_for``, never the flag-switched
-    ``ir_for`` (which under the flag is the crosswalk Card)."""
+def test_hybrid_crosswalk_merge_never_consults_old_ir(monkeypatch):
+    """ADR-0039 task #80 step 3: ``MIGRATED_KEYS - PORTED_KEYS`` (the old
+    "residual" tail) is EMPTY — every migrated key graduated to a
+    crosswalk-native lane — and the membership floor's own former
+    ``old_ir_for`` dependency was rewired to read the concept tree directly
+    (:func:`_is_big_mana_tree` / ``has_structural_kill_engine`` /
+    :func:`_floor_token_maker_subjects`). So the crosswalk merge must NEVER
+    fetch ``old_ir_for`` — a genuine regression to the pre-rewire residual
+    fallback would show up here as a spurious call."""
     bulk, tree, _key = _ported_case()
     monkeypatch.setattr(il, "trees_for", _returns((tree,)))
     calls: list[dict] = []
@@ -445,7 +459,7 @@ def test_hybrid_residual_keys_consult_old_ir(monkeypatch):
     monkeypatch.setattr(il, "old_ir_for", _spy)
     monkeypatch.setenv(FLAG, "1")
     extract_signals_hybrid(bulk, None)
-    assert calls, "old_ir_for must be consulted for the residual keys under the flag"
+    assert not calls, "old_ir_for must never be consulted by the crosswalk merge"
 
 
 def test_hybrid_reconciliation_single_fire(monkeypatch):
@@ -624,12 +638,10 @@ def test_extract_crosswalk_signals_no_floor_by_default():
     built = _floor_case(oid, faces)
     if built is None:  # pragma: no cover — the first card always builds in practice
         pytest.skip("first fixture card drifts")
-    _bulk_rec, tree, ir = built
+    _bulk_rec, tree, _ir = built
     base = extract_crosswalk_signals(tree, keywords=frozenset())
     # An enchantment/artifact type_line can NOT open a floor lane without the arg.
-    withrec = extract_crosswalk_signals(
-        tree, keywords=frozenset(), record=_bulk_rec, ir=ir
-    )
+    withrec = extract_crosswalk_signals(tree, keywords=frozenset(), record=_bulk_rec)
     assert {(s.key, s.scope, s.subject) for s in base} == {
         (s.key, s.scope, s.subject) for s in withrec
     }
@@ -717,12 +729,15 @@ def test_membership_floor_reproduced_in_flag_on_commander(monkeypatch):
     assert uncond_total > 100, f"expected a broad floor, saw {uncond_total} lanes"
     # (b) every class-tribe floor lane is accounted for: reproduced, or an allowed
     # go_wide cascade (the per-lane assert above proves each cascade is legitimate).
-    # ADR-0035 Stage-4: the go_wide keys (creatures_matter / attack_matters /
-    # anthem_static) are in ``_STAGE4_RESIDUAL`` — served by ``old_ir_for`` on the
-    # hybrid residual arm — so the flag-ON hybrid's go_wide now equals the IR's and
-    # the class-tribe floor is fully reproduced (the pre-Stage-4 cascade residual
-    # collapses to empty). Non-emptiness is therefore no longer required; the
-    # partition invariant is what guards the floor.
+    # The go_wide keys (creatures_matter / attack_matters / anthem_static) are now
+    # PORTED (crosswalk-native, ADR-0038/0039), so the flag-ON hybrid's go_wide is
+    # the crosswalk's OWN structural computation — genuinely narrower than the IR's
+    # on cards whose go-wide traces to old-IR's board_count hallucination (ADR-0039
+    # task #80 step 3 dropped the byte-parity reproduction of that artifact from
+    # ``_type_matters_go_wide``, matching ``_creatures_matter``'s own precedent for
+    # the standalone key). The partition invariant (every lane is EITHER reproduced
+    # OR a provable cascade) is what guards the floor — non-emptiness of either
+    # bucket is not required.
     assert gated_ok + len(gated_cascade) == gated_total
 
 
@@ -730,21 +745,20 @@ def test_membership_floor_inert_in_candidate_mode():
     """Candidate mode (``include_membership=False`` — the 99) must be UNCHANGED by
     the port: the crosswalk floor never fires, so flag-ON candidate mode adds no
     floor lane over its own pre-port baseline. Proven structurally: with the floor
-    gated OFF, the crosswalk output is identical whether or not ``record``/``ir`` are
+    gated OFF, the crosswalk output is identical whether or not ``record`` is
     threaded."""
     for oid, faces in _faces_by_oid().items():
         built = _floor_case(oid, faces)
         if built is None:
             continue
-        bulk, tree, ir = built
+        bulk, tree, _ir = built
         without = extract_crosswalk_signals(tree, keywords=frozenset())
-        # include_membership defaults False → threading record/ir is a no-op.
+        # include_membership defaults False → threading record is a no-op.
         threaded = extract_crosswalk_signals(
             tree,
             keywords=frozenset(),
             include_membership=False,
             record=bulk,
-            ir=ir,
         )
         assert [(s.key, s.scope, s.subject) for s in without] == [
             (s.key, s.scope, s.subject) for s in threaded
@@ -784,13 +798,13 @@ def test_land_destruction_promoted_floor(monkeypatch):
 
 def test_big_mana_promoted_floor(monkeypatch):
     """ADR-0039 W8 (big_mana PROMOTED off the KEPT twelve): Sol Ring's
-    ``{T}: Add {C}{C}`` is a ``ramp`` Effect with ``amount.factor>1`` (CR
-    106.4) — the shared ``_apply_membership_floor``'s ``_is_big_mana_ir``
-    structural arm fires it on BOTH the flag-OFF and flag-ON hybrid paths
-    under ``include_membership=True``. The floor still reads the OLD
-    projected ``Card`` for this arm (a known, scheduled item for the
-    membership-floor rewire, ADR-0039 task #80 step 3) — promoting the key
-    changes only which path re-supplies the SAME shared computation."""
+    ``{T}: Add {C}{C}`` fires the shared ``_apply_membership_floor``'s
+    big_mana arm on BOTH the flag-OFF (``_is_big_mana_ir``, reading the OLD
+    projected ``Card``'s ``ramp`` Effect with ``amount.factor>1``, CR 106.4)
+    and flag-ON (``_is_big_mana_tree``, reading the SAME magnitude off the
+    concept tree's ``ramp`` effect-concept, ADR-0039 task #80 step 3) hybrid
+    paths under ``include_membership=True`` — two independent structural
+    reads of the same real card, not one shared computation any more."""
     built = _floor_case_for("Sol Ring")
     if built is None:
         pytest.skip("Sol Ring fixture record drifts")
@@ -799,3 +813,167 @@ def test_big_mana_promoted_floor(monkeypatch):
     on_on_path = _hybrid_idents(monkeypatch, bulk, tree, ir, flag=True, include=True)
     assert ("big_mana", "you", "") in on_off_path
     assert ("big_mana", "you", "") in on_on_path
+
+
+# ── ADR-0039 task #80 step 3 — the membership floor's rewired detectors ──────
+# Direct unit pins for the three structural facts ``_apply_membership_floor``
+# used to read off the OLD projected ``Card`` and now reads off the concept
+# tree instead, one detector at a time, each verified against the LEGACY
+# reader over the SAME real card (positive: the legacy reader also fires;
+# negative: neither reader fires) — the mechanism moved, membership did not.
+
+
+def test_is_big_mana_tree_direct_ramp_effect():
+    """Positive, direct ramp effect: Sol Ring's ``{T}: Add {C}{C}`` is a
+    ``ramp`` effect concept whose typed ``produced`` is
+    ``Colorless(count=Fixed(2))`` — factor > 1 (CR 106.4). Matches
+    ``_is_big_mana_ir`` on the SAME card's legacy projection."""
+    built = _floor_case_for("Sol Ring")
+    if built is None:
+        pytest.skip("Sol Ring fixture record drifts")
+    _bulk, tree, ir = built
+    assert _is_big_mana_tree(tree) is True
+    assert _is_big_mana_ir(ir) is True
+
+
+def test_is_big_mana_tree_granted_mana_ability():
+    """Positive, GRANTED mana ability: Discreet Retreat's Aura grants
+    enchanted land "{T}: Add two mana of any one color" — the magnitude
+    lives on the granted ``GrantAbility`` definition's own effect
+    (:func:`_granted_mana_defs`), not a direct ``ramp`` effect concept on
+    Discreet Retreat's own ability (``tree.effect_concepts("ramp")`` is
+    empty for this card — verified this session). Matches ``_is_big_mana_ir``
+    on the SAME card's legacy projection (CR 106.4)."""
+    built = _floor_case_for("Discreet Retreat")
+    if built is None:
+        pytest.skip("Discreet Retreat fixture record drifts")
+    _bulk, tree, ir = built
+    assert not tree.effect_concepts("ramp")
+    assert _is_big_mana_tree(tree) is True
+    assert _is_big_mana_ir(ir) is True
+
+
+def test_is_big_mana_tree_returnasaura_granted_mana_gain():
+    """GENUINE recall gain (corpus-adjudicated, ADR-0039 task #80 step 3):
+    Harold and Bob, First Numens's ``ReturnAsAura`` effect grants "Enchanted
+    Forest has '{T}: Add three mana of any one color...'" — factor 3, CR
+    106.4. ``_is_big_mana_tree`` reads it via
+    :func:`_iter_returnasaura_mana_defs`; the OLD IR does NOT structure a
+    ``ReturnAsAura``-granted ability into a ramp-category ``Effect`` at all,
+    so ``_is_big_mana_ir``'s ``ir.all_abilities()`` walk finds nothing to
+    check — a real gap the old projection had, not something this rewire
+    introduces (full commander-legal re-measure this session found 0
+    regressions and 3 such gains: this card plus Food Chain / Metamorphosis's
+    dynamically-scaling "Add X mana... where X is 1 plus..." bodies, both
+    outside the committed fixture)."""
+    built = _floor_case_for("Harold and Bob, First Numens")
+    if built is None:
+        pytest.skip("Harold and Bob, First Numens fixture record drifts")
+    _bulk, tree, ir = built
+    assert _is_big_mana_tree(tree) is True
+    assert _is_big_mana_ir(ir) is False
+
+
+def test_is_big_mana_tree_single_mana_dork_negative():
+    """Negative: Llanowar Elves' ``{T}: Add {G}`` is exactly ONE mana —
+    factor == 1, not big mana (CR 106.4). Matches ``_is_big_mana_ir`` on the
+    SAME card's legacy projection."""
+    built = _floor_case_for("Llanowar Elves")
+    if built is None:
+        pytest.skip("Llanowar Elves fixture record drifts")
+    _bulk, tree, ir = built
+    assert _is_big_mana_tree(tree) is False
+    assert _is_big_mana_ir(ir) is False
+
+
+def test_floor_kill_engine_reads_tree_directly():
+    """The floor's kill_engine arm now reads ``has_structural_kill_engine``
+    off the tree (CR 701.8a: "To destroy a permanent, move it from the
+    battlefield to its owner's graveyard") instead of ``_is_kill_engine_ir``
+    off the OLD ``Card`` — verified equivalent on a genuine repeatable-
+    destroy engine (Visara the Dreadful's "{2}{B}{B}, {T}: Destroy target
+    creature.") and a creature with no such ability (Llanowar Elves),
+    matching ``_is_kill_engine_ir`` on the SAME cards' legacy projections
+    both ways."""
+    built = _floor_case_for("Visara the Dreadful")
+    if built is None:
+        pytest.skip("Visara the Dreadful fixture record drifts")
+    _bulk, tree, ir = built
+    assert has_structural_kill_engine(tree) is True
+    assert _is_kill_engine_ir(ir) is True
+
+    built = _floor_case_for("Llanowar Elves")
+    if built is None:
+        pytest.skip("Llanowar Elves fixture record drifts")
+    _bulk, tree, ir = built
+    assert has_structural_kill_engine(tree) is False
+    assert _is_kill_engine_ir(ir) is False
+
+
+def test_floor_token_maker_subjects_directed_raw_mirror():
+    """Positive, raw-mirror recovery: "Each player OTHER THAN target player
+    creates a 5/5 red Dragon creature token" (Death by Dragons) and "its
+    controller creates a 3/3 white Angel creature token" (Soul of
+    Emancipation) both leave phase's ``Token`` node ``Unimplemented`` (no
+    typed ``types`` field) — the floor cares only that the card's own
+    ability NAMES a creature-token subtype (CR 111.2/205.3), not who
+    receives it (unlike the ``token_maker`` KEY lane's own directed-gift
+    exclusion), so :func:`_floor_token_maker_subjects` recovers both via the
+    per-concept raw mirror. Matches legacy's OLD ``ir.all_abilities()`` walk
+    on the SAME cards."""
+    built = _floor_case_for("Death by Dragons")
+    if built is None:
+        pytest.skip("Death by Dragons fixture record drifts")
+    _bulk, tree, _ir = built
+    assert "Dragon" in _floor_token_maker_subjects(tree, CREATURE_SUBTYPES)
+
+    built = _floor_case_for("Soul of Emancipation")
+    if built is None:
+        pytest.skip("Soul of Emancipation fixture record drifts")
+    _bulk, tree, _ir = built
+    assert "Angel" in _floor_token_maker_subjects(tree, CREATURE_SUBTYPES)
+
+
+def test_floor_token_maker_subjects_structural_no_mirror_needed():
+    """Positive, purely structural: Krenko, Mob Boss's own "create X 1/1 red
+    Goblin creature tokens" resolves via phase's typed ``Token.types`` field
+    directly — no raw-mirror fallback needed."""
+    built = _floor_case_for("Krenko, Mob Boss")
+    if built is None:
+        pytest.skip("Krenko, Mob Boss fixture record drifts")
+    _bulk, tree, _ir = built
+    assert "Goblin" in _floor_token_maker_subjects(tree, CREATURE_SUBTYPES)
+
+
+def test_floor_token_maker_subjects_no_maker_negative():
+    """Negative: Llanowar Elves makes no tokens at all — the empty set,
+    matching legacy's OLD ``ir.all_abilities()`` walk on the same card."""
+    built = _floor_case_for("Llanowar Elves")
+    if built is None:
+        pytest.skip("Llanowar Elves fixture record drifts")
+    _bulk, tree, _ir = built
+    assert _floor_token_maker_subjects(tree, CREATURE_SUBTYPES) == set()
+
+
+def test_type_matters_go_wide_arm_vi_dropped_in_commander_mode(monkeypatch):
+    """The dropped ``_type_matters_go_wide`` arm (vi) reproduced a KNOWN
+    old-IR hallucination (a synthetic board_count ability fabricated for
+    Elvish Berserker's Rampage "for each creature blocking it") — already
+    adjudicated a SHED for candidate mode
+    (``test_type_matters_go_wide_rampage_shed_not_ported``,
+    tests/mtg-utils/test_crosswalk.py). This pins the SAME adjudication now
+    holds in ``include_membership=True`` COMMANDER mode too: legacy (flag
+    OFF) still fires the class-tribe Berserker lane (the hallucination is
+    untouched there), but the flag-ON crosswalk path — which used to
+    byte-mirror it via arm (vi) — no longer does. Elvish Berserker's own
+    RACE tribe (Elf) fires on BOTH paths regardless (CR 205.3/702.23)."""
+    built = _floor_case_for("Elvish Berserker")
+    if built is None:
+        pytest.skip("Elvish Berserker fixture record drifts")
+    bulk, tree, ir = built
+    on_off_path = _hybrid_idents(monkeypatch, bulk, tree, ir, flag=False, include=True)
+    on_on_path = _hybrid_idents(monkeypatch, bulk, tree, ir, flag=True, include=True)
+    assert ("type_matters", "you", "Elf") in on_off_path
+    assert ("type_matters", "you", "Elf") in on_on_path
+    assert ("type_matters", "you", "Berserker") in on_off_path
+    assert ("type_matters", "you", "Berserker") not in on_on_path

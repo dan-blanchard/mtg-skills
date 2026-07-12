@@ -6733,6 +6733,24 @@ def _token_kindred_subject(f: object, vocab: frozenset[str]) -> str | None:
     return ""
 
 
+def _token_maker_subjects_from_ir(ir: Card, vocab: frozenset[str]) -> set[str]:
+    """Every creature-token kindred subject a ``make_token`` effect on ``ir``
+    captures (Krenko -> Goblin) — the structural half of
+    :func:`_apply_membership_floor`'s token_maker -> type_matters cross-open
+    (CR 111.2 / 205.3). Extracted so the legacy caller can compute it off the
+    OLD projected ``Card`` and hand it to the shared floor function as a plain
+    ``frozenset`` (ADR-0039 task #80 step 3 — the floor itself no longer reads
+    ``ir`` at all)."""
+    subjects: set[str] = set()
+    for ab in ir.all_abilities():
+        for e in ab.effects:
+            if e.category == "make_token":
+                sub = _token_kindred_subject(e.subject, vocab)
+                if sub:
+                    subjects.add(sub)
+    return subjects
+
+
 # exile_until_leaves (ADR-0027) — the "exile until ~ leaves the battlefield"
 # bounce-removal idiom (Oblivion Ring, Fiend Hunter, Banisher Priest, Glorious
 # Protector). A plain exile-removal (Path to Exile, Swords to Plowshares) has no
@@ -6948,12 +6966,15 @@ _KGT_SPLIT_RESIDUE_RE = re.compile(KEYWORD_GRANT_TARGET_REGEX, re.IGNORECASE)
 
 def _apply_membership_floor(
     card: dict,
-    ir: Card,
     name: str,
     vocab: frozenset[str],
     kept_oracle: str,
     out: list[Signal],
     add: Callable[..., None],
+    *,
+    is_big_mana: bool,
+    is_kill_engine: bool,
+    token_maker_subjects: frozenset[str],
 ) -> None:
     """The card-type / own-subtype MEMBERSHIP floor (what the card IS).
 
@@ -6966,6 +6987,15 @@ def _apply_membership_floor(
     ``out`` are the caller's dedup surface (first HIGH structural firing wins the
     ``(key, scope, subject)`` ident); the caller gates the call on
     ``include_membership``.
+
+    ADR-0039 task #80 step 3 (deletion phase): the three structural facts that
+    used to be read directly off the OLD projected ``Card`` (``_is_big_mana_ir`` /
+    ``_is_kill_engine_ir`` / the ``ir.all_abilities()`` make_token walk) are now
+    parameters — each caller computes them off ITS OWN substrate (the legacy
+    caller off the old ``Card``, the crosswalk caller off the ``ConceptTree``),
+    so this shared function never touches ``old_ir_for`` / the old ``Card`` type
+    at all. Keeps the floor's SEMANTICS identical (a re-plumbing, not a
+    redesign) — only the read SOURCE moves.
     """
     type_line = (card.get("type_line") or "").lower()
     if "artifact" in type_line:
@@ -6998,7 +7028,7 @@ def _apply_membership_floor(
     # (Neheb, the Eternal → amount==None). include_membership-gated, scope 'you',
     # LOW conf — reproducing the deleted extract_signals cross-open (which fired LOW
     # and never fed has_other_plan, so no voltron mirror is needed). CR 106.4.
-    if _is_big_mana_ir(ir) or _BIG_MANA_REGEX.search(kept_oracle):
+    if is_big_mana or _BIG_MANA_REGEX.search(kept_oracle):
         add("big_mana", "you", "", "big-mana generator", "low")
     # ADR-0027 — cheat_from_top BYTE-IDENTICAL membership-gated kept mirror. A
     # COMMANDER that REVEALS the top card of a library AND cheats the SAME revealed
@@ -7041,7 +7071,7 @@ def _apply_membership_floor(
     # mirror is needed, matching the land_destruction / cheat_from_top precedent).
     # CR 305.6.
     if "creature" in type_line and (
-        _is_kill_engine_ir(ir) or _REPEATABLE_KILL_MIRROR.search(kept_oracle)
+        is_kill_engine or _REPEATABLE_KILL_MIRROR.search(kept_oracle)
     ):
         add("kill_engine", "you", "", "repeatable creature destruction", "low")
     # ADR-0027 — one_punch (STRUCTURAL ARM, membership audit). An extreme power-
@@ -7168,13 +7198,7 @@ def _apply_membership_floor(
     # of Suleiman → Djinn, Wirefly Hive → Insect, Wedding Announcement → Human).
     # scope 'you', LOW conf. Non-creature token makers (Treasure/Clue) yield no
     # subject and stay out. CR 111.2 / 205.3.
-    token_subjects: set[str] = set()
-    for ab in ir.all_abilities():
-        for e in ab.effects:
-            if e.category == "make_token":
-                sub = _token_kindred_subject(e.subject, vocab)
-                if sub:
-                    token_subjects.add(sub)
+    token_subjects: set[str] = set(token_maker_subjects)
     for clause in _clauses(kept_oracle):
         for _key, sub in _detect_token_maker(clause, vocab):
             if sub:
@@ -12657,5 +12681,15 @@ def extract_signals_ir(
     # avenues (only the commander's membership opens a lane). Extracted to the
     # shared ``_apply_membership_floor`` so the ADR-0035 crosswalk reproduces it.
     if include_membership:
-        _apply_membership_floor(card, ir, name, vocab, kept_oracle, out, add)
+        _apply_membership_floor(
+            card,
+            name,
+            vocab,
+            kept_oracle,
+            out,
+            add,
+            is_big_mana=_is_big_mana_ir(ir),
+            is_kill_engine=_is_kill_engine_ir(ir),
+            token_maker_subjects=frozenset(_token_maker_subjects_from_ir(ir, vocab)),
+        )
     return out

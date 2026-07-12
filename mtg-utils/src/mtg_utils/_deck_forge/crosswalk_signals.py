@@ -302,7 +302,6 @@ from mtg_utils._deck_forge._signals_ir import (
     _NAMED_COUNTER_KINDS,
     _SELF_PROTECTION_GRANT_KW,
     _apply_membership_floor,
-    extract_signals_ir,
 )
 from mtg_utils._deck_forge._signals_ir import (
     _LAND_SUBTYPES as _LIVE_LAND_SUBTYPES,
@@ -346,7 +345,6 @@ from mtg_utils._deck_forge._sweep_detectors import (
 )
 from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils.card_classify import get_oracle_text
-from mtg_utils.card_ir import Card
 
 # The Signal keys the Stage-2 crosswalk PORTED from the typed substrate (the shadow
 # harness sliced BOTH the crosswalk and the live hybrid path to exactly this set).
@@ -836,14 +834,14 @@ _PORTED_KEYS_STAGE3: frozenset[str] = frozenset(
         # (Goblin Grenadiers / Orcish Settlers no longer diverge). CR 305.6.
         "land_destruction",
         # big_mana: also entirely `_apply_membership_floor`-served — 542/542
-        # both, 0/0 live_only/cw_only. The floor is ONE shared function
-        # (`extract_signals_ir` and `extract_crosswalk_signals` both call
-        # it with the SAME `ir=old_ir_for(record)` argument), so promoting
-        # the key changes nothing about what fires today — only which path
-        # re-supplies it. `_is_big_mana_ir` still reads the OLD projected
-        # `Card`; that dependency is a KNOWN, SCHEDULED item for the
-        # membership-floor rewire (ADR-0039 task #80 step 3, deletion
-        # phase), not a blocker for this lane-serving promotion. CR 106.4.
+        # both, 0/0 live_only/cw_only at promotion time (`extract_signals_ir`
+        # and `extract_crosswalk_signals` both called the same shared floor
+        # function). ADR-0039 task #80 step 3 (deletion phase) REWIRED the
+        # floor's structural big_mana arm off the OLD projected `Card`
+        # (`_is_big_mana_ir`) onto the concept tree directly
+        # (`_is_big_mana_tree`, reading the SAME `ramp` effect-concept set the
+        # `ramp` key lane above already uses) — `extract_crosswalk_signals`
+        # no longer takes an `ir` parameter at all. CR 106.4.
         "big_mana",
         # ki_counter_matters: the `ki` HasCounters TRIGGER-condition self-
         # check (the Kamigawa flip cycle's "if there are two or more ki
@@ -4156,6 +4154,120 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _is_big_mana_tree(tree: ConceptTree) -> bool:
+    """Tree-native equivalent of the legacy ``_is_big_mana_ir`` structural arm
+    (ADR-0039 task #80 step 3 — the membership-floor rewire off the OLD
+    projected ``Card``): true when a mana-producing effect structurally
+    produces MORE than one mana — reusing the SAME :func:`_mana_accel`
+    predicate the ``ramp`` key lane's own acceleration gate applies (Sol
+    Ring's ``{C}{C}``, Gilded Lotus's "three mana", Selvala / Cabal Coffers'
+    dynamic count; Dark Ritual's ``{B}{B}{B}`` via the Fixed-colors-list
+    shape ``_mana_accel`` already handles), over BOTH of the ``ramp`` lane's
+    magnitude-bearing effect sources: a direct ``ramp`` effect concept on the
+    card's own ability (``tree.effect_concepts("ramp")``), and a GRANTED mana
+    ability (:func:`_granted_mana_defs` / :func:`_iter_returnasaura_mana_defs`
+    — an Aura's "Enchanted land/creature/artifact has '{T}: Add two mana...'"
+    body: Discreet Retreat, Tectonic Split, Mark of Sakiko, Bigger on the
+    Inside — corpus-verified this session against the OLD IR's
+    ``ir.all_abilities()`` walk). A factor==1 producer (Llanowar Elves'
+    ``{G}``) is exactly ONE mana and is NOT big mana. Excludes the ``ramp``
+    lane's remaining two arms (:func:`_has_animate_treasure_grant`, the
+    per-card ledgered bridges) — neither carries a magnitude at all (a
+    Treasure sac is always exactly one mana of any color). CR 106.4.
+
+    GENUINE recall gains over ``_is_big_mana_ir`` (full commander-legal
+    corpus re-measure, ADR-0039 task #80 step 3, adjudicated — not silent
+    drift): Food Chain / Metamorphosis's "Add X mana... where X is 1 plus
+    the exiled/sacrificed creature's mana value" is a dynamically-scaling
+    amount phase's typed ``count`` correctly reads as non-Fixed, which the
+    OLD projection's ``Quantity`` heuristic left ``op='fixed', factor=1``
+    for (missing the "1 plus X" scaling entirely) — a genuine CR 106.4 big-
+    mana source the old regex mirror ALSO never caught (neither "for each"
+    nor "{}{}" literally appears). Harold and Bob, First Numens's granted
+    "{T}: Add three mana of any one color" (via ``ReturnAsAura``) is factor
+    3 — the OLD projection does not structure this ``ReturnAsAura``-granted
+    ability into a ramp-category Effect at all, so ``_is_big_mana_ir``'s walk
+    finds nothing to check; ``_iter_returnasaura_mana_defs`` reads it
+    directly."""
+    for c in tree.effect_concepts("ramp"):
+        if _mana_accel(c.node):
+            return True
+    for d, _aff in (*_granted_mana_defs(tree), *_iter_returnasaura_mana_defs(tree)):
+        if _mana_accel(getattr(d, "effect", None)):
+            return True
+    return False
+
+
+# The membership floor's OWN token-maker raw mirror (ADR-0039 task #80 step 3):
+# widens the pinned ``_TOKEN_MAKER_PATTERN`` (which requires the literal
+# imperative "create ") to also match the third-person "creates" phase's own
+# raw-slice preserves for a DIRECTED token maker ("Each player OTHER THAN
+# target player creates ...", "its controller creates ..."). Deliberately NOT
+# scoped by who receives the token (unlike the ``token_maker`` KEY lane's own
+# ``_EACH_PLAYER_TOKEN_MAKER_RE`` widening, which excludes exactly those two
+# phrasings because THAT lane claims a "you get a token too" self-benefit) —
+# the floor's semantics only care that the card's own ability NAMES a
+# creature-token subtype at all, matching the OLD IR's own ``ir.all_abilities()``
+# walk (which read every ``make_token`` effect's subject regardless of
+# ``controller`` — "any" fired identically to "you").
+_FLOOR_TOKEN_MAKER_RAW = re.compile(
+    r"\bcreates?\b[^.]*?\bcreature tokens?\b", re.IGNORECASE
+)
+
+
+def _floor_token_maker_subjects(tree: ConceptTree, vocab: frozenset[str]) -> set[str]:
+    """The membership floor's token-maker -> type_matters cross-open subject
+    set (CR 111.2 "The player who creates a token is its owner"; CR 205.3
+    tribal subtypes): the structural :func:`structural_token_maker_type_
+    subjects` set, widened with a per-concept raw mirror for a
+    ``make_token`` effect phase leaves under-typed (an ``Unimplemented``
+    node / an empty ``types`` tuple — Death by Dragons, Soul of
+    Emancipation, Elephant Resurgence; verified this session against the OLD
+    IR's ``e.subject`` Filter reads, which resolved these three
+    structurally regardless of phase's own gap). Also
+    reused by :func:`_type_matters_go_wide` arm (ii) — Cybernetica Datasmith's
+    "Another target player creates a...Robot...token" now opens its own
+    Artificer class tribe, a genuine recall gain the un-widened
+    ``structural_token_maker_type_subjects`` never reached (verified against
+    the OLD IR's SAME structural walk, which also resolves "Robot" — this
+    isn't novel, just newly reachable).
+
+    NARROW, ACCEPTED per-face gap (ADR-0039 task #80 step 3 corpus
+    adjudication, 5 commander-legal cards): a two-face card whose token-maker
+    ability lives on a NON-creature face (an Adventure spell / Saga chapter
+    / the other half of a creature//creature pair) never widens the
+    CREATURE face's own class-tribe go-wide, because ``extract_crosswalk_
+    signals`` runs — and this function is scoped — per FACE tree, never a
+    merged multi-face view (the documented ``_crosswalk_merge`` invariant:
+    "never a merged multi-face tree, which would corrupt card-level reads
+    like is_type / cmc"). Flaxen Intruder // Welcome Home, Huatli, Poet of
+    Unity // Roar of the Fifth People, Kianne, Dean of Substance // Imbraham
+    Dean of Theory, Jadzi, Steward of Fate // Oracle's Gift, and Eccentric
+    Pestfinder // Turn Stones each lose ONLY their class tribe (their race
+    tribe fires unconditionally regardless) — the SAME per-face isolation
+    trait every other ported lane already has, not a regression unique to
+    this rewire; closing it would require threading sibling-face trees
+    through the whole ``extract_crosswalk_signals`` call chain, an
+    architecture change out of this step's re-plumbing scope. See
+    :func:`_apply_membership_floor`'s ``is_kill_engine`` docstring for the
+    identical root cause on Sheoldred // The True Scriptures."""
+    subjects = set(structural_token_maker_type_subjects(tree))
+    for c in tree.effect_concepts("make_token"):
+        types = [t for t in getattr(c.node, "types", None) or [] if isinstance(t, str)]
+        if types:
+            continue  # already resolved structurally above
+        m = _FLOOR_TOKEN_MAKER_RAW.search(c.raw or "")
+        if not m:
+            continue
+        head = re.split(r"creature tokens?", m.group(0), flags=re.IGNORECASE)[0]
+        for word in reversed(_TOKEN_SUBJECT_WORDS.findall(head)):
+            sub = _resolve_subject(word, vocab)
+            if sub and sub.lower() != "human":
+                subjects.add(sub)
+                break
+    return subjects
+
+
 # ── Batch 3 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────
 
 
@@ -5628,51 +5740,35 @@ _TYPE_MATTERS_GOWIDE_KEYWORDS: frozenset[str] = frozenset(
     }
 )
 
-# ADR-0038 W5: legacy's go-wide gate keys (matches the deck-forge cutover
-# gate's own ``_GO_WIDE_KEYS``, test_crosswalk_cutover.py) — arm (vi)'s
-# floor-exact reproduction target.
-_GO_WIDE_LEGACY_KEYS: frozenset[str] = frozenset(
-    {"creatures_matter", "attack_matters", "anthem_static"}
-)
-
 
 def _type_matters_go_wide(
     tree: ConceptTree,
     keywords: frozenset[str] = frozenset(),
-    *,
-    include_membership: bool = False,
-    record: dict | None = None,
-    ir: Card | None = None,
     vocab: frozenset[str] = CREATURE_SUBTYPES,
 ) -> bool:
     """Is this card ALSO a generic (non-tribal) creatures payoff, so a CLASS
     tribe (Warrior/Cleric/... — ``CLASS_TRIBES``) is worth noting alongside a
     RACE tribe (CR 205.3)? The class-tribe MEMBERSHIP floor's go-wide gate
-    (the b14 §1 arm C reconciliation in ``extract_crosswalk_signals``) — SIX
-    arms. Arms (i)-(v) are the STRUCTURAL, CR-grounded best-effort test (runs
-    regardless of ``include_membership``); arm (vi) is a FLOOR-exact
-    reproduction of legacy's OWN go-wide computation, available only when
-    ``include_membership`` is True and the caller supplies ``record``/``ir``
-    (the shadow-harness "candidate mode is inert" contract —
-    ``test_membership_floor_inert_in_candidate_mode`` — threading
-    ``record``/``ir`` alone with ``include_membership=False`` must be a
-    no-op) — mirrors every other membership-floor arm in this file, e.g.
-    :func:`_apply_membership_floor` — a byte-parity
-    kept-mirror layered UNDER the structural read, never instead of it):
+    (the b14 §1 arm C reconciliation in ``extract_crosswalk_signals``) — FIVE
+    STRUCTURAL, CR-grounded arms:
 
     (i) ``creatures_matter`` / ``attack_matters`` / ``anthem_static`` fire
     STRUCTURALLY — calling each lane function directly (:func:`_creatures_
     matter` / :func:`_attack_tapped_matters` / :func:`_anthem_static`), NOT
-    an ``out_keys`` intersection — ``creatures_matter``/``anthem_static``
-    stay Stage-4 RESIDUAL, so the production hybrid path calls
-    ``extract_crosswalk_signals`` with ``keys=PORTED_KEYS`` (excluding
-    them); ``add()`` filters a residual key's Signal out of ``out`` before
-    it ever reaches ``out_keys``, so a bare ``out_keys & {...}`` fast path
-    is DEAD in production (Battery Bearer's Artificer class tribe — found
-    via the deck-forge cutover gate,
-    ``test_membership_floor_reproduced_in_flag_on_commander``);
+    an ``out_keys`` intersection (all three are now PORTED, so ``add()``
+    would otherwise dedupe a same-ident re-firing rather than skip it — a
+    direct call is the honest read either way);
     (ii) a creature-type TOKEN MAKER (a captured kindred subject —
-    :func:`structural_token_maker_type_subjects`): Krenko/Bear's Companion/
+    :func:`_floor_token_maker_subjects`, the SAME structural-plus-raw-mirror
+    read the membership floor's own token-maker cross-open uses, ADR-0039
+    task #80 step 3 — widened past the bare
+    :func:`structural_token_maker_type_subjects` so a directed / under-typed
+    maker phase leaves ``Unimplemented`` still opens go-wide: Kalitas,
+    Bloodchief of Ghet's variable-P/T "create a black Vampire creature
+    token", Daxos the Returned's "create a...Spirit...token" — both
+    corpus-verified regressions found via the full commander-legal re-measure
+    this session, closed by reusing the floor's own widened reader instead of
+    the un-widened structural predicate directly): Krenko/Bear's Companion/
     Talrand-class — a typed-creature-token engine is itself a go-wide
     creature payoff (mirrors legacy's line ~11394 "token-maker →
     creatures_matter" cross-open, the LOW-conf arm the ported
@@ -5700,38 +5796,35 @@ def _type_matters_go_wide(
     ``_IR_KEYWORD_MAP`` combat block, which routes the SAME keyword set
     straight to ``attack_matters`` — Ahn-Crop Crasher, Glory-Bound
     Initiate). Rampage is deliberately EXCLUDED from this table (unlike
-    the 8 keywords above, it is NOT in legacy's ``_IR_KEYWORD_MAP`` either);
-    (vi) FLOOR-exact reproduction (only when ``include_membership`` and
-    ``record``/``ir`` are all supplied):
-    legacy's OWN ``creatures_matter``/``attack_matters``/``anthem_static``
-    firing, via a direct :func:`extract_signals_ir` call. Structurally,
-    arms (i)-(v) alone leave a genuinely diverse tail unreached — Rampage's
-    "for each creature blocking it" (CR 702.23), Devour's sacrifice count
-    (CR 702.82), Formidable-style total-power conditions (Owlbear
-    Shepherd), tapped-creature-count conditions (Frontline War-Rager), and
-    a nested "when you do" mass-untap consequence (Combat Celebrant's
-    exert payoff) ALL trace to old-IR's supplement fabricating a SYNTHETIC
-    "static board_count" ability (subject/amount = a bare ``Filter
-    (Creature, controller="you")``) whenever the oracle carries ANY
-    own-board count/condition operand phase's raw parse exposes,
-    regardless of the REAL population (verified this session: Elvish
-    Berserker's Rampage trigger's REAL phase filter carries
-    ``BlockingSource`` with ``controller=None``, never "You" — the
-    fabricated ability hallucinates "you" anyway). This is EXACTLY the
-    "bare 'creature' mention count, not a structural cares-about read"
-    floor :func:`_creatures_matter`'s own docstring already adjudicates as
-    a live_only mirror for the crosswalk's OWN standalone
-    ``creatures_matter`` key — but the type_matters class-tribe MEMBERSHIP
-    floor is, BY DEFINITION, a byte-parity reproduction of legacy's floor
-    (not a "more correct than legacy" structural claim), so arm (vi)
-    intentionally reproduces the SAME artifact here, one layer up, exactly
-    as every other floor arm in this file does for its own lane. LOW
-    confidence throughout — this never upgrades a genuine HIGH Arm-B
-    subject read (:func:`structural_type_subjects`).
+    the 8 keywords above, it is NOT in legacy's ``_IR_KEYWORD_MAP`` either).
 
-    Never changes what ``creatures_matter`` itself SERVES (that key stays
-    residual and is re-supplied from ``old_ir_for`` regardless) — a pure
-    internal widening of THIS reconciliation's go-wide test. CR 205.3/604.3.
+    ADR-0039 task #80 step 3 (deletion phase) DROPPED the former arm (vi) —
+    a FLOOR-exact reproduction of legacy's OWN go-wide computation via a
+    direct :func:`extract_signals_ir` call on the OLD projected ``Card``.
+    That arm existed ONLY to catch a tail old-IR's supplement fabricates a
+    SYNTHETIC "static board_count" ability for (subject/amount = a bare
+    ``Filter(Creature, controller="you")``) whenever the oracle carries ANY
+    own-board count/condition operand phase's raw parse exposes, REGARDLESS
+    of the real population — Rampage's "for each creature blocking it" (CR
+    702.23), Devour's sacrifice count (CR 702.82), Formidable-style
+    total-power conditions, tapped-creature-count conditions, and a nested
+    "when you do" mass-untap consequence all traced to this ONE hallucination
+    (verified: Elvish Berserker's Rampage trigger's REAL phase filter carries
+    ``BlockingSource`` with ``controller=None``, never "You" — old-IR
+    fabricates the "you" scope anyway). This is the EXACT same artifact
+    :func:`_creatures_matter`'s own docstring already adjudicates as a
+    ``live_only`` shed for the standalone ``creatures_matter`` key (not
+    ported), and ``test_type_matters_go_wide_rampage_shed_not_ported``
+    already pins the identical adjudication one layer up (Elvish Berserker's
+    RACE tribe Elf surfaces unconditionally; its CLASS tribe Berserker must
+    NOT) — so reproducing the hallucination here, just for the include_
+    membership=True commander path, would have been internally inconsistent
+    with that precedent. Dropping it removes the LAST ``old_ir_for`` read
+    from this gate; the deck-forge cutover gate's cascade-allowance
+    (``test_membership_floor_reproduced_in_flag_on_commander``) already
+    tolerates a crosswalk go_wide narrower than legacy's for exactly this
+    reason. LOW confidence throughout — this never upgrades a genuine HIGH
+    Arm-B subject read (:func:`structural_type_subjects`). CR 205.3/604.3.
     """
     if (
         _creatures_matter(tree)
@@ -5739,7 +5832,7 @@ def _type_matters_go_wide(
         or _anthem_static(tree)
     ):
         return True
-    if structural_token_maker_type_subjects(tree):
+    if _floor_token_maker_subjects(tree, vocab):
         return True
     for c in tree.iter_concepts():
         if _is_generic_creature_filter(count_operand_filter(c.node)):
@@ -5751,13 +5844,7 @@ def _type_matters_go_wide(
                 continue
             if _is_generic_creature_filter(getattr(static_def, "affected", None)):
                 return True
-    if {k.lower() for k in keywords} & _TYPE_MATTERS_GOWIDE_KEYWORDS:
-        return True
-    if include_membership and record is not None and ir is not None:
-        legacy = extract_signals_ir(record, ir, vocab=vocab, include_membership=False)
-        if any(s.key in _GO_WIDE_LEGACY_KEYS for s in legacy):
-            return True
-    return False
+    return bool({k.lower() for k in keywords} & _TYPE_MATTERS_GOWIDE_KEYWORDS)
 
 
 def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
@@ -23186,7 +23273,6 @@ def extract_crosswalk_signals(
     keywords: frozenset[str] = frozenset(),
     include_membership: bool = False,
     record: dict | None = None,
-    ir: Card | None = None,
     vocab: frozenset[str] = CREATURE_SUBTYPES,
 ) -> list[Signal]:
     """Run the ported crosswalk lanes over one concept tree; dedupe by ident.
@@ -23200,27 +23286,31 @@ def extract_crosswalk_signals(
     ``keys`` defaults to the FULL Stage-3 lane set (``_PORTED_KEYS_STAGE3``) — every
     lane this batch built — so a caller validating a lane structurally sees its
     output. The ADR-0035 Stage-4 LIVE narrowing is a HYBRID-level routing decision:
-    ``_crosswalk_merge`` passes the narrowed ``keys=PORTED_KEYS`` explicitly, so the
-    residual keys are sliced off there and re-supplied from ``old_ir_for``.
+    ``_crosswalk_merge`` passes the narrowed ``keys=PORTED_KEYS`` explicitly.
 
     ``keywords`` is the card's Scryfall keyword array (the bulk record's
     ``keywords``), the field-lookup source ``mill_makers`` gates on — it is NOT in
     the phase typed substrate (phase carries no ``Mill`` keyword), so the caller
     supplies it (the shadow diff from the bulk record, the tests from the fixture).
 
-    ``include_membership`` (ADR-0035 Stage-3a floor port) runs the
-    ``extract_signals_ir`` MEMBERSHIP / cares-about FLOOR — the broad LOW-conf
-    "commander cares about X" lanes that are membership-agnostic in the structural
-    crosswalk (a vanilla Pacifism opens ``enchantments_matter``, an Equipment opens
-    ``voltron_matters``, an artifact opens ``artifacts_matter``). DEFAULT FALSE so the
-    shadow harness and every existing crosswalk test (which call without the arg and
-    expect NO floor) stay green, and so candidate mode (``include_membership=False``)
-    is unchanged. When True the caller MUST supply ``record`` (the bulk record — the
-    floor's ``type_line`` / power / cmc / ``all_parts`` / keyword source) and ``ir``
-    (the OLD projected ``Card`` — the floor's structural ``big_mana`` / ``kill_engine``
-    / token-kindred reads), matching what ``extract_signals_ir`` reads byte-for-byte.
-    ``vocab`` is the creature-subtype vocab the token-kindred cross-open validates
-    against (threaded through like the hybrid).
+    ``include_membership`` (ADR-0035 Stage-3a floor port) runs the MEMBERSHIP /
+    cares-about FLOOR — the broad LOW-conf "commander cares about X" lanes that are
+    membership-agnostic in the structural crosswalk (a vanilla Pacifism opens
+    ``enchantments_matter``, an Equipment opens ``voltron_matters``, an artifact
+    opens ``artifacts_matter``). DEFAULT FALSE so the shadow harness and every
+    existing crosswalk test (which call without the arg and expect NO floor) stay
+    green, and so candidate mode (``include_membership=False``) is unchanged. When
+    True the caller MUST supply ``record`` (the bulk record — the floor's
+    ``type_line`` / power / cmc / ``all_parts`` / keyword source). ``vocab`` is the
+    creature-subtype vocab the token-kindred cross-open validates against
+    (threaded through like the hybrid).
+
+    ADR-0039 task #80 step 3 (deletion phase): the floor's structural
+    ``big_mana`` / ``kill_engine`` / token-kindred reads now come off THIS tree
+    (:func:`_is_big_mana_tree`, :func:`has_structural_kill_engine`,
+    :func:`structural_token_maker_type_subjects`) instead of the OLD projected
+    ``Card`` — this function no longer takes (or needs) an ``ir`` parameter at
+    all, so it never touches ``old_ir_for``.
     """
     # ADR-0035 Stage-3b (b): run the named overlay-correction stage FIRST, so the
     # lanes read the corrected concept overlay (a dig-into-play flipped to
@@ -23325,14 +23415,7 @@ def extract_crosswalk_signals(
     # name (bulk-side data) → a small live_only membership tail is a
     # documented join artifact (the b13 island_matters precedent), NOT
     # chased with bulk reads.
-    go_wide = _type_matters_go_wide(
-        tree,
-        keywords,
-        include_membership=include_membership,
-        record=record,
-        ir=ir,
-        vocab=vocab,
-    )
+    go_wide = _type_matters_go_wide(tree, keywords, vocab)
     if tree.is_type("Creature"):
         for st in tree.card_subtypes:
             sl = st.lower()
@@ -23356,24 +23439,27 @@ def extract_crosswalk_signals(
 
     # ── ADR-0035 Stage-3a MEMBERSHIP / cares-about FLOOR ──────────────────────────
     # The structural lanes above are membership-AGNOSTIC (they read what a card DOES,
-    # not what it IS), so the broad "commander cares about X" floor the live
+    # not what it IS), so the broad "commander cares about X" floor legacy's
     # ``extract_signals_ir`` fires (a vanilla enchantment → enchantments_matter, an
     # Equipment → voltron_matters, an artifact → artifacts_matter) is lost under the
-    # flag-ON cutover. Reproduce BOTH floor mechanisms byte-parity, gated on
+    # flag-ON cutover. Reproduce BOTH floor mechanisms, gated on
     # ``include_membership`` (True only for the commander in the deck-aggregate path):
     #   (1) the card-type / own-subtype membership block — the SHARED
-    #       ``_apply_membership_floor`` (one source with ``extract_signals_ir``, zero
-    #       drift); its residual-key firings (big_mana / land_destruction) are dropped
-    #       by ``add``'s ``keys`` slice and re-supplied by the legacy residual path in
-    #       ``_crosswalk_merge`` (``cheat_from_top`` PROMOTED ADR-0039 W8 — same
-    #       single-source function, now let through the slice unchanged).
+    #       ``_apply_membership_floor`` (one source with legacy's
+    #       ``extract_signals_ir``, zero drift on every read except the three
+    #       structural facts below, which this caller now computes off ``tree``
+    #       instead of the OLD projected ``Card`` — ADR-0039 task #80 step 3);
+    #       its residual-key firings (big_mana / land_destruction) are dropped
+    #       by ``add``'s ``keys`` slice when a caller narrows it (``cheat_from_top``
+    #       PROMOTED ADR-0039 W8 — same single-source function, now let through
+    #       the slice unchanged).
     #   (2) the ``_FLOOR_DETECTORS`` cares-about loop gated by ``_IR_FLOOR_LANES``
     #       (imported LIVE from ``_signals_ir`` — the sanctioned single-source),
     #       run over ``_kept(tree)``.
     # Both fire LOW/HIGH into ``add``, whose first-wins ``(key, scope, subject)`` dedup
     # mirrors ``extract_signals_ir``'s ``add`` — a structural HIGH already in ``out``
     # for the same ident is never downgraded by a floor LOW.
-    if include_membership and record is not None and ir is not None:
+    if include_membership and record is not None:
         name = record.get("name", "")
 
         def _add_floor(
@@ -23386,6 +23472,32 @@ def extract_crosswalk_signals(
             if det.key in _IR_FLOOR_LANES and det.pattern.search(kept):
                 _add_floor(det.key, det.scope, "", "")
         kept_oracle = _REMINDER_RX.sub(" ", get_oracle_text(record) or "")
-        _apply_membership_floor(record, ir, name, vocab, kept_oracle, out, _add_floor)
+        # ADR-0039 task #80 step 3: is_kill_engine reads the SAME
+        # has_structural_kill_engine predicate the earlier _kill_engine LANE
+        # already uses (single source), so this call is a no-op whenever that
+        # lane already fired kill_engine (first-wins dedup) — it only matters
+        # for a card where the lane's own recall floor missed (none observed
+        # this session; kept as a defensive re-derivation, not an assumption
+        # about lane ordering). NARROW, ACCEPTED gap (1 commander-legal card,
+        # full corpus re-measure): Sheoldred // The True Scriptures's
+        # repeatable destroy lives on "The True Scriptures" — an Enchantment
+        # — Saga face, never a Creature — so has_structural_kill_engine's own
+        # `tree.is_type("Creature")` gate returns False for THAT face, while
+        # the "Sheoldred" face (the Creature) has no destroy ability of its
+        # own. The OLD `_is_kill_engine_ir` had no such gate (it walked the
+        # WHOLE multi-face Card in one pass); this is the identical per-face-
+        # isolation trait documented on _floor_token_maker_subjects above,
+        # not a new regression.
+        _apply_membership_floor(
+            record,
+            name,
+            vocab,
+            kept_oracle,
+            out,
+            _add_floor,
+            is_big_mana=_is_big_mana_tree(tree),
+            is_kill_engine=has_structural_kill_engine(tree),
+            token_maker_subjects=frozenset(_floor_token_maker_subjects(tree, vocab)),
+        )
 
     return out
