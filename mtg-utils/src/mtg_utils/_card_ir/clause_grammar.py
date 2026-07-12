@@ -498,6 +498,21 @@ _VERB = comb.alt(
     comb.value("attach", comb.tag("enchant ")),
     # "Move one or more counters from … onto …" (CR movecounters) -> counter_move.
     comb.value("counter_move", comb.seq2(comb.tag("move"), comb.take_until("counter"))),
+    # "<player> does the same" — the ellipsis REPEAT-for-another-player
+    # construct (CR 608.2h): the clause repeats a WHOLE preceding action for
+    # a named player instead of restating it (The Wedding of River Song's
+    # "Draw two cards, then you may exile a nonland card … Then target
+    # opponent does the same."). The subject itself is already peeled by
+    # the EXISTING ``_PLAYER_PREFIX`` table above (its "target opponent " /
+    # "target player " / "that player " / "you " members), so dispatch
+    # lands here on the bare tail; self-contained tag match, no take_until
+    # needed. The lane gates on the SAME-unit self-tagged Draw sibling
+    # (:func:`_unit_has_originalcontroller_draw`'s "you and X each draw"
+    # precedent) rather than trusting the token blind, so a future card
+    # whose repeated action ISN'T a draw stays correctly unserved. Corpus-
+    # verified sole hit (1/32,521 commander-legal, full-bulk scan
+    # 2026-07-12): no other residue text matches "does the same" at all.
+    comb.value("ellipsis_repeat", comb.tag("does the same")),
     # "count the number of X counters (on …)" — a counter TALLY clause (CR
     # 122.1/701.6a "count"): Rumbling Ruin's ETB "count the number of +1/+1
     # counters on creatures you control" whose result feeds a later

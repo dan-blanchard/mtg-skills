@@ -10414,17 +10414,22 @@ def test_target_player_draws_excludes_recovered_each_and_self_branches():
     assert "target_player_draws" not in _keys("Mathise, Surge Channeler")
 
 
-def test_target_player_draws_widened_tag_synthetic_desc_bridge():
-    """ADR-0039 W7 BRIDGES wave: Fatal Lore, Season of the Burrow, Ertai
-    Resurrected, and Balor each carry a modal ``ParentTargetController``/
-    ``Typed`` Draw with NO self-tagged sibling to pair against AND no
-    reachable clause text anywhere in the typed tree (``unit.node.
-    description`` is ``None`` or a synthetic trigger-condition label like
-    "Whenever ~ attacks") — served by the
-    ``tpd_widened_tag_synthetic_desc`` ledgered bridge (bridge_ledger.py)
-    now that a whole-oracle text anchor is sanctioned; not fixable
-    structurally without a ``clause_grammar.py``/unit-synthesis change
-    (grammar-blocked, ADR-0039 task #82)."""
+def test_target_player_draws_widened_tag_modal_mode_description():
+    """ADR-0039 grammar sprint (task #82) GRADUATED the former
+    ``tpd_widened_tag_synthetic_desc`` bridge: Fatal Lore, Season of the
+    Burrow, Ertai Resurrected, and Balor each carry a modal
+    ``ParentTargetController``/``Typed`` Draw with NO self-tagged sibling
+    to pair against AND no reachable clause text on the owning unit's own
+    ``description`` (``None`` for a modal spell's per-mode entry, a
+    synthetic trigger-condition label like "Whenever ~ attacks" for a
+    modal trigger). Now served structurally:
+    ``crosswalk.modal_mode_description`` reads the REAL per-mode English
+    phase carries positionally (a modal spell's card-root
+    ``modal.mode_descriptions``, paired with ``root.abilities`` by index;
+    a modal trigger's ``execute.modal.mode_descriptions``, paired with
+    ``execute.mode_abilities`` by an object-identity walk), and
+    ``_widened_tag_phrase_match`` falls back to it wherever the unit-level
+    field carries nothing usable."""
     for name in ("Fatal Lore", "Season of the Burrow", "Ertai Resurrected", "Balor"):
         assert ("target_player_draws", "any", "") in _idents(name), name
 
@@ -10442,13 +10447,17 @@ def test_target_player_draws_buried_grant_thief_of_existence():
     assert ("target_player_draws", "any", "") in _idents("Thief of Existence")
 
 
-def test_target_player_draws_wedding_ellipsis_repeat_bridge():
-    """ADR-0039 W7 BRIDGES wave: The Wedding of River Song's "Then target
-    opponent does the same" names its own clause-grammar token
-    (``Unimplemented(name='target_opponent_does_the_same')``) but has no
-    concept mapping yet — served by the ``tpd_wedding_ellipsis_repeat``
-    ledgered bridge (bridge_ledger.py), grammar-blocked this wave
-    (ADR-0039 task #82)."""
+def test_target_player_draws_wedding_ellipsis_repeat():
+    """ADR-0039 grammar sprint (task #82) GRADUATED the former
+    ``tpd_wedding_ellipsis_repeat`` bridge: The Wedding of River Song's
+    "Then target opponent does the same" is now structured by a new
+    ``clause_grammar`` verb (``ellipsis_repeat`` — the EXISTING "target
+    opponent " subject-prefix peel lands dispatch on the bare "does the
+    same" tail) plus a ``recovery.ALLOWLIST`` mapping to the real "draw"
+    concept, read via a dedicated ``recovered_by == "ellipsis_repeat"``
+    arm gated on the SAME-unit self-tagged Draw sibling (the "you and X
+    each draw" pairing precedent, since the recovered node's raw carries
+    no verb of its own)."""
     assert ("target_player_draws", "any", "") in _idents("The Wedding of River Song")
 
 

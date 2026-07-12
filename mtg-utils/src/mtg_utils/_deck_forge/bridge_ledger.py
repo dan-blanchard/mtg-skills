@@ -52,7 +52,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     iter_static_defs,
     iter_typed_nodes,
-    recipient_tag,
     static_mode_field,
     tag_of,
 )
@@ -1403,105 +1402,17 @@ def _forge_anew_match(tree: ConceptTree) -> bool:
     return bool(_FORGE_ANEW_RX.search(tree.oracle or ""))
 
 
-# ── target_player_draws residual class (ADR-0039 W7 BRIDGES wave) ──────────
-# ``_TARGETED_DRAW_WIDENED_TAGS``, duplicated (not imported) from
-# crosswalk_signals — the SAME layering reason ``_LAND_SUBTYPES`` is
-# duplicated at the top of this module (crosswalk_signals imports
-# ``bridge_fires`` FROM here, so the reverse import would be circular).
-_TPD_WIDENED_TAGS: frozenset[str] = frozenset(
-    {
-        "Typed",
-        "ParentTargetController",
-        "TriggeringPlayer",
-        "ParentTargetOwner",
-        "TriggeringSourceController",
-    }
-)
-
-
-# Fatal Lore / Season of the Burrow / Ertai Resurrected / Balor each carry a
-# typed ``Draw`` node with a recipient tag already in
-# ``_TPD_WIDENED_TAGS`` — the SAME shape the live arm's phrase gate
-# ordinarily confirms — but the owning unit's OWN ``description`` is either
-# ``None`` (Fatal Lore's second mode, Season of the Burrow's exile mode) or
-# a synthetic trigger-condition label ("When ~ enters", "Whenever ~
-# attacks"/"Whenever ~ dies" — Ertai Resurrected, Balor), never the modal
-# bullet's/attack-or-dies mode's own English (CR 121.1/608.2h — the
-# grammar's own frontier for attributing modal/multi-triggered-event text
-# down to its unit). The gap is a per-unit residue-presence check (does
-# this Draw node's own recipient tag exist without ANY reachable "draw"-
-# mentioning text) so it self-retires the day phase/our own unit-synthesis
-# attributes real English there — the pre-existing phrase gate then fires
-# through the LIVE arm with zero further edits, same as every other
-# bridge's self-retirement. Corpus-verified 2026-07-12, phase v0.20.0,
-# 31,622 commander-legal: this shared gap hits 9 cards total (Balor, Ertai
-# Resurrected, Fall of the First Civilization, Fatal Lore, Love Song of
-# Night and Day, Season of the Burrow, The Legend of Yangchen // Avatar
-# Yangchen, Vault 11: Voter's Dilemma, Your Temple Is Under Attack) — the
-# other 5 are EITHER already closed by the pre-existing self-paired
-# ``_unit_has_originalcontroller_draw``/``Vote``-branch admissions (Fall of
-# the First Civilization, Love Song of Night and Day, The Legend of
-# Yangchen, Your Temple Is Under Attack — see
-# ``_target_player_draws``'s own W6-endgame docstring) or a genuine
-# ADJUDICATED SHED (Vault 11: Voter's Dilemma — a GROUP ``All``-scoped
-# outcome, not a directed gift; see
-# ``test_target_player_draws_excludes_vote_council_self_payoff``) — so this
-# bridge's own narrowly-anchored match (below) is the only thing that lets
-# it fire, and it hits exactly the 4 pins.
-def _tpd_widened_tag_no_draw_text(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "Draw":
-                continue
-            if recipient_tag(n) not in _TPD_WIDENED_TAGS:
-                continue
-            desc = (getattr(unit.node, "description", None) or "").lower()
-            if "draw" not in desc:
-                return True
-    return False
-
-
-_TPD_SYNTHETIC_DESC_RX = re.compile(
-    r"that player draws up to three cards|"
-    r"exile target nonland permanent\. its controller draws a card|"
-    r"counter target spell, activated ability, or triggered ability\. "
-    r"its controller draws a card|"
-    r"destroy another target creature or planeswalker\. "
-    r"its controller draws a card|"
-    r"target opponent draws three cards, then discards three cards at "
-    r"random",
-    re.IGNORECASE,
-)
-
-
-def _tpd_widened_tag_synthetic_desc_match(tree: ConceptTree) -> bool:
-    return bool(_TPD_SYNTHETIC_DESC_RX.search(tree.oracle or ""))
-
-
-# The Wedding of River Song's "Draw two cards, then you may exile a
-# nonland card ... Then target opponent does the same." — the ellipsis
-# repeat-for-another-player construct is a NAMED grammar token our own
-# clause_grammar.py already recognizes (the Unimplemented decorator's own
-# ``name`` field is literally ``target_opponent_does_the_same``) but has no
-# concept mapping in recovery.py's ALLOWLIST yet (ADR-0039 forbids adding
-# one this session — grammar-blocked, task #82's territory). Gap and match
-# are the SAME residue-presence check (the ``sac_devour_unimplemented``
-# precedent): the named token's mere existence both proves the substrate
-# still lacks the mapping AND identifies the idiom precisely enough to
-# serve it — no separate text anchor needed. Corpus-verified sole hit,
-# 2026-07-12, phase v0.20.0, 31,622 commander-legal.
-def _tpd_wedding_ellipsis_repeat_gap(tree: ConceptTree) -> bool:
-    return any(
-        True
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
-        if tag_of(n) == "Unimplemented"
-        and getattr(n, "name", None) == "target_opponent_does_the_same"
-    )
-
-
-def _tpd_wedding_ellipsis_repeat_match(tree: ConceptTree) -> bool:
-    return _tpd_wedding_ellipsis_repeat_gap(tree)
+# target_player_draws's two ADR-0039 W7 BRIDGES-wave rows
+# (tpd_widened_tag_synthetic_desc — Fatal Lore, Season of the Burrow,
+# Ertai Resurrected, Balor; tpd_wedding_ellipsis_repeat — The Wedding of
+# River Song) BOTH GRADUATED off the ledger in the grammar sprint (task
+# #82, 2026-07-12): a new `modal_mode_description` typed read
+# (mtg_utils._card_ir.crosswalk) attributes the real per-mode English the
+# first row's gap needed, and a new `ellipsis_repeat` clause_grammar verb
+# + recovery.ALLOWLIST mapping structures the second row's residue. See
+# `_target_player_draws`'s own docstring (crosswalk_signals.py) for the
+# full history; membership is unchanged (the same 5 pins still fire
+# target_player_draws, now structurally).
 
 
 # ── opponent_discard residual class (ADR-0039 W7 BRIDGES wave) ─────────────
@@ -2873,60 +2784,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Forge Anew",),
             gap=_forge_anew_paycost_unlinked_gap,
             match=_forge_anew_match,
-        ),
-        Bridge(
-            bridge_id="tpd_widened_tag_synthetic_desc",
-            key="target_player_draws",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a modal-mode / "
-                "attack-or-dies-triggered Draw's own unit never gets its "
-                "mode's real English attributed to unit.node.description "
-                "— only a synthetic trigger-condition label ('When ~ "
-                "enters', 'Whenever ~ attacks') survives, so the EXISTING "
-                "_TARGET_PLAYER_DRAW_PHRASE_RE gate can never see real "
-                "text — retires when that attribution lands (the "
-                "pre-existing arm then fires unmodified)"
-            ),
-            census=(
-                "shared gap 9 hits / 31,622 commander-legal (Balor, Ertai "
-                "Resurrected, Fall of the First Civilization, Fatal Lore, "
-                "Love Song of Night and Day, Season of the Burrow, The "
-                "Legend of Yangchen // Avatar Yangchen, Vault 11: Voter's "
-                "Dilemma, Your Temple Is Under Attack), phase v0.20.0, "
-                "2026-07-12; this bridge's own narrow match hits exactly "
-                "the 4 pins (the other 5 gap hits are EITHER already "
-                "closed by the pre-existing self-paired/Vote-branch "
-                "admissions OR a genuine adjudicated shed — Vault 11: "
-                "Voter's Dilemma, a GROUP All-scoped outcome — see "
-                "_tpd_widened_tag_no_draw_text's own module comment)"
-            ),
-            pins=(
-                "Fatal Lore",
-                "Season of the Burrow",
-                "Ertai Resurrected",
-                "Balor",
-            ),
-            gap=_tpd_widened_tag_no_draw_text,
-            match=_tpd_widened_tag_synthetic_desc_match,
-        ),
-        Bridge(
-            bridge_id="tpd_wedding_ellipsis_repeat",
-            key="target_player_draws",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): an ellipsis "
-                "repeat-for-another-player construct ('Then target "
-                "opponent does the same') — our OWN clause grammar "
-                "already names the token "
-                "(Unimplemented(name='target_opponent_does_the_same')) "
-                "but recovery.py's ALLOWLIST has no concept mapping for "
-                "it yet — retires when that mapping lands"
-            ),
-            census=("1 hit / 31,622 commander-legal, phase v0.20.0, 2026-07-12"),
-            pins=("The Wedding of River Song",),
-            gap=_tpd_wedding_ellipsis_repeat_gap,
-            match=_tpd_wedding_ellipsis_repeat_match,
         ),
         Bridge(
             bridge_id="opp_discard_unless_clause",

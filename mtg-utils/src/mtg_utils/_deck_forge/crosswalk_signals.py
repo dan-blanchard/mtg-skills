@@ -99,6 +99,7 @@ from mtg_utils._card_ir.crosswalk import (
     mana_restrictions,
     mod_keyword_name,
     mod_value,
+    modal_mode_description,
     modify_cost_mode,
     modify_cost_spell_filter,
     node_lure_mode,
@@ -1784,12 +1785,12 @@ PORTED_KEYS: frozenset[str] = frozenset(
 # landfall rule met: 183 both / 70 live_only -> 0 genuine gaps.
 # One real structural gain, a buried-grant Draw descent (Thief of
 # Existence, mirrors opponent_discard's own iter_typed_nodes
-# precedent). Two ADR-0039 ledgered bridges (bridge_ledger.py:
-# tpd_widened_tag_synthetic_desc [Fatal Lore, Season of the
-# Burrow, Ertai Resurrected, Balor], tpd_wedding_ellipsis_repeat
-# [The Wedding of River Song]) close the rest. See
-# :func:`_target_player_draws`'s own docstring for the full arm
-# history.
+# precedent). Two ADR-0039 ledgered bridges opened for the rest
+# (Fatal Lore/Season of the Burrow/Ertai Resurrected/Balor,
+# The Wedding of River Song); BOTH graduated off the ledger in the
+# grammar sprint (task #82, 2026-07-12) onto structural/recovered-
+# node reads. See :func:`_target_player_draws`'s own docstring for
+# the full arm history.
 # token_maker PROMOTED (ADR-0038 W6 endgame) — the 86-card
 # live_only set is EXACTLY two adjudicated shed classes: the
 # 85-card copy/Populate boundary (CR 707.1/111.2 — that's
@@ -14764,6 +14765,36 @@ _RECOVERED_DRAW_REPLACEMENT_RE = re.compile(
 )
 
 
+def _widened_tag_phrase_match(
+    unit: AbilityUnit, node: TypedMirrorNode, tree: ConceptTree
+) -> bool:
+    """Whether a widened-tag Draw's OWN clause names a player recipient
+    (:data:`_TARGET_PLAYER_DRAW_PHRASE_RE`) — read off the unit's own
+    ``description`` first, falling back to the REAL per-mode English
+    (:func:`~mtg_utils._card_ir.crosswalk.modal_mode_description`) when the
+    unit-level field carries nothing usable: ``None`` for a modal SPELL's
+    per-mode ability entry, or a synthetic trigger-condition label ("When ~
+    enters"/"Whenever ~ attacks") for a modal TRIGGER. ADR-0039 grammar
+    sprint (task #82) — retires the ``tpd_widened_tag_synthetic_desc``
+    bridge: Fatal Lore's/Season of the Burrow's per-mode text lives ONLY on
+    the card-root ``modal.mode_descriptions`` (their own mode ability's
+    ``description`` is ``None``); Ertai Resurrected's/Balor's lives on
+    ``execute.modal.mode_descriptions`` (their unit's own ``description``
+    is a synthetic "When ~ enters"/"Whenever ~ attacks" label). Vault 11:
+    Voter's Dilemma stays excluded (a Saga's chapters are independent
+    triggers, never a "choose one" modal branch — neither shape applies,
+    so :func:`modal_mode_description` returns ``""`` and this predicate
+    falls through unchanged).
+    """
+    desc = getattr(unit.node, "description", None) or ""
+    if any(_TARGET_PLAYER_DRAW_PHRASE_RE.search(cl.lower()) for cl in _clauses(desc)):
+        return True
+    modal_desc = modal_mode_description(unit, node, tree)
+    return bool(modal_desc) and any(
+        _TARGET_PLAYER_DRAW_PHRASE_RE.search(cl.lower()) for cl in _clauses(modal_desc)
+    )
+
+
 def _target_player_draws(tree: ConceptTree) -> list[Signal]:
     """target_player_draws — a DIRECTED / forced draw (CR 121.1): "target
     player draws a card" (Bloodgift Demon — the typed ``Player`` recipient).
@@ -14887,24 +14918,65 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
     unmodified) — corpus-verified narrow (31,622 commander-legal): exactly
     1 new hit, with Zur's Weirding's superficially similar buried Draw
     correctly excluded by the pre-existing ``unit.origin == "replacement"``
-    skip. Two ADR-0039 ledgered bridges (bridge_ledger.py) close the rest:
-    ``tpd_widened_tag_synthetic_desc`` (grammar_straggler — Fatal Lore,
-    Season of the Burrow, Ertai Resurrected, Balor: each already carries a
-    typed ``Draw`` node with a correctly-widened recipient tag, but the
-    owning unit's ``description`` is ``None`` or a synthetic trigger-
-    condition label — "When ~ enters"/"Whenever ~ attacks" — never the
-    modal bullet's own English, so :data:`_TARGET_PLAYER_DRAW_PHRASE_RE`
-    can never see real text to confirm the direction) and
-    ``tpd_wedding_ellipsis_repeat`` (grammar_straggler — The Wedding of
-    River Song's "Then target opponent does the same" names its own
-    clause-grammar token, ``Unimplemented(name='target_opponent_does_the_
-    same')``, but has no concept mapping yet). See each bridge row for its
-    own corpus census. CR 121.1 / 603.6c verified this session.
+    skip. Two ADR-0039 ledgered bridges opened for the residual 5 pins;
+    BOTH graduated off the ledger in the grammar sprint (task #82,
+    2026-07-12):
+
+    * ``tpd_widened_tag_synthetic_desc`` (Fatal Lore, Season of the
+      Burrow, Ertai Resurrected, Balor: each already carries a typed
+      ``Draw`` node with a correctly-widened recipient tag, but the
+      owning unit's ``description`` is ``None`` or a synthetic trigger-
+      condition label — "When ~ enters"/"Whenever ~ attacks" — never the
+      modal bullet's own English) is now served structurally:
+      :func:`_widened_tag_phrase_match` falls back to
+      :func:`~mtg_utils._card_ir.crosswalk.modal_mode_description` — the
+      REAL per-mode text phase carries positionally on the card-ROOT
+      ``modal.mode_descriptions`` (a modal SPELL, paired with
+      ``root.abilities`` by ``unit.index``) or the TRIGGER's own
+      ``execute.modal.mode_descriptions`` (paired with
+      ``execute.mode_abilities`` by an object-identity walk) — whenever
+      the unit-level field can't confirm the direction. Vault 11:
+      Voter's Dilemma stays correctly excluded (a Saga's chapters carry
+      NEITHER modal shape, so the fallback returns "" and the predicate
+      falls through unchanged).
+    * ``tpd_wedding_ellipsis_repeat`` (The Wedding of River Song's "Then
+      target opponent does the same" names its own clause-grammar token,
+      ``Unimplemented(name='target_opponent_does_the_same')``) is now
+      served via a new ``clause_grammar`` verb (``ellipsis_repeat`` — the
+      EXISTING "target opponent " subject-prefix peel lands dispatch on
+      the bare "does the same" tail) + a ``recovery.ALLOWLIST`` mapping
+      to the real "draw" concept, read here through the ordinary
+      ``effect_concepts("draw")`` walk via a dedicated
+      ``recovered_by == "ellipsis_repeat"`` arm gated on the SAME-unit
+      self-tagged Draw sibling (:func:`_unit_has_originalcontroller_draw`
+      — the "you and X each draw" pairing precedent, since the recovered
+      node's raw carries no verb of its own to re-check). Full-corpus
+      scan (32,521 commander-legal, 2026-07-12): "does the same" is a
+      residue exactly once in the WHOLE corpus (this card) — no blast
+      radius beyond the single pin.
+
+    CR 121.1 / 603.6c / 608.2h verified this session.
     """
     for unit in tree.units:
         if unit.origin == "replacement":
             continue
         for c in unit.effect_concepts("draw"):
+            if c.recovered_by == "ellipsis_repeat":
+                # ADR-0039 grammar sprint (task #82) — retires the
+                # ``tpd_wedding_ellipsis_repeat`` bridge. "<player> does
+                # the same" (The Wedding of River Song) carries no verb of
+                # its own in the raw (the subject peel eats it), so
+                # direction comes from the SAME-unit self-tagged Draw
+                # SIBLING — the identical "you and X each draw" pairing
+                # :func:`_unit_has_originalcontroller_draw` already reads
+                # for the widened-tag idiom above.
+                if _unit_has_originalcontroller_draw(unit):
+                    return [
+                        Signal(
+                            "target_player_draws", "any", "", c.raw, tree.name, "high"
+                        )
+                    ]
+                continue
             if c.recovered_by == "draw":
                 if _RECOVERED_DRAW_REPLACEMENT_RE.search(c.raw or ""):
                     continue
@@ -14944,11 +15016,7 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
                             "target_player_draws", "any", "", c.raw, tree.name, "high"
                         )
                     ]
-                desc = getattr(unit.node, "description", None) or ""
-                if any(
-                    _TARGET_PLAYER_DRAW_PHRASE_RE.search(cl.lower())
-                    for cl in _clauses(desc)
-                ):
+                if _widened_tag_phrase_match(unit, c.node, tree):
                     return [
                         Signal(
                             "target_player_draws", "any", "", c.raw, tree.name, "high"
@@ -14999,29 +15067,21 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
             rt = recipient_tag(n)
             if rt in _TARGETED_DRAW_TAGS:
                 return [Signal("target_player_draws", "any", "", "", tree.name, "high")]
-            if rt in _TARGETED_DRAW_WIDENED_TAGS:
-                desc = getattr(unit.node, "description", None) or ""
-                if any(
-                    _TARGET_PLAYER_DRAW_PHRASE_RE.search(cl.lower())
-                    for cl in _clauses(desc)
-                ):
-                    return [
-                        Signal("target_player_draws", "any", "", "", tree.name, "high")
-                    ]
-    # ADR-0039 W7 BRIDGES wave — the residual dropped-clause / grammar-
-    # straggler bucket (bridge_ledger.py rows, docstrings there for the
-    # full corpus accounting): a modal/attack-or-dies Draw whose unit
-    # description is a synthetic trigger-condition label with no reachable
-    # clause text (Fatal Lore, Season of the Burrow, Ertai Resurrected,
-    # Balor), and an ellipsis "target opponent does the same" repeat-
-    # construct our grammar names but has no concept mapping for yet
-    # (The Wedding of River Song).
-    for bridge_id in (
-        "tpd_widened_tag_synthetic_desc",
-        "tpd_wedding_ellipsis_repeat",
-    ):
-        if bridge_fires(bridge_id, tree):
-            return [Signal("target_player_draws", "any", "", "", tree.name, "high")]
+            if rt in _TARGETED_DRAW_WIDENED_TAGS and _widened_tag_phrase_match(
+                unit, n, tree
+            ):
+                return [Signal("target_player_draws", "any", "", "", tree.name, "high")]
+    # ADR-0039 W7 BRIDGES wave opened two ledgered bridges here
+    # (``tpd_widened_tag_synthetic_desc`` — Fatal Lore, Season of the
+    # Burrow, Ertai Resurrected, Balor; ``tpd_wedding_ellipsis_repeat`` —
+    # The Wedding of River Song); BOTH GRADUATED this sprint (task #82,
+    # 2026-07-12), no bridge lookup left in this lane. The synthetic-desc
+    # class is served by :func:`_widened_tag_phrase_match`'s fallback to
+    # :func:`~mtg_utils._card_ir.crosswalk.modal_mode_description`'s real
+    # per-mode English (the widened-tag branches above); the ellipsis-
+    # repeat class is served by the ``recovered_by == "ellipsis_repeat"``
+    # arm in the surface loop above (``clause_grammar``'s new
+    # ``ellipsis_repeat`` verb + ``recovery.ALLOWLIST``).
     return []
 
 

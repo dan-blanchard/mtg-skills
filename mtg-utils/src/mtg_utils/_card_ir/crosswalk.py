@@ -414,6 +414,18 @@ class ConceptTree:
     # the field is a whole-card deck-construction property, not tied to any
     # one ability.
     many_copies: bool = False
+    # ADR-0039 grammar sprint (task #82, deepening-start-minimal): a modal
+    # SPELL's card-root ``modal.mode_descriptions`` (CR 700.2 "choose one"),
+    # positionally paired with ``root.abilities`` — the REAL per-mode English
+    # phase carries at the ROOT, never on the mode ability's own (frozen,
+    # unwritable) ``description`` field (Fatal Lore, Season of the Burrow).
+    # A TRIGGER's modal branches carry the same pairing one level down
+    # (``execute.modal``/``execute.mode_abilities``, reachable directly off
+    # the owning unit's own node — see :func:`modal_mode_description`), so
+    # only the card-root shape needs a ``ConceptTree`` field. Empty for every
+    # non-modal card (the overwhelming majority) — cheap, additive, mirrors
+    # the b16 field-addition precedent (``power``/``has_printed_cost``).
+    card_modal_mode_descriptions: tuple[str, ...] = ()
 
     def is_type(self, core: str) -> bool:
         """Whether the card itself has core type ``core`` (Creature / Land / …).
@@ -1523,6 +1535,62 @@ def recipient_tag(node: TypedMirrorNode) -> str | None:
         if _present(sub) and tag_of(sub) is not None:
             return tag_of(sub)
     return None
+
+
+def modal_mode_description(
+    unit: AbilityUnit, node: TypedMirrorNode, tree: ConceptTree
+) -> str:
+    """The REAL per-mode English for a typed node living inside a modal
+    ability (CR 700.2 "choose one"), when the owning unit's own (frozen,
+    unwritable) ``description`` field carries nothing usable — ``None`` for
+    a modal SPELL's per-mode ability entry (Fatal Lore, Season of the
+    Burrow), or a synthetic trigger-condition label ("When ~ enters" /
+    "Whenever ~ attacks") for a modal TRIGGER (Ertai Resurrected, Balor).
+    Phase carries the real text in two positionally-paired shapes:
+
+    * a modal SPELL's card-ROOT ``modal.mode_descriptions``, paired with
+      ``root.abilities`` by INDEX — the caller's own ``unit`` IS one
+      ``abilities[i]`` entry, so ``unit.index`` is the position;
+      :data:`ConceptTree.card_modal_mode_descriptions` carries the
+      card-root list (populated at build time — no root access needed
+      here).
+    * a modal TRIGGER's ``execute.modal.mode_descriptions``, paired with
+      ``execute.mode_abilities`` by INDEX — reachable directly off
+      ``unit.node`` (the trigger carries its own ``execute``), so this
+      branch walks ``mode_abilities`` looking for the ONE mode whose typed
+      subtree contains ``node`` (object IDENTITY — the same frozen node
+      the caller is asking about) and returns its paired description.
+
+    Returns ``""`` when neither modal shape is present or ``node`` isn't
+    found inside either — never a guess (CR 121.1/608.2h still needs a
+    REAL same-clause attribution, not an inference).
+    """
+    if unit.origin == "ability" and tree.card_modal_mode_descriptions:
+        descs = tree.card_modal_mode_descriptions
+        if 0 <= unit.index < len(descs):
+            return descs[unit.index]
+        return ""
+    execute = getattr(unit.node, "execute", MISSING)
+    modal = getattr(execute, "modal", MISSING) if _present(execute) else MISSING
+    mode_abilities = (
+        getattr(execute, "mode_abilities", MISSING) if _present(execute) else MISSING
+    )
+    if (
+        not _present(modal)
+        or not _present(mode_abilities)
+        or not isinstance(mode_abilities, list)
+    ):
+        return ""
+    descs2 = getattr(modal, "mode_descriptions", None)
+    if not isinstance(descs2, list):
+        return ""
+    for j, mode_ab in enumerate(mode_abilities):
+        if j >= len(descs2):
+            break
+        if any(n is node for n in _iter_typed_nodes(mode_ab)):
+            d = descs2[j]
+            return d if isinstance(d, str) else ""
+    return ""
 
 
 def discard_recipient_scope(node: TypedMirrorNode) -> str | None:
@@ -3807,6 +3875,18 @@ def build_concept_tree(
         elif dcl_tag == "UpTo":
             dcl_data = getattr(dcl, "data", None)
             many_copies = isinstance(dcl_data, int) and dcl_data >= 2
+    # ADR-0039 grammar sprint (task #82): a modal SPELL's card-root
+    # ``modal.mode_descriptions`` (CR 700.2), positionally paired with
+    # ``root.abilities`` (Fatal Lore, Season of the Burrow) — see the
+    # ``ConceptTree.card_modal_mode_descriptions`` field docstring.
+    card_modal = getattr(root, "modal", None)
+    card_modal_mode_descriptions: tuple[str, ...] = ()
+    if isinstance(card_modal, TypedMirrorNode):
+        cm_descs = getattr(card_modal, "mode_descriptions", None)
+        if isinstance(cm_descs, list):
+            card_modal_mode_descriptions = tuple(
+                d for d in cm_descs if isinstance(d, str)
+            )
     units: list[AbilityUnit] = []
 
     # A spell-level ``additional_cost`` (CR 601.2b) rides the ROOT, not any
@@ -4011,6 +4091,7 @@ def build_concept_tree(
         has_printed_cost=has_printed_cost,
         oracle=oracle if isinstance(oracle, str) else "",
         many_copies=many_copies,
+        card_modal_mode_descriptions=card_modal_mode_descriptions,
     )
     # ADR-0038 — substrate-wide Unimplemented recovery runs INSIDE the tree
     # build so every consumer (signal lanes, compat projection, convergence +

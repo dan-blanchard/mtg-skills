@@ -253,6 +253,18 @@ ALLOWLIST: dict[str, TokenRule] = {
     "counter_cost_reduction": TokenRule(
         concept="counter_cost_reduction", category="counter_cost_reduction"
     ),
+    # ADR-0039 grammar sprint (task #82): the ellipsis REPEAT-for-another-
+    # player construct (CR 608.2h): "<player> does the same" (The Wedding
+    # of River Song's "Draw two cards, then you may exile a nonland card
+    # … Then target opponent does the same."). Maps to the REAL "draw"
+    # concept (not a dedicated marker) so ``target_player_draws``'s
+    # ordinary ``effect_concepts("draw")`` walk picks it up, but with its
+    # OWN ``recovered_by`` marker (never "draw") so the lane can gate it
+    # separately: the token's raw carries no verb at all (just the peeled
+    # subject's tail), so the direction/kind comes from the SAME-unit
+    # self-tagged Draw SIBLING (the existing "you and X each draw" pairing
+    # precedent), not a text re-scan.
+    "ellipsis_repeat": TokenRule(concept="draw", category="draw"),
 }
 
 
