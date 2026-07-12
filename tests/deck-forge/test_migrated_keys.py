@@ -386,7 +386,15 @@ _REAL_CASES: dict[str, str] = {
     "tapped_matters": "Throne of the God-Pharaoh",
     "tapper_engine": "Icy Manipulator",
     "target_own_payoff": "Monk Gyatso",
-    "target_player_draws": "Dictate of Kruphix",
+    # ADR-0039 W7 BRIDGES wave (2026-07-12): Dictate of Kruphix -> Lord of
+    # Tresserhorn. target_player_draws PROMOTED — Dictate of Kruphix's
+    # "each player" choice-driven skip-draw is an adjudicated SHED under
+    # the crosswalk lane (group_hug_draw territory, not a directed gift),
+    # so the default-ON hybrid path no longer fires it; Lord of
+    # Tresserhorn's "When ~ enters, ... target opponent draws two cards"
+    # is a genuine BOTH member (verified this session: legacy and
+    # crosswalk both fire).
+    "target_player_draws": "Lord of Tresserhorn",
     "target_redirect": "Rayne, Academy Chancellor",
     "targeting_matters": "Reality Smasher",
     "team_buff": "Brave the Sands",

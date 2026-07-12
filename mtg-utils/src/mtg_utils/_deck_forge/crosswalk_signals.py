@@ -1533,7 +1533,19 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         # withercrown_unless_lose_life, keyword_dropped_paylife
         # [Warp/Blitz/Morph], night_shift_optional_paylife_dieroll,
         # zuko_modal_unconditional_paylife).
-        "opponent_discard",
+        # opponent_discard PROMOTED (ADR-0039 W7, 2026-07-12) — landfall
+        # rule met: 471 both / 63 live_only == exactly the 3 pre-existing
+        # adjudicated shed classes (wheel-mirror-duplicate, Cephalid-
+        # Looter loot, past-tense-watcher/self-discard) plus 8 cards now
+        # closed via ledgered bridges (bridge_ledger.py:
+        # opp_discard_unless_clause, opp_discard_for_scaling_dominant_
+        # token, opp_discard_tk_sticker_parse_failure, opp_discard_words_
+        # of_waste_replacement_the_residue, opp_discard_fungal_shambler_
+        # dropped_conjunct, opp_discard_mindculling_dropped_conjunct,
+        # opp_discard_driven_despair_missing_face,
+        # opp_discard_jagged_poppet_combat_scaling). See
+        # :func:`_opponent_discard`'s own docstring for the full arm
+        # history.
         "plus_one_matters",
         # ramp PROMOTED (ADR-0039 W7, 2026-07-12): both 1636 -> 1668,
         # live_only 32 -> 0, cw_only=3 unchanged (pre-existing "additional
@@ -1579,21 +1591,16 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         # construction via project.py's own ``_PITCH_SAC``/
         # ``_KEYWORD_COST_SAC`` regexes). See :func:`_sacrifice_outlets`'s
         # own docstring for the full arm history.
-        # ADR-0038 W6 endgame (2026-07-11): target_player_draws NOT YET
-        # PROMOTED — live_only cut from 75 to 70 (2 new admissions: the
-        # OriginalController/Controller-paired idiom widened to EVERY
-        # widened tag, a Vote per_choice_effect paired descent). Landfall
-        # rule NOT yet met — 6 genuine "dropped clause" gaps remain,
-        # bridge-ledger input for a later phase (ADR-0039): Fatal Lore,
-        # Season of the Burrow, Ertai Resurrected, Balor (a modal Draw
-        # with no self-tagged sibling AND no reachable clause text
-        # anywhere in the typed tree), Thief of Existence (a granted
-        # ability's directed-draw text lives ONLY inside a quoted string,
-        # no typed Draw node exists for it at all), The Wedding of River
-        # Song ("target opponent does the same" — an ellipsis phase never
-        # structures into a second typed Draw node). See the key's own
-        # docstring for the full corpus accounting.
-        "target_player_draws",
+        # target_player_draws PROMOTED (ADR-0039 W7, 2026-07-12) —
+        # landfall rule met: 183 both / 70 live_only -> 0 genuine gaps.
+        # One real structural gain, a buried-grant Draw descent (Thief of
+        # Existence, mirrors opponent_discard's own iter_typed_nodes
+        # precedent). Two ADR-0039 ledgered bridges (bridge_ledger.py:
+        # tpd_widened_tag_synthetic_desc [Fatal Lore, Season of the
+        # Burrow, Ertai Resurrected, Balor], tpd_wedding_ellipsis_repeat
+        # [The Wedding of River Song]) close the rest. See
+        # :func:`_target_player_draws`'s own docstring for the full arm
+        # history.
         # token_maker PROMOTED (ADR-0038 W6 endgame) — the 86-card
         # live_only set is EXACTLY two adjudicated shed classes: the
         # 85-card copy/Populate boundary (CR 707.1/111.2 — that's
@@ -10019,28 +10026,56 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
       dropped-clause experience tally, never a second discard effect —
       both negative-pinned this session).
 
-    The 9 genuinely diverse, un-closed structural gaps: damage-CONNECT
-    specters with no Discard node at all (Fungal Shambler — confirmed via
-    direct tree dump); a grammar straggler whose dominant recovered token
-    is "for" not "discard" (Bladecoil Serpent's cost-payment-count idiom);
-    an "Unsupported unless clause" residue bucket distinct from the
-    "discard" ALLOWLIST token entirely (Tainted Specter, Remorseless
-    Punishment — needs its OWN recovery ALLOWLIST row, out of scope this
-    session); a totally dropped clause with zero residue node of any kind
-    (Mindculling's "target opponent discards two cards" — confirmed via
-    direct tree dump, the whole second conjunct vanishes); a grammar gap
-    where the WHOLE replacement clause collapses to a determiner-token
-    residue (Words of Waste's "the"-tokenized Unimplemented); a text-only-
-    tree back-reference with no structural anchor at all (Driven //
-    Despair's "Despair" half); and Jagged Poppet / Yawgmoth Merfolk Soul,
-    each its own shape. Bridge-ledger input, ADR-0039. Landfall rule not
-    met (9 genuine gaps remain, not sheds) — key stays residual.
+    ADR-0039 W7 BRIDGES wave (2026-07-12) — PROMOTED. The final 9
+    genuinely diverse gaps close via eight ledgered bridges
+    (bridge_ledger.py, each row's own module comment for the corpus
+    census): a shared "Unsupported unless clause" residue bucket
+    (``opp_discard_unless_clause``, reusing lifeloss_makers' own
+    ``_unless_clause_failure_descs`` — Tainted Specter, Remorseless
+    Punishment; Wand of Ith carries the same residue class but is served
+    independently via its own typed ``DiscardCard``); a "for"-dominant
+    scaling-prefix straggler (``opp_discard_for_scaling_dominant_token`` —
+    Bladecoil Serpent's mana-spent idiom); a Stickers {TK} parse failure
+    (``opp_discard_tk_sticker_parse_failure`` — Yawgmoth Merfolk Soul, the
+    base_pt_set TK-frontier sibling); two zero-residue dropped conjuncts
+    sharing ``_no_typed_discard_node`` (the ``sacrifice_outlets`` broad-
+    gap/narrow-match precedent — Fungal Shambler, Mindculling); a
+    zero-unit text-only-tree back-reference
+    (``opp_discard_driven_despair_missing_face`` — Driven // Despair's
+    "Despair" half, wired into the text-only branch at the top of this
+    function); a replacement-idiom determiner-token residue
+    (``opp_discard_words_of_waste_replacement_the_residue`` — Words of
+    Waste's whole "next time ... instead" clause collapses to an
+    ``Unimplemented(name='the')``); and a combat-damage-trigger
+    Player-vs-Opponent scope ambiguity
+    (``opp_discard_jagged_poppet_combat_scaling`` — Jagged Poppet).
+    live_only == exactly the 3 pre-existing adjudicated, negative-pinned
+    shed classes (wheel-mirror-duplicate, Cephalid-Looter loot,
+    past-tense-watcher/self-discard) plus the 8 now-bridged cards moved to
+    both — the landfall rule. CR 701.9 / 701.9a / 119.4 / 601.2f / 123.1
+    verified this session.
     """
-    if not tree.units:
+    # ADR-0039 W7 BRIDGES wave: "no REAL (phase-parsed) unit" rather than
+    # the original bare ``not tree.units`` — Driven // Despair's "Despair"
+    # half's own text ALSO trips an UNRELATED ``apply_tree_synthesis`` arm
+    # (a whole-card scan gated on the SAME "deals combat damage to a
+    # player" wording this face's granted-ability text carries), which
+    # appends a synthetic ``origin="synth"`` wrapper unit — so the tree is
+    # no longer literally zero-unit by the time this lane runs, even
+    # though it still carries NO real phase-parsed structure at all. This
+    # generalizes the original check (an empty ``tree.units`` still
+    # vacuously satisfies it) rather than narrowing it.
+    if not any(u.origin != "synth" for u in tree.units):
         kept = _kept(tree)
         if _TEXT_ONLY_EACH_DISCARD_RX.search(kept):
             return [Signal("opponent_discard", "each", "", "", tree.name, "high")]
         if _TEXT_ONLY_OPP_DISCARD_RX.search(kept):
+            return [Signal("opponent_discard", "opponents", "", "", tree.name, "high")]
+        # Driven // Despair's "Despair" half (bridge_ledger.py row, its
+        # own module comment for the corpus census) — a "that player"
+        # back-reference the pre-existing text-only sweep above
+        # deliberately doesn't anchor.
+        if bridge_fires("opp_discard_driven_despair_missing_face", tree):
             return [Signal("opponent_discard", "opponents", "", "", tree.name, "high")]
         return []
 
@@ -10151,6 +10186,24 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
             out.append(
                 Signal("opponent_discard", "opponents", "", "", tree.name, "high")
             )
+    # ADR-0039 W7 BRIDGES wave — the residual dropped-clause / grammar-
+    # straggler / upstream-parse-failure bucket (bridge_ledger.py rows,
+    # each row's own module comment for the full corpus accounting):
+    if "opponents" not in seen:
+        for bridge_id in (
+            "opp_discard_unless_clause",
+            "opp_discard_for_scaling_dominant_token",
+            "opp_discard_tk_sticker_parse_failure",
+            "opp_discard_words_of_waste_replacement_the_residue",
+            "opp_discard_fungal_shambler_dropped_conjunct",
+            "opp_discard_mindculling_dropped_conjunct",
+            "opp_discard_jagged_poppet_combat_scaling",
+        ):
+            if bridge_fires(bridge_id, tree):
+                out.append(
+                    Signal("opponent_discard", "opponents", "", "", tree.name, "high")
+                )
+                break
     return out
 
 
@@ -13764,29 +13817,33 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
       pairs ``OriginalController`` with ``ScopedPlayer``, 0 false
       positives. CR 121.1 / 701.38.
 
-    STILL NOT PROMOTABLE AS A GAP-FREE CLOSE — 6 genuine live_only remain,
-    each a "dropped clause" (CR 121.1's directed-draw text lives NOWHERE in
-    the typed tree — ``unit.node.description`` is ``None`` or a synthetic
-    structural label and :func:`effect_owner_raw` is empty too — the same
-    failure mode as the paired/Vote cases above, but with NO self-tagged
-    Draw sibling anywhere in the SAME branch to pair against): Fatal Lore
-    and Season of the Burrow (a modal/per-{P}-mode ``ParentTargetController``
-    Draw with no unit-level OR owner-level text at all); Ertai Resurrected
-    and Balor (an ``S_modal``/``S_mode_abilities`` Draw whose unit
-    description is a synthetic trigger-condition label — "When ~ enters" /
-    "Whenever ~ attacks" — never the mode's own English); Thief of
-    Existence (the granted ability's "target opponent draws a card" text
-    lives ONLY inside a quoted string on an unrelated effect's
-    ``description`` field — no typed ``Draw`` node exists ANYWHERE in the
-    tree for it to reach, confirmed via direct tree dump); The Wedding of
-    River Song ("Then target opponent does the same" — an ellipsis
-    repeat-for-another-player phase never structures into a second typed
-    ``Draw`` node at all, only the original "you" draw survives). None are
-    fixable without either a ``clause_grammar.py`` change (grammar-blocked
-    this wave per ADR-0039) or an unsafe whole-oracle text fallback that
-    would reintroduce the Price-of-Freedom bleed the phrase gate was built
-    to prevent — ledgered for the post-deletion grammar sprint, not forced
-    through.
+    ADR-0039 W7 BRIDGES wave (2026-07-12) — PROMOTED. The final 6
+    live_only closed. One real structural gain, a buried-grant ``Draw``
+    descent (mirrors ``opponent_discard``'s own ``iter_typed_nodes``
+    precedent for Mindlash Sliver/Dementia Sliver): Thief of Existence's
+    granted "target opponent draws a card" trigger lives inside a
+    ``GrantAbility`` nested in the CASTING trigger's own effect chain (CR
+    603.6c), invisible to ``effect_concepts("draw")``'s direct-chain-only
+    read; the buried node's tag branching reuses the EXISTING
+    ``_TARGETED_DRAW_TAGS``/``_TARGETED_DRAW_WIDENED_TAGS`` + phrase-gate
+    logic verbatim (Thief of Existence's own unit-level description
+    already carries the full quoted grant text, so the phrase gate passes
+    unmodified) — corpus-verified narrow (31,622 commander-legal): exactly
+    1 new hit, with Zur's Weirding's superficially similar buried Draw
+    correctly excluded by the pre-existing ``unit.origin == "replacement"``
+    skip. Two ADR-0039 ledgered bridges (bridge_ledger.py) close the rest:
+    ``tpd_widened_tag_synthetic_desc`` (grammar_straggler — Fatal Lore,
+    Season of the Burrow, Ertai Resurrected, Balor: each already carries a
+    typed ``Draw`` node with a correctly-widened recipient tag, but the
+    owning unit's ``description`` is ``None`` or a synthetic trigger-
+    condition label — "When ~ enters"/"Whenever ~ attacks" — never the
+    modal bullet's own English, so :data:`_TARGET_PLAYER_DRAW_PHRASE_RE`
+    can never see real text to confirm the direction) and
+    ``tpd_wedding_ellipsis_repeat`` (grammar_straggler — The Wedding of
+    River Song's "Then target opponent does the same" names its own
+    clause-grammar token, ``Unimplemented(name='target_opponent_does_the_
+    same')``, but has no concept mapping yet). See each bridge row for its
+    own corpus census. CR 121.1 / 603.6c verified this session.
     """
     for unit in tree.units:
         if unit.origin == "replacement":
@@ -13857,6 +13914,58 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
                     return [
                         Signal("target_player_draws", "any", "", "", tree.name, "high")
                     ]
+        # ADR-0039 W7 BRIDGES wave: a Draw node BURIED inside a granted
+        # ability's own definition (Thief of Existence: "If you do,
+        # Thief of Existence gains 'When this creature leaves the
+        # battlefield, target opponent draws a card.'" — a GrantAbility
+        # nested inside the CASTING trigger's own effect chain, CR
+        # 603.6c) is not on the unit's DIRECT effect chain, so
+        # ``effect_concepts("draw")`` never reaches it — the SAME buried-
+        # grant shape ``opponent_discard``'s own ``iter_typed_nodes`` deep
+        # walk already closes for Mindlash Sliver/Dementia Sliver. The
+        # buried node's OWN tag branching is IDENTICAL to the surface
+        # loop above (no new logic): a ``_TARGETED_DRAW_TAGS`` recipient
+        # admits unconditionally, a ``_TARGETED_DRAW_WIDENED_TAGS``
+        # recipient still needs the unit's own clause text to name a
+        # player (Thief of Existence's unit-level description carries the
+        # full quoted grant, "target opponent draws a card" included, so
+        # the EXISTING phrase gate passes with no widening of its own).
+        # Corpus-verified narrow (2026-07-12, 31,622 commander-legal, the
+        # SAME replacement-unit skip above already applies): exactly 1 new
+        # hit, Thief of Existence itself (Zur's Weirding's superficially
+        # similar buried ``ParentTargetController`` Draw lives in a
+        # REPLACEMENT unit and is already excluded by this loop's own
+        # ``unit.origin == "replacement"`` skip).
+        surface_ids = {id(c.node) for c in unit.effect_concepts("draw")}
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "Draw" or id(n) in surface_ids:
+                continue
+            rt = recipient_tag(n)
+            if rt in _TARGETED_DRAW_TAGS:
+                return [Signal("target_player_draws", "any", "", "", tree.name, "high")]
+            if rt in _TARGETED_DRAW_WIDENED_TAGS:
+                desc = getattr(unit.node, "description", None) or ""
+                if any(
+                    _TARGET_PLAYER_DRAW_PHRASE_RE.search(cl.lower())
+                    for cl in _clauses(desc)
+                ):
+                    return [
+                        Signal("target_player_draws", "any", "", "", tree.name, "high")
+                    ]
+    # ADR-0039 W7 BRIDGES wave — the residual dropped-clause / grammar-
+    # straggler bucket (bridge_ledger.py rows, docstrings there for the
+    # full corpus accounting): a modal/attack-or-dies Draw whose unit
+    # description is a synthetic trigger-condition label with no reachable
+    # clause text (Fatal Lore, Season of the Burrow, Ertai Resurrected,
+    # Balor), and an ellipsis "target opponent does the same" repeat-
+    # construct our grammar names but has no concept mapping for yet
+    # (The Wedding of River Song).
+    for bridge_id in (
+        "tpd_widened_tag_synthetic_desc",
+        "tpd_wedding_ellipsis_repeat",
+    ):
+        if bridge_fires(bridge_id, tree):
+            return [Signal("target_player_draws", "any", "", "", tree.name, "high")]
     return []
 
 

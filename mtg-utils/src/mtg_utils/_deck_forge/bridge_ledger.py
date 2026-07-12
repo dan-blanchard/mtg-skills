@@ -51,6 +51,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_inzone_zones,
     filter_subtypes,
     iter_typed_nodes,
+    recipient_tag,
     tag_of,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING
@@ -1637,6 +1638,356 @@ def _forge_anew_match(tree: ConceptTree) -> bool:
     return bool(_FORGE_ANEW_RX.search(tree.oracle or ""))
 
 
+# ── target_player_draws residual class (ADR-0039 W7 BRIDGES wave) ──────────
+# ``_TARGETED_DRAW_WIDENED_TAGS``, duplicated (not imported) from
+# crosswalk_signals — the SAME layering reason ``_LAND_SUBTYPES`` is
+# duplicated at the top of this module (crosswalk_signals imports
+# ``bridge_fires`` FROM here, so the reverse import would be circular).
+_TPD_WIDENED_TAGS: frozenset[str] = frozenset(
+    {
+        "Typed",
+        "ParentTargetController",
+        "TriggeringPlayer",
+        "ParentTargetOwner",
+        "TriggeringSourceController",
+    }
+)
+
+
+# Fatal Lore / Season of the Burrow / Ertai Resurrected / Balor each carry a
+# typed ``Draw`` node with a recipient tag already in
+# ``_TPD_WIDENED_TAGS`` — the SAME shape the live arm's phrase gate
+# ordinarily confirms — but the owning unit's OWN ``description`` is either
+# ``None`` (Fatal Lore's second mode, Season of the Burrow's exile mode) or
+# a synthetic trigger-condition label ("When ~ enters", "Whenever ~
+# attacks"/"Whenever ~ dies" — Ertai Resurrected, Balor), never the modal
+# bullet's/attack-or-dies mode's own English (CR 121.1/608.2h — the
+# grammar's own frontier for attributing modal/multi-triggered-event text
+# down to its unit). The gap is a per-unit residue-presence check (does
+# this Draw node's own recipient tag exist without ANY reachable "draw"-
+# mentioning text) so it self-retires the day phase/our own unit-synthesis
+# attributes real English there — the pre-existing phrase gate then fires
+# through the LIVE arm with zero further edits, same as every other
+# bridge's self-retirement. Corpus-verified 2026-07-12, phase v0.20.0,
+# 31,622 commander-legal: this shared gap hits 9 cards total (Balor, Ertai
+# Resurrected, Fall of the First Civilization, Fatal Lore, Love Song of
+# Night and Day, Season of the Burrow, The Legend of Yangchen // Avatar
+# Yangchen, Vault 11: Voter's Dilemma, Your Temple Is Under Attack) — the
+# other 5 are EITHER already closed by the pre-existing self-paired
+# ``_unit_has_originalcontroller_draw``/``Vote``-branch admissions (Fall of
+# the First Civilization, Love Song of Night and Day, The Legend of
+# Yangchen, Your Temple Is Under Attack — see
+# ``_target_player_draws``'s own W6-endgame docstring) or a genuine
+# ADJUDICATED SHED (Vault 11: Voter's Dilemma — a GROUP ``All``-scoped
+# outcome, not a directed gift; see
+# ``test_target_player_draws_excludes_vote_council_self_payoff``) — so this
+# bridge's own narrowly-anchored match (below) is the only thing that lets
+# it fire, and it hits exactly the 4 pins.
+def _tpd_widened_tag_no_draw_text(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "Draw":
+                continue
+            if recipient_tag(n) not in _TPD_WIDENED_TAGS:
+                continue
+            desc = (getattr(unit.node, "description", None) or "").lower()
+            if "draw" not in desc:
+                return True
+    return False
+
+
+_TPD_SYNTHETIC_DESC_RX = re.compile(
+    r"that player draws up to three cards|"
+    r"exile target nonland permanent\. its controller draws a card|"
+    r"counter target spell, activated ability, or triggered ability\. "
+    r"its controller draws a card|"
+    r"destroy another target creature or planeswalker\. "
+    r"its controller draws a card|"
+    r"target opponent draws three cards, then discards three cards at "
+    r"random",
+    re.IGNORECASE,
+)
+
+
+def _tpd_widened_tag_synthetic_desc_match(tree: ConceptTree) -> bool:
+    return bool(_TPD_SYNTHETIC_DESC_RX.search(tree.oracle or ""))
+
+
+# The Wedding of River Song's "Draw two cards, then you may exile a
+# nonland card ... Then target opponent does the same." — the ellipsis
+# repeat-for-another-player construct is a NAMED grammar token our own
+# clause_grammar.py already recognizes (the Unimplemented decorator's own
+# ``name`` field is literally ``target_opponent_does_the_same``) but has no
+# concept mapping in recovery.py's ALLOWLIST yet (ADR-0039 forbids adding
+# one this session — grammar-blocked, task #82's territory). Gap and match
+# are the SAME residue-presence check (the ``sac_devour_unimplemented``
+# precedent): the named token's mere existence both proves the substrate
+# still lacks the mapping AND identifies the idiom precisely enough to
+# serve it — no separate text anchor needed. Corpus-verified sole hit,
+# 2026-07-12, phase v0.20.0, 31,622 commander-legal.
+def _tpd_wedding_ellipsis_repeat_gap(tree: ConceptTree) -> bool:
+    return any(
+        True
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+        if tag_of(n) == "Unimplemented"
+        and getattr(n, "name", None) == "target_opponent_does_the_same"
+    )
+
+
+def _tpd_wedding_ellipsis_repeat_match(tree: ConceptTree) -> bool:
+    return _tpd_wedding_ellipsis_repeat_gap(tree)
+
+
+# ── opponent_discard residual class (ADR-0039 W7 BRIDGES wave) ─────────────
+# Shared with ``lifeloss_makers``' ``withercrown_unless_lose_life`` bridge:
+# a discard-payoff "unless" clause phase's trigger/ability parser fails
+# wholesale, parking the WHOLE clause as an ``Unimplemented('Unsupported
+# unless clause')`` residue (CR 119.4 — an unless-cost payment). Reuses
+# :func:`_unless_clause_failure_descs` (defined above, module-shared, NOT
+# re-derived) — the SAME residue-scan function, a different direction
+# anchor. Tainted Specter's "Target player discards a card unless they put
+# a card from their hand on top of their library" and Remorseless
+# Punishment's "Target opponent loses 5 life unless that player discards
+# two cards or sacrifices ..." both name the discard as the UNLESS-avoided
+# consequence. Wand of Ith carries the SAME residue class (its second
+# branch, "the player discards it unless they pay life equal to its mana
+# value") but is served INDEPENDENTLY — its FIRST branch already resolves
+# through a genuine typed ``DiscardCard{target: ParentTarget}`` node
+# elsewhere in the same tree, so it never reaches this bridge's gap at all
+# (verified via direct tree dump: Wand of Ith already fires structurally,
+# not via this bridge). Corpus-verified 2026-07-12, phase v0.20.0,
+# 31,622 commander-legal: exactly 2 hits.
+_OPP_DISCARD_UNLESS_RX = re.compile(
+    r"target player discards? a card unless|"
+    r"target opponent loses \d+ life unless that player discards",
+    re.IGNORECASE,
+)
+
+
+def _opp_discard_unless_match(tree: ConceptTree) -> bool:
+    return any(
+        _OPP_DISCARD_UNLESS_RX.search(d) for d in _unless_clause_failure_descs(tree)
+    )
+
+
+def _opp_discard_unless_gap(tree: ConceptTree) -> bool:
+    return any(True for _ in _unless_clause_failure_descs(tree))
+
+
+# Bladecoil Serpent's "When ~ enters, for each {B}{B} spent to cast it,
+# each opponent discards a card." — a mana-spent SCALING prefix (CR
+# 601.2f — mana spent to cast a spell) whose DOMINANT recovered grammar
+# token is "for", not the inner clause's own verb ("discard") — the
+# post-deletion grammar sprint's scaling-prefix-peel TODO, not this
+# session's (ADR-0039 forbids a new clause_grammar.py verb). The residue
+# node's OWN description preserves the full clause verbatim, so the match
+# is a tight, self-anchored end-of-clause read (Hollow Marauder's
+# superficially similar "For each of those opponents who didn't discard a
+# card ..., draw a card" residue is a DIFFERENT payoff, a DRAW gated on
+# non-discarders, correctly excluded — its clause doesn't END in "each
+# opponent discards a card"). Corpus-verified sole hit, 2026-07-12, phase
+# v0.20.0, 31,622 commander-legal.
+_OPP_DISCARD_FOR_SCALING_RX = re.compile(
+    r"each opponent discards a card\s*$", re.IGNORECASE
+)
+
+
+def _opp_discard_for_scaling_descs(tree: ConceptTree) -> Iterator[str]:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "for":
+                yield getattr(n, "description", "") or ""
+
+
+def _opp_discard_for_scaling_gap(tree: ConceptTree) -> bool:
+    return any(True for _ in _opp_discard_for_scaling_descs(tree))
+
+
+def _opp_discard_for_scaling_match(tree: ConceptTree) -> bool:
+    return any(
+        _OPP_DISCARD_FOR_SCALING_RX.search(d)
+        for d in _opp_discard_for_scaling_descs(tree)
+    )
+
+
+# Yawgmoth Merfolk Soul's Unfinity Stickers "{TK}{TK} — When ~ leaves the
+# battlefield, target player discards a card." — the SAME {TK}-placeholder
+# cost-grammar frontier ``base_pt_tk_sticker_parse_failure`` (Cool Fluffy
+# Loxodon) closes for base_pt_set, here on a DIFFERENT granted ability
+# (CR 123.1 — Stickers). The residue node's own description preserves the
+# full clause verbatim (unlike the base_pt case, no separate hook-text
+# read needed — the "target player discards a card" payoff is right there
+# in the SAME Unimplemented). Corpus-verified sole hit, 2026-07-12, phase
+# v0.20.0, 31,622 commander-legal.
+_YAWGMOTH_TK_DISCARD_RX = re.compile(
+    r"\{TK\}.*?—.*?target player discards a card", re.IGNORECASE
+)
+
+
+def _yawgmoth_tk_discard_descs(tree: ConceptTree) -> Iterator[str]:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "unknown":
+                yield getattr(n, "description", "") or ""
+
+
+def _yawgmoth_tk_discard_gap(tree: ConceptTree) -> bool:
+    return any(True for _ in _yawgmoth_tk_discard_descs(tree))
+
+
+def _yawgmoth_tk_discard_match(tree: ConceptTree) -> bool:
+    return any(
+        _YAWGMOTH_TK_DISCARD_RX.search(d) for d in _yawgmoth_tk_discard_descs(tree)
+    )
+
+
+# Words of Waste's "{1}: The next time you would draw a card this turn,
+# each opponent discards a card instead." — a REPLACEMENT-idiom "the next
+# time ... instead" clause (CR 614.1) collapses WHOLESALE to a bare
+# determiner-token residue, ``Unimplemented(name='the')`` — our own
+# clause grammar's dominant-token detector picks the sentence's leading
+# word ("The") rather than any verb at all, since the whole clause is one
+# unbroken replacement rider with no imperative to peel. Gap and match
+# are the SAME residue-presence check (mirrors ``tpd_wedding_ellipsis_
+# repeat``'s precedent): the residue's own preserved text is specific
+# enough to serve without a separate anchor. Corpus-verified sole hit,
+# 2026-07-12, phase v0.20.0, 31,622 commander-legal.
+_WORDS_OF_WASTE_RX = re.compile(
+    r"next time you would draw a card this turn, each opponent discards "
+    r"a card instead",
+    re.IGNORECASE,
+)
+
+
+def _words_of_waste_descs(tree: ConceptTree) -> Iterator[str]:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "the":
+                yield getattr(n, "description", "") or ""
+
+
+def _words_of_waste_gap(tree: ConceptTree) -> bool:
+    return any(True for _ in _words_of_waste_descs(tree))
+
+
+def _words_of_waste_match(tree: ConceptTree) -> bool:
+    return any(_WORDS_OF_WASTE_RX.search(d) for d in _words_of_waste_descs(tree))
+
+
+# ``_no_typed_discard_node`` — the shared gap for the two dropped-clause
+# bridges below: no ``Discard``/``DiscardCard``-tagged node reachable
+# ANYWHERE in the tree, mirroring ``sacrifice_outlets``'
+# ``_no_typed_sacrifice_node`` precedent exactly (a broad, self-retiring
+# absence proof; the narrow per-card ``match`` below is what keeps each
+# bridge a scalpel, not a lane).
+def _no_typed_discard_node(tree: ConceptTree) -> bool:
+    return not any(
+        tag_of(n) in ("Discard", "DiscardCard")
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
+# Fungal Shambler's "Whenever ~ deals damage to an opponent, you draw a
+# card and that opponent discards a card." — phase structures the FIRST
+# conjunct (a typed ``Draw{recipient: Controller}``) but the SECOND
+# conjunct drops WHOLESALE: zero trace anywhere in the tree, not even an
+# ``Unimplemented`` residue (CR 701.9). Corpus-verified sole hit, 2026-07-12,
+# phase v0.20.0, 31,622 commander-legal.
+_FUNGAL_SHAMBLER_RX = re.compile(
+    r"deals damage to an opponent, you draw a card and that opponent "
+    r"discards a card",
+    re.IGNORECASE,
+)
+
+
+def _fungal_shambler_match(tree: ConceptTree) -> bool:
+    return bool(_FUNGAL_SHAMBLER_RX.search(tree.oracle or ""))
+
+
+# Mindculling's "You draw two cards and target opponent discards two
+# cards." — the SAME shared no-typed-Discard-node absence proof; the first
+# conjunct's ``Draw{recipient: Controller}`` is the only node the whole
+# ability produces, the second conjunct drops with ZERO trace. Corpus-
+# verified sole hit, 2026-07-12, phase v0.20.0, 31,622 commander-legal.
+_MINDCULLING_RX = re.compile(
+    r"you draw two cards and target opponent discards two cards",
+    re.IGNORECASE,
+)
+
+
+def _mindculling_match(tree: ConceptTree) -> bool:
+    return bool(_MINDCULLING_RX.search(tree.oracle or ""))
+
+
+# Driven // Despair's "Despair" half never gets a phase record at all (the
+# SAME Aftermath-back-half gap ``opponent_discard``'s own W2c text-only-
+# tree arm closes for Consign // Oblivion) — this face's granted-ability
+# quoted text ("Whenever this creature deals combat damage to a player,
+# that player discards a card.") is a "that player" BACK-REFERENCE with no
+# "target opponent"/"target player"/"each player" anchor
+# :data:`~mtg_utils._deck_forge.crosswalk_signals._TEXT_ONLY_OPP_DISCARD_
+# RX` requires — correctly NOT matched by the existing last-resort sweep
+# (see that regex's own module comment). Gap is "no REAL (phase-parsed)
+# unit anywhere" rather than a bare ``not tree.units`` — this exact face's
+# text ALSO trips an UNRELATED ``apply_tree_synthesis`` arm (a whole-card
+# scan matching the SAME "deals combat damage to a player" wording), which
+# appends a synthetic ``origin="synth"`` wrapper unit onto the tree BEFORE
+# this lane ever runs; ``all(u.origin == "synth" for u in tree.units)``
+# generalizes the main lane's own zero-unit check (vacuously true for a
+# genuinely empty tuple too) so the gap still holds. The narrow per-card
+# match keeps this a scalpel (Consign // Oblivion's "Oblivion" face is
+# ALSO a no-real-unit tree but its own "Target opponent discards two
+# cards" text doesn't match this bridge's back-reference-shaped anchor —
+# it's already served by the pre-existing sweep instead). Corpus-verified
+# sole hit, 2026-07-12, phase v0.20.0, 31,622 commander-legal.
+_DRIVEN_DESPAIR_RX = re.compile(
+    r"deals combat damage to a player, that player discards a card",
+    re.IGNORECASE,
+)
+
+
+def _driven_despair_gap(tree: ConceptTree) -> bool:
+    return all(u.origin == "synth" for u in tree.units)
+
+
+def _driven_despair_match(tree: ConceptTree) -> bool:
+    return bool(_DRIVEN_DESPAIR_RX.search(tree.oracle or ""))
+
+
+# Jagged Poppet's "Hellbent — Whenever ~ deals combat damage to a player,
+# if you have no cards in hand, that player discards cards equal to the
+# damage." — the "discard cards equal to the damage" clause DOES recover
+# via the "discard" ALLOWLIST token (its own Unimplemented residue
+# preserves that exact wording), but the DIRECTION ("that player" = the
+# player dealt combat damage) has no typed recipient of its own to
+# resolve, and the trigger's own valid_target reads a bare 'Player' (not
+# an explicit Opponent-shaped actor _OPP_DISCARD_ACTORS admits) — the
+# same bare-Player-vs-Opponent ambiguity a GENERAL widening would risk
+# over-firing genuinely symmetric multiplayer group-hug triggers on. The
+# gap is scoped to this idiom's OWN residue text (not the general "any
+# recovered discard with unresolved direction" shape, which would be far
+# too broad to serve as a self-retiring proof) — CR 510 (combat damage),
+# 701.9. Corpus-verified sole hit, 2026-07-12, phase v0.20.0, 31,622
+# commander-legal.
+def _jagged_poppet_discard_descs(tree: ConceptTree) -> Iterator[str]:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "discard":
+                yield getattr(n, "description", "") or ""
+
+
+def _jagged_poppet_gap(tree: ConceptTree) -> bool:
+    return any(
+        "equal to the damage" in d.lower() for d in _jagged_poppet_discard_descs(tree)
+    )
+
+
+def _jagged_poppet_match(tree: ConceptTree) -> bool:
+    return _jagged_poppet_gap(tree)
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -2963,6 +3314,241 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Forge Anew",),
             gap=_forge_anew_paycost_unlinked_gap,
             match=_forge_anew_match,
+        ),
+        Bridge(
+            bridge_id="tpd_widened_tag_synthetic_desc",
+            key="target_player_draws",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a modal-mode / "
+                "attack-or-dies-triggered Draw's own unit never gets its "
+                "mode's real English attributed to unit.node.description "
+                "— only a synthetic trigger-condition label ('When ~ "
+                "enters', 'Whenever ~ attacks') survives, so the EXISTING "
+                "_TARGET_PLAYER_DRAW_PHRASE_RE gate can never see real "
+                "text — retires when that attribution lands (the "
+                "pre-existing arm then fires unmodified)"
+            ),
+            census=(
+                "shared gap 9 hits / 31,622 commander-legal (Balor, Ertai "
+                "Resurrected, Fall of the First Civilization, Fatal Lore, "
+                "Love Song of Night and Day, Season of the Burrow, The "
+                "Legend of Yangchen // Avatar Yangchen, Vault 11: Voter's "
+                "Dilemma, Your Temple Is Under Attack), phase v0.20.0, "
+                "2026-07-12; this bridge's own narrow match hits exactly "
+                "the 4 pins (the other 5 gap hits are EITHER already "
+                "closed by the pre-existing self-paired/Vote-branch "
+                "admissions OR a genuine adjudicated shed — Vault 11: "
+                "Voter's Dilemma, a GROUP All-scoped outcome — see "
+                "_tpd_widened_tag_no_draw_text's own module comment)"
+            ),
+            pins=(
+                "Fatal Lore",
+                "Season of the Burrow",
+                "Ertai Resurrected",
+                "Balor",
+            ),
+            gap=_tpd_widened_tag_no_draw_text,
+            match=_tpd_widened_tag_synthetic_desc_match,
+        ),
+        Bridge(
+            bridge_id="tpd_wedding_ellipsis_repeat",
+            key="target_player_draws",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): an ellipsis "
+                "repeat-for-another-player construct ('Then target "
+                "opponent does the same') — our OWN clause grammar "
+                "already names the token "
+                "(Unimplemented(name='target_opponent_does_the_same')) "
+                "but recovery.py's ALLOWLIST has no concept mapping for "
+                "it yet — retires when that mapping lands"
+            ),
+            census=("1 hit / 31,622 commander-legal, phase v0.20.0, 2026-07-12"),
+            pins=("The Wedding of River Song",),
+            gap=_tpd_wedding_ellipsis_repeat_gap,
+            match=_tpd_wedding_ellipsis_repeat_match,
+        ),
+        Bridge(
+            bridge_id="opp_discard_unless_clause",
+            key="opponent_discard",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "trigger/ability parser's 'unless' clause handling fails "
+                "a discard-payoff 'target player/opponent ... discards "
+                "... unless ...' body, parking it as an "
+                "Unimplemented('Unsupported unless clause') residue — "
+                "SHARED with lifeloss_makers' withercrown_unless_lose_"
+                "life bridge, the sprint's shared-row candidate for the "
+                "unless-clause recovery ALLOWLIST row — retires on a "
+                "phase bump or a recovery-stage unless-clause row that "
+                "structures the discard/life-loss payoff (CR 119.4-"
+                "shaped unless-cost)"
+            ),
+            census=(
+                "2 hits / 31,622 commander-legal 'Unsupported unless "
+                "clause' residues matching this discard-direction "
+                "anchor, phase v0.20.0, 2026-07-12; Wand of Ith carries "
+                "the SAME residue class but is served INDEPENDENTLY via "
+                "its own typed DiscardCard(ParentTarget) elsewhere in "
+                "the tree — never reaches this bridge's gap"
+            ),
+            pins=("Tainted Specter", "Remorseless Punishment"),
+            gap=_opp_discard_unless_gap,
+            match=_opp_discard_unless_match,
+        ),
+        Bridge(
+            bridge_id="opp_discard_for_scaling_dominant_token",
+            key="opponent_discard",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a 'for each "
+                "<mana> spent to cast it, <effect>' scaling prefix (CR "
+                "601.2f) is the DOMINANT recovered token ('for'), never "
+                "the inner clause's own verb ('discard') — needs a "
+                "scaling-prefix-peel so the wrapped clause's own verb "
+                "decorates instead — retires when that peel lands"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal Unimplemented('for') "
+                "residues ending in the exact discard payoff, phase "
+                "v0.20.0, 2026-07-12 (Hollow Marauder's superficially "
+                "similar 'for each ... discard' residue is a DIFFERENT, "
+                "unrelated draw payoff — correctly excluded by the "
+                "end-of-clause anchor)"
+            ),
+            pins=("Bladecoil Serpent",),
+            gap=_opp_discard_for_scaling_gap,
+            match=_opp_discard_for_scaling_match,
+        ),
+        Bridge(
+            bridge_id="opp_discard_tk_sticker_parse_failure",
+            key="opponent_discard",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a {TK} "
+                "Unfinity Stickers placeholder-costed ability (CR 123.1) "
+                "parks WHOLESALE as Unimplemented('unknown') — the SAME "
+                "frontier base_pt_set's base_pt_tk_sticker_parse_failure "
+                "bridge (Cool Fluffy Loxodon) closes — retires on a "
+                "phase bump that parses {TK}-costed abilities"
+            ),
+            census=("1 hit / 31,622 commander-legal, phase v0.20.0, 2026-07-12"),
+            pins=("Yawgmoth Merfolk Soul",),
+            gap=_yawgmoth_tk_discard_gap,
+            match=_yawgmoth_tk_discard_match,
+        ),
+        Bridge(
+            bridge_id="opp_discard_words_of_waste_replacement_the_residue",
+            key="opponent_discard",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a REPLACEMENT-"
+                "idiom 'the next time ... instead' clause (CR 614.1) has "
+                "no imperative verb to peel, so the dominant-token "
+                "detector falls back to the sentence's leading determiner "
+                "('the') instead of any concept-bearing token — needs a "
+                "next-time-instead replacement-grammar rule that reads "
+                "past the determiner into the replaced effect's own verb "
+                "— retires when that rule lands"
+            ),
+            census=("1 hit / 31,622 commander-legal, phase v0.20.0, 2026-07-12"),
+            pins=("Words of Waste",),
+            gap=_words_of_waste_gap,
+            match=_words_of_waste_match,
+        ),
+        Bridge(
+            bridge_id="opp_discard_fungal_shambler_dropped_conjunct",
+            key="opponent_discard",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "SECOND conjunct of a 'you draw a card and that opponent "
+                "discards a card' compound trigger effect drops WHOLESALE "
+                "with zero residue (not even an Unimplemented node) — "
+                "retires on a phase bump that structures the second "
+                "conjunct"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (the shared no-typed-"
+                "Discard-node gap is broad; this bridge's own narrow "
+                "match is the scalpel), phase v0.20.0, 2026-07-12"
+            ),
+            pins=("Fungal Shambler",),
+            gap=_no_typed_discard_node,
+            match=_fungal_shambler_match,
+        ),
+        Bridge(
+            bridge_id="opp_discard_mindculling_dropped_conjunct",
+            key="opponent_discard",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "SECOND conjunct of a 'you draw N cards and target "
+                "opponent discards N cards' compound sorcery effect drops "
+                "WHOLESALE with zero residue — retires on a phase bump "
+                "that structures the second conjunct"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (SAME shared no-typed-"
+                "Discard-node gap as the Fungal Shambler bridge above, a "
+                "DIFFERENT card-class — sorcery vs. creature trigger), "
+                "phase v0.20.0, 2026-07-12"
+            ),
+            pins=("Mindculling",),
+            gap=_no_typed_discard_node,
+            match=_mindculling_match,
+        ),
+        Bridge(
+            bridge_id="opp_discard_driven_despair_missing_face",
+            key="opponent_discard",
+            kind="missing_face",
+            todo=(
+                "retires when phase (or a W2c text-only-tree successor) "
+                "gains a real structural parse for an Aftermath back-"
+                "half's GRANTED-ability quoted text — the existing W2c "
+                "text-only tree already supplies the raw oracle for this "
+                "bridge to read, but a genuine typed read of the "
+                "granted trigger itself is the eventual retirement path"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal zero-unit text-only "
+                "trees matching this back-reference-shaped anchor, phase "
+                "v0.20.0, 2026-07-12 (Consign // Oblivion's own zero-unit "
+                "Oblivion face is already served by the pre-existing "
+                "_TEXT_ONLY_OPP_DISCARD_RX sweep, disjoint from this "
+                "anchor)"
+            ),
+            pins=("Driven // Despair",),
+            gap=_driven_despair_gap,
+            match=_driven_despair_match,
+        ),
+        Bridge(
+            bridge_id="opp_discard_jagged_poppet_combat_scaling",
+            key="opponent_discard",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a "
+                "combat-damage-to-a-player trigger's own bare 'Player' "
+                "valid_target COULD directionally resolve an unresolved "
+                "discard as opponent-directed (combat damage from your "
+                "own creature reaches an opponent by the rules of the "
+                "game, CR 510) — but a general Player-vs-Opponent "
+                "owner-scope widening for opponent_discard's fallback "
+                "chain risks over-firing genuinely symmetric multiplayer "
+                "group-hug triggers; the sprint should scope that "
+                "widening lane-locally to combat-damage triggers only — "
+                "retires on that lane-local widening or a phase bump"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal Unimplemented('discard') "
+                "residues matching this exact damage-scaling idiom, "
+                "phase v0.20.0, 2026-07-12"
+            ),
+            pins=("Jagged Poppet",),
+            gap=_jagged_poppet_gap,
+            match=_jagged_poppet_match,
         ),
     )
 }

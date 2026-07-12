@@ -5136,6 +5136,129 @@ def test_opponent_discard_excludes_self_discard_then_unrelated_count():
     assert "opponent_discard" not in _keys("Azula, Ruthless Firebender")
 
 
+# ── ADR-0039 W7 BRIDGES wave: opponent_discard residual closers ─────────────
+
+
+@pytest.mark.parametrize("name", ["Tainted Specter", "Remorseless Punishment"])
+def test_opponent_discard_unless_clause_bridge(name):
+    """The ``opp_discard_unless_clause`` ledgered bridge (bridge_ledger.py,
+    shared with lifeloss_makers' ``withercrown_unless_lose_life`` bridge
+    via :func:`~mtg_utils._deck_forge.bridge_ledger.
+    _unless_clause_failure_descs`): a discard-payoff "unless" clause
+    phase's parser fails wholesale — Tainted Specter's "Target player
+    discards a card unless they put a card ... on top of their library",
+    Remorseless Punishment's "Target opponent loses 5 life unless that
+    player discards two cards or sacrifices ...". CR 119.4 / 701.9."""
+    assert ("opponent_discard", "opponents", "") in _idents(name)
+
+
+def test_opponent_discard_unless_clause_wand_of_ith_served_independently():
+    """Wand of Ith carries the SAME "Unsupported unless clause" residue
+    class as Tainted Specter/Remorseless Punishment (its second branch),
+    but resolves independently via a genuine typed
+    ``DiscardCard{target: ParentTarget}`` node on its FIRST branch — never
+    reaches the bridge's gap at all."""
+    assert ("opponent_discard", "opponents", "") in _idents("Wand of Ith")
+
+
+def test_opponent_discard_for_scaling_dominant_token_bridge():
+    """The ``opp_discard_for_scaling_dominant_token`` ledgered bridge:
+    Bladecoil Serpent's "When ~ enters, for each {B}{B} spent to cast it,
+    each opponent discards a card." — a mana-spent scaling prefix (CR
+    601.2f) is the DOMINANT recovered grammar token ("for"), not the
+    inner clause's own verb ("discard"). Grammar-blocked this wave
+    (ADR-0039 task #82)."""
+    assert ("opponent_discard", "opponents", "") in _idents("Bladecoil Serpent")
+
+
+def test_opponent_discard_tk_sticker_parse_failure_bridge():
+    """The ``opp_discard_tk_sticker_parse_failure`` ledgered bridge:
+    Yawgmoth Merfolk Soul's Unfinity Stickers "{TK}{TK} — When ~ leaves
+    the battlefield, target player discards a card." parks WHOLESALE as
+    an ``Unimplemented('unknown')`` residue — the SAME {TK}-cost-grammar
+    frontier ``base_pt_set``'s ``base_pt_tk_sticker_parse_failure`` bridge
+    (Cool Fluffy Loxodon) closes. CR 123.1 / 603.6c."""
+    assert ("opponent_discard", "opponents", "") in _idents("Yawgmoth Merfolk Soul")
+
+
+def test_opponent_discard_words_of_waste_replacement_bridge():
+    """The ``opp_discard_words_of_waste_replacement_the_residue`` ledgered
+    bridge: Words of Waste's "{1}: The next time you would draw a card
+    this turn, each opponent discards a card instead." — a REPLACEMENT-
+    idiom "the next time ... instead" clause (CR 614.1) has no imperative
+    verb to peel, so the dominant-token detector falls back to the
+    sentence's leading determiner ("the")."""
+    assert ("opponent_discard", "opponents", "") in _idents("Words of Waste")
+
+
+def test_opponent_discard_fungal_shambler_dropped_conjunct_bridge():
+    """The ``opp_discard_fungal_shambler_dropped_conjunct`` ledgered
+    bridge: Fungal Shambler's "Whenever ~ deals damage to an opponent,
+    you draw a card and that opponent discards a card." — phase
+    structures the first conjunct (a typed ``Draw{recipient: Controller}``)
+    but the second conjunct drops WHOLESALE, zero residue anywhere in the
+    tree. CR 701.9."""
+    assert ("opponent_discard", "opponents", "") in _idents("Fungal Shambler")
+
+
+def test_opponent_discard_mindculling_dropped_conjunct_bridge():
+    """The ``opp_discard_mindculling_dropped_conjunct`` ledgered bridge:
+    Mindculling's "You draw two cards and target opponent discards two
+    cards." — the SAME zero-residue dropped-second-conjunct shape as
+    Fungal Shambler, sharing :func:`~mtg_utils._deck_forge.bridge_ledger.
+    _no_typed_discard_node`'s broad absence-proof gap
+    (the ``sacrifice_outlets`` ``_no_typed_sacrifice_node`` precedent)."""
+    assert ("opponent_discard", "opponents", "") in _idents("Mindculling")
+
+
+def test_opponent_discard_driven_despair_missing_face_bridge():
+    """The ``opp_discard_driven_despair_missing_face`` ledgered bridge:
+    Driven // Despair's "Despair" half has NO phase record at all (the
+    SAME Aftermath-back-half gap ``opponent_discard``'s own W2c text-only
+    tree arm closes for Consign // Oblivion), but its granted-ability
+    quoted text ("that player discards a card") is a back-reference with
+    no "target opponent"/"target player"/"each player" anchor the
+    pre-existing text-only sweep requires — served by this bridge
+    instead. Built via the W2c text-only path directly (not ``_idents``'s
+    ``cards``-dict lookup) mirroring
+    :func:`test_opponent_discard_text_only_face_tree_oblivion` — this
+    face has no phase record for the fixture's ``cards`` dict to carry at
+    all."""
+    from mtg_utils._deck_forge._ir_lookup import _text_only_tree
+
+    face = {
+        "name": "Despair",
+        "mana_cost": "{1}{B}",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Aftermath (Cast this spell only from your graveyard. "
+            "Then exile it.)\n"
+            "Until end of turn, creatures you control gain menace and "
+            '"Whenever this creature deals combat damage to a player, '
+            'that player discards a card."'
+        ),
+    }
+    tree = _text_only_tree(face, {}, oracle_id="87fca901-678d-4c9a-be4a-9dce2a53074b")
+    assert tree is not None
+    idents = {
+        (s.key, s.scope, s.subject)
+        for s in extract_crosswalk_signals(tree, keywords=frozenset())
+    }
+    assert ("opponent_discard", "opponents", "") in idents
+
+
+def test_opponent_discard_jagged_poppet_combat_scaling_bridge():
+    """The ``opp_discard_jagged_poppet_combat_scaling`` ledgered bridge:
+    Jagged Poppet's "Hellbent — Whenever ~ deals combat damage to a
+    player, if you have no cards in hand, that player discards cards
+    equal to the damage." — the "discard cards equal to the damage"
+    clause recovers via the "discard" ALLOWLIST token, but the trigger's
+    own bare ``Player`` valid_target (not an explicit Opponent-shaped
+    actor) can't resolve a direction through the existing owner-fallback
+    chain. CR 510 / 701.9."""
+    assert ("opponent_discard", "opponents", "") in _idents("Jagged Poppet")
+
+
 # ── batch 7: phase / control / terminal-effect cluster + keyword survivors ────
 
 
@@ -9959,32 +10082,42 @@ def test_target_player_draws_excludes_recovered_each_and_self_branches():
     assert "target_player_draws" not in _keys("Mathise, Surge Channeler")
 
 
-def test_target_player_draws_excludes_unreached_modal_no_text():
-    """Fatal Lore, Season of the Burrow, Ertai Resurrected, and Balor each
-    carry a modal ``ParentTargetController``/``Typed`` Draw with NO
-    self-tagged sibling to pair against AND no reachable clause text
-    anywhere in the typed tree (``unit.node.description`` is ``None`` or a
-    synthetic trigger-condition label like "Whenever ~ attacks") — a
-    genuine "dropped clause" gap, not fixable without a
-    ``clause_grammar.py`` change (grammar-blocked this wave, ADR-0039)."""
+def test_target_player_draws_widened_tag_synthetic_desc_bridge():
+    """ADR-0039 W7 BRIDGES wave: Fatal Lore, Season of the Burrow, Ertai
+    Resurrected, and Balor each carry a modal ``ParentTargetController``/
+    ``Typed`` Draw with NO self-tagged sibling to pair against AND no
+    reachable clause text anywhere in the typed tree (``unit.node.
+    description`` is ``None`` or a synthetic trigger-condition label like
+    "Whenever ~ attacks") — served by the
+    ``tpd_widened_tag_synthetic_desc`` ledgered bridge (bridge_ledger.py)
+    now that a whole-oracle text anchor is sanctioned; not fixable
+    structurally without a ``clause_grammar.py``/unit-synthesis change
+    (grammar-blocked, ADR-0039 task #82)."""
     for name in ("Fatal Lore", "Season of the Burrow", "Ertai Resurrected", "Balor"):
-        assert "target_player_draws" not in _keys(name), name
+        assert ("target_player_draws", "any", "") in _idents(name), name
 
 
-def test_target_player_draws_excludes_unreachable_granted_ability_text():
-    """Thief of Existence's granted "target opponent draws a card" text
-    lives ONLY inside a quoted string on an unrelated effect's
-    ``description`` field — no typed ``Draw`` node exists anywhere in the
-    tree for any arm to reach."""
-    assert "target_player_draws" not in _keys("Thief of Existence")
+def test_target_player_draws_buried_grant_thief_of_existence():
+    """ADR-0039 W7 BRIDGES wave: Thief of Existence's granted "target
+    opponent draws a card" trigger lives inside a ``GrantAbility`` nested
+    in the CASTING trigger's own effect chain (CR 603.6c) — invisible to
+    ``effect_concepts("draw")``'s direct-chain-only read, but reachable via
+    a buried-grant ``iter_typed_nodes`` descent (the SAME precedent
+    ``opponent_discard`` already established for Mindlash Sliver/Dementia
+    Sliver). A GENUINE structural closer, not a bridge — the buried node's
+    tag already resolves through the pre-existing
+    ``_TARGETED_DRAW_WIDENED_TAGS`` + phrase-gate logic unmodified."""
+    assert ("target_player_draws", "any", "") in _idents("Thief of Existence")
 
 
-def test_target_player_draws_excludes_does_the_same_ellipsis():
-    """The Wedding of River Song's "Then target opponent does the same" is
-    an ellipsis repeat-for-another-player phase never structures into a
-    second typed ``Draw`` node — only the original "you draw two cards"
-    survives structurally."""
-    assert "target_player_draws" not in _keys("The Wedding of River Song")
+def test_target_player_draws_wedding_ellipsis_repeat_bridge():
+    """ADR-0039 W7 BRIDGES wave: The Wedding of River Song's "Then target
+    opponent does the same" names its own clause-grammar token
+    (``Unimplemented(name='target_opponent_does_the_same')``) but has no
+    concept mapping yet — served by the ``tpd_wedding_ellipsis_repeat``
+    ledgered bridge (bridge_ledger.py), grammar-blocked this wave
+    (ADR-0039 task #82)."""
+    assert ("target_player_draws", "any", "") in _idents("The Wedding of River Song")
 
 
 def test_target_player_draws_excludes_vote_council_self_payoff():
