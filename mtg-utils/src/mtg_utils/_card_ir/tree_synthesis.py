@@ -150,10 +150,10 @@ from mtg_utils._card_ir.project import (
     _SOULBOND_REF,
     _STARTING_LIFE_REF,
     _SUSPECT_REF,
-    _TOKEN_SUBTYPE_OWN_REF,
     _UNDYING_PERSIST_GRANT,
 )
 from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
+from mtg_utils._card_ir.text_idioms import _TOKEN_SUBTYPE_OWN_REF
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
     _CONVOKE_RAW,

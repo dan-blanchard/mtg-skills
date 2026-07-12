@@ -61,6 +61,22 @@ from mtg_utils._card_ir.supplement import (
     recover_effect_from_text,
     supplement_card,
 )
+
+# ADR-0039 step 2: these symbols' DEFINITIONS live in text_idioms.py now (the
+# crosswalk imports them from there too) — imported back here so this module's
+# own internal uses (below) keep working unchanged. See text_idioms.py's
+# docstring.
+from mtg_utils._card_ir.text_idioms import (
+    _BECOMES_TYPE_RE,
+    _FORCE_ATTACK_REF,
+    _GOAD_REWARD_REF,
+    _LIB_SEARCH_PLAYER_ACTIONS,
+    _LURE_ABLE,
+    _LURE_MUST,
+    _SINGLE_PERMANENT_GRANT_PREDS,
+    _TOKEN_SUBTYPE_OWN_REF,
+    _counter_kind_token,
+)
 from mtg_utils.card_ir import (
     Ability,
     Card,
@@ -2091,20 +2107,6 @@ _TOKEN_CREATE_VERB = re.compile(r"\bcreates?\b", re.IGNORECASE)
 _TOKEN_SUBTYPE_SAC = re.compile(
     r"\bsacrifice (?:a|an|another|\d+|two|three|four|five) "
     r"(blood|clue|food|treasure)s?\b",
-    re.IGNORECASE,
-)
-# A CARES-ABOUT reference to a named token subtype WITHOUT making/sacrificing it —
-# "<Subtype>s you control" (a count operand / anthem subject — Hobbit's Sting,
-# Vihaan, Rent Is Due, Honored Dreyleader), "(was|were) (a|an) <Subtype>" (a sac
-# condition — Evereth), "is a <Subtype>" / "that's a <Subtype>" (a Food-creature
-# anthem — Brenard, Shelob). The lane (food/treasure/clue/blood_matters) is a
-# cares-about payoff (the "_matters = cares-about" rule), so a deck running these
-# wants the subtype. Anchored on the explicit own-control / state phrasing.
-_TOKEN_SUBTYPE_OWN_REF = re.compile(
-    r"\b(blood|clue|food|treasure)s? you control\b"
-    r"|\b(?:was|were) (?:a |an )?(blood|clue|food|treasure)s?\b"
-    r"|(?:\bis|\bare|that's|that are|it's|except it's) (?:a |an )?"
-    r"(blood|clue|food|treasure)\b",
     re.IGNORECASE,
 )
 
@@ -5986,14 +5988,6 @@ def _for_each_creature_marker(record: dict) -> Effect | None:
     )
 
 
-# ADR-0027 β — predicates that narrow a grant to a SINGLE permanent (an Aura's
-# enchanted creature / an Equipment's equipped creature), NOT a board. A grant carrying
-# one of these is "Enchanted/Equipped creature has '<quoted>'" — single-target, NOT a
-# global ability grant — so it never fires the lane (the regex never matched a single
-# Aura/Equipment grant either). CR 303 / 301.
-_SINGLE_PERMANENT_GRANT_PREDS: frozenset[str] = frozenset({"EnchantedBy", "EquippedBy"})
-
-
 def _global_ability_grant_markers(record: dict) -> list[Effect]:
     """`board_grant`+counter_kind="grant_ability" markers for a QUOTED-ability grant
     (ADR-0027 β — global_ability_grant). phase parses "Creatures you control have
@@ -6446,17 +6440,6 @@ _EXTRA_BEGINNING_PHASE_GRANT = re.compile(
 _LIFE_TOTAL_SET = re.compile(
     r"\blife total becomes\b|\bdouble\b[^.]*\blife total\b", re.IGNORECASE
 )
-# Lure / force-a-block (CR 509.1c/h) phase swallows into a pump/grant_keyword compound
-# clause (Indrik Umbra, Revenge of the Hunted), drops in a conditional static (Seton's
-# Desire, Stone-Tongue Basilisk), folds the equip rider as "must be blocked by <type>
-# if able" (Ace's Baseball Bat, Slayer's Cleaver), or buries it in a modal bullet
-# (Glorfindel). Two phrasings: "able to block <X> do so" (force ALL able blockers) and
-# "must be blocked [by <type>] if able" (force a block on the attacker). Both force a
-# block — the lane explicitly wants force-a-block — so a by-<type> restriction is a
-# refinement, not a disqualifier. The block-LIMIT tax ("can't be blocked by more than
-# one") never says "do so" or "must be blocked … if able", so it can't match.
-_LURE_ABLE = re.compile(r"\bable to block\b[^.]*\bdo so\b", re.IGNORECASE)
-_LURE_MUST = re.compile(r"\bmust be blocked\b[^.]*?\bif able\b", re.IGNORECASE)
 # "Tap OR untap target" (CR 701.20) — phase parses the disjunction as a target_only
 # + a `choose` "tap or untap" marker, DROPPING the untap half (Twiddle, Pestermite,
 # Coral Trickster, the whole untap-engine cantrip family). The untap side is the
@@ -6465,42 +6448,6 @@ _LURE_MUST = re.compile(r"\bmust be blocked\b[^.]*?\bif able\b", re.IGNORECASE)
 # "• Untap target permanent" already structures both, so it's skipped).
 _TAP_OR_UNTAP_REF = re.compile(
     r"\btap or untap (?:target|another target|up to)\b", re.IGNORECASE
-)
-# Combat-forcing disentanglement (CR 508.1g / 701.38). Two structurally distinct
-# compulsions phase DROPS to raw (the self/team static carries no abilities; the
-# reward-payoff trigger flattens to event=None with the redirect condition in raw):
-#
-#   • FORCED ATTACK (self-force) — "~ attacks each/every combat if able", "attacks
-#     that player this combat if able", a granted "creatures you control attack each
-#     combat if able" (Dauthi Slayer, Battle-Mad Ronin, Goblin Spymaster's token
-#     grant). A COMPULSION to swing — the forced_attack lane (an aggro/symmetric-force
-#     theme), NOT goad. phase emits a `MustAttack` mode only for the ACTIVATED single-
-#     target form (Basandra); the static self/team force is dropped.
-#   • GOAD REWARD (redirect-payoff) — "attacks one of your opponents", "attacks a
-#     player other than you", "whenever a(nother) player attacks (one of your
-#     opponents)", the defending-player payoff (Gahiji, Breena, Frontier Warmonger,
-#     Kazuul). The card REWARDS opponents' creatures being redirected at another player
-#     — the goad mechanic's payoff (CR 701.38b: a goaded creature attacks a player
-#     other than its controller), so it wants goad effects. NOT a self-force.
-#
-# The two patterns are mutually exclusive by construction: "each combat if able" is
-# the self-compulsion; "one of your opponents" / "a player other than you" / "a player
-# attacks" is the redirect-reward. A single-target "target creature attacks … if able"
-# (Basandra) keeps phase's force_attack effect and is NOT matched here (no "each/every
-# combat", no opponent-redirect) — it stays forced_attack-adjacent without leaking goad.
-_FORCE_ATTACK_REF = re.compile(
-    r"attacks? (?:each|every) combat if able"
-    r"|attacks? that player this combat if able"
-    r"|may attack only the nearest opponent",
-    re.IGNORECASE,
-)
-_GOAD_REWARD_REF = re.compile(
-    r"attacks? one of your opponents"
-    r"|attacks? a player other than (?:you|its controller)"
-    r"|whenever a(?:nother)? player attacks"
-    r"|creature an opponent controls attacks[^.]*"
-    r"(?:you're|you are) the defending player",
-    re.IGNORECASE,
 )
 # Energy ({E}, CR 122.1) phase loses on a SINK ("pay {E}", "Replicate—Pay {E}{E}{E}",
 # "unless you pay {E}"), a "Whenever you get one or more {E}" PAYOFF trigger (flattened
@@ -8074,15 +8021,6 @@ def _counter_removal_cost_markers(record: dict) -> list[Effect]:
     return markers
 
 
-# "becomes a/an artifact|enchantment" — a TYPE-GRANT (animate / grant the type) whose
-# granted card-type phase drops to a subject=None base_pt_set/animate/state. Anchored
-# on "becomes" + the type so a token "create a token that's an artifact" (a maker, not
-# a grant) and a clone "becomes a copy of" never match.
-_BECOMES_TYPE_RE = re.compile(
-    r"becomes? (?:a|an) (?:\w+ )*?(artifact|enchantment)\b", re.IGNORECASE
-)
-
-
 def _becomes_type_markers(abilities: list[Ability]) -> list[Effect]:
     """One becomes_type marker per distinct Artifact/Enchantment a "becomes a/an
     <type>" type-grant confers (Sydri, Karn's Touch, Argent Mutation, Titania's Song).
@@ -8855,49 +8793,6 @@ def _scalar_value(v: object) -> int | None:
     return None
 
 
-# ADR-0027 counter/modified taxonomy — strip a leaked comparator phrase off a
-# phase counter-KIND string. phase's filter-property ``counters.data`` is usually a
-# clean kind ("oil", "time", "bounty") but sometimes carries the comparator clause
-# the parser failed to split off ("or more charge" → the kind is "charge"; "or more
-# loyalty" → "loyalty"; "fewer than x +1/+1" → the +1/+1 signature). CR 122.1.
-_COUNTER_KIND_LEAK = re.compile(
-    r"^(?:x\s+)?(?:or\s+more|or\s+fewer|fewer\s+than(?:\s+x)?|more|fewer)\s+",
-    re.IGNORECASE,
-)
-
-
-def _counter_kind_token(raw: object) -> str:
-    """Normalize a phase filter-property ``counters.data`` into a kind token.
-
-    ``+1/+1`` → ``P1P1`` and ``-1/-1`` → ``M1M1`` (the canonical signatures the
-    plus_one_matters / minus_counters_matter lanes read), else the leaked-comparator-
-    stripped ``_norm`` of the kind (oil / stun / time / bounty / divinity / …). An
-    empty / pure-comparator residue becomes ``Generic`` (a counter with no nameable
-    kind). CR 122.1 (counters are individuated by name)."""
-    if not isinstance(raw, str):
-        return "Generic"
-    if "+1/+1" in raw:
-        return "P1P1"
-    if "-1/-1" in raw:
-        return "M1M1"
-    s = raw
-    prev = None
-    while prev != s:
-        prev = s
-        s = _COUNTER_KIND_LEAK.sub("", s).strip()
-    if s.lower() in ("or more", "or fewer", "or", ""):
-        return "Generic"
-    norm = _norm(s)
-    # Phase emits a clean "P1P1"/"M1M1" for the bulk of +1/+1 / -1/-1 references;
-    # canonicalize them to the same signature token the leaked-text branch returns
-    # (else a clean "P1P1" → _norm "p1p1" wouldn't match the lane's P1P1 read).
-    if norm == "p1p1":
-        return "P1P1"
-    if norm == "m1m1":
-        return "M1M1"
-    return norm or "Generic"
-
-
 def _owned_who(controller: object) -> str:
     """Canonicalize a phase ``Owned.controller`` into the OWNERSHIP discriminant
     the control_exchange / exile_removal lanes need: ``you`` vs ``opp``.
@@ -9517,20 +9412,6 @@ def _trigger_event(tr: dict) -> str:
     if mode == "exploited":
         return "exploited"
     return "other"
-
-
-# ADR-0027 β opponent_search_matters — the library-manipulation player actions phase
-# lists on a `PlayerPerformedAction` trigger's `player_actions` (River Song's composite
-# is ["Scry","Surveil","SearchedLibrary"]). The composite must NAME the library SEARCH
-# (`SearchedLibrary`) and contain ONLY scry-surveil-search actions — the search is the
-# discriminator that pins this to the opponent-search lane the deleted regex covered
-# ("searches their/a library"). Two carve-outs the gate deliberately leaves on `other`:
-#   • Proliferate composites (Ezuri, Scheming Aspirant) — not a library action.
-#   • SCRY/SURVEIL-only composites (Matoya, Planetarium — both YOU-scoped, no opponent
-#     punisher exists) — staying `other` keeps the `_narrow_trigger_other_refs`
-#     scry_surveil marker (gated event=='other') firing scry_surveil_matters for them,
-#     so the re-type is drift-free on that lane.
-_LIB_SEARCH_PLAYER_ACTIONS = frozenset({"scry", "surveil", "searchedlibrary"})
 
 
 def _player_actions_are_lib_search(tr: dict) -> bool:

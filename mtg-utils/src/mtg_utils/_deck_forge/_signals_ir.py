@@ -24,8 +24,8 @@ from mtg_utils._card_ir.supplement import (
     _EXILE_REMOVAL_RETURN,
     _EXILE_REMOVAL_SELF_TARGET,
     _EXILE_REMOVAL_SUSPEND,
-    combat_damage_recipients_from_text,
 )
+from mtg_utils._card_ir.text_idioms import combat_damage_recipients_from_text
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_regex import (
     _CHEAT_INTO_PLAY_RESIDUE_RE,

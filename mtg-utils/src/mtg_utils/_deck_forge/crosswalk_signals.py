@@ -155,18 +155,6 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 # (``_arm_b13_raw_anchor`` / ``_arm_b13_node_anchor``); the pinned regexes now
 # live there, imported single-source from project.py's ``_narrow_*`` marker
 # sources.
-from mtg_utils._card_ir.project import (
-    _BECOMES_TYPE_RE,
-    _FORCE_ATTACK_REF,
-    _GOAD_REWARD_REF,
-    _LIB_SEARCH_PLAYER_ACTIONS,
-    _LURE_ABLE,
-    _LURE_MUST,
-    _SINGLE_PERMANENT_GRANT_PREDS,
-    _TOKEN_SUBTYPE_OWN_REF,
-    _counter_kind_token,
-)
-
 # W3 batch-3 (ADR-0038, combat-coercion cluster): the per-effect "attacks …
 # if able" clause grammar (CR 508.1d) that supplement.py's
 # ``_recover_static_pattern`` uses to reclassify a bucket-B Unimplemented
@@ -200,12 +188,21 @@ from mtg_utils._card_ir.project import (
 # specifically for this kind of reuse per its own docstring) — the SAME
 # synthetic-trigger recovery ``old_ir_for`` itself runs when phase leaves the
 # combat-damage connect wholly unstructured. CR 510.1b/510.1c/510.2/615.
-from mtg_utils._card_ir.supplement import (
+from mtg_utils._card_ir.text_idioms import (
+    _BECOMES_TYPE_RE,
     _CAST_FROM_EXILE_P,
     _FORCE_ATTACK,
+    _FORCE_ATTACK_REF,
+    _GOAD_REWARD_REF,
+    _LIB_SEARCH_PLAYER_ACTIONS,
+    _LURE_ABLE,
+    _LURE_MUST,
+    _SINGLE_PERMANENT_GRANT_PREDS,
+    _TOKEN_SUBTYPE_OWN_REF,
     _TOPDECK_OTHER_ZONE,
     _TOPDECK_YOUR_LIBRARY,
     _copied_type_from_text,
+    _counter_kind_token,
     _topdeck_stack_self,
     combat_damage_recipients_from_text,
 )

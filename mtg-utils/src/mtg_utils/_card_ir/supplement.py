@@ -39,6 +39,20 @@ from mtg_utils._card_ir.clause_grammar import (
     parse_clause,
     scan_clause,
 )
+
+# ADR-0039 step 2: these symbols' DEFINITIONS live in text_idioms.py now (the
+# crosswalk imports them from there too) — imported back here so this module's
+# own internal uses (below) keep working unchanged. See text_idioms.py's
+# docstring.
+from mtg_utils._card_ir.text_idioms import (
+    _CAST_FROM_EXILE_P,
+    _FORCE_ATTACK,
+    _TOPDECK_OTHER_ZONE,
+    _TOPDECK_YOUR_LIBRARY,
+    _copied_type_from_text,
+    _topdeck_stack_self,
+    combat_damage_recipients_from_text,
+)
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity, Trigger
 
 # ── scope recovery (phase structures scope on only a sliver of abilities) ──────
@@ -72,23 +86,6 @@ _BROAD_THIRD_PARTY = re.compile(
 # / 116 (top of library). The structured scry/surveil DOERS (project._EFFECT_CATEGORY
 # scry/surveil → topdeck_select) already carry scope 'you' and never reach the
 # supplement, so they keep their own-selection scope.
-# YOUR library: "the top N cards of your library", "from the top of your library",
-# "top of your library" — the controller's own deck.
-_TOPDECK_YOUR_LIBRARY = re.compile(
-    r"\bof your library\b|\bfrom the top of your library\b|\btop of your library\b",
-    re.IGNORECASE,
-)
-# An OPPONENT-library / target-player-library PEEK or an opponent-HAND peek — a
-# look at a DIFFERENT player's hidden zone, not the controller's own selection.
-# "target player's library" is INCLUDED here (the _BROAD_THIRD_PARTY guess omits
-# it — it names only opponent/their/each-opponent), so an Orcish-Spy / Mishra's-
-# Bauble "look at the top N of target player's library" routes to 'opp' too.
-_TOPDECK_OTHER_ZONE = re.compile(
-    r"(?:target opponent'?s?|that player'?s?|defending player'?s?"
-    r"|target player'?s?|an opponent'?s?|each opponent'?s?|their) (?:library|hand)"
-    r"|(?:look at|reveal)[^.]*opponent'?s? hand",
-    re.IGNORECASE,
-)
 # The Morph / face-down REVEAL ("look at target face-down creature" — Aven
 # Soulgazer, Smoke Teller; "look at face-down creatures you don't control" — Keeper
 # of the Lens) is a hidden-information peek at a BATTLEFIELD object, NOT a
@@ -663,34 +660,8 @@ _CLONE_STATIC = re.compile(
     r"\b(?:is|are|enters?|enter) (?:as )?(?:a )?copy of\b|\bas a copy of\b",
     re.IGNORECASE,
 )
-# Copied-type words, in priority order (Permanent last so a specific type wins).
-_COPY_TYPE_WORDS: tuple[tuple[str, str], ...] = (
-    ("creature", "Creature"),
-    ("artifact", "Artifact"),
-    ("enchantment", "Enchantment"),
-    ("planeswalker", "Planeswalker"),
-    ("land", "Land"),
-    ("permanent", "Permanent"),
-)
-
-
-def _copied_type_from_text(raw: str) -> Filter | None:
-    """The copied permanent type from a clone clause — the word right after "copy of"
-    ("becomes a copy of target CREATURE" → Creature; "of any creature or planeswalker"
-    → both). None when "copy of" is followed by a typeless referent ("copy of that
-    card") — those fall back to the ability's sibling/trigger target."""
-    low = raw.lower()
-    i = low.find("copy of")
-    if i < 0:
-        return None
-    seg = low[i : i + 60]
-    types = tuple(title for word, title in _COPY_TYPE_WORDS if word in seg)
-    return Filter(card_types=types) if types else None
-
-
 # Forced combat: "… attacks … if able", "all creatures … attack if able". And a forced
 # block: "all … able to block ~ do so" (a lure).
-_FORCE_ATTACK = re.compile(r"\battacks?\b[^.]*\bif able\b", re.IGNORECASE)
 _FORCE_BLOCK = re.compile(r"\bable to block\b[^.]*\bdo so\b", re.IGNORECASE)
 _TEXT_CHANGE = re.compile(
     r"\bchange the text\b|\bchange ~'s\b|\bchange\b[^.]{0,15}\bbase power\b",
@@ -1288,82 +1259,6 @@ def _scan_span(text: str, parser: comb.Parser[Any]) -> str | None:
         if w is None:
             return None
         rest = w[1]
-
-
-# ── ADR-0027 combat-damage RECIPIENT residue (SIDECAR v41) ────────────────────
-# project.py stamps a structured `recipient` on every NATIVE combat_damage trigger
-# (the DamageDone / DamageDoneOnceByController modes), but phase leaves combat-damage
-# payoffs UNSTRUCTURED when the trigger is QUOTED inside a granted ability that lives
-# in an ACTIVATED ability or a one-shot spell/Saga/emblem grant, or is a "would deal
-# combat damage" REPLACEMENT — phase keeps no DamageDone trigger and sometimes drops
-# the clause from the effect raw entirely. For those, the recipient discriminator
-# survives only in the card's RAW oracle, so we synthesize a combat_damage trigger
-# (with the recipient) from the raw — the sanctioned residue path (NOT a retained
-# regex MIRROR in signals; the lanes still read `trig.recipient` STRUCTURALLY).
-# Patterns are the EXACT recipient phrasings the three deleted SWEEP/HAND_FLOOR
-# regexes anchored on, so the recovered set is byte-identical to the deleted mirrors.
-# CR 510.1b (player / planeswalker) / 510.1c (creature) / 120.3.
-# A PLAYER / planeswalker recipient survives in the raw three ways the deleted regexes
-# matched: a "whenever ~ deals combat damage to a player/opponent" trigger, a "would
-# deal combat damage to a player/opponent" REPLACEMENT (CR 615 — Charging Tuskodon,
-# Szadek, Undead Alchemist), and the passive "player who was dealt combat damage by ~"
-# reference (CR 510.2 — Steel Hellkite, Hope of Ghirapur, Admiral Beckett Brass). All
-# three are combat-damage-to-a-player payoffs (the structural recipient is a player), so
-# all three fire BOTH the base matters lane and to_opp — a player recipient is a player
-# recipient regardless of the verb. CR 510.1b / 615.
-# #24e P3 parser-substrate: the combat-damage RECIPIENT detector reads STRUCTURE.
-# PLAYER arm A — (when|whenever|would) <bounded gap> "deals combat damage to" <player
-# recipient bag>: the "a player or planeswalker / or battle" variants are subsumed by
-# the bare "a player" slot (it matches the lead two words), exactly as the regex's
-# leftmost-alternation did. PLAYER arm B — the passive "was/were dealt combat damage
-# by" reference. CREATURE — "deals combat damage to (a|another|one or more) creature(s)"
-# (the regex's "whenever <gap> deals combat damage to a creature" arm is fully subsumed
-# by this, which anchors on "deals" anywhere). Ports to phase-rs as nom tuples.
-_CDMG_DEALS_TO = comb.phrase({"deal", "deals"}, {"combat"}, {"damage"}, {"to"})
-_CDMG_PLAYER_RECIPIENT = comb.alt(
-    comb.phrase({"a"}, {"player"}),
-    comb.phrase({"an"}, {"opponent"}),
-    comb.phrase({"one"}, {"of"}, {"your"}, {"opponents"}),
-    comb.phrase({"each"}, {"opponent"}),
-    comb.phrase({"that"}, {"player"}),
-)
-_CDMG_RECIPIENT_PLAYER = comb.alt(
-    comb.scan(
-        comb.seq2(
-            comb.keyword({"when", "whenever", "would"}),
-            comb.bounded_scan(comb.seq2(_CDMG_DEALS_TO, _CDMG_PLAYER_RECIPIENT)),
-        )
-    ),
-    comb.scan(comb.phrase({"was", "were"}, {"dealt"}, {"combat"}, {"damage"}, {"by"})),
-)
-_CDMG_RECIPIENT_CREATURE = comb.scan(
-    comb.seq3(
-        comb.phrase({"deals"}, {"combat"}, {"damage"}, {"to"}),
-        comb.alt(
-            comb.phrase({"one"}, {"or"}, {"more"}), comb.keyword({"a", "another"})
-        ),
-        comb.keyword({"creature", "creatures"}),
-    )
-)
-
-
-def combat_damage_recipients_from_text(text: str) -> frozenset[str]:
-    """The combat-damage RECIPIENT type(s) a raw oracle names — {player, creature}
-    (planeswalker folds into the player-or-planeswalker phrasing). The reminder-strip
-    happens here, so callers pass raw oracle. Public because the deck-forge hybrid path
-    reuses it to recover the recipient of a runtime-FOLDED object (the Ring-bearer's
-    "deals combat damage to a player" level) whose text is not in the commander's
-    pre-built sidecar IR. CR 510.1b / 510.1c / 510.2 / 615."""
-    stripped = re.sub(r"\([^)]*\)", " ", text or "")
-    low = stripped.lower()
-    out: set[str] = set()
-    # cheap dispatch: every player arm carries "combat damage" (arm A) or "dealt
-    # combat damage by" (arm B); the creature detector likewise needs "combat damage".
-    if "combat damage" in low and _CDMG_RECIPIENT_PLAYER.run(stripped) is not None:
-        out.add("player")
-    if "combat damage to" in low and _CDMG_RECIPIENT_CREATURE.run(stripped) is not None:
-        out.add("creature")
-    return frozenset(out)
 
 
 def _recover_combat_damage_recipients(card: Card, oracle: str) -> Card:
@@ -2483,81 +2378,6 @@ def _recover_devotion_operand(card: Card, oracle: str) -> Card:
     return replace(
         card, faces=(replace(head, abilities=(*head.abilities, synth)), *rest)
     )
-
-
-# cast_from_exile — phase HAS the structure but DROPS the exile zone: a self-cast
-# permanent projects ``cast_from_zone`` zones=() (Eternal Scourge, Misthollow), a
-# cast-from-exile payoff projects an effect on a ``cast_spell`` Trigger zones=()
-# (Vega's "from anywhere other than your hand"), and Squee keeps from:graveyard but
-# drops the "or from exile". Stamp ``from:exile`` onto the real ``cast_from_zone``
-# Effect and the ``cast_spell`` Trigger so the lane reads the zone STRUCTURALLY;
-# synthesize a marker only for the exile-and-cast / impulse engines phase leaves with
-# neither carrier. CR 601.3b / 702.143.
-# #24e P3 parser-substrate: the cast-from-exile detector reads STRUCTURE — six arms,
-# `[^.]*?` gaps → `bounded_scan`, anchored phrases. The "play a land or cast a spell"
-# regex option is subsumed by "play a land". Detection-only (boolean).
-_CFE_FROM_EXILE = comb.phrase({"from"}, {"exile"})
-_CFE_CAST_PLAY = comb.alt(
-    comb.phrase({"cast"}, {"a"}, {"spell"}),
-    comb.phrase({"play"}, {"a"}, {"card", "land"}),
-)
-_CAST_FROM_EXILE_P = comb.scan(
-    comb.alt(
-        comb.phrase(
-            {"top"}, {"card"}, {"of"}, {"your"}, {"library"}, {"has"}, {"plot"}
-        ),
-        comb.seq(
-            comb.alt(comb.keyword({"whenever"}), comb.phrase({"each"}, {"time"})),
-            comb.keyword({"you"}),
-            _CFE_CAST_PLAY,
-            comb.bounded_scan(_CFE_FROM_EXILE),
-        ),
-        comb.phrase({"spell", "spells"}, {"you"}, {"cast"}, {"from"}, {"exile"}),
-        comb.seq(
-            comb.phrase({"you"}, {"may"}, {"play", "cast"}),
-            comb.alt(
-                comb.keyword({"it", "them"}),
-                comb.phrase({"that"}, {"card"}),
-                comb.phrase({"this"}, {"card"}),
-                comb.phrase({"those"}, {"card", "cards"}),
-            ),
-            comb.bounded_scan(
-                comb.alt(
-                    comb.phrase(
-                        {"for"},
-                        {"as"},
-                        {"long"},
-                        {"as"},
-                        {"it"},
-                        {"remains"},
-                        {"exiled"},
-                    ),
-                    _CFE_FROM_EXILE,
-                )
-            ),
-        ),
-        comb.seq(
-            comb.phrase({"you"}, {"may"}, {"play"}),
-            comb.opt(comb.keyword({"a", "that"})),
-            # the regex `card` had no trailing boundary — "play cards … from exile"
-            # (Tinybones, Bauble Burglar) matched via the plural prefix.
-            comb.keyword({"card", "cards"}),
-            comb.bounded_scan(_CFE_FROM_EXILE),
-        ),
-        comb.seq(
-            comb.alt(
-                comb.phrase({"cast"}, {"a"}, {"spell"}),
-                comb.phrase({"play"}, {"a"}, {"land"}),
-                comb.phrase({"play"}, {"a"}, {"card"}),
-            ),
-            comb.bounded_scan(
-                comb.phrase(
-                    {"from"}, {"anywhere"}, {"other"}, {"than"}, {"your"}, {"hand"}
-                )
-            ),
-        ),
-    )
-)
 
 
 def _recover_cast_from_exile_zone(card: Card, oracle: str) -> Card:
@@ -4431,41 +4251,6 @@ def _recover_tribe_damage_source(card: Card, oracle: str) -> Card:
                 new_abs.append(ab)
         faces.append(replace(face, abilities=tuple(new_abs)))
     return replace(card, faces=tuple(faces)) if changed else card
-
-
-# (3) topdeck_stack — self-library-top curation (look-then-stack / graveyard→top /
-#     hand→top recursion). phase structures the put-on-top as a `topdeck_stack` Effect
-#     (counter_kind 'top'/'topbottom') but DROPS the controller, landing subject=None —
-#     so the structural arm's controller==you gate skips it (Ancestral Knowledge, Orcish
-#     Librarian, Scroll Rack, Doomsday, Rowan's Grim Search, plus the broader self-top-
-#     stack set the narrow mirror missed — Mortuary, Cream of the Crop, Thassa's Oracle,
-#     …). Recover the SELF controller: stamp subject=Filter(Card, controller=you) (the
-#     shape phase's CLEANLY-parsed self top-stacks already carry — Brainstorm) on a
-#     subject-None top-stack whose OWN clause names "on top of your library" (the self
-#     anchor — an opponent tuck "on top of their owner's library" is excluded). PARTIAL:
-#     a self-curation phase FOLDED to topdeck_select-to-hand with NO topdeck_stack
-#     Effect (Diabolic Vision), a "put a card from your hand on top" ACTIVATION COST
-#     (Hidden Retreat, Leashling, Penance), or a dropped-clause look-then-stack (Munda)
-#     is not structurally recoverable → the kept mirror stays for those. CR 401.
-# #24e P2 parser-substrate: the SELF top-stack tell is a `_combinators` scan over the
-# deleted regex's two alternations — `scan(alt(phrase("on","top","of","your","library"),
-# phrase("top","of","your","library","in","any","order")))` — WHOLE-WORD ("library"
-# never matches inside "libraries"). Ports to phase-rs as nom `alt`. CR 401.
-_TOPDECK_STACK_SELF = comb.scan(
-    comb.alt(
-        comb.phrase({"on"}, {"top"}, {"of"}, {"your"}, {"library"}),
-        comb.phrase({"top"}, {"of"}, {"your"}, {"library"}, {"in"}, {"any"}, {"order"}),
-    )
-)
-
-
-def _topdeck_stack_self(clause: str) -> bool:
-    """A SELF top-stack tell ("on top of your library" / "top of your library in any
-    order") anywhere in ``clause`` (whole-word)."""
-    return (
-        "top of your library" in clause.lower()
-        and _TOPDECK_STACK_SELF.run(clause) is not None
-    )
 
 
 def _recover_topdeck_stack_self(card: Card, oracle: str) -> Card:
