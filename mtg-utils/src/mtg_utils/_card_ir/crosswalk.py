@@ -3494,6 +3494,22 @@ def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode,
     concrete cost leaf reached (Sacrifice — Costly Plunder, Trash for Treasure,
     Kuldotha Rebirth; a Choice arm — Bone Shards' "sacrifice a creature or
     discard a card").
+
+    A ``PayLife`` leaf (Toxic Deluge's "pay X life", Bitter Triumph's
+    "discard a card or pay 3 life" ``Choice`` arm) has no ``EFFECT_CONCEPTS``
+    entry — it is a cost primitive, not a named effect — so it decorates
+    ``concept=OTHER`` like any unrecognized tag; the ordinary OTHER filter
+    below would silently drop it, and unlike Sacrifice/Discard it has NO
+    other structural path back into ``unit.costs`` (:func:`cost_has_paylife`'s
+    own ``.costs``-list recursion is built for a Composite cost's nested
+    fields, not this wrapper's ``data``/``options`` shape), so a dropped
+    PayLife leaf is invisible to every cost-reading lane, not just
+    under-decorated. Kept explicitly (CR 119.4: paying life IS a cost) —
+    every OTHER consumer of ``unit.costs`` filters by an explicit
+    ``concept ==`` name (sacrifice / grant-cast-exile-evidence scans), so an
+    admitted OTHER-concept PayLife node is inert everywhere except a raw
+    node walk like :func:`cost_has_paylife`, exactly what
+    ``lifeloss_makers``'s cost arm needs.
     """
     ac = getattr(root, "additional_cost", MISSING)
     if not isinstance(ac, TypedMirrorNode):
@@ -3503,8 +3519,87 @@ def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode,
         if n is ac:
             continue
         cn = _decorate_effect(n, "cost")
-        if cn is not None and cn.concept != OTHER:
+        if cn is None:
+            continue
+        if cn.concept != OTHER or tag_of(n) in _PAYLIFE_COST_TAGS:
             out.append(cn)
+    return tuple(out)
+
+
+def _spell_alt_cost_paylife_concepts(root: TypedMirrorNode) -> tuple[ConceptNode, ...]:
+    """Role=cost ``PayLife`` concepts from the card's ALTERNATIVE casting
+    cost(s) (CR 118.9) — Force of Will's "You may pay 1 life and exile a
+    blue card from your hand rather than pay this spell's mana cost.",
+    Snuff Out's "you may pay 4 life rather than pay this spell's mana
+    cost." phase models an alternative cost as a root-level
+    ``casting_options`` entry (``kind='AlternativeCost'``) — a DISTINCT
+    field from ``additional_cost`` (CR 601.2b is paid ON TOP of the mana
+    cost; an alternative cost REPLACES it) that NO existing crosswalk
+    reader touches at all, so a PayLife leaf inside it has zero path back
+    into ``unit.costs``. Narrow by construction: only a ``PayLife`` leaf is
+    read (the one primitive ``lifeloss_makers``'s CR 119.4 cost arm needs);
+    a general alt-cost concept surface (Composite's OTHER siblings —
+    Force of Will's Exile leaf) is left for a future consumer to widen,
+    same discipline as :func:`_spell_additional_cost_concepts`'s own
+    PayLife carve-out.
+    """
+    opts = getattr(root, "casting_options", MISSING)
+    if not _present(opts) or not isinstance(opts, list):
+        return ()
+    out: list[ConceptNode] = []
+    for opt in opts:
+        if not isinstance(opt, TypedMirrorNode):
+            continue
+        if getattr(opt, "kind", None) != "AlternativeCost":
+            continue
+        cost = getattr(opt, "cost", MISSING)
+        if not isinstance(cost, TypedMirrorNode):
+            continue
+        for n in iter_typed_nodes(cost):
+            if tag_of(n) in _PAYLIFE_COST_TAGS:
+                cn = _decorate_effect(n, "cost")
+                if cn is not None:
+                    out.append(cn)
+    return tuple(out)
+
+
+def _keyword_cost_paylife_concepts(root: TypedMirrorNode) -> tuple[ConceptNode, ...]:
+    """Role=cost ``PayLife`` concepts inside a KEYWORD's own alternative-cost
+    payload (CR 702 — Flashback/Warp/Blitz/Morph "Pay N life" variants) —
+    Deep Analysis's "Flashback—{1}{U}, Pay 3 life.", Timeline Culler's
+    "Warp—{B}, Pay 2 life.", Tenacious Underdog's "Blitz—{2}{B}{B}, Pay 2
+    life.", Zombie Cutthroat's "Morph—Pay 5 life." Each keyword rides
+    ``root.keywords`` as a ``MirrorVariant`` whose payload nests the cost
+    (often a ``Composite`` mixing mana + PayLife, mirroring Flashback's own
+    shape) — a THIRD root-level cost surface, distinct from both
+    ``additional_cost`` and ``casting_options``, that no per-ability walk
+    reaches (a keyword grants an alternative way to CAST the card, CR
+    702.1, never an ability of its own). ``iter_typed_nodes`` accepts a
+    ``MirrorVariant`` directly (it already unwraps ``.inner``), so a plain
+    string keyword entry (Flying, Trample) simply yields nothing.
+
+    Excludes the ``Ward`` keyword outright (CR 702.21a: "Whenever this
+    permanent becomes the target of a spell or ability an OPPONENT
+    controls, counter it unless THAT PLAYER pays [cost]") even though
+    phase tags its own life-cost payload ``T_Ward__PayLife`` with the
+    SAME "PayLife" discriminator string as every controller-paid variant:
+    a Ward tax is paid by whoever TARGETS the permanent, never by this
+    card's own controller, so admitting it here would misattribute an
+    opponent's tax as this card's own life loss (Nine-Fingers Keene's
+    "Ward-Pay 9 life").
+    """
+    kws = getattr(root, "keywords", MISSING)
+    if not _present(kws) or not isinstance(kws, list):
+        return ()
+    out: list[ConceptNode] = []
+    for kw in kws:
+        if isinstance(kw, MirrorVariant) and kw.key == "Ward":
+            continue
+        for n in iter_typed_nodes(kw):
+            if tag_of(n) in _PAYLIFE_COST_TAGS:
+                cn = _decorate_effect(n, "cost")
+                if cn is not None:
+                    out.append(cn)
     return tuple(out)
 
 
@@ -3657,6 +3752,20 @@ def build_concept_tree(
     # Plunder, Trash for Treasure, Kuldotha Rebirth).
     spell_ac_costs = _spell_additional_cost_concepts(root)
     spell_ac_attached = False
+    # An alternative casting cost's PayLife leaf (CR 118.9 — see
+    # :func:`_spell_alt_cost_paylife_concepts`) merges onto every Spell-kind
+    # unit the SAME way, alongside (never instead of) the additional-cost
+    # merge — a card can carry both (none in the corpus today, but nothing
+    # about the two idioms is mutually exclusive: CR 601.2b/118.9 are
+    # independent cost layers).
+    alt_costs = _spell_alt_cost_paylife_concepts(root)
+    alt_attached = False
+    # A keyword's own alternative-cost PayLife leaf (CR 702 — Flashback's
+    # "Pay N life" variant, see :func:`_keyword_cost_paylife_concepts`)
+    # merges the SAME way — a FOURTH independent root-level cost surface
+    # (``keywords``, distinct from ``additional_cost``/``casting_options``).
+    kw_costs = _keyword_cost_paylife_concepts(root)
+    kw_attached = False
     abilities = getattr(root, "abilities", ()) or ()
     for i, ab in enumerate(abilities):
         if not isinstance(ab, TypedMirrorNode):
@@ -3666,6 +3775,12 @@ def build_concept_tree(
         if kind == "Spell" and spell_ac_costs:
             costs = costs + spell_ac_costs
             spell_ac_attached = True
+        if kind == "Spell" and alt_costs:
+            costs = costs + alt_costs
+            alt_attached = True
+        if kind == "Spell" and kw_costs:
+            costs = costs + kw_costs
+            kw_attached = True
         units.append(
             AbilityUnit(
                 origin="ability",
@@ -3704,6 +3819,60 @@ def build_concept_tree(
                     statics=(),
                 )
             )
+    if alt_costs and not alt_attached:
+        # Same carrier shape for an alternative-cost-only card with no
+        # Spell-kind ability entry (none in the corpus today — every current
+        # alt-cost PayLife card also carries an ordinary Spell ability the
+        # merge above already reaches — but the fallback keeps this reader
+        # symmetric with the additional-cost carrier rather than silently
+        # dropping a future such card).
+        opts = getattr(root, "casting_options", MISSING)
+        alt_node = None
+        if _present(opts) and isinstance(opts, list):
+            alt_node = next(
+                (
+                    o
+                    for o in opts
+                    if isinstance(o, TypedMirrorNode)
+                    and getattr(o, "kind", None) == "AlternativeCost"
+                ),
+                None,
+            )
+        if alt_node is not None:
+            units.append(
+                AbilityUnit(
+                    origin="ability",
+                    index=len(abilities),
+                    node=alt_node,
+                    kind="Spell",
+                    trigger_event=None,
+                    effects=(),
+                    costs=alt_costs,
+                    statics=(),
+                )
+            )
+    if kw_costs and not kw_attached:
+        # Same carrier shape for a keyword-cost-only card with no Spell-kind
+        # ability entry (Deep Analysis's own "draw two cards" ability
+        # already absorbs its Flashback cost via the merge above — the
+        # fallback exists for a hypothetical vanilla-permanent Flashback
+        # card, keeping this reader symmetric with the other two carriers).
+        # ``node`` is the PayLife leaf itself (``kw_costs[0].node`` — a real
+        # ``TypedMirrorNode``, unlike the ``MirrorVariant`` keyword wrapper
+        # the other carriers' ``additional_cost``/``casting_options`` roots
+        # never need to unwrap).
+        units.append(
+            AbilityUnit(
+                origin="ability",
+                index=len(abilities),
+                node=kw_costs[0].node,
+                kind="Spell",
+                trigger_event=None,
+                effects=(),
+                costs=kw_costs,
+                statics=(),
+            )
+        )
 
     triggers = getattr(root, "triggers", ()) or ()
     for i, trig in enumerate(triggers):

@@ -2693,8 +2693,12 @@ def test_lifeloss_makers_wrong_direction_excluded(name):
 
 def test_lifeloss_makers_self_loss_preserved():
     """Agent Venom's "you draw a card and lose 1 life" carries NO LoseLife recipient —
-    a genuine self-loss, preserved at scope you (CR 119.3)."""
-    assert ("lifeloss_makers", "you", "") in _idents("Agent Venom")
+    a genuine self-loss, preserved at scope you (CR 119.3). ADR-0039 W7: this is also
+    the scope_mismatch shed class's canonical member — the legacy IR's OWN regex
+    mis-scopes this exact shape to /opponents (a legacy bug, not a crosswalk gap)."""
+    idents = _idents("Agent Venom")
+    assert ("lifeloss_makers", "you", "") in idents
+    assert ("lifeloss_makers", "opponents", "") not in idents
 
 
 # ── ADR-0038 W4 giants (lifeloss_makers residual grind) ────────────────────
@@ -2838,15 +2842,18 @@ def test_lifeloss_makers_granted_unless_pay_non_ramp_gate(name):
     assert ("lifeloss_makers", "you", "") in _idents(name)
 
 
-def test_lifeloss_makers_withercrown_deferred_gap():
-    """Withercrown's granted trigger ("you lose 1 life unless you sacrifice
-    this creature") collapses to ONE Unimplemented residue nested under
+def test_lifeloss_makers_withercrown_ledgered_bridge_membership():
+    """MEMBERSHIP pin (survives graduation): Withercrown's granted trigger
+    ("you lose 1 life unless you sacrifice this creature") collapses to ONE
+    Unimplemented('Unsupported unless clause') residue nested under
     unit.statics (GrantTrigger.trigger.execute.effect) — OUTSIDE
-    ``apply_unimplemented_recovery``'s unit.effects-only scan (recovery.py's
-    own docstring: "a genuine cost/static ConceptNode is never
-    re-decorated; that migrates later, per-key"). A genuine, already-known
-    phase-structuring gap, not a shed class — stays unrecovered this wave."""
-    assert "lifeloss_makers" not in _keys("Withercrown")
+    ``apply_unimplemented_recovery``'s unit.effects-only scan. ADR-0039 W7:
+    the MECHANISM today is the ``withercrown_unless_lose_life`` ledgered
+    bridge (bridge_ledger.BRIDGES); when a phase bump or grammar verb lands
+    the structure, the bridge's convergence test (test_bridge_ledger.py)
+    flags RETIRE-READY and THIS pin must keep passing via the structural
+    read instead."""
+    assert ("lifeloss_makers", "you", "") in _idents("Withercrown")
 
 
 @pytest.mark.parametrize(
@@ -2871,6 +2878,195 @@ def test_lifeloss_makers_degraded_typed_each_opponent(name, scope):
     idents = _idents(name)
     assert ("lifeloss_makers", scope, "") in idents
     assert ("lifeloss_makers", "each", "") not in idents
+
+
+# ── ADR-0039 W7 (lifeloss_makers landfall) ──────────────────────────────────
+# Verified CR: 118.7f (Phyrexian mana reduces generic), 118.8 (additional
+# cost / painland exclusion), 118.9 (alternative cost), 119.3 (life loss),
+# 119.4 (paying life IS a cost), 601.2b (announcing alt/additional costs),
+# 603.2 (a trigger condition/event is not the ability's own effect), 603.4
+# (intervening "if" clause), 700.2 (modal ability), 702.1 (keyword
+# abilities), 702.21a (Ward — the TARGETING player pays, never the
+# controller), 303.4c/702.5a (Aura enchant — "its controller" in a token's
+# own granted text refers to the ENCHANTED permanent's controller).
+#
+# Three root-level cost surfaces the flat per-ability walk never reached
+# (b) a spell's own ``additional_cost`` PayLife leaf (had no EFFECT_CONCEPTS
+# entry, silently dropped by the OTHER filter — Toxic Deluge's "pay X
+# life"); (c) an ``casting_options`` ALTERNATIVE cost, a field NO reader
+# touched at all (Force of Will's "rather than pay this spell's mana
+# cost"); (d) a KEYWORD's own cost payload (Deep Analysis's "Flashback—
+# {1}{U}, Pay 3 life.") — see _spell_additional_cost_concepts /
+# _spell_alt_cost_paylife_concepts / _keyword_cost_paylife_concepts
+# (crosswalk.py).
+@pytest.mark.parametrize(
+    ("name", "scope"),
+    [
+        ("Toxic Deluge", "you"),  # additional_cost PayLife carve-out
+        ("Force of Will", "you"),  # casting_options AlternativeCost
+        ("Snuff Out", "you"),  # casting_options AlternativeCost
+        ("Deep Analysis", "you"),  # keyword Flashback PayLife
+    ],
+)
+def test_lifeloss_makers_root_cost_surfaces(name, scope):
+    assert ("lifeloss_makers", scope, "") in _idents(name)
+
+
+def test_lifeloss_makers_ward_excluded():
+    """Nine-Fingers Keene's "Ward—Pay 9 life" pays life, but the payer is
+    whoever TARGETS the permanent (CR 702.21a: "...counter it unless THAT
+    PLAYER pays"), never this card's own controller — the keyword-cost
+    reader excludes the Ward variant outright even though phase tags its
+    payload the SAME "PayLife" discriminator string as every
+    controller-paid variant."""
+    assert "lifeloss_makers" not in _keys("Nine-Fingers Keene")
+
+
+def test_lifeloss_makers_spell_carrier_ramp_gate_exempt():
+    """Phyrexian Scuta's "Kicker—Pay 3 life" carrier unit has NO effects
+    field of its own (the "+1/+1 counters" payoff lives in a SEPARATE
+    replacement) — the painland trap (CR 118.8) is inherently a
+    PERMANENT's own activated ability, never a Spell-kind unit's casting
+    cost, so the non-ramp gate is exempted for Spell-kind units outright
+    rather than wrongly excluding a cost-only carrier."""
+    assert ("lifeloss_makers", "you", "") in _idents("Phyrexian Scuta")
+
+
+def test_lifeloss_makers_paylife_as_colored_mana():
+    """K'rrik, Son of Yawgmoth's "For each {B} in a cost, you may pay 2
+    life rather than pay that mana." (CR 118.9/107.4f) carries no
+    payer/cost field ``cost_has_paylife`` can read — a bespoke
+    PayLifeAsColoredMana static mode."""
+    assert ("lifeloss_makers", "you", "") in _idents("K'rrik, Son of Yawgmoth")
+
+
+def test_lifeloss_makers_defiler_cost_reduction():
+    """Defiler of Faith's "As an additional cost to cast white permanent
+    spells, you may pay 2 life..." (CR 118.9-adjacent) is a bespoke typed
+    static (S_DefilerCostReduction) distinct from the generic PayLife cost
+    tag."""
+    assert ("lifeloss_makers", "you", "") in _idents("Defiler of Faith")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Degavolver",  # kicker-conditional granted "Pay 3 life: Regenerate"
+        "Anavolver",  # same APC "Volver" cycle idiom
+    ],
+)
+def test_lifeloss_makers_degavolver_bridge_membership(name):
+    """MEMBERSHIP pins (survive graduation): the degavolver_kicker_
+    paylife_regen ledgered bridge (bridge_ledger.BRIDGES) — the granted
+    "Pay N life: <ability>" half of a kicked replacement is dropped with
+    ZERO trace (no PayLife/GrantAbility node anywhere)."""
+    assert ("lifeloss_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Timeline Culler",  # Warp—{B}, Pay 2 life.
+        "Tenacious Underdog",  # Blitz—{2}{B}{B}, Pay 2 life.
+        "Zombie Cutthroat",  # Morph—Pay 5 life.
+    ],
+)
+def test_lifeloss_makers_keyword_dropped_bridge_membership(name):
+    """MEMBERSHIP pins: the keyword_dropped_paylife ledgered bridge — phase
+    drops the Warp/Blitz/Morph life-cost variant WHOLESALE (no keyword
+    entry at all, unlike Flashback's structured Composite/PayLife)."""
+    assert ("lifeloss_makers", "you", "") in _idents(name)
+
+
+def test_lifeloss_makers_night_shift_bridge_membership():
+    """MEMBERSHIP pin: the night_shift_optional_paylife_dieroll ledgered
+    bridge — "After you roll a die, you may pay 1 life. If you do, ..."
+    parks as Unimplemented(name='unknown'), a token the clause grammar
+    doesn't recognize yet."""
+    assert ("lifeloss_makers", "you", "") in _idents("Night Shift of the Living Dead")
+
+
+def test_lifeloss_makers_zuko_bridge_membership():
+    """MEMBERSHIP pin: the zuko_modal_unconditional_paylife ledgered bridge
+    — a modal ability's shared "and you lose N life" cost/effect (CR
+    700.2) is dropped wholesale (a bare GenericEffect placeholder, no
+    LoseLife/PayLife anywhere)."""
+    assert ("lifeloss_makers", "you", "") in _idents("Zuko, Conflicted")
+
+
+# ── ADR-0039 W7 shed classes (landfall — live_only == exactly these) ───────
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Night's Whisper",  # "You draw two cards and lose 2 life."
+        "Vraska, Betrayal's Sting",  # Compleated [0]: "You draw a card and lose 1 life."
+        "Kain, Traitorous Dragoon",  # "...you draw ..., ... then lose that much life."
+    ],
+)
+def test_lifeloss_makers_scope_mismatch_shed(name):
+    """scope_mismatch shed class (CR 119.3/603.2, ~51 corpus cards): a
+    self-loss LoseLife node with NO recipient field — the legacy IR's OWN
+    regex mis-scopes it to /opponents; the structural read correctly stays
+    /you (the Agent Venom precedent, Stage 2 batch 4 / commit a8a1bea0).
+    NOT a crosswalk gap — the legacy fire is the bug."""
+    idents = _idents(name)
+    assert ("lifeloss_makers", "you", "") in idents
+    assert ("lifeloss_makers", "opponents", "") not in idents
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Savage Gorger",  # "if an opponent lost life this turn, put a +1/+1 counter"
+        "Rakdos, Lord of Riots",  # casting restriction + cost reduction referencing loss
+        "Abigale, Eloquent First-Year",  # unrelated "loses all abilities" (legacy word-match over-fire)
+        "Davros, Dalek Creator",  # "if an opponent lost 3 or more life this turn, create..."
+    ],
+)
+def test_lifeloss_makers_condition_reference_shed(name):
+    """condition_reference shed class (CR 603.4 intervening "if" / CR
+    603.2, ~46 corpus cards): "if/when X lost life this turn" is a
+    triggering CONDITION scaling a DIFFERENT effect, never the card's own
+    life-loss action — the legacy IR's bare "loses...life" regex fires
+    regardless of clause role (Savage Gorger precedent)."""
+    assert "lifeloss_makers" not in _keys(name)
+
+
+@pytest.mark.parametrize("name", ["Wax-Wane Witness", "Moonstone Harbinger"])
+def test_lifeloss_makers_lifechanged_watcher_shed(name):
+    """LifeChanged watcher shed class (CR 603.2, 2 corpus cards): "Whenever
+    you gain OR lose life during your turn, ~ gets +1/+0" is a WATCHER
+    trigger observing an external life-change event (mode='LifeChanged')
+    — its own effect is Pump, never LoseLife. The legacy IR's bare text
+    match fires regardless; the structural read correctly finds no
+    LoseLife node to attribute to this card's own action."""
+    assert "lifeloss_makers" not in _keys(name)
+
+
+def test_lifeloss_makers_ramp_exclusion_channel_face():
+    """ramp_exclusion shed class (CR 118.8, 2 corpus cards alongside the
+    existing Lithoform Blight pin): Yavimaya Bloomsage // Channel's
+    "Channel" face — "any time you could activate a mana ability, you may
+    pay 1 life. If you do, add {C}." — is itself a mana ability (a
+    painland shape), excluded by the same non-ramp gate that protects
+    Horizon Canopy."""
+    assert "lifeloss_makers" not in _keys("Yavimaya Bloomsage // Channel")
+
+
+def test_lifeloss_makers_scriv_token_attach_opponent_bleed_excluded():
+    """Scriv, the Obligator's Contract token quotes a GRANTED ability
+    ("...Otherwise, its controller loses 2 life.") whose "its controller"
+    means the ENCHANTED permanent's controller (an OPPONENT — the token
+    always attaches to "target creature an opponent controls", CR
+    303.4c/702.5a) — but phase's own parse flattens the quoted clause onto
+    Scriv's OWN trigger as a target-less ``LoseLife`` SequentialSibling of
+    the Token-creation effect (the SequentialSibling raw-bleed family,
+    mtg-utils/CONTEXT.md). The ordinary self-loss default would
+    misattribute this to Scriv's controller; ``_token_attach_opponent_
+    bleed_ids`` distrusts this exact shape (Token + target-less-LoseLife-
+    sibling + ``attach_to.controller == "Opponent"``, corpus-verified
+    singleton) instead."""
+    assert "lifeloss_makers" not in _keys("Scriv, the Obligator")
 
 
 @pytest.mark.parametrize("name", ["Braids, Cabal Minion", "Smokestack"])

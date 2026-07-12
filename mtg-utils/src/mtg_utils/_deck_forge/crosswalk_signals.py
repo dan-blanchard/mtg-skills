@@ -1479,7 +1479,32 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         # :func:`_graveyard_matters`'s own docstring for the arm history.
         "land_creatures_matter",
         "land_sacrifice_makers",
-        "lifeloss_makers",
+        # lifeloss_makers PROMOTED (ADR-0039 W7, 2026-07-11): both=1188,
+        # live_only == exactly four adjudicated CR-grounded shed classes
+        # (scope_mismatch ~51 — CR 119.3/603.2, legacy's own regex
+        # mis-scopes a no-recipient self-loss to /opponents, Agent Venom
+        # precedent; condition_reference ~46 — CR 603.4/603.2, "if X lost
+        # life this turn" is a triggering CONDITION scaling a DIFFERENT
+        # effect, Savage Gorger precedent, includes the Scriv Contract-
+        # token SequentialSibling raw-bleed singleton; LifeChanged watcher
+        # 2 — CR 603.2, a gain-OR-lose watcher trigger, never the card's
+        # own action; ramp_exclusion 2 — CR 118.8 painland shape,
+        # Lithoform Blight + Yavimaya Bloomsage // Channel). Closed via
+        # three new root-level cost-surface readers
+        # (_spell_additional_cost_concepts's PayLife carve-out,
+        # _spell_alt_cost_paylife_concepts for casting_options
+        # AlternativeCost, _keyword_cost_paylife_concepts for a keyword's
+        # own cost payload — all crosswalk.py), two narrow static
+        # accessors (_has_paylife_as_colored_mana, K'rrik;
+        # _has_defiler_cost_reduction, the Defiler cycle), a Spell-kind
+        # non-ramp-gate exemption (Phyrexian Scuta's cost-only carrier), a
+        # Ward-keyword exclusion (CR 702.21a — the TARGETING player pays,
+        # not the controller), a token-attach-opponent bleed guard (Scriv,
+        # the SequentialSibling raw-bleed family), and five ledgered
+        # bridges (bridge_ledger.BRIDGES: degavolver_kicker_paylife_regen,
+        # withercrown_unless_lose_life, keyword_dropped_paylife
+        # [Warp/Blitz/Morph], night_shift_optional_paylife_dieroll,
+        # zuko_modal_unconditional_paylife).
         "opponent_discard",
         "plus_one_matters",
         "ramp",
@@ -7084,6 +7109,84 @@ def _granted_ability_paylife(unit: AbilityUnit) -> bool:
     return False
 
 
+def _has_paylife_as_colored_mana(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` carries the Phyrexian-mana-substitute static idiom
+    (CR 118.9/107.4f — "For each {X} in a cost, you may pay 2 life rather
+    than pay that mana.") — K'rrik, Son of Yawgmoth's own rules text (the
+    ability that lets K'rrik's OWNER pay 2 life for any {B} in a cost, not
+    the printed Phyrexian-mana symbols on other cards' costs, which the
+    core substrate already resolves without a card-level static). Phase
+    tags this ``S_static_abilities``'s ``mode`` field a
+    ``PayLifeAsColoredMana`` variant (corpus-verified singleton: 1 card,
+    K'rrik, phase v0.20.0), no ``payer``/``cost`` field at all to read
+    through :func:`cost_has_paylife` — mirrors the OLD-IR ``life_payment``
+    marker's unconditional-``you`` convention the sibling grant arms above
+    already follow."""
+    for n in iter_typed_nodes(unit.node):
+        mode = getattr(n, "mode", None)
+        if isinstance(mode, MirrorVariant) and mode.key == "PayLifeAsColoredMana":
+            return True
+    return False
+
+
+def _has_defiler_cost_reduction(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` carries the Defiler-cycle static idiom (CR
+    118.9-adjacent — Defiler of Faith's "As an additional cost to cast
+    white permanent spells, you may pay 2 life. Those spells cost {W}
+    less to cast if you paid life this way.") — a bespoke typed static
+    (``S_DefilerCostReduction``, its own ``life_cost`` int field) phase
+    models distinctly from the generic ``PayLife`` cost tag, so
+    :func:`cost_has_paylife` never matches it. The Defiler grants this
+    OPTIONAL life-cost to OTHER spells the controller casts (a card
+    naming its OWN cost, not a tax on someone else) — mirrors the
+    sibling grant arms' unconditional-``you`` convention. Phase tags this
+    ``S_static_abilities``'s ``mode`` field a ``DefilerCostReduction``
+    variant (corpus-verified: exactly the 5-card Defiler cycle, phase
+    v0.20.0)."""
+    for n in iter_typed_nodes(unit.node):
+        mode = getattr(n, "mode", None)
+        if isinstance(mode, MirrorVariant) and mode.key == "DefilerCostReduction":
+            return True
+    return False
+
+
+def _token_attach_opponent_bleed_ids(unit: AbilityUnit) -> frozenset[int]:
+    """Object-ids of ``LoseLife`` nodes to DISTRUST — a known phase mis-parse
+    class (the SequentialSibling raw-bleed family, mtg-utils/CONTEXT.md)
+    where a QUOTED granted ability nested inside a created token's own text
+    gets flattened onto the token-creation trigger's OWN execute chain as a
+    same-level ``sub_ability`` sibling, losing the fact that the clause
+    belonged to the TOKEN's granted ability (whose "its controller" refers
+    to the token's ENCHANTED permanent, not the trigger's own actor) —
+    Scriv, the Obligator's Contract token: the quoted "...Otherwise, its
+    controller loses 2 life." (meaning the OPPONENT the Aura attached to,
+    CR 303.4c) surfaces as a target-less top-level ``LoseLife`` sibling of
+    the ``Token`` effect, which the ordinary self-loss default (Agent
+    Venom's "no wrapper actor, no text marker stays you" convention) would
+    misattribute to Scriv's OWN controller. Corpus-verified narrow: exactly
+    this ``Token`` + target-less-``LoseLife``-sibling + ``attach_to.
+    controller == "Opponent"`` shape occurs once in the commander-legal
+    corpus (Rotwidow Pack's structurally similar sibling shape carries no
+    ``attach_to`` controller restriction at all, so stays OUT of this
+    narrow gate — a real ambiguity for another wave, not this one)."""
+    out: set[int] = set()
+    for n in iter_typed_nodes(unit.node):
+        effect = getattr(n, "effect", MISSING)
+        sub = getattr(n, "sub_ability", MISSING)
+        if effect is MISSING or sub is MISSING or tag_of(effect) != "Token":
+            continue
+        attach_to = getattr(effect, "attach_to", MISSING)
+        if attach_to is MISSING or getattr(attach_to, "controller", None) != "Opponent":
+            continue
+        sub_effect = getattr(sub, "effect", MISSING)
+        if sub_effect is MISSING or tag_of(sub_effect) != "LoseLife":
+            continue
+        target = getattr(sub_effect, "target", MISSING)
+        if target is MISSING:
+            out.add(id(sub_effect))
+    return frozenset(out)
+
+
 def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
     """lifeloss_makers — the card PERFORMS life loss (CR 119.3). (a) a ``LoseLife``
     effect, scope-split self/drain — including one nested inside a GRANTED
@@ -7116,8 +7219,37 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
     ``unit.effects``) so a paylife ``unless_pay`` nested in a granted trigger
     (Vile Consumption, Morgul-Knife Wound — a STATIC-origin unit whose own
     top-level ``unit.effects`` is empty) still resolves its granted payoff's
-    ramp-ness correctly (ADR-0038 W5b). Combat damage (CR 120) is a sibling
-    category that never tags ``LoseLife``.
+    ramp-ness correctly (ADR-0038 W5b). A Spell-kind unit's OWN casting cost
+    (arms (d)/(e) below) is EXEMPT from the non-ramp gate outright — the
+    painland shape (CR 118.8) is inherently a permanent's own activated
+    ability, never a spell's casting cost, so a bare cost-only carrier unit
+    with no effects field of its own (Phyrexian Scuta's "Kicker—Pay 3 life",
+    ADR-0039 W7) is never wrongly excluded for lacking an unrelated non-ramp
+    effect to point at. Combat damage (CR 120) is a sibling category that
+    never tags ``LoseLife``.
+
+    ADR-0039 W7 additions — two more root-level cost surfaces the flat
+    per-ability walk never reaches, both closed the SAME way arm (b) reads
+    an ``additional_cost``: (d) the card's OWN spell-level ``additional_cost``
+    (CR 601.2b — Toxic Deluge's "As an additional cost to cast this spell,
+    pay X life.") merges via :func:`_spell_additional_cost_concepts`'s
+    PayLife carve-out (a ``PayLife`` leaf has no ``EFFECT_CONCEPTS`` entry —
+    a cost primitive, not a named effect — so the general OTHER filter
+    there admits it explicitly, verified corpus-safe: every OTHER consumer
+    of ``unit.costs`` filters by an explicit ``concept ==`` name); (e) an
+    ALTERNATIVE casting cost (CR 118.9 — Force of Will's "You may pay 1
+    life ... rather than pay this spell's mana cost.") rides a SEPARATE
+    root field, ``casting_options`` (``kind='AlternativeCost'``), that NO
+    prior crosswalk reader touched at all — see
+    :func:`_spell_alt_cost_paylife_concepts`. Both merge onto every
+    Spell-kind unit's ``costs`` (with a Dargo-class carrier fallback for a
+    hypothetical Spell-less card) in ``build_concept_tree``, so this lane's
+    existing cost arm sees them with no lane-local change. (f) the
+    Phyrexian-mana-substitute static (K'rrik, Son of Yawgmoth's "For each
+    {B} in a cost, you may pay 2 life rather than pay that mana.") carries
+    no ``payer``/``cost`` field to read through :func:`cost_has_paylife` at
+    all — see :func:`_has_paylife_as_colored_mana` (corpus-verified
+    singleton).
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -7142,8 +7274,11 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
         fire(scope, raw)
 
     for unit in tree.units:
+        bled_ids = _token_attach_opponent_bleed_ids(unit)
         top_level_ids = set()
         for c in unit.effect_concepts("lose_life"):
+            if id(c.node) in bled_ids:
+                continue
             top_level_ids.add(id(c.node))
             scoped_fire(unit, c.node, c.raw)
         for n in iter_typed_nodes(unit.node):
@@ -7152,17 +7287,50 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
             # AND this deep walk (the ordinary, non-nested case) must not be
             # scored twice, which would falsely advance ``text_skip`` and
             # steal the NEXT card's clause for a phantom second node.
-            if tag_of(n) == "LoseLife" and id(n) not in top_level_ids:
+            if (
+                tag_of(n) == "LoseLife"
+                and id(n) not in top_level_ids
+                and id(n) not in bled_ids
+            ):
                 scoped_fire(unit, n, "")
     if not tree.is_type("Land"):
         for unit in tree.units:
             paylife = any(cost_has_paylife(cc.node) for cc in unit.costs) or any(
                 _lifeloss_self_paid_cost(n) for n in iter_typed_nodes(unit.node)
             )
-            if (paylife and _unit_has_non_ramp_effect(unit)) or (
-                _granted_ability_paylife(unit)
+            # The painland trap (CR 118.8) is inherently a PERMANENT's own
+            # activated ability ("{T}, Pay 1 life: Add ...") — never a
+            # Spell-kind unit's casting cost (additional/kicker/alternative,
+            # CR 118.8/118.9/601.2b). Phyrexian Scuta's bare "Kicker—Pay 3
+            # life" carrier unit (ADR-0039 W7) has NO effects field of its
+            # own at all (the "if kicked, +1/+1 counters" lives in a
+            # SEPARATE replacement, not this unit) — the general non-ramp
+            # scan would find nothing to prove non-ramp and wrongly exclude
+            # it. A Spell unit's own casting cost never needs that proof.
+            non_ramp_ok = unit.kind == "Spell" or _unit_has_non_ramp_effect(unit)
+            if (
+                (paylife and non_ramp_ok)
+                or _granted_ability_paylife(unit)
+                or _has_paylife_as_colored_mana(unit)
+                or _has_defiler_cost_reduction(unit)
             ):
                 fire("you", "")
+    # ADR-0039 W7 ledgered bridges — genuine phase-drop stragglers with no
+    # typed-node path (bridge_ledger.BRIDGES): Degavolver/Anavolver's
+    # zero-trace kicker-granted paylife regen, Withercrown's Unimplemented
+    # "Unsupported unless clause" residue nested outside the recovery
+    # stage's unit.effects-only scan, and the Warp/Blitz/Morph life-cost
+    # cycle phase drops wholesale (no keyword entry at all).
+    if bridge_fires("degavolver_kicker_paylife_regen", tree):
+        fire("you", "")
+    if bridge_fires("withercrown_unless_lose_life", tree):
+        fire("you", "")
+    if bridge_fires("keyword_dropped_paylife", tree):
+        fire("you", "")
+    if bridge_fires("night_shift_optional_paylife_dieroll", tree):
+        fire("you", "")
+    if bridge_fires("zuko_modal_unconditional_paylife", tree):
+        fire("you", "")
     return out
 
 

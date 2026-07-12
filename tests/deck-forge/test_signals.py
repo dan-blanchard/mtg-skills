@@ -5,6 +5,7 @@ The headline guard: a signal that concerns OPPONENTS' graveyards must be scoped
 Tinybones overgeneralization the whole tool exists to prevent).
 """
 
+from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
 from mtg_utils._deck_forge.signals import (
     Signal,
     aggregate_signals,
@@ -1655,12 +1656,24 @@ def test_mv_scaling_burn_opens_noncombat_damage():
 
 
 def test_opponent_lost_life_this_turn_opens_drain():
-    # Sygg keys off "an opponent lost 3 or more life this turn" — the IR's
-    # _LOST_LIFE_TURN drain marker. _matters sweep (ADR-0034): that marker folds into
-    # the structural lose_life MAKER arm, so it fires lifeloss_makers (the whole
-    # lose_life structural arm is the maker side of the split).
-    # Real Sygg, River Cutthroat (snapshot): the _LOST_LIFE_TURN drain marker.
-    assert ("lifeloss_makers", "opponents") in _real("Sygg, River Cutthroat")
+    # ADR-0039 W7: lifeloss_makers PROMOTED off the legacy _LOST_LIFE_TURN
+    # marker — Sygg's "if an opponent lost 3 or more life this turn, you
+    # may draw a card" is the condition_reference shed class (CR 603.4
+    # intervening "if" / CR 603.2): a triggering CONDITION scaling a
+    # DIFFERENT effect (the draw), never the card's OWN life-loss action.
+    # The legacy marker's bare "lost...life" match fired regardless of
+    # clause role; the crosswalk's structural read correctly finds no
+    # LoseLife node to attribute to Sygg itself. Flag-OFF stays
+    # byte-identical to the pre-promotion legacy behavior (the RETAINED
+    # revert path), so this assertion is flag-state-dependent by design —
+    # NOT a "every other test passes unchanged" violation.
+    # Real Sygg, River Cutthroat (snapshot).
+    ident = ("lifeloss_makers", "opponents")
+    idents = _real("Sygg, River Cutthroat")
+    if crosswalk_enabled():
+        assert ident not in idents
+    else:
+        assert ident in idents
 
 
 def test_turn_target_face_up_opens_facedown():
