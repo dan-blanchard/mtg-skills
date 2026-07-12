@@ -98,6 +98,8 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_per_target_payoff,
     _arm_proliferate_remove_cost,
     _arm_pump_makers,
+    _arm_ramp_dropped_add_mana_clause,
+    _arm_ramp_grant_unimplemented_body,
     _arm_sacrifice_protection,
     _arm_self_power_scale,
     _arm_snow_matters,
@@ -115,6 +117,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _has_structural_lifegain,
     _is_creature_death_subject,
     _is_self_recursion_return,
+    _matches_add_mana_clause,
     _matches_spellcast_idiom,
     apply_tree_synthesis,
     has_filter_property,
@@ -158,6 +161,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_outlaw,
     has_structural_proliferate,
     has_structural_pump_makers,
+    has_structural_ramp_grant_mana,
     has_structural_self_counter_grow,
     has_structural_snow_matters,
     has_structural_spellcast,
@@ -6199,3 +6203,137 @@ def test_base_power_ref_conjunctive_no_fire_on_single_stat_sibling():
     tree = _fixture_tree("Rapid Augmenter")
     assert has_structural_base_power_ref(tree) is True
     assert _arm_base_power_ref_conjunctive(tree) is None
+
+
+def test_ramp_grant_unimplemented_body_synth_registered():
+    assert "ramp_grant_unimplemented_body" in SYNTHESIS_ARM_IDS
+
+
+def test_ramp_dropped_add_mana_clause_synth_registered():
+    assert "ramp_dropped_add_mana_clause" in SYNTHESIS_ARM_IDS
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Katilda, Dawnhart Prime",
+        "Old-Growth Troll",
+        "Tazri, Stalwart Survivor",
+    ],
+)
+def test_ramp_grant_unimplemented_body_fires_on_pins(name):
+    """The former ``ramp_grant_unimplemented_body`` bridge's exact 3-card
+    census — a GrantAbility whose OWN body parks as Unimplemented but
+    names an "add ... mana" clause (Katilda / Tazri's self-referential
+    "any of ~'s colors"; Old-Growth Troll's compound two-quoted grant)."""
+    tree = _fixture_tree(name)
+    assert has_structural_ramp_grant_mana(tree) is False
+    node = _arm_ramp_grant_unimplemented_body(tree)
+    assert node is not None
+    assert node.concept == "ramp"
+    assert isinstance(node.node, SynthesizedNode)
+    assert node.node.arm_id == "ramp_grant_unimplemented_body"
+
+    from mtg_utils._deck_forge.crosswalk_signals import _ramp
+
+    synth_tree = apply_tree_synthesis(tree)
+    assert any(s.key == "ramp" for s in _ramp(synth_tree))
+
+
+def test_ramp_grant_unimplemented_body_no_fire_on_structural_grant():
+    """Harold and Bob, First Numens's ``ReturnAsAura``-granted "{T}: Add
+    three mana of any one color" already structures as a typed Mana node
+    — the gap correctly stands this arm down (no double-fire)."""
+    tree = _fixture_tree("Harold and Bob, First Numens")
+    assert has_structural_ramp_grant_mana(tree) is True
+    assert _arm_ramp_grant_unimplemented_body(tree) is None
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Neheb, the Eternal",
+        "Rasputin, the Oneiromancer",
+        "Squandered Resources",
+        '"Name Sticker" Goblin',
+    ],
+)
+def test_ramp_dropped_add_mana_clause_fires_on_pins(name):
+    """The 4 fixture-resident names of the former ``ramp_dropped_add_mana_
+    clause`` bridge's 24-name enumeration (22 total graduate corpus-wide,
+    corpus-scan-verified this session) — a per-node "add {mana-
+    expression}" read. The 2 left (Raggadragga, Braid of Fire) stay a
+    name-keyed bridge (neither carries an Unimplemented node naming an
+    add-mana clause)."""
+    tree = _fixture_tree(name)
+    assert tree.is_type("Land") is False
+    node = _arm_ramp_dropped_add_mana_clause(tree)
+    assert node is not None
+    assert node.concept == "ramp"
+    assert isinstance(node.node, SynthesizedNode)
+    assert node.node.arm_id == "ramp_dropped_add_mana_clause"
+
+    from mtg_utils._deck_forge.crosswalk_signals import _ramp
+
+    synth_tree = apply_tree_synthesis(tree)
+    assert any(s.key == "ramp" for s in _ramp(synth_tree))
+
+
+def test_ramp_dropped_add_mana_clause_no_fire_on_bridge_residuals():
+    """Raggadragga (a mana-ability-HAVER support card, no add-mana clause
+    of its own) and Braid of Fire (its Mana effect lives on the phase
+    record's ``keywords`` field — zero ability units for this per-node
+    scan to reach) correctly stand this arm down; they stay served by the
+    narrowed ``ramp_dropped_add_mana_clause`` name-keyed bridge instead."""
+    for name in ("Raggadragga, Goreguts Boss", "Braid of Fire"):
+        tree = _fixture_tree(name)
+        assert _arm_ramp_dropped_add_mana_clause(tree) is None
+
+
+def test_ramp_dropped_add_mana_clause_no_fire_on_structural_own_mana():
+    """A card whose own top-level ability already resolves to a Mana
+    effect (Sol Ring) never doubles through this arm — the gap's
+    ``not tree.effect_concepts("ramp")`` half stands it down even though
+    Sol Ring carries no Unimplemented node to match anyway."""
+    tree = _fixture_tree("Sol Ring")
+    assert bool(tree.effect_concepts("ramp")) is True
+    assert _arm_ramp_dropped_add_mana_clause(tree) is None
+
+
+def test_matches_add_mana_clause_excludes_replacement_redirect():
+    """False Dawn's "spells and abilities you control that WOULD add
+    colored mana instead add that much white mana" is a CR 614 mana-color
+    REPLACEMENT rider on OTHER abilities — it never itself produces mana,
+    so the per-node read must NOT treat it as ramp (full-corpus-scan-
+    verified false positive, ADR-0039 task #82)."""
+    assert (
+        _matches_add_mana_clause(
+            "spells and abilities you control that would add colored "
+            "mana instead add that much white mana"
+        )
+        is False
+    )
+
+
+def test_matches_add_mana_clause_excludes_mana_value_arithmetic():
+    """Song of Inspiration's "Roll a d20 and add the total mana value of
+    those cards" is arithmetic addition to a die roll (mana VALUE = CMC),
+    not mana production (full-corpus-scan-verified false positive,
+    ADR-0039 task #82)."""
+    assert (
+        _matches_add_mana_clause(
+            "Roll a d20 and add the total mana value of those cards"
+        )
+        is False
+    )
+
+
+def test_matches_add_mana_clause_still_fires_on_genuine_production():
+    """The exclusions above are narrow — a genuine "add mana" clause
+    still matches even when a DIFFERENT sense of "mana" (mana cost)
+    appears elsewhere in the same description (Elemental Resonance)."""
+    assert _matches_add_mana_clause("add that much {C}") is True
+    assert (
+        _matches_add_mana_clause("add mana equal to enchanted permanent's mana cost")
+        is True
+    )

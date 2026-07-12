@@ -1012,86 +1012,46 @@ def _base_pt_becomecopy_no_mods_match(tree: ConceptTree) -> bool:
 # ``_base_power_matters`` now reads the synthesized concept node
 # structurally instead of calling this module.
 
-# ── Katilda / Old-Growth Troll / Tazri → ramp ─────────────────────────────────
-# A ``GrantAbility`` whose OWN quoted text mentions "add mana" but whose
-# ``definition.effect`` itself parks as ``Unimplemented`` (the granted
-# ability's body never structures at all): Katilda's "{T}: Add one mana of
-# any of ~'s colors" (a self-referential dynamic-color derivation the
-# clause grammar can't structure), Tazri's identical shape, and Old-Growth
-# Troll's compound "Enchanted Forest has '{T}: Add {G}{G}' and '{1}, {T},
-# Sacrifice ~: Create...'" (TWO quoted granted abilities joined by "and"
-# the grant parser doesn't split).
-_RAMP_GRANT_UNIMPL_RX = re.compile(
-    r"\badd\b[^.]*(\{[A-Za-z0-9]{1,3}\}|\bmana\b)", re.IGNORECASE
-)
-
-
-def _ramp_grant_unimplemented_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "GrantAbility":
-                continue
-            d = getattr(n, "definition", None)
-            if d is None:
-                continue
-            if tag_of(getattr(d, "effect", None)) != "Unimplemented":
-                continue
-            desc = getattr(d, "description", "") or ""
-            if _RAMP_GRANT_UNIMPL_RX.search(desc):
-                return True
-    return False
-
-
-def _ramp_grant_unimplemented_match(tree: ConceptTree) -> bool:
-    return _ramp_grant_unimplemented_gap(tree)
-
+# ── Katilda / Old-Growth Troll / Tazri → ramp: RETIRED (ADR-0039 task #82) ───
+# The self-referential "add one mana of any of ~'s colors" / compound
+# two-quoted-grant-body idiom graduated into
+# ``tree_synthesis._arm_ramp_grant_unimplemented_body`` this session — the
+# same ``GrantAbility``-with-Unimplemented-body regex read moved to
+# tree-build time, and ``_ramp`` now reads the synthesized "ramp" concept
+# node through its own typed ``effect_concepts("ramp")`` walk (no lane
+# special-case; every pin is a nonland creature).
 
 # ── The scaling/restricted/note-type "Add mana" residue class → ramp ────────
-# A card-name-keyed enumeration (CONTEXT.md's third residue class) rather
-# than a generic substring: every card here is CR-verified this session as
-# a genuine legacy ``ramp`` member via TWO independent legacy mechanisms —
-# ``old_ir_for``'s own category=='ramp' structural classification (a
-# from-scratch grammar phase's parser doesn't share, 17 of 24), or the
-# byte-identical KEPT MIRROR pair legacy explicitly maintains as
-# authoritative for this exact residue (``_RAMP_MATTERS_REGEX`` /
-# ``_MANA_DORK_SUPPORT_MIRROR`` in _signals_ir.py, 7 of 24) — phase parks
-# EVERY one of these as an ``Unimplemented`` residue somewhere in the tree
-# (a dynamic/scaling count — Neheb's "for each 1 life...", Fangorn's "twice
-# that much"; a restricted-spend/note-type rider — Adarkar Unicorn, Ice
-# Cauldron, Jeweled Amulet, Kyren Toy; a die-roll/sticker table —
-# "Name Sticker" Goblin, Unglued Pea-Brained Dinosaur, ________ Goblin; a
-# player-choice recipient — Victory Chimes; a reveal-from-hand conditional
-# wrapper — Chancellor of the Tangle). A whole-card text regex would
-# over-fire (verified this session: a naive "add ... mana" pattern matches
-# reminder text describing a CREATED TOKEN's own ability — Deadly
-# Derision's Treasure token, T'Challa's Vibranium token — cards legacy does
-# NOT serve), so the name enumeration is the bounded anchor instead.
+# NARROWED (ADR-0039 task #82): 22 of the former 24-name enumeration
+# graduated into ``tree_synthesis._arm_ramp_dropped_add_mana_clause`` — a
+# per-NODE regex over each ``Unimplemented`` node's OWN ``description``
+# (never the whole-card oracle), which structurally cannot hit a created
+# TOKEN's reminder-text ability (a ``Token`` effect node carries no
+# oracle-echoing ``description`` field at all — Deadly Derision / T'Challa's
+# Treasure/Vibranium tokens corpus-verified this session to never produce a
+# matching node), closing the over-fire the old whole-card-regex plan
+# would have hit WITHOUT needing the name enumeration as the safety rail.
+#
+# The 2 names left are genuinely un-synthesizable by that per-node read:
+# Raggadragga, Goreguts Boss is a mana-ability-HAVER support card (creatures
+# WITH a mana ability get +2/+2 and untap on attack) — legacy's own
+# ``_MANA_DORK_SUPPORT_MIRROR`` classification, not an add-mana clause at
+# all; phase parks BOTH its abilities as a structure-parser failure with no
+# "add ... mana" text anywhere (its filter predicate "with a mana ability"
+# is the real, deeper grammar gap — a matters-lane idiom bundled into this
+# row's enumeration, not this row's own residue class). Braid of Fire
+# structures its Mana effect off the phase record's ``keywords`` field
+# (Cumulative Upkeep's own cost-effect) — a tree position
+# ``build_concept_tree`` never reads at all (``abilities``/``triggers``/
+# ``static_abilities``/``replacements`` only), so the card carries ZERO
+# ability units for any node-scan arm to reach; a real fix needs a new
+# ``AbilityUnit`` origin for keyword-attached effects, out of this sprint's
+# scope. Both stay a name-keyed bridge until their OWN grammar/architecture
+# gap closes.
 _RAMP_DROPPED_NAMES: frozenset[str] = frozenset(
     {
-        "Neheb, the Eternal",
-        "Benthic Explorers",
-        "Victory Chimes",
-        "Megatron, Tyrant",
-        "Su-Chi Cave Guard",
         "Raggadragga, Goreguts Boss",
         "Braid of Fire",
-        "Plasm Capture",
-        "Elemental Resonance",
-        "Rasputin, the Oneiromancer",
-        "Conduit of Emrakul",
-        "Adarkar Unicorn",
-        "Spoils of Evil",
-        "Ice Cauldron",
-        "Jeweled Amulet",
-        "Tundra Fumarole",
-        "Fangorn, Tree Shepherd",
-        "Kyren Toy",
-        "Chancellor of the Tangle",
-        "Charmed Pendant",
-        "Squandered Resources",
-        "Unglued Pea-Brained Dinosaur",
-        "________ Goblin",
-        '"Name Sticker" Goblin',
     }
 )
 
@@ -2676,69 +2636,32 @@ BRIDGES: dict[str, Bridge] = {
             match=_land_creatures_condition_ref_match,
         ),
         Bridge(
-            bridge_id="ramp_grant_unimplemented_body",
-            key="ramp",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a granted-"
-                "ability body parser verb for (1) the self-referential "
-                "'any of ~'s colors' dynamic-color derivation (Katilda, "
-                "Tazri) and (2) a compound TWO-quoted-granted-ability body "
-                "joined by 'and' (Old-Growth Troll's 'Enchanted Forest has "
-                '"..." and "..."\') — both park the WHOLE granted '
-                "ability as Unimplemented; retires when the grant's "
-                "definition.effect decomposes into a typed Mana node"
-            ),
-            census=(
-                "3 hits / 31,622 commander-legal GrantAbility nodes whose "
-                "definition.effect is Unimplemented and whose description "
-                "mentions 'add ... mana/{X}', phase v0.20.0, 2026-07-12"
-            ),
-            pins=(
-                "Katilda, Dawnhart Prime",
-                "Old-Growth Troll",
-                "Tazri, Stalwart Survivor",
-            ),
-            gap=_ramp_grant_unimplemented_gap,
-            match=_ramp_grant_unimplemented_match,
-        ),
-        Bridge(
             bridge_id="ramp_dropped_add_mana_clause",
             key="ramp",
             kind="grammar_straggler",
             todo=(
-                "post-deletion grammar sprint (task #82): THE headline "
-                "grammar verb for this key — an 'add {mana-expression}' "
-                "clause grammar that structures a dynamic/scaling count "
-                "('add {R} for each...', 'add twice that much'), a "
-                "restricted-spend or note-type rider ('spend this mana "
-                "only to...', Ice Cauldron/Jeweled Amulet's 'note the type "
-                "spent'), a die-roll/sticker value table, or a player-"
-                "choice recipient into a typed Mana effect — retires "
-                "PER-CARD as each idiom decomposes (the existing "
-                "structural ramp arm already reads it once it does)"
+                "post-deletion grammar sprint (task #82): NARROWED — 22 of "
+                "the former 24 names graduated into tree_synthesis._arm_"
+                "ramp_dropped_add_mana_clause (a per-Unimplemented-node "
+                "'add {mana-expression}' read, never a whole-card regex). "
+                "The 2 left are genuinely un-synthesizable by that read: "
+                "Raggadragga, Goreguts Boss needs a 'creature WITH a mana "
+                "ability' filter-predicate grammar verb (a matters-lane "
+                "idiom, not an add-mana clause — it never emits one); "
+                "Braid of Fire needs a NEW AbilityUnit origin for keyword-"
+                "attached effects (its Mana effect lives on the phase "
+                "record's own keywords field, a tree position "
+                "build_concept_tree never reads at all — zero ability "
+                "units to scan, not a clause-grammar gap). Retires each "
+                "when its own gap closes."
             ),
             census=(
-                "24 hits / 31,622 commander-legal, each name CR-verified "
-                "this session as a genuine legacy ramp member via "
-                "old_ir_for's independent category=='ramp' classification "
-                "(17/24) or legacy's own kept-mirror pair "
-                "(_RAMP_MATTERS_REGEX / _MANA_DORK_SUPPORT_MIRROR in "
-                "_signals_ir.py, 7/24 — Megatron, Raggadragga, Braid of "
-                "Fire, Plasm Capture, Tundra Fumarole, Chancellor of the "
-                "Tangle, Squandered Resources); phase v0.20.0, 2026-07-12. "
-                "A naive whole-card 'add ... mana' regex over-fires on "
-                "reminder text describing a CREATED TOKEN's own ability "
-                "(Deadly Derision / T'Challa's Treasure/Vibranium tokens — "
-                "corpus-verified NOT legacy ramp members), so this row is "
-                "a bounded name enumeration instead (CONTEXT.md's third "
-                "residue class)."
+                "2 hits / 31,622 commander-legal (narrowed from 24, "
+                "ADR-0039 task #82), phase v0.20.0, 2026-07-12"
             ),
             pins=(
-                "Neheb, the Eternal",
-                "Squandered Resources",
-                "Rasputin, the Oneiromancer",
-                '"Name Sticker" Goblin',
+                "Raggadragga, Goreguts Boss",
+                "Braid of Fire",
             ),
             gap=_ramp_dropped_clause_gap,
             match=_ramp_dropped_clause_match,

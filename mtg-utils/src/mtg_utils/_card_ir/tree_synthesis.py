@@ -8597,6 +8597,178 @@ def _arm_base_power_ref_conjunctive(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── ramp: the "Add {mana-expression}" clause-grammar tail (ADR-0039 W7 →
+# task #82 grammar sprint) ───────────────────────────────────────────────────
+# CR 106.1 / 605.1a: any ability that literally adds mana is acceleration.
+# phase's clause grammar drops two DISTINCT idiom families as an
+# ``Unimplemented`` node whose OWN ``description`` still names the add-mana
+# clause verbatim — the read below is a per-NODE regex (never the whole-card
+# oracle), so it structurally cannot hit a created TOKEN's own reminder-text
+# ability (a ``Token`` effect node carries no oracle-echoing ``description``
+# field at all — Deadly Derision / T'Challa's Treasure/Vibranium tokens
+# corpus-verified this session to never produce a matching node).
+#
+# Two full-corpus-scan-verified false-positive shapes (ADR-0039 task #82,
+# adjudicated genuine EXCLUSIONS, not census members): a replacement/
+# redirect rider on ANOTHER ability's mana ("spells and abilities you
+# control that WOULD add colored mana instead add that much white mana" —
+# False Dawn) never itself produces mana (CR 614 — it just recolors what
+# some OTHER ability adds), and a bare "mana value" (CMC) reference inside
+# an unrelated arithmetic clause ("Roll a d20 and add the total mana value
+# of those cards" — Song of Inspiration) is ADDING A NUMBER to a die roll,
+# not mana.
+_ADD_MANA_CLAUSE_RX = re.compile(
+    r"\badds?\b[^.]*(\{[A-Za-z0-9]{1,3}\}|\bmana\b(?!\s+value))", re.IGNORECASE
+)
+_MANA_REDIRECT_RX = re.compile(r"\bwould\s+adds?\b", re.IGNORECASE)
+
+
+def _matches_add_mana_clause(desc: str) -> bool:
+    """A genuine "add mana" production clause (CR 106.1), excluding the
+    two corpus-verified false-positive shapes above."""
+    if _MANA_REDIRECT_RX.search(desc):
+        return False
+    return bool(_ADD_MANA_CLAUSE_RX.search(desc))
+
+
+def has_structural_ramp_grant_mana(tree: ConceptTree) -> bool:
+    """Whether a ``GrantAbility``'s OWN ``definition.effect`` already
+    structures as a typed ``Mana`` node anywhere in the tree — the
+    ``ramp_grant_unimplemented_body`` TYPED gate (former ledgered bridge,
+    ADR-0039 task #82), so a card phase later parses the grant natively
+    never doubles."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "GrantAbility":
+                continue
+            d = getattr(n, "definition", None)
+            if d is not None and tag_of(getattr(d, "effect", None)) == "Mana":
+                return True
+    return False
+
+
+def _arm_ramp_grant_unimplemented_body(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``ramp`` node for a ``GrantAbility`` whose OWN granted-
+    ability body parks as ``Unimplemented`` but names an "add ... mana"
+    clause — Katilda, Dawnhart Prime / Tazri, Stalwart Survivor's self-
+    referential "add one mana of any of ~'s colors" dynamic-color
+    derivation (a clause phase's grammar has no verb for), and Old-Growth
+    Troll's compound TWO-quoted granted-ability body joined by "and"
+    ("Enchanted Forest has '{T}: Add {G}{G}' and '{1}, {T}, Sacrifice ~:
+    Create...'" — phase's quote-splitter garbles BOTH the cost and effect
+    halves of the FIRST quoted ability into one Unimplemented mess).
+    ADR-0039 task #82 — graduates the former ``ramp_grant_unimplemented_
+    body`` ledgered bridge (retired: deleted from ``bridge_ledger.BRIDGES``,
+    its ``bridge_fires`` call site dropped from ``crosswalk_signals._ramp``).
+
+    Gap-gated on :func:`has_structural_ramp_grant_mana`. Emits the REAL
+    "ramp" concept (ADR-0038 retired the ``synth_*`` marker namespace), so
+    the ``_ramp`` lane reads it through its OWN typed
+    ``effect_concepts("ramp")`` walk — the very first branch, which fires
+    unconditionally for a nonland card — no lane special-case at all (every
+    pin here is a creature, never a land)."""
+    if has_structural_ramp_grant_mana(tree):
+        return None
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "GrantAbility":
+                continue
+            d = getattr(n, "definition", None)
+            if d is None:
+                continue
+            if tag_of(getattr(d, "effect", None)) != "Unimplemented":
+                continue
+            desc = getattr(d, "description", "") or ""
+            if _matches_add_mana_clause(desc):
+                return _synthetic_concept(
+                    arm_id="ramp_grant_unimplemented_body",
+                    concept="ramp",
+                    scope="you",
+                    subject=(),
+                    desc=(
+                        "granted mana-ability body parks as Unimplemented "
+                        "(self-referential dynamic color / compound "
+                        "two-quoted grant)"
+                    ),
+                )
+    return None
+
+
+def _ramp_unimplemented_add_mana_node(tree: ConceptTree) -> object | None:
+    """The first ``Unimplemented`` node anywhere in the tree whose OWN
+    ``description`` names an add-mana clause (CR 106.1), or ``None``."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "Unimplemented":
+                continue
+            desc = getattr(n, "description", "") or ""
+            if _matches_add_mana_clause(desc):
+                return n
+    return None
+
+
+def _arm_ramp_dropped_add_mana_clause(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``ramp`` node for a nonland card whose own "Add
+    {mana-expression}" clause parks as an ``Unimplemented`` node — a
+    dynamic/scaling count (Neheb's "for each 1 life...", Fangorn's "twice
+    that much", Plasm Capture's "X mana ... where X is that spell's mana
+    value"), a restricted-spend or note-type rider (Adarkar Unicorn, Ice
+    Cauldron, Jeweled Amulet, Kyren Toy, Charmed Pendant, Unglued Pea-
+    Brained Dinosaur), a die-roll/sticker value table ("Name Sticker"
+    Goblin, ________ Goblin), or a player-choice recipient (Victory
+    Chimes) — the "add ... mana" clause always survives verbatim in the
+    dropped node's OWN ``description``, never elsewhere. ADR-0039 task #82
+    — graduates 22 of the former ``ramp_dropped_add_mana_clause`` ledgered
+    bridge's 24-name enumeration into this typed read; the row NARROWS to
+    the 2 names this per-node scan structurally cannot reach (Raggadragga,
+    Goreguts Boss — a mana-ability-HAVER support card with no add-mana
+    clause of its own at all; Braid of Fire — phase structures its Mana
+    effect off the ``keywords`` field, a tree position ``build_concept_
+    tree`` never reads, so the card carries ZERO ability units to scan).
+
+    Gap-gated on the SAME "not a land, no existing structural ramp"
+    condition the bridge's own ``_ramp_dropped_clause_gap`` used, so a card
+    already served through ANY other ramp path (its own top-level Mana
+    effect) never doubles. Emits the REAL "ramp" concept — the ``_ramp``
+    lane's first branch fires unconditionally for a nonland card, no lane
+    special-case (every corpus hit here is a nonland permanent or a
+    sorcery/instant, never itself a Land).
+
+    BLAST RADIUS (ADR-0039 task #82, full commander-legal corpus re-scan,
+    32,521 cards): beyond the graduated 22, 7 genuine BEYOND-LEGACY
+    structural gains, each corpus-verified as a real CR 106.1 mana-
+    producing ability the naive whole-card-regex over-fire concern never
+    applied to (Drain Power — "you add the mana lost this way" off an
+    opponent's forced mana-ability activation; Jetfire, Ingenious
+    Scientist — "Target player adds that much {C}"; Mana Seism —
+    "Sacrifice any number of lands, then add that much {C}"; Pygmy Hippo
+    — "you add an amount of {C} equal to the amount of mana that player
+    lost"; Runaway Growth — an Aura granting its enchanted land "add an
+    additional amount of {G}"; Summitfest Closing Ceremony — "Add X {U}
+    and X {R}"; Vigorous Farming — perpetually grants a library's topmost
+    land "add an additional {G}"). Two additional raw regex hits were
+    ADJUDICATED NOT RAMP and excluded by :func:`_matches_add_mana_clause`
+    (see its docstring): False Dawn's "spells... that WOULD add colored
+    mana instead add..." is a CR 614 mana-color REPLACEMENT rider that
+    never itself produces mana; Song of Inspiration's "add the total mana
+    value of those cards" is arithmetic addition to a die roll (CMC, not
+    mana)."""
+    if tree.is_type("Land") or tree.effect_concepts("ramp"):
+        return None
+    if _ramp_unimplemented_add_mana_node(tree) is None:
+        return None
+    return _synthetic_concept(
+        arm_id="ramp_dropped_add_mana_clause",
+        concept="ramp",
+        scope="you",
+        subject=(),
+        desc=(
+            "add-mana clause parks as Unimplemented (scaling/restricted/"
+            "die-roll/choice residue, CR 106.1)"
+        ),
+    )
+
+
 def _make_sweep_arm(rx: re.Pattern[str], arm_id: str, scope: str, cr: str) -> _Arm:
     def _arm(tree: ConceptTree) -> ConceptNode | None:
         oracle = _REMINDER.sub(" ", tree.oracle or "")
@@ -8738,6 +8910,8 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("base_pt_mass_where_x", _arm_base_pt_mass_where_x),
     ("base_power_ref_conjunctive", _arm_base_power_ref_conjunctive),
     ("tap_untap_becomes", _arm_tap_untap_becomes),
+    ("ramp_grant_unimplemented_body", _arm_ramp_grant_unimplemented_body),
+    ("ramp_dropped_add_mana_clause", _arm_ramp_dropped_add_mana_clause),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

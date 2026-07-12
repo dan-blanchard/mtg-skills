@@ -4193,13 +4193,18 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
       land's identity, so it is never the "mana base" case the top-level
       arm's basic-equivalent carve-out exists for (CR 106.1/605.1a).
 
-    Two ADR-0039 W7 ledgered bridges (bridge_ledger.py) close the residual
-    "Add mana" clause-grammar tail: ``ramp_grant_unimplemented_body`` (a
-    GrantAbility whose OWN definition parks as Unimplemented — Katilda,
-    Old-Growth Troll, Tazri) and ``ramp_dropped_add_mana_clause`` (the
-    scaling/restricted/note-type/die-roll "Add {mana}" residue class, a
-    card-name-keyed enumeration — 24 cards, each CR-verified this session
-    against legacy's own independent classification).
+    ADR-0039 task #82 grammar sprint: two former ledgered bridges (bridge_
+    ledger.py) closed the residual "Add mana" clause-grammar tail this
+    session. ``ramp_grant_unimplemented_body`` (a GrantAbility whose OWN
+    definition parked as Unimplemented — Katilda, Old-Growth Troll, Tazri)
+    RETIRED into ``tree_synthesis._arm_ramp_grant_unimplemented_body`` — the
+    synthesized "ramp" concept node is read by the FIRST branch below
+    (``effect_concepts("ramp")``), no lane code here at all.
+    ``ramp_dropped_add_mana_clause`` (the scaling/restricted/note-type/die-
+    roll "Add {mana}" residue class) NARROWED: 22 of its former 24 names
+    graduated the same way; the 2 left (a mana-ability-HAVER support card
+    with no add-mana clause of its own, and a keywords-field Mana effect no
+    ability-unit walk reaches) stay a name-keyed bridge below.
     """
     is_land = tree.is_type("Land")
     for c in tree.effect_concepts("ramp"):
@@ -4218,9 +4223,7 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
             return [Signal("ramp", "you", "", "", tree.name, "high")]
     if _has_animate_treasure_grant(tree):
         return [Signal("ramp", "you", "", "", tree.name, "high")]
-    if bridge_fires("ramp_grant_unimplemented_body", tree) or bridge_fires(
-        "ramp_dropped_add_mana_clause", tree
-    ):
+    if bridge_fires("ramp_dropped_add_mana_clause", tree):
         return [Signal("ramp", "you", "", "", tree.name, "high")]
     return []
 

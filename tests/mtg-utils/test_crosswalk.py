@@ -918,11 +918,14 @@ def test_ramp_granted_sacrifice_cost_is_acceleration():
     assert ("ramp", "you", "") in _idents("Rain of Filth")
 
 
-def test_ramp_grant_unimplemented_body_bridge():
-    """Katilda / Tazri's self-referential "add one mana of any of ~'s
-    colors" and Old-Growth Troll's compound two-quoted-granted-ability body
-    both park the WHOLE granted ability as Unimplemented — bridged via
-    ``ramp_grant_unimplemented_body``."""
+def test_ramp_grant_unimplemented_body_synthesis():
+    """The former ``ramp_grant_unimplemented_body`` ledgered bridge,
+    RETIRED (ADR-0039 task #82) into ``tree_synthesis._arm_ramp_grant_
+    unimplemented_body``: Katilda / Tazri's self-referential "add one mana
+    of any of ~'s colors" and Old-Growth Troll's compound two-quoted-
+    granted-ability body both park the WHOLE granted ability as
+    Unimplemented — the synthesized "ramp" node reads through ``_ramp``'s
+    OWN typed ``effect_concepts("ramp")`` walk, no lane code at all."""
     for name in (
         "Katilda, Dawnhart Prime",
         "Old-Growth Troll",
@@ -931,16 +934,29 @@ def test_ramp_grant_unimplemented_body_bridge():
         assert ("ramp", "you", "") in _idents(name)
 
 
-def test_ramp_dropped_add_mana_clause_bridge():
-    """The scaling/restricted/note-type/die-roll "Add {mana}" residue class
-    — each name CR-verified this session as a genuine legacy ramp member,
-    bridged via ``ramp_dropped_add_mana_clause``."""
+def test_ramp_dropped_add_mana_clause_synthesis():
+    """The former ``ramp_dropped_add_mana_clause`` ledgered bridge's
+    22-of-24-name graduation (ADR-0039 task #82) into ``tree_synthesis.
+    _arm_ramp_dropped_add_mana_clause`` — a per-``Unimplemented``-node "add
+    {mana-expression}" read (scaling/restricted/note-type/die-roll
+    residue), never a whole-card regex."""
     for name in (
         "Neheb, the Eternal",
         "Squandered Resources",
         "Rasputin, the Oneiromancer",
         '"Name Sticker" Goblin',
     ):
+        assert ("ramp", "you", "") in _idents(name)
+
+
+def test_ramp_dropped_add_mana_clause_bridge_narrowed():
+    """The 2 names left in the NARROWED ``ramp_dropped_add_mana_clause``
+    bridge — genuinely un-synthesizable by the per-node "add mana" read.
+    Raggadragga, Goreguts Boss is a mana-ability-HAVER support card (no
+    add-mana clause of its own); Braid of Fire structures its Mana effect
+    off the phase record's ``keywords`` field, a tree position
+    ``build_concept_tree`` never reads (zero ability units)."""
+    for name in ("Raggadragga, Goreguts Boss", "Braid of Fire"):
         assert ("ramp", "you", "") in _idents(name)
 
 
