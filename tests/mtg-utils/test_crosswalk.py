@@ -1045,6 +1045,131 @@ def test_sacrifice_outlets_ward_cost_excluded():
     assert "sacrifice_outlets" not in _keys("Mishra, Tamer of Mak Fawa")
 
 
+# ── ADR-0039 W7: the ParentTargetController you-outlet split ──────────────
+# CR 701.21a (sacrifice), CR 109.5 ("you"/"your" = an object's controller).
+# ``_sac_ptc_you_eligible`` (crosswalk_signals.py): a Sacrifice effect whose
+# subject's controller is ``ParentTargetController`` fires "you" when the
+# referenced parent is genuinely AMBIGUOUS (an unrestricted trigger subject
+# — "a creature enters", "a source deals damage to this creature", "for
+# each creature") and stays excluded when the SAME unit anchors the parent
+# to an explicit non-you actor (a targeted player, an opponent-restricted
+# trigger source, or a targeted-player reference locked inside an opaque
+# Unimplemented node).
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Funeral March",  # Aura: "its controller sacrifices a creature"
+        "Tainted Aether",  # "a creature enters, its controller sacrifices"
+        "Phyrexian Obliterator",  # "that source's controller sacrifices"
+        "Fade Away",  # "for each creature, its controller sacrifices"
+        "Maarika, Brutal Gladiator",  # "that creature's controller sacrifices"
+        "Vengeful Strangler // Strangling Grasp",  # enchanted permanent's controller
+    ],
+)
+def test_sacrifice_outlets_parent_target_controller_ambiguous_fires(name):
+    assert ("sacrifice_outlets", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Liliana of the Veil",  # -6: "target player controls" (Unimplemented residue)
+        "Michiko Konda, Truth Seeker",  # valid_source controller=Opponent
+    ],
+)
+def test_sacrifice_outlets_parent_target_controller_other_actor_excluded(name):
+    """Liliana's -6 locks "target player" inside an opaque Unimplemented
+    node's description (no structured ``TargetPlayer`` controller tag
+    survives anywhere in the unit — caught by the Unimplemented-residue
+    other-actor scan); Michiko's trigger is restricted to a source "an
+    opponent controls" (``valid_source: Typed(controller='Opponent')``) —
+    the referenced parent can never be you."""
+    assert "sacrifice_outlets" not in _keys(name)
+
+
+# ── ADR-0039 W7: Exploit keyword → sacrifice_outlets ───────────────────────
+def test_sacrifice_outlets_exploit_keyword():
+    """Silumgar Scavenger's Exploit reminder text ("When this creature
+    enters, you may sacrifice a creature.") sits entirely inside stripped
+    parens, so no "sacrifice" word survives ANY oracle-text idiom, and
+    phase carries no typed Sacrifice node for the keyword's own cost
+    either. The printed Scryfall "Exploit" keyword is the only structured
+    source (CR 702.110a) — mirrors legacy's unconditional keyword-array
+    read, the same channel Casualty/Bargain already use."""
+    assert ("sacrifice_outlets", "you", "") in _idents("Silumgar Scavenger")
+
+
+# ── ADR-0039 W7: created-token Devour (structural, not a bridge) ──────────
+def test_sacrifice_outlets_created_token_devour():
+    """Dragon Broodmother's "create a 1/1 ... Dragon creature token with
+    flying and devour 2" decorates Devour as a typed
+    ``MirrorVariant(key='Devour')`` on the created ``Token`` effect's OWN
+    ``keywords`` list — a genuine structural read (CR 702.82a, CR 602.1a:
+    a cost is paid by the token's own controller, "you" for a token you
+    create), not a text idiom."""
+    assert ("sacrifice_outlets", "you", "") in _idents("Dragon Broodmother")
+
+
+# ── ADR-0039 W7: ledgered bridges (bridge_ledger.py; convergence coverage
+# lives in test_bridge_ledger.py — these are membership pins only) ────────
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Salvage Titan",  # "sacrifice three artifacts rather than pay..."
+        "Flare of Fortitude",  # "sacrifice a nontoken white creature rather..."
+        "Delraich",  # "sacrifice three black creatures rather than pay..."
+    ],
+)
+def test_sacrifice_outlets_bridge_alt_cost_pitch(name):
+    assert ("sacrifice_outlets", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Dread Return",  # "Flashback—Sacrifice three creatures."
+        "Cabal Therapy",  # "Flashback—Sacrifice a creature."
+        "Gift of Doom",  # "Morph—Sacrifice another creature."
+    ],
+)
+def test_sacrifice_outlets_bridge_keyword_cost(name):
+    assert ("sacrifice_outlets", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Anhelo, the Painter",  # "the first ... spell ... has casualty 2"
+        "Silverquill, the Disputant",  # "Each instant and sorcery spell ... has casualty 1"
+    ],
+)
+def test_sacrifice_outlets_bridge_casualty_granted(name):
+    assert ("sacrifice_outlets", "you", "") in _idents(name)
+
+
+def test_sacrifice_outlets_bridge_devour_unimplemented():
+    """Thromok the Insatiable's own Devour parks as an Unimplemented
+    residue ("Devour X, where X is the number of creatures devoured this
+    way") rather than a typed keyword entry (contrast Dragon Broodmother's
+    CREATED-TOKEN Devour, a genuine structural read)."""
+    assert ("sacrifice_outlets", "you", "") in _idents("Thromok the Insatiable")
+
+
+def test_sacrifice_outlets_bridge_etb_self_sac_unimplemented():
+    """Dracoplasm's written-out (un-keyworded) self-sac ETB ("As this
+    creature enters, sacrifice any number of creatures...") parks as an
+    Unimplemented residue."""
+    assert ("sacrifice_outlets", "you", "") in _idents("Dracoplasm")
+
+
+def test_sacrifice_outlets_bridge_emblem_activated_cost():
+    """Ob Nixilis of the Black Oath's -8 emblem grants "{1}{B}, Sacrifice a
+    creature: ..." — the emblem's OWN granted activated ability's cost
+    parks entirely inside an opaque ``CreateEmblem.statics`` description
+    string (CR 602.1a — a cost is paid by the activator)."""
+    assert ("sacrifice_outlets", "you", "") in _idents("Ob Nixilis of the Black Oath")
+
+
 def test_death_matters_not_fired_by_noncreature_arrival():
     """Scrapheap watches an artifact/enchantment put into the graveyard from the
     battlefield — only CREATURES "die" (CR 700.4), so it must not fire."""

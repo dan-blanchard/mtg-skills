@@ -1508,40 +1508,33 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         "opponent_discard",
         "plus_one_matters",
         "ramp",
-        # ADR-0038 W6 endgame (2026-07): live_only cut 275 -> 191 via two
-        # genuine adjudicated arms (:func:`_sacrifice_outlets`'s own
-        # docstring) — the unset-controller "you" default (CR 109.5,
-        # clause-head disambiguated, ~85 cards, MANDATORY-SHED-safe: Last
-        # Voyage of the _____ verified pinned excluded) and the
-        # GrantAbility-cost descent (~6 cards). ~141 of the remaining 191
-        # are TESTED sheds (land_sacrifice_makers territory ~107, the
-        # Grave-Pact edict-mislabel class ~18, bare-self/subject-dropped
-        # ~14, TargetPlayer/ScopedPlayer edicts, "any player" ambiguity).
-        # Landfall rule NOT yet met — two GENUINE gap classes remain,
-        # bridge-ledger input for a later phase (ADR-0039): (1) ~39 cards
-        # where phase's typed tree carries NO Sacrifice node ANYWHERE —
-        # confirmed via direct tree dump — because the Spell ability's own
-        # ``cost`` field is ``None`` for an ALTERNATIVE cost ("rather than
-        # pay this spell's mana cost" — Salvage Titan, Delraich, the Flare
-        # cycle; Flashback/Morph/Buyback sac costs — Dread Return, Cabal
-        # Therapy, Gift of Doom), plus three narrower parser gaps inside
-        # the same bucket: Exploit is not decomposed into any triggered-
-        # ability node at all (Silumgar Scavenger), Devour sits as a bare
-        # keyword tag on a CREATED TOKEN's own definition with no expanded
-        # Sacrifice semantics (Dragon Broodmother; Thromok's OWN Devour is
-        # at least reachable as an ``Unimplemented`` node whose description
-        # literally starts "Devour N" — a narrow last-resort keyword-text
-        # arm was NOT added this session, kept out of scope), and a
-        # Casualty keyword GRANTED onto ANOTHER spell rather than the
-        # bearer's own keyword array (Anhelo, the Painter; Silverquill, the
-        # Disputant). (2) ~6 cards carrying a wrapper-scoped symmetric
-        # ``ParentTargetController`` sac ("for each creature, its
-        # controller sacrifices" — Fade Away, Tainted Aether, Phyrexian
-        # Obliterator, Maarika, Brutal Gladiator) — a genuine structural
-        # read exists but was risk-deferred pre-W6 (widens the edict-owner
-        # gate beyond that session's corpus-verification budget); W6
-        # re-confirmed the deferral rather than re-litigating it blind.
-        "sacrifice_outlets",
+        # sacrifice_outlets PROMOTED (ADR-0039 W7, 2026-07-11) — landfall
+        # rule met: live_only 191 -> 166, and every remaining live_only
+        # card is a TESTED adjudicated shed (land_sacrifice_makers
+        # territory, the Grave-Pact edict-mislabel class, bare-self/
+        # subject-dropped, TargetPlayer/ScopedPlayer edicts, "any player"
+        # ambiguity — a corpus-wide predicate scan over ALL 166 confirmed
+        # zero unaccounted-for exclusions). Three closers: (1) the
+        # ``ParentTargetController`` you-outlet split
+        # (:func:`_sac_ptc_you_eligible` — 6 cards: Funeral March, Tainted
+        # Aether, Phyrexian Obliterator, Fade Away, Maarika Brutal
+        # Gladiator, Vengeful Strangler // Strangling Grasp; corpus-
+        # verified against all 16 commander-legal ParentTargetController
+        # Sacrifice-effect hits, the prior W6 deferral resolved rather
+        # than re-litigated blind); (2) two real structural reads — the
+        # Exploit keyword joining the Casualty/Bargain
+        # :data:`_SWEEP_KEYWORD_LANES` row (Silumgar Scavenger) and a
+        # created-token Devour read (:func:`_has_created_token_devour` —
+        # Dragon Broodmother's typed ``MirrorVariant(key='Devour')`` on
+        # the Token effect's own keywords list); (3) six ADR-0039 ledgered
+        # bridges for the residual NO-typed-Sacrifice-node bucket
+        # (bridge_ledger.py: ``sac_alt_cost_pitch``, ``sac_keyword_cost``,
+        # ``sac_casualty_granted_onto_other_spell``,
+        # ``sac_devour_unimplemented``, ``sac_etb_self_sac_unimplemented``,
+        # ``sac_emblem_activated_cost`` — 17 cards, legacy-parity by
+        # construction via project.py's own ``_PITCH_SAC``/
+        # ``_KEYWORD_COST_SAC`` regexes). See :func:`_sacrifice_outlets`'s
+        # own docstring for the full arm history.
         # ADR-0038 W6 endgame (2026-07-11): target_player_draws NOT YET
         # PROMOTED — live_only cut from 75 to 70 (2 new admissions: the
         # OriginalController/Controller-paired idiom widened to EVERY
@@ -3094,6 +3087,28 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     Angel, Cultist of the Absolute, Inevitable End) is a DIFFERENT wrapper
     tag and stays OUT, deliberately: that shape is overwhelmingly an
     opponent-facing curse, not a self-outlet. Scope "you".
+
+    ADR-0039 W7 — PROMOTED, three closers on top of the W6 base. (1) The
+    ``ParentTargetController`` you-outlet split (:func:`_sac_ptc_you_eligible`
+    — "for each creature, its controller sacrifices" fires "you" when the
+    referenced parent is an UNRESTRICTED trigger subject (Tainted Aether,
+    Phyrexian Obliterator, Fade Away, Maarika, Funeral March, Vengeful
+    Strangler // Strangling Grasp) and stays excluded when the same unit
+    anchors the parent to an explicit non-you actor (Liliana of the Veil's
+    -6, Michiko Konda). (2) Two real structural reads: Exploit joins
+    Casualty/Bargain's keyword-array lane (:data:`_SWEEP_KEYWORD_LANES`,
+    Silumgar Scavenger) and a created-token Devour read
+    (:func:`_has_created_token_devour`, Dragon Broodmother's typed
+    ``MirrorVariant(key='Devour')``). (3) Six ledgered bridges
+    (``bridge_ledger.py``) close the residual NO-typed-Sacrifice-node-
+    anywhere bucket: ``sac_alt_cost_pitch`` / ``sac_keyword_cost`` reuse
+    legacy's OWN ``project.py`` regexes verbatim (legacy parity by
+    construction); ``sac_casualty_granted_onto_other_spell`` covers the
+    Anhelo/Silverquill GRANT shape; ``sac_devour_unimplemented`` /
+    ``sac_etb_self_sac_unimplemented`` / ``sac_emblem_activated_cost`` cover
+    Thromok, Dracoplasm, and Ob Nixilis of the Black Oath's emblem — each an
+    ``Unimplemented``/opaque-description residue, gap-gated so a future
+    phase bump or grammar verb (task #82) retires the row automatically.
     """
     for unit in tree.units:
         if unit.trigger_event in ("sacrificed", "exploited"):
@@ -3127,6 +3142,21 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
         return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
     if _sac_outlet_granted_cost(tree):
         return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
+    if _has_created_token_devour(tree):
+        return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
+    # ADR-0039 W7 ledgered bridges — the NO-typed-Sacrifice-node residual
+    # bucket (dropped clauses / grammar stragglers; bridge_ledger.py rows,
+    # docstring there for the full corpus accounting):
+    for bridge_id in (
+        "sac_alt_cost_pitch",
+        "sac_keyword_cost",
+        "sac_casualty_granted_onto_other_spell",
+        "sac_devour_unimplemented",
+        "sac_etb_self_sac_unimplemented",
+        "sac_emblem_activated_cost",
+    ):
+        if bridge_fires(bridge_id, tree):
+            return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
     # recall-completion b1: the subject-dropped / modal you-sac raw fallback
     # (_SAC_OUTLET_RAW) is DELIBERATELY NOT ported. The IR gates it PER-EFFECT
     # (``cat in (sacrifice, choose)`` AND the SAME effect's ``e.raw`` matches), but
@@ -3135,23 +3165,19 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     # + an oracle-clause match over-fires (+11 crosswalk_only: Braids, Serendib Djinn,
     # Phyrexian War Beast — "sacrifice unless" downsides and upkeep saccers), so it
     # stays a documented ``live_only`` residue (ADR-0035 convergence tail). CR
-    # 701.16 / 701.21. Also documented residue: a wrapper-scoped symmetric
-    # ``ParentTargetController`` sac ("for each creature, its controller
-    # sacrifices" — Fade Away, Tainted Aether, Maarika, Brutal Gladiator) —
-    # a genuine structural read exists but risks widening the edict-owner
-    # gate beyond corpus-verification budget; a ``GrantTrigger``-conferred
-    # sac (a TRIGGERED, not activated, granted ability — "Enchanted creature
-    # has 'At the beginning of your upkeep, sacrifice a creature.'" —
-    # Wayward Angel, Cultist of the Absolute, Inevitable End: this shape is
-    # overwhelmingly a CURSE Aura meant for an OPPONENT's creature, not a
-    # self-outlet, so :func:`_sac_outlet_granted_cost` deliberately scopes
-    # to ``GrantAbility`` — an ACTIVATED grant — only) and the Casualty-GRANT
-    # shape (Anhelo, the Painter's "has casualty 2" on ANOTHER spell, not
-    # its own keyword array) similarly deferred; a phase parse gap where a
-    # cost quantifier shape ("up to three permanents", "one or more
-    # artifacts" — Baba Lysaga, Radiant Lotus) decorates a wholly EMPTY
-    # target filter (no type info recoverable structurally) stays residue
-    # too — see the ADR-0038 W4 giants / W5 tails session reports.
+    # 701.16 / 701.21. The ``ParentTargetController`` symmetric-sac class and the
+    # Casualty-GRANT shape are CLOSED (ADR-0039 W7 — :func:`_sac_ptc_you_eligible`
+    # and the ``sac_casualty_granted_onto_other_spell`` bridge, this docstring's own
+    # W7 paragraph). Still-deferred: a ``GrantTrigger``-conferred sac (a TRIGGERED,
+    # not activated, granted ability — "Enchanted creature has 'At the beginning of
+    # your upkeep, sacrifice a creature.'" — Wayward Angel, Cultist of the Absolute,
+    # Inevitable End: this shape is overwhelmingly a CURSE Aura meant for an
+    # OPPONENT's creature, not a self-outlet, so :func:`_sac_outlet_granted_cost`
+    # deliberately scopes to ``GrantAbility`` — an ACTIVATED grant — only) and a
+    # phase parse gap where a cost quantifier shape ("up to three permanents", "one
+    # or more artifacts" — Baba Lysaga, Radiant Lotus) decorates a wholly EMPTY
+    # target filter (no type info recoverable structurally) — see the ADR-0038 W4
+    # giants / W5 tails session reports.
     return []
 
 
@@ -3193,6 +3219,38 @@ def _sac_outlet_granted_cost(tree: ConceptTree) -> bool:
                     and not type(leaf).__name__.startswith("T_Ward__")
                     and _sac_leaf_is_you_outlet(leaf)
                 ):
+                    return True
+    return False
+
+
+def _has_created_token_devour(tree: ConceptTree) -> bool:
+    """Whether TREE creates a token whose OWN keyword array carries Devour
+    (CR 702.82a — "As this creature enters, you may sacrifice any number
+    of creatures") — Dragon Broodmother's "create a 1/1 ... Dragon
+    creature token with flying and devour 2" (ADR-0039 W7).
+
+    Devour is a sac COST paid by the token's own controller as it enters
+    — for a token YOU create, that's "you" (the same CR 109.5/602.1a
+    convention :func:`_sac_outlet_granted_cost` applies to a granted
+    activated cost). Phase decorates the created token's Devour as a
+    typed ``MirrorVariant(key='Devour', inner=<N>)`` entry on the
+    ``Token`` effect's own ``keywords`` list — reachable directly (no
+    text-idiom needed) once the walk descends into that specific list;
+    :func:`iter_typed_nodes` does NOT surface it on its own (a
+    ``MirrorVariant`` unwraps to its ``inner`` scalar on the generic
+    walk, never yielding the variant node itself), so this reads the
+    ``Token`` node's ``keywords`` field directly. Corpus-verified: the
+    ONLY commander-legal created-token Devour instance is Dragon
+    Broodmother (phase v0.20.0, 2026-07-11); Thromok the Insatiable's
+    Devour is on its OWN body, parked as an ``Unimplemented`` residue
+    instead — see the ``sac_devour_unimplemented`` ledgered bridge.
+    """
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "Token":
+                continue
+            for kw in getattr(n, "keywords", None) or []:
+                if isinstance(kw, MirrorVariant) and kw.key == "Devour":
                     return True
     return False
 
@@ -3294,6 +3352,62 @@ def _sac_effect_names_other_actor(unit: AbilityUnit) -> bool:
     return False
 
 
+# ADR-0039 W7: controller tags that anchor a ``ParentTargetController``
+# Sacrifice effect's referenced "parent" to an explicit non-you actor
+# elsewhere in the SAME unit — a targeted player (To the Slaughter,
+# Dispense Justice, Choice of Damnations all carry a sibling/ancestor
+# ``controller: TargetPlayer`` node in the SAME ability chain the
+# sacrifice descends from) or an opponent-restricted trigger source
+# (Michiko Konda's "a source AN OPPONENT controls deals damage to you" —
+# ``valid_source: Typed(controller='Opponent')``). CR 701.21a.
+_SAC_PTC_OTHER_ACTOR_CONTROLLERS: frozenset[str] = frozenset(
+    {"TargetPlayer", "Opponent", "Opponents", "EachOpponent"}
+)
+# Liliana of the Veil's -6 ("Separate all permanents TARGET PLAYER
+# controls into two piles. That player sacrifices...") locks the "target
+# player" actor inside an opaque ``Unimplemented`` node's description —
+# no structured ``TargetPlayer`` controller tag survives anywhere in the
+# unit for the controller-tag scan above to catch. A same-unit
+# Unimplemented residue naming a non-you actor is the same tell.
+_SAC_PTC_UNIMPL_OTHER_ACTOR_RX = re.compile(
+    r"\b(target player|target opponent|each opponent|defending player|"
+    r"another player|any player|an opponent)\b",
+    re.IGNORECASE,
+)
+
+
+def _sac_ptc_you_eligible(unit: AbilityUnit) -> bool:
+    """Whether a ``ParentTargetController``-scoped Sacrifice effect's
+    referenced parent is genuinely AMBIGUOUS as to controller (so the CR
+    109.5 "you" convention applies) rather than anchored to an explicit
+    opponent/targeted-player actor elsewhere in the owning unit (ADR-0039
+    W7 — Funeral March, Tainted Aether, Phyrexian Obliterator, Vengeful
+    Strangler // Strangling Grasp, Fade Away, Maarika, Brutal Gladiator:
+    the "its controller sacrifices" / "that source's controller
+    sacrifices" idiom over an UNRESTRICTED trigger subject — "a creature
+    enters", "a source deals damage to this creature", "for each
+    creature" — carries no other controller tag AND no
+    ``Unimplemented``-residue other-actor phrase anywhere in the unit).
+
+    Corpus-verified against every commander-legal ``ParentTargetController``
+    Sacrifice-effect hit (16 cards, phase v0.20.0, 2026-07-11): this rule
+    reproduces the exact 6-card you-outlet / 10-card edict-or-land split by
+    hand adjudication (5 of the 10 are land-only and excluded upstream by
+    the land check regardless; Liliana of the Veil's -6 needs the
+    Unimplemented-residue arm specifically — its own controller-tag scan
+    alone false-fired, +1 crosswalk_only caught and fixed this session).
+    """
+    for n in iter_typed_nodes(unit.node):
+        ctrl = getattr(n, "controller", None)
+        if isinstance(ctrl, str) and ctrl in _SAC_PTC_OTHER_ACTOR_CONTROLLERS:
+            return False
+        if tag_of(n) == "Unimplemented" and _SAC_PTC_UNIMPL_OTHER_ACTOR_RX.search(
+            getattr(n, "description", "") or ""
+        ):
+            return False
+    return True
+
+
 def _is_you_sac_subject(
     c: object, *, cost: bool, unit: AbilityUnit | None = None
 ) -> bool:
@@ -3326,6 +3440,20 @@ def _is_you_sac_subject(
     "Typed"`` — a multi-type target ("another creature OR enchantment" —
     Boilerbilges Ripper) is an ``Or`` filter at the top, so the OLD inline check
     always returned ``False`` even when a sub-arm carried ``controller: You``.
+
+    ADR-0039 W7: a ``ParentTargetController`` controller — the sacrificed
+    filter's controller is whoever controls a REFERENCED object, not a
+    plain unset gap — now also qualifies when the reference is genuinely
+    ambiguous (:func:`_sac_ptc_you_eligible`, CR 701.21a): "for each
+    creature, its controller sacrifices" (Tainted Aether, Fade Away),
+    "whenever a source deals damage to this creature, that source's
+    controller sacrifices" (Phyrexian Obliterator) and the analogous
+    enchant/combat-damage idioms are symmetric — they hit YOU whenever
+    YOUR OWN creature/source is the one referenced, a genuine (if
+    involuntary) self-outlet — while a targeted-player idiom (Liliana of
+    the Veil's -6, To the Slaughter, Dispense Justice, Choice of
+    Damnations) or an opponent-restricted trigger source (Michiko Konda)
+    stays excluded.
     """
     target = getattr(getattr(c, "node", None), "target", None)
     if not _sac_subject_present(target):
@@ -3341,6 +3469,8 @@ def _is_you_sac_subject(
         and "EnchantedBy" not in filter_predicates(target)
     ):
         return not _sac_effect_names_other_actor(unit)
+    if ctrl == "ParentTargetController" and unit is not None:
+        return _sac_ptc_you_eligible(unit)
     return False
 
 
@@ -20647,19 +20777,30 @@ _SWEEP_SYNTH_KEYS: tuple[tuple[str, str], ...] = (
 #     b13 already ports alt_cost_keyword off the same keyword and its
 #     comment leaves recast_etb to this sweep. The keyword drops the old
 #     `\bsneak\b` over-fires (Cheatyface, Lightfoot Rogue).
-#   • casualty / bargain → sacrifice_outlets (ADR-0038 W4 giants; CR
-#     702.153a / 702.166a — both keywords ARE "As an additional cost to
-#     cast this spell, you may sacrifice a <creature/artifact/enchantment/
-#     token>", the exact you-sac-cost shape phase's typed tree carries NO
-#     node for at all — Light 'Em Up / Xander's Pact's Casualty, High Fae
-#     Negotiator / Johann's Stopgap's Bargain). The GRANTED form (Anhelo,
-#     the Painter's "the first spell you cast each turn has casualty 2" —
-#     the keyword lives on the GRANT, not this card's own array) is NOT
-#     covered by this row; deferred (see the ADR-0038 W4 giants report).
+#   • casualty / bargain / exploit → sacrifice_outlets (ADR-0038 W4 giants
+#     + ADR-0039 W7; CR 702.153a / 702.166a / 702.110a). Casualty/Bargain
+#     ARE "As an additional cost to cast this spell, you may sacrifice a
+#     <creature/artifact/enchantment/token>", the exact you-sac-cost shape
+#     phase's typed tree carries NO node for at all — Light 'Em Up /
+#     Xander's Pact's Casualty, High Fae Negotiator / Johann's Stopgap's
+#     Bargain. Exploit ("When this creature enters, you may sacrifice a
+#     creature") is the SAME shape — mirrors legacy's
+#     ``_DIRECT_KEYWORD_SIGNALS["exploit"]`` unconditional keyword-array
+#     read; covers the keyword-only tail with no ``exploited`` trigger
+#     reachable (Silumgar Scavenger — its Exploit reminder text sits
+#     entirely inside stripped parens, so no "sacrifice" word survives
+#     ANY oracle-text idiom either; the printed keyword is the ONLY
+#     structured source). Native exploiters that DO carry an ``exploited``
+#     trigger_event already open this key via the first arm in
+#     :func:`_sacrifice_outlets`; this row is additive, never conflicting.
+#     The GRANTED form (Anhelo, the Painter's "the first spell you cast
+#     each turn has casualty 2" — the keyword lives on the GRANT, not this
+#     card's own array) is NOT covered by this row — see the
+#     ``casualty_granted_onto_other_spell`` ledgered bridge instead.
 _SWEEP_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
     (frozenset({"power-up"}), "powerup_matters"),
     (frozenset({"sneak"}), "recast_etb"),
-    (frozenset({"casualty", "bargain"}), "sacrifice_outlets"),
+    (frozenset({"casualty", "bargain", "exploit"}), "sacrifice_outlets"),
 )
 
 

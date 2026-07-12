@@ -45,6 +45,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from mtg_utils._card_ir.crosswalk import iter_typed_nodes, tag_of
+from mtg_utils._card_ir.project import _KEYWORD_COST_SAC, _PITCH_SAC
 
 if TYPE_CHECKING:  # pragma: no cover
     from mtg_utils._card_ir.crosswalk import ConceptTree
@@ -273,6 +274,149 @@ def _keyword_dropped_match(tree: ConceptTree) -> bool:
     return bool(_KEYWORD_DROPPED_RX.search(tree.oracle))
 
 
+# ── sacrifice_outlets residual class (ADR-0039 W7) ────────────────────────
+# Six bridges close the "NO typed Sacrifice node ANYWHERE in the tree"
+# residual bucket (a card-level gap — the crosswalk's own
+# ``iter_typed_nodes`` walk, corpus-verified against the SAME shape legacy's
+# ``project.py._sacrifice_grant_markers`` gates its own regex fallback on:
+# "no structural sacrifice effect anywhere" — so a card with a Sacrifice
+# node ELSEWHERE on the SAME card, even for an unrelated edict clause,
+# correctly stands every one of these bridges down, matching legacy's own
+# gating exactly). CR 701.21a throughout.
+_REMINDER_RX = re.compile(r"\([^)]*\)")
+
+
+def _no_typed_sacrifice_node(tree: ConceptTree) -> bool:
+    """The shared gap for every ``sacrifice_outlets`` bridge below: no
+    ``Sacrifice``-tagged node reachable anywhere in the tree. Self-retiring
+    by construction — the day phase decomposes any of these idioms into a
+    typed Sacrifice cost/effect node, every bridge below stands down on
+    that card without any further edit."""
+    return not any(
+        tag_of(n) == "Sacrifice"
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
+def _sac_kept(tree: ConceptTree) -> str:
+    """Reminder-stripped oracle text — mirrors legacy's OWN paren-strip
+    (``project.py._sacrifice_grant_markers``'s ``re.sub(r"\\([^)]*\\)", ...
+    )``) so a bridge's blast radius matches legacy's byte-for-byte, not an
+    independently-invented pattern."""
+    return _REMINDER_RX.sub(" ", tree.oracle or "")
+
+
+# (1) A free-spell / alternative-cost pitch ("You may sacrifice three
+# artifacts rather than pay this spell's mana cost." — Salvage Titan; CR
+# 118.9). Reuses legacy's OWN ``_PITCH_SAC`` regex verbatim (not a
+# re-derived pattern) so the count-word limitation ("four" isn't in
+# ``_SAC_COUNT``, so Hand of Emrakul's "sacrifice four Eldrazi Spawn"
+# correctly stays UNMATCHED, matching legacy) and the land-type exclusion
+# (``_SAC_TYPE`` never includes "land"/a land subtype, so Fireblast's
+# "sacrifice two Mountains" stays land_sacrifice_makers territory) are
+# legacy-parity BY CONSTRUCTION, not independently re-verified.
+def _sac_pitch_match(tree: ConceptTree) -> bool:
+    return bool(_PITCH_SAC.search(_sac_kept(tree)))
+
+
+# (2) A keyworded-ability cost sacrifice ("Flashback—Sacrifice three
+# creatures." — Dread Return; "Morph—Sacrifice another creature." — Gift of
+# Doom; CR 702.34a / 702.37a / 702.27a). Reuses legacy's ``_KEYWORD_COST_SAC``
+# verbatim — the SAME land-type exclusion applies (Walk the Aeons'
+# "Buyback—Sacrifice three Islands" stays unmatched).
+def _sac_keyword_cost_match(tree: ConceptTree) -> bool:
+    return bool(_KEYWORD_COST_SAC.search(_sac_kept(tree)))
+
+
+# (3) Casualty GRANTED onto ANOTHER spell, not the bearer's OWN printed
+# keyword array ("The first instant or sorcery spell you cast each turn
+# has casualty 2." — Anhelo, the Painter; "Each instant and sorcery spell
+# you cast has casualty 1." — Silverquill, the Disputant; CR 702.153a). The
+# bearer's OWN Casualty is a separate, ALREADY-STRUCTURAL Scryfall-keyword
+# read (:data:`~mtg_utils._deck_forge.crosswalk_signals._SWEEP_KEYWORD_LANES`)
+# — this bridge is scoped to the keyword-LESS granter only (the gap check
+# excludes any card that already carries a Sacrifice node from elsewhere,
+# but a granter with NO own Casualty keyword needs this text anchor
+# regardless).
+_SAC_CASUALTY_GRANT_RX = re.compile(r"\bhas casualty\b", re.IGNORECASE)
+
+
+def _sac_casualty_grant_match(tree: ConceptTree) -> bool:
+    return bool(_SAC_CASUALTY_GRANT_RX.search(_sac_kept(tree)))
+
+
+# (4) Devour (CR 702.82a) parked as a bare ``Unimplemented`` residue on the
+# creature's OWN body ("Devour X, where X is the number of creatures
+# devoured this way" — Thromok the Insatiable) rather than a typed keyword
+# entry (compare Dragon Broodmother's CREATED-TOKEN Devour, which IS
+# reachable as a typed ``MirrorVariant(key='Devour')`` on the token's own
+# ``keywords`` list — a genuine structural read landed this session, no
+# bridge needed there).
+_SAC_DEVOUR_UNIMPL_RX = re.compile(r"^devour\b", re.IGNORECASE)
+
+
+def _sac_devour_unimpl_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented" and _SAC_DEVOUR_UNIMPL_RX.match(
+                getattr(n, "description", "") or ""
+            ):
+                return True
+    return False
+
+
+def _sac_devour_unimpl_match(tree: ConceptTree) -> bool:
+    return _sac_devour_unimpl_gap(tree)
+
+
+# (5) A written-out (non-keyword) self-sac ETB parked as a bare
+# ``Unimplemented`` residue ("As this creature enters, sacrifice any
+# number of creatures. This creature's power becomes the total power of
+# those creatures..." — Dracoplasm; CR 614.12 — a replacement effect that
+# modifies how the permanent enters the battlefield, the same rule Devour
+# itself is templated under; CR 701.21a for the sacrifice action).
+_SAC_ETB_UNIMPL_RX = re.compile(
+    r"as [^.]*enters[^.]*,\s*sacrifice any number of creatures", re.IGNORECASE
+)
+
+
+def _sac_etb_unimpl_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented" and _SAC_ETB_UNIMPL_RX.search(
+                getattr(n, "description", "") or ""
+            ):
+                return True
+    return False
+
+
+def _sac_etb_unimpl_match(tree: ConceptTree) -> bool:
+    return _sac_etb_unimpl_gap(tree)
+
+
+# (6) An emblem's OWN granted activated ability whose COST is a Sacrifice
+# leaf, parked entirely as opaque ``CreateEmblem.statics`` description text
+# ("You get an emblem with '{1}{B}, Sacrifice a creature: You gain X life
+# and draw X cards...'" — Ob Nixilis of the Black Oath; CR 602.1a — a cost
+# is always paid by the activator, so an emblem's OWN granted-cost outlet
+# is "you", mirroring :func:`~mtg_utils._deck_forge.crosswalk_signals.
+# _sac_outlet_granted_cost`'s GrantAbility precedent). Anchored on a comma
+# immediately before the IMPERATIVE "Sacrifice" (a cost position) followed
+# by a colon (the cost/effect separator) — a third-person "sacrifices"
+# EDICT effect inside an emblem (Sorin, Solemn Visitor's "that player
+# sacrifices a creature of their choice") does NOT match: no comma-cost
+# prefix, no colon, and the verb form fails the ``\bSacrifice\b`` word
+# boundary against "sacrifices".
+_SAC_EMBLEM_COST_RX = re.compile(
+    r'emblem with\s*"[^".]*,\s*sacrifice\b[^:."]*:', re.IGNORECASE
+)
+
+
+def _sac_emblem_cost_match(tree: ConceptTree) -> bool:
+    return bool(_SAC_EMBLEM_COST_RX.search(_sac_kept(tree)))
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -403,6 +547,162 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Timeline Culler", "Tenacious Underdog", "Zombie Cutthroat"),
             gap=_keyword_dropped_gap,
             match=_keyword_dropped_match,
+        ),
+        Bridge(
+            bridge_id="sac_alt_cost_pitch",
+            key="sacrifice_outlets",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the Spell "
+                "ability's own `cost` field is None for a CR 118.9 "
+                "alternative-cost pitch ('you may sacrifice ... rather than "
+                "pay this spell's mana cost') — no typed cost node survives "
+                "anywhere for the mana cost OR its alternative. Retires on "
+                "a phase bump that decomposes the alternative-cost clause "
+                "(the grammar sprint's cast-cost-alternative verb, task #82)"
+            ),
+            census=(
+                "9 hits / 31,622 commander-legal, no-typed-Sacrifice-node "
+                "subset scanned via legacy's own _PITCH_SAC regex, phase "
+                "v0.20.0, 2026-07-11 (7 siblings — Crash, Downhill Charge, "
+                "Fireblast, Mine Collapse, Mogg Alarm, Pulverize, "
+                "Thunderclap — are LAND-only 'sacrifice N Mountains' and "
+                "stay land_sacrifice_makers territory, excluded by "
+                "_PITCH_SAC's own _SAC_TYPE vocabulary; Flare of Malice "
+                "and Hand of Emrakul are excluded too — the former already "
+                "carries an edict Sacrifice node elsewhere on the card, the "
+                "latter's 'four' count word isn't in _SAC_COUNT — both "
+                "verified against legacy's own signals, neither fires there"
+            ),
+            pins=("Salvage Titan", "Flare of Fortitude", "Delraich"),
+            gap=_no_typed_sacrifice_node,
+            match=_sac_pitch_match,
+        ),
+        Bridge(
+            bridge_id="sac_keyword_cost",
+            key="sacrifice_outlets",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a "
+                "Flashback/Morph/Escape/Buyback/etc. keyword's OWN "
+                "alternative cost drops entirely when that cost is a "
+                "Sacrifice leaf (CR 702.34/702.37) — no typed node survives "
+                "for the keyword cost at all. Retires on a phase bump that "
+                "decomposes a keyword-ability's alternative cost (the "
+                "grammar sprint's keyword-cost verb, task #82)"
+            ),
+            census=(
+                "3 hits / 31,622 commander-legal, no-typed-Sacrifice-node "
+                "subset scanned via legacy's own _KEYWORD_COST_SAC regex, "
+                "phase v0.20.0, 2026-07-11 (Worthy Cause also matches the "
+                "regex but is already served by the EXISTING cast- "
+                "additional-cost text idiom arm before this bridge is even "
+                "reached; Walk the Aeons' 'Buyback—Sacrifice three Islands' "
+                "is LAND-only, excluded by _SAC_TYPE)"
+            ),
+            pins=("Dread Return", "Cabal Therapy", "Gift of Doom"),
+            gap=_no_typed_sacrifice_node,
+            match=_sac_keyword_cost_match,
+        ),
+        Bridge(
+            bridge_id="sac_casualty_granted_onto_other_spell",
+            key="sacrifice_outlets",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a static "
+                "GrantAbility whose granted text is 'has casualty N' onto "
+                "spells the player casts drops the casualty grant entirely "
+                "— no typed Casualty-cost node survives for the GRANT (the "
+                "bearer's OWN printed Casualty keyword IS structurally "
+                "reachable via the Scryfall keyword array; only the "
+                "granter shape is a dropped clause). Retires on a phase "
+                "bump that decomposes a granted-keyword's own cost (task "
+                "#82)"
+            ),
+            census=(
+                "3 hits / 31,622 commander-legal, no-typed-Sacrifice-node "
+                "subset scanned via a `has casualty` text anchor (matching "
+                "legacy's own _CASUALTY_GRANT regex), phase v0.20.0, "
+                "2026-07-11 (Ashad, the Lone Cyberman also matches but is "
+                "already served by its own 'sacrificed' payoff trigger — "
+                "harmless redundant fire, membership dedupes)"
+            ),
+            pins=("Anhelo, the Painter", "Silverquill, the Disputant"),
+            gap=_no_typed_sacrifice_node,
+            match=_sac_casualty_grant_match,
+        ),
+        Bridge(
+            bridge_id="sac_devour_unimplemented",
+            key="sacrifice_outlets",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): an "
+                "Unimplemented-residue recovery verb for 'Devour N, where "
+                "N is...' text (recovery.py's Unimplemented-recovery-stage "
+                "ALLOWLIST is the likely landing spot, not a NEW bridge) — "
+                "retires when the node decomposes into a typed Devour/"
+                "Sacrifice read the way the created-token Devour case "
+                "already does structurally"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal Unimplemented nodes whose "
+                "description starts with 'Devour', phase v0.20.0, "
+                "2026-07-11 — the ONLY other Devour-keyword instance "
+                "corpus-wide is Dragon Broodmother's CREATED-TOKEN Devour, "
+                "which IS a typed MirrorVariant on the token's keywords "
+                "list (a genuine structural read, not this bridge)"
+            ),
+            pins=("Thromok the Insatiable",),
+            gap=_sac_devour_unimpl_gap,
+            match=_sac_devour_unimpl_match,
+        ),
+        Bridge(
+            bridge_id="sac_etb_self_sac_unimplemented",
+            key="sacrifice_outlets",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): an "
+                "Unimplemented-residue recovery verb for a written-out "
+                "'as this creature enters, sacrifice any number of "
+                "creatures, set P/T from the total' idiom (the Devour-"
+                "keyword idiom's un-keyworded sibling) — retires when the "
+                "node decomposes into a typed Sacrifice cost/effect"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal, no-typed-Sacrifice-node "
+                "subset scanned for the written-out ETB self-sac idiom, "
+                "phase v0.20.0, 2026-07-11"
+            ),
+            pins=("Dracoplasm",),
+            gap=_sac_etb_unimpl_gap,
+            match=_sac_etb_unimpl_match,
+        ),
+        Bridge(
+            bridge_id="sac_emblem_activated_cost",
+            key="sacrifice_outlets",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): "
+                "CreateEmblem's granted-ability text parks entirely as an "
+                "opaque S_statics.description string — no typed activated- "
+                "ability-with-cost structure survives for the emblem's OWN "
+                "granted Sacrifice-cost outlet. Retires on a phase bump "
+                "that decomposes an emblem's granted ability the way a "
+                "GrantAbility's granted ability already is (task #82 / "
+                "phase bump)"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal, no-typed-Sacrifice-node "
+                "subset scanned for a comma-cost-prefixed imperative "
+                "'Sacrifice ...:' inside an emblem's quoted granted text, "
+                "phase v0.20.0, 2026-07-11 (Sorin, Solemn Visitor's emblem "
+                "ALSO grants a sacrifice-shaped ability but it's a "
+                "third-person 'that player sacrifices' EDICT, not a cost — "
+                "the comma+colon cost anchor correctly excludes it)"
+            ),
+            pins=("Ob Nixilis of the Black Oath",),
+            gap=_no_typed_sacrifice_node,
+            match=_sac_emblem_cost_match,
         ),
     )
 }
