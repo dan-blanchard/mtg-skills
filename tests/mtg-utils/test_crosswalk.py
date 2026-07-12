@@ -847,16 +847,18 @@ def test_blink_flicker_maker_signal_is_always_high_confidence():
 
 
 def test_blink_flicker_membership_floor_payoff_is_low_and_not_a_maker():
-    """:func:`_apply_membership_floor`'s "own ETB value" cross-open
-    (``include_membership=True``, the commander-only deck-aggregate path)
-    opens a LOW ``blink_flicker`` on Mulldrifter — a strong-ETB creature with
-    NO exile/return in its text at all (confirmed: the plain ``_idents``
-    call, which never sets ``include_membership``, carries no
+    """:func:`apply_membership_floor`'s "own ETB value" cross-open (the
+    merge-level pass ``signals.extract_signals_hybrid`` runs once per card,
+    over every face together) opens a LOW ``blink_flicker`` on Mulldrifter —
+    a strong-ETB creature with NO exile/return in its text at all (confirmed:
+    the plain ``_idents`` call, which never runs the floor, carries no
     ``blink_flicker`` for it). ``blink_flicker_is_maker`` correctly rejects
     the floor's LOW signal — this is the task #83 'blink' preset payoff
     noise (prec .06 in the raw corpus scan), not a maker."""
-    from mtg_utils._deck_forge.crosswalk_signals import blink_flicker_is_maker
-    from mtg_utils.card_ir import Card
+    from mtg_utils._deck_forge.crosswalk_signals import (
+        apply_membership_floor,
+        blink_flicker_is_maker,
+    )
 
     assert "blink_flicker" not in _keys("Mulldrifter")
     record = {
@@ -868,14 +870,9 @@ def test_blink_flicker_membership_floor_payoff_is_low_and_not_a_maker():
         "cmc": 5,
         "keywords": ["Flying", "Evoke"],
     }
-    sigs = extract_crosswalk_signals(
-        _tree("Mulldrifter"),
-        keywords=_kw("Mulldrifter"),
-        include_membership=True,
-        record=record,
-        ir=Card(oracle_id="x", name="Mulldrifter", faces=()),
-    )
-    floor_sigs = [s for s in sigs if s.key == "blink_flicker"]
+    out = []
+    apply_membership_floor([_tree("Mulldrifter")], record, out, out.append)
+    floor_sigs = [s for s in out if s.key == "blink_flicker"]
     assert floor_sigs, "expected the membership floor's cares-about cross-open"
     assert all(s.confidence == "low" for s in floor_sigs)
     assert not any(blink_flicker_is_maker(s) for s in floor_sigs)

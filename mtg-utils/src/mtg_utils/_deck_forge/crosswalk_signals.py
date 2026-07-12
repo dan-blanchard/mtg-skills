@@ -3966,16 +3966,17 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
     Scope "you", confidence HIGH — this lane is the MAKER half only (see
     :func:`blink_flicker_is_maker`).
 
-    A SECOND, unrelated producer shares this key: :func:`_apply_membership_floor`
-    (``include_membership=True``, the commander-only deck-aggregate path) opens a
-    LOW-confidence "cares about being blinked" cross-open off a card's OWN strong
-    ETB value (Academy Journeymage, Mulldrifter — CR 603.6 "flicker fodder", not a
-    literal exile+return). That is the task #83 preset-scoping "blink_flicker
-    payoff" noise (prec .06 over the raw corpus dump, which ran
-    ``include_membership=True`` uniformly): a 'blink' preset VIEW selecting
-    flicker MAKERS only should either query with ``include_membership=False``
-    (the floor never fires — the default for candidate/archetype scans) or use
-    :func:`blink_flicker_is_maker` to filter the merged signal list.
+    A SECOND, unrelated producer shares this key: :func:`apply_membership_floor`
+    (called once per card by ``signals.extract_signals_hybrid`` when its
+    ``include_membership`` flag is set — the commander-only deck-aggregate path,
+    default True) opens a LOW-confidence "cares about being blinked" cross-open
+    off a card's OWN strong ETB value (Academy Journeymage, Mulldrifter — CR
+    603.6 "flicker fodder", not a literal exile+return). That is the task #83
+    preset-scoping "blink_flicker payoff" noise (prec .06 over the raw corpus
+    dump, which ran ``include_membership=True`` uniformly): a 'blink' preset
+    VIEW selecting flicker MAKERS only should either query with
+    ``include_membership=False`` or use :func:`blink_flicker_is_maker` to
+    filter the merged signal list.
     """
     for unit in tree.units:
         czs = [c for c in unit.effects if c.concept == "change_zone"]
@@ -3993,7 +3994,7 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
 def blink_flicker_is_maker(signal: Signal) -> bool:
     """True when a ``blink_flicker`` :class:`Signal` is the MAKER half (the
     card performs the exile-and-return ITSELF — Flickerwisp, Ephemerate,
-    Soulherder) rather than :func:`_apply_membership_floor`'s "own ETB value"
+    Soulherder) rather than :func:`apply_membership_floor`'s "own ETB value"
     PAYOFF cross-open (Academy Journeymage, Mulldrifter — "worth blinking",
     never a literal blink). :func:`_blink_flicker` always emits HIGH; the
     floor always emits LOW — a task #83 preset view wanting MAKERS ONLY
