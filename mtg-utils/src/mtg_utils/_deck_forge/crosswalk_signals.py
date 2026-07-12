@@ -855,6 +855,13 @@ PORTED_KEYS: frozenset[str] = frozenset(
         # yet; see the bridge's module comment in bridge_ledger.py. CR
         # 201.4 / 201.5.
         "named_synergy",
+        # task #83 (theme-preset structural views, lane-gap fix #5): "cantrip"
+        # — the deleted preset's NO_LANE gap (rec 0.10 vs card_draw_engine,
+        # which deliberately excludes one-shot rider draw). A new, BOUNDED
+        # single-draw-plus-rider lane (:func:`_cantrip`), never emitted
+        # before this batch — corpus-scanned to 433 commander-legal hits
+        # (vs the old preset's unbounded 3174-card substring match).
+        "cantrip",
     }
 )
 
@@ -3956,7 +3963,19 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
     (``ParentTarget`` / ``TrackedSet``). This excludes exile-as-resource with no
     return (Chrome Mox — exile only) and a battlefield put of a DIFFERENT object
     (Path to Exile — the searched land's target is ``Any``, not ``ParentTarget``).
-    Scope "you".
+    Scope "you", confidence HIGH — this lane is the MAKER half only (see
+    :func:`blink_flicker_is_maker`).
+
+    A SECOND, unrelated producer shares this key: :func:`_apply_membership_floor`
+    (``include_membership=True``, the commander-only deck-aggregate path) opens a
+    LOW-confidence "cares about being blinked" cross-open off a card's OWN strong
+    ETB value (Academy Journeymage, Mulldrifter — CR 603.6 "flicker fodder", not a
+    literal exile+return). That is the task #83 preset-scoping "blink_flicker
+    payoff" noise (prec .06 over the raw corpus dump, which ran
+    ``include_membership=True`` uniformly): a 'blink' preset VIEW selecting
+    flicker MAKERS only should either query with ``include_membership=False``
+    (the floor never fires — the default for candidate/archetype scans) or use
+    :func:`blink_flicker_is_maker` to filter the merged signal list.
     """
     for unit in tree.units:
         czs = [c for c in unit.effects if c.concept == "change_zone"]
@@ -3969,6 +3988,19 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
             if tgt in ("ParentTarget", "TrackedSet"):  # the SAME exiled object
                 return [Signal("blink_flicker", "you", "", "", tree.name, "high")]
     return []
+
+
+def blink_flicker_is_maker(signal: Signal) -> bool:
+    """True when a ``blink_flicker`` :class:`Signal` is the MAKER half (the
+    card performs the exile-and-return ITSELF — Flickerwisp, Ephemerate,
+    Soulherder) rather than :func:`_apply_membership_floor`'s "own ETB value"
+    PAYOFF cross-open (Academy Journeymage, Mulldrifter — "worth blinking",
+    never a literal blink). :func:`_blink_flicker` always emits HIGH; the
+    floor always emits LOW — a task #83 preset view wanting MAKERS ONLY
+    (never the "wants to be blinked" membership tell) filters on this. The
+    minimal mechanism: no new tree read, just the existing confidence split
+    this pair of producers already carries."""
+    return signal.key == "blink_flicker" and signal.confidence == "high"
 
 
 def _tokens_matter(tree: ConceptTree) -> list[Signal]:
@@ -12570,8 +12602,8 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
 
 
 def _mass_removal(tree: ConceptTree) -> list[Signal]:
-    """mass_removal — a BOARD WIPE (CR 115.10 / 701.8 / 406.1). Four typed
-    arms, each anchored on phase's first-class ``*All`` mass tag (the
+    """mass_removal — a BOARD WIPE (CR 115.10 / 701.8 / 701.21a / 406.1). Five
+    typed arms, each anchored on phase's first-class mass tag (the
     counter_kind=='all' discriminator of the old IR, carried structurally):
 
     * ``DestroyAll`` over a battlefield permanent type (Wrath of God);
@@ -12581,16 +12613,37 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
     * ``DamageAll`` over a Creature/Permanent subject (Blasphemous Act,
       Pyroclasm);
     * a NEGATIVE symmetric ``PumpAll`` over creatures (Languish's "all
-      creatures get -4/-4") — the typed substrate carries the negative amount
-      (``power: Fixed -4``), so the live ``_MASS_DEBUFF_RAW`` raw arm reads
+      creatures get -4/-4"; Toxic Deluge / Drown in Sorrow's dynamic "-X/-X"
+      — :func:`_negative_pt_field` reads BOTH the FIXED magnitude and the
+      Variable's sign-only string) — the typed substrate carries the
+      negative amount, so the live ``_MASS_DEBUFF_RAW`` raw arm reads
       structurally here (a fidelity gain over the spec's live-only
       expectation). Three sub-gates keep the sweep genuine: the
       controller-less gate mirrors the live raw's "ALL creatures" anchor (a
       one-sided "creatures your opponents control get -1/-1" dip — Cower in
-      Fear — is debuff_makers); the NEGATIVE-TOUGHNESS gate is the lethality
-      tell (CR 704.5f — a "-2/-0" combat dip like Hydrolash never kills); and
-      the attachment-predicate veto drops the single-Aura "+1/-1" shifter
-      (Flowstone Blade's enchanted creature — one target, not a board).
+      Fear, and the STATIC opponent-scoped Massacre Wurm/Elesh Norn shape —
+      is debuff_makers, an adjudicated boundary predating this arm, not a
+      gap: CR draws no "board wipe" line, but the deck-building distinction
+      between a SYMMETRIC sweep and a one-sided punisher is real and this is
+      where it lives); the NEGATIVE-TOUGHNESS gate is the lethality tell (CR
+      704.5f — a "-2/-0" combat dip like Hydrolash never kills); and the
+      attachment-predicate veto drops the single-Aura "+1/-1" shifter
+      (Flowstone Blade's enchanted creature — one target, not a board);
+    * ``ChooseAndSacrificeRest`` (Tragic Arrogance, Cataclysm, Cataclysmic
+      Gearhulk, Slaughter the Strong, Liliana Dreadhorde General's -6, Ajani
+      Nacatl Avenger, Mythos of Snapdax, Destined Confrontation) — "each
+      player sacrifices all OTHER nonland permanents [they don't keep]".
+      Corpus-exhaustive (8 commander-legal cards carry this tag; every one is
+      a genuine symmetric sweep). SACRIFICE (CR 701.21a) is a distinct
+      zone-change verb from DESTROY (CR 701.8) — the permanent moves to the
+      graveyard by its controller's own action, not the effect's — but the
+      RESULT (the board is swept) is the same "clears the battlefield" shape
+      as the other three arms, so it belongs in this lane, not a new one.
+      The tag's own ``sacrifice_filter`` core-types gate (never ``Land`` —
+      matches the type gate below) is the only guard needed: unlike the
+      DestroyAll/ChangeZoneAll arms there is no ``ctrl == "You"``-only shape
+      to veto (the tag is inherently "each player", never a single-player
+      grab).
 
     The type gate (:data:`_MASS_REMOVAL_TYPES`) keeps "destroy all LANDS"
     (Armageddon) in land_destruction; a controller-You mass exile (Day of the
@@ -12622,10 +12675,9 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
                     return hit
             if t == "DamageAll" and cores & {"Creature", "Permanent"}:
                 return hit
-            toughness = _fixed_pt(c.node, "toughness") if t == "PumpAll" else None
             if (
-                toughness is not None
-                and toughness < 0
+                t == "PumpAll"
+                and _negative_pt_field(c.node, "toughness")
                 and "Creature" in cores
                 and ctrl is None
                 and not combat_scope
@@ -12633,19 +12685,32 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
                 and not (set(filter_predicates(sub)) & _DEBUFF_SINGLE_AURA_PREDS)
             ):
                 return hit
+            if t == "ChooseAndSacrificeRest":
+                sac = getattr(c.node, "sacrifice_filter", None)
+                if set(filter_core_types(sac)) & _MASS_REMOVAL_TYPES:
+                    return hit
     return []
 
 
-def _fixed_pt(node: TypedMirrorNode, field: str) -> int | None:
-    """The fixed P/T component of a Pump-style node (``toughness: Fixed N``),
-    ``None`` when absent/dynamic. The mass-debuff arm gates on a NEGATIVE
-    toughness — the lethality tell (CR 704.5f: a creature with toughness 0 or
-    less dies; a "-2/-0" power dip never kills)."""
+def _negative_pt_field(node: TypedMirrorNode, field: str) -> bool:
+    """Whether a Pump-style node's P/T ``field`` (``toughness``) is NEGATIVE —
+    the mass-debuff arm's lethality tell (CR 704.5f: a creature with
+    toughness 0 or less dies; a "-2/-0" power dip never kills). Reads BOTH
+    shapes phase emits for a shrink: ``Fixed N`` (Languish's "-4/-4", Drown
+    in Sorrow's "-2/-2" — the literal magnitude) and ``Variable "-X"``
+    (Toxic Deluge's "-X/-X" — the magnitude is unknown at parse time, but
+    the Variable's own string carries the sign). A ``Quantity``-tagged
+    dynamic (rare, no corpus mass-debuff representative) reads as not-negative
+    rather than guessing."""
     p = getattr(node, field, None)
-    if tag_of(p) == "Fixed":
+    tag = tag_of(p)
+    if tag == "Fixed":
         v = getattr(p, "value", None)
-        return v if isinstance(v, int) else None
-    return None
+        return isinstance(v, int) and v < 0
+    if tag == "Variable":
+        v = getattr(p, "value", None)
+        return isinstance(v, str) and v.strip().startswith("-")
+    return False
 
 
 def _mass_bounce(tree: ConceptTree) -> list[Signal]:
@@ -15101,6 +15166,62 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
     # repeat class is served by the ``recovered_by == "ellipsis_repeat"``
     # arm in the surface loop above (``clause_grammar``'s new
     # ``ellipsis_repeat`` verb + ``recovery.ALLOWLIST``).
+    return []
+
+
+def _cantrip(tree: ConceptTree) -> list[Signal]:
+    """cantrip — a low-opportunity-cost spell that draws exactly ONE card as a
+    RIDER on another primary effect (CR 121.1): Preordain ("Scry 2, then draw
+    a card"), Opt, Consider, Chandra's Defeat's kicker-draw. Distinct from
+    ``card_draw_engine`` (2+ / recurring draw) — a bare single-draw spell with
+    NO sibling effect (Divination-shaped) is not a cantrip, it IS the spell's
+    whole point, so it is deliberately excluded here too.
+
+    Gated to Instant/Sorcery — the traditional MTG-community "cantrip" usage.
+    A permanent's repeatable ETB/attack-trigger single draw (Mulldrifter,
+    Bloodsoaked Champion) is a VALUE creature, a different archetype, not
+    this lane (and IS the ``blink_flicker`` membership-floor "worth
+    blinking" shape documented at :func:`_blink_flicker` — the same
+    "own-ETB-value" tell, a different key). Four structural requirements on
+    the owning ability unit:
+
+    * a ``Draw`` whose ``count`` is a FIXED 1, never scaling ("draw a card
+      for each ..." is card_draw_engine's scaling arm, not incidental);
+    * at least one OTHER effect concept in the SAME unit (the rider — a bare
+      Divination has none);
+    * the draw's own recipient is not ``Opponent`` (Bargain's "target
+      opponent draws a card. You gain 7 life." is a gift, not your cantrip);
+    * the unit is neither a ``Phase`` trigger (Phyrexian Arena) nor a Draw
+      REPLACEMENT (Alhammarret's Archive) — card_draw_engine's territory,
+      never a one-shot rider.
+
+    Corpus-scanned (433 commander-legal hits off a 3279-card "draws a card"
+    superset — Preordain / Opt / Serum Visions / Portent / Consider / Blink
+    of an Eye / Arcane Denial all recovered, Lightning Bolt / Sign in Blood
+    correctly excluded): a BOUNDED read, not the deleted ``cantrip``
+    preset's raw ``draws? (?:a|an additional) card`` substring (3174 hits,
+    which counts every payoff mention, reflexive trigger, and creature ETB).
+    Scope "you"."""
+    if not (tree.is_type("Instant") or tree.is_type("Sorcery")):
+        return []
+    for unit in tree.units:
+        if unit.trigger_event == "phase" or unit.origin == "replacement":
+            continue
+        others = [
+            c
+            for c in unit.iter_concepts()
+            if c.role == "effect" and c.concept != "draw"
+        ]
+        if not others:
+            continue
+        for c in unit.effect_concepts("draw"):
+            if amount_factor(c.node, "count") != 1:
+                continue
+            if amount_is_scaling(c.node, "count"):
+                continue
+            if filter_controller(effect_filter(c.node)) == "Opponent":
+                continue
+            return [Signal("cantrip", "you", "", c.raw, tree.name, "high")]
     return []
 
 
@@ -23501,6 +23622,7 @@ _LANES = (
     _group_hug_draw,
     _target_player_draws,
     _activated_draw,
+    _cantrip,
     _topdeck_selection,
     _topdeck_stack,
     _combat_buff_engine,

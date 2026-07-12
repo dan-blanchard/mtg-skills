@@ -830,6 +830,57 @@ def test_blink_flicker_sibling_return(name, should_fire):
     assert (("blink_flicker", "you", "") in _idents(name)) is should_fire
 
 
+def test_blink_flicker_maker_signal_is_always_high_confidence():
+    """The MAKER lane (:func:`_blink_flicker`) only ever emits HIGH — the
+    task #83 blink preset view's discriminator (:func:`blink_flicker_is_maker`)
+    depends on this."""
+    from mtg_utils._deck_forge.crosswalk_signals import blink_flicker_is_maker
+
+    sigs = [
+        s
+        for s in extract_crosswalk_signals(_tree("Flickerwisp"))
+        if s.key == "blink_flicker"
+    ]
+    assert sigs
+    assert all(s.confidence == "high" for s in sigs)
+    assert all(blink_flicker_is_maker(s) for s in sigs)
+
+
+def test_blink_flicker_membership_floor_payoff_is_low_and_not_a_maker():
+    """:func:`_apply_membership_floor`'s "own ETB value" cross-open
+    (``include_membership=True``, the commander-only deck-aggregate path)
+    opens a LOW ``blink_flicker`` on Mulldrifter — a strong-ETB creature with
+    NO exile/return in its text at all (confirmed: the plain ``_idents``
+    call, which never sets ``include_membership``, carries no
+    ``blink_flicker`` for it). ``blink_flicker_is_maker`` correctly rejects
+    the floor's LOW signal — this is the task #83 'blink' preset payoff
+    noise (prec .06 in the raw corpus scan), not a maker."""
+    from mtg_utils._deck_forge.crosswalk_signals import blink_flicker_is_maker
+    from mtg_utils.card_ir import Card
+
+    assert "blink_flicker" not in _keys("Mulldrifter")
+    record = {
+        "name": "Mulldrifter",
+        "oracle_text": (
+            "Flying\nWhen Mulldrifter enters the battlefield, draw two cards.\n"
+            "Evoke {2}{U}"
+        ),
+        "cmc": 5,
+        "keywords": ["Flying", "Evoke"],
+    }
+    sigs = extract_crosswalk_signals(
+        _tree("Mulldrifter"),
+        keywords=_kw("Mulldrifter"),
+        include_membership=True,
+        record=record,
+        ir=Card(oracle_id="x", name="Mulldrifter", faces=()),
+    )
+    floor_sigs = [s for s in sigs if s.key == "blink_flicker"]
+    assert floor_sigs, "expected the membership floor's cares-about cross-open"
+    assert all(s.confidence == "low" for s in floor_sigs)
+    assert not any(blink_flicker_is_maker(s) for s in floor_sigs)
+
+
 @pytest.mark.parametrize(
     ("name", "should_fire"),
     [
@@ -6598,12 +6649,54 @@ def test_discard_outlet_recovered_symmetric_wheel_included():
         ("Living Death", False),  # graveyard-zone mass exile → GY recursion
         ("Knight of Valor", False),  # flanking template — one combat's blocker
         ("Baneblade Scoundrel", False),  # becomes-blocked -1/-1 — not a board
+        ("Toxic Deluge", True),  # dynamic PumpAll -X/-X (Variable, not Fixed)
+        ("Tragic Arrogance", True),  # ChooseAndSacrificeRest, Non:Land filter
+        ("Cataclysm", True),  # ChooseAndSacrificeRest, bare Permanent filter
+        ("Massacre Wurm", False),  # opponent-scoped static -2/-2 → debuff_makers
     ],
 )
 def test_mass_removal_arms_and_gates(name, should_fire):
-    """mass_removal fires the four typed wipe arms and excludes the land-only
+    """mass_removal fires the five typed wipe arms and excludes the land-only
     sweep and the graveyard mass-exile (CR 115.10 / 406, checklist #2)."""
     assert (("mass_removal", "you", "") in _idents(name)) is should_fire
+
+
+def test_mass_removal_dynamic_debuff_reads_variable_sign():
+    """Toxic Deluge's ``-X/-X`` is a phase ``Variable`` toughness node (the
+    magnitude is unknown at parse time), not a ``Fixed`` one — the mass-debuff
+    arm's :func:`_negative_pt_field` reads the Variable string's sign, not
+    just a Fixed int (CR 704.5f: toughness 0 or less dies regardless of
+    whether the shrink is a literal number or an X)."""
+    from mtg_utils._card_ir.crosswalk import tag_of
+
+    tree = _tree("Toxic Deluge")
+    pump = next(c for c in tree.effect_concepts("pump"))
+    assert tag_of(getattr(pump.node, "toughness", None)) == "Variable"
+    assert ("mass_removal", "you", "") in _idents("Toxic Deluge")
+
+
+def test_mass_removal_choose_and_sacrifice_rest_is_sacrifice_not_destroy():
+    """Tragic Arrogance / Cataclysm's ``ChooseAndSacrificeRest`` is a
+    SACRIFICE (CR 701.21a — the permanent's OWN controller moves it to the
+    graveyard), a distinct verb from DESTROY (CR 701.8), but the same
+    "clears the battlefield" shape as the other three mass_removal arms —
+    corpus-exhaustive (8 commander-legal cards carry the tag; every one is a
+    genuine symmetric sweep, never a single-player grab)."""
+    assert ("mass_removal", "you", "") in _idents("Tragic Arrogance")
+    assert ("mass_removal", "you", "") in _idents("Cataclysm")
+
+
+def test_mass_removal_massacre_wurm_stays_debuff_makers():
+    """Massacre Wurm's -2/-2 is scoped to OPPONENTS' creatures only
+    (``controller="Opponent"`` on the PumpAll filter) — the SAME one-sided
+    shape as Cower in Fear (named in the lane's own docstring), which the
+    mass-debuff arm's controller-less gate excludes by design: a one-sided
+    punisher is debuff_makers, not a symmetric board wipe. This predates
+    the batch-8 combat-scope vetoes (a639113, which fixed a DIFFERENT class
+    — one-combat flanking-style tricks phase mis-flattens to a bare sweep)
+    and is not a lane gap."""
+    assert "mass_removal" not in _keys("Massacre Wurm")
+    assert ("debuff_makers", "any", "") in _idents("Massacre Wurm")
 
 
 def test_mass_removal_combat_debuff_vetoes():
@@ -7374,6 +7467,30 @@ def test_activated_draw_tap_gate():
     Tap leaf) stays out."""
     assert ("activated_draw", "you", "") in _idents("Sensei's Divining Top")
     assert "activated_draw" not in _keys("Archfiend of Ifnir")
+
+
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Preordain", True),  # scry 2, then draw a card — the paradigm case
+        ("Opt", True),  # scry 1, draw a card
+        ("Divination", False),  # bare draw-2, no rider — card_draw_engine's
+        ("Lightning Bolt", False),  # no draw at all
+        ("Sign in Blood", False),  # bare draw-2 + life loss cost, no rider
+        ("Bargain", False),  # "target OPPONENT draws a card" — a gift
+        ("Ancestral Vision", False),  # suspend draw, no rider, not instant/sorcery-cast
+        ("Mulldrifter", False),  # a creature ETB, not Instant/Sorcery
+    ],
+)
+def test_cantrip_bounded_rider_draw(name, should_fire):
+    """cantrip fires a low-opportunity-cost Instant/Sorcery whose Draw is a
+    FIXED single card riding another effect (CR 121.1), and excludes: a bare
+    single-draw spell with no rider (Divination's whole point IS the draw,
+    Sign in Blood's rider is a COST not an effect); a directed gift whose
+    recipient is Opponent (Bargain); and any non-Instant/Sorcery permanent
+    (Ancestral Vision's suspend-cast draw and Mulldrifter's creature ETB are
+    a different archetype, task #83 lane-gap fix #5)."""
+    assert (("cantrip", "you", "") in _idents(name)) is should_fire
 
 
 @pytest.mark.parametrize("name", ["Preordain", "Sensei's Divining Top"])

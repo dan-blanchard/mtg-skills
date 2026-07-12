@@ -3765,6 +3765,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"each player draws|whenever .* draws a card"},
         r"each player[^.]*draws?|that player draws|whenever a player draws",
     ),
+    # task #83 (theme-preset structural views): cantrip — a bounded single-draw
+    # rider (Preordain/Opt-shaped), the crosswalk_signals._cantrip lane's key. A
+    # cantrip deck wants more of the same (low-opportunity-cost card selection)
+    # plus spellslinger payoffs (prowess/magecraft) that reward casting a dense
+    # instant/sorcery base.
+    ("cantrip", "you"): _spec(
+        "Cantrips",
+        "more low-opportunity-cost card selection and spellslinger payoffs",
+        {"oracle": r"draws? (?:a|an additional) card"},
+        r"draws? (?:a|an additional) card",
+        serve_types=("Instant", "Sorcery"),
+    ),
     # Serve the damage DOUBLERS the blurb already promises — replacement effects (CR
     # 701.10g) worded "deals double/twice that much damage" / "deals that much damage
     # plus" / "if a source … would deal damage … instead" (Furnace of Rath, Gratuitous
