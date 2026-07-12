@@ -741,22 +741,12 @@ def _captain_rex_nebula_match(tree: ConceptTree) -> bool:
     return bool(_CAPTAIN_REX_NEBULA_RX.search(tree.oracle or ""))
 
 
-# (10) Maestros Diabolist / Pugnacious Pugilist's "create a tapped and
-# attacking 1/1 red Devil creature token with 'When this token dies, it
-# deals 1 damage to any target.'" — the WHOLE clause is one
-# ``Unimplemented(name='create', ...)`` residue whose DOMINANT verb token is
-# "create," so the make_token recovery ALLOWLIST never descends into the
-# quoted granted-ability text to find the nested damage clause (contrast
-# Dance with Devils's simpler, un-triggered phrasing, which IS structured).
-_DEVIL_TOKEN_QUOTED_GRANT_RX = re.compile(
-    r"create a tapped and attacking 1/1 red devil creature token with "
-    r'"when [^"]*dies, it deals \d+ damage to any target',
-    re.IGNORECASE,
-)
-
-
-def _devil_token_quoted_grant_match(tree: ConceptTree) -> bool:
-    return bool(_DEVIL_TOKEN_QUOTED_GRANT_RX.search(tree.oracle or ""))
+# (10) [RETIRED — ADR-0039 task #82 grammar sprint] Maestros Diabolist /
+# Pugnacious Pugilist's quoted-grant damage clause graduated onto a typed
+# ``tree_synthesis`` marker node
+# (``devil_token_quoted_grant_dominant_verb_create`` arm); see
+# ``crosswalk_signals._direct_damage``'s docstring. git history carries the
+# retired row's full text.
 
 
 # (11) Ellie, Vengeful Hunter's "Pay 2 life, Sacrifice another creature: ~
@@ -775,21 +765,16 @@ def _ellie_vengeful_hunter_match(tree: ConceptTree) -> bool:
     return bool(_ELLIE_VENGEFUL_HUNTER_RX.search(tree.oracle or ""))
 
 
-# (12) Keranos, God of Storms's three-sentence reveal-and-punish ability
-# fails OUR effect-sentence parser wholesale: "Effect sentence candidate but
-# line failed effect parser: Reveal the first card you draw ... Keranos
-# deals 3 damage to any target." — an ``Unimplemented(name='effect_
-# structure')`` diagnostic residue (our own clause grammar's frontier, not
-# phase's — task #82 names the eventual multi-trigger-sentence verb).
-_KERANOS_RX = re.compile(
-    r"whenever you reveal a nonland card this way, [^.]*deals \d+ "
-    r"damage to any target",
-    re.IGNORECASE,
-)
-
-
-def _keranos_match(tree: ConceptTree) -> bool:
-    return bool(_KERANOS_RX.search(tree.oracle or ""))
+# (12) [RETIRED — ADR-0039 task #82 grammar sprint] Keranos, God of
+# Storms's ``effect_structure`` upstream parse-failure residue graduated
+# onto a typed ``tree_synthesis`` marker node
+# (``keranos_effect_structure_parse_failure`` arm); see
+# ``crosswalk_signals._direct_damage``'s docstring. Grolnok / Mairsil share
+# the SAME ``effect_structure`` diagnostic name for their OWN unrelated
+# idioms (a different signal key) and stay open bridge rows below — a
+# general multi-trigger-sentence parser for that diagnostic class is their
+# named upstream retirement path. git history carries the retired row's
+# full text.
 
 
 # (13) Kaboom!'s "For each of them, reveal cards ... until you reveal a
@@ -2444,33 +2429,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_captain_rex_nebula_match,
         ),
         Bridge(
-            bridge_id="devil_token_quoted_grant_dominant_verb_create",
-            key="direct_damage",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): an Unimplemented-"
-                "residue recovery verb for a token-creation clause whose "
-                "quoted granted-ability text carries a NESTED damage clause "
-                "(create a tapped and attacking 1/1 red Devil creature "
-                "token whose quoted death trigger deals 1 damage to any "
-                "target) — the whole clause's dominant verb token is "
-                "create, so the make_token recovery ALLOWLIST never "
-                "descends into the quoted text. Retires when the node "
-                "decomposes into a typed CreateToken + nested granted-"
-                "ability DealDamage read (Dance with Devils's simpler, "
-                "un-triggered phrasing already works structurally)"
-            ),
-            census=(
-                "2 hits / 31,622 commander-legal, no-player-reaching-"
-                "damage-node subset scanned for the exact Devil-token "
-                "quoted-grant idiom (Maestros Diabolist, Pugnacious "
-                "Pugilist), phase v0.20.0, 2026-07-11"
-            ),
-            pins=("Maestros Diabolist", "Pugnacious Pugilist"),
-            gap=_no_player_reaching_damage_node,
-            match=_devil_token_quoted_grant_match,
-        ),
-        Bridge(
             bridge_id="ellie_vengeful_hunter_damage_half_dropped",
             key="direct_damage",
             kind="dropped_clause",
@@ -2492,28 +2450,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Ellie, Vengeful Hunter",),
             gap=_no_player_reaching_damage_node,
             match=_ellie_vengeful_hunter_match,
-        ),
-        Bridge(
-            bridge_id="keranos_effect_structure_parse_failure",
-            key="direct_damage",
-            kind="upstream_parse_failure",
-            todo=(
-                "post-deletion grammar sprint (task #82): Keranos, God of "
-                "Storms's three-sentence reveal-and-punish ability fails "
-                "OUR OWN effect-sentence parser wholesale — an "
-                "Unimplemented(name='effect_structure', description="
-                "'Effect sentence candidate but line failed effect parser: "
-                "...') diagnostic residue (our own clause grammar's "
-                "frontier, not phase's). Retires when the multi-trigger-"
-                "sentence verb this diagnostic names gets built"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal (Keranos, God of Storms, a "
-                "singleton idiom), phase v0.20.0, 2026-07-11"
-            ),
-            pins=("Keranos, God of Storms",),
-            gap=_no_player_reaching_damage_node,
-            match=_keranos_match,
         ),
         Bridge(
             bridge_id="kaboom_trailing_clause_drop",

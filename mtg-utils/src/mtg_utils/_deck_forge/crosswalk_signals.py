@@ -3066,20 +3066,36 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     recipient-blind ``{T}:...deals damage`` alternative even though the
     card's real text has no player-reaching clause at all (an empty-``raw``
     legacy signal — see :func:`test_direct_damage_excludes_tap_ability_
-    creature_only_shed`). Fourteen ledgered bridges (``bridge_ledger.py``,
-    all sharing :func:`~mtg_utils._deck_forge.bridge_ledger.
-    _no_player_reaching_damage_node`) close the rest — a compound "creature
-    + that creature's controller" dropped-clause template (Judgment Bolt /
-    Liquid Fire / Synchronized Spellcraft), nine further singleton dropped-
-    clause/upstream-parse-failure shapes (Vexing Arcanix, Curse of Shaken
-    Faith, Flames of the Blood Hand, Valakut Exploration, Avatar Aang, Insult
-    // Injury, Karn Living Legacy, Captain Rex Nebula, Ellie Vengeful Hunter,
-    Keranos), a Devil-token quoted-grant pair (Maestros Diabolist / Pugnacious
-    Pugilist), and a kicker-mode ParentTarget-reuse pair (Goblin Barrage /
-    Unstable Footing). See each bridge row for its own corpus census; every
-    remaining shed class stays pinned from W4/W6 (creature/battle-only,
-    bare-self-damage, damage doubler/matters/prevention). CR 120.1 / 102.1 /
-    303.4c / 702.33d verified this session.
+    creature_only_shed`). Twelve REMAINING ledgered bridges
+    (``bridge_ledger.py``, all sharing :func:`~mtg_utils._deck_forge.
+    bridge_ledger._no_player_reaching_damage_node`) close most of the rest
+    — a compound "creature + that creature's controller" dropped-clause
+    template (Judgment Bolt / Liquid Fire / Synchronized Spellcraft), nine
+    further singleton dropped-clause/upstream-parse-failure shapes (Vexing
+    Arcanix, Curse of Shaken Faith, Flames of the Blood Hand, Valakut
+    Exploration, Avatar Aang, Insult // Injury, Karn Living Legacy, Captain
+    Rex Nebula, Ellie Vengeful Hunter), and a kicker-mode ParentTarget-reuse
+    pair (Goblin Barrage / Unstable Footing). See each bridge row for its
+    own corpus census; every remaining shed class stays pinned from W4/W6
+    (creature/battle-only, bare-self-damage, damage doubler/matters/
+    prevention). CR 120.1 / 102.1 / 303.4c / 702.33d verified this session.
+
+    ADR-0039 task #82 grammar sprint — two more graduated OFF the ledger. A
+    Devil-token quoted-grant pair (Maestros Diabolist / Pugnacious
+    Pugilist's death-trigger damage clause nested inside a single ``create``
+    residue) and Keranos, God of Storms's ``effect_structure`` upstream
+    parse-failure residue now synthesize a typed ``synth_direct_damage_
+    dropped_grant`` marker node (``tree_synthesis``'s
+    ``devil_token_quoted_grant_dominant_verb_create`` /
+    ``keranos_effect_structure_parse_failure`` arms — the regex runs ONCE
+    at synthesis, gated on the SAME no-player-reaching-damage-node absence
+    proof the ledgered bridges shared), and the lane reads it structurally
+    below — no ``bridge_ledger`` involvement, no per-idiom lane special-
+    casing. Grolnok / Mairsil share the SAME ``effect_structure`` diagnostic
+    for their OWN unrelated multi-clause idioms (a different signal key
+    entirely) and stay open bridge_ledger rows — a general multi-trigger-
+    sentence parser for that diagnostic class stays their named upstream
+    retirement path.
     """
     for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
@@ -3092,6 +3108,18 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
             if effect_reaches_player(c.node, unit.node):
                 return [Signal("direct_damage", "you", "", c.raw, tree.name, "high")]
         if has_nested_damage_reaching_player(unit.node):
+            return [Signal("direct_damage", "you", "", "", tree.name, "high")]
+    # ADR-0039 task #82 grammar sprint — two dropped-grant / upstream-parse-
+    # failure idioms now synthesize a typed ``synth_direct_damage_dropped_
+    # grant`` marker node the lane reads structurally below (``tree_
+    # synthesis``'s ``devil_token_quoted_grant_dominant_verb_create`` /
+    # ``keranos_effect_structure_parse_failure`` arms — the regex runs ONCE
+    # at synthesis, gated on the SAME no-player-reaching-damage-node
+    # absence proof the ledgered bridges shared) — graduated OFF the
+    # ledgered-bridge mechanism (formerly two bridge_ledger rows; see the
+    # module's own git history for the retired text).
+    for c in tree.iter_concepts():
+        if c.concept == "synth_direct_damage_dropped_grant":
             return [Signal("direct_damage", "you", "", "", tree.name, "high")]
     # ADR-0039 W7 ledgered bridges — the residual dropped-clause / upstream-
     # parse-failure bucket (bridge_ledger.py rows, docstring there for the
@@ -3106,9 +3134,7 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
         "insult_injury_aftermath_face_unparsed",
         "karn_living_legacy_emblem_tap_cost_damage",
         "captain_rex_nebula_crash_land_final_step_drop",
-        "devil_token_quoted_grant_dominant_verb_create",
         "ellie_vengeful_hunter_damage_half_dropped",
-        "keranos_effect_structure_parse_failure",
         "kaboom_trailing_clause_drop",
         "kicker_ptplayer_modal_new_target",
     ):

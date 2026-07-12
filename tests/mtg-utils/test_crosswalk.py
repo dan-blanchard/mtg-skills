@@ -15128,14 +15128,17 @@ def test_direct_damage_bridge_captain_rex_nebula_crash_land_final_step_drop():
     "name",
     ["Maestros Diabolist", "Pugnacious Pugilist"],
 )
-def test_direct_damage_bridge_devil_token_quoted_grant(name):
-    """BRIDGE ``devil_token_quoted_grant_dominant_verb_create``: "create a
-    tapped and attacking 1/1 red Devil creature token with 'When this
+def test_direct_damage_devil_token_quoted_grant_structural(name):
+    """ADR-0039 task #82 grammar sprint (graduated off the ledger): "create
+    a tapped and attacking 1/1 red Devil creature token with 'When this
     token dies, it deals 1 damage to any target.'" is ONE ``Unimplemented
     (name='create', ...)`` residue whose dominant verb token is "create,"
     so the make_token recovery ALLOWLIST never descends into the quoted
     granted-ability text (contrast Dance with Devils's simpler,
-    un-triggered phrasing, which IS structured). CR 120.1."""
+    un-triggered phrasing, which IS structured). ``tree_synthesis``'s
+    ``devil_token_quoted_grant_dominant_verb_create`` arm now synthesizes a
+    typed ``synth_direct_damage_dropped_grant`` marker node for the nested
+    damage clause, which ``_direct_damage`` reads structurally (CR 120.1)."""
     assert ("direct_damage", "you", "") in _idents(name)
 
 
@@ -15149,12 +15152,17 @@ def test_direct_damage_bridge_ellie_vengeful_hunter_damage_half_dropped():
     assert ("direct_damage", "you", "") in _idents("Ellie, Vengeful Hunter")
 
 
-def test_direct_damage_bridge_keranos_effect_structure_parse_failure():
-    """BRIDGE ``keranos_effect_structure_parse_failure``: Keranos, God of
-    Storms's three-sentence reveal-and-punish ability fails OUR OWN
-    effect-sentence parser wholesale — an ``Unimplemented(name=
-    'effect_structure', ...)`` diagnostic residue (our own clause
-    grammar's frontier, not phase's; CR 120.1)."""
+def test_direct_damage_keranos_effect_structure_structural():
+    """ADR-0039 task #82 grammar sprint (graduated off the ledger):
+    Keranos, God of Storms's three-sentence reveal-and-punish ability
+    fails phase's OWN effect-sentence parser wholesale — an
+    ``Unimplemented(name='effect_structure', ...)`` diagnostic residue (a
+    genuine upstream parse failure; Grolnok / Mairsil share the same
+    diagnostic name for unrelated idioms and stay open bridge rows).
+    ``tree_synthesis``'s ``keranos_effect_structure_parse_failure`` arm now
+    synthesizes a typed ``synth_direct_damage_dropped_grant`` marker node
+    for the bounded damage-clause tail, which ``_direct_damage`` reads
+    structurally (CR 120.1)."""
     assert ("direct_damage", "you", "") in _idents("Keranos, God of Storms")
 
 
