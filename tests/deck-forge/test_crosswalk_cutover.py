@@ -466,9 +466,29 @@ def test_hybrid_three_way_key_partition():
     base_power_matters, big_mana, cheat_from_top, copy_limit, damage_redirect,
     excess_damage, extra_draw_step, free_cast, ki_counter_matters,
     kicked_spell_matters, land_destruction, named_synergy — off the residual set
-    and into PORTED. No permanent KEPT lane remains."""
+    and into PORTED. No permanent KEPT lane remains.
+
+    ADR-0039 W8 FINISHER (2026-07-12): ``creatures_matter`` was the LAST
+    Stage-4 residual key (a per-card node-path classifier fully adjudicated
+    its 53-card true-gap tail — Formidable's typed condition tag, two tiny
+    typed container-descent reads, eight ledgered bridges, and a fully
+    corpus-verified shed set — see ``_creatures_matter``'s own docstring).
+    ``residual`` is now legitimately EMPTY — the terminal state of the
+    residual grind, not a bug: ``_crosswalk_merge`` (signals.py) already
+    degrades gracefully when ``residual`` is empty (``served = PORTED_KEYS
+    | residual`` collapses to ``PORTED_KEYS``; the ``if sig.key in
+    residual`` re-supply loop simply adds nothing). Deleting the legacy IR
+    path itself (task #80/#82) is a SEPARATE, later step this test does not
+    gate — it only pins the key-partition INVARIANT, which holds for an
+    empty residual set exactly as it does for a non-empty one."""
     residual = MIGRATED_KEYS - PORTED_KEYS
-    assert residual, "the residual set must be non-empty (do not delete the IR path)"
+    assert residual == frozenset(), (
+        "creatures_matter (ADR-0039 W8 finisher) was the last residual key — "
+        "the residual set is now correctly EMPTY, the terminal state of the "
+        "residual grind. If this assertion fails on a NON-empty residual, a "
+        "key regressed out of PORTED_KEYS; investigate before 'fixing' this "
+        "test back to non-empty."
+    )
     kept_twelve = {
         "base_power_matters",
         "big_mana",

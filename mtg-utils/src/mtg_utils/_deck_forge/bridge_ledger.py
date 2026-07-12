@@ -51,6 +51,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inzone_zones,
     filter_subtypes,
+    iter_static_defs,
     iter_typed_nodes,
     recipient_tag,
     static_mode_field,
@@ -2233,6 +2234,213 @@ def _named_synergy_match(tree: ConceptTree) -> bool:
     return bool(_NAMED_SYNERGY_RE.search(_named_synergy_kept(tree)))
 
 
+# ── creatures_matter residual class (ADR-0039 W8 finisher) ──────────────────
+# Seven bridges close the last of the key's 53-card true-gap tail (the
+# TOKEN_MAKER_CROSS_OPEN / SYMMETRIC / BLOCKING_OR_ATTACKING / SUBTYPE_
+# TRIBAL_YOU / DEVOUR / TRIBAL_SHARESQUALITY / OPPONENT_SCOPE / NAMED_SELF
+# classes plus a cost-reduction (CR 601.2f) / self-CDA (CR 604.3/613.4a) /
+# graveyard-zone (CR 400.2) / chosen-type-population (CR 205.3) shed set
+# stay adjudicated NOT ported — see :func:`~mtg_utils._deck_forge.
+# crosswalk_signals._creatures_matter`'s own docstring for the full
+# accounting). A Formidable activation-restriction arm (CR 602.5/207.2c)
+# landed structurally this session (:func:`~mtg_utils._deck_forge.
+# crosswalk_signals._creatures_matter_formidable_condition` — a bespoke
+# typed condition tag, not a bridge) alongside two tiny structural
+# container-descent reads (a FlipCoin win-branch count operand and a
+# reanimation target filter's nested ``Cmc``-property count operand,
+# both :mod:`crosswalk_signals` too) — genuinely typed data the crosswalk
+# simply wasn't reading yet, not a phase gap a bridge exists to paper
+# over.
+
+
+# (1) Lightning Runner's "untap all creatures you control" (CR 701.26) —
+# the pay-{E} sub-ability chain IS structured (GainEnergy -> PayEnergy ->
+# AdditionalPhase all typed), but the "untap all creatures you control"
+# clause between them carries NO node at all, not even an Unimplemented
+# residue: the SAME absence-proof gap shape as the sacrifice_outlets /
+# direct_damage "ZERO trace" bridges above. Anchored to the card's full
+# surrounding sentence (not the bare "untap all creatures you control"
+# substring, which alone hits 32 commander-legal cards — Vitalize,
+# Aurelia, Drumbellower, … — every one of them ALREADY structurally read
+# by :func:`~mtg_utils._deck_forge.crosswalk_signals.
+# _mass_untap_creature_filter`'s own SetTapState walk, so the shared gap
+# below stands every one of them down on its own).
+_LIGHTNING_RUNNER_UNTAP_RX = re.compile(
+    r"pay eight \{E\}\. if you pay, untap all creatures you control, and "
+    r"after this phase, there is an additional combat phase",
+    re.IGNORECASE,
+)
+
+
+def _lightning_runner_gap(tree: ConceptTree) -> bool:
+    return not any(
+        tag_of(n) == "SetTapState"
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
+def _lightning_runner_match(tree: ConceptTree) -> bool:
+    return bool(_LIGHTNING_RUNNER_UNTAP_RX.search(tree.oracle or ""))
+
+
+# (2) Superior Numbers' "deals damage ... equal to the number of creatures
+# you control IN EXCESS OF the number of creatures target opponent
+# controls" (CR 107.3 computed value) — the recovery stage tags the
+# ability's own ``Unimplemented`` effect concept "deal_damage" (the
+# DOMINANT-verb allowlist), but the excess/subtraction comparator itself
+# is not a typed count operand anywhere.
+_SUPERIOR_NUMBERS_RX = re.compile(
+    r"deals? damage to target creature equal to the number of creatures "
+    r"you control in excess of the number of creatures target opponent "
+    r"controls",
+    re.IGNORECASE,
+)
+
+
+def _superior_numbers_gap(tree: ConceptTree) -> bool:
+    return any(True for _ in _unimplemented_descs_anywhere(tree))
+
+
+def _superior_numbers_match(tree: ConceptTree) -> bool:
+    return any(
+        _SUPERIOR_NUMBERS_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
+    )
+
+
+# (3) Sovereign Okinec Ahau's "for each creature you control with power
+# greater than that creature's base power, put a number of +1/+1 counters
+# on that creature equal to the difference" (CR 122.1) — an attack-
+# triggered per-creature distribution our clause grammar has no token for
+# (the whole effect parks as one ``Unimplemented(name='for')`` residue).
+_SOVEREIGN_OKINEC_AHAU_RX = re.compile(
+    r"for each creature you control with power greater than that "
+    r"creature's base power, put a number of \+1/\+1 counters",
+    re.IGNORECASE,
+)
+
+
+def _sovereign_okinec_ahau_gap(tree: ConceptTree) -> bool:
+    return any(True for _ in _unimplemented_descs_anywhere(tree))
+
+
+def _sovereign_okinec_ahau_match(tree: ConceptTree) -> bool:
+    return any(
+        _SOVEREIGN_OKINEC_AHAU_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
+    )
+
+
+# (4) Whisperwood Elemental's "Sacrifice this creature: Until end of turn,
+# FACE-UP NONTOKEN CREATURES YOU CONTROL gain '...'" — the mass keyword-
+# ability grant is dropped WHOLESALE, parked as an
+# ``Unimplemented(name='face-up')`` residue on the activated ability's own
+# effect (CR 113.10 ability grant, 702.164 manifest).
+_WHISPERWOOD_ELEMENTAL_RX = re.compile(
+    r"face-up nontoken creatures you control gain", re.IGNORECASE
+)
+
+
+def _whisperwood_elemental_gap(tree: ConceptTree) -> bool:
+    return any(True for _ in _unimplemented_descs_anywhere(tree))
+
+
+def _whisperwood_elemental_match(tree: ConceptTree) -> bool:
+    return any(
+        _WHISPERWOOD_ELEMENTAL_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
+    )
+
+
+# (5) Duskana, the Rage Mother's ETB "draw a card for each creature you
+# control with base power and toughness 2/2" (CR 121.1 draw, 613.4b base
+# P/T reference) — the ``Draw`` node IS typed, but its ``count`` field
+# collapses to a bare ``Fixed(1)`` instead of a ``Ref(qty=ObjectCount(...
+# base-power-2/2 filter))``; the dynamic count is dropped with no residue
+# at all. Distinct from the ALREADY-LANDED ``duskana_bess_base_pt_and_
+# toughness_ref`` bridge above (``base_power_matters`` key) — that bridge
+# serves the SECOND ability's "creature ... with base power and toughness
+# 2/2 attacks" REFERENCE; this one serves the FIRST ability's dropped
+# COUNT, a different key, kept as a separate row/id per the ledger's
+# one-key-per-row contract.
+_DUSKANA_DRAW_COUNT_RX = re.compile(
+    r"draw a card for each creature you control with base power and "
+    r"toughness 2/2",
+    re.IGNORECASE,
+)
+
+
+def _duskana_draw_count_gap(tree: ConceptTree) -> bool:
+    return any(
+        tag_of(n) == "Draw" and tag_of(getattr(n, "count", None)) != "Ref"
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
+def _duskana_draw_count_match(tree: ConceptTree) -> bool:
+    return bool(_DUSKANA_DRAW_COUNT_RX.search(tree.oracle or ""))
+
+
+# (6) Moku, Meandering Drummer's "Moku gets +2/+1 AND CREATURES YOU CONTROL
+# GAIN HASTE until end of turn" (CR 113.10 ability grant) — phase folds
+# BOTH clauses into ONE ``S_static_abilities`` def whose ``affected`` is
+# ``SelfRef`` (Moku's own +2/+1) even though the SAME def's own
+# ``modifications`` list also carries the team ``AddKeyword('Haste')`` —
+# an upstream mis-scope (the def's OWN ``description`` still names "and
+# creatures you control gain haste" verbatim, so the grant text survives,
+# just attributed to the wrong ``affected`` population for
+# :func:`~mtg_utils._deck_forge.crosswalk_signals.
+# _iter_creatures_matter_static_defs`'s ``affected``-filter check to find
+# it as a team anthem).
+_MOKU_HASTE_GRANT_RX = re.compile(
+    r"gets? \+\d+/\+\d+ and creatures you control gain haste", re.IGNORECASE
+)
+
+
+def _moku_haste_grant_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for sdef in iter_static_defs(unit.node):
+            if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
+                continue
+            if _MOKU_HASTE_GRANT_RX.search(getattr(sdef, "description", "") or ""):
+                return True
+    return False
+
+
+def _moku_haste_grant_match(tree: ConceptTree) -> bool:
+    return _moku_haste_grant_gap(tree)
+
+
+# (7) Siege Behemoth's "As long as this creature is attacking, FOR EACH
+# CREATURE YOU CONTROL, you may have that creature assign its combat
+# damage as though it weren't blocked" (CR 509.1h-adjacent unblocked-
+# damage-assignment permission) — the static DEF exists (``affected``/
+# ``modifications`` field pair present) but ``affected`` is ``SelfRef``
+# and ``modifications`` is an EMPTY list; the whole per-creature grant
+# lives only in the def's own ``description`` and an ``Unrecognized``
+# condition text, never a typed mode or modification.
+_SIEGE_BEHEMOTH_RX = re.compile(
+    r"for each creature you control, you may have that creature assign "
+    r"its combat damage as though it weren't blocked",
+    re.IGNORECASE,
+)
+
+
+def _siege_behemoth_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for sdef in iter_static_defs(unit.node):
+            if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
+                continue
+            if getattr(sdef, "modifications", None):
+                continue
+            if _SIEGE_BEHEMOTH_RX.search(getattr(sdef, "description", "") or ""):
+                return True
+    return False
+
+
+def _siege_behemoth_match(tree: ConceptTree) -> bool:
+    return _siege_behemoth_gap(tree)
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -3982,6 +4190,190 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Brothers Yamazaki", "Mishra, Claimed by Gix", "Sheltered Valley"),
             gap=_named_synergy_gap,
             match=_named_synergy_match,
+        ),
+        Bridge(
+            bridge_id="lightning_runner_untap_all_dropped",
+            key="creatures_matter",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "pay-{E} sub-ability chain structures GainEnergy/"
+                "PayEnergy/AdditionalPhase but drops the sandwiched "
+                "'untap all creatures you control' clause with ZERO "
+                "trace (no SetTapState node anywhere) — retires on a "
+                "phase bump that structures the untap clause"
+            ),
+            census=(
+                "1 hit / 105,561 commander-legal (Lightning Runner, "
+                "anchored to its full surrounding sentence, not the bare "
+                "'untap all creatures you control' substring — that "
+                "alone hits 32 commander-legal cards, every other one "
+                "already structurally read via "
+                "_mass_untap_creature_filter's own SetTapState walk, so "
+                "the shared no-SetTapState gap stands every one of them "
+                "down on its own), phase v0.20.0, 2026-07-12"
+            ),
+            pins=("Lightning Runner",),
+            gap=_lightning_runner_gap,
+            match=_lightning_runner_match,
+        ),
+        Bridge(
+            bridge_id="superior_numbers_excess_count_unimplemented",
+            key="creatures_matter",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a clause-"
+                "grammar verb for an 'X in excess of Y' subtraction "
+                "comparator between two creature counts (recovery.py's "
+                "Unimplemented-recovery-stage ALLOWLIST already tags the "
+                "residue's DOMINANT verb 'deal_damage' — the comparator "
+                "itself is the gap) — retires when the node decomposes "
+                "into a typed damage-amount count operand"
+            ),
+            census=(
+                "1 hit / 105,561 commander-legal Unimplemented nodes "
+                "matching the excess-count idiom, phase v0.20.0, "
+                "2026-07-12"
+            ),
+            pins=("Superior Numbers",),
+            gap=_superior_numbers_gap,
+            match=_superior_numbers_match,
+        ),
+        Bridge(
+            bridge_id="sovereign_okinec_ahau_per_creature_diff_counters",
+            key="creatures_matter",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a clause-"
+                "grammar verb for a per-creature 'put a number of "
+                "counters equal to the difference' distribution over an "
+                "attack trigger — retires when the node decomposes into "
+                "a typed PutCounter-over-filter effect"
+            ),
+            census=(
+                "1 hit / 105,561 commander-legal Unimplemented nodes "
+                "matching the per-creature-difference idiom, phase "
+                "v0.20.0, 2026-07-12"
+            ),
+            pins=("Sovereign Okinec Ahau",),
+            gap=_sovereign_okinec_ahau_gap,
+            match=_sovereign_okinec_ahau_match,
+        ),
+        Bridge(
+            bridge_id="whisperwood_elemental_faceup_grant_unimplemented",
+            key="creatures_matter",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a clause-"
+                "grammar verb for a 'face-up nontoken creatures you "
+                "control gain <granted trigger>' mass ability grant "
+                "(recovery.py's Unimplemented-recovery-stage ALLOWLIST "
+                "has no 'face-up' entry yet) — retires when the node "
+                "decomposes into a typed GrantTrigger over the "
+                "face-up/nontoken-filtered team"
+            ),
+            census=(
+                "1 hit / 105,561 commander-legal Unimplemented nodes "
+                "matching the face-up team-grant idiom, phase v0.20.0, "
+                "2026-07-12"
+            ),
+            pins=("Whisperwood Elemental",),
+            gap=_whisperwood_elemental_gap,
+            match=_whisperwood_elemental_match,
+        ),
+        Bridge(
+            bridge_id="duskana_draw_per_base_pt_creature_dropped",
+            key="creatures_matter",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the ETB "
+                "Draw node's own count collapses to a bare Fixed(1) "
+                "instead of a Ref(qty=ObjectCount(base-power-2/2 "
+                "filter)) — the dynamic count is dropped with no residue "
+                "at all — retires on a phase bump that structures the "
+                "per-base-2/2-creature count. Distinct from the ALREADY-"
+                "LANDED duskana_bess_base_pt_and_toughness_ref bridge "
+                "(base_power_matters key) — that one serves the SECOND "
+                "ability's base-power-2/2 REFERENCE; this one serves the "
+                "FIRST ability's dropped COUNT, kept as a separate row "
+                "per the ledger's one-key-per-row contract"
+            ),
+            census=(
+                "1 hit / 105,561 commander-legal (Duskana, the Rage "
+                "Mother), phase v0.20.0, 2026-07-12"
+            ),
+            pins=("Duskana, the Rage Mother",),
+            gap=_duskana_draw_count_gap,
+            match=_duskana_draw_count_match,
+        ),
+        Bridge(
+            bridge_id="moku_haste_grant_misscoped_selfref",
+            key="creatures_matter",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a "
+                "static def folds 'Moku gets +2/+1 AND creatures you "
+                "control gain haste' into ONE affected=SelfRef def whose "
+                "OWN modifications list also carries the team "
+                "AddKeyword('Haste') — the grant is mis-scoped to the "
+                "wrong affected population, not dropped outright (the "
+                "def's own description still names it) — retires on a "
+                "phase bump that splits the conjunctive grant into its "
+                "own team-scoped def"
+            ),
+            census=(
+                "1 hit / 105,561 commander-legal (Moku, Meandering "
+                "Drummer), phase v0.20.0, 2026-07-12"
+            ),
+            pins=("Moku, Meandering Drummer",),
+            gap=_moku_haste_grant_gap,
+            match=_moku_haste_grant_match,
+        ),
+        Bridge(
+            bridge_id="siege_behemoth_unblocked_assign_empty_mods",
+            key="creatures_matter",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "static def for 'for each creature you control, you may "
+                "have that creature assign combat damage as though "
+                "unblocked' parses with affected=SelfRef, an "
+                "Unrecognized condition text, and an EMPTY modifications "
+                "list — the whole per-creature grant survives only in "
+                "the def's own description — retires on a phase bump "
+                "that types the per-creature permission as a real mode "
+                "or modification"
+            ),
+            census=(
+                "1 hit / 105,561 commander-legal (Siege Behemoth), "
+                "phase v0.20.0, 2026-07-12"
+            ),
+            pins=("Siege Behemoth",),
+            gap=_siege_behemoth_gap,
+            match=_siege_behemoth_match,
+        ),
+        Bridge(
+            bridge_id="candlekeep_inspiration_mass_where_x_creatures_matter",
+            key="creatures_matter",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82) / phase bump: "
+                "shares its gap/match exactly with the ALREADY-LANDED "
+                "base_pt_mass_where_x_residue bridge (base_pt_set key) — "
+                "the SAME 'creatures you control have base power and "
+                "toughness X/X, where X is ...' Unimplemented residue is "
+                "ALSO creatures_matter's legacy-parity read (a mass team "
+                "base-P/T setter is a go-wide payoff too, CR 613.4b) — "
+                "retires TOGETHER with that row on the same grammar verb"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (Candlekeep Inspiration "
+                "— exactly the 1 pin, byte-identical census to "
+                "base_pt_mass_where_x_residue), phase v0.20.0, 2026-07-12"
+            ),
+            pins=("Candlekeep Inspiration",),
+            gap=_base_pt_mass_where_x_match,
+            match=_base_pt_mass_where_x_match,
         ),
     )
 }

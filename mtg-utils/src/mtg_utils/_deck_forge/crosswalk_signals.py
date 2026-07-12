@@ -1495,7 +1495,71 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         # 601.2/110.4a for the "put onto the battlefield without casting"
         # idiom itself). See :func:`_cheat_into_play`'s own docstring for
         # the full W3-W7 arm history.
-        "creatures_matter",
+        # creatures_matter PROMOTED (ADR-0039 W8 finisher, 2026-07-12) —
+        # landfall rule met: a live corpus re-measure gives both 1421 ->
+        # 1440, live_only 2373 -> 2354, cw_only=281 unchanged. A per-card
+        # node-path classifier bucketed the 2373 pre-session live_only
+        # set into six ADJUDICATED SHED classes (2320: TOKEN_MAKER_CROSS_
+        # OPEN 2120, SYMMETRIC_ANY_CONTROLLER 67, BLOCKING_OR_ATTACKING
+        # 61, SUBTYPE_TRIBAL_YOU 39, DEVOUR 17, TRIBAL_SHARESQUALITY 10,
+        # OPPONENT_SCOPE 4, NAMED_SELF 2 — all pre-adjudicated W4-W7, CR
+        # 111.1/111.2 token-maker floor / CR 509.1h blocking-attacking /
+        # CR 702.82a Devour / CR 205.3 tribal) plus a 53-card true-gap
+        # tail this session fully adjudicated per-card:
+        #
+        # SHED (39 of the 53, reinforcing pins added, no code change) —
+        # cost-reduction's OWN dynamic/scaled condition (CR 601.2f, the
+        # Avatar of Might boundary, 13 members: Arwen's Gift / Boseiju /
+        # Mirror of Galadriel / Orysa / Takenuma already pinned via the
+        # W7 condition-filter arm's ModifyCost guard; Ghalta / Khalni
+        # Hydra / Spectral Denial / Temur Battlecrier / The Pride of
+        # Hull Clade / Walking Skyscraper / Towashi Guide-Bot / Mobilized
+        # District newly corpus-confirmed the same shape, two pinned);
+        # self-CDA / self-only scaling (CR 604.3/613.4a-c, the Towering
+        # Gibbon precedent, 3 members: Ancient Ooze, Carrion Grub, Moon-
+        # Vigil Adherents — role=="static" ``affected: SelfRef``, never
+        # the generic team, one pinned); graveyard-zone population (CR
+        # 400.2, the Wire Surgeons/Kathril precedent: Crypt of Agadeem,
+        # pinned); chosen-type-restricted population (CR 205.3 tribal
+        # philosophy, contrast Rukarumel where the chosen type is
+        # GRANTED to a generic population rather than restricting what's
+        # COUNTED: Kindred Charge, pinned); already-adjudicated re-
+        # affirms (Divine Resilience / Fettergeist / Kathril, W7/W8
+        # pins, unaffected); TOKEN-MAKER CROSS-OPEN with a DROPPED/
+        # Unimplemented token node (18 members — legacy's floor fires on
+        # ITS OWN token-maker cross-open regardless of what our tree
+        # contains, CR 111.1/111.2, three pinned: Maestros Diabolist,
+        # Tobias Doomed Conqueror, Broken Visage).
+        #
+        # CLOSED (14 of the 53, all pinned) — a Formidable activation-
+        # restriction condition (CR 602.5 "can't begin to activate a
+        # prohibited ability"; CR 207.2c "Formidable" is an ability word
+        # with no independent rules meaning) via phase's OWN bespoke
+        # ``CreaturesYouControlTotalPowerAtLeast`` condition tag
+        # (:func:`_creatures_matter_formidable_condition`, 4 members:
+        # Atarka Beastbreaker, Circle of Elders, Dragon-Scarred Bear,
+        # Glade Watcher); two tiny typed container-descent reads — a
+        # FlipCoin win-branch DealDamage count operand
+        # (:func:`_creatures_matter_flip_coin_win_filter`, Goblin Lyre)
+        # and a reanimation target filter's nested Cmc-property count
+        # operand (:func:`_creatures_matter_cmc_property_count_filter`,
+        # Unforgiving One, CR 107.3 — genuinely typed data the crosswalk
+        # simply wasn't reading one field deeper, not a bridge); eight
+        # ADR-0039 ledgered bridges (bridge_ledger.py, creatures_matter
+        # section) for the residual grammar-straggler/dropped-clause/
+        # mis-scoped-grant idioms — Lightning Runner's absence-proof
+        # "untap all creatures you control" (CR 701.26), Superior
+        # Numbers' excess-count comparator, Sovereign Okinec Ahau's
+        # per-creature counter distribution, Whisperwood Elemental's
+        # face-up team-grant residue, Duskana's dropped per-base-2/2
+        # draw count (a separate row from the already-landed
+        # base_power_matters reference bridge — different key), Moku's
+        # mis-scoped SelfRef haste grant, Siege Behemoth's empty-
+        # modifications static, and Candlekeep Inspiration's mass base-
+        # P/T-setter residue (sharing its gap/match with the base_pt_set
+        # sibling row, CR 613.4b). See :func:`_creatures_matter`'s own
+        # docstring for the full W4-W8 arm history and
+        # ``test_creatures_matter_w8_finisher_batch`` for every pin.
         # direct_damage PROMOTED (ADR-0039 W7 endgame, 2026-07-11) — the
         # final 129 live_only closed: one real structural gain (Sin
         # Prodder, the ``optional_for`` widening), one card reclassified
@@ -4945,6 +5009,44 @@ def _creatures_matter_condition_filter(unit_node: object) -> object | None:
     return None
 
 
+def _creatures_matter_formidable_condition(unit_node: object) -> bool:
+    """A Formidable-style "Activate only if creatures you control have
+    total power 8 or greater" activation restriction (ADR-0039 W8 finisher)
+    — phase names this exact population check its OWN bespoke condition
+    tag, ``CreaturesYouControlTotalPowerAtLeast`` (an aggregate-threshold
+    node carrying only a ``minimum`` int, NOT a ``Typed`` creature filter —
+    the reason :func:`_creatures_matter_condition_filter`'s
+    ``_is_generic_creature_filter`` scan never reaches it), read via the
+    SAME :func:`iter_condition_sites` site walk that function uses (a
+    unit's own ``condition`` field plus each ``activation_restrictions``
+    entry — Atarka Beastbreaker / Circle of Elders / Dragon-Scarred Bear /
+    Glade Watcher wrap the tag in a ``RequiresCondition`` activation
+    restriction, not a plain ``condition`` field).
+
+    A go-wide payoff gated on the board's total power is the SAME
+    CONDITION-gate shape :func:`_creatures_matter_condition_filter` already
+    covers (Chronicler of Heroes / Epic Struggle, CR 603.4), just reached
+    through an ACTIVATED ability's own restriction instead — "Formidable"
+    itself is an ability word with no independent rules meaning (CR
+    207.2c); the restriction it introduces is a plain "can't begin to
+    activate a prohibited ability" gate (CR 602.5). Corpus-verified narrow:
+    9 commander-legal cards carry this tag ANYWHERE (phase v0.20.0,
+    2026-07-12: Atarka Beastbreaker, Atarka Pummeler, Circle of Elders,
+    Crater Elemental, Dragon Whisperer, Dragon-Scarred Bear, Glade Watcher,
+    Lurking Arynx, Shaman of Forgotten Ways), every one the Dragons-of-
+    Tarkir Formidable cycle gating an otherwise-unrelated activated effect
+    (menace grant, regenerate, base-power set, token maker, blocks-if-able,
+    life-total reset) — no cost-reduction sibling exists for this tag, so
+    (unlike the plain condition-filter arm) no ``ModifyCost`` guard is
+    needed.
+    """
+    for site in iter_condition_sites(unit_node):
+        for n in iter_typed_nodes(site):
+            if tag_of(n) == "CreaturesYouControlTotalPowerAtLeast":
+                return True
+    return False
+
+
 def _pump_scaling_creature_filter(node: object) -> object | None:
     """The FILTER feeding a ``Pump``/``PumpAll``/``Token`` node's scaling
     ``power``/``toughness`` operand (CR 107.3), unwrapping a ``Quantity``
@@ -5163,6 +5265,76 @@ def _mass_untap_creature_filter(unit: object) -> object | None:
     return None
 
 
+def _creatures_matter_flip_coin_win_filter(node: object) -> object | None:
+    """A generic-creature count operand nested inside a ``FlipCoin`` node's
+    OWN win/lose branch (ADR-0039 W8 finisher) — Goblin Lyre's "If you win
+    the flip, ~ deals damage to target opponent or planeswalker equal to
+    the number of creatures you control": the branch's own
+    ``DealDamage.amount`` is a fully typed ``Ref(qty=ObjectCount(filter=
+    Typed[You, Creature]))`` (CR 107.3), but :meth:`ConceptTree.
+    iter_concepts` decorates only the OUTER ``FlipCoin`` node as a concept
+    — the win/lose sub-effects never get their own concept entry — so the
+    main loop's :func:`count_operand_filter` check (called on the FlipCoin
+    node itself, which has no ``amount``/``count``/``value`` field of its
+    own) never reaches it. A tiny container descent, not a bridge: the
+    data is already fully typed, the crosswalk just wasn't looking one
+    field deeper. Corpus-verified sole hit (phase v0.20.0, 2026-07-12):
+    the ONLY ``FlipCoin`` card corpus-wide whose win OR lose branch
+    carries a generic creature-count operand — this function has exactly
+    ONE caller (creatures_matter's own arm), so widening it needs no
+    sibling corpus check (the ADR-0038 landmine).
+    """
+    if tag_of(node) != "FlipCoin":
+        return None
+    for branch_name in ("win_effect", "lose_effect"):
+        branch = getattr(node, branch_name, None)
+        eff = getattr(branch, "effect", None) if branch is not None else None
+        if eff is None:
+            continue
+        filt = count_operand_filter(eff)
+        if filt is not None:
+            return filt
+    return None
+
+
+def _creatures_matter_cmc_property_count_filter(node: object) -> object | None:
+    """A generic-creature count operand nested inside a target filter's OWN
+    ``Cmc`` property (ADR-0039 W8 finisher) — Unforgiving One's "return
+    target creature card with mana value X or less from your graveyard to
+    the battlefield, where X is the number of MODIFIED CREATURES YOU
+    CONTROL": the reanimation ``ChangeZone.target`` is a ``Typed`` filter
+    whose ``properties`` list carries a ``Cmc(comparator='LE', value=Ref(
+    qty=ObjectCount(filter=Typed[You, Modified, Creature])))`` — a fully
+    typed count operand, just nested one level deeper than the top-level
+    ``amount``/``count``/``value`` fields :func:`count_operand_filter`
+    reads (CR 107.3 computed value; a "modified creatures" population is
+    still a generic "creatures you control" filter per
+    :func:`_is_generic_creature_filter` — a boolean-property gate, the
+    SAME shape the Ferocious power-threshold idiom already accepts, not a
+    subtype/zone restriction). Corpus-verified narrow: 2 commander-legal
+    cards carry this exact nested shape (phase v0.20.0, 2026-07-12:
+    Unforgiving One, Kinscaer Sentry — a beyond-legacy gain, corpus-
+    verified genuine, not adjudicated separately since it shares the
+    identical typed shape).
+    """
+    filt = getattr(node, "target", None)
+    if tag_of(filt) != "Typed":
+        return None
+    for prop in getattr(filt, "properties", None) or ():
+        if tag_of(prop) != "Cmc":
+            continue
+        val = getattr(prop, "value", None)
+        if tag_of(val) != "Ref":
+            continue
+        qty = getattr(val, "qty", None)
+        if tag_of(qty) != "ObjectCount":
+            continue
+        inner = getattr(qty, "filter", None)
+        if inner is not None:
+            return inner
+    return None
+
+
 def _creatures_matter(tree: ConceptTree) -> list[Signal]:
     """creatures_matter — a go-wide payoff scaling with / antheming the GENERIC
     creature population you control (CR 604.1 static ability; CR 611.1 the
@@ -5291,13 +5463,68 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
 
     Corpus-verified 43 genuine members closed (5 DoublePTAll + 22
     PutCounterAll + 5 genuine WRAPPED_COUNT_FIELD + 11 Or-wrapped, one of
-    which — Rukarumel — needed the mod-tag addition to fire). The
-    remaining true residue (cost-reduction CR 601.2f, self-referential
-    CDAs CR 613.4b, zone-scoped CR 400.2, and a genuine upstream-parse-
-    failure/dropped-clause tail with no Creature-core-type filter
-    anywhere in the tree) stays an adjudicated shed or an un-triaged
-    diagnostic tail per the family map — none of it is a bounded single
-    idiom a ledgered bridge could cover this session.
+    which — Rukarumel — needed the mod-tag addition to fire).
+
+    ADR-0039 W8 FINISHER (2026-07-12) — PROMOTED. A per-card node-path
+    classifier bucketed the whole live_only set into six ADJUDICATED SHED
+    classes (token-maker cross-open / symmetric-any-controller /
+    blocking-or-attacking / subtype-tribal-you / devour / tribal-shares-
+    quality, all W4-W7 established) plus one final 53-card true-gap tail,
+    fully adjudicated per-card this session:
+
+    * a **Formidable activation-restriction condition**
+      (:func:`_creatures_matter_formidable_condition`) — phase's OWN
+      bespoke ``CreaturesYouControlTotalPowerAtLeast`` condition tag
+      (reached via :func:`iter_condition_sites`, the SAME site walk
+      :func:`_creatures_matter_condition_filter` uses) — CR 602.5 ("a
+      player can't begin to activate an ability that's prohibited from
+      being activated"); "Formidable" itself is an ability word with no
+      independent rules meaning (CR 207.2c);
+    * a **FlipCoin win-branch count operand**
+      (:func:`_creatures_matter_flip_coin_win_filter`) — a fully typed
+      ``DealDamage.amount`` one field deeper than
+      :meth:`ConceptTree.iter_concepts` decorates (Goblin Lyre, CR
+      107.3);
+    * a **reanimation target filter's nested Cmc-property count operand**
+      (:func:`_creatures_matter_cmc_property_count_filter`) — "return
+      target creature card with mana value X or less ..., where X is the
+      number of MODIFIED CREATURES YOU CONTROL" (Unforgiving One, CR
+      107.3 — a "modified creatures" population reads as generic the
+      same way a power-threshold filter does).
+
+    Eight ADR-0039 ledgered bridges (bridge_ledger.py, the
+    ``creatures_matter`` section) close the residual grammar-straggler /
+    dropped-clause / mis-scoped-grant tail — Lightning Runner's absence-
+    proof "untap all creatures you control" (CR 701.26), Superior
+    Numbers' excess-count comparator, Sovereign Okinec Ahau's per-
+    creature counter distribution, Whisperwood Elemental's face-up team-
+    grant residue, Duskana's dropped per-base-2/2 draw count, Moku's mis-
+    scoped SelfRef haste grant, Siege Behemoth's empty-modifications
+    static, and Candlekeep Inspiration's mass base-P/T-setter residue
+    (sharing its gap/match with the ``base_pt_set`` sibling row, CR
+    613.4b).
+
+    The remaining true residue stays an adjudicated shed, NOT ported —
+    cost-reduction's OWN dynamic/scaled condition (CR 601.2f, the Avatar
+    of Might boundary — Arwen's Gift / Boseiju / Ghalta / Khalni Hydra /
+    Mirror of Galadriel / Mobilized District / Orysa / Spectral Denial /
+    Takenuma / Temur Battlecrier / The Pride of Hull Clade / Towashi
+    Guide-Bot / Walking Skyscraper); self-CDA / self-only scaling (CR
+    604.3/613.4a-c, the Towering Gibbon precedent — Ancient Ooze, Carrion
+    Grub, Moon-Vigil Adherents); graveyard-zone population (CR 400.2, the
+    Wire Surgeons/Kathril precedent — Crypt of Agadeem); chosen-type-
+    restricted population (CR 205.3 tribal philosophy, contrast Rukarumel
+    where the chosen type is GRANTED to a generic population rather than
+    restricting what's COUNTED — Kindred Charge); the pre-existing
+    target-context (Divine Resilience) and you-pay-tax (Fettergeist)
+    sheds; and the token-maker cross-open class's own dropped/
+    Unimplemented-token-node subset (CR 111.1/111.2, 18 members — legacy
+    fires on ITS OWN token-maker cross-open regardless of what this
+    tree's token node contains). Landfall rule met: both 1421 -> 1440,
+    live_only 2373 -> 2354, cw_only=281 unchanged — every remaining
+    live_only member decomposes into one of the shed classes above (a
+    per-card classifier re-walk confirmed zero unexplained residue). See
+    ``test_creatures_matter_w8_finisher_batch`` for every pin.
     """
     for c in tree.iter_concepts():
         if (
@@ -5306,6 +5533,12 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
             or _is_generic_creature_filter(_creature_count_operand_filter(c.node))
             or _is_generic_creature_filter(
                 _creatures_matter_wrapped_count_filter(c.node)
+            )
+            or _is_generic_creature_filter(
+                _creatures_matter_flip_coin_win_filter(c.node)
+            )
+            or _is_generic_creature_filter(
+                _creatures_matter_cmc_property_count_filter(c.node)
             )
             or (
                 c.role == "effect"
@@ -5339,6 +5572,23 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
             return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         if _creatures_matter_condition_filter(unit.node) is not None:
+            return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
+        if _creatures_matter_formidable_condition(unit.node):
+            return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
+    # ADR-0039 W8 finisher — the last of the 53-card true-gap tail:
+    # ledgered bridges (bridge_ledger.py, docstring there for the full
+    # corpus accounting).
+    for bridge_id in (
+        "lightning_runner_untap_all_dropped",
+        "superior_numbers_excess_count_unimplemented",
+        "sovereign_okinec_ahau_per_creature_diff_counters",
+        "whisperwood_elemental_faceup_grant_unimplemented",
+        "duskana_draw_per_base_pt_creature_dropped",
+        "moku_haste_grant_misscoped_selfref",
+        "siege_behemoth_unblocked_assign_empty_mods",
+        "candlekeep_inspiration_mass_where_x_creatures_matter",
+    ):
+        if bridge_fires(bridge_id, tree):
             return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     return []
 

@@ -1755,6 +1755,107 @@ def test_creatures_matter_w8_closer_batch(name, should_fire):
 
 
 @pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        # ADR-0039 W8 FINISHER — PROMOTE: the last 53-card true-gap tail
+        # closes this batch (a per-card node-path classifier bucketed the
+        # full live_only=2373 set into six adjudicated shed classes +
+        # this 53-card tail; see _creatures_matter's own docstring for
+        # the exact final accounting).
+        #
+        # NEGATIVE — reinforcing pins for the six already-adjudicated
+        # shed classes (2320 of the 2373, W4-W7 established, corpus-
+        # reconfirmed this session):
+        #
+        # TOKEN-MAKER CROSS-OPEN (CR 111.1/111.2) — legacy's LOW regex
+        # floor fires on ANY creature-token maker, structural or not; a
+        # DROPPED/Unimplemented token node on OUR side changes nothing
+        # about why legacy fires (already shed since W4 — Siege-Gang
+        # Commander) — three fresh reps confirming the class stays wide.
+        ("Maestros Diabolist", False),
+        ("Tobias, Doomed Conqueror", False),
+        ("Broken Visage", False),
+        # cost-reduction's OWN dynamic/scaled condition (CR 601.2f) — the
+        # SAME Avatar of Might boundary (a ModifyCost static's own
+        # condition is a narrower, different care than a go-wide
+        # payoff), reached here via the STATIC's ``affected: SelfRef`` +
+        # ``mode.inner.mode: 'Reduce'`` shape directly rather than
+        # through :func:`_creatures_matter_condition_filter`'s condition-
+        # site walk — 8 new corpus members join the adjudicated class
+        # this session (Ghalta / Khalni Hydra / Spectral Denial / Temur
+        # Battlecrier / The Pride of Hull Clade / Walking Skyscraper /
+        # Towashi Guide-Bot / Mobilized District), two pinned here.
+        ("Ghalta, Primal Hunger", False),
+        ("Khalni Hydra", False),
+        # SELF-CDA / self-only scaling (CR 604.3/613.4a characteristic-
+        # defining, or CR 613.4c a self-targeted continuous ADD — either
+        # way ``affected: SelfRef``, never the generic team) — the
+        # Towering Gibbon precedent (role=="static" self-referential
+        # computation of the permanent's OWN characteristic, not a
+        # payoff distributed to the team).
+        ("Moon-Vigil Adherents", False),
+        # GRAVEYARD-ZONE population (CR 400.2 zone distinction) — the
+        # Wire Surgeons / Kathril precedent: "for each black creature
+        # card in your GRAVEYARD" fails the generic filter's InZone
+        # guard the same way.
+        ("Crypt of Agadeem", False),
+        # CHOSEN-TYPE-RESTRICTED population (CR 205.3 tribal philosophy)
+        # — "for each creature you control OF THE CHOSEN TYPE" is a
+        # tribal-parameterized POPULATION (type_matters territory),
+        # contrast Rukarumel (True, w8_closer_batch above) where the
+        # chosen type is what's GRANTED to an already-generic population,
+        # not what's counted.
+        ("Kindred Charge", False),
+        #
+        # POSITIVE — three genuine-gap closing mechanisms:
+        #
+        # (1) Formidable activation-restriction condition (CR 602.5 —
+        # "can't begin to activate a prohibited ability"; CR 207.2c —
+        # "Formidable" itself is an ability word with no independent
+        # rules meaning): phase's OWN bespoke
+        # ``CreaturesYouControlTotalPowerAtLeast`` condition tag, read
+        # via :func:`_creatures_matter_formidable_condition`.
+        ("Atarka Beastbreaker", True),
+        ("Circle of Elders", True),
+        ("Dragon-Scarred Bear", True),
+        ("Glade Watcher", True),
+        # (2) tiny typed container-descent reads (genuinely typed data
+        # the crosswalk simply wasn't reading one field deeper — not a
+        # bridge, no phase gap involved): a FlipCoin win-branch
+        # DealDamage count operand (Goblin Lyre, CR 107.3) and a
+        # reanimation target filter's nested Cmc-property count operand
+        # (Unforgiving One, CR 107.3 — "modified creatures you control"
+        # reads as generic the same way a power-threshold filter does).
+        ("Goblin Lyre", True),
+        ("Unforgiving One", True),
+        # (3) ledgered bridges (bridge_ledger.py, ADR-0039 W8 finisher
+        # section) for the residual grammar-straggler / dropped-clause /
+        # mis-scoped-grant idioms: Lightning Runner's absence-proof
+        # "untap all creatures you control" (CR 701.26), Superior
+        # Numbers' excess-count comparator, Sovereign Okinec Ahau's
+        # per-creature counter distribution, Whisperwood Elemental's
+        # face-up team-grant residue, Duskana's dropped per-base-2/2
+        # draw count (distinct row from the ALREADY-LANDED base_power_
+        # matters reference bridge — different key), Moku's mis-scoped
+        # SelfRef haste grant, Siege Behemoth's empty-modifications
+        # static, and Candlekeep Inspiration's mass base-P/T-setter
+        # residue (sharing its gap/match with the base_pt_set sibling
+        # row, CR 613.4b).
+        ("Lightning Runner", True),
+        ("Superior Numbers", True),
+        ("Sovereign Okinec Ahau", True),
+        ("Whisperwood Elemental", True),
+        ("Duskana, the Rage Mother", True),
+        ("Moku, Meandering Drummer", True),
+        ("Siege Behemoth", True),
+        ("Candlekeep Inspiration", True),
+    ],
+)
+def test_creatures_matter_w8_finisher_batch(name, should_fire):
+    assert (("creatures_matter", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
     ("name", "ident", "should_fire"),
     [
         ("Padeem, Consul of Innovation", ("artifacts_matter", "you", ""), True),
