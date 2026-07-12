@@ -10,10 +10,10 @@
    (an evasion/resilience keyword or power ≥2), surface a low-confidence voltron avenue.
 """
 
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signals import (
     coverage_gate,
     extract_signals,
-    extract_signals_hybrid,
 )
 from mtg_utils.card_ir import Card, Face
 from mtg_utils.testkit import test_signals
@@ -41,7 +41,7 @@ def _hybrid_subjects(key, name="X", oracle="", type_line="Enchantment", **kw):
     card = {"name": name, "oracle_text": oracle, "type_line": type_line}
     card.update(kw)
     ir = Card(oracle_id="x", name=name, faces=(Face(name=name),))
-    return {s.subject for s in extract_signals_hybrid(card, ir) if s.key == key}
+    return {s.subject for s in extract_signals_ir(card, ir) if s.key == key}
 
 
 def _hybrid_sigs(name="X", oracle="", type_line="Legendary Creature — Test", **kw):
@@ -53,7 +53,7 @@ def _hybrid_sigs(name="X", oracle="", type_line="Legendary Creature — Test", *
     card.update(kw)
     kws = tuple(kw.get("keywords", ()))
     ir = Card(oracle_id="x", name=name, faces=(Face(name=name, keywords=kws),))
-    return extract_signals_hybrid(card, ir)
+    return extract_signals_ir(card, ir)
 
 
 def _hybrid_keys(**kw):
@@ -91,23 +91,18 @@ def _counter_keyword_ir(name: str):
 
 
 def test_mentor_is_counters():
-    from mtg_utils._deck_forge.signals import extract_signals_hybrid
 
     card = {"name": "Mentor Lord", "type_line": "Creature", "keywords": ["Mentor"]}
-    keys = {
-        s.key for s in extract_signals_hybrid(card, _counter_keyword_ir("Mentor Lord"))
-    }
+    keys = {s.key for s in extract_signals_ir(card, _counter_keyword_ir("Mentor Lord"))}
     assert "plus_one_makers" in keys
 
 
 def test_training_and_evolve_are_counters():
-    from mtg_utils._deck_forge.signals import extract_signals_hybrid
 
     for kw in ("Training", "Evolve"):
         card = {"name": f"{kw} Lord", "type_line": "Creature", "keywords": [kw]}
         keys = {
-            s.key
-            for s in extract_signals_hybrid(card, _counter_keyword_ir(f"{kw} Lord"))
+            s.key for s in extract_signals_ir(card, _counter_keyword_ir(f"{kw} Lord"))
         }
         assert "plus_one_makers" in keys, kw
 
@@ -116,7 +111,6 @@ def test_battle_cry_is_go_wide_attack():
     # ADR-0027: attack_matters is migrated. Battle cry (CR 702.91) carries its "whenever
     # this creature attacks" trigger in stripped reminder text, so the lane fires from the
     # Battle cry keyword in _IR_KEYWORD_MAP via the hybrid — not the regex keyword path.
-    from mtg_utils._deck_forge.signals import extract_signals_hybrid
     from mtg_utils.card_ir import Card, Face
 
     card = {
@@ -129,7 +123,7 @@ def test_battle_cry_is_go_wide_attack():
         oracle_id="x", name="X", faces=(Face(name="X", keywords=("Battle cry",)),)
     )
     assert "attack_matters" not in {s.key for s in extract_signals(card)}
-    assert "attack_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "attack_matters" in {s.key for s in extract_signals_ir(card, ir)}
 
 
 def test_exalted_is_voltron():
@@ -145,7 +139,6 @@ def test_extort_is_drain():
     # (ADR-0034): extort CAUSES opponents to lose life (a lose_life MAKER), so it
     # fires lifeloss_makers.
     from mtg_utils._card_ir.project import project_card
-    from mtg_utils._deck_forge.signals import extract_signals_hybrid
 
     card = {
         "name": "Extort Lord",
@@ -173,7 +166,7 @@ def test_extort_is_drain():
             }
         ]
     )
-    sigs = extract_signals_hybrid(card, ir)
+    sigs = extract_signals_ir(card, ir)
     assert any(s.key == "lifeloss_makers" and s.scope == "opponents" for s in sigs)
 
 
@@ -181,7 +174,6 @@ def test_amass_is_tokens():
     # ADR-0027: tokens_matter is migrated. Amass (CR 701.47) carries its Army-token
     # making in stripped reminder text, so the lane fires from the Amass keyword in
     # _IR_KEYWORD_MAP via the hybrid — not the regex keyword path (which was deleted).
-    from mtg_utils._deck_forge.signals import extract_signals_hybrid
     from mtg_utils.card_ir import Card, Face
 
     card = {
@@ -192,7 +184,7 @@ def test_amass_is_tokens():
     }
     ir = Card(oracle_id="x", name="X", faces=(Face(name="X", keywords=("Amass",)),))
     assert "tokens_matter" not in {s.key for s in extract_signals(card)}
-    assert "tokens_matter" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "tokens_matter" in {s.key for s in extract_signals_ir(card, ir)}
 
 
 def test_plain_flying_keyword_is_not_a_buildaround_signal():
@@ -285,7 +277,7 @@ def test_voltron_fallback_routes_low_confidence():
         name="Marit Lage",
         faces=(Face(name="Marit Lage", keywords=("Flying", "Indestructible")),),
     )
-    needs, reason = coverage_gate(c, extract_signals_hybrid(c, ir))
+    needs, reason = coverage_gate(c, extract_signals_ir(c, ir))
     assert needs is True
     assert reason == "low_confidence"
 

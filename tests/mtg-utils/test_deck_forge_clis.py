@@ -6,12 +6,28 @@ import json
 
 from click.testing import CliRunner
 
+from mtg_utils import testkit
 from mtg_utils.deck_rank import main as deck_rank_main
 from mtg_utils.deck_signals import main as deck_signals_main
 from mtg_utils.slot_budgets import main as slot_budgets_main
 
+# Seed the crosswalk trees memo from the committed snapshot (CI-safe, no phase
+# cache / network) so these hand-rolled CLI fixtures below — real card oracle
+# text, with the matching real oracle_id threaded in — resolve through the
+# SAME production extract_signals_hybrid path a real deck-forge session uses
+# (ADR-0039 task #80 step 6: extract_signals_hybrid no longer falls back to a
+# regex answer when a fixture's oracle_id has no resolvable Card IR tree — the
+# ONLY way to prove the CLI plumbing sees a real signal is a real, resolvable
+# tree). The return values are unused; the call's side effect
+# (``testkit._seed_trees``) is what matters, and it registers each name for
+# ``build-card-snapshot``'s AST scan.
+testkit.test_signals("Krenko, Mob Boss")
+testkit.test_signals("Mountain")
+testkit.test_signals("Goblin Chieftain")
+
 KRENKO = {
     "name": "Krenko, Mob Boss",
+    "oracle_id": "68418069-f615-40ef-ae0d-764192acae00",
     "type_line": "Legendary Creature — Goblin Warrior",
     "cmc": 4.0,
     "mana_cost": "{2}{R}{R}",
@@ -28,6 +44,7 @@ KRENKO = {
 }
 MOUNTAIN = {
     "name": "Mountain",
+    "oracle_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
     "type_line": "Basic Land — Mountain",
     "cmc": 0.0,
     "mana_cost": "",
@@ -40,6 +57,7 @@ MOUNTAIN = {
 }
 CHIEFTAIN = {
     "name": "Goblin Chieftain",
+    "oracle_id": "368b4052-174e-4458-a6e6-eaf8093aa0fe",
     "type_line": "Creature — Goblin",
     "cmc": 3.0,
     "mana_cost": "{1}{R}{R}",

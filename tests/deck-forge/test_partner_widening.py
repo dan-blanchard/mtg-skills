@@ -5,10 +5,12 @@ broadest color-openers surface first."""
 
 from fastapi.testclient import TestClient
 
+from mtg_utils._card_ir.crosswalk import ConceptTree
 from mtg_utils._deck_forge import _ir_lookup
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.card_ir import Card, Face
+from mtg_utils.deck import split_type_line
 
 PARTNER_ORACLE = "Partner (You can have two commanders if both have partner.)"
 
@@ -44,17 +46,45 @@ def _bare_ir(oid: str) -> Card:
     return Card(oracle_id=oid, name=oid, faces=(Face(name=oid, abilities=()),))
 
 
+def _text_only_tree(card: dict) -> ConceptTree:
+    """A zero-unit ``ConceptTree`` carrying the synthetic card's own whole-card
+    metadata — the shape ``_ir_lookup``'s own W2c phase-missing-face synthesis
+    produces. partner_background is a keyword-field lookup (the Scryfall
+    ``Partner`` keyword array, threaded separately as ``keywords`` — no typed
+    substrate needed), so a zero-unit tree is enough (ADR-0039 task #80 step
+    6: extract_signals_hybrid is now crosswalk-only, so these synthetic
+    fixtures need a resolvable tree, not just a synthetic Card IR, to fire at
+    all)."""
+    type_words, sub_words = split_type_line(card.get("type_line") or "")
+    return ConceptTree(
+        name=card["name"],
+        oracle_id=card["oracle_id"],
+        units=(),
+        card_types=tuple(w.capitalize() for w in type_words if w != "legendary"),
+        card_subtypes=tuple(w.capitalize() for w in sub_words),
+        card_supertypes=("Legendary",) if "legendary" in type_words else (),
+        cmc=int(card.get("cmc") or 0),
+        oracle=card.get("oracle_text") or "",
+    )
+
+
 def _client(monkeypatch):
-    # Wire a non-None IR per fixture oracle_id so the hybrid path serves the migrated
-    # partner_background key (it reads the record's `keywords`, but needs ir is not None
-    # to take the IR arm). ADR-0027 hybrid dispatch, joined by oracle_id.
+    # Wire a non-None IR per fixture oracle_id (Seam B) plus a text-only tree
+    # per oracle_id (Seam A — ADR-0039 task #80 step 6: extract_signals_hybrid's
+    # ONLY signal source) so the crosswalk path serves the migrated
+    # partner_background key.
     ir_index = {
         c["oracle_id"]: _bare_ir(c["oracle_id"]) for c in (PAIR_LORD, WIDE, MONO)
     }
-    # ADR-0035 Stage-4: the crosswalk flag defaults ON → ir_for reads the crosswalk
-    # index first; wire BOTH so the synthetic IR resolves regardless of the flag.
-    monkeypatch.setattr(_ir_lookup, "_index", lambda: ir_index)
+    trees_index = {
+        c["oracle_id"]: (_text_only_tree(c),) for c in (PAIR_LORD, WIDE, MONO)
+    }
     monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: ir_index)
+    monkeypatch.setattr(
+        _ir_lookup,
+        "trees_for",
+        lambda card, bulk=None: trees_index.get(card.get("oracle_id") or "", ()),  # noqa: ARG005
+    )
     session = DeckSession("commander")
     session.add("Pair Lord", zone="commanders")
     state = ForgeState(

@@ -9,7 +9,11 @@ design review flagged (clones, "Plant"/"nonland creature", instant/sorcery spell
 leakage, stax self-restrictions) must stay clean.
 """
 
+import re
+
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge._signals_regex import (
+    _fold_referenced_objects,
     _resolve_scope,
     _scope,
     _tinybones_scope,
@@ -21,7 +25,6 @@ from mtg_utils._deck_forge.signals import (
     _voltron_self_recurs,
     coverage_gate,
     extract_signals,
-    extract_signals_hybrid,
 )
 from mtg_utils.card_ir import (
     Ability,
@@ -39,8 +42,19 @@ def _ksub(card):
     return {(s.key, s.scope, s.subject) for s in extract_signals(card)}
 
 
+# ADR-0039 task #80 step 6: these hand-built ``Card`` IR fixtures (no real
+# ``oracle_id``, built via ``_bare_ir`` / ``_ir_with`` below) can never resolve a
+# crosswalk tree — ``extract_signals_hybrid`` (the production dispatcher) is now
+# crosswalk-only and would silently return nothing for them. What these tests
+# actually probe is the STRUCTURAL DETECTION LOGIC in ``extract_signals_ir``
+# (still a real, exercised module — ADR-0039 task #80 step 6 leaves it as a stub
+# pending step 7's decision on the legacy builder's own fate) — every helper
+# below calls it directly instead of the hybrid facade. Real-card assertions in
+# this file (``_ksub_real`` / ``_ks_real`` / ``_keys_real`` — via
+# ``mtg_utils.testkit``) are unaffected; they already exercise the real
+# production ``extract_signals_hybrid`` path.
 def _ksub_hybrid(card, ir):
-    return {(s.key, s.scope, s.subject) for s in extract_signals_hybrid(card, ir)}
+    return {(s.key, s.scope, s.subject) for s in extract_signals_ir(card, ir)}
 
 
 def _ks(card):
@@ -53,9 +67,22 @@ def _keys(card):
 
 # A minimal non-None IR for ADR-0027 migrated keys whose IR source reads a
 # structured field (keyword array) or the kept word-detector mirror — both scan
-# the record directly, so any non-None Card routes the hybrid to the IR path.
+# the record directly, so any non-None Card routes to the IR path.
 def _bare_ir() -> Card:
     return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+
+
+def _ir_folded(card, resolver):
+    """ADR-0025 folded-object (a ventured dungeon / meld result / the Ring)
+    signal extraction over the structural IR path, replicating the fold step
+    ``extract_signals_hybrid`` used to apply before routing to
+    ``extract_signals_ir`` (ADR-0039 task #80 step 6: the hybrid itself no
+    longer folds — see its docstring — since a real card is never resolved
+    this way; these synthetic no-``oracle_id`` fixtures need the fold applied
+    directly to keep proving the ADR-0025 fold CONTRACT against the
+    structural reader)."""
+    folded = _fold_referenced_objects(card, resolver)
+    return extract_signals_ir(folded, _bare_ir())
 
 
 def _ir_with(*abilities: Ability) -> Card:
@@ -69,19 +96,70 @@ def _ir_with(*abilities: Ability) -> Card:
 
 
 def _ks_hybrid(card):
-    return {(s.key, s.scope) for s in extract_signals_hybrid(card, _bare_ir())}
+    return {(s.key, s.scope) for s in extract_signals_ir(card, _bare_ir())}
 
 
 def _keys_hybrid(card):
-    return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
+    return {s.key for s in extract_signals_ir(card, _bare_ir())}
 
 
 def _keys_hybrid_ir(card, ir):
-    return {s.key for s in extract_signals_hybrid(card, ir)}
+    return {s.key for s in extract_signals_ir(card, ir)}
 
 
 def _ks_hybrid_ir(card, ir):
-    return {(s.key, s.scope) for s in extract_signals_hybrid(card, ir)}
+    return {(s.key, s.scope) for s in extract_signals_ir(card, ir)}
+
+
+def _spellcast_reconciled(keys: set[str]) -> set[str]:
+    """The ``spell_copy_makers`` -> ``spellcast_matters`` cross-open
+    (``signals.extract_signals_hybrid``'s post-merge reconciliation),
+    reapplied here against a synthetic fixture's own ``extract_signals_ir``
+    output — see the ``_bare_ir`` / ``extract_signals_ir`` module note above."""
+    if "spell_copy_makers" in keys and "spellcast_matters" not in keys:
+        return keys | {"spellcast_matters"}
+    return keys
+
+
+def _topdeck_reconciled(
+    card: dict, idents: set[tuple[str, str]]
+) -> set[tuple[str, str]]:
+    """The play-from-top -> topdeck_stack / topdeck_selection cross-open
+    (``signals.extract_signals_hybrid``'s post-merge reconciliation),
+    reapplied here against a synthetic fixture's own ``extract_signals_ir``
+    output."""
+    from mtg_utils._deck_forge._signals_regex import (
+        _PLAY_FROM_TOP_FLOOR_MIRROR,
+        _PLAY_FROM_TOP_MIRROR,
+        _clauses,
+    )
+    from mtg_utils.card_classify import get_oracle_text
+
+    now = {k for k, _s in idents}
+    if "topdeck_stack" in now and "topdeck_selection" in now:
+        return idents
+    text = re.sub(r"\([^)]*\)", " ", get_oracle_text(card) or "")
+    if not any(
+        _PLAY_FROM_TOP_MIRROR.search(cl) or _PLAY_FROM_TOP_FLOOR_MIRROR.search(cl)
+        for cl in _clauses(text)
+    ):
+        return idents
+    added = set(idents)
+    if "topdeck_stack" not in now:
+        added.add(("topdeck_stack", "you"))
+    if "topdeck_selection" not in now:
+        added.add(("topdeck_selection", "you"))
+    return added
+
+
+def _wants_theft_reconciled(idents: set[tuple[str, str]]) -> set[tuple[str, str]]:
+    """The ``gain_control`` -> ``wants_theft`` cross-open (``signals.
+    extract_signals_hybrid``'s post-merge reconciliation), reapplied here
+    against a synthetic fixture's own ``extract_signals_ir`` output."""
+    now = {k for k, _s in idents}
+    if "gain_control" in now and "wants_theft" not in now:
+        return idents | {("wants_theft", "opponents")}
+    return idents
 
 
 def _ksub_real(name):
@@ -162,9 +240,9 @@ def test_type_matters_rejects_generic_creatures_word():
             ),
         ),
     )
-    hybrid = {(s.key, s.subject) for s in extract_signals_hybrid(c, ir)}
+    hybrid = {(s.key, s.subject) for s in extract_signals_ir(c, ir)}
     assert ("creatures_matter", "") in hybrid
-    assert "type_matters" not in {s.key for s in extract_signals_hybrid(c, ir)}
+    assert "type_matters" not in {s.key for s in extract_signals_ir(c, ir)}
 
 
 def test_type_matters_irregular_plural_resolves():
@@ -536,7 +614,7 @@ def test_land_exchange_opens_on_land_control():
 
 
 def _ks_hybrid_card(card, ir):
-    return {(s.key, s.scope) for s in extract_signals_hybrid(card, ir)}
+    return {(s.key, s.scope) for s in extract_signals_ir(card, ir)}
 
 
 def test_scavenge_fuel_opens_on_scavenge():
@@ -659,8 +737,7 @@ def test_wants_cloning_opens_for_recurring_value_legendary():
     assert "wants_cloning" not in _keys_hybrid(isamaru)  # vanilla legendary
     # Commander-level: must NOT fire when aggregating the 99 (include_membership=False).
     assert "wants_cloning" not in {
-        s.key
-        for s in extract_signals_hybrid(obeka, _bare_ir(), include_membership=False)
+        s.key for s in extract_signals_ir(obeka, _bare_ir(), include_membership=False)
     }
 
 
@@ -1039,7 +1116,7 @@ def test_treasure_matters():
         ),
     )
     assert ("treasure_makers", "you") in {
-        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+        (s.key, s.scope) for s in extract_signals_ir(c, ir)
     }
     assert ("treasure_makers", "you") not in _ks(c)
 
@@ -1135,7 +1212,7 @@ def test_self_etb_variable_damage_opens_flicker_and_clone():
     # migrated, so its regex firing still passes through the hybrid).
     keys = {
         s.key
-        for s in extract_signals_hybrid(dong_zhou, _bare_ir(), include_membership=True)
+        for s in extract_signals_ir(dong_zhou, _bare_ir(), include_membership=True)
     }
     assert "blink_flicker" in keys
     assert "wants_cloning" in keys  # cmc 5 >= 5 -> worth copying
@@ -1254,18 +1331,11 @@ def test_creatures_are_lands_is_not_untap_engine():
     # Ashaya's own ability untaps nothing itself, so the crosswalk fold sheds it as
     # lands_matter / land_creatures_matter synergy, NOT a genuine untap_engine
     # member (ADR-0036 Stage 5 — the deleted mirror's Ashaya inclusion was a false
-    # positive). The pure-regex path never had a creatures-are-lands untap detector,
-    # so it sheds Ashaya at both flag states. The crosswalk (flag-ON) sheds it too;
-    # the legacy flag-OFF IR path keeps the byte-identical _UNTAP_ENGINE_MIRROR_LANDS
-    # mirror, so it still fires there (the intended flag-OFF invariance).
-    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
-
+    # positive). The pure-regex path never had a creatures-are-lands untap
+    # detector, so it sheds Ashaya; the crosswalk sheds it too.
     assert "untap_engine" not in _keys_real_regex("Ashaya, Soul of the Wild")
     keys = _keys_real("Ashaya, Soul of the Wild")
-    if crosswalk_enabled():
-        assert "untap_engine" not in keys
-    else:
-        assert "untap_engine" in keys
+    assert "untap_engine" not in keys
 
 
 def test_rampage_keyword_opens_blocked_matters():
@@ -1292,18 +1362,11 @@ def test_permanents_with_counters_opens_counters():
     # NOT fire it here: "with a counter on it" carries an explicit Any kind (CR
     # 122.1's kind carries the distinction: a kind-agnostic reference is not a
     # +1/+1-specific payoff), the SAME adjudicated shed class as The Swarmlord /
-    # Yathan Tombguard / Winged Hive Tyrant. any_counter_matters is the correct lane
-    # and fires at BOTH flag states (mirrors the split ADR-0038 W4 established); the
-    # legacy flag-OFF IR path keeps its own byte-identical over-fire (the intended
-    # flag-OFF invariance — see test_creatures_are_lands_is_not_untap_engine).
-    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
-
+    # Yathan Tombguard / Winged Hive Tyrant. any_counter_matters is the correct
+    # lane (mirrors the split ADR-0038 W4 established).
     assert "any_counter_matters" in _keys_real("Xolatoyac, the Smiling Flood")
     keys = _keys_real("Xolatoyac, the Smiling Flood")
-    if crosswalk_enabled():
-        assert "plus_one_matters" not in keys
-    else:
-        assert "plus_one_matters" in keys
+    assert "plus_one_matters" not in keys
 
 
 def test_planeswalker_type_opens_superfriends():
@@ -1394,7 +1457,7 @@ def test_self_death_variable_damage_opens_payoff_and_clone():
     # ADR-0027: self_death_payoff migrated to the Card IR; the "deals damage equal to"
     # self-death VALUE branch rides the name-aware kept mirror on the hybrid path.
     keys = {
-        s.key for s in extract_signals_hybrid(orca, _bare_ir(), include_membership=True)
+        s.key for s in extract_signals_ir(orca, _bare_ir(), include_membership=True)
     }
     assert "self_death_payoff" in keys
     assert "wants_cloning" in keys  # cmc 7 >= 5
@@ -1411,8 +1474,7 @@ def test_self_death_variable_damage_opens_payoff_and_clone():
         ),
     }
     assert "self_death_payoff" not in {
-        s.key
-        for s in extract_signals_hybrid(combat, _bare_ir(), include_membership=True)
+        s.key for s in extract_signals_ir(combat, _bare_ir(), include_membership=True)
     }
 
 
@@ -1459,7 +1521,7 @@ def test_self_graveyard_recursion_stays_you():
     }
     assert not any(
         s.key == "graveyard_matters" and s.scope == "opponents"
-        for s in extract_signals_hybrid(c, _bare_ir())
+        for s in extract_signals_ir(c, _bare_ir())
     )
 
 
@@ -1469,7 +1531,7 @@ def test_self_graveyard_recursion_stays_you():
 def test_subject_field_is_actually_populated():
     # ADR-0027: type_matters migrated → hybrid path.
     c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
-    assert any(s.subject == "Goblin" for s in extract_signals_hybrid(c, _bare_ir()))
+    assert any(s.subject == "Goblin" for s in extract_signals_ir(c, _bare_ir()))
 
 
 # --- coverage gate (the agent-augmentation hook) -------------------------------
@@ -1485,7 +1547,7 @@ def test_coverage_gate_flags_zero_signal():
 def test_coverage_gate_passes_when_subject_present():
     # ADR-0027: type_matters migrated → hybrid path supplies the subject signal.
     c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
-    needs, _reason = coverage_gate(c, extract_signals_hybrid(c, _bare_ir()))
+    needs, _reason = coverage_gate(c, extract_signals_ir(c, _bare_ir()))
     assert needs is False
 
 
@@ -1513,7 +1575,7 @@ def test_coverage_gate_flags_partial_parse_ir():
         faces=(Face(name="X", abilities=()),),
         parse_confidence="partial",
     )
-    sigs = extract_signals_hybrid(c, partial)
+    sigs = extract_signals_ir(c, partial)
     assert any(s.subject == "Goblin" for s in sigs)  # a real (non-blind) lane
     needs, reason = coverage_gate(c, sigs, partial)
     assert needs is True
@@ -1526,7 +1588,7 @@ def test_coverage_gate_full_ir_does_not_trip_partial_parse():
     # the IR threaded as the 3rd arg.
     c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
     full = _bare_ir()  # parse_confidence defaults to "full"
-    needs, reason = coverage_gate(c, extract_signals_hybrid(c, full), full)
+    needs, reason = coverage_gate(c, extract_signals_ir(c, full), full)
     assert needs is False
     assert reason == ""
 
@@ -1616,22 +1678,16 @@ def test_double_damage_of_counter_creatures_opens_counters():
     # (Raphael, Tidus) — the ADR-0027 author read this as a +1/+1-counters DAMAGE
     # payoff (the damage-doubling context implies POSITIVE counters), but the text
     # itself is a kind-agnostic Any reference (CR 122.1's kind carries the
-    # distinction). ADR-0039 W8: plus_one_matters PROMOTED — the crosswalk (flag-ON)
+    # distinction). ADR-0039 W8: plus_one_matters PROMOTED — the crosswalk
     # correctly does NOT fire it here: a replacement's damage_source_filter carrying
     # an Any-kind Counters predicate is the SAME kind-mismatch shed class as The
-    # Swarmlord / Xolatoyac / Winged Hive Tyrant. The legacy flag-OFF IR path keeps
-    # its own byte-identical over-fire (the intended flag-OFF invariance).
-    # NOTE (deferred, not this wave's key): any_counter_matters ALSO does not fire at
-    # the flag-ON crosswalk state — its own arms never read a replacement's
-    # damage_source_filter at all, a genuine structural gap in that SIBLING key, out
-    # of scope for the plus_one_matters wave.
-    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
-
+    # Swarmlord / Xolatoyac / Winged Hive Tyrant.
+    # NOTE (deferred, not this wave's key): any_counter_matters ALSO does not fire —
+    # its own arms never read a replacement's damage_source_filter at all, a
+    # genuine structural gap in that SIBLING key, out of scope for the
+    # plus_one_matters wave.
     keys = _keys_real("Raphael, the Muscle")
-    if crosswalk_enabled():
-        assert "plus_one_matters" not in keys
-    else:
-        assert "plus_one_matters" in keys
+    assert "plus_one_matters" not in keys
 
 
 def test_two_tribe_tutor():
@@ -1649,7 +1705,7 @@ def test_two_tribe_tutor():
     # ADR-0027: type_matters migrated → hybrid path.
     assert ("type_matters", "you", "Noble") in {
         (s.key, s.scope, s.subject)
-        for s in extract_signals_hybrid(lo_and_li, _bare_ir(), include_membership=True)
+        for s in extract_signals_ir(lo_and_li, _bare_ir(), include_membership=True)
     }
 
 
@@ -1668,7 +1724,7 @@ def test_two_tribe_creature_spell():
     # ADR-0027: type_matters migrated → hybrid path.
     trips = {
         (s.key, s.subject)
-        for s in extract_signals_hybrid(tawnos, _bare_ir(), include_membership=True)
+        for s in extract_signals_ir(tawnos, _bare_ir(), include_membership=True)
     }
     assert ("type_matters", "Beast") in trips
     assert ("type_matters", "Bird") in trips
@@ -1690,7 +1746,7 @@ def test_tribe_comma_list_refs():
     # ADR-0027: type_matters migrated → hybrid path.
     trips = {
         (s.key, s.subject)
-        for s in extract_signals_hybrid(kiora, _bare_ir(), include_membership=True)
+        for s in extract_signals_ir(kiora, _bare_ir(), include_membership=True)
     }
     for t in ("Kraken", "Leviathan", "Serpent"):
         assert ("type_matters", t) in trips, t
@@ -1712,7 +1768,7 @@ def test_tribal_card_spell_list_refs():
     # ADR-0027: type_matters migrated → hybrid path.
     trips = {
         (s.key, s.subject)
-        for s in extract_signals_hybrid(kaalia, _bare_ir(), include_membership=True)
+        for s in extract_signals_ir(kaalia, _bare_ir(), include_membership=True)
     }
     for tribe in ("Angel", "Demon", "Dragon"):
         assert ("type_matters", tribe) in trips, tribe
@@ -1726,7 +1782,7 @@ def test_tribal_card_spell_list_refs():
     }
     assert ("type_matters", "Lhurgoyf") in {
         (s.key, s.subject)
-        for s in extract_signals_hybrid(disa, _bare_ir(), include_membership=True)
+        for s in extract_signals_ir(disa, _bare_ir(), include_membership=True)
     }
 
 
@@ -1745,7 +1801,7 @@ def test_tribal_creature_spell_and_target_tribe():
     # ADR-0027: type_matters migrated → hybrid path.
     assert ("type_matters", "you", "Zombie") in {
         (s.key, s.scope, s.subject)
-        for s in extract_signals_hybrid(gisa, _bare_ir(), include_membership=True)
+        for s in extract_signals_ir(gisa, _bare_ir(), include_membership=True)
     }
     splinter = {
         "name": "Splinter, Radical Rat",
@@ -1758,7 +1814,7 @@ def test_tribal_creature_spell_and_target_tribe():
     }
     assert ("type_matters", "you", "Ninja") in {
         (s.key, s.scope, s.subject)
-        for s in extract_signals_hybrid(splinter, _bare_ir(), include_membership=True)
+        for s in extract_signals_ir(splinter, _bare_ir(), include_membership=True)
     }
     # Over-fire guard: a generic "creature spell" / "target creature can't be blocked"
     # captures no tribe (vocab gate drops the card-type word).
@@ -1772,7 +1828,7 @@ def test_tribal_creature_spell_and_target_tribe():
     }
     assert not any(
         s.key == "type_matters" and s.subject == "Creature"
-        for s in extract_signals_hybrid(generic, _bare_ir(), include_membership=True)
+        for s in extract_signals_ir(generic, _bare_ir(), include_membership=True)
     )
 
 
@@ -1793,7 +1849,7 @@ def test_tribal_tutor_with_intervening_type_word():
     # ADR-0027: type_matters migrated → hybrid path.
     assert ("type_matters", "you", "Dragon") in {
         (s.key, s.scope, s.subject)
-        for s in extract_signals_hybrid(zirilan, _bare_ir(), include_membership=True)
+        for s in extract_signals_ir(zirilan, _bare_ir(), include_membership=True)
     }
     # Over-fire guard: "search for a basic land card" captures no tribe (vocab gate).
     fetch = {
@@ -1803,7 +1859,7 @@ def test_tribal_tutor_with_intervening_type_word():
     }
     assert not any(
         s.key == "type_matters" and s.subject in ("Basic", "Land")
-        for s in extract_signals_hybrid(fetch, _bare_ir(), include_membership=True)
+        for s in extract_signals_ir(fetch, _bare_ir(), include_membership=True)
     )
 
 
@@ -1949,7 +2005,7 @@ def test_instant_sorcery_buildaround_opens_spellcast():
     # build-around has no cast_spell trigger, so it rides the byte-identical
     # _detect_spellcast_matters kept mirror via the hybrid path.
     assert "spellcast_matters" in {
-        s.key for s in extract_signals_hybrid(lier, _bare_ir(), include_membership=True)
+        s.key for s in extract_signals_ir(lier, _bare_ir(), include_membership=True)
     }
     # Over-fire guard: a bare counterspell mentions an instant but isn't an instant/
     # sorcery build-around — it must NOT read as spellslinger.
@@ -1959,8 +2015,7 @@ def test_instant_sorcery_buildaround_opens_spellcast():
         "oracle_text": "Counter target instant spell.",
     }
     assert "spellcast_matters" not in {
-        s.key
-        for s in extract_signals_hybrid(dispel, _bare_ir(), include_membership=True)
+        s.key for s in extract_signals_ir(dispel, _bare_ir(), include_membership=True)
     }
 
 
@@ -1991,12 +2046,8 @@ def test_color_hoser_opens_and_serves_color_change_toolbox():
     # ADR-0027: color_hoser is MIGRATED — served from the hybrid IR path (its
     # bounce/restriction forms ride the byte-identical _COLOR_HOSER_RE kept mirror over
     # kept_oracle, which an empty bare IR still runs), no longer from the regex path.
-    assert any(
-        s.key == "color_hoser" for s in extract_signals_hybrid(llawan, _bare_ir())
-    )
-    assert any(
-        s.key == "color_hoser" for s in extract_signals_hybrid(dromar, _bare_ir())
-    )
+    assert any(s.key == "color_hoser" for s in extract_signals_ir(llawan, _bare_ir()))
+    assert any(s.key == "color_hoser" for s in extract_signals_ir(dromar, _bare_ir()))
     # Over-fire guard: a plain color anthem (Bad Moon, "Black creatures get +1/+1") is
     # NOT a hoser — it doesn't punish/restrict/bounce a color.
     bad_moon = {
@@ -2005,13 +2056,13 @@ def test_color_hoser_opens_and_serves_color_change_toolbox():
         "oracle_text": "Black creatures get +1/+1.",
     }
     assert not any(
-        s.key == "color_hoser" for s in extract_signals_hybrid(bad_moon, _bare_ir())
+        s.key == "color_hoser" for s in extract_signals_ir(bad_moon, _bare_ir())
     )
 
     # Serve = the color-change toolbox (Painter's Servant, Sleight of Mind), not a
     # protection-from-color trick or a mana fixer.
     sig = next(
-        s for s in extract_signals_hybrid(llawan, _bare_ir()) if s.key == "color_hoser"
+        s for s in extract_signals_ir(llawan, _bare_ir()) if s.key == "color_hoser"
     )
     sp = spec_for(sig)
     painters = {
@@ -2162,10 +2213,18 @@ def test_spell_copy_cross_opens_spellcast():
     )
     keys = {
         s.key
-        for s in extract_signals_hybrid(zevlor, spell_copy_ir, include_membership=True)
+        for s in extract_signals_ir(zevlor, spell_copy_ir, include_membership=True)
     }
     assert "spell_copy_makers" in keys  # precondition
-    assert "spellcast_matters" in keys  # cross-opened
+    # ADR-0039 task #80 step 6: the spell_copy_makers -> spellcast_matters
+    # cross-open lives in extract_signals_hybrid's post-merge reconciliation
+    # (signals.py), not extract_signals_ir itself — a synthetic no-oracle_id
+    # fixture can never reach it through the crosswalk-only hybrid, so apply
+    # the SAME rule here, against extract_signals_ir's own output, to prove
+    # the reconciliation FORMULA still fires on this precondition.
+    assert "spellcast_matters" not in keys
+    reconciled = _spellcast_reconciled(keys)
+    assert "spellcast_matters" in reconciled  # cross-opened
 
 
 def test_named_token_maker_opens_tribe_via_all_parts():
@@ -2304,7 +2363,7 @@ def test_play_from_top_cross_opens_topdeck_selection():
             "the top of your library."
         ),
     }
-    ks = _ks_hybrid(gwenom)
+    ks = _topdeck_reconciled(gwenom, _ks_hybrid(gwenom))
     assert ("play_from_top", "you") in ks
     assert ("topdeck_selection", "you") in ks
     # Over-fire guard: a commander that doesn't play from the top opens neither.
@@ -2340,17 +2399,9 @@ def test_warp_granting_is_not_cheat_into_play():
     # CAST, the opposite of CR 601.2/400.7's "put onto the battlefield WITHOUT
     # casting it." The crosswalk's structural read (a pure static AddKeyword
     # modification, no ChangeZone/RevealUntil/tutor node anywhere) correctly
-    # declines; the legacy flag-OFF IR path keeps the byte-identical
-    # _CHEAT_INTO_PLAY_RESIDUE_RE kept mirror (the `have warp` thematic
-    # cross-open), so it still fires there (the intended flag-OFF invariance —
-    # same shape as test_creatures_are_lands_is_not_untap_engine). Real oracle.
-    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
-
+    # declines. Real oracle.
     keys = _keys_real("Tannuk, Steadfast Second")
-    if crosswalk_enabled():
-        assert "cheat_into_play" not in keys
-    else:
-        assert "cheat_into_play" in keys
+    assert "cheat_into_play" not in keys
     # Over-fire guard: a vanilla creature is not a cheat deck.
     assert "cheat_into_play" not in _keys_real("Grizzly Bears")
 
@@ -2649,21 +2700,14 @@ def test_power_greater_than_base_power_opens_counters():
     # ANY power-increasing effect (a temporary pump, a static anthem, Evolve), not
     # specific to +1/+1 counters — the state carries no counter KIND at all, so it
     # isn't a counter reference of any kind (not even any_counter_matters). ADR-0039
-    # W8: plus_one_matters PROMOTED — the crosswalk (flag-ON) correctly does NOT fire
-    # it here, an adjudicated shed (Ms. Marvel is the third corpus member; see
+    # W8: plus_one_matters PROMOTED — the crosswalk correctly does NOT fire it here,
+    # an adjudicated shed (Ms. Marvel is the third corpus member; see
     # test_crosswalk.py's test_plus_one_matters_excludes_power_greater_than_base_
-    # power_cda). The legacy flag-OFF IR path keeps its own byte-identical over-fire
-    # (the intended flag-OFF invariance).
-    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
-
+    # power_cda).
     kutzil = _keys_real("Kutzil, Malamet Exemplar")
     baird = _keys_real("Baird, Argivian Recruiter")
-    if crosswalk_enabled():
-        assert "plus_one_matters" not in kutzil
-        assert "plus_one_matters" not in baird
-    else:
-        assert "plus_one_matters" in kutzil
-        assert "plus_one_matters" in baird
+    assert "plus_one_matters" not in kutzil
+    assert "plus_one_matters" not in baird
 
 
 def test_forced_combat_and_any_player_attack_open_goad():
@@ -2726,7 +2770,7 @@ def test_gain_control_commander_also_opens_wants_theft():
             ),
         )
     )
-    ks = _ks_hybrid_ir(silumgar, silumgar_ir)
+    ks = _wants_theft_reconciled(_ks_hybrid_ir(silumgar, silumgar_ir))
     assert ("gain_control", "you") in ks
     assert ("wants_theft", "opponents") in ks
     # Over-fire guard: a commander with no steal/theft text opens neither.
@@ -3090,8 +3134,7 @@ def test_self_etb_value_matches_whenever_and_plural_enter():
     # ADR-0027 v34: blink_flicker migrated — the self-ETB-value avenue opener was
     # re-homed to the IR membership block; use the hybrid path with include_membership.
     assert "blink_flicker" in {
-        s.key
-        for s in extract_signals_hybrid(roxanne, _bare_ir(), include_membership=True)
+        s.key for s in extract_signals_ir(roxanne, _bare_ir(), include_membership=True)
     }
 
 
@@ -3134,8 +3177,7 @@ def test_self_etb_value_resolves_short_name_not_just_first_token():
     # re-homed to the IR membership block; use the hybrid path with include_membership.
     def _mem(c):
         return {
-            s.key
-            for s in extract_signals_hybrid(c, _bare_ir(), include_membership=True)
+            s.key for s in extract_signals_ir(c, _bare_ir(), include_membership=True)
         }
 
     assert "blink_flicker" in _mem(spider_byte)
@@ -3269,12 +3311,8 @@ def test_voltron_orthogonal_signals_do_not_suppress_fallback():
             "During your turn, Thrun has indestructible."
         ),
     }
-    assert "voltron_matters" in {
-        s.key for s in extract_signals_hybrid(wilson, _bare_ir())
-    }
-    assert "voltron_matters" in {
-        s.key for s in extract_signals_hybrid(thrun, _bare_ir())
-    }
+    assert "voltron_matters" in {s.key for s in extract_signals_ir(wilson, _bare_ir())}
+    assert "voltron_matters" in {s.key for s in extract_signals_ir(thrun, _bare_ir())}
     # Over-fire guard: a real ENGINE (here a spellslinger draw engine) IS a non-voltron
     # plan — it suppresses the fallback even on an evasive power-2 body with no voltron
     # override match.
@@ -3287,7 +3325,7 @@ def test_voltron_orthogonal_signals_do_not_suppress_fallback():
         ),
     }
     assert "voltron_matters" not in {
-        s.key for s in extract_signals_hybrid(spellslinger, _bare_ir())
+        s.key for s in extract_signals_ir(spellslinger, _bare_ir())
     }
 
 
@@ -3544,7 +3582,7 @@ def test_tribal_support_without_you_control_opens_type_matters():
     def subs(card):
         return {
             s.subject
-            for s in extract_signals_hybrid(card, _bare_ir(), include_membership=True)
+            for s in extract_signals_ir(card, _bare_ir(), include_membership=True)
             if s.key == "type_matters"
         }
 
@@ -3764,7 +3802,7 @@ def test_cost_reduction_serves_stacking_reducers():
         ),
     )
     assert "cost_reduction" not in _keys(stenn)
-    assert "cost_reduction" in {s.key for s in extract_signals_hybrid(stenn, stenn_ir)}
+    assert "cost_reduction" in {s.key for s in extract_signals_ir(stenn, stenn_ir)}
 
     def lane_covers(card, key, scope):
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
@@ -3812,7 +3850,7 @@ def test_token_maker_serves_token_aristocrats_drain():
     # byte-identical kept mirror captures Endrek's "create X … Thrull creature tokens").
     tm_sig = next(
         s
-        for s in extract_signals_hybrid(endrek, _bare_ir(), include_membership=True)
+        for s in extract_signals_ir(endrek, _bare_ir(), include_membership=True)
         if s.key == "token_maker"
     )
     sp = spec_for(tm_sig)
@@ -4549,9 +4587,7 @@ def test_lifegain_matches_variable_that_much_life():
         )
     )
     # _matters sweep (ADR-0034): gaining life is the MAKER arm → lifegain_makers.
-    assert "lifegain_makers" in {
-        s.key for s in extract_signals_hybrid(varina, varina_ir)
-    }
+    assert "lifegain_makers" in {s.key for s in extract_signals_ir(varina, varina_ir)}
     # Over-fire guard: the gainer is the OPPONENT. phase tags "target opponent gains
     # that much life" gain_life scope='opp', which the you/any arm excludes — only a
     # you/any gainer opens the lane (CR 119.3: the gain adjusts THAT player's total).
@@ -4574,7 +4610,7 @@ def test_lifegain_matches_variable_that_much_life():
             ),
         )
     )
-    assert "lifegain_makers" not in {s.key for s in extract_signals_hybrid(opp, opp_ir)}
+    assert "lifegain_makers" not in {s.key for s in extract_signals_ir(opp, opp_ir)}
 
 
 def test_debuff_serves_opponent_mass_shrink():
@@ -4869,15 +4905,11 @@ def test_acererak_folds_ventured_tomb_of_annihilation():
             },
         ],
     }
-    # ADR-0027 β: lifegain_matters migrated to the Card IR — it serves from the hybrid,
-    # and extract_signals_hybrid folds referenced objects (the ventured ToA) into the
-    # record the IR kept-mirror reads, so the "each player loses N life" bleed still
-    # opens the lane.
+    # ADR-0027 β: lifegain_matters migrated to the Card IR — ``_ir_folded`` folds
+    # referenced objects (the ventured ToA) into the record the IR kept-mirror
+    # reads, so the "each player loses N life" bleed still opens the lane.
     without = _keys_hybrid(acererak)
-    withfold = {
-        s.key
-        for s in extract_signals_hybrid(acererak, _bare_ir(), resolve_object=resolver)
-    }
+    withfold = {s.key for s in _ir_folded(acererak, resolver)}
     # The folded ToA bleed opens lifegain (sustain for Demon's Horn).
     assert "lifegain_matters" in withfold
     assert "lifegain_matters" not in without
@@ -4905,10 +4937,7 @@ def test_acererak_folds_ventured_tomb_of_annihilation():
             },
         ],
     }
-    assert "lifegain_matters" not in {
-        s.key
-        for s in extract_signals_hybrid(nadaar, _bare_ir(), resolve_object=resolver)
-    }
+    assert "lifegain_matters" not in {s.key for s in _ir_folded(nadaar, resolver)}
 
 
 def test_ring_bearer_commander_folds_the_ring():
@@ -4946,15 +4975,11 @@ def test_ring_bearer_commander_folds_the_ring():
     # ADR-0027 β: combat_damage_to_opp migrated to the Card IR, so it is served from the
     # hybrid (IR) path. The hybrid folds the referenced object (the Ring) into the record
     # the IR mirror reads, so the folded combat-damage drain still opens the lane.
-    without = {s.key for s in extract_signals_hybrid(aragorn, _bare_ir())}
-    withfold = {
-        s.key
-        for s in extract_signals_hybrid(aragorn, _bare_ir(), resolve_object=resolver)
-    }
+    without = {s.key for s in extract_signals_ir(aragorn, _bare_ir())}
+    withfold = {s.key for s in _ir_folded(aragorn, resolver)}
     # The folded Ring's combat-damage drain opens combat_damage_to_opp.
     assert ("combat_damage_to_opp", "opponents") in {
-        (s.key, s.scope)
-        for s in extract_signals_hybrid(aragorn, _bare_ir(), resolve_object=resolver)
+        (s.key, s.scope) for s in _ir_folded(aragorn, resolver)
     }
     assert "combat_damage_to_opp" in withfold
     assert "combat_damage_to_opp" not in without
@@ -4964,10 +4989,7 @@ def test_ring_bearer_commander_folds_the_ring():
         "type_line": "Legendary Creature — Bear",
         "oracle_text": "Vigilance",
     }
-    assert "combat_damage_to_opp" not in {
-        s.key
-        for s in extract_signals_hybrid(plain, _bare_ir(), resolve_object=resolver)
-    }
+    assert "combat_damage_to_opp" not in {s.key for s in _ir_folded(plain, resolver)}
 
 
 def test_meld_commander_folds_its_meld_result():
@@ -5016,10 +5038,7 @@ def test_meld_commander_folds_its_meld_result():
     # pre-folded record — _fold_referenced_objects runs before extract_signals_ir), not
     # the pure regex path. The ADR-0025 fold contract is unchanged; only the producer is.
     without = _keys(bruna)
-    withfold = {
-        s.key
-        for s in extract_signals_hybrid(bruna, _bare_ir(), resolve_object=resolver)
-    }
+    withfold = {s.key for s in _ir_folded(bruna, resolver)}
     assert "stax_taxes" in withfold  # Brisela's "can't cast MV<=3" lock
     assert "stax_taxes" not in without
     # Over-fire guard: a non-meld commander folds nothing.
@@ -5028,7 +5047,4 @@ def test_meld_commander_folds_its_meld_result():
         "type_line": "Legendary Creature — Bear",
         "oracle_text": "Vigilance",
     }
-    assert "stax_taxes" not in {
-        s.key
-        for s in extract_signals_hybrid(plain, _bare_ir(), resolve_object=resolver)
-    }
+    assert "stax_taxes" not in {s.key for s in _ir_folded(plain, resolver)}

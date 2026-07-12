@@ -6,24 +6,20 @@ to the IR the same way the engine does (``engine._ir_index``): one memoized load
 of the sidecar (oracle_id → :class:`Card`), then an ``oracle_id`` lookup per card.
 
 The lookup degrades to ``None`` whenever the sidecar is absent / the wrong
-version (``load_card_ir`` raises) or the card carries no ``oracle_id`` — so a
-no-IR deployment, or a synthetic test fixture with no oracle_id, simply falls
-back to the legacy oracle-regex path in the caller. Memoized so a tune issuing
-many searches never re-reads the sidecar.
+version (``load_crosswalk_card_ir`` raises) or the card carries no ``oracle_id``
+— so a no-IR deployment, or a synthetic test fixture with no oracle_id, simply
+degrades gracefully in the caller. Memoized so a tune issuing many searches
+never re-reads the sidecar.
 
-ADR-0035 Stage-3a cutover — the crosswalk seam. This module is the chokepoint
-that feeds BOTH seams and it is where the cutover flag lives:
+ADR-0035/0039 — the crosswalk is the ONLY serving path (task #80 step 6 deleted
+the ``MTG_SKILLS_CROSSWALK_SIGNALS`` cutover flag and the legacy projected-Card
+revert path it gated):
 
-* :func:`crosswalk_enabled` reads ``MTG_SKILLS_CROSSWALK_SIGNALS`` — **default ON**
-  as of the Stage-4 flip. With it explicitly OFF (``"0"``/``"false"``/``"no"``/
-  ``"off"``) every path below is byte-identical to before Stage-3a (the revert path).
 * :func:`ir_for` (Seam B — the five dataclass-API consumers ``ranking`` /
   ``budgets`` / ``cut_check`` / ``metrics`` / ``bracket``) returns the
-  **crosswalk-backed** :class:`Card` sidecar when the flag is ON — ``None``
-  when that sidecar is unbuilt, NEVER a silent fall-through to the legacy
-  projected sidecar's differently-built Cards (ADR-0039 task #80 step 4) —
-  else the legacy projected sidecar (:func:`old_ir_for`), the explicit
-  ``MTG_SKILLS_CROSSWALK_SIGNALS=0`` revert path.
+  crosswalk-backed :class:`Card` sidecar — ``None`` when that sidecar is
+  unbuilt, NEVER a silent fall-through to a different builder's Card
+  (ADR-0039 task #80 step 4).
 * :func:`trees_for` (Seam A — the hybrid signal dispatch) resolves a record to
   its Layer-2 concept trees, ONE PER PHASE FACE RECORD (a DFC / split card
   shares one ``oracle_id`` across faces, each face a separate phase record —
@@ -43,7 +39,6 @@ from __future__ import annotations
 
 import functools
 import json
-import os
 import re
 from typing import TYPE_CHECKING
 
@@ -56,45 +51,14 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.schema import MirrorSchema
 
 
-# ── Stage-3a cutover flag (ADR-0035) ──────────────────────────────────────────
-
-_FLAG_ENV = "MTG_SKILLS_CROSSWALK_SIGNALS"
-
-
-def crosswalk_enabled() -> bool:
-    """True when the ADR-0035 crosswalk cutover is enabled (default ON, Stage-4).
-
-    Reads ``MTG_SKILLS_CROSSWALK_SIGNALS``. The Stage-4 default-ON flip inverts the
-    sense: unset / empty ⇒ ON (the new default), and only an explicit
-    ``"0"`` / ``"false"`` / ``"no"`` / ``"off"`` keeps the pre-Stage-3a legacy
-    behavior (the RETAINED revert path — flag-OFF is byte-identical to pre-flip
-    main). Read per call (cheap ``os.environ`` lookup) so a test can flip it with
-    ``monkeypatch.setenv`` / ``delenv`` and see it immediately."""
-    value = os.environ.get(_FLAG_ENV, "").strip().lower()
-    return value not in ("0", "false", "no", "off")
-
-
 # ── Seam B — the Card dataclass API resolver ──────────────────────────────────
 
 
 @functools.cache
-def _index() -> dict[str, Card] | None:
-    """The legacy Card IR index (oracle_id → Card), loaded once per process.
-    ``None`` when the sidecar is absent / stale so callers degrade to regex
-    instead of crashing."""
-    from mtg_utils._card_ir.load import load_card_ir
-
-    try:
-        return load_card_ir()
-    except (FileNotFoundError, ValueError):
-        return None
-
-
-@functools.cache
 def _crosswalk_index() -> dict[str, Card] | None:
-    """The crosswalk-backed Card IR index (ADR-0035 Stage-3a), loaded once per
-    process. ``None`` when the crosswalk sidecar is absent / the wrong version, so
-    :func:`ir_for` degrades to the legacy index under the flag."""
+    """The crosswalk-backed Card IR index, loaded once per process. ``None``
+    when the crosswalk sidecar is absent / the wrong version, so :func:`ir_for`
+    degrades gracefully."""
     from mtg_utils._card_ir.load import load_crosswalk_card_ir
 
     try:
@@ -103,45 +67,26 @@ def _crosswalk_index() -> dict[str, Card] | None:
         return None
 
 
-def old_ir_for(card: dict) -> Card | None:
-    """The candidate's LEGACY (project.py) Card IR by ``oracle_id`` (``None`` when
-    unavailable). The hybrid signal dispatch reads this directly for the residual
-    keys the crosswalk does not reproduce — those stay on the project.py path."""
-    index = _index()
+def ir_for(card: dict) -> Card | None:
+    """The candidate's Card IR (by ``oracle_id``), or ``None`` when unavailable.
+
+    Returns the crosswalk-backed sidecar's Card (the single index every Seam-B
+    consumer reads); if the sidecar is unbuilt, returns ``None`` — the SAME
+    graceful "nothing here" contract ``production.default_state`` uses for a
+    missing bulk file (``bulk_available=False``, empty search).
+    ``production.ensure_card_ir`` builds this sidecar at launch so the degraded
+    branch is the exception, not the common case (ADR-0039 task #80 step 4).
+
+    ``None`` covers the cases the callers treat identically — no sidecar, an
+    oracle_id absent from the index, and a record with no ``oracle_id``
+    (synthetic fixtures) — each degrading gracefully in the Seam-B caller."""
+    index = _crosswalk_index()
     if index is None:
         return None
     return index.get(card.get("oracle_id") or "")
 
 
-def ir_for(card: dict) -> Card | None:
-    """The candidate's Card IR (by ``oracle_id``), or ``None`` when unavailable.
-
-    With the crosswalk flag ON — the Stage-4 default — returns the crosswalk-backed
-    sidecar's Card (the single flip that cuts all five Seam-B consumers over
-    together); with the flag explicitly OFF (the revert path) returns the legacy
-    projected sidecar's Card, byte-identical to before. If the flag is ON but the
-    crosswalk sidecar is unbuilt, returns ``None`` — the SAME graceful
-    "nothing here" contract ``production.default_state`` uses for a missing
-    bulk file (``bulk_available=False``, empty search) — NEVER a silent
-    fall-through to the legacy sidecar's Card (a different builder's output;
-    serving it under the flag would look like crosswalk data while actually
-    being the projection it replaced). ``production.ensure_card_ir`` builds
-    this sidecar at launch so the degraded branch is the exception, not the
-    common case (ADR-0039 task #80 step 4).
-
-    ``None`` covers the cases the callers treat identically — no sidecar (of
-    whichever kind the flag currently selects), an oracle_id absent from the
-    index, and a record with no ``oracle_id`` (synthetic fixtures) — each
-    degrading to the legacy oracle-regex classification in the Seam-B caller."""
-    if crosswalk_enabled():
-        index = _crosswalk_index()
-        if index is None:
-            return None
-        return index.get(card.get("oracle_id") or "")
-    return old_ir_for(card)
-
-
-# ── Seam A — the concept-tree resolver (ADR-0035 Stage-3a) ─────────────────────
+# ── Seam A — the concept-tree resolver ──────────────────────────────────────
 
 
 @functools.cache
@@ -188,11 +133,11 @@ _TREES_MEMO: dict[str, tuple[ConceptTree, ...]] = {}
 
 
 def clear_caches() -> None:
-    """Drop every memoized index / tree (test hygiene when toggling the flag).
+    """Drop every memoized index / tree (test hygiene between fixture swaps).
 
     Defensive: a test may ``monkeypatch`` any of the memoized loaders with a plain
     lambda (no ``cache_clear``), so skip anything that is not an active cache."""
-    for fn in (_index, _crosswalk_index, _phase_record_index, _committed_schema):
+    for fn in (_crosswalk_index, _phase_record_index, _committed_schema):
         clear = getattr(fn, "cache_clear", None)
         if clear is not None:
             clear()
@@ -412,8 +357,11 @@ def trees_for(card: dict, bulk: dict | None = None) -> tuple[ConceptTree, ...]:
     :func:`build_trees` for the pure per-oid construction; :func:`seed_trees`
     lets a caller pre-populate the memo — CI-safe, no phase cache needed). An
     empty tuple covers no oracle_id, no phase record / schema, and every face
-    drifting from the committed schema — each degrading the hybrid to the
-    legacy IR path for the crosswalk-served keys.
+    drifting from the committed schema — each degrading the hybrid
+    (``signals.extract_signals_hybrid``) to an empty signal list for that
+    card, not a crash (ADR-0039 task #80 step 6: there is no legacy IR path
+    left to fall back to; the full commander/brawl-legal corpus census found
+    this tuple is never actually empty for a sanctioned card).
 
     ``bulk`` (ADR-0038 W2c) is the full Scryfall/MTGJSON-shaped record (with
     ``card_faces``) for the same card, supplied explicitly rather than read

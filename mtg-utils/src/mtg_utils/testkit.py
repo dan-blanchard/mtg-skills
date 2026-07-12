@@ -8,25 +8,22 @@ both halves of the production call:
   * :func:`test_card` — the minimal Scryfall record (the ``record`` arg the regex /
     kept-mirror path re-scans).
   * :func:`test_card_ir` — the REAL Card IR for *name*, built ON DEMAND from the
-    snapshot's stored raw phase face records (ADR-0039 task #80 step 5) — the
-    crosswalk-era compat ``Card`` (``compat_card_from_records``, the same shape
-    ``ir_for`` serves in production) when the ADR-0035 flag is ON (the default), or
-    ``project_card`` — the flag-OFF revert path's own builder, run over the SAME
-    stored records — when explicitly OFF. Either way this is a REAL production build,
-    never a baked artifact: the snapshot carries phase's own parse (the INPUT), not a
-    frozen projection (the OUTPUT), so a crosswalk code change is reflected the next
-    test run with no snapshot regen.
+    snapshot's stored raw phase face records (ADR-0039 task #80 step 5/6) —
+    unconditionally the crosswalk-era compat ``Card`` (``compat_card_from_records``,
+    the same shape ``ir_for`` serves in production; the ADR-0035 cutover flag and
+    the legacy revert path it selected are gone, task #80 step 6). A REAL production
+    build, never a baked artifact: the snapshot carries phase's own parse (the
+    INPUT), not a frozen projection (the OUTPUT), so a crosswalk code change is
+    reflected the next test run with no snapshot regen.
   * :func:`test_signals` — the production ``extract_signals_hybrid`` over the two, so
     a test asserts what production actually emits. Pre-seeds
     ``_ir_lookup``'s trees memo from the same stored records (:func:`_seed_trees`), so
-    the crosswalk merge (Seam A) runs for real in CI — no phase cache, no network,
-    no degrading to a pure-regex answer just because the test host has no local phase
-    install.
-  * :func:`test_legacy_card_ir` — the LEGACY (``project_card``) IR UNCONDITIONALLY,
-    ignoring the flag. For the handful of pins that assert a NAMED
-    ``supplement._recover_X`` function's own structural output (a project.py-only
-    recovery the crosswalk's parallel ``dropped_clauses.py`` / ``field_corrections.py``
-    machinery hasn't ported yet) rather than "whatever production emits today".
+    the crosswalk merge (Seam A) runs for real in CI — no phase cache, no network.
+  * :func:`test_legacy_card_ir` — the LEGACY (``project_card``) IR, unconditionally.
+    For the handful of pins that assert a NAMED ``supplement._recover_X`` function's
+    own structural output (a project.py-only recovery the crosswalk's parallel
+    ``dropped_clauses.py`` / ``field_corrections.py`` machinery hasn't ported yet)
+    rather than "whatever production emits today".
 
 The snapshot is committed (ADR-0027 / task #25 / ADR-0035/0039): CI has no phase
 cache, which is why the synthetic-IR pattern existed; the snapshot is the missing
@@ -57,7 +54,7 @@ from typing import TYPE_CHECKING, Any
 from mtg_utils._card_ir.compat import compat_card_from_records
 from mtg_utils._card_ir.load import CROSSWALK_SIDECAR_VERSION
 from mtg_utils._card_ir.mirror.build import load_committed_schema
-from mtg_utils._deck_forge._ir_lookup import build_trees, crosswalk_enabled, seed_trees
+from mtg_utils._deck_forge._ir_lookup import build_trees, seed_trees
 from mtg_utils._phase import PHASE_TAG
 from mtg_utils.card_ir import Card
 
@@ -156,19 +153,15 @@ def test_card_ir(name: str) -> Card:
     """The REAL Card IR for *name*, built on demand from the committed snapshot's
     stored raw phase face records — never a baked artifact.
 
-    Flag-aware, mirroring production's own ``ir_for`` dispatch: the crosswalk-era
-    compat ``Card`` (``compat_card_from_records``) when
-    ``_ir_lookup.crosswalk_enabled()`` is True (the default), else ``project_card`` —
-    the flag-OFF revert path's own builder — run over the SAME stored records. Both
-    are pure functions of the stored phase_records, so this needs no phase cache /
-    network and stays exact under either flag setting with zero snapshot-shape
-    duplication. An empty ``Card`` (no faces) is returned when every stored record
-    drifts from the current committed mirror schema (crosswalk path only) — the
-    honest "nothing structured survives" answer, not a crash."""
+    Mirrors production's own ``ir_for`` (ADR-0039 task #80 step 6: unconditionally
+    crosswalk now that the cutover flag and the legacy revert path it gated are
+    gone) — the crosswalk-era compat ``Card`` (``compat_card_from_records``), a
+    pure function of the stored ``phase_records``, so this needs no phase cache /
+    network with zero snapshot-shape duplication. An empty ``Card`` (no faces) is
+    returned when every stored record drifts from the current committed mirror
+    schema — the honest "nothing structured survives" answer, not a crash."""
     _seed_trees(name)
-    if crosswalk_enabled():
-        return _compat_card_ir(name)
-    return test_legacy_card_ir(name)
+    return _compat_card_ir(name)
 
 
 def _compat_card_ir(name: str) -> Card:
@@ -180,18 +173,18 @@ def _compat_card_ir(name: str) -> Card:
 
 def test_legacy_card_ir(name: str) -> Card:
     """The LEGACY (``project_card``) IR for *name*, unconditionally — built on
-    demand from the same stored phase face records, regardless of the ADR-0035
-    cutover flag.
+    demand from the same stored phase face records.
 
     For the handful of pins that assert a NAMED ``project.py`` /
     ``supplement.py`` recovery function's OWN structural output (a
     ``supplement._recover_X`` marker with no crosswalk equivalent yet — the
     ongoing wave-by-wave porting ``dropped_clauses.py`` / ``field_corrections.py``
     tracks), not "whatever production emits today". :func:`test_card_ir` stays
-    the flag-aware, production-matching default; reach for this only when the
-    test is EXPLICITLY about the legacy builder's own behavior (it survives, per
-    ADR-0039, only as the flag-OFF revert path — this is that path, addressable
-    directly)."""
+    the production-matching default (unconditionally crosswalk as of ADR-0039
+    task #80 step 6); reach for this only when the test is EXPLICITLY about the
+    legacy builder's own behavior — ``project_card`` itself survives (ADR-0039
+    task #80 step 6 retired only the PRODUCTION wiring that called it; step 7
+    decides the builder's own fate), addressable directly here."""
     _seed_trees(name)
     from mtg_utils._card_ir.project import project_card
 

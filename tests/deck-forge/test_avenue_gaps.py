@@ -13,11 +13,11 @@ Patterns implemented here:
   5. Self-ETB-value commanders surface the existing blink/flicker avenue (extraction).
 """
 
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
 from mtg_utils._deck_forge.signals import (
     Signal,
     extract_signals,
-    extract_signals_hybrid,
 )
 from mtg_utils.card_ir import Card, Face
 
@@ -27,8 +27,11 @@ def _sig(key, scope="you", subject=""):
 
 
 def _bare_ir() -> Card:
-    """A minimal non-None Card IR — routes extract_signals_hybrid through the IR path
-    so a migrated key whose IR source scans the record (a kept word mirror) fires."""
+    """A minimal non-None Card IR — routes extract_signals_ir through the IR path
+    so a migrated key whose IR source scans the record (a kept word mirror) fires
+    (ADR-0039 task #80 step 6: these synthetic fixtures have no real oracle_id, so
+    they can never resolve a crosswalk tree — see this file's other tests for the
+    real-card / testkit-backed alternative)."""
     return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
@@ -194,7 +197,7 @@ class TestBlinkForSelfEtbCommander:
         # with include_membership.
         keys = {
             s.key
-            for s in extract_signals_hybrid(fblthp, _bare_ir(), include_membership=True)
+            for s in extract_signals_ir(fblthp, _bare_ir(), include_membership=True)
         }
         assert "blink_flicker" in keys
 
@@ -225,7 +228,7 @@ class TestVoltronCastTrigger:
         # VOLTRON_PAYOFF_REGEX arm UNIONed with the structural _detect_voltron_payoff_ir).
         assert "voltron_matters" not in {s.key for s in extract_signals(sram)}
         assert "voltron_matters" in {
-            s.key for s in extract_signals_hybrid(sram, _bare_ir())
+            s.key for s in extract_signals_ir(sram, _bare_ir())
         }
         # a non-equipment payoff (an Equipment's own singular payload) must NOT open the
         # payoff lane — the broad regex keys on "equipped creatures" (PLURAL).
@@ -235,7 +238,7 @@ class TestVoltronCastTrigger:
             "oracle_text": "Equipped creature gets +1/+1.\nEquip {2}",
         }
         assert "voltron_matters" not in {
-            s.key for s in extract_signals_hybrid(gear, _bare_ir())
+            s.key for s in extract_signals_ir(gear, _bare_ir())
         }
 
 
@@ -386,7 +389,7 @@ class TestPowerMatters:
             # longer emits it, so assert via the hybrid (IR) path.
             keys = {
                 s.key
-                for s in extract_signals_hybrid(
+                for s in extract_signals_ir(
                     {
                         "name": n,
                         "type_line": "Legendary Creature — Dinosaur",
@@ -431,7 +434,7 @@ class TestTypedGraveyardRecursion:
         # ADR-0027: vehicles_matter migrated to the Card IR; the typed-graveyard-
         # recursion Vehicle arm is re-supplied per-clause in extract_signals_ir, so it
         # fires through the hybrid path (not the pure regex path).
-        keys = {s.key for s in extract_signals_hybrid(greasefang, _bare_ir())}
+        keys = {s.key for s in extract_signals_ir(greasefang, _bare_ir())}
         assert "vehicles_matter" in keys
 
     def test_typed_recursion_resolves_creature_subtype(self):

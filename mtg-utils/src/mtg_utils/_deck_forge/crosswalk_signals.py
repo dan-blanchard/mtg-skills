@@ -29,7 +29,7 @@ to it.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import fields
 
 from mtg_utils._card_ir.crosswalk import (
@@ -219,6 +219,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     _EACH_DRAW_RECIPIENTS,
     SynthesizedNode,
     _double_triggers_creature_dying,
+    _has_repeatable_kill_unit,
     _is_creature_death_subject,
     _is_death_payoff_effect,
     _is_self_return_effect,
@@ -346,15 +347,19 @@ from mtg_utils._deck_forge._sweep_detectors import (
 from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils.card_classify import get_oracle_text
 
-# The Signal keys the Stage-2 crosswalk PORTED from the typed substrate (the shadow
-# harness sliced BOTH the crosswalk and the live hybrid path to exactly this set).
-# ADR-0035 Stage-4 (default-ON flip) narrows the LIVE ported set below: the
-# ``_STAGE4_RESIDUAL`` keys the crosswalk lane does not reproduce vs the legacy
-# ``old_ir_for`` on test-covered cards are routed back onto the legacy
-# ``extract_signals_ir`` path (they stay in ``MIGRATED_KEYS`` so removal from
-# ``PORTED_KEYS`` auto-routes them to the residual arm of ``_crosswalk_merge`` — byte-
-# identical to flag-OFF for those keys). See ``PORTED_KEYS`` below.
-_PORTED_KEYS_STAGE3: frozenset[str] = frozenset(
+# The Signal keys the crosswalk PORTS from the typed substrate — THE served-keys
+# constant (ADR-0039 task #80 step 6): every migrated key eventually promoted out
+# of the (now-deleted) ADR-0035 Stage-4 residual-tracking machinery, so this is a
+# single flat set with no staging/residual distinction left. History: the
+# original Stage-2 batch was sliced by the shadow harness against the live hybrid
+# path; the Stage-4 default-ON flip temporarily routed a batch of keys the
+# crosswalk didn't yet reproduce (vs the legacy ``old_ir_for``) back onto the
+# legacy ``extract_signals_ir`` path via a ``_STAGE4_RESIDUAL`` subtraction —
+# every one of those keys was subsequently promoted (see the per-key adjudication
+# notes below, preserved from the old residual-tracking block) and the legacy
+# fallback itself is gone (ADR-0039 task #80 step 6), so the subtraction is now
+# always a no-op and has been collapsed away.
+PORTED_KEYS: frozenset[str] = frozenset(
     {
         # Batch 1 (already landed):
         "win_lose_game",
@@ -862,961 +867,964 @@ _PORTED_KEYS_STAGE3: frozenset[str] = frozenset(
     }
 )
 
-_STAGE4_RESIDUAL: frozenset[str] = frozenset(
-    # ADR-0035 Stage-4 (default-ON flip): EXACTLY the keys that OWN a flag-ON
-    # deck-forge test failure — the crosswalk lane MISSES what the legacy
-    # ``old_ir_for`` serves on a TEST-COVERED card (tests pin the legacy firing;
-    # design bucket (iii) confirmed overfire=0, so a failure is a genuine crosswalk
-    # LOSS, never a gain). Derived by running the deck-forge suite with every
-    # Stage-3 key ported and collecting the ``(key, scope[, subject])`` tuples the
-    # failing assertions name (80 keys), plus three keys whose loss surfaces only
-    # once the direct owners are already residual — ``scaling_pump`` (masked in a
-    # multi-assert test by an earlier-failing key), ``token_maker`` (its crosswalk
-    # ranking pushes a land-creatures avenue past the engine's avenue cap), and
-    # ``type_matters`` (the class-tribe membership floor is go_wide-gated on the
-    # residual ``creatures_matter``, so the floor lane must ride the same
-    # ``old_ir_for`` arm). Routing ONLY these to residual (they stay in
-    # ``MIGRATED_KEYS``, so dropping them from ``PORTED_KEYS`` re-supplies them from
-    # ``extract_signals_ir(old)`` — byte-identical to flag-OFF) restores the
-    # legacy firing without retreating from any key the crosswalk serves correctly.
-    #
-    # ADR-0038 W3 batch 3 (combat-coercion cluster): ``forced_attack``,
-    # ``goad_makers``, and ``lure_makers`` PROMOTED (0 genuine members lost
-    # vs a live corpus re-measure; the ForceBlock/created-token/self-combo
-    # false-positive classes excluded, the beyond-legacy gains CR-grounded +
-    # pinned). ``lure_makers``'s last apparent gap — Destined // Lead's
-    # Aftermath back face ("Lead"), which phase never emits — is closed by
-    # the W2c text-only face tree ``trees_for`` synthesizes off the bulk
-    # face (task #76): the ``_LURE_ABLE`` idiom reads the synthesized
-    # tree's oracle text, so production parity is exact (the wave's own
-    # measurement harness predated ``trees_for`` and couldn't see it).
-    #
-    # ADR-0038 W3 batch 4 (combat-damage cluster): ``poison_makers``
-    # PROMOTED (146 both / 0 live_only vs a live corpus re-measure — up
-    # from a 63-card gap). Two structural gaps closed: (1) a direct
-    # ``GivePlayerCounter(poison)`` DOER with no infect/toxic/poisonous
-    # keyword at all (Pit Scorpion, Marsh Viper — joined
-    # ``_PLAYER_COUNTER_MAKER``); (2) a poison GivePlayerCounter buried
-    # inside a CreateToken/CreateEmblem's OWN granted-ability definition
-    # (Serpent Generator, Ajani Sleeper Agent — a deep ``iter_typed_nodes``
-    # walk). Plus a SANCTIONED whole-card word-mirror
-    # (``_POISON_WORD_MIRROR``) for the keyword GRANTERS a bearer-only
-    # keyword-array read misses (Corrupted Conscience "has infect", Snake
-    # Cult Initiation "has poisonous 3"). One adjudicated GAIN: Ajani's
-    # emblem giver (legacy's OLD IR projects the whole "You get an emblem
-    # with ..." clause as one opaque, undecomposed effect — verified via
-    # ``old_ir_for``, no nested GivePlayerCounter survives — so legacy can
-    # never see into it; CR 114.1/122.1). ``combat_damage_matters``,
-    # ``combat_damage_to_opp``, and ``creature_ping`` gained substantial
-    # structural recovery this batch too (nested/delayed trigger descent,
-    # an Unknown-mode description fallback, a planeswalker-only exclusion,
-    # and a doer-based creature_ping widening) but still carry a diverse
-    # residual tail (TK-templated placeholder cards, bare quoted-static
-    # grants with no CreateDelayedTrigger/GrantTrigger node at all, DFC
-    # blank-oracle records) — NOT promoted this batch; see the W3 batch 4
-    # session notes.
-    #
-    # ADR-0038 W3 batch 4 (pt-counters-grants cluster): ``cost_reduction``,
-    # ``minus_counters_matter``, and ``keyword_grant_target`` PROMOTED (0
-    # genuine members lost vs a live corpus re-measure). ``cost_reduction``
-    # widened ``_arm_cost_reduction`` to also read ``ReduceAbilityCost{Reduce}``
-    # (a v0.20.0 typed mode distinct from ``ModifyCost`` — CR 601.2f/118.7
-    # covers activated-ability costs too), a nested ``GrantStaticAbility.
-    # definition`` reducer, and ANY node's own description as an Unimplemented-
-    # residue fallback, plus a final whole-tree kept-mirror for the zero-node
-    # residuals (Henzie "Toolbox" Torre, Catalyst Stone); the self-discount
-    # veto is now card-level (a multi-sentence rider's "It also costs ...
-    # less" continuation inherits it) and a free-cast/impulse-discount
-    # exclusion added. ``minus_counters_matter`` added a cost-embedded
-    # ``PutCounter`` walk (Devoted Druid), an ``enter_with_counters`` M1M1
-    # read (the Persist family's v0.20.0 substrate shape), and the legacy's
-    # own "-1/-1 counter" kept-mirror for the cares-about residue (Vizier of
-    # Remedies, Soul-Scar Mage, Necroskitter). ``keyword_grant_target``
-    # extended the threaded-target walk to trigger-origin units (Conquering
-    # Manticore's "gain control ... It gains haste" idiom) and added a
-    # kept-mirror fallback (the deleted SWEEP regex) for phase-parse-loss
-    # residues and the split/aftermath back-half (Onward // Victory).
-    # ``base_pt_set`` — see its own PROMOTED comment further down this
-    # frozenset (ADR-0039 W7 endgame) for the final arm history; the
-    # interim W3 batch 4/6 notes that used to sit here (21 corpus gaps,
-    # Belligerent Yearling closing 1 of them) are superseded.
-    #
-    # ADR-0038 W3 batch 4: ``scaling_pump`` PROMOTED — the single-target
-    # ``Pump`` tag is now admitted alongside ``PumpAll`` in
-    # ``_pump_scaling_lanes`` (CR 107.3 / 613.4c; see that function's
-    # docstring), plus two widened ``_SCALING_QTY_TAGS`` entries
-    # (``ZoneCardCount``, ``ObjectTypelineComponentCount``). 0 genuine
-    # members lost vs a live corpus re-measure (Embiggen, Gold Rush, Gran
-    # Pulse Ochu, Ral's Staticaster, Sunbathing Rootwalla all recovered);
-    # the beyond-legacy gains (~182-card corpus diff, every sub-shape by
-    # target tag corpus-verified) are CR-grounded + pinned.
-    #
-    # ADR-0038 W3 batch 4 (draw-etb-tokens cluster, worker w3b4e):
-    # ``topdeck_stack`` PROMOTED (0 genuine members lost vs a live corpus
-    # re-measure card-by-card against ``old_ir_for``): a nested-grant
-    # descent (``GrantAbility``/``GrantTrigger``/``GrantStaticAbility``
-    # ``.definition``, mirroring ``_self_pump``'s sibling scan — Scion of
-    # Halaster), a ``ParentTarget``/``TrackedSet``/``ExiledBySource``
-    # back-reference widening gated by the legacy
-    # ``supplement._topdeck_stack_self`` self-anchor scan (reused verbatim
-    # — the SAME disambiguation legacy needs, since phase's Dig /
-    # PutAtLibraryPosition carry no library-OWNER field, so a self
-    # top-stack and an opponent-library tuck are structurally
-    # byte-identical), and the legacy ``_sweep_detectors.
-    # TOPDECK_STACK_SWEEP_REGEX`` kept mirror run card-level (reused
-    # verbatim, unchanged) for the two idioms with NO topdeck_stack node at
-    # all (Leashling/Penance/Hidden Retreat's activation-cost put; Munda,
-    # Ambush Leader's/Diabolic Vision's modal reveal-then-place ``Dig``).
-    # A REPLACEMENT-origin unit is excluded (Library of Leng — legacy's
-    # project.py never walks ``card.replacements`` for this concept,
-    # verified via ``old_ir_for``) and the nested-grant descent is
-    # deliberately scoped to the three grant tags, never a blanket
-    # ``iter_typed_nodes`` walk (Loathsome Troll's modal ``RollDie`` result
-    # put — corpus-verified over-fire when tried, reverted). CR 401.4.
-    #
-    # ADR-0038 W3 batch 5 follow-up: ``landfall`` PROMOTED by the
-    # orchestrating session's verification pass — the W3 batch 4 lands
-    # agent left it residual at live_only=1, but that 1 is its OWN
-    # adjudicated, negative-pinned shed (Tameshi, Reality Architect: the
-    # land moves battlefield→hand as a cost and the graveyard return
-    # targets only artifact/enchantment, never a land entering — CR 305.1,
-    # re-verified via rules-lookup at promotion). live_only = exactly the
-    # shed set IS the 0-genuine-lost gate; re-measured at HEAD before the
-    # flip. The 12 cw_only gains (Wandering Troubadour, Restore, Hazezon,
-    # Soul of Windgrace, ...) were batch-4-adjudicated and pinned.
-    #
-    # ADR-0038 W3 batch 6 (draw-etb-tokens cluster): ``creature_etb``
-    # PROMOTED — corpus re-measure 338 both / 0 genuine live_only (37 raw
-    # live_only, all adjudicated sheds; see ``_etb_trigger_lanes``'s
-    # docstring for the full per-class breakdown) / 46 cw_only (Soulbond/
-    # Graft granted-ability bodies CR 702.95a/702.58a + the pre-existing
-    # EnteredThisTurn Arm 3 gains, all CR-grounded). Eight arms total: the
-    # three pre-existing (top-level trigger + DoubleTriggers +
-    # EnteredThisTurn) plus five new this batch — a nested
-    # ``GrantTrigger``/``CreateEmblem`` descent and a
-    # ``CreateDelayedTrigger`` descent (both riding the EXISTING shared
-    # iterators ``creature_cast_trigger``/``opponent_cast_matters`` already
-    # use), a compound ``entersorattacks`` event widening, an Unknown-mode
-    # per-trigger description fallback, an Unimplemented-whole-ability
-    # per-unit description fallback for the Stickers family, and a
-    # mode-agnostic ``_ETB_HAD_RE`` per-trigger description fallback for
-    # Ephara's condition-less delayed payoff (no ``etb`` event exists in
-    # phase's model for a structural arm to ever reach). CR 603.6a.
-    #
-    # ADR-0038 W3 batch 6 (facedown-and-basept cluster): ``facedown_matters``
-    # PROMOTED. The batch-5 zones agent proved the legacy population is
-    # SCOPE-MISMATCHED — a plain morph/manifest/cloak MAKER with no genuine
-    # payoff fires the legacy ``_matters`` lane purely because the OLD IR's
-    # per-face keyword tuple drops the keyword for a non-mana morph cost
-    # (Gathan Raiders "Morph—Discard a card" keywords=() vs Krosan Colossus
-    # "Morph {4}{U}" keywords=('Morph',)) — an artifact of that projection
-    # quirk, not a principled cares-about boundary (CR 702.37a: Morph is
-    # the cast-as-2/2 ability; a plain maker never references an EXISTING
-    # face-down object). Re-measured at HEAD: 61 live_only, 3 cw_only. 33
-    # of the 61 are this maker-idiom shed (Gathan Raiders/Whisperwood
-    # Elemental/Gift of Doom's own "as ~ is turned face up" morph rider/
-    # Cloak and Dagger, Entwined's pure regex name-collision — negative-
-    # pinned) and 28 are genuine structural gaps now closed: a FaceDown-
-    # typed marker deep scan (Nosy Goblin's ``Destroy`` target, Etrata's
-    # granted-ability ``affected``, Kadena's face-down-ETB draw, Ixidron,
-    # Veiled Ascension, Tunnel Tipster, Cryptic Pursuit, Dream Chisel,
-    # Obscuring Aether, Primordial Mist, Found Footage, Keeper of the Lens,
-    # Panoptic Projektor, Lumbering Laundry), a ``manifestdread`` trigger
-    # event (Paranormal Analyst — CR 701.62, reactive to the ACTION, not
-    # the making of it), typed ``EnchantedIsFaceDown`` condition (Unable to
-    # Scream) and static ``mode == "CantBeTurnedFaceUp"`` (Karlov Watchdog),
-    # and a ``look``/``turn``-named ``Unimplemented`` residue read (Smoke
-    # Teller/Aven Soulgazer, Showstopping Surprise/Backslide, Exiled
-    # Doomsayer's morph-cost tax), plus a unit-scoped last-resort text hook
-    # (Qarsi Deceiver, Revealing Wind, Lens of Clarity, Spy Network,
-    # Illusionary Mask) gated by a maker-idiom exclusion regex (reminder-
-    # completion / "exile ... face-down pile" gambit / self ETB-parity
-    # rider / a bare "is turned face up" duplicate-decomposition fragment)
-    # — corpus-verified at the FULL commander-legal corpus (not just the
-    # 61) to guard against the batch-5 naive-port explosion (3→126
-    # cw_only); this port's corpus cw_only is 11 (3 pre-existing baseline
-    # anomalies — Fear of Impostors/Unwanted Remake/Unidentified Hovership,
-    # the ManifestDread-on-OPPONENT arm, unrelated to this batch — plus 8
-    # genuine beyond-legacy gains: Primal Whisperer's face-down-creature
-    # count, Cyber Conversion/Illithid Harvester's "turn X face down"
-    # removal the legacy regex allowlist never covered, Creeping Peeper/
-    # Overgrown Zealot/Tin Street Gossip's mana restrictions, Oblivious
-    # Bookworm's broad condition). live_only == exactly the 33-card shed
-    # set IS the 0-genuine-lost gate.
-    #
-    # ADR-0038 W3 batch 6 (combat-trio): ``combat_damage_matters`` and
-    # ``combat_damage_to_opp`` PROMOTED (0 genuine members lost vs a live
-    # corpus re-measure — 28/27 live_only -> 0/0). A whole-face text
-    # fallback (:func:`~mtg_utils._card_ir.supplement.
-    # combat_damage_recipients_from_text`, reused verbatim, single-source
-    # from the OLD projection's own synthetic ``combat_damage`` trigger
-    # recovery) closes the bare-quoted-grant / replacement / passive-
-    # reference tail (Predators' Hour, Sokrates, Steel Hellkite, the
-    # Unfinity Sticker Sheet TK-templates, the Optimus Prime DFC face) for
-    # BOTH lanes; ``combat_damage_to_opp`` additionally gains a LOW-
-    # confidence double-strike-grant mirror (Raphael, Blade Historian,
-    # Berserkers' Onslaught — CR 510.1b/510.1c/510.2/615.
-    # ``creature_ping`` PROMOTED (0 genuine members lost — 36 -> 0
-    # live_only): the anchor widened from ``DealDamage``-only to also read
-    # ``DamageAll``/``DamageEachPlayer`` (both already decorate as the
-    # ``deal_damage`` concept, only the lane's own per-node tag filter
-    # excluded them — Waltz of Rage, Heartfire Hero), a deep
-    # ``iter_typed_nodes`` walk reaches a granted ability's OWN buried
-    # DealDamage/DamageAll (Burning Anger, Brawl), a strict "power to
-    # target creature" recipient-text confirm recovers a ParentTarget
-    # back-reference recipient when the doer's power comes from a
-    # DIFFERENT object (Lie in Wait, Dead Reckoning), and the Multiply
-    # anchor admits an ``EventContextAmount`` inner qty (Cut Propulsion's
-    # anaphoric "twice that much"), all CR 120.3. Three adjudicated GAINS
-    # (Osseous Sticktwister, Storm Queen of Wakanda, Lukka's ultimate
-    # emblem) join the already-ported Delirium precedent — legacy's own
-    # oracle-fallback regex is narrower than the structural read in each
-    # case (a pronoun, an "any target" tail, a qualifying relative clause),
-    # not a principled exclusion.
-    #
-    # ADR-0038 W4 giant-key batch: ``creatures_matter`` STAYS residual —
-    # substantial recall gain (a live corpus re-measure: both 603 -> 1193,
-    # live_only 3184 -> 2594, no new cw_only over-fires beyond the existing
-    # pre-batch predicate-blind-filter anomaly class), but the gate is NOT
-    # met — the tail doesn't decompose into a small adjudicated set. The
-    # ``_creatures_matter`` arm widened from 2 shapes to 5, all sharing the
-    # SAME ``_is_generic_creature_filter`` gate: (1) a ``Multiply``-scaled or
-    # ``Mana``-nested count operand (Peach Garden Oath, Circle of Dreams
-    # Druid/Battle Hymn — CR 107.3), (2) a scaling ``Pump``/``PumpAll``'s
-    # ``power``/``toughness`` Ref site (Might of the Masses, CR 107.3), (3)
-    # a whole-unit ``iter_static_defs`` descent so a ONE-SHOT
-    # ``GenericEffect``-nested or ``CreateEmblem``-nested static def fires
-    # the team-anthem arm same as a static-origin unit (Overrun, Capitoline
-    # Triad, Call for Unity's scaling ``AddDynamicPower``/
-    # ``AddDynamicToughness`` — CR 611.2c/613.4c), (4)
-    # ``GrantAbility``/``GrantTrigger`` mod tags joining ``AddKeyword`` in
-    # the same arm (Lightning Volley, Kira, Phenax — CR 113.10), (5) a plain
-    # top-level ``PumpAll`` role=effect with no nested static def at all
-    # (Warrior's Honor, Fortify — CR 611.2c/613.4c). ~590 corpus cards
-    # recovered this batch (all 5 arms pinned in ``test_crosswalk.py`` —
-    # ``test_creatures_matter_w4_giant_batch``). The GIANT remaining tail
-    # (~2594 live_only) decomposes into: (a) ~2160 the pre-existing
-    # docstring already names and this batch corpus-reconfirmed — legacy's
-    # LOW regex floor fires on ANY creature-token maker (Siege-Gang
-    # Commander, Mobilization) purely because the oracle text mentions
-    # "creature token", not a structural cares-about read (negative-pinned:
-    # Siege-Gang Commander) — deliberately NOT ported; (b) a genuinely
-    # diverse ~430-card tail spanning MANY small, structurally UNRELATED
-    # shapes that would each need its own arm + corpus verification: Devour
-    # ETB counters (Bloodspore Thrinax, ~20), Rampage/"blocked by" combat
-    # counts (Craw Giant, ~24 — different SUBJECT, "creatures blocking it"
-    # not "creatures you control", negative-pinned), symmetric "on the
-    # battlefield" any-controller counts (Blasphemous Act, Coat of Arms,
-    # ~10 — fails the "You" gate by design, negative-pinned), named-card
-    # self-counts (Relentless Rats, ~15), "greatest power among creatures
-    # you control" Aggregate/Max reads (Rishkar's Expertise, ~21 —
-    # structurally a MAX function, not an ObjectCount, needs its own
-    # operand-extraction arm), attacking-creature counts (Klauth, ~35 —
-    # different subject again), conditional gates ("if you control a
-    # creature with power 5+", Chronicler of Heroes, ~24 — a boolean
-    # Condition node, not a count/anthem shape at all), and a genuinely
-    # heterogeneous ~284-card residue (subtype/face-down/color-restricted
-    # anthems correctly excluded by the no-subtype-or-predicate gate,
-    # single-target aura token-granters, generic "untap all creatures you
-    # control" one-shot effects with no P/T/keyword modification at all,
-    # …). No single mechanism closes (b) — banking the recall gain per
-    # ADR-0038 step 5 rather than force-fitting a promotion.
-    #
-    # ADR-0039 W7 BRIDGES wave (2026-07-11): ``creatures_matter`` STAYS
-    # residual — a live corpus re-measure gives the FIRST exact,
-    # mechanistically-derived bucket accounting of the whole live_only
-    # set (a per-card classifier walking the SAME node fields the arms
-    # read, not approximate counts): both 1262 -> 1390 (+128 genuine
-    # recall), live_only 2532 -> 2404, cw_only 30 -> 154 (every new hit
-    # spot-verified genuine — the predicate-agnostic condition-gate
-    # philosophy already established for the artifacts_matter/
-    # enchantments_matter siblings, e.g. Colossal Majesty's "draw a card
-    # if you control a creature with power 4+", CR 603.4). Four new
-    # closing mechanisms, all CR-grounded and pinned
-    # (``test_creatures_matter_w7_bridges_batch``):
-    #
-    # (1) a CONDITION-gate arbitrary-payoff arm
-    # (:func:`_creatures_matter_condition_filter`) — an existence/
-    # threshold Condition wrapping an UNRELATED effect over the generic
-    # population (Chronicler of Heroes, the Ferocious ability word, Epic
-    # Struggle's "20 or more creatures, you win" — CR 603.4/608.2b),
-    # EXCLUDING a cost-reduction's own condition (``static_mode_tag ==
-    # "ModifyCost"`` — Avatar of Might/Synchronized Eviction/Arwen's
-    # Gift/Orysa's "costs {N} less" gate, CR 601.2f — the W6 boundary
-    # worry this arm resolves) and a Soulbond ``Unpaired`` predicate
-    # (Nearheath Pilgrim's ETB pairing check, CR 702.95b — keyword-
-    # mechanic bookkeeping for ONE partner, not a population care).
-    # (2) a deep static-def descent
-    # (:func:`_iter_creatures_matter_static_defs`, a lane-local STRICT
-    # SUPERSET of :func:`iter_static_defs` additionally following
-    # ``modifications``/``definition``/``trigger`` — a team anthem buried
-    # inside a modification's OWN granted trigger/ability body, Centaur
-    # Chieftain / Teroh's Vanguard / Angelic Skirmisher / Garruk Savage
-    # Herald / Dragon Throne of Tarkir / Tenth District Hero) plus two
-    # widened mod tags (``AddChosenKeyword``, ``GrantStaticAbility`` — CR
-    # 113.10) and four more (``AddType``/``AddSubtype``/
-    # ``AddAllCreatureTypes``/``AssignDamageFromToughness`` — CR 613.4d /
-    # 510.1c, each verified as the card's OWN static, never granted into
-    # an opponent-controlled token where "You" resolves to the WRONG
-    # controller — Goblin Spymaster / Pursued Whale's MustAttack mode is
-    # exactly that trap and is deliberately NOT added).
-    # (3) a team EVASION/UNTAP-PERMISSION static MODE
-    # (:data:`_CREATURES_MATTER_EVASION_MODES` — CantBeBlocked family +
-    # UntapsDuringEachOtherPlayersUntapStep, CR 113.12/502/611.1 — Keeper
-    # of Keys, Drumbellower, Dread Charge).
-    # (4) :func:`_pump_scaling_creature_filter` widened to accept an
-    # ``Aggregate`` qty alongside ``ObjectCount`` — a created TOKEN's
-    # scaling power/toughness site (Miming Slime's "X/X token, X = the
-    # greatest power among creatures you control" — CR 208.1), the sole
-    # caller so the widening needs no sibling corpus check.
-    #
-    # TWO CORRECTNESS FIXES to the shared :func:`_is_generic_creature_filter`
-    # gate itself (affecting every caller — type_matters go-wide included,
-    # a pure improvement, never a widening): an explicit non-Battlefield
-    # ``InZone`` predicate now fails the gate (Wire Surgeons' "each
-    # artifact creature card in your GRAVEYARD has encore" was a false
-    # positive the deep descent's wider reach first surfaced — CR 400.2;
-    # an explicit ``InZone: Battlefield`` — Chronicler of Heroes' own
-    # counter-predicate filter states it explicitly — still passes), and a
-    # ``SharesQuality`` predicate now fails the gate (Haunted One's
-    # granted "other creatures you control that SHARE A CREATURE TYPE
-    # with it" is a TRIBAL restriction phase encodes as a predicate, not
-    # a ``Subtype`` type_filters entry — CR 205.3, type_matters
-    # territory).
-    #
-    # The exact live_only=2404 decomposition (a per-card mechanistic
-    # classifier, not estimates): 2131 the PRE-EXISTING token-maker LOW
-    # regex floor (Siege-Gang Commander, already negative-pinned); 162 a
-    # genuinely heterogeneous residue of many small, structurally
-    # UNRELATED shapes (subtype anthems correctly excluded by the
-    # no-subtype gate — Karrthus; single-target aura/equip grants;
-    # generic "untap all" with no P/T/keyword mod; Rampage/board-count
-    # shapes the pre-existing shed classes already cover under different
-    # node paths than this session's diagnostic script checked); 32 a
-    # "creatures BLOCKING it"/"creatures attacking you" count (Rampage,
-    # Craw Giant, already negative-pinned, CR 509.1h); 22 Devour's
-    # sacrifice count (Bloodspore Thrinax, already negative-pinned, CR
-    # 702.82a); 20 a symmetric any-controller "on the battlefield" count
-    # (Blasphemous Act, already negative-pinned); 6 the legendary-
-    # creature-count-SCALED cost reduction shape at a non-Condition site
-    # (Boseiju/Eiganjo/Otawara/Sokenzan/Takenuma/Mirror of Galadriel —
-    # the SAME CR 601.2f exclusion as arm (1)'s cost-reduction guard, just
-    # reached via a ``S_cost_reduction`` count field rather than a
-    # Condition site, deliberately NOT closed by a blind count-operand
-    # deep scan — that would reopen the SAME cost-reduction contamination
-    # risk arm (1) was built to avoid); 2 a self-referential named-copy
-    # CDA (Relentless Rats — CR 613.4b, the Towering Gibbon precedent); 1
-    # a tribal SharesQuality grant (Haunted One, now correctly excluded
-    # by the gate fix above); 2 an opponent-token-scope MustAttack grant
-    # (Goblin Spymaster/Pursued Whale); 1 a graveyard-zone care (Kathril,
-    # Aspect Warper, now correctly excluded); ~26 more single-card shapes
-    # in the ``other_filter`` tail needing their own dedicated arm
-    # (Mana Echoes, Crypt of Agadeem, Carrion Grub, Audience with
-    # Trostani, We Ride at Dawn, …). No single further mechanism closes
-    # the residue — banking this session's substantial recall gain and
-    # two shared-gate correctness fixes rather than force-fitting a
-    # promotion past a still-genuine, still-diverse tail.
-    #
-    # ADR-0038 W4 giant-key batch: ``plus_one_matters`` STAYS residual —
-    # substantial recall gain (a live corpus re-measure: both 118 -> 296,
-    # live_only 485 -> 307, cw_only 2 -> 23, all 23 corpus-verified genuine
-    # beyond-legacy gains — Battlefront Krushok / Thoughtbound Phantasm /
-    # a DFC front-face RemoveCounter cost / Skyclave Sentinel's second-clause
-    # payoff / the Unleash CantBlock idiom, each a real legacy structured-
-    # parse gap, not a crosswalk over-fire), but the gate is NOT met — the
-    # tail doesn't decompose into a small adjudicated set. Five new arms
-    # mirror ``_any_counter_matters``'s whole-unit descents gated to P1P1
-    # instead of Any (:func:`_plus_one_matters`'s own docstring — CR 122.1):
-    # a mass STATIC ``affected`` filter (Outlast tribal anthems), a
-    # counter-HAVE TRIGGER's ``valid_card`` filter (Marchesa the Black Rose),
-    # a nested ``iter_static_defs`` conferred-grant descent, a ``HasCounters``
-    # whole-unit static CONDITION (Lightwalker's self-referencing "as long as
-    # it has a +1/+1 counter" idiom, CR 604.2), and a P1P1-kind
-    # ``RemoveCounter`` activation COST (Triskelion/Walking Ballista's
-    # counter-sink outlet, CR 118.7). :func:`trigger_counter_filter`
-    # (``_card_ir/crosswalk.py``) is ALSO widened to read a THRESHOLD-less
-    # ``counter_filter``'s ``MirrorVariant`` collapse (Fathom Mage / Enduring
-    # Scalelord / Knighted Myr — a mirror-runtime loading artifact, not a
-    # new grammar arm). Two DISTINCT legacy over-fire mechanisms are
-    # deliberately NOT reproduced (both corpus-verified noise, not a
-    # genuine +1/+1-specific cares-about read — see the docstring's "NOT
-    # ported" section): (1) legacy's ``_PAYOFF_TRIGGER_KEYS["counter_added"]``
-    # row fires UNCONDITIONALLY on every ``counter_added`` trigger with no
-    # kind gate (~249 raw live_only — 171 Saga lore-counter chapters + 74
-    # M1M1/kindless kind-agnostic triggers + 4 more via (2)); (2) legacy's
-    # per-ability ``project._narrow_counter_refs`` regex carries a
-    # kind-agnostic "with/has a counter on it" alternative that double-tags
-    # cards the esub arm already correctly routes to any_counter_matters
-    # (The Swarmlord, Cleopatra Exiled Pharaoh, Puca's Covenant, Metropolis
-    # Angel). The remaining ~58-card tail is genuinely diverse (an
-    # ``Unknown``-tagged ``sub_ability`` idiom for "if X has a counter, do Y
-    # instead" — Bring Low; a condition phase drops entirely inside a
-    # ``GenericEffect`` wrapper — Dual-Sun Technique; a deeply-nested
-    # ``ModifyCost``/``spell_filter``/``Targets`` cost-reduction shape —
-    # Titanic Brawl; CDA "power greater than its base power" text idioms
-    # with no counter node at all — Baird, Kutzil, Ms. Marvel) — each would
-    # need its own arm + corpus verification. Banking the recall gain per
-    # ADR-0038 step 5 rather than force-fitting a promotion.
-    #
-    # ADR-0038 W4 giant session (enchantments_matter): a large residual gap
-    # (40 live_only vs 3840 both) collapsed to 6 (both 3874) via four
-    # structural fixes, all corpus-verified: (1) an Aura-SUBTYPE recursion
-    # fallback on the three graveyard-recursion arms (:func:`
-    # _type_recursion_lanes`, CR 205.3/303.4 — "return target Aura card"
-    # carries no Enchantment core type); (2) an And/Or condition-leaf
-    # descent (:func:`_condition_leaves`, CR 603.4 — "if you control an
-    # artifact AND an enchantment" types as one compound condition wrapping
-    # two leaf checks); (3) the ``_ENCHANTMENTS_MATTER_MIRROR`` byte-mirror
-    # port (the enchantment sibling of the already-ported
-    # ``_ARTIFACTS_MATTER_MIRROR``, never previously wired in); (4) an
-    # AFFINITY-FOR-ENCHANTMENTS keyword-line check (the enchantment sibling
-    # of the existing AFFINITY-FOR-EQUIPMENT arm). The remaining 6:
-    # 4 "each player/opponent sacrifices an enchantment of their choice"
-    # EDICTS (Gaius van Baelsar, Pick Your Poison, Simplify, Catch //
-    # Release — CR 701.21a, the same shape ``_sac_is_edict`` already
-    # rejects) and 1 symmetric library-position reset (Harmonic
-    # Convergence's "put all enchantments on top of their owners'
-    # libraries" — CR 205.2, no ``controller: You`` gate) are ADJUDICATED
-    # SHEDS (mandatory negative pins added), not genuine recall. The 6th —
-    # Smoke Spirits' Aid's "For each of up to X target creatures, create a
-    # red Aura enchantment token …" — is a GENUINE gap phase parses as a
-    # residue ``Unimplemented`` node (the "for each … create" wrapper);
-    # recovering it needs either ``clause_grammar.py`` growth (forbidden
-    # this session) or a ``make_token`` recovery-ALLOWLIST entry, which is
-    # a corpus-wide shared-helper widening (affects every lane reading the
-    # ``make_token`` concept, not just this one) too broad to verify safely
-    # for a single card this session. Banking the recall gain per ADR-0038
-    # step 5 rather than force-fitting a promotion.
-    #
-    # ADR-0038 post-giants main-session batch: ``enchantments_matter``
-    # PROMOTED — the orchestrating session added exactly that
-    # ``make_token`` ALLOWLIST row with the full-corpus verification the
-    # giant agent asked for (blast radius: 38 recovered nodes, 2 changed
-    # cards corpus-wide before the lane branch — Tobias/Soul of
-    # Emancipation, both adjudicated genuine — plus the recovered-node
-    # raw-read branch in _artifacts_enchantments_matter, CR 701.7/111.2/
-    # 205.3g rules-lookup-verified). Smoke Spirits' Aid recovered + pinned;
-    # final live_only == exactly the five adjudicated, negative-pinned
-    # sheds (Gaius/Pick Your Poison/Simplify/Catch // Release edicts +
-    # Harmonic Convergence symmetric reset) — the landfall gate rule.
-    # artifacts_matter also gained (Circuits Act, Yawgmoth Merfolk Soul —
-    # its tail is now 8) but keeps its genuinely diverse residual.
-    #
-    # ADR-0038 post-giants main-session batch: ``discard_outlet`` PROMOTED
-    # — the giants agent's ONLY remaining class (the period-split "Then
-    # discard a card unless <cond>" tail, 5 cards) is recovered by the
-    # "discard" ALLOWLIST row; the lane's recovered-node DIRECTION gate
-    # (``_RECOVERED_OPP_DISCARD_RE``, a raw reject-list) keeps the
-    # opponent-directed / protection residues out (Nebuchadnezzar's
-    # subject-truncated imperative, Bladecoil's "each opponent", Tamiyo's
-    # "can't cause you to"), negative-pinned. Final live_only=0; the
-    # recovered path's four genuine additions (Breakthrough, Circling
-    # Vultures, Noxious Vapors' symmetric wheel, Azra's team loot) ride
-    # the already-adjudicated cw_only gain classes. Free rider:
-    # opponent_discard's gap fell 77→33 (recovered opponent-directed
-    # discards now reach its own arm) — banked, key stays residual.
-    #
-    # ADR-0038 W5 tails (2026-07-11): ``artifacts_matter`` NOT YET
-    # PROMOTED — corpus re-measure 5006 both / 4 live_only (down from 8).
-    # Four structural/local-read fixes: a BATTLEFIELD-sourced library-
-    # bounce (Rebuking Ceremony, CR 401.4, distinct from the existing GY-
-    # recursion arm's CR 400.7); ``SearchOutsideGame`` (the Wish idiom, CR
-    # 108.3) read LOCALLY by its own typed tag (never routed through the
-    # shared ``tutor`` CONCEPT_MAP — that would incorrectly open the
-    # dedicated tutor lane for every Wish card too); a ``ChooseOneOf``-
-    # wrapped sac (Nimble Hobbit's "sacrifice a Food or pay {2}{W}" —
-    # ``_walk_effect_chain`` collapses the whole modal branch to one
-    # opaque concept, so a deep scan finds the Sacrifice inside directly);
-    # a ``become_copy`` type-restricted target read (Spirit of
-    # Resilience's "become a copy of an artifact or creature card", CR
-    # 707 — an ordinary Clone's bare Creature-only target stays silent by
-    # construction). Two cards ADJUDICATED AS SHEDS this batch (negative-
-    # pinned): Catch // Release's "Release" half and Braids, Cabal
-    # Minion's upkeep trigger are SYMMETRIC EDICTS (CR 701.21a — every
-    # player sacrifices their OWN choice, not a fodder outlet), the exact
-    # same class the enchantments_matter sibling already sheds for the
-    # first of these two cards. The remaining 2 live_only are GENUINE
-    # unclosed gaps, not sheds: Bello, Bard of the Brambles is a
-    # confirmed phase STATIC-PARSER FAILURE (its whole ability parks as
-    # an ``Unimplemented`` node named "static_structure" with a "Static
-    # pattern matched but line failed static parser" diagnostic — no
-    # residue to recover from, needs upstream phase work); Dargo, the
-    # Shipwrecker's "As an additional cost to cast this spell, you may
-    # sacrifice any number of artifacts and/or creatures" is a genuine
-    # ``build_concept_tree`` root-cause bug — ``_spell_additional_cost_
-    # concepts`` computes the Sacrifice cost concept correctly but the
-    # merge loop only attaches it to an EXISTING Spell-kind ``S_abilities``
-    # entry, and Dargo has NONE (its only ability is a Static cost-
-    # reduction rider) — so the additional_cost is silently dropped for
-    # any card with this exact shape. 241-card corpus census (every
-    # commander-legal card with a root additional_cost and no Spell-kind
-    # ability) confirms this is NOT Dargo-specific, but fixing it means
-    # synthesizing a carrier AbilityUnit for build_concept_tree itself — a
-    # foundational, corpus-wide crosswalk.py change needing the SAME full
-    # ALL-KEY diff rigor as a recovery ALLOWLIST row, which this batch's
-    # time budget didn't cover. Landfall rule not met (2 genuine gaps
-    # remain, not sheds) — key stays residual.
-    #
-    # ADR-0038 W5 tails (2026-07-11): ``base_pt_set`` NOT YET PROMOTED —
-    # 218 both / 13 live_only (down from 20) via a deep GenericEffect/
-    # CreateEmblem descent, a ``TriggeringSource`` accept-list addition,
-    # and a matched-quantity narrowing of the copy-stats exclusion; see
-    # :func:`_base_pt_set`'s own docstring for the full mechanism list and
-    # the still-residual 13-card tail.
-    #
-    # ADR-0038 W5 tails (2026-07-11): ``draw_for_each`` NOT YET PROMOTED —
-    # 210 both / 3 live_only (down from 16) via a reversed-order phrase
-    # alternative (object-gated to exclude a back-reference false match)
-    # plus a ``CreateDelayedTrigger``/``Vote`` per-choice descent; see
-    # :func:`_draw_for_each`'s own docstring for the full mechanism list
-    # and the still-residual 3-card tail (all genuine gaps, no sheds).
-    #
-    # ADR-0038 W5 tails (2026-07-11): opponent_discard NOT YET PROMOTED —
-    # re-measured at 77 live_only (the 33 estimate in the prior note was
-    # the giants agent's own-arm PREDICTION, not a re-measurement; this
-    # session's actual number at fresh HEAD was 77). ONE structural gap
-    # closed: a discard buried under a ``GrantAbility.definition``
-    # (Mindlash Sliver) or a ``Vote`` ``per_choice_effect`` branch
-    # (Capital Punishment, Sail into the West) is not on the unit's own
-    # direct effect chain, so ``effect_concepts`` never reached it —
-    # :func:`iter_typed_nodes`'s deep walk now finds the buried node, and
-    # its DIRECT wrapper's own ``player_scope`` resolves via the new
-    # lane-local :func:`_nested_owner_player_scope` (CR 613.1f/701.38 —
-    # kept lane-local rather than widening the shared
-    # ``effect_owner_player_scope``, which backs discard_outlet/
-    # group_hug_draw/opponent_cast_matters too). A dual "each"+"opponents"
-    # emission for a symmetric wheel was TRIED and REVERTED: it broke the
-    # pre-existing adjudicated ``test_opponent_discard_wheel_wrapper_
-    # is_each`` pin, which already decided the legacy kept-mirror's
-    # redundant "opponents" duplicate for an "each"-scoped wheel is a
-    # MIRROR OVER-FIRE, not a second genuine signal (``spec_for``'s
-    # (key)-only fallback already resolves an ``each``-scoped signal to
-    # the ``("opponent_discard","opponents")`` spec, so the "invisible to
-    # every consumer" premise for dual-emitting was false) — see the
-    # GRADUATION RULE, never suppress an existing correct pin.
-    #
-    # live_only fell 77→68 with the GrantAbility/Vote descent fix alone.
-    # Of the 68, ~44 are THIS SAME already-adjudicated wheel-mirror-
-    # duplicate shed (Wheel of Fortune, Dark Deal, Mindslicer, Windfall,
-    # Magus of the Wheel, Memory Jar, Magus of the Jar, Reforge the Soul,
-    # Liliana of the Veil, Rankle, … — every "each player discards"
-    # wheel legacy's kept mirror ALSO tags "opponents" for). FIVE more
-    # are the Cephalid-Looter loot shape (:func:`_is_target_player_loot`)
-    # — Compulsive Research (already pinned pre-session) / Laquatus's
-    # Creativity / Steal the Show / Collective Defiance / Lumengrid Augur
-    # all have a discard AND a sibling draw naming the SAME single
-    # targeted player; legacy's inclusion of 4 of the 5 (never Cephalid
-    # Looter/Broker themselves, which the SAME veto correctly excludes in
-    # legacy too) is driven by incidental "that player discards"
-    # REGEX-MIRROR phrasing adjacency, not a principled distinction — CR
-    # 701.9/701.8a, negative-pinned (Laquatus's Creativity this session).
-    # The remaining ~19 are GENUINELY diverse, un-closed structural gaps:
-    # damage-CONNECT specters with no Discard node at all (Fungal
-    # Shambler, Bladecoil Serpent); a delayed-trigger wheel whose
-    # CreateDelayedTrigger wrapper carries no player_scope of its own
-    # (Memory Jar / Magus of the Jar's OWN discard, distinct from their
-    # both-matching "each player exiles..." ChangeZoneAll arm); a
-    # REPLACEMENT effect chain (Words of Waste, Breathstealer's Crypt); a
-    # reveal-then-discard back-reference (Nebuchadnezzar, Dementia
-    # Sliver); a past-tense "discarded this turn" punisher condition
-    # (Tinybones); a ``Choose(choice_type='Opponent')`` value pick
-    # disconnected from the later Discard's mis-tagged ``Controller``
-    # target (Fervent Mastery); two empty-text Aftermath DFC records
-    # (Consign // Oblivion, Driven // Despair); plus Jagged Poppet/Hint
-    # of Insanity/Tainted Specter/Yawgmoth Merfolk Soul/Remorseless
-    # Punishment/Mindculling/Azula, each its own shape — banked, not
-    # force-fit this session. Key stays residual.
-    {
-        # ADR-0039 bridge phase (2026-07-11): ``artifacts_matter`` PROMOTED —
-        # the two W5-tails genuine gaps closed by the two pattern-setting
-        # mechanisms of the bridge phase: (1) Dargo, the Shipwrecker via the
-        # ``build_concept_tree`` additional-cost CARRIER fix (a root
-        # ``additional_cost`` with no Spell-kind ability entry was silently
-        # dropped; the synthesized carrier unit fixed 17 cards corpus-wide,
-        # all pure gains — CR 601.2b); (2) Bello, Bard of the Brambles via
-        # the FIRST ledgered bridge (``bridge_ledger.BRIDGES[
-        # "bello_static_animate_artifacts"]`` — phase's static parser fails
-        # the whole animation line, upstream report candidate). Final
-        # live_only == exactly the two adjudicated, negative-pinned
-        # symmetric-edict sheds (Braids, Cabal Minion; Catch // Release —
-        # CR 701.21a): the landfall rule. both=5008 / cw_only=18 unchanged.
-        # base_pt_set PROMOTED (ADR-0039 W7 endgame, 2026-07-11) — landfall
-        # rule met: both 218 -> 231, live_only 13 -> 0, cw_only=13 unchanged
-        # (the pre-existing switch_pt beyond-legacy gains — CR 613.4d,
-        # documented in :func:`_base_pt_set`'s own docstring, unaffected).
-        # Three structural closers (crosswalk_signals.py): (1) a
-        # ``LastCreated`` resolved-tag accept (Ultron, Artificial
-        # Malevolence's created-token back-reference, CR 701.7a/608.2h);
-        # (2) an empty-nested-description fallback to the enclosing unit's
-        # own description (Displaced Dinosaurs' REPLACEMENT-origin static,
-        # CR 614.12); (3) :func:`_iter_base_pt_modal_threaded_statics`, a
-        # per-key modal ``mode_abilities`` threaded-target walk mirroring
-        # ``_iter_untap_targets``'s established pattern (Sauron, Dino
-        # Devotee's doubly-nested ``ParentTarget`` inside a modal mode's
-        # own sub-ability chain, CR 700.2). Seven ADR-0039 ledgered bridges
-        # (bridge_ledger.py) close the residual whole-clause-grammar and
-        # dropped-clause tail: ``base_pt_have_become_residue`` (Ambassador
-        # Blorpityblorpboop, Tanazir Quandrix, Unruly Krasis),
-        # ``base_pt_is_a_type_with_residue`` (Circle of the Moon Druid),
-        # ``base_pt_mass_where_x_residue`` (Candlekeep Inspiration),
-        # ``base_pt_tk_sticker_parse_failure`` (Cool Fluffy Loxodon),
-        # ``base_pt_each_equal_to_dropped`` (Captain Rex Nebula,
-        # Fractalize), ``base_pt_addpt_misattributed_typechange`` (Goddric,
-        # Cloaked Reveler), ``base_pt_becomecopy_no_pt_override`` (Mindlink
-        # Mech — the standard "except it's 0/0 and has this ability"
-        # clone-shell idiom, Mimeoplasm, Revered One, is corpus-verified
-        # NOT a legacy member and stays excluded via a negative lookahead).
-        # CR 613.4b throughout. See :func:`_base_pt_set`'s own docstring
-        # for the full arm history.
-        # cheat_into_play PROMOTED (ADR-0039 W7, 2026-07-12) — landfall
-        # rule met: live_only 40 -> 0 accounted for, every remaining
-        # live_only card is a TESTED, CR-grounded adjudicated shed (a
-        # land-only carve-out — CR 305.1, ramp not a cheat, joining Boreas
-        # Charger et al.; a name-match-only/bare-'Card' filter with ZERO
-        # type restriction — CR 201.1/205.1, never guess). Three
-        # structural closers in :func:`_cheat_into_play` (a ChooseOneOf
-        # branch descent for Dr. Eggman, a Condition else_ability descent
-        # for Impromptu Raid — both fields crosswalk.py's
-        # ``_EFFECT_CHILD_FIELDS`` never walks — and a reveal_until-sibling
-        # origin trust gated on ``enters_under: You`` for Telemin
-        # Performance) plus six ADR-0039 ledgered bridges
-        # (bridge_ledger.py: ``cheat_player_prefix_battlefield_put``,
-        # ``cheat_dropped_clause_zero_residue``,
-        # ``cheat_kept_destination_hand_misparse``,
-        # ``cheat_choose_from_among_graveyard_origin``,
-        # ``cheat_modal_mode_unsupported_qualifier``,
-        # ``cheat_synthetic_destiny_delayed_reveal`` — 20 cards, each
-        # anchored to its own verbatim clause/diagnostic-name residue, CR
-        # 601.2/110.4a for the "put onto the battlefield without casting"
-        # idiom itself). See :func:`_cheat_into_play`'s own docstring for
-        # the full W3-W7 arm history.
-        # creatures_matter PROMOTED (ADR-0039 W8 finisher, 2026-07-12) —
-        # landfall rule met: a live corpus re-measure gives both 1421 ->
-        # 1440, live_only 2373 -> 2354, cw_only=281 unchanged. A per-card
-        # node-path classifier bucketed the 2373 pre-session live_only
-        # set into six ADJUDICATED SHED classes (2320: TOKEN_MAKER_CROSS_
-        # OPEN 2120, SYMMETRIC_ANY_CONTROLLER 67, BLOCKING_OR_ATTACKING
-        # 61, SUBTYPE_TRIBAL_YOU 39, DEVOUR 17, TRIBAL_SHARESQUALITY 10,
-        # OPPONENT_SCOPE 4, NAMED_SELF 2 — all pre-adjudicated W4-W7, CR
-        # 111.1/111.2 token-maker floor / CR 509.1h blocking-attacking /
-        # CR 702.82a Devour / CR 205.3 tribal) plus a 53-card true-gap
-        # tail this session fully adjudicated per-card:
-        #
-        # SHED (39 of the 53, reinforcing pins added, no code change) —
-        # cost-reduction's OWN dynamic/scaled condition (CR 601.2f, the
-        # Avatar of Might boundary, 13 members: Arwen's Gift / Boseiju /
-        # Mirror of Galadriel / Orysa / Takenuma already pinned via the
-        # W7 condition-filter arm's ModifyCost guard; Ghalta / Khalni
-        # Hydra / Spectral Denial / Temur Battlecrier / The Pride of
-        # Hull Clade / Walking Skyscraper / Towashi Guide-Bot / Mobilized
-        # District newly corpus-confirmed the same shape, two pinned);
-        # self-CDA / self-only scaling (CR 604.3/613.4a-c, the Towering
-        # Gibbon precedent, 3 members: Ancient Ooze, Carrion Grub, Moon-
-        # Vigil Adherents — role=="static" ``affected: SelfRef``, never
-        # the generic team, one pinned); graveyard-zone population (CR
-        # 400.2, the Wire Surgeons/Kathril precedent: Crypt of Agadeem,
-        # pinned); chosen-type-restricted population (CR 205.3 tribal
-        # philosophy, contrast Rukarumel where the chosen type is
-        # GRANTED to a generic population rather than restricting what's
-        # COUNTED: Kindred Charge, pinned); already-adjudicated re-
-        # affirms (Divine Resilience / Fettergeist / Kathril, W7/W8
-        # pins, unaffected); TOKEN-MAKER CROSS-OPEN with a DROPPED/
-        # Unimplemented token node (18 members — legacy's floor fires on
-        # ITS OWN token-maker cross-open regardless of what our tree
-        # contains, CR 111.1/111.2, three pinned: Maestros Diabolist,
-        # Tobias Doomed Conqueror, Broken Visage).
-        #
-        # CLOSED (14 of the 53, all pinned) — a Formidable activation-
-        # restriction condition (CR 602.5 "can't begin to activate a
-        # prohibited ability"; CR 207.2c "Formidable" is an ability word
-        # with no independent rules meaning) via phase's OWN bespoke
-        # ``CreaturesYouControlTotalPowerAtLeast`` condition tag
-        # (:func:`_creatures_matter_formidable_condition`, 4 members:
-        # Atarka Beastbreaker, Circle of Elders, Dragon-Scarred Bear,
-        # Glade Watcher); two tiny typed container-descent reads — a
-        # FlipCoin win-branch DealDamage count operand
-        # (:func:`_creatures_matter_flip_coin_win_filter`, Goblin Lyre)
-        # and a reanimation target filter's nested Cmc-property count
-        # operand (:func:`_creatures_matter_cmc_property_count_filter`,
-        # Unforgiving One, CR 107.3 — genuinely typed data the crosswalk
-        # simply wasn't reading one field deeper, not a bridge); eight
-        # ADR-0039 ledgered bridges (bridge_ledger.py, creatures_matter
-        # section) for the residual grammar-straggler/dropped-clause/
-        # mis-scoped-grant idioms — Lightning Runner's absence-proof
-        # "untap all creatures you control" (CR 701.26), Superior
-        # Numbers' excess-count comparator, Sovereign Okinec Ahau's
-        # per-creature counter distribution, Whisperwood Elemental's
-        # face-up team-grant residue, Duskana's dropped per-base-2/2
-        # draw count (a separate row from the already-landed
-        # base_power_matters reference bridge — different key), Moku's
-        # mis-scoped SelfRef haste grant, Siege Behemoth's empty-
-        # modifications static, and Candlekeep Inspiration's mass base-
-        # P/T-setter residue (sharing its gap/match with the base_pt_set
-        # sibling row, CR 613.4b). See :func:`_creatures_matter`'s own
-        # docstring for the full W4-W8 arm history and
-        # ``test_creatures_matter_w8_finisher_batch`` for every pin.
-        # direct_damage PROMOTED (ADR-0039 W7 endgame, 2026-07-11) — the
-        # final 129 live_only closed: one real structural gain (Sin
-        # Prodder, the ``optional_for`` widening), one card reclassified
-        # into the PRE-EXISTING creature-only shed (Cruel Sadist — a
-        # legacy ``_DIRECT_DAMAGE_MIRROR`` regex over-fire, not a genuine
-        # gap), and fourteen ledgered bridges closing the rest (a compound
-        # "creature + that creature's controller" dropped-clause template
-        # plus eleven further singleton dropped-clause/upstream-parse-
-        # failure shapes plus a Devil-token quoted-grant pair plus a
-        # kicker-mode ParentTarget-reuse pair). See :func:`_direct_damage`'s
-        # own docstring for the full accounting and ``bridge_ledger.py``
-        # for each row's corpus census. CR 120.1/102.1/303.4c/702.33d
-        # verified this session.
-        # draw_for_each PROMOTED (ADR-0038 W6 endgame) — the final 2
-        # live_only closed this session: a card-level ``_kept(tree)``
-        # last-resort read for Vivien's Stampede's raw-text-free delayed
-        # trigger, and a RemoveCounter->Draw ``PreviousEffectAmount``
-        # positive gate for Nexus Mentality. See :func:`_draw_for_each`'s
-        # own docstring for the corpus history.
-        # exile_matters PROMOTED (ADR-0039 W7 endgame, 2026-07-12) —
-        # landfall met: both 73->81, live_only 10->2, and both remaining
-        # live_only cards (Rose Tyler, Amy Pond) are the adjudicated CR
-        # 702.62a Suspend-mechanic-reuse shed (the full 2-card population,
-        # not a sample). Two structural mechanism fixes: the RemoveCounter-
-        # from-an-exiled-card arm's Suspend-reuse gate is now the
-        # STRUCTURAL ``HasKeywordKind='Suspend'`` tell instead of the
-        # ``counter_type=='time'`` NAME proxy (Alaundo the Seer, a
-        # home-brewed "time counter" mechanic with no Suspend keyword
-        # property — a real gain, corpus-verified against every genuine
-        # Suspend RemoveCounter shape); an order-sensitive bare-
-        # ``TrackedSetSize``-after-exile-ChangeZone arm (Rysorian Badger,
-        # discriminated from Revival Experiment's reversed-order
-        # self-exile housekeeping by execution-chain position). Five
-        # ADR-0039 ledgered bridges close the rest
-        # (bridge_ledger.BRIDGES: exile_grant_all_activated_abilities
-        # [Mairsil, the Pretender; Rex, Cyber-Hound — the SAME "has all
-        # activated abilities of cards in exile with counters" idiom, a
-        # static_structure parse failure], grolnok_cast_from_exile_
-        # counter_pile, candlekeep_inspiration_exile_gy_pt_setter,
-        # close_encounter_warped_exile_additional_cost [zero-residue
-        # absence proof], kaya_emblem_cast_from_exile_drop). CR
-        # 406.1/113.10/601.2f/601.3/107.3/702.62a verified this session.
-        # graveyard_matters PROMOTED (ADR-0038 W6 endgame) — 31 live_only
-        # -> 0: a genuine ``ChooseFromZone`` GAIN (Dawnbreak Reclaimer)
-        # plus a single unified LEGACY OVER-FIRE shed thesis covering the
-        # rest (CR 404.1): legacy's ``_gy_scope`` resolves graveyard
-        # ownership from either the carrying effect's own recipient/actor
-        # SCOPE or a crude "opponent's/target player's graveyard" text
-        # regex applied over the WHOLE ability's raw — both imprecise
-        # proxies that over-fire whenever a SIBLING effect with no
-        # graveyard interaction of its own inherits the tag via
-        # raw-sharing (15 cards — Necromancer's Covenant, Klaw, Cathartic
-        # Parting, …), an effect's own recipient direction differs from
-        # the graveyard it actually references (Cavalier of Flame,
-        # Urborg Justice), or a bare/compound no-owner filter hits
-        # legacy's unconditional "else -> you" catchall the crosswalk's
-        # ``_gy_filter_scope`` correctly declines to guess (Keeper of the
-        # Cadence, matching the pre-existing Pulse of Murasa precedent) —
-        # plus the pre-existing 15-card MDFC Disturb-back-face scope
-        # quirk (documented functionally inert since 29d095dc). See
-        # :func:`_graveyard_matters`'s own docstring for the arm history.
-        # land_creatures_matter PROMOTED (ADR-0039 W7, 2026-07-12): both
-        # 104 -> 110, live_only 86 -> 0. Two structural closers (a mass
-        # animate static's ``affected`` controller admits TargetPlayer
-        # alongside You — Jolrael, Empress of Beasts, corpus-verified
-        # narrow; a self-recursion ChangeZone whose face-down profile
-        # carries the Land core type — Yedora, Grave Gardener's land-MAKING
-        # recursion, corpus-verified singleton) plus three ledgered bridges
-        # (bridge_ledger.BRIDGES: land_creatures_subtype_animate_dropped —
-        # Ambush Commander's subtype mass-animate, CR 305.3/305.7;
-        # land_creatures_dynamic_animate_dropped — Primal Adversary / Sage
-        # of the Maze's dynamic-count animate; land_creatures_condition_
-        # reference_dropped — Earth Rumble Wrestlers's condition-reference,
-        # CR 305/110.1) close 6 genuine gaps. The remaining 80 corpus-
-        # decompose EXACTLY into eight adjudicated CR-grounded shed
-        # classes, all negative-pinned (verified via a full-corpus
-        # bucket-assignment script this session — every live_only card
-        # maps to precisely one class): manland self-animate + its
-        # Aura-granted Genju sibling (35 + 4 — land_protection-only, a
-        # utility land-into-creature isn't a build-around theme); a land
-        # TYPE/subtype change with no Creature type added (35 — CR 305.7);
-        # the STATIC reverse animator creatures→lands (1 — Ashaya; distinct
-        # from Yedora's one-shot land-MAKING recursion above, which fires);
-        # a SYMMETRIC/any-controller mass animate (1 — Natural Affinity, CR
-        # 613.1d); a REMOVAL spell merely NAMING a land creature (2); a
-        # disjunctive Land-or-Creature copy-target filter (1 — Relm's
-        # Sketching); an unrelated landfall-keyed self-type toggle that
-        # never itself has the Land type (1 — Hidden Stag).
-        # land_sacrifice_makers PROMOTED (ADR-0039 W7, 2026-07-12): both
-        # 118 -> 121, live_only 8 -> 5. Two pre-W6-flagged accessor fixes
-        # (:func:`_attack_requirement_land_sac` — Exalted Dragon's attack-
-        # requirement cost, CR 508.1d; :func:`_granted_land_sac_unless_pay`
-        # — Custody Battle's granted-trigger unless_pay, CR 601.2h) plus
-        # the Epicenter per-clause :func:`_in_condition_instead_branch`
-        # fix (CR 614.1 — a ConditionInstead replacement must not inherit
-        # a superseded sibling's opponent direction) close 3 live_only.
-        # The remaining 5 are ALL the SAME legacy-synthesis over-fire class
-        # (``supplement._recover_land_sacrifice``'s regex fires on a
-        # "sacrifice a land" substring regardless of true trigger-vs-cost
-        # position or true subject — CR 701.21/400.7): a land-DYING watcher
-        # with no "you control" restriction (Dingus Egg, Akki Raider,
-        # Centaur Vinecrasher), the PAYOFF-wording "whenever you sacrifice
-        # a land" (Scouring Swarm), and a MIXED "sacrifice a land or
-        # Lander" subject that's genuinely ``sacrifice_outlets`` territory
-        # (Larval Scoutlander).
-        # lifeloss_makers PROMOTED (ADR-0039 W7, 2026-07-11): both=1188,
-        # live_only == exactly four adjudicated CR-grounded shed classes
-        # (scope_mismatch ~51 — CR 119.3/603.2, legacy's own regex
-        # mis-scopes a no-recipient self-loss to /opponents, Agent Venom
-        # precedent; condition_reference ~46 — CR 603.4/603.2, "if X lost
-        # life this turn" is a triggering CONDITION scaling a DIFFERENT
-        # effect, Savage Gorger precedent, includes the Scriv Contract-
-        # token SequentialSibling raw-bleed singleton; LifeChanged watcher
-        # 2 — CR 603.2, a gain-OR-lose watcher trigger, never the card's
-        # own action; ramp_exclusion 2 — CR 118.8 painland shape,
-        # Lithoform Blight + Yavimaya Bloomsage // Channel). Closed via
-        # three new root-level cost-surface readers
-        # (_spell_additional_cost_concepts's PayLife carve-out,
-        # _spell_alt_cost_paylife_concepts for casting_options
-        # AlternativeCost, _keyword_cost_paylife_concepts for a keyword's
-        # own cost payload — all crosswalk.py), two narrow static
-        # accessors (_has_paylife_as_colored_mana, K'rrik;
-        # _has_defiler_cost_reduction, the Defiler cycle), a Spell-kind
-        # non-ramp-gate exemption (Phyrexian Scuta's cost-only carrier), a
-        # Ward-keyword exclusion (CR 702.21a — the TARGETING player pays,
-        # not the controller), a token-attach-opponent bleed guard (Scriv,
-        # the SequentialSibling raw-bleed family), and five ledgered
-        # bridges (bridge_ledger.BRIDGES: degavolver_kicker_paylife_regen,
-        # withercrown_unless_lose_life, keyword_dropped_paylife
-        # [Warp/Blitz/Morph], night_shift_optional_paylife_dieroll,
-        # zuko_modal_unconditional_paylife).
-        # opponent_discard PROMOTED (ADR-0039 W7, 2026-07-12) — landfall
-        # rule met: 471 both / 63 live_only == exactly the 3 pre-existing
-        # adjudicated shed classes (wheel-mirror-duplicate, Cephalid-
-        # Looter loot, past-tense-watcher/self-discard) plus 8 cards now
-        # closed via ledgered bridges (bridge_ledger.py:
-        # opp_discard_unless_clause, opp_discard_for_scaling_dominant_
-        # token, opp_discard_tk_sticker_parse_failure, opp_discard_words_
-        # of_waste_replacement_the_residue, opp_discard_fungal_shambler_
-        # dropped_conjunct, opp_discard_mindculling_dropped_conjunct,
-        # opp_discard_driven_despair_missing_face,
-        # opp_discard_jagged_poppet_combat_scaling). See
-        # :func:`_opponent_discard`'s own docstring for the full arm
-        # history.
-        # plus_one_matters PROMOTED (ADR-0039 W8, 2026-07-12): both 307 /
-        # live_only 296 unchanged from the W6 endgame re-measure (the key's
-        # own arms are untouched this wave) — the gate is met by closing
-        # the 6-card genuinely-unclosed tail instead: 5 ledgered bridges
-        # (bridge_ledger.py: plus_one_rock_hydra_static_parse_failure,
-        # plus_one_rumbling_ruin_count_unimplemented,
-        # plus_one_deepwood_denizen_cost_reduction_unimplemented,
-        # plus_one_hierophant_previouseffectamount_dropped_kind,
-        # plus_one_tetravus_removecounter_token_pair) plus one
-        # re-adjudication (Winged Hive Tyrant folds into the existing
-        # kind-mismatch shed class — its static-parse-failure residue text
-        # is kind-agnostic, no "+1/+1" anywhere on the card). See
-        # :func:`_plus_one_matters`'s own docstring for the full history.
-        # ramp PROMOTED (ADR-0039 W7, 2026-07-12): both 1636 -> 1668,
-        # live_only 32 -> 0, cw_only=3 unchanged (pre-existing "additional
-        # cost: sacrifice a land" cast-cost gains). Four structural closers
-        # (:func:`_ramp`'s own docstring): the granted-mana descent now
-        # reads a ``GrantTrigger`` body too and relaxes the
-        # ``is_mana_ability`` gate (Mark of Sakiko, Bigger on the Inside);
-        # :func:`_iter_returnasaura_mana_defs` reaches a ``ReturnAsAura``
-        # grant (Harold and Bob); :func:`_has_animate_treasure_grant` reads
-        # a Treasure-conversion static (Minimus Containment, CR
-        # 111.4/205.3g); a granted LAND-recipient Sacrifice-cost mana
-        # ability is acceleration regardless of produced shape (Rain of
-        # Filth). Two ledgered bridges close the residual "Add mana"
-        # clause-grammar tail (bridge_ledger.BRIDGES:
-        # ramp_grant_unimplemented_body — Katilda/Old-Growth Troll/Tazri's
-        # granted-ability-body Unimplemented; ramp_dropped_add_mana_clause
-        # — a 24-card name-keyed enumeration, each CR-verified this session
-        # against legacy's own independent classification).
-        # sacrifice_outlets PROMOTED (ADR-0039 W7, 2026-07-11) — landfall
-        # rule met: live_only 191 -> 166, and every remaining live_only
-        # card is a TESTED adjudicated shed (land_sacrifice_makers
-        # territory, the Grave-Pact edict-mislabel class, bare-self/
-        # subject-dropped, TargetPlayer/ScopedPlayer edicts, "any player"
-        # ambiguity — a corpus-wide predicate scan over ALL 166 confirmed
-        # zero unaccounted-for exclusions). Three closers: (1) the
-        # ``ParentTargetController`` you-outlet split
-        # (:func:`_sac_ptc_you_eligible` — 6 cards: Funeral March, Tainted
-        # Aether, Phyrexian Obliterator, Fade Away, Maarika Brutal
-        # Gladiator, Vengeful Strangler // Strangling Grasp; corpus-
-        # verified against all 16 commander-legal ParentTargetController
-        # Sacrifice-effect hits, the prior W6 deferral resolved rather
-        # than re-litigated blind); (2) two real structural reads — the
-        # Exploit keyword joining the Casualty/Bargain
-        # :data:`_SWEEP_KEYWORD_LANES` row (Silumgar Scavenger) and a
-        # created-token Devour read (:func:`_has_created_token_devour` —
-        # Dragon Broodmother's typed ``MirrorVariant(key='Devour')`` on
-        # the Token effect's own keywords list); (3) six ADR-0039 ledgered
-        # bridges for the residual NO-typed-Sacrifice-node bucket
-        # (bridge_ledger.py: ``sac_alt_cost_pitch``, ``sac_keyword_cost``,
-        # ``sac_casualty_granted_onto_other_spell``,
-        # ``sac_devour_unimplemented``, ``sac_etb_self_sac_unimplemented``,
-        # ``sac_emblem_activated_cost`` — 17 cards, legacy-parity by
-        # construction via project.py's own ``_PITCH_SAC``/
-        # ``_KEYWORD_COST_SAC`` regexes). See :func:`_sacrifice_outlets`'s
-        # own docstring for the full arm history.
-        # target_player_draws PROMOTED (ADR-0039 W7, 2026-07-12) —
-        # landfall rule met: 183 both / 70 live_only -> 0 genuine gaps.
-        # One real structural gain, a buried-grant Draw descent (Thief of
-        # Existence, mirrors opponent_discard's own iter_typed_nodes
-        # precedent). Two ADR-0039 ledgered bridges (bridge_ledger.py:
-        # tpd_widened_tag_synthetic_desc [Fatal Lore, Season of the
-        # Burrow, Ertai Resurrected, Balor], tpd_wedding_ellipsis_repeat
-        # [The Wedding of River Song]) close the rest. See
-        # :func:`_target_player_draws`'s own docstring for the full arm
-        # history.
-        # token_maker PROMOTED (ADR-0038 W6 endgame) — the 86-card
-        # live_only set is EXACTLY two adjudicated shed classes: the
-        # 85-card copy/Populate boundary (CR 707.1/111.2 — that's
-        # ``token_copy_makers``, a separate, already-promoted concept)
-        # plus Soul of Emancipation's multi-target "for each of those
-        # permanents, its controller creates ..." legacy scope-resolution
-        # bug (the SAME "unset-controller defaults to you" pattern
-        # already adjudicated elsewhere this wave — Pongify / Beast
-        # Within / Generous Gift's SINGLE-target case resolves the
-        # directed scope correctly in old_ir_for, confirmed via direct
-        # inspection; only the multi-target for-each idiom loses the
-        # per-permanent controller reference). See :func:`_token_maker`'s
-        # own docstring for the arm history.
-        # type_matters PROMOTED (ADR-0038 W5 tails) — see the crosswalk lane's
-        # own docstring for the corpus history + the fully-adjudicated shed
-        # class (the legacy _board_count_markers artifact).
-        # voltron_matters PROMOTED (ADR-0039 W7 endgame, 2026-07-12) —
-        # landfall met: both 2276->2281, live_only 81->76, and every
-        # remaining live_only card is one of three adjudicated shed
-        # classes: 64 commander-damage MEMBERSHIP-fallback (mandatory: Big
-        # Winner / Croakid Amphibonaut / Grabby Tabby / Scared Stiff + W6
-        # representatives, pinned) + 10 attach-action/housekeeping (Hammer
-        # of Nazahn, Battlefield Improvisation, Nahiri the Lithomancer,
-        # Unexpected Request, Armed and Armored, Super-Soldier Serum,
-        # Goldwardens' Gambit, Inventory Management, Resolute Strike,
-        # Benevolent Blessing) + 2 removal/theft-target (Soul Nova,
-        # Shackles of Treachery — CR 301.5c). The prior W6 5-card
-        # (7-in-comment) dropped-clause residual closes via three ADR-0039
-        # ledgered bridges (bridge_ledger.BRIDGES):
-        # ``voltron_attach_count_scaling_dropped`` (Judgment Bolt / Animal
-        # Friend / Sage's Reverie — the SAME "for each Aura/Equipment ...
-        # attached" / "where X is the number of Equipment you control"
-        # idiom, tightly anchored — NOT the legacy VOLTRON_PAYOFF_REGEX's
-        # bare "equipment you control" branch, which over-fires on
-        # Affinity-for-Equipment reminder text and attach-ACTION clauses),
-        # ``warchanter_skald_condition_dropped`` (a Taps-trigger's
-        # condition=None, the clause surviving only in ``description``),
-        # ``forge_anew_equip_cost_paycost_unlinked`` (an unlinked
-        # PayCost({0}); Bruenor Battlehammer's identical clause is served
-        # through its OWN structural ObjectCount arm before the bridge is
-        # ever reached). CR 301.5/303.4/107.3/601.2f/702.6c verified this
-        # session.
-    }
-)
+# ── Historical per-key promotion record ───────────────────────────────────
+# ADR-0039 task #80 step 6: this used to be the ``_STAGE4_RESIDUAL`` frozenset
+# (permanently empty by the time of this step — every key it ever held had
+# already been promoted out, one at a time, in the sessions documented below)
+# subtracted from the ported set to route a handful of keys back onto the
+# legacy ``extract_signals_ir`` fallback. That fallback is gone (the flag died
+# with it), so the subtraction collapsed to a no-op and was deleted along with
+# it; the per-key promotion adjudications are preserved here as history — each
+# documents WHY a specific key's crosswalk recall was verified complete enough
+# to serve it live, with corpus counts and CR citations.
+# ADR-0035 Stage-4 (default-ON flip): EXACTLY the keys that OWN a flag-ON
+# deck-forge test failure — the crosswalk lane MISSES what the legacy
+# ``old_ir_for`` serves on a TEST-COVERED card (tests pin the legacy firing;
+# design bucket (iii) confirmed overfire=0, so a failure is a genuine crosswalk
+# LOSS, never a gain). Derived by running the deck-forge suite with every
+# Stage-3 key ported and collecting the ``(key, scope[, subject])`` tuples the
+# failing assertions name (80 keys), plus three keys whose loss surfaces only
+# once the direct owners are already residual — ``scaling_pump`` (masked in a
+# multi-assert test by an earlier-failing key), ``token_maker`` (its crosswalk
+# ranking pushes a land-creatures avenue past the engine's avenue cap), and
+# ``type_matters`` (the class-tribe membership floor is go_wide-gated on the
+# residual ``creatures_matter``, so the floor lane must ride the same
+# ``old_ir_for`` arm). Routing ONLY these to residual (they stay in
+# ``MIGRATED_KEYS``, so dropping them from ``PORTED_KEYS`` re-supplies them from
+# ``extract_signals_ir(old)`` — byte-identical to flag-OFF) restores the
+# legacy firing without retreating from any key the crosswalk serves correctly.
+#
+# ADR-0038 W3 batch 3 (combat-coercion cluster): ``forced_attack``,
+# ``goad_makers``, and ``lure_makers`` PROMOTED (0 genuine members lost
+# vs a live corpus re-measure; the ForceBlock/created-token/self-combo
+# false-positive classes excluded, the beyond-legacy gains CR-grounded +
+# pinned). ``lure_makers``'s last apparent gap — Destined // Lead's
+# Aftermath back face ("Lead"), which phase never emits — is closed by
+# the W2c text-only face tree ``trees_for`` synthesizes off the bulk
+# face (task #76): the ``_LURE_ABLE`` idiom reads the synthesized
+# tree's oracle text, so production parity is exact (the wave's own
+# measurement harness predated ``trees_for`` and couldn't see it).
+#
+# ADR-0038 W3 batch 4 (combat-damage cluster): ``poison_makers``
+# PROMOTED (146 both / 0 live_only vs a live corpus re-measure — up
+# from a 63-card gap). Two structural gaps closed: (1) a direct
+# ``GivePlayerCounter(poison)`` DOER with no infect/toxic/poisonous
+# keyword at all (Pit Scorpion, Marsh Viper — joined
+# ``_PLAYER_COUNTER_MAKER``); (2) a poison GivePlayerCounter buried
+# inside a CreateToken/CreateEmblem's OWN granted-ability definition
+# (Serpent Generator, Ajani Sleeper Agent — a deep ``iter_typed_nodes``
+# walk). Plus a SANCTIONED whole-card word-mirror
+# (``_POISON_WORD_MIRROR``) for the keyword GRANTERS a bearer-only
+# keyword-array read misses (Corrupted Conscience "has infect", Snake
+# Cult Initiation "has poisonous 3"). One adjudicated GAIN: Ajani's
+# emblem giver (legacy's OLD IR projects the whole "You get an emblem
+# with ..." clause as one opaque, undecomposed effect — verified via
+# ``old_ir_for``, no nested GivePlayerCounter survives — so legacy can
+# never see into it; CR 114.1/122.1). ``combat_damage_matters``,
+# ``combat_damage_to_opp``, and ``creature_ping`` gained substantial
+# structural recovery this batch too (nested/delayed trigger descent,
+# an Unknown-mode description fallback, a planeswalker-only exclusion,
+# and a doer-based creature_ping widening) but still carry a diverse
+# residual tail (TK-templated placeholder cards, bare quoted-static
+# grants with no CreateDelayedTrigger/GrantTrigger node at all, DFC
+# blank-oracle records) — NOT promoted this batch; see the W3 batch 4
+# session notes.
+#
+# ADR-0038 W3 batch 4 (pt-counters-grants cluster): ``cost_reduction``,
+# ``minus_counters_matter``, and ``keyword_grant_target`` PROMOTED (0
+# genuine members lost vs a live corpus re-measure). ``cost_reduction``
+# widened ``_arm_cost_reduction`` to also read ``ReduceAbilityCost{Reduce}``
+# (a v0.20.0 typed mode distinct from ``ModifyCost`` — CR 601.2f/118.7
+# covers activated-ability costs too), a nested ``GrantStaticAbility.
+# definition`` reducer, and ANY node's own description as an Unimplemented-
+# residue fallback, plus a final whole-tree kept-mirror for the zero-node
+# residuals (Henzie "Toolbox" Torre, Catalyst Stone); the self-discount
+# veto is now card-level (a multi-sentence rider's "It also costs ...
+# less" continuation inherits it) and a free-cast/impulse-discount
+# exclusion added. ``minus_counters_matter`` added a cost-embedded
+# ``PutCounter`` walk (Devoted Druid), an ``enter_with_counters`` M1M1
+# read (the Persist family's v0.20.0 substrate shape), and the legacy's
+# own "-1/-1 counter" kept-mirror for the cares-about residue (Vizier of
+# Remedies, Soul-Scar Mage, Necroskitter). ``keyword_grant_target``
+# extended the threaded-target walk to trigger-origin units (Conquering
+# Manticore's "gain control ... It gains haste" idiom) and added a
+# kept-mirror fallback (the deleted SWEEP regex) for phase-parse-loss
+# residues and the split/aftermath back-half (Onward // Victory).
+# ``base_pt_set`` — see its own PROMOTED comment further down this
+# frozenset (ADR-0039 W7 endgame) for the final arm history; the
+# interim W3 batch 4/6 notes that used to sit here (21 corpus gaps,
+# Belligerent Yearling closing 1 of them) are superseded.
+#
+# ADR-0038 W3 batch 4: ``scaling_pump`` PROMOTED — the single-target
+# ``Pump`` tag is now admitted alongside ``PumpAll`` in
+# ``_pump_scaling_lanes`` (CR 107.3 / 613.4c; see that function's
+# docstring), plus two widened ``_SCALING_QTY_TAGS`` entries
+# (``ZoneCardCount``, ``ObjectTypelineComponentCount``). 0 genuine
+# members lost vs a live corpus re-measure (Embiggen, Gold Rush, Gran
+# Pulse Ochu, Ral's Staticaster, Sunbathing Rootwalla all recovered);
+# the beyond-legacy gains (~182-card corpus diff, every sub-shape by
+# target tag corpus-verified) are CR-grounded + pinned.
+#
+# ADR-0038 W3 batch 4 (draw-etb-tokens cluster, worker w3b4e):
+# ``topdeck_stack`` PROMOTED (0 genuine members lost vs a live corpus
+# re-measure card-by-card against ``old_ir_for``): a nested-grant
+# descent (``GrantAbility``/``GrantTrigger``/``GrantStaticAbility``
+# ``.definition``, mirroring ``_self_pump``'s sibling scan — Scion of
+# Halaster), a ``ParentTarget``/``TrackedSet``/``ExiledBySource``
+# back-reference widening gated by the legacy
+# ``supplement._topdeck_stack_self`` self-anchor scan (reused verbatim
+# — the SAME disambiguation legacy needs, since phase's Dig /
+# PutAtLibraryPosition carry no library-OWNER field, so a self
+# top-stack and an opponent-library tuck are structurally
+# byte-identical), and the legacy ``_sweep_detectors.
+# TOPDECK_STACK_SWEEP_REGEX`` kept mirror run card-level (reused
+# verbatim, unchanged) for the two idioms with NO topdeck_stack node at
+# all (Leashling/Penance/Hidden Retreat's activation-cost put; Munda,
+# Ambush Leader's/Diabolic Vision's modal reveal-then-place ``Dig``).
+# A REPLACEMENT-origin unit is excluded (Library of Leng — legacy's
+# project.py never walks ``card.replacements`` for this concept,
+# verified via ``old_ir_for``) and the nested-grant descent is
+# deliberately scoped to the three grant tags, never a blanket
+# ``iter_typed_nodes`` walk (Loathsome Troll's modal ``RollDie`` result
+# put — corpus-verified over-fire when tried, reverted). CR 401.4.
+#
+# ADR-0038 W3 batch 5 follow-up: ``landfall`` PROMOTED by the
+# orchestrating session's verification pass — the W3 batch 4 lands
+# agent left it residual at live_only=1, but that 1 is its OWN
+# adjudicated, negative-pinned shed (Tameshi, Reality Architect: the
+# land moves battlefield→hand as a cost and the graveyard return
+# targets only artifact/enchantment, never a land entering — CR 305.1,
+# re-verified via rules-lookup at promotion). live_only = exactly the
+# shed set IS the 0-genuine-lost gate; re-measured at HEAD before the
+# flip. The 12 cw_only gains (Wandering Troubadour, Restore, Hazezon,
+# Soul of Windgrace, ...) were batch-4-adjudicated and pinned.
+#
+# ADR-0038 W3 batch 6 (draw-etb-tokens cluster): ``creature_etb``
+# PROMOTED — corpus re-measure 338 both / 0 genuine live_only (37 raw
+# live_only, all adjudicated sheds; see ``_etb_trigger_lanes``'s
+# docstring for the full per-class breakdown) / 46 cw_only (Soulbond/
+# Graft granted-ability bodies CR 702.95a/702.58a + the pre-existing
+# EnteredThisTurn Arm 3 gains, all CR-grounded). Eight arms total: the
+# three pre-existing (top-level trigger + DoubleTriggers +
+# EnteredThisTurn) plus five new this batch — a nested
+# ``GrantTrigger``/``CreateEmblem`` descent and a
+# ``CreateDelayedTrigger`` descent (both riding the EXISTING shared
+# iterators ``creature_cast_trigger``/``opponent_cast_matters`` already
+# use), a compound ``entersorattacks`` event widening, an Unknown-mode
+# per-trigger description fallback, an Unimplemented-whole-ability
+# per-unit description fallback for the Stickers family, and a
+# mode-agnostic ``_ETB_HAD_RE`` per-trigger description fallback for
+# Ephara's condition-less delayed payoff (no ``etb`` event exists in
+# phase's model for a structural arm to ever reach). CR 603.6a.
+#
+# ADR-0038 W3 batch 6 (facedown-and-basept cluster): ``facedown_matters``
+# PROMOTED. The batch-5 zones agent proved the legacy population is
+# SCOPE-MISMATCHED — a plain morph/manifest/cloak MAKER with no genuine
+# payoff fires the legacy ``_matters`` lane purely because the OLD IR's
+# per-face keyword tuple drops the keyword for a non-mana morph cost
+# (Gathan Raiders "Morph—Discard a card" keywords=() vs Krosan Colossus
+# "Morph {4}{U}" keywords=('Morph',)) — an artifact of that projection
+# quirk, not a principled cares-about boundary (CR 702.37a: Morph is
+# the cast-as-2/2 ability; a plain maker never references an EXISTING
+# face-down object). Re-measured at HEAD: 61 live_only, 3 cw_only. 33
+# of the 61 are this maker-idiom shed (Gathan Raiders/Whisperwood
+# Elemental/Gift of Doom's own "as ~ is turned face up" morph rider/
+# Cloak and Dagger, Entwined's pure regex name-collision — negative-
+# pinned) and 28 are genuine structural gaps now closed: a FaceDown-
+# typed marker deep scan (Nosy Goblin's ``Destroy`` target, Etrata's
+# granted-ability ``affected``, Kadena's face-down-ETB draw, Ixidron,
+# Veiled Ascension, Tunnel Tipster, Cryptic Pursuit, Dream Chisel,
+# Obscuring Aether, Primordial Mist, Found Footage, Keeper of the Lens,
+# Panoptic Projektor, Lumbering Laundry), a ``manifestdread`` trigger
+# event (Paranormal Analyst — CR 701.62, reactive to the ACTION, not
+# the making of it), typed ``EnchantedIsFaceDown`` condition (Unable to
+# Scream) and static ``mode == "CantBeTurnedFaceUp"`` (Karlov Watchdog),
+# and a ``look``/``turn``-named ``Unimplemented`` residue read (Smoke
+# Teller/Aven Soulgazer, Showstopping Surprise/Backslide, Exiled
+# Doomsayer's morph-cost tax), plus a unit-scoped last-resort text hook
+# (Qarsi Deceiver, Revealing Wind, Lens of Clarity, Spy Network,
+# Illusionary Mask) gated by a maker-idiom exclusion regex (reminder-
+# completion / "exile ... face-down pile" gambit / self ETB-parity
+# rider / a bare "is turned face up" duplicate-decomposition fragment)
+# — corpus-verified at the FULL commander-legal corpus (not just the
+# 61) to guard against the batch-5 naive-port explosion (3→126
+# cw_only); this port's corpus cw_only is 11 (3 pre-existing baseline
+# anomalies — Fear of Impostors/Unwanted Remake/Unidentified Hovership,
+# the ManifestDread-on-OPPONENT arm, unrelated to this batch — plus 8
+# genuine beyond-legacy gains: Primal Whisperer's face-down-creature
+# count, Cyber Conversion/Illithid Harvester's "turn X face down"
+# removal the legacy regex allowlist never covered, Creeping Peeper/
+# Overgrown Zealot/Tin Street Gossip's mana restrictions, Oblivious
+# Bookworm's broad condition). live_only == exactly the 33-card shed
+# set IS the 0-genuine-lost gate.
+#
+# ADR-0038 W3 batch 6 (combat-trio): ``combat_damage_matters`` and
+# ``combat_damage_to_opp`` PROMOTED (0 genuine members lost vs a live
+# corpus re-measure — 28/27 live_only -> 0/0). A whole-face text
+# fallback (:func:`~mtg_utils._card_ir.supplement.
+# combat_damage_recipients_from_text`, reused verbatim, single-source
+# from the OLD projection's own synthetic ``combat_damage`` trigger
+# recovery) closes the bare-quoted-grant / replacement / passive-
+# reference tail (Predators' Hour, Sokrates, Steel Hellkite, the
+# Unfinity Sticker Sheet TK-templates, the Optimus Prime DFC face) for
+# BOTH lanes; ``combat_damage_to_opp`` additionally gains a LOW-
+# confidence double-strike-grant mirror (Raphael, Blade Historian,
+# Berserkers' Onslaught — CR 510.1b/510.1c/510.2/615.
+# ``creature_ping`` PROMOTED (0 genuine members lost — 36 -> 0
+# live_only): the anchor widened from ``DealDamage``-only to also read
+# ``DamageAll``/``DamageEachPlayer`` (both already decorate as the
+# ``deal_damage`` concept, only the lane's own per-node tag filter
+# excluded them — Waltz of Rage, Heartfire Hero), a deep
+# ``iter_typed_nodes`` walk reaches a granted ability's OWN buried
+# DealDamage/DamageAll (Burning Anger, Brawl), a strict "power to
+# target creature" recipient-text confirm recovers a ParentTarget
+# back-reference recipient when the doer's power comes from a
+# DIFFERENT object (Lie in Wait, Dead Reckoning), and the Multiply
+# anchor admits an ``EventContextAmount`` inner qty (Cut Propulsion's
+# anaphoric "twice that much"), all CR 120.3. Three adjudicated GAINS
+# (Osseous Sticktwister, Storm Queen of Wakanda, Lukka's ultimate
+# emblem) join the already-ported Delirium precedent — legacy's own
+# oracle-fallback regex is narrower than the structural read in each
+# case (a pronoun, an "any target" tail, a qualifying relative clause),
+# not a principled exclusion.
+#
+# ADR-0038 W4 giant-key batch: ``creatures_matter`` STAYS residual —
+# substantial recall gain (a live corpus re-measure: both 603 -> 1193,
+# live_only 3184 -> 2594, no new cw_only over-fires beyond the existing
+# pre-batch predicate-blind-filter anomaly class), but the gate is NOT
+# met — the tail doesn't decompose into a small adjudicated set. The
+# ``_creatures_matter`` arm widened from 2 shapes to 5, all sharing the
+# SAME ``_is_generic_creature_filter`` gate: (1) a ``Multiply``-scaled or
+# ``Mana``-nested count operand (Peach Garden Oath, Circle of Dreams
+# Druid/Battle Hymn — CR 107.3), (2) a scaling ``Pump``/``PumpAll``'s
+# ``power``/``toughness`` Ref site (Might of the Masses, CR 107.3), (3)
+# a whole-unit ``iter_static_defs`` descent so a ONE-SHOT
+# ``GenericEffect``-nested or ``CreateEmblem``-nested static def fires
+# the team-anthem arm same as a static-origin unit (Overrun, Capitoline
+# Triad, Call for Unity's scaling ``AddDynamicPower``/
+# ``AddDynamicToughness`` — CR 611.2c/613.4c), (4)
+# ``GrantAbility``/``GrantTrigger`` mod tags joining ``AddKeyword`` in
+# the same arm (Lightning Volley, Kira, Phenax — CR 113.10), (5) a plain
+# top-level ``PumpAll`` role=effect with no nested static def at all
+# (Warrior's Honor, Fortify — CR 611.2c/613.4c). ~590 corpus cards
+# recovered this batch (all 5 arms pinned in ``test_crosswalk.py`` —
+# ``test_creatures_matter_w4_giant_batch``). The GIANT remaining tail
+# (~2594 live_only) decomposes into: (a) ~2160 the pre-existing
+# docstring already names and this batch corpus-reconfirmed — legacy's
+# LOW regex floor fires on ANY creature-token maker (Siege-Gang
+# Commander, Mobilization) purely because the oracle text mentions
+# "creature token", not a structural cares-about read (negative-pinned:
+# Siege-Gang Commander) — deliberately NOT ported; (b) a genuinely
+# diverse ~430-card tail spanning MANY small, structurally UNRELATED
+# shapes that would each need its own arm + corpus verification: Devour
+# ETB counters (Bloodspore Thrinax, ~20), Rampage/"blocked by" combat
+# counts (Craw Giant, ~24 — different SUBJECT, "creatures blocking it"
+# not "creatures you control", negative-pinned), symmetric "on the
+# battlefield" any-controller counts (Blasphemous Act, Coat of Arms,
+# ~10 — fails the "You" gate by design, negative-pinned), named-card
+# self-counts (Relentless Rats, ~15), "greatest power among creatures
+# you control" Aggregate/Max reads (Rishkar's Expertise, ~21 —
+# structurally a MAX function, not an ObjectCount, needs its own
+# operand-extraction arm), attacking-creature counts (Klauth, ~35 —
+# different subject again), conditional gates ("if you control a
+# creature with power 5+", Chronicler of Heroes, ~24 — a boolean
+# Condition node, not a count/anthem shape at all), and a genuinely
+# heterogeneous ~284-card residue (subtype/face-down/color-restricted
+# anthems correctly excluded by the no-subtype-or-predicate gate,
+# single-target aura token-granters, generic "untap all creatures you
+# control" one-shot effects with no P/T/keyword modification at all,
+# …). No single mechanism closes (b) — banking the recall gain per
+# ADR-0038 step 5 rather than force-fitting a promotion.
+#
+# ADR-0039 W7 BRIDGES wave (2026-07-11): ``creatures_matter`` STAYS
+# residual — a live corpus re-measure gives the FIRST exact,
+# mechanistically-derived bucket accounting of the whole live_only
+# set (a per-card classifier walking the SAME node fields the arms
+# read, not approximate counts): both 1262 -> 1390 (+128 genuine
+# recall), live_only 2532 -> 2404, cw_only 30 -> 154 (every new hit
+# spot-verified genuine — the predicate-agnostic condition-gate
+# philosophy already established for the artifacts_matter/
+# enchantments_matter siblings, e.g. Colossal Majesty's "draw a card
+# if you control a creature with power 4+", CR 603.4). Four new
+# closing mechanisms, all CR-grounded and pinned
+# (``test_creatures_matter_w7_bridges_batch``):
+#
+# (1) a CONDITION-gate arbitrary-payoff arm
+# (:func:`_creatures_matter_condition_filter`) — an existence/
+# threshold Condition wrapping an UNRELATED effect over the generic
+# population (Chronicler of Heroes, the Ferocious ability word, Epic
+# Struggle's "20 or more creatures, you win" — CR 603.4/608.2b),
+# EXCLUDING a cost-reduction's own condition (``static_mode_tag ==
+# "ModifyCost"`` — Avatar of Might/Synchronized Eviction/Arwen's
+# Gift/Orysa's "costs {N} less" gate, CR 601.2f — the W6 boundary
+# worry this arm resolves) and a Soulbond ``Unpaired`` predicate
+# (Nearheath Pilgrim's ETB pairing check, CR 702.95b — keyword-
+# mechanic bookkeeping for ONE partner, not a population care).
+# (2) a deep static-def descent
+# (:func:`_iter_creatures_matter_static_defs`, a lane-local STRICT
+# SUPERSET of :func:`iter_static_defs` additionally following
+# ``modifications``/``definition``/``trigger`` — a team anthem buried
+# inside a modification's OWN granted trigger/ability body, Centaur
+# Chieftain / Teroh's Vanguard / Angelic Skirmisher / Garruk Savage
+# Herald / Dragon Throne of Tarkir / Tenth District Hero) plus two
+# widened mod tags (``AddChosenKeyword``, ``GrantStaticAbility`` — CR
+# 113.10) and four more (``AddType``/``AddSubtype``/
+# ``AddAllCreatureTypes``/``AssignDamageFromToughness`` — CR 613.4d /
+# 510.1c, each verified as the card's OWN static, never granted into
+# an opponent-controlled token where "You" resolves to the WRONG
+# controller — Goblin Spymaster / Pursued Whale's MustAttack mode is
+# exactly that trap and is deliberately NOT added).
+# (3) a team EVASION/UNTAP-PERMISSION static MODE
+# (:data:`_CREATURES_MATTER_EVASION_MODES` — CantBeBlocked family +
+# UntapsDuringEachOtherPlayersUntapStep, CR 113.12/502/611.1 — Keeper
+# of Keys, Drumbellower, Dread Charge).
+# (4) :func:`_pump_scaling_creature_filter` widened to accept an
+# ``Aggregate`` qty alongside ``ObjectCount`` — a created TOKEN's
+# scaling power/toughness site (Miming Slime's "X/X token, X = the
+# greatest power among creatures you control" — CR 208.1), the sole
+# caller so the widening needs no sibling corpus check.
+#
+# TWO CORRECTNESS FIXES to the shared :func:`_is_generic_creature_filter`
+# gate itself (affecting every caller — type_matters go-wide included,
+# a pure improvement, never a widening): an explicit non-Battlefield
+# ``InZone`` predicate now fails the gate (Wire Surgeons' "each
+# artifact creature card in your GRAVEYARD has encore" was a false
+# positive the deep descent's wider reach first surfaced — CR 400.2;
+# an explicit ``InZone: Battlefield`` — Chronicler of Heroes' own
+# counter-predicate filter states it explicitly — still passes), and a
+# ``SharesQuality`` predicate now fails the gate (Haunted One's
+# granted "other creatures you control that SHARE A CREATURE TYPE
+# with it" is a TRIBAL restriction phase encodes as a predicate, not
+# a ``Subtype`` type_filters entry — CR 205.3, type_matters
+# territory).
+#
+# The exact live_only=2404 decomposition (a per-card mechanistic
+# classifier, not estimates): 2131 the PRE-EXISTING token-maker LOW
+# regex floor (Siege-Gang Commander, already negative-pinned); 162 a
+# genuinely heterogeneous residue of many small, structurally
+# UNRELATED shapes (subtype anthems correctly excluded by the
+# no-subtype gate — Karrthus; single-target aura/equip grants;
+# generic "untap all" with no P/T/keyword mod; Rampage/board-count
+# shapes the pre-existing shed classes already cover under different
+# node paths than this session's diagnostic script checked); 32 a
+# "creatures BLOCKING it"/"creatures attacking you" count (Rampage,
+# Craw Giant, already negative-pinned, CR 509.1h); 22 Devour's
+# sacrifice count (Bloodspore Thrinax, already negative-pinned, CR
+# 702.82a); 20 a symmetric any-controller "on the battlefield" count
+# (Blasphemous Act, already negative-pinned); 6 the legendary-
+# creature-count-SCALED cost reduction shape at a non-Condition site
+# (Boseiju/Eiganjo/Otawara/Sokenzan/Takenuma/Mirror of Galadriel —
+# the SAME CR 601.2f exclusion as arm (1)'s cost-reduction guard, just
+# reached via a ``S_cost_reduction`` count field rather than a
+# Condition site, deliberately NOT closed by a blind count-operand
+# deep scan — that would reopen the SAME cost-reduction contamination
+# risk arm (1) was built to avoid); 2 a self-referential named-copy
+# CDA (Relentless Rats — CR 613.4b, the Towering Gibbon precedent); 1
+# a tribal SharesQuality grant (Haunted One, now correctly excluded
+# by the gate fix above); 2 an opponent-token-scope MustAttack grant
+# (Goblin Spymaster/Pursued Whale); 1 a graveyard-zone care (Kathril,
+# Aspect Warper, now correctly excluded); ~26 more single-card shapes
+# in the ``other_filter`` tail needing their own dedicated arm
+# (Mana Echoes, Crypt of Agadeem, Carrion Grub, Audience with
+# Trostani, We Ride at Dawn, …). No single further mechanism closes
+# the residue — banking this session's substantial recall gain and
+# two shared-gate correctness fixes rather than force-fitting a
+# promotion past a still-genuine, still-diverse tail.
+#
+# ADR-0038 W4 giant-key batch: ``plus_one_matters`` STAYS residual —
+# substantial recall gain (a live corpus re-measure: both 118 -> 296,
+# live_only 485 -> 307, cw_only 2 -> 23, all 23 corpus-verified genuine
+# beyond-legacy gains — Battlefront Krushok / Thoughtbound Phantasm /
+# a DFC front-face RemoveCounter cost / Skyclave Sentinel's second-clause
+# payoff / the Unleash CantBlock idiom, each a real legacy structured-
+# parse gap, not a crosswalk over-fire), but the gate is NOT met — the
+# tail doesn't decompose into a small adjudicated set. Five new arms
+# mirror ``_any_counter_matters``'s whole-unit descents gated to P1P1
+# instead of Any (:func:`_plus_one_matters`'s own docstring — CR 122.1):
+# a mass STATIC ``affected`` filter (Outlast tribal anthems), a
+# counter-HAVE TRIGGER's ``valid_card`` filter (Marchesa the Black Rose),
+# a nested ``iter_static_defs`` conferred-grant descent, a ``HasCounters``
+# whole-unit static CONDITION (Lightwalker's self-referencing "as long as
+# it has a +1/+1 counter" idiom, CR 604.2), and a P1P1-kind
+# ``RemoveCounter`` activation COST (Triskelion/Walking Ballista's
+# counter-sink outlet, CR 118.7). :func:`trigger_counter_filter`
+# (``_card_ir/crosswalk.py``) is ALSO widened to read a THRESHOLD-less
+# ``counter_filter``'s ``MirrorVariant`` collapse (Fathom Mage / Enduring
+# Scalelord / Knighted Myr — a mirror-runtime loading artifact, not a
+# new grammar arm). Two DISTINCT legacy over-fire mechanisms are
+# deliberately NOT reproduced (both corpus-verified noise, not a
+# genuine +1/+1-specific cares-about read — see the docstring's "NOT
+# ported" section): (1) legacy's ``_PAYOFF_TRIGGER_KEYS["counter_added"]``
+# row fires UNCONDITIONALLY on every ``counter_added`` trigger with no
+# kind gate (~249 raw live_only — 171 Saga lore-counter chapters + 74
+# M1M1/kindless kind-agnostic triggers + 4 more via (2)); (2) legacy's
+# per-ability ``project._narrow_counter_refs`` regex carries a
+# kind-agnostic "with/has a counter on it" alternative that double-tags
+# cards the esub arm already correctly routes to any_counter_matters
+# (The Swarmlord, Cleopatra Exiled Pharaoh, Puca's Covenant, Metropolis
+# Angel). The remaining ~58-card tail is genuinely diverse (an
+# ``Unknown``-tagged ``sub_ability`` idiom for "if X has a counter, do Y
+# instead" — Bring Low; a condition phase drops entirely inside a
+# ``GenericEffect`` wrapper — Dual-Sun Technique; a deeply-nested
+# ``ModifyCost``/``spell_filter``/``Targets`` cost-reduction shape —
+# Titanic Brawl; CDA "power greater than its base power" text idioms
+# with no counter node at all — Baird, Kutzil, Ms. Marvel) — each would
+# need its own arm + corpus verification. Banking the recall gain per
+# ADR-0038 step 5 rather than force-fitting a promotion.
+#
+# ADR-0038 W4 giant session (enchantments_matter): a large residual gap
+# (40 live_only vs 3840 both) collapsed to 6 (both 3874) via four
+# structural fixes, all corpus-verified: (1) an Aura-SUBTYPE recursion
+# fallback on the three graveyard-recursion arms (:func:`
+# _type_recursion_lanes`, CR 205.3/303.4 — "return target Aura card"
+# carries no Enchantment core type); (2) an And/Or condition-leaf
+# descent (:func:`_condition_leaves`, CR 603.4 — "if you control an
+# artifact AND an enchantment" types as one compound condition wrapping
+# two leaf checks); (3) the ``_ENCHANTMENTS_MATTER_MIRROR`` byte-mirror
+# port (the enchantment sibling of the already-ported
+# ``_ARTIFACTS_MATTER_MIRROR``, never previously wired in); (4) an
+# AFFINITY-FOR-ENCHANTMENTS keyword-line check (the enchantment sibling
+# of the existing AFFINITY-FOR-EQUIPMENT arm). The remaining 6:
+# 4 "each player/opponent sacrifices an enchantment of their choice"
+# EDICTS (Gaius van Baelsar, Pick Your Poison, Simplify, Catch //
+# Release — CR 701.21a, the same shape ``_sac_is_edict`` already
+# rejects) and 1 symmetric library-position reset (Harmonic
+# Convergence's "put all enchantments on top of their owners'
+# libraries" — CR 205.2, no ``controller: You`` gate) are ADJUDICATED
+# SHEDS (mandatory negative pins added), not genuine recall. The 6th —
+# Smoke Spirits' Aid's "For each of up to X target creatures, create a
+# red Aura enchantment token …" — is a GENUINE gap phase parses as a
+# residue ``Unimplemented`` node (the "for each … create" wrapper);
+# recovering it needs either ``clause_grammar.py`` growth (forbidden
+# this session) or a ``make_token`` recovery-ALLOWLIST entry, which is
+# a corpus-wide shared-helper widening (affects every lane reading the
+# ``make_token`` concept, not just this one) too broad to verify safely
+# for a single card this session. Banking the recall gain per ADR-0038
+# step 5 rather than force-fitting a promotion.
+#
+# ADR-0038 post-giants main-session batch: ``enchantments_matter``
+# PROMOTED — the orchestrating session added exactly that
+# ``make_token`` ALLOWLIST row with the full-corpus verification the
+# giant agent asked for (blast radius: 38 recovered nodes, 2 changed
+# cards corpus-wide before the lane branch — Tobias/Soul of
+# Emancipation, both adjudicated genuine — plus the recovered-node
+# raw-read branch in _artifacts_enchantments_matter, CR 701.7/111.2/
+# 205.3g rules-lookup-verified). Smoke Spirits' Aid recovered + pinned;
+# final live_only == exactly the five adjudicated, negative-pinned
+# sheds (Gaius/Pick Your Poison/Simplify/Catch // Release edicts +
+# Harmonic Convergence symmetric reset) — the landfall gate rule.
+# artifacts_matter also gained (Circuits Act, Yawgmoth Merfolk Soul —
+# its tail is now 8) but keeps its genuinely diverse residual.
+#
+# ADR-0038 post-giants main-session batch: ``discard_outlet`` PROMOTED
+# — the giants agent's ONLY remaining class (the period-split "Then
+# discard a card unless <cond>" tail, 5 cards) is recovered by the
+# "discard" ALLOWLIST row; the lane's recovered-node DIRECTION gate
+# (``_RECOVERED_OPP_DISCARD_RE``, a raw reject-list) keeps the
+# opponent-directed / protection residues out (Nebuchadnezzar's
+# subject-truncated imperative, Bladecoil's "each opponent", Tamiyo's
+# "can't cause you to"), negative-pinned. Final live_only=0; the
+# recovered path's four genuine additions (Breakthrough, Circling
+# Vultures, Noxious Vapors' symmetric wheel, Azra's team loot) ride
+# the already-adjudicated cw_only gain classes. Free rider:
+# opponent_discard's gap fell 77→33 (recovered opponent-directed
+# discards now reach its own arm) — banked, key stays residual.
+#
+# ADR-0038 W5 tails (2026-07-11): ``artifacts_matter`` NOT YET
+# PROMOTED — corpus re-measure 5006 both / 4 live_only (down from 8).
+# Four structural/local-read fixes: a BATTLEFIELD-sourced library-
+# bounce (Rebuking Ceremony, CR 401.4, distinct from the existing GY-
+# recursion arm's CR 400.7); ``SearchOutsideGame`` (the Wish idiom, CR
+# 108.3) read LOCALLY by its own typed tag (never routed through the
+# shared ``tutor`` CONCEPT_MAP — that would incorrectly open the
+# dedicated tutor lane for every Wish card too); a ``ChooseOneOf``-
+# wrapped sac (Nimble Hobbit's "sacrifice a Food or pay {2}{W}" —
+# ``_walk_effect_chain`` collapses the whole modal branch to one
+# opaque concept, so a deep scan finds the Sacrifice inside directly);
+# a ``become_copy`` type-restricted target read (Spirit of
+# Resilience's "become a copy of an artifact or creature card", CR
+# 707 — an ordinary Clone's bare Creature-only target stays silent by
+# construction). Two cards ADJUDICATED AS SHEDS this batch (negative-
+# pinned): Catch // Release's "Release" half and Braids, Cabal
+# Minion's upkeep trigger are SYMMETRIC EDICTS (CR 701.21a — every
+# player sacrifices their OWN choice, not a fodder outlet), the exact
+# same class the enchantments_matter sibling already sheds for the
+# first of these two cards. The remaining 2 live_only are GENUINE
+# unclosed gaps, not sheds: Bello, Bard of the Brambles is a
+# confirmed phase STATIC-PARSER FAILURE (its whole ability parks as
+# an ``Unimplemented`` node named "static_structure" with a "Static
+# pattern matched but line failed static parser" diagnostic — no
+# residue to recover from, needs upstream phase work); Dargo, the
+# Shipwrecker's "As an additional cost to cast this spell, you may
+# sacrifice any number of artifacts and/or creatures" is a genuine
+# ``build_concept_tree`` root-cause bug — ``_spell_additional_cost_
+# concepts`` computes the Sacrifice cost concept correctly but the
+# merge loop only attaches it to an EXISTING Spell-kind ``S_abilities``
+# entry, and Dargo has NONE (its only ability is a Static cost-
+# reduction rider) — so the additional_cost is silently dropped for
+# any card with this exact shape. 241-card corpus census (every
+# commander-legal card with a root additional_cost and no Spell-kind
+# ability) confirms this is NOT Dargo-specific, but fixing it means
+# synthesizing a carrier AbilityUnit for build_concept_tree itself — a
+# foundational, corpus-wide crosswalk.py change needing the SAME full
+# ALL-KEY diff rigor as a recovery ALLOWLIST row, which this batch's
+# time budget didn't cover. Landfall rule not met (2 genuine gaps
+# remain, not sheds) — key stays residual.
+#
+# ADR-0038 W5 tails (2026-07-11): ``base_pt_set`` NOT YET PROMOTED —
+# 218 both / 13 live_only (down from 20) via a deep GenericEffect/
+# CreateEmblem descent, a ``TriggeringSource`` accept-list addition,
+# and a matched-quantity narrowing of the copy-stats exclusion; see
+# :func:`_base_pt_set`'s own docstring for the full mechanism list and
+# the still-residual 13-card tail.
+#
+# ADR-0038 W5 tails (2026-07-11): ``draw_for_each`` NOT YET PROMOTED —
+# 210 both / 3 live_only (down from 16) via a reversed-order phrase
+# alternative (object-gated to exclude a back-reference false match)
+# plus a ``CreateDelayedTrigger``/``Vote`` per-choice descent; see
+# :func:`_draw_for_each`'s own docstring for the full mechanism list
+# and the still-residual 3-card tail (all genuine gaps, no sheds).
+#
+# ADR-0038 W5 tails (2026-07-11): opponent_discard NOT YET PROMOTED —
+# re-measured at 77 live_only (the 33 estimate in the prior note was
+# the giants agent's own-arm PREDICTION, not a re-measurement; this
+# session's actual number at fresh HEAD was 77). ONE structural gap
+# closed: a discard buried under a ``GrantAbility.definition``
+# (Mindlash Sliver) or a ``Vote`` ``per_choice_effect`` branch
+# (Capital Punishment, Sail into the West) is not on the unit's own
+# direct effect chain, so ``effect_concepts`` never reached it —
+# :func:`iter_typed_nodes`'s deep walk now finds the buried node, and
+# its DIRECT wrapper's own ``player_scope`` resolves via the new
+# lane-local :func:`_nested_owner_player_scope` (CR 613.1f/701.38 —
+# kept lane-local rather than widening the shared
+# ``effect_owner_player_scope``, which backs discard_outlet/
+# group_hug_draw/opponent_cast_matters too). A dual "each"+"opponents"
+# emission for a symmetric wheel was TRIED and REVERTED: it broke the
+# pre-existing adjudicated ``test_opponent_discard_wheel_wrapper_
+# is_each`` pin, which already decided the legacy kept-mirror's
+# redundant "opponents" duplicate for an "each"-scoped wheel is a
+# MIRROR OVER-FIRE, not a second genuine signal (``spec_for``'s
+# (key)-only fallback already resolves an ``each``-scoped signal to
+# the ``("opponent_discard","opponents")`` spec, so the "invisible to
+# every consumer" premise for dual-emitting was false) — see the
+# GRADUATION RULE, never suppress an existing correct pin.
+#
+# live_only fell 77→68 with the GrantAbility/Vote descent fix alone.
+# Of the 68, ~44 are THIS SAME already-adjudicated wheel-mirror-
+# duplicate shed (Wheel of Fortune, Dark Deal, Mindslicer, Windfall,
+# Magus of the Wheel, Memory Jar, Magus of the Jar, Reforge the Soul,
+# Liliana of the Veil, Rankle, … — every "each player discards"
+# wheel legacy's kept mirror ALSO tags "opponents" for). FIVE more
+# are the Cephalid-Looter loot shape (:func:`_is_target_player_loot`)
+# — Compulsive Research (already pinned pre-session) / Laquatus's
+# Creativity / Steal the Show / Collective Defiance / Lumengrid Augur
+# all have a discard AND a sibling draw naming the SAME single
+# targeted player; legacy's inclusion of 4 of the 5 (never Cephalid
+# Looter/Broker themselves, which the SAME veto correctly excludes in
+# legacy too) is driven by incidental "that player discards"
+# REGEX-MIRROR phrasing adjacency, not a principled distinction — CR
+# 701.9/701.8a, negative-pinned (Laquatus's Creativity this session).
+# The remaining ~19 are GENUINELY diverse, un-closed structural gaps:
+# damage-CONNECT specters with no Discard node at all (Fungal
+# Shambler, Bladecoil Serpent); a delayed-trigger wheel whose
+# CreateDelayedTrigger wrapper carries no player_scope of its own
+# (Memory Jar / Magus of the Jar's OWN discard, distinct from their
+# both-matching "each player exiles..." ChangeZoneAll arm); a
+# REPLACEMENT effect chain (Words of Waste, Breathstealer's Crypt); a
+# reveal-then-discard back-reference (Nebuchadnezzar, Dementia
+# Sliver); a past-tense "discarded this turn" punisher condition
+# (Tinybones); a ``Choose(choice_type='Opponent')`` value pick
+# disconnected from the later Discard's mis-tagged ``Controller``
+# target (Fervent Mastery); two empty-text Aftermath DFC records
+# (Consign // Oblivion, Driven // Despair); plus Jagged Poppet/Hint
+# of Insanity/Tainted Specter/Yawgmoth Merfolk Soul/Remorseless
+# Punishment/Mindculling/Azula, each its own shape — banked, not
+# force-fit this session. Key stays residual.
+# ADR-0039 bridge phase (2026-07-11): ``artifacts_matter`` PROMOTED —
+# the two W5-tails genuine gaps closed by the two pattern-setting
+# mechanisms of the bridge phase: (1) Dargo, the Shipwrecker via the
+# ``build_concept_tree`` additional-cost CARRIER fix (a root
+# ``additional_cost`` with no Spell-kind ability entry was silently
+# dropped; the synthesized carrier unit fixed 17 cards corpus-wide,
+# all pure gains — CR 601.2b); (2) Bello, Bard of the Brambles via
+# the FIRST ledgered bridge (``bridge_ledger.BRIDGES[
+# "bello_static_animate_artifacts"]`` — phase's static parser fails
+# the whole animation line, upstream report candidate). Final
+# live_only == exactly the two adjudicated, negative-pinned
+# symmetric-edict sheds (Braids, Cabal Minion; Catch // Release —
+# CR 701.21a): the landfall rule. both=5008 / cw_only=18 unchanged.
+# base_pt_set PROMOTED (ADR-0039 W7 endgame, 2026-07-11) — landfall
+# rule met: both 218 -> 231, live_only 13 -> 0, cw_only=13 unchanged
+# (the pre-existing switch_pt beyond-legacy gains — CR 613.4d,
+# documented in :func:`_base_pt_set`'s own docstring, unaffected).
+# Three structural closers (crosswalk_signals.py): (1) a
+# ``LastCreated`` resolved-tag accept (Ultron, Artificial
+# Malevolence's created-token back-reference, CR 701.7a/608.2h);
+# (2) an empty-nested-description fallback to the enclosing unit's
+# own description (Displaced Dinosaurs' REPLACEMENT-origin static,
+# CR 614.12); (3) :func:`_iter_base_pt_modal_threaded_statics`, a
+# per-key modal ``mode_abilities`` threaded-target walk mirroring
+# ``_iter_untap_targets``'s established pattern (Sauron, Dino
+# Devotee's doubly-nested ``ParentTarget`` inside a modal mode's
+# own sub-ability chain, CR 700.2). Seven ADR-0039 ledgered bridges
+# (bridge_ledger.py) close the residual whole-clause-grammar and
+# dropped-clause tail: ``base_pt_have_become_residue`` (Ambassador
+# Blorpityblorpboop, Tanazir Quandrix, Unruly Krasis),
+# ``base_pt_is_a_type_with_residue`` (Circle of the Moon Druid),
+# ``base_pt_mass_where_x_residue`` (Candlekeep Inspiration),
+# ``base_pt_tk_sticker_parse_failure`` (Cool Fluffy Loxodon),
+# ``base_pt_each_equal_to_dropped`` (Captain Rex Nebula,
+# Fractalize), ``base_pt_addpt_misattributed_typechange`` (Goddric,
+# Cloaked Reveler), ``base_pt_becomecopy_no_pt_override`` (Mindlink
+# Mech — the standard "except it's 0/0 and has this ability"
+# clone-shell idiom, Mimeoplasm, Revered One, is corpus-verified
+# NOT a legacy member and stays excluded via a negative lookahead).
+# CR 613.4b throughout. See :func:`_base_pt_set`'s own docstring
+# for the full arm history.
+# cheat_into_play PROMOTED (ADR-0039 W7, 2026-07-12) — landfall
+# rule met: live_only 40 -> 0 accounted for, every remaining
+# live_only card is a TESTED, CR-grounded adjudicated shed (a
+# land-only carve-out — CR 305.1, ramp not a cheat, joining Boreas
+# Charger et al.; a name-match-only/bare-'Card' filter with ZERO
+# type restriction — CR 201.1/205.1, never guess). Three
+# structural closers in :func:`_cheat_into_play` (a ChooseOneOf
+# branch descent for Dr. Eggman, a Condition else_ability descent
+# for Impromptu Raid — both fields crosswalk.py's
+# ``_EFFECT_CHILD_FIELDS`` never walks — and a reveal_until-sibling
+# origin trust gated on ``enters_under: You`` for Telemin
+# Performance) plus six ADR-0039 ledgered bridges
+# (bridge_ledger.py: ``cheat_player_prefix_battlefield_put``,
+# ``cheat_dropped_clause_zero_residue``,
+# ``cheat_kept_destination_hand_misparse``,
+# ``cheat_choose_from_among_graveyard_origin``,
+# ``cheat_modal_mode_unsupported_qualifier``,
+# ``cheat_synthetic_destiny_delayed_reveal`` — 20 cards, each
+# anchored to its own verbatim clause/diagnostic-name residue, CR
+# 601.2/110.4a for the "put onto the battlefield without casting"
+# idiom itself). See :func:`_cheat_into_play`'s own docstring for
+# the full W3-W7 arm history.
+# creatures_matter PROMOTED (ADR-0039 W8 finisher, 2026-07-12) —
+# landfall rule met: a live corpus re-measure gives both 1421 ->
+# 1440, live_only 2373 -> 2354, cw_only=281 unchanged. A per-card
+# node-path classifier bucketed the 2373 pre-session live_only
+# set into six ADJUDICATED SHED classes (2320: TOKEN_MAKER_CROSS_
+# OPEN 2120, SYMMETRIC_ANY_CONTROLLER 67, BLOCKING_OR_ATTACKING
+# 61, SUBTYPE_TRIBAL_YOU 39, DEVOUR 17, TRIBAL_SHARESQUALITY 10,
+# OPPONENT_SCOPE 4, NAMED_SELF 2 — all pre-adjudicated W4-W7, CR
+# 111.1/111.2 token-maker floor / CR 509.1h blocking-attacking /
+# CR 702.82a Devour / CR 205.3 tribal) plus a 53-card true-gap
+# tail this session fully adjudicated per-card:
+#
+# SHED (39 of the 53, reinforcing pins added, no code change) —
+# cost-reduction's OWN dynamic/scaled condition (CR 601.2f, the
+# Avatar of Might boundary, 13 members: Arwen's Gift / Boseiju /
+# Mirror of Galadriel / Orysa / Takenuma already pinned via the
+# W7 condition-filter arm's ModifyCost guard; Ghalta / Khalni
+# Hydra / Spectral Denial / Temur Battlecrier / The Pride of
+# Hull Clade / Walking Skyscraper / Towashi Guide-Bot / Mobilized
+# District newly corpus-confirmed the same shape, two pinned);
+# self-CDA / self-only scaling (CR 604.3/613.4a-c, the Towering
+# Gibbon precedent, 3 members: Ancient Ooze, Carrion Grub, Moon-
+# Vigil Adherents — role=="static" ``affected: SelfRef``, never
+# the generic team, one pinned); graveyard-zone population (CR
+# 400.2, the Wire Surgeons/Kathril precedent: Crypt of Agadeem,
+# pinned); chosen-type-restricted population (CR 205.3 tribal
+# philosophy, contrast Rukarumel where the chosen type is
+# GRANTED to a generic population rather than restricting what's
+# COUNTED: Kindred Charge, pinned); already-adjudicated re-
+# affirms (Divine Resilience / Fettergeist / Kathril, W7/W8
+# pins, unaffected); TOKEN-MAKER CROSS-OPEN with a DROPPED/
+# Unimplemented token node (18 members — legacy's floor fires on
+# ITS OWN token-maker cross-open regardless of what our tree
+# contains, CR 111.1/111.2, three pinned: Maestros Diabolist,
+# Tobias Doomed Conqueror, Broken Visage).
+#
+# CLOSED (14 of the 53, all pinned) — a Formidable activation-
+# restriction condition (CR 602.5 "can't begin to activate a
+# prohibited ability"; CR 207.2c "Formidable" is an ability word
+# with no independent rules meaning) via phase's OWN bespoke
+# ``CreaturesYouControlTotalPowerAtLeast`` condition tag
+# (:func:`_creatures_matter_formidable_condition`, 4 members:
+# Atarka Beastbreaker, Circle of Elders, Dragon-Scarred Bear,
+# Glade Watcher); two tiny typed container-descent reads — a
+# FlipCoin win-branch DealDamage count operand
+# (:func:`_creatures_matter_flip_coin_win_filter`, Goblin Lyre)
+# and a reanimation target filter's nested Cmc-property count
+# operand (:func:`_creatures_matter_cmc_property_count_filter`,
+# Unforgiving One, CR 107.3 — genuinely typed data the crosswalk
+# simply wasn't reading one field deeper, not a bridge); eight
+# ADR-0039 ledgered bridges (bridge_ledger.py, creatures_matter
+# section) for the residual grammar-straggler/dropped-clause/
+# mis-scoped-grant idioms — Lightning Runner's absence-proof
+# "untap all creatures you control" (CR 701.26), Superior
+# Numbers' excess-count comparator, Sovereign Okinec Ahau's
+# per-creature counter distribution, Whisperwood Elemental's
+# face-up team-grant residue, Duskana's dropped per-base-2/2
+# draw count (a separate row from the already-landed
+# base_power_matters reference bridge — different key), Moku's
+# mis-scoped SelfRef haste grant, Siege Behemoth's empty-
+# modifications static, and Candlekeep Inspiration's mass base-
+# P/T-setter residue (sharing its gap/match with the base_pt_set
+# sibling row, CR 613.4b). See :func:`_creatures_matter`'s own
+# docstring for the full W4-W8 arm history and
+# ``test_creatures_matter_w8_finisher_batch`` for every pin.
+# direct_damage PROMOTED (ADR-0039 W7 endgame, 2026-07-11) — the
+# final 129 live_only closed: one real structural gain (Sin
+# Prodder, the ``optional_for`` widening), one card reclassified
+# into the PRE-EXISTING creature-only shed (Cruel Sadist — a
+# legacy ``_DIRECT_DAMAGE_MIRROR`` regex over-fire, not a genuine
+# gap), and fourteen ledgered bridges closing the rest (a compound
+# "creature + that creature's controller" dropped-clause template
+# plus eleven further singleton dropped-clause/upstream-parse-
+# failure shapes plus a Devil-token quoted-grant pair plus a
+# kicker-mode ParentTarget-reuse pair). See :func:`_direct_damage`'s
+# own docstring for the full accounting and ``bridge_ledger.py``
+# for each row's corpus census. CR 120.1/102.1/303.4c/702.33d
+# verified this session.
+# draw_for_each PROMOTED (ADR-0038 W6 endgame) — the final 2
+# live_only closed this session: a card-level ``_kept(tree)``
+# last-resort read for Vivien's Stampede's raw-text-free delayed
+# trigger, and a RemoveCounter->Draw ``PreviousEffectAmount``
+# positive gate for Nexus Mentality. See :func:`_draw_for_each`'s
+# own docstring for the corpus history.
+# exile_matters PROMOTED (ADR-0039 W7 endgame, 2026-07-12) —
+# landfall met: both 73->81, live_only 10->2, and both remaining
+# live_only cards (Rose Tyler, Amy Pond) are the adjudicated CR
+# 702.62a Suspend-mechanic-reuse shed (the full 2-card population,
+# not a sample). Two structural mechanism fixes: the RemoveCounter-
+# from-an-exiled-card arm's Suspend-reuse gate is now the
+# STRUCTURAL ``HasKeywordKind='Suspend'`` tell instead of the
+# ``counter_type=='time'`` NAME proxy (Alaundo the Seer, a
+# home-brewed "time counter" mechanic with no Suspend keyword
+# property — a real gain, corpus-verified against every genuine
+# Suspend RemoveCounter shape); an order-sensitive bare-
+# ``TrackedSetSize``-after-exile-ChangeZone arm (Rysorian Badger,
+# discriminated from Revival Experiment's reversed-order
+# self-exile housekeeping by execution-chain position). Five
+# ADR-0039 ledgered bridges close the rest
+# (bridge_ledger.BRIDGES: exile_grant_all_activated_abilities
+# [Mairsil, the Pretender; Rex, Cyber-Hound — the SAME "has all
+# activated abilities of cards in exile with counters" idiom, a
+# static_structure parse failure], grolnok_cast_from_exile_
+# counter_pile, candlekeep_inspiration_exile_gy_pt_setter,
+# close_encounter_warped_exile_additional_cost [zero-residue
+# absence proof], kaya_emblem_cast_from_exile_drop). CR
+# 406.1/113.10/601.2f/601.3/107.3/702.62a verified this session.
+# graveyard_matters PROMOTED (ADR-0038 W6 endgame) — 31 live_only
+# -> 0: a genuine ``ChooseFromZone`` GAIN (Dawnbreak Reclaimer)
+# plus a single unified LEGACY OVER-FIRE shed thesis covering the
+# rest (CR 404.1): legacy's ``_gy_scope`` resolves graveyard
+# ownership from either the carrying effect's own recipient/actor
+# SCOPE or a crude "opponent's/target player's graveyard" text
+# regex applied over the WHOLE ability's raw — both imprecise
+# proxies that over-fire whenever a SIBLING effect with no
+# graveyard interaction of its own inherits the tag via
+# raw-sharing (15 cards — Necromancer's Covenant, Klaw, Cathartic
+# Parting, …), an effect's own recipient direction differs from
+# the graveyard it actually references (Cavalier of Flame,
+# Urborg Justice), or a bare/compound no-owner filter hits
+# legacy's unconditional "else -> you" catchall the crosswalk's
+# ``_gy_filter_scope`` correctly declines to guess (Keeper of the
+# Cadence, matching the pre-existing Pulse of Murasa precedent) —
+# plus the pre-existing 15-card MDFC Disturb-back-face scope
+# quirk (documented functionally inert since 29d095dc). See
+# :func:`_graveyard_matters`'s own docstring for the arm history.
+# land_creatures_matter PROMOTED (ADR-0039 W7, 2026-07-12): both
+# 104 -> 110, live_only 86 -> 0. Two structural closers (a mass
+# animate static's ``affected`` controller admits TargetPlayer
+# alongside You — Jolrael, Empress of Beasts, corpus-verified
+# narrow; a self-recursion ChangeZone whose face-down profile
+# carries the Land core type — Yedora, Grave Gardener's land-MAKING
+# recursion, corpus-verified singleton) plus three ledgered bridges
+# (bridge_ledger.BRIDGES: land_creatures_subtype_animate_dropped —
+# Ambush Commander's subtype mass-animate, CR 305.3/305.7;
+# land_creatures_dynamic_animate_dropped — Primal Adversary / Sage
+# of the Maze's dynamic-count animate; land_creatures_condition_
+# reference_dropped — Earth Rumble Wrestlers's condition-reference,
+# CR 305/110.1) close 6 genuine gaps. The remaining 80 corpus-
+# decompose EXACTLY into eight adjudicated CR-grounded shed
+# classes, all negative-pinned (verified via a full-corpus
+# bucket-assignment script this session — every live_only card
+# maps to precisely one class): manland self-animate + its
+# Aura-granted Genju sibling (35 + 4 — land_protection-only, a
+# utility land-into-creature isn't a build-around theme); a land
+# TYPE/subtype change with no Creature type added (35 — CR 305.7);
+# the STATIC reverse animator creatures→lands (1 — Ashaya; distinct
+# from Yedora's one-shot land-MAKING recursion above, which fires);
+# a SYMMETRIC/any-controller mass animate (1 — Natural Affinity, CR
+# 613.1d); a REMOVAL spell merely NAMING a land creature (2); a
+# disjunctive Land-or-Creature copy-target filter (1 — Relm's
+# Sketching); an unrelated landfall-keyed self-type toggle that
+# never itself has the Land type (1 — Hidden Stag).
+# land_sacrifice_makers PROMOTED (ADR-0039 W7, 2026-07-12): both
+# 118 -> 121, live_only 8 -> 5. Two pre-W6-flagged accessor fixes
+# (:func:`_attack_requirement_land_sac` — Exalted Dragon's attack-
+# requirement cost, CR 508.1d; :func:`_granted_land_sac_unless_pay`
+# — Custody Battle's granted-trigger unless_pay, CR 601.2h) plus
+# the Epicenter per-clause :func:`_in_condition_instead_branch`
+# fix (CR 614.1 — a ConditionInstead replacement must not inherit
+# a superseded sibling's opponent direction) close 3 live_only.
+# The remaining 5 are ALL the SAME legacy-synthesis over-fire class
+# (``supplement._recover_land_sacrifice``'s regex fires on a
+# "sacrifice a land" substring regardless of true trigger-vs-cost
+# position or true subject — CR 701.21/400.7): a land-DYING watcher
+# with no "you control" restriction (Dingus Egg, Akki Raider,
+# Centaur Vinecrasher), the PAYOFF-wording "whenever you sacrifice
+# a land" (Scouring Swarm), and a MIXED "sacrifice a land or
+# Lander" subject that's genuinely ``sacrifice_outlets`` territory
+# (Larval Scoutlander).
+# lifeloss_makers PROMOTED (ADR-0039 W7, 2026-07-11): both=1188,
+# live_only == exactly four adjudicated CR-grounded shed classes
+# (scope_mismatch ~51 — CR 119.3/603.2, legacy's own regex
+# mis-scopes a no-recipient self-loss to /opponents, Agent Venom
+# precedent; condition_reference ~46 — CR 603.4/603.2, "if X lost
+# life this turn" is a triggering CONDITION scaling a DIFFERENT
+# effect, Savage Gorger precedent, includes the Scriv Contract-
+# token SequentialSibling raw-bleed singleton; LifeChanged watcher
+# 2 — CR 603.2, a gain-OR-lose watcher trigger, never the card's
+# own action; ramp_exclusion 2 — CR 118.8 painland shape,
+# Lithoform Blight + Yavimaya Bloomsage // Channel). Closed via
+# three new root-level cost-surface readers
+# (_spell_additional_cost_concepts's PayLife carve-out,
+# _spell_alt_cost_paylife_concepts for casting_options
+# AlternativeCost, _keyword_cost_paylife_concepts for a keyword's
+# own cost payload — all crosswalk.py), two narrow static
+# accessors (_has_paylife_as_colored_mana, K'rrik;
+# _has_defiler_cost_reduction, the Defiler cycle), a Spell-kind
+# non-ramp-gate exemption (Phyrexian Scuta's cost-only carrier), a
+# Ward-keyword exclusion (CR 702.21a — the TARGETING player pays,
+# not the controller), a token-attach-opponent bleed guard (Scriv,
+# the SequentialSibling raw-bleed family), and five ledgered
+# bridges (bridge_ledger.BRIDGES: degavolver_kicker_paylife_regen,
+# withercrown_unless_lose_life, keyword_dropped_paylife
+# [Warp/Blitz/Morph], night_shift_optional_paylife_dieroll,
+# zuko_modal_unconditional_paylife).
+# opponent_discard PROMOTED (ADR-0039 W7, 2026-07-12) — landfall
+# rule met: 471 both / 63 live_only == exactly the 3 pre-existing
+# adjudicated shed classes (wheel-mirror-duplicate, Cephalid-
+# Looter loot, past-tense-watcher/self-discard) plus 8 cards now
+# closed via ledgered bridges (bridge_ledger.py:
+# opp_discard_unless_clause, opp_discard_for_scaling_dominant_
+# token, opp_discard_tk_sticker_parse_failure, opp_discard_words_
+# of_waste_replacement_the_residue, opp_discard_fungal_shambler_
+# dropped_conjunct, opp_discard_mindculling_dropped_conjunct,
+# opp_discard_driven_despair_missing_face,
+# opp_discard_jagged_poppet_combat_scaling). See
+# :func:`_opponent_discard`'s own docstring for the full arm
+# history.
+# plus_one_matters PROMOTED (ADR-0039 W8, 2026-07-12): both 307 /
+# live_only 296 unchanged from the W6 endgame re-measure (the key's
+# own arms are untouched this wave) — the gate is met by closing
+# the 6-card genuinely-unclosed tail instead: 5 ledgered bridges
+# (bridge_ledger.py: plus_one_rock_hydra_static_parse_failure,
+# plus_one_rumbling_ruin_count_unimplemented,
+# plus_one_deepwood_denizen_cost_reduction_unimplemented,
+# plus_one_hierophant_previouseffectamount_dropped_kind,
+# plus_one_tetravus_removecounter_token_pair) plus one
+# re-adjudication (Winged Hive Tyrant folds into the existing
+# kind-mismatch shed class — its static-parse-failure residue text
+# is kind-agnostic, no "+1/+1" anywhere on the card). See
+# :func:`_plus_one_matters`'s own docstring for the full history.
+# ramp PROMOTED (ADR-0039 W7, 2026-07-12): both 1636 -> 1668,
+# live_only 32 -> 0, cw_only=3 unchanged (pre-existing "additional
+# cost: sacrifice a land" cast-cost gains). Four structural closers
+# (:func:`_ramp`'s own docstring): the granted-mana descent now
+# reads a ``GrantTrigger`` body too and relaxes the
+# ``is_mana_ability`` gate (Mark of Sakiko, Bigger on the Inside);
+# :func:`_iter_returnasaura_mana_defs` reaches a ``ReturnAsAura``
+# grant (Harold and Bob); :func:`_has_animate_treasure_grant` reads
+# a Treasure-conversion static (Minimus Containment, CR
+# 111.4/205.3g); a granted LAND-recipient Sacrifice-cost mana
+# ability is acceleration regardless of produced shape (Rain of
+# Filth). Two ledgered bridges close the residual "Add mana"
+# clause-grammar tail (bridge_ledger.BRIDGES:
+# ramp_grant_unimplemented_body — Katilda/Old-Growth Troll/Tazri's
+# granted-ability-body Unimplemented; ramp_dropped_add_mana_clause
+# — a 24-card name-keyed enumeration, each CR-verified this session
+# against legacy's own independent classification).
+# sacrifice_outlets PROMOTED (ADR-0039 W7, 2026-07-11) — landfall
+# rule met: live_only 191 -> 166, and every remaining live_only
+# card is a TESTED adjudicated shed (land_sacrifice_makers
+# territory, the Grave-Pact edict-mislabel class, bare-self/
+# subject-dropped, TargetPlayer/ScopedPlayer edicts, "any player"
+# ambiguity — a corpus-wide predicate scan over ALL 166 confirmed
+# zero unaccounted-for exclusions). Three closers: (1) the
+# ``ParentTargetController`` you-outlet split
+# (:func:`_sac_ptc_you_eligible` — 6 cards: Funeral March, Tainted
+# Aether, Phyrexian Obliterator, Fade Away, Maarika Brutal
+# Gladiator, Vengeful Strangler // Strangling Grasp; corpus-
+# verified against all 16 commander-legal ParentTargetController
+# Sacrifice-effect hits, the prior W6 deferral resolved rather
+# than re-litigated blind); (2) two real structural reads — the
+# Exploit keyword joining the Casualty/Bargain
+# :data:`_SWEEP_KEYWORD_LANES` row (Silumgar Scavenger) and a
+# created-token Devour read (:func:`_has_created_token_devour` —
+# Dragon Broodmother's typed ``MirrorVariant(key='Devour')`` on
+# the Token effect's own keywords list); (3) six ADR-0039 ledgered
+# bridges for the residual NO-typed-Sacrifice-node bucket
+# (bridge_ledger.py: ``sac_alt_cost_pitch``, ``sac_keyword_cost``,
+# ``sac_casualty_granted_onto_other_spell``,
+# ``sac_devour_unimplemented``, ``sac_etb_self_sac_unimplemented``,
+# ``sac_emblem_activated_cost`` — 17 cards, legacy-parity by
+# construction via project.py's own ``_PITCH_SAC``/
+# ``_KEYWORD_COST_SAC`` regexes). See :func:`_sacrifice_outlets`'s
+# own docstring for the full arm history.
+# target_player_draws PROMOTED (ADR-0039 W7, 2026-07-12) —
+# landfall rule met: 183 both / 70 live_only -> 0 genuine gaps.
+# One real structural gain, a buried-grant Draw descent (Thief of
+# Existence, mirrors opponent_discard's own iter_typed_nodes
+# precedent). Two ADR-0039 ledgered bridges (bridge_ledger.py:
+# tpd_widened_tag_synthetic_desc [Fatal Lore, Season of the
+# Burrow, Ertai Resurrected, Balor], tpd_wedding_ellipsis_repeat
+# [The Wedding of River Song]) close the rest. See
+# :func:`_target_player_draws`'s own docstring for the full arm
+# history.
+# token_maker PROMOTED (ADR-0038 W6 endgame) — the 86-card
+# live_only set is EXACTLY two adjudicated shed classes: the
+# 85-card copy/Populate boundary (CR 707.1/111.2 — that's
+# ``token_copy_makers``, a separate, already-promoted concept)
+# plus Soul of Emancipation's multi-target "for each of those
+# permanents, its controller creates ..." legacy scope-resolution
+# bug (the SAME "unset-controller defaults to you" pattern
+# already adjudicated elsewhere this wave — Pongify / Beast
+# Within / Generous Gift's SINGLE-target case resolves the
+# directed scope correctly in old_ir_for, confirmed via direct
+# inspection; only the multi-target for-each idiom loses the
+# per-permanent controller reference). See :func:`_token_maker`'s
+# own docstring for the arm history.
+# type_matters PROMOTED (ADR-0038 W5 tails) — see the crosswalk lane's
+# own docstring for the corpus history + the fully-adjudicated shed
+# class (the legacy _board_count_markers artifact).
+# voltron_matters PROMOTED (ADR-0039 W7 endgame, 2026-07-12) —
+# landfall met: both 2276->2281, live_only 81->76, and every
+# remaining live_only card is one of three adjudicated shed
+# classes: 64 commander-damage MEMBERSHIP-fallback (mandatory: Big
+# Winner / Croakid Amphibonaut / Grabby Tabby / Scared Stiff + W6
+# representatives, pinned) + 10 attach-action/housekeeping (Hammer
+# of Nazahn, Battlefield Improvisation, Nahiri the Lithomancer,
+# Unexpected Request, Armed and Armored, Super-Soldier Serum,
+# Goldwardens' Gambit, Inventory Management, Resolute Strike,
+# Benevolent Blessing) + 2 removal/theft-target (Soul Nova,
+# Shackles of Treachery — CR 301.5c). The prior W6 5-card
+# (7-in-comment) dropped-clause residual closes via three ADR-0039
+# ledgered bridges (bridge_ledger.BRIDGES):
+# ``voltron_attach_count_scaling_dropped`` (Judgment Bolt / Animal
+# Friend / Sage's Reverie — the SAME "for each Aura/Equipment ...
+# attached" / "where X is the number of Equipment you control"
+# idiom, tightly anchored — NOT the legacy VOLTRON_PAYOFF_REGEX's
+# bare "equipment you control" branch, which over-fires on
+# Affinity-for-Equipment reminder text and attach-ACTION clauses),
+# ``warchanter_skald_condition_dropped`` (a Taps-trigger's
+# condition=None, the clause surviving only in ``description``),
+# ``forge_anew_equip_cost_paycost_unlinked`` (an unlinked
+# PayCost({0}); Bruenor Battlehammer's identical clause is served
+# through its OWN structural ObjectCount arm before the bridge is
+# ever reached). CR 301.5/303.4/107.3/601.2f/702.6c verified this
+# session.
 
-# ADR-0035 Stage-4 (default-ON flip): the LIVE ported set is the Stage-3 set
-# (341) MINUS the ``_STAGE4_RESIDUAL`` failure-owning set (83) — the 258 keys the
-# crosswalk reproduces vs the legacy ``old_ir_for`` on every test-covered card. The
-# residual keys remain in ``MIGRATED_KEYS``, so dropping them here routes them to the
-# ``extract_signals_ir(old)`` residual arm of ``_crosswalk_merge`` (byte-identical to
-# flag-OFF for those keys). ``coverage_gate`` still unions the 258 in.
+# Below this point: per-key promotion / recall-widening history for the keys
+# ABOVE (the ``PORTED_KEYS`` literal at the top of this region), continuing the
+# historical record started by the "Historical per-key promotion record" block.
 # ADR-0035 Stage-A (2026-07-09): the own-lifelink keyword row below recovers +325 of
 # lifegain_makers' residual gap (corpus live_only 420 → 95), banked toward eventually
 # promoting the key. lifegain_makers stays residual for now: the remaining ~95 are
@@ -2046,7 +2054,6 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
 # ExileTop/RevealTop activated-cost engines, the Manifest family) firing on
 # genuine build-around staples the deleted SWEEP regex's narrower grammar
 # never matched.
-PORTED_KEYS: frozenset[str] = _PORTED_KEYS_STAGE3 - _STAGE4_RESIDUAL
 
 
 # Cast-from-graveyard keyword family (CR 601.3 / 702.62a …) — a card that re-casts
@@ -23269,11 +23276,10 @@ _LANES = (
 def extract_crosswalk_signals(
     tree: ConceptTree,
     *,
-    keys: frozenset[str] = _PORTED_KEYS_STAGE3,
+    keys: frozenset[str] = PORTED_KEYS,
     keywords: frozenset[str] = frozenset(),
-    include_membership: bool = False,
-    record: dict | None = None,
     vocab: frozenset[str] = CREATURE_SUBTYPES,
+    all_trees: Sequence[ConceptTree] = (),
 ) -> list[Signal]:
     """Run the ported crosswalk lanes over one concept tree; dedupe by ident.
 
@@ -23283,34 +23289,32 @@ def extract_crosswalk_signals(
     dense instant/sorcery base, so a ``spellcast_matters`` LOW is cross-opened when
     absent).
 
-    ``keys`` defaults to the FULL Stage-3 lane set (``_PORTED_KEYS_STAGE3``) — every
-    lane this batch built — so a caller validating a lane structurally sees its
-    output. The ADR-0035 Stage-4 LIVE narrowing is a HYBRID-level routing decision:
-    ``_crosswalk_merge`` passes the narrowed ``keys=PORTED_KEYS`` explicitly.
+    ``keys`` defaults to ``PORTED_KEYS`` — every lane this batch built — so a
+    caller validating a lane structurally sees its output; the production caller
+    (``signals.extract_signals_hybrid``) passes the same set explicitly.
 
     ``keywords`` is the card's Scryfall keyword array (the bulk record's
     ``keywords``), the field-lookup source ``mill_makers`` gates on — it is NOT in
     the phase typed substrate (phase carries no ``Mill`` keyword), so the caller
     supplies it (the shadow diff from the bulk record, the tests from the fixture).
 
-    ``include_membership`` (ADR-0035 Stage-3a floor port) runs the MEMBERSHIP /
-    cares-about FLOOR — the broad LOW-conf "commander cares about X" lanes that are
-    membership-agnostic in the structural crosswalk (a vanilla Pacifism opens
-    ``enchantments_matter``, an Equipment opens ``voltron_matters``, an artifact
-    opens ``artifacts_matter``). DEFAULT FALSE so the shadow harness and every
-    existing crosswalk test (which call without the arg and expect NO floor) stay
-    green, and so candidate mode (``include_membership=False``) is unchanged. When
-    True the caller MUST supply ``record`` (the bulk record — the floor's
-    ``type_line`` / power / cmc / ``all_parts`` / keyword source). ``vocab`` is the
-    creature-subtype vocab the token-kindred cross-open validates against
-    (threaded through like the hybrid).
+    ``vocab`` is the creature-subtype vocab the token-kindred cross-open validates
+    against (threaded through like the hybrid).
 
-    ADR-0039 task #80 step 3 (deletion phase): the floor's structural
-    ``big_mana`` / ``kill_engine`` / token-kindred reads now come off THIS tree
-    (:func:`_is_big_mana_tree`, :func:`has_structural_kill_engine`,
-    :func:`structural_token_maker_type_subjects`) instead of the OLD projected
-    ``Card`` — this function no longer takes (or needs) an ``ir`` parameter at
-    all, so it never touches ``old_ir_for``.
+    ``all_trees`` (ADR-0039 task #80 step 6): the card's FULL per-face tree tuple
+    (every face, ``tree`` included), for the type_matters class-tribe go-wide gate
+    ONLY — a two-face card whose token-maker ability lives on a NON-creature face
+    (Flaxen Intruder // Welcome Home, Huatli Poet of Unity // Roar of the Fifth
+    People, Kianne Dean of Substance // Imbraham Dean of Theory, Jadzi Steward of
+    Fate // Oracle's Gift, Eccentric Pestfinder // Turn Stones) needs a sibling
+    face's tree to prove "this card goes wide" before its OWN creature face opens
+    a CLASS tribe (CR 205.3; see :func:`_type_matters_go_wide`). Defaults to
+    ``()`` (single-tree callers / tests — falls back to just ``tree``), so every
+    existing direct caller is unaffected. The card-type / cares-about MEMBERSHIP
+    floor itself no longer runs here at all — see :func:`apply_membership_floor`,
+    called ONCE per card at the merge level (``signals.extract_signals_hybrid``)
+    where every face's tree is visible together (closes the Sheoldred // The True
+    Scriptures kill_engine gap the same way).
     """
     # ADR-0035 Stage-3b (b): run the named overlay-correction stage FIRST, so the
     # lanes read the corrected concept overlay (a dig-into-play flipped to
@@ -23415,7 +23419,9 @@ def extract_crosswalk_signals(
     # name (bulk-side data) → a small live_only membership tail is a
     # documented join artifact (the b13 island_matters precedent), NOT
     # chased with bulk reads.
-    go_wide = _type_matters_go_wide(tree, keywords, vocab)
+    go_wide = any(
+        _type_matters_go_wide(t, keywords, vocab) for t in (all_trees or (tree,))
+    )
     if tree.is_type("Creature"):
         for st in tree.card_subtypes:
             sl = st.lower()
@@ -23437,67 +23443,79 @@ def extract_crosswalk_signals(
     for sub in token_subjects:
         add(Signal(signal_keys.TYPE_MATTERS, "you", sub, "", tree.name, "low"))
 
-    # ── ADR-0035 Stage-3a MEMBERSHIP / cares-about FLOOR ──────────────────────────
-    # The structural lanes above are membership-AGNOSTIC (they read what a card DOES,
-    # not what it IS), so the broad "commander cares about X" floor legacy's
-    # ``extract_signals_ir`` fires (a vanilla enchantment → enchantments_matter, an
-    # Equipment → voltron_matters, an artifact → artifacts_matter) is lost under the
-    # flag-ON cutover. Reproduce BOTH floor mechanisms, gated on
-    # ``include_membership`` (True only for the commander in the deck-aggregate path):
-    #   (1) the card-type / own-subtype membership block — the SHARED
-    #       ``_apply_membership_floor`` (one source with legacy's
-    #       ``extract_signals_ir``, zero drift on every read except the three
-    #       structural facts below, which this caller now computes off ``tree``
-    #       instead of the OLD projected ``Card`` — ADR-0039 task #80 step 3);
-    #       its residual-key firings (big_mana / land_destruction) are dropped
-    #       by ``add``'s ``keys`` slice when a caller narrows it (``cheat_from_top``
-    #       PROMOTED ADR-0039 W8 — same single-source function, now let through
-    #       the slice unchanged).
-    #   (2) the ``_FLOOR_DETECTORS`` cares-about loop gated by ``_IR_FLOOR_LANES``
-    #       (imported LIVE from ``_signals_ir`` — the sanctioned single-source),
-    #       run over ``_kept(tree)``.
-    # Both fire LOW/HIGH into ``add``, whose first-wins ``(key, scope, subject)`` dedup
-    # mirrors ``extract_signals_ir``'s ``add`` — a structural HIGH already in ``out``
-    # for the same ident is never downgraded by a floor LOW.
-    if include_membership and record is not None:
-        name = record.get("name", "")
+    return out
 
-        def _add_floor(
-            key: str, scope: str, subject: str, raw: str, conf: str = "high"
-        ) -> None:
-            add(Signal(key, scope, subject, raw, name, conf))
 
+def apply_membership_floor(
+    trees: Sequence[ConceptTree],
+    record: dict,
+    out: list[Signal],
+    add: Callable[[Signal], None],
+    *,
+    vocab: frozenset[str] = CREATURE_SUBTYPES,
+) -> None:
+    """The card-type / cares-about MEMBERSHIP floor — the broad LOW-conf
+    "commander cares about X" lanes that are membership-agnostic in the
+    structural crosswalk (a vanilla enchantment opens ``enchantments_matter``,
+    an Equipment opens ``voltron_matters``, an artifact opens
+    ``artifacts_matter``). Called ONCE per card, at the merge level
+    (``signals.extract_signals_hybrid``), over EVERY face's tree together —
+    never per-face (ADR-0039 task #80 step 6: closes a step-3 regression).
+
+    Per-face isolation previously lost the floor's own class-tribe / kill_engine
+    cross-opens on a two-face card whose qualifying ability lives on a DIFFERENT
+    face than its creature type: Flaxen Intruder // Welcome Home, Huatli Poet of
+    Unity // Roar of the Fifth People, Kianne Dean of Substance // Imbraham Dean
+    of Theory, Jadzi Steward of Fate // Oracle's Gift, and Eccentric Pestfinder //
+    Turn Stones (a token-maker ability on the non-creature face never widened the
+    creature face's own class-tribe go-wide — see
+    :func:`extract_crosswalk_signals`'s ``all_trees`` param, the sibling fix for
+    the UNGATED type_matters lane cross-open); Sheoldred // The True Scriptures
+    (the repeatable destroy lives on the Enchantment — Saga face, never the
+    Creature face — see :func:`_has_repeatable_kill_unit`). Each structural fact
+    below is now unioned/OR'd across every face instead of read off one:
+      * the ``_FLOOR_DETECTORS`` cares-about loop (gated by ``_IR_FLOOR_LANES``)
+        runs over EVERY face's ``_kept(tree)``, not just one;
+      * ``is_big_mana`` / ``is_kill_engine`` are True if ANY face structurally
+        qualifies (``is_kill_engine`` additionally requires that SOME face is a
+        Creature — the whole-card fact ``_apply_membership_floor`` itself already
+        re-derives from ``record["type_line"]`` — while the repeatable-destroy
+        unit can live on any OTHER face; see :func:`_has_repeatable_kill_unit`);
+      * ``token_maker_subjects`` is the UNION of every face's structural
+        token-maker subjects.
+    ``record`` is the WHOLE-CARD bulk record (already multi-face-joined for
+    ``type_line`` / ``oracle_text`` / ``all_parts`` — no per-face read needed
+    there). A no-op when ``trees`` is empty (nothing to derive the floor from)."""
+    if not trees:
+        return
+    name = record.get("name", "")
+
+    def _add_floor(
+        key: str, scope: str, subject: str, raw: str, conf: str = "high"
+    ) -> None:
+        add(Signal(key, scope, subject, raw, name, conf))
+
+    for tree in trees:
         kept = _kept(tree)
         for det in _FLOOR_DETECTORS:
             if det.key in _IR_FLOOR_LANES and det.pattern.search(kept):
                 _add_floor(det.key, det.scope, "", "")
-        kept_oracle = _REMINDER_RX.sub(" ", get_oracle_text(record) or "")
-        # ADR-0039 task #80 step 3: is_kill_engine reads the SAME
-        # has_structural_kill_engine predicate the earlier _kill_engine LANE
-        # already uses (single source), so this call is a no-op whenever that
-        # lane already fired kill_engine (first-wins dedup) — it only matters
-        # for a card where the lane's own recall floor missed (none observed
-        # this session; kept as a defensive re-derivation, not an assumption
-        # about lane ordering). NARROW, ACCEPTED gap (1 commander-legal card,
-        # full corpus re-measure): Sheoldred // The True Scriptures's
-        # repeatable destroy lives on "The True Scriptures" — an Enchantment
-        # — Saga face, never a Creature — so has_structural_kill_engine's own
-        # `tree.is_type("Creature")` gate returns False for THAT face, while
-        # the "Sheoldred" face (the Creature) has no destroy ability of its
-        # own. The OLD `_is_kill_engine_ir` had no such gate (it walked the
-        # WHOLE multi-face Card in one pass); this is the identical per-face-
-        # isolation trait documented on _floor_token_maker_subjects above,
-        # not a new regression.
-        _apply_membership_floor(
-            record,
-            name,
-            vocab,
-            kept_oracle,
-            out,
-            _add_floor,
-            is_big_mana=_is_big_mana_tree(tree),
-            is_kill_engine=has_structural_kill_engine(tree),
-            token_maker_subjects=frozenset(_floor_token_maker_subjects(tree, vocab)),
-        )
-
-    return out
+    kept_oracle = _REMINDER_RX.sub(" ", get_oracle_text(record) or "")
+    is_big_mana = any(_is_big_mana_tree(t) for t in trees)
+    is_kill_engine = any(t.is_type("Creature") for t in trees) and any(
+        _has_repeatable_kill_unit(t) for t in trees
+    )
+    token_maker_subjects: frozenset[str] = frozenset().union(
+        *(_floor_token_maker_subjects(t, vocab) for t in trees)
+    )
+    _apply_membership_floor(
+        record,
+        name,
+        vocab,
+        kept_oracle,
+        out,
+        _add_floor,
+        is_big_mana=is_big_mana,
+        is_kill_engine=is_kill_engine,
+        token_maker_subjects=token_maker_subjects,
+    )

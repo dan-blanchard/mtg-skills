@@ -47,7 +47,7 @@ from mtg_utils._card_ir.overlay_corrections import (
     l1_bytes,
 )
 from mtg_utils._deck_forge.crosswalk_signals import (
-    _PORTED_KEYS_STAGE3,
+    PORTED_KEYS,
     extract_crosswalk_signals,
 )
 
@@ -14041,14 +14041,9 @@ def test_gain_control_exchange_control(name):
 
 
 def test_all_emitted_keys_are_in_the_ported_set():
-    """The crosswalk only emits keys it claims to have ported (no leakage).
-
-    Measured against the full Stage-3 lane set — the ADR-0035 Stage-4 LIVE
-    narrowing (``PORTED_KEYS``) is a hybrid-level routing decision, not a
-    lane-existence one, so ``extract_crosswalk_signals`` still emits every built
-    lane's key."""
+    """The crosswalk only emits keys it claims to have ported (no leakage)."""
     for name in _cards():
-        assert _keys(name) <= _PORTED_KEYS_STAGE3
+        assert _keys(name) <= PORTED_KEYS
 
 
 # ── ADR-0035 Stage-3b (b) — overlay-correction stage + substrate-purity ───────

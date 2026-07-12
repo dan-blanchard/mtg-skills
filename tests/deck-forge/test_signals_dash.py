@@ -6,11 +6,11 @@ for a recurring haste attacker (Zurgo, Ragavan, Kolaghan). The spec points at
 Equipment specifically, NOT generic voltron (Auras are anti-synergistic with Dash).
 """
 
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
 from mtg_utils._deck_forge.signals import (
     Signal,
     extract_signals,
-    extract_signals_hybrid,
 )
 from mtg_utils.card_ir import Card, Face
 
@@ -23,7 +23,7 @@ _BARE_IR = Card(oracle_id="x", name="X", faces=(Face(name="X"),))
 
 
 def _keys(card):
-    return {s.key for s in extract_signals_hybrid(card, _BARE_IR)}
+    return {s.key for s in extract_signals_ir(card, _BARE_IR)}
 
 
 ZURGO = {
@@ -44,9 +44,7 @@ def test_dash_regex_path_no_longer_emits_dash_matters():
 
 
 def test_dash_scope_is_you():
-    sig = next(
-        s for s in extract_signals_hybrid(ZURGO, _BARE_IR) if s.key == "has_dash"
-    )
+    sig = next(s for s in extract_signals_ir(ZURGO, _BARE_IR) if s.key == "has_dash")
     assert sig.scope == "you"
 
 

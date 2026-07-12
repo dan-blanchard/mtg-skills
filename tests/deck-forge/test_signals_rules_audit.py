@@ -9,11 +9,11 @@ exile/Food/oil-counter IR, a constructed meld pair) keep a thin synthetic builde
 shape is the point, not a particular printing.
 """
 
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
 from mtg_utils._deck_forge.signals import (
     Signal,
     extract_signals,
-    extract_signals_hybrid,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
 from mtg_utils.testkit import test_card, test_signals
@@ -48,13 +48,13 @@ def _bare_ir() -> Card:
 
 
 def _keys_hybrid(card):
-    return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
+    return {s.key for s in extract_signals_ir(card, _bare_ir())}
 
 
 def _signals_hybrid(card):
     # Full Signal objects via the hybrid (IR) path. A bare non-None IR routes a card
     # whose lane is a kept word mirror (meld_pair) through the IR re-emission.
-    return list(extract_signals_hybrid(card, _bare_ir()))
+    return list(extract_signals_ir(card, _bare_ir()))
 
 
 # Real-card signal keysets (production hybrid path) / regex-only path, by card name.
@@ -127,7 +127,7 @@ def test_exile_removal_separate_from_destroy():
             ),
         ),
     )
-    ex_keys = {s.key for s in extract_signals_hybrid(ex, exile_ir)}
+    ex_keys = {s.key for s in extract_signals_ir(ex, exile_ir)}
     assert "exile_removal" in ex_keys
     assert "removal" not in ex_keys
     # Regex no longer fires exile_removal / removal (both IR-served now).
@@ -156,7 +156,7 @@ def test_exile_removal_separate_from_destroy():
             ),
         ),
     )
-    assert "removal" in {s.key for s in extract_signals_hybrid(de, destroy_ir)}
+    assert "removal" in {s.key for s in extract_signals_ir(de, destroy_ir)}
 
 
 # #5 clone (becomes/enters as a copy) must not fire on token-copy phrasing.
@@ -189,7 +189,7 @@ def test_token_copy_does_not_fire_clone():
             ),
         ),
     )
-    keys = {s.key for s in extract_signals_hybrid(c, ir)}
+    keys = {s.key for s in extract_signals_ir(c, ir)}
     assert "token_copy_makers" in keys
     assert "clone_makers" not in keys
 
@@ -226,7 +226,7 @@ def test_clone_still_fires():
             ),
         ),
     )
-    assert "clone_makers" in {s.key for s in extract_signals_hybrid(c, ir)}
+    assert "clone_makers" in {s.key for s in extract_signals_ir(c, ir)}
 
 
 # #6 "attacks each combat if able" is a forced-attack requirement, not evasion.
@@ -302,7 +302,7 @@ def test_food_token_fires():
             ),
         ),
     )
-    assert "food_makers" in {s.key for s in extract_signals_hybrid(maker, maker_ir)}
+    assert "food_makers" in {s.key for s in extract_signals_ir(maker, maker_ir)}
     assert "food_makers" not in _keys(maker)
     sac = {"name": "Y", "oracle_text": "Sacrifice a Food: Gain 3 life."}
     sac_ir = Card(
@@ -330,7 +330,7 @@ def test_food_token_fires():
             ),
         ),
     )
-    assert "food_matters" in {s.key for s in extract_signals_hybrid(sac, sac_ir)}
+    assert "food_matters" in {s.key for s in extract_signals_ir(sac, sac_ir)}
     assert "food_matters" not in _keys(sac)
 
 
@@ -414,7 +414,7 @@ def test_named_counters_are_separate_lanes():
             ),
         ),
     )
-    assert "rad_counter_makers" in {s.key for s in extract_signals_hybrid(rad, rad_ir)}
+    assert "rad_counter_makers" in {s.key for s in extract_signals_ir(rad, rad_ir)}
     k = _keys(rad)
     assert "rad_counter_makers" not in k  # regex path no longer produces it
     assert "oil_counter_matters" not in k
@@ -447,7 +447,7 @@ def test_named_counters_are_separate_lanes():
         ),
     )
     assert "oil_counter_matters" not in _keys(oil)  # regex path no longer produces it
-    assert "oil_counter_matters" in {s.key for s in extract_signals_hybrid(oil, oil_ir)}
+    assert "oil_counter_matters" in {s.key for s in extract_signals_ir(oil, oil_ir)}
     # ADR-0027: shield_counter_makers also migrated to the Card IR — the regex path no
     # longer produces it; the hybrid serves it from a place_counter(counter_kind=
     # 'shield'). CR 122.1c shield counters are a replacement+prevention effect, so they
@@ -480,7 +480,7 @@ def test_named_counters_are_separate_lanes():
     )
     assert "shield_counter_makers" not in _keys(shield)  # regex path drops it
     assert "shield_counter_makers" in {
-        s.key for s in extract_signals_hybrid(shield, shield_ir)
+        s.key for s in extract_signals_ir(shield, shield_ir)
     }
     # fade is not a payoff axis — it must not open any named-counter lane
     fade = _keys({"name": "W", "oracle_text": "Remove a fade counter from it."})
@@ -537,7 +537,7 @@ def test_donate_is_control_change_only():
         ),
     )
     assert "donate_makers" not in {
-        s.key for s in extract_signals_hybrid(grouphug, grouphug_ir)
+        s.key for s in extract_signals_ir(grouphug, grouphug_ir)
     }
 
 

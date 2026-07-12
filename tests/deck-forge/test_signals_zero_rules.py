@@ -9,7 +9,8 @@ Real-card pins run the REAL projected Card IR via ``mtg_utils.testkit``
 builder — the shape is the point, not a particular printing.
 """
 
-from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
+from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
 from mtg_utils.testkit import test_card, test_signals
 
@@ -44,7 +45,7 @@ def _bare_ir() -> Card:
 
 
 def _keys_hybrid(card):
-    return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
+    return {s.key for s in extract_signals_ir(card, _bare_ir())}
 
 
 # Real-card signal sets — production hybrid path / regex-only path, by name.
@@ -139,7 +140,7 @@ def test_lifeloss_drain_scoped_opponents():
         ),
     )
     assert ("lifeloss_makers", "opponents") in {
-        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+        (s.key, s.scope) for s in extract_signals_ir(c, ir)
     }
 
 
@@ -235,5 +236,5 @@ def test_keyword_granting_team_is_not_a_separate_signal():
     )
     assert "team_keyword_grant" not in _keys(c)
     assert ("creatures_matter", "you") in {
-        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+        (s.key, s.scope) for s in extract_signals_ir(c, ir)
     }

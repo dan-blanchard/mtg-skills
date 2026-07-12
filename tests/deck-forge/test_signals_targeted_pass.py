@@ -6,11 +6,11 @@ audit's combat-vs-noncombat damage distinction.
 Oracle text is verbatim from the residual (real Scryfall cards), per ADR-0009.
 """
 
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._deck_forge.signals import (
     Signal,
     extract_signals,
-    extract_signals_hybrid,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 from mtg_utils.testkit import test_card, test_signals
@@ -27,8 +27,10 @@ def _keys(oracle, **kw):
 
 
 def _bare_ir() -> Card:
-    """A minimal non-None Card IR — routes extract_signals_hybrid through the IR path
-    so a kept-mirror-served migrated key (which scans the oracle directly) fires."""
+    """A minimal non-None Card IR — routes extract_signals_ir through the IR path
+    so a kept-mirror-served migrated key (which scans the oracle directly) fires
+    (ADR-0039 task #80 step 6: these synthetic fixtures have no real oracle_id, so
+    they can never resolve a crosswalk tree)."""
     return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
@@ -38,7 +40,7 @@ def _keys_hybrid(oracle, name="X", **extra):
     directly, so any non-None IR routes to it)."""
     card = {"name": name, "oracle_text": oracle, "type_line": "Legendary Creature"}
     card.update(extra)
-    return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
+    return {s.key for s in extract_signals_ir(card, _bare_ir())}
 
 
 # ── 1. Blink / flicker: cross-sentence "Exile … . Return that card to the battlefield" ──
@@ -174,7 +176,7 @@ def test_combat_damage_audit_preserved():
         "type_line": "Legendary Creature",
     }
     bare = Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
-    k = {s.key for s in extract_signals_hybrid(card, bare)}
+    k = {s.key for s in extract_signals_ir(card, bare)}
     assert "combat_damage_matters" in k
     assert "damage_to_opp_matters" not in k
 
@@ -239,7 +241,7 @@ def test_creature_etb_does_not_fire_permanent_etb():
             ),
         ),
     )
-    assert "permanent_etb" not in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "permanent_etb" not in {s.key for s in extract_signals_ir(card, ir)}
 
 
 # ── new keys must have specs so the UI renders an avenue + serves() works ──

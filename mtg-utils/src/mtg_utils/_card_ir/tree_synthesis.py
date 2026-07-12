@@ -6355,12 +6355,20 @@ _KILL_ONESHOT_EVENTS: frozenset[str] = frozenset(
 )
 
 
-def has_structural_kill_engine(tree: ConceptTree) -> bool:
-    """Whether a REPEATABLE unit (an Activated ability, or a recurring
-    trigger outside the one-shot event set) carries a Creature-targeted
-    ``Destroy`` effect."""
-    if not tree.is_type("Creature"):
-        return False
+def _has_repeatable_kill_unit(tree: ConceptTree) -> bool:
+    """The repeatable-Destroy-creature unit scan, WITHOUT the whole-card
+    ``is_type("Creature")`` gate :func:`has_structural_kill_engine` applies.
+
+    ADR-0039 task #80 step 6: the deck-forge membership floor now unions this
+    predicate across EVERY face of a DFC/split card and applies the
+    creature-type gate separately at the whole-card level (the floor's own
+    ``"creature" in type_line`` check over the bulk record's WHOLE-CARD type
+    line) — closing the per-face isolation gap on Sheoldred // The True
+    Scriptures, whose repeatable destroy lives on the Enchantment — Saga
+    face (a Saga chapter trigger, ``trigger_event="counter_added"`` — not in
+    ``_KILL_ONESHOT_EVENTS``) while the Creature face (Sheoldred) carries no
+    destroy ability of its own. See
+    ``crosswalk_signals.apply_membership_floor``."""
     for unit in tree.units:
         repeatable = (unit.origin == "ability" and unit.kind == "Activated") or (
             unit.origin == "trigger"
@@ -6374,6 +6382,15 @@ def has_structural_kill_engine(tree: ConceptTree) -> bool:
             if "Creature" in filter_core_types(getattr(c.node, "target", None)):
                 return True
     return False
+
+
+def has_structural_kill_engine(tree: ConceptTree) -> bool:
+    """Whether a REPEATABLE unit (an Activated ability, or a recurring
+    trigger outside the one-shot event set) carries a Creature-targeted
+    ``Destroy`` effect."""
+    if not tree.is_type("Creature"):
+        return False
+    return _has_repeatable_kill_unit(tree)
 
 
 _KILL_ENGINE_SYNTH_RX = re.compile(

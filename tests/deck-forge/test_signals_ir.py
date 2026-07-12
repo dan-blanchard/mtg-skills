@@ -9,7 +9,7 @@ own subject (aristocrats death is YOUR creature dying).
 
 from __future__ import annotations
 
-from mtg_utils._deck_forge.signals import (
+from mtg_utils._deck_forge._signals_ir import (
     IR_SLICE_KEYS,
     extract_signals_ir,
 )
@@ -1708,12 +1708,8 @@ def test_failure_comply_split_face_castlock_fires():
     ``..._is_a_known_crosswalk_gap`` test (same precedent as the Planar Genesis /
     ADR-0037 promotions): flag ON now FIRES stax_taxes structurally, matching
     flag-OFF's legacy residue-mirror behavior, so both paths agree."""
-    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
-
     keys = _skeys(test_signals("Failure // Comply"))
-    assert "stax_taxes" in keys, (
-        f"crosswalk_enabled={crosswalk_enabled()}, keys={sorted(keys)}"
-    )
+    assert "stax_taxes" in keys, f"keys={sorted(keys)}"
 
 
 def test_symmetric_untap_lock_is_symmetric_only():

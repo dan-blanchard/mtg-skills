@@ -9,7 +9,8 @@ Real-card pins run the REAL projected Card IR via ``mtg_utils.testkit``
 builder — the shape is the point, not a particular printing.
 """
 
-from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
+from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils.card_ir import Card, Face
 from mtg_utils.testkit import test_card, test_signals
 
@@ -128,7 +129,7 @@ def test_opponent_discard_migrated_off_regex_onto_ir():
     assert not any(s.key == "opponent_discard" for s in extract_signals(c))
     assert any(
         (s.key, s.scope) == ("opponent_discard", "opponents")
-        for s in extract_signals_hybrid(c, bare_ir)
+        for s in extract_signals_ir(c, bare_ir)
     )
 
 
@@ -204,7 +205,7 @@ def test_lifegain_widened_for_activated_gain():
 
     c = {"name": "Healer", "oracle_text": "{T}: You gain 3 life."}
     ir = project_card([{**c, "card_type": {"core_types": ["Artifact"]}}])
-    assert any(s.key == "lifegain_makers" for s in extract_signals_hybrid(c, ir))
+    assert any(s.key == "lifegain_makers" for s in extract_signals_ir(c, ir))
 
 
 def test_lifeloss_widened_for_pay_life_engine():
@@ -216,7 +217,7 @@ def test_lifeloss_widened_for_pay_life_engine():
 
     c = {"name": "Bargainer", "oracle_text": "{B}, Pay 2 life: Draw a card."}
     ir = project_card([{**c, "card_type": {"core_types": ["Artifact"]}}])
-    assert any(s.key == "lifeloss_makers" for s in extract_signals_hybrid(c, ir))
+    assert any(s.key == "lifeloss_makers" for s in extract_signals_ir(c, ir))
 
 
 # --- recognizable axes from the one-off tail ----------------------------------

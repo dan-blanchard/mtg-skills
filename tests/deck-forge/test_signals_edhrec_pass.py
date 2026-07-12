@@ -7,7 +7,8 @@ trigger→payoff patterns spanning a sentence boundary need a full-text pass).
 """
 
 from mtg_utils._card_ir.project import project_card
-from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
+from mtg_utils._deck_forge.signals import extract_signals
 
 
 def _sigs(oracle, name="X", **extra):
@@ -26,7 +27,7 @@ def _hybrid_sigs(oracle, name="X", **extra):
     card = {"name": name, "oracle_text": oracle, "type_line": "Legendary Creature"}
     card.update(extra)
     ir = project_card([{**card, "card_type": {"core_types": ["Creature"]}}])
-    return extract_signals_hybrid(card, ir)
+    return extract_signals_ir(card, ir)
 
 
 def _hybrid_keys(oracle, name="X", **extra):

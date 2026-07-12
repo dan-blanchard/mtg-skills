@@ -11,6 +11,16 @@ NOTE (floor-disable seam): the no-flood floor gate lives here as
 ``_IR_FLOOR_LANES``. To disable it in a harness, monkeypatch
 ``_signals_ir._IR_FLOOR_LANES = frozenset()`` (NOT ``signals._IR_FLOOR_LANES`` —
 that re-export binding no longer reaches the reader after the split).
+
+NOTE (ADR-0039 task #80 step 6): ``signals.extract_signals_hybrid`` no longer
+calls this module at all — the production dispatch is crosswalk-only now (see
+``signals.py``). ``extract_signals_ir`` is kept alive, unchanged, as a direct
+call target: many tests probe the structural-detection engine itself against
+synthetic Card-IR fixtures that carry no real ``oracle_id`` (so they can never
+resolve a crosswalk tree), plus ``_apply_membership_floor`` and the Group-C
+constants this module owns are still imported by ``crosswalk_signals.py``.
+Left in place rather than rehomed — step 7 decides whether this module dies,
+shrinks to just those shared pieces, or stays as the test-only engine probe.
 """
 
 from __future__ import annotations

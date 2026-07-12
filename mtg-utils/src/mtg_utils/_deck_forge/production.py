@@ -165,13 +165,12 @@ def _ensure_sidecar(
     label: str,
     build_cmd: str,
 ) -> bool:
-    """Shared ensure-idempotent-or-build machinery for both sidecar flavors
-    (ADR-0027 legacy / ADR-0035 crosswalk). ``loader`` raises ``FileNotFoundError``
-    (absent) / ``ValueError`` (stale on-disk version) exactly like the sidecar
-    loaders it wraps; a clean load means nothing to do. A build failure (no
-    phase card-data reachable) warns loudly and returns ``False`` — NON-BLOCKING,
-    never a hard crash."""
-    from mtg_utils._deck_forge.signals import MIGRATED_KEYS
+    """Shared ensure-idempotent-or-build machinery for the Card IR sidecar
+    builder. ``loader`` raises ``FileNotFoundError`` (absent) / ``ValueError``
+    (stale on-disk version) exactly like the sidecar loader it wraps; a clean
+    load means nothing to do. A build failure (no phase card-data reachable)
+    warns loudly and returns ``False`` — NON-BLOCKING, never a hard crash."""
+    from mtg_utils._deck_forge.crosswalk_signals import PORTED_KEYS
 
     try:
         loader()  # present + current version → nothing to do (idempotent)
@@ -187,10 +186,10 @@ def _ensure_sidecar(
     except (FileNotFoundError, RuntimeError):
         # card-data couldn't be obtained (download failed / unreachable) → the
         # sidecar can't be built. Do NOT silently degrade: name the cost (N
-        # migrated lanes) and the fix.
+        # crosswalk-served lanes) and the fix.
         print(
             f"deck-forge: WARNING — {label}Card IR sidecar unavailable "
-            f"({len(MIGRATED_KEYS)} migrated signal lanes degraded). "
+            f"({len(PORTED_KEYS)} crosswalk signal lanes degraded). "
             f"card-data download failed; re-run `{build_cmd}` with network "
             "access. Building continues; those lanes stay dark until then.",
             file=sys.stderr,
@@ -206,17 +205,17 @@ def _ensure_sidecar(
 
 
 def ensure_crosswalk_card_ir() -> bool:
-    """Ensure the ADR-0035 crosswalk-backed Card IR sidecar exists at launch,
-    building it if absent/stale — the Stage-4 default production build
-    (ADR-0039 task #80 step 4).
+    """Ensure the crosswalk-backed Card IR sidecar exists at launch, building
+    it if absent/stale — the ONE production build (ADR-0039 task #80 step 6:
+    the ``MTG_SKILLS_CROSSWALK_SIGNALS`` flag and the legacy revert path it
+    gated are gone; :func:`ensure_card_ir` is now a thin alias for this).
 
     ``_ir_lookup.ir_for`` (Seam B — ``cut_check`` / ``ranking`` / ``budgets`` /
     the engine / ``_tuner`` bracket-metrics-tune, plus the deck-signals /
-    deck-rank / deck-tune CLIs) reads THIS sidecar whenever the crosswalk flag
-    is ON (the default): with no sidecar it returns ``None`` per card rather
-    than silently cross-wiring to the legacy sidecar's differently-built Cards.
-    This ensure pays the build cost once at launch (mirrors the
-    ``download-bulk`` ensure) so the common case never leaves Seam B dark.
+    deck-rank / deck-tune CLIs) reads THIS sidecar: with no sidecar it returns
+    ``None`` per card rather than silently cross-wiring to a different
+    builder's Cards. This ensure pays the build cost once at launch (mirrors
+    the ``download-bulk`` ensure) so the common case never leaves Seam B dark.
 
     IDEMPOTENT + fast: a right-on-disk-version sidecar is a single
     ``load_crosswalk_card_ir`` (memoized) and returns ``True`` without
@@ -236,39 +235,15 @@ def ensure_crosswalk_card_ir() -> bool:
     )
 
 
-def ensure_legacy_card_ir() -> bool:
-    """Ensure the LEGACY (project.py) Card IR sidecar exists — the dependency
-    of the ``MTG_SKILLS_CROSSWALK_SIGNALS=0`` revert path (ADR-0027, pre-dates
-    ADR-0035). Kept alongside :func:`ensure_crosswalk_card_ir` so the revert
-    path stays byte-identical to before the Stage-4 flip; steps 5-7 of the
-    ADR-0039 deletion retire this once the legacy sidecar itself goes."""
-    from mtg_utils._card_ir.build import build_sidecar
-    from mtg_utils._card_ir.load import load_card_ir
-
-    return _ensure_sidecar(
-        loader=load_card_ir,
-        builder=build_sidecar,
-        label="",
-        build_cmd="build-card-ir",
-    )
-
-
 def ensure_card_ir() -> bool:
-    """Ensure the Card IR sidecar the crosswalk flag currently selects exists
-    at launch (ADR-0027; ADR-0039 task #80 step 4).
-
-    Every existing call site (``default_state``, and the ``deck-signals`` /
-    ``deck-rank`` / ``deck-tune`` CLIs) calls this ONE function; which sidecar
-    it builds is decided by
-    :func:`~mtg_utils._deck_forge._ir_lookup.crosswalk_enabled` — the
-    crosswalk-backed sidecar by default (Stage-4), the legacy sidecar only
-    under the explicit ``MTG_SKILLS_CROSSWALK_SIGNALS=0`` revert. Returns
-    whether the selected sidecar is present after the call."""
-    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
-
-    if crosswalk_enabled():
-        return ensure_crosswalk_card_ir()
-    return ensure_legacy_card_ir()
+    """Ensure the crosswalk-backed Card IR sidecar exists at launch (ADR-0027;
+    ADR-0039 task #80 step 6). Every existing call site (``default_state``, and
+    the ``deck-signals`` / ``deck-rank`` / ``deck-tune`` CLIs) calls this ONE
+    function; it is a thin alias for :func:`ensure_crosswalk_card_ir` kept for
+    those call sites' import stability now that the legacy revert path
+    (``ensure_legacy_card_ir``, flag-gated) is gone. Returns whether the
+    sidecar is present after the call."""
+    return ensure_crosswalk_card_ir()
 
 
 def default_state(fmt: str = "commander") -> ForgeState:

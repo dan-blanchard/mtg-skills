@@ -8,10 +8,10 @@ tribes — generic class types (Human/Soldier/Wizard) only matter with explicit 
 support, which already fires a high-confidence type_matters.
 """
 
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signals import (
     coverage_gate,
     extract_signals,
-    extract_signals_hybrid,
 )
 from mtg_utils.card_ir import Card, Face
 
@@ -87,7 +87,7 @@ def test_oracle_payoff_stays_high_confidence():
     # ADR-0027: type_matters migrated → hybrid path.
     sig = next(
         s
-        for s in extract_signals_hybrid(
+        for s in extract_signals_ir(
             _card(
                 "Goblin Lord",
                 "Legendary Creature — Goblin",
@@ -138,7 +138,7 @@ def test_article_is_not_a_typed_spellcast_subject():
     # ADR-0027: typed_spellcast migrated to the IR (a kept mirror re-running the SAME
     # _detect_typed_spellcast producer + _resolve_subject vocab gate, which drops the
     # article), so assert against the HYBRID path to keep the guard meaningful.
-    sigs = extract_signals_hybrid(
+    sigs = extract_signals_ir(
         _card(
             "Taigam, Master Opportunist",
             "Legendary Creature — Human Wizard",

@@ -2,11 +2,13 @@
 
 from fastapi.testclient import TestClient
 
+from mtg_utils._card_ir.crosswalk import ConceptTree
 from mtg_utils._deck_forge import _ir_lookup
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.events import EventHub
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.card_ir import Card, Face
+from mtg_utils.deck import split_type_line
 
 LLANOWAR = {
     "name": "Llanowar Elves",
@@ -159,10 +161,29 @@ def test_partner_avenue_filters_to_valid_partners(monkeypatch):
             faces=(Face(name="Ishai", abilities=()),),
         )
     }
-    # ADR-0035 Stage-4: the crosswalk flag defaults ON → ir_for reads the crosswalk
-    # index first; wire BOTH so the synthetic IR resolves regardless of the flag.
-    monkeypatch.setattr(_ir_lookup, "_index", lambda: ishai_index)
     monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: ishai_index)
+    # ADR-0039 task #80 step 6: extract_signals_hybrid is now crosswalk-only —
+    # partner_background is a keyword-field lookup (no typed substrate needed),
+    # so a zero-unit text-only tree (the same shape _ir_lookup's own W2c
+    # phase-missing-face synthesis produces) is enough.
+    type_words, sub_words = split_type_line(ISHAI["type_line"])
+    ishai_tree = ConceptTree(
+        name=ISHAI["name"],
+        oracle_id=ISHAI["oracle_id"],
+        units=(),
+        card_types=tuple(w.capitalize() for w in type_words if w != "legendary"),
+        card_subtypes=tuple(w.capitalize() for w in sub_words),
+        card_supertypes=("Legendary",) if "legendary" in type_words else (),
+        cmc=int(ISHAI["cmc"]),
+        oracle=ISHAI["oracle_text"],
+    )
+    monkeypatch.setattr(
+        _ir_lookup,
+        "trees_for",
+        lambda card, bulk=None: (  # noqa: ARG005
+            (ishai_tree,) if card.get("oracle_id") == "oid-ishai" else ()
+        ),
+    )
     session = DeckSession("commander")
     session.add("Ishai, Ojutai Dragonspeaker", zone="commanders")
     client = make_client(session=session)

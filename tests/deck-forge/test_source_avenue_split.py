@@ -5,7 +5,7 @@ the tribal bodies/payoffs/enablers split."""
 from mtg_utils._deck_forge import _ir_lookup, engine
 from mtg_utils._deck_forge.signal_specs import Serve, source_split
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
-from mtg_utils.testkit import test_card, test_card_ir
+from mtg_utils.testkit import _seed_trees, test_card, test_card_ir
 
 # ADR-0027 (voltron migration — the LAST key): voltron_matters is served only from the
 # Card IR now, so the engine must resolve Sram's IR (the structural Aura/Equipment cast
@@ -28,7 +28,11 @@ def _by_label(avs):
 
 
 def test_voltron_fans_into_payoff_and_source_avenues(monkeypatch):
-    monkeypatch.setattr(_ir_lookup, "_index", lambda: {_SRAM_OID: _SRAM_IR})
+    # ADR-0039 task #80 step 6: extract_signals_hybrid is now crosswalk-only —
+    # pre-seed the trees memo from the committed snapshot's stored phase
+    # records (Seam A) alongside the Seam-B Card IR index.
+    _seed_trees("Sram, Senior Edificer")
+    monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: {_SRAM_OID: _SRAM_IR})
     avs = _by_label(engine.avenues(_state(), [SRAM]))
     # The payoff avenue (the _matters lane) stays, now oracle-only — no type fetch.
     payoff = avs["Voltron / equipment & auras"]

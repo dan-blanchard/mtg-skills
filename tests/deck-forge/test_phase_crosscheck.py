@@ -145,18 +145,18 @@ def test_corpus_joins_by_oracle_id_and_tallies_both():
     }
     crosswalk = {"token_maker": frozenset({"effect:token"})}
     # ADR-0027: token_maker migrated to the Card IR — it is served only on the HYBRID
-    # path (the byte-identical kept mirror reads the record's oracle_text), so the
-    # default `detector_lanes` (which looks up this synthetic oracle_id in the real
-    # sidecar, misses, and degrades to the regex path that no longer emits token_maker)
-    # would report `both`==0. Pass a non-None IR so the hybrid runs the IR path; the
-    # mirror still fires token_maker on Adeline's "create a 1/1 white Human creature
-    # token".
-    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+    # path (the byte-identical kept mirror reads the record's oracle_text). ADR-0039
+    # task #80 step 6: extract_signals_hybrid is now crosswalk-only and this card's
+    # oracle_id is synthetic (no real phase record to resolve), so it would silently
+    # report `both`==0 — call extract_signals_ir directly (the structural detection
+    # engine this probes) with a non-None IR instead. The mirror still fires
+    # token_maker on Adeline's "create a 1/1 white Human creature token".
+    from mtg_utils._deck_forge._signals_ir import extract_signals_ir
     from mtg_utils.card_ir import Card, Face
 
     def _extract(c: dict) -> frozenset[str]:
         ir = Card(oracle_id="x", name=c["name"], faces=(Face(name=c["name"]),))
-        return frozenset(s.key for s in extract_signals_hybrid(c, ir))
+        return frozenset(s.key for s in extract_signals_ir(c, ir))
 
     report = pc.crosscheck_corpus(
         [card], phase_index, crosswalk=crosswalk, extract=_extract

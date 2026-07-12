@@ -5,10 +5,12 @@ rarity, hard-gated by support). Never EDHREC popularity."""
 import pytest
 from fastapi.testclient import TestClient
 
+from mtg_utils._card_ir.crosswalk import ConceptTree
 from mtg_utils._deck_forge import _ir_lookup, engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.card_ir import Card, Face
+from mtg_utils.deck import split_type_line
 
 
 def _oid(name):
@@ -50,10 +52,18 @@ def _sup(name, ci, oracle):
 
 
 LIFELORD = _cmd("Lifelord", ["W"], "Whenever you gain life, put a +1/+1 counter on it.")
+# ADR-0039 task #80 step 6: Tokenlord's lane is a Saproling tribal anthem (own-subtype
+# type_matters), not an ETB-token payoff (creature_etb) — creature_etb needs a REAL
+# typed trigger unit the text-only synthetic trees below cannot provide (no phase
+# record exists for a made-up card), while type_matters fires from a whole-card
+# text mirror + the membership floor with zero units. The TOK_SUP token-makers below
+# open the SAME type_matters(Saproling) lane via their own token-maker cross-open, so
+# the support linkage this suite tests is unaffected — only the SPECIFIC mechanic
+# demonstrating it changed.
 TOKENLORD = _cmd(
     "Tokenlord",
     ["G"],
-    "Whenever a creature token enters the battlefield under your control, draw a card.",
+    "Other Saproling creatures you control get +1/+1.",
     subtype="Elf",
 )
 VANILLA = _cmd("Vanilla Vance", ["U"], "", subtype="Bird")  # no actionable lane
@@ -70,12 +80,6 @@ G_FILLER = [_sup(f"Forest Friend {i}", ["G"], "") for i in range(3)]
 ALL = [LIFELORD, TOKENLORD, VANILLA, *LIFE_SUP, *TOK_SUP, *W_FILLER, *G_FILLER]
 BY_NAME = {c["name"]: c for c in ALL}
 PILE = {"cards": [{"name": c["name"], "quantity": 1} for c in ALL]}
-# ADR-0027 β: creature_etb migrated to the Card IR (a byte-identical kept-mirror that
-# reads the record's reminder-stripped oracle), so the hybrid serves it ONLY from the IR
-# path. Tokenlord's "creature token enters" lane (and the token makers its creature_etb
-# serve credits as support) depend on it, so wire a bare Card per synthetic oracle_id —
-# the mirror reads the oracle off the record, so the IR need carry no abilities. This
-# mirrors production (real commanders carry real IR).
 # ADR-0027 β: lifegain_matters migrated to the Card IR (a structural arm + a byte-
 # identical kept-mirror that reads the record's reminder-stripped oracle), so the hybrid
 # serves it ONLY from the IR path. Lifelord's "Whenever you gain life" lane (and the
@@ -90,12 +94,49 @@ _BARE_IR_INDEX = {
 }
 
 
+def _text_only_tree(card: dict) -> ConceptTree:
+    """A zero-unit ``ConceptTree`` carrying only the synthetic card's own
+    whole-card metadata (types/subtypes/cmc/oracle text) — the SAME shape
+    ``_ir_lookup``'s own W2c phase-missing-face synthesis produces. No typed
+    substrate exists for a hand-built fixture (there is no real phase
+    record), but the crosswalk's membership floor + its "b12" whole-card
+    text mirrors (e.g. lifegain_matters' reminder-stripped-oracle mirror)
+    read ``tree.oracle`` / ``tree.card_types`` / ``tree.card_subtypes``
+    directly — no units needed (ADR-0039 task #80 step 6: verified against
+    the production ``extract_crosswalk_signals`` + ``apply_membership_floor``
+    call for exactly this shape)."""
+    type_words, sub_words = split_type_line(card.get("type_line") or "")
+    return ConceptTree(
+        name=card["name"],
+        oracle_id=card["oracle_id"],
+        units=(),
+        card_types=tuple(w.capitalize() for w in type_words if w != "legendary"),
+        card_subtypes=tuple(w.capitalize() for w in sub_words),
+        card_supertypes=("Legendary",) if "legendary" in type_words else (),
+        cmc=int(card.get("cmc") or 0),
+        oracle=card.get("oracle_text") or "",
+    )
+
+
+_TREES_BY_OID = {c["oracle_id"]: (_text_only_tree(c),) for c in ALL}
+
+
 @pytest.fixture(autouse=True)
 def _wire_bare_ir(monkeypatch):
-    # ADR-0035 Stage-4: crosswalk flag defaults ON → ir_for reads the crosswalk
-    # index first; wire BOTH so the synthetic IR resolves regardless of the flag.
-    monkeypatch.setattr(_ir_lookup, "_index", lambda: _BARE_IR_INDEX)
+    # ir_for (ADR-0039 task #80 step 6: crosswalk-only, no flag branch) reads
+    # the crosswalk index.
     monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: _BARE_IR_INDEX)
+    # trees_for (Seam A — extract_signals_hybrid's ONLY signal source, task #80
+    # step 6) needs a resolvable concept tree per synthetic oracle_id; these
+    # fixtures have no real phase record to resolve, so wire the text-only
+    # trees built above.
+    monkeypatch.setattr(
+        _ir_lookup,
+        "trees_for",
+        lambda card, bulk=None: _TREES_BY_OID.get(  # noqa: ARG005
+            card.get("oracle_id") or "", ()
+        ),
+    )
 
 
 def _state(fmt="commander"):
@@ -202,16 +243,25 @@ def test_support_is_collection_specific_not_lane_width(monkeypatch):
     by_name = {c["name"]: c for c in [*owned, *pad]}
     # ADR-0027: type_matters / artifacts_matter migrated → hybrid path. The discovery
     # endpoint resolves each card's IR via engine._ir_index(); these locally-built cards
-    # aren't in the module _BARE_IR_INDEX, so wire a bare Card per oracle_id (the
-    # kept-mirror reads the oracle off the record) so their tribal/artifact lanes fire.
+    # aren't in the module _BARE_IR_INDEX / _TREES_BY_OID, so wire a bare Card per
+    # oracle_id (Seam B) plus a text-only tree per oracle_id (Seam A — ADR-0039 task
+    # #80 step 6: extract_signals_hybrid's ONLY signal source) so their tribal/artifact
+    # lanes fire.
     local_ir = {
         c["oracle_id"]: Card(
             oracle_id=c["oracle_id"], name=c["name"], faces=(Face(name=c["name"]),)
         )
         for c in by_name.values()
     }
-    monkeypatch.setattr(_ir_lookup, "_index", lambda: local_ir)
+    local_trees = {c["oracle_id"]: (_text_only_tree(c),) for c in by_name.values()}
     monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: local_ir)
+    monkeypatch.setattr(
+        _ir_lookup,
+        "trees_for",
+        lambda card, bulk=None: local_trees.get(  # noqa: ARG005
+            card.get("oracle_id") or "", ()
+        ),
+    )
     state = ForgeState(
         by_name=by_name,
         search_fn=lambda **_: [],

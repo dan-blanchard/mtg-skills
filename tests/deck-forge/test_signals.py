@@ -5,12 +5,11 @@ The headline guard: a signal that concerns OPPONENTS' graveyards must be scoped
 Tinybones overgeneralization the whole tool exists to prevent).
 """
 
-from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signals import (
     Signal,
     aggregate_signals,
     extract_signals,
-    extract_signals_hybrid,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Face
 from mtg_utils.testkit import test_card, test_signals
@@ -26,6 +25,15 @@ def _real(name):
     return {(s.key, s.scope) for s in test_signals(name)}
 
 
+# ADR-0039 task #80 step 6: these hand-built ``Card`` IR fixtures (no real
+# ``oracle_id``) can never resolve a crosswalk tree — ``extract_signals_hybrid``
+# (the production dispatcher) is now crosswalk-only and would silently return
+# nothing for them. What these tests actually probe is the STRUCTURAL DETECTION
+# LOGIC in ``extract_signals_ir`` (still a real, exercised module — task #80 step
+# 6 leaves it as a stub pending step 7's decision on the legacy builder's own
+# fate), so every synthetic-fixture call below goes straight to it instead of the
+# hybrid facade. ``_real`` (testkit-backed) is unaffected — it already exercises
+# the real production path.
 def _ir_with(*abilities: Ability) -> Card:
     """A Card IR carrying the given abilities — the structural marker an ADR-0027-
     migrated effect-based key reads."""
@@ -38,13 +46,13 @@ def _ir_with(*abilities: Ability) -> Card:
 
 # A minimal non-None IR for ADR-0027 keys whose IR source scans the record
 # directly (kept word-detector mirror / keyword array) — any non-None Card routes
-# the hybrid to the IR path.
+# to the IR path.
 def _bare_ir() -> Card:
     return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
 def _keys_hybrid(card):
-    return {(s.key, s.scope) for s in extract_signals_hybrid(card, _bare_ir())}
+    return {(s.key, s.scope) for s in extract_signals_ir(card, _bare_ir())}
 
 
 # ADR-0027 β: creature_etb migrated to the Card IR (a byte-identical kept-mirror over
@@ -142,9 +150,7 @@ def test_signal_carries_source_and_quote():
         "oracle_text": "Whenever a creature you control enters, draw a card.",
     }
     etb = next(
-        s
-        for s in extract_signals_hybrid(etb_card, _bare_ir())
-        if s.key == "creature_etb"
+        s for s in extract_signals_ir(etb_card, _bare_ir()) if s.key == "creature_etb"
     )
     assert etb.source == "ETB Boss"
     # spellcast_matters (ADR-0027 signals-only, SIDECAR 50) is now IR-served, but its
@@ -157,7 +163,7 @@ def test_signal_carries_source_and_quote():
     }
     quoting = next(
         s
-        for s in extract_signals_hybrid(spell_card, _bare_ir())
+        for s in extract_signals_ir(spell_card, _bare_ir())
         if s.key == "spellcast_matters"
     )
     assert quoting.source == "Spell Boss"
@@ -551,7 +557,7 @@ def test_cheap_firebreathing_does_not_open_activated_lane():
             effects=(Effect(category="pump", scope="you", raw="gets +1/+0"),),
         )
     )
-    keys = {(s.key, s.scope) for s in extract_signals_hybrid(card, fb_ir)}
+    keys = {(s.key, s.scope) for s in extract_signals_ir(card, fb_ir)}
     assert ("activated_ability", "you") not in keys
     assert ("activated_ability", "you") not in _keys(card)
 
@@ -713,7 +719,7 @@ def test_self_counter_now_opens_counters_in_production():
             ),
         )
     )
-    keys = {(s.key, s.scope) for s in extract_signals_hybrid(card, ir)}
+    keys = {(s.key, s.scope) for s in extract_signals_ir(card, ir)}
     assert any(k == "plus_one_makers" for k, _ in keys)
 
 
@@ -892,18 +898,11 @@ def test_source_deals_damage_opens_burn():
     # _DIRECT_DAMAGE_MIRROR's "whenever a source you control deals damage"
     # alternative was a GENUINE OVER-FIRE (already MANDATORY-SHED-pinned on the
     # crosswalk path — see test_crosswalk.py's
-    # test_direct_damage_excludes_doubler_matters_prevention_shed). Flag-OFF
-    # stays byte-identical to the pre-promotion legacy behavior (the RETAINED
-    # revert path), so this assertion is flag-state-dependent by design (the
-    # Sygg / lifeloss_makers precedent above) — NOT a "every other test passes
-    # unchanged" violation. The real payoff lanes fire regardless: its OWN
-    # +1/+1 counter growth (self_counter_grow) and its counter-placement
-    # ability (plus_one_makers).
+    # test_direct_damage_excludes_doubler_matters_prevention_shed). The real
+    # payoff lanes fire regardless: its OWN +1/+1 counter growth
+    # (self_counter_grow) and its counter-placement ability (plus_one_makers).
     idents = _real("The Red Terror")
-    if crosswalk_enabled():
-        assert ("direct_damage", "you") not in idents
-    else:
-        assert ("direct_damage", "you") in idents
+    assert ("direct_damage", "you") not in idents
     assert ("self_counter_grow", "you") in idents
 
 
@@ -1042,7 +1041,7 @@ def test_plural_death_trigger_opens_death_matters():
         # ADR-0027: the plural "creatures you control die" branch rides the byte-
         # identical _DEATH_MATTERS_MIRROR on the IR path.
         assert "death_matters" in {
-            s.key for s in extract_signals_hybrid(card, _bare_ir())
+            s.key for s in extract_signals_ir(card, _bare_ir())
         }, oracle
 
 
@@ -1061,7 +1060,7 @@ def test_artifact_type_commander_opens_artifacts():
         "oracle_text": "Vigilance",
     }
     assert ("artifacts_matter", "you") not in {
-        (s.key, s.scope) for s in extract_signals_hybrid(human, _bare_ir())
+        (s.key, s.scope) for s in extract_signals_ir(human, _bare_ir())
     }
     # Real Anikthea (snapshot): an enchantment-type commander → enchantments_matter.
     assert ("enchantments_matter", "you") in _real("Anikthea, Hand of Erebos")
@@ -1150,7 +1149,7 @@ def test_ability_words_open_their_lane():
         # ADR-0027 t2b5-C: targeting_matters (heroic) migrated to the Card IR (the kept
         # word mirror), so the regex path no longer emits it — assert via the hybrid (IR)
         # path, which serves migrated keys from the IR and non-migrated keys from regex.
-        assert key in {s.key for s in extract_signals_hybrid(card, _bare_ir())}, aw
+        assert key in {s.key for s in extract_signals_ir(card, _bare_ir())}, aw
 
 
 def test_triggered_counter_placement_opens_counters():
@@ -1181,7 +1180,7 @@ def test_triggered_counter_placement_opens_counters():
             "type_line": "Legendary Creature — Test",
             "oracle_text": oracle,
         }
-        keys = {s.key for s in extract_signals_hybrid(card, ir)}
+        keys = {s.key for s in extract_signals_ir(card, ir)}
         assert "plus_one_makers" in keys, oracle
 
 
@@ -1239,7 +1238,7 @@ def test_counter_keyword_commander_opens_counters():
             "keywords": [kw],
             "oracle_text": "Some ability.",
         }
-        keys = {s.key for s in extract_signals_hybrid(card, ir)}
+        keys = {s.key for s in extract_signals_ir(card, ir)}
         assert "plus_one_makers" in keys, kw
 
 
@@ -1255,7 +1254,7 @@ def test_archetype_keywords_open_their_lane():
         "oracle_text": "Some ability.",
     }
     assert ("spellcast_matters", "you") in {
-        (s.key, s.scope) for s in extract_signals_hybrid(card, _bare_ir())
+        (s.key, s.scope) for s in extract_signals_ir(card, _bare_ir())
     }
     # ADR-0027: Bushido / Annihilator (attack_matters) are migrated — their attack
     # condition is reminder text, so the lane fires from the keyword in _IR_KEYWORD_MAP
@@ -1272,7 +1271,7 @@ def test_archetype_keywords_open_their_lane():
             (s.key, s.scope) for s in extract_signals(card)
         }, kw
         assert ("attack_matters", "you") in {
-            (s.key, s.scope) for s in extract_signals_hybrid(card, ir)
+            (s.key, s.scope) for s in extract_signals_ir(card, ir)
         }, kw
     # ADR-0027: Exploit (sacrifice_outlets) and Afflict (lifeloss_makers) are migrated
     # — phase models both as a STRUCTURAL effect (exploit's sacrifice, afflict's
@@ -1292,7 +1291,7 @@ def test_archetype_keywords_open_their_lane():
         )
     )
     assert ("lifeloss_makers", "opponents") in {
-        (s.key, s.scope) for s in extract_signals_hybrid(afflict, ir)
+        (s.key, s.scope) for s in extract_signals_ir(afflict, ir)
     }
 
 
@@ -1313,7 +1312,7 @@ def test_attack_conditional_keywords_open_attack_matters():
             (s.key, s.scope) for s in extract_signals(card)
         }, kw
         assert ("attack_matters", "you") in {
-            (s.key, s.scope) for s in extract_signals_hybrid(card, ir)
+            (s.key, s.scope) for s in extract_signals_ir(card, ir)
         }, kw
 
 
@@ -1331,7 +1330,7 @@ def test_past_tense_count_payoffs_open_their_lane():
         "oracle_text": "Scry X, where X is the number of spells you've cast this turn.",
     }
     assert "spellcast_matters" in {
-        s.key for s in extract_signals_hybrid(spellcast, _bare_ir())
+        s.key for s in extract_signals_ir(spellcast, _bare_ir())
     }
     # ADR-0027: attack_matters migrated — the combat-count "attacked this turn" payoff
     # (Varragoth / Relentless Assault) fires from the _ATTACK_MATTERS_MIRROR over the
@@ -1342,9 +1341,7 @@ def test_past_tense_count_payoffs_open_their_lane():
         "oracle_text": "Draw a card for each creature you control that attacked this turn.",
     }
     assert "attack_matters" not in {s.key for s in extract_signals(attack)}
-    assert "attack_matters" in {
-        s.key for s in extract_signals_hybrid(attack, _bare_ir())
-    }
+    assert "attack_matters" in {s.key for s in extract_signals_ir(attack, _bare_ir())}
     # ADR-0027: lifeloss is migrated — Neheb / Rakdos "for each 1 life your opponents
     # have lost this turn" fires from the IR's _LOST_LIFE_TURN drain marker. _matters
     # sweep (ADR-0034): the marker folds into the structural lose_life MAKER arm, so it
@@ -1357,7 +1354,7 @@ def test_past_tense_count_payoffs_open_their_lane():
     from mtg_utils._card_ir.project import project_card
 
     neheb_ir = project_card([{**neheb, "card_type": {"core_types": ["Creature"]}}])
-    assert "lifeloss_makers" in {s.key for s in extract_signals_hybrid(neheb, neheb_ir)}
+    assert "lifeloss_makers" in {s.key for s in extract_signals_ir(neheb, neheb_ir)}
     # ADR-0027 β: draw_matters is migrated — Proft / Kydele "for each card you've
     # drawn this turn" is a count-operand payoff with NO `drawn` trigger, so it fires
     # from the byte-identical draw_matters kept-mirror in the IR path (which scans the
@@ -1370,7 +1367,7 @@ def test_past_tense_count_payoffs_open_their_lane():
         ),
     }
     proft_ir = project_card([{**proft, "card_type": {"core_types": ["Creature"]}}])
-    assert "draw_matters" in {s.key for s in extract_signals_hybrid(proft, proft_ir)}
+    assert "draw_matters" in {s.key for s in extract_signals_ir(proft, proft_ir)}
 
 
 def test_past_tense_death_count_opens_death_matters():
@@ -1391,7 +1388,7 @@ def test_past_tense_death_count_opens_death_matters():
         # ADR-0027: the morbid "died this turn" count payoff rides the byte-identical
         # _DEATH_MATTERS_MIRROR on the IR path.
         assert "death_matters" in {
-            s.key for s in extract_signals_hybrid(card, _bare_ir())
+            s.key for s in extract_signals_ir(card, _bare_ir())
         }, oracle
 
 
@@ -1488,7 +1485,7 @@ def _subjects(card, key):
 def _subjects_hybrid(card, key):
     # ADR-0027: subjects from the HYBRID/IR path (for migrated subject-bearing keys
     # like keyword_tribe, whose kept mirror reads the record's oracle_text).
-    return {s.subject for s in extract_signals_hybrid(card, _bare_ir()) if s.key == key}
+    return {s.subject for s in extract_signals_ir(card, _bare_ir()) if s.key == key}
 
 
 def test_tribal_capture_cant_be_blocked():
@@ -1677,17 +1674,11 @@ def test_opponent_lost_life_this_turn_opens_drain():
     # DIFFERENT effect (the draw), never the card's OWN life-loss action.
     # The legacy marker's bare "lost...life" match fired regardless of
     # clause role; the crosswalk's structural read correctly finds no
-    # LoseLife node to attribute to Sygg itself. Flag-OFF stays
-    # byte-identical to the pre-promotion legacy behavior (the RETAINED
-    # revert path), so this assertion is flag-state-dependent by design —
-    # NOT a "every other test passes unchanged" violation.
+    # LoseLife node to attribute to Sygg itself.
     # Real Sygg, River Cutthroat (snapshot).
     ident = ("lifeloss_makers", "opponents")
     idents = _real("Sygg, River Cutthroat")
-    if crosswalk_enabled():
-        assert ident not in idents
-    else:
-        assert ident in idents
+    assert ident not in idents
 
 
 def test_turn_target_face_up_opens_facedown():

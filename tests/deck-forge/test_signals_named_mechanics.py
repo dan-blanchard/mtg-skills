@@ -5,9 +5,19 @@ build-arounds the tool should surface, and they're precise named anchors so they
 stay clean. Each is a real archetype getting its own avenue.
 """
 
-from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
+from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 from mtg_utils.testkit import test_card, test_signals
+
+# ADR-0039 task #80 step 6: every hand-built ``Card`` IR fixture in this file
+# (no real ``oracle_id``) can never resolve a crosswalk tree — the production
+# ``extract_signals_hybrid`` is now crosswalk-only and would silently return
+# nothing for them. These tests actually probe the STRUCTURAL DETECTION LOGIC
+# in ``extract_signals_ir`` (still exercised — task #80 step 6 leaves it as a
+# stub pending step 7's decision on the legacy builder's own fate), so every
+# synthetic-fixture call below goes straight to it instead of the hybrid
+# facade. ``test_signals`` (testkit-backed) calls below are unaffected.
 
 
 def _ks(card):
@@ -27,7 +37,7 @@ def _bare_ir() -> Card:
 
 
 def _ks_hybrid(card):
-    return {(s.key, s.scope) for s in extract_signals_hybrid(card, _bare_ir())}
+    return {(s.key, s.scope) for s in extract_signals_ir(card, _bare_ir())}
 
 
 def _keys(card):
@@ -257,7 +267,7 @@ def test_daynight_matters_effect_arm_is_ir_served():
             ),
         ),
     )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    hybrid = {(s.key, s.scope) for s in extract_signals_ir(c, ir)}
     # ADR-0034 split: the day_night EFFECT-category doer is the MAKER arm.
     assert ("daynight_makers", "you") in hybrid
     assert ("daynight_makers", "you") not in _ks(c)
@@ -411,7 +421,7 @@ def test_big_hand_matters_is_ir_served():
         ),
     )
     assert ("big_hand_makers", "you") in {
-        (s.key, s.scope) for s in extract_signals_hybrid(enabler, ir)
+        (s.key, s.scope) for s in extract_signals_ir(enabler, ir)
     }
     assert ("big_hand_makers", "you") not in _ks(enabler)
 
@@ -446,7 +456,7 @@ def test_token_doubling_is_ir_served():
             ),
         ),
     )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    hybrid = {(s.key, s.scope) for s in extract_signals_ir(c, ir)}
     assert ("token_doubling", "you") in hybrid
     assert ("token_doubling", "you") not in _ks(c)
 
@@ -486,7 +496,7 @@ def test_blood_matters_is_ir_served():
             ),
         ),
     )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    hybrid = {(s.key, s.scope) for s in extract_signals_ir(c, ir)}
     assert ("blood_matters", "you") in hybrid
     assert ("blood_matters", "you") not in _ks(c)
 
@@ -520,7 +530,7 @@ def test_monarch_matters_is_ir_served():
             ),
         ),
     )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(grant, grant_ir)}
+    hybrid = {(s.key, s.scope) for s in extract_signals_ir(grant, grant_ir)}
     assert ("monarch_makers", "you") in hybrid
     assert ("monarch_makers", "you") not in _ks(grant)
 
@@ -600,9 +610,7 @@ def test_vehicles_does_not_fire_on_incidental_or_vehicle_target():
         "oracle_text": "Put a +1/+1 counter on target creature or Vehicle you control.",
     }
     assert "vehicles_matter" not in _keys(c)
-    assert "vehicles_matter" not in {
-        s.key for s in extract_signals_hybrid(c, _bare_ir())
-    }
+    assert "vehicles_matter" not in {s.key for s in extract_signals_ir(c, _bare_ir())}
 
 
 def test_voltron_payoff_is_ir_served():
@@ -627,9 +635,7 @@ def test_voltron_does_not_fire_on_equipment_payload():
         "name": "Bear Sword",
         "oracle_text": "Equipped creature gets +2/+2.\nEquip {2}",
     }
-    assert "voltron_matters" not in {
-        s.key for s in extract_signals_hybrid(c, _bare_ir())
-    }
+    assert "voltron_matters" not in {s.key for s in extract_signals_ir(c, _bare_ir())}
 
 
 def test_plus_one_makers_widened_for_distributors():
@@ -662,7 +668,7 @@ def test_plus_one_makers_widened_for_distributors():
             ),
         ),
     )
-    assert any(s.key == "plus_one_makers" for s in extract_signals_hybrid(c, ir))
+    assert any(s.key == "plus_one_makers" for s in extract_signals_ir(c, ir))
 
 
 def test_poison_scoped_to_opponents():
@@ -674,7 +680,7 @@ def test_poison_scoped_to_opponents():
         "oracle_text": "Infect\nThis creature can't be blocked.",
     }
     ir = Card(oracle_id="x", name="X", faces=(Face(name="X", keywords=("Infect",)),))
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    hybrid = {(s.key, s.scope) for s in extract_signals_ir(c, ir)}
     assert ("poison_makers", "opponents") in hybrid
     assert ("poison_makers", "opponents") not in _ks(c)
 
@@ -714,7 +720,7 @@ def test_token_copy_engine():
         ),
     )
     assert ("token_copy_makers", "you") in {
-        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+        (s.key, s.scope) for s in extract_signals_ir(c, ir)
     }
 
 
@@ -762,7 +768,7 @@ def test_dice_rolling():
         ),
     )
     assert ("dice_matters", "you") in {
-        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+        (s.key, s.scope) for s in extract_signals_ir(c, ir)
     }
     assert ("dice_matters", "you") not in _ks(c)
 
@@ -801,7 +807,7 @@ def test_commit_a_crime():
         ),
     )
     assert ("crimes_matter", "you") in {
-        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+        (s.key, s.scope) for s in extract_signals_ir(c, ir)
     }
     assert ("crimes_matter", "you") not in _ks(c)
 
@@ -831,7 +837,7 @@ def test_connive_keyword():
             ),
         ),
     )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    hybrid = {(s.key, s.scope) for s in extract_signals_ir(c, ir)}
     assert ("connive_makers", "you") in hybrid
     assert ("connive_makers", "you") not in _ks(c)
 
@@ -856,7 +862,7 @@ def test_scry_surveil_is_ir_served():
             ),
         )
     )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    hybrid = {(s.key, s.scope) for s in extract_signals_ir(c, ir)}
     assert ("scry_surveil_matters", "you") in hybrid
     assert ("scry_surveil_matters", "you") not in _ks(c)
 
@@ -882,7 +888,7 @@ def test_experience_is_ir_served():
             ),
         )
     )
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    hybrid = {(s.key, s.scope) for s in extract_signals_ir(c, ir)}
     assert ("experience_makers", "you") in hybrid
     assert ("experience_makers", "you") not in _ks(c)
 
@@ -895,7 +901,7 @@ def test_mutate_is_ir_served():
         "oracle_text": "Mutate {2}{G}{U}",
         "keywords": ["Mutate"],
     }
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, _ks_bare_ir())}
+    hybrid = {(s.key, s.scope) for s in extract_signals_ir(c, _ks_bare_ir())}
     assert ("has_mutate", "you") in hybrid
     assert ("has_mutate", "you") not in _ks(c)
 
@@ -917,7 +923,7 @@ def test_loot_outlet_is_a_discard_avenue():
     # from the byte-identical loot kept-mirror in the IR path (which scans the record
     # oracle, so a bare non-None IR routes the hybrid to it), NOT the deleted regex.
     c = {"name": "X", "oracle_text": "{T}: Draw a card, then discard a card."}
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, _ks_bare_ir())}
+    hybrid = {(s.key, s.scope) for s in extract_signals_ir(c, _ks_bare_ir())}
     assert ("discard_makers", "you") in hybrid
     assert ("discard_makers", "you") not in _ks(c)
 
@@ -954,7 +960,7 @@ def test_spell_copy():
         "oracle_text": "Copy target instant or sorcery spell you control.",
     }
     assert ("spell_copy_makers", "you") not in _ks(c)
-    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, _spell_copy_ir())}
+    hybrid = {(s.key, s.scope) for s in extract_signals_ir(c, _spell_copy_ir())}
     assert ("spell_copy_makers", "you") in hybrid
 
 
@@ -974,5 +980,5 @@ def test_type_matters_catches_another_singular_tribal():
         "oracle_text": "Whenever another Elf you control enters, put a +1/+1 counter on this creature.",
     }
     # ADR-0027: type_matters migrated → hybrid path.
-    got = {(s.key, s.scope, s.subject) for s in extract_signals_hybrid(c, _bare_ir())}
+    got = {(s.key, s.scope, s.subject) for s in extract_signals_ir(c, _bare_ir())}
     assert ("type_matters", "you", "Elf") in got

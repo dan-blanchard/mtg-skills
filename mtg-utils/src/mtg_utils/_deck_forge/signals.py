@@ -39,17 +39,7 @@ import re
 from collections.abc import Callable, Sequence
 
 from mtg_utils._deck_forge import signal_keys
-from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
 from mtg_utils._deck_forge._migrated_keys import MIGRATED_KEYS
-from mtg_utils._deck_forge._signals_ir import (
-    _IR_KEPT_DETECTORS,
-    _IR_KEYWORD_MAP,
-    _KEYWORD_COUNTER_KINDS,
-    IR_SLICE_KEYS,
-    _ir_effect_is_edict,
-    _is_exile_until_leaves,
-    extract_signals_ir,
-)
 from mtg_utils._deck_forge._signals_regex import (
     _DETECTORS,
     _DIRECT_KEYWORD_SIGNALS,
@@ -64,7 +54,6 @@ from mtg_utils._deck_forge._signals_regex import (
     _VOLTRON_EQUIP_RE,
     Signal,
     _clauses,
-    _fold_referenced_objects,
     _tinybones_scope,
     _voltron_double_strike_beater,
     _voltron_land_scaler,
@@ -84,20 +73,17 @@ from mtg_utils._deck_forge._sweep_detectors import (
 from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.card_ir import Card
 
-# Public surface re-exported by this facade after the ADR-0027 split of the
-# detection paths into _signals_regex (base) + _signals_ir. Listed here so the
-# re-export imports above are not pruned as "unused" — external consumers and
-# tests still do `from mtg_utils._deck_forge.signals import <name>`.
+# Public surface re-exported by this facade. Listed here so the re-export
+# imports above are not pruned as "unused" — external consumers and tests still
+# do `from mtg_utils._deck_forge.signals import <name>`. ``MIGRATED_KEYS`` stays
+# re-exported for backward compatibility (test_migrated_keys.py's historical
+# migration-order record) even though ``extract_signals_hybrid`` no longer
+# dispatches on it (ADR-0039 task #80 step 6 — the crosswalk serves every key in
+# ``PORTED_KEYS``, a superset).
 __all__ = [
-    "IR_SLICE_KEYS",
     "MIGRATED_KEYS",
-    "_IR_KEPT_DETECTORS",
-    "_IR_KEYWORD_MAP",
-    "_KEYWORD_COUNTER_KINDS",
     "_VOLTRON_EQUIP_RE",
     "Signal",
-    "_ir_effect_is_edict",
-    "_is_exile_until_leaves",
     "_tinybones_scope",
     "_voltron_double_strike_beater",
     "_voltron_land_scaler",
@@ -110,99 +96,58 @@ __all__ = [
     "coverage_gate",
     "extract_signals",
     "extract_signals_hybrid",
-    "extract_signals_ir",
     "producible_static_keys",
     "rank_deck_signals",
     "signal_keys",
 ]
 
 
-# ── Hybrid dispatch seam (ADR-0027 strangler) ─────────────────────────────────
+# ── Hybrid dispatch seam (ADR-0035/0039 — the crosswalk-native merge) ─────────
 
 
-def _hybrid_merge(
+def extract_signals_hybrid(
     record: dict,
-    ir: Card | None,
-    regex_signals: list[Signal],
+    _ir: Card | None = None,
     *,
-    vocab: frozenset[str],
-    include_membership: bool,
-    resolve_object: Callable[[str], dict | None] | None,
-) -> list[Signal] | None:
-    """Merge the non-regex signal sources into the stripped regex set.
+    vocab: frozenset[str] = CREATURE_SUBTYPES,
+    include_membership: bool = True,
+    resolve_object: Callable[[str], dict | None] | None = None,  # noqa: ARG001
+) -> list[Signal]:
+    """The production signal-extraction path (ADR-0039 task #80 step 6): every
+    key comes from the crosswalk — ``trees_for(record, bulk=record)`` resolves
+    the card's per-face Layer-2 concept trees, ``extract_crosswalk_signals``
+    runs the ported lanes over EACH one (unioned by ``(key, scope, subject)``,
+    never a merged multi-face tree — that would corrupt card-level reads like
+    ``is_type`` / cmc that only make sense per-face), and the card-type /
+    cares-about MEMBERSHIP floor (``apply_membership_floor``) runs ONCE more,
+    over every face together, when ``include_membership`` (the ADR-0039 step 6
+    DFC fix — see that function's docstring for the per-face-isolation gap it
+    closes). The legacy regex path (``extract_signals``) and the old projected
+    Card-IR path (``extract_signals_ir`` / ``old_ir_for``) are GONE — a full
+    commander/brawl-legal corpus census found ``extract_signals`` contributed
+    ZERO keys outside the crosswalk's own ``PORTED_KEYS`` (every regex
+    producer for a key the crosswalk now serves was already deleted when that
+    key migrated), so routing every card through the crosswalk-only path loses
+    nothing measurable.
 
-    Returns the merged ``out`` (before the shared reconciliation tail), or ``None``
-    to signal "no non-regex source ran — return the pure regex set". With the
-    Stage-3a flag OFF (default) this is byte-identical to the pre-Stage-3a code:
-    strip ``MIGRATED_KEYS`` from the regex set and re-supply them from
-    ``extract_signals_ir``."""
-    if crosswalk_enabled():
-        crosswalk_out = _crosswalk_merge(
-            record,
-            regex_signals,
-            vocab=vocab,
-            include_membership=include_membership,
-        )
-        if crosswalk_out is not None:
-            return crosswalk_out
-    if ir is None or not MIGRATED_KEYS:
-        return None
-    out: list[Signal] = [s for s in regex_signals if s.key not in MIGRATED_KEYS]
-    seen = {(s.key, s.scope, s.subject) for s in out}
-    # ADR-0027 β: fold referenced objects (ADR-0025 — a ventured dungeon / meld result
-    # / the Ring) into the record the IR path reads, so a migrated kept-mirror key whose
-    # plan lives on a FOLDED object (e.g. combat_damage_to_opp from the Ring-bearer's
-    # "deals combat damage to a player" level) still fires from the IR path. The regex
-    # path folds internally above; the IR path takes the pre-folded record. No-op when
-    # no resolver / nothing folds.
-    ir_record = (
-        _fold_referenced_objects(record, resolve_object)
-        if resolve_object is not None
-        else record
-    )
-    for sig in extract_signals_ir(
-        ir_record, ir, vocab=vocab, include_membership=include_membership
-    ):
-        if sig.key not in MIGRATED_KEYS:
-            continue
-        ident = (sig.key, sig.scope, sig.subject)
-        if ident in seen:
-            continue
-        seen.add(ident)
-        out.append(sig)
-    return out
-
-
-def _crosswalk_merge(
-    record: dict,
-    regex_signals: list[Signal],
-    *,
-    vocab: frozenset[str],
-    include_membership: bool,
-) -> list[Signal] | None:
-    """The ADR-0035 Stage-3a merge (flag ON). ``None`` when the concept tree is
-    unavailable so the caller degrades to the legacy IR path.
-
-    ``PORTED_KEYS`` come from the typed-substrate crosswalk; every other key
-    stays regex. ``MIGRATED_KEYS - PORTED_KEYS`` (the old "residual" tail the
-    crosswalk did not yet reproduce) is EMPTY as of ADR-0039 W8 — every
-    migrated key graduated to a crosswalk-native lane, so this merge no longer
-    falls back to the legacy ``extract_signals_ir`` / ``old_ir_for`` path at
-    all (ADR-0039 task #80 step 3: the membership floor's own former ``old``
-    dependency was rewired to read the concept tree directly — see
-    ``extract_crosswalk_signals``' ``include_membership`` docstring). The
-    shared reconciliation tail runs once in the caller, its ``not in out_keys``
-    guards absorbing the crosswalk's own already-applied reconciliations
-    (single fire).
-
-    A DFC / split card shares one ``oracle_id`` across faces; ``trees_for`` returns
-    one concept tree per phase face record, and the crosswalk lanes run over EACH
-    tree, unioned by ``(key, scope, subject)`` (ADR-0035/0038 task #74) — never a
-    merged multi-face tree, which would corrupt card-level reads like ``is_type`` /
-    cmc that only make sense per-face."""
+    ``_ir`` is accepted-but-unused — kept for the ~200 existing call sites'
+    positional signature (many pass the Seam-B ``ir_for(card)`` Card
+    alongside the record); the crosswalk path never reads a pre-built Card at
+    all. A card with no ``oracle_id`` / no phase record / no committed mirror
+    schema (``trees_for`` returns ``()`` — never observed across the full
+    commander/brawl-legal corpus, see the ADR-0039 task #80 step 6 no-trees
+    census) degrades to an empty signal list, not a crash. ``resolve_object``
+    (ADR-0025 folded-object references — a ventured dungeon / meld result /
+    the Ring) is likewise accepted-but-unused: it only ever folded into the
+    now-deleted regex / legacy-IR paths, so a synthetic no-``oracle_id``
+    fixture that relies on it to prove a signal no longer can (a documented,
+    reported regression — see the ADR-0039 task #80 step 6 commit; real cards
+    always carry an ``oracle_id`` and were never folded through the crosswalk
+    path even before this step)."""
     from mtg_utils._deck_forge._ir_lookup import trees_for
     from mtg_utils._deck_forge.crosswalk_signals import (
         PORTED_KEYS,
+        apply_membership_floor,
         extract_crosswalk_signals,
     )
 
@@ -210,12 +155,12 @@ def _crosswalk_merge(
     # so `trees_for` can synthesize text-only trees for phase-missing faces
     # (aftermath second halves, one split gap) off the bulk face text.
     trees = trees_for(record, bulk=record)
-    if not trees:
-        return None
-    out: list[Signal] = [s for s in regex_signals if s.key not in PORTED_KEYS]
-    seen = {(s.key, s.scope, s.subject) for s in out}
+    out: list[Signal] = []
+    seen: set[tuple[str, str, str]] = set()
 
     def _add(sig: Signal) -> None:
+        if sig.key not in PORTED_KEYS:
+            return
         ident = (sig.key, sig.scope, sig.subject)
         if ident in seen:
             return
@@ -230,55 +175,12 @@ def _crosswalk_merge(
             tree,
             keys=PORTED_KEYS,
             keywords=keywords,
-            include_membership=include_membership,
-            record=record,
             vocab=vocab,
+            all_trees=trees,
         ):
-            if sig.key in PORTED_KEYS:
-                _add(sig)
-    return out
-
-
-def extract_signals_hybrid(
-    record: dict,
-    ir: Card | None,
-    *,
-    vocab: frozenset[str] = CREATURE_SUBTYPES,
-    include_membership: bool = True,
-    resolve_object: Callable[[str], dict | None] | None = None,
-) -> list[Signal]:
-    """Dispatch each signal key to the IR or the regex path per ``MIGRATED_KEYS``.
-
-    Keys in ``MIGRATED_KEYS`` come from ``extract_signals_ir`` (the Card IR path);
-    every other key comes from ``extract_signals`` (the legacy regex path). The two
-    sets are merged and deduped by ``(key, scope, subject)``. With ``MIGRATED_KEYS``
-    empty (today) the IR contributes nothing, so the result is byte-identical to a
-    pure ``extract_signals`` call regardless of ``ir`` (including ``ir is None``).
-
-    Graceful degradation: when ``ir is None`` (the sidecar is absent / a brand-new
-    set), return the pure regex path — the IR sidecar is a new core dependency but
-    must never hard-crash production if missing. The ``extract_signals`` keyword args
-    (``vocab`` / ``include_membership`` / ``resolve_object``) are forwarded through."""
-    regex_signals = extract_signals(
-        record,
-        vocab=vocab,
-        include_membership=include_membership,
-        resolve_object=resolve_object,
-    )
-    # Merge the non-regex signal sources into ``out`` (ADR-0035 Stage-3a routes the
-    # ported keys through the crosswalk when the flag is ON; the legacy IR path
-    # otherwise). ``None`` means "no non-regex source ran" → return the pure regex
-    # set unchanged, EXACTLY as before Stage-3a (the flag-OFF byte-identity invariant).
-    out = _hybrid_merge(
-        record,
-        ir,
-        regex_signals,
-        vocab=vocab,
-        include_membership=include_membership,
-        resolve_object=resolve_object,
-    )
-    if out is None:
-        return regex_signals
+            _add(sig)
+    if include_membership:
+        apply_membership_floor(trees, record, out, _add, vocab=vocab)
     # ADR-0027 spell-copy → spellcast cross-open reconciliation: the regex
     # `extract_signals` path UNCONDITIONALLY cross-opens spellcast_matters (low) from
     # any spell_copy_makers card (a spell-copier is a spellslinger wanting a dense I/S
@@ -473,11 +375,12 @@ def rank_deck_signals(
     tuner share one ranking (ADR-0023).
 
     ``ir_for`` (ADR-0027): a per-record Card-IR resolver. When supplied, each card
-    runs through ``extract_signals_hybrid`` so migrated keys (served only from the IR)
-    surface in the deck's ranked signals / avenues — the engine wires its index here.
-    When ``None`` (the deterministic tuner's no-sidecar path), falls back to the pure
-    regex ``extract_signals`` (a migrated key whose regex producer is deleted simply
-    won't surface — graceful degradation, matching the hybrid's ``ir is None`` arm)."""
+    runs through ``extract_signals_hybrid`` so crosswalk-served keys surface in the
+    deck's ranked signals / avenues — the engine wires its index here. When ``None``
+    (the deterministic tuner's no-sidecar path — the caller never wired up an IR
+    resolver at all), falls back to the pure regex ``extract_signals`` (a
+    crosswalk-served key whose regex producer is deleted simply won't surface —
+    graceful degradation)."""
     support: dict[tuple[str, str, str], int] = {}
     from_commander: set[tuple[str, str, str]] = set()
     first: dict[tuple[str, str, str], Signal] = {}
@@ -609,18 +512,13 @@ def producible_static_keys() -> set[str]:
     ):
         keys.update(key for key, _scope in table.values())
     keys.update(_LITERAL_ADD_KEYS)
-    # ADR-0027 strangler: a migrated key's regex production is deleted, but it is
-    # still produced (from the IR path) and still needs a resolving spec — so it
-    # stays guarded by the key-agreement gate (signal_specs ADR-0014). The
-    # producer tables above no longer mention it, so union it back in explicitly.
-    keys.update(MIGRATED_KEYS)
-    # ADR-0035 Stage-3a: when the flag is ON the crosswalk becomes a key source, so
-    # union ``PORTED_KEYS`` into the gate's coverage too (lazy import — no crosswalk
-    # machinery is pulled in on the default flag-OFF import path). This is a superset
-    # no-op today (every PORTED key is already regex- or IR-produced) but keeps the
-    # gate honest if a future PORTED key has no other producer.
-    if crosswalk_enabled():
-        from mtg_utils._deck_forge.crosswalk_signals import PORTED_KEYS
+    # ADR-0039 task #80 step 6: the crosswalk (``PORTED_KEYS``) is the ONE other key
+    # source left (``extract_signals_hybrid`` no longer has a regex/legacy-IR arm),
+    # and it is a strict superset of ``MIGRATED_KEYS`` (every historically-migrated
+    # key graduated to a crosswalk-native lane), so unioning it alone keeps the gate
+    # honest — a lazy import so no crosswalk machinery loads on a bare `import
+    # signals` that never calls this function.
+    from mtg_utils._deck_forge.crosswalk_signals import PORTED_KEYS
 
-        keys.update(PORTED_KEYS)
+    keys.update(PORTED_KEYS)
     return keys - signal_keys.SUBJECT_KEYS

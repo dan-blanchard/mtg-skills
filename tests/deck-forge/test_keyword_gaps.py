@@ -12,11 +12,11 @@ logic probe (a made-up "<Type> Lord", a forced negative, a future-shape pin) wit
 real card to look up.
 """
 
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
 from mtg_utils._deck_forge.signals import (
     Signal,
     extract_signals,
-    extract_signals_hybrid,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Face
 from mtg_utils.testkit import test_card, test_signals
@@ -90,7 +90,7 @@ def _bare_ir() -> Card:
 
 
 def _keys_hybrid(card, ir=None):
-    return {s.key for s in extract_signals_hybrid(card, ir or _bare_ir())}
+    return {s.key for s in extract_signals_ir(card, ir or _bare_ir())}
 
 
 def _ir_with(*abilities: Ability, keywords: tuple[str, ...] = ()) -> Card:

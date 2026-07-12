@@ -2,23 +2,57 @@
 
 from fastapi.testclient import TestClient
 
+from mtg_utils._card_ir.crosswalk import ConceptTree
 from mtg_utils._deck_forge import _ir_lookup
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
-from mtg_utils.testkit import test_card_ir
+from mtg_utils.card_ir import Card, Face
+from mtg_utils.deck import split_type_line
+from mtg_utils.testkit import _seed_trees, test_card_ir
+
+# ADR-0039 task #80 step 6: extract_signals_hybrid is now crosswalk-only, so an
+# engine-level test needs a resolvable concept tree (Seam A), not just a
+# synthetic Card IR (Seam B) — a bare oracle_id/Card mapping alone silently
+# produces no signal now.
 
 
-def _wire_ir(monkeypatch, mapping: dict):
-    """Wire a {oracle_id: Card} IR index into the engine for the test (ADR-0027:
-    the hybrid path serves migrated keys — e.g. land_creatures_matter — only from the
-    IR, joined by oracle_id, so an engine test for a migrated avenue must supply one).
+def _text_only_tree(card: dict) -> ConceptTree:
+    """A zero-unit ``ConceptTree`` carrying only the synthetic card's own
+    whole-card metadata — the shape ``_ir_lookup``'s own W2c phase-missing-face
+    synthesis produces. Enough for the crosswalk's membership floor and its
+    "b12" whole-card text mirrors (which read ``tree.oracle`` directly), but
+    NOT for a genuinely structural lane that needs a real typed unit (a
+    trigger/effect node) — those keys need a REAL card's tree (see
+    ``_jyoti_client`` below, which seeds one from the committed snapshot via
+    ``mtg_utils.testkit``)."""
+    type_words, sub_words = split_type_line(card.get("type_line") or "")
+    return ConceptTree(
+        name=card["name"],
+        oracle_id=card["oracle_id"],
+        units=(),
+        card_types=tuple(w.capitalize() for w in type_words if w != "legendary"),
+        card_subtypes=tuple(w.capitalize() for w in sub_words),
+        card_supertypes=("Legendary",) if "legendary" in type_words else (),
+        cmc=int(card.get("cmc") or 0),
+        oracle=card.get("oracle_text") or "",
+    )
 
-    ADR-0035 Stage-4: the crosswalk flag defaults ON, so ``ir_for`` reads the
-    crosswalk index first — wire BOTH indexes to the same mapping so a synthetic
-    oracle_id resolves regardless of the flag."""
-    monkeypatch.setattr(_ir_lookup, "_index", lambda: mapping)
+
+def _wire_ir(monkeypatch, mapping: dict, cards: list[dict] = ()):
+    """Wire a {oracle_id: Card} IR index (Seam B) plus a text-only tree per
+    ``cards`` (Seam A) into the engine for the test. ``cards`` empty leaves
+    ``trees_for`` untouched — for a REAL card (e.g. Jyoti below), the caller
+    pre-seeds ``_ir_lookup``'s trees memo via ``mtg_utils.testkit`` instead,
+    so a text-only (zero-unit) tree here would shadow the real one."""
     monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: mapping)
+    if not cards:
+        return
+    trees = {c["oracle_id"]: (_text_only_tree(c),) for c in cards}
+    monkeypatch.setattr(
+        _ir_lookup,
+        "trees_for",
+        lambda card, bulk=None: trees.get(card.get("oracle_id") or "", ()),  # noqa: ARG005
+    )
 
 
 CMD = {
@@ -26,14 +60,17 @@ CMD = {
     "type_line": "Legendary Creature — Elf",
     "cmc": 4.0,
     "color_identity": ["G", "W"],
-    "oracle_text": "Whenever a creature you control enters, draw a card.",
+    # ADR-0039 task #80 step 6: artifacts_matter (not creature_etb — a genuinely
+    # structural lane needing a real typed trigger unit a synthetic text-only
+    # tree can't supply) fires from the crosswalk's whole-card text mirror with
+    # zero units, so it stays testable through a synthetic fixture. The label/
+    # search-spec assertions below check "Artifacts" accordingly; the endpoint
+    # plumbing under test (does a migrated key surface through /api/signals and
+    # /api/snapshot avenues) is unaffected by which key demonstrates it.
+    "oracle_text": "Whenever you cast an artifact spell, draw a card.",
     "prices": {"usd": "5.00"},
     "oracle_id": "etb-boss-oid",
 }
-# ADR-0027 β: creature_etb migrated to the Card IR (a byte-identical kept-mirror that
-# reads the record's reminder-stripped oracle), so the hybrid serves it ONLY from the
-# IR path. A bare Card joined by oracle_id routes the engine to the IR (the mirror then
-# reads the oracle off the record), matching the land_creatures_matter precedent.
 CMD_IR = Card(oracle_id="etb-boss-oid", name="ETB Boss", faces=(Face(name="ETB Boss"),))
 TOK = {
     "name": "Token Maker",
@@ -69,12 +106,12 @@ def _client(*, search_results=None, combos_fn=None, bulk=True):
 
 
 def test_signals_endpoint_surfaces_scoped_actionable_signal(monkeypatch):
-    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR})
+    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR}, [CMD])
     sigs = _client().get("/api/signals").json()["signals"]
-    etb = next(s for s in sigs if s["key"] == "creature_etb")
+    etb = next(s for s in sigs if s["key"] == "artifacts_matter")
     assert etb["scope"] == "you"
     assert etb["actionable"] is True
-    assert "Creatures entering" in etb["label"]
+    assert "Artifacts" in etb["label"]
 
 
 def test_presets_endpoint_lists_discoverable_presets():
@@ -130,16 +167,16 @@ def test_snapshot_includes_bracket_estimate():
 
 
 def test_snapshot_includes_live_budgets_and_signals(monkeypatch):
-    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR})
+    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR}, [CMD])
     snap = _client().get("/api/snapshot").json()
     assert snap["budgets"]["ramp"]["max"] == 12
-    assert any(s["key"] == "creature_etb" for s in snap["signals"])
+    assert any(s["key"] == "artifacts_matter" for s in snap["signals"])
 
 
 def test_snapshot_avenues_include_engine_avenue_with_search_spec(monkeypatch):
-    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR})
+    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR}, [CMD])
     snap = _client().get("/api/snapshot").json()
-    etb = next(a for a in snap["avenues"] if a["id"] == "engine:creature_etb:you")
+    etb = next(a for a in snap["avenues"] if a["id"] == "engine:artifacts_matter:you")
     assert etb["source"] == "engine"
     assert etb["label"]
     assert "oracle" in etb["search"]  # carries what to search for
@@ -186,6 +223,13 @@ JYOTI = {
 
 def _jyoti_client(monkeypatch):
     jyoti_ir = test_card_ir("Jyoti, Moag Ancient")
+    # ADR-0039 task #80 step 6: Jyoti's real land_creatures_matter / token_maker
+    # signals need REAL typed units (a synthetic zero-unit tree produces
+    # nothing for a card this structurally rich) — pre-seed the trees memo
+    # from the committed snapshot's stored phase records (the same mechanism
+    # `mtg_utils.testkit.test_signals` uses), keyed by Jyoti's real oracle_id,
+    # so the engine's own (real, unmonkeypatched) trees_for finds it.
+    _seed_trees("Jyoti, Moag Ancient")
     _wire_ir(monkeypatch, {jyoti_ir.oracle_id: jyoti_ir})
     record = dict(JYOTI, oracle_id=jyoti_ir.oracle_id)
     session = DeckSession("commander")
@@ -199,73 +243,39 @@ def _jyoti_client(monkeypatch):
     return TestClient(build_app(state))
 
 
-def _land_creature_anthem_ir(oid: str, name: str) -> Card:
-    """A pump over a Land+Creature subject — the structural land_creatures_matter
-    anthem the migrated IR path reads (ADR-0027)."""
-    return Card(
-        oracle_id=oid,
-        name=name,
-        faces=(
-            Face(
-                name=name,
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="pump",
-                                scope="you",
-                                subject=Filter(
-                                    card_types=("Creature", "Land"), controller="you"
-                                ),
-                                raw="land creatures you control get +1/+1",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-
-
 def test_avenues_deduped_when_same_spec_via_two_scopes(monkeypatch):
-    """Two cards both opening the Creature-lands avenue must resolve to one spec and
-    not produce duplicate identically-labeled avenues. ADR-0027: land_creatures_matter
-    is IR-served, so wire a structural anthem IR for each (joined by oracle_id)."""
-    _wire_ir(
-        monkeypatch,
-        {
-            "lord-a-oid": _land_creature_anthem_ir("lord-a-oid", "Lord A"),
-            "lord-b-oid": _land_creature_anthem_ir("lord-b-oid", "Lord B"),
-        },
-    )
+    """Two cards both opening the Artifacts avenue must resolve to one spec and
+    not produce duplicate identically-labeled avenues. ADR-0039 task #80 step 6:
+    artifacts_matter fires from the crosswalk's whole-card text mirror with zero
+    units, so a text-only tree per card (no structural anthem IR needed) is
+    enough to exercise the dedup path."""
+    lord_a = {
+        "name": "Lord A",
+        "type_line": "Legendary Creature",
+        "color_identity": ["G"],
+        "oracle_id": "lord-a-oid",
+        "oracle_text": "Whenever you cast an artifact spell, draw a card.",
+        "prices": {"usd": "1"},
+    }
+    lord_b = {
+        "name": "Lord B",
+        "type_line": "Creature",
+        "color_identity": ["G"],
+        "oracle_id": "lord-b-oid",
+        "oracle_text": "Artifacts you control get +1/+0.",
+        "prices": {"usd": "1"},
+    }
+    _wire_ir(monkeypatch, {}, [lord_a, lord_b])
     session = DeckSession("commander")
     session.add("Lord A", zone="commanders")
     session.add("Lord B")
-    index = {
-        "Lord A": {
-            "name": "Lord A",
-            "type_line": "Legendary Creature",
-            "color_identity": ["G"],
-            "oracle_id": "lord-a-oid",
-            "oracle_text": "Land creatures you control get +1/+1.",
-            "prices": {"usd": "1"},
-        },
-        "Lord B": {
-            "name": "Lord B",
-            "type_line": "Creature",
-            "color_identity": ["G"],
-            "oracle_id": "lord-b-oid",
-            "oracle_text": "Land creatures you control get +1/+0.",
-            "prices": {"usd": "1"},
-        },
-    }
+    index = {"Lord A": lord_a, "Lord B": lord_b}
     state = ForgeState(
         by_name=index, search_fn=lambda **_: [], session=session, bulk_available=True
     )
     avenues = TestClient(build_app(state)).get("/api/snapshot").json()["avenues"]
     labels = [a["label"] for a in avenues]
-    assert labels.count("Creature-lands") == 1, labels
+    assert labels.count("Artifacts") == 1, labels
     assert len(labels) == len(set(labels)), labels
 
 

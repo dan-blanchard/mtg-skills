@@ -8,24 +8,23 @@ For EVERY key in ``MIGRATED_KEYS``, the migration must be real and complete:
   * ``extract_signals_hybrid(card, ir)`` (the production dispatcher) DOES emit it,
     served from the Card IR path (``extract_signals_ir``).
 
-Each REAL case (``_REAL_CASES``) is a real card looked up by name from the committed
+Every case (``_REAL_CASES``) is a real card looked up by name from the committed
 snapshot (``mtg_utils.testkit``): ``test_card(name)`` is the minimal Scryfall record,
 ``test_card_ir(name)`` is the REAL projected IR (a verbatim sidecar slice). So the
 proof runs the SAME IR production parses — no hand-built ``_ir(Ability(...))`` shape
-that silently drifts from ``project_card``, and no phase / sidecar dependency in CI.
-
-A handful of cases stay synthetic on purpose (``_SYNTHETIC_CASES``): a placeholder
-mechanic with no real representative, or a key whose real record can't satisfy the
-"regex drops it" invariant because of a known residual producer / structural-recovery
-gap (each flagged with a TODO). A new migration batch adds one ``key: name`` row to
-``_REAL_CASES`` (and a ``build-card-snapshot`` run); the parametrization then guards
-it forever.
+that silently drifts from ``project_card``, and no phase / sidecar dependency in CI
+(ADR-0039 task #80 step 6: the former hand-built ``_SYNTHETIC_CASES`` table — kept
+for a handful of payoff-only split arms with no snapshot-resident card at the time —
+is gone; every one of those 9 keys now has a genuine real-card representative). A
+new migration batch adds one ``key: name`` row to ``_REAL_CASES`` (and a
+``build-card-snapshot`` run); the parametrization then guards it forever.
 """
 
 from __future__ import annotations
 
 import pytest
 
+from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signals import (
     MIGRATED_KEYS,
     extract_signals,
@@ -34,7 +33,6 @@ from mtg_utils._deck_forge.signals import (
 from mtg_utils.card_ir import (
     Ability,
     Card,
-    Condition,
     Effect,
     Face,
     Filter,
@@ -82,6 +80,7 @@ _REAL_CASES: dict[str, str] = {
     "blink_flicker": "Flickerwisp",
     "blocked_matters": "Kitsune Blademaster",
     "blood_makers": "Bloodtithe Harvester",
+    "blood_matters": "Wedding Security",
     "boast_makers": "Arni Brokenbrow",
     "boast_matters": "Birgi, God of Storytelling",
     "bounce_tempo": "Boomerang",
@@ -138,6 +137,7 @@ _REAL_CASES: dict[str, str] = {
     "damage_equal_power": "Fling",
     "damage_prevention": "Urza's Armor",
     "damage_redirect": "Cho-Manno, Revolutionary",
+    "damage_reflect": "Spiteful Sliver",
     "damage_to_opp_matters": "Deus of Calamity",
     "damage_to_you_punish": "Flameblade Angel",
     "has_dash": "Zurgo Bellstriker",
@@ -169,6 +169,7 @@ _REAL_CASES: dict[str, str] = {
     "enchantments_matter": "Tuvasa the Sunlit",
     "end_the_turn": "Obeka, Brute Chronologist",
     "energy_makers": "Aether Hub",
+    "energy_matters": "Whirler Virtuoso",
     "has_enlist": "Benalish Faithbonder",
     "entered_attacker": "Samut, Vizier of Naktamun",
     "evasion_denial": "Staff of the Ages",
@@ -199,9 +200,9 @@ _REAL_CASES: dict[str, str] = {
     "flash_grant": "Vedalken Orrery",
     # ADR-0034 _matters sweep SPLIT: the MAKER arm (flash-granter doer) is flash_makers;
     # Leyline of Anticipation is a real snapshot maker. The PAYOFF arm keeps
-    # flash_matters and rides a _SYNTHETIC_CASES fixture (no opponent-turn cast payoff
-    # card in the snapshot).
+    # flash_matters — Katara, Waterbending Master's opponent-turn cast payoff.
     "flash_makers": "Leyline of Anticipation",
+    "flash_matters": "Katara, Waterbending Master",
     "flip_self": "Nezumi Graverobber // Nighteyes the Desecrator",
     "food_makers": "Spider-Ham, Peter Porker",
     "food_matters": "Trail of Crumbs",
@@ -241,10 +242,10 @@ _REAL_CASES: dict[str, str] = {
     "keyword_tribe": "Favorable Winds",
     # ADR-0034 _matters split: the MAKER arm (place_counter ck='ki') now emits
     # ki_counter_makers — Skullmane Baku PERFORMS the ki placement. The PAYOFF
-    # arm keeps ki_counter_matters but has no snapshot-resident real card (every
-    # ki card is a self-contained Baku maker engine), so it lives in
-    # _SYNTHETIC_CASES below as a hascounters-condition fixture.
+    # arm keeps ki_counter_matters — Faithful Squire // Kaiso's Kamigawa-flip
+    # "if there are two or more ki counters" trigger condition.
     "ki_counter_makers": "Skullmane Baku",
+    "ki_counter_matters": "Faithful Squire // Kaiso, Memory of Loyalty",
     "kicked_spell_matters": "Verazol, the Split Current",
     "kill_engine": "Visara the Dreadful",
     "land_creatures_matter": "Sylvan Advocate",
@@ -314,6 +315,7 @@ _REAL_CASES: dict[str, str] = {
     "opponent_discard": "Mind Rot",
     "opponent_draw_matters": "Underworld Dreams",
     "opponent_exile_makers": "Bojuka Bog",
+    "opponent_exile_matters": "Umbris, Fear Manifest",
     "opponent_search_matters": "Ob Nixilis, Unshackled",
     "outlaw_matters": "Laughing Jasper Flint",
     "partner_background": "Astarion, the Decadent",
@@ -368,9 +370,10 @@ _REAL_CASES: dict[str, str] = {
     "starting_life_matters": "Path of Bravery",
     # _matters sweep (ADR-0034): station split. Lumen-Class Frigate is a MAKER (Station
     # keyword, Spacecraft body), so it proves the station_makers arm. The station_matters
-    # payoff arm (a card that only REFERENCES Spacecraft — Focus Fire) has no
-    # snapshot-resident card, so it rides a _SYNTHETIC_CASES fixture below.
+    # payoff arm (a card that only REFERENCES Spacecraft) is Focus Fire — its damage
+    # formula counts "creatures and/or Spacecraft you control".
     "station_makers": "Lumen-Class Frigate",
+    "station_matters": "Focus Fire",
     "stax_taxes": "Gnat Miser",
     "stickers_matter": "Aerialephant",
     "superfriends_matters": "The Chain Veil",
@@ -423,6 +426,7 @@ _REAL_CASES: dict[str, str] = {
     "trigger_doubling": "The Masamune",
     "tutor": "Demonic Tutor",
     "type_change": "Gor Muldrak, Amphinologist",
+    "type_matters": "Odric, Lunarch Marshal",
     "typed_anthem_multi": "Howlpack Resurgence",
     "typed_enters_punish": "Purphoros, God of the Forge",
     "typed_spellcast": "The First Sliver",
@@ -444,6 +448,7 @@ _REAL_CASES: dict[str, str] = {
     "voltron_makers": "Kor Outfitter",
     "voltron_matters": "Sram, Senior Edificer",
     "voting_makers": "Capital Punishment",
+    "voting_matters": "Grudge Keeper",
     "wants_cloning": "Arcum Dagsson",
     "wants_theft": "Dragonlord Silumgar",
     "waterbend_makers": "Spirit Water Revival",
@@ -453,249 +458,16 @@ _REAL_CASES: dict[str, str] = {
 }
 
 
-# Synthetic cases kept deliberately (NOT real-IR-backed). Each documents why a real
-# snapshot card can't (yet) serve as the proof.
-_SYNTHETIC_CASES: dict[str, tuple[dict, Card]] = {
-    # type_matters — a generic subtype-anthem PROBE with a placeholder name (no single
-    # canonical real card; the structural shape is what's under test). Stays synthetic
-    # per the keep-synthetic rule for placeholder-name rows.
-    "type_matters": (
-        {
-            "name": "Akroma's Devoted-like",
-            "type_line": "Enchantment",
-            "oracle_text": "Cleric creatures have vigilance.",
-        },
-        _ir(
-            Ability(
-                kind="static",
-                effects=(
-                    Effect(
-                        category="grant_keyword",
-                        scope="you",
-                        subject=Filter(
-                            card_types=("Creature",),
-                            subtypes=("Cleric",),
-                            controller="you",
-                        ),
-                        counter_kind="vigilance",
-                        raw="Cleric creatures have vigilance.",
-                    ),
-                ),
-            )
-        ),
-    ),
-    # damage_reflect — Spiteful Sliver GRANTS a quoted "whenever dealt damage, deal that
-    # much to a player" ability to your Slivers, which phase projects as a board_grant,
-    # NOT a first-class damage_reflect Effect — so the real IR does not fire the lane.
-    # TODO #24: structural board_grant damage-reflect recovery. Until then this row is a
-    # minimal synthetic fixture, not a real-IR proof.
-    # ki_counter_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm
-    # (place_counter ck='ki') was relabeled to ki_counter_makers (Skullmane
-    # Baku, a real case). The payoff arm — a card GATED on / REFERENCING a ki
-    # counter ("as long as ~ has a ki counter …", a hascounters condition) —
-    # keeps ki_counter_matters but has no snapshot-resident real card: every
-    # ki card in MTG is a self-contained Baku maker, so no "creature with a ki
-    # counter" payoff exists in the corpus. Minimal hascounters fixture proving
-    # the condition arm still serves the lane via the IR path.
-    "ki_counter_matters": (
-        {
-            "name": "Ki-Gated Sentinel-like",
-            "type_line": "Creature — Spirit",
-            "oracle_text": (
-                "As long as this creature has a ki counter on it, it gets +2/+2."
-            ),
-        },
-        _ir(
-            Ability(
-                kind="static",
-                condition=Condition(kind="hascounters", counter_kind="ki"),
-            )
-        ),
-    ),
-    # opponent_exile_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm
-    # (the graveyard-hate exile doers — Bojuka Bog, Leyline of the Void) was
-    # relabeled to opponent_exile_makers (a real case). The payoff arm — a card
-    # that REFERENCES cards opponents own standing in exile so you can play /
-    # scale off them (Umbris-style) — keeps opponent_exile_matters but has no
-    # snapshot-resident real card (the reference-alt cards aren't in the
-    # snapshot). Minimal fixture proving the reference arm still serves the lane
-    # via the IR kept-detector mirror. (Mirrors the ki_counter_matters split.)
-    "opponent_exile_matters": (
-        {
-            "name": "Opponents'-Exile Payoff-like",
-            "type_line": "Enchantment",
-            "oracle_text": "You may play cards your opponents own in exile.",
-        },
-        _ir(),
-    ),
-    # voting_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm (the
-    # vote-CREATOR cards that run a will-of-the-council / council's-dilemma vote —
-    # Capital Punishment, Expropriate, Tivit, plus the structural cat=='vote' arm)
-    # was relabeled to voting_makers (Capital Punishment, a real case). The payoff
-    # arm — a card that triggers OFF a vote without creating one ("whenever players
-    # finish voting", Grudge Keeper) — keeps voting_matters but has no
-    # snapshot-resident real card: the snapshot's only voting cards (Capital
-    # Punishment, The Valeyard) both fire the cat=='vote' maker arm. Minimal
-    # fixture proving the finish-voting payoff still serves the lane via the IR
-    # kept-detector residue mirror (`\bfinish(?:ed)? voting\b`). (Mirrors the
-    # ki_counter_matters / opponent_exile_matters splits.) CR 701.38.
-    "voting_matters": (
-        {
-            "name": "Grudge Keeper-like",
-            "type_line": "Creature — Spirit",
-            "oracle_text": (
-                "Whenever players finish voting, each opponent loses 1 life for "
-                "each vote they cast."
-            ),
-        },
-        _ir(),
-    ),
-    # station_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm (the
-    # Spacecraft/Planet bodies with the Station keyword + the chargers that put/double
-    # charge counters on a Spacecraft — Lumen-Class Frigate, Drill Too Deep, Loading
-    # Zone) was relabeled to station_makers (Lumen-Class Frigate, a real case). The
-    # payoff arm — a card that only NAMES Spacecraft to count / destroy / exile / tutor
-    # off it (Focus Fire counts Spacecraft, Embrace Oblivion / Gravkill destroy or exile
-    # one) — keeps station_matters but has no snapshot-resident real card: the snapshot's
-    # only Station cards (Lumen-Class Frigate, Hearthhull) both fire the maker arm.
-    # Minimal fixture carrying Focus Fire's REAL oracle, proving the Spacecraft-reference
-    # payoff still serves the lane via the IR partition mirror (no Station keyword, no
-    # Spacecraft type, no charge-on-Spacecraft effect). (Mirrors the voting_matters /
-    # opponent_exile_matters splits.) CR 702.184.
-    "station_matters": (
-        {
-            "name": "Focus Fire-like",
-            "type_line": "Instant",
-            "oracle_text": (
-                "Focus Fire deals X damage to target attacking or blocking "
-                "creature, where X is 2 plus the number of creatures and/or "
-                "Spacecraft you control."
-            ),
-        },
-        _ir(),
-    ),
-    # blood_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm (a
-    # Blood-subtype make_token subject — Bloodtithe Harvester, Blood Fountain)
-    # was relabeled to blood_makers (Bloodtithe Harvester, a real case). The
-    # payoff arm — a card that SACRIFICES or REFERENCES a Blood token (Wedding
-    # Security "sacrifice a Blood token", Blood Hypnotist's sacrificed trigger) —
-    # keeps blood_matters but has no snapshot-resident real card: the snapshot's
-    # only Blood card (Bloodtithe Harvester) fires the make_token maker arm.
-    # Minimal sacrifice-effect fixture proving the Blood PAYOFF still serves the
-    # lane via the IR structural arm. (Mirrors the voting_matters split.) CR
-    # 111.10g.
-    "blood_matters": (
-        {
-            "name": "Wedding Security-like",
-            "type_line": "Creature — Human Soldier",
-            "oracle_text": (
-                "Whenever this creature attacks, you may sacrifice a Blood "
-                "token. If you do, put a +1/+1 counter on this creature and "
-                "draw a card."
-            ),
-        },
-        _ir(
-            Ability(
-                kind="triggered",
-                trigger=Trigger(event="attacks", scope="you"),
-                effects=(
-                    Effect(
-                        category="sacrifice",
-                        scope="any",
-                        subject=Filter(
-                            subtypes=("Blood",),
-                            controller="you",
-                            predicates=("Token",),
-                        ),
-                        raw="you may sacrifice a Blood token",
-                    ),
-                ),
-            )
-        ),
-    ),
-    # flash_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm (the flash-
-    # GRANTER doers — the cast_with_keyword{flash} structural node + branch A of the kept
-    # mirror, "cast … as though they had flash") was relabeled to flash_makers (Leyline
-    # of Anticipation, a real case). The payoff arm — a card that TRIGGERS off casting
-    # during an opponent's turn (Alela, Artful Provocateur) — keeps flash_matters but has
-    # no snapshot-resident real card (no opponent-turn-cast payoff in the snapshot).
-    # Minimal fixture carrying the opponent-turn cast trigger, proving the PAYOFF still
-    # serves the lane via the IR kept-detector mirror (branch B). (Mirrors the
-    # voting_matters / blood_matters splits.) CR 702.8.
-    "flash_matters": (
-        {
-            "name": "Alela-like",
-            "type_line": "Legendary Creature — Faerie Wizard",
-            "oracle_text": (
-                "Whenever you cast a spell during an opponent's turn, create "
-                "a 1/1 white Faerie creature token with flying."
-            ),
-        },
-        _ir(),
-    ),
-    # energy_matters — ADR-0034 _matters split PAYOFF arm. The MAKER arm (a real
-    # `energy` Effect — the card PRODUCES energy, "you get {E}") was relabeled to
-    # energy_makers (Aether Hub, a real case). The payoff arm — project._ENERGY_REF
-    # appends a bare `{e}` marker Effect (gated to faces with no structural energy
-    # production) for the sinks / "whenever you get {E}" triggers / doublers phase
-    # loses — keeps energy_matters but has no snapshot-resident real card (the
-    # snapshot's only energy card, Aether Hub, fires the maker arm). Minimal fixture
-    # carrying the bare `{e}` marker Effect, proving the energy PAYOFF still serves
-    # the lane via the raw=='{e}' re-route. (Mirrors the station_matters / blood_
-    # matters splits.) CR 122.1.
-    "energy_matters": (
-        {
-            "name": "Energy-sink-like",
-            "type_line": "Artifact",
-            "oracle_text": "Pay {E}{E}: Draw a card.",
-        },
-        _ir(
-            Ability(
-                kind="activated",
-                effects=(Effect(category="energy", scope="you", raw="{e}"),),
-            )
-        ),
-    ),
-    "damage_reflect": (
-        {
-            "name": "Spiteful Sliver",
-            "type_line": "Creature — Sliver",
-            "oracle_text": (
-                'Sliver creatures you control have "Whenever this creature is '
-                "dealt damage, it deals that much damage to target player or "
-                'planeswalker."'
-            ),
-        },
-        _ir(
-            Ability(
-                kind="spell",
-                effects=(
-                    Effect(
-                        category="damage_reflect",
-                        scope="you",
-                        raw=(
-                            'Sliver creatures you control have "Whenever this '
-                            "creature is dealt damage, it deals that much damage "
-                            "to target player or planeswalker"
-                        ),
-                    ),
-                ),
-            )
-        ),
-    ),
-}
-
-
 def test_every_migrated_key_has_a_case():
-    """No migrated key may be left unproven: the case tables must exactly cover the
-    manifest, with no key claimed by both."""
-    overlap = set(_REAL_CASES) & set(_SYNTHETIC_CASES)
-    assert not overlap, f"keys in both case tables: {overlap}"
-    covered = set(_REAL_CASES) | set(_SYNTHETIC_CASES)
-    assert covered == set(MIGRATED_KEYS), (
+    """No migrated key may be left unproven: ``_REAL_CASES`` must exactly cover the
+    manifest (ADR-0039 task #80 step 6: every key that used to need a hand-built
+    ``_SYNTHETIC_CASES`` fixture — a payoff-only split arm with no snapshot-resident
+    card at the time — now has a real one; see this file's git history for the
+    former synthetic table)."""
+    assert set(_REAL_CASES) == set(MIGRATED_KEYS), (
         "every key in MIGRATED_KEYS needs a representative case "
-        f"(missing: {sorted(set(MIGRATED_KEYS) - covered)}, "
-        f"extra: {sorted(covered - set(MIGRATED_KEYS))})"
+        f"(missing: {sorted(set(MIGRATED_KEYS) - set(_REAL_CASES))}, "
+        f"extra: {sorted(set(_REAL_CASES) - set(MIGRATED_KEYS))})"
     )
 
 
@@ -703,15 +475,12 @@ def test_every_migrated_key_has_a_case():
 def test_migrated_key_left_regex_and_is_ir_served(key):
     """Regex path drops the key; the hybrid (IR) path serves it.
 
-    Real cases load the card + its REAL projected IR from the committed snapshot, so
-    the proof runs the same IR ``project_card`` produces (no synthetic-IR drift). The
-    few ``_SYNTHETIC_CASES`` keep a hand-built IR deliberately (see that table)."""
-    if key in _REAL_CASES:
-        name = _REAL_CASES[key]
-        card = test_card(name)
-        ir = test_card_ir(name)
-    else:
-        card, ir = _SYNTHETIC_CASES[key]
+    Every case loads the card + its REAL projected IR from the committed snapshot,
+    so the proof runs the same IR ``project_card`` produces (no synthetic-IR
+    drift)."""
+    name = _REAL_CASES[key]
+    card = test_card(name)
+    ir = test_card_ir(name)
     regex_keys = {s.key for s in extract_signals(card)}
     hybrid_keys = {s.key for s in extract_signals_hybrid(card, ir)}
     assert key not in regex_keys, f"{key} still emitted by the legacy regex path"
@@ -754,7 +523,7 @@ def test_extra_combats_restriction_fold_fires_via_ir():
         )
     )
     assert "extra_combats" not in {s.key for s in extract_signals(card)}
-    assert "extra_combats" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "extra_combats" in {s.key for s in extract_signals_ir(card, ir)}
 
 
 # ── ADR-0027 #24m F1 — forced_attack → extra_combats re-route correction ──────
@@ -906,7 +675,7 @@ def test_creatures_matter_mass_grant_fires_via_ir():
         )
     )
     assert "creatures_matter" not in {s.key for s in extract_signals(card)}
-    assert "creatures_matter" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "creatures_matter" in {s.key for s in extract_signals_ir(card, ir)}
 
 
 def test_creatures_matter_does_not_fire_on_a_subtype_lord():
@@ -971,7 +740,7 @@ def test_blood_matters_fires_from_a_sacrifice_effect_subject():
         )
     )
     assert "blood_matters" not in {s.key for s in extract_signals(card)}
-    assert "blood_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "blood_matters" in {s.key for s in extract_signals_ir(card, ir)}
 
 
 def test_blood_matters_fires_from_a_sacrificed_trigger_subject():
@@ -1003,7 +772,7 @@ def test_blood_matters_fires_from_a_sacrificed_trigger_subject():
         )
     )
     assert "blood_matters" not in {s.key for s in extract_signals(card)}
-    assert "blood_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "blood_matters" in {s.key for s in extract_signals_ir(card, ir)}
 
 
 def test_blood_makers_fires_from_a_recovered_choice_list_maker():
@@ -1049,7 +818,7 @@ def test_blood_makers_fires_from_a_recovered_choice_list_maker():
             ),
         )
     )
-    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    keys = {s.key for s in extract_signals_ir(card, ir)}
     assert "blood_makers" in keys
     # the generalized recovery also opens clue/food (all three are now ADR-0027-migrated,
     # IR-served — the structural make_token MAKER recovery is general, which proves the
@@ -1096,7 +865,7 @@ def test_blood_makers_fires_from_a_recovered_granted_ability_maker():
             ),
         )
     )
-    assert "blood_makers" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "blood_makers" in {s.key for s in extract_signals_ir(card, ir)}
 
 
 # ── spellcast_matters (ADR-0027 signals-only) — scope discrimination + recovery ──
@@ -1123,7 +892,7 @@ def test_spellcast_matters_does_not_fire_on_opponent_cast():
             effects=(Effect(category="draw", scope="you"),),
         )
     )
-    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    keys = {s.key for s in extract_signals_ir(card, ir)}
     assert "spellcast_matters" not in keys
     assert "opponent_cast_matters" in keys
 
@@ -1165,7 +934,7 @@ def test_spellcast_matters_fires_on_prowess_keyword():
         "keywords": ["Flying", "Prowess"],
     }
     ir = _ir(keywords=("Prowess",))
-    assert "spellcast_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "spellcast_matters" in {s.key for s in extract_signals_ir(card, ir)}
 
 
 def test_spellcast_matters_fires_from_kept_mirror_cost_reducer():
@@ -1182,7 +951,7 @@ def test_spellcast_matters_fires_from_kept_mirror_cost_reducer():
     }
     # IR carries NO cast_spell trigger (a static cost reduction) — proves the mirror.
     ir = _ir(Ability(kind="static", effects=(Effect(category="cost_reduction"),)))
-    assert "spellcast_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "spellcast_matters" in {s.key for s in extract_signals_ir(card, ir)}
 
 
 def test_dies_recursion_self_return_fires_via_recovered_marker():
