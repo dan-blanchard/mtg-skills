@@ -1,6 +1,5 @@
 """Tests for transparent multi-axis candidate ranking (D6)."""
 
-from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
 from mtg_utils._deck_forge.ranking import (
     _ability_is_payoff,
     _clause_role,
@@ -559,16 +558,50 @@ def test_ir_path_does_not_scramble_ranked_order():
     # The real death-payoff outscores the incidental token-equipment (the crux),
     # exactly as the regex path does — the IR clusters by structured ability.
     #
-    # ADR-0039 step 5 finding: on the crosswalk (flag-ON default) compat Card,
-    # Bastion's "dies" trigger effects (lose_life / gain_life) both carry
-    # scope='you' — the crosswalk's per-effect scope derivation doesn't yet split
-    # the "each OPPONENT loses life, YOU gain life" punisher/drain shape the way
-    # project.py's symmetric-scope recovery (SIDECAR v21/v22) does, so the
-    # aristocrats scorer no longer recognizes the drain payoff as an opponent-
-    # facing effect. This is a real, disclosed compat-adapter scope-derivation
-    # gap (not a testkit issue) — out of ADR-0039 step 5's scope to close; left
-    # for the crosswalk migration. Flag-OFF (project.py) is unaffected.
-    if crosswalk_enabled():
-        assert bastion <= elven_bow
-    else:
-        assert bastion > elven_bow
+    # ADR-0039 step 5.5 fix: the ACTUAL mechanism was Effect.raw, not
+    # Effect.scope (ranking.py never reads .scope at all — grep-verified).
+    # Bastion's "dies" trigger chains a LoseLife effect (direct child of the
+    # trigger's execute wrapper) with a GainLife effect reached via
+    # sub_ability; NEITHER node carries its own `description` — only the
+    # owning TRIGGER does ("Whenever a creature you control dies, each
+    # opponent loses 1 life and you gain 1 life.") — so both effects'
+    # Effect.raw was empty, `ranking._ir_payoff_raws` skipped them (it only
+    # appends a NON-empty raw), and the "dies" clause fell back to "enabler"
+    # instead of "payoff". _card_ir.compat._unit_raw now threads the owning
+    # ability/trigger's own description down to any effect whose own node
+    # carries none, mirroring project.py's `_collect_effects(node,
+    # default_raw)` recursion exactly. (Effect.scope for this shape was ALSO
+    # tightened to match project.py's own "any" default for an unresolved
+    # lose_life/gain_life recipient — a real but separately-measured fidelity
+    # gap that turned out not to move this particular test either way, since
+    # ranking.py is scope-blind.)
+    assert bastion > elven_bow
+
+
+def test_bastion_drain_raw_and_scope_match_legacy_shape():
+    # Field-level pin for the ADR-0039 step 5.5 fix (see the test above for
+    # the consumer-visible symptom this closes). Bastion of Remembrance's
+    # "dies" trigger: "Whenever a creature you control dies, each opponent
+    # loses 1 life and you gain 1 life." — a LoseLife effect chained to a
+    # GainLife via sub_ability, neither carrying its own description.
+    ir = test_card_ir("Bastion of Remembrance")
+    dies_effects = [
+        e
+        for ab in ir.all_abilities()
+        if ab.trigger is not None and ab.trigger.event == "dies"
+        for e in ab.effects
+    ]
+    cats = {e.category for e in dies_effects}
+    assert cats == {"lose_life", "gain_life"}
+    # raw: threaded from the owning trigger's own description (project.py's
+    # _collect_effects(node, default_raw) precedent) — no longer empty.
+    for e in dies_effects:
+        assert e.raw
+        assert "each opponent loses 1 life" in e.raw
+    # scope: matches project.py's OWN read for this exact shape ("any" on
+    # both sides — project.py never resolves the opponent/you direction for
+    # a LoseLife/GainLife pair chained this way either; verified against
+    # test_legacy_card_ir("Bastion of Remembrance") separately), never the
+    # generic crosswalk "you" default a bare drain/punisher payoff would
+    # otherwise get.
+    assert {e.scope for e in dies_effects} == {"any"}

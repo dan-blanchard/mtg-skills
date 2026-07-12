@@ -139,6 +139,30 @@ def test_mass_marker_and_scope_wrath_of_god():
     assert effects[0].scope == "each"
 
 
+def test_dynamic_pump_magnitude_keeps_sign():
+    # ADR-0039 step 5.5 fix: Toxic Deluge's "-X/-X" (scaled by life paid) is
+    # a Variable power/toughness node, not Fixed — _pump_pt now keeps its
+    # SIGN (Quantity(op="variable", factor=-1)) instead of dropping to
+    # None, matching project.py's _pump_toughness/_signed_pt_mod.
+    effects = [e for e in _effects(_compat("Toxic Deluge")) if e.category == "pump"]
+    assert effects
+    tuf = effects[0].toughness
+    assert tuf is not None
+    assert (tuf.op, tuf.factor) == ("variable", -1)
+
+
+def test_damage_each_player_scope_reads_player_filter():
+    # ADR-0039 step 5.5 fix: a DamageEachPlayer node carries NO
+    # target/player/owner/recipient/valid_target field at all (only
+    # player_filter), which the generic recipient-field scan never read,
+    # so it defaulted to "you" — misreading Brazen Dwarf's "deals 1 damage
+    # to each opponent" as SELF-damage. Matches project.py's own read
+    # (verified against project_card: scope="opp").
+    effects = [e for e in _effects(_compat("Brazen Dwarf")) if e.category == "damage"]
+    assert effects
+    assert effects[0].scope == "opp"
+
+
 def test_graveyard_zone_on_raise_dead_bounce():
     effects = [e for e in _effects(_compat("Raise Dead")) if e.category == "bounce"]
     assert effects
@@ -152,11 +176,33 @@ def test_pump_mass_vs_target_split():
     tuf = languish[0].toughness
     assert tuf is not None
     assert (tuf.op, tuf.factor) == ("fixed", -4)
-    # Bile Blight targets a CLASS filter (each creature with that name) — mass.
-    bile = [e for e in _effects(_compat("Bile Blight")) if e.category == "pump"]
+    # ADR-0039 step 5.5 fix: single-vs-mass routes on the effect TAG alone
+    # (PumpAll = mass, plain Pump = pump_target), matching project.py's
+    # own tag-only ``_EFFECT_CATEGORY`` row exactly. Bile Blight ("Target
+    # creature and all other creatures with the same name as that
+    # creature get -3/-3") carries a plain "Pump" tag — its Typed target
+    # is the SAME shape a genuine single "target creature" pump uses
+    # (Giant Growth), which the OLD ``tag_of(target) in ("Typed", "Or",
+    # "And")`` heuristic wrongly read as "mass" (corpus-measured: every
+    # Typed-target Pump instance sampled, Bile Blight included, names
+    # "target" in its own oracle text — none are a genuine no-target mass
+    # anthem, which project as a SEPARATE static-role modification
+    # instead — Overrun never even reaches this branch). Bile Blight is
+    # now pump_target, matching legacy; its -3 toughness still carries.
+    bile = [e for e in _effects(_compat("Bile Blight")) if e.category == "pump_target"]
     assert bile
     assert bile[0].toughness is not None
     assert bile[0].toughness.factor == -3
+    assert not [e for e in _effects(_compat("Bile Blight")) if e.category == "pump"]
+    # Giant Growth ("Target creature gets +3/+3") is the textbook single
+    # target — ALSO a Typed target, ALSO now pump_target (was misrouted to
+    # the mass "pump" bucket pre-fix even though its buff sign never
+    # tripped budgets._ir_board_wipe's debuff-only gate).
+    giant_growth = [
+        e for e in _effects(_compat("Giant Growth")) if e.category == "pump_target"
+    ]
+    assert giant_growth
+    assert not [e for e in _effects(_compat("Giant Growth")) if e.category == "pump"]
 
 
 def test_unported_effect_degrades_to_other_and_is_tallied():

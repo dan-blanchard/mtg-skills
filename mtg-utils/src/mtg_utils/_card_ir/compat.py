@@ -40,6 +40,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     change_zone_dirs,
     effect_filter,
+    explicit_recipient_scope,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
@@ -463,13 +464,38 @@ def _zones(cnode: ConceptNode) -> tuple[str, ...]:
     return tuple(out)
 
 
+def _pt_sign(node: TypedMirrorNode) -> int:
+    """Sign (-1 / 0 / +1) of a ``Variable`` power/toughness modifier node,
+    read off its leading ``"+"``/``"-"`` magnitude string (Toxic Deluge's
+    ``-X``, Grim Hireling's ``-X`` — corpus-measured, the only 4 ``Variable``
+    instances over the crosswalk fixture, both negative). Mirrors
+    project.py's ``_toughness_sign`` ``variable`` arm exactly (CR 613.4c)."""
+    v = getattr(node, "value", None)
+    if isinstance(v, str):
+        s = v.lstrip()
+        return -1 if s.startswith("-") else (1 if s else 0)
+    return 0
+
+
 def _pump_pt(
     node: TypedMirrorNode, cov: CompatCoverage
 ) -> tuple[Quantity | None, Quantity | None]:
-    """(amount=power, toughness) of a Pump/PumpAll effect, fixed values only.
+    """(amount=power, toughness) of a Pump/PumpAll effect.
 
-    A dynamic "-X/-X" has no fixed sign the adapter can read without guessing;
-    it stays ``None`` and is tallied as ``gap:pump_dynamic_pt``.
+    A ``Fixed`` value keeps its full signed magnitude (Giant Growth +3,
+    Tragic Slip -1, a static -2). A ``Variable`` value (Toxic Deluge's
+    "-X/-X", scaled by life paid at cast time) has no fixed magnitude the
+    adapter can project without guessing, but its SIGN is real and load-
+    bearing — CR 613.4c: a mass "-X/-X" can still kill regardless of X's
+    eventual value (``budgets._ir_board_wipe``'s gate only checks
+    ``factor < 0``). Kept as ``Quantity(op="variable", factor=+-1)``, the
+    SAME shape project.py's ``_pump_toughness``/``_signed_pt_mod`` gives a
+    dynamic pump toughness (SIDECAR v74's own contract). A ``Quantity``-
+    wrapped scaling operand (a Ref/ObjectCount/Devotion count — corpus-
+    measured 48 instances over the crosswalk fixture, ALL positive scaling
+    anthems with no sign field on the current typed substrate) stays
+    ``None``, tallied ``gap:pump_dynamic_pt`` — an honest miss, not a
+    guessed sign, until a genuine negative ``Quantity`` shape is measured.
     """
     out: list[Quantity | None] = []
     for fname in ("power", "toughness"):
@@ -478,8 +504,16 @@ def _pump_pt(
             out.append(None)
             continue
         v = getattr(sub, "value", None)
-        if tag_of(sub) == "Fixed" and isinstance(v, int):
+        tag = tag_of(sub)
+        if tag == "Fixed" and isinstance(v, int):
             out.append(Quantity(op="fixed", factor=v))
+        elif tag == "Variable":
+            sign = _pt_sign(sub)
+            if sign == 0:
+                cov.unported["gap:pump_dynamic_pt"] += 1
+                out.append(None)
+            else:
+                out.append(Quantity(op="variable", factor=sign))
         else:
             cov.unported["gap:pump_dynamic_pt"] += 1
             out.append(None)
@@ -509,10 +543,38 @@ def _effect_category(cnode: ConceptNode, cov: CompatCoverage) -> str:
       ``concept:change_zone`` miss, not a guess — the measured-indecisive
       pairs are None→battlefield (exile 35% / reanimate 28%), exile→
       battlefield (exile 66%), None→library (shuffle 82%).
-    * ``pump`` routes single-vs-class on the target node: a ``PumpAll`` or a
-      class-filter target (``Typed``/``Or``/``And`` — Languish, Overrun,
-      Bile Blight) is the mass ``pump``; a specific-object target
-      (ParentTarget — "target creature gets -3/-3") is ``pump_target``.
+    * ``pump`` routes single-vs-mass on the effect TAG alone (ADR-0039 step
+      5.5 fix — matches project.py's own tag-only ``_EFFECT_CATEGORY`` row
+      exactly: ``"pump": "pump_target"``, ``"pumpall": "pump"``):
+      ``PumpAll`` is the mass ``pump``; a plain ``Pump`` is ``pump_target``,
+      REGARDLESS of its target node's own shape. The target's tag
+      (``Typed``/``Or``/``And`` vs ``ParentTarget``) carries NO single-vs-
+      mass signal (CR 601.2c: a "target" restriction just names WHICH
+      objects are legal to choose — a type/controller filter, same as a
+      non-targeted "creatures you control" reference — never how MANY get
+      chosen; that's the tag alone) — corpus-measured over 32 non-SelfRef/
+      TriggeringSource ``Pump`` targets in the crosswalk fixture: Giant
+      Growth ("Target creature gets +3/+3"), Raging Battle Mouse /
+      Neighborhood Guardian / Kang Dynasty ("target creature you control
+      gets …"), and even Bile
+      Blight ("Target creature and all other creatures with the same name
+      …") ALL carry a ``Typed`` target — the SAME shape as a genuine mass
+      anthem would, because a type-restricted SINGLE target ("target X")
+      and a type-FILTERED population reference serialize identically at
+      this field. Every one of the 30 ``Typed``-target ``Pump`` instances
+      sampled names "target" in its own oracle text (0 false "no target
+      word" hits). A GENUINE static mass anthem (Overrun) doesn't even
+      reach this branch — it projects as a ``static``-role ``AddPower``/
+      ``AddToughness`` modification (:func:`_static_effect`), a completely
+      separate code path with its own subject-filter scope, no pump/
+      pump_target split needed. The previous ``tag_of(target) in ("Typed",
+      "Or", "And")`` heuristic collapsed EVERY one of these single-target
+      shapes into the mass ``pump`` category, which tripped
+      ``budgets._ir_board_wipe``'s mass-shrink gate on a plain single-
+      target ``-N/-N`` removal spell (Tragic Slip's base clause) — a false
+      positive a live spot-check confirmed (``_ir_board_wipe`` returned
+      True for Tragic Slip pre-fix, False post-fix, matching Giant Growth's
+      un-tripped read either way since its toughness is positive).
     * ``tap_untap`` routes on ``SetTapState.state``: Untap = ``untap``
       (measured 99% x44.1); Tap stays a miss (old ``tap`` presence 49% —
       the old projection categorized only some tap forms, via markers).
@@ -559,9 +621,7 @@ def _effect_category(cnode: ConceptNode, cov: CompatCoverage) -> str:
         cov.unported["concept:change_zone"] += 1
         return "other"
     if cnode.concept == "pump":
-        target = getattr(cnode.node, "target", MISSING)
-        mass = tag.endswith("All") or tag_of(target) in ("Typed", "Or", "And")
-        cat = "pump" if mass else "pump_target"
+        cat = "pump" if tag.endswith("All") else "pump_target"
         cov.ported[cat] += 1
         return cat
     if cnode.concept == "tap_untap":
@@ -602,8 +662,54 @@ def _effect_category(cnode: ConceptNode, cov: CompatCoverage) -> str:
     return cat
 
 
-def _effect(cnode: ConceptNode, cov: CompatCoverage) -> Effect:
-    """One role=effect concept-node → the minimal old-IR Effect."""
+# player_filter tag (DamageEachPlayer ALWAYS carries one; DamageAll
+# optionally) -> old-IR scope, for a damage effect's opponent-count
+# multiplier (cut_check._ir_base_value). CR 120.1 / 102.1.
+_DAMAGE_PLAYER_FILTER_SCOPE: dict[str, str] = {
+    "All": "each",
+    "Opponent": "opponents",
+    "OpponentOtherThanTriggering": "opponents",
+}
+
+
+def _damage_scope(node: TypedMirrorNode, fallback: str) -> str:
+    """The old-IR scope of a ``damage`` effect, preferring the node's own
+    ``player_filter`` over the generic recipient-field default.
+
+    ``T_effect__DamageEachPlayer`` ALWAYS carries a ``player_filter`` and
+    has NO ``target``/``player``/``owner``/``recipient``/``valid_target``
+    field at all — the generic scope derivation
+    (:func:`~mtg_utils._card_ir.crosswalk._effect_scope`) never reads
+    ``player_filter``, so every ``DamageEachPlayer`` defaulted to its
+    bottom-fallback "you", misreading an opponent-facing mass damage
+    effect as SELF-damage (Brazen Dwarf: "deals 1 damage to each
+    opponent"). Mirrors project.py's own field-priority order
+    (``player_filter``/``player_scope`` checked BEFORE ``target``) —
+    corpus-verified against the LEGACY oracle: Brazen Dwarf / Brimstone
+    Vandal / Blood for the Blood God! (all ``DamageEachPlayer``,
+    ``player_filter=Opponent``) all give ``scope="opp"`` under
+    project.py. ``DamageAll`` already resolves correctly off its own
+    ``target`` field in the common case (Barrage of Boulders → opp,
+    Blasphemous Act → each) — this only overrides when ``player_filter``
+    is explicitly present, matching legacy's field-priority order without
+    disturbing the already-correct ``target``-only reads.
+    """
+    pf = getattr(node, "player_filter", MISSING)
+    if _present(pf):
+        sc = _DAMAGE_PLAYER_FILTER_SCOPE.get(tag_of(pf) or "")
+        if sc is not None:
+            return _SCOPE.get(sc, "any")
+    return fallback
+
+
+def _effect(cnode: ConceptNode, cov: CompatCoverage, unit_raw: str = "") -> Effect:
+    """One role=effect concept-node → the minimal old-IR Effect.
+
+    ``unit_raw`` is the OWNING ability/trigger's own grounding text (see
+    :func:`_unit_raw`) — the fallback for a chained effect (a GainLife
+    reached via ``sub_ability``) whose own node carries no ``description``
+    of its own.
+    """
     category = _effect_category(cnode, cov)
     node = cnode.node
     amount = _amount(node)
@@ -611,13 +717,34 @@ def _effect(cnode: ConceptNode, cov: CompatCoverage) -> Effect:
     if category in ("pump", "pump_target"):
         amount, toughness = _pump_pt(node, cov)
     tag = tag_of(node) or ""
+    scope = _SCOPE.get(cnode.scope, "any")
+    if category == "damage":
+        scope = _damage_scope(node, scope)
+    elif (
+        category in ("lose_life", "gain_life")
+        and explicit_recipient_scope(node) is None
+    ):
+        # No recipient of its own (Bastion of Remembrance's "each opponent
+        # loses 1 life and you gain 1 life" chain — the LoseLife's
+        # direction lives on the WRAPPING ability's player_scope, and the
+        # chained GainLife's on nothing at all; neither the generic
+        # crosswalk scope-derivation nor project.py's own _effect_scope
+        # reads that wrapper field for this concept). project.py's own
+        # read for this exact shape falls all the way through to its
+        # "any" bottom default (verified: Bastion of Remembrance / Blood
+        # Artist / Sanguine Bond / Kokusho, the Evening Star / Gray
+        # Merchant of Asphodel all give scope="any" under project.py,
+        # never "opp"/"you") — match that instead of the generic
+        # crosswalk default of "you", which would misread a drain/
+        # punisher payoff as a self-only loss/gain. CR 119.3.
+        scope = "any"
     return Effect(
         category=category,
         amount=amount,
         toughness=toughness,
-        scope=_SCOPE.get(cnode.scope, "any"),
+        scope=scope,
         subject=_subject(cnode),
-        raw=cnode.raw,
+        raw=cnode.raw or unit_raw,
         counter_kind="all" if tag.endswith("All") else "",
         zones=_zones(cnode),
     )
@@ -716,6 +843,34 @@ def _ability_kind(unit: AbilityUnit) -> str:
     return _ABILITY_KIND.get(kind, kind.lower() or "static")
 
 
+def _unit_raw(unit: AbilityUnit) -> str:
+    """The unit's own top-level grounding text — its ability/trigger node's
+    ``description`` — the ANCESTOR-LEVEL fallback for a chained effect
+    whose own node carries none of its own (a GainLife reached via
+    ``sub_ability`` under a LoseLife's ``execute`` wrapper: Bastion of
+    Remembrance's "each opponent loses 1 life and you gain 1 life" — the
+    text lives on the TRIGGER, not on either nested effect node).
+
+    Mirrors project.py's ``_collect_effects(node, default_raw)`` recursion,
+    which threads the OWNING ability/trigger's own ``description`` down
+    through every effect in the chain that carries none of its own
+    (``_collect_effects(tr.get("execute"), tr.get("description") or "")``
+    for a trigger unit — ``unit.node`` IS ``trig`` for a trigger-origin
+    unit, matching this seed exactly; ``_collect_effects(ab, ab.get(
+    "description") or "")`` for an activated/spell ability — ``unit.node``
+    IS ``ab`` there too).
+
+    COMPAT-ONLY: :class:`~mtg_utils._card_ir.crosswalk.ConceptNode`'s own
+    ``raw`` field stays node-local and untouched — crosswalk_signals.py
+    documents (and several lanes rely on) ``c.raw`` staying empty for a
+    node with no ``description`` of its own. This only widens what old-IR
+    ``Effect.raw`` falls back to (:func:`_effect`'s ``unit_raw`` param)
+    when the concept-node's own raw is empty; a real ``raw`` still wins.
+    """
+    desc = getattr(unit.node, "description", None)
+    return desc if isinstance(desc, str) else ""
+
+
 def _ability(unit: AbilityUnit, cov: CompatCoverage) -> Ability:
     """One AbilityUnit → the minimal old-IR Ability.
 
@@ -724,7 +879,8 @@ def _ability(unit: AbilityUnit, cov: CompatCoverage) -> Ability:
     ability's modifications into its ``effects``). Costs are excluded — the
     old IR carries an activation cost as a string, never as an Effect.
     """
-    effects = [_effect(c, cov) for c in unit.effects]
+    unit_raw = _unit_raw(unit)
+    effects = [_effect(c, cov, unit_raw) for c in unit.effects]
     effects.extend(_static_effect(c, cov) for c in unit.statics)
     kind = _ability_kind(unit)
     return Ability(
