@@ -1724,8 +1724,16 @@ PORTED_KEYS: frozenset[str] = frozenset(
 # plus_one_tetravus_removecounter_token_pair) plus one
 # re-adjudication (Winged Hive Tyrant folds into the existing
 # kind-mismatch shed class — its static-parse-failure residue text
-# is kind-agnostic, no "+1/+1" anywhere on the card). See
-# :func:`_plus_one_matters`'s own docstring for the full history.
+# is kind-agnostic, no "+1/+1" anywhere on the card). Grammar sprint
+# task #82 (2026-07-12) GRADUATED 3 of the 5: Rumbling Ruin /
+# Deepwood Denizen off recovered-node arms (``clause_grammar``'s
+# ``count_operand`` / ``counter_cost_reduction`` tokens +
+# ``recovery.ALLOWLIST``) and Tetravus off a fully-typed
+# RemoveCounter/Token pairing arm — all inline in
+# :func:`_plus_one_matters` now, no bridge lookup. Rock Hydra and
+# Hierophant Bio-Titan stay bridges (both need an upstream phase
+# bump). See :func:`_plus_one_matters`'s own docstring for the full
+# history.
 # ramp PROMOTED (ADR-0039 W7, 2026-07-12): both 1636 -> 1668,
 # live_only 32 -> 0, cw_only=3 unchanged (pre-existing "additional
 # cost: sacrifice a land" cast-cost gains). Four structural closers
@@ -6424,22 +6432,26 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
       correctly excluded) / 8 unrelated power-toughness-comparison text.
 
     ADR-0039 W8 (2026-07-12) closes all 6 of the W6 endgame's genuinely-
-    unclosed tail via 5 LEDGERED BRIDGES (Rock Hydra, Rumbling Ruin,
-    Deepwood Denizen, Hierophant Bio-Titan, Tetravus — see the bridge
-    block at the end of this function) and re-adjudicates the 6th (Winged
-    Hive Tyrant) as a NEW member of the kind-mismatch shed class below —
-    its static parser ALSO fails the whole line, but the residue text is
-    "creatures ... with counters on them" (no "+1/+1" anywhere on the
-    card), the SAME kind-agnostic ``_P1P1_HAVE_REF`` regex branch already
-    adjudicated as an over-fire (The Swarmlord / Yathan Tombguard) — a
-    corpus-scoped bridge correctly does NOT fire on it. No sibling lane
-    fires either (any_counter_matters hits the SAME structural gap — the
-    whole line is an unreadable residue, not a kind-specific one — out of
-    scope for a bridge this narrowly P1P1-scoped; a correct shed, not a
-    mis-routed member). **Key PROMOTED** (removed from
-    ``_STAGE4_RESIDUAL``): live_only now decomposes EXACTLY into
-    adjudicated, CR-grounded, negative-pinned shed classes plus the 5
-    bridge-served singletons — no unclosed tail remains.
+    unclosed tail: 2 stay LEDGERED BRIDGES (Rock Hydra, Hierophant
+    Bio-Titan — see the bridge block at the end of this function), 3
+    graduated to structural/recovered-node arms this sprint (task #82:
+    Rumbling Ruin / Deepwood Denizen via ``recovered_by``-gated arms,
+    Tetravus via a fully-typed RemoveCounter/Token pairing arm — all
+    three inline above, no bridge lookup), and the 6th (Winged Hive
+    Tyrant) is re-adjudicated as a NEW member of the kind-mismatch shed
+    class below — its static parser ALSO fails the whole line, but the
+    residue text is "creatures ... with counters on them" (no "+1/+1"
+    anywhere on the card), the SAME kind-agnostic ``_P1P1_HAVE_REF``
+    regex branch already adjudicated as an over-fire (The Swarmlord /
+    Yathan Tombguard) — a corpus-scoped bridge correctly does NOT fire
+    on it. No sibling lane fires either (any_counter_matters hits the
+    SAME structural gap — the whole line is an unreadable residue, not
+    a kind-specific one — out of scope for a bridge this narrowly
+    P1P1-scoped; a correct shed, not a mis-routed member). **Key
+    PROMOTED** (removed from ``_STAGE4_RESIDUAL``): live_only now
+    decomposes EXACTLY into adjudicated, CR-grounded, negative-pinned
+    shed classes plus the 2 bridge-served + 3 structurally-served
+    singletons — no unclosed tail remains.
 
     * **~246 cards — counter_added TRIGGER, kind other than P1P1** (Saga/Plan/
       hour/M1M1/kindless placement triggers, CR 122.1 vs CR 714.2b) — the
@@ -6473,18 +6485,24 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
     * **1 card — EQ-0 "no counters" predicate** (Hindervines): the inverse of
       a counter-caring payoff; :func:`counter_pred_kinds` deliberately
       excludes it corpus-wide (shared by every counter lane).
-    * **5 cards — served by ledgered bridges, ADR-0039 W8**: Rock Hydra
+    * **2 cards — served by ledgered bridges, ADR-0039 W8**: Rock Hydra
       (``upstream_parse_failure`` — the WHOLE damage-prevention-replacement
-      line fails phase's static parser); Rumbling Ruin / Deepwood Denizen
-      (``grammar_straggler`` — our OWN clause grammar already names the
-      Unimplemented token, recovery.py's allowlist just doesn't map the
-      verb yet); Hierophant Bio-Titan (``dropped_clause`` — a
-      ``ModifyCost.dynamic_count=PreviousEffectAmount`` scaler carries NO
-      counter-kind field in phase's own encoding); Tetravus
-      (``grammar_straggler`` — a P1P1 ``RemoveCounter`` EFFECT paired with
-      a Token count Ref'd to the same removed amount, a counter-to-token
-      CONVERSION idiom distinct from the 38-card self-shrink/drain sibling
-      class a corpus check confirmed correctly stays unserved).
+      line fails phase's static parser); Hierophant Bio-Titan
+      (``dropped_clause`` — a ``ModifyCost.dynamic_count=
+      PreviousEffectAmount`` scaler carries NO counter-kind field in
+      phase's own encoding).
+    * **3 cards — served structurally, grammar sprint task #82**: Rumbling
+      Ruin / Deepwood Denizen — ``clause_grammar``'s ``count_operand`` /
+      ``counter_cost_reduction`` verbs + ``recovery.ALLOWLIST`` re-decorate
+      the Unimplemented residue, read here via a ``recovered_by``-gated
+      arm (kind-checked on the raw, same precedent as "draw"/"discard"/
+      "damage"); Tetravus — a fully-typed P1P1 ``RemoveCounter`` EFFECT
+      paired with a Token count Ref'd to the same removed amount, a
+      counter-to-token CONVERSION idiom read via a dedicated pairing arm
+      (narrowly scoped: a corpus check found 39 commander-legal cards
+      carry a P1P1 RemoveCounter EFFECT node outside any activation cost,
+      but 38 of them pair with no scaled Token effect and correctly stay
+      unserved).
 
     The raw-``"+1/+1 counter"`` idiom arms stay ``live_only`` raw-fold mirrors. Scope
     "you".
@@ -6648,6 +6666,56 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
         for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
             if tag_of(leaf) == "RemoveCounter" and counter_kind_any(leaf) == "P1P1":
                 return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
+        # ADR-0039 W8 grammar sprint (task #82) — two recovered-node arms,
+        # both kind-gated on the raw (the "draw"/"discard"/"damage"
+        # recovered-node raw-read precedent: a recovered node carries no
+        # typed counter-kind field to re-check):
+        # * ``count_operand`` — a counter TALLY clause (CR 122.1/701.6a):
+        #   "count the number of +1/+1 counters on <filter>" (Rumbling
+        #   Ruin's ETB), recovered by ``clause_grammar``'s ``count_operand``
+        #   token + ``recovery.ALLOWLIST``.
+        # * ``counter_cost_reduction`` — an activated ability's OWN
+        #   "costs {N} less to activate for each +1/+1 counter" scaler (CR
+        #   118.7/122.1, Deepwood Denizen), recovered by the
+        #   ``counter_cost_reduction`` token.
+        for cn in unit.effects:
+            if cn.recovered_by in (
+                "count_operand",
+                "counter_cost_reduction",
+            ) and _P1P1_COND_TEXT_RX.search(cn.raw):
+                return [
+                    Signal("plus_one_matters", "you", "", cn.raw, tree.name, "high")
+                ]
+        # ADR-0039 W8 grammar sprint (task #82) — the counter-to-token
+        # CONVERSION idiom (CR 122.1/701.7): a P1P1 ``RemoveCounter`` EFFECT
+        # (not an activation cost — the Shape-5 cost arm above already
+        # covers that) paired with a ``Token`` effect whose ``count`` Refs
+        # the SAME removed amount via ``EventContextAmount`` (Tetravus's
+        # upkeep "remove any number of +1/+1 counters ... create that many
+        # ... tokens"). Fully typed/structural — both node tags are real
+        # phase output, no recovery involved. Narrowly paired (not a bare
+        # "RemoveCounter anywhere in effects" walk): a corpus check found 39
+        # commander-legal cards carry a P1P1 RemoveCounter EFFECT node
+        # outside any cost, but 38 of them (self-shrink/drain idioms — the
+        # Phantom cycle's evasion tax, the Clockwork cycle's counter-
+        # draining activated ability, Protean Hydra's self-shrink) pair with
+        # NO scaled Token effect at all, so this exact pairing gate excludes
+        # them correctly.
+        has_remove_p1p1 = False
+        has_scaled_token = False
+        for cn in unit.effects:
+            node = cn.node
+            if tag_of(node) == "RemoveCounter" and counter_kind_any(node) == "P1P1":
+                has_remove_p1p1 = True
+            elif tag_of(node) == "Token":
+                cnt = getattr(node, "count", None)
+                if (
+                    tag_of(cnt) == "Ref"
+                    and tag_of(getattr(cnt, "qty", None)) == "EventContextAmount"
+                ):
+                    has_scaled_token = True
+        if has_remove_p1p1 and has_scaled_token:
+            return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
     for c in tree.effect_concepts("move_counters"):
         if counter_kind(c.node).upper() == "P1P1":
             return [Signal("plus_one_matters", "you", "", c.raw, tree.name, "high")]
@@ -6678,24 +6746,19 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
                 continue
             if "P1P1" in counter_pred_kinds(filt):
                 return [Signal("plus_one_matters", "you", "", c.raw, tree.name, "high")]
-    # LEDGERED BRIDGES (ADR-0039 W8): 5 corpus-verified singleton gaps the
-    # structural arms above genuinely can't reach — a static parser
-    # failure (Rock Hydra, upstream_parse_failure), two clause-grammar
-    # frontier residues our OWN Unimplemented tokens name but recovery.py
-    # doesn't map yet (Rumbling Ruin's 'count', Deepwood Denizen's 'this',
-    # both grammar_straggler), a phase encoding with no counter-kind field
-    # at all (Hierophant Bio-Titan's ModifyCost/PreviousEffectAmount,
-    # dropped_clause), and a counter-to-token conversion idiom our clause
-    # grammar has no verb for (Tetravus, grammar_straggler — corpus-
-    # checked against 38 sibling cards that correctly stay unserved). Each
-    # gap-gated + corpus-bounded (1 hit/31,622 apiece) + self-retiring;
-    # the full rows live in ``bridge_ledger.BRIDGES``.
+    # LEDGERED BRIDGES (ADR-0039 W8/grammar sprint task #82): 2 corpus-
+    # verified singleton gaps the structural arms above genuinely can't
+    # reach yet — a static parser failure (Rock Hydra,
+    # upstream_parse_failure) and a phase encoding with no counter-kind
+    # field at all (Hierophant Bio-Titan's ModifyCost/PreviousEffectAmount,
+    # dropped_clause). Rumbling Ruin / Deepwood Denizen (recovered-node
+    # arms above) and Tetravus (the counter-to-token pairing arm above)
+    # graduated off the bridge list this sprint. Each gap-gated +
+    # corpus-bounded + self-retiring; the full rows live in
+    # ``bridge_ledger.BRIDGES``.
     for bridge_id in (
         "plus_one_rock_hydra_static_parse_failure",
-        "plus_one_rumbling_ruin_count_unimplemented",
-        "plus_one_deepwood_denizen_cost_reduction_unimplemented",
         "plus_one_hierophant_previouseffectamount_dropped_kind",
-        "plus_one_tetravus_removecounter_token_pair",
     ):
         if bridge_fires(bridge_id, tree):
             return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]

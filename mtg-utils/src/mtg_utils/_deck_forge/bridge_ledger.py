@@ -45,7 +45,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from mtg_utils._card_ir.crosswalk import (
-    counter_kind_any,
     effect_filter,
     effect_reaches_player,
     filter_core_types,
@@ -1828,70 +1827,6 @@ def _rock_hydra_match(tree: ConceptTree) -> bool:
     return any(_ROCK_HYDRA_RX.search(d) for d in _static_parse_failure_descs(tree))
 
 
-# ── Rumbling Ruin → plus_one_matters ─────────────────────────────────────────
-# "When ~ enters, count the number of +1/+1 counters on creatures you
-# control. Creatures your opponents control with power less than or equal
-# to that number can't block this turn." (CR 122.1) — phase's trigger
-# parser recognizes the ETB event shape but drops the COUNTING clause as
-# ``Unimplemented(name='count')`` nested in the trigger's own
-# ``execute.effect`` (reachable via ``unit.effects`` — the SequentialSibling
-# chain flattens it there — but ``apply_unimplemented_recovery``'s allowlist
-# has no concept mapping for the ``'count'`` verb yet, so it stays an inert
-# residue). ADR-0039 W8 (2026-07-12).
-_RUMBLING_RUIN_RX = re.compile(r"count the number of \+1/\+1 counters", re.IGNORECASE)
-
-
-def _count_unimplemented_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        for cn in unit.effects:
-            if (
-                tag_of(cn.node) == "Unimplemented"
-                and getattr(cn.node, "name", None) == "count"
-            ):
-                yield getattr(cn.node, "description", "") or ""
-
-
-def _rumbling_ruin_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _count_unimplemented_descs(tree))
-
-
-def _rumbling_ruin_match(tree: ConceptTree) -> bool:
-    return any(_RUMBLING_RUIN_RX.search(d) for d in _count_unimplemented_descs(tree))
-
-
-# ── Deepwood Denizen → plus_one_matters ──────────────────────────────────────
-# "{5}{G}, {T}: Draw a card. This ability costs {1} less to activate for
-# each +1/+1 counter on creatures you control." (CR 118.7/122.1, a P1P1
-# activation-cost REDUCTION scaler) — phase's activated-ability parser
-# structures the mana/tap cost and the Draw payoff but drops the
-# cost-reduction sub-clause as ``Unimplemented(name='this')`` in the
-# ability's OWN ``sub_ability.effect`` (also reachable via ``unit.effects``,
-# also unmapped in the recovery allowlist — the SAME 'grammar frontier' gap
-# as Rumbling Ruin's ``'count'`` verb, a DIFFERENT verb name). ADR-0039 W8
-# (2026-07-12).
-_DEEPWOOD_DENIZEN_RX = re.compile(
-    r"costs? \{?\d\}? less to activate for each \+1/\+1 counter", re.IGNORECASE
-)
-
-
-def _this_unimplemented_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        for cn in unit.effects:
-            if (
-                tag_of(cn.node) == "Unimplemented"
-                and getattr(cn.node, "name", None) == "this"
-            ):
-                yield getattr(cn.node, "description", "") or ""
-
-
-def _deepwood_denizen_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _this_unimplemented_descs(tree))
-
-
-def _deepwood_denizen_match(tree: ConceptTree) -> bool:
-    return any(_DEEPWOOD_DENIZEN_RX.search(d) for d in _this_unimplemented_descs(tree))
-
-
 # ── Hierophant Bio-Titan → plus_one_matters ──────────────────────────────────
 # "Frenzied Metabolism — As an additional cost to cast this spell, you may
 # remove any number of +1/+1 counters from among creatures you control.
@@ -1922,53 +1857,6 @@ def _hierophant_gap(tree: ConceptTree) -> bool:
 
 def _hierophant_match(tree: ConceptTree) -> bool:
     return any(_HIEROPHANT_RX.search(d) for d in _hierophant_modifycost_descs(tree))
-
-
-# ── Tetravus → plus_one_matters ──────────────────────────────────────────────
-# "At the beginning of your upkeep, you may remove any number of +1/+1
-# counters from ~. If you do, create that many 1/1 ... tokens." (CR 122.1) —
-# phase parses this CORRECTLY: a typed ``RemoveCounter`` P1P1 node followed
-# by a ``Token`` effect whose ``count`` is a ``Ref`` to the SAME removed
-# amount (``EventContextAmount``), both in the SAME unit's ``effects``. The
-# gap is OURS, not phase's: the existing Shape-5 arm only walks
-# ``unit.node.cost`` (an activation-cost RemoveCounter sink, CR 118.7,
-# Triskelion/Walking Ballista) — it never reads a trigger's own EFFECT
-# chain. A naive unscoped EFFECT-chain widening was corpus-checked and
-# REJECTED: 39 commander-legal cards carry a P1P1 RemoveCounter EFFECT node
-# outside any cost, but 38 of them (the Phantom-cycle's evasion-tax drain,
-# the Clockwork-cycle's counter-draining activated ability, Protean Hydra's
-# self-shrink, etc.) are NOT counter-to-token conversion payoffs — legacy
-# correctly stays silent on all 38, so a bare "RemoveCounter effect anywhere"
-# accessor would over-fire on all of them. Tetravus is the ONLY one of the
-# 39 pairing the removal with a Token effect scaled by the SAME removed
-# count — a genuinely distinct idiom (counter-to-token CONVERSION) our
-# clause grammar has no dedicated verb for yet. ADR-0039 W8 (2026-07-12).
-def _removecounter_token_pair(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        has_remove = False
-        has_scaled_token = False
-        for cn in unit.effects:
-            node = cn.node
-            if tag_of(node) == "RemoveCounter" and counter_kind_any(node) == "P1P1":
-                has_remove = True
-            elif tag_of(node) == "Token":
-                cnt = getattr(node, "count", None)
-                if (
-                    tag_of(cnt) == "Ref"
-                    and tag_of(getattr(cnt, "qty", None)) == "EventContextAmount"
-                ):
-                    has_scaled_token = True
-        if has_remove and has_scaled_token:
-            return True
-    return False
-
-
-def _tetravus_gap(tree: ConceptTree) -> bool:
-    return _removecounter_token_pair(tree)
-
-
-def _tetravus_match(tree: ConceptTree) -> bool:
-    return _removecounter_token_pair(tree)
 
 
 # ── named_synergy (ADR-0039 W8, the KEPT-twelve wave) ────────────────────────
@@ -3487,53 +3375,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_rock_hydra_match,
         ),
         Bridge(
-            bridge_id="plus_one_rumbling_ruin_count_unimplemented",
-            key="plus_one_matters",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): our OWN clause "
-                "grammar already names the token "
-                "(Unimplemented(name='count')) but recovery.py's "
-                "ALLOWLIST has no concept mapping for a 'count the "
-                "number of X counters on creatures you control' tally "
-                "clause yet — retires when that mapping lands and a "
-                "typed CountersOn-style qty node reaches the condition/"
-                "count-operand arms this lane already reads"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal Unimplemented(name="
-                "'count') residues matching 'count the number of +1/+1 "
-                "counters', phase v0.20.0, 2026-07-12 (exactly the 1 pin)"
-            ),
-            pins=("Rumbling Ruin",),
-            gap=_rumbling_ruin_gap,
-            match=_rumbling_ruin_match,
-        ),
-        Bridge(
-            bridge_id="plus_one_deepwood_denizen_cost_reduction_unimplemented",
-            key="plus_one_matters",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): our OWN clause "
-                "grammar already names the token "
-                "(Unimplemented(name='this')) but recovery.py's "
-                "ALLOWLIST has no concept mapping for an activated "
-                "ability's OWN 'costs {N} less to activate for each X "
-                "counter' cost-reduction sub-clause yet — retires when "
-                "that mapping lands and a typed cost_reduction node "
-                "reaches this lane"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal Unimplemented(name="
-                "'this') residues matching 'costs {N} less to activate "
-                "for each +1/+1 counter', phase v0.20.0, 2026-07-12 "
-                "(exactly the 1 pin)"
-            ),
-            pins=("Deepwood Denizen",),
-            gap=_deepwood_denizen_gap,
-            match=_deepwood_denizen_match,
-        ),
-        Bridge(
             bridge_id="plus_one_hierophant_previouseffectamount_dropped_kind",
             key="plus_one_matters",
             kind="dropped_clause",
@@ -3557,37 +3398,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Hierophant Bio-Titan",),
             gap=_hierophant_gap,
             match=_hierophant_match,
-        ),
-        Bridge(
-            bridge_id="plus_one_tetravus_removecounter_token_pair",
-            key="plus_one_matters",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a dedicated "
-                "concept-synthesis verb for the counter-to-token "
-                "CONVERSION idiom (a RemoveCounter P1P1 EFFECT paired "
-                "with a Token effect whose count Refs the SAME removed "
-                "amount via EventContextAmount) distinct from a plain "
-                "self-shrink/drain RemoveCounter effect (the Phantom-"
-                "cycle's evasion tax, the Clockwork-cycle's counter-"
-                "draining activated ability) — retires when that verb "
-                "lands and a general EFFECT-chain RemoveCounter walk can "
-                "safely widen without over-firing the 38-card sibling "
-                "class this bridge deliberately excludes"
-            ),
-            census=(
-                "39 hits / 31,622 commander-legal cards carry a P1P1 "
-                "RemoveCounter EFFECT node outside any activation cost, "
-                "phase v0.20.0, 2026-07-12; this bridge's own narrow "
-                "removed-count/token-count pairing match hits exactly "
-                "the 1 pin (the other 38 are self-shrink/drain idioms "
-                "legacy correctly does NOT fire plus_one_matters on "
-                "either — a naive unscoped widening was corpus-checked "
-                "and rejected as an over-fire risk)"
-            ),
-            pins=("Tetravus",),
-            gap=_tetravus_gap,
-            match=_tetravus_match,
         ),
         Bridge(
             bridge_id="named_synergy_overloaded_named_node",

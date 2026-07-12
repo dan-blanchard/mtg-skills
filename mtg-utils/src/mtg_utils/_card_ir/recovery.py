@@ -234,6 +234,25 @@ ALLOWLIST: dict[str, TokenRule] = {
     # silent no-op for them — verified via the full-corpus ALL-KEY diff, 0
     # changed idents outside ``direct_damage``.
     "damage": TokenRule(concept="deal_damage", category="damage"),
+    # ADR-0039 W8 grammar sprint (task #82): the counter TALLY idiom (CR
+    # 122.1/701.6a): "count the number of X counters on <filter>" (Rumbling
+    # Ruin's ETB, whose result feeds a following-sentence threshold phase's
+    # own amount-ref grammar can't structure). Generic across counter kind
+    # — maps to its own concept so no unrelated lane's ordinary
+    # ``effect_concepts`` read picks it up by accident; ``plus_one_matters``
+    # reads it via a dedicated ``recovered_by`` arm, kind-gated on the raw
+    # (the "draw"/"discard"/"damage" recovered-node raw-read precedent — a
+    # recovered node carries no typed counter-kind field to re-check).
+    "count_operand": TokenRule(concept="count_operand", category="count_operand"),
+    # ADR-0039 W8 grammar sprint (task #82): an activated ability's OWN
+    # "costs {N} less to activate for each X counter" cost-reduction
+    # sub-clause (CR 118.7/122.1): Deepwood Denizen's "This ability costs
+    # {1} less to activate for each +1/+1 counter on creatures you
+    # control." Generic across counter kind, same raw-read kind gate as
+    # ``count_operand`` above.
+    "counter_cost_reduction": TokenRule(
+        concept="counter_cost_reduction", category="counter_cost_reduction"
+    ),
 }
 
 

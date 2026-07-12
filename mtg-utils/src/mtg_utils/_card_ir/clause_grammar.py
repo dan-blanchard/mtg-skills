@@ -498,6 +498,35 @@ _VERB = comb.alt(
     comb.value("attach", comb.tag("enchant ")),
     # "Move one or more counters from … onto …" (CR movecounters) -> counter_move.
     comb.value("counter_move", comb.seq2(comb.tag("move"), comb.take_until("counter"))),
+    # "count the number of X counters (on …)" — a counter TALLY clause (CR
+    # 122.1/701.6a "count"): Rumbling Ruin's ETB "count the number of +1/+1
+    # counters on creatures you control" whose result feeds a later
+    # sentence's threshold. Generic across counter kind (the P1P1-specific
+    # gate lives at the lane, mirroring the "draw"/"discard"/"damage"
+    # recovered-node raw-read precedent) — the take_until("counter") gate
+    # keeps a bare "count" with no counter reference out.
+    comb.value(
+        "count_operand",
+        comb.seq2(comb.keyword({"count", "counts"}), comb.take_until("counter")),
+    ),
+    # "This ability costs {N} less to activate for each X counter (on …)" —
+    # an activated ability's OWN cost-reduction sub-clause scaled by a
+    # counter tally (CR 118.7/122.1): Deepwood Denizen's "This ability
+    # costs {1} less to activate for each +1/+1 counter on creatures you
+    # control." Self-contained (matches the literal "this ability costs"
+    # opener directly) rather than widening the shared subject-prefix table
+    # — narrowly scoped to this exact idiom, no blast radius on unrelated
+    # "this ability …" residues. Generic across counter kind, same
+    # lane-level P1P1 gate as ``count_operand`` above.
+    comb.value(
+        "counter_cost_reduction",
+        comb.seq(
+            comb.tag("this ability costs"),
+            comb.take_until("less to activate"),
+            comb.tag("less to activate"),
+            comb.take_until("counter"),
+        ),
+    ),
     # extra land drops ("play an additional land", "play two additional lands") — its
     # own category; the count word between "play" and "additional land" is consumed.
     comb.value(

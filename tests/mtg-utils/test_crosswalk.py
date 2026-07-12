@@ -2303,26 +2303,34 @@ def test_plus_one_matters_rock_hydra_static_parse_failure_bridge():
     assert ("plus_one_matters", "you", "") in _idents("Rock Hydra")
 
 
-def test_plus_one_matters_rumbling_ruin_count_unimplemented_bridge():
-    """Rumbling Ruin (ADR-0039 W8, CR 122.1): "When ~ enters, count the
-    number of +1/+1 counters on creatures you control. Creatures your
-    opponents control with power less than or equal to that number can't
-    block this turn" — phase's trigger parser recognizes the ETB shape
-    but drops the counting clause as ``Unimplemented(name='count')``;
-    our clause grammar names the token but recovery.py's allowlist has
-    no mapping for it yet. Ledgered bridge
-    ``plus_one_rumbling_ruin_count_unimplemented``."""
+def test_plus_one_matters_rumbling_ruin_count_operand_recovered():
+    """Rumbling Ruin (ADR-0039 grammar sprint task #82, CR 122.1): "When ~
+    enters, count the number of +1/+1 counters on creatures you control.
+    Creatures your opponents control with power less than or equal to
+    that number can't block this turn" — phase's trigger parser
+    recognizes the ETB shape but drops the counting clause as
+    ``Unimplemented(name='count')``. ``clause_grammar``'s
+    ``count_operand`` verb + ``recovery.ALLOWLIST`` now re-decorate the
+    residue (``recovered_by="count_operand"``); ``_plus_one_matters``
+    reads it via a dedicated ``recovered_by``-gated arm, kind-checked on
+    the raw ("+1/+1 counter" text) — structural, no bridge lookup.
+    Formerly the ``plus_one_rumbling_ruin_count_unimplemented`` bridge
+    (retired this sprint)."""
     assert ("plus_one_matters", "you", "") in _idents("Rumbling Ruin")
 
 
-def test_plus_one_matters_deepwood_denizen_cost_reduction_unimplemented_bridge():
-    """Deepwood Denizen (ADR-0039 W8, CR 118.7 / 122.1): "{5}{G}, {T}:
-    Draw a card. This ability costs {1} less to activate for each +1/+1
-    counter on creatures you control" — phase structures the mana/tap
-    cost and the Draw payoff but drops the cost-reduction sub-clause as
-    ``Unimplemented(name='this')``, the SAME clause-grammar-frontier gap
-    as Rumbling Ruin's ``'count'`` verb, a different verb name. Ledgered
-    bridge ``plus_one_deepwood_denizen_cost_reduction_unimplemented``."""
+def test_plus_one_matters_deepwood_denizen_cost_reduction_recovered():
+    """Deepwood Denizen (ADR-0039 grammar sprint task #82, CR 118.7 /
+    122.1): "{5}{G}, {T}: Draw a card. This ability costs {1} less to
+    activate for each +1/+1 counter on creatures you control" — phase
+    structures the mana/tap cost and the Draw payoff but drops the
+    cost-reduction sub-clause as ``Unimplemented(name='this')``.
+    ``clause_grammar``'s ``counter_cost_reduction`` verb + ``recovery.
+    ALLOWLIST`` now re-decorate the residue
+    (``recovered_by="counter_cost_reduction"``), read via the SAME
+    dedicated arm as Rumbling Ruin's ``count_operand``. Formerly the
+    ``plus_one_deepwood_denizen_cost_reduction_unimplemented`` bridge
+    (retired this sprint)."""
     assert ("plus_one_matters", "you", "") in _idents("Deepwood Denizen")
 
 
@@ -2340,21 +2348,24 @@ def test_plus_one_matters_hierophant_previouseffectamount_dropped_kind_bridge():
     assert ("plus_one_matters", "you", "") in _idents("Hierophant Bio-Titan")
 
 
-def test_plus_one_matters_tetravus_removecounter_token_pair_bridge():
-    """Tetravus (ADR-0039 W8, CR 122.1): "you may remove any number of
-    +1/+1 counters from ~. If you do, create that many ... tokens" is a
-    typed P1P1 ``RemoveCounter`` EFFECT (not an activation cost — the
-    existing Shape-5 arm only reads ``unit.node.cost``, CR 118.7) paired
-    with a ``Token`` effect whose count Refs the SAME removed amount via
-    ``EventContextAmount`` — a counter-to-token CONVERSION idiom our
-    clause grammar has no verb for yet. A corpus check confirmed this
-    pairing is the genuinely distinct shape: 39 commander-legal cards
-    carry a P1P1 RemoveCounter effect outside any cost, but the other 38
-    (Phantom-cycle evasion drain, Clockwork-cycle counter-draining
-    activated abilities, Protean Hydra's self-shrink, ...) are NOT
-    counter-to-token conversions and correctly stay unserved — a bare
-    unscoped EFFECT-chain widening was rejected as an over-fire risk.
-    Ledgered bridge ``plus_one_tetravus_removecounter_token_pair``."""
+def test_plus_one_matters_tetravus_removecounter_token_pair():
+    """Tetravus (ADR-0039 grammar sprint task #82, CR 122.1): "you may
+    remove any number of +1/+1 counters from ~. If you do, create that
+    many ... tokens" is a typed P1P1 ``RemoveCounter`` EFFECT (not an
+    activation cost — the existing Shape-5 arm only reads
+    ``unit.node.cost``, CR 118.7) paired with a ``Token`` effect whose
+    count Refs the SAME removed amount via ``EventContextAmount`` — a
+    counter-to-token CONVERSION idiom read via a dedicated pairing arm
+    (fully typed/structural, no recovery involved). A corpus check
+    confirmed this pairing is the genuinely distinct shape: 39
+    commander-legal cards carry a P1P1 RemoveCounter effect outside any
+    cost, but the other 38 (Phantom-cycle evasion drain, Clockwork-cycle
+    counter-draining activated abilities, Protean Hydra's self-shrink,
+    ...) are NOT counter-to-token conversions and correctly stay
+    unserved — a bare unscoped EFFECT-chain widening was rejected as an
+    over-fire risk. Formerly the
+    ``plus_one_tetravus_removecounter_token_pair`` bridge (retired this
+    sprint)."""
     assert ("plus_one_matters", "you", "") in _idents("Tetravus")
 
 
