@@ -46,20 +46,29 @@ third detector system:
   ``landfall``'s ``Landfall`` keyword is one such case; see the
   per-preset conversion note).
 - ``concept``: an OPTIONAL named predicate, ``(card) -> bool``, for a
-  fact the signal system doesn't carry at all. The pilot: the 10 type-
-  scoped removal/edict presets (creature/artifact/enchantment/land/
-  planeswalker/universal x removal/edict) bind ``_removal_edict_concept``
-  to a target PERMANENT TYPE — ``removal``/``exile_removal``/``mass_
-  removal``/``edict_makers`` all emit ``subject=""``, so "this card is
-  removal" never says WHICH type it answers. A concept predicate MUST
-  reuse an existing crosswalk lane helper (``mtg_utils._deck_forge.
-  crosswalk_signals`` — the pilot's is ``removal_edict_targets_type``)
-  rather than hand-roll a new text scan — it lives next to the lane
+  fact the signal system doesn't carry at all. Two motivating cases so
+  far: (1) a target's PERMANENT TYPE — ``removal``/``exile_removal``/
+  ``mass_removal``/``edict_makers`` all emit ``subject=""``, so "this
+  card is removal" never says WHICH type it answers; the 10 type-scoped
+  removal/edict presets (creature/artifact/enchantment/land/planeswalker/
+  universal x removal/edict) bind ``_removal_edict_concept`` to a target
+  permanent type. (2) a shared key covering several distinct facts, or a
+  fact needing a different query mode than the key index caches — the
+  'graveyard-return' / 'self-mill' / 'card-draw' / 'blink' conversions
+  each bind a thin per-card glue wrapper (``_graveyard_return_concept``,
+  ``_self_mill_concept``, ``_etb_bulk_draw_concept``,
+  ``_blink_maker_concept``). In both cases a concept predicate MUST reuse
+  an existing crosswalk lane helper (``mtg_utils._deck_forge.
+  crosswalk_signals`` — e.g. ``removal_edict_targets_type``) rather than
+  hand-roll a new text scan — the TREE-level logic lives next to the lane
   helper(s) it reuses, with the same docstring discipline as the lane
-  itself. Because :meth:`Preset.matches` only ORs its arms (there is no
-  AND), a concept predicate that needs "is removal/edict of SOME kind
-  AND targets THIS type" does the full walk itself rather than
-  intersecting against ``signal_keys`` at the ``Preset`` level.
+  itself; the per-card glue (resolving the card's per-face trees, or —
+  for ``blink`` — calling ``extract_signals_hybrid`` directly) lives in
+  THIS module next to :func:`_signal_keys_for`. Because
+  :meth:`Preset.matches` only ORs its arms (there is no AND), a concept
+  predicate that needs "is removal/edict of SOME kind AND targets THIS
+  type" does the full walk itself rather than intersecting against
+  ``signal_keys`` at the ``Preset`` level.
 
 A converted preset drops its ``patterns`` (the regex is superseded by the
 view, not run in parallel) and keeps ``keywords`` only for facts the
@@ -87,8 +96,18 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from types import MappingProxyType
+from typing import TYPE_CHECKING
 
 from mtg_utils.card_classify import get_oracle_text
+
+if TYPE_CHECKING:
+    # Type-only: mtg_utils._card_ir.crosswalk has no _deck_forge dependency
+    # (verified), so this import is safe even at runtime, but every OTHER
+    # crosswalk-adjacent import in this module is lazy (see _signal_keys_for
+    # / _concept_any_face's own docstrings) to dodge the _deck_forge.
+    # _signals_regex -> theme_presets cycle — keeping this one TYPE_CHECKING-
+    # only too keeps the whole module's import discipline uniform.
+    from mtg_utils._card_ir.crosswalk import ConceptTree
 
 # Matches a count in digit form, word form (one..twelve), or X. IGNORECASE
 # is applied at pattern compile time, so word forms match "Three" too.
@@ -201,6 +220,103 @@ def _signal_keys_for(card: dict) -> frozenset[str]:
     keys = frozenset(sig.key for sig in extract_signals_hybrid(card))
     _SIGNAL_KEY_INDEX[oid] = keys
     return keys
+
+
+def _concept_any_face(card: dict, predicate: Callable[[ConceptTree], bool]) -> bool:
+    """True if ``predicate(tree)`` holds for any of CARD's per-face concept
+    trees — mirrors ``extract_signals_hybrid``'s own per-face union (a
+    DFC's two faces are read independently, never merged into one tree).
+    ``False`` for a card with no ``oracle_id`` / no phase parse, the same
+    degradation :func:`_signal_keys_for` documents for the ``signal_keys``
+    arm. Shared plumbing for the tree-level concept predicates below —
+    each names the crosswalk lane helper it actually reuses in its own
+    docstring; this function only resolves the trees.
+
+    Runs each tree through the SAME two corrections passes
+    ``crosswalk_signals.extract_crosswalk_signals`` applies before handing
+    a tree to any lane (``apply_overlay_corrections`` — ADR-0035 Stage-3b
+    concept-overlay fixes, e.g. a dig-into-play flipped to cheat_play; then
+    ``apply_tree_synthesis`` — ADR-0037 synthetic concept-nodes for
+    genuine phase-parse gaps, e.g. the ``group_hug_draw`` "each player
+    draws" recovery). A concept predicate reading a RAW tree would silently
+    diverge from every ``signal_keys``-based lane it sits beside in the
+    same preset's OR (a corrected node the lane sees, the predicate
+    wouldn't) — this keeps the two arms reading the identical tree shape.
+
+    Lazily imports ``mtg_utils._deck_forge._ir_lookup`` for the same
+    import-cycle reason :func:`_signal_keys_for` imports ``_deck_forge.
+    signals`` lazily.
+    """
+    if not card.get("oracle_id"):
+        return False
+    from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
+    from mtg_utils._card_ir.tree_synthesis import apply_tree_synthesis
+    from mtg_utils._deck_forge._ir_lookup import trees_for
+
+    for raw_tree in trees_for(card):
+        corrected = apply_overlay_corrections(raw_tree)
+        corrected = apply_tree_synthesis(corrected)
+        if predicate(corrected):
+            return True
+    return False
+
+
+def _graveyard_return_concept(card: dict) -> bool:
+    """concept arm for the 'graveyard-return' preset (task #83): true when
+    ANY face's ``ChangeZone`` reads a Graveyard->Hand direction. See
+    ``crosswalk_signals.graveyard_return_direction`` / ``_graveyard_makers``'s
+    own docstring for why this direction isn't exposed on the merged
+    ``graveyard_makers`` Signal (``subject=""``) — raw ``signal_keys``
+    membership on that key can't discriminate this preset from
+    reanimate/self-mill, which share the same key for their OTHER two
+    directions."""
+    from mtg_utils._deck_forge.crosswalk_signals import graveyard_return_direction
+
+    return _concept_any_face(card, graveyard_return_direction)
+
+
+def _self_mill_concept(card: dict) -> bool:
+    """concept arm for the 'self-mill' preset (task #83): true when ANY
+    face fills YOUR OWN graveyard from YOUR OWN library. See
+    ``crosswalk_signals.self_mill_fill`` for the two structural shapes it
+    reads (a self-scoped ``Mill``, or a filter ``Dig`` whose
+    ``rest_destination`` is Graveyard) — deliberately NOT a raw
+    ``signal_keys`` union of ``mill_makers``/``graveyard_makers``/
+    ``topdeck_selection``, which would match Contingency Plan (a
+    look-then-reorder-to-bottom effect, never a mill) through
+    ``topdeck_selection``'s unconditional Scry/Surveil arm."""
+    from mtg_utils._deck_forge.crosswalk_signals import self_mill_fill
+
+    return _concept_any_face(card, self_mill_fill)
+
+
+def _etb_bulk_draw_concept(card: dict) -> bool:
+    """concept arm for the 'card-draw' preset (task #83): true when ANY
+    face draws 2+ cards off its own ETB trigger (Mulldrifter). See
+    ``crosswalk_signals.etb_bulk_draw``. Unions (OR) with this preset's
+    ``signal_keys=("card_draw_engine",)`` arm; the two arms are
+    structurally disjoint by construction (``card_draw_engine``'s bulk
+    gate excludes an ``enters`` unit, ``etb_bulk_draw`` requires one), so
+    the OR never double-counts a card under both arms."""
+    from mtg_utils._deck_forge.crosswalk_signals import etb_bulk_draw
+
+    return _concept_any_face(card, etb_bulk_draw)
+
+
+def _blink_maker_concept(card: dict) -> bool:
+    """concept arm for the 'blink' preset (task #83): true when CARD
+    carries a MAKER-half ``blink_flicker`` signal (Flickerwisp/Ephemerate/
+    Soulherder), never :func:`~mtg_utils._deck_forge.crosswalk_signals.
+    apply_membership_floor`'s "worth blinking" payoff cross-open (Academy
+    Journeymage/Mulldrifter). See ``crosswalk_signals.
+    blink_flicker_maker_present``. Unions (OR) with this preset's
+    ``signal_keys=("self_blink",)`` arm — a genuinely different
+    self-flicker engine (CR 611.2b, a card exiling and returning ITSELF,
+    Aetherling) sharing no cards with the maker-of-OTHERS shape this
+    predicate reads."""
+    from mtg_utils._deck_forge.crosswalk_signals import blink_flicker_maker_present
+
+    return blink_flicker_maker_present(card)
 
 
 def _rx(*patterns: str) -> tuple[re.Pattern[str], ...]:
@@ -1134,34 +1250,43 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         should_not_match=("Lightning Bolt", "Llanowar Elves"),
     ),
-    # Self-mill: two phrasings. Modern cards like Stitcher's Supplier say
-    # "put the top N cards of your library into your graveyard" directly.
-    # Filter cards (Satyr Wayfinder, Grisly Salvage, Ransack the Lab,
-    # Commune with the Gods) say "reveal/look at the top N cards of your
-    # library" and then put "the rest" into your graveyard. The second
-    # pattern requires the explicit "put the rest ... graveyard" anchor so
-    # it doesn't false-match Contingency-Plan-style cards whose oracle
-    # mentions "graveyard" for unrelated reasons.
+    # Self-mill (task #83 structural-view conversion). No candidate signal
+    # KEY is precise enough on its own: mill_makers is keyword-only with
+    # scope "any" (self OR opponent, undiscriminated); graveyard_makers'
+    # Mill arm bundles self-mill with reanimate/recursion under ONE key
+    # (see graveyard-return's own conversion note below); topdeck_selection
+    # fires unconditionally on any Scry/Surveil node regardless of
+    # destination (would false-match Contingency Plan's reveal-then-
+    # reorder-to-bottom, the preset's own long-standing false-positive
+    # test case). ``self_mill_fill`` (crosswalk_signals.py) reads the two
+    # precise structural shapes instead: a self-scoped Mill into Graveyard
+    # (Stitcher's Supplier), or a filter ``Dig`` whose ``rest_destination``
+    # is Graveyard (Satyr Wayfinder / Grisly Salvage / Ransack the Lab —
+    # "look at/reveal the top N, put a card to hand, the rest into your
+    # graveyard").
     Preset(
         name="self-mill",
         description=(
             "Puts cards from YOUR library into YOUR graveyard "
             "(graveyard-value, not targeted mill)."
         ),
-        patterns=_rx(
-            r"put the top " + _COUNT + r" cards? of your library into your graveyard",
-            r"(?:reveal|look at) the top "
-            + _COUNT
-            + r" cards? of your library[\s\S]*?the rest into your graveyard",
-        ),
+        concept=_self_mill_concept,
         should_match=(
             "Stitcher's Supplier",
             "Satyr Wayfinder",
             "Grisly Salvage",
             "Ransack the Lab",
+            # Mulch's "reveal top N, put type X to hand, rest to
+            # graveyard" is a THIRD structural shape (reveal_top + a
+            # sibling Graveyard-bound ChangeZone, not a Dig node) —
+            # self_mill_fill's own docstring names it.
+            "Mulch",
         ),
         # Contingency Plan is the canonical false-positive test case —
-        # its oracle reveals top 5 but returns them to the library.
+        # its oracle reveals top 5 but returns them to the BOTTOM of the
+        # library, never the graveyard (structurally a bare Surveil node
+        # with no rest_destination field at all — see self_mill_fill's
+        # docstring).
         should_not_match=("Lightning Bolt", "Counterspell", "Contingency Plan"),
     ),
     # Counterspell (task #83 structural-view conversion). ``counter_control``
@@ -1743,51 +1868,67 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         should_match=("Reanimate",),
         should_not_match=("Lightning Bolt", "Counterspell", "Regrowth"),
     ),
-    # Graveyard-to-hand recursion (Eternal Witness-style).
+    # Graveyard-to-hand recursion (Eternal Witness-style). task #83
+    # structural-view conversion: NOT ``signal_keys=("graveyard_makers",)``
+    # — that key bundles THREE GY-interaction directions under one Signal
+    # with no ``subject`` to discriminate them (reanimate GY->Battlefield,
+    # this preset's GY->Hand, and self-mill's Mill->Graveyard — see
+    # ``graveyard_return_direction``'s own docstring). The concept
+    # predicate re-runs the SAME ``change_zone_dirs`` read
+    # ``_graveyard_makers`` performs, keeping the destination that lane's
+    # ``fire()`` helper collapses away.
     Preset(
         name="graveyard-return",
         description=(
             "Returns a card from a graveyard to a player's hand "
             "(Eternal Witness, Regrowth, Raise Dead)."
         ),
-        patterns=_rx(
-            r"return .*\bcard\b.*from (?:a|your|target [^.]*) graveyard.*"
-            r"(?:to|into) .*\bhand\b",
-        ),
+        concept=_graveyard_return_concept,
         should_match=("Regrowth", "Eternal Witness"),
         should_not_match=("Lightning Bolt",),
     ),
-    # Simple cantrip: "draw a card". Matches Ponder, Opt, Think Twice, and
-    # any spell with a rider "draw a card". False-positive risk on cards that
-    # make OPPONENTS draw — those are caught by the pattern boundary (drawing
-    # effects use "you draw" or bare "draw", not "target opponent draws").
+    # Cantrip (task #83 structural-view conversion): a low-opportunity-cost
+    # spell that draws exactly ONE card as a RIDER on another primary
+    # effect (Preordain, Opt, Ponder, Remand — CR 121.1). The crosswalk
+    # ``cantrip`` lane (crosswalk_signals._cantrip) is a BOUNDED read (a
+    # fixed-1, non-scaling Draw sharing its unit with a sibling non-draw
+    # effect, gated to Instant/Sorcery, recipient never Opponent) —
+    # corpus-scanned to 433 commander-legal hits vs the deleted regex's
+    # unbounded ~3174-card "draws a card" substring match. Rhystic Study
+    # correctly falls OUT (an enchantment, not Instant/Sorcery — a
+    # repeatable payoff engine, not a one-shot rider; routes to
+    # enchantments_matter/opponent_cast_matters instead) and Divination
+    # correctly falls out (a bare 2-for-1 draw spell with no sibling
+    # effect — the WHOLE point of the card, not a rider).
     Preset(
         name="cantrip",
         description=(
             "Draws exactly ONE card as a rider or primary effect. For "
             "multi-card draw effects use 'card-draw'."
         ),
-        # Matches three distinct phrasings: the bare infinitive ("draw a
-        # card", most spells), the third-person trigger form ("draws a
-        # card", Cephalid Broker-style), and the group-hug phrasing ("draws
-        # an additional card", Howling Mine / Kami of the Crescent Moon).
-        patterns=_rx(r"\bdraws? (?:a|an additional) card\b"),
-        should_match=("Ponder", "Remand", "Rhystic Study", "Howling Mine"),
-        should_not_match=("Lightning Bolt", "Llanowar Elves"),
+        signal_keys=("cantrip",),
+        should_match=("Preordain", "Opt", "Ponder", "Remand"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Llanowar Elves",
+            "Rhystic Study",
+            "Divination",
+        ),
     ),
     # Card draw (multi-card effects): draws 2+ cards in a single effect.
-    # Does not overlap with cantrip.
+    # Does not overlap with cantrip. task #83 structural-view conversion:
+    # ``card_draw_engine`` alone is the recurring/bulk-draw lane and
+    # deliberately EXCLUDES a one-shot ETB bulk draw (Mulldrifter's "when
+    # ~ enters, draw two cards" — see that lane's own docstring), so it
+    # ORs with ``etb_bulk_draw`` (crosswalk_signals.py, next to
+    # ``_card_draw_engine``) to reach it. The two arms are structurally
+    # disjoint (one requires an ``enters`` trigger, the other excludes
+    # one), so the OR never double-fires a card under both.
     Preset(
         name="card-draw",
         description="Draws two or more cards in a single effect.",
-        patterns=_rx(
-            r"\bdraws? " + _COUNT + r" cards?\b",
-            r"\bdraw cards equal to\b",
-            # Variable multi-draw: "draw THAT MANY cards" (count set by an earlier
-            # clause — Rielle, Jaya Ballard, Mindmoil, attack/discard triggers). The
-            # sibling of "draw cards equal to"; the preset's numeric form missed it.
-            r"\bdraws? that many cards?\b",
-        ),
+        signal_keys=("card_draw_engine",),
+        concept=_etb_bulk_draw_concept,
         should_match=(
             "Mulldrifter",
             "Deep Analysis",
@@ -2414,10 +2555,21 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     ),
     # ── Blink / ETB abuse ──────────────────────────────────────────────
     # Exile-then-return-to-battlefield cards that re-trigger enter-the-
-    # battlefield effects. [^.]*? gate prevents crossing sentence
-    # boundaries, so Angel of Sanctions ("exile ... until this creature
-    # leaves the battlefield" — exile + battlefield but no "return") does
-    # not falsely match.
+    # battlefield effects. task #83 structural-view conversion: the
+    # ``blink_flicker`` key is shared by TWO producers (the literal
+    # exile-and-return MAKER, always HIGH confidence, and
+    # apply_membership_floor's "worth blinking" payoff cross-open off a
+    # card's own strong ETB value — Academy Journeymage/Mulldrifter,
+    # always LOW) — a raw signal_keys union would catch both, cratering
+    # precision (the task #83 preset-scoping pass measured .06 over the
+    # raw union). ``_blink_maker_concept`` filters to the MAKER half only
+    # (crosswalk_signals.blink_flicker_maker_present /
+    # blink_flicker_is_maker). ``self_blink`` (a card exiling and
+    # returning ITSELF — Aetherling — a genuinely different self-flicker
+    # engine, CR 611.2b) unions in as a separate arm; the old regex's
+    # "exile ... until this creature leaves the battlefield" (Angel of
+    # Sanctions — exile + battlefield but no return) never matched either
+    # arm, matching the regex's own should_not_match fixture.
     Preset(
         name="blink",
         description=(
@@ -2426,7 +2578,8 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Restoration Angel — re-trigger enter-the-battlefield effects "
             "by flickering creatures in and out of exile."
         ),
-        patterns=_rx(r"exile[^.]*?return[^.]*?battlefield"),
+        signal_keys=("self_blink",),
+        concept=_blink_maker_concept,
         should_match=("Soulherder", "Ephemerate", "Conjurer's Closet"),
         should_not_match=("Lightning Bolt", "Angel of Sanctions"),
     ),

@@ -4004,6 +4004,35 @@ def blink_flicker_is_maker(signal: Signal) -> bool:
     return signal.key == "blink_flicker" and signal.confidence == "high"
 
 
+def blink_flicker_maker_present(card: dict) -> bool:
+    """A CARD-level (not tree-level) concept predicate: true when CARD
+    carries a MAKER-half ``blink_flicker`` signal (:func:`blink_flicker_is_maker`),
+    excluding :func:`apply_membership_floor`'s "worth blinking" payoff
+    cross-open. Queries ``extract_signals_hybrid`` with
+    ``include_membership=False`` so the floor producer never runs at all —
+    the simpler of the two filtering strategies :func:`_blink_flicker`'s
+    own docstring names (the other being a post-hoc filter over the merged
+    list, which :func:`blink_flicker_is_maker` alone also supports for a
+    caller that already has a merged Signal list). task #83 'blink' preset
+    view (``mtg_utils.theme_presets``) — see that preset's own conversion
+    note for why ``self_blink`` (a genuinely different self-flicker engine,
+    CR 611.2b) unions in as a separate ``signal_keys`` arm instead of
+    routing through this predicate too.
+
+    Lazily imports ``mtg_utils._deck_forge.signals`` (not at module scope):
+    that module imports ``_signals_regex``, which in turn imports
+    ``mtg_utils.theme_presets`` — importing it at THIS module's top level
+    would recreate the cycle ``mtg_utils.theme_presets._signal_keys_for``
+    already documents and avoids the same way (this module itself imports
+    ``_signals_regex`` too, so the cycle risk is real here, not
+    theoretical).
+    """
+    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+
+    sigs = extract_signals_hybrid(card, include_membership=False)
+    return any(blink_flicker_is_maker(s) for s in sigs)
+
+
 def _tokens_matter(tree: ConceptTree) -> list[Signal]:
     """Go-wide token payoff — an anthem or ETB-token trigger (CR 111.1).
 
@@ -7715,6 +7744,101 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
         if c.scope in ("you", "any", "each"):
             fire(_gy_scope(c.scope), c.raw)
     return out
+
+
+def graveyard_return_direction(tree: ConceptTree) -> bool:
+    """True when TREE carries a ``ChangeZone`` reading Graveyard->Hand (CR
+    400.7 recursion — Regrowth, Eternal Witness), as opposed to the OTHER
+    two GY-interaction directions :func:`_graveyard_makers` also folds into
+    its single ``graveyard_makers`` key: reanimation (Graveyard->
+    Battlefield) and self-mill (a ``Mill`` into Graveyard). The merged
+    Signal carries no ``subject`` distinguishing them (empty string — see
+    :func:`_graveyard_makers`'s own docstring), so a preset VIEW wanting
+    ONLY the hand-return direction (task #83 'graveyard-return') can't
+    filter on ``signal_keys`` alone; this predicate re-runs the SAME
+    ``change_zone_dirs`` read :func:`_graveyard_makers` itself performs on
+    the SAME ``ChangeZone`` concepts, just keeping the destination that
+    lane's ``fire()`` helper collapses away. No new tree read."""
+    return any(
+        change_zone_dirs(c.node) == ("Graveyard", "Hand")
+        for c in tree.effect_concepts("change_zone")
+    )
+
+
+def self_mill_fill(tree: ConceptTree) -> bool:
+    """True when TREE puts cards from YOUR OWN library into YOUR OWN
+    graveyard (CR 701.17a self-mill) — the task #83 'self-mill' preset
+    view. THREE structural shapes, all re-reading node families
+    :func:`_graveyard_makers` / :func:`_topdeck_selection` already read
+    rather than hand-rolling a new scan:
+
+    * a bare ``Mill`` effect (:func:`_graveyard_makers`'s own arm) whose
+      ``destination`` is Graveyard and whose scope isn't opponents-only
+      (Stitcher's Supplier — self or symmetric-each mill both count, the
+      SAME scope gate that lane's Mill arm runs);
+    * a filter effect (Satyr Wayfinder / Grisly Salvage / Ransack the Lab —
+      "look at/reveal the top N, put a card to hand, the rest into your
+      graveyard") — a ``Dig`` node (the SAME tag :func:`_topdeck_selection`'s
+      own target-tag set reads) whose ``player`` is Controller (self) and
+      whose ``rest_destination`` is Graveyard. ``rest_destination`` is a
+      DIFFERENT field than the ``destination`` gate ``_topdeck_selection``
+      itself inspects (that lane fires on the SELECTED card's destination,
+      never the discarded rest), so reading it here doesn't duplicate or
+      contradict that lane's own membership — a Contingency-Plan-style
+      "put the rest on the BOTTOM of your library" Dig has no
+      ``rest_destination`` of Graveyard and correctly stays excluded
+      (Contingency Plan itself actually parses as a bare ``Surveil`` node
+      with no ``rest_destination`` field at all, so it never reaches this
+      branch either way);
+    * a THIRD phrasing (Mulch / Beast Hunt / Winding Way / Chromescale
+      Drake — "reveal the top N cards of your library, put all cards of
+      TYPE X into your hand and the rest into your graveyard") that phase
+      structures differently than the ``Dig`` shape above: a ``reveal_top``
+      effect (:func:`_topdeck_selection`'s own arm) followed by TWO SIBLING
+      ``ChangeZone`` effects in the same unit — one to Hand, one to
+      Graveyard — each targeting a ``TrackedSet``/``TrackedSetFiltered``
+      back-reference into the revealed group (the SAME back-reference tag
+      :func:`_blink_flicker` / :func:`_topdeck_selection`'s mill-then-cheat
+      arm already read for an analogous "consume the earlier group" shape).
+      A ``ChangeZone`` to Graveyard whose target is that back-reference tag
+      IS the "rest of a revealed group" by construction — self-mill by
+      definition — corpus-confirmed against every task #83 scoping-pass
+      preset-only example (Mulch, Winding Way, Wrenn and Seven, Borborygmos
+      Enraged, Underrealm Lich).
+
+    Deliberately NOT a raw ``signal_keys`` union of ``mill_makers`` /
+    ``graveyard_makers`` / ``topdeck_selection``: ``topdeck_selection``'s
+    Scry/Surveil arm fires unconditionally (no graveyard-destination gate
+    at all), which would match Contingency Plan under a raw union — the
+    task #83 preset-scoping pass's own recorded ``fixture_flips`` for this
+    preset. ``mill_makers`` is a keyword-only field lookup with scope
+    "any" (self OR opponent, undiscriminated — CANNOT tell self-mill from
+    opponent-mill at all), so it isn't reused here either; the three arms
+    above are the precise, self-scoped shape.
+    """
+    for c in tree.effect_concepts("mill"):
+        if getattr(c.node, "destination", None) != "Graveyard":
+            continue
+        if c.scope == "opponents":
+            continue
+        return True
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "Dig":
+                continue
+            if tag_of(getattr(n, "player", None)) != "Controller":
+                continue
+            if getattr(n, "rest_destination", None) == "Graveyard":
+                return True
+    for c in tree.effect_concepts("change_zone"):
+        if getattr(c.node, "destination", None) != "Graveyard":
+            continue
+        if c.scope == "opponents":
+            continue
+        tgt = tag_of(getattr(c.node, "target", None))
+        if tgt in ("TrackedSet", "TrackedSetFiltered"):
+            return True
+    return False
 
 
 # ADR-0038 W4 giant (graveyard_matters): the opponent-owned-graveyard tell
@@ -14724,6 +14848,29 @@ def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
                     Signal("card_draw_engine", scope, "", c.raw, tree.name, "high")
                 )
     return out
+
+
+def etb_bulk_draw(tree: ConceptTree) -> bool:
+    """True when TREE draws 2+ cards (fixed or scaling) off its OWN
+    enters-the-battlefield trigger (CR 121.1 / 603.6e) — Mulldrifter,
+    Elvish Visionary's bigger siblings. This is the ETB-bulk counterpart
+    the task #83 'card-draw' preset view needs to reach Mulldrifter:
+    :func:`_card_draw_engine`'s own bulk-Draw arm deliberately EXCLUDES an
+    ``enters`` unit (a one-shot ETB draw is a value creature, not a
+    repeatable engine — see that function's own docstring), so
+    ``card_draw_engine`` alone never fires for it. Reuses the SAME
+    ``amount_factor`` / ``amount_is_scaling`` reads that lane's bulk gate
+    runs, just requiring the trigger shape that lane requires ABSENT.
+    """
+    for unit in tree.units:
+        if unit.trigger_event != "enters":
+            continue
+        for c in unit.effect_concepts("draw"):
+            if amount_factor(c.node, "count") >= 2 or amount_is_scaling(
+                c.node, "count"
+            ):
+                return True
+    return False
 
 
 def _group_hug_draw(tree: ConceptTree) -> list[Signal]:

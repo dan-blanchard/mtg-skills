@@ -227,11 +227,12 @@ class TestLegacyTopLevelLocation:
 
 class TestMergeMemberPresets:
     def test_merged_preset_or_matches_any_member(self):
-        # ``reanimate`` moved to a structural view (task #83) so it needs a
-        # real oracle_id to resolve — ``graveyard-return`` (still regex)
-        # exercises the SAME "merge ORs across two regex members" behavior
-        # with a synthetic card, so this test stays decoupled from the
-        # structural-view snapshot fixtures.
+        # Task #83: both ``graveyard-return`` and ``self-mill`` moved to
+        # structural (``concept``) views — neither has a surviving
+        # ``patterns`` arm — so both halves of this sanity check need a
+        # real oracle_id to resolve against, via the committed testkit
+        # snapshot.
+        from mtg_utils import testkit
         from mtg_utils._archetype_resolver import merge_member_presets
         from mtg_utils.theme_presets import PRESETS
 
@@ -242,20 +243,16 @@ class TestMergeMemberPresets:
 
         # The merged preset's `matches` returns True if EITHER constituent
         # preset's matchers fire on a card.
-        # graveyard-return match: a generic grave-to-hand recursion spell.
-        graveyard_return_card = {
-            "name": "Regrowth",
-            "type_line": "Sorcery",
-            "oracle_text": "Return target card from your graveyard to your hand.",
-        }
-        # Self-mill match: a self-mill card (oracle uses the preset's pattern).
-        self_mill_card = {
-            "name": "Stitcher's Supplier",
-            "type_line": "Creature — Zombie",
-            "oracle_text": (
-                "When this creature enters or dies, mill three cards. (Put the top three cards of your library into your graveyard.)"
-            ),
-        }
+        # graveyard-return match: a real grave-to-hand recursion spell,
+        # resolved via the committed testkit snapshot (graveyard-return's
+        # concept arm needs a real oracle_id).
+        testkit.test_card_ir("Regrowth")
+        graveyard_return_card = testkit.test_card("Regrowth")
+        # Self-mill match: a real self-mill card, resolved via the
+        # committed testkit snapshot (self-mill's concept arm needs a
+        # real oracle_id).
+        testkit.test_card_ir("Stitcher's Supplier")
+        self_mill_card = testkit.test_card("Stitcher's Supplier")
         # Neither — should NOT match the union.
         bystander = {
             "name": "Llanowar Elves",

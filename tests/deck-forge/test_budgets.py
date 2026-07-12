@@ -91,7 +91,13 @@ def test_role_classification_folds_counterspells_into_interaction():
     assert "ramp" in role_of(LLANOWAR)
     assert "interaction" in role_of(MURDER)
     assert "interaction" in role_of(COUNTERSPELL)  # counterspell folds into interaction
-    assert "card_draw" in role_of(DIVINATION)
+    # Task #83: card-draw converted to a structural view (signal_keys +
+    # concept, no patterns arm), which needs a real oracle_id to resolve —
+    # the synthetic DIVINATION dict (no oracle_id) degrades to no-match,
+    # same as any other structural-view preset against a synthetic
+    # fixture. Route through the committed testkit snapshot instead.
+    test_card_ir("Divination")
+    assert "card_draw" in role_of(test_card("Divination"))
     assert "board_wipe" in role_of(WRATH)
 
 
@@ -290,7 +296,12 @@ def test_protection_excludes_self_only_saves():
 
 
 def test_current_counts_reflect_deck():
-    b = slot_budgets([FOREST, LLANOWAR, MURDER, DIVINATION, WRATH], deck_size=100)
+    # Task #83: see test_role_classification_folds_counterspells_into_interaction
+    # for why DIVINATION routes through the testkit snapshot here.
+    test_card_ir("Divination")
+    b = slot_budgets(
+        [FOREST, LLANOWAR, MURDER, test_card("Divination"), WRATH], deck_size=100
+    )
     assert b["lands"]["current"] == 1
     assert b["ramp"]["current"] == 1
     assert b["card_draw"]["current"] == 1
