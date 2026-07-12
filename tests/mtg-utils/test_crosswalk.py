@@ -1707,6 +1707,54 @@ def test_creatures_matter_w8_reclass_batch(name, should_fire):
 
 
 @pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        # ADR-0039 W8 closer — the four family arms from the reclassifier's
+        # family map (salvaged from the cut-off closer session, landed with
+        # a fresh corpus measure: 2404 -> 2373 live_only, +127 adjudicated
+        # beyond-legacy cw_only gains).
+        #
+        # DoublePTAll mass P/T multiplier over the generic team (CR 107.3 /
+        # 613.4c) — the multiplier spelling of the PumpAll shape.
+        ("Unnatural Growth", True),
+        ("God-Eternal Rhonas", True),
+        # PutCounterAll mass counter grant (CR 121.1/122.1); counter kind
+        # deliberately unrestricted — a flying-counter team grant is the
+        # same go-wide payoff as a +1/+1 one.
+        ("Ajani Goldmane", True),
+        ("Song of Eärendil", True),
+        # Count operand behind an unread field wrapper (CR 107.3):
+        # UpTo.max (Harvest Season, Tapped-predicate population) and
+        # amount_dynamic (Shield of the Avatar's damage prevention).
+        ("Harvest Season", True),
+        ("Shield of the Avatar", True),
+        # Or-wrapped team-anthem affected filter (CR 604.3 — Silkguard's
+        # "Auras, Equipment, and modified creatures you control"), plus the
+        # AddChosenSubtype mod tag (Rukarumel's chosen-type team grant,
+        # CR 613.4d layer 4).
+        ("Silkguard", True),
+        ("Rukarumel, Biologist", True),
+        # NEGATIVE: an Or-wrapped GRAVEYARD-zone target (Emergency Weld) and
+        # an Or-wrapped spell TARGET on an activated return (Takenuma) are
+        # TARGET/zone context, not battlefield population context (CR 115.1
+        # / 400.2) — the descent re-applies the same generic gate per
+        # branch, so both stay excluded.
+        ("Emergency Weld", False),
+        ("Takenuma, Abandoned Mire", False),
+        # NEGATIVE: Fettergeist's "sacrifice unless you pay {1} for each
+        # other creature you control" scales a cost YOU pay with your own
+        # team — a wide board makes the card WORSE (CR 608.2b resolution
+        # instructions; the pay-per-creature is a tax, the inverse of a
+        # payoff). The wrapped-count arm must never widen to reach a
+        # you-pay unless-cost wrapper.
+        ("Fettergeist", False),
+    ],
+)
+def test_creatures_matter_w8_closer_batch(name, should_fire):
+    assert (("creatures_matter", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
     ("name", "ident", "should_fire"),
     [
         ("Padeem, Consul of Innovation", ("artifacts_matter", "you", ""), True),

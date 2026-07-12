@@ -4724,6 +4724,43 @@ def _is_generic_creature_filter(filt: object) -> bool:
     )
 
 
+def _or_wrapped_generic_creature_filter(filt: object) -> object | None:
+    """A generic creature-you-control filter reachable off an ``Or``/``And``
+    wrapper's branches (ADR-0039 W8 closer) — a static ability's ``affected``
+    field can name multiple qualifying object types disjunctively (CR 604.3:
+    "some static abilities apply to more than one type of object" — the
+    Silkguard shape, "Auras, Equipment, and modified creatures you control
+    gain hexproof": ``Or(Aura, Equipment, Typed(You, no-subtype, Modified,
+    Creature))``). :func:`_is_generic_creature_filter` fails on the WHOLE
+    ``Or`` node (``filter_controller``/``filter_core_types`` don't recurse
+    into branches), so this descends exactly ONE level and re-applies the
+    SAME gate per branch — no separate zone/subtype/predicate logic, so a
+    graveyard- or subtype-scoped branch (Emergency Weld's "artifact or
+    creature card from your graveyard", Rukarumel's Sliver-subtype branch)
+    still fails for the SAME reason it would un-wrapped.
+
+    Scoped as a lane-local helper used ONLY on
+    :func:`_iter_creatures_matter_static_defs`'s ``affected`` field (the
+    team-anthem arm) — never on a spell/ability ``target`` field, where an
+    ``Or``-wrapped choice is TARGET context (CR 115.1, the Divine Resilience
+    precedent: a preselected object, not a population filter), corpus-
+    verified as the shape carried by every OTHER ``Or``-wrapped-affected/
+    target family member (Emergency Weld's ``ChangeZone.target``, Battle for
+    Bretagard's ``TargetOnly.target``, Back on Track / Takenuma / Pestilent
+    Cauldron / Tymaret Calls the Dead's ``ChangeZone.target``, Churning
+    Reservoir's ``PutCounter.target``) — none of those nodes are static defs
+    :func:`_iter_creatures_matter_static_defs` yields at all, so this helper
+    never reaches them by construction.
+    """
+    if _is_generic_creature_filter(filt):
+        return filt
+    if tag_of(filt) in ("Or", "And"):
+        for sub in getattr(filt, "filters", None) or ():
+            if _is_generic_creature_filter(sub):
+                return sub
+    return None
+
+
 # Modification tags the ``creatures_matter`` team-anthem arm treats as a payoff
 # over the ``affected`` filter — mirrors ``_MOD_CONCEPTS``' pump/set_pt/
 # grant_keyword coarse buckets (CR 613.4c layer-7 P/T + CR 702.1 keyword
@@ -4792,6 +4829,17 @@ _CREATURES_MATTER_MOD_TAGS = frozenset(
         "AddSubtype",
         "AddAllCreatureTypes",
         "AssignDamageFromToughness",
+        # ADR-0039 W8 closer: the CHOSEN-type sibling of ``AddSubtype`` —
+        # Rukarumel, Biologist's "nontoken creatures you control are the
+        # chosen [creature] type in addition to their other creature
+        # types" (an as-enters ``Choose`` feeding a granted subtype, CR
+        # 613.4d layer 4 / 205.3) is the SAME team type-changing payoff as
+        # Roshan's fixed "are Assassins", just parameterized by an earlier
+        # choice instead of a literal subtype string — reached via the
+        # ``Or``-wrapped ``affected`` descent (:func:`_or_wrapped_generic_
+        # creature_filter`), whose OTHER branch (Sliver subtype) already
+        # fails the generic gate on its own (tribal, type_matters).
+        "AddChosenSubtype",
     }
 )
 
@@ -5006,6 +5054,91 @@ def _aggregate_creature_filter(node: TypedMirrorNode) -> object | None:
     return None
 
 
+def _creatures_matter_wrapped_count_filter(node: TypedMirrorNode) -> object | None:
+    """A generic-creature ``ObjectCount``/``Aggregate`` operand hiding behind
+    a field ``count_operand_filter``/:func:`_creature_count_operand_filter`/
+    :func:`_aggregate_creature_filter` all miss because it isn't named
+    ``amount``/``count``/``value`` (ADR-0039 W8 closer, CR 107.3): a
+    ``quantity`` field (Fettergeist's ``ManaDynamic(quantity=Ref(ObjectCount(
+    Typed(You,Another,Creature))))`` ramp trigger, Protect the Negotiators'
+    equivalent), an ``amount_dynamic`` field (Shield of the Avatar's
+    ``PreventDamage(amount_dynamic=Ref(ObjectCount(Typed(You,no-subtype,
+    Creature))))``), or a nested ``UpTo.max`` inside ``count`` (Harvest
+    Season's ``SearchLibrary(count=UpTo(max=Ref(ObjectCount(Typed(You,
+    Tapped,Creature)))))``).
+
+    EXCLUDES a ``Sacrifice`` node's identical ``count.max`` wrapper —
+    Devour's own "as this creature enters, you may sacrifice any number of
+    creatures" replacement cost (CR 702.82a) rides the SAME field-wrapper
+    shape but is a DIFFERENT, self-consuming population (the creatures
+    sacrificed, not the team), already adjudicated as a shed
+    (``DEVOUR_KEYWORD_NO_QTY_NODE``, ADR-0038 W6 Bloodspore Thrinax pin) —
+    corpus-verified node-shape distinction (not a keyword check): every
+    genuine member's wrapper lives on ``SearchLibrary``/``ManaDynamic``/
+    ``PreventDamage``, every Devour hit's on ``Sacrifice``, so gating on the
+    node's own tag is exact and needs no keyword thread. 22 of 27 corpus
+    hits for this wrapper shape are Devour riding this exact gap, so the
+    exclusion is load-bearing — see
+    ``/Users/danblanchard/.claude/jobs/097c2256/tmp/w8_creatures_reclass/
+    family_map.json``'s WRAPPED_COUNT_FIELD family for the full census.
+    """
+    if tag_of(node) == "Sacrifice":
+        return None
+    for fname in ("quantity", "amount_dynamic"):
+        v = getattr(node, fname, None)
+        if isinstance(v, TypedMirrorNode) and tag_of(v) == "Ref":
+            qty = getattr(v, "qty", None)
+            if tag_of(qty) in ("ObjectCount", "Aggregate"):
+                filt = getattr(qty, "filter", None)
+                if filt is not None:
+                    return filt
+    cnt = getattr(node, "count", None)
+    if isinstance(cnt, TypedMirrorNode) and tag_of(cnt) == "UpTo":
+        mx = getattr(cnt, "max", None)
+        if isinstance(mx, TypedMirrorNode) and tag_of(mx) == "Ref":
+            qty = getattr(mx, "qty", None)
+            if tag_of(qty) in ("ObjectCount", "Aggregate"):
+                filt = getattr(qty, "filter", None)
+                if filt is not None:
+                    return filt
+    return None
+
+
+def _creatures_matter_scaled_target_filter(unit_node: object) -> object | None:
+    """The ``target`` filter of a ``DoublePTAll``/``PutCounterAll`` node
+    reachable anywhere in one unit's tree (ADR-0039 W8 closer) — the SAME
+    fixed-team-pump/counter-grant shape :data:`_CREATURES_MATTER_MOD_TAGS`'s
+    ``PumpAll``/``AddKeyword`` siblings already cover, just a DIFFERENT
+    typed spelling phase reserves for a MULTIPLIER (``DoublePTAll`` —
+    Unnatural Growth / Double Trouble / God-Eternal Rhonas / Zopandrel,
+    Hunger Dominus / Roar of Endless Song's "creatures you control get
+    double their power" — CR 107.3 fixed multiplier of a computed value,
+    613.4c layer-7 P/T) or a mass counter GRANT (``PutCounterAll`` — Ajani
+    Goldmane's "put a +1/+1 counter on each creature you control", Song of
+    Eärendil's "each creature you control without flying gets a flying
+    counter on it" — CR 121.1/122.1 counters, 613.4c). ``counter_type`` is
+    NOT restricted to ``P1P1`` (Song of Eärendil's is a ``flying`` keyword
+    counter, CR 702.x) — matches the existing philosophy of accepting any
+    ``AddKeyword``/``GrantAbility`` team payoff regardless of which specific
+    ability it grants.
+
+    :func:`iter_typed_nodes` (the FULLY GENERIC deep walk, no curated field
+    list) over the WHOLE unit finds these regardless of which container
+    field nests them — God-Eternal Rhonas wraps its ``DoublePTAll`` inside
+    the SAME ``GenericEffect.static_abilities`` shape a granted trample
+    modification uses elsewhere, and a trigger-origin unit (Unnatural
+    Growth, Song of Eärendil) carries it directly. This function has
+    exactly ONE caller (creatures_matter's own arm), so a full-unit walk
+    needs no sibling corpus check (ADR-0038 landmine).
+    """
+    for n in iter_typed_nodes(unit_node):
+        if tag_of(n) in ("DoublePTAll", "PutCounterAll"):
+            filt = getattr(n, "target", None)
+            if filt is not None:
+                return filt
+    return None
+
+
 def _mass_untap_creature_filter(unit: object) -> object | None:
     """The TARGET filter of a mass (``scope == 'All'``) Untap ``SetTapState``
     reachable from one unit's node, threaded through the same
@@ -5113,41 +5246,67 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
       cost-reduction's own condition (that function's own docstring).
 
     ADR-0039 W8 reclassification (RECLASSIFY + ADJUDICATE ONLY — no new
-    arm landed this session): a full :func:`iter_typed_nodes` corpus
-    re-walk (no curated field list, so no node path is missed) over the
-    WHOLE live_only=2404 set found the W7 "162 heterogeneous" residue
+    arm that session): a full :func:`iter_typed_nodes` corpus re-walk
+    (no curated field list, so no node path is missed) over the WHOLE
+    live_only=2404 set found the W7 "162 heterogeneous" residue
     collapses to 30 once every node path is actually read — the other
     132 were already-adjudicated shed shapes (token-maker/blocking-
     attacking/symmetric/devour/tribal) a field-limited scan simply
-    missed. Of the 30 true residue: ~9 are cost-reduction (CR 601.2f,
-    the SAME shed philosophy as :func:`_creatures_matter_condition_
-    filter`'s ``ModifyCost`` exclusion — some ride an ACTIVATED
-    ability's own cost reduction, a node shape that carries no
-    ``static_mode_tag`` at all, so widening the count-operand read here
-    would ALSO need widening that exclusion, not just the field
-    coverage); ~4 are self-referential CDAs (Ancient Ooze / Moon-Vigil
-    Adherents' own dynamic P/T, the Towering Gibbon precedent); ~3 are
-    zone-scoped (graveyard, CR 400.2, the Wire Surgeons precedent); the
-    remainder are GENUINE structural gaps needing a NEW arm, not a
-    widening of this one: a ``DoublePTAll`` team pump (Unnatural Growth
-    / Double Trouble / God-Eternal Rhonas — a different typed node than
-    ``PumpAll``), a ``PutCounterAll`` mass +1/+1-counter grant (Ajani
-    Goldmane), a handful of count operands living behind an unread
-    field wrapper (``UpTo.max`` — Harvest Season; ``quantity`` —
-    Fettergeist; ``amount_dynamic`` — Shield of the Avatar), an
-    ``Or``-wrapped affected filter (Silkguard's "Auras, Equipment, and
-    modified creatures you control" — the generic-filter gate doesn't
-    descend into ``Or``/``And`` branches), and a count operand buried
-    inside a ``FlipCoin`` win-branch (Goblin Lyre). Full per-family node
-    dumps + closing-mechanism recommendations: /Users/danblanchard/
-    .claude/jobs/097c2256/tmp/w8_creatures_reclass/family_map.json. Key
-    stays residual.
+    missed, producing an exact family map (/Users/danblanchard/.claude/
+    jobs/097c2256/tmp/w8_creatures_reclass/family_map.json).
+
+    ADR-0039 W8 CLOSER wave landed four of that map's true-gap families,
+    all sharing the SAME :func:`_is_generic_creature_filter` gate:
+
+    * a **mass P/T multiplier and mass counter grant** — ``DoublePTAll``
+      (Unnatural Growth / Double Trouble / God-Eternal Rhonas / Zopandrel,
+      Hunger Dominus / Roar of Endless Song's "creatures you control get
+      double their power" — CR 107.3/613.4c) and ``PutCounterAll`` (Ajani
+      Goldmane's mass +1/+1 counter, Song of Eärendil's mass flying
+      counter — CR 121.1/122.1) are DIFFERENT typed spellings of the SAME
+      fixed-team-pump/counter-grant shape :func:`_pump_scaling_creature_
+      filter`/:data:`_CREATURES_MATTER_MOD_TAGS` already cover, read via
+      :func:`_creatures_matter_scaled_target_filter`'s full-unit
+      :func:`iter_typed_nodes` walk;
+    * a **count operand behind an unread field wrapper** — ``quantity``
+      (Fettergeist / Protect the Negotiators' ramp), ``amount_dynamic``
+      (Shield of the Avatar's damage prevention), or ``UpTo.max`` nested
+      inside ``count`` (Harvest Season's search) — CR 107.3, read via
+      :func:`_creatures_matter_wrapped_count_filter`, which EXCLUDES a
+      ``Sacrifice`` node's identical wrapper (Devour's own sacrifice
+      count, already an adjudicated shed — see that function's own
+      docstring for the corpus-verified node-shape distinction);
+    * an **``Or``-wrapped team-anthem ``affected`` filter** — a static
+      ability's scope can name multiple qualifying object types
+      disjunctively (CR 604.3 — Silkguard's "Auras, Equipment, and
+      modified creatures you control gain hexproof"), read via
+      :func:`_or_wrapped_generic_creature_filter`'s one-level Or/And
+      descent, scoped ONLY to the team-anthem arm's ``affected`` field
+      (never a spell/ability ``target`` field, which is TARGET context —
+      CR 115.1 — not population context, the Divine Resilience/Emergency
+      Weld precedent; see that helper's own docstring for the full
+      per-member family accounting), plus one new team-payoff mod tag
+      (``AddChosenSubtype`` — Rukarumel, Biologist's chosen-type grant,
+      the parameterized sibling of ``AddSubtype``).
+
+    Corpus-verified 43 genuine members closed (5 DoublePTAll + 22
+    PutCounterAll + 5 genuine WRAPPED_COUNT_FIELD + 11 Or-wrapped, one of
+    which — Rukarumel — needed the mod-tag addition to fire). The
+    remaining true residue (cost-reduction CR 601.2f, self-referential
+    CDAs CR 613.4b, zone-scoped CR 400.2, and a genuine upstream-parse-
+    failure/dropped-clause tail with no Creature-core-type filter
+    anywhere in the tree) stays an adjudicated shed or an un-triaged
+    diagnostic tail per the family map — none of it is a bounded single
+    idiom a ledgered bridge could cover this session.
     """
     for c in tree.iter_concepts():
         if (
             _is_generic_creature_filter(count_operand_filter(c.node))
             or _is_generic_creature_filter(_pump_scaling_creature_filter(c.node))
             or _is_generic_creature_filter(_creature_count_operand_filter(c.node))
+            or _is_generic_creature_filter(
+                _creatures_matter_wrapped_count_filter(c.node)
+            )
             or (
                 c.role == "effect"
                 and _is_generic_creature_filter(_aggregate_creature_filter(c.node))
@@ -5156,7 +5315,10 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
             return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
         for sdef in _iter_creatures_matter_static_defs(unit.node):
-            if not _is_generic_creature_filter(getattr(sdef, "affected", None)):
+            if (
+                _or_wrapped_generic_creature_filter(getattr(sdef, "affected", None))
+                is None
+            ):
                 continue
             mods = getattr(sdef, "modifications", None) or ()
             if any(tag_of(m) in _CREATURES_MATTER_MOD_TAGS for m in mods):
@@ -5170,6 +5332,10 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
             return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
         if _is_generic_creature_filter(_mass_untap_creature_filter(unit.node)):
+            return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
+        if _is_generic_creature_filter(
+            _creatures_matter_scaled_target_filter(unit.node)
+        ):
             return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         if _creatures_matter_condition_filter(unit.node) is not None:
