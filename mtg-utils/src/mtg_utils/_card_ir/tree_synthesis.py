@@ -8101,6 +8101,92 @@ def _arm_cheat_synthetic_destiny_delayed_reveal(
     return None
 
 
+# ── arm: tap_untap_matters Unknown-mode becomes-(un)tapped tail ────────────────
+# The step-7 open tombstone (ADR-0039 task #82): "whenever ~ becomes tapped/
+# untapped" (CR 603.2e/701.26) is a trigger MODE phase sometimes can't
+# classify — Darksteel Garrison's "fortified land becomes tapped", Grand
+# Marshal Macie's "becomes untapped", Roots of Life's "a land of the chosen
+# type an opponent controls becomes tapped", Royal Decree's "a Swamp,
+# Mountain, black permanent, or red permanent becomes tapped" all fall to the
+# untagged ``MirrorVariant(key="Unknown", inner=<raw trigger head clause>)``
+# wrapper phase uses when no ``S_triggers.mode`` tag matches, so
+# ``_trigger_event`` falls through to ``"other"``. ``mode.inner`` carries the
+# EXACT unparsed trigger-head text ("Whenever fortified land becomes tapped"
+# — the effect tail is a SEPARATE typed ``execute`` node), so reading it is a
+# typed-field read of the trigger's own residue, never a whole-oracle scan —
+# corpus-verified (scan1.py, 2026-07-12) to hit ONLY these 4 Unknown-mode
+# triggers card-wide (every other "becomes tapped/untapped" occurrence in the
+# corpus is either already phase-classified to ``Taps``/``Untaps`` or belongs
+# to an unrelated sibling clause the ``mode.inner`` anchor never reaches).
+_BECOMES_TAPPED_MODE_RE = re.compile(r"\bbecomes? tapped\b", re.IGNORECASE)
+_BECOMES_UNTAPPED_MODE_RE = re.compile(r"\bbecomes? untapped\b", re.IGNORECASE)
+
+_TAP_UNTAP_TRIGGER_EVENTS: frozenset[str] = frozenset({"taps", "untaps", "tapsformana"})
+
+
+def has_structural_tap_untap_matters(tree: ConceptTree) -> bool:
+    """Whether the card already carries a phase-classified becomes-(un)tapped
+    trigger (``Taps``/``Untaps``/``TapsForMana`` mode) — the tap_untap_matters
+    TYPED gate, shared with :func:`_arm_tap_untap_becomes`'s own gap gate
+    below (one source, no drift) so a phase-classified card never doubles."""
+    return any(
+        u.origin == "trigger" and u.trigger_event in _TAP_UNTAP_TRIGGER_EVENTS
+        for u in tree.units
+    )
+
+
+def _arm_tap_untap_becomes(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``taps``/``untaps`` node for the Unknown-mode becomes-
+    (un)tapped trigger tail phase leaves at ``event=='other'`` (CR 603.2e:
+    "becomes tapped"/"becomes untapped" are named-event triggers; CR
+    701.26a/701.26b: tap/untap). Reads ONLY residue that phase itself filed
+    UNDER this same Unknown-mode trigger unit — its ``mode.inner`` head
+    residue, plus (Royal Decree's "a Swamp, Mountain, black permanent, OR
+    RED PERMANENT becomes tapped": the trailing disjunct overflows the mode
+    parse entirely and lands as a nested ``other``-concept ``Unimplemented``
+    effect node INSIDE the same trigger's own execute chain) that unit's own
+    ``effect_concepts("other")`` raws. Never a sibling unit, never the
+    whole-card oracle — a card whose becomes-tapped mention lives in an
+    UNRELATED ability (Orcish Mine's compound upkeep-trigger clause loss,
+    The Caffeinated Runner's granted delayed trigger on an activated
+    ability) never fires this arm; those are documented, out-of-scope,
+    no-residue gaps a wider whole-card scan would be needed for. Gap-gated
+    on :func:`has_structural_tap_untap_matters` so a phase-classified
+    ``Taps``/``Untaps``/``TapsForMana`` trigger never doubles. Emits the
+    REAL "taps"/"untaps" concept (mirroring the vocabulary
+    :func:`_trigger_event`'s ``mode``->event map already uses for those
+    tags), so the ``_tap_untap_matters`` lane reads it via one extra
+    synthesized-node branch on its existing typed walk — no text re-scan."""
+    if has_structural_tap_untap_matters(tree):
+        return None
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        mode = getattr(unit.node, "mode", None)
+        if not (isinstance(mode, MirrorVariant) and mode.key == "Unknown"):
+            continue
+        residue = [mode.inner if isinstance(mode.inner, str) else ""]
+        residue.extend(c.raw for c in unit.effect_concepts("other") if c.raw)
+        text = " ".join(residue)
+        if _BECOMES_UNTAPPED_MODE_RE.search(text):
+            return _synthetic_concept(
+                arm_id="tap_untap_becomes",
+                concept="untaps",
+                scope="you",
+                subject=(),
+                desc="Unknown-mode becomes-untapped trigger (CR 701.26b)",
+            )
+        if _BECOMES_TAPPED_MODE_RE.search(text):
+            return _synthetic_concept(
+                arm_id="tap_untap_becomes",
+                concept="taps",
+                scope="you",
+                subject=(),
+                desc="Unknown-mode becomes-tapped trigger (CR 701.26a)",
+            )
+    return None
+
+
 # ── T8-misc-sweep bucket-B: the 9 Stage-2 closeout sweep rows ──────────────────
 # Re-probed at v0.9.0 (double tag/mode census + substring scan, ADR-0036): NONE
 # of the 9 formal kept-mirror rows has a competing structural read — each is
@@ -8518,6 +8604,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("base_pt_is_a_type_with", _arm_base_pt_is_a_type_with),
     ("base_pt_mass_where_x", _arm_base_pt_mass_where_x),
     ("base_power_ref_conjunctive", _arm_base_power_ref_conjunctive),
+    ("tap_untap_becomes", _arm_tap_untap_becomes),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

@@ -19083,12 +19083,29 @@ def _tap_untap_matters(tree: ConceptTree) -> list[Signal]:
     becomes-tapped family — Attentive Sunscribe) or ``Untaps`` (the Inspired
     payoff — Pain Seer; a SelfRef subject is live-INCLUDED, a genuine untap
     payoff). Tap DOERS (Master Decoy — a SetTapState effect, no Taps
-    trigger) never fire. The granted/quoted "becomes tapped" tail (~10
-    cards) is SUPPLEMENT — logged, live keeps its word mirror. Scope "you".
+    trigger) never fire. Scope "you".
+
+    Bucket-B tail (ADR-0039 task #82, the step-7 open tombstone):
+    Darksteel Garrison's "fortified land becomes tapped" and its 3 corpus
+    siblings (Grand Marshal Macie, Roots of Life, Royal Decree) are an
+    Unknown-mode trigger phase never tags ``Taps``/``Untaps`` at all;
+    ``tree_synthesis._arm_tap_untap_becomes`` recovers the dropped event from
+    the trigger's OWN ``mode.inner`` residue and emits the REAL "taps"/
+    "untaps" concept, so this second loop reads it through the ordinary typed
+    ``effect_concepts`` walk — keyed off the :class:`SynthesizedNode`
+    identity so a live phase-classified trigger (the loop above) never
+    doubles through this branch.
     """
     for unit in tree.units:
         if unit.origin == "trigger" and unit.trigger_event in _TAP_EVENTS:
             return [Signal("tap_untap_matters", "you", "", "", tree.name, "high")]
+    for unit in tree.units:
+        for concept in ("taps", "untaps"):
+            for c in unit.effect_concepts(concept):
+                if isinstance(c.node, SynthesizedNode):
+                    return [
+                        Signal("tap_untap_matters", "you", "", "", tree.name, "high")
+                    ]
     return []
 
 

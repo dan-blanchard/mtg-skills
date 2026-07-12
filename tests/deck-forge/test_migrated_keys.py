@@ -1019,26 +1019,28 @@ def test_tap_untap_matters_fires_off_becomes_untapped_event():
 
 
 def test_tap_untap_matters_recovers_unknown_mode_becomes_tapped():
-    """ADR-0027 #24c — Darksteel Garrison's "Whenever fortified land becomes tapped"
-    is an Unknown-mode trigger phase leaves at event=='other';
-    supplement._recover_becomes_tap_untap re-typed it to `taps` from the trigger
-    clause's raw, so tap_untap_matters read STRUCTURE for the tail too.
+    """ADR-0039 task #82 (the step-7 tombstone, now closed) — Darksteel
+    Garrison's "Whenever fortified land becomes tapped" is an Unknown-mode
+    trigger phase leaves at ``event=='other'``;
+    ``tree_synthesis._arm_tap_untap_becomes`` reads the trigger's own
+    ``mode.inner`` residue and re-types it to the "taps" concept, so
+    ``tap_untap_matters`` reads STRUCTURE for the tail too. CR 603.2e (named
+    becomes-tapped/untapped trigger events) / 701.26a (tap)."""
+    assert "tap_untap_matters" in {s.key for s in test_signals("Darksteel Garrison")}
 
-    TODO(ADR-0039 step 7) — OPEN CROSSWALK GAP, textual tombstone pin. The
-    legacy recovery (``supplement._recover_becomes_tap_untap``, a project.py-only
-    arm) died with the builder, and the crosswalk has NO equivalent yet: Darksteel
-    Garrison emits no ``tap_untap_matters`` signal on the production path today
-    (verified this step — the card's tree concepts are attach/pump/other, no
-    taps/untaps trigger read). This pin asserts the CURRENT honest state — the
-    gap plus the textual anchor that makes the card recoverable — so porting the
-    Unknown-mode becomes-tapped recovery into the crosswalk (dropped_clauses /
-    tree_synthesis) trips it, at which point flip it to a positive
-    ``test_signals`` assertion. CR 701.21a."""
-    card = test_card("Darksteel Garrison")
-    assert "becomes tapped" in (card.get("oracle_text") or "")
-    assert "tap_untap_matters" not in {
-        s.key for s in test_signals("Darksteel Garrison")
-    }, "the crosswalk now serves this — flip this tombstone to a positive pin"
+
+def test_tap_untap_matters_unknown_mode_becomes_tapped_siblings():
+    """ADR-0039 task #82 — the OTHER 2 commander-legal corpus members of the
+    same Unknown-mode becomes-tapped tail (blast-radius scan, 2026-07-12):
+    Royal Decree's "a Swamp, Mountain, black permanent, or red permanent
+    becomes tapped" (the trailing disjunct overflows into a nested ``other``
+    Unimplemented node the SAME trigger unit owns — also read) and Roots of
+    Life's "a land of the chosen type an opponent controls becomes tapped".
+    Both are genuine tap_untap_matters gains, not over-fires: each is the
+    idiomatic "whenever ~ becomes tapped, PAYOFF" shape CR 603.2e names.
+    CR 701.26a (tap)."""
+    assert "tap_untap_matters" in {s.key for s in test_signals("Royal Decree")}
+    assert "tap_untap_matters" in {s.key for s in test_signals("Roots of Life")}
 
 
 # ── ADR-0027 #24d (SIDECAR v55) — SUPPLEMENT_RECOVER B3 real-card structural pins ──
