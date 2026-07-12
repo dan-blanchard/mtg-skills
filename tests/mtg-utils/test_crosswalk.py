@@ -273,6 +273,131 @@ def test_land_creatures_matter_excludes_land_type_only_change():
     assert "land_creatures_matter" not in _keys("Dryad of the Ilysian Grove")
 
 
+# ── ADR-0039 W7: landfall promotion (3 ledgered bridges + adjudicated shed
+#    classes, PROMOTED — live_only == exactly the sheds below) ─────────────────
+
+
+def test_land_creatures_matter_subtype_animate_bridge():
+    """Ambush Commander: "Forests you control are 1/1 green Elf creatures
+    that are still lands." parks wholesale as Unimplemented — the subtype
+    (not core-type) mass land-animate grammar verb (CR 305.3/305.7),
+    bridged via ``land_creatures_subtype_animate_dropped``."""
+    assert ("land_creatures_matter", "you", "") in _idents("Ambush Commander")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Primal Adversary",  # deferred repeat-count "up to that many lands..."
+        "Sage of the Maze",  # X/X formula embedded in a single-target animate
+    ],
+)
+def test_land_creatures_matter_dynamic_animate_bridge(name):
+    """A dynamic-value land-animate clause (deferred repeat-count / X/X
+    formula) parks wholesale as Unimplemented, bridged via
+    ``land_creatures_dynamic_animate_dropped``."""
+    assert ("land_creatures_matter", "you", "") in _idents(name)
+
+
+def test_land_creatures_matter_condition_reference_bridge():
+    """Earth Rumble Wrestlers: "...as long as you control a land creature or
+    a land entered the battlefield under your control this turn" — a
+    ``_matters``-style condition-reference the compound Or condition parser
+    drops entirely, bridged via ``land_creatures_condition_reference_dropped``
+    (CR 305/110.1)."""
+    assert ("land_creatures_matter", "you", "") in _idents("Earth Rumble Wrestlers")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Faerie Conclave",  # self-animate manland
+        "Mutavault",  # self-animate manland
+        "Genju of the Cedars",  # Aura-granted self-animate (same bucket)
+    ],
+)
+def test_land_creatures_matter_excludes_manland_and_genju(name):
+    """A manland's self-animate (and its Aura-granted sibling, the Genju
+    cycle) stays ``land_protection``-only — a utility land-into-creature
+    isn't a build-around "theme" the way an anthem/maker is (CR 305/110.1);
+    see :func:`_land_protection`'s own structural read of the SAME shape."""
+    assert "land_creatures_matter" not in _keys(name)
+    assert ("land_protection", "you", "") in _idents(name)
+
+
+def test_land_creatures_matter_yedora_land_making_recursion():
+    """Yedora, Grave Gardener returns a dying creature as a face-down FOREST
+    LAND — a ONE-SHOT land-MAKING recursion that fuels a land-animator
+    payoff elsewhere in the deck (Living Plane, Life and Limb), a genuine
+    ``land_creatures_matter`` member (CR 707.9/305). The STATIC reverse
+    animator (Ashaya's "creatures you control are Forest lands...") is a
+    DIFFERENT, excluded shape — see the exclusion test below."""
+    assert ("land_creatures_matter", "you", "") in _idents("Yedora, Grave Gardener")
+
+
+def test_land_creatures_matter_excludes_static_reverse_animator():
+    """Ashaya's static "Nontoken creatures you control are Forest lands..."
+    keeps your CREATURES alive as lands continuously — a utility-land
+    protection case, not a build-around anthem (CR 305/110.1); distinct
+    from Yedora's one-shot land-making recursion above."""
+    assert "land_creatures_matter" not in _keys("Ashaya, Soul of the Wild")
+
+
+def test_land_creatures_matter_excludes_symmetric_mass_animate():
+    """A SYMMETRIC/any-controller mass animate (Natural Affinity — affected
+    controller ``None``) is a versatile removal/tempo tool, not a
+    self-directed build-around (CR 613.1d)."""
+    assert "land_creatures_matter" not in _keys("Natural Affinity")
+
+
+def test_land_creatures_matter_targetplayer_chosen_mass_animate():
+    """Jolrael, Empress of Beasts: "All lands target player controls
+    become 3/3 creatures..." is still YOUR OWN spell — the recipient is
+    chosen at activation, not symmetric — corpus-verified narrow (the sole
+    commander-legal TargetPlayer-controller mass Land→Creature static)."""
+    assert ("land_creatures_matter", "you", "") in _idents("Jolrael, Empress of Beasts")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Orcish Farmer",  # "Target land becomes a Swamp" — bare type change
+        "Realmwright",  # "Lands you control are the chosen type ..."
+        "Leyline of the Guildpact",  # "...are every basic land type ..."
+    ],
+)
+def test_land_creatures_matter_excludes_land_type_change_more(name):
+    """The SAME Dryad-of-the-Ilysian-Grove over-fire class (CR 305.7): a
+    land TYPE/subtype change with no Creature type ever added is a
+    different mechanic entirely, not an anthem/animator."""
+    assert "land_creatures_matter" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Consuming Sinkhole", "Bumi Bash"],
+)
+def test_land_creatures_matter_excludes_removal_naming_land_creature(name):
+    """A REMOVAL spell whose target filter merely NAMES a land creature
+    ("Exile target land creature" / "Destroy target land creature or
+    nonbasic land") is not an anthem/animator."""
+    assert "land_creatures_matter" not in _keys(name)
+
+
+def test_land_creatures_matter_excludes_disjunctive_copy_target():
+    """Relm's Sketching: "Create a token that's a copy of target artifact,
+    creature, or land" lists Land and Creature as ALTERNATIVES, not a dual
+    type — not a dual Land+Creature subject."""
+    assert "land_creatures_matter" not in _keys("Relm's Sketching")
+
+
+def test_land_creatures_matter_excludes_unrelated_landfall_toggle():
+    """Hidden Stag toggles itself between Enchantment and Creature keyed off
+    LANDFALL triggers — it never itself has the Land type, so a land never
+    becomes a creature here; a legacy text-mention over-fire."""
+    assert "land_creatures_matter" not in _keys("Hidden Stag")
+
+
 # ── granularity (c): whole-card reconciliation (spell-copy → spellcast) ────────
 
 
@@ -744,6 +869,79 @@ def test_ramp_land_base_vs_accel_fixing(name, should_fire):
 )
 def test_ramp_granted_mana_ability_descent(name):
     assert ("ramp", "you", "") in _idents(name)
+
+
+# ── ADR-0039 W7: ramp landfall promotion (structural closers + 2 ledgered
+#    bridges, PROMOTED — live_only 0) ───────────────────────────────────────
+
+
+def test_ramp_granted_trigger_mana_body():
+    """Mark of Sakiko: "Enchanted creature has 'Whenever ~ deals combat
+    damage to a player, add that much {G}...'" — a granted TRIGGERED mana
+    body (``GrantTrigger``, not ``GrantAbility``), read via
+    :func:`_granted_mana_defs`'s widened modification-tag check."""
+    assert ("ramp", "you", "") in _idents("Mark of Sakiko")
+
+
+def test_ramp_granted_ability_relaxed_mana_gate():
+    """Bigger on the Inside: "Target player adds two mana of any one
+    color..." fails CR 605.1a's own no-target clause (so ``is_mana_ability``
+    is unset) but still structurally produces mana — the relaxed OR gate
+    reads the definition's own effect tag instead."""
+    assert ("ramp", "you", "") in _idents("Bigger on the Inside")
+
+
+def test_ramp_returnasaura_granted_mana():
+    """Harold and Bob, First Numens: "It's an Aura enchantment with enchant
+    Forest you control and 'Enchanted Forest has "{T}: Add three mana of
+    any one color..."'" — a mana ability granted via ``ReturnAsAura``'s own
+    ``grants`` list, a tree position :func:`iter_static_defs`'s narrow
+    field walk never reaches."""
+    assert ("ramp", "you", "") in _idents("Harold and Bob, First Numens")
+
+
+def test_ramp_animate_treasure_grant():
+    """Minimus Containment: "Enchanted permanent is a Treasure artifact
+    with '{T}, Sacrifice ~: Add one mana of any color,' and it loses all
+    other abilities" — the quoted sac-for-mana ability never structures
+    into a node; every printed Treasure carries the identical ability by
+    design convention (CR 111.4/205.3g)."""
+    assert ("ramp", "you", "") in _idents("Minimus Containment")
+
+
+def test_ramp_granted_sacrifice_cost_is_acceleration():
+    """Rain of Filth: "lands you control gain 'Sacrifice ~: Add {B}.'" is a
+    single, non-fixing {B} grant — basic-equivalent by the bare accel/
+    fixing gate — but the grant's OWN cost is a Sacrifice, not the land's
+    existing {T}: a BONUS mana source layered on top of the land's own tap
+    ability, never the land's "mana base" identity (CR 106.1/605.1a)."""
+    assert ("ramp", "you", "") in _idents("Rain of Filth")
+
+
+def test_ramp_grant_unimplemented_body_bridge():
+    """Katilda / Tazri's self-referential "add one mana of any of ~'s
+    colors" and Old-Growth Troll's compound two-quoted-granted-ability body
+    both park the WHOLE granted ability as Unimplemented — bridged via
+    ``ramp_grant_unimplemented_body``."""
+    for name in (
+        "Katilda, Dawnhart Prime",
+        "Old-Growth Troll",
+        "Tazri, Stalwart Survivor",
+    ):
+        assert ("ramp", "you", "") in _idents(name)
+
+
+def test_ramp_dropped_add_mana_clause_bridge():
+    """The scaling/restricted/note-type/die-roll "Add {mana}" residue class
+    — each name CR-verified this session as a genuine legacy ramp member,
+    bridged via ``ramp_dropped_add_mana_clause``."""
+    for name in (
+        "Neheb, the Eternal",
+        "Squandered Resources",
+        "Rasputin, the Oneiromancer",
+        '"Name Sticker" Goblin',
+    ):
+        assert ("ramp", "you", "") in _idents(name)
 
 
 # ── Batch-2 over-fire regressions (rules-lawyer adjudicated; ADR-0035) ─────────
@@ -3274,6 +3472,71 @@ def test_land_sacrifice_makers_self_and_symmetric_preserved(name):
     """A self / symmetric land sacrifice (you sac your own lands) still fires
     (CR 701.21 / 305.6)."""
     assert ("land_sacrifice_makers", "you", "") in _idents(name)
+
+
+# ── ADR-0039 W7: landfall promotion (two pre-W6 accessor fixes + adjudicated
+#    shed classes, PROMOTED — live_only == exactly the sheds below) ────────────
+
+
+def test_land_sacrifice_makers_attack_requirement_accessor():
+    """Exalted Dragon: "~ can't attack unless you sacrifice a land." (CR
+    508.1d) — a sacrifice cost attached to an ATTACK REQUIREMENT, not a
+    ``cost``/``unless_pay`` field the bare cost-leaf walks read; phase parks
+    the clause as a ``CantAttack`` static's own condition-fallback text."""
+    assert ("land_sacrifice_makers", "you", "") in _idents("Exalted Dragon")
+
+
+def test_land_sacrifice_makers_granted_unless_pay():
+    """Custody Battle's Aura grants "At the beginning of your upkeep, target
+    opponent gains control of ~ unless you sacrifice a land." — the
+    ``unless_pay`` alternative cost lives on the GRANTED trigger's own
+    definition, one level deeper than the card's own top-level
+    ``unit.node.unless_pay`` (CR 601.2h / 701.21)."""
+    assert ("land_sacrifice_makers", "you", "") in _idents("Custody Battle")
+
+
+def test_land_sacrifice_makers_epicenter_per_clause():
+    """Epicenter: "Target player sacrifices a land of their choice.
+    Threshold — Each player sacrifices all lands they control instead if
+    there are seven or more cards in your graveyard." The un-thresholded
+    body is opponent-directed (TargetPlayer, excluded); its CR 614.1
+    ConditionInstead REPLACEMENT body is symmetric (ScopedPlayer/All — you
+    sac too) and must NOT inherit the superseded sibling's opponent
+    direction across the replacement boundary."""
+    assert ("land_sacrifice_makers", "you", "") in _idents("Epicenter")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Akki Raider",  # "whenever a land is put into a graveyard..." — same
+        "Centaur Vinecrasher",  # land-dies watcher, no controller restriction
+    ],
+)
+def test_land_sacrifice_makers_excludes_land_dies_watcher_more(name):
+    """The SAME Dingus Egg over-fire class (CR 701.21/400.7): a land-DYING
+    watcher with no "you control" restriction is a payoff/punisher, not the
+    actor performing the sacrifice."""
+    assert "land_sacrifice_makers" not in _keys(name)
+
+
+def test_land_sacrifice_makers_excludes_payoff_wording():
+    """Scouring Swarm: "Whenever you sacrifice a land, create..." is the
+    PAYOFF side of the sac (``land_sacrifice_matters``), not the engine
+    performing it — legacy's regex synthesis over-fires on the "whenever you
+    sacrifice a land" substring regardless of trigger-vs-cost position (CR
+    701.21)."""
+    assert "land_sacrifice_makers" not in _keys("Scouring Swarm")
+
+
+def test_land_sacrifice_makers_excludes_mixed_subject():
+    """Larval Scoutlander: "you may sacrifice a land or Lander" is a MIXED
+    subject (``sacrifice_outlets`` territory per this lane's own docstring),
+    not a Land-only self engine — legacy's regex synthesis matches the
+    "sacrifice a land" substring inside the composite phrase regardless of
+    the true ``Or[Land, Lander]`` subject (CR 701.21a)."""
+    assert "land_sacrifice_makers" not in _keys("Larval Scoutlander")
+    assert ("sacrifice_outlets", "you", "") in _idents("Larval Scoutlander")
 
 
 @pytest.mark.parametrize(

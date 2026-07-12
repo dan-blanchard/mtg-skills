@@ -1205,6 +1205,176 @@ def _base_pt_becomecopy_no_mods_match(tree: ConceptTree) -> bool:
     return bool(_BASE_PT_BECOMECOPY_PT_RX.search(tree.oracle))
 
 
+# ── Katilda / Old-Growth Troll / Tazri → ramp ─────────────────────────────────
+# A ``GrantAbility`` whose OWN quoted text mentions "add mana" but whose
+# ``definition.effect`` itself parks as ``Unimplemented`` (the granted
+# ability's body never structures at all): Katilda's "{T}: Add one mana of
+# any of ~'s colors" (a self-referential dynamic-color derivation the
+# clause grammar can't structure), Tazri's identical shape, and Old-Growth
+# Troll's compound "Enchanted Forest has '{T}: Add {G}{G}' and '{1}, {T},
+# Sacrifice ~: Create...'" (TWO quoted granted abilities joined by "and"
+# the grant parser doesn't split).
+_RAMP_GRANT_UNIMPL_RX = re.compile(
+    r"\badd\b[^.]*(\{[A-Za-z0-9]{1,3}\}|\bmana\b)", re.IGNORECASE
+)
+
+
+def _ramp_grant_unimplemented_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "GrantAbility":
+                continue
+            d = getattr(n, "definition", None)
+            if d is None:
+                continue
+            if tag_of(getattr(d, "effect", None)) != "Unimplemented":
+                continue
+            desc = getattr(d, "description", "") or ""
+            if _RAMP_GRANT_UNIMPL_RX.search(desc):
+                return True
+    return False
+
+
+def _ramp_grant_unimplemented_match(tree: ConceptTree) -> bool:
+    return _ramp_grant_unimplemented_gap(tree)
+
+
+# ── The scaling/restricted/note-type "Add mana" residue class → ramp ────────
+# A card-name-keyed enumeration (CONTEXT.md's third residue class) rather
+# than a generic substring: every card here is CR-verified this session as
+# a genuine legacy ``ramp`` member via TWO independent legacy mechanisms —
+# ``old_ir_for``'s own category=='ramp' structural classification (a
+# from-scratch grammar phase's parser doesn't share, 17 of 24), or the
+# byte-identical KEPT MIRROR pair legacy explicitly maintains as
+# authoritative for this exact residue (``_RAMP_MATTERS_REGEX`` /
+# ``_MANA_DORK_SUPPORT_MIRROR`` in _signals_ir.py, 7 of 24) — phase parks
+# EVERY one of these as an ``Unimplemented`` residue somewhere in the tree
+# (a dynamic/scaling count — Neheb's "for each 1 life...", Fangorn's "twice
+# that much"; a restricted-spend/note-type rider — Adarkar Unicorn, Ice
+# Cauldron, Jeweled Amulet, Kyren Toy; a die-roll/sticker table —
+# "Name Sticker" Goblin, Unglued Pea-Brained Dinosaur, ________ Goblin; a
+# player-choice recipient — Victory Chimes; a reveal-from-hand conditional
+# wrapper — Chancellor of the Tangle). A whole-card text regex would
+# over-fire (verified this session: a naive "add ... mana" pattern matches
+# reminder text describing a CREATED TOKEN's own ability — Deadly
+# Derision's Treasure token, T'Challa's Vibranium token — cards legacy does
+# NOT serve), so the name enumeration is the bounded anchor instead.
+_RAMP_DROPPED_NAMES: frozenset[str] = frozenset(
+    {
+        "Neheb, the Eternal",
+        "Benthic Explorers",
+        "Victory Chimes",
+        "Megatron, Tyrant",
+        "Su-Chi Cave Guard",
+        "Raggadragga, Goreguts Boss",
+        "Braid of Fire",
+        "Plasm Capture",
+        "Elemental Resonance",
+        "Rasputin, the Oneiromancer",
+        "Conduit of Emrakul",
+        "Adarkar Unicorn",
+        "Spoils of Evil",
+        "Ice Cauldron",
+        "Jeweled Amulet",
+        "Tundra Fumarole",
+        "Fangorn, Tree Shepherd",
+        "Kyren Toy",
+        "Chancellor of the Tangle",
+        "Charmed Pendant",
+        "Squandered Resources",
+        "Unglued Pea-Brained Dinosaur",
+        "________ Goblin",
+        '"Name Sticker" Goblin',
+    }
+)
+
+
+def _ramp_dropped_clause_gap(tree: ConceptTree) -> bool:
+    return not tree.is_type("Land") and not tree.effect_concepts("ramp")
+
+
+def _ramp_dropped_clause_match(tree: ConceptTree) -> bool:
+    return tree.name in _RAMP_DROPPED_NAMES
+
+
+# ── Ambush Commander → land_creatures_matter ─────────────────────────────────
+# "Forests you control are 1/1 green Elf creatures that are still lands." —
+# the subtype (not core-type) land-animate mass-static idiom
+# (crosswalk_signals._is_creature_animator / the mass-static-def arm both
+# gate on the CORE type "Land" in the affected filter; a SUBTYPE-only
+# affected filter like "Forests" needs its own clause-grammar verb, CR
+# 305.3/305.7). Phase's static parser drops the WHOLE line as
+# ``Unimplemented(name='unknown')`` — no typed AddType/affected-filter node
+# survives anywhere for it.
+def _land_creatures_subtype_animate_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        eff = getattr(unit.node, "effect", None)
+        if tag_of(eff) == "Unimplemented":
+            desc = getattr(eff, "description", "") or ""
+            if re.search(
+                r"you control are [^.]*creatures?[^.]*\bstill lands?\b",
+                desc,
+                re.IGNORECASE,
+            ):
+                return True
+    return False
+
+
+def _land_creatures_subtype_animate_match(tree: ConceptTree) -> bool:
+    return _land_creatures_subtype_animate_gap(tree)
+
+
+# ── Primal Adversary / Sage of the Maze → land_creatures_matter ──────────────
+# A land-animate clause whose CREATURE COUNT is dynamic/deferred (a "pay
+# this cost N times, then up to that many target lands become creatures"
+# repeat-count chain — Primal Adversary; a P/T formula "twice the number of
+# Gates you control" embedded in a single-target animate — Sage of the
+# Maze) blocks the clause grammar's animate-effect parse entirely; the
+# WHOLE clause parks as ``Unimplemented`` with no typed Animate/AddType
+# node anywhere. Distinct grammar gap from the Ambush Commander subtype-mass
+# idiom above (a per-target/per-count deferred value, not a bare subtype
+# filter) but the SAME root cause (a dynamic value inside an "X becomes a
+# creature" clause) — grouped as one idiom-class per the ledger's
+# per-idiom-class row rule.
+def _land_creatures_dynamic_animate_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        desc = getattr(unit.node, "description", "") or ""
+        if not re.search(
+            r"\blands?\b[^.]*\bbecomes?\b[^.]*\bcreatures?\b", desc, re.IGNORECASE
+        ):
+            continue
+        if any(tag_of(n) == "Unimplemented" for n in iter_typed_nodes(unit.node)):
+            return True
+    return False
+
+
+def _land_creatures_dynamic_animate_match(tree: ConceptTree) -> bool:
+    return _land_creatures_dynamic_animate_gap(tree)
+
+
+# ── Earth Rumble Wrestlers → land_creatures_matter ───────────────────────────
+# "~ gets +1/+0 and has trample as long as you control a land creature or a
+# land entered the battlefield under your control this turn." — a
+# ``_matters``-style CONDITION-REFERENCE payoff (CR 305/110.1's "land
+# creature" concept combined via an Or with a landfall self-state check);
+# phase's condition parser fails the compound Or, parking the WHOLE
+# condition as ``T_condition__Unrecognized`` — the "land creature" reference
+# survives only in that node's own ``text`` field (a typed field, not a
+# whole-card regex).
+def _land_creatures_condition_ref_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unrecognized":
+                text = getattr(n, "text", "") or ""
+                if "land creature" in text.lower():
+                    return True
+    return False
+
+
+def _land_creatures_condition_ref_match(tree: ConceptTree) -> bool:
+    return _land_creatures_condition_ref_gap(tree)
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -2188,6 +2358,141 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Mindlink Mech",),
             gap=_base_pt_becomecopy_no_mods_gap,
             match=_base_pt_becomecopy_no_mods_match,
+        ),
+        Bridge(
+            bridge_id="land_creatures_subtype_animate_dropped",
+            key="land_creatures_matter",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a subtype-"
+                "restricted (not core-type Land) mass land-animate "
+                "grammar verb — 'Forests you control are 1/1 green Elf "
+                "creatures that are still lands' parks wholesale as "
+                "Unimplemented(name='unknown') — retires when the clause "
+                "decomposes into a typed affected-filter (subtype Forest) "
+                "+ AddType(Creature) static the existing mass-static-def "
+                "arm already reads for CORE-type Land filters"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal Unimplemented top-level "
+                "effects matching 'you control are ... creatures ... "
+                "still lands', phase v0.20.0, 2026-07-12"
+            ),
+            pins=("Ambush Commander",),
+            gap=_land_creatures_subtype_animate_gap,
+            match=_land_creatures_subtype_animate_match,
+        ),
+        Bridge(
+            bridge_id="land_creatures_dynamic_animate_dropped",
+            key="land_creatures_matter",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a dynamic-value "
+                "land-animate grammar verb (a deferred 'pay this cost N "
+                "times, then up to that many lands become creatures' "
+                "repeat-count chain, or an X/X formula embedded in a "
+                "single-target animate) — both park wholesale as "
+                "Unimplemented — retires when the clause decomposes into "
+                "the existing typed Animate/AddType(Creature) reads"
+            ),
+            census=(
+                "2 hits / 31,622 commander-legal, matched against each "
+                "unit's own description ('land(s) ... become(s) ... "
+                "creature(s)') paired with an Unimplemented residue "
+                "anywhere in that same unit, phase v0.20.0, 2026-07-12"
+            ),
+            pins=("Primal Adversary", "Sage of the Maze"),
+            gap=_land_creatures_dynamic_animate_gap,
+            match=_land_creatures_dynamic_animate_match,
+        ),
+        Bridge(
+            bridge_id="land_creatures_condition_reference_dropped",
+            key="land_creatures_matter",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "condition parser fails a compound Or between a 'you "
+                "control a land creature' state-check and a landfall "
+                "self-state check, parking the WHOLE condition as "
+                "Unrecognized — retires on a phase bump that structures "
+                "the 'land creature' state-check half"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal Unrecognized condition "
+                "nodes whose text mentions 'land creature', phase v0.20.0, "
+                "2026-07-12"
+            ),
+            pins=("Earth Rumble Wrestlers",),
+            gap=_land_creatures_condition_ref_gap,
+            match=_land_creatures_condition_ref_match,
+        ),
+        Bridge(
+            bridge_id="ramp_grant_unimplemented_body",
+            key="ramp",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a granted-"
+                "ability body parser verb for (1) the self-referential "
+                "'any of ~'s colors' dynamic-color derivation (Katilda, "
+                "Tazri) and (2) a compound TWO-quoted-granted-ability body "
+                "joined by 'and' (Old-Growth Troll's 'Enchanted Forest has "
+                '"..." and "..."\') — both park the WHOLE granted '
+                "ability as Unimplemented; retires when the grant's "
+                "definition.effect decomposes into a typed Mana node"
+            ),
+            census=(
+                "3 hits / 31,622 commander-legal GrantAbility nodes whose "
+                "definition.effect is Unimplemented and whose description "
+                "mentions 'add ... mana/{X}', phase v0.20.0, 2026-07-12"
+            ),
+            pins=(
+                "Katilda, Dawnhart Prime",
+                "Old-Growth Troll",
+                "Tazri, Stalwart Survivor",
+            ),
+            gap=_ramp_grant_unimplemented_gap,
+            match=_ramp_grant_unimplemented_match,
+        ),
+        Bridge(
+            bridge_id="ramp_dropped_add_mana_clause",
+            key="ramp",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): THE headline "
+                "grammar verb for this key — an 'add {mana-expression}' "
+                "clause grammar that structures a dynamic/scaling count "
+                "('add {R} for each...', 'add twice that much'), a "
+                "restricted-spend or note-type rider ('spend this mana "
+                "only to...', Ice Cauldron/Jeweled Amulet's 'note the type "
+                "spent'), a die-roll/sticker value table, or a player-"
+                "choice recipient into a typed Mana effect — retires "
+                "PER-CARD as each idiom decomposes (the existing "
+                "structural ramp arm already reads it once it does)"
+            ),
+            census=(
+                "24 hits / 31,622 commander-legal, each name CR-verified "
+                "this session as a genuine legacy ramp member via "
+                "old_ir_for's independent category=='ramp' classification "
+                "(17/24) or legacy's own kept-mirror pair "
+                "(_RAMP_MATTERS_REGEX / _MANA_DORK_SUPPORT_MIRROR in "
+                "_signals_ir.py, 7/24 — Megatron, Raggadragga, Braid of "
+                "Fire, Plasm Capture, Tundra Fumarole, Chancellor of the "
+                "Tangle, Squandered Resources); phase v0.20.0, 2026-07-12. "
+                "A naive whole-card 'add ... mana' regex over-fires on "
+                "reminder text describing a CREATED TOKEN's own ability "
+                "(Deadly Derision / T'Challa's Treasure/Vibranium tokens — "
+                "corpus-verified NOT legacy ramp members), so this row is "
+                "a bounded name enumeration instead (CONTEXT.md's third "
+                "residue class)."
+            ),
+            pins=(
+                "Neheb, the Eternal",
+                "Squandered Resources",
+                "Rasputin, the Oneiromancer",
+                '"Name Sticker" Goblin',
+            ),
+            gap=_ramp_dropped_clause_gap,
+            match=_ramp_dropped_clause_match,
         ),
     )
 }
