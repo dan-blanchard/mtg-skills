@@ -1584,6 +1584,35 @@ def _hierophant_match(tree: ConceptTree) -> bool:
 # over the reminder-stripped per-face oracle — the SAME input the legacy
 # _IR_KEPT_DETECTORS mirror reads) is what keeps this lane scoped to exactly
 # legacy's population, not the raw gap.
+#
+# Grammar-sprint attempt (task #82, 2026-07-12): tried the narrowest bounded
+# structural sub-shape available — a STATIC ability whose affected Typed
+# filter co-occurs ``Named`` + ``Another`` properties (the literal "each
+# other creature/permanent named X gets..." self-buff shape Brothers
+# Yamazaki's third line carries). It survives on exactly 1 of this lane's
+# 29-card current-corpus population (Brothers Yamazaki) plus 1 near-miss the
+# legacy regex itself undercounts (Syr Joshua and Syr Saxon — "creature you
+# control named Syr Joshua and Syr Saxon has battle cry" doesn't match
+# NAMED_PERMANENT_REGEX's word order but is the same idiom). The other two
+# pins never reach a typed ``Named`` node at all — Mishra, Claimed by Gix's
+# meld-partner clause and Sheltered Valley's land-legend-swap replacement
+# both fail their static/replacement parsers and land as ``Unimplemented``
+# residue, so "named X" survives only as raw text there, not structure. A
+# full context-shape census (every ``(unit_origin, Named node type)`` pair
+# corpus-wide) confirms no shape cleanly separates this lane's population
+# from the rest: ``static/T_properties__Named`` is the best available
+# signal and it is STILL a mix of 4 in-population against 12 out (3x
+# over-fire for 14% recall); every other shape (``ability/T_properties__
+# Named`` 5-in/81-out, ``trigger/T_properties__Named`` 10-in/64-out,
+# ``trigger/T_filter__Named`` 0-in/53-out, ``ability/T_subject__Named``
+# 0-in/18-out, ``trigger/T_subject__Named`` 0-in/10-out) is worse. There is
+# no bounded structural discriminator to synthesize here — the disambiguation
+# genuinely needs semantic classification of what the Named reference is
+# FOR (self-buff vs tutoring vs partner-pair vs copy-limit vs planeswalker
+# callback), which is exactly the dedicated classifier project the todo
+# already names, not something a corpus-bounded tree_synthesis arm can
+# close. Scan script + full result dump:
+# /Users/danblanchard/.claude/jobs/097c2256/tmp/gs_named/.
 _NAMED_SYNERGY_RE = re.compile(NAMED_PERMANENT_REGEX, re.IGNORECASE)
 
 
@@ -2849,18 +2878,23 @@ BRIDGES: dict[str, Bridge] = {
             key="named_synergy",
             kind="upstream_parse_failure",
             todo=(
-                "dedicated Named-context classifier (not the post-"
-                "deletion grammar sprint — this is a crosswalk-side "
-                "disambiguation project, not a phase grammar gap): "
-                "narrow the typed Named-node deep walk to exclude "
-                "partner-pair references (CR 716.3), planeswalker-"
-                "uncoupled 'Path of the X' callbacks, copy-limit swarms "
-                "(CR 100.2a — the copy_limit sibling's own territory), "
-                "and named-card library tutoring, keeping only the "
-                "permanent-synergy self/other-name reference this lane "
-                "serves — retires (for the cards it then covers) once "
-                "that classifier lands and the lane switches to reading "
-                "it structurally"
+                "dedicated Named-context classifier (confirmed NOT a "
+                "grammar-sprint task #82 arm — task #82 tried the "
+                "narrowest bounded structural sub-shape available "
+                "[static Named+Another self-buff] and it recovers only "
+                "1 of 29 current-corpus population cards with no clean "
+                "context-shape split available corpus-wide; see the "
+                "module comment's 'Grammar-sprint attempt' paragraph — "
+                "this is a crosswalk-side disambiguation project, not a "
+                "phase grammar gap): narrow the typed Named-node deep "
+                "walk to exclude partner-pair references (CR 716.3), "
+                "planeswalker-uncoupled 'Path of the X' callbacks, "
+                "copy-limit swarms (CR 100.2a — the copy_limit sibling's "
+                "own territory), and named-card library tutoring, "
+                "keeping only the permanent-synergy self/other-name "
+                "reference this lane serves — retires (for the cards it "
+                "then covers) once that classifier lands and the lane "
+                "switches to reading it structurally"
             ),
             census=(
                 "27 hits / 31,622 commander-legal (byte-identical to the "
