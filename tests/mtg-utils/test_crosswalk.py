@@ -5463,13 +5463,17 @@ def test_opponent_discard_unless_clause_wand_of_ith_served_independently():
     assert ("opponent_discard", "opponents", "") in _idents("Wand of Ith")
 
 
-def test_opponent_discard_for_scaling_dominant_token_bridge():
-    """The ``opp_discard_for_scaling_dominant_token`` ledgered bridge:
-    Bladecoil Serpent's "When ~ enters, for each {B}{B} spent to cast it,
-    each opponent discards a card." — a mana-spent scaling prefix (CR
-    601.2f) is the DOMINANT recovered grammar token ("for"), not the
-    inner clause's own verb ("discard"). Grammar-blocked this wave
-    (ADR-0039 task #82)."""
+def test_opponent_discard_for_scaling_promoted_structural():
+    """PROMOTED off the ``opp_discard_for_scaling_dominant_token`` ledgered
+    bridge (ADR-0039 grammar sprint, task #82): Bladecoil Serpent's "When
+    ~ enters, for each {B}{B} spent to cast it, each opponent discards a
+    card." — a mana-spent scaling prefix (CR 601.2f) is phase's own
+    DOMINANT recovered token ("for"), never the wrapped clause's own verb
+    ("discard"). The clause still recovers a concept="discard" node via
+    the ADR-0038 ALLOWLIST token, but with no recipient field of its own
+    — ``_opponent_discard``'s ``fire()`` now resolves the direction
+    in-line off the residue's own preserved text
+    (``_OPP_DISCARD_SCALING_PREFIX_RX``), scope "opponents" (CR 701.9)."""
     assert ("opponent_discard", "opponents", "") in _idents("Bladecoil Serpent")
 
 
@@ -5483,13 +5487,19 @@ def test_opponent_discard_tk_sticker_parse_failure_bridge():
     assert ("opponent_discard", "opponents", "") in _idents("Yawgmoth Merfolk Soul")
 
 
-def test_opponent_discard_words_of_waste_replacement_bridge():
-    """The ``opp_discard_words_of_waste_replacement_the_residue`` ledgered
-    bridge: Words of Waste's "{1}: The next time you would draw a card
-    this turn, each opponent discards a card instead." — a REPLACEMENT-
-    idiom "the next time ... instead" clause (CR 614.1) has no imperative
-    verb to peel, so the dominant-token detector falls back to the
-    sentence's leading determiner ("the")."""
+def test_opponent_discard_words_of_waste_promoted_structural():
+    """PROMOTED off the ``opp_discard_words_of_waste_replacement_the_
+    residue`` ledgered bridge (ADR-0039 grammar sprint, task #82): Words
+    of Waste's "{1}: The next time you would draw a card this turn, each
+    opponent discards a card instead." — a REPLACEMENT-idiom "the next
+    time ... instead" clause (CR 614.1) has no imperative verb to peel,
+    so phase's dominant-token residue falls back to the sentence's
+    leading determiner ("the"). The clause still recovers a
+    concept="discard" node via the ADR-0038 ALLOWLIST token, but with no
+    recipient field of its own — ``_opponent_discard``'s ``fire()`` now
+    resolves the direction in-line off the residue's own preserved text
+    (``_OPP_DISCARD_REPLACEMENT_NEXT_TIME_RX``), scope "opponents" (CR
+    701.9)."""
     assert ("opponent_discard", "opponents", "") in _idents("Words of Waste")
 
 
@@ -5549,15 +5559,19 @@ def test_opponent_discard_driven_despair_missing_face_bridge():
     assert ("opponent_discard", "opponents", "") in idents
 
 
-def test_opponent_discard_jagged_poppet_combat_scaling_bridge():
-    """The ``opp_discard_jagged_poppet_combat_scaling`` ledgered bridge:
-    Jagged Poppet's "Hellbent — Whenever ~ deals combat damage to a
-    player, if you have no cards in hand, that player discards cards
-    equal to the damage." — the "discard cards equal to the damage"
-    clause recovers via the "discard" ALLOWLIST token, but the trigger's
-    own bare ``Player`` valid_target (not an explicit Opponent-shaped
-    actor) can't resolve a direction through the existing owner-fallback
-    chain. CR 510 / 701.9."""
+def test_opponent_discard_jagged_poppet_promoted_structural():
+    """PROMOTED off the ``opp_discard_jagged_poppet_combat_scaling``
+    ledgered bridge (ADR-0039 grammar sprint, task #82): Jagged Poppet's
+    "Hellbent — Whenever ~ deals combat damage to a player, if you have
+    no cards in hand, that player discards cards equal to the damage." —
+    the "discard cards equal to the damage" clause recovers via the
+    "discard" ALLOWLIST token, but the trigger's own bare ``Player``
+    valid_target (not an explicit Opponent-shaped actor) carries no
+    typed recipient of its own. ``_opponent_discard``'s ``fire()`` now
+    resolves it lane-locally: a combat-damage-to-a-player trigger's
+    recipient can only be a DEFENDING (non-active) player (CR 506.2 /
+    510.1b) — never the attacker themselves — so this exact idiom
+    directionally resolves to "opponents"."""
     assert ("opponent_discard", "opponents", "") in _idents("Jagged Poppet")
 
 

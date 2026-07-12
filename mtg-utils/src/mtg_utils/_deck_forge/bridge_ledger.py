@@ -1595,42 +1595,6 @@ def _opp_discard_unless_gap(tree: ConceptTree) -> bool:
     return any(True for _ in _unless_clause_failure_descs(tree))
 
 
-# Bladecoil Serpent's "When ~ enters, for each {B}{B} spent to cast it,
-# each opponent discards a card." — a mana-spent SCALING prefix (CR
-# 601.2f — mana spent to cast a spell) whose DOMINANT recovered grammar
-# token is "for", not the inner clause's own verb ("discard") — the
-# post-deletion grammar sprint's scaling-prefix-peel TODO, not this
-# session's (ADR-0039 forbids a new clause_grammar.py verb). The residue
-# node's OWN description preserves the full clause verbatim, so the match
-# is a tight, self-anchored end-of-clause read (Hollow Marauder's
-# superficially similar "For each of those opponents who didn't discard a
-# card ..., draw a card" residue is a DIFFERENT payoff, a DRAW gated on
-# non-discarders, correctly excluded — its clause doesn't END in "each
-# opponent discards a card"). Corpus-verified sole hit, 2026-07-12, phase
-# v0.20.0, 31,622 commander-legal.
-_OPP_DISCARD_FOR_SCALING_RX = re.compile(
-    r"each opponent discards a card\s*$", re.IGNORECASE
-)
-
-
-def _opp_discard_for_scaling_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "for":
-                yield getattr(n, "description", "") or ""
-
-
-def _opp_discard_for_scaling_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _opp_discard_for_scaling_descs(tree))
-
-
-def _opp_discard_for_scaling_match(tree: ConceptTree) -> bool:
-    return any(
-        _OPP_DISCARD_FOR_SCALING_RX.search(d)
-        for d in _opp_discard_for_scaling_descs(tree)
-    )
-
-
 # Yawgmoth Merfolk Soul's Unfinity Stickers "{TK}{TK} — When ~ leaves the
 # battlefield, target player discards a card." — the SAME {TK}-placeholder
 # cost-grammar frontier ``base_pt_tk_sticker_parse_failure`` (Cool Fluffy
@@ -1660,39 +1624,6 @@ def _yawgmoth_tk_discard_match(tree: ConceptTree) -> bool:
     return any(
         _YAWGMOTH_TK_DISCARD_RX.search(d) for d in _yawgmoth_tk_discard_descs(tree)
     )
-
-
-# Words of Waste's "{1}: The next time you would draw a card this turn,
-# each opponent discards a card instead." — a REPLACEMENT-idiom "the next
-# time ... instead" clause (CR 614.1) collapses WHOLESALE to a bare
-# determiner-token residue, ``Unimplemented(name='the')`` — our own
-# clause grammar's dominant-token detector picks the sentence's leading
-# word ("The") rather than any verb at all, since the whole clause is one
-# unbroken replacement rider with no imperative to peel. Gap and match
-# are the SAME residue-presence check (mirrors ``tpd_wedding_ellipsis_
-# repeat``'s precedent): the residue's own preserved text is specific
-# enough to serve without a separate anchor. Corpus-verified sole hit,
-# 2026-07-12, phase v0.20.0, 31,622 commander-legal.
-_WORDS_OF_WASTE_RX = re.compile(
-    r"next time you would draw a card this turn, each opponent discards "
-    r"a card instead",
-    re.IGNORECASE,
-)
-
-
-def _words_of_waste_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "the":
-                yield getattr(n, "description", "") or ""
-
-
-def _words_of_waste_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _words_of_waste_descs(tree))
-
-
-def _words_of_waste_match(tree: ConceptTree) -> bool:
-    return any(_WORDS_OF_WASTE_RX.search(d) for d in _words_of_waste_descs(tree))
 
 
 # ``_no_typed_discard_node`` — the shared gap for the two dropped-clause
@@ -1774,38 +1705,6 @@ def _driven_despair_gap(tree: ConceptTree) -> bool:
 
 def _driven_despair_match(tree: ConceptTree) -> bool:
     return bool(_DRIVEN_DESPAIR_RX.search(tree.oracle or ""))
-
-
-# Jagged Poppet's "Hellbent — Whenever ~ deals combat damage to a player,
-# if you have no cards in hand, that player discards cards equal to the
-# damage." — the "discard cards equal to the damage" clause DOES recover
-# via the "discard" ALLOWLIST token (its own Unimplemented residue
-# preserves that exact wording), but the DIRECTION ("that player" = the
-# player dealt combat damage) has no typed recipient of its own to
-# resolve, and the trigger's own valid_target reads a bare 'Player' (not
-# an explicit Opponent-shaped actor _OPP_DISCARD_ACTORS admits) — the
-# same bare-Player-vs-Opponent ambiguity a GENERAL widening would risk
-# over-firing genuinely symmetric multiplayer group-hug triggers on. The
-# gap is scoped to this idiom's OWN residue text (not the general "any
-# recovered discard with unresolved direction" shape, which would be far
-# too broad to serve as a self-retiring proof) — CR 510 (combat damage),
-# 701.9. Corpus-verified sole hit, 2026-07-12, phase v0.20.0, 31,622
-# commander-legal.
-def _jagged_poppet_discard_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "discard":
-                yield getattr(n, "description", "") or ""
-
-
-def _jagged_poppet_gap(tree: ConceptTree) -> bool:
-    return any(
-        "equal to the damage" in d.lower() for d in _jagged_poppet_discard_descs(tree)
-    )
-
-
-def _jagged_poppet_match(tree: ConceptTree) -> bool:
-    return _jagged_poppet_gap(tree)
 
 
 # ── Rock Hydra → plus_one_matters ────────────────────────────────────────────
@@ -3200,30 +3099,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_opp_discard_unless_match,
         ),
         Bridge(
-            bridge_id="opp_discard_for_scaling_dominant_token",
-            key="opponent_discard",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a 'for each "
-                "<mana> spent to cast it, <effect>' scaling prefix (CR "
-                "601.2f) is the DOMINANT recovered token ('for'), never "
-                "the inner clause's own verb ('discard') — needs a "
-                "scaling-prefix-peel so the wrapped clause's own verb "
-                "decorates instead — retires when that peel lands"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal Unimplemented('for') "
-                "residues ending in the exact discard payoff, phase "
-                "v0.20.0, 2026-07-12 (Hollow Marauder's superficially "
-                "similar 'for each ... discard' residue is a DIFFERENT, "
-                "unrelated draw payoff — correctly excluded by the "
-                "end-of-clause anchor)"
-            ),
-            pins=("Bladecoil Serpent",),
-            gap=_opp_discard_for_scaling_gap,
-            match=_opp_discard_for_scaling_match,
-        ),
-        Bridge(
             bridge_id="opp_discard_tk_sticker_parse_failure",
             key="opponent_discard",
             kind="upstream_parse_failure",
@@ -3239,25 +3114,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Yawgmoth Merfolk Soul",),
             gap=_yawgmoth_tk_discard_gap,
             match=_yawgmoth_tk_discard_match,
-        ),
-        Bridge(
-            bridge_id="opp_discard_words_of_waste_replacement_the_residue",
-            key="opponent_discard",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a REPLACEMENT-"
-                "idiom 'the next time ... instead' clause (CR 614.1) has "
-                "no imperative verb to peel, so the dominant-token "
-                "detector falls back to the sentence's leading determiner "
-                "('the') instead of any concept-bearing token — needs a "
-                "next-time-instead replacement-grammar rule that reads "
-                "past the determiner into the replaced effect's own verb "
-                "— retires when that rule lands"
-            ),
-            census=("1 hit / 31,622 commander-legal, phase v0.20.0, 2026-07-12"),
-            pins=("Words of Waste",),
-            gap=_words_of_waste_gap,
-            match=_words_of_waste_match,
         ),
         Bridge(
             bridge_id="opp_discard_fungal_shambler_dropped_conjunct",
@@ -3324,32 +3180,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Driven // Despair",),
             gap=_driven_despair_gap,
             match=_driven_despair_match,
-        ),
-        Bridge(
-            bridge_id="opp_discard_jagged_poppet_combat_scaling",
-            key="opponent_discard",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a "
-                "combat-damage-to-a-player trigger's own bare 'Player' "
-                "valid_target COULD directionally resolve an unresolved "
-                "discard as opponent-directed (combat damage from your "
-                "own creature reaches an opponent by the rules of the "
-                "game, CR 510) — but a general Player-vs-Opponent "
-                "owner-scope widening for opponent_discard's fallback "
-                "chain risks over-firing genuinely symmetric multiplayer "
-                "group-hug triggers; the sprint should scope that "
-                "widening lane-locally to combat-damage triggers only — "
-                "retires on that lane-local widening or a phase bump"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal Unimplemented('discard') "
-                "residues matching this exact damage-scaling idiom, "
-                "phase v0.20.0, 2026-07-12"
-            ),
-            pins=("Jagged Poppet",),
-            gap=_jagged_poppet_gap,
-            match=_jagged_poppet_match,
         ),
         Bridge(
             bridge_id="plus_one_rock_hydra_static_parse_failure",

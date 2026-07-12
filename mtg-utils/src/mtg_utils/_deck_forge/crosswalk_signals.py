@@ -10849,6 +10849,31 @@ _TEXT_ONLY_EACH_DISCARD_RX = re.compile(
     r"\beach player\b[^.\"]{0,40}?\bdiscards?\b", re.IGNORECASE
 )
 
+# ADR-0039 grammar sprint (task #82) — two grammar_straggler idioms whose
+# recovered "discard" concept-node (the ADR-0038 ALLOWLIST re-decoration)
+# carries no recipient field of its own, so the direction survives ONLY in
+# the residue's own preserved ``description`` text: Bladecoil Serpent's
+# "for each {B}{B} spent to cast it, each opponent discards a card" (a
+# mana-spent SCALING prefix, CR 601.2f — phase's own dominant recovered
+# token is the non-concept-bearing "for") and Words of Waste's "The next
+# time you would draw a card this turn, each opponent discards a card
+# instead" (a REPLACEMENT "next time ... instead" rider, CR 614.1 — no
+# imperative verb survives to peel, phase's dominant token is the leading
+# determiner "the"). Both anchors are read inside :func:`_opponent_discard`
+# 's ``fire()`` fallback chain, tight and idiom-specific — see that read
+# site's own comment. Corpus-verified sole hits, 2026-07-12, phase v0.20.0,
+# 31,622 commander-legal (Hollow Marauder's superficially similar "for
+# each ... discard" residue is a DIFFERENT, unrelated draw payoff —
+# excluded, its clause doesn't END in "each opponent discards a card").
+_OPP_DISCARD_SCALING_PREFIX_RX = re.compile(
+    r"each opponent discards a card\s*$", re.IGNORECASE
+)
+_OPP_DISCARD_REPLACEMENT_NEXT_TIME_RX = re.compile(
+    r"next time you would draw a card this turn, each opponent discards "
+    r"a card instead",
+    re.IGNORECASE,
+)
+
 
 def _opponent_discard(tree: ConceptTree) -> list[Signal]:
     """opponent_discard — a forced OPPONENT discard / hand attack (CR 701.9). A
@@ -10956,27 +10981,45 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
     (``opp_discard_unless_clause``, reusing lifeloss_makers' own
     ``_unless_clause_failure_descs`` — Tainted Specter, Remorseless
     Punishment; Wand of Ith carries the same residue class but is served
-    independently via its own typed ``DiscardCard``); a "for"-dominant
-    scaling-prefix straggler (``opp_discard_for_scaling_dominant_token`` —
-    Bladecoil Serpent's mana-spent idiom); a Stickers {TK} parse failure
-    (``opp_discard_tk_sticker_parse_failure`` — Yawgmoth Merfolk Soul, the
-    base_pt_set TK-frontier sibling); two zero-residue dropped conjuncts
-    sharing ``_no_typed_discard_node`` (the ``sacrifice_outlets`` broad-
-    gap/narrow-match precedent — Fungal Shambler, Mindculling); a
-    zero-unit text-only-tree back-reference
+    independently via its own typed ``DiscardCard``); a Stickers {TK}
+    parse failure (``opp_discard_tk_sticker_parse_failure`` — Yawgmoth
+    Merfolk Soul, the base_pt_set TK-frontier sibling); two zero-residue
+    dropped conjuncts sharing ``_no_typed_discard_node`` (the
+    ``sacrifice_outlets`` broad-gap/narrow-match precedent — Fungal
+    Shambler, Mindculling); a zero-unit text-only-tree back-reference
     (``opp_discard_driven_despair_missing_face`` — Driven // Despair's
     "Despair" half, wired into the text-only branch at the top of this
-    function); a replacement-idiom determiner-token residue
-    (``opp_discard_words_of_waste_replacement_the_residue`` — Words of
-    Waste's whole "next time ... instead" clause collapses to an
-    ``Unimplemented(name='the')``); and a combat-damage-trigger
-    Player-vs-Opponent scope ambiguity
-    (``opp_discard_jagged_poppet_combat_scaling`` — Jagged Poppet).
+    function).
+
+    The grammar sprint (ADR-0039 task #82, 2026-07-12) PROMOTED the other
+    three W7 bridges off text-residue ``bridge_fires`` reads onto real
+    structure — rows deleted from bridge_ledger.py, membership unchanged.
+    All three already carry a recovered concept="discard" ConceptNode (the
+    ADR-0038 ALLOWLIST re-decoration — the "discard" grammar token
+    matches somewhere in each residue's own preserved text even though
+    phase's OWN dominant-token classification differs), but that node has
+    no recipient field of its own for :func:`discard_recipient_scope` to
+    read, so the direction resolves in-line inside ``fire()``'s own
+    fallback chain instead (each read site's own comment for detail): a
+    "for"-dominant scaling-prefix straggler (Bladecoil Serpent's
+    mana-spent idiom, CR 601.2f) and a replacement-idiom determiner-token
+    residue (Words of Waste's "next time ... instead" clause, CR 614.1)
+    both resolve via :data:`_OPP_DISCARD_SCALING_PREFIX_RX` /
+    :data:`_OPP_DISCARD_REPLACEMENT_NEXT_TIME_RX` — tight, idiom-specific
+    anchors over the residue's own preserved description. A combat-
+    damage-trigger Player-vs-Opponent scope ambiguity (Jagged Poppet's
+    Hellbent "that player discards cards equal to the damage") resolves
+    the same way: a combat-damage-to-a-player trigger's recipient can
+    only be a DEFENDING (non-active) player (CR
+    506.2 / 510.1b) — never the attacker themselves — so an unresolved
+    recovered discard sharing that exact trigger shape directionally
+    resolves to "opponents", scoped lane-locally to this one idiom.
+
     live_only == exactly the 3 pre-existing adjudicated, negative-pinned
     shed classes (wheel-mirror-duplicate, Cephalid-Looter loot,
-    past-tense-watcher/self-discard) plus the 8 now-bridged cards moved to
-    both — the landfall rule. CR 701.9 / 701.9a / 119.4 / 601.2f / 123.1
-    verified this session.
+    past-tense-watcher/self-discard) plus the 8 bridged-then-structural
+    cards moved to both — the landfall rule. CR 701.9 / 701.9a / 119.4 /
+    601.2f / 123.1 / 614.1 / 506.2 / 510.1b verified this session.
     """
     # ADR-0039 W7 BRIDGES wave: "no REAL (phase-parsed) unit" rather than
     # the original bare ``not tree.units`` — Driven // Despair's "Despair"
@@ -11055,6 +11098,57 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
                 reveal_sc = _sibling_reveal_direction(unit)
                 if reveal_sc in ("opponents", "each"):
                     sc = reveal_sc
+            # ADR-0039 grammar sprint (task #82) —
+            # opp_discard_jagged_poppet_combat_scaling: "Hellbent —
+            # Whenever ~ deals combat damage to a player, if you have no
+            # cards in hand, that player discards cards equal to the
+            # damage." recovers a concept="discard" node via the "discard"
+            # ALLOWLIST token, but the residue carries no recipient field
+            # of its own (its dropped subject is "that player", the
+            # trigger's OWN bare ``Player`` valid_target). A combat-damage-
+            # to-a-player trigger's recipient can ONLY be a DEFENDING
+            # (non-active) player — CR 506.2 "the nonactive player is the
+            # defending player"; CR 510.1b "an unblocked creature assigns
+            # its combat damage to the player ... it's attacking" — never
+            # the attacking player themselves, so it directionally
+            # resolves to "opponents". Scoped LANE-LOCALLY to THIS exact
+            # idiom (the "equal to the damage" wording AND a genuine
+            # combat-damage-to-player trigger shape, both required) rather
+            # than a general Player-vs-Opponent owner-scope widening,
+            # which would risk over-firing a genuinely symmetric
+            # multiplayer group-hug trigger elsewhere in this fallback
+            # chain.
+            if (
+                sc not in ("opponents", "each")
+                and type(node).__name__ == "T_effect__Unimplemented"
+                and "equal to the damage"
+                in (getattr(node, "description", "") or "").lower()
+                and damage_to_player_trigger_kind(getattr(unit, "node", None))
+                is not None
+            ):
+                sc = "opponents"
+            # ADR-0039 grammar sprint (task #82) — two more grammar_
+            # straggler bridges whose recovered "discard" node ALSO
+            # carries no recipient field: Bladecoil Serpent's "for each
+            # {B}{B} spent to cast it, each opponent discards a card" (a
+            # mana-spent SCALING prefix, CR 601.2f — phase's own dominant
+            # recovered token is the non-concept-bearing "for") and Words
+            # of Waste's "The next time you would draw a card this turn,
+            # each opponent discards a card instead" (a REPLACEMENT "next
+            # time ... instead" rider, CR 614.1 — no imperative verb
+            # survives to peel, phase's dominant token is the leading
+            # determiner "the"). Both idioms' own preserved residue text
+            # still names the opponent-directed discard inline, so a
+            # tight, idiom-specific anchor resolves the direction without
+            # any general widening.
+            if sc not in ("opponents", "each") and type(node).__name__ == (
+                "T_effect__Unimplemented"
+            ):
+                desc = getattr(node, "description", "") or ""
+                if _OPP_DISCARD_SCALING_PREFIX_RX.search(
+                    desc
+                ) or _OPP_DISCARD_REPLACEMENT_NEXT_TIME_RX.search(desc):
+                    sc = "opponents"
             # The Cephalid-Looter loot veto is a discriminator for THIS
             # branch's typed-recipient inference only (a targeted "target
             # player draws, then discards" where BOTH share one targeted
@@ -11109,18 +11203,21 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
             out.append(
                 Signal("opponent_discard", "opponents", "", "", tree.name, "high")
             )
-    # ADR-0039 W7 BRIDGES wave — the residual dropped-clause / grammar-
-    # straggler / upstream-parse-failure bucket (bridge_ledger.py rows,
-    # each row's own module comment for the full corpus accounting):
+    # ADR-0039 W7 BRIDGES wave — the residual dropped-clause / upstream-
+    # parse-failure bucket (bridge_ledger.py rows, each row's own module
+    # comment for the full corpus accounting). The grammar sprint (task
+    # #82) PROMOTED the three grammar_straggler rows this bucket used to
+    # carry off text-residue ``bridge_fires`` reads onto real structure —
+    # all three now resolve in-line inside ``fire()``'s own fallback
+    # chain above (the ``_OPP_DISCARD_SCALING_PREFIX_RX`` /
+    # ``_OPP_DISCARD_REPLACEMENT_NEXT_TIME_RX`` / combat-damage-trigger
+    # branches, each with its own comment) and are retired from BRIDGES.
     if "opponents" not in seen:
         for bridge_id in (
             "opp_discard_unless_clause",
-            "opp_discard_for_scaling_dominant_token",
             "opp_discard_tk_sticker_parse_failure",
-            "opp_discard_words_of_waste_replacement_the_residue",
             "opp_discard_fungal_shambler_dropped_conjunct",
             "opp_discard_mindculling_dropped_conjunct",
-            "opp_discard_jagged_poppet_combat_scaling",
         ):
             if bridge_fires(bridge_id, tree):
                 out.append(
