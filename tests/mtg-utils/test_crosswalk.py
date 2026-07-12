@@ -1265,6 +1265,82 @@ def test_creatures_matter_w6_endgame_batch(name, should_fire):
 
 
 @pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        # ADR-0039 W7 BRIDGES wave — the CONDITION-gate arbitrary-payoff
+        # arm (:func:`_creatures_matter_condition_filter`): an existence/
+        # threshold Condition wrapping an otherwise UNRELATED effect
+        # over the generic creature-you-control population — CR 603.4.
+        ("Chronicler of Heroes", True),  # QuantityCheck, +1/+1-counter gate
+        ("Temur Battle Rage", True),  # Ferocious IsPresent, power 4+ gate
+        ("Epic Struggle", True),  # QuantityComparison, "20 or more creatures"
+        # EXCLUDED — a cost-reduction's OWN condition (CR 601.2f) is a
+        # narrower, different care than a go-wide creature payoff, not a
+        # genuine creatures_matter member (the W6 boundary worry this arm
+        # was built to resolve — static_mode_tag == "ModifyCost" guard).
+        ("Avatar of Might", False),
+        # EXCLUDED — Kathril's condition names creatures IN YOUR
+        # GRAVEYARD ("a creature card in your graveyard has flying"), not
+        # the battlefield population (CR 400.2 zone distinction).
+        ("Kathril, Aspect Warper", False),
+        # EXCLUDED — a Soulbond ETB "pair with another UNPAIRED creature"
+        # condition (CR 702.95b) is keyword-mechanic bookkeeping for ONE
+        # specific pairing partner, not a population-scale care.
+        ("Nearheath Pilgrim", False),
+        # ADR-0039 W7: a team EVASION/UNTAP-PERMISSION static-ability
+        # MODE (no modifications-list entry at all — see
+        # :data:`_CREATURES_MATTER_EVASION_MODES`'s own docstring), the
+        # SAME team-payoff shape as an anthem — CR 113.12 / 502 / 611.1.
+        ("Keeper of Keys", True),  # CantBeBlocked, "this turn"
+        ("Drumbellower", True),  # UntapsDuringEachOtherPlayersUntapStep
+        ("Dread Charge", True),  # CantBeBlockedExceptBy, color-restricted
+        # ADR-0039 W7: the deep static-def descent
+        # (:func:`_iter_creatures_matter_static_defs`) reaches a team
+        # anthem buried inside a modification's OWN granted trigger/
+        # ability body (``modifications``/``definition``/``trigger``
+        # fields — a shallower :func:`iter_static_defs` walk never
+        # follows these) plus two widened mod tags (AddChosenKeyword,
+        # GrantStaticAbility) — CR 113.10.
+        ("Centaur Chieftain", True),  # Threshold-granted trigger's own pump
+        ("Angelic Skirmisher", True),  # AddChosenKeyword
+        ("Garruk, Savage Herald", True),  # GrantStaticAbility
+        # EXCLUDED — Haunted One's granted payoff is "other creatures you
+        # control that SHARE A CREATURE TYPE with it" — a TRIBAL
+        # restriction phase encodes as a ``SharesQuality`` predicate, not
+        # a ``Subtype`` type_filters entry, so it fails the generic gate
+        # (CR 205.3, type_matters territory, not creatures_matter).
+        ("Haunted One", False),
+        # EXCLUDED — the granted MustAttack static lives on a TOKEN
+        # GIVEN TO AN OPPONENT ("each opponent creates a ... token with
+        # 'Creatures you control attack each combat if able'") — the
+        # filter's "You" resolves to the token's controller (the
+        # OPPONENT), not this card's own controller, so this is an
+        # opponent-aggro punisher, not a "my creatures matter" signal.
+        ("Goblin Spymaster", False),
+        # ADR-0039 W7: the created-TOKEN's scaling power/toughness site
+        # (:func:`_pump_scaling_creature_filter` widened to accept an
+        # ``Aggregate`` qty, the token-creation sibling of Might of the
+        # Masses' Pump-scaling site) — CR 208.1.
+        ("Miming Slime", True),  # X/X token, X = greatest power
+        # EXCLUDED — a self-referential named-copy CDA ("power and
+        # toughness are each equal to the number of creatures named
+        # Relentless Rats") computes the permanent's OWN characteristic
+        # (CR 613.4b / 604.3), the same exclusion Towering Gibbon already
+        # establishes for the Aggregate count-operand arm — a specific
+        # named-card synergy, not a generic population care.
+        ("Relentless Rats", False),
+        # EXCLUDED — "each artifact creature card in your GRAVEYARD has
+        # encore" is a graveyard-recursion care (CR 400.2), not a
+        # battlefield population — the same InZone guard that excludes
+        # Kathril's condition also excludes a static-def's ``affected``.
+        ("Wire Surgeons", False),
+    ],
+)
+def test_creatures_matter_w7_bridges_batch(name, should_fire):
+    assert (("creatures_matter", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
     ("name", "ident", "should_fire"),
     [
         ("Padeem, Consul of Innovation", ("artifacts_matter", "you", ""), True),

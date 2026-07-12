@@ -39,6 +39,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    _is_static_def,
     additional_phase_kind,
     amount_factor,
     amount_is_scaling,
@@ -145,7 +146,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_turn_constraint,
     zone_change_count_reads,
 )
-from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
+from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirrorNode
 
 # The b13 conferred-grant / condition-payoff raw anchors (soulbond / undying /
 # changeling / cascade / the Stage-3b madness/affinity/mutate re-categorizers)
@@ -1037,6 +1038,101 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # control" one-shot effects with no P/T/keyword modification at all,
     # …). No single mechanism closes (b) — banking the recall gain per
     # ADR-0038 step 5 rather than force-fitting a promotion.
+    #
+    # ADR-0039 W7 BRIDGES wave (2026-07-11): ``creatures_matter`` STAYS
+    # residual — a live corpus re-measure gives the FIRST exact,
+    # mechanistically-derived bucket accounting of the whole live_only
+    # set (a per-card classifier walking the SAME node fields the arms
+    # read, not approximate counts): both 1262 -> 1390 (+128 genuine
+    # recall), live_only 2532 -> 2404, cw_only 30 -> 154 (every new hit
+    # spot-verified genuine — the predicate-agnostic condition-gate
+    # philosophy already established for the artifacts_matter/
+    # enchantments_matter siblings, e.g. Colossal Majesty's "draw a card
+    # if you control a creature with power 4+", CR 603.4). Four new
+    # closing mechanisms, all CR-grounded and pinned
+    # (``test_creatures_matter_w7_bridges_batch``):
+    #
+    # (1) a CONDITION-gate arbitrary-payoff arm
+    # (:func:`_creatures_matter_condition_filter`) — an existence/
+    # threshold Condition wrapping an UNRELATED effect over the generic
+    # population (Chronicler of Heroes, the Ferocious ability word, Epic
+    # Struggle's "20 or more creatures, you win" — CR 603.4/608.2b),
+    # EXCLUDING a cost-reduction's own condition (``static_mode_tag ==
+    # "ModifyCost"`` — Avatar of Might/Synchronized Eviction/Arwen's
+    # Gift/Orysa's "costs {N} less" gate, CR 601.2f — the W6 boundary
+    # worry this arm resolves) and a Soulbond ``Unpaired`` predicate
+    # (Nearheath Pilgrim's ETB pairing check, CR 702.95b — keyword-
+    # mechanic bookkeeping for ONE partner, not a population care).
+    # (2) a deep static-def descent
+    # (:func:`_iter_creatures_matter_static_defs`, a lane-local STRICT
+    # SUPERSET of :func:`iter_static_defs` additionally following
+    # ``modifications``/``definition``/``trigger`` — a team anthem buried
+    # inside a modification's OWN granted trigger/ability body, Centaur
+    # Chieftain / Teroh's Vanguard / Angelic Skirmisher / Garruk Savage
+    # Herald / Dragon Throne of Tarkir / Tenth District Hero) plus two
+    # widened mod tags (``AddChosenKeyword``, ``GrantStaticAbility`` — CR
+    # 113.10) and four more (``AddType``/``AddSubtype``/
+    # ``AddAllCreatureTypes``/``AssignDamageFromToughness`` — CR 613.4d /
+    # 510.1c, each verified as the card's OWN static, never granted into
+    # an opponent-controlled token where "You" resolves to the WRONG
+    # controller — Goblin Spymaster / Pursued Whale's MustAttack mode is
+    # exactly that trap and is deliberately NOT added).
+    # (3) a team EVASION/UNTAP-PERMISSION static MODE
+    # (:data:`_CREATURES_MATTER_EVASION_MODES` — CantBeBlocked family +
+    # UntapsDuringEachOtherPlayersUntapStep, CR 113.12/502/611.1 — Keeper
+    # of Keys, Drumbellower, Dread Charge).
+    # (4) :func:`_pump_scaling_creature_filter` widened to accept an
+    # ``Aggregate`` qty alongside ``ObjectCount`` — a created TOKEN's
+    # scaling power/toughness site (Miming Slime's "X/X token, X = the
+    # greatest power among creatures you control" — CR 208.1), the sole
+    # caller so the widening needs no sibling corpus check.
+    #
+    # TWO CORRECTNESS FIXES to the shared :func:`_is_generic_creature_filter`
+    # gate itself (affecting every caller — type_matters go-wide included,
+    # a pure improvement, never a widening): an explicit non-Battlefield
+    # ``InZone`` predicate now fails the gate (Wire Surgeons' "each
+    # artifact creature card in your GRAVEYARD has encore" was a false
+    # positive the deep descent's wider reach first surfaced — CR 400.2;
+    # an explicit ``InZone: Battlefield`` — Chronicler of Heroes' own
+    # counter-predicate filter states it explicitly — still passes), and a
+    # ``SharesQuality`` predicate now fails the gate (Haunted One's
+    # granted "other creatures you control that SHARE A CREATURE TYPE
+    # with it" is a TRIBAL restriction phase encodes as a predicate, not
+    # a ``Subtype`` type_filters entry — CR 205.3, type_matters
+    # territory).
+    #
+    # The exact live_only=2404 decomposition (a per-card mechanistic
+    # classifier, not estimates): 2131 the PRE-EXISTING token-maker LOW
+    # regex floor (Siege-Gang Commander, already negative-pinned); 162 a
+    # genuinely heterogeneous residue of many small, structurally
+    # UNRELATED shapes (subtype anthems correctly excluded by the
+    # no-subtype gate — Karrthus; single-target aura/equip grants;
+    # generic "untap all" with no P/T/keyword mod; Rampage/board-count
+    # shapes the pre-existing shed classes already cover under different
+    # node paths than this session's diagnostic script checked); 32 a
+    # "creatures BLOCKING it"/"creatures attacking you" count (Rampage,
+    # Craw Giant, already negative-pinned, CR 509.1h); 22 Devour's
+    # sacrifice count (Bloodspore Thrinax, already negative-pinned, CR
+    # 702.82a); 20 a symmetric any-controller "on the battlefield" count
+    # (Blasphemous Act, already negative-pinned); 6 the legendary-
+    # creature-count-SCALED cost reduction shape at a non-Condition site
+    # (Boseiju/Eiganjo/Otawara/Sokenzan/Takenuma/Mirror of Galadriel —
+    # the SAME CR 601.2f exclusion as arm (1)'s cost-reduction guard, just
+    # reached via a ``S_cost_reduction`` count field rather than a
+    # Condition site, deliberately NOT closed by a blind count-operand
+    # deep scan — that would reopen the SAME cost-reduction contamination
+    # risk arm (1) was built to avoid); 2 a self-referential named-copy
+    # CDA (Relentless Rats — CR 613.4b, the Towering Gibbon precedent); 1
+    # a tribal SharesQuality grant (Haunted One, now correctly excluded
+    # by the gate fix above); 2 an opponent-token-scope MustAttack grant
+    # (Goblin Spymaster/Pursued Whale); 1 a graveyard-zone care (Kathril,
+    # Aspect Warper, now correctly excluded); ~26 more single-card shapes
+    # in the ``other_filter`` tail needing their own dedicated arm
+    # (Mana Echoes, Crypt of Agadeem, Carrion Grub, Audience with
+    # Trostani, We Ride at Dawn, …). No single further mechanism closes
+    # the residue — banking this session's substantial recall gain and
+    # two shared-gate correctness fixes rather than force-fitting a
+    # promotion past a still-genuine, still-diverse tail.
     #
     # ADR-0038 W4 giant-key batch: ``plus_one_matters`` STAYS residual —
     # substantial recall gain (a live corpus re-measure: both 118 -> 296,
@@ -4054,13 +4150,32 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
 
 def _is_generic_creature_filter(filt: object) -> bool:
     """A GENERIC "creatures you control" filter (CR 604.3) — Creature in core types,
-    NO subtype, controller you. A tribal (subtyped) filter is ``type_matters``, a
-    different lane; a single-target removal/buff (controller any) fails the gate.
+    NO subtype, controller you, ON THE BATTLEFIELD (CR 110.1 default zone for
+    "creature" absent an explicit zone qualifier — phase sometimes states
+    ``InZone: Battlefield`` explicitly, e.g. a Counters-predicate filter's
+    "with a +1/+1 counter on it" reading — CR 400.2, that's still the
+    default population, NOT a zone restriction). A tribal (subtyped)
+    filter is ``type_matters``, a different lane; a single-target
+    removal/buff (controller any) fails the gate. ADR-0039 W7: an
+    explicit NON-battlefield ``InZone`` predicate (Wire Surgeons' "each
+    artifact creature card in your GRAVEYARD has encore" — a graveyard-
+    recursion care, not a battlefield population) fails the gate —
+    corpus-verified via the ADR-0039 W7 deep static-def descent, which
+    reaches these buried graveyard-zone static defs a shallower walk
+    never surfaced. A ``SharesQuality`` predicate (Haunted One's granted
+    "... other creatures you control that SHARE A CREATURE TYPE with
+    it" — a TRIBAL restriction phase encodes as a predicate, not a
+    ``Subtype`` type_filters entry, so :func:`filter_subtypes` alone
+    misses it) fails the gate too — CR 205.3 territory (``type_matters``),
+    not a generic population.
     """
+    zones = filter_inzone_zones(filt)
     return (
         filter_controller(filt) == "You"
         and "Creature" in filter_core_types(filt)
         and not filter_subtypes(filt)
+        and "SharesQuality" not in filter_predicates(filt)
+        and (not zones or set(zones) <= {"Battlefield"})
     )
 
 
@@ -4104,14 +4219,143 @@ _CREATURES_MATTER_MOD_TAGS = frozenset(
         "SetToughnessDynamic",
         "GrantAbility",
         "GrantTrigger",
+        # ADR-0039 W7: two more team-payoff modification tags a corpus
+        # census (8 cards: Angelic Skirmisher, Linvala Shield of Sea Gate,
+        # Garruk Savage Herald, ...) proved are the SAME "whole-team gets
+        # an ability" shape as GrantAbility/AddKeyword, just a distinct
+        # typed spelling — a CHOSEN keyword grant (Angelic Skirmisher's
+        # "choose a keyword ... creatures you control gain it", CR
+        # 113.10) and a granted STATIC ability specifically (Garruk's
+        # "Creatures you control have '... {T}: This creature fights...'"
+        # — GrantAbility grants an activated/triggered ability; a granted
+        # STATIC carries its own typed tag, CR 604.1/113.10).
+        "AddChosenKeyword",
+        "GrantStaticAbility",
+        # ADR-0039 W7: three type-changing (CR 613.4d layer 4) tags plus a
+        # combat-math rewrite, each verified on its OWN card as the card's
+        # OWN static (never a granted-to-a-token/opponent context, where
+        # the filter's "You" would resolve to the WRONG controller —
+        # Goblin Spymaster / Pursued Whale's MustAttack mode lives on an
+        # OPPONENT-controlled token they grant it to, so that mode is
+        # deliberately NOT added here): Biotransference ("creatures you
+        # control are artifacts"), Roshan ("other creatures you control
+        # are Assassins"), Maskwood Nexus ("creatures you control are
+        # every creature type"), Rasaad yn Bashir ("each creature you
+        # control assigns combat damage equal to its toughness" — CR
+        # 510.1c-adjacent combat-damage-assignment rewrite).
+        "AddType",
+        "AddSubtype",
+        "AddAllCreatureTypes",
+        "AssignDamageFromToughness",
     }
 )
 
+# ADR-0039 W7: a team EVASION/UNTAP-PERMISSION static-ability MODE (phase
+# encodes "can't be blocked (by X)" and "untaps during another player's
+# untap step" as a MODE, never a modifications-list tag — no Add/Set/Grant
+# entry exists to pair with _CREATURES_MATTER_MOD_TAGS at all) over the
+# generic creature-you-control population is the SAME team-payoff shape as
+# an anthem, just a different CR layer: CR 113.12 ("can't be blocked" is a
+# stated quality, CR 604.3 static ability) for the evasion trio, CR 502 +
+# CR 611.1 (a continuous effect modifying the untap-step rules) for the
+# untap-permission mode. Keeper of Keys / Jace, Arcane Strategist / Dread
+# Charge / Champion of Lambholt / Delney / Drumbellower / Quest for
+# Renewal-class cards, corpus-verified (11 CantBeBlocked-family + 2
+# untap-permission hits at introduction, 0 over-fire — every hit's
+# ``affected`` passes the SAME no-subtype/You-controller gate).
+_CREATURES_MATTER_EVASION_MODES = frozenset(
+    {
+        "CantBeBlocked",
+        "CantBeBlockedBy",
+        "CantBeBlockedExceptBy",
+        "UntapsDuringEachOtherPlayersUntapStep",
+    }
+)
+
+# ADR-0039 W7: local deep static-def descent — a STRICT SUPERSET of the
+# shared :func:`iter_static_defs`'s field-limited walk, additionally
+# following "modifications" (a GrantTrigger/GrantAbility modification
+# entry nests its OWN granted trigger/ability body one level further —
+# Haunted One / Centaur Chieftain / Teroh's Vanguard's granted trigger
+# carrying its OWN nested static, corpus-verified 8-card recovery) and
+# "definition" (Dragon Throne of Tarkir / Garruk's GrantAbility.definition
+# nesting). Scoped to THIS lane only (never widening the shared
+# ``iter_static_defs``, which many other lanes read and which the
+# ADR-0038 landmine requires a full-corpus sibling check to widen) —
+# mirrors the ``_pump_scaling_creature_filter`` / ``_creature_count_
+# operand_filter`` precedent of a lane-local deep-read helper.
+_CM_STATIC_DEF_CHILD_FIELDS = (
+    "effect",
+    "sub_ability",
+    "execute",
+    "mode_abilities",
+    "static_abilities",
+    "statics",
+    "modifications",
+    "definition",
+    "trigger",
+)
+
+
+def _iter_creatures_matter_static_defs(
+    root: object,
+) -> Iterator[TypedMirrorNode]:
+    seen: set[int] = set()
+    stack: list[object] = [root]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, TypedMirrorNode) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if _is_static_def(node):
+            yield node
+        for fname in _CM_STATIC_DEF_CHILD_FIELDS:
+            child = getattr(node, fname, MISSING)
+            if isinstance(child, TypedMirrorNode):
+                stack.append(child)
+            elif child is not MISSING and isinstance(child, list):
+                stack.extend(child)
+
+
+def _creatures_matter_condition_filter(unit_node: object) -> object | None:
+    """A generic creature-you-control filter reachable from a CONDITION
+    site of this unit (ADR-0039 W7) — an existence/threshold gate wrapping
+    an ARBITRARY effect (Chronicler of Heroes' "if you control a creature
+    with a +1/+1 counter on it, draw a card"; the Ferocious ability word
+    idiom — Temur Battle Rage, Crater's Claws, Force Away). CR 603.4
+    (static/triggered conditions), 608.2b (compound conditions read
+    leaf-by-leaf — a deep :func:`iter_typed_nodes` scan of the whole
+    condition subtree reads through And/Or/QuantityComparison/Aggregate
+    wrappers alike, no per-tag switch needed).
+
+    EXCLUDES a cost-reduction's OWN condition (``static_mode_tag ==
+    "ModifyCost"``) — "this spell costs {N} less if you control a
+    creature with power 4+" (Avatar of Might, Synchronized Eviction,
+    Arwen's Gift, Orysa) is a narrower, DIFFERENT care (CR 601.2f) than a
+    go-wide creature payoff, corpus-verified as the only 4 cards among
+    117 raw hits carrying this shape — the W6 boundary worry this arm was
+    built to resolve. ALSO EXCLUDES a Soulbond ``Unpaired`` predicate
+    (Nearheath Pilgrim's ETB "you may pair this creature with another
+    UNPAIRED creature" trigger condition, CR 702.95b) — a keyword-
+    mechanic bookkeeping check for ONE specific pairing partner, not a
+    population-scale care, corpus-verified as the only predicate class
+    riding this shape.
+    """
+    if static_mode_tag(unit_node) == "ModifyCost":
+        return None
+    for site in iter_condition_sites(unit_node):
+        for n in iter_typed_nodes(site):
+            if _is_generic_creature_filter(n) and "Unpaired" not in filter_predicates(
+                n
+            ):
+                return n
+    return None
+
 
 def _pump_scaling_creature_filter(node: object) -> object | None:
-    """The FILTER feeding a ``Pump``/``PumpAll`` node's scaling ``power``/
-    ``toughness`` operand (CR 107.3), unwrapping a ``Quantity`` wrapper the
-    same way :func:`_field_qty` does.
+    """The FILTER feeding a ``Pump``/``PumpAll``/``Token`` node's scaling
+    ``power``/``toughness`` operand (CR 107.3), unwrapping a ``Quantity``
+    wrapper the same way :func:`_field_qty` does.
 
     :func:`count_operand_filter` only reads ``amount``/``count``/``value`` —
     a scaling Pump's dynamic magnitude lives on ``power``/``toughness``
@@ -4119,7 +4363,16 @@ def _pump_scaling_creature_filter(node: object) -> object | None:
     filter=...))))``), so that shared helper never sees it. Scoped to this
     lane rather than widening the shared helper (ADR-0038 landmine: a
     shared-helper widening needs a full-corpus sibling check this lane
-    doesn't have budget for).
+    doesn't have budget for). ADR-0039 W7: also accepts an ``Aggregate``
+    (Max/Min) qty on the SAME power/toughness site — a created TOKEN's
+    scaling P/T (Miming Slime / Kin-Tree Invocation / Tumbleweed Rising /
+    Abzan Monument's "create an X/X ... token, where X is the greatest
+    power/toughness among creatures you control") rides this exact field
+    pair too (``Token(power=Quantity(Ref(Aggregate(...))))`` — CR 208.1),
+    the token-creation sibling of :func:`_aggregate_creature_filter`'s
+    amount/count/value read. This function has exactly ONE caller
+    (creatures_matter's own first arm), so widening it needs no sibling
+    corpus check.
     """
     for fname in ("power", "toughness"):
         v = getattr(node, fname, None)
@@ -4128,7 +4381,7 @@ def _pump_scaling_creature_filter(node: object) -> object | None:
         if tag_of(v) != "Ref":
             continue
         qty = getattr(v, "qty", None)
-        if tag_of(qty) == "ObjectCount":
+        if tag_of(qty) in ("ObjectCount", "Aggregate"):
             filt = getattr(qty, "filter", None)
             if filt is not None:
                 return filt
@@ -4286,6 +4539,33 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
     Devour's sacrifice count → creatures_matter) stays a ``live_only`` mirror,
     not ported (ADR-0038 W4: corpus-verified — legacy's floor is a bare
     "creature" mention count, not a structural cares-about read).
+
+    ADR-0039 W7 BRIDGES wave added three more shapes, all corpus-verified
+    against a live re-measure and sharing the SAME gate philosophy:
+
+    * a **buried team anthem** — the team-anthem descent above now walks
+      :func:`_iter_creatures_matter_static_defs` (a STRICT SUPERSET of
+      :func:`iter_static_defs`'s reach, additionally following a
+      modification entry's OWN ``modifications``/``definition`` nesting —
+      Haunted One / Centaur Chieftain / Teroh's Vanguard's granted
+      TRIGGER carrying its own nested static def, Dragon Throne of
+      Tarkir / Garruk's ``GrantAbility.definition`` nesting) plus two
+      widened mod tags (:data:`_CREATURES_MATTER_MOD_TAGS` — see that
+      constant's own docstring);
+    * a **team evasion/untap-permission static MODE** — "creatures you
+      control can't be blocked (this turn)" / "... can't be blocked by
+      creatures with power 3+" / "untap all creatures you control during
+      each other player's untap step" (Keeper of Keys, Jace Arcane
+      Strategist's ultimate, Dread Charge, Delney, Drumbellower) rides a
+      bare ``mode`` with NO modifications-list entry at all (see
+      :data:`_CREATURES_MATTER_EVASION_MODES`'s own docstring) — the SAME
+      team-payoff shape as an anthem, just a different CR layer;
+    * a **CONDITION-gate arbitrary payoff** — a boolean existence/
+      threshold gate over the generic population wrapping an otherwise
+      UNRELATED effect (:func:`_creatures_matter_condition_filter` —
+      Chronicler of Heroes / the Ferocious ability word / Epic Struggle's
+      "if you control twenty or more creatures, you win"), excluding a
+      cost-reduction's own condition (that function's own docstring).
     """
     for c in tree.iter_concepts():
         if (
@@ -4299,11 +4579,13 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
         ):
             return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
-        for sdef in iter_static_defs(unit.node):
-            mods = getattr(sdef, "modifications", None) or ()
-            if not any(tag_of(m) in _CREATURES_MATTER_MOD_TAGS for m in mods):
+        for sdef in _iter_creatures_matter_static_defs(unit.node):
+            if not _is_generic_creature_filter(getattr(sdef, "affected", None)):
                 continue
-            if _is_generic_creature_filter(getattr(sdef, "affected", None)):
+            mods = getattr(sdef, "modifications", None) or ()
+            if any(tag_of(m) in _CREATURES_MATTER_MOD_TAGS for m in mods):
+                return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
+            if static_mode_tag(sdef) in _CREATURES_MATTER_EVASION_MODES:
                 return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     for c in tree.effect_concepts("pump"):
         if tag_of(c.node) == "PumpAll" and _is_generic_creature_filter(
@@ -4312,6 +4594,9 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
             return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
         if _is_generic_creature_filter(_mass_untap_creature_filter(unit.node)):
+            return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
+    for unit in tree.units:
+        if _creatures_matter_condition_filter(unit.node) is not None:
             return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     return []
 
