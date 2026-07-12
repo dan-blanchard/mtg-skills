@@ -8031,6 +8031,195 @@ def test_cheat_into_play_warp_granting_is_not_a_cheat():
     assert "cheat_into_play" not in _keys("Tannuk, Steadfast Second")
 
 
+# ── ADR-0039 W7 endgame: cheat_into_play PROMOTES (landfall gate met) ────────
+# live_only == exactly the shed set: two scan-scope closers (ChooseOneOf
+# branches, a Condition's else_ability — fields crosswalk.py's
+# _EFFECT_CHILD_FIELDS never walks), one origin-trust widening (a
+# reveal_until sibling + explicit enters_under: You), six ledgered bridges
+# (bridge_ledger.py), and the remaining live_only cards are all CR-grounded
+# adjudicated sheds. CR 601.2 (casting) / CR 110.4a (permanent card) / CR
+# 305.1 (playing a land is a special action, never a cast) / CR 201.1 (a
+# card's name is a characteristic separate from CR 205.1's type line)
+# throughout.
+
+
+def test_cheat_into_play_choose_one_of_branch_arm():
+    """Dr. Eggman's "Then each opponent faces a villainous choice — That
+    player discards a card, or you may put a Construct, Robot, or Vehicle
+    card from your hand onto the battlefield" — the SECOND ``ChooseOneOf``
+    branch is a genuine Hand-origin cheat (CR 700.2 modal, CR 601.2/400.7
+    the cheat itself); crosswalk.py's ``_EFFECT_CHILD_FIELDS`` never walks a
+    ``ChooseOneOf``'s ``branches`` list, so ``unit.effects`` never surfaces
+    it without :func:`_cheat_choose_one_of_battlefield_put`'s descent."""
+    assert ("cheat_into_play", "you", "") in _idents("Dr. Eggman")
+
+
+def test_cheat_into_play_negated_reveal_else_arm():
+    """Impromptu Raid: "Reveal the top card of your library. If it isn't a
+    creature card, put it into your graveyard. Otherwise, put that card
+    onto the battlefield." — phase structures the BATTLEFIELD put on the
+    GRAVEYARD branch's own ``else_ability`` field, another container
+    ``unit.effects`` never reaches; :func:`_cheat_negated_reveal_else_put`
+    reads the inner (un-negated) ``RevealedHasCardType`` condition as the
+    genuine Creature type evidence (CR 726 if/otherwise — De Morgan's law
+    off the typed ``Not`` wrapper, not a guess)."""
+    assert ("cheat_into_play", "you", "") in _idents("Impromptu Raid")
+
+
+def test_cheat_into_play_reveal_until_you_enters_arm():
+    """Telemin Performance: "Target opponent reveals cards from the top of
+    their library until they reveal a creature card... then you put the
+    creature card onto the battlefield under your control" — a SEPARATE
+    ``ChangeZone`` sentence trailing the ``RevealUntil`` (unlike fix (d)'s
+    own ``kept_destination`` reads); :func:`_cheat_reveal_until_you_enters_
+    put` trusts the None origin ONLY when the put ALSO carries an explicit
+    ``enters_under: You`` marker, reading its type evidence off the
+    ``RevealUntil`` sibling's own Creature filter."""
+    assert ("cheat_into_play", "you", "") in _idents("Telemin Performance")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Divergent Transformations",  # "its controller reveals...puts...battlefield"
+        "Círdan the Shipwright",  # "who received no votes may put...battlefield"
+        "Vaevictis Asmadi, the Dire",  # "who sacrificed...reveals...puts...battlefield"
+        "Collision of Realms",  # "who shuffled...reveals...then puts...battlefield"
+        "Guild Feud",  # "You do the same with the top three cards..."
+        "Liberated Livestock",  # "For each of those tokens, you may put...battlefield"
+    ],
+)
+def test_cheat_into_play_bridge_player_prefix(name):
+    """``cheat_player_prefix_battlefield_put`` (bridge_ledger.py): a
+    swallowed leading-subject clause ("its controller reveals...", "who
+    received no votes may put...", "you do the same with...") parks the
+    WHOLE reveal-then-put sentence as an opaque ``Unimplemented`` — phase's
+    clause grammar has no token yet for a referent/relative-clause before
+    the imperative (task #82's ``_PLAYER_PREFIX``). CR 601.2/400.7."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Matter Reshaper",  # dropped "if it's a permanent card w/ mv<=3" condition
+        "Eladamri, Korvecdal",  # dropped "if you reveal a creature card" condition
+        "Curse of Misfortunes",  # SearchLibrary filter emptied (self-ref "Curse")
+        "Empty the Laboratory",  # RevealUntil filter/count emptied (dynamic X)
+        "Turntimber Symbiosis // Turntimber, Serpentine Wood",  # reveal mechanism absent
+        "Wakanda Forever!",  # Dig collapses the battlefield/hand modal to Hand only
+        "Game Preserve",  # symmetric put clause has zero node past RevealTop
+        "Green Sun's Twilight",  # X-gated destination swallowed into 'choose'
+    ],
+)
+def test_cheat_into_play_bridge_dropped_clause(name):
+    """``cheat_dropped_clause_zero_residue`` (bridge_ledger.py): CONTEXT.md's
+    third residue class — the tree HAS nodes, just degraded (an emptied
+    filter/count, a swallowed condition with zero residue, or the reveal/
+    put mechanism itself never becoming a node). CR 601.2/400.7."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Chaos Mutation", "Chaotic Transformation"])
+def test_cheat_into_play_bridge_kept_destination_misparse(name):
+    """``cheat_kept_destination_hand_misparse`` (bridge_ledger.py): a
+    ``RevealUntil`` whose revealer and putter are DIFFERENT actors ("its
+    controller reveals... puts that card onto the battlefield") mis-parses
+    ``kept_destination`` as 'Hand' — an upstream candidate; Telemin
+    Performance shares the divergent-actor shape but is closed
+    structurally instead (separate, correctly-typed ChangeZone node — see
+    :func:`test_cheat_into_play_reveal_until_you_enters_arm`)."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Animal Magnetism", "Selective Adaptation"])
+def test_cheat_into_play_bridge_choose_from_among(name):
+    """``cheat_choose_from_among_graveyard_origin`` (bridge_ledger.py): a
+    swallowed "choose a [type] card from among them" Unimplemented residue
+    whose sibling Battlefield put carries a phase-side ``origin:
+    'Graveyard'`` MIS-TAG (the actual source is the just-revealed LIBRARY
+    pile — CR 400.7 zones don't reorder themselves), which the main arm's
+    reanimation carve-out correctly-but-wrongly excludes."""
+    assert ("cheat_into_play", "you", "") in _idents(name)
+
+
+def test_cheat_into_play_bridge_modal_mode_unsupported_qualifier():
+    """``cheat_modal_mode_unsupported_qualifier`` (bridge_ledger.py): Ao,
+    the Dawn Sky's modal parser diagnostic — phase can't structure a
+    "total mana value 4 or less" qualifier on a "put any number of nonland
+    permanent cards... onto the battlefield" mode, parking the WHOLE mode
+    as ``Unimplemented(name='modal_mode_unsupported_qualifier')``."""
+    assert ("cheat_into_play", "you", "") in _idents("Ao, the Dawn Sky")
+
+
+def test_cheat_into_play_bridge_synthetic_destiny():
+    """``cheat_synthetic_destiny_delayed_reveal`` (bridge_ledger.py):
+    Synthetic Destiny's delayed-trigger ``Unimplemented`` node is already
+    re-decorated with concept 'reveal_until' (recovery-stage naming) but
+    carries no typed ``kept_destination`` field — a raw-text destination
+    read would be a NEW heuristic pattern invented for this one card."""
+    assert ("cheat_into_play", "you", "") in _idents("Synthetic Destiny")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Nissa, Steward of Elements",
+        "Nissa, Who Shakes the World",
+        "Druidic Satchel",
+        "Gaea's Touch",
+        "Urban Retreat",
+        "Zareth San, the Trickster",
+        "Zimone's Experiment",
+    ],
+)
+def test_cheat_into_play_land_only_carve_out_sheds(name):
+    """CR 305.1: playing a land is a special action, never a cast — a
+    put restricted to Land is ramp (extra_land_drop), not a cheat, the
+    SAME carve-out Boreas Charger/Talon Gates of Madara already join.
+    Nissa, Steward of Elements's "0" ability names BOTH a land and a
+    creature alternative, but phase's clause grammar swallows the "or a
+    creature card..." half as an ``Unimplemented`` residue — the ONLY
+    structurally-surviving condition is Land-only, so the never-guess gate
+    correctly declines regardless (self-correcting once the grammar sprint
+    lands the 'or' token: the structural arm would then see BOTH branches
+    and fire on the creature one, no bridge needed here since the visible
+    Land-only evidence alone is already excluded by design)."""
+    assert "cheat_into_play" not in _keys(name)
+
+
+def test_cheat_into_play_land_only_carve_out_rona():
+    """Rona, Tolarian Obliterator's "exiles a card from their hand at
+    random. If it's a land card, you may put it onto the battlefield under
+    your control. Otherwise, you may cast it without paying its mana cost"
+    — the ONLY branch that PUTS (rather than casts) a card is explicitly
+    gated to Land (``condition: RevealedHasCardType(Land)``); the nonland
+    branch is a free CAST (CR 601.2 — still goes on the stack), the
+    opposite of "without casting." Excluded twice over: the origin gate
+    (None isn't a trusted producer here) AND, even if trusted, the SAME
+    Land-only condition the main arm's carve-out already excludes (CR
+    305.1)."""
+    assert "cheat_into_play" not in _keys(
+        "Rona, Herald of Invasion // Rona, Tolarian Obliterator"
+    )
+
+
+@pytest.mark.parametrize(
+    "name", ["Auspicious Starrix", "Mitotic Manipulation", "Retraced Image"]
+)
+def test_cheat_into_play_name_or_bare_card_no_type_evidence_sheds(name):
+    """A NAME-match-only or bare-'Card' filter carries ZERO type
+    restriction (CR 201.1 — a card's name is its own characteristic,
+    distinct from CR 205.1's type line; a bare 'Card' filter matches every
+    card in the game, LANDS included) — trusting either as evidence would
+    contradict the land carve-out design (Auspicious Starrix's mutate
+    "exile...X PERMANENT cards" projects as an untyped 'Card' filter;
+    Mitotic Manipulation's ``NameMatchesAnyPermanent`` and Retraced
+    Image's "has the same name as a permanent" both carry zero
+    type_filters). Never guess: genuinely too degraded to serve."""
+    assert "cheat_into_play" not in _keys(name)
+
+
 # ── batch 10: trigger-event / effect-tag / grant / P/T / static-mode ─────────
 
 

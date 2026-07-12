@@ -1358,7 +1358,28 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         # symmetric-edict sheds (Braids, Cabal Minion; Catch // Release —
         # CR 701.21a): the landfall rule. both=5008 / cw_only=18 unchanged.
         "base_pt_set",
-        "cheat_into_play",
+        # cheat_into_play PROMOTED (ADR-0039 W7, 2026-07-12) — landfall
+        # rule met: live_only 40 -> 0 accounted for, every remaining
+        # live_only card is a TESTED, CR-grounded adjudicated shed (a
+        # land-only carve-out — CR 305.1, ramp not a cheat, joining Boreas
+        # Charger et al.; a name-match-only/bare-'Card' filter with ZERO
+        # type restriction — CR 201.1/205.1, never guess). Three
+        # structural closers in :func:`_cheat_into_play` (a ChooseOneOf
+        # branch descent for Dr. Eggman, a Condition else_ability descent
+        # for Impromptu Raid — both fields crosswalk.py's
+        # ``_EFFECT_CHILD_FIELDS`` never walks — and a reveal_until-sibling
+        # origin trust gated on ``enters_under: You`` for Telemin
+        # Performance) plus six ADR-0039 ledgered bridges
+        # (bridge_ledger.py: ``cheat_player_prefix_battlefield_put``,
+        # ``cheat_dropped_clause_zero_residue``,
+        # ``cheat_kept_destination_hand_misparse``,
+        # ``cheat_choose_from_among_graveyard_origin``,
+        # ``cheat_modal_mode_unsupported_qualifier``,
+        # ``cheat_synthetic_destiny_delayed_reveal`` — 20 cards, each
+        # anchored to its own verbatim clause/diagnostic-name residue, CR
+        # 601.2/110.4a for the "put onto the battlefield without casting"
+        # idiom itself). See :func:`_cheat_into_play`'s own docstring for
+        # the full W3-W7 arm history.
         "creatures_matter",
         # ADR-0038 W6 endgame (2026-07-11): direct_damage NOT YET PROMOTED —
         # full decomposition of the 130-member live_only tail (re-measured
@@ -11509,6 +11530,20 @@ def _team_buff(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# Fix (e)'s reveal-producer allow-list (a unit that actually REVEALS/
+# imprints a card before the conditional put — reveal_top / reveal_until /
+# dig / turn_face_up / exile_top). Hoisted to module scope so
+# :func:`_cheat_negated_reveal_else_put` (ADR-0039 W7) can gate on the SAME
+# producer set fix (e) uses, rather than re-deriving a parallel list.
+_CHEAT_REVEAL_PRODUCERS = (
+    "reveal_top",
+    "reveal_until",
+    "dig",
+    "turn_face_up",
+    "exile_top",
+)
+
+
 def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
     """cheat_into_play — put a card onto the battlefield WITHOUT casting it
     (CR 110.2 / 400.7): Sneak Attack (hand), Elvish Piper, Bribery (an
@@ -11970,13 +12005,7 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
         # ``unit.effects`` preserves the linear sub_ability chain order
         # (verified 2026-07), so requiring the turn_face_up's index precede
         # the change_zone's index is a precise, zero-guess chain-order read.
-        _reveal_producers = (
-            "reveal_top",
-            "reveal_until",
-            "dig",
-            "turn_face_up",
-            "exile_top",
-        )
+        _reveal_producers = _CHEAT_REVEAL_PRODUCERS
         if any(c.concept in _reveal_producers for c in unit.effects):
             effects_list = list(unit.effects)
             turn_face_up_idx = next(
@@ -12112,7 +12141,167 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if _nested_grant_reveal_or_hand_put(unit):
             return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
+    # ADR-0039 W7 endgame — two scan-scope closers. crosswalk.py's
+    # ``_EFFECT_CHILD_FIELDS`` (``effect``/``sub_ability``/``execute``/
+    # ``mode_abilities``) never walks a ``ChooseOneOf``'s ``branches`` list
+    # or any node's ``else_ability`` field — every OTHER consumer wants the
+    # CHOSEN branch / the TAKEN arm, not every possibility, so ``unit.
+    # effects`` silently drops a Battlefield put that lives in either
+    # container. cheat_into_play is a "may put"/"otherwise put" possibility
+    # lane, so descending into both is correct here (see each helper's
+    # docstring for the corpus-verified narrow blast radius).
+    for unit in tree.units:
+        if _cheat_choose_one_of_battlefield_put(unit):
+            return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
+        if _cheat_negated_reveal_else_put(unit):
+            return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
+        if _cheat_reveal_until_you_enters_put(unit):
+            return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
+    # ADR-0039 W7 ledgered bridges — the residual grammar-straggler /
+    # dropped-clause / upstream-parse-failure bucket (bridge_ledger.py rows,
+    # docstring there for the full corpus accounting):
+    for bridge_id in (
+        "cheat_player_prefix_battlefield_put",
+        "cheat_dropped_clause_zero_residue",
+        "cheat_kept_destination_hand_misparse",
+        "cheat_choose_from_among_graveyard_origin",
+        "cheat_modal_mode_unsupported_qualifier",
+        "cheat_synthetic_destiny_delayed_reveal",
+    ):
+        if bridge_fires(bridge_id, tree):
+            return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
     return []
+
+
+def _cheat_reveal_until_you_enters_put(unit: AbilityUnit) -> bool:
+    """ADR-0039 W7 — a ``reveal_until`` sibling earns the SAME None-origin
+    trust :data:`_untracked_producers` gives ``tutor``/``dig``/etc, but ONLY
+    for a put that ALSO carries an explicit ``enters_under: You`` marker
+    (Telemin Performance: "Target opponent reveals cards from the top of
+    their library until they reveal a creature card. That player puts all
+    noncreature cards revealed this way into their graveyard, THEN YOU put
+    the creature card onto the battlefield UNDER YOUR CONTROL" — a SEPARATE
+    ``ChangeZone`` sentence trailing the ``RevealUntil``, unlike fix (d)'s
+    own ``kept_destination`` read, so it needs its own arm). Type evidence
+    is the ``RevealUntil`` sibling's OWN filter (Creature) — read here
+    rather than widening the shared :func:`_sibling_selector_cores` (which
+    the MAIN arm also calls for every other ChangeZone case), keeping the
+    blast radius to this one arm. Gated narrow to ``enters_under: You``
+    specifically: a bare ``reveal_until`` sibling with no such marker
+    (Illuna, Apex of Wishes' mutate trigger — a DIFFERENT node the
+    existing ``until_types`` arm above already reads via its own
+    ``ExileFromTopUntil`` condition) stays excluded — corpus-verified sole
+    hit (2026-07, every commander-legal ``reveal_until`` sibling + Change-
+    Zone{Battlefield, origin: None} pair): Telemin Performance.
+    """
+    revealers = [c for c in unit.effects if c.concept == "reveal_until"]
+    if not revealers:
+        return False
+    for c in unit.effects:
+        if c.concept != "change_zone" or tag_of(c.node) != "ChangeZone":
+            continue
+        if getattr(c.node, "destination", None) != "Battlefield":
+            continue
+        if getattr(c.node, "origin", None) is not None:
+            continue
+        if getattr(c.node, "enters_under", None) != "You":
+            continue
+        cores: set[str] = set()
+        subs: set[str] = set()
+        for rv in revealers:
+            filt = effect_filter(rv.node)
+            cores |= set(filter_core_types(filt))
+            subs |= set(filter_subtypes(filt))
+        if cores and not cores <= {"Land"}:
+            return True
+        if not cores and subs and not subs & _LAND_SUBTYPES:
+            return True
+    return False
+
+
+def _cheat_choose_one_of_battlefield_put(unit: AbilityUnit) -> bool:
+    """ADR-0039 W7 — a modal ``ChooseOneOf`` branch's OWN effect chain
+    carrying a Hand/Library-origin ``ChangeZone``/``ChangeZoneAll``
+    {Battlefield} (Dr. Eggman's villainous-choice: "That player discards a
+    card, or you may put a Construct, Robot, or Vehicle card from your hand
+    onto the battlefield" — the SECOND branch is a genuine cheat, CR 700.2 /
+    400.7). Reads each branch's own filter with the SAME core/subtype +
+    land-carve-out gate the top-level ChangeZone arm uses
+    (:func:`_change_zone_all_cores` / :func:`filter_subtypes`); origin
+    restricted to Hand/Library only — no ``None``-origin sibling-tutor trust
+    extension, since this narrow shape never needs one. Corpus-verified
+    sole hit (2026-07, every commander-legal ``ChooseOneOf`` branch chain
+    carrying a Battlefield-destined ChangeZone/ChangeZoneAll): Dr. Eggman.
+    """
+    for n in iter_typed_nodes(unit.node):
+        if tag_of(n) != "ChooseOneOf":
+            continue
+        for br in getattr(n, "branches", None) or []:
+            for bn in iter_typed_nodes(br):
+                if not (
+                    tag_of(bn) in ("ChangeZone", "ChangeZoneAll")
+                    and getattr(bn, "destination", None) == "Battlefield"
+                    and getattr(bn, "origin", None) in ("Hand", "Library")
+                ):
+                    continue
+                cores = set(_change_zone_all_cores(bn))
+                if cores:
+                    if not cores <= {"Land"}:
+                        return True
+                    continue
+                subs = {s.lower() for s in filter_subtypes(effect_filter(bn))}
+                if subs and not subs & _LAND_SUBTYPES:
+                    return True
+    return False
+
+
+def _cheat_negated_reveal_else_put(unit: AbilityUnit) -> bool:
+    """ADR-0039 W7 — the "otherwise, put it onto the battlefield" arm of a
+    reveal-then-branch idiom whose gating condition is NEGATED (Impromptu
+    Raid: "Reveal the top card of your library. If it isn't a creature
+    card, put it into your graveyard. Otherwise, put that card onto the
+    battlefield." — phase structures this as ``condition=Not
+    (RevealedHasCardType(Creature))`` on the GRAVEYARD branch's own node,
+    with the BATTLEFIELD put living on that SAME node's ``else_ability`` —
+    the field :func:`_cheat_choose_one_of_battlefield_put`'s docstring
+    explains ``unit.effects`` never reaches). Fix (e)'s existing reveal-
+    producer arm only searches ``unit.effects`` for the ChangeZone site, so
+    it never finds this one even though its producer gate
+    (:data:`_CHEAT_REVEAL_PRODUCERS`) is satisfied — this helper is the
+    narrow ``else_ability`` complement of that arm, gated on the SAME
+    producer set so it never fires standalone on an unrelated else_ability
+    shape. Type evidence is the INNER (un-negated) condition's card types —
+    the else fires exactly when that inner condition IS true (CR 726 "if"/
+    "otherwise" phrasing — De Morgan's law read off the typed ``Not``
+    wrapper, not a guess). Corpus-verified sole hit (2026-07, every
+    commander-legal reveal-producing unit whose node carries ``condition=
+    Not(RevealedHasCardType)`` and an ``else_ability`` Battlefield put
+    targeting ``ParentTarget``/``SelfRef``): Impromptu Raid.
+    """
+    if not any(c.concept in _CHEAT_REVEAL_PRODUCERS for c in unit.effects):
+        return False
+    for n in iter_typed_nodes(unit.node):
+        cond = getattr(n, "condition", None)
+        if tag_of(cond) != "Not":
+            continue
+        inner = getattr(cond, "condition", None)
+        if tag_of(inner) != "RevealedHasCardType":
+            continue
+        ea = getattr(n, "else_ability", None)
+        if not isinstance(ea, TypedMirrorNode):
+            continue
+        eff = getattr(ea, "effect", None)
+        if not (
+            isinstance(eff, TypedMirrorNode)
+            and tag_of(eff) == "ChangeZone"
+            and getattr(eff, "destination", None) == "Battlefield"
+            and tag_of(getattr(eff, "target", None)) in ("ParentTarget", "SelfRef")
+        ):
+            continue
+        types = set(getattr(inner, "card_types", None) or [])
+        if types and not types <= {"Land"}:
+            return True
+    return False
 
 
 def _nested_grant_reveal_or_hand_put(unit: AbilityUnit) -> bool:

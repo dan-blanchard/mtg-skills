@@ -44,11 +44,42 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from mtg_utils._card_ir.crosswalk import iter_typed_nodes, tag_of
+from mtg_utils._card_ir.crosswalk import (
+    effect_filter,
+    filter_core_types,
+    filter_subtypes,
+    iter_typed_nodes,
+    tag_of,
+)
 from mtg_utils._card_ir.project import _KEYWORD_COST_SAC, _PITCH_SAC
 
 if TYPE_CHECKING:  # pragma: no cover
     from mtg_utils._card_ir.crosswalk import ConceptTree
+
+# Land subtypes (CR 205.3i), duplicated (not imported) from crosswalk_signals.
+# _LAND_SUBTYPES: crosswalk_signals.py imports ``bridge_fires`` FROM this
+# module, so importing the other way would be circular.
+_LAND_SUBTYPES: frozenset[str] = frozenset(
+    {
+        "plains",
+        "island",
+        "swamp",
+        "mountain",
+        "forest",
+        "wastes",
+        "gate",
+        "desert",
+        "lair",
+        "locus",
+        "mine",
+        "power-plant",
+        "tower",
+        "urza's",
+        "cave",
+        "sphere",
+        "town",
+    }
+)
 
 # The four residue classes a bridge may serve (mtg-utils/CONTEXT.md):
 # a grammar straggler (our clause grammar's frontier), a dropped clause
@@ -417,6 +448,259 @@ def _sac_emblem_cost_match(tree: ConceptTree) -> bool:
     return bool(_SAC_EMBLEM_COST_RX.search(_sac_kept(tree)))
 
 
+# ── cheat_into_play residual class (ADR-0039 W7 endgame) ────────────────────
+# Six bridges close the LAST 20 of the key's residual live_only set (40 at
+# session start; 3 closed structurally — Dr. Eggman/Impromptu Raid's scan-
+# scope descent, Telemin Performance's reveal_until-sibling origin trust,
+# all in crosswalk_signals.py; 17 adjudicated as sheds — legacy over-fires
+# a land-only-restricted put [CR 305.1: playing a land is a special action,
+# never a cast — the SAME carve-out already excludes Boreas Charger et al.]
+# or a name-match-only / bare-'Card' filter that carries ZERO type
+# restriction [CR 201.1 names a card's name as its own characteristic,
+# distinct from CR 205.1's type line — never guess a Land could be
+# excluded by trusting a filter that can't tell]). CR 601.2 (casting
+# defined) / CR 110.4a (permanent card) throughout for the "put onto the
+# battlefield WITHOUT casting" idiom itself.
+def _cheat_unimplemented_descs(tree: ConceptTree) -> Iterator[str]:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented":
+                yield getattr(n, "description", "") or ""
+
+
+# (1) A swallowed THIRD-PERSON leading-subject clause ("For each of those
+# creatures, its controller reveals..."; "who received no votes may put...";
+# "You do the same with the top three cards..."). Phase's clause grammar
+# has no token for a leading referent/relative-clause before the actual
+# imperative (the post-deletion grammar sprint's ``_PLAYER_PREFIX`` token,
+# task #82) so it parks the WHOLE clause as an opaque ``Unimplemented``,
+# under ``unit.effects`` (role=effect — within the recovery stage's scan
+# scope, but the grammar token itself doesn't exist yet). Anchored to each
+# card's own verbatim leading phrase (never a bare first-word check — the
+# Unimplemented decorator's ``name`` field is just the clause's own first
+# word, "for"/"who"/"you"/"those"/"secretly", far too common to gate on
+# alone) PLUS a tree-wide "onto the battlefield" requirement (Soul of
+# Emancipation's "For each of those permanents, its controller creates a
+# 3/3 Angel..." shares the SAME leading-subject shape but is a token maker,
+# not a cheat — excluded since it never mentions "onto the battlefield" at
+# all).
+_CHEAT_PLAYER_PREFIX_RX = re.compile(
+    r"^(?:"
+    r"for each of those \w+, (?:its controller|you may put)|"
+    r"who (?:received no votes may put|"
+    r"sacrificed a permanent this way reveals|"
+    r"shuffled a nontoken creature into their library this way reveals)|"
+    r"you do the same with the top three cards of your library"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _cheat_player_prefix_gap(tree: ConceptTree) -> bool:
+    return any(True for _ in _cheat_unimplemented_descs(tree))
+
+
+def _cheat_player_prefix_match(tree: ConceptTree) -> bool:
+    if "onto the battlefield" not in (tree.oracle or "").lower():
+        return False
+    return any(
+        _CHEAT_PLAYER_PREFIX_RX.search(d) for d in _cheat_unimplemented_descs(tree)
+    )
+
+
+# (2) A DROPPED clause with the type/count evidence specifically degraded —
+# CONTEXT.md's third residue class: the tree HAS nodes, just degraded (an
+# emptied ``SearchLibrary``/``Dig``/``RevealUntil`` filter — Curse of
+# Misfortunes' "for a Curse card" self-reference drops to ``type_filters:
+# []``, Empty the Laboratory's "equal to the number of Zombies sacrificed"
+# dynamic count drops to a bare ``Fixed(1)``/``Any()`` filter; a swallowed
+# CONDITION with zero residue at all — Matter Reshaper's "if it's a
+# permanent card with mana value 3 or less" and Eladamri's "if you reveal a
+# creature card this way" both vanish with no Unimplemented node, no
+# condition field, nothing; or the reveal/selection MECHANISM itself never
+# becomes a node — Turntimber Symbiosis's "look at the top seven cards...
+# put a creature card...onto the battlefield" survives only as the
+# CONSEQUENCE replacement [+1/+1 counters if mv<=3], Game Preserve's
+# symmetric "if all cards revealed are creature cards, put them onto the
+# battlefield" has NO node past the bare ``RevealTop``, Wakanda Forever!'s
+# ``Dig`` collapses the "onto the battlefield WITH a counter" OR "into your
+# hand" modal choice to a single ``destination: Hand``, and Green Sun's
+# Twilight's X-gated modal destination swallows into an Unimplemented
+# 'choose' with the ACTUAL destination logic nowhere reachable). Gap is an
+# ABSENCE proof over the SAME core/subtype helpers the structural arms use
+# — self-retiring the moment any of these nodes' filter/count/destination
+# lands real evidence (the structural arm fires on its own, no edit here).
+def _cheat_no_battlefield_type_evidence(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            tg = tag_of(n)
+            if tg in ("ChangeZone", "ChangeZoneAll"):
+                if getattr(n, "destination", None) != "Battlefield":
+                    continue
+                filt = effect_filter(n)
+                cores = set(filter_core_types(filt))
+                if cores and not cores <= {"Land"}:
+                    return False
+                if not cores:
+                    subs = {s.lower() for s in filter_subtypes(filt)}
+                    if subs and not subs & _LAND_SUBTYPES:
+                        return False
+            elif tg == "RevealUntil":
+                if getattr(n, "kept_destination", None) != "Battlefield":
+                    continue
+                filt = effect_filter(n)
+                cores = set(filter_core_types(filt))
+                if cores and not cores <= {"Land"}:
+                    return False
+                if not cores:
+                    subs = {s.lower() for s in filter_subtypes(filt)}
+                    if subs and not subs & _LAND_SUBTYPES:
+                        return False
+    return True
+
+
+_CHEAT_DROPPED_CLAUSE_RX = re.compile(
+    r"(?:"
+    r"you may put that card onto the battlefield if it's a permanent card "
+    r"with mana value \d+ or less|"
+    r"if you reveal a creature card this way, put it onto the battlefield|"
+    r"that doesn't have the same name as a \S+ attached to enchanted "
+    r"player, put it onto the battlefield|"
+    r"put those cards onto the battlefield and the rest on the bottom of "
+    r"your library|"
+    r"put a creature card from among them onto the battlefield\. if that "
+    r"card has mana value|"
+    r"put a permanent card from among them onto the battlefield with an "
+    r"indestructible counter|"
+    r"if all cards revealed this way are creature cards, put those cards "
+    r"onto the battlefield|"
+    r"if x is 5 or more, instead put the chosen cards onto the battlefield"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _cheat_dropped_clause_match(tree: ConceptTree) -> bool:
+    return bool(tree.oracle and _CHEAT_DROPPED_CLAUSE_RX.search(tree.oracle))
+
+
+# (3) A ``RevealUntil`` whose ``kept_destination`` reads 'Hand' even though
+# the card text puts the revealed card onto the BATTLEFIELD — an upstream
+# mis-parse (the revealer and the putter are DIFFERENT actors: "its
+# controller reveals... puts that card onto the battlefield" — Chaos
+# Mutation, Chaotic Transformation). No typed Battlefield destination
+# survives anywhere for this clause; :func:`_cheat_no_battlefield_type_
+# evidence` is the shared gap.
+_CHEAT_KEPT_DEST_MISPARSE_RX = re.compile(
+    r"(?:"
+    r"its controller reveals cards from the top of their library until "
+    r"they reveal a creature card, puts that card onto the battlefield|"
+    r"its controller reveals cards from the top of their library until "
+    r"they reveal a card that shares a card type with it, puts that card "
+    r"onto the battlefield"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _cheat_kept_dest_misparse_match(tree: ConceptTree) -> bool:
+    return bool(tree.oracle and _CHEAT_KEPT_DEST_MISPARSE_RX.search(tree.oracle))
+
+
+# (4) A swallowed "choose a [type] card from among them" (Unimplemented,
+# name='choose', description containing "from among them") whose sibling
+# Battlefield put carries ``origin: 'Graveyard'`` — a phase-side origin
+# MIS-TAG (the source is the just-revealed LIBRARY pile, not a graveyard;
+# CR 400.7 zones don't reorder themselves), which the main arm's reanimation
+# carve-out (never trusts Graveyard origin) correctly-but-wrongly excludes.
+# Corpus-verified narrow (2026-07, every commander-legal Unimplemented
+# 'choose'+'from among them' residue paired with a Battlefield-destined
+# put in the SAME unit): Animal Magnetism, Selective Adaptation are the
+# ONLY two carrying that Graveyard-origin sibling (Guided Passage, Manifold
+# Insights, Kaya's Spirits' Justice, Capricious Hellraiser, Green Sun's
+# Twilight all share the "choose... from among them" shape but carry NO
+# Battlefield-destined node in the unit at all — a different, ungated
+# residue class; Green Sun's Twilight is bridge (2) above instead).
+def _cheat_choose_among_gap(tree: ConceptTree) -> bool:
+    return any("from among them" in d.lower() for d in _cheat_unimplemented_descs(tree))
+
+
+def _cheat_choose_among_match(tree: ConceptTree) -> bool:
+    if not any(
+        "choose" in d.lower() and "from among them" in d.lower()
+        for d in _cheat_unimplemented_descs(tree)
+    ):
+        return False
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if (
+                tag_of(n) in ("ChangeZone", "ChangeZoneAll")
+                and getattr(n, "destination", None) == "Battlefield"
+                and getattr(n, "origin", None) == "Graveyard"
+            ):
+                return True
+    return False
+
+
+# (5) Ao, the Dawn Sky's own MODAL parser diagnostic, named exactly
+# ``modal_mode_unsupported_qualifier`` (phase's modal grammar can't
+# structure a "total mana value N or less" qualifier on a "put any number
+# of nonland permanent cards... onto the battlefield" mode) — anchored to
+# that literal diagnostic name, corpus-verified sole hit.
+def _cheat_modal_unsupported_gap(tree: ConceptTree) -> bool:
+    return any(
+        True
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+        if tag_of(n) == "Unimplemented"
+        and getattr(n, "name", None) == "modal_mode_unsupported_qualifier"
+    )
+
+
+def _cheat_modal_unsupported_match(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "Unimplemented":
+                continue
+            if getattr(n, "name", None) != "modal_mode_unsupported_qualifier":
+                continue
+            desc = (getattr(n, "description", "") or "").lower()
+            if "onto the battlefield" in desc:
+                return True
+    return False
+
+
+# (6) Synthetic Destiny's delayed-trigger reveal-until node: the recovery
+# stage already re-decorates this ``Unimplemented`` with concept
+# ``reveal_until`` (the node's raw text names the idiom), but the raw node
+# itself carries no typed ``kept_destination`` field — a raw-text
+# destination read would be a NEW heuristic pattern invented for this one
+# card, so it stays a bridge anchored to the recovered node's own raw
+# rather than extending the recovered-raw-read precedent to a field this
+# tag doesn't have. Corpus-verified sole hit.
+def _cheat_synthetic_destiny_gap(tree: ConceptTree) -> bool:
+    return any(
+        True
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+        if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "reveal"
+    )
+
+
+_CHEAT_SYNTHETIC_DESTINY_RX = re.compile(
+    r"reveal cards from the top of your library until you reveal that "
+    r"many creature cards, put all creature cards revealed this way onto "
+    r"the battlefield",
+    re.IGNORECASE,
+)
+
+
+def _cheat_synthetic_destiny_match(tree: ConceptTree) -> bool:
+    return any(
+        _CHEAT_SYNTHETIC_DESTINY_RX.search(d) for d in _cheat_unimplemented_descs(tree)
+    )
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -703,6 +987,181 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Ob Nixilis of the Black Oath",),
             gap=_no_typed_sacrifice_node,
             match=_sac_emblem_cost_match,
+        ),
+        Bridge(
+            bridge_id="cheat_player_prefix_battlefield_put",
+            key="cheat_into_play",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a new "
+                "_PLAYER_PREFIX clause-grammar token for a leading "
+                "referent/relative-clause before the actual imperative "
+                "('its controller reveals...', 'who received no votes "
+                "may put...', 'you do the same with...') — retires when "
+                "the swallowed clause decomposes into its own typed "
+                "reveal/put chain the existing ChangeZone/RevealUntil "
+                "arms already read"
+            ),
+            census=(
+                "6 hits / 31,622 commander-legal Unimplemented residues "
+                "matching the enumerated leading-subject phrasings AND "
+                "mentioning 'onto the battlefield' tree-wide, phase "
+                "v0.20.0, 2026-07-11 (Soul of Emancipation shares the "
+                "SAME 'For each of those permanents, its controller...' "
+                "leading shape but is a token maker with no battlefield-"
+                "put mention at all — excluded by the tree-wide gate)"
+            ),
+            pins=(
+                "Divergent Transformations",
+                "Círdan the Shipwright",
+                "Vaevictis Asmadi, the Dire",
+                "Collision of Realms",
+                "Guild Feud",
+                "Liberated Livestock",
+            ),
+            gap=_cheat_player_prefix_gap,
+            match=_cheat_player_prefix_match,
+        ),
+        Bridge(
+            bridge_id="cheat_dropped_clause_zero_residue",
+            key="cheat_into_play",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a family "
+                "of type/count/destination degradations on reveal-then-put "
+                "chains — an emptied SearchLibrary/Dig/RevealUntil filter "
+                "(Curse of Misfortunes' self-referential 'Curse card' "
+                "subtype, Empty the Laboratory's 'equal to the number "
+                "sacrificed' dynamic count), a swallowed condition with "
+                "ZERO residue (Matter Reshaper's 'mana value 3 or less', "
+                "Eladamri's 'if you reveal a creature card'), or the "
+                "reveal/put mechanism itself never becoming a node "
+                "(Turntimber Symbiosis, Game Preserve, Wakanda Forever!'s "
+                "modal-to-Hand collapse, Green Sun's Twilight's X-gated "
+                "destination) — retires PER-NODE as each filter/count/"
+                "destination lands real evidence (the existing structural "
+                "arms fire on their own, no edit needed here)"
+            ),
+            census=(
+                "8 hits / 31,622 commander-legal, matched against each "
+                "card's own verbatim dropped-clause phrasing (a card-name-"
+                "keyed enumeration, not a generic substring — CONTEXT.md's "
+                "third residue class), phase v0.20.0, 2026-07-11"
+            ),
+            pins=(
+                "Matter Reshaper",
+                "Eladamri, Korvecdal",
+                "Curse of Misfortunes",
+                "Empty the Laboratory",
+                "Turntimber Symbiosis // Turntimber, Serpentine Wood",
+                "Wakanda Forever!",
+                "Game Preserve",
+                "Green Sun's Twilight",
+            ),
+            gap=_cheat_no_battlefield_type_evidence,
+            match=_cheat_dropped_clause_match,
+        ),
+        Bridge(
+            bridge_id="cheat_kept_destination_hand_misparse",
+            key="cheat_into_play",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a "
+                "RevealUntil whose revealer and putter are DIFFERENT "
+                "actors ('its controller reveals... puts that card onto "
+                "the battlefield') mis-parses kept_destination as 'Hand' "
+                "instead of 'Battlefield' — retires on a phase bump that "
+                "reads the actual destination clause instead of "
+                "defaulting when the actors diverge"
+            ),
+            census=(
+                "2 hits / 31,622 commander-legal, matched against each "
+                "card's own verbatim reveal-until-then-put sentence, "
+                "phase v0.20.0, 2026-07-11 (Telemin Performance shares "
+                "the divergent-actor shape but structures its put as a "
+                "SEPARATE, correctly-typed ChangeZone node — closed "
+                "structurally this session via "
+                "_cheat_reveal_until_you_enters_put in "
+                "crosswalk_signals.py, not this bridge)"
+            ),
+            pins=("Chaos Mutation", "Chaotic Transformation"),
+            gap=_cheat_no_battlefield_type_evidence,
+            match=_cheat_kept_dest_misparse_match,
+        ),
+        Bridge(
+            bridge_id="cheat_choose_from_among_graveyard_origin",
+            key="cheat_into_play",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): a new grammar "
+                "verb for 'choose a [type] card from among them' (the "
+                "reveal-then-select idiom's selection step) that ALSO "
+                "corrects the sibling ChangeZone's origin tag — phase "
+                "mis-tags it 'Graveyard' when the actual source is the "
+                "just-revealed LIBRARY-top pile — retires when the choose "
+                "clause decomposes with a correct origin"
+            ),
+            census=(
+                "2 hits / 31,622 commander-legal Unimplemented 'choose'+"
+                "'from among them' residues paired with a Graveyard-origin "
+                "sibling Battlefield put in the SAME unit, phase v0.20.0, "
+                "2026-07-11 (5 siblings — Guided Passage, Manifold "
+                "Insights, Kaya's Spirits' Justice, Capricious Hellraiser, "
+                "Green Sun's Twilight — share the 'choose... from among "
+                "them' shape but carry NO Battlefield-destined node at "
+                "all in the unit; Green Sun's Twilight is the dropped-"
+                "clause bridge above instead)"
+            ),
+            pins=("Animal Magnetism", "Selective Adaptation"),
+            gap=_cheat_choose_among_gap,
+            match=_cheat_choose_among_match,
+        ),
+        Bridge(
+            bridge_id="cheat_modal_mode_unsupported_qualifier",
+            key="cheat_into_play",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "modal parser can't structure a 'total mana value N or "
+                "less' qualifier on a mode's 'put any number of nonland "
+                "permanent cards... onto the battlefield' effect, parking "
+                "the WHOLE mode as Unimplemented(name="
+                "'modal_mode_unsupported_qualifier') — retires on a phase "
+                "bump that structures the qualifier"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal Unimplemented nodes named "
+                "'modal_mode_unsupported_qualifier' mentioning 'onto the "
+                "battlefield', phase v0.20.0, 2026-07-11 (Ao, the Dawn "
+                "Sky is the SOLE hit — the diagnostic name itself is rare "
+                "corpus-wide)"
+            ),
+            pins=("Ao, the Dawn Sky",),
+            gap=_cheat_modal_unsupported_gap,
+            match=_cheat_modal_unsupported_match,
+        ),
+        Bridge(
+            bridge_id="cheat_synthetic_destiny_delayed_reveal",
+            key="cheat_into_play",
+            kind="grammar_straggler",
+            todo=(
+                "post-deletion grammar sprint (task #82): the Unimplemented"
+                "-recovery stage already re-decorates this node with "
+                "concept 'reveal_until' (its raw text names the idiom) but "
+                "the raw node carries no typed kept_destination field — "
+                "needs a dig_until/reveal_until recovery verb that "
+                "synthesizes the missing field from the raw text (recovery"
+                ".py's ALLOWLIST is the likely landing spot, not a NEW "
+                "bridge), retiring when the node decomposes structurally"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal Unimplemented nodes named "
+                "'reveal' nested inside a CreateDelayedTrigger, phase "
+                "v0.20.0, 2026-07-11 — Synthetic Destiny is the SOLE hit"
+            ),
+            pins=("Synthetic Destiny",),
+            gap=_cheat_synthetic_destiny_gap,
+            match=_cheat_synthetic_destiny_match,
         ),
     )
 }

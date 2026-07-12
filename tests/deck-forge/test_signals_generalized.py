@@ -2305,15 +2305,28 @@ def test_sac_and_return_this_turn_does_not_over_fire_sacrifice():
     assert ("sacrifice_outlets", "you") not in _ks_real_regex("Grizzly Bears")
 
 
-def test_warp_granting_opens_cheat_into_play():
-    # Tannuk grants WARP ("cards in your hand have warp" — cast from hand for the warp
-    # cost, a temporary cheat-into-play). It's a cheat deck: it wants fat creatures and
-    # cheat enablers (Ilharg, Maelstrom Colossus), served by cheat_into_play. ADR-0027
-    # reveal/dig-v2: cheat_into_play migrated to the Card IR; the warp-grant is an
-    # un-structurable membership cross-open phase emits no shape for, so it rides the
-    # byte-identical _CHEAT_INTO_PLAY_RESIDUE_RE kept mirror (the `have warp` alt) — read
-    # over the oracle by the hybrid path. Real oracle.
-    assert "cheat_into_play" in _keys_real("Tannuk, Steadfast Second")
+def test_warp_granting_is_not_cheat_into_play():
+    # Tannuk grants WARP ("Artifact cards and red creature cards in your hand have
+    # warp {2}{R}"). ADR-0038 W6 endgame adjudicated this a legacy OVER-FIRE (the
+    # deleted live-path detector's own comment called it "a thematic membership
+    # hunch, not a mechanical match") and ADR-0039 W7 PROMOTED cheat_into_play off
+    # residual with this exclusion CR-grounded: CR 702.185a — Warp is an
+    # alternative CAST cost ("You may cast this card from your hand by paying
+    # [cost] rather than its mana cost"), the card still goes on the stack and is
+    # CAST, the opposite of CR 601.2/400.7's "put onto the battlefield WITHOUT
+    # casting it." The crosswalk's structural read (a pure static AddKeyword
+    # modification, no ChangeZone/RevealUntil/tutor node anywhere) correctly
+    # declines; the legacy flag-OFF IR path keeps the byte-identical
+    # _CHEAT_INTO_PLAY_RESIDUE_RE kept mirror (the `have warp` thematic
+    # cross-open), so it still fires there (the intended flag-OFF invariance —
+    # same shape as test_creatures_are_lands_is_not_untap_engine). Real oracle.
+    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
+
+    keys = _keys_real("Tannuk, Steadfast Second")
+    if crosswalk_enabled():
+        assert "cheat_into_play" not in keys
+    else:
+        assert "cheat_into_play" in keys
     # Over-fire guard: a vanilla creature is not a cheat deck.
     assert "cheat_into_play" not in _keys_real("Grizzly Bears")
 
