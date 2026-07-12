@@ -19,8 +19,11 @@ that feeds BOTH seams and it is where the cutover flag lives:
   ``"off"``) every path below is byte-identical to before Stage-3a (the revert path).
 * :func:`ir_for` (Seam B — the five dataclass-API consumers ``ranking`` /
   ``budgets`` / ``cut_check`` / ``metrics`` / ``bracket``) returns the
-  **crosswalk-backed** :class:`Card` sidecar when the flag is ON, else the
-  legacy projected sidecar (:func:`old_ir_for`).
+  **crosswalk-backed** :class:`Card` sidecar when the flag is ON — ``None``
+  when that sidecar is unbuilt, NEVER a silent fall-through to the legacy
+  projected sidecar's differently-built Cards (ADR-0039 task #80 step 4) —
+  else the legacy projected sidecar (:func:`old_ir_for`), the explicit
+  ``MTG_SKILLS_CROSSWALK_SIGNALS=0`` revert path.
 * :func:`trees_for` (Seam A — the hybrid signal dispatch) resolves a record to
   its Layer-2 concept trees, ONE PER PHASE FACE RECORD (a DFC / split card
   shares one ``oracle_id`` across faces, each face a separate phase record —
@@ -115,16 +118,24 @@ def ir_for(card: dict) -> Card | None:
     sidecar's Card (the single flip that cuts all five Seam-B consumers over
     together); with the flag explicitly OFF (the revert path) returns the legacy
     projected sidecar's Card, byte-identical to before. If the flag is ON but the
-    crosswalk sidecar is unbuilt, degrades to the legacy sidecar (never a hard
-    crash).
+    crosswalk sidecar is unbuilt, returns ``None`` — the SAME graceful
+    "nothing here" contract ``production.default_state`` uses for a missing
+    bulk file (``bulk_available=False``, empty search) — NEVER a silent
+    fall-through to the legacy sidecar's Card (a different builder's output;
+    serving it under the flag would look like crosswalk data while actually
+    being the projection it replaced). ``production.ensure_card_ir`` builds
+    this sidecar at launch so the degraded branch is the exception, not the
+    common case (ADR-0039 task #80 step 4).
 
-    ``None`` covers the cases the callers treat identically — no sidecar, an
-    oracle_id absent from the index, and a record with no ``oracle_id`` (synthetic
-    fixtures) — each degrading to the legacy oracle-regex classification."""
+    ``None`` covers the cases the callers treat identically — no sidecar (of
+    whichever kind the flag currently selects), an oracle_id absent from the
+    index, and a record with no ``oracle_id`` (synthetic fixtures) — each
+    degrading to the legacy oracle-regex classification in the Seam-B caller."""
     if crosswalk_enabled():
         index = _crosswalk_index()
-        if index is not None:
-            return index.get(card.get("oracle_id") or "")
+        if index is None:
+            return None
+        return index.get(card.get("oracle_id") or "")
     return old_ir_for(card)
 
 

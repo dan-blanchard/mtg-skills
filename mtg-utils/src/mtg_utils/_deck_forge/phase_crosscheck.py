@@ -726,6 +726,30 @@ def render_report(report: dict) -> str:
     return "\n".join(lines)
 
 
+def _ensure_ir() -> None:
+    """Best-effort Card IR sidecar build so a standalone crosscheck run is
+    Seam-B-native (ADR-0039 task #80 step 4) — this CLI never launches
+    through ``default_state`` (which already ensures it), so without this
+    call a fresh cache directory would leave every ``ir_for`` lookup below
+    returning ``None``, silently degrading the ``ir_for``-informed detector
+    lanes to their regex reads. Called BEFORE the first ``ir_for`` so the
+    memoized index isn't poisoned with a pre-build ``None``. Non-fatal — a
+    build failure degrades to the regex path, matching the no-sidecar
+    fallback every other Seam-B consumer already has."""
+    import sys
+
+    from mtg_utils._deck_forge.production import ensure_card_ir
+
+    try:
+        ensure_card_ir()
+    except (OSError, ValueError) as exc:  # corrupt/locked phase data → degrade
+        print(
+            f"deck-forge-phase-crosscheck: Card IR unavailable ({exc}); "
+            "using regex path.",
+            file=sys.stderr,
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI: ``python -m mtg_utils._deck_forge.phase_crosscheck <cards.json> [opts]``."""
     import argparse
@@ -753,6 +777,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    _ensure_ir()  # build the sidecar on first run, BEFORE the first ir_for
     try:
         phase_index = load_phase_index(args.phase_data)
     except FileNotFoundError as exc:

@@ -187,12 +187,18 @@ def test_ir_for_switches_on_flag(monkeypatch):
     assert il.old_ir_for(card) is old  # old_ir_for never switches
 
 
-def test_ir_for_degrades_when_crosswalk_sidecar_missing(monkeypatch):
+def test_ir_for_returns_none_when_crosswalk_sidecar_missing(monkeypatch):
+    """ADR-0039 task #80 step 4: an unbuilt crosswalk sidecar degrades ``ir_for``
+    to ``None`` — the same "nothing here" contract ``production.default_state``
+    uses for a missing bulk file — NEVER a silent fall-through to the legacy
+    sidecar's Card (a different builder's output serving as if it were the
+    crosswalk's own)."""
     old = Card(oracle_id="o", name="Old", faces=(Face(name="Old", abilities=()),))
     monkeypatch.setattr(il, "_index", _returns({"o": old}))
     monkeypatch.setattr(il, "_crosswalk_index", _returns(None))  # unbuilt
     monkeypatch.setenv(FLAG, "1")
-    assert il.ir_for({"oracle_id": "o"}) is old  # ON but no sidecar → legacy
+    assert il.ir_for({"oracle_id": "o"}) is None  # ON but no sidecar → None
+    assert il.old_ir_for({"oracle_id": "o"}) is old  # old_ir_for itself is unchanged
 
 
 # ── Step 3: trees_for resolver ───────────────────────────────────────────────

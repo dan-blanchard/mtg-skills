@@ -158,30 +158,23 @@ def _load_collections(
     return collections, index
 
 
-def ensure_card_ir() -> bool:
-    """Ensure the Card IR sidecar exists at launch, building it if absent/stale.
-
-    ADR-0027 migrated 31 signal keys (``signals.MIGRATED_KEYS``) off their oracle
-    regex and onto the Card IR. ``extract_signals_hybrid`` serves those keys from
-    the IR sidecar; with no sidecar (``ir=None``) it degrades to the regex path —
-    but those keys' detectors are DELETED, so a sidecar-less environment silently
-    LOSES every migrated lane. This is the mirror of the ``download-bulk`` ensure:
-    pay the build cost once at launch so the common case never silently degrades.
-
-    IDEMPOTENT + fast: when the sidecar already loads cleanly (right on-disk
-    version), this is a single ``load_card_ir`` (memoized) and returns ``True``
-    without rebuilding. A missing/stale sidecar is rebuilt from phase's
-    ``card-data.json`` via ``build-card-ir``. When phase isn't installed (no
-    ``card-data.json``), it CANNOT be built — so we surface a loud, actionable
-    warning naming the degraded lanes and proceed NON-BLOCKING (returns ``False``).
-    Returns whether the sidecar is present after the call.
-    """
-    from mtg_utils._card_ir.build import build_sidecar
-    from mtg_utils._card_ir.load import load_card_ir
+def _ensure_sidecar(
+    *,
+    loader: Callable[[], object],
+    builder: Callable[[], tuple[Path, dict]],
+    label: str,
+    build_cmd: str,
+) -> bool:
+    """Shared ensure-idempotent-or-build machinery for both sidecar flavors
+    (ADR-0027 legacy / ADR-0035 crosswalk). ``loader`` raises ``FileNotFoundError``
+    (absent) / ``ValueError`` (stale on-disk version) exactly like the sidecar
+    loaders it wraps; a clean load means nothing to do. A build failure (no
+    phase card-data reachable) warns loudly and returns ``False`` — NON-BLOCKING,
+    never a hard crash."""
     from mtg_utils._deck_forge.signals import MIGRATED_KEYS
 
     try:
-        load_card_ir()  # present + current version → nothing to do (idempotent)
+        loader()  # present + current version → nothing to do (idempotent)
     except FileNotFoundError:
         reason = "missing"  # absent sidecar — first run / never built
     except ValueError:
@@ -190,26 +183,92 @@ def ensure_card_ir() -> bool:
         return True
 
     try:
-        _out, stats = build_sidecar()
+        _out, stats = builder()
     except (FileNotFoundError, RuntimeError):
         # card-data couldn't be obtained (download failed / unreachable) → the
         # sidecar can't be built. Do NOT silently degrade: name the cost (N
         # migrated lanes) and the fix.
         print(
-            f"deck-forge: WARNING — Card IR sidecar unavailable "
+            f"deck-forge: WARNING — {label}Card IR sidecar unavailable "
             f"({len(MIGRATED_KEYS)} migrated signal lanes degraded). "
-            "card-data download failed; re-run `build-card-ir` with network "
+            f"card-data download failed; re-run `{build_cmd}` with network "
             "access. Building continues; those lanes stay dark until then.",
             file=sys.stderr,
         )
         return False
     else:
         print(
-            f"deck-forge: built Card IR sidecar ({reason}) — "
+            f"deck-forge: built {label}Card IR sidecar ({reason}) — "
             f"{stats['cards']} cards, phase {stats['phase_tag']}.",
             file=sys.stderr,
         )
         return True
+
+
+def ensure_crosswalk_card_ir() -> bool:
+    """Ensure the ADR-0035 crosswalk-backed Card IR sidecar exists at launch,
+    building it if absent/stale — the Stage-4 default production build
+    (ADR-0039 task #80 step 4).
+
+    ``_ir_lookup.ir_for`` (Seam B — ``cut_check`` / ``ranking`` / ``budgets`` /
+    the engine / ``_tuner`` bracket-metrics-tune, plus the deck-signals /
+    deck-rank / deck-tune CLIs) reads THIS sidecar whenever the crosswalk flag
+    is ON (the default): with no sidecar it returns ``None`` per card rather
+    than silently cross-wiring to the legacy sidecar's differently-built Cards.
+    This ensure pays the build cost once at launch (mirrors the
+    ``download-bulk`` ensure) so the common case never leaves Seam B dark.
+
+    IDEMPOTENT + fast: a right-on-disk-version sidecar is a single
+    ``load_crosswalk_card_ir`` (memoized) and returns ``True`` without
+    rebuilding. A missing/stale sidecar is rebuilt from phase's
+    ``card-data.json`` via ``build-card-ir-crosswalk``. When phase isn't
+    installed, it CANNOT be built — so we surface a loud, actionable warning
+    naming the degraded lanes and proceed NON-BLOCKING (returns ``False``).
+    Returns whether the sidecar is present after the call."""
+    from mtg_utils._card_ir.build import build_crosswalk_sidecar
+    from mtg_utils._card_ir.load import load_crosswalk_card_ir
+
+    return _ensure_sidecar(
+        loader=load_crosswalk_card_ir,
+        builder=build_crosswalk_sidecar,
+        label="crosswalk ",
+        build_cmd="build-card-ir-crosswalk",
+    )
+
+
+def ensure_legacy_card_ir() -> bool:
+    """Ensure the LEGACY (project.py) Card IR sidecar exists — the dependency
+    of the ``MTG_SKILLS_CROSSWALK_SIGNALS=0`` revert path (ADR-0027, pre-dates
+    ADR-0035). Kept alongside :func:`ensure_crosswalk_card_ir` so the revert
+    path stays byte-identical to before the Stage-4 flip; steps 5-7 of the
+    ADR-0039 deletion retire this once the legacy sidecar itself goes."""
+    from mtg_utils._card_ir.build import build_sidecar
+    from mtg_utils._card_ir.load import load_card_ir
+
+    return _ensure_sidecar(
+        loader=load_card_ir,
+        builder=build_sidecar,
+        label="",
+        build_cmd="build-card-ir",
+    )
+
+
+def ensure_card_ir() -> bool:
+    """Ensure the Card IR sidecar the crosswalk flag currently selects exists
+    at launch (ADR-0027; ADR-0039 task #80 step 4).
+
+    Every existing call site (``default_state``, and the ``deck-signals`` /
+    ``deck-rank`` / ``deck-tune`` CLIs) calls this ONE function; which sidecar
+    it builds is decided by
+    :func:`~mtg_utils._deck_forge._ir_lookup.crosswalk_enabled` — the
+    crosswalk-backed sidecar by default (Stage-4), the legacy sidecar only
+    under the explicit ``MTG_SKILLS_CROSSWALK_SIGNALS=0`` revert. Returns
+    whether the selected sidecar is present after the call."""
+    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
+
+    if crosswalk_enabled():
+        return ensure_crosswalk_card_ir()
+    return ensure_legacy_card_ir()
 
 
 def default_state(fmt: str = "commander") -> ForgeState:
