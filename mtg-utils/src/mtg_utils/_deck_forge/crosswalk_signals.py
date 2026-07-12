@@ -1471,6 +1471,17 @@ PORTED_KEYS: frozenset[str] = frozenset(
 # NOT a legacy member and stays excluded via a negative lookahead).
 # CR 613.4b throughout. See :func:`_base_pt_set`'s own docstring
 # for the full arm history.
+# ADR-0039 task #82 grammar sprint (2026-07-12): three of those seven
+# bridges — ``base_pt_have_become_residue``, ``base_pt_is_a_type_with_
+# residue``, ``base_pt_mass_where_x_residue`` (plus the sibling
+# ``candlekeep_inspiration_mass_where_x_creatures_matter`` and
+# ``duskana_bess_base_pt_and_toughness_ref`` rows) — RETIRED into
+# ``tree_synthesis.py`` arms (``_arm_base_pt_have_become``, ``_arm_
+# base_pt_is_a_type_with``, ``_arm_base_pt_mass_where_x``, ``_arm_
+# base_power_ref_conjunctive``); the regex reads moved from lane-embedded
+# bridges into gap-gated tree-build-time synthesis, and ``_base_pt_set``/
+# ``_base_power_matters``/``_creatures_matter`` now read the synthesized
+# concept nodes structurally. Membership unchanged (same pins, same keys).
 # cheat_into_play PROMOTED (ADR-0039 W7, 2026-07-12) — landfall
 # rule met: live_only 40 -> 0 accounted for, every remaining
 # live_only card is a TESTED, CR-grounded adjudicated shed (a
@@ -5721,9 +5732,23 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
         "duskana_draw_per_base_pt_creature_dropped",
         "moku_haste_grant_misscoped_selfref",
         "siege_behemoth_unblocked_assign_empty_mods",
-        "candlekeep_inspiration_mass_where_x_creatures_matter",
     ):
         if bridge_fires(bridge_id, tree):
+            return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
+    # ADR-0039 task #82 grammar sprint: Candlekeep Inspiration's mass
+    # "creatures you control have base power and toughness X/X, where X
+    # is ..." idiom (CR 613.4b) — a go-wide team base-P/T setter is a
+    # creatures_matter payoff too. Graduated off the
+    # ``candlekeep_inspiration_mass_where_x_creatures_matter`` ledgered-
+    # bridge row: shares the SAME tree_synthesis.py arm
+    # (``base_pt_mass_where_x``) the ``_base_pt_set`` lane reads, keyed
+    # off that arm's id specifically so this never widens to the sibling
+    # single-target base_pt_set arms (have_become / is_a_type_with).
+    for c in tree.effect_concepts("base_pt_set"):
+        if (
+            isinstance(c.node, SynthesizedNode)
+            and c.node.arm_id == "base_pt_mass_where_x"
+        ):
             return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     return []
 
@@ -17579,20 +17604,26 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
             if _BASE_PT_RAW_HOOK.search(text) or _BASE_PT_ANIMATE_HOOK.search(text):
                 return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
     # ADR-0039 W7 endgame ledgered bridges — the final residual stragglers
-    # (whole-clause grammar residues, a dropped dynamic-scalar site, a
-    # mis-decomposed AddPower/AddToughness site, a BecomeCopy P/T override
-    # with zero trace; bridge_ledger.py rows, docstring there for the full
+    # (a dropped dynamic-scalar site, a mis-decomposed AddPower/AddToughness
+    # site, a BecomeCopy P/T override with zero trace, a Stickers TK-cost
+    # parse failure; bridge_ledger.py rows, docstring there for the full
     # corpus accounting):
     for bridge_id in (
-        "base_pt_have_become_residue",
-        "base_pt_is_a_type_with_residue",
-        "base_pt_mass_where_x_residue",
         "base_pt_tk_sticker_parse_failure",
         "base_pt_each_equal_to_dropped",
         "base_pt_addpt_misattributed_typechange",
         "base_pt_becomecopy_no_pt_override",
     ):
         if bridge_fires(bridge_id, tree):
+            return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
+    # ADR-0039 task #82 grammar sprint: the three whole-clause "have ...
+    # become" / conditional "is a(n) ... with base power and toughness
+    # N/N" / mass "have base power and toughness X/X, where X is ..."
+    # residues graduated off their bridge_ledger.py rows into
+    # tree_synthesis.py arms (regex read ONCE at tree-build time — this
+    # lane now reads pure structure via the synthesized concept node).
+    for c in tree.effect_concepts("base_pt_set"):
+        if isinstance(c.node, SynthesizedNode):
             return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
     return []
 
@@ -17879,18 +17910,23 @@ def _base_power_matters(tree: ConceptTree) -> list[Signal]:
     with ``scope == 'Base'``. Scope "you" (the deleted producer's forced
     scope, matching the OLD IR's ``add("base_power_matters", "you", ...)``).
 
-    The ``duskana_bess_base_pt_and_toughness_ref`` ledgered bridge
-    (:mod:`~mtg_utils._deck_forge.bridge_ledger`) closes the 2 remaining live
-    members: a CONJUNCTIVE "base power and toughness N/N" reference (Duskana,
-    Bess) phase's clause grammar drops with zero trace — no typed node at
-    all, unlike the single-stat form this arm reads structurally. CR 613.4b.
+    ADR-0039 task #82 grammar sprint: the 2 remaining live members — a
+    CONJUNCTIVE "base power and toughness N/N" reference (Duskana, Bess)
+    phase's clause grammar drops with zero trace, no typed node at all,
+    unlike the single-stat form this arm reads structurally above —
+    graduated off the ``duskana_bess_base_pt_and_toughness_ref``
+    ledgered-bridge row into a ``tree_synthesis.py`` arm
+    (``_arm_base_power_ref_conjunctive``): the regex read moves to
+    tree-build time, and this lane reads the synthesized concept node
+    structurally. CR 613.4b.
     """
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
             if tag_of(n) == "PtComparison" and getattr(n, "scope", None) == "Base":
                 return [Signal("base_power_matters", "you", "", "", tree.name, "high")]
-    if bridge_fires("duskana_bess_base_pt_and_toughness_ref", tree):
-        return [Signal("base_power_matters", "you", "", "", tree.name, "high")]
+    for c in tree.effect_concepts("base_power_matters"):
+        if isinstance(c.node, SynthesizedNode):
+            return [Signal("base_power_matters", "you", "", "", tree.name, "high")]
     return []
 
 

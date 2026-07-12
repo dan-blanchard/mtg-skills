@@ -131,7 +131,12 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 # anchor) — the same single-source pattern, one copy each. ADR-0039 step 7
 # deleted project.py; the shared anchors now live in ``text_idioms`` (Group C),
 # moved verbatim.
-from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
+from mtg_utils._card_ir.supplement import (
+    _BASE_POWER_REF,
+    _EACH_PLAYER_P,
+    _TAP_OPP_CONTROL_P,
+    _anchored,
+)
 from mtg_utils._card_ir.text_idioms import (
     _BECOMES_TARGET_SRC_OPP,
     _CANT_BLOCK_GRANT_QUOTE,
@@ -226,6 +231,8 @@ __all__ = [
     "has_self_etb_value",
     "has_selfloss_engine",
     "has_structural_arcane",
+    "has_structural_base_power_ref",
+    "has_structural_base_pt_set",
     "has_structural_big_hand_makers",
     "has_structural_big_hand_matters",
     "has_structural_clue_matters",
@@ -8100,6 +8107,205 @@ _SWEEP_SYNTH_ROWS: tuple[tuple[re.Pattern[str], str, str, str], ...] = (
 )
 
 
+# ── base_pt_set / base_power_matters / creatures_matter — base-P/T grammar
+# stragglers (ADR-0039 task #82 grammar sprint) ───────────────────────────
+# CR 613.4b: a base-P/T-SET idiom whose clause phase's grammar can't
+# structure at all (a "have <subject>'s base power [and toughness] ...
+# become <value>" scalar/copy re-assignment, a conditionally-gated "is a(n)
+# <Type> with base power and toughness N/N" fixed type-change, or a mass
+# "creatures you control have base power and toughness X/X, where X is
+# ..." scalar) parks the WHOLE clause as an ``Unimplemented`` residue that
+# survives WITH the hook text intact — the SAME whole-clause-drop shape
+# ``group_hug_draw``'s Grothama arm bridges. Retired off their
+# ``bridge_ledger.py`` rows this session: the raw regex reads move from the
+# LANE itself (``bridge_fires``, evaluated at signal-extraction time) into
+# this gap-gated tree-BUILD-time stage — ``_base_pt_set`` now reads pure
+# structure via ``effect_concepts("base_pt_set")``.
+def has_structural_base_pt_set(tree: ConceptTree) -> bool:
+    """Cheap corpus-wide presence check: does ANY unit already carry a
+    typed base-P/T SET node (``SetPower``/``SetToughness``/``SwitchPT``, or
+    an ``Animate`` effect with a non-None ``power``/``toughness`` field)
+    anywhere in the tree — the self-retiring gap gate for the three
+    ``base_pt_set`` residue arms below (a synthesis arm never doubles a
+    clause phase already structures). Deliberately looser than the
+    ``_base_pt_set`` lane's own precise sites-loop (no hook-text/subject-
+    resolution replay, no off-battlefield gate) — a presence-only check is
+    sufficient here because the LANE's own precise gates still decide
+    whether a REAL typed node fires the signal; this gate only decides
+    whether a NEW synthetic node should exist at all.
+    """
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            t = tag_of(n)
+            if t in ("SetPower", "SetToughness", "SwitchPT"):
+                return True
+            if t == "Animate" and (
+                getattr(n, "power", None) is not None
+                or getattr(n, "toughness", None) is not None
+            ):
+                return True
+    return False
+
+
+def _base_pt_unimplemented_descs(tree: ConceptTree) -> Iterator[str]:
+    """Every ``Unimplemented`` node's description reachable ANYWHERE in the
+    tree (mirrors the retired ``bridge_ledger._unimplemented_descs_
+    anywhere`` verbatim). NOT scoped to ``unit.effects`` — a base_pt_set
+    residue can be nested under a STATIC unit or a granted-ability chain.
+    Reading the RESIDUE's own description (not ``tree.oracle``) matters:
+    phase NORMALIZES verb conjugation in its ``Unimplemented`` text (Better
+    Offer's printed "It perpetually HAS base power and toughness X/X"
+    survives in the residue as "HAVE base power and toughness X/X" — the
+    infinitive form) — scanning the printed oracle instead would silently
+    miss every conjugated ("has"/"is") card the residue's own canonical
+    text still matches (corpus-verified regression: an oracle-text-only
+    scan drops Better Offer from both base_pt_set and creatures_matter)."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented":
+                yield getattr(n, "description", "") or ""
+
+
+_BASE_PT_HAVE_BECOME_SYNTH_RX = re.compile(
+    r"\bhave\b.*?\bbase power\b.*?\bbecome\b", re.IGNORECASE
+)
+
+
+def _arm_base_pt_have_become(tree: ConceptTree) -> ConceptNode | None:
+    """A "have <subject>'s base power [and toughness] ... become <value>"
+    scalar/copy re-assignment (Ambassador Blorpityblorpboop's sticker-power
+    scalar, Tanazir Quandrix/Unruly Krasis's "become equal to ~'s power/
+    toughness" mass idiom — CR 613.4b) parked as a whole-clause
+    ``Unimplemented`` residue. Gap-gated on :func:`has_structural_base_pt_set`
+    so a card phase later structures stands this arm down automatically.
+    3/31,622 commander-legal (Ambassador Blorpityblorpboop, Tanazir
+    Quandrix, Unruly Krasis — the exact former ``base_pt_have_become_
+    residue`` bridge census)."""
+    if has_structural_base_pt_set(tree):
+        return None
+    if not any(
+        _BASE_PT_HAVE_BECOME_SYNTH_RX.search(d)
+        for d in _base_pt_unimplemented_descs(tree)
+    ):
+        return None
+    return _synthetic_concept(
+        arm_id="base_pt_have_become",
+        concept="base_pt_set",
+        scope="any",
+        subject=(),
+        desc="'have ... base power ... become' scalar/copy re-assignment (CR 613.4b)",
+    )
+
+
+_BASE_PT_IS_A_TYPE_WITH_SYNTH_RX = re.compile(
+    r"\bis an? [^.]*\bwith base power and toughness \d+/\d+\b", re.IGNORECASE
+)
+
+
+def _arm_base_pt_is_a_type_with(tree: ConceptTree) -> ConceptNode | None:
+    """A conditionally-gated "is a(n) <Type> with base power and toughness
+    N/N" fixed type-change (Circle of the Moon Druid's "During your turn,
+    ~ is a Bear with base power and toughness 4/2" — CR 613.4b); the
+    UNCONDITIONAL sibling shape (Displaced Dinosaurs/Sauron Dino Devotee/
+    Ultron) already decomposes into typed SetPower/SetToughness/AddType
+    nodes phase emits directly (the ``has_structural_base_pt_set`` gap
+    correctly stands THOSE cards down) — this arm covers ONLY the
+    conditional-wrapper shape phase's grammar still parks whole. 1/31,622
+    commander-legal (Circle of the Moon Druid — the exact former
+    ``base_pt_is_a_type_with_residue`` bridge census)."""
+    if has_structural_base_pt_set(tree):
+        return None
+    if not any(
+        _BASE_PT_IS_A_TYPE_WITH_SYNTH_RX.search(d)
+        for d in _base_pt_unimplemented_descs(tree)
+    ):
+        return None
+    return _synthetic_concept(
+        arm_id="base_pt_is_a_type_with",
+        concept="base_pt_set",
+        scope="any",
+        subject=(),
+        desc="conditional 'is a(n) ... with base power and toughness N/N' (CR 613.4b)",
+    )
+
+
+_BASE_PT_MASS_WHERE_X_SYNTH_RX = re.compile(
+    r"\bhave base power and toughness [A-Za-z]/[A-Za-z]\b", re.IGNORECASE
+)
+
+
+def _arm_base_pt_mass_where_x(tree: ConceptTree) -> ConceptNode | None:
+    """A mass "creatures you control have base power and toughness X/X,
+    where X is <scalar definition>" idiom (Candlekeep Inspiration's exile/
+    graveyard instant-or-sorcery-or-Adventure count — CR 613.4b) parked as
+    a whole-clause ``Unimplemented`` residue. Serves BOTH ``base_pt_set``
+    (this arm's own concept, read by ``_base_pt_set`` via
+    ``effect_concepts``) AND ``creatures_matter`` (a mass team base-P/T
+    setter is a go-wide payoff too, CR 613.4b sibling reading — the
+    ``_creatures_matter`` lane keys off THIS arm's id specifically via the
+    synthesized node's ``arm_id``, never the sibling single-target arms
+    above, so it never widens past the go-wide idiom). 1/31,622
+    commander-legal (Candlekeep Inspiration — the exact former
+    ``base_pt_mass_where_x_residue`` / ``candlekeep_inspiration_mass_
+    where_x_creatures_matter`` byte-identical bridge census — one node
+    retires both rows)."""
+    if has_structural_base_pt_set(tree):
+        return None
+    if not any(
+        _BASE_PT_MASS_WHERE_X_SYNTH_RX.search(d)
+        for d in _base_pt_unimplemented_descs(tree)
+    ):
+        return None
+    return _synthetic_concept(
+        arm_id="base_pt_mass_where_x",
+        concept="base_pt_set",
+        scope="any",
+        subject=(),
+        desc=(
+            "mass 'creatures you control have base power and toughness X/X' (CR 613.4b)"
+        ),
+    )
+
+
+def has_structural_base_power_ref(tree: ConceptTree) -> bool:
+    """Whether a typed ``PtComparison(scope='Base')`` node is reachable
+    anywhere in the tree — the SAME typed gate the ``_base_power_matters``
+    lane itself reads (CR 613.4b sentence 2)."""
+    return any(
+        tag_of(n) == "PtComparison" and getattr(n, "scope", None) == "Base"
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
+def _arm_base_power_ref_conjunctive(tree: ConceptTree) -> ConceptNode | None:
+    """A CONJUNCTIVE "base power and toughness N/N" reference (Duskana, the
+    Rage Mother; Bess, Soul Nourisher — CR 613.4b sentence 2) phase's
+    clause grammar drops with ZERO trace (no ``PtComparison`` node at
+    all) — distinct from the single-stat "base power N" / "base toughness
+    N" reference form phase structures directly as a typed node (the
+    ``has_structural_base_power_ref`` gap this arm stands down on for
+    those 4 siblings — Rapid Augmenter, Sword of the Squeak, Zinnia,
+    Valley's Voice, Primo, the Unbounded). Reuses ``supplement.py``'s OWN
+    ``_BASE_POWER_REF`` combinator scan verbatim — the SAME six-token
+    phrase anchor the retired legacy ``_recover_base_power_ref`` used, so
+    the blast radius matches byte-for-byte (6 corpus hits total, 4 already
+    structurally covered, 2 left — the exact former ``duskana_bess_base_
+    pt_and_toughness_ref`` bridge census)."""
+    if has_structural_base_power_ref(tree):
+        return None
+    oracle = re.sub(r"\([^)]*\)", " ", tree.oracle or "")
+    if not _anchored(oracle, "with base", _BASE_POWER_REF):
+        return None
+    return _synthetic_concept(
+        arm_id="base_power_ref_conjunctive",
+        concept="base_power_matters",
+        scope="you",
+        subject=(),
+        desc="conjunctive 'with base power and toughness N' reference (CR 613.4b)",
+    )
+
+
 def _make_sweep_arm(rx: re.Pattern[str], arm_id: str, scope: str, cr: str) -> _Arm:
     def _arm(tree: ConceptTree) -> ConceptNode | None:
         oracle = _REMINDER.sub(" ", tree.oracle or "")
@@ -8234,6 +8440,10 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("opponent_cast_matters", _arm_opponent_cast_matters),
     ("creature_cast_trigger", _arm_creature_cast_trigger),
     ("fight_makers", _arm_fight_makers),
+    ("base_pt_have_become", _arm_base_pt_have_become),
+    ("base_pt_is_a_type_with", _arm_base_pt_is_a_type_with),
+    ("base_pt_mass_where_x", _arm_base_pt_mass_where_x),
+    ("base_power_ref_conjunctive", _arm_base_power_ref_conjunctive),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

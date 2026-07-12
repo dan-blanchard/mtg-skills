@@ -34,6 +34,7 @@ from mtg_utils._card_ir.mirror.generated_types import (
     T_effect__GenericEffect,
     T_effect__PutCounter,
     T_effect__SetTapState,
+    T_effect__Unimplemented,
     T_filters__StackSpell,
     T_filters__Typed,
     T_modifications__AddKeyword,
@@ -54,6 +55,10 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_animate_artifact,
     _arm_b13_node_anchor,
     _arm_b13_raw_anchor,
+    _arm_base_power_ref_conjunctive,
+    _arm_base_pt_have_become,
+    _arm_base_pt_is_a_type_with,
+    _arm_base_pt_mass_where_x,
     _arm_becomes_target_src_opp,
     _arm_big_hand_makers,
     _arm_big_hand_matters,
@@ -122,6 +127,8 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_arcane,
+    has_structural_base_power_ref,
+    has_structural_base_pt_set,
     has_structural_big_hand_makers,
     has_structural_big_hand_matters,
     has_structural_cant_block_grant,
@@ -6001,3 +6008,194 @@ def test_typed_anthem_multi_fires_on_multi_subtype_raw_fallback():
 def test_typed_anthem_multi_no_fire_on_single_subtype_text():
     tree = _anthem_static_tree("Other Humans you control get +1/+1.")
     assert _arm_typed_anthem_multi(tree) is None
+
+
+# ── base_pt_set / base_power_matters residues (ADR-0039 task #82 grammar
+# sprint) — the retired ``bridge_ledger.py`` rows graduated into these arms.
+
+
+def _unimplemented_tree(oracle: str, residue: str) -> ConceptTree:
+    """A tree whose PRINTED ``oracle`` differs from its ``Unimplemented``
+    residue's OWN description — the exact shape phase produces when it
+    normalizes verb conjugation (Better Offer's printed "It perpetually
+    HAS base power and toughness X/X" survives in the residue as the
+    infinitive "HAVE base power and toughness X/X"). Lets the base_pt_set
+    residue arms be tested against that normalization directly without a
+    fixture entry."""
+    node = T_effect__Unimplemented(description=residue, name="")
+    unit = AbilityUnit(
+        origin="ability",
+        index=0,
+        node=node,
+        kind="Static",
+        trigger_event=None,
+        effects=(
+            ConceptNode(
+                concept="other",
+                node=node,
+                role="effect",
+                scope="any",
+                subject=(),
+                raw="",
+            ),
+        ),
+        costs=(),
+        statics=(),
+    )
+    return ConceptTree(name="X", oracle_id="x", oracle=oracle, units=(unit,))
+
+
+def test_base_pt_mass_where_x_reads_residue_not_printed_text():
+    """Regression (corpus-verified this session, Better Offer): the arm
+    MUST scan the ``Unimplemented`` node's own residue description, not
+    ``tree.oracle`` — phase's residue normalizes "has" to the infinitive
+    "have" even though the printed oracle says "has" (singular subject,
+    "It perpetually has ..."). A printed-text-only scan silently drops
+    every such conjugated card."""
+    tree = _unimplemented_tree(
+        oracle="It perpetually has base power and toughness X/X and perpetually gains ward {1}.",
+        residue="have base power and toughness X/X and perpetually gains ward {1}",
+    )
+    node = _arm_base_pt_mass_where_x(tree)
+    assert node is not None
+    assert node.concept == "base_pt_set"
+
+
+def test_base_pt_have_become_synth_registered():
+    assert "base_pt_have_become" in SYNTHESIS_ARM_IDS
+
+
+def test_base_pt_is_a_type_with_synth_registered():
+    assert "base_pt_is_a_type_with" in SYNTHESIS_ARM_IDS
+
+
+def test_base_pt_mass_where_x_synth_registered():
+    assert "base_pt_mass_where_x" in SYNTHESIS_ARM_IDS
+
+
+def test_base_power_ref_conjunctive_synth_registered():
+    assert "base_power_ref_conjunctive" in SYNTHESIS_ARM_IDS
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Ambassador Blorpityblorpboop", "Tanazir Quandrix", "Unruly Krasis"],
+)
+def test_base_pt_have_become_fires_on_pins(name):
+    """The former ``base_pt_have_become_residue`` bridge's exact 3-card
+    census — a whole-clause 'have ... base power ... become' residue with
+    no typed base-P/T-set node anywhere."""
+    tree = _fixture_tree(name)
+    assert has_structural_base_pt_set(tree) is False
+    node = _arm_base_pt_have_become(tree)
+    assert node is not None
+    assert node.concept == "base_pt_set"
+    assert isinstance(node.node, SynthesizedNode)
+    assert node.node.arm_id == "base_pt_have_become"
+
+
+def test_base_pt_have_become_lane_fires():
+    from mtg_utils._deck_forge.crosswalk_signals import _base_pt_set
+
+    for name in (
+        "Ambassador Blorpityblorpboop",
+        "Tanazir Quandrix",
+        "Unruly Krasis",
+    ):
+        tree = apply_tree_synthesis(_fixture_tree(name))
+        assert any(s.key == "base_pt_set" for s in _base_pt_set(tree))
+
+
+def test_base_pt_is_a_type_with_fires_on_pin():
+    """Circle of the Moon Druid's conditional 'During your turn, ~ is a
+    Bear with base power and toughness 4/2' — the former ``base_pt_is_a_
+    type_with_residue`` bridge's exact 1-card census."""
+    tree = _fixture_tree("Circle of the Moon Druid")
+    assert has_structural_base_pt_set(tree) is False
+    node = _arm_base_pt_is_a_type_with(tree)
+    assert node is not None
+    assert node.concept == "base_pt_set"
+    assert node.node.arm_id == "base_pt_is_a_type_with"
+
+    from mtg_utils._deck_forge.crosswalk_signals import _base_pt_set
+
+    tree = apply_tree_synthesis(tree)
+    assert any(s.key == "base_pt_set" for s in _base_pt_set(tree))
+
+
+def test_base_pt_is_a_type_with_no_fire_on_unconditional_sibling():
+    """Displaced Dinosaurs' UNCONDITIONAL type-change sibling shape already
+    decomposes into typed SetPower/SetToughness/AddType nodes phase emits
+    directly — the gap correctly stands this arm down (no double-fire)."""
+    tree = _fixture_tree("Displaced Dinosaurs")
+    assert has_structural_base_pt_set(tree) is True
+    assert _arm_base_pt_is_a_type_with(tree) is None
+
+
+def test_base_pt_mass_where_x_fires_on_pin_both_lanes():
+    """Candlekeep Inspiration's mass 'creatures you control have base
+    power and toughness X/X, where X is ...' idiom — the former
+    ``base_pt_mass_where_x_residue`` (base_pt_set) AND ``candlekeep_
+    inspiration_mass_where_x_creatures_matter`` (creatures_matter)
+    bridges' byte-identical 1-card census, retired TOGETHER off one arm."""
+    tree = _fixture_tree("Candlekeep Inspiration")
+    assert has_structural_base_pt_set(tree) is False
+    node = _arm_base_pt_mass_where_x(tree)
+    assert node is not None
+    assert node.concept == "base_pt_set"
+    assert node.node.arm_id == "base_pt_mass_where_x"
+
+    from mtg_utils._deck_forge.crosswalk_signals import (
+        _base_pt_set,
+        _creatures_matter,
+    )
+
+    synth_tree = apply_tree_synthesis(tree)
+    assert any(s.key == "base_pt_set" for s in _base_pt_set(synth_tree))
+    assert any(s.key == "creatures_matter" for s in _creatures_matter(synth_tree))
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Ambassador Blorpityblorpboop",
+        "Tanazir Quandrix",
+        "Unruly Krasis",
+        "Circle of the Moon Druid",
+    ],
+)
+def test_base_pt_mass_where_x_never_widens_creatures_matter(name):
+    """The sibling single-target base_pt_set arms (have_become /
+    is_a_type_with) never open creatures_matter — only the mass arm's OWN
+    synthesized node, keyed by arm_id, does."""
+    from mtg_utils._deck_forge.crosswalk_signals import _creatures_matter
+
+    tree = apply_tree_synthesis(_fixture_tree(name))
+    assert not any(s.key == "creatures_matter" for s in _creatures_matter(tree))
+
+
+@pytest.mark.parametrize("name", ["Duskana, the Rage Mother", "Bess, Soul Nourisher"])
+def test_base_power_ref_conjunctive_fires_on_pins(name):
+    """The former ``duskana_bess_base_pt_and_toughness_ref`` bridge's exact
+    2-card census — a conjunctive 'base power and toughness N/N' reference
+    phase's grammar drops with zero trace."""
+    tree = _fixture_tree(name)
+    assert has_structural_base_power_ref(tree) is False
+    node = _arm_base_power_ref_conjunctive(tree)
+    assert node is not None
+    assert node.concept == "base_power_matters"
+    assert node.node.arm_id == "base_power_ref_conjunctive"
+
+    from mtg_utils._deck_forge.crosswalk_signals import _base_power_matters
+
+    synth_tree = apply_tree_synthesis(tree)
+    assert any(s.key == "base_power_matters" for s in _base_power_matters(synth_tree))
+
+
+def test_base_power_ref_conjunctive_no_fire_on_single_stat_sibling():
+    """Rapid Augmenter's single-stat 'base power N' reference already
+    carries a typed ``PtComparison(scope='Base')`` node phase structures
+    directly — the gap correctly stands this arm down."""
+    tree = _fixture_tree("Rapid Augmenter")
+    assert has_structural_base_power_ref(tree) is True
+    assert _arm_base_power_ref_conjunctive(tree) is None

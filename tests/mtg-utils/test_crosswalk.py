@@ -15327,15 +15327,17 @@ def test_base_power_matters_excludes_current_power_scope():
 
 
 def test_base_power_matters_conjunctive_bridge_duskana():
-    """The ``duskana_bess_base_pt_and_toughness_ref`` ledgered bridge: phase
-    drops the CONJUNCTIVE "base power and toughness 2/2" reference form
-    (Duskana's ETB draw-per) with zero trace — no PtComparison node at all,
-    unlike the single-stat form Rapid Augmenter carries structurally."""
+    """The former ``duskana_bess_base_pt_and_toughness_ref`` ledgered
+    bridge, graduated (ADR-0039 task #82) into ``tree_synthesis.
+    _arm_base_power_ref_conjunctive``: phase drops the CONJUNCTIVE "base
+    power and toughness 2/2" reference form (Duskana's ETB draw-per) with
+    zero trace — no PtComparison node at all, unlike the single-stat form
+    Rapid Augmenter carries structurally."""
     assert ("base_power_matters", "you", "") in _idents("Duskana, the Rage Mother")
 
 
 def test_base_power_matters_conjunctive_bridge_bess():
-    """The same conjunctive-drop bridge, Bess's counter-per-ETB trigger
+    """The same conjunctive-drop idiom, Bess's counter-per-ETB trigger
     ("one or more other creatures you control with base power and
     toughness 1/1")."""
     assert ("base_power_matters", "you", "") in _idents("Bess, Soul Nourisher")

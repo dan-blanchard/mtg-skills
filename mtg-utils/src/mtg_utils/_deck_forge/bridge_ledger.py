@@ -58,7 +58,6 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING
-from mtg_utils._card_ir.supplement import _BASE_POWER_REF, _anchored
 from mtg_utils._deck_forge._sweep_detectors import NAMED_PERMANENT_REGEX
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -839,15 +838,19 @@ def _kicker_ptplayer_match(tree: ConceptTree) -> bool:
 
 
 # ── base_pt_set residual class (ADR-0039 W7 endgame) ─────────────────────
-# Six bridges close the final base_pt_set stragglers left after this
-# session's three structural closers (a ``LastCreated`` resolved-tag
-# accept, an empty-nested-description unit-level fallback, and a modal
-# ``mode_abilities`` threaded-target walk — see
+# Seven bridges originally closed the final base_pt_set stragglers left
+# after this session's three structural closers (a ``LastCreated``
+# resolved-tag accept, an empty-nested-description unit-level fallback, and
+# a modal ``mode_abilities`` threaded-target walk — see
 # :func:`~mtg_utils._deck_forge.crosswalk_signals._base_pt_set` and
 # :func:`~mtg_utils._deck_forge.crosswalk_signals.
 # _iter_base_pt_modal_threaded_statics`). Each census below is corpus-bound
 # to EXACTLY its enumerated pins (re-verified 2026-07-11, phase v0.20.0,
-# 31,622 commander-legal cards) — no blast-radius slop.
+# 31,622 commander-legal cards) — no blast-radius slop. Three of the seven
+# (the whole-clause "have ... become" / conditional "is a(n) ... with base
+# power and toughness N/N" / mass "have base power and toughness X/X"
+# idioms) RETIRED this session (ADR-0039 task #82) into ``tree_synthesis.py``
+# arms; the remaining four stay ledgered here.
 def _unimplemented_descs_anywhere(tree: ConceptTree) -> Iterator[str]:
     """Every ``Unimplemented`` node's description reachable ANYWHERE in the
     tree (unlike :func:`_unimplemented_effect_descs`, this is NOT scoped to
@@ -860,65 +863,15 @@ def _unimplemented_descs_anywhere(tree: ConceptTree) -> Iterator[str]:
                 yield getattr(n, "description", "") or ""
 
 
-# (1) A "have <subject>'s base power [and toughness] ... become <value>"
-# idiom — a scalar/copy re-assignment phase's clause grammar can't
-# structure at all (Ambassador Blorpityblorpboop's sticker-power scalar,
-# Tanazir Quandrix/Unruly Krasis's "become equal to ~'s power" copy —
-# CR 613.4b), parking the WHOLE clause as an ``Unimplemented`` residue that
-# survives WITH the hook text intact. Census: 3/31,622 commander-legal
-# (exactly the 3 pins; Arni Brokenbrow's "change ~'s base power to 1 plus
-# ..." and Curie, Emergent Intelligence's "draw cards equal to its base
-# power" — both matched by the whole-oracle raw-hook substring but neither
-# by this "have ... become" verb anchor, and neither is a legacy
-# base_pt_set member — verified via ``extract_signals_ir`` directly).
-_BASE_PT_HAVE_BECOME_RX = re.compile(
-    r"\bhave\b.*?\bbase power\b.*?\bbecome\b", re.IGNORECASE
-)
-
-
-def _base_pt_have_become_match(tree: ConceptTree) -> bool:
-    return any(
-        _BASE_PT_HAVE_BECOME_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
-    )
-
-
-# (2) An "is a(n) <Type> with base power and toughness N/N" fixed-value
-# type-change idiom (Circle of the Moon Druid's "Bear Form — During your
-# turn, ~ is a Bear with base power and toughness 4/2" — CR 613.4b), parked
-# as a whole-clause ``Unimplemented`` residue (the conditional "During your
-# turn" framing is the grammar frontier this bridge's TODO names). Census:
-# 1/31,622 commander-legal (exactly the 1 pin; Halfdane's "change ~'s base
-# power and toughness to the power and toughness of ..." and Brine Hag's
-# "change the base power and toughness of all creatures ... to 0/2" both
-# fail the "is a(n) ... with base power and toughness N/N" anchor).
-_BASE_PT_IS_A_TYPE_WITH_RX = re.compile(
-    r"\bis an? [^.]*\bwith base power and toughness \d+/\d+\b", re.IGNORECASE
-)
-
-
-def _base_pt_is_a_type_with_match(tree: ConceptTree) -> bool:
-    return any(
-        _BASE_PT_IS_A_TYPE_WITH_RX.search(d)
-        for d in _unimplemented_descs_anywhere(tree)
-    )
-
-
-# (3) A mass "creatures you control have base power and toughness X/X,
-# where X is ..." scalar (Candlekeep Inspiration — CR 613.4b), parked as a
-# whole-clause ``Unimplemented`` residue (the "where X is the number of
-# cards you own in exile and in your graveyard that are instant cards, are
-# sorcery cards, and/or have an Adventure" scalar definition is the grammar
-# frontier). Census: 1/31,622 commander-legal (exactly the 1 pin).
-_BASE_PT_MASS_WHERE_X_RX = re.compile(
-    r"\bhave base power and toughness [A-Za-z]/[A-Za-z]\b", re.IGNORECASE
-)
-
-
-def _base_pt_mass_where_x_match(tree: ConceptTree) -> bool:
-    return any(
-        _BASE_PT_MASS_WHERE_X_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
-    )
-
+# (1)-(3) formerly here: the "have ... base power ... become" scalar/copy
+# re-assignment, the conditional "is a(n) ... with base power and
+# toughness N/N" type-change, and the mass "have base power and toughness
+# X/X, where X is ..." idioms — all RETIRED this session (ADR-0039 task
+# #82 grammar sprint) into ``tree_synthesis.py`` arms
+# (``_arm_base_pt_have_become``, ``_arm_base_pt_is_a_type_with``,
+# ``_arm_base_pt_mass_where_x``): the regex reads moved from this lane-
+# embedded bridge into a gap-gated tree-build-time synthesis stage, and
+# ``_base_pt_set`` now reads the synthesized concept node structurally.
 
 # (4) A Stickers-templated ability whose cost is an un-parseable ``{TK}``
 # placeholder (Cool Fluffy Loxodon's "{TK}{TK}{TK}{TK}{TK} — Whenever a
@@ -1068,41 +1021,12 @@ def _base_pt_becomecopy_no_mods_match(tree: ConceptTree) -> bool:
     return bool(_BASE_PT_BECOMECOPY_PT_RX.search(tree.oracle))
 
 
-# ── Duskana / Bess → base_power_matters (ADR-0039 W8) ────────────────────────
-# CR 613.4b sentence 2: a base-power/toughness REFERENCE payoff ("creature(s)
-# you control with base power N" — distinct from base_pt_set's SETTER form).
-# phase v0.20.0's typed ``PtComparison`` node carries a ``scope`` field
-# (``'Base'`` vs ``'Current'``) that the base_power_matters lane reads
-# directly for 4 of the live set's 6 members (Rapid Augmenter, Sword of the
-# Squeak, Zinnia — Valley's Voice, Primo, the Unbounded — a genuine
-# graduation off the old IR's regex recovery). The remaining 2 members name
-# a CONJUNCTIVE "base power AND toughness N/N" reference (as opposed to the
-# single-stat "base power N" / "base toughness N" the typed node structures
-# fine) — phase's clause grammar drops this conjunction form with ZERO
-# trace: no ``PtComparison`` node, not even an ``Unimplemented`` residue.
-# Reuses ``supplement.py``'s OWN ``_BASE_POWER_REF`` combinator scan
-# verbatim (not a re-derived pattern) — the SAME anchor the old IR's
-# ``_recover_base_power_ref`` uses — so the blast radius matches the old
-# recovery byte-for-byte (12 hits corpus-wide match the 6-token phrase, of
-# which 4 are already structurally covered by the typed scope='Base' read
-# and correctly stand this bridge down via the gap).
-def _duskana_bess_gap(tree: ConceptTree) -> bool:
-    """No typed ``PtComparison(scope='Base')`` node reachable anywhere —
-    self-retiring the day phase's grammar structures the conjunctive 'base
-    power and toughness N/N' reference form (the 4 single-stat siblings
-    already carry this node and correctly stand the bridge down)."""
-    return not any(
-        tag_of(n) == "PtComparison" and getattr(n, "scope", None) == "Base"
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
-    )
-
-
-def _duskana_bess_match(tree: ConceptTree) -> bool:
-    return _anchored(
-        re.sub(r"\([^)]*\)", " ", tree.oracle or ""), "with base", _BASE_POWER_REF
-    )
-
+# ── Duskana / Bess → base_power_matters: RETIRED (ADR-0039 task #82) ─────────
+# The conjunctive "base power AND toughness N/N" reference bridge graduated
+# into ``tree_synthesis._arm_base_power_ref_conjunctive`` this session — the
+# ``_BASE_POWER_REF`` combinator scan moved there verbatim, and
+# ``_base_power_matters`` now reads the synthesized concept node
+# structurally instead of calling this module.
 
 # ── Katilda / Old-Growth Troll / Tazri → ramp ─────────────────────────────────
 # A ``GrantAbility`` whose OWN quoted text mentions "add mana" but whose
@@ -2912,85 +2836,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_kicker_ptplayer_match,
         ),
         Bridge(
-            bridge_id="base_pt_have_become_residue",
-            key="base_pt_set",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a clause-grammar "
-                "verb for the 'have <subject>'s base power [and toughness] "
-                "... become <value>' scalar/copy re-assignment idiom — "
-                "retires when the node decomposes into a typed SetPower/"
-                "SetPowerDynamic (and toughness sibling) pair the way the "
-                "matched-quantity copy-stats arm already reads structurally"
-            ),
-            census=(
-                "3 hits / 31,622 commander-legal Unimplemented residues "
-                "matching the 'have ... base power ... become' verb anchor, "
-                "phase v0.20.0, 2026-07-11 (exactly the 3 pins; Arni "
-                "Brokenbrow's 'change ~'s base power to 1 plus ...' and "
-                "Curie, Emergent Intelligence's 'draw cards equal to its "
-                "base power' both carry the bare raw-hook substring but "
-                "neither the 'have ... become' verb shape, and neither "
-                "fires under legacy's own extract_signals_ir — verified "
-                "directly)"
-            ),
-            pins=(
-                "Ambassador Blorpityblorpboop",
-                "Tanazir Quandrix",
-                "Unruly Krasis",
-            ),
-            gap=_base_pt_have_become_match,
-            match=_base_pt_have_become_match,
-        ),
-        Bridge(
-            bridge_id="base_pt_is_a_type_with_residue",
-            key="base_pt_set",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a clause-grammar "
-                "verb for a conditionally-gated 'is a(n) <Type> with base "
-                "power and toughness N/N' fixed type-change idiom (the "
-                "'During your turn' framing is the frontier — an "
-                "unconditional sibling shape already decomposes into "
-                "typed SetPower/SetToughness/AddType nodes, see Displaced "
-                "Dinosaurs/Sauron/Ultron this same session) — retires when "
-                "the conditional wrapper decomposes too"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal Unimplemented residues "
-                "matching the 'is a(n) ... with base power and toughness "
-                "N/N' anchor, phase v0.20.0, 2026-07-11 (exactly the 1 pin; "
-                "Halfdane's 'change ~'s base power and toughness to the "
-                "power and toughness of ...' and Brine Hag's 'change the "
-                "base power and toughness of all creatures ... to 0/2' "
-                "both fail the anchor)"
-            ),
-            pins=("Circle of the Moon Druid",),
-            gap=_base_pt_is_a_type_with_match,
-            match=_base_pt_is_a_type_with_match,
-        ),
-        Bridge(
-            bridge_id="base_pt_mass_where_x_residue",
-            key="base_pt_set",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a clause-grammar "
-                "verb for a mass 'creatures you control have base power "
-                "and toughness X/X, where X is <scalar definition>' idiom "
-                "— retires when the node decomposes into a typed "
-                "SetPowerDynamic/SetToughnessDynamic pair over a "
-                "board-wide affected filter"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal Unimplemented residues "
-                "matching 'have base power and toughness X/X', phase "
-                "v0.20.0, 2026-07-11 (exactly the 1 pin)"
-            ),
-            pins=("Candlekeep Inspiration",),
-            gap=_base_pt_mass_where_x_match,
-            match=_base_pt_mass_where_x_match,
-        ),
-        Bridge(
             bridge_id="base_pt_tk_sticker_parse_failure",
             key="base_pt_set",
             kind="upstream_parse_failure",
@@ -3799,36 +3644,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_tetravus_match,
         ),
         Bridge(
-            bridge_id="duskana_bess_base_pt_and_toughness_ref",
-            key="base_power_matters",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82) / phase bump: the "
-                "clause grammar structures the single-stat 'base power N' / "
-                "'base toughness N' reference form as a typed "
-                "PtComparison(scope='Base') node (re-verified this session "
-                "— Rapid Augmenter, Sword of the Squeak, Zinnia, Valley's "
-                "Voice, Primo, the Unbounded all carry it) but drops the "
-                "CONJUNCTIVE 'base power and toughness N/N' reference form "
-                "with zero trace — retires on a grammar verb / phase bump "
-                "that emits the same scope='Base' node (or a pair of them) "
-                "for the conjunction"
-            ),
-            census=(
-                "2 hits / 31,622 commander-legal (Duskana, the Rage Mother; "
-                "Bess, Soul Nourisher — the 6-token "
-                "'creature(s) you control/own with base power/toughness' "
-                "phrase scan, reused verbatim from "
-                "supplement._recover_base_power_ref, matches 6 "
-                "commander-legal cards total; the other 4 already carry "
-                "the typed scope='Base' node and correctly stand this "
-                "bridge down via the gap), phase v0.20.0, 2026-07-12"
-            ),
-            pins=("Duskana, the Rage Mother", "Bess, Soul Nourisher"),
-            gap=_duskana_bess_gap,
-            match=_duskana_bess_match,
-        ),
-        Bridge(
             bridge_id="named_synergy_overloaded_named_node",
             key="named_synergy",
             kind="upstream_parse_failure",
@@ -3960,12 +3775,13 @@ BRIDGES: dict[str, Bridge] = {
                 "instead of a Ref(qty=ObjectCount(base-power-2/2 "
                 "filter)) — the dynamic count is dropped with no residue "
                 "at all — retires on a phase bump that structures the "
-                "per-base-2/2-creature count. Distinct from the ALREADY-"
-                "LANDED duskana_bess_base_pt_and_toughness_ref bridge "
-                "(base_power_matters key) — that one serves the SECOND "
-                "ability's base-power-2/2 REFERENCE; this one serves the "
-                "FIRST ability's dropped COUNT, kept as a separate row "
-                "per the ledger's one-key-per-row contract"
+                "per-base-2/2-creature count. Distinct from the RETIRED "
+                "duskana_bess_base_pt_and_toughness_ref bridge "
+                "(base_power_matters key, graduated to a tree_synthesis.py "
+                "arm this session) — that one served the SECOND ability's "
+                "base-power-2/2 REFERENCE; this one serves the FIRST "
+                "ability's dropped COUNT, kept as a separate row per the "
+                "ledger's one-key-per-row contract"
             ),
             census=(
                 "1 hit / 105,561 commander-legal (Duskana, the Rage "
@@ -4020,29 +3836,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Siege Behemoth",),
             gap=_siege_behemoth_gap,
             match=_siege_behemoth_match,
-        ),
-        Bridge(
-            bridge_id="candlekeep_inspiration_mass_where_x_creatures_matter",
-            key="creatures_matter",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82) / phase bump: "
-                "shares its gap/match exactly with the ALREADY-LANDED "
-                "base_pt_mass_where_x_residue bridge (base_pt_set key) — "
-                "the SAME 'creatures you control have base power and "
-                "toughness X/X, where X is ...' Unimplemented residue is "
-                "ALSO creatures_matter's legacy-parity read (a mass team "
-                "base-P/T setter is a go-wide payoff too, CR 613.4b) — "
-                "retires TOGETHER with that row on the same grammar verb"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal (Candlekeep Inspiration "
-                "— exactly the 1 pin, byte-identical census to "
-                "base_pt_mass_where_x_residue), phase v0.20.0, 2026-07-12"
-            ),
-            pins=("Candlekeep Inspiration",),
-            gap=_base_pt_mass_where_x_match,
-            match=_base_pt_mass_where_x_match,
         ),
     )
 }
