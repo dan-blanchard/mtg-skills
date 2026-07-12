@@ -4273,6 +4273,171 @@ def test_opponent_discard_team_scoped_grant_stays_each_no_opponents():
     assert ("opponent_discard", "opponents", "") not in idents
 
 
+# ── ADR-0038 W6 endgame: opponent_discard structural closers ────────────────
+
+
+@pytest.mark.parametrize("name", ["Memory Jar", "Magus of the Jar"])
+def test_opponent_discard_delayed_trigger_inherited_scope(name):
+    """:func:`_nested_owner_player_scope` (ADR-0038 W6 endgame) is now an
+    ANCESTOR-INHERITED read, not merely the immediate parent's own field.
+    Memory Jar / Magus of the Jar's OWN discard ("At the beginning of the
+    next end step, each player discards their hand and returns...") sits
+    inside a ``CreateDelayedTrigger`` (CR 603.7)'s ``.effect`` — an
+    ``S_effect`` wrapper with NO ``player_scope`` field of its own at all —
+    several ``SequentialSibling`` hops below the ROOT ability's
+    ``player_scope: All``. The delayed trigger's discard now inherits the
+    ability-wide "each" scope, joining the SAME wheel-mirror-duplicate shed
+    class ``test_opponent_discard_wheel_wrapper_is_each`` already pins (the
+    legacy byte-mirror's redundant "opponents" tag for this same
+    each-scoped discard is not a second genuine signal)."""
+    idents = _idents(name)
+    assert ("opponent_discard", "each", "") in idents
+    assert ("opponent_discard", "opponents", "") not in idents
+
+
+def test_opponent_discard_replacement_valid_player_breathstealers_crypt():
+    """Breathstealer's Crypt: "If a player would draw a card, instead they
+    draw a card and reveal it. If it's a creature card, that player
+    discards it unless they pay 3 life." parses to a REPLACEMENT unit
+    (CR 614.1/614.6) whose ``DiscardCard{target: ParentTarget}`` chains
+    back through a ``RevealTop`` (no player field of its own, only
+    ``.player``) — the SAME position-relative shape Sindbad's self card-
+    filter has, so the reveal-sibling veto alone can't tell them apart.
+    The replacement's OWN ``valid_player: AnyPlayer`` field is the
+    authoritative direction instead (:data:`_REPLACEMENT_VALID_PLAYER_
+    SCOPE`): it replaces ANY player's draw, including yours — the SAME
+    "a wheel hits you too" convention this lane already applies to
+    ``All``-scoped wrappers, so scope is the symmetric ``each``, not a
+    one-sided ``opponents``. The Cephalid-Looter loot veto does NOT apply
+    here even though the replaced ``Draw`` shares the identical
+    ``ParentTarget`` position tag — both share it only because they chain
+    off the same replaced event, not because a controller aimed a loot at
+    one player."""
+    idents = _idents("Breathstealer's Crypt")
+    assert ("opponent_discard", "each", "") in idents
+
+
+def test_opponent_discard_choose_opponent_bound_fervent_mastery():
+    """Fervent Mastery: "If the {2}{R}{R} cost was paid, an opponent
+    discards any number of cards, then draws that many cards." parses to
+    a root ``Choose{choice_type: Opponent}`` (CR 601.2c) immediately
+    followed by a ``Discard{target: Controller}`` — the chosen opponent
+    has no typed carrier of its own, so :func:`_choose_opponent_bound_
+    discard`'s immediate-successor POSITION read supplies the direction.
+    The card's OWN second, unrelated "discard three cards at random"
+    self-cost deep in the same chain (post-tutor, a genuine ``Controller``
+    target) stays excluded — it is not the Choose's immediate successor."""
+    assert ("opponent_discard", "opponents", "") in _idents("Fervent Mastery")
+
+
+@pytest.mark.parametrize("name", ["Nebuchadnezzar", "Hint of Insanity"])
+def test_opponent_discard_sibling_reveal_backref(name):
+    """A recovered ``discard`` residue (the post-giants ALLOWLIST row)
+    carries NO typed recipient of its own — its whole clause is an
+    ``Unimplemented`` token: Nebuchadnezzar's "Then that player discards
+    all cards with that name revealed this way", Hint of Insanity's "That
+    player discards all nonland cards with the same name as another card
+    in their hand." :func:`_sibling_reveal_direction` reads the direction
+    off the SAME unit's ``RevealHand`` sibling instead (its ``target``
+    field uses the identical ``_SCOPE_FIELDS`` shape a discard's own
+    recipient does) — both cards' reveal names an ``Opponent``/``Player``,
+    establishing the "that player" back-reference the prose defers to.
+    CR 701.9 / 701.20 (Reveal)."""
+    assert ("opponent_discard", "opponents", "") in _idents(name)
+
+
+def test_opponent_discard_sibling_reveal_backref_rise_fall():
+    """Rise // Fall's "Fall" half ("Target player reveals two cards at
+    random from their hand, then discards each nonland card revealed
+    this way.") is the SAME recovered-discard-with-sibling-reveal shape
+    as Nebuchadnezzar/Hint of Insanity, on a genuinely SEPARATE per-face
+    phase record (fixture keyed "Fall", not the combined card name) — a
+    beyond-legacy recall gain (the split-card legacy IR doesn't reach
+    this face at all), adjudicated genuine per the ADR-0038 recall-
+    completion note (role-aware: a real payoff arm, not a conflation)."""
+    assert ("opponent_discard", "opponents", "") in _idents("Fall")
+
+
+def test_opponent_discard_buried_grant_ability_reveal_dementia_sliver():
+    """Dementia Sliver's granted "{T}: Choose a card name. Target opponent
+    reveals a card at random from their hand. If that card has the chosen
+    name, that player discards it." buries BOTH the ``RevealHand`` and the
+    ``DiscardCard{target: ParentTarget}`` inside the SAME tribal static's
+    ``GrantAbility.definition`` chain — invisible to :meth:`AbilityUnit.
+    has_effect`'s fixed-chain read. :func:`_unit_has_nested_reveal_hand`'s
+    full :func:`iter_typed_nodes` deep scan (ADR-0038 W6 endgame) finds
+    the buried sibling reveal, admitting the ``DiscardCard`` arm past the
+    reveal-sibling veto; ``ParentTarget`` then resolves ``opponents``
+    directly (CR 613.1f)."""
+    assert ("opponent_discard", "opponents", "") in _idents("Dementia Sliver")
+
+
+def test_opponent_discard_text_only_face_tree_oblivion():
+    """Consign // Oblivion's "Oblivion" half ("Target opponent discards
+    two cards.") has NO phase record at all (phase never emits Aftermath
+    second halves), so production coverage is the W2c text-only face tree
+    (``tree.units == ()``) ``trees_for`` synthesizes off the bulk face
+    (task #76) — this function's ENTIRE units-scoped structural walk is a
+    no-op for it, so the ADR-0038 W6 endgame last-resort raw sweep
+    (:data:`_TEXT_ONLY_OPP_DISCARD_RX`) is the only possible read. Driven
+    // Despair's "Despair" half ("that player discards a card", a back-
+    reference into a GRANTED trigger's quoted text with no "opponent"/
+    "target player"/"each player" anchor at all) is correctly NOT
+    matched — a genuinely un-closed gap, not force-fit this session."""
+    from mtg_utils._deck_forge._ir_lookup import _text_only_tree
+
+    face = {
+        "name": "Oblivion",
+        "mana_cost": "{4}{B}",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Aftermath (Cast this spell only from your graveyard. "
+            "Then exile it.)\n"
+            "Target opponent discards two cards."
+        ),
+    }
+    tree = _text_only_tree(
+        face, {"cmc": 7.0}, oracle_id="8fe7436b-2467-486e-8a2d-7cbf21a65da9"
+    )
+    assert tree is not None
+    assert tree.units == ()  # zero typed substrate — text idioms only
+    idents = {
+        (s.key, s.scope, s.subject)
+        for s in extract_crosswalk_signals(tree, keywords=frozenset())
+    }
+    assert ("opponent_discard", "opponents", "") in idents
+
+
+def test_opponent_discard_excludes_past_tense_watcher_condition():
+    """Tinybones, Trinket Thief's "At the beginning of each end step, if
+    an opponent discarded a card this turn, you draw a card and you lose
+    1 life." has NO discard EFFECT node anywhere in its tree — only a
+    ``Draw``/``LoseLife`` reward gated by a ``QuantityComparison``
+    CONDITION reading ``CardsDiscardedThisTurn{player: Opponent}``.
+    A condition doesn't itself cause a discard (CR 608.2b: a spell or
+    ability performs the actions in its effect, not its conditions) — this
+    is structurally the SAME "cares about a past discard" shape the
+    disjoint ``discard_matters`` lane already covers, never a genuine
+    opponent_discard member. The legacy byte-mirror's "an opponent
+    discarded" text match is a mass-shed OVER-FIRE, adjudicated and
+    negative-pinned this session."""
+    assert "opponent_discard" not in _keys("Tinybones, Trinket Thief")
+
+
+def test_opponent_discard_excludes_self_discard_then_unrelated_count():
+    """Azula, Ruthless Firebender's "Whenever Azula attacks, you may
+    discard a card. Then you get an experience counter for each player
+    who discarded a card this turn." has a genuine ``Discard{target:
+    Controller}`` node — but it is YOUR OWN optional self-discard (the
+    ``discard_outlet`` lane's territory), not opponent-directed; the
+    trailing "for each player who discarded a card this turn" is an
+    UNRELATED dropped-clause experience-counter TALLY, never a second
+    discard effect. Legacy's "player... discarded a card" text match
+    fires on the tally clause's own wording, an OVER-FIRE — adjudicated
+    and negative-pinned this session (CR 608.2b)."""
+    assert "opponent_discard" not in _keys("Azula, Ruthless Firebender")
+
+
 # ── batch 7: phase / control / terminal-effect cluster + keyword survivors ────
 
 
