@@ -794,6 +794,31 @@ _PORTED_KEYS_STAGE3: frozenset[str] = frozenset(
         # Orcish Settlers — a pure-Land Destroy the live "destroy … target
         # land(s)" literal never matched), failing the spec's byte-match
         # condition for superseding the KEPT verdict.
+        #
+        # ADR-0039 W8 FINISHERS (KEPT-key promotions, 2026-07-12): four
+        # Stage-2 KEPT keys — deliberately never staged (the legacy word
+        # mirror served them; each carries an inline KEPT rationale where it
+        # lived in ``_signals_ir.py``) — re-measured and closed this wave.
+        # ``extra_draw_step`` PROMOTED via a typed-node extension (mechanism
+        # (a)/(b)): :func:`_extra_upkeep_end` already decomposed an
+        # additional-BEGINNING-phase's "untap" kind into ``extra_upkeep``
+        # (CR 501.1's beginning phase = untap+upkeep+draw); this wave adds
+        # the draw-step decomposition alongside it (both == 3 == the deleted
+        # regex's Cyclonus/Sphinx/Shadow-of-the-Second-Sun set, 0 lost, 0
+        # over-fire). ``excess_damage`` / ``kicked_spell_matters`` /
+        # ``free_cast`` PROMOTED via byte-identical KEPT-MIRROR text scans
+        # (:func:`_excess_damage` / :func:`_kicked_spell_matters` /
+        # :func:`_free_cast`, the same tier as ``_MINUS_COUNTER_KEPT_RX`` /
+        # ``_COST_*_KEPT_RX`` above) — each already proven byte-identical
+        # (both==N, 0/0) in the legacy IR docstrings phase v0.20 changes
+        # nothing structural about, re-verified this wave (excess_damage
+        # both=28, kicked_spell_matters both=85, free_cast both=328, all
+        # 0 regex_only / 0 ir_only). CR 501.1 / 702.19 / 120.4a / 702.33 /
+        # 601.2b / 118.9.
+        "excess_damage",
+        "extra_draw_step",
+        "free_cast",
+        "kicked_spell_matters",
     }
 )
 
@@ -5495,6 +5520,114 @@ def _minus_counters_matter(tree: ConceptTree) -> list[Signal]:
                             ]
     if _MINUS_COUNTER_KEPT_RX.search(_kept(tree)):
         return [Signal("minus_counters_matter", "you", "", "", tree.name, "high")]
+    return []
+
+
+# ── ADR-0039 W8 KEPT-key promotions ────────────────────────────────────────
+# Three byte-identical text mirrors of a deleted floor/SWEEP producer, each
+# already proven (in the legacy IR docstrings) to reproduce the whole live
+# firing set exactly (both == N, regex_only == 0, ir_only == 0) because
+# phase v0.20 structures NO field that discriminates the idiom from its
+# neighbors — same tier as ``_MINUS_COUNTER_KEPT_RX`` / ``_COST_*_KEPT_RX``
+# above: a plain ``re.compile(...).search(_kept(tree))`` over the reminder-
+# stripped face oracle, no clause_grammar / tree_synthesis involvement.
+
+# excess_damage — CR 702.19 / 120.4a: "excess damage" is defined-terminology
+# (damage dealt beyond lethal to a creature, or beyond loyalty to a
+# planeswalker) that only 4 clean "is dealt excess damage" triggers bind
+# structurally (a Trigger event=='excess_damage'; NOT re-derived here —
+# those 4 already carry a payoff shape phase gives no OTHER field for). The
+# other 24 references (a trample/fight "if excess damage was dealt" ETB
+# CONDITION on a non-`excess_damage`-event trigger, or a spell's own
+# "excess damage is dealt to ... instead" consequence — Flame Spill, Pigment
+# Storm, Ram Through, Orbital Plunge, Goblin Negotiation, Aegar the Freezing
+# Flame) live in Effect.raw with no structured "excess" tag anywhere on the
+# tree, so the literal defined-term phrase is the only tell (the legacy
+# _IR_KEPT_DETECTORS row is a flat `\bexcess damage\b`). Re-measured
+# (ADR-0039 W8, commander-legal, dedupe oracle_id): both == 28, regex_only
+# == 0, ir_only == 0 — byte-identical, all 28 genuine CR 120.4a excess-
+# damage payoffs/conditions. Scope "you" matches the deleted producer's
+# forced scope.
+_EXCESS_DAMAGE_KEPT_RX = re.compile(r"\bexcess damage\b", re.IGNORECASE)
+
+
+def _excess_damage(tree: ConceptTree) -> list[Signal]:
+    """excess_damage — the "excess damage" build-around (CR 702.19 / 120.4a:
+    damage beyond lethal/loyalty). Byte-identical KEPT-MIRROR of the deleted
+    ``_IR_KEPT_DETECTORS`` row: no structural field survives the residual
+    24/28 references (only the 4 clean ``event=='excess_damage'`` triggers
+    would be structural, and even those carry no OTHER discriminating
+    field this lane would gain by reading them separately). Scope "you".
+    """
+    if _EXCESS_DAMAGE_KEPT_RX.search(_kept(tree)):
+        return [Signal("excess_damage", "you", "", "", tree.name, "high")]
+    return []
+
+
+# kicked_spell_matters — CR 702.33 (Kicker): the "whenever you cast a kicked
+# spell" PAYOFF (Verazol, Hallar, Rumbling Aftershocks, Roost of Drakes) PLUS
+# the "if (that|it) (spell) was kicked" CONDITION on a kicker spell's own ETB
+# (Goblin Bushwhacker, Gatekeeper of Malakir, the Battlemage/Emissary
+# cycles). NOT the bare Kicker keyword route (that's a different lane,
+# +171 over-fire vs this one — every kicker card HAS kicker, only these 85
+# CARE that a spell WAS paid-kicked). phase v0.20 carries neither the
+# "whenever you cast a kicked spell" trigger's "kicked" qualifier nor the
+# "if it was kicked" ETB condition as a structured field (CR 702.33f names
+# the exact "if it was kicked" phrasing as reminder-text-only), so the
+# byte-identical deleted ``_HAND_FLOOR`` regex is the only tell.
+_KICKED_SPELL_KEPT_RX = re.compile(
+    r"whenever you cast a kicked spell|if (?:that|it) (?:spell )?was kicked",
+    re.IGNORECASE,
+)
+
+
+def _kicked_spell_matters(tree: ConceptTree) -> list[Signal]:
+    """kicked_spell_matters — the Kicker (CR 702.33) build-around: casting a
+    kicked spell as a PAYOFF trigger, or an ETB CONDITION keyed to a spell's
+    own kicked state. Byte-identical KEPT-MIRROR of the deleted
+    ``_HAND_FLOOR`` regex — phase structures neither shape's "kicked"
+    qualifier. Re-measured (ADR-0039 W8, commander-legal, dedupe
+    oracle_id): both == 85, regex_only == 0, ir_only == 0 — byte-identical,
+    all 85 genuine (verified against actual Scryfall oracle text). Scope
+    "you".
+    """
+    if _KICKED_SPELL_KEPT_RX.search(_kept(tree)):
+        return [Signal("kicked_spell_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+# free_cast — CR 601.2b / 118.9 (alternative costs): casting a spell WITHOUT
+# paying its mana cost (Beseech the Mirror, Baral's Expertise, As Foretold,
+# Jodah/Nicol Bolas's "cast without paying its mana cost", Villainous
+# Wealth). phase structures ``cast_from_zone``/``alt_cost`` but carries no
+# 'free' discriminator distinguishing a genuine free-cast from a flash-
+# grant/Bargain/Prototype alt-cost, so the deleted SWEEP regex (pinned
+# ``FREE_CAST_REGEX`` in ``_sweep_detectors.py``) is the only tell — copied
+# byte-identically here (NOT imported, matching the existing
+# ``_MINUS_COUNTER_KEPT_RX`` / ``_COST_*_KEPT_RX`` inline-copy precedent in
+# this module). The "without paying its mana cost" / "rather than pay ...
+# mana cost" phrasing is specific + clause-local (no `[^.]` crossing a
+# sentence), so a flat scan == the deleted per-clause SWEEP firing set.
+_FREE_CAST_KEPT_RX = re.compile(
+    r"rather than pay (?:its|their|the) mana cost"
+    r"|without paying (?:its|their) mana cost"
+    r"|may cast (?:it|that (?:card|spell)|those cards)[^.]*without paying",
+    re.IGNORECASE,
+)
+
+
+def _free_cast(tree: ConceptTree) -> list[Signal]:
+    """free_cast — casting a spell WITHOUT paying its mana cost (CR 601.2b /
+    118.9). Byte-identical KEPT-MIRROR of the deleted SWEEP regex
+    (``FREE_CAST_REGEX``): phase's ``cast_from_zone``/``alt_cost`` fields
+    carry no 'free' discriminator, so the oracle phrase is the only tell.
+    Re-measured (ADR-0039 W8, commander-legal, dedupe oracle_id): both ==
+    328, regex_only == 0, ir_only == 0 — byte-identical (the per-face union
+    over ``trees_for`` reproduces the legacy joined-oracle DFC recall
+    without any extra DFC-specific logic). Scope "you".
+    """
+    if _FREE_CAST_KEPT_RX.search(_kept(tree)):
+        return [Signal("free_cast", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -15042,30 +15175,45 @@ def _dice_matters(tree: ConceptTree) -> list[Signal]:
 
 
 def _extra_upkeep_end(tree: ConceptTree) -> list[Signal]:
-    """extra_upkeep / extra_end_step — extra non-combat phases (CR 500.8): an
-    ``AdditionalPhase`` whose ``phase`` is Upkeep (Paradox Haze, Obeka) or
-    End (Y'shtola Rhul). Paradox Haze's recipient is ``TriggeringPlayer``
-    under an Enchant-Player trigger — the lane fires scope "you" regardless,
-    mirroring the live scope (an extra upkeep you distribute is the
-    build-around). A combat phase is the disjoint ``extra_combats`` lane.
-    Tiny lanes are deliberate (niche ≠ skip).
+    """extra_upkeep / extra_end_step / extra_draw_step — extra non-combat
+    phases (CR 500.8): an ``AdditionalPhase`` whose ``phase`` is Upkeep
+    (Paradox Haze, Obeka), Draw, or End (Y'shtola Rhul). Paradox Haze's
+    recipient is ``TriggeringPlayer`` under an Enchant-Player trigger — the
+    lane fires scope "you" regardless, mirroring the live scope (an extra
+    upkeep you distribute is the build-around). A combat phase is the
+    disjoint ``extra_combats`` lane. Tiny lanes are deliberate (niche ≠
+    skip).
+
+    ADR-0039 W8 (KEPT-key promotion, extra_draw_step): an additional
+    BEGINNING phase (phase v0.20 emits its first step, "untap") CONTAINS
+    all three beginning-phase steps — untap, upkeep, AND draw, in that
+    order (CR 501.1) — so it re-triggers upkeep AND draw-step payoffs
+    (Sphinx of the Second Sun / Shadow of the Second Sun / Cyclonus, the
+    Saboteur, all "additional beginning phase" — the legacy regex's
+    "beginning phase" substring correctly recognized this too, CR 501.1).
+    Decompose "untap" -> BOTH extra_upkeep and extra_draw_step. A bare
+    "draw"/"drawstep" kind (an additional DRAW STEP alone, no full
+    beginning phase) also maps straight to extra_draw_step — 0 commander-
+    legal holders today, kept for shape-completeness with the sibling
+    "upkeep"/"end" rows. Re-measured (ADR-0039 W8): both == 3 == the
+    deleted regex producer's live set (Cyclonus/Sphinx/Shadow of the
+    Second Sun), 0 lost, 0 over-fire.
     """
     out: list[Signal] = []
     seen: set[str] = set()
     for c in tree.effect_concepts("extra_phase"):
         kind = additional_phase_kind(c.node)
-        # Stage-A recovery: an additional BEGINNING phase (phase v0.20 emits its
-        # first step, "untap") CONTAINS an upkeep step, so it re-triggers upkeep
-        # payoffs (Sphinx of the Second Sun — CR 501.1). Decompose "untap" ->
-        # extra_upkeep.
-        key = {
-            "upkeep": "extra_upkeep",
-            "untap": "extra_upkeep",
-            "end": "extra_end_step",
-        }.get(kind)
-        if key and key not in seen:
-            seen.add(key)
-            out.append(Signal(key, "you", "", c.raw, tree.name, "high"))
+        keys: tuple[str, ...] = {
+            "upkeep": ("extra_upkeep",),
+            "untap": ("extra_upkeep", "extra_draw_step"),
+            "draw": ("extra_draw_step",),
+            "drawstep": ("extra_draw_step",),
+            "end": ("extra_end_step",),
+        }.get(kind, ())
+        for key in keys:
+            if key not in seen:
+                seen.add(key)
+                out.append(Signal(key, "you", "", c.raw, tree.name, "high"))
     return out
 
 
@@ -22313,6 +22461,9 @@ _LANES = (
     _spellcast_matters,
     _any_counter_makers,
     _minus_counters_matter,
+    _excess_damage,
+    _kicked_spell_matters,
+    _free_cast,
     _plus_one_matters,
     _any_counter_matters,
     _gain_control,
