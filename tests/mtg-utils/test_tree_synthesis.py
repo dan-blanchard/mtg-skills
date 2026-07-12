@@ -85,6 +85,8 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_island_matters,
     _arm_keyword_soup_same_true,
     _arm_kill_engine,
+    _arm_land_creatures_dynamic_animate,
+    _arm_land_creatures_subtype_animate,
     _arm_legend_rule_off,
     _arm_lessons_matter,
     _arm_life_payment_insurance,
@@ -150,6 +152,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_group_hug_draw,
     has_structural_keyword_counter,
     has_structural_kill_engine,
+    has_structural_land_creatures_animate,
     has_structural_legend_rule_off,
     has_structural_lessons_matter,
     has_structural_life_payment_insurance,
@@ -3819,6 +3822,36 @@ def test_manland_land_type_change_veto():
 
 def test_manland_synth_registered():
     assert "manland" in SYNTHESIS_ARM_IDS
+
+
+# ── grammar sprint (ADR-0039 task #82): land_creatures_matter stragglers ────
+
+
+def test_land_creatures_subtype_animate_ambush_commander():
+    """Ambush Commander's "Forests you control are 1/1 green Elf creatures
+    that are still lands" parks wholesale as Unimplemented — no typed
+    AddType/affected-filter node survives anywhere for it."""
+    tree = _fixture_tree("Ambush Commander")
+    assert has_structural_land_creatures_animate(tree) is False
+    node = _arm_land_creatures_subtype_animate(tree)
+    assert node is not None
+    assert node.concept == "synth_land_creatures_subtype_animate"
+
+
+def test_land_creatures_dynamic_animate_primal_adversary_and_sage():
+    """Primal Adversary's deferred repeat-count animate and Sage of the
+    Maze's formula-X animate both park wholesale as Unimplemented."""
+    for name in ("Primal Adversary", "Sage of the Maze"):
+        tree = _fixture_tree(name)
+        assert has_structural_land_creatures_animate(tree) is False, name
+        node = _arm_land_creatures_dynamic_animate(tree)
+        assert node is not None, name
+        assert node.concept == "synth_land_creatures_dynamic_animate"
+
+
+def test_land_creatures_animate_synth_registered():
+    assert "land_creatures_subtype_animate" in SYNTHESIS_ARM_IDS
+    assert "land_creatures_dynamic_animate" in SYNTHESIS_ARM_IDS
 
 
 # ── batch T4-mechanic-kw (ADR-0036/0037 Stage 5): curse_matters ──────────────

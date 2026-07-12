@@ -5157,6 +5157,132 @@ def _arm_manland(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── land_creatures_matter grammar-sprint stragglers (ADR-0039 task #82,
+# post-deletion grammar sprint) ──────────────────────────────────────────────
+# Two ledgered land_creatures_matter bridges (bridge_ledger.py) close here —
+# both are whole-clause phase drops (a role=effect ``Unimplemented`` node
+# with ZERO typed substructure beneath it: no ``AddType``, no ``Animate``,
+# no static def anywhere for the clause), the SAME shape the sibling
+# ``manland``/``curse_matters``/etc. sweep arms above already close, gap-
+# gated against a NEW shared helper so a card the lane's OWN structural
+# reads already see (``_is_creature_animator`` / a first-class ``Animate``
+# effect / a mass ``iter_static_defs`` AddType-Creature def) never doubles:
+#
+#   * subtype_animate -- Ambush Commander's "Forests you control are 1/1
+#     green Elf creatures that are still lands" (CR 305.6 basic land type
+#     "Forest" / 305.7 "setting a land's subtype doesn't add or remove any
+#     card types" -- the CREATURE type here comes from THIS static, not the
+#     subtype -- / 613.1d layer 4 type-changing). A SUBTYPE-restricted
+#     (not core-type Land) mass land-animate -- the existing structural
+#     reads (``_is_creature_animator`` / the mass-static-def descent) both
+#     gate on the filter carrying a Land/land-subtype token in a REAL
+#     ``affected``/``target`` field; Ambush Commander's whole clause never
+#     reaches one. Corpus-verified sole-source (scan1.py, 2026-07-12,
+#     32,521 commander-legal cards): the ONE hit is the pin itself.
+#   * dynamic_animate -- Primal Adversary's deferred "pay this cost N
+#     times, then up to that many target lands you control become 3/3 Wolf
+#     creatures" repeat-count chain (CR 107.3 -- the paid-count value X --
+#     /613.1d) and Sage of the Maze's "target land you control becomes an
+#     X/X Citizen creature ... where X is twice the number of Gates you
+#     control" formula-P/T animate (CR 107.3/613.4 sublayer 7c). Both drop
+#     the WHOLE clause to ``Unimplemented`` because the value feeding the
+#     animate is dynamic/deferred, not a literal count -- the grammar gap
+#     is the SAME root cause (a computed value inside an "X becomes a
+#     creature" clause), one arm covers both idioms per the ledger row's
+#     per-idiom-class grouping. Corpus-verified (scan1.py, 2026-07-12): the
+#     repeat-count regex is sole-source (Primal Adversary only); the
+#     formula-X regex ALSO matches Elvish Branchbender's structurally
+#     ALREADY-parsed "becomes an X/X ... creature ... in addition to its
+#     other types, where X is the number of Elves you control" (phase
+#     DOES emit a typed ``Animate`` node for it -- see the lane's own
+#     "Land-SUBTYPE targets ... admitted" comment in crosswalk_signals.py)
+#     -- the shared gap-gate below excludes it, leaving Sage of the Maze
+#     as the arm's sole firing card for that half.
+_LAND_CREATURES_SUBTYPE_ANIMATE_SYNTH_RX = re.compile(
+    r"you control are [^.]*creatures?[^.]*\bstill lands?\b", re.IGNORECASE
+)
+_LAND_CREATURES_DYNAMIC_REPEAT_SYNTH_RX = re.compile(
+    r"up to that many target lands? you control become", re.IGNORECASE
+)
+_LAND_CREATURES_DYNAMIC_X_SYNTH_RX = re.compile(
+    r"becomes? an? [^.]*creature[^.]*in addition to its other types,"
+    r" where x is",
+    re.IGNORECASE,
+)
+
+
+def has_structural_land_creatures_animate(tree: ConceptTree) -> bool:
+    """Whether phase already carries a typed land->creature animate node
+    the land_creatures_matter lane's own structural arms read (mirrors
+    ``_is_creature_animator``'s static-def read, the first-class
+    ``Animate`` effect read, and the mass ``iter_static_defs`` AddType-
+    Creature descent, GAP-GATE-ALIGNMENT) -- the synth gap-gate for both
+    arms below, so a card already covered structurally never doubles."""
+    for unit in tree.units:
+        for c in unit.iter_concepts():
+            if c.role != "effect" or tag_of(c.node) != "Animate":
+                continue
+            tgt = getattr(c.node, "target", None)
+            landish = "Land" in filter_core_types(tgt) or (
+                {t.lower() for t in filter_subtypes(tgt)} & _LAND_SUBTYPE_WORDS_SYNTH
+            )
+            if landish and "Creature" in (getattr(c.node, "types", None) or ()):
+                return True
+        for sdef in iter_static_defs(unit.node):
+            mods = getattr(sdef, "modifications", None)
+            if any(
+                tag_of(m) == "AddType" and getattr(m, "core_type", None) == "Creature"
+                for m in (mods or [])
+            ):
+                return True
+    return False
+
+
+def _arm_land_creatures_subtype_animate(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``land_creatures_subtype_animate`` node for Ambush
+    Commander's subtype-restricted mass land-animate residue (the
+    ``land_creatures_subtype_animate_dropped`` bridge, CR 305.6/305.7/
+    613.1d), gap-gated against :func:`has_structural_land_creatures_animate`.
+    """
+    if has_structural_land_creatures_animate(tree):
+        return None
+    if not _LAND_CREATURES_SUBTYPE_ANIMATE_SYNTH_RX.search(
+        _REMINDER.sub(" ", tree.oracle or "")
+    ):
+        return None
+    return _synthetic_concept(
+        arm_id="land_creatures_subtype_animate",
+        concept="synth_land_creatures_subtype_animate",
+        scope="you",
+        subject=(),
+        desc="bucket-B subtype-restricted mass land-animate (CR 305.6/305.7/613.1d)",
+    )
+
+
+def _arm_land_creatures_dynamic_animate(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``land_creatures_dynamic_animate`` node for Primal
+    Adversary's deferred repeat-count animate and Sage of the Maze's
+    formula-X animate (the ``land_creatures_dynamic_animate_dropped``
+    bridge, CR 107.3/613.1d/613.4), gap-gated against
+    :func:`has_structural_land_creatures_animate` so Elvish Branchbender's
+    already-structural formula-X animate never doubles."""
+    if has_structural_land_creatures_animate(tree):
+        return None
+    text = _REMINDER.sub(" ", tree.oracle or "")
+    if not (
+        _LAND_CREATURES_DYNAMIC_REPEAT_SYNTH_RX.search(text)
+        or _LAND_CREATURES_DYNAMIC_X_SYNTH_RX.search(text)
+    ):
+        return None
+    return _synthetic_concept(
+        arm_id="land_creatures_dynamic_animate",
+        concept="synth_land_creatures_dynamic_animate",
+        scope="you",
+        subject=(),
+        desc="bucket-B dynamic-value land-animate (CR 107.3/613.1d/613.4)",
+    )
+
+
 # ── batch T4-mechanic-kw (ADR-0036/0037 Stage 5): curse_matters bucket-B ─────
 # CR 205.3h: curse_matters' two structural arms (a Curse-subtype
 # ``valid_card`` trigger watch, a Curse-subtype effect-filter target —
@@ -8853,6 +8979,8 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("color_change", _arm_color_change),
     ("vehicles_matter", _arm_vehicles_matter),
     ("manland", _arm_manland),
+    ("land_creatures_subtype_animate", _arm_land_creatures_subtype_animate),
+    ("land_creatures_dynamic_animate", _arm_land_creatures_dynamic_animate),
     ("curse_matters", _arm_curse_matters),
     ("clue_matters", _arm_clue_matters),
     ("token_subtype_own_ref", _arm_token_subtype_own_ref),

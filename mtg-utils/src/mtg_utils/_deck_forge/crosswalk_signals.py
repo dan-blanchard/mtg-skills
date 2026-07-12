@@ -1643,7 +1643,10 @@ PORTED_KEYS: frozenset[str] = frozenset(
 # land_creatures_dynamic_animate_dropped — Primal Adversary / Sage
 # of the Maze's dynamic-count animate; land_creatures_condition_
 # reference_dropped — Earth Rumble Wrestlers's condition-reference,
-# CR 305/110.1) close 6 genuine gaps. The remaining 80 corpus-
+# CR 305/110.1) close 6 genuine gaps (ADR-0039 task #82 later retired
+# the first two into typed ``tree_synthesis`` sweep arms — see this
+# function's own docstring above for the current split). The
+# remaining 80 corpus-
 # decompose EXACTLY into eight adjudicated CR-grounded shed
 # classes, all negative-pinned (verified via a full-corpus
 # bucket-assignment script this session — every live_only card
@@ -2540,15 +2543,21 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
       a dying creature — the fuel a land-animator payoff (Living Plane,
       Life and Limb) turns into a creature army, corpus-verified singleton.
 
-    Three ADR-0039 W7 ledgered bridges (bridge_ledger.py) close the residual
-    grammar-straggler tail: ``land_creatures_subtype_animate_dropped`` (Ambush
-    Commander's "Forests you control are 1/1 green Elf creatures that are
-    still lands" — a subtype, not core-type, mass-animate grammar verb),
-    ``land_creatures_dynamic_animate_dropped`` (Primal Adversary / Sage of the
-    Maze — a deferred repeat-count / dynamic-X animate clause), and
-    ``land_creatures_condition_reference_dropped`` (Earth Rumble Wrestlers —
-    a "you control a land creature" condition-reference the parser's Or
-    handling drops).
+    One remaining ADR-0039 W7 ledgered bridge (bridge_ledger.py) closes a
+    residual grammar-straggler: ``land_creatures_condition_reference_dropped``
+    (Earth Rumble Wrestlers — a "you control a land creature" condition-
+    reference the parser's Or handling drops).
+
+    ADR-0039 task #82 (post-deletion grammar sprint) retired the other two
+    W7 bridges into typed ``tree_synthesis`` sweep arms instead (the "land_
+    creatures_matter grammar-sprint stragglers" section in
+    ``tree_synthesis.py``) — Ambush Commander's subtype-restricted mass
+    land-animate ("Forests you control are 1/1 green Elf creatures that are
+    still lands", CR 305.6/305.7/613.1d) and Primal Adversary / Sage of the
+    Maze's deferred repeat-count / formula-X animate clauses (CR
+    107.3/613.1d/613.4). Same three pins, now firing via
+    ``synth_land_creatures_subtype_animate`` / ``synth_land_creatures_
+    dynamic_animate`` below instead of a bridge.
 
     Deliberately EXCLUDED (adjudicated legacy over-fires / design boundary, CR
     grounded — landfall rule: every remaining ``live_only`` card corpus-verified
@@ -2585,12 +2594,22 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
       (Hidden Stag — an Enchantment/Creature flip-flop, not a land ever
       becoming a creature) is a legacy text-mention over-fire.
     """
-    if (
-        bridge_fires("land_creatures_subtype_animate_dropped", tree)
-        or bridge_fires("land_creatures_dynamic_animate_dropped", tree)
-        or bridge_fires("land_creatures_condition_reference_dropped", tree)
-    ):
+    if bridge_fires("land_creatures_condition_reference_dropped", tree):
         return [Signal("land_creatures_matter", "you", "", "", tree.name, "high")]
+    # ADR-0039 task #82 grammar sprint: the two former ledgered bridges
+    # (Ambush Commander's subtype-restricted mass animate, Primal Adversary
+    # / Sage of the Maze's dynamic-value animate) now read a bucket-B
+    # ``tree_synthesis`` sweep arm instead of a text-anchored bridge — see
+    # the "land_creatures_matter grammar-sprint stragglers" section in
+    # ``tree_synthesis.py`` for the CR citations + node-shape rationale.
+    # Retired from bridge_ledger.py; membership is unchanged (same three
+    # pins, now firing structurally).
+    for c in tree.iter_concepts():
+        if c.concept in (
+            "synth_land_creatures_subtype_animate",
+            "synth_land_creatures_dynamic_animate",
+        ):
+            return [Signal("land_creatures_matter", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         for concept in unit.statics:
             if concept.concept in (

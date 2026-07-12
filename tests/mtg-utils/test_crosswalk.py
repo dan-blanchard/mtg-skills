@@ -280,8 +280,9 @@ def test_land_creatures_matter_excludes_land_type_only_change():
 def test_land_creatures_matter_subtype_animate_bridge():
     """Ambush Commander: "Forests you control are 1/1 green Elf creatures
     that are still lands." parks wholesale as Unimplemented — the subtype
-    (not core-type) mass land-animate grammar verb (CR 305.3/305.7),
-    bridged via ``land_creatures_subtype_animate_dropped``."""
+    (not core-type) mass land-animate grammar verb (CR 305.6/305.7/613.1d),
+    closed via a typed ``tree_synthesis`` sweep arm (ADR-0039 task #82;
+    formerly the ``land_creatures_subtype_animate_dropped`` bridge)."""
     assert ("land_creatures_matter", "you", "") in _idents("Ambush Commander")
 
 
@@ -294,8 +295,9 @@ def test_land_creatures_matter_subtype_animate_bridge():
 )
 def test_land_creatures_matter_dynamic_animate_bridge(name):
     """A dynamic-value land-animate clause (deferred repeat-count / X/X
-    formula) parks wholesale as Unimplemented, bridged via
-    ``land_creatures_dynamic_animate_dropped``."""
+    formula) parks wholesale as Unimplemented, closed via a typed
+    ``tree_synthesis`` sweep arm (CR 107.3/613.1d/613.4; ADR-0039 task #82;
+    formerly the ``land_creatures_dynamic_animate_dropped`` bridge)."""
     assert ("land_creatures_matter", "you", "") in _idents(name)
 
 

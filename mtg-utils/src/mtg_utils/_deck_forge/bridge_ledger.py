@@ -1063,61 +1063,6 @@ def _ramp_dropped_clause_match(tree: ConceptTree) -> bool:
     return tree.name in _RAMP_DROPPED_NAMES
 
 
-# ── Ambush Commander → land_creatures_matter ─────────────────────────────────
-# "Forests you control are 1/1 green Elf creatures that are still lands." —
-# the subtype (not core-type) land-animate mass-static idiom
-# (crosswalk_signals._is_creature_animator / the mass-static-def arm both
-# gate on the CORE type "Land" in the affected filter; a SUBTYPE-only
-# affected filter like "Forests" needs its own clause-grammar verb, CR
-# 305.3/305.7). Phase's static parser drops the WHOLE line as
-# ``Unimplemented(name='unknown')`` — no typed AddType/affected-filter node
-# survives anywhere for it.
-def _land_creatures_subtype_animate_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        eff = getattr(unit.node, "effect", None)
-        if tag_of(eff) == "Unimplemented":
-            desc = getattr(eff, "description", "") or ""
-            if re.search(
-                r"you control are [^.]*creatures?[^.]*\bstill lands?\b",
-                desc,
-                re.IGNORECASE,
-            ):
-                return True
-    return False
-
-
-def _land_creatures_subtype_animate_match(tree: ConceptTree) -> bool:
-    return _land_creatures_subtype_animate_gap(tree)
-
-
-# ── Primal Adversary / Sage of the Maze → land_creatures_matter ──────────────
-# A land-animate clause whose CREATURE COUNT is dynamic/deferred (a "pay
-# this cost N times, then up to that many target lands become creatures"
-# repeat-count chain — Primal Adversary; a P/T formula "twice the number of
-# Gates you control" embedded in a single-target animate — Sage of the
-# Maze) blocks the clause grammar's animate-effect parse entirely; the
-# WHOLE clause parks as ``Unimplemented`` with no typed Animate/AddType
-# node anywhere. Distinct grammar gap from the Ambush Commander subtype-mass
-# idiom above (a per-target/per-count deferred value, not a bare subtype
-# filter) but the SAME root cause (a dynamic value inside an "X becomes a
-# creature" clause) — grouped as one idiom-class per the ledger's
-# per-idiom-class row rule.
-def _land_creatures_dynamic_animate_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        desc = getattr(unit.node, "description", "") or ""
-        if not re.search(
-            r"\blands?\b[^.]*\bbecomes?\b[^.]*\bcreatures?\b", desc, re.IGNORECASE
-        ):
-            continue
-        if any(tag_of(n) == "Unimplemented" for n in iter_typed_nodes(unit.node)):
-            return True
-    return False
-
-
-def _land_creatures_dynamic_animate_match(tree: ConceptTree) -> bool:
-    return _land_creatures_dynamic_animate_gap(tree)
-
-
 # ── Earth Rumble Wrestlers → land_creatures_matter ───────────────────────────
 # "~ gets +1/+0 and has trample as long as you control a land creature or a
 # land entered the battlefield under your control this turn." — a
@@ -2478,52 +2423,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Mindlink Mech",),
             gap=_base_pt_becomecopy_no_mods_gap,
             match=_base_pt_becomecopy_no_mods_match,
-        ),
-        Bridge(
-            bridge_id="land_creatures_subtype_animate_dropped",
-            key="land_creatures_matter",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a subtype-"
-                "restricted (not core-type Land) mass land-animate "
-                "grammar verb — 'Forests you control are 1/1 green Elf "
-                "creatures that are still lands' parks wholesale as "
-                "Unimplemented(name='unknown') — retires when the clause "
-                "decomposes into a typed affected-filter (subtype Forest) "
-                "+ AddType(Creature) static the existing mass-static-def "
-                "arm already reads for CORE-type Land filters"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal Unimplemented top-level "
-                "effects matching 'you control are ... creatures ... "
-                "still lands', phase v0.20.0, 2026-07-12"
-            ),
-            pins=("Ambush Commander",),
-            gap=_land_creatures_subtype_animate_gap,
-            match=_land_creatures_subtype_animate_match,
-        ),
-        Bridge(
-            bridge_id="land_creatures_dynamic_animate_dropped",
-            key="land_creatures_matter",
-            kind="grammar_straggler",
-            todo=(
-                "post-deletion grammar sprint (task #82): a dynamic-value "
-                "land-animate grammar verb (a deferred 'pay this cost N "
-                "times, then up to that many lands become creatures' "
-                "repeat-count chain, or an X/X formula embedded in a "
-                "single-target animate) — both park wholesale as "
-                "Unimplemented — retires when the clause decomposes into "
-                "the existing typed Animate/AddType(Creature) reads"
-            ),
-            census=(
-                "2 hits / 31,622 commander-legal, matched against each "
-                "unit's own description ('land(s) ... become(s) ... "
-                "creature(s)') paired with an Unimplemented residue "
-                "anywhere in that same unit, phase v0.20.0, 2026-07-12"
-            ),
-            pins=("Primal Adversary", "Sage of the Maze"),
-            gap=_land_creatures_dynamic_animate_gap,
-            match=_land_creatures_dynamic_animate_match,
         ),
         Bridge(
             bridge_id="land_creatures_condition_reference_dropped",
