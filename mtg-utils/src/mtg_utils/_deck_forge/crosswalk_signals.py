@@ -101,6 +101,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_threaded_target_statics,
     iter_typed_nodes,
+    ki_counter_kind_refs,
     lifeloss_recipient_is_degraded_typed,
     lifeloss_recipient_scope,
     mana_replacement_multiplier,
@@ -788,12 +789,12 @@ _PORTED_KEYS_STAGE3: frozenset[str] = frozenset(
         "copy_limit",
         "base_power_matters",
         "damage_redirect",
-        # NB: land_destruction stays KEPT (batch-8 reclassification upheld):
-        # the membership-gated structural arm reproduces the live 23-card set
-        # 23/23 but adds 2 non-byte-identical extras (Goblin Grenadiers,
-        # Orcish Settlers — a pure-Land Destroy the live "destroy … target
-        # land(s)" literal never matched), failing the spec's byte-match
-        # condition for superseding the KEPT verdict.
+        # NB: land_destruction's batch-8 KEPT verdict (the membership-gated
+        # structural arm reproduced the live 23-card set 23/23 but added 2
+        # non-byte-identical extras — Goblin Grenadiers, Orcish Settlers)
+        # predates the ADR-0035 Stage-3a floor extraction; see the
+        # land_destruction key entry below (landed by the parallel W8
+        # FINISHERS commit) for the fresh re-measure that superseded it.
         #
         # ADR-0039 W8 FINISHERS (KEPT-key promotions, 2026-07-12): four
         # Stage-2 KEPT keys — deliberately never staged (the legacy word
@@ -819,6 +820,50 @@ _PORTED_KEYS_STAGE3: frozenset[str] = frozenset(
         "extra_draw_step",
         "free_cast",
         "kicked_spell_matters",
+        # NB: damage_redirect was ALSO promoted this wave (see the
+        # damage_redirect module comment and key entry above, landed by the
+        # parallel KEPT-twelve-wave commit) — `redirect_target` exists on
+        # only 8 corpus replacements and Pariah itself parses with NO
+        # redirect_target (shield Prevention only — structurally identical to
+        # a pure prevention shield), but the b12 byte-identical mirror ports
+        # cleanly, so it graduated alongside these four.
+        # W8 FINISHERS (ADR-0039, KEPT-twelve wave): 4 of the 12 KEPT keys
+        # PROMOTED by re-measure under the current landfall rule (adjudicated
+        # cw_only gains no longer block promotion — the old byte-match bar
+        # this batch-8 land_destruction verdict predates is superseded).
+        # land_destruction: the shared `_apply_membership_floor` (imported
+        # above) now reproduces the legacy 23-card set 23/23, 0 live_only, 0
+        # cw_only on a fresh corpus re-measure — the floor extraction (ADR-
+        # 0035 Stage-3a, "one source, zero drift") that landed after the
+        # batch-8 verdict already closed the 2-extra byte-mismatch it flagged
+        # (Goblin Grenadiers / Orcish Settlers no longer diverge). CR 305.6.
+        "land_destruction",
+        # big_mana: also entirely `_apply_membership_floor`-served — 542/542
+        # both, 0/0 live_only/cw_only. The floor is ONE shared function
+        # (`extract_signals_ir` and `extract_crosswalk_signals` both call
+        # it with the SAME `ir=old_ir_for(record)` argument), so promoting
+        # the key changes nothing about what fires today — only which path
+        # re-supplies it. `_is_big_mana_ir` still reads the OLD projected
+        # `Card`; that dependency is a KNOWN, SCHEDULED item for the
+        # membership-floor rewire (ADR-0039 task #80 step 3, deletion
+        # phase), not a blocker for this lane-serving promotion. CR 106.4.
+        "big_mana",
+        # ki_counter_matters: the `ki` HasCounters TRIGGER-condition self-
+        # check (the Kamigawa flip cycle's "if there are two or more ki
+        # counters on ~, you may flip it") needed a deep-walk sibling of the
+        # oil arm (`ki_counter_kind_refs`, ADR-0039 W8) — the flat
+        # concept-node walk only reaches the trigger's own effect
+        # (Unimplemented('flip')), never the trigger's `condition` field one
+        # level up. 5/5 live cards closed, 0 cw_only. CR 122.1.
+        "ki_counter_matters",
+        # named_synergy: entirely bridge-served (`named_synergy_
+        # overloaded_named_node`) — the raw typed `Named` node this key's
+        # idiom carries is corpus-verified too overloaded (partner pairs /
+        # copy-limit swarms / named-card tutoring / planeswalker-uncoupled
+        # callbacks — 245 Named-node hits vs 27 legacy) to read directly
+        # yet; see the bridge's module comment in bridge_ledger.py. CR
+        # 201.4 / 201.5.
+        "named_synergy",
     }
 )
 
@@ -9435,12 +9480,18 @@ def _counter_kind_lanes(tree: ConceptTree) -> list[Signal]:
       controller-gated against an opponent filter (checklist #6). Only oil has a
       structural payoff filter in v0.9.0; ki / shield payoffs are cost-side and
       stay ``live_only``.
-    * **MATTERS (deep, oil only)** — :func:`oil_counter_kind_refs`'s whole-unit
+    * **MATTERS (deep, oil / ki)** — :func:`oil_counter_kind_refs`'s whole-unit
       deep walk (ADR-0038 batch-2), for an oil reference phase buries below the
       flat concept-node level (Armored Scrapgorger / Ichor Synthesizer's static
       ``condition``, Ichorplate Golem's static ``affected``, Kuldotha Cackler's
       scaling Pump, Cinderslash Ravager's cost-reduction, Oil-Gorger Troll's
-      gating sub-ability). ki / shield stay on the flat read only.
+      gating sub-ability), PLUS its ADR-0039 W8 sibling
+      :func:`ki_counter_kind_refs` for the Kamigawa flip cycle's triggered
+      ``HasCounters`` self-check ("if there are two or more ki counters on
+      ~, you may flip it" — Faithful Squire, Callow Jushi, Hired Muscle,
+      Cunning Bandit, Budoka Pupil), which lives on the trigger's own
+      ``condition`` field, above the flat walk's ``Unimplemented(name=
+      'flip')`` effect node. shield stays on the flat read only.
     """
     out: list[Signal] = []
     seen: set[tuple[str, str]] = set()
@@ -9465,6 +9516,8 @@ def _counter_kind_lanes(tree: ConceptTree) -> list[Signal]:
                 if lane:
                     fire(lane[0], lane[1], c.raw)
     for unit in tree.units:
+        if ki_counter_kind_refs(unit.node):
+            fire("ki_counter_matters", "you", "")
         if oil_counter_kind_refs(unit.node):
             fire("oil_counter_matters", "you", "")
     return out
@@ -22436,6 +22489,22 @@ def _voting_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _named_synergy(tree: ConceptTree) -> list[Signal]:
+    """named_synergy (ADR-0039 W8) — CR 201.4 / 201.5: a card whose ability
+    references a specific permanent by name, self or other. Entirely
+    served by the :data:`named_synergy_overloaded_named_node
+    <mtg_utils._deck_forge.bridge_ledger.BRIDGES>` bridge — see that
+    row's module comment for why the typed ``Named`` node this key's
+    idiom carries is too overloaded (partner pairs, copy-limit swarms,
+    named-card tutoring, planeswalker-uncoupled callbacks) to read
+    directly yet. Scope "you", HIGH (the legacy producer's own scope/
+    conf — it never fed has_other_plan).
+    """
+    if bridge_fires("named_synergy_overloaded_named_node", tree):
+        return [Signal("named_synergy", "you", "", "", tree.name, "high")]
+    return []
+
+
 _LANES = (
     _win_lose_game,
     _discard_makers,
@@ -22693,6 +22762,7 @@ _LANES = (
     _damage_redirect,
     _base_power_matters,
     _copy_limit,
+    _named_synergy,
 )
 
 

@@ -119,12 +119,21 @@ extra_draw_step, free_cast, ki_counter_matters, kicked_spell_matters,
 land_destruction, named_synergy. Outside the `_STAGE4_RESIDUAL` ledger, so
 the grind's residual count understates the legacy-served surface by exactly
 this set; they promote by ADDITION to the ported set, not removal from the
-residual one. ADR-0039 W8 PROMOTED 4 of the twelve — cheat_from_top (already
+residual one. ADR-0039 W8 PROMOTED all 12 — cheat_from_top (already
 byte-identical via the shared `_apply_membership_floor`, a pure key-slice
-change), copy_limit (a new `ConceptTree.many_copies` typed field), and
+change), copy_limit (a new `ConceptTree.many_copies` typed field),
 base_power_matters / damage_redirect (a graduated `PtComparison.scope`
 structural read + a ledgered bridge, and a b12 byte-identical mirror,
-respectively) — all 0 genuine members lost, 2 adjudicated-genuine cw_only
-gains (a DFC face-name join fix, a base-P/T-reference sacrifice cost).
+respectively), extra_draw_step (a typed-node extension of the existing
+`_extra_upkeep_end` beginning-phase decomposition), excess_damage /
+kicked_spell_matters / free_cast (byte-identical KEPT-MIRROR text scans, the
+same tier as the pre-existing `_MINUS_COUNTER_KEPT_RX` rows), land_destruction
+/ big_mana (both already `_apply_membership_floor`-served, pure key-slice
+changes), ki_counter_matters (a `ki_counter_kind_refs` deep-walk sibling of
+the oil arm reaching a trigger's own `condition` field), and named_synergy (a
+ledgered bridge — the typed `Named` node is corpus-verified too overloaded,
+~9x blast radius, to read directly yet). No permanent KEPT lane remains; a
+handful of adjudicated-genuine beyond-legacy gains surfaced along the way (a
+DFC face-name join fix, a base-P/T-reference sacrifice cost, among others).
 _Avoid_: "residuals" (residuals are tracked; these were invisible to that
 ledger until 2026-07-11).

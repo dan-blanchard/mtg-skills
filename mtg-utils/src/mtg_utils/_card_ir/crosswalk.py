@@ -1331,26 +1331,27 @@ def counter_pred_kinds(filt: object) -> tuple[str, ...]:
     return tuple(out)
 
 
-def oil_counter_kind_refs(root: object) -> tuple[str, ...]:
-    """Every "oil" counter reference reachable ANYWHERE under ``root``
+def _counter_kind_refs(root: object, kind: str) -> tuple[str, ...]:
+    """Every ``kind`` counter reference reachable ANYWHERE under ``root``
     (deep walk) — the structural-read sibling of :func:`counter_pred_kinds`
     for a counter-kind reference phase buries inside a scaling operand
     (Kuldotha Cackler's ``Pump.power`` Ref->ObjectCount), a cost-reduction
     ``dynamic_count`` (Cinderslash Ravager's ``ModifyCost``), a sub-
     ability's gating ``QuantityCheck`` (Oil-Gorger Troll's conditional
-    draw), or a static's OWN ``condition`` (Armored Scrapgorger / Ichor
-    Synthesizer's "as long as it has N oil counters" self-check) — none of
-    which the flat per-concept-node walk reaches (that node IS the
-    AddPower/AddToughness modification, never its containing static, whose
-    ``condition``/``affected`` fields live one level up).
+    draw), or an ability's OWN ``condition`` (Armored Scrapgorger / Ichor
+    Synthesizer's static "as long as it has N oil counters" self-check;
+    the Kamigawa flip cycle's triggered "if there are two or more ki
+    counters on ~" self-check — Faithful Squire, Callow Jushi, Hired
+    Muscle, Cunning Bandit, Budoka Pupil) — none of which the flat
+    per-concept-node walk reaches (that node IS the AddPower/AddToughness
+    modification or the trigger's own effect, never the containing
+    ability, whose ``condition``/``affected`` fields live one level up).
 
-    Two typed shapes, kind-filtered to "oil" only (this key's ADR-0038
-    batch-2 scope — ki/shield/rad stay on :func:`counter_pred_kinds`'s
-    narrower flat read until their own corpus measurement widens them):
-    a ``Typed`` filter's ``Counters`` property (controller-gated — an
-    Opponent-controlled filter is excluded, checklist #6), OR a
-    ``HasCounters`` CONDITION (always self-referencing to the ability's
-    own permanent, so no controller gate applies). CR 122.1.
+    Two typed shapes, kind-filtered to ``kind``: a ``Typed`` filter's
+    ``Counters`` property (controller-gated — an Opponent-controlled
+    filter is excluded, checklist #6), OR a ``HasCounters`` CONDITION
+    (always self-referencing to the ability's own permanent, so no
+    controller gate applies). CR 122.1.
     """
     out: list[str] = []
     for n in _iter_typed_nodes(root):
@@ -1358,15 +1359,35 @@ def oil_counter_kind_refs(root: object) -> tuple[str, ...]:
         if t == "Typed":
             if getattr(n, "controller", None) == "Opponent":
                 continue
-            out.extend(k for k in counter_pred_kinds(n) if k.lower() == "oil")
+            out.extend(k for k in counter_pred_kinds(n) if k.lower() == kind)
         elif t == "HasCounters":
             counters = getattr(n, "counters", None)
-            if (
-                tag_of(counters) == "OfType"
-                and getattr(counters, "data", None) == "oil"
-            ):
-                out.append("oil")
+            if tag_of(counters) == "OfType" and getattr(counters, "data", None) == kind:
+                out.append(kind)
     return tuple(out)
+
+
+def oil_counter_kind_refs(root: object) -> tuple[str, ...]:
+    """Every "oil" counter reference reachable ANYWHERE under ``root``
+    (deep walk). This key's ADR-0038 batch-2 scope — see
+    :func:`_counter_kind_refs` for the shared deep-walk shapes. shield/rad
+    stay on :func:`counter_pred_kinds`'s narrower flat read until their own
+    corpus measurement widens them; ki has its own
+    :func:`ki_counter_kind_refs` sibling (ADR-0039 W8)."""
+    return _counter_kind_refs(root, "oil")
+
+
+def ki_counter_kind_refs(root: object) -> tuple[str, ...]:
+    """Every "ki" counter reference reachable ANYWHERE under ``root``
+    (deep walk) — the ADR-0039 W8 sibling of :func:`oil_counter_kind_refs`,
+    added for the Kamigawa flip cycle's triggered ``HasCounters`` self-check
+    ("At the beginning of the end step, if there are two or more ki
+    counters on ~, you may flip it." — Faithful Squire, Callow Jushi,
+    Hired Muscle, Cunning Bandit, Budoka Pupil), which lives on the
+    TRIGGER's own ``condition`` field, one level above the flat
+    per-concept-node walk's ``Unimplemented(name='flip')`` effect node.
+    CR 122.1."""
+    return _counter_kind_refs(root, "ki")
 
 
 def color_count_preds(filt: object) -> tuple[tuple[str, int], ...]:

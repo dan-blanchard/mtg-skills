@@ -59,6 +59,7 @@ from mtg_utils._card_ir.crosswalk import (
 from mtg_utils._card_ir.mirror.runtime import MISSING
 from mtg_utils._card_ir.project import _KEYWORD_COST_SAC, _PITCH_SAC
 from mtg_utils._card_ir.supplement import _BASE_POWER_REF, _anchored
+from mtg_utils._deck_forge._sweep_detectors import NAMED_PERMANENT_REGEX
 
 if TYPE_CHECKING:  # pragma: no cover
     from mtg_utils._card_ir.crosswalk import ConceptTree
@@ -2189,6 +2190,49 @@ def _tetravus_match(tree: ConceptTree) -> bool:
     return _removecounter_token_pair(tree)
 
 
+# ── named_synergy (ADR-0039 W8, the KEPT-twelve wave) ────────────────────────
+# CR 201.4 (choosing a card name) / 201.5 (self-reference by name): a card
+# whose ability references a specific permanent BY NAME — another copy of
+# ITSELF (Brothers Yamazaki's legend-rule bypass, Alania Divergent Storm's
+# "another Alania"), or a genuinely different card (Mishra, Claimed by Gix's
+# meld partner, Rohgahh of Kher Keep's "Kobolds of Kher Keep"). phase v0.20.0
+# DOES now preserve the literal name string on a typed ``Named`` filter
+# property/predicate (``T_properties__Named`` / ``T_filter__Named`` both
+# carry a real ``name: str`` field — this SUPERSEDES the stale ADR-0027 claim
+# that "phase drops the referenced name"), but that SAME typed shape is
+# massively overloaded: partner-pair references (CR 716.3 — Will Kenrith /
+# Rowan Kenrith), planeswalker-uncoupled "Path of the X" callbacks, deck-
+# construction copy-limit swarms (Relentless Rats — CR 100.2a, the SIBLING
+# copy_limit lane's own territory), and named-card library TUTORING (Squadron
+# Hawk — "search for a card named X") all route through the identical typed
+# node. Corpus-verified 2026-07-12 (phase v0.20.0): 245 commander-legal cards
+# carry a ``Named`` node ANYWHERE, vs this lane's 27-card legacy population —
+# an ~9x blast radius, far past the ~2x tighten bar — so a blind "any Named
+# node" deep walk is not a safe port. Discriminating the permanent-synergy
+# idiom from the other four Named-node uses needs a dedicated Named-context
+# classifier (the todo); until it lands, the bridge's idiom-bounded ``match``
+# (byte-identical to the deleted NAMED_PERMANENT_REGEX SWEEP producer, flat
+# over the reminder-stripped per-face oracle — the SAME input the legacy
+# _IR_KEPT_DETECTORS mirror reads) is what keeps this lane scoped to exactly
+# legacy's population, not the raw gap.
+_NAMED_SYNERGY_RE = re.compile(NAMED_PERMANENT_REGEX, re.IGNORECASE)
+
+
+def _named_synergy_kept(tree: ConceptTree) -> str:
+    """Reminder-stripped per-face oracle text — mirrors legacy's OWN
+    paren-strip so this bridge's blast radius matches legacy's byte-for-
+    byte, not an independently-invented pattern."""
+    return _REMINDER_RX.sub(" ", tree.oracle or "")
+
+
+def _named_synergy_gap(_tree: ConceptTree) -> bool:
+    return True
+
+
+def _named_synergy_match(tree: ConceptTree) -> bool:
+    return bool(_NAMED_SYNERGY_RE.search(_named_synergy_kept(tree)))
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -3906,6 +3950,38 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Duskana, the Rage Mother", "Bess, Soul Nourisher"),
             gap=_duskana_bess_gap,
             match=_duskana_bess_match,
+        ),
+        Bridge(
+            bridge_id="named_synergy_overloaded_named_node",
+            key="named_synergy",
+            kind="upstream_parse_failure",
+            todo=(
+                "dedicated Named-context classifier (not the post-"
+                "deletion grammar sprint — this is a crosswalk-side "
+                "disambiguation project, not a phase grammar gap): "
+                "narrow the typed Named-node deep walk to exclude "
+                "partner-pair references (CR 716.3), planeswalker-"
+                "uncoupled 'Path of the X' callbacks, copy-limit swarms "
+                "(CR 100.2a — the copy_limit sibling's own territory), "
+                "and named-card library tutoring, keeping only the "
+                "permanent-synergy self/other-name reference this lane "
+                "serves — retires (for the cards it then covers) once "
+                "that classifier lands and the lane switches to reading "
+                "it structurally"
+            ),
+            census=(
+                "27 hits / 31,622 commander-legal (byte-identical to the "
+                "deleted NAMED_PERMANENT_REGEX SWEEP producer, flat over "
+                "the reminder-stripped per-face oracle — unchanged from "
+                "the legacy population); 245 commander-legal cards carry "
+                "a Named node ANYWHERE (an ~9x blast radius past the ~2x "
+                "tighten bar, corpus-verified), so the bridge stays "
+                "idiom-bounded by regex rather than reading the raw node, "
+                "phase v0.20.0, 2026-07-12"
+            ),
+            pins=("Brothers Yamazaki", "Mishra, Claimed by Gix", "Sheltered Valley"),
+            gap=_named_synergy_gap,
+            match=_named_synergy_match,
         ),
     )
 }

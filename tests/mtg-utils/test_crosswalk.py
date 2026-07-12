@@ -4566,6 +4566,21 @@ def test_oil_counter_matters_deep_gating_subability():
     assert ("oil_counter_matters", "you", "") in _idents("Oil-Gorger Troll")
 
 
+def test_ki_counter_matters_deep_trigger_condition():
+    """ADR-0039 W8 (ki_counter_matters PROMOTED off the KEPT twelve):
+    Faithful Squire's Kamigawa-flip trigger — "At the beginning of the
+    end step, if there are two or more ki counters on ~, you may flip
+    it" — carries its ``HasCounters`` condition on the TRIGGER's own
+    ``condition`` field, one level above the flat per-concept-node walk
+    (that node is the trigger's own effect,
+    ``Unimplemented(name='flip')``). :func:`ki_counter_kind_refs`'s
+    whole-unit deep walk (the ADR-0038 oil precedent's sibling) reaches
+    it. CR 122.1."""
+    assert ("ki_counter_matters", "you", "") in _idents(
+        "Faithful Squire // Kaiso, Memory of Loyalty"
+    )
+
+
 def test_rad_counter_makers_scope_opponents():
     """A rad-counter giver (Tato Farmer) fires rad_counter_makers — fixed scope
     opponents, a mill-and-bleed kill clock (CR 728), read off GivePlayerCounter."""
@@ -13738,6 +13753,47 @@ def test_voting_matters_trigger_event_and_effect_split():
     expro = _keys("Expropriate")
     assert "voting_matters" not in expro
     assert "voting_makers" in expro
+
+
+# ── named_synergy (ADR-0039 W8, KEPT-twelve wave) ────────────────────────────
+# CR 201.4 / 201.5. Entirely bridge-served (named_synergy_overloaded_named_
+# node in bridge_ledger.py) — the raw typed Named node this idiom carries is
+# corpus-verified too overloaded (partner pairs / copy-limit swarms / named-
+# card tutoring / planeswalker-uncoupled callbacks) to read directly, so the
+# bridge's idiom-bounded regex (byte-identical to the deleted
+# NAMED_PERMANENT_REGEX SWEEP producer) stays the mechanism. 27/27 both, 0
+# live_only, 0 cw_only on the full commander-legal corpus re-measure
+# (2026-07-12).
+
+
+def test_named_synergy_self_reference_legend_rule_bypass():
+    """Brothers Yamazaki's "Each other creature named Brothers Yamazaki
+    gets +2/+2 and has haste" — a self-referencing permanent-named-X
+    payoff (CR 201.5) that ALSO carries a real typed ``Named`` filter
+    property (phase v0.20.0 preserves the name string here), but the
+    bridge's idiom-bounded regex match is what actually fires the lane
+    (the raw node is too overloaded to read directly — see the bridge's
+    module comment)."""
+    assert ("named_synergy", "you", "") in _idents("Brothers Yamazaki")
+
+
+def test_named_synergy_other_card_reference():
+    """Mishra, Claimed by Gix's meld clause references a DIFFERENT card by
+    name ("a creature named Phyrexian Dragon Engine") — CR 201.4, the
+    genuinely-other-permanent half of the split (not the CR 201.5 self-
+    reference half). No typed ``Named`` node here either (the bridge's
+    regex match is the only mechanism, matching Sheltered Valley)."""
+    assert ("named_synergy", "you", "") in _idents("Mishra, Claimed by Gix")
+
+
+def test_named_synergy_no_typed_node_at_all():
+    """Sheltered Valley's "sacrifice each other permanent named Sheltered
+    Valley you control" carries NO typed ``Named`` node anywhere (phase
+    drops the reference entirely here — the stale ADR-0027 case this
+    bridge's module comment notes still holds for SOME cards even though
+    it no longer holds universally). The bridge's regex-over-oracle match
+    is the ONLY mechanism that reaches it."""
+    assert ("named_synergy", "you", "") in _idents("Sheltered Valley")
 
 
 # ── Stage-2 exit-gate follow-ups: 5 node-present routing gaps (ADR-0035) ──────

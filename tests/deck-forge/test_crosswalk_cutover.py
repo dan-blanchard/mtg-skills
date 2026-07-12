@@ -462,13 +462,29 @@ def test_hybrid_reconciliation_single_fire(monkeypatch):
 def test_hybrid_three_way_key_partition():
     """The Seam-A split is a three-way partition, not a clean swap: PORTED and the
     residual set are disjoint and their union is the served (stripped-from-regex)
-    set. The permanent KEPT lane (``land_destruction``) is in the residual set
-    (never the crosswalk); ``damage_redirect`` PROMOTED ADR-0039 W8 (a b12
-    byte-identical crosswalk mirror), so it now lives in PORTED, not residual."""
+    set. ADR-0039 W8 (the KEPT-twelve wave) promoted all 12 Stage-2 KEPT keys —
+    base_power_matters, big_mana, cheat_from_top, copy_limit, damage_redirect,
+    excess_damage, extra_draw_step, free_cast, ki_counter_matters,
+    kicked_spell_matters, land_destruction, named_synergy — off the residual set
+    and into PORTED. No permanent KEPT lane remains."""
     residual = MIGRATED_KEYS - PORTED_KEYS
     assert residual, "the residual set must be non-empty (do not delete the IR path)"
-    assert "land_destruction" in residual
-    assert "damage_redirect" in PORTED_KEYS
+    kept_twelve = {
+        "base_power_matters",
+        "big_mana",
+        "cheat_from_top",
+        "copy_limit",
+        "damage_redirect",
+        "excess_damage",
+        "extra_draw_step",
+        "free_cast",
+        "ki_counter_matters",
+        "kicked_spell_matters",
+        "land_destruction",
+        "named_synergy",
+    }
+    assert kept_twelve <= PORTED_KEYS
+    assert kept_twelve.isdisjoint(residual)
     assert PORTED_KEYS.isdisjoint(residual)
     assert (PORTED_KEYS | residual) == (PORTED_KEYS | MIGRATED_KEYS)
 
@@ -713,3 +729,53 @@ def test_membership_floor_inert_in_candidate_mode():
         assert [(s.key, s.scope, s.subject) for s in without] == [
             (s.key, s.scope, s.subject) for s in threaded
         ]
+
+
+def _floor_case_for(name: str):
+    """A single named fixture card's floor case (see :func:`_floor_case`), or
+    ``None`` if the card isn't present / drifts."""
+    for oid, faces in _faces_by_oid().items():
+        if faces and faces[0].get("name") == name:
+            return _floor_case(oid, faces)
+    return None
+
+
+def test_land_destruction_promoted_floor(monkeypatch):
+    """ADR-0039 W8 (land_destruction PROMOTED off the KEPT twelve): the
+    shared ``_apply_membership_floor`` (imported by BOTH ``extract_signals_
+    ir`` and ``extract_crosswalk_signals``, one source, zero drift) fires
+    land_destruction for a CREATURE commander whose own oracle matches
+    "destroy target land(s)" (Goblin Settler — "When this creature enters,
+    destroy target land", CR 305.6) under ``include_membership=True`` on
+    BOTH the flag-OFF (legacy) and flag-ON (crosswalk) hybrid paths, and
+    fires on NEITHER path with ``include_membership=False`` (the 99-card
+    candidate-mode gate)."""
+    built = _floor_case_for("Goblin Settler")
+    if built is None:
+        pytest.skip("Goblin Settler fixture record drifts")
+    bulk, tree, ir = built
+    on_off_path = _hybrid_idents(monkeypatch, bulk, tree, ir, flag=False, include=True)
+    on_on_path = _hybrid_idents(monkeypatch, bulk, tree, ir, flag=True, include=True)
+    assert ("land_destruction", "you", "") in on_off_path
+    assert ("land_destruction", "you", "") in on_on_path
+    off_99 = _hybrid_idents(monkeypatch, bulk, tree, ir, flag=True, include=False)
+    assert "land_destruction" not in {k for k, _s, _su in off_99}
+
+
+def test_big_mana_promoted_floor(monkeypatch):
+    """ADR-0039 W8 (big_mana PROMOTED off the KEPT twelve): Sol Ring's
+    ``{T}: Add {C}{C}`` is a ``ramp`` Effect with ``amount.factor>1`` (CR
+    106.4) — the shared ``_apply_membership_floor``'s ``_is_big_mana_ir``
+    structural arm fires it on BOTH the flag-OFF and flag-ON hybrid paths
+    under ``include_membership=True``. The floor still reads the OLD
+    projected ``Card`` for this arm (a known, scheduled item for the
+    membership-floor rewire, ADR-0039 task #80 step 3) — promoting the key
+    changes only which path re-supplies the SAME shared computation."""
+    built = _floor_case_for("Sol Ring")
+    if built is None:
+        pytest.skip("Sol Ring fixture record drifts")
+    bulk, tree, ir = built
+    on_off_path = _hybrid_idents(monkeypatch, bulk, tree, ir, flag=False, include=True)
+    on_on_path = _hybrid_idents(monkeypatch, bulk, tree, ir, flag=True, include=True)
+    assert ("big_mana", "you", "") in on_off_path
+    assert ("big_mana", "you", "") in on_on_path
