@@ -46,14 +46,20 @@ third detector system:
   ``landfall``'s ``Landfall`` keyword is one such case; see the
   per-preset conversion note).
 - ``concept``: an OPTIONAL named predicate, ``(card) -> bool``, for a
-  fact the signal system doesn't carry at all (e.g. a removal target's
-  PERMANENT TYPE — signals don't currently carry a target-type subject).
-  A concept predicate MUST reuse an existing crosswalk lane helper
-  (``mtg_utils._deck_forge.crosswalk_signals``) rather than hand-roll a
-  new text scan — it lives next to the lane helper it reuses, with the
-  same docstring discipline as the lane itself. No pilot preset needs one
-  yet; the field exists so a future conversion that DOES need one has
-  somewhere to put it without re-widening ``Preset``.
+  fact the signal system doesn't carry at all. The pilot: the 10 type-
+  scoped removal/edict presets (creature/artifact/enchantment/land/
+  planeswalker/universal x removal/edict) bind ``_removal_edict_concept``
+  to a target PERMANENT TYPE — ``removal``/``exile_removal``/``mass_
+  removal``/``edict_makers`` all emit ``subject=""``, so "this card is
+  removal" never says WHICH type it answers. A concept predicate MUST
+  reuse an existing crosswalk lane helper (``mtg_utils._deck_forge.
+  crosswalk_signals`` — the pilot's is ``removal_edict_targets_type``)
+  rather than hand-roll a new text scan — it lives next to the lane
+  helper(s) it reuses, with the same docstring discipline as the lane
+  itself. Because :meth:`Preset.matches` only ORs its arms (there is no
+  AND), a concept predicate that needs "is removal/edict of SOME kind
+  AND targets THIS type" does the full walk itself rather than
+  intersecting against ``signal_keys`` at the ``Preset`` level.
 
 A converted preset drops its ``patterns`` (the regex is superseded by the
 view, not run in parallel) and keeps ``keywords`` only for facts the
@@ -200,6 +206,35 @@ def _signal_keys_for(card: dict) -> frozenset[str]:
 def _rx(*patterns: str) -> tuple[re.Pattern[str], ...]:
     """Compile a tuple of patterns with IGNORECASE."""
     return tuple(re.compile(p, re.IGNORECASE) for p in patterns)
+
+
+def _removal_edict_concept(
+    core_type: str, *, family: str = "removal", generous_any: bool = False
+) -> Callable[[dict], bool]:
+    """Bind a task #83 type-scoped ``concept`` predicate (creature/artifact/
+    enchantment/land/planeswalker/universal x removal/edict) to a specific
+    target CORE_TYPE. ``family`` selects the effect shape: "removal"
+    (destroy/exile/burn/fight/shrink — the default, used by the six
+    ``*-removal`` presets) or "edict" (forced sacrifice only, used by the
+    six ``*-edict`` presets — a destroy/exile/burn effect is never an
+    edict, CR 701.8 vs 701.21a). Reuses ``_deck_forge.crosswalk_signals.
+    removal_edict_targets_type`` — the ONE lane helper every type-scoped
+    preset in this registry shares (see that function's docstring, and its
+    module's "Task #83 structural-view helper" section, for the target-
+    filter mechanics). Imported LAZILY inside the closure for the same
+    import-cycle reason :func:`_signal_keys_for` documents.
+    """
+
+    def _match(card: dict) -> bool:
+        from mtg_utils._deck_forge.crosswalk_signals import (
+            removal_edict_targets_type,
+        )
+
+        return removal_edict_targets_type(
+            card, core_type, family=family, generous_any=generous_any
+        )
+
+    return _match
 
 
 # ─── Evergreen keyword abilities ──────────────────────────────────────────
@@ -1316,30 +1351,26 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # presets will double-count these cards. Use set-union semantics on
     # the `cards` list in each theme's audit result if you need
     # deduplicated totals.
+    # ── Task #83 structural views: the target's PERMANENT CORE TYPE (CR
+    # 109.3) is a fact the production signal lanes don't carry as a
+    # ``Signal.subject`` (``removal``/``exile_removal``/``mass_removal``/
+    # ``edict_makers`` all emit ``subject=""``). Each preset below is a
+    # ``concept`` predicate bound to one core type via
+    # ``_removal_edict_concept`` (see that function + ``crosswalk_signals.
+    # removal_edict_targets_type``'s docstrings for the target-filter
+    # mechanics they reuse) — no regex, no ``signal_keys`` (Preset ORs
+    # every arm; the AND between "is removal/edict" and "targets THIS type"
+    # lives entirely inside the concept predicate's own tree walk).
     Preset(
         name="creature-removal",
         description=(
-            "Single-target creature removal: destroy/exile target creature, "
-            "damage-to-creature, fight, -X/-X, creature-or-planeswalker. "
-            "Includes the Fight keyword action (CR 701.14), Infect "
-            "(702.90 — damage to creatures as -1/-1 counters), and Wither "
-            "(702.80 — like infect but creature-only). Note: 'target "
-            "creature gets -N' matches any toughness debuff including soft "
-            "combat tricks (e.g. -0/-2); callers treat this as generous. "
-            "For a stricter definition use a custom --theme."
+            "Single-target OR mass creature removal: destroy/exile "
+            "targeting Creature, damage-to-creature (including 'any "
+            "target' burn — generous, matches the legacy preset), fight, "
+            "and a P/T shrink (fixed or dynamic -X/-X)."
         ),
         keywords=("Fight", "Infect", "Wither"),
-        patterns=_rx(
-            r"(?:destroy|exile) target [^.]*?\bcreature\b",
-            r"\bdeals? \d+ damage to (?:target creature|any target)",
-            r"\bdeals? \d+ damage divided [^.]*?targets?\b",
-            r"\bfights? target\b",
-            r"\btarget creature gets -\d",
-            # Mass -N/-N removal (Toxic Deluge, Black Sun's Zenith).
-            # `-` isn't a word char, so `\b-` never matches; use a
-            # negative-lookbehind anchor instead.
-            r"(?<!\w)-X/-X\b",
-        ),
+        concept=_removal_edict_concept("Creature", generous_any=True),
         should_match=(
             "Swords to Plowshares",
             "Doom Blade",
@@ -1347,7 +1378,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Hero's Downfall",
             "Toxic Deluge",
             "Prey Upon",  # fight branch
-            "Electrolyze",  # divided-damage branch
+            "Electrolyze",  # divided-damage / any-target branch
             "Disfigure",  # -N/-N branch
         ),
         should_not_match=(
@@ -1360,24 +1391,22 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="artifact-removal",
         description=(
-            "Single-target artifact removal: destroy/exile target artifact "
-            "(including 'target artifact or enchantment' bridge spells)."
+            "Single-target OR mass artifact removal: destroy/exile "
+            "targeting Artifact (including 'target artifact or "
+            "enchantment' bridge spells)."
         ),
-        patterns=_rx(
-            r"(?:destroy|exile) target [^.]*?\bartifact\b",
-        ),
+        concept=_removal_edict_concept("Artifact"),
         should_match=("Shatter", "Disenchant", "Reclamation Sage"),
         should_not_match=("Lightning Bolt", "Wrath of God", "Sinkhole"),
     ),
     Preset(
         name="enchantment-removal",
         description=(
-            "Single-target enchantment removal: destroy/exile target "
-            "enchantment (including 'target artifact or enchantment')."
+            "Single-target OR mass enchantment removal: destroy/exile "
+            "targeting Enchantment (including 'target artifact or "
+            "enchantment')."
         ),
-        patterns=_rx(
-            r"(?:destroy|exile) target [^.]*?\benchantment\b",
-        ),
+        concept=_removal_edict_concept("Enchantment"),
         should_match=("Disenchant", "Reclamation Sage"),
         should_not_match=("Lightning Bolt", "Shatter", "Sinkhole"),
     ),
@@ -1385,53 +1414,41 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         name="land-removal",
         description=(
             "Land destruction, single-target or mass (MLD). Includes "
-            "Sinkhole, Strip Mine, Wasteland, Armageddon, Jokulhaups."
+            "Sinkhole, Strip Mine, Wasteland, Armageddon. Unions the "
+            "``land_destruction`` REPEATABLE-LD-ENGINE membership floor "
+            "(a creature-commander cross-open the target-type walk below "
+            "can't see — Numot, Goblin Settler) with a target-type walk "
+            "over destroy/exile effects (the ``removal``/``mass_removal`` "
+            "lanes deliberately EXCLUDE Land, routing it here instead —"
+            " see ``_removal``'s docstring)."
         ),
-        patterns=_rx(
-            r"(?:destroy|exile) target [^.]*?\bland\b",
-            r"\bdestroy all [^.]*?\blands?\b",
-            r"\bexile all [^.]*?\blands?\b",
-        ),
+        signal_keys=("land_destruction",),
+        concept=_removal_edict_concept("Land"),
         should_match=("Sinkhole", "Strip Mine", "Wasteland", "Armageddon"),
         should_not_match=("Lightning Bolt", "Doom Blade", "Wrath of God"),
     ),
     Preset(
         name="planeswalker-removal",
         description=(
-            "Single-target planeswalker removal: destroy/exile target "
-            "planeswalker, damage to planeswalker, creature-or-planeswalker."
+            "Single-target OR mass planeswalker removal: destroy/exile "
+            "targeting Planeswalker, damage-to-planeswalker (including "
+            "'any target' burn — generous, matches the legacy preset)."
         ),
-        patterns=_rx(
-            r"(?:destroy|exile) target [^.]*?\bplaneswalker\b",
-            r"\bdeals? \d+ damage to (?:target planeswalker|any target"
-            r"|target creature or planeswalker)",
-        ),
+        concept=_removal_edict_concept("Planeswalker", generous_any=True),
         should_match=("Hero's Downfall", "Lightning Bolt"),
         should_not_match=("Counterspell", "Shatter"),
     ),
     Preset(
         name="universal-removal",
         description=(
-            "Destroys or exiles any permanent regardless of type. Covers "
-            "the canonical universal answers (Vindicate, Beast Within, "
-            "Abrupt Decay, Assassin's Trophy) plus type/color-restricted "
-            "universal effects: 'destroy target noncreature permanent' "
-            "(Woodfall Primus, Rootgrapple, Nicol Bolas +3), 'destroy "
-            "target [color] permanent' (Elemental Blasts, Paladin cycle), "
-            "and 'destroy target noncreature, nonland permanent' "
-            "(Witherbloom Command). Cards here are in addition to the "
+            "Destroys or exiles any permanent regardless of type: a "
+            "target/sacrifice filter whose bare core-type word is the "
+            "literal 'Permanent' (Vindicate, Beast Within, Nicol Bolas, "
+            "Planeswalker's +3). Cards here are in addition to the "
             "type-specific presets — check both for full coverage of a "
             "given permanent type."
         ),
-        patterns=_rx(
-            # Matches "destroy/exile target [...]permanent" with any
-            # modifiers (nonland, noncreature, color-restricted, etc.)
-            # between target and permanent. The [^.]*? sentence-boundary
-            # gate prevents matching across the period into an unrelated
-            # later clause (e.g., Beast Within's "creates a 3/3 ... token"
-            # sentence).
-            r"(?:destroy|exile) target [^.]*?\bpermanent\b",
-        ),
+        concept=_removal_edict_concept("Permanent"),
         should_match=(
             "Vindicate",
             "Beast Within",
@@ -2145,6 +2162,11 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         should_match=("Diabolic Edict",),
         should_not_match=("Lightning Bolt", "Wrath of God", "Vindicate"),
     ),
+    # ── Task #83 structural views: same target-type predicate as the
+    # removal family above, bound to the SACRIFICE (edict) shape only —
+    # ``edict_makers``, like ``removal``, emits ``subject=""`` (see that
+    # lane's docstring). No ``generous_any``: a burn spell never forces a
+    # sacrifice, so the "Any" fallback never applies to an edict.
     Preset(
         name="creature-edict",
         description=(
@@ -2153,11 +2175,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Edict). Mass forms like Barter in Blood also match. "
             "Includes 'creature or planeswalker' modals."
         ),
-        patterns=_rx(
-            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
-            r"\s+sacrifices?\s+"
-            r"(?:a|an|\d+|one|two|three|four|five)?\s*creatures?",
-        ),
+        concept=_removal_edict_concept("Creature", family="edict"),
         should_match=("Diabolic Edict",),
         should_not_match=("Lightning Bolt", "Shatter", "Sinkhole"),
     ),
@@ -2167,11 +2185,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Forced-sacrifice of an artifact — rare category, mostly "
             "Tribute to the Wild, Pick Your Poison, Perilous Predicament."
         ),
-        patterns=_rx(
-            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
-            r"\s+sacrifices?\s+"
-            r"(?:a|an|\d+|one|two|three|four|five)?\s*artifacts?",
-        ),
+        concept=_removal_edict_concept("Artifact", family="edict"),
         should_match=("Tribute to the Wild",),
         should_not_match=("Lightning Bolt", "Diabolic Edict"),
     ),
@@ -2181,25 +2195,19 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Forced-sacrifice of an enchantment — rare category "
             "(Dromoka's Command, Pharika's Libation, Abzan Advantage)."
         ),
-        patterns=_rx(
-            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
-            r"\s+sacrifices?\s+"
-            r"(?:a|an|\d+|one|two|three|four|five)?\s*enchantments?",
-        ),
+        concept=_removal_edict_concept("Enchantment", family="edict"),
         should_match=("Dromoka's Command",),
         should_not_match=("Lightning Bolt",),
     ),
     Preset(
         name="land-edict",
         description=(
-            "Forced-sacrifice of a land. Includes mass LD like Wildfire "
-            "and Epicenter, plus Smallpox-style combined effects."
+            "Forced-sacrifice of a land. Includes mass LD like Wildfire, "
+            "plus Smallpox-style combined effects. Distinct from "
+            "``land_sacrifice_makers`` (a YOU-sac cost engine — Zuran "
+            "Orb): this is a FORCED sacrifice a caster inflicts."
         ),
-        patterns=_rx(
-            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
-            r"\s+sacrifices?\s+"
-            r"(?:a|an|\d+|one|two|three|four|five)?\s*lands?",
-        ),
+        concept=_removal_edict_concept("Land", family="edict"),
         should_match=("Wildfire",),
         should_not_match=("Lightning Bolt", "Armageddon"),
     ),
@@ -2211,31 +2219,23 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "edict design (Sheoldred's Edict, Angrath's Rampage), so this "
             "overlaps heavily with creature-edict."
         ),
-        patterns=_rx(
-            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
-            r"\s+sacrifices?\s+"
-            r"(?:a|an|\d+|one|two|three|four|five)?\s*"
-            r"(?:[^.]*? )?planeswalkers?",
-        ),
+        concept=_removal_edict_concept("Planeswalker", family="edict"),
         should_match=("Sheoldred's Edict",),
         should_not_match=("Lightning Bolt", "Diabolic Edict"),
     ),
     Preset(
         name="universal-edict",
         description=(
-            "Forced-sacrifice of any permanent type. Includes "
-            "Annihilator (CR 702.86) — attack trigger forcing defender "
-            "to sacrifice N permanents of their choice — and spells "
-            "like Shard of the Void Dragon, World Queller, Martyr's "
-            "Bond, Rishadan Brigand."
+            "Forced-sacrifice of any permanent type: a sacrifice filter "
+            "whose bare core-type word is the literal 'Permanent' (Shard "
+            "of the Void Dragon, Martyr's Bond). Unions the Annihilator "
+            "keyword (CR 702.86 — an attack trigger forcing the defender "
+            "to sacrifice N permanents of their choice, a first-class "
+            "Scryfall keyword fact the target-type walk doesn't "
+            "independently reach)."
         ),
         keywords=("Annihilator",),
-        patterns=_rx(
-            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
-            r"\s+sacrifices?\s+"
-            r"(?:a|an|\d+|one|two|three|four|five)?\s*"
-            r"(?:nonland )?permanents?",
-        ),
+        concept=_removal_edict_concept("Permanent", family="edict"),
         should_match=("Shard of the Void Dragon", "Martyr's Bond"),
         should_not_match=("Lightning Bolt", "Diabolic Edict", "Wildfire"),
     ),

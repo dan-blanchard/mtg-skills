@@ -51,6 +51,9 @@ FLESHBAG = {
     "oracle_text": (
         "When this creature enters, each player sacrifices a creature of their choice."
     ),
+    # creature-edict is a task #83 structural view (concept-only, no regex
+    # arm left) — it needs a real oracle_id to resolve the crosswalk tree.
+    "oracle_id": "4b1bf05e-753e-4350-a913-894cf3cecc0c",
 }
 PACIFISM = {
     "name": "Pacifism",
@@ -96,6 +99,7 @@ def test_edicts_and_pacify_auras_count_as_interaction():
     # role_of is the universal coverage fallback, so forced-sacrifice (edicts) and
     # pacification auras — both REMOVAL regardless of commander — must register as
     # interaction. Fleshbag (creature-edict) and Pacifism (neutralize aura) were missed.
+    test_card_ir("Fleshbag Marauder")  # seeds the crosswalk trees memo
     assert "interaction" in role_of(FLESHBAG)
     assert "interaction" in role_of(PACIFISM)
     # Over-fire guards: a sacrifice COST (Viscera Seer) and a creature with a "can't

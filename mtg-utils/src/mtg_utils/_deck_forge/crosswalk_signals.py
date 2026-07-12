@@ -21016,6 +21016,182 @@ def _removal(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# ─── Task #83 structural-view helper: removal/edict TARGET TYPE ───────────
+#
+# The 10 type-scoped theme-preset views (creature/artifact/enchantment/land/
+# planeswalker/universal x removal/edict — see ``theme_presets.py``) need a
+# fact the lanes above deliberately DON'T carry: the PERMANENT CORE TYPE (CR
+# 109.3) a removal/exile/burn/edict effect's target or sacrifice filter
+# names. ``removal``/``exile_removal``/``mass_removal``/``edict_makers`` all
+# emit ``Signal.subject == ""`` (see each lane's own docstring above) — a
+# card matching one of them tells a caller "this is removal" or "this is an
+# edict", never WHICH permanent type it answers. This helper reuses the SAME
+# target-filter primitives those lanes read (:func:`effect_filter` /
+# :func:`filter_core_types` / :func:`filter_subtypes` / :func:`
+# change_zone_dirs`) to answer that one extra question, so a preset view
+# never re-derives it with a new text scan (ADR-0035/0039, Dan 2026-07-12 —
+# presets are declarative VIEWS over the crosswalk, never a third detector
+# system).
+
+
+def _perm_answer_types(filt: object) -> frozenset[str]:
+    """A target/sacrifice FILTER's permanent-type answer set (CR 109.3): the
+    bare core-type word(s) (:func:`filter_core_types`), or the synthetic
+    ``Land`` member when the filter names only a BASIC land subtype ("target
+    Island" — ``filter_core_types`` carries no bare ``Land`` word for those;
+    mirrors ``_removal``'s own ``_perm_subject`` land-subtype recognition
+    above). A non-land SUBTYPE-only filter ("target Wall" / "target
+    Equipment") is UNRESOLVED (empty) — no baked subtype -> core-type map
+    exists at this seam; ``_perm_subject`` papers over the same gap with a
+    bare "is this a permanent at all" bool a type-scoped view can't reuse,
+    so this helper returns empty rather than guessing. A small, documented
+    recall gap (task #83 membership-diff notes), not a silent guess.
+    """
+    cores = set(filter_core_types(filt))
+    if cores:
+        return frozenset(cores)
+    subs = {s.lower() for s in filter_subtypes(filt)}
+    if subs and subs & _LIVE_LAND_SUBTYPES:
+        return frozenset({"Land"})
+    return frozenset()
+
+
+def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
+    """Every permanent-type "answer" a REMOVAL effect (destroy/exile/burn/
+    fight/shrink — never a forced sacrifice, see :func:`_edict_answer_types`
+    for that shape) in TREE can give — the UNION of :func:`_perm_answer_types`
+    over every matching target filter, plus the synthetic ``Any`` member for
+    an UNRESTRICTED damage target (Lightning Bolt's "any target" — a
+    ``deal_damage`` node whose filter names no permanent type at all: it
+    can't name a permanent core type, but it CAN still kill a creature or a
+    planeswalker, matching the deliberately generous legacy creature-
+    removal / planeswalker-removal presets).
+
+    Four effect concepts, mirroring the shapes ``_removal``, ``_exile_
+    removal``, ``_mass_removal``, and ``_debuff_makers`` each read for their
+    OWN key — UNLIKE those lanes this walk does not exclude Land
+    (``_removal``/``_mass_removal`` deliberately route a Land target to the
+    separate ``land_destruction`` floor lane; a type-scoped view needs Land
+    too — Sinkhole, Armageddon) or gate on single-vs-mass (a type-scoped
+    view wants every shape that can answer a permanent of a given type,
+    board wipe included):
+
+    * ``destroy`` (``Destroy``/``DestroyAll``, CR 701.8) — the target
+      filter's answer types, unfiltered;
+    * ``deal_damage`` (``DealDamage``/``DamageAll``, CR 119) — the target
+      filter's answer types, or ``Any`` when it names none;
+    * ``change_zone`` reaching ``Exile`` (CR 406.1) — the SAME three vetoes
+      ``_exile_removal`` applies (blink-your-own controller/owned-
+      controller check, graveyard/hand origin, a sibling battlefield-return
+      or ``become_copy`` — none of those are removal);
+    * ``fight`` (CR 701.14a) and a P/T-shrinking ``pump`` (CR 613.4c, read
+      via :func:`_negative_pt_field` on EITHER field — covers both a FIXED
+      shrink and a dynamic ``-X/-X``, unlike ``debuff_makers``'s FIXED-only
+      ``pump_is_negative`` gate) both always answer ``Creature`` (CR 704 —
+      P/T and fighting only ever apply to creatures).
+    """
+    out: set[str] = set()
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.concept == "destroy":
+                out |= _perm_answer_types(effect_filter(c.node))
+            elif c.concept == "deal_damage":
+                types = _perm_answer_types(effect_filter(c.node))
+                out |= types or {"Any"}
+            elif c.concept == "fight" or (
+                c.concept == "pump"
+                and (
+                    _negative_pt_field(c.node, "power")
+                    or _negative_pt_field(c.node, "toughness")
+                )
+            ):
+                out.add("Creature")
+        czs = unit.effect_concepts("change_zone")
+        sib_return = any(
+            change_zone_dirs(s.node)[1] == "Battlefield"
+            and tag_of(getattr(s.node, "target", None)) in _RETURN_TARGET_TAGS
+            for s in czs
+        )
+        sib_clone = unit.has_effect("become_copy")
+        for c in czs:
+            _origin, dest = change_zone_dirs(c.node)
+            if dest != "Exile":
+                continue
+            sub = effect_filter(c.node)
+            if filter_controller(sub) == "You" or (
+                filter_owned_controller(sub) == "You"
+            ):
+                continue  # blink-your-own (CR 603.6e), not removal
+            if _origin in ("Graveyard", "Hand") or (
+                set(filter_inzone_zones(sub)) & {"Graveyard", "Hand"}
+            ):
+                continue  # GY-hate / cage setup (CR 406.2), not removal
+            if sib_return or sib_clone:
+                continue
+            out |= _perm_answer_types(sub)
+    return frozenset(out)
+
+
+def _edict_answer_types(tree: ConceptTree) -> frozenset[str]:
+    """Every permanent-type "answer" a forced-sacrifice (edict, CR 701.21a)
+    effect in TREE can give — the UNION of :func:`_perm_answer_types` over
+    every ``sacrifice`` concept node's sacrificed filter (the SAME shape
+    ``_edict_makers`` reads for its own key), unfiltered — a type-scoped
+    view only asks WHAT gets sacrificed, not WHO is forced (no actor-scope
+    gate). Deliberately SEPARATE from :func:`_removal_answer_types`: a
+    destroy/exile/damage effect is never an edict (Armageddon's "destroy
+    all lands" must not satisfy a land-EDICT view — CR 701.8 vs 701.21a are
+    distinct zone-change verbs).
+    """
+    out: set[str] = set()
+    for c in tree.iter_concepts():
+        if c.role == "effect" and c.concept == "sacrifice":
+            out |= _perm_answer_types(effect_filter(c.node))
+    return frozenset(out)
+
+
+def _removal_edict_types_for(card: dict, family: str) -> frozenset[str]:
+    """CARD's UNION answer types across every face, for FAMILY ("removal" ->
+    :func:`_removal_answer_types`; "edict" -> :func:`_edict_answer_types`).
+    ``trees_for`` (the per-oracle_id tree resolution) already memoizes the
+    expensive part — see ``theme_presets._signal_keys_for``'s docstring for
+    the two-layer memo this seam piggybacks on — so no separate cache is
+    needed here.
+    """
+    from mtg_utils._deck_forge._ir_lookup import trees_for
+
+    walk = _removal_answer_types if family == "removal" else _edict_answer_types
+    out: set[str] = set()
+    for tree in trees_for(card, bulk=card):
+        out |= walk(tree)
+    return frozenset(out)
+
+
+def removal_edict_targets_type(
+    card: dict,
+    core_type: str,
+    *,
+    family: str = "removal",
+    generous_any: bool = False,
+) -> bool:
+    """Task #83 preset-view predicate: does CARD's removal (FAMILY=
+    "removal") or forced-sacrifice (FAMILY="edict") answer CORE_TYPE
+    ("Creature" / "Artifact" / "Enchantment" / "Land" / "Planeswalker" /
+    "Permanent")? ``generous_any`` also accepts the synthetic ``Any``
+    member (an unrestricted "any target" burn spell, removal-family only —
+    a burn spell never forces a sacrifice) — set for the creature/
+    planeswalker scopes only, matching the legacy regex presets' deliberate
+    generosity (a burn spell CAN kill either); left ``False`` for artifact/
+    enchantment/land/universal, which a burn spell can never answer. The
+    public entry point ``theme_presets.py`` imports (see that module's
+    "Structural views" docstring section).
+    """
+    types = _removal_edict_types_for(card, family)
+    if core_type in types:
+        return True
+    return generous_any and "Any" in types
+
+
 def _tutor_lane(tree: ConceptTree) -> list[Signal]:
     """tutor (§3) — CR 701.23/701.23a: your-library search (Demonic Tutor,
     Vampiric Tutor). A pure Tier-1 read (ADR-0036/0037 fold — the
