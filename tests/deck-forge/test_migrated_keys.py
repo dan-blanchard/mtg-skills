@@ -323,7 +323,7 @@ _REAL_CASES: dict[str, str] = {
     "phasing_makers": "The War Doctor",
     "play_from_top": "Future Sight",
     "plus_one_makers": "Avenger of Zendikar",
-    "plus_one_matters": "Kutzil, Malamet Exemplar",
+    "plus_one_matters": "Mycoloth",
     "poison_makers": "Phyresis",
     "poison_matters": "Serpent Generator",
     "power_double": "Unleash Fury",

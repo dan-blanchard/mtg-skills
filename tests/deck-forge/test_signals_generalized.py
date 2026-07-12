@@ -1288,10 +1288,22 @@ def test_permanents_with_counters_opens_counters():
     # matters commander (it wants counters on its permanents to untap them), but the
     # +1/+1-specific detector missed it (flood counters; "with a counter on it"). So it
     # missed counter producers (Forgotten Ancient, Master Biomancer, Vorel). Real oracle.
-    # ADR-0027: plus_one_matters migrated to the IR — the "you control with a counter
-    # on it" payoff recovers a counters_have_ref marker (project._narrow_counter_refs
-    # / _counter_face_marker). Assert via the hybrid (production) path.
-    assert "plus_one_matters" in _keys_real("Xolatoyac, the Smiling Flood")
+    # ADR-0039 W8: plus_one_matters PROMOTED — the crosswalk (flag-ON) correctly does
+    # NOT fire it here: "with a counter on it" carries an explicit Any kind (CR
+    # 122.1's kind carries the distinction: a kind-agnostic reference is not a
+    # +1/+1-specific payoff), the SAME adjudicated shed class as The Swarmlord /
+    # Yathan Tombguard / Winged Hive Tyrant. any_counter_matters is the correct lane
+    # and fires at BOTH flag states (mirrors the split ADR-0038 W4 established); the
+    # legacy flag-OFF IR path keeps its own byte-identical over-fire (the intended
+    # flag-OFF invariance — see test_creatures_are_lands_is_not_untap_engine).
+    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
+
+    assert "any_counter_matters" in _keys_real("Xolatoyac, the Smiling Flood")
+    keys = _keys_real("Xolatoyac, the Smiling Flood")
+    if crosswalk_enabled():
+        assert "plus_one_matters" not in keys
+    else:
+        assert "plus_one_matters" in keys
 
 
 def test_planeswalker_type_opens_superfriends():
@@ -1601,13 +1613,25 @@ def test_legendary_permanent_trigger_opens_legends():
 
 def test_double_damage_of_counter_creatures_opens_counters():
     # "Double all damage that creatures you control WITH COUNTERS ON THEM would deal"
-    # (Raphael, Tidus) is a +1/+1-counters DAMAGE payoff — the damage-doubling context
-    # implies POSITIVE counters (you wouldn't double the damage of -1/-1 creatures), so
-    # no literal "+1/+1" is needed. Real oracle.
-    # ADR-0027: plus_one_matters migrated to the IR — "creatures you control with
-    # counters on them" recovers a counters_have_ref marker; assert via the hybrid
-    # (production) path.
-    assert "plus_one_matters" in _keys_real("Raphael, the Muscle")
+    # (Raphael, Tidus) — the ADR-0027 author read this as a +1/+1-counters DAMAGE
+    # payoff (the damage-doubling context implies POSITIVE counters), but the text
+    # itself is a kind-agnostic Any reference (CR 122.1's kind carries the
+    # distinction). ADR-0039 W8: plus_one_matters PROMOTED — the crosswalk (flag-ON)
+    # correctly does NOT fire it here: a replacement's damage_source_filter carrying
+    # an Any-kind Counters predicate is the SAME kind-mismatch shed class as The
+    # Swarmlord / Xolatoyac / Winged Hive Tyrant. The legacy flag-OFF IR path keeps
+    # its own byte-identical over-fire (the intended flag-OFF invariance).
+    # NOTE (deferred, not this wave's key): any_counter_matters ALSO does not fire at
+    # the flag-ON crosswalk state — its own arms never read a replacement's
+    # damage_source_filter at all, a genuine structural gap in that SIBLING key, out
+    # of scope for the plus_one_matters wave.
+    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
+
+    keys = _keys_real("Raphael, the Muscle")
+    if crosswalk_enabled():
+        assert "plus_one_matters" not in keys
+    else:
+        assert "plus_one_matters" in keys
 
 
 def test_two_tribe_tutor():
@@ -2619,14 +2643,27 @@ def test_artifact_dig_and_improvise_open_artifacts():
 
 def test_power_greater_than_base_power_opens_counters():
     # A commander that rewards creatures whose "power [is] greater than its base power"
-    # (Kutzil, Baird) is a pump / +1/+1-counters payoff — those creatures got there via
-    # counters or pumps. It should open plus_one_matters so +1/+1 counter sources
-    # (Forgotten Ancient, Hardened Scales) surface. Niche but precise — only two
-    # commander-legal cards carry the phrase. Real oracle.
-    # ADR-0027: plus_one_matters migrated to the IR — "power greater than its base
-    # power" recovers a counters_have_ref marker; assert via the hybrid path.
-    assert "plus_one_matters" in _keys_real("Kutzil, Malamet Exemplar")
-    assert "plus_one_matters" in _keys_real("Baird, Argivian Recruiter")
+    # (Kutzil, Baird) — the ADR-0027 author read this as a pump / +1/+1-counters
+    # payoff (those creatures got there via counters or pumps), but CR 208.4b: "power
+    # greater than base power" is a LAYER-applied current-vs-base comparison true for
+    # ANY power-increasing effect (a temporary pump, a static anthem, Evolve), not
+    # specific to +1/+1 counters — the state carries no counter KIND at all, so it
+    # isn't a counter reference of any kind (not even any_counter_matters). ADR-0039
+    # W8: plus_one_matters PROMOTED — the crosswalk (flag-ON) correctly does NOT fire
+    # it here, an adjudicated shed (Ms. Marvel is the third corpus member; see
+    # test_crosswalk.py's test_plus_one_matters_excludes_power_greater_than_base_
+    # power_cda). The legacy flag-OFF IR path keeps its own byte-identical over-fire
+    # (the intended flag-OFF invariance).
+    from mtg_utils._deck_forge._ir_lookup import crosswalk_enabled
+
+    kutzil = _keys_real("Kutzil, Malamet Exemplar")
+    baird = _keys_real("Baird, Argivian Recruiter")
+    if crosswalk_enabled():
+        assert "plus_one_matters" not in kutzil
+        assert "plus_one_matters" not in baird
+    else:
+        assert "plus_one_matters" in kutzil
+        assert "plus_one_matters" in baird
 
 
 def test_forced_combat_and_any_player_attack_open_goad():

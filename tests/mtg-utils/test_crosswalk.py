@@ -2082,6 +2082,90 @@ def test_plus_one_matters_excludes_valid_source_any_kind_reference():
     assert "plus_one_matters" not in _keys("Yathan Tombguard")
 
 
+def test_plus_one_matters_excludes_static_parse_failure_kind_agnostic_reference():
+    """Winged Hive Tyrant (ADR-0039 W8, CR 122.1): "Other creatures you
+    control with counters on them have flying and haste" fails phase's
+    static parser entirely (the SAME ``static_structure`` residue shape
+    Rock Hydra's ``plus_one_rock_hydra_static_parse_failure`` bridge
+    reads) — but the residue text itself is kind-agnostic ("counters", no
+    "+1/+1" anywhere on the card), the SAME kind-mismatch shed class
+    already adjudicated as an over-fire (The Swarmlord / Yathan Tombguard)
+    — a third representative, this time via an unstructured residue
+    rather than a typed node. The bridge's own match is narrowly scoped
+    to P1P1-specific text, so it correctly does NOT fire here. No sibling
+    lane fires either (any_counter_matters has the SAME structural gap —
+    the whole line is an unreadable residue, not just the P1P1-kind
+    portion — out of scope for this narrowly-P1P1-scoped bridge, a
+    correct shed rather than a mis-routed member)."""
+    assert "plus_one_matters" not in _keys("Winged Hive Tyrant")
+
+
+def test_plus_one_matters_rock_hydra_static_parse_failure_bridge():
+    """Rock Hydra (ADR-0039 W8, CR 122.1): "For each 1 damage that would
+    be dealt to ~, if it has a +1/+1 counter on it, remove a +1/+1
+    counter from it and prevent that 1 damage" fails phase's static
+    parser entirely (``Unimplemented(name='static_structure')``) — no
+    typed HasCounters/QuantityCheck condition node exists anywhere for
+    the structural condition-site arms to reach. Ledgered bridge
+    ``plus_one_rock_hydra_static_parse_failure``."""
+    assert ("plus_one_matters", "you", "") in _idents("Rock Hydra")
+
+
+def test_plus_one_matters_rumbling_ruin_count_unimplemented_bridge():
+    """Rumbling Ruin (ADR-0039 W8, CR 122.1): "When ~ enters, count the
+    number of +1/+1 counters on creatures you control. Creatures your
+    opponents control with power less than or equal to that number can't
+    block this turn" — phase's trigger parser recognizes the ETB shape
+    but drops the counting clause as ``Unimplemented(name='count')``;
+    our clause grammar names the token but recovery.py's allowlist has
+    no mapping for it yet. Ledgered bridge
+    ``plus_one_rumbling_ruin_count_unimplemented``."""
+    assert ("plus_one_matters", "you", "") in _idents("Rumbling Ruin")
+
+
+def test_plus_one_matters_deepwood_denizen_cost_reduction_unimplemented_bridge():
+    """Deepwood Denizen (ADR-0039 W8, CR 118.7 / 122.1): "{5}{G}, {T}:
+    Draw a card. This ability costs {1} less to activate for each +1/+1
+    counter on creatures you control" — phase structures the mana/tap
+    cost and the Draw payoff but drops the cost-reduction sub-clause as
+    ``Unimplemented(name='this')``, the SAME clause-grammar-frontier gap
+    as Rumbling Ruin's ``'count'`` verb, a different verb name. Ledgered
+    bridge ``plus_one_deepwood_denizen_cost_reduction_unimplemented``."""
+    assert ("plus_one_matters", "you", "") in _idents("Deepwood Denizen")
+
+
+def test_plus_one_matters_hierophant_previouseffectamount_dropped_kind_bridge():
+    """Hierophant Bio-Titan (ADR-0039 W8, CR 601.2f): "As an additional
+    cost to cast this spell, you may remove any number of +1/+1 counters
+    from among creatures you control. This spell costs {2} less to cast
+    for each counter removed this way" structures as a ``ModifyCost``
+    static with ``dynamic_count=PreviousEffectAmount`` — a scaler keyed
+    to however much the ADDITIONAL-COST removal did — but that node
+    carries NO counter-kind field at all; phase's own encoding of "the
+    preceding effect's amount" has nowhere to put which kind it removed.
+    Ledgered bridge
+    ``plus_one_hierophant_previouseffectamount_dropped_kind``."""
+    assert ("plus_one_matters", "you", "") in _idents("Hierophant Bio-Titan")
+
+
+def test_plus_one_matters_tetravus_removecounter_token_pair_bridge():
+    """Tetravus (ADR-0039 W8, CR 122.1): "you may remove any number of
+    +1/+1 counters from ~. If you do, create that many ... tokens" is a
+    typed P1P1 ``RemoveCounter`` EFFECT (not an activation cost — the
+    existing Shape-5 arm only reads ``unit.node.cost``, CR 118.7) paired
+    with a ``Token`` effect whose count Refs the SAME removed amount via
+    ``EventContextAmount`` — a counter-to-token CONVERSION idiom our
+    clause grammar has no verb for yet. A corpus check confirmed this
+    pairing is the genuinely distinct shape: 39 commander-legal cards
+    carry a P1P1 RemoveCounter effect outside any cost, but the other 38
+    (Phantom-cycle evasion drain, Clockwork-cycle counter-draining
+    activated abilities, Protean Hydra's self-shrink, ...) are NOT
+    counter-to-token conversions and correctly stay unserved — a bare
+    unscoped EFFECT-chain widening was rejected as an over-fire risk.
+    Ledgered bridge ``plus_one_tetravus_removecounter_token_pair``."""
+    assert ("plus_one_matters", "you", "") in _idents("Tetravus")
+
+
 def test_any_counter_matters_predicate_arm():
     assert ("any_counter_matters", "you", "") in _idents("Concord with the Kami")
 
