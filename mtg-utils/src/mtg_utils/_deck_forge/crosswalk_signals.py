@@ -343,6 +343,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DISCARD_OUTLET_REGEX,
     TOPDECK_STACK_SWEEP_REGEX,
 )
+from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.card_ir import Card
 
@@ -1247,7 +1248,19 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
     # Punishment/Mindculling/Azula, each its own shape — banked, not
     # force-fit this session. Key stays residual.
     {
-        "artifacts_matter",
+        # ADR-0039 bridge phase (2026-07-11): ``artifacts_matter`` PROMOTED —
+        # the two W5-tails genuine gaps closed by the two pattern-setting
+        # mechanisms of the bridge phase: (1) Dargo, the Shipwrecker via the
+        # ``build_concept_tree`` additional-cost CARRIER fix (a root
+        # ``additional_cost`` with no Spell-kind ability entry was silently
+        # dropped; the synthesized carrier unit fixed 17 cards corpus-wide,
+        # all pure gains — CR 601.2b); (2) Bello, Bard of the Brambles via
+        # the FIRST ledgered bridge (``bridge_ledger.BRIDGES[
+        # "bello_static_animate_artifacts"]`` — phase's static parser fails
+        # the whole animation line, upstream report candidate). Final
+        # live_only == exactly the two adjudicated, negative-pinned
+        # symmetric-edict sheds (Braids, Cabal Minion; Catch // Release —
+        # CR 701.21a): the landfall rule. both=5008 / cw_only=18 unchanged.
         "base_pt_set",
         "cheat_into_play",
         "creatures_matter",
@@ -4022,6 +4035,14 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # artifacts. CR 702.41a / 303.
     if "affinity for enchantments" in _kept(tree).lower():
         out.append("enchantments_matter")
+    # LEDGERED BRIDGE (ADR-0039): Bello, Bard of the Brambles — phase's
+    # static parser fails the whole artifact/enchantment-animation line
+    # (upstream_parse_failure residue), so no typed node exists to read.
+    # Gap-gated + corpus-bounded (1 hit / 31,622) + self-retiring; the full
+    # row (census, retirement TODO, convergence pins) lives in
+    # ``bridge_ledger.BRIDGES``.
+    if bridge_fires("bello_static_animate_artifacts", tree):
+        out.append("artifacts_matter")
     seen: set[str] = set()
     sigs: list[Signal] = []
     for lane in out:

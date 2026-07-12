@@ -3656,6 +3656,7 @@ def build_concept_tree(
     # ability unit so the existing per-unit ``costs`` walk sees it (Costly
     # Plunder, Trash for Treasure, Kuldotha Rebirth).
     spell_ac_costs = _spell_additional_cost_concepts(root)
+    spell_ac_attached = False
     abilities = getattr(root, "abilities", ()) or ()
     for i, ab in enumerate(abilities):
         if not isinstance(ab, TypedMirrorNode):
@@ -3664,6 +3665,7 @@ def build_concept_tree(
         costs = _cost_concepts(ab)
         if kind == "Spell" and spell_ac_costs:
             costs = costs + spell_ac_costs
+            spell_ac_attached = True
         units.append(
             AbilityUnit(
                 origin="ability",
@@ -3676,6 +3678,32 @@ def build_concept_tree(
                 statics=_nested_static_concepts(ab),
             )
         )
+    if spell_ac_costs and not spell_ac_attached:
+        # Dargo class: the root ``additional_cost`` exists but NO Spell-kind
+        # ability entry does (a permanent whose only parsed ability is a
+        # static/triggered rider — Dargo, the Shipwrecker's cost-reduction
+        # static). Without a carrier the computed cost concepts were silently
+        # dropped. Synthesize the Spell-kind carrier unit the merge above
+        # needs; ``node`` is the verbatim ``additional_cost`` wrapper (the
+        # preserved tree position), so the unit carries the SAME visibility
+        # the merge path gives an existing Spell unit: the concepts ride
+        # ``costs``, and ``node.cost`` stays absent on both paths (CR 601.2b —
+        # an additional cost is part of casting the spell, not an activation
+        # cost).
+        ac_node = getattr(root, "additional_cost", MISSING)
+        if isinstance(ac_node, TypedMirrorNode):
+            units.append(
+                AbilityUnit(
+                    origin="ability",
+                    index=len(abilities),
+                    node=ac_node,
+                    kind="Spell",
+                    trigger_event=None,
+                    effects=(),
+                    costs=spell_ac_costs,
+                    statics=(),
+                )
+            )
 
     triggers = getattr(root, "triggers", ()) or ()
     for i, trig in enumerate(triggers):

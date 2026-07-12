@@ -13104,6 +13104,44 @@ def test_artifacts_matter_excludes_symmetric_edict_sheds():
     assert "artifacts_matter" not in _keys("Braids, Cabal Minion")
 
 
+def test_additional_cost_carrier_dargo():
+    """ADR-0039 bridge phase — the ``build_concept_tree`` CARRIER fix. A
+    root ``additional_cost`` (CR 601.2b) on a card with NO Spell-kind
+    ability entry (Dargo, the Shipwrecker: its only parsed ability is the
+    static cost-reduction rider) was silently dropped by the Spell-unit
+    merge; the synthesized carrier unit now lands the computed cost
+    concepts, so the artifact-fodder read fires. All-key corpus diff for
+    the fix: 17 cards changed, ALL gains, zero losses."""
+    assert "artifacts_matter" in _keys("Dargo, the Shipwrecker")
+
+
+@pytest.mark.parametrize(
+    ("name", "key"),
+    [
+        # Bargain-style optional additional-cost sacrifice — a genuine
+        # discretionary outlet the carrier fix newly reaches (CR 601.2b;
+        # 8 sacrifice_outlets gains corpus-wide).
+        ("Agatha's Champion", "sacrifice_outlets"),
+        # Additional-cost discard — a madness/delirium-enabling outlet
+        # (6 discard_outlet gains corpus-wide).
+        ("Lesser Masticore", "discard_outlet"),
+    ],
+)
+def test_additional_cost_carrier_gain_classes(name, key):
+    assert key in _keys(name)
+
+
+def test_bello_ledgered_bridge_membership():
+    """MEMBERSHIP pin (survives graduation): Bello, Bard of the Brambles
+    fires ``artifacts_matter``. The MECHANISM today is the first ledgered
+    bridge (``bridge_ledger.BRIDGES["bello_static_animate_artifacts"]`` —
+    phase's static parser fails the whole animation line); when a phase
+    bump or grammar verb lands the structure, the bridge's convergence
+    test (test_bridge_ledger.py) flags RETIRE-READY and THIS pin must
+    keep passing via the structural read instead."""
+    assert "artifacts_matter" in _keys("Bello, Bard of the Brambles")
+
+
 # ── ADR-0038 W4 giant: direct_damage (structural arms + verified CR) ─────────
 #
 # Census over the full commander-legal corpus (535 live_only, both=1157)
