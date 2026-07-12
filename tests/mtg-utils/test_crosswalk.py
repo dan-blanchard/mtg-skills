@@ -2656,51 +2656,42 @@ def test_voltron_matters_sheds_removal_target_reference(name):
     assert "voltron_matters" not in _keys(name)
 
 
-def test_voltron_matters_residual_dropped_clauses():
-    """ADR-0038 W6 endgame — genuine residual (defer, no clause_grammar.py
-    change this wave, per ADR-0039): four cards whose phase parse silently
-    DROPS the exact clause voltron_matters needs, with zero recoverable
-    residue anywhere in the tree (verified via direct node inspection this
-    session, not just a diff count):
-
-    * Warchanter Skald — the trigger's own ``condition`` field is ``None``;
-      "if it's enchanted or equipped" survives ONLY inside the trigger's
-      whole-clause ``description`` string, indistinguishable from a
-      genuinely-absent condition on any other trigger (CR 301.5c).
-    * Judgment Bolt — "and X damage to that creature's controller, where X
-      is the number of Equipment you control" is dropped in its entirety;
-      the single ``S_abilities`` unit carries only the base 5-damage
-      effect, no second recipient/scaling node anywhere (CR 107.3).
-    * Forge Anew — the "pay {0} rather than the equip cost" clause parses
-      as a bare unlinked ``PayCost`` effect with no reachable Equipment/
-      equip-keyword tag tying it to the granted timing permission
-      (CR 601.2f).
-    * Animal Friend — the granted trigger's ``PutCounter`` effect count is
-      ``T_count__Fixed(value=1)``; "for each Aura and Equipment attached to
-      ~ other than ~" is dropped from the count entirely, not merely
-      un-descended-into (CR 107.3/301.5c).
-
-    Each is a genuine phase grammar gap (the count/condition-building rule
-    for this exact clause shape), not a crosswalk_signals.py detector gap —
-    closing it needs a phase-mirror grammar change, which is out of scope
-    for a single-wave session per the recipe's "no clause_grammar.py
-    changes" rule. Ledgered here as the W6 bridge-ledger input."""
-    for name in ("Warchanter Skald", "Judgment Bolt", "Forge Anew", "Animal Friend"):
-        assert "voltron_matters" not in _keys(name)
+def test_voltron_matters_bridge_attach_count_scaling_dropped():
+    """ADR-0039 W7 endgame: PROMOTED via the ``voltron_attach_count_scaling_
+    dropped`` ledgered bridge (bridge_ledger.py) — Judgment Bolt / Animal
+    Friend / Sage's Reverie share the SAME idiom: an Aura/Equipment
+    attachment-count scaling clause ("where X is the number of Equipment
+    you control", "for each Aura and Equipment attached to ~ other than
+    ~", "for each Aura you control that's attached to a creature") that
+    phase drops to a bare ``Fixed`` count/value with zero ``ObjectCount``/
+    ``Aggregate`` operand anywhere in the tree (CR 107.3/301.5c/303.4c —
+    verified this session). GRADUATION RULE: if a future phase bump lands
+    the real scaling node, the bridge's ``gap`` goes False and these
+    mechanism pins fail loudly — rewrite to the structural read then, the
+    membership assertion stays."""
+    for name in ("Judgment Bolt", "Animal Friend", "Sage's Reverie"):
+        assert ("voltron_matters", "you", "") in _idents(name)
 
 
-def test_voltron_matters_residual_dropped_scaling():
-    """ADR-0038 W6 endgame — genuine residual (defer): Sage's Reverie's
-    "draw a card for each Aura you control that's attached to a creature" /
-    "Enchanted creature gets +1/+1 for each Aura you control that's
-    attached to a creature" both parse as FIXED values (``T_count__Fixed
-    (value=1)`` on the Draw, ``AddPower(value=1)``/``AddToughness(value=1)``
-    on the static) — the "for each Aura ... attached" scaling clause is
-    dropped from BOTH sites entirely, with no dynamic Ref/Aggregate operand
-    anywhere in the tree to read. A genuine phase grammar gap (CR
-    107.3/301.5c), deferred per ADR-0039 (no clause_grammar.py change this
-    wave)."""
-    assert "voltron_matters" not in _keys("Sage's Reverie")
+def test_voltron_matters_bridge_warchanter_skald_condition_dropped():
+    """ADR-0039 W7 endgame: PROMOTED via the ``warchanter_skald_condition_
+    dropped`` ledgered bridge — the Taps-mode trigger's own ``condition``
+    field decomposes as ``None``; "if it's enchanted or equipped" survives
+    ONLY inside the trigger's whole-clause ``description`` string (CR
+    301.5c/303.4c)."""
+    assert ("voltron_matters", "you", "") in _idents("Warchanter Skald")
+
+
+def test_voltron_matters_bridge_forge_anew_paycost_unlinked():
+    """ADR-0039 W7 endgame: PROMOTED via the ``forge_anew_equip_cost_
+    paycost_unlinked`` ledgered bridge — "pay {0} rather than pay the
+    equip cost" parses as a bare unlinked ``PayCost`` node with no
+    reachable Equipment/equip-keyword tag tying it to the granted timing
+    permission (CR 601.2f/702.6c). Bruenor Battlehammer's structurally
+    identical clause is correctly served through its OWN structural
+    ObjectCount arm instead (never reaches the bridge)."""
+    assert ("voltron_matters", "you", "") in _idents("Forge Anew")
+    assert ("voltron_matters", "you", "") in _idents("Bruenor Battlehammer")
 
 
 # ── Batch-3 over-fire regressions (rules-lawyer adjudicated; ADR-0035) ─────────
@@ -7373,6 +7364,96 @@ def test_exile_matters_widened_deep_scan_wrapped_count(name):
     subtree scan (mirroring the STATIC arm's own deep scan) reaches both
     shapes regardless of nesting depth or field name. CR 406.1."""
     assert ("exile_matters", "you", "") in _idents(name)
+
+
+def test_exile_matters_suspend_reuse_gate_is_structural():
+    """ADR-0039 W7 endgame: the ``RemoveCounter``-from-an-exiled-card arm's
+    Suspend-reuse exclusion is now the STRUCTURAL ``HasKeywordKind='Suspend'``
+    tell (:func:`_has_suspend_keyword_property`), not the ``counter_type ==
+    'time'`` NAME proxy — Alaundo the Seer's own "remove a time counter from
+    each other card you own in exile" is a home-brewed counter mechanic with
+    NO Suspend keyword property anywhere in its target (a real member, a
+    mechanism gain), corpus-verified against every genuine Suspend
+    RemoveCounter shape this session (CR 406.1/702.62a)."""
+    assert ("exile_matters", "you", "") in _idents("Alaundo the Seer")
+
+
+def test_exile_matters_order_sensitive_tracked_set_size():
+    """ADR-0039 W7 endgame: Rysorian Badger's "exile up to two target
+    creature cards ... you gain 1 life for each card exiled this way" is a
+    bare ``TrackedSetSize`` qty (no ``caused_by`` filter) chained directly
+    AFTER its own exile step (:func:`_exile_then_tracked_set_size`,
+    order-sensitive). CR 406.1/601.2c."""
+    assert ("exile_matters", "you", "") in _idents("Rysorian Badger")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # genuine CR 702.62a Suspend-mechanic reuse (the "time" counter on
+        # an exiled suspended card is a generic game-rule action, not an
+        # exile-as-resource build-around) — the boundary the RemoveCounter/
+        # ObjectCount arms' Suspend-keyword-property gate excludes.
+        "Rose Tyler",
+        "Amy Pond",
+    ],
+)
+def test_exile_matters_sheds_suspend_reuse(name):
+    """ADR-0039 W7 endgame: Rose Tyler / Amy Pond both scale off a genuine
+    Suspend-keyword-tagged exile pile (``HasKeywordKind='Suspend'`` on the
+    relevant filter/target) — the SAME CR 702.62a reuse boundary Alaundo
+    the Seer's structural fix correctly does NOT re-admit. Adjudicated
+    sheds (2 cards — the full population, not a sample)."""
+    assert "exile_matters" not in _keys(name)
+
+
+@pytest.mark.parametrize("name", ["Mairsil, the Pretender", "Rex, Cyber-Hound"])
+def test_exile_matters_bridge_grant_all_activated_abilities(name):
+    """ADR-0039 W7 endgame: PROMOTED via the
+    ``exile_grant_all_activated_abilities`` ledgered bridge — "~ has all
+    activated abilities of all cards [you own] in exile with <kind>
+    counters on them" phase's static parser recognizes but fails to
+    structure (``Unimplemented(name='static_structure')``, the SAME
+    diagnostic family as Bello's animate line). CR 113.10/406.1."""
+    assert ("exile_matters", "you", "") in _idents(name)
+
+
+def test_exile_matters_bridge_grolnok_cast_from_exile_counter_pile():
+    """ADR-0039 W7 endgame: PROMOTED via the
+    ``grolnok_cast_from_exile_counter_pile`` ledgered bridge — "You may
+    play lands and cast spells from among cards you own in exile with
+    croak counters on them" fails the effect parser
+    (``Unimplemented(name='effect_structure')``). CR 305.1/601.3/406.1."""
+    assert ("exile_matters", "you", "") in _idents("Grolnok, the Omnivore")
+
+
+def test_exile_matters_bridge_candlekeep_inspiration_exile_gy_pt_setter():
+    """ADR-0039 W7 endgame: PROMOTED via the
+    ``candlekeep_inspiration_exile_gy_pt_setter`` ledgered bridge — the
+    whole dynamic base-P/T-setter clause ("... where X is the number of
+    cards you own in exile and in your graveyard ...") drops as
+    ``Unimplemented(name='creatures')`` with no SetDynamicPower/
+    SetDynamicToughness pair anywhere. CR 107.3/613.4c/406.1."""
+    assert ("exile_matters", "you", "") in _idents("Candlekeep Inspiration")
+
+
+def test_exile_matters_bridge_close_encounter_warped_exile_additional_cost():
+    """ADR-0039 W7 endgame: PROMOTED via the
+    ``close_encounter_warped_exile_additional_cost`` ledgered bridge — the
+    additional-cost clause "choose a creature you control or a warped
+    creature card you own in exile" is dropped with ZERO trace (unit.costs
+    empty, no Unimplemented residue) — an absence proof. CR 601.2f/406.1."""
+    assert ("exile_matters", "you", "") in _idents("Close Encounter")
+
+
+def test_exile_matters_bridge_kaya_emblem_cast_from_exile_drop():
+    """ADR-0039 W7 endgame: PROMOTED via the
+    ``kaya_emblem_cast_from_exile_drop`` ledgered bridge — the -7 emblem's
+    granted trigger names casting "from your hand, from your graveyard, or
+    from among cards you own in exile" in its OWN description, but the
+    granted CastFromZone's target filter carries ONLY the hand-zone
+    branch. CR 601.3/406.1."""
+    assert ("exile_matters", "you", "") in _idents("Kaya the Inexorable")
 
 
 @pytest.mark.parametrize("name", ["Whirler Virtuoso", "Aetherworks Marvel"])

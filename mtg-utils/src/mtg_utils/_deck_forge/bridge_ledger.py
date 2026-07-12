@@ -48,6 +48,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_filter,
     effect_reaches_player,
     filter_core_types,
+    filter_inzone_zones,
     filter_subtypes,
     iter_typed_nodes,
     tag_of,
@@ -1375,6 +1376,267 @@ def _land_creatures_condition_ref_match(tree: ConceptTree) -> bool:
     return _land_creatures_condition_ref_gap(tree)
 
 
+# ── exile_matters bridges (ADR-0039 W7, 2026-07-12) ──────────────────────────
+
+
+# (1) Mairsil, the Pretender / Rex, Cyber-Hound — "~ has all activated
+# abilities of all cards [you own] in exile with [a] <kind> counter[s] on
+# them" (CR 113.10 — an effect that ADDS an ability). Phase's static parser
+# recognizes the line but fails to structure it (the SAME failure family as
+# Bello's animate line): ``Unimplemented(name='static_structure')`` with no
+# ``GrantAbility``/``GrantStaticAbility`` node anywhere for the granted-
+# ability-suite idiom. Grouped as ONE idiom class (same diagnostic name,
+# same clause shape — "has all activated abilities" is the load-bearing
+# anchor, not the counter-kind word).
+_MAIRSIL_REX_RX = re.compile(
+    r"has all (?:the )?activated abilities of all cards (?:you own )?in"
+    r" exile with [^.]* counters? on (?:it|them)",
+    re.IGNORECASE,
+)
+
+
+def _mairsil_rex_gap(tree: ConceptTree) -> bool:
+    return any(True for _ in _static_parse_failure_descs(tree))
+
+
+def _mairsil_rex_match(tree: ConceptTree) -> bool:
+    return any(_MAIRSIL_REX_RX.search(d) for d in _static_parse_failure_descs(tree))
+
+
+# (2) Grolnok, the Omnivore — "You may play lands and cast spells from among
+# cards you own in exile with croak counters on them" (CR 305.1 land-play
+# permission / CR 601.3 cast permission). A DIFFERENT phase diagnostic name
+# than (1) — ``Unimplemented(name='effect_structure')`` ("Effect sentence
+# candidate but line failed effect parser") — so a separate gap/match pair,
+# even though the surface idiom (a counter-gated persistent exile pile as a
+# play/cast resource) is a sibling of (1)'s ability-grant idiom.
+def _effect_structure_descs(tree: ConceptTree) -> Iterator[str]:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if (
+                tag_of(n) == "Unimplemented"
+                and getattr(n, "name", None) == "effect_structure"
+            ):
+                yield getattr(n, "description", "") or ""
+
+
+_GROLNOK_RX = re.compile(
+    r"play lands and cast spells from among cards you own in exile with"
+    r" [^.]* counters? on (?:it|them)",
+    re.IGNORECASE,
+)
+
+
+def _grolnok_gap(tree: ConceptTree) -> bool:
+    return any(True for _ in _effect_structure_descs(tree))
+
+
+def _grolnok_match(tree: ConceptTree) -> bool:
+    return any(_GROLNOK_RX.search(d) for d in _effect_structure_descs(tree))
+
+
+# (3) Candlekeep Inspiration — "Until end of turn, creatures you control
+# have base power and toughness X/X, where X is the number of cards you own
+# in exile and in your graveyard that are instant cards, are sorcery cards,
+# and/or have an Adventure" (CR 107.3 X-as-placeholder / 613.4c
+# characteristic-defining). A THIRD diagnostic name —
+# ``Unimplemented(name='creatures')`` — the whole dynamic P/T-setter clause
+# dropped wholesale with no ``SetDynamicPower``/``SetDynamicToughness`` pair
+# anywhere in the tree.
+def _creatures_unimpl_descs(tree: ConceptTree) -> Iterator[str]:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == (
+                "creatures"
+            ):
+                yield getattr(n, "description", "") or ""
+
+
+_CANDLEKEEP_RX = re.compile(
+    r"where x is the number of cards you own in exile", re.IGNORECASE
+)
+
+
+def _candlekeep_gap(tree: ConceptTree) -> bool:
+    return any(True for _ in _creatures_unimpl_descs(tree))
+
+
+def _candlekeep_match(tree: ConceptTree) -> bool:
+    return any(_CANDLEKEEP_RX.search(d) for d in _creatures_unimpl_descs(tree))
+
+
+# (4) Close Encounter — "As an additional cost to cast this spell, choose a
+# creature you control or a warped creature card you own in exile" (CR
+# 601.2f additional cost). ZERO residue anywhere: ``unit.costs`` is empty
+# and no ``Unimplemented`` node carries the clause text either (confirmed
+# via direct tree dump) — an ABSENCE proof, the Degavolver precedent, since
+# there is no residue node to read.
+_CLOSE_ENCOUNTER_RX = re.compile(
+    r"warped creature card you own in exile", re.IGNORECASE
+)
+
+
+def _close_encounter_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        if unit.costs:
+            return False
+        for n in iter_typed_nodes(unit.node):
+            if "Exile" in filter_inzone_zones(getattr(n, "filter", None)):
+                return False
+            if "Exile" in filter_inzone_zones(getattr(n, "target", None)):
+                return False
+    return True
+
+
+def _close_encounter_match(tree: ConceptTree) -> bool:
+    return bool(_CLOSE_ENCOUNTER_RX.search(tree.oracle or ""))
+
+
+# (5) Kaya the Inexorable — the -7 emblem's granted trigger's OWN
+# description names "from your hand, from your graveyard, or from among
+# cards you own in exile" (CR 601.3 cast permission), but the granted
+# ``CastFromZone`` effect's target filter carries ONLY the hand-zone
+# branch — the graveyard/exile alternate-source clause is dropped from the
+# target filter entirely. Anchored to the OWNING trigger's own description
+# (not a whole-card scan), mirroring the module's ``_unknown_mode_*``
+# per-node last-resort family.
+def _kaya_emblem_cast_from_exile_drop(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "CreateEmblem":
+                continue
+            for trig in getattr(n, "triggers", None) or []:
+                desc = (getattr(trig, "description", "") or "").lower()
+                if "in exile" not in desc:
+                    continue
+                execute = getattr(trig, "execute", None)
+                eff = getattr(execute, "effect", None) if execute else None
+                if tag_of(eff) != "CastFromZone":
+                    continue
+                target = getattr(eff, "target", None)
+                if "Exile" not in filter_inzone_zones(target):
+                    return True
+    return False
+
+
+# ── voltron_matters bridges (ADR-0039 W7, 2026-07-12) ─────────────────────────
+
+# Duplicated (not imported) from crosswalk_signals — same rationale as
+# _LAND_SUBTYPES (crosswalk_signals imports bridge_fires FROM this module).
+_VOLTRON_SUBTYPES: frozenset[str] = frozenset({"aura", "equipment", "role"})
+
+# (1) Judgment Bolt / Animal Friend / Sage's Reverie — the SAME idiom class:
+# an Aura/Equipment ATTACHMENT-COUNT scaling clause ("for each Aura/
+# Equipment ... attached", "where X is the number of Equipment you
+# control") that phase drops entirely — the corresponding count/value node
+# is a bare ``Fixed`` (Animal Friend's PutCounter count=Fixed(1), Sage's
+# Reverie's Draw count=Fixed(1) and AddPower/AddToughness value=1, Judgment
+# Bolt's DealDamage carries no second recipient/scaling node at all) with
+# NO ``ObjectCount``/``Aggregate`` scoped to Equipment/Aura anywhere in the
+# tree to descend into (CR 301.5/303.4/107.3). Tightly anchored (not the
+# legacy ``VOLTRON_PAYOFF_REGEX`` bare "equipment you control" branch,
+# which over-fires on Affinity-for-Equipment reminder text and imperative
+# attach-ACTION clauses — see the census note below): requires "for each
+# Aura/Equipment ... attached" IN THE SAME CLAUSE, or the "where X is the
+# number of Equipment you control" scaling frame specifically.
+_VOLTRON_SCALING_RX = re.compile(
+    r"\bfor each (?:aura|equipment)\b[^.]*\battached\b"
+    r"|\bwhere x is the number of equipment you control\b",
+    re.IGNORECASE,
+)
+
+
+def _voltron_scaling_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) not in ("ObjectCount", "Aggregate"):
+                continue
+            filt = getattr(n, "filter", None)
+            if filt is not None and (
+                {s.lower() for s in filter_subtypes(filt)} & _VOLTRON_SUBTYPES
+            ):
+                return False
+    return True
+
+
+def _voltron_scaling_match(tree: ConceptTree) -> bool:
+    return bool(_VOLTRON_SCALING_RX.search(tree.oracle or ""))
+
+
+# (2) Warchanter Skald — "Whenever ~ becomes tapped, if it's enchanted or
+# equipped, create a 2/1 red Dwarf Berserker creature token" (CR 301.5c /
+# 303.4c). The trigger's OWN ``condition`` field is ``None`` — "if it's
+# enchanted or equipped" survives ONLY inside the trigger's whole-clause
+# ``description`` string, indistinguishable from a genuinely-absent
+# condition on any other trigger. Anchored to the SPECIFIC trigger node
+# (mode='Taps', condition is None) rather than a whole-card scan.
+def _warchanter_condition_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        if getattr(unit.node, "mode", None) != "Taps":
+            continue
+        if getattr(unit.node, "condition", None) is None:
+            return True
+    return False
+
+
+def _warchanter_condition_match(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        if getattr(unit.node, "mode", None) != "Taps":
+            continue
+        desc = (getattr(unit.node, "description", "") or "").lower()
+        if "enchanted or equipped" in desc or "equipped or enchanted" in desc:
+            return True
+    return False
+
+
+# (3) Forge Anew — "You may pay {0} rather than pay the equip cost of the
+# first equip ability you activate during each of your turns" (CR 601.2f /
+# 702.6c). The {0}-alternative-payment half parses as a bare unlinked
+# ``PayCost`` node with no reachable Equipment/equip-keyword tag tying it
+# to the granted timing permission — Bruenor Battlehammer's structurally
+# IDENTICAL clause is excluded because Bruenor ALSO carries a genuine
+# ObjectCount/Aggregate Equipment-count scalar elsewhere on the SAME card
+# ("+2/+0 for each Equipment attached to it"), so its ``voltron_matters``
+# is already served through that other arm before this bridge is ever
+# reached (the ``bridge_fires`` gate call site in crosswalk_signals.py sits
+# at the END of the lane, after every structural arm has already tried).
+_FORGE_ANEW_RX = re.compile(r"pay \{0\} rather than pay the equip cost", re.IGNORECASE)
+
+
+def _forge_anew_paycost_unlinked_gap(tree: ConceptTree) -> bool:
+    """A ``PayCost({0})`` node exists but no equip-keyword
+    ``ReduceAbilityCost`` tag reaches the same unit — the alternative-
+    payment clause is structurally unlinked from the equip ability it
+    modifies. Self-retires once phase ties the two together."""
+    for unit in tree.units:
+        has_paycost_zero = False
+        has_equip_link = False
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "PayCost":
+                cost = getattr(n, "cost", None)
+                mana_cost = getattr(cost, "cost", None)
+                if getattr(mana_cost, "generic", None) == 0 and not getattr(
+                    mana_cost, "shards", None
+                ):
+                    has_paycost_zero = True
+            if (
+                tag_of(n) == "ReduceAbilityCost"
+                and str(getattr(n, "keyword", "")).lower() == "equip"
+            ):
+                has_equip_link = True
+        if has_paycost_zero and not has_equip_link:
+            return True
+    return False
+
+
+def _forge_anew_match(tree: ConceptTree) -> bool:
+    return bool(_FORGE_ANEW_RX.search(tree.oracle or ""))
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -2493,6 +2755,214 @@ BRIDGES: dict[str, Bridge] = {
             ),
             gap=_ramp_dropped_clause_gap,
             match=_ramp_dropped_clause_match,
+        ),
+        Bridge(
+            bridge_id="exile_grant_all_activated_abilities",
+            key="exile_matters",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "static parser recognizes but fails to structure "
+                "'~ has all activated abilities of all cards [you own] in "
+                "exile with <kind> counters on them' — no GrantAbility/"
+                "GrantStaticAbility node results — retires on a phase "
+                "bump that parses this ability-suite-import idiom into a "
+                "typed grant node"
+            ),
+            census=(
+                "2 hits / 31,622 commander-legal static_structure "
+                "Unimplemented residues matching the 'has all activated "
+                "abilities ... in exile with ... counters' idiom, phase "
+                "v0.20.0, 2026-07-12 (exactly the 2 pins — Mairsil, the "
+                "Pretender and Rex, Cyber-Hound; Warden of the Beyond's "
+                "superficially similar 'owns a card in exile' condition "
+                "is a DIFFERENT idiom, already closed by the existing "
+                "gap-marker text-fallback arm)"
+            ),
+            pins=("Mairsil, the Pretender", "Rex, Cyber-Hound"),
+            gap=_mairsil_rex_gap,
+            match=_mairsil_rex_match,
+        ),
+        Bridge(
+            bridge_id="grolnok_cast_from_exile_counter_pile",
+            key="exile_matters",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "effect parser recognizes but fails to structure 'You may "
+                "play lands and cast spells from among cards you own in "
+                "exile with <kind> counters on them' (no CastFromZone/"
+                "MayPlayAdditionalLand permission node results) — retires "
+                "on a phase bump that parses this dual land-play/cast "
+                "permission into typed nodes"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal effect_structure "
+                "Unimplemented residues matching the 'play lands and cast "
+                "spells from among cards you own in exile with ... "
+                "counters' idiom, phase v0.20.0, 2026-07-12 (exactly the "
+                "1 pin)"
+            ),
+            pins=("Grolnok, the Omnivore",),
+            gap=_grolnok_gap,
+            match=_grolnok_match,
+        ),
+        Bridge(
+            bridge_id="candlekeep_inspiration_exile_gy_pt_setter",
+            key="exile_matters",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "effect parser drops the WHOLE dynamic base-P/T-setter "
+                "clause 'creatures you control have base power and "
+                "toughness X/X, where X is the number of cards you own in "
+                "exile and in your graveyard that are instant cards, are "
+                "sorcery cards, and/or have an Adventure' as "
+                "Unimplemented(name='creatures') — no SetDynamicPower/"
+                "SetDynamicToughness pair anywhere — retires on a phase "
+                "bump that structures this dual-zone dual-type-filter X "
+                "count"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal Unimplemented(name="
+                "'creatures') residues matching 'where x is the number of "
+                "cards you own in exile', phase v0.20.0, 2026-07-12 "
+                "(exactly the 1 pin)"
+            ),
+            pins=("Candlekeep Inspiration",),
+            gap=_candlekeep_gap,
+            match=_candlekeep_match,
+        ),
+        Bridge(
+            bridge_id="close_encounter_warped_exile_additional_cost",
+            key="exile_matters",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "additional-cost clause 'choose a creature you control or "
+                "a warped creature card you own in exile' is dropped with "
+                "ZERO trace — unit.costs is empty and no Unimplemented "
+                "residue carries the clause text either — retires on a "
+                "phase bump that structures this additional-cost choice "
+                "into unit.costs"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal cards whose oracle text "
+                "matches 'warped creature card you own in exile', phase "
+                "v0.20.0, 2026-07-12 (exactly the 1 pin)"
+            ),
+            pins=("Close Encounter",),
+            gap=_close_encounter_gap,
+            match=_close_encounter_match,
+        ),
+        Bridge(
+            bridge_id="kaya_emblem_cast_from_exile_drop",
+            key="exile_matters",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a "
+                "granted trigger's own description names casting 'from "
+                "your hand, from your graveyard, or from among cards you "
+                "own in exile' but the granted CastFromZone's target "
+                "filter carries ONLY the hand-zone branch — the "
+                "graveyard/exile alternate-source clause is dropped from "
+                "the target filter — retires on a phase bump that "
+                "structures the full Or-zone target"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal CreateEmblem triggers "
+                "whose own description names 'in exile' paired with a "
+                "CastFromZone target that doesn't reach the exile zone, "
+                "phase v0.20.0, 2026-07-12 (exactly the 1 pin)"
+            ),
+            pins=("Kaya the Inexorable",),
+            gap=_kaya_emblem_cast_from_exile_drop,
+            match=_kaya_emblem_cast_from_exile_drop,
+        ),
+        Bridge(
+            bridge_id="voltron_attach_count_scaling_dropped",
+            key="voltron_matters",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): an Aura/"
+                "Equipment attachment-count scaling clause ('for each "
+                "Aura/Equipment ... attached', 'where X is the number of "
+                "Equipment you control') is dropped — the corresponding "
+                "count/value node decomposes as a bare Fixed constant "
+                "with no ObjectCount/Aggregate scoped to Equipment/Aura "
+                "anywhere in the tree — retires on a phase bump that "
+                "structures this scaling clause into a dynamic count "
+                "operand"
+            ),
+            census=(
+                "3 hits / 33 commander-legal cards matching the tight "
+                "'for each Aura/Equipment ... attached' / 'where X is the "
+                "number of Equipment you control' anchor AND unserved by "
+                "every other voltron_matters arm (incl. the shared "
+                "_apply_membership_floor creature-gated word tell), phase "
+                "v0.20.0, 2026-07-12 — exactly the 3 pins (Judgment Bolt, "
+                "Animal Friend, Sage's Reverie). NOTE: the legacy "
+                "VOLTRON_PAYOFF_REGEX's bare 'equipment you control' "
+                "branch is deliberately NOT reused here — it over-fires "
+                "on Affinity-for-Equipment reminder text and imperative "
+                "attach-ACTION clauses (Armed and Armored, Goldwardens' "
+                "Gambit, Oxidda Finisher, Rebel Salvo, and 5 more of the "
+                "existing attach-housekeeping shed class), all correctly "
+                "excluded by this tighter anchor"
+            ),
+            pins=("Judgment Bolt", "Animal Friend", "Sage's Reverie"),
+            gap=_voltron_scaling_gap,
+            match=_voltron_scaling_match,
+        ),
+        Bridge(
+            bridge_id="warchanter_skald_condition_dropped",
+            key="voltron_matters",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a "
+                "Taps-mode trigger's 'if it's enchanted or equipped' "
+                "condition clause is dropped — the trigger's own "
+                "condition field decomposes as None, with the clause "
+                "text surviving only in the trigger's whole-ability "
+                "description — retires on a phase bump that structures "
+                "this condition into a typed RequiresCondition/filter"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal Taps-mode triggers with "
+                "condition=None whose own description names 'enchanted "
+                "or equipped', phase v0.20.0, 2026-07-12 (exactly the 1 "
+                "pin)"
+            ),
+            pins=("Warchanter Skald",),
+            gap=_warchanter_condition_gap,
+            match=_warchanter_condition_match,
+        ),
+        Bridge(
+            bridge_id="forge_anew_equip_cost_paycost_unlinked",
+            key="voltron_matters",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): 'pay {0} "
+                "rather than pay the equip cost of the first equip "
+                "ability you activate' parses as a bare unlinked PayCost "
+                "node with no ReduceAbilityCost/equip-keyword tag tying "
+                "it to the ability it modifies — retires on a phase bump "
+                "that links the alternative payment to its equip-keyword "
+                "target"
+            ),
+            census=(
+                "2 hits / 31,622 commander-legal cards matching 'pay {0} "
+                "rather than pay the equip cost' (Forge Anew, Bruenor "
+                "Battlehammer), phase v0.20.0, 2026-07-12; Bruenor is "
+                "already served through its OWN '+2/+0 for each "
+                "Equipment attached to it' ObjectCount arm before this "
+                "bridge is ever reached (the bridge_fires call sits at "
+                "the end of the lane, after every structural arm) — "
+                "exactly the 1 remaining pin"
+            ),
+            pins=("Forge Anew",),
+            gap=_forge_anew_paycost_unlinked_gap,
+            match=_forge_anew_match,
         ),
     )
 }

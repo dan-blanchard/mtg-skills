@@ -1421,7 +1421,29 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         # trigger, and a RemoveCounter->Draw ``PreviousEffectAmount``
         # positive gate for Nexus Mentality. See :func:`_draw_for_each`'s
         # own docstring for the corpus history.
-        "exile_matters",
+        # exile_matters PROMOTED (ADR-0039 W7 endgame, 2026-07-12) —
+        # landfall met: both 73->81, live_only 10->2, and both remaining
+        # live_only cards (Rose Tyler, Amy Pond) are the adjudicated CR
+        # 702.62a Suspend-mechanic-reuse shed (the full 2-card population,
+        # not a sample). Two structural mechanism fixes: the RemoveCounter-
+        # from-an-exiled-card arm's Suspend-reuse gate is now the
+        # STRUCTURAL ``HasKeywordKind='Suspend'`` tell instead of the
+        # ``counter_type=='time'`` NAME proxy (Alaundo the Seer, a
+        # home-brewed "time counter" mechanic with no Suspend keyword
+        # property — a real gain, corpus-verified against every genuine
+        # Suspend RemoveCounter shape); an order-sensitive bare-
+        # ``TrackedSetSize``-after-exile-ChangeZone arm (Rysorian Badger,
+        # discriminated from Revival Experiment's reversed-order
+        # self-exile housekeeping by execution-chain position). Five
+        # ADR-0039 ledgered bridges close the rest
+        # (bridge_ledger.BRIDGES: exile_grant_all_activated_abilities
+        # [Mairsil, the Pretender; Rex, Cyber-Hound — the SAME "has all
+        # activated abilities of cards in exile with counters" idiom, a
+        # static_structure parse failure], grolnok_cast_from_exile_
+        # counter_pile, candlekeep_inspiration_exile_gy_pt_setter,
+        # close_encounter_warped_exile_additional_cost [zero-residue
+        # absence proof], kaya_emblem_cast_from_exile_drop). CR
+        # 406.1/113.10/601.2f/601.3/107.3/702.62a verified this session.
         # graveyard_matters PROMOTED (ADR-0038 W6 endgame) — 31 live_only
         # -> 0: a genuine ``ChooseFromZone`` GAIN (Dawnbreak Reclaimer)
         # plus a single unified LEGACY OVER-FIRE shed thesis covering the
@@ -1588,44 +1610,32 @@ _STAGE4_RESIDUAL: frozenset[str] = frozenset(
         # type_matters PROMOTED (ADR-0038 W5 tails) — see the crosswalk lane's
         # own docstring for the corpus history + the fully-adjudicated shed
         # class (the legacy _board_count_markers artifact).
-        # ADR-0038 W6 endgame (2026-07-11): voltron_matters STILL NOT
-        # PROMOTED — live_only cut from 82 (W5 tails) to 79. Three of the
-        # W5 tail's "genuine residual" cards turned out to be closable off
-        # EXISTING typed nodes, corpus-verified this session (all pinned in
-        # ``test_voltron_matters_recovered_mechanisms_w6`` /
-        # ``test_voltron_matters_mana_restriction_breadth_w6``):
-        #   * Kassandra, Eagle Bearer — an Unknown-mode trigger's own
-        #     preserved ``description`` carries the attachment tell
-        #     (``_unknown_mode_voltron_attachment``, mirroring the combat-
-        #     damage lanes' established ``_unknown_mode_*`` fallback idiom).
-        #   * Tetsuo, Imperial Champion — a modal mode's fully-structured
-        #     effect carries a mana-value CONSTRAINT scaled on a ``Ref``
-        #     over an ``Aggregate`` qty (``ref_count_filter`` only unwraps
-        #     ``ObjectCount``, so this needed its own reader,
-        #     ``_voltron_modal_aggregate_tell``).
-        #   * Ronin, Shadow Stalker — a mana ability's own ``restrictions``
-        #     list scopes the mana to Equipment spells / equip activation
-        #     (``_mana_restriction_equip_tell``, CR 106.6); this also
-        #     stands up an on-theme BREADTH gain on Tournament Grounds (a
-        #     land, no creature body — legacy never fires it either).
-        # 62 of the 79 are the adjudicated commander-damage MEMBERSHIP-
-        # fallback shed (mandatory: Big Winner / Croakid Amphibonaut /
-        # Grabby Tabby / Scared Stiff + 7 more W6 representatives, pinned)
-        # + 10 attach-action/housekeeping sheds + 2 removal/theft-target
-        # sheds (Soul Nova, Shackles of Treachery — an opponent's attacking
-        # creature's Equipment referenced as a REMOVAL side effect, not a
-        # payoff) — a genuine 7-card residual remains, all confirmed via
-        # direct node inspection to be phase-parse losses with NO
-        # recoverable residue anywhere in the tree (Warchanter Skald's
-        # dropped condition, Judgment Bolt's dropped second-recipient
-        # scaling, Forge Anew's unlinked alternative-cost PayCost, Animal
-        # Friend's and Sage's Reverie's dropped dynamic-count scaling —
-        # see ``test_voltron_matters_residual_dropped_clauses`` /
-        # ``test_voltron_matters_residual_dropped_scaling``). Landfall rule
-        # not met (live_only != exactly the shed set) — stays residual;
-        # ledgered for the ADR-0039 bridge phase (needs a phase-mirror
-        # grammar change, out of scope for a detector-only wave).
-        "voltron_matters",
+        # voltron_matters PROMOTED (ADR-0039 W7 endgame, 2026-07-12) —
+        # landfall met: both 2276->2281, live_only 81->76, and every
+        # remaining live_only card is one of three adjudicated shed
+        # classes: 64 commander-damage MEMBERSHIP-fallback (mandatory: Big
+        # Winner / Croakid Amphibonaut / Grabby Tabby / Scared Stiff + W6
+        # representatives, pinned) + 10 attach-action/housekeeping (Hammer
+        # of Nazahn, Battlefield Improvisation, Nahiri the Lithomancer,
+        # Unexpected Request, Armed and Armored, Super-Soldier Serum,
+        # Goldwardens' Gambit, Inventory Management, Resolute Strike,
+        # Benevolent Blessing) + 2 removal/theft-target (Soul Nova,
+        # Shackles of Treachery — CR 301.5c). The prior W6 5-card
+        # (7-in-comment) dropped-clause residual closes via three ADR-0039
+        # ledgered bridges (bridge_ledger.BRIDGES):
+        # ``voltron_attach_count_scaling_dropped`` (Judgment Bolt / Animal
+        # Friend / Sage's Reverie — the SAME "for each Aura/Equipment ...
+        # attached" / "where X is the number of Equipment you control"
+        # idiom, tightly anchored — NOT the legacy VOLTRON_PAYOFF_REGEX's
+        # bare "equipment you control" branch, which over-fires on
+        # Affinity-for-Equipment reminder text and attach-ACTION clauses),
+        # ``warchanter_skald_condition_dropped`` (a Taps-trigger's
+        # condition=None, the clause surviving only in ``description``),
+        # ``forge_anew_equip_cost_paycost_unlinked`` (an unlinked
+        # PayCost({0}); Bruenor Battlehammer's identical clause is served
+        # through its OWN structural ObjectCount arm before the bridge is
+        # ever reached). CR 301.5/303.4/107.3/601.2f/702.6c verified this
+        # session.
     }
 )
 
@@ -6604,6 +6614,20 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
             if filt is not None and (set(filter_predicates(filt)) & _ATTACHMENT_PREDS):
                 raw = _site_raw(sdef)
                 return [Signal("voltron_matters", "you", "", raw, tree.name, "high")]
+    # ADR-0039 W7 ledgered bridges — the residual dropped-clause bucket
+    # (bridge_ledger.py rows, docstring there for the full corpus
+    # accounting): an attachment-count scaling clause dropped to a bare
+    # Fixed value (Judgment Bolt / Animal Friend / Sage's Reverie), a
+    # trigger condition surviving only in description text (Warchanter
+    # Skald), and an unlinked equip-cost alternative-payment PayCost
+    # (Forge Anew).
+    for bridge_id in (
+        "voltron_attach_count_scaling_dropped",
+        "warchanter_skald_condition_dropped",
+        "forge_anew_equip_cost_paycost_unlinked",
+    ):
+        if bridge_fires(bridge_id, tree):
+            return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -14307,6 +14331,71 @@ def _exile_matters_time_counter_reuse(filt: object) -> bool:
     return False
 
 
+def _has_suspend_keyword_property(node: object) -> bool:
+    """Whether NODE's own subtree carries a ``HasKeywordKind(value='Suspend')``
+    property — the STRUCTURAL Suspend tell (CR 702.62a), distinct from the
+    "time" counter KIND proxy :func:`_exile_matters_time_counter_reuse` reads.
+    ADR-0039 W7 (2026-07-12): Shivan Sand-Mage / Fury Charm / Timebender /
+    Timecrafting's ``RemoveCounter`` targets are an ``Or[Typed(Battlefield),
+    Typed(Exile + HasKeywordKind='Suspend' + Counters='time')]`` — the Suspend
+    keyword property is what actually marks the reused mechanic, not the
+    counter's name. Alaundo the Seer's own "remove a time counter from each
+    other card you own in exile" RemoveCounter target is a bare
+    ``Typed(Another, Owned, InZone=Exile)`` with NO ``HasKeywordKind`` branch
+    at all (a home-brewed counter mechanic that merely reuses the "time"
+    counter's flavor name, not CR 702.62a Suspend) — corpus-verified this
+    session: of every commander-legal ``RemoveCounter{counter_type=time}``
+    node whose target reaches the exile zone, Alaundo is the ONLY one
+    without this property (2026-07 census, 5 hits total)."""
+    for n in iter_typed_nodes(node):
+        if tag_of(n) == "HasKeywordKind" and getattr(n, "value", None) == "Suspend":
+            return True
+    return False
+
+
+def _exile_ability_chain_effects(unit_node: object) -> list[object]:
+    """Every step's OWN ``effect`` in a ``S_abilities``/``S_triggers``
+    ability's ``sub_ability`` linked list, in EXECUTION order (trigger units
+    wrap their first step under ``execute``)."""
+    out: list[object] = []
+    cur = getattr(unit_node, "execute", None) or unit_node
+    while cur is not None:
+        eff = getattr(cur, "effect", None)
+        if eff is not None:
+            out.append(eff)
+        cur = getattr(cur, "sub_ability", None)
+    return out
+
+
+def _exile_then_tracked_set_size(unit_node: object) -> bool:
+    """True once a LATER chain step (after an earlier step exiled cards —
+    ``ChangeZone{destination: Exile}``) carries a bare ``TrackedSetSize`` qty
+    — Rysorian Badger's "exile up to two target creature cards ... you gain
+    1 life for each card exiled this way" (``GainLife`` amount=
+    ``TrackedSetSize()`` as the VERY NEXT chain step, no ``caused_by`` filter
+    the way :func:`FilteredTrackedSetSize` cards carry it). ORDER-SENSITIVE:
+    Revival Experiment's superficially similar shape ("return ... you lose 3
+    life for each card returned this way. Exile ~.") reverses the order — the
+    ``TrackedSetSize`` counts an EARLIER return-from-graveyard step, and the
+    self-exile ``ChangeZone(SelfRef)`` is a LATER, unrelated one-shot
+    housekeeping step (consuming the spell itself, not building an exile
+    pile) — so walking in execution order and gating the TrackedSetSize scan
+    on "exile already seen" correctly excludes it. 2026-07 corpus census:
+    of every commander-legal unit carrying a bare ``TrackedSetSize`` node,
+    exactly 2 also carry an exile ``ChangeZone`` anywhere in the same unit
+    (Rysorian Badger, Revival Experiment) — this order check is what
+    separates them. CR 406.1/601.2c ("this way" scaling)."""
+    seen_exile = False
+    for eff in _exile_ability_chain_effects(unit_node):
+        if seen_exile and any(
+            tag_of(n) == "TrackedSetSize" for n in iter_typed_nodes(eff)
+        ):
+            return True
+        if tag_of(eff) == "ChangeZone" and getattr(eff, "destination", None) == "Exile":
+            seen_exile = True
+    return False
+
+
 def _exile_matters(tree: ConceptTree) -> list[Signal]:
     """exile_matters — exile-as-resource payoff (CR 406.1): a trigger
     watching cards LAND in exile (``ChangesZone`` destination Exile) whose
@@ -14467,24 +14556,34 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
     # filter carries ``InZone{zone: Exile}`` — the counter kind lives on the
     # effect's ``counter_type`` field here, not a filter ``Counters``
     # property, so the persistent-pile arm above (which reads filter
-    # properties) misses it; a direct field read closes the gap. Same
-    # Suspend-mechanic reuse risk and the same fix: exclude ``counter_type
-    # == 'time'`` (Shivan Sand-Mage / Fury Charm / Timebender / Timecrafting
-    # ALSO use ``RemoveCounter`` targeting a filter that carries InZone
-    # {Exile} as part of the "permanent OR suspended card" Or-filter, but
-    # every one of them removes a "time" counter specifically — Alaundo the
-    # Seer, a home-brewed suspend-alike that also uses "time" counters on
-    # its own exiled cards, is excluded by the SAME gate for the SAME
-    # reason: CR 702.62a's own counter kind, not an exile-pile
-    # build-around). CR 406.1.
+    # properties) misses it; a direct field read closes the gap.
+    # ADR-0039 W7 (2026-07-12): the exclusion gate is now the STRUCTURAL
+    # Suspend tell (:func:`_has_suspend_keyword_property` — an
+    # ``Or``-branch carrying ``HasKeywordKind='Suspend'``), not the
+    # ``counter_type == 'time'`` NAME proxy the W3 arm used — the name
+    # proxy over-excluded Alaundo the Seer, whose own "remove a time
+    # counter from each other card you own in exile" is a home-brewed
+    # counter mechanic with NO Suspend keyword property anywhere in its
+    # target, not CR 702.62a reuse (see the helper's own docstring for the
+    # corpus census that verified this correctly still excludes Shivan
+    # Sand-Mage / Fury Charm / Timebender / Timecrafting). CR 406.1.
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
             if tag_of(n) != "RemoveCounter":
                 continue
-            if getattr(n, "counter_type", None) == "time":
+            target = getattr(n, "target", None)
+            if _has_suspend_keyword_property(target):
                 continue  # the Suspend-mechanic reuse — never guess
-            if "Exile" in filter_inzone_zones(getattr(n, "target", None)):
+            if "Exile" in filter_inzone_zones(target):
                 return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # ADR-0039 W7 (2026-07-12) — the order-sensitive "for each card exiled
+    # this way" TrackedSetSize arm (:func:`_exile_then_tracked_set_size`):
+    # Rysorian Badger's own life-gain scales off a bare ``TrackedSetSize``
+    # (no ``caused_by`` filter — distinct from the ``FilteredTrackedSetSize``
+    # arm above) chained directly after its own exile step. CR 406.1/601.2c.
+    for unit in tree.units:
+        if _exile_then_tracked_set_size(unit.node):
+            return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     # ADR-0038 W5 tails — the "for each card exiled this way" count arm: a
     # ``FilteredTrackedSetSize`` qty whose ``caused_by`` field is
     # ``'Exiled'`` counts the cards an EARLIER effect in the SAME
@@ -14653,6 +14752,18 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
                     continue
                 if "Exile" in filter_inzone_zones(filt):
                     return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # ADR-0039 W7 ledgered bridges — the residual upstream-parse-failure /
+    # dropped-clause bucket (bridge_ledger.py rows, docstring there for the
+    # full corpus accounting):
+    for bridge_id in (
+        "exile_grant_all_activated_abilities",
+        "grolnok_cast_from_exile_counter_pile",
+        "candlekeep_inspiration_exile_gy_pt_setter",
+        "close_encounter_warped_exile_additional_cost",
+        "kaya_emblem_cast_from_exile_drop",
+    ):
+        if bridge_fires(bridge_id, tree):
+            return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     return []
 
 
