@@ -58,8 +58,8 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING
-from mtg_utils._card_ir.project import _KEYWORD_COST_SAC, _PITCH_SAC
 from mtg_utils._card_ir.supplement import _BASE_POWER_REF, _anchored
+from mtg_utils._card_ir.text_idioms import _KEYWORD_COST_SAC, _PITCH_SAC
 from mtg_utils._deck_forge._sweep_detectors import NAMED_PERMANENT_REGEX
 
 if TYPE_CHECKING:  # pragma: no cover

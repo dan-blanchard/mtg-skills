@@ -1,22 +1,14 @@
-"""Text-idiom regexes/combinator-scans shared by the legacy Card IR builder
-(``project.py`` / ``supplement.py``) and the Layer-3 crosswalk (ADR-0035).
+"""Text-idiom regexes/combinator-scans shared by the Layer-3 crosswalk (ADR-0035).
 
-ADR-0039 step 2 rehomes these symbol DEFINITIONS out of the old builder modules
-so the crosswalk's sanctioned text reads (``crosswalk_signals.py``,
-``tree_synthesis.py``, and the ``_deck_forge._signals_ir`` mirror that
-``combat_damage_recipients_from_text`` also serves) survive the old builder's
-eventual deletion (ADR-0039 steps 6-7). ``project.py`` and ``supplement.py``
-import their own symbols BACK from here, so the legacy sidecar-build path keeps
-running byte-identically in the meantime — one definition, no duplication, zero
-behavior change. Every symbol below moved verbatim (same regex / combinator
-patterns, same bodies) from its original module; only the import direction
-changed.
-
-``_counter_kind_token`` is the one exception to "no other module dependency":
-it needs ``project.py``'s ``_norm`` helper (158 other internal uses there, so
-it stays put), imported lazily INSIDE the function body to avoid a
-``project.py`` <-> ``text_idioms.py`` import cycle (``project.py`` imports this
-module at its own top level to get the symbol back).
+ADR-0039 step 2 rehomed these symbol DEFINITIONS out of the old builder modules
+(``project.py`` / ``supplement.py``) so the crosswalk's sanctioned text reads
+(``crosswalk_signals.py``, ``tree_synthesis.py``, and the
+``_deck_forge._signals_ir`` mirror that ``combat_damage_recipients_from_text``
+also serves) survive the old builder's deletion. Step 7 finished that deletion:
+``project.py`` is gone, and the last shared symbols it still defined (``_norm``,
+``_DICE_TRIG``, the tree-synthesis raw anchors of Group C, and the sac-cost
+patterns ``bridge_ledger`` reads) moved here verbatim (same regex / combinator
+patterns, same bodies); only the import direction changed.
 """
 
 from __future__ import annotations
@@ -25,6 +17,12 @@ import re
 
 from mtg_utils._card_ir import _combinators as comb
 from mtg_utils.card_ir import Filter
+
+
+def _norm(token: object) -> str:
+    """Lowercase + strip non-alphanumerics, so ``DealDamage``/``deal_damage`` match."""
+    return re.sub(r"[^a-z0-9]", "", str(token).lower())
+
 
 # ── Group A: from project.py ──────────────────────────────────────────────
 
@@ -126,8 +124,6 @@ def _counter_kind_token(raw: object) -> str:
     stripped ``_norm`` of the kind (oil / stun / time / bounty / divinity / …). An
     empty / pure-comparator residue becomes ``Generic`` (a counter with no nameable
     kind). CR 122.1 (counters are individuated by name)."""
-    from mtg_utils._card_ir.project import _norm
-
     if not isinstance(raw, str):
         return "Generic"
     if "+1/+1" in raw:
@@ -400,3 +396,173 @@ def _topdeck_stack_self(clause: str) -> bool:
         "top of your library" in clause.lower()
         and _TOPDECK_STACK_SELF.run(clause) is not None
     )
+
+
+# ── Group C: from project.py (ADR-0039 step 7 — the builder deleted) ──────
+# The raw anchors below were project.py's marker regexes; the crosswalk's
+# tree_synthesis arms, the _signals_ir / recovery grammar reads, and the
+# bridge_ledger sac-cost rows import them from here now that the legacy
+# builder is gone. Each moved verbatim with its original comment block.
+
+# "<determiner> creature […] can't block" — a clause FORCING a targeted/affected
+# creature OTHER THAN THE SOURCE to be unable to block (path-clearing / pillowfort
+# grant, CR 509). The leading determiner excludes the bare self drawback
+# "~ can't block" / "this creature can't block" (a vanilla downside, not a grant).
+_CANT_BLOCK_REF = re.compile(
+    r"\b(?:target|each|that|the chosen|chosen|enchanted|another) "
+    r"(?:[a-z]+ )*?creature[^.]*?can'?t block\b",
+    re.IGNORECASE,
+)
+# …but not the combat TAX "can't block with N" / "can't block more than" (a
+# block-limiting effect, a different lane than an absolute can't-block grant).
+_CANT_BLOCK_TAX = re.compile(r"can'?t block (?:with|more than)\b", re.IGNORECASE)
+# Soulbond (CR 702.95) reference in a non-keyword card ("paired with a creature with
+# soulbond" — Flowering Lumberknot's restriction).
+_SOULBOND_REF = re.compile(r"\bsoulbond\b", re.IGNORECASE)
+# Exhaust (CR 702.177) PAYOFF trigger: "Whenever you activate an exhaust ability,
+# …" (Rangers' Aetherhive, Adrenaline Jockey). Exhaust SOURCES carry an
+# "Exhaust — {cost}:" ability; this is the keyword-less payoff.
+_EXHAUST_TRIG = re.compile(
+    r"\bactivate(?:s|d)? (?:a |an )?exhaust abilit", re.IGNORECASE
+)
+# Dice (CR 706, AFR/Unfinity) PAYOFF trigger: "Whenever you roll one or more dice/a
+# die/a <N>/your <Nth> die, …" (Brazen Dwarf, Dee Kay, Feywild Trickster). phase
+# parses the consequence (damage / make_token / place_counter / draw) but flattens the
+# dice trigger to event='other', keeping the roll reference only in the raw. The
+# roll-a-die DOERS already ride phase's roll_die effect; this is the keyword-less
+# "cares when I roll" payoff. Anchored on the roll-trigger phrase.
+_DICE_TRIG = re.compile(
+    r"\bwhenever you roll\b|\broll(?:ed)? (?:one or more|your|a|\d+) (?:dice|die|\d)"
+    r"|\brolled (?:one or more|\d+) (?:dice|die)\b",
+    re.IGNORECASE,
+)
+# Cascade (CR 702.85) CONFERRED / referenced — phase rides the Scryfall `cascade`
+# keyword for an INTRINSIC cascade spell, but the GRANTERS are keyword-less: "spells
+# you cast have cascade" (Maelstrom Nexus, Yidris), "the next spell you cast … has
+# cascade" (Maelstrom Nexus, the Doctor Who cascade-granters), "gain cascade" (Yidris),
+# "with cascade" (Zhulodok's "Cascade, cascade"), and the cares-about "as you cascade"
+# (Averna) / "cast a spell with cascade" (The First Doctor) payoff. Anchored on the
+# conferring/reference phrase — "(have|has|gain[s]|with) cascade" / "as you cascade" /
+# "spell with cascade" — NOT the bare keyword the card's own array already carries.
+_CASCADE_GRANT = re.compile(
+    r"\b(?:have|has|gains?|with) cascade\b|\bas you cascade\b"
+    r"|\bspells? with cascade\b|\bcascade, cascade\b",
+    re.IGNORECASE,
+)
+# Undying (CR 702.92) / Persist (CR 702.78) GRANTED to a class of creatures — phase
+# rides the Scryfall keyword for an INTRINSIC undying/persist creature, but the
+# GRANTERS are keyword-less: "creatures you control … have undying" (Mikaeus),
+# "gains persist until end of turn" (Cauldron of Souls, Rhys, the persist-granters),
+# "has persist as long as …" (the Scarecrows), a granted/quoted "gain undying"
+# (Haunted One). Anchored on the GRANT VERB ("(gains?|have|has) undying/persist"),
+# NOT the reminder text "(When a creature WITH undying dies …)" nor the bare keyword
+# (the card's own array). The undying/persist counters mechanic stays its own lane.
+_UNDYING_PERSIST_GRANT = re.compile(
+    r"\b(?:gains?|have|has) (?:undying|persist)\b", re.IGNORECASE
+)
+# Suspect (CR 701.60) phase emits only on the leading imperative verb. The verb buried
+# mid-clause / in a granted ability ("…and suspect it", "suspect up to one target") and
+# the adjective/state form ("suspected creature") survive only in raw. Anchored on the
+# verb (NOT followed by "counter" — Investigator's Journal's "suspect counter" is a
+# same-named COUNTER type, not the Suspect designation, CR 701.60b) or "suspected".
+_SUSPECT_REF = re.compile(r"\bsuspects?\b(?! counter)|\bsuspected\b", re.IGNORECASE)
+# Crimes (CR 701.49, Outlaws) in CONDITION form — "(if|as long as) you've committed a
+# crime this turn" / a cost reduction "if you've committed a crime" — the dominant
+# crime-PAYOFF template phase has no condition kind for (it flattens the crime check
+# into a quantitycomparison condition or drops it into raw). The TRIGGER form ("Whenever
+# you commit a crime") already binds via phase's commit_crime trigger event; this is the
+# keyword-less condition-form payoff. Anchored on the explicit "committed a crime".
+_CRIME_REF = re.compile(
+    r"(?:if|as long as|whenever) you'?ve committed a crime"
+    r"|committed a crime this turn",
+    re.IGNORECASE,
+)
+# Repeatable "Pay N life:" activated-ability cost phase loses: it misparses the cost
+# (Arco-Flagellant's Endurant ability becomes a spell-with-pay_cost; Hibernation
+# Sliver's self-usable granted ability) or drops the conferred quoted "…Pay 1 life:
+# Draw" ability entirely (Underworld Connections, Degavolver, Anavolver, Lithoform
+# Blight, Forgotten Monument). The colon-delimited "Pay N life:" is the precise cost
+# anchor (not reminder text, not a one-shot cast-time additional cost). Gated to faces
+# with no structural paylife cost so the 167 cards that parse it natively aren't
+# double-tagged. CR 118.
+_PAY_LIFE_REF = re.compile(r"[Pp]ay \d+ life:")
+# Can't-block grant (CR 509) phase loses in a MODAL mode body ("• Target creature
+# can't block this turn" — Breeches, Retreat to Valakut, phase keeps only the
+# `choose` header) or a GRANTED QUOTED ability ("Enchanted land has '{T}: Target
+# creature can't block…'" — Hostile Realm, Malicious Intent, phase emits
+# abilities=()). We isolate the modal bullet / quoted-grant SEGMENT, then apply the
+# same _CANT_BLOCK_REF (leading determiner + "creature … can't block") minus
+# _CANT_BLOCK_TAX as the carrier-raw marker — segment isolation keeps the greedy
+# determiner match from spanning an unrelated make_token "create … token with 'this
+# token can't block'" clause (Anax, Totentanz), which the per-carrier marker already
+# excludes via _CANT_BLOCK_CARRIERS dropping make_token.
+_CANT_BLOCK_MODAL_BULLET = re.compile(r"•[^•\n]*?can'?t block", re.IGNORECASE)
+_CANT_BLOCK_GRANT_QUOTE = re.compile(
+    r'(?:has|have|enters with) "[^"]*?can\'?t block[^"]*"', re.IGNORECASE
+)
+# "Starting life total" (CR 103.4) payoff reference — a card that compares against /
+# resets to the starting life total ("less than half their starting life total",
+# "your life total becomes equal to your starting life total", "greater than your
+# starting life total"). phase has no structure for this specific game value, so it
+# survives only on the face oracle text. Anchored TIGHTLY on "starting life total"
+# (the specific value) — NOT the broad regex's "life total is greater/less" second
+# arm, which over-fires on unrelated life thresholds ("if your life total is less
+# than 7" — Elderscale Wurm), which the structural IR correctly drops.
+_STARTING_LIFE_REF = re.compile(r"\bstarting life total\b", re.IGNORECASE)
+# Changeling (CR 702.73) / "is every creature type" — the all-tribes lane. phase
+# rides the Scryfall `changeling` keyword for an INTRINSIC changeling, but DROPS the
+# subtype on a "create a … Shapeshifter token WITH changeling" maker (the changeling
+# lives in the token profile raw — Maskwood Nexus, Birthing Boughs), folds an
+# "is/are every creature type" anthem/grant into a grant_keyword/pump carrier raw
+# (Arachnoform, Amorphous Axe), or types the self-static as `type_set` / a place_
+# counter (Mistform Ultimus, Omo's everything counter). Anchored on the literal
+# "changeling" keyword OR the "(is|are|becomes) every creature type" phrase — both
+# appear only on real all-tribes cards (no flavor/name collision).
+_CHANGELING_REF = re.compile(
+    r"\bchangeling\b|\b(?:is|are|becomes) every creature type\b", re.IGNORECASE
+)
+# Mass-death count operand (CR 700.4) payoff — a value/effect that SCALES with the
+# number of creatures that died this turn ("a +1/+1 counter for each creature that
+# died this turn", "a Treasure for each nontoken creature that died this turn",
+# "connives X, where X is the number of creatures that died this turn"). phase
+# parses the consequence (place_counter / make_token / connive / reanimate) but
+# drops the "creatures that died this turn" operand. Anchored on the AGGREGATE
+# ("for each" / "number of") shape — the board-wipe payoff the regex deliberately
+# isolates — NOT the single-death conditional ("if a creature died this turn",
+# morbid — Bone Picker, Tragic Slip), which is plain death_matters and would flood
+# the lane. Mirrors the mass_death_payoff regex exactly (4 board-wipe commanders).
+_MASS_DEATH_REF = re.compile(
+    r"(?:for each|number of) (?:nontoken )?(?:creature|permanent)s?[^.]*died this turn",
+    re.IGNORECASE,
+)
+# ADR-0027 (SIDECAR v40) — the whose-spell parse gap on a BecomesTarget trigger. phase
+# usually carries the targeting source's controller on ``valid_source`` (an Or of
+# StackSpell/StackAbility filters, each with a ``controller``), but for 3 cards (Reality
+# Smasher, Swarm Shambler, Tectonic Giant) it emits a BARE StackSpell with no
+# controller, dropping the "an opponent controls" restriction the text states. Recover
+# it from the trigger's own description, anchored on the SOURCE phrase ("of a spell /
+# ability … an opponent controls") so a SUBJECT-side "a creature an opponent controls
+# becomes the target" (Shay Cormac / Willbreaker — those are read structurally from
+# valid_card) is NOT swept. CR 702.21a.
+_BECOMES_TARGET_SRC_OPP = re.compile(
+    r"of (?:a |an )?(?:spell|ability)[^.]*?an opponent controls?", re.IGNORECASE
+)
+
+_SAC_COUNT = r"(?:a|an|another|two|three|any number of|x|\d+)"
+_SAC_TYPE = r"(?:creature|artifact|permanent|enchantment|token|planeswalker)"
+# A free-spell pitch ("you may sacrifice three black creatures rather than pay this
+# spell's mana cost" — Flare of Denial, Salvage Titan, Delraich, Demon of Death's
+# Gate, Dark Triumph). CR 118.9.
+_PITCH_SAC = re.compile(
+    rf"sacrifice {_SAC_COUNT}\b[^.]*?{_SAC_TYPE}[^.]*\brather than pay\b",
+    re.IGNORECASE,
+)
+# A keyworded cost paid in a non-land sacrifice phase drops with the keyword cost:
+# graveyard-cast ("Flashback—Sacrifice three creatures" — Dread Return; Cabal
+# Therapy's flashback sac) and a morph turn-up ("Morph—Sacrifice another creature" —
+# Gift of Doom). CR 702.34 / 702.37.
+_KEYWORD_COST_SAC = re.compile(
+    rf"(?:flashback|escape|buyback|morph|megamorph|disturb|embalm)\b[^.]*\bsacrifice "
+    rf"{_SAC_COUNT}\b[^.]*?{_SAC_TYPE}",
+    re.IGNORECASE,
+)

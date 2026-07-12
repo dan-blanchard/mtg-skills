@@ -11,8 +11,9 @@ ability's effects carry a structured operand (:class:`Quantity` →
 :class:`Filter`) and an explicit scope.
 
 This module is **schema only** — pure dataclasses + (de)serialization, stdlib
-only. The projection from phase-rs's parse lives in ``_card_ir/project.py``; the
-oracle-text gap-filler in ``_card_ir/supplement.py``. The IR deliberately does
+only. The build from phase-rs's parse is the ADR-0035 crosswalk compat path
+(``_card_ir/compat.py`` over the typed mirror substrate; the legacy
+``project.py`` regex projection died in ADR-0039 step 7). The IR deliberately does
 *not* re-store fields that are a trivial lookup on the Scryfall record a consumer
 already holds (cmc, power/toughness, color identity, legalities): a consumer
 joins the IR to its Scryfall card by ``oracle_id`` and reads those there. The IR

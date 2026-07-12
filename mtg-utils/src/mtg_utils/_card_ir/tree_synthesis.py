@@ -124,18 +124,16 @@ from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirro
 # The AGGREGATE mass-death regex (the ``for each`` / ``number of`` … ``died this
 # turn`` scaling shape, tight-anchored so it already excludes the morbid ``if a
 # creature died`` conditional) is relocated to projection-time (ADR-0037) via the
-# ``_arm_mass_death_payoff`` synth. Imported from the projection module — one source;
-# project.py also reads it for its own Seam-B ``mass_death`` marker (an independent
-# path this fold does not touch). No cycle: project.py imports neither this module
-# nor crosswalk_signals.
-#
-# batch T4-mechanic-kw also imports project.py's ``_CRIME_REF`` (the
-# keyword-less crime-condition anchor) and ``_SUSPECT_REF`` (the suspect
-# verb/state marker) — the same single-source pattern, one copy each.
-# batch T10-finalize2 also imports project.py's ``_EXHAUST_TRIG`` (the
-# exhaust-payoff raw anchor) and ``_BECOMES_TARGET_SRC_OPP`` (the becomes-
-# target opponent-source residue anchor) — the same single-source pattern.
-from mtg_utils._card_ir.project import (
+# ``_arm_mass_death_payoff`` synth. One source, historically project.py's:
+# batch T4-mechanic-kw also imported its ``_CRIME_REF`` (the keyword-less
+# crime-condition anchor) and ``_SUSPECT_REF`` (the suspect verb/state marker);
+# batch T10-finalize2 its ``_EXHAUST_TRIG`` (the exhaust-payoff raw anchor) and
+# ``_BECOMES_TARGET_SRC_OPP`` (the becomes-target opponent-source residue
+# anchor) — the same single-source pattern, one copy each. ADR-0039 step 7
+# deleted project.py; the shared anchors now live in ``text_idioms`` (Group C),
+# moved verbatim.
+from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
+from mtg_utils._card_ir.text_idioms import (
     _BECOMES_TARGET_SRC_OPP,
     _CANT_BLOCK_GRANT_QUOTE,
     _CANT_BLOCK_MODAL_BULLET,
@@ -150,10 +148,9 @@ from mtg_utils._card_ir.project import (
     _SOULBOND_REF,
     _STARTING_LIFE_REF,
     _SUSPECT_REF,
+    _TOKEN_SUBTYPE_OWN_REF,
     _UNDYING_PERSIST_GRANT,
 )
-from mtg_utils._card_ir.supplement import _EACH_PLAYER_P, _TAP_OPP_CONTROL_P
-from mtg_utils._card_ir.text_idioms import _TOKEN_SUBTYPE_OWN_REF
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_ir import (
     _CONVOKE_RAW,

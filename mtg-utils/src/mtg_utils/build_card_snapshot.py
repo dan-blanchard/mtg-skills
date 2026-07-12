@@ -21,12 +21,16 @@ expanded rather than a lossy slice silently shipped.
 
 Modes:
   * default — AST-scan the test tree for ``test_card`` / ``test_card_ir`` /
-    ``test_legacy_card_ir`` / ``test_signals`` usage: direct string-literal calls,
-    parametrize columns that feed such a call through a bare variable, and
-    ``_REAL_CASES`` name tables (usage-derived; the snapshot only holds cards a
-    test actually asks for).
+    ``test_signals`` usage: direct string-literal calls, parametrize columns
+    that feed such a call through a bare variable, and ``_REAL_CASES`` name
+    tables (usage-derived; the snapshot only holds cards a test actually asks
+    for).
   * ``--names "A,B"`` / ``--names-file PATH`` — an explicit name list (additive to the
     scan unless ``--no-scan``).
+
+ADR-0039 step 7: the ADR-0032 ``parse_metrics.json`` side-artifact (two
+``compute_parse_metrics`` cuts over the LEGACY ``project_card`` IR) was retired
+with the legacy builder — this script now writes only the snapshot itself.
 """
 
 from __future__ import annotations
@@ -38,13 +42,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from mtg_utils._card_ir.build import _group_by_oracle_id
-from mtg_utils._card_ir.load import (
-    CROSSWALK_SIDECAR_VERSION,
-    SIDECAR_VERSION,
-    load_card_ir,
-)
-from mtg_utils._card_ir.metrics import compute_parse_metrics
-from mtg_utils._card_ir.project import project_card
+from mtg_utils._card_ir.load import CROSSWALK_SIDECAR_VERSION
 from mtg_utils._deck_forge._ir_lookup import build_trees, seed_trees
 from mtg_utils._deck_forge.signals import extract_signals_hybrid
 from mtg_utils._phase import PHASE_TAG, ensure_card_data
@@ -52,8 +50,8 @@ from mtg_utils.bulk_loader import default_bulk_path, load_bulk_cards
 from mtg_utils.names import normalize_card_name
 from mtg_utils.testkit import SCHEMA_VERSION, snapshot_path
 
-# The minimal Scryfall fields project_card + the signal/serve path read. Validated by
-# the per-card signals(minimal) == signals(full) assertion below; expand this (not a
+# The minimal Scryfall fields the signal/serve path reads. Validated by the
+# per-card signals(minimal) == signals(full) assertion below; expand this (not a
 # silent fallback) if that assertion ever fires. ``all_parts`` carries token subtypes
 # the tribal type_matters subject reads (Flourishing Defenses → Elf).
 _SCRY_FIELDS = (
@@ -95,7 +93,6 @@ _HELPER_NAMES = frozenset(
     {
         "test_card",
         "test_card_ir",
-        "test_legacy_card_ir",
         "test_signals",
         "_keys_real",
         "_ks_real",
@@ -280,7 +277,6 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
     index = _index_by_name(bulk, groups)
 
     cards: dict[str, dict] = {}
-    snapshot_legacy_ir: dict = {}  # name -> project_card(records), metrics only
     unresolved: list[str] = []
     no_phase_records: list[str] = []
     lossy: list[str] = []
@@ -319,7 +315,6 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
             )
             continue
         cards[name] = {"scryfall": minimal, "phase_records": list(phase_records)}
-        snapshot_legacy_ir[name] = project_card(phase_records)
 
     if lossy:
         raise SystemExit(
@@ -339,31 +334,6 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
         json.dumps(payload, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    # ADR-0032 parse-completeness metric (LEGACY-pipeline health — the flag-OFF
-    # revert path's own drift-watch; unaffected by the crosswalk snapshot-shape
-    # repoint above). full_corpus needs the whole legacy sidecar; the "snapshot"
-    # cut is recomputed here — and offline in CI by test_parse_metrics — as
-    # ``project_card`` over each snapshotted card's OWN stored phase_records, so
-    # both computations share one source of truth with no baked legacy sidecar
-    # slice in the committed JSON.
-    full_corpus_ir = load_card_ir()
-    metrics_path = out.parent / "parse_metrics.json"
-    metrics_path.write_text(
-        json.dumps(
-            {
-                "schema": SCHEMA_VERSION,
-                "sidecar_version": SIDECAR_VERSION,
-                "phase_tag": PHASE_TAG,
-                "full_corpus": compute_parse_metrics(full_corpus_ir),
-                "snapshot": compute_parse_metrics(snapshot_legacy_ir),
-            },
-            ensure_ascii=False,
-            indent=1,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
 
     stats = {
         "cards": len(cards),
@@ -371,7 +341,6 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
         "unresolved": unresolved,
         "no_phase_records": no_phase_records,
         "bytes": out.stat().st_size,
-        "metrics_path": str(metrics_path),
     }
     return out, stats
 

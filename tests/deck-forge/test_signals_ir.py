@@ -1750,7 +1750,7 @@ def test_residue_mirror_recovers_wholly_dropped_opponent_cast_lock():
 # ── ADR-0027 C6 over-fire fix — single-attached pacify Aura is NOT stax ────────
 # Real cards from the snapshot, so the full hybrid path exercises
 # _is_single_attached_restriction + _restriction_scope + the stax_tax marker gate over
-# the EXACT projected IR (the snapshot's `ir` is itself project_card's output).
+# the EXACT production IR (built on demand from the snapshot's stored phase records).
 
 
 def test_pacify_aura_arrest_is_not_stax():

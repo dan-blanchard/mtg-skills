@@ -1,10 +1,9 @@
-"""Shared clause grammar (ADR-0038): the pure text->category-token parsing
-core both IR paths consume.
+"""Shared clause grammar (ADR-0038): the pure text->category-token parsing core.
 
-The old-IR supplement (:mod:`mtg_utils._card_ir.supplement`) re-tags
-``Effect.category`` with it; the crosswalk recovery stage re-decorates
-``ConceptNode``s with it. Extracted verbatim from ``supplement.py`` so
-the two paths cannot drift.
+The crosswalk recovery stage re-decorates ``ConceptNode``s with it. Extracted
+verbatim from ``supplement.py`` in the two-emitter era (the old-IR supplement
+re-tagged ``Effect.category`` with the same core until ADR-0039 step 7 deleted
+that path), so the surviving consumer inherited the proven rules unchanged.
 """
 
 from __future__ import annotations

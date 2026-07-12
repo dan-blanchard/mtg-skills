@@ -6,11 +6,12 @@ feeds BOTH the Signal lanes and the compat Card). This module is the (b)-
 COMPLETION seam — the exact mirror of bucket (c)'s :mod:`dropped_clauses`: it
 REUSES the supplement's ``_recover_*`` FIELD-correction arms DIRECTLY on the
 already-built compat :class:`Card`, so the flag-ON compat Card gains the SAME
-field corrections the flag-OFF ``project.py`` path carries. Reuse-on-compat is
+field corrections the flag-OFF ``project.py`` path carried. Reuse-on-compat is
 SIMPLER than a tree reimplementation and is the pattern ADR-0035 Stage-3b (c)
-established; the supplement arms themselves stay in ``project.py`` /
-``supplement.py`` untouched (the flag-OFF path still calls them; Stage 4 retires
-that path).
+established. ADR-0039 step 7 deleted ``project.py``; the two ability-level arms
+it defined (``_recover_clone_subjects`` / ``_recover_cheat_into_play_source``)
+moved HERE verbatim (this module is their sole surviving consumer), while
+``_recover_tap_down`` stays in ``supplement.py``.
 
 **Where it runs — the compat-Card seam (Seam B), COMPAT-ONLY.** Reached solely
 through :func:`compat_card`, strictly DOWNSTREAM of the (c) synthesis stage. It
@@ -64,15 +65,14 @@ richer compat derivation.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from mtg_utils._card_ir.project import (
-    _recover_cheat_into_play_source,
-    _recover_clone_subjects,
-)
 from mtg_utils._card_ir.supplement import _recover_tap_down
+from mtg_utils._card_ir.text_idioms import _copied_type_from_text
+from mtg_utils.card_ir import Effect, Filter
 
 if TYPE_CHECKING:
     from mtg_utils.card_ir import Ability, Card
@@ -81,6 +81,247 @@ if TYPE_CHECKING:
 # face's abilities). A card-level arm: ``_recover_X(card, oracle) -> card``.
 _AbilityArm = Callable[["Ability"], "Ability"]
 _CardArm = Callable[["Card", str], "Card"]
+
+
+# ── the absorbed project.py ability-level arms (ADR-0039 step 7) ─────────────
+# ``_recover_clone_subjects`` and the ``_recover_cheat_into_play_source``
+# cluster below moved here VERBATIM from the deleted ``project.py`` (this
+# module was their sole surviving consumer). Comment blocks preserved.
+
+
+def _recover_clone_subjects(ability: Ability) -> Ability:
+    """A BecomeCopy with ``target: ParentTarget`` ("target creature becomes a copy of
+    IT") loses its copied type. Recover it from the clone clause's own "copy of <type>"
+    text, falling back to a sibling effect's / the trigger's target type (the parent
+    the copy refers to). Leaves it None only when neither is present."""
+    if not any(e.category == "clone" and e.subject is None for e in ability.effects):
+        return ability
+    borrowed: Filter | None = next(
+        (
+            e.subject
+            for e in ability.effects
+            if e.category != "clone"
+            and isinstance(e.subject, Filter)
+            and e.subject.card_types
+        ),
+        None,
+    )
+    if (
+        borrowed is None
+        and ability.trigger is not None
+        and isinstance(ability.trigger.subject, Filter)
+    ):
+        borrowed = ability.trigger.subject
+    effects = tuple(
+        replace(e, subject=_copied_type_from_text(e.raw) or borrowed)
+        if e.category == "clone" and e.subject is None
+        else e
+        for e in ability.effects
+    )
+    return replace(ability, effects=effects)
+
+
+# ADR-0027 reveal/dig-v2 (cheat_into_play). phase structures "put a card onto the
+# battlefield from library/reveal/hand" INCONSISTENTLY — the put-onto-battlefield
+# lands on `reveal`/`exile`/`mill`/`choose`/`blink`/`tutor` effects, with the
+# `to:battlefield` destination and the library/hand ORIGIN given on DIFFERENT sibling
+# effects (Call of the Wild = two `reveal`s; Lord of the Void = two `exile`s; Mass
+# Polymorph = exile + blink + exile) or dropped entirely (Impromptu Raid keeps only
+# the non-creature → graveyard branch). So a structural cheat_into_play arm has no
+# single consistent effect to read. This recovery APPENDS one canonical `cheat_play`
+# Effect per ability that genuinely cheats a non-land card onto the battlefield from a
+# NON-graveyard source, carrying a consistent SOURCE-ZONE tag (`from:top` / `from:
+# library` / `from:hand`) + `to:battlefield`. Append-only — the scattered originals
+# are untouched, so every sibling lane (mill_makers, exile_removal, graveyard_matters,
+# blink_flicker, …) is behavior-neutral. The marker carries NO `from:graveyard` (the
+# graveyard-ONLY put is reanimation — CR 110.2a shared put-onto-bf, CR 400.7 distinct
+# origin — handled by the existing `reanimate` category, routed to the reanimator lane,
+# NOT cheat_into_play). A HYBRID "from your hand OR graveyard" (Dakkon) still emits the
+# marker off its non-graveyard half (the non-gy origin is sufficient). The control/
+# owner of the cheated card is orthogonal to the source (Lord of the Void / Bribery
+# cheat from an OPPONENT's library into YOUR control — still cheat_into_play), so scope
+# never gates the marker out.
+#
+# A reveal/look/exile from the TOP of a (your/their/a) library whose card LANDS on the
+# battlefield in the same span — the reveal-until-creature / look-at-top / Polymorph
+# family (Call of the Wild, Mass Polymorph, Bag of Tricks, Oath of Druids, Lord of the
+# Void's opponent-library exile). The "onto the battlefield" landing may be in a later
+# sentence ("…until you reveal a creature card. Put that card onto the battlefield"),
+# so the scan spans sentences but requires both the top-of-library source and the
+# battlefield landing.
+_CHEAT_TOP_RAW = re.compile(
+    r"(?:reveal|look at|exile)[^.]*?\btop\b[^.]*?\blibrary\b"
+    r".*?\bonto the battlefield\b",
+    re.IGNORECASE | re.DOTALL,
+)
+# A put / reveal of a card FROM a hand onto the battlefield (Sneak Attack, Show and
+# Tell, Eladamri's "reveal a card from your hand … put it onto the battlefield"). phase
+# usually structures these as a clean `cheat_play`+from:hand, but the hybrid hand-or-top
+# reveal (Eladamri) and the rarer phrasings land here as the raw fallback.
+_CHEAT_HAND_RAW = re.compile(
+    r"\b(?:put|reveal)\b[^.]*?\bfrom (?:your|their) hand\b[^.]*?"
+    r"\bonto the battlefield\b",
+    re.IGNORECASE,
+)
+# A search of a (your/their/target opponent's) library that puts the found card onto
+# the battlefield — a tutor-INTO-PLAY (Birthing Pod, Academy Rector, Bribery, Chord of
+# Calling, Pattern of Rebirth). phase structures these as a `tutor` + a subjectless
+# `cheat_play`+from:library pair; the marker carries the tutor's subject (a basic-land
+# tutor is gated out below). Bounded to one search clause (a "search … put onto the
+# battlefield" span) so a "search … into hand. … put a TOKEN onto the battlefield"
+# multi-sentence card can't bleed.
+_CHEAT_SEARCH_RAW = re.compile(
+    r"\bsearch\b[^.]*?\blibrary\b[^.]*?\bonto the battlefield\b",
+    re.IGNORECASE,
+)
+# A creature/permanent type a put-onto-bf cheat names, recovered from the raw when no
+# structured sibling subject survives ("put a CREATURE card …", "put all PERMANENT
+# cards …"). Only the broad put-into-play type words — a Land-only match is excluded by
+# the caller (it is ramp, not a cheat). Ordered most→least specific.
+_CHEAT_SUBJECT_WORDS: tuple[tuple[str, str], ...] = (
+    ("creature", "Creature"),
+    ("artifact", "Artifact"),
+    ("enchantment", "Enchantment"),
+    ("planeswalker", "Planeswalker"),
+    ("permanent", "Permanent"),
+)
+
+
+def _cheat_subject_from_raw(raw: str) -> Filter | None:
+    """The put-into-play card type a cheat names in its raw (a Creature / Permanent /…
+    Filter), or None when only a land or no type is named. Anchored on a "<type> card"
+    so a stray "creature" elsewhere (a fight rider) can't match."""
+    low = (raw or "").lower()
+    for word, ctype in _CHEAT_SUBJECT_WORDS:
+        if re.search(rf"\b{word} cards?\b", low):
+            return Filter(card_types=(ctype,))
+    return None
+
+
+# A put-onto-battlefield whose only named card type is LAND ("if it's a LAND card, put
+# it onto the battlefield"; "puts all LAND cards … onto the battlefield" — Into the
+# Wilds, Skyward Eye Prophets, Clear the Land, Thrasios, Lantern of Revealing, basic-
+# land tutors). That is RAMP (extra_land_drop), not a creature/permanent cheat. True
+# only when a "land card" put is named AND no non-land put type co-occurs (a card that
+# puts a creature OR a land — Kamahl's Druidic Vow — is still a cheat).
+def _cheat_is_land_only(raw: str) -> bool:
+    """True when a cheat's put-onto-battlefield names only LAND cards (ramp, not a
+    card cheat)."""
+    low = (raw or "").lower()
+    if not re.search(r"\bland cards?\b", low):
+        return False
+    return not any(
+        re.search(rf"\b{word} cards?\b", low) for word, _ in _CHEAT_SUBJECT_WORDS
+    )
+
+
+def _ability_cheat_source(ability: Ability) -> str | None:
+    """The non-graveyard SOURCE zone of a put-onto-battlefield cheat this ability does,
+    or None when it is not a cheat (no battlefield landing, a graveyard-ONLY source =
+    reanimation, or a land-only ramp). Prefers a STRUCTURED source: a sibling effect
+    already carrying both `to:battlefield` and a non-gy `from:` tag; falls back to the
+    raw idiom. Returns the most specific of from:top / from:library / from:hand."""
+    has_to_bf = False
+    has_reveal_hand = False
+    struct_from: set[str] = set()
+    raw_parts: list[str] = []
+    for e in ability.effects:
+        if not isinstance(e, Effect):
+            continue
+        raw_parts.append(e.raw or "")
+        z = set(e.zones)
+        if "to:battlefield" in z:
+            has_to_bf = True
+        if e.category == "reveal_hand":
+            has_reveal_hand = True
+        struct_from |= {x for x in z if x in ("from:top", "from:library", "from:hand")}
+    raw = max(raw_parts, key=len) if raw_parts else ""
+    # A structured non-gy source already co-present with a battlefield landing — the
+    # cleanest signal (Bribery, Sneak Attack, the dig-into-play retags).
+    if has_to_bf and struct_from:
+        for z in ("from:top", "from:library", "from:hand"):
+            if z in struct_from:
+                return z
+    # A reveal-HAND peek + a battlefield landing — a cheat from a (usually opponent's)
+    # HAND that phase tags only as `reveal_hand` + a subjectless to:battlefield (Zara
+    # Renegade Recruiter "look at defending player's hand … put a creature card from it
+    # onto the battlefield"; Treacherous Urge "target opponent reveals their hand … put
+    # a creature card from it onto the battlefield"). The cheated card is from a hand =
+    # from:hand (the owner is orthogonal — it's still a cheat). CR 110.2a / 400.7.
+    if has_to_bf and has_reveal_hand:
+        return "from:hand"
+    # Raw fallback: the reveal/look/exile-from-top, hand, or search-into-play idiom.
+    if _CHEAT_TOP_RAW.search(raw) or _CHEAT_SEARCH_RAW.search(raw):
+        return "from:top" if _CHEAT_TOP_RAW.search(raw) else "from:library"
+    if _CHEAT_HAND_RAW.search(raw):
+        return "from:hand"
+    return None
+
+
+def _recover_cheat_into_play_source(ability: Ability) -> Ability:
+    """Append one canonical `cheat_play` marker when this ability cheats a non-land card
+    onto the battlefield from a NON-graveyard source (ADR-0027 reveal/dig-v2). The
+    marker carries a consistent `from:<top|library|hand>` + `to:battlefield` zone pair
+    and the put-into-play subject (from a structured sibling tutor/reveal/cheat, or the
+    raw), so the cheat_into_play arm reads ONE shape across phase's scattered
+    structures.
+
+    Idempotency / no-double-fire: skip when the ability ALREADY has a clean
+    `cheat_play` effect carrying a non-gy `from:` + `to:battlefield` (phase / the
+    dig-into-play retag structured it cleanly — Sneak Attack, Show and Tell, Collected
+    Company via _recover_dig_into_play), so the arm reads the existing one and this adds
+    nothing. The marker is APPENDED (originals untouched), so reanimate / mill / exile /
+    blink / graveyard siblings are behavior-neutral. CR 110.2a / 400.7 / 701.23."""
+    src = _ability_cheat_source(ability)
+    if src is None:
+        return ability
+    # Already a clean cheat_play with a non-gy origin + battlefield landing — no marker.
+    for e in ability.effects:
+        if (
+            isinstance(e, Effect)
+            and e.category == "cheat_play"
+            and "to:battlefield" in e.zones
+            and any(z in e.zones for z in ("from:top", "from:library", "from:hand"))
+        ):
+            return ability
+    # Subject: a structured non-land put-into-play type from a sibling, else the raw.
+    subject: Filter | None = None
+    for e in ability.effects:
+        if not isinstance(e, Effect) or e.subject is None:
+            continue
+        if e.category in (
+            "tutor",
+            "cheat_play",
+            "reveal",
+            "choose",
+            "topdeck_select",
+            "dig_until",
+            "reanimate",
+            "exile",
+            "blink",
+        ):
+            subject = e.subject
+            break
+    raw = max((e.raw or "" for e in ability.effects), key=len, default="")
+    if subject is None:
+        subject = _cheat_subject_from_raw(raw)
+    # A LAND-only put is ramp (extra_land_drop), not a cheat — drop it. Gate on the
+    # structured subject AND the raw ("if it's a LAND card, put it onto the battlefield"
+    # — Into the Wilds, Skyward Eye Prophets, Thrasios — where phase leaves no typed
+    # subject). The signals arm applies the same gate; skipping here keeps the marker
+    # honest (the lane never opens extra_land_drop's territory).
+    if isinstance(subject, Filter) and set(subject.card_types) == {"Land"}:
+        return ability
+    if subject is None and _cheat_is_land_only(raw):
+        return ability
+    marker = Effect(
+        category="cheat_play",
+        scope="you",
+        subject=subject,
+        raw=raw,
+        zones=(src, "to:battlefield"),
+    )
+    return replace(ability, effects=(*ability.effects, marker))
 
 
 # The ability-level (b) FIELD-correction arms reused on the compat Card, in

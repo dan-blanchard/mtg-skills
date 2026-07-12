@@ -30,14 +30,17 @@ porting worklist). Disagreements are attributed to the effect categories the
 two sides do NOT share, so the per-category rollup is the Stage-3 gate as
 porting proceeds.
 
-Read-only / gated dev tool (local phase ``card-data.json`` + bulk + old IR
-sidecar); never part of the live build path, never CI. The committed tests
-run the same functions fixture-driven.
+Read-only harness; never part of the live build path. The committed tests run
+these functions fixture-driven (a hand-built old-IR reference). The gated
+corpus CLI (``main``) and the corpus convergence run died with the legacy
+sidecar builder (ADR-0039 step 7) — a fresh old-IR reference can no longer be
+built, so the corpus-scale comparison is history; the per-consumer view
+functions stay as the harness the fixture tests exercise.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from mtg_utils._card_ir.compat import CompatCoverage, compat_card
 from mtg_utils._card_ir.crosswalk import build_concept_tree
@@ -300,64 +303,3 @@ def render_consumer_report(report: dict) -> str:
             lines.append(f"- examples: {names}")
         lines.append("")
     return "\n".join(lines)
-
-
-def main(argv: list[str] | None = None) -> int:
-    """CLI: ``python -m mtg_utils._deck_forge.crosswalk_consumer_diff``.
-
-    Gated dev tool: needs the local phase ``card-data.json``, the bulk, and
-    the old Card-IR sidecar. Never CI.
-    """
-    import argparse
-    import json
-    from pathlib import Path
-
-    from mtg_utils import _phase
-    from mtg_utils._card_ir.load import load_card_ir
-    from mtg_utils._card_ir.mirror.build import load_committed_schema
-    from mtg_utils.bulk_loader import default_bulk_path, load_bulk_cards
-
-    parser = argparse.ArgumentParser(
-        description="Shadow-diff the four non-Signal IR consumers (ranking / "
-        "budgets / cut_check / tuner) over old-IR vs the crosswalk compat "
-        "card (ADR-0035 Stage 2)."
-    )
-    parser.add_argument("--all", action="store_true", help="Include non-commander.")
-    parser.add_argument("--json", action="store_true", help="Emit raw report JSON.")
-    parser.add_argument(
-        "--card-data", default=None, help="Path to phase card-data.json."
-    )
-    args = parser.parse_args(argv)
-
-    bulk = default_bulk_path()
-    if bulk is None:
-        print("No bulk found. Run `download-mtgjson` first.")
-        return 1
-    try:
-        ir_index = load_card_ir()
-    except (FileNotFoundError, ValueError) as exc:
-        print(str(exc))
-        return 1
-    cdp = args.card_data or _phase.ensure_card_data()
-    data = json.loads(Path(cdp).read_text())
-    phase_records = cast(
-        "list[dict]",
-        list(data.values()) if isinstance(data, dict) else list(data),
-    )
-
-    bulk_index: dict[str, dict] = {}
-    for c in load_bulk_cards(bulk):
-        oid = c.get("oracle_id")
-        if oid and oid not in bulk_index:
-            bulk_index[oid] = c
-
-    schema = load_committed_schema()
-    report = diff_corpus_consumers(
-        phase_records, bulk_index, ir_index, schema, commander_only=not args.all
-    )
-    print(json.dumps(report, indent=2) if args.json else render_consumer_report(report))
-    return 0
-
-
-if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main())

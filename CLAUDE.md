@@ -13,7 +13,7 @@ uv run pytest ../tests/mtg-utils/ -v  # Run tests
 uv run ruff check src/ ../tests/mtg-utils/  # Lint
 uv run ruff format src/ ../tests/mtg-utils/  # Format
 uv run download-mtgjson              # Card-data source: MTGJSON AllPrintings + AllPricesToday (ADR-0033; ~609MB; first-run only)
-uv run build-card-snapshot           # Regen the committed test card snapshot + parse_metrics.json (ADR-0032; gated; needs local MTGJSON bulk + the IR sidecar — card-data auto-fetched from the phase release tarball, no cargo; NEVER CI)
+uv run build-card-snapshot           # Regen the committed test card snapshot (gated; needs local MTGJSON bulk + phase card-data — auto-fetched from the phase release tarball, no cargo; NEVER CI)
 ```
 
 ### deck-wizard
@@ -146,7 +146,7 @@ Shared Python package (`mtg_utils`). 39 CLI script modules (25 deck + 9 cube + 3
   - `playtest-draft` — Heuristic 8-player draft + per-deck goldfish.
   - `playtest-install-phase` — One-time `cargo build` of phase v0.9.0
     ai-duel/ai-commander BINARIES into `~/.cache/mtg-skills/phase/`. Only
-    playtesting needs this. The Card IR build (`build-card-ir` /
+    playtesting needs this. The Card IR build (`build-card-ir-crosswalk` /
     `build-card-snapshot` / deck-forge launch) fetches phase's
     `card-data.json` straight from the v0.9.0 release tarball via
     `_phase.ensure_card_data` (tag-keyed, cached) — no cargo build / repo

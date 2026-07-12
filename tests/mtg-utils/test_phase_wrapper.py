@@ -581,6 +581,9 @@ class TestEnsureCardData:
 
 class TestBuildAndCoverageUseEnsure:
     def test_build_sidecar_calls_ensure_card_data(self, monkeypatch, tmp_path):
+        # ADR-0039 step 7: the legacy ``build_sidecar`` died with project.py;
+        # the same no-explicit-path → ``ensure_card_data`` contract is pinned
+        # on the surviving crosswalk builder.
         from mtg_utils._card_ir import build as build_mod
 
         called = {"n": 0}
@@ -593,7 +596,7 @@ class TestBuildAndCoverageUseEnsure:
 
         monkeypatch.setattr(_phase, "ensure_card_data", fake_ensure)
         out = tmp_path / "sidecar.json"
-        _path, stats = build_mod.build_sidecar(out_path=out)
+        _path, stats = build_mod.build_crosswalk_sidecar(out_path=out)
         assert called["n"] == 1
         assert out.exists()
         assert stats["phase_tag"] == _phase.PHASE_TAG

@@ -2,12 +2,12 @@
 
 The single fixture here keeps the suite network-free. Since the phase-rs bump
 decoupled card-data from the cargo build (it now ships in the release tarball),
-``build_sidecar`` / ``production.ensure_card_ir`` reach card-data via
+``build_crosswalk_sidecar`` / ``production.ensure_card_ir`` reach card-data via
 ``_phase.ensure_card_data``, which downloads the tag-versioned tarball when the
 cache is cold. deck-forge launch + the ``ensure_card_ir`` tests exercise that
 path, so without a guard the suite would hit the network. Mirror the
 ``tests/mtg-utils/conftest.py`` guard: short-circuit ``ensure_card_data`` to
-"cached-or-raise" so callers degrade to the regex path exactly as before the
+"cached-or-raise" so callers degrade gracefully exactly as before the
 download was wired in.
 """
 

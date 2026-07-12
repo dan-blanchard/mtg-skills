@@ -19,11 +19,9 @@ both halves of the production call:
     a test asserts what production actually emits. Pre-seeds
     ``_ir_lookup``'s trees memo from the same stored records (:func:`_seed_trees`), so
     the crosswalk merge (Seam A) runs for real in CI — no phase cache, no network.
-  * :func:`test_legacy_card_ir` — the LEGACY (``project_card``) IR, unconditionally.
-    For the handful of pins that assert a NAMED ``supplement._recover_X`` function's
-    own structural output (a project.py-only recovery the crosswalk's parallel
-    ``dropped_clauses.py`` / ``field_corrections.py`` machinery hasn't ported yet)
-    rather than "whatever production emits today".
+
+(``test_legacy_card_ir`` — the LEGACY ``project_card`` IR — died with the
+builder in ADR-0039 task #80 step 7.)
 
 The snapshot is committed (ADR-0027 / task #25 / ADR-0035/0039): CI has no phase
 cache, which is why the synthetic-IR pattern existed; the snapshot is the missing
@@ -171,26 +169,6 @@ def _compat_card_ir(name: str) -> Card:
     return card if card is not None else Card(oracle_id=oid, name=name, faces=())
 
 
-def test_legacy_card_ir(name: str) -> Card:
-    """The LEGACY (``project_card``) IR for *name*, unconditionally — built on
-    demand from the same stored phase face records.
-
-    For the handful of pins that assert a NAMED ``project.py`` /
-    ``supplement.py`` recovery function's OWN structural output (a
-    ``supplement._recover_X`` marker with no crosswalk equivalent yet — the
-    ongoing wave-by-wave porting ``dropped_clauses.py`` / ``field_corrections.py``
-    tracks), not "whatever production emits today". :func:`test_card_ir` stays
-    the production-matching default (unconditionally crosswalk as of ADR-0039
-    task #80 step 6); reach for this only when the test is EXPLICITLY about the
-    legacy builder's own behavior — ``project_card`` itself survives (ADR-0039
-    task #80 step 6 retired only the PRODUCTION wiring that called it; step 7
-    decides the builder's own fate), addressable directly here."""
-    _seed_trees(name)
-    from mtg_utils._card_ir.project import project_card
-
-    return project_card(_entry(name)["phase_records"])
-
-
 def test_signals(name: str) -> list:
     """``extract_signals_hybrid(test_card(name), test_card_ir(name))`` — exactly what
     production emits for *name* (real Scryfall record, real Card IR, real concept
@@ -205,5 +183,5 @@ def test_signals(name: str) -> list:
 # prefix (chosen so a fixture reads ``test_card("Sol Ring")``). ``__test__ = False`` is
 # pytest's documented opt-out and travels with the function when imported into a test
 # module. Set via ``setattr`` (the attribute isn't declared on the function type).
-for _helper in (test_card, test_card_ir, test_legacy_card_ir, test_signals):
+for _helper in (test_card, test_card_ir, test_signals):
     setattr(_helper, "__test__", False)  # noqa: B010 — dynamic set dodges ty's undeclared-attr check

@@ -33,6 +33,7 @@ from mtg_utils.card_ir import (
     Effect,
     Face,
     Filter,
+    Quantity,
     Trigger,
 )
 from mtg_utils.testkit import test_card, test_card_ir, test_signals
@@ -2496,12 +2497,12 @@ def test_opponent_shrink_opens_debuff():
     # 613.4c -1/-1 (layer 7c) then drops it to 0 → dies (CR 704.5g). So it's a debuff
     # commander wanting -1/-1 anthems/wipes (Kaervek the Spiteful, Black Sun's Zenith).
     # ADR-0027 v45: phase has a TOTAL blind spot for the layer-7b base-P/T set — Maha
-    # parses to ZERO abilities. We project the REAL Maha dict through the pipeline so
-    # `_recover_base_pt_set` synthesizes the dropped base_pt_set static (scope opp,
-    # toughness 1) and the debuff_makers arm reads it STRUCTURALLY (the deleted
-    # DEBUFF_MAHA_REGEX mirror is gone — structure, not a byte-mirror). Real oracle.
-    from mtg_utils._card_ir.project import project_card
-
+    # parses to ZERO abilities; `_recover_base_pt_set` (which SURVIVES as the
+    # crosswalk's dropped_clauses port) synthesizes the dropped base_pt_set static
+    # (scope opp, toughness 1) and the debuff_makers arm reads it STRUCTURALLY (the
+    # deleted DEBUFF_MAHA_REGEX mirror is gone — structure, not a byte-mirror).
+    # ADR-0039 step 7 (project_card deleted): the IR is hand-built to the exact
+    # compat shape that recovery synthesizes, pinning the ARM's structural read.
     maha = {
         "name": "Maha, Its Feathers Night",
         "type_line": "Legendary Creature — Elemental Bird",
@@ -2510,7 +2511,20 @@ def test_opponent_shrink_opens_debuff():
             "Creatures your opponents control have base toughness 1."
         ),
     }
-    maha_ir = project_card([{**maha, "scryfall_oracle_id": "maha"}])
+    maha_ir = _ir_with(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="base_pt_set",
+                    amount=Quantity(op="fixed", factor=1),
+                    scope="opp",
+                    subject=Filter(card_types=("Creature",), controller="opp"),
+                    raw="Creatures your opponents control have base toughness 1",
+                ),
+            ),
+        )
+    )
     # The legacy regex path no longer emits it (the mirror is deleted).
     assert ("debuff_makers", "you") not in _ks(maha)
     assert ("debuff_makers", "you") in _ks_hybrid_ir(maha, maha_ir)
@@ -2522,7 +2536,20 @@ def test_opponent_shrink_opens_debuff():
         "type_line": "Legendary Creature — Soldier",
         "oracle_text": "Creatures you control have base power and toughness 6/6.",
     }
-    buffer_ir = project_card([{**buffer_cmd, "scryfall_oracle_id": "buff"}])
+    buffer_ir = _ir_with(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="base_pt_set",
+                    amount=Quantity(op="fixed", factor=6),
+                    scope="you",
+                    subject=Filter(card_types=("Creature",), controller="you"),
+                    raw="Creatures you control have base power and toughness 6/6",
+                ),
+            ),
+        )
+    )
     assert ("debuff_makers", "you") not in _ks_hybrid_ir(buffer_cmd, buffer_ir)
 
 

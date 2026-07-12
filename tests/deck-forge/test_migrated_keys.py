@@ -10,9 +10,10 @@ For EVERY key in ``MIGRATED_KEYS``, the migration must be real and complete:
 
 Every case (``_REAL_CASES``) is a real card looked up by name from the committed
 snapshot (``mtg_utils.testkit``): ``test_card(name)`` is the minimal Scryfall record,
-``test_card_ir(name)`` is the REAL projected IR (a verbatim sidecar slice). So the
-proof runs the SAME IR production parses — no hand-built ``_ir(Ability(...))`` shape
-that silently drifts from ``project_card``, and no phase / sidecar dependency in CI
+``test_card_ir(name)`` is the REAL production Card IR (the crosswalk compat build
+over the stored phase records). So the proof runs the SAME IR production parses —
+no hand-built ``_ir(Ability(...))`` shape that silently drifts from the production
+build, and no phase / sidecar dependency in CI
 (ADR-0039 task #80 step 6: the former hand-built ``_SYNTHETIC_CASES`` table — kept
 for a handful of payoff-only split arms with no snapshot-resident card at the time —
 is gone; every one of those 9 keys now has a genuine real-card representative). A
@@ -38,7 +39,7 @@ from mtg_utils.card_ir import (
     Filter,
     Trigger,
 )
-from mtg_utils.testkit import test_card, test_card_ir, test_legacy_card_ir
+from mtg_utils.testkit import test_card, test_card_ir, test_signals
 
 
 def _ir(*abilities: Ability, keywords: tuple[str, ...] = ()) -> Card:
@@ -475,9 +476,8 @@ def test_every_migrated_key_has_a_case():
 def test_migrated_key_left_regex_and_is_ir_served(key):
     """Regex path drops the key; the hybrid (IR) path serves it.
 
-    Every case loads the card + its REAL projected IR from the committed snapshot,
-    so the proof runs the same IR ``project_card`` produces (no synthetic-IR
-    drift)."""
+    Every case loads the card + its REAL production IR from the committed snapshot,
+    so the proof runs the same IR production builds (no synthetic-IR drift)."""
     name = _REAL_CASES[key]
     card = test_card(name)
     ir = test_card_ir(name)
@@ -975,16 +975,13 @@ def test_dies_recursion_granter_fires_off_undying_persist_marker():
     `undying_persist` marker into dies_recursion, replacing the word mirror's bare
     \\bundying\\b match. CR 702.92.
 
-    ``undying_persist`` is a project.py-only marker name (the crosswalk's own
-    concept mapping for this shape has a different name / is not yet ported —
-    ADR-0039 step 5 finding), so the marker check pins the LEGACY builder
-    unconditionally; the production-signal assertion stays on the flag-aware
-    default (crosswalk_signals reproduces dies_recursion through its own path
-    either way)."""
+    ADR-0039 step 7: the ``undying_persist`` marker was a project.py-only name
+    and died with the legacy builder; the protected behavior — dies_recursion
+    firing for the keyword-less granter — is served by the crosswalk's own
+    ``dies_recursion`` lane (the `_UNDYING_PERSIST_GRANT` grant-verb anchor now
+    lives in ``text_idioms``, read by ``tree_synthesis``), asserted below on
+    the production path."""
     card = test_card("Mikaeus, the Unhallowed")
-    legacy_ir = test_legacy_card_ir("Mikaeus, the Unhallowed")
-    cats = {e.category for ab in legacy_ir.all_abilities() for e in ab.effects}
-    assert "undying_persist" in cats
     ir = test_card_ir("Mikaeus, the Unhallowed")
     assert "dies_recursion" in {s.key for s in extract_signals_hybrid(card, ir)}
 
@@ -1024,19 +1021,24 @@ def test_tap_untap_matters_fires_off_becomes_untapped_event():
 def test_tap_untap_matters_recovers_unknown_mode_becomes_tapped():
     """ADR-0027 #24c — Darksteel Garrison's "Whenever fortified land becomes tapped"
     is an Unknown-mode trigger phase leaves at event=='other';
-    supplement._recover_becomes_tap_untap re-types it to `taps` from the trigger
-    clause's raw, so tap_untap_matters reads STRUCTURE for the tail too.
+    supplement._recover_becomes_tap_untap re-typed it to `taps` from the trigger
+    clause's raw, so tap_untap_matters read STRUCTURE for the tail too.
 
-    LEGACY-only pin (ADR-0039 step 5 finding): the crosswalk's dropped_clauses.py
-    hasn't ported this specific Unknown-mode becomes-tapped recovery yet (Darksteel
-    Garrison emits no tap_untap_matters signal on the crosswalk path today) —
-    ``test_legacy_card_ir`` proves ``supplement._recover_becomes_tap_untap`` itself
-    still works, independent of the crosswalk porting wave."""
-    ir = test_legacy_card_ir("Darksteel Garrison")
-    assert any(
-        ab.trigger is not None and ab.trigger.event == "taps"
-        for ab in ir.all_abilities()
-    ), "Unknown-mode becomes-tapped not recovered to event=='taps'"
+    TODO(ADR-0039 step 7) — OPEN CROSSWALK GAP, textual tombstone pin. The
+    legacy recovery (``supplement._recover_becomes_tap_untap``, a project.py-only
+    arm) died with the builder, and the crosswalk has NO equivalent yet: Darksteel
+    Garrison emits no ``tap_untap_matters`` signal on the production path today
+    (verified this step — the card's tree concepts are attach/pump/other, no
+    taps/untaps trigger read). This pin asserts the CURRENT honest state — the
+    gap plus the textual anchor that makes the card recoverable — so porting the
+    Unknown-mode becomes-tapped recovery into the crosswalk (dropped_clauses /
+    tree_synthesis) trips it, at which point flip it to a positive
+    ``test_signals`` assertion. CR 701.21a."""
+    card = test_card("Darksteel Garrison")
+    assert "becomes tapped" in (card.get("oracle_text") or "")
+    assert "tap_untap_matters" not in {
+        s.key for s in test_signals("Darksteel Garrison")
+    }, "the crosswalk now serves this — flip this tombstone to a positive pin"
 
 
 # ── ADR-0027 #24d (SIDECAR v55) — SUPPLEMENT_RECOVER B3 real-card structural pins ──
@@ -1231,16 +1233,12 @@ def test_tap_down_recovered_opp_controller_mind_spiral():
     tap subject DROPPED to None; supplement._recover_tap_down synthesizes a Creature
     subject with controller=='opp', so the structural tap arm fires tap_down. CR 701.20.
 
-    The marker check is a LEGACY-only pin (``test_legacy_card_ir`` — a project.py-
-    specific recovery shape); the production signal-firing check stays on the
-    flag-aware default (the crosswalk reaches tap_down through its own structural
-    path — ADR-0039 step 5 finding)."""
-    legacy_ir = test_legacy_card_ir("Mind Spiral")
-    assert any(
-        e.category == "tap" and e.subject is not None and e.subject.controller == "opp"
-        for ab in legacy_ir.all_abilities()
-        for e in ab.effects
-    ), "recovered opp-controlled tap subject missing"
+    ADR-0039 step 7: the legacy marker check (the exact project.py projection
+    shape) died with the builder; the protected behavior — tap_down firing —
+    is served by the crosswalk's own structural path (the card's ``tap_untap``
+    effect concept feeds the tap_down lane; ``_recover_tap_down`` itself
+    survives in ``supplement.py`` as ``field_corrections``' card-level (b)
+    arm), asserted below on the production path."""
     ir = test_card_ir("Mind Spiral")
     keys = {s.key for s in extract_signals_hybrid(test_card("Mind Spiral"), ir)}
     assert "tap_down" in keys
@@ -1251,14 +1249,11 @@ def test_tap_down_recovered_skip_untap_step_brine_elemental():
     lock; supplement._recover_tap_down resolves the anaphor to `skip_step` scope=='opp',
     read by the new skip-untap arm. CR 701.20.
 
-    The marker check is a LEGACY-only pin (see Mind Spiral above); the production
-    signal-firing check stays on the flag-aware default."""
-    legacy_ir = test_legacy_card_ir("Brine Elemental")
-    assert any(
-        e.category == "skip_step" and e.scope == "opp"
-        for ab in legacy_ir.all_abilities()
-        for e in ab.effects
-    ), "recovered skip_step scope=='opp' missing"
+    ADR-0039 step 7: the legacy marker check died with the builder (see Mind
+    Spiral above); the protected behavior — tap_down firing for the skip-untap
+    lock — is served by the crosswalk's own structural path (phase's native
+    ``skip_next_step`` effect concept on this card), asserted below on the
+    production path."""
     ir = test_card_ir("Brine Elemental")
     keys = {s.key for s in extract_signals_hybrid(test_card("Brine Elemental"), ir)}
     assert "tap_down" in keys
@@ -1267,21 +1262,16 @@ def test_tap_down_recovered_skip_untap_step_brine_elemental():
 def test_damage_to_opp_recovered_quoted_trigger_serpent_generator():
     """Serpent Generator's token grant "Whenever ~ deals damage to a player, that player
     gets a poison counter" is a quoted trigger phase leaves unstructured;
-    supplement._recover_damage_to_opp synthesizes a deals_damage(DamageToPlayer) trigger,
-    so the existing arm fires damage_to_opp_matters. CR 119.3.
+    supplement._recover_damage_to_opp synthesized a deals_damage(DamageToPlayer)
+    trigger, so the existing arm fired damage_to_opp_matters. CR 119.3.
 
-    The marker check is a LEGACY-only pin; the production signal-firing check
-    stays on the flag-aware default (ADR-0039 step 5 finding: the crosswalk fires
-    damage_to_opp_matters here through its own recovery, not this exact trigger
-    shape)."""
-    legacy_ir = test_legacy_card_ir("Serpent Generator")
-    assert any(
-        ab.trigger is not None
-        and ab.trigger.event == "deals_damage"
-        and ab.trigger.subject is not None
-        and "DamageToPlayer" in ab.trigger.subject.predicates
-        for ab in legacy_ir.all_abilities()
-    ), "recovered deals_damage(DamageToPlayer) trigger missing"
+    ADR-0039 step 7: the legacy marker check (that exact synthesized trigger
+    shape, a project.py-only recovery) died with the builder; the protected
+    behavior — damage_to_opp_matters firing for the quoted token trigger — is
+    served STRUCTURALLY by the crosswalk's damage-to-player trigger cluster
+    (``iter_nested_trigger_defs`` + ``damage_to_player_trigger_kind`` reads the
+    granted token's own trigger definition — verified kind='Any' this step),
+    asserted below on the production path."""
     ir = test_card_ir("Serpent Generator")
     keys = {s.key for s in extract_signals_hybrid(test_card("Serpent Generator"), ir)}
     assert "damage_to_opp_matters" in keys
@@ -1321,22 +1311,17 @@ def test_extra_land_drop_recovered_empty_raw_modal_confluence():
 def test_group_hug_draw_recovered_folded_each_player_scope_grothama():
     """ADR-0027 #24l — Grothama's "each player draws cards equal to the amount of damage
     …" is a symmetric group-hug draw phase folds to scope=='any' (the variable amount
-    defeats its each-scope). supplement._recover_group_hug_draw_scope re-stamps
-    scope=='each' on the draw, so the lane reads STRUCTURE — and Grothama correctly LEAVES
+    defeats its each-scope). supplement._recover_group_hug_draw_scope re-stamped
+    scope=='each' on the draw, so the lane read STRUCTURE — and Grothama correctly LEAVES
     target_player_draws (a directed-draw lane scope=='any' feeds; an each-player draw is
     never player-directed). CR 121 / 120.2.
 
-    The scope-marker check is a LEGACY-only pin; the production signal-firing
-    checks stay on the flag-aware default (ADR-0039 step 5 finding: the crosswalk
-    reaches group_hug_draw / excludes target_player_draws through its own
-    structural path)."""
+    ADR-0039 step 7: the legacy scope-marker check (a project.py-only recovery
+    stamp) died with the builder; the protected behavior — group_hug_draw fires
+    AND target_player_draws stays off — is served by the crosswalk's own
+    structural group-hug path (the card's ``draw`` effect concept; ADR-0039
+    step 5 finding), asserted below on the production path."""
     card = test_card("Grothama, All-Devouring")
-    legacy_ir = test_legacy_card_ir("Grothama, All-Devouring")
-    assert any(
-        e.category == "draw" and e.scope == "each"
-        for ab in legacy_ir.all_abilities()
-        for e in ab.effects
-    ), "draw scope not re-stamped to 'each'"
     ir = test_card_ir("Grothama, All-Devouring")
     keys = {s.key for s in extract_signals_hybrid(card, ir)}
     assert "group_hug_draw" in keys

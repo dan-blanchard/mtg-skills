@@ -12,7 +12,9 @@ loud).
 
 ``ensure_card_ir`` is a thin alias for ``ensure_crosswalk_card_ir`` — the
 ``MTG_SKILLS_CROSSWALK_SIGNALS`` cutover flag and the legacy (project.py)
-sidecar revert path it used to select between are gone (task #80 step 6).
+sidecar revert path it used to select between are gone (task #80 step 6), and
+step 7 deleted the legacy sidecar loader/builder outright, so the crosswalk
+sidecar is the only Card IR on disk.
 
 These are hermetic: ``MTG_SKILLS_CACHE_DIR`` points at a tmp dir, so the real
 phase install / user cache are never touched. The in-memory IR cache is cleared
@@ -32,7 +34,6 @@ from mtg_utils._card_ir.load import (
     card_ir_dir,
     clear_memory_cache,
     crosswalk_sidecar_path,
-    sidecar_path,
 )
 from mtg_utils._card_ir.mirror.build import fixtures_dir
 from mtg_utils._deck_forge import production
@@ -92,7 +93,6 @@ def test_builds_crosswalk_sidecar(tmp_path, capsys):
     assert production.ensure_card_ir() is True
 
     assert crosswalk_sidecar_path().exists()
-    assert not sidecar_path().exists()  # the legacy sidecar is never touched
     payload = json.loads(crosswalk_sidecar_path().read_text())
     assert _CROSSWALK_OID in payload["cards"]
     assert "built crosswalk Card IR sidecar" in capsys.readouterr().err

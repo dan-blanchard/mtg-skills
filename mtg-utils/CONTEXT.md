@@ -44,11 +44,13 @@ _Avoid_: "node replacement" (the mirror node is never replaced), "patching"
 **Clause grammar**:
 The shared pure text→structure clause parser (prefix peeling + verb dispatch)
 that turns an English clause phase couldn't parse into a structured reading.
-One core, two emitters: the old-IR supplement re-tags `Effect.category`; the
-recovery stage re-decorates `ConceptNode`s. The substrate's gap-filler; rules
-retire as phase learns their clauses.
-_Avoid_: "the supplement parser" (names the old-IR envelope, not the shared
-core), "regex bridge" (the interim per-key marker pattern this replaces).
+One core, one emitter since ADR-0039 step 7: the recovery stage re-decorates
+`ConceptNode`s (the old-IR supplement's `Effect.category` re-tag emitter died
+with the legacy builder). The substrate's gap-filler; rules retire as phase
+learns their clauses.
+_Avoid_: "the supplement parser" (names the dead old-IR envelope, not the
+shared core), "regex bridge" (the interim per-key marker pattern this
+replaces).
 
 **Token allowlist**:
 The recovery emitter's set of admitted grammar tokens — the measured rollout

@@ -1351,9 +1351,20 @@ def test_past_tense_count_payoffs_open_their_lane():
         "type_line": "Legendary Creature — Test",
         "oracle_text": "Add {R} for each 1 life your opponents have lost this turn.",
     }
-    from mtg_utils._card_ir.project import project_card
-
-    neheb_ir = project_card([{**neheb, "card_type": {"core_types": ["Creature"]}}])
+    # ADR-0039 step 7 (project_card deleted): hand-built compat-shape lose_life
+    # (the drain-marker fold — the structural MAKER arm reads the category).
+    neheb_ir = _ir_with(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="lose_life",
+                    scope="opp",
+                    raw="for each 1 life your opponents have lost this turn",
+                ),
+            ),
+        )
+    )
     assert "lifeloss_makers" in {s.key for s in extract_signals_ir(neheb, neheb_ir)}
     # ADR-0027 β: draw_matters is migrated — Proft / Kydele "for each card you've
     # drawn this turn" is a count-operand payoff with NO `drawn` trigger, so it fires
@@ -1366,8 +1377,9 @@ def test_past_tense_count_payoffs_open_their_lane():
             "This creature gets +1/+1 for each card you've drawn this turn."
         ),
     }
-    proft_ir = project_card([{**proft, "card_type": {"core_types": ["Creature"]}}])
-    assert "draw_matters" in {s.key for s in extract_signals_ir(proft, proft_ir)}
+    # ADR-0039 step 7 (project_card deleted): the kept mirror scans the RECORD's
+    # oracle — any non-None IR routes there, so the bare IR suffices.
+    assert "draw_matters" in {s.key for s in extract_signals_ir(proft, _bare_ir())}
 
 
 def test_past_tense_death_count_opens_death_matters():

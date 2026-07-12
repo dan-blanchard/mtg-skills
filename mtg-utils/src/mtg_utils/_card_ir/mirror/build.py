@@ -1,6 +1,6 @@
 """Gated dev build of the phase-mirror substrate (ADR-0035, Stage 1).
 
-NEVER CI. Like ``build-card-snapshot`` / ``build-card-ir``, this is a manual
+NEVER CI. Like ``build-card-snapshot`` / ``build-card-ir-crosswalk``, this is a manual
 step run once per phase tag bump. It:
 
 1. infers the typed-mirror :class:`MirrorSchema` from the pinned card-data,

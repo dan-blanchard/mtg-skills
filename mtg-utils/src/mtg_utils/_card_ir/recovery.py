@@ -31,7 +31,7 @@ from dataclasses import dataclass, replace
 from mtg_utils._card_ir._substrate_purity import assert_substrate_pure, l1_identity
 from mtg_utils._card_ir.clause_grammar import parse_clause, scan_clause, static_token
 from mtg_utils._card_ir.crosswalk import OTHER, ConceptNode, ConceptTree, tag_of
-from mtg_utils._card_ir.project import _DICE_TRIG
+from mtg_utils._card_ir.text_idioms import _DICE_TRIG
 
 
 @dataclass(frozen=True)

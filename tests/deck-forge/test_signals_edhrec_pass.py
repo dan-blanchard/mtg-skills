@@ -6,9 +6,9 @@ Single-clause widens vs full-text detectors (the extractor splits clauses on '.'
 trigger→payoff patterns spanning a sentence boundary need a full-text pass).
 """
 
-from mtg_utils._card_ir.project import project_card
 from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signals import extract_signals
+from mtg_utils.card_ir import Ability, Card, Effect, Face
 
 
 def _sigs(oracle, name="X", **extra):
@@ -21,17 +21,26 @@ def _keys(oracle, **kw):
     return {s.key for s in _sigs(oracle, **kw)}
 
 
-def _hybrid_sigs(oracle, name="X", **extra):
-    # ADR-0027: migrated keys (lifeloss_matters, discard_matters) are served from the
-    # IR; build the IR from the same oracle so the hybrid reads it like production.
+def _hybrid_sigs(oracle, name="X", ir=None, **extra):
+    # ADR-0027: migrated keys are served from the IR path. Most pins here read
+    # the record's own oracle via the name-aware fulltext detectors / kept
+    # mirrors — any non-None IR routes there, so a bare Card suffices. A pin
+    # about a STRUCTURAL arm passes a hand-built compat-shape ``ir`` instead
+    # (project_card died in ADR-0039 step 7; the hand-built shape mirrors what
+    # the production crosswalk compat build derives for the same clause).
     card = {"name": name, "oracle_text": oracle, "type_line": "Legendary Creature"}
     card.update(extra)
-    ir = project_card([{**card, "card_type": {"core_types": ["Creature"]}}])
+    if ir is None:
+        ir = Card(oracle_id="x", name=name, faces=(Face(name=name),))
     return extract_signals_ir(card, ir)
 
 
-def _hybrid_keys(oracle, name="X", **extra):
-    return {s.key for s in _hybrid_sigs(oracle, name=name, **extra)}
+def _hybrid_keys(oracle, name="X", ir=None, **extra):
+    return {s.key for s in _hybrid_sigs(oracle, name=name, ir=ir, **extra)}
+
+
+def _ir_of(*abilities: Ability, name: str = "X") -> Card:
+    return Card(oracle_id="x", name=name, faces=(Face(name=name, abilities=abilities),))
 
 
 # ── Gogo: clone via bare infinitive "become a copy of" ──
@@ -45,7 +54,26 @@ def test_gogo_become_a_copy_fires_clone():
     # ADR-0027 v30: clone_makers migrated to the Card IR — the bare-infinitive "become a
     # copy of" fires from the hybrid path (the structural cat=='clone' arm on the now-
     # populated copied-type subject + the byte-identical kept mirror), not pure regex.
-    assert "clone_makers" in _hybrid_keys(GOGO, name="Gogo, Mysterious Mime")
+    # ADR-0039 step 7: hand-built compat-shape clone Effect (the copied-type
+    # subject the production build populates for this clause).
+    from mtg_utils.card_ir import Filter
+
+    gogo_ir = _ir_of(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="clone",
+                    subject=Filter(card_types=("Creature",)),
+                    raw=GOGO,
+                ),
+            ),
+        ),
+        name="Gogo, Mysterious Mime",
+    )
+    assert "clone_makers" in _hybrid_keys(
+        GOGO, name="Gogo, Mysterious Mime", ir=gogo_ir
+    )
 
 
 def test_token_copy_still_not_clone():
@@ -99,33 +127,60 @@ def test_landwalk_is_evasion():
 # ADR-0027: forced_attack migrated to the Card IR (phase's `force_attack` Effect
 # STRUCTURAL arm), so the "attacks each combat if able" compulsion serves from the
 # hybrid path, not pure regex.
+def _force_attack_ir(name: str, raw: str) -> Card:
+    # ADR-0039 step 7: hand-built compat-shape force_attack Effect (the shape
+    # the production build derives for the static self-force clause).
+    return _ir_of(
+        Ability(
+            kind="static",
+            effects=(Effect(category="force_attack", raw=raw),),
+        ),
+        name=name,
+    )
+
+
 def test_xantcha_forced_attack():
+    oracle = "Xantcha attacks each combat if able and can't attack its owner."
     assert "forced_attack" in _hybrid_keys(
-        "Xantcha attacks each combat if able and can't attack its owner.",
+        oracle,
         name="Xantcha, Sleeper Agent",
+        ir=_force_attack_ir("Xantcha, Sleeper Agent", "attacks each combat if able"),
     )
 
 
 def test_haktos_forced_attack():
     assert "forced_attack" in _hybrid_keys(
-        "Haktos attacks each combat if able.", name="Haktos the Unscarred"
+        "Haktos attacks each combat if able.",
+        name="Haktos the Unscarred",
+        ir=_force_attack_ir("Haktos the Unscarred", "attacks each combat if able"),
     )
 
 
 # ── The Actualizer: life-loss with an interposed relative clause ──
+def _lose_life_ir(name: str, raw: str) -> Card:
+    # ADR-0039 step 7: hand-built compat-shape lose_life Effect (the structural
+    # shape phase emits for an "each opponent loses N life" clause).
+    return _ir_of(
+        Ability(kind="spell", effects=(Effect(category="lose_life", raw=raw),)),
+        name=name,
+    )
+
+
 def test_lifeloss_with_relative_clause():
     # ADR-0027: lifeloss is IR-served; phase emits the structural lose_life. _matters
     # sweep (ADR-0034): causing opponents to lose life is the MAKER side, so it fires
     # lifeloss_makers.
+    oracle = "Each opponent who guessed incorrectly loses 3 life."
     sigs = _hybrid_sigs(
-        "Each opponent who guessed incorrectly loses 3 life.", name="The Actualizer"
+        oracle, name="The Actualizer", ir=_lose_life_ir("The Actualizer", oracle)
     )
     assert any(s.key == "lifeloss_makers" and s.scope == "opponents" for s in sigs)
 
 
 def test_plain_lifeloss_still_fires():
+    oracle = "Each opponent loses 2 life."
     assert "lifeloss_makers" in {
-        s.key for s in _hybrid_sigs("Each opponent loses 2 life.")
+        s.key for s in _hybrid_sigs(oracle, ir=_lose_life_ir("X", oracle))
     }
 
 

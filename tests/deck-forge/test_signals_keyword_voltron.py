@@ -62,31 +62,34 @@ def _hybrid_keys(**kw):
 
 # ── 1. build-around keyword → signal ──
 def _counter_keyword_ir(name: str):
-    """The IR phase projects for a +1/+1-counter keyword (mentor/training/evolve …):
-    a place_counter(p1p1) effect — the MAKER arm. ADR-0027 + _matters sweep (ADR-0034):
-    the keyword opens plus_one_makers STRUCTURALLY, not via the regex keyword path."""
-    from mtg_utils._card_ir.project import project_card
+    """The IR shape a +1/+1-counter keyword (mentor/training/evolve …) yields:
+    an attacks-triggered place_counter(p1p1) effect — the MAKER arm. ADR-0027 +
+    _matters sweep (ADR-0034): the keyword opens plus_one_makers STRUCTURALLY,
+    not via the regex keyword path. Hand-built compat shape (project_card
+    deleted, ADR-0039 step 7); mirrors the production build for this trigger."""
+    from mtg_utils.card_ir import Ability, Effect, Quantity, Trigger
 
-    return project_card(
-        [
-            {
-                "name": name,
-                "card_type": {"core_types": ["Creature"]},
-                "triggers": [
-                    {
-                        "mode": "Attacks",
-                        "execute": {
-                            "effect": {
-                                "type": "PutCounter",
-                                "counter_type": "P1P1",
-                                "count": {"type": "Fixed", "value": 1},
-                                "target": {"type": "Target"},
-                            }
-                        },
-                    }
-                ],
-            }
-        ]
+    return Card(
+        oracle_id="x",
+        name=name,
+        faces=(
+            Face(
+                name=name,
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="attacks"),
+                        effects=(
+                            Effect(
+                                category="place_counter",
+                                amount=Quantity(op="fixed", factor=1),
+                                counter_kind="p1p1",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
     )
 
 
@@ -137,8 +140,10 @@ def test_extort_is_drain():
     # structural `lose_life` ("each opponent loses 1 life"), so a real extort card
     # fires the lane from the IR — not the regex keyword path. _matters sweep
     # (ADR-0034): extort CAUSES opponents to lose life (a lose_life MAKER), so it
-    # fires lifeloss_makers.
-    from mtg_utils._card_ir.project import project_card
+    # fires lifeloss_makers. Hand-built compat shape (project_card deleted,
+    # ADR-0039 step 7): the cast_spell-triggered lose_life scope='opp' the
+    # production build derives from phase's SpellCast/LoseLife/EachOpponent.
+    from mtg_utils.card_ir import Ability, Effect, Quantity, Trigger
 
     card = {
         "name": "Extort Lord",
@@ -146,25 +151,27 @@ def test_extort_is_drain():
         "keywords": ["Extort"],
         "oracle_text": "Extort",
     }
-    ir = project_card(
-        [
-            {
-                "name": "Extort Lord",
-                "card_type": {"core_types": ["Creature"]},
-                "triggers": [
-                    {
-                        "mode": "SpellCast",
-                        "execute": {
-                            "effect": {
-                                "type": "LoseLife",
-                                "target": {"type": "EachOpponent"},
-                                "count": {"type": "Fixed", "value": 1},
-                            }
-                        },
-                    }
-                ],
-            }
-        ]
+    ir = Card(
+        oracle_id="x",
+        name="Extort Lord",
+        faces=(
+            Face(
+                name="Extort Lord",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="cast_spell"),
+                        effects=(
+                            Effect(
+                                category="lose_life",
+                                amount=Quantity(op="fixed", factor=1),
+                                scope="opp",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
     )
     sigs = extract_signals_ir(card, ir)
     assert any(s.key == "lifeloss_makers" and s.scope == "opponents" for s in sigs)

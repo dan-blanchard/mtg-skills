@@ -11,7 +11,7 @@ builder — the shape is the point, not a particular printing.
 
 from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signals import extract_signals
-from mtg_utils.card_ir import Card, Face
+from mtg_utils.card_ir import Ability, Card, Effect, Face
 from mtg_utils.testkit import test_card, test_signals
 
 # Card names referenced through the real-card helpers above. This table feeds the
@@ -200,11 +200,26 @@ def test_lifegain_widened_for_activated_gain():
     # ADR-0027 β: lifegain is IR-served; an activated "{T}: You gain 3 life" fires it
     # from the IR structural arm (the gain_life Effect, scope you/any). _matters sweep
     # (ADR-0034): gaining life is the MAKER side, so it fires lifegain_makers. A
-    # synthetic project_card input pins the activated-gain shape generically.
-    from mtg_utils._card_ir.project import project_card
-
+    # hand-built compat-shape gain_life IR pins the activated-gain shape
+    # generically (project_card deleted, ADR-0039 step 7).
     c = {"name": "Healer", "oracle_text": "{T}: You gain 3 life."}
-    ir = project_card([{**c, "card_type": {"core_types": ["Artifact"]}}])
+    ir = Card(
+        oracle_id="x",
+        name="Healer",
+        faces=(
+            Face(
+                name="Healer",
+                abilities=(
+                    Ability(
+                        kind="spell",
+                        effects=(
+                            Effect(category="gain_life", raw="{T}: You gain 3 life"),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
     assert any(s.key == "lifegain_makers" for s in extract_signals_ir(c, ir))
 
 
@@ -212,11 +227,37 @@ def test_lifeloss_widened_for_pay_life_engine():
     # ADR-0027: lifeloss is IR-served; a "Pay N life:" cost buying a non-ramp engine
     # fires it from the IR (the paylife-cost + life_payment marker path). _matters
     # sweep (ADR-0034): paying/losing life as a cost is the MAKER side, so it fires
-    # lifeloss_makers. A synthetic project_card input pins the pay-life-engine shape.
-    from mtg_utils._card_ir.project import project_card
-
+    # lifeloss_makers. A hand-built compat-shape IR (draw engine + life_payment
+    # marker) pins the pay-life-engine shape (project_card deleted, ADR-0039
+    # step 7).
     c = {"name": "Bargainer", "oracle_text": "{B}, Pay 2 life: Draw a card."}
-    ir = project_card([{**c, "card_type": {"core_types": ["Artifact"]}}])
+    ir = Card(
+        oracle_id="x",
+        name="Bargainer",
+        faces=(
+            Face(
+                name="Bargainer",
+                abilities=(
+                    Ability(
+                        kind="spell",
+                        effects=(
+                            Effect(category="draw", raw="{B}, Pay 2 life: Draw a card"),
+                        ),
+                    ),
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="life_payment",
+                                scope="you",
+                                raw="Pay 2 life:",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
     assert any(s.key == "lifeloss_makers" for s in extract_signals_ir(c, ir))
 
 

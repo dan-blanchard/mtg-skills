@@ -28,14 +28,16 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
-from mtg_utils._card_ir.project import _DICE_TRIG
 from mtg_utils._card_ir.supplement import (
     _EXILE_REMOVAL_FROM_ZONE,
     _EXILE_REMOVAL_RETURN,
     _EXILE_REMOVAL_SELF_TARGET,
     _EXILE_REMOVAL_SUSPEND,
 )
-from mtg_utils._card_ir.text_idioms import combat_damage_recipients_from_text
+from mtg_utils._card_ir.text_idioms import (
+    _DICE_TRIG,
+    combat_damage_recipients_from_text,
+)
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_regex import (
     _CHEAT_INTO_PLAY_RESIDUE_RE,

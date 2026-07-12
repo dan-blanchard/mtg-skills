@@ -1089,8 +1089,8 @@ def install_phase_main() -> None:
     """One-time `cargo build` of the phase-rs playtest binaries we wrap.
 
     Binaries-only (ai-duel / ai-commander) — needed solely to playtest. The
-    Card IR pipeline (build-card-ir) does NOT need this; it fetches card-data
-    from the release tarball via `_phase.ensure_card_data`.
+    Card IR pipeline (build-card-ir-crosswalk) does NOT need this; it fetches
+    card-data from the release tarball via `_phase.ensure_card_data`.
     """
     from mtg_utils import _phase
 
