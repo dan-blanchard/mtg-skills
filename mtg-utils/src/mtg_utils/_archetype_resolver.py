@@ -206,9 +206,15 @@ def merge_member_presets(name: str, members: tuple[str, ...] | list[str]) -> Pre
     """Synthesize a single :class:`Preset` whose matcher ORs each member's.
 
     The :class:`Preset` class's :meth:`matches` method is already an OR
-    over its keywords/patterns/type_patterns/layouts. So combining the
-    constituent presets' tuples preserves OR semantics — a card matches
-    iff at least one member's matchers fire.
+    over its keywords/patterns/type_patterns/layouts/signal_keys/concept
+    (task #83). So combining the constituent presets' tuples preserves OR
+    semantics — a card matches iff at least one member's matchers fire.
+    This holds across a MIXED group (some members still regex, some
+    converted to structural views): ``signal_keys`` unions the same way
+    ``keywords`` does, and any member's ``concept`` predicate is OR'd into
+    one merged predicate — a converted member's view and an unconverted
+    member's regex simply coexist as two more OR arms on the synthesized
+    :class:`Preset`.
 
     Raises ``KeyError`` if any member is not a known preset.
     """
@@ -221,6 +227,11 @@ def merge_member_presets(name: str, members: tuple[str, ...] | list[str]) -> Pre
     layouts = tuple(
         dict.fromkeys(layout for p in member_presets for layout in p.layouts)
     )
+    signal_keys = tuple(dict.fromkeys(k for p in member_presets for k in p.signal_keys))
+    concepts = tuple(p.concept for p in member_presets if p.concept is not None)
+    concept = (
+        (lambda card, _fns=concepts: any(fn(card) for fn in _fns)) if concepts else None
+    )
     desc = f"Group: {' + '.join(members)}"
     return Preset(
         name=name,
@@ -229,4 +240,6 @@ def merge_member_presets(name: str, members: tuple[str, ...] | list[str]) -> Pre
         patterns=patterns,
         type_patterns=type_patterns,
         layouts=layouts,
+        signal_keys=signal_keys,
+        concept=concept,
     )

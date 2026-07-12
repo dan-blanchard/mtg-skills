@@ -2,8 +2,10 @@
 
 A canonical, tested library of named matchers for common MTG mechanics.
 Each preset bundles a keyword list (matched against Scryfall's ``keywords``
-array) and/or a list of regex patterns (matched against oracle text).
-Callers use ``get_preset(name).matches(card)`` to test a single card.
+array), a list of regex patterns (matched against oracle text), and/or a
+STRUCTURAL VIEW over the production signal extractor (see "Structural
+views" below). Callers use ``get_preset(name).matches(card)`` to test a
+single card.
 
 Presets ship with test fixtures (``should_match`` / ``should_not_match``
 card-name tuples). ``tests/mtg-utils/test_theme_presets.py`` pins each
@@ -18,10 +20,50 @@ that mention a keyword without having it (e.g. "Target creature gets
 flying"). When a theme is a keyword ability (flying, scry, flashback,
 cascade, cycling, …) the preset uses the keyword list only.
 
-Regex is reserved for FUNCTIONAL themes without a matching keyword
-(removal, mill, reanimate, counterspells, burn, tokens, …). Oracle text
-uses both digit and word number forms ("scry 2" vs "mill three cards"),
-so the :data:`_COUNT` atom below covers both.
+Regex is reserved for FUNCTIONAL themes without a matching keyword and
+without a structural view yet (removal, mill, reanimate, counterspells,
+burn, tokens, …). Oracle text uses both digit and word number forms
+("scry 2" vs "mill three cards"), so the :data:`_COUNT` atom below covers
+both.
+
+# Structural views (task #83, ADR-0035/0039)
+
+A regex/keyword preset is a hand-rolled SECOND detector shadowing the
+production signal extractor (``mtg_utils._deck_forge.signals.
+extract_signals_hybrid``, the crosswalk read over phase-rs's parse). Per
+Dan's directive (2026-07-12), presets are being migrated one lane at a
+time into DECLARATIVE VIEWS over that extractor's own output — never a
+third detector system:
+
+- ``signal_keys``: the card matches if its production signal keyset
+  (memoized per ``oracle_id`` — see :func:`_signal_keys_for`) intersects
+  these keys. This is the primary conversion mechanism — most presets
+  map onto exactly one signal key (``landfall`` → the ``landfall`` key,
+  ``sacrifice-outlet`` → ``sacrifice_outlets``, …).
+- ``keywords`` stays live and UNIONS with ``signal_keys`` where a
+  Scryfall keyword-array fact isn't fully folded into the signal lane
+  (a keyword-only maker the effect lane doesn't independently derive —
+  ``landfall``'s ``Landfall`` keyword is one such case; see the
+  per-preset conversion note).
+- ``concept``: an OPTIONAL named predicate, ``(card) -> bool``, for a
+  fact the signal system doesn't carry at all (e.g. a removal target's
+  PERMANENT TYPE — signals don't currently carry a target-type subject).
+  A concept predicate MUST reuse an existing crosswalk lane helper
+  (``mtg_utils._deck_forge.crosswalk_signals``) rather than hand-roll a
+  new text scan — it lives next to the lane helper it reuses, with the
+  same docstring discipline as the lane itself. No pilot preset needs one
+  yet; the field exists so a future conversion that DOES need one has
+  somewhere to put it without re-widening ``Preset``.
+
+A converted preset drops its ``patterns`` (the regex is superseded by the
+view, not run in parallel) and keeps ``keywords`` only for facts the
+signal system genuinely doesn't reproduce. Every arm — ``keywords``,
+``patterns``, ``type_patterns``, ``layouts``, ``signal_keys``,
+``concept`` — still combines with OR in :meth:`Preset.matches`, so a
+partially-converted registry (some presets structural, most still regex)
+behaves identically from every existing call site's point of view; the
+public API (``Preset.matches`` / ``get_preset`` / ``matches`` /
+``list_presets`` / ``PRESETS``) is unchanged.
 
 # Public API
 
@@ -36,6 +78,7 @@ so the :data:`_COUNT` atom below covers both.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import MappingProxyType
 
@@ -62,9 +105,21 @@ class Preset:
     - ``layouts``: the card's Scryfall ``layout`` field equals one of
       these (case-sensitive, matching Scryfall values like
       ``"adventure"``, ``"prototype"``, ``"split"``, ``"saga"``).
+    - ``signal_keys``: the card's production signal keyset (see the
+      module docstring's "Structural views" section) intersects these
+      keys. Empty for every not-yet-converted preset.
+    - ``concept``: an optional ``(card) -> bool`` predicate for a fact
+      neither the regex arms nor the signal system carry. ``None`` for
+      every preset today.
 
-    All four may be set; they combine with OR. ``should_match`` and
-    ``should_not_match`` are card-name fixtures used by the test suite.
+    All six may be set; they combine with OR. ``should_match`` and
+    ``should_not_match`` are card-name fixtures used by the test suite —
+    for a preset with a non-empty ``signal_keys``/``concept``, the golden
+    fixture test routes these through ``mtg_utils.testkit`` (a real
+    Scryfall record + real crosswalk trees) instead of the inline
+    synthetic ``FIXTURE_CARDS`` dict, since the structural arms need a
+    real ``oracle_id`` to resolve anything (see
+    ``test_theme_presets.py``'s structural-view test class).
     """
 
     name: str
@@ -73,6 +128,8 @@ class Preset:
     patterns: tuple[re.Pattern[str], ...] = ()
     type_patterns: tuple[re.Pattern[str], ...] = ()
     layouts: tuple[str, ...] = ()
+    signal_keys: tuple[str, ...] = ()
+    concept: Callable[[dict], bool] | None = None
     should_match: tuple[str, ...] = ()
     should_not_match: tuple[str, ...] = ()
 
@@ -89,7 +146,55 @@ class Preset:
             type_line = card.get("type_line") or ""
             if any(p.search(type_line) for p in self.type_patterns):
                 return True
-        return bool(self.layouts) and card.get("layout") in self.layouts
+        if self.layouts and card.get("layout") in self.layouts:
+            return True
+        if self.signal_keys and _signal_keys_for(card) & set(self.signal_keys):
+            return True
+        return self.concept is not None and self.concept(card)
+
+
+# ─── Structural-view seam (task #83, ADR-0035/0039) ───────────────────────
+#
+# oracle_id -> frozenset(production signal key) index, populated LAZILY —
+# one entry per card the FIRST time any signal_keys-bearing preset sees it,
+# never eagerly for the whole pool. A card_search.py-style full-pool scan
+# still pays one extract_signals_hybrid call per card overall (same as
+# before conversion — every card is visited once regardless), but this
+# cache is what makes a SECOND structural preset scanning the SAME pool (or
+# the same card revisited by a different consumer in one process) free: it
+# reuses the already-computed key set instead of re-running the crosswalk
+# lanes. extract_signals_hybrid itself already memoizes the expensive part
+# (_ir_lookup.trees_for's per-face ConceptTree resolution) per oracle_id, so
+# this index is a second, cheaper memoization layer on top of that one —
+# the (key, scope, subject) -> Signal lane pass, not the tree build.
+_SIGNAL_KEY_INDEX: dict[str, frozenset[str]] = {}
+
+
+def _signal_keys_for(card: dict) -> frozenset[str]:
+    """CARD's production signal-key set (memoized per ``oracle_id``).
+
+    Empty for a card with no ``oracle_id`` (a synthetic fixture — the same
+    "no oracle_id" degradation ``extract_signals_hybrid`` documents) or
+    whose oracle_id resolves to no phase parse at all — a structural-view
+    preset just never matches such a card, exactly like the ``keywords`` /
+    ``patterns`` arms matching nothing on a card missing the field they
+    read. Imports ``mtg_utils._deck_forge.signals`` LAZILY inside the
+    function body (never at module import time): ``_deck_forge.
+    _signals_regex`` imports ``theme_presets.get_preset``, so a top-level
+    import here would create an import-time cycle racing partial module
+    initialization the first time either module loads.
+    """
+    oid = card.get("oracle_id")
+    if not oid:
+        return frozenset()
+    cached = _SIGNAL_KEY_INDEX.get(oid)
+    if cached is not None:
+        return cached
+    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+
+    keys = frozenset(sig.key for sig in extract_signals_hybrid(card))
+    _SIGNAL_KEY_INDEX[oid] = keys
+    return keys
 
 
 def _rx(*patterns: str) -> tuple[re.Pattern[str], ...]:
@@ -311,16 +416,27 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
     ),
     Preset(
         name="landfall",
-        description=("Card has landfall (whenever a land enters under your control)."),
-        keywords=("Landfall",),
-        # Only match the "under your control" variant — the opponent-land
-        # trigger form (Tectonic Edge-style, "whenever a land enters the
-        # battlefield under an opponent's control") is a different mechanic.
-        patterns=_rx(
-            r"\blandfall\b",
-            r"whenever a land (?:you control )?enters",
-            r"whenever a land enters the battlefield under your control",
+        description=(
+            "Card has landfall (whenever a land enters under your control), "
+            "OR is a landfall ENABLER the crosswalk `landfall` signal folds "
+            "in: casts a land from the graveyard (Crucible of Worlds, "
+            "Ramunap Excavator), grants extra land drops (Exploration, "
+            "Azusa), or returns lands from the graveyard to the "
+            "battlefield — all read the same 'more land-ETB triggers' "
+            "archetype the old oracle-text regex only caught the trigger "
+            "half of (task #83 structural-view conversion)."
         ),
+        # Keyword arm UNIONS with the signal_keys view rather than being
+        # subsumed by it: the scoping census found landfall is one of the
+        # mechanics whose keyword-only makers the crosswalk effect lane can
+        # miss (a card whose ONLY landfall tell is the bare Scryfall
+        # `Landfall` array entry, no oracle-text form the lane's structural
+        # reads independently derive). Dropping this arm risks a silent
+        # keyword-only regression the corpus census didn't specifically
+        # rule out; keeping it is a one-line, zero-cost belt-and-suspenders
+        # union — CR 701.19 (Landfall keyword action).
+        keywords=("Landfall",),
+        signal_keys=("landfall",),
         should_match=("Courser of Kruphix", "Bloodghast"),
         should_not_match=("Lightning Bolt",),
     ),
@@ -1325,19 +1441,50 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         should_not_match=("Lightning Bolt",),
     ),
-    # Sacrifice outlet: "sacrifice X: <effect>" (colon makes it an activated
-    # ability cost, per Lucky Paper). The "^" anchor means start-of-paragraph
-    # to avoid false-matching cards that reference sacrificing in other ways.
+    # Sacrifice outlet / payoff (task #83 structural-view conversion). The
+    # crosswalk `sacrifice_outlets` signal (see
+    # `_deck_forge.crosswalk_signals._sacrifice_outlets`) is DELIBERATELY
+    # broader than the old "sacrifice X: <effect>" regex: it is the
+    # concept's own true scope — a repeatable activated-cost outlet
+    # (Viscera Seer, Ashnod's Altar), a ONE-SHOT outlet (an alt-cost pitch
+    # — Salvage Titan, Anchor to Reality; an ETB "sacrifice any number" —
+    # Angelic Aberration; Devour/Exploit/Casualty/Bargain), a GRANTED
+    # outlet (Lunarch Mantle), OR a sacrifice PAYOFF (a `sacrificed`/
+    # `exploited` trigger with no outlet of its own — Cabal Therapist,
+    # Blood Artist-style death-payoff cousins) — CR 701.21. A random
+    # 25-card sample of the ~875 corpus cards this view gains over the old
+    # regex (session adjudication) confirmed every one is genuinely
+    # sacrifice-related (one-shot/alt-cost/granted outlets or payoffs),
+    # not noise the regex correctly excluded — the regex's narrower
+    # "repeatable, colon-suffixed cost" phrasing was UNDER-catching this
+    # whole family, not over-catching a different one.
+    #
+    # DEFERRED single-card gap (not fixed here — a lane change needs the
+    # full corpus-diff + CR-citation bar, out of scope for a view
+    # conversion): Rakdos Riteknife (equipment) grants its wielder
+    # "{T}, Sacrifice a creature: Put a blood counter…" bundled into ONE
+    # static ability alongside a dynamic +1/+0 pump ("Equipped creature
+    # gets +1/+0 for each blood counter … and has '…'"). phase-rs parses
+    # that combined static ability as a bare `AddDynamicPower`
+    # modification with NO `GrantAbility` node for the quoted granted
+    # ability at all (verified via `_ir_lookup.trees_for` — the granted
+    # activated ability's text is dropped from the typed tree entirely),
+    # so `_sac_outlet_granted_cost`'s `GrantAbility` walk has nothing to
+    # find. This is a phase-rs parse gap on the "buff + grant" combined
+    # idiom, not a crosswalk-lane bug; the old regex caught it via the
+    # mid-sentence ", sacrifice a creature:" text this view can't yet
+    # reach structurally. One card of 303 (recall 0.997) — the view is
+    # still correct to ship; this card is the residual tail.
     Preset(
         name="sacrifice-outlet",
         description=(
-            "Has a repeatable activated ability whose cost includes "
-            "sacrificing a creature or permanent."
+            "Has a sacrifice outlet (repeatable activated, one-shot "
+            "alt-cost, granted, or ETB) OR triggers on a sacrifice you "
+            "make (sacrifice PAYOFF) — CR 701.21. Broader than the old "
+            "'repeatable activated cost' regex; see the crosswalk "
+            "conversion note above."
         ),
-        patterns=_rx(
-            r"(?m)^sacrifice (?:a|another) (?:creature|permanent|artifact)[^.]*:",
-            r", sacrifice (?:a|another) (?:creature|permanent|artifact)[^.]*:",
-        ),
+        signal_keys=("sacrifice_outlets",),
         should_match=("Viscera Seer", "Ashnod's Altar"),
         should_not_match=("Lightning Bolt", "Llanowar Elves"),
     ),
@@ -1925,9 +2072,14 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         description=(
             "Additional upkeep step. Paradox Haze and Obeka Splitter of "
             "Seconds turn beginning-of-upkeep triggers into repeatable "
-            "engines — the core of upkeep-payoff archetypes."
+            "engines — the core of upkeep-payoff archetypes. The "
+            "crosswalk `extra_upkeep` signal also folds in the wider "
+            "'additional beginning phase' idiom (Sphinx of the Second "
+            "Sun) — a beginning phase INCLUDES the upkeep step (CR 501.1), "
+            "so it's the same archetype under a broader templating "
+            "(task #83 structural-view conversion)."
         ),
-        patterns=_rx(r"additional upkeep steps?"),
+        signal_keys=("extra_upkeep",),
         should_match=("Obeka, Splitter of Seconds", "Paradox Haze"),
         should_not_match=("Lightning Bolt", "Llanowar Elves"),
     ),

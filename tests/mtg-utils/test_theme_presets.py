@@ -1,13 +1,20 @@
 """Tests for the theme_presets module.
 
-Two layers of coverage:
+Three layers of coverage:
 
 1. Unit tests for the Preset dataclass and registry API.
-2. Golden fixture tests: for every preset in PRESETS, iterate its
-   should_match / should_not_match tuples and assert matching behavior.
-   Fixture card data (keywords + oracle_text) lives in FIXTURE_CARDS
-   below. When adding a card to a preset's should_match, also add its
-   Scryfall-accurate oracle_text and keywords here.
+2. Golden fixture tests: for every REGEX/KEYWORD preset in PRESETS,
+   iterate its should_match / should_not_match tuples and assert matching
+   behavior. Fixture card data (keywords + oracle_text) lives in
+   FIXTURE_CARDS below. When adding a card to a preset's should_match,
+   also add its Scryfall-accurate oracle_text and keywords here.
+3. Structural-view golden fixture tests (task #83): for every preset with
+   a non-empty ``signal_keys``/``concept`` (see
+   ``TestStructuralPresetsAgainstSnapshot``), the SAME should_match /
+   should_not_match tuples are proven against real Scryfall records + real
+   crosswalk trees from the committed snapshot (``mtg_utils.testkit``) —
+   the inline ``FIXTURE_CARDS`` dict has no ``oracle_id`` to resolve a
+   structural view against.
 """
 
 from __future__ import annotations
@@ -19,6 +26,7 @@ from pathlib import Path
 
 import pytest
 
+from mtg_utils import theme_presets
 from mtg_utils.theme_presets import (
     PRESETS,
     Preset,
@@ -1426,6 +1434,17 @@ class TestApi:
 # Every preset's should_match and should_not_match tuples must hold against
 # the inline FIXTURE_CARDS. This catches regex drift if an Oracle update
 # changes a card's text, or if a preset's pattern accidentally breaks.
+#
+# Structural-view presets (task #83 — non-empty ``signal_keys``/``concept``)
+# are EXCLUDED here: their view arm needs a real ``oracle_id`` to resolve
+# anything, which the inline synthetic ``FIXTURE_CARDS`` dict never carries.
+# Their should_match/should_not_match fixtures are proven instead by
+# ``TestStructuralPresetsAgainstSnapshot`` below, against real Scryfall
+# records + real crosswalk trees from the committed snapshot.
+
+_STRUCTURAL_PRESET_NAMES = frozenset(
+    name for name, preset in PRESETS.items() if preset.signal_keys or preset.concept
+)
 
 
 def _get_fixture(card_name: str) -> dict:
@@ -1442,7 +1461,12 @@ def _get_fixture(card_name: str) -> dict:
 
 @pytest.mark.parametrize(
     ("preset_name", "card_name"),
-    [(name, card) for name, preset in PRESETS.items() for card in preset.should_match],
+    [
+        (name, card)
+        for name, preset in PRESETS.items()
+        if name not in _STRUCTURAL_PRESET_NAMES
+        for card in preset.should_match
+    ],
 )
 def test_preset_should_match(preset_name: str, card_name: str):
     preset = PRESETS[preset_name]
@@ -1459,6 +1483,7 @@ def test_preset_should_match(preset_name: str, card_name: str):
     [
         (name, card)
         for name, preset in PRESETS.items()
+        if name not in _STRUCTURAL_PRESET_NAMES
         for card in preset.should_not_match
     ],
 )
@@ -1470,6 +1495,65 @@ def test_preset_should_not_match(preset_name: str, card_name: str):
         f"Card keywords: {card.get('keywords')}\n"
         f"Oracle text: {card.get('oracle_text')!r}"
     )
+
+
+# ─── Structural-view golden fixture tests (task #83) ───────────────────────
+#
+# A structural-view preset's should_match/should_not_match fixtures are
+# proven against REAL production signals: a synthetic FIXTURE_CARDS entry
+# has no oracle_id, so the signal_keys/concept arm always degrades to
+# "no match" against it. This routes through mtg_utils.testkit's committed
+# snapshot instead — the same real-Scryfall-record + real-crosswalk-tree
+# pattern tests/deck-forge/test_migrated_keys.py uses, CI-safe (no phase
+# cache / network; the snapshot carries phase's OWN parse for each card).
+# ``testkit.test_card_ir`` seeds ``_ir_lookup``'s trees memo for the name as
+# a side effect, so the subsequent ``preset.matches(testkit.test_card(name))``
+# resolves its signal_keys arm from the SAME seeded trees, not a live phase
+# fetch. A future conversion batch adds should_match/should_not_match names
+# to the relevant preset above, then a snapshot-name entry + `build-card-
+# snapshot` run (see this file's own docstring / testkit's).
+
+_STRUCTURAL_SHOULD_MATCH = [
+    (name, card)
+    for name in sorted(_STRUCTURAL_PRESET_NAMES)
+    for card in PRESETS[name].should_match
+]
+_STRUCTURAL_SHOULD_NOT_MATCH = [
+    (name, card)
+    for name in sorted(_STRUCTURAL_PRESET_NAMES)
+    for card in PRESETS[name].should_not_match
+]
+
+
+class TestStructuralPresetsAgainstSnapshot:
+    """should_match/should_not_match for signal_keys/concept presets, proven
+    against the committed real-card snapshot (mtg_utils.testkit)."""
+
+    @pytest.mark.parametrize(("preset_name", "card_name"), _STRUCTURAL_SHOULD_MATCH)
+    def test_should_match(self, preset_name: str, card_name: str):
+        from mtg_utils import testkit
+
+        testkit.test_card_ir(card_name)  # seeds the crosswalk trees memo
+        preset = PRESETS[preset_name]
+        card = testkit.test_card(card_name)
+        assert preset.matches(card), (
+            f"structural preset {preset_name!r} should match {card_name!r} "
+            f"but did not.\nsignal keys seen: "
+            f"{sorted(theme_presets._signal_keys_for(card))}"
+        )
+
+    @pytest.mark.parametrize(("preset_name", "card_name"), _STRUCTURAL_SHOULD_NOT_MATCH)
+    def test_should_not_match(self, preset_name: str, card_name: str):
+        from mtg_utils import testkit
+
+        testkit.test_card_ir(card_name)  # seeds the crosswalk trees memo
+        preset = PRESETS[preset_name]
+        card = testkit.test_card(card_name)
+        assert not preset.matches(card), (
+            f"structural preset {preset_name!r} should NOT match "
+            f"{card_name!r} but did.\nsignal keys seen: "
+            f"{sorted(theme_presets._signal_keys_for(card))}"
+        )
 
 
 # ─── Integration tests against real Scryfall bulk data ────────────────────

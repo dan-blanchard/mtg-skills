@@ -280,3 +280,36 @@ class TestMergeMemberPresets:
 
         with pytest.raises(KeyError):
             merge_member_presets("bad-group", ("does-not-exist",))
+
+    def test_merged_preset_unions_a_structural_view_with_a_regex_member(self):
+        """Task #83: merge_member_presets ORs a converted (signal_keys) member
+        with an unconverted (regex) member — a mixed group during the
+        transition still merges to a coherent single Preset."""
+        from mtg_utils import testkit
+        from mtg_utils._archetype_resolver import merge_member_presets
+
+        merged = merge_member_presets("value-engines", ("landfall", "extra-turns"))
+        assert merged.signal_keys == ("landfall",)
+        assert merged.patterns  # extra-turns' regex arm survives the merge
+
+        # landfall member matches ONLY via the structural signal_keys arm.
+        testkit.test_card_ir("Courser of Kruphix")
+        landfall_card = testkit.test_card("Courser of Kruphix")
+        assert merged.matches(landfall_card)
+
+        # extra-turns member matches ONLY via the regex arm (no oracle_id
+        # needed — extra-turns is still an unconverted regex preset).
+        extra_turn_card = {
+            "name": "Time Walk",
+            "type_line": "Sorcery",
+            "oracle_text": "Take an extra turn after this one.",
+        }
+        assert merged.matches(extra_turn_card)
+
+        # Neither arm fires on a bystander.
+        bystander = {
+            "name": "Lightning Bolt",
+            "type_line": "Instant",
+            "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+        }
+        assert not merged.matches(bystander)
