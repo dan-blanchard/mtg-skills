@@ -9238,6 +9238,13 @@ def _arm_ramp_dropped_add_mana_clause(tree: ConceptTree) -> ConceptNode | None:
 _RAMP_KNOWN_TOKEN_IDIOMS: tuple[str, ...] = (
     "can't be spent to cast a nonartifact spell",  # Powerstone (CR 605.1a)
     "add one mana of any color",  # Gold (CR 106.1/605.1a)
+    # task #np_roles adjudicated AGAINST adding the bare land-tap idiom
+    # ("{T}: Add {G}." — Forest Dryad; "{T}: Add {C}." — the Mutavault
+    # token): both identities are LAND tokens, and the ``_ramp`` lane's own
+    # land split (CR 305 vs 106.1) reads a basic-equivalent single-color/
+    # single-{C} tap as MANA BASE, never ramp — a real Forest / Mutavault
+    # card doesn't fire ``ramp``, so its token twin must not either (the
+    # Lander not-ramp precedent above, applied a second time).
 )
 
 
@@ -9330,6 +9337,139 @@ def _arm_known_token_lifeloss_opponents(tree: ConceptTree) -> ConceptNode | None
         scope="opponents",
         subject=(),
         desc="predefined known-token opponent life-loss ability (Wicked)",
+    )
+
+
+# ── task #np_roles — the WOE-Role-cycle + single-creator tail arms ─────────
+# The deferral closeout for the four Role identities task #95 left unwired
+# (Cursed / Royal / Sorcerer; Monster stays adjudicated-out — see the
+# ``_ir_lookup`` module comment) plus the wired tail identities (Shard,
+# Wizard, Contract, Forest Dryad, Mutavault, Spellgorger Weird — the last
+# rides the pre-existing ``_arm_spellcast_matters`` with zero new code).
+# Same discipline as the task #95 block above: every arm gates on ``not
+# tree.units`` (zero-unit text-only trees only) and matches the FIXED,
+# KNOWN token wording (CR 111.10j-r defines each Role's exact text).
+
+
+def _arm_known_token_single_target_neutralize(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``synth_single_target_neutralize`` marker for a Cursed
+    Role known-token zero-unit text-only tree (task #np_roles) — "Enchanted
+    creature has base power and toughness 1/1" (CR 111.10j; base-P/T set is
+    layer 7b, CR 613.4b). ``_single_target_neutralize``'s own structural
+    arm (an ``EnchantedBy``-affected ``SetPower <= 1`` site — Darksteel
+    Mutation) has no unit to walk here, so the lane reads this marker
+    instead (the ``synth_lifeloss_makers_opponents`` precedent)."""
+    if tree.units:
+        return None
+    oracle = (tree.oracle or "").lower()
+    if "enchanted creature has base power and toughness 1/1" not in oracle:
+        return None
+    return _synthetic_concept(
+        arm_id="known_token_single_target_neutralize",
+        concept="synth_single_target_neutralize",
+        scope="you",
+        subject=(),
+        desc="predefined known-token base-P/T neutralize (Cursed, CR 111.10j)",
+    )
+
+
+def _arm_known_token_ward_grant(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``synth_protection_grant_suit_up`` marker for a Royal
+    Role known-token zero-unit text-only tree (task #np_roles) — "Enchanted
+    creature gets +1/+1 and has ward {1}" (CR 111.10m; ward is CR 702.21a,
+    a protective keyword). The real durable-Aura analog (Shield of the
+    Oversoul) fires ``protection_grant`` through ``_keyword_grant_lanes``'s
+    suit-up branch; a zero-unit tree has no AddKeyword mod site to walk, so
+    the lane reads this marker instead. Reminder-stripped first: the Royal
+    toml text carries ward's own reminder ("... counter it unless that
+    player pays {1}"), which must never leak into other matches."""
+    if tree.units:
+        return None
+    oracle = _REMINDER.sub(" ", tree.oracle or "").lower()
+    if "enchanted creature gets" not in oracle or "has ward" not in oracle:
+        return None
+    return _synthetic_concept(
+        arm_id="known_token_ward_grant",
+        concept="synth_protection_grant_suit_up",
+        scope="you",
+        subject=(),
+        desc="predefined known-token ward suit-up grant (Royal, CR 702.21a)",
+    )
+
+
+_KNOWN_TOKEN_SCRY_RX = re.compile(r"\bscry \d", re.IGNORECASE)
+
+
+def _arm_known_token_topdeck_scry(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``synth_topdeck_selection`` marker for a zero-unit
+    text-only tree whose fixed text performs a Scry (task #np_roles) —
+    the Sorcerer Role's granted "Whenever this creature attacks, scry 1"
+    (CR 111.10n) and the Shard's "{2}, Sacrifice this enchantment: Scry 1,
+    then draw a card". CR 701.22a scry is ALWAYS own-library top curation
+    (no other-player variant exists), so a bare "scry N" on a zero-unit
+    tree is a safe, owner-unambiguous ``topdeck_selection`` doer — the
+    lane's structural ``Scry`` tag read has no unit to walk here.
+    Reminder-stripped so a reminder that merely describes a look (the Map
+    token's explore text) can never match."""
+    if tree.units:
+        return None
+    if not _KNOWN_TOKEN_SCRY_RX.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="known_token_topdeck_scry",
+        concept="synth_topdeck_selection",
+        scope="you",
+        subject=(),
+        desc="predefined known-token scry doer (Sorcerer/Shard, CR 701.22a)",
+    )
+
+
+def _arm_known_token_counter_spell(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``counter_spell`` node for a Wizard known-token
+    zero-unit text-only tree (task #np_roles) — Mage's Attendant's "{1},
+    Sacrifice this creature: Counter target noncreature spell unless its
+    controller pays {1}." (CR 701.6a). Emits the REAL ``counter_spell``
+    concept — ``_counter_control``'s only branch
+    (``effect_concepts("counter_spell")``) reads it unconditionally, the
+    same real-concept precedent as ``_arm_known_token_ramp``. Gated on
+    ``not tree.effect_concepts("counter_spell")`` so a future card whose
+    own typed Counter node coexists never doubles."""
+    if tree.units or tree.effect_concepts("counter_spell"):
+        return None
+    if "counter target noncreature spell" not in (tree.oracle or "").lower():
+        return None
+    return _synthetic_concept(
+        arm_id="known_token_counter_spell",
+        concept="counter_spell",
+        scope="you",
+        subject=(),
+        desc="predefined known-token counterspell (Wizard, CR 701.6a)",
+    )
+
+
+def _arm_known_token_lifeloss_contract(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``synth_lifeloss_makers_opponents`` marker for the
+    Contract known-token zero-unit text-only tree (task #np_roles) —
+    "Whenever enchanted creature attacks, it gets +2/+0 until end of turn
+    if it's attacking one of your opponents. Otherwise, its controller
+    loses 2 life." (CR 119.3). The sole creator (Scriv, the Obligator)
+    attaches it to "target creature an opponent controls", so the losing
+    controller is an opponent — scope "opponents", the Wicked lane-read
+    precedent verbatim. Both phrase gates required (the attack trigger AND
+    the controller-loss tail) so no unrelated zero-unit text matches."""
+    if tree.units:
+        return None
+    oracle = (tree.oracle or "").lower()
+    if "whenever enchanted creature attacks" not in oracle:
+        return None
+    if "its controller loses" not in oracle:
+        return None
+    return _synthetic_concept(
+        arm_id="known_token_lifeloss_contract",
+        concept="synth_lifeloss_makers_opponents",
+        scope="opponents",
+        subject=(),
+        desc="predefined known-token controller life-loss (Contract, CR 119.3)",
     )
 
 
@@ -9485,6 +9625,14 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("known_token_explore", _arm_known_token_explore),
     ("known_token_impulse_top_play", _arm_known_token_impulse_top_play),
     ("known_token_lifeloss_opponents", _arm_known_token_lifeloss_opponents),
+    (
+        "known_token_single_target_neutralize",
+        _arm_known_token_single_target_neutralize,
+    ),
+    ("known_token_ward_grant", _arm_known_token_ward_grant),
+    ("known_token_topdeck_scry", _arm_known_token_topdeck_scry),
+    ("known_token_counter_spell", _arm_known_token_counter_spell),
+    ("known_token_lifeloss_contract", _arm_known_token_lifeloss_contract),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

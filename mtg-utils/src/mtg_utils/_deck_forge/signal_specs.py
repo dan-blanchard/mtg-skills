@@ -5279,6 +5279,24 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"[^.]*can'?t attack",
         serve_types=("Enchantment",),
     ),
+    # task #np_roles: single_target_neutralize — the Darksteel Mutation /
+    # Lignify / Frogify class: overwrite a threat's base power down to 0-1
+    # (CR 613.4b layer 7b), usually stripping abilities too — the
+    # commander answer that beats indestructible and dodges death
+    # triggers. The pacify-adjacent neutralize shape (CR 611.2 — the
+    # permanent stays on the battlefield, so it is deliberately NOT part
+    # of `removal`); no theme_presets entry, matching `counter_hate`'s
+    # narrow-lane precedent.
+    ("single_target_neutralize", "you"): _spec(
+        "Neutralize auras",
+        "Auras that overwrite a threat's base power/toughness to ~1/1 "
+        "(beats indestructible, dodges death triggers)",
+        {
+            "oracle": r"enchanted (?:creature|permanent)[^.]*"
+            r"base power and toughness [01]/\d+"
+        },
+        r"enchanted (?:creature|permanent)[^.]*base power and toughness [01]/\d+",
+    ),
     # VETO exile-and-return (blink): a card that exiles a creature then returns it is a
     # flicker engine, not removal (Ephemerate, Cloudshift) — CR 603.6e.
     ("exile_removal", "you"): _spec(

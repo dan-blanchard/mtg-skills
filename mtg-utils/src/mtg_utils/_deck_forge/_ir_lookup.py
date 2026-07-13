@@ -352,9 +352,12 @@ def _text_only_trees(
 # regardless of this allowlist: :func:`_known_token_tree` returns ``None``
 # for blank text). Task #95 (Dan's 2026-07-13 directive: adjudicate EVERY
 # remaining identity, wire what's real) re-swept all 34 and widened the
-# wired set from 2 to 8, each verified to open a real, already-existing
-# lane — the corpus-discipline bar (every membership delta gets a verified
-# reason) applied per identity, not mass-enabled:
+# wired set from 2 to 8; task #np_roles finished the sweep FOR REAL — the
+# four deferred WOE-Role-cycle identities plus the whole single-creator
+# tail, every one individually adjudicated (WIRED below / ALREADY-SERVED
+# / GENUINE NON-SIGNAL in the residue list further down), widening the
+# wired set to 15 — the corpus-discipline bar (every membership delta
+# gets a verified reason) applied per identity, not mass-enabled:
 #
 # * "Mutagen" (task #92; the TMT cycle) — "{1}, {T}, Sacrifice this token:
 #   Put a +1/+1 counter on target creature." opens ``plus_one_makers``
@@ -390,6 +393,37 @@ def _text_only_trees(
 #   life." opens ``lifeloss_makers`` scope "opponents" (CR 119.3) via
 #   :func:`~mtg_utils._card_ir.tree_synthesis.
 #   _arm_known_token_lifeloss_opponents`.
+# * "Cursed" (task #np_roles; CR 111.10j) — "Enchanted creature has base
+#   power and toughness 1/1." opens the NEW ``single_target_neutralize``
+#   lane (CR 613.4b layer 7b; the Darksteel Mutation class, previously
+#   unserved as an answer shape by ANY lane) via ``_arm_known_token_
+#   single_target_neutralize``'s marker.
+# * "Royal" (task #np_roles; CR 111.10m) — "…gets +1/+1 and has ward
+#   {1}." opens ``protection_grant`` (CR 702.21a; the suit-up branch a
+#   real ward Aura like Shield of the Oversoul already fires) via
+#   ``_arm_known_token_ward_grant``'s marker.
+# * "Sorcerer" (task #np_roles; CR 111.10n) / "Shard" (Niko Aris's "{2},
+#   Sacrifice this enchantment: Scry 1, then draw a card.") — both carry
+#   a fixed Scry, ALWAYS own-library curation (CR 701.22a), opening
+#   ``topdeck_selection`` via ``_arm_known_token_topdeck_scry``'s marker.
+#   The Shard's draw half is a per-token one-shot cantrip — the system's
+#   own convention tags NO draw-doer key for a bare cantrip (Opt fires
+#   none), so topdeck_selection is the whole genuine serve.
+# * "Wizard" (Mage's Attendant) — "{1}, Sacrifice this creature: Counter
+#   target noncreature spell…" opens ``counter_control`` (CR 701.6a) via
+#   ``_arm_known_token_counter_spell``'s REAL ``counter_spell`` concept.
+#   A 1-creator population is a valid serve (niche is never skip; the
+#   toml's OTHER Wizard identities — a mana wizard, a ping wizard — have
+#   no gap-gated creator today and join per-id if one ever appears).
+# * "Contract" (Scriv, the Obligator) — "…Otherwise, its controller loses
+#   2 life." on an Aura Scriv attaches to a creature AN OPPONENT controls
+#   opens ``lifeloss_makers`` scope "opponents" (CR 119.3; the Wicked
+#   precedent) via ``_arm_known_token_lifeloss_contract``'s marker.
+# * "Spellgorger Weird" (Ral and the Implicit Maze) — "Whenever you cast
+#   a noncreature spell, put a +1/+1 counter on this creature." opens
+#   ``spellcast_matters`` through the PRE-EXISTING
+#   ``_arm_spellcast_matters`` bucket-B arm (its trigger idiom matches
+#   the token text verbatim) — allowlist-only, zero new arm code.
 #
 # EVERYTHING ELSE the sweep found is DOCUMENTED RESIDUE — each individually
 # adjudicated (task #95), not a blanket deferral:
@@ -422,37 +456,67 @@ def _text_only_trees(
 #   ``_artifacts_enchantments_matter``'s token-maker branch fires
 #   regardless of ability text). The devotion-style per-enchantment
 #   SCALING nuance isn't separately captured, but the lane already opens.
-# * Cursed (base P/T set to 1/1, a single-target Aura neutralize — soft
-#   removal, Darksteel-Mutation-shaped) — NO lane in ``crosswalk_signals``
-#   reads a single-target base-P/T-set at all: ``_debuff_makers`` explicitly
-#   EXCLUDES a single-Aura shrink by design (its own docstring: "a single-
-#   Aura/single-target shrink … is a neutralize, NOT a mass -1/-1
-#   enabler"), and neither ``_removal`` nor ``_pacify_makers`` reads the
-#   ``set_pt`` concept. This is a genuine, PRE-EXISTING lane gap (a real
-#   Darksteel Mutation-shaped card would be equally unserved) — not
-#   specific to the known-tokens substrate, and out of scope for a token-
-#   identity wiring sweep (it needs a NEW lane, not a new source feeding
-#   an old one). Left unwired; a future task can design that lane.
-# * Royal (+1/+1 + ward {1}) / Monster (+1/+1 + trample) — a single-target
-#   keyword grant. ``_keyword_grant_lanes`` DOES have a text-only-tree
-#   fallback (``_KEYWORD_GRANT_TARGET_KEPT_RX``), but it's anchored to the
-#   "target creature … gains/gets +X/+Y and gains KEYWORD" phrasing (built
-#   for a split/aftermath back-face gap) — the Aura-reminder wording here
-#   ("Enchanted creature gets +1/+1 and has KEYWORD") uses a different verb
-#   ("has", not "gains") and subject ("Enchanted creature", not "target
-#   creature"), so it does not match. Widening that SHARED regex risks
-#   unaudited over-fire on other text-only-tree consumers (the split/
-#   aftermath gap it was built for); a dedicated marker-and-lane-edit (the
-#   Wicked/Junk precedent above) is the safer fix but needs its own gate
-#   design against ``_keyword_grant_lanes``'s multi-branch structure — not
-#   done this session.
-# * Sorcerer (+1/+1 + granted "whenever attacks, scry 1") — there is no
-#   "scry doer" lane at all in ``crosswalk_signals`` today:
-#   ``_scry_surveil_matters`` is explicitly the PAYOFF-only lane ("a bare
-#   Scry EFFECT node … never fires; doers ride the ported
-#   ``topdeck_selection``"), and ``topdeck_selection`` itself is unit/
-#   typed-node-based with no oracle-text fallback branch to extend safely.
-#   Needs its own marker-and-lane-edit design; not done this session.
+# * Monster (+1/+1 + trample; CR 111.10k) — task #np_roles adjudicated
+#   this one OUT deliberately, not deferred: the real durable-Aura analogs
+#   (Rancor, Unflinching Courage, Elephant Guide — corpus-probed this
+#   session) fire NO keyword-grant key at all, because
+#   ``_keyword_grant_lanes``'s suit-up branch is PROTECTIVE-keywords-only
+#   by design (trample is in ``_AURA_EQUIP_KW`` for the Aura-subgroup
+#   grant, never the suit-up recipient) and the +1/+1 is a durable Aura
+#   buff no lane reads either. Wiring Monster would make a Role-token
+#   creator fire a key the real Rancor-class cards don't — an
+#   inconsistency, not a serve. If a trample-suit-up lane is ever built,
+#   Monster joins it via one marker arm.
+# * Devil ("When this creature dies, it deals 1 damage to any target.") —
+#   ALREADY SERVED: all 3 creators (Dance with Devils, Devils'
+#   Playground, Make Mischief) fire ``direct_damage`` at baseline via
+#   ``has_nested_damage_reaching_player``'s CreateToken token-ability
+#   read (that lane's own docstring names Dance with Devils).
+# * Moloid ("Whenever this token attacks, you may mill a card.") —
+#   ALREADY SERVED: the sole creator (Return of the Mole Man) fires
+#   ``mill_makers`` + ``graveyard_makers`` at baseline.
+# * Whale ("When this creature dies, create a 9/9 … Kraken…") — ALREADY
+#   SERVED: Reef Worm fires ``token_maker`` for Fish AND Whale AND Kraken
+#   at baseline (phase's related-token chain) plus ``self_death_payoff``.
+# * Pest ("Whenever this token attacks, you gain 1 life.") — ALREADY
+#   SERVED, and the toml join is WRONG for the sole creator: Ribtruss
+#   Roaster's own printed grant is "When this token dies, you gain 1
+#   life" (a DIFFERENT Pest identity than the attack-variant its
+#   ``related_token_ids`` point at), and ``lifegain_makers`` already
+#   fires at baseline off that quoted grant. Wiring the attack-variant
+#   text would attach a WRONG ability — exactly the mistake the
+#   per-identity allowlist exists to prevent.
+# * Elemental (Furygale Flocking / The Wandering Minstrel: "Trample,
+#   haste") / Cat Soldier (Brimaz: "Vigilance") / Dalek ("Menace"; sole
+#   creator City of the Daleks is a Planechase plane — ZERO commander-
+#   legal creators) / Lightning Rager / Spark Elemental ("Trample, haste"
+#   + an end-step self-sac housekeeping trigger) — GENUINE NON-SIGNAL:
+#   bare combat keywords on a token body; no lane reads "my tokens have
+#   trample/haste/vigilance/menace" as a mechanic (there is no
+#   trample/haste/vigilance/menace-matters key), and the creation itself
+#   already fires ``token_maker`` + ``type_matters`` at baseline. The
+#   cares-about test finds no payoff population whose doers are
+#   keyword-carrying-token makers.
+# * Forest Dryad (Awaken the Woods / Jyoti / Staff of Titania: '{T}: Add
+#   {G}.') / Mutavault (Mutable Explorer: '{T}: Add {C}.' + the manland
+#   activation) — GENUINE NON-SIGNAL by the ``_ramp`` lane's OWN land
+#   split (CR 305 vs 106.1): a basic-equivalent single-color/single-{C}
+#   land tap is MANA BASE, never ramp — a real Forest / Mutavault card
+#   doesn't fire ``ramp``, so the token twin must not either (the Lander
+#   not-ramp precedent, applied a second time; wiring was prototyped and
+#   removed this task once the lane's own gate proved it inert). Creation
+#   already fires ``token_maker`` + ``land_creatures_matter`` /
+#   ``has_changeling`` at baseline.
+# * Citizen (Planewide Celebration) — the sole creator's token is the
+#   VANILLA 2/2 Citizen; the nonempty-rules Citizen identity its
+#   ``related_token_ids`` also carry never name-matches a gap-gated Token
+#   node with substance to add. ``token_maker``/``type_matters`` already
+#   fire. GENUINE NON-SIGNAL.
+# * Tuktuk the Returned ("Tuktuk the Returned is legendary.") — the
+#   rules_text is a characteristic marker (CR 205.4 supertype), not an
+#   ability; no legendary-DOER lane exists (``legends_matter`` is the
+#   payoff side), and Tuktuk the Explorer already fires ``token_maker`` +
+#   ``self_death_payoff``. GENUINE NON-SIGNAL.
 _KNOWN_TOKEN_WIRED_DISPLAY_NAMES = frozenset(
     {
         "Mutagen",
@@ -463,6 +527,14 @@ _KNOWN_TOKEN_WIRED_DISPLAY_NAMES = frozenset(
         "Map",
         "Junk",
         "Wicked",
+        # task #np_roles:
+        "Cursed",
+        "Royal",
+        "Sorcerer",
+        "Shard",
+        "Wizard",
+        "Contract",
+        "Spellgorger Weird",
     }
 )
 

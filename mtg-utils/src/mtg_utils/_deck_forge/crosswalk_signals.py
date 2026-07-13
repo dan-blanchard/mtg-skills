@@ -375,6 +375,12 @@ PORTED_KEYS: frozenset[str] = frozenset(
         # path for the Pacifism/Arrest `interaction`-role credit task #86's
         # removal-preset flip cost (see `_pacify_makers`'s own docstring).
         "pacify_makers",
+        # task #np_roles: single_target_neutralize — the Darksteel Mutation
+        # base-P/T-overwrite neutralize class (CR 613.4b layer 7b), the
+        # pacify-adjacent answer shape no removal-family key reads (CR
+        # 611.2 — the permanent stays). See `_single_target_neutralize`'s
+        # own docstring for the fold-vs-new-key adjudication.
+        "single_target_neutralize",
         "direct_damage",
         "landfall",
         "sacrifice_outlets",
@@ -3323,6 +3329,111 @@ def _pacify_makers(tree: ConceptTree) -> list[Signal]:
                         "pacify_makers", "you", "", _site_raw(node), tree.name, "high"
                     )
                 ]
+    return []
+
+
+def _neutralize_aura_compensates(tree: ConceptTree) -> bool:
+    """True when the Aura pays its attached target back — a positive
+    ``AddPower``/``AddToughness`` on an EnchantedBy/EquippedBy site (Burden
+    of Proof's conditional "+2/+2 as long as it's a Detective you control")
+    or a ``+1/+1``-counter placement aimed at the attached permanent
+    (Awakened Awareness's enters-trigger "put X +1/+1 counters on enchanted
+    permanent") — the ``_pacify_aura_compensates`` boundary re-cut for the
+    base-P/T-set shape. ``AddKeyword`` deliberately does NOT veto here
+    (unlike pacify's ``_PACIFY_ALWAYS_COMPENSATING_TAGS``): the neutralize
+    class's own members grant keywords AS PART of the lock (Darksteel
+    Mutation's indestructible, Deep Freeze's defender, Coerced to Kill's
+    deathtouch — corpus-verified this session), so a keyword grant is not
+    compensation evidence for this shape."""
+    for unit in tree.units:
+        for node in iter_static_defs(unit.node):
+            if not set(filter_predicates(getattr(node, "affected", None))) & (
+                _PACIFY_ATTACH_PREDS
+            ):
+                continue
+            for m in getattr(node, "modifications", None) or ():
+                if not isinstance(m, TypedMirrorNode):
+                    continue
+                if tag_of(m) in _PACIFY_PT_MOD_TAGS:
+                    v = mod_value(m)
+                    if v is None or v > 0:
+                        return True
+        for c in unit.effects:
+            if (
+                c.concept == "place_counter"
+                and counter_kind(c.node).upper() == "P1P1"
+                and set(filter_predicates(getattr(c.node, "target", None)))
+                & _PACIFY_ATTACH_PREDS
+            ):
+                return True
+    return False
+
+
+def _single_target_neutralize(tree: ConceptTree) -> list[Signal]:
+    """single_target_neutralize — an Aura that NEUTRALIZES the creature it
+    enchants by overwriting its base power (CR 613.4b layer 7b) down to 0/1
+    (Darksteel Mutation, Lignify, Frogify, Witness Protection — usually
+    alongside "loses all abilities"), the soft-removal answer that beats
+    indestructible and dodges death triggers (case law: Darksteel
+    Mutation's own 2013-10-17 rulings — the creature keeps supertypes and
+    stays a commander, it just stops being a threat). Deliberately its OWN
+    narrow key (the ``counter_hate`` / ``adapt_matters`` narrow-lane
+    precedent), not folded into:
+
+    * ``removal`` — CR 611.2: the permanent STAYS on the battlefield, the
+      same neutralizes-vs-removes boundary ``pacify_makers`` / budgets'
+      ``_INTERACTION_PRESETS`` comment already enforce;
+    * ``pacify_makers`` — a pacify lock is an attack/block RESTRICTION
+      (CR 508.1a/509.1b ``CantAttack``-family static modes); a base-P/T
+      set is a layer-7b characteristic overwrite (CR 613.4b), a different
+      mechanic that still lets the 1/1 attack and block;
+    * ``debuff_makers`` — that lane's own docstring EXCLUDES the
+      single-Aura shrink by design (a neutralize is not a mass -1/-1
+      enabler); ``base_pt_set`` keeps firing alongside as the broad P/T-SET
+      toolbox lane (it also holds buff-animators like Ensoul Artifact and
+      self-level-ups like Figure of Destiny, so it cannot serve the
+      answer-shaped subset on its own).
+
+    Structural arm: an ``EnchantedBy``/``EquippedBy``-affected static site
+    whose ``SetPower`` value is <= 1 (the neutralize tell — power decides
+    whether the threat still attacks; Lignify's 0/4 and Deep Freeze's 0/4
+    keep firing on power, while Kenrith's Transformation's 3/3 Elk and Eye
+    of Nidhogg's 4/2 goad-enabler stay out). Vetoed by
+    :func:`_neutralize_aura_compensates` (Burden of Proof, Awakened
+    Awareness — the Aura pays the target back, a buff wearing the same
+    site shape). The ``synth_single_target_neutralize`` marker read serves
+    the Cursed Role known-token tree (CR 111.10j), which has no unit to
+    walk. Scope "you" (you neutralized someone's threat — the
+    ``pacify_makers`` scope precedent).
+    """
+    for c in tree.iter_concepts():
+        if c.concept == "synth_single_target_neutralize":
+            return [
+                Signal("single_target_neutralize", "you", "", "", tree.name, "high")
+            ]
+    if _neutralize_aura_compensates(tree):
+        return []
+    for unit in tree.units:
+        for node in iter_static_defs(unit.node):
+            if not set(filter_predicates(getattr(node, "affected", None))) & (
+                _PACIFY_ATTACH_PREDS
+            ):
+                continue
+            for m in getattr(node, "modifications", None) or ():
+                if not isinstance(m, TypedMirrorNode) or tag_of(m) != "SetPower":
+                    continue
+                v = mod_value(m)
+                if v is not None and v <= 1:
+                    return [
+                        Signal(
+                            "single_target_neutralize",
+                            "you",
+                            "",
+                            _site_raw(node),
+                            tree.name,
+                            "high",
+                        )
+                    ]
     return []
 
 
@@ -17133,6 +17244,16 @@ def _topdeck_selection(tree: ConceptTree) -> list[Signal]:
             corpus
         ) and _TOPDECK_SELECTION_TOP_RX.search(corpus):
             return [Signal("topdeck_selection", "you", "", "", tree.name, "high")]
+    # task #np_roles — the ``synth_topdeck_selection`` bucket-B marker
+    # (see :func:`~mtg_utils._card_ir.tree_synthesis.
+    # _arm_known_token_topdeck_scry`): a known-token zero-unit text-only
+    # tree whose fixed text performs a Scry (the Sorcerer Role's granted
+    # attack-scry, CR 111.10n; the Shard's sac-for-scry-and-draw) has no
+    # ``Scry`` typed node to walk — CR 701.22a scry is always own-library
+    # curation, so the marker is owner-unambiguous.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_topdeck_selection":
+            return [Signal("topdeck_selection", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -19196,6 +19317,19 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
         _kept(tree)
     ):
         fire("keyword_grant_target", "you", "")
+    # task #np_roles — the ``synth_protection_grant_suit_up`` bucket-B
+    # marker (see :func:`~mtg_utils._card_ir.tree_synthesis.
+    # _arm_known_token_ward_grant`): the Royal Role known-token tree's
+    # "Enchanted creature gets +1/+1 and has ward {1}" (CR 111.10m /
+    # 702.21a) is the suit-up protective grant this lane's structural
+    # branch fires ``protection_grant`` for on a real Aura (Shield of the
+    # Oversoul), but a zero-unit text-only tree has no AddKeyword mod site
+    # to walk — read the marker instead (the split/aftermath residue-read
+    # precedent directly above; same "not fired yet" gate).
+    if "protection_grant" not in seen:
+        for c in tree.iter_concepts():
+            if c.concept == "synth_protection_grant_suit_up":
+                fire("protection_grant", "you", "")
     return out
 
 
@@ -25704,6 +25838,7 @@ _LANES = (
     _reanimator,
     _plus_one_makers,
     _pacify_makers,
+    _single_target_neutralize,
     _direct_damage,
     _landfall,
     _sacrifice_outlets,

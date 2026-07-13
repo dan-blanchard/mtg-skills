@@ -1,17 +1,23 @@
 # Committed offline/CI fallback for phase's known-tokens.toml (task #92,
-# widened task #95).
+# widened task #95, again task #np_roles).
 #
 # mtg_utils._deck_forge._ir_lookup._known_tokens_index() prefers the LIVE
 # tag-pinned known-tokens.toml (_phase.ensure_known_tokens() — a ~600-entry,
 # ~6MB fetch, cached under ~/.cache/mtg-skills/phase/known-tokens/) when it
 # can be fetched/read. This file is the deterministic fallback for when it
 # can't (no network, cold cache, CI) — carrying ONLY the token identities
-# this task's adjudicated allowlist actually wires
-# (_KNOWN_TOKEN_WIRED_DISPLAY_NAMES = {"Mutagen", "Young Hero", "Powerstone",
-# "Lander", "Gold", "Map", "Junk", "Wicked"}), trimmed to the fields the join
-# reads (id / rules_text / token.body) and dropping the upstream entry's
-# large source_card_names / source_card_refs / token_image_ref arrays
-# (informational there, unread here).
+# the adjudicated allowlist (_KNOWN_TOKEN_WIRED_DISPLAY_NAMES: Mutagen,
+# Young Hero, Powerstone, Lander, Gold, Map, Junk, Wicked, and the
+# task #np_roles seven — Cursed, Royal, Sorcerer, Shard, Wizard, Contract,
+# Spellgorger Weird) actually wires, trimmed to the fields the join reads
+# (id / rules_text / token.body) and dropping the upstream entry's large
+# source_card_names / source_card_refs / token_image_ref arrays
+# (informational there, unread here). Same-text twin ids (Cursed / Royal /
+# Shard each exist twice upstream) are BOTH carried so the id-keyed join
+# stays whole offline; the toml's OTHER "Wizard" identities (a mana
+# wizard, a ping wizard) are deliberately absent — no gap-gated creator
+# references them today, and each needs its own adjudication before
+# joining.
 #
 # Extracted verbatim from phase v0.23.0's known-tokens.toml. If the wired
 # allowlist ever widens, add the new identity's trimmed entry here too, so
@@ -100,4 +106,119 @@ When this Aura is put into a graveyard from the battlefield, each opponent loses
 display_name = "Wicked"
 core_types = ["Enchantment"]
 subtypes = ["Aura", "Role"]
+supertypes = []
+
+[[token]]
+id = "a8e38737-ad9f-538b-a910-3dbdea354ade"
+rules_text = """
+Enchant creature
+Enchanted creature has base power and toughness 1/1."""
+
+[token.body]
+display_name = "Cursed"
+core_types = ["Enchantment"]
+subtypes = ["Aura", "Role"]
+supertypes = []
+
+[[token]]
+id = "ef34f7f4-baa6-5209-b6d2-c5e124a2997f"
+rules_text = """
+Enchant creature
+Enchanted creature has base power and toughness 1/1."""
+
+[token.body]
+display_name = "Cursed"
+core_types = ["Enchantment"]
+subtypes = ["Aura", "Role"]
+supertypes = []
+
+[[token]]
+id = "48b5010a-9c00-5cc1-b5e1-f407670846ba"
+rules_text = """
+Enchant creature
+Enchanted creature gets +1/+1 and has ward {1}.
+(Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {1}.)"""
+
+[token.body]
+display_name = "Royal"
+core_types = ["Enchantment"]
+subtypes = ["Aura", "Role"]
+supertypes = []
+
+[[token]]
+id = "4c23fc6d-6c85-5c7b-9176-eeee951c3b31"
+rules_text = """
+Enchant creature
+Enchanted creature gets +1/+1 and has ward {1}. (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {1}.)"""
+
+[token.body]
+display_name = "Royal"
+core_types = ["Enchantment"]
+subtypes = ["Aura", "Role"]
+supertypes = []
+
+[[token]]
+id = "dd6f5274-9bb4-5acc-9855-55815f497831"
+rules_text = """
+Enchant creature
+Enchanted creature gets +1/+1 and has "Whenever this creature attacks, scry 1.""""
+
+[token.body]
+display_name = "Sorcerer"
+core_types = ["Enchantment"]
+subtypes = ["Aura", "Role"]
+supertypes = []
+
+[[token]]
+id = "2310bee9-2b1f-58ea-b586-707024457259"
+rules_text = "{2}, Sacrifice this enchantment: Scry 1, then draw a card."
+
+[token.body]
+display_name = "Shard"
+core_types = ["Enchantment"]
+subtypes = ["Shard"]
+supertypes = []
+
+[[token]]
+id = "872a2f10-d48f-541d-a27b-a8f3ae7bb23c"
+rules_text = "{2}, Sacrifice this enchantment: Scry 1, then draw a card."
+
+[token.body]
+display_name = "Shard"
+core_types = ["Enchantment"]
+subtypes = ["Shard"]
+supertypes = []
+
+[[token]]
+id = "c510f2dd-8d22-5882-b4df-6ccb807b39d6"
+rules_text = "{1}, Sacrifice this creature: Counter target noncreature spell unless its controller pays {1}."
+
+[token.body]
+display_name = "Wizard"
+core_types = ["Creature"]
+subtypes = ["Wizard"]
+supertypes = []
+
+[[token]]
+id = "9e126926-0331-57c4-9316-4da332ae99f2"
+rules_text = """
+Enchant creature
+Whenever enchanted creature attacks, it gets +2/+0 until end of turn if it's attacking one of your opponents. Otherwise, its controller loses 2 life."""
+
+[token.body]
+display_name = "Contract"
+core_types = ["Enchantment"]
+subtypes = ["Aura"]
+supertypes = []
+
+[[token]]
+id = "b1ada3a2-f010-583d-85f8-6d7d496a70a2"
+rules_text = """
+Whenever you cast a noncreature spell, put a +1/+1 counter on this creature.
+(This token's mana cost is {2}{R}.)"""
+
+[token.body]
+display_name = "Spellgorger Weird"
+core_types = ["Creature"]
+subtypes = ["Weird"]
 supertypes = []

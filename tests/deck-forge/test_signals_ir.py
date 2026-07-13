@@ -2361,15 +2361,23 @@ def test_iteration_kind_rebind_does_not_open_plus_one_makers():
     assert "plus_one_makers" not in keys
 
 
-def test_saga_created_token_custom_trigger_stays_out_of_plus_one_makers():
+def test_saga_created_token_custom_trigger_opens_plus_one_makers():
     """Ral and the Implicit Maze's chapter III creates a Spellgorger Weird
     token whose OWN "whenever you cast a noncreature spell, put a +1/+1
     counter" is a CUSTOM triggered ability, not a keyword — the created
     Token effect node carries an empty ``keywords`` list and no
     ``static_abilities`` field at all (same predefined/custom-ability
-    substrate gap as the Mutagen/Young-Hero-Role token cycles)."""
+    substrate gap as the Mutagen/Young-Hero-Role token cycles). Task
+    #np_roles CLOSED that gap: "Spellgorger Weird" joined
+    ``_KNOWN_TOKEN_WIRED_DISPLAY_NAMES``, so the known-tokens substrate now
+    appends the token's text-only tree and the SAME arms that serve Young
+    Hero's self-counter attack trigger fire here (plus_one_makers via
+    ``_arm_plus_one_makers``, spellcast_matters via
+    ``_arm_spellcast_matters``) — this pin flipped from stays-out to opens
+    when the wiring landed."""
     keys = _skeys(test_signals("Ral and the Implicit Maze"))
-    assert "plus_one_makers" not in keys
+    assert "plus_one_makers" in keys
+    assert "spellcast_matters" in keys
 
 
 def test_sunburst_grant_stays_out_of_plus_one_makers():

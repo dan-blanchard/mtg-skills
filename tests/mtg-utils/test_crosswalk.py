@@ -16409,3 +16409,44 @@ def test_token_maker_scopes_target_owner_beneficiary_any_pharika():
 
 def test_token_maker_scopes_target_owner_beneficiary_any_funeral_pyre():
     assert ("token_maker", "any", "Spirit") in _idents("Funeral Pyre")
+
+
+# ── task #np_roles: single_target_neutralize — the Darksteel Mutation class ──
+# The base-P/T-overwrite neutralize Aura (CR 613.4b layer 7b): an
+# EnchantedBy-affected static whose SetPower value is <= 1. Deliberately its
+# own narrow key — CR 611.2 keeps "neutralizes" distinct from "removes"
+# (the pacify_makers boundary), and a pacify lock (CantAttack-family modes,
+# CR 508.1a/509.1b) is a different mechanic from a layer-7b characteristic
+# overwrite. base_pt_set keeps co-firing as the broad P/T-SET toolbox lane.
+
+
+def test_single_target_neutralize_fires_for_darksteel_mutation():
+    idents = _idents("Darksteel Mutation")
+    assert ("single_target_neutralize", "you", "") in idents
+    # the broad toolbox lane keeps co-firing — subset serve, not a split-off
+    assert ("base_pt_set", "any", "") in idents
+
+
+def test_single_target_neutralize_fires_for_lignify():
+    """Lignify's 0/4 Treefolk lock fires on POWER (the neutralize tell —
+    the threat stops attacking); the 4 toughness is irrelevant."""
+    assert ("single_target_neutralize", "you", "") in _idents("Lignify")
+
+
+def test_single_target_neutralize_excludes_kenriths_transformation():
+    """A 3/3 vanilla Elk still attacks and blocks meaningfully — SetPower 3
+    fails the <= 1 neutralize gate (the Eye of Nidhogg 4/2 goad-enabler
+    sheds the same way)."""
+    assert "single_target_neutralize" not in _keys("Kenrith's Transformation")
+
+
+def test_single_target_neutralize_excludes_compensating_auras():
+    """A buff wearing the same EnchantedBy set_pt site shape never fires:
+    Burden of Proof pays its target back (+2/+2 while it's your Detective),
+    Awakened Awareness stacks X +1/+1 counters on the enchanted permanent —
+    both vetoed by _neutralize_aura_compensates (the
+    _pacify_aura_compensates boundary re-cut for base-P/T sets; AddKeyword
+    deliberately does NOT veto, since Darksteel Mutation's indestructible /
+    Deep Freeze's defender are part of the lock, not compensation)."""
+    assert "single_target_neutralize" not in _keys("Burden of Proof")
+    assert "single_target_neutralize" not in _keys("Awakened Awareness")
