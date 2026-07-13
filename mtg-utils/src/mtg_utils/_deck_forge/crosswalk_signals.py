@@ -3131,17 +3131,37 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
     RebindToIteratedKind`` marker — "P1P1" there is the loop-iteration
     sentinel value, not a genuine reference to +1/+1 counters (the card's
     own text never says "+1/+1" at all), so that marker is the exact,
-    structural discriminator gating this arm off for them. STILL MISSING
-    (a documented, different residual, not this arm's shape): Eternal
-    Thirst, Agent of the Shadow Thieves, and Thundering Mightmare each
-    place the same genuine P1P1 counter from a GRANTED TRIGGER nested in
-    a top-level STATIC's ``GrantTrigger`` modification (an Aura/anthem
+    structural discriminator gating this arm off for them.
+
+    task #94 (residual close-out) adds the GrantTrigger-nested-effect
+    descent named above as the unblock path: Eternal Thirst, Agent of
+    the Shadow Thieves, and Thundering Mightmare each place the same
+    genuine P1P1 counter from a GRANTED TRIGGER nested in a top-level
+    STATIC's ``GrantTrigger`` modification (an Aura/anthem/Soulbond
     granting "whenever X, put a +1/+1 counter on this creature" to
     something), never a ``ChooseOneOf`` branch — the analogous gap
     :func:`nested_plus_one_keyword_grant` already closed for a GRANTED
-    KEYWORD (``AddKeyword``); the same GrantTrigger-nested-effect walk,
-    keyed on ``PutCounter``/``P1P1`` instead, would close this one too.
-    Scope "you".
+    KEYWORD (``AddKeyword``). The same ``_GRANT_ABILITY_MOD_TAGS``
+    ``.trigger.execute`` descent :func:`_draw_for_each` already
+    establishes (mirrors its ``Draw`` read exactly), keyed on
+    ``PutCounter``/``P1P1`` instead, closes it. Full-corpus sweep of
+    the shape (every ``GrantTrigger`` modification whose granted
+    trigger's execute chain carries a ``PutCounter``/``P1P1`` ANYWHERE,
+    not just the 3 named cards): 19 distinct commander/brawl-legal
+    cards match structurally. 16 of the 19 already carried
+    ``plus_one_makers`` via another existing read (mostly Sliver-
+    lord/tribal-anthem statics whose OWN top-level ``place_counter``
+    concept node already reaches the nested effect); only the 3 named
+    cards were the genuine gap this arm closes. All affected filters
+    in the swept class scope to permanents "you" control, own, or
+    equip/enchant (Aura ``EnchantedBy``/Equipment ``EquippedBy``/
+    tribal-anthem "creatures you control"/commander-only "you own"/
+    Soulbond's own "you control both" pairing gate) — none grant the
+    trigger to an opponent's permanents only, so scope stays "you"
+    with no opponent-scope carve-out needed (corpus-verified, no
+    counter-example). Corpus re-measure at this arm (32,521 commander-
+    legal cards, same set task #93 measured): 3 gains (the 3 named
+    cards), 0 losses.
     """
     for c in tree.effect_concepts("place_counter"):
         ck = counter_kind(c.node).upper()
@@ -3154,6 +3174,16 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
         if nested_plus_one_keyword_grant(unit.node):
             return [Signal("plus_one_makers", "you", "", "", tree.name, "high")]
         for n in iter_typed_nodes(unit.node):
+            if tag_of(n) in _GRANT_ABILITY_MOD_TAGS:
+                trig = getattr(n, "trigger", None)
+                execute = getattr(trig, "execute", None) if trig is not None else None
+                for m in iter_typed_nodes(execute) if execute is not None else ():
+                    if tag_of(m) != "PutCounter":
+                        continue
+                    if counter_kind(m).upper() == "P1P1":
+                        return [
+                            Signal("plus_one_makers", "you", "", "", tree.name, "high")
+                        ]
             if tag_of(n) != "ChooseOneOf":
                 continue
             for br in getattr(n, "branches", None) or ():

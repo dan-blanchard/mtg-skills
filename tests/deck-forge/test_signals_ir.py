@@ -2394,6 +2394,40 @@ def test_riot_grant_stays_out_of_plus_one_makers():
     assert "plus_one_makers" not in keys
 
 
+# ── plus_one_makers GrantTrigger-nested class (task #94) ────────────────────
+
+
+def test_aura_granted_dies_trigger_opens_plus_one_makers():
+    """Eternal Thirst's "Enchanted creature has lifelink and 'Whenever a
+    creature an opponent controls dies, put a +1/+1 counter on this
+    creature.'" is a top-level static's ``GrantTrigger`` modification
+    whose OWN granted trigger's ``execute`` chain carries the genuine
+    ``PutCounter``/``P1P1`` node — a level deeper than
+    ``effect_concepts`` reaches, and a different shape than the granted-
+    KEYWORD class ``nested_plus_one_keyword_grant`` already covers."""
+    keys = _skeys(test_signals("Eternal Thirst"))
+    assert "plus_one_makers" in keys
+
+
+def test_commander_anthem_granted_attack_trigger_opens_plus_one_makers():
+    """Agent of the Shadow Thieves's "Commander creatures you own have
+    'Whenever this creature attacks a player, ... put a +1/+1 counter on
+    this creature. ...'" is the SAME GrantTrigger-nested-effect shape, off
+    a commander-only anthem rather than an Aura."""
+    keys = _skeys(test_signals("Agent of the Shadow Thieves"))
+    assert "plus_one_makers" in keys
+
+
+def test_soulbond_granted_spellcast_trigger_opens_plus_one_makers():
+    """Thundering Mightmare's Soulbond-paired "each of those creatures has
+    'Whenever an opponent casts a spell, put a +1/+1 counter on this
+    creature.'" is the same GrantTrigger-nested shape gated behind a
+    ``SourceIsPaired`` static condition rather than an Enchant/Equip/
+    Commander filter."""
+    keys = _skeys(test_signals("Thundering Mightmare"))
+    assert "plus_one_makers" in keys
+
+
 def test_mutagen_token_ability_opens_plus_one_makers():
     """Mutagen Man's created Mutagen token has its OWN activated ability
     ("{1}, {T}, Sacrifice this token: Put a +1/+1 counter on target
