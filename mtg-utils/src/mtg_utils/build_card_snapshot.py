@@ -242,6 +242,26 @@ def _scan_names(test_dirs: list[Path]) -> set[str]:
     return names
 
 
+def _existing_names(out_path: Path) -> set[str]:
+    """Card names already committed in *out_path*, or empty if it doesn't
+    exist / doesn't parse. The AST scan is necessarily incomplete — a table
+    built from a dynamic comprehension over imported registry data (e.g.
+    ``[card for name in PRESETS for card in PRESETS[name].should_match]``)
+    has no string literal for the scanner to find at all. Regenerating must
+    never silently drop a name the scan can't see; ``--prune`` opts into
+    that instead of it happening by accident."""
+    if not out_path.exists():
+        return set()
+    try:
+        payload = json.loads(out_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return set()
+    cards = payload.get("cards")
+    if not isinstance(cards, dict):
+        return set()
+    return {str(k) for k in cards}
+
+
 def _index_by_name(bulk: list[dict], groups: dict[str, list[dict]]) -> dict[str, dict]:
     """normalized name → the GAMEPLAY printing (oracle_id has >=1 phase face
     record; DFC front faces keyed too; art_series / reversible dups are skipped
@@ -364,6 +384,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--out", default=None, help="Output path (default: the fixture)."
     )
+    parser.add_argument(
+        "--prune",
+        action="store_true",
+        help=(
+            "Drop names already in the committed snapshot that the scan/"
+            "--names/--names-file don't re-supply. Default: union with the "
+            "existing snapshot's names, so a name the AST scan can't see "
+            "(e.g. fed through a dynamic comprehension over imported "
+            "registry data, not a string literal) is never silently lost "
+            "on a bare regen."
+        ),
+    )
     args = parser.parse_args(argv)
 
     out_path = Path(args.out) if args.out else snapshot_path()
@@ -387,6 +419,10 @@ def main(argv: list[str] | None = None) -> int:
         print("No card names found (scan empty and no --names). Nothing to do.")
         return 1
 
+    existing = set() if args.prune else _existing_names(out_path)
+    carried_forward = existing - names
+    names |= existing
+
     out, stats = build_snapshot(names, out_path)
     kb = stats["bytes"] / 1024
     print(
@@ -394,6 +430,12 @@ def main(argv: list[str] | None = None) -> int:
         f"({kb:.0f} KB, crosswalk sidecar v{CROSSWALK_SIDECAR_VERSION}, "
         f"phase {PHASE_TAG})."
     )
+    if carried_forward:
+        print(
+            f"  carried forward {len(carried_forward)} name(s) already in "
+            "the committed snapshot but not rediscovered by this run "
+            "(pass --prune to drop them instead)."
+        )
     if stats["unresolved"]:
         print(f"  unresolved (no gameplay printing): {stats['unresolved']}")
     if stats["no_phase_records"]:

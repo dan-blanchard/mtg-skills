@@ -1,6 +1,9 @@
 """Tests for the snapshot builder's usage-derived name scan (AST-based)."""
 
-from mtg_utils.build_card_snapshot import _scan_module
+import json
+from unittest.mock import patch
+
+from mtg_utils.build_card_snapshot import _existing_names, _scan_module, main
 
 # NB: the module under scan is a STRING — the test_card(...) calls inside it are
 # data for the scanner, not calls this test file makes, so they must not feed
@@ -88,3 +91,101 @@ def test_scans_real_cases_table_values():
 
 def test_syntax_error_returns_empty():
     assert _scan_module("def broken(:\n") == set()
+
+
+# ─── existing-snapshot-names union (task #86) ──────────────────────────────
+#
+# The AST scan is necessarily incomplete: a parametrize table built from a
+# dynamic comprehension over imported registry data (e.g.
+# ``[card for name in PRESETS for card in PRESETS[name].should_match]``, the
+# real shape of ``TestStructuralPresetsAgainstSnapshot`` in
+# test_theme_presets.py) has no string literal anywhere in the test file for
+# the scanner to find. A bare regen must never silently drop such a name —
+# it must be unioned in from the snapshot already on disk.
+
+
+def test_existing_names_missing_file_returns_empty(tmp_path):
+    assert _existing_names(tmp_path / "nope.json") == set()
+
+
+def test_existing_names_reads_committed_card_keys(tmp_path):
+    path = tmp_path / "snap.json"
+    path.write_text(json.dumps({"cards": {"Sol Ring": {}, "Duress": {}}}))
+    assert _existing_names(path) == {"Sol Ring", "Duress"}
+
+
+def test_existing_names_malformed_json_returns_empty(tmp_path):
+    path = tmp_path / "snap.json"
+    path.write_text("not json")
+    assert _existing_names(path) == set()
+
+
+def test_main_carries_forward_a_name_only_the_snapshot_knows(tmp_path):
+    """A name present only in the existing committed snapshot (never a scan
+    hit, never --names/--names-file) survives a bare regen — the exact trap
+    the AST scan can't see around a dynamic-comprehension parametrize table.
+    """
+    out_path = tmp_path / "card_snapshot.json"
+    out_path.write_text(json.dumps({"cards": {"Only-In-Snapshot Card": {}}}))
+
+    captured: dict = {}
+
+    def fake_build_snapshot(names, out):
+        captured["names"] = set(names)
+        out.write_text(json.dumps({"cards": {n: {} for n in names}}))
+        return out, {
+            "cards": len(names),
+            "requested": len(names),
+            "unresolved": [],
+            "no_phase_records": [],
+            "bytes": out.stat().st_size,
+        }
+
+    with (
+        patch(
+            "mtg_utils.build_card_snapshot._scan_names",
+            return_value={"Newly Scanned Card"},
+        ),
+        patch(
+            "mtg_utils.build_card_snapshot.build_snapshot",
+            side_effect=fake_build_snapshot,
+        ),
+    ):
+        rc = main(["--out", str(out_path)])
+
+    assert rc == 0
+    assert "Only-In-Snapshot Card" in captured["names"]
+    assert "Newly Scanned Card" in captured["names"]
+
+
+def test_main_prune_drops_names_the_scan_no_longer_supplies(tmp_path):
+    out_path = tmp_path / "card_snapshot.json"
+    out_path.write_text(json.dumps({"cards": {"Stale Card": {}}}))
+
+    captured: dict = {}
+
+    def fake_build_snapshot(names, out):
+        captured["names"] = set(names)
+        out.write_text(json.dumps({"cards": {n: {} for n in names}}))
+        return out, {
+            "cards": len(names),
+            "requested": len(names),
+            "unresolved": [],
+            "no_phase_records": [],
+            "bytes": out.stat().st_size,
+        }
+
+    with (
+        patch(
+            "mtg_utils.build_card_snapshot._scan_names",
+            return_value={"Fresh Card"},
+        ),
+        patch(
+            "mtg_utils.build_card_snapshot.build_snapshot",
+            side_effect=fake_build_snapshot,
+        ),
+    ):
+        rc = main(["--out", str(out_path), "--prune"])
+
+    assert rc == 0
+    assert captured["names"] == {"Fresh Card"}
