@@ -826,6 +826,20 @@ def test_lifegain_matters_high_life_total_payoff(name, should_fire):
         ("Chrome Mox", False),  # exile-imprint, NEVER returns
         ("Path to Exile", False),  # exile removal + a DIFFERENT land's ETB
         ("Man-o'-War", False),  # bounce-to-HAND, not a flicker
+        # task #86: a soulbond-granted self-blink, reachable only through
+        # the granted-ability descent (GrantAbility.definition.effect =
+        # ChangeZone(Exile, SelfRef); .sub_ability.effect =
+        # ChangeZone(Battlefield, TrackedSet)).
+        ("Deadeye Navigator", True),
+        # task #86 (adjudicated FALSE-POSITIVE fix): a "dies" trigger's own
+        # "exile it" (TriggeringSource — CR 700.4, already in the graveyard
+        # by the time a dies trigger resolves) paired with a CAUSALLY
+        # DISCONNECTED later token combat-damage trigger that MAY return
+        # the exiled card — delayed reanimation, never a blink of a live
+        # permanent. The granted-body descent first surfaces the
+        # Battlefield leg; ``_battlefield_exile``'s dies-trigger guard
+        # must keep this excluded.
+        ("Timothar, Baron of Bats", False),
     ],
 )
 def test_blink_flicker_sibling_return(name, should_fire):
@@ -12905,6 +12919,78 @@ def test_removal_destroy_and_damage_arms():
     assert ("removal", "you", "") in _idents("Flame Slash")
     assert "removal" not in _keys("Wrath of God")
     assert "removal" not in _keys("Lightning Bolt")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # task #86: the granted-ability body descent
+        # (iter_nested_granted_effect_concepts) — a Destroy/DealDamage
+        # reachable inside a static's GrantAbility/GrantStaticAbility/
+        # GrantTrigger modification body, none of which the flat per-unit
+        # effect_concepts walk ever surfaced as its own top-level concept
+        # (CR 113.3/605/611). Every card here targets a creature ONLY
+        # (never a player), so none of them also join direct_damage.
+        "Arc Spitter",  # Equip-granted "{1}: ~ deals 1 damage to target creature..."
+        "Lavamancer's Skill",  # Enchant-granted damage ability
+        "Pathway Arrows",  # Equip-granted damage ability
+        "Shuriken",  # Equip-granted damage ability
+        "Tyrant's Familiar",  # Lieutenant-granted attack trigger (GrantTrigger)
+        "Showstopper",  # until-end-of-turn dies-trigger grant (GrantTrigger)
+    ],
+)
+def test_removal_granted_ability_body_descent(name):
+    assert ("removal", "you", "") in _idents(name)
+    assert "direct_damage" not in _keys(name)
+
+
+def test_removal_answer_types_granted_ability_body_descent():
+    """task #86: :func:`~mtg_utils._deck_forge.crosswalk_signals.
+    _removal_answer_types` (the 10 type-scoped preset predicates' shared
+    source) stays in lockstep with :func:`_removal`'s own granted-ability
+    third arm — a card that gains ``removal`` membership from the descent
+    must also answer its permanent type, or a "creature removal" preset
+    view would silently miss it even though the bare ``removal`` lane
+    fires."""
+    from mtg_utils._deck_forge.crosswalk_signals import _removal_answer_types
+
+    assert _removal_answer_types(_tree("Arc Spitter")) == {"Creature"}
+    assert _removal_answer_types(_tree("Tyrant's Familiar")) == {"Creature"}
+
+
+def test_iter_nested_granted_bodies_shared_descent():
+    """task #86: the generalized shared descent
+    (:func:`~mtg_utils._card_ir.crosswalk.iter_nested_granted_bodies`)
+    dispatches ONE deep walk to two kinds of granted body — ``"trigger"``
+    for a ``GrantTrigger``'s own trigger def (Tyrant's Familiar's
+    Lieutenant grant), ``"ability"`` for a bare ``GrantAbility``'s own
+    ``definition`` (Arc Spitter's Equip grant). :func:`iter_nested_trigger_
+    defs` (the W1/W2b precedent) is now a thin filter over it that still
+    excludes the ``"ability"`` bodies — unchanged behavior, just one fewer
+    independent tag-scan in the module."""
+    from mtg_utils._card_ir.crosswalk import (
+        iter_nested_granted_bodies,
+        iter_nested_granted_effect_concepts,
+        iter_nested_trigger_defs,
+        tag_of,
+    )
+
+    arc_spitter = _tree("Arc Spitter")
+    static_unit = next(u for u in arc_spitter.units if u.origin == "static")
+    kinds = {kind for kind, _body in iter_nested_granted_bodies(static_unit.node)}
+    assert kinds == {"ability"}
+    assert list(iter_nested_trigger_defs(static_unit.node)) == []
+    granted = list(iter_nested_granted_effect_concepts(static_unit.node))
+    assert len(granted) == 1
+    assert tag_of(granted[0].node) == "DealDamage"
+
+    tyrant = _tree("Tyrant's Familiar")
+    static_unit = next(u for u in tyrant.units if u.origin == "static")
+    kinds = {kind for kind, _body in iter_nested_granted_bodies(static_unit.node)}
+    assert kinds == {"trigger"}
+    assert len(list(iter_nested_trigger_defs(static_unit.node))) == 1
+    granted = list(iter_nested_granted_effect_concepts(static_unit.node))
+    assert any(tag_of(c.node) == "DealDamage" for c in granted)
 
 
 def test_tutor_kept_mirror_only():

@@ -85,6 +85,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_deep_target_grants,
     iter_delayed_trigger_condition_defs,
     iter_mod_sites,
+    iter_nested_granted_effect_concepts,
     iter_nested_spellcast_static_modes,
     iter_nested_token_effects,
     iter_nested_trigger_defs,
@@ -3997,9 +3998,20 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
     VIEW selecting flicker MAKERS only should either query with
     ``include_membership=False`` or use :func:`blink_flicker_is_maker` to
     filter the merged signal list.
+
+    task #86 adds a granted-ability descent
+    (:func:`~mtg_utils._card_ir.crosswalk.iter_nested_granted_effect_concepts`)
+    to the per-unit ``change_zone`` gather: Deadeye Navigator's soulbond
+    static grants each paired creature "{1}{U}: Exile ~, then return it to
+    the battlefield under your control." — a ``GrantAbility`` whose
+    ``definition.effect`` is ``ChangeZone(Exile, target=SelfRef)`` and whose
+    ``definition.sub_ability.effect`` is ``ChangeZone(Battlefield,
+    target=TrackedSet, enters_under='You')`` — the EXACT top-level shape
+    this lane already recognizes, now reachable inside the grant body too.
+    CR 702.95a / 400.7.
     """
 
-    def _battlefield_exile(c: ConceptNode) -> bool:
+    def _battlefield_exile(c: ConceptNode, unit: AbilityUnit) -> bool:
         # A blink exiles a BATTLEFIELD object (CR 400.7 — the return is a
         # new object on the battlefield it left). A graveyard-sourced exile
         # (Boneyard Parley's "exile up to five target creature cards from
@@ -4010,12 +4022,34 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
         # target filter's ``InZone: Graveyard`` predicate).
         if change_zone_dirs(c.node)[0] == "Graveyard":
             return False
-        return "Graveyard" not in filter_inzone_zones(effect_filter(c.node))
+        if "Graveyard" in filter_inzone_zones(effect_filter(c.node)):
+            return False
+        # task #86: a "dies" trigger's own "exile it" (``TriggeringSource``
+        # — CR 700.4, the triggering object is ALREADY in the graveyard by
+        # the time a dies trigger resolves) is graveyard-sourced too, even
+        # though phase carries no explicit origin/InZone tag on a bare
+        # ``TriggeringSource`` target — the granted-ability descent
+        # surfaces this for the first time (Timothar, Baron of Bats: the
+        # dying Vampire is exiled from the graveyard, then a CAUSALLY
+        # DISCONNECTED later token combat-damage trigger MAY return it —
+        # delayed reanimation, not a blink of a live permanent; the
+        # ``dies_recursion`` lane's own :func:`~mtg_utils._card_ir.crosswalk.
+        # is_dies_return_trigger` documents the same "dies" = already-in-
+        # graveyard fact).
+        return not (
+            unit.trigger_event == "dies"
+            and tag_of(getattr(c.node, "target", None)) == "TriggeringSource"
+        )
 
     for unit in tree.units:
         czs = [c for c in unit.effects if c.concept == "change_zone"]
+        czs += [
+            c
+            for c in iter_nested_granted_effect_concepts(unit.node)
+            if c.concept == "change_zone"
+        ]
         if not any(
-            change_zone_dirs(c.node)[1] == "Exile" and _battlefield_exile(c)
+            change_zone_dirs(c.node)[1] == "Exile" and _battlefield_exile(c, unit)
             for c in czs
         ):
             continue
@@ -21438,6 +21472,27 @@ def _removal(tree: ConceptTree) -> list[Signal]:
     the same subject test — a player-only burn (target ``Any`` / Player) has
     no permanent-typed subject and stays direct_damage. Cost-role Destroy
     never fires (effects-only read, granularity a).
+
+    task #86 adds a third arm: a ``Destroy``/``DealDamage`` reachable inside
+    a static's ``GrantAbility``/``GrantStaticAbility``/``GrantTrigger`` body
+    (:func:`~mtg_utils._card_ir.crosswalk.iter_nested_granted_effect_concepts`
+    — phase v0.23.0 now emits these fully typed) — an Equip/Enchant/
+    Lieutenant/soulbond-granted "deals N damage to target creature" ability
+    (Arc Spitter, Lavamancer's Skill, Pathway Arrows, Shuriken's Equipment/
+    Aura grants; Tyrant's Familiar's Lieutenant-granted attack trigger;
+    Showstopper's until-end-of-turn dies-trigger grant) is a targeted-kill
+    ANSWER for deck-building purposes the same way a top-level DealDamage
+    is — the GRANTER (the Equipment/Aura/commander-matters card) is the
+    enabler here, CR 113.3/605/611. Every one of the named cards targets a
+    creature only (never a player), so none of them also join
+    ``direct_damage`` — that lane's own granted-ability fallback
+    (:func:`~mtg_utils._card_ir.crosswalk.has_nested_damage_reaching_player`)
+    already generically descends the same grant shapes for a PLAYER-reaching
+    recipient (Barbed Field, Acidic Sliver) and needs no change here. A
+    granted ``Destroy`` body rides the same descent for symmetry (no named
+    corpus card yet, but the shape is real — an Equipment/Aura granting
+    "{2}: Destroy target creature." is exactly as much a removal answer as
+    a top-level one).
     """
 
     def _perm_subject(target: object) -> bool:
@@ -21466,6 +21521,12 @@ def _removal(tree: ConceptTree) -> list[Signal]:
             continue
         if _perm_subject(getattr(c.node, "target", None)):
             return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for c in iter_nested_granted_effect_concepts(unit.node):
+            if tag_of(c.node) not in ("Destroy", "DealDamage"):
+                continue
+            if _perm_subject(getattr(c.node, "target", None)):
+                return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     return []
 
 
@@ -21549,6 +21610,15 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
       ``debuff_makers``'s toughness-side gate now reads per task #85) both
       always answer ``Creature`` (CR 704 — P/T and fighting only ever apply
       to creatures).
+
+    task #86: a ``destroy``/``deal_damage`` reachable inside a static's
+    granted-ability body (:func:`~mtg_utils._card_ir.crosswalk.
+    iter_nested_granted_effect_concepts` — the SAME descent
+    :func:`_removal`'s own third arm reads) joins the same two answer-type
+    reads, no raw-text bridge (no named corpus card needs one for a granted
+    body yet) — kept in lockstep with ``_removal`` so a card that gains
+    ``removal`` membership from the granted descent always answers its
+    permanent type too (Arc Spitter -> {Creature}).
     """
     out: set[str] = set()
     for unit in tree.units:
@@ -21595,6 +21665,12 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
             if sib_return or sib_clone:
                 continue
             out |= _perm_answer_types(sub)
+    for unit in tree.units:
+        for c in iter_nested_granted_effect_concepts(unit.node):
+            if c.concept == "destroy":
+                out |= _perm_answer_types(effect_filter(c.node))
+            elif c.concept == "deal_damage":
+                out |= _perm_answer_types(effect_filter(c.node)) or {"Any"}
     return frozenset(out)
 
 

@@ -2689,7 +2689,7 @@ def iter_nested_token_effects(node: object) -> Iterator[ConceptNode]:
             yield decorated
 
 
-# ── ADR-0037/0038 W1 batch-3 — the granted-trigger shared descent ────────────
+# ── ADR-0037/0038 W1 batch-3 / task #86 — the granted-ability shared descent ─
 # ``connive_makers`` and ``opponent_cast_matters`` share one gap shape: the
 # card's real trigger lives NESTED inside a GRANTED-ability construct the
 # flat per-unit ``AbilityUnit`` walk never surfaces as its own unit. Two
@@ -2701,34 +2701,108 @@ def iter_nested_token_effects(node: object) -> Iterator[ConceptNode]:
 # * a ``GrantTrigger`` modification's ``trigger`` field — a static ability's
 #   granted triggered ability (Security Bypass's Aura grant, Hunting
 #   Grounds's Threshold grant, Copycrook's copy-exception grant, Blink's
-#   Alien Angel token grant);
+#   Alien Angel token grant, Tyrant's Familiar's Lieutenant-granted attack
+#   trigger, Showstopper's until-end-of-turn dies-trigger grant);
 # * a ``CreateEmblem`` effect's ``triggers`` list (Jace, Unraveler of
 #   Secrets's -8 ultimate, Garruk, Caller of Beasts's -7 ultimate).
 #
-# Deliberately NOT walked: bare ``GrantAbility`` (no corpus card in this
-# batch wires a TRIGGER through it — only activated/static abilities) and
-# soulbond (Thundering Mightmare's soulbond-paired grant carries NO node at
-# all — ``modifications: []`` — a no-residue synthesis case, not a
-# structural one; see ``tree_synthesis.has_structural_opponent_cast_matters``).
+# task #86 adds the SIBLING shape a bare ``GrantAbility``/``GrantStaticAbility``
+# modification carries — an ABILITY-shaped body (its own ``.definition``
+# field, never a trigger def) that phase v0.23.0 now emits fully typed: Arc
+# Spitter's Equip-granted "{1}: ~ deals 1 damage to target creature that's
+# blocking it.", Deadeye Navigator's soulbond-granted "{1}{U}: Exile ~, then
+# return it to the battlefield under your control." Both shapes (trigger and
+# ability) now share ONE deep walk + tag dispatch
+# (:func:`iter_nested_granted_bodies`) instead of two independent tag-scans —
+# :func:`iter_nested_trigger_defs` is now a thin filter over it (the trigger-
+# shaped bodies only), and :func:`iter_nested_granted_effect_concepts` walks
+# EVERY yielded body (trigger AND ability alike) through the same effect/
+# sub_ability/execute chain a top-level unit's own effects walk uses
+# (:func:`_walk_effect_chain`) — so a granted trigger's ``execute.effect``
+# and a granted ability's ``definition.effect`` decorate identically, tagged
+# "granted" only by way of never appearing in ``unit.effects`` otherwise.
+#
+# Soulbond with NO node at all (Thundering Mightmare's soulbond-paired
+# grant — ``modifications: []``) stays a no-residue synthesis case, not a
+# structural one; see ``tree_synthesis.has_structural_opponent_cast_matters``.
+_GRANTED_TRIGGER_TAGS = frozenset({"GrantTrigger"})
+_GRANTED_ABILITY_TAGS = frozenset({"GrantAbility", "GrantStaticAbility"})
+
+
+def iter_nested_granted_bodies(
+    node: object,
+) -> Iterator[tuple[str, TypedMirrorNode]]:
+    """Every ``(kind, body)`` pair reachable under ``node`` via a granted-
+    ability-shaped modification (see module note above): ``kind`` is
+    ``"trigger"`` for a ``GrantTrigger``'s ``trigger`` field or a
+    ``CreateEmblem``'s ``triggers`` list entries (trigger-DEFINITION shaped
+    — the same ``.mode``/``.execute`` field shape as a top-level trigger
+    unit's own node), or ``"ability"`` for a ``GrantAbility``/
+    ``GrantStaticAbility``'s ``definition`` field (ability-DEFINITION
+    shaped — ``.effect``/``.cost``/``.sub_ability``, never a trigger's
+    ``.mode``). ONE deep walk (:func:`_iter_typed_nodes`), ONE tag dispatch
+    — every "read something buried inside a static's grant" lane in this
+    module shares this single descent (:func:`iter_nested_trigger_defs`,
+    :func:`iter_nested_granted_effect_concepts`) instead of re-deriving its
+    own tag-scan.
+    """
+    for n in _iter_typed_nodes(node):
+        t = tag_of(n)
+        if t in _GRANTED_TRIGGER_TAGS:
+            trig = getattr(n, "trigger", None)
+            if isinstance(trig, TypedMirrorNode):
+                yield ("trigger", trig)
+        elif t == "CreateEmblem":
+            trigs = getattr(n, "triggers", MISSING)
+            if _present(trigs) and isinstance(trigs, list):
+                for trig in trigs:
+                    if isinstance(trig, TypedMirrorNode):
+                        yield ("trigger", trig)
+        elif t in _GRANTED_ABILITY_TAGS:
+            definition = getattr(n, "definition", None)
+            if isinstance(definition, TypedMirrorNode):
+                yield ("ability", definition)
+
+
 def iter_nested_trigger_defs(node: object) -> Iterator[TypedMirrorNode]:
     """Every trigger DEFINITION node reachable under ``node`` via a
     ``GrantTrigger``/``CreateEmblem`` granted-ability shape (see module note
     above). The connive_makers / opponent_cast_matters shared descent — each
     lane applies its own predicate to the yielded nested trigger defs, the
     same predicate it already applies to a top-level trigger unit's node.
+    A thin filter over :func:`iter_nested_granted_bodies` — deliberately
+    excludes the ``"ability"`` bodies a bare ``GrantAbility``/
+    ``GrantStaticAbility`` yields (no corpus card in the original W1 batch-3
+    census wires a TRIGGER through one — only activated/static abilities;
+    see :func:`iter_nested_granted_effect_concepts` for the sibling lane
+    that DOES want those).
     """
-    for n in _iter_typed_nodes(node):
-        t = tag_of(n)
-        if t == "GrantTrigger":
-            trig = getattr(n, "trigger", None)
-            if isinstance(trig, TypedMirrorNode):
-                yield trig
-        elif t == "CreateEmblem":
-            trigs = getattr(n, "triggers", MISSING)
-            if _present(trigs) and isinstance(trigs, list):
-                for trig in trigs:
-                    if isinstance(trig, TypedMirrorNode):
-                        yield trig
+    for kind, body in iter_nested_granted_bodies(node):
+        if kind == "trigger":
+            yield body
+
+
+def iter_nested_granted_effect_concepts(node: object) -> Iterator[ConceptNode]:
+    """Every role=effect :class:`ConceptNode` reachable inside ANY granted-
+    ability/trigger body under ``node`` (see :func:`iter_nested_granted_bodies`)
+    — walks each yielded body through the SAME effect/sub_ability/execute/
+    mode_abilities chain a top-level unit's own effects walk uses
+    (:func:`_walk_effect_chain`), so a granted ABILITY's
+    ``definition.effect`` (Arc Spitter's Equip-granted damage ability,
+    Lavamancer's Skill / Pathway Arrows / Shuriken's Aura/Equipment-granted
+    damage abilities) and a granted TRIGGER's ``execute.effect`` (Tyrant's
+    Familiar's Lieutenant-granted attack trigger, Showstopper's until-end-
+    of-turn dies-trigger grant) both decorate identically — a multi-step
+    granted ability's ``sub_ability`` chain (Deadeye Navigator's soulbond
+    exile-then-return: ``definition.effect`` is the Exile leg,
+    ``definition.sub_ability.effect`` is the Battlefield-return leg)
+    decorates too. task #86's ``direct_damage``/``removal``/
+    ``blink_flicker`` structural fallback — the flat per-unit
+    ``effect_concepts`` walk never surfaces any of these as a top-level
+    concept of their own (CR 113.3 / 605 / 611).
+    """
+    for _kind, body in iter_nested_granted_bodies(node):
+        yield from _walk_effect_chain(body)
 
 
 # ADR-0038 W3 batch 2 unit 5 — a NARROW sibling of
