@@ -101,6 +101,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
@@ -187,20 +188,24 @@ class Preset:
         return self.concept is not None and self.concept(card)
 
 
-# ─── Structural-view seam (task #83, ADR-0035/0039) ───────────────────────
+# ─── Structural-view seam (task #83, ADR-0035/0039; sidecar-seeded task #90) ──
 #
-# oracle_id -> frozenset(production signal key) index, populated LAZILY —
-# one entry per card the FIRST time any signal_keys-bearing preset sees it,
-# never eagerly for the whole pool. A card_search.py-style full-pool scan
-# still pays one extract_signals_hybrid call per card overall (same as
-# before conversion — every card is visited once regardless), but this
-# cache is what makes a SECOND structural preset scanning the SAME pool (or
-# the same card revisited by a different consumer in one process) free: it
-# reuses the already-computed key set instead of re-running the crosswalk
-# lanes. extract_signals_hybrid itself already memoizes the expensive part
-# (_ir_lookup.trees_for's per-face ConceptTree resolution) per oracle_id, so
-# this index is a second, cheaper memoization layer on top of that one —
-# the (key, scope, subject) -> Signal lane pass, not the tree build.
+# oracle_id -> frozenset(production signal key) index, populated either by a
+# per-card LIVE compute (the first time any signal_keys-bearing preset sees
+# that card — the original, no-bulk/no-sidecar/CI-safe path) or, when a whole-
+# pool caller has called :func:`seed_signal_key_index`, in bulk from the
+# persisted ``_deck_forge.signals_index`` sidecar (task #90) — an oracle_id ->
+# "key|scope|subject" idents pickle keyed off the bulk file + every signal-
+# source file's content, built ONCE and reused across processes. Either way
+# this dict is the SAME cache: a card_search.py-style full-pool scan pays one
+# extract_signals_hybrid call per card overall on a COLD sidecar (same as
+# before conversion), but a WARM sidecar (or a second structural preset
+# scanning the same pool / the same card revisited by a different consumer in
+# one process) is a dict lookup, no crosswalk re-run. extract_signals_hybrid
+# itself already memoizes the expensive part (_ir_lookup.trees_for's per-face
+# ConceptTree resolution) per oracle_id, so this index is a second, cheaper
+# memoization layer on top of that one — the (key, scope, subject) -> Signal
+# lane pass, not the tree build.
 _SIGNAL_KEY_INDEX: dict[str, frozenset[str]] = {}
 
 
@@ -229,6 +234,60 @@ def _signal_keys_for(card: dict) -> frozenset[str]:
     keys = frozenset(sig.key for sig in extract_signals_hybrid(card))
     _SIGNAL_KEY_INDEX[oid] = keys
     return keys
+
+
+# Bulk-file identities (path, mtime_ns, size) already merged into
+# ``_SIGNAL_KEY_INDEX`` this process — makes :func:`seed_signal_key_index`
+# a no-op on every call after the first for the same bulk file.
+_SEEDED_BULK_IDENTITIES: set[tuple[str, int, int]] = set()
+
+
+def seed_signal_key_index(bulk_path: Path | None) -> bool:
+    """Seed ``_SIGNAL_KEY_INDEX`` from the persisted whole-pool signals-index
+    sidecar for *bulk_path* (task #90's ``_deck_forge.signals_index``),
+    building that sidecar on first touch (a one-time ~2-4 min pass logged to
+    stderr) so a whole-pool preset scan (``card_search``'s ``--preset``
+    filter, ``engine``'s commander-discovery novelty sweep) stops paying a
+    live ``extract_signals_hybrid`` call per card every process.
+
+    Idempotent and cheap to call repeatedly within one process: a bulk path
+    already seeded (by identity — path + mtime + size) is a no-op. Returns
+    whether a persisted index was available/buildable; ``False`` (no bulk
+    path, or the file is missing) leaves ``_SIGNAL_KEY_INDEX`` untouched —
+    ``_signal_keys_for``'s existing per-card live compute is the fallback,
+    unchanged, exactly the no-sidecar/no-bulk/CI degradation this module
+    always had.
+
+    Only ADDS entries not already cached (``setdefault``): an oracle_id
+    live-computed earlier in this same process (e.g. by a prior
+    ``_signal_keys_for`` call before the seed ran) keeps that value rather
+    than being overwritten — the two are byte-identical by construction
+    (the sidecar is built at the exact default configuration
+    ``_signal_keys_for`` calls live: see ``signals_index``'s module
+    docstring), so this is a safety margin, not a correctness dependency."""
+    if bulk_path is None:
+        return False
+    path = Path(bulk_path)
+    try:
+        if not path.is_file():
+            return False
+        identity = (str(path), path.stat().st_mtime_ns, path.stat().st_size)
+    except OSError:
+        return False
+    if identity in _SEEDED_BULK_IDENTITIES:
+        return True
+
+    from mtg_utils._deck_forge.signals_index import load_signals_index
+
+    index = load_signals_index(path)
+    if index is None:
+        return False
+    for oid, idents in index.items():
+        _SIGNAL_KEY_INDEX.setdefault(
+            oid, frozenset(ident.split("|", 1)[0] for ident in idents)
+        )
+    _SEEDED_BULK_IDENTITIES.add(identity)
+    return True
 
 
 def _concept_any_face(card: dict, predicate: Callable[[ConceptTree], bool]) -> bool:

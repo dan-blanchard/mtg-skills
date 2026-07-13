@@ -5,6 +5,8 @@ partner-slot scoping, the snapshot composition) are now testable through a plain
 ``ForgeState`` instead of only through ``TestClient(build_app(state)).get(...)``.
 """
 
+from pathlib import Path
+
 from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 
@@ -143,3 +145,83 @@ def test_explore_filters_respects_avenue_color_identity():
         {"oracle": "x"}, color_identity="G", fmt="commander"
     )
     assert fallback["color_identity"] == "G"
+
+
+# ── task #90: _signal_freq reads the persisted whole-pool signals index ──────
+
+
+def _commander_state(bulk_path=None):
+    commander_rec = {
+        "name": "Fake Commander",
+        "type_line": "Legendary Creature — Human",
+        "cmc": 2.0,
+        "color_identity": ["G"],
+        "oracle_text": "",
+        "legalities": {"commander": "legal"},
+        "oracle_id": "oid-fake-cmd",
+    }
+    return ForgeState(
+        by_name={"Fake Commander": commander_rec},
+        search_fn=lambda **_: [],
+        session=DeckSession("commander"),
+        bulk_path=bulk_path,
+    )
+
+
+def test_signal_freq_reads_persisted_index_without_live_compute(monkeypatch):
+    st = _commander_state(bulk_path=Path("/fake/AllPrintings.json"))
+    fake_index = {"oid-fake-cmd": ("ramp|you|",)}
+    monkeypatch.setattr(
+        "mtg_utils._deck_forge.signals_index.load_signals_index",
+        lambda path: fake_index if path == st.bulk_path else None,
+    )
+
+    def boom(_rec, *_args, **_kwargs):
+        raise AssertionError("must not live-compute when the sidecar covers this oid")
+
+    monkeypatch.setattr("mtg_utils._deck_forge.engine.extract_signals_hybrid", boom)
+
+    freq, total = engine._signal_freq(st)
+    assert total == 1
+    assert freq == {("ramp", ""): 1}
+
+
+def test_signal_freq_falls_back_to_live_compute_without_a_sidecar(monkeypatch):
+    st = _commander_state(bulk_path=None)  # no bulk -> load_signals_index(None) -> None
+
+    def fake_extract(rec, *_args, **_kwargs):
+        from mtg_utils._deck_forge.signals import Signal
+
+        return [Signal("ramp", "you", "", "", rec.get("name", ""), "high")]
+
+    # engine.py imports extract_signals_hybrid by name at module load (bound into
+    # engine's own namespace via `_signals`), so the patch target is engine's
+    # imported name, not signals.py's — unlike signals_index.py's lazy import.
+    monkeypatch.setattr(
+        "mtg_utils._deck_forge.engine.extract_signals_hybrid", fake_extract
+    )
+
+    freq, total = engine._signal_freq(st)
+    assert total == 1
+    assert freq == {("ramp", ""): 1}
+
+
+def test_signal_freq_caches_per_format_on_state(monkeypatch):
+    st = _commander_state(bulk_path=None)
+    calls = []
+
+    def fake_extract(rec, *_args, **_kwargs):
+        from mtg_utils._deck_forge.signals import Signal
+
+        calls.append(rec["name"])
+        return [Signal("ramp", "you", "", "", rec.get("name", ""), "high")]
+
+    # engine.py imports extract_signals_hybrid by name at module load (bound into
+    # engine's own namespace via `_signals`), so the patch target is engine's
+    # imported name, not signals.py's — unlike signals_index.py's lazy import.
+    monkeypatch.setattr(
+        "mtg_utils._deck_forge.engine.extract_signals_hybrid", fake_extract
+    )
+    engine._signal_freq(st)
+    engine._signal_freq(st)
+    assert calls == ["Fake Commander"]  # second call served from state cache

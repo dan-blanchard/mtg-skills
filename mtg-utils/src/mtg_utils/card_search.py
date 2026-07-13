@@ -250,6 +250,20 @@ def search_cards(
                 raise click.BadParameter(msg, param_hint="--preset") from None
         presets = tuple(resolved)
 
+    # A structural-view preset (task #83) reads _signal_keys_for, which is
+    # itself a per-oracle_id memo (theme_presets._SIGNAL_KEY_INDEX). Seeding it
+    # from the persisted whole-pool signals-index sidecar (task #90) before the
+    # scan below turns THIS full-bulk pass from "recompute every card's
+    # crosswalk signals live" into "one dict lookup per card" — building that
+    # sidecar on first touch (~2-4 min, logged) if it isn't already on disk.
+    # A no-op for keyword/pattern-only presets (empty signal_keys) and for a
+    # no-bulk/no-sidecar-buildable deployment (theme_presets falls back to its
+    # existing live compute either way).
+    if any(p.signal_keys for p in presets):
+        from mtg_utils.theme_presets import seed_signal_key_index
+
+        seed_signal_key_index(bulk_path)
+
     cards = load_bulk_cards(bulk_path)
     # Scan only the format-invariant playable subset (cached) rather than all ~114k bulk
     # records; the per-query filters below still run on every pool member.

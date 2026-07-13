@@ -877,3 +877,39 @@ class TestPresetFilter:
         data = json.loads(result.output)
         names = [c["name"] for c in data]
         assert names == ["Serra Angel"]
+
+
+class TestPresetSeedsSignalIndex:
+    """A ``--preset`` with a non-empty ``signal_keys`` arm seeds the persisted
+    whole-pool signals index (task #90) before the pool scan runs; a preset
+    that only reads ``keywords``/``patterns`` never triggers a build it has
+    no use for."""
+
+    def _bulk(self, tmp_path):
+        cards = [_make_card(name="Serra Angel", oracle_text="Flying")]
+        cards[0]["keywords"] = ["Flying"]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        return bulk_path
+
+    def test_seeds_when_a_structural_preset_is_requested(self, tmp_path, monkeypatch):
+        bulk_path = self._bulk(tmp_path)
+        calls = []
+        monkeypatch.setattr(
+            "mtg_utils.theme_presets.seed_signal_key_index",
+            lambda path: calls.append(path) or True,
+        )
+        # "landfall" carries signal_keys=("landfall",) — a structural view.
+        search_cards(bulk_path, preset_names=("landfall",))
+        assert calls == [bulk_path]
+
+    def test_skips_seeding_for_keyword_only_preset(self, tmp_path, monkeypatch):
+        bulk_path = self._bulk(tmp_path)
+        calls = []
+        monkeypatch.setattr(
+            "mtg_utils.theme_presets.seed_signal_key_index",
+            lambda path: calls.append(path) or True,
+        )
+        # "flying" is keywords-only (no signal_keys) — nothing to seed for it.
+        search_cards(bulk_path, preset_names=("flying",))
+        assert calls == []

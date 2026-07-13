@@ -523,10 +523,34 @@ def _support_depth(
     return score, breakdown, supported
 
 
+def _signal_key_subjects(rec: dict, index: dict[str, tuple[str, ...]] | None) -> set:
+    """``{(key, subject)}`` for *rec* — from the persisted whole-pool signals-index
+    sidecar (task #90) when one is available and covers this ``oracle_id``, else the
+    live ``extract_signals_hybrid`` fallback (a card the sidecar somehow doesn't cover,
+    or no sidecar at all — no bulk, or it isn't buildable). Both routes read the SAME
+    default configuration (``include_membership=True``), so this never diverges from a
+    pure-live sweep, only skips re-running it."""
+    oid = rec.get("oracle_id")
+    if index is not None and oid in index:
+        out = set()
+        for ident in index[oid]:
+            key, _scope, subject = ident.split("|", 2)
+            out.add((key, subject))
+        return out
+    return {(s.key, s.subject) for s in _signals(rec)}
+
+
 def _signal_freq(state: ForgeState) -> tuple[dict, int]:
     """Per-format signal-rarity table over the whole legal commander pool, cached on the
     state (the one expensive sweep in discovery). Maps ``(key, subject)`` → occurrences,
-    plus the commander count, for the Novelty IDF."""
+    plus the commander count, for the Novelty IDF.
+
+    Reads the persisted whole-pool signals-index sidecar (task #90,
+    ``_deck_forge.signals_index``) when available — building it on first touch (a
+    one-time ~2-4 min pass, logged) instead of running ``extract_signals_hybrid`` live
+    for every commander-eligible card in the bulk every time this cold-starts. A missing
+    sidecar (no bulk, or one that can't be built) degrades to the original per-record
+    live sweep, unchanged."""
     fmt = state.session.format
     cached = state.commander_signal_freq.get(fmt)
     if cached is not None:
@@ -536,6 +560,9 @@ def _signal_freq(state: ForgeState) -> tuple[dict, int]:
     # by_name folds and indexes every face/alias, so the same record appears under
     # several keys — dedup by canonical name so each commander is counted once.
     seen: set[str] = set()
+    from mtg_utils._deck_forge.signals_index import load_signals_index
+
+    index = load_signals_index(state.bulk_path)
     for rec in state.by_name.values():
         name = rec.get("name", "")
         if name in seen:
@@ -544,7 +571,7 @@ def _signal_freq(state: ForgeState) -> tuple[dict, int]:
         if not is_commander(rec, fmt)["eligible"]:
             continue
         total += 1
-        for key in {(s.key, s.subject) for s in _signals(rec)}:
+        for key in _signal_key_subjects(rec, index):
             freq[key] = freq.get(key, 0) + 1
     state.commander_signal_freq[fmt] = (freq, total)
     return freq, total

@@ -1660,3 +1660,76 @@ class TestPresetsAgainstRealData:
             f"  Real keywords: {real.get('keywords')}\n"
             f"  Real oracle:   {real.get('oracle_text')!r}"
         )
+
+
+class TestSeedSignalKeyIndex:
+    """Sidecar-seeded ``_SIGNAL_KEY_INDEX`` membership must equal a live
+    ``_signal_keys_for`` compute (task #90) — the persisted signals-index
+    sidecar is a CACHE of the same crosswalk extraction, never a divergent
+    second system."""
+
+    def _reset(self):
+        theme_presets._SIGNAL_KEY_INDEX.clear()
+        theme_presets._SEEDED_BULK_IDENTITIES.clear()
+
+    def test_seeded_value_matches_a_synthetic_extractor(self, tmp_path, monkeypatch):
+        from mtg_utils._deck_forge import signals_index
+        from mtg_utils._deck_forge.signals import Signal
+
+        self._reset()
+        try:
+            bulk = tmp_path / "AllPrintings.json"
+            bulk.write_text("{}", encoding="utf-8")
+
+            def fake_extract(rec, *_args, **_kwargs):
+                return [Signal("ramp", "you", "", "", rec.get("name", ""), "high")]
+
+            monkeypatch.setattr(
+                "mtg_utils._deck_forge.signals.extract_signals_hybrid", fake_extract
+            )
+            records = [{"oracle_id": "oid-seed", "name": "Fake Card"}]
+            signals_index.load_signals_index(bulk, records=records)
+
+            seeded = theme_presets.seed_signal_key_index(bulk)
+            assert seeded is True
+            assert theme_presets._SIGNAL_KEY_INDEX["oid-seed"] == frozenset({"ramp"})
+
+            # A subsequent live call must NOT recompute — it's already seeded.
+            def boom(_rec, *_args, **_kwargs):
+                raise AssertionError("must not recompute — already seeded")
+
+            monkeypatch.setattr(
+                "mtg_utils._deck_forge.signals.extract_signals_hybrid", boom
+            )
+            assert theme_presets._signal_keys_for(
+                {"oracle_id": "oid-seed"}
+            ) == frozenset({"ramp"})
+        finally:
+            self._reset()
+
+    def test_noop_without_a_bulk_path(self):
+        self._reset()
+        try:
+            assert theme_presets.seed_signal_key_index(None) is False
+            assert theme_presets._SIGNAL_KEY_INDEX == {}
+        finally:
+            self._reset()
+
+    def test_seed_matches_live_for_a_real_snapshot_card(self, tmp_path):
+        from mtg_utils import testkit
+        from mtg_utils._deck_forge import signals_index
+
+        self._reset()
+        try:
+            name = sorted(testkit._snapshot()["cards"])[0]
+            live_keys = frozenset(sig.key for sig in testkit.test_signals(name))
+            rec = testkit.test_card(name)
+
+            bulk = tmp_path / "AllPrintings.json"
+            bulk.write_text("{}", encoding="utf-8")
+            signals_index.load_signals_index(bulk, records=[rec])
+
+            assert theme_presets.seed_signal_key_index(bulk) is True
+            assert theme_presets._SIGNAL_KEY_INDEX[rec["oracle_id"]] == live_keys
+        finally:
+            self._reset()
