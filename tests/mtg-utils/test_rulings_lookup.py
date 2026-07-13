@@ -292,6 +292,15 @@ class TestLookupRulings:
 
 
 class TestCLI:
+    @pytest.fixture(autouse=True)
+    def _no_local_bulk(self, monkeypatch):
+        # main() falls back to default_bulk_path() when --bulk-data is
+        # omitted, so on a dev machine with a cached AllPrintings these
+        # tests would silently build/read the real rulings sidecar and
+        # exercise a different branch than on CI. Pin the no-bulk branch;
+        # the local-first path has its own fixture-backed tests above.
+        monkeypatch.setattr("mtg_utils.rulings_lookup.default_bulk_path", lambda: None)
+
     def test_cli_single_card(self, tmp_path):
         with (
             patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD),
