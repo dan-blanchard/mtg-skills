@@ -18,7 +18,7 @@ import urllib.request
 from functools import lru_cache
 from pathlib import Path
 
-PHASE_TAG = "v0.20.0"
+PHASE_TAG = "v0.23.0"
 PHASE_REPO = "https://github.com/phase-rs/phase"
 
 # card-data.json is byte-identical across platforms, so the linux server
@@ -331,8 +331,9 @@ def _card_data_path() -> Path:
 
 
 # Known-bad card-data records: phase stamps a DIFFERENT card's parse with this
-# oracle_id. The only member at v0.20.0 (full-corpus census 2026-07-10, task
-# #78): bulk carries TWO distinct cards named "Fast // Furious" — 62411ced
+# oracle_id. The only member at v0.23.0 (re-censused 2026-07-12, task #84;
+# unchanged from the v0.20.0 census of task #78, 2026-07-10): bulk carries TWO
+# distinct cards named "Fast // Furious" — 62411ced
 # (J21/MH2, commander-legal, discard-draw / damage) and 298a6369 (playtest,
 # not_legal, haste-unblockable / Fuse) — and phase's name-keyed corpus emits
 # the PLAYTEST card's "Fast" half stamped with the LEGAL card's oracle_id, so
@@ -342,7 +343,9 @@ def _card_data_path() -> Path:
 # text-mismatch gate was rejected: the same census found 8 other phase records
 # whose text differs from bulk only by oracle-errata drift (same card,
 # retemplated wording — e.g. Thran Turbine, Elven Farsight) that such a gate
-# would wrongly drop.
+# would wrongly drop. Census procedure: join every card-data record to bulk by
+# scryfall_oracle_id and flag records whose oracle_text matches NO bulk face
+# text for that oracle_id (v0.23.0: 9 flagged = these 8 errata-drift + Fast).
 _IMPOSTOR_RECORDS: frozenset[tuple[str, str]] = frozenset(
     {
         (

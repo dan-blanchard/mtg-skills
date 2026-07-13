@@ -357,8 +357,8 @@ def test_generated_classes_dispatch_table():
     for ckey in schema.structs:
         assert ckey in GENERATED_BY_CKEY, f"struct {ckey!r} has no generated class"
         assert issubclass(GENERATED_BY_CKEY[ckey], TypedMirrorNode)
-    # the headline coverage number: v0.20.0 = 1598 tagged + 103 struct = 1701 classes
-    assert len(GENERATED_BY_KEY) + len(GENERATED_BY_CKEY) == 1701
+    # the headline coverage number: v0.23.0 = 1624 tagged + 105 struct = 1729 classes
+    assert len(GENERATED_BY_KEY) + len(GENERATED_BY_CKEY) == 1729
 
 
 def test_typed_instances_no_fallback_samples():

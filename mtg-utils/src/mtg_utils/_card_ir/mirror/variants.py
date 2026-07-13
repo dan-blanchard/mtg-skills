@@ -1,10 +1,11 @@
 """Closed-union arm for phase's ``Effect`` enum (ADR-0035, Stage 1).
 
 The ``Effect`` enum in phase's ``crates/engine/src/types/ability.rs`` declares
-224 variants at the v0.20.0 pin (a cheap variant-**name** grep — names only,
+224 variants at the v0.23.0 pin (a cheap variant-**name** grep — names only,
 never the Rust field shapes; 207 at v0.9.0 + 8 v0.15.0 + 1 v0.16.0
-(``BecomeBlocked``) + 8 v0.20.0 additions). Of those, **206 are witnessed** in
-the pinned v0.20.0 ``card-data.json`` at the canonical
+(``BecomeBlocked``) + 8 v0.20.0 additions; v0.23.0 renamed
+``ForEachCategoryExile`` → ``ForEachCategory``, net zero). Of those, **206 are
+witnessed** in the pinned v0.23.0 ``card-data.json`` at the canonical
 effect slot (``ckey == "effect"``) and **18 emit zero instances** (Cascade,
 Exploit, MiracleCast, VentureInto, …). The 18 get a closed-union arm: the strict
 loader raises loudly on their *first emission* rather than letting an unwitnessed
@@ -12,13 +13,13 @@ variant slip in invisibly on a phase bump.
 
 ``EFFECT_VARIANTS`` is the full 224-name roster (the per-variant population
 baseline seeds zeros from it). ``ZERO_INSTANCE_EFFECTS`` is the 18-name
-closed-union subset. Both are data-grounded against v0.20.0 — regenerate via
+closed-union subset. Both are data-grounded against v0.23.0 — regenerate via
 ``build-card-ir-substrate`` if the phase tag bumps.
 """
 
 from __future__ import annotations
 
-# The full phase ``Effect`` enum roster (207), grepped by name from ability.rs
+# The full phase ``Effect`` enum roster (224), grepped by name from ability.rs
 # (`pub enum Effect { ... }`). Order preserved from the source enum.
 EFFECT_VARIANTS: tuple[str, ...] = (
     "StartYourEngines",
@@ -165,7 +166,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "ProcessRadCounters",
     "GrantCastingPermission",
     "ChooseFromZone",
-    "ForEachCategoryExile",
+    "ForEachCategory",
     "ChooseObjectsIntoTrackedSet",
     "ChooseAndSacrificeRest",
     "Exploit",
@@ -263,7 +264,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
 )
 
 # The name-known / shape-unknown variants: declared in phase's enum but with
-# ZERO instances anywhere in v0.16.0 card-data. The closed-union arm fails loud
+# ZERO instances anywhere in v0.23.0 card-data. The closed-union arm fails loud
 # on their first emission (see loader.strict_load_card).
 ZERO_INSTANCE_EFFECTS: frozenset[str] = frozenset(
     {

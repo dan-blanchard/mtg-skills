@@ -73,7 +73,7 @@ uv sync                              # Install deps (FastAPI/uvicorn; follows sy
 uv run pytest ../tests/deck-forge/ -v  # Run backend tests
 uv run download-mtgjson              # First-run only; card-data source (MTGJSON AllPrintings, ADR-0033). loader auto-discovers it
 uv run deck-forge                    # Launch the backend hub + open the browser UI
-uv run deck-forge-phase-crosscheck <cards.json>  # Read-only audit: diff detectors vs phase-rs parse (auto-fetches phase card-data from the v0.9.0 release tarball — no cargo)
+uv run deck-forge-phase-crosscheck <cards.json>  # Read-only audit: diff detectors vs phase-rs parse (auto-fetches phase card-data from the pinned-PHASE_TAG release tarball — no cargo)
 # Frontend (only to develop the UI; the built bundle is committed under frontend/dist):
 cd frontend && npm install && npm run build
 ```
@@ -144,11 +144,13 @@ Shared Python package (`mtg_utils`). 39 CLI script modules (25 deck + 9 cube + 3
   - `playtest-gauntlet` — Cube round-robin: build N archetype decks from the
     cube, run round-robin via phase, report win-rate matrix.
   - `playtest-draft` — Heuristic 8-player draft + per-deck goldfish.
-  - `playtest-install-phase` — One-time `cargo build` of phase v0.9.0
-    ai-duel/ai-commander BINARIES into `~/.cache/mtg-skills/phase/`. Only
-    playtesting needs this. The Card IR build (`build-card-ir-crosswalk` /
+  - `playtest-install-phase` — One-time `cargo build` of the phase
+    ai-duel/ai-commander BINARIES into `~/.cache/mtg-skills/phase/`, at the
+    single `_phase.PHASE_TAG` pin (currently v0.23.0 — one tag governs both
+    the playtest binaries and the Card IR card-data). Only playtesting needs
+    this. The Card IR build (`build-card-ir-crosswalk` /
     `build-card-snapshot` / deck-forge launch) fetches phase's
-    `card-data.json` straight from the v0.9.0 release tarball via
+    `card-data.json` straight from the same tag's release tarball via
     `_phase.ensure_card_data` (tag-keyed, cached) — no cargo build / repo
     clone, so non-playtest users never pay the Rust compile.
   - `playtest-custom-format` — Multiplayer custom-format simulator (e.g.,
@@ -194,8 +196,9 @@ Shared library modules (not CLI scripts):
 - **`_sidecar.py`** — Pickled-sidecar primitives reused by `bulk_loader` and `rules_lookup`.
 - **`_phase.py`** — Phase-rs subprocess wrapper. Manages the cached phase
   install at `~/.cache/mtg-skills/phase/` (or `$MTG_SKILLS_CACHE_DIR/phase`),
-  exposes `run_duel` / `run_commander` and the coverage gate. Pinned to
-  phase tag `v0.9.0`; bump with care.
+  exposes `run_duel` / `run_commander` and the coverage gate. The single
+  `PHASE_TAG` pin (currently `v0.23.0`) governs both the playtest binaries
+  and the Card IR card-data; bump with care.
 - **`_playtest_common.py`** — Schema-v1 JSON envelope and five markdown
   renderers (`render_goldfish_markdown`, `render_match_markdown`,
   `render_gauntlet_markdown`, `render_draft_markdown`,

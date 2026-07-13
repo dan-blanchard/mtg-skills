@@ -41,7 +41,7 @@ class _FakeUrlopen:
 
 class TestPhaseTag:
     def test_phase_tag_is_pinned(self):
-        assert _phase.PHASE_TAG == "v0.20.0"
+        assert _phase.PHASE_TAG == "v0.23.0"
 
 
 class TestCacheLayout:
