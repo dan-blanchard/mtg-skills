@@ -5,51 +5,43 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
+from mtg_utils import testkit
 from mtg_utils.cube_balance import _is_removal, cube_balance, main
 
 
 class TestRemovalDetection:
+    # ``_is_removal`` delegates to the ``removal`` preset (theme_presets.py),
+    # a structural (``signal_keys``) view since task #86 (the last regex-
+    # bearing built-in preset flip) — it only ever matches a card with a
+    # real, crosswalk-resolvable ``oracle_id``, so these fixtures are real
+    # cards served by ``mtg_utils.testkit`` (real Scryfall record + real
+    # crosswalk trees) rather than hand-built synthetic dicts. Chosen so
+    # each still demonstrates the SAME family branch the old regex's own
+    # comment named it for.
+
     def test_destroy_target(self):
-        card = {
-            "type_line": "Sorcery",
-            "oracle_text": "Destroy target creature.",
-        }
-        assert _is_removal(card) is True
+        testkit.test_card_ir("Murder")
+        assert _is_removal(testkit.test_card("Murder")) is True
 
     def test_exile_target(self):
-        card = {
-            "type_line": "Instant",
-            "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
-        }
-        assert _is_removal(card) is True
+        testkit.test_card_ir("Swords to Plowshares")
+        assert _is_removal(testkit.test_card("Swords to Plowshares")) is True
 
     def test_counterspell(self):
-        card = {
-            "type_line": "Instant",
-            "oracle_text": "Counter target spell.",
-        }
-        assert _is_removal(card) is True
+        testkit.test_card_ir("Counterspell")
+        assert _is_removal(testkit.test_card("Counterspell")) is True
 
     def test_lightning_bolt(self):
-        card = {
-            "type_line": "Instant",
-            "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-        }
-        assert _is_removal(card) is True
+        testkit.test_card_ir("Lightning Bolt")
+        assert _is_removal(testkit.test_card("Lightning Bolt")) is True
 
     def test_damage_to_target_creature(self):
-        card = {
-            "type_line": "Instant",
-            "oracle_text": "Flame Slash deals 4 damage to target creature.",
-        }
-        assert _is_removal(card) is True
+        testkit.test_card_ir("Flame Slash")
+        assert _is_removal(testkit.test_card("Flame Slash")) is True
 
     def test_wrath_of_god(self):
-        card = {
-            "type_line": "Sorcery",
-            "oracle_text": "Destroy all creatures. They can't be regenerated.",
-        }
-        assert _is_removal(card) is True
+        testkit.test_card_ir("Wrath of God")
+        assert _is_removal(testkit.test_card("Wrath of God")) is True
 
     def test_creature_not_removal(self):
         card = {
@@ -99,8 +91,13 @@ class TestCubeBalance:
         observed = result["colors"]["observed"]
         assert observed == {"R": 2}
 
-    def test_removal_density(self, sample_cube_json, cube_hydrated):
-        result = cube_balance(sample_cube_json, cube_hydrated, checks=["removal"])
+    def test_removal_density(self, sample_cube_json, cube_hydrated_real_removal):
+        # ``removal`` is a structural-view preset (task #86) — needs the
+        # real-oracle_id override fixture to resolve anything (see
+        # conftest.py's ``cube_hydrated_real_removal``).
+        result = cube_balance(
+            sample_cube_json, cube_hydrated_real_removal, checks=["removal"]
+        )
         r = result["removal"]
         # Lightning Bolt + Swords to Plowshares + Counterspell + Deadly Rollick
         # + Fire // Ice are all removal. Nonland total = 10.

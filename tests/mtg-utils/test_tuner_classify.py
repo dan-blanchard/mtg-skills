@@ -1,5 +1,6 @@
 """Spine / Engine / Filler / land / commander classification (tuner substrate)."""
 
+from mtg_utils import testkit
 from mtg_utils._deck_forge.signals import rank_deck_signals
 from mtg_utils._tuner.classify import classify_deck
 from mtg_utils.hydrated_deck import HydratedDeck
@@ -21,14 +22,18 @@ RABBLEMASTER = {
     ),
     "cmc": 3.0,
 }
-DUAL = {
-    "name": "Beast Within With Tokens",
-    "type_line": "Instant",
-    "oracle_text": (
-        "Destroy target permanent. Create a 1/1 red Goblin creature token."
-    ),
-    "cmc": 3.0,
-}
+# DUAL and MURDER need a REAL, crosswalk-resolvable oracle_id: ``role_of``
+# (budgets.py) buckets "interaction" via ``get_preset("removal").matches``,
+# a structural (``signal_keys``) view since task #86 (the last regex-bearing
+# built-in preset flip) — it never matches a synthetic no-oracle_id dict.
+# DUAL is a real Goblin/Warrior creature ("Goblin Cratermaker") whose modal
+# ability fires the bare ``removal`` key (probed via ``test_signals``: keys
+# {"colorless_matters", "removal", "type_matters"}) — its OWN type-line
+# membership (Goblin, Warrior) is what makes it serve the same "Goblin
+# tribal" / "Warrior tribal" avenues Krenko's commander-derived signals
+# open, so it's genuinely dual-purpose in THIS deck, not just a stand-in.
+testkit.test_card_ir("Goblin Cratermaker")  # seeds the crosswalk trees memo
+DUAL = testkit.test_card("Goblin Cratermaker")
 RAMP_ROCK = {
     "name": "Mind Stone",
     "type_line": "Artifact",
@@ -36,12 +41,8 @@ RAMP_ROCK = {
     "produced_mana": ["C"],
     "cmc": 2.0,
 }
-MURDER = {
-    "name": "Murder",
-    "type_line": "Instant",
-    "oracle_text": "Destroy target creature.",
-    "cmc": 3.0,
-}
+testkit.test_card_ir("Murder")  # seeds the crosswalk trees memo
+MURDER = testkit.test_card("Murder")
 VANILLA = {
     "name": "Hill Giant",
     "type_line": "Creature — Giant",
@@ -89,9 +90,9 @@ def test_engine_card_serves_an_avenue():
 
 def test_dual_purpose_spine_card():
     by_name = _classified()
-    dual = by_name["Beast Within With Tokens"]
+    dual = by_name["Goblin Cratermaker"]
     assert dual.bucket == "spine"  # interaction wins the bucket
-    assert dual.dual_purpose is True  # but it also feeds the token avenue
+    assert dual.dual_purpose is True  # but it also feeds the Goblin/Warrior avenue
     assert dual.served
 
 

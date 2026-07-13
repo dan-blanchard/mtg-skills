@@ -283,34 +283,34 @@ class TestMergeMemberPresets:
         with pytest.raises(KeyError):
             merge_member_presets("bad-group", ("does-not-exist",))
 
-    def test_merged_preset_unions_a_structural_view_with_a_regex_member(self):
-        """Task #83: merge_member_presets ORs a converted (signal_keys) member
-        with an unconverted (regex) member — a mixed group during the
-        transition still merges to a coherent single Preset."""
+    def test_merged_preset_unions_two_structural_views(self):
+        """Task #86: ``removal`` (the last unconverted-regex built-in) flipped
+        to a structural (``signal_keys``) view, so ``merge_member_presets``
+        ORing two BUILT-IN presets is now ALWAYS an OR of structural arms —
+        there is no built-in preset left carrying a raw ``patterns`` arm for
+        a mixed group to demonstrate (see ``theme_presets.py``'s module
+        docstring). ``merge_member_presets`` itself is unchanged (it still
+        ORs whatever tuples its members carry — see
+        ``test_merged_preset_or_matches_any_member`` above, which already
+        proves the OR-of-concept-arms case); this just re-targets the demo
+        at the shape that's actually reachable today."""
         from mtg_utils import testkit
         from mtg_utils._archetype_resolver import merge_member_presets
+        from mtg_utils.theme_presets import PRESETS
 
         merged = merge_member_presets("value-engines", ("landfall", "removal"))
-        assert merged.signal_keys == ("landfall",)
-        # removal's regex arm survives the merge (task #85 converted
-        # extra-turns AND plus-one-counters to structural views; removal
-        # is the last unconverted regex preset — its own flip attempt was
-        # reverted this wave over a downstream call-site blocker, see
-        # theme_presets.py's removal deferral comment).
-        assert merged.patterns
+        assert merged.signal_keys == ("landfall", *PRESETS["removal"].signal_keys)
+        assert not merged.patterns  # no built-in preset carries one anymore
 
-        # landfall member matches ONLY via the structural signal_keys arm.
+        # landfall member matches via its own signal_keys arm.
         testkit.test_card_ir("Courser of Kruphix")
         landfall_card = testkit.test_card("Courser of Kruphix")
         assert merged.matches(landfall_card)
 
-        # removal member matches ONLY via the regex arm (no oracle_id
-        # needed — removal is still an unconverted regex preset).
-        removal_card = {
-            "name": "Doom Blade",
-            "type_line": "Instant",
-            "oracle_text": "Destroy target nonblack creature.",
-        }
+        # removal member matches via ITS signal_keys arm (a real oracle_id
+        # is required now — removal is a structural view too).
+        testkit.test_card_ir("Murder")
+        removal_card = testkit.test_card("Murder")
         assert merged.matches(removal_card)
 
         # Neither arm fires on a bystander.
@@ -320,3 +320,51 @@ class TestMergeMemberPresets:
             "oracle_text": "{T}: Add {G}.",
         }
         assert not merged.matches(bystander)
+
+    def test_structural_preset_and_user_regex_coexist_in_one_cube(self):
+        """The live regex path a cube's stated_archetypes still has, now that
+        every BUILT-IN preset is structural (task #86): a cube author's OWN
+        ``{"name": ..., "regex": ...}`` entry (``CustomRegexArchetype``),
+        resolved and matched entirely independently of any preset — never
+        unioned INTO a preset's OR chain (``merge_member_presets`` only
+        takes ``PRESETS`` members; a custom-regex name can't be a group
+        member — ``resolve_stated_archetypes`` rejects it). A cube's
+        ``designer_intent.stated_archetypes`` can still freely MIX a
+        structural preset reference and a custom regex as SIBLING entries,
+        each resolved and matched through its own path via ``matcher_for``."""
+        from mtg_utils import testkit
+        from mtg_utils._archetype_resolver import matcher_for
+
+        cube = _cube(
+            [
+                {"name": "landfall"},
+                {"name": "custom-burn", "regex": r"deals? \d+ damage"},
+            ]
+        )
+        resolved = resolve_stated_archetypes(cube)
+        assert resolved.preset_names == ("landfall",)
+        assert resolved.custom == (
+            CustomRegexArchetype(name="custom-burn", regex=r"deals? \d+ damage"),
+        )
+
+        landfall_matcher = matcher_for("landfall", resolved)
+        testkit.test_card_ir("Courser of Kruphix")
+        assert landfall_matcher(testkit.test_card("Courser of Kruphix"))
+
+        # The custom regex needs no oracle_id at all — it's a raw oracle-text
+        # search, exactly like every OTHER user-supplied theme.
+        burn_matcher = matcher_for("custom-burn", resolved)
+        assert burn_matcher(
+            {
+                "name": "Lightning Bolt",
+                "type_line": "Instant",
+                "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+            }
+        )
+        assert not burn_matcher(
+            {
+                "name": "Llanowar Elves",
+                "type_line": "Creature — Elf Druid",
+                "oracle_text": "{T}: Add {G}.",
+            }
+        )

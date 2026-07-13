@@ -21,17 +21,13 @@ LLANOWAR = {
     "oracle_text": "{T}: Add {G}.",
     "produced_mana": ["G"],
 }
-MURDER = {
-    "name": "Murder",
-    "type_line": "Instant",
-    "oracle_text": "Destroy target creature.",
-}
-COUNTERSPELL = {
-    "name": "Counterspell",
-    "type_line": "Instant",
-    "oracle_text": "Counter target spell.",
-    "keywords": [],
-}
+# task #86: `removal` (the last regex-bearing built-in preset) flipped to a
+# structural (signal_keys) view — needs a real oracle_id to resolve, same as
+# `board-wipe`/WRATH below. `counterspell` was already structural (task #83).
+test_card_ir("Murder")
+MURDER = test_card("Murder")
+test_card_ir("Counterspell")
+COUNTERSPELL = test_card("Counterspell")
 DIVINATION = {
     "name": "Divination",
     "type_line": "Sorcery",
@@ -54,11 +50,6 @@ FLESHBAG = {
     # creature-edict is a task #83 structural view (concept-only, no regex
     # arm left) — it needs a real oracle_id to resolve the crosswalk tree.
     "oracle_id": "4b1bf05e-753e-4350-a913-894cf3cecc0c",
-}
-PACIFISM = {
-    "name": "Pacifism",
-    "type_line": "Enchantment — Aura",
-    "oracle_text": "Enchant creature\nEnchanted creature can't attack or block.",
 }
 # Over-fire guard: a creature whose OWN "can't attack or block" is a drawback (keyed on
 # "This creature", not "Enchanted creature") is not removal.
@@ -102,16 +93,24 @@ def test_role_classification_folds_counterspells_into_interaction():
 
 
 def test_edicts_and_pacify_auras_count_as_interaction():
-    # role_of is the universal coverage fallback, so forced-sacrifice (edicts) and
-    # pacification auras — both REMOVAL regardless of commander — must register as
-    # interaction. Fleshbag (creature-edict) and Pacifism (neutralize aura) were missed.
+    # role_of is the universal coverage fallback, so forced-sacrifice (edicts) must
+    # register as interaction. Fleshbag (creature-edict) was missed.
     test_card_ir("Fleshbag Marauder")  # seeds the crosswalk trees memo
     assert "interaction" in role_of(FLESHBAG)
-    assert "interaction" in role_of(PACIFISM)
     # Over-fire guards: a sacrifice COST (Viscera Seer) and a creature with a "can't
     # attack" DRAWBACK on itself (Lupine Prototype) are not removal.
     assert "interaction" not in role_of(VISCERA)
     assert "interaction" not in role_of(LUPINE)
+    # Task #86 (the `removal` preset's structural-view flip): pacify auras no
+    # longer register as `interaction` at all — the 9-key signal_keys union
+    # has no lane for "neutralizes a permanent without destroying/exiling/
+    # countering/bouncing/fighting/-X'ing it" (Pacifism structurally reads as
+    # `enchantments_matter`, not a removal-family effect; adjudicated in the
+    # task #83/#86 scoping pass as MORE-correct routing, not a lane bug — see
+    # budgets.py's `_INTERACTION_PRESETS` comment). A real, documented
+    # consequence, not silently absorbed.
+    test_card_ir("Pacifism")  # seeds the crosswalk trees memo
+    assert "interaction" not in role_of(test_card("Pacifism"))
 
 
 def test_interaction_excludes_infect_creatures_and_graveyard_recursion():
@@ -146,43 +145,20 @@ def test_interaction_excludes_infect_creatures_and_graveyard_recursion():
     assert "interaction" not in role_of(blighted_agent)
     assert "interaction" not in role_of(swarmlord)
     assert "interaction" not in role_of(unnatural_restoration)
-    # Genuine targeted removal / bounce still counts.
-    murder = {
-        "name": "Murder",
-        "type_line": "Instant",
-        "oracle_text": "Destroy target creature.",
-        "keywords": [],
-    }
-    boomerang = {
-        "name": "Boomerang",
-        "type_line": "Instant",
-        "oracle_text": "Return target permanent to its owner's hand.",
-        "keywords": [],
-    }
-    prey_upon = {
-        "name": "Prey Upon",
-        "type_line": "Sorcery",
-        "oracle_text": "Target creature you control fights target creature you don't "
-        "control.",
-        "keywords": [],
-    }
-    assert "interaction" in role_of(murder)
-    assert "interaction" in role_of(boomerang)
-    assert "interaction" in role_of(prey_upon)
+    # Genuine targeted removal / bounce still counts. `removal`/`bounce` are
+    # structural views (task #86 / task #83) — real testkit records.
+    test_card_ir("Boomerang")  # seeds the crosswalk trees memo
+    test_card_ir("Prey Upon")  # seeds the crosswalk trees memo
+    assert "interaction" in role_of(MURDER)
+    assert "interaction" in role_of(test_card("Boomerang"))
+    assert "interaction" in role_of(test_card("Prey Upon"))
 
 
 def test_protection_is_advisory_not_a_counted_role():
     # Counterspell counts as both interaction (template) AND protection (Tier-2 flag).
-    # protects() gates on the `counterspell` preset, which moved to a structural
-    # view (task #83) — it needs a real oracle_id to resolve, so this assertion
-    # uses the testkit snapshot record rather than the synthetic COUNTERSPELL
-    # dict (which the other assertions here still use — they don't exercise the
-    # counterspell preset's match arm).
-    from mtg_utils import testkit
-
-    testkit.test_card_ir("Counterspell")  # seeds the crosswalk trees memo
-    real_counterspell = testkit.test_card("Counterspell")
-    assert protects(real_counterspell) is True
+    # protects() gates on the `counterspell` preset (a structural view, task #83) —
+    # the module-level COUNTERSPELL constant is already the real testkit record.
+    assert protects(COUNTERSPELL) is True
     assert protects(MURDER) is False
     assert "protection" not in role_of(COUNTERSPELL)  # never a counted role
 

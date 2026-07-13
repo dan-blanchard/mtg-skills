@@ -20,11 +20,17 @@ that mention a keyword without having it (e.g. "Target creature gets
 flying"). When a theme is a keyword ability (flying, scry, flashback,
 cascade, cycling, …) the preset uses the keyword list only.
 
-Regex is reserved for FUNCTIONAL themes without a matching keyword and
-without a structural view yet (removal, mill, reanimate, counterspells,
-burn, tokens, …). Oracle text uses both digit and word number forms
-("scry 2" vs "mill three cards"), so the :data:`_COUNT` atom below covers
-both.
+Regex used to be reserved for FUNCTIONAL themes without a matching
+keyword and without a structural view yet (removal, mill, reanimate,
+counterspells, burn, tokens, …) — task #86 flipped ``removal``, the last
+one, so no BUILT-IN preset carries a raw ``patterns`` arm anymore. The
+only live regex path left is USER-SUPPLIED: ``archetype_audit``'s
+``--theme name=regex`` CLI flag and a cube's ``designer_intent.
+stated_archetypes`` custom-regex entries (``_archetype_resolver.
+CustomRegexArchetype``) — a cube author's own pattern for a theme the
+presets don't name at all, never a second detector shadowing the signal
+extractor. Both build their ``Preset``/matcher directly rather than
+through this module's (now-unused) ``patterns`` arm plumbing.
 
 # Structural views (task #83, ADR-0035/0039)
 
@@ -111,6 +117,9 @@ if TYPE_CHECKING:
 
 # Matches a count in digit form, word form (one..twelve), or X. IGNORECASE
 # is applied at pattern compile time, so word forms match "Three" too.
+# Unused by any PRESETS entry as of task #86 (the removal flip retired the
+# last built-in preset with a raw ``patterns`` arm) — kept for a future
+# genuinely-textual fact, same reasoning as :func:`_rx` below.
 _COUNT = r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|X)"
 
 
@@ -334,7 +343,13 @@ def _plus_one_counters_self_grow_concept(card: dict) -> bool:
 
 
 def _rx(*patterns: str) -> tuple[re.Pattern[str], ...]:
-    """Compile a tuple of patterns with IGNORECASE."""
+    """Compile a tuple of patterns with IGNORECASE.
+
+    Unused by any PRESETS entry as of task #86 (the ``removal`` flip
+    retired the last built-in preset with a raw ``patterns`` arm) — kept
+    in case a future genuinely-textual fact needs it; NOT a place to add a
+    second regex detector shadowing a signal (Dan's standing directive).
+    """
     return tuple(re.compile(p, re.IGNORECASE) for p in patterns)
 
 
@@ -1327,109 +1342,85 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         should_match=("Counterspell", "Mana Leak", "Remand", "Sinister Sabotage"),
         should_not_match=("Lightning Bolt", "Llanowar Elves"),
     ),
-    # Creature/permanent removal — copied from cube_balance._REMOVAL_PATTERNS.
-    # Intentionally generous: catches hard and soft removal both. Used by
-    # cube-balance for its removal density metric.
+    # Creature/permanent removal (task #83/#86 structural-view conversion —
+    # the LAST regex-bearing preset). ``signal_keys`` is the 9-key union
+    # scoped by task #83's census (rec 0.81 vs the old intentionally-
+    # generous regex): ``removal`` + ``exile_removal`` + ``mass_removal`` +
+    # ``mass_bounce`` + ``counter_control`` + ``direct_damage`` +
+    # ``bounce_tempo`` + ``fight_makers`` + ``debuff_makers``.
     #
-    # task #83 structural-view conversion: STILL DEFERRED, not converted —
-    # blocked on a DIFFERENT problem now (task #85 closed the original one).
+    # Two lane gaps the original scoping deferred on are now fixed (task
+    # #85, crosswalk_signals.py): (1) ``debuff_makers``'s single-target Pump
+    # arm now reads a dynamic ``-X/-X`` (mirroring the mass ``PumpAll``
+    # arm's existing ``_negative_pt_field`` read, CR 704.5f) — Toxic Deluge,
+    # Death Wind, Flunk, Cloudkill and 83 more recover; (2) a "target
+    # [combat-state/color]-qualified creature" Destroy (Smite) that lost its
+    # ``Creature`` type_filter in phase's own typed target node now recovers
+    # via a raw-text bridge gated on total structural silence.
     #
-    # The two lane gaps task #83 originally deferred on are FIXED (task #85,
-    # crosswalk_signals.py): (1) `debuff_makers`'s single-target Pump arm now
-    # reads a dynamic `-X/-X` (`Variable` or `Quantity`/`Multiply`-scaled —
-    # the LATTER a v0.23.0 "dynamic P/T pump scaling by source intensity"
-    # shape a straight port of the mass arm's fix didn't yet cover; re-
-    # measuring at the bump surfaced it), mirroring the mass `PumpAll` arm's
-    # existing `_negative_pt_field` read (CR 704.5f) — Death Wind, Flunk,
-    # Toxic Deluge, Cloudkill and 83 more all recover; (2) a "target
-    # [combat-state/color]-qualified creature" Destroy (Smite, Assassin's
-    # Blade) that loses its `Creature` type_filter entirely in phase's own
-    # typed target node (verified against phase's `card-data-v0.23.0.json` —
-    # a genuine upstream parse gap) now recovers via a raw-text bridge
-    # (`_qualified_destroy_target_type`) gated on TOTAL structural silence
-    # (no core type, no subtype) so a target that resolved to a
-    # deliberately-EXCLUDED type (Sinkhole's Land) or a same-unit sibling's
-    # typeless back-reference (Rancid Earth's Threshold-mode "that land")
-    # can never bleed in — both were corpus-caught false-positives from
-    # earlier iterations of this same bridge, now negative-pinned.
-    #
-    # The flip attempt itself (view = the 9-key union, patterns cleared)
-    # now fails on a SEPARATE, newly-discovered problem: three downstream
-    # consumers call `get_preset("removal").matches(card)` against
-    # SYNTHETIC cards with no `oracle_id` in their OWN unit tests —
-    # `cube_balance.py`'s `_is_removal` (removal-density metric),
-    # `archetype_audit`'s CLI text-match path, and `_deck_forge`'s tuner
-    # classify/swaps modules (a card's "spine" role partly keyed off
-    # `_is_removal`). A `signal_keys`-only Preset degrades every one of
-    # those calls to "never matches" (the structural arm needs a real
-    # `oracle_id` to resolve anything against the crosswalk — see the
-    # module docstring's "Structural views" section), which broke 12 tests
-    # (test_cube_balance.py::TestRemovalDetection + test_removal_density,
-    # test_archetype_audit.py's two CLI tests, test_tuner_classify.py's two
-    # role tests, test_tuner_swaps.py's curve-fix test) the FIRST time this
-    # session actually attempted the flip — task #83's original scoping
-    # pass never got far enough to hit it (blocked on the lane gaps above
-    # instead). Re-attempting the flip needs those three consumers migrated
-    # to pass real oracle_id-bearing cards (or a text/structural-hybrid
-    # Preset shape) FIRST — a call-site migration, out of scope for a lane
-    # fix; the two lane gaps are fixed and pinned (test_crosswalk.py's
-    # ``test_task85_*`` functions) so the NEXT flip attempt starts clean.
+    # Real residue the union still misses vs the old regex (fixtures that
+    # FLIP — the old regex matched these, the view doesn't; adjudicated as
+    # MORE-correct routing, not a lane bug, per task #83's scoping pass):
+    #   - Pacifism / Arrest (pacify auras — "enchanted creature can't
+    #     attack"): neutralizes the threat but never destroys/exiles/
+    #     counters/bounces/fights/-X's it, so it's not a removal-FAMILY
+    #     effect by ANY of the 9 keys; routes to ``enchantments_matter``.
+    #   - Condemn ("put target attacking creature on the bottom of its
+    #     owner's library, its controller gains life…"): a library-tuck, not
+    #     a removal-family effect either; routes to ``lifegain_makers`` /
+    #     ``toughness_combat``.
+    #   - Chaos Warp ("target permanent" shuffled into its owner's library):
+    #     same library-tuck pattern; routes to ``cheat_from_top`` /
+    #     ``cheat_into_play`` (Chaos Warp's OWN "then that player reveals
+    #     the top card of their library and puts it onto the battlefield"
+    #     is the card's structurally-dominant read).
+    # A prior flip attempt this session hit a SEPARATE problem: three
+    # downstream call sites (``cube_balance._is_removal``, archetype_audit's
+    # CLI preset flag, and the tuner's classify/swaps role checks) exercised
+    # this preset against SYNTHETIC cards with no ``oracle_id`` in their own
+    # unit tests, which a ``signal_keys``-only Preset always fails to match
+    # (see the module docstring's "Structural views" section) — task #86
+    # migrated those 12 tests to real testkit-served cards FIRST (see
+    # ``test_cube_balance.py``, ``test_archetype_audit.py``,
+    # ``test_tuner_classify.py``, ``test_tuner_swaps.py``), so this flip
+    # lands clean.
     Preset(
         name="removal",
         description=(
             "Creature/permanent removal — destroy/exile/counter/damage/"
             "bounce/fight/-X effects (intentionally generous)."
         ),
-        patterns=_rx(
-            r"\bdestroy\s+target\b",
-            r"\bdestroy\s+all\b",
-            r"\bdestroy\s+(?:each|up to)\b",
-            r"\bexile\s+target\b",
-            r"\bexile\s+all\b",
-            r"\bexile\s+up to\b",
-            r"\bcounter\s+target\b",
-            r"\bdeals?\s+\d+\s+damage\s+to\s+(?:target\s+creature|any target)",
-            r"\bdeals?\s+\d+\s+damage\s+divided\b.*\btargets?\b",
-            # Battlefield bounce only: exclude graveyard recursion, which returns a
-            # "target permanent CARD from your graveyard" (Unnatural Restoration).
-            r"\breturn\s+target\s+(?:creature|(?:nonland )?permanent)\b"
-            r"(?!\s+card\b).*\bhand\b",
-            r"\bfights?\s+target\b",
-            r"\btarget\s+creature\s+gets\s+-\d",
-            # Toxic Deluge, Black Sun's Zenith style mass -N/-N. The `\b`
-            # around `-X/-X` is intentionally dropped — `-` isn't a word
-            # character, so `\b-` can never match. Use a looser anchor.
-            r"(?<!\w)-X/-X\b",
-            # Pacification auras (Pacifism, Arrest, Prison Term, Faith's Fetters): an
-            # "Enchanted creature/permanent can't attack" neutralizes the threat —
-            # functional removal. Anchored on "enchanted" so a creature whose OWN "can't
-            # attack or block" is a drawback (Lupine Prototype) never matches.
-            r"enchanted (?:creature|permanent)[^.]*can'?t attack",
-            # Library tuck — answers a permanent by shuffling/putting it into its
-            # owner's library (Chaos Warp, Oblation; Condemn / Hinder-style "put on
-            # top/bottom of library"). Anchored on a TARGET permanent/creature so a
-            # tutor ("search your library … shuffle") never matches.
-            r"\btarget\b[^.]*\b(?:permanent|creature|artifact|enchantment|"
-            r"planeswalker)\b[^.]*\bshuffles?\b[^.]*\blibrary\b",
-            r"\bput\s+target\b[^.]*\bon\s+(?:the\s+)?(?:top|bottom)\b[^.]*\blibrary\b",
+        signal_keys=(
+            "removal",
+            "exile_removal",
+            "mass_removal",
+            "mass_bounce",
+            "counter_control",
+            "direct_damage",
+            "bounce_tempo",
+            "fight_makers",
+            "debuff_makers",
         ),
         should_match=(
-            "Swords to Plowshares",
-            "Lightning Bolt",
-            "Counterspell",
-            "Wrath of God",
-            "Toxic Deluge",
-            "Prey Upon",  # fight branch
-            "Electrolyze",  # divided-damage branch
-            "Disfigure",  # -N/-N branch
-            "Boomerang",  # universal bounce branch
-            "Farewell",  # exile-all branch
-            "Pacifism",  # pacify-aura branch
-            "Arrest",  # pacify-aura branch
-            "Chaos Warp",  # library-tuck branch
-            "Condemn",  # put-on-bottom-of-library branch
+            "Murder",  # bare `removal` key
+            "Swords to Plowshares",  # exile_removal
+            "Wrath of God",  # mass_removal
+            "Evacuation",  # mass_bounce
+            "Counterspell",  # counter_control
+            "Lightning Bolt",  # direct_damage
+            "Boomerang",  # bounce_tempo
+            "Prey Upon",  # fight_makers
+            "Disfigure",  # debuff_makers
+            "Toxic Deluge",  # debuff_makers + mass_removal (dynamic -X/-X)
         ),
-        should_not_match=("Llanowar Elves", "Command Tower", "Lupine Prototype"),
+        should_not_match=(
+            "Llanowar Elves",
+            "Command Tower",
+            "Lupine Prototype",
+            "Pacifism",  # pacify aura -> enchantments_matter, not removal
+            "Chaos Warp",  # library-tuck -> cheat_from_top/cheat_into_play
+            "Condemn",  # library-tuck -> lifegain_makers/toughness_combat
+        ),
     ),
     # Board wipe — subset of removal that hits all/many creatures.
     Preset(
@@ -1953,16 +1944,32 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # ``_card_draw_engine``) to reach it. The two arms are structurally
     # disjoint (one requires an ``enters`` trigger, the other excludes
     # one), so the OR never double-fires a card under both.
+    #
+    # ``draw_for_each`` UNIONED IN (task #86 / #85's census): a "draw a
+    # card for each X" board-scaling draw (Shamanic Revelation, Truth or
+    # Consequences) is functionally a multi-card-draw engine the same as
+    # ``card_draw_engine``, but is its own crosswalk lane (a for-each COUNT
+    # read, CR 120/107.3 — see ``_draw_for_each``'s own docstring) that
+    # never independently sets ``card_draw_engine``. Probed against 14
+    # scaling-draw residue cards (#85's census) — Messenger Jays, Observed
+    # Stasis, Cirdan the Shipwright, Truth or Consequences, Spell
+    # Contortion among them — all carry ONLY ``draw_for_each`` (not
+    # ``card_draw_engine``/``etb_bulk_draw``), confirming the view was
+    # silently dropping them. Narrow lane: 234 of 32,521 commander/brawl-
+    # legal cards (0.7%) carry ``draw_for_each`` corpus-wide — a for-each
+    # scaling read, not a broad "mentions draw" catch-all, so folding it in
+    # doesn't widen the preset the way a raw-text union would.
     Preset(
         name="card-draw",
         description="Draws two or more cards in a single effect.",
-        signal_keys=("card_draw_engine",),
+        signal_keys=("card_draw_engine", "draw_for_each"),
         concept=_etb_bulk_draw_concept,
         should_match=(
             "Mulldrifter",
             "Deep Analysis",
             "Brainstorm",
             "Rielle, the Everwise",
+            "Truth or Consequences",  # draw_for_each-only residue
         ),
         should_not_match=("Lightning Bolt", "Llanowar Elves"),
     ),

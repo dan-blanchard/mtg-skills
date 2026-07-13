@@ -43,12 +43,26 @@ _SHAPE_BANDS: dict[str, dict[str, tuple[int, int]]] = {
 
 # Targeted removal + counterspells fold together into one `interaction` role (ADR-0024).
 # creature-edict (forced sacrifice — Diabolic Edict, Fleshbag) is removal that bypasses
-# hexproof/indestructible, so it counts too; the `removal` preset also carries pacify
-# auras ("Enchanted creature can't attack or block" — Pacifism, Arrest).
+# hexproof/indestructible, so it counts too.
 # `creature-removal` is deliberately EXCLUDED: its removal SPELLS are already matched by
 # `removal`, while its Fight/Infect/Wither KEYWORDS tag static combat creatures (CR
 # 702.90a infect is a combat ability, not spot removal) — over-counting Infect beaters
 # as interaction and then cutting a poison payoff to "trim the over-band role".
+#
+# Task #86 (the `removal` preset's structural-view flip): pacify auras
+# ("Enchanted creature can't attack or block" — Pacifism, Arrest) NO LONGER
+# fold in here. The old regex's pacify branch is gone; the 9-key
+# signal_keys union `removal` now reads has no lane for "neutralizes a
+# permanent without destroying/exiling/countering/bouncing/fighting/-X'ing
+# it" — the task #83/#86 scoping pass adjudicated this as MORE-correct
+# routing (Pacifism/Arrest structurally read as `enchantments_matter`, not
+# a removal-family effect), not a lane bug. Real, documented consequence:
+# a deck stacked with pacify auras now reads short on the `interaction`
+# role even though they're functionally removal. Recovering that credit
+# would need a DEDICATED structural concept for "static Aura/Attach
+# neutralizer" (the `concept=` pattern theme_presets.py already uses
+# elsewhere for facts no signal key carries) — out of scope for this flip;
+# flagged here rather than silently absorbed.
 _INTERACTION_PRESETS = (
     "removal",
     "counterspell",

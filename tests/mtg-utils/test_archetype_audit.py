@@ -571,14 +571,17 @@ class TestCLIInterface:
         assert "removal" in result.output
 
     def test_preset_flag_loads_named_preset(
-        self, sample_cube_json, cube_hydrated, tmp_path: Path
+        self, sample_cube_json, cube_hydrated_real_removal, tmp_path: Path
     ):
+        # ``removal`` is a structural-view preset (task #86) — needs the
+        # real-oracle_id override fixture to resolve anything (see
+        # conftest.py's ``cube_hydrated_real_removal``).
         runner = CliRunner()
         cube_path = tmp_path / "cube.json"
         hyd_path = tmp_path / "hyd.json"
         out_path = tmp_path / "out.json"
         cube_path.write_text(json.dumps(sample_cube_json))
-        hyd_path.write_text(json.dumps(cube_hydrated))
+        hyd_path.write_text(json.dumps(cube_hydrated_real_removal))
         result = runner.invoke(
             main,
             [
@@ -645,14 +648,17 @@ class TestCLIInterface:
         assert "custom" in data["themes"]
 
     def test_show_matches_emits_card_names(
-        self, sample_cube_json, cube_hydrated, tmp_path: Path
+        self, sample_cube_json, cube_hydrated_real_removal, tmp_path: Path
     ):
+        # ``removal`` is a structural-view preset (task #86) — needs the
+        # real-oracle_id override fixture to actually match a card so the
+        # text report has a "matches:" line to emit.
         runner = CliRunner()
         cube_path = tmp_path / "cube.json"
         hyd_path = tmp_path / "hyd.json"
         out_path = tmp_path / "out.json"
         cube_path.write_text(json.dumps(sample_cube_json))
-        hyd_path.write_text(json.dumps(cube_hydrated))
+        hyd_path.write_text(json.dumps(cube_hydrated_real_removal))
         result = runner.invoke(
             main,
             [

@@ -146,10 +146,23 @@ def test_curve_fix_does_not_overshoot_a_full_role():
         "severity": 3,
         "message": "curve: thin top-end",
     }
+    # ``propose_swaps`` reads its role off ``role_of``, which buckets
+    # "interaction" via ``get_preset("removal").matches`` — a structural
+    # (``signal_keys``) view since task #86 (the last regex-bearing built-in
+    # preset flip), so it needs a real, crosswalk-resolvable ``oracle_id``.
+    # Base the record on the real "Murder" card's oracle_id/oracle_text
+    # (seeding the trees memo first) while keeping the scenario's own
+    # "Big Removal" name/cmc/price/color_identity fields — the test cares
+    # about the CURVE overshoot behavior, not this card's flavor.
+    from mtg_utils import testkit
+
+    testkit.test_card_ir("Murder")  # seeds the crosswalk trees memo
+    murder = testkit.test_card("Murder")
     dirty = {  # a 7-MV finisher that ALSO fills interaction (would overshoot)
         "name": "Big Removal",
         "type_line": "Sorcery",
         "oracle_text": "Destroy target creature.",
+        "oracle_id": murder["oracle_id"],
         "cmc": 7.0,
         "prices": {"usd": "1.00"},
         "color_identity": [],

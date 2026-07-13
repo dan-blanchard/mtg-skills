@@ -104,15 +104,19 @@ def _hcard(
 
 class TestPrecomputeMetadata:
     def test_classifies_each_card_and_tags_archetypes(self):
-        # The archetype-tagging demo card uses ``removal`` (the last
-        # unconverted regex preset — task #85 converted extra-turns AND
-        # plus-one-counters to structural views; removal's own flip
-        # attempt was reverted this wave over a downstream call-site
-        # blocker, see theme_presets.py's removal deferral comment)
-        # rather than ``counterspell``/``extra-turns``/``plus-one-counters``
-        # (moved to structural views, task #83/#85) — a structural-view
-        # preset needs a real oracle_id to resolve, which these synthetic
-        # hydrated dicts never carry.
+        # The archetype-tagging demo card uses ``removal`` — task #86 flipped
+        # it (the last unconverted-regex built-in preset) to a structural
+        # (``signal_keys``) view, so its arm needs a real ``oracle_id`` to
+        # resolve, which a bare ``_hcard(...)`` dict never carries. Base the
+        # third card on ``testkit.test_card("Murder")`` (real oracle_id +
+        # oracle text) instead of a synthetic "Doom Blade" dict, and seed the
+        # crosswalk trees memo first — Mountain/Brainstorm stay synthetic
+        # (their assertions exercise ``classify_library_effect``, not a
+        # structural-view preset, so they need no oracle_id).
+        from mtg_utils import testkit
+
+        testkit.test_card_ir("Murder")  # seeds the crosswalk trees memo
+        murder = testkit.test_card("Murder")
         hydrated = [
             _hcard(
                 "Mountain",
@@ -129,14 +133,17 @@ class TestPrecomputeMetadata:
                 "on top of your library in any order.",
                 color_identity=["U"],
             ),
-            _hcard(
-                "Doom Blade",
-                mana_cost="{1}{B}",
-                cmc=2,
-                type_line="Instant",
-                oracle="Destroy target nonblack creature.",
-                color_identity=["B"],
-            ),
+            {
+                **_hcard(
+                    murder["name"],
+                    mana_cost=murder.get("mana_cost", ""),
+                    cmc=int(murder.get("cmc") or 0),
+                    type_line=murder["type_line"],
+                    oracle=murder["oracle_text"],
+                    color_identity=murder.get("color_identity", ()),
+                ),
+                "oracle_id": murder["oracle_id"],
+            },
         ]
         meta = precompute_metadata(hydrated, presets=["removal"])
         assert len(meta) == 3
@@ -154,7 +161,7 @@ class TestPrecomputeMetadata:
         assert meta[1].is_land is False
         assert meta[1].library_effect in (LibraryEffect.NONE, LibraryEffect.REORDER)
 
-        # Doom Blade — matches the removal preset.
+        # Murder — matches the removal preset (structural: `removal` key).
         assert meta[2].is_land is False
         assert meta[2].library_effect == LibraryEffect.NONE
         assert "removal" in meta[2].archetype_matches

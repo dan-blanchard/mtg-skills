@@ -562,6 +562,44 @@ def cube_hydrated(sample_bulk_data: Path, cube_bulk_data: Path) -> list[dict]:
     return [*deck_cards, *cube_cards]
 
 
+# Cards ``cube_hydrated`` carries with a FAKE ``oracle_id`` (``orc-bolt`` etc.)
+# whose real production oracle_id the ``removal`` structural-view preset
+# (task #86 — the last regex-bearing built-in preset, flipped) needs to
+# resolve anything. Swapped in by ``cube_hydrated_real_removal`` below.
+_REAL_OID_OVERRIDES = (
+    "Lightning Bolt",
+    "Swords to Plowshares",
+    "Counterspell",
+    "Deadly Rollick",
+    "Fire // Ice",
+)
+
+
+@pytest.fixture
+def cube_hydrated_real_removal(cube_hydrated: list[dict]) -> list[dict]:
+    """``cube_hydrated`` with a few cards' synthetic ``oracle_id`` swapped for
+    their REAL production ``oracle_id`` (and the crosswalk trees pre-seeded
+    from the committed testkit snapshot — no phase cache / network needed).
+
+    Only for tests that exercise the (now structural-view) ``removal``
+    preset, which — like every other ``signal_keys``-bearing preset — never
+    matches a card whose ``oracle_id`` doesn't resolve against the crosswalk
+    (see ``theme_presets.py``'s "Structural views" module-docstring section).
+    Every other ``cube_hydrated`` consumer is unaffected: this is a NEW
+    fixture, not a mutation of the shared one.
+    """
+    from mtg_utils import testkit
+
+    by_name = {c["name"]: c for c in cube_hydrated}
+    for name in _REAL_OID_OVERRIDES:
+        card = by_name.get(name)
+        if card is None:
+            continue
+        testkit.test_card_ir(name)  # seeds the crosswalk trees memo
+        card["oracle_id"] = testkit.test_card(name)["oracle_id"]
+    return cube_hydrated
+
+
 @pytest.fixture
 def sample_cube_json() -> dict:
     """Small cube JSON with a spread of colors, types, and rarities."""
