@@ -19,7 +19,7 @@ from mtg_utils._deck_forge.signals import (
     Signal,
     extract_signals,
 )
-from mtg_utils.testkit import test_card, test_card_ir
+from mtg_utils.testkit import test_card, test_card_ir, test_signals
 
 
 def _sig(key, scope="you"):
@@ -7529,3 +7529,37 @@ def test_activated_ability_serves_haste_granters_and_untap_enablers():
         "oracle_text": "Haste",
     }
     assert _lane_covers(goblin, sig) is False
+
+
+def test_chaos_warp_no_longer_serves_a_you_scoped_cheat_spec():
+    """task #91 flagship consumer check: Chaos Warp's cheat_into_play
+    beneficiary is the shuffled permanent's OWNER (CR 108.3), not the
+    caster — so its signal identity must stop matching a "you"-scoped
+    cheat build-around's own identity (``signals.py``'s ``support`` lookup
+    and ``engine.avenues``'s ``f"engine:{key}:{scope}"`` avenue id both key
+    off the exact ``(key, scope, subject)`` ident) and instead carry the
+    scope-'any' ident a target-dependent beneficiary needs.
+
+    Production ``test_signals`` (the real ``extract_signals_hybrid`` over
+    the committed snapshot) never emits ``('cheat_into_play', 'you', '')``
+    for Chaos Warp any more; ``spec_for`` on its actual ``('cheat_into_play',
+    'any', '')`` signal still resolves a real spec via the (key, "any") /
+    by-key fallback (the fix changes WHICH scope key is stamped — and thus
+    which avenue id a "you"-scoped cheat commander's support lookup would
+    match — never drops the avenue outright)."""
+    sigs = test_signals("Chaos Warp")
+    idents = {(s.key, s.scope) for s in sigs}
+    assert ("cheat_into_play", "you") not in idents
+    assert ("cheat_into_play", "any") in idents
+    any_sig = next(s for s in sigs if s.key == "cheat_into_play")
+    you_sig = _sig("cheat_into_play", "you")
+    assert spec_for(any_sig) is not None
+    # A "you"-scoped cheat commander's identity no longer matches Chaos
+    # Warp's own ident — the exact support-lookup key a "cheat things into
+    # play for YOURSELF" build-around's synergy check uses.
+    assert (any_sig.key, any_sig.scope, any_sig.subject) != (
+        you_sig.key,
+        you_sig.scope,
+        you_sig.subject,
+    )
+    assert f"engine:{any_sig.key}:{any_sig.scope}" == "engine:cheat_into_play:any"

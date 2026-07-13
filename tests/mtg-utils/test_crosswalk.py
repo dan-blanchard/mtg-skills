@@ -8707,8 +8707,14 @@ def test_cheat_into_play_target_matches_filter_reveal_arm():
     the battlefield." Corpus census: every other commander-legal
     ``TargetMatchesFilter`` hit on a reveal-producing unit is this exact
     idiom (Aid from the Cowl, Skirk Drill Sergeant, N'Yami-Class Mother
-    Ship, Bison Whistle). CR 400.7."""
-    assert ("cheat_into_play", "you", "") in _idents("Chaos Warp")
+    Ship, Bison Whistle). CR 400.7.
+
+    task #91 — scope "any", not "you": "The owner of target permanent
+    shuffles it into their library, then reveals..., they put it onto the
+    battlefield" benefits the OWNER of the shuffled permanent (usually an
+    opponent), not the caster — CR 108.3. The OTHER named cards above keep
+    scope "you" (no ParentTargetOwner recipient in their chain)."""
+    assert ("cheat_into_play", "any", "") in _idents("Chaos Warp")
 
 
 def test_cheat_into_play_excludes_dies_recursion_chain_order():
@@ -16084,3 +16090,111 @@ def test_task85_removal_qualified_destroy_bridge_backreference_shed():
     reason — Rancid Earth stays a pure ``land_destruction``-family card via
     ``mass_removal``'s Threshold-mode DamageAll arm, never ``removal``."""
     assert "removal" not in _keys("Rancid Earth")
+
+
+# ── task #91: ParentTargetOwner beneficiary-scope pass (CR 108.3) ────────────
+#
+# Some lanes stamped a chain's whole-card DOER scope "you" even when the
+# actual resource lands with the OWNER of an earlier-targeted permanent, not
+# the caster — "The owner of target permanent shuffles it into their
+# library, then [reveals/draws/exiles/discovers]..." always chains its
+# pronouns back to "the owner", never "you" (CR 108.3). Corpus-verified
+# (2026-07, every commander-legal unit carrying a ParentTargetOwner
+# recipient): these seven cards are the ONLY ones affected — every other
+# ParentTargetOwner hit is either a "shuffle THIS card into its own owner's
+# library" tuck-cycle (no lane reads it for scope at all) or a SelfRef-
+# anchored "its owner" whose owner never varies with a target (Yes Man,
+# Personal Securitron; Oft-Nabbed Goat — correctly untouched, no override
+# fires for them).
+
+
+def test_card_draw_engine_scopes_target_owner_beneficiary_any():
+    """Oblation's "The owner of target nonland permanent shuffles it into
+    their library, then draws two cards" — the target filter names no
+    owner constraint, so the drawer could be YOU or an opponent (CR
+    108.3/601.2c). Scope "any", not "you"."""
+    assert ("card_draw_engine", "any", "") in _idents("Oblation")
+
+
+def test_card_draw_engine_scopes_target_owner_beneficiary_opponents():
+    """Deadly Cover-Up's chain roots at "exile a card from an OPPONENT's
+    graveyard" (an ``Owned: Opponent`` filter) — the SAME ``ParentTargetOwner``
+    "That player shuffles, then draws" is thus ALWAYS an opponent, never
+    "any". Scope "opponents", not "you"."""
+    assert ("card_draw_engine", "opponents", "") in _idents("Deadly Cover-Up")
+
+
+def test_draw_for_each_scopes_target_owner_beneficiary_opponents():
+    """Deadly Cover-Up's scaling draw ("draws a card for each card exiled
+    from their hand this way") shares the SAME opponent-constrained root
+    target as its card_draw_engine ident above. Scope "opponents"."""
+    assert ("draw_for_each", "opponents", "") in _idents("Deadly Cover-Up")
+
+
+def test_discover_makers_scopes_target_owner_beneficiary_any():
+    """Zoyowa's Justice's "The owner of target artifact or creature...
+    shuffles it into their library. Then that player discovers X" targets
+    an unconstrained artifact-or-creature filter — the discoverer could be
+    YOU or an opponent (CR 108.3/701.57). Scope "any", not "you"."""
+    assert ("discover_makers", "any", "") in _idents("Zoyowa's Justice")
+
+
+def test_free_cast_scopes_target_owner_beneficiary_any():
+    """Audacious Swap's "The owner of target nonenchantment permanent
+    shuffles it into their library, then exiles the top card...Otherwise,
+    they may cast it without paying its mana cost" — every "they" chains
+    back to "the owner", never the caster (CR 108.3/601.2b). Scope "any",
+    not "you". Gated on a same-unit ``CastFromZone`` (reached only via a
+    deep node scan — it lives on an ``else_ability`` branch, off the linear
+    ``sub_ability`` chain ``unit.effects`` walks) beside a
+    ``ParentTargetOwner`` recipient; every OTHER free_cast card (Beseech
+    the Mirror, As Foretold, Jodah) keeps its plain "you"."""
+    assert ("free_cast", "any", "") in _idents("Audacious Swap")
+    assert ("free_cast", "you", "") in _idents("Beseech the Mirror")
+
+
+def test_lifegain_makers_scopes_target_owner_beneficiary_any():
+    """Path of Peace / Misfortune's Gain: "Destroy target creature. Its
+    owner gains 4 life." targets an unconstrained "target creature" — the
+    gainer could be YOU or an opponent (CR 108.3). Scope "any", not "you"."""
+    assert ("lifegain_makers", "any", "") in _idents("Path of Peace")
+    assert ("lifegain_makers", "any", "") in _idents("Misfortune's Gain")
+
+
+def test_cheat_from_top_scopes_target_owner_beneficiary_any():
+    """Chaos Warp's oracle coincidentally ALSO matches the cheat_from_top
+    LOW-conf byte-mirror (a bare "reveals the top card...onto the
+    battlefield" regex pair, no per-card structural check, fired ONLY by
+    :func:`apply_membership_floor` — the merge-level pass; the plain
+    ``_idents`` call never runs the floor) — the SAME ParentTargetOwner
+    beneficiary override :func:`_cheat_into_play`'s structural arm reads
+    for it applies here too. Scope "any", not "you"."""
+    from mtg_utils._deck_forge.crosswalk_signals import apply_membership_floor
+
+    assert "cheat_from_top" not in _keys("Chaos Warp")
+    record = {
+        "name": "Chaos Warp",
+        "oracle_text": (
+            "The owner of target permanent shuffles it into their library, "
+            "then reveals the top card of their library. If it's a "
+            "permanent card, they put it onto the battlefield."
+        ),
+        "cmc": 3,
+        "keywords": [],
+    }
+    out = []
+    apply_membership_floor([_tree("Chaos Warp")], record, out, out.append)
+    floor_sigs = [s for s in out if s.key == "cheat_from_top"]
+    assert floor_sigs, "expected the cheat_from_top LOW-conf byte-mirror"
+    assert all(s.scope == "any" for s in floor_sigs)
+
+
+def test_target_owner_beneficiary_scope_stays_you_for_selfref_owner():
+    """Negative pin: a ParentTargetOwner recipient whose unit has NO
+    earlier real target filter (a SelfRef-anchored "its owner" — the
+    object IS the analyzed card itself, whose owner never varies with a
+    target) must NOT be swept into the override. Yes Man, Personal
+    Securitron's stolen-creature-leaves-battlefield token grant and
+    Oft-Nabbed Goat's own dies-trigger draw both keep scope "you"."""
+    assert ("token_maker", "you", "Soldier") in _idents("Yes Man, Personal Securitron")
+    assert ("card_draw_engine", "you", "") in _idents("Oft-Nabbed Goat")

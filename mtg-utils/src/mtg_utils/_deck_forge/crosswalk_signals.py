@@ -2979,10 +2979,26 @@ def _lifegain_makers(tree: ConceptTree) -> list[Signal]:
     opponent-benefit GainLife, never this deck's own life-gain source, and
     is excluded — corpus-verified as the only two opponent-reaching shapes
     among 1724 GainLife nodes commander-wide. CR 119.3 / 603.6.
+
+    task #91 — "any" when the gainer is the OWNER of an earlier-targeted
+    permanent (:func:`_target_owner_beneficiary_scope`, CR 108.3): Path of
+    Peace / Misfortune's Gain's "Destroy target creature. Its owner gains 4
+    life." target an UNCONSTRAINED "target creature" — the gainer could be
+    YOU or an opponent, never the caster unconditionally. Iterates
+    ``tree.units`` (not the whole-card ``tree.effect_concepts`` this arm
+    used before) so the SAME unit is available for the root-filter read;
+    the iteration order is identical (:meth:`ConceptTree.effect_concepts`
+    itself walks ``self.units`` in order), so membership is unchanged.
     """
-    for c in tree.effect_concepts("gain_life"):
-        if c.scope in ("you", "any"):
-            return [Signal("lifegain_makers", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for c in unit.effect_concepts("gain_life"):
+            if c.scope in ("you", "any"):
+                scope = "you"
+                if recipient_tag(c.node) == "ParentTargetOwner":
+                    override = _target_owner_beneficiary_scope(unit)
+                    if override is not None:
+                        scope = override
+                return [Signal("lifegain_makers", scope, "", c.raw, tree.name, "high")]
     for unit in tree.units:
         for c in unit.statics:
             if (
@@ -6572,11 +6588,38 @@ def _free_cast(tree: ConceptTree) -> list[Signal]:
     Re-measured (ADR-0039 W8, commander-legal, dedupe oracle_id): both ==
     328, regex_only == 0, ir_only == 0 — byte-identical (the per-face union
     over ``trees_for`` reproduces the legacy joined-oracle DFC recall
-    without any extra DFC-specific logic). Scope "you".
+    without any extra DFC-specific logic). Scope "you"; task #91 — "any"
+    when the free cast is the OWNER of an earlier-targeted permanent
+    (:func:`_target_owner_beneficiary_scope` — Audacious Swap's "The owner
+    of target nonenchantment permanent shuffles it into their library, then
+    exiles the top card...Otherwise, they may cast it without paying its
+    mana cost": every "they" in the sentence chains back to "the owner",
+    never the caster, CR 108.3/601.2b). Gated narrowly on a same-unit
+    ``CastFromZone`` beside a ``ParentTargetOwner`` recipient — the ONLY
+    commander-legal free_cast card carrying that pairing (corpus-verified,
+    2026-07); every other free_cast hit keeps its plain "you" (the caster's
+    OWN free cast — Beseech the Mirror, As Foretold, Jodah).
     """
-    if _FREE_CAST_KEPT_RX.search(_kept(tree)):
-        return [Signal("free_cast", "you", "", "", tree.name, "high")]
-    return []
+    if not _FREE_CAST_KEPT_RX.search(_kept(tree)):
+        return []
+    scope = "you"
+    for unit in tree.units:
+        # Audacious Swap's ``CastFromZone`` lives on an ``else_ability``
+        # branch (the "Otherwise, they may cast it" fork off the land-put
+        # arm), never on the linear ``sub_ability`` chain ``unit.effects``
+        # walks — a deep node scan is needed to reach it.
+        has_cast_from_zone = any(
+            tag_of(n) == "CastFromZone" for n in iter_typed_nodes(unit.node)
+        )
+        has_owner_recipient = any(
+            recipient_tag(c.node) == "ParentTargetOwner" for c in unit.effects
+        )
+        if has_cast_from_zone and has_owner_recipient:
+            override = _target_owner_beneficiary_scope(unit)
+            if override is not None:
+                scope = override
+            break
+    return [Signal("free_cast", scope, "", "", tree.name, "high")]
 
 
 # ADR-0038 W5 tails — the narrow gap-marker text fallback inside
@@ -9482,6 +9525,110 @@ def _sac_actor_scope(
     return None
 
 
+# task #91 — the ParentTargetOwner beneficiary-scope helper (CR 108.3). Some
+# lanes stamp a chain's whole-card DOER scope "you" even when the actual
+# resource lands with the OWNER of an EARLIER-targeted permanent/card, not
+# the caster: "The owner of target permanent shuffles it into their
+# library, then reveals..., they put it onto the battlefield" (Chaos Warp),
+# "...shuffles it into their library, then draws two cards" (Oblation),
+# "...shuffles it into their library, then exiles the top card...they may
+# cast it" (Audacious Swap), "...shuffles it into their library. Then that
+# player discovers X" (Zoyowa's Justice), "search its owner's graveyard,
+# hand, and library...That player shuffles, then draws" (Deadly Cover-Up).
+# :func:`_root_target_filter` finds the chain's real, single-object CHOICE
+# (never a mass/symmetric effect's filter, and never a back-reference tag)
+# that ``ParentTarget``/``ParentTargetOwner`` resolve through;
+# :func:`_target_owner_beneficiary_scope` maps its ownership constraint to a
+# lane scope: 'opponents' when the filter itself names ``Owned: Opponent``
+# (Deadly Cover-Up's "a card from an OPPONENT's graveyard" — the beneficiary
+# is ALWAYS an opponent), else 'any' (Chaos Warp/Oblation/Audacious Swap/
+# Zoyowa's Justice's unconstrained "target permanent"/"target nonland
+# permanent"/"target artifact or creature" can be YOURS or an opponent's —
+# the beneficiary follows whoever you chose to target).
+#
+# A unit with NO real root filter returns ``None`` — the caller keeps its
+# default scope, since a SelfRef-anchored "its owner" names an object whose
+# owner never varies with a target at all (Yes Man, Personal Securitron's
+# stolen-creature-leaves-battlefield token grant; Oft-Nabbed Goat's own
+# dies-trigger draw) — the object IS the analyzed card itself, whose owner
+# is definitionally the deckbuilder ("you"), not a variable target's owner.
+# Corpus-verified (2026-07, every commander-legal unit carrying a
+# ParentTargetOwner recipient, 63 cards): the ONLY units with BOTH a
+# ParentTargetOwner recipient AND a real root target filter are the five
+# named cards above plus Path of Peace / Misfortune's Gain ("Destroy target
+# creature. Its owner gains 4 life." — lifegain_makers, also fixed here) and
+# Pharika / Funeral Pyre ("Exile target card from a graveyard. Its owner
+# creates a token." — token_maker's OWN membership gate is scope-coupled
+# [``concept.scope not in _YOU_EACH``], so correcting its scope would DROP
+# these two from the lane's membership — a membership change, out of scope
+# for #91; deferred, not fixed, evidence in the task report). Every other
+# hit is a "shuffle THIS card into its own owner's library" tuck-cycle
+# (Beacon of Immortality, Blitz Hellion, Cerulean Sphinx, …) whose ONLY
+# ParentTargetOwner-tagged effect is an ``Shuffle``/``other`` concept no
+# lane reads for scope at all — genuinely no bug, nothing to fix.
+_MASS_EFFECT_TAGS: frozenset[str] = frozenset(
+    {"DestroyAll", "ChangeZoneAll", "PutCounterAll", "DamageAll", "DamageEachPlayer"}
+)
+_TARGET_OWNER_BACKREF_TAGS: frozenset[str] = frozenset(
+    {
+        "ParentTarget",
+        "ParentTargetOwner",
+        "ParentTargetController",
+        "SelfRef",
+        "TriggeringSource",
+        "TriggeringPlayer",
+        "TrackedSet",
+        "TrackedSetFiltered",
+        "Any",
+        "Controller",
+        "OriginalController",
+        "Player",
+        "TargetPlayer",
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "ScopedPlayer",
+        "AllPlayers",
+        "Each",
+        "EachPlayer",
+    }
+)
+
+
+def _root_target_filter(unit: AbilityUnit) -> object | None:
+    """The FIRST real object-filter target in ``unit``'s effect chain — the
+    object ``ParentTarget``/``ParentTargetOwner`` resolve through — skipping
+    a mass/symmetric effect (:data:`_MASS_EFFECT_TAGS`, CR 601.2c: "all"/
+    "each" names no single chosen object, so a later back-reference in the
+    SAME chain can't mean IT) and any back-reference tag
+    (:data:`_TARGET_OWNER_BACKREF_TAGS`). ``None`` when no unit effect names
+    a genuine filter (Or/And/Typed) — a self-referencing chain (Mirror-Mad
+    Phantasm's "this creature's owner shuffles IT into their library" — the
+    SAME card, never a variable target)."""
+    for c in unit.effects:
+        if tag_of(c.node) in _MASS_EFFECT_TAGS:
+            continue
+        tgt = getattr(c.node, "target", None)
+        if tgt is None:
+            continue
+        tt = tag_of(tgt)
+        if tt is None or tt in _TARGET_OWNER_BACKREF_TAGS:
+            continue
+        return tgt
+    return None
+
+
+def _target_owner_beneficiary_scope(unit: AbilityUnit) -> str | None:
+    """'opponents' when the root target filter constrains ownership to an
+    opponent (``Owned: Opponent``), 'any' when it names no owner constraint
+    at all, ``None`` (no override — the caller keeps its default scope) when
+    :func:`_root_target_filter` finds no real target."""
+    filt = _root_target_filter(unit)
+    if filt is None:
+        return None
+    return "opponents" if filter_owned_controller(filt) == "Opponent" else "any"
+
+
 def _edict_makers(tree: ConceptTree) -> list[Signal]:
     """edict_makers — a FORCED player sacrifice (CR 701.21a / 800.4a). The INVERSE of
     the ``sacrifice_outlets`` you-sac gate. Two structural tells, each reading the
@@ -10389,9 +10536,26 @@ def _discover_makers(tree: ConceptTree) -> list[Signal]:
     no-node gap, ALSO emitting the real "discover" concept, so this single
     structural read covers both without a marker special-case. A discover-
     PAYOFF trigger with no ``Discover`` effect is a separate lane (out of
-    batch). Scope "you".
+    batch). Scope "you"; task #91 — "any" when the discoverer is the OWNER
+    of an earlier-targeted permanent (:func:`_target_owner_beneficiary_scope`
+    — Zoyowa's Justice's "The owner of target artifact or creature...
+    shuffles it into their library. Then that player discovers X": the
+    target is unconstrained, so the discoverer could be YOU or an opponent,
+    CR 108.3). Unrolled from :func:`_whole_card_maker` (rather than widening
+    that shared helper's scope parameter for every OTHER caller — venture/
+    amass/incubate/dice/facedown/day-night/phasing all stay a bare "you")
+    but preserves its exact first-hit-wins iteration order (whole-card,
+    units in order), so membership is unchanged.
     """
-    return _whole_card_maker(tree, "discover", "discover_makers", "you")
+    for unit in tree.units:
+        for c in unit.effect_concepts("discover"):
+            scope = "you"
+            if recipient_tag(c.node) == "ParentTargetOwner":
+                override = _target_owner_beneficiary_scope(unit)
+                if override is not None:
+                    scope = override
+            return [Signal("discover_makers", scope, "", c.raw, tree.name, "high")]
+    return []
 
 
 def _daynight_makers(tree: ConceptTree) -> list[Signal]:
@@ -13023,7 +13187,17 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         for c in unit.effect_concepts("draw"):
             if scaling(c.node, unit.node):
-                return [Signal("draw_for_each", "you", "", c.raw, tree.name, "high")]
+                # task #91 — Deadly Cover-Up's scaling draw recipient is the
+                # OWNER of the earlier-exiled opponent-graveyard card
+                # (:func:`_target_owner_beneficiary_scope`, CR 108.3): the
+                # root filter's ``Owned: Opponent`` constraint makes the
+                # drawer ALWAYS an opponent, never "you".
+                scope = "you"
+                if recipient_tag(c.node) == "ParentTargetOwner":
+                    override = _target_owner_beneficiary_scope(unit)
+                    if override is not None:
+                        scope = override
+                return [Signal("draw_for_each", scope, "", c.raw, tree.name, "high")]
         for n in iter_typed_nodes(unit.node):
             if tag_of(n) not in _GRANT_ABILITY_MOD_TAGS:
                 continue
@@ -14390,6 +14564,25 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                     tgt_tag == "TriggeringSource" and turn_face_up_precedes
                 ):
                     continue
+                # task #91 — Chaos Warp's put rides THIS exact branch (a
+                # reveal_top producer + a TargetMatchesFilter condition,
+                # below): "The owner of target permanent shuffles it into
+                # their library, then reveals the top card...they put it
+                # onto the battlefield" — the beneficiary is the OWNER of
+                # the shuffled permanent, not the caster
+                # (:func:`_target_owner_beneficiary_scope`, CR 108.3). Gated
+                # on a same-unit ``ParentTargetOwner`` recipient (the
+                # Shuffle/RevealTop siblings) — corpus-verified the ONLY
+                # commander-legal card reaching this branch with that
+                # pairing; every other named card here (Aid from the Cowl,
+                # Call of the Wild, Clone Shell, Polymorph, …) keeps "you".
+                cheat_scope = "you"
+                if any(
+                    recipient_tag(c2.node) == "ParentTargetOwner" for c2 in unit.effects
+                ):
+                    override = _target_owner_beneficiary_scope(unit)
+                    if override is not None:
+                        cheat_scope = override
                 # ADR-0038 W5 tails — ``ExileFromTopUntil`` (phase's mutate
                 # "exile cards from the top of your library until you
                 # exile a [type] card" idiom — Illuna, Apex of Wishes'
@@ -14415,7 +14608,9 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                         )
                 if until_types and not until_types <= {"Land"}:
                     return [
-                        Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")
+                        Signal(
+                            "cheat_into_play", cheat_scope, "", c.raw, tree.name, "high"
+                        )
                     ]
                 found_condition_evidence = False
                 for cond in iter_condition_sites(unit.node):
@@ -14430,7 +14625,9 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                     if not types or types <= {"Land"}:
                         continue  # no type evidence / a land put — never guess
                     return [
-                        Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")
+                        Signal(
+                            "cheat_into_play", cheat_scope, "", c.raw, tree.name, "high"
+                        )
                     ]
                 # ADR-0038 W6 endgame — when the chain carries NO type-
                 # checking condition at all (Whiskervale Forerunner's
@@ -15492,13 +15689,23 @@ def _draw_engine_scope(unit: AbilityUnit, c: ConceptNode) -> str:
     """The card_draw_engine scope: "each" when the draw reaches every player
     (an each-player Phase trigger's ``ScopedPlayer`` — Howling Mine; an
     explicit each-player recipient; a ``player_scope: All`` wrapper — Temple
-    Bell), else "you"."""
+    Bell); task #91 — "any"/"opponents" when the recipient is the OWNER of
+    an earlier-targeted permanent (:func:`_target_owner_beneficiary_scope` —
+    Oblation's "The owner of target nonland permanent...then draws two
+    cards": the target is unconstrained, so the drawer could be YOU or an
+    opponent, 'any'; Deadly Cover-Up's search-and-exile chain constrains the
+    root target to ``Owned: Opponent``, so the drawer is ALWAYS an opponent,
+    'opponents' — CR 108.3); else "you"."""
     if recipient_tag(c.node) == "ScopedPlayer":
         return "each"
     if recipient_tag(c.node) in _EACH_DRAW_RECIPIENTS:
         return "each"
     if effect_owner_player_scope(unit.node, c.node) == "All":
         return "each"
+    if recipient_tag(c.node) == "ParentTargetOwner":
+        override = _target_owner_beneficiary_scope(unit)
+        if override is not None:
+            return override
     return "you"
 
 
@@ -25367,6 +25574,34 @@ def apply_membership_floor(
     def _add_floor(
         key: str, scope: str, subject: str, raw: str, conf: str = "high"
     ) -> None:
+        # task #91 — cheat_from_top's LOW-conf byte-mirror (below) fires off
+        # a bare "reveals the top card...onto the battlefield" oracle-regex
+        # pair with no per-card structural check at all, so it can't tell
+        # Vaevictis/Hans Eriksson/Lurking Predators's OWN-library reveal
+        # (the mirror's intended target: a commander recursion engine, scope
+        # "you") from Chaos Warp's "The owner of target permanent...reveals
+        # the top card of THEIR library...they put it onto the battlefield"
+        # (the SAME ParentTargetOwner beneficiary shape
+        # :func:`_cheat_into_play`'s structural arm reads for it — the
+        # target's owner benefits, not the caster, CR 108.3). Corpus-
+        # verified: Chaos Warp is the ONLY commander-legal card whose tree
+        # carries a ParentTargetOwner recipient AND fires this LOW-conf
+        # mirror.
+        if key == "cheat_from_top" and scope == "you":
+            for tree in trees:
+                for unit in tree.units:
+                    if not any(
+                        recipient_tag(c.node) == "ParentTargetOwner"
+                        for c in unit.effects
+                    ):
+                        continue
+                    override = _target_owner_beneficiary_scope(unit)
+                    if override is not None:
+                        scope = override
+                        break
+                else:
+                    continue
+                break
         add(Signal(key, scope, subject, raw, name, conf))
 
     for tree in trees:
