@@ -382,3 +382,32 @@ def test_dfc_floor_sheoldred_gains_kill_engine():
     whole-card level instead (CR 701.8a)."""
     sigs = test_signals("Sheoldred // The True Scriptures")
     assert any(s.key == "kill_engine" for s in sigs)
+
+
+# ── task #83 chunk A ride-along — the has_other_plan voltron silence ─────────
+
+
+def test_voltron_commander_damage_tell_silenced_by_mass_removal_plan(
+    monkeypatch,
+):
+    """Cataclysmic Gearhulk: the ONE ride-along signal loss in the task #83
+    lane-fix commit (51bdab5c). Its ETB sweep ("each player chooses ... then
+    sacrifices the rest") is a ``ChooseAndSacrificeRest`` node the new
+    mass_removal arm now reads — and mass_removal is NOT in
+    ``_signals_ir._VOLTRON_HAS_OTHER_PLAN_COMPAT``, so the low-confidence
+    "commander damage (CR 903.10a)" voltron fallback's has_other_plan guard
+    correctly silences: a board-wipe engine IS another plan, so the card is
+    not a pure single-threat beater. Verified non-vacuous against the
+    pre-51bdab5c revision: under this EXACT bulk shape (power/toughness +
+    Vigilance threaded) the fallback fired there and must not fire now. The
+    silence parallels the step-6 commander-damage sheds
+    (``test_voltron_matters_sheds_commander_damage_fallback`` lineage) —
+    membership loss adjudicated correct, not a regression."""
+    built = _floor_case_for("Cataclysmic Gearhulk")
+    if built is None:
+        pytest.skip("Cataclysmic Gearhulk fixture record drifts")
+    bulk, tree = built
+    bulk = dict(bulk, power="4", toughness="5", keywords=["Vigilance"])
+    idents = _hybrid_idents(monkeypatch, bulk, tree, include=True)
+    assert ("mass_removal", "you", "") in idents
+    assert ("voltron_matters", "you", "") not in idents
